@@ -261,6 +261,15 @@ const S={
 this.s('prg',INIT.programa);this.s('hh',INIT.tarifaHH);this.s('hist',[]);}
   if((this.g('reg')||[]).length<INIT.registros.length||!this.g('reg_v2')){{this.s('reg',INIT.registros);this.s('reg_v2',true);}
   if(!this.g('eq_v8')){this.s('eq',INIT.equipos);this.s('eq_v8',true);}
+  if(!this.g('eq_v9')){
+    // Actualizar horómetros reales de camionetas y bus (julio 2026)
+    var eqAct=this.g('eq')||[];
+    var hUpd={'CA-9927':67305,'CA-6146':55581,'CA-5979':114681,'CA-10505':2500,'CA-10506':2560,'BS-5752':409000};
+    var changed=false;
+    eqAct.forEach(function(e){if(hUpd[e.sigla]!==undefined&&e.horomActual!==hUpd[e.sigla]){e.horomActual=hUpd[e.sigla];e.fechaHorom='2026-07-07';changed=true;}});
+    if(changed)this.s('eq',eqAct);
+    this.s('eq_v9',true);
+  }
   if(INIT.historial&&!this.g('hist_v6')){this.s('hist',INIT.historial);this.s('hist_v6',true);}}
   if(!this.g('ot'))this.s('ot',[]);
   if(!this.g('neu'))this.s('neu',INIT.neumaticos||[]);
@@ -1019,12 +1028,12 @@ window.importarEquiposNuevos=function(){
   var nuevos=[
     {sigla:'CN-10159',tipo:'Camion',   modelo:'Komatsu HD-785-7',      numSerie:'37003',          patente:'VTHY-87',   anioFab:'2026',proveedor:'Besalco',unidad:'hr', hrsDia:16,  horomActual:805,   fechaHorom:hoy,frecPM:250,  horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
     {sigla:'CN-10160',tipo:'Camion',   modelo:'Komatsu HD-785-7',      numSerie:'37005',          patente:'VTWV-72',   anioFab:'2026',proveedor:'Besalco',unidad:'hr', hrsDia:16,  horomActual:0,     fechaHorom:hoy,frecPM:250,  horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
-    {sigla:'CA-9927', tipo:'Camioneta',modelo:'Great Wall POER 4x4 MT',numSerie:'GW4D20M24597014416',patente:'TRDD-27',anioFab:'2024',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:0,     fechaHorom:hoy,frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
-    {sigla:'CA-6146', tipo:'Camioneta',modelo:'Great Wall POER 4x4 MT',numSerie:'LGWDCF197RJ620917',patente:'TJJF-80',anioFab:'2024',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:0,     fechaHorom:hoy,frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
-    {sigla:'CA-5979', tipo:'Camioneta',modelo:'Toyota Hilux',           numSerie:'8AJDB3CD4P1329122',patente:'SKKW-28',anioFab:'2023',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:65231, fechaHorom:'2025-05-12',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
-    {sigla:'CA-10505',tipo:'Camioneta',modelo:'Ford Ranger Crew DSL XL',numSerie:'8AFBR01E2SJ005215',patente:'VXBK-91',anioFab:'2026',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:0,     fechaHorom:hoy,frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
-    {sigla:'CA-10506',tipo:'Camioneta',modelo:'Ford Ranger Crew DSL XL',numSerie:'8AFBR01E4SJ005216',patente:'VXBK-90',anioFab:'2026',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:0,     fechaHorom:hoy,frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
-    {sigla:'BS-5752', tipo:'Bus',       modelo:'King Long XMQQ6130',    numSerie:'71098792',       patente:'RTGK.77-2',anioFab:'2022',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:307600,fechaHorom:'2025-05-16',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''}
+    {sigla:'CA-9927', tipo:'Camioneta',modelo:'Great Wall POER 4x4 MT',numSerie:'GW4D20M24597014416',patente:'TRDD-27',anioFab:'2024',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:67305, fechaHorom:'2026-07-07',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
+    {sigla:'CA-6146', tipo:'Camioneta',modelo:'Great Wall POER 4x4 MT',numSerie:'LGWDCF197RJ620917',patente:'TJJF-80',anioFab:'2024',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:55581, fechaHorom:'2026-07-07',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
+    {sigla:'CA-5979', tipo:'Camioneta',modelo:'Toyota Hilux',           numSerie:'8AJDB3CD4P1329122',patente:'SKKW-28',anioFab:'2023',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:114681,fechaHorom:'2026-07-07',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
+    {sigla:'CA-10505',tipo:'Camioneta',modelo:'Ford Ranger Crew DSL XL',numSerie:'8AFBR01E2SJ005215',patente:'VXBK-91',anioFab:'2026',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:2500, fechaHorom:'2026-07-07',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
+    {sigla:'CA-10506',tipo:'Camioneta',modelo:'Ford Ranger Crew DSL XL',numSerie:'8AFBR01E4SJ005216',patente:'VXBK-90',anioFab:'2026',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:2560, fechaHorom:'2026-07-07',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''},
+    {sigla:'BS-5752', tipo:'Bus',       modelo:'King Long XMQQ6130',    numSerie:'71098792',       patente:'RTGK.77-2',anioFab:'2022',proveedor:'Besalco',unidad:'km', hrsDia:0,   horomActual:409000,fechaHorom:'2026-07-07',frecPM:10000,horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''}
   ];
 
   var agregados=[];var omitidos=[];
