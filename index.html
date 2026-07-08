@@ -9255,17 +9255,181 @@ function _cargarFallbackLocal(){
     _sbCache[k]=[];
   });
 }
-document.addEventListener('DOMContentLoaded',function(){
-  if(_sbOk()){
-    window._sbLoadHeavy().then(function(ok){
-      if(!ok){_cargarFallbackLocal();toast('Sin conexion a la nube - usando datos locales');}
-      _arrancar();
-    }).catch(function(){_cargarFallbackLocal();_arrancar();});
-  } else {
-    _cargarFallbackLocal();
-    _arrancar();
+</script>
+<script>
+// ============ AUTH ============
+// Autenticación via fetch directo a Supabase REST API (sin SDK externo)
+let _currentUser = null;
+let _currentRole = null;
+
+async function _sbAuthLogin(email, password){
+  const r = await fetch(_SB_DEFAULT_URL+'/auth/v1/token?grant_type=password',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email,password})
+  });
+  return r.json();
+}
+
+async function _sbAuthSession(){
+  const token = localStorage.getItem('smp_access_token');
+  if(!token) return null;
+  const r = await fetch(_SB_DEFAULT_URL+'/auth/v1/user',{
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token}
+  });
+  if(!r.ok) return null;
+  return r.json();
+}
+
+async function _sbAuthLogout(){
+  const token = localStorage.getItem('smp_access_token');
+  if(token) await fetch(_SB_DEFAULT_URL+'/auth/v1/logout',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token}
+  }).catch(()=>{});
+  localStorage.removeItem('smp_access_token');
+  localStorage.removeItem('smp_refresh_token');
+}
+
+async function _sbGetRole(userId, accessToken){
+  const r = await fetch(_SB_DEFAULT_URL+'/rest/v1/user_roles?select=role,nombre&user_id=eq.'+userId,{
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+accessToken}
+  });
+  if(!r.ok) return null;
+  const data = await r.json();
+  return data?.[0]||null;
+}
+
+function _mostrarLoginOverlay(msg){
+  var existing = document.getElementById('loginOverlay');
+  if(existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'loginOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#0f172a;font-family:system-ui,sans-serif';
+  overlay.innerHTML =
+    '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.4)">' +
+      '<div style="text-align:center;margin-bottom:28px">' +
+        '<div style="font-size:28px;margin-bottom:8px">⚙️</div>' +
+        '<div style="font-size:18px;font-weight:700;color:#f1f5f9">SistemaMP Centinela</div>' +
+        '<div style="font-size:12px;color:#94a3b8;margin-top:4px">Besalco Minería</div>' +
+      '</div>' +
+      (msg?'<div id="li_err" style="background:#ef444420;border:1px solid #ef4444;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px;color:#ef4444">'+msg+'</div>':'<div id="li_err" style="display:none;background:#ef444420;border:1px solid #ef4444;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px;color:#ef4444"></div>') +
+      '<div style="margin-bottom:14px">' +
+        '<label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">Email</label>' +
+        '<input id="li_email" type="email" placeholder="tu@email.com" style="width:100%;padding:10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:14px;box-sizing:border-box">' +
+      '</div>' +
+      '<div style="margin-bottom:20px">' +
+        '<label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">Contraseña</label>' +
+        '<input id="li_pass" type="password" placeholder="••••••••" style="width:100%;padding:10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:14px;box-sizing:border-box">' +
+      '</div>' +
+      '<button id="li_btn" style="width:100%;padding:12px;border-radius:6px;border:none;background:#f59e0b;color:#000;font-weight:700;font-size:14px;cursor:pointer">Ingresar</button>' +
+      '<div id="li_loading" style="display:none;text-align:center;margin-top:10px;font-size:12px;color:#94a3b8">Verificando...</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('li_email').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('li_pass').focus();});
+  document.getElementById('li_pass').addEventListener('keydown',function(e){if(e.key==='Enter')_doLogin();});
+  document.getElementById('li_btn').addEventListener('click',_doLogin);
+  setTimeout(function(){document.getElementById('li_email').focus();},100);
+}
+
+function _loginError(msg){
+  var err=document.getElementById('li_err');
+  var btn=document.getElementById('li_btn');
+  var loading=document.getElementById('li_loading');
+  if(err){err.textContent=msg;err.style.display='block';}
+  if(btn)btn.disabled=false;
+  if(loading)loading.style.display='none';
+}
+
+async function _doLogin(){
+  var email=(document.getElementById('li_email')?.value||'').trim();
+  var pass=document.getElementById('li_pass')?.value||'';
+  if(!email||!pass){_loginError('Ingresa email y contraseña.');return;}
+  document.getElementById('li_btn').disabled=true;
+  document.getElementById('li_loading').style.display='block';
+  document.getElementById('li_err').style.display='none';
+  try{
+    var data = await _sbAuthLogin(email,pass);
+    if(data.error||!data.access_token){
+      _loginError('Email o contraseña incorrectos.');return;
+    }
+    localStorage.setItem('smp_access_token', data.access_token);
+    localStorage.setItem('smp_refresh_token', data.refresh_token||'');
+    _currentUser = data.user||{id:data.user_id};
+    var rol = await _sbGetRole(_currentUser.id, data.access_token);
+    _currentRole = rol?.role||'operador';
+    window._userName = rol?.nombre||email;
+    window._userRole = _currentRole;
+    var ov=document.getElementById('loginOverlay');
+    if(ov)ov.remove();
+    _aplicarRolUI();
+    _agregarUserBadge();
+  }catch(e){_loginError('Error de conexión. Intenta de nuevo.');}
+}
+
+function _logout(){
+  _sbAuthLogout().finally(function(){location.reload();});
+}
+
+function _aplicarRolUI(){
+  if(window._userRole==='admin')return;
+  document.querySelectorAll('button,a,li').forEach(function(el){
+    try{var oc=el.getAttribute('onclick')||'';if(oc.includes("nav('cfg')")||oc.includes('"cfg"'))el.style.display='none';}catch(e){}
+  });
+}
+
+function _agregarUserBadge(){
+  var old=document.getElementById('_userBadge');if(old)old.remove();
+  var badge=document.createElement('span');
+  badge.id='_userBadge';
+  badge.style.cssText='position:fixed;bottom:60px;right:16px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 12px;font-size:11px;color:#94a3b8;cursor:pointer;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+  badge.textContent='👤 '+(window._userName||'')+(window._userRole?' ('+window._userRole+')':'');
+  badge.title='Cerrar sesión';
+  badge.onclick=function(){if(confirm('¿Cerrar sesión?'))_logout();};
+  document.body.appendChild(badge);
+}
+
+// Arranque con auth
+document.addEventListener('DOMContentLoaded',async function(){
+  function _arrancarSistema(){
+    if(_sbOk()){
+      window._sbLoadHeavy().then(function(ok){
+        if(!ok){_cargarFallbackLocal();toast('Sin conexión a la nube - usando datos locales');}
+        _arrancar();
+      }).catch(function(){_cargarFallbackLocal();_arrancar();});
+    }else{_cargarFallbackLocal();_arrancar();}
   }
-});
+
+  // Si no hay token → login inmediato sin consultar Supabase
+  var _token = localStorage.getItem('smp_access_token');
+  if(!_token){
+    _arrancarSistema();
+    setTimeout(_mostrarLoginOverlay,400);
+    return;
+  }
+
+  // Hay token — verificar validez
+  try{
+    var user = await _sbAuthSession();
+    if(user && user.id){
+      _currentUser = user;
+      var rol = await _sbGetRole(user.id, _token);
+      _currentRole = rol?.role||'operador';
+      window._userName = rol?.nombre||user.email;
+      window._userRole = _currentRole;
+      _arrancarSistema();
+      setTimeout(_aplicarRolUI,600);
+      setTimeout(_agregarUserBadge,800);
+    }else{
+      localStorage.removeItem('smp_access_token');
+      localStorage.removeItem('smp_refresh_token');
+      _arrancarSistema();
+      setTimeout(_mostrarLoginOverlay,400);
+    }
+  }catch(e){
+    _arrancarSistema();
+    setTimeout(_mostrarLoginOverlay,400);
+  }
+})
 </script>
 </body>
-</html>
