@@ -399,6 +399,7 @@ function initNav(){
   $('main').innerHTML=allIds.map(id=>`<div class="sec${id==='dash'?' on':''}" id="s-${id}"></div>`).join('');
 }
 function go(id){
+  if(id==='cfg' && window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede entrar a Configuración');return;}
   currentTab=id;
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nav button:not([title])').forEach(b=>b.classList.remove('on'));
@@ -2879,6 +2880,7 @@ renders.hist=function(){
 
 // ============ GENERIC DELETE ============
 window.delRow=function(store,idx,tab){
+  if(window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede eliminar registros');return;}
   if(!confirm('¿Eliminar este registro?'))return;
   const d=S.g(store);d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('🗑️ Eliminado');
 };
@@ -8475,6 +8477,7 @@ window.edHist=function(idx,key,val){
   refreshAll();
 };
 window.delHist=function(idx){
+  if(window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede eliminar registros');return;}
   var h=S.g('hist')||[];
   if(confirm('¿Eliminar lectura de '+h[idx].sigla+' del '+h[idx].fecha+'?')){
     h.splice(idx,1);S.s('hist',h);refreshAll();
@@ -9253,8 +9256,6 @@ window.saveFicha=function(sigla){
   S.s('eq',eq);cm();refreshAll();
   toast('✅ Ficha de '+eq[idx].sigla+' actualizada');
 };
-S.init();
-
 // Add floating export bar
 document.addEventListener('DOMContentLoaded',function(){
   var bar=document.createElement('div');
@@ -9266,7 +9267,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 var _cfg=S.g('cfg')||{};if(_cfg.colorAc||_cfg.tema)applyTheme(_cfg);
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
-function _arrancar(){initNav();C.recalcAll();renders.dash();}
+function _arrancar(){S.init();initNav();C.recalcAll();renders.dash();}
 function _cargarFallbackLocal(){
   SB_HEAVY.forEach(k=>{
     if(_sbCache[k])return;
@@ -9397,7 +9398,7 @@ function _logout(){
 function _aplicarRolUI(){
   if(window._userRole==='admin')return;
   document.querySelectorAll('button,a,li').forEach(function(el){
-    try{var oc=el.getAttribute('onclick')||'';if(oc.includes("nav('cfg')")||oc.includes('"cfg"'))el.style.display='none';}catch(e){}
+    try{var oc=el.getAttribute('onclick')||'';if(oc.includes("go('cfg')"))el.style.display='none';}catch(e){}
   });
 }
 
