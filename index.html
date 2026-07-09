@@ -9281,6 +9281,7 @@ function _cargarFallbackLocal(){
 // Autenticación via fetch directo a Supabase REST API (sin SDK externo)
 let _currentUser = null;
 let _currentRole = null;
+let _refreshTimer = null;
 
 async function _sbAuthLogin(email, password){
   const r = await fetch(_SB_DEFAULT_URL+'/auth/v1/token?grant_type=password',{
@@ -9309,7 +9310,57 @@ async function _sbAuthLogout(){
   }).catch(()=>{});
   localStorage.removeItem('smp_access_token');
   localStorage.removeItem('smp_refresh_token');
+  if(_refreshTimer){clearTimeout(_refreshTimer);_refreshTimer=null;}
 }
+
+// ============ REFRESCO AUTOMÁTICO DE SESIÓN ============
+function _decodeJwtExp(token){
+  try{
+    var b64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    var payload = JSON.parse(atob(b64));
+    return payload.exp ? payload.exp*1000 : null; // ms epoch
+  }catch(e){return null;}
+}
+
+async function _sbAuthRefresh(){
+  const refreshToken = localStorage.getItem('smp_refresh_token');
+  if(!refreshToken) return false;
+  try{
+    const r = await fetch(_SB_DEFAULT_URL+'/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{'apikey':_SB_DEFAULT_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:refreshToken})
+    });
+    const data = await r.json();
+    if(!r.ok || data.error || !data.access_token) return false;
+    localStorage.setItem('smp_access_token', data.access_token);
+    localStorage.setItem('smp_refresh_token', data.refresh_token||refreshToken);
+    _programarRefreshToken(data.access_token);
+    return true;
+  }catch(e){return false;}
+}
+
+function _programarRefreshToken(accessToken){
+  if(_refreshTimer){clearTimeout(_refreshTimer);_refreshTimer=null;}
+  const expMs = _decodeJwtExp(accessToken);
+  // Refresca 5 min antes de que expire. Si no se puede leer el exp, 50 min de respaldo.
+  const delay = expMs ? Math.max(expMs - Date.now() - 5*60*1000, 0) : 50*60*1000;
+  _refreshTimer = setTimeout(_sbAuthRefresh, delay);
+}
+
+// Si el navegador pausó el timer (pestaña en segundo plano o equipo dormido),
+// al volver a primer plano se revisa el token y se refresca si hace falta.
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState!=='visible') return;
+  const token = localStorage.getItem('smp_access_token');
+  if(!token) return;
+  const expMs = _decodeJwtExp(token);
+  if(!expMs || expMs - Date.now() < 5*60*1000){
+    _sbAuthRefresh();
+  }else{
+    _programarRefreshToken(token);
+  }
+});
 
 async function _sbGetRole(userId, accessToken){
   const r = await fetch(_SB_DEFAULT_URL+'/rest/v1/user_roles?select=role,nombre&user_id=eq.'+userId,{
@@ -9375,6 +9426,7 @@ async function _doLogin(){
     }
     localStorage.setItem('smp_access_token', data.access_token);
     localStorage.setItem('smp_refresh_token', data.refresh_token||'');
+    _programarRefreshToken(data.access_token);
     _currentUser = data.user||{id:data.user_id};
     var rol = await _sbGetRole(_currentUser.id, data.access_token);
     _currentRole = rol?.role||'operador';
@@ -9421,6 +9473,17 @@ async function _accionUsuarios(payload){
     headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
     body:JSON.stringify(payload)
   });
+  if(r.status===401){
+    var refrescado = await _sbAuthRefresh();
+    if(refrescado){
+      token=localStorage.getItem('smp_access_token');
+      r=await fetch(_SB_DEFAULT_URL+'/functions/v1/crear-operador',{
+        method:'POST',
+        headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+    }
+  }
   return r.json();
 }
 
@@ -9553,12 +9616,22 @@ document.addEventListener('DOMContentLoaded',async function(){
   // Hay token — verificar validez
   try{
     var user = await _sbAuthSession();
+    if(!user || !user.id){
+      // El access_token venció o no es válido: intenta refrescar con el refresh_token
+      // antes de forzar un login nuevo (evita pedir clave solo porque pasó la hora).
+      var refrescado = await _sbAuthRefresh();
+      if(refrescado){
+        _token = localStorage.getItem('smp_access_token');
+        user = await _sbAuthSession();
+      }
+    }
     if(user && user.id){
       _currentUser = user;
       var rol = await _sbGetRole(user.id, _token);
       _currentRole = rol?.role||'operador';
       window._userName = rol?.nombre||user.email;
       window._userRole = _currentRole;
+      _programarRefreshToken(_token);
       _arrancarSistema();
       if(user?.user_metadata?.must_change_password){
         setTimeout(_mostrarCambioClaveOverlay,600);
