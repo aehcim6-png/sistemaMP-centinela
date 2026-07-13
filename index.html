@@ -2968,7 +2968,7 @@ renders.ot=function(){
         otRow+='<td style="font-size:10px">'+(o.tecnico||'—')+'</td>';
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
         else{otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:10px"></td>';}
-        otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'<button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia fotográfica" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button>')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar">🗑</button></td>';
+        otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'<button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia (foto o PDF)" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button>')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar">🗑</button></td>';
         otRow+='</tr>';
         return otRow;
       }).join('')}
@@ -3287,12 +3287,16 @@ function _renderModalFotosOT(){
     '<div style="font-size:12px;color:var(--tx3);margin-bottom:10px">'+(o.sigla||'—')+' · '+(o.sintoma||'Sin síntoma registrado')+'</div>'+
     '<div id="otFotosGrid" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">'+
     (fotos.length?fotos.map(function(url,fi){
-      return '<div style="position:relative"><img src="'+url+'" style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--bor);cursor:pointer" onclick="window.open(\''+url+'\',\'_blank\')" title="Ver completa">'+
+      var esPdf=/\.pdf(\?|$)/i.test(url);
+      var mini=esPdf
+        ?'<div style="width:90px;height:90px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:6px;border:1px solid var(--bor);font-size:32px;cursor:pointer" onclick="window.open(\''+url+'\',\'_blank\')" title="Ver PDF">📄</div>'
+        :'<img src="'+url+'" style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--bor);cursor:pointer" onclick="window.open(\''+url+'\',\'_blank\')" title="Ver completa">';
+      return '<div style="position:relative">'+mini+
         '<button onclick="quitarFotoOT('+fi+')" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer">✕</button></div>';
     }).join(''):'<span style="font-size:12px;color:var(--tx3)">Sin fotos todavía</span>')+
     '</div>'+
-    '<label style="font-size:12px">Agregar fotos:</label><br>'+
-    '<input type="file" id="otFotoInput" accept="image/*" capture="environment" multiple onchange="_otFotosSeleccionadas(event)">'+
+    '<label style="font-size:12px">Agregar fotos o PDF:</label><br>'+
+    '<input type="file" id="otFotoInput" accept="image/*,application/pdf" multiple onchange="_otFotosSeleccionadas(event)">'+
     '<br><br><button class="btn btn-o" onclick="cm()">Cerrar</button>'+
   '</div>');
 }
@@ -3304,20 +3308,28 @@ window._otFotosSeleccionadas=async function(ev){
   var ot=S.g('ot')||[];
   var o=ot[idx];
   if(!o)return;
-  toast('⏳ Subiendo '+files.length+' foto(s)...');
+  toast('⏳ Subiendo '+files.length+' archivo(s)...');
   var errores=0;
   for(var i=0;i<files.length;i++){
-    var comp=await comprimirImagen(files[i]);
-    if(!comp){errores++;continue;}
+    var file=files[i];
+    var esPDF=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
     try{
-      var path='ot/'+(o.sigla||'sin-equipo')+'/'+Date.now()+'_'+i+'.jpg';
-      var url=await _subirArchivoBucket(comp.blob,path,'image/jpeg');
+      var blob,ext,contentType;
+      if(esPDF){
+        blob=file;ext='pdf';contentType='application/pdf';
+      }else{
+        var comp=await comprimirImagen(file);
+        if(!comp){errores++;continue;}
+        blob=comp.blob;ext='jpg';contentType='image/jpeg';
+      }
+      var path='ot/'+(o.sigla||'sin-equipo')+'/'+Date.now()+'_'+i+'.'+ext;
+      var url=await _subirArchivoBucket(blob,path,contentType);
       if(!o.fotos)o.fotos=[];
       o.fotos.push(url);
     }catch(err){errores++;}
   }
   S.s('ot',ot);
-  toast(errores?('⚠️ Guardadas con '+errores+' error(es)'):'✅ Fotos guardadas');
+  toast(errores?('⚠️ Guardadas con '+errores+' error(es)'):'✅ Guardado');
   _renderModalFotosOT();
   renders.ot();
 };
