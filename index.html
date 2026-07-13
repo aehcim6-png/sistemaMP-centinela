@@ -4436,6 +4436,9 @@ renders.cfg=function(){
       '<hr style="border-color:var(--bd);margin:14px 0">'+
       '<b style="font-size:13px">⏳ Pendientes de activar</b>'+
       '<div id="nuPendientes" style="margin-top:8px;font-size:12px;color:var(--tx3)">Cargando...</div>'+
+      '<hr style="border-color:var(--bd);margin:14px 0">'+
+      '<b style="font-size:13px">✅ Usuarios activos</b>'+
+      '<div id="nuActivos" style="margin-top:8px;font-size:12px;color:var(--tx3)">Cargando...</div>'+
       '</div>'
       :'')+
 
@@ -4459,7 +4462,7 @@ renders.cfg=function(){
 
       '</div>'
     );
-  if(window._userRole==='admin')setTimeout(cargarPendientesUI,50);
+  if(window._userRole==='admin'){setTimeout(cargarPendientesUI,50);setTimeout(cargarActivosUI,50);}
 }
 
 // [v10.4 cleanup] exportTodo — función muerta (0 usos) eliminada
@@ -10056,6 +10059,37 @@ window.activarUsuarioUI=async function(userId,nombre){
       '✅ '+nombre+' activado.<br>Clave temporal: <b style="font-size:14px;letter-spacing:1px">'+res.tempPassword+'</b><br>'+
       '<span style="color:var(--tx3);font-size:10px">Compártela ahora. Deberá cambiarla al ingresar por primera vez.</span></div>';
     cargarPendientesUI();
+  }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+window.cargarActivosUI=async function(){
+  var cont=document.getElementById('nuActivos');
+  if(!cont)return;
+  cont.innerHTML='Cargando...';
+  try{
+    var res=await _accionUsuarios({action:'listar_activos'});
+    if(res.error){cont.innerHTML='<span style="color:var(--danger)">❌ '+res.error+'</span>';return;}
+    var act=res.activos||[];
+    if(!act.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios activos.</span>';return;}
+    cont.innerHTML=act.map(function(u){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
+        '<span>'+u.nombre+' <span style="color:var(--tx3);font-size:10px">('+u.rol+')</span></span>'+
+        (u.userId===_currentUser?.id?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
+        '<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+u.nombre.replace(/'/g,"")+'\')">🔒 Desactivar</button>')+
+        '</div>';
+    }).join('');
+  }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+window.desactivarUsuarioUI=async function(userId,nombre){
+  if(!confirm('¿Desactivar a '+nombre+'? Perderá acceso al sistema de inmediato.'))return;
+  var out=document.getElementById('nuResultado');
+  if(out)out.innerHTML='Desactivando...';
+  try{
+    var res=await _accionUsuarios({action:'desactivar',userId:userId});
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)">❌ '+res.error+'</span>';return;}
+    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px">🔒 '+nombre+' desactivado.</div>';
+    cargarActivosUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
 
