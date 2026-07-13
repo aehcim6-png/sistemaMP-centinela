@@ -205,9 +205,47 @@ window._sbLoadHeavy=async function(){
     if(!Array.isArray(rows))return false;
     rows.forEach(row=>{try{_sbCache[row.key]=row.value;}catch{}});
     _sbReady=true;
+    // PILOTO Fase B: 'al' (alertas) ya vive en su propia tabla real, no en kv.
+    // Se sobreescribe lo que haya cargado desde kv con los datos reales de la tabla,
+    // agregando un campo oculto _id (fila real) que usa _syncTabla para editar/borrar bien.
+    try{
+      const rAl=await fetch(`${c.url}/rest/v1/alertas?select=id,sigla,repuestos&order=created_at.asc,id.asc`,{headers:_sbHeaders()});
+      if(rAl.ok){
+        const filas=await rAl.json();
+        if(Array.isArray(filas))_sbCache['al']=filas.map(f=>({_id:f.id,sigla:f.sigla,repuestos:f.repuestos}));
+      }
+    }catch{}
     return true;
   }catch{return false;}
 };
+
+// Sincroniza un arreglo completo contra una tabla real (INSERT/UPDATE/DELETE por fila,
+// no "borra todo y reinserta" — así el trigger de columnas protegidas se dispara de verdad).
+// Cada objeto trae/recibe un campo oculto _id con el id real de su fila.
+async function _syncTabla(tabla,columnas,arrNuevo,arrAnterior){
+  if(!_sbOk())return;
+  const c=_sbCfg();
+  const idsAnteriores=new Set((arrAnterior||[]).map(o=>o&&o._id).filter(Boolean));
+  const idsNuevos=new Set();
+  for(const obj of (arrNuevo||[])){
+    const body={};columnas.forEach(col=>{body[col]=obj[col]??null;});
+    if(obj._id){
+      idsNuevos.add(obj._id);
+      await fetch(`${c.url}/rest/v1/${tabla}?id=eq.${obj._id}`,{method:'PATCH',headers:_sbHeaders(),body:JSON.stringify(body)}).catch(()=>{});
+    }else{
+      try{
+        const r=await fetch(`${c.url}/rest/v1/${tabla}`,{method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'return=representation'}),body:JSON.stringify(body)});
+        const creado=await r.json();
+        if(Array.isArray(creado)&&creado[0])obj._id=creado[0].id;
+      }catch{}
+    }
+  }
+  for(const idViejo of idsAnteriores){
+    if(!idsNuevos.has(idViejo)){
+      await fetch(`${c.url}/rest/v1/${tabla}?id=eq.${idViejo}`,{method:'DELETE',headers:_sbHeaders()}).catch(()=>{});
+    }
+  }
+}
 
 // Escribe una clave en Supabase (fire-and-forget)
 // Si no hay internet: el valor ya está en localStorage, se marca pendiente para sync
@@ -263,6 +301,10 @@ const S={
     return null;
   },
   s(k,v){
+    // PILOTO Fase B: 'al' vive en su propia tabla real (ver _syncTabla), no en kv.
+    // Se captura el estado anterior ANTES de sobreescribir la cache, para poder
+    // diferenciar filas nuevas / editadas / borradas.
+    const _anteriorAl=(k==='al')?_sbCache['al']:null;
     // 1. Cache en memoria (sincrónico)
     _sbCache[k]=v;
     // 2. localStorage como cache offline
@@ -273,7 +315,11 @@ const S={
       }else{console.error('Error guardando en localStorage',k,e);}
     }
     // 3. Supabase (asíncrono, no bloquea la UI)
-    _sbWrite(k,v);
+    if(k==='al'){
+      _syncTabla('alertas',['sigla','repuestos'],v,_anteriorAl);
+    }else{
+      _sbWrite(k,v);
+    }
     if(window._autoSaveMark)window._autoSaveMark();
     return true;
   },
