@@ -5864,8 +5864,9 @@ renders.venc=function(){
     '<input type="checkbox" id="fVencAlerta" onchange="renders.venc()"'+(soloAlerta?' checked':'')+'> Solo con alerta (≤30 días)</label>'+
     '</div>'+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Tipo</th><th>Documento</th><th>Último trámite ✏️</th><th>Periodicidad (meses) ✏️</th><th>Próximo vencimiento</th><th>Estado</th><th>Obs ✏️</th></tr>'+
+    '<tr><th>Equipo</th><th>Tipo</th><th>Documento</th><th>Último trámite ✏️</th><th>Periodicidad (meses) ✏️</th><th>Próximo vencimiento</th><th>Estado</th><th>Foto</th><th>Obs ✏️</th></tr>'+
     filas.map(function(f){
+      var fotoUrl=((venc[f.sigla]||{})[f.vencTipo]||{}).foto||'';
       return '<tr style="'+(f.estado.dias!==null&&f.estado.dias<=30?'background:rgba(239,68,68,.04)':'')+'">'+
         '<td class="mono" style="color:var(--ac)">'+f.sigla+'</td>'+
         '<td style="font-size:11px;color:var(--tx3)">'+(f.tipo||'—')+'</td>'+
@@ -5874,10 +5875,58 @@ renders.venc=function(){
         '<td><input type="number" value="'+(f.periodicidad!=null?f.periodicidad:'')+'" placeholder="—" onchange="edVenc(\''+f.sigla+'\',\''+f.vencTipo+'\',\'periodicidadMeses\',this.value)" style="width:60px;background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
         '<td><input type="date" value="'+f.proxima+'" onchange="edVenc(\''+f.sigla+'\',\''+f.vencTipo+'\',\'proxima\',this.value)" style="background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
         '<td style="color:'+f.estado.color+';font-weight:600;font-size:11px">'+f.estado.label+'</td>'+
+        celdaFotoVenc(f.sigla,f.vencTipo,fotoUrl,((venc[f.sigla]||{})[f.vencTipo]||{}).fotoTipo)+
         '<td><input value="'+f.obs+'" onchange="edVenc(\''+f.sigla+'\',\''+f.vencTipo+'\',\'obs\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" placeholder="..."></td>'+
         '</tr>';
     }).join('')+
-    '</table></div>';
+    '</table></div>'+
+    '<input type="file" id="vencFotoInput" accept="image/*,application/pdf" style="display:none" onchange="_vencFotoSeleccionada(event)">';
+};
+
+function celdaFotoVenc(sigla,vencTipo,fotoUrl,fotoTipo){
+  if(fotoUrl){
+    var miniatura = fotoTipo==='pdf'
+      ? '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:4px;cursor:pointer;border:1px solid var(--bor);font-size:16px" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver PDF">📄</div>'
+      : '<img src="'+fotoUrl+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--bor)" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver foto completa">';
+    return '<td style="text-align:center;white-space:nowrap">'+miniatura+'<br>'+
+      '<a href="#" style="font-size:9px;color:var(--ac)" onclick="event.preventDefault();_vencAbrirSelector(\''+sigla+'\',\''+vencTipo+'\')">🔄 cambiar</a></td>';
+  }
+  return '<td style="text-align:center"><button class="btn-x" onclick="_vencAbrirSelector(\''+sigla+'\',\''+vencTipo+'\')" title="Subir foto o PDF del documento">📤</button></td>';
+}
+window._vencFotoTarget=null;
+window._vencAbrirSelector=function(sigla,vencTipo){
+  window._vencFotoTarget={sigla:sigla,vencTipo:vencTipo};
+  $('vencFotoInput').click();
+};
+window._vencFotoSeleccionada=async function(ev){
+  var file=ev.target.files&&ev.target.files[0];
+  var target=window._vencFotoTarget;
+  ev.target.value=''; // permite volver a elegir el mismo archivo después si hace falta
+  if(!file||!target)return;
+  var esPDF=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+  toast('⏳ Subiendo '+(esPDF?'PDF':'foto')+'...');
+  try{
+    var blob,ext,contentType;
+    if(esPDF){
+      blob=file;ext='pdf';contentType='application/pdf';
+    }else{
+      var comp=await comprimirImagen(file);
+      if(!comp)return toast('❌ No se pudo procesar la imagen');
+      blob=comp.blob;ext='jpg';contentType='image/jpeg';
+    }
+    var path='documentos/'+target.sigla+'/'+target.vencTipo.replace(/[^a-zA-Z0-9]/g,'_')+'_'+Date.now()+'.'+ext;
+    var url=await _subirArchivoBucket(blob,path,contentType);
+    var venc=S.g('venc')||{};
+    if(!venc[target.sigla])venc[target.sigla]={};
+    if(!venc[target.sigla][target.vencTipo])venc[target.sigla][target.vencTipo]={};
+    venc[target.sigla][target.vencTipo].foto=url;
+    venc[target.sigla][target.vencTipo].fotoTipo=esPDF?'pdf':'imagen';
+    S.s('venc',venc);
+    toast('✅ '+(esPDF?'PDF':'Foto')+' guardado');
+    renders.venc();
+  }catch(err){
+    toast('❌ Error subiendo: '+err.message);
+  }
 };
 
 window.edVenc=function(sigla,vencTipo,campo,val){
@@ -7812,7 +7861,7 @@ window.importCompCSV=function(){
 // ═══════════════════════════════════════════════════════════════
 // INFORMES DE FALLA CATASTRÓFICA / CAMBIO DE COMPONENTE MAYOR
 // ═══════════════════════════════════════════════════════════════
-const INFORMES_BUCKET='informes-fotos';
+const FOTOS_BUCKET='informes-fotos'; // bucket compartido: informes de falla + fotos de documentos de vencimientos
 const INFORMES_COMPS_SUGERIDOS=['Motor','Transmisión','Diferencial','Convertidor','Mandos Finales','Bomba Hidráulica','Turbo','Alternador','Motor de partida','Frenos','Dirección','Suspensión','Neumáticos','Sistema eléctrico','Cabina','Estructura','Refrigeración','Compresor A/C'];
 
 // Comprime y redimensiona una foto en el navegador antes de subirla (ahorra cuota de Storage)
@@ -7840,19 +7889,25 @@ function comprimirImagen(file){
   });
 }
 
-// Sube una foto (blob ya comprimido) al bucket de Supabase Storage y devuelve su URL pública
-async function subirFotoInforme(blob,sigla,idx){
-  var path=sigla+'/'+Date.now()+'_'+idx+'.jpg';
-  var r=await fetch(_SB_DEFAULT_URL+'/storage/v1/object/'+INFORMES_BUCKET+'/'+path,{
+// Sube un blob ya comprimido a una ruta dentro del bucket compartido y devuelve su URL pública
+async function _subirArchivoBucket(blob,path,contentType){
+  contentType=contentType||'image/jpeg';
+  var r=await fetch(_SB_DEFAULT_URL+'/storage/v1/object/'+FOTOS_BUCKET+'/'+path,{
     method:'POST',
-    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+_SB_DEFAULT_KEY,'Content-Type':'image/jpeg'},
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+_SB_DEFAULT_KEY,'Content-Type':contentType},
     body:blob
   });
   if(!r.ok){
     var errTxt=await r.text().catch(function(){return '';});
     throw new Error('HTTP '+r.status+' '+errTxt.slice(0,150));
   }
-  return _SB_DEFAULT_URL+'/storage/v1/object/public/'+INFORMES_BUCKET+'/'+path;
+  return _SB_DEFAULT_URL+'/storage/v1/object/public/'+FOTOS_BUCKET+'/'+path;
+}
+
+// Sube una foto (blob ya comprimido) al bucket de Supabase Storage y devuelve su URL pública
+async function subirFotoInforme(blob,sigla,idx){
+  var path=sigla+'/'+Date.now()+'_'+idx+'.jpg';
+  return _subirArchivoBucket(blob,path);
 }
 
 // Abre el formulario. sigla/compIdx opcionales — si vienen desde una fila de Componentes Mayores, precarga datos.
