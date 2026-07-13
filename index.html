@@ -256,55 +256,61 @@ window._sbLoadHeavy=async function(){
     rows.forEach(row=>{try{_sbCache[row.key]=row.value;}catch{}});
     _sbReady=true;
 
-    // 2. Tablas reales (Fase B): sobreescriben lo que haya cargado kv para esas claves.
+    // 2-4. Tablas reales, vencimientos y singletons: todo en paralelo (no en serie),
+    // para no sumar segundos de espera al arranque por cada tabla nueva.
+    const tareas=[];
+
     for(const k in TABLA_REAL){
       const cfg=TABLA_REAL[k];
-      try{
-        const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
-        const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc`,{headers:_sbHeaders()});
-        if(!rt.ok)continue;
-        const filas=await rt.json();
-        if(!Array.isArray(filas))continue;
-        _sbCache[k]=filas.map(function(f){
-          const obj={};
-          cfg.cols.forEach(function(col){obj[col]=f[col];});
-          if(cfg.clave==='_id')obj._id=f.id;else obj[cfg.clave]=f[cfg.claveDb];
-          return obj;
-        });
-      }catch(e){}
+      tareas.push((async function(){
+        try{
+          const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
+          const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc`,{headers:_sbHeaders()});
+          if(!rt.ok)return;
+          const filas=await rt.json();
+          if(!Array.isArray(filas))return;
+          _sbCache[k]=filas.map(function(f){
+            const obj={};
+            cfg.cols.forEach(function(col){obj[col]=f[col];});
+            if(cfg.clave==='_id')obj._id=f.id;else obj[cfg.clave]=f[cfg.claveDb];
+            return obj;
+          });
+        }catch(e){}
+      })());
     }
 
-    // 3. Vencimientos: tabla plana (sigla,vencTipo) -> objeto anidado {sigla:{vencTipo:{...}}}
-    try{
-      const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses`,{headers:_sbHeaders()});
-      if(rv.ok){
+    tareas.push((async function(){
+      try{
+        const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses`,{headers:_sbHeaders()});
+        if(!rv.ok)return;
         const filas=await rv.json();
-        if(Array.isArray(filas)){
-          const obj={};
-          filas.forEach(function(f){
-            if(!obj[f.sigla])obj[f.sigla]={};
-            obj[f.sigla][f.vencTipo]={obs:f.obs,ultima:f.ultima,proxima:f.proxima,periodicidadMeses:f.periodicidadMeses};
-          });
-          _sbCache['venc']=obj;
-        }
-      }
-    }catch(e){}
+        if(!Array.isArray(filas))return;
+        const obj={};
+        filas.forEach(function(f){
+          if(!obj[f.sigla])obj[f.sigla]={};
+          obj[f.sigla][f.vencTipo]={obs:f.obs,ultima:f.ultima,proxima:f.proxima,periodicidadMeses:f.periodicidadMeses};
+        });
+        _sbCache['venc']=obj;
+      }catch(e){}
+    })());
 
-    // 4. Singletons de configuración
     for(const k in TABLA_SINGLETON){
       const cfgS=TABLA_SINGLETON[k];
-      try{
-        const rs=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=*&limit=1`,{headers:_sbHeaders()});
-        if(!rs.ok)continue;
-        const filas=await rs.json();
-        if(!Array.isArray(filas)||!filas.length)continue;
-        const f=filas[0];
-        if(cfgS.modo==='objeto'){const obj={};cfgS.cols.forEach(function(col){obj[col]=f[col];});_sbCache[k]=obj;}
-        else if(cfgS.modo==='valor')_sbCache[k]=f.valor;
-        else _sbCache[k]=f.datos;
-      }catch(e){}
+      tareas.push((async function(){
+        try{
+          const rs=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=*&limit=1`,{headers:_sbHeaders()});
+          if(!rs.ok)return;
+          const filas=await rs.json();
+          if(!Array.isArray(filas)||!filas.length)return;
+          const f=filas[0];
+          if(cfgS.modo==='objeto'){const obj={};cfgS.cols.forEach(function(col){obj[col]=f[col];});_sbCache[k]=obj;}
+          else if(cfgS.modo==='valor')_sbCache[k]=f.valor;
+          else _sbCache[k]=f.datos;
+        }catch(e){}
+      })());
     }
 
+    await Promise.all(tareas);
     return true;
   }catch{return false;}
 };
