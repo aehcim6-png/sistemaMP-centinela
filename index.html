@@ -188,7 +188,11 @@ function _sbCfg(){
   catch{return{url:_SB_DEFAULT_URL,key:_SB_DEFAULT_KEY};}
 }
 function _sbOk(){const c=_sbCfg();return c.url.startsWith('https://')&&c.key.length>10;}
-function _sbHeaders(){const c=_sbCfg();return{'apikey':c.key,'Authorization':'Bearer '+c.key,'Content-Type':'application/json'};}
+function _sbHeaders(){
+  const c=_sbCfg();
+  const userToken=localStorage.getItem('smp_access_token');
+  return{'apikey':c.key,'Authorization':'Bearer '+(userToken||c.key),'Content-Type':'application/json'};
+}
 
 // Carga TODAS las claves desde Supabase al arrancar
 window._sbLoadHeavy=async function(){
@@ -9764,8 +9768,8 @@ function _jumpToEquipoQR(){
   if(!sigla)return;
   var eq=S.g('eq')||[];
   if(!eq.find(function(e){return e.sigla===sigla;})){
-    toast('⚠️ Equipo '+sigla+' no encontrado');
-    try{history.replaceState(null,'',location.pathname);}catch(e){}
+    // Puede que la data real todavía no cargue (ej. justo antes de terminar el login).
+    // No limpiamos la URL todavía, para poder reintentar apenas termine de loguearse.
     return;
   }
   go('buscar');
@@ -9919,6 +9923,16 @@ function _loginError(msg){
   if(loading)loading.style.display='none';
 }
 
+async function _refrescarDatosPostLogin(){
+  if(_sbOk()){
+    await window._sbLoadHeavy().catch(function(){});
+  }
+  C.recalcAll();
+  renderHeader();
+  (renders[currentTab]||renders.dash)();
+  _jumpToEquipoQR();
+}
+
 async function _doLogin(){
   var email=(document.getElementById('li_email')?.value||'').trim();
   var pass=document.getElementById('li_pass')?.value||'';
@@ -9947,6 +9961,7 @@ async function _doLogin(){
     if(ov)ov.remove();
     _aplicarRolUI();
     _agregarUserBadge();
+    _refrescarDatosPostLogin();
   }catch(e){_loginError('Error de conexión. Intenta de nuevo.');}
 }
 
@@ -10094,6 +10109,7 @@ async function _doChangePassword(){
     var ov=document.getElementById('loginOverlay');if(ov)ov.remove();
     _aplicarRolUI();
     _agregarUserBadge();
+    _refrescarDatosPostLogin();
     toast('✅ Contraseña actualizada');
   }catch(e){
     err.textContent='Error de conexión. Intenta de nuevo.';err.style.display='block';
