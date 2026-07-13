@@ -181,7 +181,7 @@ let _sbReady=false; // true cuando Supabase cargó exitosamente
 
 // Credenciales por defecto — permiten que Vercel conecte sin configuración manual
 const _SB_DEFAULT_URL='https://jyhpfwivhwzylkzxrsbt.supabase.co';
-const _SB_DEFAULT_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5aHBmd2l2aHd6eWxrenhyc2J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODk3NDksImV4cCI6MjA5Njg2NTc0OX0.aefKMNuJ265RkDhH2KlDz929aM1l6FyMwcRgVXM0CX4';
+const _SB_DEFAULT_KEY='sb_publishable_mI_CTe7yV23tllXXkdp-Aw_2UZCtwbi';
 function _sbCfg(){
   try{const c=JSON.parse(localStorage.getItem(K+'cfg'))||{};
     return{url:(c.sbUrl||_SB_DEFAULT_URL).replace(/\/+$/,''),key:c.sbKey||_SB_DEFAULT_KEY};}
