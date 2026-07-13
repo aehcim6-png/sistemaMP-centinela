@@ -153,6 +153,7 @@ td.calc{color:var(--tx3);font-style:italic}
 </script>
   <!-- ══════════════════════════════════════════════════════════ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.0.0/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <div class="header">
@@ -955,7 +956,7 @@ renders.eq=function(){
         return true;
       }).map((e,_,arr)=>{
         const i=eq.indexOf(e);
-        return`<tr>
+        return`<tr data-sigla="${e.sigla}">
           ${edCell(e.sigla,'sigla',i,'eq')}
           ${edCell(e.tipo,'tipo',i,'eq','select',['Camion','Bulldozer','Cargador Frontal','Motoniveladora','Camion Aljibe','Retroexcavadora','Grúa'])}
           ${edCell(e.modelo,'modelo',i,'eq')}
@@ -3344,6 +3345,45 @@ window.quitarFotoOT=function(fi){
   renders.ot();
 };
 
+// ---- CÓDIGOS QR POR EQUIPO ----
+window.verCodigosQR=function(){
+  var eq=(S.g('eq')||[]).slice().sort(function(a,b){return (a.sigla||'').localeCompare(b.sigla||'');});
+  if(!eq.length)return toast('⚠️ No hay equipos cargados');
+  if(typeof QRCode==='undefined')return toast('❌ No se pudo cargar el generador de QR (revisa conexión a internet)');
+  var baseUrl=location.origin+location.pathname;
+  sm('<div style="max-width:720px">'+
+    '<h3>🔲 Códigos QR por Equipo</h3>'+
+    '<p style="font-size:11px;color:var(--tx3);margin-bottom:12px">Escanéalo con el celular y abre directo la ficha de ese equipo, sin buscarlo a mano. Descárgalos e imprímelos para pegar en cada máquina.</p>'+
+    '<div id="qrGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;max-height:60vh;overflow-y:auto;padding:4px">'+
+    eq.map(function(e){
+      return '<div style="text-align:center;border:1px solid var(--bor);border-radius:8px;padding:10px">'+
+        '<div id="qr-'+e.sigla+'" style="display:flex;justify-content:center;margin-bottom:6px"></div>'+
+        '<div style="font-size:11px;font-weight:600;margin-bottom:4px">'+e.sigla+'</div>'+
+        '<a href="#" style="font-size:10px;color:var(--ac)" onclick="event.preventDefault();_descargarQR(\''+e.sigla+'\')">⬇️ Descargar</a>'+
+      '</div>';
+    }).join('')+
+    '</div>'+
+    '<br><button class="btn btn-o" onclick="cm()">Cerrar</button>'+
+  '</div>');
+  setTimeout(function(){
+    eq.forEach(function(e){
+      var el=document.getElementById('qr-'+e.sigla);
+      if(!el)return;
+      el.innerHTML='';
+      new QRCode(el,{text:baseUrl+'?eq='+encodeURIComponent(e.sigla),width:110,height:110,colorDark:'#000000',colorLight:'#ffffff'});
+    });
+  },50);
+};
+window._descargarQR=function(sigla){
+  var el=document.getElementById('qr-'+sigla);
+  var canvas=el&&el.querySelector('canvas');
+  if(!canvas)return toast('❌ QR no generado todavía, espera un segundo e intenta de nuevo');
+  var a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download='QR_'+sigla+'.png';
+  a.click();
+};
+
 
 // ---- NEUMÁTICOS ----
 /* renders.neu viejo eliminado v16.6 - usaba versión sin edición */
@@ -4396,6 +4436,11 @@ renders.cfg=function(){
       :'')+
 
       // INFO SISTEMA
+      '<div class="card"><b style="font-size:14px">🔲 Códigos QR por Equipo</b><br><br>'+
+      '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Genera un QR único por equipo. Al escanearlo abre directo su ficha en Equipos — sin buscarlo a mano. Descárgalos para imprimir y pegar en cada máquina.</p>'+
+      '<button class="btn" onclick="verCodigosQR()">🔲 Ver / Descargar QR</button>'+
+      '</div>'+
+
       '<div class="card"><b style="font-size:14px">ℹ️ Info del Sistema</b><br><br>'+
       '<div style="font-size:12px;line-height:2">'+
       'Versión: <b>v15</b><br>'+
@@ -9712,7 +9757,23 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 var _cfg=S.g('cfg')||{};if(_cfg.colorAc||_cfg.tema)applyTheme(_cfg);
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
-function _arrancar(){S.init();initNav();C.recalcAll();renders.dash();}
+function _arrancar(){S.init();initNav();C.recalcAll();renders.dash();_jumpToEquipoQR();}
+function _jumpToEquipoQR(){
+  var params=new URLSearchParams(location.search);
+  var sigla=params.get('eq');
+  if(!sigla)return;
+  go('eq');
+  setTimeout(function(){
+    var row=document.querySelector('#tbl-eq tr[data-sigla="'+CSS.escape(sigla)+'"]');
+    if(!row){toast('⚠️ Equipo '+sigla+' no encontrado');return;}
+    row.scrollIntoView({behavior:'smooth',block:'center'});
+    var orig=row.style.background;
+    row.style.transition='background 0.4s';
+    row.style.background='rgba(59,130,246,.3)';
+    setTimeout(function(){row.style.background=orig;},2500);
+  },200);
+  try{history.replaceState(null,'',location.pathname);}catch(e){}
+}
 function _cargarFallbackLocal(){
   SB_HEAVY.forEach(k=>{
     if(_sbCache[k])return;
