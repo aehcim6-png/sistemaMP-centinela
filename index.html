@@ -194,57 +194,180 @@ function _sbHeaders(){
   return{'apikey':c.key,'Authorization':'Bearer '+(userToken||c.key),'Content-Type':'application/json'};
 }
 
+// ══════════════════════════════════════════════════════════════════
+// FASE B — mapeo de cada clave vieja de kv a su tabla real nueva.
+// clave: nombre del campo en el objeto JS que identifica la fila.
+//   '_id'  = campo oculto sintético (uuid generado acá, no lo usa el resto del código).
+//   otro   = clave natural que YA existe en el objeto (ej. 'sigla', 'id').
+// claveDb: nombre real de esa columna en la tabla de Postgres.
+// ══════════════════════════════════════════════════════════════════
+const TABLA_REAL={
+  reg:{tabla:'registros_pm',clave:'_id',claveDb:'id',cols:['equipo','tipoPM','fechaEntrada','horaEntrada','fechaSalida','horaSalida','duracion','duracionH','horomReal','estado','tecnico','obs','estatusEq','lugar','sintoma','nReg','fechaEjec']},
+  ot:{tabla:'correctivos',clave:'_id',claveDb:'id',cols:['sigla','tipo','fecha','horom','turno','sintoma','sistema','tecnico','codFalla','duracion','estadoOT','operador','solucion','causaRaiz','estatusEq','ubicacion','componente','criticidad','folioExcel','horaEntrada','fechaEntrada','horaSalida','fechaSalida','fechaIngreso','autorizadoPor','costo','ast','loto']},
+  mov:{tabla:'movimientos_stock',clave:'_id',claveDb:'id',cols:['equipo','tipo','item','nParte','cant','ant','nuevo','fecha','mes','pm']},
+  hist:{tabla:'historial_horometros',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomIni','horomFin','horom','origen']},
+  neuMed:{tabla:'neumaticos_mediciones',clave:'_id',claveDb:'id',cols:['neuId','sigla','serie','posicion','fecha','horom','motivo','remExt','remInt','remProm','sensor']},
+  pau:{tabla:'pautas',clave:'_id',claveDb:'id',cols:['sigla','hoja','pm','cat','act','hrs','rep','can']},
+  stk:{tabla:'stock_filtros',clave:'_id',claveDb:'id',cols:['nParte','descripcion','equipoModelo','stockBodega','consumoMes','proyMes','mesesCubierto','pendiente','comprar','precioUnit','codAlt','estado']},
+  lub:{tabla:'lubricantes',clave:'_id',claveDb:'id',cols:['nombre','unidad','stock','consumoMes','proyMes','precio']},
+  repuestos:{tabla:'repuestos',clave:'_id',claveDb:'id',cols:['componente','nParte','equipo','stockActual','stockMinimo','leadTime','precioUnit','proveedor']},
+  prg:{tabla:'programa',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','hrsDia','horomActual','meses']},
+  compMayores:{tabla:'componentes_mayores',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','comp','horomComp','vidaUtil','costoRef','fechaInst','estado','obs']},
+  insp:{tabla:'inspecciones',clave:'_id',claveDb:'id',cols:['equipo','fecha','horometro','visual','niveles','fugas','luces','frenos','neumaticos','obs','inspector']},
+  aceite:{tabla:'analisis_aceite',clave:'_id',claveDb:'id',cols:['sigla','equipo','fecha','nMuestra','hrsComp','hrsLub','lubricante','componente','descriptor','hierro','cobre','plomo','aluminio','silicio','cromo','sodio','visc40','visc100','pq','tbn','tan','isoCode','espEst1','espEst2','espEst3','demulsibilidad','estado','comentario']},
+  ordenes:{tabla:'ordenes_compra',clave:'_id',claveDb:'id',cols:['componente','nParte','cantidad','costoEstimado','proveedor','fecha','estado']},
+  planSem:{tabla:'plan_semanal',clave:'_id',claveDb:'id',cols:['sigla','semana','datos']},
+  planSemHist:{tabla:'plan_semanal_historico',clave:'_id',claveDb:'id',cols:['sigla','semana','datos']},
+  gantt:{tabla:'gantt',clave:'_id',claveDb:'id',cols:['sigla','actividad','inicio','fin','datos']},
+  destrabe:{tabla:'destrabe',clave:'_id',claveDb:'id',cols:['sigla','motivo','datos']},
+  changelog:{tabla:'changelog',clave:'_id',claveDb:'id',cols:['fecha','usuario','accion','detalle']},
+  fil:{tabla:'tabla_precios_maestro',clave:'_id',claveDb:'id',cols:['nParte','precio']},
+  al:{tabla:'alertas',clave:'_id',claveDb:'id',cols:['sigla','repuestos']},
+  // Clave natural: el propio campo ya identifica la fila, tanto en JS como en la tabla.
+  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato']},
+  neu:{tabla:'neumaticos',clave:'id',claveDb:'id',cols:['id','sigla','tipo','marca','serie','medida','posicion','numPos','estado','tipoEquipo','vidaUtil','remNuevo','remanente','pctRemanente','alerta','fechaInst','ultimaMedicion','horasAcum','horomActual','horomInstalacion','horasBase','numSensor','obs']},
+  informesFalla:{tabla:'informes_falla',clave:'id',claveDb:'id',cols:['id','sigla','tipo','modelo','componente','tipoEvento','descripcion','causaProbable','costoEstimado','horometroActual','generadoPor','fecha','fechaCreacion','fotos']}
+};
+// Singletons: una sola fila fija por tabla (id boolean primary key default true).
+const TABLA_SINGLETON={
+  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','adminOk']},
+  hh:{tabla:'tarifa_hh',modo:'valor'},
+  dispMeta:{tabla:'meta_disponibilidad',modo:'valor'},
+  metas:{tabla:'metas',modo:'datos'},
+  dispCalc:{tabla:'disponibilidad_calculada',modo:'datos'},
+  avanceData:{tabla:'avance_data',modo:'datos'}
+};
+
+function _uuidV4(){
+  if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(ch){var r=Math.random()*16|0,v=ch==='x'?r:(r&0x3|0x8);return v.toString(16);});
+}
+
 // Carga TODAS las claves desde Supabase al arrancar
 window._sbLoadHeavy=async function(){
   if(!_sbOk())return false;
   try{
     const c=_sbCfg();
+    // 1. kv: todavía sostiene las claves internas (banderas de migración, etc.)
     const r=await fetch(`${c.url}/rest/v1/kv?select=key,value&limit=200`,{headers:_sbHeaders()});
     if(!r.ok)return false;
     const rows=await r.json();
     if(!Array.isArray(rows))return false;
     rows.forEach(row=>{try{_sbCache[row.key]=row.value;}catch{}});
     _sbReady=true;
-    // PILOTO Fase B: 'al' (alertas) ya vive en su propia tabla real, no en kv.
-    // Se sobreescribe lo que haya cargado desde kv con los datos reales de la tabla,
-    // agregando un campo oculto _id (fila real) que usa _syncTabla para editar/borrar bien.
+
+    // 2. Tablas reales (Fase B): sobreescriben lo que haya cargado kv para esas claves.
+    for(const k in TABLA_REAL){
+      const cfg=TABLA_REAL[k];
+      try{
+        const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
+        const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc`,{headers:_sbHeaders()});
+        if(!rt.ok)continue;
+        const filas=await rt.json();
+        if(!Array.isArray(filas))continue;
+        _sbCache[k]=filas.map(function(f){
+          const obj={};
+          cfg.cols.forEach(function(col){obj[col]=f[col];});
+          if(cfg.clave==='_id')obj._id=f.id;else obj[cfg.clave]=f[cfg.claveDb];
+          return obj;
+        });
+      }catch(e){}
+    }
+
+    // 3. Vencimientos: tabla plana (sigla,vencTipo) -> objeto anidado {sigla:{vencTipo:{...}}}
     try{
-      const rAl=await fetch(`${c.url}/rest/v1/alertas?select=id,sigla,repuestos&order=created_at.asc,id.asc`,{headers:_sbHeaders()});
-      if(rAl.ok){
-        const filas=await rAl.json();
-        if(Array.isArray(filas))_sbCache['al']=filas.map(f=>({_id:f.id,sigla:f.sigla,repuestos:f.repuestos}));
+      const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses`,{headers:_sbHeaders()});
+      if(rv.ok){
+        const filas=await rv.json();
+        if(Array.isArray(filas)){
+          const obj={};
+          filas.forEach(function(f){
+            if(!obj[f.sigla])obj[f.sigla]={};
+            obj[f.sigla][f.vencTipo]={obs:f.obs,ultima:f.ultima,proxima:f.proxima,periodicidadMeses:f.periodicidadMeses};
+          });
+          _sbCache['venc']=obj;
+        }
       }
-    }catch{}
+    }catch(e){}
+
+    // 4. Singletons de configuración
+    for(const k in TABLA_SINGLETON){
+      const cfgS=TABLA_SINGLETON[k];
+      try{
+        const rs=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=*&limit=1`,{headers:_sbHeaders()});
+        if(!rs.ok)continue;
+        const filas=await rs.json();
+        if(!Array.isArray(filas)||!filas.length)continue;
+        const f=filas[0];
+        if(cfgS.modo==='objeto'){const obj={};cfgS.cols.forEach(function(col){obj[col]=f[col];});_sbCache[k]=obj;}
+        else if(cfgS.modo==='valor')_sbCache[k]=f.valor;
+        else _sbCache[k]=f.datos;
+      }catch(e){}
+    }
+
     return true;
   }catch{return false;}
 };
 
-// Sincroniza un arreglo completo contra una tabla real (INSERT/UPDATE/DELETE por fila,
-// no "borra todo y reinserta" — así el trigger de columnas protegidas se dispara de verdad).
-// Cada objeto trae/recibe un campo oculto _id con el id real de su fila.
-async function _syncTabla(tabla,columnas,arrNuevo,arrAnterior){
+// Sincroniza un arreglo completo contra una tabla real: un solo upsert (INSERT/UPDATE
+// por conflicto de clave) más un DELETE por cada fila que ya no está en el arreglo nuevo.
+// El upsert por conflicto SÍ dispara el trigger BEFORE UPDATE (a diferencia de "borrar
+// todo y reinsertar"), que es lo que hace que el candado de columnas protegidas funcione.
+async function _syncTablaGenerica(cfg,arrNuevo,arrAnterior){
   if(!_sbOk())return;
   const c=_sbCfg();
-  const idsAnteriores=new Set((arrAnterior||[]).map(o=>o&&o._id).filter(Boolean));
+  const idsAnteriores=new Set((arrAnterior||[]).map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;}));
   const idsNuevos=new Set();
+  const filas=[];
   for(const obj of (arrNuevo||[])){
-    const body={};columnas.forEach(col=>{body[col]=obj[col]??null;});
-    if(obj._id){
-      idsNuevos.add(obj._id);
-      await fetch(`${c.url}/rest/v1/${tabla}?id=eq.${obj._id}`,{method:'PATCH',headers:_sbHeaders(),body:JSON.stringify(body)}).catch(()=>{});
-    }else{
-      try{
-        const r=await fetch(`${c.url}/rest/v1/${tabla}`,{method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'return=representation'}),body:JSON.stringify(body)});
-        const creado=await r.json();
-        if(Array.isArray(creado)&&creado[0])obj._id=creado[0].id;
-      }catch{}
-    }
+    if(cfg.clave==='_id'&&!obj._id)obj._id=_uuidV4();
+    const claveVal=obj[cfg.clave];
+    if(claveVal==null)continue;
+    idsNuevos.add(claveVal);
+    const fila={};cfg.cols.forEach(function(col){fila[col]=obj[col]??null;});
+    fila[cfg.claveDb]=claveVal;
+    filas.push(fila);
+  }
+  if(filas.length){
+    await fetch(`${c.url}/rest/v1/${cfg.tabla}?on_conflict=${cfg.claveDb}`,{
+      method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify(filas)
+    }).catch(()=>{});
   }
   for(const idViejo of idsAnteriores){
     if(!idsNuevos.has(idViejo)){
-      await fetch(`${c.url}/rest/v1/${tabla}?id=eq.${idViejo}`,{method:'DELETE',headers:_sbHeaders()}).catch(()=>{});
+      await fetch(`${c.url}/rest/v1/${cfg.tabla}?${cfg.claveDb}=eq.${idViejo}`,{method:'DELETE',headers:_sbHeaders()}).catch(()=>{});
     }
   }
+}
+
+// Vencimientos: aplana el objeto anidado y hace upsert por (sigla,vencTipo).
+async function _syncVencimientos(obj){
+  if(!_sbOk())return;
+  const c=_sbCfg();
+  const filas=[];
+  for(const sigla in (obj||{})){
+    for(const vencTipo in obj[sigla]){
+      const d=obj[sigla][vencTipo]||{};
+      filas.push({sigla:sigla,vencTipo:vencTipo,obs:d.obs??null,ultima:d.ultima||null,proxima:d.proxima||null,periodicidadMeses:d.periodicidadMeses??null});
+    }
+  }
+  if(!filas.length)return;
+  await fetch(`${c.url}/rest/v1/vencimientos?on_conflict=sigla,vencTipo`,{
+    method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify(filas)
+  }).catch(()=>{});
+}
+
+// Singleton: siempre la misma fila (id=true).
+async function _syncSingleton(cfgS,v){
+  if(!_sbOk())return;
+  const c=_sbCfg();
+  let body;
+  if(cfgS.modo==='objeto'){body={id:true};cfgS.cols.forEach(function(col){body[col]=(v&&v[col])??null;});}
+  else if(cfgS.modo==='valor')body={id:true,valor:v};
+  else body={id:true,datos:v};
+  await fetch(`${c.url}/rest/v1/${cfgS.tabla}?on_conflict=id`,{
+    method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify([body])
+  }).catch(()=>{});
 }
 
 // Escribe una clave en Supabase (fire-and-forget)
@@ -301,10 +424,10 @@ const S={
     return null;
   },
   s(k,v){
-    // PILOTO Fase B: 'al' vive en su propia tabla real (ver _syncTabla), no en kv.
-    // Se captura el estado anterior ANTES de sobreescribir la cache, para poder
-    // diferenciar filas nuevas / editadas / borradas.
-    const _anteriorAl=(k==='al')?_sbCache['al']:null;
+    // Fase B: si esta clave ya vive en una tabla real, se necesita el estado
+    // anterior (capturado ANTES de sobreescribir la cache) para poder diferenciar
+    // filas nuevas / editadas / borradas al sincronizar.
+    const _anterior=TABLA_REAL[k]?_sbCache[k]:null;
     // 1. Cache en memoria (sincrónico)
     _sbCache[k]=v;
     // 2. localStorage como cache offline
@@ -315,8 +438,12 @@ const S={
       }else{console.error('Error guardando en localStorage',k,e);}
     }
     // 3. Supabase (asíncrono, no bloquea la UI)
-    if(k==='al'){
-      _syncTabla('alertas',['sigla','repuestos'],v,_anteriorAl);
+    if(TABLA_REAL[k]){
+      _syncTablaGenerica(TABLA_REAL[k],v,_anterior);
+    }else if(k==='venc'){
+      _syncVencimientos(v);
+    }else if(TABLA_SINGLETON[k]){
+      _syncSingleton(TABLA_SINGLETON[k],v);
     }else{
       _sbWrite(k,v);
     }
