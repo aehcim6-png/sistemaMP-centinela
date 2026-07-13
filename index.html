@@ -9762,15 +9762,16 @@ function _jumpToEquipoQR(){
   var params=new URLSearchParams(location.search);
   var sigla=params.get('eq');
   if(!sigla)return;
-  go('eq');
+  var eq=S.g('eq')||[];
+  if(!eq.find(function(e){return e.sigla===sigla;})){
+    toast('⚠️ Equipo '+sigla+' no encontrado');
+    try{history.replaceState(null,'',location.pathname);}catch(e){}
+    return;
+  }
+  go('buscar');
   setTimeout(function(){
-    var row=document.querySelector('#tbl-eq tr[data-sigla="'+CSS.escape(sigla)+'"]');
-    if(!row){toast('⚠️ Equipo '+sigla+' no encontrado');return;}
-    row.scrollIntoView({behavior:'smooth',block:'center'});
-    var orig=row.style.background;
-    row.style.transition='background 0.4s';
-    row.style.background='rgba(59,130,246,.3)';
-    setTimeout(function(){row.style.background=orig;},2500);
+    var sel=$('fBuscarEq');
+    if(sel){sel.value=sigla;renders.buscar();}
   },200);
   try{history.replaceState(null,'',location.pathname);}catch(e){}
 }
