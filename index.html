@@ -2968,7 +2968,7 @@ renders.ot=function(){
         otRow+='<td style="font-size:10px">'+(o.tecnico||'—')+'</td>';
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
         else{otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:10px"></td>';}
-        otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar">🗑</button></td>';
+        otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'<button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia fotográfica" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button>')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar">🗑</button></td>';
         otRow+='</tr>';
         return otRow;
       }).join('')}
@@ -3268,6 +3268,68 @@ window.saveOT=function(){
   if(fallasMismoComp>=2){toast('⚠️ '+sig+': '+fallasMismoComp+' fallas en '+ ($('oComp')?.value||'componente')+' — revisar predictivo');}
   if(horom>0){const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);if(e&&horom>e.horomActual){e.horomActual=horom;C.recalc(e);S.s('eq',eq);renderHeader();}}
   S.s('ot',ot);cm();refreshAll();toast('✅ OT guardada — '+sig);
+};
+
+// ---- EVIDENCIA FOTOGRÁFICA DE OT ----
+window.gestionarFotosOT=function(idx){
+  var ot=S.g('ot')||[];
+  if(!ot[idx])return toast('❌ OT no encontrada');
+  window._otFotoIdx=idx;
+  _renderModalFotosOT();
+};
+function _renderModalFotosOT(){
+  var ot=S.g('ot')||[];
+  var o=ot[window._otFotoIdx];
+  if(!o)return cm();
+  var fotos=o.fotos||[];
+  sm('<div style="max-width:600px">'+
+    '<h3>📷 Evidencia Fotográfica</h3>'+
+    '<div style="font-size:12px;color:var(--tx3);margin-bottom:10px">'+(o.sigla||'—')+' · '+(o.sintoma||'Sin síntoma registrado')+'</div>'+
+    '<div id="otFotosGrid" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">'+
+    (fotos.length?fotos.map(function(url,fi){
+      return '<div style="position:relative"><img src="'+url+'" style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--bor);cursor:pointer" onclick="window.open(\''+url+'\',\'_blank\')" title="Ver completa">'+
+        '<button onclick="quitarFotoOT('+fi+')" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer">✕</button></div>';
+    }).join(''):'<span style="font-size:12px;color:var(--tx3)">Sin fotos todavía</span>')+
+    '</div>'+
+    '<label style="font-size:12px">Agregar fotos:</label><br>'+
+    '<input type="file" id="otFotoInput" accept="image/*" capture="environment" multiple onchange="_otFotosSeleccionadas(event)">'+
+    '<br><br><button class="btn btn-o" onclick="cm()">Cerrar</button>'+
+  '</div>');
+}
+window._otFotosSeleccionadas=async function(ev){
+  var files=Array.prototype.slice.call(ev.target.files||[]);
+  ev.target.value='';
+  if(!files.length)return;
+  var idx=window._otFotoIdx;
+  var ot=S.g('ot')||[];
+  var o=ot[idx];
+  if(!o)return;
+  toast('⏳ Subiendo '+files.length+' foto(s)...');
+  var errores=0;
+  for(var i=0;i<files.length;i++){
+    var comp=await comprimirImagen(files[i]);
+    if(!comp){errores++;continue;}
+    try{
+      var path='ot/'+(o.sigla||'sin-equipo')+'/'+Date.now()+'_'+i+'.jpg';
+      var url=await _subirArchivoBucket(comp.blob,path,'image/jpeg');
+      if(!o.fotos)o.fotos=[];
+      o.fotos.push(url);
+    }catch(err){errores++;}
+  }
+  S.s('ot',ot);
+  toast(errores?('⚠️ Guardadas con '+errores+' error(es)'):'✅ Fotos guardadas');
+  _renderModalFotosOT();
+  renders.ot();
+};
+window.quitarFotoOT=function(fi){
+  var ot=S.g('ot')||[];
+  var o=ot[window._otFotoIdx];
+  if(!o||!o.fotos)return;
+  if(!confirm('¿Quitar esta foto del registro?\n(sigue guardada en Supabase Storage, solo se desvincula de esta OT)'))return;
+  o.fotos.splice(fi,1);
+  S.s('ot',ot);
+  _renderModalFotosOT();
+  renders.ot();
 };
 
 
