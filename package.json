@@ -1,0 +1,11 @@
+{
+  "name": "sistemamp-centinela",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
+  }
+}
