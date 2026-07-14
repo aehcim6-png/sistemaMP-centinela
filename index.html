@@ -913,9 +913,28 @@ renders.dash=function(){
   // Costo/RAV
   var totalRAV=eq.reduce(function(s,e){return s+(e.valorCompra||0)},0);
   var costoRAV=totalRAV>0?Math.round(costoTotal/totalRAV*10000)/100:0;
-  // Retrabajo (fallas repetidas en mismo equipo+componente dentro de 30 días)
-  var retrab=0;var retrabT=0;
-  ot.forEach(function(o1,i1){if(!o1.sigla||!o1.componente)return;if((o1.fecha||o1.fechaEntrada||'').slice(0,7)!==dashPeriodo)return;retrabT++;var f1=new Date(o1.fecha||'2026-01-01').getTime();ot.forEach(function(o2,i2){if(i2<=i1||o2.sigla!==o1.sigla||o2.componente!==o1.componente)return;if(Math.abs(new Date(o2.fecha||'2026-01-01').getTime()-f1)<2592000000)retrab++;});});
+  // Retrabajo (fallas repetidas en mismo equipo+componente dentro de 30 días).
+  // Antes comparaba cada OT del período contra TODAS las OT del sistema (O(n²)) en
+  // una función que corre después de casi cada guardado de la app. Se agrupa primero
+  // por sigla+componente (O(n)) y solo se compara dentro de cada grupo — mismos pares,
+  // mismo resultado, sin recorrer registros de otro equipo/componente en vano.
+  var gruposOtPorClave={};
+  ot.forEach(function(o,i){
+    if(!o.sigla||!o.componente)return;
+    var k=o.sigla+'|'+o.componente;
+    (gruposOtPorClave[k]=gruposOtPorClave[k]||[]).push({idx:i,fecha:o.fecha});
+  });
+  var retrab=0,retrabT=0;
+  ot.forEach(function(o1,i1){
+    if(!o1.sigla||!o1.componente)return;
+    if((o1.fecha||o1.fechaEntrada||'').slice(0,7)!==dashPeriodo)return;
+    retrabT++;
+    var f1=new Date(o1.fecha||'2026-01-01').getTime();
+    (gruposOtPorClave[o1.sigla+'|'+o1.componente]||[]).forEach(function(o2){
+      if(o2.idx<=i1)return;
+      if(Math.abs(new Date(o2.fecha||'2026-01-01').getTime()-f1)<2592000000)retrab++;
+    });
+  });
   var pctRetrab=retrabT>0?Math.round(retrab/retrabT*100):null;
   // Cumpl. Programa: solo mostrar si hay datos reales en planSemHist
   var hasPlanData=progPlan>0;
@@ -1754,14 +1773,16 @@ renders.prg=function(){
   // Auto-mark EJEC del AÑO seleccionado — calculado en vivo, sin pisar el plan base guardado
   var reg=S.g('reg')||[];
   var MSmap={'01':'ENE','02':'FEB','03':'MAR','04':'ABR','05':'MAY','06':'JUN','07':'JUL','08':'AGO','09':'SEP','10':'OCT','11':'NOV','12':'DIC'};
-  // ejecPorEq[sigla] = {ENE:true,...} solo para anioPrg
+  // ejecPorEq[sigla] = {ENE:'PM1',...} — guarda el tipoPM realmente ejecutado ese mes
+  // (antes solo guardaba true/false, así que un PM1 marcaba "ejecutado" un mes que
+  // tenía planificado un PM3, escondiendo que se hizo el PM equivocado).
   var ejecPorEq={};
   reg.forEach(function(r){
     var fecha=r.fechaEntrada||r.fechaEjec||'';
     if(fecha.slice(0,4)!==''+anioPrg)return;
     var mesNom=MSmap[fecha.slice(5,7)];if(!mesNom)return;
     if(!ejecPorEq[r.equipo])ejecPorEq[r.equipo]={};
-    ejecPorEq[r.equipo][mesNom]=true;
+    ejecPorEq[r.equipo][mesNom]=r.tipoPM||true;
   });
   var hayEjecAnio=Object.keys(ejecPorEq).length>0;
 
@@ -1776,12 +1797,14 @@ renders.prg=function(){
     prg.map(function(p,pi){
       return '<div class="pg-c pg-e" title="'+p.modelo+'">'+p.sigla+'</div>'+
         MS.map(function(m){
-          var ejec=ejecPorEq[p.sigla]&&ejecPorEq[p.sigla][m];
+          var ejecTipo=ejecPorEq[p.sigla]&&ejecPorEq[p.sigla][m];
           var base=p.meses[m]||'';
-          var v=ejec?'EJEC':base;
-          var cls=v==='PM1'?'pg-1':v==='PM2'?'pg-2':v==='PM3'?'pg-3':v==='PM4'?'pg-4':v==='EJEC'?'pg-x':'';
-          var tip=ejec?'EJEC (auto, desde registros). Click para corregir el plan base de esta celda':'Click para cambiar PM';
-          return'<div class="pg-c '+cls+'" title="'+tip+'" onclick="cyclePrg('+pi+',\''+m+'\','+(ejec?'true':'false')+')">'+(v||'·')+'</div>';
+          var coincide=!ejecTipo||!base||ejecTipo===true||ejecTipo===base;
+          var v=ejecTipo?(coincide?'EJEC':'EJEC≠'+ejecTipo):base;
+          var cls=v==='PM1'?'pg-1':v==='PM2'?'pg-2':v==='PM3'?'pg-3':v==='PM4'?'pg-4':v==='EJEC'?'pg-x':(v.indexOf('EJEC≠')===0?'pg-x':'');
+          var tip=ejecTipo?(coincide?'EJEC (auto, desde registros). Click para corregir el plan base de esta celda':'⚠️ Se ejecutó '+ejecTipo+' pero estaba planificado '+base+'. Click para corregir')
+                          :'Click para cambiar PM';
+          return'<div class="pg-c '+cls+'" title="'+tip+'" style="'+(!coincide?'color:#f59e0b':'')+'" onclick="cyclePrg('+pi+',\''+m+'\','+(ejecTipo?'true':'false')+')">'+(v||'·')+'</div>';
         }).join('');
     }).join('')+
     '</div>';
@@ -3171,9 +3194,12 @@ renders.ot=function(){
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total OT</div><div class="card-v">${todos.length}</div></div>
-      <div class="card"><div class="card-t" style="color:var(--danger)">🔴 Pendientes</div><div class="card-v" style="color:var(--danger)">${ot.filter(o=>o.estadoOT==='Pendiente').length}</div><div class="card-s">Backlog</div></div>
-      <div class="card"><div class="card-t" style="color:var(--warn)">🟡 En Ejecución</div><div class="card-v" style="color:var(--warn)">${ot.filter(o=>o.estadoOT==='En Ejecución').length}</div></div>
-      <div class="card"><div class="card-t" style="color:var(--ok)">✅ Cerradas</div><div class="card-v" style="color:var(--ok)">${ot.filter(o=>!o.estadoOT||o.estadoOT==='Cerrada').length}</div></div>
+      <div class="card"><div class="card-t" style="color:var(--danger)">🔴 Pendientes</div><div class="card-v" style="color:var(--danger)">${todos.filter(o=>o.estadoOT==='Pendiente').length}</div><div class="card-s">Backlog</div></div>
+      <div class="card"><div class="card-t" style="color:var(--warn)">🟡 En Ejecución</div><div class="card-v" style="color:var(--warn)">${todos.filter(o=>o.estadoOT==='En Ejecución').length}</div></div>
+      <div class="card"><div class="card-t" style="color:var(--ok)">✅ Cerradas</div><div class="card-v" style="color:var(--ok)">${todos.filter(o=>!o.estadoOT||o.estadoOT==='Cerrada').length}</div></div>
+      <!-- Nota: los correctivos que vienen de Registro PM (regCorr) no tienen estadoOT propio;
+           al no ser 'Pendiente' ni 'En Ejecución' quedan en Cerradas, correcto porque
+           representan una mantención ya ejecutada y registrada, no una OT abierta. -->
       <div class="card"><div class="card-t">Costo acumulado</div><div class="card-v" style="color:var(--ac)">$${fn(tc)}</div></div>
     </div>
     <div class="toolbar">
@@ -3351,7 +3377,7 @@ renders.neu=function(){
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir">📏</button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico">🔍</button>
-            <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${n.sigla}','${n.numPos||n.posicion}')" title="Historial de esta posición">📍</button>
+            <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${n.sigla}','${n.posicion}')" title="Historial de esta posición">📍</button>
           </td>
         </tr>`;
       }).join('')}
@@ -3891,9 +3917,11 @@ function neuMetricas(n){
   // Proyección vida útil total (si mantiene este rendimiento, cuántas horas llegaría a remRetiro)
   const limiteVida=c.remRetiro||10;
   const vidaProyectada=rendHmm?Math.round(rendHmm*(remNuevo-limiteVida)):null;
-  // Gasto perdido: si se da de baja antes de agotar la goma útil
+  // Gasto perdido: si se da de baja antes de agotar la goma útil.
+  // 'Baja' y 'Fuera de servicio' nunca son valores reales de n.estado (los reales son
+  // 'De baja', 'Baja Desgaste', 'Baja Imprevisto') — este cálculo nunca se disparaba.
   let gastoPerdido=0;
-  if(n.estado==='Baja'||n.estado==='Fuera de servicio'){
+  if(n.estado==='De baja'||n.estado==='Baja Desgaste'||n.estado==='Baja Imprevisto'){
     const mmDesperdiciados=Math.max(0,remActual-limiteVida);
     gastoPerdido=costoMm?Math.round(costoMm*mmDesperdiciados):0;
   }
@@ -4244,7 +4272,7 @@ window.resumenFlotaNeu=function(){
         const neu=JSON.parse(localStorage.getItem(K+'neu')||'[]')||[];
         const meds=INIT.neuMed;
         neu.forEach(n=>{
-          const hist=meds.filter(m=>(m.serie===n.serie)||(m.sigla===n.sigla&&String(m.posicion)===String(n.numPos))).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+          const hist=meds.filter(m=>(m.serie===n.serie)||(m.sigla===n.sigla&&String(m.posicion)===String(n.posicion))).sort((a,b)=>a.fecha.localeCompare(b.fecha));
           if(hist.length){
             const u=hist[hist.length-1];
             if(u.remProm){n.remanente=u.remProm;n.ultimaMedicion=u.fecha;n.pctRemanente=Math.max(0,Math.round((u.remProm-10)/(91-10)*100));}
