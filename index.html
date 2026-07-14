@@ -768,7 +768,7 @@ renders.dash=function(){
   const ant=reg.filter(r=>r.estado==='A tiempo'&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
   const atr=reg.filter(r=>r.estado?.includes('ATRASADA')&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
   const regMes=reg.filter(r=>(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo);
-  const cum=regMes.length?Math.round(ant/regMes.length*100):0;
+  const cum=regMes.length?Math.round(ant/regMes.length*100):null;
   // ── KPI CUMPLIMIENTO DE PROGRAMA (ejecutado a tiempo) del mes ──
   const semHistD=S.g('planSemHist')||{};
   let progPlan=0,progEjec=0;
@@ -920,10 +920,10 @@ renders.dash=function(){
     '<div style="font-size:32px;font-weight:800;color:#f59e0b;line-height:1.2">'+prox.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">En plan mensual</div></div>'+
 
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(cum>=80?'#22c55e':'#ef4444')+'">'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(cum===null?'var(--bd)':cum>=80?'#22c55e':'#ef4444')+'">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Cumplimiento</div>'+
-    '<div style="font-size:32px;font-weight:800;color:'+(cum>=80?'#22c55e':'#ef4444')+';line-height:1.2">'+cum+'%</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+ant+' de '+regMes.length+' PMs</div></div>'+
+    '<div style="font-size:32px;font-weight:800;color:'+(cum===null?'var(--tx3)':cum>=80?'#22c55e':'#ef4444')+';line-height:1.2">'+(cum===null?'—':cum+'%')+'</div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(cum===null?'Sin PMs en '+dashLabel:ant+' de '+regMes.length+' PMs')+'</div></div>'+
      '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(hasPlanData?(cumProg>=85?'#22c55e':cumProg>=70?'#f59e0b':'#ef4444'):'var(--bd)')+'">'+
      '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Cumpl. Programa</div>'+
      '<div style="font-size:32px;font-weight:800;color:'+(hasPlanData?(cumProg>=85?'#22c55e':cumProg>=70?'#f59e0b':'#ef4444'):'var(--tx3)')+';line-height:1.2">'+(hasPlanData?cumProg+'%':'—')+'</div>'+
