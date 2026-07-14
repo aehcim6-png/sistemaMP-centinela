@@ -19,6 +19,41 @@ const C = {
     e.tipoPM=this.tipoPM(p);
     const s=this.estado(d);e.estado=s.i+' '+s.t;
     return e;
+  },
+  // Horómetro de un equipo a la fecha límite dada, según historial_horometros (hist).
+  // Toma el registro más reciente con fecha <= fechaLimite; null si no hay ninguno.
+  horomHistorico(histArr,sigla,fechaLimite){
+    let mejor=null;
+    (histArr||[]).forEach(h=>{
+      if(h.sigla!==sigla||!h.fecha||h.fecha>fechaLimite)return;
+      if(!mejor||h.fecha>mejor.fecha)mejor=h;
+    });
+    if(!mejor)return null;
+    const v=mejor.horomFin!=null?mejor.horomFin:mejor.horom;
+    return v==null?null:v;
+  },
+  // Reconstruye (mes pasado, desde hist) o proyecta (mes futuro, desde horomActual+hrsDia)
+  // el estado de un equipo para un mes distinto al actual. Nunca inventa un número: si no
+  // hay dato histórico para ese equipo antes de la fecha objetivo, devuelve null.
+  estadoPeriodo(equipo,histArr,hoyISO,targetFechaISO){
+    const mesHoy=hoyISO.slice(0,7),mesObjetivo=targetFechaISO.slice(0,7);
+    let horom,fuente;
+    if(mesObjetivo===mesHoy){
+      horom=equipo.horomActual;fuente='vivo';
+    } else if(targetFechaISO<hoyISO){
+      horom=this.horomHistorico(histArr,equipo.sigla,targetFechaISO);
+      if(horom==null)return null;
+      fuente='historico';
+    } else {
+      const dias=Math.round((new Date(targetFechaISO+'T00:00:00')-new Date(hoyISO+'T00:00:00'))/86400000);
+      horom=(equipo.horomActual||0)+(equipo.hrsDia||0)*dias;
+      fuente='proyectado';
+    }
+    const horomProxPM=this.proxPM(horom,equipo.frecPM||250);
+    const hrsRestantes=horomProxPM-horom;
+    const diasParaPM=equipo.hrsDia>0?Math.round(hrsRestantes/equipo.hrsDia):999;
+    const est=this.estado(diasParaPM);
+    return{t:est.t,horom,horomProxPM,diasParaPM,tipoPM:this.tipoPM(horomProxPM),fuente};
   }
 };
 

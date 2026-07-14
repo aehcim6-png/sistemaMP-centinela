@@ -95,3 +95,60 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     expect(e.fechaProxPM).toBe('2026-07-24');
   });
 });
+
+describe('C.horomHistorico — horómetro reconstruido desde historial_horometros', () => {
+  const hist = [
+    { sigla: 'CF-8769', fecha: '2026-05-10', horomFin: 12000 },
+    { sigla: 'CF-8769', fecha: '2026-05-20', horomFin: 12200 },
+    { sigla: 'CF-8769', fecha: '2026-06-01', horom: 12400 }, // sin horomFin, cae a horom
+    { sigla: 'MN-5926', fecha: '2026-05-15', horomFin: 8000 },
+  ];
+  it('toma el registro más reciente con fecha <= fechaLimite', () => {
+    expect(C.horomHistorico(hist, 'CF-8769', '2026-05-25')).toBe(12200);
+  });
+  it('usa horomFin si existe; si no, cae a horom', () => {
+    expect(C.horomHistorico(hist, 'CF-8769', '2026-06-01')).toBe(12400);
+  });
+  it('sin ningún registro <= fechaLimite para ese equipo -> null (no inventa un número)', () => {
+    expect(C.horomHistorico(hist, 'CF-8769', '2026-05-01')).toBeNull();
+  });
+  it('equipo sin ningún registro en el historial -> null', () => {
+    expect(C.horomHistorico(hist, 'BD-9509', '2026-06-01')).toBeNull();
+  });
+});
+
+describe('C.estadoPeriodo — estado de un equipo reconstruido/proyectado para un mes distinto al actual', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-14T12:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('mismo mes que hoy -> usa horomActual en vivo (fuente "vivo")', () => {
+    const e = { sigla: 'CF-8769', horomActual: 14143, frecPM: 250, hrsDia: 20 };
+    const r = C.estadoPeriodo(e, [], '2026-07-14', '2026-07-31');
+    expect(r.fuente).toBe('vivo');
+    expect(r.horom).toBe(14143);
+  });
+  it('mes pasado con dato histórico -> reconstruye desde hist (fuente "historico")', () => {
+    const hist = [{ sigla: 'CF-8769', fecha: '2026-05-31', horomFin: 12250 }];
+    const e = { sigla: 'CF-8769', horomActual: 14143, frecPM: 250, hrsDia: 20 };
+    const r = C.estadoPeriodo(e, hist, '2026-07-14', '2026-05-31');
+    expect(r.fuente).toBe('historico');
+    expect(r.horom).toBe(12250);
+    // 12250 es múltiplo exacto de 250 -> 0 días restantes -> URGENTE
+    expect(r.t).toBe('URGENTE');
+  });
+  it('mes pasado sin ningún dato histórico -> null, no inventa nada', () => {
+    const e = { sigla: 'CF-8769', horomActual: 14143, frecPM: 250, hrsDia: 20 };
+    const r = C.estadoPeriodo(e, [], '2026-07-14', '2026-05-31');
+    expect(r).toBeNull();
+  });
+  it('mes futuro -> proyecta horomActual + hrsDia × días restantes (fuente "proyectado")', () => {
+    const e = { sigla: 'CF-8769', horomActual: 14143, frecPM: 250, hrsDia: 20 };
+    // 2026-07-14 -> 2026-08-31: 48 días
+    const r = C.estadoPeriodo(e, [], '2026-07-14', '2026-08-31');
+    expect(r.fuente).toBe('proyectado');
+    expect(r.horom).toBe(14143 + 20 * 48);
+  });
+});

@@ -762,9 +762,31 @@ renders.dash=function(){
   const _diasMes=new Date(dashAnio,dashMes,0).getDate();
   const _MESNOM=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const dashLabel=_MESNOM[dashMes-1]+' '+dashAnio;
-  const urg=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA'));
-  const prox=eq.filter(e=>e.estado?.includes('PROXIMA')||e.estado?.includes('PRÓXIMA'));
-  const alDia=eq.filter(e=>e.estado?.includes('AL DÍA')||e.estado?.includes('OK'));
+  // ── Urgentes/Próximas/Al Día del período elegido: en vivo si es el mes actual;
+  // reconstruido desde historial_horometros si es un mes pasado; proyectado
+  // (horomActual + hrsDia×días) si es un mes futuro. Un equipo sin dato histórico
+  // suficiente para un mes pasado se excluye — nunca se inventa un número.
+  const hist=S.g('hist')||[];
+  const _hoyISO=_hoy.toISOString().slice(0,10);
+  const _mesActualISO=_hoy.getFullYear()+'-'+String(_hoy.getMonth()+1).padStart(2,'0');
+  const esMesActual=(dashPeriodo===_mesActualISO);
+  let urg=[],prox=[],alDia=[],dashFuente='vivo';
+  if(esMesActual){
+    urg=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA'));
+    prox=eq.filter(e=>e.estado?.includes('PROXIMA')||e.estado?.includes('PRÓXIMA'));
+    alDia=eq.filter(e=>e.estado?.includes('AL DÍA')||e.estado?.includes('OK'));
+  } else {
+    const _targetISO=dashAnio+'-'+String(dashMes).padStart(2,'0')+'-'+String(_diasMes).padStart(2,'0');
+    dashFuente=_targetISO<_hoyISO?'historico':'proyectado';
+    eq.forEach(e=>{
+      const r=C.estadoPeriodo(e,hist,_hoyISO,_targetISO);
+      if(!r)return;
+      const eCopia=Object.assign({},e,{horomActual:r.horom,horomProxPM:r.horomProxPM,diasParaPM:r.diasParaPM,tipoPM:r.tipoPM});
+      if(r.t==='URGENTE'||r.t==='VENCIDA')urg.push(eCopia);
+      else if(r.t==='PRÓXIMA')prox.push(eCopia);
+      else alDia.push(eCopia);
+    });
+  }
   const ant=reg.filter(r=>r.estado==='A tiempo'&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
   const atr=reg.filter(r=>r.estado?.includes('ATRASADA')&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
   const regMes=reg.filter(r=>(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo);
@@ -911,14 +933,14 @@ renders.dash=function(){
 
     // Fila 1: Estado de flota
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid #ef4444">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Urgentes</div>'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Urgentes'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
     '<div style="font-size:32px;font-weight:800;color:#ef4444;line-height:1.2">'+urg.length+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+urg.slice(0,2).map(function(e){return e.sigla}).join(', ')+'</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(urg.length?urg.slice(0,2).map(function(e){return e.sigla}).join(', '):(dashFuente==='vivo'?'—':'En '+dashLabel))+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid #f59e0b">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Próximas</div>'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Próximas'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
     '<div style="font-size:32px;font-weight:800;color:#f59e0b;line-height:1.2">'+prox.length+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">En plan mensual</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(dashFuente==='vivo'?'En plan mensual':dashFuente==='historico'?'Reconstruido desde historial':'Estimado por horas/día')+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(cum===null?'var(--bd)':cum>=80?'#22c55e':'#ef4444')+'">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Cumplimiento</div>'+
@@ -1008,7 +1030,7 @@ renders.dash=function(){
     // ═══ Z4: ABAJO DERECHA — ACCIÓN ═══
     '<div style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
 
-    '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:#ef4444;font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora</div>'+
+    '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:#ef4444;font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
     (urg.length?
     '<div class="tbl-wrap"><table style="font-size:11px">'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Horóm.</th><th>Próx PM</th><th>Días</th><th>PM</th></tr>'+
@@ -1047,7 +1069,7 @@ renders.dash=function(){
   var urgBlock='';
   if(urg.length){
     urgBlock+='<div style="background:var(--bg2);border:1px solid var(--border);border-left:4px solid #ef4444;border-radius:10px;padding:16px;margin-bottom:16px">';
-    urgBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:#ef4444;display:flex;align-items:center;gap:6px">🚨 Equipos Urgentes — Intervenir Ahora <span style="font-size:11px;background:#7f1d1d;color:#fca5a5;padding:2px 8px;border-radius:10px">'+urg.length+'</span></div>';
+    urgBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:#ef4444;display:flex;align-items:center;gap:6px">🚨 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+' <span style="font-size:11px;background:#7f1d1d;color:#fca5a5;padding:2px 8px;border-radius:10px">'+urg.length+'</span></div>';
     urgBlock+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
     urgBlock+='<thead><tr style="background:var(--bg3)">';
     ['Equipo','Tipo','Modelo','Horóm. Actual','Próx. PM','Días Rest.','Tipo PM'].forEach(function(h){
