@@ -5,7 +5,14 @@
 // para poder testear esta lógica sin arrancar la app completa.
 
 const C = {
-  tipoPM(h){return h%2000===0?'PM4':h%1000===0?'PM3':h%500===0?'PM2':'PM1'},
+  // Clasifica el tipo de PM según cuántas veces se acumuló la frecuencia base del
+  // equipo (frecPM): 1x -> PM1, 2x -> PM2, 4x -> PM3, 8x -> PM4 (mismos umbrales de
+  // siempre — 250/500/1000/2000h — para el default frecPM=250 de los equipos por
+  // horas). Antes los umbrales estaban fijos en horas (500/1000/2000), así que un
+  // vehículo por kilómetros (frecPM=10000, ej. camionetas externalizadas) daba
+  // SIEMPRE 'PM4' — cualquier múltiplo de 10.000 también es múltiplo de 2.000 — sin
+  // importar si era su primer o su décimo servicio.
+  tipoPM(h,frecPM=250){const f=frecPM||250;return h%(f*8)===0?'PM4':h%(f*4)===0?'PM3':h%(f*2)===0?'PM2':'PM1'},
   proxPM(h,f=250){return Math.ceil(h/f)*f},
   estado(d){return d<0?{t:'VENCIDA',c:'b-r',i:'🔴'}:d<=7?{t:'URGENTE',c:'b-r',i:'🔴'}:d<=30?{t:'PRÓXIMA',c:'b-y',i:'🟡'}:{t:'AL DÍA',c:'b-g',i:'🟢'}},
   alertaPM4(h){return h<250?{t:'URGENTE (<250h)',c:'b-r'}:h<500?{t:'PRÓXIMA (<500h)',c:'b-y'}:h<1000?{t:'PLANIFICAR',c:'b-b'}:{t:'OK — '+h.toLocaleString()+'h',c:'b-g'}},
@@ -16,7 +23,7 @@ const C = {
     const hoy=new Date();
     e.horomProxPM=p;e.hrsRestantes=hr;e.diasParaPM=d;
     e.fechaProxPM=new Date(hoy.getTime()+d*864e5).toISOString().slice(0,10);
-    e.tipoPM=this.tipoPM(p);
+    e.tipoPM=this.tipoPM(p,e.frecPM||250);
     const s=this.estado(d);e.estado=s.i+' '+s.t;
     return e;
   },
@@ -53,7 +60,7 @@ const C = {
     const hrsRestantes=horomProxPM-horom;
     const diasParaPM=equipo.hrsDia>0?Math.round(hrsRestantes/equipo.hrsDia):999;
     const est=this.estado(diasParaPM);
-    return{t:est.t,horom,horomProxPM,diasParaPM,tipoPM:this.tipoPM(horomProxPM),fuente};
+    return{t:est.t,horom,horomProxPM,diasParaPM,tipoPM:this.tipoPM(horomProxPM,equipo.frecPM||250),fuente};
   }
 };
 

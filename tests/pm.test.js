@@ -20,6 +20,19 @@ describe('C.tipoPM — clasificación de PM por horómetro', () => {
   });
 });
 
+describe('C.tipoPM — con frecPM propio del equipo (bug real: camionetas por km siempre daban PM4)', () => {
+  it('un vehículo por km (frecPM=10000) reparte PM1-4 igual que uno por horas, a su propia escala', () => {
+    expect(C.tipoPM(10000, 10000)).toBe('PM1'); // su primer servicio, no un PM4
+    expect(C.tipoPM(20000, 10000)).toBe('PM2');
+    expect(C.tipoPM(40000, 10000)).toBe('PM3');
+    expect(C.tipoPM(80000, 10000)).toBe('PM4');
+  });
+  it('sin segundo argumento, usa 250 por defecto (compatibilidad con el comportamiento de siempre)', () => {
+    expect(C.tipoPM(2000)).toBe('PM4');
+    expect(C.tipoPM(500)).toBe('PM2');
+  });
+});
+
 describe('C.proxPM — próximo múltiplo de la frecuencia', () => {
   it('redondea hacia arriba al múltiplo más cercano', () => {
     expect(C.proxPM(240, 250)).toBe(250);
@@ -81,7 +94,16 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     expect(e.horomProxPM).toBe(500);
     expect(e.hrsRestantes).toBe(20);
     expect(e.diasParaPM).toBe(1);
-    expect(e.tipoPM).toBe('PM2');
+    // 500 es 1x el frecPM propio del equipo (500) -> es su PM1, no un PM2 fijo.
+    // (antes del fix de tipoPM por frecPM, cualquier equipo en 500h daba 'PM2' sin
+    // importar su propio frecPM — el mismo bug que afectaba a las camionetas por km)
+    expect(e.tipoPM).toBe('PM1');
+  });
+  it('un equipo por kilómetros (frecPM=10000) reparte PM1-4 en su propia escala, no siempre PM4', () => {
+    const e = { horomActual: 2500, frecPM: 10000, hrsDia: 12 };
+    C.recalc(e);
+    expect(e.horomProxPM).toBe(10000);
+    expect(e.tipoPM).toBe('PM1'); // su primer servicio — antes del fix, esto daba 'PM4' siempre
   });
   it('con hrsDia en 0 usa el centinela de 999 días (evita división por cero)', () => {
     const e = { horomActual: 100, frecPM: 250, hrsDia: 0 };

@@ -1552,7 +1552,7 @@ window.rAutoHorom=function(){
   if(e&&e.horomActual)$('rHor').value=e.horomActual;
   // Auto-detectar tipo PM
   if(e){
-    const pm=C.tipoPM(C.proxPM(e.horomActual,e.frecPM||250));
+    const pm=C.tipoPM(C.proxPM(e.horomActual,e.frecPM||250),e.frecPM||250);
     $('rPM').value=pm;
   }
   // Mostrar última ejecución de este equipo
@@ -1634,7 +1634,7 @@ window.saveReg=function(){
     ubicacion:$('regUbicacion')?.value||'',
     ast:$('regAST')?.value||'',
     loto:$('regLOTO')?.value||'',
-    proxTipo:C.tipoPM(C.proxPM(hr,e?.frecPM||250)),
+    proxTipo:C.tipoPM(C.proxPM(hr,e?.frecPM||250),e?.frecPM||250),
     horomProx:C.proxPM(hr,e?.frecPM||250),
   });
   // Get consumos from pauta and descount stock
