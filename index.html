@@ -515,37 +515,6 @@ this.s('prg',INIT.programa);this.s('hh',INIT.tarifaHH);this.s('hist',[]);}
   if(!this.g('repuestos'))this.s('repuestos',[]);
   if(!this.g('ordenes'))this.s('ordenes',[]);
   if(!this.g('cfg'))this.s('cfg',{empresa:'Besalco Minería S.A',faena:'Centinela Ripios OXE',meta:85});
-  // ═══ MIGRACIÓN v16.2 (corre una sola vez) ═══
-  if(!this.g('mig_v162')){
-    // a) Dedupe registros existentes en localStorage
-    let regM=this.g('reg')||[];const seenM={};const antesM=regM.length;
-    regM=regM.filter(r=>{const k=(r.equipo||'')+'|'+(r.tipoPM||'')+'|'+(r.fechaEntrada||'')+'|'+(r.horomReal||'');if(seenM[k])return false;seenM[k]=true;return true;});
-    if(regM.length<antesM)this.s('reg',regM);
-    // b) Fix horómetro TI-5144 (error digitación 178845)
-    const eqM=this.g('eq')||[];const tM=eqM.find(e=>e.sigla==='TI-5144');
-    if(tM&&tM.horomActual>100000){tM.horomActual=18545;this.s('eq',eqM);}
-    // c) Neumáticos: fijar horómetro base para proyección en línea
-    const neuM=this.g('neu')||[];let chM=false;
-    neuM.forEach(n=>{
-      if((n.estado==='Operativo'||!n.estado)&&n.horomInstalacion==null){
-        const e2=eqM.find(x=>x.sigla===n.sigla);
-        if(e2){n.horomInstalacion=e2.horomActual||0;n.horasBase=n.horasAcum||0;chM=true;}
-      }
-    });
-    if(chM)this.s('neu',neuM);
-    this.s('mig_v162',true);
-  }
-  // ═══ MIGRACIÓN v16.3: fusión Tabla Precios → Stock (corre una sola vez) ═══
-  if(!this.g('mig_v163')){
-    const filM=this.g('fil')||[];const stkM=this.g('stk')||[];
-    const normM=s=>(s||'').toString().toUpperCase().replace(/[^A-Z0-9]/g,'');
-    const mapM={};
-    filM.forEach(f=>{const c=(typeof f.precio==='string'&&f.precio.trim()&&f.precio!=='-')?f.precio.trim():'';if(f.nParte&&c)mapM[normM(f.nParte)]=c;});
-    let chF=false;
-    stkM.forEach(s=>{const c=mapM[normM(s.nParte)];if(c&&!s.codAlt){s.codAlt=c;chF=true;}});
-    if(chF)this.s('stk',stkM);
-    this.s('mig_v163',true);
-  }
   }
 };
 // ============ CALC ENGINE ============
@@ -1514,12 +1483,9 @@ window.editarReg=function(i){
     <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.calcDurEdit=function(){
-  const fe=$('eFecEnt')?.value,he=$('eHoraEnt')?.value;
-  const fs=$('eFecSal')?.value,hs=$('eHoraSal')?.value;
-  if(!fe||!he||!fs||!hs)return;
-  const ms=new Date(fs+'T'+hs)-new Date(fe+'T'+he);
-  if(ms<0){$('eDur').value='⚠️ Hora inválida';return;}
-  $('eDur').value=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
+  const d=duracionHM($('eFecEnt')?.value,$('eHoraEnt')?.value,$('eFecSal')?.value,$('eHoraSal')?.value);
+  if(!d)return;
+  $('eDur').value=d.ms<0?'⚠️ Hora inválida':d.texto;
 };
 window.saveEditReg=function(i){
   const reg=S.g('reg')||[];
@@ -1532,15 +1498,10 @@ window.saveEditReg=function(i){
   if(!fechaEsPlausible(fEnt))return toast('⚠️ Fecha de entrada fuera de rango válido — revisa el año');
   if(!fechaEsPlausible(fSal))return toast('⚠️ Fecha de salida fuera de rango válido — revisa el año');
   if(fEnt&&fSal&&fechaEsAnterior(fSal,fEnt))return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
-  if(fEnt&&hEnt&&fSal&&hSal){
-    const msV=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
-    if(msV<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
-  }
+  const dEdit=duracionHM(fEnt,hEnt,fSal,hSal);
+  if(dEdit&&dEdit.ms<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
   let durStr=reg[i].duracion||'—';
-  if(fEnt&&hEnt&&fSal&&hSal){
-    const ms=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
-    if(ms>0)durStr=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
-  }
+  if(dEdit&&dEdit.ms>0)durStr=dEdit.texto;
   const hr=parseInt($('eHor').value)||reg[i].horomReal||0;
   const nuevoEquipo=$('eRq').value;
   const eq=S.g('eq');
@@ -1600,14 +1561,9 @@ window.rMostrarConsumos=function(){
 };
 ;
 window.calcDurReg=function(){
-  const fe=$('rFecEnt').value,he=$('rHoraEnt').value;
-  const fs=$('rFecSal').value,hs=$('rHoraSal').value;
-  if(!fe||!he||!fs||!hs)return;
-  const ini=new Date(fe+'T'+he),fin=new Date(fs+'T'+hs);
-  let diff=fin-ini;
-  if(diff<0){$('rDur').value='⚠️ Hora inválida';return;}
-  const hrs=Math.floor(diff/3600000),min=Math.floor((diff%3600000)/60000);
-  $('rDur').value=hrs+'h '+String(min).padStart(2,'0')+'min';
+  const d=duracionHM($('rFecEnt').value,$('rHoraEnt').value,$('rFecSal').value,$('rHoraSal').value);
+  if(!d)return;
+  $('rDur').value=d.ms<0?'⚠️ Hora inválida':d.texto;
 };
 window.saveReg=function(){
   const eqSigla=$('rEq').value;
@@ -1625,19 +1581,14 @@ window.saveReg=function(){
   if(!fechaEsPlausible(fEnt))return toast('⚠️ Fecha de entrada fuera de rango válido — revisa el año');
   if(!fechaEsPlausible(fSal))return toast('⚠️ Fecha de salida fuera de rango válido — revisa el año');
   if(fEnt&&fSal&&fechaEsAnterior(fSal,fEnt))return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
-  if(fEnt&&hEnt&&fSal&&hSal){
-    const msV=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
-    if(msV<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
-  }
+  const dReg=duracionHM(fEnt,hEnt,fSal,hSal);
+  if(dReg&&dReg.ms<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
   if(e&&e.horomActual&&hr<e.horomActual){
     if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+eqSigla+' tiene horómetro actual: '+e.horomActual.toLocaleString('es-CL')+'h\nEstás registrando: '+hr.toLocaleString('es-CL')+'h ('+(e.horomActual-hr).toLocaleString('es-CL')+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
   }
   // Calcular duración en horas
   let durH=0,durStr='—';
-  if(fEnt&&hEnt&&fSal&&hSal){
-    const ms=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
-    if(ms>0){durH=ms/3600000;durStr=Math.floor(durH)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';}
-  }
+  if(dReg&&dReg.ms>0){durH=dReg.horas;durStr=dReg.texto;}
   const desv=e?Math.round((new Date(fEnt)-new Date(e.fechaProxPM))/864e5):0;
   reg.push({
     nReg:reg.reduce(function(m,r){return Math.max(m,r.nReg||0);},0)+1,
@@ -7104,16 +7055,13 @@ renders.ayuda=function(){
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #3ecf8e">'+
     '<b style="font-size:14px">🌐 Cómo activar la sincronización en la nube (Supabase) — 5 minutos, gratis</b>'+
     '<ol style="font-size:12px;line-height:1.9;margin:10px 0 0 18px">'+
-    '<li>Entra a <b>supabase.com</b> → <b>Start your project</b> → crea cuenta (con Google o email).</li>'+
-    '<li><b>New project</b> → nombre: <code>sistemamp</code> → elige una contraseña de base de datos (guárdala) → región <b>South America (São Paulo)</b> → <b>Create</b>. Espera ~2 min.</li>'+
-    '<li>En el menú izquierdo abre <b>SQL Editor</b> → <b>New query</b> → pega esto y aprieta <b>Run</b>:<br>'+
-    '<pre style="background:var(--bg3);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto;margin:6px 0">create table if not exists kv (\n  key text primary key,\n  value jsonb,\n  updated_at timestamptz default now()\n);\nalter table kv enable row level security;\ncreate policy "smp_acceso" on kv\n  for all using (true) with check (true);</pre></li>'+
-    '<li>Ve a <b>Project Settings → API</b> y copia dos cosas: la <b>Project URL</b> (https://xxxx.supabase.co) y la <b>Clave publicable</b> (sb_publishable_...).</li>'+
-    '<li>Vuelve aquí → pestaña <b>⚙ Configuración</b> → pega URL y clave → <b>💾 Guardar config</b> → <b>🔌 Probar conexión</b> → <b>⬆️ Subir todo</b> → activa <b>Sync automático</b>.</li>'+
-    '<li>En cualquier otro PC: abre este mismo archivo HTML, pega la misma URL y clave, y usa <b>⬇️ Bajar de la nube</b>.</li>'+
+    '<li>Este sistema ya usa un proyecto Supabase con el esquema completo (tablas por categoría, permisos por rol vía Row Level Security, y login real por usuario) — no hace falta crear tablas a mano. En <b>Project Settings → API</b> copia la <b>Project URL</b> (https://xxxx.supabase.co) y la <b>Clave publicable</b> (sb_publishable_...) del proyecto ya configurado.</li>'+
+    '<li>Vuelve aquí → pestaña <b>⚙ Configuración</b> → pega URL y clave → <b>💾 Guardar config</b> → <b>🔌 Probar conexión</b>.</li>'+
+    '<li>Inicia sesión con un usuario real (creado por un admin en <b>⚙ Configuración → 👤 Crear Usuario del Sistema</b>). Sin login no se puede leer ni escribir nada — los permisos son por fila y por rol, no por posesión del archivo.</li>'+
+    '<li>En cualquier otro PC: abre este mismo archivo HTML, pega la misma URL y clave, e inicia sesión con tu usuario.</li>'+
     '</ol>'+
-    '<p style="font-size:11px;color:var(--warn);margin-top:8px">⚠️ Seguridad: cualquiera que tenga este archivo HTML con la clave guardada puede leer/escribir tus datos. No compartas el archivo fuera de tu equipo de confianza. Plan gratis: 500 MB (tus datos ocupan ~2 MB, sobra de sobra).</p>'+
-    '<p style="font-size:11px;color:var(--tx3)">Conflictos: gana el último que guarda, clave por clave. Para uso de 1-2 personas es suficiente; no es edición simultánea en vivo.</p>'+
+    '<p style="font-size:11px;color:var(--warn);margin-top:8px">⚠️ Seguridad: la URL y la clave publicable no dan acceso por sí solas — cada acción exige una sesión iniciada y la base la filtra por rol (operador/admin) fila por fila. Aun así, no compartas tus credenciales de inicio de sesión fuera de tu equipo de confianza.</p>'+
+    '<p style="font-size:11px;color:var(--tx3)">Conflictos: gana el último que guarda, fila por fila. Para uso de varias personas a la vez es suficiente; no es edición simultánea del mismo registro en vivo.</p>'+
     '</div>'+
 
     // ÍNDICE

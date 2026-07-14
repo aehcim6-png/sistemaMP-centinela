@@ -1,4 +1,4 @@
-const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior } = require('../logic.js');
+const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM } = require('../logic.js');
 
 describe('fd — formato de fecha para mostrar', () => {
   it('vacío, "None" o 0 -> guión largo', () => {
@@ -66,6 +66,29 @@ describe('fechaEsPlausible — rechaza años corruptos (bug real: registro con f
   });
   it('formato no-ISO -> no plausible', () => {
     expect(fechaEsPlausible('31-12-2025')).toBe(false);
+  });
+});
+
+describe('duracionHM — un solo cálculo de duración, ya no copiado 4 veces (calcDurReg/calcDurEdit/saveReg/saveEditReg)', () => {
+  it('falta algún dato -> null', () => {
+    expect(duracionHM('', '08:00', '2026-07-14', '10:00')).toBeNull();
+    expect(duracionHM('2026-07-14', '', '2026-07-14', '10:00')).toBeNull();
+    expect(duracionHM('2026-07-14', '08:00', '', '10:00')).toBeNull();
+    expect(duracionHM('2026-07-14', '08:00', '2026-07-14', '')).toBeNull();
+  });
+  it('caso normal: calcula horas/minutos y el texto formateado', () => {
+    const d = duracionHM('2026-07-14', '08:00', '2026-07-14', '10:30');
+    expect(d.horas).toBe(2.5);
+    expect(d.texto).toBe('2h 30min');
+    expect(d.ms).toBeGreaterThan(0);
+  });
+  it('cruza medianoche', () => {
+    const d = duracionHM('2026-07-14', '22:00', '2026-07-15', '01:00');
+    expect(d.texto).toBe('3h 00min');
+  });
+  it('salida antes que entrada -> ms negativo (el llamador decide si es error)', () => {
+    const d = duracionHM('2026-07-14', '10:00', '2026-07-14', '08:00');
+    expect(d.ms).toBeLessThan(0);
   });
 });
 

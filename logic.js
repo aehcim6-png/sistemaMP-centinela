@@ -176,6 +176,20 @@ function fechaEsAnterior(a,b){
   return new Date(a+'T00:00:00').getTime()<new Date(b+'T00:00:00').getTime();
 }
 
+// Duración entre entrada y salida de un PM/correctivo — un solo lugar para el cálculo
+// que antes estaba copiado 4 veces (calcDurReg, calcDurEdit, saveReg y saveEditReg,
+// cada uno con su propia versión del mismo "new Date(fSal+hSal)-new Date(fEnt+hEnt)").
+// null si falta algún dato; si no, {ms, horas, texto}. Un ms negativo (salida antes
+// que entrada) se devuelve tal cual — cada llamador decide si eso es un error a
+// mostrar o simplemente no usar el texto.
+function duracionHM(fEnt,hEnt,fSal,hSal){
+  if(!fEnt||!hEnt||!fSal||!hSal)return null;
+  const ms=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
+  const horas=ms/3600000;
+  const texto=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
+  return{ms,horas,texto};
+}
+
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
@@ -204,6 +218,6 @@ if (typeof module !== 'undefined' && module.exports) {
     C, fd, fn, escapeHtml,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
-    fechaEsPlausible, fechaEsAnterior
+    fechaEsPlausible, fechaEsAnterior, duracionHM
   };
 }
