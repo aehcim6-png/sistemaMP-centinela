@@ -331,7 +331,11 @@ async function _syncTablaGenerica(cfg,arrNuevo,arrAnterior){
     const claveVal=obj[cfg.clave];
     if(claveVal==null)continue;
     idsNuevos.add(claveVal);
-    const fila={};cfg.cols.forEach(function(col){fila[col]=obj[col]??null;});
+    // '' -> null: Postgres rechaza "" para columnas de fecha/número (400 "invalid
+    // input syntax"), y muchos equipos/registros reales traen fechaCompra, etc. en
+    // blanco. Antes fallaba en silencio (ver fix de _avisarErrorGuardado); ahora
+    // que se avisa el error, hay que evitarlo de raíz.
+    const fila={};cfg.cols.forEach(function(col){var v=obj[col];fila[col]=(v===''?null:v)??null;});
     fila[cfg.claveDb]=claveVal;
     filas.push(fila);
   }
@@ -384,7 +388,7 @@ async function _syncSingleton(cfgS,v){
   if(!_sbOk())return;
   const c=_sbCfg();
   let body;
-  if(cfgS.modo==='objeto'){body={id:true};cfgS.cols.forEach(function(col){body[col]=(v&&v[col])??null;});}
+  if(cfgS.modo==='objeto'){body={id:true};cfgS.cols.forEach(function(col){var cv=v&&v[col];body[col]=(cv===''?null:cv)??null;});}
   else if(cfgS.modo==='valor')body={id:true,valor:v};
   else body={id:true,datos:v};
   await fetch(`${c.url}/rest/v1/${cfgS.tabla}?on_conflict=id`,{
