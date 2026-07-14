@@ -3878,7 +3878,7 @@ window.histPosicion=function(sigla,posNum){
     const maxR=Math.max(95,...meds.map(m=>m.remProm))+5;
     const px=v=>padL+Math.round((v-minH)/(maxH-minH||1)*plotW);
     const py=r=>padT+plotH-Math.round(r/(maxR||1)*plotH);
-    const colores=['#6366f1','#10b981','#f59e0b','#ef4444','#a78bfa','#06b6d4','#ec4899','#84cc16'];
+    const colores=['#3987e5','#199e70','#c98500','#008300','#9085e9','#e66767','#d55181','#d95926']; // paleta categórica validada (skill dataviz)
     let grid='';
     [0,20,40,60,80].forEach(v=>{grid+=`<line x1="${padL}" y1="${py(v)}" x2="${W-padR}" y2="${py(v)}" stroke="var(--bd)" stroke-width="0.5" opacity="0.4"/><text x="${padL-6}" y="${py(v)+3}" text-anchor="end" font-size="9" fill="var(--tx3)">${v}</text>`;});
     let lineas='';
@@ -3891,11 +3891,11 @@ window.histPosicion=function(sigla,posNum){
     svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;background:var(--bg3);border-radius:8px;margin:12px 0">
       <rect x="${padL}" y="${py(10)}" width="${plotW}" height="${H-padB-py(10)}" fill="rgba(239,68,68,0.10)"/>
       ${grid}
-      <line x1="${padL}" y1="${py(10)}" x2="${W-padR}" y2="${py(10)}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5"/>
+      <line x1="${padL}" y1="${py(10)}" x2="${W-padR}" y2="${py(10)}" stroke="#ef4444" stroke-width="1.5"/>
       <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>
       <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>
       ${lineas}
-      <text x="${W-padR-4}" y="${py(10)-4}" text-anchor="end" font-size="9" fill="#ef4444">Retiro 10mm</text>
+      <text x="${W-padR-4}" y="${py(10)-4}" text-anchor="end" font-size="9" fill="var(--tx2)">Retiro 10mm</text>
       <text x="${W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--tx3)">Horómetro equipo →</text>
       <text x="12" y="${H/2}" text-anchor="middle" font-size="9" fill="var(--tx3)" transform="rotate(-90,12,${H/2})">Remanente (mm)</text>
     </svg>`;
@@ -3903,7 +3903,7 @@ window.histPosicion=function(sigla,posNum){
 
   // Leyenda de series con vida útil
   let leyenda='';
-  const colores2=['#6366f1','#10b981','#f59e0b','#ef4444','#a78bfa','#06b6d4','#ec4899','#84cc16'];
+  const colores2=['#3987e5','#199e70','#c98500','#008300','#9085e9','#e66767','#d55181','#d95926']; // paleta categórica validada (skill dataviz)
   series.forEach((s,si)=>{
     const ms=porSerie[s];
     const hrsVida=ms.length>=2?Math.round(ms[ms.length-1].horom-ms[0].horom):0;
@@ -3981,17 +3981,17 @@ window.verDetalleNeu=function(neuIdx){
       <rect x="${padL}" y="${py(remRet)}" width="${plotW}" height="${H-padB-py(remRet)}" fill="rgba(239,68,68,0.10)"/>
       ${c.remRotar?`<rect x="${padL}" y="${py(c.remRotar)}" width="${plotW}" height="${py(remRet)-py(c.remRotar)}" fill="rgba(250,204,21,0.08)"/>`:''}
       ${grid}
-      <line x1="${padL}" y1="${py(remRet)}" x2="${W-padR}" y2="${py(remRet)}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5"/>
-      ${c.remRotar?`<line x1="${padL}" y1="${py(c.remRotar)}" x2="${W-padR}" y2="${py(c.remRotar)}" stroke="#facc15" stroke-width="1.5" stroke-dasharray="5"/>`:''}
+      <line x1="${padL}" y1="${py(remRet)}" x2="${W-padR}" y2="${py(remRet)}" stroke="#ef4444" stroke-width="1.5"/>
+      ${c.remRotar?`<line x1="${padL}" y1="${py(c.remRotar)}" x2="${W-padR}" y2="${py(c.remRotar)}" stroke="#facc15" stroke-width="1.5"/>`:''}
       <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>
       <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>
       ${pts.length>=2?`<polyline points="${pts.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="var(--ac)" stroke-width="2.5"/>`:''}
       ${proy&&projX&&pts.length?`<line x1="${pts[pts.length-1].x}" y1="${pts[pts.length-1].y}" x2="${px(projX)}" y2="${py(c.remRotar||remRet)}" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6"/>
       <circle cx="${px(projX)}" cy="${py(c.remRotar||remRet)}" r="5" fill="#a78bfa"/>
-      <text x="${px(projX)}" y="${py(c.remRotar||remRet)-8}" text-anchor="middle" font-size="9" fill="#a78bfa">cambio</text>`:''}
+      <text x="${px(projX)}" y="${py(c.remRotar||remRet)-8}" text-anchor="middle" font-size="9" fill="var(--tx2)">cambio</text>`:''}
       ${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="var(--ac)"><title>${p.f}: ${p.r}mm @ ${p.h}h</title></circle>`).join('')}
-      <text x="${W-padR-4}" y="${py(remRet)-4}" text-anchor="end" font-size="9" fill="#ef4444">Retiro ${remRet}mm</text>
-      ${c.remRotar?`<text x="${W-padR-4}" y="${py(c.remRotar)-4}" text-anchor="end" font-size="9" fill="#facc15">${c.accion} ${c.remRotar}mm</text>`:''}
+      <text x="${W-padR-4}" y="${py(remRet)-4}" text-anchor="end" font-size="9" fill="var(--tx2)">Retiro ${remRet}mm</text>
+      ${c.remRotar?`<text x="${W-padR-4}" y="${py(c.remRotar)-4}" text-anchor="end" font-size="9" fill="var(--tx2)">${c.accion} ${c.remRotar}mm</text>`:''}
       <text x="${W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--tx3)">Horómetro equipo →</text>
       <text x="12" y="${H/2}" text-anchor="middle" font-size="9" fill="var(--tx3)" transform="rotate(-90,12,${H/2})">Remanente (mm)</text>
     </svg>`;
@@ -4287,7 +4287,7 @@ renders.disp=function(){
     '<div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:16px">'+
     '<div style="text-align:center;min-width:100px"><div style="font-size:36px;font-weight:800;color:'+col+'">'+totalFlota+'%</div><div style="font-size:10px;color:var(--tx3)">FLOTA '+fMes+'</div></div>'+
     '<div style="flex:1">'+
-    '<div style="background:var(--bg4);border-radius:6px;height:18px;overflow:hidden;margin-bottom:6px"><div style="background:'+col+';height:100%;width:'+Math.min(totalFlota,100)+'%"></div></div>'+
+    '<div style="background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:6px;height:18px;overflow:hidden;margin-bottom:6px;cursor:default" onmouseenter="vizTip(event,\'Flota: '+totalFlota+'% · '+conDatos.length+' equipos con dato · '+bajoMeta+' bajo meta\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+col+';height:100%;width:'+Math.min(totalFlota,100)+'%"></div></div>'+
     '<div style="font-size:12px;color:'+col+'">'+(totalFlota>=meta?'✅ Sobre meta '+meta+'%':'⚠️ Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta</div></div></div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th></tr>'+
@@ -4296,7 +4296,7 @@ renders.disp=function(){
       var c=e.pct>=meta?'var(--ok)':e.pct>=70?'var(--w)':'var(--danger)';
       return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td><td style="font-size:11px">'+e.tipo+'</td><td style="font-size:11px">'+e.modelo+'</td>'+
         '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+e.sigla+'\'])d[\''+e.sigla+'\']={}; d[\''+e.sigla+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
-        '<td><div style="background:var(--bg4);border-radius:4px;height:10px;width:120px;overflow:hidden"><div style="background:'+c+';height:100%;width:'+Math.min(e.pct,100)+'%"></div></div></td>'+
+        '<td><div style="background:color-mix(in srgb,'+c+' 18%,var(--bg4));border-radius:4px;height:10px;width:120px;overflow:hidden"><div style="background:'+c+';height:100%;width:'+Math.min(e.pct,100)+'%"></div></div></td>'+
         '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'✅ OK':'🔴 Bajo')+'</span></td></tr>';
     }).join('')+
     '</table></div>';
@@ -4400,7 +4400,7 @@ renders.disp=function(){
     '<div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:16px">'+
     '<div style="text-align:center;min-width:120px"><div style="font-size:36px;font-weight:800;color:'+colA+'">'+fleetAnual+'%</div><div style="font-size:10px;color:var(--tx3)">ANUAL '+anio+'</div></div>'+
     '<div style="flex:1"><div style="display:flex;gap:4px;align-items:flex-end;height:60px">'+
-    fleetMonth.map(function(v,i){if(v===undefined)return'<div style="flex:1;text-align:center"><div style="font-size:8px;color:var(--tx3)">—</div><div style="font-size:8px">'+MSN[i]+'</div></div>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';var h=Math.max(v/100*50,3);return'<div style="flex:1;text-align:center"><div style="font-size:8px;font-weight:600;color:'+c+'">'+v+'</div><div style="background:'+c+';height:'+h+'px;border-radius:2px;margin:0 1px"></div><div style="font-size:8px">'+MSN[i]+'</div></div>'}).join('')+
+    fleetMonth.map(function(v,i){if(v===undefined)return'<div style="flex:1;text-align:center"><div style="font-size:8px;color:var(--tx3)">—</div><div style="font-size:8px">'+MSN[i]+'</div></div>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';var h=Math.max(v/100*50,3);var tipTxt=MSN[i]+': '+v+'% disponibilidad flota';return'<div style="flex:1;text-align:center"><div style="font-size:8px;font-weight:600;color:var(--tx)">'+v+'</div><div style="background:'+c+';height:'+h+'px;max-width:24px;margin:0 auto;border-radius:4px 4px 0 0;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div style="font-size:8px">'+MSN[i]+'</div></div>'}).join('')+
     '</div></div></div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th>'+MSN.map(function(m){return'<th>'+m+'</th>'}).join('')+'<th>Anual</th></tr>'+
@@ -4492,7 +4492,7 @@ renders.cfg=function(){
       '<b style="font-size:14px">🗄️ Mantenimiento de datos</b>'+
       '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Los navegadores limitan localStorage a ~5 MB. Si te acercas, el sistema no puede guardar y avisa con alerta. Aquí ves cuánto ocupas y puedes podar movimientos de stock antiguos.</p>'+
       '<div style="margin:10px 0"><div style="font-size:11px;color:var(--tx2);margin-bottom:4px">💾 Uso local: <b style="color:'+col+'">'+pct.toFixed(1)+'%</b> ('+(totalBytes/1048576).toFixed(2)+' MB de 5 MB)</div>'+
-      '<div style="width:100%;background:var(--bg4);height:14px;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+';transition:width .3s"></div></div></div>'+
+      '<div style="width:100%;background:color-mix(in srgb,'+col+' 18%,var(--bg4));height:14px;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+';transition:width .3s"></div></div></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
       '<button class="btn" onclick="limpiarMovAntiguos()">🗑️ Exportar y borrar movimientos > 6 meses ('+movAnt+' items)</button>'+
       '<button class="btn btn-o" onclick="renders.cfg()">🔄 Refrescar</button>'+
@@ -5442,7 +5442,8 @@ renders.pred=function(){
       '<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">'+
       '<div class="chart-box"><div class="chart-t">💵 Tendencia Costos Mensuales</div>'+
       '<div class="bars">'+P.costoMes.map(function(m){
-        return'<div class="bar-c"><div class="bar-v" style="font-size:9px">$'+(m.c/1e6).toFixed(1)+'M</div><div class="bar" style="height:'+Math.max(m.c/maxC*100,3)+'%;background:var(--ac)"></div><div class="bar-l">'+m.m.slice(5)+'</div></div>';
+        var tipTxt=m.m+': $'+fn(Math.round(m.c));
+        return'<div class="bar-c"><div class="bar-v" style="font-size:9px">$'+(m.c/1e6).toFixed(1)+'M</div><div class="bar" style="height:'+Math.max(m.c/maxC*100,3)+'%;background:var(--ac);cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+m.m.slice(5)+'</div></div>';
       }).join('')+'</div></div>'+
 
       // Stock break risks
@@ -5479,10 +5480,12 @@ renders.pred=function(){
       (ac.alertas.length?'<div class="card" style="margin-bottom:12px;border-left:3px solid var(--danger)"><b>⚠️ Alertas:</b> '+ac.alertas.join(' · ')+'</div>':'')+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">'+
       '<div class="chart-box"><div class="chart-t">Pedidos/Mes</div><div class="bars">'+E.trend.map(function(t){
-        return'<div class="bar-c"><div class="bar-v">'+(t.n||'')+'</div><div class="bar" style="height:'+Math.max(t.n/maxN*100,3)+'%;background:#3b82f6"></div><div class="bar-l">'+t.m.slice(5)+'</div></div>';
+        var tipTxt=t.m+': '+t.n+' pedidos';
+        return'<div class="bar-c"><div class="bar-v">'+(t.n||'')+'</div><div class="bar" style="height:'+Math.max(t.n/maxN*100,3)+'%;background:#3b82f6;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+t.m.slice(5)+'</div></div>';
       }).join('')+'</div></div>'+
       '<div class="chart-box"><div class="chart-t">Costo/Mes</div><div class="bars">'+E.trend.map(function(t){
-        return'<div class="bar-c"><div class="bar-v" style="font-size:8px">'+(t.c>0?'$'+(t.c/1e6).toFixed(1)+'M':'')+'</div><div class="bar" style="height:'+Math.max(t.c/maxC2*100,3)+'%;background:var(--ac)"></div><div class="bar-l">'+t.m.slice(5)+'</div></div>';
+        var tipTxt=t.m+': $'+fn(Math.round(t.c));
+        return'<div class="bar-c"><div class="bar-v" style="font-size:8px">'+(t.c>0?'$'+(t.c/1e6).toFixed(1)+'M':'')+'</div><div class="bar" style="height:'+Math.max(t.c/maxC2*100,3)+'%;background:var(--ac);cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+t.m.slice(5)+'</div></div>';
       }).join('')+'</div></div></div>'+
       '<div class="chart-box"><div class="chart-t">Top Items — '+fEq+'</div>'+
       '<div class="tbl-wrap"><table><tr><th>Item</th><th>Pedidos</th><th>Prom/Mes</th><th>Lead</th><th>Costo</th></tr>'+
@@ -6341,7 +6344,8 @@ function renderAceDash(ace){
   datos.forEach(function(d){
     if(d.v===0)return;
     var slice=d.v/total*Math.PI*2;
-    svgSlices+='<path d="'+arcoPath(110,110,100,ang,ang+slice)+'" fill="'+d.c+'"></path>';
+    var tipTxt=d.l+': '+d.v+' ('+Math.round(d.v/total*1000)/10+'%)';
+    svgSlices+='<path d="'+arcoPath(110,110,100,ang,ang+slice)+'" fill="'+d.c+'" style="cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></path>';
     ang+=slice;
   });
 
@@ -6398,15 +6402,13 @@ function renderAceDash(ace){
 
   function barraEstado(item,maxN){
     var pctN=item.n/maxN*100;
-    var segNorm=item.n?item.norm/item.n*100:0;
-    var segPrec=item.n?item.p/item.n*100:0;
-    var segAl=item.n?item.a/item.n*100:0;
+    var tipTxt=item.label+': Normal '+item.norm+' · Precaución '+item.p+' · Alerta '+item.a+' (de '+item.n+')';
     return '<div style="display:grid;grid-template-columns:140px 1fr 40px;gap:8px;align-items:center;margin-bottom:5px;font-size:11px">'+
       '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx2)" title="'+item.label+'">'+item.label+'</div>'+
-      '<div style="display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg4);width:'+Math.max(pctN,8)+'%">'+
-      (item.a?'<div style="width:'+segAl+'%;background:#ef4444"></div>':'')+
-      (item.p?'<div style="width:'+segPrec+'%;background:#eab308"></div>':'')+
-      (item.norm?'<div style="width:'+segNorm+'%;background:#22c55e"></div>':'')+
+      '<div style="display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg4);width:'+Math.max(pctN,8)+'%;gap:2px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
+      (item.a?'<div style="flex:'+item.a+' 1 0;background:#ef4444"></div>':'')+
+      (item.p?'<div style="flex:'+item.p+' 1 0;background:#eab308"></div>':'')+
+      (item.norm?'<div style="flex:'+item.norm+' 1 0;background:#22c55e"></div>':'')+
       '</div>'+
       '<div style="text-align:right;color:var(--tx3)">'+item.n+'</div></div>';
   }
@@ -6439,7 +6441,8 @@ function renderAceDash(ace){
     var v=porMes[k];
     var h=Math.max(v/maxMes*100,3);
     var label=k.slice(5)+'/'+k.slice(2,4);
-    html+='<div class="bar-c"><div class="bar-v">'+v+'</div><div class="bar" style="height:'+h+'%;background:var(--ac)"></div><div class="bar-l">'+label+'</div></div>';
+    var tipTxt=label+': '+v+' muestras';
+    html+='<div class="bar-c"><div class="bar-v">'+v+'</div><div class="bar" style="height:'+h+'%;background:var(--ac);cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+label+'</div></div>';
   });
   html+='</div></div>';
   html+='</div>'; // cierre grid 2 columnas
@@ -8027,7 +8030,7 @@ renders.comp=function(){
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'horomComp\',parseFloat(this.innerText)||0)">'+c.horomComp+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'vidaUtil\',parseFloat(this.innerText)||0)">'+c.vidaUtil+'</td>'+
         '<td class="mono">'+c.hrsUsadas+'</td>'+
-        '<td><div style="display:flex;align-items:center;gap:4px"><div style="background:var(--bg4);border-radius:3px;height:8px;width:60px;overflow:hidden"><div style="background:'+barCol+';height:100%;width:'+Math.min(c.pctVida,100)+'%"></div></div><span style="font-size:10px">'+c.pctVida+'%</span></div></td>'+
+        '<td><div style="display:flex;align-items:center;gap:4px"><div style="background:color-mix(in srgb,'+barCol+' 18%,var(--bg4));border-radius:3px;height:8px;width:60px;overflow:hidden"><div style="background:'+barCol+';height:100%;width:'+Math.min(c.pctVida,100)+'%"></div></div><span style="font-size:10px">'+c.pctVida+'%</span></div></td>'+
         '<td class="mono" style="color:'+(c.hrsRest<=0?'var(--danger)':c.hrsRest<1000?'var(--w)':'var(--ok)')+';font-weight:700">'+c.hrsRest+'</td>'+
         '<td class="mono">'+c.diasRest+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+Math.round(c.costoRef||0).toLocaleString()+'</td>'+
@@ -8635,31 +8638,25 @@ renders.kpi=function(){
   var hhEfActual=hhRealT>0?Math.round(hhPlanT/hhRealT*100):null;
 
   // ═══ SVG GAUGE GENERATOR ═══
-  function gauge(val,max,meta,unit,label,color){
+  // Una proporción contra una meta → medidor (meter), no un gauge circular (skill dataviz)
+  function meterKPI(val,max,meta,unit,tipTxt,invert){
     if(val===null||val===undefined){
-      return '<svg viewBox="0 0 130 85" style="width:130px;height:85px">'+
-        '<path d="M 10 75 A 55 55 0 0 1 120 75" fill="none" stroke="var(--bg4)" stroke-width="12" stroke-linecap="round"/>'+
-        '<text x="65" y="58" text-anchor="middle" fill="var(--tx3)" font-size="18" font-weight="800">—</text>'+
-        '<text x="65" y="72" text-anchor="middle" fill="var(--tx3)" font-size="8">sin datos</text>'+
-        '<text x="10" y="82" text-anchor="start" fill="var(--tx3)" font-size="7">0</text>'+
-        '<text x="120" y="82" text-anchor="end" fill="var(--tx3)" font-size="7">'+max+'</text>'+
-        '</svg>';
+      return '<div style="padding:2px 0 4px">'+
+        '<div style="font-size:30px;font-weight:800;color:var(--tx3);line-height:1">—</div>'+
+        '<div style="font-size:9px;color:var(--tx3);margin:4px 0 8px">'+unit+'</div>'+
+        '<div style="background:var(--bg4);border-radius:8px;height:12px"></div>'+
+        '</div>';
     }
     var pct=Math.min(val/max*100,100);
     var metaPct=Math.min(meta/max*100,100);
-    var r=55,cx=65,cy=65,stroke=12;
-    var circum=2*Math.PI*r;
-    var dashVal=circum*pct/100;
-    var dashMeta=circum*metaPct/100;
-    var col=val>=meta?'#22c55e':val>=meta*0.7?'#f59e0b':'#ef4444';
-    return '<svg viewBox="0 0 130 85" style="width:130px;height:85px">'+
-      '<path d="M 10 75 A 55 55 0 0 1 120 75" fill="none" stroke="var(--bg4)" stroke-width="'+stroke+'" stroke-linecap="round"/>'+
-      '<path d="M 10 75 A 55 55 0 0 1 120 75" fill="none" stroke="'+col+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+(circum*0.5*pct/100)+' '+circum+'"/>'+
-      '<text x="65" y="58" text-anchor="middle" fill="'+col+'" font-size="22" font-weight="800">'+val+'</text>'+
-      '<text x="65" y="72" text-anchor="middle" fill="var(--tx3)" font-size="8">'+unit+'</text>'+
-      '<text x="10" y="82" text-anchor="start" fill="var(--tx3)" font-size="7">0</text>'+
-      '<text x="120" y="82" text-anchor="end" fill="var(--tx3)" font-size="7">'+max+'</text>'+
-      '</svg>';
+    var col=invert?(val<=meta?'#22c55e':val<=meta*1.3?'#f59e0b':'#ef4444'):(val>=meta?'#22c55e':val>=meta*0.7?'#f59e0b':'#ef4444');
+    return '<div style="padding:2px 0 4px">'+
+      '<div style="font-size:30px;font-weight:800;color:'+col+';line-height:1">'+val+'</div>'+
+      '<div style="font-size:9px;color:var(--tx3);margin:4px 0 8px">'+unit+'</div>'+
+      '<div style="position:relative;background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:8px;height:12px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
+      '<div style="position:absolute;left:'+metaPct+'%;top:-2px;bottom:-2px;width:2px;background:var(--tx3);z-index:2"></div>'+
+      '<div style="background:'+col+';height:100%;width:'+pct+'%;border-radius:8px;transition:width .5s"></div></div>'+
+      '</div>';
   }
 
   // ═══ BAR CHART WITH META LINE ═══
@@ -8668,20 +8665,21 @@ renders.kpi=function(){
     if(!maxVal)maxVal=Math.max.apply(null,valsConDato.concat([metaVal||1]))*1.2||100;
     var metaH=metaVal?Math.round(metaVal/maxVal*100):0;
     return '<div style="position:relative;height:120px;display:flex;align-items:flex-end;gap:2px;padding-top:15px">'+
-      (metaVal?'<div style="position:absolute;top:'+(100-metaH)+'%;left:0;right:0;border-top:2px dashed var(--tx3);z-index:1"><span style="font-size:7px;color:var(--tx3);position:absolute;right:0;top:-10px">Meta '+metaVal+unit+'</span></div>':'')+
+      (metaVal?'<div style="position:absolute;top:'+(100-metaH)+'%;left:0;right:0;border-top:2px solid var(--tx3);z-index:1"><span style="font-size:7px;color:var(--tx3);position:absolute;right:0;top:-10px">Meta '+metaVal+unit+'</span></div>':'')+
       vals.map(function(v,i){
         if(v===null||v===undefined){
           return '<div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%">'+
             '<div style="font-size:7px;font-weight:600;color:var(--tx3)">—</div>'+
-            '<div style="background:var(--bg4);height:2%;border-radius:2px 2px 0 0;min-height:2px"></div>'+
+            '<div class="bar" style="background:var(--bg4);height:2%"></div>'+
             '<div style="font-size:7px;color:var(--tx3);margin-top:2px">'+labels[i]+'</div></div>';
         }
         var h=maxVal>0?Math.max(v/maxVal*100,2):2;
         var ok=invertMeta?(v<=metaVal):(v>=metaVal);
         var col=ok?'#22c55e':(v>=metaVal*0.7||invertMeta&&v<=metaVal*1.3)?'#f59e0b':'#ef4444';
+        var tipTxt=labels[i]+': '+v+unit;
         return '<div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%">'+
-          '<div style="font-size:7px;font-weight:600;color:'+col+'">'+v+'</div>'+
-          '<div style="background:'+col+';height:'+h+'%;border-radius:2px 2px 0 0;min-height:2px"></div>'+
+          '<div style="font-size:7px;font-weight:600;color:var(--tx)">'+v+'</div>'+
+          '<div class="bar" style="background:'+col+';height:'+h+'%;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div>'+
           '<div style="font-size:7px;color:var(--tx3);margin-top:2px">'+labels[i]+'</div></div>';
       }).join('')+'</div>';
   }
@@ -8703,8 +8701,7 @@ renders.kpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA</div>'+
-    gauge(dispActual,100,meta,'%','Disp.',dispActual>=meta?'#22c55e':'#ef4444')+
-    '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--tx3);margin-top:4px"><span>🔴 '+Math.round(meta*0.7)+'%</span><span>🟡 '+meta+'%</span><span>🟢 100%</span></div>'+
+    meterKPI(dispActual,100,meta,'%',dispActual===null?'':'Disponibilidad: '+dispActual+'% · meta '+meta+'%')+
     '<div style="font-size:10px;margin-top:4px;color:'+(dispActual===null?'var(--tx3)':dispActual>=meta?'#22c55e':'#ef4444')+'">'+(dispActual===null?'Sin datos':'Meta: '+meta+'%')+'</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptDisp(\'excel\')" style="font-size:9px">📥</button>'+
@@ -8716,7 +8713,7 @@ renders.kpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">MTBF FLOTA</div>'+
-    gauge(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF','#3b82f6')+
+    meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF: '+mtbfActual+'h · '+totalFallas+' fallas totales')+
     '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'#22c55e':mtbfActual>500?'#f59e0b':'#ef4444')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+totalFallas+' fallas totales</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
@@ -8729,7 +8726,7 @@ renders.kpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">CUMPLIMIENTO PM</div>'+
-    gauge(cumplActual,100,90,'%','Cumpl.','#8b5cf6')+
+    meterKPI(cumplActual,100,90,'%',cumplActual===null?'':'Cumplimiento: '+cumplActual+'% · '+reg.length+' ejecuciones')+
     '<div style="font-size:10px;margin-top:4px;color:'+(cumplActual===null?'var(--tx3)':cumplActual>=90?'#22c55e':cumplActual>=70?'#f59e0b':'#ef4444')+'">'+(cumplActual===null?'Sin datos':'Meta: 90%')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+reg.length+' ejecuciones</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
@@ -8742,7 +8739,7 @@ renders.kpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">COSTO / HORA OPERADA</div>'+
-    gauge(costoHrActual,Math.max(costoHrActual*2,5000),3000,'$/hr','Costo','#f59e0b')+
+    meterKPI(costoHrActual,Math.max(costoHrActual*2,5000),3000,'$/hr','Costo: $'+fn(costoHrActual)+'/hr · meta ≤$3.000/hr',true)+
     '<div style="font-size:10px;margin-top:4px;color:'+(costoHrActual<=3000?'#22c55e':'#ef4444')+'">Meta: ≤$3.000/hr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptCostos(\'excel\')" style="font-size:9px">📥</button>'+
@@ -8754,7 +8751,7 @@ renders.kpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">RATIO PREVENTIVO</div>'+
-    gauge(ratioActual,100,80,'%','Prev/Total','#3b82f6')+
+    meterKPI(ratioActual,100,80,'%',ratioActual===null?'':'Ratio preventivo: '+ratioActual+'% · '+prevTotal+' prev / '+(reg.length-prevTotal)+' corr')+
     '<div style="font-size:10px;margin-top:4px;color:'+(ratioActual===null?'var(--tx3)':ratioActual>=80?'#22c55e':ratioActual>=60?'#f59e0b':'#ef4444')+'">'+(ratioActual===null?'Sin datos':'Meta: 80% preventivo')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+prevTotal+' prev / '+(reg.length-prevTotal)+' corr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
@@ -8767,7 +8764,7 @@ renders.kpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">EFICIENCIA HH</div>'+
-    gauge(hhEfActual,150,80,'%','Plan/Real','#16a085')+
+    meterKPI(hhEfActual,150,80,'%',hhEfActual===null?'':'Eficiencia HH: '+hhEfActual+'% · Real '+Math.round(hhRealT)+'h / Plan '+Math.round(hhPlanT)+'h')+
     '<div style="font-size:10px;margin-top:4px;color:'+(hhEfActual===null?'var(--tx3)':hhEfActual>=80?'#22c55e':'#f59e0b')+'">'+(hhEfActual===null?'Sin datos':'Meta: 80%')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Real: '+Math.round(hhRealT)+'h · Plan: '+Math.round(hhPlanT)+'h</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
@@ -9661,7 +9658,7 @@ renders.avance=function(){
     // Progress bar general
     '<div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:16px">'+
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px;font-weight:700">Avance Flota</span><span style="font-size:20px;font-weight:800;color:'+(totalPct===null?'var(--tx3)':totalPct>=pctEsperado?'var(--ok)':'var(--danger)')+'">'+(totalPct===null?'—':totalPct+'%')+'</span></div>'+
-    '<div style="position:relative;background:var(--bg4);border-radius:8px;height:20px;overflow:hidden">'+
+    '<div style="position:relative;background:color-mix(in srgb,'+(totalPct===null?'var(--tx3)':totalPct>=pctEsperado?'var(--ok)':'var(--danger)')+' 18%,var(--bg4));border-radius:8px;height:20px;overflow:hidden">'+
     '<div style="position:absolute;left:'+pctEsperado+'%;top:0;bottom:0;width:2px;background:var(--tx3);z-index:2"></div>'+
     '<div style="background:'+(totalPct===null?'var(--tx3)':totalPct>=pctEsperado?'var(--ok)':'var(--danger)')+';height:100%;width:'+Math.min(totalPct||0,100)+'%;border-radius:8px;transition:width .3s"></div></div>'+
     '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx3);margin-top:4px"><span>'+totalEjec+' de '+totalPlan+' PMs</span><span>Esperado: '+pctEsperado+'%</span></div></div>'+
@@ -9677,7 +9674,7 @@ renders.avance=function(){
         '<td class="ed mono" contenteditable onblur="var a=S.g(\'avanceData\')||{};if(!a[\''+e.sigla+'\'])a[\''+e.sigla+'\']={}; a[\''+e.sigla+'\'][\''+fMes+'\']=parseInt(this.innerText)||0;S.s(\'avanceData\',a);refreshAll()" style="color:#3b82f6;text-align:center">'+e.plan+'</td>'+
         '<td class="mono" style="text-align:center;font-weight:600">'+e.ejec+'</td>'+
         '<td class="mono" style="color:'+col+';font-weight:700;text-align:center">'+(sinPlan?'—':e.pct+'%')+'</td>'+
-        '<td><div style="position:relative;background:var(--bg4);border-radius:4px;height:12px;width:100px;overflow:hidden"><div style="position:absolute;left:'+e.esp+'%;top:0;bottom:0;width:1px;background:var(--tx3)"></div><div style="background:'+col+';height:100%;width:'+Math.min(e.pct||0,100)+'%"></div></div></td>'+
+        '<td><div style="position:relative;background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:4px;height:12px;width:100px;overflow:hidden"><div style="position:absolute;left:'+e.esp+'%;top:0;bottom:0;width:1px;background:var(--tx3)"></div><div style="background:'+col+';height:100%;width:'+Math.min(e.pct||0,100)+'%"></div></div></td>'+
         '<td class="mono" style="text-align:center;color:var(--tx3)">'+e.esp+'%</td>'+
         '<td class="mono" style="text-align:center;color:'+col+';font-weight:600">'+(sinPlan?'—':(e.diff>=0?'+':'')+e.diff+'%')+'</td>'+
         '<td style="font-size:10px">'+(sinPlan?'⚪ SIN PLAN':e.pct>=e.esp?'✅ EN PLAN':e.pct>=e.esp*0.7?'⚠️ RIESGO':'🔴 ATRASADO')+'</td></tr>';
