@@ -33,6 +33,27 @@ describe('C.tipoPM — con frecPM propio del equipo (bug real: camionetas por km
   });
 });
 
+describe('C.mtbfReal — MTBF real entre fallas sucesivas (bug real: horomActual/fallas.length)', () => {
+  it('menos de 2 fallas con horómetro válido -> null, no se inventa un número', () => {
+    expect(C.mtbfReal([])).toBeNull();
+    expect(C.mtbfReal([5000])).toBeNull();
+    expect(C.mtbfReal([0, 0])).toBeNull(); // 0 no cuenta como horómetro válido
+  });
+  it('2 fallas -> un solo intervalo entre ambas', () => {
+    expect(C.mtbfReal([1000, 1500])).toBe(500);
+  });
+  it('varias fallas -> promedio de los intervalos sucesivos (rango total / n-1), sin importar el orden de entrada', () => {
+    expect(C.mtbfReal([1000, 2000, 3000, 4000])).toBe(1000);
+    expect(C.mtbfReal([4000, 1000, 3000, 2000])).toBe(1000); // se ordena internamente
+  });
+  it('el bug real: el mismo equipo con las mismas fallas ya no cambia de MTBF solo porque avanza el horómetro sin volver a fallar', () => {
+    // Antes: horomActual/fallas.length crecía con el tiempo aunque no hubiera fallas nuevas.
+    // Ahora: mtbfReal solo depende de los horómetros DE LAS FALLAS ya ocurridas.
+    expect(C.mtbfReal([1000, 2000])).toBe(1000);
+    expect(C.mtbfReal([1000, 2000])).toBe(1000); // sigue igual, no depende de horomActual
+  });
+});
+
 describe('C.proxPM — próximo múltiplo de la frecuencia', () => {
   it('redondea hacia arriba al múltiplo más cercano', () => {
     expect(C.proxPM(240, 250)).toBe(250);

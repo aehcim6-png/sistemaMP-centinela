@@ -27,6 +27,18 @@ const C = {
     const s=this.estado(d);e.estado=s.i+' '+s.t;
     return e;
   },
+  // MTBF real: promedio de horas de operación ENTRE fallas sucesivas, usando el
+  // horómetro real registrado en cada falla (ot.horom) — no "horómetro actual del
+  // equipo ÷ cantidad de fallas" (la fórmula vieja), que reparte todas las fallas
+  // parejo desde la hora 0 y no distingue un equipo que las tiene agrupadas de uno
+  // que las tiene bien espaciadas — además cambiaba solo porque pasa el tiempo,
+  // no porque haya vuelto a fallar. Necesita al menos 2 fallas con horómetro válido
+  // para tener un intervalo real que medir; si no, no se inventa un número — null.
+  mtbfReal(horomFallas){
+    const validos=(horomFallas||[]).filter(h=>h>0).sort((a,b)=>a-b);
+    if(validos.length<2)return null;
+    return Math.round((validos[validos.length-1]-validos[0])/(validos.length-1));
+  },
   // Horómetro de un equipo a la fecha límite dada, según historial_horometros (hist).
   // Toma el registro más reciente con fecha <= fechaLimite; null si no hay ninguno.
   horomHistorico(histArr,sigla,fechaLimite){
