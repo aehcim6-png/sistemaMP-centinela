@@ -475,6 +475,7 @@ const S={
     // 3. Supabase (asíncrono, no bloquea la UI)
     if(TABLA_REAL[k]){
       _syncTablaGenerica(TABLA_REAL[k],v,_anterior);
+      _logChangeGenerico(k,_anterior,v);
     }else if(k==='venc'){
       _syncVencimientos(v);
     }else if(TABLA_SINGLETON[k]){
@@ -1774,19 +1775,20 @@ window.savePrgCell=function(pi,mes,val){
 renders.al=function(){
   const eq=S.g('eq'),al=S.g('al');
   const data=eq.map(e=>{
-    const p4=C.proxPM(e.horomActual,2000)*1||Math.ceil(e.horomActual/2000)*2000;
+    const f=e.frecPM||250,unidad=e.unidad==='km'?'km':'h';
+    const p4=C.proxPM(e.horomActual,f*8);
     const h=p4-e.horomActual,d=e.hrsDia>0?Math.round(h/e.hrsDia):999;
     const orig=al.find(a=>a.sigla===e.sigla);
-    return{...e,proxPM4:p4,hrsP4:h,diasP4:d,fechaP4:new Date(Date.now()+d*864e5).toISOString().slice(0,10),alerta:C.alertaPM4(h),rep:orig?.repuestos||''}
+    return{...e,proxPM4:p4,hrsP4:h,diasP4:d,unidad,fechaP4:new Date(Date.now()+d*864e5).toISOString().slice(0,10),alerta:C.alertaPM4(h,f,unidad),rep:orig?.repuestos||''}
   }).sort((a,b)=>a.hrsP4-b.hrsP4);
   $('s-al').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">🔴 Alertas PM4 — Overhaul 2000h</div><div class="sec-s">Click en repuestos para editar</div></div></div>
+    <div class="sec-h"><div><div class="sec-t">🔴 Alertas PM4 — Overhaul (8× frecPM propio de cada equipo)</div><div class="sec-s">Click en repuestos para editar</div></div></div>
     <div class="tbl-wrap"><table>
-      <tr><th>Sigla</th><th>Tipo</th><th>Horóm.</th><th>Próx PM4</th><th>Hrs PM4</th><th>Días</th><th>Fecha Est.</th><th>Alerta</th><th>Repuestos Clave</th></tr>
+      <tr><th>Sigla</th><th>Tipo</th><th>Horóm.</th><th>Próx PM4</th><th>Restante</th><th>Días</th><th>Fecha Est.</th><th>Alerta</th><th>Repuestos Clave</th></tr>
       ${data.map((e,i)=>`<tr>
         <td class="mono" style="color:var(--ac)">${e.sigla}</td><td>${e.tipo}</td>
-        <td class="mono">${fn(e.horomActual)}</td><td class="mono">${fn(e.proxPM4)}</td>
-        <td class="mono" style="color:${e.hrsP4<500?'var(--danger)':'var(--tx)'};font-weight:700">${fn(e.hrsP4)}</td>
+        <td class="mono">${fn(e.horomActual)}${e.unidad}</td><td class="mono">${fn(e.proxPM4)}${e.unidad}</td>
+        <td class="mono" style="color:${e.hrsP4<(e.frecPM||250)*2?'var(--danger)':'var(--tx)'};font-weight:700">${fn(e.hrsP4)}${e.unidad}</td>
         <td class="mono">${e.diasP4}</td><td class="mono">${fd(e.fechaP4)}</td>
         <td><span class="badge ${e.alerta.c}">${e.alerta.t}</span></td>
         <td style="font-size:10px;max-width:300px;white-space:normal;cursor:pointer" onclick="editAlRep('${e.sigla}')">${e.rep||'<span style=color:var(--tx3)>Click para agregar</span>'}</td>
@@ -7582,19 +7584,24 @@ window._logChange=function(accion,detalle){
   S.s('changelog',log);
 };
 
-// Patch edI to log
-var _origEdI=window.edI;
-window.edI=function(store,idx,key,val){
-  _origEdI(store,idx,key,val);
-  _logChange('Editar '+store,'Índice '+idx+': '+key+' = '+String(val).substring(0,50));
-};
-
-// Patch edOT to log
-var _origEdOT=window.edOT;
-window.edOT=function(i,key,val){
-  _origEdOT(i,key,val);
-  _logChange('Editar OT','OT #'+i+': '+key+' = '+String(val).substring(0,50));
-};
+// Hook único de auditoría: antes esto solo se alimentaba parcheando edI/edOT (edición
+// de celda en línea), que cubre una fracción mínima de las acciones reales del sistema
+// — saveReg, saveFicha, savePauta, altas, bajas, etc. nunca pasaban por ahí, así que en
+// la práctica el changelog quedaba casi siempre vacío. Se engancha en S.s() en vez de
+// en funciones puntuales porque TODO guardado del sistema pasa por ahí, sin excepción.
+function _logChangeGenerico(k,anterior,nuevo){
+  if(k==='changelog')return; // evita loguear el propio log de cambios
+  if(!Array.isArray(nuevo))return; // por ahora solo categorías-tabla (arreglo)
+  var antes=anterior||[];
+  if(antes.length===0&&nuevo.length===0)return;
+  if(nuevo.length>antes.length){
+    _logChange('Crear en '+k,'+'+(nuevo.length-antes.length)+' fila(s) nueva(s)');
+  }else if(nuevo.length<antes.length){
+    _logChange('Eliminar en '+k,'-'+(antes.length-nuevo.length)+' fila(s)');
+  }else{
+    _logChange('Editar '+k,'actualización de fila(s) existente(s)');
+  }
+}
 
 
 renders.log=function(){

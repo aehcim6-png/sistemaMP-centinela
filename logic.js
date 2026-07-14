@@ -15,7 +15,13 @@ const C = {
   tipoPM(h,frecPM=250){const f=frecPM||250;return h%(f*8)===0?'PM4':h%(f*4)===0?'PM3':h%(f*2)===0?'PM2':'PM1'},
   proxPM(h,f=250){return Math.ceil(h/f)*f},
   estado(d){return d<0?{t:'VENCIDA',c:'b-r',i:'🔴'}:d<=7?{t:'URGENTE',c:'b-r',i:'🔴'}:d<=30?{t:'PRÓXIMA',c:'b-y',i:'🟡'}:{t:'AL DÍA',c:'b-g',i:'🟢'}},
-  alertaPM4(h){return h<250?{t:'URGENTE (<250h)',c:'b-r'}:h<500?{t:'PRÓXIMA (<500h)',c:'b-y'}:h<1000?{t:'PLANIFICAR',c:'b-b'}:{t:'OK — '+h.toLocaleString()+'h',c:'b-g'}},
+  // Alerta de overhaul (PM4): mismo problema que tenía tipoPM antes de su fix —
+  // bandas fijas en horas (250/500/1000) sin importar el frecPM propio del equipo.
+  // Para un vehículo por kilómetros (frecPM=10000) esto mostraba "🔴 URGENTE (<250h)"
+  // comparando un remanente en KM contra un umbral pensado en HORAS. Ahora las
+  // bandas son 1x/2x/4x el frecPM del equipo (igual que las 4 escalas de tipoPM),
+  // y la unidad mostrada es la real del equipo, no siempre "h".
+  alertaPM4(h,frecPM=250,unidad='h'){const f=frecPM||250;return h<f?{t:'URGENTE (<'+f+unidad+')',c:'b-r'}:h<f*2?{t:'PRÓXIMA (<'+(f*2)+unidad+')',c:'b-y'}:h<f*4?{t:'PLANIFICAR',c:'b-b'}:{t:'OK — '+h.toLocaleString()+unidad,c:'b-g'}},
   recalc(e){
     const p=this.proxPM(e.horomActual,e.frecPM||250);
     const hr=p-e.horomActual;

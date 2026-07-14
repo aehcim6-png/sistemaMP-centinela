@@ -102,6 +102,19 @@ describe('C.alertaPM4 — clasificación de urgencia para overhaul (2000h)', () 
   });
 });
 
+describe('C.alertaPM4 — con frecPM propio del equipo (bug real: umbral fijo de 2000h en la pestaña Alertas PM4)', () => {
+  it('un vehículo por km (frecPM=10000) usa sus propias bandas 1x/2x/4x, no 250/500/1000h fijos', () => {
+    expect(C.alertaPM4(5000, 10000, 'km').t).toContain('URGENTE');
+    expect(C.alertaPM4(15000, 10000, 'km').t).toContain('PRÓXIMA');
+    expect(C.alertaPM4(30000, 10000, 'km').t).toBe('PLANIFICAR');
+    expect(C.alertaPM4(50000, 10000, 'km').t).toContain('OK');
+  });
+  it('sin segundo/tercer argumento, se comporta igual que siempre (250h de flota por horas)', () => {
+    expect(C.alertaPM4(249).t).toContain('URGENTE (<250h)');
+    expect(C.alertaPM4(999).t).toBe('PLANIFICAR');
+  });
+});
+
 describe('C.recalc — recalcula el estado completo de un equipo', () => {
   beforeEach(() => {
     vi.useFakeTimers();
