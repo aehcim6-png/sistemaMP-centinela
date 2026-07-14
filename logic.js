@@ -113,7 +113,11 @@ function esLubricante(rep){
 function vencReglaDefault(tipoEquipo, vencTipo){
   var t=(tipoEquipo||'').toUpperCase();
   if(vencTipo==='Sistema AFEX'){
-    if(t.indexOf('CAEX')>=0||t.indexOf('BULLDOZER')>=0||t.indexOf('CARGADOR')>=0) return 6;
+    // 'CAEX' nunca aparece en los tipos reales de equipo (los camiones mineros están
+    // tipificados como 'Camion'/'Camion Aljibe') — sin este chequeo, el segmento más
+    // grande y más crítico de la flota nunca recibía periodicidad sugerida. Ojo:
+    // 'CAMION ' (con espacio) para no matchear 'CAMIONETA', que no debe llevar AFEX.
+    if(t.indexOf('CAEX')>=0||t==='CAMION'||t.indexOf('CAMION ')>=0||t.indexOf('BULLDOZER')>=0||t.indexOf('CARGADOR')>=0) return 6;
     return null;
   }
   if(vencTipo==='Revisión Técnica'){

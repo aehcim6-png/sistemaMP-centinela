@@ -6,6 +6,10 @@ describe('vencReglaDefault — periodicidad por tipo de equipo y tipo de vencimi
     expect(vencReglaDefault('Bulldozer', 'Sistema AFEX')).toBe(6);
     expect(vencReglaDefault('Cargador Frontal', 'Sistema AFEX')).toBe(6);
   });
+  it('Sistema AFEX: 6 meses para "Camion" — el tipo real de los camiones mineros en los datos (nunca "CAEX")', () => {
+    expect(vencReglaDefault('Camion', 'Sistema AFEX')).toBe(6);
+    expect(vencReglaDefault('Camion Aljibe', 'Sistema AFEX')).toBe(6);
+  });
   it('Sistema AFEX: sin regla para una Camioneta', () => {
     expect(vencReglaDefault('Camioneta', 'Sistema AFEX')).toBeNull();
   });

@@ -225,7 +225,7 @@ const TABLA_REAL={
   fil:{tabla:'tabla_precios_maestro',clave:'_id',claveDb:'id',cols:['nParte','precio']},
   al:{tabla:'alertas',clave:'_id',claveDb:'id',cols:['sigla','repuestos']},
   // Clave natural: el propio campo ya identifica la fila, tanto en JS como en la tabla.
-  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato']},
+  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato','unidad','criticidad']},
   neu:{tabla:'neumaticos',clave:'id',claveDb:'id',cols:['id','sigla','tipo','marca','serie','medida','posicion','numPos','estado','tipoEquipo','vidaUtil','remNuevo','remanente','pctRemanente','alerta','fechaInst','ultimaMedicion','horasAcum','horomActual','horomInstalacion','horasBase','numSensor','obs']},
   informesFalla:{tabla:'informes_falla',clave:'id',claveDb:'id',cols:['id','sigla','tipo','modelo','componente','tipoEvento','descripcion','causaProbable','costoEstimado','horometroActual','generadoPor','fecha','fechaCreacion','fotos']}
 };
@@ -338,13 +338,26 @@ async function _syncTablaGenerica(cfg,arrNuevo,arrAnterior){
   if(filas.length){
     await fetch(`${c.url}/rest/v1/${cfg.tabla}?on_conflict=${cfg.claveDb}`,{
       method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify(filas)
-    }).catch(()=>{});
+    }).then(async function(res){
+      if(!res.ok)_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));
+    }).catch(function(){_avisarErrorGuardado(cfg.tabla,'')});
   }
   for(const idViejo of idsAnteriores){
     if(!idsNuevos.has(idViejo)){
-      await fetch(`${c.url}/rest/v1/${cfg.tabla}?${cfg.claveDb}=eq.${idViejo}`,{method:'DELETE',headers:_sbHeaders()}).catch(()=>{});
+      await fetch(`${c.url}/rest/v1/${cfg.tabla}?${cfg.claveDb}=eq.${encodeURIComponent(idViejo)}`,{method:'DELETE',headers:_sbHeaders()})
+        .then(async function(res){if(!res.ok)_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));})
+        .catch(function(){_avisarErrorGuardado(cfg.tabla,'')});
     }
   }
+}
+// El fetch a Supabase "tiene éxito" (no lanza excepción) aunque RLS o un trigger
+// rechacen la operación con 4xx/5xx — sin esto, el usuario ve "✅ Guardado" en
+// pantalla aunque el cambio nunca haya llegado a la base real.
+function _avisarErrorGuardado(tabla,detalleServidor){
+  var msg='⚠️ No se pudo guardar en la nube ('+tabla+')';
+  if(/admin/i.test(detalleServidor))msg='⛔ Ese cambio requiere permisos de administrador — no se guardó';
+  if(typeof toast==='function')toast(msg);
+  console.error('Error guardando en Supabase:',tabla,detalleServidor);
 }
 
 // Vencimientos: aplana el objeto anidado y hace upsert por (sigla,vencTipo).
@@ -361,7 +374,9 @@ async function _syncVencimientos(obj){
   if(!filas.length)return;
   await fetch(`${c.url}/rest/v1/vencimientos?on_conflict=sigla,vencTipo`,{
     method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify(filas)
-  }).catch(()=>{});
+  }).then(async function(res){
+    if(!res.ok)_avisarErrorGuardado('vencimientos',await res.text().catch(function(){return''}));
+  }).catch(function(){_avisarErrorGuardado('vencimientos','')});
 }
 
 // Singleton: siempre la misma fila (id=true).
@@ -374,7 +389,9 @@ async function _syncSingleton(cfgS,v){
   else body={id:true,datos:v};
   await fetch(`${c.url}/rest/v1/${cfgS.tabla}?on_conflict=id`,{
     method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify([body])
-  }).catch(()=>{});
+  }).then(async function(res){
+    if(!res.ok)_avisarErrorGuardado(cfgS.tabla,await res.text().catch(function(){return''}));
+  }).catch(function(){_avisarErrorGuardado(cfgS.tabla,'')});
 }
 
 // Escribe una clave en Supabase (fire-and-forget)
@@ -387,6 +404,8 @@ function _sbWrite(k,v){
     method:'POST',
     headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
     body:JSON.stringify([{key:k,value:v,updated_at:now}])
+  }).then(async function(res){
+    if(!res.ok)_avisarErrorGuardado('kv/'+k,await res.text().catch(function(){return''}));
   }).catch(()=>{
     try{
       const pending=JSON.parse(localStorage.getItem(K+'_pending')||'[]');
@@ -1145,6 +1164,15 @@ renders.dash=function(){
 
   renderHeader();
 };
+// Lista de tipos de equipo para el <select> de edición: la lista base + cualquier
+// tipo que ya exista en los datos reales (Camioneta, Bus, Generador quedaban afuera
+// y el select mostraba el primer tipo de la lista como si fuera el real al editar).
+function _tiposEquipoDisponibles(){
+  var base=['Camion','Bulldozer','Cargador Frontal','Motoniveladora','Camion Aljibe','Camioneta','Bus','Retroexcavadora','Grúa','Generador'];
+  var eq=S.g('eq')||[];
+  var extra=[...new Set(eq.map(function(e){return e.tipo}).filter(function(t){return t&&base.indexOf(t)<0;}))];
+  return base.concat(extra.sort());
+}
 // ---- EQUIPOS (full CRUD + inline edit) ----
 renders.eq=function(){
   const eq=C.recalcAll();
@@ -1169,7 +1197,7 @@ renders.eq=function(){
         const i=eq.indexOf(e);
         return`<tr data-sigla="${e.sigla}">
           ${edCell(e.sigla,'sigla',i,'eq')}
-          ${edCell(e.tipo,'tipo',i,'eq','select',['Camion','Bulldozer','Cargador Frontal','Motoniveladora','Camion Aljibe','Retroexcavadora','Grúa'])}
+          ${edCell(e.tipo,'tipo',i,'eq','select',_tiposEquipoDisponibles())}
           ${edCell(e.modelo,'modelo',i,'eq')}
           ${edCell(e.hrsDia,'hrsDia',i,'eq','number')}
           ${edCell(e.horomActual,'horomActual',i,'eq','number')}
@@ -1188,7 +1216,7 @@ renders.eq=function(){
 };
 window.addEquipo=function(){
   sm(`<h3>Nuevo Equipo</h3>
-    <div class="form-row"><div class="fg"><label>Sigla</label><input id="nSigla"></div><div class="fg"><label>Tipo</label><select id="nTipo" onchange="window._nTipoChange&&window._nTipoChange()"><option>Camion</option><option>Bulldozer</option><option>Cargador Frontal</option><option>Motoniveladora</option><option>Camion Aljibe</option><option>Camioneta</option><option>Bus</option></select></div></div>
+    <div class="form-row"><div class="fg"><label>Sigla</label><input id="nSigla"></div><div class="fg"><label>Tipo</label><select id="nTipo" onchange="window._nTipoChange&&window._nTipoChange()">${_tiposEquipoDisponibles().map(function(t){return'<option>'+escapeHtml(t)+'</option>'}).join('')}</select></div></div>
     <div class="form-row"><div class="fg"><label>Modelo</label><input id="nModelo"></div><div class="fg"><label>Proveedor</label><input id="nProv" value="Besalco"></div></div>
     <div class="form-row"><div class="fg"><label>N° Serie / Chasis</label><input id="nSerie"></div><div class="fg"><label>Patente</label><input id="nPatente"></div><div class="fg"><label>Año Fabricación</label><input id="nAnio" type="number" placeholder="2024"></div></div>
     <div class="form-row"><div class="fg"><label>Unidad medición</label><select id="nUnidad"><option value="hr">Horas (horómetro)</option><option value="km">Kilómetros (odómetro)</option></select></div><div class="fg"><label id="nHdLabel">Hrs/Día</label><input type="number" id="nHd" value="16"></div></div>
@@ -1270,6 +1298,16 @@ window.importarEquiposNuevos=function(){
   alert(msg);
 };
 
+// Lista de técnicos para los <select> de Registro PM: los 5 nombres base +
+// cualquier variante que ya exista en los datos reales (ej. con RUT pegado),
+// para no perder/reventar el valor real de un registro al editarlo (mismo
+// bug class que el select de Tipo de Equipo — el select se arma dinámico).
+function _tecnicosDisponibles(){
+  var base=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'];
+  var reg=S.g('reg')||[];
+  var extra=[...new Set(reg.map(function(r){return r.tecnico}).filter(function(t){return t&&base.indexOf(t)<0;}))];
+  return base.concat(extra.sort());
+}
 // ---- REGISTRO EJECUCION (full CRUD + inline) ----
 renders.reg=function(){
   const reg=S.g('reg')||[],eq=S.g('eq')||[];
@@ -1321,7 +1359,7 @@ renders.reg=function(){
           <td class="mono" style="font-size:11px;color:var(--warn)">${r.duracion||'<span style="color:var(--tx3)">clic ✏️</span>'}</td>
           ${edCell(r.horomReal||0,'horomReal',i,'reg','number')}
           ${edCell(r.estatusEq||'Operativo','estatusEq',i,'reg','select',['Operativo','Fuera de Servicio'])}
-          ${edCell(r.tecnico||'','tecnico',i,'reg','select',['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez',''])}
+          ${edCell(r.tecnico||'','tecnico',i,'reg','select',_tecnicosDisponibles().concat(['']))}
           ${edCell(r.obs||'','obs',i,'reg')}
           <td><span class="badge ${r.estado?.includes('ANTICIPADA')?'b-g':r.estado?.includes('ATRASADA')?'b-r':'b-y'}">${r.estado||'—'}</span></td>
           <td style="display:flex;gap:3px">
@@ -1334,7 +1372,7 @@ renders.reg=function(){
 };
 window.addReg=function(){
   const eq=S.g('eq')||[];
-  const per=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'];
+  const per=_tecnicosDisponibles();
   const hoy=new Date().toISOString().slice(0,10);
   const hora=new Date().toTimeString().slice(0,5);
   sm(`<h3>📝 Registrar Mantención</h3>
@@ -1400,7 +1438,7 @@ window.editarReg=function(i){
   const reg=S.g('reg')||[];
   const r=reg[i];if(!r)return;
   const eq=S.g('eq')||[];
-  const per=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'];
+  const per=_tecnicosDisponibles();
   sm(`<h3>✏️ Editar Registro — ${r.equipo} ${r.tipoPM}</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo</label>
@@ -1460,27 +1498,45 @@ window.saveEditReg=function(i){
   if(!reg[i])return;
   const fEnt=$('eFecEnt').value,hEnt=$('eHoraEnt').value;
   const fSal=$('eFecSal').value,hSal=$('eHoraSal').value;
+  // Mismas validaciones que al crear un registro (saveReg) — antes no existían acá,
+  // así que editar aceptaba cualquier combinación de fechas sin avisar.
+  if(!fEnt)return toast('⚠️ Ingresa fecha de entrada');
+  if(fEnt&&fSal&&fSal<fEnt)return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
+  if(fEnt&&hEnt&&fSal&&hSal){
+    const msV=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
+    if(msV<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
+  }
   let durStr=reg[i].duracion||'—';
   if(fEnt&&hEnt&&fSal&&hSal){
     const ms=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
     if(ms>0)durStr=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
   }
   const hr=parseInt($('eHor').value)||reg[i].horomReal||0;
+  const nuevoEquipo=$('eRq').value;
+  const eq=S.g('eq');
+  const e=eq.find(x=>x.sigla===nuevoEquipo);
+  // Recalcula cumplimiento (a tiempo/atrasada) contra la fecha de PM esperada que
+  // quedó guardada al crear el registro — antes editar la fecha de entrada dejaba el
+  // estado/desvío mostrando un valor calculado con la fecha vieja, sin avisar.
+  const fechaEsperada=reg[i].fechaProg;
+  const desv=fechaEsperada?Math.round((new Date(fEnt)-new Date(fechaEsperada))/864e5):(reg[i].desvioDias||0);
   reg[i]={...reg[i],
-    equipo:$('eRq').value,
+    equipo:nuevoEquipo,
+    tipo:e?.tipo||reg[i].tipo||'',
+    modelo:e?.modelo||reg[i].modelo||'',
     tipoPM:$('ePM').value,
     estatusEq:$('eEstatus').value,
     fechaEntrada:fEnt,horaEntrada:hEnt,
     fechaSalida:fSal,horaSalida:hSal,
     duracion:durStr,
     horomReal:hr,
+    desvioDias:desv,
+    estado:desv<=0?'✅ ANTICIPADA':'🔴 ATRASADA',
     tecnico:$('eTec').value,
     obs:$('eObs').value,
     repuestos:$('eRep').value,
   };
   // Actualizar horómetro del equipo si corresponde
-  const eq=S.g('eq');
-  const e=eq.find(x=>x.sigla===reg[i].equipo);
   if(e&&hr>e.horomActual){e.horomActual=hr;C.recalc(e);S.s('eq',eq);renderHeader();}
   S.s('reg',reg);cm();refreshAll();toast('✅ Registro actualizado');
 };
@@ -3357,7 +3413,7 @@ window.importarOrdenesCompra=function(){
 
 window.addOT=function(){
   const eq=S.g('eq')||[];
-  const per=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'];
+  const per=_tecnicosDisponibles();
   const sis=['Motor diésel','Hidráulico','Transmisión','Eléctrico','Frenos','Ruedas y neumáticos','Dirección','Estructura','Cabina','Climatización'];
   const hoy=new Date().toISOString().slice(0,10);
   const hora=new Date().toTimeString().slice(0,5);
@@ -6024,7 +6080,7 @@ window.delInsp=function(i){
 window.addInsp=function(){
   var eq=S.g('eq')||[];
   var hoy=new Date().toISOString().slice(0,10);
-  var per=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'];
+  var per=_tecnicosDisponibles();
   sm('<h3>📋 Nueva Inspección Diaria</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo *</label><select id="iEq">'+
     eq.map(function(e){return'<option>'+e.sigla+'</option>'}).join('')+'</select></div>'+
@@ -6807,17 +6863,17 @@ window.processResetEmpresa=function(){
   
   // Clear ALL localStorage
   var keys=['eq','reg','lub','fil','stk','al','prg','hh','hist','ot','neu','mov','cfg',
-            'repuestos','ordenes','aceite','insp'];
+            'repuestos','ordenes','aceite','insp','pau'];
   keys.forEach(function(k){localStorage.removeItem('smp10_'+k);});
   localStorage.removeItem('smp10_v14fix');
-  
+
   // Set new config
   S.s('cfg',{empresa:empresa,faena:faena,adminOk:true,tema:'dark'});
-  
+
   if(!eqFile){
     // No file - create empty system
     INIT.equipos=[];INIT.pautas=[];
-    S.s('eq',[]);
+    S.s('eq',[]);S.s('pau',[]);
     cm();location.reload();
     return;
   }
@@ -6875,7 +6931,7 @@ window.processResetEmpresa=function(){
           try{
             var txt2=e2.target.result;
             if(pauFile.name.endsWith('.json')){
-              INIT.pautas=JSON.parse(txt2);
+              newPau=JSON.parse(txt2);
             } else {
               var lines2=txt2.split('\n').filter(function(l){return l.trim();});
               var h2=lines2[0].split(/[,;\t]/).map(function(h){return h.trim().replace(/"/g,'');});
@@ -6889,13 +6945,16 @@ window.processResetEmpresa=function(){
                   rep:r2.rep||r2.repuesto||'',can:parseFloat(r2.can||r2.cantidad)||0
                 });
               }
-              INIT.pautas=newPau;
             }
+            INIT.pautas=newPau;
+            S.s('pau',newPau);
           }catch(err2){console.error(err2);}
           cm();location.reload();
         };
         reader2.readAsText(pauFile);
       } else {
+        INIT.pautas=[];
+        S.s('pau',[]);
         cm();location.reload();
       }
     }catch(err){
@@ -8176,7 +8235,7 @@ window.nuevoInforme=function(sigla,compIdx){
   var compData=S.g('compMayores')||[];
   var compRow=(compIdx!=null && compIdx>=0)?compData[compIdx]:null;
   var eqObj=sigla?eq.find(function(e){return e.sigla===sigla;}):null;
-  var per=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'];
+  var per=_tecnicosDisponibles();
   var hoy=new Date().toISOString().slice(0,10);
   window._infCompIdx=(compIdx!=null && compIdx>=0)?compIdx:null;
   window._infFotos=[];
