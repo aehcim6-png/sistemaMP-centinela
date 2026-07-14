@@ -447,6 +447,21 @@ window.addEventListener('storage',function(e){
   if(typeof refreshAll==='function')refreshAll();
 });
 
+// Categorías que crecen sin límite con el uso normal del sistema (se alimentan solas
+// en cada PM/correctivo/medición) y sí tienen un campo de fecha para ordenar por
+// antigüedad. El resto (equipos, pautas, stock, config...) no crece así, no hace
+// falta recortarlo. Guardamos como máximo las N filas más recientes en localStorage
+// — Supabase siempre tiene el historial completo real; esto es solo el respaldo
+// offline del navegador, así que perder las filas más viejas ahí no pierde nada.
+const _CATEGORIAS_CRECIENTES={hist:'fecha',ot:'fecha',reg:'fechaEntrada',mov:'fecha',
+  neuMed:'fecha',aceite:'fecha',insp:'fecha',informesFalla:'fecha'};
+const _TOPE_FILAS_LOCAL=1200;
+function _recorteParaLocal(k,v){
+  var campo=_CATEGORIAS_CRECIENTES[k];
+  if(!campo||!Array.isArray(v)||v.length<=_TOPE_FILAS_LOCAL)return v;
+  return v.slice().sort(function(a,b){return(b[campo]||'').localeCompare(a[campo]||'');}).slice(0,_TOPE_FILAS_LOCAL);
+}
+
 const S={
   g(k){
     // 1. Cache en memoria (más rápido, siempre actualizado en runtime)
@@ -463,10 +478,14 @@ const S={
     // anterior (capturado ANTES de sobreescribir la cache) para poder diferenciar
     // filas nuevas / editadas / borradas al sincronizar.
     const _anterior=TABLA_REAL[k]?_sbCache[k]:null;
-    // 1. Cache en memoria (sincrónico)
+    // 1. Cache en memoria (sincrónico) — SIEMPRE completa, nunca recortada. Todo lo
+    // que ve/usa la app en la sesión sale de acá, no de localStorage.
     _sbCache[k]=v;
-    // 2. localStorage como cache offline
-    try{localStorage.setItem(K+k,JSON.stringify(v));}catch(e){
+    // 2. localStorage como cache offline — recortada para las categorías que crecen
+    // sin límite (ver _recorteParaLocal). Supabase (paso 3, más abajo) siempre recibe
+    // el arreglo 'v' COMPLETO tal cual — este recorte es solo para no pegarle al tope
+    // de ~5MB del navegador; el historial completo real vive en la nube, nunca acá.
+    try{localStorage.setItem(K+k,JSON.stringify(_recorteParaLocal(k,v)));}catch(e){
       if(e.name==='QuotaExceededError'||e.code===22||e.code===1014){
         try{['gantt','avanceData','metas','changelog'].forEach(ck=>{if(ck!==k)localStorage.removeItem(K+ck);});localStorage.setItem(K+k,JSON.stringify(v));}
         catch{console.warn('localStorage lleno, clave',k,'solo en memoria y Supabase');}
@@ -4618,24 +4637,20 @@ renders.cfg=function(){
     '<span id="clStatus" style="font-size:11px;color:'+(window._clStatusColor||'var(--tx3)')+'">'+(window._clStatusTxt||'⚪ Sin configurar')+'</span>'+
     '</div></div>';})()+
 
-    // MANTENIMIENTO DE DATOS (limpieza + medidor localStorage)
+    // MANTENIMIENTO DE DATOS (medidor localStorage — ya no hay botón de borrado real)
     (function(){
       var totalBytes=0;for(var k in localStorage){if(localStorage.hasOwnProperty(k))totalBytes+=(localStorage[k].length||0)*2;}
       var limite=5*1024*1024;
       var pct=Math.min(100,totalBytes/limite*100);
       var col=pct>80?'#ef4444':pct>50?'#f59e0b':'#22c55e';
-      var mov=S.g('mov')||[];
-      var fCorte=new Date();fCorte.setMonth(fCorte.getMonth()-6);
-      var fCorteStr=fCorte.toISOString().slice(0,10);
-      var movAnt=mov.filter(function(m){return m.fecha&&m.fecha<fCorteStr;}).length;
       return ''+
-      '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #f59e0b">'+
+      '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid '+col+'">'+
       '<b style="font-size:14px">🗄️ Mantenimiento de datos</b>'+
-      '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Los navegadores limitan localStorage a ~5 MB. Si te acercas, el sistema no puede guardar y avisa con alerta. Aquí ves cuánto ocupas y puedes podar movimientos de stock antiguos.</p>'+
+      '<p style="font-size:11px;color:var(--tx3);margin:8px 0">El navegador solo guarda localmente las últimas '+_TOPE_FILAS_LOCAL+' filas de las categorías que más crecen (historial de horómetros, correctivos, registros PM, movimientos de stock, mediciones de neumáticos, análisis de aceite, inspecciones, informes de falla) — es automático, no requiere ninguna acción tuya. <b>El historial completo real siempre está en Supabase, nunca se borra</b>: esto solo limita cuánto se guarda como respaldo offline en este navegador.</p>'+
       '<div style="margin:10px 0"><div style="font-size:11px;color:var(--tx2);margin-bottom:4px">💾 Uso local: <b style="color:'+col+'">'+pct.toFixed(1)+'%</b> ('+(totalBytes/1048576).toFixed(2)+' MB de 5 MB)</div>'+
       '<div style="width:100%;background:color-mix(in srgb,'+col+' 18%,var(--bg4));height:14px;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+';transition:width .3s"></div></div></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
-      '<button class="btn" onclick="limpiarMovAntiguos()">🗑️ Exportar y borrar movimientos > 6 meses ('+movAnt+' items)</button>'+
+      '<button class="btn btn-o" onclick="exportarMovCSV()">📤 Exportar movimientos a CSV (respaldo, no borra nada)</button>'+
       '<button class="btn btn-o" onclick="renders.cfg()">🔄 Refrescar</button>'+
       '</div>'+
       '<div id="mtoInfo" style="margin-top:8px;font-size:11px;color:var(--tx3)"></div>'+
@@ -9090,35 +9105,28 @@ window.guardarNeuParams=function(){
   toast('✅ Parámetros de neumáticos guardados');
   if(currentTab==='cfg')renders.cfg();
 };
-window.limpiarMovAntiguos=function(){
+// Reemplaza a la vieja limpiarMovAntiguos(), que hacia S.s('mov', recientes) -- con
+// 'mov' ya sincronizado a Supabase (movimientos_stock), eso NO limpiaba localStorage:
+// borraba de verdad los movimientos viejos de la base de datos real de produccion,
+// aunque el boton y el texto de alrededor lo presentaban como una limpieza local
+// inofensiva por el limite de 5MB del navegador. Ya no hace falta borrar nada -- el
+// recorte de localStorage ahora es automatico (ver _recorteParaLocal) y nunca toca
+// la base real. Esta funcion solo exporta a CSV, no borra ni localmente ni en la nube.
+window.exportarMovCSV=function(){
   var mov=S.g('mov')||[];
   var info=$('mtoInfo');
   if(!mov.length){if(info)info.innerHTML='ℹ️ No hay movimientos en el sistema.';return;}
-  var fCorte=new Date();fCorte.setMonth(fCorte.getMonth()-6);
-  var fCorteStr=fCorte.toISOString().slice(0,10);
-  var antiguos=mov.filter(function(m){return m.fecha&&m.fecha<fCorteStr;});
-  var recientes=mov.filter(function(m){return !m.fecha||m.fecha>=fCorteStr;});
-  if(!antiguos.length){if(info)info.innerHTML='✅ No hay movimientos anteriores a '+fCorteStr+'.';return;}
-  if(!confirm('Se exportarán '+antiguos.length+' movimientos a CSV y luego se borrarán del sistema.\n\nQuedarán '+recientes.length+' movimientos recientes (desde '+fCorteStr+').\n\n¿Continuar?'))return;
-  // Exportar a CSV
   var esc=function(v){v=(v==null?'':String(v));return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   var csv='Fecha,Equipo,Item,Cantidad,Tipo,PM,Origen\n';
-  antiguos.forEach(function(m){
+  mov.forEach(function(m){
     csv+=[esc(m.fecha),esc(m.equipo),esc(m.item),esc(m.cant),esc(m.tipo),esc(m.pm),esc(m.origen)].join(',')+'\n';
   });
-  var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+  var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');a.href=url;a.download='movimientos_antiguos_'+new Date().toISOString().slice(0,10)+'.csv';
+  var a=document.createElement('a');a.href=url;a.download='movimientos_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);
-  // Guardar recientes
-  var ok=S.s('mov',recientes);
-  if(ok){
-    toast('✅ '+antiguos.length+' movimientos exportados y borrados');
-    if(info)info.innerHTML='✅ Exportados '+antiguos.length+' movimientos a CSV. Quedan '+recientes.length+' recientes.';
-    if(currentTab==='cfg')setTimeout(function(){renders.cfg();},1500);
-  } else {
-    toast('❌ No se pudo guardar tras la limpieza');
-  }
+  toast('✅ '+mov.length+' movimientos exportados a CSV');
+  if(info)info.innerHTML='✅ Exportados '+mov.length+' movimientos a CSV. No se borro nada -- ni local ni en la nube.';
 };
 window.cloudGuardarCfg=function(){
   const c=S.g('cfg')||{};
