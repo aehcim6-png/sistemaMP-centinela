@@ -9200,6 +9200,12 @@ window.saveHist=function(){
 // Auto-sync stores when equipos change
 window.syncEquipos=function(){
   var eq=S.g('eq')||[];
+  // Salvaguarda: esta función borra de OT/Historial/Componentes/etc. todo lo que
+  // no reconozca como equipo válido. Si 'eq' llega vacío (carga a medias, corte de
+  // red, race de arranque), seguir de largo borraría TODO — mejor no hacer nada
+  // hasta que 'eq' esté realmente poblado. (Encontrado el 2026-07-14 tras una
+  // pérdida real de datos causada por esto).
+  if(!eq.length)return;
   var eqSiglas=eq.map(function(e){return e.sigla});
   
   // ═══ SYNC ALL STORES THAT REFERENCE EQUIPOS ═══
