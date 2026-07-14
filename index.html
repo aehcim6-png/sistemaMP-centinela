@@ -265,7 +265,7 @@ window._sbLoadHeavy=async function(){
       tareas.push((async function(){
         try{
           const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
-          const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc`,{headers:_sbHeaders()});
+          const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc&limit=50000`,{headers:_sbHeaders()});
           if(!rt.ok)return;
           const filas=await rt.json();
           if(!Array.isArray(filas))return;
@@ -281,7 +281,7 @@ window._sbLoadHeavy=async function(){
 
     tareas.push((async function(){
       try{
-        const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses`,{headers:_sbHeaders()});
+        const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses&limit=50000`,{headers:_sbHeaders()});
         if(!rv.ok)return;
         const filas=await rv.json();
         if(!Array.isArray(filas))return;
