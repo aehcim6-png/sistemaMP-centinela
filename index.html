@@ -1663,6 +1663,9 @@ renders.prg=function(){
   var MS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 
   // Auto-sync programa with current equipos
+  // Salvaguarda: si 'eq' llega vacío (carga a medias, misma clase de bug que syncEquipos),
+  // no filtrar/guardar — evita borrar todo el programa real por una carrera de arranque.
+  if(eq.length){
   var eqSiglas=eq.map(function(e){return e.sigla});
   // Remove deleted equipos from prg
   prg=prg.filter(function(p){return eqSiglas.indexOf(p.sigla)>=0});
@@ -1682,10 +1685,11 @@ renders.prg=function(){
       prg.push({sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,meses:meses});
     }
   });
+  S.s('prg',prg);
+  }
   // Auto-mark EJEC del AÑO seleccionado — calculado en vivo, sin pisar el plan base guardado
   var reg=S.g('reg')||[];
   var MSmap={'01':'ENE','02':'FEB','03':'MAR','04':'ABR','05':'MAY','06':'JUN','07':'JUL','08':'AGO','09':'SEP','10':'OCT','11':'NOV','12':'DIC'};
-  S.s('prg',prg);
   // ejecPorEq[sigla] = {ENE:true,...} solo para anioPrg
   var ejecPorEq={};
   reg.forEach(function(r){
@@ -2079,14 +2083,29 @@ window.delMov=function(idx){
   toast('🗑 Eliminado — stock restaurado');
 };
 window.clearConsumos=function(){
-  if(!confirm('¿Limpiar todo el historial de consumos?'))return;
+  if(!confirm('¿Limpiar todo el historial de consumos? Esto restaura el stock que estos movimientos habían descontado.'))return;
+  // Restaura el stock de cada movimiento antes de borrar — si no, "Recalcular + stock"
+  // vuelve a descontar todo de nuevo sobre un stock que ya está descontado (doble descuento).
+  var mov=S.g('mov')||[];
+  var stk=S.g('stk')||[];
+  var lub=S.g('lub')||[];
+  mov.forEach(function(m){
+    if(m.tipo==='Filtro'){
+      var fi=stk.findIndex(function(s){return s.descripcion===m.item||(s.nParte&&s.nParte===m.nParte);});
+      if(fi>=0)stk[fi].stockBodega=(stk[fi].stockBodega||0)+(m.cant||0);
+    } else {
+      var li=lub.findIndex(function(l){return l.nombre===m.item;});
+      if(li>=0)lub[li].stock=(lub[li].stock||0)+(m.cant||0);
+    }
+  });
+  S.s('stk',stk);S.s('lub',lub);
   S.s('mov',[]);
   // Reset consumosPauta in registros
   const reg=S.g('reg')||[];
   reg.forEach(r=>delete r.consumosPauta);
   S.s('reg',reg);
   renders.mov();
-  toast('🗑 Historial de consumos limpiado');
+  toast('🗑 Historial de consumos limpiado — stock restaurado');
 };
 
 // ═══ RECALCULAR CONSUMO HISTÓRICO ═══
@@ -4572,7 +4591,7 @@ renders.cfg=function(){
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Meta Disponibilidad (%)</label><br>'+
       '<input type="number" value="'+(S.g('dispMeta')||85)+'" onchange="S.s(\'dispMeta\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '<div><label style="font-size:11px;color:var(--tx3)">Contraseña admin</label><br>'+
-      '<input type="password" value="'+(cfg.pass||'1234')+'" onchange="var c=S.g(\'cfg\')||{};c.pass=this.value;S.s(\'cfg\',c);toast(\'✅ Contraseña actualizada\')" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
+      '<input type="password" value="'+(cfg.adminPass||'1234')+'" onchange="var c=S.g(\'cfg\')||{};c.adminPass=this.value;S.s(\'cfg\',c);toast(\'✅ Contraseña actualizada\')" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '</div>'+
 
       // CREAR USUARIO (solo admin real via Supabase Auth)
@@ -9520,6 +9539,8 @@ renders.gantt=function(){
   var meses=mesesAutomaticos(ganttData.map(function(g){return g.inicio}).concat(ganttData.map(function(g){return g.fin})));
 
   // Sync gantt data with equipos
+  // Salvaguarda: si 'eq' llega vacío (misma clase de bug que syncEquipos), no filtrar/guardar.
+  if(eq.length){
   var gSiglas=ganttData.map(function(g){return g.sigla});
   eq.forEach(function(e){
     if(gSiglas.indexOf(e.sigla)<0){
@@ -9528,6 +9549,7 @@ renders.gantt=function(){
   });
   ganttData=ganttData.filter(function(g){return eq.some(function(e){return e.sigla===g.sigla})});
   S.s('gantt',ganttData);
+  }
 
   var regGantt=S.g('reg')||[];var otGantt=S.g('ot')||[];
   var days=[];for(var d=1;d<=daysInMonth;d++)days.push(d);
@@ -9868,11 +9890,53 @@ window.editFicha=function(sigla){
     '<div class="fg"><label>Horómetro Actual</label><input type="number" id="ftHorom" value="'+(e.horomActual||0)+'"></div></div>'+
     '<br><button class="btn" onclick="saveFicha(\''+sigla+'\')">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
+// Si se renombra la sigla de un equipo, propaga el cambio a todo lo que la referencia
+// como clave (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa,
+// Pautas, Componentes Mayores, Gantt, Vencimientos, Disponibilidad) — si no, el equipo
+// renombrado queda huérfano de toda su historia.
+function _cascadeRenameSigla(oldSigla,newSigla){
+  if(!oldSigla||!newSigla||oldSigla===newSigla)return;
+  var reg=S.g('reg')||[];var chReg=false;
+  reg.forEach(function(r){if(r.equipo===oldSigla){r.equipo=newSigla;chReg=true;}});
+  if(chReg)S.s('reg',reg);
+  var ot=S.g('ot')||[];var chOt=false;
+  ot.forEach(function(o){if(o.sigla===oldSigla){o.sigla=newSigla;chOt=true;}});
+  if(chOt)S.s('ot',ot);
+  var hist=S.g('hist')||[];var chHist=false;
+  hist.forEach(function(h){if(h.sigla===oldSigla){h.sigla=newSigla;chHist=true;}});
+  if(chHist)S.s('hist',hist);
+  var neu=S.g('neu')||[];var chNeu=false;
+  neu.forEach(function(n){if(n.sigla===oldSigla){n.sigla=newSigla;chNeu=true;}});
+  if(chNeu)S.s('neu',neu);
+  var mov=S.g('mov')||[];var chMov=false;
+  mov.forEach(function(m){if(m.equipo===oldSigla){m.equipo=newSigla;chMov=true;}});
+  if(chMov)S.s('mov',mov);
+  var prg=S.g('prg')||[];var chPrg=false;
+  prg.forEach(function(p){if(p.sigla===oldSigla){p.sigla=newSigla;chPrg=true;}});
+  if(chPrg)S.s('prg',prg);
+  var pau=S.g('pau')||[];var chPau=false;
+  pau.forEach(function(p){if(p.sigla===oldSigla){p.sigla=newSigla;chPau=true;}});
+  if(chPau)S.s('pau',pau);
+  var comp=S.g('compMayores')||[];var chComp=false;
+  comp.forEach(function(c){if(c.sigla===oldSigla){c.sigla=newSigla;chComp=true;}});
+  if(chComp)S.s('compMayores',comp);
+  var gantt=S.g('gantt')||[];var chGantt=false;
+  gantt.forEach(function(g){if(g.sigla===oldSigla){g.sigla=newSigla;chGantt=true;}});
+  if(chGantt)S.s('gantt',gantt);
+  var venc=S.g('venc')||{};
+  if(venc[oldSigla]){venc[newSigla]=venc[oldSigla];delete venc[oldSigla];S.s('venc',venc);}
+  var disp=S.g('dispCalc')||{};
+  if(disp[oldSigla]){disp[newSigla]=disp[oldSigla];delete disp[oldSigla];S.s('dispCalc',disp);}
+  if(GRUPO_PAUTAS[oldSigla]!==undefined){GRUPO_PAUTAS[newSigla]=GRUPO_PAUTAS[oldSigla];delete GRUPO_PAUTAS[oldSigla];}
+  Object.keys(GRUPO_PAUTAS).forEach(function(k){if(GRUPO_PAUTAS[k]===oldSigla)GRUPO_PAUTAS[k]=newSigla;});
+}
 window.saveFicha=function(sigla){
   var eq=S.g('eq')||[];
   var idx=eq.findIndex(function(x){return x.sigla===sigla});
   if(idx<0)return;
-  eq[idx].sigla=$('ftSigla').value||sigla;
+  var nuevaSigla=$('ftSigla').value||sigla;
+  if(nuevaSigla!==sigla&&!confirm('Vas a cambiar la sigla de "'+sigla+'" a "'+nuevaSigla+'". Se actualizará en todos los registros relacionados (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa, Pautas, Componentes, Gantt, Vencimientos). ¿Continuar?'))return;
+  eq[idx].sigla=nuevaSigla;
   eq[idx].tipo=$('ftTipo').value||'';
   eq[idx].modelo=$('ftModelo').value||'';
   eq[idx].numSerie=$('ftSerie').value||'';
@@ -9888,7 +9952,9 @@ window.saveFicha=function(sigla){
   eq[idx].frecPM=parseFloat($('ftFrec').value)||250;
   eq[idx].horomActual=parseFloat($('ftHorom').value)||0;
   C.recalc(eq[idx]);
-  S.s('eq',eq);cm();refreshAll();
+  S.s('eq',eq);
+  _cascadeRenameSigla(sigla,nuevaSigla);
+  cm();refreshAll();
   toast('✅ Ficha de '+eq[idx].sigla+' actualizada');
 };
 // Add floating export bar
