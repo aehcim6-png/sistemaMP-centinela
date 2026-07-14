@@ -743,7 +743,7 @@ renders.dash=function(){
   const urg=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA'));
   const prox=eq.filter(e=>e.estado?.includes('PROXIMA')||e.estado?.includes('PRÓXIMA'));
   const alDia=eq.filter(e=>e.estado?.includes('AL DÍA')||e.estado?.includes('OK'));
-  const ant=reg.filter(r=>r.estado?.includes('ANTICIPADA')&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
+  const ant=reg.filter(r=>r.estado==='A tiempo'&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
   const atr=reg.filter(r=>r.estado?.includes('ATRASADA')&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
   const regMes=reg.filter(r=>(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo);
   const cum=regMes.length?Math.round(ant/regMes.length*100):0;
