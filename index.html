@@ -88,7 +88,7 @@ td.calc{color:var(--tx3);font-style:italic}
 .chart-t{font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:12px}
 .bars{display:flex;align-items:end;gap:6px;height:160px;padding-top:16px}
 .bar-c{display:flex;flex-direction:column;align-items:center;flex:1}
-.bar{width:100%;border-radius:3px 3px 0 0;transition:height .5s;min-height:2px}
+.bar{width:100%;max-width:24px;margin:0 auto;border-radius:4px 4px 0 0;transition:height .5s;min-height:2px}
 .bar-l{font-size:9px;color:var(--tx3);margin-top:4px}.bar-v{font-family:var(--mono);font-size:10px;color:var(--tx);margin-bottom:2px}
 
 .legend{display:flex;gap:12px;margin:8px 0;font-size:11px;color:var(--tx2)}
@@ -705,6 +705,28 @@ window._sTh=function(tid,col,txt,tipo){
   return'<th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;'+tid+'&apos;,'+col+',&apos;'+t+'&apos;)" title="Ordenar">'+txt+arrow+'</th>';
 };
 
+// ---- VIZ TOOLTIP (capa de hover para gráficos — skill dataviz) ----
+window.vizTip=function(ev,text){
+  var tip=document.getElementById('_vizTip');
+  if(!tip){
+    tip=document.createElement('div');
+    tip.id='_vizTip';
+    tip.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:var(--bg4);color:var(--tx);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.35);max-width:220px;display:none';
+    document.body.appendChild(tip);
+  }
+  tip.textContent=text; // untrusted-safe: nunca innerHTML
+  tip.style.display='block';
+  window.vizTipMove(ev);
+};
+window.vizTipMove=function(ev){
+  var tip=document.getElementById('_vizTip');
+  if(!tip||tip.style.display==='none')return;
+  var x=ev.clientX+14,y=ev.clientY+14;
+  tip.style.left=Math.min(x,window.innerWidth-230)+'px';
+  tip.style.top=Math.min(y,window.innerHeight-50)+'px';
+};
+window.vizTipHide=function(){var tip=document.getElementById('_vizTip');if(tip)tip.style.display='none';};
+
 // ---- DASHBOARD ----
 
 function refreshAll(){syncEquipos();
@@ -760,9 +782,9 @@ renders.dash=function(){
     });
   });
   const cumProg=progPlan?Math.round(progEjec/progPlan*100):0;
-  const prev=reg.filter(r=>r.tipoPM!=='Correctivo').length;
-  const corr=reg.filter(r=>r.tipoPM==='Correctivo').length;
-  const pmC={PM1:0,PM2:0,PM3:0,PM4:0,Correctivo:0};reg.forEach(r=>{if(pmC[r.tipoPM]!==undefined)pmC[r.tipoPM]++});
+  const prev=regMes.filter(r=>r.tipoPM!=='Correctivo').length;
+  const corr=regMes.filter(r=>r.tipoPM==='Correctivo').length;
+  const pmC={PM1:0,PM2:0,PM3:0,PM4:0,Correctivo:0};regMes.forEach(r=>{if(pmC[r.tipoPM]!==undefined)pmC[r.tipoPM]++});
   const MS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
   const pm=MS.map((_,i)=>reg.filter(r=>{var d=new Date(r.fechaEjec||r.fechaEntrada);return d.getMonth()===i&&d.getFullYear()===2026}).length);
   const mx=Math.max(...pm,1);
@@ -797,38 +819,6 @@ renders.dash=function(){
   // Top consumers
   var topEq=Object.entries(gastoEq).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
-  // SVG Donut helper
-  function donut(data,size,colors){
-    var total=data.reduce((s,d)=>s+d.val,0);
-    if(total===0)return'<div style="color:var(--tx3);text-align:center;padding:20px">Sin datos</div>';
-    var cx=size/2,cy=size/2,r=size*0.35,r2=size*0.22;
-    var svg='<svg viewBox="0 0 '+size+' '+size+'" style="max-width:'+size+'px;margin:0 auto;display:block">';
-    var angle=0;
-    data.forEach(function(d,i){
-      var pct=d.val/total;
-      if(pct<=0)return;
-      var a1=angle*Math.PI/180;
-      var a2=(angle+pct*360)*Math.PI/180;
-      var la=pct>0.5?1:0;
-      var x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1);
-      var x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
-      var x3=cx+r2*Math.cos(a2),y3=cy+r2*Math.sin(a2);
-      var x4=cx+r2*Math.cos(a1),y4=cy+r2*Math.sin(a1);
-      svg+='<path d="M'+x1+','+y1+' A'+r+','+r+' 0 '+la+' 1 '+x2+','+y2+' L'+x3+','+y3+' A'+r2+','+r2+' 0 '+la+' 0 '+x4+','+y4+' Z" fill="'+(colors[i%colors.length])+'" stroke="var(--bg)" stroke-width="1"/>';
-      if(pct>0.06){
-        var mid=(angle+pct*180)*Math.PI/180;
-        var tx=cx+(r+r2)/2*0.5*Math.cos(mid);
-        var ty=cy+(r+r2)/2*0.5*Math.sin(mid);
-        svg+='<text x="'+tx+'" y="'+ty+'" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="'+(size*0.06)+'" font-weight="600">'+Math.round(pct*100)+'%</text>';
-      }
-      angle+=pct*360;
-    });
-    svg+='</svg>';
-    return svg;
-  }
-
-  var pieColors=['#3b82f6','#ef4444','#22c55e','#f59e0b','#06b6d4','#8b5cf6','#ec4899','#f97316','#84cc16','#14b8a6'];
-
   // ═══ CÁLCULOS DASHBOARD (versión limpia — un solo bloque) ═══
   var meta=S.g('dispMeta')||85;
   var dispCalcD=S.g('dispCalc')||{};var dAbr=INIT.dispAbril||{};
@@ -859,7 +849,7 @@ renders.dash=function(){
   var otPend=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   var otEjec=ot.filter(function(o){return o.estadoOT==='En Ejecución'}).length;
   var otCerr=ot.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo}).length;
-  var prevPct=reg.length?Math.round(prev/reg.length*100):100;
+  var prevPct=regMes.length?Math.round(prev/regMes.length*100):null;
   var hrsFlotaMes=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
   // Confiabilidad: equipos sin falla en el PERÍODO seleccionado (no en toda la historia)
   var eqConFallaMes=new Set(ot.filter(function(o){
@@ -911,7 +901,7 @@ renders.dash=function(){
     '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:24px;text-align:center;border:2px solid '+dispCol+';position:relative">'+
     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:3px;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA</div>'+
     '<div style="font-size:64px;font-weight:900;color:'+dispCol+';line-height:1;margin:8px 0">'+(dispFlota===null?'—':dispFlota)+(dispFlota===null?'':'<span style="font-size:28px">%</span>')+'</div>'+
-    '<div style="margin:10px auto;width:85%;background:var(--bg4);border-radius:10px;height:12px;overflow:hidden"><div style="background:'+dispCol+';height:100%;width:'+Math.min(dispFlota||0,100)+'%;border-radius:10px;transition:width .5s"></div></div>'+
+    '<div style="margin:10px auto;width:85%;background:color-mix(in srgb,'+dispCol+' 18%,var(--bg4));border-radius:10px;height:12px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+(dispFlota===null?'Sin equipos con datos de disponibilidad en '+dashLabel:dispVals.length+' equipos con dato · promedio '+dispFlota+'% · meta '+meta+'%')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+dispCol+';height:100%;width:'+Math.min(dispFlota||0,100)+'%;border-radius:10px;transition:width .5s"></div></div>'+
     '<div style="font-size:11px;color:'+dispCol+';font-weight:600">'+(dispFlota===null?'Sin datos para este período':dispFlota>=meta?'✅ Sobre meta '+meta+'%':'⚠️ '+Math.round(meta-dispFlota)+'% bajo meta')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3);margin-top:6px">'+dispVals.length+' equipos · '+dashLabel+'</div>'+
     '</div>'+
@@ -971,28 +961,46 @@ renders.dash=function(){
         // ═══ Z3: ABAJO IZQUIERDA — DESGLOSE / TENDENCIA ═══
     '<div style="display:grid;grid-template-columns:1fr 1.8fr 1fr;gap:16px;margin-bottom:24px">'+
 
-    '<div class="chart-box" style="padding:16px"><div class="chart-t">Ratio Mantención</div>'+
-    donut([{val:prev,label:"Preventivo"},{val:corr||1,label:"Correctivo"}],130,["#3b82f6","#ef4444"])+
-    '<div style="text-align:center;margin-top:8px">'+
-    '<div style="font-size:20px;font-weight:800;color:'+(prevPct>=80?'#22c55e':'#ef4444')+'">'+prevPct+'%<span style="font-size:11px;color:var(--tx3)"> prev</span></div>'+
-    '<div style="font-size:9px;color:var(--tx3)">Meta: 80/20</div></div></div>'+
+    // Ratio Mantención: una proporción contra una meta → medidor (meter), no un donut de 2 rebanadas
+    '<div class="chart-box" style="padding:16px"><div class="chart-t">Ratio Mantención · '+dashLabel+'</div>'+
+    (function(){
+      var totalPC=prev+corr;
+      if(!totalPC)return'<div style="color:var(--tx3);text-align:center;padding:30px 10px;font-size:11px">Sin intervenciones registradas</div>';
+      var mCol=prevPct>=80?'#22c55e':prevPct>=60?'#f59e0b':'#ef4444';
+      var tipTxt='Preventivo: '+prev+' · Correctivo: '+corr+' de '+totalPC+' intervenciones';
+      return '<div style="text-align:center;padding:6px 0 0">'+
+        '<div style="font-size:36px;font-weight:800;color:'+mCol+';line-height:1">'+prevPct+'<span style="font-size:15px">%</span></div>'+
+        '<div style="font-size:9px;color:var(--tx3);margin:4px 0 12px">preventivo del total de intervenciones</div>'+
+        '<div style="position:relative;background:color-mix(in srgb,'+mCol+' 18%,var(--bg4));border-radius:8px;height:14px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
+        '<div style="position:absolute;left:80%;top:-3px;bottom:-3px;width:2px;background:var(--tx3);z-index:2"></div>'+
+        '<div style="background:'+mCol+';height:100%;width:'+Math.min(prevPct,100)+'%;border-radius:8px;transition:width .5s"></div></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--tx3);margin-top:6px"><span>Meta: 80%</span><span>'+totalPC+' interv.</span></div>'+
+        '<div style="display:flex;gap:14px;justify-content:center;margin-top:12px">'+
+        '<span style="font-size:9px;color:var(--tx3);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:'+mCol+';display:inline-block"></span>Preventivo ('+prev+')</span>'+
+        '<span style="font-size:9px;color:var(--tx3);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--bg4);border:1px solid var(--tx3);display:inline-block"></span>Correctivo ('+corr+')</span>'+
+        '</div></div>';
+    })()+
+    '</div>'+
 
     '<div class="chart-box" style="padding:16px"><div class="chart-t">Ejecuciones por Mes '+new Date().getFullYear()+'</div>'+
     '<div class="bars" style="height:140px">'+pm.map(function(v,i){
       var isCurrentOrPast=i<=new Date().getMonth();
-      return'<div class="bar-c"><div class="bar-v" style="font-size:10px;font-weight:600">'+(v||'')+'</div><div class="bar" style="height:'+Math.max(v/mx*100,3)+'%;background:'+(isCurrentOrPast?'var(--ac)':'var(--bd)')+';border-radius:3px 3px 0 0"></div><div class="bar-l" style="font-size:9px">'+MS[i]+'</div></div>'
+      var tipTxt=MS[i]+': '+v+' ejecuciones'+(isCurrentOrPast?'':' (mes futuro)');
+      return'<div class="bar-c"><div class="bar-v" style="font-size:10px;font-weight:600">'+(v||'')+'</div><div class="bar" style="height:'+Math.max(v/mx*100,3)+'%;background:'+(isCurrentOrPast?'var(--ac)':'var(--bd)')+';cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l" style="font-size:9px">'+MS[i]+'</div></div>'
     }).join('')+'</div></div>'+
 
-    '<div class="chart-box" style="padding:16px"><div class="chart-t">Distribución PM</div>'+
+    '<div class="chart-box" style="padding:16px"><div class="chart-t">Distribución PM · '+dashLabel+'</div>'+
     '<div style="padding:10px 0">'+["PM1","PM2","PM3","PM4"].map(function(p,i){
-      var v=pmC[p]||0;var total=reg.length||1;var pct=Math.round(v/total*100);
+      var v=pmC[p]||0;var total=regMes.length||1;var pct=Math.round(v/total*100);
       var colors=["#22c55e","#3b82f6","#f59e0b","#ef4444"];
-      return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
-        '<div style="width:32px;font-size:10px;font-weight:700;color:'+colors[i]+'">'+p+'</div>'+
-        '<div style="flex:1;background:var(--bg4);border-radius:4px;height:14px;overflow:hidden"><div style="background:'+colors[i]+';height:100%;width:'+pct+'%;border-radius:4px"></div></div>'+
-        '<div style="width:40px;text-align:right;font-size:10px;font-weight:600">'+v+'</div></div>';
+      var tipTxt=p+': '+v+' de '+total+' ('+pct+'%)';
+      // Identidad la lleva el swatch de color, no el texto (el texto usa tinta neutra)
+      return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
+        '<div style="width:44px;font-size:10px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:'+colors[i]+';display:inline-block;flex-shrink:0"></span>'+p+'</div>'+
+        '<div style="flex:1;background:color-mix(in srgb,'+colors[i]+' 18%,var(--bg4));border-radius:4px;height:14px;overflow:hidden"><div style="background:'+colors[i]+';height:100%;width:'+pct+'%;border-radius:4px"></div></div>'+
+        '<div style="width:40px;text-align:right;font-size:10px;font-weight:600;color:var(--tx)">'+v+'</div></div>';
     }).join('')+
-    (corr?'<div style="display:flex;align-items:center;gap:8px"><div style="width:32px;font-size:10px;font-weight:700;color:#64748b">Corr</div><div style="flex:1;background:var(--bg4);border-radius:4px;height:14px;overflow:hidden"><div style="background:#64748b;height:100%;width:'+Math.round(corr/(reg.length||1)*100)+'%;border-radius:4px"></div></div><div style="width:40px;text-align:right;font-size:10px;font-weight:600">'+corr+'</div></div>':'')+
+    (corr?(function(){var pctC=Math.round(corr/(regMes.length||1)*100);var tipTxt='Correctivo: '+corr+' de '+(regMes.length||1)+' ('+pctC+'%)';return'<div style="display:flex;align-items:center;gap:8px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="width:44px;font-size:10px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#64748b;display:inline-block;flex-shrink:0"></span>Corr</div><div style="flex:1;background:color-mix(in srgb,#64748b 18%,var(--bg4));border-radius:4px;height:14px;overflow:hidden"><div style="background:#64748b;height:100%;width:'+pctC+'%;border-radius:4px"></div></div><div style="width:40px;text-align:right;font-size:10px;font-weight:600;color:var(--tx)">'+corr+'</div></div>';})():'')+
     '</div></div>'+
 
     '</div>'+
