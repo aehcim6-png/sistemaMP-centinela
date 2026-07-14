@@ -1505,7 +1505,9 @@ window.saveEditReg=function(i){
   // Mismas validaciones que al crear un registro (saveReg) — antes no existían acá,
   // así que editar aceptaba cualquier combinación de fechas sin avisar.
   if(!fEnt)return toast('⚠️ Ingresa fecha de entrada');
-  if(fEnt&&fSal&&fSal<fEnt)return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
+  if(!fechaEsPlausible(fEnt))return toast('⚠️ Fecha de entrada fuera de rango válido — revisa el año');
+  if(!fechaEsPlausible(fSal))return toast('⚠️ Fecha de salida fuera de rango válido — revisa el año');
+  if(fEnt&&fSal&&fechaEsAnterior(fSal,fEnt))return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
   if(fEnt&&hEnt&&fSal&&hSal){
     const msV=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
     if(msV<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
@@ -1596,7 +1598,9 @@ window.saveReg=function(){
   const estatusEq=$('rEstatusEq').value;
   // Validaciones extra (v10.1)
   if(!fEnt)return toast('⚠️ Ingresa fecha de entrada');
-  if(fEnt&&fSal&&fSal<fEnt)return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
+  if(!fechaEsPlausible(fEnt))return toast('⚠️ Fecha de entrada fuera de rango válido — revisa el año');
+  if(!fechaEsPlausible(fSal))return toast('⚠️ Fecha de salida fuera de rango válido — revisa el año');
+  if(fEnt&&fSal&&fechaEsAnterior(fSal,fEnt))return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
   if(fEnt&&hEnt&&fSal&&hSal){
     const msV=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
     if(msV<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');

@@ -1,4 +1,4 @@
-const { fd, fn, escapeHtml } = require('../logic.js');
+const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior } = require('../logic.js');
 
 describe('fd — formato de fecha para mostrar', () => {
   it('vacío, "None" o 0 -> guión largo', () => {
@@ -45,5 +45,37 @@ describe('escapeHtml — el fix de XSS de esta sesión', () => {
 
   it('texto normal sin caracteres especiales queda intacto', () => {
     expect(escapeHtml('Cambio filtro aceite motor')).toBe('Cambio filtro aceite motor');
+  });
+});
+
+describe('fechaEsPlausible — rechaza años corruptos (bug real: registro con fechaEntrada "10000-12-31")', () => {
+  it('vacío se considera plausible (se valida "requerido" aparte)', () => {
+    expect(fechaEsPlausible('')).toBe(true);
+    expect(fechaEsPlausible(null)).toBe(true);
+  });
+  it('fecha normal dentro de rango -> plausible', () => {
+    expect(fechaEsPlausible('2026-07-14')).toBe(true);
+    expect(fechaEsPlausible('2000-01-01')).toBe(true);
+  });
+  it('año de 5 dígitos -> no plausible (el caso real que se coló)', () => {
+    expect(fechaEsPlausible('10000-12-31')).toBe(false);
+  });
+  it('año fuera del rango 2000-2100 -> no plausible', () => {
+    expect(fechaEsPlausible('1899-01-01')).toBe(false);
+    expect(fechaEsPlausible('2101-01-01')).toBe(false);
+  });
+  it('formato no-ISO -> no plausible', () => {
+    expect(fechaEsPlausible('31-12-2025')).toBe(false);
+  });
+});
+
+describe('fechaEsAnterior — compara fechas como fechas, no como texto', () => {
+  it('caso normal: fecha anterior real', () => {
+    expect(fechaEsAnterior('2025-01-30', '2025-01-31')).toBe(true);
+    expect(fechaEsAnterior('2025-01-31', '2025-01-30')).toBe(false);
+  });
+  it('el bug real: comparar como texto diría que "10000-12-31" es ANTERIOR a "2025-01-31" (falso) — como fecha, es muy posterior', () => {
+    expect('10000-12-31' < '2025-01-31').toBe(true); // así fallaba la validación vieja
+    expect(fechaEsAnterior('10000-12-31', '2025-01-31')).toBe(false); // fechaEsAnterior lo corrige
   });
 });

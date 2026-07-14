@@ -140,6 +140,23 @@ function vencReglaDefault(tipoEquipo, vencTipo){
   return null;
 }
 
+// Año en un rango plausible para este sistema (rechaza años corruptos tipo "10000-12-31",
+// que un typo/import puede producir y que Postgres acepta sin problema como fecha válida).
+function fechaEsPlausible(fecha){
+  if(!fecha)return true; // vacío se valida aparte en cada flujo, no es "implausible"
+  var m=String(fecha).match(/^(\d{4})-\d{2}-\d{2}$/);
+  if(!m)return false;
+  var anio=parseInt(m[1],10);
+  return anio>=2000&&anio<=2100;
+}
+// Compara dos fechas ISO (YYYY-MM-DD) como fechas reales, no como texto — comparar
+// texto falla cuando los años tienen distinta cantidad de dígitos: "10000-12-31" queda
+// alfabéticamente ANTES que "2025-01-31" (el '1' va antes que el '2'), aunque sea un
+// año ~8000 después. true si 'a' es estrictamente anterior a 'b'.
+function fechaEsAnterior(a,b){
+  return new Date(a+'T00:00:00').getTime()<new Date(b+'T00:00:00').getTime();
+}
+
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
@@ -167,6 +184,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     C, fd, fn, escapeHtml,
     _tokensMaterial, _scoreMaterial, precioMaterial,
-    esLubricante, vencReglaDefault, vencCalcProximo, vencEstado
+    esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
+    fechaEsPlausible, fechaEsAnterior
   };
 }
