@@ -373,11 +373,42 @@ window._sbLoadHeavy=async function(){
 // conflicto de abajo podía dispararse en falso contra el propio guardado anterior
 // de la misma pestaña, todavía en vuelo.
 const _syncChain={};
-function _syncTablaGenerica(cfg,arrNuevo,arrAnterior,catKey){
-  const prev=_syncChain[catKey]||Promise.resolve();
-  const next=prev.then(function(){return _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey);}).catch(function(){});
-  _syncChain[catKey]=next;
+function _chained(key,fn){
+  const prev=_syncChain[key]||Promise.resolve();
+  const next=prev.then(fn).catch(function(){});
+  _syncChain[key]=next;
   return next;
+}
+
+// Chequeo de edición concurrente compartido por las 3 formas de guardar que hay
+// (tabla con arreglo de filas, vencimientos con clave compuesta, singleton con una
+// sola fila) — antes cada una tenía su propia copia de este mismo mecanismo, y la
+// duplicación se desincronizó de verdad (2 de las 3 copias no persistían en
+// localStorage al refrescar, y solo 1 de las 3 sabía saltarse el chequeo cuando
+// nunca se conoció una línea base). Compara `huellaAntes` (lo que esta pestaña
+// creía que había antes de este guardado) contra `huellaActual()` (una consulta
+// liviana al servidor, ahora mismo) usando `sonIguales`. Si difieren: refresca la
+// categoría con `refrescar()`, avisa, refresca pantalla, y devuelve true — el
+// llamador debe abortar el guardado sin escribir nada. huellaAntes===undefined
+// (nunca se cargó esta categoría todavía) no bloquea: sin línea base real no hay
+// nada que comparar, y tratarlo como "vacío antes" dispararía un falso conflicto
+// contra cualquier categoría que ya tenga datos en el servidor.
+async function _chequearConflicto(huellaAntes,huellaActual,sonIguales,refrescar,mensaje){
+  if(huellaAntes===undefined)return false;
+  try{
+    const actual=await huellaActual();
+    if(actual===undefined)return false; // el chequeo en sí falló, no bloquear
+    if(sonIguales(huellaAntes,actual))return false;
+    await refrescar();
+    if(typeof toast==='function')toast(mensaje);
+    if(typeof refreshAll==='function')refreshAll();
+    return true;
+  }catch(e){return false;}
+}
+const _sonIgualesIds=function(a,b){return !hayConflictoIds(a,b);};
+
+function _syncTablaGenerica(cfg,arrNuevo,arrAnterior,catKey){
+  return _chained(catKey,function(){return _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey);});
 }
 
 // Sincroniza un arreglo completo contra una tabla real: un solo upsert (INSERT/UPDATE
@@ -388,40 +419,26 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
   if(!_sbOk())return;
   const c=_sbCfg();
 
-  // Chequeo de edición concurrente: compara qué filas tenía ESTA pestaña cuando
-  // arrancó este guardado (arrAnterior) contra lo que hay AHORA MISMO en el
-  // servidor. Si difieren, alguien más guardó algo en esta tabla mientras esta
-  // pestaña estaba abierta sin refrescar — seguir adelante pisaría ese cambio
-  // ajeno sin avisar (o resucitaría una fila que otro acaba de borrar). En vez de
-  // eso, se aborta el guardado, se refresca esta categoría con lo último real, y
-  // se le pide al usuario reintentar su cambio sobre datos frescos.
-  // arrAnterior undefined (nunca se cargó esta categoría aún, ej. primer guardado
-  // disparado antes de que _sbLoadHeavy termine) no es lo mismo que "categoría
-  // vacía" ([] es un valor real) — sin línea base real no hay nada que comparar,
-  // así que se salta el chequeo en vez de leerlo como "0 filas antes" y disparar
-  // un falso conflicto contra cualquier tabla que ya tenga datos en el servidor.
-  if(catKey&&arrAnterior){
-    try{
-      const idsAntes=new Set((arrAnterior||[]).map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;}));
+  const conflicto=await _chequearConflicto(
+    catKey&&arrAnterior?new Set(arrAnterior.map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;})):undefined,
+    async function(){
       const rc=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}`,{headers:_sbHeaders()});
-      if(rc.ok){
-        const filasServidor=await rc.json();
-        if(Array.isArray(filasServidor)){
-          const idsServidor=new Set(filasServidor.map(function(f){return f[cfg.claveDb];}));
-          if(hayConflictoIds(idsAntes,idsServidor)){
-            const fresco=await _refetchTablaReal(catKey);
-            if(fresco){
-              _sbCache[catKey]=fresco;
-              try{localStorage.setItem(K+catKey,JSON.stringify(_recorteParaLocal(catKey,fresco)));}catch(e){}
-            }
-            if(typeof toast==='function')toast('⚠️ Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.');
-            if(typeof refreshAll==='function')refreshAll();
-            return;
-          }
-        }
+      if(!rc.ok)return undefined;
+      const filasServidor=await rc.json();
+      if(!Array.isArray(filasServidor))return undefined;
+      return new Set(filasServidor.map(function(f){return f[cfg.claveDb];}));
+    },
+    _sonIgualesIds,
+    async function(){
+      const fresco=await _refetchTablaReal(catKey);
+      if(fresco){
+        _sbCache[catKey]=fresco;
+        try{localStorage.setItem(K+catKey,JSON.stringify(_recorteParaLocal(catKey,fresco)));}catch(e){}
       }
-    }catch(e){/* si el chequeo falla (sin red, etc.), seguir con el guardado normal en vez de bloquear */}
-  }
+    },
+    '⚠️ Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+  );
+  if(conflicto)return;
 
   const idsAnteriores=new Set((arrAnterior||[]).map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;}));
   const idsNuevos=new Set();
@@ -471,39 +488,32 @@ function _idsVenc(obj){
   return ids;
 }
 function _syncVencimientos(obj,objAnterior){
-  const prev=_syncChain['venc']||Promise.resolve();
-  const next=prev.then(function(){return _syncVencimientosInner(obj,objAnterior);}).catch(function(){});
-  _syncChain['venc']=next;
-  return next;
+  return _chained('venc',function(){return _syncVencimientosInner(obj,objAnterior);});
 }
 async function _syncVencimientosInner(obj,objAnterior){
   if(!_sbOk())return;
   const c=_sbCfg();
 
-  // Mismo chequeo de edición concurrente que _syncTablaGenericaInner, adaptado a la
-  // clave compuesta (sigla,vencTipo) de esta tabla. objAnterior undefined (esta
-  // pestaña nunca llegó a cargar vencimientos) no es lo mismo que "sin filas antes"
-  // — sin línea base real se salta el chequeo en vez de disparar un falso conflicto.
-  if(objAnterior!==undefined)try{
-    const idsAntes=_idsVenc(objAnterior);
-    const rc=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo`,{headers:_sbHeaders()});
-    if(rc.ok){
+  const conflicto=await _chequearConflicto(
+    objAnterior!==undefined?_idsVenc(objAnterior):undefined,
+    async function(){
+      const rc=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo`,{headers:_sbHeaders()});
+      if(!rc.ok)return undefined;
       const filasServidor=await rc.json();
-      if(Array.isArray(filasServidor)){
-        const idsServidor=filasServidor.map(function(f){return f.sigla+'|'+f.vencTipo;});
-        if(hayConflictoIds(idsAntes,idsServidor)){
-          const fresco=await _refetchVencimientos();
-          if(fresco){
-            _sbCache['venc']=fresco;
-            try{localStorage.setItem(K+'venc',JSON.stringify(_recorteParaLocal('venc',fresco)));}catch(e){}
-          }
-          if(typeof toast==='function')toast('⚠️ Otra persona modificó vencimientos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.');
-          if(typeof refreshAll==='function')refreshAll();
-          return;
-        }
+      if(!Array.isArray(filasServidor))return undefined;
+      return filasServidor.map(function(f){return f.sigla+'|'+f.vencTipo;});
+    },
+    _sonIgualesIds,
+    async function(){
+      const fresco=await _refetchVencimientos();
+      if(fresco){
+        _sbCache['venc']=fresco;
+        try{localStorage.setItem(K+'venc',JSON.stringify(_recorteParaLocal('venc',fresco)));}catch(e){}
       }
-    }
-  }catch(e){/* si el chequeo falla, seguir con el guardado normal en vez de bloquear */}
+    },
+    '⚠️ Otra persona modificó vencimientos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+  );
+  if(conflicto)return;
 
   const filas=[];
   for(const sigla in (obj||{})){
@@ -523,40 +533,32 @@ async function _syncVencimientosInner(obj,objAnterior){
 // Singleton: siempre la misma fila (id=true). No hay ids que comparar (una sola
 // fila), así que el chequeo de conflicto usa updated_at en vez de un set de ids.
 function _syncSingleton(cfgS,v,catKey){
-  const prev=_syncChain[catKey]||Promise.resolve();
-  const next=prev.then(function(){return _syncSingletonInner(cfgS,v,catKey);}).catch(function(){});
-  _syncChain[catKey]=next;
-  return next;
+  return _chained(catKey,function(){return _syncSingletonInner(cfgS,v,catKey);});
 }
 async function _syncSingletonInner(cfgS,v,catKey){
   if(!_sbOk())return;
   const c=_sbCfg();
 
-  // Si esta pestaña nunca llegó a conocer un updated_at (carga inicial aún en vuelo,
-  // o falló) no hay línea base real contra la cual comparar — igual que arrAnterior
-  // ausente en _syncTablaGenericaInner/_syncVencimientosInner, seguir de largo en
-  // vez de tratar "no sé" como "el servidor tenía otra cosa" (falso conflicto).
-  if(catKey&&_sbSingletonUpdatedAt[catKey]!==undefined){
-    try{
-      const conocido=_sbSingletonUpdatedAt[catKey];
+  const conflicto=await _chequearConflicto(
+    catKey?_sbSingletonUpdatedAt[catKey]:undefined,
+    async function(){
       const rc=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=updated_at&limit=1`,{headers:_sbHeaders()});
-      if(rc.ok){
-        const filasServidor=await rc.json();
-        const actual=Array.isArray(filasServidor)&&filasServidor.length?(filasServidor[0].updated_at||null):null;
-        if(actual!==conocido){
-          const fresco=await _refetchSingleton(catKey);
-          if(fresco){
-            _sbCache[catKey]=fresco.valor;
-            _sbSingletonUpdatedAt[catKey]=fresco.updatedAt;
-            try{localStorage.setItem(K+catKey,JSON.stringify(fresco.valor));}catch(e){}
-          }
-          if(typeof toast==='function')toast('⚠️ Otra persona modificó esta configuración mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.');
-          if(typeof refreshAll==='function')refreshAll();
-          return;
-        }
+      if(!rc.ok)return undefined;
+      const filasServidor=await rc.json();
+      return Array.isArray(filasServidor)&&filasServidor.length?(filasServidor[0].updated_at||null):undefined;
+    },
+    function(a,b){return a===b;},
+    async function(){
+      const fresco=await _refetchSingleton(catKey);
+      if(fresco){
+        _sbCache[catKey]=fresco.valor;
+        _sbSingletonUpdatedAt[catKey]=fresco.updatedAt;
+        try{localStorage.setItem(K+catKey,JSON.stringify(fresco.valor));}catch(e){}
       }
-    }catch(e){/* si el chequeo falla, seguir con el guardado normal en vez de bloquear */}
-  }
+    },
+    '⚠️ Otra persona modificó esta configuración mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+  );
+  if(conflicto)return;
 
   let body;
   if(cfgS.modo==='objeto'){body={id:true};cfgS.cols.forEach(function(col){var cv=v&&v[col];body[col]=(cv===''?null:cv)??null;});}
