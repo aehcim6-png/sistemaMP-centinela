@@ -152,8 +152,8 @@ td.calc{color:var(--tx3);font-style:italic}
     };
 </script>
   <!-- ══════════════════════════════════════════════════════════ -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.0.0/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/qrcode.min.js"></script>
 </head>
 <body>
 <div class="header">
@@ -2558,16 +2558,18 @@ renders.stk=function(){
     if(fBusq&&!(s.descripcion||'').toLowerCase().includes(fBusq.toLowerCase())&&!(s.nParte||'').toLowerCase().includes(fBusq.toLowerCase()))return false;
     return true;
   });
+  const pg=_pagSlice('stk',filStk);
   $('s-stk').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📦 Stock Filtros</div>'+
     '<div class="sec-s">'+stk.length+' ítems · 🔴 '+comprar+' por comprar · ✏️ Todo editable</div></div>'+
     '<button class="btn" onclick="addStock()">+ Nuevo</button> <button class="btn btn-o" onclick="importStkCSV()">📤 Importar CSV</button> <button class="btn" style="background:#3ecf8e;color:#000" onclick="importarRepuestosKomatsu()">🔧 Repuestos Críticos Komatsu</button></div>'+
     '<div class="toolbar">'+
-    '<select id="fStkEst" onchange="renders.stk()"><option value="">Todos</option><option'+(fEst==='COMPRAR'?' selected':'')+'>COMPRAR</option><option'+(fEst==='BAJO'?' selected':'')+'>BAJO</option><option'+(fEst==='OK'?' selected':'')+'>OK</option></select>'+
-    '<input id="fStkBusq" placeholder="Buscar filtro/N°parte..." value="'+(fBusq||'')+'" onchange="renders.stk()" style="max-width:200px"></div>'+
+    '<select id="fStkEst" onchange="window._pag.stk=1;renders.stk()"><option value="">Todos</option><option'+(fEst==='COMPRAR'?' selected':'')+'>COMPRAR</option><option'+(fEst==='BAJO'?' selected':'')+'>BAJO</option><option'+(fEst==='OK'?' selected':'')+'>OK</option></select>'+
+    '<input id="fStkBusq" placeholder="Buscar filtro/N°parte..." value="'+(fBusq||'')+'" onchange="window._pag.stk=1;renders.stk()" style="max-width:200px"></div>'+
+    _pagHTML('stk',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo ✏️</th><th>Descripción ✏️</th><th>N°Parte ✏️</th><th>Stock ✏️</th><th>Consumido</th><th>Cons/Mes ✏️</th><th>Últ.Fecha</th><th>Proy/Mes ✏️</th><th>Meses</th><th>Estado</th><th>Precio ✏️</th><th></th></tr>'+
-    filStk.map(function(s){
+    pg.items.map(function(s){
       var i=stk.indexOf(s);
       var lastD=lastUse[s.descripcion]||lastUse[s.nParte]||'—';
       var acum=Math.round(totalCons[s.descripcion]||totalCons[s.nParte]||0);
@@ -2591,7 +2593,8 @@ renders.stk=function(){
         '<td><input type="number" value="'+(s.precioUnit||0)+'" onchange="edI(\'stk\','+i+',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;'+is+'"></td>'+
         '<td><button class="btn-s btn-d" onclick="delRow(\'stk\','+i+',\'stk\')">🗑</button></td></tr>';
     }).join('')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('stk',pg);
 };
 window.addStock=function(){
   sm(`<h3>Nuevo Filtro</h3>
@@ -2631,13 +2634,14 @@ renders.lub=function(){
     if(fBusq&&!(l.nombre||'').toLowerCase().includes(fBusq.toLowerCase()))return false;
     return true;
   });
+  const pg=_pagSlice('lub',filLub);
   $('s-lub').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">🛢️ Lubricantes</div>'+
     '<div class="sec-s">'+lub.length+' productos · ✏️ Todo es editable — cambios se propagan al sistema</div></div>'+
     '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="importLubCSV()">📤 Importar CSV</button> <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()">🔍 Vínculos rotos</button></div>'+
     '<div class="toolbar">'+
-    '<input id="fLubBusq" placeholder="Buscar..." value="'+(fBusq||'')+'" onchange="renders.lub()" style="max-width:180px">'+
-    '<select id="fLubEq" onchange="renders.lub()"><option value="">Consumo por equipo...</option>'+
+    '<input id="fLubBusq" placeholder="Buscar..." value="'+(fBusq||'')+'" onchange="window._pag.lub=1;renders.lub()" style="max-width:180px">'+
+    '<select id="fLubEq" onchange="window._pag.lub=1;renders.lub()"><option value="">Consumo por equipo...</option>'+
     allEq.map(function(e){return'<option'+(e===fEq?' selected':'')+'>'+e+'</option>'}).join('')+'</select>'+
     '<span style="font-size:11px;color:var(--tx3)">HH: $<input type="number" value="'+hh+'" onchange="S.s(\'hh\',parseInt(this.value));refreshAll()" style="width:70px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);padding:2px 4px;border-radius:3px;font-size:11px">/hr</span></div>'+
     (fEq&&pautaLubs.length?
@@ -2645,10 +2649,12 @@ renders.lub=function(){
       '<b style="color:var(--ac)">📋 Pauta PM4 de '+fEq+':</b> '+
       pautaLubs.map(function(c){return'<span style="display:inline-block;background:var(--bg3);border-radius:3px;padding:2px 6px;margin:2px;font-size:10px">'+(c.rep||'').substring(0,50)+': <b>'+(c.can||0)+'</b></span>'}).join('')+
       '</div>':'')+
+    _pagHTML('lub',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>N°</th><th>Lubricante ✏️</th><th>Und</th><th>Stock ✏️</th><th>Consumido</th><th>Cons/Mes ✏️</th><th>Últ.Fecha</th><th>Proy/Mes ✏️</th><th>Meses</th><th>Precio ✏️</th><th></th></tr>'+
-    filLub.map(function(l,fi){
+    pg.items.map(function(l,fi){
       var idx=lub.indexOf(l);
+      var rowNum=(pg.page-1)*_PAG_SIZE+fi+1;
       var last=lastUse[l.nombre]||'—';
       var acum=Math.round(totalCons[l.nombre]||0);
       var proy=l.proyMes||0;
@@ -2658,7 +2664,7 @@ renders.lub=function(){
       var estCol=meses<1?'var(--danger)':meses<3?'var(--w)':'var(--ok)';
       var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
       return'<tr>'+
-        '<td class="mono">'+(fi+1)+'</td>'+
+        '<td class="mono">'+rowNum+'</td>'+
         '<td style="max-width:250px"><input value="'+escapeHtml(l.nombre||'')+'" onchange="edI(\'lub\','+idx+',\'nombre\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" title="Editar nombre"></td>'+
         '<td><select onchange="edI(\'lub\','+idx+',\'unidad\',this.value)" style="font-size:10px;'+is+'">'+
         ['Litro','Kilo','Unidad'].map(function(u){return'<option'+(l.unidad===u?' selected':'')+'>'+u+'</option>'}).join('')+'</select></td>'+
@@ -2671,7 +2677,8 @@ renders.lub=function(){
         '<td><input type="number" value="'+(l.precio||0)+'" onchange="edI(\'lub\','+idx+',\'precio\',parseInt(this.value)||0)" style="width:55px;'+is+'"></td>'+
         '<td><button class="btn-s btn-d" onclick="delRow(\'lub\','+idx+',\'lub\')">🗑</button></td></tr>';
     }).join('')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('lub',pg);
 };
 window.edI=function(store,idx,key,val){
   var d=S.g(store)||[];
@@ -3593,6 +3600,7 @@ renders.neu=function(){
   }
   const crit=fil.filter(n=>(n.pctRemanente||0)<30).length;
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
+  const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t">🛞 Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} críticos</div></div>
       <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()">📤 Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()">📊 Resumen flota</button>
@@ -3604,12 +3612,13 @@ renders.neu=function(){
       <div class="card"><div class="card-t">Costo est. críticos</div><div class="card-v" style="color:var(--ac)">$${fn(crit*8500000)}</div><div class="card-s">~USD 12.500/un</div></div>
     </div>
     <div class="toolbar">
-      <select id="fNeuEq" onchange="renders.neu()"><option value="">Todos equipos</option>${eqs.map(s=>`<option${s===fEq?' selected':''}>${s}</option>`).join('')}</select>
-      <select id="fNeuTipo" onchange="renders.neu()"><option value="">Todos tipos</option><option value="CAEX">CAEX (6)</option><option value="CF">Cargador (4)</option><option value="MN">Motoniveladora (6)</option><option value="ALJ">Aljibe (10)</option></select>
+      <select id="fNeuEq" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos equipos</option>${eqs.map(s=>`<option${s===fEq?' selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
+      <select id="fNeuTipo" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos tipos</option><option value="CAEX">CAEX (6)</option><option value="CF">Cargador (4)</option><option value="MN">Motoniveladora (6)</option><option value="ALJ">Aljibe (10)</option></select>
     </div>
+    ${_pagHTML('neu',pg)}
     <div class="tbl-wrap"><table>
       <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
-      ${fil.map((n,_)=>{
+      ${pg.items.map((n,_)=>{
         const i=neu.indexOf(n);
         const p=n.pctRemanente||0;
         const col=p<30?'var(--danger)':p<50?'var(--warn)':'var(--ok)';
@@ -3635,7 +3644,7 @@ renders.neu=function(){
           </td>
         </tr>`;
       }).join('')}
-    </table></div>`;
+    </table></div>${_pagHTML('neu',pg)}`;
 };
 // [v10.2 cleanup] addEquipo v2 (idéntica a v1 en línea 911) eliminada
 // [v10.3 cleanup] saveNewEq v2 (idéntica a v1 en línea 940) eliminada
@@ -4212,6 +4221,7 @@ window.neuSort=function(key){
   }else{
     window._neuSort={key,dir:1};
   }
+  window._pag.neu=1;
   renders.neu();
 };
 
