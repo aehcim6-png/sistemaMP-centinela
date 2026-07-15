@@ -111,6 +111,7 @@ td.calc{color:var(--tx3);font-style:italic}
 
 @media(max-width:768px){
   .header{flex-direction:column}
+  .hstats{flex-wrap:wrap;gap:10px 16px}
   .cards{grid-template-columns:repeat(2,1fr)}
   .prog-grid{grid-template-columns:80px repeat(12,1fr);font-size:8px}
   .nav{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
@@ -135,22 +136,7 @@ td.calc{color:var(--tx3);font-style:italic}
 </style>
 
   <!-- ══ FIREBASE SDK ══════════════════════════════════════════ -->
-  <script type="module">
-    try {
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js').then(function(){}).catch(function(){});
-    } catch(e) {}
-    // Firebase disabled for offline use - sync available from Config
-    window.fbSave = async function(){};
-    window.fbLoad = async function(){return null;};
-    window.fbSync = async function(){
-      var el=document.getElementById('fbStatus');
-      if(el) el.textContent='⚠️ Firebase no disponible offline';
-    };
-    window.fbUpload = async function(){
-      var el=document.getElementById('fbStatus');
-      if(el) el.textContent='⚠️ Firebase no disponible offline';
-    };
-</script>
+  <!-- [cleanup] restos inertes de la integración Firebase (nunca usada, sync real es vía Supabase) eliminados -->
   <!-- ══════════════════════════════════════════════════════════ -->
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/qrcode.min.js"></script>
@@ -159,7 +145,6 @@ td.calc{color:var(--tx3);font-style:italic}
 <div class="header">
   <div class="logo">SistemaMP <span>CENTINELA v10</span></div>
   <div class="hstats" id="hs"></div>
-  <div style="font-size:10px;color:#aaa;padding:4px 14px;border-left:1px solid #333;white-space:nowrap" id="fb-status">☁️ Firebase...</div>
 </div>
 <div class="nav" id="nav"></div>
 <div class="main" id="main"></div>
@@ -2000,10 +1985,7 @@ renders.prg=function(){
     }).join('')+
     '</div>';
 };
-// [v10.4 cleanup] editPrgCell — función muerta (0 usos) eliminada
-window.savePrgCell=function(pi,mes,val){
-  const prg=S.g('prg');prg[pi].meses[mes]=val;S.s('prg',prg);cm();renders.prg();toast('✅ Programa actualizado');
-};
+// [v10.4 cleanup] editPrgCell, savePrgCell — funciones muertas (0 usos) eliminadas
 
 // ---- ALERTAS PM4 ----
 renders.al=function(){
@@ -2132,28 +2114,7 @@ const GRUPO_PAUTAS = {"CN-9503": "CN-9507", "CN-9500": "CN-9507", "CN-9501": "CN
 // window._tokensMaterial / window._scoreMaterial / window.precioMaterial / esLubricante
 // viven en logic.js (misma fuente única de verdad de siempre, ahora testeable).
 
-// Calculate real projection for next month based on each equipment's next PM
-function calcProyeccion(){
-  var eq=S.g('eq')||[];
-  var pmH={'PM1':['PM1'],'PM2':['PM1','PM2'],'PM3':['PM1','PM2','PM3'],'PM4':['PM1','PM2','PM3','PM4'],'PM5':['PM1','PM2','PM3','PM4'],'PM6':['PM1','PM2','PM3','PM4'],'PM7':['PM1','PM2','PM3','PM4'],'PM8':['PM1','PM2','PM3','PM4'],'PM9':['PM1','PM2','PM3','PM4']};
-  var proy={filtros:{},lubricantes:{}};
-  eq.forEach(function(e){
-    var siglaRef=GRUPO_PAUTAS[e.sigla]||e.sigla;
-    var pmList=pmH[e.tipoPM||'PM1']||['PM1'];
-    var cons=(S.g('pau')||INIT.pautas||[]).filter(function(p){
-      var pRef=GRUPO_PAUTAS[p.sigla]||p.sigla;
-      return (p.sigla===siglaRef||pRef===siglaRef)&&pmList.includes(p.pm)&&p.rep&&(p.can||0)>0;
-    });
-    cons.forEach(function(c){
-      var cat=esLubricante(c.rep)?'lubricantes':'filtros';
-      var key=c.rep.substring(0,60);
-      if(!proy[cat][key])proy[cat][key]={cant:0,equipos:[]};
-      proy[cat][key].cant+=c.can;
-      if(!proy[cat][key].equipos.includes(e.sigla))proy[cat][key].equipos.push(e.sigla);
-    });
-  });
-  return proy;
-}
+// [cleanup] calcProyeccion — función muerta (0 usos, superseded por getPautasConsumo) eliminada
 function getPautasConsumo(sigla, tipoPM){
   const pau = S.g('pau') || INIT.pautas || [];
   const siglaRef = GRUPO_PAUTAS[sigla] || sigla;
@@ -9431,21 +9392,7 @@ window.processImportOT=function(){
     }catch(err){toast('❌ '+err.message);}
   };reader.readAsText(file,'ISO-8859-1');
 };
-// [v10.4 cleanup] importInspCSV — función muerta (0 usos) eliminada
-window.processImportInsp=function(){
-  var file=$('inspFile')?.files[0];if(!file)return toast('⚠️ Selecciona archivo');
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var insp=S.g('insp')||[];var txt=e.target.result.replace(/^\uFEFF/,'');var added=0;
-    try{
-      if(file.name.endsWith('.json')){var d=JSON.parse(txt);d.forEach(function(r){insp.push(r);added++;});}
-      else{var lines=txt.split('\n').filter(function(l){return l.trim().length>3});var sep=lines[0].includes(';')?';':',';
-        for(var i=1;i<lines.length;i++){var v=lines[i].split(sep).map(function(x){return x.trim().replace(/"/g,'')});
-          insp.push({fecha:v[0]||'',equipo:v[1]||'',horometro:parseInt(v[2])||0,visual:v[3]||'OK',niveles:v[4]||'OK',fugas:v[5]||'OK',luces:v[6]||'OK',frenos:v[7]||'OK',neumaticos:v[8]||'OK',obs:v[9]||'',inspector:v[10]||''});added++;}}
-      S.s('insp',insp);cm();refreshAll();toast('✅ '+added+' inspecciones importadas');
-    }catch(err){toast('❌ '+err.message);}
-  };reader.readAsText(file,'ISO-8859-1');
-};
+// [cleanup] importInspCSV, processImportInsp — funciones muertas (0 usos) eliminadas
 
 window.edHist=function(idx,key,val){
   var h=S.g('hist')||[];
