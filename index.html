@@ -125,6 +125,9 @@ td.calc{color:var(--tx3);font-style:italic}
   .modal-box,[class*=modal]{max-width:95vw!important;width:95vw!important}
   /* Tablas con scroll horizontal en pantallas chicas */
   .sec table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  /* Grids del Dashboard con columnas fijas en px (no colapsaban antes) */
+  .dg1{grid-template-columns:1fr!important}
+  .dg2{grid-template-columns:repeat(2,1fr)!important}
 }
 @media(max-width:480px){
   .cards{grid-template-columns:1fr 1fr}
@@ -1151,7 +1154,7 @@ renders.dash=function(){
 
     // ═══ Z1: ARRIBA IZQUIERDA — KPI PRINCIPAL ═══
     // Disponibilidad grande — lo primero que ve el ojo
-    '<div style="display:grid;grid-template-columns:300px 1fr;gap:20px;margin-bottom:24px">'+
+    '<div class="dg1" style="display:grid;grid-template-columns:300px 1fr;gap:20px;margin-bottom:24px">'+
 
     '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:24px;text-align:center;border:2px solid '+dispCol+';position:relative">'+
     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:3px;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA</div>'+
@@ -1162,7 +1165,7 @@ renders.dash=function(){
     '</div>'+
 
     // ═══ Z2: ARRIBA DERECHA — CONTEXTO / ESTADO GENERAL ═══
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:10px">'+
+    '<div class="dg2" style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:10px">'+
 
     // Fila 1: Estado de flota
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid #ef4444">'+
@@ -1203,7 +1206,7 @@ renders.dash=function(){
     '</div></div>'+
 
     // ═══ KPIs AVANZADOS ROW ═══
-    '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px">'+
+    '<div class="dg2" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px">'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · ⚠️'+stkBajo+' · ✅'+stkOk+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+costoRAV+'%</div><div style="font-size:8px;color:var(--tx3)">Meta: &lt;2%</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4</div></div>'+
@@ -1214,7 +1217,7 @@ renders.dash=function(){
     '</div>'+
 
         // ═══ Z3: ABAJO IZQUIERDA — DESGLOSE / TENDENCIA ═══
-    '<div style="display:grid;grid-template-columns:1fr 1.8fr 1fr;gap:16px;margin-bottom:24px">'+
+    '<div class="dg1" style="display:grid;grid-template-columns:1fr 1.8fr 1fr;gap:16px;margin-bottom:24px">'+
 
     // Ratio Mantención: una proporción contra una meta → medidor (meter), no un donut de 2 rebanadas
     '<div class="chart-box" style="padding:16px"><div class="chart-t">Ratio Mantención · '+dashLabel+'</div>'+
@@ -1261,7 +1264,7 @@ renders.dash=function(){
     '</div>'+
 
     // ═══ Z4: ABAJO DERECHA — ACCIÓN ═══
-    '<div style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
+    '<div class="dg1" style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
 
     '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:#ef4444;font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
     (urg.length?
@@ -7227,18 +7230,20 @@ renders.ayuda=function(){
     '<li><b>Pautas respetadas en todos los cálculos:</b> cuando editas una pauta, el cambio ahora se aplica en la proyección de consumos, el Plan Semanal y las horas-hombre planificadas. Antes algunos cálculos seguían usando la pauta original e ignoraban tu edición.</li>'+
     '<li><b>Fechas de OT parejas:</b> las órdenes de trabajo nuevas guardan su fecha de ingreso en formato estándar (AAAA-MM-DD), igual que el resto del sistema. Corrige un desorden en el dato que no afectaba los cálculos.</li>'+
     '<li><b>Plantilla Limpia al día:</b> la opción "Descargar Plantilla Limpia" de Configuración se genera a partir de este mismo archivo, así que ya incluye estas mejoras de forma automática.</li>'+
+    '<li><b>Paginación en Stock, Lubricantes y Neumáticos:</b> estas 3 tablas ahora se ven de a 50 filas con botones "← Anterior / Siguiente →", igual que Registro PM, Correctivos y las demás tablas grandes. Ningún dato se perdió — solo se ve de a partes para que cargue más rápido.</li>'+
+    '<li><b>Encabezado corregido en celular:</b> la barra de estadísticas (equipos/urgentes/próximas/etc.) ya no se corta fuera de la pantalla en celulares — ahora se acomoda en 2 líneas.</li>'+
     '</ul>'+
     '</div>'+
 
     // GUÍA DE TRASPASO (para quien tome el sistema)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(99,102,241,.05)">'+
     '<b style="font-size:15px">🔑 GUÍA DE TRASPASO — Lee esto primero si recién recibes el sistema</b>'+
-    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Este sistema gestiona el mantenimiento de una flota minera. Funciona en un solo archivo HTML que se abre con Chrome o Edge. No necesita instalación. Todo lo que ves se calcula solo a partir de los datos cargados.</p>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Este sistema gestiona el mantenimiento de una flota minera. Es una página web (se abre con Chrome o Edge, sin instalar nada) conectada a una base de datos real en la nube (Supabase) — los datos NO viven en este navegador, viven en el servidor, y se comparten entre todos los que usan el sistema al mismo tiempo.</p>'+
     '<b style="font-size:13px;color:var(--ac)">▶ Cómo empezar a usarlo (3 pasos)</b>'+
     '<ol style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
-    '<li><b>Abre el archivo</b> con Chrome o Edge (doble click). Cuando pregunte por la nube, dale "Bajar de la nube" si quieres los datos más recientes del equipo, o "Cancelar" para usar lo que trae el archivo.</li>'+
-    '<li><b>Familiarízate con las pestañas</b> de arriba. Las principales: <b>Dashboard</b> (resumen), <b>Equipos</b> (la flota y sus próximas PM), <b>Registro PM</b> (anotar mantenciones hechas), <b>Plan Semanal</b> (qué toca esta semana), <b>Stock</b> y <b>Lubricantes</b> (inventario), <b>Neumáticos</b> (control de gomas), <b>Planificador</b> (qué materiales se vienen y cuánto cuestan).</li>'+
-    '<li><b>Edita cualquier dato</b> haciendo click directo en las celdas de las tablas. Se guarda solo. Para ordenar, haz click en los encabezados de columna (⇅).</li>'+
+    '<li><b>Inicia sesión</b> con tu correo y contraseña en la pantalla que aparece al abrir la página. Si no tienes cuenta todavía, pídele a un administrador que te la cree en <b>⚙ Configuración → 👤 Crear Usuario del Sistema</b> — quedas bloqueado hasta que un admin te active (esto evita que cualquiera con el link entre sin autorización).</li>'+
+    '<li><b>Familiarízate con las pestañas</b> de arriba. Las principales: <b>Dashboard</b> (resumen), <b>Equipos</b> (la flota y sus próximas PM), <b>Registro PM</b> (anotar mantenciones hechas), <b>Plan Semanal</b> (qué toca esta semana), <b>Stock</b> y <b>Lubricantes</b> (inventario), <b>Neumáticos</b> (control de gomas), <b>Predictivo</b> (qué materiales se vienen y cuánto cuestan).</li>'+
+    '<li><b>Edita cualquier dato</b> haciendo click directo en las celdas de las tablas. Se guarda solo en la base de datos — nadie más necesita "actualizar" nada, lo ven apenas recarguen su pantalla. Para ordenar, haz click en los encabezados de columna (⇅).</li>'+
     '</ol>'+
     '<b style="font-size:13px;color:var(--ac)">▶ Tu rutina diaria recomendada</b>'+
     '<ol style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -7248,23 +7253,17 @@ renders.ayuda=function(){
     '<li>Si hay falla, créala en <b>Correctivos</b>.</li>'+
     '<li>Mide remanente de neumáticos críticos con el botón 📏 en <b>Neumáticos</b>.</li>'+
     '</ol>'+
-    '<b style="font-size:13px;color:var(--ac)">▶ Respaldo (MUY IMPORTANTE)</b>'+
-    '<p style="font-size:12px;line-height:1.7;margin:8px 0 12px 0">Los datos viven en este navegador. Para no perderlos: ve a <b>⚙ Configuración</b> y conecta la <b>nube Supabase</b> (sync automático) o una <b>carpeta de OneDrive</b>. Con eso, todo se respalda solo. Para mover el sistema a otro PC: abre el archivo allá, conecta la misma nube, y baja los datos.</p>'+
+    '<b style="font-size:13px;color:var(--ac)">▶ Respaldo y acceso desde otro equipo</b>'+
+    '<p style="font-size:12px;line-height:1.7;margin:8px 0 12px 0">No hace falta respaldar nada a mano: los datos ya están en el servidor, no en este navegador. Para usar el sistema desde otro computador o celular, solo entra a la misma dirección web e inicia sesión con tu mismo usuario — vas a ver exactamente los mismos datos, al instante.</p>'+
     '<b style="font-size:13px;color:var(--ac)">▶ Conceptos clave del mantenimiento preventivo</b>'+
     '<p style="font-size:12px;line-height:1.7;margin:8px 0 0 0">Cada equipo tiene ciclos de PM: <b>PM1</b> (250h), <b>PM2</b> (500h), <b>PM3</b> (1.000h), <b>PM4</b> (2.000h). Un PM mayor incluye los menores (PM4 hace también PM1+2+3). El sistema calcula solo cuándo toca cada PM según el horómetro y avisa con colores: 🔴 urgente, 🟡 próxima, ✅ al día.</p>'+
     '</div>'+
 
-    // GUÍA SUPABASE
+    // ROLES Y PERMISOS
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #3ecf8e">'+
-    '<b style="font-size:14px">🌐 Cómo activar la sincronización en la nube (Supabase) — 5 minutos, gratis</b>'+
-    '<ol style="font-size:12px;line-height:1.9;margin:10px 0 0 18px">'+
-    '<li>Este sistema ya usa un proyecto Supabase con el esquema completo (tablas por categoría, permisos por rol vía Row Level Security, y login real por usuario) — no hace falta crear tablas a mano. En <b>Project Settings → API</b> copia la <b>Project URL</b> (https://xxxx.supabase.co) y la <b>Clave publicable</b> (sb_publishable_...) del proyecto ya configurado.</li>'+
-    '<li>Vuelve aquí → pestaña <b>⚙ Configuración</b> → pega URL y clave → <b>💾 Guardar config</b> → <b>🔌 Probar conexión</b>.</li>'+
-    '<li>Inicia sesión con un usuario real (creado por un admin en <b>⚙ Configuración → 👤 Crear Usuario del Sistema</b>). Sin login no se puede leer ni escribir nada — los permisos son por fila y por rol, no por posesión del archivo.</li>'+
-    '<li>En cualquier otro PC: abre este mismo archivo HTML, pega la misma URL y clave, e inicia sesión con tu usuario.</li>'+
-    '</ol>'+
-    '<p style="font-size:11px;color:var(--warn);margin-top:8px">⚠️ Seguridad: la URL y la clave publicable no dan acceso por sí solas — cada acción exige una sesión iniciada y la base la filtra por rol (operador/admin) fila por fila. Aun así, no compartas tus credenciales de inicio de sesión fuera de tu equipo de confianza.</p>'+
-    '<p style="font-size:11px;color:var(--tx3)">Conflictos: gana el último que guarda, fila por fila. Para uso de varias personas a la vez es suficiente; no es edición simultánea del mismo registro en vivo.</p>'+
+    '<b style="font-size:14px">🔐 Roles y permisos</b>'+
+    '<p style="font-size:12px;line-height:1.7;margin:10px 0">Cada usuario tiene un rol asignado por un administrador: <b>operador</b> (puede registrar PM, correctivos, inspecciones, movimientos de stock, etc.) o <b>admin</b> (además puede crear/activar usuarios, editar datos estructurales del equipo como sigla/modelo/precios, y ver el panel de Configuración completo). Estos permisos los revisa la base de datos misma en cada acción — no son solo un candado de la pantalla, así que no se pueden saltar aunque alguien manipule el navegador.</p>'+
+    '<p style="font-size:11px;color:var(--tx3)">Si dos personas editan la misma fila al mismo tiempo sin haber recargado la pantalla, el sistema detecta el conflicto, avisa con un mensaje, y pide reintentar sobre los datos frescos — así nunca se pierde en silencio el cambio de uno de los dos.</p>'+
     '</div>'+
 
     // ÍNDICE
@@ -7303,7 +7302,7 @@ renders.ayuda=function(){
     // 1. QUÉ ES
     '<div class="card" style="margin-bottom:12px" id="m1">'+
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">1. ¿Qué es SistemaMP?</div>'+
-    '<p style="font-size:13px;line-height:1.7;margin:0">SistemaMP Centinela es un sistema integral de gestión de mantenimiento para flotas de equipos mineros. Funciona 100% offline en tu navegador, sin necesidad de internet ni servidores. Los datos se guardan en el almacenamiento local del navegador (localStorage).</p>'+
+    '<p style="font-size:13px;line-height:1.7;margin:0">SistemaMP Centinela es un sistema integral de gestión de mantenimiento para flotas de equipos mineros. Es una página web con una base de datos real en la nube (Supabase): necesita internet e iniciar sesión para funcionar, y los datos se comparten en vivo entre todos los usuarios de la empresa — no dependen de un solo computador ni de un solo navegador.</p>'+
     '<div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:6px;font-size:12px">'+
     '<b>El sistema responde 7 preguntas clave:</b><br>'+
     '🔴 ¿Qué está pasando? → Estado actual de la flota<br>'+
@@ -7318,11 +7317,11 @@ renders.ayuda=function(){
     '<div class="card" style="margin-bottom:12px" id="m2">'+
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">2. Primeros Pasos</div>'+
     '<div style="font-size:13px;line-height:1.8">'+
-    '<b>Paso 1:</b> Abre el archivo HTML en tu navegador (Chrome, Edge o Firefox).<br>'+
+    '<b>Paso 1:</b> Abre la página en tu navegador (Chrome, Edge o Firefox) e <b>inicia sesión</b> con tu correo y contraseña.<br>'+
     '<b>Paso 2:</b> Revisa el <b>Dashboard</b> — muestra el estado general de la flota.<br>'+
     '<b>Paso 3:</b> Ve a <b>Equipos</b> — verifica que tus '+eq.length+' equipos estén correctos.<br>'+
     '<b>Paso 4:</b> Revisa <b>Pautas</b> — confirma las actividades PM de cada equipo.<br>'+
-    '<b>Paso 5:</b> Ve a <b>Config</b> (contraseña: 1234) — personaliza empresa, colores y tema.<br>'+
+    '<b>Paso 5:</b> Ve a <b>Config</b> — personaliza empresa, colores y tema (algunas opciones piden además la contraseña interna 1234, distinta de tu login, solo para mostrar/ocultar ciertos paneles).<br>'+
     '<b>Paso 6:</b> ¡Listo! Empieza a registrar mantenciones.</div></div>'+
 
     // 3. FLUJO DIARIO
@@ -7390,7 +7389,7 @@ renders.ayuda=function(){
     '<tr><td><b>📦 Repuestos</b></td><td>Control repuestos</td><td>Stock, mínimo, lead time, semáforo, orden de compra</td></tr>'+
     '<tr><td><b>📈 Predictivo</b></td><td>Motor inteligente</td><td>Alertas cruzadas, diagnóstico, backlog, tendencias</td></tr>'+
     '<tr><td><b>📆 Plan Semanal</b></td><td>Planificación semanal</td><td>Trabajos de la semana, HH, costo, técnicos, repuestos</td></tr>'+
-    '<tr><td><b>🔩 Componentes</b></td><td>Componentes mayores</td><td>Motor, transmisión, diferencial — vida útil y proyección de cambio</td></tr>'+
+    '<tr><td><b>🔩 Componentes</b></td><td>Componentes mayores</td><td>4 sub-pestañas: Componentes Mayores (motor/transmisión/diferencial), Predictivo, Destrabe e Informes de Falla (genera PDF descargable)</td></tr>'+
     '<tr><td><b>🎯 Metas</b></td><td>Plan vs Real</td><td>8 indicadores × 12 meses, meta editable, real automático</td></tr>'+
     '<tr><td><b>📅 Gantt</b></td><td>Plan visual</td><td>Equipos × días del mes, barras de color por estado</td></tr>'+
     '<tr><td><b>🔓 Destrabe</b></td><td>Bloqueos</td><td>Trabajos detenidos, motivo, acción, días pendiente</td></tr>'+
@@ -7399,7 +7398,7 @@ renders.ayuda=function(){
     '<tr><td><b>📊 Informes KPI</b></td><td>Cuadro de mando</td><td>6 gauges + barras mensuales + descarga Excel</td></tr>'+
     '<tr><td><b>📝 Log</b></td><td>Auditoría</td><td>Registro automático de todas las ediciones con fecha/hora</td></tr>'+
     '<tr><td><b>📖 Manual</b></td><td>Esta guía</td><td>Paso a paso de todo el sistema</td></tr>'+
-    '<tr><td><b>⚙ Config</b></td><td>Administración</td><td>Temas, colores, fuentes, backup, nueva empresa</td></tr>'+
+    '<tr><td><b>⚙ Config</b></td><td>Administración</td><td>Temas, colores, fuentes, backup, nueva empresa, crear/activar usuarios, códigos QR por equipo</td></tr>'+
     '</table></div></div>'+
 
     // 5. REGISTRAR PM
@@ -7523,11 +7522,11 @@ renders.ayuda=function(){
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">13. Preguntas Frecuentes</div>'+
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Se pierden los datos si cierro el navegador?</b><br>'+
-    'No. Los datos se guardan en localStorage y persisten hasta que los borres manualmente o limpies datos del navegador.<br><br>'+
+    'No. Los datos viven en la base de datos en la nube (Supabase), no en tu navegador — cerrar la pestaña o apagar el computador no borra nada. Vuelves a entrar, inicias sesión, y está todo tal como lo dejaste.<br><br>'+
     '<b>¿Funciona sin internet?</b><br>'+
-    'Sí, 100% offline. Solo necesitas abrir el archivo HTML.<br><br>'+
+    'No — necesita internet para iniciar sesión y para guardar/leer cualquier dato, porque todo vive en el servidor, no localmente.<br><br>'+
     '<b>¿Puedo usar el sistema en otro computador?</b><br>'+
-    'Sí. Exporta backup JSON en Config → llévalo al otro PC → importa el JSON. O copia el archivo HTML.<br><br>'+
+    'Sí, y es más simple que antes: solo entra a la misma página desde el otro computador (o celular) e inicia sesión con tu mismo usuario. No hace falta exportar ni copiar ningún archivo — vas a ver los mismos datos en vivo.<br><br>'+
     '<b>¿Puedo usarlo en celular?</b><br>'+
     'Sí, funciona en el navegador del celular. La interfaz se adapta a pantallas pequeñas.<br><br>'+
     '<b>¿Puedo cambiar de empresa?</b><br>'+
@@ -7628,7 +7627,8 @@ renders.ayuda=function(){
     '<b>KPIs:</b> total componentes, críticos (<1000h), costo proyectado de próximos cambios.<br>'+
     '<b>Botones:</b> + Agregar, 🗑 Eliminar, 📥 CSV, 📤 Importar<br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac)">'+
-    '<b>💡 Tip:</b> Cuando reemplazas un componente mayor, edita el horómetro de instalación al horómetro actual del equipo. El sistema recalculará automáticamente la vida restante.</div></div></div>'+
+    '<b>💡 Tip:</b> Cuando reemplazas un componente mayor, edita el horómetro de instalación al horómetro actual del equipo. El sistema recalculará automáticamente la vida restante.</div><br>'+
+    '<b>📄 Informes de Falla (PDF):</b> en esta misma pestaña "Componentes" hay una sub-pestaña llamada <b>"📄 Informes de Falla"</b> (botón arriba, junto a Componentes Mayores/Predictivo/Destrabe). Ahí se genera el informe formal de una falla catastrófica o cambio de componente: llenas el formulario, adjuntas fotos, y al guardar el botón <b>"💾 Generar Informe y PDF"</b> descarga automáticamente un PDF con todo el detalle. Para volver a descargar un informe ya creado, usa el botón 📥 en su fila de la tabla.</div></div>'+
 
     // 17. METAS
     '<div class="card" style="margin-bottom:12px" id="m17">'+
