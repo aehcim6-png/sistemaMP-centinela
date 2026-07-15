@@ -2080,9 +2080,21 @@ renders.pau=function(){
     '</table></div>'+
     _pagHTML('pau',pg);
 };
+// Helper compartido: todas las funciones edX (edPau/edRep/edOT/edAce/edComp/
+// edGantt/edI/edHist) hacían la misma secuencia "si existe la fila, actualiza
+// el campo, guarda" con el nombre de tabla fijo cada una. Se unifica acá;
+// cada wrapper decide de dónde saca su arreglo (algunos tienen un fallback
+// propio, como pau con INIT.pautas), cuándo llama refreshAll()/toast(), y si
+// tiene un efecto secundario propio (como edHist con el horómetro del equipo).
+// Devuelve true/false según si la fila existía, para que cada wrapper
+// mantenga su propio comportamiento exacto de antes del refactor.
+function _edCampo(store,arr,idx,key,val){
+  if(!arr[idx])return false;
+  arr[idx][key]=val;S.s(store,arr);return true;
+}
 window.edPau=function(i,key,val){
   var pau=S.g('pau')||INIT.pautas||[];
-  if(pau[i]){pau[i][key]=val;S.s('pau',pau);refreshAll();toast('✅ Guardado');}
+  if(_edCampo('pau',pau,i,key,val)){refreshAll();toast('✅ Guardado');}
 };
 window.delPauta=function(i){
   if(!confirm('¿Eliminar actividad?'))return;
@@ -2646,7 +2658,7 @@ renders.lub=function(){
 };
 window.edI=function(store,idx,key,val){
   var d=S.g(store)||[];
-  if(d[idx]){d[idx][key]=val;S.s(store,d);refreshAll();}
+  if(_edCampo(store,d,idx,key,val))refreshAll();
 };
 window.addLub=function(){
   sm('<h3>Nuevo Lubricante</h3>'+
@@ -6061,7 +6073,7 @@ renders.rep=function(){
 
 window.edRep=function(i,key,val){
   var rep=S.g('repuestos')||[];
-  if(rep[i]){rep[i][key]=val;S.s('repuestos',rep);refreshAll();toast('✅ Guardado');}
+  if(_edCampo('repuestos',rep,i,key,val)){refreshAll();toast('✅ Guardado');}
 };
 window.delRep=function(i){
   if(!confirm('¿Eliminar?'))return;
@@ -6265,7 +6277,7 @@ window.processRepCSV=function(){
 
 window.edOT=function(i,key,val){
   var ot=S.g('ot')||[];
-  if(ot[i]){ot[i][key]=val;S.s('ot',ot);refreshAll();toast('✅ Guardado');}
+  if(_edCampo('ot',ot,i,key,val)){refreshAll();toast('✅ Guardado');}
 };
 
 // ═══ INSPECCIONES DIARIAS ═══
@@ -6815,7 +6827,7 @@ function renderAceDash(ace){
 
 window.edAce=function(i,key,val){
   var ace=S.g('aceite')||[];
-  if(ace[i]){ace[i][key]=val;S.s('aceite',ace);refreshAll();toast('✅ Guardado');}
+  if(_edCampo('aceite',ace,i,key,val)){refreshAll();toast('✅ Guardado');}
 };
 window.delAce=function(i){
   if(!confirm('¿Eliminar muestra?'))return;
@@ -8392,7 +8404,7 @@ renders.comp=function(){
 };
 window.edComp=function(idx,key,val){
   var d=S.g('compMayores')||[];
-  if(idx<d.length){d[idx][key]=val;S.s('compMayores',d);}
+  _edCampo('compMayores',d,idx,key,val);
   refreshAll();
 };
 window.addComp=function(){
@@ -9396,9 +9408,9 @@ window.processImportOT=function(){
 
 window.edHist=function(idx,key,val){
   var h=S.g('hist')||[];
-  if(idx<h.length){h[idx][key]=val;S.s('hist',h);}
+  _edCampo('hist',h,idx,key,val);
   // If editing horom, update equipment too
-  if(key==='horomFin'||key==='horom'){
+  if(h[idx]&&(key==='horomFin'||key==='horom')){
     var eq=S.g('eq')||[];
     var eqIdx=eq.findIndex(function(e){return e.sigla===h[idx].sigla});
     if(eqIdx>=0&&val>eq[eqIdx].horomActual){eq[eqIdx].horomActual=val;C.recalc(eq[eqIdx]);S.s('eq',eq);}
@@ -9909,7 +9921,7 @@ renders.gantt=function(){
 };
 window.edGantt=function(idx,key,val){
   var g=S.g('gantt')||[];
-  if(idx<g.length){g[idx][key]=val;S.s('gantt',g);}
+  _edCampo('gantt',g,idx,key,val);
   refreshAll();
 };
 
