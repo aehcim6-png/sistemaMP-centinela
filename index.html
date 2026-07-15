@@ -3379,7 +3379,16 @@ renders.hist=function(){
 // ============ GENERIC DELETE ============
 window.delRow=function(store,idx,tab){
   if(window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede eliminar registros');return;}
-  if(!confirm('¿Eliminar este registro?'))return;
+  // Borrar un equipo NO borra en cascada sus PM/correctivos/historial/neumáticos/etc.
+  // Es intencional, no un descuido: el propio sistema ya trata "equipo ausente de eq
+  // pero con historial" como "decomisado" (ver esActivo() en diagVinculos) — el
+  // registro histórico de un equipo dado de baja se conserva para auditoría, igual
+  // que se conservan sus pautas. Se avisa explícitamente para que quede claro y no
+  // se confunda con un bug.
+  const msg=store==='eq'
+    ?'¿Eliminar este equipo de la flota activa?\n\nSus registros de PM, correctivos, historial de horómetros, neumáticos, etc. NO se borran — quedan conservados como historial (igual que un equipo decomisado). Podrás seguir viéndolos en Buscador y en Diagnóstico de Vínculos.'
+    :'¿Eliminar este registro?';
+  if(!confirm(msg))return;
   const d=S.g(store);d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('🗑️ Eliminado');
 };
 
