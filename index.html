@@ -252,6 +252,29 @@ function _uuidV4(){
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(ch){var r=Math.random()*16|0,v=ch==='x'?r:(r&0x3|0x8);return v.toString(16);});
 }
 
+// Trae el estado actual y completo de UNA categoría de TABLA_REAL desde Supabase.
+// Reusado por la carga inicial (_sbLoadHeavy) y por el chequeo de conflicto de
+// _syncTablaGenerica (ver más abajo) — mismo shape de fila en ambos casos.
+async function _refetchTablaReal(k){
+  if(!_sbOk())return null;
+  const cfg=TABLA_REAL[k];
+  if(!cfg)return null;
+  try{
+    const c=_sbCfg();
+    const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
+    const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc&limit=50000`,{headers:_sbHeaders()});
+    if(!rt.ok)return null;
+    const filas=await rt.json();
+    if(!Array.isArray(filas))return null;
+    return filas.map(function(f){
+      const obj={};
+      cfg.cols.forEach(function(col){obj[col]=f[col];});
+      if(cfg.clave==='_id')obj._id=f.id;else obj[cfg.clave]=f[cfg.claveDb];
+      return obj;
+    });
+  }catch(e){return null;}
+}
+
 // Carga TODAS las claves desde Supabase al arrancar
 window._sbLoadHeavy=async function(){
   if(!_sbOk())return false;
@@ -270,22 +293,12 @@ window._sbLoadHeavy=async function(){
     const tareas=[];
 
     for(const k in TABLA_REAL){
-      const cfg=TABLA_REAL[k];
-      tareas.push((async function(){
+      tareas.push((async function(kk){
         try{
-          const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
-          const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc&limit=50000`,{headers:_sbHeaders()});
-          if(!rt.ok)return;
-          const filas=await rt.json();
-          if(!Array.isArray(filas))return;
-          _sbCache[k]=filas.map(function(f){
-            const obj={};
-            cfg.cols.forEach(function(col){obj[col]=f[col];});
-            if(cfg.clave==='_id')obj._id=f.id;else obj[cfg.clave]=f[cfg.claveDb];
-            return obj;
-          });
+          const filas=await _refetchTablaReal(kk);
+          if(filas)_sbCache[kk]=filas;
         }catch(e){}
-      })());
+      })(k));
     }
 
     tareas.push((async function(){
@@ -324,13 +337,59 @@ window._sbLoadHeavy=async function(){
   }catch{return false;}
 };
 
+// Cola por categoría: si esta misma pestaña dispara dos guardados casi juntos
+// (dos onchange seguidos), el segundo espera a que el primero termine su chequeo
+// de conflicto + escritura antes de arrancar el suyo. Sin esto, el chequeo de
+// conflicto de abajo podía dispararse en falso contra el propio guardado anterior
+// de la misma pestaña, todavía en vuelo.
+const _syncChain={};
+function _syncTablaGenerica(cfg,arrNuevo,arrAnterior,catKey){
+  const prev=_syncChain[catKey]||Promise.resolve();
+  const next=prev.then(function(){return _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey);}).catch(function(){});
+  _syncChain[catKey]=next;
+  return next;
+}
+
 // Sincroniza un arreglo completo contra una tabla real: un solo upsert (INSERT/UPDATE
 // por conflicto de clave) más un DELETE por cada fila que ya no está en el arreglo nuevo.
 // El upsert por conflicto SÍ dispara el trigger BEFORE UPDATE (a diferencia de "borrar
 // todo y reinsertar"), que es lo que hace que el candado de columnas protegidas funcione.
-async function _syncTablaGenerica(cfg,arrNuevo,arrAnterior){
+async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
   if(!_sbOk())return;
   const c=_sbCfg();
+
+  // Chequeo de edición concurrente: compara qué filas tenía ESTA pestaña cuando
+  // arrancó este guardado (arrAnterior) contra lo que hay AHORA MISMO en el
+  // servidor. Si difieren, alguien más guardó algo en esta tabla mientras esta
+  // pestaña estaba abierta sin refrescar — seguir adelante pisaría ese cambio
+  // ajeno sin avisar (o resucitaría una fila que otro acaba de borrar). En vez de
+  // eso, se aborta el guardado, se refresca esta categoría con lo último real, y
+  // se le pide al usuario reintentar su cambio sobre datos frescos.
+  if(catKey){
+    try{
+      const idsAntes=new Set((arrAnterior||[]).map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;}));
+      const rc=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}`,{headers:_sbHeaders()});
+      if(rc.ok){
+        const filasServidor=await rc.json();
+        if(Array.isArray(filasServidor)){
+          const idsServidor=new Set(filasServidor.map(function(f){return f[cfg.claveDb];}));
+          let conflicto=idsServidor.size!==idsAntes.size;
+          if(!conflicto)for(const id of idsServidor){if(!idsAntes.has(id)){conflicto=true;break;}}
+          if(conflicto){
+            const fresco=await _refetchTablaReal(catKey);
+            if(fresco){
+              _sbCache[catKey]=fresco;
+              try{localStorage.setItem(K+catKey,JSON.stringify(_recorteParaLocal(catKey,fresco)));}catch(e){}
+            }
+            if(typeof toast==='function')toast('⚠️ Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.');
+            if(typeof refreshAll==='function')refreshAll();
+            return;
+          }
+        }
+      }
+    }catch(e){/* si el chequeo falla (sin red, etc.), seguir con el guardado normal en vez de bloquear */}
+  }
+
   const idsAnteriores=new Set((arrAnterior||[]).map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;}));
   const idsNuevos=new Set();
   const filas=[];
@@ -496,7 +555,7 @@ const S={
     }
     // 3. Supabase (asíncrono, no bloquea la UI)
     if(TABLA_REAL[k]){
-      _syncTablaGenerica(TABLA_REAL[k],v,_anterior);
+      _syncTablaGenerica(TABLA_REAL[k],v,_anterior,k);
       _logChangeGenerico(k,_anterior,v);
     }else if(k==='venc'){
       _syncVencimientos(v);
