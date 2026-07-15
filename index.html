@@ -545,6 +545,13 @@ async function _syncSingletonInner(cfgS,v,catKey){
       const rc=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=updated_at&limit=1`,{headers:_sbHeaders()});
       if(!rc.ok)return undefined;
       const filasServidor=await rc.json();
+      // Fila ausente (alguien la borró a mano en Supabase, fuera de la app —
+      // nunca pasa por flujo normal) -> undefined a propósito, no null: null
+      // dispararía "conflicto", _refetchSingleton también devolvería null (no
+      // hay fila que traer), y _sbSingletonUpdatedAt nunca se actualizaría —
+      // todo guardado futuro quedaría bloqueado en el mismo conflicto sin
+      // forma de salir desde la propia app. undefined deja que el guardado
+      // normal siga, recreando la fila vía upsert (auto-reparación).
       return Array.isArray(filasServidor)&&filasServidor.length?(filasServidor[0].updated_at||null):undefined;
     },
     function(a,b){return a===b;},
