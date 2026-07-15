@@ -1183,7 +1183,7 @@ renders.dash=function(){
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid #ef4444">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Urgentes'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
     '<div style="font-size:32px;font-weight:800;color:#ef4444;line-height:1.2">'+urg.length+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(urg.length?urg.slice(0,2).map(function(e){return e.sigla}).join(', '):(dashFuente==='vivo'?'—':'En '+dashLabel))+'</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(urg.length?urg.slice(0,2).map(function(e){return escapeHtml(e.sigla)}).join(', '):(dashFuente==='vivo'?'—':'En '+dashLabel))+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid #f59e0b">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Próximas'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
@@ -1283,9 +1283,9 @@ renders.dash=function(){
     '<div class="tbl-wrap"><table style="font-size:11px">'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Horóm.</th><th>Próx PM</th><th>Días</th><th>PM</th></tr>'+
     urg.map(function(e){return'<tr>'+
-      '<td class="mono" style="color:var(--ac);font-weight:700">'+e.sigla+'</td>'+
-      '<td>'+e.tipo+'</td>'+
-      '<td style="font-size:10px">'+e.modelo+'</td>'+
+      '<td class="mono" style="color:var(--ac);font-weight:700">'+escapeHtml(e.sigla)+'</td>'+
+      '<td>'+escapeHtml(e.tipo)+'</td>'+
+      '<td style="font-size:10px">'+escapeHtml(e.modelo)+'</td>'+
       '<td class="mono">'+fn(e.horomActual)+'</td>'+
       '<td class="mono">'+fn(e.horomProxPM)+'</td>'+
       '<td class="mono" style="color:#ef4444;font-weight:700">'+e.diasParaPM+'</td>'+
@@ -1327,9 +1327,9 @@ renders.dash=function(){
     urg.slice(0,10).forEach(function(e){
       var diasColor=e.diasParaPM<0?'#ef4444':'#f59e0b';
       urgBlock+='<tr style="border-bottom:1px solid var(--border)">';
-      urgBlock+='<td style="padding:6px 8px;font-family:var(--mono);color:var(--ac);font-weight:700">'+e.sigla+'</td>';
-      urgBlock+='<td style="padding:6px 8px">'+e.tipo+'</td>';
-      urgBlock+='<td style="padding:6px 8px;font-size:10px;color:var(--tx2)">'+e.modelo+'</td>';
+      urgBlock+='<td style="padding:6px 8px;font-family:var(--mono);color:var(--ac);font-weight:700">'+escapeHtml(e.sigla)+'</td>';
+      urgBlock+='<td style="padding:6px 8px">'+escapeHtml(e.tipo)+'</td>';
+      urgBlock+='<td style="padding:6px 8px;font-size:10px;color:var(--tx2)">'+escapeHtml(e.modelo)+'</td>';
       urgBlock+='<td style="padding:6px 8px;font-family:var(--mono)">'+fn(e.horomActual)+'</td>';
       urgBlock+='<td style="padding:6px 8px;font-family:var(--mono)">'+fn(e.horomProxPM)+'</td>';
       urgBlock+='<td style="padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+diasColor+'">'+e.diasParaPM+'d</td>';
@@ -1350,7 +1350,7 @@ renders.dash=function(){
     proxPMs.forEach(function(e){
       var bColor=e.diasParaPM<=3?'#ef4444':'#f59e0b';
       proxBlock+='<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;border-left:3px solid '+bColor+'">';
-      proxBlock+='<div style="font-weight:700;font-size:14px;color:var(--ac)">'+e.sigla+'</div>';
+      proxBlock+='<div style="font-weight:700;font-size:14px;color:var(--ac)">'+escapeHtml(e.sigla)+'</div>';
       proxBlock+='<div style="font-size:11px;color:var(--tx2);margin-top:2px">'+pb(e.tipoPM)+' · <b style="color:'+bColor+'">'+e.diasParaPM+'d</b></div>';
       proxBlock+='<div style="font-size:10px;color:var(--tx3);margin-top:2px">'+fd(e.fechaProxPM)+'</div>';
       proxBlock+='</div>';
@@ -1424,7 +1424,7 @@ renders.eq=function(){
         return true;
       }).map((e,_,arr)=>{
         const i=eq.indexOf(e);
-        return`<tr data-sigla="${e.sigla}">
+        return`<tr data-sigla="${escapeHtml(e.sigla)}">
           ${edCell(e.sigla,'sigla',i,'eq')}
           ${edCell(e.tipo,'tipo',i,'eq','select',_tiposEquipoDisponibles())}
           ${edCell(e.modelo,'modelo',i,'eq')}
@@ -1438,7 +1438,7 @@ renders.eq=function(){
           <td class="mono calc">${fd(e.fechaProxPM)}</td>
           <td class="calc">${pb(e.tipoPM)}</td>
           <td><span class="badge ${e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')?'b-r':e.estado?.includes('PRÓXIMA')?'b-y':'b-g'}">${e.estado||''}</span></td>
-          <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${e.sigla}')" title="Ficha técnica">📋</button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')">🗑️</button></td>
+          <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${escapeHtml(e.sigla)}')" title="Ficha técnica">📋</button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')">🗑️</button></td>
         </tr>`;
       }).join('')}
     </table></div>`;
@@ -1561,7 +1561,7 @@ renders.reg=function(){
     </div>
     <div class="help-tip">🔵 Celdas azules = haz clic para editar directamente · ✏️ = editar registro completo (útil para registros anteriores sin hora) · Duración se recalcula automáticamente</div>
     <div class="toolbar">
-      <select id="fRegEq" onchange="window._pag.reg=1;renders.reg()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${e.sigla}</option>`).join('')}</select>
+      <select id="fRegEq" onchange="window._pag.reg=1;renders.reg()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${escapeHtml(e.sigla)}</option>`).join('')}</select>
       <select id="fRegPM" onchange="window._pag.reg=1;renders.reg()"><option value="">Todo tipo</option><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option><option>Correctivo</option></select>
       <select id="fRegEst" onchange="window._pag.reg=1;renders.reg()"><option value="">Todo estatus</option><option>Operativo</option><option>Fuera de Servicio</option></select>
     </div>
@@ -1612,7 +1612,7 @@ window.addReg=function(){
       <div class="fg"><label>Equipo *</label>
         <select id="rEq" onchange="rAutoHorom();rMostrarConsumos()">
           <option value="">Seleccionar...</option>
-          ${eq.map(e=>`<option value="${e.sigla}">${e.sigla} — ${e.modelo}</option>`).join('')}
+          ${eq.map(e=>`<option value="${escapeHtml(e.sigla)}">${escapeHtml(e.sigla)} — ${escapeHtml(e.modelo)}</option>`).join('')}
         </select>
       </div>
       <div class="fg"><label>Última ejecución</label>
@@ -1675,7 +1675,7 @@ window.editarReg=function(i){
     <div class="form-row">
       <div class="fg"><label>Equipo</label>
         <select id="eRq">
-          ${eq.map(e=>`<option${e.sigla===r.equipo?' selected':''}>${e.sigla}</option>`).join('')}
+          ${eq.map(e=>`<option${e.sigla===r.equipo?' selected':''}>${escapeHtml(e.sigla)}</option>`).join('')}
         </select>
       </div>
       <div class="fg"><label>Tipo PM</label>
@@ -1986,7 +1986,7 @@ renders.prg=function(){
     '<div class="prog-grid">'+
     '<div class="pg-c pg-h">EQUIPO</div>'+MS.map(function(m){return'<div class="pg-c pg-h">'+m+'</div>'}).join('')+
     prg.map(function(p,pi){
-      return '<div class="pg-c pg-e" title="'+p.modelo+'">'+p.sigla+'</div>'+
+      return '<div class="pg-c pg-e" title="'+escapeHtml(p.modelo)+'">'+escapeHtml(p.sigla)+'</div>'+
         MS.map(function(m){
           var ejecTipo=ejecPorEq[p.sigla]&&ejecPorEq[p.sigla][m];
           var base=p.meses[m]||'';
@@ -2020,12 +2020,12 @@ renders.al=function(){
     <div class="tbl-wrap"><table>
       <tr><th>Sigla</th><th>Tipo</th><th>Horóm.</th><th>Próx PM4</th><th>Restante</th><th>Días</th><th>Fecha Est.</th><th>Alerta</th><th>Repuestos Clave</th></tr>
       ${data.map((e,i)=>`<tr>
-        <td class="mono" style="color:var(--ac)">${e.sigla}</td><td>${e.tipo}</td>
+        <td class="mono" style="color:var(--ac)">${escapeHtml(e.sigla)}</td><td>${escapeHtml(e.tipo)}</td>
         <td class="mono">${fn(e.horomActual)}${e.unidad}</td><td class="mono">${fn(e.proxPM4)}${e.unidad}</td>
         <td class="mono" style="color:${e.hrsP4<(e.frecPM||250)*2?'var(--danger)':'var(--tx)'};font-weight:700">${fn(e.hrsP4)}${e.unidad}</td>
         <td class="mono">${e.diasP4}</td><td class="mono">${fd(e.fechaP4)}</td>
         <td><span class="badge ${e.alerta.c}">${e.alerta.t}</span></td>
-        <td style="font-size:10px;max-width:300px;white-space:normal;cursor:pointer" onclick="editAlRep('${e.sigla}')">${e.rep||'<span style=color:var(--tx3)>Click para agregar</span>'}</td>
+        <td style="font-size:10px;max-width:300px;white-space:normal;cursor:pointer" onclick="editAlRep('${escapeHtml(e.sigla)}')">${e.rep||'<span style=color:var(--tx3)>Click para agregar</span>'}</td>
       </tr>`).join('')}
     </table></div>`;
 };
@@ -2109,7 +2109,7 @@ window.delPauta=function(i){
 window.addPauta=function(){
   const eq=S.g('eq');
   sm('<h3>Nueva Actividad</h3>'+
-    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="pEq">'+eq.map(e=>'<option>'+e.sigla+'</option>').join('')+'</select></div>'+
+    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="pEq">'+eq.map(e=>'<option>'+escapeHtml(e.sigla)+'</option>').join('')+'</select></div>'+
     '<div class="fg"><label>Tipo PM</label><select id="pPM"><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option></select></div></div>'+
     '<div class="form-row"><div class="fg"><label>Categoría</label><input id="pCat"></div><div class="fg"><label>Tope Hrs</label><input type="number" id="pHrs"></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Actividad</label><input id="pAct" style="width:100%"></div></div>'+
@@ -2793,7 +2793,7 @@ renders.plan=function(){
       const dias=Math.ceil((new Date(e.fechaProxPM)-hoy)/86400000);
       return `<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div><b style="font-size:14px">${e.sigla}</b> <span class="badge ${e.tipoPM==='PM4'?'b-r':e.tipoPM==='PM3'?'b-y':'b-g'}">${e.tipoPM}</span>
+          <div><b style="font-size:14px">${escapeHtml(e.sigla)}</b> <span class="badge ${e.tipoPM==='PM4'?'b-r':e.tipoPM==='PM3'?'b-y':'b-g'}">${e.tipoPM}</span>
             <span style="font-size:11px;color:var(--tx3)"> · ${e.fechaProxPM} (${dias>0?'en '+dias+'d':'VENCIDA'})</span></div>
           <b style="color:var(--ac)">$${fn2(costoEq)}</b>
         </div>
@@ -2801,7 +2801,7 @@ renders.plan=function(){
           <tr style="background:var(--bg3)"><th style="padding:3px;text-align:left">Material</th><th>Tipo</th><th>Cant.</th><th>Precio U.</th><th>Subtotal</th></tr>
           ${mats.map(m=>`<tr style="border-bottom:1px solid var(--bd)">
             <td style="padding:3px">${m.rep}</td>
-            <td style="text-align:center"><span class="badge ${m.tipo==='Filtro'?'b-y':m.tipo==='Aceite'?'b-g':'b-r'}">${m.tipo}</span></td>
+            <td style="text-align:center"><span class="badge ${m.tipo==='Filtro'?'b-y':m.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(m.tipo)}</span></td>
             <td style="text-align:center">${m.cantidad}</td>
             <td style="text-align:right">${m.precio?'$'+fn2(m.precio):'—'}</td>
             <td style="text-align:right"><b>${m.precio?'$'+fn2(m.cantidad*m.precio):'—'}</b></td>
@@ -2832,9 +2832,9 @@ renders.plan=function(){
         const costo=m.cantidad*m.precio;subtotal+=costo;
         return `<tr style="border-bottom:1px solid var(--bd)">
         <td style="padding:6px">${m.rep}</td>
-        <td style="text-align:center"><span class="badge ${m.tipo==='Filtro'?'b-y':m.tipo==='Aceite'?'b-g':'b-r'}">${m.tipo}</span></td>
+        <td style="text-align:center"><span class="badge ${m.tipo==='Filtro'?'b-y':m.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(m.tipo)}</span></td>
         <td style="text-align:center"><b>${m.cantidad}</b></td>
-        <td style="text-align:center" title="${m.equipos.join(', ')}">${m.equipos.length} eq.</td>
+        <td style="text-align:center" title="${m.equipos.map(escapeHtml).join(', ')}">${m.equipos.length} eq.</td>
         <td style="text-align:right">${m.precio?'$'+fn2(m.precio):'—'}</td>
         <td style="text-align:right"><b style="color:var(--ac)">${m.precio?'$'+fn2(costo):'—'}</b></td>
       </tr>`;
@@ -2999,7 +2999,7 @@ window.planHistorico=function(){
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Material</th><th>Tipo</th><th>Cant.</th><th>Equipos</th><th>Costo</th></tr>
       ${lista.map(a=>`<tr style="border-bottom:1px solid var(--bd)">
         <td style="padding:6px">${a.item}</td>
-        <td style="text-align:center"><span class="badge ${a.tipo==='Filtro'?'b-y':a.tipo==='Aceite'?'b-g':'b-r'}">${a.tipo}</span></td>
+        <td style="text-align:center"><span class="badge ${a.tipo==='Filtro'?'b-y':a.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(a.tipo)}</span></td>
         <td style="text-align:center"><b>${fn2(a.cant)}</b></td>
         <td style="text-align:center">${a.nEq} eq.</td>
         <td style="text-align:right">${a.precio?'$'+fn2(a.costo):'—'}</td>
@@ -3215,7 +3215,7 @@ renders.cos=function(){
         var mttrCol=m[1].mttr===0?'var(--tx3)':m[1].mttr<4?'var(--ok)':m[1].mttr<8?'var(--w)':'var(--danger)';
         return'<tr>'+
           '<td class="mono" style="color:var(--ac)">'+m[0]+'</td>'+
-          '<td style="font-size:11px">'+(e?e.modelo:'')+'</td>'+
+          '<td style="font-size:11px">'+(e?escapeHtml(e.modelo):'')+'</td>'+
           '<td style="text-align:center">'+(e?e.horomActual:0)+'</td>'+
           '<td style="text-align:center;color:var(--danger);font-weight:600">'+m[1].fallas+'</td>'+
           '<td style="text-align:center;font-weight:700;color:'+mtbfCol+'">'+(mb==null?'—':mb)+'</td>'+
@@ -3272,7 +3272,7 @@ renders.hist=function(){
       var hrsOp=(r.horomFin&&r.horomIni)?r.horomFin-r.horomIni:(r.horom||0);
       return'<tr>'+
         '<td class="mono" style="font-size:10px;color:var(--tx3)">'+(histOrdenado.length-((pgHist.page-1)*_PAG_SIZE)-i)+'</td>'+
-        '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edHist('+idx+',\'sigla\',this.innerText.trim())">'+r.sigla+'</td>'+
+        '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edHist('+idx+',\'sigla\',this.innerText.trim())">'+escapeHtml(r.sigla)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'fecha\',this.innerText.trim())">'+r.fecha+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomIni\',parseFloat(this.innerText)||0)">'+(r.horomIni||r.horom||0)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomFin\',parseFloat(this.innerText)||0);edHist('+idx+',\'horom\',parseFloat(this.innerText)||0)">'+(r.horomFin||r.horom||0)+'</td>'+
@@ -3290,7 +3290,7 @@ renders.hist=function(){
     '<div class="tbl-wrap" style="overflow-x:auto"><table>'+
     '<tr><th>Equipo</th>'+fechas.map(function(f){return'<th style="font-size:9px;writing-mode:vertical-lr;min-width:30px">'+f.slice(5)+'</th>'}).join('')+'</tr>'+
     eqFil.map(function(e){
-      return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
         fechas.map(function(f){
           var lectura=fil.filter(function(r){return r.sigla===e.sigla&&r.fecha===f});
           var val=lectura.length?lectura[lectura.length-1].horomFin||lectura[lectura.length-1].horom||0:0;
@@ -3313,7 +3313,7 @@ renders.hist=function(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th>'+wKeys.map(function(w){return'<th style="font-size:10px">'+w+'</th>'}).join('')+'</tr>'+
     eqFil.map(function(e){
-      return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
         wKeys.map(function(w){
           var lecturas=weeks[w].filter(function(r){return r.sigla===e.sigla});
           if(!lecturas.length)return'<td style="color:var(--tx3);text-align:center">—</td>';
@@ -3331,7 +3331,7 @@ renders.hist=function(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th>'+mesesVista.map(function(m){return'<th>'+m+'</th>'}).join('')+'<th>Actual</th></tr>'+
     eqFil.map(function(e){
-      return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td><td style="font-size:10px">'+e.tipo+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:10px">'+escapeHtml(e.tipo)+'</td>'+
         mesesVista.map(function(m){
           var lecturas=h.filter(function(r){return r.sigla===e.sigla&&(r.fecha||'').slice(0,7)===m});
           if(!lecturas.length)return'<td style="color:var(--tx3);text-align:center">—</td>';
@@ -3353,7 +3353,7 @@ renders.hist=function(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th>'+MSN.map(function(m){return'<th>'+m+'</th>'}).join('')+'</tr>'+
     eqFil.map(function(e){
-      return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
         MSN.map(function(m,mi){
           var mes=fAnio+'-'+('0'+(mi+1)).slice(-2);
           var lecturas=h.filter(function(r){return r.sigla===e.sigla&&(r.fecha||'').slice(0,7)===mes});
@@ -3454,7 +3454,7 @@ renders.ot=function(){
       <div class="card"><div class="card-t">Costo acumulado</div><div class="card-v" style="color:var(--ac)">$${fn(tc)}</div></div>
     </div>
     <div class="toolbar">
-      <select id="fOtEq" onchange="window._pag.ot=1;renders.ot()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${e.sigla}</option>`).join('')}</select>
+      <select id="fOtEq" onchange="window._pag.ot=1;renders.ot()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${escapeHtml(e.sigla)}</option>`).join('')}</select>
       <select id="fOtTipo" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo tipo</option><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option></select>
       <select id="fOtEst" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo estatus</option><option value="Fuera de Servicio">Fuera de Servicio</option><option value="Operativo">Operativo</option></select>
     </div>
@@ -3553,7 +3553,7 @@ window.analisisFallas=function(){
     <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Equipo</th><th>Fallas</th><th>MTBF (h)</th></tr>
       ${badActors.map(b=>`<tr style="border-bottom:1px solid var(--bd)">
-        <td style="padding:6px"><b>${b.sigla}</b></td>
+        <td style="padding:6px"><b>${escapeHtml(b.sigla)}</b></td>
         <td style="text-align:center">${b.fallas}</td>
         <td style="text-align:center">${b.mtbf==null?'—':fn2(b.mtbf)}</td>
       </tr>`).join('')||'<tr><td colspan=3 style="text-align:center;padding:20px;color:var(--tx3)">Sin datos</td></tr>'}
@@ -3615,7 +3615,7 @@ renders.neu=function(){
         const col=p<30?'var(--danger)':p<50?'var(--warn)':'var(--ok)';
         const lr=hrsLive(n);
         return`<tr style="${p<30?'background:rgba(239,68,68,.05)':p<50?'background:rgba(234,179,8,.04)':''}">
-          <td class="mono" style="font-size:11px">${n.sigla}</td>
+          <td class="mono" style="font-size:11px">${escapeHtml(n.sigla)}</td>
           <td style="font-size:10px;color:var(--tx2)">${n.tipoEquipo}</td>
           ${edCell(n.posicion,'posicion',i,'neu')}
           ${edCell(n.serie||'','serie',i,'neu')}
@@ -3631,7 +3631,7 @@ renders.neu=function(){
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir">📏</button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico">🔍</button>
-            <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${n.sigla}','${n.posicion}')" title="Historial de esta posición">📍</button>
+            <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}')" title="Historial de esta posición">📍</button>
           </td>
         </tr>`;
       }).join('')}
@@ -3678,7 +3678,7 @@ window.addOT=function(){
   const hora=new Date().toTimeString().slice(0,5);
   sm(`<h3>🔧 Nueva OT Correctivo</h3>
     <div class="form-row">
-      <div class="fg"><label>Equipo *</label><select id="oEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${e.sigla}</option>`).join('')}</select></div>
+      <div class="fg"><label>Equipo *</label><select id="oEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
       <div class="fg"><label>Tipo</label><select id="oTipo"><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option><option>Cambio de Neumático</option><option>Relleno de Fluidos</option><option>Inspección</option></select></div>
       <div class="fg"><label>Estatus Equipo</label><select id="oEstatusEq"><option>Operativo</option><option>Fuera de Servicio</option></select></div>
     </div>
@@ -3848,9 +3848,9 @@ window.verCodigosQR=function(){
     '<div id="qrGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;max-height:60vh;overflow-y:auto;padding:4px">'+
     eq.map(function(e){
       return '<div style="text-align:center;border:1px solid var(--bor);border-radius:8px;padding:10px">'+
-        '<div id="qr-'+e.sigla+'" style="display:flex;justify-content:center;margin-bottom:6px"></div>'+
-        '<div style="font-size:11px;font-weight:600;margin-bottom:4px">'+e.sigla+'</div>'+
-        '<a href="#" style="font-size:10px;color:var(--ac)" onclick="event.preventDefault();_descargarQR(\''+e.sigla+'\')">⬇️ Descargar</a>'+
+        '<div id="qr-'+escapeHtml(e.sigla)+'" style="display:flex;justify-content:center;margin-bottom:6px"></div>'+
+        '<div style="font-size:11px;font-weight:600;margin-bottom:4px">'+escapeHtml(e.sigla)+'</div>'+
+        '<a href="#" style="font-size:10px;color:var(--ac)" onclick="event.preventDefault();_descargarQR(\''+escapeHtml(e.sigla)+'\')">⬇️ Descargar</a>'+
       '</div>';
     }).join('')+
     '</div>'+
@@ -3882,7 +3882,7 @@ window.addNeu=function(){
   const eq=S.g('eq')||[];
   sm(`<h3>🛞 Nuevo Neumático</h3>
     <div class="form-row">
-      <div class="fg"><label>Equipo *</label><select id="nNEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${e.sigla}</option>`).join('')}</select></div>
+      <div class="fg"><label>Equipo *</label><select id="nNEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
       <div class="fg"><label>Tipo equipo</label><select id="nNTipo"><option value="CAEX">CAEX</option><option value="CF">Cargador</option><option value="MN">Motoniveladora</option><option value="ALJ">Aljibe</option></select></div>
     </div>
     <div class="form-row">
@@ -3927,7 +3927,7 @@ window.cambiarNeu=function(i){
   const neu=S.g('neu');const n=neu[i];
   const eq=S.g('eq');const e=eq.find(x=>x.sigla===n.sigla);
   const hAct=e?e.horomActual:0;
-  sm(`<h3>↺ Cambio — ${n.sigla} ${n.posicion}</h3>
+  sm(`<h3>↺ Cambio — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
     <p style="color:var(--tx2);margin-bottom:12px">Serie: <b>${n.serie}</b> · Remanente: <b>${n.remanente||'—'}mm</b></p>
     <div class="form-row">
       <div class="fg"><label>Destino neumático retirado</label><select id="cDest"><option>Stock</option><option>De baja</option></select></div>
@@ -4160,7 +4160,7 @@ window.addMedicionNeu=function(neuIdx){
   if(!n)return;
   const eqArr=S.g('eq')||[];const e=eqArr.find(x=>x.sigla===n.sigla);
   const horomActual=e?e.horomActual:0;
-  sm(`<h3>📏 Medición Remanente — ${n.sigla} ${n.posicion}</h3>
+  sm(`<h3>📏 Medición Remanente — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
     <p style="font-size:12px;color:var(--tx3)">Serie: <b>${n.serie}</b> | Marca: <b>${n.marca}</b></p>
     <div class="form-row">
       <div class="fg"><label>Fecha</label><input type="date" id="mFecha" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -4356,7 +4356,7 @@ window.verDetalleNeu=function(neuIdx){
   }
 
   sm(`<div style="max-width:580px">
-    <h3>🛞 ${n.sigla} — ${n.posicion} | ${n.serie}</h3>
+    <h3>🛞 ${escapeHtml(n.sigla)} — ${escapeHtml(n.posicion)} | ${escapeHtml(n.serie)}</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Marca / Medida</div>
@@ -4650,10 +4650,10 @@ renders.disp=function(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th></tr>'+
     eqDisp.sort(function(a,b){return(a.pct||999)-(b.pct||999)}).map(function(e){
-      if(e.pct===undefined)return'<tr><td class="mono">'+e.sigla+'</td><td>'+e.tipo+'</td><td style="font-size:11px">'+e.modelo+'</td><td colspan="3" style="color:var(--tx3)">Sin datos</td></tr>';
+      if(e.pct===undefined)return'<tr><td class="mono">'+escapeHtml(e.sigla)+'</td><td>'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td><td colspan="3" style="color:var(--tx3)">Sin datos</td></tr>';
       var c=e.pct>=meta?'var(--ok)':e.pct>=70?'var(--w)':'var(--danger)';
-      return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td><td style="font-size:11px">'+e.tipo+'</td><td style="font-size:11px">'+e.modelo+'</td>'+
-        '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+e.sigla+'\'])d[\''+e.sigla+'\']={}; d[\''+e.sigla+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
+        '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+escapeHtml(e.sigla)+'\'])d[\''+escapeHtml(e.sigla)+'\']={}; d[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
         '<td><div style="background:color-mix(in srgb,'+c+' 18%,var(--bg4));border-radius:4px;height:10px;width:120px;overflow:hidden"><div style="background:'+c+';height:100%;width:'+Math.min(e.pct,100)+'%"></div></div></td>'+
         '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'✅ OK':'🔴 Bajo')+'</span></td></tr>';
     }).join('')+
@@ -4685,7 +4685,7 @@ renders.disp=function(){
       var vals=mesDates.map(function(d){return calcDayDisp(e.sigla,d)});
       var prom=vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:0;
       var pc=prom>=meta?'var(--ok)':prom>=70?'var(--w)':'var(--danger)';
-      return'<tr><td class="mono" style="color:var(--ac);font-size:10px">'+e.sigla+'</td><td style="font-size:9px">'+e.tipo+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac);font-size:10px">'+escapeHtml(e.sigla)+'</td><td style="font-size:9px">'+escapeHtml(e.tipo)+'</td>'+
         vals.map(function(v){
           var vc=v>=meta?'var(--ok)':v>=70?'var(--w)':v<100?'var(--danger)':'var(--tx3)';
           var bg=v<meta?'rgba(239,68,68,.08)':'';
@@ -4725,7 +4725,7 @@ renders.disp=function(){
       var wValsConDato=wVals.filter(function(v){return v!==null});
       var prom=wValsConDato.length?Math.round(wValsConDato.reduce(function(s,v){return s+v},0)/wValsConDato.length*10)/10:null;
       var pc=prom===null?'var(--tx3)':prom>=meta?'var(--ok)':'var(--danger)';
-      return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td><td style="font-size:11px">'+e.tipo+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td>'+
         wVals.map(function(v){if(v===null)return'<td class="mono" style="text-align:center;color:var(--tx3)">—</td>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';return'<td class="mono" style="text-align:center;color:'+c+';font-weight:600">'+v+'%</td>'}).join('')+
         '<td class="mono" style="font-weight:700;color:'+pc+'">'+(prom===null?'—':prom+'%')+'</td></tr>';
     }).join('')+
@@ -4762,7 +4762,7 @@ renders.disp=function(){
     '</div></div></div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th>'+MSN.map(function(m){return'<th>'+m+'</th>'}).join('')+'<th>Anual</th></tr>'+
-    eqFil.map(function(e){var vals=mesesAnio.map(function(mm){return calcMF(e.sigla,anio+'-'+mm)});var nums=vals.filter(function(v){return v!==undefined});var prom=nums.length?Math.round(nums.reduce(function(s,v){return s+v},0)/nums.length*10)/10:0;var pc=prom>=meta?'var(--ok)':'var(--danger)';return'<tr><td class="mono" style="color:var(--ac)">'+e.sigla+'</td><td style="font-size:10px">'+e.tipo+'</td>'+vals.map(function(v){if(v===undefined)return'<td style="color:var(--tx3);text-align:center;font-size:10px">—</td>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';return'<td class="mono" style="text-align:center;font-size:10px;color:'+c+';font-weight:600">'+v+'%</td>'}).join('')+'<td class="mono" style="font-weight:700;color:'+pc+'">'+prom+'%</td></tr>'}).join('')+
+    eqFil.map(function(e){var vals=mesesAnio.map(function(mm){return calcMF(e.sigla,anio+'-'+mm)});var nums=vals.filter(function(v){return v!==undefined});var prom=nums.length?Math.round(nums.reduce(function(s,v){return s+v},0)/nums.length*10)/10:0;var pc=prom>=meta?'var(--ok)':'var(--danger)';return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:10px">'+escapeHtml(e.tipo)+'</td>'+vals.map(function(v){if(v===undefined)return'<td style="color:var(--tx3);text-align:center;font-size:10px">—</td>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';return'<td class="mono" style="text-align:center;font-size:10px;color:'+c+';font-weight:600">'+v+'%</td>'}).join('')+'<td class="mono" style="font-weight:700;color:'+pc+'">'+prom+'%</td></tr>'}).join('')+
     '<tr style="font-weight:700;background:var(--bg3)"><td colspan="2">FLOTA</td>'+
     fleetMonth.map(function(v){if(v===undefined)return'<td style="text-align:center;color:var(--tx3)">—</td>';var c=v>=meta?'var(--ok)':'var(--danger)';return'<td class="mono" style="text-align:center;color:'+c+'">'+v+'%</td>'}).join('')+
     '<td class="mono" style="color:'+colA+'">'+fleetAnual+'%</td></tr>'+
@@ -5770,7 +5770,7 @@ renders.pred=function(){
       (carga.pm.length?carga.pm.slice(0,5).map(function(p){
         return'<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:var(--bg3);border-radius:4px;font-size:12px">'+
           '<span style="color:var(--danger);font-weight:700">➡️</span>'+
-          '<span><b>'+p.sigla+'</b> — '+p.tipo+' en <b>'+p.dias+' días</b></span>'+
+          '<span><b>'+escapeHtml(p.sigla)+'</b> — '+escapeHtml(p.tipo)+' en <b>'+p.dias+' días</b></span>'+
           '<span style="margin-left:auto;color:var(--w);font-size:11px">Programar intervención</span></div>';
       }).join(''):'<div style="font-size:12px;color:var(--ok)">✅ Sin PM urgentes próximas 2 semanas</div>')+
       (quiebres.filter(function(r){return r.riesgo.includes('🔴');}).length?
@@ -5793,8 +5793,8 @@ renders.pred=function(){
         var recom=ac.severity>=5?'Intervenir inmediato':ac.severity>=2?'Monitorear/planificar':'Sin acción';
         var recomCol=ac.severity>=5?'var(--danger)':ac.severity>=2?'var(--w)':'var(--ok)';
         return'<tr style="'+(ac.severity>=5?'background:rgba(239,68,68,.04)':'')+'">'+
-          '<td class="mono" style="color:var(--ac)">'+e.sigla+'</td>'+
-          '<td style="font-size:10px">'+e.modelo+'</td>'+
+          '<td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
+          '<td style="font-size:10px">'+escapeHtml(e.modelo)+'</td>'+
           '<td style="font-size:14px;text-align:center">'+ac.estado+'</td>'+
           '<td style="text-align:center"><span style="color:'+confCol+';font-weight:600;font-size:11px">'+conf.nivel+'</span></td>'+
           '<td style="font-size:11px">'+(e.tipoPM||'—')+' en '+(e.diasParaPM||'—')+'d</td>'+
@@ -5899,7 +5899,7 @@ renders.pred=function(){
         var bg=b.prioridad.includes('🔴')?'background:rgba(239,68,68,.06)':b.prioridad.includes('🟡')?'background:rgba(245,158,11,.04)':'';
         return'<tr style="'+bg+'">'+
           '<td style="font-size:12px">'+b.prioridad+'</td>'+
-          '<td class="mono" style="color:var(--ac)">'+b.sigla+'</td>'+
+          '<td class="mono" style="color:var(--ac)">'+escapeHtml(b.sigla)+'</td>'+
           '<td style="font-size:11px;max-width:150px">'+b.trabajo+'</td>'+
           '<td style="font-size:10px"><span class="badge '+(b.origen==='Correctivo'?'b-r':'b-y')+'">'+b.origen+'</span></td>'+
           '<td style="text-align:center;font-weight:600;color:'+(b.dias>7?'var(--danger)':'var(--w)')+'">'+b.dias+'d</td>'+
@@ -5934,8 +5934,8 @@ renders.pred=function(){
       (diagEq?'':'<div class="card" style="padding:20px;text-align:center;color:var(--tx3)">Selecciona un equipo arriba para ver diagnóstico integral</div>')+
       (!d?'':
       '<div class="card" style="margin-bottom:16px;border-left:4px solid var(--ac);padding:16px">'+
-      '<div style="font-size:18px;font-weight:700;margin-bottom:4px">'+d.sigla+' — '+d.modelo+'</div>'+
-      '<div style="font-size:11px;color:var(--tx3)">'+d.tipo+'</div></div>'+
+      '<div style="font-size:18px;font-weight:700;margin-bottom:4px">'+escapeHtml(d.sigla)+' — '+escapeHtml(d.modelo)+'</div>'+
+      '<div style="font-size:11px;color:var(--tx3)">'+escapeHtml(d.tipo)+'</div></div>'+
 
       '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
       '<div style="font-size:12px;font-weight:600;color:var(--ac);margin-bottom:6px">💡 INTERPRETACIÓN AUTOMÁTICA:</div>'+
@@ -5962,7 +5962,7 @@ $('s-pred').innerHTML=
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option></select>'+
     (fVista==='equipo'||fVista==='diag'?
       '<select id="fPredEq" onchange="renders.pred()"><option value="">Seleccionar equipo...</option>'+
-      eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+e.sigla+'</option>'}).join('')+'</select>':'')+
+      eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>':'')+
     '</div>'+content;
 }
 
@@ -6100,7 +6100,7 @@ window.addRep=function(){
     '<div class="form-row"><div class="fg" style="flex:2"><label>Componente</label><input id="rComp" style="width:100%"></div>'+
     '<div class="fg"><label>N°Parte</label><input id="rNP"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="rEqR"><option>Varios</option>'+
-    eq.map(function(e){return'<option>'+e.sigla+'</option>'}).join('')+'</select></div>'+
+    eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Tipo</label><select id="rTipoR"><option>Filtro</option><option>Lubricante</option><option>Repuesto</option><option>Neumático</option><option>Correa</option><option>Otro</option></select></div></div>'+
     '<div class="form-row"><div class="fg"><label>Stock actual</label><input type="number" id="rStkA" value="0"></div>'+
     '<div class="fg"><label>Stock mínimo</label><input type="number" id="rStkM" value="2"></div>'+
@@ -6310,7 +6310,7 @@ renders.insp=function(){
     '<button class="btn" onclick="addInsp()">+ Nueva Inspección</button></div>'+
     '<div class="toolbar">'+
     '<select id="fInspEq" onchange="window._pag.insp=1;renders.insp()"><option value="">Todos equipos</option>'+
-    eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+e.sigla+'</option>'}).join('')+'</select></div>'+
+    eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     _pagHTML('insp',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Fecha</th><th>Equipo</th><th>Horóm</th><th>Visual ✏️</th><th>Niveles ✏️</th><th>Fugas ✏️</th><th>Luces ✏️</th><th>Frenos ✏️</th><th>Neumát ✏️</th><th>Obs ✏️</th><th>Inspector</th><th>Alerta</th><th></th></tr>'+
@@ -6320,7 +6320,7 @@ renders.insp=function(){
       var alertCount=checks.filter(function(c){return r[c]==='NOK'||r[c]==='🔴';}).length;
       return'<tr style="'+(alertCount>0?'background:rgba(239,68,68,.04)':'')+'">'+
         '<td style="font-size:10px">'+r.fecha+'</td>'+
-        '<td class="mono" style="color:var(--ac)">'+r.sigla+'</td>'+
+        '<td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+'</td>'+
         '<td class="mono" style="font-size:10px">'+(r.horom||'—')+'</td>'+
         checks.map(function(c){
           return'<td><select onchange="edInsp('+i+',\''+c+'\',this.value)" style="font-size:10px;background:'+(r[c]==='NOK'||r[c]==='🔴'?'rgba(239,68,68,.2)':'var(--bg3)')+';color:'+(r[c]==='NOK'||r[c]==='🔴'?'var(--danger)':'var(--ok)')+';border:1px solid var(--bd);border-radius:3px">'+
@@ -6356,7 +6356,7 @@ window.addInsp=function(){
   var per=_tecnicosDisponibles();
   sm('<h3>📋 Nueva Inspección Diaria</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo *</label><select id="iEq">'+
-    eq.map(function(e){return'<option>'+e.sigla+'</option>'}).join('')+'</select></div>'+
+    eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Fecha</label><input type="date" id="iFec" value="'+hoy+'"></div>'+
     '<div class="fg"><label>Horómetro</label><input type="number" id="iHor"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Inspector</label><select id="iInsp"><option value="">—</option>'+
@@ -6444,11 +6444,11 @@ renders.venc=function(){
     '<button class="btn btn-o" onclick="exportVencCSV()">📥 CSV</button></div>'+
     (alertasActivas.length?'<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;color:var(--danger);font-size:13px">'+
       '⚠️ <b>'+alertasActivas.length+' vencimiento(s) requieren atención:</b> '+
-      alertasActivas.slice(0,6).map(function(f){return f.sigla+' ('+f.vencTipo+')';}).join(', ')+
+      alertasActivas.slice(0,6).map(function(f){return escapeHtml(f.sigla)+' ('+escapeHtml(f.vencTipo)+')';}).join(', ')+
       (alertasActivas.length>6?' y '+(alertasActivas.length-6)+' más...':'')+'</div>':'')+
     '<div class="toolbar">'+
     '<select id="fVencEq" onchange="renders.venc()"><option value="">Todos equipos</option>'+
-    eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+e.sigla+'</option>'}).join('')+'</select>'+
+    eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>'+
     '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)">'+
     '<input type="checkbox" id="fVencAlerta" onchange="renders.venc()"'+(soloAlerta?' checked':'')+'> Solo con alerta (≤30 días)</label>'+
     '</div>'+
@@ -6457,15 +6457,15 @@ renders.venc=function(){
     filas.map(function(f){
       var fotoUrl=((venc[f.sigla]||{})[f.vencTipo]||{}).foto||'';
       return '<tr style="'+(f.estado.dias!==null&&f.estado.dias<=30?'background:rgba(239,68,68,.04)':'')+'">'+
-        '<td class="mono" style="color:var(--ac)">'+f.sigla+'</td>'+
+        '<td class="mono" style="color:var(--ac)">'+escapeHtml(f.sigla)+'</td>'+
         '<td style="font-size:11px;color:var(--tx3)">'+(f.tipo||'—')+'</td>'+
         '<td style="font-size:12px">'+f.vencTipo+'</td>'+
-        '<td><input type="date" value="'+f.ultima+'" onchange="edVenc(\''+f.sigla+'\',\''+f.vencTipo+'\',\'ultima\',this.value)" style="background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
-        '<td><input type="number" value="'+(f.periodicidad!=null?f.periodicidad:'')+'" placeholder="—" onchange="edVenc(\''+f.sigla+'\',\''+f.vencTipo+'\',\'periodicidadMeses\',this.value)" style="width:60px;background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
-        '<td><input type="date" value="'+f.proxima+'" onchange="edVenc(\''+f.sigla+'\',\''+f.vencTipo+'\',\'proxima\',this.value)" style="background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
+        '<td><input type="date" value="'+f.ultima+'" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'ultima\',this.value)" style="background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
+        '<td><input type="number" value="'+(f.periodicidad!=null?f.periodicidad:'')+'" placeholder="—" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'periodicidadMeses\',this.value)" style="width:60px;background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
+        '<td><input type="date" value="'+f.proxima+'" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'proxima\',this.value)" style="background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
         '<td style="color:'+f.estado.color+';font-weight:600;font-size:11px">'+f.estado.label+'</td>'+
         celdaFotoVenc(f.sigla,f.vencTipo,fotoUrl,((venc[f.sigla]||{})[f.vencTipo]||{}).fotoTipo)+
-        '<td><input value="'+escapeHtml(f.obs||'')+'" onchange="edVenc(\''+f.sigla+'\',\''+f.vencTipo+'\',\'obs\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" placeholder="..."></td>'+
+        '<td><input value="'+escapeHtml(f.obs||'')+'" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'obs\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" placeholder="..."></td>'+
         '</tr>';
     }).join('')+
     '</table></div>'+
@@ -6776,7 +6776,7 @@ function renderAceDash(ace){
     var pctN=item.n/maxN*100;
     var tipTxt=item.label+': Normal '+item.norm+' · Precaución '+item.p+' · Alerta '+item.a+' (de '+item.n+')';
     return '<div style="display:grid;grid-template-columns:140px 1fr 40px;gap:8px;align-items:center;margin-bottom:5px;font-size:11px">'+
-      '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx2)" title="'+item.label+'">'+item.label+'</div>'+
+      '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx2)" title="'+escapeHtml(item.label)+'">'+escapeHtml(item.label)+'</div>'+
       '<div style="display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg4);width:'+Math.max(pctN,8)+'%;gap:2px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
       (item.a?'<div style="flex:'+item.a+' 1 0;background:#ef4444"></div>':'')+
       (item.p?'<div style="flex:'+item.p+' 1 0;background:#eab308"></div>':'')+
@@ -6973,7 +6973,7 @@ window.addAceite=function(){
   var eq=S.g('eq')||[];
   sm('<h3>🧪 Nueva Muestra de Aceite</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="aEq">'+
-    eq.map(function(e){return'<option>'+e.sigla+'</option>'}).join('')+'</select></div>'+
+    eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Componente</label><select id="aComp"><option>Motor</option><option>Transmisión</option><option>Hidráulico</option><option>Diferencial</option><option>Mando Final</option><option>Frenos</option></select></div>'+
     '<div class="fg"><label>Fecha</label><input type="date" id="aFec" value="'+new Date().toISOString().slice(0,10)+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Lubricante</label><input id="aLub"></div>'+
@@ -8077,8 +8077,8 @@ renders.sem=function(){
       }).join('');
       var dcol=it.diasPM<=3?'var(--danger)':it.diasPM<=7?'var(--warn)':'var(--ok)';
       return'<tr>'+
-        '<td style="font-size:11px;color:var(--tx3);padding:5px 8px">'+it.tipo+'</td>'+
-        '<td class="mono" style="color:var(--ac);font-weight:700;padding:5px 8px">'+it.sigla+'</td>'+
+        '<td style="font-size:11px;color:var(--tx3);padding:5px 8px">'+escapeHtml(it.tipo)+'</td>'+
+        '<td class="mono" style="color:var(--ac);font-weight:700;padding:5px 8px">'+escapeHtml(it.sigla)+'</td>'+
         '<td style="text-align:center;padding:5px 4px">'+pb(it.tipoPM)+'</td>'+
         '<td class="mono" style="text-align:center;color:'+dcol+';padding:5px 4px">'+it.diasPM+'d</td>'+
         celdas+
@@ -8130,8 +8130,8 @@ renders.sem=function(){
       items.map(function(it,idx){
         var esEjec=it.estadoReal==='Ejecutado'||it.hhReal>0;
         return'<tr style="'+(esEjec?'background:rgba(0,180,0,0.04)':'')+'">'+
-          '<td class="mono" style="color:var(--ac)">'+it.sigla+'</td>'+
-          '<td style="font-size:11px">'+it.tipo+'</td>'+
+          '<td class="mono" style="color:var(--ac)">'+escapeHtml(it.sigla)+'</td>'+
+          '<td style="font-size:11px">'+escapeHtml(it.tipo)+'</td>'+
           '<td>'+pb(it.tipoPM)+'</td>'+
           '<td class="mono" style="color:'+(it.diasPM<=3?'var(--danger)':it.diasPM<=7?'var(--warn)':'var(--ok)')+'">'+it.diasPM+'</td>'+
           '<td class="mono ed" contenteditable style="'+lockStyle+'" onblur="edSem('+idx+',\'hhPlan\',parseFloat(this.innerText)||0)">'+it.hhPlan+'</td>'+
@@ -8404,7 +8404,7 @@ renders.comp=function(){
       var realIdx=compData.indexOf(c);
       var barCol=c.pctVida>=90?'var(--danger)':c.pctVida>=70?'var(--w)':'var(--ok)';
       return'<tr style="'+(c.hrsRest<=0?'background:rgba(239,68,68,.06)':'')+'">'+
-        '<td class="mono" style="color:var(--ac)">'+c.sigla+'</td>'+
+        '<td class="mono" style="color:var(--ac)">'+escapeHtml(c.sigla)+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'comp\',this.innerText.trim())" style="font-weight:600">'+c.comp+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'horomComp\',parseFloat(this.innerText)||0)">'+c.horomComp+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'vidaUtil\',parseFloat(this.innerText)||0)">'+c.vidaUtil+'</td>'+
@@ -8415,7 +8415,7 @@ renders.comp=function(){
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+Math.round(c.costoRef||0).toLocaleString()+'</td>'+
         '<td style="font-size:11px">'+c.estadoCalc+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+c.obs+'</td>'+
-        '<td><button class="btn-x" onclick="nuevoInforme(\''+c.sigla+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px">📄</button><button class="btn-x" onclick="delComp('+realIdx+')">🗑</button></td></tr>';
+        '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px">📄</button><button class="btn-x" onclick="delComp('+realIdx+')">🗑</button></td></tr>';
     }).join('')+
     '</table></div>';
 };
@@ -8521,7 +8521,7 @@ window.nuevoInforme=function(sigla,compIdx){
   sm(`<div style="max-width:700px">
     <h3>📄 Informe de Falla / Cambio de Componente Mayor</h3>
     <div class="form-row">
-      <div class="fg"><label>Equipo *</label><select id="ifEq" onchange="_infEqChange()"><option value="">Seleccionar...</option>${eq.map(function(e){return '<option'+(e.sigla===sigla?' selected':'')+'>'+e.sigla+'</option>';}).join('')}</select></div>
+      <div class="fg"><label>Equipo *</label><select id="ifEq" onchange="_infEqChange()"><option value="">Seleccionar...</option>${eq.map(function(e){return '<option'+(e.sigla===sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>';}).join('')}</select></div>
       <div class="fg"><label>Tipo de Evento *</label><select id="ifTipo"><option${!compRow?' selected':''}>Falla Catastrófica</option><option${compRow?' selected':''}>Cambio Componente Mayor</option></select></div>
     </div>
     <div class="form-row">
@@ -8758,7 +8758,7 @@ renders.informes=function(){
     '<tr><th>Equipo</th><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Costo Est.</th><th>Fotos</th><th>Generado por</th><th></th></tr>'+
     pg.items.map(function(i){
       return '<tr>'+
-        '<td class="mono" style="color:var(--ac)">'+i.sigla+'</td>'+
+        '<td class="mono" style="color:var(--ac)">'+escapeHtml(i.sigla)+'</td>'+
         '<td class="mono">'+i.fecha+'</td>'+
         '<td>'+(i.tipoEvento==='Falla Catastrófica'?'🔴 Falla Catastrófica':'🔩 Cambio Componente')+'</td>'+
         '<td>'+(i.componente||'—')+'</td>'+
@@ -8905,13 +8905,13 @@ window.rptTodos=function(){
 };
 
 // ═══ INDIVIDUAL REPORTS ═══
-window.rptDisp=function(fmt){var d=_getDispData();if(fmt==='excel')genExcel('Disponibilidad',d.headers,d.rows,'Informe_Disponibilidad.xls');else{var h='<h2>Disponibilidad Mecánica</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){var p=r[r.length-2];return'<tr class="'+(p>=85?'ok':p>=70?'warn':'danger')+'">'+r.map(function(c){return'<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Disponibilidad',h);}};
-window.rptMTBF=function(fmt){var d=_getMTBFData();if(fmt==='excel')genExcel('MTBF-MTTR',d.headers,d.rows,'Informe_MTBF_MTTR.xls');else{var h='<h2>MTBF / MTTR</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='Alta'?'ok':r[5]==='Media'?'warn':'danger')+'">'+r.map(function(c){return'<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe MTBF/MTTR',h);}};
+window.rptDisp=function(fmt){var d=_getDispData();if(fmt==='excel')genExcel('Disponibilidad',d.headers,d.rows,'Informe_Disponibilidad.xls');else{var h='<h2>Disponibilidad Mecánica</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){var p=r[r.length-2];return'<tr class="'+(p>=85?'ok':p>=70?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Disponibilidad',h);}};
+window.rptMTBF=function(fmt){var d=_getMTBFData();if(fmt==='excel')genExcel('MTBF-MTTR',d.headers,d.rows,'Informe_MTBF_MTTR.xls');else{var h='<h2>MTBF / MTTR</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='Alta'?'ok':r[5]==='Media'?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe MTBF/MTTR',h);}};
 window.rptHH=function(fmt){var d=_getHHData();if(fmt==='excel')genExcel('Horas Hombre',d.headers,d.rows,'Informe_HH.xls');else{var h='<h2>Horas Hombre</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe HH',h);}};
 window.rptCumpl=function(fmt){var d=_getCumplData();if(fmt==='excel')genExcel('Cumplimiento PM',d.headers,d.rows,'Informe_Cumplimiento_PM.xls');else{var h='<h2>Cumplimiento PM</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='—'?'':r[5]>=80?'ok':r[5]>=50?'warn':'danger')+'">'+r.map(function(c){return'<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Cumplimiento PM',h);}};
 window.rptCostos=function(fmt){var d=_getCostosData();if(fmt==='excel')genExcel('Costos',d.headers,d.rows,'Informe_Costos.xls');else{var h='<h2>Costos Mantención</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+(typeof c==='number'?'$'+c.toLocaleString():c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Costos',h);}};
 window.rptBacklog=function(fmt){var d=_getBacklogData();if(fmt==='excel')genExcel('Backlog',d.headers,d.rows,'Informe_Backlog.xls');else{var h='<h2>Backlog OT</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[8]==='CRÍTICO'?'danger':r[8]==='URGENTE'?'warn':'')+'">'+r.map(function(c){return'<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Backlog',h);}};
-window.rptComp=function(fmt){var d=_getCompData();if(fmt==='excel')genExcel('Componentes',d.headers,d.rows,'Informe_Componentes.xls');else{var h='<h2>Componentes Mayores</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[9]==='VENCIDO'?'danger':r[9]==='PLANIFICAR'?'warn':'')+'">'+r.map(function(c){return'<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Componentes',h);}};
+window.rptComp=function(fmt){var d=_getCompData();if(fmt==='excel')genExcel('Componentes',d.headers,d.rows,'Informe_Componentes.xls');else{var h='<h2>Componentes Mayores</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[9]==='VENCIDO'?'danger':r[9]==='PLANIFICAR'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Componentes',h);}};
 window.rptEjecutivo=function(fmt){var d=_getEjecutivoData();if(fmt==='excel')genExcel('Ejecutivo',d.headers,d.rows,'Informe_Ejecutivo.xls');else{var h='<h2>Resumen Ejecutivo</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Ejecutivo',h);}};
 
 
@@ -9460,7 +9460,7 @@ window.addHist=function(){
   var hoy=new Date().toISOString().slice(0,10);
   sm('<h3>📈 Registrar Lectura Horómetro</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="hEq">'+
-    eq.map(function(e){return'<option>'+e.sigla+'</option>'}).join('')+'</select></div>'+
+    eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Fecha</label><input type="date" id="hFecha" value="'+hoy+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Horómetro Inicial</label><input type="number" id="hIni" value="0"></div>'+
     '<div class="fg"><label>Horómetro Final</label><input type="number" id="hFin" value="0"></div></div>'+
@@ -9924,7 +9924,7 @@ renders.gantt=function(){
       var estadoMostrar=hayReal?'Ejecutado':g.estado;
       var avanceMostrar=hayReal?100:g.avance;
       return'<tr'+(hayReal?' style="background:rgba(34,197,94,.06)"':'')+'>'+
-        '<td class="mono" style="color:var(--ac)">'+g.sigla+'</td>'+
+        '<td class="mono" style="color:var(--ac)">'+escapeHtml(g.sigla)+'</td>'+
         '<td>'+pb(g.pm)+'</td>'+
         '<td class="ed" contenteditable onblur="edGantt('+gi+',\'inicio\',this.innerText.trim())" style="font-size:9px" title="'+(hayReal?'Auto-detectado desde reg/ot — puedes igual editarlo a mano':'')+'">'+iniMostrar+'</td>'+
         '<td class="ed" contenteditable onblur="edGantt('+gi+',\'fin\',this.innerText.trim())" style="font-size:9px">'+finMostrar+'</td>'+
@@ -9980,7 +9980,7 @@ renders.destrabe=function(){
       return'<tr>'+
         '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edDestrabe('+i+',\'equipo\',this.innerText.trim())">'+it.equipo+'</td>'+
         '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'trabajo\',this.innerText.trim())" style="font-size:11px">'+it.trabajo+'</td>'+
-        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'tipo\',this.innerText.trim())" style="font-size:10px">'+it.tipo+'</td>'+
+        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'tipo\',this.innerText.trim())" style="font-size:10px">'+escapeHtml(it.tipo)+'</td>'+
         '<td class="ed mono" contenteditable onblur="edDestrabe('+i+',\'fechaSol\',this.innerText.trim())" style="font-size:10px">'+it.fechaSol+'</td>'+
         '<td class="mono" style="color:'+(it.dias>14?'var(--danger)':it.dias>7?'var(--w)':'var(--tx3)')+'">'+it.dias+'</td>'+
         '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'motivo\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+it.motivo+'</td>'+
@@ -10047,9 +10047,9 @@ renders.avance=function(){
       var sinPlan=e.pct===null;
       var col=sinPlan?'var(--tx3)':e.pct>=e.esp?'var(--ok)':e.pct>=e.esp*0.7?'var(--w)':'var(--danger)';
       return'<tr>'+
-        '<td class="mono" style="color:var(--ac)">'+e.sigla+'</td>'+
-        '<td style="font-size:11px">'+e.tipo+'</td>'+
-        '<td class="ed mono" contenteditable onblur="var a=S.g(\'avanceData\')||{};if(!a[\''+e.sigla+'\'])a[\''+e.sigla+'\']={}; a[\''+e.sigla+'\'][\''+fMes+'\']=parseInt(this.innerText)||0;S.s(\'avanceData\',a);refreshAll()" style="color:#3b82f6;text-align:center">'+e.plan+'</td>'+
+        '<td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
+        '<td style="font-size:11px">'+escapeHtml(e.tipo)+'</td>'+
+        '<td class="ed mono" contenteditable onblur="var a=S.g(\'avanceData\')||{};if(!a[\''+escapeHtml(e.sigla)+'\'])a[\''+escapeHtml(e.sigla)+'\']={}; a[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseInt(this.innerText)||0;S.s(\'avanceData\',a);refreshAll()" style="color:#3b82f6;text-align:center">'+e.plan+'</td>'+
         '<td class="mono" style="text-align:center;font-weight:600">'+e.ejec+'</td>'+
         '<td class="mono" style="color:'+col+';font-weight:700;text-align:center">'+(sinPlan?'—':e.pct+'%')+'</td>'+
         '<td><div style="position:relative;background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:4px;height:12px;width:100px;overflow:hidden"><div style="position:absolute;left:'+e.esp+'%;top:0;bottom:0;width:1px;background:var(--tx3)"></div><div style="background:'+col+';height:100%;width:'+Math.min(e.pct||0,100)+'%"></div></div></td>'+
@@ -10111,8 +10111,8 @@ renders.buscar=function(){
     // Ficha del equipo
     '<div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:16px">'+
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px">'+
-    '<div><div style="font-size:10px;color:var(--tx3)">EQUIPO</div><div style="font-size:24px;font-weight:800;color:var(--ac)">'+fEq+'</div></div>'+
-    '<div><div style="font-size:10px;color:var(--tx3)">TIPO</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.tipo:'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj?eqObj.modelo:'')+'</div></div>'+
+    '<div><div style="font-size:10px;color:var(--tx3)">EQUIPO</div><div style="font-size:24px;font-weight:800;color:var(--ac)">'+escapeHtml(fEq)+'</div></div>'+
+    '<div><div style="font-size:10px;color:var(--tx3)">TIPO</div><div style="font-size:14px;font-weight:600">'+(eqObj?escapeHtml(eqObj.tipo):'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj?escapeHtml(eqObj.modelo):'')+'</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">HORÓMETRO</div><div style="font-size:20px;font-weight:700">'+(eqObj?eqObj.horomActual:0)+'h</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">ESTADO</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.estado:'')+'</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">PRÓX PM</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.tipoPM:'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj?eqObj.diasParaPM:0)+' días</div></div>'+
@@ -10135,7 +10135,7 @@ renders.buscar=function(){
     // Correctivos
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔧 Correctivos ('+otF.length+')</div>'+
     (otF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Cód.Falla</th><th>Síntoma</th><th>Causa Raíz</th><th>Estado</th></tr>'+
-    otF.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+o.tipo+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
+    otF.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+escapeHtml(o.tipo)+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
 
     // Componentes Mayores
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔩 Componentes Mayores ('+compF.length+')</div>'+
@@ -10173,13 +10173,13 @@ renders.buscar=function(){
       var mtbf=r.mtbf;
       return'<tr style="'+(r.fallas>3?'background:rgba(239,68,68,.04)':'')+'">'+
         '<td style="font-weight:700">'+(i+1)+'</td>'+
-        '<td class="mono" style="color:var(--ac);cursor:pointer" onclick="$(\'fBuscarEq\').value=\''+r.sigla+'\';renders.buscar()">'+r.sigla+'</td>'+
-        '<td>'+r.tipo+'</td>'+
+        '<td class="mono" style="color:var(--ac);cursor:pointer" onclick="$(\'fBuscarEq\').value=\''+escapeHtml(r.sigla)+'\';renders.buscar()">'+escapeHtml(r.sigla)+'</td>'+
+        '<td>'+escapeHtml(r.tipo)+'</td>'+
         '<td style="color:'+(r.fallas>3?'var(--danger)':'var(--tx)')+';font-weight:700">'+r.fallas+'</td>'+
         '<td>'+r.hh+'h</td>'+
         '<td style="color:var(--ac)">$'+Math.round(r.costo).toLocaleString()+'</td>'+
         '<td style="color:'+(mtbf==null?'var(--tx3)':mtbf>2000?'var(--ok)':'var(--w)')+'">'+(mtbf==null?'—':mtbf+'h')+'</td>'+
-        '<td><button class="btn-s" onclick="$(\'fBuscarEq\').value=\''+r.sigla+'\';renders.buscar()">Ver →</button></td></tr>';
+        '<td><button class="btn-s" onclick="$(\'fBuscarEq\').value=\''+escapeHtml(r.sigla)+'\';renders.buscar()">Ver →</button></td></tr>';
     }).join('')+'</table></div></div>';
   }
 
@@ -10188,7 +10188,7 @@ renders.buscar=function(){
     '<div class="sec-s">Historial completo por equipo · Ranking de equipos problemáticos</div></div></div>'+
     '<div class="toolbar" style="gap:12px">'+
     '<select id="fBuscarEq" onchange="renders.buscar()" style="min-width:140px"><option value="">— Selecciona equipo o ver ranking —</option>'+
-    siglas.map(function(s){return'<option'+(fEq===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'+
+    siglas.map(function(s){return'<option'+(fEq===s?' selected':'')+'>'+escapeHtml(s)+'</option>'}).join('')+'</select>'+
     '<select id="fBuscarAnio" onchange="renders.buscar()" style="min-width:90px"><option value="">Año: Todos</option>'+
     aniosBuscarArr.map(function(y){return'<option'+(fAnio===y?' selected':'')+'>'+y+'</option>'}).join('')+'</select>'+
     aniosBuscarArr.map(function(y){return'<button class="btn-s" style="'+(fAnio===y?'background:var(--ac);color:#fff':'')+'" onclick="$(\'fBuscarAnio\').value=\''+y+'\';renders.buscar()">'+y+'</button>'}).join('')+
@@ -10207,7 +10207,7 @@ window.editFicha=function(sigla){
   var eq=S.g('eq')||[];
   var e=eq.find(function(x){return x.sigla===sigla});
   if(!e)return;
-  sm('<h3>📋 Ficha Técnica — '+sigla+'</h3>'+
+  sm('<h3>📋 Ficha Técnica — '+escapeHtml(sigla)+'</h3>'+
     '<div class="form-row"><div class="fg"><label>Sigla</label><input id="ftSigla" value="'+escapeHtml(e.sigla||'')+'"></div>'+
     '<div class="fg"><label>Tipo</label><input id="ftTipo" value="'+escapeHtml(e.tipo||'')+'"></div>'+
     '<div class="fg"><label>Modelo</label><input id="ftModelo" value="'+escapeHtml(e.modelo||'')+'"></div></div>'+
@@ -10223,7 +10223,7 @@ window.editFicha=function(sigla){
     '<div class="fg"><label>Hrs/Día</label><input type="number" id="ftHrsDia" value="'+(e.hrsDia||12)+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Frec PM (hrs)</label><input type="number" id="ftFrec" value="'+(e.frecPM||250)+'"></div>'+
     '<div class="fg"><label>Horómetro Actual</label><input type="number" id="ftHorom" value="'+(e.horomActual||0)+'"></div></div>'+
-    '<br><button class="btn" onclick="saveFicha(\''+sigla+'\')">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="saveFicha(\''+escapeHtml(sigla)+'\')">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 // Si se renombra la sigla de un equipo, propaga el cambio a todo lo que la referencia
 // como clave (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa,
