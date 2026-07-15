@@ -725,6 +725,34 @@ window._sTh=function(tid,col,txt,tipo){
   return'<th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;'+tid+'&apos;,'+col+',&apos;'+t+'&apos;)" title="Ordenar">'+txt+arrow+'</th>';
 };
 
+// ── PAGINACIÓN GLOBAL — tablas grandes que crecen sin límite ─────────────
+// (mismas 8 categorías de _CATEGORIAS_CRECIENTES). El orden de click-en-columna
+// (sortTable, arriba) sigue operando solo sobre el DOM ya renderizado, así que
+// con paginación ordena la página visible, no el set filtrado completo — mismo
+// comportamiento que ya tenía cualquier tabla renderizada parcialmente.
+window._pag={};
+const _PAG_SIZE=50;
+function _pagSlice(cat,arr){
+  var p=window._pag[cat]||1;
+  var totalPages=Math.max(1,Math.ceil(arr.length/_PAG_SIZE));
+  if(p>totalPages)p=totalPages;
+  if(p<1)p=1;
+  window._pag[cat]=p;
+  return{page:p,totalPages:totalPages,total:arr.length,items:arr.slice((p-1)*_PAG_SIZE,p*_PAG_SIZE)};
+}
+window.pagIr=function(cat,delta){
+  window._pag[cat]=(window._pag[cat]||1)+delta;
+  renders[cat]();
+};
+function _pagHTML(cat,pg){
+  if(pg.totalPages<=1)return'';
+  return'<div style="display:flex;align-items:center;gap:10px;justify-content:center;padding:10px 0">'+
+    '<button class="btn-s btn-o"'+(pg.page<=1?' disabled style="opacity:.4"':'')+' onclick="pagIr(\''+cat+'\',-1)">← Anterior</button>'+
+    '<span style="font-size:12px;color:var(--tx3)">Página '+pg.page+' de '+pg.totalPages+' · '+pg.total+' filas</span>'+
+    '<button class="btn-s btn-o"'+(pg.page>=pg.totalPages?' disabled style="opacity:.4"':'')+' onclick="pagIr(\''+cat+'\',1)">Siguiente →</button>'+
+    '</div>';
+}
+
 // ---- VIZ TOOLTIP (capa de hover para gráficos — skill dataviz) ----
 window.vizTip=function(ev,text){
   var tip=document.getElementById('_vizTip');
@@ -1338,6 +1366,7 @@ renders.reg=function(){
     if(fEst&&!r.estatusEq?.includes(fEst))return false;
     return true;
   }).slice().reverse();
+  const pg=_pagSlice('reg',fil);
   $('s-reg').innerHTML=`
     <div class="sec-h"><div>
       <div class="sec-t">📝 Registro de Mantención — PM y Correctivos</div>
@@ -1351,10 +1380,11 @@ renders.reg=function(){
     </div>
     <div class="help-tip">🔵 Celdas azules = haz clic para editar directamente · ✏️ = editar registro completo (útil para registros anteriores sin hora) · Duración se recalcula automáticamente</div>
     <div class="toolbar">
-      <select id="fRegEq" onchange="renders.reg()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${e.sigla}</option>`).join('')}</select>
-      <select id="fRegPM" onchange="renders.reg()"><option value="">Todo tipo</option><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option><option>Correctivo</option></select>
-      <select id="fRegEst" onchange="renders.reg()"><option value="">Todo estatus</option><option>Operativo</option><option>Fuera de Servicio</option></select>
+      <select id="fRegEq" onchange="window._pag.reg=1;renders.reg()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${e.sigla}</option>`).join('')}</select>
+      <select id="fRegPM" onchange="window._pag.reg=1;renders.reg()"><option value="">Todo tipo</option><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option><option>Correctivo</option></select>
+      <select id="fRegEst" onchange="window._pag.reg=1;renders.reg()"><option value="">Todo estatus</option><option>Operativo</option><option>Fuera de Servicio</option></select>
     </div>
+    ${_pagHTML('reg',pg)}
     <div class="tbl-wrap"><table id="tbl-reg">
       <tr>
         ${_sTh('tbl-reg',0,'N°','num')}${_sTh('tbl-reg',1,'Equipo','str')}${_sTh('tbl-reg',2,'Tipo PM','str')}
@@ -1364,7 +1394,7 @@ renders.reg=function(){
         ${_sTh('tbl-reg',9,'Estatus','str')}${_sTh('tbl-reg',10,'Técnico','str')}${_sTh('tbl-reg',11,'Observaciones','str')}
         ${_sTh('tbl-reg',12,'Estado Ejec.','str')}<th>🗑️</th>
       </tr>
-      ${fil.map((r,_)=>{
+      ${pg.items.map((r,_)=>{
         const i=reg.indexOf(r);
         const col=r.estatusEq==='Fuera de Servicio'?'var(--danger)':'var(--ok)';
         const pmCol=r.tipoPM==='PM4'?'var(--pm4)':r.tipoPM==='PM3'?'var(--pm3)':r.tipoPM==='PM2'?'var(--pm2)':r.tipoPM==='Correctivo'?'var(--danger)':'var(--pm1)';
@@ -1388,7 +1418,8 @@ renders.reg=function(){
           </td>
         </tr>`;
       }).join('')}
-    </table></div>`;
+    </table></div>
+    ${_pagHTML('reg',pg)}`;
 };
 window.addReg=function(){
   const eq=S.g('eq')||[];
@@ -1849,22 +1880,24 @@ renders.pau=function(){
   const conRep=fil.filter(p=>p.rep&&p.rep.trim()).length;
   const refPau=pau.find(p=>p.sigla===siglaRef);
   const hoja=refPau?refPau.hoja:'—';
+  const pg=_pagSlice('pau',fil);
   $('s-pau').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📋 Pautas de Mantención</div>'+
     '<div class="sec-s">'+pau.length+' actividades · Hoja: <b>'+hoja+'</b> · Ref: '+siglaRef+(se!==siglaRef?' (grupo '+se+')':'')+'</div></div>'+
     '<button class="btn" onclick="addPauta()">+ Nueva</button></div>'+
     '<div class="toolbar">'+
-    '<select id="fPauEq" onchange="renders.pau()">'+allEq.map(function(e){return'<option'+(e===se?' selected':'')+'>'+e+'</option>'}).join('')+'</select>'+
-    '<select id="fPauPM" onchange="renders.pau()"><option value="">Todo PM</option>'+
+    '<select id="fPauEq" onchange="window._pag.pau=1;renders.pau()">'+allEq.map(function(e){return'<option'+(e===se?' selected':'')+'>'+e+'</option>'}).join('')+'</select>'+
+    '<select id="fPauPM" onchange="window._pag.pau=1;renders.pau()"><option value="">Todo PM</option>'+
     '<option value="PM1"'+(sp==='PM1'?' selected':'')+'>PM1 (250h)</option>'+
     '<option value="PM2"'+(sp==='PM2'?' selected':'')+'>PM2 (500h) incl PM1</option>'+
     '<option value="PM3"'+(sp==='PM3'?' selected':'')+'>PM3 (1000h) incl PM1-2</option>'+
     '<option value="PM4"'+(sp==='PM4'?' selected':'')+'>PM4 (2000h) TODOS</option></select>'+
-    '<input id="fPauCat" placeholder="Buscar categoría..." value="'+(fCat||'')+'" onchange="renders.pau()" style="max-width:140px">'+
+    '<input id="fPauCat" placeholder="Buscar categoría..." value="'+(fCat||'')+'" onchange="window._pag.pau=1;renders.pau()" style="max-width:140px">'+
     '<span style="color:var(--tx3);font-size:12px">'+fil.length+' act · '+conRep+' con repuesto</span></div>'+
+    _pagHTML('pau',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Hoja</th><th>PM</th><th>Categoría</th><th>Actividad</th><th>Hrs</th><th>Repuesto / Insumo</th><th>Cant</th><th></th></tr>'+
-    fil.slice(0,150).map(function(p){
+    pg.items.map(function(p){
       var i=pau.indexOf(p);
       var es='background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
       return'<tr>'+
@@ -1878,8 +1911,8 @@ renders.pau=function(){
         '<td><input type="number" value="'+(p.can||'')+'" onchange="edPau('+i+',\'can\',parseFloat(this.value)||0)" style="width:50px;background:var(--bg3);border:1px solid var(--bd);color:var(--ac);text-align:center;border-radius:3px;font-size:12px;font-weight:600"></td>'+
         '<td><button class="btn-s btn-d" onclick="delPauta('+i+')">🗑</button></td></tr>';
     }).join('')+
-    (fil.length>150?'<tr><td colspan="8" style="color:var(--tx3);text-align:center">Mostrando 150 de '+fil.length+'</td></tr>':'')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('pau',pg);
 };
 window.edPau=function(i,key,val){
   var pau=S.g('pau')||INIT.pautas||[];
@@ -2119,6 +2152,7 @@ renders.mov=function(){
   // Totals for filtered view
   var tFil=0,tLub=0;
   fil.forEach(function(m){if(m.tipo==='Filtro')tFil+=m.cant||0;else tLub+=m.cant||0;});
+  var pg=_pagSlice('mov',fil);
   document.getElementById('s-mov').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📊 Historial de Consumos</div>'+
     '<div class="sec-s">'+mov.length+' total · Mostrando: '+fil.length+' ('+Math.round(tFil)+' filtros, '+Math.round(tLub)+'L lub)</div></div>'+
@@ -2134,20 +2168,21 @@ renders.mov=function(){
         '<small style="color:var(--tx3)">'+t.n+' mov</small></div>';
     }).join('')+'</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:end">'+
-    '<div class="fg" style="min-width:90px"><label style="font-size:10px">Mes</label><select id="fMovMes" onchange="renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
+    '<div class="fg" style="min-width:90px"><label style="font-size:10px">Mes</label><select id="fMovMes" onchange="window._pag.mov=1;renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
     meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>'+
-    '<div class="fg" style="min-width:80px"><label style="font-size:10px">Tipo</label><select id="fMovTipo" onchange="renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
+    '<div class="fg" style="min-width:80px"><label style="font-size:10px">Tipo</label><select id="fMovTipo" onchange="window._pag.mov=1;renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
     '<option'+(fTipo==='Filtro'?' selected':'')+'>Filtro</option><option'+(fTipo==='Lubricante'?' selected':'')+'>Lubricante</option></select></div>'+
-    '<div class="fg" style="min-width:90px"><label style="font-size:10px">Equipo</label><select id="fMovEq" onchange="renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
+    '<div class="fg" style="min-width:90px"><label style="font-size:10px">Equipo</label><select id="fMovEq" onchange="window._pag.mov=1;renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
     equipos.map(function(e){return'<option'+(fEq===e?' selected':'')+'>'+e+'</option>'}).join('')+'</select></div>'+
-    '<div class="fg" style="min-width:80px"><label style="font-size:10px">PM</label><select id="fMovPM" onchange="renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
+    '<div class="fg" style="min-width:80px"><label style="font-size:10px">PM</label><select id="fMovPM" onchange="window._pag.mov=1;renders.mov()" style="font-size:11px"><option value="">Todos</option>'+
     ['PM1','PM2','PM3','PM4'].map(function(p){return'<option'+(fPM===p?' selected':'')+'>'+p+'</option>'}).join('')+'</select></div>'+
     '<div class="fg" style="min-width:120px"><label style="font-size:10px">Buscar item</label>'+
-    '<input id="fMovItem" value="'+(fItem||'')+'" placeholder="Nombre..." onchange="renders.mov()" style="font-size:11px"></div>'+
-    '<button class="btn btn-o" style="font-size:11px;padding:4px 10px" onclick="$(\'fMovMes\').value=\'\';$(\'fMovTipo\').value=\'\';$(\'fMovEq\').value=\'\';$(\'fMovPM\').value=\'\';$(\'fMovItem\').value=\'\';renders.mov()">Limpiar filtros</button>'+
+    '<input id="fMovItem" value="'+(fItem||'')+'" placeholder="Nombre..." onchange="window._pag.mov=1;renders.mov()" style="font-size:11px"></div>'+
+    '<button class="btn btn-o" style="font-size:11px;padding:4px 10px" onclick="$(\'fMovMes\').value=\'\';$(\'fMovTipo\').value=\'\';$(\'fMovEq\').value=\'\';$(\'fMovPM\').value=\'\';$(\'fMovItem\').value=\'\';window._pag.mov=1;renders.mov()">Limpiar filtros</button>'+
     '</div>'+
+    _pagHTML('mov',pg)+
     '<div class="tbl-w"><table><tr><th>Fecha</th><th>Tipo</th><th>Item</th><th>N°Parte</th><th>Cant</th><th>Equipo</th><th>PM</th><th>Ant</th><th>Nuevo</th><th>✏️</th></tr>'+
-    fil.slice(0,150).map(function(m){
+    pg.items.map(function(m){
       var idx=mov.indexOf(m);
       return'<tr>'+
         '<td style="font-size:11px">'+m.fecha+'</td>'+
@@ -2163,8 +2198,8 @@ renders.mov=function(){
         '<td style="font-size:11px;color:var(--tx3)">'+m.nuevo+'</td>'+
         '<td><button class="btn-s btn-d" onclick="delMov('+idx+')" title="Eliminar">🗑</button></td></tr>';
     }).join('')+
-    (fil.length>150?'<tr><td colspan="10" style="text-align:center;color:var(--tx3)">Mostrando 150 de '+fil.length+'</td></tr>':'')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('mov',pg);
 };
 window.editMov=function(idx,key,val){
   var mov=S.g('mov')||[];
@@ -3045,14 +3080,17 @@ renders.hist=function(){
 
   if(fVista==='todo'){
     // Vista tabla completa
+    var histOrdenado=fil.slice().reverse();
+    var pgHist=_pagSlice('hist',histOrdenado);
     content=
+    _pagHTML('hist',pgHist)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>#</th><th>Equipo</th><th>Fecha</th><th>Hrm Inicial</th><th>Hrm Final</th><th>Hrs Operadas</th><th></th></tr>'+
-    fil.slice().reverse().slice(0,500).map(function(r,i){
+    pgHist.items.map(function(r,i){
       var idx=h.indexOf(r);
       var hrsOp=(r.horomFin&&r.horomIni)?r.horomFin-r.horomIni:(r.horom||0);
       return'<tr>'+
-        '<td class="mono" style="font-size:10px;color:var(--tx3)">'+(fil.length-i)+'</td>'+
+        '<td class="mono" style="font-size:10px;color:var(--tx3)">'+(histOrdenado.length-((pgHist.page-1)*_PAG_SIZE)-i)+'</td>'+
         '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edHist('+idx+',\'sigla\',this.innerText.trim())">'+r.sigla+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'fecha\',this.innerText.trim())">'+r.fecha+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomIni\',parseFloat(this.innerText)||0)">'+(r.horomIni||r.horom||0)+'</td>'+
@@ -3060,7 +3098,8 @@ renders.hist=function(){
         '<td class="mono">'+hrsOp+'</td>'+
         '<td><button class="btn-x" onclick="delHist('+idx+')">🗑</button></td></tr>';
     }).join('')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('hist',pgHist);
 
   } else if(fVista==='diario'){
     // Vista diaria - último horómetro por equipo por día
@@ -3157,16 +3196,16 @@ renders.hist=function(){
     '<button class="btn btn-o" onclick="importHorom()">📤 Importar CSV</button>'+
     '<button class="btn btn-o" onclick="exportCSV(\'hist\')">📥 CSV</button></div></div>'+
     '<div class="toolbar">'+
-    '<select id="fHistVista" onchange="renders.hist()">'+
+    '<select id="fHistVista" onchange="window._pag.hist=1;renders.hist()">'+
     '<option value="todo"'+(fVista==='todo'?' selected':'')+'>📋 Todas las Lecturas</option>'+
     '<option value="diario"'+(fVista==='diario'?' selected':'')+'>📆 Diario</option>'+
     '<option value="semanal"'+(fVista==='semanal'?' selected':'')+'>📅 Semanal</option>'+
     '<option value="mensual"'+(fVista==='mensual'?' selected':'')+'>📊 Mensual</option>'+
     '<option value="anual"'+(fVista==='anual'?' selected':'')+'>📅 Anual</option>'+
     '</select>'+
-    '<select id="fHistEq" onchange="renders.hist()"><option value="">Todos los equipos</option>'+
+    '<select id="fHistEq" onchange="window._pag.hist=1;renders.hist()"><option value="">Todos los equipos</option>'+
     siglas.map(function(s){return'<option'+(fEq===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'+
-    '<select id="fHistMes" onchange="renders.hist()"><option value="">Todos los meses</option>'+
+    '<select id="fHistMes" onchange="window._pag.hist=1;renders.hist()"><option value="">Todos los meses</option>'+
     meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
     '</div>'+
     content;
@@ -3207,6 +3246,7 @@ renders.ot=function(){
     fechaSalida:r.fechaSalida,horaSalida:r.horaSalida,
     estatusEq:r.estatusEq,fromReg:true}))];
   const fil=todos.filter(o=>(!fEq||o.sigla===fEq)&&(!fTipo||o.tipo?.includes(fTipo))&&(!fEst||o.estatusEq===fEst));
+  const pg=_pagSlice('ot',fil);
   const tc=ot.reduce((s,o)=>s+(o.costo||0),0);
   const inmed=fil.filter(o=>o.criticidad==='Reparación Inmediata').length;
   const fds=fil.filter(o=>o.estatusEq==='Fuera de Servicio').length;
@@ -3233,18 +3273,20 @@ renders.ot=function(){
       <div class="card"><div class="card-t">Costo acumulado</div><div class="card-v" style="color:var(--ac)">$${fn(tc)}</div></div>
     </div>
     <div class="toolbar">
-      <select id="fOtEq" onchange="renders.ot()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${e.sigla}</option>`).join('')}</select>
-      <select id="fOtTipo" onchange="renders.ot()"><option value="">Todo tipo</option><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option></select>
-      <select id="fOtEst" onchange="renders.ot()"><option value="">Todo estatus</option><option value="Fuera de Servicio">Fuera de Servicio</option><option value="Operativo">Operativo</option></select>
+      <select id="fOtEq" onchange="window._pag.ot=1;renders.ot()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${e.sigla}</option>`).join('')}</select>
+      <select id="fOtTipo" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo tipo</option><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option></select>
+      <select id="fOtEst" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo estatus</option><option value="Fuera de Servicio">Fuera de Servicio</option><option value="Operativo">Operativo</option></select>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
     ${compCards}
     </div>
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
+    ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
       <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma ✏️</th><th>Causa Raíz ✏️</th><th>Componente ✏️</th><th>Solución ✏️</th><th>Estado OT ✏️</th><th>Técnico</th><th>Costo ✏️</th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
-      ${fil.map((o,idx)=>{
+      ${pg.items.map((o)=>{
         const i=ot.indexOf(o);
+        const idx=fil.indexOf(o);
         const col=o.estatusEq==='Fuera de Servicio'?'var(--danger)':'var(--ok)';
         const fromReg=o.fromReg;
         const es='background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
@@ -3269,7 +3311,8 @@ renders.ot=function(){
         otRow+='</tr>';
         return otRow;
       }).join('')}
-    </table></div>`}`;
+    </table></div>
+    ${_pagHTML('ot',pg)}`}`;
 };
 window.analisisFallas=function(){
   const ot=S.g('ot')||[];
@@ -5898,6 +5941,7 @@ renders.rep=function(){
   var amarillos=rep.filter(function(r){return r.estado.includes('🟡')}).length;
   var verdes=rep.filter(function(r){return r.estado.includes('🟢')}).length;
 
+  var pg=_pagSlice('rep',fil);
   var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
 
   $('s-rep').innerHTML=
@@ -5907,29 +5951,30 @@ renders.rep=function(){
 
     // Semáforo resumen
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #ef4444" onclick="$(\'fRepEst\').value=\'rojo\';renders.rep()"><div class="card-t">🔴 Sin Stock / Pedir</div><div class="card-v" style="color:#ef4444">'+rojos+'</div><div class="card-s">Acción inmediata</div></div>'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #f59e0b" onclick="$(\'fRepEst\').value=\'amarillo\';renders.rep()"><div class="card-t">🟡 Stock Bajo</div><div class="card-v" style="color:#f59e0b">'+amarillos+'</div><div class="card-s">Planificar compra</div></div>'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fRepEst\').value=\'verde\';renders.rep()"><div class="card-t">🟢 Stock OK</div><div class="card-v" style="color:#22c55e">'+verdes+'</div><div class="card-s">Sin acción</div></div>'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fRepEst\').value=\'\';renders.rep()"><div class="card-t">Total</div><div class="card-v">'+rep.length+'</div><div class="card-s">Todos</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid #ef4444" onclick="$(\'fRepEst\').value=\'rojo\';window._pag.rep=1;renders.rep()"><div class="card-t">🔴 Sin Stock / Pedir</div><div class="card-v" style="color:#ef4444">'+rojos+'</div><div class="card-s">Acción inmediata</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid #f59e0b" onclick="$(\'fRepEst\').value=\'amarillo\';window._pag.rep=1;renders.rep()"><div class="card-t">🟡 Stock Bajo</div><div class="card-v" style="color:#f59e0b">'+amarillos+'</div><div class="card-s">Planificar compra</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fRepEst\').value=\'verde\';window._pag.rep=1;renders.rep()"><div class="card-t">🟢 Stock OK</div><div class="card-v" style="color:#22c55e">'+verdes+'</div><div class="card-s">Sin acción</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fRepEst\').value=\'\';window._pag.rep=1;renders.rep()"><div class="card-t">Total</div><div class="card-v">'+rep.length+'</div><div class="card-s">Todos</div></div>'+
     '</div>'+
 
     // Filtros
     '<div class="toolbar">'+
-    '<select id="fRepEst" onchange="renders.rep()"><option value="">Todos</option>'+
+    '<select id="fRepEst" onchange="window._pag.rep=1;renders.rep()"><option value="">Todos</option>'+
     '<option value="rojo"'+(fEst==='rojo'?' selected':'')+'>🔴 Críticos</option>'+
     '<option value="amarillo"'+(fEst==='amarillo'?' selected':'')+'>🟡 Bajo</option>'+
     '<option value="verde"'+(fEst==='verde'?' selected':'')+'>🟢 OK</option></select>'+
-    '<select id="fRepEq" onchange="renders.rep()"><option value="">Todos equipos</option>'+
+    '<select id="fRepEq" onchange="window._pag.rep=1;renders.rep()"><option value="">Todos equipos</option>'+
     allEq.map(function(e){return'<option'+(fEq===e?' selected':'')+'>'+e+'</option>'}).join('')+
     '<option'+(fEq==='Varios'?' selected':'')+'>Varios</option></select>'+
-    '<input id="fRepBusq" placeholder="Buscar componente/N°parte..." value="'+(fBusq||'')+'" onchange="renders.rep()" style="max-width:200px">'+
-    '<button class="btn btn-o" style="font-size:11px" onclick="$(\'fRepEst\').value=\'\';$(\'fRepEq\').value=\'\';$(\'fRepBusq\').value=\'\';renders.rep()">Limpiar</button>'+
+    '<input id="fRepBusq" placeholder="Buscar componente/N°parte..." value="'+(fBusq||'')+'" onchange="window._pag.rep=1;renders.rep()" style="max-width:200px">'+
+    '<button class="btn btn-o" style="font-size:11px" onclick="$(\'fRepEst\').value=\'\';$(\'fRepEq\').value=\'\';$(\'fRepBusq\').value=\'\';window._pag.rep=1;renders.rep()">Limpiar</button>'+
     '</div>'+
+    _pagHTML('rep',pg)+
 
     // Tabla
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Estado</th><th>Componente ✏️</th><th>N°Parte ✏️</th><th>Equipo ✏️</th><th>Tipo</th><th>Stock ✏️</th><th>Mínimo ✏️</th><th>Lead Time ✏️</th><th>Precio ✏️</th><th>Proveedor ✏️</th><th>Acción</th><th></th></tr>'+
-    fil.slice(0,120).map(function(r){
+    pg.items.map(function(r){
       var i=rep.indexOf(r);
       var bg=r.estado.includes('🔴')?'rgba(239,68,68,.06)':r.estado.includes('🟡')?'rgba(245,158,11,.04)':'';
       var accion='';
@@ -5952,8 +5997,8 @@ renders.rep=function(){
         '<td>'+accion+'</td>'+
         '<td><button class="btn-s btn-d" onclick="delRep('+i+')">🗑</button></td></tr>';
     }).join('')+
-    (fil.length>120?'<tr><td colspan="12" style="text-align:center;color:var(--tx3)">Mostrando 120 de '+fil.length+'</td></tr>':'')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('rep',pg);
 };
 
 window.edRep=function(i,key,val){
@@ -6174,16 +6219,18 @@ renders.insp=function(){
   var hoy=new Date().toISOString().slice(0,10);
   var hoyCount=insp.filter(function(r){return r.fecha===hoy;}).length;
   var is='background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
+  var pg=_pagSlice('insp',fil);
   $('s-insp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📋 Inspecciones Diarias</div>'+
     '<div class="sec-s">'+insp.length+' inspecciones · Hoy: '+hoyCount+'</div></div>'+
     '<button class="btn" onclick="addInsp()">+ Nueva Inspección</button></div>'+
     '<div class="toolbar">'+
-    '<select id="fInspEq" onchange="renders.insp()"><option value="">Todos equipos</option>'+
+    '<select id="fInspEq" onchange="window._pag.insp=1;renders.insp()"><option value="">Todos equipos</option>'+
     eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+e.sigla+'</option>'}).join('')+'</select></div>'+
+    _pagHTML('insp',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Fecha</th><th>Equipo</th><th>Horóm</th><th>Visual ✏️</th><th>Niveles ✏️</th><th>Fugas ✏️</th><th>Luces ✏️</th><th>Frenos ✏️</th><th>Neumát ✏️</th><th>Obs ✏️</th><th>Inspector</th><th>Alerta</th><th></th></tr>'+
-    fil.slice(0,80).map(function(r){
+    pg.items.map(function(r){
       var i=insp.indexOf(r);
       var checks=['visual','niveles','fugas','luces','frenos','neumaticos'];
       var alertCount=checks.filter(function(c){return r[c]==='NOK'||r[c]==='🔴';}).length;
@@ -6201,7 +6248,8 @@ renders.insp=function(){
         '<td style="text-align:center">'+(alertCount>0?'<span style="color:var(--danger);font-weight:700">🔴 '+alertCount+'</span>':'<span style="color:var(--ok)">✅</span>')+'</td>'+
         '<td><button class="btn-s btn-d" onclick="delInsp('+i+')">🗑</button></td></tr>';
     }).join('')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('insp',pg);
 };
 window.edInsp=function(i,key,val){
   var insp=S.g('insp')||[];
@@ -6491,6 +6539,7 @@ renders.ace=function(){
 
   var allSiglas=[...new Set(ace.map(function(m){return m._sigla||m.componente;}))].sort();
   var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:10px;padding:2px';
+  var pg=_pagSlice('ace',fil);
 
   $('s-ace').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">🧪 Análisis de Aceite</div>'+
@@ -6498,29 +6547,30 @@ renders.ace=function(){
     '<div><button class="btn" onclick="addAceite()">+ Manual</button> <button class="btn btn-o" onclick="importAceite()">📤 Importar CSV</button></div></div>'+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fAceEst\').value=\'NORMAL\';renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:#22c55e">'+normal+'</div></div>'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #f59e0b" onclick="$(\'fAceEst\').value=\'PRECAUCION\';renders.ace()"><div class="card-t">🟡 Precaución</div><div class="card-v" style="color:#f59e0b">'+precaucion+'</div></div>'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #ef4444" onclick="$(\'fAceEst\').value=\'ALERTA\';renders.ace()"><div class="card-t">🔴 Alerta</div><div class="card-v" style="color:#ef4444">'+alerta+'</div></div>'+
-    '<div class="card" style="cursor:pointer" onclick="$(\'fAceEst\').value=\'\';renders.ace()"><div class="card-t">Total</div><div class="card-v">'+ace.length+'</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:#22c55e">'+normal+'</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid #f59e0b" onclick="$(\'fAceEst\').value=\'PRECAUCION\';window._pag.ace=1;renders.ace()"><div class="card-t">🟡 Precaución</div><div class="card-v" style="color:#f59e0b">'+precaucion+'</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid #ef4444" onclick="$(\'fAceEst\').value=\'ALERTA\';window._pag.ace=1;renders.ace()"><div class="card-t">🔴 Alerta</div><div class="card-v" style="color:#ef4444">'+alerta+'</div></div>'+
+    '<div class="card" style="cursor:pointer" onclick="$(\'fAceEst\').value=\'\';window._pag.ace=1;renders.ace()"><div class="card-t">Total</div><div class="card-v">'+ace.length+'</div></div>'+
     '</div>'+
 
     '<div id="aceDashHolder"></div>'+
 
     '<div class="toolbar">'+
-    '<select id="fAceEq" onchange="renders.ace()"><option value="">Todos equipos</option>'+
+    '<select id="fAceEq" onchange="window._pag.ace=1;renders.ace()"><option value="">Todos equipos</option>'+
     allSiglas.map(function(s){return'<option'+(fEq===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'+
-    '<select id="fAceEst" onchange="renders.ace()"><option value="">Todo estado</option>'+
+    '<select id="fAceEst" onchange="window._pag.ace=1;renders.ace()"><option value="">Todo estado</option>'+
     '<option'+(fEst==='NORMAL'?' selected':'')+'>NORMAL</option>'+
     '<option'+(fEst==='PRECAUCION'?' selected':'')+'>PRECAUCION</option>'+
     '<option'+(fEst==='ALERTA'?' selected':'')+'>ALERTA</option></select>'+
-    '<button class="btn btn-o" style="font-size:11px" onclick="$(\'fAceEq\').value=\'\';$(\'fAceEst\').value=\'\';renders.ace()">Limpiar</button>'+
+    '<button class="btn btn-o" style="font-size:11px" onclick="$(\'fAceEq\').value=\'\';$(\'fAceEst\').value=\'\';window._pag.ace=1;renders.ace()">Limpiar</button>'+
     '</div>'+
+    _pagHTML('ace',pg)+
 
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Fecha</th><th>Equipo</th><th>Componente</th><th>Descriptor</th><th>Lubricante</th><th>Hrs</th>'+
     '<th>Fe</th><th>Cu</th><th>Pb</th><th>Al</th><th>Si</th><th>Cr</th>'+
     '<th>Visc</th><th>PQ</th><th>TBN</th><th>ISO</th><th>Estado ✏️</th><th>Obs ✏️</th><th></th></tr>'+
-    fil.slice(0,100).map(function(m,fi){
+    pg.items.map(function(m,fi){
       var idx=ace.indexOf(m);
       var estCol=m.estado==='ALERTA'?'var(--danger)':m.estado==='PRECAUCION'?'var(--w)':'var(--ok)';
       var bg=m.estado==='ALERTA'?'background:rgba(239,68,68,.06)':m.estado==='PRECAUCION'?'background:rgba(245,158,11,.04)':'';
@@ -6550,8 +6600,8 @@ renders.ace=function(){
         '<td><input value="'+escapeHtml(m.comentario||'')+'" onchange="edAce('+idx+',\'comentario\',this.value)" style="width:80px;'+is+'" placeholder="..."></td>'+
         '<td><button class="btn-s btn-d" onclick="delAce('+idx+')">🗑</button></td></tr>';
     }).join('')+
-    (fil.length>100?'<tr><td colspan="19" style="text-align:center;color:var(--tx3)">Mostrando 100 de '+fil.length+'</td></tr>':'')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('ace',pg);
 
   renderAceDash(ace);
 };
@@ -7705,21 +7755,24 @@ renders.log=function(){
   var fAccion=$('fLogAccion')?.value||'';
   var fil=log.filter(function(l){return !fAccion||l.accion.includes(fAccion);});
   var acciones=[...new Set(log.map(function(l){return l.accion.split(' ')[0]+' '+l.accion.split(' ')[1];}).filter(function(a){return a.trim();}))];
+  var pg=_pagSlice('log',fil);
   $('s-log').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📝 Log de Cambios</div>'+
     '<div class="sec-s">'+log.length+' registros · Auditoría del sistema</div></div>'+
     '<button class="btn btn-o" onclick="if(confirm(\'¿Limpiar log?\')){S.s(\'changelog\',[]);renders.log();}">🗑 Limpiar</button></div>'+
     '<div class="toolbar">'+
-    '<select id="fLogAccion" onchange="renders.log()"><option value="">Todas las acciones</option>'+
+    '<select id="fLogAccion" onchange="window._pag.log=1;renders.log()"><option value="">Todas las acciones</option>'+
     acciones.map(function(a){return'<option'+(fAccion===a?' selected':'')+'>'+a+'</option>'}).join('')+'</select></div>'+
+    _pagHTML('log',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Fecha/Hora</th><th>Acción</th><th>Detalle</th></tr>'+
-    fil.slice(0,200).map(function(l){
+    pg.items.map(function(l){
       return'<tr><td class="mono" style="font-size:10px;white-space:nowrap">'+l.fecha+'</td>'+
         '<td style="font-size:11px;font-weight:600">'+l.accion+'</td>'+
         '<td style="font-size:11px;color:var(--tx3);max-width:400px">'+l.detalle+'</td></tr>';
     }).join('')+
-    '</table></div>';
+    '</table></div>'+
+    _pagHTML('log',pg);
 };
 
 
@@ -8611,13 +8664,15 @@ function generarPDFInforme(inf,dataUrls){
 renders.informes=function(){
   var lista=(S.g('informesFalla')||[]).slice().sort(function(a,b){return (b.fechaCreacion||'').localeCompare(a.fechaCreacion||'');});
   var costoTotal=lista.reduce(function(s,i){return s+(i.costoEstimado||0);},0);
+  var pg=_pagSlice('informes',lista);
   $('s-informes').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📄 Informes de Falla y Cambio de Componente</div>'+
     '<div class="sec-s">'+lista.length+' informe(s) · Costo total estimado: $'+Math.round(costoTotal).toLocaleString('es-CL')+'</div></div>'+
     '<button class="btn" onclick="nuevoInforme(\'\',null)">+ Nuevo Informe</button></div>'+
+    _pagHTML('informes',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Costo Est.</th><th>Fotos</th><th>Generado por</th><th></th></tr>'+
-    lista.map(function(i){
+    pg.items.map(function(i){
       return '<tr>'+
         '<td class="mono" style="color:var(--ac)">'+i.sigla+'</td>'+
         '<td class="mono">'+i.fecha+'</td>'+
@@ -8629,6 +8684,7 @@ renders.informes=function(){
         '<td><button class="btn-x" onclick="regenerarPDF(\''+i.id+'\')" title="Descargar PDF">📥</button> <button class="btn-x" onclick="delInforme(\''+i.id+'\')">🗑</button></td></tr>';
     }).join('')+
     '</table></div>'+
+    _pagHTML('informes',pg)+
     (lista.length?'':'<p style="padding:20px;color:var(--muted)">No hay informes generados todavía.</p>');
 };
 window.delInforme=function(id){
