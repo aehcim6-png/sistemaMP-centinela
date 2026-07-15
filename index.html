@@ -2049,10 +2049,10 @@ renders.pau=function(){
   const pg=_pagSlice('pau',fil);
   $('s-pau').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📋 Pautas de Mantención</div>'+
-    '<div class="sec-s">'+pau.length+' actividades · Hoja: <b>'+hoja+'</b> · Ref: '+siglaRef+(se!==siglaRef?' (grupo '+se+')':'')+'</div></div>'+
+    '<div class="sec-s">'+pau.length+' actividades · Hoja: <b>'+escapeHtml(hoja)+'</b> · Ref: '+escapeHtml(siglaRef)+(se!==siglaRef?' (grupo '+escapeHtml(se)+')':'')+'</div></div>'+
     '<button class="btn" onclick="addPauta()">+ Nueva</button></div>'+
     '<div class="toolbar">'+
-    '<select id="fPauEq" onchange="window._pag.pau=1;renders.pau()">'+allEq.map(function(e){return'<option'+(e===se?' selected':'')+'>'+e+'</option>'}).join('')+'</select>'+
+    '<select id="fPauEq" onchange="window._pag.pau=1;renders.pau()">'+allEq.map(function(e){return'<option'+(e===se?' selected':'')+'>'+escapeHtml(e)+'</option>'}).join('')+'</select>'+
     '<select id="fPauPM" onchange="window._pag.pau=1;renders.pau()"><option value="">Todo PM</option>'+
     '<option value="PM1"'+(sp==='PM1'?' selected':'')+'>PM1 (250h)</option>'+
     '<option value="PM2"'+(sp==='PM2'?' selected':'')+'>PM2 (500h) incl PM1</option>'+
@@ -2067,7 +2067,7 @@ renders.pau=function(){
       var i=pau.indexOf(p);
       var es='background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
       return'<tr>'+
-        '<td style="font-size:11px">'+p.hoja+'</td>'+
+        '<td style="font-size:11px">'+escapeHtml(p.hoja)+'</td>'+
         '<td><select onchange="edPau('+i+',\'pm\',this.value)" style="font-size:11px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px">'+
         ['PM1','PM2','PM3','PM4'].map(function(x){return'<option'+(p.pm===x?' selected':'')+'>'+x+'</option>'}).join('')+'</select></td>'+
         '<td><input value="'+escapeHtml(p.cat||'')+'" onchange="edPau('+i+',\'cat\',this.value)" style="'+es+';max-width:100px" title="Editar categoría"></td>'+
