@@ -2031,8 +2031,8 @@ renders.al=function(){
 };
 window.editAlRep=function(sigla){
   const al=S.g('al'),a=al.find(x=>x.sigla===sigla)||{sigla,repuestos:''};
-  sm(`<h3>Repuestos PM4 — ${sigla}</h3>
-    <div class="fg"><label>Repuestos Clave (separar con |)</label><textarea id="aRep">${a.repuestos||''}</textarea></div><br>
+  sm(`<h3>Repuestos PM4 — ${escapeHtml(sigla)}</h3>
+    <div class="fg"><label>Repuestos Clave (separar con |)</label><textarea id="aRep">${escapeHtml(a.repuestos||'')}</textarea></div><br>
     <button class="btn" onclick="saveAlRep('${sigla}')">💾 Guardar</button>`);
 };
 window.saveAlRep=function(sigla){
@@ -2983,7 +2983,7 @@ window.planHistorico=function(){
       <div><label style="font-size:10px;color:var(--tx3);display:block">Desde</label><input type="date" id="histDesde" value="${f.desde}" style="font-size:11px"></div>
       <div><label style="font-size:10px;color:var(--tx3);display:block">Hasta</label><input type="date" id="histHasta" value="${f.hasta}" style="font-size:11px"></div>
       <div><label style="font-size:10px;color:var(--tx3);display:block">Tipo material</label><select id="histTipo" style="font-size:11px"><option value="">Todos</option>${tipos.map(t=>`<option ${f.tipo===t?'selected':''}>${t}</option>`).join('')}</select></div>
-      <div><label style="font-size:10px;color:var(--tx3);display:block">Equipo</label><select id="histEquipo" style="font-size:11px"><option value="">Todos</option>${siglas.map(s=>`<option ${f.equipo===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div><label style="font-size:10px;color:var(--tx3);display:block">Equipo</label><select id="histEquipo" style="font-size:11px"><option value="">Todos</option>${siglas.map(s=>`<option ${f.equipo===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select></div>
       <div style="align-self:flex-end"><button class="btn-s" onclick="planHistoricoFiltrar()">🔍 Filtrar</button> <button class="btn-s btn-o" onclick="planHistoricoLimpiar()">✕ Limpiar</button></div>
     </div>
 
@@ -2998,7 +2998,7 @@ window.planHistorico=function(){
     <table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Material</th><th>Tipo</th><th>Cant.</th><th>Equipos</th><th>Costo</th></tr>
       ${lista.map(a=>`<tr style="border-bottom:1px solid var(--bd)">
-        <td style="padding:6px">${a.item}</td>
+        <td style="padding:6px">${escapeHtml(a.item)}</td>
         <td style="text-align:center"><span class="badge ${a.tipo==='Filtro'?'b-y':a.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(a.tipo)}</span></td>
         <td style="text-align:center"><b>${fn2(a.cant)}</b></td>
         <td style="text-align:center">${a.nEq} eq.</td>
@@ -3475,7 +3475,7 @@ renders.ot=function(){
         const estCol2=estOT==='Pendiente'?'var(--danger)':estOT==='En Ejecución'?'var(--w)':'var(--ok)';
         var otRow='<tr style="'+(o.estatusEq==='Fuera de Servicio'||estOT==='Pendiente'?'background:rgba(239,68,68,.04)':'')+'">';
         otRow+='<td class="mono" style="color:var(--tx3)">'+(fromReg?'📝REG':'OT-'+String(idx+1).padStart(3,'0'))+'</td>';
-        otRow+='<td class="mono" style="color:var(--ac)">'+(o.sigla||'—')+'</td>';
+        otRow+='<td class="mono" style="color:var(--ac)">'+escapeHtml(o.sigla||'—')+'</td>';
         otRow+='<td style="font-size:10px"><span class="badge '+(o.tipo?.includes('Falla')||o.tipo==='Correctivo'?'b-r':'b-y')+'">'+(o.tipo||'—')+'</span></td>';
         otRow+='<td class="mono" style="font-size:10px">'+fd(o.fechaEntrada||o.fecha)+'</td>';
         otRow+='<td class="mono" style="font-size:10px;color:var(--w)">'+(o.duracion||'—')+'</td>';
@@ -3485,7 +3485,7 @@ renders.ot=function(){
         otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.solucion||'')+'" '+(fromReg?'disabled':'onchange="edOT('+i+',\'solucion\',this.value)"')+' style="'+es+';color:var(--ok)" placeholder="Solución..."></td>';
         if(fromReg){otRow+='<td><span style="font-size:10px">PM</span></td>';}
         else{otRow+='<td><select onchange="edOT('+i+',\'estadoOT\',this.value)" style="font-size:10px;background:var(--bg3);color:'+estCol2+';border:1px solid var(--bd);border-radius:3px;font-weight:600"><option'+(estOT==='Pendiente'?' selected':'')+'>Pendiente</option><option'+(estOT==='En Ejecución'?' selected':'')+'>En Ejecución</option><option'+(estOT==='Cerrada'?' selected':'')+'>Cerrada</option></select></td>';}
-        otRow+='<td style="font-size:10px">'+(o.tecnico||'—')+'</td>';
+        otRow+='<td style="font-size:10px">'+escapeHtml(o.tecnico||'—')+'</td>';
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
         else{otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:10px"></td>';}
         otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'<button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia (foto o PDF)" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button>')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar">🗑</button></td>';
@@ -3928,7 +3928,7 @@ window.cambiarNeu=function(i){
   const eq=S.g('eq');const e=eq.find(x=>x.sigla===n.sigla);
   const hAct=e?e.horomActual:0;
   sm(`<h3>↺ Cambio — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
-    <p style="color:var(--tx2);margin-bottom:12px">Serie: <b>${n.serie}</b> · Remanente: <b>${n.remanente||'—'}mm</b></p>
+    <p style="color:var(--tx2);margin-bottom:12px">Serie: <b>${escapeHtml(n.serie)}</b> · Remanente: <b>${n.remanente||'—'}mm</b></p>
     <div class="form-row">
       <div class="fg"><label>Destino neumático retirado</label><select id="cDest"><option>Stock</option><option>De baja</option></select></div>
       <div class="fg"><label>Remanente al retirar (mm)</label><input type="number" id="cRemAnt"></div>
@@ -4161,7 +4161,7 @@ window.addMedicionNeu=function(neuIdx){
   const eqArr=S.g('eq')||[];const e=eqArr.find(x=>x.sigla===n.sigla);
   const horomActual=e?e.horomActual:0;
   sm(`<h3>📏 Medición Remanente — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
-    <p style="font-size:12px;color:var(--tx3)">Serie: <b>${n.serie}</b> | Marca: <b>${n.marca}</b></p>
+    <p style="font-size:12px;color:var(--tx3)">Serie: <b>${escapeHtml(n.serie)}</b> | Marca: <b>${escapeHtml(n.marca)}</b></p>
     <div class="form-row">
       <div class="fg"><label>Fecha</label><input type="date" id="mFecha" value="${new Date().toISOString().slice(0,10)}"></div>
       <div class="fg"><label>Horómetro equipo</label><input type="number" id="mHorom" value="${horomActual}"></div>
@@ -4282,10 +4282,10 @@ window.histPosicion=function(sigla,posNum){
     <div style="overflow-x:auto;max-height:280px;overflow-y:auto"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px">Fecha</th><th>Serie</th><th>Horóm</th><th>Rem.Int</th><th>Rem.Ext</th><th>Rem.Prom</th><th>Motivo</th></tr>
       ${meds.slice().reverse().map(m=>`<tr style="border-bottom:1px solid var(--bd)">
-        <td style="padding:4px">${m.fecha}</td><td class="mono" style="font-size:10px">${m.serie}</td>
+        <td style="padding:4px">${m.fecha}</td><td class="mono" style="font-size:10px">${escapeHtml(m.serie)}</td>
         <td>${fn2(m.horom)}</td><td>${m.remInt!=null?m.remInt:'—'}</td><td>${m.remExt!=null?m.remExt:'—'}</td>
         <td><b style="color:${m.remProm<=10?'var(--danger)':m.remProm<=30?'var(--warn)':'var(--ok)'}">${m.remProm}mm</b></td>
-        <td style="color:var(--tx3);font-size:10px">${m.motivo||''}</td>
+        <td style="color:var(--tx3);font-size:10px">${escapeHtml(m.motivo||'')}</td>
       </tr>`).join('')}
     </table></div>
     <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button>
@@ -4360,7 +4360,7 @@ window.verDetalleNeu=function(neuIdx){
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Marca / Medida</div>
-        <b style="font-size:12px">${n.marca||'—'} ${n.medida||''}</b>
+        <b style="font-size:12px">${escapeHtml(n.marca||'—')} ${escapeHtml(n.medida||'')}</b>
       </div>
       <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Remanente actual</div>
@@ -5340,7 +5340,7 @@ window.diagVinculos=function(soloActivos){
     if(!grupos[p.rep])grupos[p.rep]={rep:p.rep,count:0,refs:[],activo:false};
     grupos[p.rep].count++;
     if(esActivo(p.sigla))grupos[p.rep].activo=true;
-    var ref=(p.sigla||'?')+' '+(p.pm||'');
+    var ref=escapeHtml(p.sigla||'?')+' '+escapeHtml(p.pm||'');
     if(grupos[p.rep].refs.indexOf(ref)<0 && grupos[p.rep].refs.length<6)grupos[p.rep].refs.push(ref);
   });
   var lista=Object.keys(grupos).map(function(k){return grupos[k];}).sort(function(a,b){return b.count-a.count;});
@@ -5362,12 +5362,12 @@ window.diagVinculos=function(soloActivos){
   // Opciones del selector, sin nombres repetidos
   var vistos={};
   var optsLub=lub.filter(function(l){if(vistos['l'+l.nombre])return false;vistos['l'+l.nombre]=true;return true;})
-    .map(function(l){return'<option value="'+l.nombre.replace(/"/g,'')+'">🛢️ '+l.nombre+' ($'+(l.precio||0)+')</option>';}).join('');
+    .map(function(l){return'<option value="'+escapeHtml(l.nombre)+'">🛢️ '+escapeHtml(l.nombre)+' ($'+(l.precio||0)+')</option>';}).join('');
   var optsStk=stk.filter(function(s){var n=s.descripcion||s.nParte;if(!n||vistos['s'+n])return false;vistos['s'+n]=true;return true;})
-    .map(function(s){var n=s.descripcion||s.nParte;return'<option value="'+n.replace(/"/g,'')+'">📦 '+n+' ($'+(s.precioUnit||0)+')</option>';}).join('');
+    .map(function(s){var n=s.descripcion||s.nParte;return'<option value="'+escapeHtml(n)+'">📦 '+escapeHtml(n)+' ($'+(s.precioUnit||0)+')</option>';}).join('');
 
   var filas=lista.map(function(g,i){
-    return '<tr><td style="font-size:12px;max-width:220px">'+g.rep+(!g.activo?' <span class="badge b-y" style="font-size:9px">decomisado</span>':'')+'</td>'+
+    return '<tr><td style="font-size:12px;max-width:220px">'+escapeHtml(g.rep)+(!g.activo?' <span class="badge b-y" style="font-size:9px">decomisado</span>':'')+'</td>'+
       '<td style="font-size:11px;color:var(--tx3)">'+g.count+' línea(s)<br>'+g.refs.join(', ')+(g.count>g.refs.length?'…':'')+'</td>'+
       '<td><select id="diagFix'+i+'" style="font-size:11px;max-width:220px"><option value="">— Elegir producto —</option>'+optsLub+optsStk+'</select></td>'+
       '<td><button class="btn-s" onclick="aplicarFixVinculo('+i+')">✅ Vincular</button></td></tr>';
@@ -5777,7 +5777,7 @@ renders.pred=function(){
         quiebres.filter(function(r){return r.riesgo.includes('🔴');}).slice(0,5).map(function(q){
           return'<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:rgba(239,68,68,.06);border-radius:4px;font-size:12px">'+
             '<span style="color:var(--danger);font-weight:700">🛒</span>'+
-            '<span><b>'+q.item.substring(0,40)+'</b> — Stock: '+q.stock+'</span>'+
+            '<span><b>'+escapeHtml(q.item.substring(0,40))+'</b> — Stock: '+q.stock+'</span>'+
             '<span style="margin-left:auto;color:var(--danger);font-size:11px;font-weight:600">'+q.accion+'</span></div>';
         }).join(''):'')+
       '</div></div>'+
@@ -5900,12 +5900,12 @@ renders.pred=function(){
         return'<tr style="'+bg+'">'+
           '<td style="font-size:12px">'+b.prioridad+'</td>'+
           '<td class="mono" style="color:var(--ac)">'+escapeHtml(b.sigla)+'</td>'+
-          '<td style="font-size:11px;max-width:150px">'+b.trabajo+'</td>'+
+          '<td style="font-size:11px;max-width:150px">'+escapeHtml(b.trabajo)+'</td>'+
           '<td style="font-size:10px"><span class="badge '+(b.origen==='Correctivo'?'b-r':'b-y')+'">'+b.origen+'</span></td>'+
           '<td style="text-align:center;font-weight:600;color:'+(b.dias>7?'var(--danger)':'var(--w)')+'">'+b.dias+'d</td>'+
-          '<td>'+(b.idx>=0?'<input value="'+(b.motivo||'')+'" data-ot="'+b.idx+'" data-key="motivoPendiente" onchange="edOT(parseInt(this.dataset.ot),this.dataset.key,this.value)" style="width:90px;'+is+'" placeholder="Motivo...">':'<span style="font-size:10px">'+b.motivo+'</span>')+'</td>'+
+          '<td>'+(b.idx>=0?'<input value="'+escapeHtml(b.motivo||'')+'" data-ot="'+b.idx+'" data-key="motivoPendiente" onchange="edOT(parseInt(this.dataset.ot),this.dataset.key,this.value)" style="width:90px;'+is+'" placeholder="Motivo...">':'<span style="font-size:10px">'+escapeHtml(b.motivo)+'</span>')+'</td>'+
           '<td style="font-size:11px;font-weight:600;color:'+(b.impacto==='Alto'?'var(--danger)':'var(--w)')+'">'+b.impacto+'</td>'+
-          '<td style="font-size:10px">'+(b.componente||'—')+'</td>'+
+          '<td style="font-size:10px">'+escapeHtml(b.componente||'—')+'</td>'+
           '<td>'+(b.idx>=0?'<select data-ot="'+b.idx+'" data-key="predCumplida" onchange="edOT(parseInt(this.dataset.ot),this.dataset.key,this.value)" style="font-size:10px;'+is+'"><option value="">—</option><option'+(b.predCumplida==='Sí'?' selected':'')+'>Sí</option><option'+(b.predCumplida==='No'?' selected':'')+'>No</option></select>':'—')+'</td>'+
           '<td>'+(b.prioridad.includes('🔴')?'<span style="font-size:10px;color:var(--danger);font-weight:600">Resolver hoy</span>':
             b.prioridad.includes('🟡')?'<span style="font-size:10px;color:var(--w)">Programar</span>':
@@ -6124,13 +6124,13 @@ window.crearOC=function(i){
   var costoEst=cantPedir*(r.precioUnit||0);
   sm('<h3>🛒 Orden de Compra</h3>'+
     '<div class="card" style="margin-bottom:12px;border-left:3px solid var(--ac)">'+
-    '<b>'+r.componente+'</b> ('+(r.nParte||'sin N°parte')+')<br>'+
-    'Equipo: '+r.equipo+' · Lead time: '+r.leadTime+' días<br>'+
+    '<b>'+escapeHtml(r.componente)+'</b> ('+escapeHtml(r.nParte||'sin N°parte')+')<br>'+
+    'Equipo: '+escapeHtml(r.equipo)+' · Lead time: '+r.leadTime+' días<br>'+
     'Stock actual: <b style="color:var(--danger)">'+(r.stockActual||0)+'</b> · Mínimo: '+r.stockMinimo+
     '</div>'+
     '<div class="form-row"><div class="fg"><label>Cantidad a pedir</label><input type="number" id="ocCant" value="'+cantPedir+'"></div>'+
     '<div class="fg"><label>Costo estimado</label><input type="number" id="ocCosto" value="'+costoEst+'" readonly style="opacity:.7"></div></div>'+
-    '<div class="form-row"><div class="fg"><label>Proveedor</label><input id="ocProv" value="'+(r.proveedor||'')+'"></div>'+
+    '<div class="form-row"><div class="fg"><label>Proveedor</label><input id="ocProv" value="'+escapeHtml(r.proveedor||'')+'"></div>'+
     '<div class="fg"><label>Fecha pedido</label><input type="date" id="ocFecha" value="'+new Date().toISOString().slice(0,10)+'"></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Observaciones</label><input id="ocObs" style="width:100%"></div></div>'+
     '<button class="btn" onclick="confirmarOC('+i+')">✅ Confirmar Pedido</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
@@ -6667,9 +6667,9 @@ renders.ace=function(){
       return'<tr style="'+bg+'">'+
         '<td style="font-size:10px">'+m.fecha+'</td>'+
         '<td class="mono" style="font-size:10px;color:var(--ac)">'+(m._sigla||'')+'</td>'+
-        '<td style="font-size:9px">'+(m.componente||'')+'</td>'+
-        '<td style="font-size:10px">'+(m.descriptor||'')+'</td>'+
-        '<td style="font-size:9px;max-width:100px">'+(m.lubricante||'')+'</td>'+
+        '<td style="font-size:9px">'+escapeHtml(m.componente||'')+'</td>'+
+        '<td style="font-size:10px">'+escapeHtml(m.descriptor||'')+'</td>'+
+        '<td style="font-size:9px;max-width:100px">'+escapeHtml(m.lubricante||'')+'</td>'+
         '<td style="font-size:10px;text-align:center">'+(m.hrsComp||'')+'</td>'+
         metalCell(m.hierro,50)+metalCell(m.cobre,30)+metalCell(m.plomo,20)+
         metalCell(m.aluminio,20)+metalCell(m.silicio,25)+metalCell(m.cromo,10)+
@@ -7852,8 +7852,8 @@ renders.log=function(){
     '<tr><th>Fecha/Hora</th><th>Acción</th><th>Detalle</th></tr>'+
     pg.items.map(function(l){
       return'<tr><td class="mono" style="font-size:10px;white-space:nowrap">'+l.fecha+'</td>'+
-        '<td style="font-size:11px;font-weight:600">'+l.accion+'</td>'+
-        '<td style="font-size:11px;color:var(--tx3);max-width:400px">'+l.detalle+'</td></tr>';
+        '<td style="font-size:11px;font-weight:600">'+escapeHtml(l.accion)+'</td>'+
+        '<td style="font-size:11px;color:var(--tx3);max-width:400px">'+escapeHtml(l.detalle)+'</td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('log',pg);
@@ -8069,7 +8069,7 @@ renders.sem=function(){
             '<div style="background:'+bg+';color:'+tx+';border-radius:4px;padding:4px 6px;font-weight:700;font-size:11px;border-left:3px solid '+tx+(esEjec?';opacity:0.6':'')+'">'
             +it.tipoPM+(esEjec?' ✓':'')+
             '</div>'+
-            (it.tecnico?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">'+it.tecnico+'</div>':'')+
+            (it.tecnico?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">'+escapeHtml(it.tecnico)+'</div>':'')+
             (esEjec?'<div style="font-size:9px;color:var(--ok);margin-top:1px">'+it.hhReal+'h real</div>':'')+
             '</td>';
         }
@@ -8136,11 +8136,11 @@ renders.sem=function(){
           '<td class="mono" style="color:'+(it.diasPM<=3?'var(--danger)':it.diasPM<=7?'var(--warn)':'var(--ok)')+'">'+it.diasPM+'</td>'+
           '<td class="mono ed" contenteditable style="'+lockStyle+'" onblur="edSem('+idx+',\'hhPlan\',parseFloat(this.innerText)||0)">'+it.hhPlan+'</td>'+
           '<td class="mono ed" contenteditable style="'+lockStyle+'" onblur="edSem('+idx+',\'costoEst\',parseFloat(this.innerText)||0)">$'+Math.round(it.costoEst).toLocaleString()+'</td>'+
-          '<td class="ed" contenteditable style="font-size:11px;'+lockStyle+'" onblur="edSem('+idx+',\'tecnico\',this.innerText.trim())">'+it.tecnico+'</td>'+
-          '<td class="ed" contenteditable style="font-size:11px;color:var(--ac3);'+lockStyle+'" onblur="edSem('+idx+',\'diaSem\',this.innerText.trim())">'+it.diaSem+'</td>'+
+          '<td class="ed" contenteditable style="font-size:11px;'+lockStyle+'" onblur="edSem('+idx+',\'tecnico\',this.innerText.trim())">'+escapeHtml(it.tecnico)+'</td>'+
+          '<td class="ed" contenteditable style="font-size:11px;color:var(--ac3);'+lockStyle+'" onblur="edSem('+idx+',\'diaSem\',this.innerText.trim())">'+escapeHtml(it.diaSem)+'</td>'+
           '<td style="'+lockStyle+'"><select onchange="edSem('+idx+',\'estado\',this.value)" style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px">'+
           ['Planificado','Confirmado','En Ejecución','Ejecutado','Postergado'].map(function(st){return'<option'+(it.estado===st?' selected':'')+'>'+st+'</option>'}).join('')+'</select></td>'+
-          '<td style="font-size:10px;max-width:180px;'+lockStyle+'" class="ed" contenteditable onblur="edSem('+idx+',\'repuestos\',this.innerText.trim())">'+it.repuestos+'</td>'+
+          '<td style="font-size:10px;max-width:180px;'+lockStyle+'" class="ed" contenteditable onblur="edSem('+idx+',\'repuestos\',this.innerText.trim())">'+escapeHtml(it.repuestos)+'</td>'+
           verificarStockPM(it.sigla,it.tipoPM)+
           // Columnas REAL — siempre editables (Plan congelado, Real corregible)
           '<td class="mono ed" contenteditable style="background:rgba(0,180,0,0.06)" onblur="edSemReal('+fSemana+','+idx+',\'hhReal\',parseFloat(this.innerText)||0)">'+(it.hhReal||0)+'</td>'+
@@ -8761,10 +8761,10 @@ renders.informes=function(){
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(i.sigla)+'</td>'+
         '<td class="mono">'+i.fecha+'</td>'+
         '<td>'+(i.tipoEvento==='Falla Catastrófica'?'🔴 Falla Catastrófica':'🔩 Cambio Componente')+'</td>'+
-        '<td>'+(i.componente||'—')+'</td>'+
+        '<td>'+escapeHtml(i.componente||'—')+'</td>'+
         '<td class="mono">$'+Math.round(i.costoEstimado||0).toLocaleString('es-CL')+'</td>'+
         '<td>'+(i.fotos?i.fotos.length:0)+' 📷</td>'+
-        '<td style="font-size:11px">'+(i.generadoPor||'—')+'</td>'+
+        '<td style="font-size:11px">'+escapeHtml(i.generadoPor||'—')+'</td>'+
         '<td><button class="btn-x" onclick="regenerarPDF(\''+i.id+'\')" title="Descargar PDF">📥</button> <button class="btn-x" onclick="delInforme(\''+i.id+'\')">🗑</button></td></tr>';
     }).join('')+
     '</table></div>'+
@@ -9978,14 +9978,14 @@ renders.destrabe=function(){
       it.dias=it.fechaSol?Math.round((Date.now()-new Date(it.fechaSol).getTime())/86400000):0;
       var prio=it.dias>14?'🔴 CRÍTICO':it.dias>7?'🟡 URGENTE':'📋 Normal';
       return'<tr>'+
-        '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edDestrabe('+i+',\'equipo\',this.innerText.trim())">'+it.equipo+'</td>'+
-        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'trabajo\',this.innerText.trim())" style="font-size:11px">'+it.trabajo+'</td>'+
+        '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edDestrabe('+i+',\'equipo\',this.innerText.trim())">'+escapeHtml(it.equipo)+'</td>'+
+        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'trabajo\',this.innerText.trim())" style="font-size:11px">'+escapeHtml(it.trabajo)+'</td>'+
         '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'tipo\',this.innerText.trim())" style="font-size:10px">'+escapeHtml(it.tipo)+'</td>'+
         '<td class="ed mono" contenteditable onblur="edDestrabe('+i+',\'fechaSol\',this.innerText.trim())" style="font-size:10px">'+it.fechaSol+'</td>'+
         '<td class="mono" style="color:'+(it.dias>14?'var(--danger)':it.dias>7?'var(--w)':'var(--tx3)')+'">'+it.dias+'</td>'+
-        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'motivo\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+it.motivo+'</td>'+
-        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'accion\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+it.accion+'</td>'+
-        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'responsable\',this.innerText.trim())" style="font-size:10px">'+it.responsable+'</td>'+
+        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'motivo\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(it.motivo)+'</td>'+
+        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'accion\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(it.accion)+'</td>'+
+        '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'responsable\',this.innerText.trim())" style="font-size:10px">'+escapeHtml(it.responsable)+'</td>'+
         '<td class="ed mono" contenteditable onblur="edDestrabe('+i+',\'fechaComp\',this.innerText.trim())" style="font-size:10px">'+it.fechaComp+'</td>'+
         '<td><select onchange="edDestrabe('+i+',\'estado\',this.value)" style="font-size:9px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px">'+
         ['Bloqueado','En Gestión','Resuelto'].map(function(s){return'<option'+(it.estado===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></td>'+
@@ -10581,8 +10581,8 @@ window.cargarPendientesUI=async function(){
     if(!pend.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios pendientes.</span>';return;}
     cont.innerHTML=pend.map(function(u){
       return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
-        '<span>'+u.nombre+' <span style="color:var(--tx3);font-size:10px">('+u.rol+')</span></span>'+
-        '<button class="btn btn-o" style="padding:4px 10px;font-size:11px" onclick="activarUsuarioUI(\''+u.userId+'\',\''+u.nombre.replace(/'/g,"")+'\')">🔓 Activar</button>'+
+        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span></span>'+
+        '<button class="btn btn-o" style="padding:4px 10px;font-size:11px" onclick="activarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')">🔓 Activar</button>'+
         '</div>';
     }).join('');
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
@@ -10612,9 +10612,9 @@ window.cargarActivosUI=async function(){
     if(!act.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios activos.</span>';return;}
     cont.innerHTML=act.map(function(u){
       return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
-        '<span>'+u.nombre+' <span style="color:var(--tx3);font-size:10px">('+u.rol+')</span></span>'+
+        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span></span>'+
         (u.userId===_currentUser?.id?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
-        '<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+u.nombre.replace(/'/g,"")+'\')">🔒 Desactivar</button>')+
+        '<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')">🔒 Desactivar</button>')+
         '</div>';
     }).join('');
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
