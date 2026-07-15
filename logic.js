@@ -214,16 +214,146 @@ function vencEstado(proximaFecha){
   return{label:'🟢 OK ('+dias+'d)',color:'var(--ok)',dias:dias};
 }
 
+// ═══ PREDICTIVO (2026-07) — estadísticas en vivo desde ordenes_compra_historico ═══
+// Extraído de index.html/computePred() para poder testearlo sin arrancar la app.
+// leadTime queda fijo en 34 días porque el histórico real no trae fecha de entrega —
+// mismo supuesto que ya usan riesgoQuiebre() y el default de repuestos en index.html.
+function predFromOrdenes(oc){
+  var LEAD=34;
+  var porEquipo={},porItem={},costoPorMes={},pedidosGlobal=new Set(),costoGlobal=0;
+  var mesMin=null,mesMax=null;
+  (oc||[]).forEach(function(o){
+    var mes=(o.fecha||'').slice(0,7);
+    if(!mes||!o.pedido)return;
+    if(mesMin===null||mes<mesMin)mesMin=mes;
+    if(mesMax===null||mes>mesMax)mesMax=mes;
+    pedidosGlobal.add(o.pedido);
+    costoGlobal+=(o.costo||0);
+    costoPorMes[mes]=(costoPorMes[mes]||0)+(o.costo||0);
+    if(o.sigla){
+      var e=porEquipo[o.sigla];
+      if(!e)e=porEquipo[o.sigla]={pedidos:new Set(),costo:0,meses:{}};
+      e.pedidos.add(o.pedido);
+      e.costo+=(o.costo||0);
+      var em=e.meses[mes];
+      if(!em)em=e.meses[mes]={pedidos:new Set(),c:0};
+      em.pedidos.add(o.pedido);
+      em.c+=(o.costo||0);
+    }
+    if(o.detalle){
+      var it=porItem[o.detalle];
+      if(!it)it=porItem[o.detalle]={pedidos:new Set(),costo:0,equipos:[],equiposSet:new Set(),meses:new Set(),ultFecha:''};
+      it.pedidos.add(o.pedido);
+      it.costo+=(o.costo||0);
+      it.meses.add(mes);
+      if(o.sigla&&!it.equiposSet.has(o.sigla)&&it.equipos.length<5){it.equiposSet.add(o.sigla);it.equipos.push(o.sigla);}
+      if(o.fecha&&o.fecha>it.ultFecha)it.ultFecha=o.fecha;
+    }
+  });
+
+  function mesesEnRango(desde,hasta){
+    var out=[];
+    if(!desde||!hasta)return out;
+    var y=parseInt(desde.slice(0,4),10),m=parseInt(desde.slice(5,7),10);
+    var yF=parseInt(hasta.slice(0,4),10),mF=parseInt(hasta.slice(5,7),10);
+    while(y<yF||(y===yF&&m<=mF)){
+      out.push(y+'-'+(m<10?'0':'')+m);
+      m++;if(m>12){m=1;y++;}
+    }
+    return out;
+  }
+
+  var rangoMeses=mesesEnRango(mesMin,mesMax);
+
+  var equiposOut={};
+  for(var sigla in porEquipo){
+    var e=porEquipo[sigla];
+    var mesesConDatos=Object.keys(e.meses);
+    var primerMes=mesesConDatos.reduce(function(a,b){return a<b?a:b;});
+    var rangoEq=mesesEnRango(primerMes,mesMax);
+    var trend=rangoEq.map(function(m){var em=e.meses[m];return{m:m,n:em?em.pedidos.size:0,c:em?em.c:0};});
+    var mesesN=mesesConDatos.length||1;
+    equiposOut[sigla]={
+      totalPedidos:e.pedidos.size,
+      totalCosto:e.costo,
+      meses:mesesN,
+      promPedMes:Math.round((e.pedidos.size/mesesN)*10)/10,
+      promCostoMes:Math.round(e.costo/mesesN),
+      leadTimeProm:LEAD,
+      trend:trend
+    };
+  }
+
+  var topItems=[];
+  for(var detalle in porItem){
+    var it=porItem[detalle];
+    var mesesN2=it.meses.size||1;
+    topItems.push({
+      item:detalle,
+      total:it.pedidos.size,
+      equipos:it.equipos,
+      promMes:Math.round((it.pedidos.size/mesesN2)*10)/10,
+      leadTime:LEAD,
+      ultFecha:it.ultFecha,
+      costoTotal:it.costo
+    });
+  }
+  topItems.sort(function(a,b){return b.total-a.total;});
+
+  var costoMes=rangoMeses.map(function(m){return{m:m,c:costoPorMes[m]||0};});
+  var mesesGlobalesN=rangoMeses.length||1;
+
+  return{
+    equipos:equiposOut,
+    topItems:topItems,
+    costoMes:costoMes,
+    resumen:{
+      totalPedidos:pedidosGlobal.size,
+      totalCosto:costoGlobal,
+      promedioMensual:Math.round(costoGlobal/mesesGlobalesN),
+      leadTimeGlobal:LEAD,
+      rangoDesde:mesMin||'—',
+      rangoHasta:mesMax||'—'
+    }
+  };
+}
+
+// ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
+function pagSlice(arr,page,pageSize){
+  var lista=arr||[];
+  var totalPages=Math.max(1,Math.ceil(lista.length/pageSize));
+  var p=page||1;
+  if(p>totalPages)p=totalPages;
+  if(p<1)p=1;
+  return{page:p,totalPages:totalPages,total:lista.length,items:lista.slice((p-1)*pageSize,p*pageSize)};
+}
+
+// ═══ DETECCIÓN DE EDICIÓN CONCURRENTE — usado por _syncTablaGenericaInner ═══
+// true si el conjunto de ids que esta pestaña creía tener (antes de guardar) no
+// coincide con el conjunto de ids que hay ahora mismo en el servidor — señal de que
+// alguien más cambió esta tabla mientras esta pestaña estaba abierta sin refrescar.
+function hayConflictoIds(idsAntes,idsServidor){
+  var a=idsAntes instanceof Set?idsAntes:new Set(idsAntes||[]);
+  var s=idsServidor instanceof Set?idsServidor:new Set(idsServidor||[]);
+  if(a.size!==s.size)return true;
+  for(var id of s){if(!a.has(id))return true;}
+  return false;
+}
+
 if (typeof window !== 'undefined') {
   window._tokensMaterial = _tokensMaterial;
   window._scoreMaterial = _scoreMaterial;
   window.precioMaterial = precioMaterial;
+  window.predFromOrdenes = predFromOrdenes;
+  window.pagSlice = pagSlice;
+  window.hayConflictoIds = hayConflictoIds;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     C, fd, fn, escapeHtml,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
-    fechaEsPlausible, fechaEsAnterior, duracionHM
+    fechaEsPlausible, fechaEsAnterior, duracionHM,
+    predFromOrdenes, pagSlice, hayConflictoIds
   };
 }

@@ -178,6 +178,10 @@ const K='smp10_';
 const SB_HEAVY=['ot','reg','hist','mov']; // mantenido por compatibilidad
 const _sbCache={};  // cache en memoria para TODAS las claves
 let _sbReady=false; // true cuando Supabase cargó exitosamente
+// updated_at de cada singleton (config, tarifa_hh, metas, etc.) tal como esta pestaña
+// lo vio la última vez — usado por _syncSingleton para detectar si alguien más lo
+// cambió mientras tanto (un singleton no tiene ids que comparar, solo esta fila).
+const _sbSingletonUpdatedAt={};
 
 // Credenciales por defecto — permiten que Vercel conecte sin configuración manual
 const _SB_DEFAULT_URL='https://jyhpfwivhwzylkzxrsbt.supabase.co';
@@ -275,6 +279,47 @@ async function _refetchTablaReal(k){
   }catch(e){return null;}
 }
 
+// Trae el objeto anidado sigla->vencTipo->{...} completo desde Supabase. Reusado por
+// la carga inicial y por el chequeo de conflicto de _syncVencimientos.
+async function _refetchVencimientos(){
+  if(!_sbOk())return null;
+  try{
+    const c=_sbCfg();
+    const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses&limit=50000`,{headers:_sbHeaders()});
+    if(!rv.ok)return null;
+    const filas=await rv.json();
+    if(!Array.isArray(filas))return null;
+    const obj={};
+    filas.forEach(function(f){
+      if(!obj[f.sigla])obj[f.sigla]={};
+      obj[f.sigla][f.vencTipo]={obs:f.obs,ultima:f.ultima,proxima:f.proxima,periodicidadMeses:f.periodicidadMeses};
+    });
+    return obj;
+  }catch(e){return null;}
+}
+
+// Trae el valor actual de UN singleton (config, tarifa_hh, metas, etc.) más su
+// updated_at — este último es lo que usa el chequeo de conflicto de _syncSingleton,
+// ya que un singleton siempre tiene una sola fila (no hay ids que comparar).
+async function _refetchSingleton(k){
+  if(!_sbOk())return null;
+  const cfgS=TABLA_SINGLETON[k];
+  if(!cfgS)return null;
+  try{
+    const c=_sbCfg();
+    const rs=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=*&limit=1`,{headers:_sbHeaders()});
+    if(!rs.ok)return null;
+    const filas=await rs.json();
+    if(!Array.isArray(filas)||!filas.length)return null;
+    const f=filas[0];
+    let valor;
+    if(cfgS.modo==='objeto'){valor={};cfgS.cols.forEach(function(col){valor[col]=f[col];});}
+    else if(cfgS.modo==='valor')valor=f.valor;
+    else valor=f.datos;
+    return{valor:valor,updatedAt:f.updated_at||null};
+  }catch(e){return null;}
+}
+
 // Carga TODAS las claves desde Supabase al arrancar
 window._sbLoadHeavy=async function(){
   if(!_sbOk())return false;
@@ -303,33 +348,18 @@ window._sbLoadHeavy=async function(){
 
     tareas.push((async function(){
       try{
-        const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses&limit=50000`,{headers:_sbHeaders()});
-        if(!rv.ok)return;
-        const filas=await rv.json();
-        if(!Array.isArray(filas))return;
-        const obj={};
-        filas.forEach(function(f){
-          if(!obj[f.sigla])obj[f.sigla]={};
-          obj[f.sigla][f.vencTipo]={obs:f.obs,ultima:f.ultima,proxima:f.proxima,periodicidadMeses:f.periodicidadMeses};
-        });
-        _sbCache['venc']=obj;
+        const obj=await _refetchVencimientos();
+        if(obj)_sbCache['venc']=obj;
       }catch(e){}
     })());
 
     for(const k in TABLA_SINGLETON){
-      const cfgS=TABLA_SINGLETON[k];
-      tareas.push((async function(){
+      tareas.push((async function(kk){
         try{
-          const rs=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=*&limit=1`,{headers:_sbHeaders()});
-          if(!rs.ok)return;
-          const filas=await rs.json();
-          if(!Array.isArray(filas)||!filas.length)return;
-          const f=filas[0];
-          if(cfgS.modo==='objeto'){const obj={};cfgS.cols.forEach(function(col){obj[col]=f[col];});_sbCache[k]=obj;}
-          else if(cfgS.modo==='valor')_sbCache[k]=f.valor;
-          else _sbCache[k]=f.datos;
+          const r=await _refetchSingleton(kk);
+          if(r){_sbCache[kk]=r.valor;_sbSingletonUpdatedAt[kk]=r.updatedAt;}
         }catch(e){}
-      })());
+      })(k));
     }
 
     await Promise.all(tareas);
@@ -365,7 +395,12 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
   // ajeno sin avisar (o resucitaría una fila que otro acaba de borrar). En vez de
   // eso, se aborta el guardado, se refresca esta categoría con lo último real, y
   // se le pide al usuario reintentar su cambio sobre datos frescos.
-  if(catKey){
+  // arrAnterior undefined (nunca se cargó esta categoría aún, ej. primer guardado
+  // disparado antes de que _sbLoadHeavy termine) no es lo mismo que "categoría
+  // vacía" ([] es un valor real) — sin línea base real no hay nada que comparar,
+  // así que se salta el chequeo en vez de leerlo como "0 filas antes" y disparar
+  // un falso conflicto contra cualquier tabla que ya tenga datos en el servidor.
+  if(catKey&&arrAnterior){
     try{
       const idsAntes=new Set((arrAnterior||[]).map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;}));
       const rc=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}`,{headers:_sbHeaders()});
@@ -373,9 +408,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
         const filasServidor=await rc.json();
         if(Array.isArray(filasServidor)){
           const idsServidor=new Set(filasServidor.map(function(f){return f[cfg.claveDb];}));
-          let conflicto=idsServidor.size!==idsAntes.size;
-          if(!conflicto)for(const id of idsServidor){if(!idsAntes.has(id)){conflicto=true;break;}}
-          if(conflicto){
+          if(hayConflictoIds(idsAntes,idsServidor)){
             const fresco=await _refetchTablaReal(catKey);
             if(fresco){
               _sbCache[catKey]=fresco;
@@ -432,9 +465,46 @@ function _avisarErrorGuardado(tabla,detalleServidor){
 }
 
 // Vencimientos: aplana el objeto anidado y hace upsert por (sigla,vencTipo).
-async function _syncVencimientos(obj){
+function _idsVenc(obj){
+  const ids=[];
+  for(const sigla in (obj||{})){for(const vencTipo in obj[sigla]){ids.push(sigla+'|'+vencTipo);}}
+  return ids;
+}
+function _syncVencimientos(obj,objAnterior){
+  const prev=_syncChain['venc']||Promise.resolve();
+  const next=prev.then(function(){return _syncVencimientosInner(obj,objAnterior);}).catch(function(){});
+  _syncChain['venc']=next;
+  return next;
+}
+async function _syncVencimientosInner(obj,objAnterior){
   if(!_sbOk())return;
   const c=_sbCfg();
+
+  // Mismo chequeo de edición concurrente que _syncTablaGenericaInner, adaptado a la
+  // clave compuesta (sigla,vencTipo) de esta tabla. objAnterior undefined (esta
+  // pestaña nunca llegó a cargar vencimientos) no es lo mismo que "sin filas antes"
+  // — sin línea base real se salta el chequeo en vez de disparar un falso conflicto.
+  if(objAnterior!==undefined)try{
+    const idsAntes=_idsVenc(objAnterior);
+    const rc=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo`,{headers:_sbHeaders()});
+    if(rc.ok){
+      const filasServidor=await rc.json();
+      if(Array.isArray(filasServidor)){
+        const idsServidor=filasServidor.map(function(f){return f.sigla+'|'+f.vencTipo;});
+        if(hayConflictoIds(idsAntes,idsServidor)){
+          const fresco=await _refetchVencimientos();
+          if(fresco){
+            _sbCache['venc']=fresco;
+            try{localStorage.setItem(K+'venc',JSON.stringify(_recorteParaLocal('venc',fresco)));}catch(e){}
+          }
+          if(typeof toast==='function')toast('⚠️ Otra persona modificó vencimientos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.');
+          if(typeof refreshAll==='function')refreshAll();
+          return;
+        }
+      }
+    }
+  }catch(e){/* si el chequeo falla, seguir con el guardado normal en vez de bloquear */}
+
   const filas=[];
   for(const sigla in (obj||{})){
     for(const vencTipo in obj[sigla]){
@@ -450,18 +520,62 @@ async function _syncVencimientos(obj){
   }).catch(function(){_avisarErrorGuardado('vencimientos','')});
 }
 
-// Singleton: siempre la misma fila (id=true).
-async function _syncSingleton(cfgS,v){
+// Singleton: siempre la misma fila (id=true). No hay ids que comparar (una sola
+// fila), así que el chequeo de conflicto usa updated_at en vez de un set de ids.
+function _syncSingleton(cfgS,v,catKey){
+  const prev=_syncChain[catKey]||Promise.resolve();
+  const next=prev.then(function(){return _syncSingletonInner(cfgS,v,catKey);}).catch(function(){});
+  _syncChain[catKey]=next;
+  return next;
+}
+async function _syncSingletonInner(cfgS,v,catKey){
   if(!_sbOk())return;
   const c=_sbCfg();
+
+  // Si esta pestaña nunca llegó a conocer un updated_at (carga inicial aún en vuelo,
+  // o falló) no hay línea base real contra la cual comparar — igual que arrAnterior
+  // ausente en _syncTablaGenericaInner/_syncVencimientosInner, seguir de largo en
+  // vez de tratar "no sé" como "el servidor tenía otra cosa" (falso conflicto).
+  if(catKey&&_sbSingletonUpdatedAt[catKey]!==undefined){
+    try{
+      const conocido=_sbSingletonUpdatedAt[catKey];
+      const rc=await fetch(`${c.url}/rest/v1/${cfgS.tabla}?select=updated_at&limit=1`,{headers:_sbHeaders()});
+      if(rc.ok){
+        const filasServidor=await rc.json();
+        const actual=Array.isArray(filasServidor)&&filasServidor.length?(filasServidor[0].updated_at||null):null;
+        if(actual!==conocido){
+          const fresco=await _refetchSingleton(catKey);
+          if(fresco){
+            _sbCache[catKey]=fresco.valor;
+            _sbSingletonUpdatedAt[catKey]=fresco.updatedAt;
+            try{localStorage.setItem(K+catKey,JSON.stringify(fresco.valor));}catch(e){}
+          }
+          if(typeof toast==='function')toast('⚠️ Otra persona modificó esta configuración mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.');
+          if(typeof refreshAll==='function')refreshAll();
+          return;
+        }
+      }
+    }catch(e){/* si el chequeo falla, seguir con el guardado normal en vez de bloquear */}
+  }
+
   let body;
   if(cfgS.modo==='objeto'){body={id:true};cfgS.cols.forEach(function(col){var cv=v&&v[col];body[col]=(cv===''?null:cv)??null;});}
   else if(cfgS.modo==='valor')body={id:true,valor:v};
   else body={id:true,datos:v};
   await fetch(`${c.url}/rest/v1/${cfgS.tabla}?on_conflict=id`,{
-    method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify([body])
+    method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),body:JSON.stringify([body])
   }).then(async function(res){
-    if(!res.ok)_avisarErrorGuardado(cfgS.tabla,await res.text().catch(function(){return''}));
+    if(!res.ok){_avisarErrorGuardado(cfgS.tabla,await res.text().catch(function(){return''}));return;}
+    if(!catKey)return;
+    // Guardado propio aceptado: el updated_at nuevo sale de la MISMA respuesta del
+    // POST (return=representation), no de una consulta separada después — así no
+    // hay ventana entre "escribí" y "pregunto qué quedó" donde otra pestaña pueda
+    // escribir en el medio y que esta pestaña adopte por error un updated_at ajeno
+    // (eso haría que su propio próximo guardado pase el chequeo y pise ese cambio).
+    try{
+      const filas=await res.json();
+      if(Array.isArray(filas)&&filas.length)_sbSingletonUpdatedAt[catKey]=filas[0].updated_at||null;
+    }catch(e){}
   }).catch(function(){_avisarErrorGuardado(cfgS.tabla,'')});
 }
 
@@ -536,10 +650,11 @@ const S={
     return null;
   },
   s(k,v){
-    // Fase B: si esta clave ya vive en una tabla real, se necesita el estado
-    // anterior (capturado ANTES de sobreescribir la cache) para poder diferenciar
-    // filas nuevas / editadas / borradas al sincronizar.
-    const _anterior=TABLA_REAL[k]?_sbCache[k]:null;
+    // Fase B: si esta clave ya vive en una tabla real (o venc/singleton), se
+    // necesita el estado anterior (capturado ANTES de sobreescribir la cache) para
+    // poder diferenciar filas nuevas/editadas/borradas al sincronizar, y para el
+    // chequeo de edición concurrente de cada sync (ver _syncTablaGenericaInner).
+    const _anterior=(TABLA_REAL[k]||k==='venc'||TABLA_SINGLETON[k])?_sbCache[k]:null;
     // 1. Cache en memoria (sincrónico) — SIEMPRE completa, nunca recortada. Todo lo
     // que ve/usa la app en la sesión sale de acá, no de localStorage.
     _sbCache[k]=v;
@@ -558,9 +673,9 @@ const S={
       _syncTablaGenerica(TABLA_REAL[k],v,_anterior,k);
       _logChangeGenerico(k,_anterior,v);
     }else if(k==='venc'){
-      _syncVencimientos(v);
+      _syncVencimientos(v,_anterior);
     }else if(TABLA_SINGLETON[k]){
-      _syncSingleton(TABLA_SINGLETON[k],v);
+      _syncSingleton(TABLA_SINGLETON[k],v,k);
     }else{
       _sbWrite(k,v);
     }
@@ -792,12 +907,10 @@ window._sTh=function(tid,col,txt,tipo){
 window._pag={};
 const _PAG_SIZE=50;
 function _pagSlice(cat,arr){
-  var p=window._pag[cat]||1;
-  var totalPages=Math.max(1,Math.ceil(arr.length/_PAG_SIZE));
-  if(p>totalPages)p=totalPages;
-  if(p<1)p=1;
-  window._pag[cat]=p;
-  return{page:p,totalPages:totalPages,total:arr.length,items:arr.slice((p-1)*_PAG_SIZE,p*_PAG_SIZE)};
+  // El slicing puro vive en logic.js (pagSlice) para poder testearlo sin DOM.
+  var r=pagSlice(arr,window._pag[cat]||1,_PAG_SIZE);
+  window._pag[cat]=r.page;
+  return r;
 }
 window.pagIr=function(cat,delta){
   window._pag[cat]=(window._pag[cat]||1)+delta;
@@ -5352,109 +5465,12 @@ function predecirCausa(sigla, componente){
 }
 
 var _predCache=null,_predCacheSrc=null;
-// Estadísticas predictivas en vivo desde ordenes_compra_historico (reemplaza el bloque
-// PRED que antes venía congelado). leadTime queda fijo en 34 días porque el histórico
-// real no trae fecha de entrega — mismo supuesto que ya usan riesgoQuiebre() y repuestos.
+// La lógica de cálculo vive en logic.js (predFromOrdenes) para poder testearla sin
+// arrancar la app; esto es solo el cacheo por referencia del arreglo de origen.
 function computePred(){
   var oc=S.g('ocHist')||[];
   if(_predCacheSrc===oc)return _predCache;
-  var LEAD=34;
-  var porEquipo={},porItem={},costoPorMes={},pedidosGlobal=new Set(),costoGlobal=0;
-  var mesMin=null,mesMax=null;
-  oc.forEach(function(o){
-    var mes=(o.fecha||'').slice(0,7);
-    if(!mes||!o.pedido)return;
-    if(mesMin===null||mes<mesMin)mesMin=mes;
-    if(mesMax===null||mes>mesMax)mesMax=mes;
-    pedidosGlobal.add(o.pedido);
-    costoGlobal+=(o.costo||0);
-    costoPorMes[mes]=(costoPorMes[mes]||0)+(o.costo||0);
-    if(o.sigla){
-      var e=porEquipo[o.sigla];
-      if(!e)e=porEquipo[o.sigla]={pedidos:new Set(),costo:0,meses:{}};
-      e.pedidos.add(o.pedido);
-      e.costo+=(o.costo||0);
-      var em=e.meses[mes];
-      if(!em)em=e.meses[mes]={pedidos:new Set(),c:0};
-      em.pedidos.add(o.pedido);
-      em.c+=(o.costo||0);
-    }
-    if(o.detalle){
-      var it=porItem[o.detalle];
-      if(!it)it=porItem[o.detalle]={pedidos:new Set(),costo:0,equipos:[],equiposSet:new Set(),meses:new Set(),ultFecha:''};
-      it.pedidos.add(o.pedido);
-      it.costo+=(o.costo||0);
-      it.meses.add(mes);
-      if(o.sigla&&!it.equiposSet.has(o.sigla)&&it.equipos.length<5){it.equiposSet.add(o.sigla);it.equipos.push(o.sigla);}
-      if(o.fecha&&o.fecha>it.ultFecha)it.ultFecha=o.fecha;
-    }
-  });
-
-  function mesesEnRango(desde,hasta){
-    var out=[];
-    if(!desde||!hasta)return out;
-    var y=parseInt(desde.slice(0,4),10),m=parseInt(desde.slice(5,7),10);
-    var yF=parseInt(hasta.slice(0,4),10),mF=parseInt(hasta.slice(5,7),10);
-    while(y<yF||(y===yF&&m<=mF)){
-      out.push(y+'-'+(m<10?'0':'')+m);
-      m++;if(m>12){m=1;y++;}
-    }
-    return out;
-  }
-
-  var rangoMeses=mesesEnRango(mesMin,mesMax);
-
-  var equiposOut={};
-  for(var sigla in porEquipo){
-    var e=porEquipo[sigla];
-    var mesesConDatos=Object.keys(e.meses);
-    var primerMes=mesesConDatos.reduce(function(a,b){return a<b?a:b;});
-    var rangoEq=mesesEnRango(primerMes,mesMax);
-    var trend=rangoEq.map(function(m){var em=e.meses[m];return{m:m,n:em?em.pedidos.size:0,c:em?em.c:0};});
-    var mesesN=mesesConDatos.length||1;
-    equiposOut[sigla]={
-      totalPedidos:e.pedidos.size,
-      totalCosto:e.costo,
-      meses:mesesN,
-      promPedMes:Math.round((e.pedidos.size/mesesN)*10)/10,
-      promCostoMes:Math.round(e.costo/mesesN),
-      leadTimeProm:LEAD,
-      trend:trend
-    };
-  }
-
-  var topItems=[];
-  for(var detalle in porItem){
-    var it=porItem[detalle];
-    var mesesN2=it.meses.size||1;
-    topItems.push({
-      item:detalle,
-      total:it.pedidos.size,
-      equipos:it.equipos,
-      promMes:Math.round((it.pedidos.size/mesesN2)*10)/10,
-      leadTime:LEAD,
-      ultFecha:it.ultFecha,
-      costoTotal:it.costo
-    });
-  }
-  topItems.sort(function(a,b){return b.total-a.total;});
-
-  var costoMes=rangoMeses.map(function(m){return{m:m,c:costoPorMes[m]||0};});
-  var mesesGlobalesN=rangoMeses.length||1;
-
-  var pred={
-    equipos:equiposOut,
-    topItems:topItems,
-    costoMes:costoMes,
-    resumen:{
-      totalPedidos:pedidosGlobal.size,
-      totalCosto:costoGlobal,
-      promedioMensual:Math.round(costoGlobal/mesesGlobalesN),
-      leadTimeGlobal:LEAD,
-      rangoDesde:mesMin||'—',
-      rangoHasta:mesMax||'—'
-    }
-  };
+  var pred=predFromOrdenes(oc);
   _predCache=pred;_predCacheSrc=oc;
   return pred;
 }
@@ -5830,7 +5846,7 @@ renders.pred=function(){
       '<div class="chart-box"><div class="chart-t">Top Items — '+fEq+'</div>'+
       '<div class="tbl-wrap"><table><tr><th>Item</th><th>Pedidos</th><th>Prom/Mes</th><th>Lead</th><th>Costo</th></tr>'+
       eqItems.map(function(it){
-        return'<tr><td style="font-size:11px">'+it.item+'</td><td style="text-align:center;font-weight:600">'+it.total+'</td>'+
+        return'<tr><td style="font-size:11px">'+escapeHtml(it.item)+'</td><td style="text-align:center;font-weight:600">'+it.total+'</td>'+
           '<td style="text-align:center">'+it.promMes+'</td><td style="text-align:center">'+it.leadTime+'d</td>'+
           '<td style="text-align:right;font-size:11px">$'+it.costoTotal.toLocaleString()+'</td></tr>';
       }).join('')+'</table></div></div>';
@@ -5894,7 +5910,7 @@ renders.pred=function(){
       '<div class="chart-box"><div class="chart-t">🔧 Top 40 Items</div>'+
       '<div class="tbl-wrap"><table><tr><th>Item</th><th>Pedidos</th><th>Prom/Mes</th><th>Lead</th><th>Equipos</th><th>Costo</th></tr>'+
       items.map(function(it){
-        return'<tr><td style="font-size:11px">'+it.item+'</td><td style="text-align:center;font-weight:600;color:var(--ac)">'+it.total+'</td>'+
+        return'<tr><td style="font-size:11px">'+escapeHtml(it.item)+'</td><td style="text-align:center;font-weight:600;color:var(--ac)">'+it.total+'</td>'+
           '<td style="text-align:center">'+it.promMes+'</td><td style="text-align:center">'+it.leadTime+'d</td>'+
           '<td style="font-size:10px">'+it.equipos.join(', ')+'</td>'+
           '<td style="text-align:right;font-size:11px">$'+it.costoTotal.toLocaleString()+'</td></tr>';
