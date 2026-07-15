@@ -1569,7 +1569,7 @@ renders.reg=function(){
         const pmCol=r.tipoPM==='PM4'?'var(--pm4)':r.tipoPM==='PM3'?'var(--pm3)':r.tipoPM==='PM2'?'var(--pm2)':r.tipoPM==='Correctivo'?'var(--danger)':'var(--pm1)';
         return`<tr>
           <td class="mono" style="color:var(--tx3)">${r.nReg||i+1}</td>
-          <td class="mono" style="color:var(--ac)">${r.equipo}</td>
+          <td class="mono" style="color:var(--ac)">${escapeHtml(r.equipo)}</td>
           <td><span class="badge" style="background:${pmCol}22;color:${pmCol};border:1px solid ${pmCol}55">${r.tipoPM}</span></td>
           ${edCell(r.fechaEntrada||r.fechaEjec||'','fechaEntrada',i,'reg','date')}
           ${edCell(r.horaEntrada||'','horaEntrada',i,'reg')}
@@ -1659,7 +1659,7 @@ window.editarReg=function(i){
   const r=reg[i];if(!r)return;
   const eq=S.g('eq')||[];
   const per=_tecnicosDisponibles();
-  sm(`<h3>✏️ Editar Registro — ${r.equipo} ${r.tipoPM}</h3>
+  sm(`<h3>✏️ Editar Registro — ${escapeHtml(r.equipo)} ${r.tipoPM}</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo</label>
         <select id="eRq">
@@ -1699,7 +1699,7 @@ window.editarReg=function(i){
         <input id="eObs" value="${escapeHtml(r.obs||'')}" style="width:100%">
       </div>
       <div class="fg"><label>Repuestos utilizados</label>
-        <input id="eRep" value="${r.repuestos||''}" style="width:100%">
+        <input id="eRep" value="${escapeHtml(r.repuestos||'')}" style="width:100%">
       </div>
     </div>
     <button class="btn" onclick="saveEditReg(${i})">💾 Guardar cambios</button>
@@ -2010,7 +2010,7 @@ renders.al=function(){
         <td class="mono" style="color:${e.hrsP4<(e.frecPM||250)*2?'var(--danger)':'var(--tx)'};font-weight:700">${fn(e.hrsP4)}${e.unidad}</td>
         <td class="mono">${e.diasP4}</td><td class="mono">${fd(e.fechaP4)}</td>
         <td><span class="badge ${e.alerta.c}">${e.alerta.t}</span></td>
-        <td style="font-size:10px;max-width:300px;white-space:normal;cursor:pointer" onclick="editAlRep('${escapeHtml(e.sigla)}')">${e.rep||'<span style=color:var(--tx3)>Click para agregar</span>'}</td>
+        <td style="font-size:10px;max-width:300px;white-space:normal;cursor:pointer" onclick="editAlRep('${escapeHtml(e.sigla)}')">${e.rep?escapeHtml(e.rep):'<span style=color:var(--tx3)>Click para agregar</span>'}</td>
       </tr>`).join('')}
     </table></div>`;
 };
@@ -2335,9 +2335,9 @@ renders.mov=function(){
         '<td style="font-size:11px;max-width:200px">'+
         '<input value="'+escapeHtml(m.item||'')+'" onchange="editMov('+idx+',\'item\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" title="Click para editar nombre">'+
         '</td>'+
-        '<td style="font-size:10px">'+(m.nParte||'')+'</td>'+
+        '<td style="font-size:10px">'+escapeHtml(m.nParte||'')+'</td>'+
         '<td><input type="number" value="'+m.cant+'" onchange="editMov('+idx+',\'cant\',parseFloat(this.value)||0)" style="width:45px;background:var(--bg3);border:1px solid var(--bd);color:var(--ac);font-weight:600;text-align:center;border-radius:3px;font-size:12px"></td>'+
-        '<td style="font-size:11px">'+m.equipo+'</td>'+
+        '<td style="font-size:11px">'+escapeHtml(m.equipo)+'</td>'+
         '<td style="font-size:11px">'+m.pm+'</td>'+
         '<td style="font-size:11px;color:var(--tx3)">'+m.ant+'</td>'+
         '<td style="font-size:11px;color:var(--tx3)">'+m.nuevo+'</td>'+
@@ -2606,12 +2606,12 @@ renders.lub=function(){
     '<div class="toolbar">'+
     '<input id="fLubBusq" placeholder="Buscar..." value="'+(fBusq||'')+'" onchange="window._pag.lub=1;renders.lub()" style="max-width:180px">'+
     '<select id="fLubEq" onchange="window._pag.lub=1;renders.lub()"><option value="">Consumo por equipo...</option>'+
-    allEq.map(function(e){return'<option'+(e===fEq?' selected':'')+'>'+e+'</option>'}).join('')+'</select>'+
+    allEq.map(function(e){return'<option'+(e===fEq?' selected':'')+'>'+escapeHtml(e)+'</option>'}).join('')+'</select>'+
     '<span style="font-size:11px;color:var(--tx3)">HH: $<input type="number" value="'+hh+'" onchange="S.s(\'hh\',parseInt(this.value));refreshAll()" style="width:70px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);padding:2px 4px;border-radius:3px;font-size:11px">/hr</span></div>'+
     (fEq&&pautaLubs.length?
       '<div class="card" style="margin-bottom:10px;border-left:3px solid var(--ac)">'+
-      '<b style="color:var(--ac)">📋 Pauta PM4 de '+fEq+':</b> '+
-      pautaLubs.map(function(c){return'<span style="display:inline-block;background:var(--bg3);border-radius:3px;padding:2px 6px;margin:2px;font-size:10px">'+(c.rep||'').substring(0,50)+': <b>'+(c.can||0)+'</b></span>'}).join('')+
+      '<b style="color:var(--ac)">📋 Pauta PM4 de '+escapeHtml(fEq)+':</b> '+
+      pautaLubs.map(function(c){return'<span style="display:inline-block;background:var(--bg3);border-radius:3px;padding:2px 6px;margin:2px;font-size:10px">'+escapeHtml((c.rep||'').substring(0,50))+': <b>'+(c.can||0)+'</b></span>'}).join('')+
       '</div>':'')+
     _pagHTML('lub',pg)+
     '<div class="tbl-wrap"><table>'+
@@ -2771,7 +2771,7 @@ renders.plan=function(){
         ${mats.length?`<table style="width:100%;font-size:11px">
           <tr style="background:var(--bg3)"><th style="padding:3px;text-align:left">Material</th><th>Tipo</th><th>Cant.</th><th>Precio U.</th><th>Subtotal</th></tr>
           ${mats.map(m=>`<tr style="border-bottom:1px solid var(--bd)">
-            <td style="padding:3px">${m.rep}</td>
+            <td style="padding:3px">${escapeHtml(m.rep)}</td>
             <td style="text-align:center"><span class="badge ${m.tipo==='Filtro'?'b-y':m.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(m.tipo)}</span></td>
             <td style="text-align:center">${m.cantidad}</td>
             <td style="text-align:right">${m.precio?'$'+fn2(m.precio):'—'}</td>
@@ -2802,7 +2802,7 @@ renders.plan=function(){
       filasHtml+=grupo.map(m=>{
         const costo=m.cantidad*m.precio;subtotal+=costo;
         return `<tr style="border-bottom:1px solid var(--bd)">
-        <td style="padding:6px">${m.rep}</td>
+        <td style="padding:6px">${escapeHtml(m.rep)}</td>
         <td style="text-align:center"><span class="badge ${m.tipo==='Filtro'?'b-y':m.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(m.tipo)}</span></td>
         <td style="text-align:center"><b>${m.cantidad}</b></td>
         <td style="text-align:center" title="${m.equipos.map(escapeHtml).join(', ')}">${m.equipos.length} eq.</td>
@@ -5826,7 +5826,7 @@ renders.pred=function(){
         var tipTxt=t.m+': $'+fn(Math.round(t.c));
         return'<div class="bar-c"><div class="bar-v" style="font-size:8px">'+(t.c>0?'$'+(t.c/1e6).toFixed(1)+'M':'')+'</div><div class="bar" style="height:'+Math.max(t.c/maxC2*100,3)+'%;background:var(--ac);cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+t.m.slice(5)+'</div></div>';
       }).join('')+'</div></div></div>'+
-      '<div class="chart-box"><div class="chart-t">Top Items — '+fEq+'</div>'+
+      '<div class="chart-box"><div class="chart-t">Top Items — '+escapeHtml(fEq)+'</div>'+
       '<div class="tbl-wrap"><table><tr><th>Item</th><th>Pedidos</th><th>Prom/Mes</th><th>Lead</th><th>Costo</th></tr>'+
       eqItems.map(function(it){
         return'<tr><td style="font-size:11px">'+escapeHtml(it.item)+'</td><td style="text-align:center;font-weight:600">'+it.total+'</td>'+
@@ -5919,7 +5919,7 @@ renders.pred=function(){
         return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+s.color+'">'+
           '<div style="font-weight:700;margin-bottom:6px">'+s.titulo+'</div>'+
           s.items.map(function(item){
-            return'<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--bd)">'+item+'</div>';
+            return'<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--bd)">'+escapeHtml(item)+'</div>';
           }).join('')+'</div>';
       }).join(''));
   }
@@ -6302,7 +6302,7 @@ renders.insp=function(){
             '<option value="NOK"'+(r[c]==='NOK'||r[c]==='🔴'?' selected':'')+'>NOK</option></select></td>';
         }).join('')+
         '<td><input value="'+escapeHtml(r.obs||'')+'" onchange="edInsp('+i+',\'obs\',this.value)" style="'+is+'" placeholder="..."></td>'+
-        '<td style="font-size:10px">'+(r.inspector||'—')+'</td>'+
+        '<td style="font-size:10px">'+escapeHtml(r.inspector||'—')+'</td>'+
         '<td style="text-align:center">'+(alertCount>0?'<span style="color:var(--danger);font-weight:700">🔴 '+alertCount+'</span>':'<span style="color:var(--ok)">✅</span>')+'</td>'+
         '<td><button class="btn-s btn-d" onclick="delInsp('+i+')">🗑</button></td></tr>';
     }).join('')+
@@ -6452,9 +6452,9 @@ function celdaFotoVenc(sigla,vencTipo,fotoUrl,fotoTipo){
       ? '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:4px;cursor:pointer;border:1px solid var(--bor);font-size:16px" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver PDF">📄</div>'
       : '<img src="'+fotoUrl+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--bor)" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver foto completa">';
     return '<td style="text-align:center;white-space:nowrap">'+miniatura+'<br>'+
-      '<a href="#" style="font-size:9px;color:var(--ac)" onclick="event.preventDefault();_vencAbrirSelector(\''+sigla+'\',\''+vencTipo+'\')">🔄 cambiar</a></td>';
+      '<a href="#" style="font-size:9px;color:var(--ac)" onclick="event.preventDefault();_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')">🔄 cambiar</a></td>';
   }
-  return '<td style="text-align:center"><button class="btn-x" onclick="_vencAbrirSelector(\''+sigla+'\',\''+vencTipo+'\')" title="Subir foto o PDF del documento">📤</button></td>';
+  return '<td style="text-align:center"><button class="btn-x" onclick="_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')" title="Subir foto o PDF del documento">📤</button></td>';
 }
 window._vencFotoTarget=null;
 window._vencAbrirSelector=function(sigla,vencTipo){
@@ -8385,7 +8385,7 @@ renders.comp=function(){
         '<td class="mono">'+c.diasRest+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+Math.round(c.costoRef||0).toLocaleString()+'</td>'+
         '<td style="font-size:11px">'+c.estadoCalc+'</td>'+
-        '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+c.obs+'</td>'+
+        '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(c.obs)+'</td>'+
         '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px">📄</button><button class="btn-x" onclick="delComp('+realIdx+')">🗑</button></td></tr>';
     }).join('')+
     '</table></div>';
@@ -10092,7 +10092,7 @@ renders.buscar=function(){
     // Correctivos
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔧 Correctivos ('+otF.length+')</div>'+
     (otF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Cód.Falla</th><th>Síntoma</th><th>Causa Raíz</th><th>Estado</th></tr>'+
-    otF.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+escapeHtml(o.tipo)+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
+    otF.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+escapeHtml(o.tipo)+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+escapeHtml(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
 
     // Componentes Mayores
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔩 Componentes Mayores ('+compF.length+')</div>'+
@@ -10112,7 +10112,7 @@ renders.buscar=function(){
     // Inspecciones
     '<div class="chart-box"><div class="chart-t">📋 Inspecciones ('+inspF.length+')</div>'+
     (inspF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Visual</th><th>Niveles</th><th>Fugas</th><th>Frenos</th><th>Obs</th></tr>'+
-    inspF.slice().reverse().map(function(i){return'<tr><td>'+i.fecha+'</td><td>'+i.visual+'</td><td>'+i.niveles+'</td><td>'+i.fugas+'</td><td>'+i.frenos+'</td><td style="font-size:10px">'+i.obs+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin inspecciones</div>')+'</div>';
+    inspF.slice().reverse().map(function(i){return'<tr><td>'+i.fecha+'</td><td>'+i.visual+'</td><td>'+i.niveles+'</td><td>'+i.fugas+'</td><td>'+i.frenos+'</td><td style="font-size:10px">'+escapeHtml(i.obs)+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin inspecciones</div>')+'</div>';
 
   } else {
     // Ranking de equipos problemáticos
