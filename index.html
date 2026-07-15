@@ -2163,7 +2163,7 @@ renders.mov=function(){
     meses.slice(0,6).map(function(m){
       var t=totMes[m]||{filtros:0,lubricantes:0,n:0};
       return '<div class="card" style="padding:8px;cursor:pointer" onclick="$(\'fMovMes\').value=\''+m+'\';renders.mov()"><b>'+m+'</b><br>'+
-        '<span style="color:var(--ok);font-size:12px">🔧 '+t.filtros+' filtros</span> '+
+        '<span style="color:var(--ok);font-size:12px">🔧 '+Math.round(t.filtros)+' filtros</span> '+
         '<span style="color:var(--w);font-size:12px">🛢 '+Math.round(t.lubricantes)+'L</span> '+
         '<small style="color:var(--tx3)">'+t.n+' mov</small></div>';
     }).join('')+'</div>'+
