@@ -629,7 +629,7 @@ window.addEventListener('storage',function(e){
 // — Supabase siempre tiene el historial completo real; esto es solo el respaldo
 // offline del navegador, así que perder las filas más viejas ahí no pierde nada.
 const _CATEGORIAS_CRECIENTES={hist:'fecha',ot:'fecha',reg:'fechaEntrada',mov:'fecha',
-  neuMed:'fecha',aceite:'fecha',insp:'fecha',informesFalla:'fecha'};
+  neuMed:'fecha',aceite:'fecha',insp:'fecha',informesFalla:'fecha',progDia:'fecha'};
 const _TOPE_FILAS_LOCAL=1200;
 function _recorteParaLocal(k,v){
   var campo=_CATEGORIAS_CRECIENTES[k];
@@ -1088,6 +1088,14 @@ renders.dash=function(){
   var mtbfFlota=fallasMes>0?Math.round(hrsMesEstim/fallasMes):null; // null = sin dato real
   var hhTotal=Math.round(reg.reduce(function(s,r){return s+(r.duracionH||0)},0));
   var otPend=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
+  // Utilización de dotación según la última fecha cargada en Programación Diaria
+  // (no "hoy" — se puede importar con 1-2 días de desfase, así que se usa la
+  // fecha más reciente que de verdad tiene datos, no una que podría estar vacía).
+  var progDiaTodo=S.g('progDia')||[];
+  var progDiaFechasOrd=[...new Set(progDiaTodo.map(function(p){return p.fecha;}))].sort();
+  var progDiaUltima=progDiaFechasOrd.length?progDiaFechasOrd[progDiaFechasOrd.length-1]:null;
+  var progDiaHoy=progDiaUltima?_progDiaResumen(progDiaTodo.filter(function(p){return p.fecha===progDiaUltima;})):null;
+  var utilDia=progDiaHoy?progDiaHoy.utilizacion:null;
   var otEjec=ot.filter(function(o){return o.estadoOT==='En Ejecución'}).length;
   var otCerr=ot.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo}).length;
   var prevPct=regMes.length?Math.round(prev/regMes.length*100):null;
@@ -1208,7 +1216,7 @@ renders.dash=function(){
     '</div></div>'+
 
     // ═══ KPIs AVANZADOS ROW ═══
-    '<div class="dg2" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px">'+
+    '<div class="dg2" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:20px">'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · ⚠️'+stkBajo+' · ✅'+stkOk+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+costoRAV+'%</div><div style="font-size:8px;color:var(--tx3)">Meta: &lt;2%</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4</div></div>'+
@@ -1216,6 +1224,7 @@ renders.dash=function(){
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--bd)')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">MTBF/(MTBF+MTTR)</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(pctRetrab===null?'var(--bd)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Retrabajo</div><div style="font-size:20px;font-weight:800;color:'+(pctRetrab===null?'var(--tx3)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'">'+(pctRetrab===null?'—':pctRetrab+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(pctRetrab===null?'Sin fallas en el período':'Meta: &lt;5%')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:#ef4444">'+eqCrit+'</span> Crít · <span style="color:#f59e0b">'+eqEsen+'</span> Esen · <span style="color:#22c55e">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'" title="Bloques de 30 min con actividad real vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
     '</div>'+
 
         // ═══ Z3: ABAJO IZQUIERDA — DESGLOSE / TENDENCIA ═══
@@ -2073,7 +2082,10 @@ window.importProgDiaXLSX=function(ev){
       });
     });
     S.s('progDia',progDia);
-    window._progDiaFecha=resultados[resultados.length-1].fecha;
+    // La fecha CRONOLÓGICAMENTE más reciente, no la última hoja procesada en el
+    // orden de workbook.SheetNames (ese orden puede no coincidir con las fechas
+    // si el libro trae pestañas desordenadas).
+    window._progDiaFecha=resultados.map(function(r){return r.fecha;}).sort().pop();
     window._progDiaTurno=null;
     toast('✅ Programación diaria importada: '+resultados.map(function(r){return r.fecha;}).join(', '));
     refreshAll();
@@ -2085,6 +2097,11 @@ window.edProgDia=function(realIdx,key,val){
   var d=S.g('progDia')||[];
   if(_edCampo('progDia',d,realIdx,key,val))refreshAll();
 };
+// No usa _edCampo a propósito: _edCampo hace S.s(store,arr) asumiendo que 'arr' es
+// el arreglo COMPLETO de la categoría — acá lo que se edita es un campo DENTRO de
+// un arreglo anidado (bloques de una persona), así que hay que guardar 'd' entero
+// (la categoría completa), no 'd[realIdx].bloques' (eso pisaría todo 'progDia' con
+// solo los bloques de esa persona).
 window.edProgDiaBloque=function(realIdx,bloqueIdx,val){
   var d=S.g('progDia')||[];
   if(!d[realIdx]||!d[realIdx].bloques||!d[realIdx].bloques[bloqueIdx])return;
@@ -2107,12 +2124,32 @@ const ALIAS_EQUIPOS_PROGDIA={
   'CF-510':'CF-9510','CF-769':'CF-8769','CF-511':'CF-9511',
   'MN12':'MN-6112','MN16':'MN-5926'
 };
+// Busca la MENCIÓN AISLADA (no como parte de un código más largo, ej. "MN1245" no
+// debe calzar con el alias "MN12") de cualquier alias o sigla real más a la
+// IZQUIERDA en el texto — antes se recorrían las claves en el orden en que se
+// declaró ALIAS_EQUIPOS_PROGDIA, así que si una actividad mencionaba dos equipos
+// (ej. "Apoya a CE-113, luego a CE-87") siempre ganaba el que apareciera primero
+// declarado en el objeto, no el que aparecía primero en el texto real.
 function _progDiaDetectarSigla(actividad,siglasEq){
   if(!actividad)return null;
   var up=actividad.toUpperCase();
-  for(var alias in ALIAS_EQUIPOS_PROGDIA){if(up.indexOf(alias)>=0)return ALIAS_EQUIPOS_PROGDIA[alias];}
-  for(var i=0;i<siglasEq.length;i++){if(siglasEq[i]&&up.indexOf(siglasEq[i].toUpperCase())>=0)return siglasEq[i];}
-  return null;
+  var candidatos=[];
+  for(var alias in ALIAS_EQUIPOS_PROGDIA)candidatos.push({clave:alias,real:ALIAS_EQUIPOS_PROGDIA[alias]});
+  siglasEq.forEach(function(s){if(s)candidatos.push({clave:s.toUpperCase(),real:s});});
+  var mejor=null,mejorPos=Infinity;
+  candidatos.forEach(function(c){
+    var desde=0;
+    while(true){
+      var pos=up.indexOf(c.clave,desde);
+      if(pos<0)break;
+      var antes=pos>0?up[pos-1]:'';
+      var despues=pos+c.clave.length<up.length?up[pos+c.clave.length]:'';
+      var aislado=!/[A-Z0-9]/.test(antes)&&!/[A-Z0-9]/.test(despues);
+      if(aislado&&pos<mejorPos){mejor=c.real;mejorPos=pos;break;}
+      desde=pos+1;
+    }
+  });
+  return mejor;
 }
 
 // Agrega TODA la programación diaria cargada (todas las fechas/turnos) en 3 métricas:
@@ -2123,6 +2160,12 @@ function _progDiaDetectarSigla(actividad,siglasEq){
 function _progDiaResumen(todo){
   var siglasEq=(S.g('eq')||[]).map(function(e){return e.sigla;});
   var reg=S.g('reg')||[],ot=S.g('ot')||[];
+  // Sets de 'sigla|fecha' precomputados UNA vez — antes cada bloque con equipo
+  // detectado disparaba un reg.some()/ot.some() (scan lineal completo de reg/ot),
+  // O(bloques_programados × (reg.length+ot.length)); con miles de registros
+  // acumulados esto se repetía en cada render (dashboard, gantt, resumen).
+  var regKeys=new Set(reg.map(function(r){return r.equipo+'|'+(r.fechaEntrada||r.fechaEjec||'').slice(0,10);}));
+  var otKeys=new Set(ot.map(function(o){return o.sigla+'|'+(o.fecha||'').slice(0,10);}));
   var porEquipo={},bloquesOcupados=0,bloquesTotales=0,programados=0,conRegistro=0;
   todo.forEach(function(p){
     (p.bloques||[]).forEach(function(b){
@@ -2133,16 +2176,17 @@ function _progDiaResumen(todo){
       if(sigla){
         porEquipo[sigla]=(porEquipo[sigla]||0)+0.5;
         programados++;
-        var tieneReg=reg.some(function(r){return r.equipo===sigla&&(r.fechaEntrada||r.fechaEjec||'').slice(0,10)===p.fecha;});
-        var tieneOt=ot.some(function(o){return o.sigla===sigla&&(o.fecha||'').slice(0,10)===p.fecha;});
-        if(tieneReg||tieneOt)conRegistro++;
+        var clave=sigla+'|'+p.fecha;
+        if(regKeys.has(clave)||otKeys.has(clave))conRegistro++;
       }
     });
   });
   var ranking=Object.keys(porEquipo).map(function(s){return{sigla:s,horas:porEquipo[s]};}).sort(function(a,b){return b.horas-a.horas;});
   return{
     ranking:ranking,
-    utilizacion:bloquesTotales?Math.round(bloquesOcupados/bloquesTotales*100):0,
+    // null (no '0') si no hay bloques que contar — evita que "sin datos" se
+    // muestre como "0% - posible exceso de dotación" en vez de "sin datos".
+    utilizacion:bloquesTotales?Math.round(bloquesOcupados/bloquesTotales*100):null,
     bloquesOcupados:bloquesOcupados,bloquesTotales:bloquesTotales,
     cumplimiento:programados?Math.round(conRegistro/programados*100):null,
     programados:programados,conRegistro:conRegistro
@@ -2181,11 +2225,11 @@ renders.progdia=function(){
   if(vista==='resumen'){
     var r=_progDiaResumen(todo);
     var maxHoras=r.ranking.length?r.ranking[0].horas:0;
-    var colorUtil=r.utilizacion<40?'var(--warn)':r.utilizacion>85?'var(--danger)':'var(--ok)';
-    var msgUtil=r.utilizacion<40?'Posible exceso de dotación (baja ocupación)':r.utilizacion>85?'Posible déficit de dotación (sobrecarga)':'Ocupación saludable';
+    var colorUtil=r.utilizacion==null?'var(--tx3)':r.utilizacion<40?'var(--warn)':r.utilizacion>85?'var(--danger)':'var(--ok)';
+    var msgUtil=r.utilizacion==null?'Sin bloques para calcular':r.utilizacion<40?'Posible exceso de dotación (baja ocupación)':r.utilizacion>85?'Posible déficit de dotación (sobrecarga)':'Ocupación saludable';
     $('s-progdia').innerHTML=cabecera+
       '<div class="cards">'+
-      '<div class="card"><div class="card-t">Utilización de dotación</div><div class="card-v" style="color:'+colorUtil+'">'+r.utilizacion+'%</div>'+
+      '<div class="card"><div class="card-t">Utilización de dotación</div><div class="card-v" style="color:'+colorUtil+'">'+(r.utilizacion==null?'—':r.utilizacion+'%')+'</div>'+
       '<div style="font-size:10px;color:var(--tx3)">'+r.bloquesOcupados+' de '+r.bloquesTotales+' bloques ocupados · '+msgUtil+'</div></div>'+
       '<div class="card"><div class="card-t">Cumplimiento vs. registro real</div><div class="card-v">'+(r.cumplimiento==null?'—':r.cumplimiento+'%')+'</div>'+
       '<div style="font-size:10px;color:var(--tx3)">'+r.conRegistro+' de '+r.programados+' menciones de equipo con PM/correctivo real ese día</div></div>'+
@@ -2213,7 +2257,7 @@ renders.progdia=function(){
   $('s-progdia').innerHTML=cabecera+
     '<div class="toolbar">'+
     '<select onchange="window._progDiaFecha=this.value;window._progDiaTurno=null;renders.progdia()">'+
-    fechas.map(function(f){return'<option'+(f===fSel?' selected':'')+' value="'+f+'">'+f+'</option>';}).join('')+
+    fechas.map(function(f){return'<option'+(f===fSel?' selected':'')+' value="'+escapeHtml(f)+'">'+escapeHtml(f)+'</option>';}).join('')+
     '</select>'+
     turnosFecha.map(function(t){return'<button class="btn '+(turno===t?'':'btn-o')+'" onclick="window._progDiaTurno=\''+t.replace(/'/g,"\\'")+'\';renders.progdia()">'+escapeHtml(t)+'</button>';}).join('')+
     '</div>'+
@@ -6916,14 +6960,25 @@ renders.ace=function(){
   ace.forEach(function(m){
     if(m.equipo){m._sigla=m.equipo;return;}
     var comp=(m.componente||'').replace(/[-_]?(MT|SH|TR|MFD|MFI|DIF|DD|DT|TRANS|HID|FR|REF|RF|MC|MDI|MG|MGT|DF|HD|TAND|TANI|FRENO|REFRIGERANTE)$/i,'');
-    comp=comp.replace(/^CE-/,'CN-').replace(/^CF-/,'CF-').replace(/^BD-/,'BD-').replace(/^MN-/,'MN-');
-    // Try numeric mapping
-    comp=comp.replace('CE-84','CN-4656').replace('CE-85','CN-9500').replace('CE-86','CN-9503')
-      .replace('CE-87','CN-9506').replace('CE-88','CN-9501').replace('CE-89','CN-9507')
-      .replace('CE-113','CN-6113').replace('CE-155','CN-10155').replace('CE-56','CN-5131')
+    // Alias numéricos conocidos PRIMERO — deben correr ANTES del swap genérico de
+    // prefijo de más abajo. Bug real encontrado el 2026-07-16: con el orden viejo
+    // (swap genérico primero), "CE-88" ya se convertía en "CN-88" antes de llegar
+    // acá, así que ningún .replace('CE-88',...) de esta tabla encontraba nada —
+    // toda esta corrección era código muerto, y el resultado real terminaba siendo
+    // un sigla inexistente ("CN-88") en vez de la real (CN-9502). Corregido de paso
+    // el mapeo en sí, que además tenía varios códigos apuntando al equipo
+    // equivocado (confirmado con el usuario). Mismo mapeo que ALIAS_EQUIPOS_PROGDIA
+    // (Programación Diaria) para que ambas pantallas coincidan.
+    comp=comp.replace('CE-84','CN-4656').replace('CE-85','CN-9503').replace('CE-86','CN-9501')
+      .replace('CE-87','CN-9500').replace('CE-88','CN-9502').replace('CE-89','CN-9507')
+      .replace('CE-113','CN-6113').replace('CE-155','CN-10155').replace('CE-159','CN-10159')
+      .replace('CE-160','CN-10160').replace('CE-56','CN-4656')
       .replace('CF-510','CF-9510').replace('CF-511','CF-9511').replace('CF-769','CF-8769')
       .replace('BD-533','BD-9533').replace('BD-509','BD-9509').replace('BD-139','BD-10139')
-      .replace('MN-12','MN-6112');
+      .replace('MN-12','MN-6112').replace('MN-16','MN-5926');
+    // Respaldo genérico: solo entra en juego si el código no estaba en la tabla de
+    // arriba (si ya se tradujo, comp ya no empieza con CE-/CF-/BD-/MN- y esto no hace nada).
+    comp=comp.replace(/^CE-/,'CN-').replace(/^CF-/,'CF-').replace(/^BD-/,'BD-').replace(/^MN-/,'MN-');
     m._sigla=comp;
   });
 
@@ -9752,13 +9807,16 @@ window.edHist=function(idx,key,val){
 // Recalcula eq.horomActual como el máximo horomFin/horom del historial restante de esa
 // sigla — usado cuando se borra la lectura que había fijado el horómetro actual, para
 // que el equipo no quede con un valor "huérfano" que ya no corresponde a ningún registro.
+// h.horomFin===0 es un valor legítimo (ej. reset de horómetro tras overhaul) — no
+// tratarlo como "ausente" con ||, que lo confundiría con horom o con 0 por defecto.
+function _horomDeLectura(h){return h.horomFin!=null?h.horomFin:(h.horom!=null?h.horom:0);}
 function recalcularHorometroDesdeHistorial(sigla){
   var hist=(S.g('hist')||[]).filter(function(h){return h.sigla===sigla});
   var eq=S.g('eq')||[];
   var eqIdx=eq.findIndex(function(e){return e.sigla===sigla});
   if(eqIdx<0)return;
-  var masReciente=hist.reduce(function(m,h){var v=h.horomFin||h.horom||0;return v>(m?(m.horomFin||m.horom||0):-1)?h:m;},null);
-  eq[eqIdx].horomActual=masReciente?(masReciente.horomFin||masReciente.horom||0):0;
+  var masReciente=hist.reduce(function(m,h){var v=_horomDeLectura(h);return v>(m?_horomDeLectura(m):-1)?h:m;},null);
+  eq[eqIdx].horomActual=masReciente?_horomDeLectura(masReciente):0;
   eq[eqIdx].fechaHorom=masReciente?masReciente.fecha:'';
   C.recalc(eq[eqIdx]);
   S.s('eq',eq);
@@ -9767,7 +9825,7 @@ window.delHist=function(idx){
   if(window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede eliminar registros');return;}
   var h=S.g('hist')||[];
   if(!h[idx])return;
-  var sigla=h[idx].sigla,horomEliminado=h[idx].horomFin||h[idx].horom;
+  var sigla=h[idx].sigla,horomEliminado=_horomDeLectura(h[idx]);
   if(confirm('¿Eliminar lectura de '+sigla+' del '+h[idx].fecha+'?')){
     h.splice(idx,1);S.s('hist',h);
     var eq=S.g('eq')||[];
@@ -10113,9 +10171,10 @@ window.verLogAuditoria=function(){
     <h3>📝 Log de Auditoría</h3>
     <p style="font-size:12px;color:var(--tx3)">Registro de cambios del sistema (últimos 100)</p>
     ${ultimos.length?`<div style="overflow-x:auto;max-height:400px;overflow-y:auto"><table style="width:100%;font-size:11px">
-      <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:5px;text-align:left">Fecha</th><th>Acción</th><th>Detalle</th></tr>
+      <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:5px;text-align:left">Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr>
       ${ultimos.map(l=>`<tr style="border-bottom:1px solid var(--bd)">
         <td style="padding:5px;white-space:nowrap">${fn2(l.fecha)}</td>
+        <td>${escapeHtml(fn2(l.usuario||'—'))}</td>
         <td><span class="badge b-g">${fn2(l.accion)}</span></td>
         <td style="color:var(--tx3)">${fn2(l.detalle||l.desc||'')}</td>
       </tr>`).join('')}
@@ -10228,6 +10287,22 @@ renders.gantt=function(){
   }
 
   var regGantt=S.g('reg')||[];var otGantt=S.g('ot')||[];
+  var progDiaGantt=S.g('progDia')||[];
+  var siglasEqGantt=eq.map(function(e){return e.sigla;});
+  // Índice sigla+fecha -> Set(técnicos) construido UNA vez — antes se recorría
+  // progDiaGantt completo (con su propio scan de bloques + detección de sigla) por
+  // CADA fila de la tabla (equipo), es decir O(equipos × entradas × bloques);
+  // ahora es O(entradas × bloques) una sola vez, y cada fila solo hace un lookup.
+  var tecnicosPorSiglaFecha={};
+  progDiaGantt.forEach(function(pd){
+    (pd.bloques||[]).forEach(function(b){
+      var sig=_progDiaDetectarSigla(b.actividad,siglasEqGantt);
+      if(!sig)return;
+      var clave=sig+'|'+pd.fecha;
+      if(!tecnicosPorSiglaFecha[clave])tecnicosPorSiglaFecha[clave]=new Set();
+      tecnicosPorSiglaFecha[clave].add(pd.nombre);
+    });
+  });
   var days=[];for(var d=1;d<=daysInMonth;d++)days.push(d);
 
   $('s-gantt').innerHTML=
@@ -10265,12 +10340,24 @@ renders.gantt=function(){
       var finMostrar=hayReal?fechasReales[fechasReales.length-1]:g.fin;
       var estadoMostrar=hayReal?'Ejecutado':g.estado;
       var avanceMostrar=hayReal?100:g.avance;
+      // Técnicos que trabajaron en este equipo, según Programación Diaria de las
+      // mismas fechas con registro real — lookup en el índice precomputado de arriba.
+      var tecnicosGantt=[];
+      if(hayReal){
+        var setTec=new Set();
+        var fechasUnicas={};fechasReales.forEach(function(f){fechasUnicas[f.slice(0,10)]=true;});
+        Object.keys(fechasUnicas).forEach(function(f){
+          var s=tecnicosPorSiglaFecha[g.sigla+'|'+f];
+          if(s)s.forEach(function(n){setTec.add(n);});
+        });
+        tecnicosGantt=[...setTec];
+      }
       return'<tr'+(hayReal?' style="background:rgba(34,197,94,.06)"':'')+'>'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(g.sigla)+'</td>'+
         '<td>'+pb(g.pm)+'</td>'+
         '<td class="ed" contenteditable onblur="edGantt('+gi+',\'inicio\',this.innerText.trim())" style="font-size:9px" title="'+(hayReal?'Auto-detectado desde reg/ot — puedes igual editarlo a mano':'')+'">'+iniMostrar+'</td>'+
         '<td class="ed" contenteditable onblur="edGantt('+gi+',\'fin\',this.innerText.trim())" style="font-size:9px">'+finMostrar+'</td>'+
-        '<td>'+(hayReal?'<span style="font-size:9px;color:#22c55e;font-weight:700">✅ Ejecutado ('+totalEjecReal+' reg.)</span>':
+        '<td>'+(hayReal?'<span style="font-size:9px;color:#22c55e;font-weight:700">✅ Ejecutado ('+totalEjecReal+' reg.)</span>'+(tecnicosGantt.length?'<br><span style="font-size:8px;color:var(--tx3)" title="Según Programación Diaria">👷 '+escapeHtml(tecnicosGantt.join(', '))+'</span>':''):
         '<select onchange="edGantt('+gi+',\'estado\',this.value)" style="font-size:9px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;padding:1px">'+
         ['Planificado','En Ejecución','Ejecutado','Atrasado','Postergado'].map(function(s){return'<option'+(g.estado===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>')+'</td>'+
         '<td class="'+(hayReal?'':'ed')+' mono" '+(hayReal?'':'contenteditable onblur="edGantt('+gi+',\'avance\',parseInt(this.innerText)||0)"')+' style="text-align:center;'+(hayReal?'color:#22c55e;font-weight:700':'')+'">'+avanceMostrar+'%</td>'+
