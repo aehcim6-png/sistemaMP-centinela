@@ -7801,7 +7801,7 @@ renders.ayuda=function(){
 // ═══ LOG DE CAMBIOS (AUDITORÍA) ═══
 window._logChange=function(accion,detalle){
   var log=S.g('changelog')||[];
-  log.unshift({fecha:new Date().toISOString().slice(0,19).replace('T',' '),accion:accion,detalle:detalle});
+  log.unshift({fecha:new Date().toISOString().slice(0,19).replace('T',' '),usuario:window._userName||'Sistema',accion:accion,detalle:detalle});
   if(log.length>500)log=log.slice(0,500); // Keep last 500
   S.s('changelog',log);
 };
@@ -7841,9 +7841,10 @@ renders.log=function(){
     acciones.map(function(a){return'<option'+(fAccion===a?' selected':'')+'>'+a+'</option>'}).join('')+'</select></div>'+
     _pagHTML('log',pg)+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Fecha/Hora</th><th>Acción</th><th>Detalle</th></tr>'+
+    '<tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr>'+
     pg.items.map(function(l){
       return'<tr><td class="mono" style="font-size:10px;white-space:nowrap">'+l.fecha+'</td>'+
+        '<td style="font-size:11px">'+escapeHtml(l.usuario||'—')+'</td>'+
         '<td style="font-size:11px;font-weight:600">'+escapeHtml(l.accion)+'</td>'+
         '<td style="font-size:11px;color:var(--tx3);max-width:400px">'+escapeHtml(l.detalle)+'</td></tr>';
     }).join('')+
@@ -9426,11 +9427,35 @@ window.edHist=function(idx,key,val){
   }
   refreshAll();
 };
+// Recalcula eq.horomActual como el máximo horomFin/horom del historial restante de esa
+// sigla — usado cuando se borra la lectura que había fijado el horómetro actual, para
+// que el equipo no quede con un valor "huérfano" que ya no corresponde a ningún registro.
+function recalcularHorometroDesdeHistorial(sigla){
+  var hist=(S.g('hist')||[]).filter(function(h){return h.sigla===sigla});
+  var eq=S.g('eq')||[];
+  var eqIdx=eq.findIndex(function(e){return e.sigla===sigla});
+  if(eqIdx<0)return;
+  var masReciente=hist.reduce(function(m,h){var v=h.horomFin||h.horom||0;return v>(m?(m.horomFin||m.horom||0):-1)?h:m;},null);
+  eq[eqIdx].horomActual=masReciente?(masReciente.horomFin||masReciente.horom||0):0;
+  eq[eqIdx].fechaHorom=masReciente?masReciente.fecha:'';
+  C.recalc(eq[eqIdx]);
+  S.s('eq',eq);
+}
 window.delHist=function(idx){
   if(window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede eliminar registros');return;}
   var h=S.g('hist')||[];
-  if(confirm('¿Eliminar lectura de '+h[idx].sigla+' del '+h[idx].fecha+'?')){
-    h.splice(idx,1);S.s('hist',h);refreshAll();
+  if(!h[idx])return;
+  var sigla=h[idx].sigla,horomEliminado=h[idx].horomFin||h[idx].horom;
+  if(confirm('¿Eliminar lectura de '+sigla+' del '+h[idx].fecha+'?')){
+    h.splice(idx,1);S.s('hist',h);
+    var eq=S.g('eq')||[];
+    var eqIdx=eq.findIndex(function(e){return e.sigla===sigla});
+    if(eqIdx>=0 && eq[eqIdx].horomActual===horomEliminado){
+      if(confirm('El horómetro actual de '+sigla+' ('+horomEliminado+'h) venía justo de la lectura que eliminaste.\n\n¿Recalcular el horómetro del equipo desde el historial restante?')){
+        recalcularHorometroDesdeHistorial(sigla);
+      }
+    }
+    refreshAll();
   }
 };
 window.addHist=function(){
