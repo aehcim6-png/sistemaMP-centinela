@@ -2081,9 +2081,78 @@ window.importProgDiaXLSX=function(ev){
   reader.readAsArrayBuffer(file);
 };
 
+window.edProgDia=function(realIdx,key,val){
+  var d=S.g('progDia')||[];
+  if(_edCampo('progDia',d,realIdx,key,val))refreshAll();
+};
+window.edProgDiaBloque=function(realIdx,bloqueIdx,val){
+  var d=S.g('progDia')||[];
+  if(!d[realIdx]||!d[realIdx].bloques||!d[realIdx].bloques[bloqueIdx])return;
+  d[realIdx].bloques[bloqueIdx].actividad=val;
+  S.s('progDia',d);
+  refreshAll();
+};
+
+// Reconoce qué equipo real (sigla de la flota) se menciona en el texto libre de una
+// actividad (ej. "Mant. Programada TI-5145" -> TI-5145). null si no menciona ninguno —
+// evita inventar atribuciones sobre actividades genéricas (Charla, Almuerzo, Vacaciones).
+//
+// El Programa Diario que llena el supervisor de terreno usa apodos/códigos informales
+// para varios equipos, distintos de la sigla real del sistema (ej. el texto dice
+// "CE-88" pero ese equipo es CN-9502 en 'equipos') — sin este mapeo, esas menciones
+// nunca calzarían con ninguna sigla real y quedarían fuera de todas las métricas.
+const ALIAS_EQUIPOS_PROGDIA={
+  'CE-87':'CN-9500','CE-86':'CN-9501','CE-88':'CN-9502','CE-85':'CN-9503','CE-89':'CN-9507',
+  'CE-56':'CN-4656','CE-113':'CN-6113','CE-155':'CN-10155','CE-159':'CN-10159','CE-160':'CN-10160',
+  'CF-510':'CF-9510','CF-769':'CF-8769','CF-511':'CF-9511',
+  'MN12':'MN-6112','MN16':'MN-5926'
+};
+function _progDiaDetectarSigla(actividad,siglasEq){
+  if(!actividad)return null;
+  var up=actividad.toUpperCase();
+  for(var alias in ALIAS_EQUIPOS_PROGDIA){if(up.indexOf(alias)>=0)return ALIAS_EQUIPOS_PROGDIA[alias];}
+  for(var i=0;i<siglasEq.length;i++){if(siglasEq[i]&&up.indexOf(siglasEq[i].toUpperCase())>=0)return siglasEq[i];}
+  return null;
+}
+
+// Agrega TODA la programación diaria cargada (todas las fechas/turnos) en 3 métricas:
+// horas-hombre por equipo (para saber dónde se concentró el trabajo), utilización de
+// dotación (bloques con actividad real / bloques totales — bajo = posible exceso de
+// gente, alto = posible déficit), y cumplimiento (de lo que menciona un equipo real,
+// ¿cuánto tiene de verdad un registro de PM/correctivo ese mismo día en el sistema?).
+function _progDiaResumen(todo){
+  var siglasEq=(S.g('eq')||[]).map(function(e){return e.sigla;});
+  var reg=S.g('reg')||[],ot=S.g('ot')||[];
+  var porEquipo={},bloquesOcupados=0,bloquesTotales=0,programados=0,conRegistro=0;
+  todo.forEach(function(p){
+    (p.bloques||[]).forEach(function(b){
+      bloquesTotales++;
+      if(!b.actividad)return;
+      bloquesOcupados++;
+      var sigla=_progDiaDetectarSigla(b.actividad,siglasEq);
+      if(sigla){
+        porEquipo[sigla]=(porEquipo[sigla]||0)+0.5;
+        programados++;
+        var tieneReg=reg.some(function(r){return r.equipo===sigla&&(r.fechaEntrada||r.fechaEjec||'').slice(0,10)===p.fecha;});
+        var tieneOt=ot.some(function(o){return o.sigla===sigla&&(o.fecha||'').slice(0,10)===p.fecha;});
+        if(tieneReg||tieneOt)conRegistro++;
+      }
+    });
+  });
+  var ranking=Object.keys(porEquipo).map(function(s){return{sigla:s,horas:porEquipo[s]};}).sort(function(a,b){return b.horas-a.horas;});
+  return{
+    ranking:ranking,
+    utilizacion:bloquesTotales?Math.round(bloquesOcupados/bloquesTotales*100):0,
+    bloquesOcupados:bloquesOcupados,bloquesTotales:bloquesTotales,
+    cumplimiento:programados?Math.round(conRegistro/programados*100):null,
+    programados:programados,conRegistro:conRegistro
+  };
+}
+
 renders.progdia=function(){
   if(!$('s-progdia'))return;
   var todo=S.g('progDia')||[];
+  var vista=window._progDiaVista||'detalle';
   var fechas=[...new Set(todo.map(function(p){return p.fecha;}))].sort().reverse();
   var fSel=window._progDiaFecha&&fechas.indexOf(window._progDiaFecha)>=0?window._progDiaFecha:(fechas[0]||'');
   // Turnos disponibles para ESTA fecha — no se asume que siempre son solo día/noche,
@@ -2095,34 +2164,78 @@ renders.progdia=function(){
   var cols=[];
   items.forEach(function(p){if(p.bloques&&p.bloques.length>cols.length)cols=p.bloques.map(function(b){return b.rango;});});
 
-  $('s-progdia').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">👷 Programación Diaria</div>'+
+  var cabecera='<div class="sec-h"><div><div class="sec-t">👷 Programación Diaria</div>'+
     '<div class="sec-s">Asignación de personal por bloques de 30 min · '+fechas.length+' fecha(s) cargada(s)</div></div>'+
     '<div><input type="file" id="progDiaFile" accept=".xlsx" style="display:none" onchange="importProgDiaXLSX(event)">'+
     '<button class="btn" onclick="document.getElementById(\'progDiaFile\').click()">📥 Importar Excel</button></div></div>'+
-    (fechas.length?(
-      '<div class="toolbar">'+
-      '<select onchange="window._progDiaFecha=this.value;window._progDiaTurno=null;renders.progdia()">'+
-      fechas.map(function(f){return'<option'+(f===fSel?' selected':'')+' value="'+f+'">'+f+'</option>';}).join('')+
-      '</select>'+
-      turnosFecha.map(function(t){return'<button class="btn '+(turno===t?'':'btn-o')+'" onclick="window._progDiaTurno=\''+t.replace(/'/g,"\\'")+'\';renders.progdia()">'+escapeHtml(t)+'</button>';}).join('')+
+    (fechas.length?'<div style="display:flex;gap:8px;margin-bottom:12px">'+
+      '<button class="btn '+(vista==='detalle'?'':'btn-o')+'" onclick="window._progDiaVista=\'detalle\';renders.progdia()">📋 Detalle</button>'+
+      '<button class="btn '+(vista==='resumen'?'':'btn-o')+'" onclick="window._progDiaVista=\'resumen\';renders.progdia()">📊 Resumen</button>'+
+      '</div>':'');
+
+  if(!fechas.length){
+    $('s-progdia').innerHTML=cabecera+'<p style="color:var(--tx3)">Aún no se ha importado ninguna programación diaria. Usa "📥 Importar Excel" para cargar la primera.</p>';
+    return;
+  }
+
+  if(vista==='resumen'){
+    var r=_progDiaResumen(todo);
+    var maxHoras=r.ranking.length?r.ranking[0].horas:0;
+    var colorUtil=r.utilizacion<40?'var(--warn)':r.utilizacion>85?'var(--danger)':'var(--ok)';
+    var msgUtil=r.utilizacion<40?'Posible exceso de dotación (baja ocupación)':r.utilizacion>85?'Posible déficit de dotación (sobrecarga)':'Ocupación saludable';
+    $('s-progdia').innerHTML=cabecera+
+      '<div class="cards">'+
+      '<div class="card"><div class="card-t">Utilización de dotación</div><div class="card-v" style="color:'+colorUtil+'">'+r.utilizacion+'%</div>'+
+      '<div style="font-size:10px;color:var(--tx3)">'+r.bloquesOcupados+' de '+r.bloquesTotales+' bloques ocupados · '+msgUtil+'</div></div>'+
+      '<div class="card"><div class="card-t">Cumplimiento vs. registro real</div><div class="card-v">'+(r.cumplimiento==null?'—':r.cumplimiento+'%')+'</div>'+
+      '<div style="font-size:10px;color:var(--tx3)">'+r.conRegistro+' de '+r.programados+' menciones de equipo con PM/correctivo real ese día</div></div>'+
+      '<div class="card"><div class="card-t">Equipos con horas registradas</div><div class="card-v">'+r.ranking.length+'</div>'+
+      '<div style="font-size:10px;color:var(--tx3)">detectados por sigla en el texto de las actividades</div></div>'+
       '</div>'+
-      (responsable?'<p style="font-size:12px;color:var(--tx3)">Responsable: <b>'+escapeHtml(responsable)+'</b></p>':'')+
-      (items.length?
-        '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:10px">'+
-        '<tr><th style="min-width:110px">Nombre</th><th style="min-width:90px">Cargo</th>'+
-        cols.map(function(c){return'<th style="min-width:90px;font-size:9px">'+escapeHtml(c)+'</th>';}).join('')+'</tr>'+
-        items.map(function(p){
-          return'<tr><td style="font-weight:600">'+escapeHtml(p.nombre)+'</td><td style="font-size:9px;color:var(--tx3)">'+escapeHtml(p.cargo||'')+'</td>'+
-            cols.map(function(c){
-              var b=(p.bloques||[]).find(function(x){return x.rango===c;});
-              var act=b?b.actividad:'';
-              return'<td style="font-size:9px'+(act?'':';color:var(--tx3)')+'">'+(act?escapeHtml(act):'—')+'</td>';
-            }).join('')+'</tr>';
+      '<div class="sec-t" style="font-size:14px;margin:16px 0 8px">⏱️ Horas-hombre por equipo (todas las fechas cargadas)</div>'+
+      (r.ranking.length?
+        '<div style="display:flex;flex-direction:column;gap:6px;max-width:600px">'+
+        r.ranking.slice(0,15).map(function(x){
+          var pct=maxHoras?Math.round(x.horas/maxHoras*100):0;
+          return'<div style="display:flex;align-items:center;gap:8px;font-size:12px">'+
+            '<span class="mono" style="width:70px;color:var(--ac)">'+escapeHtml(x.sigla)+'</span>'+
+            '<div style="flex:1;background:var(--bg3);border-radius:4px;height:14px;overflow:hidden">'+
+            '<div style="width:'+pct+'%;background:var(--ac);height:100%;border-radius:4px"></div></div>'+
+            '<span class="mono" style="width:50px;text-align:right;color:var(--tx3)">'+x.horas+'h</span>'+
+            '</div>';
         }).join('')+
-        '</table></div>'
-      :'<p style="color:var(--tx3)">Sin personal registrado para este turno en esta fecha.</p>')
-    ):'<p style="color:var(--tx3)">Aún no se ha importado ninguna programación diaria. Usa "📥 Importar Excel" para cargar la primera.</p>');
+        '</div>'
+      :'<p style="color:var(--tx3);font-size:12px">Ninguna actividad menciona una sigla de equipo real todavía.</p>')+
+      '<p style="font-size:10px;color:var(--tx3);margin-top:12px">Detección automática: busca la sigla del equipo dentro del texto de cada actividad. Actividades genéricas (Charla, Almuerzo, Vacaciones, Licencia) no se atribuyen a ningún equipo.</p>';
+    return;
+  }
+
+  $('s-progdia').innerHTML=cabecera+
+    '<div class="toolbar">'+
+    '<select onchange="window._progDiaFecha=this.value;window._progDiaTurno=null;renders.progdia()">'+
+    fechas.map(function(f){return'<option'+(f===fSel?' selected':'')+' value="'+f+'">'+f+'</option>';}).join('')+
+    '</select>'+
+    turnosFecha.map(function(t){return'<button class="btn '+(turno===t?'':'btn-o')+'" onclick="window._progDiaTurno=\''+t.replace(/'/g,"\\'")+'\';renders.progdia()">'+escapeHtml(t)+'</button>';}).join('')+
+    '</div>'+
+    (responsable?'<p style="font-size:12px;color:var(--tx3)">Responsable: <b>'+escapeHtml(responsable)+'</b></p>':'')+
+    (items.length?
+      '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:10px">'+
+      '<tr><th style="min-width:110px">Nombre</th><th style="min-width:90px">Cargo</th>'+
+      cols.map(function(c){return'<th style="min-width:90px;font-size:9px">'+escapeHtml(c)+'</th>';}).join('')+'</tr>'+
+      items.map(function(p){
+        var realIdx=todo.indexOf(p);
+        return'<tr><td class="ed" contenteditable onblur="edProgDia('+realIdx+',\'nombre\',this.innerText.trim())" style="font-weight:600">'+escapeHtml(p.nombre)+'</td>'+
+          '<td class="ed" contenteditable onblur="edProgDia('+realIdx+',\'cargo\',this.innerText.trim())" style="font-size:9px;color:var(--tx3)">'+escapeHtml(p.cargo||'')+'</td>'+
+          cols.map(function(c){
+            var bloqueIdx=(p.bloques||[]).findIndex(function(x){return x.rango===c;});
+            var act=bloqueIdx>=0?p.bloques[bloqueIdx].actividad:'';
+            return bloqueIdx>=0?
+              '<td class="ed" contenteditable onblur="edProgDiaBloque('+realIdx+','+bloqueIdx+',this.innerText.trim())" style="font-size:9px'+(act?'':';color:var(--tx3)')+'">'+(act?escapeHtml(act):'—')+'</td>':
+              '<td style="font-size:9px;color:var(--tx3)">—</td>';
+          }).join('')+'</tr>';
+      }).join('')+
+      '</table></div>'
+    :'<p style="color:var(--tx3)">Sin personal registrado para este turno en esta fecha.</p>');
 };
 
 renders.prg=function(){
@@ -9723,6 +9836,16 @@ window.syncEquipos=function(){
   prg=prg.filter(function(p){return eqSiglas.indexOf(p.sigla)>=0});
   var prgSiglas=prg.map(function(p){return p.sigla});
   var MS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  // today/mesActual/anioSync se sacan de la fecha real UNA sola vez — antes se
+  // declaraban con var DENTRO del forEach de abajo, lo que los dejaba inaccesibles
+  // (ReferenceError) para el segundo forEach ("Auto-mark EJEC") más abajo, que
+  // también los usa. Esto rompía syncEquipos() completo (y por lo tanto TODO
+  // refreshAll(), que se llama tras cada edición en cualquier pestaña) apenas
+  // hubiera un registro real que coincidiera con un equipo de 'prg' — hallado el
+  // 2026-07-16 al probar Programación Diaria contra datos con reg+prg reales.
+  var today=new Date();
+  var mesActual=today.getMonth();
+  var anioSync=today.getFullYear();
   eq.forEach(function(e){
     if(prgSiglas.indexOf(e.sigla)<0){
       var m={};MS.forEach(function(x){m[x]='';});
@@ -9734,9 +9857,6 @@ window.syncEquipos=function(){
       var diasRest=hrsDia>0?Math.round(hrsRest/hrsDia):30;
       var pmTypes=['PM1','PM2','PM3','PM4'];
       var pmIdx=0;
-      var today=new Date();
-      var mesActual=today.getMonth();
-      var anioSync=today.getFullYear();
       for(var mi=mesActual;mi<12;mi++){
         var diasEnMes=new Date(anioSync,mi+1,0).getDate();
         diasRest-=diasEnMes;
