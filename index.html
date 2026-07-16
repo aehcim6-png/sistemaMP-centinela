@@ -948,8 +948,8 @@ window.vizTipHide=function(){var tip=document.getElementById('_vizTip');if(tip)t
 
 function refreshAll(){syncEquipos();
   renderHeader();
-  renders.dash();
-  if(currentTab && currentTab!=='dash' && renders[currentTab]) renders[currentTab]();
+  if(!currentTab||currentTab==='dash')renders.dash();
+  else if(renders[currentTab])renders[currentTab]();
   setTimeout(()=>aplicarOrdenUniversal('s-'+currentTab),50);
 }
 window.dashSetPeriodo=function(){
@@ -9461,6 +9461,16 @@ window.saveHist=function(){
   toast('✅ Lectura registrada: '+sigla+' = '+fin+'h');
 };
 
+// Evita re-escribir (y re-sincronizar a Supabase) un store si lo recalculado es
+// idéntico a lo que ya había — syncEquipos() se llama en CADA refreshAll(), es decir
+// en cada edición de celda de cualquier pestaña, pero en el caso normal ninguno de
+// sus 13 stores cambia. Sin este chequeo, cada edición disparaba 13 sincronizaciones
+// de red (SELECT+POST+DELETE cada una) y 13 entradas falsas de "Editar X" en el
+// changelog, aunque nada hubiera cambiado en esos stores.
+function _syncSiCambio(store,nuevo){
+  var actual=S.g(store)||(Array.isArray(nuevo)?[]:{});
+  if(JSON.stringify(nuevo)!==JSON.stringify(actual))S.s(store,nuevo);
+}
 // Auto-sync stores when equipos change
 window.syncEquipos=function(){
   var eq=S.g('eq')||[];
@@ -9518,7 +9528,7 @@ window.syncEquipos=function(){
       }
     });
   });
-  S.s('prg',prg);
+  _syncSiCambio('prg',prg);
   
   // 2. Componentes Mayores
   var comp=S.g('compMayores')||[];
@@ -9526,62 +9536,62 @@ window.syncEquipos=function(){
   var compSiglas=[...new Set(comp.map(function(c){return c.sigla}))];
   var defComps=[{comp:'Motor',vidaUtil:15000,costoRef:45000000},{comp:'Transmisión',vidaUtil:12000,costoRef:35000000},{comp:'Diferencial',vidaUtil:12000,costoRef:25000000},{comp:'Convertidor',vidaUtil:10000,costoRef:20000000},{comp:'Mandos Finales',vidaUtil:10000,costoRef:18000000},{comp:'Bomba Hidráulica',vidaUtil:8000,costoRef:15000000}];
   eq.forEach(function(e){if(compSiglas.indexOf(e.sigla)<0){defComps.forEach(function(dc){comp.push({sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,comp:dc.comp,horomComp:e.horomActual,vidaUtil:dc.vidaUtil,costoRef:dc.costoRef,fechaInst:'',obs:'',estado:''});});}});
-  S.s('compMayores',comp);
+  _syncSiCambio('compMayores',comp);
   
   // 3. Plan Semanal
   var sem=S.g('planSem')||[];
   sem=sem.filter(function(s){return eqSiglas.indexOf(s.sigla)>=0||s.sigla==='NUEVO'});
-  S.s('planSem',sem);
+  _syncSiCambio('planSem',sem);
   
   // 4. Disponibilidad
   var disp=S.g('dispCalc')||{};
   Object.keys(disp).forEach(function(k){if(eqSiglas.indexOf(k)<0)delete disp[k];});
-  S.s('dispCalc',disp);
+  _syncSiCambio('dispCalc',disp);
   
   // 5. OT/Correctivos
   var ot=S.g('ot')||[];
   ot=ot.filter(function(o){return !o.sigla||eqSiglas.indexOf(o.sigla)>=0});
-  S.s('ot',ot);
+  _syncSiCambio('ot',ot);
   
   // 6. Historial Horómetros
   var hist=S.g('hist')||[];
   hist=hist.filter(function(h){return eqSiglas.indexOf(h.sigla)>=0});
-  S.s('hist',hist);
+  _syncSiCambio('hist',hist);
   
   // 7. Registros PM
   var reg=S.g('reg')||[];
   reg=reg.filter(function(r){return !r.equipo||eqSiglas.indexOf(r.equipo)>=0});
-  S.s('reg',reg);
+  _syncSiCambio('reg',reg);
   
   // 8. Neumáticos
   var neu=S.g('neu')||[];
   neu=neu.filter(function(n){return !n.equipo||eqSiglas.indexOf(n.equipo)>=0||eqSiglas.indexOf(n.sigla)>=0});
-  S.s('neu',neu);
+  _syncSiCambio('neu',neu);
   
   // 9. Inspecciones
   var insp=S.g('insp')||[];
   insp=insp.filter(function(i){return !i.equipo||eqSiglas.indexOf(i.equipo)>=0});
-  S.s('insp',insp);
+  _syncSiCambio('insp',insp);
   
   // 10. Análisis Aceite
   var ace=S.g('aceite')||[];
   ace=ace.filter(function(a){return !a.equipo||eqSiglas.indexOf(a.equipo)>=0||!a.sigla||eqSiglas.indexOf(a.sigla)>=0});
-  S.s('aceite',ace);
+  _syncSiCambio('aceite',ace);
   
   // 11. Consumos/Movimientos
   var mov=S.g('mov')||[];
   mov=mov.filter(function(m){return !m.equipo||eqSiglas.indexOf(m.equipo)>=0});
-  S.s('mov',mov);
+  _syncSiCambio('mov',mov);
   
   // Sync gantt
   var gantt=S.g('gantt')||[];
   gantt=gantt.filter(function(g){return eqSiglas.indexOf(g.sigla)>=0});
-  S.s('gantt',gantt);
+  _syncSiCambio('gantt',gantt);
   
   // Sync destrabe
   var dest=S.g('destrabe')||[];
   dest=dest.filter(function(d){return !d.equipo||eqSiglas.indexOf(d.equipo)>=0});
-  S.s('destrabe',dest);
+  _syncSiCambio('destrabe',dest);
 };
 
 window.cyclePrg=function(pi,mes,esEjecAuto){
