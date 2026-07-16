@@ -4263,11 +4263,11 @@ window.histPosicion=function(sigla,posNum){
     const remIni=ms[0].remProm,remFin=ms[ms.length-1].remProm;
     leyenda+=`<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0">
       <span style="width:12px;height:12px;background:${colores2[si%colores2.length]};border-radius:2px;display:inline-block"></span>
-      <b>${s}</b> · ${ms.length} med. · ${remIni}→${remFin}mm · ${fn2(hrsVida)}h vida</div>`;
+      <b>${escapeHtml(s)}</b> · ${ms.length} med. · ${remIni}→${remFin}mm · ${fn2(hrsVida)}h vida</div>`;
   });
 
   sm(`<div style="max-width:600px">
-    <h3>📍 Historial Posición ${posNum} — ${sigla}</h3>
+    <h3>📍 Historial Posición ${escapeHtml(posNum)} — ${escapeHtml(sigla)}</h3>
     <p style="font-size:12px;color:var(--tx3)">${meds.length} mediciones · ${series.length} neumático(s) han pasado por esta posición</p>
     ${svg||'<p style="color:var(--tx3);text-align:center;padding:20px">Sin mediciones en esta posición</p>'}
     <div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:12px">
@@ -10539,9 +10539,9 @@ window.crearUsuarioUI=async function(){
   out.innerHTML='Creando...';
   try{
     var res=await _accionUsuarios({action:'crear',nombre:nombre,email:email,rol:rol});
-    if(res.error){out.innerHTML='<span style="color:var(--danger)">❌ '+res.error+'</span>';return;}
+    if(res.error){out.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
     out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px">'+
-      '✅ Cuenta de '+nombre+' creada y bloqueada. Aparece abajo en "Pendientes de activar" — la activas cuando tú digas.</div>';
+      '✅ Cuenta de '+escapeHtml(nombre)+' creada y bloqueada. Aparece abajo en "Pendientes de activar" — la activas cuando tú digas.</div>';
     document.getElementById('nuNombre').value='';
     document.getElementById('nuEmail').value='';
     cargarPendientesUI();
@@ -10554,7 +10554,7 @@ window.cargarPendientesUI=async function(){
   cont.innerHTML='Cargando...';
   try{
     var res=await _accionUsuarios({action:'listar_pendientes'});
-    if(res.error){cont.innerHTML='<span style="color:var(--danger)">❌ '+res.error+'</span>';return;}
+    if(res.error){cont.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
     var pend=res.pendientes||[];
     if(!pend.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios pendientes.</span>';return;}
     cont.innerHTML=pend.map(function(u){
@@ -10571,9 +10571,9 @@ window.activarUsuarioUI=async function(userId,nombre){
   if(out)out.innerHTML='Activando...';
   try{
     var res=await _accionUsuarios({action:'activar',userId:userId});
-    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)">❌ '+res.error+'</span>';return;}
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
     if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px">'+
-      '✅ '+nombre+' activado.<br>Clave temporal: <b style="font-size:14px;letter-spacing:1px">'+res.tempPassword+'</b><br>'+
+      '✅ '+escapeHtml(nombre)+' activado.<br>Clave temporal: <b style="font-size:14px;letter-spacing:1px">'+escapeHtml(res.tempPassword)+'</b><br>'+
       '<span style="color:var(--tx3);font-size:10px">Compártela ahora. Deberá cambiarla al ingresar por primera vez.</span></div>';
     cargarPendientesUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
@@ -10585,7 +10585,7 @@ window.cargarActivosUI=async function(){
   cont.innerHTML='Cargando...';
   try{
     var res=await _accionUsuarios({action:'listar_activos'});
-    if(res.error){cont.innerHTML='<span style="color:var(--danger)">❌ '+res.error+'</span>';return;}
+    if(res.error){cont.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
     var act=res.activos||[];
     if(!act.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios activos.</span>';return;}
     cont.innerHTML=act.map(function(u){
@@ -10604,8 +10604,8 @@ window.desactivarUsuarioUI=async function(userId,nombre){
   if(out)out.innerHTML='Desactivando...';
   try{
     var res=await _accionUsuarios({action:'desactivar',userId:userId});
-    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)">❌ '+res.error+'</span>';return;}
-    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px">🔒 '+nombre+' desactivado.</div>';
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
+    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px">🔒 '+escapeHtml(nombre)+' desactivado.</div>';
     cargarActivosUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
