@@ -6111,7 +6111,7 @@ function diagnosticoFlota(){
   ot.forEach(function(o){
     var k=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
     if(!k)return;
-    if(!porComp[k])porComp[k]={componente:k,total:0,equipos:{},sinCausa:0,sinSolucion:0,pendientes:0,costoTotal:0,fechas:[],causasTexto:[]};
+    if(!porComp[k])porComp[k]={componente:k,total:0,equipos:{},equipoFechas:{},sinCausa:0,sinSolucion:0,pendientes:0,costoTotal:0,fechas:[],causasTexto:[]};
     var c=porComp[k];
     c.total++;
     c.equipos[o.sigla]=(c.equipos[o.sigla]||0)+1;
@@ -6120,7 +6120,11 @@ function diagnosticoFlota(){
     if(!o.solucion||!o.solucion.trim())c.sinSolucion++;
     if(o.estadoOT&&o.estadoOT!=='Cerrada'&&o.estadoOT!=='Cerrado')c.pendientes++;
     c.costoTotal+=Number(o.costo)||0;
-    if(o.fecha)c.fechas.push(o.fecha);
+    if(o.fecha){
+      c.fechas.push(o.fecha);
+      if(!c.equipoFechas[o.sigla])c.equipoFechas[o.sigla]=[];
+      c.equipoFechas[o.sigla].push(o.fecha);
+    }
   });
   var lista=Object.keys(porComp).map(function(k){
     var c=porComp[k];
@@ -6129,6 +6133,20 @@ function diagnosticoFlota(){
     c.nEquipos=siglasAfectadas.length;
     c.equipoMasRepetido=siglasAfectadas.reduce(function(a,b){return c.equipos[a]>=c.equipos[b]?a:b;},siglasAfectadas[0]);
     c.vecesEnEsePeor=c.equipos[c.equipoMasRepetido];
+    // Días entre una falla y la siguiente del MISMO componente en el equipo donde
+    // más se repite — a diferencia de "total de fallas", esto responde directo a
+    // "¿la reparación no está durando?": un intervalo corto (semanas) entre una
+    // reparación y la siguiente falla del mismo tipo es una fecha contra otra
+    // fecha, no una opinión — apunta a repuesto de baja calidad o reparación mal
+    // hecha, no a desgaste normal por uso.
+    c.reincidenciaDias=null;
+    var fechasPeor=(c.equipoFechas[c.equipoMasRepetido]||[]).slice().sort();
+    if(fechasPeor.length>=2){
+      var gaps=[];
+      for(var gi=1;gi<fechasPeor.length;gi++)gaps.push(Math.round((new Date(fechasPeor[gi])-new Date(fechasPeor[gi-1]))/864e5));
+      c.reincidenciaDias=Math.round(gaps.reduce(function(a,b){return a+b;},0)/gaps.length);
+    }
+    delete c.equipoFechas;
     c.ultimaFecha=c.fechas[c.fechas.length-1]||'';
     c.diasDesdeUltima=c.ultimaFecha?Math.round((Date.now()-new Date(c.ultimaFecha).getTime())/864e5):null;
     // Heurística de sugerencia: sin esto son solo números, con esto es una lectura accionable
@@ -6473,6 +6491,7 @@ renders.pred=function(){
             '</div>'+
             '<div style="font-size:12px;margin:6px 0;line-height:1.5">💡 '+escapeHtml(c.sugerencia)+'</div>'+
             (c.causaTop?'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">🔍 Causa más mencionada en el registro: <b>'+escapeHtml(c.causaTop.toUpperCase())+'</b> ('+c.causaTopN+' veces)</div>':'')+
+            (c.reincidenciaDias!=null?'<div style="font-size:11px;margin-bottom:4px;color:'+(c.reincidenciaDias<30?'var(--danger)':c.reincidenciaDias<90?'var(--w)':'var(--tx2)')+'">⏱️ En '+escapeHtml(c.equipoMasRepetido)+', vuelve a fallar en promedio cada <b>'+c.reincidenciaDias+' día(s)</b>'+(c.reincidenciaDias<30?' — intervalo corto: revisar calidad del repuesto o de la reparación, no parece desgaste normal':c.reincidenciaDias<90?' — intervalo moderado, vale la pena revisar':'')+'</div>':'')+
             (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
             '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+Math.round(c.costoTotal).toLocaleString()+' acumulado':'')+'</div>'+
             '</div>';
