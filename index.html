@@ -5997,6 +5997,61 @@ function generarDiagnostico(sigla){
   return d;
 }
 
+// ═══ DIAGNÓSTICO A NIVEL DE FLOTA ═══
+// generarDiagnostico() responde "qué pasa" para UN equipo ya elegido. Esto responde
+// la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
+// cuántos de ellos? — para saber DÓNDE mirar antes de entrar al detalle por equipo.
+function diagnosticoFlota(){
+  var ot=S.g('ot')||[];
+  var porComp={};
+  ot.forEach(function(o){
+    var k=(o.componente||'').trim();
+    if(!k)return;
+    if(!porComp[k])porComp[k]={componente:k,total:0,equipos:{},sinCausa:0,sinSolucion:0,pendientes:0,costoTotal:0,fechas:[]};
+    var c=porComp[k];
+    c.total++;
+    c.equipos[o.sigla]=(c.equipos[o.sigla]||0)+1;
+    if(!o.causaRaiz||!o.causaRaiz.trim())c.sinCausa++;
+    if(!o.solucion||!o.solucion.trim())c.sinSolucion++;
+    if(o.estadoOT&&o.estadoOT!=='Cerrada'&&o.estadoOT!=='Cerrado')c.pendientes++;
+    c.costoTotal+=Number(o.costo)||0;
+    if(o.fecha)c.fechas.push(o.fecha);
+  });
+  var lista=Object.keys(porComp).map(function(k){
+    var c=porComp[k];
+    var siglasAfectadas=Object.keys(c.equipos);
+    c.fechas.sort();
+    c.nEquipos=siglasAfectadas.length;
+    c.equipoMasRepetido=siglasAfectadas.reduce(function(a,b){return c.equipos[a]>=c.equipos[b]?a:b;},siglasAfectadas[0]);
+    c.vecesEnEsePeor=c.equipos[c.equipoMasRepetido];
+    c.ultimaFecha=c.fechas[c.fechas.length-1]||'';
+    c.diasDesdeUltima=c.ultimaFecha?Math.round((Date.now()-new Date(c.ultimaFecha).getTime())/864e5):null;
+    // Heurística de sugerencia: sin esto son solo números, con esto es una lectura accionable
+    var atendido=c.total?Math.round((1-c.sinSolucion/c.total)*100):0;
+    var sugerencia,severidad;
+    if(c.total>=3&&c.vecesEnEsePeor>=3){
+      sugerencia='Se repite '+c.vecesEnEsePeor+' veces en el MISMO equipo ('+c.equipoMasRepetido+') — evaluar reemplazo del componente o del equipo, no solo repararlo de nuevo.';
+      severidad=3;
+    }else if(c.total>=3&&c.nEquipos>=3){
+      sugerencia='Se repite en '+c.nEquipos+' equipos distintos — probable problema de especificación del repuesto/proveedor, no de un equipo en particular.';
+      severidad=2;
+    }else if(c.total>=3){
+      sugerencia='Fallas repetidas concentradas en pocos equipos — revisar si la PM está cubriendo este componente.';
+      severidad=2;
+    }else{
+      sugerencia='Aún sin patrón claro (pocas fallas registradas).';
+      severidad=0;
+    }
+    if(c.sinCausa/c.total>0.5)sugerencia+=' ⚠️ Más de la mitad sin causa raíz registrada en terreno — mejorar el registro antes de confiar en el diagnóstico.';
+    c.sugerencia=sugerencia;
+    c.severidad=severidad;
+    c.pctAtendido=atendido;
+    return c;
+  }).filter(function(c){return c.total>=2;})
+    .sort(function(a,b){return b.severidad-a.severidad||b.total-a.total;});
+  return lista;
+}
+
 renders.pred=function(){
   var P=computePred();
   var R=P.resumen;
@@ -6292,6 +6347,25 @@ renders.pred=function(){
           '<td style="font-size:10px">'+it.equipos.join(', ')+'</td>'+
           '<td style="text-align:right;font-size:11px">$'+it.costoTotal.toLocaleString()+'</td></tr>';
       }).join('')+'</table></div></div>';
+  } else if(fVista==='flota'){
+    var df=diagnosticoFlota();
+    content=
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏭 Componentes con fallas repetitivas — toda la flota</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Agrupa TODOS los correctivos por componente, sin importar el equipo. Ordenado por severidad: primero lo que se repite en el mismo equipo o en varios equipos a la vez.</div>'+
+      (df.length?
+        df.map(function(c){
+          var borde=c.severidad>=3?'var(--danger)':c.severidad>=2?'var(--w)':'var(--bd)';
+          return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+borde+'">'+
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px">'+
+            '<div style="font-weight:700;font-size:14px">'+escapeHtml(c.componente)+'</div>'+
+            '<div style="font-size:11px;color:var(--tx3)">'+c.total+' fallas · '+c.nEquipos+' equipo(s) · última hace '+(c.diasDesdeUltima==null?'—':c.diasDesdeUltima+'d')+'</div>'+
+            '</div>'+
+            '<div style="font-size:12px;margin:6px 0;line-height:1.5">💡 '+escapeHtml(c.sugerencia)+'</div>'+
+            '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+Math.round(c.costoTotal).toLocaleString()+' acumulado':'')+'</div>'+
+            '</div>';
+        }).join('')
+      :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficientes correctivos con "componente" registrado para detectar patrones. Se necesitan al menos 2 fallas del mismo componente.</div>')+
+      '</div>';
   }
 
   
@@ -6327,7 +6401,8 @@ $('s-pred').innerHTML=
     '<option value="equipo"'+(fVista==='equipo'||fVista==='diag'?' selected':'')+'>🏗 Por Equipo</option>'+
     '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'>📋 Backlog Inteligente</option>'+
     '<option value="items"'+(fVista==='items'?' selected':'')+'>🔧 Top Items</option>'+
-    '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option></select>'+
+    '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
+    '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option></select>'+
     (fVista==='equipo'||fVista==='diag'?
       '<select id="fPredEq" onchange="renders.pred()"><option value="">Seleccionar equipo...</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>':'')+
