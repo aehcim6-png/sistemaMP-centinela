@@ -5802,6 +5802,45 @@ window.processImportLub=function(){
 
 
 // ═══ MOTOR DE INTERPRETACIÓN AUTOMÁTICA ═══
+// El campo "componente" de correctivos está vacío en el 100% de los registros
+// reales (verificado 2026-07 — nadie lo llena en terreno); la descripción real
+// vive como texto libre en "síntoma", sin formato consistente ("Asiento",
+// "ASIENTO NO FUNCIONAL", "asiento con falla en respaldar", etc.). Sin esto,
+// toda detección de "falla recurrente en el mismo componente" (acá y en
+// generarDiagnostico) queda ciega — nunca encuentra nada que agrupar.
+var _CATEGORIAS_COMPONENTE=[
+  ['Asiento',['asiento']],
+  ['Batería',['bateria','batería','baterias','baterías']],
+  ['Motor de Partida',['motor de partida','motor partida']],
+  ['Cilindro de Dirección',['cilindro direccion','cilindro de direccion','cilindro dirección','cilindro de dirección','cilindro volante']],
+  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos']],
+  ['Frenos',['freno']],
+  ['Transmisión',['transmision','transmisión']],
+  ['Diferencial',['diferencial','diferecial']],
+  ['Mandos Finales',['mandos finales','mando final']],
+  ['Turbo',['turbo']],
+  ['Alternador',['alternador']],
+  ['Radiador/Enfriamiento',['radiador','refrigerante']],
+  ['Sistema Hidráulico',['hidraulico','hidráulico']],
+  ['Suspensión',['suspension','suspensión']],
+  ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico','arnes','arnés']],
+  ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
+  ['GET / Cuchillas',['cuchilla','entrediente','gets']],
+  ['Sistema Combustible',['bomba inyectora','bomba combustible','filtro de combustible','inyector']],
+  ['Balde/Implemento',['pasador del balde','pasador balde']],
+  ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida) ganen primero
+];
+// Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
+// campo estructurado viene vacío (que es casi siempre, ver nota arriba).
+function _componenteDeSintoma(sintoma){
+  if(!sintoma)return '';
+  var t=sintoma.toLowerCase();
+  for(var i=0;i<_CATEGORIAS_COMPONENTE.length;i++){
+    var cat=_CATEGORIAS_COMPONENTE[i][0],keys=_CATEGORIAS_COMPONENTE[i][1];
+    for(var j=0;j<keys.length;j++){if(t.indexOf(keys[j])>=0)return cat;}
+  }
+  return '';
+}
 // ═══ ANALÍTICA DE CAUSA RAÍZ (Mejora 2) ═══
 function predecirCausa(sigla, componente){
   var ot=S.g('ot')||[];
@@ -5913,7 +5952,10 @@ function generarDiagnostico(sigla){
   if(aceAlertas.length)porQue.push('Desgaste interno detectado por análisis de aceite');
   if(noks.length)porQue.push('Anomalías detectadas en inspección visual');
   var compFallas={};
-  ot.filter(function(o){return o.sigla===sigla&&o.componente;}).forEach(function(o){compFallas[o.componente]=(compFallas[o.componente]||0)+1;});
+  ot.filter(function(o){return o.sigla===sigla;}).forEach(function(o){
+    var comp=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
+    if(comp)compFallas[comp]=(compFallas[comp]||0)+1;
+  });
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=2)porQue.push('Falla recurrente en '+cf[0]+' ('+cf[1]+' veces)');});
   if(estadoPM.includes('URGENTE'))porQue.push('Horas de operación superan intervalo de mantención');
   if(eqData&&eqData.promCostoMes>5e6)porQue.push('Costo mensual alto: $'+eqData.promCostoMes.toLocaleString()+'/mes');
@@ -6005,7 +6047,7 @@ function diagnosticoFlota(){
   var ot=S.g('ot')||[];
   var porComp={};
   ot.forEach(function(o){
-    var k=(o.componente||'').trim();
+    var k=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
     if(!k)return;
     if(!porComp[k])porComp[k]={componente:k,total:0,equipos:{},sinCausa:0,sinSolucion:0,pendientes:0,costoTotal:0,fechas:[]};
     var c=porComp[k];
@@ -6103,8 +6145,9 @@ renders.pred=function(){
     if(noks>=2){alertas.push('Inspección: '+noks+' NOK recientes');severity+=2;}
     // Check repeated failures (same component)
     var compFallas={};
-    ot.filter(function(o){return o.sigla===sigla&&o.componente;}).forEach(function(o){
-      compFallas[o.componente]=(compFallas[o.componente]||0)+1;
+    ot.filter(function(o){return o.sigla===sigla;}).forEach(function(o){
+      var comp=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
+      if(comp)compFallas[comp]=(compFallas[comp]||0)+1;
     });
     Object.entries(compFallas).forEach(function(cf){
       if(cf[1]>=3){alertas.push(cf[0]+': '+cf[1]+' fallas');severity+=3;}
