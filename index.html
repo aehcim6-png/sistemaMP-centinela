@@ -1312,33 +1312,6 @@ renders.dash=function(){
 
     '</div></div>';
 
-  // ═══ BLOQUE 1: TABLA URGENTES MEJORADA ═══
-  var urgBlock='';
-  if(urg.length){
-    urgBlock+='<div style="background:var(--bg2);border:1px solid var(--border);border-left:4px solid #ef4444;border-radius:10px;padding:16px;margin-bottom:16px">';
-    urgBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:#ef4444;display:flex;align-items:center;gap:6px">🚨 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+' <span style="font-size:11px;background:#7f1d1d;color:#fca5a5;padding:2px 8px;border-radius:10px">'+urg.length+'</span></div>';
-    urgBlock+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-    urgBlock+='<thead><tr style="background:var(--bg3)">';
-    ['Equipo','Tipo','Modelo','Horóm. Actual','Próx. PM','Días Rest.','Tipo PM'].forEach(function(h){
-      urgBlock+='<th style="text-align:left;padding:7px 8px;color:var(--tx3);font-weight:500;font-size:10px;text-transform:uppercase">'+h+'</th>';
-    });
-    urgBlock+='</tr></thead><tbody>';
-    urg.slice(0,10).forEach(function(e){
-      var diasColor=e.diasParaPM<0?'#ef4444':'#f59e0b';
-      urgBlock+='<tr style="border-bottom:1px solid var(--border)">';
-      urgBlock+='<td style="padding:6px 8px;font-family:var(--mono);color:var(--ac);font-weight:700">'+escapeHtml(e.sigla)+'</td>';
-      urgBlock+='<td style="padding:6px 8px">'+escapeHtml(e.tipo)+'</td>';
-      urgBlock+='<td style="padding:6px 8px;font-size:10px;color:var(--tx2)">'+escapeHtml(e.modelo)+'</td>';
-      urgBlock+='<td style="padding:6px 8px;font-family:var(--mono)">'+fn(e.horomActual)+'</td>';
-      urgBlock+='<td style="padding:6px 8px;font-family:var(--mono)">'+fn(e.horomProxPM)+'</td>';
-      urgBlock+='<td style="padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+diasColor+'">'+e.diasParaPM+'d</td>';
-      urgBlock+='<td style="padding:6px 8px">'+pb(e.tipoPM)+'</td>';
-      urgBlock+='</tr>';
-    });
-    if(urg.length>10) urgBlock+='<tr><td colspan="7" style="padding:6px 8px;font-size:11px;color:var(--tx3)">... y '+(urg.length-10)+' más</td></tr>';
-    urgBlock+='</tbody></table></div></div>';
-  }
-
   // ═══ BLOQUE 2: PRÓXIMOS PMs — 14 DÍAS ═══
   var proxPMs=eq.filter(function(e){return e.diasParaPM>0&&e.diasParaPM<=14;}).sort(function(a,b){return a.diasParaPM-b.diasParaPM;}).slice(0,8);
   var proxBlock='';
@@ -1388,7 +1361,7 @@ renders.dash=function(){
 
   // Agregar los 3 bloques al innerHTML existente
   var dashEl=document.getElementById('s-dash');
-  dashEl.innerHTML+=urgBlock+proxBlock+trendBlock;
+  dashEl.innerHTML+=proxBlock+trendBlock;
 
   renderHeader();
 };
