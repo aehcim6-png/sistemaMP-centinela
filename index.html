@@ -2120,6 +2120,15 @@ window.edProgDia=function(realIdx,key,val){
   var d=S.g('progDia')||[];
   if(_edCampo('progDia',d,realIdx,key,val))refreshAll();
 };
+window.delProgDia=function(realIdx){
+  var d=S.g('progDia')||[];
+  var p=d[realIdx];
+  if(!p)return;
+  if(!confirm('¿Eliminar a '+p.nombre+' ('+p.fecha+', turno '+p.turno+') de la programación diaria?'))return;
+  d.splice(realIdx,1);
+  S.s('progDia',d);
+  refreshAll();
+};
 // No usa _edCampo a propósito: _edCampo hace S.s(store,arr) asumiendo que 'arr' es
 // el arreglo COMPLETO de la categoría — acá lo que se edita es un campo DENTRO de
 // un arreglo anidado (bloques de una persona), así que hay que guardar 'd' entero
@@ -2289,7 +2298,7 @@ renders.progdia=function(){
     (items.length?
       '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:10px">'+
       '<tr><th style="min-width:110px">Nombre</th><th style="min-width:90px">Cargo</th>'+
-      cols.map(function(c){return'<th style="min-width:90px;font-size:9px">'+escapeHtml(c)+'</th>';}).join('')+'</tr>'+
+      cols.map(function(c){return'<th style="min-width:90px;font-size:9px">'+escapeHtml(c)+'</th>';}).join('')+'<th></th></tr>'+
       items.map(function(p){
         var realIdx=todo.indexOf(p);
         return'<tr><td class="ed" contenteditable onblur="edProgDia('+realIdx+',\'nombre\',this.innerText.trim())" style="font-weight:600">'+escapeHtml(p.nombre)+'</td>'+
@@ -2300,7 +2309,8 @@ renders.progdia=function(){
             return bloqueIdx>=0?
               '<td class="ed" contenteditable onblur="edProgDiaBloque('+realIdx+','+bloqueIdx+',this.innerText.trim())" style="font-size:9px'+(act?'':';color:var(--tx3)')+'">'+(act?escapeHtml(act):'—')+'</td>':
               '<td style="font-size:9px;color:var(--tx3)">—</td>';
-          }).join('')+'</tr>';
+          }).join('')+
+          '<td><button class="btn btn-o" style="padding:2px 6px;font-size:10px" title="Eliminar esta fila" onclick="delProgDia('+realIdx+')">🗑️</button></td></tr>';
       }).join('')+
       '</table></div>'
     :'<p style="color:var(--tx3)">Sin personal registrado para este turno en esta fecha.</p>');
