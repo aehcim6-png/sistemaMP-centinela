@@ -6235,10 +6235,16 @@ renders.pred=function(){
       var comp=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
       if(comp)compFallas[comp]=(compFallas[comp]||0)+1;
     });
-    Object.entries(compFallas).forEach(function(cf){
-      if(cf[1]>=3){alertas.push(cf[0]+': '+cf[1]+' fallas');severity+=3;}
-      else if(cf[1]>=2){alertas.push(cf[0]+': '+cf[1]+' fallas');severity+=1;}
-    });
+    // Antes esta lista casi nunca tenía contenido (componente venía vacío en el
+    // 100% de los correctivos reales); ahora que _componenteDeSintoma() encuentra
+    // patrones de verdad, un equipo puede tener 6-8 componentes con >=2 fallas —
+    // mostrarlos todos desborda la celda de la tabla. Se limita a los 3 más
+    // repetidos y se resume el resto en "+N más".
+    var compOrdenados=Object.entries(compFallas).sort(function(a,b){return b[1]-a[1];});
+    compOrdenados.forEach(function(cf){if(cf[1]>=3)severity+=3;else if(cf[1]>=2)severity+=1;});
+    compOrdenados.slice(0,3).forEach(function(cf){if(cf[1]>=2)alertas.push(cf[0]+': '+cf[1]+' fallas');});
+    var restantes=compOrdenados.slice(3).filter(function(cf){return cf[1]>=2;});
+    if(restantes.length)alertas.push('+'+restantes.length+' componente(s) más con fallas repetidas');
     // Check consumption trend (increasing)
     var eqData=P.equipos[sigla];
     if(eqData&&eqData.trend.length>=4){
@@ -6350,7 +6356,7 @@ renders.pred=function(){
           '<td style="font-size:14px;text-align:center">'+ac.estado+'</td>'+
           '<td style="text-align:center"><span style="color:'+confCol+';font-weight:600;font-size:11px">'+conf.nivel+'</span></td>'+
           '<td style="font-size:11px">'+(e.tipoPM||'—')+' en '+(e.diasParaPM||'—')+'d</td>'+
-          '<td style="font-size:10px;max-width:200px">'+(ac.alertas.length?ac.alertas.join(', '):'<span style="color:var(--ok)">Sin alertas</span>')+'</td>'+
+          '<td style="font-size:10px;max-width:200px;white-space:normal;word-break:break-word;line-height:1.5">'+(ac.alertas.length?ac.alertas.join(', '):'<span style="color:var(--ok)">Sin alertas</span>')+'</td>'+
           '<td style="font-size:11px;font-weight:600;color:'+recomCol+'">'+recom+'</td></tr>';
       }).join('')+
       '</table></div></div>'+
