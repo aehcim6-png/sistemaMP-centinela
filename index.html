@@ -5820,15 +5820,25 @@ var _CATEGORIAS_COMPONENTE=[
   ['Mandos Finales',['mandos finales','mando final']],
   ['Turbo',['turbo']],
   ['Alternador',['alternador']],
+  ['Bomba de Agua',['bomba de agua','bomba agua']],
   ['Radiador/Enfriamiento',['radiador','refrigerante']],
-  ['Sistema Hidráulico',['hidraulico','hidráulico']],
   ['Suspensión',['suspension','suspensión']],
-  ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico','arnes','arnés']],
+  ['Inyectores',['inyector','inyectores']],
+  ['Filtro de Combustible',['filtro de combustible','filtro combustible']],
+  ['Filtro de Aire',['filtro de aire','filtro aire']],
+  ['Bomba de Combustible',['bomba de combustible','bomba combustible','bomba inyectora']],
+  ['Crucetas',['cruceta','crucetas']],
+  ['Soporte de Cabina',['soporte de cabina','soporte cabina']],
+  ['Conectores/Cableado',['conector','conectores','arnes','arnés']],
+  ['Mangueras/Fugas',['manguera','mangueras','flexible hidraulico','flexible hidráulico']],
+  ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste']],
+  ['Foco/Ampolleta',['ampolleta','foco delantero','foco trasero']],
+  ['Sistema Hidráulico',['hidraulico','hidráulico']],
+  ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico']],
   ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
   ['GET / Cuchillas',['cuchilla','entrediente','gets']],
-  ['Sistema Combustible',['bomba inyectora','bomba combustible','filtro de combustible','inyector']],
   ['Balde/Implemento',['pasador del balde','pasador balde']],
-  ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida) ganen primero
+  ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
 // campo estructurado viene vacío (que es casi siempre, ver nota arriba).
@@ -5841,17 +5851,41 @@ function _componenteDeSintoma(sintoma){
   }
   return '';
 }
+// Palabras clave de causa raíz típicas en minería — compartido entre predecirCausa
+// (por equipo) y diagnosticoFlota (toda la flota, ver más abajo).
+var _DICC_CAUSA_RAIZ=['desgaste','fatiga','contaminación','contaminacion','sobrecarga','corrosión','corrosion',
+  'vibración','vibracion','temperatura','sobrecalentamiento','lubricación','lubricacion','falta de aceite',
+  'fuga','filtración','filtracion','rotura','fractura','grieta','impacto','golpe','corte',
+  'obstrucción','obstruccion','suciedad','barro','polvo','humedad','óxido','oxido',
+  'desalineación','desalineacion','holgura','desbalance','fisura','desgarro','presión','presion',
+  'eléctrica','electrica','cortocircuito','sensor','conexión','conexion','cable','fusible',
+  'defecto fábrica','defecto fabrica','mal montaje','instalación','instalacion','operación','operacion'];
+function _normalizarCausa(kw){
+  return kw.replace('contaminacion','contaminación').replace('vibracion','vibración')
+    .replace('lubricacion','lubricación').replace('corrosion','corrosión')
+    .replace('presion','presión').replace('operacion','operación');
+}
+// Cuenta frecuencia de palabras clave de _DICC_CAUSA_RAIZ dentro de un arreglo de
+// textos (normalmente causaRaiz de varios correctivos) y devuelve la más frecuente.
+function _frecuenciaCausas(textos){
+  var frec={};
+  textos.forEach(function(txt){
+    txt=(txt||'').toLowerCase();
+    _DICC_CAUSA_RAIZ.forEach(function(kw){
+      if(txt.indexOf(kw)>=0){
+        var key=_normalizarCausa(kw);
+        frec[key]=(frec[key]||0)+1;
+      }
+    });
+  });
+  var keys=Object.keys(frec);
+  if(!keys.length)return null;
+  var top=keys.reduce(function(a,b){return frec[a]>=frec[b]?a:b;});
+  return{causa:top,n:frec[top]};
+}
 // ═══ ANALÍTICA DE CAUSA RAÍZ (Mejora 2) ═══
 function predecirCausa(sigla, componente){
   var ot=S.g('ot')||[];
-  // Palabras clave de causa raíz típicas en minería
-  var DICC=['desgaste','fatiga','contaminación','contaminacion','sobrecarga','corrosión','corrosion',
-    'vibración','vibracion','temperatura','sobrecalentamiento','lubricación','lubricacion','falta de aceite',
-    'fuga','filtración','filtracion','rotura','fractura','grieta','impacto','golpe','corte',
-    'obstrucción','obstruccion','suciedad','barro','polvo','humedad','óxido','oxido',
-    'desalineación','desalineacion','holgura','desbalance','fisura','desgarro','presión','presion',
-    'eléctrica','electrica','cortocircuito','sensor','conexión','conexion','cable','fusible',
-    'defecto fábrica','defecto fabrica','mal montaje','instalación','instalacion','operación','operacion'];
   // Filtrar fallas previas del mismo equipo (y componente si se indica)
   var fallasAnteriores=ot.filter(function(o){
     if(o.sigla!==sigla)return false;
@@ -5859,25 +5893,9 @@ function predecirCausa(sigla, componente){
     return o.causaRaiz&&o.causaRaiz.trim().length>0;
   });
   if(fallasAnteriores.length===0)return null;
-  // Contar frecuencia de palabras clave
-  var frec={};
-  fallasAnteriores.forEach(function(falla){
-    var txt=(falla.causaRaiz||'').toLowerCase();
-    DICC.forEach(function(kw){
-      if(txt.indexOf(kw)>=0){
-        // normalizar acentos para agrupar
-        var key=kw.replace('contaminacion','contaminación').replace('vibracion','vibración')
-          .replace('lubricacion','lubricación').replace('corrosion','corrosión')
-          .replace('presion','presión').replace('operacion','operación');
-        frec[key]=(frec[key]||0)+1;
-      }
-    });
-  });
-  var keys=Object.keys(frec);
-  if(keys.length===0)return {texto:'Hay '+fallasAnteriores.length+' falla(s) previa(s) pero sin patrón de causa claro. Revisar historial detallado.',n:fallasAnteriores.length};
-  // Causa más frecuente
-  var causaProbable=keys.reduce(function(a,b){return frec[a]>=frec[b]?a:b;});
-  return {texto:'Según '+fallasAnteriores.length+' incidente(s) previo(s), la causa raíz más probable es: '+causaProbable.toUpperCase()+' ('+frec[causaProbable]+' veces)',n:fallasAnteriores.length,causa:causaProbable};
+  var top=_frecuenciaCausas(fallasAnteriores.map(function(f){return f.causaRaiz;}));
+  if(!top)return {texto:'Hay '+fallasAnteriores.length+' falla(s) previa(s) pero sin patrón de causa claro. Revisar historial detallado.',n:fallasAnteriores.length};
+  return {texto:'Según '+fallasAnteriores.length+' incidente(s) previo(s), la causa raíz más probable es: '+top.causa.toUpperCase()+' ('+top.n+' veces)',n:fallasAnteriores.length,causa:top.causa};
 }
 
 var _predCache=null,_predCacheSrc=null;
@@ -6039,6 +6057,50 @@ function generarDiagnostico(sigla){
   return d;
 }
 
+// Cruza un patrón de falla (componente + equipo donde más se repite) con otras
+// señales del MISMO equipo — aceite, neumáticos, cumplimiento de PM — como haría
+// un mecánico que revisa varias pestañas antes de concluir: una fuga repetida en
+// el cilindro de dirección junto con neumáticos desgastados de forma dispareja
+// apunta a geometría de dirección, no a "cambiar la manguera de nuevo". Son reglas
+// de conocimiento mecánico general, no específicas de un fabricante.
+function _cruceSistemas(sigla,categoria){
+  if(!sigla)return[];
+  var obs=[];
+  var eq=S.g('eq')||[];
+  var e=eq.find(function(x){return x.sigla===sigla;});
+
+  // Aceite: alerta de metales/desgaste en sistemas lubricados coincidiendo con la falla
+  var SISTEMAS_LUBRICADOS=['Motor','Transmisión','Diferencial','Mandos Finales','Sistema Hidráulico','Turbo','Bomba de Agua'];
+  if(SISTEMAS_LUBRICADOS.indexOf(categoria)>=0){
+    var aceite=S.g('aceite')||[];
+    var aceEq=aceite.filter(function(m){return m.equipo===sigla||(m._sigla||'').indexOf(sigla)>=0;});
+    var aceAlerta=aceEq.filter(function(m){return m.estado==='ALERTA';});
+    if(aceAlerta.length)obs.push('🛢️ Hay muestra(s) de aceite en ALERTA en este equipo — la falla repetida en '+categoria+' puede ser desgaste interno progresivo (ej. metales en suspensión), no solo la reparación puntual que se hace cada vez.');
+  }
+
+  // Neumáticos/dirección/suspensión: desgaste disparejo sugiere geometría, no solo la pieza
+  if(categoria==='Cilindro de Dirección'||categoria==='Neumáticos'||categoria==='Suspensión'){
+    var neu=(S.g('neu')||[]).filter(function(n){return n.sigla===sigla||n.equipo===sigla;});
+    var conDesgaste=neu.filter(function(n){return (n.pctRemanente||100)<30;});
+    if(neu.length>=2&&conDesgaste.length>=2)obs.push('🛞 Varios neumáticos con desgaste avanzado en este mismo equipo — revisar geometría/alineación de dirección además de la pieza puntual.');
+  }
+
+  // Batería + Motor de Partida + Alternador repitiéndose juntos = sistema de carga, no la batería sola
+  if(categoria==='Batería'||categoria==='Motor de Partida'||categoria==='Alternador'){
+    var ot=S.g('ot')||[];
+    var otEq=ot.filter(function(o){return o.sigla===sigla;});
+    var cats={};
+    otEq.forEach(function(o){var c=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);if(c)cats[c]=(cats[c]||0)+1;});
+    var relacionados=['Batería','Motor de Partida','Alternador'].filter(function(c){return c!==categoria&&cats[c]>0;});
+    if(relacionados.length)obs.push('⚡ Este equipo también tuvo fallas en '+relacionados.join(' y ')+' — junto con '+categoria+', apunta al sistema de carga completo (alternador/correa/regulador), no solo a cambiar la pieza aislada cada vez.');
+  }
+
+  // PM vencida en el mismo equipo donde se repite la falla
+  if(e&&(e.estado||'').includes('URGENTE'))obs.push('📅 Este equipo además tiene PM vencida — operar fuera de la mantención programada puede estar acelerando el desgaste que origina la falla.');
+
+  return obs;
+}
+
 // ═══ DIAGNÓSTICO A NIVEL DE FLOTA ═══
 // generarDiagnostico() responde "qué pasa" para UN equipo ya elegido. Esto responde
 // la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
@@ -6049,11 +6111,12 @@ function diagnosticoFlota(){
   ot.forEach(function(o){
     var k=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
     if(!k)return;
-    if(!porComp[k])porComp[k]={componente:k,total:0,equipos:{},sinCausa:0,sinSolucion:0,pendientes:0,costoTotal:0,fechas:[]};
+    if(!porComp[k])porComp[k]={componente:k,total:0,equipos:{},sinCausa:0,sinSolucion:0,pendientes:0,costoTotal:0,fechas:[],causasTexto:[]};
     var c=porComp[k];
     c.total++;
     c.equipos[o.sigla]=(c.equipos[o.sigla]||0)+1;
     if(!o.causaRaiz||!o.causaRaiz.trim())c.sinCausa++;
+    else c.causasTexto.push(o.causaRaiz);
     if(!o.solucion||!o.solucion.trim())c.sinSolucion++;
     if(o.estadoOT&&o.estadoOT!=='Cerrada'&&o.estadoOT!=='Cerrado')c.pendientes++;
     c.costoTotal+=Number(o.costo)||0;
@@ -6088,6 +6151,11 @@ function diagnosticoFlota(){
     c.sugerencia=sugerencia;
     c.severidad=severidad;
     c.pctAtendido=atendido;
+    var topCausa=_frecuenciaCausas(c.causasTexto);
+    c.causaTop=topCausa?topCausa.causa:null;
+    c.causaTopN=topCausa?topCausa.n:0;
+    delete c.causasTexto;
+    c.cruce=_cruceSistemas(c.equipoMasRepetido,c.componente);
     return c;
   }).filter(function(c){return c.total>=2;})
     .sort(function(a,b){return b.severidad-a.severidad||b.total-a.total;});
@@ -6404,6 +6472,8 @@ renders.pred=function(){
             '<div style="font-size:11px;color:var(--tx3)">'+c.total+' fallas · '+c.nEquipos+' equipo(s) · última hace '+(c.diasDesdeUltima==null?'—':c.diasDesdeUltima+'d')+'</div>'+
             '</div>'+
             '<div style="font-size:12px;margin:6px 0;line-height:1.5">💡 '+escapeHtml(c.sugerencia)+'</div>'+
+            (c.causaTop?'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">🔍 Causa más mencionada en el registro: <b>'+escapeHtml(c.causaTop.toUpperCase())+'</b> ('+c.causaTopN+' veces)</div>':'')+
+            (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
             '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+Math.round(c.costoTotal).toLocaleString()+' acumulado':'')+'</div>'+
             '</div>';
         }).join('')
