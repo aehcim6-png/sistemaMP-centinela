@@ -2047,14 +2047,18 @@ function _parseProgDiariaHoja(rows){
 // etc.) solo quedaba marcada en 1-2 bloques en vez de todo el rango combinado.
 function _expandirCombinadas(ws,rows){
   (ws['!merges']||[]).forEach(function(m){
+    // Solo combinaciones HORIZONTALES (una fila, varias columnas) — son las que
+    // representan "esta actividad ocupa todos estos bloques de horario". Una
+    // combinación VERTICAL (varias filas, una columna) suele ser el nombre/cargo
+    // de una persona fusionado por formato; expandirla duplicaría a la persona
+    // como si fueran dos filas distintas (una por cada fila de la combinación).
+    if(m.s.r!==m.e.r)return;
     var val=(rows[m.s.r]||[])[m.s.c];
     if(val==null)return;
-    for(var r=m.s.r;r<=m.e.r;r++){
-      if(!rows[r])rows[r]=[];
-      for(var c=m.s.c;c<=m.e.c;c++){
-        if(r===m.s.r&&c===m.s.c)continue;
-        rows[r][c]=val;
-      }
+    for(var c=m.s.c;c<=m.e.c;c++){
+      if(c===m.s.c)continue;
+      if(!rows[m.s.r])rows[m.s.r]=[];
+      rows[m.s.r][c]=val;
     }
   });
 }
