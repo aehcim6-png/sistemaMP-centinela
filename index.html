@@ -2040,11 +2040,30 @@ function _parseProgDiariaHoja(rows){
 // vs. la hoja archivada del día, que en la práctica traen la misma fecha), se
 // queda con la que tenga más actividades reales cargadas — la plantilla vacía
 // pierde contra la copia con datos.
+// Excel representa "toda la mañana = Vacaciones" como UNA celda combinada que
+// abarca varias columnas de bloque. sheet_to_json solo pone el texto en la
+// primera celda de la combinación; el resto de las columnas fusionadas llegan
+// null, así que sin esto una ausencia de jornada completa (vacaciones, licencia,
+// etc.) solo quedaba marcada en 1-2 bloques en vez de todo el rango combinado.
+function _expandirCombinadas(ws,rows){
+  (ws['!merges']||[]).forEach(function(m){
+    var val=(rows[m.s.r]||[])[m.s.c];
+    if(val==null)return;
+    for(var r=m.s.r;r<=m.e.r;r++){
+      if(!rows[r])rows[r]=[];
+      for(var c=m.s.c;c<=m.e.c;c++){
+        if(r===m.s.r&&c===m.s.c)continue;
+        rows[r][c]=val;
+      }
+    }
+  });
+}
 function _parseProgDiariaLibro(workbook){
   var porFecha={};
   workbook.SheetNames.forEach(function(nombreHoja){
     var ws=workbook.Sheets[nombreHoja];
     var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+    _expandirCombinadas(ws,rows);
     var r=_parseProgDiariaHoja(rows);
     if(!r)return;
     r._hoja=nombreHoja;
