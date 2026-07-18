@@ -4292,7 +4292,9 @@ window.saveNeu=function(){
   const ocupadoIdx=neu.findIndex(x=>x.sigla===sig&&x.posicion===pos&&x.estado==='Operativo');
   if(ocupadoIdx>=0){
     if(!confirm(`Ya hay un neumático operativo en ${sig} ${pos} (serie ${neu[ocupadoIdx].serie}). ¿Moverlo a Existencias e instalar este nuevo en su lugar?`))return;
+    _desmontarSensorSiTiene(neu[ocupadoIdx].serie);
     neu[ocupadoIdx].estado='Stock';
+    neu[ocupadoIdx].numSensor='';
     neu[ocupadoIdx].fechaBaja=new Date().toISOString().slice(0,10);
   }
   const rem=parseFloat($('nNRem').value)||null;
@@ -4372,7 +4374,9 @@ window.confirmarInstalarExistencias=function(){
   const ocupadoIdx=neu.findIndex(x=>x.sigla===sig&&x.posicion===pos&&x.estado==='Operativo');
   if(ocupadoIdx>=0){
     if(!confirm(`Ya hay un neumático operativo en ${sig} ${pos} (serie ${neu[ocupadoIdx].serie}). ¿Moverlo a Existencias e instalar este en su lugar?`))return;
+    _desmontarSensorSiTiene(neu[ocupadoIdx].serie);
     neu[ocupadoIdx].estado='Stock';
+    neu[ocupadoIdx].numSensor='';
     neu[ocupadoIdx].fechaBaja=new Date().toISOString().slice(0,10);
   }
   const eq=S.g('eq')||[];
@@ -4397,6 +4401,19 @@ window.confirmarInstalarExistencias=function(){
 // Igual patrón que los neumáticos: un sensor puede desmontarse (queda en
 // Existencias) y reinstalarse en un neumático DISTINTO al que traía siempre,
 // sin perder su identidad.
+// Cuando un neumático se manda a Existencias por conflicto de posición (dos
+// altas en el mismo equipo+posición, ver saveNeu/confirmarInstalarExistencias),
+// su sensor NO puede seguir mostrándose "Operativo" en ese equipo — quedaría
+// mostrando una ubicación donde el neumático ya no está.
+function _desmontarSensorSiTiene(neuSerie){
+  const sen=S.g('sen')||[];
+  const s=sen.find(x=>x.neuSerie===neuSerie&&x.estado==='Operativo');
+  if(!s)return;
+  if(!Array.isArray(s.historial))s.historial=[];
+  s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:s.sigla,posicion:s.posicion,neuSerie:s.neuSerie});
+  s.estado='Stock';s.sigla='';s.posicion='';
+  S.s('sen',sen);
+}
 window.verSensores=function(){
   const sen=S.g('sen')||[];
   const rows=sen.map((s,i)=>{
