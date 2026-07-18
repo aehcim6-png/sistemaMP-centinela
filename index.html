@@ -229,7 +229,13 @@ const TABLA_REAL={
   // app llama S.s('ocHist', ...), así que nunca dispara el sync genérico (upsert/delete)
   // sobre esta tabla — evita que un guardado accidental borre datos financieros reales.
   ocHist:{tabla:'ordenes_compra_historico',clave:'_id',claveDb:'id',cols:['pedido','fecha','sigla','detalle','oc','cant','precioUnit','costo','rut','proveedor','tipo']},
-  progDia:{tabla:'programacion_diaria',clave:'_id',claveDb:'id',cols:['fecha','turno','orden','nombre','cargo','responsable','bloques']}
+  progDia:{tabla:'programacion_diaria',clave:'_id',claveDb:'id',cols:['fecha','turno','orden','nombre','cargo','responsable','bloques']},
+  // Sensor de neumático como entidad propia (2026-07) — antes 'numSensor' era solo
+  // un campo de texto dentro de 'neu', sin vida propia: si el sensor físico se
+  // reutilizaba en OTRO neumático (no el mismo par rueda+sensor de siempre), no
+  // había forma de seguirle la pista por separado. 'neuSerie' enlaza al
+  // neumático actual por N° de serie (igual que neuMed ya hace con las mediciones).
+  sen:{tabla:'sensores_neumaticos',clave:'_id',claveDb:'id',cols:['numSensor','marca','sigla','posicion','neuSerie','estado','fechaInst','obs','historial']}
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={
@@ -3961,7 +3967,7 @@ renders.neu=function(){
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t">🛞 Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} críticos</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()">📤 Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()">📊 Resumen flota</button>
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()">📤 Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()">📊 Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()">🔄 Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()">🔌 Sensores</button>
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -4321,6 +4327,146 @@ window.saveCambio=function(i,hAct){
   neu.push({...n,serie:n.serie,estado:$('cDest').value==='Stock'?'Stock':'De baja',remanente:remAnt,fechaBaja:new Date().toISOString().slice(0,10)});
   n.serie=serieNuevo;n.horomInstalacion=hAct;n.horasAcum=0;n.remanente=n.remNuevo||81;n.pctRemanente=100;n.estado='Operativo';n.fechaInst=new Date().toISOString().slice(0,10);
   S.s('neu',neu);S.s('ot',ot);cm();renders.neu();toast('✅ Cambio registrado');
+};
+
+// ── Instalar un neumático de Existencias (estado='Stock') en OTRO equipo ──
+// A diferencia de cambiarNeu() (que archiva el saliente y crea uno entrante
+// nuevo), acá se REACTIVA una fila que ya existe — el historial de mediciones
+// sigue funcionando porque neuProyeccion() lo sigue por N° de serie, no por
+// equipo/posición, así que no se pierde nada al reasignarlo.
+window.instalarDesdeExistencias=function(){
+  const neu=S.g('neu')||[];
+  const stock=neu.map((n,i)=>({n,i})).filter(x=>x.n.estado==='Stock');
+  if(!stock.length)return toast('⚠️ No hay neumáticos en Existencias (estado "Stock")');
+  const eq=S.g('eq')||[];
+  sm(`<h3>🔄 Instalar desde Existencias</h3>
+    <div class="fg"><label>Neumático en Existencias</label><select id="iexNeu">${stock.map(x=>`<option value="${x.i}">${escapeHtml(x.n.serie)} — ${escapeHtml(x.n.marca||'')} ${escapeHtml(x.n.medida||'')} (${x.n.remanente!=null?x.n.remanente+'mm':'sin medición'})</option>`).join('')}</select></div>
+    <div class="form-row">
+      <div class="fg"><label>Equipo destino</label><select id="iexEq">${eq.map(e=>`<option value="${escapeHtml(e.sigla)}">${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
+      <div class="fg"><label>Posición</label><input id="iexPos" placeholder="Ej: Delantera Izq"></div>
+    </div>
+    <div class="fg"><label>N° Posición</label><input type="number" id="iexNumPos" min="1" max="10" value="1"></div>
+    <button class="btn" onclick="confirmarInstalarExistencias()">💾 Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+};
+window.confirmarInstalarExistencias=function(){
+  const idx=parseInt($('iexNeu').value);
+  const sig=$('iexEq').value;
+  const pos=$('iexPos').value.trim();
+  const numPos=parseInt($('iexNumPos').value)||1;
+  if(!sig||!pos)return toast('⚠️ Completa equipo y posición');
+  const neu=S.g('neu')||[];
+  const n=neu[idx];
+  if(!n)return toast('⚠️ Neumático no encontrado');
+  // Si ya hay uno operativo en esa posición, hay que sacarlo primero (no se
+  // puede tener dos neumáticos "Operativo" en la misma posición del mismo equipo).
+  const ocupadoIdx=neu.findIndex(x=>x.sigla===sig&&x.posicion===pos&&x.estado==='Operativo');
+  if(ocupadoIdx>=0){
+    if(!confirm(`Ya hay un neumático operativo en ${sig} ${pos} (serie ${neu[ocupadoIdx].serie}). ¿Moverlo a Existencias e instalar este en su lugar?`))return;
+    neu[ocupadoIdx].estado='Stock';
+    neu[ocupadoIdx].fechaBaja=new Date().toISOString().slice(0,10);
+  }
+  const eq=S.g('eq')||[];
+  const e=eq.find(x=>x.sigla===sig);
+  const hAct=e?e.horomActual:0;
+  const origen=n.sigla?`${n.sigla} ${n.posicion||''}`.trim():'Existencias';
+  n.sigla=sig;n.posicion=pos;n.numPos=numPos;
+  n.horomInstalacion=hAct;n.estado='Operativo';n.fechaInst=new Date().toISOString().slice(0,10);
+  delete n.fechaBaja;
+  // Deja registro del movimiento en 'ot' (mismo patrón que saveCambio) para poder
+  // reconstruir el historial de reasignaciones de este neumático por N° de serie.
+  const ot=S.g('ot')||[];
+  ot.unshift({sigla:sig,fecha:new Date().toISOString().slice(0,10),tipo:'Reasignación de Neumático',
+    criticidad:'No Aplica',sintoma:`Reasignado desde ${origen}. Serie ${n.serie} instalado en ${sig} ${pos}.`,
+    sistema:'Ruedas y neumáticos',costo:0,horom:hAct});
+  S.s('ot',ot);
+  S.s('neu',neu);cm();renders.neu();
+  toast('✅ '+n.serie+' instalado en '+sig+' '+pos);
+};
+
+// ── Sensores de neumático como entidad propia (tabla 'sensores_neumaticos') ──
+// Igual patrón que los neumáticos: un sensor puede desmontarse (queda en
+// Existencias) y reinstalarse en un neumático DISTINTO al que traía siempre,
+// sin perder su identidad.
+window.verSensores=function(){
+  const sen=S.g('sen')||[];
+  const rows=sen.map((s,i)=>{
+    const ubic=s.estado==='Operativo'?escapeHtml(s.sigla||'—')+' '+escapeHtml(s.posicion||''):'<span style="color:var(--tx3)">En Existencias</span>';
+    return`<tr>
+      <td class="mono">${escapeHtml(s.numSensor||'—')}</td>
+      <td style="font-size:11px">${escapeHtml(s.marca||'—')}</td>
+      <td style="font-size:11px">${ubic}</td>
+      <td class="mono" style="font-size:11px">${escapeHtml(s.neuSerie||'—')}</td>
+      <td style="white-space:nowrap">${s.estado==='Operativo'?`<button class="btn-s" style="background:rgba(239,68,68,.15);color:var(--danger)" onclick="desmontarSensor(${i})">Desmontar</button>`:`<button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="instalarSensor(${i})">Instalar</button>`} <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialSensor(${i})">📋 Historial</button></td>
+    </tr>`;
+  }).join('');
+  sm(`<div style="max-width:820px"><h3>🔌 Sensores de Neumáticos</h3>
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+    <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">N° Sensor</th><th>Marca</th><th>Ubicación</th><th>Neumático (serie)</th><th></th></tr>
+    ${rows||'<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--tx3)">Sin sensores registrados</td></tr>'}
+    </table></div>
+    <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>`);
+};
+window.verHistorialSensor=function(i){
+  const sen=S.g('sen')||[];
+  const s=sen[i];
+  if(!s)return;
+  const hist=(s.historial||[]).slice().reverse();
+  sm(`<div style="max-width:560px"><h3>📋 Historial — Sensor ${escapeHtml(s.numSensor||'')}</h3>
+    <p style="color:var(--tx2);margin-bottom:10px;font-size:12px">Ubicación actual: <b>${s.estado==='Operativo'?escapeHtml(s.sigla||'')+' '+escapeHtml(s.posicion||''):'En Existencias'}</b></p>
+    ${hist.length?`<div>${hist.map(h=>`<div style="font-size:11px;padding:6px 8px;border-left:2px solid ${h.accion==='Instalado'?'var(--ok)':'var(--danger)'};margin-bottom:4px;background:var(--bg3);border-radius:4px">
+      <b>${h.fecha}</b> — ${h.accion==='Instalado'?'✅ Instalado en':'⬅️ Desmontado de'} <b>${escapeHtml(h.sigla||'')} ${escapeHtml(h.posicion||'')}</b>${h.neuSerie?' (neumático serie '+escapeHtml(h.neuSerie)+')':''}
+    </div>`).join('')}</div>`:'<p style="font-size:11px;color:var(--tx3)">Sin movimientos registrados todavía</p>'}
+    <button class="btn btn-o" style="margin-top:12px" onclick="verSensores()">← Volver</button></div>`);
+};
+window.desmontarSensor=function(i){
+  const sen=S.g('sen')||[];
+  const s=sen[i];
+  if(!s)return;
+  if(!confirm('¿Desmontar el sensor '+s.numSensor+' de '+s.sigla+' '+s.posicion+' y moverlo a Existencias?'))return;
+  // El neumático donde estaba ya no tiene este sensor — se limpia el campo para
+  // que la tabla de Neumáticos no siga mostrando un sensor que ya no está ahí.
+  const neu=S.g('neu')||[];
+  const ni=neu.findIndex(n=>n.serie===s.neuSerie&&n.numSensor===s.numSensor);
+  if(ni>=0){neu[ni].numSensor='';S.s('neu',neu);}
+  if(!Array.isArray(s.historial))s.historial=[];
+  s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:s.sigla,posicion:s.posicion,neuSerie:s.neuSerie});
+  s.estado='Stock';s.sigla='';s.posicion='';
+  S.s('sen',sen);verSensores();
+  toast('✅ Sensor '+s.numSensor+' movido a Existencias');
+};
+window.instalarSensor=function(i){
+  const sen=S.g('sen')||[];
+  const s=sen[i];
+  if(!s)return;
+  const neu=S.g('neu')||[];
+  const activos=neu.map((n,ni)=>({n,ni})).filter(x=>x.n.estado==='Operativo');
+  if(!activos.length)return toast('⚠️ No hay neumáticos operativos donde instalarlo');
+  sm(`<h3>🔌 Instalar sensor ${escapeHtml(s.numSensor||'')}</h3>
+    <div class="fg"><label>Neumático destino</label><select id="isenNeu">${activos.map(x=>`<option value="${x.ni}">${escapeHtml(x.n.sigla)} ${escapeHtml(x.n.posicion||'')} — serie ${escapeHtml(x.n.serie)}</option>`).join('')}</select></div>
+    <button class="btn" onclick="confirmarInstalarSensor(${i})">💾 Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+};
+window.confirmarInstalarSensor=function(i){
+  const ni=parseInt($('isenNeu').value);
+  const neu=S.g('neu')||[];
+  const n=neu[ni];
+  if(!n)return toast('⚠️ Neumático no encontrado');
+  const sen=S.g('sen')||[];
+  const s=sen[i];
+  if(!s)return;
+  // Si ese neumático ya tenía otro sensor operativo, se desmonta solo (no puede
+  // haber dos sensores activos en el mismo neumático a la vez).
+  const otroIdx=sen.findIndex(function(x,xi){return xi!==i&&x.neuSerie===n.serie&&x.estado==='Operativo';});
+  if(otroIdx>=0){sen[otroIdx].estado='Stock';sen[otroIdx].sigla='';sen[otroIdx].posicion='';}
+  // Respaldo: si este sensor quedó marcado en OTRO neumático (ej. se instaló sin
+  // pasar por "Desmontar" primero), se limpia ahí también — nunca debe quedar el
+  // mismo N° de sensor mostrado en dos neumáticos a la vez.
+  neu.forEach(function(x){if(x!==n&&x.numSensor===s.numSensor)x.numSensor='';});
+  s.estado='Operativo';s.sigla=n.sigla;s.posicion=n.posicion;s.neuSerie=n.serie;s.fechaInst=new Date().toISOString().slice(0,10);
+  if(!Array.isArray(s.historial))s.historial=[];
+  s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Instalado',sigla:n.sigla,posicion:n.posicion,neuSerie:n.serie});
+  n.numSensor=s.numSensor;
+  S.s('sen',sen);S.s('neu',neu);cm();renders.neu();
+  toast('✅ Sensor '+s.numSensor+' instalado en '+n.sigla+' '+(n.posicion||''));
 };
 
 // ════════════════════════════════════════════════════════════
@@ -4774,16 +4920,31 @@ window.verDetalleNeu=function(neuIdx){
     </div>
     <div style="margin-bottom:12px">
       <b style="font-size:13px">📋 Historial de mediciones (${meds.length})</b>
+      ${(()=>{const equiposPorSerie=[...new Set(meds.map(m=>m.sigla).filter(Boolean))];return equiposPorSerie.length>1?`<div style="font-size:10px;color:var(--warn);margin-top:4px">🔄 Este neumático pasó por ${equiposPorSerie.length} equipos distintos: ${equiposPorSerie.map(s=>escapeHtml(s)).join(', ')}</div>`:'';})()}
       ${meds.length?`<div style="overflow-x:auto;margin-top:6px"><table style="width:100%;font-size:11px">
-        <tr style="background:var(--bg3)"><th style="padding:4px">Fecha</th><th>Horóm</th><th>Rem.Ext</th><th>Rem.Int</th><th>Rem.Prom</th><th>Presión</th><th>Obs</th></tr>
+        <tr style="background:var(--bg3)"><th style="padding:4px">Fecha</th><th>Equipo</th><th>Pos.</th><th>Horóm</th><th>Rem.Ext</th><th>Rem.Int</th><th>Rem.Prom</th><th>Presión</th><th>Obs</th></tr>
         ${meds.slice().reverse().slice(0,12).map(m=>`<tr style="border-bottom:1px solid var(--bd)">
-          <td style="padding:4px">${m.fecha}</td><td>${fn2(m.horom)}</td>
+          <td style="padding:4px">${m.fecha}</td>
+          <td class="mono" style="color:var(--ac)">${escapeHtml(m.sigla||'—')}</td>
+          <td style="font-size:10px">${escapeHtml(m.posicion||'—')}</td>
+          <td>${fn2(m.horom)}</td>
           <td>${m.remExt!=null?m.remExt+'mm':'—'}</td><td>${m.remInt!=null?m.remInt+'mm':'—'}</td>
           <td><b>${m.remProm}mm</b></td><td>${m.presion?m.presion+'psi':'—'}</td>
           <td style="color:var(--tx3)">${escapeHtml(m.obs||'')}</td>
         </tr>`).join('')}
       </table></div>`:'<p style="font-size:11px;color:var(--tx3)">Sin mediciones registradas</p>'}
     </div>
+    ${(()=>{
+      const ot=S.g('ot')||[];
+      const movs=ot.filter(o=>o.sistema==='Ruedas y neumáticos'&&(o.tipo==='Reasignación de Neumático'||o.tipo==='Cambio de Neumático')&&(o.sintoma||'').includes(n.serie)).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+      if(!movs.length)return'';
+      return`<div style="margin-bottom:12px">
+        <b style="font-size:13px">🔄 Historial de movimientos (${movs.length})</b>
+        <div style="margin-top:6px">${movs.map(o=>`<div style="font-size:11px;padding:6px 8px;border-left:2px solid var(--ac);margin-bottom:4px;background:var(--bg3);border-radius:4px">
+          <b>${o.fecha}</b> — ${escapeHtml(o.sintoma||'')}
+        </div>`).join('')}</div>
+      </div>`;
+    })()}
     <div style="display:flex;gap:8px">
       <button class="btn" onclick="cm();addMedicionNeu(${neuIdx})">📏 Nueva medición</button>
       <button class="btn btn-o" onclick="cm()">Cerrar</button>
@@ -10011,7 +10172,7 @@ renders.kpi=function(){
 // ═══════════ AUTOGUARDADO EN CARPETA (v16.4) ═══════════
 // Guarda SistemaMP_Datos.json automáticamente en una carpeta elegida por el usuario.
 // Si la carpeta está dentro de OneDrive / Google Drive escritorio → respaldo en la nube automático.
-const AUTOSAVE_KEYS=['eq','reg','ot','stk','lub','mov','neu','hist','aceite','insp','repuestos','ordenes','changelog','planSem','planSemHist','compMayores','gantt','destrabe','metas','avanceData','dispCalc','dispMeta','cfg','hh','prg','al','pau','neuMed','informesFalla','progDia'];
+const AUTOSAVE_KEYS=['eq','reg','ot','stk','lub','mov','neu','hist','aceite','insp','repuestos','ordenes','changelog','planSem','planSemHist','compMayores','gantt','destrabe','metas','avanceData','dispCalc','dispMeta','cfg','hh','prg','al','pau','neuMed','informesFalla','progDia','sen'];
 let _asHandle=null,_asTimer=null,_asDirty=false,_asLast=null;
 
 // IndexedDB mínimo para persistir el handle de carpeta entre sesiones
