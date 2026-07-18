@@ -3994,6 +3994,7 @@ renders.neu=function(){
       <select id="fNeuTipo" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos tipos</option><option value="CAEX">CAEX (6)</option><option value="CF">Cargador (4)</option><option value="MN">Motoniveladora (6)</option><option value="ALJ">Aljibe (10)</option></select>
     </div>
     ${_pagHTML('neu',pg)}
+    <datalist id="dlMarcasNeu"><option value="MICHELIN"><option value="BRIDGESTONE"><option value="GOODYEAR"><option value="WESTLAKE"></datalist>
     <div class="tbl-wrap"><table>
       <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
@@ -4009,7 +4010,7 @@ renders.neu=function(){
           ${edCell(n.posicion,'posicion',i,'neu')}
           ${edCell(n.serie||'','serie',i,'neu')}
           ${edCell(n.numSensor||'','numSensor',i,'neu')}
-          ${edCell(n.marca||'','marca',i,'neu','select',['','MICHELIN','BRIDGESTONE','GOODYEAR','WESTLAKE'])}
+          <td class="ed"><input type="text" list="dlMarcasNeu" value="${escapeHtml(n.marca||'')}" onchange="cev('neu',${i},'marca',this.value)"></td>
           ${edCell(n.medida||'','medida',i,'neu')}
           ${edCell(n.fechaInst||'','fechaInst',i,'neu','date')}
           <td class="mono" style="font-size:11px" title="${lr.live?'🔗 En línea con horómetro':'⚠️ Manual'}">${fn(lr.h)}h${lr.live?' <span style="color:var(--ok);font-size:9px">🔗</span>':''}</td>
