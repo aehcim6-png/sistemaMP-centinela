@@ -6127,6 +6127,28 @@ function _cruceSistemas(sigla,categoria){
   return obs;
 }
 
+// Causas típicas documentadas en la industria (metodología FMEA — Failure Mode
+// and Effects Analysis) para cada tipo de componente. IMPORTANTE: esto NO es un
+// diagnóstico de lo que le pasa a ESTE equipo — es la lista de sospechosos
+// habituales que la ingeniería de confiabilidad documenta para ese tipo de
+// componente en general. Un CMMS real (ClickMaint, Tractian, etc.) hace lo mismo:
+// detecta el patrón y dispara una tarea de Análisis de Causa Raíz para que un
+// mecánico la confirme en terreno — no inventa la conclusión por sí solo. Por
+// eso esto se muestra como checklist a descartar, nunca como afirmación.
+var _CAUSAS_TIPICAS_FMEA={
+  'Batería':['Consumo parásito (fuga de corriente) con el equipo apagado','Corrosión en terminales / mala conexión a tierra','Alta resistencia interna (batería al final de su vida)','Alternador no cargando lo suficiente'],
+  'Alternador':['Correa floja, desgastada o mal tensada','Regulador de voltaje defectuoso','Sobrecarga eléctrica por consumo adicional no contemplado','Rodamientos desgastados por vibración'],
+  'Motor de Partida':['Arranques repetidos en frío','Piñón o corona de arranque desgastados','Batería con carga insuficiente forzando el motor','Conexiones eléctricas sueltas u oxidadas'],
+  'Cilindro de Dirección':['Desgaste o fuga de sellos internos por contaminación del aceite hidráulico','Presión de sistema fuera de rango','Desalineación de la geometría de dirección'],
+  'Neumáticos':['Desalineación / geometría de dirección','Presión de inflado incorrecta','Sobrecarga del equipo'],
+  'Frenos':['Uso excesivo del freno de servicio (poco uso de freno motor/retardador en pendientes)','Contaminación o desgaste desparejo','Desalineación'],
+  'Motor':['Sobrecalentamiento recurrente','Filtro de aire obstruido','Calidad de combustible','Lubricación insuficiente'],
+  'Transmisión':['Contaminación del aceite','Cambio de aceite atrasado respecto al plan','Sobrecarga u operación fuera de especificación'],
+  'Diferencial':['Contaminación del aceite','Cambio de aceite atrasado respecto al plan'],
+  'Mandos Finales':['Contaminación del aceite','Cambio de aceite atrasado respecto al plan'],
+  'Turbo':['Apagar el equipo caliente sin dejarlo enfriar (falta de lubricación al detener)','Filtro de aire en mal estado','Fuga de aceite en sellos']
+};
+
 // ═══ DIAGNÓSTICO A NIVEL DE FLOTA ═══
 // generarDiagnostico() responde "qué pasa" para UN equipo ya elegido. Esto responde
 // la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
@@ -6194,6 +6216,12 @@ function diagnosticoFlota(){
     if(c.sinCausa/c.total>0.5)sugerencia+=' ⚠️ Más de la mitad sin causa raíz registrada en terreno — mejorar el registro antes de confiar en el diagnóstico.';
     c.sugerencia=sugerencia;
     c.severidad=severidad;
+    // Igual que dispara un CMMS real (ej. "≥3 correctivos en 60 días" activa una
+    // tarea de Análisis de Causa Raíz): esto NO concluye la causa, solo marca que
+    // el patrón amerita que un mecánico la investigue, y le entrega el checklist
+    // FMEA estándar de ese tipo de componente como punto de partida.
+    c.requiereRCA=c.total>=3;
+    c.causasFMEA=_CAUSAS_TIPICAS_FMEA[c.componente]||null;
     c.pctAtendido=atendido;
     var topCausa=_frecuenciaCausas(c.causasTexto);
     c.causaTop=topCausa?topCausa.causa:null;
@@ -6525,6 +6553,11 @@ renders.pred=function(){
             (c.causaTop?'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">🔍 Causa más mencionada en el registro: <b>'+escapeHtml(c.causaTop.toUpperCase())+'</b> ('+c.causaTopN+' veces)</div>':'')+
             (c.reincidenciaDias!=null?'<div style="font-size:11px;margin-bottom:4px;color:'+(c.reincidenciaDias<30?'var(--danger)':c.reincidenciaDias<90?'var(--w)':'var(--tx2)')+'">⏱️ En '+escapeHtml(c.equipoMasRepetido)+', vuelve a fallar en promedio cada <b>'+c.reincidenciaDias+' día(s)</b>'+(c.reincidenciaDias<30?' — intervalo corto: revisar calidad del repuesto o de la reparación, no parece desgaste normal':c.reincidenciaDias<90?' — intervalo moderado, vale la pena revisar':'')+'</div>':'')+
             (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
+            (c.requiereRCA?'<div style="font-size:11px;background:rgba(99,102,241,.08);border-radius:6px;padding:6px 8px;margin:6px 0;color:var(--tx2)">'+
+              '<b style="color:#818cf8">🔬 Amerita Análisis de Causa Raíz</b> ('+c.total+' fallas — igual que activaría un CMMS real ante ≥3 correctivos del mismo tipo).'+
+              (c.causasFMEA?' Esto NO es un diagnóstico, es el checklist estándar de la industria (FMEA) para descartar en terreno:<ul style="margin:4px 0 0 16px;padding:0">'+c.causasFMEA.map(function(h){return'<li>'+escapeHtml(h)+'</li>';}).join('')+'</ul>'
+                :' Sin checklist FMEA cargado todavía para "'+escapeHtml(c.componente)+'" — requiere revisión manual de un técnico.')+
+              '</div>':'')+
             '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+Math.round(c.costoTotal).toLocaleString()+' acumulado':'')+'</div>'+
             '</div>';
         }).join('')
