@@ -475,6 +475,20 @@ function _avisarErrorGuardado(tabla,detalleServidor){
   if(/admin/i.test(detalleServidor))msg='⛔ Ese cambio requiere permisos de administrador — no se guardó';
   if(typeof toast==='function')toast(msg);
   console.error('Error guardando en Supabase:',tabla,detalleServidor);
+  // "row-level security policy" (sin mención a admin) casi siempre es sesión vencida,
+  // no un problema de permisos por rol — un toast de 2.5s se pierde fácil si el
+  // usuario sigue trabajando, y cada guardado siguiente vuelve a fallar en silencio
+  // hasta que se da cuenta mucho después (ver caso real: neumático que nunca llegó
+  // a la base y se reintentó varias veces sin que nada quedara guardado). Se intenta
+  // refrescar la sesión sola; si tampoco funciona, se fuerza el login para no seguir
+  // trabajando contra una sesión muerta.
+  if(/row-level security/i.test(detalleServidor)&&!/admin/i.test(detalleServidor)){
+    _sbAuthRefresh().then(function(ok){
+      if(!ok&&typeof _mostrarLoginOverlay==='function'){
+        _mostrarLoginOverlay('Tu sesión venció y los últimos cambios no se guardaron. Vuelve a iniciar sesión.');
+      }
+    });
+  }
 }
 
 // Vencimientos: aplana el objeto anidado y hace upsert por (sigla,vencTipo).
@@ -11473,7 +11487,21 @@ function _decodeJwtExp(token){
   }catch(e){return null;}
 }
 
+// Supabase rota el refresh_token en cada uso (de un solo uso) y revoca TODA la
+// sesión si detecta el mismo token reusado — si el timer programado y el listener
+// de visibilitychange llegan a disparar _sbAuthRefresh() casi al mismo tiempo (ej.
+// se despierta el equipo justo cuando iba a refrescar solo), la segunda llamada
+// reenviaría un refresh_token que la primera ya gastó, y Supabase puede tumbar la
+// sesión entera — quedando el usuario 'guardando' contra una sesión inválida sin
+// aviso claro. Este mutex hace que las llamadas concurrentes esperen el mismo
+// refresco en curso en vez de disparar una segunda petición.
+let _refreshEnCurso=null;
 async function _sbAuthRefresh(){
+  if(_refreshEnCurso)return _refreshEnCurso;
+  _refreshEnCurso=_sbAuthRefreshInner().finally(function(){_refreshEnCurso=null;});
+  return _refreshEnCurso;
+}
+async function _sbAuthRefreshInner(){
   const refreshToken = localStorage.getItem('smp_refresh_token');
   if(!refreshToken) return false;
   try{
