@@ -3975,12 +3975,14 @@ renders.neu=function(){
     </div>
     ${_pagHTML('neu',pg)}
     <div class="tbl-wrap"><table>
-      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
+      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
         const i=neu.indexOf(n);
         const p=n.pctRemanente||0;
         const col=p<30?'var(--danger)':p<50?'var(--warn)':'var(--ok)';
         const lr=hrsLive(n);
+        const proy=neuProyeccion(n);
+        const proyCol=proy?(proy.diasRestantes<30?'var(--danger)':proy.diasRestantes<60?'var(--warn)':'var(--ok)'):'var(--tx3)';
         return`<tr style="${p<30?'background:rgba(239,68,68,.05)':p<50?'background:rgba(234,179,8,.04)':''}">
           <td class="mono" style="font-size:11px">${escapeHtml(n.sigla)}</td>
           <td style="font-size:10px;color:var(--tx2)">${n.tipoEquipo}</td>
@@ -3993,6 +3995,7 @@ renders.neu=function(){
           <td class="mono" style="font-size:11px" title="${lr.live?'🔗 En línea con horómetro':'⚠️ Manual'}">${fn(lr.h)}h${lr.live?' <span style="color:var(--ok);font-size:9px">🔗</span>':''}</td>
           ${edCell(n.remanente!=null?n.remanente:'','remanente',i,'neu','number')}
           <td><div style="background:var(--bg3);border-radius:3px;height:8px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle"><div style="background:${col};height:100%;width:${Math.min(p,100)}%"></div></div> <span style="color:${col};font-size:11px">${p}%</span></td>
+          <td style="font-size:10px;color:${proyCol}" title="${proy?'Motivo: '+escapeHtml(proy.motivoCambio)+' · Confianza: '+escapeHtml(proy.confianza):'Sin mediciones suficientes para proyectar'}">${proy?'≈'+proy.diasRestantes+'d ('+fn(proy.hrsRestantes)+'h)':'—'}</td>
           ${edCell(n.estado||'Operativo','estado',i,'neu','select',['Operativo','Evaluación','Reparación','Disponible Usado','Stock','Fuera de servicio','Baja Desgaste','Baja Imprevisto'])}
           <td>
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
@@ -4814,6 +4817,14 @@ window.resumenFlotaNeu=function(){
   const totalNeu=neu.length;
   const colorEstado=e=>e.includes('Baja')?'var(--danger)':e==='Operativo'?'var(--ok)':e==='Evaluación'||e==='Reparación'?'var(--warn)':'var(--tx2)';
 
+  // Proyección de vida restante (TD/RUL, ver neuProyeccion) agregada a nivel de
+  // flota — antes solo se veía neumático por neumático dentro del modal 🔍.
+  const operativos=neu.filter(n=>n.estado==='Operativo'||!n.estado);
+  const proyecciones=operativos.map(n=>neuProyeccion(n)).filter(Boolean);
+  const necesita30=proyecciones.filter(p=>p.diasRestantes<30).length;
+  const necesita60=proyecciones.filter(p=>p.diasRestantes>=30&&p.diasRestantes<60).length;
+  const sinDatos=operativos.length-proyecciones.length;
+
   sm(`<div style="max-width:760px">
     <h3>📊 Resumen Flota Neumáticos</h3>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
@@ -4832,6 +4843,21 @@ window.resumenFlotaNeu=function(){
       <div style="background:${gastoPerdidoTotal>0?'rgba(239,68,68,0.12)':'var(--bg3)'};border-radius:8px;padding:12px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">⚠️ Gasto perdido (bajas)</div>
         <b style="font-size:14px;color:${gastoPerdidoTotal>0?'var(--danger)':'var(--ok)'}">$${fn2(gastoPerdidoTotal)}</b>
+      </div>
+    </div>
+    <b style="font-size:13px">📉 Proyección de cambio (según historial de mediciones):</b>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 16px">
+      <div style="background:rgba(239,68,68,0.12);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--tx3)">Cambio &lt;30 días</div>
+        <b style="font-size:18px;color:var(--danger)">${necesita30}</b>
+      </div>
+      <div style="background:rgba(234,179,8,0.1);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--tx3)">Cambio 30-60 días</div>
+        <b style="font-size:18px;color:var(--warn)">${necesita60}</b>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--tx3)">Sin mediciones para proyectar</div>
+        <b style="font-size:18px;color:var(--tx3)">${sinDatos}</b>
       </div>
     </div>
     <b style="font-size:13px">Por estado:</b>
