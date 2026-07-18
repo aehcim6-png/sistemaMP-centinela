@@ -4314,8 +4314,14 @@ window.saveNeu=function(){
   }
   const rem=parseFloat($('nNRem').value)||null;
   const tipo=$('nNTipo').value;
-  const remNuevo=tipo==='ALJ'?20:tipo==='MN'?27:81;
-  const pct=rem?Math.round(rem/remNuevo*100):null;
+  const marca=$('nNMarca').value;
+  // El % debe salir del mismo criterio por marca+posición que usa el resto de la app
+  // (neuCriterio) — antes usaba un remanente genérico fijo (81mm) sin importar la
+  // marca, y quedaba guardado así hasta la próxima medición (ver caso real: un
+  // Bridgestone nuevo de 60mm mostraba 74% en vez de ~100%).
+  const c=neuCriterio({tipoEquipo:tipo,posicion:pos,marca});
+  const remNuevo=c.remNuevo||81;
+  const pct=rem!=null?Math.round(Math.max(0,(rem-(c.remRetiro||0))/(remNuevo-(c.remRetiro||0))*100)):null;
   const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);
   const hAct=e?e.horomActual:0;
   const acum=parseInt($('nNAcum').value)||0;
@@ -4352,7 +4358,11 @@ window.saveCambio=function(i,hAct){
     criticidad:'No Aplica',sintoma:`Cambio ${n.posicion}. Retirado: ${n.serie} (${remAnt}mm). Instalado: ${serieNuevo}`,
     sistema:'Ruedas y neumáticos',costo:parseFloat($('cCosto').value)||0,horom:hAct});
   neu.push({...n,serie:n.serie,estado:$('cDest').value==='Stock'?'Stock':'De baja',remanente:remAnt,fechaBaja:new Date().toISOString().slice(0,10)});
-  n.serie=serieNuevo;n.horomInstalacion=hAct;n.horasAcum=0;n.remanente=n.remNuevo||81;n.pctRemanente=100;n.estado='Operativo';n.fechaInst=new Date().toISOString().slice(0,10);
+  n.serie=serieNuevo;n.horomInstalacion=hAct;n.horasAcum=0;
+  // Igual que en saveNeu: el remanente de un neumático "nuevo" depende de la marca
+  // (n.marca no cambia en este flujo, sigue siendo la misma posición) — usar
+  // neuCriterio en vez del campo n.remNuevo guardado, que puede quedar desactualizado.
+  n.remanente=neuCriterio(n).remNuevo||81;n.pctRemanente=100;n.estado='Operativo';n.fechaInst=new Date().toISOString().slice(0,10);
   S.s('neu',neu);S.s('ot',ot);cm();renders.neu();toast('✅ Cambio registrado');
 };
 
@@ -4551,7 +4561,14 @@ const NEU_CRITERIOS={
       BRIDGESTONE:{remNuevo:60,remRotar:30,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
       DEFAULT: {remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'}
     },
+    // El remanente NUEVO es una propiedad de la marca (grosor de fábrica), no de la
+    // posición — un Bridgestone mide lo mismo de fábrica esté adelante o atrás. Lo
+    // que sí cambia con la posición es si corresponde "rotar" (solo delanteras,
+    // porque son las que se sacan antes por el desgaste) o ir directo a retiro.
     trasera:{
+      MICHELIN:{remNuevo:100,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
+      GOODYEAR:{remNuevo:100,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
+      BRIDGESTONE:{remNuevo:60,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
       DEFAULT:{remNuevo:91,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'}
     }
   },
@@ -4566,7 +4583,12 @@ const NEU_CRITERIOS={
 
 function neuCriterio(n){
   const tipo=n.tipoEquipo||'CAEX';
-  const pos=(n.posicion||'').toLowerCase().includes('del')?'delantera':'trasera';
+  // numPos manda si existe: 1-2 son las posiciones delanteras en toda la flota
+  // (P1-DelIzq, P2-DelDer), 3-6 traseras — más confiable que buscar "del" en el
+  // texto de 'posicion', que puede estar escrito de cualquier forma (ej. "P1" a
+  // secas, sin el "-DelIzq") y hacía caer en el criterio de trasera por error.
+  const np=parseInt(n.numPos);
+  const pos=!isNaN(np)?(np<=2?'delantera':'trasera'):((n.posicion||'').toLowerCase().includes('del')?'delantera':'trasera');
   const marca=(n.marca||'').toUpperCase();
   const blk=NEU_CRITERIOS[tipo];
   if(!blk)return NEU_CRITERIOS.ALJ.todas.DEFAULT;
