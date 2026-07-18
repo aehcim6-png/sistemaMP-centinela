@@ -6274,44 +6274,6 @@ function lubVsProximosPM(horizonteDias){
     .sort(function(a,b){return b.severidad-a.severidad||a.equipos[0].dias-b.equipos[0].dias;});
 }
 
-// Cuenta correctivos (ot) y preventivos (reg) por técnico. A propósito NO se
-// etiqueta a nadie de "ineficiente" ni se ordena de peor a mejor con un juicio:
-// distintos técnicos atienden distinta cantidad de equipos y trabajos de
-// distinta complejidad, así que un % de correctivos más alto no prueba nada por
-// sí solo — es un dato para conversar en terreno, no una conclusión. Se filtran
-// técnicos con muy pocas intervenciones (<3) porque ahí el % no dice nada.
-function statsTecnicos(){
-  var ot=S.g('ot')||[];
-  var reg=S.g('reg')||[];
-  var porTecnico={};
-  function get(t){
-    t=(t||'').trim();
-    if(!t)return null;
-    if(!porTecnico[t])porTecnico[t]={tecnico:t,correctivos:0,preventivos:0,equipos:{}};
-    return porTecnico[t];
-  }
-  ot.forEach(function(o){
-    var t=get(o.tecnico);if(!t)return;
-    t.correctivos++;
-    if(o.sigla)t.equipos[o.sigla]=true;
-  });
-  reg.forEach(function(r){
-    var t=get(r.tecnico);if(!t)return;
-    t.preventivos++;
-    if(r.equipo)t.equipos[r.equipo]=true;
-  });
-  return Object.keys(porTecnico).map(function(k){
-    var t=porTecnico[k];
-    var total=t.correctivos+t.preventivos;
-    return{
-      tecnico:t.tecnico,correctivos:t.correctivos,preventivos:t.preventivos,total:total,
-      pctCorrectivo:total?Math.round(t.correctivos/total*100):0,
-      nEquipos:Object.keys(t.equipos).length
-    };
-  }).filter(function(t){return t.total>=3;})
-    .sort(function(a,b){return b.total-a.total;});
-}
-
 // ═══ DIAGNÓSTICO A NIVEL DE FLOTA ═══
 // generarDiagnostico() responde "qué pasa" para UN equipo ya elegido. Esto responde
 // la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
@@ -6793,25 +6755,6 @@ renders.pred=function(){
         }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock de lubricantes alcanza para todos los PM proyectados en los próximos 90 días.</div>')+
       '</div>';
-  } else if(fVista==='tecnicos'){
-    var rt=statsTecnicos();
-    content=
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">👷 Correctivo vs. Preventivo por Técnico</div>'+
-      '<div style="font-size:11px;color:var(--tx3);background:rgba(234,179,8,.08);border-radius:6px;padding:8px;margin:6px 0 12px">⚠️ Esto NO es una evaluación de desempeño. Un % de correctivos más alto no significa que un técnico trabaje peor — puede deberse a que le tocaron los equipos más viejos, los turnos con más urgencias, o trabajos más complejos. Úsalo como punto de partida para preguntar en terreno, no como conclusión ni para comparar personas.</div>'+
-      (rt.length?
-        '<div class="tbl-wrap"><table style="font-size:12px">'+
-        '<tr><th>Técnico</th><th>Correctivos</th><th>Preventivos (PM)</th><th>Total</th><th>% Correctivo</th><th>Equipos distintos</th></tr>'+
-        rt.map(function(t){
-          return'<tr><td>'+escapeHtml(t.tecnico)+'</td>'+
-            '<td style="text-align:center">'+t.correctivos+'</td>'+
-            '<td style="text-align:center">'+t.preventivos+'</td>'+
-            '<td style="text-align:center;font-weight:600">'+t.total+'</td>'+
-            '<td style="text-align:center">'+t.pctCorrectivo+'%</td>'+
-            '<td style="text-align:center">'+t.nEquipos+'</td></tr>';
-        }).join('')+
-        '</table></div>'
-      :'<div style="padding:20px;text-align:center;color:var(--tx3)">Sin suficientes registros con técnico identificado todavía (mínimo 3 intervenciones por técnico).</div>')+
-      '</div>';
   }
 
 
@@ -6850,8 +6793,7 @@ $('s-pred').innerHTML=
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'>📦 Stock vs. Próximos PM</option>'+
-    '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'>🛢️ Lubricantes vs. Próximos PM</option>'+
-    '<option value="tecnicos"'+(fVista==='tecnicos'?' selected':'')+'>👷 Correctivo vs. Preventivo por Técnico</option></select>'+
+    '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'>🛢️ Lubricantes vs. Próximos PM</option></select>'+
     (fVista==='equipo'||fVista==='diag'?
       '<select id="fPredEq" onchange="renders.pred()"><option value="">Seleccionar equipo...</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>':'')+
