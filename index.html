@@ -6149,6 +6149,77 @@ var _CAUSAS_TIPICAS_FMEA={
   'Turbo':['Apagar el equipo caliente sin dejarlo enfriar (falta de lubricación al detener)','Filtro de aire en mal estado','Fuga de aceite en sellos']
 };
 
+// ═══ STOCK vs. PRÓXIMOS PM (demanda proyectada real) ═══
+// "Stock & Insumos" ya muestra cuántos meses cubre el CONSUMO PROMEDIO histórico,
+// pero eso no responde "¿me va a faltar este filtro específico antes del PM que
+// lo necesita?" — para eso hay que cruzar Pautas (qué repuesto/cantidad usa cada
+// tipo de PM) con el calendario real de próximos PM por equipo (diasParaPM/tipoPM,
+// ya calculados en 'eq') y el stock actual. Reutiliza la MISMA heurística de match
+// texto-repuesto→item-de-stock que ya usa descontarStock() al registrar un PM real
+// (cache en 'mapaRep' primero, luego N° de parte, luego palabras de la
+// descripción) — sin ella, dos lugares del sistema podrían decidir de forma
+// distinta a qué item de stock se refiere la misma línea de pauta.
+function _matchStockDePauta(c,stk,mapaRep){
+  var rep=(c.rep||'').trim();
+  if(!rep)return null;
+  var repLow=rep.toLowerCase();
+  var cache=c._id?mapaRep.find(function(m){return m.pautaId===c._id;}):null;
+  if(cache&&cache.tipo==='filtro'){
+    var si=stk.findIndex(function(s){return s._id===cache.refId;});
+    if(si>=0)return stk[si];
+  }
+  var partNums=repLow.match(/[a-z]?\d{2,}[-\d]+[a-z]*/gi)||[];
+  var fi=-1;
+  if(partNums.length>0){
+    fi=stk.findIndex(function(s){
+      var np=(s.nParte||'').toLowerCase();
+      return partNums.some(function(pn){return np.includes(pn.toLowerCase())||pn.toLowerCase().includes(np);});
+    });
+  }
+  if(fi<0){
+    fi=stk.findIndex(function(s){
+      var desc=(s.descripcion||'').toLowerCase();
+      var words=repLow.split(/\s+/).filter(function(w){return w.length>4;});
+      return words.length>0&&words.filter(function(w){return desc.includes(w);}).length>=Math.min(2,words.length);
+    });
+  }
+  return fi>=0?stk[fi]:null;
+}
+function stockVsProximosPM(horizonteDias){
+  horizonteDias=horizonteDias||90;
+  var eq=S.g('eq')||[];
+  var pau=S.g('pau')||[];
+  var stk=S.g('stk')||[];
+  var mapaRep=S.g('mapaRep')||[];
+  var demandaPorItem={};
+  eq.forEach(function(e){
+    if(e.diasParaPM==null||e.diasParaPM>horizonteDias||!e.tipoPM)return;
+    var lineasPM=pau.filter(function(p){return p.sigla===e.sigla&&p.pm===e.tipoPM&&p.rep;});
+    lineasPM.forEach(function(p){
+      var item=_matchStockDePauta(p,stk,mapaRep);
+      if(!item)return;
+      var key=item._id||item.nParte;
+      if(!demandaPorItem[key])demandaPorItem[key]={item:item,demandaTotal:0,equipos:[]};
+      var cant=p.can||1;
+      demandaPorItem[key].demandaTotal+=cant;
+      demandaPorItem[key].equipos.push({sigla:e.sigla,fecha:e.fechaProxPM||'',dias:e.diasParaPM,cant:cant});
+    });
+  });
+  return Object.keys(demandaPorItem).map(function(k){
+    var d=demandaPorItem[k];
+    d.equipos.sort(function(a,b){return a.dias-b.dias;});
+    var stockActual=d.item.stockBodega||0;
+    var deficit=d.demandaTotal-stockActual;
+    return{
+      nParte:d.item.nParte,descripcion:d.item.descripcion,
+      stockActual:stockActual,demandaTotal:d.demandaTotal,deficit:deficit,
+      equipos:d.equipos,
+      severidad:deficit<=0?0:(d.equipos[0].dias<=14?3:2)
+    };
+  }).filter(function(a){return a.deficit>0;})
+    .sort(function(a,b){return b.severidad-a.severidad||a.equipos[0].dias-b.equipos[0].dias;});
+}
+
 // ═══ DIAGNÓSTICO A NIVEL DE FLOTA ═══
 // generarDiagnostico() responde "qué pasa" para UN equipo ya elegido. Esto responde
 // la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
@@ -6563,9 +6634,30 @@ renders.pred=function(){
         }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficientes correctivos con "componente" registrado para detectar patrones. Se necesitan al menos 2 fallas del mismo componente.</div>')+
       '</div>';
+  } else if(fVista==='stockpm'){
+    var sp=stockVsProximosPM(90);
+    content=
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">📦 Stock vs. Próximos PM (90 días)</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">"Stock &amp; Insumos" muestra cuántos meses cubre el consumo promedio histórico. Esto es distinto: cruza qué repuesto pide la pauta de cada PM que ya viene en el calendario (por horómetro proyectado) contra el stock de HOY — para avisar si falta antes de que llegue ese PM puntual, no en promedio.</div>'+
+      (sp.length?
+        sp.map(function(a){
+          var borde=a.severidad>=3?'var(--danger)':'var(--w)';
+          var primero=a.equipos[0];
+          return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+borde+'">'+
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px">'+
+            '<div style="font-weight:700;font-size:13px">'+escapeHtml(a.descripcion||a.nParte)+'</div>'+
+            '<div style="font-size:10px;color:var(--tx3)" class="mono">'+escapeHtml(a.nParte||'')+'</div>'+
+            '</div>'+
+            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+'</b> · Se necesitan <b>'+a.demandaTotal+'</b> para los PM que vienen en 90 días · Faltan <b>'+a.deficit+'</b></div>'+
+            '<div style="font-size:11px;color:var(--tx2)">Primero lo necesita <b class="mono" style="color:var(--ac)">'+escapeHtml(primero.sigla)+'</b> en <b>'+primero.dias+' día(s)</b>'+(primero.fecha?' ('+escapeHtml(primero.fecha)+')':'')+'</div>'+
+            (a.equipos.length>1?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">También lo necesitan: '+a.equipos.slice(1).map(function(e){return escapeHtml(e.sigla)+' ('+e.dias+'d)';}).join(', ')+'</div>':'')+
+            '</div>';
+        }).join('')
+      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock actual alcanza para todos los PM proyectados en los próximos 90 días (según lo que la pauta indica para cada uno).</div>')+
+      '</div>';
   }
 
-  
+
   if(fVista==='diag'){
     var diagEq=fEq||eq[0]?.sigla||'';
     var d=diagEq?generarDiagnostico(diagEq):null;
@@ -6599,7 +6691,8 @@ $('s-pred').innerHTML=
     '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'>📋 Backlog Inteligente</option>'+
     '<option value="items"'+(fVista==='items'?' selected':'')+'>🔧 Top Items</option>'+
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
-    '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option></select>'+
+    '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
+    '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'>📦 Stock vs. Próximos PM</option></select>'+
     (fVista==='equipo'||fVista==='diag'?
       '<select id="fPredEq" onchange="renders.pred()"><option value="">Seleccionar equipo...</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>':'')+
