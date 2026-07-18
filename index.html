@@ -4542,8 +4542,12 @@ function neuPrecio(n){
 const NEU_CRITERIOS={
   CAEX:{
     delantera:{
-      MICHELIN:{remNuevo:110,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
-      GOODYEAR:{remNuevo:60,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
+      // Remanente nuevo y umbral de cambio dependen de la marca (dato real del taller,
+      // 2026-07-18): Michelin y Goodyear parten en 100mm y se cambian a los 60mm;
+      // Bridgestone parte en 60mm y se cambia a los 30mm — la mitad en ambos casos.
+      MICHELIN:{remNuevo:100,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
+      GOODYEAR:{remNuevo:100,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
+      BRIDGESTONE:{remNuevo:60,remRotar:30,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
       DEFAULT: {remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'}
     },
     trasera:{
