@@ -4483,7 +4483,12 @@ window.confirmarInstalarSensor=function(i){
   // Si ese neumático ya tenía otro sensor operativo, se desmonta solo (no puede
   // haber dos sensores activos en el mismo neumático a la vez).
   const otroIdx=sen.findIndex(function(x,xi){return xi!==i&&x.neuSerie===n.serie&&x.estado==='Operativo';});
-  if(otroIdx>=0){sen[otroIdx].estado='Stock';sen[otroIdx].sigla='';sen[otroIdx].posicion='';}
+  if(otroIdx>=0){
+    const otro=sen[otroIdx];
+    if(!Array.isArray(otro.historial))otro.historial=[];
+    otro.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:otro.sigla,posicion:otro.posicion,neuSerie:otro.neuSerie});
+    otro.estado='Stock';otro.sigla='';otro.posicion='';
+  }
   // Respaldo: si este sensor quedó marcado en OTRO neumático (ej. se instaló sin
   // pasar por "Desmontar" primero), se limpia ahí también — nunca debe quedar el
   // mismo N° de sensor mostrado en dos neumáticos a la vez.
