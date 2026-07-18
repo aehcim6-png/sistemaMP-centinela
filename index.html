@@ -6220,6 +6220,98 @@ function stockVsProximosPM(horizonteDias){
     .sort(function(a,b){return b.severidad-a.severidad||a.equipos[0].dias-b.equipos[0].dias;});
 }
 
+// Mismo cruce que stockVsProximosPM pero para Lubricantes — separado porque el
+// match es distinto (por nombre de producto, no N° de parte) y usa esLubricante()
+// (logic.js) para no confundir una línea de pauta de lubricante con un filtro.
+function _matchLubDePauta(p,lub){
+  var rep=(p.rep||'').trim();
+  if(!rep||!esLubricante(rep))return null;
+  var repLow=rep.toLowerCase();
+  var li=lub.findIndex(function(l){
+    var nom=(l.nombre||'').toLowerCase();
+    return nom&&(repLow.indexOf(nom)>=0||nom.indexOf(repLow)>=0);
+  });
+  if(li<0){
+    var words=repLow.split(/\s+/).filter(function(w){return w.length>3;});
+    li=lub.findIndex(function(l){
+      var nom=(l.nombre||'').toLowerCase();
+      return words.some(function(w){return nom.indexOf(w)>=0;});
+    });
+  }
+  return li>=0?lub[li]:null;
+}
+function lubVsProximosPM(horizonteDias){
+  horizonteDias=horizonteDias||90;
+  var eq=S.g('eq')||[];
+  var pau=S.g('pau')||[];
+  var lub=S.g('lub')||[];
+  var demandaPorItem={};
+  eq.forEach(function(e){
+    if(e.diasParaPM==null||e.diasParaPM>horizonteDias||!e.tipoPM)return;
+    var lineasPM=pau.filter(function(p){return p.sigla===e.sigla&&p.pm===e.tipoPM&&p.rep;});
+    lineasPM.forEach(function(p){
+      var item=_matchLubDePauta(p,lub);
+      if(!item)return;
+      var key=item._id||item.nombre;
+      if(!demandaPorItem[key])demandaPorItem[key]={item:item,demandaTotal:0,equipos:[]};
+      var cant=p.can||0;
+      demandaPorItem[key].demandaTotal+=cant;
+      demandaPorItem[key].equipos.push({sigla:e.sigla,fecha:e.fechaProxPM||'',dias:e.diasParaPM,cant:cant});
+    });
+  });
+  return Object.keys(demandaPorItem).map(function(k){
+    var d=demandaPorItem[k];
+    d.equipos.sort(function(a,b){return a.dias-b.dias;});
+    var stockActual=d.item.stock||0;
+    var deficit=d.demandaTotal-stockActual;
+    return{
+      nombre:d.item.nombre,unidad:d.item.unidad||'L',
+      stockActual:stockActual,demandaTotal:d.demandaTotal,deficit:deficit,
+      equipos:d.equipos,
+      severidad:deficit<=0?0:(d.equipos[0].dias<=14?3:2)
+    };
+  }).filter(function(a){return a.deficit>0;})
+    .sort(function(a,b){return b.severidad-a.severidad||a.equipos[0].dias-b.equipos[0].dias;});
+}
+
+// Cuenta correctivos (ot) y preventivos (reg) por técnico. A propósito NO se
+// etiqueta a nadie de "ineficiente" ni se ordena de peor a mejor con un juicio:
+// distintos técnicos atienden distinta cantidad de equipos y trabajos de
+// distinta complejidad, así que un % de correctivos más alto no prueba nada por
+// sí solo — es un dato para conversar en terreno, no una conclusión. Se filtran
+// técnicos con muy pocas intervenciones (<3) porque ahí el % no dice nada.
+function statsTecnicos(){
+  var ot=S.g('ot')||[];
+  var reg=S.g('reg')||[];
+  var porTecnico={};
+  function get(t){
+    t=(t||'').trim();
+    if(!t)return null;
+    if(!porTecnico[t])porTecnico[t]={tecnico:t,correctivos:0,preventivos:0,equipos:{}};
+    return porTecnico[t];
+  }
+  ot.forEach(function(o){
+    var t=get(o.tecnico);if(!t)return;
+    t.correctivos++;
+    if(o.sigla)t.equipos[o.sigla]=true;
+  });
+  reg.forEach(function(r){
+    var t=get(r.tecnico);if(!t)return;
+    t.preventivos++;
+    if(r.equipo)t.equipos[r.equipo]=true;
+  });
+  return Object.keys(porTecnico).map(function(k){
+    var t=porTecnico[k];
+    var total=t.correctivos+t.preventivos;
+    return{
+      tecnico:t.tecnico,correctivos:t.correctivos,preventivos:t.preventivos,total:total,
+      pctCorrectivo:total?Math.round(t.correctivos/total*100):0,
+      nEquipos:Object.keys(t.equipos).length
+    };
+  }).filter(function(t){return t.total>=3;})
+    .sort(function(a,b){return b.total-a.total;});
+}
+
 // ═══ DIAGNÓSTICO A NIVEL DE FLOTA ═══
 // generarDiagnostico() responde "qué pasa" para UN equipo ya elegido. Esto responde
 // la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
@@ -6259,11 +6351,22 @@ function diagnosticoFlota(){
     // fecha, no una opinión — apunta a repuesto de baja calidad o reparación mal
     // hecha, no a desgaste normal por uso.
     c.reincidenciaDias=null;
+    c.tendencia=null;
     var fechasPeor=(c.equipoFechas[c.equipoMasRepetido]||[]).slice().sort();
     if(fechasPeor.length>=2){
       var gaps=[];
       for(var gi=1;gi<fechasPeor.length;gi++)gaps.push(Math.round((new Date(fechasPeor[gi])-new Date(fechasPeor[gi-1]))/864e5));
       c.reincidenciaDias=Math.round(gaps.reduce(function(a,b){return a+b;},0)/gaps.length);
+      // Tendencia: no solo el promedio — ¿el intervalo entre fallas se está
+      // ACORTANDO (empeora, cada vez falla más rápido) o es estable? Compara el
+      // último intervalo contra el primero, no solo el promedio general, que
+      // puede esconder una aceleración reciente.
+      if(gaps.length>=2){
+        var primerGap=gaps[0],ultimoGap=gaps[gaps.length-1];
+        if(ultimoGap<primerGap*0.7)c.tendencia='empeora';
+        else if(ultimoGap>primerGap*1.3)c.tendencia='mejora';
+        else c.tendencia='estable';
+      }
     }
     delete c.equipoFechas;
     c.ultimaFecha=c.fechas[c.fechas.length-1]||'';
@@ -6293,6 +6396,20 @@ function diagnosticoFlota(){
     // FMEA estándar de ese tipo de componente como punto de partida.
     c.requiereRCA=c.total>=3;
     c.causasFMEA=_CAUSAS_TIPICAS_FMEA[c.componente]||null;
+    // ¿Este componente aparece en ALGUNA línea de pauta preventiva de los equipos
+    // donde falla? No es una opinión — se busca de verdad en las pautas reales de
+    // esos equipos. Si nunca aparece, nadie lo está revisando antes de que se
+    // rompa (falla siempre vía correctivo, nunca detectado en un PM programado).
+    c.cubiertoPorPM=null;
+    var catKeywords=null;
+    for(var ci=0;ci<_CATEGORIAS_COMPONENTE.length;ci++){if(_CATEGORIAS_COMPONENTE[ci][0]===c.componente){catKeywords=_CATEGORIAS_COMPONENTE[ci][1];break;}}
+    if(catKeywords){
+      var pauEq=(S.g('pau')||[]).filter(function(p){return siglasAfectadas.indexOf(p.sigla)>=0;});
+      c.cubiertoPorPM=pauEq.some(function(p){
+        var txt=((p.act||'')+' '+(p.cat||'')).toLowerCase();
+        return catKeywords.some(function(kw){return txt.indexOf(kw)>=0;});
+      });
+    }
     c.pctAtendido=atendido;
     var topCausa=_frecuenciaCausas(c.causasTexto);
     c.causaTop=topCausa?topCausa.causa:null;
@@ -6622,7 +6739,10 @@ renders.pred=function(){
             '</div>'+
             '<div style="font-size:12px;margin:6px 0;line-height:1.5">💡 '+escapeHtml(c.sugerencia)+'</div>'+
             (c.causaTop?'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">🔍 Causa más mencionada en el registro: <b>'+escapeHtml(c.causaTop.toUpperCase())+'</b> ('+c.causaTopN+' veces)</div>':'')+
-            (c.reincidenciaDias!=null?'<div style="font-size:11px;margin-bottom:4px;color:'+(c.reincidenciaDias<30?'var(--danger)':c.reincidenciaDias<90?'var(--w)':'var(--tx2)')+'">⏱️ En '+escapeHtml(c.equipoMasRepetido)+', vuelve a fallar en promedio cada <b>'+c.reincidenciaDias+' día(s)</b>'+(c.reincidenciaDias<30?' — intervalo corto: revisar calidad del repuesto o de la reparación, no parece desgaste normal':c.reincidenciaDias<90?' — intervalo moderado, vale la pena revisar':'')+'</div>':'')+
+            (c.reincidenciaDias!=null?'<div style="font-size:11px;margin-bottom:4px;color:'+(c.reincidenciaDias<30?'var(--danger)':c.reincidenciaDias<90?'var(--w)':'var(--tx2)')+'">⏱️ En '+escapeHtml(c.equipoMasRepetido)+', vuelve a fallar en promedio cada <b>'+c.reincidenciaDias+' día(s)</b>'+(c.reincidenciaDias<30?' — intervalo corto: revisar calidad del repuesto o de la reparación, no parece desgaste normal':c.reincidenciaDias<90?' — intervalo moderado, vale la pena revisar':'')+
+              (c.tendencia==='empeora'?' · <b style="color:var(--danger)">📉 empeorando</b> (el intervalo entre fallas se acortó vs. las primeras veces)':c.tendencia==='mejora'?' · <b style="color:var(--ok)">📈 mejorando</b> (el intervalo se alargó)':'')+
+              '</div>':'')+
+            (c.cubiertoPorPM===false?'<div style="font-size:11px;color:var(--w);margin-bottom:4px">📋 Este componente NO aparece en ninguna pauta de mantención preventiva de estos equipos — siempre se detecta por correctivo, nunca por revisión programada.</div>':'')+
             (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
             (c.requiereRCA?'<div style="font-size:11px;background:rgba(99,102,241,.08);border-radius:6px;padding:6px 8px;margin:6px 0;color:var(--tx2)">'+
               '<b style="color:#818cf8">🔬 Amerita Análisis de Causa Raíz</b> ('+c.total+' fallas — igual que activaría un CMMS real ante ≥3 correctivos del mismo tipo).'+
@@ -6654,6 +6774,43 @@ renders.pred=function(){
             '</div>';
         }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock actual alcanza para todos los PM proyectados en los próximos 90 días (según lo que la pauta indica para cada uno).</div>')+
+      '</div>';
+  } else if(fVista==='lubpm'){
+    var lp=lubVsProximosPM(90);
+    content=
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🛢️ Lubricantes vs. Próximos PM (90 días)</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Mismo cruce que Stock vs. Próximos PM, pero para aceites/grasas/refrigerante: cuánto pide la pauta de cada PM que ya viene en el calendario, contra el stock de lubricantes de HOY.</div>'+
+      (lp.length?
+        lp.map(function(a){
+          var borde=a.severidad>=3?'var(--danger)':'var(--w)';
+          var primero=a.equipos[0];
+          return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+borde+'">'+
+            '<div style="font-weight:700;font-size:13px">'+escapeHtml(a.nombre)+'</div>'+
+            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+a.unidad+'</b> · Se necesitan <b>'+a.demandaTotal+a.unidad+'</b> para los PM que vienen en 90 días · Faltan <b>'+a.deficit+a.unidad+'</b></div>'+
+            '<div style="font-size:11px;color:var(--tx2)">Primero lo necesita <b class="mono" style="color:var(--ac)">'+escapeHtml(primero.sigla)+'</b> en <b>'+primero.dias+' día(s)</b>'+(primero.fecha?' ('+escapeHtml(primero.fecha)+')':'')+'</div>'+
+            (a.equipos.length>1?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">También lo necesitan: '+a.equipos.slice(1).map(function(e){return escapeHtml(e.sigla)+' ('+e.dias+'d)';}).join(', ')+'</div>':'')+
+            '</div>';
+        }).join('')
+      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock de lubricantes alcanza para todos los PM proyectados en los próximos 90 días.</div>')+
+      '</div>';
+  } else if(fVista==='tecnicos'){
+    var rt=statsTecnicos();
+    content=
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">👷 Correctivo vs. Preventivo por Técnico</div>'+
+      '<div style="font-size:11px;color:var(--tx3);background:rgba(234,179,8,.08);border-radius:6px;padding:8px;margin:6px 0 12px">⚠️ Esto NO es una evaluación de desempeño. Un % de correctivos más alto no significa que un técnico trabaje peor — puede deberse a que le tocaron los equipos más viejos, los turnos con más urgencias, o trabajos más complejos. Úsalo como punto de partida para preguntar en terreno, no como conclusión ni para comparar personas.</div>'+
+      (rt.length?
+        '<div class="tbl-wrap"><table style="font-size:12px">'+
+        '<tr><th>Técnico</th><th>Correctivos</th><th>Preventivos (PM)</th><th>Total</th><th>% Correctivo</th><th>Equipos distintos</th></tr>'+
+        rt.map(function(t){
+          return'<tr><td>'+escapeHtml(t.tecnico)+'</td>'+
+            '<td style="text-align:center">'+t.correctivos+'</td>'+
+            '<td style="text-align:center">'+t.preventivos+'</td>'+
+            '<td style="text-align:center;font-weight:600">'+t.total+'</td>'+
+            '<td style="text-align:center">'+t.pctCorrectivo+'%</td>'+
+            '<td style="text-align:center">'+t.nEquipos+'</td></tr>';
+        }).join('')+
+        '</table></div>'
+      :'<div style="padding:20px;text-align:center;color:var(--tx3)">Sin suficientes registros con técnico identificado todavía (mínimo 3 intervenciones por técnico).</div>')+
       '</div>';
   }
 
@@ -6692,7 +6849,9 @@ $('s-pred').innerHTML=
     '<option value="items"'+(fVista==='items'?' selected':'')+'>🔧 Top Items</option>'+
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
-    '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'>📦 Stock vs. Próximos PM</option></select>'+
+    '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'>📦 Stock vs. Próximos PM</option>'+
+    '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'>🛢️ Lubricantes vs. Próximos PM</option>'+
+    '<option value="tecnicos"'+(fVista==='tecnicos'?' selected':'')+'>👷 Correctivo vs. Preventivo por Técnico</option></select>'+
     (fVista==='equipo'||fVista==='diag'?
       '<select id="fPredEq" onchange="renders.pred()"><option value="">Seleccionar equipo...</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>':'')+
