@@ -5425,6 +5425,13 @@ renders.cfg=function(){
     '<div class="sec-h"><div><div class="sec-t">⚙ Configuración</div>'+
     '<div class="sec-s">Administración del sistema</div></div></div>'+
 
+    // ACCESOS (quién entró, cuándo, desde qué navegador/equipo)
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
+    '<b style="font-size:14px">👁️ Accesos al sistema</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Registro de cada inicio de sesión — útil para saber quién entró y cuándo si algo no se guardó en un computador.</p>'+
+    '<button class="btn btn-o" onclick="verAccesos()">Ver accesos recientes</button>'+
+    '</div>'+
+
     // AUTOGUARDADO EN LÍNEA (siempre visible)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--ac)">'+
     '<b style="font-size:14px">☁️ Respaldo automático (en línea)</b>'+
@@ -11648,6 +11655,7 @@ async function _doLogin(){
     _currentRole = rol?.role||'operador';
     window._userName = rol?.nombre||email;
     window._userRole = _currentRole;
+    _registrarLogin('Login manual');
     if(_currentUser?.user_metadata?.must_change_password){
       _mostrarCambioClaveOverlay();
       return;
@@ -11681,6 +11689,36 @@ function _agregarUserBadge(){
   badge.onclick=function(){if(confirm('¿Cerrar sesión?'))_logout();};
   document.body.appendChild(badge);
 }
+
+// Registro de accesos: quién entró, cuándo y desde qué navegador — pedido real
+// tras un caso donde un guardado no llegó a la nube y no había forma de saber si
+// fue por sesión vencida en otro equipo. Se guarda en 'changelog' (tabla de
+// auditoría ya existente, cualquiera puede insertar) con accion='Login'.
+function _registrarLogin(origen){
+  try{
+    var token=localStorage.getItem('smp_access_token');
+    if(!token)return;
+    fetch(_SB_DEFAULT_URL+'/rest/v1/changelog',{
+      method:'POST',
+      headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({fecha:new Date().toISOString(),usuario:window._userName||'',accion:'Login',detalle:origen+' · '+(navigator.userAgent||'').slice(0,180)})
+    }).catch(function(){});
+  }catch(e){}
+}
+window.verAccesos=function(){
+  const logs=(S.g('changelog')||[]).filter(function(c){return c.accion==='Login';}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
+  const rows=logs.map(function(c){
+    const d=new Date(c.fecha);
+    const fechaStr=isNaN(d)?(c.fecha||'—'):d.toLocaleString('es-CL');
+    return `<tr><td style="padding:4px;font-size:11px">${fechaStr}</td><td style="font-size:11px">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
+  }).join('');
+  sm(`<div style="max-width:700px"><h3>👁️ Accesos recientes</h3>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%">
+    <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Fecha/hora</th><th style="text-align:left">Usuario</th><th style="text-align:left">Detalle</th></tr>
+    ${rows||'<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--tx3)">Sin accesos registrados todavía</td></tr>'}
+    </table></div>
+    <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>`);
+};
 
 // ============ CREAR / ACTIVAR USUARIOS (admin) ============
 async function _accionUsuarios(payload){
@@ -11881,6 +11919,7 @@ document.addEventListener('DOMContentLoaded',async function(){
       window._userName = rol?.nombre||user.email;
       window._userRole = _currentRole;
       _programarRefreshToken(_token);
+      _registrarLogin('Sesión restaurada');
       _arrancarSistema();
       if(user?.user_metadata?.must_change_password){
         setTimeout(_mostrarCambioClaveOverlay,600);
