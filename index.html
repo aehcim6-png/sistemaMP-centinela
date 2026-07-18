@@ -4009,7 +4009,7 @@ renders.neu=function(){
           ${edCell(n.posicion,'posicion',i,'neu')}
           ${edCell(n.serie||'','serie',i,'neu')}
           ${edCell(n.numSensor||'','numSensor',i,'neu')}
-          ${edCell(n.marca||'','marca',i,'neu')}
+          ${edCell(n.marca||'','marca',i,'neu','select',['','MICHELIN','BRIDGESTONE','GOODYEAR','WESTLAKE'])}
           ${edCell(n.medida||'','medida',i,'neu')}
           ${edCell(n.fechaInst||'','fechaInst',i,'neu','date')}
           <td class="mono" style="font-size:11px" title="${lr.live?'🔗 En línea con horómetro':'⚠️ Manual'}">${fn(lr.h)}h${lr.live?' <span style="color:var(--ok);font-size:9px">🔗</span>':''}</td>
