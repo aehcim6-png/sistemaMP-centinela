@@ -4284,7 +4284,17 @@ window.saveNeu=function(){
   const sig=$('nNEq').value,serie=$('nNSerie').value.trim();
   if(!sig)return toast('⚠️ Selecciona equipo');
   if(!serie)return toast('⚠️ Ingresa N° serie');
+  const pos=$('nNPos').value;
   const neu=S.g('neu')||[];
+  // Si ya hay un neumático operativo en ese equipo+posición, no pueden convivir dos
+  // — se saca el antiguo a Existencias automáticamente (mismo criterio que
+  // confirmarInstalarExistencias) para no dejar dos filas "Operativo" en el mismo lugar.
+  const ocupadoIdx=neu.findIndex(x=>x.sigla===sig&&x.posicion===pos&&x.estado==='Operativo');
+  if(ocupadoIdx>=0){
+    if(!confirm(`Ya hay un neumático operativo en ${sig} ${pos} (serie ${neu[ocupadoIdx].serie}). ¿Moverlo a Existencias e instalar este nuevo en su lugar?`))return;
+    neu[ocupadoIdx].estado='Stock';
+    neu[ocupadoIdx].fechaBaja=new Date().toISOString().slice(0,10);
+  }
   const rem=parseFloat($('nNRem').value)||null;
   const tipo=$('nNTipo').value;
   const remNuevo=tipo==='ALJ'?20:tipo==='MN'?27:81;
@@ -4292,7 +4302,7 @@ window.saveNeu=function(){
   const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);
   const hAct=e?e.horomActual:0;
   const acum=parseInt($('nNAcum').value)||0;
-  neu.push({sigla:sig,tipoEquipo:tipo,tipo:'Neumático',posicion:$('nNPos').value,
+  neu.push({sigla:sig,tipoEquipo:tipo,tipo:'Neumático',posicion:pos,
     numPos:parseInt($('nNNumPos').value)||1,numSensor:$('nNSensor').value,serie,
     marca:$('nNMarca').value,medida:$('nNMedida').value,vidaUtil:tipo==='ALJ'?3000:tipo==='MN'?5000:tipo==='CF'?5000:6000,
     horomInstalacion:hAct,horomActual:hAct,horasAcum:acum,remanente:rem,remNuevo,
@@ -4762,9 +4772,9 @@ window.histPosicion=function(sigla,posNum,numPos){
     let lineas='';
     series.forEach((s,si)=>{
       const col=colores[si%colores.length];
-      const pts=porSerie[s].filter(m=>m.horom>0).map(m=>px(m.horom)+','+py(m.remProm));
+      const pts=porSerie[s].filter(m=>m.horom>0&&m.remProm!=null).map(m=>px(m.horom)+','+py(m.remProm));
       if(pts.length>=2)lineas+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="2"/>`;
-      porSerie[s].filter(m=>m.horom>0).forEach(m=>{lineas+=`<circle cx="${px(m.horom)}" cy="${py(m.remProm)}" r="3" fill="${col}"><title>${s} | ${m.fecha}: ${m.remProm}mm</title></circle>`;});
+      porSerie[s].filter(m=>m.horom>0&&m.remProm!=null).forEach(m=>{lineas+=`<circle cx="${px(m.horom)}" cy="${py(m.remProm)}" r="3" fill="${col}"><title>${s} | ${m.fecha}: ${m.remProm}mm</title></circle>`;});
     });
     svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;background:var(--bg3);border-radius:8px;margin:12px 0">
       <rect x="${padL}" y="${py(10)}" width="${plotW}" height="${H-padB-py(10)}" fill="rgba(239,68,68,0.10)"/>
@@ -4804,7 +4814,7 @@ window.histPosicion=function(sigla,posNum,numPos){
       ${meds.slice().reverse().map(m=>`<tr style="border-bottom:1px solid var(--bd)">
         <td style="padding:4px">${m.fecha}</td><td class="mono" style="font-size:10px">${escapeHtml(m.serie)}</td>
         <td>${fn2(m.horom)}</td><td>${m.remInt!=null?m.remInt:'—'}</td><td>${m.remExt!=null?m.remExt:'—'}</td>
-        <td><b style="color:${m.remProm<=10?'var(--danger)':m.remProm<=30?'var(--warn)':'var(--ok)'}">${m.remProm}mm</b></td>
+        <td><b style="color:${m.remProm==null?'var(--tx3)':m.remProm<=10?'var(--danger)':m.remProm<=30?'var(--warn)':'var(--ok)'}">${m.remProm!=null?m.remProm+'mm':'—'}</b></td>
         <td style="color:var(--tx3);font-size:10px">${escapeHtml(m.motivo||'')}</td>
       </tr>`).join('')}
     </table></div>
@@ -4848,7 +4858,7 @@ window.verDetalleNeu=function(neuIdx){
     const maxR=Math.max(remNuevo,...allRem)+5;
     const px=v=>padL+Math.round((v-minH)/(maxH-minH||1)*plotW);
     const py=r=>padT+plotH-Math.round((r-0)/(maxR-0||1)*plotH);
-    const pts=meds.filter(m=>m.horom>0).map(m=>({x:px(m.horom),y:py(m.remProm),h:m.horom,r:m.remProm,f:m.fecha}));
+    const pts=meds.filter(m=>m.horom>0&&m.remProm!=null).map(m=>({x:px(m.horom),y:py(m.remProm),h:m.horom,r:m.remProm,f:m.fecha}));
     // gridlines Y
     let grid='';
     [0,20,40,60,80,100].filter(v=>v<=maxR).forEach(v=>{
@@ -4932,7 +4942,7 @@ window.verDetalleNeu=function(neuIdx){
           <td style="font-size:10px">${escapeHtml(m.posicion||'—')}</td>
           <td>${fn2(m.horom)}</td>
           <td>${m.remExt!=null?m.remExt+'mm':'—'}</td><td>${m.remInt!=null?m.remInt+'mm':'—'}</td>
-          <td><b>${m.remProm}mm</b></td><td>${m.presion?m.presion+'psi':'—'}</td>
+          <td><b>${m.remProm!=null?m.remProm+'mm':'—'}</b></td><td>${m.presion?m.presion+'psi':'—'}</td>
           <td style="color:var(--tx3)">${escapeHtml(m.obs||'')}</td>
         </tr>`).join('')}
       </table></div>`:'<p style="font-size:11px;color:var(--tx3)">Sin mediciones registradas</p>'}
