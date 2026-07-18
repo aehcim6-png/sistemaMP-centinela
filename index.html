@@ -4007,7 +4007,7 @@ renders.neu=function(){
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir">📏</button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico">🔍</button>
-            <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}')" title="Historial de esta posición">📍</button>
+            <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">📍</button>
           </td>
         </tr>`;
       }).join('')}
@@ -4733,9 +4733,12 @@ window.neuSort=function(key){
 };
 
 // ── Historial por POSICIÓN (toda la vida de esa posición) ──
-window.histPosicion=function(sigla,posNum){
+window.histPosicion=function(sigla,posNum,numPos){
   const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
-  const meds=allMeds.filter(m=>m.sigla===sigla&&(String(m.posicion)===String(posNum))).sort((a,b)=>a.fecha.localeCompare(b.fecha)||a.horom-b.horom);
+  // Las mediciones históricas (carga masiva) guardaron 'posicion' como el N°
+  // de posición (ej. "6"), no la etiqueta descriptiva actual (ej. "P6-TraDeInt")
+  // — hay que aceptar ambas formas o el historial sale vacío para todo lo migrado.
+  const meds=allMeds.filter(m=>m.sigla===sigla&&(String(m.posicion)===String(posNum)||(numPos&&String(m.posicion)===String(numPos)))).sort((a,b)=>a.fecha.localeCompare(b.fecha)||a.horom-b.horom);
   const fn2=v=>v?.toLocaleString('es-CL')||'—';
   // Agrupar por serie (cada neumático que pasó por la posición)
   const porSerie={};
