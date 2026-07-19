@@ -11694,6 +11694,22 @@ function _agregarUserBadge(){
 // tras un caso donde un guardado no llegó a la nube y no había forma de saber si
 // fue por sesión vencida en otro equipo. Se guarda en 'changelog' (tabla de
 // auditoría ya existente, cualquiera puede insertar) con accion='Login'.
+// El "usuario" (nombre del rol) NO distingue de qué computador entró, porque la
+// misma persona puede entrar con la misma cuenta desde 2 equipos distintos — por
+// eso cada navegador tiene su propia etiqueta local ('smp_device_label'), que la
+// empresa puede nombrar (ej. "PC Taller", "Notebook Juan") para saber exactamente
+// desde dónde se guardó (o no se guardó) cada cosa.
+function _getDeviceLabel(){
+  var l=localStorage.getItem('smp_device_label');
+  if(!l){l='Equipo-'+Math.random().toString(36).slice(2,6).toUpperCase();localStorage.setItem('smp_device_label',l);}
+  return l;
+}
+window.nombrarEquipo=function(){
+  var actual=_getDeviceLabel();
+  var nuevo=prompt('Nombre para identificar ESTE computador en los accesos (ej. "PC Taller", "Notebook Juan"):',actual);
+  if(nuevo&&nuevo.trim()){localStorage.setItem('smp_device_label',nuevo.trim());toast('✅ Este equipo ahora se llama "'+nuevo.trim()+'"');}
+  if(typeof verAccesos==='function')verAccesos();
+};
 function _registrarLogin(origen){
   try{
     var token=localStorage.getItem('smp_access_token');
@@ -11701,7 +11717,7 @@ function _registrarLogin(origen){
     fetch(_SB_DEFAULT_URL+'/rest/v1/changelog',{
       method:'POST',
       headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({fecha:new Date().toISOString(),usuario:window._userName||'',accion:'Login',detalle:origen+' · '+(navigator.userAgent||'').slice(0,180)})
+      body:JSON.stringify({fecha:new Date().toISOString(),usuario:window._userName||'',accion:'Login',detalle:origen+' · 💻 '+_getDeviceLabel()+' · '+(navigator.userAgent||'').slice(0,150)})
     }).catch(function(){});
   }catch(e){}
 }
@@ -11713,6 +11729,7 @@ window.verAccesos=function(){
     return `<tr><td style="padding:4px;font-size:11px">${fechaStr}</td><td style="font-size:11px">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
   }).join('');
   sm(`<div style="max-width:700px"><h3>👁️ Accesos recientes</h3>
+    <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">Este computador se identifica como: <b style="color:var(--tx)">💻 ${escapeHtml(_getDeviceLabel())}</b> — <a href="javascript:void(0)" onclick="nombrarEquipo()" style="color:var(--ac)">cambiar nombre</a></p>
     <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%">
     <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Fecha/hora</th><th style="text-align:left">Usuario</th><th style="text-align:left">Detalle</th></tr>
     ${rows||'<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--tx3)">Sin accesos registrados todavía</td></tr>'}
