@@ -11532,8 +11532,40 @@ function _decodeJwtExp(token){
 let _refreshEnCurso=null;
 async function _sbAuthRefresh(){
   if(_refreshEnCurso)return _refreshEnCurso;
-  _refreshEnCurso=_sbAuthRefreshInner().finally(function(){_refreshEnCurso=null;});
+  _refreshEnCurso=_sbAuthRefreshConLock().finally(function(){_refreshEnCurso=null;});
   return _refreshEnCurso;
+}
+// El mutex de arriba solo protege llamadas concurrentes DENTRO de esta pestaña —
+// localStorage se comparte entre TODAS las pestañas del mismo navegador con la
+// misma sesión, así que si hay 2 pestañas abiertas (caso real detectado: logs de
+// auth mostrando "Refresh Token Not Found" justo antes de que un guardado se
+// perdiera), cada una tiene su propio mutex en memoria y ninguna sabe de la otra
+// — ambas pueden refrescar casi al mismo tiempo con el mismo refresh_token y
+// Supabase tumba la sesión completa. Este candado usa localStorage (compartido
+// entre pestañas) para que solo una a la vez llegue a pedir el refresh real; las
+// demás esperan un momento y reusan el token que esa pestaña deje guardado.
+async function _sbAuthRefreshConLock(){
+  var lockKey='smp_refresh_lock';
+  var ahora=Date.now();
+  var lockVal=localStorage.getItem(lockKey);
+  var lockTs=lockVal?parseInt(lockVal.split('|')[0])||0:0;
+  if(lockVal&&(ahora-lockTs)<4000){
+    await new Promise(function(r){setTimeout(r,700);});
+    return !!localStorage.getItem('smp_access_token');
+  }
+  var miNonce=ahora+'|'+Math.random().toString(36).slice(2);
+  localStorage.setItem(lockKey,miNonce);
+  await new Promise(function(r){setTimeout(r,50);});
+  if(localStorage.getItem(lockKey)!==miNonce){
+    // otra pestaña ganó la carrera justo ahora — dejarla refrescar y reusar su resultado
+    await new Promise(function(r){setTimeout(r,700);});
+    return !!localStorage.getItem('smp_access_token');
+  }
+  try{
+    return await _sbAuthRefreshInner();
+  }finally{
+    localStorage.removeItem(lockKey);
+  }
 }
 async function _sbAuthRefreshInner(){
   const refreshToken = localStorage.getItem('smp_refresh_token');
