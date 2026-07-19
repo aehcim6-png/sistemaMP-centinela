@@ -440,9 +440,14 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
   const idsNuevos=new Set();
   const filas=[];
   for(const obj of (arrNuevo||[])){
-    if(cfg.clave==='_id'&&!obj._id)obj._id=_uuidV4();
+    // Autogenerar la clave cuando la columna real es un id generado (no una clave
+    // natural como 'sigla' en equipos) y el objeto todavía no la trae — bug real
+    // encontrado hoy: saveNeu() nunca ponía 'id' en los neumáticos nuevos, así que
+    // caían en el 'continue' de abajo y nunca llegaban a la base, sin ningún aviso
+    // ni error visible (parecía guardado en pantalla, nunca se sincronizaba).
+    if(cfg.claveDb==='id'&&obj[cfg.clave]==null)obj[cfg.clave]=_uuidV4();
     const claveVal=obj[cfg.clave];
-    if(claveVal==null)continue;
+    if(claveVal==null){console.error('_syncTablaGenericaInner: fila sin clave, se saltó sin guardar',cfg.tabla,obj);continue;}
     idsNuevos.add(claveVal);
     // '' -> null: Postgres rechaza "" para columnas de fecha/número (400 "invalid
     // input syntax"), y muchos equipos/registros reales traen fechaCompra, etc. en
@@ -4325,7 +4330,7 @@ window.saveNeu=function(){
   const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);
   const hAct=e?e.horomActual:0;
   const acum=parseInt($('nNAcum').value)||0;
-  neu.push({sigla:sig,tipoEquipo:tipo,tipo:'Neumático',posicion:pos,
+  neu.push({id:_uuidV4(),sigla:sig,tipoEquipo:tipo,tipo:'Neumático',posicion:pos,
     numPos:parseInt($('nNNumPos').value)||1,numSensor:$('nNSensor').value,serie,
     marca:$('nNMarca').value,medida:$('nNMedida').value,vidaUtil:tipo==='ALJ'?3000:tipo==='MN'?5000:tipo==='CF'?5000:6000,
     horomInstalacion:hAct,horomActual:hAct,horasAcum:acum,remanente:rem,remNuevo,
@@ -4357,7 +4362,11 @@ window.saveCambio=function(i,hAct){
   ot.unshift({sigla:n.sigla,fecha:new Date().toISOString().slice(0,10),tipo:'Cambio de Neumático',
     criticidad:'No Aplica',sintoma:`Cambio ${n.posicion}. Retirado: ${n.serie} (${remAnt}mm). Instalado: ${serieNuevo}`,
     sistema:'Ruedas y neumáticos',costo:parseFloat($('cCosto').value)||0,horom:hAct});
-  neu.push({...n,serie:n.serie,estado:$('cDest').value==='Stock'?'Stock':'De baja',remanente:remAnt,fechaBaja:new Date().toISOString().slice(0,10)});
+  // Copia archivada del neumático retirado: necesita su PROPIO id — si copiara el
+  // de 'n' (que sigue en el arreglo, mutado más abajo para representar el nuevo),
+  // las 2 filas competirían por la misma fila real en la base (mismo id, mismo
+  // upsert por lote) y una se pisaría a la otra.
+  neu.push({...n,id:_uuidV4(),serie:n.serie,estado:$('cDest').value==='Stock'?'Stock':'De baja',remanente:remAnt,fechaBaja:new Date().toISOString().slice(0,10)});
   n.serie=serieNuevo;n.horomInstalacion=hAct;n.horasAcum=0;
   // Igual que en saveNeu: el remanente de un neumático "nuevo" depende de la marca
   // (n.marca no cambia en este flujo, sigue siendo la misma posición) — usar
