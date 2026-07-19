@@ -665,7 +665,20 @@ function _recorteParaLocal(k,v){
 const S={
   g(k){
     // 1. Cache en memoria (más rápido, siempre actualizado en runtime)
-    if(k in _sbCache)return _sbCache[k];
+    // Copia superficial del ARREGLO (no de cada fila) — bug real encontrado hoy:
+    // devolver la misma referencia que _sbCache[k] hacía que el patrón normalísimo
+    // "const arr=S.g(k); arr.push(nuevo); S.s(k,arr);" mutara _sbCache[k] en el
+    // PUSH, antes de llegar a S.s(). Ahí, S.s() captura `_anterior=_sbCache[k]`
+    // para el chequeo de edición concurrente — pero como ya estaba mutado, huellaAntes
+    // terminaba teniendo la fila nueva incluida, un elemento MÁS que lo que de verdad
+    // había en el servidor. hayConflictoIds() compara tamaños de conjunto de ids y
+    // por eso SIEMPRE detectaba "conflicto" al agregar cualquier fila nueva a
+    // cualquier categoría — no era una sesión vencida ni otra persona editando, era
+    // este mismo guardado comparándose contra una copia de sí mismo ya modificada.
+    // La copia es superficial a propósito: los objetos-fila siguen siendo las MISMAS
+    // referencias, así que "S.g(k)[i].campo=x; S.s(k,arr);" (edición in-place) sigue
+    // funcionando exactamente igual que antes.
+    if(k in _sbCache){const v=_sbCache[k];return Array.isArray(v)?v.slice():v;}
     // 2. Fallback offline: localStorage
     try{const v=JSON.parse(localStorage.getItem(K+k));if(v!==null)return v;}catch{}
     // 3. Defaults para claves conocidas
