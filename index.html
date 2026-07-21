@@ -274,6 +274,37 @@ async function _conReintento(fn,intentos){
   return null;
 }
 
+// Trae TODAS las filas de una URL base de PostgREST, paginando de a PASO filas.
+// Bug real encontrado: Supabase impone un tope de filas por request ("Max Rows" en
+// Settings > API, ronda los ~1000-1060 en este proyecto) que el propio PostgREST
+// aplica SIEMPRE, sin importar qué tan grande sea el "limit" que mandemos nosotros
+// — no da error, simplemente devuelve las primeras N filas y corta el resto en
+// silencio. Con order=created_at.asc, eso significa que las filas MÁS RECIENTES
+// (justo las que se acaban de cargar/importar) son las que se pierden. Encontrado
+// con datos reales: los neumáticos CCK0099T7B y ZCP0206S3A (posiciones 1038-1053 y
+// 1343-1366 en orden de creación, de 1830 filas totales en neumaticos_mediciones)
+// quedaban afuera de cualquier request de una sola página, mostrando "0d/24.266h"
+// en vez de su historial real — y esto solo iba a empeorar a medida que la tabla
+// siguiera creciendo. Pedir de a PASO filas (bien por debajo del tope real) y seguir
+// pidiendo la página siguiente hasta que venga una página incompleta esquiva el
+// tope sin depender de conocer su valor exacto.
+const _PASO_PAGINA=500;
+async function _fetchPaginado(urlBase){
+  let todas=[],desde=0;
+  while(true){
+    const sep=urlBase.includes('?')?'&':'?';
+    const rt=await fetch(`${urlBase}${sep}offset=${desde}&limit=${_PASO_PAGINA}`,{headers:_sbHeaders()});
+    if(!rt.ok)return null;
+    const filas=await rt.json();
+    if(!Array.isArray(filas))return null;
+    todas=todas.concat(filas);
+    if(filas.length<_PASO_PAGINA)break;
+    desde+=_PASO_PAGINA;
+    if(desde>2000000)break; // salvavidas contra loop infinito
+  }
+  return todas;
+}
+
 // Trae el estado actual y completo de UNA categoría de TABLA_REAL desde Supabase.
 // Reusado por la carga inicial (_sbLoadHeavy) y por el chequeo de conflicto de
 // _syncTablaGenerica (ver más abajo) — mismo shape de fila en ambos casos.
@@ -287,10 +318,8 @@ async function _refetchTablaRealUnIntento(k){
   try{
     const c=_sbCfg();
     const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
-    const rt=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc&limit=50000`,{headers:_sbHeaders()});
-    if(!rt.ok)return null;
-    const filas=await rt.json();
-    if(!Array.isArray(filas))return null;
+    const filas=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc`);
+    if(!filas)return null;
     return filas.map(function(f){
       const obj={};
       cfg.cols.forEach(function(col){obj[col]=f[col];});
@@ -309,10 +338,8 @@ async function _refetchVencimientosUnIntento(){
   if(!_sbOk())return null;
   try{
     const c=_sbCfg();
-    const rv=await fetch(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses&limit=50000`,{headers:_sbHeaders()});
-    if(!rv.ok)return null;
-    const filas=await rv.json();
-    if(!Array.isArray(filas))return null;
+    const filas=await _fetchPaginado(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses`);
+    if(!filas)return null;
     const obj={};
     filas.forEach(function(f){
       if(!obj[f.sigla])obj[f.sigla]={};
@@ -460,10 +487,12 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
   const conflicto=await _chequearConflicto(
     catKey&&arrAnterior?new Set(arrAnterior.map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;})):undefined,
     async function(){
-      const rc=await fetch(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}`,{headers:_sbHeaders()});
-      if(!rc.ok)return undefined;
-      const filasServidor=await rc.json();
-      if(!Array.isArray(filasServidor))return undefined;
+      // Paginado por la misma razón que _refetchTablaReal: sin esto, en una tabla que
+      // ya pasó el tope de filas de Supabase esta consulta siempre traía MENOS ids de
+      // los que realmente existen, y hayConflictoIds() lo marcaba como "conflicto" en
+      // cualquier guardado — un falso positivo constante para tablas grandes.
+      const filasServidor=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}`);
+      if(!filasServidor)return undefined;
       return new Set(filasServidor.map(function(f){return f[cfg.claveDb];}));
     },
     _sonIgualesIds,
