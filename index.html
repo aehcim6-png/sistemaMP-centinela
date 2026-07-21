@@ -4013,6 +4013,7 @@ renders.neu=function(){
     </div>
     ${_pagHTML('neu',pg)}
     <datalist id="dlMarcasNeu"><option value="MICHELIN"><option value="BRIDGESTONE"><option value="GOODYEAR"><option value="WESTLAKE"></datalist>
+    <datalist id="dlSeriesNeu">${[...new Set(neu.map(n=>n.serie).filter(Boolean))].sort().map(s=>`<option value="${escapeHtml(s)}">`).join('')}</datalist>
     <div class="tbl-wrap"><table>
       <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
@@ -4026,7 +4027,7 @@ renders.neu=function(){
           <td class="mono" style="font-size:11px">${escapeHtml(n.sigla)}</td>
           <td style="font-size:10px;color:var(--tx2)">${n.tipoEquipo}</td>
           ${edCell(n.posicion,'posicion',i,'neu')}
-          ${edCell(n.serie||'','serie',i,'neu')}
+          <td class="ed"><input type="text" list="dlSeriesNeu" value="${escapeHtml(n.serie||'')}" onchange="cev('neu',${i},'serie',this.value)" title="Al mover un neumático a otra posición/equipo, elige su serie de la lista en vez de volver a tipearla — evita typos que rompen el historial de mediciones"></td>
           ${edCell(n.numSensor||'','numSensor',i,'neu')}
           <td class="ed"><input type="text" list="dlMarcasNeu" value="${escapeHtml(n.marca||'')}" onchange="cev('neu',${i},'marca',this.value)"></td>
           ${edCell(n.medida||'','medida',i,'neu')}
@@ -4299,7 +4300,7 @@ window.addNeu=function(){
       <div class="fg"><label>N° Posición</label><input type="number" id="nNNumPos" min="1" max="10" value="1"></div>
     </div>
     <div class="form-row">
-      <div class="fg"><label>N° Serie *</label><input id="nNSerie"></div>
+      <div class="fg"><label>N° Serie *</label><input id="nNSerie" list="dlSeriesNeu" title="Si este neumático viene de otro equipo/posición, elige su serie de la lista en vez de retiparla — un typo rompe el enlace con su historial de mediciones"></div>
       <div class="fg"><label>N° Sensor</label><input id="nNSensor"></div>
     </div>
     <div class="form-row">
@@ -4361,7 +4362,7 @@ window.cambiarNeu=function(i){
       <div class="fg"><label>Remanente al retirar (mm)</label><input type="number" id="cRemAnt"></div>
     </div>
     <div class="form-row">
-      <div class="fg"><label>Serie nuevo *</label><input id="cSerie"></div>
+      <div class="fg"><label>Serie nuevo *</label><input id="cSerie" list="dlSeriesNeu" title="Si este neumático viene de otro equipo/posición, elige su serie de la lista en vez de retiparla — un typo rompe el enlace con su historial de mediciones"></div>
       <div class="fg"><label>Costo ($)</label><input type="number" id="cCosto" value="0"></div>
     </div>
     <button class="btn" onclick="saveCambio(${i},${hAct})">💾 Confirmar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
