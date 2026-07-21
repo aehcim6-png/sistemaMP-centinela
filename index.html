@@ -288,6 +288,15 @@ async function _conReintento(fn,intentos){
 // siguiera creciendo. Pedir de a PASO filas (bien por debajo del tope real) y seguir
 // pidiendo la página siguiente hasta que venga una página incompleta esquiva el
 // tope sin depender de conocer su valor exacto.
+// IMPORTANTE: el order= que traiga urlBase tiene que ser ÚNICO (sin empates) o esta
+// paginación por offset/limit deja de ser confiable — encontrado con datos reales:
+// 1.053 filas de neumaticos_mediciones comparten el MISMO created_at (la migración
+// masiva inicial insertó todo en un solo instante), así que "order=created_at.asc"
+// solo no alcanza para ordenar de forma estable entre consultas separadas — Postgres
+// puede devolver esos empates en distinto orden relativo cada vez, así que una fila
+// puede quedar del lado equivocado del corte de página en una carga sí y en la
+// siguiente no (el mismo neumático se veía bien en una recarga y mal en la próxima).
+// Por eso cada llamador agrega ",id.asc" (o su equivalente único) al order.
 const _PASO_PAGINA=500;
 async function _fetchPaginado(urlBase){
   let todas=[],desde=0;
@@ -318,7 +327,7 @@ async function _refetchTablaRealUnIntento(k){
   try{
     const c=_sbCfg();
     const cols=(cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');
-    const filas=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc`);
+    const filas=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cols}&order=created_at.asc,${cfg.claveDb}.asc`);
     if(!filas)return null;
     return filas.map(function(f){
       const obj={};
@@ -338,7 +347,7 @@ async function _refetchVencimientosUnIntento(){
   if(!_sbOk())return null;
   try{
     const c=_sbCfg();
-    const filas=await _fetchPaginado(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses`);
+    const filas=await _fetchPaginado(`${c.url}/rest/v1/vencimientos?select=sigla,vencTipo,obs,ultima,proxima,periodicidadMeses&order=sigla.asc,vencTipo.asc`);
     if(!filas)return null;
     const obj={};
     filas.forEach(function(f){
@@ -491,7 +500,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
       // ya pasó el tope de filas de Supabase esta consulta siempre traía MENOS ids de
       // los que realmente existen, y hayConflictoIds() lo marcaba como "conflicto" en
       // cualquier guardado — un falso positivo constante para tablas grandes.
-      const filasServidor=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}`);
+      const filasServidor=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}&order=${cfg.claveDb}.asc`);
       if(!filasServidor)return undefined;
       return new Set(filasServidor.map(function(f){return f[cfg.claveDb];}));
     },
