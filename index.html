@@ -4717,14 +4717,22 @@ function neuProyeccion(n){
   if(esDelantero&&c.hrsLimite){
     hrsPorHoras=Math.max(0,c.hrsLimite-hrsAcumNeu);
   }
-  // target general de vida útil (todas las posiciones)
-  const hrsPorTarget=Math.max(0,targetHrs-hrsAcumNeu);
-
   // ── Lo que llegue PRIMERO ──
   const candidatos=[];
   if(hrsPorRem!=null&&hrsPorRem>=0)candidatos.push({h:hrsPorRem,motivo:'remanente '+limiteRem+'mm'});
   if(hrsPorHoras!=null)candidatos.push({h:hrsPorHoras,motivo:'límite '+c.hrsLimite+'h (delantero)'});
-  candidatos.push({h:hrsPorTarget,motivo:'vida útil '+fn(targetHrs)+'h'});
+  // targetHrs ("vida útil objetivo") es un promedio de planificación genérico, no
+  // una regla real de retiro — bug real encontrado en la flota: neumáticos traseros
+  // con historial real de mediciones y remanente sano (ej. CN-9500 P5 con 21mm/14%,
+  // H.ACUM real 13.823h) mostraban "0 días restantes" solo porque su H.ACUM
+  // acumulado YA superaba el targetHrs por defecto (9000h) — un total de vida
+  // perfectamente normal en esta flota, no una falla. targetHrs solo debe usarse
+  // como último recurso cuando no hay ningún cálculo real (por remanente u horas)
+  // para no tapar una proyección real con un promedio genérico desactualizado.
+  if(candidatos.length===0){
+    const hrsPorTarget=Math.max(0,targetHrs-hrsAcumNeu);
+    candidatos.push({h:hrsPorTarget,motivo:'vida útil '+fn(targetHrs)+'h (estimado, sin mediciones suficientes)'});
+  }
   if(candidatos.length===0)return null;
   const gana=candidatos.reduce((a,b)=>b.h<a.h?b:a);
 
