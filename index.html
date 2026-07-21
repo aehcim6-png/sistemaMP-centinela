@@ -1176,7 +1176,7 @@ renders.dash=function(){
   // Neumaticos stats
   var neuOk=neu.filter(n=>n.estado==='Operativo').length;
   var neuDet=neu.filter(n=>n.estado==='Deteriorado').length;
-  var neuCrit=neu.filter(n=>(n.pctRemanente||0)<30&&n.estado==='Operativo').length;
+  var neuCrit=neu.filter(n=>{const p=neuPct(n);return p!=null&&p<30&&n.estado==='Operativo';}).length;
   // Stock critical (desglose para tarjeta)
   var stkCrit=stk.filter(s=>(s.estado||'').includes('COMPRAR')).length;
   var stkBajo=stk.filter(s=>(s.estado||'').includes('BAJO')).length;
@@ -4077,13 +4077,14 @@ renders.neu=function(){
     const{key,dir}=window._neuSort;
     fil.sort((a,b)=>{
       let va=a[key],vb=b[key];
-      if(key==='remanente'||key==='pctRemanente'){va=va||0;vb=vb||0;}
+      if(key==='pctRemanente'){va=neuPct(a)||0;vb=neuPct(b)||0;}
+      else if(key==='remanente'){va=va||0;vb=vb||0;}
       if(key==='hAcum'){va=(neuProyeccion(a)||{}).hrsAcumNeu??hrsLive(a).h;vb=(neuProyeccion(b)||{}).hrsAcumNeu??hrsLive(b).h;}
       if(typeof va==='string'){va=va||'';vb=vb||'';return dir*va.localeCompare(vb);}
       return dir*((va||0)-(vb||0));
     });
   }
-  const crit=fil.filter(n=>n.pctRemanente!=null&&n.pctRemanente<30).length;
+  const crit=fil.filter(n=>{const p=neuPct(n);return p!=null&&p<30;}).length;
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
@@ -4093,7 +4094,7 @@ renders.neu=function(){
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
       <div class="card"><div class="card-t" style="color:var(--danger)">Críticos &lt;30%</div><div class="card-v" style="color:var(--danger)">${crit}</div></div>
-      <div class="card"><div class="card-t" style="color:var(--warn)">Próximos 30-50%</div><div class="card-v" style="color:var(--warn)">${fil.filter(n=>{const p=n.pctRemanente||0;return p>=30&&p<50;}).length}</div></div>
+      <div class="card"><div class="card-t" style="color:var(--warn)">Próximos 30-50%</div><div class="card-v" style="color:var(--warn)">${fil.filter(n=>{const p=neuPct(n);return p!=null&&p>=30&&p<50;}).length}</div></div>
       <div class="card"><div class="card-t">Costo est. críticos</div><div class="card-v" style="color:var(--ac)">$${fn(crit*8500000)}</div><div class="card-s">~USD 12.500/un</div></div>
     </div>
     <div class="toolbar">
@@ -4107,8 +4108,9 @@ renders.neu=function(){
       <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
         const i=neu.indexOf(n);
-        const sinDatosRem=n.pctRemanente==null;
-        const p=n.pctRemanente||0;
+        const pLive=neuPct(n);
+        const sinDatosRem=pLive==null;
+        const p=pLive||0;
         const col=sinDatosRem?'var(--tx3)':p<30?'var(--danger)':p<50?'var(--warn)':'var(--ok)';
         const lr=hrsLive(n);
         const proy=neuProyeccion(n);
@@ -4430,7 +4432,7 @@ window.saveNeu=function(){
   // Bridgestone nuevo de 60mm mostraba 74% en vez de ~100%).
   const c=neuCriterio({tipoEquipo:tipo,posicion:pos,marca});
   const remNuevo=c.remNuevo||81;
-  const pct=rem!=null?Math.round(Math.max(0,(rem-(c.remRetiro||0))/(remNuevo-(c.remRetiro||0))*100)):null;
+  const pct=rem!=null?neuPct({tipoEquipo:tipo,posicion:pos,marca,remanente:rem}):null;
   const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);
   const hAct=e?e.horomActual:0;
   const acum=parseInt($('nNAcum').value)||0;
@@ -4666,12 +4668,13 @@ function neuPrecio(n){
 const NEU_CRITERIOS={
   CAEX:{
     delantera:{
-      // Remanente nuevo y umbral de cambio dependen de la marca (dato real del taller,
-      // 2026-07-18): Michelin y Goodyear parten en 100mm y se cambian a los 60mm;
-      // Bridgestone parte en 60mm y se cambia a los 30mm — la mitad en ambos casos.
-      MICHELIN:{remNuevo:100,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
-      GOODYEAR:{remNuevo:100,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
-      BRIDGESTONE:{remNuevo:60,remRotar:30,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
+      // Remanente nuevo depende de la marca (dato real del taller confirmado por el
+      // usuario, 2026-07-21): en CAMIÓN (CAEX) Michelin y Goodyear parten en 91mm,
+      // Bridgestone parte en 65mm. En CARGADOR (CF) todos parten en 110mm. El umbral de
+      // rotación de delanteras (remRotar) se mantiene como regla aparte del taller.
+      MICHELIN:{remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
+      GOODYEAR:{remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
+      BRIDGESTONE:{remNuevo:65,remRotar:30,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
       DEFAULT: {remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'}
     },
     // El remanente NUEVO es una propiedad de la marca (grosor de fábrica), no de la
@@ -4679,9 +4682,9 @@ const NEU_CRITERIOS={
     // que sí cambia con la posición es si corresponde "rotar" (solo delanteras,
     // porque son las que se sacan antes por el desgaste) o ir directo a retiro.
     trasera:{
-      MICHELIN:{remNuevo:100,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
-      GOODYEAR:{remNuevo:100,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
-      BRIDGESTONE:{remNuevo:60,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
+      MICHELIN:{remNuevo:91,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
+      GOODYEAR:{remNuevo:91,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
+      BRIDGESTONE:{remNuevo:65,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'},
       DEFAULT:{remNuevo:91,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'}
     }
   },
@@ -4707,6 +4710,19 @@ function neuCriterio(n){
   if(!blk)return NEU_CRITERIOS.ALJ.todas.DEFAULT;
   const posBlk=blk[pos]||blk.todas||blk.delantera||{};
   return posBlk[marca]||posBlk.DEFAULT||{remNuevo:81,remRotar:null,remRetiro:10,accion:'Retirar'};
+}
+
+// % de remanente calculado SIEMPRE en vivo: remanente actual ÷ remanente de fábrica de
+// la marca (que sale de neuCriterio, ya sabe que Bridgestone=65, Michelin=91, CF=110…).
+// No se usa el pctRemanente guardado porque quedó con bases inconsistentes entre
+// importaciones (unos con base 81, otros 100, otros 60) — ese fue el origen real de que
+// el mismo remanente mostrara % distintos y a veces arriba de 100%. Devuelve null si no
+// hay remanente medido (para poder distinguir "sin datos" de "0%").
+function neuPct(n){
+  if(n==null||n.remanente==null||n.remanente==='')return null;
+  const rn=(neuCriterio(n).remNuevo)||91;
+  if(!rn)return null;
+  return Math.max(0,Math.min(100,Math.round(Number(n.remanente)/rn*100)));
 }
 
 function neuEstadoCalc(n){
@@ -4919,8 +4935,10 @@ window.saveMedicionNeu=function(neuIdx){
   const meds=S.g('neuMed')||[];meds.push(med);S.s('neuMed',meds);
   // Actualizar remanente actual del neumático
   n.remanente=remProm;
-  const c=neuCriterio(n);
-  n.pctRemanente=Math.round(Math.max(0,(remProm-(c.remRetiro||0))/((c.remNuevo||81)-(c.remRetiro||0))*100));
+  // pctRemanente = remanente ÷ remanente de fábrica de la marca (misma fórmula que neuPct,
+  // el % que se muestra). Se guarda solo como caché para exportar/sincronizar; la tabla
+  // siempre lo recalcula en vivo con neuPct para no depender de este valor.
+  n.pctRemanente=neuPct(n);
   n.ultimaMedicion=med.fecha;
   S.s('neu',neu);cm();renders.neu();
   toast('✅ Medición guardada — '+n.sigla+' '+n.posicion+': '+remProm+'mm');
@@ -5263,7 +5281,7 @@ window.resumenFlotaNeu=function(){
           const hist=meds.filter(m=>(m.serie===n.serie)||(m.sigla===n.sigla&&String(m.posicion)===String(n.posicion))).sort((a,b)=>a.fecha.localeCompare(b.fecha));
           if(hist.length){
             const u=hist[hist.length-1];
-            if(u.remProm){n.remanente=u.remProm;n.ultimaMedicion=u.fecha;n.pctRemanente=Math.max(0,Math.round((u.remProm-10)/(91-10)*100));}
+            if(u.remProm){n.remanente=u.remProm;n.ultimaMedicion=u.fecha;n.pctRemanente=neuPct(n);}
           }
         });
         localStorage.setItem(K+'neu',JSON.stringify(neu));
@@ -6483,7 +6501,7 @@ function _cruceSistemas(sigla,categoria){
   // Neumáticos/dirección/suspensión: desgaste disparejo sugiere geometría, no solo la pieza
   if(categoria==='Cilindro de Dirección'||categoria==='Neumáticos'||categoria==='Suspensión'){
     var neu=(S.g('neu')||[]).filter(function(n){return n.sigla===sigla||n.equipo===sigla;});
-    var conDesgaste=neu.filter(function(n){return (n.pctRemanente||100)<30;});
+    var conDesgaste=neu.filter(function(n){var p=neuPct(n);return p!=null&&p<30;});
     if(neu.length>=2&&conDesgaste.length>=2)obs.push('🛞 Varios neumáticos con desgaste avanzado en este mismo equipo — revisar geometría/alineación de dirección además de la pieza puntual.');
   }
 
@@ -11092,7 +11110,7 @@ window.reporteEjecutivoExcel=function(){
   const proximas=eq.filter(e=>e.estado&&e.estado.includes('PRÓXIMA')).length;
   const alDia=eq.filter(e=>e.estado&&e.estado.includes('AL DÍA')).length;
   const cumplimiento=total>0?Math.round(alDia/total*100):0;
-  const neuCriticos=neu.filter(n=>(n.pctRemanente||0)<30).length;
+  const neuCriticos=neu.filter(n=>{const p=neuPct(n);return p!=null&&p<30;}).length;
 
   // Estilos Excel
   const est={
@@ -11127,13 +11145,14 @@ window.reporteEjecutivoExcel=function(){
   html+='<tr><td colspan="6" style="height:10px"></td></tr>';
 
   // NEUMÁTICOS CRÍTICOS
-  const neuCrit=neu.filter(n=>(n.pctRemanente||0)<50&&n.estado==='Operativo').sort((a,b)=>(a.pctRemanente||0)-(b.pctRemanente||0));
+  const neuCrit=neu.filter(n=>{const p=neuPct(n);return p!=null&&p<50&&n.estado==='Operativo';}).sort((a,b)=>(neuPct(a)||0)-(neuPct(b)||0));
   if(neuCrit.length){
     html+='<tr><td colspan="6" '+est.sub+'>3. NEUMÁTICOS EN ALERTA</td></tr>';
     html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Posición</td><td '+est.th+'>Serie</td><td '+est.th+'>Remanente</td><td '+est.th+'>%</td><td '+est.th+'>Estado</td></tr>';
     neuCrit.forEach(n=>{
-      const cl=(n.pctRemanente||0)<30?est.urg:est.warn;
-      html+='<tr><td '+est.td+'>'+n.sigla+'</td><td '+est.td+'>'+(n.posicion||'')+'</td><td '+est.td+'>'+(n.serie||'')+'</td><td '+est.td+' align="center">'+(n.remanente||'—')+'mm</td><td '+cl+' align="center">'+(n.pctRemanente||0)+'%</td><td '+est.td+'>'+(n.estado||'')+'</td></tr>';
+      const pn=neuPct(n)||0;
+      const cl=pn<30?est.urg:est.warn;
+      html+='<tr><td '+est.td+'>'+n.sigla+'</td><td '+est.td+'>'+(n.posicion||'')+'</td><td '+est.td+'>'+(n.serie||'')+'</td><td '+est.td+' align="center">'+(n.remanente||'—')+'mm</td><td '+cl+' align="center">'+pn+'%</td><td '+est.td+'>'+(n.estado||'')+'</td></tr>';
     });
     html+='<tr><td colspan="6" style="height:10px"></td></tr>';
   }
