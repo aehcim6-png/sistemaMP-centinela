@@ -260,10 +260,27 @@ function _uuidV4(){
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(ch){var r=Math.random()*16|0,v=ch==='x'?r:(r&0x3|0x8);return v.toString(16);});
 }
 
+// Reintenta una carga async hasta 3 veces (con espera corta entre intentos) antes de
+// rendirse — bug real encontrado: con ~31 categorías cargando en paralelo al arrancar,
+// un solo intento que falla (blip de red, timeout transitorio) dejaba la categoría
+// entera SIN refrescar, silenciosamente, para toda la sesión (ver _sbLoadHeavy).
+async function _conReintento(fn,intentos){
+  intentos=intentos||3;
+  for(let i=0;i<intentos;i++){
+    const r=await fn();
+    if(r!==null)return r;
+    if(i<intentos-1)await new Promise(function(res){setTimeout(res,300*(i+1));});
+  }
+  return null;
+}
+
 // Trae el estado actual y completo de UNA categoría de TABLA_REAL desde Supabase.
 // Reusado por la carga inicial (_sbLoadHeavy) y por el chequeo de conflicto de
 // _syncTablaGenerica (ver más abajo) — mismo shape de fila en ambos casos.
 async function _refetchTablaReal(k){
+  return _conReintento(function(){return _refetchTablaRealUnIntento(k);});
+}
+async function _refetchTablaRealUnIntento(k){
   if(!_sbOk())return null;
   const cfg=TABLA_REAL[k];
   if(!cfg)return null;
@@ -286,6 +303,9 @@ async function _refetchTablaReal(k){
 // Trae el objeto anidado sigla->vencTipo->{...} completo desde Supabase. Reusado por
 // la carga inicial y por el chequeo de conflicto de _syncVencimientos.
 async function _refetchVencimientos(){
+  return _conReintento(_refetchVencimientosUnIntento);
+}
+async function _refetchVencimientosUnIntento(){
   if(!_sbOk())return null;
   try{
     const c=_sbCfg();
@@ -306,6 +326,9 @@ async function _refetchVencimientos(){
 // updated_at — este último es lo que usa el chequeo de conflicto de _syncSingleton,
 // ya que un singleton siempre tiene una sola fila (no hay ids que comparar).
 async function _refetchSingleton(k){
+  return _conReintento(function(){return _refetchSingletonUnIntento(k);});
+}
+async function _refetchSingletonUnIntento(k){
   if(!_sbOk())return null;
   const cfgS=TABLA_SINGLETON[k];
   if(!cfgS)return null;
@@ -340,33 +363,44 @@ window._sbLoadHeavy=async function(){
     // 2-4. Tablas reales, vencimientos y singletons: todo en paralelo (no en serie),
     // para no sumar segundos de espera al arranque por cada tabla nueva.
     const tareas=[];
+    // Categorías que, pese a los 3 reintentos de _conReintento, no lograron traer datos
+    // frescos — en ese caso _sbCache[kk] queda con lo que haya quedado del paso 1 (kv),
+    // que para categorías ya migradas a tabla real puede ser una foto vieja congelada
+    // (bug real encontrado: kv.neuMed tenía 1053 filas viejas contra 1830 reales en
+    // neumaticos_mediciones — sin este aviso, la app mostraba esa foto vieja sin ningún
+    // indicio de que el refresco había fallado).
+    const _categoriasSinRefrescar=[];
 
     for(const k in TABLA_REAL){
       tareas.push((async function(kk){
         try{
           const filas=await _refetchTablaReal(kk);
-          if(filas)_sbCache[kk]=filas;
-        }catch(e){}
+          if(filas)_sbCache[kk]=filas;else _categoriasSinRefrescar.push(kk);
+        }catch(e){_categoriasSinRefrescar.push(kk);}
       })(k));
     }
 
     tareas.push((async function(){
       try{
         const obj=await _refetchVencimientos();
-        if(obj)_sbCache['venc']=obj;
-      }catch(e){}
+        if(obj)_sbCache['venc']=obj;else _categoriasSinRefrescar.push('venc');
+      }catch(e){_categoriasSinRefrescar.push('venc');}
     })());
 
     for(const k in TABLA_SINGLETON){
       tareas.push((async function(kk){
         try{
           const r=await _refetchSingleton(kk);
-          if(r){_sbCache[kk]=r.valor;_sbSingletonUpdatedAt[kk]=r.updatedAt;}
-        }catch(e){}
+          if(r){_sbCache[kk]=r.valor;_sbSingletonUpdatedAt[kk]=r.updatedAt;}else _categoriasSinRefrescar.push(kk);
+        }catch(e){_categoriasSinRefrescar.push(kk);}
       })(k));
     }
 
     await Promise.all(tareas);
+    if(_categoriasSinRefrescar.length&&typeof toast==='function'){
+      toast('⚠️ No se pudo refrescar: '+_categoriasSinRefrescar.join(', ')+'. Datos posiblemente desactualizados — recarga de nuevo.');
+    }
+    if(_categoriasSinRefrescar.length)console.warn('_sbLoadHeavy: categorías no refrescadas tras reintentos, usando datos previos (posiblemente viejos):',_categoriasSinRefrescar);
     return true;
   }catch{return false;}
 };
