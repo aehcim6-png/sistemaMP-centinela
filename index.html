@@ -3994,7 +3994,7 @@ renders.neu=function(){
       return dir*((va||0)-(vb||0));
     });
   }
-  const crit=fil.filter(n=>(n.pctRemanente||0)<30).length;
+  const crit=fil.filter(n=>n.pctRemanente!=null&&n.pctRemanente<30).length;
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
@@ -4018,12 +4018,13 @@ renders.neu=function(){
       <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
         const i=neu.indexOf(n);
+        const sinDatosRem=n.pctRemanente==null;
         const p=n.pctRemanente||0;
-        const col=p<30?'var(--danger)':p<50?'var(--warn)':'var(--ok)';
+        const col=sinDatosRem?'var(--tx3)':p<30?'var(--danger)':p<50?'var(--warn)':'var(--ok)';
         const lr=hrsLive(n);
         const proy=neuProyeccion(n);
         const proyCol=proy?(proy.diasRestantes<30?'var(--danger)':proy.diasRestantes<60?'var(--warn)':'var(--ok)'):'var(--tx3)';
-        return`<tr style="${p<30?'background:rgba(239,68,68,.05)':p<50?'background:rgba(234,179,8,.04)':''}">
+        return`<tr style="${sinDatosRem?'':p<30?'background:rgba(239,68,68,.05)':p<50?'background:rgba(234,179,8,.04)':''}">
           <td class="mono" style="font-size:11px">${escapeHtml(n.sigla)}</td>
           <td style="font-size:10px;color:var(--tx2)">${n.tipoEquipo}</td>
           ${edCell(n.posicion,'posicion',i,'neu')}
@@ -4034,7 +4035,7 @@ renders.neu=function(){
           ${edCell(n.fechaInst||'','fechaInst',i,'neu','date')}
           <td class="mono" style="font-size:11px" title="${(proy&&proy.hrsAcumReal?'📏 Sumado de '+proy.confianza.match(/\d+/)+' mediciones reales':lr.live?'🔗 En línea con horómetro (sin mediciones suficientes para calcular real)':'⚠️ Manual')+(n.ultimaMedicion?' · Última medición: '+n.ultimaMedicion:' · Sin mediciones registradas')}">${fn(proy?proy.hrsAcumNeu:lr.h)}h${proy&&proy.hrsAcumReal?' <span style="color:var(--ac);font-size:9px">📏</span>':lr.live?' <span style="color:var(--ok);font-size:9px">🔗</span>':''}</td>
           ${edCell(n.remanente!=null?n.remanente:'','remanente',i,'neu','number')}
-          <td><div style="background:var(--bg3);border-radius:3px;height:8px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle"><div style="background:${col};height:100%;width:${Math.min(p,100)}%"></div></div> <span style="color:${col};font-size:11px">${p}%</span></td>
+          <td><div style="background:var(--bg3);border-radius:3px;height:8px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle"><div style="background:${col};height:100%;width:${sinDatosRem?0:Math.min(p,100)}%"></div></div> <span style="color:${col};font-size:11px" title="${sinDatosRem?'Nunca se registró una medición de remanente para este neumático':''}">${sinDatosRem?'— sin datos':p+'%'}</span></td>
           <td style="font-size:10px;color:${proyCol}" title="${proy?'Motivo: '+escapeHtml(proy.motivoCambio)+' · Confianza: '+escapeHtml(proy.confianza):'Sin mediciones suficientes para proyectar'}">${proy?'≈'+proy.diasRestantes+'d ('+fn(proy.hrsRestantes)+'h)':'—'}</td>
           ${edCell(n.estado||'Operativo','estado',i,'neu','select',['Operativo','Evaluación','Reparación','Disponible Usado','Stock','Fuera de servicio','Baja Desgaste','Baja Imprevisto'])}
           <td>
