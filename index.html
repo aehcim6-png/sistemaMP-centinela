@@ -4674,10 +4674,17 @@ function neuProyeccion(n){
   // Horas acumuladas del neumático (vida total, sumada entre posiciones)
   let hrsAcumNeu=0;
   if(hist.length>=2){
-    // suma de tramos de horómetro entre mediciones consecutivas del mismo neumático
+    // suma de tramos de horómetro entre mediciones consecutivas del mismo neumático.
+    // Cada equipo tiene su PROPIO horómetro (no es un contador único del neumático), así
+    // que al cambiar de equipo el tramo horom[i]-horom[i-1] mezcla dos bases distintas y
+    // no representa horas reales de uso del neumático — puede dar saltos de miles de
+    // horas en cualquier dirección (ej. real: +9.081h y -1.394h en transferencias CAEX).
+    // El corte d<50000 no alcanza a filtrar esto (esos saltos son de cientos/miles, no
+    // decenas de miles), así que el tramo se descarta directamente cuando cambió el sigla.
     for(let i=1;i<hist.length;i++){
+      if(hist[i].sigla&&hist[i-1].sigla&&hist[i].sigla!==hist[i-1].sigla)continue;
       const d=hist[i].horom-hist[i-1].horom;
-      if(d>0&&d<50000)hrsAcumNeu+=d; // ignora saltos por cambio de equipo
+      if(d>0&&d<50000)hrsAcumNeu+=d;
     }
   } else {
     hrsAcumNeu=hrsLive?hrsLive(n).h:(n.horasAcum||0);
