@@ -3989,7 +3989,7 @@ renders.neu=function(){
     fil.sort((a,b)=>{
       let va=a[key],vb=b[key];
       if(key==='remanente'||key==='pctRemanente'){va=va||0;vb=vb||0;}
-      if(key==='hAcum'){va=hrsLive(a).h;vb=hrsLive(b).h;}
+      if(key==='hAcum'){va=(neuProyeccion(a)||{}).hrsAcumNeu??hrsLive(a).h;vb=(neuProyeccion(b)||{}).hrsAcumNeu??hrsLive(b).h;}
       if(typeof va==='string'){va=va||'';vb=vb||'';return dir*va.localeCompare(vb);}
       return dir*((va||0)-(vb||0));
     });
@@ -4031,7 +4031,7 @@ renders.neu=function(){
           <td class="ed"><input type="text" list="dlMarcasNeu" value="${escapeHtml(n.marca||'')}" onchange="cev('neu',${i},'marca',this.value)"></td>
           ${edCell(n.medida||'','medida',i,'neu')}
           ${edCell(n.fechaInst||'','fechaInst',i,'neu','date')}
-          <td class="mono" style="font-size:11px" title="${lr.live?'🔗 En línea con horómetro':'⚠️ Manual'}">${fn(lr.h)}h${lr.live?' <span style="color:var(--ok);font-size:9px">🔗</span>':''}</td>
+          <td class="mono" style="font-size:11px" title="${(proy&&proy.hrsAcumReal?'📏 Sumado de '+proy.confianza.match(/\d+/)+' mediciones reales':lr.live?'🔗 En línea con horómetro (sin mediciones suficientes para calcular real)':'⚠️ Manual')+(n.ultimaMedicion?' · Última medición: '+n.ultimaMedicion:' · Sin mediciones registradas')}">${fn(proy?proy.hrsAcumNeu:lr.h)}h${proy&&proy.hrsAcumReal?' <span style="color:var(--ac);font-size:9px">📏</span>':lr.live?' <span style="color:var(--ok);font-size:9px">🔗</span>':''}</td>
           ${edCell(n.remanente!=null?n.remanente:'','remanente',i,'neu','number')}
           <td><div style="background:var(--bg3);border-radius:3px;height:8px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle"><div style="background:${col};height:100%;width:${Math.min(p,100)}%"></div></div> <span style="color:${col};font-size:11px">${p}%</span></td>
           <td style="font-size:10px;color:${proyCol}" title="${proy?'Motivo: '+escapeHtml(proy.motivoCambio)+' · Confianza: '+escapeHtml(proy.confianza):'Sin mediciones suficientes para proyectar'}">${proy?'≈'+proy.diasRestantes+'d ('+fn(proy.hrsRestantes)+'h)':'—'}</td>
@@ -4717,6 +4717,10 @@ function neuProyeccion(n){
   return{
     hrsRestantes,diasRestantes,fechaCambio,fechaCompra,
     hrsAcumNeu:Math.round(hrsAcumNeu),
+    // true si hrsAcumNeu sale de sumar mediciones reales (confiable); false si cayó
+    // al respaldo de hrsLive() (horómetro de instalación — puede estar desactualizado,
+    // ver caso real CN-9507 donde ese valor quedó en 567 desde la carga inicial).
+    hrsAcumReal:hist.length>=2,
     remActual,
     motivoCambio:gana.motivo,
     desgasteMes:desgasteHora?Math.round(desgasteHora*proyMes*10)/10:null,
