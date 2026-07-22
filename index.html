@@ -4675,14 +4675,17 @@ function neuPrecio(n){
 const NEU_CRITERIOS={
   CAEX:{
     delantera:{
-      // Remanente nuevo depende de la marca (dato real del taller confirmado por el
-      // usuario, 2026-07-21): en CAMIÓN (CAEX) Michelin y Goodyear parten en 91mm,
-      // Bridgestone parte en 65mm. En CARGADOR (CF) todos parten en 110mm. El umbral de
-      // rotación de delanteras (remRotar) se mantiene como regla aparte del taller.
-      MICHELIN:{remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
-      GOODYEAR:{remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
-      BRIDGESTONE:{remNuevo:65,remRotar:30,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'},
-      DEFAULT: {remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2000,hrsLimite:2600,accion:'Rotar a trasera'}
+      // Reglas reales del taller confirmadas por el usuario (2026-07-22):
+      // Remanente de FÁBRICA por marca: Michelin/Goodyear 91mm, Bridgestone 65mm (camión).
+      // DELANTERAS se cambian por lo que llegue PRIMERO:
+      //  - por HORAS: aviso a las 2.600h (hrsAlerta), cambio a las 2.800h (hrsLimite);
+      //  - por GOMA (según marca): Michelin/Goodyear a 50mm, Bridgestone a 30mm (remRotar).
+      // Ej. real: una delantera Michelin con 2.000h pero remanente 50mm se cambia igual
+      // (llegó primero por goma). remRetiro=10 es el piso absoluto (tela a la vista).
+      MICHELIN:{remNuevo:91,remRotar:50,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
+      GOODYEAR:{remNuevo:91,remRotar:50,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
+      BRIDGESTONE:{remNuevo:65,remRotar:30,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
+      DEFAULT: {remNuevo:91,remRotar:50,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'}
     },
     // El remanente NUEVO es una propiedad de la marca (grosor de fábrica), no de la
     // posición — un Bridgestone mide lo mismo de fábrica esté adelante o atrás. Lo
@@ -4732,6 +4735,30 @@ function neuPct(n){
   return Math.max(0,Math.min(100,Math.round(Number(n.remanente)/rn*100)));
 }
 
+// Horas REALES acumuladas del neumático = suma de tramos de horómetro entre mediciones
+// consecutivas del MISMO equipo (los tramos entre equipos distintos mezclan horómetros
+// de máquinas distintas y no son horas reales del neumático — se descartan). Esta es la
+// ÚNICA fuente confiable de horas de un neumático. NO se usa hrsLive/horomInstalacion:
+// ese dato quedó en basura para casi toda la flota (567, 565, 0…) desde el import
+// inicial, y daba horas absurdas (16.000-22.000h) que hacían saltar todas las alertas de
+// horas en falso. hrsLive queda solo como respaldo para neumáticos con <2 mediciones
+// (recién instalados), donde no hay tramos que sumar.
+function neuHorasAcum(n){
+  if(n==null)return 0;
+  const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
+  const hist=allMeds.filter(m=>m.serie&&m.serie===n.serie).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  if(hist.length>=2){
+    let h=0;
+    for(let i=1;i<hist.length;i++){
+      if(hist[i].sigla&&hist[i-1].sigla&&hist[i].sigla!==hist[i-1].sigla)continue;
+      const d=hist[i].horom-hist[i-1].horom;
+      if(d>0&&d<50000)h+=d;
+    }
+    return h;
+  }
+  return (typeof hrsLive==='function')?hrsLive(n).h:(n.horasAcum||0);
+}
+
 // "Crítico" = hay que cambiarlo YA, por CUALQUIER criterio real de retiro, no solo por
 // % de goma bajo (una goma al 25% en una trasera puede tener cientos de horas por
 // delante y NO ser urgente; en cambio una delantera que pasó el límite de 2.600h hay
@@ -4753,22 +4780,28 @@ function neuProxCambio(n){
 }
 
 function neuEstadoCalc(n){
-  const hrsUso=hrsLive?hrsLive(n).h:n.horasAcum||0;
   const c=neuCriterio(n);
   const r=n.remanente;
   if(r===null||r===undefined)return{ico:'⚪',txt:'Sin medición',col:'var(--tx3)'};
-  // RETIRO por remanente mínimo (todas las posiciones)
-  if(r<=c.remRetiro)return{ico:'🔴',txt:'RETIRAR',col:'var(--danger)'};
-  // DELANTEROS: evaluar horas Y remanente, lo que llegue primero
-  if(c.hrsLimite&&hrsUso>=c.hrsLimite)return{ico:'🔴',txt:'CAMBIAR '+fn(hrsUso)+'h',col:'var(--danger)'};
+  const hrsUso=neuHorasAcum(n); // horas REALES por medición (no hrsLive, ver neuHorasAcum)
+  // ── CAMBIAR YA (🔴) — lo que llegue primero ──
+  // Piso absoluto de goma (todas las posiciones): tela a la vista / remanente mínimo.
+  if(r<=c.remRetiro)return{ico:'🔴',txt:'CAMBIAR '+r+'mm',col:'var(--danger)'};
+  // Delanteras: cambio por GOMA según marca (remRotar: Michelin 50, Bridgestone 30).
   if(c.remRotar&&r<=c.remRotar)return{ico:'🔴',txt:'CAMBIAR '+r+'mm',col:'var(--danger)'};
+  // Delanteras: cambio por HORAS (hrsLimite 2.800h).
+  if(c.hrsLimite&&hrsUso>=c.hrsLimite)return{ico:'🔴',txt:'CAMBIAR '+fn(hrsUso)+'h',col:'var(--danger)'};
+  // ── PROGRAMAR / PRÓXIMO (🟡) ──
+  // Delanteras: aviso de horas (hrsAlerta 2.600h).
   if(c.hrsAlerta&&hrsUso>=c.hrsAlerta)return{ico:'🟡',txt:'PROGRAMAR '+fn(hrsUso)+'h',col:'var(--warn)'};
-  // Alerta temprana por remanente cercano al límite
+  // Goma acercándose al límite de cambio real de esa posición (remRotar en delanteras,
+  // remRetiro en traseras) — 10mm de margen.
   const margenRem=c.remRotar||c.remRetiro;
   if(r<=margenRem+10)return{ico:'🟡',txt:'PRÓXIMO '+r+'mm',col:'var(--warn)'};
-  const pct=Math.round((r-(c.remRetiro||0))/((c.remNuevo||91)-(c.remRetiro||0))*100);
-  if(pct<25)return{ico:'🟠',txt:'CRÍTICO '+pct+'%',col:'#f97316'};
-  if(pct<50)return{ico:'🟡',txt:'BAJO '+pct+'%',col:'var(--warn)'};
+  // ── Informativo por % de goma (no es criterio de cambio, solo referencia) ──
+  const pct=neuPct(n)||0;
+  if(pct<25)return{ico:'🟠',txt:pct+'% goma',col:'#f97316'};
+  if(pct<50)return{ico:'🟡',txt:pct+'% goma',col:'var(--warn)'};
   return{ico:'🟢',txt:'OK '+pct+'%',col:'var(--ok)'};
 }
 
@@ -4786,41 +4819,40 @@ function neuProyeccion(n){
   // Historial por SERIE (sigue al neumático aunque cambie de equipo/posición)
   const hist=allMeds.filter(m=>(m.serie&&m.serie===n.serie)).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
 
-  // Horas acumuladas del neumático (vida total, sumada entre posiciones)
-  let hrsAcumNeu=0;
-  if(hist.length>=2){
-    // suma de tramos de horómetro entre mediciones consecutivas del mismo neumático.
-    // Cada equipo tiene su PROPIO horómetro (no es un contador único del neumático), así
-    // que al cambiar de equipo el tramo horom[i]-horom[i-1] mezcla dos bases distintas y
-    // no representa horas reales de uso del neumático — puede dar saltos de miles de
-    // horas en cualquier dirección (ej. real: +9.081h y -1.394h en transferencias CAEX).
-    // El corte d<50000 no alcanza a filtrar esto (esos saltos son de cientos/miles, no
-    // decenas de miles), así que el tramo se descarta directamente cuando cambió el sigla.
-    for(let i=1;i<hist.length;i++){
-      if(hist[i].sigla&&hist[i-1].sigla&&hist[i].sigla!==hist[i-1].sigla)continue;
-      const d=hist[i].horom-hist[i-1].horom;
-      if(d>0&&d<50000)hrsAcumNeu+=d;
-    }
-  } else {
-    hrsAcumNeu=hrsLive?hrsLive(n).h:(n.horasAcum||0);
-  }
+  // Horas acumuladas reales del neumático (ver neuHorasAcum — suma de tramos del mismo
+  // equipo, ignora los saltos por transferencia entre equipos, no usa hrsLive).
+  const hrsAcumNeu=neuHorasAcum(n);
 
   const remActual=n.remanente!=null?n.remanente:(c.remNuevo||91);
-  const hrsDia=(S.g('eq')||[]).find(e=>e.sigla===n.sigla)?.hrsDia||(proyMes/30);
+  // hrsDia acotado a un rango sensato (1-24) — algunos equipos traen este dato en basura
+  // y sin la guarda los "días restantes" salían absurdos.
+  let hrsDia=(S.g('eq')||[]).find(e=>e.sigla===n.sigla)?.hrsDia||(proyMes/30);
+  if(!(hrsDia>0)||hrsDia>24)hrsDia=proyMes/30;
   const esDelantero=(n.posicion||'').toLowerCase().includes('del');
 
   // ── Cálculo por REMANENTE (regresión sobre historial) ──
   let hrsPorRem=null, desgasteHora=null;
   if(hist.length>=2){
-    const pts=hist.slice(-8).map((m,i)=>({x:i,y:m.remProm})).filter(p=>p.y!=null);
+    const win=hist.slice(-8);
+    const pts=win.map((m,i)=>({x:i,y:m.remProm})).filter(p=>p.y!=null);
     if(pts.length>=2){
       const nn=pts.length, sx=pts.reduce((a,p)=>a+p.x,0), sy=pts.reduce((a,p)=>a+p.y,0);
       const sxy=pts.reduce((a,p)=>a+p.x*p.y,0), sx2=pts.reduce((a,p)=>a+p.x*p.x,0);
       const denom=nn*sx2-sx*sx;
       if(denom!==0){
         const slopeMed=(nn*sxy-sx*sy)/denom; // mm por medición
-        // convertir a mm/hora usando horas promedio entre mediciones
-        const tramoH=hist.length>=2?(hist[hist.length-1].horom-hist[0].horom)/(hist.length-1):proyMes;
+        // Convertir mm/medición a mm/hora usando las horas promedio entre mediciones de
+        // la VENTANA usada. Se suman solo los tramos del mismo equipo (igual que
+        // neuHorasAcum) para no mezclar horómetros si el neumático se transfirió — antes
+        // usaba (último.horom - primer.horom) crudo y eso daba mm/hora mal en neumáticos
+        // que cambiaron de equipo.
+        let winH=0;
+        for(let i=1;i<win.length;i++){
+          if(win[i].sigla&&win[i-1].sigla&&win[i].sigla!==win[i-1].sigla)continue;
+          const d=win[i].horom-win[i-1].horom;
+          if(d>0&&d<50000)winH+=d;
+        }
+        const tramoH=win.length>1&&winH>0?winH/(win.length-1):proyMes;
         if(slopeMed<0&&tramoH>0){
           desgasteHora=Math.abs(slopeMed)/tramoH;
           hrsPorRem=(remActual-limiteRem)/desgasteHora;
@@ -4840,8 +4872,11 @@ function neuProyeccion(n){
     hrsPorHoras=Math.max(0,c.hrsLimite-hrsAcumNeu);
   }
   // ── Lo que llegue PRIMERO ──
+  // Si un neumático YA pasó su límite de remanente, hrsPorRem sale negativo — antes se
+  // EXCLUÍA (solo se empujaba si >=0), y el neumático caía al respaldo genérico sin
+  // marcarse como "cambiar ya". Ahora se acota a 0 (0 horas restantes = cambiar ya).
   const candidatos=[];
-  if(hrsPorRem!=null&&hrsPorRem>=0)candidatos.push({h:hrsPorRem,motivo:'remanente '+limiteRem+'mm'});
+  if(hrsPorRem!=null)candidatos.push({h:Math.max(0,hrsPorRem),motivo:'remanente '+limiteRem+'mm'});
   if(hrsPorHoras!=null)candidatos.push({h:hrsPorHoras,motivo:'límite '+c.hrsLimite+'h (delantero)'});
   // targetHrs ("vida útil objetivo") es un promedio de planificación genérico, no
   // una regla real de retiro — bug real encontrado en la flota: neumáticos traseros
@@ -4889,12 +4924,7 @@ function neuMetricas(n){
 
   // Historial por serie (vida total)
   const hist=allMeds.filter(m=>m.serie&&m.serie===n.serie).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
-  let hrsAcum=0;
-  if(hist.length>=2){
-    for(let i=1;i<hist.length;i++){const d=hist[i].horom-hist[i-1].horom;if(d>0&&d<50000)hrsAcum+=d;}
-  } else {
-    hrsAcum=hrsLive?hrsLive(n).h:(n.horasAcum||0);
-  }
+  const hrsAcum=neuHorasAcum(n); // horas reales por medición (ver neuHorasAcum)
 
   const mmGastados=Math.max(0,remNuevo-remActual);
   // Rendimiento h/mm: cuántas horas dura cada milímetro de goma
@@ -5224,8 +5254,7 @@ window.resumenFlotaNeu=function(){
     if(m.rendHmm){e.rendProm+=m.rendHmm;e.nRend++;}
     gastoPerdidoTotal+=m.gastoPerdido;
     if(est==='Operativo')costoReposicion+=m.precio;
-    const ec=neuEstadoCalc(n);
-    if(ec.ico==='🔴'||ec.ico==='🟡')alertasTotal++;
+    if(neuDebeCambiar(n))alertasTotal++;
   });
   const estados=Object.values(porEstado).sort((a,b)=>b.count-a.count);
   const totalNeu=neu.length;
@@ -5247,7 +5276,7 @@ window.resumenFlotaNeu=function(){
         <b style="font-size:22px">${totalNeu}</b>
       </div>
       <div style="background:rgba(239,68,68,0.12);border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;color:var(--tx3)">Con alerta 🔴🟡</div>
+        <div style="font-size:10px;color:var(--tx3)">Cambiar ya 🔴</div>
         <b style="font-size:22px;color:var(--danger)">${alertasTotal}</b>
       </div>
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
