@@ -196,6 +196,19 @@ function duracionHM(fEnt,hEnt,fSal,hSal){
   return{ms,horas,texto};
 }
 
+// Lista de días ISO (YYYY-MM-DD) desde 'desde' hasta 'hasta' inclusive. Usado por el
+// cálculo de disponibilidad para marcar cada día de una salida de servicio de varios
+// días. Devuelve [] si las fechas son inválidas o 'hasta' es anterior a 'desde'.
+function rangoDias(desde, hasta){
+  if(!desde)return [];
+  if(!hasta)hasta=desde;
+  var d=new Date(desde+'T00:00:00'), fin=new Date(hasta+'T00:00:00');
+  if(isNaN(d)||isNaN(fin)||fin<d)return [];
+  var out=[], guard=0;
+  while(d<=fin && guard++<3660){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+  return out;
+}
+
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
@@ -370,6 +383,8 @@ if (typeof window !== 'undefined') {
   window.precioMaterial = precioMaterial;
   window.predFromOrdenes = predFromOrdenes;
   window.stockEstado = stockEstado;
+  window.rangoDias = rangoDias;
+  window._rangoDias = rangoDias;
   window.pagSlice = pagSlice;
   window.hayConflictoIds = hayConflictoIds;
 }
@@ -379,6 +394,6 @@ if (typeof module !== 'undefined' && module.exports) {
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM,
-    predFromOrdenes, stockEstado, pagSlice, hayConflictoIds
+    predFromOrdenes, stockEstado, rangoDias, pagSlice, hayConflictoIds
   };
 }

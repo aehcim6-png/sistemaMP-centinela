@@ -5440,14 +5440,25 @@ renders.disp=function(){
     downMap[sigla][fecha]+=durH;
   });
   ot.forEach(function(o){
-    var sigla=o.sigla;var fecha=o.fecha||o.fechaEntrada||'';
-    if(!sigla||!fecha)return;
+    var sigla=o.sigla;if(!sigla)return;
     if(!downMap[sigla])downMap[sigla]={};
+    var fueraServicio=(o.estatusEq==='Fuera de Servicio'||o.estadoEq==='Fuera de Servicio');
+    // Salida de servicio con PERÍODO (fechaEntrada→fechaSalida en días distintos): se
+    // marca cada día del rango como fuera de servicio (día completo), no solo la fecha
+    // del registro. Así una parada de varios días baja la disponibilidad de TODOS esos
+    // días — antes solo restaba 24h en un único día y el resto contaba como 100%.
+    if(fueraServicio&&o.fechaEntrada&&o.fechaSalida&&o.fechaSalida>o.fechaEntrada){
+      _rangoDias(o.fechaEntrada,o.fechaSalida).forEach(function(dia){
+        downMap[sigla][dia]=(downMap[sigla][dia]||0)+24;
+      });
+      return;
+    }
+    var fecha=o.fecha||o.fechaEntrada||'';
+    if(!fecha)return;
     var durH=0;
     if(o.duracion){var m=o.duracion.match(/(\d+)h/);if(m)durH=parseInt(m[1]);}
     if(!durH)durH=8;
-    // If equipo fuera de servicio, full day down
-    if(o.estatusEq==='Fuera de Servicio'||o.estadoEq==='Fuera de Servicio')durH=24;
+    if(fueraServicio)durH=24; // fuera de servicio de un solo día
     if(!downMap[sigla][fecha])downMap[sigla][fecha]=0;
     downMap[sigla][fecha]+=durH;
   });
@@ -5668,7 +5679,7 @@ renders.disp=function(){
   $('s-disp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📉 Disponibilidad Mecánica</div>'+
     '<div class="sec-s">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable</div></div>'+
-    '<div style="display:flex;gap:8px"><button class="btn btn-o" onclick="exportCSV(\'disp\')">📥 CSV</button><button class="btn btn-o" onclick="importDispCSV()">📤 Importar</button></div></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()">🚫 Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')">📥 CSV</button><button class="btn btn-o" onclick="importDispCSV()">📤 Importar</button></div></div>'+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'>📊 Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'>📅 Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'>📆 Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'>📅 Anual</option></select>'+
     '<select id="fDispMes" onchange="renders.disp()">'+meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
@@ -5678,6 +5689,46 @@ renders.disp=function(){
     '<div style="font-size:11px;color:var(--tx3)">Meta: <span contenteditable style="color:var(--ac);font-weight:700;cursor:pointer" onblur="var v=parseFloat(this.innerText);if(v>0){S.s(\'dispMeta\',v);refreshAll()}">'+meta+'%</span></div>'+
     '</div>'+
     content;
+};
+
+// Formulario de SALIDA DE SERVICIO por período (desde–hasta–motivo). Registra que un
+// equipo estuvo fuera de servicio un rango de días completo; el cálculo de disponibilidad
+// (ver downMap / _rangoDias) baja esos días a 0%. Se guarda como un correctivo con
+// estatusEq='Fuera de Servicio' y su rango fechaEntrada→fechaSalida, que es justo lo que
+// el cálculo ahora sabe leer — sin necesitar una tabla nueva.
+window.registrarSalidaServicio=function(){
+  var eq=(S.g('eq')||[]).slice().sort(function(a,b){return(a.sigla||'').localeCompare(b.sigla||'')});
+  var hoy=new Date().toISOString().slice(0,10);
+  sm('<h3>🚫 Registrar salida de servicio</h3>'+
+    '<p style="font-size:12px;color:var(--tx3);margin-bottom:12px">Marca un equipo como fuera de servicio un rango de días completo. Esos días cuentan como 0% de disponibilidad.</p>'+
+    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="ssEq">'+
+      eq.map(function(e){return'<option value="'+escapeHtml(e.sigla)+'">'+escapeHtml(e.sigla)+(e.modelo?' — '+escapeHtml(e.modelo):'')+'</option>'}).join('')+'</select></div></div>'+
+    '<div class="form-row">'+
+      '<div class="fg"><label>Desde</label><input type="date" id="ssDesde" value="'+hoy+'" max="'+hoy+'"></div>'+
+      '<div class="fg"><label>Hasta</label><input type="date" id="ssHasta" value="'+hoy+'" max="'+hoy+'"></div>'+
+    '</div>'+
+    '<div class="fg" style="margin-bottom:12px"><label>Motivo</label><input id="ssMotivo" placeholder="Ej: falla motor, sin repuesto, accidente…" style="width:100%"></div>'+
+    '<button class="btn" onclick="guardarSalidaServicio()">💾 Registrar</button> '+
+    '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
+};
+window.guardarSalidaServicio=function(){
+  var sigla=$('ssEq').value;
+  var desde=$('ssDesde').value, hasta=$('ssHasta').value;
+  var motivo=($('ssMotivo').value||'').trim();
+  if(!sigla||!desde||!hasta){alert('Falta equipo o fechas.');return;}
+  if(hasta<desde){alert('La fecha "hasta" no puede ser anterior a "desde".');return;}
+  if(!motivo){alert('Ingresa el motivo de la salida de servicio.');return;}
+  var dias=(typeof rangoDias==='function'?rangoDias(desde,hasta):[desde]).length;
+  var ot=S.g('ot')||[];
+  ot.unshift({sigla:sigla,tipo:'Fuera de Servicio',fecha:desde,
+    sintoma:motivo,sistema:'',estatusEq:'Fuera de Servicio',estadoOT:'Cerrada',
+    criticidad:'Reparación Inmediata',fechaEntrada:desde,fechaSalida:hasta,
+    fechaIngreso:new Date().toISOString().slice(0,10),
+    solucion:'Salida de servicio registrada ('+dias+' día'+(dias===1?'':'s')+')'});
+  S.s('ot',ot);
+  if(typeof registrarCambio==='function')try{registrarCambio('Salida de servicio','Equipo '+sigla+' fuera de servicio del '+desde+' al '+hasta+' — '+motivo);}catch(e){}
+  cm();refreshAll();
+  toast('✅ '+sigla+' fuera de servicio del '+desde+' al '+hasta+' ('+dias+' día'+(dias===1?'':'s')+')');
 };
 
 // ---- CONFIGURACIÓN ----
