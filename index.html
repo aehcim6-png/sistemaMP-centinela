@@ -4678,14 +4678,16 @@ const NEU_CRITERIOS={
       // Reglas reales del taller confirmadas por el usuario (2026-07-22):
       // Remanente de FÁBRICA por marca: Michelin/Goodyear 91mm, Bridgestone 65mm (camión).
       // DELANTERAS se cambian por lo que llegue PRIMERO:
-      //  - por HORAS: aviso a las 2.600h (hrsAlerta), cambio a las 2.800h (hrsLimite);
-      //  - por GOMA (según marca): Michelin/Goodyear a 50mm, Bridgestone a 30mm (remRotar).
-      // Ej. real: una delantera Michelin con 2.000h pero remanente 50mm se cambia igual
-      // (llegó primero por goma). remRetiro=10 es el piso absoluto (tela a la vista).
-      MICHELIN:{remNuevo:91,remRotar:50,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
-      GOODYEAR:{remNuevo:91,remRotar:50,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
+      //  - por HORAS: se programa la entrega entre 2.600h (hrsAlerta) y 2.800h, y se
+      //    cambia a las 2.800h (hrsLimite);
+      //  - por GOMA (según marca): Michelin/Goodyear a 60mm, Bridgestone a 30mm (remRotar).
+      // Ej. real: una delantera Michelin con 2.000h y remanente 50mm se cambia igual,
+      // porque 50mm ya está por debajo del límite de 60mm (llegó primero por goma).
+      // remRetiro=10 es el piso absoluto (tela a la vista).
+      MICHELIN:{remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
+      GOODYEAR:{remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
       BRIDGESTONE:{remNuevo:65,remRotar:30,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'},
-      DEFAULT: {remNuevo:91,remRotar:50,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'}
+      DEFAULT: {remNuevo:91,remRotar:60,remRetiro:10,hrsAlerta:2600,hrsLimite:2800,accion:'Cambiar'}
     },
     // El remanente NUEVO es una propiedad de la marca (grosor de fábrica), no de la
     // posición — un Bridgestone mide lo mismo de fábrica esté adelante o atrás. Lo
