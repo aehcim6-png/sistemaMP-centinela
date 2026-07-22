@@ -1176,7 +1176,7 @@ renders.dash=function(){
   // Neumaticos stats
   var neuOk=neu.filter(n=>n.estado==='Operativo').length;
   var neuDet=neu.filter(n=>n.estado==='Deteriorado').length;
-  var neuCrit=neu.filter(n=>{const p=neuPct(n);return p!=null&&p<30&&n.estado==='Operativo';}).length;
+  var neuCrit=neu.filter(neuDebeCambiar).length;
   // Stock critical (desglose para tarjeta)
   var stkCrit=stk.filter(s=>(s.estado||'').includes('COMPRAR')).length;
   var stkBajo=stk.filter(s=>(s.estado||'').includes('BAJO')).length;
@@ -4084,18 +4084,22 @@ renders.neu=function(){
       return dir*((va||0)-(vb||0));
     });
   }
-  const crit=fil.filter(n=>{const p=neuPct(n);return p!=null&&p<30;}).length;
+  // Crítico = debe cambiarse YA (delantera pasada de horas o remanente en el límite de
+  // retiro ~10mm), NO por % de goma bajo — un trasero al 25% aún tiene vida (se corre
+  // hasta ~10mm/tela). Ver neuDebeCambiar / neuProxCambio.
+  const crit=fil.filter(neuDebeCambiar).length;
+  const prox=fil.filter(neuProxCambio).length;
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">🛞 Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} críticos</div></div>
+    <div class="sec-h"><div><div class="sec-t">🛞 Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
       <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()">📤 Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()">📊 Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()">🔄 Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()">🔌 Sensores</button>
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
-      <div class="card"><div class="card-t" style="color:var(--danger)">Críticos &lt;30%</div><div class="card-v" style="color:var(--danger)">${crit}</div></div>
-      <div class="card"><div class="card-t" style="color:var(--warn)">Próximos 30-50%</div><div class="card-v" style="color:var(--warn)">${fil.filter(n=>{const p=neuPct(n);return p!=null&&p>=30&&p<50;}).length}</div></div>
-      <div class="card"><div class="card-t">Costo est. críticos</div><div class="card-v" style="color:var(--ac)">$${fn(crit*8500000)}</div><div class="card-s">~USD 12.500/un</div></div>
+      <div class="card"><div class="card-t" style="color:var(--danger)">Cambiar ya</div><div class="card-v" style="color:var(--danger)">${crit}</div><div class="card-s">delantera +2.600h o rem. ≤límite</div></div>
+      <div class="card"><div class="card-t" style="color:var(--warn)">Próximos (≤30 días)</div><div class="card-v" style="color:var(--warn)">${prox}</div></div>
+      <div class="card"><div class="card-t">Costo est. cambiar ya</div><div class="card-v" style="color:var(--ac)">$${fn(crit*8500000)}</div><div class="card-s">~USD 12.500/un</div></div>
     </div>
     <div class="toolbar">
       <select id="fNeuEq" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos equipos</option>${eqs.map(s=>`<option${s===fEq?' selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
@@ -4115,7 +4119,10 @@ renders.neu=function(){
         const lr=hrsLive(n);
         const proy=neuProyeccion(n);
         const proyCol=proy?(proy.diasRestantes<30?'var(--danger)':proy.diasRestantes<60?'var(--warn)':'var(--ok)'):'var(--tx3)';
-        return`<tr style="${sinDatosRem?'':p<30?'background:rgba(239,68,68,.05)':p<50?'background:rgba(234,179,8,.04)':''}">
+        // El resaltado de la fila refleja ACCIÓN (cambiar ya / próximo), no % de goma:
+        // un trasero con poca goma pero vida por delante no se pinta de rojo.
+        const cambiarYa=neuDebeCambiar(n), proxCambio=neuProxCambio(n);
+        return`<tr style="${cambiarYa?'background:rgba(239,68,68,.05)':proxCambio?'background:rgba(234,179,8,.04)':''}">
           <td class="mono" style="font-size:11px">${escapeHtml(n.sigla)}</td>
           <td style="font-size:10px;color:var(--tx2)">${n.tipoEquipo}</td>
           ${edCell(n.posicion,'posicion',i,'neu')}
@@ -4723,6 +4730,26 @@ function neuPct(n){
   const rn=(neuCriterio(n).remNuevo)||91;
   if(!rn)return null;
   return Math.max(0,Math.min(100,Math.round(Number(n.remanente)/rn*100)));
+}
+
+// "Crítico" = hay que cambiarlo YA, por CUALQUIER criterio real de retiro, no solo por
+// % de goma bajo (una goma al 25% en una trasera puede tener cientos de horas por
+// delante y NO ser urgente; en cambio una delantera que pasó el límite de 2.600h hay
+// que rotarla ya aunque le quede goma). Se apoya en neuProyeccion, la misma fuente que
+// la columna "Vida Restante": diasRestantes<=0 significa cambiar ahora (sea por horas
+// de delantera o por remanente en el límite de retiro/rotación). Solo cuenta montados.
+function neuDebeCambiar(n){
+  if(n==null)return false;
+  if(n.estado&&n.estado!=='Operativo')return false;
+  const p=neuProyeccion(n);
+  return p!=null&&p.diasRestantes<=0;
+}
+// "Próximo a cambiar" = le quedan pocos días reales (1 a 30), aviso temprano accionable.
+function neuProxCambio(n){
+  if(n==null)return false;
+  if(n.estado&&n.estado!=='Operativo')return false;
+  const p=neuProyeccion(n);
+  return p!=null&&p.diasRestantes>0&&p.diasRestantes<=30;
 }
 
 function neuEstadoCalc(n){
