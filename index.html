@@ -4709,9 +4709,14 @@ const NEU_CRITERIOS={
     delantera:{DEFAULT:{remNuevo:110,remRotar:null,remRetiro:20,accion:'Cambiar'}},
     trasera:  {DEFAULT:{remNuevo:110,remRotar:null,remRetiro:10,accion:'Cambiar'}}
   },
-  MN: {todas:{DEFAULT:{remNuevo:27,remRotar:null,remRetiro:10,accion:'Retirar'}}},
-  ALJ:{todas:{DEFAULT:{remNuevo:20,remRotar:null,remRetiro:10,accion:'Retirar'}}},
-  BUS:{todas:{DEFAULT:{remNuevo:10,remRotar:null,remRetiro:2,accion:'Retirar'}}}
+  // Criterios de acreditación de faena (checklist confirmado por el usuario 2026-07-22).
+  // El "remanente mínimo" es el piso: al llegar ahí se cambia. El rechazo INMEDIATO por
+  // condición (cortes que llegan a la lona/malla de acero, separación de banda por fatiga,
+  // hilos a la vista, protuberancias/chichones, desgaste desigual) NO se automatiza por
+  // remanente — requiere inspección visual.
+  MN: {todas:{DEFAULT:{remNuevo:27,remRotar:null,remRetiro:10,accion:'Cambiar'}}}, // motoniveladora: mín 10mm
+  ALJ:{todas:{DEFAULT:{remNuevo:20,remRotar:null,remRetiro:8,accion:'Cambiar'}}},  // aljibe: mín 6-8mm
+  BUS:{todas:{DEFAULT:{remNuevo:10,remRotar:null,remRetiro:4,accion:'Cambiar'}}}   // bus/taxibus: mín 3-4mm
 };
 
 function neuCriterio(n){
@@ -4802,9 +4807,12 @@ function neuEstadoCalc(n){
   // Delanteras: aviso de horas (hrsAlerta 2.600h).
   if(c.hrsAlerta&&hrsUso>=c.hrsAlerta)return{ico:'🟡',txt:'PROGRAMAR '+fn(hrsUso)+'h',col:'var(--warn)'};
   // Goma acercándose al límite de cambio real de esa posición (remRotar en delanteras,
-  // remRetiro en traseras) — 10mm de margen.
+  // remRetiro en traseras). El margen de aviso es proporcional al grosor de fábrica (~12%,
+  // acotado 2-10mm) — un margen fijo de 10mm marcaba "próximo" demasiado pronto en gomas
+  // chicas (aljibe/bus, nuevo 20/10mm).
   const margenRem=c.remRotar||c.remRetiro;
-  if(r<=margenRem+10)return{ico:'🟡',txt:'PRÓXIMO '+r+'mm',col:'var(--warn)'};
+  const avisoMm=Math.max(2,Math.min(10,Math.round((c.remNuevo||91)*0.12)));
+  if(r<=margenRem+avisoMm)return{ico:'🟡',txt:'PRÓXIMO '+r+'mm',col:'var(--warn)'};
   // ── Informativo por % de goma (no es criterio de cambio, solo referencia) ──
   const pct=neuPct(n)||0;
   if(pct<25)return{ico:'🟠',txt:pct+'% goma',col:'#f97316'};
