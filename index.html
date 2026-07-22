@@ -11168,7 +11168,7 @@ window.reporteEjecutivoExcel=function(){
   const proximas=eq.filter(e=>e.estado&&e.estado.includes('PRÓXIMA')).length;
   const alDia=eq.filter(e=>e.estado&&e.estado.includes('AL DÍA')).length;
   const cumplimiento=total>0?Math.round(alDia/total*100):0;
-  const neuCriticos=neu.filter(n=>{const p=neuPct(n);return p!=null&&p<30;}).length;
+  const neuCriticos=neu.filter(neuDebeCambiar).length;
 
   // Estilos Excel
   const est={
@@ -11202,15 +11202,17 @@ window.reporteEjecutivoExcel=function(){
   });
   html+='<tr><td colspan="6" style="height:10px"></td></tr>';
 
-  // NEUMÁTICOS CRÍTICOS
-  const neuCrit=neu.filter(n=>{const p=neuPct(n);return p!=null&&p<50&&n.estado==='Operativo';}).sort((a,b)=>(neuPct(a)||0)-(neuPct(b)||0));
+  // NEUMÁTICOS EN ALERTA = los que hay que cambiar YA o programar (mismo criterio real
+  // que la tabla y el resumen: neuDebeCambiar/neuProxCambio), no por % de goma.
+  const neuCrit=neu.filter(n=>neuDebeCambiar(n)||neuProxCambio(n))
+    .sort((a,b)=>(neuDebeCambiar(b)?1:0)-(neuDebeCambiar(a)?1:0));
   if(neuCrit.length){
     html+='<tr><td colspan="6" '+est.sub+'>3. NEUMÁTICOS EN ALERTA</td></tr>';
     html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Posición</td><td '+est.th+'>Serie</td><td '+est.th+'>Remanente</td><td '+est.th+'>%</td><td '+est.th+'>Estado</td></tr>';
     neuCrit.forEach(n=>{
-      const pn=neuPct(n)||0;
-      const cl=pn<30?est.urg:est.warn;
-      html+='<tr><td '+est.td+'>'+n.sigla+'</td><td '+est.td+'>'+(n.posicion||'')+'</td><td '+est.td+'>'+(n.serie||'')+'</td><td '+est.td+' align="center">'+(n.remanente||'—')+'mm</td><td '+cl+' align="center">'+pn+'%</td><td '+est.td+'>'+(n.estado||'')+'</td></tr>';
+      const pn=neuPct(n); const ec=neuEstadoCalc(n);
+      const cl=neuDebeCambiar(n)?est.urg:est.warn;
+      html+='<tr><td '+est.td+'>'+n.sigla+'</td><td '+est.td+'>'+(n.posicion||'')+'</td><td '+est.td+'>'+(n.serie||'')+'</td><td '+est.td+' align="center">'+(n.remanente||'—')+'mm</td><td '+cl+' align="center">'+(pn!=null?pn+'%':'—')+'</td><td '+cl+'>'+ec.txt+'</td></tr>';
     });
     html+='<tr><td colspan="6" style="height:10px"></td></tr>';
   }
