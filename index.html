@@ -4103,7 +4103,7 @@ renders.neu=function(){
     </div>
     <div class="toolbar">
       <select id="fNeuEq" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos equipos</option>${eqs.map(s=>`<option${s===fEq?' selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
-      <select id="fNeuTipo" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos tipos</option><option value="CAEX">CAEX (6)</option><option value="CF">Cargador (4)</option><option value="MN">Motoniveladora (6)</option><option value="ALJ">Aljibe (10)</option></select>
+      <select id="fNeuTipo" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos tipos</option><option value="CAEX">CAEX</option><option value="CF">Cargador</option><option value="MN">Motoniveladora</option><option value="ALJ">Aljibe</option><option value="CAM">Camioneta</option><option value="BUS">Bus</option></select>
     </div>
     ${_pagHTML('neu',pg)}
     <datalist id="dlMarcasNeu"><option value="MICHELIN"><option value="BRIDGESTONE"><option value="GOODYEAR"><option value="WESTLAKE"></datalist>
@@ -4392,7 +4392,7 @@ window.addNeu=function(){
   sm(`<h3>🛞 Nuevo Neumático</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label><select id="nNEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
-      <div class="fg"><label>Tipo equipo</label><select id="nNTipo"><option value="CAEX">CAEX</option><option value="CF">Cargador</option><option value="MN">Motoniveladora</option><option value="ALJ">Aljibe</option></select></div>
+      <div class="fg"><label>Tipo equipo</label><select id="nNTipo"><option value="CAEX">CAEX</option><option value="CF">Cargador</option><option value="MN">Motoniveladora</option><option value="ALJ">Aljibe</option><option value="CAM">Camioneta</option><option value="BUS">Bus</option></select></div>
     </div>
     <div class="form-row">
       <div class="fg"><label>Posición</label><input id="nNPos" placeholder="Ej: P1-DelIzq"></div>
@@ -4716,7 +4716,8 @@ const NEU_CRITERIOS={
   // remanente — requiere inspección visual.
   MN: {todas:{DEFAULT:{remNuevo:27,remRotar:null,remRetiro:10,accion:'Cambiar'}}}, // motoniveladora: mín 10mm
   ALJ:{todas:{DEFAULT:{remNuevo:20,remRotar:null,remRetiro:8,accion:'Cambiar'}}},  // aljibe: mín 6-8mm
-  BUS:{todas:{DEFAULT:{remNuevo:10,remRotar:null,remRetiro:4,accion:'Cambiar'}}}   // bus/taxibus: mín 3-4mm
+  BUS:{todas:{DEFAULT:{remNuevo:10,remRotar:null,remRetiro:4,accion:'Cambiar'}}},  // bus/taxibus: mín 3-4mm (recauchado solo ejes traseros)
+  CAM:{todas:{DEFAULT:{remNuevo:10,remRotar:null,remRetiro:3,accion:'Cambiar'}}}   // camioneta 4x4: mín 3mm (NO permite recauchado)
 };
 
 function neuCriterio(n){
