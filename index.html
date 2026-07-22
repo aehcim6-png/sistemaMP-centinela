@@ -1177,10 +1177,13 @@ renders.dash=function(){
   var neuOk=neu.filter(n=>n.estado==='Operativo').length;
   var neuDet=neu.filter(n=>n.estado==='Deteriorado').length;
   var neuCrit=neu.filter(neuDebeCambiar).length;
-  // Stock critical (desglose para tarjeta)
-  var stkCrit=stk.filter(s=>(s.estado||'').includes('COMPRAR')).length;
-  var stkBajo=stk.filter(s=>(s.estado||'').includes('BAJO')).length;
-  var stkOk=stk.filter(s=>(s.estado||'').includes('OK')).length;
+  // Stock critical — calculado EN VIVO con el criterio único (stockEstado: quiebre antes
+  // del lead time), no leyendo el estado guardado (que con el proxy viejo de "1 mes"
+  // subestimaba los COMPRAR y nunca escribía "BAJO").
+  var _seDash=s=>stockEstado((s.stockBodega||0)+(s.pendiente||0),s.consumoMes||s.proyMes,s.leadTime).nivel;
+  var stkCrit=stk.filter(s=>_seDash(s)==='COMPRAR').length;
+  var stkBajo=stk.filter(s=>_seDash(s)==='BAJO').length;
+  var stkOk=stk.filter(s=>_seDash(s)==='OK').length;
   // Gastos por equipo (from movimientos)
   var gastoEq={};
   mov.forEach(m=>{gastoEq[m.equipo]=(gastoEq[m.equipo]||0)+(m.cant||0);});
@@ -2655,8 +2658,9 @@ function _descontarFiltro(stk,fi,mov,cant,equipo,tipoPM,hoy,rep,log){
   const ant=stk[fi].stockBodega||0;
   stk[fi].stockBodega=Math.max(0,ant-cant);
   const cm=stk[fi].consumoMes||1;
-  stk[fi].mesesCubierto=cm>0?Math.round(stk[fi].stockBodega/cm*10)/10:0;
-  stk[fi].estado=stk[fi].stockBodega<=cm?'🔴 COMPRAR':'✅ OK';
+  const _se=stockEstado(stk[fi].stockBodega,cm,stk[fi].leadTime);
+  stk[fi].mesesCubierto=_se.meses!=null?Math.round(_se.meses*10)/10:0;
+  stk[fi].estado=_se.ico+' '+_se.txt;
   mov.push({fecha:hoy,tipo:'Filtro',item:stk[fi].descripcion,nParte:stk[fi].nParte,
     cant,equipo:equipo||'',pm:tipoPM||'',ant,nuevo:stk[fi].stockBodega,mes:hoy.slice(0,7)});
   log.push(rep+': -'+cant);
@@ -2950,8 +2954,9 @@ window.recalcHistorial=function(){
         const ant=stk[fi].stockBodega||0;
         stk[fi].stockBodega=Math.max(0,ant-cant);
         const cm=stk[fi].consumoMes||1;
-        stk[fi].mesesCubierto=cm>0?Math.round(stk[fi].stockBodega/cm*10)/10:0;
-        stk[fi].estado=stk[fi].stockBodega<=cm?'🔴 COMPRAR':'✅ OK';
+        const _se=stockEstado(stk[fi].stockBodega,cm,stk[fi].leadTime);
+        stk[fi].mesesCubierto=_se.meses!=null?Math.round(_se.meses*10)/10:0;
+        stk[fi].estado=_se.ico+' '+_se.txt;
         mov.push({fecha:fechaReg,tipo:'Filtro',item:stk[fi].descripcion,nParte:stk[fi].nParte,
           cant,equipo:r.equipo,pm:r.tipoPM,ant,nuevo:stk[fi].stockBodega,mes:fechaReg.slice(0,7)});
         totalFil+=cant;
@@ -3017,7 +3022,10 @@ window.recalcSoloCostos=function(){
 renders.stk=function(){
   const stk=S.g('stk')||[];
   const mov=S.g('mov')||[];
-  const comprar=stk.filter(s=>(s.estado||'').includes('COMPRAR')).length;
+  // Nivel en vivo (stockEstado) — no el estado guardado, para que conteo, filtro y tabla
+  // usen todos el mismo criterio de quiebre-antes-del-lead-time.
+  const _nivelStk=s=>stockEstado((s.stockBodega||0)+(s.pendiente||0),s.consumoMes||s.proyMes,s.leadTime).nivel;
+  const comprar=stk.filter(s=>_nivelStk(s)==='COMPRAR').length;
   const fEst=$('fStkEst')?.value||'';
   const fBusq=$('fStkBusq')?.value||'';
   // Last consumption date per item
@@ -3030,7 +3038,7 @@ renders.stk=function(){
     }
   });
   var filStk=stk.filter(function(s){
-    if(fEst&&!(s.estado||'').includes(fEst))return false;
+    if(fEst&&_nivelStk(s)!==fEst)return false;
     if(fBusq&&!(s.descripcion||'').toLowerCase().includes(fBusq.toLowerCase())&&!(s.nParte||'').toLowerCase().includes(fBusq.toLowerCase()))return false;
     return true;
   });
@@ -3051,9 +3059,11 @@ renders.stk=function(){
       var acum=Math.round(totalCons[s.descripcion]||totalCons[s.nParte]||0);
       var proy=s.proyMes||0;
       var cm=s.consumoMes||0;
-      var divisor=cm||proy||1;
-      var meses=((s.stockBodega||0)+(s.pendiente||0))/divisor;
-      var est=meses<1?'🔴 COMPRAR':meses<3?'⚠️ BAJO':'✅ OK';
+      // Estado por lo que llegue primero al lead time (misma fuente que dashboard y
+      // predictivo, ver stockEstado). El stock efectivo incluye lo pendiente de llegar.
+      var se=stockEstado((s.stockBodega||0)+(s.pendiente||0), cm||proy, s.leadTime);
+      var meses=se.meses!=null?se.meses:0;
+      var est=se.ico+' '+se.txt;
       var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
       return'<tr>'+
         '<td><input value="'+escapeHtml(s.equipoModelo||'')+'" onchange="edI(\'stk\','+i+',\'equipoModelo\',this.value)" style="width:70px;background:transparent;border:none;color:var(--tx);font-size:10px"></td>'+
@@ -3064,7 +3074,7 @@ renders.stk=function(){
         '<td><input type="number" value="'+cm+'" onchange="edI(\'stk\','+i+',\'consumoMes\',parseInt(this.value)||0)" style="width:40px;'+is+'"></td>'+
         '<td style="font-size:10px;color:var(--tx3)">'+lastD+'</td>'+
         '<td><input type="number" value="'+proy+'" onchange="edI(\'stk\','+i+',\'proyMes\',parseInt(this.value)||0)" style="width:40px;'+is+';color:var(--w);font-weight:600" title="Proyección manual"></td>'+
-        '<td style="text-align:center;font-weight:600;color:'+(meses<1?'var(--danger)':meses<3?'var(--w)':'var(--ok)')+'">'+meses.toFixed(1)+'</td>'+
+        '<td style="text-align:center;font-weight:600;color:'+(se.nivel==='COMPRAR'?'var(--danger)':se.nivel==='BAJO'?'var(--w)':'var(--ok)')+'" title="'+escapeHtml(se.motivo)+'">'+meses.toFixed(1)+'</td>'+
         '<td><span style="font-size:10px">'+est+'</span></td>'+
         '<td><input type="number" value="'+(s.precioUnit||0)+'" onchange="edI(\'stk\','+i+',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;'+is+'"></td>'+
         '<td><button class="btn-s btn-d" onclick="delRow(\'stk\','+i+',\'stk\')">🗑</button></td></tr>';

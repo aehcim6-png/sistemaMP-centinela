@@ -318,6 +318,30 @@ function predFromOrdenes(oc){
   };
 }
 
+// ═══ STOCK — estado de reabastecimiento (una sola fuente de verdad) ═══
+// La pregunta real NO es "¿tengo menos de 1 mes de stock?" sino "¿me quedo sin ANTES de
+// que llegue el reemplazo?" — y eso depende del lead time (días que tarda la reposición).
+// Antes había 3 fórmulas distintas para lo mismo: la tabla de Stock (<1mes=COMPRAR),
+// la edición (stock<=1mes=COMPRAR) y riesgoQuiebre (stock<leadTime, la única correcta).
+// El Dashboard leía el proxy de 1 mes, así que con lead time de 34 días (>1 mes) marcaba
+// "OK" cosas que en realidad ya iban a quebrar antes de que llegara la compra. Esta
+// función unifica todo con el criterio de riesgoQuiebre: se compra cuando la cobertura
+// cae por debajo del lead time. leadDias por defecto 34 (mismo supuesto que ya usaba
+// riesgoQuiebre y el default de repuestos), o el propio del ítem si lo tiene.
+function stockEstado(stockBodega, consumoMes, leadDias){
+  var cm=consumoMes||0;
+  var stock=stockBodega||0;
+  var lead=leadDias>0?leadDias:34;
+  var leadMeses=lead/30;
+  if(cm<=0)return{nivel:'OK',ico:'✅',txt:'OK',meses:null,motivo:'sin consumo registrado'};
+  var meses=stock/cm;
+  if(stock<=0)return{nivel:'COMPRAR',ico:'🔴',txt:'COMPRAR',meses:0,motivo:'sin stock'};
+  if(meses<leadMeses)return{nivel:'COMPRAR',ico:'🔴',txt:'COMPRAR',meses:meses,
+    motivo:'quiebre en ~'+Math.round(meses*30)+'d y la reposición tarda '+lead+'d'};
+  if(meses<2)return{nivel:'BAJO',ico:'🟡',txt:'BAJO',meses:meses,motivo:'menos de 2 meses de cobertura'};
+  return{nivel:'OK',ico:'✅',txt:'OK',meses:meses,motivo:Math.round(meses*10)/10+' meses de cobertura'};
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -345,6 +369,7 @@ if (typeof window !== 'undefined') {
   window._scoreMaterial = _scoreMaterial;
   window.precioMaterial = precioMaterial;
   window.predFromOrdenes = predFromOrdenes;
+  window.stockEstado = stockEstado;
   window.pagSlice = pagSlice;
   window.hayConflictoIds = hayConflictoIds;
 }
@@ -354,6 +379,6 @@ if (typeof module !== 'undefined' && module.exports) {
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM,
-    predFromOrdenes, pagSlice, hayConflictoIds
+    predFromOrdenes, stockEstado, pagSlice, hayConflictoIds
   };
 }
