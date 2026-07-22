@@ -4097,8 +4097,8 @@ renders.neu=function(){
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
-      <div class="card"><div class="card-t" style="color:var(--danger)">Cambiar ya</div><div class="card-v" style="color:var(--danger)">${crit}</div><div class="card-s">delantera +2.600h o rem. ≤límite</div></div>
-      <div class="card"><div class="card-t" style="color:var(--warn)">Próximos (≤30 días)</div><div class="card-v" style="color:var(--warn)">${prox}</div></div>
+      <div class="card" onclick="verNeuLista('cambiar')" style="cursor:pointer" title="Ver cuáles son"><div class="card-t" style="color:var(--danger)">Cambiar ya 👁</div><div class="card-v" style="color:var(--danger)">${crit}</div><div class="card-s">delantera +2.800h o goma ≤límite · clic para ver</div></div>
+      <div class="card" onclick="verNeuLista('proximo')" style="cursor:pointer" title="Ver cuáles son"><div class="card-t" style="color:var(--warn)">Próximos (≤30 días) 👁</div><div class="card-v" style="color:var(--warn)">${prox}</div><div class="card-s">clic para ver</div></div>
       <div class="card"><div class="card-t">Costo est. cambiar ya</div><div class="card-v" style="color:var(--ac)">$${fn(crit*8500000)}</div><div class="card-s">~USD 12.500/un</div></div>
     </div>
     <div class="toolbar">
@@ -4145,6 +4145,37 @@ renders.neu=function(){
         </tr>`;
       }).join('')}
     </table></div>${_pagHTML('neu',pg)}`;
+};
+
+// Listado de neumáticos que hay que cambiar YA (o próximos) al apretar la tarjeta —
+// muestra equipo, posición, serie y el motivo concreto, sin tener que revisar equipo
+// por equipo. Ordena por urgencia (menos días restantes primero).
+window.verNeuLista=function(modo){
+  const neu=S.g('neu')||[];
+  const esCambiar=modo!=='proximo';
+  const lista=neu.filter(esCambiar?neuDebeCambiar:neuProxCambio)
+    .map(n=>({n,proy:neuProyeccion(n),ec:neuEstadoCalc(n)}))
+    .sort((a,b)=>((a.proy?a.proy.diasRestantes:0)-(b.proy?b.proy.diasRestantes:0)));
+  const titulo=esCambiar?'🔴 Neumáticos para cambiar YA':'🟡 Neumáticos próximos (≤30 días)';
+  if(!lista.length){sm(`<h3>${titulo}</h3><p style="color:var(--tx3)">No hay neumáticos en esta condición ahora mismo. 👍</p><button class="btn btn-o" onclick="cm()">Cerrar</button>`);return;}
+  const filas=lista.map(({n,proy,ec})=>{
+    const dias=proy?(proy.diasRestantes<=0?'ahora':'≈'+proy.diasRestantes+'d'):'—';
+    const idx=neu.indexOf(n);
+    return `<tr style="border-bottom:1px solid var(--bd)">
+      <td style="padding:6px"><b>${escapeHtml(n.sigla)}</b></td>
+      <td>${escapeHtml(n.posicion||'')}</td>
+      <td class="mono" style="font-size:11px">${escapeHtml(n.serie||'—')}</td>
+      <td style="text-align:center">${n.remanente!=null?n.remanente+'mm':'—'}</td>
+      <td style="color:${ec.col};font-size:11px">${ec.ico} ${escapeHtml(ec.txt)}</td>
+      <td style="text-align:center;color:${esCambiar?'var(--danger)':'var(--warn)'}">${dias}</td>
+      <td><button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="cm();verDetalleNeu(${idx})" title="Ver detalle">🔍</button></td>
+    </tr>`;}).join('');
+  sm(`<div style="max-width:720px"><h3>${titulo} <span style="color:var(--tx3);font-size:13px">(${lista.length})</span></h3>
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Equipo</th><th style="text-align:left">Posición</th><th style="text-align:left">Serie</th><th>Rem.</th><th style="text-align:left">Motivo</th><th>Restante</th><th></th></tr>
+      ${filas}
+    </table></div>
+    <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>`);
 };
 // [v10.2 cleanup] addEquipo v2 (idéntica a v1 en línea 911) eliminada
 // [v10.3 cleanup] saveNewEq v2 (idéntica a v1 en línea 940) eliminada
