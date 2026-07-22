@@ -4700,9 +4700,14 @@ const NEU_CRITERIOS={
       DEFAULT:{remNuevo:91,remRotar:null,remRetiro:10,hrsAlerta:null,hrsLimite:null,accion:'Retirar'}
     }
   },
+  // Cargador (CF), confirmado por el usuario 2026-07-22: nuevo 110mm.
+  // Delanteras: aviso a 25mm, cambio a 20mm (remRetiro). Traseras: aviso a 15mm,
+  // cambio a 10mm. Sin límite de horas. Además hay cambio INMEDIATO por condición
+  // que NO se puede automatizar por remanente (requiere inspección visual): cortes de
+  // profundidad, grietas, segunda malla de la estructura a la vista, o deformación.
   CF:{
-    delantera:{DEFAULT:{remNuevo:110,remRotar:null,remRetiro:60,accion:'Retirar'}},
-    trasera:  {DEFAULT:{remNuevo:110,remRotar:null,remRetiro:10,accion:'Retirar'}}
+    delantera:{DEFAULT:{remNuevo:110,remRotar:null,remRetiro:20,accion:'Cambiar'}},
+    trasera:  {DEFAULT:{remNuevo:110,remRotar:null,remRetiro:10,accion:'Cambiar'}}
   },
   MN: {todas:{DEFAULT:{remNuevo:27,remRotar:null,remRetiro:10,accion:'Retirar'}}},
   ALJ:{todas:{DEFAULT:{remNuevo:20,remRotar:null,remRetiro:10,accion:'Retirar'}}},
