@@ -834,7 +834,18 @@ this.s('prg',INIT.programa);this.s('hh',INIT.tarifaHH);this.s('hist',[]);}
 // ============ CALC ENGINE ============
 // C.tipoPM/proxPM/estado/alertaPM4/recalc viven en logic.js (extraídos para poder
 // testearlos). recalcAll depende de S (estado de la app), así que se agrega acá.
-C.recalcAll=function(){const eq=S.g('eq');eq.forEach(e=>this.recalc(e));S.s('eq',eq);return eq};
+// Ritmo diario REAL de un equipo (h/día o km/día) desde su historial de horómetros,
+// para que la fecha/estado del próximo PM use el uso real y no el nominal. Cae al
+// nominal (hrsDia) si el equipo no tiene lecturas suficientes.
+function _ritmoRealEq(sigla,hrsDiaNominal){
+  if(typeof tasaDiariaReal!=='function')return hrsDiaNominal||0;
+  var lecturas=(S.g('hist')||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha;})
+    .map(function(h){return{fecha:h.fecha,horom:(h.horomFin!=null?h.horomFin:h.horom)};});
+  return tasaDiariaReal(lecturas,hrsDiaNominal||12);
+}
+// Recalcula un equipo usando su ritmo real. Reemplaza las llamadas directas a _recalcEq(e).
+function _recalcEq(e){return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12));}
+C.recalcAll=function(){const eq=S.g('eq');eq.forEach(e=>_recalcEq(e));S.s('eq',eq);return eq};
 // ============ HELPERS ============
 // fd/fn/escapeHtml viven en logic.js.
 const $=id=>document.getElementById(id);
@@ -861,7 +872,7 @@ function _recalcCad(c){
 window.cev=function(store,idx,key,val,type){
   const d=S.g(store);if(!d||!d[idx])return;
   d[idx][key]=type==='number'?parseFloat(val)||0:val;
-  if(store==='eq')C.recalc(d[idx]);
+  if(store==='eq')_recalcEq(d[idx]);
   if(store==='cad')_recalcCad(d[idx]);
   S.s(store,d);
   if(store==='eq'){renderHeader();renders[currentTab]?.();}
@@ -1585,7 +1596,7 @@ window.saveNewEq=function(){
     frecPM:parseInt($('nFrec').value)||(unidad==='km'?10000:250),
     horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''
   };
-  C.recalc(n);eq.push(n);S.s('eq',eq);cm();refreshAll();toast('✅ Equipo '+s+' agregado');
+  _recalcEq(n);eq.push(n);S.s('eq',eq);cm();refreshAll();toast('✅ Equipo '+s+' agregado');
 };
 
 window.importarEquiposNuevos=function(){
@@ -1611,7 +1622,7 @@ window.importarEquiposNuevos=function(){
   nuevos.forEach(function(n){
     var existe=eq.find(function(e){return e.sigla===n.sigla;});
     if(existe){omitidos.push(n.sigla);return;}
-    C.recalc(n);
+    _recalcEq(n);
     eq.push(n);
     agregados.push(n.sigla);
   });
@@ -1860,7 +1871,7 @@ window.saveEditReg=function(i){
     repuestos:$('eRep').value,
   };
   // Actualizar horómetro del equipo si corresponde
-  if(e&&hr>e.horomActual){e.horomActual=hr;C.recalc(e);S.s('eq',eq);renderHeader();}
+  if(e&&hr>e.horomActual){e.horomActual=hr;_recalcEq(e);S.s('eq',eq);renderHeader();}
   S.s('reg',reg);cm();refreshAll();toast('✅ Registro actualizado');
 };
 window.rAutoHorom=function(){
@@ -1954,7 +1965,7 @@ window.saveReg=function(){
   if(e){
     e.horomActual=hr;
     e.fechaHorom=fEnt;
-    C.recalc(e);
+    _recalcEq(e);
     S.s('eq',eq);
     // Fix 1: Alimentar historial de horómetros automáticamente desde el registro
     const hist=S.g('hist')||[];
@@ -4329,7 +4340,7 @@ window.saveOT=function(){
   // Retroalimentación: check fallas repetitivas → flag en predictivo
   var fallasMismoComp=ot.filter(function(o2){return o2.sigla===sig&&o2.componente===$('oComp')?.value&&o2.componente;}).length;
   if(fallasMismoComp>=2){toast('⚠️ '+sig+': '+fallasMismoComp+' fallas en '+ ($('oComp')?.value||'componente')+' — revisar predictivo');}
-  if(horom>0){const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);if(e&&horom>e.horomActual){e.horomActual=horom;C.recalc(e);S.s('eq',eq);renderHeader();}}
+  if(horom>0){const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);if(e&&horom>e.horomActual){e.horomActual=horom;_recalcEq(e);S.s('eq',eq);renderHeader();}}
   S.s('ot',ot);cm();refreshAll();toast('✅ OT guardada — '+sig);
 };
 
@@ -6021,7 +6032,7 @@ window.processImportHorom=function(){
         if(mx&&mx.hv>(x.horomActual||0)){
           x.horomActual=mx.hv;
           x.fechaHorom=mx.fecha;
-          C.recalc(x);
+          _recalcEq(x);
           updated++;
         }
       });
@@ -10886,7 +10897,7 @@ window.edHist=function(idx,key,val){
   if(h[idx]&&(key==='horomFin'||key==='horom')){
     var eq=S.g('eq')||[];
     var eqIdx=eq.findIndex(function(e){return e.sigla===h[idx].sigla});
-    if(eqIdx>=0&&val>eq[eqIdx].horomActual){eq[eqIdx].horomActual=val;C.recalc(eq[eqIdx]);S.s('eq',eq);}
+    if(eqIdx>=0&&val>eq[eqIdx].horomActual){eq[eqIdx].horomActual=val;_recalcEq(eq[eqIdx]);S.s('eq',eq);}
   }
   refreshAll();
 };
@@ -10904,7 +10915,7 @@ function recalcularHorometroDesdeHistorial(sigla){
   var masReciente=hist.reduce(function(m,h){var v=_horomDeLectura(h);return v>(m?_horomDeLectura(m):-1)?h:m;},null);
   eq[eqIdx].horomActual=masReciente?_horomDeLectura(masReciente):0;
   eq[eqIdx].fechaHorom=masReciente?masReciente.fecha:'';
-  C.recalc(eq[eqIdx]);
+  _recalcEq(eq[eqIdx]);
   S.s('eq',eq);
 }
 window.delHist=function(idx){
@@ -10947,7 +10958,7 @@ window.saveHist=function(){
   // Update equipment
   var eq=S.g('eq')||[];
   var eqIdx=eq.findIndex(function(e){return e.sigla===sigla});
-  if(eqIdx>=0&&fin>eq[eqIdx].horomActual){eq[eqIdx].horomActual=fin;eq[eqIdx].fechaHorom=fecha;C.recalc(eq[eqIdx]);S.s('eq',eq);}
+  if(eqIdx>=0&&fin>eq[eqIdx].horomActual){eq[eqIdx].horomActual=fin;eq[eqIdx].fechaHorom=fecha;_recalcEq(eq[eqIdx]);S.s('eq',eq);}
   cm();refreshAll();
   toast('✅ Lectura registrada: '+sigla+' = '+fin+'h');
 };
@@ -11981,7 +11992,7 @@ window.saveFicha=function(sigla){
   eq[idx].hrsDia=parseFloat($('ftHrsDia').value)||12;
   eq[idx].frecPM=parseFloat($('ftFrec').value)||250;
   eq[idx].horomActual=parseFloat($('ftHorom').value)||0;
-  C.recalc(eq[idx]);
+  _recalcEq(eq[idx]);
   S.s('eq',eq);
   _cascadeRenameSigla(sigla,nuevaSigla);
   cm();refreshAll();

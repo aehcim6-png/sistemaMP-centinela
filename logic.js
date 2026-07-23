@@ -22,10 +22,16 @@ const C = {
   // bandas son 1x/2x/4x el frecPM del equipo (igual que las 4 escalas de tipoPM),
   // y la unidad mostrada es la real del equipo, no siempre "h".
   alertaPM4(h,frecPM=250,unidad='h'){const f=frecPM||250;return h<f?{t:'URGENTE (<'+f+unidad+')',c:'b-r'}:h<f*2?{t:'PRÓXIMA (<'+(f*2)+unidad+')',c:'b-y'}:h<f*4?{t:'PLANIFICAR',c:'b-b'}:{t:'OK — '+h.toLocaleString()+unidad,c:'b-g'}},
-  recalc(e){
+  // Recalcula la programación de PM de un equipo. Para convertir "horas restantes"
+  // en "días para el PM" usa 'ritmoDia' si se le pasa (el ritmo REAL observado del
+  // equipo, ej. de tasaDiariaReal sobre su historial) — más fiel que las horas/día
+  // nominales, que suelen sobreestimar el uso y hacen que las alertas salgan antes de
+  // lo necesario. Si no se pasa ritmo (o es 0), cae al hrsDia nominal, como siempre.
+  recalc(e,ritmoDia){
     const p=this.proxPM(e.horomActual,e.frecPM||250);
     const hr=p-e.horomActual;
-    const d=e.hrsDia>0?Math.round(hr/e.hrsDia):999;
+    const ritmo=(ritmoDia&&ritmoDia>0)?ritmoDia:(e.hrsDia>0?e.hrsDia:0);
+    const d=ritmo>0?Math.round(hr/ritmo):999;
     const hoy=new Date();
     e.horomProxPM=p;e.hrsRestantes=hr;e.diasParaPM=d;
     e.fechaProxPM=new Date(hoy.getTime()+d*864e5).toISOString().slice(0,10);

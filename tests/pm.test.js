@@ -150,6 +150,19 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     // próximo PM en 260h, quedan 250h; a 25h/día son 10 días desde 2026-07-14
     expect(e.fechaProxPM).toBe('2026-07-24');
   });
+  it('con ritmo real usa ese ritmo (no el nominal) para los días hasta el PM', () => {
+    // Quedan 240h. Nominal 16 h/día -> 15 días. Ritmo real 8 h/día -> 30 días.
+    const e = { horomActual: 260, frecPM: 500, hrsDia: 16 };
+    C.recalc(e, 8);
+    expect(e.hrsRestantes).toBe(240);
+    expect(e.diasParaPM).toBe(30);        // usa el ritmo real (8), no el nominal (16)
+    expect(e.estado).toContain('PRÓXIMA'); // 30 días -> PRÓXIMA, no URGENTE
+  });
+  it('sin ritmo real cae al hrsDia nominal (compatibilidad hacia atrás)', () => {
+    const e = { horomActual: 260, frecPM: 500, hrsDia: 16 };
+    C.recalc(e);                 // sin segundo argumento
+    expect(e.diasParaPM).toBe(15); // 240/16
+  });
 });
 
 describe('C.horomHistorico — horómetro reconstruido desde historial_horometros', () => {
