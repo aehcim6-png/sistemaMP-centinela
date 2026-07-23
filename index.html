@@ -10407,14 +10407,32 @@ renders.kpi=function(){
   });
   var dispActual=dispMes[dispMes.length-1];
 
-  // 2. MTBF by month
+  // 2. MTBF — horas reales de operación ENTRE fallas sucesivas (ver C.mtbfReal en
+  // logic.js). El MTBF "actual" antes era horómetro-total ÷ nº de fallas: reparte todas
+  // las fallas desde la hora 0, sube solo con el paso del tiempo y no distingue fallas
+  // agrupadas de fallas bien espaciadas. Ahora se promedian los intervalos reales entre
+  // fallas de cada equipo (equipos con <2 fallas no aportan — no hay intervalo que medir).
+  function mtbfFlotaReal(){
+    var perEq=[];
+    eq.forEach(function(e){
+      if(e.unidad==='km')return;
+      var horoms=ot.filter(function(o){return o.sigla===e.sigla&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&o.horom>0;}).map(function(o){return o.horom;});
+      var m=(typeof C!=='undefined'&&C.mtbfReal)?C.mtbfReal(horoms):null;
+      if(m!=null)perEq.push(m);
+    });
+    if(!perEq.length)return null;
+    return Math.round(perEq.reduce(function(a,b){return a+b;},0)/perEq.length);
+  }
+  // MTBF mensual = horas de flota del mes ÷ fallas del mes (tasa mensual legítima). Un mes
+  // SIN fallas ya no devuelve las horas completas (número absurdo que siempre gana la meta):
+  // se muestra como "sin dato", porque no hubo un intervalo entre fallas que medir.
   var mtbfMes=last12.map(function(mes){
     var fallasM=ot.filter(function(o){return(o.fecha||'').slice(0,7)===mes&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')}).length;
     var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
-    return fallasM>0?Math.round(hrsM/fallasM):hrsM;
+    return fallasM>0?Math.round(hrsM/fallasM):null;
   });
+  var mtbfActual=mtbfFlotaReal();
   var totalFallas=ot.filter(function(o){return o.tipo==='Correctivo'||o.tipo==='Falla Operacional'}).length;
-  var mtbfActual=totalFallas>0?Math.round(eq.reduce(function(s,e){return s+e.horomActual},0)/totalFallas):eq.reduce(function(s,e){return s+e.horomActual},0);
 
   // 3. CUMPLIMIENTO by month
   var cumplMes=last12.map(function(mes){
@@ -10540,9 +10558,11 @@ renders.kpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">MTBF FLOTA</div>'+
-    meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF: '+mtbfActual+'h · '+totalFallas+' fallas totales')+
-    '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'#22c55e':mtbfActual>500?'#f59e0b':'#ef4444')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+totalFallas+' fallas totales</div>'+
+    (mtbfActual!=null?
+      meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF real: '+mtbfActual+'h · promedio de intervalos entre fallas')+
+      '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'#22c55e':mtbfActual>500?'#f59e0b':'#ef4444')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'
+      :'<div style="font-size:26px;font-weight:800;color:var(--tx3);padding:14px 0">—</div><div style="font-size:10px;color:var(--tx3)">Ningún equipo con ≥2 fallas registradas para medir el intervalo</div>')+
+    '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+totalFallas+' fallas totales</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptMTBF(\'excel\')" style="font-size:9px">📥</button>'+
     '<button class="btn-s" onclick="rptMTBF(\'print\')" style="font-size:9px">🖨️</button></div>'+
@@ -11403,13 +11423,14 @@ window.verLogAuditoria=function(){
 renders.metas=function(){
   if(!$("s-metas"))return;
   var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=S.g('ot')||[];
+  var stkM=S.g('stk')||[];var lubM=S.g('lub')||[];var movM=S.g('mov')||[];var tarifaHH=S.g('hh')||25000;
   var metas=S.g('metas')||{};
   var MSN=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
   var indicators=[
     {id:'disp',name:'Disponibilidad %',meta:85,unit:'%',higher:true},
     {id:'pms',name:'PMs a Ejecutar',meta:30,unit:'',higher:true},
     {id:'cumpl',name:'Cumplimiento PM %',meta:90,unit:'%',higher:true},
-    {id:'gasto',name:'Gasto Máximo ($)',meta:5000000,unit:'$',higher:false},
+    {id:'gasto',name:'Gasto Máx. HH+Repuestos ($)',meta:5000000,unit:'$',higher:false},
     {id:'hh',name:'HH Máximas',meta:200,unit:'h',higher:false},
     {id:'ratio',name:'Ratio Preventivo %',meta:80,unit:'%',higher:true},
     {id:'mtbf',name:'MTBF Mínimo (hrs)',meta:2000,unit:'h',higher:true},
@@ -11424,10 +11445,21 @@ renders.metas=function(){
     var regM=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes});
     var prev=regM.filter(function(r){return r.tipoPM!=='Correctivo'}).length;
     var dispValsM=eq.map(function(e){return(dispCalcMetas[e.sigla]&&dispCalcMetas[e.sigla][mes]!==undefined)?dispCalcMetas[e.sigla][mes]:null}).filter(function(v){return v!==null});
+    var hhMes=Math.round(regM.reduce(function(s,r){return s+(r.duracionH||0)},0));
+    // Gasto REAL del mes = mano de obra (HH×tarifa) + repuestos/materiales consumidos.
+    // Antes el "gasto" era solo HH×tarifa: ignoraba los repuestos, que suelen ser el
+    // grueso del costo — un mes con poca mano de obra pero un repuesto caro se veía
+    // "dentro de meta" cuando en realidad se gastó una fortuna.
+    var costoRepM=0;
+    movM.filter(function(mv){return mv.mes===mes;}).forEach(function(mv){
+      if(mv.tipo==='Filtro'){var f=stkM.find(function(s){return s.descripcion===mv.item||s.nParte===mv.nParte;});costoRepM+=(mv.cant||0)*((f&&f.precioUnit)||0);}
+      else{var l=lubM.find(function(lb){return lb.nombre===mv.item;});costoRepM+=(mv.cant||0)*((l&&l.precio)||0);}
+    });
     realData[m]={
       disp:dispValsM.length?Math.round(dispValsM.reduce(function(s,v){return s+v},0)/dispValsM.length*10)/10:null,
       pms:regM.length,
-      hh:Math.round(regM.reduce(function(s,r){return s+(r.duracionH||0)},0)),
+      hh:hhMes,
+      gasto:(regM.length||costoRepM)?Math.round(hhMes*tarifaHH+costoRepM):null,
       cumpl:regM.length?Math.round(regM.filter(function(r){return r.estado==='A tiempo'}).length/regM.length*100):null,
       ratio:regM.length?Math.round(prev/regM.length*100):null,
       backlog:ot.filter(function(o){return o.estadoOT==='Pendiente'}).length
@@ -11450,8 +11482,11 @@ renders.metas=function(){
           var metaM=data.meses&&data.meses[mes]?data.meses[mes].meta:ind.meta;
           var real=realData[mes]?realData[mes][ind.id]:null;
           if(real===undefined)real=null;
-          if(ind.id==='gasto')real=realData[mes]?realData[mes].hh*(S.g('hh')||25000):null;
-          if(ind.id==='mtbf'){var fM=ot.filter(function(o){return(o.fecha||'').slice(0,7)===anioMetas+'-'+('0'+(mi+1)).slice(-2)&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')}).length;var hM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);real=fM>0?Math.round(hM/fM):hM;}
+          if(ind.id==='gasto')real=realData[mes]?realData[mes].gasto:null; // HH + repuestos, no solo HH
+          // MTBF mensual = horas de flota ÷ fallas del mes. Un mes SIN fallas ya no
+          // devuelve las horas completas (número absurdo que siempre gana la meta): queda
+          // "sin dato", porque no hubo intervalo entre fallas que medir ese mes.
+          if(ind.id==='mtbf'){var fM=ot.filter(function(o){return(o.fecha||'').slice(0,7)===anioMetas+'-'+('0'+(mi+1)).slice(-2)&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')}).length;var hM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);real=fM>0?Math.round(hM/fM):null;}
           var sinDato=real===null;
           var ok=sinDato?null:(ind.higher?(real>=metaM):(real<=metaM));
           var col=sinDato?'var(--tx3)':ok?'#22c55e':'#ef4444';
