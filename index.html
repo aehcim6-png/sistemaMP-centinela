@@ -11712,17 +11712,21 @@ renders.buscar=function(){
   ot.forEach(function(o){var f=(o.fecha||'').slice(0,4);if(f.length===4)aniosBuscar[f]=1;});
   var aniosBuscarArr=Object.keys(aniosBuscar).sort().reverse();
 
+  // Filtro por rango de fecha — se aplica IGUAL en la ficha y en el ranking.
+  // Antes solo la ficha lo usaba; el ranking ignoraba año/desde/hasta y mostraba
+  // siempre el acumulado histórico, prometiendo un filtro que no cumplía.
+  var hayFiltroFecha=!!(fAnio||fDesde||fHasta);
+  function inRange(fecha){
+    if(!fecha)return true;
+    if(fAnio&&fecha.slice(0,4)!==fAnio)return false;
+    if(fDesde&&fecha<fDesde)return false;
+    if(fHasta&&fecha>fHasta)return false;
+    return true;
+  }
+
   var content='';
   if(fEq){
     var eqObj=eq.find(function(e){return e.sigla===fEq});
-    // Filter by date range
-    function inRange(fecha){
-      if(!fecha)return true;
-      if(fAnio&&fecha.slice(0,4)!==fAnio)return false;
-      if(fDesde&&fecha<fDesde)return false;
-      if(fHasta&&fecha>fHasta)return false;
-      return true;
-    }
     var regF=reg.filter(function(r){return r.equipo===fEq&&inRange(r.fechaEntrada||r.fechaEjec)});
     var otF=ot.filter(function(o){return o.sigla===fEq&&inRange(o.fecha)});
     var histF=hist.filter(function(h){return h.sigla===fEq&&inRange(h.fecha)});
@@ -11753,7 +11757,7 @@ renders.buscar=function(){
     '<div class="card" style="margin:0"><div class="card-t">Correctivos</div><div class="card-v" style="color:var(--danger)">'+fallasEq+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">MTBF</div><div class="card-v" style="color:'+(mtbfEq==null?'var(--tx3)':mtbfEq>2000?'var(--ok)':'var(--w)')+'">'+(mtbfEq==null?'—':mtbfEq+'h')+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">HH Total</div><div class="card-v">'+hhEq+'h</div></div>'+
-    '<div class="card" style="margin:0"><div class="card-t">Costo</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoEq).toLocaleString()+'</div></div>'+
+    '<div class="card" style="margin:0"><div class="card-t">Costo MO</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoEq).toLocaleString()+'</div></div>'+
     '</div>'+
 
     // Registros PM
@@ -11761,10 +11765,12 @@ renders.buscar=function(){
     (regF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>PM</th><th>Hora Ini</th><th>Hora Fin</th><th>Duración</th><th>Horóm</th><th>Técnico</th></tr>'+
     regF.slice().reverse().map(function(r){return'<tr><td>'+r.fechaEntrada+'</td><td>'+pb(r.tipoPM)+'</td><td>'+r.horaEntrada+'</td><td>'+r.horaSalida+'</td><td>'+r.duracion+'</td><td>'+r.horomReal+'</td><td style="font-size:10px">'+escapeHtml(r.tecnico||'')+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin registros en el período</div>')+'</div>'+
 
-    // Correctivos
-    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔧 Correctivos ('+otF.length+')</div>'+
-    (otF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Cód.Falla</th><th>Síntoma</th><th>Causa Raíz</th><th>Estado</th></tr>'+
-    otF.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+escapeHtml(o.tipo)+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+escapeHtml(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
+    // Correctivos — solo fallas reales (Correctivo/Falla Operacional), mismo criterio
+    // que la tarjeta KPI de arriba. Las salidas de servicio (Fuera de Servicio) no son
+    // fallas y no se cuentan aquí; antes inflaban este encabezado y no calzaba con el KPI.
+    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔧 Correctivos ('+fallasEq+')</div>'+
+    (fallasEq?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Cód.Falla</th><th>Síntoma</th><th>Causa Raíz</th><th>Estado</th></tr>'+
+    fallasEqArr.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+escapeHtml(o.tipo)+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+escapeHtml(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
 
     // Componentes Mayores
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔩 Componentes Mayores ('+compF.length+')</div>'+
@@ -11789,15 +11795,15 @@ renders.buscar=function(){
   } else {
     // Ranking de equipos problemáticos
     var ranking=eq.map(function(e){
-      var fallasArr=ot.filter(function(o){return o.sigla===e.sigla&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')});
-      var hh=Math.round(reg.filter(function(r){return r.equipo===e.sigla}).reduce(function(s,r){return s+(r.duracionH||0)},0));
+      var fallasArr=ot.filter(function(o){return o.sigla===e.sigla&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&inRange(o.fecha)});
+      var hh=Math.round(reg.filter(function(r){return r.equipo===e.sigla&&inRange(r.fechaEntrada||r.fechaEjec)}).reduce(function(s,r){return s+(r.duracionH||0)},0));
       var costo=hh*(S.g('hh')||25000);
       return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,fallas:fallasArr.length,hh:hh,costo:costo,horom:e.horomActual,mtbf:C.mtbfReal(fallasArr.map(function(o){return o.horom;}))};
     }).sort(function(a,b){return b.fallas-a.fallas||b.costo-a.costo});
 
     content=
-    '<div class="chart-box"><div class="chart-t">🏆 Ranking de Equipos — Más Problemáticos</div>'+
-    '<div class="tbl-wrap"><table><tr><th>#</th><th>Equipo</th><th>Tipo</th><th>Fallas</th><th>HH Consumidas</th><th>Costo</th><th>MTBF</th><th>Acción</th></tr>'+
+    '<div class="chart-box"><div class="chart-t">🏆 Ranking de Equipos — Más Problemáticos'+(hayFiltroFecha?' <span style="font-weight:400;color:var(--tx3);font-size:12px">('+(fAnio||((fDesde||'…')+' → '+(fHasta||'…')))+')</span>':'')+'</div>'+
+    '<div class="tbl-wrap"><table><tr><th>#</th><th>Equipo</th><th>Tipo</th><th>Fallas</th><th>HH Consumidas</th><th>Costo MO</th><th>MTBF</th><th>Acción</th></tr>'+
     ranking.map(function(r,i){
       var mtbf=r.mtbf;
       return'<tr style="'+(r.fallas>3?'background:rgba(239,68,68,.04)':'')+'">'+
