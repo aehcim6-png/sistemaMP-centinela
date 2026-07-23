@@ -7232,11 +7232,15 @@ renders.pred=function(){
       if(o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución'){
         var diasPend=Math.round((Date.now()-new Date(o.fechaEntrada||o.fecha).getTime())/864e5);
         var motivo=o.motivoPendiente||'';
-        var impacto=o.estatusEq==='Fuera de Servicio'?'Alto':'Medio';
+        // Impacto = qué tan grave es que este trabajo siga pendiente. No solo el flag
+        // "Fuera de Servicio": también pesa la criticidad del equipo (un equipo crítico
+        // parado importa más que uno de apoyo). Antes era binario y solo miraba el flag.
+        var eqInfoB=eq.find(function(x){return x.sigla===o.sigla;});
+        var esCritEq=eqInfoB&&(eqInfoB.criticidad==='Crítico'||eqInfoB.criticidad==='Alta');
+        var impacto=(o.estatusEq==='Fuera de Servicio'||esCritEq)?'Alto':'Medio';
         var prioridad=diasPend>7&&impacto==='Alto'?'🔴 Crítico':diasPend>3?'🟡 Atrasado':'🟢 Normal';
         backlog.push({idx:i,sigla:o.sigla,trabajo:o.sintoma||o.tipo,origen:'Correctivo',dias:diasPend,
-          motivo:motivo,impacto:impacto,prioridad:prioridad,estadoOT:o.estadoOT,componente:o.componente||'',
-          predCumplida:o.predCumplida||''});
+          motivo:motivo,impacto:impacto,prioridad:prioridad,estadoOT:o.estadoOT,componente:o.componente||''});
       }
     });
     // From predictive alerts
@@ -7258,7 +7262,7 @@ renders.pred=function(){
       '<div class="card"><div class="card-t">Total Backlog</div><div class="card-v">'+backlog.length+'</div></div>'+
       '</div>'+
       '<div class="tbl-wrap"><table>'+
-      '<tr><th>Prioridad</th><th>Equipo</th><th>Trabajo</th><th>Origen</th><th>Días</th><th>Motivo ✏️</th><th>Impacto</th><th>Componente</th><th>Predicción ✏️</th><th>Acción</th></tr>'+
+      '<tr><th>Prioridad</th><th>Equipo</th><th>Trabajo</th><th>Origen</th><th>Días</th><th>Motivo ✏️</th><th>Impacto</th><th>Componente</th><th>Acción</th></tr>'+
       backlog.map(function(b){
         var bg=b.prioridad.includes('🔴')?'background:rgba(239,68,68,.06)':b.prioridad.includes('🟡')?'background:rgba(245,158,11,.04)':'';
         return'<tr style="'+bg+'">'+
@@ -7270,7 +7274,6 @@ renders.pred=function(){
           '<td>'+(b.idx>=0?'<input value="'+escapeHtml(b.motivo||'')+'" data-ot="'+b.idx+'" data-key="motivoPendiente" onchange="edOT(parseInt(this.dataset.ot),this.dataset.key,this.value)" style="width:90px;'+is+'" placeholder="Motivo...">':'<span style="font-size:10px">'+escapeHtml(b.motivo)+'</span>')+'</td>'+
           '<td style="font-size:11px;font-weight:600;color:'+(b.impacto==='Alto'?'var(--danger)':'var(--w)')+'">'+b.impacto+'</td>'+
           '<td style="font-size:10px">'+escapeHtml(b.componente||'—')+'</td>'+
-          '<td>'+(b.idx>=0?'<select data-ot="'+b.idx+'" data-key="predCumplida" onchange="edOT(parseInt(this.dataset.ot),this.dataset.key,this.value)" style="font-size:10px;'+is+'"><option value="">—</option><option'+(b.predCumplida==='Sí'?' selected':'')+'>Sí</option><option'+(b.predCumplida==='No'?' selected':'')+'>No</option></select>':'—')+'</td>'+
           '<td>'+(b.prioridad.includes('🔴')?'<span style="font-size:10px;color:var(--danger);font-weight:600">Resolver hoy</span>':
             b.prioridad.includes('🟡')?'<span style="font-size:10px;color:var(--w)">Programar</span>':
             '<span style="font-size:10px;color:var(--ok)">Puede esperar</span>')+'</td></tr>';
@@ -8946,7 +8949,7 @@ renders.ayuda=function(){
     '<b>4 vistas disponibles:</b><br><br>'+
     '<b>📊 General:</b> Recomendaciones automáticas, alertas cruzadas por equipo (combina inspecciones + aceite + fallas + PM), quiebres de stock, tendencia costos.<br><br>'+
     '<b>🏗 Por Equipo:</b> Selecciona un equipo y ve su historial completo: pedidos, costos, confianza de la predicción, items más pedidos.<br><br>'+
-    '<b>📋 Backlog Inteligente:</b> Todos los trabajos pendientes con: días atrasados, origen (correctivo/preventivo), motivo (editable), impacto, y campo "Predicción cumplida" para aprendizaje.<br><br>'+
+    '<b>📋 Backlog Inteligente:</b> Todos los trabajos pendientes con: días atrasados, origen (correctivo/preventivo), motivo (editable) e impacto (según criticidad del equipo y si está fuera de servicio).<br><br>'+
     '<b>🧠 Diagnóstico Integral:</b> Responde las 7 preguntas para cualquier equipo. Genera un párrafo de interpretación automática tipo:<br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;margin-top:4px;font-style:italic;font-size:12px">'+
     '"CN-9507 presenta PM1 vencida. Aceite ALERTA en motor (Fe:120). Causa: desgaste interno. Riesgo de falla en 14 días. Acción: Programar PM1 inmediato. 2 repuestos sin stock — requiere compra."</div></div></div>'+
@@ -11455,6 +11458,17 @@ renders.metas=function(){
       if(mv.tipo==='Filtro'){var f=stkM.find(function(s){return s.descripcion===mv.item||s.nParte===mv.nParte;});costoRepM+=(mv.cant||0)*((f&&f.precioUnit)||0);}
       else{var l=lubM.find(function(lb){return lb.nombre===mv.item;});costoRepM+=(mv.cant||0)*((l&&l.precio)||0);}
     });
+    // Backlog histórico: OT que estaban ABIERTAS al cierre de ese mes (se abrieron
+    // antes de fin de mes y todavía no se habían cerrado). Antes se mostraba el conteo
+    // de pendientes de HOY en los 12 meses por igual — un histórico falso.
+    var finMes=mes+'-'+('0'+new Date(anioMetas,mi+1,0).getDate()).slice(-2);
+    var backlogMes=ot.filter(function(o){
+      var abierto=(o.fechaEntrada||o.fecha||o.fechaIngreso||'').slice(0,10);
+      if(!abierto||abierto>finMes)return false;
+      var cerrado=(o.fechaSalida||'').slice(0,10);
+      if(cerrado)return cerrado>finMes;
+      return o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución';
+    }).length;
     realData[m]={
       disp:dispValsM.length?Math.round(dispValsM.reduce(function(s,v){return s+v},0)/dispValsM.length*10)/10:null,
       pms:regM.length,
@@ -11462,7 +11476,7 @@ renders.metas=function(){
       gasto:(regM.length||costoRepM)?Math.round(hhMes*tarifaHH+costoRepM):null,
       cumpl:regM.length?Math.round(regM.filter(function(r){return r.estado==='A tiempo'}).length/regM.length*100):null,
       ratio:regM.length?Math.round(prev/regM.length*100):null,
-      backlog:ot.filter(function(o){return o.estadoOT==='Pendiente'}).length
+      backlog:backlogMes
     };
   });
 
