@@ -7043,21 +7043,24 @@ renders.pred=function(){
   }
 
   // 3. Stock break risk
+  // Riesgo de quiebre unificado con stockEstado (misma fuente que Stock y Dashboard) —
+  // antes esta función tenía su propia copia de la fórmula (34/30, <2…) que podía
+  // desincronizarse del resto del sistema.
   function riesgoQuiebre(){
     var risks=[];
     stk.forEach(function(s){
       var cm=s.consumoMes||s.proyMes||0;if(cm<=0)return;
-      var mesesStock=(s.stockBodega||0)/cm;
-      var leadMeses=(34)/30;
-      if(s.stockBodega<=0){risks.push({item:s.descripcion,nParte:s.nParte,stock:0,consMes:cm,lead:34,riesgo:'🔴 SIN STOCK',accion:'Comprar inmediato'});}
-      else if(mesesStock<leadMeses){risks.push({item:s.descripcion,nParte:s.nParte,stock:s.stockBodega,consMes:cm,lead:34,riesgo:'🔴 QUIEBRE',accion:'Comprar antes de '+Math.round(mesesStock*30)+' días'});}
-      else if(mesesStock<2){risks.push({item:s.descripcion,nParte:s.nParte,stock:s.stockBodega,consMes:cm,lead:34,riesgo:'🟡 BAJO',accion:'Planificar compra'});}
+      var se=stockEstado((s.stockBodega||0)+(s.pendiente||0),cm,s.leadTime);
+      if(se.nivel==='OK')return;
+      var riesgo=se.nivel==='COMPRAR'?((s.stockBodega||0)<=0?'🔴 SIN STOCK':'🔴 QUIEBRE'):'🟡 BAJO';
+      risks.push({item:s.descripcion,nParte:s.nParte,stock:s.stockBodega||0,consMes:cm,lead:s.leadTime||34,riesgo:riesgo,accion:se.motivo});
     });
     lub.forEach(function(l){
       var cm=l.consumoMes||l.proyMes||0;if(cm<=0)return;
-      var mesesStock=(l.stock||0)/cm;
-      if(l.stock<=0&&cm>0){risks.push({item:l.nombre,nParte:'',stock:0,consMes:cm,lead:15,riesgo:'🔴 SIN STOCK',accion:'Comprar inmediato'});}
-      else if(mesesStock<1){risks.push({item:l.nombre,nParte:'',stock:l.stock,consMes:cm,lead:15,riesgo:'🔴 QUIEBRE',accion:'Comprar antes de '+Math.round(mesesStock*30)+' días'});}
+      var se=stockEstado(l.stock||0,cm,15);
+      if(se.nivel==='OK')return;
+      var riesgo=se.nivel==='COMPRAR'?((l.stock||0)<=0?'🔴 SIN STOCK':'🔴 QUIEBRE'):'🟡 BAJO';
+      risks.push({item:l.nombre,nParte:'',stock:l.stock||0,consMes:cm,lead:15,riesgo:riesgo,accion:se.motivo});
     });
     return risks.sort(function(a,b){return a.riesgo>b.riesgo?1:-1;});
   }
@@ -7086,15 +7089,39 @@ renders.pred=function(){
     var carga=proyeccionCarga();
     var quiebres=riesgoQuiebre();
     var maxC=Math.max.apply(null,P.costoMes.map(function(m){return m.c;}))||1;
+    // Datos accionables para la Zona 1
+    var reinc=(typeof diagnosticoFlota==='function')?diagnosticoFlota():[];
+    var reincEmpeora=reinc.filter(function(c){return c.tendencia==='empeora';}).length;
+    var alertEq=eq.map(function(e){return alertaCruzada(e.sigla);});
+    var eqCrit=alertEq.filter(function(a){return a.severity>=5;}).length;
+    var eqVigilar=alertEq.filter(function(a){return a.severity>=2&&a.severity<5;}).length;
+    var quiebresCrit=quiebres.filter(function(r){return r.riesgo.includes('🔴');}).length;
 
     content=
-      // KPIs
+      // ── ZONA 1: NECESITA ATENCIÓN (accionable) ──
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--ac);box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 22%,transparent)"></span>Necesita atención</div><div style="font-size:11px;color:var(--tx3)">sale de datos reales — fallas, inspecciones, aceite y stock</div></div>'+
       '<div class="cards">'+
-      '<div class="card"><div class="card-t">📊 Pedidos Históricos</div><div class="card-v">'+R.totalPedidos.toLocaleString()+'</div><div class="card-s">'+R.rangoDesde+' a '+R.rangoHasta+'</div></div>'+
-      '<div class="card"><div class="card-t">⏱ Lead Time Global</div><div class="card-v">'+R.leadTimeGlobal+'d</div><div class="card-s">Promedio entrega</div></div>'+
-      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🚨 Quiebres Stock</div><div class="card-v" style="color:var(--danger)">'+quiebres.filter(function(r){return r.riesgo.includes('🔴');}).length+'</div><div class="card-s">Comprar ahora</div></div>'+
-      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">🔧 Carga 2 Semanas</div><div class="card-v" style="color:var(--w)">'+carga.pm.length+' PM</div><div class="card-s">'+carga.otPend+' OT pend · '+carga.compras+' compras</div></div>'+
-      '<div class="card"><div class="card-t">🎯 Fallas Evitadas</div><div class="card-v" style="color:var(--ok)">'+(predAciertos||0)+'</div><div class="card-s">'+(predTotal?Math.round(predAciertos/predTotal*100)+'% acierto':'Sin datos aún')+'</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔁 Componentes reincidentes</div><div class="card-v" style="color:var(--danger)">'+reinc.length+'</div><div class="card-s">'+(reincEmpeora?reincEmpeora+' empeorando':'fallan repetido')+'</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🚦 Equipos en alerta cruzada</div><div class="card-v" style="color:var(--danger)">'+eqCrit+'</div><div class="card-s">'+eqVigilar+' a vigilar</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">📦 Riesgo de quiebre</div><div class="card-v" style="color:var(--w)">'+quiebresCrit+'</div><div class="card-s">quiebran antes del lead time</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">🔧 Carga próximas 2 sem.</div><div class="card-v" style="color:var(--ac)">'+carga.pm.length+'</div><div class="card-s">PM · '+carga.otPend+' OT pendientes</div></div>'+
+      '</div>'+
+      // Reincidencia de fallas (resumen — detalle completo en la solapa "Flota")
+      '<div class="chart-box" style="margin:16px 0;border-left:3px solid var(--danger)"><div class="chart-t">🔁 Reincidencia de fallas <span style="font-size:11px;color:var(--tx3);font-weight:400">— componentes que vuelven al taller</span></div>'+
+      (reinc.length?
+        '<div class="tbl-wrap"><table><tr><th>Componente</th><th>Dónde se repite</th><th>Veces</th><th>Tendencia</th><th>Lectura accionable</th></tr>'+
+        reinc.slice(0,6).map(function(c){
+          var tend=c.tendencia==='empeora'?'<span style="color:var(--danger);font-weight:700">▲ empeora</span>':c.tendencia==='mejora'?'<span style="color:var(--ok)">▼ mejora</span>':'<span style="color:var(--tx3)">— estable</span>';
+          var donde=(c.vecesEnEsePeor>=3)?'<span class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'')+'</span> <span style="color:var(--tx3);font-size:10px">mismo equipo</span>':c.nEquipos+' equipos';
+          return'<tr style="'+(c.severidad>=3?'background:rgba(239,68,68,.04)':'')+'">'+
+            '<td style="font-weight:600">'+escapeHtml(c.componente)+'</td>'+
+            '<td style="font-size:11px">'+donde+'</td>'+
+            '<td style="text-align:center;font-weight:600">'+c.total+'</td>'+
+            '<td style="font-size:11px">'+tend+'</td>'+
+            '<td style="font-size:11px;color:var(--tx2);max-width:340px;white-space:normal;line-height:1.45">'+escapeHtml(c.sugerencia)+(c.cubiertoPorPM===false?' <span class="badge b-y">no está en PM</span>':'')+'</td></tr>';
+        }).join('')+'</table></div>'+
+        (reinc.length>6?'<div style="text-align:center;padding:7px"><span onclick="$(\'fPredVista\').value=\'flota\';renders.pred()" style="color:var(--ac);cursor:pointer;font-size:11px">Ver los '+reinc.length+' con causa raíz y FMEA →</span></div>':'')
+        :'<div style="padding:16px;text-align:center;color:var(--tx3);font-size:12px">Sin reincidencias detectadas todavía (se necesitan ≥2 fallas del mismo componente registradas).</div>')+
       '</div>'+
 
       // RECOMENDACIONES AUTOMÁTICAS
@@ -7136,25 +7163,29 @@ renders.pred=function(){
       }).join('')+
       '</table></div></div>'+
 
-      // Cost trend
-      '<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">'+
-      '<div class="chart-box"><div class="chart-t">💵 Tendencia Costos Mensuales</div>'+
+      // Riesgo de quiebre (accionable) — mismo criterio unificado que Stock y Dashboard
+      '<div class="chart-box" style="margin-bottom:22px;border-left:3px solid var(--w)"><div class="chart-t">📦 Riesgo de quiebre de stock <span style="font-size:11px;color:var(--tx3);font-weight:400">— mismo criterio que Stock y Dashboard (quiebre antes del lead time)</span></div>'+
+      (quiebres.length?
+        '<div class="tbl-wrap"><table><tr><th>Ítem</th><th>N° parte</th><th>Stock</th><th>Estado</th><th>Acción</th></tr>'+
+        quiebres.slice(0,15).map(function(q){
+          return'<tr><td style="font-size:11px">'+escapeHtml(q.item.substring(0,42))+'</td><td class="mono" style="font-size:10px;color:var(--tx3)">'+escapeHtml(q.nParte||'—')+'</td><td style="text-align:center">'+q.stock+'</td><td style="font-size:11px;font-weight:600">'+q.riesgo+'</td><td style="font-size:11px;color:var(--tx2)">'+escapeHtml(q.accion||'')+'</td></tr>';
+        }).join('')+'</table></div>'
+        :'<div style="color:var(--ok);text-align:center;padding:20px">✅ Sin riesgo de quiebre</div>')+
+      '</div>'+
+
+      // ── ZONA 2: HISTÓRICO DE COMPRAS (reporte, mira para atrás) ──
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin:6px 0 14px"><div style="font-size:15px;font-weight:700;color:var(--tx2);position:relative;padding-left:16px"><span style="position:absolute;left:0;top:6px;width:8px;height:8px;border-radius:2px;background:var(--tx3)"></span>Gasto y compras — histórico</div><div style="font-size:11px;color:var(--tx3)">reporte: mira para atrás, no predice</div></div>'+
+      '<div class="cards">'+
+      '<div class="card"><div class="card-t">📊 Pedidos históricos</div><div class="card-v">'+R.totalPedidos.toLocaleString()+'</div><div class="card-s">'+R.rangoDesde+' a '+R.rangoHasta+'</div></div>'+
+      '<div class="card"><div class="card-t">💰 Gasto acumulado</div><div class="card-v" style="font-size:22px">$'+(R.totalCosto/1e6).toFixed(0)+'M</div><div class="card-s">~$'+(R.promedioMensual/1e6).toFixed(1)+'M / mes</div></div>'+
+      '<div class="card"><div class="card-t">⏱ Lead time promedio</div><div class="card-v">'+R.leadTimeGlobal+'<span style="font-size:14px;color:var(--tx3)">d</span></div><div class="card-s">supuesto (histórico sin fecha de entrega)</div></div>'+
+      '<div class="card"><div class="card-t">🔩 Ítem más pedido</div><div class="card-v" style="font-size:14px;font-weight:650;padding:7px 0">'+escapeHtml((P.topItems[0]?P.topItems[0].item:'—').substring(0,22))+'</div><div class="card-s">'+(P.topItems[0]?P.topItems[0].total+' pedidos':'sin datos')+'</div></div>'+
+      '</div>'+
+      '<div class="chart-box" style="margin-top:14px"><div class="chart-t">💵 Gasto mensual en compras <span style="font-size:11px;color:var(--tx3);font-weight:400">— últimos meses</span></div>'+
       '<div class="bars">'+P.costoMes.map(function(m){
         var tipTxt=m.m+': $'+fn(Math.round(m.c));
-        return'<div class="bar-c"><div class="bar-v" style="font-size:9px">$'+(m.c/1e6).toFixed(1)+'M</div><div class="bar" style="height:'+Math.max(m.c/maxC*100,3)+'%;background:var(--ac);cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+m.m.slice(5)+'</div></div>';
-      }).join('')+'</div></div>'+
-
-      // Stock break risks
-      '<div class="chart-box"><div class="chart-t">📦 Riesgo de Quiebre</div>'+
-      (quiebres.length?
-        '<div style="max-height:200px;overflow-y:auto">'+
-        quiebres.slice(0,15).map(function(q){
-          return'<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 6px;font-size:11px;border-bottom:1px solid var(--bd)">'+
-            '<span style="flex:1">'+q.item.substring(0,30)+'</span>'+
-            '<span style="margin:0 6px;font-weight:600">'+q.riesgo+'</span></div>';
-        }).join('')+'</div>'
-        :'<div style="color:var(--ok);text-align:center;padding:20px">✅ Sin riesgo de quiebre</div>')+
-      '</div></div>';
+        return'<div class="bar-c"><div class="bar-v" style="font-size:9px">$'+(m.c/1e6).toFixed(1)+'M</div><div class="bar" style="height:'+Math.max(m.c/maxC*100,3)+'%;background:#7b83c9;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+m.m.slice(5)+'</div></div>';
+      }).join('')+'</div></div>';
 
   } else if(fVista==='equipo' && fEq && P.equipos[fEq]){
     var E=P.equipos[fEq];
@@ -7353,11 +7384,11 @@ renders.pred=function(){
   }
 
 $('s-pred').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📈 Análisis Predictivo</div>'+
-    '<div class="sec-s">Motor de inteligencia · '+R.totalPedidos.toLocaleString('es-CL')+' pedidos · Alerta cruzada · Confianza · Recomendaciones</div></div></div>'+
+    '<div class="sec-h"><div><div class="sec-t">📈 Predictivo &amp; Confiabilidad</div>'+
+    '<div class="sec-s">Arriba lo accionable (qué anticipar) · abajo el histórico de compras · todo desde datos reales</div></div></div>'+
     '<div class="toolbar">'+
     '<select id="fPredVista" onchange="renders.pred()" style="font-weight:600">'+
-    '<option value="general"'+(fVista==='general'?' selected':'')+'>📊 General + Recomendaciones</option>'+
+    '<option value="general"'+(fVista==='general'?' selected':'')+'>🟢 Necesita atención + histórico</option>'+
     '<option value="equipo"'+(fVista==='equipo'||fVista==='diag'?' selected':'')+'>🏗 Por Equipo</option>'+
     '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'>📋 Backlog Inteligente</option>'+
     '<option value="items"'+(fVista==='items'?' selected':'')+'>🔧 Top Items</option>'+
