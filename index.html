@@ -2091,10 +2091,16 @@ function _parseProgDiariaHoja(rows){
     var idxNombre=header.findIndex(function(v){return typeof v==='string'&&v.trim()==='Nombre';});
     var idxCargo=header.findIndex(function(v){return typeof v==='string'&&v.trim()==='Cargo';});
     if(idxNombre<0||idxCargo<0)return{personas:[],responsable:''};
+    // Columnas de bloque = todo lo que va DESPUÉS de Cargo… salvo que el Excel real
+    // repite el encabezado "Cargo" (y a veces "Nombre") en varias columnas de formato.
+    // Sin este filtro, esas columnas repetidas entraban como bloques de horario
+    // fantasma con etiqueta "Cargo" (se veían como 2-3 columnas CARGO extra en la grilla).
     var bloqueCols=[];
     for(var c=idxCargo+1;c<header.length;c++){
-      if(header[c]!=null&&String(header[c]).trim()!==''){
-        bloqueCols.push({col:c,label:String(header[c]).replace(/[\r\n]+/g,' ').trim()});
+      var hb=header[c]!=null?String(header[c]).replace(/[\r\n]+/g,' ').trim():'';
+      var hbl=hb.toLowerCase();
+      if(hb!==''&&hbl!=='cargo'&&hbl!=='nombre'){
+        bloqueCols.push({col:c,label:hb});
       }
     }
     var responsable='';
