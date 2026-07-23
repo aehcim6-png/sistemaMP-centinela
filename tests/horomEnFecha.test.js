@@ -56,3 +56,37 @@ describe('horomEnFecha — estimación fiel del horómetro en una fecha', () => 
     expect(e.horom).toBe(1700); // 2000 - 10*30
   });
 });
+
+describe('horomEnFecha con ancla de inicio operacional', () => {
+  it('en la puesta en marcha el horómetro es 0', () => {
+    const e = horomEnFecha([], '2021-01-01', 21000, '2026-01-01', 16, '2021-01-01');
+    expect(e.horom).toBe(0);
+    expect(e.metodo).toBe('inicio');
+  });
+
+  it('sin historial: recta desde inicio (0) hasta hoy (horomActual)', () => {
+    // 2021→2026 = 60 meses; a la mitad (2023-07 aprox) ~ 50%. Uso puntos exactos.
+    const e = horomEnFecha([], '2023-07-02', 21000, '2026-01-01', 16, '2021-01-01');
+    // días inicio→fecha / inicio→hoy ≈ proporción
+    expect(e.metodo).toBe('inicio');
+    expect(e.horom).toBeGreaterThan(9000);
+    expect(e.horom).toBeLessThan(12000);
+  });
+
+  it('con historial, fecha anterior traza recta desde inicio hasta el primer dato real', () => {
+    const hist = [
+      { fecha: '2026-01-01', horom: 20000 },
+      { fecha: '2026-01-31', horom: 20300 },
+    ];
+    // inicio 2021-01-01 → 0; primer dato 2026-01-01 → 20000. Punto medio del tramo largo.
+    const mitad = horomEnFecha(hist, '2023-07-02', 20300, '2026-02-01', 16, '2021-01-01');
+    expect(mitad.metodo).toBe('inicio');
+    expect(mitad.horom).toBeGreaterThan(8000);
+    expect(mitad.horom).toBeLessThan(12000);
+  });
+
+  it('nunca supera el horómetro actual', () => {
+    const e = horomEnFecha([], '2030-01-01', 21000, '2026-01-01', 16, '2021-01-01');
+    expect(e.horom).toBeLessThanOrEqual(21000);
+  });
+});

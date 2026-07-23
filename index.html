@@ -205,7 +205,7 @@ const TABLA_REAL={
   lub:{tabla:'lubricantes',clave:'_id',claveDb:'id',cols:['nombre','unidad','stock','consumoMes','proyMes','precio']},
   repuestos:{tabla:'repuestos',clave:'_id',claveDb:'id',cols:['componente','nParte','equipo','stockActual','stockMinimo','leadTime','precioUnit','proveedor']},
   prg:{tabla:'programa',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','hrsDia','horomActual','meses']},
-  compMayores:{tabla:'componentes_mayores',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','comp','horomComp','vidaUtil','costoRef','fechaInst','estado','obs']},
+  compMayores:{tabla:'componentes_mayores',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','comp','horomComp','vidaUtil','costoRef','fechaInst','estado','obs','esOriginal']},
   insp:{tabla:'inspecciones',clave:'_id',claveDb:'id',cols:['equipo','fecha','horometro','visual','niveles','fugas','luces','frenos','neumaticos','obs','inspector']},
   aceite:{tabla:'analisis_aceite',clave:'_id',claveDb:'id',cols:['sigla','equipo','fecha','nMuestra','hrsComp','hrsLub','lubricante','componente','descriptor','hierro','cobre','plomo','aluminio','silicio','cromo','sodio','visc40','visc100','pq','tbn','tan','isoCode','espEst1','espEst2','espEst3','demulsibilidad','estado','comentario']},
   ordenes:{tabla:'ordenes_compra',clave:'_id',claveDb:'id',cols:['componente','nParte','cantidad','costoEstimado','proveedor','fecha','estado','equipo','obs','fechaEntrega']},
@@ -222,7 +222,7 @@ const TABLA_REAL={
   // el registro normal de un PM, que hace cualquier operador.
   mapaRep:{tabla:'mapeo_repuestos',clave:'_id',claveDb:'id',cols:['pautaId','tipo','refId']},
   // Clave natural: el propio campo ya identifica la fila, tanto en JS como en la tabla.
-  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato','unidad','criticidad']},
+  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato','unidad','criticidad','inicioOper']},
   neu:{tabla:'neumaticos',clave:'id',claveDb:'id',cols:['id','sigla','tipo','marca','serie','medida','posicion','numPos','estado','tipoEquipo','vidaUtil','remNuevo','remanente','pctRemanente','alerta','fechaInst','ultimaMedicion','horasAcum','horomActual','horomInstalacion','horasBase','numSensor','obs']},
   informesFalla:{tabla:'informes_falla',clave:'id',claveDb:'id',cols:['id','sigla','tipo','modelo','componente','tipoEvento','descripcion','causaProbable','costoEstimado','horometroActual','generadoPor','fecha','fechaCreacion','fotos']},
   // Histórico real de órdenes de compra (jun-2022 a jun-2026). Solo lectura: nada en la
@@ -9774,14 +9774,17 @@ renders.comp=function(){
     var eqObj=eq.find(function(e){return e.sigla===c.sigla});
     var horomActual=eqObj?eqObj.horomActual:0;
     var hrsDia=eqObj?eqObj.hrsDia:12;
+    var inicio=eqObj?eqObj.inicioOper:null;
     var horomComp=c.horomComp;
     c._estimado=false;c._metodoEst='';
-    if((horomComp==null||horomComp===''||isNaN(horomComp))&&c.fechaInst){
-      var e=horomEnFecha(lecturasPorSigla[c.sigla]||[],c.fechaInst,horomActual,HOY_COMP,hrsDia);
+    // Original → horas usadas = horómetro completo, no se estima. Si no es original y
+    // hay fecha pero no horómetro medido, se estima anclando en la puesta en marcha.
+    if(!c.esOriginal&&(horomComp==null||horomComp===''||isNaN(horomComp))&&c.fechaInst){
+      var e=horomEnFecha(lecturasPorSigla[c.sigla]||[],c.fechaInst,horomActual,HOY_COMP,hrsDia,inicio);
       horomComp=e.horom;c._estimado=true;c._metodoEst=e.metodo;
     }
     c._horomEff=horomComp;
-    var st=compEstado({fechaInst:c.fechaInst,horomComp:horomComp,vidaUtil:c.vidaUtil},horomActual,hrsDia);
+    var st=compEstado({esOriginal:c.esOriginal,fechaInst:c.fechaInst,horomComp:horomComp,vidaUtil:c.vidaUtil},horomActual,hrsDia);
     c._st=st;
     c.hrsUsadas=st.hrsUsadas;c.hrsRest=st.hrsRest;c.pctVida=st.pctVida;
     c.diasRest=st.diasRest;c.estadoCalc=st.estado;
@@ -9807,17 +9810,18 @@ renders.comp=function(){
     '<div class="card"><div class="card-t">Costo Próximos Cambios</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoTotal).toLocaleString()+'</div><div class="card-s">Componentes &lt;2000h restantes</div></div>'+
     '<div class="card"><div class="card-t">⚪ Falta instalación</div><div class="card-v" style="color:var(--tx3)">'+sinDato+'</div><div class="card-s">Sin proyección hasta ingresar el dato</div></div>'+
     '</div>'+
-    (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)">⚠️ <b>'+sinDato+' de '+fil.length+' componentes</b> no tienen <b>fecha de instalación</b>. Con solo ingresar la fecha, el sistema <b>estima el horómetro a esa fecha</b> desde la tasa real del equipo (aparece con "≈") y ya calcula % de vida y horas restantes. Si conoces el horómetro medido de instalación, ingrésalo en "Horóm. Inst." y reemplaza la estimación. <b>Ojo:</b> si un equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>, no la de 2020.</div>':'')+
+    (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)">⚠️ <b>'+sinDato+' de '+fil.length+' componentes</b> sin datos para proyectar. Dos formas de completarlo: <b>(1)</b> si es el <b>original</b> del equipo (instalado nuevo), marca la casilla "Orig." → sus horas usadas = el horómetro completo. <b>(2)</b> si se cambió, ingresa la <b>fecha de instalación</b> y el sistema <b>estima el horómetro a esa fecha</b> anclando en la puesta en marcha del equipo (aparece con "≈"). <b>Ojo:</b> si el equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>.</div>':'')+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Componente</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
+    '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
     fil.map(function(c,idx){
       var realIdx=compData.indexOf(c);
-      var st=c._st;var cd=st.conDato;var dash='<span style="color:var(--tx3)">—</span>';
+      var st=c._st;var cd=st.conDato;var dash='<span style="color:var(--tx3)">—</span>';var orig=!!c.esOriginal;
       return'<tr style="'+(cd&&c.hrsRest<=0?'background:rgba(239,68,68,.06)':(cd?'':'opacity:.72'))+'">'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(c.sigla)+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'comp\',this.innerText.trim())" style="font-weight:600">'+c.comp+'</td>'+
-        '<td class="mono"><span class="ed" contenteditable onblur="edComp('+realIdx+',\'horomComp\',this.innerText.trim()===\'\'?null:(parseFloat(this.innerText.replace(/[^0-9.]/g,\'\'))||null))" style="display:inline-block;min-width:36px">'+((c.horomComp==null||c.horomComp==='')?'':c.horomComp)+'</span>'+(c._estimado?' <span style="color:var(--tx3);font-size:10px" title="Horómetro estimado a la fecha de instalación desde la tasa real del equipo ('+c._metodoEst+'). Ingresa el valor medido si lo tienes.">≈'+Number(c._horomEff).toLocaleString()+'</span>':'')+'</td>'+
-        '<td><input type="date" value="'+(c.fechaInst||'')+'" onchange="edComp('+realIdx+',\'fechaInst\',this.value||null)" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px;font-size:10px"></td>'+
+        '<td style="text-align:center"><input type="checkbox" '+(orig?'checked':'')+' onchange="edComp('+realIdx+',\'esOriginal\',this.checked)" title="Componente original del equipo (instalado nuevo). Sus horas usadas = horómetro completo."></td>'+
+        '<td class="mono">'+(orig?'<span style="color:var(--tx3);font-size:10px">nuevo</span>':('<span class="ed" contenteditable onblur="edComp('+realIdx+',\'horomComp\',this.innerText.trim()===\'\'?null:(parseFloat(this.innerText.replace(/[^0-9.]/g,\'\'))||null))" style="display:inline-block;min-width:36px">'+((c.horomComp==null||c.horomComp==='')?'':c.horomComp)+'</span>'+(c._estimado?' <span style="color:var(--tx3);font-size:10px" title="Horómetro estimado a la fecha de instalación anclando en la puesta en marcha del equipo ('+c._metodoEst+'). Ingresa el valor medido si lo tienes.">≈'+Number(c._horomEff).toLocaleString()+'</span>':'')))+'</td>'+
+        '<td>'+(orig?dash:'<input type="date" value="'+(c.fechaInst||'')+'" onchange="edComp('+realIdx+',\'fechaInst\',this.value||null)" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px;font-size:10px">')+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'vidaUtil\',parseFloat(this.innerText)||0)">'+c.vidaUtil+'</td>'+
         '<td class="mono">'+(cd?c.hrsUsadas:dash)+'</td>'+
         '<td>'+(cd?'<div style="display:flex;align-items:center;gap:4px"><div style="background:color-mix(in srgb,'+st.barCol+' 18%,var(--bg4));border-radius:3px;height:8px;width:60px;overflow:hidden"><div style="background:'+st.barCol+';height:100%;width:'+Math.min(c.pctVida,100)+'%"></div></div><span style="font-size:10px">'+c.pctVida+'%</span></div>':dash)+'</td>'+
@@ -11874,7 +11878,8 @@ window.editFicha=function(sigla){
     '<div class="fg"><label>VIN / Chasis</label><input id="ftVIN" value="'+escapeHtml(e.vin||'')+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Proveedor</label><input id="ftProv" value="'+escapeHtml(e.proveedor||'')+'"></div>'+
     '<div class="fg"><label>Valor Compra ($)</label><input type="number" id="ftValor" value="'+(e.valorCompra||0)+'"></div>'+
-    '<div class="fg"><label>Fecha Compra</label><input type="date" id="ftFechaCompra" value="'+(e.fechaCompra||'')+'"></div></div>'+
+    '<div class="fg"><label>Fecha Compra</label><input type="date" id="ftFechaCompra" value="'+(e.fechaCompra||'')+'"></div>'+
+    '<div class="fg"><label title="Puesta en marcha en faena (horómetro ~0). Ancla para estimar la antigüedad de componentes.">Inicio Operacional</label><input type="date" id="ftInicioOper" value="'+(e.inicioOper||'')+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Garantía Hasta (hrs)</label><input type="number" id="ftGarantia" value="'+(e.garantiaHasta||0)+'"></div>'+
     '<div class="fg"><label>Contrato Servicio</label><input id="ftContrato" value="'+escapeHtml(e.contrato||'')+'"></div>'+
     '<div class="fg"><label>Criticidad</label><select id="ftCriticidad"><option'+(e.criticidad==='Crítico'?' selected':'')+'>Crítico</option><option'+(e.criticidad==='Esencial'?' selected':'')+'>Esencial</option><option'+(!e.criticidad||e.criticidad==='General'?' selected':'')+'>General</option></select></div>'+
@@ -11938,6 +11943,7 @@ window.saveFicha=function(sigla){
   eq[idx].proveedor=$('ftProv').value||'';
   eq[idx].valorCompra=parseFloat($('ftValor').value)||0;
   eq[idx].fechaCompra=$('ftFechaCompra').value||'';
+  eq[idx].inicioOper=$('ftInicioOper').value||null;
   eq[idx].garantiaHasta=parseFloat($('ftGarantia').value)||0;
   eq[idx].contrato=$('ftContrato').value||'';
   eq[idx].criticidad=$('ftCriticidad')?.value||'General';

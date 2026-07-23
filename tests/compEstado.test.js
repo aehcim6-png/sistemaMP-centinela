@@ -45,4 +45,17 @@ describe('compEstado — estado de vida útil de componentes mayores', () => {
     expect(st.hrsRest).toBe(1500);
     expect(st.estado).toContain('MONITOREAR');
   });
+
+  it('original: horas usadas = horómetro completo, sin necesidad de fecha', () => {
+    const st = compEstado({ esOriginal: true, vidaUtil: 15000 }, 21000, 16);
+    expect(st.conDato).toBe(true);
+    expect(st.hrsUsadas).toBe(21000);
+    expect(st.hrsRest).toBe(0);       // 21000 > 15000 → vencido
+    expect(st.estado).toContain('VENCIDO');
+  });
+
+  it('no original y con fecha pero sin horómetro resuelto → falta instalación', () => {
+    const st = compEstado({ fechaInst: '2023-01-01', vidaUtil: 15000 }, 21000, 16);
+    expect(st.conDato).toBe(false);
+  });
 });

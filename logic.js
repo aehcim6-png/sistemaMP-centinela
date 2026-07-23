@@ -424,12 +424,17 @@ function stockEstado(stockBodega, consumoMes, leadDias){
 // 🟢 OK tranquilizador: devolvemos conDato=false para que la UI pida el dato real.
 function compEstado(comp, horomActual, hrsDia){
   var c=comp||{};
-  if(!c.fechaInst){
+  var esOrig=!!c.esOriginal;
+  // Original = instalado con el equipo nuevo → sus horas usadas son el horómetro
+  // completo, sin necesidad de estimar fecha. Si no es original, hace falta la fecha
+  // de instalación (con horómetro medido o estimado) para saber cuánto lleva.
+  if(!esOrig && !(c.fechaInst && c.horomComp!=null)){
     return {conDato:false, hrsUsadas:null, hrsRest:null, pctVida:null, diasRest:null,
       estado:'⚪ Falta instalación', barCol:'var(--tx3)'};
   }
   var hActual=horomActual||0;
-  var hrsUsadas=hActual-(c.horomComp||0);
+  var horomInst=esOrig?0:(c.horomComp||0);
+  var hrsUsadas=hActual-horomInst;
   if(hrsUsadas<0)hrsUsadas=0; // instalación posterior al horómetro actual = error de dato → 0, no el horómetro completo
   var vida=c.vidaUtil||0;
   var hrsRest=Math.max(vida-hrsUsadas,0);
@@ -478,22 +483,34 @@ function tasaDiariaReal(readings, nominal){
 
 // Estima el horómetro/km que un equipo tenía en fechaISO, lo más fiel posible:
 //  - fecha DENTRO del historial → interpola entre las 2 lecturas vecinas (casi exacto).
-//  - fecha ANTERIOR al historial → extrapola hacia atrás con la tasa real del equipo.
+//  - fecha ANTERIOR al historial → si se conoce el INICIO operacional (puesta en marcha,
+//    donde el horómetro era ~0) traza la recta (inicio,0)→(primer dato real): reproduce
+//    la "cuenta fácil" horómetro/meses por equipo. Si no hay inicio, extrapola con la
+//    tasa real hacia atrás.
 //  - fecha POSTERIOR a la última lectura → extrapola hacia adelante (tope horomActual).
-//  - sin historial usable → desde horomActual hacia atrás con la tasa nominal.
-// Nunca devuelve negativo (si la extrapolación cruza 0, se limita a 0 — señal de que el
-// equipo no pudo trabajar a ese ritmo desde tan atrás, típico de componente ya cambiado).
-function horomEnFecha(readings, fechaISO, horomActual, hoyISO, nominal){
+//  - sin historial usable → recta (inicio,0)→(hoy,horomActual) si hay inicio; si no, tasa.
+// Nunca devuelve negativo ni pasa el horómetro actual.
+function horomEnFecha(readings, fechaISO, horomActual, hoyISO, nominal, inicio){
   var tasa=tasaDiariaReal(readings,nominal);
   var rs=(readings||[]).filter(function(r){return r&&r.fecha&&r.horom!=null&&isFinite(r.horom);})
     .slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+  // Antes o en la puesta en marcha → horómetro 0.
+  if(inicio&&fechaISO<=inicio)return {horom:0, metodo:'inicio', tasaDia:tasa};
   var metodo=rs.length>=2?'':'nominal';
   var est=null;
   if(rs.length){
     var first=rs[0], last=rs[rs.length-1];
-    if(fechaISO<=first.fecha){
-      est=first.horom-tasa*_diasEntreISO(fechaISO,first.fecha);
-      metodo=metodo||'extrapolado';
+    if(fechaISO<first.fecha){
+      if(inicio&&inicio<first.fecha){
+        // recta desde (inicio, 0) hasta (first.fecha, first.horom)
+        var spanI=_diasEntreISO(inicio,first.fecha);
+        var fracI=spanI>0?_diasEntreISO(inicio,fechaISO)/spanI:0;
+        est=first.horom*fracI;
+        metodo='inicio';
+      } else {
+        est=first.horom-tasa*_diasEntreISO(fechaISO,first.fecha);
+        metodo=metodo||'extrapolado';
+      }
     } else if(fechaISO>=last.fecha){
       est=last.horom+tasa*_diasEntreISO(last.fecha,fechaISO);
       if(horomActual!=null&&est>horomActual)est=horomActual;
@@ -510,12 +527,19 @@ function horomEnFecha(readings, fechaISO, horomActual, hoyISO, nominal){
         }
       }
     }
+  } else if(inicio){
+    // sin historial: recta (inicio,0)→(hoy,horomActual)
+    var spanH=_diasEntreISO(inicio,hoyISO||fechaISO);
+    var fracH=spanH>0?_diasEntreISO(inicio,fechaISO)/spanH:0;
+    est=(horomActual||0)*fracH;
+    metodo='inicio';
   } else {
     est=(horomActual||0)-tasa*_diasEntreISO(fechaISO,hoyISO||fechaISO);
     metodo='nominal';
   }
   if(est==null||!isFinite(est))est=0;
   if(est<0)est=0;
+  if(horomActual!=null&&est>horomActual)est=horomActual;
   return {horom:Math.round(est), metodo:metodo, tasaDia:tasa};
 }
 
