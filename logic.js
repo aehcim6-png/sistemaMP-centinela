@@ -416,6 +416,32 @@ function stockEstado(stockBodega, consumoMes, leadDias){
   return{nivel:'OK',ico:'✅',txt:'OK',meses:meses,motivo:Math.round(meses*10)/10+' meses de cobertura'};
 }
 
+// ═══ COMPONENTES MAYORES — estado según vida útil real ═══
+// Un componente solo tiene proyección confiable si se conoce CUÁNDO se instaló.
+// Sin fechaInst no sabemos su antigüedad real: los defaults auto-generados ponen
+// horomComp = horómetro actual del equipo, lo que fingiría "0 horas usadas" para un
+// motor que puede ser el original con 20.000h. En ese caso NO inventamos un % ni un
+// 🟢 OK tranquilizador: devolvemos conDato=false para que la UI pida el dato real.
+function compEstado(comp, horomActual, hrsDia){
+  var c=comp||{};
+  if(!c.fechaInst){
+    return {conDato:false, hrsUsadas:null, hrsRest:null, pctVida:null, diasRest:null,
+      estado:'⚪ Falta instalación', barCol:'var(--tx3)'};
+  }
+  var hActual=horomActual||0;
+  var hrsUsadas=hActual-(c.horomComp||0);
+  if(hrsUsadas<0)hrsUsadas=0; // instalación posterior al horómetro actual = error de dato → 0, no el horómetro completo
+  var vida=c.vidaUtil||0;
+  var hrsRest=Math.max(vida-hrsUsadas,0);
+  var pctVida=vida?Math.round(hrsUsadas/vida*100):null;
+  var dia=hrsDia>0?hrsDia:12;
+  var diasRest=Math.round(hrsRest/dia);
+  var estado=hrsRest<=0?'🔴 VENCIDO':hrsRest<1000?'🟡 PLANIFICAR':hrsRest<2000?'📋 MONITOREAR':'🟢 OK';
+  var barCol=pctVida>=90?'var(--danger)':pctVida>=70?'var(--w)':'var(--ok)';
+  return {conDato:true, hrsUsadas:hrsUsadas, hrsRest:hrsRest, pctVida:pctVida,
+    diasRest:diasRest, estado:estado, barCol:barCol};
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -444,6 +470,7 @@ if (typeof window !== 'undefined') {
   window.precioMaterial = precioMaterial;
   window.predFromOrdenes = predFromOrdenes;
   window.stockEstado = stockEstado;
+  window.compEstado = compEstado;
   window.rangoDias = rangoDias;
   window._rangoDias = rangoDias;
   window.dispDownMap = dispDownMap;
@@ -457,6 +484,6 @@ if (typeof module !== 'undefined' && module.exports) {
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM,
-    predFromOrdenes, stockEstado, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
+    predFromOrdenes, stockEstado, compEstado, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
   };
 }

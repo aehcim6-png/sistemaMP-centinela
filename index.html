@@ -9755,21 +9755,20 @@ renders.comp=function(){
   var fil=fEquipo?compData.filter(function(c){return c.sigla===fEquipo}):compData;
   var siglas=[...new Set(compData.map(function(c){return c.sigla}))];
 
-  // Calculate remaining for each
+  // Estado de vida útil — fuente única compEstado (logic.js). Sin fecha de instalación
+  // NO se inventa un % ni un "OK": el componente queda como "falta instalación".
   fil.forEach(function(c){
     var eqObj=eq.find(function(e){return e.sigla===c.sigla});
     var horomActual=eqObj?eqObj.horomActual:0;
-    c.hrsUsadas=horomActual-(c.horomComp||0);
-    if(c.hrsUsadas<0)c.hrsUsadas=horomActual;
-    c.hrsRest=Math.max((c.vidaUtil||0)-c.hrsUsadas,0);
-    c.pctVida=c.vidaUtil?Math.round(c.hrsUsadas/c.vidaUtil*100):0;
-    var hrsDia=eqObj?eqObj.hrsDia:12;
-    c.diasRest=hrsDia>0?Math.round(c.hrsRest/hrsDia):0;
-    c.estadoCalc=c.hrsRest<=0?'🔴 VENCIDO':c.hrsRest<1000?'🟡 PLANIFICAR':c.hrsRest<2000?'📋 MONITOREAR':'🟢 OK';
+    var st=compEstado(c,horomActual,eqObj?eqObj.hrsDia:12);
+    c._st=st;
+    c.hrsUsadas=st.hrsUsadas;c.hrsRest=st.hrsRest;c.pctVida=st.pctVida;
+    c.diasRest=st.diasRest;c.estadoCalc=st.estado;
   });
 
-  var criticos=fil.filter(function(c){return c.hrsRest<=1000}).length;
-  var costoTotal=fil.filter(function(c){return c.hrsRest<=2000}).reduce(function(s,c){return s+(c.costoRef||0)},0);
+  var sinDato=fil.filter(function(c){return !c._st.conDato}).length;
+  var criticos=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=1000}).length;
+  var costoTotal=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=2000}).reduce(function(s,c){return s+(c.costoRef||0)},0);
 
   $('s-comp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">🔩 Control de Componentes Mayores</div>'+
@@ -9785,21 +9784,24 @@ renders.comp=function(){
     '<div class="card"><div class="card-t">Componentes</div><div class="card-v">'+fil.length+'</div></div>'+
     '<div class="card"><div class="card-t">🔴 Críticos (&lt;1000h)</div><div class="card-v" style="color:var(--danger)">'+criticos+'</div></div>'+
     '<div class="card"><div class="card-t">Costo Próximos Cambios</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoTotal).toLocaleString()+'</div><div class="card-s">Componentes &lt;2000h restantes</div></div>'+
+    '<div class="card"><div class="card-t">⚪ Falta instalación</div><div class="card-v" style="color:var(--tx3)">'+sinDato+'</div><div class="card-s">Sin proyección hasta ingresar el dato</div></div>'+
     '</div>'+
+    (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)">⚠️ <b>'+sinDato+' de '+fil.length+' componentes</b> no tienen fecha de instalación. Para esos no se calcula "% Vida" ni "Hrs Restantes" — se necesita el <b>horómetro del equipo cuando se instaló el componente</b> (columna "Horóm. Instalación") y su <b>fecha de instalación</b>. Mientras falte el dato, no aparecerán como críticos aunque lo estén.</div>':'')+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Componente</th><th>Hrs Comp</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
+    '<tr><th>Equipo</th><th>Componente</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
     fil.map(function(c,idx){
       var realIdx=compData.indexOf(c);
-      var barCol=c.pctVida>=90?'var(--danger)':c.pctVida>=70?'var(--w)':'var(--ok)';
-      return'<tr style="'+(c.hrsRest<=0?'background:rgba(239,68,68,.06)':'')+'">'+
+      var st=c._st;var cd=st.conDato;var dash='<span style="color:var(--tx3)">—</span>';
+      return'<tr style="'+(cd&&c.hrsRest<=0?'background:rgba(239,68,68,.06)':(cd?'':'opacity:.72'))+'">'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(c.sigla)+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'comp\',this.innerText.trim())" style="font-weight:600">'+c.comp+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'horomComp\',parseFloat(this.innerText)||0)">'+c.horomComp+'</td>'+
+        '<td><input type="date" value="'+(c.fechaInst||'')+'" onchange="edComp('+realIdx+',\'fechaInst\',this.value||null)" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px;font-size:10px"></td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'vidaUtil\',parseFloat(this.innerText)||0)">'+c.vidaUtil+'</td>'+
-        '<td class="mono">'+c.hrsUsadas+'</td>'+
-        '<td><div style="display:flex;align-items:center;gap:4px"><div style="background:color-mix(in srgb,'+barCol+' 18%,var(--bg4));border-radius:3px;height:8px;width:60px;overflow:hidden"><div style="background:'+barCol+';height:100%;width:'+Math.min(c.pctVida,100)+'%"></div></div><span style="font-size:10px">'+c.pctVida+'%</span></div></td>'+
-        '<td class="mono" style="color:'+(c.hrsRest<=0?'var(--danger)':c.hrsRest<1000?'var(--w)':'var(--ok)')+';font-weight:700">'+c.hrsRest+'</td>'+
-        '<td class="mono">'+c.diasRest+'</td>'+
+        '<td class="mono">'+(cd?c.hrsUsadas:dash)+'</td>'+
+        '<td>'+(cd?'<div style="display:flex;align-items:center;gap:4px"><div style="background:color-mix(in srgb,'+st.barCol+' 18%,var(--bg4));border-radius:3px;height:8px;width:60px;overflow:hidden"><div style="background:'+st.barCol+';height:100%;width:'+Math.min(c.pctVida,100)+'%"></div></div><span style="font-size:10px">'+c.pctVida+'%</span></div>':dash)+'</td>'+
+        '<td class="mono" style="color:'+(cd?(c.hrsRest<=0?'var(--danger)':c.hrsRest<1000?'var(--w)':'var(--ok)'):'var(--tx3)')+';font-weight:700">'+(cd?c.hrsRest:dash)+'</td>'+
+        '<td class="mono">'+(cd?c.diasRest:dash)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+Math.round(c.costoRef||0).toLocaleString()+'</td>'+
         '<td style="font-size:11px">'+c.estadoCalc+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(c.obs)+'</td>'+
@@ -11777,10 +11779,10 @@ renders.buscar=function(){
     (compF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Componente</th><th>Vida Útil</th><th>Hrs Rest</th><th>% Vida</th><th>Estado</th></tr>'+
     compF.map(function(c){
       var eO=eq.find(function(e){return e.sigla===c.sigla});
-      var hU=(eO?eO.horomActual:0)-(c.horomComp||0);if(hU<0)hU=eO?eO.horomActual:0;
-      var hR=Math.max((c.vidaUtil||0)-hU,0);var pct=c.vidaUtil?Math.round(hU/c.vidaUtil*100):0;
-      var est=hR<=0?'🔴 VENCIDO':hR<1000?'🟡 PLANIFICAR':'🟢 OK';
-      return'<tr><td>'+escapeHtml(c.comp||'')+'</td><td>'+c.vidaUtil+'</td><td style="color:'+(hR<1000?'var(--danger)':'var(--ok)')+'">'+hR+'</td><td>'+pct+'%</td><td>'+est+'</td></tr>'}).join('')+'</table></div>':'')+'</div>'+
+      var st=compEstado(c,eO?eO.horomActual:0,eO?eO.hrsDia:12);
+      var dash='<span style="color:var(--tx3)">—</span>';
+      if(!st.conDato)return'<tr style="opacity:.72"><td>'+escapeHtml(c.comp||'')+'</td><td>'+c.vidaUtil+'</td><td>'+dash+'</td><td>'+dash+'</td><td>'+st.estado+'</td></tr>';
+      return'<tr><td>'+escapeHtml(c.comp||'')+'</td><td>'+c.vidaUtil+'</td><td style="color:'+(st.hrsRest<1000?'var(--danger)':'var(--ok)')+'">'+st.hrsRest+'</td><td>'+st.pctVida+'%</td><td>'+st.estado+'</td></tr>'}).join('')+'</table></div>':'')+'</div>'+
 
     // Horómetros recientes
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">📈 Horómetros (últimos '+Math.min(histF.length,20)+')</div>'+
