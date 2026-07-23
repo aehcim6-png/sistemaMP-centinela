@@ -1349,7 +1349,7 @@ renders.dash=function(){
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--bd)')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">MTBF/(MTBF+MTTR)</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(pctRetrab===null?'var(--bd)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Retrabajo</div><div style="font-size:20px;font-weight:800;color:'+(pctRetrab===null?'var(--tx3)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'">'+(pctRetrab===null?'—':pctRetrab+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(pctRetrab===null?'Sin fallas en el período':'Meta: &lt;5%')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:#ef4444">'+eqCrit+'</span> Crít · <span style="color:#f59e0b">'+eqEsen+'</span> Esen · <span style="color:#22c55e">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'" title="Bloques de 30 min con actividad real vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
     '</div>'+
 
         // ═══ Z3: ABAJO IZQUIERDA — DESGLOSE / TENDENCIA ═══
@@ -2294,6 +2294,13 @@ function _progDiaDetectarSigla(actividad,siglasEq){
 // dotación (bloques con actividad real / bloques totales — bajo = posible exceso de
 // gente, alto = posible déficit), y cumplimiento (de lo que menciona un equipo real,
 // ¿cuánto tiene de verdad un registro de PM/correctivo ese mismo día en el sistema?).
+// Bloques que NO son trabajo productivo → no cuentan para la utilización de dotación.
+// Comisión de servicio SÍ cuenta: la persona está haciendo labores de logística (retiro
+// de insumos/repuestos), es trabajo real aunque sea fuera de faena.
+function _esBloqueNoProductivo(act){
+  if(!act)return true; // celda vacía = sin asignación = no productivo
+  return /charla|documentaci|almuerzo|colaci[oó]n|vacacion|licencia|sin actividad/i.test(act);
+}
 function _progDiaResumen(todo){
   var siglasEq=(S.g('eq')||[]).map(function(e){return e.sigla;});
   var reg=S.g('reg')||[],ot=S.g('ot')||[];
@@ -2307,7 +2314,7 @@ function _progDiaResumen(todo){
   todo.forEach(function(p){
     (p.bloques||[]).forEach(function(b){
       bloquesTotales++;
-      if(!b.actividad)return;
+      if(_esBloqueNoProductivo(b.actividad))return; // charla/almuerzo/vacaciones/etc. no cuentan como ocupación productiva
       bloquesOcupados++;
       var sigla=_progDiaDetectarSigla(b.actividad,siglasEq);
       if(sigla){
@@ -2367,7 +2374,7 @@ renders.progdia=function(){
     $('s-progdia').innerHTML=cabecera+
       '<div class="cards">'+
       '<div class="card"><div class="card-t">Utilización de dotación</div><div class="card-v" style="color:'+colorUtil+'">'+(r.utilizacion==null?'—':r.utilizacion+'%')+'</div>'+
-      '<div style="font-size:10px;color:var(--tx3)">'+r.bloquesOcupados+' de '+r.bloquesTotales+' bloques ocupados · '+msgUtil+'</div></div>'+
+      '<div style="font-size:10px;color:var(--tx3)">'+r.bloquesOcupados+' de '+r.bloquesTotales+' bloques en trabajo productivo · '+msgUtil+'<br><span style="font-size:9px">No cuentan charla, colación, vacaciones ni licencia. Comisión de servicio sí (logística).</span></div></div>'+
       '<div class="card"><div class="card-t">Cumplimiento vs. registro real</div><div class="card-v">'+(r.cumplimiento==null?'—':r.cumplimiento+'%')+'</div>'+
       '<div style="font-size:10px;color:var(--tx3)">'+r.conRegistro+' de '+r.programados+' menciones de equipo con PM/correctivo real ese día</div></div>'+
       '<div class="card"><div class="card-t">Equipos con horas registradas</div><div class="card-v">'+r.ranking.length+'</div>'+
