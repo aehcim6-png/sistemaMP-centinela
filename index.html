@@ -2458,13 +2458,22 @@ renders.prg=function(){
   eq.forEach(function(e){
     if(prgSiglas.indexOf(e.sigla)<0){
       var meses={};MS.forEach(function(x){meses[x]='';});
-      var horom=e.horomActual||0;var freq=e.frecPM||250;var hrsDia=e.hrsDia||12;
-      var hrsRest=freq-horom%freq;var diasRest=hrsDia>0?Math.round(hrsRest/hrsDia):30;
-      var pmTypes=['PM1','PM2','PM3','PM4'];var pmIdx=0;
+      var horom=e.horomActual||0;var freq=e.frecPM||250;
+      // Ritmo real del equipo para proyectar cada cuánto cae un PM (fallback al nominal).
+      var ritmo=_ritmoRealEq(e.sigla,e.hrsDia||12);if(!(ritmo>0))ritmo=e.hrsDia||12;
+      // El tipo de PM NO es un round-robin PM1→PM2→PM3→PM4: sigue el ciclo real según
+      // el horómetro (PM4 cada 8×freq, PM3 cada 4×, PM2 cada 2×, PM1 el resto). Antes se
+      // asignaba secuencialmente y el plan mostraba PM equivocados en cada mes.
+      var proxHorom=C.proxPM(horom,freq);
+      var diasRest=ritmo>0?Math.round((proxHorom-horom)/ritmo):30;
       var mesAct=new Date().getMonth();
       for(var mi=mesAct;mi<12;mi++){
         diasRest-=new Date(anioPrg,mi+1,0).getDate();
-        if(diasRest<=0){meses[MS[mi]]=pmTypes[pmIdx%4];pmIdx++;diasRest=Math.round(freq/hrsDia);}
+        if(diasRest<=0){
+          meses[MS[mi]]=C.tipoPM(proxHorom,freq);   // tipo real de ESE PM
+          proxHorom+=freq;                          // siguiente punto de PM
+          diasRest+=Math.round(freq/ritmo);         // acumula el remanente (no resetea)
+        }
       }
       prg.push({sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,meses:meses});
     }
