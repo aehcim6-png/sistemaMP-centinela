@@ -442,6 +442,83 @@ function compEstado(comp, horomActual, hrsDia){
     diasRest:diasRest, estado:estado, barCol:barCol};
 }
 
+// ═══ ESTIMACIÓN DE HORÓMETRO/KM EN UNA FECHA PASADA ═══
+// Días calendario entre dos fechas ISO (yyyy-mm-dd). 0 si alguna es inválida.
+function _diasEntreISO(desdeISO, hastaISO){
+  if(!desdeISO||!hastaISO)return 0;
+  var d1=new Date(desdeISO+'T00:00:00Z'), d2=new Date(hastaISO+'T00:00:00Z');
+  if(isNaN(d1.getTime())||isNaN(d2.getTime()))return 0;
+  return Math.round((d2.getTime()-d1.getTime())/86400000);
+}
+
+// Tasa diaria REAL (h/día o km/día) de un equipo, a partir de su historial de
+// lecturas [{fecha, horom}]. Lo más fiel posible pero robusto: toma la MEDIANA de
+// los avances diarios positivos y plausibles entre lecturas consecutivas, así ignora
+// resets de horómetro (deltas negativos o saltos enormes tipo 0→16.000) y días sin
+// movimiento. Si no hay pares usables, cae a la tasa nominal (hrsDia).
+function tasaDiariaReal(readings, nominal){
+  var nom=nominal>0?nominal:12;
+  var rs=(readings||[]).filter(function(r){return r&&r.fecha&&r.horom!=null&&isFinite(r.horom);})
+    .slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+  var tasas=[];
+  for(var i=1;i<rs.length;i++){
+    var dd=_diasEntreISO(rs[i-1].fecha,rs[i].fecha);
+    if(dd<=0)continue;
+    var t=(rs[i].horom-rs[i-1].horom)/dd;
+    if(t<=0)continue;        // reset o sin avance
+    if(t>nom*4)continue;     // salto implausible (>4x nominal) — dato malo
+    tasas.push(t);
+  }
+  if(!tasas.length)return nom;
+  tasas.sort(function(a,b){return a-b;});
+  var mid=Math.floor(tasas.length/2);
+  var med=tasas.length%2?tasas[mid]:(tasas[mid-1]+tasas[mid])/2;
+  return Math.round(med*10)/10;
+}
+
+// Estima el horómetro/km que un equipo tenía en fechaISO, lo más fiel posible:
+//  - fecha DENTRO del historial → interpola entre las 2 lecturas vecinas (casi exacto).
+//  - fecha ANTERIOR al historial → extrapola hacia atrás con la tasa real del equipo.
+//  - fecha POSTERIOR a la última lectura → extrapola hacia adelante (tope horomActual).
+//  - sin historial usable → desde horomActual hacia atrás con la tasa nominal.
+// Nunca devuelve negativo (si la extrapolación cruza 0, se limita a 0 — señal de que el
+// equipo no pudo trabajar a ese ritmo desde tan atrás, típico de componente ya cambiado).
+function horomEnFecha(readings, fechaISO, horomActual, hoyISO, nominal){
+  var tasa=tasaDiariaReal(readings,nominal);
+  var rs=(readings||[]).filter(function(r){return r&&r.fecha&&r.horom!=null&&isFinite(r.horom);})
+    .slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+  var metodo=rs.length>=2?'':'nominal';
+  var est=null;
+  if(rs.length){
+    var first=rs[0], last=rs[rs.length-1];
+    if(fechaISO<=first.fecha){
+      est=first.horom-tasa*_diasEntreISO(fechaISO,first.fecha);
+      metodo=metodo||'extrapolado';
+    } else if(fechaISO>=last.fecha){
+      est=last.horom+tasa*_diasEntreISO(last.fecha,fechaISO);
+      if(horomActual!=null&&est>horomActual)est=horomActual;
+      metodo=metodo||'extrapolado';
+    } else {
+      for(var i=1;i<rs.length;i++){
+        if(rs[i].fecha>=fechaISO){
+          var a=rs[i-1], b=rs[i];
+          var span=_diasEntreISO(a.fecha,b.fecha);
+          var frac=span>0?_diasEntreISO(a.fecha,fechaISO)/span:0;
+          est=a.horom+(b.horom-a.horom)*frac;
+          metodo='interpolado';
+          break;
+        }
+      }
+    }
+  } else {
+    est=(horomActual||0)-tasa*_diasEntreISO(fechaISO,hoyISO||fechaISO);
+    metodo='nominal';
+  }
+  if(est==null||!isFinite(est))est=0;
+  if(est<0)est=0;
+  return {horom:Math.round(est), metodo:metodo, tasaDia:tasa};
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -471,6 +548,8 @@ if (typeof window !== 'undefined') {
   window.predFromOrdenes = predFromOrdenes;
   window.stockEstado = stockEstado;
   window.compEstado = compEstado;
+  window.tasaDiariaReal = tasaDiariaReal;
+  window.horomEnFecha = horomEnFecha;
   window.rangoDias = rangoDias;
   window._rangoDias = rangoDias;
   window.dispDownMap = dispDownMap;
@@ -484,6 +563,6 @@ if (typeof module !== 'undefined' && module.exports) {
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM,
-    predFromOrdenes, stockEstado, compEstado, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
+    predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
   };
 }
