@@ -5539,11 +5539,17 @@ renders.disp=function(){
     // ═══ VISTA MENSUAL ═══
     var eqDisp=eqFil.map(function(e){
       var pct=calcMonthDisp(e.sigla,fMes);
-      return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,pct:pct};
+      // Cobertura de datos: distingue un % respaldado por registros reales de uno
+      // asumido (100% solo porque no se cargó ninguna detención ese mes).
+      var manual=!!(dispCalc[e.sigla]&&dispCalc[e.sigla][fMes]!==undefined)||(fMes==='2026-04'&&dAbr[e.sigla]!==undefined&&!(dispCalc[e.sigla]&&dispCalc[e.sigla][fMes]!==undefined));
+      var diasReg=0;
+      if(downMap[e.sigla])Object.keys(downMap[e.sigla]).forEach(function(dt){if(dt.slice(0,7)===fMes)diasReg++;});
+      return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,pct:pct,manual:manual,diasReg:diasReg};
     });
     var conDatos=eqDisp.filter(function(e){return e.pct!==undefined});
     var totalFlota=conDatos.length?Math.round(conDatos.reduce(function(s,e){return s+e.pct},0)/conDatos.length*10)/10:0;
     var bajoMeta=conDatos.filter(function(e){return e.pct<meta}).length;
+    var sinRegistros=conDatos.filter(function(e){return !e.manual&&e.diasReg===0}).length;
     var col=totalFlota>=meta?'var(--ok)':totalFlota>=70?'var(--w)':'var(--danger)';
 
     content=
@@ -5551,16 +5557,23 @@ renders.disp=function(){
     '<div style="text-align:center;min-width:100px"><div style="font-size:36px;font-weight:800;color:'+col+'">'+totalFlota+'%</div><div style="font-size:10px;color:var(--tx3)">FLOTA '+fMes+'</div></div>'+
     '<div style="flex:1">'+
     '<div style="background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:6px;height:18px;overflow:hidden;margin-bottom:6px;cursor:default" onmouseenter="vizTip(event,\'Flota: '+totalFlota+'% · '+conDatos.length+' equipos con dato · '+bajoMeta+' bajo meta\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+col+';height:100%;width:'+Math.min(totalFlota,100)+'%"></div></div>'+
-    '<div style="font-size:12px;color:'+col+'">'+(totalFlota>=meta?'✅ Sobre meta '+meta+'%':'⚠️ Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta</div></div></div>'+
+    '<div style="font-size:12px;color:'+col+'">'+(totalFlota>=meta?'✅ Sobre meta '+meta+'%':'⚠️ Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta</div>'+
+    (sinRegistros>0?'<div style="font-size:11px;color:var(--warn);margin-top:4px" title="Estos equipos no tienen ninguna detención cargada este mes, así que su 100% es asumido — el promedio de flota puede estar inflado hasta que cargues sus datos">⚠ '+sinRegistros+' equipo'+(sinRegistros===1?'':'s')+' sin registros este mes (100% asumido — cargá sus salidas de servicio para que el número sea real)</div>':'')+'</div></div>'+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th></tr>'+
+    '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th><th title="Respaldo del número: registros reales de detención, valor cargado a mano, o asumido por falta de datos">Datos</th></tr>'+
     eqDisp.sort(function(a,b){return(a.pct||999)-(b.pct||999)}).map(function(e){
-      if(e.pct===undefined)return'<tr><td class="mono">'+escapeHtml(e.sigla)+'</td><td>'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td><td colspan="3" style="color:var(--tx3)">Sin datos</td></tr>';
+      if(e.pct===undefined)return'<tr><td class="mono">'+escapeHtml(e.sigla)+'</td><td>'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td><td colspan="4" style="color:var(--tx3)">Sin datos</td></tr>';
       var c=e.pct>=meta?'var(--ok)':e.pct>=70?'var(--w)':'var(--danger)';
+      // Etiqueta de respaldo del dato
+      var datos;
+      if(e.manual)datos='<span class="badge b-b" title="Valor cargado a mano (override o import)">✍ manual</span>';
+      else if(e.diasReg>0)datos='<span style="font-size:10px;color:var(--tx3)" title="Días del mes con al menos una detención registrada">📋 '+e.diasReg+' día'+(e.diasReg===1?'':'s')+' c/registro</span>';
+      else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real.">⚠ sin registros</span>';
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
         '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+escapeHtml(e.sigla)+'\'])d[\''+escapeHtml(e.sigla)+'\']={}; d[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
         '<td><div style="background:color-mix(in srgb,'+c+' 18%,var(--bg4));border-radius:4px;height:10px;width:120px;overflow:hidden"><div style="background:'+c+';height:100%;width:'+Math.min(e.pct,100)+'%"></div></div></td>'+
-        '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'✅ OK':'🔴 Bajo')+'</span></td></tr>';
+        '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'✅ OK':'🔴 Bajo')+'</span></td>'+
+        '<td>'+datos+'</td></tr>';
     }).join('')+
     '</table></div>';
 
