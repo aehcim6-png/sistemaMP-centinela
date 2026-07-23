@@ -209,6 +209,67 @@ function rangoDias(desde, hasta){
   return out;
 }
 
+// ═══ DISPONIBILIDAD — fuente ÚNICA compartida por Disponibilidad, KPI y Metas ═══
+// Antes cada pestaña tenía su propia copia del cálculo, con supuestos distintos (KPI sin
+// el manejo de salida de servicio por período, Metas usando solo overrides manuales), así
+// que los tres números nunca coincidían. Ahora todas pasan por estas dos funciones.
+
+// Mapa {sigla: {fecha: horasDeDetención}} desde registros PM (reg) y correctivos (ot).
+// Una salida de servicio con período (fechaEntrada→fechaSalida en días distintos) marca
+// cada día del rango como día completo caído; el resto usa la duración real o un supuesto.
+function dispDownMap(reg, ot){
+  var down={};
+  function add(sigla,fecha,horas){ if(!sigla||!fecha)return; if(!down[sigla])down[sigla]={}; down[sigla][fecha]=(down[sigla][fecha]||0)+horas; }
+  (reg||[]).forEach(function(r){
+    var sigla=r.equipo, fecha=r.fechaEntrada||r.fechaEjec||'';
+    var durH=r.duracionH||0;
+    if(!durH&&r.horaEntrada&&r.horaSalida){
+      var hp=r.horaEntrada.split(':'), sp=r.horaSalida.split(':');
+      if(hp.length>=2&&sp.length>=2){ durH=((parseInt(sp[0])*60+parseInt(sp[1]))-(parseInt(hp[0])*60+parseInt(hp[1])))/60; if(durH<0)durH+=24; }
+    }
+    if(!durH)durH=4; // supuesto si no hay duración
+    add(sigla,fecha,durH);
+  });
+  (ot||[]).forEach(function(o){
+    var sigla=o.sigla; if(!sigla)return;
+    var fs=(o.estatusEq==='Fuera de Servicio'||o.estadoEq==='Fuera de Servicio');
+    if(fs&&o.fechaEntrada&&o.fechaSalida&&o.fechaSalida>o.fechaEntrada){
+      rangoDias(o.fechaEntrada,o.fechaSalida).forEach(function(d){ add(sigla,d,24); });
+      return;
+    }
+    var fecha=o.fecha||o.fechaEntrada||''; if(!fecha)return;
+    var durH=0; if(o.duracion){ var m=String(o.duracion).match(/(\d+)h/); if(m)durH=parseInt(m[1]); }
+    if(!durH)durH=8; // supuesto si no hay duración
+    if(fs)durH=24;   // fuera de servicio de un solo día
+    add(sigla,fecha,durH);
+  });
+  return down;
+}
+
+// Disponibilidad mensual de un equipo (%). Prioridad: override manual (dispCalc) > dato
+// original de abril (dAbr) > cálculo automático día a día desde el downMap. Devuelve null
+// si no hay ningún dato (para distinguir "sin datos" de "0%").
+function dispEquipoMes(sigla, mes, opts){
+  opts=opts||{};
+  var dispCalc=opts.dispCalc||{}, dAbr=opts.dAbr||{}, downMap=opts.downMap||{};
+  var hrsDia=opts.hrsDia||12, hoyISO=opts.hoy||new Date().toISOString().slice(0,10);
+  if(dispCalc[sigla]&&dispCalc[sigla][mes]!==undefined)return dispCalc[sigla][mes];
+  if(mes==='2026-04'&&dAbr[sigla]!==undefined)return dAbr[sigla];
+  var yy=parseInt(mes.slice(0,4),10), mm=parseInt(mes.slice(5,7),10);
+  var dias=new Date(yy,mm,0).getDate();
+  var totalDisp=0, conDato=0;
+  for(var d=1;d<=dias;d++){
+    var ds=mes+'-'+('0'+d).slice(-2);
+    if(ds>hoyISO)break;
+    var dn=(downMap[sigla]&&downMap[sigla][ds])||0;
+    if(dn>hrsDia)dn=hrsDia;
+    totalDisp+=(hrsDia-dn)/hrsDia*100;
+    conDato++;
+  }
+  if(!conDato)return null;
+  return Math.round(totalDisp/conDato*10)/10;
+}
+
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
@@ -385,6 +446,8 @@ if (typeof window !== 'undefined') {
   window.stockEstado = stockEstado;
   window.rangoDias = rangoDias;
   window._rangoDias = rangoDias;
+  window.dispDownMap = dispDownMap;
+  window.dispEquipoMes = dispEquipoMes;
   window.pagSlice = pagSlice;
   window.hayConflictoIds = hayConflictoIds;
 }
@@ -394,6 +457,6 @@ if (typeof module !== 'undefined' && module.exports) {
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM,
-    predFromOrdenes, stockEstado, rangoDias, pagSlice, hayConflictoIds
+    predFromOrdenes, stockEstado, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
   };
 }

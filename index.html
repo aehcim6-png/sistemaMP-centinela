@@ -1193,18 +1193,13 @@ renders.dash=function(){
   // ═══ CÁLCULOS DASHBOARD (versión limpia — un solo bloque) ═══
   var meta=S.g('dispMeta')||85;
   var dispCalcD=S.g('dispCalc')||{};var dAbr=INIT.dispAbril||{};
-  var downMapD={};
-  reg.forEach(function(r){var s=r.equipo,f=r.fechaEntrada||r.fechaEjec||'';if(!s||!f)return;if(!downMapD[s])downMapD[s]={};if(!downMapD[s][f])downMapD[s][f]=0;downMapD[s][f]+=r.duracionH||4;});
-  ot.forEach(function(o){var s=o.sigla,f=o.fecha||o.fechaEntrada||'';if(!s||!f)return;if(!downMapD[s])downMapD[s]={};if(!downMapD[s][f])downMapD[s][f]=0;var d=0;if(o.duracion){var m=o.duracion.match(/(\d+)h/);if(m)d=parseInt(m[1]);}downMapD[s][f]+=(d||8);});
+  // Disponibilidad de flota — misma fuente única que Disponibilidad, KPI y Metas (ver
+  // dispEquipoMes en logic.js). Antes el Dashboard promediaba solo sobre los días CON
+  // detención (ignorando los días buenos), lo que subestimaba el número; ahora recorre
+  // todos los días del mes igual que el resto.
+  var downMapD=dispDownMap(reg,ot);
   var mesAct=dashPeriodo;
-  var dispVals=eq.map(function(e){
-    if(dispCalcD[e.sigla]&&dispCalcD[e.sigla][mesAct]!==undefined)return dispCalcD[e.sigla][mesAct];
-    if(mesAct==='2026-04'&&dAbr[e.sigla]!==undefined)return dAbr[e.sigla];
-    var dates=Object.keys(downMapD[e.sigla]||{}).filter(function(d){return d.slice(0,7)===mesAct});
-    if(!dates.length){if(mesAct==='2026-04'&&dAbr[e.sigla]!==undefined)return dAbr[e.sigla];return null;}
-    var hD=e.hrsDia||12;var tP=dates.length*hD;var tD=0;dates.forEach(function(d){tD+=downMapD[e.sigla][d]||0;});
-    return Math.round((tP-tD)/tP*1000)/10;
-  }).filter(function(v){return v!==null});
+  var dispVals=eq.map(function(e){return dispEquipoMes(e.sigla,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null&&v!==undefined});
   var dispFlota=dispVals.length?Math.round(dispVals.reduce(function(s,v){return s+v},0)/dispVals.length*10)/10:null;
   var dispCol=dispFlota===null?'var(--tx3)':dispFlota>=meta?'#22c55e':dispFlota>=70?'#f59e0b':'#ef4444';
   var bajoMeta=dispVals.filter(function(v){return v<meta}).length;
@@ -5422,46 +5417,8 @@ renders.disp=function(){
   // Filter equipment by type
   var eqFil=fTipo?eq.filter(function(e){return e.tipo===fTipo}):eq;
 
-  // ═══ CALCULATE DAILY AVAILABILITY FROM REG + OT ═══
-  // Build a map: equipo -> date -> hours down
-  var downMap={};
-  reg.forEach(function(r){
-    var sigla=r.equipo;var fecha=r.fechaEntrada||r.fechaEjec||'';
-    if(!sigla||!fecha)return;
-    if(!downMap[sigla])downMap[sigla]={};
-    var durH=r.duracionH||0;
-    // If has entry/exit times, calculate
-    if(!durH&&r.horaEntrada&&r.horaSalida){
-      var hp=r.horaEntrada.split(':');var sp=r.horaSalida.split(':');
-      if(hp.length>=2&&sp.length>=2){durH=((parseInt(sp[0])*60+parseInt(sp[1]))-(parseInt(hp[0])*60+parseInt(hp[1])))/60;if(durH<0)durH+=24;}
-    }
-    if(!durH)durH=4; // default 4h if unknown
-    if(!downMap[sigla][fecha])downMap[sigla][fecha]=0;
-    downMap[sigla][fecha]+=durH;
-  });
-  ot.forEach(function(o){
-    var sigla=o.sigla;if(!sigla)return;
-    if(!downMap[sigla])downMap[sigla]={};
-    var fueraServicio=(o.estatusEq==='Fuera de Servicio'||o.estadoEq==='Fuera de Servicio');
-    // Salida de servicio con PERÍODO (fechaEntrada→fechaSalida en días distintos): se
-    // marca cada día del rango como fuera de servicio (día completo), no solo la fecha
-    // del registro. Así una parada de varios días baja la disponibilidad de TODOS esos
-    // días — antes solo restaba 24h en un único día y el resto contaba como 100%.
-    if(fueraServicio&&o.fechaEntrada&&o.fechaSalida&&o.fechaSalida>o.fechaEntrada){
-      _rangoDias(o.fechaEntrada,o.fechaSalida).forEach(function(dia){
-        downMap[sigla][dia]=(downMap[sigla][dia]||0)+24;
-      });
-      return;
-    }
-    var fecha=o.fecha||o.fechaEntrada||'';
-    if(!fecha)return;
-    var durH=0;
-    if(o.duracion){var m=o.duracion.match(/(\d+)h/);if(m)durH=parseInt(m[1]);}
-    if(!durH)durH=8;
-    if(fueraServicio)durH=24; // fuera de servicio de un solo día
-    if(!downMap[sigla][fecha])downMap[sigla][fecha]=0;
-    downMap[sigla][fecha]+=durH;
-  });
+  // ═══ DISPONIBILIDAD — mapa de detenciones (fuente única compartida, ver logic.js) ═══
+  var downMap=dispDownMap(reg,ot);
 
   // Get all dates from data
   var allDates=new Set();
@@ -5481,31 +5438,14 @@ renders.disp=function(){
     return Math.round((hrsDia-down)/hrsDia*1000)/10;
   }
 
-  // Calculate monthly availability
+  // Disponibilidad mensual — misma función que usan KPI y Metas (ver dispEquipoMes en
+  // logic.js). Devuelve undefined (no null) cuando no hay dato, para conservar los
+  // chequeos `pct!==undefined` de esta pestaña.
   function calcMonthDisp(sigla,mes){
-    // 1. Override manual (prioridad máxima)
-    if(dispCalc[sigla]&&dispCalc[sigla][mes]!==undefined)return dispCalc[sigla][mes];
-    // 2. Fallback abril (datos originales)
-    if(mes==='2026-04'&&dAbr[sigla]!==undefined)return dAbr[sigla];
-    // 3. Cálculo automático iterando TODOS los días del mes (hasta hoy)
     var eqObj=eq.find(function(e){return e.sigla===sigla});
     if(!eqObj)return undefined;
-    var hrsDia=eqObj.hrsDia||12;
-    var yy=parseInt(mes.slice(0,4),10),mm=parseInt(mes.slice(5,7),10);
-    var daysInMonth=new Date(yy,mm,0).getDate();
-    var today=new Date().toISOString().slice(0,10);
-    var totalDisp=0,daysWithData=0;
-    for(var d=1;d<=daysInMonth;d++){
-      var dateStr=mes+'-'+String(d).padStart(2,'0');
-      if(dateStr>today)break; // no contar días futuros
-      var down=(downMap[sigla]&&downMap[sigla][dateStr])?downMap[sigla][dateStr]:0;
-      if(down>hrsDia)down=hrsDia; // tope: no más horas down que las trabajadas
-      var dispDay=Math.max(0,(hrsDia-down)/hrsDia*100);
-      totalDisp+=dispDay;
-      daysWithData++;
-    }
-    if(daysWithData===0)return undefined;
-    return Math.round(totalDisp/daysWithData*10)/10;
+    var v=dispEquipoMes(sigla,mes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:eqObj.hrsDia||12});
+    return v==null?undefined:v;
   }
 
   // Get months and weeks from data
@@ -10390,22 +10330,12 @@ renders.kpi=function(){
   var last12=mesesAll.slice(Math.max(0,idxAnchor-rangoN+1),idxAnchor+1);
   var MSN=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 
-  // 1. DISPONIBILIDAD by month
-  eq.forEach(function(e){if(!dispData[e.sigla])dispData[e.sigla]={};if(dAbr[e.sigla]!==undefined&&!dispData[e.sigla]['2026-04'])dispData[e.sigla]['2026-04']=dAbr[e.sigla];});
-  var downMap={};
-  reg.forEach(function(r){var s=r.equipo,f=r.fechaEntrada||r.fechaEjec||'';if(!s||!f)return;if(!downMap[s])downMap[s]={};if(!downMap[s][f])downMap[s][f]=0;downMap[s][f]+=r.duracionH||4;});
-  ot.forEach(function(o){var s=o.sigla,f=o.fecha||'';if(!s||!f)return;if(!downMap[s])downMap[s]={};if(!downMap[s][f])downMap[s][f]=0;var d=0;if(o.duracion){var m=o.duracion.match(/(\d+)h/);if(m)d=parseInt(m[1]);}downMap[s][f]+=(d||8);});
-
+  // 1. DISPONIBILIDAD por mes — misma fuente única que la pestaña Disponibilidad y Metas
+  // (dispDownMap + dispEquipoMes en logic.js). Antes esta pestaña tenía su propia copia
+  // sin el manejo de salida de servicio por período, así que no coincidía con las otras.
+  var downMap=dispDownMap(reg,ot);
   var dispMes=last12.map(function(mes){
-    var vals=eq.map(function(e){
-      if(dispData[e.sigla]&&dispData[e.sigla][mes]!==undefined)return dispData[e.sigla][mes];
-      if(mes==='2026-04'&&dAbr[e.sigla]!==undefined)return dAbr[e.sigla];
-      var today=new Date().toISOString().slice(0,10);
-      var ym=parseInt(mes.slice(0,4)),mm=parseInt(mes.slice(5,7));
-      var days=new Date(ym,mm,0).getDate();var hrsDia=e.hrsDia||12;var tDown=0;var dc=0;
-      for(var d=1;d<=days;d++){var ds=mes+'-'+('0'+d).slice(-2);if(ds>today)break;dc++;if(downMap[e.sigla]&&downMap[e.sigla][ds])tDown+=downMap[e.sigla][ds];}
-      if(!dc)return null;return Math.round((dc*hrsDia-tDown)/(dc*hrsDia)*1000)/10;
-    }).filter(function(v){return v!==null});
+    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null&&v!==undefined});
     return vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:null;
   });
   var dispActual=dispMes[dispMes.length-1];
@@ -11443,11 +11373,16 @@ renders.metas=function(){
   var realData={};
   var anioMetas=new Date().getFullYear();
   var dispCalcMetas=S.g('dispCalc')||{};
+  // Disponibilidad con la MISMA fuente única que las otras pestañas (ver dispEquipoMes en
+  // logic.js): override manual > abril > cálculo automático. Antes Metas usaba SOLO los
+  // overrides manuales, así que su disponibilidad no coincidía con Disponibilidad ni KPI.
+  var downMapMetas=dispDownMap(reg,ot);
+  var dAbrMetas=INIT.dispAbril||{};
   MSN.forEach(function(m,mi){
     var mes=anioMetas+'-'+('0'+(mi+1)).slice(-2);
     var regM=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes});
     var prev=regM.filter(function(r){return r.tipoPM!=='Correctivo'}).length;
-    var dispValsM=eq.map(function(e){return(dispCalcMetas[e.sigla]&&dispCalcMetas[e.sigla][mes]!==undefined)?dispCalcMetas[e.sigla][mes]:null}).filter(function(v){return v!==null});
+    var dispValsM=eq.map(function(e){return dispEquipoMes(e.sigla,mes,{downMap:downMapMetas,dispCalc:dispCalcMetas,dAbr:dAbrMetas,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null&&v!==undefined});
     var hhMes=Math.round(regM.reduce(function(s,r){return s+(r.duracionH||0)},0));
     // Gasto REAL del mes = mano de obra (HH×tarifa) + repuestos/materiales consumidos.
     // Antes el "gasto" era solo HH×tarifa: ignoraba los repuestos, que suelen ser el
