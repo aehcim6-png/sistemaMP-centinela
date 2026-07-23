@@ -2713,12 +2713,25 @@ function descontarStock(consumos, fecha, equipo, tipoPM){
     // Extract part numbers from repuesto string (e.g. "600-211-1341" or "A4701800309")
     const partNums = repLow.match(/[a-z]?\d{2,}[-\d]+[a-z]*/gi) || [];
 
-    // Search in filters by part number first, then by description
+    // Search in filters by part number first, then by description.
+    // Un mismo filtro tiene el N° original (OEM) + alternativos de otros proveedores;
+    // en faena se compra indistintamente el que haya (normalmente el alternativo, y el
+    // OEM cuando no hay stock o no hay referencia cruzada). Por eso el match se hace
+    // contra nParte Y codAlt: si CUALQUIERA de los números que trae la pauta (OEM o
+    // cruzados) coincide con el N° principal o con un alternativo del ítem, es el mismo
+    // filtro. Antes solo se miraba nParte y se perdían los que estaban guardados por su
+    // número alternativo.
     let fi = -1;
     if(partNums.length > 0){
       fi = stk.findIndex(s => {
         const np = (s.nParte||'').toLowerCase();
-        return partNums.some(pn => np.includes(pn.toLowerCase()) || pn.toLowerCase().includes(np));
+        const ca = (s.codAlt||'').toLowerCase();
+        return partNums.some(pn => {
+          const p = pn.toLowerCase();
+          if(p.length < 4) return false;
+          return (np && (np.includes(p) || p.includes(np))) ||
+                 (ca && (ca.includes(p) || (p.length>=5 && p.includes(ca) && ca.length>=5)));
+        });
       });
     }
     if(fi < 0){
