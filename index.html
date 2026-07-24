@@ -298,7 +298,10 @@ async function _conReintento(fn,intentos){
 // siguiente no (el mismo neumático se veía bien en una recarga y mal en la próxima).
 // Por eso cada llamador agrega ",id.asc" (o su equivalente único) al order.
 const _PASO_PAGINA=500;
-async function _fetchPaginado(urlBase){
+// Fallback secuencial (el original): una página tras otra, esperando cada una antes de
+// pedir la siguiente. Se usa solo si el camino rápido de abajo no puede determinar el
+// total de filas de antemano (ej. el header Content-Range no vino en la respuesta).
+async function _fetchPaginadoSecuencial(urlBase){
   let todas=[],desde=0;
   while(true){
     const sep=urlBase.includes('?')?'&':'?';
@@ -312,6 +315,44 @@ async function _fetchPaginado(urlBase){
     if(desde>2000000)break; // salvavidas contra loop infinito
   }
   return todas;
+}
+// Trae TODAS las filas de una tabla, paginando de a _PASO_PAGINA (el límite real de
+// PostgREST — subirlo de golpe reintroduce el truncado silencioso que motivó la
+// paginación). La primera página pide el conteo exacto (header Prefer: count=exact ->
+// Content-Range: "0-499/3372") para saber cuántas páginas hacen falta en total y pedir
+// TODAS LAS DEMÁS EN PARALELO, en vez de una tras otra. Antes, una tabla grande (ej.
+// historial_horometros con miles de filas) hacía 7+ vueltas SECUENCIALES solo para esa
+// categoría — y como el arranque de la app espera a la categoría más lenta de las ~24
+// que se cargan en paralelo, esa cadena secuencial era justo lo que hacía sentir lento
+// el ingreso al programa a medida que las tablas fueron creciendo esta sesión.
+async function _fetchPaginado(urlBase){
+  const sep=urlBase.includes('?')?'&':'?';
+  try{
+    const r0=await fetch(`${urlBase}${sep}offset=0&limit=${_PASO_PAGINA}`,{
+      headers:Object.assign({},_sbHeaders(),{'Prefer':'count=exact'})
+    });
+    if(!r0.ok)return _fetchPaginadoSecuencial(urlBase);
+    const filas0=await r0.json();
+    if(!Array.isArray(filas0))return _fetchPaginadoSecuencial(urlBase);
+    if(filas0.length<_PASO_PAGINA)return filas0; // cupo entero en la primera página
+    const cr=r0.headers.get('content-range')||''; // "0-499/3372"
+    const total=parseInt(cr.split('/')[1],10);
+    if(!total||isNaN(total))return _fetchPaginadoSecuencial(urlBase); // sin conteo -> no se puede paralelizar seguro
+    const totalPaginas=Math.ceil(total/_PASO_PAGINA);
+    if(totalPaginas<=1)return filas0;
+    const pedidos=[];
+    for(let p=1;p<totalPaginas;p++){
+      const desde=p*_PASO_PAGINA;
+      pedidos.push(fetch(`${urlBase}${sep}offset=${desde}&limit=${_PASO_PAGINA}`,{headers:_sbHeaders()})
+        .then(function(rt){if(!rt.ok)throw new Error('página '+p+' falló');return rt.json();}));
+    }
+    const resto=await Promise.all(pedidos);
+    let todas=filas0.slice();
+    for(const filas of resto){if(!Array.isArray(filas))return _fetchPaginadoSecuencial(urlBase);todas=todas.concat(filas);}
+    return todas;
+  }catch(e){
+    return _fetchPaginadoSecuencial(urlBase);
+  }
 }
 
 // Trae el estado actual y completo de UNA categoría de TABLA_REAL desde Supabase.
