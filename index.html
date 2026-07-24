@@ -8796,13 +8796,19 @@ renders.ayuda=function(){
     // NOVEDADES DE ESTA VERSIÓN
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (julio 2026)</b>'+
-    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Mejoras aplicadas en la última actualización del sistema. Tus datos siguen intactos; solo cambió el comportamiento interno de algunos cálculos.</p>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Auditoría completa del sistema, pestaña por pestaña, buscando cálculos que muestran algo fácil de calcular en vez de lo que realmente importa. Tus datos siguen intactos; lo que cambió es que varios números ahora reflejan mejor la realidad.</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
-    '<li><b>Pautas respetadas en todos los cálculos:</b> cuando editas una pauta, el cambio ahora se aplica en la proyección de consumos, el Plan Semanal y las horas-hombre planificadas. Antes algunos cálculos seguían usando la pauta original e ignoraban tu edición.</li>'+
-    '<li><b>Fechas de OT parejas:</b> las órdenes de trabajo nuevas guardan su fecha de ingreso en formato estándar (AAAA-MM-DD), igual que el resto del sistema. Corrige un desorden en el dato que no afectaba los cálculos.</li>'+
-    '<li><b>Plantilla Limpia al día:</b> la opción "Descargar Plantilla Limpia" de Configuración se genera a partir de este mismo archivo, así que ya incluye estas mejoras de forma automática.</li>'+
-    '<li><b>Paginación en Stock, Lubricantes y Neumáticos:</b> estas 3 tablas ahora se ven de a 50 filas con botones "← Anterior / Siguiente →", igual que Registro PM, Correctivos y las demás tablas grandes. Ningún dato se perdió — solo se ve de a partes para que cargue más rápido.</li>'+
-    '<li><b>Encabezado corregido en celular:</b> la barra de estadísticas (equipos/urgentes/próximas/etc.) ya no se corta fuera de la pantalla en celulares — ahora se acomoda en 2 líneas.</li>'+
+    '<li><b>Neumáticos:</b> reglas de cambio ajustadas por marca y posición según lo confirmado en faena (delanteros vs traseros, Michelin/Bridgestone), y corregido el cálculo de horas acumuladas cuando un neumático pasa de un equipo a otro (antes sumaba mal la transferencia).</li>'+
+    '<li><b>Un solo cálculo para Stock, Disponibilidad, Predictivo, KPI, Metas y Backlog:</b> antes cada pestaña calculaba estas cosas por su cuenta y podían mostrar números distintos para el mismo equipo/mes. Ahora todas usan la misma fuente, así que dejan de contradecirse entre sí.</li>'+
+    '<li><b>Pautas de mantención reales cargadas:</b> se subieron las pautas oficiales 2026 por tipo de equipo (camiones, cargadores, bulldozers, motoniveladoras, torres, aljibe, bus, generador, minicargador), con el nivel de PM correcto para cada actividad.</li>'+
+    '<li><b>Consumo de filtros y lubricantes reconciliado:</b> el catálogo de lubricantes tenía el mismo aceite escrito de 6 formas distintas (se unificó) y los filtros ahora se reconocen tanto por su número original como por el alternativo de otro proveedor — antes solo se buscaba uno de los dos.</li>'+
+    '<li><b>Componentes Mayores ya no asume "recién instalado":</b> antes todo componente sin dato figuraba con ~0% de vida usada aunque el equipo tuviera 20.000+ horas. Ahora hay que marcar "Original" o ingresar la fecha de instalación (con estimador automático del horómetro a esa fecha) para que se calcule su vida real.</li>'+
+    '<li><b>Fecha del próximo PM más precisa:</b> usa el ritmo real de horas de trabajo de cada equipo en vez de las horas/día nominales, que solían sobreestimar el uso y adelantar las alertas.</li>'+
+    '<li><b>Salida de servicio "en curso":</b> ya se puede marcar un equipo como fuera de servicio sin saber aún la fecha de término, en vez de tener que inventar una — antes eso hacía que el equipo apareciera disponible al día siguiente aunque siguiera detenido.</li>'+
+    '<li><b>Vencimientos documentales:</b> un documento que la normativa exige pero nunca se ha registrado (ej. Sistema AFEX) ahora se distingue de uno que simplemente no aplica a ese equipo, y sí cuenta como alerta — antes ambos se veían igual y quedaban invisibles.</li>'+
+    '<li><b>Programación Diaria:</b> corregidas columnas "Cargo" repetidas que se importaban como si fueran bloques de horario, y la utilización de dotación ya no cuenta charla, colación ni vacaciones como trabajo productivo.</li>'+
+    '<li><b>Programa Anual:</b> el tipo de PM proyectado para cada mes sigue el ciclo real del equipo, no una secuencia fija PM1→PM2→PM3→PM4.</li>'+
+    '<li><b>Más rápido al ingresar:</b> las tablas grandes se cargan en paralelo en vez de una página a la vez — el arranque del sistema ya no se siente lento aunque los datos hayan crecido.</li>'+
     '</ul>'+
     '</div>'+
 
@@ -9114,7 +9120,9 @@ renders.ayuda=function(){
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">14. Disponibilidad Mecánica</div>'+
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Qué es?</b> La disponibilidad mecánica mide el % de tiempo que un equipo está operativo vs el tiempo total programado. La meta estándar en minería es <b>85%</b>.<br><br>'+
-    '<b>¿Cómo se calcula?</b> El sistema calcula automáticamente desde los registros PM y correctivos: <b>(Horas programadas − Horas en mantención) ÷ Horas programadas × 100</b>. También puedes ingresar datos manualmente editando las celdas azules.<br><br>'+
+    '<b>¿Cómo se calcula?</b> El sistema recorre día por día del mes usando una única fuente de detenciones (registros PM + correctivos + salidas de servicio) — la misma fuente que usan Disponibilidad, Dashboard, KPI y Metas, para que el número nunca sea distinto según qué pestaña mires. También puedes ingresar datos manualmente editando las celdas azules (tiene prioridad sobre el cálculo automático).<br><br>'+
+    '<b>▶ 🚫 Registrar salida de servicio</b><br>'+
+    'Marca un equipo como fuera de servicio un rango de días completo (cuentan como 0% de disponibilidad esos días). Si todavía no sabes cuándo vuelve a operar, marca la casilla <b>"El equipo AÚN sigue fuera de servicio"</b> en vez de inventar una fecha de término — así el equipo sigue contando como detenido día a día hasta que lo cierres. Los equipos con una salida en curso aparecen en una franja roja arriba de la tabla, con un botón <b>"✅ Volvió a operar"</b> para fijar la fecha real de término cuando corresponda.<br><br>'+
     '<b>Vistas disponibles:</b><br>'+
     '• <b>📊 Por Equipo</b>: tabla con barra visual, semáforo vs meta, % editable<br>'+
     '• <b>📈 Tendencia Mensual</b>: todos los meses en columnas para ver evolución<br><br>'+
@@ -9187,18 +9195,20 @@ renders.ayuda=function(){
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">16. Componentes Mayores</div>'+
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Qué son?</b> Motor, transmisión, diferencial, convertidor, mandos finales y bomba hidráulica — los componentes de alto costo cuyo reemplazo se planifica a largo plazo.<br><br>'+
-    '<b>Auto-generación:</b> La primera vez que abres la pestaña, se crean 6 componentes por equipo con valores de referencia. Puedes modificar todo.<br><br>'+
+    '<b>Sin fecha de instalación, NO se inventa un % de vida.</b> Antes el sistema asumía que todo componente estaba "recién instalado" (0h de uso) hasta que alguien decía lo contrario — eso hacía que motores con 20.000+ horas reales figuraran como casi nuevos, sin ninguna alerta. Ahora cada componente necesita uno de estos dos datos para tener proyección:<br>'+
+    '• <b>Casilla "Orig." marcada</b>: es el componente original del equipo (instalado nuevo de fábrica) → sus horas usadas = el horómetro completo del equipo, sin necesitar fecha.<br>'+
+    '• <b>Fecha de instalación</b> (si se cambió en algún momento): el sistema <b>estima el horómetro que tenía el equipo en esa fecha</b> a partir del ritmo real de uso de ese equipo (aparece marcado con "≈"). Si conoces el horómetro medido real de la instalación, escríbelo en "Horóm. Inst." y reemplaza la estimación.<br>'+
+    'Mientras un componente no tenga ninguno de los dos datos, queda marcado <b>⚪ Falta instalación</b> y no entra en los KPIs de críticos ni en el costo proyectado — un aviso arriba de la tabla indica cuántos componentes faltan por completar.<br><br>'+
+    '<b>⚠️ Ojo con equipos de muchas horas:</b> si el horómetro actual ya superó la vida útil normal del componente, ese componente probablemente ya se cambió — usa la fecha del <b>último cambio real</b>, no la fecha de puesta en marcha del equipo.<br><br>'+
     '<b>¿Qué calcula?</b><br>'+
-    '• <b>Horas usadas</b>: horómetro actual del equipo menos horómetro al instalar el componente<br>'+
+    '• <b>Horas usadas</b>: horómetro actual del equipo menos horómetro de instalación (medido o estimado)<br>'+
     '• <b>% de vida</b>: barra visual que muestra cuánto se ha consumido la vida útil<br>'+
     '• <b>Horas restantes</b>: vida útil menos horas usadas<br>'+
-    '• <b>Días restantes</b>: horas restantes ÷ horas/día del equipo<br>'+
+    '• <b>Días restantes</b>: horas restantes ÷ ritmo real de uso del equipo<br>'+
     '• <b>Estado</b>: 🟢 OK → 📋 MONITOREAR (<2000h) → 🟡 PLANIFICAR (<1000h) → 🔴 VENCIDO (0h)<br><br>'+
-    '<b>Columnas editables:</b> componente, horómetro de instalación, vida útil, costo de referencia, observaciones.<br><br>'+
-    '<b>KPIs:</b> total componentes, críticos (<1000h), costo proyectado de próximos cambios.<br>'+
+    '<b>Columnas editables:</b> componente, casilla Original, horómetro de instalación, fecha de instalación, vida útil, costo de referencia, observaciones.<br><br>'+
+    '<b>KPIs:</b> total componentes, críticos (<1000h), costo proyectado de próximos cambios, componentes con instalación pendiente de completar.<br>'+
     '<b>Botones:</b> + Agregar, 🗑 Eliminar, 📥 CSV, 📤 Importar<br><br>'+
-    '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac)">'+
-    '<b>💡 Tip:</b> Cuando reemplazas un componente mayor, edita el horómetro de instalación al horómetro actual del equipo. El sistema recalculará automáticamente la vida restante.</div><br>'+
     '<b>📄 Informes de Falla (PDF):</b> en esta misma pestaña "Componentes" hay una sub-pestaña llamada <b>"📄 Informes de Falla"</b> (botón arriba, junto a Componentes Mayores/Predictivo/Destrabe). Ahí se genera el informe formal de una falla catastrófica o cambio de componente: llenas el formulario, adjuntas fotos, y al guardar el botón <b>"💾 Generar Informe y PDF"</b> descarga automáticamente un PDF con todo el detalle. Para volver a descargar un informe ya creado, usa el botón 📥 en su fila de la tabla.</div></div>'+
 
     // 17. METAS
@@ -9336,9 +9346,11 @@ renders.ayuda=function(){
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Qué hace?</b> Controla los vencimientos legales y documentales de cada equipo: Revisión Técnica, Permiso de Circulación, Seguro, Sistema AFEX y Decreto 80. La pestaña lee automáticamente la lista de equipos vigente (la misma de la pestaña Equipos) — si agregas un equipo nuevo, aparece aquí solo, sin pasos extra.<br><br>'+
     '<b>▶ Alarma automática</b><br>'+
-    'El sistema avisa con <b>1 mes de anticipación</b> antes de cada vencimiento (🟡 Vence en X días). Si ya pasó la fecha, se marca en rojo como 🔴 VENCIDO. Las alertas activas (≤30 días) se resumen en una franja roja arriba de la tabla, y aparece un toast al editar un campo que quede dentro de ese rango.<br><br>'+
+    'El sistema avisa con <b>1 mes de anticipación</b> antes de cada vencimiento (🟡 Vence en X días). Si ya pasó la fecha, se marca en rojo como 🔴 VENCIDO. Las alertas activas se resumen en una franja roja arriba de la tabla, y aparece un toast al editar un campo que quede dentro de ese rango.<br><br>'+
+    '<b>▶ 🟠 "Sin registrar (requerido)" — distinto de "Sin datos"</b><br>'+
+    'Cuando el tipo de equipo SÍ exige un documento (hay periodicidad, precargada o ingresada a mano) pero nunca se ha cargado la fecha del último trámite, la fila se marca <b>🟠 Sin registrar (requerido)</b> y SÍ cuenta como alerta y aparece con "Solo con atención" marcado — a diferencia de "Sin datos" (gris), que es para documentos que de verdad no aplican a ese equipo. Un documento exigido que nadie ha cargado nunca es tan o más urgente que uno por vencer en pocos días, así que ya no queda escondido.<br><br>'+
     '<b>▶ Reglas precargadas por tipo de equipo</b><br>'+
-    'Según lo confirmado: Camión Aljíbe y Bus → Revisión Técnica cada 6 meses; Camioneta → Revisión Técnica anual; Aljíbe/Camioneta/Bus → Permiso de Circulación anual; Camioneta → Seguro anual; CAEX/Bulldozer/Cargador → Sistema AFEX cada 6 meses; Bus → Decreto 80 cada 4 años. Estas periodicidades se aplican solas al cargar la fecha del último trámite.<br><br>'+
+    'Según lo confirmado: Camión Aljibe (identificado por sigla: CN-5131, CN-5133 — comparten el mismo "tipo" que los CAEX en la base de datos) y Bus → Revisión Técnica cada 6 meses; Camioneta → Revisión Técnica anual; Aljibe/Camioneta/Bus → Permiso de Circulación anual; Camioneta → Seguro anual; CAEX/Bulldozer/Cargador → Sistema AFEX cada 6 meses; Bus → Decreto 80 cada 4 años. Estas periodicidades se aplican solas al cargar la fecha del último trámite.<br><br>'+
     '<b>▶ Tipos sin regla precargada</b><br>'+
     'Torre de Iluminación, Motoniveladora, Minicargador y Generador no tienen periodicidad confirmada todavía — el sistema NO inventa un valor para estos casos. La celda de Periodicidad queda vacía hasta que la completes a mano.<br><br>'+
     '<b>▶ Todo es editable</b><br>'+
