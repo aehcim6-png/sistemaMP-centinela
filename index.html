@@ -5675,10 +5675,30 @@ renders.disp=function(){
 
   }
 
+  // Salidas de servicio EN CURSO (aún fuera de servicio, sin fecha de término) — se
+  // listan con un botón para cerrarlas cuando el equipo vuelva a operar. Sin esto no
+  // había forma de ver, desde esta pestaña, cuáles equipos siguen detenidos hoy.
+  var fsEnCurso=ot.map(function(o,i){return{o:o,i:i};}).filter(function(x){
+    return x.o.estatusEq==='Fuera de Servicio'&&x.o.fechaEntrada&&!x.o.fechaSalida;
+  });
+  var fsEnCursoHTML=fsEnCurso.length?
+    '<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
+    '<b style="font-size:12px;color:var(--danger)">🚫 '+fsEnCurso.length+' equipo'+(fsEnCurso.length===1?'':'s')+' AÚN fuera de servicio</b>'+
+    fsEnCurso.map(function(x){
+      var dias=(typeof rangoDias==='function'?rangoDias(x.o.fechaEntrada,new Date().toISOString().slice(0,10)):[]).length;
+      return'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px">'+
+        '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(x.o.sigla)+'</span>'+
+        '<span style="color:var(--tx3)">desde '+x.o.fechaEntrada+' ('+dias+' día'+(dias===1?'':'s')+') — '+escapeHtml(x.o.sintoma||'')+'</span>'+
+        '<button class="btn-s" style="margin-left:auto" onclick="cerrarSalidaServicio('+x.i+')">✅ Volvió a operar</button>'+
+        '</div>';
+    }).join('')+
+    '</div>':'';
+
   $('s-disp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📉 Disponibilidad Mecánica</div>'+
     '<div class="sec-s">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable</div></div>'+
     '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()">🚫 Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')">📥 CSV</button><button class="btn btn-o" onclick="importDispCSV()">📤 Importar</button></div></div>'+
+    fsEnCursoHTML+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'>📊 Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'>📅 Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'>📆 Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'>📅 Anual</option></select>'+
     '<select id="fDispMes" onchange="renders.disp()">'+meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
@@ -5706,28 +5726,53 @@ window.registrarSalidaServicio=function(){
       '<div class="fg"><label>Desde</label><input type="date" id="ssDesde" value="'+hoy+'" max="'+hoy+'"></div>'+
       '<div class="fg"><label>Hasta</label><input type="date" id="ssHasta" value="'+hoy+'" max="'+hoy+'"></div>'+
     '</div>'+
+    '<div class="fg" style="margin-bottom:12px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer">'+
+      '<input type="checkbox" id="ssSigueFS" onchange="var h=$(\'ssHasta\');h.disabled=this.checked;if(this.checked)h.value=\'\';">'+
+      ' El equipo AÚN sigue fuera de servicio (no ha vuelto a operar — no pongas fecha de término)</label></div>'+
     '<div class="fg" style="margin-bottom:12px"><label>Motivo</label><input id="ssMotivo" placeholder="Ej: falla motor, sin repuesto, accidente…" style="width:100%"></div>'+
     '<button class="btn" onclick="guardarSalidaServicio()">💾 Registrar</button> '+
     '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.guardarSalidaServicio=function(){
   var sigla=$('ssEq').value;
-  var desde=$('ssDesde').value, hasta=$('ssHasta').value;
+  var desde=$('ssDesde').value;
+  var sigueFS=$('ssSigueFS')&&$('ssSigueFS').checked;
+  var hasta=sigueFS?'':$('ssHasta').value;
   var motivo=($('ssMotivo').value||'').trim();
-  if(!sigla||!desde||!hasta){alert('Falta equipo o fechas.');return;}
-  if(hasta<desde){alert('La fecha "hasta" no puede ser anterior a "desde".');return;}
+  if(!sigla||!desde){alert('Falta equipo o fecha de inicio.');return;}
+  if(!sigueFS&&!hasta){alert('Falta la fecha "hasta", o marca la casilla si el equipo aún sigue fuera de servicio.');return;}
+  if(hasta&&hasta<desde){alert('La fecha "hasta" no puede ser anterior a "desde".');return;}
   if(!motivo){alert('Ingresa el motivo de la salida de servicio.');return;}
-  var dias=(typeof rangoDias==='function'?rangoDias(desde,hasta):[desde]).length;
+  var hoy=new Date().toISOString().slice(0,10);
+  var dias=(typeof rangoDias==='function'?rangoDias(desde,hasta||hoy):[desde]).length;
   var ot=S.g('ot')||[];
   ot.unshift({sigla:sigla,tipo:'Fuera de Servicio',fecha:desde,
-    sintoma:motivo,sistema:'',estatusEq:'Fuera de Servicio',estadoOT:'Cerrada',
-    criticidad:'Reparación Inmediata',fechaEntrada:desde,fechaSalida:hasta,
+    sintoma:motivo,sistema:'',estatusEq:'Fuera de Servicio',estadoOT:hasta?'Cerrada':'Pendiente',
+    criticidad:'Reparación Inmediata',fechaEntrada:desde,fechaSalida:hasta||null,
     fechaIngreso:new Date().toISOString().slice(0,10),
-    solucion:'Salida de servicio registrada ('+dias+' día'+(dias===1?'':'s')+')'});
+    solucion:hasta?('Salida de servicio registrada ('+dias+' día'+(dias===1?'':'s')+')')
+                  :('Salida de servicio en curso — aún fuera de servicio ('+dias+' día'+(dias===1?'':'s')+' hasta hoy)')});
   S.s('ot',ot);
-  if(typeof registrarCambio==='function')try{registrarCambio('Salida de servicio','Equipo '+sigla+' fuera de servicio del '+desde+' al '+hasta+' — '+motivo);}catch(e){}
+  if(typeof registrarCambio==='function')try{registrarCambio('Salida de servicio','Equipo '+sigla+' fuera de servicio desde '+desde+(hasta?' al '+hasta:' — AÚN EN CURSO')+' — '+motivo);}catch(e){}
   cm();refreshAll();
-  toast('✅ '+sigla+' fuera de servicio del '+desde+' al '+hasta+' ('+dias+' día'+(dias===1?'':'s')+')');
+  toast('✅ '+sigla+' fuera de servicio desde '+desde+(hasta?' al '+hasta:' (en curso)')+' ('+dias+' día'+(dias===1?'':'s')+')');
+};
+// Cierra una salida de servicio que estaba en curso: fija la fecha de término y libera
+// al equipo (deja de contar como 0% de disponibilidad desde el día siguiente).
+window.cerrarSalidaServicio=function(idx){
+  var ot=S.g('ot')||[];
+  var o=ot[idx];if(!o)return;
+  var hoy=new Date().toISOString().slice(0,10);
+  var hasta=prompt('¿Hasta qué fecha estuvo fuera de servicio '+o.sigla+'? (el día que volvió a operar)',hoy);
+  if(!hasta)return;
+  if(hasta<o.fechaEntrada){alert('La fecha no puede ser anterior al inicio ('+o.fechaEntrada+').');return;}
+  o.fechaSalida=hasta;o.estadoOT='Cerrada';
+  var dias=(typeof rangoDias==='function'?rangoDias(o.fechaEntrada,hasta):[o.fechaEntrada]).length;
+  o.solucion='Salida de servicio registrada ('+dias+' día'+(dias===1?'':'s')+')';
+  S.s('ot',ot);
+  if(typeof registrarCambio==='function')try{registrarCambio('Cierre salida de servicio','Equipo '+o.sigla+' vuelve a operar el '+hasta);}catch(e){}
+  cm();refreshAll();
+  toast('✅ '+o.sigla+' vuelve a operar desde '+hasta);
 };
 
 // ---- CONFIGURACIÓN ----

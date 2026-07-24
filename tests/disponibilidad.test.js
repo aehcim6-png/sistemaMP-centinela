@@ -21,6 +21,18 @@ describe('dispDownMap — mapa de horas de detención (fuente única)', () => {
     expect(dm['CN-3']['2026-07-01']).toBe(6);
     expect(dm['CN-3']['2026-07-02']).toBe(4);
   });
+
+  it('salida de servicio SIN fecha de término (aún en curso) marca cada día hasta hoy', () => {
+    // El equipo sigue fuera de servicio — no hay fechaSalida todavía.
+    const ot = [{ sigla: 'CN-4', estatusEq: 'Fuera de Servicio', fechaEntrada: '2026-07-20', fechaSalida: null }];
+    const dm = dispDownMap([], ot, '2026-07-24');
+    expect(dm['CN-4']['2026-07-20']).toBe(24);
+    expect(dm['CN-4']['2026-07-21']).toBe(24);
+    expect(dm['CN-4']['2026-07-22']).toBe(24);
+    expect(dm['CN-4']['2026-07-23']).toBe(24);
+    expect(dm['CN-4']['2026-07-24']).toBe(24); // incluye hoy
+    expect(dm['CN-4']['2026-07-25']).toBeUndefined(); // aún no llega ahí
+  });
 });
 
 describe('dispEquipoMes — disponibilidad mensual (%)', () => {

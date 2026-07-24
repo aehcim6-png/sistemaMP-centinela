@@ -223,8 +223,14 @@ function rangoDias(desde, hasta){
 // Mapa {sigla: {fecha: horasDeDetención}} desde registros PM (reg) y correctivos (ot).
 // Una salida de servicio con período (fechaEntrada→fechaSalida en días distintos) marca
 // cada día del rango como día completo caído; el resto usa la duración real o un supuesto.
-function dispDownMap(reg, ot){
+// Una salida de servicio SIN fecha de término (fechaSalida vacía) significa "el equipo
+// TODAVÍA está fuera de servicio hoy" — se extiende día a día desde fechaEntrada hasta
+// 'hoy' (parámetro opcional, default = fecha actual). Sin esto, una salida abierta solo
+// contaba como caída su primer día y el equipo volvía a figurar disponible al día
+// siguiente aunque en la realidad siguiera detenido.
+function dispDownMap(reg, ot, hoy){
   var down={};
+  var hoyISO=hoy||new Date().toISOString().slice(0,10);
   function add(sigla,fecha,horas){ if(!sigla||!fecha)return; if(!down[sigla])down[sigla]={}; down[sigla][fecha]=(down[sigla][fecha]||0)+horas; }
   (reg||[]).forEach(function(r){
     var sigla=r.equipo, fecha=r.fechaEntrada||r.fechaEjec||'';
@@ -241,6 +247,10 @@ function dispDownMap(reg, ot){
     var fs=(o.estatusEq==='Fuera de Servicio'||o.estadoEq==='Fuera de Servicio');
     if(fs&&o.fechaEntrada&&o.fechaSalida&&o.fechaSalida>o.fechaEntrada){
       rangoDias(o.fechaEntrada,o.fechaSalida).forEach(function(d){ add(sigla,d,24); });
+      return;
+    }
+    if(fs&&o.fechaEntrada&&!o.fechaSalida&&o.fechaEntrada<=hoyISO){
+      rangoDias(o.fechaEntrada,hoyISO).forEach(function(d){ add(sigla,d,24); });
       return;
     }
     var fecha=o.fecha||o.fechaEntrada||''; if(!fecha)return;
