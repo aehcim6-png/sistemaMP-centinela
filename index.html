@@ -7919,6 +7919,20 @@ var VENC_TIPOS = ['Revisión Técnica','Permiso Circulación','Seguro','Sistema 
 // null = sin regla conocida, queda 100% editable sin valor por defecto.
 // vencReglaDefault / vencCalcProximo / vencEstado viven en logic.js.
 
+// Los camiones aljibe (Mercedes Benz Arocs 3340, circulan por caminos públicos y SÍ
+// necesitan Revisión Técnica/Permiso de Circulación) tienen el mismo campo tipo='Camion'
+// que los CAEX (Komatsu HD785, uso interno de mina, no llevan esos documentos) — el dato
+// no permite distinguirlos. Bug real encontrado: vencReglaDefault busca 'ALJIBE' dentro de
+// tipo, que nunca aparece ahí, así que los aljibe NUNCA recibían la periodicidad sugerida
+// (hoy no se nota porque ya tienen el dato cargado a mano, pero si se agrega otro aljibe o
+// se borra el campo, quedaría sin ningún aviso). Se identifican por sigla, mismo criterio
+// que ya usa GRUPO_PAUTAS para darles su propia pauta de mantención.
+var VENC_SIGLAS_ALJIBE=['CN-5131','CN-5133'];
+function _vencTipoEfectivo(e){
+  if(e&&VENC_SIGLAS_ALJIBE.indexOf(e.sigla)>=0)return 'Camion Aljibe';
+  return e?e.tipo:'';
+}
+
 renders.venc=function(){
   var eq=S.g('eq')||[];
   var venc=S.g('venc')||{}; // { sigla: { tipoVenc: {ultima:'YYYY-MM-DD', periodicidadMeses:N, proxima:'YYYY-MM-DD', obs:''} } }
@@ -7932,41 +7946,45 @@ renders.venc=function(){
     VENC_TIPOS.forEach(function(vt){
       var datosEq=venc[e.sigla]||{};
       var d=datosEq[vt]||{};
-      var periodicidad = d.periodicidadMeses!=null ? d.periodicidadMeses : vencReglaDefault(e.tipo, vt);
+      var periodicidad = d.periodicidadMeses!=null ? d.periodicidadMeses : vencReglaDefault(_vencTipoEfectivo(e), vt);
       var proxima = d.proxima || vencCalcProximo(d.ultima, periodicidad);
-      var est=vencEstado(proxima);
+      var est=vencEstado(proxima, periodicidad!=null);
       // Solo mostrar combinaciones que tengan regla, dato manual, o que el usuario haya tocado
       var tieneAlgo = periodicidad!=null || d.ultima || d.proxima || d.obs;
       if(!tieneAlgo && !soloAlerta) {
         // igual la mostramos para que pueda completarla, pero solo si aplica al tipo de equipo
         // (si no hay regla Y no hay dato, igual la dejamos visible y editable)
       }
-      if(soloAlerta && (est.dias===null || est.dias>30)) return;
+      if(soloAlerta && !est.requiereAtencion) return;
       filas.push({sigla:e.sigla, tipo:e.tipo, vencTipo:vt, ultima:d.ultima||'', periodicidad:periodicidad, proxima:proxima||'', obs:d.obs||'', estado:est});
     });
   });
 
-  filas.sort(function(a,b){
-    var da=a.estado.dias===null?99999:a.estado.dias;
-    var db=b.estado.dias===null?99999:b.estado.dias;
-    return da-db;
-  });
+  // Rango para ordenar: vencido/próximo por sus días reales; "sin registrar (requerido)"
+  // se trata como urgente (no sabemos hace cuánto falta, pero SÍ sabemos que se exige) en
+  // vez de mandarlo al final junto con lo que de verdad no aplica a ese equipo.
+  function _vencRango(f){
+    if(f.estado.dias!==null)return f.estado.dias;
+    if(f.estado.requiereAtencion)return -1;
+    return 999999;
+  }
+  filas.sort(function(a,b){return _vencRango(a)-_vencRango(b);});
 
-  var alertasActivas = filas.filter(function(f){return f.estado.dias!==null && f.estado.dias<=30;});
+  var alertasActivas = filas.filter(function(f){return f.estado.requiereAtencion;});
 
   $('s-venc').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📅 Vencimientos Documentales</div>'+
-    '<div class="sec-s">'+eq.length+' equipos · '+alertasActivas.length+' con alerta (≤30 días)</div></div>'+
+    '<div class="sec-s">'+eq.length+' equipos · '+alertasActivas.length+' requieren atención</div></div>'+
     '<button class="btn btn-o" onclick="exportVencCSV()">📥 CSV</button></div>'+
     (alertasActivas.length?'<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;color:var(--danger);font-size:13px">'+
-      '⚠️ <b>'+alertasActivas.length+' vencimiento(s) requieren atención:</b> '+
+      '⚠️ <b>'+alertasActivas.length+' vencimiento(s) requieren atención</b> (vencidos, vencen en ≤30 días, o nunca se han registrado pese a que el tipo de equipo los exige): '+
       alertasActivas.slice(0,6).map(function(f){return escapeHtml(f.sigla)+' ('+escapeHtml(f.vencTipo)+')';}).join(', ')+
       (alertasActivas.length>6?' y '+(alertasActivas.length-6)+' más...':'')+'</div>':'')+
     '<div class="toolbar">'+
     '<select id="fVencEq" onchange="renders.venc()"><option value="">Todos equipos</option>'+
     eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>'+
     '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)">'+
-    '<input type="checkbox" id="fVencAlerta" onchange="renders.venc()"'+(soloAlerta?' checked':'')+'> Solo con alerta (≤30 días)</label>'+
+    '<input type="checkbox" id="fVencAlerta" onchange="renders.venc()"'+(soloAlerta?' checked':'')+'> Solo lo que requiere atención (vencido, ≤30 días, o nunca registrado)</label>'+
     '</div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Documento</th><th>Último trámite ✏️</th><th>Periodicidad (meses) ✏️</th><th>Próximo vencimiento</th><th>Estado</th><th>Foto</th><th>Obs ✏️</th></tr>'+
@@ -8051,7 +8069,7 @@ window.edVenc=function(sigla,vencTipo,campo,val){
     if(per==null){
       var eqArr=S.g('eq')||[];
       var eObj=eqArr.find(function(x){return x.sigla===sigla;});
-      per=vencReglaDefault(eObj?eObj.tipo:'', vencTipo);
+      per=vencReglaDefault(_vencTipoEfectivo(eObj),vencTipo);
     }
     if(per)venc[sigla][vencTipo].proxima=vencCalcProximo(val, per);
   }else{
@@ -8059,8 +8077,8 @@ window.edVenc=function(sigla,vencTipo,campo,val){
   }
   S.s('venc',venc);
   renders.venc();
-  var est=vencEstado(venc[sigla][vencTipo].proxima);
-  if(est.dias!==null && est.dias<=30){
+  var est=vencEstado(venc[sigla][vencTipo].proxima, venc[sigla][vencTipo].periodicidadMeses!=null);
+  if(est.requiereAtencion){
     toast('⚠️ '+sigla+' · '+vencTipo+': '+est.label);
   }
 };
@@ -8072,9 +8090,9 @@ window.exportVencCSV=function(){
   eq.forEach(function(e){
     VENC_TIPOS.forEach(function(vt){
       var d=(venc[e.sigla]||{})[vt]||{};
-      var per=d.periodicidadMeses!=null?d.periodicidadMeses:vencReglaDefault(e.tipo,vt);
+      var per=d.periodicidadMeses!=null?d.periodicidadMeses:vencReglaDefault(_vencTipoEfectivo(e),vt);
       var prox=d.proxima||vencCalcProximo(d.ultima,per);
-      var est=vencEstado(prox);
+      var est=vencEstado(prox,per!=null);
       filas.push({
         equipo:e.sigla,
         tipo:e.tipo||'',

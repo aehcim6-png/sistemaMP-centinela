@@ -294,14 +294,23 @@ function vencCalcProximo(ultimaFecha, periodicidadMeses){
   return d.toISOString().slice(0,10);
 }
 
-function vencEstado(proximaFecha){
-  if(!proximaFecha)return{label:'Sin datos',color:'var(--tx3)',dias:null};
+// 'tieneRegla' (opcional): true si este equipo/documento SÍ debería llevar control
+// (hay periodicidad por regla o cargada a mano) aunque nunca se haya registrado una
+// fecha. Sin esto, "nunca se ha registrado el Sistema AFEX de este camión" y "este
+// camión no necesita Decreto 80" se veían exactamente igual ('Sin datos', gris) y
+// ambos quedaban FUERA de las alertas — un documento exigido que nadie ha cargado
+// nunca es más urgente que uno por vencer en 25 días, pero era invisible.
+function vencEstado(proximaFecha, tieneRegla){
+  if(!proximaFecha){
+    if(tieneRegla)return{label:'🟠 Sin registrar (requerido)',color:'#f97316',dias:null,requiereAtencion:true};
+    return{label:'Sin datos',color:'var(--tx3)',dias:null,requiereAtencion:false};
+  }
   var hoy=new Date();hoy.setHours(0,0,0,0);
   var prox=new Date(proximaFecha+'T00:00:00');
   var dias=Math.round((prox-hoy)/86400000);
-  if(dias<0)return{label:'🔴 VENCIDO ('+Math.abs(dias)+'d)',color:'var(--danger)',dias:dias};
-  if(dias<=30)return{label:'🟡 Vence en '+dias+'d',color:'#eab308',dias:dias};
-  return{label:'🟢 OK ('+dias+'d)',color:'var(--ok)',dias:dias};
+  if(dias<0)return{label:'🔴 VENCIDO ('+Math.abs(dias)+'d)',color:'var(--danger)',dias:dias,requiereAtencion:true};
+  if(dias<=30)return{label:'🟡 Vence en '+dias+'d',color:'#eab308',dias:dias,requiereAtencion:true};
+  return{label:'🟢 OK ('+dias+'d)',color:'var(--ok)',dias:dias,requiereAtencion:false};
 }
 
 // ═══ PREDICTIVO (2026-07) — estadísticas en vivo desde ordenes_compra_historico ═══

@@ -69,4 +69,21 @@ describe('vencEstado — clasifica el estado de un vencimiento respecto a hoy', 
     const r = vencEstado('2026-12-01');
     expect(r.label).toContain('OK');
   });
+
+  it('sin fecha pero SÍ aplica una regla -> "Sin registrar (requerido)", cuenta como alerta', () => {
+    const r = vencEstado(null, true);
+    expect(r.label).toContain('Sin registrar');
+    expect(r.dias).toBeNull();
+    expect(r.requiereAtencion).toBe(true);
+  });
+  it('sin fecha y sin regla aplicable -> "Sin datos", NO es alerta', () => {
+    const r = vencEstado(null, false);
+    expect(r.label).toBe('Sin datos');
+    expect(r.requiereAtencion).toBe(false);
+  });
+  it('vencido y por vencer también marcan requiereAtencion; OK no', () => {
+    expect(vencEstado('2026-07-01').requiereAtencion).toBe(true);
+    expect(vencEstado('2026-08-01').requiereAtencion).toBe(true);
+    expect(vencEstado('2026-12-01').requiereAtencion).toBe(false);
+  });
 });
