@@ -6233,10 +6233,21 @@ window.processImportReg=function(){
   var replace=$('regReplace')?.checked||false;
   var reader=new FileReader();
   reader.onload=function(e){
-    var reg=replace?[]:S.g('reg')||[];var txt=e.target.result.replace(/^\uFEFF/,'');var added=0;
+    var reg=replace?[]:S.g('reg')||[];var txt=e.target.result.replace(/^\uFEFF/,'');var added=0,dup=0;
+    // \u00CDndice de registros ya existentes para no duplicar (equipo|fechaEntrada|horaEntrada|
+    // tipoPM|horomReal) \u2014 antes esta importaci\u00F3n no ten\u00EDa NING\u00DAN control anti-duplicado,
+    // as\u00ED que reimportar el mismo archivo (o uno con fechas superpuestas) agregaba una
+    // copia exacta cada vez. Bug real encontrado: 4 cargas del mismo maestro dejaron 809
+    // filas duplicadas (1097 de 288 reales) en TODOS los equipos de la flota.
+    var existentes={};
+    reg.forEach(function(r){existentes[(r.equipo||'')+'|'+(r.fechaEntrada||'')+'|'+(r.horaEntrada||'')+'|'+(r.tipoPM||'')+'|'+(r.horomReal||'')]=true;});
     try{
       if(file.name.endsWith('.json')){
-        var data=JSON.parse(txt);if(Array.isArray(data)){data.forEach(function(r){reg.push(r);added++;});}
+        var data=JSON.parse(txt);if(Array.isArray(data)){data.forEach(function(r){
+          var clave=(r.equipo||'')+'|'+(r.fechaEntrada||'')+'|'+(r.horaEntrada||'')+'|'+(r.tipoPM||'')+'|'+(r.horomReal||'');
+          if(existentes[clave]){dup++;return;}
+          existentes[clave]=true;reg.push(r);added++;
+        });}
       } else {
         var lines=txt.split('\n').filter(function(l){return l.replace(/\r/g,'').trim().length>3;});
         var sep=lines[0].includes(';')?';':lines[0].includes('\t')?'\t':',';
@@ -6297,6 +6308,9 @@ window.processImportReg=function(){
           if(turno&&turno!=='No Aplica')obs+=(obs?' | ':'')+turno;
           if(ot&&ot!=='No Aplica')obs+=(obs?' | ':'')+'OT: '+ot;
 
+          var claveCsv=sigla+'|'+fe+'|'+he+'|'+tipoPM+'|'+horom;
+          if(existentes[claveCsv]){dup++;continue;}
+          existentes[claveCsv]=true;
           reg.push({
             nReg:nextNReg++,equipo:sigla,tipoPM:tipoPM,
             fechaEntrada:fe,horaEntrada:he,fechaSalida:fs||fe,horaSalida:hs,
@@ -6307,7 +6321,7 @@ window.processImportReg=function(){
         }
       }
       S.s('reg',reg);cm();refreshAll();
-      toast('✅ '+added+' registros '+(replace?'cargados':'agregados'));
+      toast('✅ '+added+' registros '+(replace?'cargados':'agregados')+(dup?' · '+dup+' duplicado(s) omitido(s)':''));
     }catch(err){toast('❌ Error: '+err.message);}
   };reader.readAsText(file,'ISO-8859-1');
 };
