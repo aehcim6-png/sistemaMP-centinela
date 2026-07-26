@@ -32,12 +32,22 @@ const C = {
   // supera lo que pediría la grilla pura, se salta un ciclo base más allá de ese
   // hito. Si el último PM quedó rezagado (hay huecos sin registrar), la grilla
   // pura ya da la respuesta correcta por sí sola — no hace falta ningún ajuste.
+  // Un PM solo puede acreditar un hito que el equipo YA alcanzó. Math.round() snapea
+  // al múltiplo MÁS CERCANO, así que también snapeaba HACIA ADELANTE — hasta medio
+  // ciclo propio por delante del equipo — acreditando un servicio que todavía no
+  // ocurrió y empujando el próximo PM más de un ciclo completo. Casos reales: el bus
+  // BS-5752 (415.000 km, PM2 en 410.000) pedía su próximo PM a 15.000 km, y las
+  // camionetas CA-5979/CA-9927 a 14.700/12.696 km — todas con ciclo de 10.000 km, o
+  // sea imposible. Por eso el hito acreditado no puede estar más de freq/4 por
+  // delante del horómetro actual; ese margen deja pasar el caso legítimo (BD-10139:
+  // PM4 en 1977 cubriendo el hito 2000, a 23h del equipo) y corta los inventados.
   proxPM(h,f=250,horomUltimoPM,tipoUltimoPM){
     const freq=f||250;
     const grilla=Math.ceil(h/freq)*freq;
     if(horomUltimoPM==null||horomUltimoPM<0)return grilla;
     const cicloPropio=freq*this.tierMultPM(tipoUltimoPM);
     const hitoCubierto=Math.round(horomUltimoPM/cicloPropio)*cicloPropio;
+    if(hitoCubierto-h>freq/4)return grilla;
     const siguienteSiAnticipado=hitoCubierto+freq;
     return siguienteSiAnticipado>grilla?siguienteSiAnticipado:grilla;
   },

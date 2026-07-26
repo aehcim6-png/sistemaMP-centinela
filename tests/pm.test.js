@@ -98,6 +98,28 @@ describe('C.proxPM — la grilla oficial NUNCA se corre; solo salta un hito ya c
     expect(C.proxPM(1977, 250)).toBe(2000);
     expect(C.proxPM(1977, 250, null)).toBe(2000);
   });
+  it('nunca acredita un hito que el equipo TODAVÍA no alcanzó (próximo PM a más de un ciclo)', () => {
+    // Casos reales de la flota por kilómetros: el hito propio del último PM caía
+    // por DELANTE del odómetro actual y Math.round() lo daba por cubierto, dejando
+    // el próximo PM a más de un ciclo completo — físicamente imposible.
+    // BS-5752: bus en 415.000 km, PM2 en 410.000, ciclo 10.000 -> pedía 430.000.
+    expect(C.proxPM(415000, 10000, 410000, 'PM2')).toBe(420000);
+    // CA-5979: camioneta en 115.300 km, PM2 en 114.798 -> pedía 130.000.
+    expect(C.proxPM(115300, 10000, 114798, 'PM2')).toBe(120000);
+    // CA-9927: camioneta en 77.304 km, PM2 en 77.304 -> pedía 90.000.
+    expect(C.proxPM(77304, 10000, 77304, 'PM2')).toBe(80000);
+  });
+  it('el remanente hasta el próximo PM nunca supera el ciclo del equipo', () => {
+    const flota = [
+      { h: 415000, f: 10000, ult: 410000, tipo: 'PM2' },
+      { h: 115300, f: 10000, ult: 114798, tipo: 'PM2' },
+      { h: 77304, f: 10000, ult: 77304, tipo: 'PM2' },
+      { h: 86112, f: 10000, ult: 78112, tipo: 'PM2' },
+    ];
+    flota.forEach(({ h, f, ult, tipo }) => {
+      expect(C.proxPM(h, f, ult, tipo) - h).toBeLessThanOrEqual(f);
+    });
+  });
 });
 
 describe('C.estado — clasificación de urgencia por días restantes', () => {
