@@ -2010,7 +2010,14 @@ window.saveReg=function(){
   if(fEnt&&fSal&&fechaEsAnterior(fSal,fEnt))return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
   const dReg=duracionHM(fEnt,hEnt,fSal,hSal);
   if(dReg&&dReg.ms<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
-  if(e&&e.horomActual&&hr<e.horomActual){
+  // Bug real: registrar un PM con FECHA ANTERIOR (ingresado con retraso, ej. "esto
+  // pasó hace 2 meses") y su horómetro de esa fecha hacía retroceder el horómetro
+  // ACTUAL del equipo al valor viejo, aunque desde entonces ya se hubiera avanzado
+  // más. Un registro retroactivo (fecha < última fecha de horómetro conocida) es
+  // dato histórico válido, pero nunca debe mover el horómetro en vivo del equipo
+  // hacia atrás — solo lo hace el registro más reciente cronológicamente.
+  const esRetroactivo=!!(e&&e.fechaHorom&&fechaEsAnterior(fEnt,e.fechaHorom));
+  if(!esRetroactivo&&e&&e.horomActual&&hr<e.horomActual){
     if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+eqSigla+' tiene horómetro actual: '+e.horomActual.toLocaleString('es-CL')+'h\nEstás registrando: '+hr.toLocaleString('es-CL')+'h ('+(e.horomActual-hr).toLocaleString('es-CL')+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
   }
   // Calcular duración en horas
@@ -2045,16 +2052,23 @@ window.saveReg=function(){
     reg[reg.length-1].consumosPauta=consumos_pm.map(c=>({rep:c.rep||'',cant:c.can||0}));
   }
   S.s('reg',reg);
-  // Actualizar horómetro y estatus del equipo
+  // Actualizar horómetro y estatus del equipo — solo si NO es retroactivo. Un
+  // registro con fecha pasada sigue alimentando el historial (para tasaDiariaReal,
+  // etc.) pero no toca el horómetro en vivo del equipo, que ya avanzó desde esa fecha.
   if(e){
-    e.horomActual=hr;
-    e.fechaHorom=fEnt;
-    _recalcEq(e);
-    S.s('eq',eq);
-    // Fix 1: Alimentar historial de horómetros automáticamente desde el registro
+    if(!esRetroactivo){
+      e.horomActual=hr;
+      e.fechaHorom=fEnt;
+      _recalcEq(e);
+      S.s('eq',eq);
+    }
+    // Fix 1: Alimentar historial de horómetros automáticamente desde el registro.
+    // 'anterior' busca la lectura previa CRONOLÓGICAMENTE a fEnt (no la más reciente
+    // del historial completo) — necesario para que un registro retroactivo calcule
+    // su horomIni contra el dato que de verdad venía antes, no contra uno posterior.
     const hist=S.g('hist')||[];
-    const prevH=hist.filter(h=>h.sigla===eqSigla).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
-    hist.push({sigla:eqSigla,fecha:fEnt,horomIni:prevH?(prevH.horomFin||prevH.horom||0):0,horomFin:hr,horom:hr,origen:'reg'});
+    const anterior=hist.filter(h=>h.sigla===eqSigla&&h.fecha&&h.fecha<=fEnt).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
+    hist.push({sigla:eqSigla,fecha:fEnt,horomIni:anterior?(anterior.horomFin||anterior.horom||0):0,horomFin:hr,horom:hr,origen:'reg'});
     S.s('hist',hist);
   }
   // Descontar stock automáticamente
@@ -2091,7 +2105,8 @@ window.saveReg=function(){
     }
   }
   cm();refreshAll();
-  toast('✅ '+tp+' — '+eqSigla+(logC&&logC.length?' · Stock: -'+logC.length+' items':'')+msgOT+msgOp);
+  const msgRetro=esRetroactivo?' · 📅 Fecha retroactiva: no se modificó el horómetro actual del equipo':'';
+  toast('✅ '+tp+' — '+eqSigla+(logC&&logC.length?' · Stock: -'+logC.length+' items':'')+msgOT+msgOp+msgRetro);
 };
 
 
