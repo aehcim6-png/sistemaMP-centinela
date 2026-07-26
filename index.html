@@ -952,10 +952,27 @@ function _recalcCad(c){
 }
 window.cev=function(store,idx,key,val,type){
   const d=S.g(store);if(!d||!d[idx])return;
+  const horomAntes=d[idx].horomActual;
   d[idx][key]=type==='number'?parseFloat(val)||0:val;
   if(store==='eq')_recalcEq(d[idx]);
   if(store==='cad')_recalcCad(d[idx]);
   S.s(store,d);
+  // Bug real: editar el horómetro directo en la celda de Equipos no dejaba rastro
+  // en historial_horometros. Con el tiempo esto deja el ritmo real (tasaDiariaReal)
+  // calculando con datos viejos aunque el horómetro EN VIVO del equipo ya avanzó
+  // mucho más (caso real: CF-9511 tenía su último dato de historial 45 días atrás
+  // del horómetro actual). Ahora cada edición de horómetro alimenta el historial
+  // igual que un registro de PM — dedupe por (sigla,fecha,horómetro) para no
+  // duplicar si se guarda la misma celda dos veces sin cambios reales.
+  if(store==='eq'&&key==='horomActual'&&d[idx].horomActual>0&&d[idx].horomActual!==horomAntes){
+    const sigla=d[idx].sigla,fecha=d[idx].fechaHorom||new Date().toISOString().slice(0,10);
+    const hist=S.g('hist')||[];
+    const yaExiste=hist.some(function(h){return h.sigla===sigla&&h.fecha===fecha&&(h.horomFin!=null?h.horomFin:h.horom)===d[idx].horomActual;});
+    if(!yaExiste){
+      hist.push(construirLecturaHistorial(hist,sigla,fecha,d[idx].horomActual,'eq'));
+      S.s('hist',hist);
+    }
+  }
   if(store==='eq'){renderHeader();renders[currentTab]?.();}
   if(store==='cad')renders.cad();
   toast('✅ Guardado');
@@ -2062,13 +2079,12 @@ window.saveReg=function(){
       _recalcEq(e);
       S.s('eq',eq);
     }
-    // Fix 1: Alimentar historial de horómetros automáticamente desde el registro.
-    // 'anterior' busca la lectura previa CRONOLÓGICAMENTE a fEnt (no la más reciente
-    // del historial completo) — necesario para que un registro retroactivo calcule
-    // su horomIni contra el dato que de verdad venía antes, no contra uno posterior.
+    // Fix 1: Alimentar historial de horómetros automáticamente desde el registro
+    // (construirLecturaHistorial ya busca la lectura previa CRONOLÓGICAMENTE a fEnt,
+    // no la más reciente del historial completo — necesario para que un registro
+    // retroactivo calcule su horomIni contra el dato que de verdad venía antes).
     const hist=S.g('hist')||[];
-    const anterior=hist.filter(h=>h.sigla===eqSigla&&h.fecha&&h.fecha<=fEnt).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
-    hist.push({sigla:eqSigla,fecha:fEnt,horomIni:anterior?(anterior.horomFin||anterior.horom||0):0,horomFin:hr,horom:hr,origen:'reg'});
+    hist.push(construirLecturaHistorial(hist,eqSigla,fEnt,hr,'reg'));
     S.s('hist',hist);
   }
   // Descontar stock automáticamente
@@ -8883,6 +8899,7 @@ renders.ayuda=function(){
     '<li><b>Más rápido al ingresar:</b> las tablas grandes se cargan en paralelo en vez de una página a la vez — el arranque del sistema ya no se siente lento aunque los datos hayan crecido.</li>'+
     '<li><b>Próximo PM ya no ignora un PM recién hecho anticipado:</b> el calendario oficial de PM (cada 250/500/1.000/2.000h desde cero) se mantiene siempre fijo — hacer un PM un poco antes o después de su hito no corre el resto del calendario. Pero si se hace ANTES de llegar a su propio hito (ej. un PM4 hecho en la hora 1.977 en vez de 2.000), el sistema ya no vuelve a pedir ese mismo PM a las pocas horas — reconoce que ese hito ya quedó cubierto y pasa al siguiente.</li>'+
     '<li><b>Un PM con fecha retroactiva ya no hace retroceder el horómetro del equipo:</b> antes, registrar un PM con fecha anterior (algo que ocurrió hace semanas o meses y recién se anota) con su horómetro de esa fecha arrastraba hacia atrás el horómetro EN VIVO del equipo, aunque este ya hubiera avanzado bastante más desde entonces. Ahora ese dato se guarda en el historial, pero solo el registro más reciente cronológicamente actualiza el horómetro actual.</li>'+
+    '<li><b>Editar el horómetro en Equipos ahora también alimenta el historial:</b> antes, cambiar el horómetro directo en la tabla de Equipos no dejaba ningún rastro en el historial de lecturas — con el tiempo, el ritmo real usado para proyectar el próximo PM quedaba calculado con datos de semanas o meses atrás, aunque el equipo ya llevara mucho más uso real. Se corrigió para todos los equipos afectados y ahora cada edición de horómetro queda registrada.</li>'+
     '</ul>'+
     '</div>'+
 

@@ -217,6 +217,22 @@ function fechaEsAnterior(a,b){
   return new Date(a+'T00:00:00').getTime()<new Date(b+'T00:00:00').getTime();
 }
 
+// Construye una fila de historial_horometros para una lectura nueva, buscando la
+// lectura previa CRONOLÓGICAMENTE a 'fecha' (no la más reciente del historial
+// completo) para fijar 'horomIni' correctamente incluso cuando la lectura nueva es
+// retroactiva (fecha pasada, ingresada con retraso). Antes esto estaba duplicado
+// en 2 lugares (saveReg y la edición directa del horómetro en Equipos) cada uno
+// buscando el "anterior" de una forma ligeramente distinta.
+function construirLecturaHistorial(hist,sigla,fecha,horom,origen){
+  const anterior=(hist||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha&&h.fecha<=fecha;})
+    .sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');})[0];
+  return{
+    sigla:sigla,fecha:fecha,
+    horomIni:anterior?(anterior.horomFin!=null?anterior.horomFin:(anterior.horom||0)):0,
+    horomFin:horom,horom:horom,origen:origen
+  };
+}
+
 // Duración entre entrada y salida de un PM/correctivo — un solo lugar para el cálculo
 // que antes estaba copiado 4 veces (calcDurReg, calcDurEdit, saveReg y saveEditReg,
 // cada uno con su propia versión del mismo "new Date(fSal+hSal)-new Date(fEnt+hEnt)").
@@ -645,7 +661,7 @@ if (typeof module !== 'undefined' && module.exports) {
     C, fd, fn, escapeHtml,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
-    fechaEsPlausible, fechaEsAnterior, duracionHM,
+    fechaEsPlausible, fechaEsAnterior, duracionHM, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
   };
 }

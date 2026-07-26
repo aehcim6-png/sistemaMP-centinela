@@ -1,4 +1,4 @@
-const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM } = require('../logic.js');
+const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM, construirLecturaHistorial } = require('../logic.js');
 
 describe('fd — formato de fecha para mostrar', () => {
   it('vacío, "None" o 0 -> guión largo', () => {
@@ -100,5 +100,37 @@ describe('fechaEsAnterior — compara fechas como fechas, no como texto', () => 
   it('el bug real: comparar como texto diría que "10000-12-31" es ANTERIOR a "2025-01-31" (falso) — como fecha, es muy posterior', () => {
     expect('10000-12-31' < '2025-01-31').toBe(true); // así fallaba la validación vieja
     expect(fechaEsAnterior('10000-12-31', '2025-01-31')).toBe(false); // fechaEsAnterior lo corrige
+  });
+});
+
+describe('construirLecturaHistorial — fila de historial_horometros con "horomIni" correcto incluso en carga retroactiva', () => {
+  it('usa la lectura previa más reciente CRONOLÓGICAMENTE a la fecha nueva como horomIni', () => {
+    const hist = [
+      { sigla: 'CF-9511', fecha: '2026-04-13', horomFin: 13995 },
+      { sigla: 'CF-9511', fecha: '2026-06-08', horomFin: 14250 },
+    ];
+    const fila = construirLecturaHistorial(hist, 'CF-9511', '2026-07-23', 14438, 'eq');
+    expect(fila).toEqual({ sigla: 'CF-9511', fecha: '2026-07-23', horomIni: 14250, horomFin: 14438, horom: 14438, origen: 'eq' });
+  });
+  it('bug real (CF-9511): sin esto, el historial quedaba con un hueco de 45 días entre la última lectura y el horómetro en vivo del equipo', () => {
+    // Antes de este fix, editar el horómetro directo en Equipos no dejaba rastro en
+    // el historial — tasaDiariaReal seguía usando el tramo viejo (04-13 -> 06-08)
+    // en vez del más reciente y relevante (06-08 -> hoy).
+    const hist = [{ sigla: 'CF-9511', fecha: '2026-06-08', horomFin: 14250 }];
+    const fila = construirLecturaHistorial(hist, 'CF-9511', '2026-07-23', 14438, 'eq');
+    expect(fila.horomIni).toBe(14250);
+    expect(fila.horomFin).toBe(14438);
+  });
+  it('un registro RETROACTIVO (fecha intercalada en el pasado) busca el dato que de verdad venía antes de esa fecha, no el más reciente del arreglo', () => {
+    const hist = [
+      { sigla: 'BD-9509', fecha: '2026-01-01', horomFin: 1000 },
+      { sigla: 'BD-9509', fecha: '2026-06-01', horomFin: 2000 }, // el más reciente, pero POSTERIOR a la fecha retroactiva
+    ];
+    const fila = construirLecturaHistorial(hist, 'BD-9509', '2026-03-01', 1500, 'reg');
+    expect(fila.horomIni).toBe(1000); // el de 2026-01-01, no el de 2026-06-01
+  });
+  it('sin ningún dato previo, horomIni es 0', () => {
+    const fila = construirLecturaHistorial([], 'CN-9999', '2026-01-01', 500, 'reg');
+    expect(fila.horomIni).toBe(0);
   });
 });
