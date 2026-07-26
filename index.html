@@ -8860,6 +8860,7 @@ renders.ayuda=function(){
     '<li><b>Programación Diaria:</b> corregidas columnas "Cargo" repetidas que se importaban como si fueran bloques de horario, y la utilización de dotación ya no cuenta charla, colación ni vacaciones como trabajo productivo.</li>'+
     '<li><b>Programa Anual:</b> el tipo de PM proyectado para cada mes sigue el ciclo real del equipo, no una secuencia fija PM1→PM2→PM3→PM4.</li>'+
     '<li><b>Más rápido al ingresar:</b> las tablas grandes se cargan en paralelo en vez de una página a la vez — el arranque del sistema ya no se siente lento aunque los datos hayan crecido.</li>'+
+    '<li><b>Próximo PM ya no ignora el último PM real hecho:</b> antes el sistema calculaba el próximo PM como el siguiente múltiplo redondo de horas desde cero, sin fijarse si ya se había ejecutado uno recién. Un equipo con un PM4 recién hecho podía aparecer "🔴 URGENTE" a las pocas horas. Ahora el cálculo se ancla al último PM real registrado en Registro PM.</li>'+
     '</ul>'+
     '</div>'+
 
