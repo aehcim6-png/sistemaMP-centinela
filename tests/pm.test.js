@@ -65,24 +65,36 @@ describe('C.proxPM — próximo múltiplo de la frecuencia', () => {
   });
 });
 
-describe('C.proxPM — con ancla al último PM real (bug real: BD-10139 mostraba "URGENTE" segundos después de un PM4)', () => {
-  it('un PM recién ejecutado HOY deja un ciclo completo de margen, no la grilla modular desde cero', () => {
-    // BD-10139: PM4 real ejecutado hoy en horómetro 1977. La grilla modular pura
-    // (Math.ceil(1977/250)*250=2000) decía "vencido en 23h" — sin sentido con un PM
-    // recién hecho. Anclado al último PM real, el próximo cae 250h después de ESE PM.
-    expect(C.proxPM(1977, 250, 1977)).toBe(2227);
+describe('C.proxPM — la grilla oficial NUNCA se corre; solo salta un hito ya cubierto por un PM anticipado', () => {
+  it('bug real: un PM hecho un poco DESPUÉS de su hito no debe correr el calendario (270 en vez de 250 -> el siguiente sigue siendo 500, no 520)', () => {
+    // Antes de este fix, anclar al horómetro exacto del último PM real corría TODO
+    // el calendario para siempre (270+250=520). El hito 250 se cubrió (con algo de
+    // atraso), y el próximo hito de la grilla oficial sigue siendo 500 — la grilla
+    // pura ya da esa respuesta sola, sin necesitar ningún ajuste.
+    expect(C.proxPM(270, 250, 270, 'PM1')).toBe(500);
   });
-  it('con huecos en el registro (varios ciclos desde el último PM real), avanza tantos ciclos como haga falta', () => {
-    // MN-5926 real: último PM en 8509, horómetro actual 8978 -> 2 ciclos de 250h.
-    expect(C.proxPM(8978, 250, 8509)).toBe(9009);
-    // GE-10019 real: último PM en 9529, horómetro actual 12747 -> 13 ciclos.
-    expect(C.proxPM(12747, 250, 9529)).toBe(12779);
+  it('bug real: un PM4 anticipado (BD-10139, hecho en 1977 antes de llegar a su hito 2000) no debe pedir otro PM casi de inmediato', () => {
+    // La grilla pura (Math.ceil(1977/250)*250=2000) decía "vencido en 23h" — sin
+    // sentido, porque ese PM4 ya cubrió el hito 2000 (2000 es 8x250, su propio
+    // ciclo). El próximo hito de la grilla después de 2000 es 2250.
+    expect(C.proxPM(1977, 250, 1977, 'PM4')).toBe(2250);
   });
-  it('nunca da un resultado por debajo del horómetro actual, ni siquiera si el "último PM" quedó muy atrás', () => {
-    const p = C.proxPM(5000, 250, 100);
+  it('con huecos reales en el registro (varios ciclos sin anotar desde el último PM), la grilla pura ya es la respuesta correcta, sin ajuste', () => {
+    // MN-5926 real: último PM2 en 8509 (cubre hasta el múltiplo de 500 más cercano,
+    // 8500), horómetro actual 8978 — muy por delante de ese hito. La grilla pura
+    // (9000) ya está más adelante que "hito+250" (8750), así que se usa la grilla.
+    expect(C.proxPM(8978, 250, 8509, 'PM2')).toBe(9000);
+    // GE-10019 real: mismo caso, hueco grande desde el último PM2.
+    expect(C.proxPM(12747, 250, 9529, 'PM2')).toBe(12750);
+  });
+  it('un tipo de PM desconocido o mal cargado (typo de importación) cae al ciclo base 1x — nunca empuja el próximo PM más de lo debido', () => {
+    expect(C.proxPM(9212, 250, 9055, 'PM6')).toBe(9250);
+  });
+  it('nunca da un resultado por debajo del horómetro actual', () => {
+    const p = C.proxPM(5000, 250, 100, 'PM1');
     expect(p).toBeGreaterThanOrEqual(5000);
   });
-  it('sin ancla (undefined/null), se comporta igual que siempre — grilla modular pura', () => {
+  it('sin datos del último PM (undefined/null), se comporta igual que siempre — grilla modular pura', () => {
     expect(C.proxPM(1977, 250)).toBe(2000);
     expect(C.proxPM(1977, 250, null)).toBe(2000);
   });
@@ -186,13 +198,18 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     C.recalc(e);                 // sin segundo argumento
     expect(e.diasParaPM).toBe(15); // 240/16
   });
-  it('con horomUltimoPM ancla el próximo PM al ciclo real, no a la grilla modular desde cero (caso real BD-10139)', () => {
+  it('con horomUltimoPM/tipoUltimoPM detecta un PM4 anticipado y no pide otro PM casi de inmediato (caso real BD-10139)', () => {
     const e = { horomActual: 1977, frecPM: 250, hrsDia: 12 };
-    C.recalc(e, 12, 1977); // PM4 recién hecho HOY en 1977
-    expect(e.horomProxPM).toBe(2227);
-    expect(e.hrsRestantes).toBe(250);
-    // 250h a 12h/día ~ 21 días -> ya no "URGENTE" a los pocos días
+    C.recalc(e, 12, 1977, 'PM4'); // PM4 recién hecho HOY en 1977, antes de su hito 2000
+    expect(e.horomProxPM).toBe(2250);
+    expect(e.hrsRestantes).toBe(273);
+    // 273h a 12h/día ~ 23 días -> ya no "URGENTE" a los pocos días
     expect(e.estado).not.toContain('URGENTE');
+  });
+  it('un PM hecho un poco después de su hito no corre el calendario oficial (bug real: 270 corría todo a 520 en vez de dejarlo en 500)', () => {
+    const e = { horomActual: 270, frecPM: 250, hrsDia: 12 };
+    C.recalc(e, 12, 270, 'PM1');
+    expect(e.horomProxPM).toBe(500);
   });
 });
 

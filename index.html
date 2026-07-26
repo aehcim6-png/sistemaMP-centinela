@@ -906,8 +906,10 @@ function _ritmoRealEq(sigla,hrsDiaNominal){
 }
 // Horómetro real del último PM ejecutado (registros_pm), para anclar proxPM a ese
 // ciclo real en vez de la grilla modular pura desde horómetro cero — sin esto, un
-// PM recién hecho hoy podía mostrarse "vencido" a las pocas horas solo porque el
-// horómetro actual está cerca del siguiente múltiplo redondo de frecPM.
+// PM4 recién hecho ANTICIPADO (antes de llegar a su propio hito) podía mostrarse
+// "vencido" a las pocas horas, porque el horómetro actual está cerca del siguiente
+// múltiplo redondo de frecPM. Devuelve también el tipoPM de ese registro: proxPM
+// necesita saber qué tan grande era ese ciclo (PM4 cubre 8x, no solo 1x).
 function _horomUltimoPM(sigla){
   var regs=(S.g('reg')||[]).filter(function(r){return r&&r.equipo===sigla&&r.horomReal>0;});
   if(!regs.length)return null;
@@ -916,10 +918,14 @@ function _horomUltimoPM(sigla){
     var fb=(b.fechaEntrada||'')+' '+(b.horaEntrada||'');
     return fa<fb?-1:fa>fb?1:0;
   });
-  return regs[regs.length-1].horomReal;
+  var ult=regs[regs.length-1];
+  return{horom:ult.horomReal,tipo:ult.tipoPM};
 }
 // Recalcula un equipo usando su ritmo real. Reemplaza las llamadas directas a _recalcEq(e).
-function _recalcEq(e){return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),_horomUltimoPM(e.sigla));}
+function _recalcEq(e){
+  var ult=_horomUltimoPM(e.sigla);
+  return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),ult?ult.horom:null,ult?ult.tipo:null);
+}
 C.recalcAll=function(){const eq=S.g('eq');eq.forEach(e=>_recalcEq(e));S.s('eq',eq);return eq};
 // ============ HELPERS ============
 // fd/fn/escapeHtml viven en logic.js.
@@ -8860,7 +8866,7 @@ renders.ayuda=function(){
     '<li><b>Programación Diaria:</b> corregidas columnas "Cargo" repetidas que se importaban como si fueran bloques de horario, y la utilización de dotación ya no cuenta charla, colación ni vacaciones como trabajo productivo.</li>'+
     '<li><b>Programa Anual:</b> el tipo de PM proyectado para cada mes sigue el ciclo real del equipo, no una secuencia fija PM1→PM2→PM3→PM4.</li>'+
     '<li><b>Más rápido al ingresar:</b> las tablas grandes se cargan en paralelo en vez de una página a la vez — el arranque del sistema ya no se siente lento aunque los datos hayan crecido.</li>'+
-    '<li><b>Próximo PM ya no ignora el último PM real hecho:</b> antes el sistema calculaba el próximo PM como el siguiente múltiplo redondo de horas desde cero, sin fijarse si ya se había ejecutado uno recién. Un equipo con un PM4 recién hecho podía aparecer "🔴 URGENTE" a las pocas horas. Ahora el cálculo se ancla al último PM real registrado en Registro PM.</li>'+
+    '<li><b>Próximo PM ya no ignora un PM recién hecho anticipado:</b> el calendario oficial de PM (cada 250/500/1.000/2.000h desde cero) se mantiene siempre fijo — hacer un PM un poco antes o después de su hito no corre el resto del calendario. Pero si se hace ANTES de llegar a su propio hito (ej. un PM4 hecho en la hora 1.977 en vez de 2.000), el sistema ya no vuelve a pedir ese mismo PM a las pocas horas — reconoce que ese hito ya quedó cubierto y pasa al siguiente.</li>'+
     '</ul>'+
     '</div>'+
 

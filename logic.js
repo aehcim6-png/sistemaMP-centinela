@@ -13,23 +13,33 @@ const C = {
   // SIEMPRE 'PM4' — cualquier múltiplo de 10.000 también es múltiplo de 2.000 — sin
   // importar si era su primer o su décimo servicio.
   tipoPM(h,frecPM=250){const f=frecPM||250;return h%(f*8)===0?'PM4':h%(f*4)===0?'PM3':h%(f*2)===0?'PM2':'PM1'},
-  // Próximo horómetro de PM. Sin 'horomUltimoPM' cae al cálculo modular puro de
-  // siempre (próximo múltiplo de f desde el horómetro CERO) — sirve cuando no se
-  // conoce el último PM real ejecutado. Con 'horomUltimoPM' (el horómetro real del
-  // último registro de registros_pm de este equipo) ancla el ciclo a ese PM real:
-  // un PM recién hecho HOY siempre deja un ciclo completo (f horas) de margen, en
-  // vez de que la grilla modular diga "vencido en 23h" solo porque el horómetro
-  // actual está cerca del siguiente múltiplo redondo de f. Si el último PM real
-  // quedó varios ciclos atrás (huecos en el registro), avanza tantos ciclos como
-  // haga falta para llegar/superar el horómetro actual (nunca menos de 1 ciclo).
-  proxPM(h,f=250,horomUltimoPM){
+  // Cuántas veces el frecPM base cabe en el ciclo de este tipo de PM (PM4 cubre
+  // 8x, PM3 4x, PM2 2x, PM1 1x — mismos umbrales que tipoPM). Tipos desconocidos
+  // o mal cargados (ej. 'PM6'/'PM9' de importaciones viejas, 'Correctivo') caen a
+  // 1x: es la opción conservadora, nunca empuja el próximo PM más de lo debido.
+  tierMultPM(tipoPM){const t=String(tipoPM||'').toUpperCase().trim();return t==='PM4'?8:t==='PM3'?4:t==='PM2'?2:t==='PM1'?1:1;},
+  // Próximo horómetro de PM. La grilla oficial (múltiplos de f desde el horómetro
+  // CERO) se mantiene SIEMPRE fija — un PM hecho un poco antes o un poco después
+  // de su hito no debe correr el resto del calendario para siempre (ese fue un
+  // bug real: con frecPM=250, un PM hecho en 270 en vez de 250 corría el
+  // siguiente hito a 520 en vez de dejarlo en 500). Lo único que sí puede pasar
+  // es que un PM se haga ANTICIPADO — antes de llegar a su propio hito — y en ese
+  // caso el hito recién cubierto no debe volver a pedirse casi de inmediato (bug
+  // real: BD-10139 hizo un PM4 en horómetro 1977 y el sistema pedía "otro PM en
+  // 23h" en 2000, el mismo hito que ese PM4 ya cubrió). 'horomUltimoPM'/'tipoUltimoPM'
+  // (del registro más reciente en registros_pm) permiten detectar ese caso: si el
+  // hito propio de ese PM (redondeado al múltiplo de su propio ciclo) ya alcanza o
+  // supera lo que pediría la grilla pura, se salta un ciclo base más allá de ese
+  // hito. Si el último PM quedó rezagado (hay huecos sin registrar), la grilla
+  // pura ya da la respuesta correcta por sí sola — no hace falta ningún ajuste.
+  proxPM(h,f=250,horomUltimoPM,tipoUltimoPM){
     const freq=f||250;
-    if(horomUltimoPM!=null&&horomUltimoPM>=0){
-      const delta=h-horomUltimoPM;
-      const ciclos=Math.max(1,Math.ceil(delta/freq));
-      return horomUltimoPM+freq*ciclos;
-    }
-    return Math.ceil(h/freq)*freq;
+    const grilla=Math.ceil(h/freq)*freq;
+    if(horomUltimoPM==null||horomUltimoPM<0)return grilla;
+    const cicloPropio=freq*this.tierMultPM(tipoUltimoPM);
+    const hitoCubierto=Math.round(horomUltimoPM/cicloPropio)*cicloPropio;
+    const siguienteSiAnticipado=hitoCubierto+freq;
+    return siguienteSiAnticipado>grilla?siguienteSiAnticipado:grilla;
   },
   estado(d){return d<0?{t:'VENCIDA',c:'b-r',i:'🔴'}:d<=7?{t:'URGENTE',c:'b-r',i:'🔴'}:d<=30?{t:'PRÓXIMA',c:'b-y',i:'🟡'}:{t:'AL DÍA',c:'b-g',i:'🟢'}},
   // Alerta de overhaul (PM4): mismo problema que tenía tipoPM antes de su fix —
@@ -44,10 +54,10 @@ const C = {
   // equipo, ej. de tasaDiariaReal sobre su historial) — más fiel que las horas/día
   // nominales, que suelen sobreestimar el uso y hacen que las alertas salgan antes de
   // lo necesario. Si no se pasa ritmo (o es 0), cae al hrsDia nominal, como siempre.
-  // 'horomUltimoPM' (opcional): horómetro real del último PM ejecutado (desde
-  // registros_pm), para anclar proxPM a ese ciclo real — ver comentario de proxPM.
-  recalc(e,ritmoDia,horomUltimoPM){
-    const p=this.proxPM(e.horomActual,e.frecPM||250,horomUltimoPM);
+  // 'horomUltimoPM'/'tipoUltimoPM' (opcionales): datos del último PM real ejecutado
+  // (desde registros_pm), para que proxPM detecte un PM anticipado — ver su comentario.
+  recalc(e,ritmoDia,horomUltimoPM,tipoUltimoPM){
+    const p=this.proxPM(e.horomActual,e.frecPM||250,horomUltimoPM,tipoUltimoPM);
     const hr=p-e.horomActual;
     const ritmo=(ritmoDia&&ritmoDia>0)?ritmoDia:(e.hrsDia>0?e.hrsDia:0);
     const d=ritmo>0?Math.round(hr/ritmo):999;
