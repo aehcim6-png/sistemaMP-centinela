@@ -8882,6 +8882,7 @@ renders.ayuda=function(){
     '<li><b>Programa Anual:</b> el tipo de PM proyectado para cada mes sigue el ciclo real del equipo, no una secuencia fija PM1→PM2→PM3→PM4.</li>'+
     '<li><b>Más rápido al ingresar:</b> las tablas grandes se cargan en paralelo en vez de una página a la vez — el arranque del sistema ya no se siente lento aunque los datos hayan crecido.</li>'+
     '<li><b>Próximo PM ya no ignora un PM recién hecho anticipado:</b> el calendario oficial de PM (cada 250/500/1.000/2.000h desde cero) se mantiene siempre fijo — hacer un PM un poco antes o después de su hito no corre el resto del calendario. Pero si se hace ANTES de llegar a su propio hito (ej. un PM4 hecho en la hora 1.977 en vez de 2.000), el sistema ya no vuelve a pedir ese mismo PM a las pocas horas — reconoce que ese hito ya quedó cubierto y pasa al siguiente.</li>'+
+    '<li><b>Un PM con fecha retroactiva ya no hace retroceder el horómetro del equipo:</b> antes, registrar un PM con fecha anterior (algo que ocurrió hace semanas o meses y recién se anota) con su horómetro de esa fecha arrastraba hacia atrás el horómetro EN VIVO del equipo, aunque este ya hubiera avanzado bastante más desde entonces. Ahora ese dato se guarda en el historial, pero solo el registro más reciente cronológicamente actualiza el horómetro actual.</li>'+
     '</ul>'+
     '</div>'+
 
