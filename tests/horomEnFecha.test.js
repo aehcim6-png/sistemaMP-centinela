@@ -25,6 +25,29 @@ describe('tasaDiariaReal — tasa diaria robusta desde el historial', () => {
     expect(tasaDiariaReal([{ fecha: '2026-01-01', horom: 500 }], 14)).toBe(14);
     expect(tasaDiariaReal([], 14)).toBe(14);
   });
+
+  it('prioriza el ÚLTIMO tramo real, no la mediana de todo el historial', () => {
+    // Caso real BD-9509: tramos lentos antiguos (2-6 h/día) y el más reciente
+    // acelerado (11,2 h/día). La mediana de todo daría ~6; debe devolver el último.
+    const r = [
+      { fecha: '2025-09-27', horom: 10974 },
+      { fecha: '2026-01-31', horom: 11234 }, // 260h/126d ≈ 2.1/día (tramo lento, parado)
+      { fecha: '2026-03-09', horom: 11446 }, // 212h/37d ≈ 5.7/día
+      { fecha: '2026-05-13', horom: 11985 }, // 539h/65d ≈ 8.3/día
+      { fecha: '2026-07-02', horom: 12250 }, // 265h/50d ≈ 5.3/día
+      { fecha: '2026-07-25', horom: 12508 }, // 258h/23d ≈ 11.2/día -> el más reciente
+    ];
+    expect(tasaDiariaReal(r, 12)).toBe(11.2);
+  });
+
+  it('si el último tramo es un reset/salto implausible, usa el último tramo VÁLIDO anterior', () => {
+    const r = [
+      { fecha: '2026-01-01', horom: 1000 },
+      { fecha: '2026-01-11', horom: 1100 }, // +10/día, último tramo válido
+      { fecha: '2026-01-12', horom: 50000 }, // salto imposible -> descartado
+    ];
+    expect(tasaDiariaReal(r, 16)).toBe(10);
+  });
 });
 
 describe('horomEnFecha — estimación fiel del horómetro en una fecha', () => {

@@ -482,28 +482,33 @@ function _diasEntreISO(desdeISO, hastaISO){
 }
 
 // Tasa diaria REAL (h/día o km/día) de un equipo, a partir de su historial de
-// lecturas [{fecha, horom}]. Lo más fiel posible pero robusto: toma la MEDIANA de
-// los avances diarios positivos y plausibles entre lecturas consecutivas, así ignora
-// resets de horómetro (deltas negativos o saltos enormes tipo 0→16.000) y días sin
-// movimiento. Si no hay pares usables, cae a la tasa nominal (hrsDia).
+// lecturas [{fecha, horom}]. Prioriza el ÚLTIMO tramo válido (entre las 2 lecturas
+// más recientes que dan un avance plausible) en vez de promediar todo el historial:
+// las horas máquina cambian por campaña/clima/disponibilidad — un equipo puede haber
+// estado semanas casi parado y luego acelerar, y una mediana de TODO el historial
+// (sobre todo si hay tramos con lecturas diarias densas mezclados con tramos con
+// lecturas sueltas cada 1-2 meses, como pasa en la práctica) queda dominada por
+// épocas viejas y no refleja el ritmo actual. Caso real: BD-9509 tenía mediana de
+// todo su historial en 8h/día, pero su último tramo medido (23 días reales) corría a
+// 11,2h/día — la mediana proyectaba su próximo PM ~10 días más tarde de lo real.
+// Sigue ignorando resets de horómetro (deltas negativos o saltos enormes tipo
+// 0→16.000) y días sin movimiento. Si no hay ningún tramo válido, cae a la tasa
+// nominal (hrsDia).
 function tasaDiariaReal(readings, nominal){
   var nom=nominal>0?nominal:12;
   var rs=(readings||[]).filter(function(r){return r&&r.fecha&&r.horom!=null&&isFinite(r.horom);})
     .slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
-  var tasas=[];
+  var ultimo=null;
   for(var i=1;i<rs.length;i++){
     var dd=_diasEntreISO(rs[i-1].fecha,rs[i].fecha);
     if(dd<=0)continue;
     var t=(rs[i].horom-rs[i-1].horom)/dd;
     if(t<=0)continue;        // reset o sin avance
     if(t>nom*4)continue;     // salto implausible (>4x nominal) — dato malo
-    tasas.push(t);
+    ultimo=t;                // se sigue pisando -> al terminar el for queda el más reciente
   }
-  if(!tasas.length)return nom;
-  tasas.sort(function(a,b){return a-b;});
-  var mid=Math.floor(tasas.length/2);
-  var med=tasas.length%2?tasas[mid]:(tasas[mid-1]+tasas[mid])/2;
-  return Math.round(med*10)/10;
+  if(ultimo==null)return nom;
+  return Math.round(ultimo*10)/10;
 }
 
 // Estima el horómetro/km que un equipo tenía en fechaISO, lo más fiel posible:
