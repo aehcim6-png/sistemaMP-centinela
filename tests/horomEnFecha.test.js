@@ -48,6 +48,23 @@ describe('tasaDiariaReal — tasa diaria robusta desde el historial', () => {
     ];
     expect(tasaDiariaReal(r, 16)).toBe(10);
   });
+
+  it('con lecturas diarias, un solo día atípico al final no define todo el ritmo', () => {
+    // Caso real CF-8769/CF-9510: historial diario (importado de un reporte de
+    // disponibilidad) donde el último día registró solo 3h (turno parcial).
+    // Antes del fix, ese único tramo de 1 día se usaba tal cual como "ritmo
+    // real" (3h/día) aunque el equipo venía operando ~17h/día. Ahora se
+    // acumulan tramos recientes hasta cubrir varios días.
+    const r = [
+      { fecha: '2026-07-05', horom: 15373 },
+      { fecha: '2026-07-06', horom: 15390 }, // +17
+      { fecha: '2026-07-07', horom: 15407 }, // +17
+      { fecha: '2026-07-08', horom: 15424 }, // +17
+      { fecha: '2026-07-09', horom: 15427 }, // +3 (día parcial atípico)
+    ];
+    expect(tasaDiariaReal(r, 16)).not.toBe(3);
+    expect(tasaDiariaReal(r, 16)).toBeGreaterThan(10);
+  });
 });
 
 describe('horomEnFecha — estimación fiel del horómetro en una fecha', () => {

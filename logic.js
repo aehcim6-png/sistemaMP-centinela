@@ -539,21 +539,37 @@ function _diasEntreISO(desdeISO, hastaISO){
 // Sigue ignorando resets de horómetro (deltas negativos o saltos enormes tipo
 // 0→16.000) y días sin movimiento. Si no hay ningún tramo válido, cae a la tasa
 // nominal (hrsDia).
+// Cuando el historial trae lecturas DIARIAS (ej. importadas de un reporte de
+// disponibilidad), el "último tramo" puede ser un solo día — y un día suelto
+// atípico (turno parcial, equipo detenido media jornada) bastaba para definir
+// TODO el ritmo proyectado (bug real: CF-8769/CF-9510 con un día de 3h
+// mostraban ~3h/día de ritmo cuando su uso normal rondaba 15-18h/día, atrasando
+// la alerta de PM semanas). Por eso se acumulan tramos consecutivos desde el más
+// reciente hacia atrás hasta cubrir al menos MIN_DIAS días — un tramo largo
+// (semanas, como en el caso BD-9509 de arriba) ya cumple eso de entrada y se usa
+// solo, preservando la prioridad por el ritmo reciente.
+var _TASA_MIN_DIAS = 5;
 function tasaDiariaReal(readings, nominal){
   var nom=nominal>0?nominal:12;
   var rs=(readings||[]).filter(function(r){return r&&r.fecha&&r.horom!=null&&isFinite(r.horom);})
     .slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
-  var ultimo=null;
+  var tramos=[];
   for(var i=1;i<rs.length;i++){
     var dd=_diasEntreISO(rs[i-1].fecha,rs[i].fecha);
     if(dd<=0)continue;
-    var t=(rs[i].horom-rs[i-1].horom)/dd;
+    var horas=rs[i].horom-rs[i-1].horom;
+    var t=horas/dd;
     if(t<=0)continue;        // reset o sin avance
     if(t>nom*4)continue;     // salto implausible (>4x nominal) — dato malo
-    ultimo=t;                // se sigue pisando -> al terminar el for queda el más reciente
+    tramos.push({dias:dd,horas:horas});
   }
-  if(ultimo==null)return nom;
-  return Math.round(ultimo*10)/10;
+  if(!tramos.length)return nom;
+  var diasAcum=0, horasAcum=0;
+  for(var j=tramos.length-1;j>=0;j--){
+    diasAcum+=tramos[j].dias; horasAcum+=tramos[j].horas;
+    if(diasAcum>=_TASA_MIN_DIAS)break;
+  }
+  return Math.round((horasAcum/diasAcum)*10)/10;
 }
 
 // Estima el horómetro/km que un equipo tenía en fechaISO, lo más fiel posible:
