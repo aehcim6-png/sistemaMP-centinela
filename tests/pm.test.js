@@ -65,6 +65,29 @@ describe('C.proxPM — próximo múltiplo de la frecuencia', () => {
   });
 });
 
+describe('C.proxPM — con ancla al último PM real (bug real: BD-10139 mostraba "URGENTE" segundos después de un PM4)', () => {
+  it('un PM recién ejecutado HOY deja un ciclo completo de margen, no la grilla modular desde cero', () => {
+    // BD-10139: PM4 real ejecutado hoy en horómetro 1977. La grilla modular pura
+    // (Math.ceil(1977/250)*250=2000) decía "vencido en 23h" — sin sentido con un PM
+    // recién hecho. Anclado al último PM real, el próximo cae 250h después de ESE PM.
+    expect(C.proxPM(1977, 250, 1977)).toBe(2227);
+  });
+  it('con huecos en el registro (varios ciclos desde el último PM real), avanza tantos ciclos como haga falta', () => {
+    // MN-5926 real: último PM en 8509, horómetro actual 8978 -> 2 ciclos de 250h.
+    expect(C.proxPM(8978, 250, 8509)).toBe(9009);
+    // GE-10019 real: último PM en 9529, horómetro actual 12747 -> 13 ciclos.
+    expect(C.proxPM(12747, 250, 9529)).toBe(12779);
+  });
+  it('nunca da un resultado por debajo del horómetro actual, ni siquiera si el "último PM" quedó muy atrás', () => {
+    const p = C.proxPM(5000, 250, 100);
+    expect(p).toBeGreaterThanOrEqual(5000);
+  });
+  it('sin ancla (undefined/null), se comporta igual que siempre — grilla modular pura', () => {
+    expect(C.proxPM(1977, 250)).toBe(2000);
+    expect(C.proxPM(1977, 250, null)).toBe(2000);
+  });
+});
+
 describe('C.estado — clasificación de urgencia por días restantes', () => {
   it('días negativos -> VENCIDA', () => {
     expect(C.estado(-1).t).toBe('VENCIDA');
@@ -162,6 +185,14 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     const e = { horomActual: 260, frecPM: 500, hrsDia: 16 };
     C.recalc(e);                 // sin segundo argumento
     expect(e.diasParaPM).toBe(15); // 240/16
+  });
+  it('con horomUltimoPM ancla el próximo PM al ciclo real, no a la grilla modular desde cero (caso real BD-10139)', () => {
+    const e = { horomActual: 1977, frecPM: 250, hrsDia: 12 };
+    C.recalc(e, 12, 1977); // PM4 recién hecho HOY en 1977
+    expect(e.horomProxPM).toBe(2227);
+    expect(e.hrsRestantes).toBe(250);
+    // 250h a 12h/día ~ 21 días -> ya no "URGENTE" a los pocos días
+    expect(e.estado).not.toContain('URGENTE');
   });
 });
 

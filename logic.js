@@ -13,7 +13,24 @@ const C = {
   // SIEMPRE 'PM4' — cualquier múltiplo de 10.000 también es múltiplo de 2.000 — sin
   // importar si era su primer o su décimo servicio.
   tipoPM(h,frecPM=250){const f=frecPM||250;return h%(f*8)===0?'PM4':h%(f*4)===0?'PM3':h%(f*2)===0?'PM2':'PM1'},
-  proxPM(h,f=250){return Math.ceil(h/f)*f},
+  // Próximo horómetro de PM. Sin 'horomUltimoPM' cae al cálculo modular puro de
+  // siempre (próximo múltiplo de f desde el horómetro CERO) — sirve cuando no se
+  // conoce el último PM real ejecutado. Con 'horomUltimoPM' (el horómetro real del
+  // último registro de registros_pm de este equipo) ancla el ciclo a ese PM real:
+  // un PM recién hecho HOY siempre deja un ciclo completo (f horas) de margen, en
+  // vez de que la grilla modular diga "vencido en 23h" solo porque el horómetro
+  // actual está cerca del siguiente múltiplo redondo de f. Si el último PM real
+  // quedó varios ciclos atrás (huecos en el registro), avanza tantos ciclos como
+  // haga falta para llegar/superar el horómetro actual (nunca menos de 1 ciclo).
+  proxPM(h,f=250,horomUltimoPM){
+    const freq=f||250;
+    if(horomUltimoPM!=null&&horomUltimoPM>=0){
+      const delta=h-horomUltimoPM;
+      const ciclos=Math.max(1,Math.ceil(delta/freq));
+      return horomUltimoPM+freq*ciclos;
+    }
+    return Math.ceil(h/freq)*freq;
+  },
   estado(d){return d<0?{t:'VENCIDA',c:'b-r',i:'🔴'}:d<=7?{t:'URGENTE',c:'b-r',i:'🔴'}:d<=30?{t:'PRÓXIMA',c:'b-y',i:'🟡'}:{t:'AL DÍA',c:'b-g',i:'🟢'}},
   // Alerta de overhaul (PM4): mismo problema que tenía tipoPM antes de su fix —
   // bandas fijas en horas (250/500/1000) sin importar el frecPM propio del equipo.
@@ -27,8 +44,10 @@ const C = {
   // equipo, ej. de tasaDiariaReal sobre su historial) — más fiel que las horas/día
   // nominales, que suelen sobreestimar el uso y hacen que las alertas salgan antes de
   // lo necesario. Si no se pasa ritmo (o es 0), cae al hrsDia nominal, como siempre.
-  recalc(e,ritmoDia){
-    const p=this.proxPM(e.horomActual,e.frecPM||250);
+  // 'horomUltimoPM' (opcional): horómetro real del último PM ejecutado (desde
+  // registros_pm), para anclar proxPM a ese ciclo real — ver comentario de proxPM.
+  recalc(e,ritmoDia,horomUltimoPM){
+    const p=this.proxPM(e.horomActual,e.frecPM||250,horomUltimoPM);
     const hr=p-e.horomActual;
     const ritmo=(ritmoDia&&ritmoDia>0)?ritmoDia:(e.hrsDia>0?e.hrsDia:0);
     const d=ritmo>0?Math.round(hr/ritmo):999;

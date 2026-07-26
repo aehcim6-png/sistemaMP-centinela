@@ -904,8 +904,22 @@ function _ritmoRealEq(sigla,hrsDiaNominal){
     .map(function(h){return{fecha:h.fecha,horom:(h.horomFin!=null?h.horomFin:h.horom)};});
   return tasaDiariaReal(lecturas,hrsDiaNominal||12);
 }
+// Horómetro real del último PM ejecutado (registros_pm), para anclar proxPM a ese
+// ciclo real en vez de la grilla modular pura desde horómetro cero — sin esto, un
+// PM recién hecho hoy podía mostrarse "vencido" a las pocas horas solo porque el
+// horómetro actual está cerca del siguiente múltiplo redondo de frecPM.
+function _horomUltimoPM(sigla){
+  var regs=(S.g('reg')||[]).filter(function(r){return r&&r.equipo===sigla&&r.horomReal>0;});
+  if(!regs.length)return null;
+  regs.sort(function(a,b){
+    var fa=(a.fechaEntrada||'')+' '+(a.horaEntrada||'');
+    var fb=(b.fechaEntrada||'')+' '+(b.horaEntrada||'');
+    return fa<fb?-1:fa>fb?1:0;
+  });
+  return regs[regs.length-1].horomReal;
+}
 // Recalcula un equipo usando su ritmo real. Reemplaza las llamadas directas a _recalcEq(e).
-function _recalcEq(e){return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12));}
+function _recalcEq(e){return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),_horomUltimoPM(e.sigla));}
 C.recalcAll=function(){const eq=S.g('eq');eq.forEach(e=>_recalcEq(e));S.s('eq',eq);return eq};
 // ============ HELPERS ============
 // fd/fn/escapeHtml viven en logic.js.
@@ -1931,9 +1945,12 @@ window.saveEditReg=function(i){
     obs:$('eObs').value,
     repuestos:$('eRep').value,
   };
-  // Actualizar horómetro del equipo si corresponde
+  S.s('reg',reg);
+  // Actualizar horómetro del equipo si corresponde. Guardar 'reg' ANTES de
+  // _recalcEq: el anclaje de PM lee el último registro real vía S.g('reg'), así
+  // que si se recalculara antes de guardar seguiría viendo el registro viejo.
   if(e&&hr>e.horomActual){e.horomActual=hr;_recalcEq(e);S.s('eq',eq);renderHeader();}
-  S.s('reg',reg);cm();refreshAll();toast('✅ Registro actualizado');
+  cm();refreshAll();toast('✅ Registro actualizado');
 };
 window.rAutoHorom=function(){
   const eq=S.g('eq')||[];
