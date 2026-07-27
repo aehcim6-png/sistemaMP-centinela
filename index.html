@@ -9615,10 +9615,6 @@ renders.sem=function(){
   var semData=S.g('planSem')||[];
   var semHist=S.g('planSemHist')||{};  // {semana: {cerrada:true, items:[...]}}
   var hh=S.g('hh')||25000;
-  var fSemana=parseInt($('fSemNum')?.value||getWeekNum());
-  var fVistaSem=$('fVistaSem')?.value||'calendario';
-  var semActual=getWeekNum();
-
   // La semana operativa parte los JUEVES y termina los MIÉRCOLES — así la
   // trabaja la faena, y el plan tiene que cortar en el mismo punto (antes iba
   // de lunes a domingo, así que el plan quedaba a caballo entre dos semanas
@@ -9658,6 +9654,15 @@ renders.sem=function(){
   var DIAS_LABEL=['Jue','Vie','Sáb','Dom','Lun','Mar','Mié'];
   var MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var diasMap={'jue':0,'vie':1,'sáb':2,'sab':2,'dom':3,'lun':4,'mar':5,'mié':6,'mie':6};
+
+  // Estas tres líneas van DESPUÉS de los helpers de arriba, no antes: las
+  // funciones se elevan (hoisting) pero el valor de un 'var' no, así que
+  // llamar a getWeekNum() antes de asignar DOW_INICIO/ANIO_SEM lo hacía
+  // devolver NaN. Con semActual=NaN toda comparación da falso, ninguna semana
+  // se consideraba pasada y las anteriores nunca mostraban lo ejecutado.
+  var semActual=getWeekNum();
+  var fSemana=parseInt($('fSemNum')?.value||semActual);
+  var fVistaSem=$('fVistaSem')?.value||'calendario';
 
   // ── ¿Esta semana está cerrada? ────────────────────────────────────────────
   var histEntry=semHist[fSemana]||null;
