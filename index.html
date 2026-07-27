@@ -2863,6 +2863,18 @@ function _descontarLubricante(lub,li,mov,cant,equipo,tipoPM,hoy,rep,log){
 // veces el match es directo por ID, no por texto. Si nunca se resuelve nada
 // (0 candidatos), ahora se avisa — antes se descontaba en silencio... o mejor
 // dicho, no se descontaba nada y nadie se enteraba.
+// Índice del lubricante VIGENTE para uno dado. Las pautas nombran productos ya
+// descontinuados, así que el match por nombre aterriza en el registro viejo y se
+// descontaba de ahí: el stock del producto que realmente se ocupa nunca bajaba,
+// y los movimientos y costos quedaban colgados de un item que ya no se compra.
+function _idxLubVigente(lub,idx){
+  if(idx<0||!lub[idx])return idx;
+  const norm=s=>String(s||'').toUpperCase().replace(/\s+/g,' ').trim();
+  const vig=lubVigente(lub[idx].nombre);
+  if(vig===norm(lub[idx].nombre))return idx;
+  const j=lub.findIndex(l=>norm(l.nombre)===vig);
+  return j>=0?j:idx;
+}
 function descontarStock(consumos, fecha, equipo, tipoPM){
   const stk = S.g('stk')||[];
   const lub = S.g('lub')||[];
@@ -2886,7 +2898,7 @@ function descontarStock(consumos, fecha, equipo, tipoPM){
         const fi0=stk.findIndex(s=>s._id===cache.refId);
         if(fi0>=0){_descontarFiltro(stk,fi0,mov,cant,equipo,tipoPM,hoy,rep,log);return;}
       } else if(cache.tipo==='lubricante'){
-        const li0=lub.findIndex(l=>l._id===cache.refId);
+        const li0=_idxLubVigente(lub,lub.findIndex(l=>l._id===cache.refId));
         if(li0>=0){_descontarLubricante(lub,li0,mov,cant,equipo,tipoPM,hoy,rep,log);return;}
       }
       // el item cacheado ya no existe (se borró de Stock/Lubricantes) — sigue a la heurística
@@ -2957,6 +2969,7 @@ function descontarStock(consumos, fecha, equipo, tipoPM){
       }
     });
     if(li>=0){
+      li=_idxLubVigente(lub,li);   // descontar del producto vigente, no del descontinuado
       _descontarLubricante(lub,li,mov,cant,equipo,tipoPM,hoy,rep,log);
       if(c._id&&lub[li]._id){mapaRep.push({pautaId:c._id,tipo:'lubricante',refId:lub[li]._id});mapaCambio=true;}
       return;
@@ -3339,9 +3352,14 @@ renders.lub=function(){
       var meses=(l.stock||0)/divisor;
       var estCol=meses<1?'var(--danger)':meses<3?'var(--w)':'var(--ok)';
       var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
-      return'<tr>'+
+      // Producto descontinuado: se avisa en la fila para no cargarle precio ni
+      // stock por error — su demanda ya se pide bajo el vigente que lo reemplaza.
+      var obsoleto=lubEsObsoleto(l.nombre);
+      var reemplazo=obsoleto?lubVigente(l.nombre):'';
+      return'<tr'+(obsoleto?' style="opacity:.55"':'')+'>'+
         '<td class="mono">'+rowNum+'</td>'+
-        '<td style="max-width:250px"><input value="'+escapeHtml(l.nombre||'')+'" onchange="edI(\'lub\','+idx+',\'nombre\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" title="Editar nombre"></td>'+
+        '<td style="max-width:250px"><input value="'+escapeHtml(l.nombre||'')+'" onchange="edI(\'lub\','+idx+',\'nombre\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" title="Editar nombre">'+
+        (obsoleto?'<div style="font-size:9px;color:var(--w)" title="La demanda de este producto se pide bajo su reemplazo">⚠️ Descontinuado → se pide como <b>'+escapeHtml(reemplazo)+'</b></div>':'')+'</td>'+
         '<td><select onchange="edI(\'lub\','+idx+',\'unidad\',this.value)" style="font-size:10px;'+is+'">'+
         ['Litro','Kilo','Unidad'].map(function(u){return'<option'+(l.unidad===u?' selected':'')+'>'+u+'</option>'}).join('')+'</select></td>'+
         '<td><input type="number" value="'+(l.stock||0)+'" onchange="edI(\'lub\','+idx+',\'stock\',parseFloat(this.value)||0)" style="width:55px;'+is+';color:var(--ac);font-weight:600"></td>'+
