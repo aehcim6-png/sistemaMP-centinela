@@ -6989,6 +6989,15 @@ function _lineasPautaRep(sigla,tipoPM,pau){
     return (p.sigla===ref||pRef===ref)&&lista.includes(p.pm);
   });
 }
+// Selector de horizonte para las vistas de demanda de materiales: el pedido
+// mensual y el semestral se arman con la misma proyección, solo cambia hasta
+// dónde se mira. Compartido entre Stock vs PM y Lubricantes vs PM.
+function _selHorizontePred(hz){
+  return '<div style="margin-bottom:10px"><select onchange="window._predHorizonte=this.value;renders.pred()" style="background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:5px 8px;border-radius:4px;font-size:12px">'+
+    [[30,'📅 Mensual — 30 días'],[90,'📅 Trimestral — 90 días'],[180,'📅 Semestral — 180 días']].map(function(o){
+      return '<option value="'+o[0]+'"'+(hz===o[0]?' selected':'')+'>'+o[1]+'</option>';
+    }).join('')+'</select></div>';
+}
 function stockVsProximosPM(horizonteDias){
   horizonteDias=horizonteDias||90;
   var eq=S.g('eq')||[];
@@ -7555,9 +7564,11 @@ renders.pred=function(){
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficientes correctivos con "componente" registrado para detectar patrones. Se necesitan al menos 2 fallas del mismo componente.</div>')+
       '</div>';
   } else if(fVista==='stockpm'){
-    var sp=stockVsProximosPM(90);
+    var hz=parseInt(window._predHorizonte)||90;
+    var sp=stockVsProximosPM(hz);
     content=
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">📦 Stock vs. Próximos PM (90 días)</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">📦 Stock vs. Próximos PM ('+hz+' días)</div>'+
+      _selHorizontePred(hz)+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">"Stock &amp; Insumos" muestra cuántos meses cubre el consumo promedio histórico. Esto es distinto: cruza qué repuesto pide la pauta de cada PM que ya viene en el calendario (por horómetro proyectado) contra el stock de HOY — para avisar si falta antes de que llegue ese PM puntual, no en promedio.</div>'+
       (sp.length?
         sp.map(function(a){
@@ -7568,17 +7579,19 @@ renders.pred=function(){
             '<div style="font-weight:700;font-size:13px">'+escapeHtml(a.descripcion||a.nParte)+'</div>'+
             '<div style="font-size:10px;color:var(--tx3)" class="mono">'+escapeHtml(a.nParte||'')+'</div>'+
             '</div>'+
-            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+'</b> · Se necesitan <b>'+a.demandaTotal+'</b> para los PM que vienen en 90 días · Faltan <b>'+a.deficit+'</b></div>'+
+            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+'</b> · Se necesitan <b>'+a.demandaTotal+'</b> para los PM que vienen en '+hz+' días · Faltan <b>'+a.deficit+'</b></div>'+
             '<div style="font-size:11px;color:var(--tx2)">Primero lo necesita <b class="mono" style="color:var(--ac)">'+escapeHtml(primero.sigla)+'</b> en <b>'+primero.dias+' día(s)</b>'+(primero.fecha?' ('+escapeHtml(primero.fecha)+')':'')+'</div>'+
             (a.equipos.length>1?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">También lo necesitan: '+a.equipos.slice(1).map(function(e){return escapeHtml(e.sigla)+' ('+e.dias+'d)';}).join(', ')+'</div>':'')+
             '</div>';
         }).join('')
-      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock actual alcanza para todos los PM proyectados en los próximos 90 días (según lo que la pauta indica para cada uno).</div>')+
+      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock actual alcanza para todos los PM proyectados en los próximos '+hz+' días (según lo que la pauta indica para cada uno).</div>')+
       '</div>';
   } else if(fVista==='lubpm'){
-    var lp=lubVsProximosPM(90);
+    var hz=parseInt(window._predHorizonte)||90;
+    var lp=lubVsProximosPM(hz);
     content=
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🛢️ Lubricantes vs. Próximos PM (90 días)</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🛢️ Lubricantes vs. Próximos PM ('+hz+' días)</div>'+
+      _selHorizontePred(hz)+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Mismo cruce que Stock vs. Próximos PM, pero para aceites/grasas/refrigerante: cuánto pide la pauta de cada PM que ya viene en el calendario, contra el stock de lubricantes de HOY.</div>'+
       (lp.length?
         lp.map(function(a){
@@ -7586,12 +7599,12 @@ renders.pred=function(){
           var primero=a.equipos[0];
           return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+borde+'">'+
             '<div style="font-weight:700;font-size:13px">'+escapeHtml(a.nombre)+'</div>'+
-            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+a.unidad+'</b> · Se necesitan <b>'+a.demandaTotal+a.unidad+'</b> para los PM que vienen en 90 días · Faltan <b>'+a.deficit+a.unidad+'</b></div>'+
+            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+a.unidad+'</b> · Se necesitan <b>'+a.demandaTotal+a.unidad+'</b> para los PM que vienen en '+hz+' días · Faltan <b>'+a.deficit+a.unidad+'</b></div>'+
             '<div style="font-size:11px;color:var(--tx2)">Primero lo necesita <b class="mono" style="color:var(--ac)">'+escapeHtml(primero.sigla)+'</b> en <b>'+primero.dias+' día(s)</b>'+(primero.fecha?' ('+escapeHtml(primero.fecha)+')':'')+'</div>'+
             (a.equipos.length>1?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">También lo necesitan: '+a.equipos.slice(1).map(function(e){return escapeHtml(e.sigla)+' ('+e.dias+'d)';}).join(', ')+'</div>':'')+
             '</div>';
         }).join('')
-      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock de lubricantes alcanza para todos los PM proyectados en los próximos 90 días.</div>')+
+      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock de lubricantes alcanza para todos los PM proyectados en los próximos '+hz+' días.</div>')+
       '</div>';
   }
 
