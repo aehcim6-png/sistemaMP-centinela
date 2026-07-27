@@ -953,12 +953,25 @@ function _recalcCad(c){
     c.pctRemanente=Math.round(Math.max(0,(c.valorActual-c.limiteDesgaste)/(c.valorNuevo-c.limiteDesgaste)*100));
   }
 }
+// Recalcula la duración de un registro de PM desde sus fechas/horas. La edición
+// inline de celdas no la tocaba: al corregir una fecha, la fila seguía mostrando
+// —y sumando en HH y costos— la duración vieja, aunque el encabezado de la
+// pestaña promete "Duración se recalcula automáticamente" (caso real: BD-10139
+// quedó con "818h 11min" después de corregirle la fecha de salida).
+function _recalcDurReg(r){
+  const d=duracionHM(r.fechaEntrada,r.horaEntrada,r.fechaSalida||r.fechaEjec,r.horaSalida);
+  if(!d||d.ms<0)return;
+  r.duracion=d.texto;
+  r.duracionH=Math.round(d.horas*10)/10;
+}
+const _CAMPOS_DUR=['fechaEntrada','horaEntrada','fechaSalida','horaSalida'];
 window.cev=function(store,idx,key,val,type){
   const d=S.g(store);if(!d||!d[idx])return;
   const horomAntes=d[idx].horomActual;
   d[idx][key]=type==='number'?parseFloat(val)||0:val;
   if(store==='eq')_recalcEq(d[idx]);
   if(store==='cad')_recalcCad(d[idx]);
+  if(store==='reg'&&_CAMPOS_DUR.includes(key))_recalcDurReg(d[idx]);
   S.s(store,d);
   // Bug real: editar el horómetro directo en la celda de Equipos no dejaba rastro
   // en historial_horometros. Con el tiempo esto deja el ritmo real (tasaDiariaReal)
@@ -1964,6 +1977,10 @@ window.saveEditReg=function(i){
     fechaEntrada:fEnt,horaEntrada:hEnt,
     fechaSalida:fSal,horaSalida:hSal,
     duracion:durStr,
+    // duracionH es el número que usan TODOS los totales de HH y costos. Antes se
+    // actualizaba solo 'duracion' (el texto que se ve), así que editar las horas
+    // de un registro dejaba el número viejo sumando para siempre en los informes.
+    duracionH:(dEdit&&dEdit.ms>0)?Math.round(dEdit.horas*10)/10:(reg[i].duracionH||0),
     horomReal:hr,
     desvioDias:desv,
     estado:desv<=0?'✅ ANTICIPADA':'🔴 ATRASADA',
