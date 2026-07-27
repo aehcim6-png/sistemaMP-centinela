@@ -9233,6 +9233,10 @@ renders.ayuda=function(){
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Para qué sirve?</b> Planificar semana a semana los PM de la flota, registrar lo ejecutado vs lo planificado, y mantener un histórico congelado por semana.<br><br>'+
 
+    '<div style="padding:8px 10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--warn);margin-bottom:10px;font-size:12px">'+
+    '<b>📅 La semana va de JUEVES a MIÉRCOLES</b>, igual que la semana operativa de la faena — no de lunes a domingo. '+
+    'Por eso el calendario parte en Jue y cierra en Mié, y el rango de fechas que muestra el título de cada semana sigue ese mismo corte.</div>'+
+
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac);margin-bottom:10px">'+
     '<b>🔄 Cómo funciona el flujo completo:</b><br>'+
     '<b>1. Auto-generación:</b> El sistema detecta equipos con PM ≤14 días y los carga automáticamente.<br>'+
@@ -9243,7 +9247,7 @@ renders.ayuda=function(){
     '<b>6. Histórico:</b> Navega cualquier semana anterior con el selector y verás el histórico exacto.</div>'+
 
     '<b>📅 Vista Calendario:</b><br>'+
-    '• Muestra los PM ubicados en su día de la semana (Lun-Dom)<br>'+
+    '• Muestra los PM ubicados en su día de la semana (Jue-Mié)<br>'+
     '• Color por tipo: verde PM1, azul PM2, amarillo PM3, rojo PM4<br>'+
     '• Los PM ejecutados muestran ✓ y las horas reales<br>'+
     '• Hoy se resalta en naranja<br><br>'+
@@ -9259,10 +9263,10 @@ renders.ayuda=function(){
     '• <b style="color:var(--ok)">Obs Real:</b> notas del técnico sobre lo ejecutado<br><br>'+
 
     '<b>🤖 Auto-asignación de días por urgencia:</b><br>'+
-    '• 0-2 días para PM → <b>Lunes</b> (urgente, prioridad máxima)<br>'+
-    '• 3-5 días → <b>Martes o Miércoles</b> (balanceado automático)<br>'+
-    '• 6-10 días → <b>Jueves o Viernes</b><br>'+
-    '• 11-14 días → <b>Sábado o Viernes</b><br>'+
+    '• 0-2 días para PM → <b>Jueves</b> (primer día de la semana; urgente, prioridad máxima)<br>'+
+    '• 3-5 días → <b>Viernes o Sábado</b> (balanceado automático)<br>'+
+    '• 6-10 días → <b>Lunes o Martes</b><br>'+
+    '• 11-14 días → <b>Miércoles o Martes</b><br>'+
     '• Si cambias el día manualmente, el sistema respeta tu elección<br><br>'+
 
     '<b>🔒 Cierre y Histórico:</b><br>'+
@@ -9361,7 +9365,7 @@ renders.ayuda=function(){
     '• <b>Diferencia</b> — avance real menos esperado. Positivo = adelantado, negativo = atrasado<br>'+
     '• <b>Estado</b> — ✅ EN PLAN / ⚠️ RIESGO / 🔴 ATRASADO<br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac)">'+
-    '<b>💡 Tip:</b> Revisa esta pestaña cada lunes. Si la barra está por debajo de la línea esperada, necesitas acelerar las intervenciones esa semana.</div></div></div>'+
+    '<b>💡 Tip:</b> Revisa esta pestaña cada jueves, al abrir la semana. Si la barra está por debajo de la línea esperada, necesitas acelerar las intervenciones esa semana.</div></div></div>'+
 
     // 21. BUSCADOR MAESTRO
     '<div class="card" style="margin-bottom:12px" id="m21">'+
@@ -9598,23 +9602,45 @@ renders.sem=function(){
   var fVistaSem=$('fVistaSem')?.value||'calendario';
   var semActual=getWeekNum();
 
-  function getWeekNum(){var d=new Date();var s=new Date(d.getFullYear(),0,1);return Math.ceil(((d-s)/86400000+s.getDay()+1)/7)}
+  // La semana operativa parte los JUEVES y termina los MIÉRCOLES — así la
+  // trabaja la faena, y el plan tiene que cortar en el mismo punto (antes iba
+  // de lunes a domingo, así que el plan quedaba a caballo entre dos semanas
+  // reales). Todo se ancla en un único punto — el jueves de la semana 1, o sea
+  // el jueves en o antes del 1 de enero — para que el número de semana, sus
+  // fechas y sus 7 días siempre estén de acuerdo entre sí.
+  var DOW_INICIO=4;  // 0=Dom, 1=Lun … 4=Jue
+  // Fecha local en ISO: toISOString() convierte a UTC y puede correr el día
+  // completo según la zona horaria — justo lo que no queremos al cortar semanas.
+  function isoLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function inicioSemanaDe(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()-DOW_INICIO+7)%7));return x}
+  function anclaSem1(y){return inicioSemanaDe(new Date(y,0,1))}
+  // Diferencia en semanas exactas. Se redondea a días antes de dividir porque
+  // el cambio de hora (horario de verano) hace que una semana no dure
+  // exactamente 7×24h y un floor directo restaría una semana de más.
+  function semanasEntre(a,b){return Math.round((a-b)/864e5)/7}
+  // A qué año pertenece la semana de una fecha. Como la semana corta en jueves,
+  // la última de diciembre se mete en enero (y al revés): los primeros días de
+  // enero suelen ser todavía la semana 1 que arrancó en diciembre. Si el inicio
+  // de esa semana ya llegó al ancla del año siguiente, la semana es la 1 de ese
+  // año siguiente. Sin esto, el 31-dic quedaba como "semana 53" de un año de 52
+  // y no aparecía en el selector.
+  function anioSemanal(d){var ini=inicioSemanaDe(d);return ini>=anclaSem1(ini.getFullYear()+1)?ini.getFullYear()+1:ini.getFullYear()}
+  var ANIO_SEM=anioSemanal(new Date());  // el planificador entero trabaja en este año
+  function getWeekStart(w){var d=anclaSem1(ANIO_SEM);d.setDate(d.getDate()+(w-1)*7);return d}
+  function getWeekNum(){return semanasEntre(inicioSemanaDe(new Date()),anclaSem1(ANIO_SEM))+1}
+  function semanasDelAnio(){return semanasEntre(anclaSem1(ANIO_SEM+1),anclaSem1(ANIO_SEM))}
   function getWeekDates(w){
-    var y=new Date().getFullYear();var d=new Date(y,0,1+(w-1)*7);
-    var day=d.getDay();d.setDate(d.getDate()-day+1);
-    var end=new Date(d);end.setDate(end.getDate()+6);
-    return d.toISOString().slice(0,10)+' al '+end.toISOString().slice(0,10);
+    var d=getWeekStart(w);var end=new Date(d);end.setDate(end.getDate()+6);
+    return isoLocal(d)+' al '+isoLocal(end);
   }
   function getWeekDaysArr(w){
-    var y=new Date().getFullYear();var d=new Date(y,0,1+(w-1)*7);
-    var day=d.getDay();d.setDate(d.getDate()-day+1);
-    var dias=[];
+    var d=getWeekStart(w);var dias=[];
     for(var i=0;i<7;i++){var dd=new Date(d);dd.setDate(dd.getDate()+i);dias.push(dd);}
     return dias;
   }
-  var DIAS_LABEL=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  var DIAS_LABEL=['Jue','Vie','Sáb','Dom','Lun','Mar','Mié'];
   var MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  var diasMap={'lun':0,'mar':1,'mié':2,'mie':2,'jue':3,'vie':4,'sáb':5,'sab':5,'dom':6};
+  var diasMap={'jue':0,'vie':1,'sáb':2,'sab':2,'dom':3,'lun':4,'mar':5,'mié':6,'mie':6};
 
   // ── ¿Esta semana está cerrada? ────────────────────────────────────────────
   var histEntry=semHist[fSemana]||null;
@@ -9624,8 +9650,8 @@ renders.sem=function(){
   // ── AUTO-REAL desde reg (PM ejecutados en esa semana) ────────────────────
   function getRealFromReg(w){
     var diasW=getWeekDaysArr(w);
-    var dMin=diasW[0].toISOString().slice(0,10);
-    var dMax=diasW[6].toISOString().slice(0,10);
+    var dMin=isoLocal(diasW[0]);
+    var dMax=isoLocal(diasW[6]);
     return reg.filter(function(r){return r.fecha>=dMin&&r.fecha<=dMax&&r.tipo==='pm'});
   }
 
@@ -9637,14 +9663,16 @@ renders.sem=function(){
   } else {
     // Auto-generate plan desde equipos con diasParaPM<=14
     // Distribuye días automáticamente por urgencia, balanceando carga
-    var diaContador={'Lun':0,'Mar':0,'Mié':0,'Jue':0,'Vie':0,'Sáb':0};
+    var diaContador={'Jue':0,'Vie':0,'Sáb':0,'Lun':0,'Mar':0,'Mié':0};
     // Precargar días ya ocupados por items manuales
     semData.filter(function(s){return s.semana==fSemana&&!s.auto&&s.diaSem}).forEach(function(s){
       var d=s.diaSem;if(diaContador[d]!==undefined)diaContador[d]++;
     });
     function autoDia(diasPM){
-      // Urgencia: 0-2d → Lun, 3-5d → Mar/Mié, 6-10d → Jue/Vie, 11-14d → Sáb
-      var candidatos=diasPM<=2?['Lun']:diasPM<=5?['Mar','Mié']:diasPM<=10?['Jue','Vie']:['Sáb','Vie'];
+      // Urgencia, en el orden de la semana Jue→Mié: lo más urgente al primer
+      // día (Jue) y lo menos urgente al final (Mié). El domingo no se carga.
+      // 0-2d → Jue, 3-5d → Vie/Sáb, 6-10d → Lun/Mar, 11-14d → Mié/Mar
+      var candidatos=diasPM<=2?['Jue']:diasPM<=5?['Vie','Sáb']:diasPM<=10?['Lun','Mar']:['Mié','Mar'];
       // Elegir el candidato con menos carga
       var mejor=candidatos.reduce(function(a,b){return(diaContador[a]||0)<=(diaContador[b]||0)?a:b});
       diaContador[mejor]=(diaContador[mejor]||0)+1;
@@ -9693,7 +9721,7 @@ renders.sem=function(){
   var totalHHReal=items.reduce(function(s,it){return s+(it.hhReal||0)},0);
   var totalCosto=items.reduce(function(s,it){return s+(it.costoEst||0)},0);
   var cumpl=totalHHPlan>0?Math.round(totalHHReal/totalHHPlan*100):null;
-  var weeks=[];for(var w=1;w<=52;w++)weeks.push(w);
+  var weeks=[];for(var w=1,wTot=semanasDelAnio();w<=wTot;w++)weeks.push(w);
 
   // ── VISTA CALENDARIO ─────────────────────────────────────────────────────
   function renderCalendario(){
