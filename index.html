@@ -9712,14 +9712,17 @@ renders.sem=function(){
       diaContador[mejor]=(diaContador[mejor]||0)+1;
       return mejor;
     }
-    // Día que le toca dentro de ESTA semana según su fecha real. Si cae domingo
-    // se adelanta al sábado — nunca se atrasa un PM. null si la fecha no cae en
-    // la semana (entonces se usa autoDia).
-    function diaPorFecha(f){
+    // Día que le toca dentro de ESTA semana según su fecha real. Al PLANIFICAR,
+    // si cae domingo se adelanta al sábado — no se programa PM en domingo y
+    // nunca se atrasa. Para un PM ya EJECUTADO ('exacto') el día es el real,
+    // domingo incluido: mostrarlo el sábado sería mentir sobre cuándo se hizo
+    // (caso real: CN-10155 ejecutado el domingo 19-jul aparecía el sábado 18).
+    // null si la fecha no cae en la semana (entonces se usa autoDia).
+    function diaPorFecha(f,exacto){
       if(!f)return null;
       var i=Math.round((new Date(f+'T00:00:00')-diasSemSel[0])/864e5);
       if(i<0||i>6)return null;
-      var dl=DIAS_LABEL[i];if(dl==='Dom')dl='Sáb';
+      var dl=DIAS_LABEL[i];if(dl==='Dom'&&!exacto)dl='Sáb';
       diaContador[dl]=(diaContador[dl]||0)+1;
       return dl;
     }
@@ -9778,7 +9781,7 @@ renders.sem=function(){
     var yaEnSemana={};
     var ejecItems=getRealFromReg(fSemana).filter(function(r){return !yaManual[r.equipo]}).map(function(r){
       var e=eq.find(function(x){return x.sigla===r.equipo})||{sigla:r.equipo};
-      var it=itemPlan(e,r.tipoPM||e.tipoPM||'PM1',diaPorFecha(fechaReg(r))||'Jue');
+      var it=itemPlan(e,r.tipoPM||e.tipoPM||'PM1',diaPorFecha(fechaReg(r),true)||'Jue');
       it.estado='Ejecutado';it.hhReal=Math.round((r.duracionH||0)*10)/10;it.estadoReal='Ejecutado';
       it.obsReal=r.obs||'';it.tecnico=r.tecnico||'';
       // itemPlan llena diasPM con los días hasta la PRÓXIMA PM del equipo,
