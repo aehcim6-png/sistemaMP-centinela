@@ -3431,8 +3431,13 @@ renders.plan=function(){
     const mats={};
     pautas.forEach(p=>{
       const tipo=clasificar(p.rep);
-      const key=p.rep;
-      if(!mats[key])mats[key]={rep:p.rep,tipo,cantidad:0,precio:precioRep(p.rep),pm:p.pm};
+      // Un lubricante descontinuado se acumula bajo el producto vigente que lo
+      // reemplaza — si no, la demanda queda partida entre los dos nombres y
+      // ninguna de las dos cifras sirve para pedir.
+      const vig=lubVigente(p.rep);
+      const rep=(vig!==String(p.rep||'').toUpperCase().replace(/\s+/g,' ').trim())?vig:p.rep;
+      const key=rep;
+      if(!mats[key])mats[key]={rep,tipo,cantidad:0,precio:precioRep(rep),pm:p.pm};
       mats[key].cantidad+=p.can;
     });
     return Object.values(mats);
@@ -3445,13 +3450,33 @@ renders.plan=function(){
   // del Plan Semanal y del Predictivo, así los tres piden para el mismo
   // calendario. Cada hito trae SU tipo de PM según el horómetro donde cae.
   const horizDias=Math.ceil((limite-hoy)/86400000);
-  const isoIni=ventInicio?ventInicio.getFullYear()+'-'+String(ventInicio.getMonth()+1).padStart(2,'0')+'-'+String(ventInicio.getDate()).padStart(2,'0'):null;
+  const _iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const isoIni=ventInicio?_iso(ventInicio):null;
+  const isoFin=_iso(limite),isoHoy=_iso(hoy);
   const pmsEnPeriodo=[];
   eq.forEach(e=>{
     _cadenaPMEnHorizonte(e,horizDias).forEach(h=>{
       if(isoIni&&h.fecha<isoIni)return;
+      if(h.fecha<isoHoy)return;   // lo ya vivido lo aportan las PM ejecutadas
       pmsEnPeriodo.push({e:e,sigla:e.sigla,tipoPM:h.tipoPM,fecha:h.fecha,dias:h.dias});
     });
+  });
+  // PM YA EJECUTADAS dentro de la ventana. El consumo de mantención se carga
+  // desde lo que indica la pauta de cada PM realizado — NO desde las órdenes de
+  // compra: una compra no necesariamente va a la máquina que consume el
+  // material (puede entrar a bodega para la flota), así que atribuirla por
+  // equipo sería inventar. Así, un periodo pasado muestra lo que efectivamente
+  // se consumió en mantención, y uno futuro lo proyectado; un periodo a caballo
+  // (el mes en curso) muestra ambos, cada PM en su fecha.
+  (S.g('reg')||[]).forEach(r=>{
+    const f=r.fechaEjec||r.fechaSalida||r.fechaEntrada||'';
+    if(!f||f>isoFin||f>isoHoy)return;
+    if(isoIni&&f<isoIni)return;
+    if(!isoIni&&f<isoHoy)return;   // periodos rolling miran hacia adelante
+    const e=eq.find(x=>x.sigla===r.equipo);
+    if(!e)return;
+    pmsEnPeriodo.push({e:e,sigla:r.equipo,tipoPM:r.tipoPM||e.tipoPM,fecha:f,
+      dias:Math.round((new Date(f+'T00:00:00')-hoy)/86400000),ejecutado:true});
   });
   pmsEnPeriodo.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
 
@@ -3597,13 +3622,14 @@ renders.plan=function(){
     </div>
     ${esPeriodoPasado&&!pmsEnPeriodo.length?
       `<div class="card" style="border-left:3px solid var(--ac);padding:16px">
-        <div style="font-weight:700;margin-bottom:6px">📜 Ese periodo ya pasó — lo que se consumió está en el histórico</div>
+        <div style="font-weight:700;margin-bottom:6px">Sin PM ejecutadas en ese periodo</div>
         <div style="font-size:12px;color:var(--tx2);line-height:1.6">
-          Esta pestaña <b>proyecta</b> los materiales de las mantenciones que <b>vienen</b>, así que un mes ya vivido no tiene nada que proyectar.<br>
-          Lo realmente consumido en esas fechas se lleva desde las órdenes de compra reales, en
-          <b>📜 Histórico consumido</b> (arriba a la derecha) — ahí puedes filtrar por rango de fechas, tipo de material y equipo.
+          Para un periodo ya vivido, esta pestaña carga los materiales de las <b>PM efectivamente ejecutadas</b> según su pauta,
+          y no hay ninguna registrada en esas fechas.<br>
+          Si buscas lo <b>comprado</b> en ese periodo (que no siempre coincide: una orden de compra puede entrar a bodega
+          para la flota y no para una máquina puntual), está en <b>📜 Histórico consumido</b>.
         </div>
-        <button class="btn" style="margin-top:10px" onclick="planHistorico()">📜 Abrir histórico consumido</button>
+        <button class="btn" style="margin-top:10px" onclick="planHistorico()">📜 Ver compras del periodo</button>
       </div>`
       :contenido}`;
 };
@@ -7078,7 +7104,17 @@ function _matchLubDePauta(p,lub){
       return words.some(function(w){return nom.indexOf(w)>=0;});
     });
   }
-  return li>=0?lub[li]:null;
+  if(li<0)return null;
+  // Si la pauta nombra un producto descontinuado, la demanda se consolida en el
+  // vigente que lo reemplaza: comprar el viejo no es opción, y repartir entre
+  // ambos escondería cuánto hay que pedir en total del que sí se consigue.
+  var item=lub[li];
+  var vig=lubVigente(item.nombre);
+  if(vig!==String(item.nombre||'').toUpperCase().replace(/\s+/g,' ').trim()){
+    var reemp=lub.find(function(l){return String(l.nombre||'').toUpperCase().replace(/\s+/g,' ').trim()===vig;});
+    if(reemp)return reemp;
+  }
+  return item;
 }
 function lubVsProximosPM(horizonteDias){
   horizonteDias=horizonteDias||90;

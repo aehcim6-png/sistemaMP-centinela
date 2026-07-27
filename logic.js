@@ -255,6 +255,31 @@ function construirLecturaHistorial(hist,sigla,fecha,horom,origen){
 // cada 10.000 km…), no su duración, así que sumarla como "minutos de
 // trabajo" daba HH Plan de cientos de horas y costos absurdos. La mediana
 // (y no el promedio) para que un registro atípico no arrastre el plan.
+// Lubricantes dados de baja y el producto VIGENTE que los reemplaza. Las pautas
+// siguen nombrando el producto antiguo, así que sin esto la demanda se reparte
+// entre el descontinuado y el nuevo: ninguna de las dos cifras sirve para
+// comprar, y el producto viejo ni siquiera se consigue.
+var LUB_REEMPLAZO={
+  'MOBILUBE HD PLUS 85W-140':'MOBILUBE 1 SHC 75W90',
+  'MOBILUBE SAE 80W90':'MOBILUBE 1 SHC 75W90',
+  'MOBIL GEAR OIL 75W90':'MOBILUBE 1 SHC 75W90',
+  'MOBILGREASE XHP 222':'MOBILGREASE XHP 322 MINE',
+  'MOBIL DTE 10 EXCEL 46':'MOBILTRANS HD 10W',
+  'MOBIL SUPER 2000 10W40':'MOBIL DELVAC XHP ESP S 10W-40'
+};
+function _normLub(s){return String(s||'').toUpperCase().replace(/\s+/g,' ').trim()}
+// Nombre del lubricante vigente para uno dado; el mismo si no está reemplazado.
+// Encadena por si un reemplazo fue a su vez reemplazado, con tope para no
+// colgarse si alguien deja un ciclo en la tabla.
+function lubVigente(nombre){
+  var mapa={};
+  Object.keys(LUB_REEMPLAZO).forEach(function(k){mapa[_normLub(k)]=LUB_REEMPLAZO[k];});
+  var n=_normLub(nombre);
+  for(var i=0;i<5&&mapa[n];i++)n=_normLub(mapa[n]);
+  return n;
+}
+// ¿Este nombre corresponde a un producto descontinuado?
+function lubEsObsoleto(nombre){return lubVigente(nombre)!==_normLub(nombre);}
 function medianaPositiva(vals){
   var v=(vals||[]).filter(function(x){return x>0&&isFinite(x)}).sort(function(a,b){return a-b});
   if(!v.length)return null;
@@ -721,7 +746,8 @@ if (typeof module !== 'undefined' && module.exports) {
     C, fd, fn, escapeHtml,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
-    fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator, construirLecturaHistorial,
+    fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
+    LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
   };
 }

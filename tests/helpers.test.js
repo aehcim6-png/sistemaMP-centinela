@@ -1,5 +1,37 @@
 const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, construirLecturaHistorial } = require('../logic.js');
 
+describe('lubVigente — consolidar lubricantes descontinuados en el vigente', () => {
+  const { lubVigente, lubEsObsoleto } = require('../logic.js');
+
+  it('los tres aceites de transmisión antiguos caen en MOBILUBE 1 SHC 75W90', () => {
+    expect(lubVigente('MOBILUBE HD PLUS 85W-140')).toBe('MOBILUBE 1 SHC 75W90');
+    expect(lubVigente('MOBILUBE SAE 80W90')).toBe('MOBILUBE 1 SHC 75W90');
+    expect(lubVigente('MOBIL GEAR OIL 75W90')).toBe('MOBILUBE 1 SHC 75W90');
+  });
+  it('la grasa XHP 222 se reemplaza por XHP 322 MINE', () => {
+    expect(lubVigente('MOBILGREASE XHP 222')).toBe('MOBILGREASE XHP 322 MINE');
+  });
+  it('DTE 10 EXCEL 46 -> MOBILTRANS HD 10W y SUPER 2000 -> DELVAC XHP ESP S', () => {
+    expect(lubVigente('MOBIL DTE 10 EXCEL 46')).toBe('MOBILTRANS HD 10W');
+    expect(lubVigente('MOBIL SUPER 2000 10W40')).toBe('MOBIL DELVAC XHP ESP S 10W-40');
+  });
+  it('un producto vigente se devuelve igual — no se toca', () => {
+    expect(lubVigente('MOBIL MODERN 15W40 FULL PROT')).toBe('MOBIL MODERN 15W40 FULL PROT');
+    expect(lubEsObsoleto('MOBIL MODERN 15W40 FULL PROT')).toBe(false);
+  });
+  it('tolera minúsculas y espacios de más (vienen así desde las pautas)', () => {
+    expect(lubVigente('  mobilube   sae 80w90 ')).toBe('MOBILUBE 1 SHC 75W90');
+  });
+  it('el destino de un reemplazo no se marca como obsoleto', () => {
+    expect(lubEsObsoleto('MOBILUBE HD PLUS 85W-140')).toBe(true);
+    expect(lubEsObsoleto('MOBILUBE 1 SHC 75W90')).toBe(false);
+  });
+  it('vacío o nulo no rompe', () => {
+    expect(lubVigente('')).toBe('');
+    expect(lubVigente(null)).toBe('');
+  });
+});
+
 describe('medianaPositiva — duración típica real de un PM', () => {
   it('mediana simple con cantidad impar', () => {
     expect(medianaPositiva([2, 4, 3])).toBe(3);
