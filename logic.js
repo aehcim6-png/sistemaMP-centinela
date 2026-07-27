@@ -261,6 +261,28 @@ function medianaPositiva(vals){
   var m=Math.floor(v.length/2);
   return v.length%2?v[m]:(v[m-1]+v[m])/2;
 }
+// Estimador de HH Plan para un PM: mediana de las duraciones reales registradas
+// del mismo equipo+tipo, con la mediana de la flota para ese tipo como respaldo.
+// Se construye UNA vez sobre registros_pm y devuelve una función (equipo,tipo)->horas.
+// Es el único origen válido de "horas planificadas": la columna hrs de las pautas
+// es el INTERVALO de cada tarea (cada 500h, cada 10.000 km…), no su duración —
+// todo consumidor que la sumaba como horas de trabajo producía planes absurdos.
+function hhPlanEstimator(regs){
+  var porEq={},porTipo={};
+  (regs||[]).forEach(function(r){
+    if(!r)return;
+    var d=r.duracionH;if(!(d>0&&isFinite(d)))return;
+    var t=r.tipoPM||'';
+    var k=(r.equipo||'')+'|'+t;
+    (porEq[k]=porEq[k]||[]).push(d);
+    (porTipo[t]=porTipo[t]||[]).push(d);
+  });
+  return function(equipo,tipoPM){
+    var m=medianaPositiva(porEq[(equipo||'')+'|'+(tipoPM||'')]);
+    if(m==null)m=medianaPositiva(porTipo[tipoPM||'']);
+    return m==null?0:Math.round(m*10)/10;
+  };
+}
 function duracionHM(fEnt,hEnt,fSal,hSal){
   if(!fEnt||!hEnt||!fSal||!hSal)return null;
   const ms=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
@@ -699,7 +721,7 @@ if (typeof module !== 'undefined' && module.exports) {
     C, fd, fn, escapeHtml,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
-    fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, construirLecturaHistorial,
+    fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
   };
 }

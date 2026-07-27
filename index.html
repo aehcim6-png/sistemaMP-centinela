@@ -2573,6 +2573,19 @@ renders.progdia=function(){
     :'<p style="color:var(--tx3)">Sin personal registrado para este turno en esta fecha.</p>');
 };
 
+// El programa anual de cada equipo se genera UNA vez (al aparecer el equipo) y
+// queda guardado — las correcciones a proxPM/tipoPM/ritmo real no lo tocan solo.
+// Este botón lo rearma completo desde el estado actual: borra las filas
+// guardadas y deja que el sync de renders.prg las regenere con las fórmulas
+// vigentes. Las celdas del programa no son editables, así que no se pierde nada
+// manual; las marcas EJEC se calculan en vivo desde registros_pm y no se tocan.
+window.regenPrg=function(){
+  if(!confirm('¿Recalcular la proyección anual de TODOS los equipos con el horómetro y ritmo real actuales?'))return;
+  C.recalcAll();
+  S.s('prg',[]);
+  renders.prg();
+  toast('✅ Programa anual recalculado');
+};
 renders.prg=function(){
   if(!$("s-prg"))return;
   var eq=S.g('eq')||[];
@@ -2632,7 +2645,8 @@ renders.prg=function(){
   var hayEjecAnio=Object.keys(ejecPorEq).length>0;
 
   $('s-prg').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📅 Programa Anual '+anioPrg+'</div><div class="sec-s">Plan PM por mes · EJEC se marca solo desde registros · '+prg.length+' equipos</div></div></div>'+
+    '<div class="sec-h"><div><div class="sec-t">📅 Programa Anual '+anioPrg+'</div><div class="sec-s">Plan PM por mes · EJEC se marca solo desde registros · '+prg.length+' equipos</div></div>'+
+    '<div><button class="btn btn-o" onclick="regenPrg()" title="Rearma la proyección de todos los equipos con el horómetro, ritmo real y fórmulas actuales">🔄 Recalcular proyección</button></div></div>'+
     '<div class="toolbar"><select id="fPrgAnio" onchange="renders.prg()">'+
     aniosDisp.map(function(y){return'<option'+(parseInt(y)===anioPrg?' selected':'')+'>'+y+'</option>'}).join('')+'</select>'+
     (hayEjecAnio?'':'<span style="font-size:11px;color:var(--tx3);margin-left:10px">Sin ejecuciones registradas en '+anioPrg+'</span>')+'</div>'+
@@ -3745,6 +3759,10 @@ renders.cos=function(){
   // ═══ CALCULATE HH DATA ═══
   var hhTecnico={},hhEquipo={},hhMes={};
   var hhPlanTotal=0,hhRealTotal=0;
+  // HH planificada = duración típica real de ese PM (mediana por equipo+tipo,
+  // flota como respaldo). Antes se sumaba p.hrs de las pautas, que es el
+  // INTERVALO de cada tarea, no su duración — inflaba el plan por miles.
+  var _hhPlanDe=hhPlanEstimator(reg);
   reg.forEach(function(r){
     var durH=r.duracionH||0;
     var tec=r.tecnico||'Sin asignar';
@@ -3757,16 +3775,7 @@ renders.cos=function(){
     hhEquipo[eqS].real+=durH;hhEquipo[eqS].n++;
     if(mes){if(!hhMes[mes])hhMes[mes]={real:0,plan:0,n:0};hhMes[mes].real+=durH;hhMes[mes].n++;}
     hhRealTotal+=durH;
-    // HH planificada (from pautas hrs sum for this PM type)
-    var pmType=r.tipoPM||'PM1';
-    var siglaRef=GRUPO_PAUTAS[eqS]||eqS;
-    var pmH={'PM1':['PM1'],'PM2':['PM1','PM2'],'PM3':['PM1','PM2','PM3'],'PM4':['PM1','PM2','PM3','PM4'],'PM5':['PM1','PM2','PM3','PM4'],'PM6':['PM1','PM2','PM3','PM4'],'PM7':['PM1','PM2','PM3','PM4'],'PM8':['PM1','PM2','PM3','PM4'],'PM9':['PM1','PM2','PM3','PM4']};
-    var pmList=pmH[pmType]||[pmType];
-    var planHrs=0;
-    (S.g('pau')||INIT.pautas||[]).forEach(function(p){
-      var pRef=GRUPO_PAUTAS[p.sigla]||p.sigla;
-      if((p.sigla===siglaRef||pRef===siglaRef)&&pmList.includes(p.pm)){planHrs+=p.hrs||0;}
-    });
+    var planHrs=_hhPlanDe(eqS,r.tipoPM||'PM1');
     hhTecnico[tec].plan+=planHrs;
     hhEquipo[eqS].plan+=planHrs;
     if(mes)hhMes[mes].plan+=planHrs;
@@ -9734,19 +9743,7 @@ renders.sem=function(){
     // mejor estimación disponible es lo que ese PM tarda de verdad: mediana de
     // las duraciones registradas del mismo equipo y tipo en registros_pm, o de
     // la flota completa para ese tipo si el equipo aún no tiene historial.
-    var _durEq={},_durTipo={};
-    reg.forEach(function(r){
-      var d=r.duracionH;if(!(d>0))return;
-      var t=r.tipoPM||'';
-      var k=(r.equipo||'')+'|'+t;
-      (_durEq[k]=_durEq[k]||[]).push(d);
-      (_durTipo[t]=_durTipo[t]||[]).push(d);
-    });
-    function hhPlanDe(sigla,tipoPM){
-      var m=medianaPositiva(_durEq[sigla+'|'+tipoPM]);
-      if(m==null)m=medianaPositiva(_durTipo[tipoPM]);
-      return m==null?0:Math.round(m*10)/10;
-    }
+    var hhPlanDe=hhPlanEstimator(reg);
     // Repuestos del equipo para ese tipo de PM, desde las pautas (eso sí está
     // bien en ellas); un PM mayor incluye las tareas de los menores.
     function itemPlan(e,tipoPM,diaSem){
@@ -10643,7 +10640,10 @@ window._getMTBFData=function(){
 };
 window._getHHData=function(){
   var reg=S.g('reg')||[];var hT={},hE={};
-  reg.forEach(function(r){var d=r.duracionH||0;var t=r.tecnico||'Sin asignar';var e=r.equipo||'';if(!hT[t])hT[t]={r:0,p:0,n:0};hT[t].r+=d;hT[t].n++;if(!hE[e])hE[e]={r:0,p:0,n:0};hE[e].r+=d;hE[e].n++;var sr=GRUPO_PAUTAS[e]||e;var pH={'PM1':['PM1'],'PM2':['PM1','PM2'],'PM3':['PM1','PM2','PM3'],'PM4':['PM1','PM2','PM3','PM4']};var pl=pH[r.tipoPM]||[r.tipoPM];var pH=0;(S.g('pau')||INIT.pautas||[]).forEach(function(p){var pR=GRUPO_PAUTAS[p.sigla]||p.sigla;if((p.sigla===sr||pR===sr)&&pl.includes(p.pm))pH+=p.hrs||0;});hT[t].p+=pH;hE[e].p+=pH;});
+  // HH Plan = duración típica real (mediana equipo+tipo), no la suma de p.hrs
+  // de las pautas — esa columna es el intervalo de cada tarea, no su duración.
+  var planDe=hhPlanEstimator(reg);
+  reg.forEach(function(r){var d=r.duracionH||0;var t=r.tecnico||'Sin asignar';var e=r.equipo||'';if(!hT[t])hT[t]={r:0,p:0,n:0};hT[t].r+=d;hT[t].n++;if(!hE[e])hE[e]={r:0,p:0,n:0};hE[e].r+=d;hE[e].n++;var pH=planDe(e,r.tipoPM||'PM1');hT[t].p+=pH;hE[e].p+=pH;});
   var h=['Tipo','Nombre','HH Real','HH Plan','Eficiencia %','Intervenciones'];
   var r=Object.entries(hT).sort(function(a,b){return b[1].r-a[1].r}).map(function(t){return['Técnico',t[0],Math.round(t[1].r),Math.round(t[1].p),t[1].r>0?Math.round(t[1].p/t[1].r*100):0,t[1].n];});
   r=r.concat(Object.entries(hE).sort(function(a,b){return b[1].r-a[1].r}).map(function(e){return['Equipo',e[0],Math.round(e[1].r),Math.round(e[1].p),e[1].r>0?Math.round(e[1].p/e[1].r*100):0,e[1].n];}));
@@ -10817,21 +10817,21 @@ renders.kpi=function(){
   var ratioActual=reg.length?Math.round(prevTotal/reg.length*100):null;
 
   // 6. HH EFICIENCIA by month
+  // Eficiencia HH: plan = duración típica real (mediana equipo+tipo), no la
+  // suma de p.hrs de las pautas — esa columna es el intervalo, no la duración.
+  var _efPlanDe=hhPlanEstimator(reg);
   var hhEfMes=last12.map(function(mes){
     var regM=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes});
     var hhReal=0,hhPlan=0;
     regM.forEach(function(r){
       hhReal+=r.duracionH||0;
-      var sr=GRUPO_PAUTAS[r.equipo]||r.equipo;var pH={'PM1':['PM1'],'PM2':['PM1','PM2'],'PM3':['PM1','PM2','PM3'],'PM4':['PM1','PM2','PM3','PM4']};
-      var pl=pH[r.tipoPM]||[r.tipoPM];var planH=0;
-      (S.g('pau')||INIT.pautas||[]).forEach(function(p){var pR=GRUPO_PAUTAS[p.sigla]||p.sigla;if((p.sigla===sr||pR===sr)&&pl.includes(p.pm))planH+=p.hrs||0;});
-      hhPlan+=planH;
+      hhPlan+=_efPlanDe(r.equipo,r.tipoPM||'PM1');
     });
     return hhReal>0?Math.round(hhPlan/hhReal*100):null;
   });
   var hhRealT=reg.reduce(function(s,r){return s+(r.duracionH||0)},0);
   var hhPlanT=0;
-  reg.forEach(function(r){var sr=GRUPO_PAUTAS[r.equipo]||r.equipo;var pH={'PM1':['PM1'],'PM2':['PM1','PM2'],'PM3':['PM1','PM2','PM3'],'PM4':['PM1','PM2','PM3','PM4']};var pl=pH[r.tipoPM]||[r.tipoPM];(S.g('pau')||INIT.pautas||[]).forEach(function(p){var pR=GRUPO_PAUTAS[p.sigla]||p.sigla;if((p.sigla===sr||pR===sr)&&pl.includes(p.pm))hhPlanT+=p.hrs||0;});});
+  reg.forEach(function(r){hhPlanT+=_efPlanDe(r.equipo,r.tipoPM||'PM1');});
   var hhEfActual=hhRealT>0?Math.round(hhPlanT/hhRealT*100):null;
 
   // ═══ SVG GAUGE GENERATOR ═══
@@ -11900,6 +11900,14 @@ renders.gantt=function(){
     if(gSiglas.indexOf(e.sigla)<0){
       ganttData.push({sigla:e.sigla,tipo:e.tipo,pm:e.tipoPM||'PM1',inicio:'',fin:'',estado:'Planificado',avance:0});
     }
+  });
+  // Refresca el tipo de PM de las filas AÚN NO planificadas (sin fechas): quedó
+  // congelado al crearse la fila, con las fórmulas de ese momento. Una fila ya
+  // planificada no se toca — sus fechas y PM son decisión del planificador.
+  ganttData.forEach(function(g){
+    if(g.inicio||g.fin)return;
+    var e=eq.find(function(x){return x.sigla===g.sigla});
+    if(e&&e.tipoPM)g.pm=e.tipoPM;
   });
   ganttData=ganttData.filter(function(g){return eq.some(function(e){return e.sigla===g.sigla})});
   S.s('gantt',ganttData);
