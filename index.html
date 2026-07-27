@@ -6950,6 +6950,45 @@ function _matchStockDePauta(c,stk,mapaRep){
   }
   return fi>=0?stk[fi]:null;
 }
+// Cadena de PM proyectados de un equipo dentro del horizonte: el primero es su
+// horomProxPM/diasParaPM ya calculados (con la lógica de PM anticipado), y los
+// siguientes cada frecPM horas avanzando al ritmo real. Cada hito trae SU tipo
+// según horómetro. Es la misma proyección del Plan Semanal — si difirieran, se
+// pedirían materiales para un calendario distinto del que muestra el plan.
+// Antes solo se contaba el PRÓXIMO PM: en 90 días un camión a 16 h/día hace ~6
+// PM, así que la demanda de filtros/lubricantes quedaba ~6 veces subestimada.
+function _cadenaPMEnHorizonte(e,horizonteDias){
+  var out=[];
+  if(e.diasParaPM==null||!e.tipoPM)return out;
+  var freq=e.frecPM||250;
+  var ritmo=_ritmoRealEq(e.sigla,e.hrsDia||12);
+  if(!(ritmo>0))ritmo=e.hrsDia>0?e.hrsDia:0;
+  var paso=ritmo>0?freq/ritmo:0;
+  var hito=e.horomProxPM||0;
+  var dias=e.diasParaPM;
+  for(var k=0;k<60&&dias<=horizonteDias;k++){
+    var f=new Date(Date.now()+dias*864e5);
+    out.push({tipoPM:C.tipoPM(hito,freq),dias:Math.round(dias),
+      fecha:f.getFullYear()+'-'+String(f.getMonth()+1).padStart(2,'0')+'-'+String(f.getDate()).padStart(2,'0')});
+    if(!(paso>0))break;   // sin ritmo no se puede proyectar más allá del primero
+    hito+=freq;dias+=paso;
+  }
+  return out;
+}
+// Líneas de pauta con repuesto para un equipo y tipo de PM. Resuelve la sigla
+// de referencia del grupo (GRUPO_PAUTAS) — antes un equipo cuyas pautas viven
+// bajo la sigla del grupo aportaba demanda CERO — y aplica la jerarquía real:
+// un PM4 ejecuta también las tareas de PM1/PM2/PM3, no solo las propias.
+function _lineasPautaRep(sigla,tipoPM,pau){
+  var ref=GRUPO_PAUTAS[sigla]||sigla;
+  var pmH={'PM1':['PM1'],'PM2':['PM1','PM2'],'PM3':['PM1','PM2','PM3'],'PM4':['PM1','PM2','PM3','PM4'],'PM5':['PM1','PM2','PM3','PM4'],'PM6':['PM1','PM2','PM3','PM4'],'PM7':['PM1','PM2','PM3','PM4'],'PM8':['PM1','PM2','PM3','PM4'],'PM9':['PM1','PM2','PM3','PM4']};
+  var lista=pmH[tipoPM]||[tipoPM];
+  return (pau||[]).filter(function(p){
+    if(!p.rep)return false;
+    var pRef=GRUPO_PAUTAS[p.sigla]||p.sigla;
+    return (p.sigla===ref||pRef===ref)&&lista.includes(p.pm);
+  });
+}
 function stockVsProximosPM(horizonteDias){
   horizonteDias=horizonteDias||90;
   var eq=S.g('eq')||[];
@@ -6958,16 +6997,16 @@ function stockVsProximosPM(horizonteDias){
   var mapaRep=S.g('mapaRep')||[];
   var demandaPorItem={};
   eq.forEach(function(e){
-    if(e.diasParaPM==null||e.diasParaPM>horizonteDias||!e.tipoPM)return;
-    var lineasPM=pau.filter(function(p){return p.sigla===e.sigla&&p.pm===e.tipoPM&&p.rep;});
-    lineasPM.forEach(function(p){
-      var item=_matchStockDePauta(p,stk,mapaRep);
-      if(!item)return;
-      var key=item._id||item.nParte;
-      if(!demandaPorItem[key])demandaPorItem[key]={item:item,demandaTotal:0,equipos:[]};
-      var cant=p.can||1;
-      demandaPorItem[key].demandaTotal+=cant;
-      demandaPorItem[key].equipos.push({sigla:e.sigla,fecha:e.fechaProxPM||'',dias:e.diasParaPM,cant:cant});
+    _cadenaPMEnHorizonte(e,horizonteDias).forEach(function(h){
+      _lineasPautaRep(e.sigla,h.tipoPM,pau).forEach(function(p){
+        var item=_matchStockDePauta(p,stk,mapaRep);
+        if(!item)return;
+        var key=item._id||item.nParte;
+        if(!demandaPorItem[key])demandaPorItem[key]={item:item,demandaTotal:0,equipos:[]};
+        var cant=p.can||1;
+        demandaPorItem[key].demandaTotal+=cant;
+        demandaPorItem[key].equipos.push({sigla:e.sigla,fecha:h.fecha,dias:h.dias,cant:cant});
+      });
     });
   });
   return Object.keys(demandaPorItem).map(function(k){
@@ -7012,16 +7051,16 @@ function lubVsProximosPM(horizonteDias){
   var lub=S.g('lub')||[];
   var demandaPorItem={};
   eq.forEach(function(e){
-    if(e.diasParaPM==null||e.diasParaPM>horizonteDias||!e.tipoPM)return;
-    var lineasPM=pau.filter(function(p){return p.sigla===e.sigla&&p.pm===e.tipoPM&&p.rep;});
-    lineasPM.forEach(function(p){
-      var item=_matchLubDePauta(p,lub);
-      if(!item)return;
-      var key=item._id||item.nombre;
-      if(!demandaPorItem[key])demandaPorItem[key]={item:item,demandaTotal:0,equipos:[]};
-      var cant=p.can||0;
-      demandaPorItem[key].demandaTotal+=cant;
-      demandaPorItem[key].equipos.push({sigla:e.sigla,fecha:e.fechaProxPM||'',dias:e.diasParaPM,cant:cant});
+    _cadenaPMEnHorizonte(e,horizonteDias).forEach(function(h){
+      _lineasPautaRep(e.sigla,h.tipoPM,pau).forEach(function(p){
+        var item=_matchLubDePauta(p,lub);
+        if(!item)return;
+        var key=item._id||item.nombre;
+        if(!demandaPorItem[key])demandaPorItem[key]={item:item,demandaTotal:0,equipos:[]};
+        var cant=p.can||0;
+        demandaPorItem[key].demandaTotal+=cant;
+        demandaPorItem[key].equipos.push({sigla:e.sigla,fecha:h.fecha,dias:h.dias,cant:cant});
+      });
     });
   });
   return Object.keys(demandaPorItem).map(function(k){
