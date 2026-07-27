@@ -9759,6 +9759,10 @@ renders.sem=function(){
       var it=itemPlan(e,r.tipoPM||e.tipoPM||'PM1',diaPorFecha(fechaReg(r))||'Jue');
       it.estado='Ejecutado';it.hhReal=r.duracionH||0;it.estadoReal='Ejecutado';
       it.obsReal=r.obs||'';it.tecnico=r.tecnico||'';
+      // itemPlan llena diasPM con los días hasta la PRÓXIMA PM del equipo,
+      // contados desde hoy — para un PM ya ejecutado ese número no significa
+      // nada (mostraba cosas como "23d" junto a un trabajo ya hecho).
+      it.diasPM=null;
       yaEnSemana[r.equipo]=true;
       return it;
     });
@@ -9821,17 +9825,17 @@ renders.sem=function(){
             +it.tipoPM+(esEjec?' ✓':'')+
             '</div>'+
             (it.tecnico?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">'+escapeHtml(it.tecnico)+'</div>':'')+
-            (esEjec?'<div style="font-size:9px;color:var(--ok);margin-top:1px">'+it.hhReal+'h real</div>':'')+
+            (esEjec&&it.hhReal>0?'<div style="font-size:9px;color:var(--ok);margin-top:1px">'+it.hhReal+'h real</div>':'')+
             '</td>';
         }
         return'<td style="padding:4px 3px"></td>';
       }).join('');
-      var dcol=it.diasPM<=3?'var(--danger)':it.diasPM<=7?'var(--warn)':'var(--ok)';
+      var dcol=it.diasPM==null?'var(--tx3)':it.diasPM<=3?'var(--danger)':it.diasPM<=7?'var(--warn)':'var(--ok)';
       return'<tr>'+
         '<td style="font-size:11px;color:var(--tx3);padding:5px 8px">'+escapeHtml(it.tipo)+'</td>'+
         '<td class="mono" style="color:var(--ac);font-weight:700;padding:5px 8px">'+escapeHtml(it.sigla)+'</td>'+
         '<td style="text-align:center;padding:5px 4px">'+pb(it.tipoPM)+'</td>'+
-        '<td class="mono" style="text-align:center;color:'+dcol+';padding:5px 4px">'+it.diasPM+'d</td>'+
+        '<td class="mono" style="text-align:center;color:'+dcol+';padding:5px 4px">'+(it.diasPM==null?'—':it.diasPM+'d')+'</td>'+
         celdas+
         '<td style="text-align:center;font-size:10px;color:var(--tx3);padding:5px 4px">'+it.hhPlan+'h</td>'+
         '<td style="text-align:center;font-size:10px;color:'+(esEjec?'var(--ok)':'var(--tx3)')+';padding:5px 4px">'+(it.hhReal||'-')+(it.hhReal?'h':'')+' real</td>'+
