@@ -9723,22 +9723,44 @@ renders.sem=function(){
       diaContador[dl]=(diaContador[dl]||0)+1;
       return dl;
     }
-    // HH, costo y repuestos de un equipo para un tipo de PM, desde las pautas.
+    // HH Plan desde la duración REAL típica del PM. La columna hrs de las
+    // pautas es el INTERVALO de cada tarea ("Filtro aceite motor — cada 500h",
+    // "Aceite motor del bus — cada 10.000 km"), NO su duración: sumarla como
+    // minutos de trabajo daba planes de cientos de horas y costos de millones
+    // (caso real: CN-10160 PM4 con "1725,6h" de plan y cumplimiento 1%). La
+    // mejor estimación disponible es lo que ese PM tarda de verdad: mediana de
+    // las duraciones registradas del mismo equipo y tipo en registros_pm, o de
+    // la flota completa para ese tipo si el equipo aún no tiene historial.
+    var _durEq={},_durTipo={};
+    reg.forEach(function(r){
+      var d=r.duracionH;if(!(d>0))return;
+      var t=r.tipoPM||'';
+      var k=(r.equipo||'')+'|'+t;
+      (_durEq[k]=_durEq[k]||[]).push(d);
+      (_durTipo[t]=_durTipo[t]||[]).push(d);
+    });
+    function hhPlanDe(sigla,tipoPM){
+      var m=medianaPositiva(_durEq[sigla+'|'+tipoPM]);
+      if(m==null)m=medianaPositiva(_durTipo[tipoPM]);
+      return m==null?0:Math.round(m*10)/10;
+    }
+    // Repuestos del equipo para ese tipo de PM, desde las pautas (eso sí está
+    // bien en ellas); un PM mayor incluye las tareas de los menores.
     function itemPlan(e,tipoPM,diaSem){
       var siglaRef=GRUPO_PAUTAS[e.sigla]||e.sigla;
       var pmH={'PM1':['PM1'],'PM2':['PM1','PM2'],'PM3':['PM1','PM2','PM3'],'PM4':['PM1','PM2','PM3','PM4'],'PM5':['PM1','PM2','PM3','PM4'],'PM6':['PM1','PM2','PM3','PM4'],'PM7':['PM1','PM2','PM3','PM4'],'PM8':['PM1','PM2','PM3','PM4'],'PM9':['PM1','PM2','PM3','PM4']};
       var pmList=pmH[tipoPM]||[tipoPM];
-      var pautaHrs=0;var repuestos=[];
+      var repuestos=[];
       (S.g('pau')||INIT.pautas||[]).forEach(function(p){
         var pRef=GRUPO_PAUTAS[p.sigla]||p.sigla;
         if((p.sigla===siglaRef||pRef===siglaRef)&&pmList.includes(p.pm)){
-          pautaHrs+=p.hrs||0;
           if(p.rep)repuestos.push(p.rep);
         }
       });
+      var hhPlan=hhPlanDe(e.sigla,tipoPM);
       return{sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||'',tipoPM:tipoPM,diasPM:e.diasParaPM||0,
-        hhPlan:Math.round(pautaHrs/60*10)/10,repuestos:repuestos.slice(0,5).join(' | ').substring(0,120),
-        costoEst:Math.round(pautaHrs/60*hh),tecnico:'',estado:'Planificado',
+        hhPlan:hhPlan,repuestos:repuestos.slice(0,5).join(' | ').substring(0,120),
+        costoEst:Math.round(hhPlan*hh),tecnico:'',estado:'Planificado',
         diaSem:diaSem,obs:'',hhReal:0,estadoReal:'',obsReal:'',semana:parseInt(fSemana),auto:true};
     }
     // Los items guardados a mano mandan: el auto no vuelve a agregar esa sigla
@@ -9757,7 +9779,7 @@ renders.sem=function(){
     var ejecItems=getRealFromReg(fSemana).filter(function(r){return !yaManual[r.equipo]}).map(function(r){
       var e=eq.find(function(x){return x.sigla===r.equipo})||{sigla:r.equipo};
       var it=itemPlan(e,r.tipoPM||e.tipoPM||'PM1',diaPorFecha(fechaReg(r))||'Jue');
-      it.estado='Ejecutado';it.hhReal=r.duracionH||0;it.estadoReal='Ejecutado';
+      it.estado='Ejecutado';it.hhReal=Math.round((r.duracionH||0)*10)/10;it.estadoReal='Ejecutado';
       it.obsReal=r.obs||'';it.tecnico=r.tecnico||'';
       // itemPlan llena diasPM con los días hasta la PRÓXIMA PM del equipo,
       // contados desde hoy — para un PM ya ejecutado ese número no significa
@@ -9785,7 +9807,7 @@ renders.sem=function(){
         if(!it.hhReal){
           var rMatch=regsW.find(function(r){return r.equipo===it.sigla&&r.tipoPM===it.tipoPM});
           if(rMatch){
-            it.hhReal=rMatch.duracionH||0;
+            it.hhReal=Math.round((rMatch.duracionH||0)*10)/10;
             it.estadoReal=it.estadoReal||'Ejecutado';
             it.obsReal=it.obsReal||(rMatch.obs||'');
             it.auto=false;

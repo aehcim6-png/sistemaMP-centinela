@@ -249,6 +249,18 @@ function construirLecturaHistorial(hist,sigla,fecha,horom,origen){
 // null si falta algún dato; si no, {ms, horas, texto}. Un ms negativo (salida antes
 // que entrada) se devuelve tal cual — cada llamador decide si eso es un error a
 // mostrar o simplemente no usar el texto.
+// Mediana de los valores positivos de una lista; null si no hay ninguno.
+// Se usa para estimar la duración típica REAL de un PM desde registros_pm:
+// la columna hrs de las pautas es el INTERVALO de cada tarea (cada 500h,
+// cada 10.000 km…), no su duración, así que sumarla como "minutos de
+// trabajo" daba HH Plan de cientos de horas y costos absurdos. La mediana
+// (y no el promedio) para que un registro atípico no arrastre el plan.
+function medianaPositiva(vals){
+  var v=(vals||[]).filter(function(x){return x>0&&isFinite(x)}).sort(function(a,b){return a-b});
+  if(!v.length)return null;
+  var m=Math.floor(v.length/2);
+  return v.length%2?v[m]:(v[m-1]+v[m])/2;
+}
 function duracionHM(fEnt,hEnt,fSal,hSal){
   if(!fEnt||!hEnt||!fSal||!hSal)return null;
   const ms=new Date(fSal+'T'+hSal)-new Date(fEnt+'T'+hEnt);
@@ -687,7 +699,7 @@ if (typeof module !== 'undefined' && module.exports) {
     C, fd, fn, escapeHtml,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
-    fechaEsPlausible, fechaEsAnterior, duracionHM, construirLecturaHistorial,
+    fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
   };
 }

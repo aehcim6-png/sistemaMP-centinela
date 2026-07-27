@@ -1,4 +1,24 @@
-const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM, construirLecturaHistorial } = require('../logic.js');
+const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, construirLecturaHistorial } = require('../logic.js');
+
+describe('medianaPositiva — duración típica real de un PM', () => {
+  it('mediana simple con cantidad impar', () => {
+    expect(medianaPositiva([2, 4, 3])).toBe(3);
+  });
+  it('cantidad par -> promedio de los dos centrales', () => {
+    expect(medianaPositiva([1, 2, 3, 10])).toBe(2.5);
+  });
+  it('ignora ceros, negativos y no-números', () => {
+    expect(medianaPositiva([0, -5, NaN, 3])).toBe(3);
+  });
+  it('robusta a un atípico: un registro de 30h no arrastra el plan como lo haría el promedio', () => {
+    expect(medianaPositiva([2, 2.5, 3, 30.8])).toBe(2.75);
+  });
+  it('sin datos válidos -> null, no se inventa un número', () => {
+    expect(medianaPositiva([])).toBeNull();
+    expect(medianaPositiva([0])).toBeNull();
+    expect(medianaPositiva(null)).toBeNull();
+  });
+});
 
 describe('fd — formato de fecha para mostrar', () => {
   it('vacío, "None" o 0 -> guión largo', () => {
