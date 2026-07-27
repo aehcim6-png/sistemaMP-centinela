@@ -9745,29 +9745,34 @@ renders.sem=function(){
     // (antes se colaba dos veces, una por manualItems y otra por autoItems).
     var manualItems=semData.filter(function(s){return s.semana==fSemana&&!s.auto});
     var yaManual={};manualItems.forEach(function(s){yaManual[s.sigla]=true});
-    var autoItems;
-    if(esPasada){
-      // Una semana ya vivida no se planifica desde una proyección de hoy: lo que
-      // corresponde mostrar es lo que REALMENTE se ejecutó en esos días.
-      autoItems=getRealFromReg(fSemana).filter(function(r){return !yaManual[r.equipo]}).map(function(r){
-        var e=eq.find(function(x){return x.sigla===r.equipo})||{sigla:r.equipo};
-        var it=itemPlan(e,r.tipoPM||e.tipoPM||'PM1',diaPorFecha(fechaReg(r))||'Jue');
-        it.estado='Ejecutado';it.hhReal=r.duracionH||0;it.estadoReal='Ejecutado';
-        it.obsReal=r.obs||'';it.tecnico=r.tecnico||'';
-        return it;
-      });
-    } else {
-      // Semana en curso o futura: entra el equipo cuya próxima PM cae en ella.
-      // Las vencidas siguen pendientes, así que se arrastran a la semana en curso.
-      autoItems=eq.filter(function(e){
-        if(yaManual[e.sigla]||!e.fechaProxPM)return false;
-        if(e.fechaProxPM>=wIni&&e.fechaProxPM<=wFin)return true;
-        return esActual&&e.fechaProxPM<wIni;
-      }).map(function(e){
-        return itemPlan(e,e.tipoPM,diaPorFecha(e.fechaProxPM)||autoDia(e.diasParaPM));
-      });
-    }
-    items=manualItems.concat(autoItems);
+    // Una semana lleva las DOS cosas, no una u otra: lo que YA se ejecutó en sus
+    // días y lo que todavía está por venir. Antes la semana en curso solo
+    // proyectaba desde fechaProxPM, así que un PM registrado el jueves no
+    // aparecía por ninguna parte — y peor, al ejecutarlo su próxima PM se corre
+    // hacia adelante y el equipo desaparecía de la semana: ni plan ni ejecución
+    // (caso real: GE-10019 proyectado al 27, ejecutado el 25, no salía en la
+    // semana 30). Por eso lo ejecutado se arma para cualquier semana con días
+    // ya vividos, y la proyección solo para las que no han terminado.
+    var yaEnSemana={};
+    var ejecItems=getRealFromReg(fSemana).filter(function(r){return !yaManual[r.equipo]}).map(function(r){
+      var e=eq.find(function(x){return x.sigla===r.equipo})||{sigla:r.equipo};
+      var it=itemPlan(e,r.tipoPM||e.tipoPM||'PM1',diaPorFecha(fechaReg(r))||'Jue');
+      it.estado='Ejecutado';it.hhReal=r.duracionH||0;it.estadoReal='Ejecutado';
+      it.obsReal=r.obs||'';it.tecnico=r.tecnico||'';
+      yaEnSemana[r.equipo]=true;
+      return it;
+    });
+    // Proyección: el equipo cuya próxima PM cae en la semana. Las vencidas siguen
+    // pendientes, así que se arrastran a la semana en curso. No se proyecta un
+    // equipo que ya tiene su PM ejecutado en esta misma semana.
+    var projItems=esPasada?[]:eq.filter(function(e){
+      if(yaManual[e.sigla]||yaEnSemana[e.sigla]||!e.fechaProxPM)return false;
+      if(e.fechaProxPM>=wIni&&e.fechaProxPM<=wFin)return true;
+      return esActual&&e.fechaProxPM<wIni;
+    }).map(function(e){
+      return itemPlan(e,e.tipoPM,diaPorFecha(e.fechaProxPM)||autoDia(e.diasParaPM));
+    });
+    items=manualItems.concat(ejecItems,projItems);
 
     // Auto-fill Real desde reg si es semana pasada y no está cerrada
     if(esPasada){
@@ -9944,7 +9949,7 @@ renders.sem=function(){
     '<div class="cards">'+
     '<div class="card"><div class="card-t">Trabajos Semana</div><div class="card-v">'+items.length+'</div></div>'+
     '<div class="card"><div class="card-t">HH Plan</div><div class="card-v">'+Math.round(totalHHPlan)+'h</div></div>'+
-    (esPasada||esCerrada?'<div class="card"><div class="card-t">HH Real</div><div class="card-v" style="color:var(--ok)">'+Math.round(totalHHReal)+'h</div></div>'+
+    (esPasada||esCerrada||totalHHReal>0?'<div class="card"><div class="card-t">HH Real</div><div class="card-v" style="color:var(--ok)">'+Math.round(totalHHReal)+'h</div></div>'+
     '<div class="card"><div class="card-t">Cumplimiento</div><div class="card-v" style="color:'+(cumpl===null?'var(--tx3)':cumpl>=80?'var(--ok)':cumpl>=50?'var(--warn)':'var(--danger)')+'">'+(cumpl===null?'—':cumpl+'%')+'</div></div>':'')+''+
     '<div class="card"><div class="card-t">Costo Estimado</div><div class="card-v" style="color:var(--ac)">$'+Math.round(totalCosto).toLocaleString()+'</div></div>'+
     '<div class="card"><div class="card-t">Tarifa HH</div><div class="card-v">$'+hh.toLocaleString()+'</div></div>'+
