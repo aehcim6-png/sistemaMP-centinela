@@ -9788,15 +9788,40 @@ renders.sem=function(){
       yaEnSemana[r.equipo]=true;
       return it;
     });
-    // Proyección: el equipo cuya próxima PM cae en la semana. Las vencidas siguen
-    // pendientes, así que se arrastran a la semana en curso. No se proyecta un
-    // equipo que ya tiene su PM ejecutado en esta misma semana.
-    var projItems=esPasada?[]:eq.filter(function(e){
-      if(yaManual[e.sigla]||yaEnSemana[e.sigla]||!e.fechaProxPM)return false;
-      if(e.fechaProxPM>=wIni&&e.fechaProxPM<=wFin)return true;
-      return esActual&&e.fechaProxPM<wIni;
-    }).map(function(e){
-      return itemPlan(e,e.tipoPM,diaPorFecha(e.fechaProxPM)||autoDia(e.diasParaPM));
+    // Proyección. No basta con mirar la fechaProxPM de cada equipo: eso es solo
+    // su PRÓXIMO PM, así que las semanas lejanas quedaban casi vacías — falso,
+    // porque tras ese PM viene otro ciclo completo ~2 semanas después, y otro.
+    // Se proyecta la CADENA de hitos: el primero es horomProxPM/fechaProxPM (ya
+    // con toda la lógica de PM anticipado), y los siguientes cada frecPM horas
+    // avanzando al ritmo real del equipo. El tipo de cada hito sale de su
+    // horómetro (C.tipoPM), no del tipo del primero. Las vencidas se arrastran
+    // a la semana en curso, y un equipo con PM ya ejecutado en la semana no se
+    // vuelve a proyectar en ella.
+    var projItems=[];
+    if(!esPasada)eq.forEach(function(e){
+      if(yaManual[e.sigla]||yaEnSemana[e.sigla]||!e.fechaProxPM)return;
+      if(esActual&&e.fechaProxPM<wIni){
+        projItems.push(itemPlan(e,e.tipoPM,diaPorFecha(e.fechaProxPM)||autoDia(e.diasParaPM)));
+        return;
+      }
+      var freq=e.frecPM||250;
+      var ritmo=_ritmoRealEq(e.sigla,e.hrsDia||12);
+      if(!(ritmo>0))ritmo=e.hrsDia>0?e.hrsDia:0;
+      var pasoDias=ritmo>0?freq/ritmo:0;
+      var hito=e.horomProxPM||0;
+      var fecha=new Date(e.fechaProxPM+'T00:00:00');
+      var hoyMs=new Date().getTime();
+      for(var k=0;k<60&&fecha<=diasSemSel[6];k++){
+        var fIso=isoLocal(fecha);
+        if(fIso>=wIni&&fIso<=wFin){
+          var item=itemPlan(e,C.tipoPM(hito,freq),diaPorFecha(fIso)||autoDia(e.diasParaPM));
+          item.diasPM=Math.max(0,Math.round((fecha.getTime()-hoyMs)/864e5));
+          projItems.push(item);
+        }
+        if(!(pasoDias>0))break;    // sin ritmo no se puede proyectar más allá del primero
+        hito+=freq;
+        fecha=new Date(fecha.getTime()+pasoDias*864e5);
+      }
     });
     items=manualItems.concat(ejecItems,projItems);
 
