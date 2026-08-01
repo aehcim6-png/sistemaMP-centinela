@@ -12514,14 +12514,16 @@ window.saveFicha=function(sigla){
   cm();refreshAll();
   toast('✅ Ficha de '+eq[idx].sigla+' actualizada');
 };
-// Add floating export bar
+// Export bar: vive dentro del header superior (sticky), no flotando abajo de
+// cada pestaña — antes había que bajar toda la tabla para encontrarlo.
 document.addEventListener('DOMContentLoaded',function(){
   var bar=document.createElement('div');
   bar.id='exportBar';
-  bar.style.cssText='position:fixed;bottom:16px;right:16px;display:flex;gap:6px;z-index:1000';
-  bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);cursor:pointer;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3)">📥 CSV</button>'+
-    '<button onclick="imprimirTab(currentTab,currentTab)" style="padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);cursor:pointer;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3)">🖨️ Imprimir</button>';
-  document.body.appendChild(bar);
+  bar.style.cssText='display:flex;gap:6px';
+  bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);cursor:pointer;font-size:12px">📥 CSV</button>'+
+    '<button onclick="imprimirTab(currentTab,currentTab)" style="padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);cursor:pointer;font-size:12px">🖨️ Imprimir</button>';
+  var header=document.querySelector('.header');
+  (header||document.body).appendChild(bar);
 });
 var _cfg=S.g('cfg')||{};if(_cfg.colorAc||_cfg.tema)applyTheme(_cfg);
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
