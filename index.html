@@ -6005,6 +6005,13 @@ renders.cfg=function(){
     '<button class="btn btn-o" onclick="verAccesos()">Ver accesos recientes</button>'+
     '</div>'+
 
+    // VERIFICACIÓN EN DOS PASOS (MFA/TOTP) — estado se carga aparte, es async
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #ef4444" id="mfaCard">'+
+    '<b style="font-size:14px">🔐 Verificación en dos pasos</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Además del usuario y la clave, pide un código de 6 dígitos que cambia cada 30 segundos (app tipo Google Authenticator). Así aunque alguien consiga tu clave, no puede entrar sin tu teléfono.</p>'+
+    '<div id="mfaEstadoBox" style="font-size:12px;color:var(--tx3)">Revisando estado…</div>'+
+    '</div>'+
+
     // AUTOGUARDADO EN LÍNEA (siempre visible)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--ac)">'+
     '<b style="font-size:14px">☁️ Respaldo automático (en línea)</b>'+
@@ -6160,6 +6167,19 @@ renders.cfg=function(){
       '</div>'
     );
   if(window._userRole==='admin'){setTimeout(cargarPendientesUI,50);setTimeout(cargarActivosUI,50);}
+  _refrescarEstadoMFA();
+}
+async function _refrescarEstadoMFA(){
+  var box=document.getElementById('mfaEstadoBox');
+  if(!box)return;
+  var f=await window._mfaEstado().catch(function(){return null;});
+  if(f){
+    box.innerHTML='<div style="color:var(--ok);margin-bottom:8px">✅ Activada</div>'+
+      '<button class="btn btn-d" onclick="desactivarMFA()">Desactivar</button>';
+  }else{
+    box.innerHTML='<div style="color:var(--w);margin-bottom:8px">⚠️ No está activada</div>'+
+      '<button class="btn" onclick="activarMFA()">Activar verificación en dos pasos</button>';
+  }
 }
 
 // [v10.4 cleanup] exportTodo — función muerta (0 usos) eliminada
@@ -12760,34 +12780,201 @@ async function _doLogin(){
     if(data.error||!data.access_token){
       _loginError('Email o contraseña incorrectos.');return;
     }
-    localStorage.setItem('smp_access_token', data.access_token);
-    localStorage.setItem('smp_refresh_token', data.refresh_token||'');
-    _programarRefreshToken(data.access_token);
-    _currentUser = data.user||{id:data.user_id};
-    // Se registra el acceso apenas Supabase confirma la clave (antes de buscar
-    // el rol) — si esa segunda llamada falla por red, el login igual queda
-    // guardado en vez de perderse silenciosamente.
-    window._userName = email;
-    _registrarLogin('Login manual');
-    var rol = await _sbGetRole(_currentUser.id, data.access_token);
-    _currentRole = rol?.role||'operador';
-    window._userName = rol?.nombre||email;
-    window._userRole = _currentRole;
-    if(_currentUser?.user_metadata?.must_change_password){
-      _mostrarCambioClaveOverlay();
+    // Si la cuenta tiene verificación en dos pasos activada, la clave sola no
+    // basta: se pide el código antes de guardar ninguna sesión utilizable. El
+    // token que llega acá solo alcanza nivel aal1 (Supabase lo marca así) —
+    // no se guarda en localStorage hasta pasar el segundo paso, para que no
+    // quede una sesión a medio autenticar dando vueltas si alguien cierra la
+    // pestaña en este punto.
+    var factores=(data.user&&data.user.factors)||[];
+    var factorTotp=factores.find(function(f){return f.factor_type==='totp'&&f.status==='verified';});
+    if(factorTotp){
+      _mostrarMfaChallengeUI(email,factorTotp.id,data.access_token);
       return;
     }
-    var ov=document.getElementById('loginOverlay');
-    if(ov)ov.remove();
-    _aplicarRolUI();
-    _agregarUserBadge();
-    _refrescarDatosPostLogin();
+    await _completarLogin(email,data);
   }catch(e){_loginError('Error de conexión. Intenta de nuevo.');}
+}
+
+async function _completarLogin(email,data){
+  localStorage.setItem('smp_access_token', data.access_token);
+  localStorage.setItem('smp_refresh_token', data.refresh_token||'');
+  _programarRefreshToken(data.access_token);
+  _currentUser = data.user||{id:data.user_id};
+  // Se registra el acceso apenas Supabase confirma la clave (antes de buscar
+  // el rol) — si esa segunda llamada falla por red, el login igual queda
+  // guardado en vez de perderse silenciosamente.
+  window._userName = email;
+  _registrarLogin('Login manual');
+  var rol = await _sbGetRole(_currentUser.id, data.access_token);
+  _currentRole = rol?.role||'operador';
+  window._userName = rol?.nombre||email;
+  window._userRole = _currentRole;
+  if(_currentUser?.user_metadata?.must_change_password){
+    _mostrarCambioClaveOverlay();
+    return;
+  }
+  var ov=document.getElementById('loginOverlay');
+  if(ov)ov.remove();
+  _aplicarRolUI();
+  _agregarUserBadge();
+  _refrescarDatosPostLogin();
 }
 
 function _logout(){
   _sbAuthLogout().finally(function(){location.reload();});
 }
+
+// ============ VERIFICACIÓN EN DOS PASOS (MFA — TOTP) ============
+// API estándar de Supabase Auth para segundo factor. No se usa ningún SDK
+// externo, son los mismos fetch directos que el resto de este archivo.
+async function _mfaEnroll(token){
+  const r=await fetch(_SB_DEFAULT_URL+'/auth/v1/factors',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({factor_type:'totp',friendly_name:'SistemaMP Centinela'})
+  });
+  return r.json();
+}
+async function _mfaChallenge(token,factorId){
+  const r=await fetch(_SB_DEFAULT_URL+'/auth/v1/factors/'+factorId+'/challenge',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'}
+  });
+  return r.json();
+}
+async function _mfaVerify(token,factorId,challengeId,code){
+  const r=await fetch(_SB_DEFAULT_URL+'/auth/v1/factors/'+factorId+'/verify',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({challenge_id:challengeId,code:code})
+  });
+  return r.json();
+}
+async function _mfaUnenroll(token,factorId){
+  const r=await fetch(_SB_DEFAULT_URL+'/auth/v1/factors/'+factorId,{
+    method:'DELETE',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token}
+  });
+  return r.ok?{}:r.json();
+}
+
+// Segundo paso del LOGIN — se muestra cuando la cuenta ya tiene un factor
+// TOTP verificado. El token que llega acá (aal1) todavía no se guarda en
+// localStorage: solo sirve para pedir el challenge y verificar el código.
+function _mostrarMfaChallengeUI(email,factorId,tokenAal1){
+  var ov=document.getElementById('loginOverlay');
+  if(ov)ov.remove();
+  var overlay=document.createElement('div');
+  overlay.id='loginOverlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#0f172a;font-family:system-ui,sans-serif';
+  overlay.innerHTML=
+    '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.4)">'+
+      '<div style="text-align:center;margin-bottom:24px">'+
+        '<div style="font-size:28px;margin-bottom:8px">🔐</div>'+
+        '<div style="font-size:16px;font-weight:700;color:#f1f5f9">Verificación en dos pasos</div>'+
+        '<div style="font-size:12px;color:#94a3b8;margin-top:6px">Ingresa el código de 6 dígitos de tu app autenticadora</div>'+
+      '</div>'+
+      '<div id="mfa_err" style="display:none;background:#ef444420;border:1px solid #ef4444;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px;color:#ef4444"></div>'+
+      '<input id="mfa_code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;padding:10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:22px;letter-spacing:6px;text-align:center;box-sizing:border-box;margin-bottom:16px">'+
+      '<button id="mfa_btn" style="width:100%;padding:12px;border-radius:6px;border:none;background:#f59e0b;color:#000;font-weight:700;font-size:14px;cursor:pointer">Confirmar</button>'+
+      '<div id="mfa_loading" style="display:none;text-align:center;margin-top:10px;font-size:12px;color:#94a3b8">Verificando...</div>'+
+      '<div style="text-align:center;margin-top:16px"><a href="javascript:void(0)" id="mfa_volver" style="color:#94a3b8;font-size:11px">← Volver</a></div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('mfa_volver').onclick=function(){_mostrarLoginOverlay();};
+  var confirmar=async function(){
+    var code=(document.getElementById('mfa_code').value||'').trim();
+    if(!/^\d{6}$/.test(code)){_mfaError('El código debe tener 6 dígitos.');return;}
+    document.getElementById('mfa_btn').disabled=true;
+    document.getElementById('mfa_loading').style.display='block';
+    document.getElementById('mfa_err').style.display='none';
+    try{
+      var ch=await _mfaChallenge(tokenAal1,factorId);
+      if(ch.error||!ch.id){_mfaError('No se pudo iniciar la verificación. Intenta de nuevo.');return;}
+      var v=await _mfaVerify(tokenAal1,factorId,ch.id,code);
+      if(v.error||!v.access_token){_mfaError('Código incorrecto.');return;}
+      await _completarLogin(email,v);
+    }catch(e){_mfaError('Error de conexión. Intenta de nuevo.');}
+  };
+  document.getElementById('mfa_btn').addEventListener('click',confirmar);
+  document.getElementById('mfa_code').addEventListener('keydown',function(e){if(e.key==='Enter')confirmar();});
+  setTimeout(function(){document.getElementById('mfa_code').focus();},100);
+}
+function _mfaError(msg){
+  var err=document.getElementById('mfa_err');
+  var btn=document.getElementById('mfa_btn');
+  var loading=document.getElementById('mfa_loading');
+  if(err){err.textContent=msg;err.style.display='block';}
+  if(btn)btn.disabled=false;
+  if(loading)loading.style.display='none';
+}
+
+// Activar / desactivar — se maneja desde Configuración, con la sesión ya
+// completa (aal1 o aal2, da igual: enrolar exige el código igual que
+// cualquier challenge, así que no hay forma de activarlo sin probar que
+// realmente funciona el código antes de dejarlo activo).
+window._mfaEstado=async function(){
+  var token=localStorage.getItem('smp_access_token');
+  var u=await _sbAuthSession();
+  var factores=(u&&u.factors)||[];
+  return factores.find(function(f){return f.factor_type==='totp'&&f.status==='verified';})||null;
+};
+window.activarMFA=async function(){
+  var token=localStorage.getItem('smp_access_token');
+  var en=await _mfaEnroll(token);
+  if(en.error||!en.id){toast('❌ No se pudo iniciar la activación: '+(en.error?.message||en.msg||'error desconocido'));return;}
+  var factorId=en.id;
+  var qr=en.totp?.qr_code||'';
+  var secreto=en.totp?.secret||'';
+  sm('<div style="max-width:360px">'+
+    '<h3>🔐 Activar verificación en dos pasos</h3>'+
+    '<p style="font-size:12px;color:var(--tx3);margin-bottom:12px">1. Abre Google Authenticator (o similar) en tu teléfono y escanea este código:</p>'+
+    (qr?'<div style="text-align:center;margin-bottom:12px"><img src="'+qr+'" style="width:180px;height:180px;background:#fff;padding:8px;border-radius:8px"></div>':'')+
+    (secreto?'<p style="font-size:10px;color:var(--tx3);text-align:center;margin-bottom:12px">¿No puedes escanear? Ingresa este código manualmente:<br><b style="font-size:12px;color:var(--tx);letter-spacing:1px">'+escapeHtml(secreto)+'</b></p>':'')+
+    '<p style="font-size:12px;color:var(--tx3);margin-bottom:8px">2. Escribe el código de 6 dígitos que te muestra la app para confirmar:</p>'+
+    '<input id="mfaEnrollCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:20px;letter-spacing:6px;text-align:center;box-sizing:border-box;margin-bottom:12px">'+
+    '<div id="mfaEnrollErr" style="display:none;color:var(--danger);font-size:11px;margin-bottom:8px"></div>'+
+    '<button class="btn" onclick="_confirmarActivarMFA(\''+factorId+'\')">Confirmar y activar</button> '+
+    '<button class="btn btn-o" onclick="_cancelarActivarMFA(\''+factorId+'\')">Cancelar</button>'+
+    '</div>');
+};
+window._confirmarActivarMFA=async function(factorId){
+  var token=localStorage.getItem('smp_access_token');
+  var code=(document.getElementById('mfaEnrollCode')?.value||'').trim();
+  var err=document.getElementById('mfaEnrollErr');
+  if(!/^\d{6}$/.test(code)){if(err){err.textContent='El código debe tener 6 dígitos.';err.style.display='block';}return;}
+  var ch=await _mfaChallenge(token,factorId);
+  if(ch.error||!ch.id){if(err){err.textContent='No se pudo verificar. Intenta de nuevo.';err.style.display='block';}return;}
+  var v=await _mfaVerify(token,factorId,ch.id,code);
+  if(v.error||!v.access_token){if(err){err.textContent='Código incorrecto — revisa la hora de tu teléfono y vuelve a intentar.';err.style.display='block';}return;}
+  // La verificación exitosa entrega una sesión aal2 nueva — se reemplaza la
+  // guardada para no quedar con un token viejo.
+  localStorage.setItem('smp_access_token',v.access_token);
+  localStorage.setItem('smp_refresh_token',v.refresh_token||'');
+  _programarRefreshToken(v.access_token);
+  cm();
+  toast('✅ Verificación en dos pasos activada');
+  if(currentTab==='cfg')renders.cfg();
+};
+window._cancelarActivarMFA=async function(factorId){
+  var token=localStorage.getItem('smp_access_token');
+  // El factor recién creado con activarMFA() queda "unverified" hasta
+  // confirmarse con un código — si el usuario cancela, se borra para no
+  // dejar un factor a medio activar dando vueltas en la cuenta.
+  await _mfaUnenroll(token,factorId).catch(function(){});
+  cm();
+};
+window.desactivarMFA=async function(){
+  if(!confirm('¿Desactivar la verificación en dos pasos? Con eso basta el usuario y la contraseña para entrar.'))return;
+  var token=localStorage.getItem('smp_access_token');
+  var f=await window._mfaEstado();
+  if(!f){toast('No hay verificación en dos pasos activa');return;}
+  var r=await _mfaUnenroll(token,f.id);
+  if(r.error){toast('❌ No se pudo desactivar: '+(r.error?.message||''));return;}
+  toast('✅ Verificación en dos pasos desactivada');
+  if(currentTab==='cfg')renders.cfg();
+};
 
 function _aplicarRolUI(){
   if(window._userRole==='admin')return;
