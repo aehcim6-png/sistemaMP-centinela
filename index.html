@@ -19,7 +19,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .hs b{font-family:var(--mono);font-size:16px;display:block}
 .hs small{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:1px}
 
-.nav{background:var(--bg2);display:flex;overflow-x:auto;border-bottom:1px solid var(--border);padding:0 8px}
+.nav{background:var(--bg2);display:flex;flex-wrap:wrap;overflow-x:auto;border-bottom:1px solid var(--border);padding:0 8px}
 .nav button{background:none;border:none;color:var(--tx3);padding:10px 14px;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
 .nav button:hover{color:var(--tx);background:var(--bg3)}
 .nav button.on{color:var(--ac);border-bottom-color:var(--ac)}
@@ -12992,20 +12992,6 @@ function _agregarUserBadge(){
   badge.title='Cerrar sesión';
   badge.onclick=function(){if(confirm('¿Cerrar sesión?'))_logout();};
   document.body.appendChild(badge);
-  // La pestaña Configuración (accesos al sistema, usuarios, etc.) existe hace
-  // tiempo pero no tenía ningún botón en la interfaz para llegar a ella —
-  // solo era alcanzable llamando go('cfg') desde la consola. Se agrega aquí,
-  // junto a la insignia de usuario, visible solo para admin.
-  var oldGear=document.getElementById('_gearBtn');if(oldGear)oldGear.remove();
-  if(window._userRole==='admin'){
-    var gear=document.createElement('span');
-    gear.id='_gearBtn';
-    gear.style.cssText='position:fixed;bottom:60px;right:'+(16+badge.offsetWidth+8)+'px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 10px;font-size:13px;cursor:pointer;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,.3)';
-    gear.textContent='⚙';
-    gear.title='Configuración (accesos al sistema, usuarios)';
-    gear.onclick=function(){go('cfg');};
-    document.body.appendChild(gear);
-  }
 }
 
 // Registro de accesos: quién entró, cuándo y desde qué navegador — pedido real
