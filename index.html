@@ -12514,14 +12514,17 @@ window.saveFicha=function(sigla){
   cm();refreshAll();
   toast('✅ Ficha de '+eq[idx].sigla+' actualizada');
 };
-// Export bar: vive dentro del header superior (sticky), no flotando abajo de
-// cada pestaña — antes había que bajar toda la tabla para encontrarlo.
+// Export bar: vive en el header superior (sticky), no flotando abajo de cada
+// pestaña. Misma "pastilla" redondeada que la burbuja de usuario (línea del
+// badge más abajo: fondo #1e293b, borde #334155, radio 20px) para que no se
+// vea como un botón suelto sino parte del mismo lenguaje visual del header.
 document.addEventListener('DOMContentLoaded',function(){
   var bar=document.createElement('div');
   bar.id='exportBar';
-  bar.style.cssText='display:flex;gap:6px';
-  bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);cursor:pointer;font-size:12px">📥 CSV</button>'+
-    '<button onclick="imprimirTab(currentTab,currentTab)" style="padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg2);color:var(--tx);cursor:pointer;font-size:12px">🖨️ Imprimir</button>';
+  bar.style.cssText='display:flex;gap:6px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 6px';
+  var btnCss='padding:4px 12px;border-radius:16px;border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:11px';
+  bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'">📥 CSV</button>'+
+    '<button onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'">🖨️ Imprimir</button>';
   var header=document.querySelector('.header');
   (header||document.body).appendChild(bar);
 });
