@@ -12764,11 +12764,15 @@ async function _doLogin(){
     localStorage.setItem('smp_refresh_token', data.refresh_token||'');
     _programarRefreshToken(data.access_token);
     _currentUser = data.user||{id:data.user_id};
+    // Se registra el acceso apenas Supabase confirma la clave (antes de buscar
+    // el rol) — si esa segunda llamada falla por red, el login igual queda
+    // guardado en vez de perderse silenciosamente.
+    window._userName = email;
+    _registrarLogin('Login manual');
     var rol = await _sbGetRole(_currentUser.id, data.access_token);
     _currentRole = rol?.role||'operador';
     window._userName = rol?.nombre||email;
     window._userRole = _currentRole;
-    _registrarLogin('Login manual');
     if(_currentUser?.user_metadata?.must_change_password){
       _mostrarCambioClaveOverlay();
       return;
@@ -12801,6 +12805,20 @@ function _agregarUserBadge(){
   badge.title='Cerrar sesión';
   badge.onclick=function(){if(confirm('¿Cerrar sesión?'))_logout();};
   document.body.appendChild(badge);
+  // La pestaña Configuración (accesos al sistema, usuarios, etc.) existe hace
+  // tiempo pero no tenía ningún botón en la interfaz para llegar a ella —
+  // solo era alcanzable llamando go('cfg') desde la consola. Se agrega aquí,
+  // junto a la insignia de usuario, visible solo para admin.
+  var oldGear=document.getElementById('_gearBtn');if(oldGear)oldGear.remove();
+  if(window._userRole==='admin'){
+    var gear=document.createElement('span');
+    gear.id='_gearBtn';
+    gear.style.cssText='position:fixed;bottom:60px;right:'+(16+badge.offsetWidth+8)+'px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 10px;font-size:13px;cursor:pointer;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+    gear.textContent='⚙';
+    gear.title='Configuración (accesos al sistema, usuarios)';
+    gear.onclick=function(){go('cfg');};
+    document.body.appendChild(gear);
+  }
 }
 
 // Registro de accesos: quién entró, cuándo y desde qué navegador — pedido real
