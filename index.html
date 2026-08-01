@@ -6497,7 +6497,7 @@ window.processImportReg=function(){
       S.s('reg',reg);cm();refreshAll();
       toast('✅ '+added+' registros '+(replace?'cargados':'agregados')+(dup?' · '+dup+' duplicado(s) omitido(s)':''));
     }catch(err){toast('❌ Error: '+err.message);}
-  };reader.readAsText(file,'ISO-8859-1');
+  };reader.readAsText(file,'UTF-8');
 };
 
 // ═══ IMPORTAR STOCK FILTROS ═══
@@ -11394,7 +11394,7 @@ window.processImportOT=function(){
           ot.push({sigla:v[0]||'',tipo:v[1]||'Correctivo',fecha:v[2]||'',componente:v[3]||'',sintoma:v[4]||'',causaRaiz:v[5]||'',solucion:v[6]||'',estadoOT:v[7]||'Pendiente',duracion:v[8]||''});added++;}}
       S.s('ot',ot);cm();refreshAll();toast('✅ '+added+' correctivos '+(replace?'cargados':'agregados'));
     }catch(err){toast('❌ '+err.message);}
-  };reader.readAsText(file,'ISO-8859-1');
+  };reader.readAsText(file,'UTF-8');
 };
 // [cleanup] importInspCSV, processImportInsp — funciones muertas (0 usos) eliminadas
 
