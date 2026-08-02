@@ -4623,6 +4623,101 @@ window._dictar=function(targetId,btn){
   rec.onend=function(){btn.classList.remove('mic-listening');};
   try{rec.start();}catch(e){btn.classList.remove('mic-listening');}
 };
+
+// ============ COMANDOS DE VOZ (control del sistema — pedido 2026-08-02) ============
+// Primer paso hacia un sistema operable 100% por voz. Arquitectura a
+// propósito abierta ("puerta trasera" para seguir sumando sin tocar el
+// motor, como se pidió): cada comando nuevo es UNA fila en VOICE_COMMANDS,
+// nada más. Para agregar uno:
+//   {patrones:['palabra o frase que se puede decir','otra forma de decirlo'],
+//    accion:function(){ /* qué hace */ },
+//    decir:'Lo que el sistema contesta en voz alta (o null si accion() ya habla)'}
+// El motor (_ejecutarComandoVoz) no sabe nada de la app — solo hace match
+// de texto contra 'patrones' y llama a 'accion'. Sumar un comando para
+// "registrar un PM completo por voz" el día de mañana es agregar una fila
+// acá, no reescribir esto.
+window.VOICE_COMMANDS=[
+  {patrones:['dashboard','inicio','panel principal','tablero'],accion:function(){go('dash');},decir:'Abriendo Dashboard'},
+  {patrones:['equipos'],accion:function(){go('eq');},decir:'Abriendo Equipos'},
+  {patrones:['registro pm','registro de mantencion','registro de pm'],accion:function(){go('reg');},decir:'Abriendo Registro PM'},
+  {patrones:['correctivos','ordenes de trabajo'],accion:function(){go('ot');},decir:'Abriendo Correctivos'},
+  {patrones:['planificacion','plan semanal'],accion:function(){go('plani');},decir:'Abriendo Planificación'},
+  {patrones:['pautas'],accion:function(){go('pau');},decir:'Abriendo Pautas'},
+  {patrones:['neumaticos'],accion:function(){go('neu');},decir:'Abriendo Neumáticos'},
+  {patrones:['stock e insumos','stock','insumos'],accion:function(){go('stk2');},decir:'Abriendo Stock e Insumos'},
+  {patrones:['horometros'],accion:function(){go('hist');},decir:'Abriendo Horómetros'},
+  {patrones:['disponibilidad'],accion:function(){go('disp');},decir:'Abriendo Disponibilidad'},
+  {patrones:['analisis de aceite','analisis aceite'],accion:function(){go('ace');},decir:'Abriendo Análisis de Aceite'},
+  {patrones:['vencimientos'],accion:function(){go('venc');},decir:'Abriendo Vencimientos'},
+  {patrones:['componentes'],accion:function(){go('comp2');},decir:'Abriendo Componentes'},
+  {patrones:['metas y kpis','metas','kpis'],accion:function(){go('mkpi');},decir:'Abriendo Metas y KPIs'},
+  {patrones:['buscar','busqueda'],accion:function(){go('buscar');},decir:'Abriendo Buscar'},
+  {patrones:['configuracion','ajustes'],accion:function(){go('cfg');},decir:'Abriendo Configuración'},
+  {patrones:['ayuda','manual de usuario'],accion:function(){go('ayuda');},decir:'Abriendo Ayuda'},
+  {patrones:['nueva ot','nueva orden de trabajo','crear correctivo'],accion:function(){go('ot');setTimeout(function(){if(typeof addOT==='function')addOT();},300);},decir:'Abriendo formulario de nueva orden de trabajo'},
+  {patrones:['cerrar','cancelar'],accion:function(){cm();},decir:'Cerrado'},
+  {patrones:['leeme los urgentes','lee los urgentes','que hay urgente','equipos urgentes','urgentes'],accion:function(){_leerUrgentes();},decir:null},
+];
+// Quita tildes/mayúsculas/signos para comparar lo que el navegador entendió
+// contra los patrones — el reconocimiento de voz en español casi siempre
+// devuelve texto con tildes y puntuación que no hay que exigir al armar
+// cada patrón.
+function _normVoz(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[¿?¡!.,]/g,'').trim();
+}
+window._hablar=function(texto){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(texto);
+  u.lang='es-CL';
+  window.speechSynthesis.speak(u);
+};
+window._leerUrgentes=function(){
+  var eq=S.g('eq')||[];
+  var urg=eq.filter(function(e){return (e.estado||'').includes('URGENTE')||(e.estado||'').includes('VENCIDA');});
+  if(!urg.length){_hablar('No hay equipos urgentes en este momento.');return;}
+  var nombres=urg.slice(0,8).map(function(e){return e.sigla;}).join(', ');
+  _hablar('Hay '+urg.length+' equipos urgentes: '+nombres+(urg.length>8?' y otros más':'')+'.');
+  go('dash');
+};
+window._ejecutarComandoVoz=function(transcript){
+  var t=_normVoz(transcript);
+  var mejor=null,mejorLen=0;
+  VOICE_COMMANDS.forEach(function(cmd){
+    cmd.patrones.forEach(function(p){
+      var pn=_normVoz(p);
+      if(t.indexOf(pn)>=0&&pn.length>mejorLen){mejor=cmd;mejorLen=pn.length;}
+    });
+  });
+  if(mejor){
+    mejor.accion();
+    if(mejor.decir)_hablar(mejor.decir);
+    toast('🎙️ "'+transcript+'"');
+  }else{
+    _hablar('No entendí el comando.');
+    toast('⚠️ No entendí: "'+transcript+'"');
+  }
+};
+window._comandoDeVoz=function(btn){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('⚠️ Comandos de voz no disponibles en este navegador — funciona en Chrome/Edge');return;}
+  var rec=new SR();
+  rec.lang='es-CL';
+  rec.interimResults=false;
+  rec.maxAlternatives=1;
+  var textoOriginal=btn.innerHTML;
+  btn.innerHTML=ICONS.mic+' Escuchando...';
+  btn.style.color='#ef4444';
+  rec.onresult=function(e){
+    _ejecutarComandoVoz(e.results[0][0].transcript);
+  };
+  rec.onerror=function(e){
+    if(e.error!=='no-speech')toast('⚠️ No se pudo escuchar: '+e.error);
+  };
+  rec.onend=function(){btn.innerHTML=textoOriginal;btn.style.color='';};
+  try{rec.start();}catch(e){btn.innerHTML=textoOriginal;btn.style.color='';}
+};
+
 window.calcDurOT=function(){
   const fe=$('oFecEnt')?.value,he=$('oHoraEnt')?.value;
   const fs=$('oFecSal')?.value,hs=$('oHoraSal')?.value;
@@ -12639,7 +12734,8 @@ document.addEventListener('DOMContentLoaded',function(){
   bar.style.cssText='display:flex;gap:6px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 6px';
   var btnCss='padding:4px 12px;border-radius:16px;border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:11px';
   bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
-    '<button onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>';
+    '<button onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>'+
+    '<button id="voiceCmdBtn" onclick="_comandoDeVoz(this)" style="'+btnCss+'" title="Comando de voz — di el nombre de una pestaña, \'nueva OT\', \'urgentes\'...">'+ICONS.mic+' Voz</button>';
   var header=document.querySelector('.header');
   (header||document.body).appendChild(bar);
 });
