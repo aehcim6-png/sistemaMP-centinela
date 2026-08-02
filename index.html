@@ -602,7 +602,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
 // pantalla aunque el cambio nunca haya llegado a la base real.
 function _avisarErrorGuardado(tabla,detalleServidor){
   var msg='⚠️ No se pudo guardar en la nube ('+tabla+')';
-  if(/admin/i.test(detalleServidor))msg='⛔ Ese cambio requiere permisos de administrador — no se guardó';
+  if(/admin/i.test(detalleServidor))msg='<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Ese cambio requiere permisos de administrador — no se guardó';
   if(typeof toast==='function')toast(msg);
   console.error('Error guardando en Supabase:',tabla,detalleServidor);
   // "row-level security policy" (sin mención a admin) casi siempre es sesión vencida,
@@ -1034,6 +1034,16 @@ const ICONS={
   dotYellow:'<svg viewBox="0 0 20 20" width="10" height="10"><circle cx="10" cy="10" r="8" fill="#eab308"/></svg>',
   dotGreen:'<svg viewBox="0 0 20 20" width="10" height="10"><circle cx="10" cy="10" r="8" fill="#22c55e"/></svg>',
   dotWhite:'<svg viewBox="0 0 20 20" width="10" height="10"><circle cx="10" cy="10" r="8" fill="#cbd5e1" stroke="#64748b" stroke-width="1"/></svg>',
+  lock:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg>',
+  unlock:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg>',
+  ruler:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg>',
+  barrel:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>',
+  trendDown:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg>',
+  bulb:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg>',
+  doc:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg>',
+  money:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg>',
+  link:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg>',
+  noEntry:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg>',
 };
 
 // ============ NAV ============
@@ -1636,7 +1646,7 @@ renders.dash=function(){
   });
   var maxTrend=Math.max.apply(null,dispTrend6.filter(function(v){return v!==null;}).concat([100]));
   var trendBlock='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">';
-  trendBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2)">📈 Tendencia Disponibilidad — Últimos 6 Meses</div>';
+  trendBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Tendencia Disponibilidad — Últimos 6 Meses</div>';
   trendBlock+='<div style="display:flex;align-items:flex-end;gap:8px;height:80px;padding-top:10px">';
   dispTrend6.forEach(function(v,i){
     var pct=v!==null?Math.max(v/maxTrend*100,2):2;
@@ -1788,7 +1798,7 @@ window.importarEquiposNuevos=function(){
   refreshAll();
   var msg='✅ Importados: '+agregados.join(', ');
   if(omitidos.length)msg+='\n⚠️ Ya existían (omitidos): '+omitidos.join(', ');
-  msg+='\n\n📝 Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (✏️) para ingresar km/día cuando tengas el dato.';
+  msg+='\n\n<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (✏️) para ingresar km/día cuando tengas el dato.';
   alert(msg);
 };
 
@@ -1815,7 +1825,7 @@ renders.reg=function(){
   const pg=_pagSlice('reg',fil);
   $('s-reg').innerHTML=`
     <div class="sec-h"><div>
-      <div class="sec-t">📝 Registro de Mantención — PM y Correctivos</div>
+      <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registro de Mantención — PM y Correctivos</div>
       <div class="sec-s">${reg.length} registros totales</div>
     </div>
       <div style="display:flex;gap:8px">
@@ -1872,7 +1882,7 @@ window.addReg=function(){
   const per=_tecnicosDisponibles();
   const hoy=new Date().toISOString().slice(0,10);
   const hora=new Date().toTimeString().slice(0,5);
-  sm(`<h3>📝 Registrar Mantención</h3>
+  sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registrar Mantención</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label>
         <select id="rEq" onchange="rAutoHorom();rMostrarConsumos()">
@@ -3063,15 +3073,15 @@ renders.mov=function(){
   document.getElementById('s-mov').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Historial de Consumos</div>'+
     '<div class="sec-s">'+mov.length+' total · Mostrando: '+fil.length+' ('+Math.round(tFil)+' filtros, '+Math.round(tLub)+'L lub)</div></div>'+
-    '<div><button class="btn" onclick="recalcSoloCostos()" title="Asigna consumos por pauta SIN descontar stock">💲 Calcular costos</button>'+
+    '<div><button class="btn" onclick="recalcSoloCostos()" title="Asigna consumos por pauta SIN descontar stock"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Calcular costos</button>'+
     ' <button class="btn btn-o" onclick="recalcHistorial()" title="Asigna consumos Y descuenta stock"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Recalcular + stock</button>'+
     ' <button class="btn btn-o" onclick="clearConsumos()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Limpiar</button></div></div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px">'+
     meses.slice(0,6).map(function(m){
       var t=totMes[m]||{filtros:0,lubricantes:0,n:0};
       return '<div class="card" style="padding:8px;cursor:pointer" onclick="$(\'fMovMes\').value=\''+m+'\';renders.mov()"><b>'+m+'</b><br>'+
-        '<span style="color:var(--ok);font-size:12px">🔧 '+Math.round(t.filtros)+' filtros</span> '+
-        '<span style="color:var(--w);font-size:12px">🛢 '+Math.round(t.lubricantes)+'L</span> '+
+        '<span style="color:var(--ok);font-size:12px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> '+Math.round(t.filtros)+' filtros</span> '+
+        '<span style="color:var(--w);font-size:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg> '+Math.round(t.lubricantes)+'L</span> '+
         '<small style="color:var(--tx3)">'+t.n+' mov</small></div>';
     }).join('')+'</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:end">'+
@@ -3093,7 +3103,7 @@ renders.mov=function(){
       var idx=mov.indexOf(m);
       return'<tr>'+
         '<td style="font-size:11px">'+m.fecha+'</td>'+
-        '<td>'+(m.tipo==='Filtro'?'🔧':'🛢')+'</td>'+
+        '<td>'+(m.tipo==='Filtro'?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg>':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>')+'</td>'+
         '<td style="font-size:11px;max-width:200px">'+
         '<input value="'+escapeHtml(m.item||'')+'" onchange="editMov('+idx+',\'item\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" title="Click para editar nombre">'+
         '</td>'+
@@ -3290,9 +3300,9 @@ renders.stk=function(){
   });
   const pg=_pagSlice('stk',filStk);
   $('s-stk').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📦 Stock Filtros</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock Filtros</div>'+
     '<div class="sec-s">'+stk.length+' ítems · 🔴 '+comprar+' por comprar · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> Todo editable</div></div>'+
-    '<button class="btn" onclick="addStock()">+ Nuevo</button> <button class="btn btn-o" onclick="importStkCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn" style="background:#3ecf8e;color:#000" onclick="importarRepuestosKomatsu()">🔧 Repuestos Críticos Komatsu</button></div>'+
+    '<button class="btn" onclick="addStock()">+ Nuevo</button> <button class="btn btn-o" onclick="importStkCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn" style="background:#3ecf8e;color:#000" onclick="importarRepuestosKomatsu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Repuestos Críticos Komatsu</button></div>'+
     '<div class="toolbar">'+
     '<select id="fStkEst" onchange="window._pag.stk=1;renders.stk()"><option value="">Todos</option><option'+(fEst==='COMPRAR'?' selected':'')+'>COMPRAR</option><option'+(fEst==='BAJO'?' selected':'')+'>BAJO</option><option'+(fEst==='OK'?' selected':'')+'>OK</option></select>'+
     '<input id="fStkBusq" placeholder="Buscar filtro/N°parte..." value="'+(fBusq||'')+'" onchange="window._pag.stk=1;renders.stk()" style="max-width:200px"></div>'+
@@ -3368,7 +3378,7 @@ renders.lub=function(){
   });
   const pg=_pagSlice('lub',filLub);
   $('s-lub').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">🛢️ Lubricantes</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes</div>'+
     '<div class="sec-s">'+lub.length+' productos · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> Todo es editable — cambios se propagan al sistema</div></div>'+
     '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="importLubCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button></div>'+
     '<div class="toolbar">'+
@@ -3542,7 +3552,7 @@ renders.plan=function(){
   pmsEnPeriodo.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
 
   // Botones de vista y periodo
-  const btnVista=['equipo','periodo','material'].map(v=>`<button class="btn ${vista===v?'':'btn-o'}" onclick="planVista('${v}')">${v==='equipo'?'🚜 Por Equipo':v==='periodo'?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Por Periodo':'📦 Por Material'}</button>`).join(' ');
+  const btnVista=['equipo','periodo','material'].map(v=>`<button class="btn ${vista===v?'':'btn-o'}" onclick="planVista('${v}')">${v==='equipo'?'🚜 Por Equipo':v==='periodo'?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Por Periodo':'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Por Material'}</button>`).join(' ');
   const btnPer=[['semana','Semana'],['mes','Mes'],['semestre','Semestre'],['anio','Año']].map(([k,l])=>`<button class="btn ${periodo===k?'':'btn-o'}" onclick="planPeriodo('${k}')">${l}</button>`).join(' ')+
     ` <button class="btn ${periodo==='calendario'?'':'btn-o'}" onclick="planPeriodo('calendario')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Mes específico</button>`+
     (periodo==='calendario'?
@@ -3839,13 +3849,13 @@ window.planHistoricoLimpiar=function(){
 renders.cstk=function(){
   const sub=window._cstkSub||'cos';
   $('s-cstk').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">💰 Costos & Stock</div>
+    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos & Stock</div>
       <div class="sec-s">Gestión financiera y de materiales</div></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn ${sub==='cos'?'':'btn-o'}" onclick="cstkSub('cos')">💵 Costos</button>
+      <button class="btn ${sub==='cos'?'':'btn-o'}" onclick="cstkSub('cos')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos</button>
       <button class="btn ${sub==='mov'?'':'btn-o'}" onclick="cstkSub('mov')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Consumos</button>
-      <button class="btn ${sub==='rep'?'':'btn-o'}" onclick="cstkSub('rep')">📦 Repuestos</button>
+      <button class="btn ${sub==='rep'?'':'btn-o'}" onclick="cstkSub('rep')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Repuestos</button>
     </div>
     <div id="s-cos" class="${sub==='cos'?'':'hidden'}"></div>
     <div id="s-mov" class="${sub==='mov'?'':'hidden'}"></div>
@@ -4020,11 +4030,11 @@ renders.cos=function(){
   }
 
   $('s-cos').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">💵 Costos, HH y Confiabilidad</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos, HH y Confiabilidad</div>'+
     '<div class="sec-s">Desde registros PM + consumos · HH: $'+hh.toLocaleString()+'/hr</div></div></div>'+
     '<div class="toolbar">'+
     '<select id="fCosVista" onchange="renders.cos()" style="font-weight:600">'+
-    '<option value="costos"'+(fVista==='costos'?' selected':'')+'>💵 Costos por Mes</option>'+
+    '<option value="costos"'+(fVista==='costos'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos por Mes</option>'+
     '<option value="hh"'+(fVista==='hh'?' selected':'')+'>👷 HH por Técnico / Equipo</option>'+
     '<option value="mtbf"'+(fVista==='mtbf'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option></select></div>'+
     content;
@@ -4162,7 +4172,7 @@ renders.hist=function(){
   var eqsConDatos=[...new Set(fil.map(function(r){return r.sigla}))].length;
 
   $('s-hist').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📈 Historial de Horómetros</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Historial de Horómetros</div>'+
     '<div class="sec-s">'+h.length+' lecturas totales · '+eqsConDatos+' equipos con datos</div></div>'+
     '<div style="display:flex;gap:8px">'+
     '<button class="btn" onclick="addHist()">+ Registrar</button>'+
@@ -4239,10 +4249,10 @@ renders.ot=function(){
   }).join('')||'<div class="card" style="padding:6px;color:var(--tx3);font-size:11px">Ingresa componente en cada OT para ver análisis</div>';
   $('s-ot').innerHTML=`
     <div class="sec-h"><div>
-      <div class="sec-t">🔧 Correctivos / Órdenes de Trabajo</div>
+      <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()">📉 Análisis de Fallas (MTBF)</button> <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button> <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total OT</div><div class="card-v">${todos.length}</div></div>
@@ -4275,7 +4285,7 @@ renders.ot=function(){
         const estOT=o.estadoOT||'Cerrada';
         const estCol2=estOT==='Pendiente'?'var(--danger)':estOT==='En Ejecución'?'var(--w)':'var(--ok)';
         var otRow='<tr style="'+(o.estatusEq==='Fuera de Servicio'||estOT==='Pendiente'?'background:rgba(239,68,68,.04)':'')+'">';
-        otRow+='<td class="mono" style="color:var(--tx3)">'+(fromReg?'📝REG':'OT-'+String(idx+1).padStart(3,'0'))+'</td>';
+        otRow+='<td class="mono" style="color:var(--tx3)">'+(fromReg?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>REG':'OT-'+String(idx+1).padStart(3,'0'))+'</td>';
         otRow+='<td class="mono" style="color:var(--ac)">'+escapeHtml(o.sigla||'—')+'</td>';
         otRow+='<td style="font-size:10px"><span class="badge '+(o.tipo?.includes('Falla')||o.tipo==='Correctivo'?'b-r':'b-y')+'">'+(o.tipo||'—')+'</span></td>';
         otRow+='<td class="mono" style="font-size:10px">'+fd(o.fechaEntrada||o.fecha)+'</td>';
@@ -4332,14 +4342,14 @@ window.analisisFallas=function(){
 
   const totalFallas=fallas.length;
   sm(`<div style="max-width:720px">
-    <h3>📉 Análisis de Fallas — MTBF</h3>
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas — MTBF</h3>
     <p style="font-size:12px;color:var(--tx3)">Tiempo Medio Entre Fallas por componente y equipo · ${totalFallas} fallas registradas</p>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Total fallas</div><b style="font-size:22px">${totalFallas}</b></div>
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Componentes afectados</div><b style="font-size:22px;color:var(--warn)">${comps.length}</b></div>
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Horas flota acumuladas</div><b style="font-size:14px;color:var(--ac)">${fn2(totalHrsFlota)}h</b></div>
     </div>
-    <b style="font-size:13px">🔧 MTBF por Componente (menor MTBF = más problemático)</b>
+    <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> MTBF por Componente (menor MTBF = más problemático)</b>
     <div style="overflow-x:auto;margin:8px 0 16px"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Componente</th><th>Fallas</th><th>Equipos</th><th>MTBF (h)</th><th>Criticidad</th></tr>
       ${comps.map(c=>{const crit=c.mtbf<2000?'🔴 Alta':c.mtbf<5000?'🟡 Media':'🟢 Baja';return `<tr style="border-bottom:1px solid var(--bd)">
@@ -4359,7 +4369,7 @@ window.analisisFallas=function(){
         <td style="text-align:center">${b.mtbf==null?'—':fn2(b.mtbf)}</td>
       </tr>`).join('')||'<tr><td colspan=3 style="text-align:center;padding:20px;color:var(--tx3)">Sin datos</td></tr>'}
     </table></div>
-    <p style="font-size:10px;color:var(--tx3);margin-top:12px">💡 MTBF = horas acumuladas ÷ número de fallas. Componentes con MTBF bajo son candidatos a revisión de proveedor o reemplazo preventivo.</p>
+    <p style="font-size:10px;color:var(--tx3);margin-top:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> MTBF = horas acumuladas ÷ número de fallas. Componentes con MTBF bajo son candidatos a revisión de proveedor o reemplazo preventivo.</p>
     <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
   </div>`);
 };
@@ -4418,7 +4428,7 @@ renders.neu=function(){
     <datalist id="dlMarcasNeu"><option value="MICHELIN"><option value="BRIDGESTONE"><option value="GOODYEAR"><option value="WESTLAKE"></datalist>
     <datalist id="dlSeriesNeu">${[...new Set(neu.map(n=>n.serie).filter(Boolean))].sort().map(s=>`<option value="${escapeHtml(s)}">`).join('')}</datalist>
     <div class="tbl-wrap"><table>
-      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum 🔗 ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
+      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
         const i=neu.indexOf(n);
         const pLive=neuPct(n);
@@ -4440,14 +4450,14 @@ renders.neu=function(){
           <td class="ed"><input type="text" list="dlMarcasNeu" value="${escapeHtml(n.marca||'')}" onchange="cev('neu',${i},'marca',this.value)"></td>
           ${edCell(n.medida||'','medida',i,'neu')}
           ${edCell(n.fechaInst||'','fechaInst',i,'neu','date')}
-          <td class="mono" style="font-size:11px" title="${(proy&&proy.hrsAcumReal?'📏 Sumado de '+proy.confianza.match(/\d+/)+' mediciones reales':lr.live?'🔗 En línea con horómetro (sin mediciones suficientes para calcular real)':'⚠️ Manual')+(n.ultimaMedicion?' · Última medición: '+n.ultimaMedicion:' · Sin mediciones registradas')}">${fn(proy?proy.hrsAcumNeu:lr.h)}h${proy&&proy.hrsAcumReal?' <span style="color:var(--ac);font-size:9px">📏</span>':lr.live?' <span style="color:var(--ok);font-size:9px">🔗</span>':''}</td>
+          <td class="mono" style="font-size:11px" title="${(proy&&proy.hrsAcumReal?'📏 Sumado de '+proy.confianza.match(/\d+/)+' mediciones reales':lr.live?'🔗 En línea con horómetro (sin mediciones suficientes para calcular real)':'⚠️ Manual')+(n.ultimaMedicion?' · Última medición: '+n.ultimaMedicion:' · Sin mediciones registradas')}">${fn(proy?proy.hrsAcumNeu:lr.h)}h${proy&&proy.hrsAcumReal?' <span style="color:var(--ac);font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></span>':lr.live?' <span style="color:var(--ok);font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg></span>':''}</td>
           ${edCell(n.remanente!=null?n.remanente:'','remanente',i,'neu','number')}
           <td><div style="background:var(--bg3);border-radius:3px;height:8px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle"><div style="background:${col};height:100%;width:${sinDatosRem?0:Math.min(p,100)}%"></div></div> <span style="color:${col};font-size:11px" title="${sinDatosRem?'Nunca se registró una medición de remanente para este neumático':''}">${sinDatosRem?'— sin datos':p+'%'}</span></td>
           <td style="font-size:10px;color:${proyCol}" title="${proy?'Motivo: '+escapeHtml(proy.motivoCambio)+' · Confianza: '+escapeHtml(proy.confianza):'Sin mediciones suficientes para proyectar'}">${proy?'≈'+proy.diasRestantes+'d ('+fn(proy.hrsRestantes)+'h)':'—'}</td>
           ${edCell(n.estado||'Operativo','estado',i,'neu','select',['Operativo','Evaluación','Reparación','Disponible Usado','Stock','Fuera de servicio','Baja Desgaste','Baja Imprevisto'])}
           <td>
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
-            <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir">📏</button>
+            <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
             <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">📍</button>
           </td>
@@ -4511,9 +4521,9 @@ window.importarRepuestosKomatsu=function(){
   var totalCLP=nuevos.reduce(function(s,n){return s+n.precioUnit;},0);
   var msg='✅ '+agregados+' repuesto(s) agregados a Stock Filtros.';
   if(omitidos)msg+='\n⚠️ '+omitidos+' ya existían (omitidos por N° de parte duplicado).';
-  msg+='\n\n💰 Valor referencial total: $'+totalCLP.toLocaleString('es-CL')+' (tasa ~910 CLP/USD, aproximada — verifica antes de comprar).';
-  msg+='\n📝 Excluidos a propósito: CN-9506 y BD-8708 (decomisados).';
-  msg+='\n📝 Stock físico queda en 0 — edítalo cuando hagas inventario real.';
+  msg+='\n\n<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Valor referencial total: $'+totalCLP.toLocaleString('es-CL')+' (tasa ~910 CLP/USD, aproximada — verifica antes de comprar).';
+  msg+='\n<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Excluidos a propósito: CN-9506 y BD-8708 (decomisados).';
+  msg+='\n<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Stock físico queda en 0 — edítalo cuando hagas inventario real.';
   alert(msg);
 };
 
@@ -4525,7 +4535,7 @@ window.addOT=function(){
   const sis=['Motor diésel','Hidráulico','Transmisión','Eléctrico','Frenos','Ruedas y neumáticos','Dirección','Estructura','Cabina','Climatización'];
   const hoy=new Date().toISOString().slice(0,10);
   const hora=new Date().toTimeString().slice(0,5);
-  sm(`<h3>🔧 Nueva OT Correctivo</h3>
+  sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Nueva OT Correctivo</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label><select id="oEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
       <div class="fg"><label>Tipo</label><select id="oTipo"><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option><option>Cambio de Neumático</option><option>Relleno de Fluidos</option><option>Inspección</option></select></div>
@@ -4630,7 +4640,7 @@ function _renderModalFotosOT(){
     (fotos.length?fotos.map(function(url,fi){
       var esPdf=/\.pdf(\?|$)/i.test(url);
       var mini=esPdf
-        ?'<div style="width:90px;height:90px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:6px;border:1px solid var(--bor);font-size:32px;cursor:pointer" onclick="window.open(\''+url+'\',\'_blank\')" title="Ver PDF">📄</div>'
+        ?'<div style="width:90px;height:90px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:6px;border:1px solid var(--bor);font-size:32px;cursor:pointer" onclick="window.open(\''+url+'\',\'_blank\')" title="Ver PDF"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg></div>'
         :'<img src="'+url+'" style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--bor);cursor:pointer" onclick="window.open(\''+url+'\',\'_blank\')" title="Ver completa">';
       return '<div style="position:relative">'+mini+
         '<button onclick="quitarFotoOT('+fi+')" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer">✕</button></div>';
@@ -5310,7 +5320,7 @@ window.addMedicionNeu=function(neuIdx){
   if(!n)return;
   const eqArr=S.g('eq')||[];const e=eqArr.find(x=>x.sigla===n.sigla);
   const horomActual=e?e.horomActual:0;
-  sm(`<h3>📏 Medición Remanente — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
+  sm(`<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> Medición Remanente — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
     <p style="font-size:12px;color:var(--tx3)">Serie: <b>${escapeHtml(n.serie)}</b> | Marca: <b>${escapeHtml(n.marca)}</b></p>
     <div class="form-row">
       <div class="fg"><label>Fecha</label><input type="date" id="mFecha" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -5527,7 +5537,7 @@ window.verDetalleNeu=function(neuIdx){
         <b style="font-size:12px;color:${neuEstadoCalc(n).col}">${neuEstadoCalc(n).ico} ${neuEstadoCalc(n).txt}</b>
       </div>
     </div>
-    ${svg||'<p style="color:var(--tx3);text-align:center;padding:20px">Sin mediciones — usa 📏 Medir para agregar datos</p>'}
+    ${svg||'<p style="color:var(--tx3);text-align:center;padding:20px">Sin mediciones — usa <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> Medir para agregar datos</p>'}
     ${proy?`<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
       <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Proyección de vida</b>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px">
@@ -5550,7 +5560,7 @@ window.verDetalleNeu=function(neuIdx){
       </div>`;})()}
     </div>
     <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
-      <b style="font-size:13px">💰 Costo proyectado</b>
+      <b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costo proyectado</b>
       <div style="margin-top:6px;font-size:12px">
         <span style="color:var(--tx3)">Precio unitario:</span> <b>$${fn2(precio.precio)}</b> <span style="font-size:10px;color:var(--tx3)">(${precio.base})</span><br>
         <span style="color:var(--tx3)">Criterio retiro:</span> <b>${c.accion} a ${c.remRotar||c.remRetiro||10}mm</b>
@@ -5585,7 +5595,7 @@ window.verDetalleNeu=function(neuIdx){
       </div>`;
     })()}
     <div style="display:flex;gap:8px">
-      <button class="btn" onclick="cm();addMedicionNeu(${neuIdx})">📏 Nueva medición</button>
+      <button class="btn" onclick="cm();addMedicionNeu(${neuIdx})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> Nueva medición</button>
       <button class="btn btn-o" onclick="cm()">Cerrar</button>
     </div>
   </div>`);
@@ -5644,7 +5654,7 @@ window.resumenFlotaNeu=function(){
         <b style="font-size:14px;color:${gastoPerdidoTotal>0?'var(--danger)':'var(--ok)'}">$${fn2(gastoPerdidoTotal)}</b>
       </div>
     </div>
-    <b style="font-size:13px">📉 Proyección de cambio (según historial de mediciones):</b>
+    <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Proyección de cambio (según historial de mediciones):</b>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 16px">
       <div style="background:rgba(239,68,68,0.12);border-radius:8px;padding:10px;text-align:center">
         <div style="font-size:9px;color:var(--tx3)">Cambio &lt;30 días</div>
@@ -5941,7 +5951,7 @@ renders.disp=function(){
   });
   var fsEnCursoHTML=fsEnCurso.length?
     '<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
-    '<b style="font-size:12px;color:var(--danger)">🚫 '+fsEnCurso.length+' equipo'+(fsEnCurso.length===1?'':'s')+' AÚN fuera de servicio</b>'+
+    '<b style="font-size:12px;color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> '+fsEnCurso.length+' equipo'+(fsEnCurso.length===1?'':'s')+' AÚN fuera de servicio</b>'+
     fsEnCurso.map(function(x){
       var dias=(typeof rangoDias==='function'?rangoDias(x.o.fechaEntrada,new Date().toISOString().slice(0,10)):[]).length;
       return'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px">'+
@@ -5953,9 +5963,9 @@ renders.disp=function(){
     '</div>':'';
 
   $('s-disp').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📉 Disponibilidad Mecánica</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Disponibilidad Mecánica</div>'+
     '<div class="sec-s">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable</div></div>'+
-    '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()">🚫 Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Anual</option></select>'+
@@ -5976,7 +5986,7 @@ renders.disp=function(){
 window.registrarSalidaServicio=function(){
   var eq=(S.g('eq')||[]).slice().sort(function(a,b){return(a.sigla||'').localeCompare(b.sigla||'')});
   var hoy=new Date().toISOString().slice(0,10);
-  sm('<h3>🚫 Registrar salida de servicio</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</h3>'+
     '<p style="font-size:12px;color:var(--tx3);margin-bottom:12px">Marca un equipo como fuera de servicio un rango de días completo. Esos días cuentan como 0% de disponibilidad.</p>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="ssEq">'+
       eq.map(function(e){return'<option value="'+escapeHtml(e.sigla)+'">'+escapeHtml(e.sigla)+(e.modelo?' — '+escapeHtml(e.modelo):'')+'</option>'}).join('')+'</select></div></div>'+
@@ -6050,7 +6060,7 @@ renders.cfg=function(){
 
     // VERIFICACIÓN EN DOS PASOS (MFA/TOTP) — estado se carga aparte, es async
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #ef4444" id="mfaCard">'+
-    '<b style="font-size:14px">🔐 Verificación en dos pasos</b>'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Verificación en dos pasos</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Además del usuario y la clave, pide un código de 6 dígitos que cambia cada 30 segundos (app tipo Google Authenticator). Así aunque alguien consiga tu clave, no puede entrar sin tu teléfono.</p>'+
     '<div id="mfaEstadoBox" style="font-size:12px;color:var(--tx3)">Revisando estado…</div>'+
     '</div>'+
@@ -6118,10 +6128,10 @@ renders.cfg=function(){
 
     (!isAdmin?
       '<div class="card" style="max-width:400px;margin:40px auto;text-align:center">'+
-      '<div style="font-size:48px;margin-bottom:12px">🔒</div>'+
+      '<div style="font-size:48px;margin-bottom:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg></div>'+
       '<b>Acceso Administrador</b><br><br>'+
       '<input type="password" id="cfgPass" placeholder="Contraseña..." style="padding:8px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);color:var(--tx);width:200px;text-align:center;font-size:16px"><br><br>'+
-      '<button class="btn" onclick="checkAdmin()">🔓 Ingresar</button>'+
+      '<button class="btn" onclick="checkAdmin()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Ingresar</button>'+
       '<div style="font-size:10px;color:var(--tx3);margin-top:8px">Contraseña por defecto: 1234</div></div>'
       :
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">'+
@@ -6151,7 +6161,7 @@ renders.cfg=function(){
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON (restaurar backup)</button>'+
       '<hr style="border-color:var(--bd);margin:12px 0">'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ok)" onclick="reporteEjecutivoExcel()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Reporte Ejecutivo Excel (para jefatura)</button>'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="verLogAuditoria()">📝 Ver Log de Auditoría</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="verLogAuditoria()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Ver Log de Auditoría</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--w)" onclick="resetAll()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--danger)" onclick="resetEmpresa()">🏢 Configurar Nueva Empresa</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Descargar Plantilla Limpia (para otra empresa)</button>'+
@@ -6159,7 +6169,7 @@ renders.cfg=function(){
       '</div>'+
 
       // TARIFA Y METAS
-      '<div class="card"><b style="font-size:14px">💲 Tarifas y Metas</b><br><br>'+
+      '<div class="card"><b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Tarifas y Metas</b><br><br>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Tarifa HH ($/hora)</label><br>'+
       '<input type="number" value="'+(S.g('hh')||25000)+'" onchange="S.s(\'hh\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Meta Disponibilidad (%)</label><br>'+
@@ -6655,9 +6665,9 @@ window.diagVinculos=function(soloActivos){
   // Opciones del selector, sin nombres repetidos
   var vistos={};
   var optsLub=lub.filter(function(l){if(vistos['l'+l.nombre])return false;vistos['l'+l.nombre]=true;return true;})
-    .map(function(l){return'<option value="'+escapeHtml(l.nombre)+'">🛢️ '+escapeHtml(l.nombre)+' ($'+(l.precio||0)+')</option>';}).join('');
+    .map(function(l){return'<option value="'+escapeHtml(l.nombre)+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ '+escapeHtml(l.nombre)+' ($'+(l.precio||0)+')</option>';}).join('');
   var optsStk=stk.filter(function(s){var n=s.descripcion||s.nParte;if(!n||vistos['s'+n])return false;vistos['s'+n]=true;return true;})
-    .map(function(s){var n=s.descripcion||s.nParte;return'<option value="'+escapeHtml(n)+'">📦 '+escapeHtml(n)+' ($'+(s.precioUnit||0)+')</option>';}).join('');
+    .map(function(s){var n=s.descripcion||s.nParte;return'<option value="'+escapeHtml(n)+'"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> '+escapeHtml(n)+' ($'+(s.precioUnit||0)+')</option>';}).join('');
 
   var filas=lista.map(function(g,i){
     return '<tr><td style="font-size:12px;max-width:220px">'+escapeHtml(g.rep)+(!g.activo?' <span class="badge b-y" style="font-size:9px">decomisado</span>':'')+'</td>'+
@@ -7489,8 +7499,8 @@ renders.pred=function(){
       '<div class="cards">'+
       '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔁 Componentes reincidentes</div><div class="card-v" style="color:var(--danger)">'+reinc.length+'</div><div class="card-s">'+(reincEmpeora?reincEmpeora+' empeorando':'fallan repetido')+'</div></div>'+
       '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🚦 Equipos en alerta cruzada</div><div class="card-v" style="color:var(--danger)">'+eqCrit+'</div><div class="card-s">'+eqVigilar+' a vigilar</div></div>'+
-      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">📦 Riesgo de quiebre</div><div class="card-v" style="color:var(--w)">'+quiebresCrit+'</div><div class="card-s">quiebran antes del lead time</div></div>'+
-      '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">🔧 Carga próximas 2 sem.</div><div class="card-v" style="color:var(--ac)">'+carga.pm.length+'</div><div class="card-s">PM · '+carga.otPend+' OT pendientes</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Riesgo de quiebre</div><div class="card-v" style="color:var(--w)">'+quiebresCrit+'</div><div class="card-s">quiebran antes del lead time</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Carga próximas 2 sem.</div><div class="card-v" style="color:var(--ac)">'+carga.pm.length+'</div><div class="card-s">PM · '+carga.otPend+' OT pendientes</div></div>'+
       '</div>'+
       // Reincidencia de fallas (resumen — detalle completo en la solapa "Flota")
       '<div class="chart-box" style="margin:16px 0;border-left:3px solid var(--danger)"><div class="chart-t">🔁 Reincidencia de fallas <span style="font-size:11px;color:var(--tx3);font-weight:400">— componentes que vuelven al taller</span></div>'+
@@ -7550,7 +7560,7 @@ renders.pred=function(){
       '</table></div></div>'+
 
       // Riesgo de quiebre (accionable) — mismo criterio unificado que Stock y Dashboard
-      '<div class="chart-box" style="margin-bottom:22px;border-left:3px solid var(--w)"><div class="chart-t">📦 Riesgo de quiebre de stock <span style="font-size:11px;color:var(--tx3);font-weight:400">— mismo criterio que Stock y Dashboard (quiebre antes del lead time)</span></div>'+
+      '<div class="chart-box" style="margin-bottom:22px;border-left:3px solid var(--w)"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Riesgo de quiebre de stock <span style="font-size:11px;color:var(--tx3);font-weight:400">— mismo criterio que Stock y Dashboard (quiebre antes del lead time)</span></div>'+
       (quiebres.length?
         '<div class="tbl-wrap"><table><tr><th>Ítem</th><th>N° parte</th><th>Stock</th><th>Estado</th><th>Acción</th></tr>'+
         quiebres.slice(0,15).map(function(q){
@@ -7563,11 +7573,11 @@ renders.pred=function(){
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin:6px 0 14px"><div style="font-size:15px;font-weight:700;color:var(--tx2);position:relative;padding-left:16px"><span style="position:absolute;left:0;top:6px;width:8px;height:8px;border-radius:2px;background:var(--tx3)"></span>Gasto y compras — histórico</div><div style="font-size:11px;color:var(--tx3)">reporte: mira para atrás, no predice</div></div>'+
       '<div class="cards">'+
       '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Pedidos históricos</div><div class="card-v">'+R.totalPedidos.toLocaleString()+'</div><div class="card-s">'+R.rangoDesde+' a '+R.rangoHasta+'</div></div>'+
-      '<div class="card"><div class="card-t">💰 Gasto acumulado</div><div class="card-v" style="font-size:22px">$'+(R.totalCosto/1e6).toFixed(0)+'M</div><div class="card-s">~$'+(R.promedioMensual/1e6).toFixed(1)+'M / mes</div></div>'+
+      '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Gasto acumulado</div><div class="card-v" style="font-size:22px">$'+(R.totalCosto/1e6).toFixed(0)+'M</div><div class="card-s">~$'+(R.promedioMensual/1e6).toFixed(1)+'M / mes</div></div>'+
       '<div class="card"><div class="card-t">⏱ Lead time promedio</div><div class="card-v">'+R.leadTimeGlobal+'<span style="font-size:14px;color:var(--tx3)">d</span></div><div class="card-s">supuesto (histórico sin fecha de entrega)</div></div>'+
       '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Ítem más pedido</div><div class="card-v" style="font-size:14px;font-weight:650;padding:7px 0">'+escapeHtml((P.topItems[0]?P.topItems[0].item:'—').substring(0,22))+'</div><div class="card-s">'+(P.topItems[0]?P.topItems[0].total+' pedidos':'sin datos')+'</div></div>'+
       '</div>'+
-      '<div class="chart-box" style="margin-top:14px"><div class="chart-t">💵 Gasto mensual en compras <span style="font-size:11px;color:var(--tx3);font-weight:400">— últimos meses</span></div>'+
+      '<div class="chart-box" style="margin-top:14px"><div class="chart-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Gasto mensual en compras <span style="font-size:11px;color:var(--tx3);font-weight:400">— últimos meses</span></div>'+
       '<div class="bars">'+P.costoMes.map(function(m){
         var tipTxt=m.m+': $'+fn(Math.round(m.c));
         return'<div class="bar-c"><div class="bar-v" style="font-size:9px">$'+(m.c/1e6).toFixed(1)+'M</div><div class="bar" style="height:'+Math.max(m.c/maxC*100,3)+'%;background:#7b83c9;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+m.m.slice(5)+'</div></div>';
@@ -7669,7 +7679,7 @@ renders.pred=function(){
   } else if(fVista==='items'){
     var items=P.topItems.slice(0,40);
     content=
-      '<div class="chart-box"><div class="chart-t">🔧 Top 40 Items</div>'+
+      '<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Top 40 Items</div>'+
       '<div class="tbl-wrap"><table><tr><th>Item</th><th>Pedidos</th><th>Prom/Mes</th><th>Lead</th><th>Equipos</th><th>Costo</th></tr>'+
       items.map(function(it){
         return'<tr><td style="font-size:11px">'+escapeHtml(it.item)+'</td><td style="text-align:center;font-weight:600;color:var(--ac)">'+it.total+'</td>'+
@@ -7690,10 +7700,10 @@ renders.pred=function(){
             '<div style="font-weight:700;font-size:14px">'+escapeHtml(c.componente)+'</div>'+
             '<div style="font-size:11px;color:var(--tx3)">'+c.total+' fallas · '+c.nEquipos+' equipo(s) · última hace '+(c.diasDesdeUltima==null?'—':c.diasDesdeUltima+'d')+'</div>'+
             '</div>'+
-            '<div style="font-size:12px;margin:6px 0;line-height:1.5">💡 '+escapeHtml(c.sugerencia)+'</div>'+
+            '<div style="font-size:12px;margin:6px 0;line-height:1.5"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> '+escapeHtml(c.sugerencia)+'</div>'+
             (c.causaTop?'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Causa más mencionada en el registro: <b>'+escapeHtml(c.causaTop.toUpperCase())+'</b> ('+c.causaTopN+' veces)</div>':'')+
             (c.reincidenciaDias!=null?'<div style="font-size:11px;margin-bottom:4px;color:'+(c.reincidenciaDias<30?'var(--danger)':c.reincidenciaDias<90?'var(--w)':'var(--tx2)')+'">⏱️ En '+escapeHtml(c.equipoMasRepetido)+', vuelve a fallar en promedio cada <b>'+c.reincidenciaDias+' día(s)</b>'+(c.reincidenciaDias<30?' — intervalo corto: revisar calidad del repuesto o de la reparación, no parece desgaste normal':c.reincidenciaDias<90?' — intervalo moderado, vale la pena revisar':'')+
-              (c.tendencia==='empeora'?' · <b style="color:var(--danger)">📉 empeorando</b> (el intervalo entre fallas se acortó vs. las primeras veces)':c.tendencia==='mejora'?' · <b style="color:var(--ok)">📈 mejorando</b> (el intervalo se alargó)':'')+
+              (c.tendencia==='empeora'?' · <b style="color:var(--danger)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> empeorando</b> (el intervalo entre fallas se acortó vs. las primeras veces)':c.tendencia==='mejora'?' · <b style="color:var(--ok)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> mejorando</b> (el intervalo se alargó)':'')+
               '</div>':'')+
             (c.cubiertoPorPM===false?'<div style="font-size:11px;color:var(--w);margin-bottom:4px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Este componente NO aparece en ninguna pauta de mantención preventiva de estos equipos — siempre se detecta por correctivo, nunca por revisión programada.</div>':'')+
             (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
@@ -7711,7 +7721,7 @@ renders.pred=function(){
     var hz=parseInt(window._predHorizonte)||90;
     var sp=stockVsProximosPM(hz);
     content=
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">📦 Stock vs. Próximos PM ('+hz+' días)</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM ('+hz+' días)</div>'+
       _selHorizontePred(hz)+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">"Stock &amp; Insumos" muestra cuántos meses cubre el consumo promedio histórico. Esto es distinto: cruza qué repuesto pide la pauta de cada PM que ya viene en el calendario (por horómetro proyectado) contra el stock de HOY — para avisar si falta antes de que llegue ese PM puntual, no en promedio.</div>'+
       (sp.length?
@@ -7734,7 +7744,7 @@ renders.pred=function(){
     var hz=parseInt(window._predHorizonte)||90;
     var lp=lubVsProximosPM(hz);
     content=
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🛢️ Lubricantes vs. Próximos PM ('+hz+' días)</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM ('+hz+' días)</div>'+
       _selHorizontePred(hz)+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Mismo cruce que Stock vs. Próximos PM, pero para aceites/grasas/refrigerante: cuánto pide la pauta de cada PM que ya viene en el calendario, contra el stock de lubricantes de HOY.</div>'+
       (lp.length?
@@ -7764,7 +7774,7 @@ renders.pred=function(){
       '<div style="font-size:11px;color:var(--tx3)">'+escapeHtml(d.tipo)+'</div></div>'+
 
       '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
-      '<div style="font-size:12px;font-weight:600;color:var(--ac);margin-bottom:6px">💡 INTERPRETACIÓN AUTOMÁTICA:</div>'+
+      '<div style="font-size:12px;font-weight:600;color:var(--ac);margin-bottom:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> INTERPRETACIÓN AUTOMÁTICA:</div>'+
       '<div style="font-size:13px;line-height:1.6">'+d.interpretacion+'</div></div>'+
 
       d.secciones.map(function(s){
@@ -7777,18 +7787,18 @@ renders.pred=function(){
   }
 
 $('s-pred').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📈 Predictivo &amp; Confiabilidad</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Predictivo &amp; Confiabilidad</div>'+
     '<div class="sec-s">Arriba lo accionable (qué anticipar) · abajo el histórico de compras · todo desde datos reales</div></div></div>'+
     '<div class="toolbar">'+
     '<select id="fPredVista" onchange="renders.pred()" style="font-weight:600">'+
     '<option value="general"'+(fVista==='general'?' selected':'')+'>🟢 Necesita atención + histórico</option>'+
     '<option value="equipo"'+(fVista==='equipo'||fVista==='diag'?' selected':'')+'>🏗 Por Equipo</option>'+
     '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Backlog Inteligente</option>'+
-    '<option value="items"'+(fVista==='items'?' selected':'')+'>🔧 Top Items</option>'+
+    '<option value="items"'+(fVista==='items'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Top Items</option>'+
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
-    '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'>📦 Stock vs. Próximos PM</option>'+
-    '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'>🛢️ Lubricantes vs. Próximos PM</option></select>'+
+    '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
+    '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option></select>'+
     (fVista==='equipo'||fVista==='diag'?
       '<select id="fPredEq" onchange="renders.pred()"><option value="">Seleccionar equipo...</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>':'')+
@@ -7858,7 +7868,7 @@ renders.rep=function(){
   var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
 
   $('s-rep').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📦 Control de Repuestos</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Control de Repuestos</div>'+
     '<div class="sec-s">'+rep.length+' componentes · Conectado con Predictivo</div></div>'+
     '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="syncRepStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sync Stock</button> <button class="btn btn-o" onclick="importRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos CSV</button></div></div>'+
 
@@ -7925,7 +7935,7 @@ window.delRep=function(i){
 };
 window.addRep=function(){
   var eq=S.g('eq')||[];
-  sm('<h3>📦 Nuevo Repuesto</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Nuevo Repuesto</h3>'+
     '<div class="form-row"><div class="fg" style="flex:2"><label>Componente</label><input id="rComp" style="width:100%"></div>'+
     '<div class="fg"><label>N°Parte</label><input id="rNP"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="rEqR"><option>Varios</option>'+
@@ -8322,7 +8332,7 @@ renders.venc=function(){
 function celdaFotoVenc(sigla,vencTipo,fotoUrl,fotoTipo){
   if(fotoUrl){
     var miniatura = fotoTipo==='pdf'
-      ? '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:4px;cursor:pointer;border:1px solid var(--bor);font-size:16px" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver PDF">📄</div>'
+      ? '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:4px;cursor:pointer;border:1px solid var(--bor);font-size:16px" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver PDF"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg></div>'
       : '<img src="'+fotoUrl+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--bor)" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver foto completa">';
     return '<td style="text-align:center;white-space:nowrap">'+miniatura+'<br>'+
       '<a href="#" style="font-size:9px;color:var(--ac)" onclick="event.preventDefault();_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> cambiar</a></td>';
@@ -8484,7 +8494,7 @@ renders.ace=function(){
   var pg=_pagSlice('ace',fil);
 
   $('s-ace').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">🧪 Análisis de Aceite</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis de Aceite</div>'+
     '<div class="sec-s">'+ace.length+' muestras · Alimenta predictivo por condición</div></div>'+
     '<div><button class="btn" onclick="addAceite()">+ Manual</button> <button class="btn btn-o" onclick="importAceite()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button></div></div>'+
 
@@ -8688,7 +8698,7 @@ function renderAceDash(ace){
   html+='</div>';
 
   // Panel 5: Estado por lubricante
-  html+='<div class="chart-box"><div class="chart-t">🛢️ Estado por Lubricante</div>';
+  html+='<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Estado por Lubricante</div>';
   html+=lubOrdenados.map(function(l){return barraEstado({label:l,n:porLub[l].n,a:porLub[l].a,p:porLub[l].p,norm:porLub[l].norm},maxLub);}).join('');
   html+='</div>';
 
@@ -8829,7 +8839,7 @@ window.processAceCSV=function(){
 
 window.addAceite=function(){
   var eq=S.g('eq')||[];
-  sm('<h3>🧪 Nueva Muestra de Aceite</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Nueva Muestra de Aceite</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="aEq">'+
     eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Componente</label><select id="aComp"><option>Motor</option><option>Transmisión</option><option>Hidráulico</option><option>Diferencial</option><option>Mando Final</option><option>Frenos</option></select></div>'+
@@ -9144,7 +9154,7 @@ renders.ayuda=function(){
     '<li>Revisa el <b>Dashboard</b>: equipos urgentes y próximas PM.</li>'+
     '<li>Cuando se haga una mantención, anótala en <b>Registro PM</b> → descuenta stock solo.</li>'+
     '<li>Si hay falla, créala en <b>Correctivos</b>.</li>'+
-    '<li>Mide remanente de neumáticos críticos con el botón 📏 en <b>Neumáticos</b>.</li>'+
+    '<li>Mide remanente de neumáticos críticos con el botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> en <b>Neumáticos</b>.</li>'+
     '</ol>'+
     '<b style="font-size:13px;color:var(--ac)">▶ Respaldo y acceso desde otro equipo</b>'+
     '<p style="font-size:12px;line-height:1.7;margin:8px 0 12px 0">No hace falta respaldar nada a mano: los datos ya están en el servidor, no en este navegador. Para usar el sistema desde otro computador o celular, solo entra a la misma dirección web e inicia sesión con tu mismo usuario — vas a ver exactamente los mismos datos, al instante.</p>'+
@@ -9154,7 +9164,7 @@ renders.ayuda=function(){
 
     // ROLES Y PERMISOS
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #3ecf8e">'+
-    '<b style="font-size:14px">🔐 Roles y permisos</b>'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Roles y permisos</b>'+
     '<p style="font-size:12px;line-height:1.7;margin:10px 0">Cada usuario tiene un rol asignado por un administrador: <b>operador</b> (puede registrar PM, correctivos, inspecciones, movimientos de stock, etc.) o <b>admin</b> (además puede crear/activar usuarios, editar datos estructurales del equipo como sigla/modelo/precios, y ver el panel de Configuración completo). Estos permisos los revisa la base de datos misma en cada acción — no son solo un candado de la pantalla, así que no se pueden saltar aunque alguien manipule el navegador.</p>'+
     '<p style="font-size:11px;color:var(--tx3)">Si dos personas editan la misma fila al mismo tiempo sin haber recargado la pantalla, el sistema detecta el conflicto, avisa con un mensaje, y pide reintentar sobre los datos frescos — así nunca se pierde en silencio el cambio de uno de los dos.</p>'+
     '</div>'+
@@ -9201,9 +9211,9 @@ renders.ayuda=function(){
     '🔴 ¿Qué está pasando? → Estado actual de la flota<br>'+
     '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ¿Por qué? → Causa del problema<br>'+
     '🔮 ¿Qué va a pasar? → Proyección y riesgo<br>'+
-    '🔧 ¿Qué debo hacer? → Acción recomendada<br>'+
-    '💰 ¿Qué pasa si no lo hago? → Impacto<br>'+
-    '📦 ¿Tengo cómo hacerlo? → Recursos disponibles<br>'+
+    '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> ¿Qué debo hacer? → Acción recomendada<br>'+
+    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> ¿Qué pasa si no lo hago? → Impacto<br>'+
+    '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> ¿Tengo cómo hacerlo? → Recursos disponibles<br>'+
     '🚀 ¿A dónde vamos? → Tendencia de la flota</div></div>'+
 
     // 2. PRIMEROS PASOS
@@ -9228,7 +9238,7 @@ renders.ayuda=function(){
     '3. Revisa <b>Repuestos</b> → semáforo de stock, hay 🔴? → comprar</div>'+
 
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid #22c55e">'+
-    '<b>🔧 DURANTE EL DÍA — Ejecución</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> DURANTE EL DÍA — Ejecución</b><br>'+
     '1. Realiza <b>Inspección Diaria</b> → pestaña <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> → checklist rápido<br>'+
     '2. Ejecuta PM → pestaña <b>Registro PM</b> → registra con horómetro real<br>'+
     '3. Si hay correctivo → pestaña <b>Correctivos</b> → crea OT con causa y solución<br>'+
@@ -9239,22 +9249,22 @@ renders.ayuda=function(){
     '1. Actualiza <b>Horómetros</b> de los equipos que trabajaron<br>'+
     '2. Revisa <b>Consumos</b> → ¿cuadran los filtros y lubricantes?<br>'+
     '3. Revisa <b>Costos</b> → gasto del día/mes<br>'+
-    '4. Si llegaron muestras de aceite → pestaña <b>🧪 Análisis Aceite</b></div>'+
+    '4. Si llegaron muestras de aceite → pestaña <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis Aceite</b></div>'+
 
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid #8b5cf6">'+
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> SEMANAL — Planificación y Cierre</b><br>'+
     '1. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Plan Semanal</b> → revisa los PM auto-generados para la semana<br>'+
     '2. Asigna técnicos y ajusta días si es necesario (Vista Tabla)<br>'+
     '3. Al ejecutar PM → ingresa <b>HH Real, Estado Real y Obs Real</b> en las columnas verdes<br>'+
-    '4. Al terminar la semana → click <b>🔒 Cerrar Semana</b> (congela el Plan, Real queda editable)<br>'+
-    '5. <b>📈 Avance</b> → revisa si vas al ritmo correcto del mes<br>'+
+    '4. Al terminar la semana → click <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Cerrar Semana</b> (congela el Plan, Real queda editable)<br>'+
+    '5. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance</b> → revisa si vas al ritmo correcto del mes<br>'+
     '6. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt</b> → verifica la línea de tiempo del mes<br>'+
-    '7. <b>🔓 Destrabe</b> → revisa trabajos bloqueados y gestiona soluciones<br>'+
+    '7. <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Destrabe</b> → revisa trabajos bloqueados y gestiona soluciones<br>'+
     '8. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes Mayores</b> → revisa vida útil de motor, transmisión, etc.<br>'+
-    '9. <b>📉 Disponibilidad</b> → verifica % vs meta y tendencia<br>'+
+    '9. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Disponibilidad</b> → verifica % vs meta y tendencia<br>'+
     '10. Exporta informes → botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV o <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir para gerencia<br><br>'+
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MENSUAL — Cierre</b><br>'+
-    '1. <b>🎯 Metas</b> → compara plan vs real del mes que cierra<br>'+
+    '1. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas</b> → compara plan vs real del mes que cierra<br>'+
     '2. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</b> → descarga reportes para gerencia<br>'+
     '3. Ajusta metas del próximo mes según la realidad</div></div></div>'+
 
@@ -9265,31 +9275,31 @@ renders.ayuda=function(){
     '<tr><th>Pestaña</th><th>Función</th><th>Qué se hace ahí</th></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Dashboard</b></td><td>Vista general</td><td>KPIs, gráficos, equipos urgentes, semáforos</td></tr>'+
     '<tr><td><b>🚜 Equipos</b></td><td>Flota completa</td><td>Ver/editar equipos, horómetros, estado PM</td></tr>'+
-    '<tr><td><b>📝 Registro PM</b></td><td>Mantención preventiva</td><td>Registrar cada PM con fechas, técnico, horómetro</td></tr>'+
-    '<tr><td><b>🔧 Correctivos</b></td><td>OT correctivas</td><td>Crear OT, registrar causa raíz, solución, componente, backlog</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registro PM</b></td><td>Mantención preventiva</td><td>Registrar cada PM con fechas, técnico, horómetro</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos</b></td><td>OT correctivas</td><td>Crear OT, registrar causa raíz, solución, componente, backlog</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Neumáticos</b></td><td>Control neumáticos</td><td>Remanente, cambios, historial por posición</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa</b></td><td>Programa anual</td><td>Planificación mensual de PMs por equipo</td></tr>'+
     '<tr><td><b>🔴 Alertas PM4</b></td><td>Repuestos PM4</td><td>Checklist de repuestos para PM4 / overhaul</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Pautas</b></td><td>Actividades PM</td><td>Todas las actividades por tipo PM, editables</td></tr>'+
-    '<tr><td><b>📦 Stock Filtros</b></td><td>Inventario filtros</td><td>Stock, consumo, proyección, semáforo compra</td></tr>'+
-    '<tr><td><b>🛢 Lubricantes</b></td><td>Inventario lubricantes</td><td>Stock, consumo, proyección, precio</td></tr>'+
-    '<tr><td><b>💵 Costos</b></td><td>Análisis de costos</td><td>3 vistas: Costos por mes, HH por técnico/equipo con eficiencia, MTBF/MTTR por equipo</td></tr>'+
-    '<tr><td><b>📈 Horómetros</b></td><td>Historial lecturas</td><td>Registro y tendencia de horas por equipo</td></tr>'+
-    '<tr><td><b>📉 Disponibilidad</b></td><td>% disponibilidad</td><td>Cálculo dinámico desde registros, meta editable, tendencia mensual</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock Filtros</b></td><td>Inventario filtros</td><td>Stock, consumo, proyección, semáforo compra</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg> Lubricantes</b></td><td>Inventario lubricantes</td><td>Stock, consumo, proyección, precio</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos</b></td><td>Análisis de costos</td><td>3 vistas: Costos por mes, HH por técnico/equipo con eficiencia, MTBF/MTTR por equipo</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Horómetros</b></td><td>Historial lecturas</td><td>Registro y tendencia de horas por equipo</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Disponibilidad</b></td><td>% disponibilidad</td><td>Cálculo dinámico desde registros, meta editable, tendencia mensual</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Consumos</b></td><td>Historial consumos</td><td>Todos los movimientos de filtros y lubricantes</td></tr>'+
-    '<tr><td><b>🧪 Análisis Aceite</b></td><td>Muestras aceite</td><td>Metales de desgaste, estado, tendencia por componente</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis Aceite</b></td><td>Muestras aceite</td><td>Metales de desgaste, estado, tendencia por componente</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</b></td><td>Checklist diario</td><td>Visual, niveles, fugas, luces, frenos, neumáticos</td></tr>'+
-    '<tr><td><b>📦 Repuestos</b></td><td>Control repuestos</td><td>Stock, mínimo, lead time, semáforo, orden de compra</td></tr>'+
-    '<tr><td><b>📈 Predictivo</b></td><td>Motor inteligente</td><td>Alertas cruzadas, diagnóstico, backlog, tendencias</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Repuestos</b></td><td>Control repuestos</td><td>Stock, mínimo, lead time, semáforo, orden de compra</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Predictivo</b></td><td>Motor inteligente</td><td>Alertas cruzadas, diagnóstico, backlog, tendencias</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Plan Semanal</b></td><td>Planificación semanal</td><td>Trabajos de la semana, HH, costo, técnicos, repuestos</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</b></td><td>Componentes mayores</td><td>4 sub-pestañas: Componentes Mayores (motor/transmisión/diferencial), Predictivo, Destrabe e Informes de Falla (genera PDF descargable)</td></tr>'+
-    '<tr><td><b>🎯 Metas</b></td><td>Plan vs Real</td><td>8 indicadores × 12 meses, meta editable, real automático</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas</b></td><td>Plan vs Real</td><td>8 indicadores × 12 meses, meta editable, real automático</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt</b></td><td>Plan visual</td><td>Equipos × días del mes, barras de color por estado</td></tr>'+
-    '<tr><td><b>🔓 Destrabe</b></td><td>Bloqueos</td><td>Trabajos detenidos, motivo, acción, días pendiente</td></tr>'+
-    '<tr><td><b>📈 Avance</b></td><td>Progreso mensual</td><td>Plan vs ejecución con barra de progreso y % esperado</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Destrabe</b></td><td>Bloqueos</td><td>Trabajos detenidos, motivo, acción, días pendiente</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance</b></td><td>Progreso mensual</td><td>Plan vs ejecución con barra de progreso y % esperado</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Buscar</b></td><td>Buscador Maestro</td><td>Historial completo por equipo, ranking de problemáticos</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</b></td><td>Cuadro de mando</td><td>6 gauges + barras mensuales + descarga Excel</td></tr>'+
-    '<tr><td><b>📝 Log</b></td><td>Auditoría</td><td>Registro automático de todas las ediciones con fecha/hora</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Log</b></td><td>Auditoría</td><td>Registro automático de todas las ediciones con fecha/hora</td></tr>'+
     '<tr><td><b>📖 Manual</b></td><td>Esta guía</td><td>Paso a paso de todo el sistema</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Config</b></td><td>Administración</td><td>Temas, colores, fuentes, backup, nueva empresa, crear/activar usuarios, códigos QR por equipo</td></tr>'+
     '</table></div></div>'+
@@ -9437,11 +9447,11 @@ renders.ayuda=function(){
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Qué es?</b> La disponibilidad mecánica mide el % de tiempo que un equipo está operativo vs el tiempo total programado. La meta estándar en minería es <b>85%</b>.<br><br>'+
     '<b>¿Cómo se calcula?</b> El sistema recorre día por día del mes usando una única fuente de detenciones (registros PM + correctivos + salidas de servicio) — la misma fuente que usan Disponibilidad, Dashboard, KPI y Metas, para que el número nunca sea distinto según qué pestaña mires. También puedes ingresar datos manualmente editando las celdas azules (tiene prioridad sobre el cálculo automático).<br><br>'+
-    '<b>▶ 🚫 Registrar salida de servicio</b><br>'+
+    '<b>▶ <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</b><br>'+
     'Marca un equipo como fuera de servicio un rango de días completo (cuentan como 0% de disponibilidad esos días). Si todavía no sabes cuándo vuelve a operar, marca la casilla <b>"El equipo AÚN sigue fuera de servicio"</b> en vez de inventar una fecha de término — así el equipo sigue contando como detenido día a día hasta que lo cierres. Los equipos con una salida en curso aparecen en una franja roja arriba de la tabla, con un botón <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Volvió a operar"</b> para fijar la fecha real de término cuando corresponda.<br><br>'+
     '<b>Vistas disponibles:</b><br>'+
     '• <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Por Equipo</b>: tabla con barra visual, semáforo vs meta, % editable<br>'+
-    '• <b>📈 Tendencia Mensual</b>: todos los meses en columnas para ver evolución<br><br>'+
+    '• <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Tendencia Mensual</b>: todos los meses en columnas para ver evolución<br><br>'+
     '<b>Funciones:</b><br>'+
     '• La <b>meta es editable</b> — click en el porcentaje para cambiarla<br>'+
     '• Cada celda de % es <b>editable manualmente</b> si necesitas corregir<br>'+
@@ -9465,7 +9475,7 @@ renders.ayuda=function(){
     '<b>2. Auto-asignación de día:</b> Cada PM recibe un día según urgencia — sin tocar nada tú.<br>'+
     '<b>3. Ajuste manual:</b> En Vista Tabla puedes reasignar día, técnico, HH, observaciones.<br>'+
     '<b>4. Registro del Real:</b> Al ejecutar el PM, ingresa HH Real, Estado Real y Obs Real.<br>'+
-    '<b>5. Cierre:</b> Al final de la semana haz click en 🔒 Cerrar Semana — queda congelado.<br>'+
+    '<b>5. Cierre:</b> Al final de la semana haz click en <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Cerrar Semana — queda congelado.<br>'+
     '<b>6. Histórico:</b> Navega cualquier semana anterior con el selector y verás el histórico exacto.</div>'+
 
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Vista Calendario:</b><br>'+
@@ -9491,12 +9501,12 @@ renders.ayuda=function(){
     '• 11-14 días → <b>Miércoles o Martes</b><br>'+
     '• Si cambias el día manualmente, el sistema respeta tu elección<br><br>'+
 
-    '<b>🔒 Cierre y Histórico:</b><br>'+
-    '• Semanas pasadas muestran badge <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> PASADA</b> y botón <b>🔒 Cerrar Semana</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Cierre y Histórico:</b><br>'+
+    '• Semanas pasadas muestran badge <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> PASADA</b> y botón <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Cerrar Semana</b><br>'+
     '• Al cerrar: el <b>Plan queda congelado</b> (no se modifica)<br>'+
     '• El <b>Real sigue editable</b> — puedes corregir HH Real si ingresas horómetros atrasados<br>'+
-    '• El selector de semanas marca con 🔒 las semanas cerradas<br>'+
-    '• Botón <b>🔓 Reabrir</b> disponible si necesitas corregir el Plan también<br><br>'+
+    '• El selector de semanas marca con <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> las semanas cerradas<br>'+
+    '• Botón <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Reabrir</b> disponible si necesitas corregir el Plan también<br><br>'+
 
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> KPIs:</b><br>'+
     '• <b>Trabajos Semana:</b> total de PM en el plan<br>'+
@@ -9506,7 +9516,7 @@ renders.ayuda=function(){
     '• <b>Costo Estimado:</b> HH Plan × tarifa HH<br><br>'+
 
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ok)">'+
-    '<b>💡 Tip — Horómetros atrasados:</b> Si ingresas datos de semanas pasadas que ya cerraste, '+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> Tip — Horómetros atrasados:</b> Si ingresas datos de semanas pasadas que ya cerraste, '+
     've a esa semana cerrada en Vista Tabla y edita directamente las columnas verdes (HH Real, Estado Real, Obs Real). '+
     'El Plan permanece intacto y el Real queda actualizado.</div></div></div>'+
 
@@ -9529,7 +9539,7 @@ renders.ayuda=function(){
     '<b>Columnas editables:</b> componente, casilla Original, horómetro de instalación, fecha de instalación, vida útil, costo de referencia, observaciones.<br><br>'+
     '<b>KPIs:</b> total componentes, críticos (<1000h), costo proyectado de próximos cambios, componentes con instalación pendiente de completar.<br>'+
     '<b>Botones:</b> + Agregar, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminar, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar<br><br>'+
-    '<b>📄 Informes de Falla (PDF):</b> en esta misma pestaña "Componentes" hay una sub-pestaña llamada <b>"📄 Informes de Falla"</b> (botón arriba, junto a Componentes Mayores/Predictivo/Destrabe). Ahí se genera el informe formal de una falla catastrófica o cambio de componente: llenas el formulario, adjuntas fotos, y al guardar el botón <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF"</b> descarga automáticamente un PDF con todo el detalle. Para volver a descargar un informe ya creado, usa el botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> en su fila de la tabla.</div></div>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla (PDF):</b> en esta misma pestaña "Componentes" hay una sub-pestaña llamada <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla"</b> (botón arriba, junto a Componentes Mayores/Predictivo/Destrabe). Ahí se genera el informe formal de una falla catastrófica o cambio de componente: llenas el formulario, adjuntas fotos, y al guardar el botón <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF"</b> descarga automáticamente un PDF con todo el detalle. Para volver a descargar un informe ya creado, usa el botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> en su fila de la tabla.</div></div>'+
 
     // 17. METAS
     '<div class="card" style="margin-bottom:12px" id="m17">'+
@@ -9587,7 +9597,7 @@ renders.ayuda=function(){
     '• <b>Diferencia</b> — avance real menos esperado. Positivo = adelantado, negativo = atrasado<br>'+
     '• <b>Estado</b> — <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> EN PLAN / <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> RIESGO / 🔴 ATRASADO<br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac)">'+
-    '<b>💡 Tip:</b> Revisa esta pestaña cada jueves, al abrir la semana. Si la barra está por debajo de la línea esperada, necesitas acelerar las intervenciones esa semana.</div></div></div>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> Tip:</b> Revisa esta pestaña cada jueves, al abrir la semana. Si la barra está por debajo de la línea esperada, necesitas acelerar las intervenciones esa semana.</div></div></div>'+
 
     // 21. BUSCADOR MAESTRO
     '<div class="card" style="margin-bottom:12px" id="m21">'+
@@ -9631,7 +9641,7 @@ renders.ayuda=function(){
     '• Hrs/Día, Frecuencia PM, Horómetro Actual — datos operativos<br><br>'+
     '<b>Turno / Operador / Ubicación:</b> Estos campos se registran en cada PM y Correctivo para saber en qué contexto ocurrió la intervención.<br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac)">'+
-    '<b>💡 Tip:</b> Llena la ficha técnica completa de cada equipo. Cuando Komatsu o el proveedor pregunten por el N° de serie o VIN, lo tienes al instante.</div></div></div>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> Tip:</b> Llena la ficha técnica completa de cada equipo. Cuando Komatsu o el proveedor pregunten por el N° de serie o VIN, lo tienes al instante.</div></div></div>'+
     '<div class="card" style="margin-bottom:12px" id="m24"><div class="card-t" style="font-size:16px;margin-bottom:10px">24. KPIs Avanzados</div><div style="font-size:13px;line-height:1.8"><b>6 indicadores avanzados en el Dashboard:</b><br><br><b>Costo/RAV</b> — Costo mantenimiento ÷ Valor del activo × 100. Benchmark: &lt;2%. Si supera 3%, conviene reemplazar.<br><b>Backlog Semanas</b> — HH pendientes ÷ HH disponibles/semana. Rango sano: 2-4 semanas.<br><b>Índice Confiabilidad</b> — Equipos sin falla ÷ Total equipos × 100.<br><b>Disponibilidad Inherente</b> — MTBF ÷ (MTBF + MTTR). Disponibilidad real sin excusas logísticas.<br><b>% Retrabajo</b> — Fallas repetidas en &lt;30 días en mismo equipo/componente. Meta: &lt;5%.<br><b>Criticidad</b> — Crítico (detiene operación) / Esencial (afecta producción) / General (tiene respaldo). Se asigna en Ficha Técnica.</div></div>'+
 
     // 25. ANÁLISIS DE ACEITE
@@ -9640,7 +9650,7 @@ renders.ayuda=function(){
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Qué hace?</b> Registra y monitorea los resultados de laboratorio (Mobil Assistance / Copec) de cada muestra de aceite tomada a los componentes de la flota: motor, transmisión, mando final, diferencial, sistema hidráulico, tandem, frenos, etc.<br><br>'+
     '<b>▶ Importar muestras desde el laboratorio (CSV)</b><br>'+
-    'En la pestaña <b>🧪 Análisis Aceite</b>, click en <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</b>. El sistema reconoce automáticamente el formato exportado por el laboratorio Mobil/Copec (columnas como NOMBRE_CLIENTE, EQUIPO, HIERRO, ESTADO, COMENTARIO) — no hace falta reordenar columnas a mano. Marca "Reemplazar todo" solo si quieres limpiar lo cargado antes; si no, suma a lo existente.<br><br>'+
+    'En la pestaña <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis Aceite</b>, click en <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</b>. El sistema reconoce automáticamente el formato exportado por el laboratorio Mobil/Copec (columnas como NOMBRE_CLIENTE, EQUIPO, HIERRO, ESTADO, COMENTARIO) — no hace falta reordenar columnas a mano. Marca "Reemplazar todo" solo si quieres limpiar lo cargado antes; si no, suma a lo existente.<br><br>'+
     '<b>▶ Agregar una muestra manual</b><br>'+
     'Botón <b>+ Manual</b> arriba de la tabla. Útil para resultados sueltos que no vienen en CSV.<br><br>'+
     '<b>▶ Estado de cada muestra</b><br>'+
@@ -9657,8 +9667,8 @@ renders.ayuda=function(){
     'El Dashboard principal incorpora 3 bloques adicionales a los KPIs originales:<br><br>'+
     '<b>🚨 Tabla de Equipos Urgentes</b> — Lista los equipos con PM vencida o crítica, con horómetro actual, horómetro de próxima PM, días restantes y tipo de PM. Se ordena por urgencia.<br><br>'+
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs (14 días)</b> — Tarjetas visuales con los equipos que tienen mantención programada en las próximas dos semanas, coloreadas según cercanía (rojo ≤3 días, amarillo 4-14 días).<br><br>'+
-    '<b>📈 Tendencia de Disponibilidad (6 meses)</b> — Gráfico de barras con la disponibilidad mecánica promedio de la flota mes a mes, comparada contra la meta configurada en Config.<br><br>'+
-    'Además, dentro de la pestaña <b>🧪 Análisis Aceite</b> existe un mini-dashboard propio con: torta de Estado General (Normal/Precaución/Alerta), gráfico de muestras mensuales, y rankings por Tipo de Equipo, Tipo de Componente y Lubricante — replicando el formato del reporte oficial de Mobil Assistance, pero calculado en vivo desde tus datos cargados.</div></div>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Tendencia de Disponibilidad (6 meses)</b> — Gráfico de barras con la disponibilidad mecánica promedio de la flota mes a mes, comparada contra la meta configurada en Config.<br><br>'+
+    'Además, dentro de la pestaña <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis Aceite</b> existe un mini-dashboard propio con: torta de Estado General (Normal/Precaución/Alerta), gráfico de muestras mensuales, y rankings por Tipo de Equipo, Tipo de Componente y Lubricante — replicando el formato del reporte oficial de Mobil Assistance, pero calculado en vivo desde tus datos cargados.</div></div>'+
 
     // 27. VENCIMIENTOS DOCUMENTALES
     '<div class="card" style="margin-bottom:12px" id="m27">'+
@@ -9715,7 +9725,7 @@ renders.log=function(){
   var acciones=[...new Set(log.map(function(l){return l.accion.split(' ')[0]+' '+l.accion.split(' ')[1];}).filter(function(a){return a.trim();}))];
   var pg=_pagSlice('log',fil);
   $('s-log').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📝 Log de Cambios</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Log de Cambios</div>'+
     '<div class="sec-s">'+log.length+' registros · Auditoría del sistema</div></div>'+
     '<button class="btn btn-o" onclick="if(confirm(\'¿Limpiar log?\')){S.s(\'changelog\',[]);renders.log();}"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Limpiar</button></div>'+
     '<div class="toolbar">'+
@@ -10108,9 +10118,9 @@ renders.sem=function(){
           '<span style="font-size:10px;color:var(--tx3)">'+(p==='PM1'?'250h':p==='PM2'?'500h':p==='PM3'?'1.000h':'2.000h')+'</span>'+
           '</div>';
       }).join('')+
-      (esCerrada?'<span style="font-size:10px;color:var(--warn);margin-left:auto">🔒 Semana cerrada — Histórico congelado</span>':
-       esPasada?'<span style="font-size:10px;color:var(--ac3);margin-left:auto">💡 Semana pasada — Revisa el Real y cierra</span>':
-       '<span style="font-size:10px;color:var(--tx3);margin-left:auto">💡 Cambia a Vista Tabla para asignar días y técnicos</span>')+
+      (esCerrada?'<span style="font-size:10px;color:var(--warn);margin-left:auto"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Semana cerrada — Histórico congelado</span>':
+       esPasada?'<span style="font-size:10px;color:var(--ac3);margin-left:auto"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> Semana pasada — Revisa el Real y cierra</span>':
+       '<span style="font-size:10px;color:var(--tx3);margin-left:auto"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> Cambia a Vista Tabla para asignar días y técnicos</span>')+
       '</div>';
   }
 
@@ -10155,7 +10165,7 @@ renders.sem=function(){
 
   // ── BADGE SEMANA ──────────────────────────────────────────────────────────
   var badgeSem=esCerrada
-    ?'<span style="background:var(--warn);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px">🔒 CERRADA</span>'
+    ?'<span style="background:var(--warn);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> CERRADA</span>'
     :esPasada
     ?'<span style="background:var(--ac3);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> PASADA</span>'
     :'<span style="background:var(--ok);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px">★ ACTUAL</span>';
@@ -10163,8 +10173,8 @@ renders.sem=function(){
 
   // ── BOTÓN CERRAR SEMANA (solo si es pasada y no cerrada) ──────────────────
   var btnCerrar=(!esCerrada&&esPasada)
-    ?'<button class="btn" style="background:var(--warn);color:#000" onclick="cerrarSemana('+fSemana+')">🔒 Cerrar Semana '+fSemana+'</button>'
-    :(esCerrada?'<button class="btn btn-o" onclick="reabrirSemana('+fSemana+')" style="font-size:10px">🔓 Reabrir</button>':'');
+    ?'<button class="btn" style="background:var(--warn);color:#000" onclick="cerrarSemana('+fSemana+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Cerrar Semana '+fSemana+'</button>'
+    :(esCerrada?'<button class="btn btn-o" onclick="reabrirSemana('+fSemana+')" style="font-size:10px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Reabrir</button>':'');
 
   $('s-sem').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Planificación Semanal'+badgeSem+'</div>'+
@@ -10182,7 +10192,7 @@ renders.sem=function(){
       var wNow=getWeekNum();
       var histW=semHist[w];
       var label=w===wNow?'★ Sem '+w+' (actual)':'Semana '+w;
-      if(histW&&histW.cerrada)label='🔒 '+label;
+      if(histW&&histW.cerrada)label='<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> '+label;
       return'<option value="'+w+'"'+(w==fSemana?' selected':'')+'>'+label+'</option>';
     }).join('')+
     '</select>'+
@@ -10440,7 +10450,7 @@ renders.comp=function(){
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+Math.round(c.costoRef||0).toLocaleString()+'</td>'+
         '<td style="font-size:11px">'+c.estadoCalc+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(c.obs)+'</td>'+
-        '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px">📄</button><button class="btn-x" onclick="delComp('+realIdx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
+        '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg></button><button class="btn-x" onclick="delComp('+realIdx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>';
 };
@@ -10544,7 +10554,7 @@ window.nuevoInforme=function(sigla,compIdx){
   window._infCompIdx=(compIdx!=null && compIdx>=0)?compIdx:null;
   window._infFotos=[];
   sm(`<div style="max-width:700px">
-    <h3>📄 Informe de Falla / Cambio de Componente Mayor</h3>
+    <h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informe de Falla / Cambio de Componente Mayor</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label><select id="ifEq" onchange="_infEqChange()"><option value="">Seleccionar...</option>${eq.map(function(e){return '<option'+(e.sigla===sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>';}).join('')}</select></div>
       <div class="fg"><label>Tipo de Evento *</label><select id="ifTipo"><option${!compRow?' selected':''}>Falla Catastrófica</option><option${compRow?' selected':''}>Cambio Componente Mayor</option></select></div>
@@ -10775,7 +10785,7 @@ renders.informes=function(){
   var costoTotal=lista.reduce(function(s,i){return s+(i.costoEstimado||0);},0);
   var pg=_pagSlice('informes',lista);
   $('s-informes').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📄 Informes de Falla y Cambio de Componente</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla y Cambio de Componente</div>'+
     '<div class="sec-s">'+lista.length+' informe(s) · Costo total estimado: $'+Math.round(costoTotal).toLocaleString('es-CL')+'</div></div>'+
     '<button class="btn" onclick="nuevoInforme(\'\',null)">+ Nuevo Informe</button></div>'+
     _pagHTML('informes',pg)+
@@ -11509,7 +11519,7 @@ window.delHist=function(idx){
 window.addHist=function(){
   var eq=S.g('eq')||[];
   var hoy=new Date().toISOString().slice(0,10);
-  sm('<h3>📈 Registrar Lectura Horómetro</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Registrar Lectura Horómetro</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="hEq">'+
     eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Fecha</label><input type="date" id="hFecha" value="'+hoy+'"></div></div>'+
@@ -11695,12 +11705,12 @@ window.cyclePrg=function(pi,mes,esEjecAuto){
 renders.stk2=function(){
   const sub=window._stk2Sub||'stk';
   $('s-stk2').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">📦 Stock & Insumos</div>
+    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock & Insumos</div>
       <div class="sec-s">Filtros, lubricantes y costos de materiales</div></div></div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn ${sub==='stk'?'':'btn-o'}" onclick="stk2Sub('stk')">📦 Stock Filtros</button>
-      <button class="btn ${sub==='lub'?'':'btn-o'}" onclick="stk2Sub('lub')">🛢️ Lubricantes</button>
-      <button class="btn ${sub==='cstk'?'':'btn-o'}" onclick="stk2Sub('cstk')">💰 Costos & Stock</button>
+      <button class="btn ${sub==='stk'?'':'btn-o'}" onclick="stk2Sub('stk')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock Filtros</button>
+      <button class="btn ${sub==='lub'?'':'btn-o'}" onclick="stk2Sub('lub')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes</button>
+      <button class="btn ${sub==='cstk'?'':'btn-o'}" onclick="stk2Sub('cstk')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos & Stock</button>
     </div>
     <div id="s-stk" class="${sub==='stk'?'':'hidden'}"></div>
     <div id="s-lub" class="${sub==='lub'?'':'hidden'}"></div>
@@ -11721,10 +11731,10 @@ renders.comp2=function(){
       <div class="sec-s">Componentes mayores, análisis predictivo y gestión de destrabe</div></div></div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn ${sub==='comp'?'':'btn-o'}" onclick="comp2Sub('comp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes Mayores</button>
-      <button class="btn ${sub==='pred'?'':'btn-o'}" onclick="comp2Sub('pred')">📈 Predictivo</button>
-      <button class="btn ${sub==='destrabe'?'':'btn-o'}" onclick="comp2Sub('destrabe')">🔓 Destrabe</button>
-      <button class="btn ${sub==='informes'?'':'btn-o'}" onclick="comp2Sub('informes')">📄 Informes de Falla</button>
-      <button class="btn ${sub==='cad'?'':'btn-o'}" onclick="comp2Sub('cad')">🔗 Tren de Rodaje</button>
+      <button class="btn ${sub==='pred'?'':'btn-o'}" onclick="comp2Sub('pred')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Predictivo</button>
+      <button class="btn ${sub==='destrabe'?'':'btn-o'}" onclick="comp2Sub('destrabe')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Destrabe</button>
+      <button class="btn ${sub==='informes'?'':'btn-o'}" onclick="comp2Sub('informes')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla</button>
+      <button class="btn ${sub==='cad'?'':'btn-o'}" onclick="comp2Sub('cad')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Tren de Rodaje</button>
     </div>
     <div id="s-comp" class="${sub==='comp'?'':'hidden'}"></div>
     <div id="s-pred" class="${sub==='pred'?'':'hidden'}"></div>
@@ -11774,7 +11784,7 @@ renders.cad=function(){
   const fil=cad.filter(function(c){return !fEq||c.sigla===fEq;});
   const crit=fil.filter(function(c){return c.pctRemanente!=null&&c.pctRemanente<30;}).length;
   $('s-cad').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">🔗 Tren de Rodaje</div><div class="sec-s">${cad.length} componentes registrados en ${eqs.length} equipos · 🔴 ${crit} críticos</div></div>
+    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Tren de Rodaje</div><div class="sec-s">${cad.length} componentes registrados en ${eqs.length} equipos · 🔴 ${crit} críticos</div></div>
       <button class="btn" onclick="addCad()">+ Agregar componente</button>
     </div>
     <div class="toolbar">
@@ -11801,7 +11811,7 @@ renders.cad=function(){
           <td style="font-size:11px">${c.ultimaMedicion||'—'}</td>
           ${edCell(c.estado||'Operativo','estado',i,'cad','select',['Operativo','Cambiado','Fuera de servicio'])}
           <td>
-            <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionCad(${i})" title="Medir">📏</button>
+            <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionCad(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verHistorialCad(${i})" title="Historial"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
             <button class="btn-x" onclick="delCad(${i})" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button>
           </td>
@@ -11811,7 +11821,7 @@ renders.cad=function(){
 };
 window.addCad=function(){
   const eq=S.g('eq')||[];
-  sm('<h3>🔗 Agregar componente de tren de rodaje</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Agregar componente de tren de rodaje</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo *</label><select id="cdEq"><option value="">Seleccionar...</option>'+
       eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>';}).join('')+'</select></div>'+
       '<div class="fg"><label>Lado *</label><select id="cdLado">'+CAD_LADOS.map(function(l){return'<option>'+l+'</option>';}).join('')+'</select></div></div>'+
@@ -11838,7 +11848,7 @@ window.saveCad=function(){
 window.addMedicionCad=function(idx){
   const cad=S.g('cad')||[];const c=cad[idx];if(!c)return;
   const eq=(S.g('eq')||[]).find(function(e){return e.sigla===c.sigla;});
-  sm('<h3>📏 Medición — '+escapeHtml(c.sigla)+' '+escapeHtml(c.lado)+' '+escapeHtml(c.componente)+'</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> Medición — '+escapeHtml(c.sigla)+' '+escapeHtml(c.lado)+' '+escapeHtml(c.componente)+'</h3>'+
     '<div class="form-row"><div class="fg"><label>Fecha</label><input type="date" id="cmFecha" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
       '<div class="fg"><label>Horómetro equipo</label><input type="number" id="cmHorom" value="'+(eq?eq.horomActual:0)+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Valor medido (mm)</label><input type="number" id="cmValor"></div></div>'+
@@ -11879,11 +11889,11 @@ window.delCad=function(idx){
 renders.mkpi=function(){
   const sub=window._mkpiSub||'metas';
   $('s-mkpi').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">🎯 Metas & KPIs</div>
+    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas & KPIs</div>
       <div class="sec-s">Indicadores de gestión y cumplimiento</div></div></div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn ${sub==='metas'?'':'btn-o'}" onclick="mkpiSub('metas')">🎯 Metas</button>
-      <button class="btn ${sub==='avance'?'':'btn-o'}" onclick="mkpiSub('avance')">📈 Avance del Mes</button>
+      <button class="btn ${sub==='metas'?'':'btn-o'}" onclick="mkpiSub('metas')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas</button>
+      <button class="btn ${sub==='avance'?'':'btn-o'}" onclick="mkpiSub('avance')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance del Mes</button>
       <button class="btn ${sub==='kpi'?'':'btn-o'}" onclick="mkpiSub('kpi')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</button>
     </div>
     <div id="s-metas" class="${sub==='metas'?'':'hidden'}"></div>
@@ -11977,7 +11987,7 @@ window.verLogAuditoria=function(){
   const fn2=v=>(v||'').toString();
   const ultimos=log.slice().reverse().slice(0,100);
   sm(`<div style="max-width:680px">
-    <h3>📝 Log de Auditoría</h3>
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Log de Auditoría</h3>
     <p style="font-size:12px;color:var(--tx3)">Registro de cambios del sistema (últimos 100)</p>
     ${ultimos.length?`<div style="overflow-x:auto;max-height:400px;overflow-y:auto"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:5px;text-align:left">Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr>
@@ -12056,7 +12066,7 @@ renders.metas=function(){
   });
 
   $('s-metas').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">🎯 Metas vs Realidad</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas vs Realidad</div>'+
     '<div class="sec-s">Meta editable · Real se calcula automático desde registros</div></div></div>'+
     '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:11px">'+
     '<tr><th rowspan="2" style="min-width:140px">Indicador</th><th rowspan="2">Meta Anual</th>'+
@@ -12240,7 +12250,7 @@ renders.destrabe=function(){
   var items=S.g('destrabe')||[];
   var activos=items.filter(function(i){return i.estado!=='Resuelto'});
   $('s-destrabe').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">🔓 Gestión de Destrabe</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Gestión de Destrabe</div>'+
     '<div class="sec-s">'+items.length+' registros · '+activos.length+' activos</div></div>'+
     '<div style="display:flex;gap:8px"><button class="btn" onclick="addDestrabe()">+ Nuevo</button>'+
     '<button class="btn btn-o" onclick="exportCSV(\'destrabe\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div></div>'+
@@ -12305,7 +12315,7 @@ renders.avance=function(){
   var totalPct=totalPlan>0?Math.round(totalEjec/totalPlan*100):null;
 
   $('s-avance').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📈 Avance Mensual</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance Mensual</div>'+
     '<div class="sec-s">Plan vs Ejecución · Día '+diaActual+' de '+diasMes+' ('+pctEsperado+'% del mes)</div></div></div>'+
     '<div class="toolbar"><select id="fAvanceMes" onchange="renders.avance()">'+
     meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>'+
@@ -12409,14 +12419,14 @@ renders.buscar=function(){
     '</div>'+
 
     // Registros PM
-    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">📝 Registros PM ('+regF.length+')</div>'+
+    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registros PM ('+regF.length+')</div>'+
     (regF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>PM</th><th>Hora Ini</th><th>Hora Fin</th><th>Duración</th><th>Horóm</th><th>Técnico</th></tr>'+
     regF.slice().reverse().map(function(r){return'<tr><td>'+r.fechaEntrada+'</td><td>'+pb(r.tipoPM)+'</td><td>'+r.horaEntrada+'</td><td>'+r.horaSalida+'</td><td>'+r.duracion+'</td><td>'+r.horomReal+'</td><td style="font-size:10px">'+escapeHtml(r.tecnico||'')+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin registros en el período</div>')+'</div>'+
 
     // Correctivos — solo fallas reales (Correctivo/Falla Operacional), mismo criterio
     // que la tarjeta KPI de arriba. Las salidas de servicio (Fuera de Servicio) no son
     // fallas y no se cuentan aquí; antes inflaban este encabezado y no calzaba con el KPI.
-    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔧 Correctivos ('+fallasEq+')</div>'+
+    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos ('+fallasEq+')</div>'+
     (fallasEq?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Cód.Falla</th><th>Síntoma</th><th>Causa Raíz</th><th>Estado</th></tr>'+
     fallasEqArr.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+escapeHtml(o.tipo)+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+escapeHtml(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
 
@@ -12431,7 +12441,7 @@ renders.buscar=function(){
       return'<tr><td>'+escapeHtml(c.comp||'')+'</td><td>'+c.vidaUtil+'</td><td style="color:'+(st.hrsRest<1000?'var(--danger)':'var(--ok)')+'">'+st.hrsRest+'</td><td>'+st.pctVida+'%</td><td>'+st.estado+'</td></tr>'}).join('')+'</table></div>':'')+'</div>'+
 
     // Horómetros recientes
-    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">📈 Horómetros (últimos '+Math.min(histF.length,20)+')</div>'+
+    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Horómetros (últimos '+Math.min(histF.length,20)+')</div>'+
     (histF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Inicial</th><th>Final</th></tr>'+
     histF.slice(-20).reverse().map(function(h){return'<tr><td>'+h.fecha+'</td><td>'+h.horomIni+'</td><td>'+h.horomFin+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin lecturas</div>')+'</div>'+
 
@@ -12914,7 +12924,7 @@ function _mostrarMfaChallengeUI(email,factorId,tokenAal1){
   overlay.innerHTML=
     '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.4)">'+
       '<div style="text-align:center;margin-bottom:24px">'+
-        '<div style="font-size:28px;margin-bottom:8px">🔐</div>'+
+        '<div style="font-size:28px;margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg></div>'+
         '<div style="font-size:16px;font-weight:700;color:#f1f5f9">Verificación en dos pasos</div>'+
         '<div style="font-size:12px;color:#94a3b8;margin-top:6px">Ingresa el código de 6 dígitos de tu app autenticadora</div>'+
       '</div>'+
@@ -12971,7 +12981,7 @@ window.activarMFA=async function(){
   var qr=en.totp?.qr_code||'';
   var secreto=en.totp?.secret||'';
   sm('<div style="max-width:360px">'+
-    '<h3>🔐 Activar verificación en dos pasos</h3>'+
+    '<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Activar verificación en dos pasos</h3>'+
     '<p style="font-size:12px;color:var(--tx3);margin-bottom:12px">1. Abre Google Authenticator (o similar) en tu teléfono y escanea este código:</p>'+
     (qr?'<div style="text-align:center;margin-bottom:12px"><img src="'+qr+'" style="width:180px;height:180px;background:#fff;padding:8px;border-radius:8px"></div>':'')+
     (secreto?'<p style="font-size:10px;color:var(--tx3);text-align:center;margin-bottom:12px">¿No puedes escanear? Ingresa este código manualmente:<br><b style="font-size:12px;color:var(--tx);letter-spacing:1px">'+escapeHtml(secreto)+'</b></p>':'')+
@@ -13137,7 +13147,7 @@ window.cargarPendientesUI=async function(){
     cont.innerHTML=pend.map(function(u){
       return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
         '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span></span>'+
-        '<button class="btn btn-o" style="padding:4px 10px;font-size:11px" onclick="activarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')">🔓 Activar</button>'+
+        '<button class="btn btn-o" style="padding:4px 10px;font-size:11px" onclick="activarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Activar</button>'+
         '</div>';
     }).join('');
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
@@ -13169,7 +13179,7 @@ window.cargarActivosUI=async function(){
       return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
         '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span></span>'+
         (u.userId===_currentUser?.id?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
-        '<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')">🔒 Desactivar</button>')+
+        '<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Desactivar</button>')+
         '</div>';
     }).join('');
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
@@ -13182,7 +13192,7 @@ window.desactivarUsuarioUI=async function(userId,nombre){
   try{
     var res=await _accionUsuarios({action:'desactivar',userId:userId});
     if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
-    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px">🔒 '+escapeHtml(nombre)+' desactivado.</div>';
+    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> '+escapeHtml(nombre)+' desactivado.</div>';
     cargarActivosUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
