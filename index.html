@@ -4591,7 +4591,7 @@ window.addOT=function(){
     <div class="fg"><label>LOTO Aplicado</label><select id="otLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     <div class="fg"><label>Autorizado por</label><input id="otAutoriza" placeholder="Nombre..."></div>
     </div>
-    <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarOTPorVoz()">${ICONS.mic} Completar por voz</button>`);
 };
 // ============ DICTADO POR VOZ (piloto — pedido 2026-08-02) ============
 // Usa el reconocimiento de voz nativo del navegador (Web Speech API) —
@@ -4655,7 +4655,8 @@ window.VOICE_COMMANDS=[
   {patrones:['configuracion','ajustes'],accion:function(){go('cfg');},decir:'Abriendo Configuración'},
   {patrones:['ayuda','manual de usuario'],accion:function(){go('ayuda');},decir:'Abriendo Ayuda'},
   {patrones:['nueva ot','nueva orden de trabajo','crear correctivo'],accion:function(){go('ot');setTimeout(function(){if(typeof addOT==='function')addOT();},300);},decir:'Abriendo formulario de nueva orden de trabajo'},
-  {patrones:['cerrar','cancelar'],accion:function(){cm();},decir:'Cerrado'},
+  {patrones:['reportar falla por voz','crear correctivo por voz','nueva ot por voz','asistente de voz','completar por voz'],accion:function(){go('ot');setTimeout(_iniciarOTPorVoz,300);},decir:null},
+  {patrones:['cerrar','cancelar'],accion:function(){if(window._otVoz)window._otVoz.activo=false;cm();},decir:'Cerrado'},
   {patrones:['leeme los urgentes','lee los urgentes','que hay urgente','equipos urgentes','urgentes'],accion:function(){_leerUrgentes();},decir:null},
 ];
 // Quita tildes/mayúsculas/signos para comparar lo que el navegador entendió
@@ -4716,6 +4717,153 @@ window._comandoDeVoz=function(btn){
   };
   rec.onend=function(){btn.innerHTML=textoOriginal;btn.style.color='';};
   try{rec.start();}catch(e){btn.innerHTML=textoOriginal;btn.style.color='';}
+};
+
+// ============ ASISTENTE DE VOZ GUIADO — crear una OT completa solo hablando ============
+// Pensado para el caso límite que se pidió cubrir: alguien que solo puede
+// usar la voz, de principio a fin, sin tocar mouse ni teclado. El sistema
+// pregunta un campo a la vez, escucha, interpreta la respuesta y la deja
+// puesta en el mismo formulario/función de siempre (saveOT() — no hay un
+// camino de guardado paralelo, así que nunca puede desincronizarse).
+// Sigue la misma idea de "puerta trasera abierta": la secuencia de
+// preguntas vive en window.OT_VOZ_PASOS. Agregar un campo nuevo al flujo
+// (ej. "Técnico") es sumar una fila acá, no tocar el motor.
+//   tipo:'equipo'         → busca la sigla dicha entre los equipos reales
+//   tipo:'texto'          → dictado libre, obligatorio (repregunta si viene vacío)
+//   tipo:'texto_opcional' → dictado libre, se puede saltar diciendo "no sé"/"omitir"
+//   tipo:'opciones'       → hace calzar lo dicho contra las <option> reales del <select>
+window.OT_VOZ_PASOS=[
+  {campo:'oEq',pregunta:'¿Qué equipo? Di la sigla, por ejemplo TI cinco uno cuatro dos.',tipo:'equipo',requerido:true},
+  {campo:'oSint',pregunta:'¿Cuál es el síntoma o problema?',tipo:'texto',requerido:true},
+  {campo:'oTipo',pregunta:'¿Qué tipo de intervención? Por ejemplo correctivo, falla operacional, cambio de componente, cambio de neumático, relleno de fluidos, o inspección.',tipo:'opciones',requerido:false},
+  {campo:'oCrit',pregunta:'¿Qué tan urgente es? Di reparación inmediata, próxima mantención, o no aplica.',tipo:'opciones',requerido:false},
+  {campo:'oCausa',pregunta:'¿Sabes la causa raíz? Puedes decir "no sé" para saltar.',tipo:'texto_opcional',requerido:false},
+];
+window._otVoz={activo:false,paso:0};
+function _hablarLuego(texto,cb){
+  if(!window.speechSynthesis){cb&&cb();return;}
+  window.speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(texto);
+  u.lang='es-CL';
+  u.onend=function(){cb&&cb();};
+  u.onerror=function(){cb&&cb();};
+  window.speechSynthesis.speak(u);
+}
+function _otVozEscuchar(){
+  var st=window._otVoz;
+  if(!st.activo)return;
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('⚠️ Voz no disponible en este navegador — funciona en Chrome/Edge');st.activo=false;return;}
+  var rec=new SR();
+  rec.lang='es-CL';
+  rec.interimResults=false;
+  rec.maxAlternatives=1;
+  rec.onresult=function(e){_otVozCapturar(e.results[0][0].transcript);};
+  rec.onerror=function(e){
+    if(!st.activo)return;
+    if(e.error==='no-speech')_hablarLuego('No escuché nada. Repite, por favor.',_otVozEscuchar);
+    else toast('⚠️ Error de voz: '+e.error);
+  };
+  try{rec.start();}catch(e){}
+}
+function _otVozPreguntar(){
+  var st=window._otVoz;
+  if(!st.activo)return;
+  var paso=window.OT_VOZ_PASOS[st.paso];
+  if(!paso){_otVozResumen();return;}
+  _hablarLuego(paso.pregunta,_otVozEscuchar);
+}
+function _otVozAvanzar(aviso){
+  var st=window._otVoz;
+  if(!st.activo)return;
+  st.paso++;
+  var siguiente=window.OT_VOZ_PASOS[st.paso];
+  if(!siguiente){_otVozResumen();return;}
+  _hablarLuego((aviso?aviso+' ':'')+siguiente.pregunta,_otVozEscuchar);
+}
+function _mejorOpcion(transcript,opciones){
+  var t=_normVoz(transcript);
+  var mejor=-1,mejorLen=0;
+  opciones.forEach(function(op,i){
+    var on=_normVoz(op);
+    if(on&&(t.indexOf(on)>=0||on.indexOf(t)>=0)&&on.length>mejorLen){mejor=i;mejorLen=on.length;}
+  });
+  return mejor;
+}
+function _otVozCapturar(transcript){
+  var st=window._otVoz;
+  if(!st.activo)return;
+  toast('🎙️ "'+transcript+'"');
+  if(_normVoz(transcript)==='cancelar'){
+    st.activo=false;
+    _hablar('Cancelado. El formulario queda abierto para que lo completes tú mismo.');
+    return;
+  }
+  var paso=window.OT_VOZ_PASOS[st.paso];
+  var el=document.getElementById(paso.campo);
+  if(!el){st.activo=false;return;}
+  if(paso.tipo==='equipo'){
+    var siglas=(S.g('eq')||[]).map(function(e){return e.sigla;});
+    var tN=_normVoz(transcript).replace(/[\s-]/g,'');
+    var idx=siglas.findIndex(function(s){var sN=_normVoz(s).replace(/[\s-]/g,'');return sN&&(tN.indexOf(sN)>=0||sN.indexOf(tN)>=0);});
+    if(idx<0){_hablarLuego('No encontré ese equipo entre los registrados. Repite la sigla.',_otVozEscuchar);return;}
+    el.value=siglas[idx];el.dispatchEvent(new Event('change'));
+    _otVozAvanzar('Equipo '+siglas[idx]+'.');
+    return;
+  }
+  if(paso.tipo==='texto'){
+    if(!transcript.trim()){_hablarLuego('No escuché nada. '+paso.pregunta,_otVozEscuchar);return;}
+    el.value=transcript.trim();el.dispatchEvent(new Event('change'));
+    _otVozAvanzar();
+    return;
+  }
+  if(paso.tipo==='texto_opcional'){
+    var tN2=_normVoz(transcript);
+    if(tN2&&['no se','omitir','saltar','ninguna'].indexOf(tN2)<0){el.value=transcript.trim();el.dispatchEvent(new Event('change'));}
+    _otVozAvanzar();
+    return;
+  }
+  if(paso.tipo==='opciones'){
+    var opciones=Array.prototype.map.call(el.options,function(o){return o.text;});
+    var idx2=_mejorOpcion(transcript,opciones);
+    if(idx2>=0){el.selectedIndex=idx2;el.dispatchEvent(new Event('change'));}
+    _otVozAvanzar(idx2>=0?null:'No reconocí esa opción, la dejé como estaba.');
+    return;
+  }
+}
+function _otVozResumen(){
+  var st=window._otVoz;
+  var sig=document.getElementById('oEq').value||'sin equipo';
+  var sint=document.getElementById('oSint').value||'sin síntoma';
+  var tipo=document.getElementById('oTipo').value||'';
+  var crit=document.getElementById('oCrit').value||'';
+  var texto='Resumen: equipo '+sig+', síntoma '+sint+(tipo?', tipo '+tipo:'')+(crit&&crit!=='No Aplica'?', criticidad '+crit:'')+'. Di guardar para confirmar, o revisar para dejarlo abierto y corregirlo tú mismo.';
+  _hablarLuego(texto,_otVozEscucharConfirmacion);
+}
+function _otVozEscucharConfirmacion(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  var rec=new SR();
+  rec.lang='es-CL';
+  rec.interimResults=false;
+  rec.maxAlternatives=1;
+  rec.onresult=function(e){
+    var t=_normVoz(e.results[0][0].transcript);
+    window._otVoz.activo=false;
+    if(t.indexOf('guardar')>=0||t.indexOf('confirmar')>=0||t.indexOf('listo')>=0){
+      if(typeof saveOT==='function')saveOT();
+    }else{
+      _hablar('Dejé el formulario abierto para que lo revises.');
+      toast('📋 Revisa el formulario y guarda manualmente cuando quieras');
+    }
+  };
+  rec.onerror=function(e){if(e.error!=='no-speech')toast('⚠️ Error de voz: '+e.error);};
+  try{rec.start();}catch(e){}
+}
+window._iniciarOTPorVoz=function(){
+  if(!document.getElementById('oEq')&&typeof addOT==='function')addOT();
+  window._otVoz={activo:true,paso:0};
+  setTimeout(_otVozPreguntar,300);
 };
 
 window.calcDurOT=function(){
