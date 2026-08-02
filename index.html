@@ -4662,6 +4662,7 @@ window.VOICE_COMMANDS=[
   {patrones:['agregar lubricante por voz','nuevo lubricante por voz','lubricante nuevo por voz'],accion:function(){go('stk2');setTimeout(_iniciarLubPorVoz,300);},decir:null},
   {patrones:['agregar neumatico por voz','nuevo neumatico por voz','neumatico nuevo por voz'],accion:function(){go('neu');setTimeout(_iniciarNeuPorVoz,300);},decir:null},
   {patrones:['medicion de neumatico por voz','medir neumatico por voz','medir remanente por voz'],accion:function(){go('neu');setTimeout(_iniciarMedicionNeuPorVoz,300);},decir:null},
+  {patrones:['informe de falla por voz','reportar falla catastrofica por voz','cambio de componente por voz','reportar componente por voz'],accion:function(){go('comp2');setTimeout(_iniciarInformePorVoz,300);},decir:null},
   {patrones:['cerrar','cancelar'],accion:function(){if(window._vozFlujo)window._vozFlujo.activo=false;cm();},decir:'Cerrado'},
   {patrones:['leeme los urgentes','lee los urgentes','que hay urgente','equipos urgentes','urgentes'],accion:function(){_leerUrgentes();},decir:null},
 ];
@@ -4882,8 +4883,12 @@ function _vozFlujoCapturar(transcript){
   if(paso.tipo==='opciones'){
     var opciones=Array.prototype.map.call(el.options,function(o){return o.text;});
     var idx2=_mejorOpcion(transcript,opciones);
-    if(idx2>=0){el.selectedIndex=idx2;el.dispatchEvent(new Event('change'));}
-    _vozFlujoAvanzar(idx2>=0?null:'No reconocí esa opción, la dejé como estaba.');
+    if(idx2>=0){el.selectedIndex=idx2;el.dispatchEvent(new Event('change'));_vozFlujoAvanzar();return;}
+    // Si el campo es obligatorio de verdad (ej. "Generado por"), no seguir con un
+    // valor vacío que después el guardado real va a rechazar en silencio — mejor
+    // repreguntar acá, donde la persona todavía está escuchando.
+    if(paso.requerido){_hablarLuego('No reconocí esa opción. '+paso.pregunta,_vozFlujoEscuchar);return;}
+    _vozFlujoAvanzar('No reconocí esa opción, la dejé como estaba.');
     return;
   }
 }
@@ -5121,6 +5126,35 @@ function _neuMedVozAbrir(neuIdx){
   addMedicionNeu(neuIdx);
   _iniciarFlujoVoz(window.NEUMED_VOZ_PASOS,function(){if(typeof saveMedicionNeu==='function')saveMedicionNeu(neuIdx);},_neuMedVozResumenTexto,n?('Posición '+n.posicion+' encontrada.'):null);
 }
+
+// ---- Flujo: Informe de Falla / Cambio de Componente Mayor por voz ----
+// La tabla de Componentes Mayores en sí es de edición en línea (sin
+// formulario), así que el formulario real y valioso de esta sección es
+// este: reportar una falla catastrófica o un cambio de componente mayor
+// — el caso típico de alguien parado al lado de un equipo detenido, con
+// las manos ocupadas. Las fotos de evidencia quedan fuera del flujo por
+// razones obvias (necesitan cámara) — se pueden agregar después abriendo
+// el informe ya guardado.
+window.INFORME_VOZ_PASOS=[
+  {campo:'ifEq',pregunta:'¿Qué equipo? Di la sigla.',tipo:'equipo',requerido:true},
+  {campo:'ifTipo',pregunta:'¿Es una falla catastrófica o un cambio de componente mayor? Di falla catastrófica, o cambio componente mayor.',tipo:'opciones',requerido:false},
+  {campo:'ifComp',pregunta:'¿Qué componente está afectado? Por ejemplo motor, transmisión, o diferencial.',tipo:'texto_opcional',requerido:false},
+  {campo:'ifDesc',pregunta:'Descríbeme la falla.',tipo:'texto',requerido:true},
+  {campo:'ifGen',pregunta:'¿Quién genera este informe? Di tu nombre.',tipo:'opciones',requerido:true},
+  {campo:'ifCausa',pregunta:'¿Sabes la causa probable? Puedes decir "omitir" si no.',tipo:'texto_opcional',requerido:false},
+];
+function _infVozResumenTexto(){
+  var sig=document.getElementById('ifEq').value||'sin equipo';
+  var tipo=document.getElementById('ifTipo').value||'';
+  var comp=document.getElementById('ifComp').value||'';
+  var desc=document.getElementById('ifDesc').value||'sin descripción';
+  var gen=document.getElementById('ifGen').value||'';
+  return 'Resumen: '+tipo+' en '+sig+(comp?', componente '+comp:'')+', descripción: '+desc+(gen?', generado por '+gen:'')+'.';
+}
+window._iniciarInformePorVoz=function(){
+  if(!document.getElementById('ifEq')&&typeof nuevoInforme==='function')nuevoInforme();
+  _iniciarFlujoVoz(window.INFORME_VOZ_PASOS,function(){if(typeof guardarInforme==='function')guardarInforme();},_infVozResumenTexto);
+};
 
 window.calcDurOT=function(){
   const fe=$('oFecEnt')?.value,he=$('oHoraEnt')?.value;
@@ -11120,7 +11154,7 @@ window.nuevoInforme=function(sigla,compIdx){
       <div class="fg" style="width:100%"><label>Fotos de evidencia</label><input type="file" id="ifFotos" accept="image/*" capture="environment" multiple onchange="_infFotosChange(event)">
       <div id="ifPreview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
     </div>
-    <br><button class="btn" id="ifBtnGuardar" onclick="guardarInforme()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>
+    <br><button class="btn" id="ifBtnGuardar" onclick="guardarInforme()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarInformePorVoz()">${ICONS.mic} Completar por voz</button>
   </div>`);
 };
 window._infEqChange=function(){
