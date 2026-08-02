@@ -3356,7 +3356,7 @@ window.addStock=function(){
     <div class="form-row"><div class="fg"><label>Equipo/Modelo</label><input id="sEq"></div><div class="fg"><label>Descripción</label><input id="sDesc"></div></div>
     <div class="form-row"><div class="fg"><label>N° Parte</label><input id="sParte"></div><div class="fg"><label>Stock</label><input type="number" id="sStk" value="0"></div><div class="fg"><label>Consumo/Mes</label><input type="number" id="sCon" value="1"></div></div>
     <div class="form-row"><div class="fg"><label>Precio Unit.</label><input type="number" id="sPre" value="0"></div></div>
-    <button class="btn" onclick="saveStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="saveStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarStockPorVoz()">${ICONS.mic} Completar por voz</button>`);
 };
 window.saveStock=function(){
   const stk=S.g('stk');
@@ -3450,7 +3450,7 @@ window.addLub=function(){
     '<div class="form-row"><div class="fg"><label>Unidad</label><select id="lUni"><option>Litro</option><option>Kilo</option></select></div>'+
     '<div class="fg"><label>Stock actual</label><input type="number" id="lStk" value="0"></div>'+
     '<div class="fg"><label>Precio</label><input type="number" id="lPre" value="0"></div></div>'+
-    '<button class="btn" onclick="saveLub()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="saveLub()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarLubPorVoz()">'+ICONS.mic+' Completar por voz</button>');
 };
 window.saveLub=function(){
   var lub=S.g('lub')||[];
@@ -4658,6 +4658,8 @@ window.VOICE_COMMANDS=[
   {patrones:['nueva ot','nueva orden de trabajo','crear correctivo'],accion:function(){go('ot');setTimeout(function(){if(typeof addOT==='function')addOT();},300);},decir:'Abriendo formulario de nueva orden de trabajo'},
   {patrones:['reportar falla por voz','crear correctivo por voz','nueva ot por voz','asistente de voz'],accion:function(){go('ot');setTimeout(_iniciarOTPorVoz,300);},decir:null},
   {patrones:['registrar pm por voz','registrar mantencion por voz','hacer un pm por voz','registro por voz'],accion:function(){go('reg');setTimeout(_iniciarRegPorVoz,300);},decir:null},
+  {patrones:['agregar filtro por voz','nuevo filtro por voz','filtro nuevo por voz'],accion:function(){go('stk2');setTimeout(_iniciarStockPorVoz,300);},decir:null},
+  {patrones:['agregar lubricante por voz','nuevo lubricante por voz','lubricante nuevo por voz'],accion:function(){go('stk2');setTimeout(_iniciarLubPorVoz,300);},decir:null},
   {patrones:['cerrar','cancelar'],accion:function(){if(window._vozFlujo)window._vozFlujo.activo=false;cm();},decir:'Cerrado'},
   {patrones:['leeme los urgentes','lee los urgentes','que hay urgente','equipos urgentes','urgentes'],accion:function(){_leerUrgentes();},decir:null},
 ];
@@ -4734,7 +4736,9 @@ window._comandoDeVoz=function(btn){
 // escribir su propia lista de pasos + una función que llame a
 // _iniciarFlujoVoz(pasos, guardarFn, resumenFn); no toca este motor.
 //   tipo:'equipo'         → busca la sigla dicha entre los equipos reales
-//   tipo:'numero'         → extrae el primer número dicho (ej. horómetro)
+//   tipo:'numero'         → extrae el primer número dicho (ej. horómetro); acepta
+//                           cero salvo que el paso tenga requierePositivo:true
+//   tipo:'numero_opcional'→ como 'numero' pero se puede saltar diciendo "no sé"/"omitir"
 //   tipo:'texto'          → dictado libre, obligatorio (repregunta si viene vacío)
 //   tipo:'texto_opcional' → dictado libre, se puede saltar diciendo "no sé"/"omitir"
 //   tipo:'opciones'       → hace calzar lo dicho contra las <option> reales del <select>
@@ -4748,10 +4752,33 @@ function _hablarLuego(texto,cb){
   u.onerror=function(){cb&&cb();};
   window.speechSynthesis.speak(u);
 }
+// Chrome suele transcribir números grandes ya como dígitos ("15.600"), pero
+// números chicos dichos al pasar (cantidades de stock, por ejemplo) muchas
+// veces quedan como palabra ("doce", "cero") — sin esto, decir "cero
+// unidades" quedaba sin poder capturarse nunca.
+var _PALABRAS_NUM={cero:0,un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,
+  diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,
+  veinte:20,veintiuno:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,
+  treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,
+  cien:100,ciento:100,doscientos:200,trescientos:300,cuatrocientos:400,quinientos:500,seiscientos:600,setecientos:700,ochocientos:800,novecientos:900,
+  mil:1000};
 function _parseNumeroVoz(transcript){
   var limpio=(transcript||'').replace(/[.,]/g,'');
   var m=limpio.match(/\d+/);
-  return m?parseInt(m[0],10):NaN;
+  if(m)return parseInt(m[0],10);
+  var palabras=_normVoz(limpio).split(/\s+/).filter(function(w){return w&&w!=='y';});
+  if(!palabras.length)return NaN;
+  var total=0,parcial=0,huboAlguna=false;
+  palabras.forEach(function(w){
+    if(!_PALABRAS_NUM.hasOwnProperty(w))return;
+    huboAlguna=true;
+    var v=_PALABRAS_NUM[w];
+    if(v===1000){parcial=(parcial||1)*1000;total+=parcial;parcial=0;}
+    else if(v>=100){parcial=(parcial||1)*v;}
+    else{parcial+=v;}
+  });
+  total+=parcial;
+  return huboAlguna?total:NaN;
 }
 var _NUM_PALABRAS={uno:'1',dos:'2',tres:'3',cuatro:'4',cinco:'5'};
 function _normNumPalabras(s){
@@ -4823,9 +4850,19 @@ function _vozFlujoCapturar(transcript){
   }
   if(paso.tipo==='numero'){
     var n=_parseNumeroVoz(transcript);
-    if(isNaN(n)||n<=0){_hablarLuego('No entendí el número. '+paso.pregunta,_vozFlujoEscuchar);return;}
+    var minimo=paso.requierePositivo?1:0;
+    if(isNaN(n)||n<minimo){_hablarLuego('No entendí el número. '+paso.pregunta,_vozFlujoEscuchar);return;}
     el.value=String(n);el.dispatchEvent(new Event('change'));
     _vozFlujoAvanzar((paso.etiqueta?paso.etiqueta+' ':'')+n.toLocaleString('es-CL')+'.');
+    return;
+  }
+  if(paso.tipo==='numero_opcional'){
+    var tNo=_normVoz(transcript);
+    if(tNo&&['no se','omitir','saltar','ninguna','no'].indexOf(tNo)>=0){_vozFlujoAvanzar();return;}
+    var n2=_parseNumeroVoz(transcript);
+    if(isNaN(n2)||n2<0){_hablarLuego('No entendí el número. '+paso.pregunta,_vozFlujoEscuchar);return;}
+    el.value=String(n2);el.dispatchEvent(new Event('change'));
+    _vozFlujoAvanzar((paso.etiqueta?paso.etiqueta+' ':'')+n2.toLocaleString('es-CL')+'.');
     return;
   }
   if(paso.tipo==='texto'){
@@ -4902,7 +4939,7 @@ window._iniciarOTPorVoz=function(){
 // ---- Flujo: Registro PM por voz ----
 window.REG_VOZ_PASOS=[
   {campo:'rEq',pregunta:'¿Qué equipo? Di la sigla, por ejemplo TI cinco uno cuatro dos.',tipo:'equipo',requerido:true},
-  {campo:'rHor',pregunta:'¿Cuál es el horómetro actual del equipo?',tipo:'numero',requerido:true,etiqueta:'Horómetro'},
+  {campo:'rHor',pregunta:'¿Cuál es el horómetro actual del equipo?',tipo:'numero',requerido:true,requierePositivo:true,etiqueta:'Horómetro'},
   {campo:'rPM',pregunta:'¿Qué tipo de mantención hiciste? Di PM1, PM2, PM3, PM4, o correctivo.',tipo:'opciones',requerido:false},
   {campo:'rObs',pregunta:'¿Qué trabajos realizaste? Puedes decir "omitir" para saltar.',tipo:'texto_opcional',requerido:false},
   {campo:'rRep',pregunta:'¿Qué repuestos o filtros usaste? Di "omitir" si no aplica.',tipo:'texto_opcional',requerido:false},
@@ -4917,6 +4954,45 @@ function _regVozResumenTexto(){
 window._iniciarRegPorVoz=function(){
   if(!document.getElementById('rEq')&&typeof addReg==='function')addReg();
   _iniciarFlujoVoz(window.REG_VOZ_PASOS,function(){if(typeof saveReg==='function')saveReg();},_regVozResumenTexto);
+};
+
+// ---- Flujo: Nuevo Filtro (Stock) por voz ----
+// El precio unitario queda fuera del flujo a propósito: en terreno rara vez
+// se sabe de memoria, y es un campo protegido para administrador — mejor
+// dejarlo en 0 y que se complete después desde la tabla, igual que hoy.
+window.STOCK_VOZ_PASOS=[
+  {campo:'sEq',pregunta:'¿Para qué equipo o modelo es este filtro?',tipo:'texto',requerido:true},
+  {campo:'sDesc',pregunta:'¿Cuál es la descripción del filtro?',tipo:'texto',requerido:true},
+  {campo:'sParte',pregunta:'¿Sabes el número de parte? Di "omitir" si no lo tienes a mano.',tipo:'texto_opcional',requerido:false},
+  {campo:'sStk',pregunta:'¿Cuántas unidades hay en bodega ahora mismo? Puedes decir cero si no tienes ninguna.',tipo:'numero',requerido:false,etiqueta:'Stock'},
+  {campo:'sCon',pregunta:'¿Cuántas se consumen al mes, aproximadamente?',tipo:'numero',requerido:false,etiqueta:'Consumo mensual'},
+];
+function _stockVozResumenTexto(){
+  var eq=document.getElementById('sEq').value||'sin equipo';
+  var desc=document.getElementById('sDesc').value||'sin descripción';
+  var stk=document.getElementById('sStk').value||'0';
+  return 'Resumen: filtro para '+eq+', '+desc+', stock inicial '+stk+' unidades.';
+}
+window._iniciarStockPorVoz=function(){
+  if(!document.getElementById('sEq')&&typeof addStock==='function')addStock();
+  _iniciarFlujoVoz(window.STOCK_VOZ_PASOS,function(){if(typeof saveStock==='function')saveStock();},_stockVozResumenTexto);
+};
+
+// ---- Flujo: Nuevo Lubricante por voz ----
+window.LUB_VOZ_PASOS=[
+  {campo:'lNom',pregunta:'¿Cuál es el nombre del lubricante?',tipo:'texto',requerido:true},
+  {campo:'lUni',pregunta:'¿Se mide en litros o en kilos?',tipo:'opciones',requerido:false},
+  {campo:'lStk',pregunta:'¿Cuántas unidades hay en stock? Puedes decir cero si no tienes.',tipo:'numero',requerido:false,etiqueta:'Stock'},
+];
+function _lubVozResumenTexto(){
+  var nom=document.getElementById('lNom').value||'sin nombre';
+  var stk=document.getElementById('lStk').value||'0';
+  var uni=(document.getElementById('lUni').value||'').toLowerCase();
+  return 'Resumen: lubricante '+nom+', '+stk+' '+uni+' en stock.';
+}
+window._iniciarLubPorVoz=function(){
+  if(!document.getElementById('lNom')&&typeof addLub==='function')addLub();
+  _iniciarFlujoVoz(window.LUB_VOZ_PASOS,function(){if(typeof saveLub==='function')saveLub();},_lubVozResumenTexto);
 };
 
 window.calcDurOT=function(){
