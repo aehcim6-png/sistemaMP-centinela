@@ -1020,6 +1020,13 @@ const ICONS={
   search:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg>',
   book:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polyline points="10,5 10,17"/><polyline points="10,5 3,4 3,15 10,17"/><polyline points="10,5 17,4 17,15 10,17"/></svg>',
   sliders:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><circle cx="12" cy="5" r="1.8" fill="var(--bg2)"/><line x1="3" y1="10" x2="17" y2="10"/><circle cx="7" cy="10" r="1.8" fill="var(--bg2)"/><line x1="3" y1="15" x2="17" y2="15"/><circle cx="14" cy="15" r="1.8" fill="var(--bg2)"/></svg>',
+  download:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg>',
+  upload:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg>',
+  trash:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg>',
+  pencil:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg>',
+  saveIco:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg>',
+  printer:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg>',
+  refresh:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg>',
 };
 
 // ============ NAV ============
@@ -1659,15 +1666,15 @@ renders.eq=function(){
   const tipos=[...new Set(eq.map(e=>e.tipo))];
   $('s-eq').innerHTML=`
     <div class="sec-h"><div><div class="sec-t">⚙️ Control PM Dinámico — Equipos</div><div class="sec-s">${eq.length} equipos · Click en celda azul para editar</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,#3b82f6)" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><button class="btn btn-o" onclick="exportCSV('eq')">📥 CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="window._eqFiltroUrgente=!window._eqFiltroUrgente;renders.eq()" id="btnFiltroUrg">🔴 Solo PM4 Urgentes</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,#3b82f6)" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><button class="btn btn-o" onclick="exportCSV('eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="window._eqFiltroUrgente=!window._eqFiltroUrgente;renders.eq()" id="btnFiltroUrg">🔴 Solo PM4 Urgentes</button></div>
     </div>
-    <div class="help-tip">🔵 Celdas editables = click y escriba · ⚫ Celdas grises = se calculan solas · 🗑️ = eliminar fila</div>
+    <div class="help-tip">🔵 Celdas editables = click y escriba · ⚫ Celdas grises = se calculan solas · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> = eliminar fila</div>
     <div class="toolbar">
       <select id="fTipo" onchange="renders.eq()"><option value="">Todos</option>${tipos.map(t=>`<option>${t}</option>`).join('')}</select>
       <select id="fEst" onchange="renders.eq()"><option value="">Todo estado</option><option>URGENTE</option><option>PRÓXIMA</option><option>AL DÍA</option><option>VENCIDA</option></select>
     </div>
     <div class="tbl-wrap"><table id="tbl-eq">
-      <tr><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,0,&apos;str&apos;)" title="Ordenar">Sigla</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,1,&apos;str&apos;)" title="Ordenar">Tipo</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,2,&apos;str&apos;)" title="Ordenar">Modelo</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,3,&apos;num&apos;)" title="Ordenar">Hrs/Día</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,4,&apos;num&apos;)" title="Ordenar">Horóm. Actual</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,5,&apos;date&apos;)" title="Ordenar">Fecha Horóm.</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,6,&apos;num&apos;)" title="Ordenar">Frec PM</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,7,&apos;num&apos;)" title="Ordenar">Próx PM</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,8,&apos;num&apos;)" title="Ordenar">Hrs Rest.</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,9,&apos;num&apos;)" title="Ordenar">Días</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,10,&apos;date&apos;)" title="Ordenar">Fecha Próx</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,11,&apos;str&apos;)" title="Ordenar">Tipo PM</th><th>Estado</th><th>🗑️</th></tr>
+      <tr><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,0,&apos;str&apos;)" title="Ordenar">Sigla</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,1,&apos;str&apos;)" title="Ordenar">Tipo</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,2,&apos;str&apos;)" title="Ordenar">Modelo</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,3,&apos;num&apos;)" title="Ordenar">Hrs/Día</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,4,&apos;num&apos;)" title="Ordenar">Horóm. Actual</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,5,&apos;date&apos;)" title="Ordenar">Fecha Horóm.</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,6,&apos;num&apos;)" title="Ordenar">Frec PM</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,7,&apos;num&apos;)" title="Ordenar">Próx PM</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,8,&apos;num&apos;)" title="Ordenar">Hrs Rest.</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,9,&apos;num&apos;)" title="Ordenar">Días</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,10,&apos;date&apos;)" title="Ordenar">Fecha Próx</th><th style="cursor:pointer;user-select:none" onclick="sortTable(&apos;tbl-eq&apos;,11,&apos;str&apos;)" title="Ordenar">Tipo PM</th><th>Estado</th><th><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></th></tr>
       ${eq.filter(e=>{
         const ft=$('fTipo')?.value,fe=$('fEst')?.value;
         if(ft&&e.tipo!==ft)return false;if(fe&&!e.estado?.includes(fe))return false;
@@ -1689,7 +1696,7 @@ renders.eq=function(){
           <td class="mono calc">${fd(e.fechaProxPM)}</td>
           <td class="calc">${pb(e.tipoPM)}</td>
           <td><span class="badge ${e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')?'b-r':e.estado?.includes('PRÓXIMA')?'b-y':'b-g'}">${e.estado||''}</span></td>
-          <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${escapeHtml(e.sigla)}')" title="Ficha técnica">📋</button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')">🗑️</button></td>
+          <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${escapeHtml(e.sigla)}')" title="Ficha técnica">📋</button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>
         </tr>`;
       }).join('')}
     </table></div>`;
@@ -1701,7 +1708,7 @@ window.addEquipo=function(){
     <div class="form-row"><div class="fg"><label>N° Serie / Chasis</label><input id="nSerie"></div><div class="fg"><label>Patente</label><input id="nPatente"></div><div class="fg"><label>Año Fabricación</label><input id="nAnio" type="number" placeholder="2024"></div></div>
     <div class="form-row"><div class="fg"><label>Unidad medición</label><select id="nUnidad"><option value="hr">Horas (horómetro)</option><option value="km">Kilómetros (odómetro)</option></select></div><div class="fg"><label id="nHdLabel">Hrs/Día</label><input type="number" id="nHd" value="16"></div></div>
     <div class="form-row"><div class="fg"><label id="nHorLabel">Horómetro Actual</label><input type="number" id="nHor" value="0"></div><div class="fg"><label>Fecha</label><input type="date" id="nFec" value="${new Date().toISOString().slice(0,10)}"></div><div class="fg"><label id="nFrecLabel">Frec PM (hrs)</label><input type="number" id="nFrec" value="250"></div></div>
-    <button class="btn" onclick="saveNewEq()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="saveNewEq()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
   // Autoajuste de labels y valores cuando cambia tipo
   window._nTipoChange=function(){
     var t=($('nTipo').value||'').toUpperCase();
@@ -1774,7 +1781,7 @@ window.importarEquiposNuevos=function(){
   refreshAll();
   var msg='✅ Importados: '+agregados.join(', ');
   if(omitidos.length)msg+='\n⚠️ Ya existían (omitidos): '+omitidos.join(', ');
-  msg+='\n\n📝 Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (✏️) para ingresar km/día cuando tengas el dato.';
+  msg+='\n\n📝 Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg>) para ingresar km/día cuando tengas el dato.';
   alert(msg);
 };
 
@@ -1806,11 +1813,11 @@ renders.reg=function(){
     </div>
       <div style="display:flex;gap:8px">
         <button class="btn" onclick="addReg()">+ Registrar PM</button>
-        <button class="btn btn-o" onclick="exportCSV('reg')">📥 CSV</button>
-        <button class="btn btn-o" onclick="importRegCSV()">📤 Importar CSV</button>
+        <button class="btn btn-o" onclick="exportCSV('reg')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>
+        <button class="btn btn-o" onclick="importRegCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button>
       </div>
     </div>
-    <div class="help-tip">🔵 Celdas azules = haz clic para editar directamente · ✏️ = editar registro completo (útil para registros anteriores sin hora) · Duración se recalcula automáticamente</div>
+    <div class="help-tip">🔵 Celdas azules = haz clic para editar directamente · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> = editar registro completo (útil para registros anteriores sin hora) · Duración se recalcula automáticamente</div>
     <div class="toolbar">
       <select id="fRegEq" onchange="window._pag.reg=1;renders.reg()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${escapeHtml(e.sigla)}</option>`).join('')}</select>
       <select id="fRegPM" onchange="window._pag.reg=1;renders.reg()"><option value="">Todo tipo</option><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option><option>Correctivo</option></select>
@@ -1824,7 +1831,7 @@ renders.reg=function(){
         ${_sTh('tbl-reg',5,'F. Salida','date')}${_sTh('tbl-reg',6,'H. Salida','str')}
         ${_sTh('tbl-reg',7,'Duración','str')}${_sTh('tbl-reg',8,'Horóm.','num')}
         ${_sTh('tbl-reg',9,'Estatus','str')}${_sTh('tbl-reg',10,'Técnico','str')}${_sTh('tbl-reg',11,'Observaciones','str')}
-        ${_sTh('tbl-reg',12,'Estado Ejec.','str')}<th>🗑️</th>
+        ${_sTh('tbl-reg',12,'Estado Ejec.','str')}<th><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></th>
       </tr>
       ${pg.items.map((r,_)=>{
         const i=reg.indexOf(r);
@@ -1838,15 +1845,15 @@ renders.reg=function(){
           ${edCell(r.horaEntrada||'','horaEntrada',i,'reg')}
           ${edCell(r.fechaSalida||r.fechaEjec||'','fechaSalida',i,'reg','date')}
           ${edCell(r.horaSalida||'','horaSalida',i,'reg')}
-          <td class="mono" style="font-size:11px;color:var(--warn)">${r.duracion||'<span style="color:var(--tx3)">clic ✏️</span>'}</td>
+          <td class="mono" style="font-size:11px;color:var(--warn)">${r.duracion||'<span style="color:var(--tx3)">clic <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></span>'}</td>
           ${edCell(r.horomReal||0,'horomReal',i,'reg','number')}
           ${edCell(r.estatusEq||'Operativo','estatusEq',i,'reg','select',['Operativo','Fuera de Servicio'])}
           ${edCell(r.tecnico||'','tecnico',i,'reg','select',_tecnicosDisponibles().concat(['']))}
           ${edCell(r.obs||'','obs',i,'reg')}
           <td><span class="badge ${r.estado?.includes('ANTICIPADA')?'b-g':r.estado?.includes('ATRASADA')?'b-r':'b-y'}">${r.estado||'—'}</span></td>
           <td style="display:flex;gap:3px">
-            <button class="btn-s" onclick="editarReg(${i})" title="Editar completo" style="background:rgba(59,130,246,.15);color:var(--info)">✏️</button>
-            <button class="btn-s btn-d" onclick="delRow('reg',${i},'reg')">🗑️</button>
+            <button class="btn-s" onclick="editarReg(${i})" title="Editar completo" style="background:rgba(59,130,246,.15);color:var(--info)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></button>
+            <button class="btn-s btn-d" onclick="delRow('reg',${i},'reg')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button>
           </td>
         </tr>`;
       }).join('')}
@@ -1914,7 +1921,7 @@ window.addReg=function(){
     <div class="fg"><label>AST Completado</label><select id="regAST"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     <div class="fg"><label>LOTO Aplicado</label><select id="regLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     </div>
-    <br><button class="btn" onclick="saveReg()">💾 Registrar</button>
+    <br><button class="btn" onclick="saveReg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.editarReg=function(i){
@@ -1922,7 +1929,7 @@ window.editarReg=function(i){
   const r=reg[i];if(!r)return;
   const eq=S.g('eq')||[];
   const per=_tecnicosDisponibles();
-  sm(`<h3>✏️ Editar Registro — ${escapeHtml(r.equipo)} ${r.tipoPM}</h3>
+  sm(`<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> Editar Registro — ${escapeHtml(r.equipo)} ${r.tipoPM}</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo</label>
         <select id="eRq">
@@ -1965,7 +1972,7 @@ window.editarReg=function(i){
         <input id="eRep" value="${escapeHtml(r.repuestos||'')}" style="width:100%">
       </div>
     </div>
-    <button class="btn" onclick="saveEditReg(${i})">💾 Guardar cambios</button>
+    <button class="btn" onclick="saveEditReg(${i})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar cambios</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.calcDurEdit=function(){
@@ -2530,14 +2537,14 @@ renders.progdia=function(){
   var cabecera='<div class="sec-h"><div><div class="sec-t">👷 Programación Diaria</div>'+
     '<div class="sec-s">Asignación de personal por bloques de 30 min · '+fechas.length+' fecha(s) cargada(s)</div></div>'+
     '<div><input type="file" id="progDiaFile" accept=".xlsx" style="display:none" onchange="importProgDiaXLSX(event)">'+
-    '<button class="btn" onclick="document.getElementById(\'progDiaFile\').click()">📥 Importar Excel</button></div></div>'+
+    '<button class="btn" onclick="document.getElementById(\'progDiaFile\').click()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Excel</button></div></div>'+
     (fechas.length?'<div style="display:flex;gap:8px;margin-bottom:12px">'+
       '<button class="btn '+(vista==='detalle'?'':'btn-o')+'" onclick="window._progDiaVista=\'detalle\';renders.progdia()">📋 Detalle</button>'+
       '<button class="btn '+(vista==='resumen'?'':'btn-o')+'" onclick="window._progDiaVista=\'resumen\';renders.progdia()">📊 Resumen</button>'+
       '</div>':'');
 
   if(!fechas.length){
-    $('s-progdia').innerHTML=cabecera+'<p style="color:var(--tx3)">Aún no se ha importado ninguna programación diaria. Usa "📥 Importar Excel" para cargar la primera.</p>';
+    $('s-progdia').innerHTML=cabecera+'<p style="color:var(--tx3)">Aún no se ha importado ninguna programación diaria. Usa "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Excel" para cargar la primera.</p>';
     return;
   }
 
@@ -2596,7 +2603,7 @@ renders.progdia=function(){
               '<td class="ed" contenteditable onblur="edProgDiaBloque('+realIdx+','+bloqueIdx+',this.innerText.trim())" style="font-size:9px'+(act?'':';color:var(--tx3)')+'">'+(act?escapeHtml(act):'—')+'</td>':
               '<td style="font-size:9px;color:var(--tx3)">—</td>';
           }).join('')+
-          '<td><button class="btn btn-o" style="padding:2px 6px;font-size:10px" title="Eliminar esta fila" onclick="delProgDia('+realIdx+')">🗑️</button></td></tr>';
+          '<td><button class="btn btn-o" style="padding:2px 6px;font-size:10px" title="Eliminar esta fila" onclick="delProgDia('+realIdx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
       }).join('')+
       '</table></div>'
     :'<p style="color:var(--tx3)">Sin personal registrado para este turno en esta fecha.</p>');
@@ -2675,7 +2682,7 @@ renders.prg=function(){
 
   $('s-prg').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📅 Programa Anual '+anioPrg+'</div><div class="sec-s">Plan PM por mes · EJEC se marca solo desde registros · '+prg.length+' equipos</div></div>'+
-    '<div><button class="btn btn-o" onclick="regenPrg()" title="Rearma la proyección de todos los equipos con el horómetro, ritmo real y fórmulas actuales">🔄 Recalcular proyección</button></div></div>'+
+    '<div><button class="btn btn-o" onclick="regenPrg()" title="Rearma la proyección de todos los equipos con el horómetro, ritmo real y fórmulas actuales"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Recalcular proyección</button></div></div>'+
     '<div class="toolbar"><select id="fPrgAnio" onchange="renders.prg()">'+
     aniosDisp.map(function(y){return'<option'+(parseInt(y)===anioPrg?' selected':'')+'>'+y+'</option>'}).join('')+'</select>'+
     (hayEjecAnio?'':'<span style="font-size:11px;color:var(--tx3);margin-left:10px">Sin ejecuciones registradas en '+anioPrg+'</span>')+'</div>'+
@@ -2727,7 +2734,7 @@ window.editAlRep=function(sigla){
   const al=S.g('al'),a=al.find(x=>x.sigla===sigla)||{sigla,repuestos:''};
   sm(`<h3>Repuestos PM4 — ${escapeHtml(sigla)}</h3>
     <div class="fg"><label>Repuestos Clave (separar con |)</label><textarea id="aRep">${escapeHtml(a.repuestos||'')}</textarea></div><br>
-    <button class="btn" onclick="saveAlRep('${sigla}')">💾 Guardar</button>`);
+    <button class="btn" onclick="saveAlRep('${sigla}')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button>`);
 };
 window.saveAlRep=function(sigla){
   const al=S.g('al'),a=al.find(x=>x.sigla===sigla);
@@ -2784,7 +2791,7 @@ renders.pau=function(){
         '<td><input type="number" value="'+(p.hrs||0)+'" onchange="edPau('+i+',\'hrs\',parseInt(this.value)||0)" style="width:55px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px"></td>'+
         '<td><input value="'+escapeHtml(p.rep||'')+'" onchange="edPau('+i+',\'rep\',this.value)" style="'+es+';color:var(--ac);font-weight:600;max-width:280px" title="Editar repuesto"></td>'+
         '<td><input type="number" value="'+(p.can||'')+'" onchange="edPau('+i+',\'can\',parseFloat(this.value)||0)" style="width:50px;background:var(--bg3);border:1px solid var(--bd);color:var(--ac);text-align:center;border-radius:3px;font-size:12px;font-weight:600"></td>'+
-        '<td><button class="btn-s btn-d" onclick="delPauta('+i+')">🗑</button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delPauta('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('pau',pg);
@@ -2810,7 +2817,7 @@ window.delPauta=function(i){
   var pau=S.g('pau')||INIT.pautas||[];
   pau.splice(i,1);S.s('pau',pau);
   refreshAll();
-  toast('🗑 Eliminada');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminada');
 };
 window.addPauta=function(){
   const eq=S.g('eq');
@@ -2820,7 +2827,7 @@ window.addPauta=function(){
     '<div class="form-row"><div class="fg"><label>Categoría</label><input id="pCat"></div><div class="fg"><label>Tope Hrs</label><input type="number" id="pHrs"></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Actividad</label><input id="pAct" style="width:100%"></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Repuesto</label><input id="pRep" style="width:100%"></div><div class="fg"><label>Cant</label><input type="number" id="pCant"></div></div>'+
-    '<button class="btn" onclick="savePauta()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="savePauta()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.savePauta=function(){
   var pau=S.g('pau')||INIT.pautas||[];
@@ -3050,8 +3057,8 @@ renders.mov=function(){
     '<div class="sec-h"><div><div class="sec-t">📊 Historial de Consumos</div>'+
     '<div class="sec-s">'+mov.length+' total · Mostrando: '+fil.length+' ('+Math.round(tFil)+' filtros, '+Math.round(tLub)+'L lub)</div></div>'+
     '<div><button class="btn" onclick="recalcSoloCostos()" title="Asigna consumos por pauta SIN descontar stock">💲 Calcular costos</button>'+
-    ' <button class="btn btn-o" onclick="recalcHistorial()" title="Asigna consumos Y descuenta stock">🔄 Recalcular + stock</button>'+
-    ' <button class="btn btn-o" onclick="clearConsumos()">🗑 Limpiar</button></div></div>'+
+    ' <button class="btn btn-o" onclick="recalcHistorial()" title="Asigna consumos Y descuenta stock"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Recalcular + stock</button>'+
+    ' <button class="btn btn-o" onclick="clearConsumos()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Limpiar</button></div></div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px">'+
     meses.slice(0,6).map(function(m){
       var t=totMes[m]||{filtros:0,lubricantes:0,n:0};
@@ -3074,7 +3081,7 @@ renders.mov=function(){
     '<button class="btn btn-o" style="font-size:11px;padding:4px 10px" onclick="$(\'fMovMes\').value=\'\';$(\'fMovTipo\').value=\'\';$(\'fMovEq\').value=\'\';$(\'fMovPM\').value=\'\';$(\'fMovItem\').value=\'\';window._pag.mov=1;renders.mov()">Limpiar filtros</button>'+
     '</div>'+
     _pagHTML('mov',pg)+
-    '<div class="tbl-w"><table><tr><th>Fecha</th><th>Tipo</th><th>Item</th><th>N°Parte</th><th>Cant</th><th>Equipo</th><th>PM</th><th>Ant</th><th>Nuevo</th><th>✏️</th></tr>'+
+    '<div class="tbl-w"><table><tr><th>Fecha</th><th>Tipo</th><th>Item</th><th>N°Parte</th><th>Cant</th><th>Equipo</th><th>PM</th><th>Ant</th><th>Nuevo</th><th><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th></tr>'+
     pg.items.map(function(m){
       var idx=mov.indexOf(m);
       return'<tr>'+
@@ -3089,7 +3096,7 @@ renders.mov=function(){
         '<td style="font-size:11px">'+m.pm+'</td>'+
         '<td style="font-size:11px;color:var(--tx3)">'+m.ant+'</td>'+
         '<td style="font-size:11px;color:var(--tx3)">'+m.nuevo+'</td>'+
-        '<td><button class="btn-s btn-d" onclick="delMov('+idx+')" title="Eliminar">🗑</button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delMov('+idx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('mov',pg);
@@ -3116,7 +3123,7 @@ window.delMov=function(idx){
   mov.splice(idx,1);
   S.s('mov',mov);
   refreshAll();
-  toast('🗑 Eliminado — stock restaurado');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminado — stock restaurado');
 };
 window.clearConsumos=function(){
   if(!confirm('¿Limpiar todo el historial de consumos? Esto restaura el stock que estos movimientos habían descontado.'))return;
@@ -3141,7 +3148,7 @@ window.clearConsumos=function(){
   reg.forEach(r=>delete r.consumosPauta);
   S.s('reg',reg);
   renders.mov();
-  toast('🗑 Historial de consumos limpiado — stock restaurado');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Historial de consumos limpiado — stock restaurado');
 };
 
 // ═══ RECALCULAR CONSUMO HISTÓRICO ═══
@@ -3277,14 +3284,14 @@ renders.stk=function(){
   const pg=_pagSlice('stk',filStk);
   $('s-stk').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📦 Stock Filtros</div>'+
-    '<div class="sec-s">'+stk.length+' ítems · 🔴 '+comprar+' por comprar · ✏️ Todo editable</div></div>'+
-    '<button class="btn" onclick="addStock()">+ Nuevo</button> <button class="btn btn-o" onclick="importStkCSV()">📤 Importar CSV</button> <button class="btn" style="background:#3ecf8e;color:#000" onclick="importarRepuestosKomatsu()">🔧 Repuestos Críticos Komatsu</button></div>'+
+    '<div class="sec-s">'+stk.length+' ítems · 🔴 '+comprar+' por comprar · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> Todo editable</div></div>'+
+    '<button class="btn" onclick="addStock()">+ Nuevo</button> <button class="btn btn-o" onclick="importStkCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn" style="background:#3ecf8e;color:#000" onclick="importarRepuestosKomatsu()">🔧 Repuestos Críticos Komatsu</button></div>'+
     '<div class="toolbar">'+
     '<select id="fStkEst" onchange="window._pag.stk=1;renders.stk()"><option value="">Todos</option><option'+(fEst==='COMPRAR'?' selected':'')+'>COMPRAR</option><option'+(fEst==='BAJO'?' selected':'')+'>BAJO</option><option'+(fEst==='OK'?' selected':'')+'>OK</option></select>'+
     '<input id="fStkBusq" placeholder="Buscar filtro/N°parte..." value="'+(fBusq||'')+'" onchange="window._pag.stk=1;renders.stk()" style="max-width:200px"></div>'+
     _pagHTML('stk',pg)+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo ✏️</th><th>Descripción ✏️</th><th>N°Parte ✏️</th><th>Stock ✏️</th><th>Consumido</th><th>Cons/Mes ✏️</th><th>Últ.Fecha</th><th>Proy/Mes ✏️</th><th>Meses</th><th>Estado</th><th>Precio ✏️</th><th></th></tr>'+
+    '<tr><th>Equipo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Descripción <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>N°Parte <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Stock <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Consumido</th><th>Cons/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Últ.Fecha</th><th>Proy/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Meses</th><th>Estado</th><th>Precio <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th></th></tr>'+
     pg.items.map(function(s){
       var i=stk.indexOf(s);
       var lastD=lastUse[s.descripcion]||lastUse[s.nParte]||'—';
@@ -3309,7 +3316,7 @@ renders.stk=function(){
         '<td style="text-align:center;font-weight:600;color:'+(se.nivel==='COMPRAR'?'var(--danger)':se.nivel==='BAJO'?'var(--w)':'var(--ok)')+'" title="'+escapeHtml(se.motivo)+'">'+meses.toFixed(1)+'</td>'+
         '<td><span style="font-size:10px">'+est+'</span></td>'+
         '<td><input type="number" value="'+(s.precioUnit||0)+'" onchange="edI(\'stk\','+i+',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;'+is+(s.precioUnit?'':';color:var(--tx3);border-style:dashed')+'" title="'+(s.precioUnit?'':'Sin precio cargado (no confirmado que valga $0)')+'"></td>'+
-        '<td><button class="btn-s btn-d" onclick="delRow(\'stk\','+i+',\'stk\')">🗑</button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delRow(\'stk\','+i+',\'stk\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('stk',pg);
@@ -3319,7 +3326,7 @@ window.addStock=function(){
     <div class="form-row"><div class="fg"><label>Equipo/Modelo</label><input id="sEq"></div><div class="fg"><label>Descripción</label><input id="sDesc"></div></div>
     <div class="form-row"><div class="fg"><label>N° Parte</label><input id="sParte"></div><div class="fg"><label>Stock</label><input type="number" id="sStk" value="0"></div><div class="fg"><label>Consumo/Mes</label><input type="number" id="sCon" value="1"></div></div>
     <div class="form-row"><div class="fg"><label>Precio Unit.</label><input type="number" id="sPre" value="0"></div></div>
-    <button class="btn" onclick="saveStock()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="saveStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.saveStock=function(){
   const stk=S.g('stk');
@@ -3355,8 +3362,8 @@ renders.lub=function(){
   const pg=_pagSlice('lub',filLub);
   $('s-lub').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">🛢️ Lubricantes</div>'+
-    '<div class="sec-s">'+lub.length+' productos · ✏️ Todo es editable — cambios se propagan al sistema</div></div>'+
-    '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="importLubCSV()">📤 Importar CSV</button> <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()">🔍 Vínculos rotos</button></div>'+
+    '<div class="sec-s">'+lub.length+' productos · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> Todo es editable — cambios se propagan al sistema</div></div>'+
+    '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="importLubCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()">🔍 Vínculos rotos</button></div>'+
     '<div class="toolbar">'+
     '<input id="fLubBusq" placeholder="Buscar..." value="'+(fBusq||'')+'" onchange="window._pag.lub=1;renders.lub()" style="max-width:180px">'+
     '<select id="fLubEq" onchange="window._pag.lub=1;renders.lub()"><option value="">Consumo por equipo...</option>'+
@@ -3369,7 +3376,7 @@ renders.lub=function(){
       '</div>':'')+
     _pagHTML('lub',pg)+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>N°</th><th>Lubricante ✏️</th><th>Und</th><th>Stock ✏️</th><th>Consumido</th><th>Cons/Mes ✏️</th><th>Últ.Fecha</th><th>Proy/Mes ✏️</th><th>Meses</th><th>Precio ✏️</th><th></th></tr>'+
+    '<tr><th>N°</th><th>Lubricante <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Und</th><th>Stock <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Consumido</th><th>Cons/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Últ.Fecha</th><th>Proy/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Meses</th><th>Precio <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th></th></tr>'+
     pg.items.map(function(l,fi){
       var idx=lub.indexOf(l);
       var rowNum=(pg.page-1)*_PAG_SIZE+fi+1;
@@ -3398,7 +3405,7 @@ renders.lub=function(){
         '<td><input type="number" value="'+proy+'" onchange="edI(\'lub\','+idx+',\'proyMes\',parseFloat(this.value)||0)" style="width:50px;'+is+';color:var(--w);font-weight:600" title="Proyección mensual manual"></td>'+
         '<td style="text-align:center;font-weight:600;color:'+estCol+'">'+meses.toFixed(1)+'</td>'+
         '<td><input type="number" value="'+(l.precio||0)+'" onchange="edI(\'lub\','+idx+',\'precio\',parseInt(this.value)||0)" style="width:55px;'+is+'"></td>'+
-        '<td><button class="btn-s btn-d" onclick="delRow(\'lub\','+idx+',\'lub\')">🗑</button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delRow(\'lub\','+idx+',\'lub\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('lub',pg);
@@ -3413,7 +3420,7 @@ window.addLub=function(){
     '<div class="form-row"><div class="fg"><label>Unidad</label><select id="lUni"><option>Litro</option><option>Kilo</option></select></div>'+
     '<div class="fg"><label>Stock actual</label><input type="number" id="lStk" value="0"></div>'+
     '<div class="fg"><label>Precio</label><input type="number" id="lPre" value="0"></div></div>'+
-    '<button class="btn" onclick="saveLub()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="saveLub()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.saveLub=function(){
   var lub=S.g('lub')||[];
@@ -4055,7 +4062,7 @@ renders.hist=function(){
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomIni\',parseFloat(this.innerText)||0)">'+(r.horomIni||r.horom||0)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomFin\',parseFloat(this.innerText)||0);edHist('+idx+',\'horom\',parseFloat(this.innerText)||0)">'+(r.horomFin||r.horom||0)+'</td>'+
         '<td class="mono">'+hrsOp+'</td>'+
-        '<td><button class="btn-x" onclick="delHist('+idx+')">🗑</button></td></tr>';
+        '<td><button class="btn-x" onclick="delHist('+idx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('hist',pgHist);
@@ -4152,8 +4159,8 @@ renders.hist=function(){
     '<div class="sec-s">'+h.length+' lecturas totales · '+eqsConDatos+' equipos con datos</div></div>'+
     '<div style="display:flex;gap:8px">'+
     '<button class="btn" onclick="addHist()">+ Registrar</button>'+
-    '<button class="btn btn-o" onclick="importHorom()">📤 Importar CSV</button>'+
-    '<button class="btn btn-o" onclick="exportCSV(\'hist\')">📥 CSV</button></div></div>'+
+    '<button class="btn btn-o" onclick="importHorom()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button>'+
+    '<button class="btn btn-o" onclick="exportCSV(\'hist\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div></div>'+
     '<div class="toolbar">'+
     '<select id="fHistVista" onchange="window._pag.hist=1;renders.hist()">'+
     '<option value="todo"'+(fVista==='todo'?' selected':'')+'>📋 Todas las Lecturas</option>'+
@@ -4184,7 +4191,7 @@ window.delRow=function(store,idx,tab){
     ?'¿Eliminar este equipo de la flota activa?\n\nSus registros de PM, correctivos, historial de horómetros, neumáticos, etc. NO se borran — quedan conservados como historial (igual que un equipo decomisado). Podrás seguir viéndolos en Buscador y en Diagnóstico de Vínculos.'
     :'¿Eliminar este registro?';
   if(!confirm(msg))return;
-  const d=S.g(store);d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('🗑️ Eliminado');
+  const d=S.g(store);d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminado');
 };
 
 // ============ EXPORT CSV ============
@@ -4194,7 +4201,7 @@ window.exportCSV=function(store){
   const csv=[keys.join(';'),...d.map(r=>keys.map(k=>{let v=r[k];if(typeof v==='object')v=JSON.stringify(v);return'"'+(v??'')+'"'}).join(';'))].join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=store+'_export.csv';a.click();
-  toast('📥 CSV exportado');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV exportado');
 };
 
 // ============ INIT ============
@@ -4228,7 +4235,7 @@ renders.ot=function(){
       <div class="sec-t">🔧 Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()">📤 Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()">📉 Análisis de Fallas (MTBF)</button> <button class="btn btn-o" onclick="go('insp')">📋 Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()">📉 Análisis de Fallas (MTBF)</button> <button class="btn btn-o" onclick="go('insp')">📋 Inspecciones</button>
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total OT</div><div class="card-v">${todos.length}</div></div>
@@ -4251,7 +4258,7 @@ renders.ot=function(){
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
     ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
-      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma ✏️</th><th>Causa Raíz ✏️</th><th>Componente ✏️</th><th>Solución ✏️</th><th>Estado OT ✏️</th><th>Técnico</th><th>Costo ✏️</th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
+      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
       ${pg.items.map((o)=>{
         const i=ot.indexOf(o);
         const idx=fil.indexOf(o);
@@ -4275,7 +4282,7 @@ renders.ot=function(){
         otRow+='<td style="font-size:10px">'+escapeHtml(o.tecnico||'—')+'</td>';
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
         else{otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:10px"></td>';}
-        otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'<button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia (foto o PDF)" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button>')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar">🗑</button></td>';
+        otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'<button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia (foto o PDF)" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button>')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>';
         otRow+='</tr>';
         return otRow;
       }).join('')}
@@ -4388,7 +4395,7 @@ renders.neu=function(){
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t">🛞 Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()">📤 Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()">📊 Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()">🔄 Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()">🔌 Sensores</button>
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()">📊 Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()">🔌 Sensores</button>
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -4555,7 +4562,7 @@ window.addOT=function(){
     <div class="fg"><label>LOTO Aplicado</label><select id="otLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     <div class="fg"><label>Autorizado por</label><input id="otAutoriza" placeholder="Nombre..."></div>
     </div>
-    <br><button class="btn" onclick="saveOT()">💾 Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.calcDurOT=function(){
   const fe=$('oFecEnt')?.value,he=$('oHoraEnt')?.value;
@@ -4737,7 +4744,7 @@ window.addNeu=function(){
       <div class="fg"><label>Horas acumuladas</label><input type="number" id="nNAcum" value="0"></div>
       <div class="fg"><label>Remanente actual (mm)</label><input type="number" id="nNRem"></div>
     </div>
-    <button class="btn" onclick="saveNeu()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="saveNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.saveNeu=function(){
   const sig=$('nNEq').value,serie=$('nNSerie').value.trim();
@@ -4790,7 +4797,7 @@ window.cambiarNeu=function(i){
       <div class="fg"><label>Serie nuevo *</label><input id="cSerie" list="dlSeriesNeu" title="Si este neumático viene de otro equipo/posición, elige su serie de la lista en vez de retiparla — un typo rompe el enlace con su historial de mediciones"></div>
       <div class="fg"><label>Costo ($)</label><input type="number" id="cCosto" value="0"></div>
     </div>
-    <button class="btn" onclick="saveCambio(${i},${hAct})">💾 Confirmar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="saveCambio(${i},${hAct})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Confirmar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.saveCambio=function(i,hAct){
   const neu=S.g('neu');const n=neu[i];
@@ -4824,14 +4831,14 @@ window.instalarDesdeExistencias=function(){
   const stock=neu.map((n,i)=>({n,i})).filter(x=>x.n.estado==='Stock');
   if(!stock.length)return toast('⚠️ No hay neumáticos en Existencias (estado "Stock")');
   const eq=S.g('eq')||[];
-  sm(`<h3>🔄 Instalar desde Existencias</h3>
+  sm(`<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</h3>
     <div class="fg"><label>Neumático en Existencias</label><select id="iexNeu">${stock.map(x=>`<option value="${x.i}">${escapeHtml(x.n.serie)} — ${escapeHtml(x.n.marca||'')} ${escapeHtml(x.n.medida||'')} (${x.n.remanente!=null?x.n.remanente+'mm':'sin medición'})</option>`).join('')}</select></div>
     <div class="form-row">
       <div class="fg"><label>Equipo destino</label><select id="iexEq">${eq.map(e=>`<option value="${escapeHtml(e.sigla)}">${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
       <div class="fg"><label>Posición</label><input id="iexPos" placeholder="Ej: Delantera Izq"></div>
     </div>
     <div class="fg"><label>N° Posición</label><input type="number" id="iexNumPos" min="1" max="10" value="1"></div>
-    <button class="btn" onclick="confirmarInstalarExistencias()">💾 Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="confirmarInstalarExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.confirmarInstalarExistencias=function(){
   const idx=parseInt($('iexNeu').value);
@@ -4943,7 +4950,7 @@ window.instalarSensor=function(i){
   if(!activos.length)return toast('⚠️ No hay neumáticos operativos donde instalarlo');
   sm(`<h3>🔌 Instalar sensor ${escapeHtml(s.numSensor||'')}</h3>
     <div class="fg"><label>Neumático destino</label><select id="isenNeu">${activos.map(x=>`<option value="${x.ni}">${escapeHtml(x.n.sigla)} ${escapeHtml(x.n.posicion||'')} — serie ${escapeHtml(x.n.serie)}</option>`).join('')}</select></div>
-    <button class="btn" onclick="confirmarInstalarSensor(${i})">💾 Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="confirmarInstalarSensor(${i})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.confirmarInstalarSensor=function(i){
   const ni=parseInt($('isenNeu').value);
@@ -5311,7 +5318,7 @@ window.addMedicionNeu=function(neuIdx){
       <div class="fg"><label>Temperatura (°C)</label><input type="number" id="mTemp"></div>
     </div>
     <div class="fg" style="margin-bottom:12px"><label>Observación</label><input id="mObs" style="width:100%"></div>
-    <button class="btn" onclick="saveMedicionNeu(${neuIdx})">💾 Guardar medición</button>
+    <button class="btn" onclick="saveMedicionNeu(${neuIdx})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar medición</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 
@@ -5545,7 +5552,7 @@ window.verDetalleNeu=function(neuIdx){
     </div>
     <div style="margin-bottom:12px">
       <b style="font-size:13px">📋 Historial de mediciones (${meds.length})</b>
-      ${(()=>{const equiposPorSerie=[...new Set(meds.map(m=>m.sigla).filter(Boolean))];return equiposPorSerie.length>1?`<div style="font-size:10px;color:var(--warn);margin-top:4px">🔄 Este neumático pasó por ${equiposPorSerie.length} equipos distintos: ${equiposPorSerie.map(s=>escapeHtml(s)).join(', ')}</div>`:'';})()}
+      ${(()=>{const equiposPorSerie=[...new Set(meds.map(m=>m.sigla).filter(Boolean))];return equiposPorSerie.length>1?`<div style="font-size:10px;color:var(--warn);margin-top:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Este neumático pasó por ${equiposPorSerie.length} equipos distintos: ${equiposPorSerie.map(s=>escapeHtml(s)).join(', ')}</div>`:'';})()}
       ${meds.length?`<div style="overflow-x:auto;margin-top:6px"><table style="width:100%;font-size:11px">
         <tr style="background:var(--bg3)"><th style="padding:4px">Fecha</th><th>Equipo</th><th>Pos.</th><th>Horóm</th><th>Rem.Ext</th><th>Rem.Int</th><th>Rem.Prom</th><th>Presión</th><th>Obs</th></tr>
         ${meds.slice().reverse().slice(0,12).map(m=>`<tr style="border-bottom:1px solid var(--bd)">
@@ -5564,7 +5571,7 @@ window.verDetalleNeu=function(neuIdx){
       const movs=ot.filter(o=>o.sistema==='Ruedas y neumáticos'&&(o.tipo==='Reasignación de Neumático'||o.tipo==='Cambio de Neumático')&&(o.sintoma||'').includes(n.serie)).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
       if(!movs.length)return'';
       return`<div style="margin-bottom:12px">
-        <b style="font-size:13px">🔄 Historial de movimientos (${movs.length})</b>
+        <b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Historial de movimientos (${movs.length})</b>
         <div style="margin-top:6px">${movs.map(o=>`<div style="font-size:11px;padding:6px 8px;border-left:2px solid var(--ac);margin-bottom:4px;background:var(--bg3);border-radius:4px">
           <b>${o.fecha}</b> — ${escapeHtml(o.sintoma||'')}
         </div>`).join('')}</div>
@@ -5941,7 +5948,7 @@ renders.disp=function(){
   $('s-disp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📉 Disponibilidad Mecánica</div>'+
     '<div class="sec-s">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable</div></div>'+
-    '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()">🚫 Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')">📥 CSV</button><button class="btn btn-o" onclick="importDispCSV()">📤 Importar</button></div></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()">🚫 Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'>📊 Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'>📅 Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'>📆 Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'>📅 Anual</option></select>'+
@@ -5974,7 +5981,7 @@ window.registrarSalidaServicio=function(){
       '<input type="checkbox" id="ssSigueFS" onchange="var h=$(\'ssHasta\');h.disabled=this.checked;if(this.checked)h.value=\'\';">'+
       ' El equipo AÚN sigue fuera de servicio (no ha vuelto a operar — no pongas fecha de término)</label></div>'+
     '<div class="fg" style="margin-bottom:12px"><label>Motivo</label><input id="ssMotivo" placeholder="Ej: falla motor, sin repuesto, accidente…" style="width:100%"></div>'+
-    '<button class="btn" onclick="guardarSalidaServicio()">💾 Registrar</button> '+
+    '<button class="btn" onclick="guardarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar</button> '+
     '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.guardarSalidaServicio=function(){
@@ -6048,8 +6055,8 @@ renders.cfg=function(){
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
     '<button class="btn" onclick="conectarCarpeta()">📂 Conectar carpeta</button>'+
     '<button class="btn btn-o" onclick="desconectarCarpeta()">Desconectar</button>'+
-    '<button class="btn btn-o" onclick="exportAllJSON()">💾 Backup manual</button>'+
-    '<button class="btn btn-o" onclick="importAllJSON()">📤 Restaurar backup</button>'+
+    '<button class="btn btn-o" onclick="exportAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Backup manual</button>'+
+    '<button class="btn btn-o" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Restaurar backup</button>'+
     '<span id="asStatus" style="font-size:11px;color:'+(window._asStatusColor||'var(--tx3)')+'">'+(window._asStatusTxt||'⚪ Sin carpeta conectada')+'</span>'+
     '</div></div>'+
 
@@ -6063,7 +6070,7 @@ renders.cfg=function(){
     '<div><label style="font-size:10px;color:var(--tx3)">Proyección mensual (horas/mes)</label><input type="number" id="neuProyMes" value="'+(c.neuProyMes||450)+'" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px"></div>'+
     '</div>'+
     '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">📋 Reglas activas: Delanteros (P1-P2) → cambio a 60mm <b>o</b> 2.000h (alerta) / 2.600h (límite), lo primero. Traseros (P3-P6) → solo remanente, retiro a 10mm o daño.</div>'+
-    '<button class="btn" onclick="guardarNeuParams()">💾 Guardar parámetros</button>'+
+    '<button class="btn" onclick="guardarNeuParams()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar parámetros</button>'+
     '</div>';})()+
     (function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #3ecf8e">'+
@@ -6075,7 +6082,7 @@ renders.cfg=function(){
     '</div>'+
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
     '<label style="font-size:11px;color:var(--tx)"><input type="checkbox" id="sbAuto" '+(c.sbAuto?'checked':'')+' onchange="cloudGuardarCfg()"> Sync automático</label>'+
-    '<button class="btn btn-o" onclick="cloudGuardarCfg()">💾 Guardar config</button>'+
+    '<button class="btn btn-o" onclick="cloudGuardarCfg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar config</button>'+
     '<button class="btn btn-o" onclick="cloudProbar()">🔌 Probar conexión</button>'+
     '<button class="btn" onclick="cloudPush(false)">⬆️ Subir todo</button>'+
     '<button class="btn btn-o" onclick="cloudPull(true)">⬇️ Bajar de la nube</button>'+
@@ -6092,11 +6099,11 @@ renders.cfg=function(){
       '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid '+col+'">'+
       '<b style="font-size:14px">🗄️ Mantenimiento de datos</b>'+
       '<p style="font-size:11px;color:var(--tx3);margin:8px 0">El navegador solo guarda localmente las últimas '+_TOPE_FILAS_LOCAL+' filas de las categorías que más crecen (historial de horómetros, correctivos, registros PM, movimientos de stock, mediciones de neumáticos, análisis de aceite, inspecciones, informes de falla) — es automático, no requiere ninguna acción tuya. <b>El historial completo real siempre está en Supabase, nunca se borra</b>: esto solo limita cuánto se guarda como respaldo offline en este navegador.</p>'+
-      '<div style="margin:10px 0"><div style="font-size:11px;color:var(--tx2);margin-bottom:4px">💾 Uso local: <b style="color:'+col+'">'+pct.toFixed(1)+'%</b> ('+(totalBytes/1048576).toFixed(2)+' MB de 5 MB)</div>'+
+      '<div style="margin:10px 0"><div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Uso local: <b style="color:'+col+'">'+pct.toFixed(1)+'%</b> ('+(totalBytes/1048576).toFixed(2)+' MB de 5 MB)</div>'+
       '<div style="width:100%;background:color-mix(in srgb,'+col+' 18%,var(--bg4));height:14px;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+';transition:width .3s"></div></div></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
-      '<button class="btn btn-o" onclick="exportarMovCSV()">📤 Exportar movimientos a CSV (respaldo, no borra nada)</button>'+
-      '<button class="btn btn-o" onclick="renders.cfg()">🔄 Refrescar</button>'+
+      '<button class="btn btn-o" onclick="exportarMovCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar movimientos a CSV (respaldo, no borra nada)</button>'+
+      '<button class="btn btn-o" onclick="renders.cfg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Refrescar</button>'+
       '</div>'+
       '<div id="mtoInfo" style="margin-top:8px;font-size:11px;color:var(--tx3)"></div>'+
       '</div>';
@@ -6132,13 +6139,13 @@ renders.cfg=function(){
       '</div>'+
 
       // DATOS Y BACKUP
-      '<div class="card"><b style="font-size:14px">💾 Datos y Backup</b><br><br>'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="exportAllJSON()">📥 Exportar JSON (backup completo)</button>'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="importAllJSON()">📤 Importar JSON (restaurar backup)</button>'+
+      '<div class="card"><b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Datos y Backup</b><br><br>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="exportAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON (backup completo)</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON (restaurar backup)</button>'+
       '<hr style="border-color:var(--bd);margin:12px 0">'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ok)" onclick="reporteEjecutivoExcel()">📊 Reporte Ejecutivo Excel (para jefatura)</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="verLogAuditoria()">📝 Ver Log de Auditoría</button>'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--w)" onclick="resetAll()">🔄 Restaurar datos iniciales</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--w)" onclick="resetAll()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--danger)" onclick="resetEmpresa()">🏢 Configurar Nueva Empresa</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()">📋 Descargar Plantilla Limpia (para otra empresa)</button>'+
       '<div style="font-size:10px;color:var(--tx3)">Nueva Empresa: borra TODO y permite cargar nuevos equipos y pautas</div>'+
@@ -6265,18 +6272,18 @@ window.resetAll=function(){
 
 
 window.importOT=function(){
-  sm('<h3>📤 Importar Correctivos</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Correctivos</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">Sube un archivo CSV o JSON con columnas: sigla, fecha, tipo, sintoma, tecnico, horom, costo, duracion</p>'+
     '<input type="file" id="otFile" accept=".csv,.json,.xlsx" style="margin:12px 0">'+
-    '<br><button class="btn" onclick="processImportOT()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="processImportOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 // [v10.4 cleanup] processImportOT-v1 eliminada
 
 window.importHorom=function(){
-  sm('<h3>📤 Importar Horómetros</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Horómetros</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: sigla, fecha, horometro<br>El sistema actualiza automáticamente cada equipo.</p>'+
     '<input type="file" id="horomFile" accept=".csv,.json" style="margin:12px 0">'+
-    '<br><button class="btn" onclick="processImportHorom()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="processImportHorom()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.processImportHorom=function(){
   var file=$('horomFile')?.files[0];
@@ -6367,12 +6374,12 @@ window.processImportHorom=function(){
 
 
 window.importNeu=function(){
-  sm('<h3>📤 Importar Neumáticos</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Neumáticos</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: sigla, tipoEquipo, posicion, serie, marca, medida, vidaUtil, horomInstalacion, horomActual, horasAcum, remanente, remNuevo, pctRemanente, fechaInst, estado, obs<br><br>'+
     'También acepta JSON (array de objetos).</p>'+
     '<input type="file" id="neuFile" accept=".csv,.json" style="margin:12px 0">'+
     '<div style="margin:8px 0"><label><input type="checkbox" id="neuReplace"> Reemplazar todo (si no, agrega a los existentes)</label></div>'+
-    '<button class="btn" onclick="processImportNeu()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="processImportNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.processImportNeu=function(){
   var file=$('neuFile')?.files[0];
@@ -6445,11 +6452,11 @@ window.processImportNeu=function(){
 
 // ═══ IMPORTAR REGISTRO PM ═══
 window.importRegCSV=function(){
-  sm('<h3>📤 Importar Registros PM</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Registros PM</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: equipo, tipoPM, fechaEntrada, horaEntrada, fechaSalida, horaSalida, horomReal, estatusEq, tecnico, obs<br><br>También acepta JSON (array de objetos).</p>'+
     '<input type="file" id="regFile" accept=".csv,.json" style="margin:12px 0"><br>'+
     '<label><input type="checkbox" id="regReplace"> Reemplazar todo (si no, agrega)</label><br><br>'+
-    '<button class="btn" onclick="processImportReg()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="processImportReg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.processImportReg=function(){
   var file=$('regFile')?.files[0];if(!file)return toast('⚠️ Selecciona un archivo');
@@ -6551,11 +6558,11 @@ window.processImportReg=function(){
 
 // ═══ IMPORTAR STOCK FILTROS ═══
 window.importStkCSV=function(){
-  sm('<h3>📤 Importar Stock Filtros</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Stock Filtros</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: equipoModelo, descripcion, nParte, stockBodega, consumoMes, precioUnit<br><br>También acepta JSON (array de objetos).</p>'+
     '<input type="file" id="stkFile" accept=".csv,.json" style="margin:12px 0"><br>'+
     '<label><input type="checkbox" id="stkReplace"> Reemplazar todo (si no, agrega)</label><br><br>'+
-    '<button class="btn" onclick="processImportStk()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="processImportStk()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.processImportStk=function(){
   var file=$('stkFile')?.files[0];if(!file)return toast('⚠️ Selecciona un archivo');
@@ -6674,11 +6681,11 @@ window.aplicarFixVinculo=function(i){
 
 // ═══ IMPORTAR LUBRICANTES ═══
 window.importLubCSV=function(){
-  sm('<h3>📤 Importar Lubricantes</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Lubricantes</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: nombre, unidad, stock, consumoMes, precio<br><br>También acepta JSON (array de objetos).</p>'+
     '<input type="file" id="lubFile" accept=".csv,.json" style="margin:12px 0"><br>'+
     '<label><input type="checkbox" id="lubReplace"> Reemplazar todo (si no, agrega)</label><br><br>'+
-    '<button class="btn" onclick="processImportLub()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="processImportLub()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.processImportLub=function(){
   var file=$('lubFile')?.files[0];if(!file)return toast('⚠️ Selecciona un archivo');
@@ -6913,7 +6920,7 @@ function generarDiagnostico(sigla){
   if(aceAlertas.length)hacer.push('🔧 Intervenir '+aceAlertas[0].descriptor+' — cambio de aceite/inspección interna');
   if(otPend.length)hacer.push('📋 Resolver '+otPend.length+' OT pendiente(s)');
   if(noks.length)hacer.push('👁️ Re-inspeccionar: '+[...new Set(noks)].join(', '));
-  Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push('🔄 Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
+  Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
   if(!hacer.length)hacer.push('✅ Mantener plan de mantención vigente');
   d.secciones.push({titulo:'🔧 ¿Qué debo hacer?',items:hacer,color:'var(--ac)'});
 
@@ -7634,7 +7641,7 @@ renders.pred=function(){
       '<div class="card"><div class="card-t">Total Backlog</div><div class="card-v">'+backlog.length+'</div></div>'+
       '</div>'+
       '<div class="tbl-wrap"><table>'+
-      '<tr><th>Prioridad</th><th>Equipo</th><th>Trabajo</th><th>Origen</th><th>Días</th><th>Motivo ✏️</th><th>Impacto</th><th>Componente</th><th>Acción</th></tr>'+
+      '<tr><th>Prioridad</th><th>Equipo</th><th>Trabajo</th><th>Origen</th><th>Días</th><th>Motivo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Impacto</th><th>Componente</th><th>Acción</th></tr>'+
       backlog.map(function(b){
         var bg=b.prioridad.includes('🔴')?'background:rgba(239,68,68,.06)':b.prioridad.includes('🟡')?'background:rgba(245,158,11,.04)':'';
         return'<tr style="'+bg+'">'+
@@ -7846,7 +7853,7 @@ renders.rep=function(){
   $('s-rep').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📦 Control de Repuestos</div>'+
     '<div class="sec-s">'+rep.length+' componentes · Conectado con Predictivo</div></div>'+
-    '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="syncRepStock()">🔄 Sync Stock</button> <button class="btn btn-o" onclick="importRepCSV()">📤 Importar Pedidos CSV</button></div></div>'+
+    '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="syncRepStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sync Stock</button> <button class="btn btn-o" onclick="importRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos CSV</button></div></div>'+
 
     // Semáforo resumen
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
@@ -7872,7 +7879,7 @@ renders.rep=function(){
 
     // Tabla
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Estado</th><th>Componente ✏️</th><th>N°Parte ✏️</th><th>Equipo ✏️</th><th>Tipo</th><th>Stock ✏️</th><th>Mínimo ✏️</th><th>Lead Time ✏️</th><th>Precio ✏️</th><th>Proveedor ✏️</th><th>Acción</th><th></th></tr>'+
+    '<tr><th>Estado</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>N°Parte <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Equipo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo</th><th>Stock <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Mínimo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Lead Time <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Precio <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Proveedor <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Acción</th><th></th></tr>'+
     pg.items.map(function(r){
       var i=rep.indexOf(r);
       var bg=r.estado.includes('🔴')?'rgba(239,68,68,.06)':r.estado.includes('🟡')?'rgba(245,158,11,.04)':'';
@@ -7894,7 +7901,7 @@ renders.rep=function(){
         '<td><input type="number" value="'+(r.precioUnit||0)+'" onchange="edRep('+i+',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;'+is+'"></td>'+
         '<td><input value="'+escapeHtml(r.proveedor||'')+'" onchange="edRep('+i+',\'proveedor\',this.value)" style="width:90px;background:transparent;border:none;color:var(--tx);font-size:10px" placeholder="Proveedor..."></td>'+
         '<td>'+accion+'</td>'+
-        '<td><button class="btn-s btn-d" onclick="delRep('+i+')">🗑</button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delRep('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('rep',pg);
@@ -7907,7 +7914,7 @@ window.edRep=function(i,key,val){
 window.delRep=function(i){
   if(!confirm('¿Eliminar?'))return;
   var rep=S.g('repuestos')||[];rep.splice(i,1);S.s('repuestos',rep);refreshAll();
-  toast('🗑 Eliminado');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminado');
 };
 window.addRep=function(){
   var eq=S.g('eq')||[];
@@ -7922,7 +7929,7 @@ window.addRep=function(){
     '<div class="fg"><label>Lead time (días)</label><input type="number" id="rLT" value="34"></div>'+
     '<div class="fg"><label>Precio unit.</label><input type="number" id="rPU" value="0"></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Proveedor</label><input id="rProv" style="width:100%"></div></div>'+
-    '<button class="btn" onclick="saveRep()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="saveRep()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.saveRep=function(){
   var rep=S.g('repuestos')||[];
@@ -7980,18 +7987,18 @@ window.syncRepStock=function(){
     }
   });
   S.s('repuestos',rep);refreshAll();
-  toast('🔄 '+updated+' items sincronizados con Stock/Lubricantes');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> '+updated+' items sincronizados con Stock/Lubricantes');
 };
 
 
 window.importRepCSV=function(){
-  sm('<h3>📤 Importar Pedidos (CSV)</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos (CSV)</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">Sube el CSV de pedidos con columnas:<br>'+
     'nPI, fecha, sigla, cantidad, detalle, tiempo, fechaEstado, OC, cantAprobada, precioUnit, costo, rutProv, proveedor<br><br>'+
     'El sistema extraerá cada item único, calculará stock mínimo, lead time promedio y último precio.</p>'+
     '<input type="file" id="repFile" accept=".csv" style="margin:12px 0"><br>'+
     '<div style="margin:8px 0"><label><input type="checkbox" id="repMerge" checked> Fusionar con repuestos existentes (si no, reemplaza todo)</label></div>'+
-    '<button class="btn" onclick="processRepCSV()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="processRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.processRepCSV=function(){
   var file=$('repFile')?.files[0];
@@ -8128,7 +8135,7 @@ renders.insp=function(){
     eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     _pagHTML('insp',pg)+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Fecha</th><th>Equipo</th><th>Horóm</th><th>Visual ✏️</th><th>Niveles ✏️</th><th>Fugas ✏️</th><th>Luces ✏️</th><th>Frenos ✏️</th><th>Neumát ✏️</th><th>Obs ✏️</th><th>Inspector</th><th>Alerta</th><th></th></tr>'+
+    '<tr><th>Fecha</th><th>Equipo</th><th>Horóm</th><th>Visual <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Niveles <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Fugas <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Luces <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Frenos <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Neumát <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Obs <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Inspector</th><th>Alerta</th><th></th></tr>'+
     pg.items.map(function(r){
       var i=insp.indexOf(r);
       var checks=['visual','niveles','fugas','luces','frenos','neumaticos'];
@@ -8145,7 +8152,7 @@ renders.insp=function(){
         '<td><input value="'+escapeHtml(r.obs||'')+'" onchange="edInsp('+i+',\'obs\',this.value)" style="'+is+'" placeholder="..."></td>'+
         '<td style="font-size:10px">'+escapeHtml(r.inspector||'—')+'</td>'+
         '<td style="text-align:center">'+(alertCount>0?'<span style="color:var(--danger);font-weight:700">🔴 '+alertCount+'</span>':'<span style="color:var(--ok)">✅</span>')+'</td>'+
-        '<td><button class="btn-s btn-d" onclick="delInsp('+i+')">🗑</button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delInsp('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('insp',pg);
@@ -8163,7 +8170,7 @@ window.edInsp=function(i,key,val){
 };
 window.delInsp=function(i){
   if(!confirm('¿Eliminar inspección?'))return;
-  var insp=S.g('insp')||[];insp.splice(i,1);S.s('insp',insp);refreshAll();toast('🗑 Eliminada');
+  var insp=S.g('insp')||[];insp.splice(i,1);S.s('insp',insp);refreshAll();toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminada');
 };
 window.addInsp=function(){
   var eq=S.g('eq')||[];
@@ -8184,7 +8191,7 @@ window.addInsp=function(){
     '<div class="fg"><label>Frenos</label><select id="iFreno"><option>OK</option><option value="NOK">NOK</option></select></div>'+
     '<div class="fg"><label>Neumáticos</label><select id="iNeu"><option>OK</option><option value="NOK">NOK</option></select></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Observaciones</label><input id="iObs" style="width:100%" placeholder="Detalles..."></div></div>'+
-    '<button class="btn" onclick="saveInsp()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="saveInsp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.saveInsp=function(){
   var insp=S.g('insp')||[];
@@ -8274,7 +8281,7 @@ renders.venc=function(){
   $('s-venc').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📅 Vencimientos Documentales</div>'+
     '<div class="sec-s">'+eq.length+' equipos · '+alertasActivas.length+' requieren atención</div></div>'+
-    '<button class="btn btn-o" onclick="exportVencCSV()">📥 CSV</button></div>'+
+    '<button class="btn btn-o" onclick="exportVencCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div>'+
     (alertasActivas.length?'<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;color:var(--danger);font-size:13px">'+
       '⚠️ <b>'+alertasActivas.length+' vencimiento(s) requieren atención</b> (vencidos, vencen en ≤30 días, o nunca se han registrado pese a que el tipo de equipo los exige): '+
       alertasActivas.slice(0,6).map(function(f){return escapeHtml(f.sigla)+' ('+escapeHtml(f.vencTipo)+')';}).join(', ')+
@@ -8286,7 +8293,7 @@ renders.venc=function(){
     '<input type="checkbox" id="fVencAlerta" onchange="renders.venc()"'+(soloAlerta?' checked':'')+'> Solo lo que requiere atención (vencido, ≤30 días, o nunca registrado)</label>'+
     '</div>'+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Tipo</th><th>Documento</th><th>Último trámite ✏️</th><th>Periodicidad (meses) ✏️</th><th>Próximo vencimiento</th><th>Estado</th><th>Foto</th><th>Obs ✏️</th></tr>'+
+    '<tr><th>Equipo</th><th>Tipo</th><th>Documento</th><th>Último trámite <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Periodicidad (meses) <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Próximo vencimiento</th><th>Estado</th><th>Foto</th><th>Obs <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th></tr>'+
     filas.map(function(f){
       var fotoUrl=((venc[f.sigla]||{})[f.vencTipo]||{}).foto||'';
       return '<tr style="'+(f.estado.dias!==null&&f.estado.dias<=30?'background:rgba(239,68,68,.04)':'')+'">'+
@@ -8311,9 +8318,9 @@ function celdaFotoVenc(sigla,vencTipo,fotoUrl,fotoTipo){
       ? '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:4px;cursor:pointer;border:1px solid var(--bor);font-size:16px" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver PDF">📄</div>'
       : '<img src="'+fotoUrl+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--bor)" onclick="window.open(\''+fotoUrl+'\',\'_blank\')" title="Ver foto completa">';
     return '<td style="text-align:center;white-space:nowrap">'+miniatura+'<br>'+
-      '<a href="#" style="font-size:9px;color:var(--ac)" onclick="event.preventDefault();_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')">🔄 cambiar</a></td>';
+      '<a href="#" style="font-size:9px;color:var(--ac)" onclick="event.preventDefault();_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> cambiar</a></td>';
   }
-  return '<td style="text-align:center"><button class="btn-x" onclick="_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')" title="Subir foto o PDF del documento">📤</button></td>';
+  return '<td style="text-align:center"><button class="btn-x" onclick="_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')" title="Subir foto o PDF del documento"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button></td>';
 }
 window._vencFotoTarget=null;
 window._vencAbrirSelector=function(sigla,vencTipo){
@@ -8417,7 +8424,7 @@ window.exportVencCSV=function(){
   a.href=URL.createObjectURL(blob);
   a.download='vencimientos_centinela_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
-  toast('📥 CSV vencimientos exportado ('+filas.length+' filas)');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV vencimientos exportado ('+filas.length+' filas)');
 };
 
 renders.ace=function(){
@@ -8472,7 +8479,7 @@ renders.ace=function(){
   $('s-ace').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">🧪 Análisis de Aceite</div>'+
     '<div class="sec-s">'+ace.length+' muestras · Alimenta predictivo por condición</div></div>'+
-    '<div><button class="btn" onclick="addAceite()">+ Manual</button> <button class="btn btn-o" onclick="importAceite()">📤 Importar CSV</button></div></div>'+
+    '<div><button class="btn" onclick="addAceite()">+ Manual</button> <button class="btn btn-o" onclick="importAceite()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button></div></div>'+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
     '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:#22c55e">'+normal+'</div></div>'+
@@ -8497,7 +8504,7 @@ renders.ace=function(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Fecha</th><th>Equipo</th><th>Componente</th><th>Descriptor</th><th>Lubricante</th><th>Hrs</th>'+
     '<th>Fe</th><th>Cu</th><th>Pb</th><th>Al</th><th>Si</th><th>Cr</th>'+
-    '<th>Visc</th><th>PQ</th><th>TBN</th><th>ISO</th><th>Estado ✏️</th><th>Obs ✏️</th><th></th></tr>'+
+    '<th>Visc</th><th>PQ</th><th>TBN</th><th>ISO</th><th>Estado <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Obs <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th></th></tr>'+
     pg.items.map(function(m,fi){
       var idx=ace.indexOf(m);
       var estCol=m.estado==='ALERTA'?'var(--danger)':m.estado==='PRECAUCION'?'var(--w)':'var(--ok)';
@@ -8526,7 +8533,7 @@ renders.ace=function(){
         '<option'+(m.estado==='PRECAUCION'?' selected':'')+'>PRECAUCION</option>'+
         '<option'+(m.estado==='ALERTA'?' selected':'')+'>ALERTA</option></select></td>'+
         '<td><input value="'+escapeHtml(m.comentario||'')+'" onchange="edAce('+idx+',\'comentario\',this.value)" style="width:80px;'+is+'" placeholder="..."></td>'+
-        '<td><button class="btn-s btn-d" onclick="delAce('+idx+')">🗑</button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delAce('+idx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('ace',pg);
@@ -8689,7 +8696,7 @@ window.edAce=function(i,key,val){
 };
 window.delAce=function(i){
   if(!confirm('¿Eliminar muestra?'))return;
-  var ace=S.g('aceite')||[];ace.splice(i,1);S.s('aceite',ace);refreshAll();toast('🗑 Eliminada');
+  var ace=S.g('aceite')||[];ace.splice(i,1);S.s('aceite',ace);refreshAll();toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminada');
 };
 
 // Mapa de columnas del CSV de laboratorio COPEC -> campos internos del sistema.
@@ -8744,11 +8751,11 @@ function aceParseCSVLine(line){
   return out.map(function(v){return v.trim();});
 }
 window.importAceite=function(){
-  sm('<h3>📤 Importar Muestras de Aceite (CSV)</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Muestras de Aceite (CSV)</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">Acepta el CSV exportado directamente del laboratorio COPEC (encabezados tipo NOMBRE_CLIENTE, EQUIPO, HIERRO, ESTADO, COMENTARIO, etc.) o el formato corto anterior (nMuestra, fecha, hierro...). Detecta automáticamente cuál es.</p>'+
     '<input type="file" id="aceFile" accept=".csv" style="margin:12px 0"><br>'+
     '<div style="margin:8px 0"><label><input type="checkbox" id="aceReplace"> Reemplazar todo</label></div>'+
-    '<button class="btn" onclick="processAceCSV()">📥 Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="processAceCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.processAceCSV=function(){
   var file=$('aceFile')?.files[0];
@@ -8832,7 +8839,7 @@ window.addAceite=function(){
     '<div class="fg"><label>TBN</label><input type="number" id="aTBN" step="0.1"></div>'+
     '<div class="fg"><label>Estado</label><select id="aEstado"><option>NORMAL</option><option>PRECAUCION</option><option>ALERTA</option></select></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Comentario</label><input id="aObs" style="width:100%"></div></div>'+
-    '<button class="btn" onclick="saveAceite()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="saveAceite()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.saveAceite=function(){
   var ace=S.g('aceite')||[];
@@ -8881,7 +8888,7 @@ window.exportTabla=function(tabId,nombre){
   a.href=URL.createObjectURL(blob);
   a.download=(nombre||'SistemaMP_'+tabId)+'_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
-  toast('📥 '+nombre+' exportado a CSV');
+  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> '+nombre+' exportado a CSV');
 };
 
 window.imprimirTab=function(tabId,nombre){
@@ -8966,7 +8973,7 @@ window.resetEmpresa=function(){
     '<div style="background:rgba(239,68,68,.1);border-radius:6px;padding:10px;margin:12px 0">'+
     '<b style="color:var(--danger)">⚠️ ATENCIÓN:</b> Esto borra todos los registros, OTs, stock, consumos, inspecciones y muestras de aceite actuales. Exporta un backup JSON primero desde Config si quieres guardarlos.'+
     '</div>'+
-    '<button class="btn" style="background:var(--danger)" onclick="processResetEmpresa()">🔄 Resetear y Configurar</button> '+
+    '<button class="btn" style="background:var(--danger)" onclick="processResetEmpresa()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Resetear y Configurar</button> '+
     '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 
@@ -9090,7 +9097,7 @@ renders.ayuda=function(){
   $('s-ayuda').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📖 Manual de Usuario — SistemaMP Centinela</div>'+
     '<div class="sec-s">Guía completa de operación del sistema</div></div>'+
-    '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')">🖨️ Imprimir Manual</button></div>'+
+    '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div>'+
 
     // NOVEDADES DE ESTA VERSIÓN
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
@@ -9238,7 +9245,7 @@ renders.ayuda=function(){
     '7. <b>🔓 Destrabe</b> → revisa trabajos bloqueados y gestiona soluciones<br>'+
     '8. <b>🔩 Componentes Mayores</b> → revisa vida útil de motor, transmisión, etc.<br>'+
     '9. <b>📉 Disponibilidad</b> → verifica % vs meta y tendencia<br>'+
-    '10. Exporta informes → botón 📥 CSV o 🖨️ Imprimir para gerencia<br><br>'+
+    '10. Exporta informes → botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV o <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir para gerencia<br><br>'+
     '<b>📊 MENSUAL — Cierre</b><br>'+
     '1. <b>🎯 Metas</b> → compara plan vs real del mes que cierra<br>'+
     '2. <b>📊 Informes KPI</b> → descarga reportes para gerencia<br>'+
@@ -9290,7 +9297,7 @@ renders.ayuda=function(){
     '<b>4.</b> Ingresa <b>horómetro real</b> del equipo<br>'+
     '<b>5.</b> Ingresa fechas y horas de entrada/salida<br>'+
     '<b>6.</b> Selecciona técnico y agrega observaciones<br>'+
-    '<b>7.</b> Click <b>"💾 Guardar"</b><br><br>'+
+    '<b>7.</b> Click <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar"</b><br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px">'+
     '<b>✅ El sistema automáticamente:</b><br>'+
     '• Actualiza el horómetro del equipo<br>'+
@@ -9343,7 +9350,7 @@ renders.ayuda=function(){
     '2. Se abre formulario de Orden de Compra con cantidad y costo sugeridos<br>'+
     '3. Confirmas → se guarda la OC<br>'+
     '4. Cuando llega el repuesto → editas stock directamente en la tabla<br><br>'+
-    '<b>🔄 Sincronizar Stock:</b> actualiza automáticamente desde Stock Filtros y Lubricantes</div></div>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sincronizar Stock:</b> actualiza automáticamente desde Stock Filtros y Lubricantes</div></div>'+
 
     // 9. PREDICTIVO
     '<div class="card" style="margin-bottom:12px" id="m9">'+
@@ -9369,15 +9376,15 @@ renders.ayuda=function(){
     '<tr><td>Repuestos</td><td>CSV (pedidos)</td><td>nPI, fecha, sigla, cantidad, detalle, precioUnit, proveedor</td></tr>'+
     '<tr><td>Análisis Aceite</td><td>CSV</td><td>nMuestra, fecha, componente, hierro, cobre, plomo, estado</td></tr>'+
     '</table><br>'+
-    '<b>Backup completo:</b> En Config → "📥 Exportar JSON" guarda todo, "📤 Importar JSON" lo restaura.</div></div>'+
+    '<b>Backup completo:</b> En Config → "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON" guarda todo, "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON" lo restaura.</div></div>'+
 
     // 11. EXPORTAR
     '<div class="card" style="margin-bottom:12px" id="m11">'+
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">11. Exportar e Imprimir</div>'+
     '<div style="font-size:13px;line-height:1.8">'+
     'En <b>cualquier pestaña</b> hay 2 botones flotantes abajo a la derecha:<br><br>'+
-    '<b>📥 CSV</b> — Exporta la tabla actual a archivo CSV (se abre en Excel)<br>'+
-    '<b>🖨️ Imprimir</b> — Abre ventana de impresión con formato profesional. Desde ahí puedes:<br>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</b> — Exporta la tabla actual a archivo CSV (se abre en Excel)<br>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</b> — Abre ventana de impresión con formato profesional. Desde ahí puedes:<br>'+
     '&nbsp;&nbsp;&nbsp;• Imprimir directo en papel<br>'+
     '&nbsp;&nbsp;&nbsp;• Guardar como PDF (opción "Guardar como PDF" en el diálogo)<br><br>'+
     '<b>Tip:</b> Para informes de gerencia, usa el Diagnóstico Integral del Predictivo → Imprimir → PDF.</div></div>'+
@@ -9392,8 +9399,8 @@ renders.ayuda=function(){
     '• 🎨 Tema: Oscuro / Claro / Azul Minero<br>'+
     '• 🎨 Colores personalizables: principal, OK, peligro<br>'+
     '• 📊 Opciones de Dashboard: gráficos, proyección, costos<br>'+
-    '• 💾 Exportar/Importar backup JSON<br>'+
-    '• 🔄 Restaurar datos iniciales<br>'+
+    '• <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Exportar/Importar backup JSON<br>'+
+    '• <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales<br>'+
     '• 🏢 Configurar nueva empresa (resetear todo y empezar de cero)</div></div>'+
 
     // 13. FAQ
@@ -9415,7 +9422,7 @@ renders.ayuda=function(){
     '<b>¿Los cambios se propagan automáticamente?</b><br>'+
     'Sí. Cada edición en cualquier pestaña llama refreshAll() que actualiza Dashboard, header y la pestaña actual. Todo está interconectado.<br><br>'+
     '<b>¿Cómo hago backup?</b><br>'+
-    'Config → "📥 Exportar JSON". Guarda el archivo. Para restaurar: "📤 Importar JSON". También tienes el archivo Excel Plan B como respaldo independiente.</div></div>'+
+    'Config → "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON". Guarda el archivo. Para restaurar: "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON". También tienes el archivo Excel Plan B como respaldo independiente.</div></div>'+
 
     // 14. DISPONIBILIDAD MECÁNICA
     '<div class="card" style="margin-bottom:12px" id="m14">'+
@@ -9446,7 +9453,7 @@ renders.ayuda=function(){
     'Por eso el calendario parte en Jue y cierra en Mié, y el rango de fechas que muestra el título de cada semana sigue ese mismo corte.</div>'+
 
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac);margin-bottom:10px">'+
-    '<b>🔄 Cómo funciona el flujo completo:</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Cómo funciona el flujo completo:</b><br>'+
     '<b>1. Auto-generación:</b> El sistema detecta equipos con PM ≤14 días y los carga automáticamente.<br>'+
     '<b>2. Auto-asignación de día:</b> Cada PM recibe un día según urgencia — sin tocar nada tú.<br>'+
     '<b>3. Ajuste manual:</b> En Vista Tabla puedes reasignar día, técnico, HH, observaciones.<br>'+
@@ -9514,8 +9521,8 @@ renders.ayuda=function(){
     '• <b>Estado</b>: 🟢 OK → 📋 MONITOREAR (<2000h) → 🟡 PLANIFICAR (<1000h) → 🔴 VENCIDO (0h)<br><br>'+
     '<b>Columnas editables:</b> componente, casilla Original, horómetro de instalación, fecha de instalación, vida útil, costo de referencia, observaciones.<br><br>'+
     '<b>KPIs:</b> total componentes, críticos (<1000h), costo proyectado de próximos cambios, componentes con instalación pendiente de completar.<br>'+
-    '<b>Botones:</b> + Agregar, 🗑 Eliminar, 📥 CSV, 📤 Importar<br><br>'+
-    '<b>📄 Informes de Falla (PDF):</b> en esta misma pestaña "Componentes" hay una sub-pestaña llamada <b>"📄 Informes de Falla"</b> (botón arriba, junto a Componentes Mayores/Predictivo/Destrabe). Ahí se genera el informe formal de una falla catastrófica o cambio de componente: llenas el formulario, adjuntas fotos, y al guardar el botón <b>"💾 Generar Informe y PDF"</b> descarga automáticamente un PDF con todo el detalle. Para volver a descargar un informe ya creado, usa el botón 📥 en su fila de la tabla.</div></div>'+
+    '<b>Botones:</b> + Agregar, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminar, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar<br><br>'+
+    '<b>📄 Informes de Falla (PDF):</b> en esta misma pestaña "Componentes" hay una sub-pestaña llamada <b>"📄 Informes de Falla"</b> (botón arriba, junto a Componentes Mayores/Predictivo/Destrabe). Ahí se genera el informe formal de una falla catastrófica o cambio de componente: llenas el formulario, adjuntas fotos, y al guardar el botón <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF"</b> descarga automáticamente un PDF con todo el detalle. Para volver a descargar un informe ya creado, usa el botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> en su fila de la tabla.</div></div>'+
 
     // 17. METAS
     '<div class="card" style="margin-bottom:12px" id="m17">'+
@@ -9626,11 +9633,11 @@ renders.ayuda=function(){
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>¿Qué hace?</b> Registra y monitorea los resultados de laboratorio (Mobil Assistance / Copec) de cada muestra de aceite tomada a los componentes de la flota: motor, transmisión, mando final, diferencial, sistema hidráulico, tandem, frenos, etc.<br><br>'+
     '<b>▶ Importar muestras desde el laboratorio (CSV)</b><br>'+
-    'En la pestaña <b>🧪 Análisis Aceite</b>, click en <b>📤 Importar CSV</b>. El sistema reconoce automáticamente el formato exportado por el laboratorio Mobil/Copec (columnas como NOMBRE_CLIENTE, EQUIPO, HIERRO, ESTADO, COMENTARIO) — no hace falta reordenar columnas a mano. Marca "Reemplazar todo" solo si quieres limpiar lo cargado antes; si no, suma a lo existente.<br><br>'+
+    'En la pestaña <b>🧪 Análisis Aceite</b>, click en <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</b>. El sistema reconoce automáticamente el formato exportado por el laboratorio Mobil/Copec (columnas como NOMBRE_CLIENTE, EQUIPO, HIERRO, ESTADO, COMENTARIO) — no hace falta reordenar columnas a mano. Marca "Reemplazar todo" solo si quieres limpiar lo cargado antes; si no, suma a lo existente.<br><br>'+
     '<b>▶ Agregar una muestra manual</b><br>'+
     'Botón <b>+ Manual</b> arriba de la tabla. Útil para resultados sueltos que no vienen en CSV.<br><br>'+
     '<b>▶ Estado de cada muestra</b><br>'+
-    'Cada muestra trae el <b>ESTADO</b> ya evaluado por el laboratorio: 🟢 <b>NORMAL</b>, 🟡 <b>PRECAUCIÓN</b>, 🔴 <b>ALERTA</b>. Este estado lo define el laboratorio según límites específicos por componente y lubricante (no es un valor genérico) — el sistema respeta ese veredicto, no lo recalcula. Si necesitas corregirlo, se puede editar directo en la columna "Estado ✏️" de la tabla.<br><br>'+
+    'Cada muestra trae el <b>ESTADO</b> ya evaluado por el laboratorio: 🟢 <b>NORMAL</b>, 🟡 <b>PRECAUCIÓN</b>, 🔴 <b>ALERTA</b>. Este estado lo define el laboratorio según límites específicos por componente y lubricante (no es un valor genérico) — el sistema respeta ese veredicto, no lo recalcula. Si necesitas corregirlo, se puede editar directo en la columna "Estado <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg>" de la tabla.<br><br>'+
     '<b>▶ Filtros</b><br>'+
     'Puedes filtrar por equipo o por estado usando los selectores sobre la tabla, o haciendo click directo en las tarjetas 🟢🟡🔴 de arriba.<br><br>'+
     '<b>▶ Importante sobre componentes sin identificar</b><br>'+
@@ -9703,7 +9710,7 @@ renders.log=function(){
   $('s-log').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📝 Log de Cambios</div>'+
     '<div class="sec-s">'+log.length+' registros · Auditoría del sistema</div></div>'+
-    '<button class="btn btn-o" onclick="if(confirm(\'¿Limpiar log?\')){S.s(\'changelog\',[]);renders.log();}">🗑 Limpiar</button></div>'+
+    '<button class="btn btn-o" onclick="if(confirm(\'¿Limpiar log?\')){S.s(\'changelog\',[]);renders.log();}"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Limpiar</button></div>'+
     '<div class="toolbar">'+
     '<select id="fLogAccion" onchange="window._pag.log=1;renders.log()"><option value="">Todas las acciones</option>'+
     acciones.map(function(a){return'<option'+(fAccion===a?' selected':'')+'>'+a+'</option>'}).join('')+'</select></div>'+
@@ -10131,7 +10138,7 @@ renders.sem=function(){
           '<td style="background:rgba(0,180,0,0.06)"><select onchange="edSemReal('+fSemana+','+idx+',\'estadoReal\',this.value)" style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px">'+
           ['','Ejecutado','Parcial','No Ejecutado','Postergado'].map(function(st){return'<option'+(it.estadoReal===st?' selected':'')+'>'+st+'</option>'}).join('')+'</select></td>'+
           '<td class="ed" contenteditable style="font-size:10px;background:rgba(0,180,0,0.06)" onblur="edSemReal('+fSemana+','+idx+',\'obsReal\',this.innerText.trim())">'+(it.obsReal||'')+'</td>'+
-          (esCerrada?'':'<td><button class="btn-x" onclick="delSem('+idx+')">🗑</button></td>')+
+          (esCerrada?'':'<td><button class="btn-x" onclick="delSem('+idx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>')+
           '</tr>';
       }).join('')+
       '</table></div>';
@@ -10157,8 +10164,8 @@ renders.sem=function(){
     '<div class="sec-s">Semana '+fSemana+' · '+getWeekDates(fSemana)+' · '+(esPasada?'Muestra los PM ejecutados en esa semana':esActual?'Equipos con PM en esta semana + las vencidas pendientes':'Equipos con PM que caen en esta semana')+'</div></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
     (esCerrada?'':'<button class="btn" onclick="addSemItem()">+ Agregar</button>')+
-    '<button class="btn btn-o" onclick="exportCSV(\'sem\')">📥 CSV</button>'+
-    '<button class="btn btn-o" onclick="importSemCSV()">📤 Importar</button>'+
+    '<button class="btn btn-o" onclick="exportCSV(\'sem\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
+    '<button class="btn btn-o" onclick="importSemCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button>'+
     btnCerrar+
     '</div></div>'+
     '<div class="toolbar" style="gap:8px;flex-wrap:wrap;align-items:center">'+
@@ -10395,8 +10402,8 @@ renders.comp=function(){
     '<div class="sec-s">'+compData.length+' componentes · '+eq.length+' equipos · Vida útil y proyección de cambio</div></div>'+
     '<div style="display:flex;gap:8px">'+
     '<button class="btn" onclick="addComp()">+ Agregar</button>'+
-    '<button class="btn btn-o" onclick="exportCSV(\'comp\')">📥 CSV</button>'+
-    '<button class="btn btn-o" onclick="importCompCSV()">📤 Importar</button>'+
+    '<button class="btn btn-o" onclick="exportCSV(\'comp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
+    '<button class="btn btn-o" onclick="importCompCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button>'+
     '</div></div>'+
     '<div class="toolbar"><select id="fCompEq" onchange="renders.comp()"><option value="">Todos los equipos</option>'+
     siglas.map(function(s){return'<option'+(fEquipo===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></div>'+
@@ -10426,7 +10433,7 @@ renders.comp=function(){
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+Math.round(c.costoRef||0).toLocaleString()+'</td>'+
         '<td style="font-size:11px">'+c.estadoCalc+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(c.obs)+'</td>'+
-        '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px">📄</button><button class="btn-x" onclick="delComp('+realIdx+')">🗑</button></td></tr>';
+        '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px">📄</button><button class="btn-x" onclick="delComp('+realIdx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>';
 };
@@ -10554,7 +10561,7 @@ window.nuevoInforme=function(sigla,compIdx){
       <div class="fg" style="width:100%"><label>Fotos de evidencia</label><input type="file" id="ifFotos" accept="image/*" capture="environment" multiple onchange="_infFotosChange(event)">
       <div id="ifPreview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
     </div>
-    <br><button class="btn" id="ifBtnGuardar" onclick="guardarInforme()">💾 Generar Informe y PDF</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>
+    <br><button class="btn" id="ifBtnGuardar" onclick="guardarInforme()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>
   </div>`);
 };
 window._infEqChange=function(){
@@ -10598,7 +10605,7 @@ window.guardarInforme=async function(){
     }
   }catch(err){
     toast('❌ Error subiendo fotos: '+err.message);
-    if(btn){btn.disabled=false;btn.textContent='💾 Generar Informe y PDF';}
+    if(btn){btn.disabled=false;btn.textContent='<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF';}
     return;
   }
 
@@ -10776,7 +10783,7 @@ renders.informes=function(){
         '<td class="mono">$'+Math.round(i.costoEstimado||0).toLocaleString('es-CL')+'</td>'+
         '<td>'+(i.fotos?i.fotos.length:0)+' 📷</td>'+
         '<td style="font-size:11px">'+escapeHtml(i.generadoPor||'—')+'</td>'+
-        '<td><button class="btn-x" onclick="regenerarPDF(\''+i.id+'\')" title="Descargar PDF">📥</button> <button class="btn-x" onclick="delInforme(\''+i.id+'\')">🗑</button></td></tr>';
+        '<td><button class="btn-x" onclick="regenerarPDF(\''+i.id+'\')" title="Descargar PDF"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button> <button class="btn-x" onclick="delInforme(\''+i.id+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('informes',pg)+
@@ -11094,7 +11101,7 @@ renders.kpi=function(){
   $('s-kpi').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📊 Cuadro de Mando KPI</div>'+
     '<div class="sec-s">Indicadores automáticos · Actualización en tiempo real desde registros</div></div>'+
-    '<button class="btn" onclick="rptTodos()" style="padding:8px 20px">📥 Descargar Todo Excel</button></div>'+
+    '<button class="btn" onclick="rptTodos()" style="padding:8px 20px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Descargar Todo Excel</button></div>'+
     '<div class="toolbar">'+
     '<select id="fKpiAnchor" onchange="renders.kpi()">'+mesesAll.map(function(m){return'<option'+(m===fKpiAnchor?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
     '<select id="fKpiRango" onchange="renders.kpi()">'+
@@ -11108,8 +11115,8 @@ renders.kpi=function(){
     meterKPI(dispActual,100,meta,'%',dispActual===null?'':'Disponibilidad: '+dispActual+'% · meta '+meta+'%')+
     '<div style="font-size:10px;margin-top:4px;color:'+(dispActual===null?'var(--tx3)':dispActual>=meta?'#22c55e':'#ef4444')+'">'+(dispActual===null?'Sin datos':'Meta: '+meta+'%')+'</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
-    '<button class="btn-s" onclick="rptDisp(\'excel\')" style="font-size:9px">📥</button>'+
-    '<button class="btn-s" onclick="rptDisp(\'print\')" style="font-size:9px">🖨️</button></div>'+
+    '<button class="btn-s" onclick="rptDisp(\'excel\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
+    '<button class="btn-s" onclick="rptDisp(\'print\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
     '</div>'+
     '<div>'+barsWithMeta(dispMes,mesLabels,meta,100,'%',false)+'</div></div>'+
 
@@ -11123,8 +11130,8 @@ renders.kpi=function(){
       :'<div style="font-size:26px;font-weight:800;color:var(--tx3);padding:14px 0">—</div><div style="font-size:10px;color:var(--tx3)">Ningún equipo con ≥2 fallas registradas para medir el intervalo</div>')+
     '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+totalFallas+' fallas totales</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
-    '<button class="btn-s" onclick="rptMTBF(\'excel\')" style="font-size:9px">📥</button>'+
-    '<button class="btn-s" onclick="rptMTBF(\'print\')" style="font-size:9px">🖨️</button></div>'+
+    '<button class="btn-s" onclick="rptMTBF(\'excel\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
+    '<button class="btn-s" onclick="rptMTBF(\'print\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
     '</div>'+
     '<div>'+barsWithMeta(mtbfMes,mesLabels,2000,Math.max.apply(null,mtbfMes)*1.2||10000,'h',false)+'</div></div>'+
 
@@ -11136,8 +11143,8 @@ renders.kpi=function(){
     '<div style="font-size:10px;margin-top:4px;color:'+(cumplActual===null?'var(--tx3)':cumplActual>=90?'#22c55e':cumplActual>=70?'#f59e0b':'#ef4444')+'">'+(cumplActual===null?'Sin datos':'Meta: 90%')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+reg.length+' ejecuciones</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
-    '<button class="btn-s" onclick="rptCumpl(\'excel\')" style="font-size:9px">📥</button>'+
-    '<button class="btn-s" onclick="rptCumpl(\'print\')" style="font-size:9px">🖨️</button></div>'+
+    '<button class="btn-s" onclick="rptCumpl(\'excel\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
+    '<button class="btn-s" onclick="rptCumpl(\'print\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
     '</div>'+
     '<div>'+barsWithMeta(cumplMes,mesLabels,90,100,'%',false)+'</div></div>'+
 
@@ -11148,8 +11155,8 @@ renders.kpi=function(){
     meterKPI(costoHrActual,Math.max(costoHrActual*2,5000),3000,'$/hr','Costo: $'+fn(costoHrActual)+'/hr · meta ≤$3.000/hr',true)+
     '<div style="font-size:10px;margin-top:4px;color:'+(costoHrActual<=3000?'#22c55e':'#ef4444')+'">Meta: ≤$3.000/hr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
-    '<button class="btn-s" onclick="rptCostos(\'excel\')" style="font-size:9px">📥</button>'+
-    '<button class="btn-s" onclick="rptCostos(\'print\')" style="font-size:9px">🖨️</button></div>'+
+    '<button class="btn-s" onclick="rptCostos(\'excel\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
+    '<button class="btn-s" onclick="rptCostos(\'print\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
     '</div>'+
     '<div>'+barsWithMeta(costoHrMes,mesLabels,3000,Math.max.apply(null,costoHrMes)*1.3||5000,'',true)+'</div></div>'+
 
@@ -11161,8 +11168,8 @@ renders.kpi=function(){
     '<div style="font-size:10px;margin-top:4px;color:'+(ratioActual===null?'var(--tx3)':ratioActual>=80?'#22c55e':ratioActual>=60?'#f59e0b':'#ef4444')+'">'+(ratioActual===null?'Sin datos':'Meta: 80% preventivo')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+prevTotal+' prev / '+(reg.length-prevTotal)+' corr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
-    '<button class="btn-s" onclick="rptBacklog(\'excel\')" style="font-size:9px">📥</button>'+
-    '<button class="btn-s" onclick="rptBacklog(\'print\')" style="font-size:9px">🖨️</button></div>'+
+    '<button class="btn-s" onclick="rptBacklog(\'excel\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
+    '<button class="btn-s" onclick="rptBacklog(\'print\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
     '</div>'+
     '<div>'+barsWithMeta(ratioMes,mesLabels,80,100,'%',false)+'</div></div>'+
 
@@ -11174,17 +11181,17 @@ renders.kpi=function(){
     '<div style="font-size:10px;margin-top:4px;color:'+(hhEfActual===null?'var(--tx3)':hhEfActual>=80?'#22c55e':'#f59e0b')+'">'+(hhEfActual===null?'Sin datos':'Meta: 80%')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Real: '+Math.round(hhRealT)+'h · Plan: '+Math.round(hhPlanT)+'h</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
-    '<button class="btn-s" onclick="rptHH(\'excel\')" style="font-size:9px">📥</button>'+
-    '<button class="btn-s" onclick="rptHH(\'print\')" style="font-size:9px">🖨️</button></div>'+
+    '<button class="btn-s" onclick="rptHH(\'excel\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
+    '<button class="btn-s" onclick="rptHH(\'print\')" style="font-size:9px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
     '</div>'+
     '<div>'+barsWithMeta(hhEfMes,mesLabels,80,Math.max.apply(null,hhEfMes.concat([100]))*1.2||150,'%',false)+'</div></div>'+
 
     // BOTONES DE DESCARGA
     '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">'+
-    '<button class="btn" onclick="rptTodos()">📥 Excel Completo (8 hojas)</button>'+
+    '<button class="btn" onclick="rptTodos()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Excel Completo (8 hojas)</button>'+
     '<button class="btn btn-o" onclick="rptEjecutivo(\'excel\')">📊 Ejecutivo</button>'+
     '<button class="btn btn-o" onclick="rptComp(\'excel\')">🔩 Componentes</button>'+
-    '<button class="btn btn-o" onclick="rptEjecutivo(\'print\')">🖨️ Imprimir Ejecutivo</button>'+
+    '<button class="btn btn-o" onclick="rptEjecutivo(\'print\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Ejecutivo</button>'+
     '</div>';
 };
 
@@ -11214,7 +11221,7 @@ async function _asWrite(){
     await w.write(JSON.stringify(data,null,1));
     await w.close();
     _asDirty=false;_asLast=new Date();
-    _asStatus('💾 Guardado '+('0'+_asLast.getHours()).slice(-2)+':'+('0'+_asLast.getMinutes()).slice(-2),'var(--ok)');
+    _asStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardado '+('0'+_asLast.getHours()).slice(-2)+':'+('0'+_asLast.getMinutes()).slice(-2),'var(--ok)');
   }catch(e){
     _asStatus('⚠️ Error al guardar: '+e.message,'var(--danger)');
   }
@@ -11229,7 +11236,7 @@ window._autoSaveMark=function(){
 
 window.conectarCarpeta=async function(){
   if(!window.showDirectoryPicker){
-    toast('❌ Tu navegador no soporta autoguardado en carpeta. Usa Chrome o Edge. Mientras tanto, usa 💾 Backup manual.');
+    toast('❌ Tu navegador no soporta autoguardado en carpeta. Usa Chrome o Edge. Mientras tanto, usa <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Backup manual.');
     return;
   }
   try{
@@ -11286,7 +11293,7 @@ function _clHeaders(){const c=_clCfg();return{'apikey':c.key,'Authorization':'Be
 window.cloudPush=async function(silencioso){
   if(!_clOk()){if(!silencioso)toast('⚠️ Configura URL y clave de Supabase primero');return false;}
   if(_clBusy){_clPendiente=true;return false;}
-  _clBusy=true;_clStatus('🔄 Subiendo...','var(--warn)');
+  _clBusy=true;_clStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Subiendo...','var(--warn)');
   try{
     const now=new Date().toISOString();
     const rows=AUTOSAVE_KEYS.map(k=>({key:k,value:S.g(k),updated_at:now}));
@@ -11313,7 +11320,7 @@ window.cloudPush=async function(silencioso){
 
 window.cloudPull=async function(confirmar){
   if(!_clOk()){toast('⚠️ Configura URL y clave de Supabase primero');return;}
-  _clStatus('🔄 Bajando...','var(--warn)');
+  _clStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Bajando...','var(--warn)');
   try{
     const c=_clCfg();
     const r=await fetch(c.url+'/rest/v1/kv?select=key,value,updated_at',{headers:_clHeaders()});
@@ -11501,7 +11508,7 @@ window.addHist=function(){
     '<div class="fg"><label>Fecha</label><input type="date" id="hFecha" value="'+hoy+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Horómetro Inicial</label><input type="number" id="hIni" value="0"></div>'+
     '<div class="fg"><label>Horómetro Final</label><input type="number" id="hFin" value="0"></div></div>'+
-    '<br><button class="btn" onclick="saveHist()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="saveHist()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.saveHist=function(){
   var sigla=$('hEq').value;
@@ -11789,7 +11796,7 @@ renders.cad=function(){
           <td>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionCad(${i})" title="Medir">📏</button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verHistorialCad(${i})" title="Historial">🔍</button>
-            <button class="btn-x" onclick="delCad(${i})" title="Eliminar">🗑</button>
+            <button class="btn-x" onclick="delCad(${i})" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button>
           </td>
         </tr>`;
       }).join('')}
@@ -11806,7 +11813,7 @@ window.addCad=function(){
       '<div class="fg"><label>Límite de desgaste (mm)</label><input type="number" id="cdLimite"></div>'+
       '<div class="fg"><label>Valor actual (mm)</label><input type="number" id="cdActual"></div></div>'+
     '<div class="form-row"><div class="fg"><label>F. Instalación</label><input type="date" id="cdFecha" value="'+new Date().toISOString().slice(0,10)+'"></div></div>'+
-    '<br><button class="btn" onclick="saveCad()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="saveCad()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.saveCad=function(){
   const sigla=$('cdEq').value;
@@ -11829,7 +11836,7 @@ window.addMedicionCad=function(idx){
       '<div class="fg"><label>Horómetro equipo</label><input type="number" id="cmHorom" value="'+(eq?eq.horomActual:0)+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Valor medido (mm)</label><input type="number" id="cmValor"></div></div>'+
     '<div class="fg"><label>Observación</label><input id="cmObs" style="width:100%"></div>'+
-    '<br><button class="btn" onclick="saveMedicionCad('+idx+')">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="saveMedicionCad('+idx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.saveMedicionCad=function(idx){
   const cad=S.g('cad')||[];const c=cad[idx];if(!c)return;
@@ -12229,7 +12236,7 @@ renders.destrabe=function(){
     '<div class="sec-h"><div><div class="sec-t">🔓 Gestión de Destrabe</div>'+
     '<div class="sec-s">'+items.length+' registros · '+activos.length+' activos</div></div>'+
     '<div style="display:flex;gap:8px"><button class="btn" onclick="addDestrabe()">+ Nuevo</button>'+
-    '<button class="btn btn-o" onclick="exportCSV(\'destrabe\')">📥 CSV</button></div></div>'+
+    '<button class="btn btn-o" onclick="exportCSV(\'destrabe\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div></div>'+
     '<div class="cards">'+
     '<div class="card"><div class="card-t">🔴 Críticos (&gt;14 días)</div><div class="card-v" style="color:var(--danger)">'+items.filter(function(i){return i.dias>14&&i.estado!=='Resuelto'}).length+'</div></div>'+
     '<div class="card"><div class="card-t">🟡 Urgentes (&gt;7 días)</div><div class="card-v" style="color:var(--w)">'+items.filter(function(i){return i.dias>7&&i.dias<=14&&i.estado!=='Resuelto'}).length+'</div></div>'+
@@ -12253,7 +12260,7 @@ renders.destrabe=function(){
         '<td><select onchange="edDestrabe('+i+',\'estado\',this.value)" style="font-size:9px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px">'+
         ['Bloqueado','En Gestión','Resuelto'].map(function(s){return'<option'+(it.estado===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></td>'+
         '<td style="font-size:10px">'+prio+'</td>'+
-        '<td><button class="btn-x" onclick="delDestrabe('+i+')">🗑</button></td></tr>';
+        '<td><button class="btn-x" onclick="delDestrabe('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>';
 };
@@ -12493,7 +12500,7 @@ window.editFicha=function(sigla){
     '<div class="fg"><label>Hrs/Día</label><input type="number" id="ftHrsDia" value="'+(e.hrsDia||12)+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Frec PM (hrs)</label><input type="number" id="ftFrec" value="'+(e.frecPM||250)+'"></div>'+
     '<div class="fg"><label>Horómetro Actual</label><input type="number" id="ftHorom" value="'+(e.horomActual||0)+'"></div></div>'+
-    '<br><button class="btn" onclick="saveFicha(\''+escapeHtml(sigla)+'\')">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="saveFicha(\''+escapeHtml(sigla)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 // Si se renombra la sigla de un equipo, propaga el cambio a todo lo que la referencia
 // como clave (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa,
@@ -12572,8 +12579,8 @@ document.addEventListener('DOMContentLoaded',function(){
   bar.id='exportBar';
   bar.style.cssText='display:flex;gap:6px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 6px';
   var btnCss='padding:4px 12px;border-radius:16px;border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:11px';
-  bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'">📥 CSV</button>'+
-    '<button onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'">🖨️ Imprimir</button>';
+  bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
+    '<button onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>';
   var header=document.querySelector('.header');
   (header||document.body).appendChild(bar);
 });
