@@ -1951,7 +1951,8 @@ window.addReg=function(){
     <div class="fg"><label>LOTO Aplicado</label><select id="regLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     </div>
     <br><button class="btn" onclick="saveReg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar</button>
-    <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn btn-o" onclick="cm()">Cancelar</button>
+    <button type="button" class="btn btn-o" onclick="_iniciarRegPorVoz()">${ICONS.mic} Completar por voz</button>`);
 };
 window.editarReg=function(i){
   const reg=S.g('reg')||[];
@@ -4655,8 +4656,9 @@ window.VOICE_COMMANDS=[
   {patrones:['configuracion','ajustes'],accion:function(){go('cfg');},decir:'Abriendo Configuración'},
   {patrones:['ayuda','manual de usuario'],accion:function(){go('ayuda');},decir:'Abriendo Ayuda'},
   {patrones:['nueva ot','nueva orden de trabajo','crear correctivo'],accion:function(){go('ot');setTimeout(function(){if(typeof addOT==='function')addOT();},300);},decir:'Abriendo formulario de nueva orden de trabajo'},
-  {patrones:['reportar falla por voz','crear correctivo por voz','nueva ot por voz','asistente de voz','completar por voz'],accion:function(){go('ot');setTimeout(_iniciarOTPorVoz,300);},decir:null},
-  {patrones:['cerrar','cancelar'],accion:function(){if(window._otVoz)window._otVoz.activo=false;cm();},decir:'Cerrado'},
+  {patrones:['reportar falla por voz','crear correctivo por voz','nueva ot por voz','asistente de voz'],accion:function(){go('ot');setTimeout(_iniciarOTPorVoz,300);},decir:null},
+  {patrones:['registrar pm por voz','registrar mantencion por voz','hacer un pm por voz','registro por voz'],accion:function(){go('reg');setTimeout(_iniciarRegPorVoz,300);},decir:null},
+  {patrones:['cerrar','cancelar'],accion:function(){if(window._vozFlujo)window._vozFlujo.activo=false;cm();},decir:'Cerrado'},
   {patrones:['leeme los urgentes','lee los urgentes','que hay urgente','equipos urgentes','urgentes'],accion:function(){_leerUrgentes();},decir:null},
 ];
 // Quita tildes/mayúsculas/signos para comparar lo que el navegador entendió
@@ -4719,27 +4721,24 @@ window._comandoDeVoz=function(btn){
   try{rec.start();}catch(e){btn.innerHTML=textoOriginal;btn.style.color='';}
 };
 
-// ============ ASISTENTE DE VOZ GUIADO — crear una OT completa solo hablando ============
+// ============ MOTOR GENÉRICO DE FLUJOS DE VOZ GUIADOS ============
 // Pensado para el caso límite que se pidió cubrir: alguien que solo puede
-// usar la voz, de principio a fin, sin tocar mouse ni teclado. El sistema
-// pregunta un campo a la vez, escucha, interpreta la respuesta y la deja
-// puesta en el mismo formulario/función de siempre (saveOT() — no hay un
-// camino de guardado paralelo, así que nunca puede desincronizarse).
-// Sigue la misma idea de "puerta trasera abierta": la secuencia de
-// preguntas vive en window.OT_VOZ_PASOS. Agregar un campo nuevo al flujo
-// (ej. "Técnico") es sumar una fila acá, no tocar el motor.
+// usar la voz, de principio a fin, sin tocar mouse ni teclado. Pregunta un
+// campo a la vez, escucha, interpreta la respuesta y la deja puesta en el
+// formulario real — al final llama a la MISMA función de guardado de
+// siempre (saveOT, saveReg, etc.), nunca hay un camino de guardado
+// paralelo, así que no puede desincronizarse con el resto de la app.
+// "Puerta trasera abierta": el motor no sabe nada de OT ni de Registro
+// PM — solo entiende una lista de "pasos" con un tipo de dato. Sumar un
+// flujo de voz nuevo para otra pantalla (ej. un movimiento de stock) es
+// escribir su propia lista de pasos + una función que llame a
+// _iniciarFlujoVoz(pasos, guardarFn, resumenFn); no toca este motor.
 //   tipo:'equipo'         → busca la sigla dicha entre los equipos reales
+//   tipo:'numero'         → extrae el primer número dicho (ej. horómetro)
 //   tipo:'texto'          → dictado libre, obligatorio (repregunta si viene vacío)
 //   tipo:'texto_opcional' → dictado libre, se puede saltar diciendo "no sé"/"omitir"
 //   tipo:'opciones'       → hace calzar lo dicho contra las <option> reales del <select>
-window.OT_VOZ_PASOS=[
-  {campo:'oEq',pregunta:'¿Qué equipo? Di la sigla, por ejemplo TI cinco uno cuatro dos.',tipo:'equipo',requerido:true},
-  {campo:'oSint',pregunta:'¿Cuál es el síntoma o problema?',tipo:'texto',requerido:true},
-  {campo:'oTipo',pregunta:'¿Qué tipo de intervención? Por ejemplo correctivo, falla operacional, cambio de componente, cambio de neumático, relleno de fluidos, o inspección.',tipo:'opciones',requerido:false},
-  {campo:'oCrit',pregunta:'¿Qué tan urgente es? Di reparación inmediata, próxima mantención, o no aplica.',tipo:'opciones',requerido:false},
-  {campo:'oCausa',pregunta:'¿Sabes la causa raíz? Puedes decir "no sé" para saltar.',tipo:'texto_opcional',requerido:false},
-];
-window._otVoz={activo:false,paso:0};
+window._vozFlujo={activo:false,paso:0,pasos:null,guardarFn:null,resumenFn:null};
 function _hablarLuego(texto,cb){
   if(!window.speechSynthesis){cb&&cb();return;}
   window.speechSynthesis.cancel();
@@ -4749,8 +4748,28 @@ function _hablarLuego(texto,cb){
   u.onerror=function(){cb&&cb();};
   window.speechSynthesis.speak(u);
 }
-function _otVozEscuchar(){
-  var st=window._otVoz;
+function _parseNumeroVoz(transcript){
+  var limpio=(transcript||'').replace(/[.,]/g,'');
+  var m=limpio.match(/\d+/);
+  return m?parseInt(m[0],10):NaN;
+}
+var _NUM_PALABRAS={uno:'1',dos:'2',tres:'3',cuatro:'4',cinco:'5'};
+function _normNumPalabras(s){
+  return (s||'').replace(/\b(uno|dos|tres|cuatro|cinco)\b/gi,function(w){return _NUM_PALABRAS[w.toLowerCase()];});
+}
+function _mejorOpcion(transcript,opciones){
+  // Sin espacios y con "dos"→"2": así "pm dos" calza con la opción "PM2" tal
+  // como viene el texto del <select>, sin tener que duplicar listas de opciones.
+  var t=_normVoz(_normNumPalabras(transcript)).replace(/\s+/g,'');
+  var mejor=-1,mejorLen=0;
+  opciones.forEach(function(op,i){
+    var on=_normVoz(op).replace(/\s+/g,'');
+    if(on&&(t.indexOf(on)>=0||on.indexOf(t)>=0)&&on.length>mejorLen){mejor=i;mejorLen=on.length;}
+  });
+  return mejor;
+}
+function _vozFlujoEscuchar(){
+  var st=window._vozFlujo;
   if(!st.activo)return;
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){toast('⚠️ Voz no disponible en este navegador — funciona en Chrome/Edge');st.activo=false;return;}
@@ -4758,40 +4777,31 @@ function _otVozEscuchar(){
   rec.lang='es-CL';
   rec.interimResults=false;
   rec.maxAlternatives=1;
-  rec.onresult=function(e){_otVozCapturar(e.results[0][0].transcript);};
+  rec.onresult=function(e){_vozFlujoCapturar(e.results[0][0].transcript);};
   rec.onerror=function(e){
     if(!st.activo)return;
-    if(e.error==='no-speech')_hablarLuego('No escuché nada. Repite, por favor.',_otVozEscuchar);
+    if(e.error==='no-speech')_hablarLuego('No escuché nada. Repite, por favor.',_vozFlujoEscuchar);
     else toast('⚠️ Error de voz: '+e.error);
   };
   try{rec.start();}catch(e){}
 }
-function _otVozPreguntar(){
-  var st=window._otVoz;
+function _vozFlujoPreguntar(){
+  var st=window._vozFlujo;
   if(!st.activo)return;
-  var paso=window.OT_VOZ_PASOS[st.paso];
-  if(!paso){_otVozResumen();return;}
-  _hablarLuego(paso.pregunta,_otVozEscuchar);
+  var paso=st.pasos[st.paso];
+  if(!paso){_vozFlujoResumen();return;}
+  _hablarLuego(paso.pregunta,_vozFlujoEscuchar);
 }
-function _otVozAvanzar(aviso){
-  var st=window._otVoz;
+function _vozFlujoAvanzar(aviso){
+  var st=window._vozFlujo;
   if(!st.activo)return;
   st.paso++;
-  var siguiente=window.OT_VOZ_PASOS[st.paso];
-  if(!siguiente){_otVozResumen();return;}
-  _hablarLuego((aviso?aviso+' ':'')+siguiente.pregunta,_otVozEscuchar);
+  var siguiente=st.pasos[st.paso];
+  if(!siguiente){_vozFlujoResumen();return;}
+  _hablarLuego((aviso?aviso+' ':'')+siguiente.pregunta,_vozFlujoEscuchar);
 }
-function _mejorOpcion(transcript,opciones){
-  var t=_normVoz(transcript);
-  var mejor=-1,mejorLen=0;
-  opciones.forEach(function(op,i){
-    var on=_normVoz(op);
-    if(on&&(t.indexOf(on)>=0||on.indexOf(t)>=0)&&on.length>mejorLen){mejor=i;mejorLen=on.length;}
-  });
-  return mejor;
-}
-function _otVozCapturar(transcript){
-  var st=window._otVoz;
+function _vozFlujoCapturar(transcript){
+  var st=window._vozFlujo;
   if(!st.activo)return;
   toast('🎙️ "'+transcript+'"');
   if(_normVoz(transcript)==='cancelar'){
@@ -4799,48 +4809,51 @@ function _otVozCapturar(transcript){
     _hablar('Cancelado. El formulario queda abierto para que lo completes tú mismo.');
     return;
   }
-  var paso=window.OT_VOZ_PASOS[st.paso];
+  var paso=st.pasos[st.paso];
   var el=document.getElementById(paso.campo);
   if(!el){st.activo=false;return;}
   if(paso.tipo==='equipo'){
     var siglas=(S.g('eq')||[]).map(function(e){return e.sigla;});
     var tN=_normVoz(transcript).replace(/[\s-]/g,'');
     var idx=siglas.findIndex(function(s){var sN=_normVoz(s).replace(/[\s-]/g,'');return sN&&(tN.indexOf(sN)>=0||sN.indexOf(tN)>=0);});
-    if(idx<0){_hablarLuego('No encontré ese equipo entre los registrados. Repite la sigla.',_otVozEscuchar);return;}
+    if(idx<0){_hablarLuego('No encontré ese equipo entre los registrados. Repite la sigla.',_vozFlujoEscuchar);return;}
     el.value=siglas[idx];el.dispatchEvent(new Event('change'));
-    _otVozAvanzar('Equipo '+siglas[idx]+'.');
+    _vozFlujoAvanzar('Equipo '+siglas[idx]+'.');
+    return;
+  }
+  if(paso.tipo==='numero'){
+    var n=_parseNumeroVoz(transcript);
+    if(isNaN(n)||n<=0){_hablarLuego('No entendí el número. '+paso.pregunta,_vozFlujoEscuchar);return;}
+    el.value=String(n);el.dispatchEvent(new Event('change'));
+    _vozFlujoAvanzar((paso.etiqueta?paso.etiqueta+' ':'')+n.toLocaleString('es-CL')+'.');
     return;
   }
   if(paso.tipo==='texto'){
-    if(!transcript.trim()){_hablarLuego('No escuché nada. '+paso.pregunta,_otVozEscuchar);return;}
+    if(!transcript.trim()){_hablarLuego('No escuché nada. '+paso.pregunta,_vozFlujoEscuchar);return;}
     el.value=transcript.trim();el.dispatchEvent(new Event('change'));
-    _otVozAvanzar();
+    _vozFlujoAvanzar();
     return;
   }
   if(paso.tipo==='texto_opcional'){
     var tN2=_normVoz(transcript);
     if(tN2&&['no se','omitir','saltar','ninguna'].indexOf(tN2)<0){el.value=transcript.trim();el.dispatchEvent(new Event('change'));}
-    _otVozAvanzar();
+    _vozFlujoAvanzar();
     return;
   }
   if(paso.tipo==='opciones'){
     var opciones=Array.prototype.map.call(el.options,function(o){return o.text;});
     var idx2=_mejorOpcion(transcript,opciones);
     if(idx2>=0){el.selectedIndex=idx2;el.dispatchEvent(new Event('change'));}
-    _otVozAvanzar(idx2>=0?null:'No reconocí esa opción, la dejé como estaba.');
+    _vozFlujoAvanzar(idx2>=0?null:'No reconocí esa opción, la dejé como estaba.');
     return;
   }
 }
-function _otVozResumen(){
-  var st=window._otVoz;
-  var sig=document.getElementById('oEq').value||'sin equipo';
-  var sint=document.getElementById('oSint').value||'sin síntoma';
-  var tipo=document.getElementById('oTipo').value||'';
-  var crit=document.getElementById('oCrit').value||'';
-  var texto='Resumen: equipo '+sig+', síntoma '+sint+(tipo?', tipo '+tipo:'')+(crit&&crit!=='No Aplica'?', criticidad '+crit:'')+'. Di guardar para confirmar, o revisar para dejarlo abierto y corregirlo tú mismo.';
-  _hablarLuego(texto,_otVozEscucharConfirmacion);
+function _vozFlujoResumen(){
+  var st=window._vozFlujo;
+  var texto=st.resumenFn()+' Di guardar para confirmar, o revisar para dejarlo abierto y corregirlo tú mismo.';
+  _hablarLuego(texto,_vozFlujoEscucharConfirmacion);
 }
-function _otVozEscucharConfirmacion(){
+function _vozFlujoEscucharConfirmacion(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR)return;
   var rec=new SR();
@@ -4849,9 +4862,10 @@ function _otVozEscucharConfirmacion(){
   rec.maxAlternatives=1;
   rec.onresult=function(e){
     var t=_normVoz(e.results[0][0].transcript);
-    window._otVoz.activo=false;
+    var guardarFn=window._vozFlujo.guardarFn;
+    window._vozFlujo.activo=false;
     if(t.indexOf('guardar')>=0||t.indexOf('confirmar')>=0||t.indexOf('listo')>=0){
-      if(typeof saveOT==='function')saveOT();
+      guardarFn&&guardarFn();
     }else{
       _hablar('Dejé el formulario abierto para que lo revises.');
       toast('📋 Revisa el formulario y guarda manualmente cuando quieras');
@@ -4860,10 +4874,49 @@ function _otVozEscucharConfirmacion(){
   rec.onerror=function(e){if(e.error!=='no-speech')toast('⚠️ Error de voz: '+e.error);};
   try{rec.start();}catch(e){}
 }
+window._iniciarFlujoVoz=function(pasos,guardarFn,resumenFn){
+  window._vozFlujo={activo:true,paso:0,pasos:pasos,guardarFn:guardarFn,resumenFn:resumenFn};
+  setTimeout(_vozFlujoPreguntar,300);
+};
+
+// ---- Flujo: Nueva OT Correctivo por voz ----
+window.OT_VOZ_PASOS=[
+  {campo:'oEq',pregunta:'¿Qué equipo? Di la sigla, por ejemplo TI cinco uno cuatro dos.',tipo:'equipo',requerido:true},
+  {campo:'oSint',pregunta:'¿Cuál es el síntoma o problema?',tipo:'texto',requerido:true},
+  {campo:'oTipo',pregunta:'¿Qué tipo de intervención? Por ejemplo correctivo, falla operacional, cambio de componente, cambio de neumático, relleno de fluidos, o inspección.',tipo:'opciones',requerido:false},
+  {campo:'oCrit',pregunta:'¿Qué tan urgente es? Di reparación inmediata, próxima mantención, o no aplica.',tipo:'opciones',requerido:false},
+  {campo:'oCausa',pregunta:'¿Sabes la causa raíz? Puedes decir "no sé" para saltar.',tipo:'texto_opcional',requerido:false},
+];
+function _otVozResumenTexto(){
+  var sig=document.getElementById('oEq').value||'sin equipo';
+  var sint=document.getElementById('oSint').value||'sin síntoma';
+  var tipo=document.getElementById('oTipo').value||'';
+  var crit=document.getElementById('oCrit').value||'';
+  return 'Resumen: equipo '+sig+', síntoma '+sint+(tipo?', tipo '+tipo:'')+(crit&&crit!=='No Aplica'?', criticidad '+crit:'')+'.';
+}
 window._iniciarOTPorVoz=function(){
   if(!document.getElementById('oEq')&&typeof addOT==='function')addOT();
-  window._otVoz={activo:true,paso:0};
-  setTimeout(_otVozPreguntar,300);
+  _iniciarFlujoVoz(window.OT_VOZ_PASOS,function(){if(typeof saveOT==='function')saveOT();},_otVozResumenTexto);
+};
+
+// ---- Flujo: Registro PM por voz ----
+window.REG_VOZ_PASOS=[
+  {campo:'rEq',pregunta:'¿Qué equipo? Di la sigla, por ejemplo TI cinco uno cuatro dos.',tipo:'equipo',requerido:true},
+  {campo:'rHor',pregunta:'¿Cuál es el horómetro actual del equipo?',tipo:'numero',requerido:true,etiqueta:'Horómetro'},
+  {campo:'rPM',pregunta:'¿Qué tipo de mantención hiciste? Di PM1, PM2, PM3, PM4, o correctivo.',tipo:'opciones',requerido:false},
+  {campo:'rObs',pregunta:'¿Qué trabajos realizaste? Puedes decir "omitir" para saltar.',tipo:'texto_opcional',requerido:false},
+  {campo:'rRep',pregunta:'¿Qué repuestos o filtros usaste? Di "omitir" si no aplica.',tipo:'texto_opcional',requerido:false},
+];
+function _regVozResumenTexto(){
+  var sig=document.getElementById('rEq').value||'sin equipo';
+  var hor=document.getElementById('rHor').value||'sin horómetro';
+  var pm=document.getElementById('rPM').value||'';
+  var obs=document.getElementById('rObs').value||'';
+  return 'Resumen: equipo '+sig+', horómetro '+hor+(pm?', tipo '+pm:'')+(obs?', trabajos: '+obs:'')+'.';
+}
+window._iniciarRegPorVoz=function(){
+  if(!document.getElementById('rEq')&&typeof addReg==='function')addReg();
+  _iniciarFlujoVoz(window.REG_VOZ_PASOS,function(){if(typeof saveReg==='function')saveReg();},_regVozResumenTexto);
 };
 
 window.calcDurOT=function(){
