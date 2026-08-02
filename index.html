@@ -557,7 +557,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
         try{localStorage.setItem(K+catKey,JSON.stringify(_recorteParaLocal(catKey,fresco)));}catch(e){}
       }
     },
-    '⚠️ Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
   );
   if(conflicto)return;
 
@@ -651,7 +651,7 @@ async function _syncVencimientosInner(obj,objAnterior){
         try{localStorage.setItem(K+'venc',JSON.stringify(_recorteParaLocal('venc',fresco)));}catch(e){}
       }
     },
-    '⚠️ Otra persona modificó vencimientos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Otra persona modificó vencimientos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
   );
   if(conflicto)return;
 
@@ -703,7 +703,7 @@ async function _syncSingletonInner(cfgS,v,catKey){
         try{localStorage.setItem(K+catKey,JSON.stringify(fresco.valor));}catch(e){}
       }
     },
-    '⚠️ Otra persona modificó esta configuración mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Otra persona modificó esta configuración mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
   );
   if(conflicto)return;
 
@@ -1456,7 +1456,7 @@ renders.dash=function(){
     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:3px;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA</div>'+
     '<div style="font-size:64px;font-weight:900;color:'+dispCol+';line-height:1;margin:8px 0">'+(dispFlota===null?'—':dispFlota)+(dispFlota===null?'':'<span style="font-size:28px">%</span>')+'</div>'+
     '<div style="margin:10px auto;width:85%;background:color-mix(in srgb,'+dispCol+' 18%,var(--bg4));border-radius:10px;height:12px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+(dispFlota===null?'Sin equipos con datos de disponibilidad en '+dashLabel:dispVals.length+' equipos con dato · promedio '+dispFlota+'% · meta '+meta+'%')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+dispCol+';height:100%;width:'+Math.min(dispFlota||0,100)+'%;border-radius:10px;transition:width .5s"></div></div>'+
-    '<div style="font-size:11px;color:'+dispCol+';font-weight:600">'+(dispFlota===null?'Sin datos para este período':dispFlota>=meta?'✅ Sobre meta '+meta+'%':'⚠️ '+Math.round(meta-dispFlota)+'% bajo meta')+'</div>'+
+    '<div style="font-size:11px;color:'+dispCol+';font-weight:600">'+(dispFlota===null?'Sin datos para este período':dispFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+Math.round(meta-dispFlota)+'% bajo meta')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3);margin-top:6px">'+dispVals.length+' equipos · '+dashLabel+'</div>'+
     '</div>'+
 
@@ -1503,7 +1503,7 @@ renders.dash=function(){
 
     // ═══ KPIs AVANZADOS ROW ═══
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:20px">'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · ⚠️'+stkBajo+' · ✅'+stkOk+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Meta: &lt;2%')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">Eq sin falla en '+dashLabel+'</div></div>'+
@@ -1576,7 +1576,7 @@ renders.dash=function(){
       '<td class="mono" style="color:#ef4444;font-weight:700">'+e.diasParaPM+'</td>'+
       '<td>'+pb(e.tipoPM)+'</td></tr>'}).join('')+
     '</table></div>'
-    :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ Sin equipos urgentes</div>')+
+    :'<div style="padding:20px;text-align:center;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sin equipos urgentes</div>')+
     '</div>'+
 
     // Resumen rápido lateral
@@ -1781,7 +1781,7 @@ window.importarEquiposNuevos=function(){
   refreshAll();
   var msg='✅ Importados: '+agregados.join(', ');
   if(omitidos.length)msg+='\n⚠️ Ya existían (omitidos): '+omitidos.join(', ');
-  msg+='\n\n📝 Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg>) para ingresar km/día cuando tengas el dato.';
+  msg+='\n\n📝 Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (✏️) para ingresar km/día cuando tengas el dato.';
   alert(msg);
 };
 
@@ -1978,7 +1978,7 @@ window.editarReg=function(i){
 window.calcDurEdit=function(){
   const d=duracionHM($('eFecEnt')?.value,$('eHoraEnt')?.value,$('eFecSal')?.value,$('eHoraSal')?.value);
   if(!d)return;
-  $('eDur').value=d.ms<0?'⚠️ Hora inválida':d.texto;
+  $('eDur').value=d.ms<0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Hora inválida':d.texto;
 };
 window.saveEditReg=function(i){
   const reg=S.g('reg')||[];
@@ -2019,7 +2019,7 @@ window.saveEditReg=function(i){
     duracionH:(dEdit&&dEdit.ms>0)?Math.round(dEdit.horas*10)/10:(reg[i].duracionH||0),
     horomReal:hr,
     desvioDias:desv,
-    estado:desv<=0?'✅ ANTICIPADA':'🔴 ATRASADA',
+    estado:desv<=0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> ANTICIPADA':'🔴 ATRASADA',
     tecnico:$('eTec').value,
     obs:$('eObs').value,
     repuestos:$('eRep').value,
@@ -2063,7 +2063,7 @@ window.rMostrarConsumos=function(){
 window.calcDurReg=function(){
   const d=duracionHM($('rFecEnt').value,$('rHoraEnt').value,$('rFecSal').value,$('rHoraSal').value);
   if(!d)return;
-  $('rDur').value=d.ms<0?'⚠️ Hora inválida':d.texto;
+  $('rDur').value=d.ms<0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Hora inválida':d.texto;
 };
 window.saveReg=function(){
   const eqSigla=$('rEq').value;
@@ -2106,7 +2106,7 @@ window.saveReg=function(){
     horomReal:hr,horomProg:e?.horomProxPM||0,
     fechaProg:e?.fechaProxPM||'',
     desvioDias:desv,
-    estado:desv<=0?'✅ ANTICIPADA':'🔴 ATRASADA',
+    estado:desv<=0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> ANTICIPADA':'🔴 ATRASADA',
     estatusEq,
     tecnico:$('rTec').value,
     repuestos:$('rRep').value,
@@ -2155,7 +2155,7 @@ window.saveReg=function(){
         && (o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución');
     });
     if(yaAbierta){
-      msgOT=' · ⚠️ OT FS ya abierta ('+yaAbierta.fecha+') — no se duplica';
+      msgOT=' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> OT FS ya abierta ('+yaAbierta.fecha+') — no se duplica';
     } else {
       const esCorr=tp==='Correctivo';
       ot.unshift({sigla:eqSigla,fecha:fEnt,tipo:esCorr?'Correctivo':tp,
@@ -2697,7 +2697,7 @@ renders.prg=function(){
           var coincide=!ejecTipo||!base||ejecTipo===true||ejecTipo===base;
           var v=ejecTipo?(coincide?'EJEC':'EJEC≠'+ejecTipo):base;
           var cls=v==='PM1'?'pg-1':v==='PM2'?'pg-2':v==='PM3'?'pg-3':v==='PM4'?'pg-4':v==='EJEC'?'pg-x':(v.indexOf('EJEC≠')===0?'pg-x':'');
-          var tip=ejecTipo?(coincide?'EJEC (auto, desde registros). Click para corregir el plan base de esta celda':'⚠️ Se ejecutó '+ejecTipo+' pero estaba planificado '+base+'. Click para corregir')
+          var tip=ejecTipo?(coincide?'EJEC (auto, desde registros). Click para corregir el plan base de esta celda':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Se ejecutó '+ejecTipo+' pero estaba planificado '+base+'. Click para corregir')
                           :'Click para cambiar PM';
           return'<div class="pg-c '+cls+'" title="'+tip+'" style="'+(!coincide?'color:#f59e0b':'')+'" onclick="cyclePrg('+pi+',\''+m+'\','+(ejecTipo?'true':'false')+')">'+(v||'·')+'</div>';
         }).join('');
@@ -2817,7 +2817,7 @@ window.delPauta=function(i){
   var pau=S.g('pau')||INIT.pautas||[];
   pau.splice(i,1);S.s('pau',pau);
   refreshAll();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminada');
+  toast('🗑️ Eliminada');
 };
 window.addPauta=function(){
   const eq=S.g('eq');
@@ -3123,7 +3123,7 @@ window.delMov=function(idx){
   mov.splice(idx,1);
   S.s('mov',mov);
   refreshAll();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminado — stock restaurado');
+  toast('🗑️ Eliminado — stock restaurado');
 };
 window.clearConsumos=function(){
   if(!confirm('¿Limpiar todo el historial de consumos? Esto restaura el stock que estos movimientos habían descontado.'))return;
@@ -3148,7 +3148,7 @@ window.clearConsumos=function(){
   reg.forEach(r=>delete r.consumosPauta);
   S.s('reg',reg);
   renders.mov();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Historial de consumos limpiado — stock restaurado');
+  toast('🗑️ Historial de consumos limpiado — stock restaurado');
 };
 
 // ═══ RECALCULAR CONSUMO HISTÓRICO ═══
@@ -3395,7 +3395,7 @@ renders.lub=function(){
       return'<tr'+(obsoleto?' style="opacity:.55"':'')+'>'+
         '<td class="mono">'+rowNum+'</td>'+
         '<td style="max-width:250px"><input value="'+escapeHtml(l.nombre||'')+'" onchange="edI(\'lub\','+idx+',\'nombre\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" title="Editar nombre">'+
-        (obsoleto?'<div style="font-size:9px;color:var(--w)" title="La demanda de este producto se pide bajo su reemplazo">⚠️ Descontinuado → se pide como <b>'+escapeHtml(reemplazo)+'</b></div>':'')+'</td>'+
+        (obsoleto?'<div style="font-size:9px;color:var(--w)" title="La demanda de este producto se pide bajo su reemplazo"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Descontinuado → se pide como <b>'+escapeHtml(reemplazo)+'</b></div>':'')+'</td>'+
         '<td><select onchange="edI(\'lub\','+idx+',\'unidad\',this.value)" style="font-size:10px;'+is+'">'+
         ['Litro','Kilo','Unidad'].map(function(u){return'<option'+(l.unidad===u?' selected':'')+'>'+u+'</option>'}).join('')+'</select></td>'+
         '<td><input type="number" value="'+(l.stock||0)+'" onchange="edI(\'lub\','+idx+',\'stock\',parseFloat(this.value)||0)" style="width:55px;'+is+';color:var(--ac);font-weight:600"></td>'+
@@ -3782,7 +3782,7 @@ window.planHistorico=function(){
       <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Materiales distintos</div><b style="font-size:18px">${lista.length}</b></div>
       <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Costo total</div><b style="font-size:18px;color:var(--ac)">$${fn2(totalCosto)}</b></div>
     </div>
-    ${totalSinPrecio?`<p style="font-size:11px;color:var(--warn)">⚠️ ${totalSinPrecio} material(es) sin precio encontrado — revisa "🔍 Vínculos rotos" para esos.</p>`:''}
+    ${totalSinPrecio?`<p style="font-size:11px;color:var(--warn)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ${totalSinPrecio} material(es) sin precio encontrado — revisa "🔍 Vínculos rotos" para esos.</p>`:''}
 
     <div style="max-height:320px;overflow:auto">
     <table style="width:100%;font-size:11px">
@@ -4191,7 +4191,7 @@ window.delRow=function(store,idx,tab){
     ?'¿Eliminar este equipo de la flota activa?\n\nSus registros de PM, correctivos, historial de horómetros, neumáticos, etc. NO se borran — quedan conservados como historial (igual que un equipo decomisado). Podrás seguir viéndolos en Buscador y en Diagnóstico de Vínculos.'
     :'¿Eliminar este registro?';
   if(!confirm(msg))return;
-  const d=S.g(store);d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminado');
+  const d=S.g(store);d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('🗑️ Eliminado');
 };
 
 // ============ EXPORT CSV ============
@@ -4201,7 +4201,7 @@ window.exportCSV=function(store){
   const csv=[keys.join(';'),...d.map(r=>keys.map(k=>{let v=r[k];if(typeof v==='object')v=JSON.stringify(v);return'"'+(v??'')+'"'}).join(';'))].join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=store+'_export.csv';a.click();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV exportado');
+  toast('📥 CSV exportado');
 };
 
 // ============ INIT ============
@@ -4241,7 +4241,7 @@ renders.ot=function(){
       <div class="card"><div class="card-t">Total OT</div><div class="card-v">${todos.length}</div></div>
       <div class="card"><div class="card-t" style="color:var(--danger)">🔴 Pendientes</div><div class="card-v" style="color:var(--danger)">${todos.filter(o=>o.estadoOT==='Pendiente').length}</div><div class="card-s">Backlog</div></div>
       <div class="card"><div class="card-t" style="color:var(--warn)">🟡 En Ejecución</div><div class="card-v" style="color:var(--warn)">${todos.filter(o=>o.estadoOT==='En Ejecución').length}</div></div>
-      <div class="card"><div class="card-t" style="color:var(--ok)">✅ Cerradas</div><div class="card-v" style="color:var(--ok)">${todos.filter(o=>!o.estadoOT||o.estadoOT==='Cerrada').length}</div></div>
+      <div class="card"><div class="card-t" style="color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Cerradas</div><div class="card-v" style="color:var(--ok)">${todos.filter(o=>!o.estadoOT||o.estadoOT==='Cerrada').length}</div></div>
       <!-- Nota: los correctivos que vienen de Registro PM (regCorr) no tienen estadoOT propio;
            al no ser 'Pendiente' ni 'En Ejecución' quedan en Cerradas, correcto porque
            representan una mantención ya ejecutada y registrada, no una OT abierta. -->
@@ -4921,7 +4921,7 @@ window.verHistorialSensor=function(i){
   sm(`<div style="max-width:560px"><h3>📋 Historial — Sensor ${escapeHtml(s.numSensor||'')}</h3>
     <p style="color:var(--tx2);margin-bottom:10px;font-size:12px">Ubicación actual: <b>${s.estado==='Operativo'?escapeHtml(s.sigla||'')+' '+escapeHtml(s.posicion||''):'En Existencias'}</b></p>
     ${hist.length?`<div>${hist.map(h=>`<div style="font-size:11px;padding:6px 8px;border-left:2px solid ${h.accion==='Instalado'?'var(--ok)':'var(--danger)'};margin-bottom:4px;background:var(--bg3);border-radius:4px">
-      <b>${h.fecha}</b> — ${h.accion==='Instalado'?'✅ Instalado en':'⬅️ Desmontado de'} <b>${escapeHtml(h.sigla||'')} ${escapeHtml(h.posicion||'')}</b>${h.neuSerie?' (neumático serie '+escapeHtml(h.neuSerie)+')':''}
+      <b>${h.fecha}</b> — ${h.accion==='Instalado'?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Instalado en':'⬅️ Desmontado de'} <b>${escapeHtml(h.sigla||'')} ${escapeHtml(h.posicion||'')}</b>${h.neuSerie?' (neumático serie '+escapeHtml(h.neuSerie)+')':''}
     </div>`).join('')}</div>`:'<p style="font-size:11px;color:var(--tx3)">Sin movimientos registrados todavía</p>'}
     <button class="btn btn-o" style="margin-top:12px" onclick="verSensores()">← Volver</button></div>`);
 };
@@ -5529,7 +5529,7 @@ window.verDetalleNeu=function(neuIdx){
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Fecha cambio</div><b style="color:var(--warn)">${proy.fechaCambio}</b></div>
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Días</div><b>${proy.diasRestantes}</b></div>
       </div>
-      <div style="margin-top:8px;font-size:11px;color:var(--tx3)">⚠️ Cambio por: <b style="color:var(--warn)">${proy.motivoCambio}</b> · ${proy.confianza}${proy.desgasteMes?' · '+proy.desgasteMes+'mm/mes':''}</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--tx3)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Cambio por: <b style="color:var(--warn)">${proy.motivoCambio}</b> · ${proy.confianza}${proy.desgasteMes?' · '+proy.desgasteMes+'mm/mes':''}</div>
     </div>`:''}
     <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
       <b style="font-size:13px">📊 Métricas de rendimiento</b>
@@ -5539,7 +5539,7 @@ window.verDetalleNeu=function(neuIdx){
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Costo/mm</div><b>${m.costoMm?'$'+fn2(m.costoMm):'—'}</b></div>
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">mm gastados</div><b>${m.mmGastados}mm <span style="font-size:9px;color:var(--tx3)">de ${m.remNuevo}</span></b></div>
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Vida proyectada</div><b style="color:var(--warn)">${m.vidaProyectada?fn2(m.vidaProyectada)+'h':'—'}</b></div>
-        <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">${m.gastoPerdido>0?'⚠️ Gasto perdido':'Estado'}</div><b style="color:${m.gastoPerdido>0?'var(--danger)':'var(--ok)'}">${m.gastoPerdido>0?'$'+fn2(m.gastoPerdido):n.estado}</b></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">${m.gastoPerdido>0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Gasto perdido':'Estado'}</div><b style="color:${m.gastoPerdido>0?'var(--danger)':'var(--ok)'}">${m.gastoPerdido>0?'$'+fn2(m.gastoPerdido):n.estado}</b></div>
       </div>`;})()}
     </div>
     <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
@@ -5633,7 +5633,7 @@ window.resumenFlotaNeu=function(){
         <b style="font-size:14px;color:var(--ac)">$${fn2(costoReposicion)}</b>
       </div>
       <div style="background:${gastoPerdidoTotal>0?'rgba(239,68,68,0.12)':'var(--bg3)'};border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;color:var(--tx3)">⚠️ Gasto perdido (bajas)</div>
+        <div style="font-size:10px;color:var(--tx3)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Gasto perdido (bajas)</div>
         <b style="font-size:14px;color:${gastoPerdidoTotal>0?'var(--danger)':'var(--ok)'}">$${fn2(gastoPerdidoTotal)}</b>
       </div>
     </div>
@@ -5691,9 +5691,9 @@ window.resumenFlotaNeu=function(){
         });
         localStorage.setItem(K+'neu',JSON.stringify(neu));
       }catch(e){}
-      console.log('✅ Historial neumáticos cargado:',INIT.neuMed.length,'mediciones');
+      console.log('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Historial neumáticos cargado:',INIT.neuMed.length,'mediciones');
     }
-  }catch(e){console.warn('⚠️ Migración neuMed omitida:',e.message);}
+  }catch(e){console.warn('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Migración neuMed omitida:',e.message);}
 })();
 
 // ---- DISPONIBILIDAD ----
@@ -5794,8 +5794,8 @@ renders.disp=function(){
     '<div style="text-align:center;min-width:100px"><div style="font-size:36px;font-weight:800;color:'+col+'">'+totalFlota+'%</div><div style="font-size:10px;color:var(--tx3)">FLOTA '+fMes+'</div></div>'+
     '<div style="flex:1">'+
     '<div style="background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:6px;height:18px;overflow:hidden;margin-bottom:6px;cursor:default" onmouseenter="vizTip(event,\'Flota: '+totalFlota+'% · '+conDatos.length+' equipos con dato · '+bajoMeta+' bajo meta\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+col+';height:100%;width:'+Math.min(totalFlota,100)+'%"></div></div>'+
-    '<div style="font-size:12px;color:'+col+'">'+(totalFlota>=meta?'✅ Sobre meta '+meta+'%':'⚠️ Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta</div>'+
-    (sinRegistros>0?'<div style="font-size:11px;color:var(--warn);margin-top:4px" title="Estos equipos no tienen ninguna detención cargada este mes, así que su 100% es asumido — el promedio de flota puede estar inflado hasta que cargues sus datos">⚠ '+sinRegistros+' equipo'+(sinRegistros===1?'':'s')+' sin registros este mes (100% asumido — cargá sus salidas de servicio para que el número sea real)</div>':'')+'</div></div>'+
+    '<div style="font-size:12px;color:'+col+'">'+(totalFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta</div>'+
+    (sinRegistros>0?'<div style="font-size:11px;color:var(--warn);margin-top:4px" title="Estos equipos no tienen ninguna detención cargada este mes, así que su 100% es asumido — el promedio de flota puede estar inflado hasta que cargues sus datos"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+sinRegistros+' equipo'+(sinRegistros===1?'':'s')+' sin registros este mes (100% asumido — cargá sus salidas de servicio para que el número sea real)</div>':'')+'</div></div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th><th title="Respaldo del número: registros reales de detención, valor cargado a mano, o asumido por falta de datos">Datos</th></tr>'+
     eqDisp.sort(function(a,b){return(a.pct||999)-(b.pct||999)}).map(function(e){
@@ -5805,11 +5805,11 @@ renders.disp=function(){
       var datos;
       if(e.manual)datos='<span class="badge b-b" title="Valor cargado a mano (override o import)">✍ manual</span>';
       else if(e.diasReg>0)datos='<span style="font-size:10px;color:var(--tx3)" title="Días del mes con al menos una detención registrada">📋 '+e.diasReg+' día'+(e.diasReg===1?'':'s')+' c/registro</span>';
-      else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real.">⚠ sin registros</span>';
+      else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real."><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> sin registros</span>';
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
         '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+escapeHtml(e.sigla)+'\'])d[\''+escapeHtml(e.sigla)+'\']={}; d[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
         '<td><div style="background:color-mix(in srgb,'+c+' 18%,var(--bg4));border-radius:4px;height:10px;width:120px;overflow:hidden"><div style="background:'+c+';height:100%;width:'+Math.min(e.pct,100)+'%"></div></div></td>'+
-        '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'✅ OK':'🔴 Bajo')+'</span></td>'+
+        '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK':'🔴 Bajo')+'</span></td>'+
         '<td>'+datos+'</td></tr>';
     }).join('')+
     '</table></div>';
@@ -5940,7 +5940,7 @@ renders.disp=function(){
       return'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px">'+
         '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(x.o.sigla)+'</span>'+
         '<span style="color:var(--tx3)">desde '+x.o.fechaEntrada+' ('+dias+' día'+(dias===1?'':'s')+') — '+escapeHtml(x.o.sintoma||'')+'</span>'+
-        '<button class="btn-s" style="margin-left:auto" onclick="cerrarSalidaServicio('+x.i+')">✅ Volvió a operar</button>'+
+        '<button class="btn-s" style="margin-left:auto" onclick="cerrarSalidaServicio('+x.i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Volvió a operar</button>'+
         '</div>';
     }).join('')+
     '</div>':'';
@@ -6177,7 +6177,7 @@ renders.cfg=function(){
       '<b style="font-size:13px">⏳ Pendientes de activar</b>'+
       '<div id="nuPendientes" style="margin-top:8px;font-size:12px;color:var(--tx3)">Cargando...</div>'+
       '<hr style="border-color:var(--bd);margin:14px 0">'+
-      '<b style="font-size:13px">✅ Usuarios activos</b>'+
+      '<b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Usuarios activos</b>'+
       '<div id="nuActivos" style="margin-top:8px;font-size:12px;color:var(--tx3)">Cargando...</div>'+
       '</div>'
       :'')+
@@ -6210,10 +6210,10 @@ async function _refrescarEstadoMFA(){
   if(!box)return;
   var f=await window._mfaEstado().catch(function(){return null;});
   if(f){
-    box.innerHTML='<div style="color:var(--ok);margin-bottom:8px">✅ Activada</div>'+
+    box.innerHTML='<div style="color:var(--ok);margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Activada</div>'+
       '<button class="btn btn-d" onclick="desactivarMFA()">Desactivar</button>';
   }else{
-    box.innerHTML='<div style="color:var(--w);margin-bottom:8px">⚠️ No está activada</div>'+
+    box.innerHTML='<div style="color:var(--w);margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> No está activada</div>'+
       '<button class="btn" onclick="activarMFA()">Activar verificación en dos pasos</button>';
   }
 }
@@ -6639,7 +6639,7 @@ window.diagVinculos=function(soloActivos){
 
   if(!lista.length){
     sm('<h3>🔍 Diagnóstico de Vínculos</h3>'+toggleHtml+
-      '<p>✅ No se encontraron vínculos rotos'+(soloActivos?' en equipos activos':'')+'. '+
+      '<p><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> No se encontraron vínculos rotos'+(soloActivos?' en equipos activos':'')+'. '+
       (soloActivos&&omitidosDecom?'Hay '+omitidosDecom+' línea(s) de equipos decomisados con vínculo roto — activa la opción de arriba para verlas.':'Todas las líneas de pauta con material y cantidad encuentran precio en Lubricantes o Stock Filtros.')+'</p>'+
       '<button class="btn btn-o" onclick="cm()">Cerrar</button>');
     return;
@@ -6656,7 +6656,7 @@ window.diagVinculos=function(soloActivos){
     return '<tr><td style="font-size:12px;max-width:220px">'+escapeHtml(g.rep)+(!g.activo?' <span class="badge b-y" style="font-size:9px">decomisado</span>':'')+'</td>'+
       '<td style="font-size:11px;color:var(--tx3)">'+g.count+' línea(s)<br>'+g.refs.join(', ')+(g.count>g.refs.length?'…':'')+'</td>'+
       '<td><select id="diagFix'+i+'" style="font-size:11px;max-width:220px"><option value="">— Elegir producto —</option>'+optsLub+optsStk+'</select></td>'+
-      '<td><button class="btn-s" onclick="aplicarFixVinculo('+i+')">✅ Vincular</button></td></tr>';
+      '<td><button class="btn-s" onclick="aplicarFixVinculo('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Vincular</button></td></tr>';
   }).join('');
 
   sm('<h3>🔍 Vínculos rotos pauta ↔ producto</h3>'+toggleHtml+
@@ -6896,7 +6896,7 @@ function generarDiagnostico(sigla){
   if(estadoPM.includes('URGENTE'))porQue.push('Horas de operación superan intervalo de mantención');
   if(eqData&&eqData.promCostoMes>5e6)porQue.push('Costo mensual alto: $'+eqData.promCostoMes.toLocaleString()+'/mes');
   if(!porQue.length)porQue.push('Sin causas identificadas — operación dentro de parámetros');
-  d.secciones.push({titulo:'⚠️ ¿Por qué está pasando?',items:porQue,color:'var(--w)'});
+  d.secciones.push({titulo:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ¿Por qué está pasando?',items:porQue,color:'var(--w)'});
 
   // 3. ¿QUÉ VA A PASAR?
   var queViene=[];
@@ -6920,7 +6920,7 @@ function generarDiagnostico(sigla){
   if(aceAlertas.length)hacer.push('🔧 Intervenir '+aceAlertas[0].descriptor+' — cambio de aceite/inspección interna');
   if(otPend.length)hacer.push('📋 Resolver '+otPend.length+' OT pendiente(s)');
   if(noks.length)hacer.push('👁️ Re-inspeccionar: '+[...new Set(noks)].join(', '));
-  Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
+  Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push('🔄 Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
   if(!hacer.length)hacer.push('✅ Mantener plan de mantención vigente');
   d.secciones.push({titulo:'🔧 ¿Qué debo hacer?',items:hacer,color:'var(--ac)'});
 
@@ -7511,7 +7511,7 @@ renders.pred=function(){
           '<span style="color:var(--danger);font-weight:700">➡️</span>'+
           '<span><b>'+escapeHtml(p.sigla)+'</b> — '+escapeHtml(p.tipo)+' en <b>'+p.dias+' días</b></span>'+
           '<span style="margin-left:auto;color:var(--w);font-size:11px">Programar intervención</span></div>';
-      }).join(''):'<div style="font-size:12px;color:var(--ok)">✅ Sin PM urgentes próximas 2 semanas</div>')+
+      }).join(''):'<div style="font-size:12px;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sin PM urgentes próximas 2 semanas</div>')+
       (quiebres.filter(function(r){return r.riesgo.includes('🔴');}).length?
         quiebres.filter(function(r){return r.riesgo.includes('🔴');}).slice(0,5).map(function(q){
           return'<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:rgba(239,68,68,.06);border-radius:4px;font-size:12px">'+
@@ -7549,7 +7549,7 @@ renders.pred=function(){
         quiebres.slice(0,15).map(function(q){
           return'<tr><td style="font-size:11px">'+escapeHtml(q.item.substring(0,42))+'</td><td class="mono" style="font-size:10px;color:var(--tx3)">'+escapeHtml(q.nParte||'—')+'</td><td style="text-align:center">'+q.stock+'</td><td style="font-size:11px;font-weight:600">'+q.riesgo+'</td><td style="font-size:11px;color:var(--tx2)">'+escapeHtml(q.accion||'')+'</td></tr>';
         }).join('')+'</table></div>'
-        :'<div style="color:var(--ok);text-align:center;padding:20px">✅ Sin riesgo de quiebre</div>')+
+        :'<div style="color:var(--ok);text-align:center;padding:20px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sin riesgo de quiebre</div>')+
       '</div>'+
 
       // ── ZONA 2: HISTÓRICO DE COMPRAS (reporte, mira para atrás) ──
@@ -7585,7 +7585,7 @@ renders.pred=function(){
       '<div class="card"><div class="card-t">Confianza</div><div class="card-v" style="color:'+confCol+'">'+conf.nivel+'</div><div class="card-s">Score: '+conf.score+'/7</div></div>'+
       '<div class="card" style="border-left:3px solid '+(ac.severity>=5?'var(--danger)':ac.severity>=2?'var(--w)':'var(--ok)')+'"><div class="card-t">Estado</div><div class="card-v">'+ac.estado+'</div><div class="card-s">'+recom+'</div></div>'+
       '</div>'+
-      (ac.alertas.length?'<div class="card" style="margin-bottom:12px;border-left:3px solid var(--danger)"><b>⚠️ Alertas:</b> '+ac.alertas.join(' · ')+'</div>':'')+
+      (ac.alertas.length?'<div class="card" style="margin-bottom:12px;border-left:3px solid var(--danger)"><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Alertas:</b> '+ac.alertas.join(' · ')+'</div>':'')+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">'+
       '<div class="chart-box"><div class="chart-t">Pedidos/Mes</div><div class="bars">'+E.trend.map(function(t){
         var tipTxt=t.m+': '+t.n+' pedidos';
@@ -7716,12 +7716,12 @@ renders.pred=function(){
             '<div style="font-weight:700;font-size:13px">'+escapeHtml(a.descripcion||a.nParte)+'</div>'+
             '<div style="font-size:10px;color:var(--tx3)" class="mono">'+escapeHtml(a.nParte||'')+'</div>'+
             '</div>'+
-            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+'</b> · Se necesitan <b>'+a.demandaTotal+'</b> para los PM que vienen en '+hz+' días · Faltan <b>'+a.deficit+'</b></div>'+
+            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Stock actual: <b>'+a.stockActual+'</b> · Se necesitan <b>'+a.demandaTotal+'</b> para los PM que vienen en '+hz+' días · Faltan <b>'+a.deficit+'</b></div>'+
             '<div style="font-size:11px;color:var(--tx2)">Primero lo necesita <b class="mono" style="color:var(--ac)">'+escapeHtml(primero.sigla)+'</b> en <b>'+primero.dias+' día(s)</b>'+(primero.fecha?' ('+escapeHtml(primero.fecha)+')':'')+'</div>'+
             (a.equipos.length>1?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">También lo necesitan: '+a.equipos.slice(1).map(function(e){return escapeHtml(e.sigla)+' ('+e.dias+'d)';}).join(', ')+'</div>':'')+
             '</div>';
         }).join('')
-      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock actual alcanza para todos los PM proyectados en los próximos '+hz+' días (según lo que la pauta indica para cada uno).</div>')+
+      :'<div style="padding:20px;text-align:center;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> El stock actual alcanza para todos los PM proyectados en los próximos '+hz+' días (según lo que la pauta indica para cada uno).</div>')+
       '</div>';
   } else if(fVista==='lubpm'){
     var hz=parseInt(window._predHorizonte)||90;
@@ -7736,12 +7736,12 @@ renders.pred=function(){
           var primero=a.equipos[0];
           return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+borde+'">'+
             '<div style="font-weight:700;font-size:13px">'+escapeHtml(a.nombre)+'</div>'+
-            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'">⚠️ Stock actual: <b>'+a.stockActual+a.unidad+'</b> · Se necesitan <b>'+a.demandaTotal+a.unidad+'</b> para los PM que vienen en '+hz+' días · Faltan <b>'+a.deficit+a.unidad+'</b></div>'+
+            '<div style="font-size:12px;margin:6px 0;color:'+(a.severidad>=3?'var(--danger)':'var(--w)')+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Stock actual: <b>'+a.stockActual+a.unidad+'</b> · Se necesitan <b>'+a.demandaTotal+a.unidad+'</b> para los PM que vienen en '+hz+' días · Faltan <b>'+a.deficit+a.unidad+'</b></div>'+
             '<div style="font-size:11px;color:var(--tx2)">Primero lo necesita <b class="mono" style="color:var(--ac)">'+escapeHtml(primero.sigla)+'</b> en <b>'+primero.dias+' día(s)</b>'+(primero.fecha?' ('+escapeHtml(primero.fecha)+')':'')+'</div>'+
             (a.equipos.length>1?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">También lo necesitan: '+a.equipos.slice(1).map(function(e){return escapeHtml(e.sigla)+' ('+e.dias+'d)';}).join(', ')+'</div>':'')+
             '</div>';
         }).join('')
-      :'<div style="padding:20px;text-align:center;color:var(--ok)">✅ El stock de lubricantes alcanza para todos los PM proyectados en los próximos '+hz+' días.</div>')+
+      :'<div style="padding:20px;text-align:center;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> El stock de lubricantes alcanza para todos los PM proyectados en los próximos '+hz+' días.</div>')+
       '</div>';
   }
 
@@ -7887,7 +7887,7 @@ renders.rep=function(){
       if(r.estado.includes('SIN STOCK'))accion='<button class="btn-s" style="background:var(--danger);color:white;font-size:10px" onclick="crearOC('+i+')">🛒 Comprar</button>';
       else if(r.estado.includes('PEDIR'))accion='<button class="btn-s" style="background:var(--danger);color:white;font-size:10px" onclick="crearOC('+i+')">🛒 Comprar</button>';
       else if(r.estado.includes('BAJO'))accion='<button class="btn-s" style="background:var(--w);color:black;font-size:10px" onclick="crearOC('+i+')">📋 Planificar</button>';
-      else accion='<span style="font-size:10px;color:var(--ok)">✅ OK</span>';
+      else accion='<span style="font-size:10px;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK</span>';
 
       return'<tr style="background:'+bg+'">'+
         '<td style="font-size:11px;white-space:nowrap">'+r.estado+'</td>'+
@@ -7914,7 +7914,7 @@ window.edRep=function(i,key,val){
 window.delRep=function(i){
   if(!confirm('¿Eliminar?'))return;
   var rep=S.g('repuestos')||[];rep.splice(i,1);S.s('repuestos',rep);refreshAll();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminado');
+  toast('🗑️ Eliminado');
 };
 window.addRep=function(){
   var eq=S.g('eq')||[];
@@ -7955,7 +7955,7 @@ window.crearOC=function(i){
     '<div class="form-row"><div class="fg"><label>Proveedor</label><input id="ocProv" value="'+escapeHtml(r.proveedor||'')+'"></div>'+
     '<div class="fg"><label>Fecha pedido</label><input type="date" id="ocFecha" value="'+new Date().toISOString().slice(0,10)+'"></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Observaciones</label><input id="ocObs" style="width:100%"></div></div>'+
-    '<button class="btn" onclick="confirmarOC('+i+')">✅ Confirmar Pedido</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<button class="btn" onclick="confirmarOC('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Confirmar Pedido</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 window.confirmarOC=function(i){
   var rep=S.g('repuestos')||[];var r=rep[i];
@@ -7987,7 +7987,7 @@ window.syncRepStock=function(){
     }
   });
   S.s('repuestos',rep);refreshAll();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> '+updated+' items sincronizados con Stock/Lubricantes');
+  toast('🔄 '+updated+' items sincronizados con Stock/Lubricantes');
 };
 
 
@@ -8151,7 +8151,7 @@ renders.insp=function(){
         }).join('')+
         '<td><input value="'+escapeHtml(r.obs||'')+'" onchange="edInsp('+i+',\'obs\',this.value)" style="'+is+'" placeholder="..."></td>'+
         '<td style="font-size:10px">'+escapeHtml(r.inspector||'—')+'</td>'+
-        '<td style="text-align:center">'+(alertCount>0?'<span style="color:var(--danger);font-weight:700">🔴 '+alertCount+'</span>':'<span style="color:var(--ok)">✅</span>')+'</td>'+
+        '<td style="text-align:center">'+(alertCount>0?'<span style="color:var(--danger);font-weight:700">🔴 '+alertCount+'</span>':'<span style="color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg></span>')+'</td>'+
         '<td><button class="btn-s btn-d" onclick="delInsp('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
@@ -8170,7 +8170,7 @@ window.edInsp=function(i,key,val){
 };
 window.delInsp=function(i){
   if(!confirm('¿Eliminar inspección?'))return;
-  var insp=S.g('insp')||[];insp.splice(i,1);S.s('insp',insp);refreshAll();toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminada');
+  var insp=S.g('insp')||[];insp.splice(i,1);S.s('insp',insp);refreshAll();toast('🗑️ Eliminada');
 };
 window.addInsp=function(){
   var eq=S.g('eq')||[];
@@ -8283,7 +8283,7 @@ renders.venc=function(){
     '<div class="sec-s">'+eq.length+' equipos · '+alertasActivas.length+' requieren atención</div></div>'+
     '<button class="btn btn-o" onclick="exportVencCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div>'+
     (alertasActivas.length?'<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;color:var(--danger);font-size:13px">'+
-      '⚠️ <b>'+alertasActivas.length+' vencimiento(s) requieren atención</b> (vencidos, vencen en ≤30 días, o nunca se han registrado pese a que el tipo de equipo los exige): '+
+      '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> <b>'+alertasActivas.length+' vencimiento(s) requieren atención</b> (vencidos, vencen en ≤30 días, o nunca se han registrado pese a que el tipo de equipo los exige): '+
       alertasActivas.slice(0,6).map(function(f){return escapeHtml(f.sigla)+' ('+escapeHtml(f.vencTipo)+')';}).join(', ')+
       (alertasActivas.length>6?' y '+(alertasActivas.length-6)+' más...':'')+'</div>':'')+
     '<div class="toolbar">'+
@@ -8424,7 +8424,7 @@ window.exportVencCSV=function(){
   a.href=URL.createObjectURL(blob);
   a.download='vencimientos_centinela_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV vencimientos exportado ('+filas.length+' filas)');
+  toast('📥 CSV vencimientos exportado ('+filas.length+' filas)');
 };
 
 renders.ace=function(){
@@ -8696,7 +8696,7 @@ window.edAce=function(i,key,val){
 };
 window.delAce=function(i){
   if(!confirm('¿Eliminar muestra?'))return;
-  var ace=S.g('aceite')||[];ace.splice(i,1);S.s('aceite',ace);refreshAll();toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminada');
+  var ace=S.g('aceite')||[];ace.splice(i,1);S.s('aceite',ace);refreshAll();toast('🗑️ Eliminada');
 };
 
 // Mapa de columnas del CSV de laboratorio COPEC -> campos internos del sistema.
@@ -8888,7 +8888,7 @@ window.exportTabla=function(tabId,nombre){
   a.href=URL.createObjectURL(blob);
   a.download=(nombre||'SistemaMP_'+tabId)+'_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
-  toast('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> '+nombre+' exportado a CSV');
+  toast('📥 '+nombre+' exportado a CSV');
 };
 
 window.imprimirTab=function(tabId,nombre){
@@ -8971,7 +8971,7 @@ window.resetEmpresa=function(){
     '<div class="fg" style="margin-bottom:8px"><label>Archivo de pautas (JSON o CSV, opcional)</label><input type="file" id="nePauFile" accept=".json,.csv"></div>'+
     '</div>'+
     '<div style="background:rgba(239,68,68,.1);border-radius:6px;padding:10px;margin:12px 0">'+
-    '<b style="color:var(--danger)">⚠️ ATENCIÓN:</b> Esto borra todos los registros, OTs, stock, consumos, inspecciones y muestras de aceite actuales. Exporta un backup JSON primero desde Config si quieres guardarlos.'+
+    '<b style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ATENCIÓN:</b> Esto borra todos los registros, OTs, stock, consumos, inspecciones y muestras de aceite actuales. Exporta un backup JSON primero desde Config si quieres guardarlos.'+
     '</div>'+
     '<button class="btn" style="background:var(--danger)" onclick="processResetEmpresa()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Resetear y Configurar</button> '+
     '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
@@ -9142,7 +9142,7 @@ renders.ayuda=function(){
     '<b style="font-size:13px;color:var(--ac)">▶ Respaldo y acceso desde otro equipo</b>'+
     '<p style="font-size:12px;line-height:1.7;margin:8px 0 12px 0">No hace falta respaldar nada a mano: los datos ya están en el servidor, no en este navegador. Para usar el sistema desde otro computador o celular, solo entra a la misma dirección web e inicia sesión con tu mismo usuario — vas a ver exactamente los mismos datos, al instante.</p>'+
     '<b style="font-size:13px;color:var(--ac)">▶ Conceptos clave del mantenimiento preventivo</b>'+
-    '<p style="font-size:12px;line-height:1.7;margin:8px 0 0 0">Cada equipo tiene ciclos de PM: <b>PM1</b> (250h), <b>PM2</b> (500h), <b>PM3</b> (1.000h), <b>PM4</b> (2.000h). Un PM mayor incluye los menores (PM4 hace también PM1+2+3). El sistema calcula solo cuándo toca cada PM según el horómetro y avisa con colores: 🔴 urgente, 🟡 próxima, ✅ al día.</p>'+
+    '<p style="font-size:12px;line-height:1.7;margin:8px 0 0 0">Cada equipo tiene ciclos de PM: <b>PM1</b> (250h), <b>PM2</b> (500h), <b>PM3</b> (1.000h), <b>PM4</b> (2.000h). Un PM mayor incluye los menores (PM4 hace también PM1+2+3). El sistema calcula solo cuándo toca cada PM según el horómetro y avisa con colores: 🔴 urgente, 🟡 próxima, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> al día.</p>'+
     '</div>'+
 
     // ROLES Y PERMISOS
@@ -9192,7 +9192,7 @@ renders.ayuda=function(){
     '<div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:6px;font-size:12px">'+
     '<b>El sistema responde 7 preguntas clave:</b><br>'+
     '🔴 ¿Qué está pasando? → Estado actual de la flota<br>'+
-    '⚠️ ¿Por qué? → Causa del problema<br>'+
+    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ¿Por qué? → Causa del problema<br>'+
     '🔮 ¿Qué va a pasar? → Proyección y riesgo<br>'+
     '🔧 ¿Qué debo hacer? → Acción recomendada<br>'+
     '💰 ¿Qué pasa si no lo hago? → Impacto<br>'+
@@ -9299,7 +9299,7 @@ renders.ayuda=function(){
     '<b>6.</b> Selecciona técnico y agrega observaciones<br>'+
     '<b>7.</b> Click <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar"</b><br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px">'+
-    '<b>✅ El sistema automáticamente:</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> El sistema automáticamente:</b><br>'+
     '• Actualiza el horómetro del equipo<br>'+
     '• Recalcula próximo PM y días restantes<br>'+
     '• Descuenta filtros y lubricantes del stock según la pauta<br>'+
@@ -9319,7 +9319,7 @@ renders.ayuda=function(){
     '<b>7.</b> Describe la <b>solución</b> aplicada<br>'+
     '<b>8.</b> Selecciona <b>estado OT</b> (Pendiente / En Ejecución / Cerrada)<br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px">'+
-    '<b>⚠️ Importante:</b> Si el mismo componente falla 2+ veces en el mismo equipo, el sistema genera alerta automática y lo refleja en el Predictivo como falla recurrente.</div></div></div>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Importante:</b> Si el mismo componente falla 2+ veces en el mismo equipo, el sistema genera alerta automática y lo refleja en el Predictivo como falla recurrente.</div></div></div>'+
 
     // 7. INSPECCIÓN
     '<div class="card" style="margin-bottom:12px" id="m7">'+
@@ -9431,7 +9431,7 @@ renders.ayuda=function(){
     '<b>¿Qué es?</b> La disponibilidad mecánica mide el % de tiempo que un equipo está operativo vs el tiempo total programado. La meta estándar en minería es <b>85%</b>.<br><br>'+
     '<b>¿Cómo se calcula?</b> El sistema recorre día por día del mes usando una única fuente de detenciones (registros PM + correctivos + salidas de servicio) — la misma fuente que usan Disponibilidad, Dashboard, KPI y Metas, para que el número nunca sea distinto según qué pestaña mires. También puedes ingresar datos manualmente editando las celdas azules (tiene prioridad sobre el cálculo automático).<br><br>'+
     '<b>▶ 🚫 Registrar salida de servicio</b><br>'+
-    'Marca un equipo como fuera de servicio un rango de días completo (cuentan como 0% de disponibilidad esos días). Si todavía no sabes cuándo vuelve a operar, marca la casilla <b>"El equipo AÚN sigue fuera de servicio"</b> en vez de inventar una fecha de término — así el equipo sigue contando como detenido día a día hasta que lo cierres. Los equipos con una salida en curso aparecen en una franja roja arriba de la tabla, con un botón <b>"✅ Volvió a operar"</b> para fijar la fecha real de término cuando corresponda.<br><br>'+
+    'Marca un equipo como fuera de servicio un rango de días completo (cuentan como 0% de disponibilidad esos días). Si todavía no sabes cuándo vuelve a operar, marca la casilla <b>"El equipo AÚN sigue fuera de servicio"</b> en vez de inventar una fecha de término — así el equipo sigue contando como detenido día a día hasta que lo cierres. Los equipos con una salida en curso aparecen en una franja roja arriba de la tabla, con un botón <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Volvió a operar"</b> para fijar la fecha real de término cuando corresponda.<br><br>'+
     '<b>Vistas disponibles:</b><br>'+
     '• <b>📊 Por Equipo</b>: tabla con barra visual, semáforo vs meta, % editable<br>'+
     '• <b>📈 Tendencia Mensual</b>: todos los meses en columnas para ver evolución<br><br>'+
@@ -9485,7 +9485,7 @@ renders.ayuda=function(){
     '• Si cambias el día manualmente, el sistema respeta tu elección<br><br>'+
 
     '<b>🔒 Cierre y Histórico:</b><br>'+
-    '• Semanas pasadas muestran badge <b>⚠ PASADA</b> y botón <b>🔒 Cerrar Semana</b><br>'+
+    '• Semanas pasadas muestran badge <b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> PASADA</b> y botón <b>🔒 Cerrar Semana</b><br>'+
     '• Al cerrar: el <b>Plan queda congelado</b> (no se modifica)<br>'+
     '• El <b>Real sigue editable</b> — puedes corregir HH Real si ingresas horómetros atrasados<br>'+
     '• El selector de semanas marca con 🔒 las semanas cerradas<br>'+
@@ -9512,7 +9512,7 @@ renders.ayuda=function(){
     '• <b>Casilla "Orig." marcada</b>: es el componente original del equipo (instalado nuevo de fábrica) → sus horas usadas = el horómetro completo del equipo, sin necesitar fecha.<br>'+
     '• <b>Fecha de instalación</b> (si se cambió en algún momento): el sistema <b>estima el horómetro que tenía el equipo en esa fecha</b> a partir del ritmo real de uso de ese equipo (aparece marcado con "≈"). Si conoces el horómetro medido real de la instalación, escríbelo en "Horóm. Inst." y reemplaza la estimación.<br>'+
     'Mientras un componente no tenga ninguno de los dos datos, queda marcado <b>⚪ Falta instalación</b> y no entra en los KPIs de críticos ni en el costo proyectado — un aviso arriba de la tabla indica cuántos componentes faltan por completar.<br><br>'+
-    '<b>⚠️ Ojo con equipos de muchas horas:</b> si el horómetro actual ya superó la vida útil normal del componente, ese componente probablemente ya se cambió — usa la fecha del <b>último cambio real</b>, no la fecha de puesta en marcha del equipo.<br><br>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Ojo con equipos de muchas horas:</b> si el horómetro actual ya superó la vida útil normal del componente, ese componente probablemente ya se cambió — usa la fecha del <b>último cambio real</b>, no la fecha de puesta en marcha del equipo.<br><br>'+
     '<b>¿Qué calcula?</b><br>'+
     '• <b>Horas usadas</b>: horómetro actual del equipo menos horómetro de instalación (medido o estimado)<br>'+
     '• <b>% de vida</b>: barra visual que muestra cuánto se ha consumido la vida útil<br>'+
@@ -9578,7 +9578,7 @@ renders.ayuda=function(){
     '• <b>% Avance</b> — ejecutados ÷ planificados<br>'+
     '• <b>% Esperado</b> — día actual ÷ días del mes (si estamos a día 15 de 30, deberías ir en 50%)<br>'+
     '• <b>Diferencia</b> — avance real menos esperado. Positivo = adelantado, negativo = atrasado<br>'+
-    '• <b>Estado</b> — ✅ EN PLAN / ⚠️ RIESGO / 🔴 ATRASADO<br><br>'+
+    '• <b>Estado</b> — <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> EN PLAN / <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> RIESGO / 🔴 ATRASADO<br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac)">'+
     '<b>💡 Tip:</b> Revisa esta pestaña cada jueves, al abrir la semana. Si la barra está por debajo de la línea esperada, necesitas acelerar las intervenciones esa semana.</div></div></div>'+
 
@@ -9609,7 +9609,7 @@ renders.ayuda=function(){
     '<b>Código de Falla (solo Correctivos):</b> Clasificación del tipo de falla: Eléctrico, Hidráulico, Mecánico, Estructural, Neumático, Motor, Transmisión, Error Operación, Otro. Permite análisis estadístico de fallas por tipo.<br><br>'+
     '<b>Autorizado por (solo Correctivos):</b> Quién autorizó la intervención. Trazabilidad para auditoría ISO.<br><br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid #ef4444">'+
-    '<b>⚠️ Importante:</b> En minería, una OT sin AST y LOTO registrado es una no conformidad grave en auditoría. Siempre completa estos campos.</div></div></div>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Importante:</b> En minería, una OT sin AST y LOTO registrado es una no conformidad grave en auditoría. Siempre completa estos campos.</div></div></div>'+
 
     '<div class="card" style="margin-bottom:12px" id="m23">'+
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">23. Ficha Técnica de Equipo</div>'+
@@ -9799,7 +9799,7 @@ function verificarStockPM(sigla, tipoPM){
     if(faltantes>0)
       return '<td style="text-align:center;background:rgba(245,158,11,0.15)" title="'+faltantes+' repuesto(s) con stock bajo"><b style="color:var(--warn)">🟡 '+faltantes+'</b></td>';
     if(total>0)
-      return '<td style="text-align:center;background:rgba(16,185,129,0.12)" title="Repuestos disponibles"><b style="color:var(--ok)">✅</b></td>';
+      return '<td style="text-align:center;background:rgba(16,185,129,0.12)" title="Repuestos disponibles"><b style="color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg></b></td>';
     return '<td style="text-align:center;font-size:10px;color:var(--tx3)">—</td>';
   }catch(e){
     return '<td style="text-align:center;font-size:10px;color:var(--tx3)">—</td>';
@@ -10112,7 +10112,7 @@ renders.sem=function(){
     var lockStyle=esCerrada?'pointer-events:none;opacity:0.6':'';
     return'<div class="tbl-wrap"><table>'+
       '<tr><th>Equipo</th><th>Tipo</th><th>PM</th><th>Días PM</th>'+
-      '<th>HH Plan</th><th>Costo Est</th><th>Técnico</th><th>Día</th><th>Estado Plan</th><th>Repuestos</th><th title="Disponibilidad de repuestos para este PM">⚠️ Stock</th>'+
+      '<th>HH Plan</th><th>Costo Est</th><th>Técnico</th><th>Día</th><th>Estado Plan</th><th>Repuestos</th><th title="Disponibilidad de repuestos para este PM"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Stock</th>'+
       '<th style="background:rgba(0,180,0,0.08);color:var(--ok)">HH Real</th>'+
       '<th style="background:rgba(0,180,0,0.08);color:var(--ok)">Estado Real</th>'+
       '<th style="background:rgba(0,180,0,0.08);color:var(--ok)">Obs Real</th>'+
@@ -10150,7 +10150,7 @@ renders.sem=function(){
   var badgeSem=esCerrada
     ?'<span style="background:var(--warn);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px">🔒 CERRADA</span>'
     :esPasada
-    ?'<span style="background:var(--ac3);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px">⚠ PASADA</span>'
+    ?'<span style="background:var(--ac3);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> PASADA</span>'
     :'<span style="background:var(--ok);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px">★ ACTUAL</span>';
   if(fSemana>semActual) badgeSem='<span style="background:var(--bg3);color:var(--tx3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px">FUTURA</span>';
 
@@ -10413,7 +10413,7 @@ renders.comp=function(){
     '<div class="card"><div class="card-t">Costo Próximos Cambios</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoTotal).toLocaleString()+'</div><div class="card-s">Componentes &lt;2000h restantes</div></div>'+
     '<div class="card"><div class="card-t">⚪ Falta instalación</div><div class="card-v" style="color:var(--tx3)">'+sinDato+'</div><div class="card-s">Sin proyección hasta ingresar el dato</div></div>'+
     '</div>'+
-    (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)">⚠️ <b>'+sinDato+' de '+fil.length+' componentes</b> sin datos para proyectar. Dos formas de completarlo: <b>(1)</b> si es el <b>original</b> del equipo (instalado nuevo), marca la casilla "Orig." → sus horas usadas = el horómetro completo. <b>(2)</b> si se cambió, ingresa la <b>fecha de instalación</b> y el sistema <b>estima el horómetro a esa fecha</b> anclando en la puesta en marcha del equipo (aparece con "≈"). <b>Ojo:</b> si el equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>.</div>':'')+
+    (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> <b>'+sinDato+' de '+fil.length+' componentes</b> sin datos para proyectar. Dos formas de completarlo: <b>(1)</b> si es el <b>original</b> del equipo (instalado nuevo), marca la casilla "Orig." → sus horas usadas = el horómetro completo. <b>(2)</b> si se cambió, ingresa la <b>fecha de instalación</b> y el sistema <b>estima el horómetro a esa fecha</b> anclando en la puesta en marcha del equipo (aparece con "≈"). <b>Ojo:</b> si el equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>.</div>':'')+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
     fil.map(function(c,idx){
@@ -11223,7 +11223,7 @@ async function _asWrite(){
     _asDirty=false;_asLast=new Date();
     _asStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardado '+('0'+_asLast.getHours()).slice(-2)+':'+('0'+_asLast.getMinutes()).slice(-2),'var(--ok)');
   }catch(e){
-    _asStatus('⚠️ Error al guardar: '+e.message,'var(--danger)');
+    _asStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Error al guardar: '+e.message,'var(--danger)');
   }
 }
 
@@ -11236,7 +11236,7 @@ window._autoSaveMark=function(){
 
 window.conectarCarpeta=async function(){
   if(!window.showDirectoryPicker){
-    toast('❌ Tu navegador no soporta autoguardado en carpeta. Usa Chrome o Edge. Mientras tanto, usa <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Backup manual.');
+    toast('❌ Tu navegador no soporta autoguardado en carpeta. Usa Chrome o Edge. Mientras tanto, usa 💾 Backup manual.');
     return;
   }
   try{
@@ -11309,7 +11309,7 @@ window.cloudPush=async function(silencioso){
     if(!silencioso)toast('✅ Datos subidos a la nube');
     return true;
   }catch(e){
-    _clStatus('⚠️ Sin conexión a la nube — se reintenta con el próximo cambio','var(--danger)');
+    _clStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Sin conexión a la nube — se reintenta con el próximo cambio','var(--danger)');
     if(!silencioso)toast('❌ Error de nube: '+e.message);
     return false;
   }finally{
@@ -11333,7 +11333,7 @@ window.cloudPull=async function(confirmar){
     toast('✅ Datos restaurados desde la nube');
     setTimeout(()=>location.reload(),800);
   }catch(e){
-    _clStatus('⚠️ Error al bajar: '+e.message,'var(--danger)');
+    _clStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Error al bajar: '+e.message,'var(--danger)');
     toast('❌ '+e.message);
   }
 };
@@ -11378,7 +11378,7 @@ window.exportarMovCSV=function(){
   var a=document.createElement('a');a.href=url;a.download='movimientos_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);
   toast('✅ '+mov.length+' movimientos exportados a CSV');
-  if(info)info.innerHTML='✅ Exportados '+mov.length+' movimientos a CSV. No se borro nada -- ni local ni en la nube.';
+  if(info)info.innerHTML='<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Exportados '+mov.length+' movimientos a CSV. No se borro nada -- ni local ni en la nube.';
 };
 window.cloudGuardarCfg=function(){
   const c=S.g('cfg')||{};
@@ -11410,7 +11410,7 @@ window._autoSaveMark=function(){
     if(nube>local&&confirm('☁️ Hay datos más nuevos en la nube ('+nube.slice(0,16).replace('T',' ')+' UTC).\n¿Bajarlos a este PC? (Cancelar = mantener los locales)')){
       cloudPull(false);
     }else{_clStatus('🟢 Sync automático activo','var(--ok)');}
-  }catch(e){_clStatus('⚠️ Nube no disponible al iniciar','var(--warn)');}
+  }catch(e){_clStatus('<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Nube no disponible al iniciar','var(--warn)');}
 })();
 
 
@@ -11934,7 +11934,7 @@ window.reporteEjecutivoExcel=function(){
   html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Tipo</td><td '+est.th+'>Horómetro</td><td '+est.th+'>Próx. PM</td><td '+est.th+'>Fecha</td><td '+est.th+'>Estado</td></tr>';
   eq.forEach(e=>{
     const cl=e.estado&&e.estado.includes('URGENTE')?est.urg:e.estado&&e.estado.includes('PRÓXIMA')?est.warn:est.ok;
-    html+='<tr><td '+est.td+'>'+e.sigla+'</td><td '+est.td+'>'+(e.tipo||'')+'</td><td '+est.td+' align="right">'+fn2(e.horomActual)+'</td><td '+est.td+' align="center">'+(e.tipoPM||'')+'</td><td '+est.td+' align="center">'+(e.fechaProxPM||'')+'</td><td '+cl+' align="center">'+(e.estado||'').replace(/[🔴🟡✅⚪]/g,'').trim()+'</td></tr>';
+    html+='<tr><td '+est.td+'>'+e.sigla+'</td><td '+est.td+'>'+(e.tipo||'')+'</td><td '+est.td+' align="right">'+fn2(e.horomActual)+'</td><td '+est.td+' align="center">'+(e.tipoPM||'')+'</td><td '+est.td+' align="center">'+(e.fechaProxPM||'')+'</td><td '+cl+' align="center">'+(e.estado||'').replace(/[🔴🟡<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>⚪]/g,'').trim()+'</td></tr>';
   });
   html+='<tr><td colspan="6" style="height:10px"></td></tr>';
 
@@ -12198,7 +12198,7 @@ renders.gantt=function(){
         '<td>'+pb(g.pm)+'</td>'+
         '<td class="ed" contenteditable onblur="edGantt('+gi+',\'inicio\',this.innerText.trim())" style="font-size:9px" title="'+(hayReal?'Auto-detectado desde reg/ot — puedes igual editarlo a mano':'')+'">'+iniMostrar+'</td>'+
         '<td class="ed" contenteditable onblur="edGantt('+gi+',\'fin\',this.innerText.trim())" style="font-size:9px">'+finMostrar+'</td>'+
-        '<td>'+(hayReal?'<span style="font-size:9px;color:#22c55e;font-weight:700">✅ Ejecutado ('+totalEjecReal+' reg.)</span>'+(tecnicosGantt.length?'<br><span style="font-size:8px;color:var(--tx3)" title="Según Programación Diaria">👷 '+escapeHtml(tecnicosGantt.join(', '))+'</span>':''):
+        '<td>'+(hayReal?'<span style="font-size:9px;color:#22c55e;font-weight:700"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Ejecutado ('+totalEjecReal+' reg.)</span>'+(tecnicosGantt.length?'<br><span style="font-size:8px;color:var(--tx3)" title="Según Programación Diaria">👷 '+escapeHtml(tecnicosGantt.join(', '))+'</span>':''):
         '<select onchange="edGantt('+gi+',\'estado\',this.value)" style="font-size:9px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;padding:1px">'+
         ['Planificado','En Ejecución','Ejecutado','Atrasado','Postergado'].map(function(s){return'<option'+(g.estado===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>')+'</td>'+
         '<td class="'+(hayReal?'':'ed')+' mono" '+(hayReal?'':'contenteditable onblur="edGantt('+gi+',\'avance\',parseInt(this.innerText)||0)"')+' style="text-align:center;'+(hayReal?'color:#22c55e;font-weight:700':'')+'">'+avanceMostrar+'%</td>'+
@@ -12240,7 +12240,7 @@ renders.destrabe=function(){
     '<div class="cards">'+
     '<div class="card"><div class="card-t">🔴 Críticos (&gt;14 días)</div><div class="card-v" style="color:var(--danger)">'+items.filter(function(i){return i.dias>14&&i.estado!=='Resuelto'}).length+'</div></div>'+
     '<div class="card"><div class="card-t">🟡 Urgentes (&gt;7 días)</div><div class="card-v" style="color:var(--w)">'+items.filter(function(i){return i.dias>7&&i.dias<=14&&i.estado!=='Resuelto'}).length+'</div></div>'+
-    '<div class="card"><div class="card-t">✅ Resueltos</div><div class="card-v" style="color:var(--ok)">'+items.filter(function(i){return i.estado==='Resuelto'}).length+'</div></div>'+
+    '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Resueltos</div><div class="card-v" style="color:var(--ok)">'+items.filter(function(i){return i.estado==='Resuelto'}).length+'</div></div>'+
     '</div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Trabajo</th><th>Tipo</th><th>F.Solicitud</th><th>Días</th><th>Motivo Bloqueo</th><th>Acción</th><th>Responsable</th><th>F.Compromiso</th><th>Estado</th><th>Prioridad</th><th></th></tr>'+
@@ -12325,14 +12325,14 @@ renders.avance=function(){
         '<td><div style="position:relative;background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:4px;height:12px;width:100px;overflow:hidden"><div style="position:absolute;left:'+e.esp+'%;top:0;bottom:0;width:1px;background:var(--tx3)"></div><div style="background:'+col+';height:100%;width:'+Math.min(e.pct||0,100)+'%"></div></div></td>'+
         '<td class="mono" style="text-align:center;color:var(--tx3)">'+e.esp+'%</td>'+
         '<td class="mono" style="text-align:center;color:'+col+';font-weight:600">'+(sinPlan?'—':(e.diff>=0?'+':'')+e.diff+'%')+'</td>'+
-        '<td style="font-size:10px">'+(sinPlan?'⚪ SIN PLAN':e.pct>=e.esp?'✅ EN PLAN':e.pct>=e.esp*0.7?'⚠️ RIESGO':'🔴 ATRASADO')+'</td></tr>';
+        '<td style="font-size:10px">'+(sinPlan?'⚪ SIN PLAN':e.pct>=e.esp?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> EN PLAN':e.pct>=e.esp*0.7?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> RIESGO':'🔴 ATRASADO')+'</td></tr>';
     }).join('')+
     '<tr style="font-weight:700;background:var(--bg3)"><td colspan="2">TOTAL FLOTA</td>'+
     '<td style="text-align:center">'+totalPlan+'</td><td style="text-align:center">'+totalEjec+'</td>'+
     '<td style="text-align:center;color:'+(totalPct===null?'var(--tx3)':totalPct>=pctEsperado?'var(--ok)':'var(--danger)')+'">'+(totalPct===null?'—':totalPct+'%')+'</td>'+
     '<td></td><td style="text-align:center">'+pctEsperado+'%</td>'+
     '<td style="text-align:center;color:'+(totalPct===null?'var(--tx3)':totalPct>=pctEsperado?'var(--ok)':'var(--danger)')+'">'+(totalPct===null?'—':(totalPct-pctEsperado>=0?'+':'')+(totalPct-pctEsperado)+'%')+'</td>'+
-    '<td>'+(totalPct===null?'⚪ SIN PLAN':totalPct>=pctEsperado?'✅ EN PLAN':'🔴 ATRASADO')+'</td></tr>'+
+    '<td>'+(totalPct===null?'⚪ SIN PLAN':totalPct>=pctEsperado?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> EN PLAN':'🔴 ATRASADO')+'</td></tr>'+
     '</table></div>';
 };
 
@@ -13109,9 +13109,9 @@ window.crearUsuarioUI=async function(){
   out.innerHTML='Creando...';
   try{
     var res=await _accionUsuarios({action:'crear',nombre:nombre,email:email,rol:rol});
-    if(res.error){out.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
+    if(res.error){out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px">'+
-      '✅ Cuenta de '+escapeHtml(nombre)+' creada y bloqueada. Aparece abajo en "Pendientes de activar" — la activas cuando tú digas.</div>';
+      '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Cuenta de '+escapeHtml(nombre)+' creada y bloqueada. Aparece abajo en "Pendientes de activar" — la activas cuando tú digas.</div>';
     document.getElementById('nuNombre').value='';
     document.getElementById('nuEmail').value='';
     cargarPendientesUI();
@@ -13124,7 +13124,7 @@ window.cargarPendientesUI=async function(){
   cont.innerHTML='Cargando...';
   try{
     var res=await _accionUsuarios({action:'listar_pendientes'});
-    if(res.error){cont.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
+    if(res.error){cont.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     var pend=res.pendientes||[];
     if(!pend.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios pendientes.</span>';return;}
     cont.innerHTML=pend.map(function(u){
@@ -13141,9 +13141,9 @@ window.activarUsuarioUI=async function(userId,nombre){
   if(out)out.innerHTML='Activando...';
   try{
     var res=await _accionUsuarios({action:'activar',userId:userId});
-    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px">'+
-      '✅ '+escapeHtml(nombre)+' activado.<br>Clave temporal: <b style="font-size:14px;letter-spacing:1px">'+escapeHtml(res.tempPassword)+'</b><br>'+
+      '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> '+escapeHtml(nombre)+' activado.<br>Clave temporal: <b style="font-size:14px;letter-spacing:1px">'+escapeHtml(res.tempPassword)+'</b><br>'+
       '<span style="color:var(--tx3);font-size:10px">Compártela ahora. Deberá cambiarla al ingresar por primera vez.</span></div>';
     cargarPendientesUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
@@ -13155,7 +13155,7 @@ window.cargarActivosUI=async function(){
   cont.innerHTML='Cargando...';
   try{
     var res=await _accionUsuarios({action:'listar_activos'});
-    if(res.error){cont.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
+    if(res.error){cont.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     var act=res.activos||[];
     if(!act.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios activos.</span>';return;}
     cont.innerHTML=act.map(function(u){
@@ -13174,7 +13174,7 @@ window.desactivarUsuarioUI=async function(userId,nombre){
   if(out)out.innerHTML='Desactivando...';
   try{
     var res=await _accionUsuarios({action:'desactivar',userId:userId});
-    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)">❌ '+escapeHtml(res.error)+'</span>';return;}
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px">🔒 '+escapeHtml(nombre)+' desactivado.</div>';
     cargarActivosUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
