@@ -1027,6 +1027,13 @@ const ICONS={
   saveIco:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg>',
   printer:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg>',
   refresh:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg>',
+  check:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>',
+  xmark:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg>',
+  warn:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>',
+  dotRed:'<svg viewBox="0 0 20 20" width="10" height="10"><circle cx="10" cy="10" r="8" fill="#ef4444"/></svg>',
+  dotYellow:'<svg viewBox="0 0 20 20" width="10" height="10"><circle cx="10" cy="10" r="8" fill="#eab308"/></svg>',
+  dotGreen:'<svg viewBox="0 0 20 20" width="10" height="10"><circle cx="10" cy="10" r="8" fill="#22c55e"/></svg>',
+  dotWhite:'<svg viewBox="0 0 20 20" width="10" height="10"><circle cx="10" cy="10" r="8" fill="#cbd5e1" stroke="#64748b" stroke-width="1"/></svg>',
 };
 
 // ============ NAV ============
@@ -1437,7 +1444,7 @@ renders.dash=function(){
 
     // ═══ SELECTOR DE PERÍODO ═══
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:var(--bg3);border-radius:10px;flex-wrap:wrap">'+
-    '<span style="font-size:12px;color:var(--tx3);font-weight:600">📅 Período del tablero:</span>'+
+    '<span style="font-size:12px;color:var(--tx3);font-weight:600"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Período del tablero:</span>'+
     '<select id="dashMesSel" onchange="dashSetPeriodo()" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:5px 8px;font-size:12px">'+
     _MESNOM.map(function(m,i){return '<option value="'+(i+1)+'"'+(dashMes===i+1?' selected':'')+'>'+m+'</option>';}).join('')+
     '</select>'+
@@ -1603,7 +1610,7 @@ renders.dash=function(){
   var proxBlock='';
   if(proxPMs.length){
     proxBlock+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">';
-    proxBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2);display:flex;align-items:center;gap:6px">📅 Próximos PMs <span style="font-size:11px;color:var(--tx3)">(próximos 14 días)</span></div>';
+    proxBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2);display:flex;align-items:center;gap:6px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs <span style="font-size:11px;color:var(--tx3)">(próximos 14 días)</span></div>';
     proxBlock+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">';
     proxPMs.forEach(function(e){
       var bColor=e.diasParaPM<=3?'#ef4444':'#f59e0b';
@@ -1665,7 +1672,7 @@ renders.eq=function(){
   const eq=C.recalcAll();
   const tipos=[...new Set(eq.map(e=>e.tipo))];
   $('s-eq').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">⚙️ Control PM Dinámico — Equipos</div><div class="sec-s">${eq.length} equipos · Click en celda azul para editar</div></div>
+    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Control PM Dinámico — Equipos</div><div class="sec-s">${eq.length} equipos · Click en celda azul para editar</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,#3b82f6)" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><button class="btn btn-o" onclick="exportCSV('eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="window._eqFiltroUrgente=!window._eqFiltroUrgente;renders.eq()" id="btnFiltroUrg">🔴 Solo PM4 Urgentes</button></div>
     </div>
     <div class="help-tip">🔵 Celdas editables = click y escriba · ⚫ Celdas grises = se calculan solas · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> = eliminar fila</div>
@@ -1696,7 +1703,7 @@ renders.eq=function(){
           <td class="mono calc">${fd(e.fechaProxPM)}</td>
           <td class="calc">${pb(e.tipoPM)}</td>
           <td><span class="badge ${e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')?'b-r':e.estado?.includes('PRÓXIMA')?'b-y':'b-g'}">${e.estado||''}</span></td>
-          <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${escapeHtml(e.sigla)}')" title="Ficha técnica">📋</button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>
+          <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${escapeHtml(e.sigla)}')" title="Ficha técnica"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg></button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>
         </tr>`;
       }).join('')}
     </table></div>`;
@@ -2177,7 +2184,7 @@ window.saveReg=function(){
     }
   }
   cm();refreshAll();
-  const msgRetro=esRetroactivo?' · 📅 Fecha retroactiva: no se modificó el horómetro actual del equipo':'';
+  const msgRetro=esRetroactivo?' · <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Fecha retroactiva: no se modificó el horómetro actual del equipo':'';
   toast('✅ '+tp+' — '+eqSigla+(logC&&logC.length?' · Stock: -'+logC.length+' items':'')+msgOT+msgOp+msgRetro);
 };
 
@@ -2189,9 +2196,9 @@ renders.plani=function(){
     <div class="sec-h"><div><div class="sec-t">🗓️ Planificación y Agenda</div>
       <div class="sec-s">Programación de mantenciones en el tiempo</div></div></div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn ${sub==='sem'?'':'btn-o'}" onclick="planiSub('sem')">📆 Plan Semanal</button>
-      <button class="btn ${sub==='prg'?'':'btn-o'}" onclick="planiSub('prg')">📅 Programa Anual</button>
-      <button class="btn ${sub==='gantt'?'':'btn-o'}" onclick="planiSub('gantt')">📊 Carta Gantt</button>
+      <button class="btn ${sub==='sem'?'':'btn-o'}" onclick="planiSub('sem')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Plan Semanal</button>
+      <button class="btn ${sub==='prg'?'':'btn-o'}" onclick="planiSub('prg')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa Anual</button>
+      <button class="btn ${sub==='gantt'?'':'btn-o'}" onclick="planiSub('gantt')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Carta Gantt</button>
       <button class="btn ${sub==='plan'?'':'btn-o'}" onclick="planiSub('plan')">🧮 Planificador</button>
       <button class="btn ${sub==='progdia'?'':'btn-o'}" onclick="planiSub('progdia')">👷 Programación Diaria</button>
     </div>
@@ -2539,8 +2546,8 @@ renders.progdia=function(){
     '<div><input type="file" id="progDiaFile" accept=".xlsx" style="display:none" onchange="importProgDiaXLSX(event)">'+
     '<button class="btn" onclick="document.getElementById(\'progDiaFile\').click()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Excel</button></div></div>'+
     (fechas.length?'<div style="display:flex;gap:8px;margin-bottom:12px">'+
-      '<button class="btn '+(vista==='detalle'?'':'btn-o')+'" onclick="window._progDiaVista=\'detalle\';renders.progdia()">📋 Detalle</button>'+
-      '<button class="btn '+(vista==='resumen'?'':'btn-o')+'" onclick="window._progDiaVista=\'resumen\';renders.progdia()">📊 Resumen</button>'+
+      '<button class="btn '+(vista==='detalle'?'':'btn-o')+'" onclick="window._progDiaVista=\'detalle\';renders.progdia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Detalle</button>'+
+      '<button class="btn '+(vista==='resumen'?'':'btn-o')+'" onclick="window._progDiaVista=\'resumen\';renders.progdia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen</button>'+
       '</div>':'');
 
   if(!fechas.length){
@@ -2681,7 +2688,7 @@ renders.prg=function(){
   var hayEjecAnio=Object.keys(ejecPorEq).length>0;
 
   $('s-prg').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📅 Programa Anual '+anioPrg+'</div><div class="sec-s">Plan PM por mes · EJEC se marca solo desde registros · '+prg.length+' equipos</div></div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa Anual '+anioPrg+'</div><div class="sec-s">Plan PM por mes · EJEC se marca solo desde registros · '+prg.length+' equipos</div></div>'+
     '<div><button class="btn btn-o" onclick="regenPrg()" title="Rearma la proyección de todos los equipos con el horómetro, ritmo real y fórmulas actuales"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Recalcular proyección</button></div></div>'+
     '<div class="toolbar"><select id="fPrgAnio" onchange="renders.prg()">'+
     aniosDisp.map(function(y){return'<option'+(parseInt(y)===anioPrg?' selected':'')+'>'+y+'</option>'}).join('')+'</select>'+
@@ -2764,7 +2771,7 @@ renders.pau=function(){
   const hoja=refPau?refPau.hoja:'—';
   const pg=_pagSlice('pau',fil);
   $('s-pau').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📋 Pautas de Mantención</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Pautas de Mantención</div>'+
     '<div class="sec-s">'+pau.length+' actividades · Hoja: <b>'+escapeHtml(hoja)+'</b> · Ref: '+escapeHtml(siglaRef)+(se!==siglaRef?' (grupo '+escapeHtml(se)+')':'')+'</div></div>'+
     '<button class="btn" onclick="addPauta()">+ Nueva</button></div>'+
     '<div class="toolbar">'+
@@ -3054,7 +3061,7 @@ renders.mov=function(){
   fil.forEach(function(m){if(m.tipo==='Filtro')tFil+=m.cant||0;else tLub+=m.cant||0;});
   var pg=_pagSlice('mov',fil);
   document.getElementById('s-mov').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📊 Historial de Consumos</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Historial de Consumos</div>'+
     '<div class="sec-s">'+mov.length+' total · Mostrando: '+fil.length+' ('+Math.round(tFil)+' filtros, '+Math.round(tLub)+'L lub)</div></div>'+
     '<div><button class="btn" onclick="recalcSoloCostos()" title="Asigna consumos por pauta SIN descontar stock">💲 Calcular costos</button>'+
     ' <button class="btn btn-o" onclick="recalcHistorial()" title="Asigna consumos Y descuenta stock"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Recalcular + stock</button>'+
@@ -3363,7 +3370,7 @@ renders.lub=function(){
   $('s-lub').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">🛢️ Lubricantes</div>'+
     '<div class="sec-s">'+lub.length+' productos · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> Todo es editable — cambios se propagan al sistema</div></div>'+
-    '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="importLubCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()">🔍 Vínculos rotos</button></div>'+
+    '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="importLubCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button></div>'+
     '<div class="toolbar">'+
     '<input id="fLubBusq" placeholder="Buscar..." value="'+(fBusq||'')+'" onchange="window._pag.lub=1;renders.lub()" style="max-width:180px">'+
     '<select id="fLubEq" onchange="window._pag.lub=1;renders.lub()"><option value="">Consumo por equipo...</option>'+
@@ -3371,7 +3378,7 @@ renders.lub=function(){
     '<span style="font-size:11px;color:var(--tx3)">HH: $<input type="number" value="'+hh+'" onchange="S.s(\'hh\',parseInt(this.value));refreshAll()" style="width:70px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);padding:2px 4px;border-radius:3px;font-size:11px">/hr</span></div>'+
     (fEq&&pautaLubs.length?
       '<div class="card" style="margin-bottom:10px;border-left:3px solid var(--ac)">'+
-      '<b style="color:var(--ac)">📋 Pauta PM4 de '+escapeHtml(fEq)+':</b> '+
+      '<b style="color:var(--ac)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Pauta PM4 de '+escapeHtml(fEq)+':</b> '+
       pautaLubs.map(function(c){return'<span style="display:inline-block;background:var(--bg3);border-radius:3px;padding:2px 6px;margin:2px;font-size:10px">'+escapeHtml((c.rep||'').substring(0,50))+': <b>'+(c.can||0)+'</b></span>'}).join('')+
       '</div>':'')+
     _pagHTML('lub',pg)+
@@ -3535,9 +3542,9 @@ renders.plan=function(){
   pmsEnPeriodo.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
 
   // Botones de vista y periodo
-  const btnVista=['equipo','periodo','material'].map(v=>`<button class="btn ${vista===v?'':'btn-o'}" onclick="planVista('${v}')">${v==='equipo'?'🚜 Por Equipo':v==='periodo'?'📅 Por Periodo':'📦 Por Material'}</button>`).join(' ');
+  const btnVista=['equipo','periodo','material'].map(v=>`<button class="btn ${vista===v?'':'btn-o'}" onclick="planVista('${v}')">${v==='equipo'?'🚜 Por Equipo':v==='periodo'?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Por Periodo':'📦 Por Material'}</button>`).join(' ');
   const btnPer=[['semana','Semana'],['mes','Mes'],['semestre','Semestre'],['anio','Año']].map(([k,l])=>`<button class="btn ${periodo===k?'':'btn-o'}" onclick="planPeriodo('${k}')">${l}</button>`).join(' ')+
-    ` <button class="btn ${periodo==='calendario'?'':'btn-o'}" onclick="planPeriodo('calendario')">📆 Mes específico</button>`+
+    ` <button class="btn ${periodo==='calendario'?'':'btn-o'}" onclick="planPeriodo('calendario')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Mes específico</button>`+
     (periodo==='calendario'?
       ` <select id="planMesCalSel" onchange="planMesCal()" style="background:var(--bg3);border:1px solid var(--bd);color:var(--tx);border-radius:4px;padding:4px;font-size:11px">`+
       ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((m,i)=>`<option value="${i+1}" ${((window._planMesCal||(hoy.getMonth()+1))==(i+1))?'selected':''}>${m}</option>`).join('')+
@@ -3664,7 +3671,7 @@ renders.plan=function(){
     <div class="sec-h"><div><div class="sec-t">🗓️ Planificador de Materiales y Costos</div>
       <div class="sec-s">Proyección de filtros, aceite, lubricantes y costo · ${pmsEnPeriodo.length} PM en ${periodo==='calendario'?['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][(window._planMesCal||(hoy.getMonth()+1))-1]+' '+(window._planAnioCal||hoy.getFullYear()):periodo}</div></div>
       <button class="btn btn-o" onclick="planHistorico()">📜 Histórico consumido</button>
-      <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()">🔍 Vínculos rotos</button>
+      <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${btnVista}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"><span style="font-size:11px;color:var(--tx3);align-self:center">Periodo:</span> ${btnPer}</div>
@@ -3774,7 +3781,7 @@ window.planHistorico=function(){
       <div><label style="font-size:10px;color:var(--tx3);display:block">Hasta</label><input type="date" id="histHasta" value="${f.hasta}" style="font-size:11px"></div>
       <div><label style="font-size:10px;color:var(--tx3);display:block">Tipo material</label><select id="histTipo" style="font-size:11px"><option value="">Todos</option>${tipos.map(t=>`<option ${f.tipo===t?'selected':''}>${t}</option>`).join('')}</select></div>
       <div><label style="font-size:10px;color:var(--tx3);display:block">Equipo</label><select id="histEquipo" style="font-size:11px"><option value="">Todos</option>${siglas.map(s=>`<option ${f.equipo===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select></div>
-      <div style="align-self:flex-end"><button class="btn-s" onclick="planHistoricoFiltrar()">🔍 Filtrar</button> <button class="btn-s btn-o" onclick="planHistoricoLimpiar()">✕ Limpiar</button></div>
+      <div style="align-self:flex-end"><button class="btn-s" onclick="planHistoricoFiltrar()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Filtrar</button> <button class="btn-s btn-o" onclick="planHistoricoLimpiar()">✕ Limpiar</button></div>
     </div>
 
     <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -3782,7 +3789,7 @@ window.planHistorico=function(){
       <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Materiales distintos</div><b style="font-size:18px">${lista.length}</b></div>
       <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Costo total</div><b style="font-size:18px;color:var(--ac)">$${fn2(totalCosto)}</b></div>
     </div>
-    ${totalSinPrecio?`<p style="font-size:11px;color:var(--warn)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ${totalSinPrecio} material(es) sin precio encontrado — revisa "🔍 Vínculos rotos" para esos.</p>`:''}
+    ${totalSinPrecio?`<p style="font-size:11px;color:var(--warn)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ${totalSinPrecio} material(es) sin precio encontrado — revisa "<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos" para esos.</p>`:''}
 
     <div style="max-height:320px;overflow:auto">
     <table style="width:100%;font-size:11px">
@@ -3798,7 +3805,7 @@ window.planHistorico=function(){
     </div>
 
     <details style="margin-top:14px;border-top:1px solid var(--bd);padding-top:10px">
-      <summary style="cursor:pointer;font-size:12px;color:var(--tx3)">📊 Ver panorama histórico completo (desde ${PR.resumen.totalPedidos?PR.resumen.rangoDesde:'—'})</summary>
+      <summary style="cursor:pointer;font-size:12px;color:var(--tx3)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Ver panorama histórico completo (desde ${PR.resumen.totalPedidos?PR.resumen.rangoDesde:'—'})</summary>
       ${PR.resumen.totalPedidos?`
       <p style="font-size:11px;color:var(--tx3);margin-top:8px">Resumen agregado de órdenes de compra históricas — no es filtrable por tipo/equipo a este nivel, es el total general.</p>
       <div style="display:flex;gap:8px;margin:8px 0">
@@ -3837,7 +3844,7 @@ renders.cstk=function(){
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn ${sub==='cos'?'':'btn-o'}" onclick="cstkSub('cos')">💵 Costos</button>
-      <button class="btn ${sub==='mov'?'':'btn-o'}" onclick="cstkSub('mov')">📊 Consumos</button>
+      <button class="btn ${sub==='mov'?'':'btn-o'}" onclick="cstkSub('mov')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Consumos</button>
       <button class="btn ${sub==='rep'?'':'btn-o'}" onclick="cstkSub('rep')">📦 Repuestos</button>
     </div>
     <div id="s-cos" class="${sub==='cos'?'':'hidden'}"></div>
@@ -3988,8 +3995,8 @@ renders.cos=function(){
       '</div>'+
 
       '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:12px;font-size:12px">'+
-      '<b>📊 MTBF</b> = Horas entre fallas sucesivas, según el horómetro registrado en cada falla (necesita ≥2 fallas) → mientras MÁS alto, MEJOR (equipo más confiable)<br>'+
-      '<b>📊 MTTR</b> = Promedio duración reparaciones → mientras MÁS bajo, MEJOR (reparaciones más rápidas)</div>'+
+      '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF</b> = Horas entre fallas sucesivas, según el horómetro registrado en cada falla (necesita ≥2 fallas) → mientras MÁS alto, MEJOR (equipo más confiable)<br>'+
+      '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTTR</b> = Promedio duración reparaciones → mientras MÁS bajo, MEJOR (reparaciones más rápidas)</div>'+
 
       '<div class="tbl-wrap"><table>'+
       '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Fallas</th><th>MTBF (hrs)</th><th>Confiabilidad</th><th>Reparaciones</th><th>MTTR (hrs)</th><th>Mantenibilidad</th></tr>'+
@@ -4019,7 +4026,7 @@ renders.cos=function(){
     '<select id="fCosVista" onchange="renders.cos()" style="font-weight:600">'+
     '<option value="costos"'+(fVista==='costos'?' selected':'')+'>💵 Costos por Mes</option>'+
     '<option value="hh"'+(fVista==='hh'?' selected':'')+'>👷 HH por Técnico / Equipo</option>'+
-    '<option value="mtbf"'+(fVista==='mtbf'?' selected':'')+'>📊 MTBF / MTTR</option></select></div>'+
+    '<option value="mtbf"'+(fVista==='mtbf'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option></select></div>'+
     content;
 }
 
@@ -4163,11 +4170,11 @@ renders.hist=function(){
     '<button class="btn btn-o" onclick="exportCSV(\'hist\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div></div>'+
     '<div class="toolbar">'+
     '<select id="fHistVista" onchange="window._pag.hist=1;renders.hist()">'+
-    '<option value="todo"'+(fVista==='todo'?' selected':'')+'>📋 Todas las Lecturas</option>'+
-    '<option value="diario"'+(fVista==='diario'?' selected':'')+'>📆 Diario</option>'+
-    '<option value="semanal"'+(fVista==='semanal'?' selected':'')+'>📅 Semanal</option>'+
-    '<option value="mensual"'+(fVista==='mensual'?' selected':'')+'>📊 Mensual</option>'+
-    '<option value="anual"'+(fVista==='anual'?' selected':'')+'>📅 Anual</option>'+
+    '<option value="todo"'+(fVista==='todo'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Todas las Lecturas</option>'+
+    '<option value="diario"'+(fVista==='diario'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Diario</option>'+
+    '<option value="semanal"'+(fVista==='semanal'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semanal</option>'+
+    '<option value="mensual"'+(fVista==='mensual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Mensual</option>'+
+    '<option value="anual"'+(fVista==='anual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Anual</option>'+
     '</select>'+
     '<select id="fHistEq" onchange="window._pag.hist=1;renders.hist()"><option value="">Todos los equipos</option>'+
     siglas.map(function(s){return'<option'+(fEq===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'+
@@ -4235,7 +4242,7 @@ renders.ot=function(){
       <div class="sec-t">🔧 Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()">📉 Análisis de Fallas (MTBF)</button> <button class="btn btn-o" onclick="go('insp')">📋 Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()">📉 Análisis de Fallas (MTBF)</button> <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total OT</div><div class="card-v">${todos.length}</div></div>
@@ -4394,8 +4401,8 @@ renders.neu=function(){
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">🛞 Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()">📊 Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()">🔌 Sensores</button>
+    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()">🔌 Sensores</button>
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -4441,7 +4448,7 @@ renders.neu=function(){
           <td>
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir">📏</button>
-            <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico">🔍</button>
+            <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
             <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">📍</button>
           </td>
         </tr>`;
@@ -4470,7 +4477,7 @@ window.verNeuLista=function(modo){
       <td style="text-align:center">${n.remanente!=null?n.remanente+'mm':'—'}</td>
       <td style="color:${ec.col};font-size:11px">${ec.ico} ${escapeHtml(ec.txt)}</td>
       <td style="text-align:center;color:${esCambiar?'var(--danger)':'var(--warn)'}">${dias}</td>
-      <td><button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="cm();verDetalleNeu(${idx})" title="Ver detalle">🔍</button></td>
+      <td><button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="cm();verDetalleNeu(${idx})" title="Ver detalle"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button></td>
     </tr>`;}).join('');
   sm(`<div style="max-width:720px"><h3>${titulo} <span style="color:var(--tx3);font-size:13px">(${lista.length})</span></h3>
     <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
@@ -4722,7 +4729,7 @@ window._descargarQR=function(sigla){
 /* renders.neu viejo eliminado v16.6 - usaba versión sin edición */
 window.addNeu=function(){
   const eq=S.g('eq')||[];
-  sm(`<h3>🛞 Nuevo Neumático</h3>
+  sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Nuevo Neumático</h3>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label><select id="nNEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
       <div class="fg"><label>Tipo equipo</label><select id="nNTipo"><option value="CAEX">CAEX</option><option value="CF">Cargador</option><option value="MN">Motoniveladora</option><option value="ALJ">Aljibe</option><option value="CAM">Camioneta</option><option value="BUS">Bus</option></select></div>
@@ -4903,7 +4910,7 @@ window.verSensores=function(){
       <td style="font-size:11px">${escapeHtml(s.marca||'—')}</td>
       <td style="font-size:11px">${ubic}</td>
       <td class="mono" style="font-size:11px">${escapeHtml(s.neuSerie||'—')}</td>
-      <td style="white-space:nowrap">${s.estado==='Operativo'?`<button class="btn-s" style="background:rgba(239,68,68,.15);color:var(--danger)" onclick="desmontarSensor(${i})">Desmontar</button>`:`<button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="instalarSensor(${i})">Instalar</button>`} <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialSensor(${i})">📋 Historial</button></td>
+      <td style="white-space:nowrap">${s.estado==='Operativo'?`<button class="btn-s" style="background:rgba(239,68,68,.15);color:var(--danger)" onclick="desmontarSensor(${i})">Desmontar</button>`:`<button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="instalarSensor(${i})">Instalar</button>`} <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialSensor(${i})"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial</button></td>
     </tr>`;
   }).join('');
   sm(`<div style="max-width:820px"><h3>🔌 Sensores de Neumáticos</h3>
@@ -4918,7 +4925,7 @@ window.verHistorialSensor=function(i){
   const s=sen[i];
   if(!s)return;
   const hist=(s.historial||[]).slice().reverse();
-  sm(`<div style="max-width:560px"><h3>📋 Historial — Sensor ${escapeHtml(s.numSensor||'')}</h3>
+  sm(`<div style="max-width:560px"><h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial — Sensor ${escapeHtml(s.numSensor||'')}</h3>
     <p style="color:var(--tx2);margin-bottom:10px;font-size:12px">Ubicación actual: <b>${s.estado==='Operativo'?escapeHtml(s.sigla||'')+' '+escapeHtml(s.posicion||''):'En Existencias'}</b></p>
     ${hist.length?`<div>${hist.map(h=>`<div style="font-size:11px;padding:6px 8px;border-left:2px solid ${h.accion==='Instalado'?'var(--ok)':'var(--danger)'};margin-bottom:4px;background:var(--bg3);border-radius:4px">
       <b>${h.fecha}</b> — ${h.accion==='Instalado'?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Instalado en':'⬅️ Desmontado de'} <b>${escapeHtml(h.sigla||'')} ${escapeHtml(h.posicion||'')}</b>${h.neuSerie?' (neumático serie '+escapeHtml(h.neuSerie)+')':''}
@@ -5505,7 +5512,7 @@ window.verDetalleNeu=function(neuIdx){
   }
 
   sm(`<div style="max-width:580px">
-    <h3>🛞 ${escapeHtml(n.sigla)} — ${escapeHtml(n.posicion)} | ${escapeHtml(n.serie)}</h3>
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> ${escapeHtml(n.sigla)} — ${escapeHtml(n.posicion)} | ${escapeHtml(n.serie)}</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div style="background:var(--bg3);border-radius:6px;padding:8px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Marca / Medida</div>
@@ -5522,7 +5529,7 @@ window.verDetalleNeu=function(neuIdx){
     </div>
     ${svg||'<p style="color:var(--tx3);text-align:center;padding:20px">Sin mediciones — usa 📏 Medir para agregar datos</p>'}
     ${proy?`<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
-      <b style="font-size:13px">📅 Proyección de vida</b>
+      <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Proyección de vida</b>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px">
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Hrs acumuladas</div><b style="color:var(--tx)">${fn2(proy.hrsAcumNeu)}h</b><div style="font-size:9px;color:var(--tx3)">de ${fn2(proy.targetHrs)}h</div></div>
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Hrs restantes</div><b style="color:var(--ac)">${fn2(proy.hrsRestantes)}h</b></div>
@@ -5532,7 +5539,7 @@ window.verDetalleNeu=function(neuIdx){
       <div style="margin-top:8px;font-size:11px;color:var(--tx3)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Cambio por: <b style="color:var(--warn)">${proy.motivoCambio}</b> · ${proy.confianza}${proy.desgasteMes?' · '+proy.desgasteMes+'mm/mes':''}</div>
     </div>`:''}
     <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
-      <b style="font-size:13px">📊 Métricas de rendimiento</b>
+      <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Métricas de rendimiento</b>
       ${(()=>{const m=neuMetricas(n);return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Rendimiento</div><b style="color:var(--ac)">${m.rendHmm?m.rendHmm+' h/mm':'—'}</b></div>
         <div style="text-align:center"><div style="font-size:10px;color:var(--tx3)">Costo/hora rodada</div><b>${m.costoHora?'$'+fn2(m.costoHora):'—'}</b></div>
@@ -5551,7 +5558,7 @@ window.verDetalleNeu=function(neuIdx){
       </div>
     </div>
     <div style="margin-bottom:12px">
-      <b style="font-size:13px">📋 Historial de mediciones (${meds.length})</b>
+      <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial de mediciones (${meds.length})</b>
       ${(()=>{const equiposPorSerie=[...new Set(meds.map(m=>m.sigla).filter(Boolean))];return equiposPorSerie.length>1?`<div style="font-size:10px;color:var(--warn);margin-top:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Este neumático pasó por ${equiposPorSerie.length} equipos distintos: ${equiposPorSerie.map(s=>escapeHtml(s)).join(', ')}</div>`:'';})()}
       ${meds.length?`<div style="overflow-x:auto;margin-top:6px"><table style="width:100%;font-size:11px">
         <tr style="background:var(--bg3)"><th style="padding:4px">Fecha</th><th>Equipo</th><th>Pos.</th><th>Horóm</th><th>Rem.Ext</th><th>Rem.Int</th><th>Rem.Prom</th><th>Presión</th><th>Obs</th></tr>
@@ -5610,7 +5617,7 @@ window.resumenFlotaNeu=function(){
   const colorEstado=e=>e.includes('Baja')?'var(--danger)':e==='Operativo'?'var(--ok)':e==='Evaluación'||e==='Reparación'?'var(--warn)':'var(--tx2)';
 
   // Proyección de vida restante (TD/RUL, ver neuProyeccion) agregada a nivel de
-  // flota — antes solo se veía neumático por neumático dentro del modal 🔍.
+  // flota — antes solo se veía neumático por neumático dentro del modal <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg>.
   const operativos=neu.filter(n=>n.estado==='Operativo'||!n.estado);
   const proyecciones=operativos.map(n=>neuProyeccion(n)).filter(Boolean);
   const necesita30=proyecciones.filter(p=>p.diasRestantes<30).length;
@@ -5618,7 +5625,7 @@ window.resumenFlotaNeu=function(){
   const sinDatos=operativos.length-proyecciones.length;
 
   sm(`<div style="max-width:760px">
-    <h3>📊 Resumen Flota Neumáticos</h3>
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen Flota Neumáticos</h3>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Total neumáticos</div>
@@ -5804,7 +5811,7 @@ renders.disp=function(){
       // Etiqueta de respaldo del dato
       var datos;
       if(e.manual)datos='<span class="badge b-b" title="Valor cargado a mano (override o import)">✍ manual</span>';
-      else if(e.diasReg>0)datos='<span style="font-size:10px;color:var(--tx3)" title="Días del mes con al menos una detención registrada">📋 '+e.diasReg+' día'+(e.diasReg===1?'':'s')+' c/registro</span>';
+      else if(e.diasReg>0)datos='<span style="font-size:10px;color:var(--tx3)" title="Días del mes con al menos una detención registrada"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> '+e.diasReg+' día'+(e.diasReg===1?'':'s')+' c/registro</span>';
       else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real."><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> sin registros</span>';
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
         '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+escapeHtml(e.sigla)+'\'])d[\''+escapeHtml(e.sigla)+'\']={}; d[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
@@ -5951,7 +5958,7 @@ renders.disp=function(){
     '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()">🚫 Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
     '<div class="toolbar">'+
-    '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'>📊 Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'>📅 Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'>📆 Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'>📅 Anual</option></select>'+
+    '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Anual</option></select>'+
     '<select id="fDispMes" onchange="renders.disp()">'+meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
     '<select id="fDispAnio" onchange="renders.disp()">'+availYears.map(function(y){return'<option'+(fAnio===y?' selected':'')+'>'+y+'</option>'}).join('')+'</select>'+
     '<select id="fDispTipo" onchange="renders.disp()"><option value="">Todos los equipos</option>'+
@@ -6031,7 +6038,7 @@ renders.cfg=function(){
   const cfg=S.g('cfg')||{};
   const isAdmin=cfg.adminOk||false;
   $('s-cfg').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">⚙ Configuración</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Configuración</div>'+
     '<div class="sec-s">Administración del sistema</div></div></div>'+
 
     // ACCESOS (quién entró, cuándo, desde qué navegador/equipo)
@@ -6063,13 +6070,13 @@ renders.cfg=function(){
     // PARÁMETROS NEUMÁTICOS
     (function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #f59e0b">'+
-    '<b style="font-size:14px">🛞 Parámetros de Neumáticos (CAEX 27.00R49)</b>'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Parámetros de Neumáticos (CAEX 27.00R49)</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Estos valores ajustan las proyecciones de vida y fechas de cambio. La vida útil es variable según TKPH, rutas y proveedor — ajústala a tu campaña real.</p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'+
     '<div><label style="font-size:10px;color:var(--tx3)">Vida útil objetivo (horas)</label><input type="number" id="neuTarget" value="'+(c.neuTargetHrs||9000)+'" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px"></div>'+
     '<div><label style="font-size:10px;color:var(--tx3)">Proyección mensual (horas/mes)</label><input type="number" id="neuProyMes" value="'+(c.neuProyMes||450)+'" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px"></div>'+
     '</div>'+
-    '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">📋 Reglas activas: Delanteros (P1-P2) → cambio a 60mm <b>o</b> 2.000h (alerta) / 2.600h (límite), lo primero. Traseros (P3-P6) → solo remanente, retiro a 10mm o daño.</div>'+
+    '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Reglas activas: Delanteros (P1-P2) → cambio a 60mm <b>o</b> 2.000h (alerta) / 2.600h (límite), lo primero. Traseros (P3-P6) → solo remanente, retiro a 10mm o daño.</div>'+
     '<button class="btn" onclick="guardarNeuParams()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar parámetros</button>'+
     '</div>';})()+
     (function(){const c=S.g('cfg')||{};return ''+
@@ -6143,11 +6150,11 @@ renders.cfg=function(){
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="exportAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON (backup completo)</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON (restaurar backup)</button>'+
       '<hr style="border-color:var(--bd);margin:12px 0">'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ok)" onclick="reporteEjecutivoExcel()">📊 Reporte Ejecutivo Excel (para jefatura)</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ok)" onclick="reporteEjecutivoExcel()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Reporte Ejecutivo Excel (para jefatura)</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="verLogAuditoria()">📝 Ver Log de Auditoría</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--w)" onclick="resetAll()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--danger)" onclick="resetEmpresa()">🏢 Configurar Nueva Empresa</button>'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()">📋 Descargar Plantilla Limpia (para otra empresa)</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Descargar Plantilla Limpia (para otra empresa)</button>'+
       '<div style="font-size:10px;color:var(--tx3)">Nueva Empresa: borra TODO y permite cargar nuevos equipos y pautas</div>'+
       '</div>'+
 
@@ -6638,7 +6645,7 @@ window.diagVinculos=function(soloActivos){
     '</label>';
 
   if(!lista.length){
-    sm('<h3>🔍 Diagnóstico de Vínculos</h3>'+toggleHtml+
+    sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Diagnóstico de Vínculos</h3>'+toggleHtml+
       '<p><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> No se encontraron vínculos rotos'+(soloActivos?' en equipos activos':'')+'. '+
       (soloActivos&&omitidosDecom?'Hay '+omitidosDecom+' línea(s) de equipos decomisados con vínculo roto — activa la opción de arriba para verlas.':'Todas las líneas de pauta con material y cantidad encuentran precio en Lubricantes o Stock Filtros.')+'</p>'+
       '<button class="btn btn-o" onclick="cm()">Cerrar</button>');
@@ -6659,7 +6666,7 @@ window.diagVinculos=function(soloActivos){
       '<td><button class="btn-s" onclick="aplicarFixVinculo('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Vincular</button></td></tr>';
   }).join('');
 
-  sm('<h3>🔍 Vínculos rotos pauta ↔ producto</h3>'+toggleHtml+
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos pauta ↔ producto</h3>'+toggleHtml+
     '<p style="font-size:12px;color:var(--tx3)">Estos textos de Pauta no encuentran precio en Lubricantes ni Stock Filtros (por eso salen en $0 en el Planificador). Elige a qué producto deben vincularse — se corrige el texto en TODAS las líneas de pauta que lo usan, de una sola vez.</p>'+
     '<div style="max-height:420px;overflow:auto"><table style="width:100%"><tr><th>Texto en Pauta</th><th>Afecta</th><th>Vincular con</th><th></th></tr>'+filas+'</table></div>'+
     '<br><button class="btn btn-o" onclick="cm()">Cerrar</button>');
@@ -6896,7 +6903,7 @@ function generarDiagnostico(sigla){
   if(estadoPM.includes('URGENTE'))porQue.push('Horas de operación superan intervalo de mantención');
   if(eqData&&eqData.promCostoMes>5e6)porQue.push('Costo mensual alto: $'+eqData.promCostoMes.toLocaleString()+'/mes');
   if(!porQue.length)porQue.push('Sin causas identificadas — operación dentro de parámetros');
-  d.secciones.push({titulo:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ¿Por qué está pasando?',items:porQue,color:'var(--w)'});
+  d.secciones.push({titulo:'⚠️ ¿Por qué está pasando?',items:porQue,color:'var(--w)'});
 
   // 3. ¿QUÉ VA A PASAR?
   var queViene=[];
@@ -7121,7 +7128,7 @@ function _lineasPautaRep(sigla,tipoPM,pau){
 // dónde se mira. Compartido entre Stock vs PM y Lubricantes vs PM.
 function _selHorizontePred(hz){
   return '<div style="margin-bottom:10px"><select onchange="window._predHorizonte=this.value;renders.pred()" style="background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:5px 8px;border-radius:4px;font-size:12px">'+
-    [[30,'📅 Mensual — 30 días'],[90,'📅 Trimestral — 90 días'],[180,'📅 Semestral — 180 días']].map(function(o){
+    [[30,'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Mensual — 30 días'],[90,'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Trimestral — 90 días'],[180,'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semestral — 180 días']].map(function(o){
       return '<option value="'+o[0]+'"'+(hz===o[0]?' selected':'')+'>'+o[1]+'</option>';
     }).join('')+'</select></div>';
 }
@@ -7555,10 +7562,10 @@ renders.pred=function(){
       // ── ZONA 2: HISTÓRICO DE COMPRAS (reporte, mira para atrás) ──
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin:6px 0 14px"><div style="font-size:15px;font-weight:700;color:var(--tx2);position:relative;padding-left:16px"><span style="position:absolute;left:0;top:6px;width:8px;height:8px;border-radius:2px;background:var(--tx3)"></span>Gasto y compras — histórico</div><div style="font-size:11px;color:var(--tx3)">reporte: mira para atrás, no predice</div></div>'+
       '<div class="cards">'+
-      '<div class="card"><div class="card-t">📊 Pedidos históricos</div><div class="card-v">'+R.totalPedidos.toLocaleString()+'</div><div class="card-s">'+R.rangoDesde+' a '+R.rangoHasta+'</div></div>'+
+      '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Pedidos históricos</div><div class="card-v">'+R.totalPedidos.toLocaleString()+'</div><div class="card-s">'+R.rangoDesde+' a '+R.rangoHasta+'</div></div>'+
       '<div class="card"><div class="card-t">💰 Gasto acumulado</div><div class="card-v" style="font-size:22px">$'+(R.totalCosto/1e6).toFixed(0)+'M</div><div class="card-s">~$'+(R.promedioMensual/1e6).toFixed(1)+'M / mes</div></div>'+
       '<div class="card"><div class="card-t">⏱ Lead time promedio</div><div class="card-v">'+R.leadTimeGlobal+'<span style="font-size:14px;color:var(--tx3)">d</span></div><div class="card-s">supuesto (histórico sin fecha de entrega)</div></div>'+
-      '<div class="card"><div class="card-t">🔩 Ítem más pedido</div><div class="card-v" style="font-size:14px;font-weight:650;padding:7px 0">'+escapeHtml((P.topItems[0]?P.topItems[0].item:'—').substring(0,22))+'</div><div class="card-s">'+(P.topItems[0]?P.topItems[0].total+' pedidos':'sin datos')+'</div></div>'+
+      '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Ítem más pedido</div><div class="card-v" style="font-size:14px;font-weight:650;padding:7px 0">'+escapeHtml((P.topItems[0]?P.topItems[0].item:'—').substring(0,22))+'</div><div class="card-s">'+(P.topItems[0]?P.topItems[0].total+' pedidos':'sin datos')+'</div></div>'+
       '</div>'+
       '<div class="chart-box" style="margin-top:14px"><div class="chart-t">💵 Gasto mensual en compras <span style="font-size:11px;color:var(--tx3);font-weight:400">— últimos meses</span></div>'+
       '<div class="bars">'+P.costoMes.map(function(m){
@@ -7684,11 +7691,11 @@ renders.pred=function(){
             '<div style="font-size:11px;color:var(--tx3)">'+c.total+' fallas · '+c.nEquipos+' equipo(s) · última hace '+(c.diasDesdeUltima==null?'—':c.diasDesdeUltima+'d')+'</div>'+
             '</div>'+
             '<div style="font-size:12px;margin:6px 0;line-height:1.5">💡 '+escapeHtml(c.sugerencia)+'</div>'+
-            (c.causaTop?'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">🔍 Causa más mencionada en el registro: <b>'+escapeHtml(c.causaTop.toUpperCase())+'</b> ('+c.causaTopN+' veces)</div>':'')+
+            (c.causaTop?'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Causa más mencionada en el registro: <b>'+escapeHtml(c.causaTop.toUpperCase())+'</b> ('+c.causaTopN+' veces)</div>':'')+
             (c.reincidenciaDias!=null?'<div style="font-size:11px;margin-bottom:4px;color:'+(c.reincidenciaDias<30?'var(--danger)':c.reincidenciaDias<90?'var(--w)':'var(--tx2)')+'">⏱️ En '+escapeHtml(c.equipoMasRepetido)+', vuelve a fallar en promedio cada <b>'+c.reincidenciaDias+' día(s)</b>'+(c.reincidenciaDias<30?' — intervalo corto: revisar calidad del repuesto o de la reparación, no parece desgaste normal':c.reincidenciaDias<90?' — intervalo moderado, vale la pena revisar':'')+
               (c.tendencia==='empeora'?' · <b style="color:var(--danger)">📉 empeorando</b> (el intervalo entre fallas se acortó vs. las primeras veces)':c.tendencia==='mejora'?' · <b style="color:var(--ok)">📈 mejorando</b> (el intervalo se alargó)':'')+
               '</div>':'')+
-            (c.cubiertoPorPM===false?'<div style="font-size:11px;color:var(--w);margin-bottom:4px">📋 Este componente NO aparece en ninguna pauta de mantención preventiva de estos equipos — siempre se detecta por correctivo, nunca por revisión programada.</div>':'')+
+            (c.cubiertoPorPM===false?'<div style="font-size:11px;color:var(--w);margin-bottom:4px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Este componente NO aparece en ninguna pauta de mantención preventiva de estos equipos — siempre se detecta por correctivo, nunca por revisión programada.</div>':'')+
             (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
             (c.requiereRCA?'<div style="font-size:11px;background:rgba(99,102,241,.08);border-radius:6px;padding:6px 8px;margin:6px 0;color:var(--tx2)">'+
               '<b style="color:#818cf8">🔬 Amerita Análisis de Causa Raíz</b> ('+c.total+' fallas — igual que activaría un CMMS real ante ≥3 correctivos del mismo tipo).'+
@@ -7776,7 +7783,7 @@ $('s-pred').innerHTML=
     '<select id="fPredVista" onchange="renders.pred()" style="font-weight:600">'+
     '<option value="general"'+(fVista==='general'?' selected':'')+'>🟢 Necesita atención + histórico</option>'+
     '<option value="equipo"'+(fVista==='equipo'||fVista==='diag'?' selected':'')+'>🏗 Por Equipo</option>'+
-    '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'>📋 Backlog Inteligente</option>'+
+    '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Backlog Inteligente</option>'+
     '<option value="items"'+(fVista==='items'?' selected':'')+'>🔧 Top Items</option>'+
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
@@ -7886,7 +7893,7 @@ renders.rep=function(){
       var accion='';
       if(r.estado.includes('SIN STOCK'))accion='<button class="btn-s" style="background:var(--danger);color:white;font-size:10px" onclick="crearOC('+i+')">🛒 Comprar</button>';
       else if(r.estado.includes('PEDIR'))accion='<button class="btn-s" style="background:var(--danger);color:white;font-size:10px" onclick="crearOC('+i+')">🛒 Comprar</button>';
-      else if(r.estado.includes('BAJO'))accion='<button class="btn-s" style="background:var(--w);color:black;font-size:10px" onclick="crearOC('+i+')">📋 Planificar</button>';
+      else if(r.estado.includes('BAJO'))accion='<button class="btn-s" style="background:var(--w);color:black;font-size:10px" onclick="crearOC('+i+')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Planificar</button>';
       else accion='<span style="font-size:10px;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK</span>';
 
       return'<tr style="background:'+bg+'">'+
@@ -8127,7 +8134,7 @@ renders.insp=function(){
   var is='background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
   var pg=_pagSlice('insp',fil);
   $('s-insp').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📋 Inspecciones Diarias</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones Diarias</div>'+
     '<div class="sec-s">'+insp.length+' inspecciones · Hoy: '+hoyCount+'</div></div>'+
     '<button class="btn" onclick="addInsp()">+ Nueva Inspección</button></div>'+
     '<div class="toolbar">'+
@@ -8176,7 +8183,7 @@ window.addInsp=function(){
   var eq=S.g('eq')||[];
   var hoy=new Date().toISOString().slice(0,10);
   var per=_tecnicosDisponibles();
-  sm('<h3>📋 Nueva Inspección Diaria</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Nueva Inspección Diaria</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo *</label><select id="iEq">'+
     eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Fecha</label><input type="date" id="iFec" value="'+hoy+'"></div>'+
@@ -8279,7 +8286,7 @@ renders.venc=function(){
   var alertasActivas = filas.filter(function(f){return f.estado.requiereAtencion;});
 
   $('s-venc').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📅 Vencimientos Documentales</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Vencimientos Documentales</div>'+
     '<div class="sec-s">'+eq.length+' equipos · '+alertasActivas.length+' requieren atención</div></div>'+
     '<button class="btn btn-o" onclick="exportVencCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div>'+
     (alertasActivas.length?'<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;color:var(--danger);font-size:13px">'+
@@ -8643,7 +8650,7 @@ function renderAceDash(ace){
   var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">';
 
   // Panel 1: Torta estado general
-  html+='<div class="chart-box"><div class="chart-t">📊 Estado General de la Flota</div>';
+  html+='<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Estado General de la Flota</div>';
   html+='<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">';
   html+='<svg width="220" height="220" viewBox="0 0 220 220">'+svgSlices+'</svg>';
   html+='<div>';
@@ -8658,7 +8665,7 @@ function renderAceDash(ace){
   html+='</div></div></div>';
 
   // Panel 2: Muestras mensuales
-  html+='<div class="chart-box"><div class="chart-t">📅 Muestras Mensuales</div>';
+  html+='<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Muestras Mensuales</div>';
   html+='<div class="bars" style="height:140px">';
   mesesKeys.forEach(function(k){
     var v=porMes[k];
@@ -8676,7 +8683,7 @@ function renderAceDash(ace){
   html+='</div>';
 
   // Panel 4: Estado por tipo de componente
-  html+='<div class="chart-box"><div class="chart-t">⚙️ Estado por Tipo de Componente</div>';
+  html+='<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Estado por Tipo de Componente</div>';
   html+=compOrdenados.map(function(c){return barraEstado({label:c,n:porComp[c].n,a:porComp[c].a,p:porComp[c].p,norm:porComp[c].norm},maxComp);}).join('');
   html+='</div>';
 
@@ -9127,7 +9134,7 @@ renders.ayuda=function(){
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Este sistema gestiona el mantenimiento de una flota minera. Es una página web (se abre con Chrome o Edge, sin instalar nada) conectada a una base de datos real en la nube (Supabase) — los datos NO viven en este navegador, viven en el servidor, y se comparten entre todos los que usan el sistema al mismo tiempo.</p>'+
     '<b style="font-size:13px;color:var(--ac)">▶ Cómo empezar a usarlo (3 pasos)</b>'+
     '<ol style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
-    '<li><b>Inicia sesión</b> con tu correo y contraseña en la pantalla que aparece al abrir la página. Si no tienes cuenta todavía, pídele a un administrador que te la cree en <b>⚙ Configuración → 👤 Crear Usuario del Sistema</b> — quedas bloqueado hasta que un admin te active (esto evita que cualquiera con el link entre sin autorización).</li>'+
+    '<li><b>Inicia sesión</b> con tu correo y contraseña en la pantalla que aparece al abrir la página. Si no tienes cuenta todavía, pídele a un administrador que te la cree en <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Configuración → 👤 Crear Usuario del Sistema</b> — quedas bloqueado hasta que un admin te active (esto evita que cualquiera con el link entre sin autorización).</li>'+
     '<li><b>Familiarízate con las pestañas</b> de arriba. Las principales: <b>Dashboard</b> (resumen), <b>Equipos</b> (la flota y sus próximas PM), <b>Registro PM</b> (anotar mantenciones hechas), <b>Plan Semanal</b> (qué toca esta semana), <b>Stock</b> y <b>Lubricantes</b> (inventario), <b>Neumáticos</b> (control de gomas), <b>Predictivo</b> (qué materiales se vienen y cuánto cuestan).</li>'+
     '<li><b>Edita cualquier dato</b> haciendo click directo en las celdas de las tablas. Se guarda solo en la base de datos — nadie más necesita "actualizar" nada, lo ven apenas recarguen su pantalla. Para ordenar, haz click en los encabezados de columna (⇅).</li>'+
     '</ol>'+
@@ -9154,7 +9161,7 @@ renders.ayuda=function(){
 
     // ÍNDICE
     '<div class="card" style="margin-bottom:16px">'+
-    '<div class="card-t" style="margin-bottom:8px">📋 ÍNDICE</div>'+
+    '<div class="card-t" style="margin-bottom:8px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> ÍNDICE</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">'+
     '<a href="#m1" style="color:var(--ac);text-decoration:none;padding:2px 0">1. ¿Qué es SistemaMP?</a>'+
     '<a href="#m2" style="color:var(--ac);text-decoration:none;padding:2px 0">2. Primeros pasos</a>'+
@@ -9222,7 +9229,7 @@ renders.ayuda=function(){
 
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid #22c55e">'+
     '<b>🔧 DURANTE EL DÍA — Ejecución</b><br>'+
-    '1. Realiza <b>Inspección Diaria</b> → pestaña 📋 → checklist rápido<br>'+
+    '1. Realiza <b>Inspección Diaria</b> → pestaña <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> → checklist rápido<br>'+
     '2. Ejecuta PM → pestaña <b>Registro PM</b> → registra con horómetro real<br>'+
     '3. Si hay correctivo → pestaña <b>Correctivos</b> → crea OT con causa y solución<br>'+
     '4. El sistema descuenta stock automáticamente</div>'+
@@ -9235,20 +9242,20 @@ renders.ayuda=function(){
     '4. Si llegaron muestras de aceite → pestaña <b>🧪 Análisis Aceite</b></div>'+
 
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid #8b5cf6">'+
-    '<b>📅 SEMANAL — Planificación y Cierre</b><br>'+
-    '1. <b>📆 Plan Semanal</b> → revisa los PM auto-generados para la semana<br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> SEMANAL — Planificación y Cierre</b><br>'+
+    '1. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Plan Semanal</b> → revisa los PM auto-generados para la semana<br>'+
     '2. Asigna técnicos y ajusta días si es necesario (Vista Tabla)<br>'+
     '3. Al ejecutar PM → ingresa <b>HH Real, Estado Real y Obs Real</b> en las columnas verdes<br>'+
     '4. Al terminar la semana → click <b>🔒 Cerrar Semana</b> (congela el Plan, Real queda editable)<br>'+
     '5. <b>📈 Avance</b> → revisa si vas al ritmo correcto del mes<br>'+
-    '6. <b>📅 Gantt</b> → verifica la línea de tiempo del mes<br>'+
+    '6. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt</b> → verifica la línea de tiempo del mes<br>'+
     '7. <b>🔓 Destrabe</b> → revisa trabajos bloqueados y gestiona soluciones<br>'+
-    '8. <b>🔩 Componentes Mayores</b> → revisa vida útil de motor, transmisión, etc.<br>'+
+    '8. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes Mayores</b> → revisa vida útil de motor, transmisión, etc.<br>'+
     '9. <b>📉 Disponibilidad</b> → verifica % vs meta y tendencia<br>'+
     '10. Exporta informes → botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV o <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir para gerencia<br><br>'+
-    '<b>📊 MENSUAL — Cierre</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MENSUAL — Cierre</b><br>'+
     '1. <b>🎯 Metas</b> → compara plan vs real del mes que cierra<br>'+
-    '2. <b>📊 Informes KPI</b> → descarga reportes para gerencia<br>'+
+    '2. <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</b> → descarga reportes para gerencia<br>'+
     '3. Ajusta metas del próximo mes según la realidad</div></div></div>'+
 
     // 4. PESTAÑAS
@@ -9256,35 +9263,35 @@ renders.ayuda=function(){
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">4. Pestañas del Sistema</div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Pestaña</th><th>Función</th><th>Qué se hace ahí</th></tr>'+
-    '<tr><td><b>📊 Dashboard</b></td><td>Vista general</td><td>KPIs, gráficos, equipos urgentes, semáforos</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Dashboard</b></td><td>Vista general</td><td>KPIs, gráficos, equipos urgentes, semáforos</td></tr>'+
     '<tr><td><b>🚜 Equipos</b></td><td>Flota completa</td><td>Ver/editar equipos, horómetros, estado PM</td></tr>'+
     '<tr><td><b>📝 Registro PM</b></td><td>Mantención preventiva</td><td>Registrar cada PM con fechas, técnico, horómetro</td></tr>'+
     '<tr><td><b>🔧 Correctivos</b></td><td>OT correctivas</td><td>Crear OT, registrar causa raíz, solución, componente, backlog</td></tr>'+
-    '<tr><td><b>🛞 Neumáticos</b></td><td>Control neumáticos</td><td>Remanente, cambios, historial por posición</td></tr>'+
-    '<tr><td><b>📅 Programa</b></td><td>Programa anual</td><td>Planificación mensual de PMs por equipo</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Neumáticos</b></td><td>Control neumáticos</td><td>Remanente, cambios, historial por posición</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa</b></td><td>Programa anual</td><td>Planificación mensual de PMs por equipo</td></tr>'+
     '<tr><td><b>🔴 Alertas PM4</b></td><td>Repuestos PM4</td><td>Checklist de repuestos para PM4 / overhaul</td></tr>'+
-    '<tr><td><b>📋 Pautas</b></td><td>Actividades PM</td><td>Todas las actividades por tipo PM, editables</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Pautas</b></td><td>Actividades PM</td><td>Todas las actividades por tipo PM, editables</td></tr>'+
     '<tr><td><b>📦 Stock Filtros</b></td><td>Inventario filtros</td><td>Stock, consumo, proyección, semáforo compra</td></tr>'+
     '<tr><td><b>🛢 Lubricantes</b></td><td>Inventario lubricantes</td><td>Stock, consumo, proyección, precio</td></tr>'+
     '<tr><td><b>💵 Costos</b></td><td>Análisis de costos</td><td>3 vistas: Costos por mes, HH por técnico/equipo con eficiencia, MTBF/MTTR por equipo</td></tr>'+
     '<tr><td><b>📈 Horómetros</b></td><td>Historial lecturas</td><td>Registro y tendencia de horas por equipo</td></tr>'+
     '<tr><td><b>📉 Disponibilidad</b></td><td>% disponibilidad</td><td>Cálculo dinámico desde registros, meta editable, tendencia mensual</td></tr>'+
-    '<tr><td><b>📊 Consumos</b></td><td>Historial consumos</td><td>Todos los movimientos de filtros y lubricantes</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Consumos</b></td><td>Historial consumos</td><td>Todos los movimientos de filtros y lubricantes</td></tr>'+
     '<tr><td><b>🧪 Análisis Aceite</b></td><td>Muestras aceite</td><td>Metales de desgaste, estado, tendencia por componente</td></tr>'+
-    '<tr><td><b>📋 Inspecciones</b></td><td>Checklist diario</td><td>Visual, niveles, fugas, luces, frenos, neumáticos</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</b></td><td>Checklist diario</td><td>Visual, niveles, fugas, luces, frenos, neumáticos</td></tr>'+
     '<tr><td><b>📦 Repuestos</b></td><td>Control repuestos</td><td>Stock, mínimo, lead time, semáforo, orden de compra</td></tr>'+
     '<tr><td><b>📈 Predictivo</b></td><td>Motor inteligente</td><td>Alertas cruzadas, diagnóstico, backlog, tendencias</td></tr>'+
-    '<tr><td><b>📆 Plan Semanal</b></td><td>Planificación semanal</td><td>Trabajos de la semana, HH, costo, técnicos, repuestos</td></tr>'+
-    '<tr><td><b>🔩 Componentes</b></td><td>Componentes mayores</td><td>4 sub-pestañas: Componentes Mayores (motor/transmisión/diferencial), Predictivo, Destrabe e Informes de Falla (genera PDF descargable)</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Plan Semanal</b></td><td>Planificación semanal</td><td>Trabajos de la semana, HH, costo, técnicos, repuestos</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</b></td><td>Componentes mayores</td><td>4 sub-pestañas: Componentes Mayores (motor/transmisión/diferencial), Predictivo, Destrabe e Informes de Falla (genera PDF descargable)</td></tr>'+
     '<tr><td><b>🎯 Metas</b></td><td>Plan vs Real</td><td>8 indicadores × 12 meses, meta editable, real automático</td></tr>'+
-    '<tr><td><b>📅 Gantt</b></td><td>Plan visual</td><td>Equipos × días del mes, barras de color por estado</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt</b></td><td>Plan visual</td><td>Equipos × días del mes, barras de color por estado</td></tr>'+
     '<tr><td><b>🔓 Destrabe</b></td><td>Bloqueos</td><td>Trabajos detenidos, motivo, acción, días pendiente</td></tr>'+
     '<tr><td><b>📈 Avance</b></td><td>Progreso mensual</td><td>Plan vs ejecución con barra de progreso y % esperado</td></tr>'+
-    '<tr><td><b>🔍 Buscar</b></td><td>Buscador Maestro</td><td>Historial completo por equipo, ranking de problemáticos</td></tr>'+
-    '<tr><td><b>📊 Informes KPI</b></td><td>Cuadro de mando</td><td>6 gauges + barras mensuales + descarga Excel</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Buscar</b></td><td>Buscador Maestro</td><td>Historial completo por equipo, ranking de problemáticos</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</b></td><td>Cuadro de mando</td><td>6 gauges + barras mensuales + descarga Excel</td></tr>'+
     '<tr><td><b>📝 Log</b></td><td>Auditoría</td><td>Registro automático de todas las ediciones con fecha/hora</td></tr>'+
     '<tr><td><b>📖 Manual</b></td><td>Esta guía</td><td>Paso a paso de todo el sistema</td></tr>'+
-    '<tr><td><b>⚙ Config</b></td><td>Administración</td><td>Temas, colores, fuentes, backup, nueva empresa, crear/activar usuarios, códigos QR por equipo</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Config</b></td><td>Administración</td><td>Temas, colores, fuentes, backup, nueva empresa, crear/activar usuarios, códigos QR por equipo</td></tr>'+
     '</table></div></div>'+
 
     // 5. REGISTRAR PM
@@ -9357,9 +9364,9 @@ renders.ayuda=function(){
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">9. Análisis Predictivo</div>'+
     '<div style="font-size:13px;line-height:1.8">'+
     '<b>4 vistas disponibles:</b><br><br>'+
-    '<b>📊 General:</b> Recomendaciones automáticas, alertas cruzadas por equipo (combina inspecciones + aceite + fallas + PM), quiebres de stock, tendencia costos.<br><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> General:</b> Recomendaciones automáticas, alertas cruzadas por equipo (combina inspecciones + aceite + fallas + PM), quiebres de stock, tendencia costos.<br><br>'+
     '<b>🏗 Por Equipo:</b> Selecciona un equipo y ve su historial completo: pedidos, costos, confianza de la predicción, items más pedidos.<br><br>'+
-    '<b>📋 Backlog Inteligente:</b> Todos los trabajos pendientes con: días atrasados, origen (correctivo/preventivo), motivo (editable) e impacto (según criticidad del equipo y si está fuera de servicio).<br><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Backlog Inteligente:</b> Todos los trabajos pendientes con: días atrasados, origen (correctivo/preventivo), motivo (editable) e impacto (según criticidad del equipo y si está fuera de servicio).<br><br>'+
     '<b>🧠 Diagnóstico Integral:</b> Responde las 7 preguntas para cualquier equipo. Genera un párrafo de interpretación automática tipo:<br>'+
     '<div style="padding:8px;background:var(--bg3);border-radius:6px;margin-top:4px;font-style:italic;font-size:12px">'+
     '"CN-9507 presenta PM1 vencida. Aceite ALERTA en motor (Fe:120). Causa: desgaste interno. Riesgo de falla en 14 días. Acción: Programar PM1 inmediato. 2 repuestos sin stock — requiere compra."</div></div></div>'+
@@ -9398,7 +9405,7 @@ renders.ayuda=function(){
     '• 🏢 Empresa y faena<br>'+
     '• 🎨 Tema: Oscuro / Claro / Azul Minero<br>'+
     '• 🎨 Colores personalizables: principal, OK, peligro<br>'+
-    '• 📊 Opciones de Dashboard: gráficos, proyección, costos<br>'+
+    '• <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Opciones de Dashboard: gráficos, proyección, costos<br>'+
     '• <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Exportar/Importar backup JSON<br>'+
     '• <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales<br>'+
     '• 🏢 Configurar nueva empresa (resetear todo y empezar de cero)</div></div>'+
@@ -9433,7 +9440,7 @@ renders.ayuda=function(){
     '<b>▶ 🚫 Registrar salida de servicio</b><br>'+
     'Marca un equipo como fuera de servicio un rango de días completo (cuentan como 0% de disponibilidad esos días). Si todavía no sabes cuándo vuelve a operar, marca la casilla <b>"El equipo AÚN sigue fuera de servicio"</b> en vez de inventar una fecha de término — así el equipo sigue contando como detenido día a día hasta que lo cierres. Los equipos con una salida en curso aparecen en una franja roja arriba de la tabla, con un botón <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Volvió a operar"</b> para fijar la fecha real de término cuando corresponda.<br><br>'+
     '<b>Vistas disponibles:</b><br>'+
-    '• <b>📊 Por Equipo</b>: tabla con barra visual, semáforo vs meta, % editable<br>'+
+    '• <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Por Equipo</b>: tabla con barra visual, semáforo vs meta, % editable<br>'+
     '• <b>📈 Tendencia Mensual</b>: todos los meses en columnas para ver evolución<br><br>'+
     '<b>Funciones:</b><br>'+
     '• La <b>meta es editable</b> — click en el porcentaje para cambiarla<br>'+
@@ -9449,7 +9456,7 @@ renders.ayuda=function(){
     '<b>¿Para qué sirve?</b> Planificar semana a semana los PM de la flota, registrar lo ejecutado vs lo planificado, y mantener un histórico congelado por semana.<br><br>'+
 
     '<div style="padding:8px 10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--warn);margin-bottom:10px;font-size:12px">'+
-    '<b>📅 La semana va de JUEVES a MIÉRCOLES</b>, igual que la semana operativa de la faena — no de lunes a domingo. '+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> La semana va de JUEVES a MIÉRCOLES</b>, igual que la semana operativa de la faena — no de lunes a domingo. '+
     'Por eso el calendario parte en Jue y cierra en Mié, y el rango de fechas que muestra el título de cada semana sigue ese mismo corte.</div>'+
 
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac);margin-bottom:10px">'+
@@ -9461,13 +9468,13 @@ renders.ayuda=function(){
     '<b>5. Cierre:</b> Al final de la semana haz click en 🔒 Cerrar Semana — queda congelado.<br>'+
     '<b>6. Histórico:</b> Navega cualquier semana anterior con el selector y verás el histórico exacto.</div>'+
 
-    '<b>📅 Vista Calendario:</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Vista Calendario:</b><br>'+
     '• Muestra los PM ubicados en su día de la semana (Jue-Mié)<br>'+
     '• Color por tipo: verde PM1, azul PM2, amarillo PM3, rojo PM4<br>'+
     '• Los PM ejecutados muestran ✓ y las horas reales<br>'+
     '• Hoy se resalta en naranja<br><br>'+
 
-    '<b>📋 Vista Tabla (edición):</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Vista Tabla (edición):</b><br>'+
     '• <b>HH Plan / Costo Est:</b> auto-calculados desde pautas, editables<br>'+
     '• <b>Técnico:</b> asignar mecánico responsable<br>'+
     '• <b>Día:</b> auto-asignado por urgencia, editable<br>'+
@@ -9491,7 +9498,7 @@ renders.ayuda=function(){
     '• El selector de semanas marca con 🔒 las semanas cerradas<br>'+
     '• Botón <b>🔓 Reabrir</b> disponible si necesitas corregir el Plan también<br><br>'+
 
-    '<b>📊 KPIs:</b><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> KPIs:</b><br>'+
     '• <b>Trabajos Semana:</b> total de PM en el plan<br>'+
     '• <b>HH Plan:</b> horas-hombre planificadas<br>'+
     '• <b>HH Real</b> (semanas pasadas): horas efectivamente ejecutadas<br>'+
@@ -9518,7 +9525,7 @@ renders.ayuda=function(){
     '• <b>% de vida</b>: barra visual que muestra cuánto se ha consumido la vida útil<br>'+
     '• <b>Horas restantes</b>: vida útil menos horas usadas<br>'+
     '• <b>Días restantes</b>: horas restantes ÷ ritmo real de uso del equipo<br>'+
-    '• <b>Estado</b>: 🟢 OK → 📋 MONITOREAR (<2000h) → 🟡 PLANIFICAR (<1000h) → 🔴 VENCIDO (0h)<br><br>'+
+    '• <b>Estado</b>: 🟢 OK → <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> MONITOREAR (<2000h) → 🟡 PLANIFICAR (<1000h) → 🔴 VENCIDO (0h)<br><br>'+
     '<b>Columnas editables:</b> componente, casilla Original, horómetro de instalación, fecha de instalación, vida útil, costo de referencia, observaciones.<br><br>'+
     '<b>KPIs:</b> total componentes, críticos (<1000h), costo proyectado de próximos cambios, componentes con instalación pendiente de completar.<br>'+
     '<b>Botones:</b> + Agregar, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> Eliminar, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV, <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar<br><br>'+
@@ -9614,7 +9621,7 @@ renders.ayuda=function(){
     '<div class="card" style="margin-bottom:12px" id="m23">'+
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">23. Ficha Técnica de Equipo</div>'+
     '<div style="font-size:13px;line-height:1.8">'+
-    '<b>¿Cómo acceder?</b> En la pestaña Equipos, click en el botón 📋 de cualquier equipo.<br><br>'+
+    '<b>¿Cómo acceder?</b> En la pestaña Equipos, click en el botón <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> de cualquier equipo.<br><br>'+
     '<b>Campos disponibles:</b><br>'+
     '• Sigla, Tipo, Modelo — datos básicos<br>'+
     '• N° Serie, Año Fabricación, VIN/Chasis — identificación<br>'+
@@ -9649,7 +9656,7 @@ renders.ayuda=function(){
     '<div style="font-size:13px;line-height:1.8">'+
     'El Dashboard principal incorpora 3 bloques adicionales a los KPIs originales:<br><br>'+
     '<b>🚨 Tabla de Equipos Urgentes</b> — Lista los equipos con PM vencida o crítica, con horómetro actual, horómetro de próxima PM, días restantes y tipo de PM. Se ordena por urgencia.<br><br>'+
-    '<b>📅 Próximos PMs (14 días)</b> — Tarjetas visuales con los equipos que tienen mantención programada en las próximas dos semanas, coloreadas según cercanía (rojo ≤3 días, amarillo 4-14 días).<br><br>'+
+    '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs (14 días)</b> — Tarjetas visuales con los equipos que tienen mantención programada en las próximas dos semanas, coloreadas según cercanía (rojo ≤3 días, amarillo 4-14 días).<br><br>'+
     '<b>📈 Tendencia de Disponibilidad (6 meses)</b> — Gráfico de barras con la disponibilidad mecánica promedio de la flota mes a mes, comparada contra la meta configurada en Config.<br><br>'+
     'Además, dentro de la pestaña <b>🧪 Análisis Aceite</b> existe un mini-dashboard propio con: torta de Estado General (Normal/Precaución/Alerta), gráfico de muestras mensuales, y rankings por Tipo de Equipo, Tipo de Componente y Lubricante — replicando el formato del reporte oficial de Mobil Assistance, pero calculado en vivo desde tus datos cargados.</div></div>'+
 
@@ -10160,7 +10167,7 @@ renders.sem=function(){
     :(esCerrada?'<button class="btn btn-o" onclick="reabrirSemana('+fSemana+')" style="font-size:10px">🔓 Reabrir</button>':'');
 
   $('s-sem').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📆 Planificación Semanal'+badgeSem+'</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Planificación Semanal'+badgeSem+'</div>'+
     '<div class="sec-s">Semana '+fSemana+' · '+getWeekDates(fSemana)+' · '+(esPasada?'Muestra los PM ejecutados en esa semana':esActual?'Equipos con PM en esta semana + las vencidas pendientes':'Equipos con PM que caen en esta semana')+'</div></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
     (esCerrada?'':'<button class="btn" onclick="addSemItem()">+ Agregar</button>')+
@@ -10182,8 +10189,8 @@ renders.sem=function(){
     '<button class="btn btn-o btn-s" onclick="navSem(1)" title="Semana siguiente">Sig ▶</button>'+
     '<div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>'+
     '<select id="fVistaSem" onchange="renders.sem()" style="background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:5px 8px;border-radius:4px;font-size:12px">'+
-    '<option value="calendario"'+(fVistaSem==="calendario"?' selected':'')+'>📅 Vista Calendario</option>'+
-    '<option value="tabla"'+(fVistaSem==="tabla"?' selected':'')+'>📋 Vista Tabla (editar)</option>'+
+    '<option value="calendario"'+(fVistaSem==="calendario"?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Vista Calendario</option>'+
+    '<option value="tabla"'+(fVistaSem==="tabla"?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Vista Tabla (editar)</option>'+
     '</select>'+
     '</div>'+
     '<div class="cards">'+
@@ -10398,7 +10405,7 @@ renders.comp=function(){
   var costoTotal=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=2000}).reduce(function(s,c){return s+(c.costoRef||0)},0);
 
   $('s-comp').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">🔩 Control de Componentes Mayores</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Control de Componentes Mayores</div>'+
     '<div class="sec-s">'+compData.length+' componentes · '+eq.length+' equipos · Vida útil y proyección de cambio</div></div>'+
     '<div style="display:flex;gap:8px">'+
     '<button class="btn" onclick="addComp()">+ Agregar</button>'+
@@ -10778,7 +10785,7 @@ renders.informes=function(){
       return '<tr>'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(i.sigla)+'</td>'+
         '<td class="mono">'+i.fecha+'</td>'+
-        '<td>'+(i.tipoEvento==='Falla Catastrófica'?'🔴 Falla Catastrófica':'🔩 Cambio Componente')+'</td>'+
+        '<td>'+(i.tipoEvento==='Falla Catastrófica'?'🔴 Falla Catastrófica':'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Cambio Componente')+'</td>'+
         '<td>'+escapeHtml(i.componente||'—')+'</td>'+
         '<td class="mono">$'+Math.round(i.costoEstimado||0).toLocaleString('es-CL')+'</td>'+
         '<td>'+(i.fotos?i.fotos.length:0)+' 📷</td>'+
@@ -11099,7 +11106,7 @@ renders.kpi=function(){
 
   // ═══ BUILD CUADROS DE MANDO ═══
   $('s-kpi').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📊 Cuadro de Mando KPI</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Cuadro de Mando KPI</div>'+
     '<div class="sec-s">Indicadores automáticos · Actualización en tiempo real desde registros</div></div>'+
     '<button class="btn" onclick="rptTodos()" style="padding:8px 20px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Descargar Todo Excel</button></div>'+
     '<div class="toolbar">'+
@@ -11189,8 +11196,8 @@ renders.kpi=function(){
     // BOTONES DE DESCARGA
     '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">'+
     '<button class="btn" onclick="rptTodos()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Excel Completo (8 hojas)</button>'+
-    '<button class="btn btn-o" onclick="rptEjecutivo(\'excel\')">📊 Ejecutivo</button>'+
-    '<button class="btn btn-o" onclick="rptComp(\'excel\')">🔩 Componentes</button>'+
+    '<button class="btn btn-o" onclick="rptEjecutivo(\'excel\')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Ejecutivo</button>'+
+    '<button class="btn btn-o" onclick="rptComp(\'excel\')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</button>'+
     '<button class="btn btn-o" onclick="rptEjecutivo(\'print\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Ejecutivo</button>'+
     '</div>';
 };
@@ -11710,10 +11717,10 @@ window.stk2Sub=function(s){window._stk2Sub=s;renders.stk2();};
 renders.comp2=function(){
   const sub=window._comp2Sub||'comp';
   $('s-comp2').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">🔩 Componentes</div>
+    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</div>
       <div class="sec-s">Componentes mayores, análisis predictivo y gestión de destrabe</div></div></div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn ${sub==='comp'?'':'btn-o'}" onclick="comp2Sub('comp')">🔩 Componentes Mayores</button>
+      <button class="btn ${sub==='comp'?'':'btn-o'}" onclick="comp2Sub('comp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes Mayores</button>
       <button class="btn ${sub==='pred'?'':'btn-o'}" onclick="comp2Sub('pred')">📈 Predictivo</button>
       <button class="btn ${sub==='destrabe'?'':'btn-o'}" onclick="comp2Sub('destrabe')">🔓 Destrabe</button>
       <button class="btn ${sub==='informes'?'':'btn-o'}" onclick="comp2Sub('informes')">📄 Informes de Falla</button>
@@ -11795,7 +11802,7 @@ renders.cad=function(){
           ${edCell(c.estado||'Operativo','estado',i,'cad','select',['Operativo','Cambiado','Fuera de servicio'])}
           <td>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionCad(${i})" title="Medir">📏</button>
-            <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verHistorialCad(${i})" title="Historial">🔍</button>
+            <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verHistorialCad(${i})" title="Historial"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
             <button class="btn-x" onclick="delCad(${i})" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button>
           </td>
         </tr>`;
@@ -11856,7 +11863,7 @@ window.verHistorialCad=function(idx){
   const cad=S.g('cad')||[];const c=cad[idx];if(!c)return;
   const meds=(S.g('cadMed')||[]).filter(function(m){return m.sigla===c.sigla&&m.lado===c.lado&&m.componente===c.componente;})
     .sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
-  sm('<h3>🔍 '+escapeHtml(c.sigla)+' — '+escapeHtml(c.lado)+' | '+escapeHtml(c.componente)+'</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> '+escapeHtml(c.sigla)+' — '+escapeHtml(c.lado)+' | '+escapeHtml(c.componente)+'</h3>'+
     '<p style="color:var(--tx2);margin-bottom:12px">Valor nuevo: <b>'+(c.valorNuevo!=null?c.valorNuevo+'mm':'—')+'</b> · Límite: <b>'+(c.limiteDesgaste!=null?c.limiteDesgaste+'mm':'—')+'</b> · Actual: <b>'+(c.valorActual!=null?c.valorActual+'mm':'—')+'</b></p>'+
     '<div class="tbl-wrap"><table><tr><th>Fecha</th><th>Horómetro</th><th>Valor medido</th><th>Obs.</th></tr>'+
     meds.map(function(m){return'<tr><td>'+escapeHtml(m.fecha||'')+'</td><td class="mono">'+fn(m.horom||0)+'h</td><td class="mono">'+m.valorMedido+'mm</td><td style="font-size:11px">'+escapeHtml(m.obs||'')+'</td></tr>';}).join('')+
@@ -11877,7 +11884,7 @@ renders.mkpi=function(){
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn ${sub==='metas'?'':'btn-o'}" onclick="mkpiSub('metas')">🎯 Metas</button>
       <button class="btn ${sub==='avance'?'':'btn-o'}" onclick="mkpiSub('avance')">📈 Avance del Mes</button>
-      <button class="btn ${sub==='kpi'?'':'btn-o'}" onclick="mkpiSub('kpi')">📊 Informes KPI</button>
+      <button class="btn ${sub==='kpi'?'':'btn-o'}" onclick="mkpiSub('kpi')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</button>
     </div>
     <div id="s-metas" class="${sub==='metas'?'':'hidden'}"></div>
     <div id="s-avance" class="${sub==='avance'?'':'hidden'}"></div>
@@ -11934,7 +11941,7 @@ window.reporteEjecutivoExcel=function(){
   html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Tipo</td><td '+est.th+'>Horómetro</td><td '+est.th+'>Próx. PM</td><td '+est.th+'>Fecha</td><td '+est.th+'>Estado</td></tr>';
   eq.forEach(e=>{
     const cl=e.estado&&e.estado.includes('URGENTE')?est.urg:e.estado&&e.estado.includes('PRÓXIMA')?est.warn:est.ok;
-    html+='<tr><td '+est.td+'>'+e.sigla+'</td><td '+est.td+'>'+(e.tipo||'')+'</td><td '+est.td+' align="right">'+fn2(e.horomActual)+'</td><td '+est.td+' align="center">'+(e.tipoPM||'')+'</td><td '+est.td+' align="center">'+(e.fechaProxPM||'')+'</td><td '+cl+' align="center">'+(e.estado||'').replace(/[🔴🟡<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>⚪]/g,'').trim()+'</td></tr>';
+    html+='<tr><td '+est.td+'>'+e.sigla+'</td><td '+est.td+'>'+(e.tipo||'')+'</td><td '+est.td+' align="right">'+fn2(e.horomActual)+'</td><td '+est.td+' align="center">'+(e.tipoPM||'')+'</td><td '+est.td+' align="center">'+(e.fechaProxPM||'')+'</td><td '+cl+' align="center">'+(e.estado||'').replace(/[🔴🟡✅⚪]/g,'').trim()+'</td></tr>';
   });
   html+='<tr><td colspan="6" style="height:10px"></td></tr>';
 
@@ -12147,7 +12154,7 @@ renders.gantt=function(){
   var days=[];for(var d=1;d<=daysInMonth;d++)days.push(d);
 
   $('s-gantt').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📅 Gantt de Mantención</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt de Mantención</div>'+
     '<div class="sec-s">Plan vs Ejecución · Click en celda de fecha para editar</div></div></div>'+
     '<div class="toolbar"><select id="fGanttMes" onchange="renders.gantt()">'+
     meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
@@ -12246,7 +12253,7 @@ renders.destrabe=function(){
     '<tr><th>Equipo</th><th>Trabajo</th><th>Tipo</th><th>F.Solicitud</th><th>Días</th><th>Motivo Bloqueo</th><th>Acción</th><th>Responsable</th><th>F.Compromiso</th><th>Estado</th><th>Prioridad</th><th></th></tr>'+
     items.map(function(it,i){
       it.dias=it.fechaSol?Math.round((Date.now()-new Date(it.fechaSol).getTime())/86400000):0;
-      var prio=it.dias>14?'🔴 CRÍTICO':it.dias>7?'🟡 URGENTE':'📋 Normal';
+      var prio=it.dias>14?'🔴 CRÍTICO':it.dias>7?'🟡 URGENTE':'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Normal';
       return'<tr>'+
         '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edDestrabe('+i+',\'equipo\',this.innerText.trim())">'+escapeHtml(it.equipo)+'</td>'+
         '<td class="ed" contenteditable onblur="edDestrabe('+i+',\'trabajo\',this.innerText.trim())" style="font-size:11px">'+escapeHtml(it.trabajo)+'</td>'+
@@ -12414,7 +12421,7 @@ renders.buscar=function(){
     fallasEqArr.slice().reverse().map(function(o){return'<tr><td>'+o.fecha+'</td><td>'+escapeHtml(o.tipo)+'</td><td>'+escapeHtml(o.componente||'')+'</td><td>'+escapeHtml(o.codFalla||'—')+'</td><td style="font-size:10px">'+escapeHtml(o.sintoma||'')+'</td><td style="font-size:10px">'+escapeHtml(o.causaRaiz||'')+'</td><td>'+o.estadoOT+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin correctivos en el período</div>')+'</div>'+
 
     // Componentes Mayores
-    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">🔩 Componentes Mayores ('+compF.length+')</div>'+
+    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes Mayores ('+compF.length+')</div>'+
     (compF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Componente</th><th>Vida Útil</th><th>Hrs Rest</th><th>% Vida</th><th>Estado</th></tr>'+
     compF.map(function(c){
       var eO=eq.find(function(e){return e.sigla===c.sigla});
@@ -12429,7 +12436,7 @@ renders.buscar=function(){
     histF.slice(-20).reverse().map(function(h){return'<tr><td>'+h.fecha+'</td><td>'+h.horomIni+'</td><td>'+h.horomFin+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin lecturas</div>')+'</div>'+
 
     // Inspecciones
-    '<div class="chart-box"><div class="chart-t">📋 Inspecciones ('+inspF.length+')</div>'+
+    '<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones ('+inspF.length+')</div>'+
     (inspF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Visual</th><th>Niveles</th><th>Fugas</th><th>Frenos</th><th>Obs</th></tr>'+
     inspF.slice().reverse().map(function(i){return'<tr><td>'+i.fecha+'</td><td>'+i.visual+'</td><td>'+i.niveles+'</td><td>'+i.fugas+'</td><td>'+i.frenos+'</td><td style="font-size:10px">'+escapeHtml(i.obs)+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin inspecciones</div>')+'</div>';
 
@@ -12460,7 +12467,7 @@ renders.buscar=function(){
   }
 
   $('s-buscar').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">🔍 Buscador Maestro</div>'+
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Buscador Maestro</div>'+
     '<div class="sec-s">Historial completo por equipo · Ranking de equipos problemáticos</div></div></div>'+
     '<div class="toolbar" style="gap:12px">'+
     '<select id="fBuscarEq" onchange="renders.buscar()" style="min-width:140px"><option value="">— Selecciona equipo o ver ranking —</option>'+
@@ -12483,7 +12490,7 @@ window.editFicha=function(sigla){
   var eq=S.g('eq')||[];
   var e=eq.find(function(x){return x.sigla===sigla});
   if(!e)return;
-  sm('<h3>📋 Ficha Técnica — '+escapeHtml(sigla)+'</h3>'+
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Ficha Técnica — '+escapeHtml(sigla)+'</h3>'+
     '<div class="form-row"><div class="fg"><label>Sigla</label><input id="ftSigla" value="'+escapeHtml(e.sigla||'')+'"></div>'+
     '<div class="fg"><label>Tipo</label><input id="ftTipo" value="'+escapeHtml(e.tipo||'')+'"></div>'+
     '<div class="fg"><label>Modelo</label><input id="ftModelo" value="'+escapeHtml(e.modelo||'')+'"></div></div>'+
@@ -12762,7 +12769,7 @@ function _mostrarLoginOverlay(msg){
   overlay.innerHTML =
     '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.4)">' +
       '<div style="text-align:center;margin-bottom:28px">' +
-        '<div style="font-size:28px;margin-bottom:8px">⚙️</div>' +
+        '<div style="font-size:28px;margin-bottom:8px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg></div>' +
         '<div style="font-size:18px;font-weight:700;color:#f1f5f9">SistemaMP Centinela</div>' +
         '<div style="font-size:12px;color:#94a3b8;margin-top:4px">Besalco Minería</div>' +
       '</div>' +
