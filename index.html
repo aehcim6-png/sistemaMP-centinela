@@ -4660,6 +4660,8 @@ window.VOICE_COMMANDS=[
   {patrones:['registrar pm por voz','registrar mantencion por voz','hacer un pm por voz','registro por voz'],accion:function(){go('reg');setTimeout(_iniciarRegPorVoz,300);},decir:null},
   {patrones:['agregar filtro por voz','nuevo filtro por voz','filtro nuevo por voz'],accion:function(){go('stk2');setTimeout(_iniciarStockPorVoz,300);},decir:null},
   {patrones:['agregar lubricante por voz','nuevo lubricante por voz','lubricante nuevo por voz'],accion:function(){go('stk2');setTimeout(_iniciarLubPorVoz,300);},decir:null},
+  {patrones:['agregar neumatico por voz','nuevo neumatico por voz','neumatico nuevo por voz'],accion:function(){go('neu');setTimeout(_iniciarNeuPorVoz,300);},decir:null},
+  {patrones:['medicion de neumatico por voz','medir neumatico por voz','medir remanente por voz'],accion:function(){go('neu');setTimeout(_iniciarMedicionNeuPorVoz,300);},decir:null},
   {patrones:['cerrar','cancelar'],accion:function(){if(window._vozFlujo)window._vozFlujo.activo=false;cm();},decir:'Cerrado'},
   {patrones:['leeme los urgentes','lee los urgentes','que hay urgente','equipos urgentes','urgentes'],accion:function(){_leerUrgentes();},decir:null},
 ];
@@ -4911,8 +4913,9 @@ function _vozFlujoEscucharConfirmacion(){
   rec.onerror=function(e){if(e.error!=='no-speech')toast('⚠️ Error de voz: '+e.error);};
   try{rec.start();}catch(e){}
 }
-window._iniciarFlujoVoz=function(pasos,guardarFn,resumenFn){
+window._iniciarFlujoVoz=function(pasos,guardarFn,resumenFn,avisoInicial){
   window._vozFlujo={activo:true,paso:0,pasos:pasos,guardarFn:guardarFn,resumenFn:resumenFn};
+  if(avisoInicial){setTimeout(function(){_hablarLuego(avisoInicial+' '+pasos[0].pregunta,_vozFlujoEscuchar);},300);return;}
   setTimeout(_vozFlujoPreguntar,300);
 };
 
@@ -4994,6 +4997,130 @@ window._iniciarLubPorVoz=function(){
   if(!document.getElementById('lNom')&&typeof addLub==='function')addLub();
   _iniciarFlujoVoz(window.LUB_VOZ_PASOS,function(){if(typeof saveLub==='function')saveLub();},_lubVozResumenTexto);
 };
+
+// ---- Flujo: Nuevo Neumático por voz ----
+// El texto de la pregunta usa las mismas palabras que aparecen en las
+// opciones del formulario (CAEX, Cargador, Motoniveladora...) a propósito:
+// el comparador calza contra el <option> real, así que si la pregunta ya
+// "enseña" la palabra exacta, la persona la repite sin darse cuenta.
+window.NEU_VOZ_PASOS=[
+  {campo:'nNEq',pregunta:'¿Qué equipo? Di la sigla.',tipo:'equipo',requerido:true},
+  {campo:'nNTipo',pregunta:'¿Qué tipo de equipo es? Di CAEX, cargador, motoniveladora, aljibe, camioneta, o bus.',tipo:'opciones',requerido:false},
+  {campo:'nNPos',pregunta:'¿En qué posición va? Por ejemplo delantero izquierdo.',tipo:'texto_opcional',requerido:false},
+  {campo:'nNSerie',pregunta:'¿Cuál es el número de serie del neumático?',tipo:'texto',requerido:true},
+  {campo:'nNMarca',pregunta:'¿Qué marca es? Di Michelin, Bridgestone, Goodyear, o Westlake.',tipo:'opciones',requerido:false},
+];
+function _neuVozResumenTexto(){
+  var sig=document.getElementById('nNEq').value||'sin equipo';
+  var serie=document.getElementById('nNSerie').value||'sin serie';
+  var marca=document.getElementById('nNMarca').value||'';
+  var pos=document.getElementById('nNPos').value||'';
+  return 'Resumen: neumático para '+sig+(pos?', posición '+pos:'')+', serie '+serie+(marca?', marca '+marca:'')+'.';
+}
+window._iniciarNeuPorVoz=function(){
+  if(!document.getElementById('nNEq')&&typeof addNeu==='function')addNeu();
+  _iniciarFlujoVoz(window.NEU_VOZ_PASOS,function(){if(typeof saveNeu==='function')saveNeu();},_neuVozResumenTexto);
+};
+
+// ---- Flujo: Medición de Remanente de Neumático por voz ----
+// Distinto a los demás: antes de poder abrir el formulario real hay que
+// encontrar CUÁL neumático (equipo + posición), porque addMedicionNeu()
+// necesita su índice. Una vez identificado, se apoya en el mismo motor
+// genérico de siempre para el resto de los campos.
+window.NEUMED_VOZ_PASOS=[
+  {campo:'mRemExt',pregunta:'¿Cuál es el remanente exterior, en milímetros?',tipo:'numero',requerido:false,etiqueta:'Remanente exterior'},
+  {campo:'mRemInt',pregunta:'¿Cuál es el remanente interior, en milímetros?',tipo:'numero',requerido:false,etiqueta:'Remanente interior'},
+  {campo:'mPres',pregunta:'¿Cuál es la presión en PSI? Di "omitir" si no la mediste.',tipo:'numero_opcional',requerido:false,etiqueta:'Presión'},
+  {campo:'mTemp',pregunta:'¿Y la temperatura? Di "omitir" si no la mediste.',tipo:'numero_opcional',requerido:false,etiqueta:'Temperatura'},
+  {campo:'mObs',pregunta:'¿Alguna observación? Di "omitir" si no.',tipo:'texto_opcional',requerido:false},
+];
+function _neuMedVozResumenTexto(){
+  var ext=document.getElementById('mRemExt').value||'sin dato';
+  var int=document.getElementById('mRemInt').value||'sin dato';
+  return 'Resumen: remanente exterior '+ext+' milímetros, interior '+int+' milímetros.';
+}
+window._continuarMedicionPorVoz=function(neuIdx){
+  _iniciarFlujoVoz(window.NEUMED_VOZ_PASOS,function(){if(typeof saveMedicionNeu==='function')saveMedicionNeu(neuIdx);},_neuMedVozResumenTexto);
+};
+window._iniciarMedicionNeuPorVoz=function(){
+  _hablarLuego('¿Qué equipo?',_neuMedVozEscucharEquipo);
+};
+function _neuMedVozEscucharEquipo(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('⚠️ Voz no disponible en este navegador — funciona en Chrome/Edge');return;}
+  var rec=new SR();
+  rec.lang='es-CL';rec.interimResults=false;rec.maxAlternatives=1;
+  rec.onresult=function(e){_neuMedVozCapturarEquipo(e.results[0][0].transcript);};
+  rec.onerror=function(e){if(e.error!=='no-speech')toast('⚠️ Error de voz: '+e.error);};
+  try{rec.start();}catch(e){}
+}
+function _neuMedVozCapturarEquipo(transcript){
+  toast('🎙️ "'+transcript+'"');
+  if(_normVoz(transcript)==='cancelar'){_hablar('Cancelado.');return;}
+  var siglas=(S.g('eq')||[]).map(function(e){return e.sigla;});
+  var tN=_normVoz(transcript).replace(/[\s-]/g,'');
+  var idx=siglas.findIndex(function(s){var sN=_normVoz(s).replace(/[\s-]/g,'');return sN&&(tN.indexOf(sN)>=0||sN.indexOf(tN)>=0);});
+  if(idx<0){_hablarLuego('No encontré ese equipo. Repite la sigla.',_neuMedVozEscucharEquipo);return;}
+  var sigla=siglas[idx];
+  var neu=S.g('neu')||[];
+  var disponibles=neu.map(function(n,i){return{n:n,i:i};}).filter(function(x){return x.n.sigla===sigla&&x.n.estado==='Operativo';});
+  if(!disponibles.length){_hablarLuego('No encontré neumáticos operativos en '+sigla+'. Repite otro equipo, o di cancelar.',_neuMedVozEscucharEquipo);return;}
+  if(disponibles.length===1){_neuMedVozAbrir(disponibles[0].i);return;}
+  window._neuMedVozCandidatos=disponibles;
+  var posiciones=disponibles.map(function(x){return x.n.posicion;}).join(', ');
+  _hablarLuego('Tiene varias posiciones: '+posiciones+'. ¿Cuál?',_neuMedVozEscucharPosicion);
+}
+function _neuMedVozEscucharPosicion(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  var rec=new SR();
+  rec.lang='es-CL';rec.interimResults=false;rec.maxAlternatives=1;
+  rec.onresult=function(e){_neuMedVozCapturarPosicion(e.results[0][0].transcript);};
+  rec.onerror=function(e){if(e.error!=='no-speech')toast('⚠️ Error de voz: '+e.error);};
+  try{rec.start();}catch(e){}
+}
+// Palabras con las que la gente describe una posición (delantero, trasero...)
+// vs. cómo quedan abreviadas en el dato real (Del, Tra...) — sin esto,
+// "delantero izquierdo" nunca calzaba contra "P1-DelIzq".
+var _NEU_POS_ABREV={delantero:'del',delantera:'del',trasero:'tra',trasera:'tra',
+  izquierdo:'izq',izquierda:'izq',derecho:'der',derecha:'der',
+  exterior:'ext',interior:'int',medio:'med',media:'med'};
+function _normPosicionVoz(s){
+  var t=_normVoz(s);
+  Object.keys(_NEU_POS_ABREV).forEach(function(w){
+    t=t.replace(new RegExp('\\b'+w+'\\b','g'),_NEU_POS_ABREV[w]);
+  });
+  return t.replace(/[\s-]/g,'');
+}
+function _neuMedVozCapturarPosicion(transcript){
+  toast('🎙️ "'+transcript+'"');
+  if(_normVoz(transcript)==='cancelar'){_hablar('Cancelado.');return;}
+  var cand=window._neuMedVozCandidatos||[];
+  // 1) Si dice el número ("p uno", "posición tres"), calza por NÚMERO exacto —
+  //    nunca por texto parcial, porque "P1" es substring de "P10" y viceversa.
+  var nDicho=_parseNumeroVoz(transcript);
+  if(!isNaN(nDicho)){
+    var porNumero=cand.filter(function(x){
+      var m=(x.n.posicion||'').match(/^p(\d+)/i);
+      return m&&parseInt(m[1],10)===nDicho;
+    });
+    if(porNumero.length===1){_neuMedVozAbrir(porNumero[0].i);return;}
+  }
+  // 2) Si no, intenta por descripción (delantero/trasero/izquierdo/derecho/...)
+  var t=_normPosicionVoz(transcript);
+  var mejor=-1,mejorLen=0;
+  cand.forEach(function(x,ci){
+    var pn=_normPosicionVoz(x.n.posicion);
+    if(pn&&(t.indexOf(pn)>=0||pn.indexOf(t)>=0)&&pn.length>mejorLen){mejor=ci;mejorLen=pn.length;}
+  });
+  if(mejor<0){_hablarLuego('No identifiqué esa posición. Puedes decir el número, por ejemplo posición tres, o describirla, por ejemplo delantero izquierdo.',_neuMedVozEscucharPosicion);return;}
+  _neuMedVozAbrir(cand[mejor].i);
+}
+function _neuMedVozAbrir(neuIdx){
+  var n=(S.g('neu')||[])[neuIdx];
+  addMedicionNeu(neuIdx);
+  _iniciarFlujoVoz(window.NEUMED_VOZ_PASOS,function(){if(typeof saveMedicionNeu==='function')saveMedicionNeu(neuIdx);},_neuMedVozResumenTexto,n?('Posición '+n.posicion+' encontrada.'):null);
+}
 
 window.calcDurOT=function(){
   const fe=$('oFecEnt')?.value,he=$('oHoraEnt')?.value;
@@ -5175,7 +5302,7 @@ window.addNeu=function(){
       <div class="fg"><label>Horas acumuladas</label><input type="number" id="nNAcum" value="0"></div>
       <div class="fg"><label>Remanente actual (mm)</label><input type="number" id="nNRem"></div>
     </div>
-    <button class="btn" onclick="saveNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn" onclick="saveNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarNeuPorVoz()">${ICONS.mic} Completar por voz</button>`);
 };
 window.saveNeu=function(){
   const sig=$('nNEq').value,serie=$('nNSerie').value.trim();
@@ -5750,7 +5877,8 @@ window.addMedicionNeu=function(neuIdx){
     </div>
     <div class="fg" style="margin-bottom:12px"><label>Observación</label><input id="mObs" style="width:100%"></div>
     <button class="btn" onclick="saveMedicionNeu(${neuIdx})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar medición</button>
-    <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+    <button class="btn btn-o" onclick="cm()">Cancelar</button>
+    <button type="button" class="btn btn-o" onclick="_continuarMedicionPorVoz(${neuIdx})">${ICONS.mic} Completar por voz</button>`);
 };
 
 window.saveMedicionNeu=function(neuIdx){
