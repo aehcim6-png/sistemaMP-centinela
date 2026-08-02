@@ -40,6 +40,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .btn:hover{background:var(--ac3)}.btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#dc2626}
 .btn-o{background:none;border:1px solid var(--border);color:var(--tx2)}.btn-o:hover{border-color:var(--ac);color:var(--ac)}
 .btn-s{padding:3px 8px;font-size:11px}
+.mic-btn{background:var(--bg3);border:1px solid var(--border);color:var(--tx2);border-radius:6px;padding:0 8px;cursor:pointer;display:flex;align-items:center}
+.mic-btn:hover{border-color:var(--ac);color:var(--ac)}
+.mic-btn.mic-listening{background:var(--danger);border-color:var(--danger);color:#fff;animation:micPulse 1s ease-in-out infinite}
+@keyframes micPulse{0%,100%{opacity:1}50%{opacity:.55}}
 
 .tbl-wrap{overflow-x:auto;margin-bottom:16px}
 table{width:100%;border-collapse:collapse;font-size:12px}
@@ -1051,6 +1055,7 @@ const ICONS={
   eye:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg>',
   building:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16"/><rect x="6.3" y="4.5" width="1.8" height="1.8"/><rect x="9.1" y="4.5" width="1.8" height="1.8"/><rect x="11.9" y="4.5" width="1.8" height="1.8"/><rect x="6.3" y="8" width="1.8" height="1.8"/><rect x="9.1" y="8" width="1.8" height="1.8"/><rect x="11.9" y="8" width="1.8" height="1.8"/><rect x="8.5" y="13" width="3" height="5"/></svg>',
   tractor:'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="6"/><line x1="9" y1="10" x2="4" y2="10"/><line x1="4" y1="10" x2="4" y2="13"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14" cy="15" r="3.5"/><line x1="15" y1="10" x2="15" y2="4"/></svg>',
+  mic:'<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2" width="5" height="9" rx="2.5"/><path d="M4 9 A6 6 0 0 0 16 9" fill="none"/><line x1="10" y1="15" x2="10" y2="18"/><line x1="7" y1="18" x2="13" y2="18"/></svg>',
 };
 
 // ============ NAV ============
@@ -4560,7 +4565,7 @@ window.addOT=function(){
       <div class="fg"><label>Criticidad</label><select id="oCrit"><option>No Aplica</option><option>Reparación Inmediata</option><option>Proxima Mantención</option></select></div>
     </div>
     <div class="form-row">
-      <div class="fg" style="flex:2"><label>Síntoma / Descripción *</label><input id="oSint" style="width:100%"></div>
+      <div class="fg" style="flex:2"><label>Síntoma / Descripción *</label><div style="display:flex;gap:4px"><input id="oSint" style="width:100%">${_dictarBtn('oSint')}</div></div>
       <div class="fg"><label>Sistema</label><select id="oSis"><option value="">—</option>${sis.map(s=>`<option>${s}</option>`).join('')}</select></div>
     </div>
     <div class="form-row">
@@ -4568,7 +4573,7 @@ window.addOT=function(){
       <div class="fg"><label>Componente</label><select id="oComp"><option value="">—</option><option>Motor</option><option>Bomba hidráulica</option><option>Transmisión</option><option>Diferencial</option><option>Mando final</option><option>Turbo</option><option>Alternador</option><option>Motor de partida</option><option>Frenos</option><option>Dirección</option><option>Suspensión</option><option>Neumáticos</option><option>Sistema eléctrico</option><option>Cabina</option><option>Estructura</option><option>Refrigeración</option><option>Compresor A/C</option></select></div>
     </div>
     <div class="form-row">
-      <div class="fg" style="flex:2"><label>Solución aplicada</label><input id="oSolucion" style="width:100%" placeholder="¿Qué se hizo?"></div>
+      <div class="fg" style="flex:2"><label>Solución aplicada</label><div style="display:flex;gap:4px"><input id="oSolucion" style="width:100%" placeholder="¿Qué se hizo?">${_dictarBtn('oSolucion')}</div></div>
       <div class="fg"><label>Estado OT</label><select id="oEstOT"><option>Cerrada</option><option>Pendiente</option><option>En Ejecución</option></select></div>
     </div>
     <div class="form-row">
@@ -4587,6 +4592,36 @@ window.addOT=function(){
     <div class="fg"><label>Autorizado por</label><input id="otAutoriza" placeholder="Nombre..."></div>
     </div>
     <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+};
+// ============ DICTADO POR VOZ (piloto — pedido 2026-08-02) ============
+// Usa el reconocimiento de voz nativo del navegador (Web Speech API) —
+// nada de librerías ni servicios pagados. Funciona bien en Chrome/Edge;
+// en navegadores sin soporte (ej. Safari/Firefox de escritorio) el botón
+// avisa en vez de fallar en silencio. Piloto en 2 campos (Síntoma y
+// Solución de Correctivos) antes de sumarlo al resto de la app.
+function _dictarBtn(targetId){
+  return '<button type="button" class="mic-btn" onclick="_dictar(\''+targetId+'\',this)" title="Dictar por voz">'+ICONS.mic+'</button>';
+}
+window._dictar=function(targetId,btn){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('⚠️ Dictado por voz no disponible en este navegador — funciona en Chrome/Edge');return;}
+  var input=document.getElementById(targetId);
+  if(!input)return;
+  var rec=new SR();
+  rec.lang='es-CL';
+  rec.interimResults=false;
+  rec.maxAlternatives=1;
+  btn.classList.add('mic-listening');
+  rec.onresult=function(e){
+    var texto=e.results[0][0].transcript;
+    input.value=(input.value?input.value.trim()+' ':'')+texto;
+    input.dispatchEvent(new Event('change'));
+  };
+  rec.onerror=function(e){
+    if(e.error!=='no-speech')toast('⚠️ No se pudo escuchar: '+e.error);
+  };
+  rec.onend=function(){btn.classList.remove('mic-listening');};
+  try{rec.start();}catch(e){btn.classList.remove('mic-listening');}
 };
 window.calcDurOT=function(){
   const fe=$('oFecEnt')?.value,he=$('oHoraEnt')?.value;
