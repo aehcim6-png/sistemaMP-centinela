@@ -12,7 +12,17 @@ const path = require('path');
 // que ya usan los tests de Vitest, y el server estático directo que se
 // usa para probar el sitio sin Vite), este plugin copia esos mismos
 // archivos —tal cual están en el repo— al outDir en el mismo build.
+function copiarDirRecursivo(origen, destino) {
+  fs.mkdirSync(destino, { recursive: true });
+  for (const entry of fs.readdirSync(origen, { withFileTypes: true })) {
+    const o = path.join(origen, entry.name), d = path.join(destino, entry.name);
+    if (entry.isDirectory()) copiarDirRecursivo(o, d);
+    else fs.copyFileSync(o, d);
+  }
+}
+
 function copiarAssetsPlanos() {
+  // Archivos sueltos (script planos, no módulos ES): logic.js y vendor/*.js.
   const archivos = ['logic.js', 'vendor/jspdf.umd.min.js', 'vendor/qrcode.min.js', 'vendor/xlsx.core.min.js'];
   return {
     name: 'copiar-assets-planos',
@@ -23,6 +33,11 @@ function copiarAssetsPlanos() {
         fs.mkdirSync(path.dirname(destino), { recursive: true });
         fs.copyFileSync(path.resolve(__dirname, rel), destino);
       }
+      // modules/renders/*.js: pestañas extraídas del monolito — se copia toda
+      // la carpeta completa, así que una extracción nueva no requiere tocar
+      // este plugin, solo agregar el <script src="modules/..."> en index.html.
+      const modulesDir = path.resolve(__dirname, 'modules');
+      if (fs.existsSync(modulesDir)) copiarDirRecursivo(modulesDir, path.join(outDir, 'modules'));
     }
   };
 }
