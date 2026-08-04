@@ -3,9 +3,11 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "vite build"
   },
   "devDependencies": {
+    "vite": "^5.4.21",
     "vitest": "^2.1.9"
   }
 }

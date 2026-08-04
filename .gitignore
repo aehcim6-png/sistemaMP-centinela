@@ -1,4 +1,5 @@
 node_modules/
+dist/
 
 # Herramientas de autoría de video (HyperFrames/HeyGen) instaladas localmente
 # para armar un video explicativo del sistema — no son parte de la app.
