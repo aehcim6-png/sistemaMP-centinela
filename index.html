@@ -13188,6 +13188,14 @@ window.saveFicha=function(sigla){
 // badge más abajo: fondo #1e293b, borde #334155, radio 20px) para que no se
 // vea como un botón suelto sino parte del mismo lenguaje visual del header.
 document.addEventListener('DOMContentLoaded',function(){
+  // Envoltorio para el grupo CSV/Imprimir/Voz + la burbuja de usuario — mismo
+  // hijo del header flex (que usa justify-content:space-between) para que
+  // ambas pastillas viajen juntas pegadas al borde derecho, en vez de que el
+  // header las reparta como dos hijos separados con espacio de sobra entre
+  // medio.
+  var right=document.createElement('div');
+  right.id='headerRight';
+  right.style.cssText='display:flex;align-items:center;gap:8px';
   var bar=document.createElement('div');
   bar.id='exportBar';
   bar.style.cssText='display:flex;gap:6px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 6px';
@@ -13195,8 +13203,9 @@ document.addEventListener('DOMContentLoaded',function(){
   bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
     '<button onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>'+
     '<button id="voiceCmdBtn" onclick="_comandoDeVoz(this)" style="'+btnCss+'" title="Comando de voz — di el nombre de una pestaña, \'nueva OT\', \'urgentes\'...">'+ICONS.mic+' Voz</button>';
+  right.appendChild(bar);
   var header=document.querySelector('.header');
-  (header||document.body).appendChild(bar);
+  (header||document.body).appendChild(right);
 });
 var _cfg=S.g('cfg')||{};if(_cfg.colorAc||_cfg.tema)applyTheme(_cfg);
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
@@ -13637,11 +13646,14 @@ function _agregarUserBadge(){
   var old=document.getElementById('_userBadge');if(old)old.remove();
   var badge=document.createElement('span');
   badge.id='_userBadge';
-  badge.style.cssText='position:fixed;bottom:60px;right:16px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 12px;font-size:11px;color:#94a3b8;cursor:pointer;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+  // Vive en el header, junto a CSV/Imprimir/Voz (#headerRight) — antes flotaba
+  // fijo abajo a la derecha (position:fixed) y tapaba filas de tablas largas.
+  badge.style.cssText='background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 12px;font-size:11px;color:#94a3b8;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)';
   badge.textContent='👤 '+(window._userName||'')+(window._userRole?' ('+window._userRole+')':'');
   badge.title='Cerrar sesión';
   badge.onclick=function(){if(confirm('¿Cerrar sesión?'))_logout();};
-  document.body.appendChild(badge);
+  var right=document.getElementById('headerRight')||document.querySelector('.header')||document.body;
+  right.appendChild(badge);
 }
 
 // Registro de accesos: quién entró, cuándo y desde qué navegador — pedido real
