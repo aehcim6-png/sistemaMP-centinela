@@ -1,0 +1,165 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+// Duración del bloqueo de login al crear una cuenta nueva: 10 años.
+// (Es una capa extra de seguridad para el login mismo; el control real
+// de "quién está pendiente" se hace con la columna activo en user_roles,
+// que es más confiable de consultar).
+const BLOQUEO_DURACION = "87600h";
+
+// Genera una contraseña que cumple la política de Supabase Auth configurada
+// hoy (mínimo 14 caracteres, minúscula+mayúscula+dígito+símbolo). Garantiza
+// al menos uno de cada clase de carácter y después mezcla el resultado.
+function randomPassword(len = 18) {
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const symbols = "!@#$%^&*-_=+?";
+  const all = lower + upper + digits + symbols;
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const out = [pick(lower), pick(upper), pick(digits), pick(symbols)];
+  while (out.length < len) out.push(pick(all));
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out.join("");
+}
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+
+  try {
+    const authHeader = req.headers.get("Authorization") || "";
+    const callerToken = authHeader.replace("Bearer ", "");
+    if (!callerToken) return json({ error: "No autorizado." }, 401);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(supabaseUrl, serviceKey);
+
+    // Verificar quién llama
+    const { data: callerData, error: callerErr } = await admin.auth.getUser(callerToken);
+    if (callerErr || !callerData?.user) return json({ error: "Token inválido." }, 401);
+
+    // Verificar que quien llama es admin (tabla user_roles)
+    const { data: callerRole } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerData.user.id)
+      .single();
+
+    if (!callerRole || callerRole.role !== "admin") {
+      return json({ error: "Solo un administrador puede gestionar usuarios." }, 403);
+    }
+
+    const body = await req.json();
+    const action = body.action;
+
+    // ---------- CREAR (queda bloqueado, activo=false) ----------
+    if (action === "crear") {
+      const { nombre, email, rol } = body;
+      if (!nombre || !email || !rol) return json({ error: "Faltan datos (nombre, email, rol)." }, 400);
+      if (rol !== "admin" && rol !== "operador") return json({ error: "Rol inválido." }, 400);
+
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        password: randomPassword(),
+        email_confirm: true,
+        user_metadata: { must_change_password: true, nombre },
+      });
+      if (createErr || !created?.user) {
+        return json({ error: createErr?.message || "No se pudo crear el usuario." }, 400);
+      }
+
+      // Bloquear el login a nivel de Auth (capa de seguridad extra)
+      await admin.auth.admin.updateUserById(created.user.id, { ban_duration: BLOQUEO_DURACION });
+
+      // Fuente de verdad para "pendiente de activar": activo=false en user_roles
+      const { error: roleErr } = await admin.from("user_roles").insert({
+        user_id: created.user.id,
+        role: rol,
+        nombre,
+        activo: false,
+      });
+      if (roleErr) return json({ error: "Usuario creado pero falló asignar el rol: " + roleErr.message }, 500);
+
+      return json({ ok: true, userId: created.user.id });
+    }
+
+    // ---------- LISTAR PENDIENTES ----------
+    if (action === "listar_pendientes") {
+      const { data: rolesRows, error: rolesErr } = await admin
+        .from("user_roles")
+        .select("user_id, role, nombre")
+        .eq("activo", false);
+      if (rolesErr) return json({ error: "No se pudo consultar pendientes: " + rolesErr.message }, 500);
+
+      const pendientes = (rolesRows || []).map((r) => ({ userId: r.user_id, nombre: r.nombre, rol: r.role }));
+      return json({ ok: true, pendientes });
+    }
+
+    // ---------- LISTAR ACTIVOS ----------
+    if (action === "listar_activos") {
+      const { data: rolesRows, error: rolesErr } = await admin
+        .from("user_roles")
+        .select("user_id, role, nombre")
+        .eq("activo", true);
+      if (rolesErr) return json({ error: "No se pudo consultar activos: " + rolesErr.message }, 500);
+
+      const activos = (rolesRows || []).map((r) => ({ userId: r.user_id, nombre: r.nombre, rol: r.role }));
+      return json({ ok: true, activos });
+    }
+
+    // ---------- ACTIVAR ----------
+    if (action === "activar") {
+      const { userId } = body;
+      if (!userId) return json({ error: "Falta userId." }, 400);
+
+      const tempPassword = randomPassword();
+      const { error: actErr } = await admin.auth.admin.updateUserById(userId, {
+        ban_duration: "none",
+        password: tempPassword,
+      });
+      if (actErr) return json({ error: "No se pudo activar: " + actErr.message }, 500);
+
+      const { error: activoErr } = await admin.from("user_roles").update({ activo: true }).eq("user_id", userId);
+      if (activoErr) return json({ error: "Se activó el login pero no se pudo marcar activo: " + activoErr.message }, 500);
+
+      return json({ ok: true, tempPassword });
+    }
+
+    // ---------- DESACTIVAR ----------
+    if (action === "desactivar") {
+      const { userId } = body;
+      if (!userId) return json({ error: "Falta userId." }, 400);
+
+      if (userId === callerData.user.id) {
+        return json({ error: "No puedes desactivar tu propia cuenta." }, 400);
+      }
+
+      const { error: banErr } = await admin.auth.admin.updateUserById(userId, {
+        ban_duration: BLOQUEO_DURACION,
+      });
+      if (banErr) return json({ error: "No se pudo bloquear el login: " + banErr.message }, 500);
+
+      const { error: activoErr } = await admin.from("user_roles").update({ activo: false }).eq("user_id", userId);
+      if (activoErr) return json({ error: "Se bloqueó el login pero no se pudo marcar inactivo: " + activoErr.message }, 500);
+
+      return json({ ok: true });
+    }
+
+    return json({ error: "Acción no reconocida." }, 400);
+  } catch (e) {
+    return json({ error: String(e) }, 500);
+  }
+});
