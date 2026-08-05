@@ -38,6 +38,11 @@ function copiarAssetsPlanos() {
       // este plugin, solo agregar el <script src="modules/..."> en index.html.
       const modulesDir = path.resolve(__dirname, 'modules');
       if (fs.existsSync(modulesDir)) copiarDirRecursivo(modulesDir, path.join(outDir, 'modules'));
+      // docs/: documentación versionada (arquitectura, manuales, el plano
+      // interactivo) — se copia para que el botón "Ver plano del sistema"
+      // de Configuración pueda abrir docs/plano-sistema.html en producción.
+      const docsDir = path.resolve(__dirname, 'docs');
+      if (fs.existsSync(docsDir)) copiarDirRecursivo(docsDir, path.join(outDir, 'docs'));
     }
   };
 }

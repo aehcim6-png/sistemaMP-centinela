@@ -229,6 +229,14 @@ window.renderCfg=function(){
       '</div>'
       :'')+
 
+      // PLANO DEL SISTEMA (solo admin)
+      (window._userRole==='admin'?
+      '<div class="card"><b style="font-size:14px">📐 Plano del Sistema</b><br><br>'+
+      '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Diagrama de cómo se conecta todo por dentro: navegador, motor de sincronización, Supabase y respaldo paralelo — más el detalle de arranque, login, guardado y detección de conflictos.</p>'+
+      '<button class="btn" onclick="window.open(\'docs/plano-sistema.html\',\'_blank\')">📐 Ver plano del sistema</button>'+
+      '</div>'
+      :'')+
+
       // INFO SISTEMA
       '<div class="card"><b style="font-size:14px">🔲 Códigos QR por Equipo</b><br><br>'+
       '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Genera un QR único por equipo. Al escanearlo abre directo su ficha en Equipos — sin buscarlo a mano. Descárgalos para imprimir y pegar en cada máquina.</p>'+
