@@ -1,0 +1,765 @@
+// ═══════════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN — Administración del Sistema
+// ═══════════════════════════════════════════════════════════════════════
+// window.renderCfg + toda la UI exclusiva de esta pestaña: códigos QR por
+// equipo, refresco de estado MFA + activación/desactivación de verificación
+// en dos pasos, reset de datos (resetAll/resetEmpresa/processResetEmpresa),
+// plantilla limpia para otra empresa, acciones de la tarjeta de sync en la
+// nube (probar conexión/guardar config — cloudPush/cloudPull/el motor de
+// sync automático quedan compartidos, ver abajo), parámetros de neumáticos,
+// export de movimientos a CSV, backup manual (exportAllJSON/importAllJSON),
+// el Reporte Ejecutivo Excel, accesos recientes y la gestión de usuarios
+// (crear/activar/desactivar, vía la Edge Function crear-operador).
+//
+// Quedan COMPARTIDOS en index.html a propósito, todo por estar entrelazado
+// con infraestructura global que corre sin importar qué pestaña esté abierta:
+// - applyTheme (el arranque del sistema también lo llama para aplicar el
+//   tema guardado), exportTabla/imprimirTab (barra de exportación de TODAS
+//   las pestañas), computePred/_cadenaPMEnHorizonte (Predictivo/Plan Semanal),
+//   diagVinculos/aplicarFixVinculo (compartido con Lubricantes/Planificador),
+//   mesesAutomaticos (Avance/Gantt/Programación Diaria), _logChange/
+//   _logChangeGenerico, FOTOS_BUCKET/comprimirImagen/_subirArchivoBucket
+//   (Informes de Falla/Vencimientos/Correctivos), syncEquipos/_syncSiCambio.
+// - El motor de autoguardado a carpeta local (conectarCarpeta/
+//   desconectarCarpeta/_asWrite/_autoSaveMark/AUTOSAVE_KEYS) — conectarCarpeta
+//   /desconectarCarpeta tocan una variable de módulo (_asHandle) compartida
+//   por closure con _asWrite y el listener beforeunload; separarlas de ese
+//   motor requeriría exponerla como global, mayor riesgo que beneficio.
+// - El motor de sync a la nube (cloudPush/cloudPull/_clCfg/_clOk/_clStatus/
+//   _clHeaders y el IIFE _clInit) — cloudPush corre automático en cada
+//   guardado (enganchado a _autoSaveMark con debounce de 8s) y cloudPull se
+//   ofrece solo al abrir el sistema (_clInit), no solo desde el botón de
+//   Configuración — es el motor de sincronización real, mismo que el plan
+//   deja para el final junto con S/_sbCache.
+// - Los helpers de bajo nivel de MFA (_mfaEnroll/_mfaChallenge/_mfaVerify/
+//   _mfaUnenroll) — _mfaChallenge/_mfaVerify también los usa el challenge de
+//   LOGIN (_mostrarMfaChallengeUI), no solo la activación desde Configuración.
+// - Todo el bootstrap de sesión/login/logout/refresh de token y el registro
+//   de accesos (_getDeviceLabel, usado también por _registrarLogin en cada
+//   login) — corre en el arranque del sistema, antes de que exista ninguna
+//   pestaña abierta.
+// ═══════════════════════════════════════════════════════════════════════
+
+// ---- CÓDIGOS QR POR EQUIPO ----
+window.verCodigosQR=function(){
+  var eq=(S.g('eq')||[]).slice().sort(function(a,b){return (a.sigla||'').localeCompare(b.sigla||'');});
+  if(!eq.length)return toast('⚠️ No hay equipos cargados');
+  if(typeof QRCode==='undefined')return toast('❌ No se pudo cargar el generador de QR (revisa conexión a internet)');
+  var baseUrl=location.origin+location.pathname;
+  sm('<div style="max-width:720px">'+
+    '<h3>🔲 Códigos QR por Equipo</h3>'+
+    '<p style="font-size:11px;color:var(--tx3);margin-bottom:12px">Escanéalo con el celular y abre directo la ficha de ese equipo, sin buscarlo a mano. Descárgalos e imprímelos para pegar en cada máquina.</p>'+
+    '<div id="qrGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;max-height:60vh;overflow-y:auto;padding:4px">'+
+    eq.map(function(e){
+      return '<div style="text-align:center;border:1px solid var(--bor);border-radius:8px;padding:10px">'+
+        '<div id="qr-'+escapeHtml(e.sigla)+'" style="display:flex;justify-content:center;margin-bottom:6px"></div>'+
+        '<div style="font-size:11px;font-weight:600;margin-bottom:4px">'+escapeHtml(e.sigla)+'</div>'+
+        '<a href="#" style="font-size:10px;color:var(--ac)" onclick="event.preventDefault();_descargarQR(\''+escapeHtml(e.sigla)+'\')">⬇️ Descargar</a>'+
+      '</div>';
+    }).join('')+
+    '</div>'+
+    '<br><button class="btn btn-o" onclick="cm()">Cerrar</button>'+
+  '</div>');
+  setTimeout(function(){
+    eq.forEach(function(e){
+      var el=document.getElementById('qr-'+e.sigla);
+      if(!el)return;
+      el.innerHTML='';
+      new QRCode(el,{text:baseUrl+'?eq='+encodeURIComponent(e.sigla),width:110,height:110,colorDark:'#000000',colorLight:'#ffffff'});
+    });
+  },50);
+};
+window._descargarQR=function(sigla){
+  var el=document.getElementById('qr-'+sigla);
+  var canvas=el&&el.querySelector('canvas');
+  if(!canvas)return toast('❌ QR no generado todavía, espera un segundo e intenta de nuevo');
+  var a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download='QR_'+sigla+'.png';
+  a.click();
+};
+
+window.renderCfg=function(){
+  const cfg=S.g('cfg')||{};
+  $('s-cfg').innerHTML=
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Configuración</div>'+
+    '<div class="sec-s">Administración del sistema</div></div></div>'+
+
+    // ACCESOS (quién entró, cuándo, desde qué navegador/equipo)
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg> Accesos al sistema</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Registro de cada inicio de sesión — útil para saber quién entró y cuándo si algo no se guardó en un computador.</p>'+
+    '<button class="btn btn-o" onclick="verAccesos()">Ver accesos recientes</button>'+
+    '</div>'+
+
+    // LOG DE CAMBIOS (auditoría completa — todas las acciones, no solo login)
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Log de Cambios</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Auditoría completa del sistema — cada edición, creación o eliminación, no solo los inicios de sesión.</p>'+
+    '<button class="btn btn-o" onclick="verLogCambios()">Ver log de cambios</button>'+
+    '</div>'+
+
+    // VERIFICACIÓN EN DOS PASOS (MFA/TOTP) — estado se carga aparte, es async
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #ef4444" id="mfaCard">'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Verificación en dos pasos</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Además del usuario y la clave, pide un código de 6 dígitos que cambia cada 30 segundos (app tipo Google Authenticator). Así aunque alguien consiga tu clave, no puede entrar sin tu teléfono.</p>'+
+    '<div id="mfaEstadoBox" style="font-size:12px;color:var(--tx3)">Revisando estado…</div>'+
+    '</div>'+
+
+    // AUTOGUARDADO EN LÍNEA (siempre visible)
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--ac)">'+
+    '<b style="font-size:14px">☁️ Respaldo automático (en línea)</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Los datos viven en este navegador. Conecta una carpeta y el sistema guardará <b>SistemaMP_Datos.json</b> automáticamente a los 5 segundos de cada cambio. Si eliges una carpeta de <b>OneDrive</b> o <b>Google Drive escritorio</b>, el respaldo sube a la nube solo. Requiere Chrome o Edge.</p>'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+    '<button class="btn" onclick="conectarCarpeta()">📂 Conectar carpeta</button>'+
+    '<button class="btn btn-o" onclick="desconectarCarpeta()">Desconectar</button>'+
+    '<button class="btn btn-o" onclick="exportAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Backup manual</button>'+
+    '<button class="btn btn-o" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Restaurar backup</button>'+
+    '<span id="asStatus" style="font-size:11px;color:'+(window._asStatusColor||'var(--tx3)')+'">'+(window._asStatusTxt||'⚪ Sin carpeta conectada')+'</span>'+
+    '</div></div>'+
+
+    // PARÁMETROS NEUMÁTICOS
+    (function(){const c=S.g('cfg')||{};return ''+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #f59e0b">'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Parámetros de Neumáticos (CAEX 27.00R49)</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Estos valores ajustan las proyecciones de vida y fechas de cambio. La vida útil es variable según TKPH, rutas y proveedor — ajústala a tu campaña real.</p>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'+
+    '<div><label style="font-size:10px;color:var(--tx3)">Vida útil objetivo (horas)</label><input type="number" id="neuTarget" value="'+(c.neuTargetHrs||9000)+'" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px"></div>'+
+    '<div><label style="font-size:10px;color:var(--tx3)">Proyección mensual (horas/mes)</label><input type="number" id="neuProyMes" value="'+(c.neuProyMes||450)+'" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px"></div>'+
+    '</div>'+
+    '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Reglas activas: Delanteros (P1-P2) → cambio a 60mm <b>o</b> 2.000h (alerta) / 2.600h (límite), lo primero. Traseros (P3-P6) → solo remanente, retiro a 10mm o daño.</div>'+
+    '<button class="btn" onclick="guardarNeuParams()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar parámetros</button>'+
+    '</div>';})()+
+    (function(){const c=S.g('cfg')||{};return ''+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #3ecf8e">'+
+    '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="8"/><ellipse cx="10" cy="10" rx="3.5" ry="8"/><line x1="2" y1="10" x2="18" y2="10"/></svg> Sincronización en la nube (Supabase)</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Backend real: tus datos viven en una base Postgres gratuita y se sincronizan desde cualquier PC con internet. Sube automático 8s después de cada cambio; al abrir, ofrece bajar si la nube tiene datos más nuevos. <b>Guía de instalación (5 min) en la pestaña ❓ Ayuda.</b></p>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'+
+    '<div><label style="font-size:10px;color:var(--tx3)">URL del proyecto</label><input id="sbUrl" value="'+(c.sbUrl||'')+'" placeholder="https://xxxx.supabase.co" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px"></div>'+
+    '<div><label style="font-size:10px;color:var(--tx3)">Clave anon (public)</label><input id="sbKey" type="password" value="'+(c.sbKey||'')+'" placeholder="sb_publishable_..." style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px"></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+    '<label style="font-size:11px;color:var(--tx)"><input type="checkbox" id="sbAuto" '+(c.sbAuto?'checked':'')+' onchange="cloudGuardarCfg()"> Sync automático</label>'+
+    '<button class="btn btn-o" onclick="cloudGuardarCfg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar config</button>'+
+    '<button class="btn btn-o" onclick="cloudProbar()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Probar conexión</button>'+
+    '<button class="btn" onclick="cloudPush(false)">⬆️ Subir todo</button>'+
+    '<button class="btn btn-o" onclick="cloudPull(true)">⬇️ Bajar de la nube</button>'+
+    '<span id="clStatus" style="font-size:11px;color:'+(window._clStatusColor||'var(--tx3)')+'">'+(window._clStatusTxt||'⚪ Sin configurar')+'</span>'+
+    '</div></div>';})()+
+
+    // MANTENIMIENTO DE DATOS (medidor localStorage — ya no hay botón de borrado real)
+    (function(){
+      var totalBytes=0;for(var k in localStorage){if(localStorage.hasOwnProperty(k))totalBytes+=(localStorage[k].length||0)*2;}
+      var limite=5*1024*1024;
+      var pct=Math.min(100,totalBytes/limite*100);
+      var col=pct>80?'#ef4444':pct>50?'#f59e0b':'#22c55e';
+      return ''+
+      '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid '+col+'">'+
+      '<b style="font-size:14px">🗄️ Mantenimiento de datos</b>'+
+      '<p style="font-size:11px;color:var(--tx3);margin:8px 0">El navegador solo guarda localmente las últimas '+_TOPE_FILAS_LOCAL+' filas de las categorías que más crecen (historial de horómetros, correctivos, registros PM, movimientos de stock, mediciones de neumáticos, análisis de aceite, inspecciones, informes de falla) — es automático, no requiere ninguna acción tuya. <b>El historial completo real siempre está en Supabase, nunca se borra</b>: esto solo limita cuánto se guarda como respaldo offline en este navegador.</p>'+
+      '<div style="margin:10px 0"><div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Uso local: <b style="color:'+col+'">'+pct.toFixed(1)+'%</b> ('+(totalBytes/1048576).toFixed(2)+' MB de 5 MB)</div>'+
+      '<div style="width:100%;background:color-mix(in srgb,'+col+' 18%,var(--bg4));height:14px;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+';transition:width .3s"></div></div></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="btn btn-o" onclick="exportarMovCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar movimientos a CSV (respaldo, no borra nada)</button>'+
+      '<button class="btn btn-o" onclick="renders.cfg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Refrescar</button>'+
+      '</div>'+
+      '<div id="mtoInfo" style="margin-top:8px;font-size:11px;color:var(--tx3)"></div>'+
+      '</div>';
+    })()+
+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">'+
+
+      // TEMAS Y APARIENCIA
+      '<div class="card"><b style="font-size:14px">🎨 Tema y Apariencia</b><br><br>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
+      '<button class="btn" onclick="applyTheme(\'dark\');toast(\'🌙 Tema oscuro aplicado\')" style="background:#1a1a2e;color:#fff">🌙 Oscuro</button>'+
+      '<button class="btn" onclick="applyTheme(\'light\');toast(\'☀️ Tema claro aplicado\')" style="background:#f8f9fa;color:#333">☀️ Claro</button>'+
+      '<button class="btn" onclick="applyTheme(\'blue\');toast(\'💎 Tema azul aplicado\')" style="background:#0a1628;color:#64b5f6">💎 Azul Minero</button></div>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Tamaño de letra</label><br>'+
+      '<select onchange="document.documentElement.style.fontSize=this.value;var c=S.g(\'cfg\')||{};c.fontSize=this.value;S.s(\'cfg\',c)" style="padding:4px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
+      '<option value="13px">Normal</option><option value="12px">Pequeña</option><option value="14px">Grande</option><option value="15px">Extra Grande</option></select></div>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Fuente</label><br>'+
+      '<select onchange="document.body.style.fontFamily=this.value;var c=S.g(\'cfg\')||{};c.fontFamily=this.value;S.s(\'cfg\',c)" style="padding:4px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
+      '<option value="system-ui,sans-serif">System (default)</option><option value="Arial,sans-serif">Arial</option><option value="Verdana,sans-serif">Verdana</option><option value="Courier New,monospace">Monospace</option></select></div>'+
+      '<div><label style="font-size:11px;color:var(--tx3)">Color de acento</label><br>'+
+      '<div style="display:flex;gap:6px;margin-top:4px">'+
+      ['#f59e0b','#3b82f6','#22c55e','#ef4444','#8b5cf6','#ec4899','#06b6d4'].map(function(c){
+        return'<div onclick="document.documentElement.style.setProperty(\'--ac\',\''+c+'\');var cfg=S.g(\'cfg\')||{};cfg.colorAc=\''+c+'\';S.s(\'cfg\',cfg);toast(\'✅ Color guardado\')" style="width:24px;height:24px;border-radius:50%;background:'+c+';cursor:pointer;border:2px solid var(--bd)"></div>';
+      }).join('')+'</div></div>'+
+      '</div>'+
+
+      // DATOS Y BACKUP
+      '<div class="card"><b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Datos y Backup</b><br><br>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="exportAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON (backup completo)</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON (restaurar backup)</button>'+
+      '<hr style="border-color:var(--bd);margin:12px 0">'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ok)" onclick="reporteEjecutivoExcel()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Reporte Ejecutivo Excel (para jefatura)</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--w)" onclick="resetAll()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--danger)" onclick="resetEmpresa()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16"/><rect x="6.3" y="4.5" width="1.8" height="1.8"/><rect x="9.1" y="4.5" width="1.8" height="1.8"/><rect x="11.9" y="4.5" width="1.8" height="1.8"/><rect x="6.3" y="8" width="1.8" height="1.8"/><rect x="9.1" y="8" width="1.8" height="1.8"/><rect x="11.9" y="8" width="1.8" height="1.8"/><rect x="8.5" y="13" width="3" height="5"/></svg> Configurar Nueva Empresa</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Descargar Plantilla Limpia (para otra empresa)</button>'+
+      '<div style="font-size:10px;color:var(--tx3)">Nueva Empresa: borra TODO y permite cargar nuevos equipos y pautas</div>'+
+      '</div>'+
+
+      // TARIFA Y METAS
+      '<div class="card"><b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Tarifas y Metas</b><br><br>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Tarifa HH ($/hora)</label><br>'+
+      '<input type="number" value="'+(S.g('hh')||25000)+'" onchange="S.s(\'hh\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
+      '<div><label style="font-size:11px;color:var(--tx3)">Meta Disponibilidad (%)</label><br>'+
+      '<input type="number" value="'+(S.g('dispMeta')||85)+'" onchange="S.s(\'dispMeta\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
+      '</div>'+
+
+      // CREAR USUARIO (solo admin real via Supabase Auth)
+      (window._userRole==='admin'?
+      '<div class="card"><b style="font-size:14px">👤 Crear Usuario del Sistema</b><br><br>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Nombre</label><br>'+
+      '<input id="nuNombre" placeholder="Héctor Ortiz" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Email</label><br>'+
+      '<input id="nuEmail" type="email" placeholder="correo@ejemplo.com" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Rol</label><br>'+
+      '<select id="nuRol" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"><option value="operador">Operador</option><option value="admin">Admin</option></select></div>'+
+      '<button class="btn" style="width:100%" onclick="crearUsuarioUI()">➕ Crear usuario (queda bloqueado)</button>'+
+      '<div id="nuResultado" style="margin-top:10px;font-size:12px"></div>'+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:8px">La cuenta queda creada pero bloqueada — no puede iniciar sesión hasta que tú la actives abajo.</div>'+
+      '<hr style="border-color:var(--bd);margin:14px 0">'+
+      '<b style="font-size:13px">⏳ Pendientes de activar</b>'+
+      '<div id="nuPendientes" style="margin-top:8px;font-size:12px;color:var(--tx3)">Cargando...</div>'+
+      '<hr style="border-color:var(--bd);margin:14px 0">'+
+      '<b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Usuarios activos</b>'+
+      '<div id="nuActivos" style="margin-top:8px;font-size:12px;color:var(--tx3)">Cargando...</div>'+
+      '</div>'
+      :'')+
+
+      // INFO SISTEMA
+      '<div class="card"><b style="font-size:14px">🔲 Códigos QR por Equipo</b><br><br>'+
+      '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Genera un QR único por equipo. Al escanearlo abre directo su ficha en Equipos — sin buscarlo a mano. Descárgalos para imprimir y pegar en cada máquina.</p>'+
+      '<button class="btn" onclick="verCodigosQR()">🔲 Ver / Descargar QR</button>'+
+      '</div>'+
+
+      '<div class="card"><b style="font-size:14px">ℹ️ Info del Sistema</b><br><br>'+
+      '<div style="font-size:12px;line-height:2">'+
+      'Versión: <b>v15</b><br>'+
+      'Equipos: <b>'+(S.g('eq')||[]).length+'</b><br>'+
+      'Pautas: <b>'+INIT.pautas.length+'</b><br>'+
+      'Registros PM: <b>'+(S.g('reg')||[]).length+'</b><br>'+
+      'Correctivos: <b>'+(S.g('ot')||[]).length+'</b><br>'+
+      'Pestañas: <b>25</b><br>'+
+      'Archivo: <b>'+Math.round(document.documentElement.outerHTML.length/1024)+'KB</b><br>'+
+      'localStorage: <b>'+Math.round(JSON.stringify(localStorage).length/1024)+'KB</b>'+
+      '</div></div>'+
+
+      '</div>'
+    ;
+  if(window._userRole==='admin'){setTimeout(cargarPendientesUI,50);setTimeout(cargarActivosUI,50);}
+  _refrescarEstadoMFA();
+}
+
+async function _refrescarEstadoMFA(){
+  var box=document.getElementById('mfaEstadoBox');
+  if(!box)return;
+  var f=await window._mfaEstado().catch(function(){return null;});
+  if(f){
+    box.innerHTML='<div style="color:var(--ok);margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Activada</div>'+
+      '<button class="btn btn-d" onclick="desactivarMFA()">Desactivar</button>';
+  }else{
+    box.innerHTML='<div style="color:var(--w);margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> No está activada</div>'+
+      '<button class="btn" onclick="activarMFA()">Activar verificación en dos pasos</button>';
+  }
+}
+
+window.resetAll=function(){
+  if(!confirm('⚠️ ¿Restaurar TODOS los datos a valores iniciales? Se perderán cambios.'))return;
+  // Clear EVERYTHING with smp10_ prefix
+  Object.keys(localStorage).filter(function(k){return k.startsWith('smp10_')}).forEach(function(k){localStorage.removeItem(k)});
+  localStorage.removeItem('smp10_v14fix');
+  location.reload();
+};
+
+window.descargarPlantillaLimpia=function(){
+  if(!confirm('Esto genera un ARCHIVO NUEVO con el sistema vacío (sin equipos, pautas ni registros) para usar en otra empresa.\n\nTu archivo actual NO se modifica — quedas con todos tus datos intactos.\n\n¿Continuar?'))return;
+  const INIT_LIMPIO={empresa:'',faena:'',equipos:[],pautas:[],registros:[],neumaticos:[],neuMed:[],stockFiltros:[],lubricantes:[],filtrosMaestro:[],alertas:[],mov:[],ot:[],insp:[],aceite:[],repuestos:[]};
+  fetch(location.href).then(r=>r.text()).then(html=>{
+    const finalHtml=html.replace(/const INIT=\{.*?\};\n/s,'const INIT='+JSON.stringify(INIT_LIMPIO)+';\n');
+    const blob=new Blob([finalHtml],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='SistemaMP_PLANTILLA_LIMPIA.html';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ Plantilla limpia descargada. Tu archivo actual quedó intacto.');
+  }).catch(e=>{toast('⚠️ No se pudo leer el archivo. Usa Configurar Nueva Empresa como alternativa.');});
+};
+window.resetEmpresa=function(){
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16"/><rect x="6.3" y="4.5" width="1.8" height="1.8"/><rect x="9.1" y="4.5" width="1.8" height="1.8"/><rect x="11.9" y="4.5" width="1.8" height="1.8"/><rect x="6.3" y="8" width="1.8" height="1.8"/><rect x="9.1" y="8" width="1.8" height="1.8"/><rect x="11.9" y="8" width="1.8" height="1.8"/><rect x="8.5" y="13" width="3" height="5"/></svg> Configurar Nueva Empresa</h3>'+
+    '<p style="font-size:12px;color:var(--tx3)">Esto borra TODOS los datos actuales y reconfigura el sistema para una nueva empresa.<br>'+
+    'Sube un archivo JSON con la estructura:<br><br>'+
+    '<code style="background:var(--bg3);padding:4px 8px;border-radius:4px;font-size:11px">{ "empresa": "...", "faena": "...", "equipos": [...], "pautas": [...] }</code><br><br>'+
+    'O sube un CSV de equipos con columnas: sigla, tipo, modelo, marca, serie, frecPM, horomActual, hrsDia</p>'+
+    '<div style="margin:12px 0">'+
+    '<div class="fg" style="margin-bottom:8px"><label>Nombre Empresa</label><input id="neEmpresa" placeholder="Ej: Minera Los Andes S.A."></div>'+
+    '<div class="fg" style="margin-bottom:8px"><label>Faena / Sitio</label><input id="neFaena" placeholder="Ej: Planta Concentradora Norte"></div>'+
+    '</div>'+
+    '<div style="margin:12px 0">'+
+    '<div class="fg" style="margin-bottom:8px"><label>Archivo de equipos (JSON o CSV)</label><input type="file" id="neFile" accept=".json,.csv"></div>'+
+    '</div>'+
+    '<div style="margin:12px 0">'+
+    '<div class="fg" style="margin-bottom:8px"><label>Archivo de pautas (JSON o CSV, opcional)</label><input type="file" id="nePauFile" accept=".json,.csv"></div>'+
+    '</div>'+
+    '<div style="background:rgba(239,68,68,.1);border-radius:6px;padding:10px;margin:12px 0">'+
+    '<b style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ATENCIÓN:</b> Esto borra todos los registros, OTs, stock, consumos, inspecciones y muestras de aceite actuales. Exporta un backup JSON primero desde Config si quieres guardarlos.'+
+    '</div>'+
+    '<button class="btn" style="background:var(--danger)" onclick="processResetEmpresa()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Resetear y Configurar</button> '+
+    '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
+};
+
+window.processResetEmpresa=function(){
+  if(!confirm('⚠️ ¿Estás seguro? Se borrarán TODOS los datos actuales.'))return;
+  if(!confirm('⚠️ ÚLTIMA CONFIRMACIÓN: ¿Exportaste backup JSON? Esto es irreversible.'))return;
+  
+  var empresa=$('neEmpresa')?.value||'Nueva Empresa';
+  var faena=$('neFaena')?.value||'Nueva Faena';
+  var eqFile=$('neFile')?.files[0];
+  var pauFile=$('nePauFile')?.files[0];
+  
+  // Clear ALL localStorage
+  var keys=['eq','reg','lub','fil','stk','al','prg','hh','hist','ot','neu','mov','cfg',
+            'repuestos','ordenes','aceite','insp','pau'];
+  keys.forEach(function(k){localStorage.removeItem('smp10_'+k);});
+  localStorage.removeItem('smp10_v14fix');
+
+  // Set new config
+  S.s('cfg',{empresa:empresa,faena:faena,tema:'dark'});
+
+  if(!eqFile){
+    // No file - create empty system
+    INIT.equipos=[];INIT.pautas=[];
+    S.s('eq',[]);S.s('pau',[]);
+    cm();location.reload();
+    return;
+  }
+  
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var txt=e.target.result;
+      var newEq=[];
+      var newPau=[];
+      
+      if(eqFile.name.endsWith('.json')){
+        var data=JSON.parse(txt);
+        if(data.equipos)newEq=data.equipos;
+        else if(Array.isArray(data))newEq=data;
+        if(data.pautas)newPau=data.pautas;
+      } else {
+        // CSV
+        var lines=txt.split('\n').filter(function(l){return l.trim();});
+        var headers=lines[0].split(/[,;\t]/).map(function(h){return h.trim().replace(/"/g,'');});
+        for(var i=1;i<lines.length;i++){
+          var vals=lines[i].split(/[,;\t]/).map(function(v){return v.trim().replace(/"/g,'');});
+          var row={};
+          headers.forEach(function(h,j){row[h]=vals[j]||'';});
+          newEq.push({
+            sigla:row.sigla||row.equipo||'EQ-'+i,
+            tipo:row.tipo||'Equipo',
+            modelo:row.modelo||'',
+            marca:row.marca||'',
+            serie:row.serie||'',
+            frecPM:parseInt(row.frecPM||row.frecuencia)||250,
+            horomActual:parseInt(row.horomActual||row.horometro)||0,
+            hrsDia:parseFloat(row.hrsDia||row.horas_dia)||12,
+            fechaHorom:new Date().toISOString().slice(0,10)
+          });
+        }
+      }
+      
+      // Apply C.recalc to each equipment
+      newEq.forEach(function(eq){
+        eq.horomProxPM=eq.horomActual+eq.frecPM-(eq.horomActual%eq.frecPM);
+        eq.tipoPM='PM1';
+        eq.estado='AL DÍA';
+        eq.diasParaPM=Math.round((eq.horomProxPM-eq.horomActual)/eq.hrsDia);
+      });
+      
+      INIT.equipos=newEq;
+      INIT.pautas=newPau;
+      S.s('eq',newEq);
+      
+      // Process pautas file if provided
+      if(pauFile){
+        var reader2=new FileReader();
+        reader2.onload=function(e2){
+          try{
+            var txt2=e2.target.result;
+            if(pauFile.name.endsWith('.json')){
+              newPau=JSON.parse(txt2);
+            } else {
+              var lines2=txt2.split('\n').filter(function(l){return l.trim();});
+              var h2=lines2[0].split(/[,;\t]/).map(function(h){return h.trim().replace(/"/g,'');});
+              for(var j=1;j<lines2.length;j++){
+                var v2=lines2[j].split(/[,;\t]/).map(function(v){return v.trim().replace(/"/g,'');});
+                var r2={};h2.forEach(function(h,k){r2[h]=v2[k]||'';});
+                newPau.push({
+                  sigla:r2.sigla||r2.equipo||'',hoja:r2.hoja||r2.sigla||'',
+                  pm:r2.pm||'PM1',cat:r2.cat||r2.categoria||'',
+                  act:r2.act||r2.actividad||'',hrs:parseFloat(r2.hrs||r2.horas)||0,
+                  rep:r2.rep||r2.repuesto||'',can:parseFloat(r2.can||r2.cantidad)||0
+                });
+              }
+            }
+            INIT.pautas=newPau;
+            S.s('pau',newPau);
+          }catch(err2){console.error(err2);}
+          cm();location.reload();
+        };
+        reader2.readAsText(pauFile);
+      } else {
+        INIT.pautas=[];
+        S.s('pau',[]);
+        cm();location.reload();
+      }
+    }catch(err){
+      toast('❌ Error: '+err.message);
+    }
+  };
+  reader.readAsText(eqFile);
+};
+
+window.cloudProbar=async function(){
+  if(!_clOk()){toast('⚠️ Pega la URL y la clave anon primero');return;}
+  try{
+    const c=_clCfg();
+    const r=await fetch(c.url+'/rest/v1/kv?select=key&limit=1',{headers:_clHeaders()});
+    if(r.ok){toast('✅ Conexión OK — tabla kv encontrada');_clStatus('🟢 Conectado','var(--ok)');}
+    else if(r.status===404){toast('⚠️ Conecta OK pero falta la tabla kv. Corre el SQL en Supabase.');_clStatus('🟡 Falta tabla kv','var(--warn)');}
+    else toast('❌ HTTP '+r.status+' — revisa URL/clave');
+  }catch(e){toast('❌ No se pudo conectar: '+e.message);}
+};
+
+window.guardarNeuParams=function(){
+  const c=S.g('cfg')||{};
+  c.neuTargetHrs=parseInt($('neuTarget').value)||9000;
+  c.neuProyMes=parseInt($('neuProyMes').value)||450;
+  S.s('cfg',c);
+  toast('✅ Parámetros de neumáticos guardados');
+  if(currentTab==='cfg')renders.cfg();
+};
+// Reemplaza a la vieja limpiarMovAntiguos(), que hacia S.s('mov', recientes) -- con
+// 'mov' ya sincronizado a Supabase (movimientos_stock), eso NO limpiaba localStorage:
+// borraba de verdad los movimientos viejos de la base de datos real de produccion,
+// aunque el boton y el texto de alrededor lo presentaban como una limpieza local
+// inofensiva por el limite de 5MB del navegador. Ya no hace falta borrar nada -- el
+// recorte de localStorage ahora es automatico (ver _recorteParaLocal) y nunca toca
+// la base real. Esta funcion solo exporta a CSV, no borra ni localmente ni en la nube.
+window.exportarMovCSV=function(){
+  var mov=S.g('mov')||[];
+  var info=$('mtoInfo');
+  if(!mov.length){if(info)info.innerHTML='ℹ️ No hay movimientos en el sistema.';return;}
+  var esc=function(v){v=(v==null?'':String(v));return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  var csv='Fecha,Equipo,Item,Cantidad,Tipo,PM,Origen\n';
+  mov.forEach(function(m){
+    csv+=[esc(m.fecha),esc(m.equipo),esc(m.item),esc(m.cant),esc(m.tipo),esc(m.pm),esc(m.origen)].join(',')+'\n';
+  });
+  var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download='movimientos_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  toast('✅ '+mov.length+' movimientos exportados a CSV');
+  if(info)info.innerHTML='<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Exportados '+mov.length+' movimientos a CSV. No se borro nada -- ni local ni en la nube.';
+};
+window.cloudGuardarCfg=function(){
+  const c=S.g('cfg')||{};
+  c.sbUrl=($('sbUrl')?.value||'').trim();
+  c.sbKey=($('sbKey')?.value||'').trim();
+  c.sbAuto=$('sbAuto')?.checked||false;
+  S.s('cfg',c);
+  toast('✅ Configuración de nube guardada');
+};
+
+window.exportAllJSON=function(){
+  var data={};
+  ['eq','reg','ot','stk','lub','mov','neu','hist','aceite','insp','repuestos','ordenes','changelog','planSem','planSemHist','compMayores','dispCalc','dispMeta','cfg','hh','prg'].forEach(function(k){data[k]=S.g(k);});
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='SistemaMP_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  toast('✅ Backup descargado');
+};
+window.importAllJSON=function(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='.json';
+  inp.onchange=function(ev){
+    var f=ev.target.files[0];if(!f)return;
+    var r=new FileReader();r.onload=function(e){
+      try{
+        var data=JSON.parse(e.target.result);
+        Object.keys(data).forEach(function(k){if(k!=='_meta')S.s(k,data[k]);});
+        toast('✅ Backup restaurado');location.reload();
+      }catch(err){toast('❌ Error: '+err.message);}
+    };r.readAsText(f);
+  };inp.click();
+};
+
+window.reporteEjecutivoExcel=function(){
+  const eq=S.g('eq')||[];
+  const reg=S.g('reg')||[];
+  const ot=S.g('ot')||[];
+  const neu=S.g('neu')||[];
+  const cfg=S.g('cfg')||{};
+  const hoy=new Date().toLocaleDateString('es-CL');
+  const fn2=v=>Math.round(v||0).toLocaleString('es-CL');
+
+  // Calcular KPIs
+  const total=eq.length;
+  const urgentes=eq.filter(e=>e.estado&&e.estado.includes('URGENTE')).length;
+  const proximas=eq.filter(e=>e.estado&&e.estado.includes('PRÓXIMA')).length;
+  const alDia=eq.filter(e=>e.estado&&e.estado.includes('AL DÍA')).length;
+  const cumplimiento=total>0?Math.round(alDia/total*100):0;
+  const neuCriticos=neu.filter(neuDebeCambiar).length;
+
+  // Estilos Excel
+  const est={
+    titulo:'style="background:#1e3a8a;color:#fff;font-size:16px;font-weight:bold;padding:10px;text-align:center"',
+    sub:'style="background:#3b82f6;color:#fff;font-weight:bold;padding:6px"',
+    th:'style="background:#1e40af;color:#fff;font-weight:bold;padding:5px;border:1px solid #94a3b8"',
+    td:'style="padding:4px;border:1px solid #cbd5e1"',
+    urg:'style="padding:4px;border:1px solid #cbd5e1;background:#fecaca;color:#991b1b;font-weight:bold"',
+    ok:'style="padding:4px;border:1px solid #cbd5e1;background:#bbf7d0;color:#166534"',
+    warn:'style="padding:4px;border:1px solid #cbd5e1;background:#fef08a;color:#854d0e"'
+  };
+
+  let html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>';
+  html+='<table border="0" cellspacing="0">';
+  html+='<tr><td colspan="6" '+est.titulo+'>REPORTE EJECUTIVO DE MANTENIMIENTO</td></tr>';
+  html+='<tr><td colspan="6" style="text-align:center;padding:6px;background:#e0e7ff">'+(cfg.empresa||'Besalco Minería S.A.')+' — '+(cfg.faena||'Faena Centinela')+' · '+hoy+'</td></tr>';
+  html+='<tr><td colspan="6" style="height:10px"></td></tr>';
+
+  // RESUMEN KPI
+  html+='<tr><td colspan="6" '+est.sub+'>1. INDICADORES CLAVE</td></tr>';
+  html+='<tr><td '+est.th+'>Total Equipos</td><td '+est.th+'>Al Día</td><td '+est.th+'>Próximas PM</td><td '+est.th+'>Urgentes</td><td '+est.th+'>Cumplimiento</td><td '+est.th+'>Neu. Críticos</td></tr>';
+  html+='<tr><td '+est.td+' align="center">'+total+'</td><td '+est.ok+' align="center">'+alDia+'</td><td '+est.warn+' align="center">'+proximas+'</td><td '+est.urg+' align="center">'+urgentes+'</td><td '+est.td+' align="center">'+cumplimiento+'%</td><td '+est.urg+' align="center">'+neuCriticos+'</td></tr>';
+  html+='<tr><td colspan="6" style="height:10px"></td></tr>';
+
+  // ESTADO DE EQUIPOS
+  html+='<tr><td colspan="6" '+est.sub+'>2. ESTADO DE LA FLOTA</td></tr>';
+  html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Tipo</td><td '+est.th+'>Horómetro</td><td '+est.th+'>Próx. PM</td><td '+est.th+'>Fecha</td><td '+est.th+'>Estado</td></tr>';
+  eq.forEach(e=>{
+    const cl=e.estado&&e.estado.includes('URGENTE')?est.urg:e.estado&&e.estado.includes('PRÓXIMA')?est.warn:est.ok;
+    html+='<tr><td '+est.td+'>'+e.sigla+'</td><td '+est.td+'>'+(e.tipo||'')+'</td><td '+est.td+' align="right">'+fn2(e.horomActual)+'</td><td '+est.td+' align="center">'+(e.tipoPM||'')+'</td><td '+est.td+' align="center">'+(e.fechaProxPM||'')+'</td><td '+cl+' align="center">'+(e.estado||'').replace(/[🔴🟡✅⚪]/g,'').trim()+'</td></tr>';
+  });
+  html+='<tr><td colspan="6" style="height:10px"></td></tr>';
+
+  // NEUMÁTICOS EN ALERTA = los que hay que cambiar YA o programar (mismo criterio real
+  // que la tabla y el resumen: neuDebeCambiar/neuProxCambio), no por % de goma.
+  const neuCrit=neu.filter(n=>neuDebeCambiar(n)||neuProxCambio(n))
+    .sort((a,b)=>(neuDebeCambiar(b)?1:0)-(neuDebeCambiar(a)?1:0));
+  if(neuCrit.length){
+    html+='<tr><td colspan="6" '+est.sub+'>3. NEUMÁTICOS EN ALERTA</td></tr>';
+    html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Posición</td><td '+est.th+'>Serie</td><td '+est.th+'>Remanente</td><td '+est.th+'>%</td><td '+est.th+'>Estado</td></tr>';
+    neuCrit.forEach(n=>{
+      const pn=neuPct(n); const ec=neuEstadoCalc(n);
+      const cl=neuDebeCambiar(n)?est.urg:est.warn;
+      html+='<tr><td '+est.td+'>'+n.sigla+'</td><td '+est.td+'>'+(n.posicion||'')+'</td><td '+est.td+'>'+(n.serie||'')+'</td><td '+est.td+' align="center">'+(n.remanente||'—')+'mm</td><td '+cl+' align="center">'+(pn!=null?pn+'%':'—')+'</td><td '+cl+'>'+ec.txt+'</td></tr>';
+    });
+    html+='<tr><td colspan="6" style="height:10px"></td></tr>';
+  }
+
+  html+='<tr><td colspan="6" style="padding:8px;font-size:10px;color:#64748b;text-align:center">Generado por SistemaMP Centinela · '+hoy+'</td></tr>';
+  html+='</table></body></html>';
+
+  const blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='Reporte_Ejecutivo_'+hoy.replace(/\//g,'-')+'.xls';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('✅ Reporte ejecutivo Excel descargado');
+};
+
+// Activar / desactivar — se maneja desde Configuración, con la sesión ya
+// completa (aal1 o aal2, da igual: enrolar exige el código igual que
+// cualquier challenge, así que no hay forma de activarlo sin probar que
+// realmente funciona el código antes de dejarlo activo).
+window._mfaEstado=async function(){
+  var token=localStorage.getItem('smp_access_token');
+  var u=await _sbAuthSession();
+  var factores=(u&&u.factors)||[];
+  return factores.find(function(f){return f.factor_type==='totp'&&f.status==='verified';})||null;
+};
+window.activarMFA=async function(){
+  var token=localStorage.getItem('smp_access_token');
+  var en=await _mfaEnroll(token);
+  if(en.error||!en.id){toast('❌ No se pudo iniciar la activación: '+(en.error?.message||en.msg||'error desconocido'));return;}
+  var factorId=en.id;
+  var qr=en.totp?.qr_code||'';
+  var secreto=en.totp?.secret||'';
+  sm('<div style="max-width:360px">'+
+    '<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Activar verificación en dos pasos</h3>'+
+    '<p style="font-size:12px;color:var(--tx3);margin-bottom:12px">1. Abre Google Authenticator (o similar) en tu teléfono y escanea este código:</p>'+
+    (qr?'<div style="text-align:center;margin-bottom:12px"><img src="'+qr+'" style="width:180px;height:180px;background:#fff;padding:8px;border-radius:8px"></div>':'')+
+    (secreto?'<p style="font-size:10px;color:var(--tx3);text-align:center;margin-bottom:12px">¿No puedes escanear? Ingresa este código manualmente:<br><b style="font-size:12px;color:var(--tx);letter-spacing:1px">'+escapeHtml(secreto)+'</b></p>':'')+
+    '<p style="font-size:12px;color:var(--tx3);margin-bottom:8px">2. Escribe el código de 6 dígitos que te muestra la app para confirmar:</p>'+
+    '<input id="mfaEnrollCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:20px;letter-spacing:6px;text-align:center;box-sizing:border-box;margin-bottom:12px">'+
+    '<div id="mfaEnrollErr" style="display:none;color:var(--danger);font-size:11px;margin-bottom:8px"></div>'+
+    '<button class="btn" onclick="_confirmarActivarMFA(\''+factorId+'\')">Confirmar y activar</button> '+
+    '<button class="btn btn-o" onclick="_cancelarActivarMFA(\''+factorId+'\')">Cancelar</button>'+
+    '</div>');
+};
+window._confirmarActivarMFA=async function(factorId){
+  var token=localStorage.getItem('smp_access_token');
+  var code=(document.getElementById('mfaEnrollCode')?.value||'').trim();
+  var err=document.getElementById('mfaEnrollErr');
+  if(!/^\d{6}$/.test(code)){if(err){err.textContent='El código debe tener 6 dígitos.';err.style.display='block';}return;}
+  var ch=await _mfaChallenge(token,factorId);
+  if(ch.error||!ch.id){if(err){err.textContent='No se pudo verificar. Intenta de nuevo.';err.style.display='block';}return;}
+  var v=await _mfaVerify(token,factorId,ch.id,code);
+  if(v.error||!v.access_token){if(err){err.textContent='Código incorrecto — revisa la hora de tu teléfono y vuelve a intentar.';err.style.display='block';}return;}
+  // La verificación exitosa entrega una sesión aal2 nueva — se reemplaza la
+  // guardada para no quedar con un token viejo.
+  localStorage.setItem('smp_access_token',v.access_token);
+  localStorage.setItem('smp_refresh_token',v.refresh_token||'');
+  _programarRefreshToken(v.access_token);
+  cm();
+  toast('✅ Verificación en dos pasos activada');
+  if(currentTab==='cfg')renders.cfg();
+};
+window._cancelarActivarMFA=async function(factorId){
+  var token=localStorage.getItem('smp_access_token');
+  // El factor recién creado con activarMFA() queda "unverified" hasta
+  // confirmarse con un código — si el usuario cancela, se borra para no
+  // dejar un factor a medio activar dando vueltas en la cuenta.
+  await _mfaUnenroll(token,factorId).catch(function(){});
+  cm();
+};
+window.desactivarMFA=async function(){
+  if(!confirm('¿Desactivar la verificación en dos pasos? Con eso basta el usuario y la contraseña para entrar.'))return;
+  var token=localStorage.getItem('smp_access_token');
+  var f=await window._mfaEstado();
+  if(!f){toast('No hay verificación en dos pasos activa');return;}
+  var r=await _mfaUnenroll(token,f.id);
+  if(r.error){toast('❌ No se pudo desactivar: '+(r.error?.message||''));return;}
+  toast('✅ Verificación en dos pasos desactivada');
+  if(currentTab==='cfg')renders.cfg();
+};
+
+window.nombrarEquipo=function(){
+  var actual=_getDeviceLabel();
+  var nuevo=prompt('Nombre para identificar ESTE computador en los accesos (ej. "PC Taller", "Notebook Juan"):',actual);
+  if(nuevo&&nuevo.trim()){localStorage.setItem('smp_device_label',nuevo.trim());toast('✅ Este equipo ahora se llama "'+nuevo.trim()+'"');}
+  if(typeof verAccesos==='function')verAccesos();
+};
+
+window.verAccesos=function(){
+  const logs=(S.g('changelog')||[]).filter(function(c){return c.accion==='Login';}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
+  const rows=logs.map(function(c){
+    const d=new Date(c.fecha);
+    const fechaStr=isNaN(d)?(c.fecha||'—'):d.toLocaleString('es-CL');
+    return `<tr><td style="padding:4px;font-size:11px">${fechaStr}</td><td style="font-size:11px">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
+  }).join('');
+  sm(`<div style="max-width:700px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg> Accesos recientes</h3>
+    <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">Este computador se identifica como: <b style="color:var(--tx)">💻 ${escapeHtml(_getDeviceLabel())}</b> — <a href="javascript:void(0)" onclick="nombrarEquipo()" style="color:var(--ac)">cambiar nombre</a></p>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%">
+    <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Fecha/hora</th><th style="text-align:left">Usuario</th><th style="text-align:left">Detalle</th></tr>
+    ${rows||'<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--tx3)">Sin accesos registrados todavía</td></tr>'}
+    </table></div>
+    <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>`);
+};
+
+// ============ CREAR / ACTIVAR USUARIOS (admin) ============
+async function _accionUsuarios(payload){
+  var token=localStorage.getItem('smp_access_token');
+  var r=await fetch(_SB_DEFAULT_URL+'/functions/v1/crear-operador',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  if(r.status===401){
+    var refrescado = await _sbAuthRefresh();
+    if(refrescado){
+      token=localStorage.getItem('smp_access_token');
+      r=await fetch(_SB_DEFAULT_URL+'/functions/v1/crear-operador',{
+        method:'POST',
+        headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+    }
+  }
+  return r.json();
+}
+
+window.crearUsuarioUI=async function(){
+  var nombre=(document.getElementById('nuNombre')?.value||'').trim();
+  var email=(document.getElementById('nuEmail')?.value||'').trim();
+  var rol=document.getElementById('nuRol')?.value||'operador';
+  var out=document.getElementById('nuResultado');
+  if(!out)return;
+  if(!nombre||!email){out.innerHTML='<span style="color:var(--danger)">Completa nombre y email.</span>';return;}
+  out.innerHTML='Creando...';
+  try{
+    var res=await _accionUsuarios({action:'crear',nombre:nombre,email:email,rol:rol});
+    if(res.error){out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
+    out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px">'+
+      '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Cuenta de '+escapeHtml(nombre)+' creada y bloqueada. Aparece abajo en "Pendientes de activar" — la activas cuando tú digas.</div>';
+    document.getElementById('nuNombre').value='';
+    document.getElementById('nuEmail').value='';
+    cargarPendientesUI();
+  }catch(e){out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+window.cargarPendientesUI=async function(){
+  var cont=document.getElementById('nuPendientes');
+  if(!cont)return;
+  cont.innerHTML='Cargando...';
+  try{
+    var res=await _accionUsuarios({action:'listar_pendientes'});
+    if(res.error){cont.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
+    var pend=res.pendientes||[];
+    if(!pend.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios pendientes.</span>';return;}
+    cont.innerHTML=pend.map(function(u){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
+        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span></span>'+
+        '<button class="btn btn-o" style="padding:4px 10px;font-size:11px" onclick="activarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Activar</button>'+
+        '</div>';
+    }).join('');
+  }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+window.activarUsuarioUI=async function(userId,nombre){
+  var out=document.getElementById('nuResultado');
+  if(out)out.innerHTML='Activando...';
+  try{
+    var res=await _accionUsuarios({action:'activar',userId:userId});
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
+    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px">'+
+      '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> '+escapeHtml(nombre)+' activado.<br>Clave temporal: <b style="font-size:14px;letter-spacing:1px">'+escapeHtml(res.tempPassword)+'</b><br>'+
+      '<span style="color:var(--tx3);font-size:10px">Compártela ahora. Deberá cambiarla al ingresar por primera vez.</span></div>';
+    cargarPendientesUI();
+  }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+window.cargarActivosUI=async function(){
+  var cont=document.getElementById('nuActivos');
+  if(!cont)return;
+  cont.innerHTML='Cargando...';
+  try{
+    var res=await _accionUsuarios({action:'listar_activos'});
+    if(res.error){cont.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
+    var act=res.activos||[];
+    if(!act.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios activos.</span>';return;}
+    cont.innerHTML=act.map(function(u){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
+        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span></span>'+
+        (u.userId===_currentUser?.id?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
+        '<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Desactivar</button>')+
+        '</div>';
+    }).join('');
+  }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+window.desactivarUsuarioUI=async function(userId,nombre){
+  if(!confirm('¿Desactivar a '+nombre+'? Perderá acceso al sistema de inmediato.'))return;
+  var out=document.getElementById('nuResultado');
+  if(out)out.innerHTML='Desactivando...';
+  try{
+    var res=await _accionUsuarios({action:'desactivar',userId:userId});
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
+    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> '+escapeHtml(nombre)+' desactivado.</div>';
+    cargarActivosUI();
+  }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
