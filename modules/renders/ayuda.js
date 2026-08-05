@@ -12,7 +12,19 @@ window.renderAyuda=function(){
     '<div class="sec-s">Guía completa de operación del sistema</div></div>'+
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div>'+
 
-    // NOVEDADES DE ESTA VERSIÓN
+    // NOVEDADES DE ESTA VERSIÓN (agosto 2026)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Novedades y correcciones recientes (agosto 2026)</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">4 correcciones puntuales encontradas durante un reordenamiento interno del sistema (sin cambios de comportamiento salvo estos 4 puntos).</p>'+
+    '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Destrabe e Historial de Horómetros — el campo "Equipo" ya no se puede escribir mal:</b> antes era un texto libre; un typo hacía que ese registro desapareciera solo (sin aviso) en el siguiente refresco de pantalla. Ahora es un desplegable con los equipos reales — el error deja de ser posible.</li>'+
+    '<li><b>Gestión de Destrabe ahora guarda TODOS sus datos en la nube:</b> antes solo el campo "Motivo" llegaba bien a Supabase; Equipo, Trabajo, Tipo, Fechas, Acción, Responsable y Estado se guardaban vacíos ahí (aunque sí quedaban bien en este navegador). Corregido — todo el registro se sincroniza completo.</li>'+
+    '<li><b>Tooltip del Programa Anual ya no se rompe visualmente:</b> cuando el PM ejecutado no coincidía con el planificado, el aviso emergente de la celda mostraba código en vez del mensaje. Ahora se ve el aviso normal, en texto.</li>'+
+    '<li><b>Botón "+ Agregar" de Componentes Mayores ya funciona:</b> antes creaba un componente sin equipo asignado, que el sistema borraba solo de inmediato — parecía que el botón no hacía nada. Ahora pide el equipo real antes de crear el componente.</li>'+
+    '</ul>'+
+    '</div>'+
+
+    // NOVEDADES ANTERIORES (julio 2026)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (julio 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Auditoría completa del sistema, pestaña por pestaña, buscando cálculos que muestran algo fácil de calcular en vez de lo que realmente importa. Tus datos siguen intactos; lo que cambió es que varios números ahora reflejan mejor la realidad.</p>'+
@@ -96,6 +108,10 @@ window.renderAyuda=function(){
     '<a href="#m25" style="color:var(--ac);text-decoration:none;padding:2px 0">25. Análisis de Aceite</a>'+
     '<a href="#m26" style="color:var(--ac);text-decoration:none;padding:2px 0">26. Dashboard — Bloques nuevos</a>'+
     '<a href="#m27" style="color:var(--ac);text-decoration:none;padding:2px 0">27. Vencimientos Documentales</a>'+
+    '<a href="#m28" style="color:var(--ac);text-decoration:none;padding:2px 0">28. Tren de Rodaje</a>'+
+    '<a href="#m29" style="color:var(--ac);text-decoration:none;padding:2px 0">29. Sensores de Neumáticos</a>'+
+    '<a href="#m30" style="color:var(--ac);text-decoration:none;padding:2px 0">30. Programación Diaria</a>'+
+    '<a href="#m31" style="color:var(--ac);text-decoration:none;padding:2px 0">31. Verificación en Dos Pasos</a>'+
     '</div></div>'+
 
     // 1. QUÉ ES
@@ -173,7 +189,7 @@ window.renderAyuda=function(){
     '<tr><td><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="6"/><line x1="9" y1="10" x2="4" y2="10"/><line x1="4" y1="10" x2="4" y2="13"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14" cy="15" r="3.5"/><line x1="15" y1="10" x2="15" y2="4"/></svg> Equipos</b></td><td>Flota completa</td><td>Ver/editar equipos, horómetros, estado PM</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registro PM</b></td><td>Mantención preventiva</td><td>Registrar cada PM con fechas, técnico, horómetro</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos</b></td><td>OT correctivas</td><td>Crear OT, registrar causa raíz, solución, componente, backlog</td></tr>'+
-    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Neumáticos</b></td><td>Control neumáticos</td><td>Remanente, cambios, historial por posición</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Neumáticos</b></td><td>Control neumáticos</td><td>Remanente, cambios, historial por posición, sensores de presión (ver sección 29)</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa</b></td><td>Programa anual</td><td>Planificación mensual de PMs por equipo</td></tr>'+
     '<tr><td><b>🔴 Alertas PM4</b></td><td>Repuestos PM4</td><td>Checklist de repuestos para PM4 / overhaul</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Pautas</b></td><td>Actividades PM</td><td>Todas las actividades por tipo PM, editables</td></tr>'+
@@ -188,7 +204,8 @@ window.renderAyuda=function(){
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Repuestos</b></td><td>Control repuestos</td><td>Stock, mínimo, lead time, semáforo, orden de compra</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Predictivo</b></td><td>Motor inteligente</td><td>Alertas cruzadas, diagnóstico, backlog, tendencias</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Plan Semanal</b></td><td>Planificación semanal</td><td>Trabajos de la semana, HH, costo, técnicos, repuestos</td></tr>'+
-    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</b></td><td>Componentes mayores</td><td>4 sub-pestañas: Componentes Mayores (motor/transmisión/diferencial), Predictivo, Destrabe e Informes de Falla (genera PDF descargable)</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> Prog. Diaria</b></td><td>Personal por turno</td><td>Importa el Excel de terreno, dotación por bloques de 30 min día/noche (ver sección 30)</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</b></td><td>Componentes mayores</td><td>5 sub-pestañas: Componentes Mayores (motor/transmisión/diferencial), Predictivo, Destrabe, Informes de Falla (genera PDF descargable) y Tren de Rodaje (eslabones, bujes, zapatas, sprockets)</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas</b></td><td>Plan vs Real</td><td>8 indicadores × 12 meses, meta editable, real automático</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt</b></td><td>Plan visual</td><td>Equipos × días del mes, barras de color por estado</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Destrabe</b></td><td>Bloqueos</td><td>Trabajos detenidos, motivo, acción, días pendiente</td></tr>'+
@@ -582,5 +599,53 @@ window.renderAyuda=function(){
     '<b>▶ Todo es editable</b><br>'+
     'Cada celda (Último trámite, Periodicidad en meses, Próximo vencimiento, Observaciones) se edita con un click directo, igual que el resto del sistema. Si cambias el "Último trámite" y existe una periodicidad (precargada o ingresada a mano), el "Próximo vencimiento" se recalcula solo. También puedes escribir la fecha de "Próximo vencimiento" directamente si la conoces, sin pasar por el cálculo automático.<br><br>'+
     '<b>▶ Filtros</b><br>'+
-    'Selector por equipo, y casilla "Solo con alerta" para ver de inmediato qué necesita atención esta semana o este mes.</div></div>';
+    'Selector por equipo, y casilla "Solo con alerta" para ver de inmediato qué necesita atención esta semana o este mes.</div></div>'+
+
+    // 28. TREN DE RODAJE
+    '<div class="card" style="margin-bottom:12px" id="m28">'+
+    '<div class="card-t" style="font-size:16px;margin-bottom:10px">28. Tren de Rodaje</div>'+
+    '<div style="font-size:13px;line-height:1.8">'+
+    '<b>¿Para qué sirve?</b> Controla el desgaste del tren de rodaje de bulldozers y equipos de orugas: eslabón, buje, zapata, sprocket, rueda guía, rodillo superior y rodillo inferior — cada uno por lado (izquierdo/derecho), igual que Neumáticos pero para orugas en vez de gomas.<br><br>'+
+    '<b>▶ Agregar un componente</b><br>'+
+    'Botón <b>+ Agregar</b> → elige equipo, componente y lado, e ingresa el <b>valor nuevo</b> (medida de fábrica) y el <b>límite de desgaste</b> (medida mínima antes de reemplazar) — a diferencia de Neumáticos, acá no hay una tabla fija por marca: cada proveedor trae su propia ficha técnica, así que estos dos valores se ingresan a mano por componente.<br><br>'+
+    '<b>▶ Registrar una medición</b><br>'+
+    'Botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> junto a cada componente → ingresa el valor actual medido en terreno. El <b>% de vida restante</b> se recalcula solo: (valor actual − límite de desgaste) ÷ (valor nuevo − límite de desgaste).<br><br>'+
+    '<b>▶ Ver historial</b><br>'+
+    'Botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> muestra todas las mediciones anteriores de ese componente, para ver la tendencia de desgaste en el tiempo.</div></div>'+
+
+    // 29. SENSORES DE NEUMÁTICOS
+    '<div class="card" style="margin-bottom:12px" id="m29">'+
+    '<div class="card-t" style="font-size:16px;margin-bottom:10px">29. Sensores de Neumáticos</div>'+
+    '<div style="font-size:13px;line-height:1.8">'+
+    '<b>¿Para qué sirve?</b> Sigue la pista al sensor de presión FÍSICO, por separado del neumático — el mismo sensor a veces se reutiliza en OTRO neumático cuando este se cambia, así que necesita su propia historia (marca, dónde está instalado, en qué neumático estuvo antes).<br><br>'+
+    '<b>▶ ¿Cómo se accede?</b><br>'+
+    'Botón <b>Sensores</b> arriba de la tabla, en la pestaña <b>Neumáticos</b>.<br><br>'+
+    '<b>▶ Instalar / desmontar</b><br>'+
+    'Desde el listado de sensores, cada uno se puede <b>instalar</b> en un neumático (queda enlazado a su número de serie) o <b>desmontar</b> (queda libre, disponible para instalarse en otro neumático más adelante). Si el neumático donde estaba instalado ya tenía otro sensor, el sistema lo desmonta solo primero — un neumático no puede tener dos sensores enlazados a la vez.<br><br>'+
+    '<b>▶ Historial</b><br>'+
+    'Cada sensor guarda en qué neumáticos ha estado instalado y cuándo, para poder rastrear su vida útil aunque cambie de goma varias veces.</div></div>'+
+
+    // 30. PROGRAMACIÓN DIARIA
+    '<div class="card" style="margin-bottom:12px" id="m30">'+
+    '<div class="card-t" style="font-size:16px;margin-bottom:10px">30. Programación Diaria</div>'+
+    '<div style="font-size:13px;line-height:1.8">'+
+    '<b>¿Qué es, y en qué se diferencia del Programa Anual/Gantt?</b> Esos dos son por EQUIPO y por MES (cuándo toca cada PM). Programación Diaria es por PERSONA y por DÍA: quién trabajó, en qué turno (día/noche) y en qué bloques de 30 minutos — el dato que arma el supervisor de terreno cada jornada.<br><br>'+
+    '<b>▶ Importar el Excel de terreno</b><br>'+
+    'Botón <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Excel → sube el archivo tal como lo llena el supervisor. El sistema reconoce solo las hojas que tengan el formato esperado (con su fila "Fecha:") y detecta automáticamente cuántos turnos hay marcados en la hoja (no asume que son siempre solo día y noche).<br><br>'+
+    '<b>▶ Dos vistas</b><br>'+
+    '<b>Detalle</b> — cada persona, cada bloque de 30 min, qué estaba haciendo.<br>'+
+    '<b>Resumen</b> — utilización de la dotación total, sin contar como trabajo productivo la charla de seguridad, colación ni vacaciones.</div></div>'+
+
+    // 31. VERIFICACIÓN EN DOS PASOS Y SEGURIDAD DE LA CUENTA
+    '<div class="card" style="margin-bottom:12px" id="m31">'+
+    '<div class="card-t" style="font-size:16px;margin-bottom:10px">31. Verificación en Dos Pasos y Seguridad de la Cuenta</div>'+
+    '<div style="font-size:13px;line-height:1.8">'+
+    '<b>¿Qué es?</b> Un candado extra en <b>Configuración</b>: además de tu correo y contraseña, pide un código de 6 dígitos que cambia cada 30 segundos (con una app tipo Google Authenticator en tu teléfono). Así, aunque alguien consiga tu contraseña, no puede entrar sin tu teléfono.<br><br>'+
+    '<b>▶ Activarla</b><br>'+
+    'En Configuración → tarjeta "Verificación en dos pasos" → botón <b>Activar</b>. Escanea el código QR con tu app de autenticación (o ingresa el código manual si no puedes escanear) y escribe el código de 6 dígitos que te muestre para confirmar. Desde ese momento, cada inicio de sesión pide ese código además de tu clave.<br><br>'+
+    '<b>▶ Desactivarla</b><br>'+
+    'Mismo lugar → botón <b>Desactivar</b>. Vuelve a bastar con la clave sola.<br><br>'+
+    '<b>▶ Otras dos herramientas de seguridad, en la misma pestaña</b><br>'+
+    '<b>Accesos recientes</b> — quién entró al sistema, cuándo, y desde qué computador (útil si algo no se guardó y quieres saber si fue por una sesión vencida en otro equipo).<br>'+
+    '<b>Log de cambios</b> — auditoría de cada edición, creación o eliminación en el sistema, con fecha, usuario y detalle — no solo los inicios de sesión.</div></div>';
 };
