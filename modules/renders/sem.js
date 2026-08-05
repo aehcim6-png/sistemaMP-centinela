@@ -463,10 +463,23 @@ window.edSem=function(idx,key,val){
   refreshAll();
 };
 window.addSemItem=function(){
+  var eq=S.g('eq')||[];
+  if(!eq.length)return toast('⚠️ No hay equipos cargados');
+  sm('<h3>Agregar Ítem al Plan Semanal</h3>'+
+    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="semEq">'+
+    eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
+    '<div class="fg"><label>Tipo PM</label><select id="semTipoPM"><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option></select></div></div>'+
+    '<br><button class="btn" onclick="saveNuevoSemItem()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+};
+window.saveNuevoSemItem=function(){
+  var sigla=$('semEq').value;
+  var tipoPM=$('semTipoPM').value;
+  var eq=S.g('eq')||[];
+  var e=eq.find(function(x){return x.sigla===sigla});
   var semData=S.g('planSem')||[];
   var fSemana=parseInt($('fSemNum')?.value||1);
-  semData.push({sigla:'NUEVO',tipo:'',modelo:'',tipoPM:'PM1',diasPM:0,hhPlan:0,repuestos:'',costoEst:0,tecnico:'',estado:'Planificado',diaSem:'',obs:'',hhReal:0,estadoReal:'',obsReal:'',semana:fSemana,auto:false});
-  S.s('planSem',semData);refreshAll();
+  semData.push({sigla:sigla,tipo:e?e.tipo:'',modelo:e?e.modelo:'',tipoPM:tipoPM,diasPM:0,hhPlan:0,repuestos:'',costoEst:0,tecnico:'',estado:'Planificado',diaSem:'',obs:'',hhReal:0,estadoReal:'',obsReal:'',semana:fSemana,auto:false});
+  S.s('planSem',semData);cm();refreshAll();
 };
 window.delSem=function(idx){
   var eq=S.g('eq')||[];var semData=S.g('planSem')||[];

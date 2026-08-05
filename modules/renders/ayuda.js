@@ -21,6 +21,7 @@ window.renderAyuda=function(){
     '<li><b>Gestión de Destrabe ahora guarda TODOS sus datos en la nube:</b> antes solo el campo "Motivo" llegaba bien a Supabase; Equipo, Trabajo, Tipo, Fechas, Acción, Responsable y Estado se guardaban vacíos ahí (aunque sí quedaban bien en este navegador). Corregido — todo el registro se sincroniza completo.</li>'+
     '<li><b>Tooltip del Programa Anual ya no se rompe visualmente:</b> cuando el PM ejecutado no coincidía con el planificado, el aviso emergente de la celda mostraba código en vez del mensaje. Ahora se ve el aviso normal, en texto.</li>'+
     '<li><b>Botón "+ Agregar" de Componentes Mayores ya funciona:</b> antes creaba un componente sin equipo asignado, que el sistema borraba solo de inmediato — parecía que el botón no hacía nada. Ahora pide el equipo real antes de crear el componente.</li>'+
+    '<li><b>Botón "+ Agregar" de Plan Semanal ya funciona:</b> mismo problema que Componentes Mayores — creaba un ítem sin equipo asignado, imposible de asociar después a un equipo real. Ahora también pide el equipo (y el tipo de PM) antes de crear el ítem.</li>'+
     '</ul>'+
     '</div>'+
 
