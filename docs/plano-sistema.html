@@ -1,0 +1,505 @@
+<title>El plano de SistemaMP Centinela</title>
+<style>
+  :root{
+    --bg:#0a0c10;
+    --panel:#12151c;
+    --panel2:#171b24;
+    --line:#232838;
+    --ink:#e7e9ee;
+    --ink-dim:#8992a3;
+    --amber:#f2a93b;
+    --amber-dim:#8a6222;
+    --green:#3ecf8e;
+    --green-dim:#1f5c42;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f1ea;
+    --panel:#ffffff;
+    --panel2:#faf8f2;
+    --line:#ddd6c4;
+    --ink:#1f2430;
+    --ink-dim:#666f80;
+    --amber:#b5710f;
+    --amber-dim:#e7c078;
+    --green:#0e8a5c;
+    --green-dim:#bfe9d6;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f3f1ea;
+      --panel:#ffffff;
+      --panel2:#faf8f2;
+      --line:#ddd6c4;
+      --ink:#1f2430;
+      --ink-dim:#666f80;
+      --amber:#b5710f;
+      --amber-dim:#e7c078;
+      --green:#0e8a5c;
+      --green-dim:#bfe9d6;
+    }
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    padding:40px 20px 64px;
+  }
+  .wrap{max-width:1040px;margin:0 auto}
+
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 10px;
+  }
+  h1{
+    font-size:clamp(28px,4vw,38px);
+    line-height:1.15;
+    margin:0 0 14px;
+    text-wrap:balance;
+    font-weight:700;
+  }
+  .lede{
+    color:var(--ink-dim);
+    font-size:16px;
+    line-height:1.6;
+    max-width:62ch;
+    margin:0 0 36px;
+  }
+  .lede b{color:var(--ink);font-weight:600}
+
+  figure{margin:0 0 8px}
+  .diagram-scroll{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:var(--panel);
+    padding:8px;
+  }
+  svg{display:block;width:100%;height:auto;min-width:640px}
+
+  figcaption{
+    font-size:13px;
+    color:var(--ink-dim);
+    margin:14px 0 46px;
+    max-width:70ch;
+    line-height:1.55;
+  }
+
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:18px;
+    margin:0 0 46px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .swatch{width:22px;height:2px;display:inline-block}
+
+  .notes{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:16px;
+    margin-bottom:20px;
+  }
+  .note{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .note .k{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--amber);
+    display:block;
+    margin-bottom:8px;
+  }
+  .note p{
+    margin:0;
+    font-size:13.5px;
+    line-height:1.55;
+    color:var(--ink-dim);
+  }
+  .note p b{color:var(--ink);font-weight:600}
+
+  footer{
+    margin-top:40px;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink-dim);
+  }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">SistemaMP Centinela — arquitectura</p>
+  <h1>Cómo se conecta el sistema</h1>
+  <p class="lede">
+    Un solo camino de guardado que se reparte en tres direcciones al mismo tiempo:
+    <b>este computador</b>, <b>la nube</b> y, si se conecta, un <b>respaldo paralelo</b>.
+    Así el sistema sigue funcionando aunque se corte internet, y nunca depende de un solo lugar.
+  </p>
+
+  <figure>
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 1000 830" role="img" aria-label="Diagrama: Vercel sirve los archivos al navegador; dentro del navegador, index.html carga 39 módulos de pestañas y store.js; store.js guarda al mismo tiempo en localStorage de este equipo, en Supabase (Auth, 31 tablas con RLS, 2 Edge Functions) y opcionalmente en una carpeta de respaldo paralelo como OneDrive o Drive.">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"/>
+          </marker>
+        </defs>
+
+        <!-- ══ Vercel ══ -->
+        <rect x="370" y="18" width="260" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="4 3" opacity=".75"/>
+        <text x="500" y="40" text-anchor="middle" font-family="var(--sans)" font-size="12.5" font-weight="600" fill="currentColor">Vercel</text>
+        <text x="500" y="57" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="currentColor" opacity=".7">sirve los archivos (hosting estático)</text>
+
+        <line x1="500" y1="70" x2="500" y2="108" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow)" opacity=".85"/>
+        <text x="514" y="93" font-family="var(--mono)" font-size="10" fill="currentColor" opacity=".65">al abrir la página</text>
+
+        <!-- ══ Navegador (contenedor) ══ -->
+        <rect x="130" y="110" width="740" height="230" rx="12" fill="var(--panel2)" stroke="currentColor" stroke-width="1.3" opacity=".95"/>
+        <text x="152" y="134" font-family="var(--sans)" font-size="13" font-weight="700" fill="currentColor">Tu navegador</text>
+
+        <rect x="170" y="150" width="660" height="42" rx="7" fill="none" stroke="currentColor" stroke-width="1"/>
+        <text x="500" y="176" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">index.html — el esqueleto (menú, header, login)</text>
+
+        <line x1="500" y1="192" x2="500" y2="206" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".6"/>
+
+        <rect x="170" y="208" width="660" height="42" rx="7" fill="none" stroke="currentColor" stroke-width="1"/>
+        <text x="500" y="234" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">39 módulos de pestañas — modules/renders/*.js</text>
+
+        <line x1="500" y1="250" x2="500" y2="264" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".6"/>
+
+        <rect x="170" y="266" width="660" height="42" rx="7" fill="var(--panel)" stroke="var(--amber)" stroke-width="1.5"/>
+        <text x="500" y="292" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--amber)">store.js — motor de sincronización (S.g / S.s)</text>
+
+        <!-- ══ Ramificación desde store.js hacia 3 destinos ══ -->
+        <line x1="500" y1="308" x2="500" y2="360" stroke="var(--amber)" stroke-width="1.5"/>
+        <line x1="250" y1="360" x2="750" y2="360" stroke="var(--amber)" stroke-width="1.5"/>
+        <line x1="250" y1="360" x2="250" y2="386" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+        <line x1="500" y1="360" x2="500" y2="386" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+        <line x1="750" y1="360" x2="750" y2="386" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+
+        <text x="255" y="378" font-family="var(--mono)" font-size="9.5" fill="var(--green)">al instante, siempre</text>
+        <text x="505" y="378" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".7">si hay internet</text>
+        <text x="755" y="378" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".55">si está conectada</text>
+
+        <!-- ══ Destino 1: localStorage ══ -->
+        <rect x="130" y="390" width="240" height="110" rx="10" fill="var(--panel)" stroke="var(--green)" stroke-width="1.4"/>
+        <text x="250" y="416" text-anchor="middle" font-family="var(--sans)" font-size="12.5" font-weight="700" fill="var(--green)">localStorage</text>
+        <text x="250" y="436" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="currentColor" opacity=".8">copia completa en</text>
+        <text x="250" y="450" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="currentColor" opacity=".8">este computador</text>
+        <text x="250" y="476" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor" opacity=".65">funciona sin internet</text>
+
+        <!-- ══ Destino 2: Supabase (más grande) ══ -->
+        <rect x="400" y="390" width="330" height="380" rx="12" fill="var(--panel)" stroke="var(--amber)" stroke-width="1.4"/>
+        <text x="565" y="418" text-anchor="middle" font-family="var(--sans)" font-size="13.5" font-weight="700" fill="var(--amber)">Supabase — la nube</text>
+
+        <rect x="424" y="436" width="282" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1" opacity=".85"/>
+        <text x="565" y="458" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">Auth</text>
+        <text x="565" y="475" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".65">login · roles · verificación en 2 pasos</text>
+
+        <line x1="565" y1="488" x2="565" y2="502" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".5"/>
+
+        <rect x="424" y="504" width="282" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1" opacity=".85"/>
+        <text x="565" y="526" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">31 tablas reales</text>
+        <text x="565" y="543" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".65">una por categoría, con RLS por rol</text>
+
+        <line x1="565" y1="556" x2="565" y2="570" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".5"/>
+
+        <rect x="424" y="572" width="282" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1" opacity=".85"/>
+        <text x="565" y="594" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">2 Edge Functions</text>
+        <text x="565" y="611" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".65">crear-operador · alerta-pm</text>
+
+        <rect x="424" y="638" width="282" height="108" rx="7" fill="var(--panel2)" stroke="var(--green)" stroke-width="1"/>
+        <text x="565" y="660" text-anchor="middle" font-family="var(--sans)" font-size="10.5" font-weight="600" fill="var(--green)">el candado real vive aquí</text>
+        <text x="440" y="680" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">Cada tabla tiene su propia regla:</text>
+        <text x="440" y="697" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">quién puede leer, escribir o solo</text>
+        <text x="440" y="714" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">un admin puede cambiar ciertos</text>
+        <text x="440" y="731" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">campos — se aplica en la base de</text>
+        <text x="440" y="748" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">datos, no solo en la pantalla.</text>
+
+        <!-- ══ Destino 3: Respaldo paralelo ══ -->
+        <rect x="750" y="390" width="120" height="110" rx="10" fill="var(--panel)" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity=".9"/>
+        <text x="810" y="414" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="700" fill="currentColor">Respaldo</text>
+        <text x="810" y="428" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="700" fill="currentColor">paralelo</text>
+        <text x="810" y="450" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="currentColor" opacity=".7">carpeta OneDrive</text>
+        <text x="810" y="463" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="currentColor" opacity=".7">o Google Drive</text>
+        <text x="810" y="486" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="var(--green)" opacity=".9">conectada en tu equipo</text>
+
+      </svg>
+    </div>
+  </figure>
+  <figcaption>
+    El diagrama muestra el único camino real de guardado del sistema: cuando algo se edita en cualquier
+    pestaña, <code style="font-family:var(--mono)">store.js</code> escribe al mismo tiempo en el computador
+    (siempre, al instante), en Supabase (si hay internet, unos segundos después) y —si algún día se conecta—
+    en una carpeta de respaldo paralelo.
+  </figcaption>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--green)"></span> siempre, sin depender de internet</span>
+    <span><span class="swatch" style="background:var(--amber)"></span> ruta principal de sincronización</span>
+    <span><span class="swatch" style="background:currentColor;opacity:.5"></span> opcional, se conecta por computador</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <span class="k">Por qué offline-first</span>
+      <p>Si se corta internet a mitad de un turno, <b>nada se pierde</b>: el sistema sigue leyendo y
+      guardando en este computador, y cuando vuelve la señal, sincroniza solo con la nube.</p>
+    </div>
+    <div class="note">
+      <span class="k">Por qué 3 destinos, no 1</span>
+      <p>La nube es la fuente oficial y compartida entre todos. Este computador es la copia de trabajo
+      diaria. La carpeta paralela es un tercer respaldo, fuera de Supabase por completo.</p>
+    </div>
+    <div class="note">
+      <span class="k">Un detalle importante</span>
+      <p>La carpeta de respaldo se conecta <b>por computador</b>, no para todo el sistema — el botón
+      "Conectar carpeta" (en Configuración) guarda esa elección solo en el navegador donde se apretó.
+      Si otro equipo abre el sistema, tiene que conectar su propia carpeta.</p>
+    </div>
+  </div>
+
+  <h2 style="font-size:22px;margin:56px 0 6px;font-weight:700">Cuatro momentos, en detalle</h2>
+  <p class="lede" style="margin-bottom:32px;font-size:14.5px">
+    El plano de arriba muestra las piezas. Estos cuatro diagramas muestran qué pasa, paso a paso,
+    en los momentos donde más importa que el sistema no falle: al abrir la página, al iniciar sesión,
+    al guardar un cambio, y cuando dos personas editan lo mismo casi al mismo tiempo.
+  </p>
+
+  <!-- ══════════ 1. CARGA INICIAL ══════════ -->
+  <p class="eyebrow" style="margin-top:0">Momento 1</p>
+  <figure>
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 900 470" role="img" aria-label="Diagrama de carga inicial: al abrir la página, si hay un token guardado se valida la sesión con Supabase (renovándola si venció); si no hay token, se muestra el login mientras los datos cargan igual en segundo plano. Ambos caminos convergen en sbLoadHeavy, que trae las 31 tablas en paralelo (o usa localStorage si falla), y terminan mostrando el Dashboard.">
+        <defs>
+          <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <rect x="270" y="16" width="360" height="46" rx="8" fill="var(--panel2)" stroke="currentColor" stroke-width="1.2"/>
+        <text x="450" y="44" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">Se abre la página (DOMContentLoaded)</text>
+
+        <line x1="450" y1="62" x2="450" y2="90" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow2)" opacity=".8"/>
+        <text x="450" y="82" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor" opacity=".7">¿hay un token guardado de antes?</text>
+
+        <line x1="450" y1="90" x2="240" y2="118" stroke="currentColor" stroke-width="1" opacity=".55"/>
+        <line x1="450" y1="90" x2="660" y2="118" stroke="currentColor" stroke-width="1" opacity=".55"/>
+        <text x="230" y="112" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--green)">sí</text>
+        <text x="670" y="112" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--amber)">no</text>
+
+        <!-- Columna SÍ -->
+        <rect x="90" y="120" width="300" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1"/>
+        <text x="240" y="144" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="currentColor">Validar sesión con Supabase</text>
+        <text x="240" y="160" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".65">/auth/v1/user</text>
+
+        <line x1="240" y1="176" x2="240" y2="196" stroke="currentColor" stroke-width="1" marker-end="url(#arrow2)" opacity=".6"/>
+
+        <rect x="90" y="198" width="300" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1"/>
+        <text x="240" y="220" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor">Si venció: renovarla con el</text>
+        <text x="240" y="236" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor">refresh_token, sin pedir clave</text>
+
+        <line x1="240" y1="254" x2="240" y2="274" stroke="currentColor" stroke-width="1" marker-end="url(#arrow2)" opacity=".6"/>
+
+        <rect x="90" y="276" width="300" height="56" rx="8" fill="none" stroke="var(--green)" stroke-width="1.2"/>
+        <text x="240" y="298" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--green)">Buscar el rol en user_roles</text>
+        <text x="240" y="314" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--green)">y aplicar permisos de pantalla</text>
+
+        <!-- Columna NO -->
+        <rect x="510" y="120" width="300" height="56" rx="8" fill="none" stroke="var(--amber)" stroke-width="1.2"/>
+        <text x="660" y="144" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="var(--amber)">Mostrar pantalla de login</text>
+        <text x="660" y="160" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".6">(los datos siguen cargando debajo)</text>
+
+        <!-- Convergen -->
+        <line x1="240" y1="332" x2="450" y2="360" stroke="currentColor" stroke-width="1" opacity=".55"/>
+        <line x1="660" y1="176" x2="450" y2="360" stroke="currentColor" stroke-width="1" opacity=".55"/>
+
+        <rect x="150" y="362" width="600" height="50" rx="8" fill="var(--panel)" stroke="var(--amber)" stroke-width="1.4"/>
+        <text x="450" y="384" text-anchor="middle" font-family="var(--mono)" font-size="11.5" font-weight="600" fill="var(--amber)">_sbLoadHeavy() — trae las 31 tablas en paralelo</text>
+        <text x="450" y="400" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">si falla, sigue con lo último guardado en localStorage</text>
+
+        <line x1="450" y1="412" x2="450" y2="428" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow2)" opacity=".8"/>
+
+        <rect x="270" y="430" width="360" height="34" rx="8" fill="var(--panel2)" stroke="var(--green)" stroke-width="1.2"/>
+        <text x="450" y="452" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="600" fill="var(--green)">Calcular todo y mostrar el Dashboard</text>
+      </svg>
+    </div>
+  </figure>
+  <figcaption>
+    Con o sin sesión guardada, el sistema termina siempre en el mismo lugar: trae los datos y muestra
+    el Dashboard. La diferencia es si pide clave en el camino o no.
+  </figcaption>
+
+  <!-- ══════════ 2. AUTENTICACIÓN ══════════ -->
+  <p class="eyebrow">Momento 2</p>
+  <figure>
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 900 330" role="img" aria-label="Diagrama de autenticación: se ingresa email y clave, Supabase Auth valida la contraseña; si la cuenta tiene verificación en dos pasos activada, pide un código de 6 dígitos antes de continuar; si no, sigue directo. Ambos casos terminan guardando el token, buscando el rol en user_roles y cargando los datos.">
+        <defs>
+          <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <rect x="30" y="16" width="230" height="50" rx="8" fill="var(--panel2)" stroke="currentColor" stroke-width="1.2"/>
+        <text x="145" y="38" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="currentColor">Ingresa email + clave</text>
+        <text x="145" y="54" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".65">_doLogin()</text>
+
+        <line x1="260" y1="41" x2="300" y2="41" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow2)" opacity=".8"/>
+
+        <rect x="302" y="16" width="230" height="50" rx="8" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="417" y="38" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="currentColor">Supabase valida la clave</text>
+        <text x="417" y="54" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".65">_sbAuthLogin()</text>
+
+        <line x1="532" y1="41" x2="572" y2="41" stroke="currentColor" stroke-width="1" opacity=".6"/>
+        <text x="552" y="30" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">¿tiene verificación</text>
+        <text x="552" y="42" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">en 2 pasos?</text>
+
+        <line x1="572" y1="41" x2="572" y2="120" stroke="currentColor" stroke-width="1" opacity=".55"/>
+        <line x1="572" y1="120" x2="740" y2="150" stroke="var(--amber)" stroke-width="1" opacity=".7"/>
+        <line x1="572" y1="120" x2="400" y2="150" stroke="currentColor" stroke-width="1" opacity=".55"/>
+        <text x="760" y="140" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--amber)">sí</text>
+        <text x="380" y="140" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="currentColor" opacity=".65">no</text>
+
+        <rect x="620" y="152" width="240" height="56" rx="8" fill="none" stroke="var(--amber)" stroke-width="1.2"/>
+        <text x="740" y="174" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--amber)">Pide código de 6 dígitos</text>
+        <text x="740" y="190" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".65">_mfaChallenge + _mfaVerify</text>
+
+        <rect x="280" y="152" width="240" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1" opacity=".8"/>
+        <text x="400" y="180" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor">Sigue directo, sin pedir más</text>
+
+        <line x1="740" y1="208" x2="500" y2="242" stroke="var(--amber)" stroke-width="1" opacity=".6"/>
+        <line x1="400" y1="208" x2="500" y2="242" stroke="currentColor" stroke-width="1" opacity=".55"/>
+
+        <rect x="290" y="244" width="420" height="70" rx="8" fill="var(--panel)" stroke="var(--green)" stroke-width="1.4"/>
+        <text x="500" y="266" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="600" fill="var(--green)">Guardar token · buscar rol en user_roles</text>
+        <text x="500" y="284" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".75">aplicar permisos de pantalla · programar la renovación</text>
+        <text x="500" y="300" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".75">automática del token antes de que venza</text>
+      </svg>
+    </div>
+  </figure>
+  <figcaption>
+    La verificación en dos pasos se revisa DESPUÉS de la clave, no antes — así un código nunca sirve
+    de nada sin la clave correcta primero, y viceversa.
+  </figcaption>
+
+  <!-- ══════════ 3. GUARDADO ══════════ -->
+  <p class="eyebrow">Momento 3</p>
+  <figure>
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 900 300" role="img" aria-label="Diagrama de guardado: al editar algo, S.s() escribe en localStorage de inmediato, envía el cambio a la tabla real correspondiente en Supabase sin demora, y si hay una carpeta de respaldo conectada, espera 5 segundos sin más cambios antes de escribir un JSON completo ahí.">
+        <defs>
+          <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <rect x="20" y="20" width="220" height="50" rx="8" fill="var(--panel2)" stroke="currentColor" stroke-width="1.2"/>
+        <text x="130" y="42" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="currentColor">Editas algo en pantalla</text>
+        <text x="130" y="58" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".65">cev() / saveX()</text>
+
+        <line x1="242" y1="45" x2="282" y2="45" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow2)" opacity=".8"/>
+
+        <rect x="284" y="20" width="180" height="50" rx="8" fill="var(--panel)" stroke="var(--amber)" stroke-width="1.5"/>
+        <text x="374" y="49" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="600" fill="var(--amber)">S.s(store, datos)</text>
+
+        <line x1="464" y1="45" x2="490" y2="45" stroke="var(--amber)" stroke-width="1.3"/>
+        <line x1="490" y1="45" x2="490" y2="110" stroke="var(--amber)" stroke-width="1.3"/>
+        <line x1="490" y1="110" x2="150" y2="140" stroke="var(--green)" stroke-width="1.3" marker-end="url(#arrow2)"/>
+        <line x1="490" y1="110" x2="490" y2="140" stroke="var(--amber)" stroke-width="1.3" marker-end="url(#arrow2)"/>
+        <line x1="490" y1="110" x2="800" y2="140" stroke="currentColor" stroke-width="1.1" opacity=".65" marker-end="url(#arrow2)"/>
+
+        <text x="155" y="130" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="var(--green)">al instante</text>
+        <text x="500" y="130" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="var(--amber)">sin demora</text>
+        <text x="790" y="130" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="currentColor" opacity=".6">espera 5s sin más cambios</text>
+
+        <rect x="30" y="142" width="240" height="70" rx="8" fill="none" stroke="var(--green)" stroke-width="1.3"/>
+        <text x="150" y="168" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="600" fill="var(--green)">localStorage</text>
+        <text x="150" y="186" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".7">este computador, siempre</text>
+
+        <rect x="370" y="142" width="240" height="70" rx="8" fill="none" stroke="var(--amber)" stroke-width="1.3"/>
+        <text x="490" y="164" text-anchor="middle" font-family="var(--sans)" font-size="11" font-weight="600" fill="var(--amber)">La tabla real en Supabase</text>
+        <text x="490" y="182" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".7">ej. equipos, correctivos...</text>
+        <text x="490" y="198" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".7">(primero chequea conflictos — ver Momento 4)</text>
+
+        <rect x="680" y="142" width="200" height="70" rx="8" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity=".85"/>
+        <text x="780" y="164" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor">Carpeta de respaldo</text>
+        <text x="780" y="180" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">JSON completo</text>
+        <text x="780" y="196" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">(si está conectada)</text>
+
+        <text x="450" y="250" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor" opacity=".6">Existe además un interruptor aparte y opcional, "Sincronización en la nube" (Configuración),</text>
+        <text x="450" y="266" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="currentColor" opacity=".6">heredado de antes de migrar a tablas reales — solo actúa si alguien lo activa a mano, no es parte de este camino.</text>
+      </svg>
+    </div>
+  </figure>
+  <figcaption>
+    Los tres destinos no compiten entre sí ni se bloquean uno al otro: <code style="font-family:var(--mono)">localStorage</code>
+    y la tabla real se escriben apenas guardas; la carpeta espera a que dejes de tocar esa categoría por 5 segundos
+    seguidos, para no reescribir el archivo completo cientos de veces por minuto.
+  </figcaption>
+
+  <!-- ══════════ 4. DETECCIÓN DE CONFLICTOS ══════════ -->
+  <p class="eyebrow">Momento 4</p>
+  <figure>
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 900 280" role="img" aria-label="Diagrama de detección de conflictos: antes de escribir en Supabase, el sistema compara lo que esta pestaña cree que había antes contra lo que hay ahora mismo en el servidor. Si son iguales, guarda normal. Si son distintos, cancela el guardado, refresca la pantalla con lo más reciente y avisa con un aviso, sin perder el trabajo de nadie en silencio.">
+        <defs>
+          <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <rect x="30" y="20" width="280" height="56" rx="8" fill="var(--panel2)" stroke="currentColor" stroke-width="1.2"/>
+        <text x="170" y="44" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="currentColor">Vas a guardar un cambio en</text>
+        <text x="170" y="60" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="currentColor">una tabla real de Supabase</text>
+
+        <line x1="310" y1="48" x2="350" y2="48" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow2)" opacity=".8"/>
+
+        <rect x="352" y="20" width="290" height="56" rx="8" fill="none" stroke="var(--amber)" stroke-width="1.3"/>
+        <text x="497" y="42" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--amber)">Compara: lo que creías que había</text>
+        <text x="497" y="58" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--amber)">antes vs. lo que hay AHORA en el servidor</text>
+
+        <line x1="497" y1="76" x2="497" y2="106" stroke="currentColor" stroke-width="1" opacity=".6"/>
+        <text x="497" y="98" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".65">¿son iguales?</text>
+
+        <line x1="497" y1="106" x2="230" y2="140" stroke="var(--green)" stroke-width="1" opacity=".75"/>
+        <line x1="497" y1="106" x2="720" y2="140" stroke="var(--amber)" stroke-width="1" opacity=".75"/>
+        <text x="240" y="130" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--green)">sí, iguales</text>
+        <text x="700" y="130" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--amber)">no, cambió</text>
+
+        <rect x="90" y="142" width="280" height="56" rx="8" fill="none" stroke="var(--green)" stroke-width="1.3"/>
+        <text x="230" y="166" text-anchor="middle" font-family="var(--sans)" font-size="11" fill="var(--green)">Guarda normal</text>
+        <text x="230" y="182" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">nadie más lo tocó mientras tanto</text>
+
+        <rect x="580" y="142" width="290" height="90" rx="8" fill="var(--panel)" stroke="var(--amber)" stroke-width="1.4"/>
+        <text x="725" y="164" text-anchor="middle" font-family="var(--sans)" font-size="10.5" font-weight="600" fill="var(--amber)">Tu cambio NO se guarda</text>
+        <text x="725" y="182" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".8">se refresca la pantalla con lo más</text>
+        <text x="725" y="198" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".8">reciente y aparece un aviso —</text>
+        <text x="725" y="214" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".8">revisas y vuelves a intentar</text>
+      </svg>
+    </div>
+  </figure>
+  <figcaption>
+    Esto es lo que evita que dos personas editando el mismo equipo o el mismo correctivo casi al mismo
+    tiempo se pisen los datos sin darse cuenta — quien guarda segundo recibe el aviso, nunca se sobrescribe en silencio.
+  </figcaption>
+
+  <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
+</div>
