@@ -1,6 +1,19 @@
 // Pestaña Log de Cambios (auditoría) — extraída a su propio archivo
 // (Fase 2 de modularización). Script plano (NO módulo ES), mismo scope
 // global de siempre.
+//
+// renderLog() en sí no tenía ningún botón ni contenedor que la mostrara en
+// ninguna pestaña — quedaba huérfana desde antes de esta extracción. Se
+// agrega verLogCambios() (mismo patrón que verAccesos(), ya usado en
+// Configuración) para abrirla como modal: sm() reemplaza el contenido del
+// modal por un <div id="s-log"> vacío y luego renderLog() lo llena — los
+// filtros/paginación/"Limpiar" de adentro siguen funcionando porque cada
+// uno vuelve a llamar renders.log(), que sigue encontrando el mismo div
+// mientras el modal esté abierto.
+window.verLogCambios = function () {
+  sm('<div style="max-width:900px"><div id="s-log"></div><button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>');
+  renders.log();
+};
 window.renderLog = function () {
   var log = S.g('changelog') || [];
   var fAccion = $('fLogAccion')?.value || '';
