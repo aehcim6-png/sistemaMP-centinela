@@ -1,0 +1,160 @@
+<title>Manual de Administrador — SistemaMP Centinela</title>
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#12151c; --panel2:#171b24; --line:#232838;
+    --ink:#e7e9ee; --ink-dim:#8992a3; --amber:#f2a93b; --green:#3ecf8e;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+    --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+      --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);padding:40px 20px 72px}
+  .wrap{max-width:760px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+  h1{font-size:clamp(26px,4vw,34px);line-height:1.15;margin:0 0 12px;text-wrap:balance;font-weight:700}
+  h2{font-size:19px;margin:36px 0 12px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:8px}
+  h3{font-size:14.5px;margin:18px 0 6px;font-weight:700;color:var(--amber)}
+  p{font-size:14.5px;line-height:1.7;color:var(--ink-dim);max-width:66ch}
+  p b, li b, td b{color:var(--ink);font-weight:600}
+  ul,ol{font-size:14.5px;line-height:1.75;color:var(--ink-dim);max-width:66ch;padding-left:22px}
+  li{margin-bottom:4px}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink)}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink)}
+  pre code{background:none;border:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--amber);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  td{color:var(--ink-dim)}
+  a{color:var(--amber)}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">SistemaMP Centinela — documentación</p>
+  <h1>Manual de Administrador</h1>
+  <p>Para quien administra el sistema hoy, o para quien lo reciba mañana. Cubre lo que un
+  operador normal no necesita saber. Para cómo se conecta todo por dentro, ver
+  <a href="arquitectura.html">Arquitectura</a> y el <a href="plano-sistema.html">plano interactivo</a>.</p>
+
+  <h2>1. Accesos que necesitas tener</h2>
+  <ul>
+    <li><b>Cuenta admin</b> dentro del sistema (rol <code>admin</code> en <code>user_roles</code>).</li>
+    <li><b>Panel de Supabase</b> — proyecto "SistemaMP" (<code>jyhpfwivhwzylkzxrsbt</code>). Base
+    de datos real, logs, configuración de autenticación.</li>
+    <li><b>Panel de Vercel</b> — donde vive el sitio (<code>sistema-mp-centinela.vercel.app</code>)
+    y el historial de despliegues.</li>
+    <li><b>Repositorio de GitHub</b> (<code>aehcim6-png/sistemamp-centinela</code>) — todo el
+    código y el historial de cambios.</li>
+  </ul>
+  <p>Sin estos tres accesos, nadie puede mantener el sistema — vale la pena que más de una
+  persona los tenga guardados en un lugar seguro.</p>
+
+  <h2>2. Gestión de usuarios</h2>
+  <p>Crear, activar y desactivar cuentas se hace desde <b>Configuración → Crear Usuario del
+  Sistema</b> (solo admins). Por dentro, llama a una única función con privilegio elevado
+  (<code>crear-operador</code>, una Edge Function de Supabase) — el único punto del sistema donde
+  el frontend puede pedir una acción normalmente restringida. Código fuente en
+  <code>supabase/functions/crear-operador/</code>.</p>
+  <p>Un usuario nuevo queda <b>bloqueado</b> hasta que un admin lo activa a mano.</p>
+
+  <h2>3. Seguridad</h2>
+  <h3>Roles</h3>
+  <p>Cada cuenta tiene un rol en <code>user_roles</code>: <code>admin</code> u <code>operador</code>.
+  Se usa para ocultar/mostrar botones (cosmético) y para <b>Row Level Security real en
+  Postgres</b> — el candado que de verdad importa. 4 tablas tienen además un trigger
+  (<code>proteger_columnas_admin</code>) que bloquea a un operador que intente cambiar columnas
+  reservadas, aunque manipule el navegador directamente.</p>
+  <h3>Verificación en dos pasos (MFA)</h3>
+  <p>Cualquier usuario puede activarla desde Configuración. No es obligatoria por ahora, pero
+  conviene activarla al menos en las cuentas admin.</p>
+  <h3>Contraseñas</h3>
+  <p>Política mínima: 14 caracteres, con mayúscula/minúscula/dígito/símbolo. Las cuentas nuevas
+  fuerzan el cambio al primer ingreso.</p>
+  <h3>Auditoría</h3>
+  <p><b>Accesos recientes</b> — quién entró, cuándo, desde qué computador.
+  <b>Log de cambios</b> — cada edición, creación o eliminación, con fecha, usuario y detalle.</p>
+
+  <h2>4. Base de datos (Supabase)</h2>
+  <p><b>31 tablas reales</b> + 6 "singleton" de configuración. El mapeo vive en
+  <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.</p>
+  <p><b>El schema está versionado como código</b> en <code>supabase/migrations/*.sql</code>.
+  Cualquier cambio de estructura debe ser un archivo de migración nuevo, nunca una edición manual
+  sin rastro en el panel. Verificar con <code>supabase db diff</code> (debería salir vacío).</p>
+
+  <h3>Límites del plan gratis (hoy)</h3>
+  <table>
+    <tr><th>Recurso</th><th>Límite gratis</th><th>Uso actual (ago. 2026)</th></tr>
+    <tr><td>Tamaño de base de datos</td><td>500 MB</td><td>~22 MB (4.4%)</td></tr>
+    <tr><td>Ancho de banda / mes</td><td>5 GB</td><td>revisar en Supabase → Settings → Usage</td></tr>
+    <tr><td>Pausa por inactividad</td><td>tras 7 días sin uso</td><td>se reactiva con un clic, hasta 90 días después</td></tr>
+  </table>
+  <p>El límite que más vale la pena vigilar es el <b>ancho de banda</b>, no el tamaño: el sistema
+  baja toda la base completa en cada inicio de sesión.</p>
+
+  <h2>5. Respaldo y continuidad de datos</h2>
+  <ol>
+    <li><b>localStorage</b> de cada navegador — copia de trabajo, siempre al día.</li>
+    <li><b>Supabase</b> — la fuente oficial compartida entre todos.</li>
+    <li><b>Carpeta de respaldo local</b> (opcional) — un JSON completo cada 5 segundos. Se conecta
+    <b>por computador</b>, no una sola vez para todo el sistema.</li>
+  </ol>
+  <p>Además existe un <b>Backup manual</b> (exportar/importar JSON a mano) en Configuración —
+  útil antes de cualquier cambio grande.</p>
+  <p><b>Si Supabase quedara inaccesible</b> (escenario extremo): el JSON de cualquier respaldo
+  permite reconstruir todos los datos en un backend nuevo, siguiendo el mismo mapeo de
+  <code>TABLA_REAL</code>.</p>
+
+  <h2>6. Despliegue (Vercel)</h2>
+  <ul>
+    <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
+    <li>El build no transforma JavaScript — solo empaqueta <code>index.html</code> y copia
+    <code>logic.js</code>, <code>vendor/*.js</code>, <code>modules/</code> y <code>docs/</code> tal cual.</li>
+    <li><b>Si un despliegue sale mal</b>: en Vercel se puede volver ("Promote to Production") a
+    cualquier despliegue anterior con un clic.</li>
+    <li><b>Antes de fusionar algo grande a main</b>: siempre se prueba primero en el preview
+    automático, y solo se fusiona con aprobación explícita.</li>
+  </ul>
+
+  <h2>7. Estructura del código</h2>
+  <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
+logic.js                — funciones de cálculo puras (con tests)
+modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (39 en total)
+supabase/migrations/     — schema versionado como código
+supabase/functions/      — Edge Functions (crear-operador, alerta-pm)
+tests/                   — pruebas de logic.js (Vitest, 181 casos)
+docs/                    — esta documentación</pre>
+
+  <h2>8. Si algo se rompe — por dónde empezar</h2>
+  <ol>
+    <li><b>¿Error de guardado?</b> Consola del navegador (F12 → Console) — el toast rojo y el
+    error real quedan ahí.</li>
+    <li><b>¿Datos incorrectos?</b> Revisar Supabase → Logs y comparar contra localStorage de ese
+    navegador.</li>
+    <li><b>¿El sitio no carga?</b> Revisar Vercel → Deployments — confirmar que el último build
+    terminó "Ready", no "Error".</li>
+    <li><b>¿Alguien no puede entrar?</b> Revisar en Supabase → Authentication que la cuenta existe;
+    revisar en <code>user_roles</code> que tiene rol y <code>activo = true</code>.</li>
+    <li><b>¿Un dato desapareció solo?</b> Revisar si <code>syncEquipos()</code> lo filtró por no
+    reconocer la sigla del equipo asociado (bug conocido para texto libre, corregido en las
+    celdas más comunes en agosto 2026).</li>
+  </ol>
+
+  <h2>9. Continuidad — si quien mantiene esto no está disponible</h2>
+  <p>Este sistema hoy lo entiende y mantiene una sola persona, sesión a sesión. Para reducir ese
+  riesgo: los tres accesos de la sección 1 deberían quedar guardados en un lugar que más de una
+  persona alcance; el código y el schema están versionados — cualquier desarrollador con esos
+  accesos puede clonar el repositorio y entender el sistema leyendo esta documentación y el
+  propio código; y antes de cualquier cambio grande siempre queda un respaldo manual.</p>
+
+  <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
+</div>

@@ -1,0 +1,130 @@
+<title>Manual de Usuario — SistemaMP Centinela</title>
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#12151c; --panel2:#171b24; --line:#232838;
+    --ink:#e7e9ee; --ink-dim:#8992a3; --amber:#f2a93b; --green:#3ecf8e;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+    --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+      --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);padding:40px 20px 72px}
+  .wrap{max-width:760px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+  h1{font-size:clamp(26px,4vw,34px);line-height:1.15;margin:0 0 8px;text-wrap:balance;font-weight:700}
+  h2{font-size:19px;margin:36px 0 12px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:8px}
+  p{font-size:14.5px;line-height:1.7;color:var(--ink-dim);max-width:66ch}
+  p b, li b, td b{color:var(--ink);font-weight:600}
+  ul,ol{font-size:14.5px;line-height:1.75;color:var(--ink-dim);max-width:66ch;padding-left:22px}
+  li{margin-bottom:4px}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--amber);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  td{color:var(--ink-dim)}
+  .callout{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13.5px;color:var(--ink-dim)}
+  .callout b{color:var(--ink)}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">SistemaMP Centinela — documentación</p>
+  <h1>Manual de Usuario</h1>
+
+  <div class="callout">
+    <b>Esta es una copia portable</b>, para leer sin abrir el sistema. La versión completa y
+    siempre actualizada vive DENTRO del sistema, en la pestaña <b>❓ Ayuda</b> (31 secciones,
+    índice navegable, novedades de cada actualización). Este archivo es un resumen para
+    imprimir, mandar por correo, o leer sin conexión.
+  </div>
+
+  <h2>1. ¿Qué es SistemaMP Centinela?</h2>
+  <p>Un sistema de gestión de mantenimiento para una flota de equipos mineros (Besalco Minería —
+  Centinela Ripios OXE). Es una página web: se abre en Chrome o Edge, necesita internet e
+  iniciar sesión, y los datos se comparten en vivo entre todos los que la usan al mismo tiempo.</p>
+
+  <h2>2. Primeros pasos</h2>
+  <ol>
+    <li><b>Inicia sesión</b> con tu correo y contraseña. Si no tienes cuenta, un administrador te
+    la crea desde Configuración → Crear Usuario del Sistema.</li>
+    <li>Revisa el <b>Dashboard</b> — estado general de la flota.</li>
+    <li>Ve a <b>Equipos</b> — confirma que tu flota esté completa y correcta.</li>
+    <li>Revisa <b>Pautas</b> — las actividades de mantención preventiva por tipo de equipo.</li>
+    <li>Empieza a registrar mantenciones.</li>
+  </ol>
+
+  <h2>3. Flujo diario recomendado</h2>
+  <p><b>Mañana</b> — Dashboard (urgentes y alertas) → Predictivo (qué intervenir hoy) → Repuestos
+  (semáforo de stock).</p>
+  <p><b>Durante el día</b> — Inspección Diaria → Registro PM (con horómetro real) → Correctivos
+  si hay falla. El stock se descuenta solo.</p>
+  <p><b>Cierre</b> — Actualiza horómetros → revisa Consumos y Costos → carga muestras de Análisis
+  de Aceite si llegaron.</p>
+  <p><b>Semanal</b> — Plan Semanal → Avance → Gantt → Destrabe → Componentes Mayores →
+  Disponibilidad → exportar informes para gerencia.</p>
+  <p><b>Mensual</b> — Metas (plan vs. real) → Informes KPI → ajustar metas del próximo mes.</p>
+
+  <h2>4. Conceptos clave del mantenimiento preventivo</h2>
+  <p>Cada equipo tiene ciclos de PM: <b>PM1</b> (250h), <b>PM2</b> (500h), <b>PM3</b> (1.000h),
+  <b>PM4</b> (2.000h). Un PM mayor incluye los menores. El sistema calcula solo cuándo toca cada
+  uno según el horómetro real, y avisa con colores: 🔴 urgente, 🟡 próxima, ✅ al día.</p>
+
+  <h2>5. Roles y permisos</h2>
+  <ul>
+    <li><b>Operador</b> — registra PM, correctivos, inspecciones, movimientos de stock,
+    mediciones, etc.</li>
+    <li><b>Admin</b> — además crea/activa usuarios, edita datos estructurales del equipo, y ve
+    Configuración completa.</li>
+  </ul>
+  <p>Estos permisos los revisa la base de datos misma en cada acción, no son solo un candado de
+  pantalla. Si dos personas editan la misma fila casi al mismo tiempo, el sistema detecta el
+  conflicto y avisa — nunca se pierde en silencio el cambio de uno de los dos.</p>
+
+  <h2>6. Mapa de pestañas</h2>
+  <table>
+    <tr><th>Pestaña</th><th>Para qué</th></tr>
+    <tr><td><b>Dashboard</b></td><td>Vista general: KPIs, urgentes, próximas PM, tendencias</td></tr>
+    <tr><td><b>Equipos</b></td><td>Flota completa, horómetros, estado de PM, ficha técnica</td></tr>
+    <tr><td><b>Registro PM</b></td><td>Registrar cada mantención preventiva ejecutada</td></tr>
+    <tr><td><b>Correctivos</b></td><td>Órdenes de trabajo por falla, causa raíz, componente</td></tr>
+    <tr><td><b>Neumáticos</b></td><td>Remanente, cambios, sensores de presión</td></tr>
+    <tr><td><b>Horómetros</b></td><td>Historial de lecturas por equipo</td></tr>
+    <tr><td><b>Disponibilidad</b></td><td>% de disponibilidad mecánica, meta y tendencia</td></tr>
+    <tr><td><b>Análisis Aceite</b></td><td>Muestras de laboratorio, estado por componente</td></tr>
+    <tr><td><b>Vencimientos</b></td><td>Documentos legales por equipo</td></tr>
+    <tr><td><b>Stock & Insumos</b></td><td>Filtros, lubricantes, costos y consumos</td></tr>
+    <tr><td><b>Predictivo</b></td><td>Diagnóstico automático, alertas cruzadas, backlog</td></tr>
+    <tr><td><b>Planificación y Agenda</b></td><td>Plan Semanal, Programa Anual, Gantt, Programación Diaria</td></tr>
+    <tr><td><b>Pautas</b></td><td>Actividades de mantención por tipo de PM</td></tr>
+    <tr><td><b>Componentes</b></td><td>Componentes Mayores, Destrabe, Informes de Falla, Tren de Rodaje</td></tr>
+    <tr><td><b>Metas & KPIs</b></td><td>Plan vs. real, avance mensual, informes descargables</td></tr>
+    <tr><td><b>Buscar</b></td><td>Historial completo de cualquier equipo en una sola pantalla</td></tr>
+    <tr><td><b>Configuración</b></td><td>Usuarios, seguridad, respaldo, tema, info del sistema</td></tr>
+  </table>
+
+  <h2>7. Preguntas frecuentes</h2>
+  <p><b>¿Necesito internet para usar el sistema?</b><br>No para seguir viendo y editando datos:
+  el sistema guarda de inmediato en este computador aunque se corte la conexión, y sincroniza
+  solo con la nube cuando vuelve.</p>
+  <p><b>¿Qué pasa si edito algo que otra persona también estaba editando?</b><br>El sistema avisa
+  con un mensaje y refresca la pantalla con lo más reciente — tu cambio no se pierde en silencio.</p>
+  <p><b>¿Cómo recupero mis datos si algo sale mal?</b><br>Los datos reales viven en Supabase, no
+  solo en tu navegador. Además existe un respaldo manual y uno automático a una carpeta local si
+  alguien lo conectó.</p>
+
+  <div class="callout">
+    Para el detalle completo de cada función, abre el sistema y ve a la pestaña <b>❓ Ayuda</b> —
+    ahí vive la versión completa de 31 secciones, siempre al día.
+  </div>
+
+  <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
+</div>

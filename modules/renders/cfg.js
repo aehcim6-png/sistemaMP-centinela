@@ -229,12 +229,16 @@ window.renderCfg=function(){
       '</div>'
       :'')+
 
-      // PLANO DEL SISTEMA (solo admin)
+      // DOCUMENTACIÓN (solo admin)
       (window._userRole==='admin'?
-      '<div class="card"><b style="font-size:14px">📐 Plano del Sistema</b><br><br>'+
-      '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Diagrama de cómo se conecta todo por dentro: navegador, motor de sincronización, Supabase y respaldo paralelo — más el detalle de arranque, login, guardado y detección de conflictos.</p>'+
-      '<button class="btn" onclick="window.open(\'docs/plano-sistema.html\',\'_blank\')">📐 Ver plano del sistema</button>'+
-      '</div>'
+      '<div class="card"><b style="font-size:14px">📐 Documentación del Sistema</b><br><br>'+
+      '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Plano de conexión, explicación de la arquitectura, y los manuales de usuario y administrador — versionados junto al código en la carpeta docs/.</p>'+
+      '<div style="display:flex;flex-direction:column;gap:6px">'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/plano-sistema.html\',\'_blank\')">📐 Ver plano del sistema</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/arquitectura.html\',\'_blank\')">🏗️ Ver arquitectura</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/manual-usuario.html\',\'_blank\')">📖 Ver manual de usuario</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/manual-admin.html\',\'_blank\')">🔧 Ver manual de administrador</button>'+
+      '</div></div>'
       :'')+
 
       // INFO SISTEMA
