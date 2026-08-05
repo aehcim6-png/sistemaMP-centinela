@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
     if (action === "crear") {
       const { nombre, email, rol } = body;
       if (!nombre || !email || !rol) return json({ error: "Faltan datos (nombre, email, rol)." }, 400);
-      if (rol !== "admin" && rol !== "operador") return json({ error: "Rol inválido." }, 400);
+      if (rol !== "admin" && rol !== "operador" && rol !== "lector") return json({ error: "Rol inválido." }, 400);
 
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,

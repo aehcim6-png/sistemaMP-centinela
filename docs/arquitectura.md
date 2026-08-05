@@ -82,8 +82,9 @@ silencio el trabajo de otra persona.
 - **Login**: correo + contraseña contra Supabase Auth. Si la cuenta tiene
   verificación en dos pasos (MFA/TOTP) activada, pide el código de 6 dígitos
   DESPUÉS de validar la contraseña, nunca antes.
-- **Roles**: cada usuario tiene un rol (`admin` u `operador`) guardado en la
-  tabla `user_roles`. El rol se usa para dos cosas, con distinto peso:
+- **Roles**: cada usuario tiene un rol (`admin`, `operador` o `lector`)
+  guardado en la tabla `user_roles`. El rol se usa para dos cosas, con
+  distinto peso:
   - Ocultar/mostrar botones y pestañas en pantalla (primera línea, cosmética).
   - **Row Level Security (RLS) real en Postgres** — cada una de las 31 tablas
     tiene su propia política de quién puede leer/escribir, y 4 tablas
@@ -95,6 +96,25 @@ silencio el trabajo de otra persona.
 - **Gestión de usuarios**: crear/activar/desactivar cuentas pasa por una
   única Edge Function (`crear-operador`), no por el frontend directo — es el
   único punto del sistema con privilegio elevado (`service_role`).
+
+### 5b. Rol "lector" (solo lectura) — solo backend por ahora
+
+Tercer rol en `user_roles.role` (además de `admin`/`operador`), pensado para
+alguien que necesita VER el sistema sin poder editarlo. La base de datos ya
+lo hace cumplir de verdad: `privado.es_editor_activo()` (activo Y rol
+admin/operador) reemplazó a `privado.es_usuario_activo()` en el
+INSERT/UPDATE/DELETE de todas las tablas operacionales y mixtas — un
+usuario `lector` puede leer todo pero cualquier escritura la rechaza
+Postgres, sin depender de que el frontend se porte bien
+(`20260805215000_agregar_rol_lector_solo_lectura.sql`).
+
+**Deliberadamente incompleto todavía**: la interfaz no oculta ni deshabilita
+los botones de crear/editar/eliminar para este rol — un usuario lector los
+va a seguir viendo, y si toca uno, la escritura se descarta en el servidor
+pero la fila puede parpadear como "editada" en su pantalla hasta el próximo
+refresco (porque S.s() actualiza el estado local en optimista antes de
+confirmar contra Supabase). Ocultar esos controles en las ~30 pestañas es
+un paso aparte, todavía no hecho.
 
 ### 6. Estructura de datos en Supabase
 

@@ -106,13 +106,22 @@
   <ul>
     <li><b>Login</b>: correo + contraseña. Si la cuenta tiene MFA activado, pide el código de 6
     dígitos DESPUÉS de validar la contraseña, nunca antes.</li>
-    <li><b>Roles</b>: <code>admin</code> u <code>operador</code>, guardado en <code>user_roles</code>.
-    El rol oculta/muestra botones (cosmético) y aplica <b>Row Level Security real en Postgres</b>
-    — 4 tablas mixtas tienen además un trigger que bloquea a un operador que intente cambiar
-    columnas reservadas a admin, aunque manipule el navegador.</li>
+    <li><b>Roles</b>: <code>admin</code>, <code>operador</code> o <code>lector</code>, guardado en
+    <code>user_roles</code>. El rol oculta/muestra botones (cosmético) y aplica <b>Row Level
+    Security real en Postgres</b> — 4 tablas mixtas tienen además un trigger que bloquea a un
+    operador que intente cambiar columnas reservadas a admin, aunque manipule el navegador.</li>
     <li><b>Gestión de usuarios</b>: pasa por una única Edge Function (<code>crear-operador</code>),
     el único punto del sistema con privilegio elevado.</li>
   </ul>
+
+  <h3>5b. Rol "lector" (solo lectura) — solo backend por ahora</h3>
+  <p>Pensado para alguien que necesita VER el sistema sin poder editarlo.
+  <code>privado.es_editor_activo()</code> (activo Y rol admin/operador) reemplazó a
+  <code>privado.es_usuario_activo()</code> en el INSERT/UPDATE/DELETE de todas las tablas
+  operacionales y mixtas — un usuario <code>lector</code> puede leer todo pero cualquier
+  escritura la rechaza Postgres, sin depender de que el frontend se porte bien.
+  <b>Deliberadamente incompleto todavía</b>: la interfaz no oculta ni deshabilita los botones de
+  crear/editar/eliminar para este rol — queda para un paso aparte.</p>
 
   <h3>6. Estructura de datos en Supabase</h3>
   <p>~31 tablas, una por categoría, más 6 "singleton" de configuración. El mapeo vive en

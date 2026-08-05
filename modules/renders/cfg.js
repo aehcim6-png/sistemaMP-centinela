@@ -223,7 +223,7 @@ window.renderCfg=function(){
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Email</label><br>'+
       '<input id="nuEmail" type="email" placeholder="correo@ejemplo.com" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Rol</label><br>'+
-      '<select id="nuRol" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"><option value="operador">Operador</option><option value="admin">Admin</option></select></div>'+
+      '<select id="nuRol" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"><option value="operador">Operador</option><option value="admin">Admin</option><option value="lector">Lector (solo lectura)</option></select></div>'+
       '<button class="btn" style="width:100%" onclick="crearUsuarioUI()">➕ Crear usuario (queda bloqueado)</button>'+
       '<div id="nuResultado" style="margin-top:10px;font-size:12px"></div>'+
       '<div style="font-size:10px;color:var(--tx3);margin-top:8px">La cuenta queda creada pero bloqueada — no puede iniciar sesión hasta que tú la actives abajo.</div>'+
