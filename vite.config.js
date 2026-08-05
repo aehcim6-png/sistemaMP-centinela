@@ -43,6 +43,12 @@ function copiarAssetsPlanos() {
       // de Configuración pueda abrir docs/plano-sistema.html en producción.
       const docsDir = path.resolve(__dirname, 'docs');
       if (fs.existsSync(docsDir)) copiarDirRecursivo(docsDir, path.join(outDir, 'docs'));
+      // manifest.json/sw.js/icons/ (PWA) NO se copian acá — viven en public/,
+      // que Vite copia solo al outDir tal cual, sin hashear ni reescribir
+      // rutas (a diferencia de assets referenciados por <link>, que si
+      // vivieran fuera de public/ Vite los movería a assets/ con un nombre
+      // hasheado — rompía el manifest.json, que apunta a sus íconos con
+      // rutas relativas propias, no re-escritas por ese mecanismo).
     }
   };
 }
