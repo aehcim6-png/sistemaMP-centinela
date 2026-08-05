@@ -434,7 +434,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
         try{localStorage.setItem(K+catKey,JSON.stringify(_recorteParaLocal(catKey,fresco)));}catch(e){}
       }
     },
-    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+    '⚠️ Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
   );
   if(conflicto)return;
 
@@ -479,7 +479,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
 // pantalla aunque el cambio nunca haya llegado a la base real.
 function _avisarErrorGuardado(tabla,detalleServidor){
   var msg='⚠️ No se pudo guardar en la nube ('+tabla+')';
-  if(/admin/i.test(detalleServidor))msg='<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Ese cambio requiere permisos de administrador — no se guardó';
+  if(/admin/i.test(detalleServidor))msg='⛔ Ese cambio requiere permisos de administrador — no se guardó';
   if(typeof toast==='function')toast(msg);
   console.error('Error guardando en Supabase:',tabla,detalleServidor);
   // "row-level security policy" (sin mención a admin) casi siempre es sesión vencida,
@@ -528,7 +528,7 @@ async function _syncVencimientosInner(obj,objAnterior){
         try{localStorage.setItem(K+'venc',JSON.stringify(_recorteParaLocal('venc',fresco)));}catch(e){}
       }
     },
-    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Otra persona modificó vencimientos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+    '⚠️ Otra persona modificó vencimientos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
   );
   if(conflicto)return;
 
@@ -580,7 +580,7 @@ async function _syncSingletonInner(cfgS,v,catKey){
         try{localStorage.setItem(K+catKey,JSON.stringify(fresco.valor));}catch(e){}
       }
     },
-    '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Otra persona modificó esta configuración mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
+    '⚠️ Otra persona modificó esta configuración mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
   );
   if(conflicto)return;
 
