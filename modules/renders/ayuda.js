@@ -22,6 +22,7 @@ window.renderAyuda=function(){
     '<li><b>Tooltip del Programa Anual ya no se rompe visualmente:</b> cuando el PM ejecutado no coincidía con el planificado, el aviso emergente de la celda mostraba código en vez del mensaje. Ahora se ve el aviso normal, en texto.</li>'+
     '<li><b>Botón "+ Agregar" de Componentes Mayores ya funciona:</b> antes creaba un componente sin equipo asignado, que el sistema borraba solo de inmediato — parecía que el botón no hacía nada. Ahora pide el equipo real antes de crear el componente.</li>'+
     '<li><b>Botón "+ Agregar" de Plan Semanal ya funciona:</b> mismo problema que Componentes Mayores — creaba un ítem sin equipo asignado, imposible de asociar después a un equipo real. Ahora también pide el equipo (y el tipo de PM) antes de crear el ítem.</li>'+
+    '<li><b>Log de Cambios ahora dice QUÉ cambió, no solo QUE algo cambió:</b> una edición mostraba solo "actualización de fila(s) existente(s)". Ahora indica el campo y los valores exactos (ej. "horomActual: 8138 → 8175"), útil para reconstruir qué pasó ante un dato incorrecto.</li>'+
     '</ul>'+
     '</div>'+
 

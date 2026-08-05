@@ -2256,6 +2256,22 @@ window._logChange=function(accion,detalle){
 // — saveReg, saveFicha, savePauta, altas, bajas, etc. nunca pasaban por ahí, así que en
 // la práctica el changelog quedaba casi siempre vacío. Se engancha en S.s() en vez de
 // en funciones puntuales porque TODO guardado del sistema pasa por ahí, sin excepción.
+function _val2strLog(v){
+  if(v==null)return '';
+  var s=typeof v==='object'?JSON.stringify(v):String(v);
+  return s.length>30?s.slice(0,30)+'…':s;
+}
+// Foto limpia (copia profunda) de cada tabla real, tomada al final de esta misma
+// función — NO se puede usar el 'anterior' que pasa store.js para el diff campo a
+// campo: S.g() devuelve copias superficiales (arreglo nuevo, pero las FILAS de
+// adentro son las mismas referencias que las de _sbCache), así que un patrón común
+// como "var eq=S.g('eq'); eq[i].campo=val; S.s('eq',eq)" ya mutó _sbCache['eq'][i]
+// ANTES de que S.s() se ejecute — 'anterior' y 'nuevo' llegan idénticos y el diff
+// no detecta nada. Con esta foto propia (clonada de verdad, sin aliasing) el diff
+// sí ve el valor real de la vez anterior. El único costo es no tener diff en el
+// PRIMER guardado de cada tabla en la sesión (sin foto previa) — se autocompleta
+// desde el segundo guardado en adelante.
+var _logSnapAnterior={};
 function _logChangeGenerico(k,anterior,nuevo){
   if(k==='changelog')return; // evita loguear el propio log de cambios
   if(!Array.isArray(nuevo))return; // por ahora solo categorías-tabla (arreglo)
@@ -2266,8 +2282,36 @@ function _logChangeGenerico(k,anterior,nuevo){
   }else if(nuevo.length<antes.length){
     _logChange('Eliminar en '+k,'-'+(antes.length-nuevo.length)+' fila(s)');
   }else{
-    _logChange('Editar '+k,'actualización de fila(s) existente(s)');
+    // Diff campo a campo emparejando filas por la clave real de esa tabla (misma
+    // clave que usa _syncTablaGenericaInner para saber qué fila es cuál) — antes
+    // este caso solo decía "actualización de fila(s) existente(s)", sin indicar
+    // ni el campo ni el valor, lo que hacía inútil el log para reconstruir qué
+    // pasó realmente ante un dato incorrecto.
+    var cfg=TABLA_REAL[k];
+    var clave=cfg&&cfg.clave;
+    var cambios=[];
+    var snap=_logSnapAnterior[k];
+    if(clave&&snap){
+      var mapaAntes={};
+      snap.forEach(function(o){if(o&&o[clave]!=null)mapaAntes[o[clave]]=o;});
+      nuevo.forEach(function(o){
+        if(!o||o[clave]==null)return;
+        var prev=mapaAntes[o[clave]];
+        if(!prev)return; // no debería pasar (mismo largo), pero por si acaso
+        (cfg.cols||[]).forEach(function(campo){
+          var a=_val2strLog(prev[campo]),n=_val2strLog(o[campo]);
+          if(a!==n)cambios.push(campo+': "'+a+'" → "'+n+'"');
+        });
+      });
+    }
+    if(cambios.length){
+      var detalle=cambios.slice(0,5).join(' · ')+(cambios.length>5?' … (+'+(cambios.length-5)+' campo(s) más)':'');
+      _logChange('Editar '+k,detalle);
+    }else{
+      _logChange('Editar '+k,'actualización de fila(s) existente(s)');
+    }
   }
+  if(TABLA_REAL[k]){try{_logSnapAnterior[k]=JSON.parse(JSON.stringify(nuevo));}catch(e){}}
 }
 
 
