@@ -23,7 +23,7 @@ function copiarDirRecursivo(origen, destino) {
 
 function copiarAssetsPlanos() {
   // Archivos sueltos (script planos, no módulos ES): logic.js y vendor/*.js.
-  const archivos = ['logic.js', 'vendor/jspdf.umd.min.js', 'vendor/qrcode.min.js', 'vendor/xlsx.core.min.js'];
+  const archivos = ['logic.js', 'vendor/jspdf.umd.min.js', 'vendor/qrcode.min.js', 'vendor/xlsx.core.min.js', 'vendor/sentry.min.js'];
   return {
     name: 'copiar-assets-planos',
     closeBundle() {

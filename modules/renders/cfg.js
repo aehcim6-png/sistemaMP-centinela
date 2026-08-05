@@ -248,6 +248,15 @@ window.renderCfg=function(){
       '</div></div>'
       :'')+
 
+      // MONITOREO DE ERRORES (Sentry) — solo admin
+      (window._userRole==='admin'?
+      '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
+      '<b style="font-size:14px">🐞 Monitoreo de errores</b>'+
+      '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Cada error real que le pase a un usuario (no solo a vos probando) queda registrado en Sentry, con el nombre de quién lo vio y qué estaba haciendo. Este botón manda un error de prueba para confirmar que la conexión funciona — deberías verlo en sentry.io en menos de un minuto.</p>'+
+      '<button class="btn btn-o" onclick="if(window.Sentry){Sentry.captureException(new Error(\'Prueba manual desde Configuración — \'+new Date().toLocaleString()));toast(\'🐞 Error de prueba enviado a Sentry\');}else{toast(\'⚠️ Sentry no está cargado en esta página\');}">Enviar error de prueba</button>'+
+      '</div>'
+      :'')+
+
       // INFO SISTEMA
       '<div class="card"><b style="font-size:14px">🔲 Códigos QR por Equipo</b><br><br>'+
       '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Genera un QR único por equipo. Al escanearlo abre directo su ficha en Equipos — sin buscarlo a mano. Descárgalos para imprimir y pegar en cada máquina.</p>'+

@@ -4,6 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SistemaMP Centinela v10 — Besalco Minería</title>
+<!-- Monitoreo de errores (Sentry) — vendorizado en vendor/sentry.min.js, mismo
+     criterio que jspdf/qrcode/xlsx (nada por CDN en tiempo de ejecución: se
+     bajó una vez con esbuild desde @sentry/browser y se comitea el archivo).
+     Se inicializa lo más temprano posible en <head>, antes que cualquier otro
+     script de la app, para poder capturar hasta errores de carga. El bundle
+     vendorizado es solo el núcleo (captura de errores + breadcrumbs) — no
+     incluye tracing de performance ni session replay, a propósito: no los
+     pedimos y consumen cuota del plan gratis aparte de los errores. -->
+<script src="vendor/sentry.min.js"></script>
+<script>
+if(window.Sentry){
+  Sentry.init({
+    dsn:'https://349c548d7e7f1444aa29d57eafbc3d87@o4511860195852288.ingest.us.sentry.io/4511860237729792',
+    environment:(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'local':'production',
+    sendDefaultPii:false
+  });
+}
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 :root{--bg:#0a0e17;--bg2:#111827;--bg3:#1a2236;--bg4:#243049;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--ac:#f59e0b;--ac2:#d97706;--ac3:#fbbf24;--ok:#22c55e;--warn:#eab308;--danger:#ef4444;--info:#3b82f6;--pm1:#22c55e;--pm2:#3b82f6;--pm3:#f59e0b;--pm4:#ef4444;--edit:#1e293b;--editBorder:#334155;--border:#1e293b;--radius:8px;--font:'IBM Plex Sans',sans-serif;--mono:'JetBrains Mono',monospace}
@@ -3111,6 +3129,7 @@ async function _completarLogin(email,data){
   _currentRole = rol?.role||'operador';
   window._userName = rol?.nombre||email;
   window._userRole = _currentRole;
+  if(window.Sentry)Sentry.setUser({email:email,username:window._userName});
   if(_currentUser?.user_metadata?.must_change_password){
     _mostrarCambioClaveOverlay();
     return;
@@ -3123,6 +3142,7 @@ async function _completarLogin(email,data){
 }
 
 function _logout(){
+  if(window.Sentry)Sentry.setUser(null);
   _sbAuthLogout().finally(function(){location.reload();});
 }
 
@@ -3354,6 +3374,7 @@ document.addEventListener('DOMContentLoaded',async function(){
       _currentRole = rol?.role||'operador';
       window._userName = rol?.nombre||user.email;
       window._userRole = _currentRole;
+      if(window.Sentry)Sentry.setUser({email:user.email,username:window._userName});
       _programarRefreshToken(_token);
       _registrarLogin('Sesión restaurada');
       _arrancarSistema();

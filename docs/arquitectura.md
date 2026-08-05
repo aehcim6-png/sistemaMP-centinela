@@ -126,6 +126,20 @@ de Supabase.
   cada navegador tiene una copia completa en `localStorage`, y el JSON de
   backup permitiría reconstruir los datos en otro backend.
 
+### 8. Monitoreo de errores — Sentry
+
+Cada error real de JavaScript en producción (no solo los que se detectan
+probando) queda registrado en Sentry con el usuario y la acción que lo
+disparó. El SDK está vendorizado en `vendor/sentry.min.js` (mismo criterio
+que jspdf/qrcode/xlsx: nada por CDN en tiempo de ejecución — se generó una
+vez con `esbuild` a partir de `@sentry/browser` y se comitea el archivo) y
+se inicializa lo más temprano posible en `<head>`, antes que cualquier otro
+script. Solo incluye captura de errores y breadcrumbs — sin tracing de
+performance ni session replay, que no se pidieron y gastan cuota del plan
+gratis aparte. Configuración → "🐞 Monitoreo de errores" (solo admin) tiene
+un botón para mandar un error de prueba y confirmar que la conexión sigue
+viva.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No convertir a módulos ES**: cambiar `<script>` planos a
