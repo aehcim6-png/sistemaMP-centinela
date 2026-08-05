@@ -288,7 +288,7 @@ function _recalcEq(e){
   var ult=_horomUltimoPM(e.sigla);
   return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),ult?ult.horom:null,ult?ult.tipo:null);
 }
-C.recalcAll=function(){const eq=S.g('eq');eq.forEach(e=>_recalcEq(e));S.s('eq',eq);return eq};
+C.recalcAll=function(){const eq=S.g('eq');if(!eq)return[];eq.forEach(e=>_recalcEq(e));S.s('eq',eq);return eq};
 // ============ HELPERS ============
 // fd/fn/escapeHtml viven en logic.js.
 const $=id=>document.getElementById(id);
@@ -503,7 +503,7 @@ function ordenarTabla(tabla,col,th){
 }
 // ============ HEADER ============
 function renderHeader(){
-  const eq=S.g('eq'),reg=S.g('reg');
+  const eq=S.g('eq')||[],reg=S.g('reg')||[];
   const u=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')).length;
   const p=eq.filter(e=>e.estado?.includes('PRÓXIMA')).length;
   const o=eq.filter(e=>e.estado?.includes('AL DÍA')).length;

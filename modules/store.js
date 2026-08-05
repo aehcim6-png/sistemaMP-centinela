@@ -741,22 +741,15 @@ const S={
     if(window._autoSaveMark)window._autoSaveMark();
     return true;
   },
-  init(){if(!this.g('eq')){this.s('eq',INIT.equipos);this.s('reg',INIT.registros);this.s('lub',INIT.lubricantes);this.s('fil',INIT.filtrosMaestro);this.s('stk',INIT.stockFiltros);this.s('al',INIT.alertas);/* pautas in INIT */
-this.s('prg',INIT.programa);this.s('hh',INIT.tarifaHH);this.s('hist',[]);}
-  if((this.g('reg')||[]).length<INIT.registros.length||!this.g('reg_v2')){{this.s('reg',INIT.registros);this.s('reg_v2',true);}
-  if(!this.g('eq_v8')){this.s('eq',INIT.equipos);this.s('eq_v8',true);}
-  if(!this.g('eq_v9')){
-    // Actualizar horómetros reales de camionetas y bus (julio 2026)
-    var eqAct=this.g('eq')||[];
-    var hUpd={'CA-9927':67305,'CA-6146':55581,'CA-5979':114681,'CA-10505':2500,'CA-10506':2560,'BS-5752':409000};
-    var changed=false;
-    eqAct.forEach(function(e){if(hUpd[e.sigla]!==undefined&&e.horomActual!==hUpd[e.sigla]){e.horomActual=hUpd[e.sigla];e.fechaHorom='2026-07-07';changed=true;}});
-    if(changed)this.s('eq',eqAct);
-    this.s('eq_v9',true);
-  }
-  if(INIT.historial&&!this.g('hist_v6')){this.s('hist',INIT.historial);this.s('hist_v6',true);}}
+  init(){
+  // Defaults LOCALES seguros (arreglos/objetos vacíos, nunca datos de
+  // negocio reales) — corren SIEMPRE, con o sin nube configurada, para que
+  // el resto de la app no se rompa (ej. un ".forEach()" sobre null) cuando
+  // una categoría todavía no cargó, sea por ser la primera vez o por un
+  // fetch fallido puntual. Subir un arreglo vacío a una tabla real es
+  // inofensivo (_syncTablaGenericaInner no borra ni upsertea nada si no
+  // hay filas de por medio ni un "anterior" con que compararlas).
   if(!this.g('ot'))this.s('ot',[]);
-  if(!this.g('neu'))this.s('neu',INIT.neumaticos||[]);
   if(!this.g('planSem'))this.s('planSem',[]);
   if(!this.g('compMayores'))this.s('compMayores',[]);
   if(!this.g('dispCalc'))this.s('dispCalc',{});
@@ -770,6 +763,35 @@ this.s('prg',INIT.programa);this.s('hh',INIT.tarifaHH);this.s('hist',[]);}
   if(!this.g('insp'))this.s('insp',[]);
   if(!this.g('repuestos'))this.s('repuestos',[]);
   if(!this.g('ordenes'))this.s('ordenes',[]);
+
+  // A partir de acá: siembra de datos de fábrica CON CONTENIDO REAL
+  // (INIT.equipos, INIT.registros, config con nombre de empresa/faena real,
+  // etc.) — esto es SOLO para un escenario sin Supabase configurado en
+  // absoluto (demo/pruebas locales). Nunca debe correr cuando la nube SÍ
+  // está configurada, aunque el fetch de alguna categoría puntual haya
+  // fallado esta vez.
+  //
+  // Bug real encontrado (2026-08-05): en un dispositivo/PWA con
+  // almacenamiento vacío (típico de una instalación nueva), si el pedido
+  // paralelo de 'eq' fallaba por una red floja, _sbLoadHeavy() igual
+  // devolvía éxito general (solo revisa que el primer fetch a 'kv' salga
+  // bien, no cada categoría) — nunca se activaba el modo offline, y este
+  // bloque veía "eq vacío" y subía el set de fábrica (viejo) a la tabla
+  // real, pisando datos de flota reales y compartidos por todos los
+  // usuarios. Confirmado con datos reales: no llegó a perderse nada porque
+  // un guardado normal poco después volvió a subir los valores correctos,
+  // pero la ventana de riesgo era real.
+  //
+  // Las migraciones de una sola vez que vivían acá (eq_v8, eq_v9 con el
+  // parche de horómetros de julio 2026, reg_v2, hist_v6) se eliminan por el
+  // mismo motivo: ya se aplicaron hace meses, los datos reales en Supabase
+  // ya avanzaron mucho más allá, y quedaban gatilladas por una bandera
+  // guardada POR DISPOSITIVO (no por la nube) — cualquier celular/PWA nuevo
+  // las disparaba de nuevo, resembrando datos viejos encima de los reales.
+  if(_sbOk())return;
+  if(!this.g('eq')){this.s('eq',INIT.equipos);this.s('reg',INIT.registros);this.s('lub',INIT.lubricantes);this.s('fil',INIT.filtrosMaestro);this.s('stk',INIT.stockFiltros);this.s('al',INIT.alertas);/* pautas in INIT */
+  this.s('prg',INIT.programa);this.s('hh',INIT.tarifaHH);this.s('hist',[]);}
+  if(!this.g('neu'))this.s('neu',INIT.neumaticos||[]);
   if(!this.g('cfg'))this.s('cfg',{empresa:'Besalco Minería S.A',faena:'Centinela Ripios OXE',meta:85});
   }
 };
