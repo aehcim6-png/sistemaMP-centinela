@@ -773,3 +773,40 @@ this.s('prg',INIT.programa);this.s('hh',INIT.tarifaHH);this.s('hist',[]);}
   if(!this.g('cfg'))this.s('cfg',{empresa:'Besalco Minería S.A',faena:'Centinela Ripios OXE',meta:85});
   }
 };
+
+// ══════════════════════════════════════════════════════════════════
+// PAPELERA (soft-delete con recuperación, retención 30 días) — lógica de datos
+// pura, sin DOM (misma idea que logic.js): vive acá para poder testearla con
+// Node/Vitest sin arrancar la app completa. La contraparte con efectos de UI
+// (_restaurarDePapelera: refreshAll/renders/toast) queda en index.html, igual
+// que el resto de los del*/ed* de cada pestaña.
+// ══════════════════════════════════════════════════════════════════
+// Se llama ANTES de splice/filter en cada punto de eliminación de la app
+// (delRow genérico + los del* específicos de cada pestaña) — guarda una copia
+// clonada profundo de la fila. S.g() comparte referencia de fila con _sbCache
+// (ver nota en S.g más arriba); sin clonar acá, cualquier mutación posterior
+// de esa misma referencia contaminaría la copia guardada. categoria = la
+// misma clave de TABLA_REAL de la que se borró (ej. 'ot','reg'), reusada tal
+// cual para poder restaurar después con S.s(categoria, ...).
+function _moverAPapelera(categoria,filaEliminada){
+  if(!filaEliminada)return;
+  var pap=S.g('papelera')||[];
+  pap.push({_id:_uuidV4(),categoria:categoria,fila:JSON.parse(JSON.stringify(filaEliminada)),fechaEliminacion:new Date().toISOString(),eliminadoPor:(typeof window!=='undefined'&&window._userName)||'Sistema'});
+  S.s('papelera',pap);
+}
+// Purga silenciosa de filas con más de 30 días — se llama una vez al arrancar
+// la app (ver _arrancar() en index.html), no en cada render.
+function _purgarPapeleraVieja(){
+  var pap=S.g('papelera')||[];
+  var LIMITE_MS=30*24*60*60*1000;
+  var ahora=Date.now();
+  var vigentes=pap.filter(function(p){return(ahora-new Date(p.fechaEliminacion).getTime())<LIMITE_MS;});
+  if(vigentes.length!==pap.length)S.s('papelera',vigentes);
+}
+if(typeof window!=='undefined'){
+  window._moverAPapelera=_moverAPapelera;
+  window._purgarPapeleraVieja=_purgarPapeleraVieja;
+}
+if(typeof module!=='undefined'&&module.exports){
+  module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache};
+}

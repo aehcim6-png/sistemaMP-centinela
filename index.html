@@ -974,19 +974,10 @@ window.delRow=function(store,idx,tab){
 };
 
 // ============ PAPELERA (soft-delete con recuperación, retención 30 días) ============
-// _moverAPapelera se llama ANTES de splice/filter en cada punto de eliminación de
-// la app (delRow genérico de arriba + los del* específicos de cada pestaña) —
-// guarda una copia clonada profundo de la fila. S.g() comparte referencia de fila
-// con _sbCache (ver nota en S.g más arriba en store.js); sin clonar acá, cualquier
-// mutación posterior de esa misma referencia contaminaría la copia guardada.
-// categoria = la misma clave de TABLA_REAL de la que se borró (ej. 'ot','reg'),
-// reusada tal cual para poder restaurar después con S.s(categoria, ...).
-function _moverAPapelera(categoria,filaEliminada){
-  if(!filaEliminada)return;
-  var pap=S.g('papelera')||[];
-  pap.push({_id:_uuidV4(),categoria:categoria,fila:JSON.parse(JSON.stringify(filaEliminada)),fechaEliminacion:new Date().toISOString(),eliminadoPor:window._userName||'Sistema'});
-  S.s('papelera',pap);
-}
+// _moverAPapelera y _purgarPapeleraVieja viven en modules/store.js (lógica de datos
+// pura, sin DOM — mismo criterio que logic.js, testeable con Node/Vitest sin
+// arrancar la app). _restaurarDePapelera se queda acá porque mezcla datos con UI
+// (refreshAll/renders/toast), igual que el resto de los del*/ed* de cada pestaña.
 window._restaurarDePapelera=function(id){
   var pap=S.g('papelera')||[];
   var idx=pap.findIndex(function(p){return p._id===id;});
@@ -1001,15 +992,6 @@ window._restaurarDePapelera=function(id){
   if(typeof renders.papelera==='function')renders.papelera();
   toast('♻️ Restaurado');
 };
-// Purga silenciosa de filas con más de 30 días — se llama una vez al arrancar la
-// app (ver _arrancar()), no en cada render.
-function _purgarPapeleraVieja(){
-  var pap=S.g('papelera')||[];
-  var LIMITE_MS=30*24*60*60*1000;
-  var ahora=Date.now();
-  var vigentes=pap.filter(function(p){return(ahora-new Date(p.fechaEliminacion).getTime())<LIMITE_MS;});
-  if(vigentes.length!==pap.length)S.s('papelera',vigentes);
-}
 
 // ============ EXPORT CSV ============
 window.exportCSV=function(store){
