@@ -139,6 +139,13 @@
   de performance ni session replay. Configuración → "🐞 Monitoreo de errores" (solo admin) tiene
   un botón para mandar un error de prueba.</p>
 
+  <h3>9. Backup automático diario</h3>
+  <p>Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de Postgres
+  (<code>pg_cron</code>) llama a la Edge Function <code>backup-diario</code>, que junta TODAS las
+  tablas reales, las comprime (gzip) y las manda por email vía Resend como adjunto
+  <code>.json.gz</code> — sin depender de que la app esté abierta en ningún navegador. La clave de
+  Resend vive cifrada en <b>Supabase Vault</b>, nunca en el código.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No convertir a módulos ES</b>: cambiar a <code>type="module"</code> cambia reglas de

@@ -140,6 +140,22 @@ gratis aparte. Configuración → "🐞 Monitoreo de errores" (solo admin) tiene
 un botón para mandar un error de prueba y confirmar que la conexión sigue
 viva.
 
+### 9. Backup automático diario
+
+Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de
+Postgres (`pg_cron`) llama a la Edge Function `backup-diario`
+(`supabase/functions/backup-diario/`), que junta TODAS las tablas reales,
+las comprime (gzip) y las manda por email vía Resend a `aehcim6@gmail.com`
+como adjunto `.json.gz` — sin depender de que la app esté abierta en ningún
+navegador (a diferencia del respaldo a carpeta local, que sí lo necesita).
+
+La clave de Resend nunca queda en el código: vive cifrada en **Supabase
+Vault** (`vault.create_secret`, nombre `resend_api_key`) y el cron job la
+lee recién al momento de invocar la función, pasándola en un header
+(`X-Resend-Key`) que la función usa una sola vez y no persiste. La
+programación del cron vive en
+`supabase/migrations/20260805213000_programar_backup_diario.sql`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No convertir a módulos ES**: cambiar `<script>` planos a
