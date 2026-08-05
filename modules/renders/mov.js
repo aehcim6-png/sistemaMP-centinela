@@ -98,6 +98,7 @@ window.delMov = function (idx) {
       if (li >= 0) { lub[li].stock = (lub[li].stock || 0) + (m.cant || 0); S.s('lub', lub); }
     }
   }
+  _moverAPapelera('mov', m);
   mov.splice(idx, 1);
   S.s('mov', mov);
   refreshAll();

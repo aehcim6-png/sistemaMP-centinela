@@ -305,7 +305,10 @@ window.renderInformes=function(){
 };
 window.delInforme=function(id){
   if(!confirm('¿Eliminar este informe? (Las fotos quedan guardadas en Supabase Storage, no se borran automáticamente)'))return;
-  var lista=(S.g('informesFalla')||[]).filter(function(x){return x.id!==id;});
+  var todos=S.g('informesFalla')||[];
+  var fila=todos.find(function(x){return x.id===id;});
+  if(fila)_moverAPapelera('informesFalla',fila);
+  var lista=todos.filter(function(x){return x.id!==id;});
   S.s('informesFalla',lista);
   renders.informes();
 };

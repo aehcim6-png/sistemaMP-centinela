@@ -63,6 +63,7 @@ window.edPau=function(i,key,val){
 window.delPauta=function(i){
   if(!confirm('¿Eliminar actividad?'))return;
   var pau=S.g('pau')||INIT.pautas||[];
+  _moverAPapelera('pau',pau[i]);
   pau.splice(i,1);S.s('pau',pau);
   refreshAll();
   toast('🗑️ Eliminada');

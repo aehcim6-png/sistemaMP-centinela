@@ -54,7 +54,7 @@ window.edInsp = function (i, key, val) {
 };
 window.delInsp = function (i) {
   if (!confirm('¿Eliminar inspección?')) return;
-  var insp = S.g('insp') || []; insp.splice(i, 1); S.s('insp', insp); refreshAll(); toast('🗑️ Eliminada');
+  var insp = S.g('insp') || []; _moverAPapelera('insp', insp[i]); insp.splice(i, 1); S.s('insp', insp); refreshAll(); toast('🗑️ Eliminada');
 };
 window.addInsp = function () {
   var eq = S.g('eq') || [];

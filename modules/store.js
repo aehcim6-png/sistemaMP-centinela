@@ -120,7 +120,11 @@ const TABLA_REAL={
   // que quedan como campos editables en vez de una tabla de constantes como
   // NEU_CRITERIOS.
   cad:{tabla:'tren_rodaje',clave:'id',claveDb:'id',cols:['id','sigla','lado','componente','valorNuevo','limiteDesgaste','valorActual','pctRemanente','fechaInst','ultimaMedicion','horomInstalacion','estado','obs']},
-  cadMed:{tabla:'tren_rodaje_mediciones',clave:'_id',claveDb:'id',cols:['sigla','lado','componente','fecha','horom','valorMedido','obs']}
+  cadMed:{tabla:'tren_rodaje_mediciones',clave:'_id',claveDb:'id',cols:['sigla','lado','componente','fecha','horom','valorMedido','obs']},
+  // Papelera (soft-delete con recuperación) — cada fila es una copia completa de
+  // un registro eliminado de OTRA categoría, guardada acá antes de borrarlo de
+  // verdad. Ver _moverAPapelera/_restaurarDePapelera/_purgarPapeleraVieja (index.html).
+  papelera:{tabla:'papelera',clave:'_id',claveDb:'id',cols:['categoria','fila','fechaEliminacion','eliminadoPor']}
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={

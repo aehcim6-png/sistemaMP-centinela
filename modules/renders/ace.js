@@ -272,7 +272,7 @@ window.edAce=function(i,key,val){
 };
 window.delAce=function(i){
   if(!confirm('¿Eliminar muestra?'))return;
-  var ace=S.g('aceite')||[];ace.splice(i,1);S.s('aceite',ace);refreshAll();toast('🗑️ Eliminada');
+  var ace=S.g('aceite')||[];_moverAPapelera('aceite',ace[i]);ace.splice(i,1);S.s('aceite',ace);refreshAll();toast('🗑️ Eliminada');
 };
 
 // Mapa de columnas del CSV de laboratorio COPEC -> campos internos del sistema.

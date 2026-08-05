@@ -152,6 +152,7 @@ window.saveNuevoComp=function(){
 window.delComp=function(idx){
   var d=S.g('compMayores')||[];
   if(confirm('¿Eliminar componente '+d[idx].comp+' de '+d[idx].sigla+'?')){
+    _moverAPapelera('compMayores',d[idx]);
     d.splice(idx,1);S.s('compMayores',d);refreshAll();
   }
 };

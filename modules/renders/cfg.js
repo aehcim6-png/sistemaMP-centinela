@@ -99,6 +99,13 @@ window.renderCfg=function(){
     '<button class="btn btn-o" onclick="verLogCambios()">Ver log de cambios</button>'+
     '</div>'+
 
+    // PAPELERA (soft-delete con recuperación)
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
+    '<b style="font-size:14px">🗑️ Papelera</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Todo lo que se elimina en el sistema queda acá 30 días antes de borrarse para siempre — se puede recuperar en cualquier momento.</p>'+
+    '<button class="btn btn-o" onclick="verPapelera()">Ver papelera</button>'+
+    '</div>'+
+
     // VERIFICACIÓN EN DOS PASOS (MFA/TOTP) — estado se carga aparte, es async
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #ef4444" id="mfaCard">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Verificación en dos pasos</b>'+

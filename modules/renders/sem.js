@@ -492,6 +492,8 @@ window.delSem=function(idx){
   var items=manualItems.concat(autoItems);
   if(idx<items.length){
     var removed=items[idx];
+    var filaReal=semData.find(function(s){return s.sigla===removed.sigla&&s.semana==fSemana});
+    if(filaReal)_moverAPapelera('planSem',filaReal);
     semData=semData.filter(function(s){return!(s.sigla===removed.sigla&&s.semana==fSemana)});
     S.s('planSem',semData);refreshAll();
   }

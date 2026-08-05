@@ -186,6 +186,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
+<script src="modules/renders/papelera.js?v=2026-08-05"></script>
 <script src="modules/renders/cad.js?v=2026-08-05"></script>
 <script src="modules/renders/metas.js?v=2026-08-05"></script>
 <script src="modules/renders/mkpi.js?v=2026-08-05"></script>
@@ -967,8 +968,48 @@ window.delRow=function(store,idx,tab){
     ?'¿Eliminar este equipo de la flota activa?\n\nSus registros de PM, correctivos, historial de horómetros, neumáticos, etc. NO se borran — quedan conservados como historial (igual que un equipo decomisado). Podrás seguir viéndolos en Buscador y en Diagnóstico de Vínculos.'
     :'¿Eliminar este registro?';
   if(!confirm(msg))return;
-  const d=S.g(store);d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('🗑️ Eliminado');
+  const d=S.g(store);
+  _moverAPapelera(store,d[idx]);
+  d.splice(idx,1);S.s(store,d);renders[tab]?.();renderHeader();toast('🗑️ Eliminado');
 };
+
+// ============ PAPELERA (soft-delete con recuperación, retención 30 días) ============
+// _moverAPapelera se llama ANTES de splice/filter en cada punto de eliminación de
+// la app (delRow genérico de arriba + los del* específicos de cada pestaña) —
+// guarda una copia clonada profundo de la fila. S.g() comparte referencia de fila
+// con _sbCache (ver nota en S.g más arriba en store.js); sin clonar acá, cualquier
+// mutación posterior de esa misma referencia contaminaría la copia guardada.
+// categoria = la misma clave de TABLA_REAL de la que se borró (ej. 'ot','reg'),
+// reusada tal cual para poder restaurar después con S.s(categoria, ...).
+function _moverAPapelera(categoria,filaEliminada){
+  if(!filaEliminada)return;
+  var pap=S.g('papelera')||[];
+  pap.push({_id:_uuidV4(),categoria:categoria,fila:JSON.parse(JSON.stringify(filaEliminada)),fechaEliminacion:new Date().toISOString(),eliminadoPor:window._userName||'Sistema'});
+  S.s('papelera',pap);
+}
+window._restaurarDePapelera=function(id){
+  var pap=S.g('papelera')||[];
+  var idx=pap.findIndex(function(p){return p._id===id;});
+  if(idx<0)return;
+  var item=pap[idx];
+  var destino=S.g(item.categoria)||[];
+  destino.push(item.fila);
+  S.s(item.categoria,destino);
+  pap.splice(idx,1);
+  S.s('papelera',pap);
+  refreshAll();
+  if(typeof renders.papelera==='function')renders.papelera();
+  toast('♻️ Restaurado');
+};
+// Purga silenciosa de filas con más de 30 días — se llama una vez al arrancar la
+// app (ver _arrancar()), no en cada render.
+function _purgarPapeleraVieja(){
+  var pap=S.g('papelera')||[];
+  var LIMITE_MS=30*24*60*60*1000;
+  var ahora=Date.now();
+  var vigentes=pap.filter(function(p){return(ahora-new Date(p.fechaEliminacion).getTime())<LIMITE_MS;});
+  if(vigentes.length!==pap.length)S.s('papelera',vigentes);
+}
 
 // ============ EXPORT CSV ============
 window.exportCSV=function(store){
@@ -2316,6 +2357,7 @@ function _logChangeGenerico(k,anterior,nuevo){
 
 
 renders.log=renderLog;
+renders.papelera=renderPapelera;
 
 
 window.importDispCSV=function(){
@@ -2827,7 +2869,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 var _cfg=S.g('cfg')||{};if(_cfg.colorAc||_cfg.tema)applyTheme(_cfg);
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
-function _arrancar(){S.init();initNav();C.recalcAll();renders.dash();_jumpToEquipoQR();}
+function _arrancar(){S.init();initNav();C.recalcAll();renders.dash();_jumpToEquipoQR();_purgarPapeleraVieja();}
 function _jumpToEquipoQR(){
   var params=new URLSearchParams(location.search);
   var sigla=params.get('eq');

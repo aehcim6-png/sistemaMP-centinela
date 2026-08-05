@@ -40,4 +40,4 @@ window.renderDestrabe = function () {
 };
 window.edDestrabe = function (i, k, v) { var d = S.g('destrabe') || []; if (i < d.length) { d[i][k] = v; S.s('destrabe', d); } refreshAll(); };
 window.addDestrabe = function () { var d = S.g('destrabe') || []; d.push({ equipo: '', trabajo: '', tipo: 'PM', fechaSol: new Date().toISOString().slice(0, 10), motivo: '', accion: '', responsable: '', fechaComp: '', estado: 'Bloqueado', dias: 0 }); S.s('destrabe', d); refreshAll(); };
-window.delDestrabe = function (i) { var d = S.g('destrabe') || []; if (confirm('¿Eliminar?')) { d.splice(i, 1); S.s('destrabe', d); refreshAll(); } };
+window.delDestrabe = function (i) { var d = S.g('destrabe') || []; if (confirm('¿Eliminar?')) { _moverAPapelera('destrabe', d[i]); d.splice(i, 1); S.s('destrabe', d); refreshAll(); } };

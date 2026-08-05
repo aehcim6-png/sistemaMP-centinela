@@ -202,6 +202,7 @@ window.delProgDia = function (realIdx) {
   var p = d[realIdx];
   if (!p) return;
   if (!confirm('¿Eliminar a ' + p.nombre + ' (' + p.fecha + ', turno ' + p.turno + ') de la programación diaria?')) return;
+  _moverAPapelera('progDia', p);
   d.splice(realIdx, 1);
   S.s('progDia', d);
   refreshAll();

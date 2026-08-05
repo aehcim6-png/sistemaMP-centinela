@@ -137,5 +137,6 @@ window.delCad = function (idx) {
   if (window._userRole && window._userRole !== 'admin') return toast('⛔ Solo un administrador puede eliminar registros');
   const cad = S.g('cad') || []; const c = cad[idx]; if (!c) return;
   if (!confirm('¿Eliminar ' + c.sigla + ' ' + c.lado + ' ' + c.componente + '?')) return;
+  _moverAPapelera('cad', c);
   cad.splice(idx, 1); S.s('cad', cad); renders.cad();
 };

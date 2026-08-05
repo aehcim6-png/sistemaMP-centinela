@@ -125,7 +125,7 @@ window.edRep = function (i, key, val) {
 };
 window.delRep = function (i) {
   if (!confirm('¿Eliminar?')) return;
-  var rep = S.g('repuestos') || []; rep.splice(i, 1); S.s('repuestos', rep); refreshAll();
+  var rep = S.g('repuestos') || []; _moverAPapelera('repuestos', rep[i]); rep.splice(i, 1); S.s('repuestos', rep); refreshAll();
   toast('🗑️ Eliminado');
 };
 window.addRep = function () {

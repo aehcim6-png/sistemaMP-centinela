@@ -288,6 +288,7 @@ window.delHist=function(idx){
   if(!h[idx])return;
   var sigla=h[idx].sigla,horomEliminado=_horomDeLectura(h[idx]);
   if(confirm('¿Eliminar lectura de '+sigla+' del '+h[idx].fecha+'?')){
+    _moverAPapelera('hist',h[idx]);
     h.splice(idx,1);S.s('hist',h);
     var eq=S.g('eq')||[];
     var eqIdx=eq.findIndex(function(e){return e.sigla===sigla});
