@@ -288,7 +288,23 @@ function _recalcEq(e){
   var ult=_horomUltimoPM(e.sigla);
   return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),ult?ult.horom:null,ult?ult.tipo:null);
 }
-C.recalcAll=function(){const eq=S.g('eq');if(!eq)return[];eq.forEach(e=>_recalcEq(e));S.s('eq',eq);return eq};
+// Antes subía el arreglo completo a Supabase en CADA llamada, sin importar si
+// el recálculo cambió algo — recalcAll() corre en cada apertura del Dashboard
+// (el destino por defecto al entrar), así que con más de una pestaña/
+// dispositivo abiertos, cada uno resubía una foto casi idéntica de 'eq' una y
+// otra vez, y cada resubida disparaba el chequeo de conflicto contra la
+// resubida de la otra pestaña — el aviso de "otra persona modificó esto"
+// terminaba apareciendo todo el tiempo aunque nadie estuviera editando nada
+// de verdad. Comparar antes/después evita el guardado (y el conflicto) salvo
+// que algo haya cambiado en serio (ej. cruzó la medianoche y diasParaPM bajó).
+C.recalcAll=function(){
+  const eq=S.g('eq');
+  if(!eq)return[];
+  const antes=JSON.stringify(eq);
+  eq.forEach(e=>_recalcEq(e));
+  if(JSON.stringify(eq)!==antes)S.s('eq',eq);
+  return eq;
+};
 // ============ HELPERS ============
 // fd/fn/escapeHtml viven en logic.js.
 const $=id=>document.getElementById(id);
