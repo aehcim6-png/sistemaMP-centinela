@@ -40,7 +40,8 @@ window.renderHist=function(){
       var hrsOp=(r.horomFin&&r.horomIni)?r.horomFin-r.horomIni:(r.horom||0);
       return'<tr>'+
         '<td class="mono" style="font-size:10px;color:var(--tx3)">'+(histOrdenado.length-((pgHist.page-1)*_PAG_SIZE)-i)+'</td>'+
-        '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edHist('+idx+',\'sigla\',this.innerText.trim())">'+escapeHtml(r.sigla)+'</td>'+
+        '<td><select onchange="edHist('+idx+',\'sigla\',this.value)" style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px">'+
+        eq.map(function(e){return'<option'+(r.sigla===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'fecha\',this.innerText.trim())">'+r.fecha+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomIni\',parseFloat(this.innerText)||0)">'+(r.horomIni||r.horom||0)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomFin\',parseFloat(this.innerText)||0);edHist('+idx+',\'horom\',parseFloat(this.innerText)||0)">'+(r.horomFin||r.horom||0)+'</td>'+

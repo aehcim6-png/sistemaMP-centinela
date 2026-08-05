@@ -126,9 +126,28 @@ window.edComp=function(idx,key,val){
   refreshAll();
 };
 window.addComp=function(){
+  var eq=S.g('eq')||[];
+  if(!eq.length)return toast('⚠️ No hay equipos cargados');
+  sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Agregar Componente</h3>'+
+    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="cpEq">'+
+    eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
+    '<div class="fg"><label>Componente</label><input id="cpNombre" value="Nuevo Componente"></div></div>'+
+    '<br><button class="btn" onclick="saveNuevoComp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+};
+// addComp() pide equipo real por dropdown antes de crear la fila — antes creaba
+// directo una fila con sigla:'NUEVO', que syncEquipos() (corre en cada
+// refreshAll(), es decir después de CUALQUIER edición en CUALQUIER pestaña)
+// borraba de inmediato por no reconocerla como equipo real, y la tabla no tiene
+// celda editable de "Equipo" para corregirla — el botón "+ Agregar" parecía no
+// hacer nada.
+window.saveNuevoComp=function(){
+  var sigla=$('cpEq').value;
+  var nombre=($('cpNombre').value||'').trim()||'Nuevo Componente';
+  var eq=S.g('eq')||[];
+  var e=eq.find(function(x){return x.sigla===sigla});
   var d=S.g('compMayores')||[];
-  d.push({sigla:'NUEVO',tipo:'',modelo:'',comp:'Nuevo Componente',horomComp:0,vidaUtil:10000,costoRef:0,fechaInst:'',obs:'',estado:''});
-  S.s('compMayores',d);refreshAll();
+  d.push({sigla:sigla,tipo:e?e.tipo:'',modelo:e?e.modelo:'',comp:nombre,horomComp:0,vidaUtil:10000,costoRef:0,fechaInst:'',obs:'',estado:''});
+  S.s('compMayores',d);cm();refreshAll();
 };
 window.delComp=function(idx){
   var d=S.g('compMayores')||[];

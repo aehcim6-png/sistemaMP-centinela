@@ -90,9 +90,9 @@ window.renderPrg = function () {
           var coincide = !ejecTipo || !base || ejecTipo === true || ejecTipo === base;
           var v = ejecTipo ? (coincide ? 'EJEC' : 'EJEC≠' + ejecTipo) : base;
           var cls = v === 'PM1' ? 'pg-1' : v === 'PM2' ? 'pg-2' : v === 'PM3' ? 'pg-3' : v === 'PM4' ? 'pg-4' : v === 'EJEC' ? 'pg-x' : (v.indexOf('EJEC≠') === 0 ? 'pg-x' : '');
-          var tip = ejecTipo ? (coincide ? 'EJEC (auto, desde registros). Click para corregir el plan base de esta celda' : '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Se ejecutó ' + ejecTipo + ' pero estaba planificado ' + base + '. Click para corregir')
+          var tip = ejecTipo ? (coincide ? 'EJEC (auto, desde registros). Click para corregir el plan base de esta celda' : '⚠️ Se ejecutó ' + ejecTipo + ' pero estaba planificado ' + base + '. Click para corregir')
             : 'Click para cambiar PM';
-          return '<div class="pg-c ' + cls + '" title="' + tip + '" style="' + (!coincide ? 'color:#f59e0b' : '') + '" onclick="cyclePrg(' + pi + ',\'' + m + '\',' + (ejecTipo ? 'true' : 'false') + ')">' + (v || '·') + '</div>';
+          return '<div class="pg-c ' + cls + '" title="' + escapeHtml(tip) + '" style="' + (!coincide ? 'color:#f59e0b' : '') + '" onclick="cyclePrg(' + pi + ',\'' + m + '\',' + (ejecTipo ? 'true' : 'false') + ')">' + (v || '·') + '</div>';
         }).join('');
     }).join('') +
     '</div>';

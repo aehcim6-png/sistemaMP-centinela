@@ -3,6 +3,7 @@
 // mismo scope global de siempre.
 window.renderDestrabe = function () {
   var items = S.g('destrabe') || [];
+  var eqDestrabe = S.g('eq') || [];
   var activos = items.filter(function (i) { return i.estado !== 'Resuelto' });
   $('s-destrabe').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Gestión de Destrabe</div>' +
@@ -20,7 +21,8 @@ window.renderDestrabe = function () {
       it.dias = it.fechaSol ? Math.round((Date.now() - new Date(it.fechaSol).getTime()) / 86400000) : 0;
       var prio = it.dias > 14 ? '🔴 CRÍTICO' : it.dias > 7 ? '🟡 URGENTE' : '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Normal';
       return '<tr>' +
-        '<td class="mono ed" style="color:var(--ac)" contenteditable onblur="edDestrabe(' + i + ',\'equipo\',this.innerText.trim())">' + escapeHtml(it.equipo) + '</td>' +
+        '<td><select onchange="edDestrabe(' + i + ',\'equipo\',this.value)" style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;max-width:100px"><option value=""' + (it.equipo ? '' : ' selected') + '>Seleccionar...</option>' +
+        eqDestrabe.map(function (e) { return '<option' + (it.equipo === e.sigla ? ' selected' : '') + '>' + escapeHtml(e.sigla) + '</option>' }).join('') + '</select></td>' +
         '<td class="ed" contenteditable onblur="edDestrabe(' + i + ',\'trabajo\',this.innerText.trim())" style="font-size:11px">' + escapeHtml(it.trabajo) + '</td>' +
         '<td class="ed" contenteditable onblur="edDestrabe(' + i + ',\'tipo\',this.innerText.trim())" style="font-size:10px">' + escapeHtml(it.tipo) + '</td>' +
         '<td class="ed mono" contenteditable onblur="edDestrabe(' + i + ',\'fechaSol\',this.innerText.trim())" style="font-size:10px">' + it.fechaSol + '</td>' +
