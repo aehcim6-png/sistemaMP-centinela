@@ -808,5 +808,6 @@ if(typeof window!=='undefined'){
   window._purgarPapeleraVieja=_purgarPapeleraVieja;
 }
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache};
+  module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache,
+    _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL};
 }
