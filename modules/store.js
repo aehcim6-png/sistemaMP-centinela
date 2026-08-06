@@ -89,7 +89,7 @@ const TABLA_REAL={
   planSem:{tabla:'plan_semanal',clave:'_id',claveDb:'id',cols:['sigla','semana','datos']},
   planSemHist:{tabla:'plan_semanal_historico',clave:'_id',claveDb:'id',cols:['sigla','semana','datos']},
   gantt:{tabla:'gantt',clave:'_id',claveDb:'id',cols:['sigla','actividad','inicio','fin','datos']},
-  destrabe:{tabla:'destrabe',clave:'_id',claveDb:'id',cols:['equipo','trabajo','tipo','fechaSol','motivo','accion','responsable','fechaComp','estado']},
+  destrabe:{tabla:'destrabe',clave:'_id',claveDb:'id',cols:['equipo','trabajo','tipo','fechaSol','motivo','accion','responsable','fechaComp','estado','idOrdenCompra']},
   changelog:{tabla:'changelog',clave:'_id',claveDb:'id',cols:['fecha','usuario','accion','detalle']},
   fil:{tabla:'tabla_precios_maestro',clave:'_id',claveDb:'id',cols:['nParte','precio']},
   al:{tabla:'alertas',clave:'_id',claveDb:'id',cols:['sigla','repuestos']},

@@ -65,7 +65,7 @@ window.renderRep = function () {
   $('s-rep').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Control de Repuestos</div>' +
     '<div class="sec-s">' + rep.length + ' componentes · Conectado con Predictivo</div></div>' +
-    '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="syncRepStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sync Stock</button> <button class="btn btn-o" onclick="importRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos CSV</button></div></div>' +
+    '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="syncRepStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sync Stock</button> <button class="btn btn-o" onclick="verOrdenesCompra()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Órdenes de Compra</button> <button class="btn btn-o" onclick="importRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos CSV</button></div></div>' +
 
     // Semáforo resumen
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">' +
@@ -185,6 +185,49 @@ window.confirmarOC = function (i) {
   S.s('ordenes', oc); S.s('repuestos', rep);
   cm(); refreshAll();
   toast('🛒 OC creada — ' + r.componente + ' x' + $('ocCant').value);
+};
+// Panel de Órdenes de Compra — hasta ahora 'ordenes' se creaba desde crearOC()
+// pero no existía ninguna pantalla para verlas ni marcarlas como recibidas, así
+// que quedaban "Pendiente" para siempre sin que nada avisara cuando llegaban.
+window.verOrdenesCompra = function () {
+  var oc = S.g('ordenes') || [];
+  var lista = oc.slice().sort(function (a, b) { return (b.fecha || '').localeCompare(a.fecha || '') });
+  sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Órdenes de Compra</h3>' +
+    '<div class="tbl-wrap" style="max-height:420px;overflow:auto"><table>' +
+    '<tr><th>Fecha</th><th>Componente</th><th>Equipo</th><th>Cant.</th><th>Proveedor</th><th>Estado</th><th></th></tr>' +
+    (lista.length ? lista.map(function (o) {
+      var i = oc.indexOf(o);
+      var estadoHtml = o.estado === 'Recibida'
+        ? '<span style="font-size:11px;color:var(--ok)">✅ Recibida' + (o.fechaEntrega ? ' ' + o.fechaEntrega : '') + '</span>'
+        : '<span style="font-size:11px;color:var(--w)">🛒 Pendiente</span>';
+      var accionHtml = o.estado === 'Recibida' ? '' : '<button class="btn-s" onclick="recibirOC(' + i + ')">Marcar Recibida</button>';
+      return '<tr>' +
+        '<td class="mono" style="font-size:10px">' + (o.fecha || '') + '</td>' +
+        '<td style="font-size:11px">' + escapeHtml(o.componente || '') + '</td>' +
+        '<td style="font-size:10px">' + escapeHtml(o.equipo || '') + '</td>' +
+        '<td style="text-align:center">' + (o.cantidad || 0) + '</td>' +
+        '<td style="font-size:10px">' + escapeHtml(o.proveedor || '') + '</td>' +
+        '<td>' + estadoHtml + '</td><td>' + accionHtml + '</td></tr>';
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin órdenes de compra</td></tr>') +
+    '</table></div>' +
+    '<button class="btn btn-o" onclick="cm()" style="margin-top:10px">Cerrar</button>');
+};
+// Marca una OC como recibida y, si tenía filas de Gestión de Destrabe bloqueadas
+// esperándola (destrabe.idOrdenCompra), las resuelve solas (resolverDestrabePorOC
+// en logic.js) — no toca el estadoOT del correctivo, eso lo confirma el técnico.
+window.recibirOC = function (i) {
+  var oc = S.g('ordenes') || []; var o = oc[i];
+  if (!o) return;
+  var hoy = new Date().toISOString().slice(0, 10);
+  o.estado = 'Recibida'; o.fechaEntrega = hoy;
+  S.s('ordenes', oc);
+  var destrabe = S.g('destrabe') || [];
+  var nPendientes = destrabe.filter(function (d) { return d.idOrdenCompra === o._id && d.estado !== 'Resuelto' }).length;
+  if (nPendientes > 0) {
+    S.s('destrabe', resolverDestrabePorOC(destrabe, o._id, hoy));
+  }
+  refreshAll(); verOrdenesCompra();
+  toast('✅ OC marcada como recibida' + (nPendientes ? ' — ' + nPendientes + ' bloqueo(s) de Destrabe resuelto(s)' : ''));
 };
 window.syncRepStock = function () {
   var rep = S.g('repuestos') || [];

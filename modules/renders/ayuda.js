@@ -32,6 +32,12 @@ window.renderAyuda=function(){
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Al registrar un PM (nuevo o editado) o corregir el horómetro directo en la Ficha Técnica de un equipo, el sistema ahora compara el valor nuevo contra el último registrado y avisa si el avance es demasiado grande para los días transcurridos — ver el detalle en Preguntas Frecuentes, más abajo. No bloquea el guardado: si el dato es real, se confirma y sigue igual que antes.</p>'+
     '</div>'+
 
+    // NUEVA FUNCIÓN — vínculo Destrabe ↔ Orden de Compra (agosto 2026)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Nueva función: Gestión de Destrabe se cierra sola cuando llega la compra</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Un bloqueo por falta de repuesto ahora se puede vincular a su Orden de Compra (botón "Vincular OC" en Gestión de Destrabe). Antes había que acordarse de marcar "Resuelto" a mano; ahora, al marcar esa OC como "Recibida" (nuevo botón "Órdenes de Compra" en Control de Repuestos — antes tampoco existía forma de ver ni cerrar una OC ya creada), el bloqueo se cierra solo, con una nota automática de cuándo llegó. Ver el detalle en las secciones 8 y 19, más abajo.</p>'+
+    '</div>'+
+
     // NOVEDADES ANTERIORES (julio 2026)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (julio 2026)</b>'+
@@ -288,6 +294,7 @@ window.renderAyuda=function(){
     '2. Se abre formulario de Orden de Compra con cantidad y costo sugeridos<br>'+
     '3. Confirmas → se guarda la OC<br>'+
     '4. Cuando llega el repuesto → editas stock directamente en la tabla<br><br>'+
+    '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Órdenes de Compra:</b> botón nuevo en la parte superior — lista TODAS las OC generadas (de cualquier estado) y permite marcarlas <b>"Recibida"</b>. Si esa OC estaba vinculada a un bloqueo de Gestión de Destrabe (ver sección 19), ese bloqueo se resuelve solo al marcarla.<br><br>'+
     '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sincronizar Stock:</b> actualiza automáticamente desde Stock Filtros y Lubricantes</div></div>'+
 
     // 9. PREDICTIVO
@@ -504,7 +511,8 @@ window.renderAyuda=function(){
     '• <b>Fecha Compromiso</b> — para cuándo<br>'+
     '• <b>Días Detenido</b> — se calcula automático desde fecha solicitud<br>'+
     '• <b>Prioridad</b> — automática: >14 días = 🔴 CRÍTICO, >7 = 🟡 URGENTE<br>'+
-    '• <b>Estado</b> — Bloqueado / En Gestión / Resuelto</div></div>'+
+    '• <b>Estado</b> — Bloqueado / En Gestión / Resuelto<br>'+
+    '• <b>OC</b> — botón <b>"Vincular OC"</b> si el bloqueo es por falta de repuesto: liga la fila a una Orden de Compra pendiente (o crea una nueva ahí mismo). Cuando esa OC se marca <b>"Recibida"</b> en Control de Repuestos, esta fila pasa sola a <b>Resuelto</b> — no hace falta acordarse de cerrarla a mano. El Estado del correctivo (OT) NO se toca automáticamente: que llegue el repuesto no confirma que el trabajo ya se hizo, eso lo sigue cerrando el técnico.</div></div>'+
 
     // 20. AVANCE
     '<div class="card" style="margin-bottom:12px" id="m20">'+
