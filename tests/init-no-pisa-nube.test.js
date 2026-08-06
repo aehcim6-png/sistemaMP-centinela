@@ -37,6 +37,7 @@ global.INIT = {
   neumaticos: [],
   pautas: []
 };
+global.C = require('../logic.js').C; // store.js le agrega recalcAll a este mismo objeto
 
 const { S, _sbCache } = require('../modules/store.js');
 

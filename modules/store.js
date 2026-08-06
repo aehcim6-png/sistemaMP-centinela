@@ -797,6 +797,61 @@ const S={
 };
 
 // ══════════════════════════════════════════════════════════════════
+// RECÁLCULO DE EQUIPOS (próximo PM, ritmo real de uso) — depende de S, por
+// eso vive acá y no en logic.js (que es 100% puro/sin estado). C.tipoPM/
+// proxPM/estado/alertaPM4/recalc SÍ viven en logic.js, sin cambios.
+// ══════════════════════════════════════════════════════════════════
+// Ritmo diario REAL de un equipo (h/día o km/día) desde su historial de
+// horómetros, para que la fecha/estado del próximo PM use el uso real y no
+// el nominal. Cae al nominal (hrsDia) si el equipo no tiene lecturas
+// suficientes.
+function _ritmoRealEq(sigla,hrsDiaNominal){
+  if(typeof tasaDiariaReal!=='function')return hrsDiaNominal||0;
+  var lecturas=(S.g('hist')||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha;})
+    .map(function(h){return{fecha:h.fecha,horom:(h.horomFin!=null?h.horomFin:h.horom)};});
+  return tasaDiariaReal(lecturas,hrsDiaNominal||12);
+}
+// Horómetro real del último PM ejecutado (registros_pm), para anclar proxPM a ese
+// ciclo real en vez de la grilla modular pura desde horómetro cero — sin esto, un
+// PM4 recién hecho ANTICIPADO (antes de llegar a su propio hito) podía mostrarse
+// "vencido" a las pocas horas, porque el horómetro actual está cerca del siguiente
+// múltiplo redondo de frecPM. Devuelve también el tipoPM de ese registro: proxPM
+// necesita saber qué tan grande era ese ciclo (PM4 cubre 8x, no solo 1x).
+function _horomUltimoPM(sigla){
+  var regs=(S.g('reg')||[]).filter(function(r){return r&&r.equipo===sigla&&r.horomReal>0;});
+  if(!regs.length)return null;
+  regs.sort(function(a,b){
+    var fa=(a.fechaEntrada||'')+' '+(a.horaEntrada||'');
+    var fb=(b.fechaEntrada||'')+' '+(b.horaEntrada||'');
+    return fa<fb?-1:fa>fb?1:0;
+  });
+  var ult=regs[regs.length-1];
+  return{horom:ult.horomReal,tipo:ult.tipoPM};
+}
+// Recalcula un equipo usando su ritmo real. Reemplaza las llamadas directas a _recalcEq(e).
+function _recalcEq(e){
+  var ult=_horomUltimoPM(e.sigla);
+  return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),ult?ult.horom:null,ult?ult.tipo:null);
+}
+// Antes subía el arreglo completo a Supabase en CADA llamada, sin importar si
+// el recálculo cambió algo — recalcAll() corre en cada apertura del Dashboard
+// (el destino por defecto al entrar), así que con más de una pestaña/
+// dispositivo abiertos, cada uno resubía una foto casi idéntica de 'eq' una y
+// otra vez, y cada resubida disparaba el chequeo de conflicto contra la
+// resubida de la otra pestaña — el aviso de "otra persona modificó esto"
+// terminaba apareciendo todo el tiempo aunque nadie estuviera editando nada
+// de verdad. Comparar antes/después evita el guardado (y el conflicto) salvo
+// que algo haya cambiado en serio (ej. cruzó la medianoche y diasParaPM bajó).
+C.recalcAll=function(){
+  const eq=S.g('eq');
+  if(!eq)return[];
+  const antes=JSON.stringify(eq);
+  eq.forEach(e=>_recalcEq(e));
+  if(JSON.stringify(eq)!==antes)S.s('eq',eq);
+  return eq;
+};
+
+// ══════════════════════════════════════════════════════════════════
 // PAPELERA (soft-delete con recuperación, retención 30 días) — lógica de datos
 // pura, sin DOM (misma idea que logic.js): vive acá para poder testearla con
 // Node/Vitest sin arrancar la app completa. La contraparte con efectos de UI
@@ -828,8 +883,11 @@ function _purgarPapeleraVieja(){
 if(typeof window!=='undefined'){
   window._moverAPapelera=_moverAPapelera;
   window._purgarPapeleraVieja=_purgarPapeleraVieja;
+  window._recalcEq=_recalcEq;
+  window._horomUltimoPM=_horomUltimoPM;
+  window._ritmoRealEq=_ritmoRealEq;
 }
 if(typeof module!=='undefined'&&module.exports){
   module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache,
-    _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL};
+    _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL,_recalcEq,_horomUltimoPM,_ritmoRealEq};
 }

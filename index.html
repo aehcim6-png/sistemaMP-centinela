@@ -256,55 +256,10 @@ const INIT={"equipos": [{"sigla": "BD-9533", "tipo": "Bulldozer", "modelo": "Kom
 
 // ============ CALC ENGINE ============
 // C.tipoPM/proxPM/estado/alertaPM4/recalc viven en logic.js (extraídos para poder
-// testearlos). recalcAll depende de S (estado de la app), así que se agrega acá.
-// Ritmo diario REAL de un equipo (h/día o km/día) desde su historial de horómetros,
-// para que la fecha/estado del próximo PM use el uso real y no el nominal. Cae al
-// nominal (hrsDia) si el equipo no tiene lecturas suficientes.
-function _ritmoRealEq(sigla,hrsDiaNominal){
-  if(typeof tasaDiariaReal!=='function')return hrsDiaNominal||0;
-  var lecturas=(S.g('hist')||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha;})
-    .map(function(h){return{fecha:h.fecha,horom:(h.horomFin!=null?h.horomFin:h.horom)};});
-  return tasaDiariaReal(lecturas,hrsDiaNominal||12);
-}
-// Horómetro real del último PM ejecutado (registros_pm), para anclar proxPM a ese
-// ciclo real en vez de la grilla modular pura desde horómetro cero — sin esto, un
-// PM4 recién hecho ANTICIPADO (antes de llegar a su propio hito) podía mostrarse
-// "vencido" a las pocas horas, porque el horómetro actual está cerca del siguiente
-// múltiplo redondo de frecPM. Devuelve también el tipoPM de ese registro: proxPM
-// necesita saber qué tan grande era ese ciclo (PM4 cubre 8x, no solo 1x).
-function _horomUltimoPM(sigla){
-  var regs=(S.g('reg')||[]).filter(function(r){return r&&r.equipo===sigla&&r.horomReal>0;});
-  if(!regs.length)return null;
-  regs.sort(function(a,b){
-    var fa=(a.fechaEntrada||'')+' '+(a.horaEntrada||'');
-    var fb=(b.fechaEntrada||'')+' '+(b.horaEntrada||'');
-    return fa<fb?-1:fa>fb?1:0;
-  });
-  var ult=regs[regs.length-1];
-  return{horom:ult.horomReal,tipo:ult.tipoPM};
-}
-// Recalcula un equipo usando su ritmo real. Reemplaza las llamadas directas a _recalcEq(e).
-function _recalcEq(e){
-  var ult=_horomUltimoPM(e.sigla);
-  return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),ult?ult.horom:null,ult?ult.tipo:null);
-}
-// Antes subía el arreglo completo a Supabase en CADA llamada, sin importar si
-// el recálculo cambió algo — recalcAll() corre en cada apertura del Dashboard
-// (el destino por defecto al entrar), así que con más de una pestaña/
-// dispositivo abiertos, cada uno resubía una foto casi idéntica de 'eq' una y
-// otra vez, y cada resubida disparaba el chequeo de conflicto contra la
-// resubida de la otra pestaña — el aviso de "otra persona modificó esto"
-// terminaba apareciendo todo el tiempo aunque nadie estuviera editando nada
-// de verdad. Comparar antes/después evita el guardado (y el conflicto) salvo
-// que algo haya cambiado en serio (ej. cruzó la medianoche y diasParaPM bajó).
-C.recalcAll=function(){
-  const eq=S.g('eq');
-  if(!eq)return[];
-  const antes=JSON.stringify(eq);
-  eq.forEach(e=>_recalcEq(e));
-  if(JSON.stringify(eq)!==antes)S.s('eq',eq);
-  return eq;
-};
+// testearlos). _ritmoRealEq/_horomUltimoPM/_recalcEq/C.recalcAll dependen de S
+// (estado de la app) — viven en modules/store.js junto a S, testeables con el
+// mismo require() directo que ya usan tests/store-integridad.test.js y
+// tests/init-no-pisa-nube.test.js.
 // ============ HELPERS ============
 // fd/fn/escapeHtml viven en logic.js.
 const $=id=>document.getElementById(id);

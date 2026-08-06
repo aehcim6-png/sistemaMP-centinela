@@ -16,6 +16,7 @@ global.localStorage = (function () {
 })();
 global.fetch = function () { return Promise.reject(new Error('red deshabilitada en tests')); };
 global._logChangeGenerico = function () {}; // vive en index.html, no en store.js
+global.C = require('../logic.js').C; // store.js le agrega recalcAll a este mismo objeto
 
 const { S, TABLA_REAL, _moverAPapelera, _purgarPapeleraVieja, _sbCache } = require('../modules/store.js');
 
