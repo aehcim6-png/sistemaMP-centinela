@@ -742,6 +742,28 @@ function validarSaltoHorometro(horomNuevo, horomAnterior, fechaAnterior, fechaNu
   return{valido:true};
 }
 
+// ═══ CIERRE AUTOMÁTICO DE DESTRABE AL RECIBIR LA ORDEN DE COMPRA ═══
+// Inspirado en el manual OTR de Besalco Maquinarias: una OT ligada a un PI/OC se
+// cierra sola cuando la compra llega. Acá el equivalente es la fila de "Gestión de
+// Destrabe" bloqueada por falta de repuesto — se resuelve sola cuando la OC
+// vinculada (destrabe[i].idOrdenCompra) se marca recibida. Función pura: no toca
+// Supabase ni localStorage, solo devuelve el arreglo actualizado (mismo patrón que
+// el resto de logic.js) para que el wiring en destrabe.js/rep.js sea un simple
+// S.s() con el resultado. No cierra el correctivo (OT) — que llegue el repuesto no
+// significa que el trabajo ya se ejecutó, eso lo sigue confirmando el técnico.
+function resolverDestrabePorOC(destrabeArr, idOrdenCompra, fechaRecibido){
+  if(!Array.isArray(destrabeArr)||!idOrdenCompra)return destrabeArr;
+  return destrabeArr.map(function(it){
+    if(it&&it.idOrdenCompra===idOrdenCompra&&it.estado!=='Resuelto'){
+      return Object.assign({},it,{
+        estado:'Resuelto',
+        accion:(it.accion?it.accion+' — ':'')+'(auto) Repuesto recibido '+fechaRecibido
+      });
+    }
+    return it;
+  });
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -780,6 +802,7 @@ if (typeof window !== 'undefined') {
   window.pagSlice = pagSlice;
   window.hayConflictoIds = hayConflictoIds;
   window.validarSaltoHorometro = validarSaltoHorometro;
+  window.resolverDestrabePorOC = resolverDestrabePorOC;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -789,6 +812,6 @@ if (typeof module !== 'undefined' && module.exports) {
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
-    validarSaltoHorometro
+    validarSaltoHorometro, resolverDestrabePorOC
   };
 }
