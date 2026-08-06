@@ -24,7 +24,7 @@ framework nuevo a mitad de camino.
   login, el arranque de la aplicación, y la infraestructura compartida entre
   pestañas que no encajaba en un módulo propio (autoguardado a carpeta local,
   auditoría, MFA, gestión de usuarios).
-- **`modules/renders/*.js`** (39 archivos) — un archivo por pestaña o
+- **`modules/renders/*.js`** (40 archivos) — un archivo por pestaña o
   sub-pestaña del sistema. Cada uno define `window.render<Tab>` (la función
   que dibuja esa pantalla) más los botones/formularios exclusivos de esa
   pestaña. Son scripts planos (`<script src="...">`), no módulos ES —
@@ -34,8 +34,8 @@ framework nuevo a mitad de camino.
 - **`modules/store.js`** — el motor de sincronización (ver sección 3).
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
-  materiales, etc. Es el único archivo con pruebas automatizadas
-  (`tests/*.test.js`, 181 casos, corren con Vitest).
+  materiales, etc. Junto con `store.js`, son los archivos con pruebas
+  automatizadas (`tests/*.test.js`, 312 casos, corren con Vitest).
 
 ### 2. Dónde vive — Vercel
 
@@ -51,8 +51,8 @@ son módulos ES.
 Todo el sistema lee y escribe datos a través de dos únicas funciones:
 `S.g(categoria)` (leer) y `S.s(categoria, valor)` (guardar). Ninguna pantalla
 llama directo a Supabase — todas pasan por acá, lo que permite que el resto
-del sistema (634 llamadas repartidas en las 39 pestañas) nunca necesite saber
-cómo ni dónde se guardan realmente los datos.
+del sistema (más de 550 llamadas repartidas en las 40 pestañas) nunca
+necesite saber cómo ni dónde se guardan realmente los datos.
 
 Al llamar `S.s(categoria, valor)` ocurren, en este orden:
 
@@ -164,17 +164,58 @@ viva.
 
 Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de
 Postgres (`pg_cron`) llama a la Edge Function `backup-diario`
-(`supabase/functions/backup-diario/`), que junta TODAS las tablas reales,
-las comprime (gzip) y las manda por email vía Resend a `aehcim6@gmail.com`
-como adjunto `.json.gz` — sin depender de que la app esté abierta en ningún
-navegador (a diferencia del respaldo a carpeta local, que sí lo necesita).
+(`supabase/functions/backup-diario/`), que junta TODAS las tablas reales
+(41, incluye `kv` y `user_roles` para poder reconstruir accesos ante un
+desastre total), las comprime (gzip) y las manda por email vía Resend a un
+destinatario fijo como adjunto `.json.gz` — sin depender de que la app esté
+abierta en ningún navegador (a diferencia del respaldo a carpeta local, que
+sí lo necesita).
 
-La clave de Resend nunca queda en el código: vive cifrada en **Supabase
-Vault** (`vault.create_secret`, nombre `resend_api_key`) y el cron job la
-lee recién al momento de invocar la función, pasándola en un header
-(`X-Resend-Key`) que la función usa una sola vez y no persiste. La
-programación del cron vive en
-`supabase/migrations/20260805213000_programar_backup_diario.sql`.
+**Autenticación (corregida 2026-08-06, tras un hallazgo real de una
+auditoría propia):** la función ya no confía en nada que mande quien la
+invoca. Antes solo exigía que llegara un header `X-Resend-Key` no vacío,
+sin comparar su valor contra nada — como la verificación de sesión acepta
+la clave pública anónima (la misma que viaja en el HTML servido), cualquier
+persona con internet podía invocarla directamente con su propia clave de
+Resend y su propio destinatario, y recibir un volcado completo de las 41
+tablas usando el permiso de máximo nivel de la función para saltarse RLS.
+Ahora la función verifica un secreto propio contra dos funciones SQL
+restringidas a `service_role` (`verificar_secreto_cron`,
+`obtener_secreto_para_cron` — ni un usuario autenticado normal puede
+ejecutarlas) que leen **Supabase Vault**: sin el secreto correcto (header
+`X-Cron-Secret`), 401, sin importar qué tan válido sea el resto de la
+petición. La clave real de Resend y el destinatario ya no se reciben del
+llamador — la función los busca ella misma en Vault, y el destinatario
+queda fijo en el código. La programación del cron vive en
+`supabase/migrations/20260806014500_asegurar_backup_diario.sql`.
+
+### 10. Papelera (soft-delete con recuperación)
+
+Nada se borra de golpe. Al eliminar cualquier fila (un equipo, un registro
+de PM, stock, una orden de trabajo, etc.), el sistema primero la mueve a
+una tabla `papelera` — con qué categoría era, quién la eliminó y cuándo —
+y recién ahí la saca de la tabla original. Queda recuperable desde
+Configuración → Papelera durante 30 días antes de purgarse en serio
+(`_purgarPapeleraVieja`, corre sola). `_moverAPapelera` y
+`_purgarPapeleraVieja` viven en `modules/store.js` (lógica de datos pura,
+sin DOM — mismo criterio que `logic.js`, testeable con Vitest sin arrancar
+la app); la pantalla de recuperación (`modules/renders/papelera.js`) sigue
+el mismo patrón que el resto de las pestañas.
+
+### 11. App instalable (PWA)
+
+El sistema se puede agregar a la pantalla de inicio del celular como una
+app normal — ícono propio, sin la barra de direcciones del navegador.
+`manifest.json`, `sw.js` (service worker) y los íconos viven en `public/` a
+propósito, no junto al resto del proyecto: Vite renombra con un hash los
+archivos que referencia desde una etiqueta `<link>` al compilar, lo que
+rompería las rutas internas relativas del manifest; todo lo que está en
+`public/` se copia tal cual, sin tocar. El service worker usa la estrategia
+red-primero-con-respaldo-en-caché (nunca caché-primero, para no pisar el
+sistema de caché-busting por `?v=` que ya usan los `<script>` del sistema)
+— solo precachea lo mínimo para poder arrancar sin internet (`index.html`,
+`manifest.json`, 2 íconos) y cachea el resto la primera vez que se pide con
+éxito.
 
 ## Lo que decidimos NO hacer (y por qué)
 

@@ -128,10 +128,10 @@
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (39 en total)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (40 en total)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — Edge Functions (crear-operador, alerta-pm)
-tests/                   — pruebas de logic.js (Vitest, 181 casos)
+supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario)
+tests/                   — pruebas de logic.js y store.js (Vitest, 312 casos)
 docs/                    — esta documentación</pre>
 
   <h2>8. Si algo se rompe — por dónde empezar</h2>

@@ -62,14 +62,14 @@
     <li><b>index.html</b> (~3.300 líneas) — el esqueleto: la barra de navegación, el login, el
     arranque de la aplicación, y la infraestructura compartida entre pestañas que no encajaba en
     un módulo propio (autoguardado a carpeta local, auditoría, MFA, gestión de usuarios).</li>
-    <li><b>modules/renders/*.js</b> (39 archivos) — un archivo por pestaña o sub-pestaña del
+    <li><b>modules/renders/*.js</b> (40 archivos) — un archivo por pestaña o sub-pestaña del
     sistema. Cada uno define <code>window.render&lt;Tab&gt;</code> más los botones/formularios
     exclusivos de esa pestaña. Son scripts planos, no módulos ES — comparten el mismo espacio de
     variables globales que el resto del sistema, a propósito.</li>
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
-    disponibilidad, similitud de materiales, etc. Es el único archivo con pruebas automatizadas
-    (181 casos, corren con Vitest).</li>
+    disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los
+    archivos con pruebas automatizadas (312 casos, corren con Vitest).</li>
   </ul>
 
   <h3>2. Dónde vive — Vercel</h3>
@@ -83,8 +83,8 @@
   <p>Todo el sistema lee y escribe datos a través de dos únicas funciones:
   <code>S.g(categoria)</code> (leer) y <code>S.s(categoria, valor)</code> (guardar). Ninguna
   pantalla llama directo a Supabase — todas pasan por acá, lo que permite que el resto del
-  sistema (634 llamadas repartidas en las 39 pestañas) nunca necesite saber cómo ni dónde se
-  guardan realmente los datos.</p>
+  sistema (más de 550 llamadas repartidas en las 40 pestañas) nunca necesite saber cómo ni dónde
+  se guardan realmente los datos.</p>
   <p>Al llamar <code>S.s(categoria, valor)</code> ocurren, en este orden:</p>
   <ol>
     <li><b>localStorage</b> — se escribe de inmediato, siempre, funcione o no internet.</li>
@@ -151,9 +151,36 @@
   <h3>9. Backup automático diario</h3>
   <p>Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de Postgres
   (<code>pg_cron</code>) llama a la Edge Function <code>backup-diario</code>, que junta TODAS las
-  tablas reales, las comprime (gzip) y las manda por email vía Resend como adjunto
-  <code>.json.gz</code> — sin depender de que la app esté abierta en ningún navegador. La clave de
-  Resend vive cifrada en <b>Supabase Vault</b>, nunca en el código.</p>
+  tablas reales (41, incluye <code>kv</code> y <code>user_roles</code> para poder reconstruir
+  accesos ante un desastre total), las comprime (gzip) y las manda por email vía Resend a un
+  destinatario fijo como adjunto <code>.json.gz</code> — sin depender de que la app esté abierta
+  en ningún navegador.</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>Autenticación (corregida 2026-08-06, tras un hallazgo real de una auditoría propia):</b>
+    la función ya no confía en nada que mande quien la invoca. Antes solo exigía un header
+    <code>X-Resend-Key</code> no vacío, sin comparar su valor — como la sesión acepta la clave
+    pública anónima, cualquiera con internet podía invocarla con su propia clave de Resend y su
+    propio destinatario, y recibir un volcado completo de las 41 tablas saltándose RLS. Ahora
+    verifica un secreto propio (header <code>X-Cron-Secret</code>) contra dos funciones SQL
+    restringidas a <code>service_role</code> que leen <b>Supabase Vault</b> — sin el secreto
+    correcto, 401. La clave real de Resend y el destinatario ya no se reciben del llamador: la
+    función los busca ella misma en Vault, y el destinatario queda fijo en el código.
+  </div>
+
+  <h3>10. Papelera (soft-delete con recuperación)</h3>
+  <p>Nada se borra de golpe. Al eliminar cualquier fila (equipo, registro de PM, stock, orden de
+  trabajo, etc.), el sistema primero la mueve a una tabla <code>papelera</code> — con qué
+  categoría era, quién la eliminó y cuándo — y recién ahí la saca de la tabla original. Queda
+  recuperable desde Configuración → Papelera durante 30 días antes de purgarse en serio.</p>
+
+  <h3>11. App instalable (PWA)</h3>
+  <p>El sistema se puede agregar a la pantalla de inicio del celular como una app normal, con
+  ícono propio. <code>manifest.json</code>, <code>sw.js</code> y los íconos viven en
+  <code>public/</code> a propósito: Vite renombra con un hash los archivos referenciados desde
+  <code>&lt;link&gt;</code> al compilar, lo que rompería las rutas internas del manifest; todo lo
+  que está en <code>public/</code> se copia tal cual. El service worker usa red-primero-con-
+  respaldo-en-caché, para no pisar el caché-busting por <code>?v=</code> que ya usan los
+  <code>&lt;script&gt;</code> del sistema.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
