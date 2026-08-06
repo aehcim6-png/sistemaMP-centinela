@@ -320,7 +320,7 @@ window.saveNeu=function(){
   const c=neuCriterio({tipoEquipo:tipo,posicion:pos,marca});
   const remNuevo=c.remNuevo||81;
   const pct=rem!=null?neuPct({tipoEquipo:tipo,posicion:pos,marca,remanente:rem}):null;
-  const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);
+  const eq=S.g('eq')||[];const e=eq.find(x=>x.sigla===sig);
   const hAct=e?e.horomActual:0;
   const acum=parseInt($('nNAcum').value)||0;
   neu.push({id:_uuidV4(),sigla:sig,tipoEquipo:tipo,tipo:'Neumático',posicion:pos,
@@ -331,8 +331,8 @@ window.saveNeu=function(){
   S.s('neu',neu);cm();renders.neu();toast('✅ Neumático agregado');
 };
 window.cambiarNeu=function(i){
-  const neu=S.g('neu');const n=neu[i];
-  const eq=S.g('eq');const e=eq.find(x=>x.sigla===n.sigla);
+  const neu=S.g('neu')||[];const n=neu[i];
+  const eq=S.g('eq')||[];const e=eq.find(x=>x.sigla===n.sigla);
   const hAct=e?e.horomActual:0;
   sm(`<h3>↺ Cambio — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
     <p style="color:var(--tx2);margin-bottom:12px">Serie: <b>${escapeHtml(n.serie)}</b> · Remanente: <b>${n.remanente||'—'}mm</b></p>
@@ -347,7 +347,7 @@ window.cambiarNeu=function(i){
     <button class="btn" onclick="saveCambio(${i},${hAct})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Confirmar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
 window.saveCambio=function(i,hAct){
-  const neu=S.g('neu');const n=neu[i];
+  const neu=S.g('neu')||[];const n=neu[i];
   const serieNuevo=$('cSerie').value.trim();
   if(!serieNuevo)return toast('⚠️ Ingresa serie nuevo');
   const remAnt=parseFloat($('cRemAnt').value)||0;

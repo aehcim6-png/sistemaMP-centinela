@@ -288,7 +288,7 @@ window.saveOT=function(){
   // Retroalimentación: check fallas repetitivas → flag en predictivo
   var fallasMismoComp=ot.filter(function(o2){return o2.sigla===sig&&o2.componente===$('oComp')?.value&&o2.componente;}).length;
   if(fallasMismoComp>=2){toast('⚠️ '+sig+': '+fallasMismoComp+' fallas en '+ ($('oComp')?.value||'componente')+' — revisar predictivo');}
-  if(horom>0){const eq=S.g('eq');const e=eq.find(x=>x.sigla===sig);if(e&&horom>e.horomActual){e.horomActual=horom;_recalcEq(e);S.s('eq',eq);renderHeader();}}
+  if(horom>0){const eq=S.g('eq')||[];const e=eq.find(x=>x.sigla===sig);if(e&&horom>e.horomActual){e.horomActual=horom;_recalcEq(e);S.s('eq',eq);renderHeader();}}
   S.s('ot',ot);cm();refreshAll();toast('✅ OT guardada — '+sig);
 };
 

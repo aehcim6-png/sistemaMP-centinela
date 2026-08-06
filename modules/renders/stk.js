@@ -73,7 +73,7 @@ window.addStock = function () {
     <button class="btn" onclick="saveStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarStockPorVoz()">${ICONS.mic} Completar por voz</button>`);
 };
 window.saveStock = function () {
-  const stk = S.g('stk');
+  const stk = S.g('stk') || [];
   stk.push({ equipoModelo: $('sEq').value, descripcion: $('sDesc').value, nParte: $('sParte').value, stockBodega: parseInt($('sStk').value) || 0, consumoMes: parseInt($('sCon').value) || 1, pendiente: 0, mesesCubierto: 0, precioUnit: parseInt($('sPre').value) || 0, comprar: 0, estado: '' });
   S.s('stk', stk); cm(); refreshAll(); toast('✅ Filtro agregado');
 };

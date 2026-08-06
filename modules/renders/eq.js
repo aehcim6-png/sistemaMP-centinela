@@ -76,7 +76,7 @@ window.addEquipo=function(){
 };
 window.saveNewEq=function(){
   const s=$('nSigla').value.trim();if(!s)return toast('Ingrese sigla');
-  const eq=S.g('eq');
+  const eq=S.g('eq')||[];
   if(eq.find(function(x){return x.sigla===s;}))return toast('⚠️ La sigla '+s+' ya existe');
   const unidad=$('nUnidad').value||'hr';
   const n={

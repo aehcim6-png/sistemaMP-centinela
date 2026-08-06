@@ -69,7 +69,7 @@ window.delPauta=function(i){
   toast('🗑️ Eliminada');
 };
 window.addPauta=function(){
-  const eq=S.g('eq');
+  const eq=S.g('eq')||[];
   sm('<h3>Nueva Actividad</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="pEq">'+eq.map(e=>'<option>'+escapeHtml(e.sigla)+'</option>').join('')+'</select></div>'+
     '<div class="fg"><label>Tipo PM</label><select id="pPM"><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option></select></div></div>'+

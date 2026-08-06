@@ -555,7 +555,7 @@ window.reporteEjecutivoExcel=function(){
   let html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>';
   html+='<table border="0" cellspacing="0">';
   html+='<tr><td colspan="6" '+est.titulo+'>REPORTE EJECUTIVO DE MANTENIMIENTO</td></tr>';
-  html+='<tr><td colspan="6" style="text-align:center;padding:6px;background:#e0e7ff">'+(cfg.empresa||'Besalco Minería S.A.')+' — '+(cfg.faena||'Faena Centinela')+' · '+hoy+'</td></tr>';
+  html+='<tr><td colspan="6" style="text-align:center;padding:6px;background:#e0e7ff">'+escapeHtml(cfg.empresa||'Besalco Minería S.A.')+' — '+escapeHtml(cfg.faena||'Faena Centinela')+' · '+hoy+'</td></tr>';
   html+='<tr><td colspan="6" style="height:10px"></td></tr>';
 
   // RESUMEN KPI

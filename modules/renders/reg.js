@@ -208,7 +208,7 @@ window.saveEditReg=function(i){
   if(dEdit&&dEdit.ms>0)durStr=dEdit.texto;
   const hr=parseInt($('eHor').value)||reg[i].horomReal||0;
   const nuevoEquipo=$('eRq').value;
-  const eq=S.g('eq');
+  const eq=S.g('eq')||[];
   const e=eq.find(x=>x.sigla===nuevoEquipo);
   // Recalcula cumplimiento (a tiempo/atrasada) contra la fecha de PM esperada que
   // quedó guardada al crear el registro — antes editar la fecha de entrada dejaba el
@@ -281,7 +281,7 @@ window.saveReg=function(){
   if(!eqSigla)return toast('⚠️ Selecciona un equipo');
   const hr=parseInt($('rHor').value)||0;
   if(!hr)return toast('⚠️ Ingresa el horómetro real');
-  const eq=S.g('eq'),reg=S.g('reg')||[];
+  const eq=S.g('eq')||[],reg=S.g('reg')||[];
   const e=eq.find(x=>x.sigla===eqSigla);
   const tp=$('rPM').value;
   const fEnt=$('rFecEnt').value,hEnt=$('rHoraEnt').value;

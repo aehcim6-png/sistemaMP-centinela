@@ -16,6 +16,7 @@ window.renderGantt=function(){
   // Sync gantt data with equipos
   // Salvaguarda: si 'eq' llega vacío (misma clase de bug que syncEquipos), no filtrar/guardar.
   if(eq.length){
+  var ganttAntes=JSON.stringify(ganttData);
   var gSiglas=ganttData.map(function(g){return g.sigla});
   eq.forEach(function(e){
     if(gSiglas.indexOf(e.sigla)<0){
@@ -31,7 +32,7 @@ window.renderGantt=function(){
     if(e&&e.tipoPM)g.pm=e.tipoPM;
   });
   ganttData=ganttData.filter(function(g){return eq.some(function(e){return e.sigla===g.sigla})});
-  S.s('gantt',ganttData);
+  if(JSON.stringify(ganttData)!==ganttAntes)S.s('gantt',ganttData);
   }
 
   var regGantt=S.g('reg')||[];var otGantt=S.g('ot')||[];
