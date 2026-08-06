@@ -333,45 +333,72 @@ window.resetEmpresa=function(){
     '<div class="fg" style="margin-bottom:8px"><label>Archivo de pautas (JSON o CSV, opcional)</label><input type="file" id="nePauFile" accept=".json,.csv"></div>'+
     '</div>'+
     '<div style="background:rgba(239,68,68,.1);border-radius:6px;padding:10px;margin:12px 0">'+
-    '<b style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ATENCIÓN:</b> Esto borra todos los registros, OTs, stock, consumos, inspecciones y muestras de aceite actuales. Exporta un backup JSON primero desde Config si quieres guardarlos.'+
+    '<b style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ATENCIÓN:</b> Esto borra TODOS los datos operacionales actuales de la nube — equipos, registros de PM, OTs, stock, neumáticos, Gantt, Papelera, changelog, historial de horómetros, análisis de aceite, todo. Puede tardar varios minutos. Exporta un backup JSON primero desde Configuración si quieres guardarlos — es irreversible.'+
     '</div>'+
     '<button class="btn" style="background:var(--danger)" onclick="processResetEmpresa()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Resetear y Configurar</button> '+
     '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 
-window.processResetEmpresa=function(){
-  if(!confirm('⚠️ ¿Estás seguro? Se borrarán TODOS los datos actuales.'))return;
-  if(!confirm('⚠️ ÚLTIMA CONFIRMACIÓN: ¿Exportaste backup JSON? Esto es irreversible.'))return;
-  
+// Espera a que TODOS los borrados/guardados en cola de _syncChain terminen de
+// verdad (uno por fila, por tabla, corriendo en paralelo entre tablas) antes de
+// recargar — sin esto, "Nueva Empresa" podía recargar la página con la mitad de
+// los borrados de eq/pau todavía en camino.
+async function _esperarYRecargarNuevaEmpresa(){
+  await Promise.all(Object.values(_syncChain));
+  toast('✅ Nueva empresa configurada. Recargando...');
+  setTimeout(function(){location.reload();},1200);
+}
+window.processResetEmpresa=async function(){
+  if(!confirm('⚠️ ¿Estás seguro? Esto borra TODOS los datos operacionales actuales de la nube — equipos, PM, correctivos, stock, neumáticos, Gantt, Papelera, historial, todo — no solo equipos y pautas.'))return;
+  if(!confirm('⚠️ ÚLTIMA CONFIRMACIÓN: ¿Exportaste un backup JSON? Esto es irreversible y puede tardar varios minutos en terminar — no cierres esta pestaña mientras corre.'))return;
+
   var empresa=$('neEmpresa')?.value||'Nueva Empresa';
   var faena=$('neFaena')?.value||'Nueva Faena';
   var eqFile=$('neFile')?.files[0];
   var pauFile=$('nePauFile')?.files[0];
-  
-  // Clear ALL localStorage
-  var keys=['eq','reg','lub','fil','stk','al','prg','hh','hist','ot','neu','mov','cfg',
-            'repuestos','ordenes','aceite','insp','pau'];
-  keys.forEach(function(k){localStorage.removeItem('smp10_'+k);});
+
+  cm();
+  toast('⏳ Borrando datos actuales de la nube — puede tardar varios minutos...');
+
+  // Borra de verdad las ~29 categorías reales que NO son eq/pau (ver
+  // _resetearDatosEmpresa en store.js) — eq/pau se manejan acá abajo porque
+  // dependen del archivo que suba el usuario (o quedan vacías si no sube nada).
+  try{
+    await _resetearDatosEmpresa();
+  }catch(err){
+    toast('❌ Error borrando datos de la nube: '+err.message);
+    return;
+  }
+
   localStorage.removeItem('smp10_v14fix');
 
   // Set new config
   S.s('cfg',{empresa:empresa,faena:faena,tema:'dark'});
 
+  // Trae el estado fresco de eq/pau desde el servidor antes de vaciarlas — mismo
+  // motivo que _resetearDatosEmpresa: si esta pestaña no tenía cacheadas TODAS
+  // las filas reales, el borrado por diff se quedaría corto.
+  var eqFresco=await _refetchTablaReal('eq');
+  if(eqFresco)_sbCache.eq=eqFresco;
+
   if(!eqFile){
     // No file - create empty system
     INIT.equipos=[];INIT.pautas=[];
-    S.s('eq',[]);S.s('pau',[]);
-    cm();location.reload();
+    S.s('eq',[]);
+    var pauFrescoVacio=await _refetchTablaReal('pau');
+    if(pauFrescoVacio)_sbCache.pau=pauFrescoVacio;
+    S.s('pau',[]);
+    _esperarYRecargarNuevaEmpresa();
     return;
   }
-  
+
   var reader=new FileReader();
-  reader.onload=function(e){
+  reader.onload=async function(e){
     try{
       var txt=e.target.result;
       var newEq=[];
       var newPau=[];
-      
+
       if(eqFile.name.endsWith('.json')){
         var data=JSON.parse(txt);
         if(data.equipos)newEq=data.equipos;
@@ -398,7 +425,7 @@ window.processResetEmpresa=function(){
           });
         }
       }
-      
+
       // Apply C.recalc to each equipment
       newEq.forEach(function(eq){
         eq.horomProxPM=eq.horomActual+eq.frecPM-(eq.horomActual%eq.frecPM);
@@ -406,15 +433,15 @@ window.processResetEmpresa=function(){
         eq.estado='AL DÍA';
         eq.diasParaPM=Math.round((eq.horomProxPM-eq.horomActual)/eq.hrsDia);
       });
-      
+
       INIT.equipos=newEq;
       INIT.pautas=newPau;
       S.s('eq',newEq);
-      
+
       // Process pautas file if provided
       if(pauFile){
         var reader2=new FileReader();
-        reader2.onload=function(e2){
+        reader2.onload=async function(e2){
           try{
             var txt2=e2.target.result;
             if(pauFile.name.endsWith('.json')){
@@ -434,15 +461,19 @@ window.processResetEmpresa=function(){
               }
             }
             INIT.pautas=newPau;
+            var pauFresco=await _refetchTablaReal('pau');
+            if(pauFresco)_sbCache.pau=pauFresco;
             S.s('pau',newPau);
           }catch(err2){console.error(err2);}
-          cm();location.reload();
+          _esperarYRecargarNuevaEmpresa();
         };
         reader2.readAsText(pauFile);
       } else {
         INIT.pautas=[];
+        var pauFrescoSinArchivo=await _refetchTablaReal('pau');
+        if(pauFrescoSinArchivo)_sbCache.pau=pauFrescoSinArchivo;
         S.s('pau',[]);
-        cm();location.reload();
+        _esperarYRecargarNuevaEmpresa();
       }
     }catch(err){
       toast('❌ Error: '+err.message);

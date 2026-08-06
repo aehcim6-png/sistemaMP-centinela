@@ -880,8 +880,48 @@ function _purgarPapeleraVieja(){
   var vigentes=pap.filter(function(p){return(ahora-new Date(p.fechaEliminacion).getTime())<LIMITE_MS;});
   if(vigentes.length!==pap.length)S.s('papelera',vigentes);
 }
+
+// Borra de verdad TODAS las categorías reales de Supabase (tablas + vencimientos),
+// y devuelve los singletons de configuración a valores por defecto — usado por
+// "Configurar Nueva Empresa" en Configuración. Bug real encontrado en auditoría
+// (2026-08-06): la versión anterior de ese botón solo hacía localStorage.removeItem
+// de 18 claves y quedaba de la época pre-Supabase — no tocaba la nube para ~20 de
+// las 31 categorías reales (incluida papelera). Como el sistema vuelve a bajar todo
+// de Supabase al recargar, "TODO borrado" era falso: el historial de la empresa
+// anterior volvía solo en el siguiente login. No toca 'eq' ni 'pau' (el llamador
+// decide qué cargar ahí) ni 'user_roles' (fuera de alcance: es acceso, no datos
+// operacionales — borrarlo de golpe podría dejar a quien ejecuta esto sin permisos
+// para seguir usando el sistema).
+//
+// Antes de borrar cada tabla, trae su estado FRESCO y completo desde el servidor
+// (no confía en lo que esta pestaña tenga cacheado) — sin esto, el diff de borrado
+// de _syncTablaGenericaInner solo alcanzaría a las filas que esta sesión llegó a
+// cargar, dejando huérfanas las que no. Al final espera a que terminen de verdad
+// todos los borrados en cola (uno por fila, por tabla, corriendo en paralelo entre
+// tablas vía _syncChain) antes de devolver el control.
+async function _resetearDatosEmpresa(){
+  var categorias=Object.keys(TABLA_REAL).filter(function(k){return k!=='eq'&&k!=='pau';});
+  for(var i=0;i<categorias.length;i++){
+    var k=categorias[i];
+    var fresco=await _refetchTablaReal(k);
+    if(fresco)_sbCache[k]=fresco;
+    S.s(k,[]);
+  }
+  var vencFresco=await _refetchVencimientos();
+  if(vencFresco)_sbCache.venc=vencFresco;
+  S.s('venc',{});
+  S.s('hh',0);
+  S.s('dispMeta',85);
+  S.s('metas',{});
+  S.s('dispCalc',{});
+  S.s('avanceData',{});
+  await Promise.all(Object.values(_syncChain));
+}
+
 if(typeof window!=='undefined'){
   window._moverAPapelera=_moverAPapelera;
+  window._resetearDatosEmpresa=_resetearDatosEmpresa;
+  window._refetchTablaReal=_refetchTablaReal;
   window._purgarPapeleraVieja=_purgarPapeleraVieja;
   window._recalcEq=_recalcEq;
   window._horomUltimoPM=_horomUltimoPM;
@@ -889,5 +929,6 @@ if(typeof window!=='undefined'){
 }
 if(typeof module!=='undefined'&&module.exports){
   module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache,
-    _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL,_recalcEq,_horomUltimoPM,_ritmoRealEq};
+    _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL,_recalcEq,_horomUltimoPM,_ritmoRealEq,
+    _resetearDatosEmpresa,_refetchTablaReal,_syncChain};
 }
