@@ -535,7 +535,11 @@ window.cloudGuardarCfg=function(){
 
 window.exportAllJSON=function(){
   var data={};
-  ['eq','reg','ot','stk','lub','mov','neu','hist','aceite','insp','repuestos','ordenes','changelog','planSem','planSemHist','compMayores','dispCalc','dispMeta','cfg','hh','prg'].forEach(function(k){data[k]=S.g(k);});
+  // Mismas claves que el respaldo automático en carpeta (_asWrite/AUTOSAVE_KEYS en
+  // index.html) — antes esta lista estaba duplicada y desactualizada, sin Destrabe,
+  // Gantt, Pautas, Alertas, Informes de Falla, Programación Diaria, Sensores/
+  // Mediciones de Neumáticos, Metas ni Avance Mensual.
+  AUTOSAVE_KEYS.forEach(function(k){data[k]=S.g(k);});
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download='SistemaMP_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
