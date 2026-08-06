@@ -5,17 +5,28 @@
 // app esté abierta en ningún navegador, a diferencia del respaldo a carpeta
 // local (que sí necesita una pestaña activa).
 //
-// Autenticación en dos capas, ninguna hardcodeada en este archivo:
+// Autenticación (corregida 2026-08-06 tras un hallazgo real de seguridad):
 // - Authorization: Bearer <anon key> — la misma clave pública que ya usa el
 //   frontend (verify_jwt=true la exige igual que cualquier otra función).
-// - X-Resend-Key: la clave real de Resend, guardada cifrada en Supabase
-//   Vault y inyectada por el cron job en cada invocación — esta función
-//   nunca la persiste ni la ve fuera de esta única request.
+//   Por sí sola NO alcanza: el anon key es público (viene en el HTML
+//   servido), así que cualquiera podía invocar esta función con eso.
+// - X-Cron-Secret: la función lo compara contra un secreto guardado en
+//   Supabase Vault vía verificar_secreto_cron() — una función restringida
+//   a service_role (ni un usuario autenticado normal puede ejecutarla).
+//   Sin este secreto correcto, 401 — no importa qué tan válido sea el JWT.
+// - La clave de Resend y el destinatario YA NO se reciben del llamador
+//   (antes X-Resend-Key/X-Backup-To, controlados por quien invocaba la
+//   función — el hueco real: cualquiera con el anon key podía mandar SU
+//   PROPIA clave de Resend y un destinatario propio, y recibir un volcado
+//   completo de las 41 tablas usando el service_role de esta función para
+//   saltarse RLS). Ahora la función busca ELLA MISMA la clave real de
+//   Resend en Vault, y el destinatario queda fijo en el código.
 //
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY: inyectadas automáticamente por
 // Supabase en TODA Edge Function, sin configurar nada — se usa la de
 // service role acá (no la anon) para poder leer TODAS las filas sin
 // chocar con RLS (esto es un respaldo completo, no una vista de usuario).
+const DESTINATARIO_FIJO = 'aehcim6@gmail.com';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding/base64";
@@ -58,16 +69,30 @@ async function traerTodasLasFilas(supabase: any, tabla: string) {
 
 Deno.serve(async (req: Request) => {
   try {
-    const resendKey = req.headers.get('x-resend-key');
-    if (!resendKey) {
-      return new Response(JSON.stringify({ error: 'Falta el header X-Resend-Key' }), { status: 400 });
-    }
-    const destinatario = req.headers.get('x-backup-to') || 'aehcim6@gmail.com';
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // Verifica el secreto ANTES de tocar cualquier tabla — sin esto, nada
+    // de lo que sigue debe ejecutarse.
+    const secretoRecibido = req.headers.get('x-cron-secret') || '';
+    const { data: secretoValido, error: errVerif } = await supabase.rpc('verificar_secreto_cron', {
+      nombre_secreto: 'backup_diario_cron_secret',
+      valor_recibido: secretoRecibido
+    });
+    if (errVerif || !secretoValido) {
+      return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+    }
+
+    // La clave real de Resend se busca acá, nunca se toma de la request.
+    const { data: resendKey, error: errResend } = await supabase.rpc('obtener_secreto_para_cron', {
+      nombre_secreto: 'resend_api_key'
+    });
+    if (errResend || !resendKey) {
+      return new Response(JSON.stringify({ error: 'No se pudo obtener la clave de Resend' }), { status: 500 });
+    }
+    const destinatario = DESTINATARIO_FIJO;
 
     const tablas: Record<string, any[]> = {};
     const resumen: string[] = [];
