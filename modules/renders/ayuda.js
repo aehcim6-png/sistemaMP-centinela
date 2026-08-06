@@ -26,6 +26,12 @@ window.renderAyuda=function(){
     '</ul>'+
     '</div>'+
 
+    // NUEVA FUNCIÓN — validación de salto de horómetro (agosto 2026)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Nueva función: aviso al ingresar un horómetro poco plausible</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Al registrar un PM (nuevo o editado) o corregir el horómetro directo en la Ficha Técnica de un equipo, el sistema ahora compara el valor nuevo contra el último registrado y avisa si el avance es demasiado grande para los días transcurridos — ver el detalle en Preguntas Frecuentes, más abajo. No bloquea el guardado: si el dato es real, se confirma y sigue igual que antes.</p>'+
+    '</div>'+
+
     // NOVEDADES ANTERIORES (julio 2026)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (julio 2026)</b>'+
@@ -353,6 +359,8 @@ window.renderAyuda=function(){
     'Sin límite técnico. Funciona bien con 50+ equipos.<br><br>'+
     '<b>¿Los cambios se propagan automáticamente?</b><br>'+
     'Sí. Cada edición en cualquier pestaña llama refreshAll() que actualiza Dashboard, header y la pestaña actual. Todo está interconectado.<br><br>'+
+    '<b>¿Por qué me pregunta si estoy seguro al ingresar un horómetro?</b><br>'+
+    'El sistema compara el horómetro nuevo contra el último que quedó registrado para ese equipo, y avisa si el avance es demasiado grande para los días que pasaron desde ese dato — atrapa el típico error de tipeo (un dígito de más, o equipo equivocado) antes de que contamine el historial. El margen no es un número fijo: se calcula como 4 veces el ritmo nominal del equipo (Hrs/Día) por los días transcurridos. Ejemplo: un equipo con 12 Hrs/Día y un último dato de hace 3 días admite hasta 144h de avance (12 × 4 × 3) sin aviso — si el avance real fue mayor a eso, se pregunta si es correcto antes de guardar. Si estás seguro de que el dato es real (el equipo estuvo mucho tiempo sin registrarse, por ejemplo), puedes confirmar igual y se guarda.<br><br>'+
     '<b>¿Cómo hago backup?</b><br>'+
     'Config → "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON". Guarda el archivo. Para restaurar: "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON". También tienes el archivo Excel Plan B como respaldo independiente.</div></div>'+
 

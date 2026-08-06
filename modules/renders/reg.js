@@ -210,6 +210,11 @@ window.saveEditReg=function(i){
   const nuevoEquipo=$('eRq').value;
   const eq=S.g('eq')||[];
   const e=eq.find(x=>x.sigla===nuevoEquipo);
+  // Mismo chequeo de salto implausible que saveReg — acá nunca había existido ninguno.
+  if(e&&e.horomActual&&hr!==reg[i].horomReal&&!fechaEsAnterior(fEnt,e.fechaHorom||fEnt)){
+    const chkSalto=validarSaltoHorometro(hr,e.horomActual,e.fechaHorom,fEnt,e.hrsDia);
+    if(!chkSalto.valido&&!confirm('⚠️ '+chkSalto.motivo+'\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
+  }
   // Recalcula cumplimiento (a tiempo/atrasada) contra la fecha de PM esperada que
   // quedó guardada al crear el registro — antes editar la fecha de entrada dejaba el
   // estado/desvío mostrando un valor calculado con la fecha vieja, sin avisar.
@@ -303,6 +308,12 @@ window.saveReg=function(){
   const esRetroactivo=!!(e&&e.fechaHorom&&fechaEsAnterior(fEnt,e.fechaHorom));
   if(!esRetroactivo&&e&&e.horomActual&&hr<e.horomActual){
     if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+eqSigla+' tiene horómetro actual: '+e.horomActual.toLocaleString('es-CL')+'h\nEstás registrando: '+hr.toLocaleString('es-CL')+'h ('+(e.horomActual-hr).toLocaleString('es-CL')+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
+  } else if(!esRetroactivo&&e&&e.horomActual){
+    // Salto implausible hacia adelante (no es regresión, esa ya se chequeó arriba) —
+    // ver validarSaltoHorometro en logic.js, mismo espíritu que el "Report Mantención"
+    // de Besalco Maquinarias, adaptado a que acá no se reporta el horómetro a diario.
+    const chkSalto=validarSaltoHorometro(hr,e.horomActual,e.fechaHorom,fEnt,e.hrsDia);
+    if(!chkSalto.valido&&!confirm('⚠️ '+chkSalto.motivo+'\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
   }
   // Calcular duración en horas
   let durH=0,durStr='—';

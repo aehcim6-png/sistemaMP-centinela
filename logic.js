@@ -713,6 +713,35 @@ function horomEnFecha(readings, fechaISO, horomActual, hoyISO, nominal, inicio){
   return {horom:Math.round(est), metodo:metodo, tasaDia:tasa};
 }
 
+// ═══ VALIDACIÓN DE SALTO DE HORÓMETRO ═══
+// Inspirado en el control de "Report Mantención" del manual de Besalco Maquinarias
+// (rechaza un horómetro que se salga de ±50h del último reporte diario) — pero
+// adaptado: acá el horómetro no se reporta todos los días, se registra cada vez que
+// alguien hace un PM o corrige el dato a mano, así que un margen FIJO de horas
+// atraparía como "error" cualquier registro con varios días de diferencia real. El
+// margen escala con los días transcurridos y el ritmo nominal del equipo — mismo
+// umbral (4x el ritmo nominal) que ya usa tasaDiariaReal() para descartar saltos
+// implausibles del historial, para no inventar un segundo criterio.
+// No valida retroactivos (fechaNueva anterior a fechaAnterior) — ese caso ya lo
+// cubre la regla de "solo el registro más reciente cronológicamente actualiza
+// horomActual" (ver construirLecturaHistorial). Devuelve {valido:true} si no hay
+// dato previo con qué comparar (primera lectura del equipo).
+function validarSaltoHorometro(horomNuevo, horomAnterior, fechaAnterior, fechaNueva, hrsDia){
+  if(horomAnterior==null||!fechaAnterior||!fechaNueva)return{valido:true};
+  if(fechaNueva<fechaAnterior)return{valido:true};
+  if(horomNuevo<horomAnterior){
+    return{valido:false,motivo:'El horómetro no puede ser menor al último registrado ('+horomAnterior+', el '+fechaAnterior+')'};
+  }
+  var dias=Math.max(_diasEntreISO(fechaAnterior,fechaNueva),0)+1;
+  var nominal=hrsDia>0?hrsDia:12;
+  var tope=nominal*dias*4;
+  var avance=horomNuevo-horomAnterior;
+  if(avance>tope){
+    return{valido:false,motivo:'El avance ('+Math.round(avance)+') es muy alto para '+dias+' día(s) desde el último dato ('+horomAnterior+', el '+fechaAnterior+') — revisa el horómetro ingresado'};
+  }
+  return{valido:true};
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -750,6 +779,7 @@ if (typeof window !== 'undefined') {
   window.dispEquipoMes = dispEquipoMes;
   window.pagSlice = pagSlice;
   window.hayConflictoIds = hayConflictoIds;
+  window.validarSaltoHorometro = validarSaltoHorometro;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -758,6 +788,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds
+    predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
+    validarSaltoHorometro
   };
 }

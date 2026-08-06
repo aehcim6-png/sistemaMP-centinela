@@ -195,6 +195,16 @@ window.saveFicha=function(sigla){
   var eq=S.g('eq')||[];
   var idx=eq.findIndex(function(x){return x.sigla===sigla});
   if(idx<0)return;
+  // Salto implausible de horómetro — esta ficha nunca había tenido ningún chequeo al
+  // editar el horómetro directo (a diferencia de Registro PM). Ver validarSaltoHorometro
+  // en logic.js, mismo espíritu que el "Report Mantención" de Besalco Maquinarias.
+  var horomAntes=eq[idx].horomActual,fechaHoromAntes=eq[idx].fechaHorom;
+  var nuevoHorom=parseFloat($('ftHorom').value)||0;
+  var hoyFicha=new Date().toISOString().slice(0,10);
+  if(nuevoHorom!==horomAntes){
+    var chkSaltoFicha=validarSaltoHorometro(nuevoHorom,horomAntes,fechaHoromAntes,hoyFicha,parseFloat($('ftHrsDia').value)||eq[idx].hrsDia);
+    if(!chkSaltoFicha.valido&&!confirm('⚠️ '+chkSaltoFicha.motivo+'\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
+  }
   var nuevaSigla=$('ftSigla').value||sigla;
   if(nuevaSigla!==sigla&&!confirm('Vas a cambiar la sigla de "'+sigla+'" a "'+nuevaSigla+'". Se actualizará en todos los registros relacionados (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa, Pautas, Componentes, Gantt, Vencimientos). ¿Continuar?'))return;
   eq[idx].sigla=nuevaSigla;
@@ -212,7 +222,12 @@ window.saveFicha=function(sigla){
   eq[idx].criticidad=$('ftCriticidad')?.value||'General';
   eq[idx].hrsDia=parseFloat($('ftHrsDia').value)||12;
   eq[idx].frecPM=parseFloat($('ftFrec').value)||250;
-  eq[idx].horomActual=parseFloat($('ftHorom').value)||0;
+  eq[idx].horomActual=nuevoHorom;
+  // fechaHorom no se actualizaba nunca desde acá (a diferencia de Registro PM) — con
+  // el tiempo quedaba cada vez más vieja, y eso afecta tanto el chequeo de salto de
+  // arriba en la próxima edición como el retroactivo de Registro PM (fechaEsAnterior
+  // contra e.fechaHorom).
+  if(nuevoHorom!==horomAntes)eq[idx].fechaHorom=hoyFicha;
   _recalcEq(eq[idx]);
   S.s('eq',eq);
   _cascadeRenameSigla(sigla,nuevaSigla);
