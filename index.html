@@ -829,6 +829,8 @@ function _idxLubVigente(lub,idx){
 function descontarStock(consumos, fecha, equipo, tipoPM){
   const stk = S.g('stk')||[];
   const lub = S.g('lub')||[];
+  const stkAntes = JSON.stringify(stk);
+  const lubAntes = JSON.stringify(lub);
   const mov = S.g('mov')||[];
   const mapaRep = S.g('mapaRep')||[];
   const hoy = fecha||new Date().toISOString().slice(0,10);
@@ -930,8 +932,8 @@ function descontarStock(consumos, fecha, equipo, tipoPM){
   });
 
   if(mov.length>0) S.s('mov',mov);
-  S.s('stk',stk);
-  S.s('lub',lub);
+  if(JSON.stringify(stk)!==stkAntes) S.s('stk',stk);
+  if(JSON.stringify(lub)!==lubAntes) S.s('lub',lub);
   if(mapaCambio) S.s('mapaRep',mapaRep);
   if(sinMatch.length>0) toast('⚠️ Sin stock vinculado para: '+sinMatch.join(', ')+' — revisar en Stock/Lubricantes');
   return log;
@@ -2419,12 +2421,16 @@ function comprimirImagen(file){
   });
 }
 
-// Sube un blob ya comprimido a una ruta dentro del bucket compartido y devuelve su URL pública
+// Sube un blob ya comprimido a una ruta dentro del bucket compartido y devuelve su URL pública.
+// Autenticado con el token real de quien está logueado (igual que el resto de las
+// llamadas de este archivo) — antes mandaba la clave anon pública como Authorization,
+// es decir subía como el rol anónimo, no como el usuario real (auditoría 2026-08-06).
 async function _subirArchivoBucket(blob,path,contentType){
   contentType=contentType||'image/jpeg';
+  var token=localStorage.getItem('smp_access_token');
   var r=await fetch(_SB_DEFAULT_URL+'/storage/v1/object/'+FOTOS_BUCKET+'/'+path,{
     method:'POST',
-    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+_SB_DEFAULT_KEY,'Content-Type':contentType},
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+(token||_SB_DEFAULT_KEY),'Content-Type':contentType},
     body:blob
   });
   if(!r.ok){
