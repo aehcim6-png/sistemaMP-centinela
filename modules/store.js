@@ -99,7 +99,7 @@ const TABLA_REAL={
   // el registro normal de un PM, que hace cualquier operador.
   mapaRep:{tabla:'mapeo_repuestos',clave:'_id',claveDb:'id',cols:['pautaId','tipo','refId']},
   // Clave natural: el propio campo ya identifica la fila, tanto en JS como en la tabla.
-  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato','unidad','criticidad','inicioOper']},
+  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato','unidad','criticidad','inicioOper','pmPendienteManual']},
   neu:{tabla:'neumaticos',clave:'id',claveDb:'id',cols:['id','sigla','tipo','marca','serie','medida','posicion','numPos','estado','tipoEquipo','vidaUtil','remNuevo','remanente','pctRemanente','alerta','fechaInst','ultimaMedicion','horasAcum','horomActual','horomInstalacion','horasBase','numSensor','obs']},
   informesFalla:{tabla:'informes_falla',clave:'id',claveDb:'id',cols:['id','sigla','tipo','modelo','componente','tipoEvento','descripcion','causaProbable','costoEstimado','horometroActual','generadoPor','fecha','fechaCreacion','fotos']},
   // Histórico real de órdenes de compra (jun-2022 a jun-2026). Solo lectura: nada en la

@@ -149,6 +149,7 @@ window.editFicha=function(sigla){
     '<div class="fg"><label>Hrs/Día</label><input type="number" id="ftHrsDia" value="'+(e.hrsDia||12)+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Frec PM (hrs)</label><input type="number" id="ftFrec" value="'+(e.frecPM||250)+'"></div>'+
     '<div class="fg"><label>Horómetro Actual</label><input type="number" id="ftHorom" value="'+(e.horomActual||0)+'"></div></div>'+
+    '<div class="form-row"><div class="fg" style="flex:1"><label title="Usalo solo si SABES que un hito de PM quedo sin hacerse (el sistema no puede detectarlo solo). Se limpia solo cuando registres ese PM.">Hito PM pendiente conocido (opcional)</label><input type="number" id="ftPmPendiente" value="'+(e.pmPendienteManual||'')+'" placeholder="ej: 15500"></div></div>'+
     '<br><button class="btn" onclick="saveFicha(\''+escapeHtml(sigla)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 // Si se renombra la sigla de un equipo, propaga el cambio a todo lo que la referencia
@@ -222,6 +223,7 @@ window.saveFicha=function(sigla){
   eq[idx].criticidad=$('ftCriticidad')?.value||'General';
   eq[idx].hrsDia=parseFloat($('ftHrsDia').value)||12;
   eq[idx].frecPM=parseFloat($('ftFrec').value)||250;
+  eq[idx].pmPendienteManual=parseFloat($('ftPmPendiente').value)||null;
   eq[idx].horomActual=nuevoHorom;
   // fechaHorom no se actualizaba nunca desde acá (a diferencia de Registro PM) — con
   // el tiempo quedaba cada vez más vieja, y eso afecta tanto el chequeo de salto de

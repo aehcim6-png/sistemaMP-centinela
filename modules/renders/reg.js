@@ -244,7 +244,11 @@ window.saveEditReg=function(i){
   // Actualizar horómetro del equipo si corresponde. Guardar 'reg' ANTES de
   // _recalcEq: el anclaje de PM lee el último registro real vía S.g('reg'), así
   // que si se recalculara antes de guardar seguiría viendo el registro viejo.
-  if(e&&hr>e.horomActual){e.horomActual=hr;_recalcEq(e);S.s('eq',eq);renderHeader();}
+  if(e&&hr>e.horomActual){
+    e.horomActual=hr;
+    if(e.pmPendienteManual>0&&hr>=e.pmPendienteManual)e.pmPendienteManual=null;
+    _recalcEq(e);S.s('eq',eq);renderHeader();
+  }
   cm();refreshAll();toast('✅ Registro actualizado');
 };
 window.rAutoHorom=function(){
@@ -354,6 +358,10 @@ window.saveReg=function(){
     if(!esRetroactivo){
       e.horomActual=hr;
       e.fechaHorom=fEnt;
+      // El hito marcado a mano (ver Ficha Técnica/logic.js C.recalc) ya quedó
+      // cubierto por este PM real recién registrado — se limpia solo, si no
+      // quedaría avisando "vencido" para siempre aunque ya se hizo.
+      if(e.pmPendienteManual>0&&hr>=e.pmPendienteManual)e.pmPendienteManual=null;
       _recalcEq(e);
       S.s('eq',eq);
     }
