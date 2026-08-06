@@ -27,6 +27,7 @@ window.renderPrg = function () {
   // Salvaguarda: si 'eq' llega vacío (carga a medias, misma clase de bug que syncEquipos),
   // no filtrar/guardar — evita borrar todo el programa real por una carrera de arranque.
   if (eq.length) {
+    var prgAntes = JSON.stringify(prg);
     var eqSiglas = eq.map(function (e) { return e.sigla });
     // Remove deleted equipos from prg
     prg = prg.filter(function (p) { return eqSiglas.indexOf(p.sigla) >= 0 });
@@ -55,7 +56,7 @@ window.renderPrg = function () {
         prg.push({ sigla: e.sigla, tipo: e.tipo, modelo: e.modelo, meses: meses });
       }
     });
-    S.s('prg', prg);
+    if (JSON.stringify(prg) !== prgAntes) S.s('prg', prg);
   }
   // Auto-mark EJEC del AÑO seleccionado — calculado en vivo, sin pisar el plan base guardado
   var reg = S.g('reg') || [];

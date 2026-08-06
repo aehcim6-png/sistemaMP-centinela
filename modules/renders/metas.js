@@ -17,6 +17,7 @@ window.renderMetas = function () {
     { id: 'mtbf', name: 'MTBF Mínimo (hrs)', meta: 2000, unit: 'h', higher: true },
     { id: 'backlog', name: 'OT Pendientes Máx', meta: 5, unit: '', higher: false }
   ];
+  var metasAntes = JSON.stringify(metas);
   // Auto-calculate REAL values per month
   var realData = {};
   var anioMetas = new Date().getFullYear();
@@ -92,5 +93,5 @@ window.renderMetas = function () {
         }).join('') + '</tr>';
     }).join('') +
     '</table></div>';
-  S.s('metas', metas);
+  if (JSON.stringify(metas) !== metasAntes) S.s('metas', metas);
 };
