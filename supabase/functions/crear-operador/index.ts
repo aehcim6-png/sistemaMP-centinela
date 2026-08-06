@@ -10,17 +10,29 @@ const BLOQUEO_DURACION = "87600h";
 // Genera una contraseña que cumple la política de Supabase Auth configurada
 // hoy (mínimo 14 caracteres, minúscula+mayúscula+dígito+símbolo). Garantiza
 // al menos uno de cada clase de carácter y después mezcla el resultado.
+//
+// randomIndex usa crypto.getRandomValues, NO Math.random (corregido en
+// auditoría 2026-08-06): una contraseña temporal sigue siendo un secreto
+// real que da acceso a una cuenta real, aunque de corta vida (se fuerza a
+// cambiarla en el primer login) — Math.random() no es un generador
+// criptográficamente seguro, sus salidas se pueden llegar a predecir a
+// partir de valores anteriores del mismo proceso.
+function randomIndex(max: number) {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] % max;
+}
 function randomPassword(len = 18) {
   const lower = "abcdefghijkmnpqrstuvwxyz";
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const digits = "23456789";
   const symbols = "!@#$%^&*-_=+?";
   const all = lower + upper + digits + symbols;
-  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const pick = (s: string) => s[randomIndex(s.length)];
   const out = [pick(lower), pick(upper), pick(digits), pick(symbols)];
   while (out.length < len) out.push(pick(all));
   for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomIndex(i + 1);
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out.join("");

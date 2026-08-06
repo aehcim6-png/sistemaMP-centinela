@@ -59,16 +59,28 @@ function tabla(headers: string[], filas: string[][]) {
 
 Deno.serve(async (req) => {
   try {
-    // --- Seguridad: solo el cron (que conoce el secreto) puede disparar esto ---
-    const secretoEsperado = Deno.env.get('ALERTA_PM_SECRET');
-    const secretoRecibido = req.headers.get('x-cron-secret');
-    if (!secretoEsperado || secretoRecibido !== secretoEsperado) {
-      return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
-    }
-
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+
+    // --- Seguridad (corregida 2026-08-06): antes comparaba x-cron-secret contra
+    // un secreto fijo en una env var ('pm-centinela-2026' — baja entropía,
+    // adivinable, y guardado en texto plano dentro de cron.job.command, visible
+    // para cualquiera con acceso SQL al proyecto). Ahora reusa la misma función
+    // restringida a service_role que ya protege backup-diario
+    // (verificar_secreto_cron), contra un secreto aleatorio de 32 bytes guardado
+    // en Supabase Vault — nunca queda en texto plano ni en el código ni en el
+    // cron job.
+    const secretoRecibido = req.headers.get('x-cron-secret') || '';
+    const rVerif = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verificar_secreto_cron`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre_secreto: 'alerta_pm_cron_secret', valor_recibido: secretoRecibido }),
+    });
+    const secretoValido = rVerif.ok ? await rVerif.json() : false;
+    if (!secretoValido) {
+      return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+    }
     const REMITENTE = Deno.env.get('ALERTA_PM_REMITENTE') || 'Sistema MP Centinela <onboarding@resend.dev>';
     const DESTINATARIOS = (Deno.env.get('ALERTA_PM_DESTINATARIOS') || 'aehcim6@gmail.com')
       .split(',').map((e) => e.trim()).filter(Boolean);
