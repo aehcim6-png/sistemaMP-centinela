@@ -404,7 +404,17 @@ function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
   if(isNaN(d))return null;
+  // Bug real (auditoría 2026-08-06): setMonth() con el día original todavía puesto
+  // desborda cuando el mes destino tiene menos días — "31 ago + 6 meses" no daba
+  // "28 feb" (último día de febrero), daba "3 mar" (JS interpreta "31 feb" como
+  // "28 feb + 3 días"). Para un documento vencido/por vencer eso corría la fecha
+  // 2-3 días de más. Fix: se avanza el mes con el día en 1 (nunca desborda), y
+  // recién ahí se pone el día original, topado al último día real del mes destino.
+  var diaOriginal=d.getDate();
+  d.setDate(1);
   d.setMonth(d.getMonth()+parseInt(periodicidadMeses));
+  var ultimoDiaMesDestino=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  d.setDate(Math.min(diaOriginal,ultimoDiaMesDestino));
   return d.toISOString().slice(0,10);
 }
 

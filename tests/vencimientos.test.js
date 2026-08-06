@@ -34,6 +34,14 @@ describe('vencCalcProximo — próxima fecha de vencimiento', () => {
   it('cruza el fin de año correctamente', () => {
     expect(vencCalcProximo('2026-10-01', 6)).toBe('2027-04-01');
   });
+  it('no desborda cuando el mes destino tiene menos días — bug real (2026-08-06)', () => {
+    expect(vencCalcProximo('2026-08-31', 6)).toBe('2027-02-28'); // feb 2027, no bisiesto
+    expect(vencCalcProximo('2026-01-31', 1)).toBe('2026-02-28');
+    expect(vencCalcProximo('2026-12-31', 2)).toBe('2027-02-28');
+  });
+  it('respeta el 29 de febrero en un año bisiesto destino', () => {
+    expect(vencCalcProximo('2027-08-29', 6)).toBe('2028-02-29'); // 2028 es bisiesto
+  });
   it('sin fecha o sin periodicidad -> null', () => {
     expect(vencCalcProximo(null, 6)).toBeNull();
     expect(vencCalcProximo('2026-01-15', null)).toBeNull();
