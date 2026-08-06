@@ -10,7 +10,7 @@
 // servir de caché primero arriesgaría mostrar código viejo estando online.
 // Solo cuando la red falla de verdad (sin conexión) se usa lo cacheado.
 //
-// No hace falta precachear los ~39 módulos de renders/ a mano: en la
+// No hace falta precachear los ~40 módulos de renders/ a mano: en la
 // primera visita con internet, cada uno se cachea solo la primera vez que
 // el navegador lo pide (línea "cachear respuesta exitosa" más abajo) — para
 // la segunda visita ya está todo, con o sin conexión.
