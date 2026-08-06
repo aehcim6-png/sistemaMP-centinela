@@ -38,6 +38,12 @@ window.renderAyuda=function(){
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Un bloqueo por falta de repuesto ahora se puede vincular a su Orden de Compra (botón "Vincular OC" en Gestión de Destrabe). Antes había que acordarse de marcar "Resuelto" a mano; ahora, al marcar esa OC como "Recibida" (nuevo botón "Órdenes de Compra" en Control de Repuestos — antes tampoco existía forma de ver ni cerrar una OC ya creada), el bloqueo se cierra solo, con una nota automática de cuándo llegó. Ver el detalle en las secciones 8 y 19, más abajo.</p>'+
     '</div>'+
 
+    // NUEVA FUNCIÓN — hito PM pendiente conocido (agosto 2026)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Nueva función: marcar a mano un PM que sabes que quedó pendiente</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Caso real (CF-8769): el sistema no siempre puede saber si un hueco desde el último PM registrado significa "de verdad no se hizo" o "se hizo pero no se anotó" — por defecto asume lo segundo, para no inventar alertas de vencido con datos históricos incompletos. Si sabes que un hito específico quedó pendiente de verdad, ahora puedes marcarlo tú mismo en la Ficha Técnica del equipo ("Hito PM pendiente conocido") y el sistema lo muestra como vencido correctamente. Se limpia solo al registrar ese PM. Ver el detalle en Preguntas Frecuentes, más abajo.</p>'+
+    '</div>'+
+
     // NOVEDADES ANTERIORES (julio 2026)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (julio 2026)</b>'+
@@ -368,6 +374,8 @@ window.renderAyuda=function(){
     'Sí. Cada edición en cualquier pestaña llama refreshAll() que actualiza Dashboard, header y la pestaña actual. Todo está interconectado.<br><br>'+
     '<b>¿Por qué me pregunta si estoy seguro al ingresar un horómetro?</b><br>'+
     'El sistema compara el horómetro nuevo contra el último que quedó registrado para ese equipo, y avisa si el avance es demasiado grande para los días que pasaron desde ese dato — atrapa el típico error de tipeo (un dígito de más, o equipo equivocado) antes de que contamine el historial. El margen no es un número fijo: se calcula como 4 veces el ritmo nominal del equipo (Hrs/Día) por los días transcurridos. Ejemplo: un equipo con 12 Hrs/Día y un último dato de hace 3 días admite hasta 144h de avance (12 × 4 × 3) sin aviso — si el avance real fue mayor a eso, se pregunta si es correcto antes de guardar. Si estás seguro de que el dato es real (el equipo estuvo mucho tiempo sin registrarse, por ejemplo), puedes confirmar igual y se guarda.<br><br>'+
+    '<b>El sistema muestra "🟡 PRÓXIMA" pero sé que un PM anterior quedó sin hacerse — ¿qué hago?</b><br>'+
+    'Caso real: si el último PM registrado quedó varios ciclos atrás sin que se anotara ningún otro, el cálculo automático no puede distinguir "de verdad no se hizo" de "se hizo pero no se anotó en el sistema" — y por defecto asume esto último, para no inventar alertas de vencido por datos históricos incompletos. Si TÚ sabes con certeza que un hito específico quedó pendiente, entra a la Ficha Técnica del equipo (✏️ en la pestaña Equipos) y escribe ese horómetro en <b>"Hito PM pendiente conocido"</b> — el sistema pasa a mostrar ESE hito como el próximo (y como VENCIDA si ya lo pasaste), en vez del calculado automáticamente. Se limpia solo apenas registres el PM real que lo cubre.<br><br>'+
     '<b>¿Cómo hago backup?</b><br>'+
     'Config → "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON". Guarda el archivo. Para restaurar: "<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON". También tienes el archivo Excel Plan B como respaldo independiente.</div></div>'+
 

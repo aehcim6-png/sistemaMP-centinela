@@ -233,6 +233,32 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     C.recalc(e, 12, 270, 'PM1');
     expect(e.horomProxPM).toBe(500);
   });
+
+  // Caso real CF-8769: último PM en 15264 (cubre el hito 15250), ningún PM
+  // registrado desde entonces, horómetro actual 15518 (ya pasado el hito 15500).
+  // proxPM (mismo "hueco real" que MN-5926/GE-10019) salta a la grilla pura
+  // (15750) sin avisar — el sistema no puede distinguir "se saltó de verdad" de
+  // "se hizo pero no se anotó" solo con los números. pmPendienteManual es el
+  // escape manual para cuando el usuario SÍ lo sabe.
+  it('pmPendienteManual gana sobre el cálculo automático cuando es más temprano (caso real CF-8769)', () => {
+    const e = { horomActual: 15518, frecPM: 250, hrsDia: 16, pmPendienteManual: 15500 };
+    C.recalc(e, 16, 15264, 'PM1');
+    expect(e.horomProxPM).toBe(15500);
+    expect(e.hrsRestantes).toBe(-18); // ya vencido, no "232h para el próximo"
+    expect(e.estado).toContain('VENCIDA');
+  });
+  it('pmPendienteManual no tiene efecto si es igual o posterior a lo que ya calculó proxPM (no hace nada raro)', () => {
+    const e = { horomActual: 480, frecPM: 500, hrsDia: 20, pmPendienteManual: 600 };
+    C.recalc(e, 20, null, null);
+    expect(e.horomProxPM).toBe(500); // sigue siendo el cálculo automático normal
+  });
+  it('pmPendienteManual vacío/0/null no cambia nada (compatibilidad con equipos sin este dato)', () => {
+    const e1 = { horomActual: 480, frecPM: 500, hrsDia: 20, pmPendienteManual: null };
+    const e2 = { horomActual: 480, frecPM: 500, hrsDia: 20, pmPendienteManual: 0 };
+    C.recalc(e1, 20); C.recalc(e2, 20);
+    expect(e1.horomProxPM).toBe(500);
+    expect(e2.horomProxPM).toBe(500);
+  });
 });
 
 describe('C.horomHistorico — horómetro reconstruido desde historial_horometros', () => {

@@ -66,8 +66,19 @@ const C = {
   // lo necesario. Si no se pasa ritmo (o es 0), cae al hrsDia nominal, como siempre.
   // 'horomUltimoPM'/'tipoUltimoPM' (opcionales): datos del último PM real ejecutado
   // (desde registros_pm), para que proxPM detecte un PM anticipado — ver su comentario.
+  // e.pmPendienteManual (opcional, editable en Ficha Técnica): cuando hay un hueco
+  // real desde el último PM registrado, proxPM no puede distinguir "se saltó de
+  // verdad" (hay que avisar VENCIDA) de "se hizo pero no se anotó" (caso real
+  // MN-5926/GE-10019, donde saltar a la grilla es lo correcto) — es indistinguible
+  // solo con los números. Caso real CF-8769: hito 15.500 nunca se hizo, la grilla
+  // saltaba derecho a 15.750 sin avisar. Si el usuario SABE que un hito quedó
+  // pendiente, lo marca acá y gana sobre el cálculo automático (solo si es más
+  // temprano que lo que ya calculó proxPM — si no, no tiene efecto). Se limpia
+  // solo cuando se registra un PM real que lo cubre (ver saveReg en reg.js).
   recalc(e,ritmoDia,horomUltimoPM,tipoUltimoPM){
-    const p=this.proxPM(e.horomActual,e.frecPM||250,horomUltimoPM,tipoUltimoPM);
+    const pAuto=this.proxPM(e.horomActual,e.frecPM||250,horomUltimoPM,tipoUltimoPM);
+    const pManual=e.pmPendienteManual;
+    const p=(pManual>0&&pManual<pAuto)?pManual:pAuto;
     const hr=p-e.horomActual;
     const ritmo=(ritmoDia&&ritmoDia>0)?ritmoDia:(e.hrsDia>0?e.hrsDia:0);
     const d=ritmo>0?Math.round(hr/ritmo):999;
