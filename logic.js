@@ -984,6 +984,26 @@ function equiposFueraDeServicioAhora(ot){
   });
 }
 
+// ═══ MOTIVO OBLIGATORIO AL MARCAR UN PM PENDIENTE MANUAL ═══
+// Autocrítica sobre la propia función pmPendienteManual (agregada antes en esta
+// misma sesión, ver C.recalc arriba): sobrescribir el cálculo automático del
+// próximo PM queda registrado en el changelog genérico (viejo valor → valor
+// nuevo, automático en cada S.s('eq',...)), pero SIN ningún rastro de POR QUÉ
+// alguien decidió que ese hito quedó pendiente — un dato que puede cambiar el
+// estado de un equipo a VENCIDA de la nada necesita esa justificación, no solo
+// el número. Exige motivo SOLO cuando de verdad se está marcando/cambiando un
+// hito (no al limpiarlo — eso ya lo hace el sistema solo cuando se registra el
+// PM real que lo cubre, ver saveReg en reg.js, y no necesita justificación).
+function validarMotivoPmPendiente(pendienteAnterior,pendienteNuevo,motivo){
+  var antes=pendienteAnterior||null;
+  var nuevo=pendienteNuevo||null;
+  var seEstaMarcando=nuevo>0&&nuevo!==antes;
+  if(seEstaMarcando&&!(motivo&&motivo.trim())){
+    return{valido:false,motivoError:'Anota el motivo: ¿cómo sabes que este hito de PM quedó pendiente? (ej. "PM4 lo hizo el proveedor externo en terreno, no se alcanzó a registrar acá")'};
+  }
+  return{valido:true};
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -1028,6 +1048,7 @@ if (typeof window !== 'undefined') {
   window.registrarSnapshotSalud = registrarSnapshotSalud;
   window.tendenciaSaludSemanal = tendenciaSaludSemanal;
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
+  window.validarMotivoPmPendiente = validarMotivoPmPendiente;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1039,6 +1060,6 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente
   };
 }

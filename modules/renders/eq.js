@@ -149,7 +149,8 @@ window.editFicha=function(sigla){
     '<div class="fg"><label>Hrs/Día</label><input type="number" id="ftHrsDia" value="'+(e.hrsDia||12)+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Frec PM (hrs)</label><input type="number" id="ftFrec" value="'+(e.frecPM||250)+'"></div>'+
     '<div class="fg"><label>Horómetro Actual</label><input type="number" id="ftHorom" value="'+(e.horomActual||0)+'"></div></div>'+
-    '<div class="form-row"><div class="fg" style="flex:1"><label title="Usalo solo si SABES que un hito de PM quedo sin hacerse (el sistema no puede detectarlo solo). Se limpia solo cuando registres ese PM.">Hito PM pendiente conocido (opcional)</label><input type="number" id="ftPmPendiente" value="'+(e.pmPendienteManual||'')+'" placeholder="ej: 15500"></div></div>'+
+    '<div class="form-row"><div class="fg" style="flex:1"><label title="Usalo solo si SABES que un hito de PM quedo sin hacerse (el sistema no puede detectarlo solo). Se limpia solo cuando registres ese PM.">Hito PM pendiente conocido (opcional)</label><input type="number" id="ftPmPendiente" value="'+(e.pmPendienteManual||'')+'" placeholder="ej: 15500"></div>'+
+    '<div class="fg" style="flex:2"><label title="Obligatorio si marcas o cambias este hito — queda en el Log de Cambios junto con el número, para que quede registro de por qué, no solo de qué se cambió">Motivo (obligatorio si marcas/cambias el hito)</label><input id="ftPmMotivo" placeholder="ej: PM4 lo hizo el proveedor externo en terreno, no se alcanzó a registrar acá"></div></div>'+
     '<br><button class="btn" onclick="saveFicha(\''+escapeHtml(sigla)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
 // Si se renombra la sigla de un equipo, propaga el cambio a todo lo que la referencia
@@ -206,6 +207,15 @@ window.saveFicha=function(sigla){
     var chkSaltoFicha=validarSaltoHorometro(nuevoHorom,horomAntes,fechaHoromAntes,hoyFicha,parseFloat($('ftHrsDia').value)||eq[idx].hrsDia);
     if(!chkSaltoFicha.valido&&!confirm('⚠️ '+chkSaltoFicha.motivo+'\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
   }
+  // Motivo obligatorio al marcar o cambiar un hito de PM pendiente manual — ver
+  // validarMotivoPmPendiente en logic.js. El changelog genérico ya registra el
+  // ANTES/DESPUÉS del número solo (automático en cada S.s('eq',...)); esto deja
+  // registrado además el PORQUÉ, que antes no quedaba en ningún lado.
+  var pendienteAntes=eq[idx].pmPendienteManual;
+  var pendienteNuevo=parseFloat($('ftPmPendiente').value)||null;
+  var motivoPendiente=($('ftPmMotivo')?.value||'').trim();
+  var chkMotivo=validarMotivoPmPendiente(pendienteAntes,pendienteNuevo,motivoPendiente);
+  if(!chkMotivo.valido){toast('⚠️ '+chkMotivo.motivoError);return;}
   var nuevaSigla=$('ftSigla').value||sigla;
   if(nuevaSigla!==sigla&&!confirm('Vas a cambiar la sigla de "'+sigla+'" a "'+nuevaSigla+'". Se actualizará en todos los registros relacionados (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa, Pautas, Componentes, Gantt, Vencimientos). ¿Continuar?'))return;
   eq[idx].sigla=nuevaSigla;
@@ -223,7 +233,7 @@ window.saveFicha=function(sigla){
   eq[idx].criticidad=$('ftCriticidad')?.value||'General';
   eq[idx].hrsDia=parseFloat($('ftHrsDia').value)||12;
   eq[idx].frecPM=parseFloat($('ftFrec').value)||250;
-  eq[idx].pmPendienteManual=parseFloat($('ftPmPendiente').value)||null;
+  eq[idx].pmPendienteManual=pendienteNuevo;
   eq[idx].horomActual=nuevoHorom;
   // fechaHorom no se actualizaba nunca desde acá (a diferencia de Registro PM) — con
   // el tiempo quedaba cada vez más vieja, y eso afecta tanto el chequeo de salto de
@@ -232,6 +242,9 @@ window.saveFicha=function(sigla){
   if(nuevoHorom!==horomAntes)eq[idx].fechaHorom=hoyFicha;
   _recalcEq(eq[idx]);
   S.s('eq',eq);
+  if(pendienteNuevo&&pendienteNuevo!==pendienteAntes){
+    _logChange('PM pendiente manual — '+eq[idx].sigla,'Hito '+pendienteNuevo+'h marcado a mano · Motivo: '+motivoPendiente);
+  }
   _cascadeRenameSigla(sigla,nuevaSigla);
   cm();refreshAll();
   toast('✅ Ficha de '+eq[idx].sigla+' actualizada');
