@@ -13,7 +13,12 @@ window.renderRep = function () {
   var fBusq = $('fRepBusq')?.value || '';
   var allEq = eq.map(function (e) { return e.sigla }).sort();
 
-  // Auto-generate from stock+lub if empty
+  // Auto-generate from stock+lub if empty — si stk/lub TAMBIÉN están vacíos
+  // (ej. empresa recién reseteada), rep quedaba en [] y este bloque volvía a
+  // guardar S.s('repuestos',[]) en cada refresco de pantalla para siempre
+  // (mismo bug ya arreglado en metas.js/prg.js: guardado incondicional sin
+  // comparar antes/después).
+  var repAntes = JSON.stringify(rep);
   if (rep.length === 0) {
     stk.forEach(function (s) {
       rep.push({
@@ -31,8 +36,8 @@ window.renderRep = function () {
         estado: ''
       });
     });
-    S.s('repuestos', rep);
   }
+  if (JSON.stringify(rep) !== repAntes) S.s('repuestos', rep);
 
   // Calculate estado for each
   rep.forEach(function (r) {
