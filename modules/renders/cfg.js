@@ -231,8 +231,10 @@ window.renderCfg=function(){
       '<div class="card"><b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Tarifas y Metas</b><br><br>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Tarifa HH ($/hora)</label><br>'+
       '<input type="number" value="'+(S.g('hh')||25000)+'" onchange="S.s(\'hh\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
-      '<div><label style="font-size:11px;color:var(--tx3)">Meta Disponibilidad (%)</label><br>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Meta Disponibilidad (%)</label><br>'+
       '<input type="number" value="'+(S.g('dispMeta')||85)+'" onchange="S.s(\'dispMeta\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
+      '<div><label style="font-size:11px;color:var(--tx3)">Presupuesto Mensual ($)</label><br>'+
+      '<input type="number" value="'+((S.g('cfg')||{}).presupuestoMensual||'')+'" placeholder="Ej: 25000000" onchange="var c=S.g(\'cfg\')||{};c.presupuestoMensual=parseInt(this.value)||0;S.s(\'cfg\',c);refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '</div>'+
 
       // CREAR USUARIO (solo admin real via Supabase Auth)

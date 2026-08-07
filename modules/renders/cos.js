@@ -79,6 +79,18 @@ window.renderCos = function () {
   var totalG = 0; Object.values(costoMes).forEach(function (c) { totalG += c.total; });
   var eficiencia = hhRealTotal > 0 ? Math.round(hhPlanTotal / hhRealTotal * 100) : null;
 
+  // Presupuesto mensual (monto fijo, configurado en Configuración > Tarifas y
+  // Metas) — comparado contra el gasto real ya calculado arriba por mes. Sin
+  // presupuesto definido (0/vacío) se muestra "Sin definir" en vez de una
+  // desviación sin sentido contra cero.
+  var presupuestoMensual = (S.g('cfg') || {}).presupuestoMensual || 0;
+  function desviacionPresupuesto(totalReal) {
+    if (!presupuestoMensual) return null;
+    return Math.round((totalReal - presupuestoMensual) / presupuestoMensual * 100);
+  }
+  var mesActual = meses[0] || '';
+  var desvMesActual = mesActual ? desviacionPresupuesto(costoMes[mesActual].total) : null;
+
   var content = '';
 
   if (fVista === 'costos') {
@@ -88,12 +100,17 @@ window.renderCos = function () {
       '<div class="card"><div class="card-t">HH Reales</div><div class="card-v">' + Math.round(hhRealTotal) + 'h</div><div class="card-s">' + reg.length + ' intervenciones</div></div>' +
       '<div class="card"><div class="card-t">HH Planificadas</div><div class="card-v">' + Math.round(hhPlanTotal) + 'h</div><div class="card-s">Según pautas</div></div>' +
       '<div class="card"><div class="card-t">Eficiencia HH</div><div class="card-v" style="color:' + (eficiencia === null ? 'var(--tx3)' : eficiencia >= 80 ? 'var(--ok)' : eficiencia >= 60 ? 'var(--w)' : 'var(--danger)') + '">' + (eficiencia === null ? '—' : eficiencia + '%') + '</div><div class="card-s">' + (eficiencia === null ? 'Sin datos' : 'Plan vs Real') + '</div></div>' +
+      '<div class="card"><div class="card-t">Presupuesto vs Real (' + (mesActual || 'mes actual') + ')</div><div class="card-v" style="color:' + (desvMesActual === null ? 'var(--tx3)' : desvMesActual > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (desvMesActual === null ? '—' : (desvMesActual > 0 ? '+' : '') + desvMesActual + '%') + '</div><div class="card-s">' + (presupuestoMensual ? '$' + Math.round(presupuestoMensual).toLocaleString() + '/mes' : 'Sin definir (Configuración)') + '</div></div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:14px">' +
       meses.slice(0, 6).map(function (m) { var c = costoMes[m]; return '<div class="card"><b>' + m + '</b> (' + c.pms + ' PMs)<br><span style="font-size:11px">HH: $' + Math.round(c.hh).toLocaleString() + '</span><br><span style="font-size:11px">Filtros: $' + Math.round(c.filtros).toLocaleString() + '</span><br><span style="font-size:11px">Lub: $' + Math.round(c.lubricantes).toLocaleString() + '</span><br><b style="color:var(--ac)">Total: $' + Math.round(c.total).toLocaleString() + '</b></div>'; }).join('') +
       '</div>' +
-      '<div class="tbl-wrap"><table><tr><th>Mes</th><th>PMs</th><th>HH ($)</th><th>Filtros ($)</th><th>Lubricantes ($)</th><th>Total ($)</th></tr>' +
-      meses.map(function (m) { var c = costoMes[m]; return '<tr><td><b>' + m + '</b></td><td>' + c.pms + '</td><td>$' + Math.round(c.hh).toLocaleString() + '</td><td>$' + Math.round(c.filtros).toLocaleString() + '</td><td>$' + Math.round(c.lubricantes).toLocaleString() + '</td><td style="color:var(--ac);font-weight:700">$' + Math.round(c.total).toLocaleString() + '</td></tr>'; }).join('') +
+      '<div class="tbl-wrap"><table><tr><th>Mes</th><th>PMs</th><th>HH ($)</th><th>Filtros ($)</th><th>Lubricantes ($)</th><th>Total ($)</th><th>Desviación Presupuesto</th></tr>' +
+      meses.map(function (m) {
+        var c = costoMes[m]; var d = desviacionPresupuesto(c.total);
+        var dTxt = d === null ? '<span style="color:var(--tx3)">—</span>' : '<b style="color:' + (d > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (d > 0 ? '+' : '') + d + '%</b>';
+        return '<tr><td><b>' + m + '</b></td><td>' + c.pms + '</td><td>$' + Math.round(c.hh).toLocaleString() + '</td><td>$' + Math.round(c.filtros).toLocaleString() + '</td><td>$' + Math.round(c.lubricantes).toLocaleString() + '</td><td style="color:var(--ac);font-weight:700">$' + Math.round(c.total).toLocaleString() + '</td><td style="text-align:center">' + dTxt + '</td></tr>';
+      }).join('') +
       '</table></div>';
 
   } else if (fVista === 'hh') {
