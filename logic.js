@@ -789,6 +789,125 @@ function resolverDestrabePorOC(destrabeArr, idOrdenCompra, fechaRecibido){
   });
 }
 
+// ═══ VERIFICADOR DE INTEGRIDAD — "control de gestión": busca datos físicamente
+// imposibles en lo ya guardado, no juicios de negocio ("esto no puede ser cierto",
+// nunca "esto me parece raro"). Pura: recibe snapshots de las tablas relevantes
+// (mismo shape que S.g() de cada categoría), no toca Supabase ni el DOM. Cada
+// hallazgo trae severidad — 'alta' (dato corrupto/imposible en sí mismo) o 'media'
+// (inconsistencia entre dos campos que puede ser caché vieja, no corrupción) — para
+// que la UI los agrupe. El check de "estado desincronizado" compara el equipo
+// contra SUS PROPIOS campos guardados (horomActual vs horomProxPM), no contra un
+// recálculo desde cero con ritmoDia/pmPendienteManual — eso evita falsos positivos
+// en equipos con ritmo real distinto al nominal, que no es un error de dato.
+function verificarIntegridad(data){
+  var d=data||{};
+  var eq=d.eq||[], reg=d.reg||[], hist=d.hist||[], stk=d.stk||[], repuestos=d.repuestos||[],
+      lub=d.lub||[], ordenes=d.ordenes||[], compMayores=d.compMayores||[], dispCalc=d.dispCalc||{};
+  var out=[];
+  function add(sev,check,msg){out.push({severidad:sev,check:check,msg:msg});}
+
+  // 1) Horómetro que retrocedió respecto a su propio historial
+  var porSigla={};
+  hist.forEach(function(h){
+    if(!h||!h.sigla||!h.fecha)return;
+    (porSigla[h.sigla]=porSigla[h.sigla]||[]).push(h);
+  });
+  Object.keys(porSigla).forEach(function(sigla){
+    var arr=porSigla[sigla].slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+    for(var i=1;i<arr.length;i++){
+      var prev=arr[i-1].horomFin!=null?arr[i-1].horomFin:arr[i-1].horom;
+      var cur=arr[i].horomFin!=null?arr[i].horomFin:arr[i].horom;
+      if(prev!=null&&cur!=null&&cur<prev){
+        add('alta','horometroRetrocedido',sigla+': horómetro bajó de '+prev+' ('+arr[i-1].fecha+') a '+cur+' ('+arr[i].fecha+')');
+        break; // un aviso por equipo basta, no inundar con cada tramo
+      }
+    }
+  });
+
+  // 2) Disponibilidad fuera de 0-100%
+  Object.keys(dispCalc).forEach(function(sigla){
+    var meses=dispCalc[sigla]||{};
+    Object.keys(meses).forEach(function(mes){
+      var v=meses[mes];
+      if(typeof v==='number'&&(v<0||v>100)){
+        add('alta','disponibilidadFueraDeRango',sigla+' ('+mes+'): disponibilidad '+v+'% — fuera de 0-100%');
+      }
+    });
+  });
+
+  // 3) Estado guardado desincronizado con lo que dice el propio horómetro del equipo
+  eq.forEach(function(e){
+    if(!e||e.horomActual==null||e.horomProxPM==null)return;
+    var yaAlcanzado=e.horomActual>=e.horomProxPM;
+    var diceVencida=/VENCID/i.test(e.estado||'')||(e.hrsRestantes!=null&&e.hrsRestantes<0);
+    if(yaAlcanzado&&!diceVencida){
+      add('media','estadoDesincronizado',(e.sigla||'?')+': el horómetro actual ('+e.horomActual+') ya alcanzó su propio próximo PM guardado ('+e.horomProxPM+'), pero el estado dice "'+(e.estado||'?')+'" — falta recalcular');
+    }
+  });
+
+  // 4) Sigla de equipo duplicada
+  var vistos={};
+  eq.forEach(function(e){
+    if(!e||!e.sigla)return;
+    vistos[e.sigla]=(vistos[e.sigla]||0)+1;
+  });
+  Object.keys(vistos).forEach(function(sigla){
+    if(vistos[sigla]>1)add('alta','siglaDuplicada',sigla+': aparece '+vistos[sigla]+' veces en Equipos');
+  });
+
+  // 5) Costos/precios negativos
+  stk.forEach(function(s){
+    if(s&&s.precioUnit<0)add('alta','precioNegativo','Stock filtros — '+(s.nParte||'?')+': precioUnit '+s.precioUnit);
+  });
+  repuestos.forEach(function(r){
+    if(r&&r.precioUnit<0)add('alta','precioNegativo','Repuestos — '+(r.componente||r.nParte||'?')+': precioUnit '+r.precioUnit);
+  });
+  lub.forEach(function(l){
+    if(l&&l.precio<0)add('alta','precioNegativo','Lubricantes — '+(l.nombre||'?')+': precio '+l.precio);
+  });
+  ordenes.forEach(function(o){
+    if(o&&o.costoEstimado<0)add('alta','precioNegativo','Órdenes de compra — '+(o.componente||o.nParte||'?')+': costoEstimado '+o.costoEstimado);
+  });
+
+  // 6) Stock negativo
+  stk.forEach(function(s){
+    if(s&&s.stockBodega<0)add('alta','stockNegativo','Stock filtros — '+(s.nParte||'?')+': stockBodega '+s.stockBodega);
+  });
+  repuestos.forEach(function(r){
+    if(r&&r.stockActual<0)add('alta','stockNegativo','Repuestos — '+(r.componente||r.nParte||'?')+': stockActual '+r.stockActual);
+  });
+  lub.forEach(function(l){
+    if(l&&l.stock<0)add('alta','stockNegativo','Lubricantes — '+(l.nombre||'?')+': stock '+l.stock);
+  });
+
+  // 7) Registro PM/correctivo con fecha de salida anterior a la de entrada
+  reg.forEach(function(r){
+    if(r&&r.fechaEntrada&&r.fechaSalida&&fechaEsAnterior(r.fechaSalida,r.fechaEntrada)){
+      add('alta','fechaSalidaAntesDeEntrada',(r.equipo||'?')+' ('+(r.fechaEntrada)+'): salió el '+r.fechaSalida+', antes de haber entrado el '+r.fechaEntrada);
+    }
+  });
+
+  // 8) Componente mayor con vida útil <=0 o instalado "en el futuro" del equipo
+  var horomPorSigla={};
+  eq.forEach(function(e){if(e&&e.sigla)horomPorSigla[e.sigla]=e.horomActual;});
+  compMayores.forEach(function(c){
+    if(!c)return;
+    if(c.vidaUtil!=null&&c.vidaUtil<=0){
+      add('media','vidaUtilInvalida',(c.sigla||'?')+' — '+(c.comp||'?')+': vidaUtil '+c.vidaUtil+' (debe ser mayor a 0)');
+    }
+    if(!c.esOriginal&&c.fechaInst&&c.horomComp!=null){
+      var hAct=horomPorSigla[c.sigla];
+      if(hAct!=null&&hAct<c.horomComp){
+        add('media','horasUsadasNegativas',(c.sigla||'?')+' — '+(c.comp||'?')+': instalado en horómetro '+c.horomComp+', pero el equipo hoy tiene '+hAct+' — menos que al instalarlo');
+      }
+    }
+  });
+
+  var orden={alta:0,media:1,baja:2};
+  out.sort(function(a,b){return orden[a.severidad]-orden[b.severidad];});
+  return out;
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -828,6 +947,7 @@ if (typeof window !== 'undefined') {
   window.hayConflictoIds = hayConflictoIds;
   window.validarSaltoHorometro = validarSaltoHorometro;
   window.resolverDestrabePorOC = resolverDestrabePorOC;
+  window.verificarIntegridad = verificarIntegridad;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -837,6 +957,6 @@ if (typeof module !== 'undefined' && module.exports) {
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
-    validarSaltoHorometro, resolverDestrabePorOC
+    validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad
   };
 }
