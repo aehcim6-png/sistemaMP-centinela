@@ -354,6 +354,30 @@ function rangoDias(desde, hasta){
   return out;
 }
 
+// ═══ MTBF DE FLOTA — fuente ÚNICA compartida por el tablero de KPI y el Reporte
+// Ejecutivo (Excel para jefatura) ═══
+// Promedio de los MTBF REALES (C.mtbfReal, intervalos entre fallas sucesivas) de
+// cada equipo — nunca "horas totales de la flota ÷ fallas totales de la flota":
+// ese cociente usa el horómetro EN VIVO (crece solo, aunque el equipo no vuelva a
+// fallar) y el conteo de fallas de TODA la vida (sin acotar a ningún período), así
+// que el número sube día a día sin que la confiabilidad real haya cambiado en nada
+// — el mismo defecto que ya documenta C.mtbfReal arriba, encontrado también acá en
+// el Reporte Ejecutivo (bug real: kpi.js/_getEjecutivoData usaba exactamente ese
+// cociente para el "MTBF Flota" que ve la jefatura). Equipos con menos de 2 fallas
+// con horómetro válido no aportan — no hay intervalo real que promediar. null si
+// ningún equipo de la flota tiene datos suficientes.
+function mtbfFlotaReal(eq,ot){
+  var perEq=[];
+  (eq||[]).forEach(function(e){
+    if(!e||e.unidad==='km')return;
+    var horoms=(ot||[]).filter(function(o){return o&&o.sigla===e.sigla&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&o.horom>0;}).map(function(o){return o.horom;});
+    var m=C.mtbfReal(horoms);
+    if(m!=null)perEq.push(m);
+  });
+  if(!perEq.length)return null;
+  return Math.round(perEq.reduce(function(a,b){return a+b;},0)/perEq.length);
+}
+
 // ═══ DISPONIBILIDAD — fuente ÚNICA compartida por Disponibilidad, KPI y Metas ═══
 // Antes cada pestaña tenía su propia copia del cálculo, con supuestos distintos (KPI sin
 // el manejo de salida de servicio por período, Metas usando solo overrides manuales), así
@@ -1049,6 +1073,7 @@ if (typeof window !== 'undefined') {
   window.tendenciaSaludSemanal = tendenciaSaludSemanal;
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
+  window.mtbfFlotaReal = mtbfFlotaReal;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1060,6 +1085,6 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal
   };
 }

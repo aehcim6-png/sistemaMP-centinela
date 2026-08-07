@@ -115,13 +115,18 @@ window._getEjecutivoData=function(){
   var dV=eq.map(function(e){var d=dd[e.sigla];if(!d)return null;var v=Object.values(d);return v.length?v[v.length-1]:null}).filter(function(v){return v!==null});
   var dP=dV.length?Math.round(dV.reduce(function(s,v){return s+v},0)/dV.length*10)/10:null;
   var tF=ot.filter(function(o){return o.tipo==='Correctivo'||o.tipo==='Falla Operacional'}).length;
-  var tH=eq.reduce(function(s,e){return s+e.horomActual},0);var mtbf=tF>0?Math.round(tH/tF):tH;
+  // MTBF de flota real (ver mtbfFlotaReal en logic.js) — bug real encontrado en este
+  // mismo Reporte Ejecutivo: usaba horómetro-EN-VIVO (crece solo con el tiempo) ÷
+  // fallas de TODA la vida, el mismo defecto que C.mtbfReal ya documenta y corrige
+  // para el caso por-equipo. Con este reporte yendo directo a jefatura, mostraba un
+  // "MTBF Flota" que subía día a día sin que la confiabilidad real cambiara en nada.
+  var mtbf=mtbfFlotaReal(eq,ot);
   var hhR=Math.round(reg.reduce(function(s,r){return s+(r.duracionH||0)},0));
   var urg=eq.filter(function(e){return e.diasParaPM<=3}).length;
   cd.forEach(function(c){var eO=eq.find(function(e){return e.sigla===c.sigla});c.hrsRest=Math.max((c.vidaUtil||0)-(eO?eO.horomActual:0)+(c.horomComp||0),0);});
   var cC=cd.filter(function(c){return c.hrsRest<=1000}).length;var pO=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   var h=['KPI','Valor','Meta/Ref','Estado'];
-  var r=[['Equipos en Flota',eq.length,'—','—'],['Disponibilidad Mecánica',dP===null?'—':dP+'%',meta+'%',dP===null?'Sin datos':dP>=meta?'OK':'Bajo'],['MTBF Flota',mtbf+' hrs','>2000 hrs',mtbf>2000?'Alta':mtbf>500?'Media':'Baja'],['Total Fallas',tF,'—','—'],['HH Reales',hhR+' hrs','—','—'],['PMs Ejecutados',reg.length,'—','—'],['Equipos Urgentes',urg,'0',urg===0?'OK':urg+' equipos'],['Backlog Pendientes',pO,'0',pO===0?'OK':pO+' pendientes'],['Componentes Críticos',cC,'0',cC===0?'OK':cC+' comp']];
+  var r=[['Equipos en Flota',eq.length,'—','—'],['Disponibilidad Mecánica',dP===null?'—':dP+'%',meta+'%',dP===null?'Sin datos':dP>=meta?'OK':'Bajo'],['MTBF Flota',mtbf===null?'—':mtbf+' hrs','>2000 hrs',mtbf===null?'Sin datos':mtbf>2000?'Alta':mtbf>500?'Media':'Baja'],['Total Fallas',tF,'—','—'],['HH Reales',hhR+' hrs','—','—'],['PMs Ejecutados',reg.length,'—','—'],['Equipos Urgentes',urg,'0',urg===0?'OK':urg+' equipos'],['Backlog Pendientes',pO,'0',pO===0?'OK':pO+' pendientes'],['Componentes Críticos',cC,'0',cC===0?'OK':cC+' comp']];
   return{headers:h,rows:r};
 };
 
@@ -188,22 +193,11 @@ window.renderKpi=function(){
   });
   var dispActual=dispMes[dispMes.length-1];
 
-  // 2. MTBF — horas reales de operación ENTRE fallas sucesivas (ver C.mtbfReal en
-  // logic.js). El MTBF "actual" antes era horómetro-total ÷ nº de fallas: reparte todas
-  // las fallas desde la hora 0, sube solo con el paso del tiempo y no distingue fallas
-  // agrupadas de fallas bien espaciadas. Ahora se promedian los intervalos reales entre
-  // fallas de cada equipo (equipos con <2 fallas no aportan — no hay intervalo que medir).
-  function mtbfFlotaReal(){
-    var perEq=[];
-    eq.forEach(function(e){
-      if(e.unidad==='km')return;
-      var horoms=ot.filter(function(o){return o.sigla===e.sigla&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&o.horom>0;}).map(function(o){return o.horom;});
-      var m=(typeof C!=='undefined'&&C.mtbfReal)?C.mtbfReal(horoms):null;
-      if(m!=null)perEq.push(m);
-    });
-    if(!perEq.length)return null;
-    return Math.round(perEq.reduce(function(a,b){return a+b;},0)/perEq.length);
-  }
+  // 2. MTBF — horas reales de operación ENTRE fallas sucesivas. mtbfFlotaReal()
+  // ahora vive en logic.js (fuente única compartida con _getEjecutivoData, más
+  // abajo en este mismo archivo — antes cada uno tenía su propia versión y la del
+  // Reporte Ejecutivo seguía usando la fórmula vieja: horómetro-total ÷ nº de
+  // fallas, que sube solo con el paso del tiempo).
   // MTBF mensual = horas de flota del mes ÷ fallas del mes (tasa mensual legítima). Un mes
   // SIN fallas ya no devuelve las horas completas (número absurdo que siempre gana la meta):
   // se muestra como "sin dato", porque no hubo un intervalo entre fallas que medir.
@@ -212,7 +206,7 @@ window.renderKpi=function(){
     var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
     return fallasM>0?Math.round(hrsM/fallasM):null;
   });
-  var mtbfActual=mtbfFlotaReal();
+  var mtbfActual=mtbfFlotaReal(eq,ot);
   var totalFallas=ot.filter(function(o){return o.tipo==='Correctivo'||o.tipo==='Falla Operacional'}).length;
 
   // 3. CUMPLIMIENTO by month

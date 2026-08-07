@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -51,6 +51,72 @@ describe('C.mtbfReal — MTBF real entre fallas sucesivas (bug real: horomActual
     // Ahora: mtbfReal solo depende de los horómetros DE LAS FALLAS ya ocurridas.
     expect(C.mtbfReal([1000, 2000])).toBe(1000);
     expect(C.mtbfReal([1000, 2000])).toBe(1000); // sigue igual, no depende de horomActual
+  });
+});
+
+describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba horómetro-en-vivo ÷ fallas-de-toda-la-vida)', () => {
+  it('promedia el MTBF real de cada equipo con al menos 2 fallas', () => {
+    const eq = [{ sigla: 'A' }, { sigla: 'B' }];
+    const ot = [
+      { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
+      { sigla: 'A', tipo: 'Correctivo', horom: 2000 }, // A: MTBF real = 1000
+      { sigla: 'B', tipo: 'Falla Operacional', horom: 500 },
+      { sigla: 'B', tipo: 'Falla Operacional', horom: 800 }, // B: MTBF real = 300
+    ];
+    expect(mtbfFlotaReal(eq, ot)).toBe(650); // promedio de (1000, 300)
+  });
+
+  it('un equipo con menos de 2 fallas no aporta (no inventa un intervalo)', () => {
+    const eq = [{ sigla: 'A' }, { sigla: 'SIN-FALLAS' }];
+    const ot = [
+      { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
+      { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
+    ];
+    expect(mtbfFlotaReal(eq, ot)).toBe(1000); // solo A aporta
+  });
+
+  it('ningún equipo con datos suficientes -> null, no se inventa un número', () => {
+    const eq = [{ sigla: 'A' }, { sigla: 'B' }];
+    const ot = [{ sigla: 'A', tipo: 'Correctivo', horom: 1000 }]; // solo 1 falla
+    expect(mtbfFlotaReal(eq, ot)).toBeNull();
+    expect(mtbfFlotaReal([], [])).toBeNull();
+  });
+
+  it('ignora correctivos de tipo distinto a Correctivo/Falla Operacional (ej. Fuera de Servicio administrativo)', () => {
+    const eq = [{ sigla: 'A' }];
+    const ot = [
+      { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
+      { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
+      { sigla: 'A', tipo: 'Otro', horom: 9999 }, // no cuenta
+    ];
+    expect(mtbfFlotaReal(eq, ot)).toBe(1000);
+  });
+
+  it('equipos por km (unidad="km") se excluyen, igual que en el resto de los cálculos de horas-flota', () => {
+    const eq = [{ sigla: 'A' }, { sigla: 'CAMIONETA-KM', unidad: 'km' }];
+    const ot = [
+      { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
+      { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
+      { sigla: 'CAMIONETA-KM', tipo: 'Correctivo', horom: 100 },
+      { sigla: 'CAMIONETA-KM', tipo: 'Correctivo', horom: 50000 }, // intervalo enorme, no debe distorsionar el promedio
+    ];
+    expect(mtbfFlotaReal(eq, ot)).toBe(1000);
+  });
+
+  it('el bug real que arregla: NO depende del horómetro en vivo de los equipos ni cambia solo porque pasa el tiempo', () => {
+    // Antes (Reporte Ejecutivo): mtbf = suma de horomActual de TODOS los equipos / fallas
+    // totales — ese número sube cada día aunque no haya vuelto a fallar nada. Acá,
+    // agregar más "horómetro en vivo" (que ni siquiera es un input de esta función) no
+    // puede cambiar el resultado — la función ni siquiera recibe ese dato.
+    const eq = [{ sigla: 'A' }];
+    const ot = [
+      { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
+      { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
+    ];
+    const r1 = mtbfFlotaReal(eq, ot);
+    const r2 = mtbfFlotaReal(eq, ot); // "otro día", mismos datos de fallas
+    expect(r1).toBe(r2);
+    expect(r1).toBe(1000);
   });
 });
 
