@@ -60,7 +60,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--ac2)}
 
-.header{background:linear-gradient(135deg,var(--bg2),var(--bg3));border-bottom:2px solid var(--ac);box-shadow:var(--shadow-header);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px}
+.header{background:linear-gradient(135deg,var(--bg2),var(--bg3));border-bottom:2px solid var(--ac);box-shadow:var(--shadow-header);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px;overflow:hidden}
+/* Marca de agua del header — mismo ícono de engranaje que ya dibuja Config
+   (ver ⚙️ en cfg.js), agrandado y muy tenue. Inspirado en la foto de fondo
+   del informe de Finning/CAT que pasó el usuario, pero con un ícono propio
+   del sistema en vez de una foto con licencia de otra empresa — el "mask"
+   deja que se pinte con var(--ac), así se retiñe solo con el tema activo. */
+.header::before{content:'';position:absolute;right:-14px;top:50%;transform:translateY(-50%);width:190px;height:190px;background:var(--ac);opacity:.14;z-index:-1;pointer-events:none;
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='10' cy='10' r='3.2'/%3E%3Cline x1='10' y1='2' x2='10' y2='4.2'/%3E%3Cline x1='10' y1='15.8' x2='10' y2='18'/%3E%3Cline x1='2' y1='10' x2='4.2' y2='10'/%3E%3Cline x1='15.8' y1='10' x2='18' y2='10'/%3E%3Cline x1='4.8' y1='4.8' x2='6.3' y2='6.3'/%3E%3Cline x1='13.7' y1='13.7' x2='15.2' y2='15.2'/%3E%3Cline x1='4.8' y1='15.2' x2='6.3' y2='13.7'/%3E%3Cline x1='13.7' y1='6.3' x2='15.2' y2='4.8'/%3E%3C/svg%3E");
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='10' cy='10' r='3.2'/%3E%3Cline x1='10' y1='2' x2='10' y2='4.2'/%3E%3Cline x1='10' y1='15.8' x2='10' y2='18'/%3E%3Cline x1='2' y1='10' x2='4.2' y2='10'/%3E%3Cline x1='15.8' y1='10' x2='18' y2='10'/%3E%3Cline x1='4.8' y1='4.8' x2='6.3' y2='6.3'/%3E%3Cline x1='13.7' y1='13.7' x2='15.2' y2='15.2'/%3E%3Cline x1='4.8' y1='15.2' x2='6.3' y2='13.7'/%3E%3Cline x1='13.7' y1='6.3' x2='15.2' y2='4.8'/%3E%3C/svg%3E");
+  -webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .logo{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ac);letter-spacing:1px}
 .logo span{color:var(--tx2);font-weight:400;font-size:12px}
 .hstats{display:flex;gap:8px}
