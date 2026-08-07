@@ -141,6 +141,20 @@ const C = {
 function fd(d){return(!d||d==='None'||d===0)?'—':String(d).slice(0,10)}
 function fn(n){return(n||0).toLocaleString('es-CL')}
 function escapeHtml(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// Previene "CSV/Formula Injection" (CWE-1236): una celda de texto que empieza
+// con = + - @ (o tab/retorno de carro) se interpreta como fórmula al abrir el
+// CSV/Excel exportado en Excel/Sheets — puede ejecutar comandos en la máquina
+// de quien lo abre. Cualquier campo de texto libre del sistema (obs, motivo,
+// proveedor, técnico...) puede terminar así sin mala intención (ej. "-15%
+// bajo meta", "@turno noche"). Antepone un apóstrofo — Excel lo trata como
+// "esto es texto", no se ve en la celda — solo cuando hace falta. No aplica
+// a números reales (un costo o delta negativo real no es un vector de esto;
+// cada punto de exportación decide si el valor es texto o número antes de
+// llamar esto).
+function csvCeldaSegura(v){
+  var s=String(v??'');
+  return /^[=+\-@\t\r]/.test(s)?"'"+s:s;
+}
 
 function _tokensMaterial(s){
   return (s||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(function(t){
@@ -817,7 +831,7 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    C, fd, fn, escapeHtml,
+    C, fd, fn, escapeHtml, csvCeldaSegura,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,

@@ -39,7 +39,7 @@ window.renderDestrabe = function () {
         '<td class="ed" contenteditable onblur="edDestrabe(' + i + ',\'motivo\',this.innerText.trim())" style="font-size:10px;max-width:150px">' + escapeHtml(it.motivo) + '</td>' +
         '<td class="ed" contenteditable onblur="edDestrabe(' + i + ',\'accion\',this.innerText.trim())" style="font-size:10px;max-width:150px">' + escapeHtml(it.accion) + '</td>' +
         '<td class="ed" contenteditable onblur="edDestrabe(' + i + ',\'responsable\',this.innerText.trim())" style="font-size:10px">' + escapeHtml(it.responsable) + '</td>' +
-        '<td class="ed mono" contenteditable onblur="edDestrabe(' + i + ',\'fechaComp\',this.innerText.trim())" style="font-size:10px">' + it.fechaComp + '</td>' +
+        '<td class="ed mono" contenteditable onblur="edDestrabe(' + i + ',\'fechaComp\',this.innerText.trim())" style="font-size:10px">' + (it.fechaComp || '') + '</td>' +
         '<td><select onchange="edDestrabe(' + i + ',\'estado\',this.value)" style="font-size:9px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px">' +
         ['Bloqueado', 'En Gestión', 'Resuelto'].map(function (s) { return '<option' + (it.estado === s ? ' selected' : '') + '>' + s + '</option>' }).join('') + '</select></td>' +
         '<td>' + ocHtml + '</td>' +
