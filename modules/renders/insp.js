@@ -36,7 +36,7 @@ window.renderInsp = function () {
         '<td><input value="' + escapeHtml(r.obs || '') + '" onchange="edInsp(' + i + ',\'obs\',this.value)" style="' + is + '" placeholder="..."></td>' +
         '<td style="font-size:10px">' + escapeHtml(r.inspector || '—') + '</td>' +
         '<td style="text-align:center">' + (alertCount > 0 ? '<span style="color:var(--danger);font-weight:700">🔴 ' + alertCount + '</span>' : '<span style="color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg></span>') + '</td>' +
-        '<td><button class="btn-s btn-d" onclick="delInsp(' + i + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delInsp(' + i + ')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('') +
     '</table></div>' +
     _pagHTML('insp', pg);

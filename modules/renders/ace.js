@@ -109,7 +109,7 @@ window.renderAce=function(){
         '<option'+(m.estado==='PRECAUCION'?' selected':'')+'>PRECAUCION</option>'+
         '<option'+(m.estado==='ALERTA'?' selected':'')+'>ALERTA</option></select></td>'+
         '<td><input value="'+escapeHtml(m.comentario||'')+'" onchange="edAce('+idx+',\'comentario\',this.value)" style="width:80px;'+is+'" placeholder="..."></td>'+
-        '<td><button class="btn-s btn-d" onclick="delAce('+idx+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delAce('+idx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('ace',pg);

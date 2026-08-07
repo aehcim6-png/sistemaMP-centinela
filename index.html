@@ -263,7 +263,7 @@ td.calc{color:var(--tx3);font-style:italic}
 </div>
 <div class="nav" id="nav"></div>
 <div class="main" id="main"></div>
-<div class="modal-bg" id="mbg" onclick="if(event.target===this)cm()"><div class="modal" id="mc"></div></div>
+<div class="modal-bg" id="mbg" onclick="if(event.target===this)cm()"><div class="modal" id="mc" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 <div class="toast" id="tst"></div>
 
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
@@ -282,13 +282,13 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/stk2.js?v=2026-08-04"></script>
 <script src="modules/renders/cstk.js?v=2026-08-04"></script>
 <script src="modules/renders/comp2.js?v=2026-08-04"></script>
-<script src="modules/renders/destrabe.js?v=2026-08-07"></script>
+<script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
-<script src="modules/renders/lub.js?v=2026-08-04"></script>
-<script src="modules/renders/stk.js?v=2026-08-04"></script>
+<script src="modules/renders/lub.js?v=2026-08-07"></script>
+<script src="modules/renders/stk.js?v=2026-08-07"></script>
 <script src="modules/renders/cos.js?v=2026-08-07b"></script>
 <script src="modules/renders/mov.js?v=2026-08-05"></script>
-<script src="modules/renders/rep.js?v=2026-08-07"></script>
+<script src="modules/renders/rep.js?v=2026-08-07b"></script>
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
@@ -296,26 +296,26 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/cad.js?v=2026-08-05"></script>
 <script src="modules/renders/metas.js?v=2026-08-05"></script>
 <script src="modules/renders/mkpi.js?v=2026-08-05"></script>
-<script src="modules/renders/insp.js?v=2026-08-05"></script>
-<script src="modules/renders/eq.js?v=2026-08-07"></script>
+<script src="modules/renders/insp.js?v=2026-08-07"></script>
+<script src="modules/renders/eq.js?v=2026-08-07b"></script>
 <script src="modules/renders/plani.js?v=2026-08-05"></script>
 <script src="modules/renders/gantt.js?v=2026-08-07b"></script>
-<script src="modules/renders/informes.js?v=2026-08-05"></script>
+<script src="modules/renders/informes.js?v=2026-08-07"></script>
 <script src="modules/renders/venc.js?v=2026-08-07"></script>
-<script src="modules/renders/comp.js?v=2026-08-07"></script>
-<script src="modules/renders/buscar.js?v=2026-08-07"></script>
-<script src="modules/renders/pau.js?v=2026-08-05"></script>
+<script src="modules/renders/comp.js?v=2026-08-07b"></script>
+<script src="modules/renders/buscar.js?v=2026-08-07b"></script>
+<script src="modules/renders/pau.js?v=2026-08-07"></script>
 <script src="modules/renders/plan.js?v=2026-08-05"></script>
 <script src="modules/renders/disp.js?v=2026-08-07"></script>
-<script src="modules/renders/ace.js?v=2026-08-05"></script>
+<script src="modules/renders/ace.js?v=2026-08-07"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-06"></script>
-<script src="modules/renders/sem.js?v=2026-08-07b"></script>
+<script src="modules/renders/sem.js?v=2026-08-07c"></script>
 <script src="modules/renders/dash.js?v=2026-08-07d"></script>
-<script src="modules/renders/reg.js?v=2026-08-06"></script>
-<script src="modules/renders/hist.js?v=2026-08-07"></script>
+<script src="modules/renders/reg.js?v=2026-08-07"></script>
+<script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-07b"></script>
 <script src="modules/renders/pred.js?v=2026-08-07c"></script>
-<script src="modules/renders/kpi.js?v=2026-08-07b"></script>
+<script src="modules/renders/kpi.js?v=2026-08-07c"></script>
 <script src="modules/renders/neu.js?v=2026-08-05"></script>
 <script src="modules/renders/cfg.js?v=2026-08-07"></script>
 <script>
@@ -332,8 +332,40 @@ const INIT={"equipos": [{"sigla": "BD-9533", "tipo": "Bulldozer", "modelo": "Kom
 // fd/fn/escapeHtml viven en logic.js.
 const $=id=>document.getElementById(id);
 function toast(m){const t=$('tst');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
-function cm(){$('mbg').classList.remove('show')}
-function sm(h){$('mc').innerHTML=h;$('mbg').classList.add('show')}
+// Accesibilidad de los 57 modales que usan sm()/cm() (crear/editar OT, equipos,
+// config, etc.) — antes no había ninguna forma de cerrar con teclado (solo click
+// en el fondo), el foco se quedaba "afuera" en lo que abrió el modal, y al cerrar
+// nunca volvía ahí. _smElementoAnterior guarda qué tenía el foco antes de abrir,
+// para devolvérselo al cerrar (igual que hace un <dialog> nativo).
+var _smElementoAnterior=null;
+function cm(){
+  $('mbg').classList.remove('show');
+  if(_smElementoAnterior&&typeof _smElementoAnterior.focus==='function')_smElementoAnterior.focus();
+  _smElementoAnterior=null;
+}
+function sm(h){
+  _smElementoAnterior=document.activeElement;
+  $('mc').innerHTML=h;
+  $('mbg').classList.add('show');
+  // Mueve el foco DENTRO del modal recién abierto — sin esto, un usuario de
+  // teclado seguía "parado" en el botón que lo abrió, con el foco fuera de la
+  // ventana que acaba de aparecer encima.
+  var primero=$('mc').querySelector('input,select,textarea,button,a[href],[tabindex]');
+  (primero||$('mc')).focus();
+}
+// Escape cierra el modal abierto, y Tab/Shift+Tab quedan atrapados adentro
+// (focus trap básico) — sin esto, con Tab se podía salir del modal hacia el
+// contenido de fondo mientras seguía "abierto" en pantalla.
+document.addEventListener('keydown',function(e){
+  if(!$('mbg').classList.contains('show'))return;
+  if(e.key==='Escape'){cm();return;}
+  if(e.key!=='Tab')return;
+  var focusables=$('mc').querySelectorAll('input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])');
+  if(!focusables.length)return;
+  var primero=focusables[0],ultimo=focusables[focusables.length-1];
+  if(e.shiftKey&&document.activeElement===primero){e.preventDefault();ultimo.focus();}
+  else if(!e.shiftKey&&document.activeElement===ultimo){e.preventDefault();primero.focus();}
+});
 function pb(pm){const m=String(pm||'');if(m.includes('EJEC'))return'<span class="badge pg-x">✓ EJEC</span>';if(m.includes('4'))return`<span class="badge pm4">${m}</span>`;if(m.includes('3'))return`<span class="badge pm3">${m}</span>`;if(m.includes('2'))return`<span class="badge pm2">${m}</span>`;if(m.includes('1'))return`<span class="badge pm1">${m}</span>`;return m}
 function edCell(val,key,idx,store,type='text',opts=null){
   if(type==='select'&&opts){
@@ -2003,6 +2035,17 @@ window.applyTheme=function(input){
     r.setProperty('--bd','#d9d9d9');r.setProperty('--border','#d9d9d9');
     r.setProperty('--shadow-sm','0 1px 2px rgba(15,23,42,.08)');r.setProperty('--shadow-md','0 6px 20px rgba(15,23,42,.12)');r.setProperty('--shadow-header','0 2px 8px rgba(15,23,42,.08)');
     if(!cfg.colorAc){r.setProperty('--ac','#b45309');r.setProperty('--ac2','#92400e');r.setProperty('--ac3','#d97706');}
+    // --ok/--warn/--danger/--info: mismo problema que ya se corrigió arriba para
+    // --ac — son colores vivos pensados para verse sobre fondo OSCURO (ratio
+    // ~2-3.8:1 contra blanco, bajo el mínimo WCAG AA de 4.5:1 para texto normal),
+    // usados como color de texto en decenas de badges/cifras de KPI/alertas en
+    // toda la app. En los temas Oscuro y Azul Minero no hace falta tocarlos
+    // (5.2-10.3:1 contra esos fondos). Se eligió el tono más claro de cada
+    // familia que YA pasa 4.5:1, para quedar lo más cerca posible del color
+    // original.
+    if(!cfg.colorOk)r.setProperty('--ok','#15803d');
+    if(!cfg.colorDanger)r.setProperty('--danger','#dc2626');
+    r.setProperty('--warn','#a16207');r.setProperty('--info','#2563eb');
     // --edit/--editBorder tampoco se tocaban nunca — el mismo azul-marino
     // oscuro de :root (pensado para los temas oscuros) quedaba puesto en las
     // celdas editables de las tablas sin importar el tema, y se veía como

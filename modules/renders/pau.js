@@ -34,7 +34,7 @@ window.renderPau=function(){
     '<option value="PM2"'+(sp==='PM2'?' selected':'')+'>PM2 (500h) incl PM1</option>'+
     '<option value="PM3"'+(sp==='PM3'?' selected':'')+'>PM3 (1000h) incl PM1-2</option>'+
     '<option value="PM4"'+(sp==='PM4'?' selected':'')+'>PM4 (2000h) TODOS</option></select>'+
-    '<input id="fPauCat" placeholder="Buscar categoría..." value="'+(fCat||'')+'" onchange="window._pag.pau=1;renders.pau()" style="max-width:140px">'+
+    '<input id="fPauCat" placeholder="Buscar categoría..." aria-label="Buscar categoría" value="'+(fCat||'')+'" onchange="window._pag.pau=1;renders.pau()" style="max-width:140px">'+
     '<span style="color:var(--tx3);font-size:12px">'+fil.length+' act · '+conRep+' con repuesto</span></div>'+
     _pagHTML('pau',pg)+
     '<div class="tbl-wrap"><table>'+
@@ -51,7 +51,7 @@ window.renderPau=function(){
         '<td><input type="number" value="'+(p.hrs||0)+'" onchange="edPau('+i+',\'hrs\',parseInt(this.value)||0)" style="width:55px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px"></td>'+
         '<td><input value="'+escapeHtml(p.rep||'')+'" onchange="edPau('+i+',\'rep\',this.value)" style="'+es+';color:var(--ac);font-weight:600;max-width:280px" title="Editar repuesto"></td>'+
         '<td><input type="number" value="'+(p.can||'')+'" onchange="edPau('+i+',\'can\',parseFloat(this.value)||0)" style="width:50px;background:var(--bg3);border:1px solid var(--bd);color:var(--ac);text-align:center;border-radius:3px;font-size:12px;font-weight:600"></td>'+
-        '<td><button class="btn-s btn-d" onclick="delPauta('+i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delPauta('+i+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('pau',pg);

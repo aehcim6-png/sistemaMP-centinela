@@ -89,7 +89,7 @@ window.renderRep = function () {
     '<select id="fRepEq" onchange="window._pag.rep=1;renders.rep()"><option value="">Todos equipos</option>' +
     allEq.map(function (e) { return '<option' + (fEq === e ? ' selected' : '') + '>' + e + '</option>' }).join('') +
     '<option' + (fEq === 'Varios' ? ' selected' : '') + '>Varios</option></select>' +
-    '<input id="fRepBusq" placeholder="Buscar componente/N°parte..." value="' + (fBusq || '') + '" onchange="window._pag.rep=1;renders.rep()" style="max-width:200px">' +
+    '<input id="fRepBusq" placeholder="Buscar componente/N°parte..." aria-label="Buscar componente o número de parte" value="' + (fBusq || '') + '" onchange="window._pag.rep=1;renders.rep()" style="max-width:200px">' +
     '<button class="btn btn-o" style="font-size:11px" onclick="$(\'fRepEst\').value=\'\';$(\'fRepEq\').value=\'\';$(\'fRepBusq\').value=\'\';window._pag.rep=1;renders.rep()">Limpiar</button>' +
     '</div>' +
     _pagHTML('rep', pg) +
@@ -118,7 +118,7 @@ window.renderRep = function () {
         '<td><input type="number" value="' + (r.precioUnit || 0) + '" onchange="edRep(' + i + ',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;' + is + '"></td>' +
         '<td><input value="' + escapeHtml(r.proveedor || '') + '" onchange="edRep(' + i + ',\'proveedor\',this.value)" style="width:90px;background:transparent;border:none;color:var(--tx);font-size:10px" placeholder="Proveedor..."></td>' +
         '<td>' + accion + '</td>' +
-        '<td><button class="btn-s btn-d" onclick="delRep(' + i + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
+        '<td><button class="btn-s btn-d" onclick="delRep(' + i + ')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('') +
     '</table></div>' +
     _pagHTML('rep', pg);
