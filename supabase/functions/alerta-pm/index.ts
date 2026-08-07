@@ -82,8 +82,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
     }
     const REMITENTE = Deno.env.get('ALERTA_PM_REMITENTE') || 'Sistema MP Centinela <onboarding@resend.dev>';
-    const DESTINATARIOS = (Deno.env.get('ALERTA_PM_DESTINATARIOS') || 'aehcim6@gmail.com')
-      .split(',').map((e) => e.trim()).filter(Boolean);
 
     if (!RESEND_API_KEY) {
       return new Response(JSON.stringify({ error: 'Falta configurar el secret RESEND_API_KEY' }), { status: 500 });
@@ -97,6 +95,18 @@ Deno.serve(async (req) => {
       if (!Array.isArray(d)) throw new Error(`${path} no devolvió un arreglo válido`);
       return d;
     };
+
+    // Destinatarios: primero la lista editable desde Configuración (columna
+    // 'alertaEmails' de la tabla singleton 'configuracion' — cualquier admin
+    // la cambia desde la app, sin necesitar acceso a Supabase). Si queda
+    // vacía o la fila todavía no existe, cae a la env var fija como respaldo
+    // para no dejar de avisar por un campo en blanco.
+    const cfgRows = await get('configuracion?select=alertaEmails&limit=1');
+    const emailsCfg = String(cfgRows[0]?.alertaEmails || '')
+      .split(',').map((e) => e.trim()).filter(Boolean);
+    const DESTINATARIOS = emailsCfg.length > 0
+      ? emailsCfg
+      : (Deno.env.get('ALERTA_PM_DESTINATARIOS') || 'aehcim6@gmail.com').split(',').map((e) => e.trim()).filter(Boolean);
 
     let secciones = '';
     let totalItems = 0;
