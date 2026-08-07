@@ -145,8 +145,8 @@ window.renderBuscar=function(){
     '<select id="fBuscarAnio" onchange="renders.buscar()" style="min-width:90px"><option value="">Año: Todos</option>'+
     aniosBuscarArr.map(function(y){return'<option'+(fAnio===y?' selected':'')+'>'+y+'</option>'}).join('')+'</select>'+
     aniosBuscarArr.map(function(y){return'<button class="btn-s" style="'+(fAnio===y?'background:var(--ac);color:#fff':'')+'" onclick="$(\'fBuscarAnio\').value=\''+y+'\';renders.buscar()">'+y+'</button>'}).join('')+
-    '<input type="date" id="fBuscarDesde" value="'+fDesde+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Desde">'+
-    '<input type="date" id="fBuscarHasta" value="'+fHasta+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Hasta">'+
+    '<input type="date" id="fBuscarDesde" value="'+fDesde+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Desde" aria-label="Fecha desde">'+
+    '<input type="date" id="fBuscarHasta" value="'+fHasta+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Hasta" aria-label="Fecha hasta">'+
     ((fEq||fAnio||fDesde||fHasta)?'<button class="btn btn-o" onclick="$(\'fBuscarEq\').value=\'\';$(\'fBuscarAnio\').value=\'\';$(\'fBuscarDesde\').value=\'\';$(\'fBuscarHasta\').value=\'\';renders.buscar()">✕ Limpiar</button>':'')+
     '</div>'+content;
 };
