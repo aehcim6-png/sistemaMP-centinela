@@ -1013,7 +1013,7 @@ window.renderPred=function(){
 
       '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
       '<div style="font-size:12px;font-weight:600;color:var(--ac);margin-bottom:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> INTERPRETACIÓN AUTOMÁTICA:</div>'+
-      '<div style="font-size:13px;line-height:1.6">'+d.interpretacion+'</div></div>'+
+      '<div style="font-size:13px;line-height:1.6">'+escapeHtml(d.interpretacion)+'</div></div>'+
 
       d.secciones.map(function(s){
         return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+s.color+'">'+
