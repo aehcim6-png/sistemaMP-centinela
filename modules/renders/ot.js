@@ -121,19 +121,34 @@ window.analisisFallas=function(){
   }));
   const fallas=[...ot,...regCorr].filter(f=>f.sigla);
 
-  // ── MTBF por COMPONENTE ──
+  // ── MTBF por COMPONENTE — tasa acotada a los últimos 12 meses ──
+  // Antes: horómetro EN VIVO de toda la flota ÷ fallas de TODA la vida de ese
+  // componente — el mismo defecto que C.mtbfReal ya documenta (el número sube
+  // solo con el paso del tiempo, sin que el componente haya vuelto a fallar),
+  // aplicado acá a nivel flota. Un intervalo real (C.mtbfReal) por componente
+  // exigiría ≥2 fallas del MISMO componente en el MISMO equipo — en la práctica
+  // deja "sin dato" a casi todos los componentes. Se usa en cambio el mismo
+  // criterio ya validado en dash.js/metas.js para MTBF mensual: horas de flota
+  // ESTIMADAS en un período ÷ fallas de ese componente en ESE MISMO período —
+  // acotar ambos al mismo período rolling de 12 meses corta el crecimiento
+  // artificial sin perder la utilidad práctica del reporte.
+  const _hoyMTBF=new Date();
+  const _desdeMTBF=new Date(_hoyMTBF);_desdeMTBF.setMonth(_desdeMTBF.getMonth()-12);
+  const _desdeMTBFISO=_desdeMTBF.toISOString().slice(0,10);
+  const fechaFalla=f=>f.fecha||f.fechaEntrada||'';
+  const fallas12m=fallas.filter(f=>fechaFalla(f)>=_desdeMTBFISO);
+  const diasPeriodoMTBF=Math.max(1,Math.round((_hoyMTBF-_desdeMTBF)/86400000));
+  const horasFlotaPeriodo=eq.reduce((s,e)=>e.unidad==='km'?s:s+(e.hrsDia||12)*diasPeriodoMTBF,0);
   const porComp={};
-  fallas.forEach(f=>{
+  fallas12m.forEach(f=>{
     const c=f.componente||'Sin clasificar';
     if(!porComp[c])porComp[c]={comp:c,fallas:0,equipos:new Set(),horas:0};
     porComp[c].fallas++;
     porComp[c].equipos.add(f.sigla);
   });
-  // Calcular MTBF: horas totales operadas / número de fallas
-  const totalHrsFlota=eq.reduce((s,e)=>s+(e.horomActual||0),0);
   const comps=Object.values(porComp).map(c=>({
     ...c,nEquipos:c.equipos.size,
-    mtbf:c.fallas>0?Math.round(totalHrsFlota/c.fallas):0
+    mtbf:c.fallas>0?Math.round(horasFlotaPeriodo/c.fallas):0
   })).sort((a,b)=>b.fallas-a.fallas);
 
   // ── BAD ACTORS: equipos con más fallas ──
@@ -146,13 +161,13 @@ window.analisisFallas=function(){
   const totalFallas=fallas.length;
   sm(`<div style="max-width:720px">
     <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas — MTBF</h3>
-    <p style="font-size:12px;color:var(--tx3)">Tiempo Medio Entre Fallas por componente y equipo · ${totalFallas} fallas registradas</p>
+    <p style="font-size:12px;color:var(--tx3)">Tiempo Medio Entre Fallas por componente (últimos 12 meses) y por equipo (histórico completo) · ${totalFallas} fallas registradas en total</p>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
-      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Total fallas</div><b style="font-size:22px">${totalFallas}</b></div>
-      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Componentes afectados</div><b style="font-size:22px;color:var(--warn)">${comps.length}</b></div>
-      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Horas flota acumuladas</div><b style="font-size:14px;color:var(--ac)">${fn2(totalHrsFlota)}h</b></div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Fallas (12 meses)</div><b style="font-size:22px">${fallas12m.length}</b></div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Componentes afectados (12m)</div><b style="font-size:22px;color:var(--warn)">${comps.length}</b></div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Horas flota estim. (12m)</div><b style="font-size:14px;color:var(--ac)">${fn2(horasFlotaPeriodo)}h</b></div>
     </div>
-    <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> MTBF por Componente (menor MTBF = más problemático)</b>
+    <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> MTBF por Componente — últimos 12 meses (menor MTBF = más problemático)</b>
     <div style="overflow-x:auto;margin:8px 0 16px"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Componente</th><th>Fallas</th><th>Equipos</th><th>MTBF (h)</th><th>Criticidad</th></tr>
       ${comps.map(c=>{const crit=c.mtbf<2000?'🔴 Alta':c.mtbf<5000?'🟡 Media':'🟢 Baja';return `<tr style="border-bottom:1px solid var(--bd)">
@@ -172,7 +187,7 @@ window.analisisFallas=function(){
         <td style="text-align:center">${b.mtbf==null?'—':fn2(b.mtbf)}</td>
       </tr>`).join('')||'<tr><td colspan=3 style="text-align:center;padding:20px;color:var(--tx3)">Sin datos</td></tr>'}
     </table></div>
-    <p style="font-size:10px;color:var(--tx3);margin-top:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> MTBF = horas acumuladas ÷ número de fallas. Componentes con MTBF bajo son candidatos a revisión de proveedor o reemplazo preventivo.</p>
+    <p style="font-size:10px;color:var(--tx3);margin-top:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> MTBF por Componente = horas de flota estimadas EN LOS ÚLTIMOS 12 MESES ÷ fallas de ese componente en ese mismo período (así el número no sube solo porque pasa el tiempo sin que el componente haya vuelto a fallar). MTBF por Equipo (Bad Actors) = promedio de intervalos reales entre fallas sucesivas, histórico completo. Componentes con MTBF bajo son candidatos a revisión de proveedor o reemplazo preventivo.</p>
     <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
   </div>`);
 };
