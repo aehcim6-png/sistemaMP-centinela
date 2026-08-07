@@ -44,6 +44,17 @@ window.renderCos = function () {
   // esté visible), O(equipos × correctivos) en cada apertura de esta pestaña.
   var otPorSiglaCos = {};
   ot.forEach(function (o) { if (o && o.sigla) (otPorSiglaCos[o.sigla] = otPorSiglaCos[o.sigla] || []).push(o); });
+  // SLA de primera respuesta: horas entre 'fecha' (día reportado) y
+  // 'primeraAtencionEn' (timestamp que ot.js marca la primera vez que la OT
+  // deja de estar Pendiente). Solo existe para OT creadas/editadas desde que
+  // se agregó este campo — OT antiguas devuelven null, no cero.
+  function _slaRespuestaHoras(o) {
+    if (!o.primeraAtencionEn || !o.fecha) return null;
+    var reportado = new Date(o.fecha + 'T00:00:00').getTime();
+    var atendido = new Date(o.primeraAtencionEn).getTime();
+    if (isNaN(reportado) || isNaN(atendido)) return null;
+    return Math.max(0, Math.round((atendido - reportado) / 3600000));
+  }
   var mtbfEquipo = {};
   eq.forEach(function (e) {
     var fallas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return (o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional'); });
@@ -59,7 +70,9 @@ window.renderCos = function () {
     // cada falla (no el horómetro actual del equipo, que infla el número con el
     // simple paso del tiempo sin que haya vuelto a fallar)
     var mtbf = C.mtbfReal(fallas.map(function (o) { return o.horom; }));
-    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length };
+    var conSla = fallas.map(_slaRespuestaHoras).filter(function (h) { return h != null; });
+    var sla = conSla.length ? Math.round(conSla.reduce(function (s, h) { return s + h; }, 0) / conSla.length) : null;
+    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length };
   });
 
   // ═══ COST DATA ═══
@@ -156,19 +169,27 @@ window.renderCos = function () {
       '<div class="card"><div class="card-t">MTBF Promedio Flota</div><div class="card-v">' + (conMtbf.length ? Math.round(conMtbf.reduce(function (s, m) { return s + m[1].mtbf; }, 0) / conMtbf.length) + 'h' : '—') + '</div><div class="card-s">' + (conMtbf.length ? 'Tiempo medio entre fallas · ' + conMtbf.length + ' equipos con ≥2 fallas' : 'Ningún equipo con ≥2 fallas registradas') + '</div></div>' +
       '<div class="card"><div class="card-t">MTTR Promedio</div><div class="card-v">' + (function () { var conRep = mtbfList.filter(function (m) { return m[1].mttr > 0; }); return conRep.length ? (Math.round(conRep.reduce(function (s, m) { return s + m[1].mttr; }, 0) / conRep.length * 10) / 10 + 'h') : '—'; })() + '</div><div class="card-s">Tiempo medio de reparación</div></div>' +
       '<div class="card"><div class="card-t">Total Fallas</div><div class="card-v" style="color:var(--danger)">' + mtbfList.reduce(function (s, m) { return s + m[1].fallas; }, 0) + '</div></div>' +
+      (function () {
+        var conSla = mtbfList.filter(function (m) { return m[1].sla != null; });
+        var totalConSla = mtbfList.reduce(function (s, m) { return s + m[1].conSla; }, 0);
+        var prom = conSla.length ? Math.round(conSla.reduce(function (s, m) { return s + m[1].sla; }, 0) / conSla.length) : null;
+        return '<div class="card"><div class="card-t">SLA 1ra Respuesta</div><div class="card-v" style="color:' + (prom == null ? 'var(--tx3)' : prom <= 4 ? 'var(--ok)' : prom <= 24 ? 'var(--w)' : 'var(--danger)') + '">' + (prom == null ? '—' : prom + 'h') + '</div><div class="card-s">' + (totalConSla ? totalConSla + ' correctivo(s) con dato' : 'Se captura desde ahora en adelante') + '</div></div>';
+      })() +
       '</div>' +
 
       '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:12px;font-size:12px">' +
       '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF</b> = Horas entre fallas sucesivas, según el horómetro registrado en cada falla (necesita ≥2 fallas) → mientras MÁS alto, MEJOR (equipo más confiable)<br>' +
-      '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTTR</b> = Promedio duración reparaciones → mientras MÁS bajo, MEJOR (reparaciones más rápidas)</div>' +
+      '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTTR</b> = Promedio duración reparaciones → mientras MÁS bajo, MEJOR (reparaciones más rápidas)<br>' +
+      '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> SLA 1ra Respuesta</b> = Horas entre que se reportó la falla y que alguien la atendió por primera vez (no el cierre) → mientras MÁS bajo, MEJOR. Solo cuenta correctivos registrados desde que se agregó esta medición.</div>' +
 
       '<div class="tbl-wrap"><table>' +
-      '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Fallas</th><th>MTBF (hrs)</th><th>Confiabilidad</th><th>Reparaciones</th><th>MTTR (hrs)</th><th>Mantenibilidad</th></tr>' +
+      '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Fallas</th><th>MTBF (hrs)</th><th>Confiabilidad</th><th>Reparaciones</th><th>MTTR (hrs)</th><th>Mantenibilidad</th><th>SLA 1ra Resp. (hrs)</th></tr>' +
       mtbfList.map(function (m) {
         var e = eq.find(function (x) { return x.sigla === m[0]; });
         var mb = m[1].mtbf;
         var mtbfCol = mb == null ? 'var(--tx3)' : mb > 2000 ? 'var(--ok)' : mb > 500 ? 'var(--w)' : 'var(--danger)';
         var mttrCol = m[1].mttr === 0 ? 'var(--tx3)' : m[1].mttr < 4 ? 'var(--ok)' : m[1].mttr < 8 ? 'var(--w)' : 'var(--danger)';
+        var slaCol = m[1].sla == null ? 'var(--tx3)' : m[1].sla <= 4 ? 'var(--ok)' : m[1].sla <= 24 ? 'var(--w)' : 'var(--danger)';
         return '<tr>' +
           '<td class="mono" style="color:var(--ac)">' + m[0] + '</td>' +
           '<td style="font-size:11px">' + (e ? escapeHtml(e.modelo) : '') + '</td>' +
@@ -178,7 +199,8 @@ window.renderCos = function () {
           '<td style="text-align:center"><span style="font-size:11px;color:' + mtbfCol + '">' + (mb == null ? 'Datos insuf. (' + m[1].fallas + ' falla' + (m[1].fallas === 1 ? '' : 's') + ')' : mb > 2000 ? '🟢 Alta' : mb > 500 ? '🟡 Media' : '🔴 Baja') + '</span></td>' +
           '<td style="text-align:center">' + m[1].reparaciones + '</td>' +
           '<td style="text-align:center;font-weight:700;color:' + mttrCol + '">' + m[1].mttr + '</td>' +
-          '<td style="text-align:center"><span style="font-size:11px;color:' + mttrCol + '">' + (m[1].mttr === 0 ? '— Sin datos' : m[1].mttr < 4 ? '🟢 Rápido' : m[1].mttr < 8 ? '🟡 Normal' : '🔴 Lento') + '</span></td></tr>';
+          '<td style="text-align:center"><span style="font-size:11px;color:' + mttrCol + '">' + (m[1].mttr === 0 ? '— Sin datos' : m[1].mttr < 4 ? '🟢 Rápido' : m[1].mttr < 8 ? '🟡 Normal' : '🔴 Lento') + '</span></td>' +
+          '<td style="text-align:center;font-weight:700;color:' + slaCol + '">' + (m[1].sla == null ? '—' : m[1].sla) + '</td></tr>';
       }).join('') +
       '</table></div>';
   }
