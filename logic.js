@@ -908,6 +908,67 @@ function verificarIntegridad(data){
   return out;
 }
 
+// ═══ ÍNDICE DE SALUD DE FLOTA — un solo número que resume el estado real de la
+// operación, con tendencia semana a semana. Compuesto por 4 dimensiones que YA
+// se calculan cada una por separado en el Dashboard (Cumplimiento PM, Disponibilidad,
+// Stock sano, Confiabilidad) — no se inventa una fórmula nueva, se promedian las que
+// ya existen y ya se validaron. Si falta alguna (ej. sin equipos con dato de
+// disponibilidad este mes) se promedia solo con las disponibles, nunca se rellena con
+// un supuesto. null si NINGUNA dimensión tiene dato.
+function indiceSaludFlota(m){
+  var d=m||{};
+  var componentes=[
+    {nombre:'Cumplimiento PM',valor:(typeof d.cumplPM==='number'&&isFinite(d.cumplPM))?d.cumplPM:null},
+    {nombre:'Disponibilidad',valor:(typeof d.disponibilidad==='number'&&isFinite(d.disponibilidad))?d.disponibilidad:null},
+    {nombre:'Stock sano',valor:(typeof d.stockSano==='number'&&isFinite(d.stockSano))?d.stockSano:null},
+    {nombre:'Confiabilidad',valor:(typeof d.confiabilidad==='number'&&isFinite(d.confiabilidad))?d.confiabilidad:null}
+  ];
+  var usados=componentes.filter(function(c){return c.valor!=null;});
+  if(!usados.length)return {valor:null,n:0,detalle:componentes};
+  var suma=usados.reduce(function(s,c){return s+c.valor;},0);
+  var valor=Math.round((suma/usados.length)*10)/10;
+  return {valor:valor,n:usados.length,detalle:componentes};
+}
+
+// Guarda (o actualiza, si ya corrió hoy) el valor del índice del día en el histórico
+// {fecha: valor}, y descarta lo más viejo que SALUD_HIST_DIAS_MAX días — solo hace
+// falta guardar suficiente para comparar semana a semana, no un historial indefinido.
+// Pura: devuelve un objeto NUEVO, no muta 'historico'.
+var SALUD_HIST_DIAS_MAX=120;
+function registrarSnapshotSalud(historico,valorHoy,hoyISO){
+  if(valorHoy==null||!hoyISO)return historico||{};
+  var out=Object.assign({},historico||{});
+  out[hoyISO]=valorHoy;
+  var limite=new Date(hoyISO+'T00:00:00');
+  limite.setDate(limite.getDate()-SALUD_HIST_DIAS_MAX);
+  var limiteISO=limite.toISOString().slice(0,10);
+  Object.keys(out).forEach(function(f){if(f<limiteISO)delete out[f];});
+  return out;
+}
+
+// Tendencia semanal: compara el valor de hoy contra el snapshot más cercano a 7 días
+// atrás, dentro de una ventana de 4-10 días (no hay snapshot todos los días si el
+// sistema no se abre a diario, así que exigir EXACTAMENTE 7 días descartaría casi
+// siempre un dato real disponible). Fuera de esa ventana, o sin dato de hoy, no hay
+// tendencia confiable que mostrar — null, no un número inventado.
+function tendenciaSaludSemanal(historico,hoyISO){
+  var h=historico||{};
+  var actual=h[hoyISO];
+  if(actual==null)return null;
+  var objetivo=new Date(hoyISO+'T00:00:00');objetivo.setDate(objetivo.getDate()-7);
+  var mejorFecha=null,mejorDist=Infinity;
+  Object.keys(h).forEach(function(f){
+    if(f===hoyISO)return;
+    var dist=Math.abs(new Date(f+'T00:00:00').getTime()-objetivo.getTime());
+    if(dist<mejorDist){mejorDist=dist;mejorFecha=f;}
+  });
+  if(mejorFecha==null)return {actual:actual,hace7d:null,delta:null,fechaHace7d:null};
+  var diasReales=Math.round((new Date(hoyISO+'T00:00:00')-new Date(mejorFecha+'T00:00:00'))/86400000);
+  if(diasReales<4||diasReales>10)return {actual:actual,hace7d:null,delta:null,fechaHace7d:null};
+  var delta=Math.round((actual-h[mejorFecha])*10)/10;
+  return {actual:actual,hace7d:h[mejorFecha],delta:delta,fechaHace7d:mejorFecha};
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -948,6 +1009,9 @@ if (typeof window !== 'undefined') {
   window.validarSaltoHorometro = validarSaltoHorometro;
   window.resolverDestrabePorOC = resolverDestrabePorOC;
   window.verificarIntegridad = verificarIntegridad;
+  window.indiceSaludFlota = indiceSaludFlota;
+  window.registrarSnapshotSalud = registrarSnapshotSalud;
+  window.tendenciaSaludSemanal = tendenciaSaludSemanal;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -957,6 +1021,7 @@ if (typeof module !== 'undefined' && module.exports) {
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
-    validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad
+    validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
+    indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal
   };
 }

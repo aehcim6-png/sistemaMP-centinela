@@ -133,7 +133,8 @@ const TABLA_SINGLETON={
   dispMeta:{tabla:'meta_disponibilidad',modo:'valor'},
   metas:{tabla:'metas',modo:'datos'},
   dispCalc:{tabla:'disponibilidad_calculada',modo:'datos'},
-  avanceData:{tabla:'avance_data',modo:'datos'}
+  avanceData:{tabla:'avance_data',modo:'datos'},
+  saludFlotaHist:{tabla:'salud_flota_historico',modo:'datos'}
 };
 
 function _uuidV4(){
@@ -755,6 +756,7 @@ const S={
   if(!this.g('dispCalc'))this.s('dispCalc',{});
   if(!this.g('dispMeta'))this.s('dispMeta',85);
   if(!this.g('avanceData'))this.s('avanceData',{});
+  if(!this.g('saludFlotaHist'))this.s('saludFlotaHist',{});
   if(!this.g('metas'))this.s('metas',{});
   if(!this.g('gantt'))this.s('gantt',[]);
   if(!this.g('destrabe'))this.s('destrabe',[]);
@@ -915,6 +917,7 @@ async function _resetearDatosEmpresa(){
   S.s('metas',{});
   S.s('dispCalc',{});
   S.s('avanceData',{});
+  S.s('saludFlotaHist',{});
   await Promise.all(Object.values(_syncChain));
 }
 
