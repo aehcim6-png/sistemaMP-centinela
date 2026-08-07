@@ -76,6 +76,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
   -webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .logo{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ac);letter-spacing:1px}
 .logo span{color:var(--tx2);font-weight:400;font-size:12px}
+/* Reporte real de un usuario: no entendía por qué estos números no cambiaban
+   al cambiar el período del Dashboard — son el estado EN VIVO de toda la
+   flota, ahora mismo, siempre igual sin importar la pestaña o el período que
+   estés mirando en otro lado (a propósito). Esta etiqueta lo aclara. */
+.hstats-wrap{display:flex;flex-direction:column;gap:3px}
+.hstats-caption{font-size:8px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;cursor:help}
 .hstats{display:flex;gap:16px}
 /* A propósito SIN fondo/sombra/borde redondeado — con eso se veía idéntico
    a .card (las tarjetas reales de contenido de cada pestaña), y como el
@@ -250,7 +256,10 @@ td.calc{color:var(--tx3);font-style:italic}
 <body>
 <div class="header">
   <div class="logo">SistemaMP <span>CENTINELA v10</span></div>
-  <div class="hstats" id="hs"></div>
+  <div class="hstats-wrap">
+    <div class="hstats-caption" title="Estado actual de toda la flota, siempre en vivo — no cambia según la pestaña ni el período que estés mirando">🔴 Flota en vivo — no cambia con la pestaña</div>
+    <div class="hstats" id="hs"></div>
+  </div>
 </div>
 <div class="nav" id="nav"></div>
 <div class="main" id="main"></div>
