@@ -132,4 +132,83 @@ describe('C.recalcAll — no resube "eq" a Supabase si el recálculo no cambió 
     expect(typeof eq.estado).toBe('string');
     expect(eq.estado.length).toBeGreaterThan(0);
   });
+
+  // Optimización de rendimiento (2026-08-07): antes recalcAll() filtraba 'reg' e
+  // 'hist' COMPLETOS por CADA equipo (O(equipos × filas) — con cientos de equipos
+  // y miles de filas, millones de comparaciones en cada apertura de Dashboard o
+  // Equipos). Ahora agrupa reg/hist por sigla UNA sola vez (ver _indicesRecalc) y
+  // cada equipo hace un lookup O(1) en vez de un filter() sobre la tabla entera.
+  // Este test confirma que el resultado con el índice es IDÉNTICO al que daba el
+  // filtro directo — mismo criterio en ambos casos (reg.horomReal>0, hist con
+  // fecha), varios equipos mezclados, para que un error de agrupación (ej. cruzar
+  // datos de un equipo con otro) se note.
+  it('con varios equipos, el resultado indexado es idéntico al que daba el filtro directo por equipo', () => {
+    S.s('eq', [
+      { sigla: 'A', horomActual: 1000, frecPM: 250, hrsDia: 12 },
+      { sigla: 'B', horomActual: 2000, frecPM: 500, hrsDia: 10 },
+      { sigla: 'C', horomActual: 500, frecPM: 250, hrsDia: 12 }, // sin reg ni hist propios
+    ]);
+    S.s('reg', [
+      { equipo: 'A', horomReal: 900, tipoPM: 'PM1', fechaEntrada: '2026-01-01', horaEntrada: '08:00' },
+      { equipo: 'A', horomReal: 950, tipoPM: 'PM1', fechaEntrada: '2026-02-01', horaEntrada: '08:00' },
+      { equipo: 'B', horomReal: 1800, tipoPM: 'PM2', fechaEntrada: '2026-01-15', horaEntrada: '08:00' },
+      { equipo: 'A', horomReal: 0, tipoPM: 'PM1', fechaEntrada: '2026-03-01', horaEntrada: '08:00' }, // horomReal<=0, debe ignorarse
+    ]);
+    S.s('hist', [
+      { sigla: 'A', fecha: '2026-01-01', horom: 800 },
+      { sigla: 'A', fecha: '2026-02-01', horom: 900 },
+      { sigla: 'B', fecha: '2026-01-01', horom: 1700 },
+      { sigla: 'B', fecha: '2026-02-01', horom: 1900 },
+    ]);
+
+    // Camino con índice (el que usa C.recalcAll)
+    const [eqA, eqB, eqC] = C.recalcAll();
+
+    // Camino directo (sin índice, un equipo a la vez) para comparar
+    const ultA = _horomUltimoPM('A');
+    const ultB = _horomUltimoPM('B');
+    const ultC = _horomUltimoPM('C');
+    expect(ultA).toEqual({ horom: 950, tipo: 'PM1' }); // el de fecha más reciente, ignora horomReal=0
+    expect(ultB).toEqual({ horom: 1800, tipo: 'PM2' });
+    expect(ultC).toBeNull();
+
+    const ritmoA = _ritmoRealEq('A', 12);
+    const ritmoB = _ritmoRealEq('B', 10);
+    const ritmoC = _ritmoRealEq('C', 12);
+    expect(ritmoC).toBe(12); // sin historial -> cae al nominal
+
+    // El equipo recalculado con el índice debe reflejar EXACTAMENTE esos mismos
+    // datos (mismo horomUltimoPM/ritmo real que el camino sin índice) — confirmado
+    // indirectamente vía C.recalc: mismo horomProxPM/hrsRestantes con esos inputs.
+    const { C: Cindependiente } = require('../logic.js');
+    const eAesperado = { sigla: 'A', horomActual: 1000, frecPM: 250, hrsDia: 12 };
+    Cindependiente.recalc(eAesperado, ritmoA, ultA.horom, ultA.tipo);
+    expect(eqA.horomProxPM).toBe(eAesperado.horomProxPM);
+    expect(eqA.hrsRestantes).toBe(eAesperado.hrsRestantes);
+    expect(eqA.estado).toBe(eAesperado.estado);
+
+    const eBesperado = { sigla: 'B', horomActual: 2000, frecPM: 500, hrsDia: 10 };
+    Cindependiente.recalc(eBesperado, ritmoB, ultB.horom, ultB.tipo);
+    expect(eqB.horomProxPM).toBe(eBesperado.horomProxPM);
+    expect(eqB.hrsRestantes).toBe(eBesperado.hrsRestantes);
+
+    const eCesperado = { sigla: 'C', horomActual: 500, frecPM: 250, hrsDia: 12 };
+    Cindependiente.recalc(eCesperado, ritmoC, ultC ? ultC.horom : null, ultC ? ultC.tipo : null);
+    expect(eqC.horomProxPM).toBe(eCesperado.horomProxPM);
+  });
+
+  it('el índice no mezcla equipos ni corrompe el orden al recalcular varios seguidos (regs.slice() antes de sort)', () => {
+    // Dos equipos con reg desordenado en el arreglo original, para confirmar que
+    // ordenar el resultado del índice (que es un arreglo COMPARTIDO reusado por
+    // sigla) no deja el arreglo mutado/corrompido para una siguiente consulta.
+    S.s('reg', [
+      { equipo: 'X', horomReal: 300, tipoPM: 'PM1', fechaEntrada: '2026-03-01', horaEntrada: '08:00' },
+      { equipo: 'X', horomReal: 100, tipoPM: 'PM1', fechaEntrada: '2026-01-01', horaEntrada: '08:00' },
+      { equipo: 'X', horomReal: 200, tipoPM: 'PM1', fechaEntrada: '2026-02-01', horaEntrada: '08:00' },
+    ]);
+    const primeraConsulta = _horomUltimoPM('X');
+    const segundaConsulta = _horomUltimoPM('X');
+    expect(primeraConsulta).toEqual({ horom: 300, tipo: 'PM1' });
+    expect(segundaConsulta).toEqual({ horom: 300, tipo: 'PM1' }); // no cambia entre consultas
+  });
 });

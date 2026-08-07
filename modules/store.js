@@ -807,10 +807,18 @@ const S={
 // horómetros, para que la fecha/estado del próximo PM use el uso real y no
 // el nominal. Cae al nominal (hrsDia) si el equipo no tiene lecturas
 // suficientes.
-function _ritmoRealEq(sigla,hrsDiaNominal){
+// 'histPorSigla' (opcional): índice precomputado {sigla:[filas de hist]} para evitar
+// filtrar la tabla COMPLETA de historial_horometros una vez POR EQUIPO cuando se
+// recalcula la flota entera (ver C.recalcAll) — con cientos de equipos y miles de
+// filas de historial, ese filtro repetido era O(equipos × historial). Sin el índice
+// (todos los demás llamadores, que recalculan UN equipo a la vez), se comporta
+// exactamente igual que antes.
+function _ritmoRealEq(sigla,hrsDiaNominal,histPorSigla){
   if(typeof tasaDiariaReal!=='function')return hrsDiaNominal||0;
-  var lecturas=(S.g('hist')||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha;})
-    .map(function(h){return{fecha:h.fecha,horom:(h.horomFin!=null?h.horomFin:h.horom)};});
+  // El índice ya viene agrupado por sigla con fecha garantizada (ver _indicesRecalc);
+  // solo el camino sin índice necesita filtrar la tabla completa.
+  var filas=histPorSigla?(histPorSigla[sigla]||[]):(S.g('hist')||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha;});
+  var lecturas=filas.map(function(h){return{fecha:h.fecha,horom:(h.horomFin!=null?h.horomFin:h.horom)};});
   return tasaDiariaReal(lecturas,hrsDiaNominal||12);
 }
 // Horómetro real del último PM ejecutado (registros_pm), para anclar proxPM a ese
@@ -819,10 +827,15 @@ function _ritmoRealEq(sigla,hrsDiaNominal){
 // "vencido" a las pocas horas, porque el horómetro actual está cerca del siguiente
 // múltiplo redondo de frecPM. Devuelve también el tipoPM de ese registro: proxPM
 // necesita saber qué tan grande era ese ciclo (PM4 cubre 8x, no solo 1x).
-function _horomUltimoPM(sigla){
-  var regs=(S.g('reg')||[]).filter(function(r){return r&&r.equipo===sigla&&r.horomReal>0;});
+// 'regPorEquipo' (opcional): mismo índice precomputado que histPorSigla arriba, para
+// el mismo caso de recalcular la flota entera (ver C.recalcAll/_indicesRecalc).
+function _horomUltimoPM(sigla,regPorEquipo){
+  var regs=regPorEquipo?(regPorEquipo[sigla]||[]):(S.g('reg')||[]).filter(function(r){return r&&r.equipo===sigla&&r.horomReal>0;});
   if(!regs.length)return null;
-  regs.sort(function(a,b){
+  // .slice() antes de ordenar: con el índice, 'regs' es el arreglo COMPARTIDO del
+  // índice (reusado si este equipo se recalculara más de una vez) — sort() muta in
+  // place, así que ordenar sin copiar corrompería el índice para el resto de la pasada.
+  regs=regs.slice().sort(function(a,b){
     var fa=(a.fechaEntrada||'')+' '+(a.horaEntrada||'');
     var fb=(b.fechaEntrada||'')+' '+(b.horaEntrada||'');
     return fa<fb?-1:fa>fb?1:0;
@@ -830,10 +843,30 @@ function _horomUltimoPM(sigla){
   var ult=regs[regs.length-1];
   return{horom:ult.horomReal,tipo:ult.tipoPM};
 }
+// Agrupa reg/hist por equipo/sigla UNA sola vez — usado por C.recalcAll() para no
+// filtrar la tabla completa de cada una por CADA equipo de la flota (con cientos de
+// equipos y miles de filas en reg/hist, eso era O(equipos × filas); acá es
+// O(equipos + filas)). Mismos filtros que _horomUltimoPM/_ritmoRealEq aplicaban
+// dentro del propio filter(), para que el resultado sea idéntico con o sin índice.
+function _indicesRecalc(){
+  var regPorEquipo={};
+  (S.g('reg')||[]).forEach(function(r){
+    if(!(r&&r.equipo&&r.horomReal>0))return;
+    (regPorEquipo[r.equipo]=regPorEquipo[r.equipo]||[]).push(r);
+  });
+  var histPorSigla={};
+  (S.g('hist')||[]).forEach(function(h){
+    if(!(h&&h.sigla&&h.fecha))return;
+    (histPorSigla[h.sigla]=histPorSigla[h.sigla]||[]).push(h);
+  });
+  return{regPorEquipo:regPorEquipo,histPorSigla:histPorSigla};
+}
 // Recalcula un equipo usando su ritmo real. Reemplaza las llamadas directas a _recalcEq(e).
-function _recalcEq(e){
-  var ult=_horomUltimoPM(e.sigla);
-  return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12),ult?ult.horom:null,ult?ult.tipo:null);
+// 'indices' (opcional): ver _indicesRecalc — solo lo pasa C.recalcAll() al recalcular
+// toda la flota; el resto de los llamadores (un equipo a la vez) siguen igual que antes.
+function _recalcEq(e,indices){
+  var ult=_horomUltimoPM(e.sigla,indices&&indices.regPorEquipo);
+  return C.recalc(e,_ritmoRealEq(e.sigla,e.hrsDia||12,indices&&indices.histPorSigla),ult?ult.horom:null,ult?ult.tipo:null);
 }
 // Antes subía el arreglo completo a Supabase en CADA llamada, sin importar si
 // el recálculo cambió algo — recalcAll() corre en cada apertura del Dashboard
@@ -848,7 +881,8 @@ C.recalcAll=function(){
   const eq=S.g('eq');
   if(!eq)return[];
   const antes=JSON.stringify(eq);
-  eq.forEach(e=>_recalcEq(e));
+  const indices=_indicesRecalc();
+  eq.forEach(e=>_recalcEq(e,indices));
   if(JSON.stringify(eq)!==antes)S.s('eq',eq);
   return eq;
 };
