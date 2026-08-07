@@ -44,20 +44,31 @@ if(window.Sentry){
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
-:root{--bg:#0a0e17;--bg2:#111827;--bg3:#1a2236;--bg4:#243049;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--ac:#f59e0b;--ac2:#d97706;--ac3:#fbbf24;--ok:#22c55e;--warn:#eab308;--danger:#ef4444;--info:#3b82f6;--pm1:#22c55e;--pm2:#3b82f6;--pm3:#f59e0b;--pm4:#ef4444;--edit:#1e293b;--editBorder:#334155;--border:#1e293b;--radius:8px;--font:'IBM Plex Sans',sans-serif;--mono:'JetBrains Mono',monospace}
+:root{--bg:#0a0e17;--bg2:#111827;--bg3:#1a2236;--bg4:#243049;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--ac:#f59e0b;--ac2:#d97706;--ac3:#fbbf24;--ok:#22c55e;--warn:#eab308;--danger:#ef4444;--info:#3b82f6;--pm1:#22c55e;--pm2:#3b82f6;--pm3:#f59e0b;--pm4:#ef4444;--edit:#1e293b;--editBorder:#334155;--border:#1e293b;
+/* --bd: alias de --border que faltaba acá — applyTheme() (más abajo) solo
+   actualizaba --bd al cambiar de tema, nunca --border, así que los 3 temas
+   (Oscuro/Claro/Azul Minero) nunca cambiaban el borde de tarjetas, tablas,
+   modales ni botones-outline (71 usos de var(--bd) en modules/renders/*.js
+   contra 16 de var(--bd) en este archivo) — quedaban con el borde
+   oscuro original sin importar el tema elegido. Ahora se definen y
+   actualizan juntas. */
+--bd:#1e293b;
+--shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 6px 20px rgba(0,0,0,.35);--shadow-header:0 2px 10px rgba(0,0,0,.3);
+--radius:8px;--font:'IBM Plex Sans',sans-serif;--mono:'JetBrains Mono',monospace}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100vh}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--ac2)}
 
-.header{background:linear-gradient(135deg,var(--bg2),var(--bg3));border-bottom:2px solid var(--ac);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px}
+.header{background:linear-gradient(135deg,var(--bg2),var(--bg3));border-bottom:2px solid var(--ac);box-shadow:var(--shadow-header);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px}
 .logo{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ac);letter-spacing:1px}
 .logo span{color:var(--tx2);font-weight:400;font-size:12px}
 .hstats{display:flex;gap:16px}
-.hs{text-align:center;padding:4px 12px;border-left:1px solid var(--border)}
+.hs{text-align:center;padding:4px 12px;border-left:1px solid var(--bd)}
 .hs b{font-family:var(--mono);font-size:16px;display:block}
 .hs small{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:1px}
 
-.nav{background:var(--bg2);display:flex;flex-wrap:wrap;overflow-x:auto;border-bottom:1px solid var(--border);padding:0 8px}
+.nav{background:var(--bg2);display:flex;flex-wrap:wrap;overflow-x:auto;border-bottom:1px solid var(--bd);padding:0 8px}
 .nav button{background:none;border:none;color:var(--tx3);padding:10px 14px;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
 .nav button:hover{color:var(--tx);background:var(--bg3)}
 .nav button.on{color:var(--ac);border-bottom-color:var(--ac)}
@@ -67,28 +78,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .sec{display:none}.sec.on{display:block}
 
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-sm);transition:box-shadow .2s,border-color .2s}
+.card[onclick]:hover{box-shadow:var(--shadow-md);border-color:var(--ac2)}
 .card-t{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
 .card-v{font-family:var(--mono);font-size:26px;font-weight:700}
 .card-s{font-size:10px;color:var(--tx2);margin-top:4px}
 
 .toolbar{display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
-.toolbar select,.toolbar input{background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:5px 8px;border-radius:4px;font-size:12px}
-.btn{background:var(--ac);color:var(--bg);border:none;padding:7px 14px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;transition:all .15s}
-.btn:hover{background:var(--ac3)}.btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#dc2626}
-.btn-o{background:none;border:1px solid var(--border);color:var(--tx2)}.btn-o:hover{border-color:var(--ac);color:var(--ac)}
+.toolbar select,.toolbar input{background:var(--bg3);border:1px solid var(--bd);color:var(--tx);padding:5px 8px;border-radius:4px;font-size:12px;transition:border-color .15s}
+.toolbar select:focus,.toolbar input:focus{outline:none;border-color:var(--ac)}
+.btn{background:var(--ac);color:var(--bg);border:none;padding:7px 14px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px;transition:all .15s;box-shadow:var(--shadow-sm)}
+.btn:hover{background:var(--ac3);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#dc2626}
+.btn-o{background:none;border:1px solid var(--bd);color:var(--tx2);box-shadow:none}.btn-o:hover{border-color:var(--ac);color:var(--ac);box-shadow:none;transform:none}
 .btn-s{padding:3px 8px;font-size:11px}
-.mic-btn{background:var(--bg3);border:1px solid var(--border);color:var(--tx2);border-radius:6px;padding:0 8px;cursor:pointer;display:flex;align-items:center}
+.mic-btn{background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);border-radius:6px;padding:0 8px;cursor:pointer;display:flex;align-items:center}
 .mic-btn:hover{border-color:var(--ac);color:var(--ac)}
 .mic-btn.mic-listening{background:var(--danger);border-color:var(--danger);color:#fff;animation:micPulse 1s ease-in-out infinite}
 @keyframes micPulse{0%,100%{opacity:1}50%{opacity:.55}}
 
 .tbl-wrap{overflow-x:auto;margin-bottom:16px}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:var(--bg3);color:var(--ac);font-weight:600;text-align:left;padding:7px 8px;position:sticky;top:0;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.5px;user-select:none}
-td{padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:var(--bg3);color:var(--ac);font-weight:600;text-align:left;padding:7px 8px;position:sticky;top:0;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.5px;user-select:none;box-shadow:0 1px 0 var(--bd)}
+td{padding:5px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
 tr:hover td{background:var(--bg3)}
 .mono{font-family:var(--mono)}
+/* Tema Claro: encabezado de tabla con banda de color sólida (no solo texto de
+   color) — inspirado en el informe real de Finning/CAT que maneja Besalco
+   (fondo blanco, tabla con cabecera en banda amarilla, texto oscuro). */
+.tema-light th{background:linear-gradient(180deg,#ffd75e,#f2b90c);color:#1a1f2b;box-shadow:0 2px 0 #1a1f2b1a}
+.tema-light .card{border-top:3px solid #f2b90c}
 
 /* EDITABLE CELLS */
 td.hidden{display:none!important}
@@ -105,8 +125,8 @@ table td input:not([type=checkbox]):not([disabled]):focus, table td select:not([
   outline:none;border-color:var(--ac);background:var(--bg2);box-shadow:0 0 0 2px rgba(99,102,241,.15);
 }
 table td input[disabled]{background:transparent;border:none;color:var(--tx3);cursor:not-allowed}
-td.ed:hover{border-color:var(--ac);background:#1a2540}
-td.ed:focus-within{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac);background:#1a2540}
+td.ed:hover{border-color:var(--ac);background:var(--bg3)}
+td.ed:focus-within{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac);background:var(--bg3)}
 td.ed input,td.ed select{background:transparent;border:none;color:var(--tx);font-family:var(--mono);font-size:12px;padding:0;width:100%;outline:none}
 td.ed input[type=number]{width:80px}
 td.ed input[type=date]{width:110px}
@@ -127,7 +147,7 @@ td.calc{color:var(--tx3);font-style:italic}
 .pg-e{background:var(--bg2);color:var(--tx);text-align:left;padding-left:6px;overflow:hidden;text-overflow:ellipsis}
 .pg-1{background:#14532d80;color:#86efac}.pg-2{background:#1e3a5f80;color:#93c5fd}.pg-3{background:#713f1280;color:#fde047}.pg-4{background:#7f1d1d80;color:#fca5a5}.pg-x{background:#374151;color:#9ca3af}
 
-.chart-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.chart-box{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
 .chart-t{font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:12px}
 .bars{display:flex;align-items:end;gap:6px;height:160px;padding-top:16px}
 .bar-c{display:flex;flex-direction:column;align-items:center;flex:1}
@@ -137,18 +157,18 @@ td.calc{color:var(--tx3);font-style:italic}
 .legend{display:flex;gap:12px;margin:8px 0;font-size:11px;color:var(--tx2)}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:4px}
 
-.modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center}
+.modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);backdrop-filter:blur(2px);z-index:200;align-items:center;justify-content:center}
 .modal-bg.show{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto}
+.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:20px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow-md)}
 .modal h3{color:var(--ac);margin-bottom:12px}
 .modal .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .modal .fg{display:flex;flex-direction:column;gap:3px}
 .modal .fg label{font-size:10px;color:var(--tx3);text-transform:uppercase}
-.modal .fg input,.modal .fg select,.modal .fg textarea{background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:6px 10px;border-radius:4px;font-family:var(--mono);font-size:13px}
+.modal .fg input,.modal .fg select,.modal .fg textarea{background:var(--bg3);border:1px solid var(--bd);color:var(--tx);padding:6px 10px;border-radius:4px;font-family:var(--mono);font-size:13px}
 .modal .fg textarea{font-family:var(--font);min-height:60px;resize:vertical}
 
-.toast{position:fixed;bottom:20px;right:20px;background:var(--ok);color:#fff;padding:10px 20px;border-radius:var(--radius);font-weight:600;font-size:13px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
-.toast.show{opacity:1}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--ok);color:#fff;padding:10px 20px;border-radius:var(--radius);font-weight:600;font-size:13px;z-index:300;opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;pointer-events:none;box-shadow:var(--shadow-md)}
+.toast.show{opacity:1;transform:translateY(0)}
 
 .help-tip{font-size:10px;color:var(--tx3);background:var(--bg3);padding:6px 12px;border-radius:4px;margin-bottom:12px;border-left:3px solid var(--ac)}
 
@@ -572,7 +592,7 @@ window.vizTip=function(ev,text){
   if(!tip){
     tip=document.createElement('div');
     tip.id='_vizTip';
-    tip.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:var(--bg4);color:var(--tx);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.35);max-width:220px;display:none';
+    tip.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:var(--bg4);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:11px;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.35);max-width:220px;display:none';
     document.body.appendChild(tip);
   }
   tip.textContent=text; // untrusted-safe: nunca innerHTML
@@ -1866,22 +1886,58 @@ window.applyTheme=function(input){
   if(cfg.colorDanger)r.setProperty('--danger',cfg.colorDanger);
   if(cfg.fontSize)document.documentElement.style.fontSize=cfg.fontSize;
   if(cfg.fontFamily)document.body.style.fontFamily=cfg.fontFamily;
+  // --bd/--border: mismo valor siempre, dos nombres por compatibilidad (ver
+  // comentario en :root, arriba) — antes solo se actualizaba --bd, así que
+  // tarjetas/tablas/modales/botones-outline (que usan --border en este
+  // archivo) nunca cambiaban de color al cambiar de tema.
+  // --shadow-sm/--shadow-md: más suaves en el tema Claro — la sombra oscura
+  // por defecto se veía sucia/manchada sobre fondo blanco.
+  // --ac/--ac2/--ac3 por tema (solo si el usuario NO fijó un color propio con
+  // el selector de color de más abajo — cfg.colorAc gana siempre): antes
+  // ningún tema tocaba --ac, así que quedaba pegado al último valor puesto
+  // por otro tema (ej. cambiar de Claro a Oscuro dejaba el acento del tema
+  // Claro pegado). Ahora cada tema fija su propio acento de forma explícita,
+  // sin depender de qué tema estaba activo antes.
+  // Tema Claro: el acento ámbar original (#f59e0b) tiene muy poco contraste
+  // como texto sobre blanco (ratio ~2.4:1, bajo el mínimo WCAG AA de 4.5:1)
+  // — se ve apagado en títulos y encabezados de tabla. Referencia real: el
+  // informe "Monitoreo de Condiciones" de Finning/CAT que maneja Besalco
+  // (fondo blanco, acento dorado/amarillo CAT bien oscuro para texto,
+  // encabezados de tabla con banda de color sólida) — mismo espíritu acá.
   if(cfg.tema==='light'){
     r.setProperty('--bg','#f5f5f5');r.setProperty('--bg2','#ffffff');
     r.setProperty('--bg3','#e5e5e5');r.setProperty('--bg4','#d4d4d4');
     r.setProperty('--tx','#171717');r.setProperty('--tx2','#404040');r.setProperty('--tx3','#737373');
-    r.setProperty('--bd','#d4d4d4');
+    r.setProperty('--bd','#d9d9d9');r.setProperty('--border','#d9d9d9');
+    r.setProperty('--shadow-sm','0 1px 2px rgba(15,23,42,.08)');r.setProperty('--shadow-md','0 6px 20px rgba(15,23,42,.12)');r.setProperty('--shadow-header','0 2px 8px rgba(15,23,42,.08)');
+    if(!cfg.colorAc){r.setProperty('--ac','#b45309');r.setProperty('--ac2','#92400e');r.setProperty('--ac3','#d97706');}
+    // --edit/--editBorder tampoco se tocaban nunca — el mismo azul-marino
+    // oscuro de :root (pensado para los temas oscuros) quedaba puesto en las
+    // celdas editables de las tablas sin importar el tema, y se veía como
+    // recuadros oscuros rotos sobre una tabla blanca.
+    r.setProperty('--edit','#eff6ff');r.setProperty('--editBorder','#bfdbfe');
   } else if(cfg.tema==='blue'){
     r.setProperty('--bg','#0c1929');r.setProperty('--bg2','#132237');
     r.setProperty('--bg3','#1a2d47');r.setProperty('--bg4','#243b57');
     r.setProperty('--tx','#e2e8f0');r.setProperty('--tx2','#94a3b8');r.setProperty('--tx3','#64748b');
-    r.setProperty('--bd','#1e3a5f');
+    r.setProperty('--bd','#1e3a5f');r.setProperty('--border','#1e3a5f');
+    r.setProperty('--shadow-sm','0 1px 2px rgba(0,0,0,.3)');r.setProperty('--shadow-md','0 6px 20px rgba(0,0,0,.4)');r.setProperty('--shadow-header','0 2px 10px rgba(0,0,0,.35)');
+    if(!cfg.colorAc){r.setProperty('--ac','#f59e0b');r.setProperty('--ac2','#d97706');r.setProperty('--ac3','#fbbf24');}
+    r.setProperty('--edit','#1e293b');r.setProperty('--editBorder','#334155');
   } else {
-    r.setProperty('--bg','#0a0a0a');r.setProperty('--bg2','#141414');
-    r.setProperty('--bg3','#1e1e1e');r.setProperty('--bg4','#2a2a2a');
+    r.setProperty('--bg','#0a0a0d');r.setProperty('--bg2','#141417');
+    r.setProperty('--bg3','#1e1e23');r.setProperty('--bg4','#2a2a31');
     r.setProperty('--tx','#e5e5e5');r.setProperty('--tx2','#a3a3a3');r.setProperty('--tx3','#737373');
-    r.setProperty('--bd','#2a2a2a');
+    r.setProperty('--bd','#2a2a31');r.setProperty('--border','#2a2a31');
+    r.setProperty('--shadow-sm','0 1px 2px rgba(0,0,0,.4)');r.setProperty('--shadow-md','0 6px 20px rgba(0,0,0,.5)');r.setProperty('--shadow-header','0 2px 10px rgba(0,0,0,.4)');
+    if(!cfg.colorAc){r.setProperty('--ac','#f59e0b');r.setProperty('--ac2','#d97706');r.setProperty('--ac3','#fbbf24');}
+    r.setProperty('--edit','#1e293b');r.setProperty('--editBorder','#334155');
   }
+  // Clase en <body> para el pequeño ajuste específico del tema Claro que no se
+  // puede lograr solo con variables (ver ".tema-light th" en el <style>,
+  // arriba) — inspirado en el informe real de Finning/CAT que usa Besalco:
+  // encabezados de tabla con banda de color sólida, no solo texto de color.
+  document.body.className=(document.body.className||'').replace(/\btema-\w+\b/g,'').trim()+' tema-'+(cfg.tema||'dark');
 };
 // [v10.4 cleanup] exportAll — función muerta (0 usos) eliminada
 // [v10.4 cleanup] importJSON — función muerta (0 usos) eliminada
