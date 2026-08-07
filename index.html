@@ -275,7 +275,7 @@ td.calc{color:var(--tx3);font-style:italic}
      pestañas porque todas dependen de S, aunque en la práctica el orden
      entre scripts planos no importa (nada se ejecuta hasta que la página
      termina de cargar). -->
-<script src="modules/store.js?v=2026-08-06"></script>
+<script src="modules/store.js?v=2026-08-07"></script>
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización) — scripts planos, mismo scope global de siempre. -->
 <script src="modules/renders/al.js?v=2026-08-04"></script>
@@ -310,7 +310,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/ace.js?v=2026-08-05"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-06"></script>
 <script src="modules/renders/sem.js?v=2026-08-05"></script>
-<script src="modules/renders/dash.js?v=2026-08-05"></script>
+<script src="modules/renders/dash.js?v=2026-08-07"></script>
 <script src="modules/renders/reg.js?v=2026-08-06"></script>
 <script src="modules/renders/hist.js?v=2026-08-05"></script>
 <script src="modules/renders/ot.js?v=2026-08-07"></script>
@@ -2561,7 +2561,7 @@ renders.kpi=renderKpi;
 // ═══════════ AUTOGUARDADO EN CARPETA (v16.4) ═══════════
 // Guarda SistemaMP_Datos.json automáticamente en una carpeta elegida por el usuario.
 // Si la carpeta está dentro de OneDrive / Google Drive escritorio → respaldo en la nube automático.
-const AUTOSAVE_KEYS=['eq','reg','ot','stk','lub','mov','neu','hist','aceite','insp','repuestos','ordenes','changelog','planSem','planSemHist','compMayores','gantt','destrabe','metas','avanceData','dispCalc','dispMeta','cfg','hh','prg','al','pau','neuMed','informesFalla','progDia','sen'];
+const AUTOSAVE_KEYS=['eq','reg','ot','stk','lub','mov','neu','hist','aceite','insp','repuestos','ordenes','changelog','planSem','planSemHist','compMayores','gantt','destrabe','metas','avanceData','dispCalc','dispMeta','saludFlotaHist','cfg','hh','prg','al','pau','neuMed','informesFalla','progDia','sen'];
 let _asHandle=null,_asTimer=null,_asDirty=false,_asLast=null;
 
 // IndexedDB mínimo para persistir el handle de carpeta entre sesiones

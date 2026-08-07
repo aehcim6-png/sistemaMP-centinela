@@ -194,6 +194,24 @@ window.renderDash=function(){
   var eqEsen=eq.filter(function(e){return e.criticidad==='Esencial'}).length;
   var eqGral=eq.length-eqCrit-eqEsen;
 
+  // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número que resume las 4 dimensiones de
+  // arriba (Cumplimiento PM, Disponibilidad, Stock sano, Confiabilidad), con
+  // tendencia semana a semana. Solo se registra el snapshot del día (y solo tiene
+  // sentido mostrar tendencia) viendo el mes ACTUAL — un mes histórico/proyectado
+  // no es "el estado de hoy" y guardarlo ahí ensuciaría la serie de tiempo real.
+  var cumplPM=eq.length?Math.round(alDia.length/eq.length*1000)/10:null;
+  var totalStkSalud=stkOk+stkBajo+stkCrit;
+  var stockSano=totalStkSalud?Math.round(stkOk/totalStkSalud*1000)/10:null;
+  var salud=indiceSaludFlota({cumplPM:cumplPM,disponibilidad:dispFlota,stockSano:stockSano,confiabilidad:idxConf});
+  var tendenciaSalud=null;
+  if(esMesActual&&salud.valor!=null){
+    var histSaludPrevio=S.g('saludFlotaHist')||{};
+    var histSaludNuevo=registrarSnapshotSalud(histSaludPrevio,salud.valor,_hoyISO);
+    if(JSON.stringify(histSaludNuevo)!==JSON.stringify(histSaludPrevio))S.s('saludFlotaHist',histSaludNuevo);
+    tendenciaSalud=tendenciaSaludSemanal(histSaludNuevo,_hoyISO);
+  }
+  var saludCol=salud.valor==null?'var(--bd)':salud.valor>=85?'#22c55e':salud.valor>=70?'#f59e0b':'#ef4444';
+
   $('s-dash').innerHTML=
 
     // ═══ SELECTOR DE PERÍODO ═══
@@ -208,6 +226,26 @@ window.renderDash=function(){
     '<button class="btn-s btn-o" onclick="dashHoy()">Hoy</button>'+
     '<span style="font-size:11px;color:var(--tx3);margin-left:auto">Mostrando: <b style="color:var(--ac)">'+dashLabel+'</b></span>'+
     '</div>'+
+
+    // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número, arriba de todo ═══
+    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:18px 22px;margin-bottom:20px;border:2px solid '+saludCol+';display:flex;align-items:center;gap:22px;flex-wrap:wrap">'+
+    '<div style="text-align:center;min-width:150px">'+
+    '<div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--tx3)">Índice de Salud de Flota</div>'+
+    '<div style="font-size:48px;font-weight:900;color:'+saludCol+';line-height:1;margin:4px 0">'+(salud.valor==null?'—':salud.valor)+(salud.valor==null?'':'<span style="font-size:20px">%</span>')+'</div>'+
+    (esMesActual?
+      (tendenciaSalud&&tendenciaSalud.delta!=null?
+        '<div style="font-size:11px;font-weight:600;color:'+(tendenciaSalud.delta>0?'#22c55e':tendenciaSalud.delta<0?'#ef4444':'var(--tx3)')+'">'+(tendenciaSalud.delta>0?'▲':tendenciaSalud.delta<0?'▼':'→')+' '+Math.abs(tendenciaSalud.delta)+' pts vs hace 7 días</div>'
+        :'<div style="font-size:10px;color:var(--tx3)">Sin dato de hace 7 días aún</div>')
+      :'<div style="font-size:10px;color:var(--tx3)">Tendencia solo viendo el mes actual</div>')+
+    '</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">'+
+    salud.detalle.map(function(c){
+      var col=c.valor==null?'var(--tx3)':c.valor>=85?'#22c55e':c.valor>=70?'#f59e0b':'#ef4444';
+      return '<div style="background:var(--bg4);border-radius:8px;padding:8px 14px;text-align:center;min-width:96px">'+
+        '<div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">'+c.nombre+'</div>'+
+        '<div style="font-size:17px;font-weight:700;color:'+col+'">'+(c.valor==null?'—':c.valor+'%')+'</div></div>';
+    }).join('')+
+    '</div></div>'+
 
     // ═══ Z1: ARRIBA IZQUIERDA — KPI PRINCIPAL ═══
     // Disponibilidad grande — lo primero que ve el ojo
