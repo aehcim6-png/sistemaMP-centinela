@@ -1,4 +1,4 @@
-const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, construirLecturaHistorial } = require('../logic.js');
+const { fd, fn, escapeHtml, fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, construirLecturaHistorial, hhPlanEstimator } = require('../logic.js');
 
 describe('lubVigente — consolidar lubricantes descontinuados en el vigente', () => {
   const { lubVigente, lubEsObsoleto } = require('../logic.js');
@@ -49,6 +49,69 @@ describe('medianaPositiva — duración típica real de un PM', () => {
     expect(medianaPositiva([])).toBeNull();
     expect(medianaPositiva([0])).toBeNull();
     expect(medianaPositiva(null)).toBeNull();
+  });
+});
+
+describe('hhPlanEstimator — estimador de HH Plan de un PM (usado en Plan Semanal, KPI y Costos)', () => {
+  it('mediana de las duraciones reales del MISMO equipo+tipo, cuando hay datos suficientes', () => {
+    const regs = [
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 2 },
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 3 },
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 4 },
+      // otro equipo, mismo tipo — no debe mezclarse con el estimado de CF-8769
+      { equipo: 'BD-10139', tipoPM: 'PM1', duracionH: 20 },
+    ];
+    const estimar = hhPlanEstimator(regs);
+    expect(estimar('CF-8769', 'PM1')).toBe(3);
+  });
+
+  it('sin dato específico del equipo, cae a la mediana de TODA la flota para ese tipo de PM', () => {
+    const regs = [
+      { equipo: 'BD-10139', tipoPM: 'PM2', duracionH: 5 },
+      { equipo: 'GE-10019', tipoPM: 'PM2', duracionH: 7 },
+    ];
+    const estimar = hhPlanEstimator(regs);
+    // CF-8769 nunca tuvo un PM2 registrado -> usa la mediana de la flota (6)
+    expect(estimar('CF-8769', 'PM2')).toBe(6);
+  });
+
+  it('sin ningún dato para ese equipo NI para ese tipo en toda la flota -> 0, no se inventa un número', () => {
+    const estimar = hhPlanEstimator([{ equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 3 }]);
+    expect(estimar('CF-8769', 'PM4')).toBe(0);
+    expect(estimar('EQUIPO-INEXISTENTE', 'PM4')).toBe(0);
+  });
+
+  it('ignora registros sin duracionH válida (0, negativa, o no numérica) — no distorsionan la mediana', () => {
+    const regs = [
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 0 },
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: -5 },
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: NaN },
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 3 },
+    ];
+    const estimar = hhPlanEstimator(regs);
+    expect(estimar('CF-8769', 'PM1')).toBe(3);
+  });
+
+  it('redondea a 1 decimal', () => {
+    const regs = [
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 1 },
+      { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 2 },
+    ];
+    const estimar = hhPlanEstimator(regs);
+    expect(estimar('CF-8769', 'PM1')).toBe(1.5);
+  });
+
+  it('sin registros en absoluto -> siempre 0, para cualquier equipo/tipo', () => {
+    const estimar = hhPlanEstimator([]);
+    expect(estimar('CF-8769', 'PM1')).toBe(0);
+    const estimarNulo = hhPlanEstimator(null);
+    expect(estimarNulo('CF-8769', 'PM1')).toBe(0);
+  });
+
+  it('registros nulos/undefined dentro del arreglo no rompen el cálculo', () => {
+    const regs = [null, undefined, { equipo: 'CF-8769', tipoPM: 'PM1', duracionH: 4 }];
+    const estimar = hhPlanEstimator(regs);
+    expect(estimar('CF-8769', 'PM1')).toBe(4);
   });
 });
 

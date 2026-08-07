@@ -7,6 +7,8 @@
     "build": "vite build"
   },
   "devDependencies": {
+    "@vitest/coverage-istanbul": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
     "vite": "^8.2.0",
     "vitest": "^4.1.10"
   }
