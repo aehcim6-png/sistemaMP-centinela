@@ -1,4 +1,4 @@
-const { C } = require('../logic.js');
+const { C, validarMotivoPmPendiente } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -258,6 +258,38 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     C.recalc(e1, 20); C.recalc(e2, 20);
     expect(e1.horomProxPM).toBe(500);
     expect(e2.horomProxPM).toBe(500);
+  });
+});
+
+describe('validarMotivoPmPendiente — exige justificación al marcar un hito pendiente', () => {
+  it('exige motivo al marcar un hito nuevo (antes no había ninguno)', () => {
+    const r = validarMotivoPmPendiente(null, 15500, '');
+    expect(r.valido).toBe(false);
+    expect(r.motivoError).toMatch(/motivo/i);
+  });
+  it('acepta si el motivo viene con texto real (caso real CF-8769)', () => {
+    const r = validarMotivoPmPendiente(null, 15500, 'PM4 lo hizo el proveedor externo en terreno, no se alcanzó a registrar acá');
+    expect(r.valido).toBe(true);
+  });
+  it('rechaza un motivo que es solo espacios en blanco', () => {
+    const r = validarMotivoPmPendiente(null, 15500, '   ');
+    expect(r.valido).toBe(false);
+  });
+  it('exige motivo también cuando se CAMBIA un hito ya marcado a otro distinto', () => {
+    const r = validarMotivoPmPendiente(15500, 15750, '');
+    expect(r.valido).toBe(false);
+  });
+  it('no exige motivo si el valor no cambió (guardar la ficha sin tocar este campo)', () => {
+    const r = validarMotivoPmPendiente(15500, 15500, '');
+    expect(r.valido).toBe(true);
+  });
+  it('no exige motivo al LIMPIAR el hito (pasar de un valor a null/0)', () => {
+    expect(validarMotivoPmPendiente(15500, null, '').valido).toBe(true);
+    expect(validarMotivoPmPendiente(15500, 0, '').valido).toBe(true);
+  });
+  it('no exige motivo cuando nunca hubo ni hay valor (caso normal, sin este dato)', () => {
+    expect(validarMotivoPmPendiente(null, null, '').valido).toBe(true);
+    expect(validarMotivoPmPendiente(0, 0, '').valido).toBe(true);
   });
 });
 
