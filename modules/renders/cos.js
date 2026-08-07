@@ -108,7 +108,7 @@ window.renderCos = function () {
       '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>HH Real</th><th>HH Plan</th><th>Eficiencia</th><th>Intervenciones</th></tr>' +
       tecList.map(function (t) {
         var ef = t[1].real > 0 ? Math.round(t[1].plan / t[1].real * 100) : 0;
-        return '<tr><td style="font-size:11px">' + t[0] + '</td><td style="text-align:center;font-weight:600">' + Math.round(t[1].real) + 'h</td><td style="text-align:center">' + Math.round(t[1].plan) + 'h</td><td style="text-align:center;color:' + (ef >= 80 ? 'var(--ok)' : 'var(--w)') + '">' + ef + '%</td><td style="text-align:center">' + t[1].n + '</td></tr>';
+        return '<tr><td style="font-size:11px">' + escapeHtml(t[0]) + '</td><td style="text-align:center;font-weight:600">' + Math.round(t[1].real) + 'h</td><td style="text-align:center">' + Math.round(t[1].plan) + 'h</td><td style="text-align:center;color:' + (ef >= 80 ? 'var(--ok)' : 'var(--w)') + '">' + ef + '%</td><td style="text-align:center">' + t[1].n + '</td></tr>';
       }).join('') +
       '</table></div></div>' +
 

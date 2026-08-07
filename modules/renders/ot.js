@@ -49,7 +49,7 @@ window.renderOt=function(){
     // Component breakdown
   var comps={};ot.forEach(function(o){if(o.componente){comps[o.componente]=(comps[o.componente]||0)+1;}});
   var compCards=Object.entries(comps).sort(function(a,b){return b[1]-a[1]}).slice(0,8).map(function(c){
-    return'<div class="card" style="padding:6px;text-align:center"><div style="font-size:10px;color:var(--tx3)">'+c[0]+'</div><div style="font-size:18px;font-weight:700;color:'+(c[1]>=3?'var(--danger)':c[1]>=2?'var(--w)':'var(--tx)')+'">'+c[1]+'</div><div style="font-size:9px;color:var(--tx3)">fallas</div></div>';
+    return'<div class="card" style="padding:6px;text-align:center"><div style="font-size:10px;color:var(--tx3)">'+escapeHtml(c[0])+'</div><div style="font-size:18px;font-weight:700;color:'+(c[1]>=3?'var(--danger)':c[1]>=2?'var(--w)':'var(--tx)')+'">'+c[1]+'</div><div style="font-size:9px;color:var(--tx3)">fallas</div></div>';
   }).join('')||'<div class="card" style="padding:6px;color:var(--tx3);font-size:11px">Ingresa componente en cada OT para ver análisis</div>';
   $('s-ot').innerHTML=`
     <div class="sec-h"><div>
@@ -158,7 +158,7 @@ window.analisisFallas=function(){
     <div style="overflow-x:auto;margin:8px 0 16px"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Componente</th><th>Fallas</th><th>Equipos</th><th>MTBF (h)</th><th>Criticidad</th></tr>
       ${comps.map(c=>{const crit=c.mtbf<2000?'🔴 Alta':c.mtbf<5000?'🟡 Media':'🟢 Baja';return `<tr style="border-bottom:1px solid var(--bd)">
-        <td style="padding:6px"><b>${c.comp}</b></td>
+        <td style="padding:6px"><b>${escapeHtml(c.comp)}</b></td>
         <td style="text-align:center">${c.fallas}</td>
         <td style="text-align:center">${c.nEquipos}</td>
         <td style="text-align:center"><b>${fn2(c.mtbf)}</b></td>
