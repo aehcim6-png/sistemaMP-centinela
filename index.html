@@ -168,13 +168,20 @@ td.calc{color:var(--tx3);font-style:italic}
 .chart-box{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
 .chart-t{font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:12px}
 .bars{display:flex;align-items:end;gap:6px;height:160px;padding-top:16px}
-.bar-c{display:flex;flex-direction:column;align-items:center;flex:1}
+/* height:100% + justify-content:flex-end: bug real encontrado al pedir más
+   relieve en las barras — .bar-c nunca tenía una altura DEFINIDA (solo se
+   ajustaba a su contenido, por el align-items:end de .bars, más pensado
+   para "las columnas cortas se alinean abajo"), así que el height:XX% que
+   cada renders/*.js pone en .bar (la barra en sí) no tenía contra qué
+   resolverse — SIEMPRE quedaba en min-height:2px, sin importar el valor.
+   Ningún gráfico de barras de todo el sistema mostraba su altura real. */
+.bar-c{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;flex:1;height:100%}
 /* Relieve (brillo superior + sombra) en vez de plano — sin transformar a 3D
    real: un pie chart o barra en 3D distorsiona la lectura de proporciones,
    esto solo agrega profundidad visual sin tocar el dato. El color de cada
    barra lo sigue poniendo cada renders/*.js (background inline) — esto solo
    se superpone encima. */
-.bar{width:100%;max-width:24px;margin:0 auto;border-radius:4px 4px 0 0;transition:height .5s;min-height:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -6px 10px -6px rgba(0,0,0,.35),0 2px 5px rgba(0,0,0,.2)}
+.bar{width:100%;max-width:24px;margin:0 auto;border-radius:4px 4px 0 0;transition:height .5s;min-height:2px;box-shadow:inset 0 2px 0 rgba(255,255,255,.5),inset -4px 0 6px -3px rgba(0,0,0,.45),inset 0 -10px 14px -6px rgba(0,0,0,.55),0 3px 8px rgba(0,0,0,.3)}
 .bar-l{font-size:9px;color:var(--tx3);margin-top:4px}.bar-v{font-family:var(--mono);font-size:10px;color:var(--tx);margin-bottom:2px}
 
 .legend{display:flex;gap:12px;margin:8px 0;font-size:11px;color:var(--tx2)}
