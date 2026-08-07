@@ -145,6 +145,18 @@ window.renderCfg=function(){
     '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Reglas activas: Delanteros (P1-P2) → cambio a 60mm <b>o</b> 2.000h (alerta) / 2.600h (límite), lo primero. Traseros (P3-P6) → solo remanente, retiro a 10mm o daño.</div>'+
     '<button class="btn" onclick="guardarNeuParams()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar parámetros</button>'+
     '</div>';})()+
+    // ALERTAS POR CORREO — lista de destinatarios del resumen diario que ya
+    // envía sola la Edge Function alerta-pm (PM urgente, stock crítico,
+    // vencimientos, backlog). Antes solo se podía cambiar desde el dashboard
+    // de Supabase (env var ALERTA_PM_DESTINATARIOS); ahora cualquier admin la
+    // edita acá. Si queda vacío, alerta-pm sigue usando esa env var de respaldo.
+    (window._userRole==='admin'?(function(){const c=S.g('cfg')||{};return ''+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #f59e0b">'+
+    '<b style="font-size:14px">📧 Alertas por Correo</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Correos que reciben el resumen diario automático (PM urgente, stock crítico, vencimientos y backlog pendiente). Separar varios con coma.</p>'+
+    '<input id="cfgAlertaEmails" type="text" value="'+escapeHtml(c.alertaEmails||'')+'" placeholder="correo1@empresa.com, correo2@empresa.com" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
+    '<button class="btn" onclick="guardarAlertaEmails()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar destinatarios</button>'+
+    '</div>';})():'')+
     (function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #3ecf8e">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="8"/><ellipse cx="10" cy="10" rx="3.5" ry="8"/><line x1="2" y1="10" x2="18" y2="10"/></svg> Sincronización en la nube (Supabase)</b>'+
@@ -541,6 +553,13 @@ window.guardarNeuParams=function(){
   c.neuProyMes=parseInt($('neuProyMes').value)||450;
   S.s('cfg',c);
   toast('✅ Parámetros de neumáticos guardados');
+  if(currentTab==='cfg')renders.cfg();
+};
+window.guardarAlertaEmails=function(){
+  const c=S.g('cfg')||{};
+  c.alertaEmails=($('cfgAlertaEmails').value||'').trim();
+  S.s('cfg',c);
+  toast('✅ Destinatarios de alerta guardados');
   if(currentTab==='cfg')renders.cfg();
 };
 // Reemplaza a la vieja limpiarMovAntiguos(), que hacia S.s('mov', recientes) -- con
