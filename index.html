@@ -306,7 +306,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/buscar.js?v=2026-08-05"></script>
 <script src="modules/renders/pau.js?v=2026-08-05"></script>
 <script src="modules/renders/plan.js?v=2026-08-05"></script>
-<script src="modules/renders/disp.js?v=2026-08-05"></script>
+<script src="modules/renders/disp.js?v=2026-08-07"></script>
 <script src="modules/renders/ace.js?v=2026-08-05"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-06"></script>
 <script src="modules/renders/sem.js?v=2026-08-05"></script>
@@ -542,10 +542,18 @@ function ordenarTabla(tabla,col,th){
 }
 // ============ HEADER ============
 function renderHeader(){
-  const eq=S.g('eq')||[],reg=S.g('reg')||[];
+  const eq=S.g('eq')||[],ot=S.g('ot')||[];
   const u=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')).length;
   const p=eq.filter(e=>e.estado?.includes('PRÓXIMA')).length;
   const o=eq.filter(e=>e.estado?.includes('AL DÍA')).length;
+  // 'Ejecuciones' (total histórico de registros PM desde siempre) no es un dato
+  // vivo — no cambia según lo que pase HOY, así que no aportaba nada útil en un
+  // header que se anuncia como "en vivo". 'Fuera de Servicio ahora' sí lo es:
+  // mismo criterio que ya usan las banderas de Disponibilidad/Correctivos (ver
+  // equiposFueraDeServicioAhora en logic.js) — equipos con una salida de servicio
+  // todavía abierta, algo que un jefe de mantención necesita ver de un vistazo
+  // sin importar en qué pestaña esté parado.
+  const fs=equiposFueraDeServicioAhora(ot).length;
   const now=new Date();
   const dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const fechaStr=dias[now.getDay()]+' '+now.getDate()+'/'+(now.getMonth()+1)+'/'+now.getFullYear();
@@ -555,7 +563,7 @@ function renderHeader(){
     <div class="hs"><b style="color:var(--danger)">${u}</b><small>Urgentes</small></div>
     <div class="hs"><b style="color:var(--warn)">${p}</b><small>Próximas</small></div>
     <div class="hs"><b style="color:var(--ok)">${o}</b><small>Al Día</small></div>
-    <div class="hs"><b style="color:var(--info)">${reg.length}</b><small>Ejecuciones</small></div>
+    <div class="hs"><b style="color:var(--danger)">${fs}</b><small>Fuera de Servicio</small></div>
     <div class="hs" style="border-left:1px solid var(--bd);padding-left:12px"><b style="font-size:16px">${horaStr}</b><small>${fechaStr}</small></div>`;
 }
 // Auto-update clock every minute
