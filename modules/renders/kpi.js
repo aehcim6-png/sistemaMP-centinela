@@ -97,9 +97,21 @@ window._getCostosData=function(){
   return{headers:h,rows:r};
 };
 window._getBacklogData=function(){
-  var ot=S.g('ot')||[];var pd=ot.filter(function(o){return o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución'});
+  var ot=S.g('ot')||[];var eq=S.g('eq')||[];
+  var eqPorSigla={};eq.forEach(function(e){if(e&&e.sigla)eqPorSigla[e.sigla]=e;});
+  var pd=ot.filter(function(o){return o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución'});
   var h=['Equipo','Tipo Falla','Componente','Fecha','Estado OT','Días Pendiente','Síntoma','Causa Raíz','Prioridad'];
-  var r=pd.map(function(o){var d=o.fecha?Math.round((Date.now()-new Date(o.fecha).getTime())/86400000):0;return[o.sigla||'',o.tipo||'',o.componente||'',o.fecha||'',o.estadoOT||'Pendiente',d,o.sintoma||'',o.causaRaiz||'',d>14?'CRÍTICO':d>7?'URGENTE':'Normal'];});
+  var ORDEN_PRIORIDAD={'CRÍTICO':0,'URGENTE':1,'Normal':2};
+  var r=pd.map(function(o){
+    var d=o.fecha?Math.round((Date.now()-new Date(o.fecha).getTime())/86400000):0;
+    // Un correctivo pendiente en un equipo Crítico (Ficha Técnica > Criticidad) nunca
+    // aparece como Normal: sube a URGENTE de entrada y a CRÍTICO si además lleva más
+    // de 7 días — la antigüedad sola no debe ocultar una falla en un activo que no
+    // puede parar. Equipos Esencial/General siguen el umbral original por días.
+    var esCritico=(eqPorSigla[o.sigla]||{}).criticidad==='Crítico';
+    var prioridad=esCritico?(d>7?'CRÍTICO':'URGENTE'):(d>14?'CRÍTICO':d>7?'URGENTE':'Normal');
+    return{fila:[o.sigla||'',o.tipo||'',o.componente||'',o.fecha||'',o.estadoOT||'Pendiente',d,o.sintoma||'',o.causaRaiz||'',prioridad],prioridad:prioridad,dias:d};
+  }).sort(function(a,b){return ORDEN_PRIORIDAD[a.prioridad]-ORDEN_PRIORIDAD[b.prioridad]||b.dias-a.dias;}).map(function(x){return x.fila;});
   return{headers:h,rows:r};
 };
 window._getCompData=function(){
