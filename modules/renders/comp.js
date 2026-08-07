@@ -14,10 +14,15 @@ window.renderComp=function(){
   compData=compData.filter(function(c){return eqSiglas.indexOf(c.sigla)>=0});
   var compSiglas=[...new Set(compData.map(function(c){return c.sigla}))];
   var newEqs=eq.filter(function(e){return compSiglas.indexOf(e.sigla)<0});
+  // compDataAntes/comparación al final: sin equipos (ej. empresa recién
+  // reseteada), el bloque de abajo quedaba en un array vacío y volvía a
+  // guardar S.s('compMayores',[]) en cada refresco de pantalla para siempre
+  // (mismo bug ya arreglado en metas.js/prg.js: guardado incondicional sin
+  // comparar antes/después).
+  var compDataAntes=JSON.stringify(compData);
   if(newEqs.length){
     var defaultComps=[{comp:'Motor',vidaUtil:15000,costoRef:45000000},{comp:'Transmisión',vidaUtil:12000,costoRef:35000000},{comp:'Diferencial',vidaUtil:12000,costoRef:25000000},{comp:'Convertidor',vidaUtil:10000,costoRef:20000000},{comp:'Mandos Finales',vidaUtil:10000,costoRef:18000000},{comp:'Bomba Hidráulica',vidaUtil:8000,costoRef:15000000}];
     newEqs.forEach(function(e){defaultComps.forEach(function(dc){compData.push({sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,comp:dc.comp,horomComp:null,vidaUtil:dc.vidaUtil,costoRef:dc.costoRef,fechaInst:null,obs:'',estado:''});});});
-    S.s('compMayores',compData);
   }
   if(!compData.length){
     var defaultComps=[
@@ -35,8 +40,8 @@ window.renderComp=function(){
           fechaInst:null,obs:'',estado:''});
       });
     });
-    S.s('compMayores',compData);
   }
+  if(JSON.stringify(compData)!==compDataAntes)S.s('compMayores',compData);
 
   var fil=fEquipo?compData.filter(function(c){return c.sigla===fEquipo}):compData;
   var siglas=[...new Set(compData.map(function(c){return c.sigla}))];
