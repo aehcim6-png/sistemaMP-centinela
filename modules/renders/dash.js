@@ -98,7 +98,11 @@ window.renderDash=function(){
   // Neumaticos stats
   var neuOk=neu.filter(n=>n.estado==='Operativo').length;
   var neuDet=neu.filter(n=>n.estado==='Deteriorado').length;
-  var neuCrit=neu.filter(neuDebeCambiar).length;
+  // Índices precomputados (ver _neuMedPorSerie/_eqPorSigla en index.html) — sin esto,
+  // neuDebeCambiar() repetía un filter()+sort() de TODA neumaticos_mediciones por cada
+  // neumático de la flota, en cada apertura del Dashboard.
+  var _neuMedIdx=_neuMedPorSerie(),_eqIdxNeu=_eqPorSigla();
+  var neuCrit=neu.filter(function(n){return neuDebeCambiar(n,_neuMedIdx,_eqIdxNeu);}).length;
   // Stock critical — calculado EN VIVO con el criterio único (stockEstado: quiebre antes
   // del lead time), no leyendo el estado guardado (que con el proxy viejo de "1 mes"
   // subestimaba los COMPRAR y nunca escribía "BAJO").
