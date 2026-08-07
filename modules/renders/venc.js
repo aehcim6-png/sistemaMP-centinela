@@ -203,8 +203,20 @@ window.exportVencCSV=function(){
   });
   if(!filas.length)return toast('Sin datos de vencimientos');
   var keys=Object.keys(filas[0]);
+  // periodicidad_meses/dias_restantes son numéricos reales (dias_restantes puede ser
+  // negativo, ej. "-15" = 15 días vencido) — csvCeldaSegura NO se les aplica, los
+  // convertiría a texto y rompería el formato numérico en Excel/Sheets. El resto
+  // (observacion en particular, texto libre) sí puede traer =+-@ al inicio sin mala
+  // intención (ver csvCeldaSegura en logic.js) y necesita el prefijo de protección
+  // contra CSV/Formula Injection. Las comillas internas se escapan aparte (estaban
+  // rompiendo la estructura del CSV si un campo libre traía una comilla).
+  var CAMPOS_NUMERICOS_VENC=['periodicidad_meses','dias_restantes'];
   var csv=[keys.join(';'),...filas.map(function(r){
-    return keys.map(function(k){return'"'+(r[k]??'')+'"';}).join(';');
+    return keys.map(function(k){
+      var v=r[k]??'';
+      if(CAMPOS_NUMERICOS_VENC.indexOf(k)<0)v=csvCeldaSegura(v);
+      return'"'+String(v).replace(/"/g,'""')+'"';
+    }).join(';');
   })].join('\n');
   var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');
