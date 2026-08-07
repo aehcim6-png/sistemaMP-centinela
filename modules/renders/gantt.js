@@ -104,8 +104,8 @@ window.renderGantt=function(){
       return'<tr'+(hayReal?' style="background:rgba(34,197,94,.06)"':'')+'>'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(g.sigla)+'</td>'+
         '<td>'+pb(g.pm)+'</td>'+
-        '<td class="ed" contenteditable onblur="edGantt('+gi+',\'inicio\',this.innerText.trim())" style="font-size:9px" title="'+(hayReal?'Auto-detectado desde reg/ot — puedes igual editarlo a mano':'')+'">'+iniMostrar+'</td>'+
-        '<td class="ed" contenteditable onblur="edGantt('+gi+',\'fin\',this.innerText.trim())" style="font-size:9px">'+finMostrar+'</td>'+
+        '<td class="ed" contenteditable onblur="edGantt('+gi+',\'inicio\',this.innerText.trim())" style="font-size:9px" title="'+(hayReal?'Auto-detectado desde reg/ot — puedes igual editarlo a mano':'')+'">'+escapeHtml(iniMostrar)+'</td>'+
+        '<td class="ed" contenteditable onblur="edGantt('+gi+',\'fin\',this.innerText.trim())" style="font-size:9px">'+escapeHtml(finMostrar)+'</td>'+
         '<td>'+(hayReal?'<span style="font-size:9px;color:#22c55e;font-weight:700"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Ejecutado ('+totalEjecReal+' reg.)</span>'+(tecnicosGantt.length?'<br><span style="font-size:8px;color:var(--tx3)" title="Según Programación Diaria"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> '+escapeHtml(tecnicosGantt.join(', '))+'</span>':''):
         '<select onchange="edGantt('+gi+',\'estado\',this.value)" style="font-size:9px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;padding:1px">'+
         ['Planificado','En Ejecución','Ejecutado','Atrasado','Postergado'].map(function(s){return'<option'+(g.estado===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>')+'</td>'+
