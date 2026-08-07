@@ -792,7 +792,7 @@ window.renderPred=function(){
           '<td style="font-size:14px;text-align:center">'+ac.estado+'</td>'+
           '<td style="text-align:center"><span style="color:'+confCol+';font-weight:600;font-size:11px">'+conf.nivel+'</span></td>'+
           '<td style="font-size:11px">'+(e.tipoPM||'—')+' en '+(e.diasParaPM||'—')+'d</td>'+
-          '<td style="font-size:10px;max-width:200px;white-space:normal;word-break:break-word;line-height:1.5">'+(ac.alertas.length?ac.alertas.join(', '):'<span style="color:var(--ok)">Sin alertas</span>')+'</td>'+
+          '<td style="font-size:10px;max-width:200px;white-space:normal;word-break:break-word;line-height:1.5">'+(ac.alertas.length?ac.alertas.map(escapeHtml).join(', '):'<span style="color:var(--ok)">Sin alertas</span>')+'</td>'+
           '<td style="font-size:11px;font-weight:600;color:'+recomCol+'">'+recom+'</td></tr>';
       }).join('')+
       '</table></div></div>'+
@@ -840,7 +840,7 @@ window.renderPred=function(){
       '<div class="card"><div class="card-t">Confianza</div><div class="card-v" style="color:'+confCol+'">'+conf.nivel+'</div><div class="card-s">Score: '+conf.score+'/7</div></div>'+
       '<div class="card" style="border-left:3px solid '+(ac.severity>=5?'var(--danger)':ac.severity>=2?'var(--w)':'var(--ok)')+'"><div class="card-t">Estado</div><div class="card-v">'+ac.estado+'</div><div class="card-s">'+recom+'</div></div>'+
       '</div>'+
-      (ac.alertas.length?'<div class="card" style="margin-bottom:12px;border-left:3px solid var(--danger)"><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Alertas:</b> '+ac.alertas.join(' · ')+'</div>':'')+
+      (ac.alertas.length?'<div class="card" style="margin-bottom:12px;border-left:3px solid var(--danger)"><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Alertas:</b> '+ac.alertas.map(escapeHtml).join(' · ')+'</div>':'')+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">'+
       '<div class="chart-box"><div class="chart-t">Pedidos/Mes</div><div class="bars">'+E.trend.map(function(t){
         var tipTxt=t.m+': '+t.n+' pedidos';
