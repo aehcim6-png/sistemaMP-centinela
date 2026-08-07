@@ -99,6 +99,14 @@ window.renderCfg=function(){
     '<button class="btn btn-o" onclick="verLogCambios()">Ver log de cambios</button>'+
     '</div>'+
 
+    // VERIFICADOR DE INTEGRIDAD (control de gestión — datos físicamente imposibles)
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #14b8a6">'+
+    '<b style="font-size:14px">🔍 Verificador de Integridad</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Revisa los datos ya guardados buscando cosas físicamente imposibles — horómetros que retroceden, stock o precios negativos, fechas invertidas, siglas duplicadas, estados desincronizados con su propio horómetro. No es un juicio de negocio ("esto me parece raro"), solo detecta errores de dato objetivos.</p>'+
+    '<button class="btn" onclick="ejecutarVerificacionIntegridad()">🔍 Ejecutar verificación</button>'+
+    '<div id="integridadResultado" style="margin-top:12px"></div>'+
+    '</div>'+
+
     // PAPELERA (soft-delete con recuperación)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
     '<b style="font-size:14px">🗑️ Papelera</b>'+
@@ -293,6 +301,40 @@ async function _refrescarEstadoMFA(){
       '<button class="btn" onclick="activarMFA()">Activar verificación en dos pasos</button>';
   }
 }
+
+// ---- VERIFICADOR DE INTEGRIDAD ----
+var SEV_LABEL={alta:'🔴 Alta — dato imposible en sí mismo',media:'🟡 Media — inconsistencia entre campos, revisar'};
+var SEV_COLOR={alta:'var(--danger)',media:'#eab308'};
+window.ejecutarVerificacionIntegridad=function(){
+  var box=$('integridadResultado');
+  if(box)box.innerHTML='<span style="font-size:11px;color:var(--tx3)">Verificando…</span>';
+  var data={
+    eq:S.g('eq')||[], reg:S.g('reg')||[], hist:S.g('hist')||[],
+    stk:S.g('stk')||[], repuestos:S.g('repuestos')||[], lub:S.g('lub')||[],
+    ordenes:S.g('ordenes')||[], compMayores:S.g('compMayores')||[],
+    dispCalc:S.g('dispCalc')||{}
+  };
+  var hallazgos=verificarIntegridad(data);
+  if(!box)return;
+  if(!hallazgos.length){
+    box.innerHTML='<div style="color:var(--ok);font-size:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sin hallazgos — no se detectaron datos físicamente imposibles.</div>';
+    toast('✅ Verificación de integridad: sin hallazgos');
+    return;
+  }
+  var porSev={};
+  hallazgos.forEach(function(h){(porSev[h.severidad]=porSev[h.severidad]||[]).push(h);});
+  var html='';
+  ['alta','media'].forEach(function(sev){
+    var arr=porSev[sev];if(!arr||!arr.length)return;
+    html+='<div style="margin-bottom:10px">'+
+      '<b style="font-size:12px;color:'+SEV_COLOR[sev]+'">'+SEV_LABEL[sev]+' ('+arr.length+')</b>'+
+      '<ul style="margin:6px 0 0 18px;padding:0;font-size:11px;color:var(--tx2)">'+
+      arr.map(function(h){return '<li style="margin-bottom:3px">'+escapeHtml(h.msg)+'</li>';}).join('')+
+      '</ul></div>';
+  });
+  box.innerHTML=html;
+  toast('⚠️ Verificación de integridad: '+hallazgos.length+' hallazgo(s)');
+};
 
 window.resetAll=function(){
   if(!confirm('⚠️ ¿Restaurar TODOS los datos a valores iniciales? Se perderán cambios.'))return;
