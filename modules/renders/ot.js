@@ -16,9 +16,7 @@ window.renderOt=function(){
   // cientos de correctivos acumulados, estas OT (a veces de meses atrás) quedaban
   // enterradas varias páginas adentro de la tabla, sin ningún aviso arriba que las
   // destacara. El usuario reportó no verlas más pese a que la data seguía ahí.
-  const fsEnCursoOT=ot.map(function(o,i){return{o:o,i:i};}).filter(function(x){
-    return x.o.estatusEq==='Fuera de Servicio'&&x.o.fechaEntrada&&!x.o.fechaSalida;
-  });
+  const fsEnCursoOT=equiposFueraDeServicioAhora(ot);
   const fsEnCursoOTHTML=fsEnCursoOT.length?
     '<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
     '<b style="font-size:12px;color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> '+fsEnCursoOT.length+' equipo'+(fsEnCursoOT.length===1?'':'s')+' AÚN fuera de servicio</b>'+

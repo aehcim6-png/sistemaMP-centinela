@@ -969,6 +969,21 @@ function tendenciaSaludSemanal(historico,hoyISO){
   return {actual:actual,hace7d:h[mejorFecha],delta:delta,fechaHace7d:mejorFecha};
 }
 
+// ═══ EQUIPOS FUERA DE SERVICIO AHORA MISMO ═══
+// Mismo criterio que ya usaban disp.js y ot.js cada uno por su lado (duplicado
+// literal): una OT con estatusEq='Fuera de Servicio', con fecha de entrada pero
+// SIN fecha de salida — la salida de servicio sigue abierta hoy. Se consolida acá
+// porque el header persistente (siempre visible, en cualquier pestaña — ver
+// renderHeader en index.html) necesita el mismo número real, no una tercera copia
+// del filtro. Devuelve [{o,i}] (equipo + su índice original en 'ot') para que los
+// consumidores que ya ofrecen "Volvió a operar" (cerrarSalidaServicio(i)) sigan
+// funcionando igual.
+function equiposFueraDeServicioAhora(ot){
+  return (ot||[]).map(function(o,i){return{o:o,i:i};}).filter(function(x){
+    return x.o&&x.o.estatusEq==='Fuera de Servicio'&&x.o.fechaEntrada&&!x.o.fechaSalida;
+  });
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -1012,6 +1027,7 @@ if (typeof window !== 'undefined') {
   window.indiceSaludFlota = indiceSaludFlota;
   window.registrarSnapshotSalud = registrarSnapshotSalud;
   window.tendenciaSaludSemanal = tendenciaSaludSemanal;
+  window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1022,6 +1038,7 @@ if (typeof module !== 'undefined' && module.exports) {
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
-    indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal
+    indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
+    equiposFueraDeServicioAhora
   };
 }
