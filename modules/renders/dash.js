@@ -46,8 +46,17 @@ window.renderDash=function(){
   } else {
     const _targetISO=dashAnio+'-'+String(dashMes).padStart(2,'0')+'-'+String(_diasMes).padStart(2,'0');
     dashFuente=_targetISO<_hoyISO?'historico':'proyectado';
+    // hist agrupado por sigla, UNA sola vez — antes cada equipo pasaba el arreglo
+    // COMPLETO de historial_horometros a C.estadoPeriodo/C.horomHistorico, que lo
+    // recorría entero buscando solo sus propias filas. Con cientos de equipos y
+    // miles de lecturas, esto era O(equipos × historial) cada vez que el Dashboard
+    // se mostraba en un mes pasado/proyectado. horomHistorico ya filtra por sigla
+    // internamente, así que pasarle solo las filas de ESE equipo da el resultado
+    // idéntico, mucho más rápido.
+    const _histPorSiglaDash={};
+    hist.forEach(function(h){if(h&&h.sigla)(_histPorSiglaDash[h.sigla]=_histPorSiglaDash[h.sigla]||[]).push(h);});
     eq.forEach(e=>{
-      const r=C.estadoPeriodo(e,hist,_hoyISO,_targetISO);
+      const r=C.estadoPeriodo(e,_histPorSiglaDash[e.sigla]||[],_hoyISO,_targetISO);
       if(!r)return;
       const eCopia=Object.assign({},e,{horomActual:r.horom,horomProxPM:r.horomProxPM,diasParaPM:r.diasParaPM,tipoPM:r.tipoPM});
       if(r.t==='URGENTE'||r.t==='VENCIDA')urg.push(eCopia);
@@ -98,7 +107,11 @@ window.renderDash=function(){
   // Neumaticos stats
   var neuOk=neu.filter(n=>n.estado==='Operativo').length;
   var neuDet=neu.filter(n=>n.estado==='Deteriorado').length;
-  var neuCrit=neu.filter(neuDebeCambiar).length;
+  // Índices precomputados (ver _neuMedPorSerie/_eqPorSigla en index.html) — sin esto,
+  // neuDebeCambiar() repetía un filter()+sort() de TODA neumaticos_mediciones por cada
+  // neumático de la flota, en cada apertura del Dashboard.
+  var _neuMedIdx=_neuMedPorSerie(),_eqIdxNeu=_eqPorSigla();
+  var neuCrit=neu.filter(function(n){return neuDebeCambiar(n,_neuMedIdx,_eqIdxNeu);}).length;
   // Stock critical — calculado EN VIVO con el criterio único (stockEstado: quiebre antes
   // del lead time), no leyendo el estado guardado (que con el proxy viejo de "1 mes"
   // subestimaba los COMPRAR y nunca escribía "BAJO").

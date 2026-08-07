@@ -231,6 +231,10 @@ window.renderSem=function(){
     // a la semana en curso, y un equipo con PM ya ejecutado en la semana no se
     // vuelve a proyectar en ella.
     var projItems=[];
+    // Índice hist-por-sigla (ver _indicesRecalc en store.js) — sin esto, cada equipo
+    // de la flota disparaba un filter() sobre TODO el historial de horómetros solo
+    // para proyectar su cadena de PM de la semana.
+    var _histIdxSem=_indicesRecalc().histPorSigla;
     if(!esPasada)eq.forEach(function(e){
       if(yaManual[e.sigla]||yaEnSemana[e.sigla]||!e.fechaProxPM)return;
       if(esActual&&e.fechaProxPM<wIni){
@@ -238,7 +242,7 @@ window.renderSem=function(){
         return;
       }
       var freq=e.frecPM||250;
-      var ritmo=_ritmoRealEq(e.sigla,e.hrsDia||12);
+      var ritmo=_ritmoRealEq(e.sigla,e.hrsDia||12,_histIdxSem);
       if(!(ritmo>0))ritmo=e.hrsDia>0?e.hrsDia:0;
       var pasoDias=ritmo>0?freq/ritmo:0;
       var hito=e.horomProxPM||0;

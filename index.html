@@ -286,7 +286,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
 <script src="modules/renders/lub.js?v=2026-08-04"></script>
 <script src="modules/renders/stk.js?v=2026-08-04"></script>
-<script src="modules/renders/cos.js?v=2026-08-07"></script>
+<script src="modules/renders/cos.js?v=2026-08-07b"></script>
 <script src="modules/renders/mov.js?v=2026-08-05"></script>
 <script src="modules/renders/rep.js?v=2026-08-07"></script>
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
@@ -299,22 +299,22 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/insp.js?v=2026-08-05"></script>
 <script src="modules/renders/eq.js?v=2026-08-07"></script>
 <script src="modules/renders/plani.js?v=2026-08-05"></script>
-<script src="modules/renders/gantt.js?v=2026-08-07"></script>
+<script src="modules/renders/gantt.js?v=2026-08-07b"></script>
 <script src="modules/renders/informes.js?v=2026-08-05"></script>
 <script src="modules/renders/venc.js?v=2026-08-07"></script>
 <script src="modules/renders/comp.js?v=2026-08-07"></script>
-<script src="modules/renders/buscar.js?v=2026-08-05"></script>
+<script src="modules/renders/buscar.js?v=2026-08-07"></script>
 <script src="modules/renders/pau.js?v=2026-08-05"></script>
 <script src="modules/renders/plan.js?v=2026-08-05"></script>
 <script src="modules/renders/disp.js?v=2026-08-07"></script>
 <script src="modules/renders/ace.js?v=2026-08-05"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-06"></script>
-<script src="modules/renders/sem.js?v=2026-08-07"></script>
-<script src="modules/renders/dash.js?v=2026-08-07b"></script>
+<script src="modules/renders/sem.js?v=2026-08-07b"></script>
+<script src="modules/renders/dash.js?v=2026-08-07d"></script>
 <script src="modules/renders/reg.js?v=2026-08-06"></script>
-<script src="modules/renders/hist.js?v=2026-08-05"></script>
+<script src="modules/renders/hist.js?v=2026-08-07"></script>
 <script src="modules/renders/ot.js?v=2026-08-07"></script>
-<script src="modules/renders/pred.js?v=2026-08-07b"></script>
+<script src="modules/renders/pred.js?v=2026-08-07c"></script>
 <script src="modules/renders/kpi.js?v=2026-08-07"></script>
 <script src="modules/renders/neu.js?v=2026-08-05"></script>
 <script src="modules/renders/cfg.js?v=2026-08-07"></script>
@@ -1614,6 +1614,29 @@ function neuPct(n){
   return Math.max(0,Math.min(100,Math.round(Number(n.remanente)/rn*100)));
 }
 
+// Agrupa neumaticos_mediciones por serie (ya ordenado por fecha/horom) y equipos por
+// sigla, UNA sola vez — para pasarlos como índice a neuHorasAcum/neuProyeccion/
+// neuDebeCambiar/neuProxCambio cuando se va a recorrer TODA la flota de neumáticos
+// (ej. el conteo de "críticos" del Dashboard). Sin esto, cada neumático repetía un
+// filter()+sort() sobre la tabla ENTERA de mediciones — con cientos de equipos
+// (miles de neumáticos) y miles de mediciones, un costo que se paga en cada
+// apertura del Dashboard, no solo al entrar a Neumáticos.
+function _neuMedPorSerie(){
+  const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
+  const idx={};
+  allMeds.forEach(function(m){
+    if(!m.serie)return;
+    (idx[m.serie]=idx[m.serie]||[]).push(m);
+  });
+  for(const serie in idx)idx[serie].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  return idx;
+}
+function _eqPorSigla(){
+  const idx={};
+  (S.g('eq')||[]).forEach(function(e){if(e&&e.sigla)idx[e.sigla]=e;});
+  return idx;
+}
+
 // Horas REALES acumuladas del neumático = suma de tramos de horómetro entre mediciones
 // consecutivas del MISMO equipo (los tramos entre equipos distintos mezclan horómetros
 // de máquinas distintas y no son horas reales del neumático — se descartan). Esta es la
@@ -1622,10 +1645,17 @@ function neuPct(n){
 // inicial, y daba horas absurdas (16.000-22.000h) que hacían saltar todas las alertas de
 // horas en falso. hrsLive queda solo como respaldo para neumáticos con <2 mediciones
 // (recién instalados), donde no hay tramos que sumar.
-function neuHorasAcum(n){
+// 'medsPorSerie' (opcional): índice precomputado {serie:[mediciones ordenadas]} —
+// ver _neuMedPorSerie más abajo. Sin esto, cada llamada filtraba+ordenaba TODA
+// neumaticos_mediciones por cada neumático; con cientos de equipos (miles de
+// neumáticos) y miles de mediciones, eso se multiplicaba en cualquier lugar que
+// recorriera todos los neumáticos (ej. el conteo de "críticos" del Dashboard, que
+// corre en CADA apertura de esa pestaña). El resto de los llamadores (un neumático
+// a la vez) no pasan índice y se comportan exactamente igual que antes.
+function neuHorasAcum(n,medsPorSerie){
   if(n==null)return 0;
-  const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
-  const hist=allMeds.filter(m=>m.serie&&m.serie===n.serie).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  const hist=medsPorSerie?(medsPorSerie[n.serie]||[]):
+    ((S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[])).filter(m=>m.serie&&m.serie===n.serie).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
   if(hist.length>=2){
     let h=0;
     for(let i=1;i<hist.length;i++){
@@ -1644,17 +1674,17 @@ function neuHorasAcum(n){
 // que rotarla ya aunque le quede goma). Se apoya en neuProyeccion, la misma fuente que
 // la columna "Vida Restante": diasRestantes<=0 significa cambiar ahora (sea por horas
 // de delantera o por remanente en el límite de retiro/rotación). Solo cuenta montados.
-function neuDebeCambiar(n){
+function neuDebeCambiar(n,medsPorSerie,eqPorSigla){
   if(n==null)return false;
   if(n.estado&&n.estado!=='Operativo')return false;
-  const p=neuProyeccion(n);
+  const p=neuProyeccion(n,medsPorSerie,eqPorSigla);
   return p!=null&&p.diasRestantes<=0;
 }
 // "Próximo a cambiar" = le quedan pocos días reales (1 a 30), aviso temprano accionable.
-function neuProxCambio(n){
+function neuProxCambio(n,medsPorSerie,eqPorSigla){
   if(n==null)return false;
   if(n.estado&&n.estado!=='Operativo')return false;
-  const p=neuProyeccion(n);
+  const p=neuProyeccion(n,medsPorSerie,eqPorSigla);
   return p!=null&&p.diasRestantes>0&&p.diasRestantes<=30;
 }
 
@@ -1688,8 +1718,9 @@ function neuEstadoCalc(n){
 }
 
 // ── Proyección de vida restante ────────────────────────────
-function neuProyeccion(n){
-  const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
+// 'medsPorSerie'/'eqPorSigla' (opcionales): ver neuHorasAcum arriba y
+// _neuMedPorSerie/_eqPorSigla más abajo — mismo mecanismo de índice precomputado.
+function neuProyeccion(n,medsPorSerie,eqPorSigla){
   const cfg=S.g('cfg')||{};
   const targetHrs=cfg.neuTargetHrs||9000;        // vida útil objetivo (editable)
   const proyMes=cfg.neuProyMes||450;             // horas proyectadas por mes (editable)
@@ -1699,16 +1730,17 @@ function neuProyeccion(n){
   const limiteRem=remRotar||remRetiro;
 
   // Historial por SERIE (sigue al neumático aunque cambie de equipo/posición)
-  const hist=allMeds.filter(m=>(m.serie&&m.serie===n.serie)).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  const hist=medsPorSerie?(medsPorSerie[n.serie]||[]):
+    ((S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[])).filter(m=>(m.serie&&m.serie===n.serie)).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
 
   // Horas acumuladas reales del neumático (ver neuHorasAcum — suma de tramos del mismo
   // equipo, ignora los saltos por transferencia entre equipos, no usa hrsLive).
-  const hrsAcumNeu=neuHorasAcum(n);
+  const hrsAcumNeu=neuHorasAcum(n,medsPorSerie);
 
   const remActual=n.remanente!=null?n.remanente:(c.remNuevo||91);
   // hrsDia acotado a un rango sensato (1-24) — algunos equipos traen este dato en basura
   // y sin la guarda los "días restantes" salían absurdos.
-  let hrsDia=(S.g('eq')||[]).find(e=>e.sigla===n.sigla)?.hrsDia||(proyMes/30);
+  let hrsDia=(eqPorSigla?eqPorSigla[n.sigla]:(S.g('eq')||[]).find(e=>e.sigla===n.sigla))?.hrsDia||(proyMes/30);
   if(!(hrsDia>0)||hrsDia>24)hrsDia=proyMes/30;
   const esDelantero=(n.posicion||'').toLowerCase().includes('del');
 

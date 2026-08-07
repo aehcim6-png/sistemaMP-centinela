@@ -52,6 +52,22 @@ window.renderGantt=function(){
       tecnicosPorSiglaFecha[clave].add(pd.nombre);
     });
   });
+  // Índices reg/ot por sigla, ya filtrados al mes elegido (fMes no cambia durante
+  // este render) — construidos UNA sola vez, mismo espíritu que el índice de
+  // progDia de arriba. Antes cada fila (un equipo) recorría reg/ot COMPLETOS
+  // buscando sus propias fechas — con cientos de equipos y miles de correctivos/
+  // registros PM, era O(equipos × filas) en cada apertura de Carta Gantt.
+  var regPorSiglaGantt={},otPorSiglaGantt={};
+  regGantt.forEach(function(r){
+    var f=r.fechaEntrada||r.fechaEjec||'';
+    if(!r.equipo||f.slice(0,7)!==fMes)return;
+    (regPorSiglaGantt[r.equipo]=regPorSiglaGantt[r.equipo]||[]).push(f);
+  });
+  otGantt.forEach(function(o){
+    var f=o.fecha||'';
+    if(!o.sigla||f.slice(0,7)!==fMes)return;
+    (otPorSiglaGantt[o.sigla]=otPorSiglaGantt[o.sigla]||[]).push(f);
+  });
   var days=[];for(var d=1;d<=daysInMonth;d++)days.push(d);
 
   $('s-gantt').innerHTML=
@@ -74,14 +90,8 @@ window.renderGantt=function(){
       var finMes=g.fin?g.fin.slice(0,7):'';
       var diasEjecPM={},diasEjecCorr={};
       var fechasReales=[];
-      regGantt.forEach(function(r){
-        var f=r.fechaEntrada||r.fechaEjec||'';
-        if(r.equipo===g.sigla&&f.slice(0,7)===fMes){diasEjecPM[parseInt(f.slice(8,10))]=true;fechasReales.push(f);}
-      });
-      otGantt.forEach(function(o){
-        var f=o.fecha||'';
-        if(o.sigla===g.sigla&&f.slice(0,7)===fMes){diasEjecCorr[parseInt(f.slice(8,10))]=true;fechasReales.push(f);}
-      });
+      (regPorSiglaGantt[g.sigla]||[]).forEach(function(f){diasEjecPM[parseInt(f.slice(8,10))]=true;fechasReales.push(f);});
+      (otPorSiglaGantt[g.sigla]||[]).forEach(function(f){diasEjecCorr[parseInt(f.slice(8,10))]=true;fechasReales.push(f);});
       var totalEjecReal=Object.keys(diasEjecPM).length+Object.keys(diasEjecCorr).length;
       var hayReal=fechasReales.length>0;
       fechasReales.sort();

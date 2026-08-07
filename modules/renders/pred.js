@@ -602,6 +602,17 @@ window.renderPred=function(){
   var fVista=$('fPredVista')?.value||'general';
   var fEq=$('fPredEq')?.value||'';
 
+  // Índices por sigla, construidos UNA vez — alertaCruzada() se llama por cada
+  // equipo (dos veces: para el resumen y para la tabla completa) y filtraba insp/ot/
+  // eq COMPLETOS cada vez; con cientos de equipos y miles de inspecciones/correctivos
+  // eso era O(equipos × filas) en la vista "general", la que se ve primero al abrir
+  // esta pestaña. 'aceite' queda sin indexar a propósito: su match es por substring
+  // (m._sigla||m.componente).includes(sigla), no una clave exacta agrupable.
+  var inspPorSiglaPred={},otPorSiglaPred={},eqPorSiglaPred={};
+  insp.forEach(function(r){if(r&&r.sigla)(inspPorSiglaPred[r.sigla]=inspPorSiglaPred[r.sigla]||[]).push(r);});
+  ot.forEach(function(o){if(o&&o.sigla)(otPorSiglaPred[o.sigla]=otPorSiglaPred[o.sigla]||[]).push(o);});
+  eq.forEach(function(e){if(e&&e.sigla)eqPorSiglaPred[e.sigla]=e;});
+
   // ═══ INTELLIGENCE ENGINE ═══
   // 1. Confidence level per equipment
   function calcConfianza(sigla){
@@ -630,7 +641,7 @@ window.renderPred=function(){
   function alertaCruzada(sigla){
     var alertas=[];var severity=0;
     // Check inspections NOK
-    var inspRecent=insp.filter(function(r){return r.sigla===sigla;}).slice(-5);
+    var inspRecent=(inspPorSiglaPred[sigla]||[]).slice(-5);
     var noks=0;
     inspRecent.forEach(function(r){
       ['visual','niveles','fugas','luces','frenos','neumaticos'].forEach(function(c){
@@ -640,7 +651,7 @@ window.renderPred=function(){
     if(noks>=2){alertas.push('Inspección: '+noks+' NOK recientes');severity+=2;}
     // Check repeated failures (same component)
     var compFallas={};
-    ot.filter(function(o){return o.sigla===sigla;}).forEach(function(o){
+    (otPorSiglaPred[sigla]||[]).forEach(function(o){
       var comp=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
       if(comp)compFallas[comp]=(compFallas[comp]||0)+1;
     });
@@ -662,7 +673,7 @@ window.renderPred=function(){
       if(recent>older*1.3&&older>0){alertas.push('Costos +'+Math.round((recent/older-1)*100)+'% tendencia');severity+=2;}
     }
     // Equipment status
-    var eqInfo=eq.find(function(e){return e.sigla===sigla;});
+    var eqInfo=eqPorSiglaPred[sigla];
     if(eqInfo&&(eqInfo.estado||'').includes('URGENTE')){alertas.push('PM vencida/urgente');severity+=2;}
     var total=severity;
     var estado=total>=5?'🔴':total>=2?'🟡':'🟢';

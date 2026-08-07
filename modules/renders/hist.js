@@ -25,6 +25,14 @@ window.renderHist=function(){
     return true;
   });
 
+  // Índices por sigla (de 'h' completo y de 'fil' ya filtrado por equipo/mes elegido),
+  // construidos UNA vez — las vistas diaria/semanal/mensual/anual repetían un filter()
+  // sobre el arreglo COMPLETO por cada celda equipo×fecha/mes, con cientos de equipos
+  // y miles de lecturas eso era O(equipos × columnas × historial) en cada apertura.
+  var hPorSigla={},filPorSigla={};
+  h.forEach(function(r){if(r&&r.sigla)(hPorSigla[r.sigla]=hPorSigla[r.sigla]||[]).push(r);});
+  fil.forEach(function(r){if(r&&r.sigla)(filPorSigla[r.sigla]=filPorSigla[r.sigla]||[]).push(r);});
+
   var content='';
 
   if(fVista==='todo'){
@@ -59,9 +67,10 @@ window.renderHist=function(){
     '<div class="tbl-wrap" style="overflow-x:auto"><table>'+
     '<tr><th>Equipo</th>'+fechas.map(function(f){return'<th style="font-size:9px;writing-mode:vertical-lr;min-width:30px">'+f.slice(5)+'</th>'}).join('')+'</tr>'+
     eqFil.map(function(e){
+      var lecturasEq=filPorSigla[e.sigla]||[];
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
         fechas.map(function(f){
-          var lectura=fil.filter(function(r){return r.sigla===e.sigla&&r.fecha===f});
+          var lectura=lecturasEq.filter(function(r){return r.fecha===f});
           var val=lectura.length?lectura[lectura.length-1].horomFin||lectura[lectura.length-1].horom||0:0;
           return'<td class="mono" style="font-size:9px;text-align:center">'+(val||'—')+'</td>';
         }).join('')+'</tr>';
@@ -69,13 +78,16 @@ window.renderHist=function(){
     '</table></div>';
 
   } else if(fVista==='semanal'){
-    // Vista semanal - promedio hrs operadas por semana
+    // Vista semanal - promedio hrs operadas por semana. 'weeks' agrupa DIRECTO por
+    // semana+sigla (no solo por semana) para no repetir un filter() por sigla dentro
+    // de cada celda — mismo espíritu que hPorSigla/filPorSigla de arriba.
     var eqFil=fEq?eq.filter(function(e){return e.sigla===fEq}):eq;
     var weeks={};
     fil.forEach(function(r){
       if(!r.fecha)return;
       var d=new Date(r.fecha);var w=r.fecha.slice(0,7)+'-S'+Math.ceil(d.getDate()/7);
-      if(!weeks[w])weeks[w]=[];weeks[w].push(r);
+      if(!weeks[w])weeks[w]={};
+      (weeks[w][r.sigla]=weeks[w][r.sigla]||[]).push(r);
     });
     var wKeys=Object.keys(weeks).sort().reverse().slice(0,12);
     content=
@@ -84,7 +96,7 @@ window.renderHist=function(){
     eqFil.map(function(e){
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
         wKeys.map(function(w){
-          var lecturas=weeks[w].filter(function(r){return r.sigla===e.sigla});
+          var lecturas=weeks[w][e.sigla]||[];
           if(!lecturas.length)return'<td style="color:var(--tx3);text-align:center">—</td>';
           var maxH=Math.max.apply(null,lecturas.map(function(r){return r.horomFin||r.horom||0}));
           return'<td class="mono" style="text-align:center">'+maxH+'</td>';
@@ -100,9 +112,10 @@ window.renderHist=function(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th>'+mesesVista.map(function(m){return'<th>'+m+'</th>'}).join('')+'<th>Actual</th></tr>'+
     eqFil.map(function(e){
+      var lecturasEq=hPorSigla[e.sigla]||[];
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:10px">'+escapeHtml(e.tipo)+'</td>'+
         mesesVista.map(function(m){
-          var lecturas=h.filter(function(r){return r.sigla===e.sigla&&(r.fecha||'').slice(0,7)===m});
+          var lecturas=lecturasEq.filter(function(r){return(r.fecha||'').slice(0,7)===m});
           if(!lecturas.length)return'<td style="color:var(--tx3);text-align:center">—</td>';
           var maxH=Math.max.apply(null,lecturas.map(function(r){return r.horomFin||r.horom||0}));
           return'<td class="mono" style="text-align:center">'+maxH+'</td>';
@@ -122,10 +135,11 @@ window.renderHist=function(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th>'+MSN.map(function(m){return'<th>'+m+'</th>'}).join('')+'</tr>'+
     eqFil.map(function(e){
+      var lecturasEq=hPorSigla[e.sigla]||[];
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td>'+
         MSN.map(function(m,mi){
           var mes=fAnio+'-'+('0'+(mi+1)).slice(-2);
-          var lecturas=h.filter(function(r){return r.sigla===e.sigla&&(r.fecha||'').slice(0,7)===mes});
+          var lecturas=lecturasEq.filter(function(r){return(r.fecha||'').slice(0,7)===mes});
           if(!lecturas.length)return'<td style="color:var(--tx3);text-align:center;font-size:10px">—</td>';
           var maxH=Math.max.apply(null,lecturas.map(function(r){return r.horomFin||r.horom||0}));
           return'<td class="mono" style="text-align:center;font-size:10px">'+maxH+'</td>';
