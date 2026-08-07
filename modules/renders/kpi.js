@@ -32,7 +32,11 @@ window.genExcelSheet=function(title,headers,rows){
   xml+='<Row><Cell ss:StyleID="sub"><Data ss:Type="String">Besalco Minería S.A. — Faena Centinela Ripios OXE · '+new Date().toISOString().slice(0,10)+'</Data></Cell></Row>';
   xml+='<Row></Row>';
   xml+='<Row>';headers.forEach(function(h){xml+='<Cell ss:StyleID="hdr"><Data ss:Type="String">'+escapeHtml(h)+'</Data></Cell>';});xml+='</Row>';
-  rows.forEach(function(row){xml+='<Row>';row.forEach(function(cell){var t=typeof cell==='number'?'Number':'String';xml+='<Cell><Data ss:Type="'+t+'">'+escapeHtml(cell)+'</Data></Cell>';});xml+='</Row>';});
+  // csvCeldaSegura (logic.js): protege contra CSV/Formula Injection — solo
+  // en celdas de texto, nunca en las de tipo Number (un costo o delta
+  // negativo real no es un vector de esto, y antepone el apóstrofo ahí lo
+  // convertiría de número a texto sin necesidad).
+  rows.forEach(function(row){xml+='<Row>';row.forEach(function(cell){var t=typeof cell==='number'?'Number':'String';var v=t==='Number'?cell:csvCeldaSegura(cell);xml+='<Cell><Data ss:Type="'+t+'">'+escapeHtml(v)+'</Data></Cell>';});xml+='</Row>';});
   xml+='</Table></Worksheet>';return xml;
 };
 

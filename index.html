@@ -251,7 +251,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-08-06"></script>
+<script src="logic.js?v=2026-08-07"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -264,7 +264,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/stk2.js?v=2026-08-04"></script>
 <script src="modules/renders/cstk.js?v=2026-08-04"></script>
 <script src="modules/renders/comp2.js?v=2026-08-04"></script>
-<script src="modules/renders/destrabe.js?v=2026-08-06"></script>
+<script src="modules/renders/destrabe.js?v=2026-08-07"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
 <script src="modules/renders/lub.js?v=2026-08-04"></script>
 <script src="modules/renders/stk.js?v=2026-08-04"></script>
@@ -297,7 +297,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/hist.js?v=2026-08-05"></script>
 <script src="modules/renders/ot.js?v=2026-08-07"></script>
 <script src="modules/renders/pred.js?v=2026-08-07"></script>
-<script src="modules/renders/kpi.js?v=2026-08-05"></script>
+<script src="modules/renders/kpi.js?v=2026-08-07"></script>
 <script src="modules/renders/neu.js?v=2026-08-05"></script>
 <script src="modules/renders/cfg.js?v=2026-08-06"></script>
 <script>
@@ -1058,7 +1058,11 @@ window._restaurarDePapelera=function(id){
 window.exportCSV=function(store){
   const d=S.g(store);if(!d||!d.length)return;
   const keys=Object.keys(d[0]);
-  const csv=[keys.join(';'),...d.map(r=>keys.map(k=>{let v=r[k];if(typeof v==='object')v=JSON.stringify(v);return'"'+(v??'')+'"'}).join(';'))].join('\n');
+  // csvCeldaSegura (logic.js): protege contra CSV/Formula Injection — un
+  // campo de texto libre (obs, motivo, proveedor...) que empiece con
+  // = + - @ se interpretaría como fórmula al abrir el CSV en Excel. No se
+  // aplica a números reales, solo a lo que termina siendo texto en la celda.
+  const csv=[keys.join(';'),...d.map(r=>keys.map(k=>{let v=r[k];if(typeof v==='object')v=JSON.stringify(v);if(typeof v!=='number')v=csvCeldaSegura(v);return'"'+(v??'')+'"'}).join(';'))].join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=store+'_export.csv';a.click();
   toast('📥 CSV exportado');
@@ -2293,6 +2297,10 @@ window.exportTabla=function(tabId,nombre){
       // Get input/select value if exists
       var input=cell.querySelector('input,select');
       var val=input?input.value:(cell.textContent||'').trim();
+      // csvCeldaSegura: protege contra CSV/Formula Injection (ver exportCSV,
+      // más arriba) — acá TODO valor sale del DOM como texto, así que se
+      // aplica siempre.
+      val=csvCeldaSegura(val);
       // Escape quotes and commas
       val=val.replace(/"/g,'""');
       if(val.indexOf(',')>=0||val.indexOf('"')>=0||val.indexOf('\n')>=0)val='"'+val+'"';
