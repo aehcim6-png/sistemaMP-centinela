@@ -199,7 +199,14 @@ window.renderDash=function(){
   // tendencia semana a semana. Solo se registra el snapshot del día (y solo tiene
   // sentido mostrar tendencia) viendo el mes ACTUAL — un mes histórico/proyectado
   // no es "el estado de hoy" y guardarlo ahí ensuciaría la serie de tiempo real.
-  var cumplPM=eq.length?Math.round(alDia.length/eq.length*1000)/10:null;
+  // Denominador: equipos REALMENTE clasificados (alDia+urg+prox), no eq.length.
+  // En vivo (esMesActual) son lo mismo — todo equipo cae en una de las 3 bandas.
+  // Pero para un mes histórico/proyectado, C.estadoPeriodo excluye a propósito los
+  // equipos sin dato para esa fecha (arriba, línea ~51: "if(!r)return" — no inventa
+  // un número), así que dividir por eq.length subestimaba el cumplimiento cada vez
+  // que algún equipo no tenía historial para el mes elegido.
+  var totalClasificadosPM=alDia.length+urg.length+prox.length;
+  var cumplPM=totalClasificadosPM?Math.round(alDia.length/totalClasificadosPM*1000)/10:null;
   var totalStkSalud=stkOk+stkBajo+stkCrit;
   var stockSano=totalStkSalud?Math.round(stkOk/totalStkSalud*1000)/10:null;
   var salud=indiceSaludFlota({cumplPM:cumplPM,disponibilidad:dispFlota,stockSano:stockSano,confiabilidad:idxConf});
