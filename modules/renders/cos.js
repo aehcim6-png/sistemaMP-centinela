@@ -39,9 +39,14 @@ window.renderCos = function () {
   });
 
   // ═══ CALCULATE MTBF / MTTR ═══
+  // Índice ot-por-sigla, construido UNA vez — antes cada equipo filtraba 'ot'
+  // COMPLETO, y esto corre siempre (sin importar qué sub-pestaña de Costos & Stock
+  // esté visible), O(equipos × correctivos) en cada apertura de esta pestaña.
+  var otPorSiglaCos = {};
+  ot.forEach(function (o) { if (o && o.sigla) (otPorSiglaCos[o.sigla] = otPorSiglaCos[o.sigla] || []).push(o); });
   var mtbfEquipo = {};
   eq.forEach(function (e) {
-    var fallas = ot.filter(function (o) { return o.sigla === e.sigla && (o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional'); });
+    var fallas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return (o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional'); });
     var reparaciones = fallas.filter(function (o) { return o.duracion && o.duracion !== '—'; });
     // MTTR = promedio duración reparaciones
     var totalRepH = 0;

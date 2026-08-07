@@ -98,10 +98,23 @@ window.renderBuscar=function(){
     inspF.slice().reverse().map(function(i){return'<tr><td>'+i.fecha+'</td><td>'+i.visual+'</td><td>'+i.niveles+'</td><td>'+i.fugas+'</td><td>'+i.frenos+'</td><td style="font-size:10px">'+escapeHtml(i.obs)+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin inspecciones</div>')+'</div>';
 
   } else {
-    // Ranking de equipos problemáticos
+    // Ranking de equipos problemáticos — vista por defecto (sin equipo elegido).
+    // Índices por sigla (ya con el mismo filtro de tipo/rango de fecha aplicado),
+    // construidos UNA vez en vez de un ot.filter()+reg.filter() completos POR CADA
+    // equipo — con cientos de equipos y miles de correctivos/registros, esto era
+    // O(equipos × filas) en la vista que se ve primero al abrir esta pestaña.
+    var otPorSiglaBuscar={},regPorSiglaBuscar={};
+    ot.forEach(function(o){
+      if(!o.sigla||!((o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&inRange(o.fecha)))return;
+      (otPorSiglaBuscar[o.sigla]=otPorSiglaBuscar[o.sigla]||[]).push(o);
+    });
+    reg.forEach(function(r){
+      if(!r.equipo||!inRange(r.fechaEntrada||r.fechaEjec))return;
+      (regPorSiglaBuscar[r.equipo]=regPorSiglaBuscar[r.equipo]||[]).push(r);
+    });
     var ranking=eq.map(function(e){
-      var fallasArr=ot.filter(function(o){return o.sigla===e.sigla&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&inRange(o.fecha)});
-      var hh=Math.round(reg.filter(function(r){return r.equipo===e.sigla&&inRange(r.fechaEntrada||r.fechaEjec)}).reduce(function(s,r){return s+(r.duracionH||0)},0));
+      var fallasArr=otPorSiglaBuscar[e.sigla]||[];
+      var hh=Math.round((regPorSiglaBuscar[e.sigla]||[]).reduce(function(s,r){return s+(r.duracionH||0)},0));
       var costo=hh*(S.g('hh')||25000);
       return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,fallas:fallasArr.length,hh:hh,costo:costo,horom:e.horomActual,mtbf:C.mtbfReal(fallasArr.map(function(o){return o.horom;}))};
     }).sort(function(a,b){return b.fallas-a.fallas||b.costo-a.costo});
