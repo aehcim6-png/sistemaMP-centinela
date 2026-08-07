@@ -286,18 +286,23 @@ window.saveOT=function(){
     if(ms>0)durStr=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
   }
   const horom=parseInt($('oHor').value)||0;
+  const estadoOTNueva=$('oEstOT')?.value||'Cerrada';
   ot.unshift({sigla:sig,fecha:fEnt,fechaEntrada:fEnt,horaEntrada:hEnt,
     fechaSalida:fSal,horaSalida:hSal,duracion:durStr,
     tipo:$('oTipo').value,criticidad:$('oCrit').value,
     sintoma:sint,sistema:$('oSis').value,tecnico:$('oTec').value,
     causaRaiz:$('oCausa')?.value||'',solucion:$('oSolucion')?.value||'',
-    componente:$('oComp')?.value||'',estadoOT:$('oEstOT')?.value||'Cerrada',
+    componente:$('oComp')?.value||'',estadoOT:estadoOTNueva,
     horom,estatusEq:$('oEstatusEq').value,
     costo:parseFloat($('oCosto').value)||0,
     turno:$('otTurno')?.value||'',operador:$('otOperador')?.value||'',ubicacion:$('otUbicacion')?.value||'',
     codFalla:$('otCodFalla')?.value||'',ast:$('otAST')?.value||'',loto:$('otLOTO')?.value||'',
     autorizadoPor:$('otAutoriza')?.value||'',
-    fechaIngreso:new Date().toISOString().slice(0,10)});
+    fechaIngreso:new Date().toISOString().slice(0,10),
+    // Si se crea directo como 'En Ejecución'/'Cerrada' (nunca pasó por
+    // Pendiente) la primera atención es ahora mismo — no queda en null
+    // para siempre esperando una transición que ya no va a ocurrir.
+    primeraAtencionEn:estadoOTNueva!=='Pendiente'?new Date().toISOString():null});
   // Retroalimentación: check fallas repetitivas → flag en predictivo
   var fallasMismoComp=ot.filter(function(o2){return o2.sigla===sig&&o2.componente===$('oComp')?.value&&o2.componente;}).length;
   if(fallasMismoComp>=2){toast('⚠️ '+sig+': '+fallasMismoComp+' fallas en '+ ($('oComp')?.value||'componente')+' — revisar predictivo');}
@@ -381,5 +386,11 @@ window.quitarFotoOT=function(fi){
 
 window.edOT=function(i,key,val){
   var ot=S.g('ot')||[];
+  // SLA de primera respuesta: se marca UNA sola vez, apenas la OT deja de
+  // estar 'Pendiente' (a 'En Ejecución' o directo a 'Cerrada') — ver Costos >
+  // MTBF/MTTR. Se lee ot[i].estadoOT ANTES de que _edCampo lo sobreescriba.
+  if(key==='estadoOT'&&val!=='Pendiente'&&ot[i]&&ot[i].estadoOT==='Pendiente'&&!ot[i].primeraAtencionEn){
+    ot[i].primeraAtencionEn=new Date().toISOString();
+  }
   if(_edCampo('ot',ot,i,key,val)){refreshAll();toast('✅ Guardado');}
 };
