@@ -65,7 +65,7 @@ window.renderRep = function () {
   var verdes = rep.filter(function (r) { return r.estado.includes('🟢') }).length;
 
   var pg = _pagSlice('rep', fil);
-  var is = 'background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
+  var is = CELL_INPUT_STYLE + ';font-size:11px;padding:2px';
 
   $('s-rep').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Control de Repuestos</div>' +

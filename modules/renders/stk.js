@@ -47,7 +47,7 @@ window.renderStk = function () {
       var se = stockEstado((s.stockBodega || 0) + (s.pendiente || 0), cm || proy, s.leadTime);
       var meses = se.meses != null ? se.meses : 0;
       var est = se.ico + ' ' + se.txt;
-      var is = 'background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
+      var is = CELL_INPUT_STYLE + ';font-size:11px;padding:2px';
       return '<tr>' +
         '<td><input value="' + escapeHtml(s.equipoModelo || '') + '" onchange="edI(\'stk\',' + i + ',\'equipoModelo\',this.value)" style="width:70px;background:transparent;border:none;color:var(--tx);font-size:10px"></td>' +
         '<td><input value="' + escapeHtml(s.descripcion || '') + '" onchange="edI(\'stk\',' + i + ',\'descripcion\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px"></td>' +

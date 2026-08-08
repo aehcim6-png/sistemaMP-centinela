@@ -897,7 +897,7 @@ window.renderPred=function(){
     });
     backlog.sort(function(a,b){return b.dias-a.dias;});
 
-    var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
+    var is=CELL_INPUT_STYLE+';font-size:11px;padding:2px';
 
     content=
       '<div class="cards">'+
