@@ -49,7 +49,7 @@ window.renderAce=function(){
   var alerta=ace.filter(function(m){return m.estado==='ALERTA';}).length;
 
   var allSiglas=[...new Set(ace.map(function(m){return m._sigla||m.componente;}))].sort();
-  var is='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:10px;padding:2px';
+  var is=CELL_INPUT_STYLE+';font-size:10px;padding:2px';
   var pg=_pagSlice('ace',fil);
 
   $('s-ace').innerHTML=

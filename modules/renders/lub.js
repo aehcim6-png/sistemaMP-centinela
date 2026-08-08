@@ -54,7 +54,7 @@ window.renderLub = function () {
       var divisor = cm || proy || 1;
       var meses = (l.stock || 0) / divisor;
       var estCol = meses < 1 ? 'var(--danger)' : meses < 3 ? 'var(--w)' : 'var(--ok)';
-      var is = 'background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px;font-size:11px;padding:2px';
+      var is = CELL_INPUT_STYLE + ';font-size:11px;padding:2px';
       // Producto descontinuado: se avisa en la fila para no cargarle precio ni
       // stock por error — su demanda ya se pide bajo el vigente que lo reemplaza.
       var obsoleto = lubEsObsoleto(l.nombre);

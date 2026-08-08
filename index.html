@@ -178,7 +178,11 @@ td.calc{color:var(--tx3);font-style:italic}
 .pg-c{padding:5px 3px;text-align:center;border-radius:3px;font-weight:600}
 .pg-h{background:var(--bg3);color:var(--ac);font-weight:700;font-size:10px}
 .pg-e{background:var(--bg2);color:var(--tx);text-align:left;padding-left:6px;overflow:hidden;text-overflow:ellipsis}
-.pg-1{background:#14532d80;color:#86efac}.pg-2{background:#1e3a5f80;color:#93c5fd}.pg-3{background:#713f1280;color:#fde047}.pg-4{background:#7f1d1d80;color:#fca5a5}.pg-x{background:#374151;color:#9ca3af}
+.pg-1{background:#14532d80;color:#86efac}.pg-2{background:#1e3a5f80;color:#93c5fd}.pg-3{background:#713f1280;color:#fde047}.pg-4{background:#7f1d1d80;color:#fca5a5}
+/* .pg-x: #9ca3af original medía 4.06:1 sobre #374151 — no alcanza AA (4.5:1)
+   para su texto real de 11px en negrita (no califica como "texto grande").
+   #aab5c3 da 4.96:1, mismo gris apagado, cambio casi imperceptible. */
+.pg-x{background:#374151;color:#aab5c3}
 
 .chart-box{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
 .chart-t{font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:12px}
@@ -284,11 +288,11 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/comp2.js?v=2026-08-04"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
-<script src="modules/renders/lub.js?v=2026-08-07"></script>
-<script src="modules/renders/stk.js?v=2026-08-07"></script>
+<script src="modules/renders/lub.js?v=2026-08-08"></script>
+<script src="modules/renders/stk.js?v=2026-08-08"></script>
 <script src="modules/renders/cos.js?v=2026-08-07d"></script>
 <script src="modules/renders/mov.js?v=2026-08-05"></script>
-<script src="modules/renders/rep.js?v=2026-08-07b"></script>
+<script src="modules/renders/rep.js?v=2026-08-08"></script>
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
@@ -304,17 +308,17 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/venc.js?v=2026-08-07"></script>
 <script src="modules/renders/comp.js?v=2026-08-07b"></script>
 <script src="modules/renders/buscar.js?v=2026-08-07b"></script>
-<script src="modules/renders/pau.js?v=2026-08-07"></script>
+<script src="modules/renders/pau.js?v=2026-08-08"></script>
 <script src="modules/renders/plan.js?v=2026-08-05"></script>
 <script src="modules/renders/disp.js?v=2026-08-07"></script>
-<script src="modules/renders/ace.js?v=2026-08-07"></script>
+<script src="modules/renders/ace.js?v=2026-08-08"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-06"></script>
 <script src="modules/renders/sem.js?v=2026-08-07c"></script>
 <script src="modules/renders/dash.js?v=2026-08-07d"></script>
 <script src="modules/renders/reg.js?v=2026-08-07"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
-<script src="modules/renders/ot.js?v=2026-08-07c"></script>
-<script src="modules/renders/pred.js?v=2026-08-07c"></script>
+<script src="modules/renders/ot.js?v=2026-08-08"></script>
+<script src="modules/renders/pred.js?v=2026-08-08"></script>
 <script src="modules/renders/kpi.js?v=2026-08-07d"></script>
 <script src="modules/renders/neu.js?v=2026-08-05"></script>
 <script src="modules/renders/cfg.js?v=2026-08-07c"></script>
@@ -846,6 +850,14 @@ renders.al=renderAl;
 
 // ---- PAUTAS (full CRUD) ----
 renders.pau=renderPau;
+// Estilo compartido de inputs numéricos inline en tablas editables (Stock
+// Filtros, Lubricantes, Repuestos, Análisis de Aceite, Predictivo, Pautas,
+// Correctivos) — antes cada pestaña tenía su propia copia idéntica de este
+// string (7 copias en 7 archivos), con riesgo real de desalinearse en
+// silencio si alguien ajustaba solo una. font-size/padding quedan FUERA a
+// propósito: varían legítimamente entre pestañas (10px vs 11px, con o sin
+// padding) y cada una los sigue agregando aparte, igual que antes.
+const CELL_INPUT_STYLE='background:var(--bg3);border:1px solid var(--bd);color:var(--tx);text-align:center;border-radius:3px';
 // Helper compartido: todas las funciones edX (edPau/edRep/edOT/edAce/edComp/
 // edGantt/edI/edHist) hacían la misma secuencia "si existe la fila, actualiza
 // el campo, guarda" con el nombre de tabla fijo cada una. Se unifica acá;
