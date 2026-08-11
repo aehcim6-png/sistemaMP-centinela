@@ -18,6 +18,8 @@
 //      registrada) — gestión de taller.
 //   7. Documentación por técnico, histórico (<50% de OT cerradas con
 //      'solución', 15+ OT de muestra) — gestión de taller.
+//   8. Alertas de aceite persistentes (mismo equipo+componente, 2 muestras
+//      seguidas en ALERTA/PRECAUCION) — predictivo que no se está usando.
 //
 // (2026-08-01) Ampliada de "solo PM" a "todo lo urgente" a pedido del
 // usuario. Quedan afuera por ahora Neumáticos y Componentes Mayores: su
@@ -31,6 +33,8 @@
 // (2026-08-08b) Sumada la sección 7 (documentación por técnico) — misma
 // vista y umbrales que el botón "Documentación por Técnico" en Correctivos
 // (ot.js, solo admin).
+// (2026-08-08c) Sumada la sección 8 (alertas de aceite persistentes) —
+// misma vista que el banner nuevo en Análisis de Aceite (ace.js).
 //
 // Pensada para correr una vez al día vía pg_cron (job 'alerta-pm-diaria').
 // ============================================================
@@ -286,6 +290,41 @@ Deno.serve(async (req) => {
       secciones += `<h3>📝 Documentación por técnico — bajo 50%</h3>` + tabla(
         ['Técnico', 'OT cerradas', '% documentado'],
         tecnicosBajaDocumentacion.map((t) => [t.nombre, String(t.total), `<b style="color:#c00">${t.pct}%</b>`])
+      );
+    }
+
+    // ── 8. ALERTAS DE ACEITE PERSISTENTES ────────────────────────
+    // Mismo equipo+componente con 2 muestras SEGUIDAS en ALERTA/PRECAUCION —
+    // el laboratorio ya avisó y dio recomendación, y seguía igual en la
+    // siguiente muestra. Mismo cálculo que la vista "Análisis de Aceite"
+    // (ace.js). Auditoría real (2026-08): pasa el 89% de las veces que sale
+    // ALERTA, y solo 15% termina en un correctivo sobre el mismo componente.
+    const muestrasAceite = await get('analisis_aceite?select=sigla,componente,fecha,estado&order=fecha.asc');
+    const porGrupoAceite: Record<string, { sigla: string; componente: string; fecha: string; estado: string }[]> = {};
+    muestrasAceite.forEach((m: any) => {
+      if (!m.sigla || !m.componente || !m.fecha) return;
+      const k = `${m.sigla}|${m.componente}`;
+      (porGrupoAceite[k] = porGrupoAceite[k] || []).push(m);
+    });
+    const esProblema = (m: any) => m.estado === 'ALERTA' || m.estado === 'PRECAUCION';
+    const alertasAceitePersistentes: any[] = [];
+    Object.values(porGrupoAceite).forEach((muestras) => {
+      const ultima = muestras[muestras.length - 1];
+      const anterior = muestras[muestras.length - 2];
+      if (!anterior) return;
+      if (esProblema(ultima) && esProblema(anterior)) alertasAceitePersistentes.push(ultima);
+    });
+    alertasAceitePersistentes.sort((a, b) => (a.estado === 'ALERTA' ? 0 : 1) - (b.estado === 'ALERTA' ? 0 : 1));
+    if (alertasAceitePersistentes.length > 0) {
+      totalItems += alertasAceitePersistentes.length;
+      resumen.push(`${alertasAceitePersistentes.length} alerta(s) de aceite sin resolver entre muestras`);
+      secciones += `<h3>🛢️ Alertas de aceite persistentes</h3>` + tabla(
+        ['Equipo', 'Componente', 'Estado', 'Última muestra'],
+        alertasAceitePersistentes.map((m: any) => [
+          m.sigla || '', m.componente || '',
+          `<b style="color:${m.estado === 'ALERTA' ? '#c00' : '#b45309'}">${m.estado}</b>`,
+          m.fecha || '',
+        ])
       );
     }
 
