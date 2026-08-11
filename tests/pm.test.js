@@ -378,6 +378,49 @@ describe('C.horomHistorico — horómetro reconstruido desde historial_horometro
   it('equipo sin ningún registro en el historial -> null', () => {
     expect(C.horomHistorico(hist, 'BD-9509', '2026-06-01')).toBeNull();
   });
+
+  it('ignora una lectura con salto implausible (>4x lo nominal) y sigue con la última válida', () => {
+    const histConError = [
+      { sigla: 'TI-5144', fecha: '2026-01-26', horom: 17833 },
+      { sigla: 'TI-5144', fecha: '2026-01-27', horom: 178845 }, // error real: 161.012 en 1 día
+      { sigla: 'TI-5144', fecha: '2026-02-05', horom: 17950 },
+    ];
+    // La lectura del 27 se ignora por implausible; la del 05-feb (17950) es un
+    // avance normal respecto de la última VÁLIDA (17833 del 26-ene), así que sigue.
+    expect(C.horomHistorico(histConError, 'TI-5144', '2026-01-31')).toBe(17833);
+    expect(C.horomHistorico(histConError, 'TI-5144', '2026-02-05')).toBe(17950);
+  });
+
+  it('ignora una lectura que retrocede respecto de la última válida', () => {
+    const histRetroceso = [
+      { sigla: 'BD-9509', fecha: '2026-01-01', horom: 5000 },
+      { sigla: 'BD-9509', fecha: '2026-01-10', horom: 4800 }, // retrocede, se ignora
+      { sigla: 'BD-9509', fecha: '2026-01-20', horom: 5100 },
+    ];
+    expect(C.horomHistorico(histRetroceso, 'BD-9509', '2026-01-15')).toBe(5000);
+    expect(C.horomHistorico(histRetroceso, 'BD-9509', '2026-01-20')).toBe(5100);
+  });
+});
+
+describe('C.lecturasValidas — descarta saltos implausibles/retrocesos sin borrar el dato', () => {
+  it('devuelve todas las lecturas cuando los avances son plausibles', () => {
+    const hist = [
+      { sigla: 'AA-1', fecha: '2026-01-01', horom: 100 },
+      { sigla: 'AA-1', fecha: '2026-01-02', horom: 110 },
+      { sigla: 'AA-1', fecha: '2026-01-03', horom: 120 },
+    ];
+    expect(C.lecturasValidas(hist, 'AA-1').length).toBe(3);
+  });
+
+  it('descarta solo la lectura sospechosa, no las que vienen después y son razonables', () => {
+    const hist = [
+      { sigla: 'AA-1', fecha: '2026-01-01', horom: 100 },
+      { sigla: 'AA-1', fecha: '2026-01-02', horom: 999999 }, // implausible
+      { sigla: 'AA-1', fecha: '2026-01-03', horom: 130 }, // razonable vs. la última VÁLIDA (100)
+    ];
+    const validas = C.lecturasValidas(hist, 'AA-1');
+    expect(validas.map(v => v.horom)).toEqual([100, 130]);
+  });
 });
 
 describe('C.estadoPeriodo — estado de un equipo reconstruido/proyectado para un mes distinto al actual', () => {

@@ -101,12 +101,38 @@ const C = {
     if(validos.length<2)return null;
     return Math.round((validos[validos.length-1]-validos[0])/(validos.length-1));
   },
+  // Lecturas de historial_horometros de un equipo, ordenadas por fecha, con las
+  // sospechosas descartadas: retrocede respecto de la lectura válida anterior, o
+  // avanza más de 4x lo nominal en el tiempo transcurrido (mismo criterio que ya
+  // usan tasaDiariaReal() y validarSaltoHorometro() para rechazar un ingreso
+  // nuevo). Encontrado en auditoría (2026-08): 79 saltos implausibles + 82
+  // retrocesos en 2.797 transiciones reales, de una importación que no pasó por
+  // esa validación (ej. TI-5144 pasando de 17.833 a 178.845 en UN día) — sin este
+  // filtro, horomHistorico() los tomaba igual como "la lectura vigente" para esa
+  // fecha, así que el Dashboard podía mostrar un horómetro imposible al mirar un
+  // mes pasado. No se borra nada de la base, solo se ignora al elegir la lectura.
+  lecturasValidas(histArr,sigla){
+    const val=h=>h.horomFin!=null?h.horomFin:h.horom;
+    const rs=(histArr||[]).filter(h=>h&&h.sigla===sigla&&h.fecha&&val(h)!=null&&isFinite(val(h)))
+      .slice().sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
+    const out=[];
+    let anterior=null;
+    rs.forEach(r=>{
+      if(anterior){
+        const dias=Math.max(_diasEntreISO(anterior.fecha,r.fecha),0)+1;
+        const avance=val(r)-val(anterior);
+        if(avance<0||avance>12*dias*4)return; // sospechosa: no avanza 'anterior', se ignora
+      }
+      out.push(r);anterior=r;
+    });
+    return out;
+  },
   // Horómetro de un equipo a la fecha límite dada, según historial_horometros (hist).
-  // Toma el registro más reciente con fecha <= fechaLimite; null si no hay ninguno.
+  // Toma el registro válido más reciente con fecha <= fechaLimite; null si no hay ninguno.
   horomHistorico(histArr,sigla,fechaLimite){
     let mejor=null;
-    (histArr||[]).forEach(h=>{
-      if(h.sigla!==sigla||!h.fecha||h.fecha>fechaLimite)return;
+    this.lecturasValidas(histArr,sigla).forEach(h=>{
+      if(!h.fecha||h.fecha>fechaLimite)return;
       if(!mejor||h.fecha>mejor.fecha)mejor=h;
     });
     if(!mejor)return null;
