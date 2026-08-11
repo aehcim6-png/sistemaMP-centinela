@@ -13,6 +13,9 @@
 //   3. Documentos por vencer o vencidos (tabla 'vencimientos') — mismo
 //      criterio que vencEstado() en logic.js (vencido, o ≤30 días).
 //   4. Correctivos pendientes (backlog) — estadoOT='Pendiente'.
+//   5. Equipos fuera de servicio prolongado (≥14 días) — gestión de flota.
+//   6. Cierres sin evidencia, últimos 7 días (OT cerradas sin 'solución'
+//      registrada) — gestión de taller.
 //
 // (2026-08-01) Ampliada de "solo PM" a "todo lo urgente" a pedido del
 // usuario. Quedan afuera por ahora Neumáticos y Componentes Mayores: su
@@ -20,6 +23,9 @@
 // tren de rodaje por lado) y portarlo mal acá generaría un número que NO
 // coincide con el Dashboard, que es justo lo que este correo existe para
 // evitar. Se puede sumar más adelante con más tiempo para probarlo bien.
+// (2026-08-08) Sumadas las secciones 5 y 6, de una auditoría de gestión
+// (jefe de maquinaria / jefe de taller) — mismos umbrales que ya usa el
+// resto de la app (14 días = CRÍTICO en Backlog).
 //
 // Pensada para correr una vez al día vía pg_cron (job 'alerta-pm-diaria').
 // ============================================================
@@ -201,6 +207,50 @@ Deno.serve(async (req) => {
       secciones += `<h3>🟠 Correctivos pendientes (backlog)</h3>` + tabla(
         ['Equipo', 'Fecha', 'Síntoma'],
         pendientes.map((p: any) => [p.sigla || '', p.fecha || '', (p.sintoma || '').slice(0, 80)])
+      );
+    }
+
+    // ── 5. EQUIPOS FUERA DE SERVICIO PRORROGADO (≥14 días) ───────
+    // Mismo umbral que usa Backlog (kpi.js) para CRÍTICO. Encontrado en
+    // auditoría (2026-08): había equipos hasta 88 días fuera de servicio sin
+    // ninguna vista que los escalara — solo se veían si alguien entraba a
+    // Correctivos y hacía scroll.
+    const fueraServicio = await get(
+      `correctivos?select=sigla,fechaEntrada,sintoma&estatusEq=eq.${encodeURIComponent('Fuera de Servicio')}&fechaSalida=is.null`
+    );
+    const hoyMs = Date.now();
+    const fueraServicioProlongado = fueraServicio
+      .filter((f: any) => f.fechaEntrada)
+      .map((f: any) => ({ ...f, dias: Math.round((hoyMs - new Date(f.fechaEntrada + 'T00:00:00').getTime()) / 86400000) }))
+      .filter((f: any) => f.dias >= 14)
+      .sort((a: any, b: any) => b.dias - a.dias);
+    if (fueraServicioProlongado.length > 0) {
+      totalItems += fueraServicioProlongado.length;
+      resumen.push(`${fueraServicioProlongado.length} equipo(s) fuera de servicio ≥14 días`);
+      secciones += `<h3>⛔ Equipos fuera de servicio prolongado (≥14 días)</h3>` + tabla(
+        ['Equipo', 'Desde', 'Días fuera', 'Síntoma'],
+        fueraServicioProlongado.map((f: any) => [f.sigla || '', f.fechaEntrada || '', `<b style="color:#c00">${f.dias}</b>`, (f.sintoma || '').slice(0, 80)])
+      );
+    }
+
+    // ── 6. CIERRES SIN EVIDENCIA (últimos 7 días) ────────────────
+    // OT cerradas recientemente sin ningún texto en 'solución' — no queda
+    // constancia de qué se hizo. Ventana de 7 días (no todo el histórico,
+    // que ya son cientos) para que el correo avise de casos NUEVOS, no
+    // repita para siempre el mismo backlog acumulado.
+    const hace7dias = new Date(hoyMs - 7 * 86400000).toISOString().slice(0, 10);
+    const recientes = await get(`correctivos?select=sigla,fecha,sintoma,solucion,estadoOT,tipo&fecha=gte.${hace7dias}`);
+    const cierresSinEvidencia = recientes.filter((o: any) =>
+      (o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional') &&
+      (!o.estadoOT || o.estadoOT === 'Cerrada') &&
+      !(o.solucion && String(o.solucion).trim())
+    );
+    if (cierresSinEvidencia.length > 0) {
+      totalItems += cierresSinEvidencia.length;
+      resumen.push(`${cierresSinEvidencia.length} cierre(s) reciente(s) sin solución documentada`);
+      secciones += `<h3>📋 Cierres sin evidencia — últimos 7 días</h3>` + tabla(
+        ['Equipo', 'Fecha', 'Síntoma'],
+        cierresSinEvidencia.map((o: any) => [o.sigla || '', o.fecha || '', (o.sintoma || '').slice(0, 80)])
       );
     }
 

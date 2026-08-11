@@ -16,15 +16,24 @@ window.renderOt=function(){
   // cientos de correctivos acumulados, estas OT (a veces de meses atrás) quedaban
   // enterradas varias páginas adentro de la tabla, sin ningún aviso arriba que las
   // destacara. El usuario reportó no verlas más pese a que la data seguía ahí.
-  const fsEnCursoOT=equiposFueraDeServicioAhora(ot);
+  // Ordenado por días descendente (el más crítico primero) y con etiqueta
+  // "PROLONGADO" a partir de 14 días — mismo umbral que ya usa el Backlog
+  // (kpi.js) para CRÍTICO, para mantener un solo criterio de urgencia en
+  // toda la app. Antes venían en el orden que tuviera 'ot', así que un
+  // equipo fuera de servicio hace 88 días podía aparecer más abajo que uno
+  // de ayer, sin ningún aviso de que llevaba meses parado.
+  const fsEnCursoOT=equiposFueraDeServicioAhora(ot).map(function(x){
+    var dias=(typeof rangoDias==='function'?rangoDias(x.o.fechaEntrada,new Date().toISOString().slice(0,10)):[]).length;
+    return{o:x.o,i:x.i,dias:dias};
+  }).sort(function(a,b){return b.dias-a.dias;});
   const fsEnCursoOTHTML=fsEnCursoOT.length?
     '<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
     '<b style="font-size:12px;color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> '+fsEnCursoOT.length+' equipo'+(fsEnCursoOT.length===1?'':'s')+' AÚN fuera de servicio</b>'+
     fsEnCursoOT.map(function(x){
-      var dias=(typeof rangoDias==='function'?rangoDias(x.o.fechaEntrada,new Date().toISOString().slice(0,10)):[]).length;
       return'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px">'+
         '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(x.o.sigla)+'</span>'+
-        '<span style="color:var(--tx3)">desde '+x.o.fechaEntrada+' ('+dias+' día'+(dias===1?'':'s')+') — '+escapeHtml(x.o.sintoma||'')+'</span>'+
+        '<span style="color:var(--tx3)">desde '+x.o.fechaEntrada+' ('+x.dias+' día'+(x.dias===1?'':'s')+') — '+escapeHtml(x.o.sintoma||'')+'</span>'+
+        (x.dias>=14?'<b style="color:#fff;background:var(--danger);border-radius:4px;padding:1px 6px;font-size:10px">PROLONGADO</b>':'')+
         '<button class="btn-s" style="margin-left:auto;flex-shrink:0" onclick="cerrarSalidaServicio('+x.i+')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Volvió a operar</button>'+
         '</div>';
     }).join('')+
@@ -49,6 +58,16 @@ window.renderOt=function(){
   var compCards=Object.entries(comps).sort(function(a,b){return b[1]-a[1]}).slice(0,8).map(function(c){
     return'<div class="card" style="padding:6px;text-align:center"><div style="font-size:10px;color:var(--tx3)">'+escapeHtml(c[0])+'</div><div style="font-size:18px;font-weight:700;color:'+(c[1]>=3?'var(--danger)':c[1]>=2?'var(--w)':'var(--tx)')+'">'+c[1]+'</div><div style="font-size:9px;color:var(--tx3)">fallas</div></div>';
   }).join('')||'<div class="card" style="padding:6px;color:var(--tx3);font-size:11px">Ingresa componente en cada OT para ver análisis</div>';
+  // Cierres sin evidencia: cuántas OT ya cerradas (Correctivo/Falla Operacional,
+  // no las que vienen de Registro PM) no tienen ningún texto en 'solución' — no
+  // dice qué se hizo realmente para resolver la falla. No es una falla de un
+  // técnico puntual: hoy el sistema permite cerrar sin exigir esto, así que es
+  // visibilidad de proceso para quien supervisa el cierre, no un juicio.
+  var cerradasSinSolucion=ot.filter(function(o){
+    return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&!(o.solucion&&o.solucion.trim());
+  }).length;
+  var cerradasTotalEvidencia=ot.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional');}).length;
+  var pctSinSolucion=cerradasTotalEvidencia?Math.round(cerradasSinSolucion/cerradasTotalEvidencia*100):0;
   $('s-ot').innerHTML=`
     <div class="sec-h"><div>
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
@@ -66,6 +85,7 @@ window.renderOt=function(){
            al no ser 'Pendiente' ni 'En Ejecución' quedan en Cerradas, correcto porque
            representan una mantención ya ejecutada y registrada, no una OT abierta. -->
       <div class="card"><div class="card-t">Costo acumulado</div><div class="card-v" style="color:var(--ac)">$${fn(tc)}</div></div>
+      <div class="card" title="OT cerradas sin ningún texto registrado en 'Solución' — no queda constancia de qué se hizo"><div class="card-t" style="color:${pctSinSolucion>=40?'var(--danger)':pctSinSolucion>=15?'var(--warn)':'var(--tx3)'}">Cerradas sin solución</div><div class="card-v" style="color:${pctSinSolucion>=40?'var(--danger)':pctSinSolucion>=15?'var(--warn)':'var(--tx)'}">${cerradasSinSolucion}</div><div class="card-s">${pctSinSolucion}% de las cerradas</div></div>
     </div>
     <div class="toolbar">
       <select id="fOtEq" onchange="window._pag.ot=1;renders.ot()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${escapeHtml(e.sigla)}</option>`).join('')}</select>
