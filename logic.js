@@ -486,12 +486,50 @@ function vencEstado(proximaFecha, tieneRegla){
   return{label:'🟢 OK ('+dias+'d)',color:'var(--ok)',dias:dias,requiereAtencion:false};
 }
 
+// ═══ FILTRO DE OUTLIERS EN ÓRDENES DE COMPRA (2026-08) ═══
+// Auditoría real detectó errores de digitación en el precio unitario (ej. un
+// cero de más al importar) que, sin filtrar, inflaban el costo histórico
+// total en ~22%: 15 líneas de 6.748 sumaban $1.765M de los $7.843M totales,
+// las 15 concentradas en un solo lote de 4 pedidos con el mismo proveedor y
+// fecha (10-feb-2025) — un incidente puntual de importación, no un patrón
+// real de precios. Se separa una línea cuando su precio unitario supera 50x
+// la mediana de precio de ESE MISMO ítem (nunca comparando ítems distintos
+// entre sí) — solo se exige mediana con 5+ compras del ítem, para no marcar
+// como "anormal" algo con muestra insuficiente para tener una mediana
+// confiable. Nunca borra el dato original: separa en {limpias, outliers}
+// para que las líneas dudosas no distorsionen costo total/tendencias
+// mientras se confirma el valor real con el proveedor.
+function ordenesSinOutliers(oc){
+  var preciosPorItem={};
+  (oc||[]).forEach(function(o){
+    if(!o||!o.detalle||!(o.precioUnit>0))return;
+    var key=String(o.detalle).trim().toUpperCase();
+    (preciosPorItem[key]=preciosPorItem[key]||[]).push(o.precioUnit);
+  });
+  var medianaPorItem={};
+  Object.keys(preciosPorItem).forEach(function(key){
+    if(preciosPorItem[key].length<5)return;
+    medianaPorItem[key]=medianaPositiva(preciosPorItem[key]);
+  });
+  var limpias=[],outliers=[];
+  (oc||[]).forEach(function(o){
+    if(o&&o.detalle&&o.precioUnit>0){
+      var mediana=medianaPorItem[String(o.detalle).trim().toUpperCase()];
+      if(mediana!=null&&o.precioUnit>50*mediana){outliers.push(o);return;}
+    }
+    limpias.push(o);
+  });
+  return{limpias:limpias,outliers:outliers};
+}
+
 // ═══ PREDICTIVO (2026-07) — estadísticas en vivo desde ordenes_compra_historico ═══
 // Extraído de index.html/computePred() para poder testearlo sin arrancar la app.
 // leadTime queda fijo en 34 días porque el histórico real no trae fecha de entrega —
 // mismo supuesto que ya usan riesgoQuiebre() y el default de repuestos en index.html.
-function predFromOrdenes(oc){
+function predFromOrdenes(ocCrudo){
   var LEAD=34;
+  var sep=ordenesSinOutliers(ocCrudo);
+  var oc=sep.limpias;
   var porEquipo={},porItem={},costoPorMes={},pedidosGlobal=new Set(),costoGlobal=0;
   var mesMin=null,mesMax=null;
   (oc||[]).forEach(function(o){
@@ -585,7 +623,8 @@ function predFromOrdenes(oc){
       promedioMensual:Math.round(costoGlobal/mesesGlobalesN),
       leadTimeGlobal:LEAD,
       rangoDesde:mesMin||'—',
-      rangoHasta:mesMax||'—'
+      rangoHasta:mesMax||'—',
+      outliers:{n:sep.outliers.length,costo:sep.outliers.reduce(function(s,o){return s+(o.costo||0);},0)}
     }
   };
 }
@@ -1082,7 +1121,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
+    predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal
