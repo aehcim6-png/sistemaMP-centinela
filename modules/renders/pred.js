@@ -519,7 +519,11 @@ function diagnosticoFlota(){
     // hecha, no a desgaste normal por uso.
     c.reincidenciaDias=null;
     c.tendencia=null;
-    var fechasPeor=(c.equipoFechas[c.equipoMasRepetido]||[]).slice().sort();
+    // Dedup de fechas iguales consecutivas — varias líneas cargadas el mismo día
+    // (una sola visita a terreno con múltiples ítems) generaban un gap de 0 días,
+    // arrastrando el promedio hacia abajo sin que sea una reincidencia real.
+    var fechasPeorCrudo=(c.equipoFechas[c.equipoMasRepetido]||[]).slice().sort();
+    var fechasPeor=fechasPeorCrudo.filter(function(f,fi){return fi===0||f!==fechasPeorCrudo[fi-1];});
     if(fechasPeor.length>=2){
       var gaps=[];
       for(var gi=1;gi<fechasPeor.length;gi++)gaps.push(Math.round((new Date(fechasPeor[gi])-new Date(fechasPeor[gi-1]))/864e5));
@@ -540,8 +544,21 @@ function diagnosticoFlota(){
     c.diasDesdeUltima=c.ultimaFecha?Math.round((Date.now()-new Date(c.ultimaFecha).getTime())/864e5):null;
     // Heurística de sugerencia: sin esto son solo números, con esto es una lectura accionable
     var atendido=c.total?Math.round((1-c.sinSolucion/c.total)*100):0;
+    // Concentración en un GRUPO de equipos (no solo el peor): antes, si el equipo
+    // más repetido ya cruzaba el umbral de "se repite" (>=3), el mensaje solo
+    // hablaba de ESE equipo — aunque otros 5 tuvieran el mismo problema por su
+    // cuenta, quedaban invisibles (caso real encontrado 2026-08: Neumáticos
+    // mostraba solo "CN-9501, 11 veces" cuando en realidad eran 6 camiones del
+    // mismo modelo, cada uno con reincidencia propia — un patrón de flota, no
+    // "un camión con mala suerte"). Se revisa esto ANTES que el caso de un solo
+    // equipo, para que el patrón de grupo no quede escondido detrás del peor.
+    var equiposConVariasFallas=siglasAfectadas.filter(function(s){return c.equipos[s]>=3;});
+    c.equiposConcentrados=equiposConVariasFallas;
     var sugerencia,severidad;
-    if(c.total>=3&&c.vecesEnEsePeor>=3){
+    if(c.total>=3&&equiposConVariasFallas.length>=2){
+      sugerencia='Se repite 3+ veces cada uno en '+equiposConVariasFallas.length+' equipos distintos ('+equiposConVariasFallas.slice(0,6).join(', ')+(equiposConVariasFallas.length>6?'...':'')+') — no es un equipo con mala suerte, es un patrón de flota: revisar especificación del repuesto/proveedor, o si aplica solo a un modelo en particular.';
+      severidad=3;
+    }else if(c.total>=3&&c.vecesEnEsePeor>=3){
       sugerencia='Se repite '+c.vecesEnEsePeor+' veces en el MISMO equipo ('+c.equipoMasRepetido+') — evaluar reemplazo del componente o del equipo, no solo repararlo de nuevo.';
       severidad=3;
     }else if(c.total>=3&&c.nEquipos>=3){
