@@ -371,7 +371,7 @@ window.planHistorico=function(){
         <td style="text-align:center"><span class="badge ${a.tipo==='Filtro'?'b-y':a.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(a.tipo)}</span></td>
         <td style="text-align:center"><b>${fn2(a.cant)}</b></td>
         <td style="text-align:center">${a.nEq} eq.</td>
-        <td style="text-align:right">${a.precio?'$'+fn2(a.costo):'—'}</td>
+        <td style="text-align:right">${a.sinPrecio?'—':'$'+fn2(a.costo)}</td>
       </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tx3)">Sin movimientos con estos filtros</td></tr>'}
     </table>
     </div>
