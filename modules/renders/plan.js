@@ -272,12 +272,18 @@ window.planMesCal=function(){
 window.planHistorico=function(){
   var fn2=v=>Math.round(v||0).toLocaleString('es-CL');
   var PR=computePred();
-  var ordenes=S.g('ocHist')||[];
+  var ordenesCrudo=S.g('ocHist')||[];
   var mov=S.g('mov')||[];
   var lub=S.g('lub')||[];
   var stk=S.g('stk')||[];
   var eq=S.g('eq')||[];
-  var usaOC=ordenes.length>0; // ocHist es la fuente real (siempre cargada desde Supabase); si por algo no llegó, cae a mov
+  var usaOC=ordenesCrudo.length>0; // ocHist es la fuente real (siempre cargada desde Supabase); si por algo no llegó, cae a mov
+  // Separa líneas con precio unitario muy fuera de lo normal para su propio
+  // ítem (ver ordenesSinOutliers en logic.js) — no se borran, solo no entran
+  // al cálculo mientras se confirma el valor real con el proveedor.
+  var sepOC=ordenesSinOutliers(ordenesCrudo);
+  var ordenes=sepOC.limpias;
+  var outliersOC=sepOC.outliers;
 
   // Filtros activos (persisten entre re-renders del mismo modal)
   var f=window._histFiltro||{desde:'',hasta:'',tipo:'',equipo:''};
@@ -355,6 +361,7 @@ window.planHistorico=function(){
       <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Costo total</div><b style="font-size:18px;color:var(--ac)">$${fn2(totalCosto)}</b></div>
     </div>
     ${totalSinPrecio?`<p style="font-size:11px;color:var(--warn)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ${totalSinPrecio} material(es) sin precio encontrado — revisa "<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos" para esos.</p>`:''}
+    ${usaOC&&outliersOC.length?`<p style="font-size:11px;color:var(--warn)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> ${outliersOC.length} línea(s) de compra excluida(s) del cálculo — precio unitario muy fuera de lo normal para ese ítem (posible error de digitación), $${fn2(outliersOC.reduce(function(s,o){return s+(o.costo||0);},0))} no contados. No se borró el dato original, solo no se cuenta mientras se confirma con el proveedor.</p>`:''}
 
     <div style="max-height:320px;overflow:auto">
     <table style="width:100%;font-size:11px">
@@ -364,7 +371,7 @@ window.planHistorico=function(){
         <td style="text-align:center"><span class="badge ${a.tipo==='Filtro'?'b-y':a.tipo==='Aceite'?'b-g':'b-r'}">${escapeHtml(a.tipo)}</span></td>
         <td style="text-align:center"><b>${fn2(a.cant)}</b></td>
         <td style="text-align:center">${a.nEq} eq.</td>
-        <td style="text-align:right">${a.precio?'$'+fn2(a.costo):'—'}</td>
+        <td style="text-align:right">${a.sinPrecio?'—':'$'+fn2(a.costo)}</td>
       </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tx3)">Sin movimientos con estos filtros</td></tr>'}
     </table>
     </div>

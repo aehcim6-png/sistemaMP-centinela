@@ -1,4 +1,4 @@
-const { predFromOrdenes } = require('../logic.js');
+const { predFromOrdenes, ordenesSinOutliers } = require('../logic.js');
 
 describe('predFromOrdenes', () => {
   it('devuelve una estructura vacía y coherente para un arreglo vacío', () => {
@@ -8,7 +8,8 @@ describe('predFromOrdenes', () => {
     expect(pred.costoMes).toEqual([]);
     expect(pred.resumen).toEqual({
       totalPedidos: 0, totalCosto: 0, promedioMensual: 0,
-      leadTimeGlobal: 34, rangoDesde: '—', rangoHasta: '—'
+      leadTimeGlobal: 34, rangoDesde: '—', rangoHasta: '—',
+      outliers: { n: 0, costo: 0 }
     });
   });
 
@@ -93,5 +94,61 @@ describe('predFromOrdenes', () => {
     ]);
     // rango: ene-feb-mar = 3 meses, costo total 600 -> 200/mes
     expect(pred.resumen.promedioMensual).toBe(200);
+  });
+});
+
+describe('ordenesSinOutliers', () => {
+  function compra(over) {
+    return { pedido: '1', fecha: '2024-01-01', sigla: 'AA-1', detalle: 'Filtro X', cant: 1, precioUnit: 1000, costo: 1000, ...over };
+  }
+
+  it('no marca nada como outlier si el ítem tiene menos de 5 compras (muestra insuficiente)', () => {
+    const oc = [compra({ precioUnit: 1000 }), compra({ precioUnit: 1000 }), compra({ precioUnit: 999999 })];
+    const { limpias, outliers } = ordenesSinOutliers(oc);
+    expect(outliers).toEqual([]);
+    expect(limpias.length).toBe(3);
+  });
+
+  it('separa una línea con precio unitario >50x la mediana del mismo ítem (5+ compras)', () => {
+    const oc = [
+      compra({ precioUnit: 1000 }), compra({ precioUnit: 1000 }), compra({ precioUnit: 1000 }),
+      compra({ precioUnit: 1000 }), compra({ precioUnit: 1000 }),
+      compra({ precioUnit: 58878611, costo: 176635833 }), // el caso real: ~59.000x la mediana
+    ];
+    const { limpias, outliers } = ordenesSinOutliers(oc);
+    expect(outliers.length).toBe(1);
+    expect(outliers[0].precioUnit).toBe(58878611);
+    expect(limpias.length).toBe(5);
+  });
+
+  it('no separa una línea razonable, aunque más cara, dentro de rango normal', () => {
+    const oc = [
+      compra({ precioUnit: 1000 }), compra({ precioUnit: 1200 }), compra({ precioUnit: 900 }),
+      compra({ precioUnit: 1100 }), compra({ precioUnit: 1000 }), compra({ precioUnit: 15000 }), // 15x, bajo el umbral de 50x
+    ];
+    const { limpias, outliers } = ordenesSinOutliers(oc);
+    expect(outliers).toEqual([]);
+    expect(limpias.length).toBe(6);
+  });
+
+  it('compara cada ítem solo contra su propia mediana, no contra otros ítems', () => {
+    const barato = (p) => compra({ detalle: 'Golilla', precioUnit: p, costo: p });
+    const caro = (p) => compra({ detalle: 'Motor', precioUnit: p, costo: p });
+    const oc = [
+      barato(100), barato(100), barato(100), barato(100), barato(100),
+      caro(5000000), caro(5000000), caro(5000000), caro(5000000), caro(5000000),
+    ];
+    const { outliers } = ordenesSinOutliers(oc);
+    expect(outliers).toEqual([]); // "Motor" es caro por naturaleza, no un error — su propia mediana lo refleja
+  });
+
+  it('predFromOrdenes excluye el costo de los outliers del total y lo reporta en resumen.outliers', () => {
+    const base = Array.from({ length: 5 }, (_, i) =>
+      ({ pedido: String(i), fecha: '2024-01-01', sigla: 'AA-1', detalle: 'Filtro X', precioUnit: 1000, costo: 1000 })
+    );
+    const outlier = { pedido: '99', fecha: '2024-01-05', sigla: 'AA-1', detalle: 'Filtro X', precioUnit: 58878611, costo: 176635833 };
+    const pred = predFromOrdenes([...base, outlier]);
+    expect(pred.resumen.totalCosto).toBe(5000); // solo las 5 líneas limpias, el outlier no cuenta
+    expect(pred.resumen.outliers).toEqual({ n: 1, costo: 176635833 });
   });
 });
