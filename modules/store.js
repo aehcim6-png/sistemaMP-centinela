@@ -483,6 +483,11 @@ function _avisarErrorGuardado(tabla,detalleServidor){
   if(/admin/i.test(detalleServidor))msg='⛔ Ese cambio requiere permisos de administrador — no se guardó';
   if(typeof toast==='function')toast(msg);
   console.error('Error guardando en Supabase:',tabla,detalleServidor);
+  // Sentry ya captura excepciones no manejadas, pero un fetch con 4xx/5xx NO
+  // lanza excepción (ver comentario arriba) — sin esto, este caso exacto (el
+  // que de verdad importa: un guardado real que nunca llegó a la base) queda
+  // fuera de Sentry aunque el resto del monitoreo esté andando.
+  if(window.Sentry)Sentry.captureMessage('Guardado fallido en Supabase: '+tabla,{level:'error',extra:{tabla:tabla,detalleServidor:String(detalleServidor||'').slice(0,500)}});
   // "row-level security policy" (sin mención a admin) casi siempre es sesión vencida,
   // no un problema de permisos por rol — un toast de 2.5s se pierde fácil si el
   // usuario sigue trabajando, y cada guardado siguiente vuelve a fallar en silencio
