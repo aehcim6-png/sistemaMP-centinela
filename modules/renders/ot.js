@@ -73,7 +73,7 @@ window.renderOt=function(){
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button> <button class="btn btn-o" onclick="analisisReingresos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
     </div>
     ${fsEnCursoOTHTML}
     <div class="cards">
@@ -255,6 +255,73 @@ window.analisisDocumentacion=function(){
       }).join('')||'<tr><td colspan=4 style="text-align:center;padding:20px;color:var(--tx3)">Sin técnicos con 15+ OT cerradas todavía</td></tr>'}
     </table></div>
     <p style="font-size:10px;color:var(--tx3);margin-top:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> No mide calidad de reparación, solo si queda constancia escrita de qué se hizo. Un % bajo puede ser hábito de cómo se llena el parte en terreno, no necesariamente falta de trabajo real — vale una conversación antes de sacar conclusiones.</p>
+    <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
+  </div>`);
+};
+
+// Reingresos tempranos por técnico — mide algo distinto de Documentación por
+// Técnico: no si queda escrito qué se hizo, sino si lo que se hizo aguantó.
+// Agrupa por equipo+componente (misma categorización por texto libre de
+// _componenteDeSintoma(), definida en pred.js, porque el campo 'componente'
+// viene vacío en casi todos los registros reales) y marca cuando el MISMO
+// componente del MISMO equipo vuelve a fallar dentro de 7 días de cerrada la
+// OT anterior — la atribución es al técnico que cerró esa OT anterior, no al
+// que atendió el reingreso. Se excluyen a propósito los consumibles
+// (neumáticos, GET/cuchillas, filtros, focos): su recurrencia es esperada por
+// desgaste, no indicio de una reparación mal hecha. Verificado con SQL contra
+// producción (2026-08): con esa exclusión, y sobre prácticamente la misma
+// flota (23 equipos en común, así que no es que a uno le toquen los camiones
+// peores), dos técnicos de volumen comparable mostraron 16.0% vs 7.2% de
+// reingreso — más del doble.
+window.analisisReingresos=function(){
+  const ot=S.g('ot')||[];
+  const EXCLUIR=['Neumáticos','GET / Cuchillas','Elemento de Desgaste','Filtro de Aire','Filtro de Combustible','Foco/Ampolleta'];
+  const porGrupo={};
+  ot.forEach(function(o){
+    if(!(o.tipo==='Correctivo'||o.tipo==='Falla Operacional'))return;
+    if(!o.sigla||!o.fechaEntrada)return;
+    var comp=(o.componente||'').trim()||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma):'');
+    if(!comp||EXCLUIR.indexOf(comp)>=0)return;
+    var nombre=(o.tecnico||'').split('/')[0].trim();
+    if(!nombre)return;
+    var k=o.sigla+'|'+comp;
+    (porGrupo[k]=porGrupo[k]||[]).push({entrada:o.fechaEntrada,salida:o.fechaSalida,tecnico:nombre});
+  });
+  const porTecnico={};
+  Object.keys(porGrupo).forEach(function(k){
+    var lista=porGrupo[k].slice().sort(function(a,b){return a.entrada<b.entrada?-1:a.entrada>b.entrada?1:0;});
+    lista.forEach(function(actual,i){
+      if(!actual.salida)return;
+      if(!porTecnico[actual.tecnico])porTecnico[actual.tecnico]={nombre:actual.tecnico,total:0,reingresos:0};
+      porTecnico[actual.tecnico].total++;
+      var siguiente=lista[i+1];
+      if(siguiente){
+        var dias=_diasEntreISO(actual.salida,siguiente.entrada);
+        if(dias>=0&&dias<=7)porTecnico[actual.tecnico].reingresos++;
+      }
+    });
+  });
+  // Umbral de 15 OT — mismo criterio que Documentación por Técnico, para no
+  // sacar conclusiones de un técnico con 2-3 casos.
+  const lista=Object.values(porTecnico).filter(function(t){return t.total>=15;})
+    .map(function(t){return Object.assign(t,{pct:Math.round(t.reingresos/t.total*100)});})
+    .sort(function(a,b){return b.pct-a.pct;});
+  sm(`<div style="max-width:640px">
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos por Técnico</h3>
+    <p style="font-size:12px;color:var(--tx3)">De las OT cerradas por técnico (mismo equipo+componente, excluyendo consumibles de desgaste esperado), % donde el MISMO componente vuelve a fallar dentro de 7 días de cerrada la OT — indicio de que la reparación no quedó resuelta la primera vez. Solo técnicos con 15+ OT en esta base.</p>
+    <div style="overflow-x:auto;margin:8px 0"><table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Técnico</th><th>OT en base</th><th>Reingresos ≤7d</th><th>% reingreso</th></tr>
+      ${lista.map(function(t){
+        var col=t.pct>=15?'var(--danger)':t.pct>=8?'var(--w)':'var(--ok)';
+        return `<tr style="border-bottom:1px solid var(--bd)">
+          <td style="padding:6px">${escapeHtml(t.nombre)}</td>
+          <td style="text-align:center">${t.total}</td>
+          <td style="text-align:center">${t.reingresos}</td>
+          <td style="text-align:center"><b style="color:${col}">${t.pct}%</b></td>
+        </tr>`;
+      }).join('')||'<tr><td colspan=4 style="text-align:center;padding:20px;color:var(--tx3)">Sin técnicos con 15+ OT clasificadas todavía</td></tr>'}
+    </table></div>
+    <p style="font-size:10px;color:var(--tx3);margin-top:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> La categoría de componente se infiere del texto libre de "síntoma" (el campo estructurado casi nunca se llena), así que puede haber ruido puntual — pero con volumen suficiente la brecha entre técnicos es real, no artefacto de muestra. Vale usarlo como punto de partida para una conversación de taller, no como sanción automática.</p>
     <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
   </div>`);
 };

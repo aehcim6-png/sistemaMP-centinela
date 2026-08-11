@@ -20,6 +20,10 @@
 //      'solución', 15+ OT de muestra) — gestión de taller.
 //   8. Alertas de aceite persistentes (mismo equipo+componente, 2 muestras
 //      seguidas en ALERTA/PRECAUCION) — predictivo que no se está usando.
+//   9. Reingresos tempranos por técnico (mismo equipo+componente vuelve a
+//      fallar dentro de 7 días de cerrada la OT anterior, excluyendo
+//      consumibles de desgaste esperado) — durabilidad de la reparación,
+//      no solo si quedó documentada.
 //
 // (2026-08-01) Ampliada de "solo PM" a "todo lo urgente" a pedido del
 // usuario. Quedan afuera por ahora Neumáticos y Componentes Mayores: su
@@ -35,6 +39,10 @@
 // (ot.js, solo admin).
 // (2026-08-08c) Sumada la sección 8 (alertas de aceite persistentes) —
 // misma vista que el banner nuevo en Análisis de Aceite (ace.js).
+// (2026-08-08d) Sumada la sección 9 (reingresos tempranos por técnico) —
+// misma vista que el botón "Reingresos Tempranos" en Correctivos (ot.js,
+// solo admin). Verificado con SQL contra producción: sobre casi la misma
+// flota, dos técnicos de volumen comparable mostraron 16.0% vs 7.2%.
 //
 // Pensada para correr una vez al día vía pg_cron (job 'alerta-pm-diaria').
 // ============================================================
@@ -63,6 +71,60 @@ function calcVencEstado(proximaFecha: string | null) {
   if (dias < 0) return { dias, requiereAtencion: true, vencido: true };
   if (dias <= 30) return { dias, requiereAtencion: true, vencido: false };
   return { dias, requiereAtencion: false, vencido: false };
+}
+
+// Misma categorización por texto libre que _componenteDeSintoma() en
+// pred.js (modules/renders/pred.js) — el campo 'componente' estructurado
+// viene vacío en casi todos los correctivos reales, así que la descripción
+// vive como texto libre en 'síntoma'. Mismo orden de reglas (primera que
+// matchea gana) para que el correo nunca contradiga la vista en pantalla.
+function componenteDeSintoma(sintoma: string | null): string {
+  if (!sintoma) return '';
+  const t = sintoma.toLowerCase();
+  const reglas: [string, string[]][] = [
+    ['Asiento', ['asiento']],
+    ['Batería', ['bateria', 'batería']],
+    ['Motor de Partida', ['motor de partida', 'motor partida']],
+    ['Cilindro de Dirección', ['cilindro direccion', 'cilindro de direccion', 'cilindro dirección', 'cilindro de dirección', 'cilindro volante']],
+    ['Neumáticos', ['neumatico', 'neumático']],
+    ['Frenos', ['freno']],
+    ['Transmisión', ['transmision', 'transmisión']],
+    ['Diferencial', ['diferencial', 'diferecial']],
+    ['Mandos Finales', ['mandos finales', 'mando final']],
+    ['Turbo', ['turbo']],
+    ['Alternador', ['alternador']],
+    ['Bomba de Agua', ['bomba de agua', 'bomba agua']],
+    ['Radiador/Enfriamiento', ['radiador', 'refrigerante']],
+    ['Suspensión', ['suspension', 'suspensión']],
+    ['Inyectores', ['inyector']],
+    ['Filtro de Combustible', ['filtro de combustible', 'filtro combustible']],
+    ['Filtro de Aire', ['filtro de aire', 'filtro aire']],
+    ['Bomba de Combustible', ['bomba de combustible', 'bomba combustible', 'bomba inyectora']],
+    ['Crucetas', ['cruceta']],
+    ['Soporte de Cabina', ['soporte de cabina', 'soporte cabina']],
+    ['Conectores/Cableado', ['conector', 'arnes', 'arnés']],
+    ['Mangueras/Fugas', ['manguera', 'flexible hidraulico', 'flexible hidráulico']],
+    ['Elemento de Desgaste', ['elemento de desgaste', 'elementos de desgaste']],
+    ['Foco/Ampolleta', ['ampolleta', 'foco delantero', 'foco trasero']],
+    ['Sistema Hidráulico', ['hidraulico', 'hidráulico']],
+    ['Sistema Eléctrico', ['electrico', 'eléctrico']],
+    ['Aire Acondicionado', ['aire acondicionado', ' a/c ', 'a/c.', 'condensador']],
+    ['GET / Cuchillas', ['cuchilla', 'entrediente', 'gets']],
+    ['Balde/Implemento', ['pasador del balde', 'pasador balde']],
+    ['Motor', ['motor']],
+  ];
+  for (const [cat, keys] of reglas) {
+    if (keys.some((k) => t.indexOf(k) >= 0)) return cat;
+  }
+  return '';
+}
+
+function diasEntreISO(desdeISO: string | null, hastaISO: string | null): number {
+  if (!desdeISO || !hastaISO) return 9999;
+  const d1 = new Date(desdeISO + 'T00:00:00Z').getTime();
+  const d2 = new Date(hastaISO + 'T00:00:00Z').getTime();
+  if (isNaN(d1) || isNaN(d2)) return 9999;
+  return Math.round((d2 - d1) / 86400000);
 }
 
 function tabla(headers: string[], filas: string[][]) {
@@ -325,6 +387,54 @@ Deno.serve(async (req) => {
           `<b style="color:${m.estado === 'ALERTA' ? '#c00' : '#b45309'}">${m.estado}</b>`,
           m.fecha || '',
         ])
+      );
+    }
+
+    // ── 9. REINGRESOS TEMPRANOS POR TÉCNICO ──────────────────────
+    // Mide algo distinto de la sección 7 (documentación): no si queda
+    // escrito qué se hizo, sino si lo que se hizo aguantó. Agrupa por
+    // equipo+componente y marca cuando el MISMO componente del MISMO
+    // equipo vuelve a fallar dentro de 7 días de cerrada la OT anterior —
+    // atribuido al técnico que cerró esa OT anterior. Excluye consumibles
+    // (neumáticos, GET/cuchillas, filtros, focos): su recurrencia es
+    // esperada por desgaste, no indicio de reparación mal hecha.
+    const EXCLUIR_REINGRESO = new Set(['Neumáticos', 'GET / Cuchillas', 'Elemento de Desgaste', 'Filtro de Aire', 'Filtro de Combustible', 'Foco/Ampolleta']);
+    const otReingreso = await get('correctivos?select=sigla,tecnico,tipo,sintoma,componente,fechaEntrada,fechaSalida');
+    const porGrupoReingreso: Record<string, { entrada: string; salida: string | null; tecnico: string }[]> = {};
+    otReingreso.forEach((o: any) => {
+      if (!(o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional')) return;
+      if (!o.sigla || !o.fechaEntrada) return;
+      const comp = (o.componente && String(o.componente).trim()) || componenteDeSintoma(o.sintoma);
+      if (!comp || EXCLUIR_REINGRESO.has(comp)) return;
+      const nombre = String(o.tecnico || '').split('/')[0].trim();
+      if (!nombre) return;
+      const k = `${o.sigla}|${comp}`;
+      (porGrupoReingreso[k] = porGrupoReingreso[k] || []).push({ entrada: o.fechaEntrada, salida: o.fechaSalida || null, tecnico: nombre });
+    });
+    const porTecnicoReingreso: Record<string, { total: number; reingresos: number }> = {};
+    Object.values(porGrupoReingreso).forEach((lista) => {
+      const ordenada = lista.slice().sort((a, b) => (a.entrada < b.entrada ? -1 : a.entrada > b.entrada ? 1 : 0));
+      ordenada.forEach((actual, i) => {
+        if (!actual.salida) return;
+        if (!porTecnicoReingreso[actual.tecnico]) porTecnicoReingreso[actual.tecnico] = { total: 0, reingresos: 0 };
+        porTecnicoReingreso[actual.tecnico].total++;
+        const siguiente = ordenada[i + 1];
+        if (siguiente) {
+          const dias = diasEntreISO(actual.salida, siguiente.entrada);
+          if (dias >= 0 && dias <= 7) porTecnicoReingreso[actual.tecnico].reingresos++;
+        }
+      });
+    });
+    const tecnicosAltoReingreso = Object.entries(porTecnicoReingreso)
+      .map(([nombre, t]) => ({ nombre, total: t.total, reingresos: t.reingresos, pct: Math.round((t.reingresos / t.total) * 100) }))
+      .filter((t) => t.total >= 15 && t.pct >= 15)
+      .sort((a, b) => b.pct - a.pct);
+    if (tecnicosAltoReingreso.length > 0) {
+      totalItems += tecnicosAltoReingreso.length;
+      resumen.push(`${tecnicosAltoReingreso.length} técnico(s) con reingreso temprano alto`);
+      secciones += `<h3>🔁 Reingresos tempranos por técnico — 15%+</h3>` + tabla(
+        ['Técnico', 'OT en base', 'Reingresos ≤7d', '% reingreso'],
+        tecnicosAltoReingreso.map((t) => [t.nombre, String(t.total), String(t.reingresos), `<b style="color:#c00">${t.pct}%</b>`])
       );
     }
 
