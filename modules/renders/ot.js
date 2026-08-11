@@ -73,7 +73,7 @@ window.renderOt=function(){
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button> <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
     </div>
     ${fsEnCursoOTHTML}
     <div class="cards">
@@ -208,6 +208,53 @@ window.analisisFallas=function(){
       </tr>`).join('')||'<tr><td colspan=3 style="text-align:center;padding:20px;color:var(--tx3)">Sin datos</td></tr>'}
     </table></div>
     <p style="font-size:10px;color:var(--tx3);margin-top:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> MTBF por Componente = horas de flota estimadas EN LOS ÚLTIMOS 12 MESES ÷ fallas de ese componente en ese mismo período (así el número no sube solo porque pasa el tiempo sin que el componente haya vuelto a fallar). MTBF por Equipo (Bad Actors) = promedio de intervalos reales entre fallas sucesivas, histórico completo. Componentes con MTBF bajo son candidatos a revisión de proveedor o reemplazo preventivo.</p>
+    <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
+  </div>`);
+};
+
+// Documentación por técnico — solo admin (ver botón condicionado arriba). De
+// una auditoría real (2026-08): 56% de las OT cerradas de toda la flota no
+// tenían 'solución' registrada, y esa brecha resultó estar concentrada casi
+// por completo en 2 técnicos específicos (94% del total), no repartida pareja
+// — un hallazgo con muestra grande (530 y 59 OT respectivamente) que amerita
+// una conversación de terreno, no solo quedar enterrado en una consulta SQL.
+// Normaliza el nombre del técnico (a veces viene "Nombre / RUT", a veces solo
+// "Nombre") para no duplicar a la misma persona en dos filas — mismo criterio
+// ya usado en el análisis de reincidencia por técnico.
+window.analisisDocumentacion=function(){
+  const ot=S.g('ot')||[];
+  const porTecnico={};
+  ot.forEach(function(o){
+    if(!(o.tipo==='Correctivo'||o.tipo==='Falla Operacional'))return;
+    if(!(!o.estadoOT||o.estadoOT==='Cerrada'))return;
+    var nombre=(o.tecnico||'').split('/')[0].trim();
+    if(!nombre)return;
+    if(!porTecnico[nombre])porTecnico[nombre]={nombre:nombre,total:0,conSolucion:0};
+    porTecnico[nombre].total++;
+    if(o.solucion&&o.solucion.trim())porTecnico[nombre].conSolucion++;
+  });
+  // Umbral de 15 OT cerradas — evita que un técnico con 2-3 casos aparezca en
+  // 0% o 100% por pura casualidad de muestra chica, mismo criterio usado al
+  // verificar este hallazgo con SQL antes de construir la vista.
+  const lista=Object.values(porTecnico).filter(function(t){return t.total>=15;})
+    .map(function(t){return Object.assign(t,{pct:Math.round(t.conSolucion/t.total*100)});})
+    .sort(function(a,b){return a.pct-b.pct;});
+  sm(`<div style="max-width:600px">
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</h3>
+    <p style="font-size:12px;color:var(--tx3)">De las OT cerradas (Correctivo/Falla Operacional), % con el campo "Solución" completado — no queda registro de qué se hizo si está vacío. Solo técnicos con 15+ OT cerradas (muestra suficiente).</p>
+    <div style="overflow-x:auto;margin:8px 0"><table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Técnico</th><th>OT cerradas</th><th>Con solución</th><th>% documentado</th></tr>
+      ${lista.map(function(t){
+        var col=t.pct<50?'var(--danger)':t.pct<80?'var(--w)':'var(--ok)';
+        return `<tr style="border-bottom:1px solid var(--bd)">
+          <td style="padding:6px">${escapeHtml(t.nombre)}</td>
+          <td style="text-align:center">${t.total}</td>
+          <td style="text-align:center">${t.conSolucion}</td>
+          <td style="text-align:center"><b style="color:${col}">${t.pct}%</b></td>
+        </tr>`;
+      }).join('')||'<tr><td colspan=4 style="text-align:center;padding:20px;color:var(--tx3)">Sin técnicos con 15+ OT cerradas todavía</td></tr>'}
+    </table></div>
+    <p style="font-size:10px;color:var(--tx3);margin-top:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> No mide calidad de reparación, solo si queda constancia escrita de qué se hizo. Un % bajo puede ser hábito de cómo se llena el parte en terreno, no necesariamente falta de trabajo real — vale una conversación antes de sacar conclusiones.</p>
     <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
   </div>`);
 };

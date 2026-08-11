@@ -16,6 +16,8 @@
 //   5. Equipos fuera de servicio prolongado (≥14 días) — gestión de flota.
 //   6. Cierres sin evidencia, últimos 7 días (OT cerradas sin 'solución'
 //      registrada) — gestión de taller.
+//   7. Documentación por técnico, histórico (<50% de OT cerradas con
+//      'solución', 15+ OT de muestra) — gestión de taller.
 //
 // (2026-08-01) Ampliada de "solo PM" a "todo lo urgente" a pedido del
 // usuario. Quedan afuera por ahora Neumáticos y Componentes Mayores: su
@@ -26,6 +28,9 @@
 // (2026-08-08) Sumadas las secciones 5 y 6, de una auditoría de gestión
 // (jefe de maquinaria / jefe de taller) — mismos umbrales que ya usa el
 // resto de la app (14 días = CRÍTICO en Backlog).
+// (2026-08-08b) Sumada la sección 7 (documentación por técnico) — misma
+// vista y umbrales que el botón "Documentación por Técnico" en Correctivos
+// (ot.js, solo admin).
 //
 // Pensada para correr una vez al día vía pg_cron (job 'alerta-pm-diaria').
 // ============================================================
@@ -251,6 +256,36 @@ Deno.serve(async (req) => {
       secciones += `<h3>📋 Cierres sin evidencia — últimos 7 días</h3>` + tabla(
         ['Equipo', 'Fecha', 'Síntoma'],
         cierresSinEvidencia.map((o: any) => [o.sigla || '', o.fecha || '', (o.sintoma || '').slice(0, 80)])
+      );
+    }
+
+    // ── 7. DOCUMENTACIÓN POR TÉCNICO (histórico, no ventana de días) ────
+    // A diferencia de la sección 6 (casos nuevos), esto es un patrón de fondo:
+    // mismo cálculo y mismos umbrales que la vista "Documentación por Técnico"
+    // en Correctivos (ot.js, solo admin) — 15+ OT cerradas para tener muestra
+    // suficiente, <50% documentado para no listar a todos, solo a quien
+    // realmente amerita una conversación de terreno.
+    const todasCerradas = await get('correctivos?select=tecnico,tipo,estadoOT,solucion');
+    const porTecnico: Record<string, { total: number; conSolucion: number }> = {};
+    todasCerradas.forEach((o: any) => {
+      if (!(o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional')) return;
+      if (!(!o.estadoOT || o.estadoOT === 'Cerrada')) return;
+      const nombre = String(o.tecnico || '').split('/')[0].trim();
+      if (!nombre) return;
+      if (!porTecnico[nombre]) porTecnico[nombre] = { total: 0, conSolucion: 0 };
+      porTecnico[nombre].total++;
+      if (o.solucion && String(o.solucion).trim()) porTecnico[nombre].conSolucion++;
+    });
+    const tecnicosBajaDocumentacion = Object.entries(porTecnico)
+      .map(([nombre, t]) => ({ nombre, total: t.total, pct: Math.round((t.conSolucion / t.total) * 100) }))
+      .filter((t) => t.total >= 15 && t.pct < 50)
+      .sort((a, b) => a.pct - b.pct);
+    if (tecnicosBajaDocumentacion.length > 0) {
+      totalItems += tecnicosBajaDocumentacion.length;
+      resumen.push(`${tecnicosBajaDocumentacion.length} técnico(s) con baja documentación de cierre`);
+      secciones += `<h3>📝 Documentación por técnico — bajo 50%</h3>` + tabla(
+        ['Técnico', 'OT cerradas', '% documentado'],
+        tecnicosBajaDocumentacion.map((t) => [t.nombre, String(t.total), `<b style="color:#c00">${t.pct}%</b>`])
       );
     }
 
