@@ -43,6 +43,43 @@ window.renderAce=function(){
     return true;
   });
 
+  // Alertas persistentes: mismo equipo+componente con 2 muestras SEGUIDAS en
+  // ALERTA/PRECAUCION — el laboratorio ya avisó, dio recomendación, y el
+  // problema seguía igual en la siguiente muestra. Auditoría real (2026-08):
+  // pasa el 89% de las veces que sale ALERTA, y solo 15% de esas alertas
+  // terminan en un correctivo que atienda el mismo componente dentro de 60
+  // días — la herramienta pensada para anticipar la falla se está generando,
+  // pero casi nunca se actúa sobre ella antes de la siguiente muestra.
+  var porGrupoAce={};
+  ace.forEach(function(m){
+    var k=(m._sigla||'')+'|'+(m.componente||'');
+    if(!(m._sigla||'').trim()||!(m.componente||'').trim()||!m.fecha)return;
+    (porGrupoAce[k]=porGrupoAce[k]||[]).push(m);
+  });
+  var alertasPersistentes=[];
+  Object.keys(porGrupoAce).forEach(function(k){
+    var muestras=porGrupoAce[k].slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+    var ultima=muestras[muestras.length-1],anterior=muestras[muestras.length-2];
+    if(!anterior)return;
+    var esProblema=function(m){return m.estado==='ALERTA'||m.estado==='PRECAUCION';};
+    if(esProblema(ultima)&&esProblema(anterior)){
+      alertasPersistentes.push({sigla:ultima._sigla,componente:ultima.componente,estado:ultima.estado,fecha:ultima.fecha,fechaAnterior:anterior.fecha,comentario:ultima.comentario||''});
+    }
+  });
+  alertasPersistentes.sort(function(a,b){return(a.estado==='ALERTA'?0:1)-(b.estado==='ALERTA'?0:1);});
+  var alertasPersistentesHTML=alertasPersistentes.length?
+    '<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
+    '<b style="font-size:12px;color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> '+alertasPersistentes.length+' alerta'+(alertasPersistentes.length===1?'':'s')+' de aceite que NO se resolvió en la muestra siguiente</b>'+
+    alertasPersistentes.map(function(a){
+      return'<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;font-size:12px;flex-wrap:wrap">'+
+        '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(a.sigla)+'</span>'+
+        '<span style="color:var(--tx2);font-weight:600">'+escapeHtml(a.componente)+'</span>'+
+        '<b style="color:'+(a.estado==='ALERTA'?'var(--danger)':'var(--warn)')+'">'+a.estado+'</b>'+
+        '<span style="color:var(--tx3)">desde '+a.fechaAnterior+', sigue igual el '+a.fecha+'</span>'+
+        '</div>';
+    }).join('')+
+    '</div>':'';
+
   // Stats
   var normal=ace.filter(function(m){return m.estado==='NORMAL';}).length;
   var precaucion=ace.filter(function(m){return m.estado==='PRECAUCION';}).length;
@@ -56,6 +93,8 @@ window.renderAce=function(){
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis de Aceite</div>'+
     '<div class="sec-s">'+ace.length+' muestras · Alimenta predictivo por condición</div></div>'+
     '<div><button class="btn" onclick="addAceite()">+ Manual</button> <button class="btn btn-o" onclick="importAceite()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button></div></div>'+
+
+    alertasPersistentesHTML+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
     '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:#22c55e">'+normal+'</div></div>'+
