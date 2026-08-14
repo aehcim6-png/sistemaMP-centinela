@@ -127,6 +127,10 @@ const TABLA_REAL={
   // responder "cada cuántas horas se cambia el asiento" — compMayores pisa el
   // dato anterior cada vez que se actualiza a la instalación más reciente.
   compHist:{tabla:'historial_componentes',clave:'id',claveDb:'id',cols:['id','sigla','comp','fechaInst','horomInstalacion','fuente','obs']},
+  // Historial de cambios de neumático por POSICIÓN (no por serie — el archivo
+  // de neumáticos retirados en 'neu', pensado para esto, nunca se usó en los
+  // datos reales, ver comentario en modules/renders/neu.js:_neuResumenVida).
+  neuHist:{tabla:'historial_neumaticos',clave:'id',claveDb:'id',cols:['id','sigla','posicion','fecha','horom','fuente','obs']},
   // Papelera (soft-delete con recuperación) — cada fila es una copia completa de
   // un registro eliminado de OTRA categoría, guardada acá antes de borrarlo de
   // verdad. Ver _moverAPapelera/_restaurarDePapelera/_purgarPapeleraVieja (index.html).

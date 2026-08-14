@@ -817,6 +817,40 @@ window.verDetalleNeu=function(neuIdx){
 };
 
 // ── Resumen de flota neumáticos ────────────────────────────
+// Cuánto duró (horas de horómetro) cada neumático real que ya fue reemplazado
+// en una posición — mismo pedido/patrón que Historial de Componentes y el
+// resumen de Tren de Rodaje (sesión 2026-08), pero acá el archivo de
+// neumáticos retirados (cambiarNeu→estado 'Stock'/'De baja') nunca se usó en
+// los datos reales, así que no hay de dónde sacar la vida por N° de serie.
+// Lo que SÍ hay es el registro de cada evento real de "cambio de neumático
+// posición X" en la tabla correctivos (ya cargado en 'historial_neumaticos',
+// separado de 'neu' porque acá el dato es por POSICIÓN, no por serie —
+// tampoco se puede mezclar con historial_componentes: unidades y agrupación
+// distintas). Se excluyen Bus/Camioneta/Grúa del backfill: su horómetro
+// suele ser kilometraje o un ciclo de uso muy distinto al de un CAEX/
+// cargador/motoniveladora, mezclarlos habría distorsionado el promedio.
+function _neuResumenVida(){
+  const h=S.g('neuHist')||[];
+  const porClave={};
+  h.forEach(r=>{const k=r.sigla+'|'+r.posicion;(porClave[k]=porClave[k]||[]).push(r);});
+  const todas=[];
+  const porPosicion={};
+  Object.keys(porClave).forEach(k=>{
+    const arr=porClave[k].slice().sort((a,b)=>(parseFloat(a.horom)||0)-(parseFloat(b.horom)||0));
+    for(let i=1;i<arr.length;i++){
+      const hAnt=parseFloat(arr[i-1].horom),hAct=parseFloat(arr[i].horom);
+      if(isNaN(hAnt)||isNaN(hAct)||hAct<=hAnt)continue;
+      const dur=Math.round(hAct-hAnt);
+      todas.push(dur);
+      (porPosicion[arr[i].posicion]=porPosicion[arr[i].posicion]||[]).push(dur);
+    }
+  });
+  const stats=arr=>({n:arr.length,prom:Math.round(arr.reduce((s,v)=>s+v,0)/arr.length),min:Math.min(...arr),max:Math.max(...arr)});
+  return{
+    general:todas.length?stats(todas):null,
+    porPosicion:Object.keys(porPosicion).sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).map(p=>({posicion:p,...stats(porPosicion[p])}))
+  };
+}
 window.resumenFlotaNeu=function(){
   const neu=S.g('neu')||[];
   const fn2=v=>v?.toLocaleString('es-CL')||'0';
@@ -848,9 +882,30 @@ window.resumenFlotaNeu=function(){
   const necesita30=proyecciones.filter(p=>p.diasRestantes<30).length;
   const necesita60=proyecciones.filter(p=>p.diasRestantes>=30&&p.diasRestantes<60).length;
   const sinDatos=operativos.length-proyecciones.length;
+  const vidaReal=_neuResumenVida();
 
   sm(`<div style="max-width:760px">
     <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen Flota Neumáticos</h3>
+    ${vidaReal.general?`<b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.5 V10 l3 2" fill="none"/><circle cx="10" cy="10" r="7.5"/></svg> Cuánto duró cada neumático (histórico real, CAEX/cargadores/motoniveladoras — horas de horómetro entre cambios):</b>
+    <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;margin:8px 0 10px">
+      <div style="font-size:9px;color:var(--tx3)">Todas las posiciones (${vidaReal.general.n} cambios medidos)</div>
+      <b style="font-size:18px">${fn2(vidaReal.general.prom)}h promedio</b>
+      <div style="font-size:10px;color:var(--tx2)">mín. ${fn2(vidaReal.general.min)}h · máx. ${fn2(vidaReal.general.max)}h</div>
+    </div>
+    <div class="tbl-wrap" style="margin-bottom:16px"><table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Posición</th><th>N° cambios</th><th>Promedio</th><th>Mínimo</th><th>Máximo</th></tr>
+      ${vidaReal.porPosicion.map(r=>{
+        const alerta=r.min<r.prom*0.5;
+        return`<tr style="border-bottom:1px solid var(--bd)${alerta?';background:rgba(239,68,68,.05)':''}">
+          <td style="padding:6px;font-weight:600">${escapeHtml(r.posicion)}</td>
+          <td style="text-align:center">${r.n}</td>
+          <td style="text-align:center">${fn2(r.prom)}h</td>
+          <td style="text-align:center${alerta?';color:var(--danger);font-weight:700':''}">${fn2(r.min)}h${alerta?' ⚠️':''}</td>
+          <td style="text-align:center">${fn2(r.max)}h</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">⚠️ = algún cambio duró menos de la mitad del promedio de su posición — candidato a revisar garantía o calidad del neumático/proveedor.</div>`:''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Total neumáticos</div>
