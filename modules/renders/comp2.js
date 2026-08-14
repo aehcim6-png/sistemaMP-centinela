@@ -14,18 +14,21 @@ window.renderComp2 = function () {
       <button class="btn ${sub === 'destrabe' ? '' : 'btn-o'}" onclick="comp2Sub('destrabe')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Destrabe</button>
       <button class="btn ${sub === 'informes' ? '' : 'btn-o'}" onclick="comp2Sub('informes')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla</button>
       <button class="btn ${sub === 'cad' ? '' : 'btn-o'}" onclick="comp2Sub('cad')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Tren de Rodaje</button>
+      <button class="btn ${sub === 'histcomp' ? '' : 'btn-o'}" onclick="comp2Sub('histcomp')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.5 V10 l3 2" fill="none"/><circle cx="10" cy="10" r="7.5"/></svg> Historial de Componentes</button>
     </div>
     <div id="s-comp" class="${sub === 'comp' ? '' : 'hidden'}"></div>
     <div id="s-pred" class="${sub === 'pred' ? '' : 'hidden'}"></div>
     <div id="s-destrabe" class="${sub === 'destrabe' ? '' : 'hidden'}"></div>
     <div id="s-informes" class="${sub === 'informes' ? '' : 'hidden'}"></div>
     <div id="s-cad" class="${sub === 'cad' ? '' : 'hidden'}"></div>
+    <div id="s-histcomp" class="${sub === 'histcomp' ? '' : 'hidden'}"></div>
   `;
   if (sub === 'comp') renders.comp();
   else if (sub === 'pred') renders.pred();
   else if (sub === 'destrabe') renders.destrabe();
   else if (sub === 'informes') renders.informes();
   else if (sub === 'cad') renders.cad();
+  else if (sub === 'histcomp') renders.histcomp();
   setTimeout(() => aplicarOrdenUniversal('s-comp2'), 60);
 };
 window.comp2Sub = function (s) { window._comp2Sub = s; renders.comp2(); };
