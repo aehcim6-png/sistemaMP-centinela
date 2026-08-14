@@ -26,8 +26,15 @@ window.renderComp=function(){
   // con el usuario). vidaUtil/costoRef son ESTIMACIONES genéricas de
   // industria minera, no datos reales de Besalco — cada fila queda marcada
   // así en su 'obs' hasta que se validen/ajusten equipo por equipo.
+  // (2026-08b) Asiento se agrega aparte: acá el costoRef SÍ es dato real
+  // (promedio de 37 compras reales de asiento en ordenes_compra_historico,
+  // $18.164.749 en total — ver auditoría). El vidaUtil (6.000h) sigue siendo
+  // una referencia de "cuánto debería durar" para poder comparar contra el
+  // patrón real encontrado, que es muchísimo más corto (9-12 cambios de
+  // asiento por equipo en ~2 años, calzando con el gasto real) — sugiere un
+  // problema de calidad/proveedor, no desgaste normal.
   if(newEqs.length){
-    var defaultComps=[{comp:'Motor',vidaUtil:15000,costoRef:45000000},{comp:'Transmisión',vidaUtil:12000,costoRef:35000000},{comp:'Diferencial',vidaUtil:12000,costoRef:25000000},{comp:'Convertidor',vidaUtil:10000,costoRef:20000000},{comp:'Mandos Finales',vidaUtil:10000,costoRef:18000000},{comp:'Bomba Hidráulica',vidaUtil:8000,costoRef:15000000},{comp:'Turbo',vidaUtil:12000,costoRef:8000000},{comp:'Cilindro de Dirección',vidaUtil:15000,costoRef:6000000},{comp:'Suspensión Delantera',vidaUtil:15000,costoRef:10000000},{comp:'Soporte de Cabina',vidaUtil:20000,costoRef:4000000},{comp:'Tolva',vidaUtil:25000,costoRef:15000000}];
+    var defaultComps=[{comp:'Motor',vidaUtil:15000,costoRef:45000000},{comp:'Transmisión',vidaUtil:12000,costoRef:35000000},{comp:'Diferencial',vidaUtil:12000,costoRef:25000000},{comp:'Convertidor',vidaUtil:10000,costoRef:20000000},{comp:'Mandos Finales',vidaUtil:10000,costoRef:18000000},{comp:'Bomba Hidráulica',vidaUtil:8000,costoRef:15000000},{comp:'Turbo',vidaUtil:12000,costoRef:8000000},{comp:'Cilindro de Dirección',vidaUtil:15000,costoRef:6000000},{comp:'Suspensión Delantera',vidaUtil:15000,costoRef:10000000},{comp:'Soporte de Cabina',vidaUtil:20000,costoRef:4000000},{comp:'Tolva',vidaUtil:25000,costoRef:15000000},{comp:'Asiento',vidaUtil:6000,costoRef:491000}];
     newEqs.forEach(function(e){defaultComps.forEach(function(dc){compData.push({sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,comp:dc.comp,horomComp:null,vidaUtil:dc.vidaUtil,costoRef:dc.costoRef,fechaInst:null,obs:'',estado:''});});});
   }
   if(!compData.length){
@@ -42,7 +49,8 @@ window.renderComp=function(){
       {comp:'Cilindro de Dirección',vidaUtil:15000,costoRef:6000000},
       {comp:'Suspensión Delantera',vidaUtil:15000,costoRef:10000000},
       {comp:'Soporte de Cabina',vidaUtil:20000,costoRef:4000000},
-      {comp:'Tolva',vidaUtil:25000,costoRef:15000000}
+      {comp:'Tolva',vidaUtil:25000,costoRef:15000000},
+      {comp:'Asiento',vidaUtil:6000,costoRef:491000}
     ];
     eq.forEach(function(e){
       defaultComps.forEach(function(dc){
