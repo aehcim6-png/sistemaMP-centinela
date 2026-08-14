@@ -157,6 +157,21 @@ window.renderCfg=function(){
     '<input id="cfgAlertaEmails" type="text" value="'+escapeHtml(c.alertaEmails||'')+'" placeholder="correo1@empresa.com, correo2@empresa.com" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
     '<button class="btn" onclick="guardarAlertaEmails()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar destinatarios</button>'+
     '</div>';})():'')+
+    // ALERTAS POR WHATSAPP — mismo patrón que Alertas por Correo, pero el
+    // mensaje que manda alerta-pm es un resumen corto (una línea por sección
+    // con algo urgente, ej. "3 equipo(s) con PM urgente"), no las tablas
+    // completas del correo — WhatsApp no es el canal para eso. Requiere que
+    // la Edge Function tenga configurados los secrets de Twilio
+    // (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_WHATSAPP_FROM); si no
+    // están, simplemente no manda WhatsApp — el correo sigue funcionando
+    // igual (no es un canal obligatorio, es adicional).
+    (window._userRole==='admin'?(function(){const c=S.g('cfg')||{};return ''+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #25D366">'+
+    '<b style="font-size:14px">💬 Alertas por WhatsApp</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Números que reciben un resumen corto del mismo aviso diario (cuántos equipos con PM urgente, ítems de stock crítico, etc. — sin el detalle completo, para eso está el correo). Formato internacional con "+", separar varios con coma. Necesita Twilio configurado en Supabase (Account SID/Auth Token/número WhatsApp) — si no está, este campo no hace nada todavía.</p>'+
+    '<input id="cfgAlertaWhatsApp" type="text" value="'+escapeHtml(c.alertaWhatsApp||'')+'" placeholder="+56912345678, +56987654321" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
+    '<button class="btn" onclick="guardarAlertaWhatsApp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar destinatarios</button>'+
+    '</div>';})():'')+
     (function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #3ecf8e">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="8"/><ellipse cx="10" cy="10" rx="3.5" ry="8"/><line x1="2" y1="10" x2="18" y2="10"/></svg> Sincronización en la nube (Supabase)</b>'+
@@ -562,6 +577,13 @@ window.guardarAlertaEmails=function(){
   c.alertaEmails=($('cfgAlertaEmails').value||'').trim();
   S.s('cfg',c);
   toast('✅ Destinatarios de alerta guardados');
+  if(currentTab==='cfg')renders.cfg();
+};
+window.guardarAlertaWhatsApp=function(){
+  const c=S.g('cfg')||{};
+  c.alertaWhatsApp=($('cfgAlertaWhatsApp').value||'').trim();
+  S.s('cfg',c);
+  toast('✅ Destinatarios de WhatsApp guardados');
   if(currentTab==='cfg')renders.cfg();
 };
 // Reemplaza a la vieja limpiarMovAntiguos(), que hacia S.s('mov', recientes) -- con

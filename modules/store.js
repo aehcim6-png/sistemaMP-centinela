@@ -138,7 +138,7 @@ const TABLA_REAL={
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={
-  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual']},
+  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual','alertaWhatsApp']},
   hh:{tabla:'tarifa_hh',modo:'valor'},
   dispMeta:{tabla:'meta_disponibilidad',modo:'valor'},
   metas:{tabla:'metas',modo:'datos'},

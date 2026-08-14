@@ -43,6 +43,16 @@
 // misma vista que el botón "Reingresos Tempranos" en Correctivos (ot.js,
 // solo admin). Verificado con SQL contra producción: sobre casi la misma
 // flota, dos técnicos de volumen comparable mostraron 16.0% vs 7.2%.
+// (2026-08-14) Sumado un segundo canal: WhatsApp (Twilio), a pedido del
+// usuario. NO reemplaza el correo — es adicional, y a diferencia del
+// correo (que manda las 9 secciones completas en tablas HTML) el WhatsApp
+// manda solo el resumen corto de una línea por sección (el mismo array
+// 'resumen' que ya se arma para el asunto del correo, sin duplicar
+// cálculo). Best-effort: si faltan los 3 secrets de Twilio
+// (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_WHATSAPP_FROM) o no hay
+// ningún destinatario configurado, esta función sigue funcionando igual
+// que antes — el correo por Resend nunca depende de que WhatsApp esté
+// configurado.
 //
 // Pensada para correr una vez al día vía pg_cron (job 'alerta-pm-diaria').
 // ============================================================
@@ -178,12 +188,22 @@ Deno.serve(async (req) => {
     // la cambia desde la app, sin necesitar acceso a Supabase). Si queda
     // vacía o la fila todavía no existe, cae a la env var fija como respaldo
     // para no dejar de avisar por un campo en blanco.
-    const cfgRows = await get('configuracion?select=alertaEmails&limit=1');
+    const cfgRows = await get('configuracion?select=alertaEmails,alertaWhatsApp&limit=1');
     const emailsCfg = String(cfgRows[0]?.alertaEmails || '')
       .split(',').map((e) => e.trim()).filter(Boolean);
     const DESTINATARIOS = emailsCfg.length > 0
       ? emailsCfg
       : (Deno.env.get('ALERTA_PM_DESTINATARIOS') || 'aehcim6@gmail.com').split(',').map((e) => e.trim()).filter(Boolean);
+
+    // Mismo patrón que DESTINATARIOS (email): primero Configuración, si
+    // queda vacía cae a la env var de respaldo. A diferencia del correo,
+    // acá SÍ puede quedar en un arreglo vacío sin respaldo fijo — WhatsApp
+    // es opcional, no tiene sentido inventar un número por defecto.
+    const whatsappCfg = String(cfgRows[0]?.alertaWhatsApp || '')
+      .split(',').map((e) => e.trim()).filter(Boolean);
+    const DESTINATARIOS_WHATSAPP = whatsappCfg.length > 0
+      ? whatsappCfg
+      : (Deno.env.get('ALERTA_PM_WHATSAPP_DESTINATARIOS') || '').split(',').map((e) => e.trim()).filter(Boolean);
 
     let secciones = '';
     let totalItems = 0;
@@ -465,8 +485,44 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: false, error: 'Resend rechazó el envío', detalle: erData }), { status: 500 });
     }
 
+    // ── WhatsApp (Twilio) — best-effort, canal adicional ────────
+    // Un resumen corto (una línea por sección con algo urgente), no las
+    // tablas completas del correo. Si faltan credenciales de Twilio o no
+    // hay destinatarios configurados, se omite sin afectar el resultado
+    // del correo (que ya se mandó bien arriba) — WhatsApp nunca puede
+    // hacer fallar la alerta principal.
+    const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const TWILIO_WHATSAPP_FROM = Deno.env.get('TWILIO_WHATSAPP_FROM'); // ej. "whatsapp:+14155238886"
+    let whatsapp: { enviado: boolean; motivo?: string; resultados?: any[] } = { enviado: false, motivo: 'No configurado' };
+
+    if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_WHATSAPP_FROM && DESTINATARIOS_WHATSAPP.length > 0) {
+      const textoWhatsApp =
+        `🔴 *SistemaMP Centinela* — ${totalItems} alerta(s) hoy\n\n` +
+        resumen.map((r) => `• ${r}`).join('\n') +
+        `\n\nDetalle completo en el correo o en el Dashboard.`;
+      const authHeader = 'Basic ' + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+      const resultados = await Promise.all(
+        DESTINATARIOS_WHATSAPP.map(async (numero) => {
+          const destino = numero.startsWith('whatsapp:') ? numero : `whatsapp:${numero}`;
+          try {
+            const rt = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
+              method: 'POST',
+              headers: { Authorization: authHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ From: TWILIO_WHATSAPP_FROM, To: destino, Body: textoWhatsApp }),
+            });
+            const rtData = await rt.json();
+            return { numero, ok: rt.ok, sid: rtData?.sid, error: rt.ok ? undefined : rtData };
+          } catch (e) {
+            return { numero, ok: false, error: String(e) };
+          }
+        })
+      );
+      whatsapp = { enviado: resultados.some((r) => r.ok), resultados };
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, enviado: true, resumen, resend_id: erData.id }),
+      JSON.stringify({ ok: true, enviado: true, resumen, resend_id: erData.id, whatsapp }),
       { status: 200 }
     );
   } catch (e) {
