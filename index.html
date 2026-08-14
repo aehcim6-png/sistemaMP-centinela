@@ -283,8 +283,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización) — scripts planos, mismo scope global de siempre. -->
 <script src="modules/renders/al.js?v=2026-08-04"></script>
-<script src="modules/renders/stk2.js?v=2026-08-04"></script>
-<script src="modules/renders/cstk.js?v=2026-08-04"></script>
+<script src="modules/renders/stk2.js?v=2026-08-14"></script>
 <script src="modules/renders/comp2.js?v=2026-08-04"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
@@ -509,7 +508,7 @@ const TABS=[
   {id:'audit',l:'Auditoría de Datos',i:ICONS.eye}
 ];
 // Pestañas originales que ahora son sub-tabs (sus secciones siguen existiendo en el DOM)
-const TABS_EXTRA=['al','stk','lub','cstk','plan','insp','pred','destrabe','ayuda','cfg'];
+const TABS_EXTRA=['al','stk','lub','plan','insp','pred','destrabe','ayuda','cfg'];
 let currentTab='dash';
 function initNav(){
   // Barra principal con 15 pestañas
@@ -1091,10 +1090,6 @@ window.edI=function(store,idx,key,val){
 
 // ---- COSTOS ----
 renders.plan=renderPlan;
-
-// Pestaña Costos & Stock: extraída a modules/renders/cstk.js (Fase 2 de
-// modularización) — window.renderCstk/cstkSub se cargan desde ahí.
-renders.cstk=renderCstk;
 
 renders.cos=renderCos;
 
