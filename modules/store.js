@@ -121,6 +121,12 @@ const TABLA_REAL={
   // NEU_CRITERIOS.
   cad:{tabla:'tren_rodaje',clave:'id',claveDb:'id',cols:['id','sigla','lado','componente','valorNuevo','limiteDesgaste','valorActual','pctRemanente','fechaInst','ultimaMedicion','horomInstalacion','estado','obs']},
   cadMed:{tabla:'tren_rodaje_mediciones',clave:'_id',claveDb:'id',cols:['sigla','lado','componente','fecha','horom','valorMedido','obs']},
+  // Historial de componentes mayores (2026-08) — a diferencia de 'compMayores'
+  // (que guarda solo la instalación ACTUAL, una fila por sigla+componente),
+  // acá queda CADA reemplazo real como su propia fila. Sin esto no se puede
+  // responder "cada cuántas horas se cambia el asiento" — compMayores pisa el
+  // dato anterior cada vez que se actualiza a la instalación más reciente.
+  compHist:{tabla:'historial_componentes',clave:'id',claveDb:'id',cols:['id','sigla','comp','fechaInst','horomInstalacion','fuente','obs']},
   // Papelera (soft-delete con recuperación) — cada fila es una copia completa de
   // un registro eliminado de OTRA categoría, guardada acá antes de borrarlo de
   // verdad. Ver _moverAPapelera/_restaurarDePapelera/_purgarPapeleraVieja (index.html).
