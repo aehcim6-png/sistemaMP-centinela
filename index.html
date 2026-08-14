@@ -321,7 +321,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/ot.js?v=2026-08-08d"></script>
 <script src="modules/renders/pred.js?v=2026-08-08b"></script>
 <script src="modules/renders/kpi.js?v=2026-08-14"></script>
-<script src="modules/renders/neu.js?v=2026-08-14"></script>
+<script src="modules/renders/neu.js?v=2026-08-14b"></script>
 <script src="modules/renders/cfg.js?v=2026-08-07c"></script>
 <script>
 // ============ DATA ============
@@ -1575,6 +1575,21 @@ window._iniciarLubPorVoz=function(){
 // ════════════════════════════════════════════════════════════
 
 // ── Precios unitarios por tipo de equipo ──────────────────
+// ¿Es una posición delantera? numPos manda si existe: 1-2 son las posiciones
+// delanteras en toda la flota (P1-DelIzq, P2-DelDer), 3-6 traseras — más
+// confiable que buscar "del" en el texto de 'posicion', que puede estar
+// escrito de cualquier forma (ej. "P1" a secas, sin el "-DelIzq"). Bug real
+// (auditoría 2026-08): neuCriterio() ya usaba numPos-primero (fix anterior),
+// pero neuProyeccion() y neuPrecio() seguían con el texto solo — un neumático
+// CAEX delantero cargado como "P1" sí aparecía 🔴 vencido en el estado
+// (neuCriterio, correcto) pero su proyección de "días restantes" ignoraba el
+// límite de horas por completo (neuProyeccion, con el bug), y por eso quedaba
+// AFUERA de neuDebeCambiar() — invisible en "Cambiar ya", el Dashboard y el
+// informe ejecutivo. Ahora las 3 funciones usan esta misma fuente única.
+function _esDelanteraNeu(n){
+  const np=parseInt(n.numPos);
+  return !isNaN(np)?np<=2:((n.posicion||'').toLowerCase().includes('del'));
+}
 const NEU_PRECIOS={
   CAEX:{precio:9038235,moneda:'CLP',base:'USD 9.987 × $905'},
   CF:  {precio:19601166,moneda:'CLP',base:'Precio unit. WA900'},
@@ -1587,8 +1602,7 @@ const NEU_PRECIOS={
 
 function neuPrecio(n){
   if(n.tipoEquipo==='BUS'){
-    const pos=(n.posicion||'').toLowerCase();
-    return pos.includes('del')?NEU_PRECIOS.BUS_DEL:NEU_PRECIOS.BUS_TRA;
+    return _esDelanteraNeu(n)?NEU_PRECIOS.BUS_DEL:NEU_PRECIOS.BUS_TRA;
   }
   return NEU_PRECIOS[n.tipoEquipo]||NEU_PRECIOS.DEFAULT;
 }
@@ -1644,12 +1658,7 @@ const NEU_CRITERIOS={
 
 function neuCriterio(n){
   const tipo=n.tipoEquipo||'CAEX';
-  // numPos manda si existe: 1-2 son las posiciones delanteras en toda la flota
-  // (P1-DelIzq, P2-DelDer), 3-6 traseras — más confiable que buscar "del" en el
-  // texto de 'posicion', que puede estar escrito de cualquier forma (ej. "P1" a
-  // secas, sin el "-DelIzq") y hacía caer en el criterio de trasera por error.
-  const np=parseInt(n.numPos);
-  const pos=!isNaN(np)?(np<=2?'delantera':'trasera'):((n.posicion||'').toLowerCase().includes('del')?'delantera':'trasera');
+  const pos=_esDelanteraNeu(n)?'delantera':'trasera';
   const marca=(n.marca||'').toUpperCase();
   const blk=NEU_CRITERIOS[tipo];
   if(!blk)return NEU_CRITERIOS.ALJ.todas.DEFAULT;
@@ -1798,7 +1807,7 @@ function neuProyeccion(n,medsPorSerie,eqPorSigla){
   // y sin la guarda los "días restantes" salían absurdos.
   let hrsDia=(eqPorSigla?eqPorSigla[n.sigla]:(S.g('eq')||[]).find(e=>e.sigla===n.sigla))?.hrsDia||(proyMes/30);
   if(!(hrsDia>0)||hrsDia>24)hrsDia=proyMes/30;
-  const esDelantero=(n.posicion||'').toLowerCase().includes('del');
+  const esDelantero=_esDelanteraNeu(n);
 
   // ── Cálculo por REMANENTE (regresión sobre historial) ──
   let hrsPorRem=null, desgasteHora=null;
@@ -1816,13 +1825,20 @@ function neuProyeccion(n,medsPorSerie,eqPorSigla){
         // neuHorasAcum) para no mezclar horómetros si el neumático se transfirió — antes
         // usaba (último.horom - primer.horom) crudo y eso daba mm/hora mal en neumáticos
         // que cambiaron de equipo.
-        let winH=0;
+        // Bug real (auditoría 2026-08): se dividía winH por win.length-1 (el total de
+        // PASOS de la ventana), no por la cantidad de tramos realmente sumados en winH
+        // — un neumático que cambió de equipo dentro de la ventana descarta esos tramos
+        // (arriba, mismo criterio que neuHorasAcum), pero el denominador seguía
+        // contando el paso completo. Eso inflaba desgasteHora (mm/hora) y mostraba
+        // "días restantes" falsamente urgentes para neumáticos reasignados. Ahora se
+        // divide por segCount (tramos válidos, mismo equipo) en vez del total de pasos.
+        let winH=0,segCount=0;
         for(let i=1;i<win.length;i++){
           if(win[i].sigla&&win[i-1].sigla&&win[i].sigla!==win[i-1].sigla)continue;
           const d=win[i].horom-win[i-1].horom;
-          if(d>0&&d<50000)winH+=d;
+          if(d>0&&d<50000){winH+=d;segCount++;}
         }
-        const tramoH=win.length>1&&winH>0?winH/(win.length-1):proyMes;
+        const tramoH=segCount>0&&winH>0?winH/segCount:proyMes;
         if(slopeMed<0&&tramoH>0){
           desgasteHora=Math.abs(slopeMed)/tramoH;
           hrsPorRem=(remActual-limiteRem)/desgasteHora;
