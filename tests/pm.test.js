@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -117,6 +117,31 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
     const r2 = mtbfFlotaReal(eq, ot); // "otro día", mismos datos de fallas
     expect(r1).toBe(r2);
     expect(r1).toBe(1000);
+  });
+});
+
+describe('confiabilidadReal — R(t)=e^(-t/MTBF), probabilidad de no fallar en el período (auditoría 2026-08: "Confiabilidad" del Dashboard era solo % de equipos sin correctivo, no una probabilidad real)', () => {
+  it('sin MTBF (null o <=0) -> null, no se inventa un número', () => {
+    expect(confiabilidadReal(null, 500)).toBeNull();
+    expect(confiabilidadReal(0, 500)).toBeNull();
+    expect(confiabilidadReal(-100, 500)).toBeNull();
+  });
+  it('sin horas de período (null) -> null', () => {
+    expect(confiabilidadReal(1000, null)).toBeNull();
+  });
+  it('t=0 (sin horas operadas todavía) -> 100% (R(0)=1 por definición)', () => {
+    expect(confiabilidadReal(1000, 0)).toBe(100);
+  });
+  it('t=MTBF -> R≈36.8% (e^-1), el punto de referencia clásico de la curva exponencial', () => {
+    expect(confiabilidadReal(1000, 1000)).toBe(36.8);
+  });
+  it('período mucho menor que el MTBF -> confiabilidad alta', () => {
+    // t=100, MTBF=2000 -> e^(-0.05) ≈ 0.9512
+    expect(confiabilidadReal(2000, 100)).toBe(95.1);
+  });
+  it('período mucho mayor que el MTBF -> confiabilidad baja, tendiendo a 0 (nunca negativa)', () => {
+    // t=5000, MTBF=500 -> e^-10 ≈ 0.0000454
+    expect(confiabilidadReal(500, 5000)).toBe(0);
   });
 });
 

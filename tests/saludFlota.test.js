@@ -22,7 +22,7 @@ describe('indiceSaludFlota', () => {
 
   it('el detalle trae las 4 dimensiones con su nombre, tenga dato o no', () => {
     const r = indiceSaludFlota({ cumplPM: 90 });
-    expect(r.detalle.map(c => c.nombre)).toEqual(['Cumplimiento PM', 'Disponibilidad', 'Stock sano', 'Confiabilidad']);
+    expect(r.detalle.map(c => c.nombre)).toEqual(['Cumplimiento PM', 'Disponibilidad', 'Stock sano', 'Flota sin falla']);
     expect(r.detalle.find(c => c.nombre === 'Disponibilidad').valor).toBeNull();
   });
 });

@@ -404,6 +404,20 @@ function mtbfFlotaReal(eq,ot){
   return Math.round(perEq.reduce(function(a,b){return a+b;},0)/perEq.length);
 }
 
+// ═══ CONFIABILIDAD REAL (R) — probabilidad de que un equipo NO falle durante
+// un período de operación dado, asumiendo tasa de falla constante (distribución
+// exponencial) — el supuesto estándar en análisis RAM (Reliability-Availability-
+// Maintainability) e ISO 14224/RCM cuando solo se dispone del MTBF, sin curva de
+// falla propia medida. Fórmula de libro: R(t) = e^(-t/MTBF).
+// Esto es DISTINTO del "idxConf"/"% Flota sin falla" del Dashboard (ese es solo
+// "cuántos equipos no tuvieron ningún correctivo este mes" — un conteo simple,
+// no una probabilidad de confiabilidad). Devuelve null si no hay MTBF real
+// (mtbfFlotaReal ya exige ≥2 fallas por equipo) — nunca inventa un número.
+function confiabilidadReal(mtbf,horasPeriodo){
+  if(!mtbf||mtbf<=0||horasPeriodo==null||horasPeriodo<0)return null;
+  return Math.round(Math.exp(-horasPeriodo/mtbf)*1000)/10;
+}
+
 // ═══ DISPONIBILIDAD — fuente ÚNICA compartida por Disponibilidad, KPI y Metas ═══
 // Antes cada pestaña tenía su propia copia del cálculo, con supuestos distintos (KPI sin
 // el manejo de salida de servicio por período, Metas usando solo overrides manuales), así
@@ -1010,7 +1024,7 @@ function indiceSaludFlota(m){
     {nombre:'Cumplimiento PM',valor:(typeof d.cumplPM==='number'&&isFinite(d.cumplPM))?d.cumplPM:null},
     {nombre:'Disponibilidad',valor:(typeof d.disponibilidad==='number'&&isFinite(d.disponibilidad))?d.disponibilidad:null},
     {nombre:'Stock sano',valor:(typeof d.stockSano==='number'&&isFinite(d.stockSano))?d.stockSano:null},
-    {nombre:'Confiabilidad',valor:(typeof d.confiabilidad==='number'&&isFinite(d.confiabilidad))?d.confiabilidad:null}
+    {nombre:'Flota sin falla',valor:(typeof d.confiabilidad==='number'&&isFinite(d.confiabilidad))?d.confiabilidad:null}
   ];
   var usados=componentes.filter(function(c){return c.valor!=null;});
   if(!usados.length)return {valor:null,n:0,detalle:componentes};
@@ -1139,6 +1153,7 @@ if (typeof window !== 'undefined') {
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
   window.mtbfFlotaReal = mtbfFlotaReal;
+  window.confiabilidadReal = confiabilidadReal;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1150,6 +1165,6 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal
   };
 }
