@@ -22,6 +22,14 @@ window.renderDash=function(){
   const lub=S.g('lub')||[];
   const cfg=S.g('cfg')||{};
   const ordenes=S.g('ordenes')||[];
+  // Contador para el botón de Alertas PM4 (overhaul) — mismo cálculo que al.js,
+  // solo para saber cuántos equipos están en URGENTE. La pestaña en sí (al.js)
+  // no tenía ningún botón en todo el sistema que llevara a ella — quedaba
+  // huérfana (encontrado en la auditoría de agosto 2026 al revisar el manual).
+  const urgPM4=eq.filter(function(e){
+    var f=e.frecPM||250;var p4=C.proxPM(e.horomActual,f*8);var h=p4-e.horomActual;
+    return h<f;
+  }).length;
   // ── PERÍODO DEL DASHBOARD (mes/año seleccionable) ──
   const _hoy=new Date();
   const dashMes=(window._dashMes!=null?window._dashMes:_hoy.getMonth()+1);
@@ -282,6 +290,7 @@ window.renderDash=function(){
     [dashAnio-2,dashAnio-1,dashAnio,dashAnio+1].filter(function(v,i,a){return a.indexOf(v)===i;}).map(function(y){return '<option value="'+y+'"'+(dashAnio===y?' selected':'')+'>'+y+'</option>';}).join('')+
     '</select>'+
     '<button class="btn-s btn-o" onclick="dashHoy()">Hoy</button>'+
+    '<button class="btn-s '+(urgPM4?'':'btn-o')+'" style="'+(urgPM4?'background:var(--danger);color:#fff;border-color:var(--danger)':'')+'" onclick="go(\'al\')" title="Equipos acercándose a su PM4/overhaul (8× frecPM propio) y los repuestos clave que necesitan">🔴 Alertas PM4'+(urgPM4?' ('+urgPM4+')':'')+'</button>'+
     '<span style="font-size:11px;color:var(--tx3);margin-left:auto">Mostrando: <b style="color:var(--ac)">'+dashLabel+'</b></span>'+
     '</div>'+
 
