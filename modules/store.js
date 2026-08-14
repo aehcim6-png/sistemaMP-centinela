@@ -475,6 +475,17 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
     }
   }
 }
+// Registro reciente de guardados fallidos (tabla + hora) — el único propósito es
+// que _resetearDatosEmpresa() pueda preguntar "¿falló algo durante MI operación?"
+// sin cambiar cómo _chained() maneja errores para el resto de la app (ver esa
+// función: el .catch(function(){}) ahí es intencional, para que un guardado
+// fallido no bloquee la cola de guardados siguientes de la misma categoría).
+// Cola corta (últimos 50) — esto es solo una ventana de detección, no un log.
+var _erroresGuardadoRecientes=[];
+function _erroresGuardadoDesde(desdeMs){
+  return _erroresGuardadoRecientes.filter(function(e){return e.ts>=desdeMs;});
+}
+
 // El fetch a Supabase "tiene éxito" (no lanza excepción) aunque RLS o un trigger
 // rechacen la operación con 4xx/5xx — sin esto, el usuario ve "✅ Guardado" en
 // pantalla aunque el cambio nunca haya llegado a la base real.
@@ -483,19 +494,25 @@ function _avisarErrorGuardado(tabla,detalleServidor){
   if(/admin/i.test(detalleServidor))msg='⛔ Ese cambio requiere permisos de administrador — no se guardó';
   if(typeof toast==='function')toast(msg);
   console.error('Error guardando en Supabase:',tabla,detalleServidor);
+  _erroresGuardadoRecientes.push({tabla:tabla,ts:Date.now()});
+  if(_erroresGuardadoRecientes.length>50)_erroresGuardadoRecientes.shift();
   // Sentry ya captura excepciones no manejadas, pero un fetch con 4xx/5xx NO
   // lanza excepción (ver comentario arriba) — sin esto, este caso exacto (el
   // que de verdad importa: un guardado real que nunca llegó a la base) queda
   // fuera de Sentry aunque el resto del monitoreo esté andando.
   if(window.Sentry)Sentry.captureMessage('Guardado fallido en Supabase: '+tabla,{level:'error',extra:{tabla:tabla,detalleServidor:String(detalleServidor||'').slice(0,500)}});
-  // "row-level security policy" (sin mención a admin) casi siempre es sesión vencida,
-  // no un problema de permisos por rol — un toast de 2.5s se pierde fácil si el
-  // usuario sigue trabajando, y cada guardado siguiente vuelve a fallar en silencio
-  // hasta que se da cuenta mucho después (ver caso real: neumático que nunca llegó
-  // a la base y se reintentó varias veces sin que nada quedara guardado). Se intenta
-  // refrescar la sesión sola; si tampoco funciona, se fuerza el login para no seguir
-  // trabajando contra una sesión muerta.
-  if(/row-level security/i.test(detalleServidor)&&!/admin/i.test(detalleServidor)){
+  // "row-level security policy" o "JWT expired" (sin mención a admin) casi siempre
+  // es sesión vencida, no un problema de permisos por rol — un toast de 2.5s se
+  // pierde fácil si el usuario sigue trabajando, y cada guardado siguiente vuelve
+  // a fallar en silencio hasta que se da cuenta mucho después (ver caso real:
+  // neumático que nunca llegó a la base y se reintentó varias veces sin que nada
+  // quedara guardado). Se intenta refrescar la sesión sola; si tampoco funciona,
+  // se fuerza el login para no seguir trabajando contra una sesión muerta.
+  // (2026-08) "JWT expired" (PGRST303) sumado a la detección — antes solo se
+  // buscaba "row-level security" en el texto, y un token realmente vencido
+  // devuelve un mensaje distinto que no lo contiene, así que ese caso —el más
+  // común de sesión vencida— nunca disparaba el refresco automático.
+  if(/row-level security|jwt expired/i.test(detalleServidor)&&!/admin/i.test(detalleServidor)){
     _sbAuthRefresh().then(function(ok){
       if(!ok&&typeof _mostrarLoginOverlay==='function'){
         _mostrarLoginOverlay('Tu sesión venció y los últimos cambios no se guardaron. Vuelve a iniciar sesión.');
@@ -941,6 +958,18 @@ function _purgarPapeleraVieja(){
 // todos los borrados en cola (uno por fila, por tabla, corriendo en paralelo entre
 // tablas vía _syncChain) antes de devolver el control.
 async function _resetearDatosEmpresa(){
+  // _chained() (arriba) traga errores a propósito para no bloquear la cola de
+  // guardados SIGUIENTES de la misma categoría — pero eso significa que este
+  // Promise.all de abajo SIEMPRE resuelve "bien", nunca rechaza, aunque la mitad
+  // de los borrados hayan fallado por sesión vencida a mitad de camino (esto
+  // puede tardar varios minutos). Bug real encontrado vía Sentry (2026-08):
+  // varias tablas fallaron con RLS 42501 durante un reset real, y el llamador
+  // (processResetEmpresa en cfg.js) igual mostró "✅ Nueva empresa configurada"
+  // y recargó la página — dejando la empresa nueva mezclada con datos viejos sin
+  // que nadie se enterara. Se usa _erroresGuardadoDesde() para preguntar si algo
+  // falló DURANTE esta operación específica, y se lanza si es así, para que el
+  // try/catch de processResetEmpresa avise de verdad en vez de asumir éxito.
+  var inicioReset=Date.now();
   var categorias=Object.keys(TABLA_REAL).filter(function(k){return k!=='eq'&&k!=='pau';});
   for(var i=0;i<categorias.length;i++){
     var k=categorias[i];
@@ -958,6 +987,11 @@ async function _resetearDatosEmpresa(){
   S.s('avanceData',{});
   S.s('saludFlotaHist',{});
   await Promise.all(Object.values(_syncChain));
+  var fallos=_erroresGuardadoDesde(inicioReset);
+  if(fallos.length){
+    var tablas=[...new Set(fallos.map(function(f){return f.tabla;}))];
+    throw new Error('No se pudo borrar por completo: '+tablas.join(', ')+' — probablemente la sesión venció a mitad del proceso. No sigas cargando la empresa nueva sin resolver esto primero (vuelve a iniciar sesión y reintenta).');
+  }
 }
 
 if(typeof window!=='undefined'){
@@ -972,5 +1006,6 @@ if(typeof window!=='undefined'){
 if(typeof module!=='undefined'&&module.exports){
   module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache,
     _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL,_recalcEq,_horomUltimoPM,_ritmoRealEq,
-    _resetearDatosEmpresa,_refetchTablaReal,_syncChain};
+    _resetearDatosEmpresa,_refetchTablaReal,_syncChain,
+    _avisarErrorGuardado,_erroresGuardadoDesde,_erroresGuardadoRecientes};
 }

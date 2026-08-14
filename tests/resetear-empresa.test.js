@@ -26,12 +26,13 @@ global.fetch = function () { fetchLlamadas++; return Promise.reject(new Error('r
 global._logChangeGenerico = function () {};
 global.C = require('../logic.js').C;
 
-const { _resetearDatosEmpresa, _sbCache, TABLA_REAL, _syncChain } = require('../modules/store.js');
+const { _resetearDatosEmpresa, _sbCache, TABLA_REAL, _syncChain, _erroresGuardadoRecientes, _erroresGuardadoDesde } = require('../modules/store.js');
 
 beforeEach(() => {
   for (const k in _sbCache) delete _sbCache[k];
   for (const k in localStorage._d) delete localStorage._d[k];
   for (const k in _syncChain) delete _syncChain[k];
+  _erroresGuardadoRecientes.length = 0;
   fetchLlamadas = 0;
   vi.useFakeTimers();
 });
@@ -46,8 +47,16 @@ afterEach(() => {
 // a propósito. Timers falsos avanzan ese backoff al instante sin cambiar la
 // lógica real que se está probando (que sigue esperando esos mismos milisegundos
 // en producción).
+//
+// Con fetch deshabilitado, TODAS las categorías fallan de verdad — y ahora (a
+// diferencia de antes) _resetearDatosEmpresa() rechaza cuando eso pasa (ver
+// test dedicado más abajo). Los demás tests de este archivo solo quieren mirar
+// _sbCache (que se actualiza de forma síncrona vía S.s() antes de que la
+// escritura de red se resuelva o no), así que este helper traga ese rechazo a
+// propósito — no es el mismo .catch(function(){}) de _chained() en store.js,
+// es solo para no romper tests que no están probando la detección de fallos.
 async function correrReset() {
-  const p = _resetearDatosEmpresa();
+  const p = _resetearDatosEmpresa().catch(function () {});
   await vi.runAllTimersAsync();
   return p;
 }
@@ -95,7 +104,37 @@ describe('_resetearDatosEmpresa', () => {
     expect(_sbCache.gantt).toEqual([]);
   });
 
-  it('no lanza ni cuelga aunque todas las llamadas de red fallen', async () => {
-    await expect(correrReset()).resolves.toBeUndefined();
+  it('no cuelga aunque todas las llamadas de red fallen (igual completa el intento)', async () => {
+    await correrReset();
+    expect(_sbCache.metas).toEqual({});
+  });
+
+  // Bug real encontrado vía Sentry (2026-08): _chained() traga errores a propósito
+  // (para no bloquear la cola de guardados SIGUIENTES), así que el Promise.all
+  // final de _resetearDatosEmpresa() antes SIEMPRE resolvía "bien" — el usuario
+  // veía "✅ Nueva empresa configurada" aunque la sesión hubiera vencido a mitad
+  // del borrado, dejando la empresa nueva mezclada con datos viejos sin avisar.
+  it('avisa (rechaza) si alguna categoría no se pudo borrar de verdad — no debe fingir éxito', async () => {
+    const p = _resetearDatosEmpresa();
+    const resultado = p.then(() => null, (e) => e);
+    await vi.runAllTimersAsync();
+    const err = await resultado;
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toMatch(/no se pudo borrar/i);
+  });
+});
+
+describe('_erroresGuardadoDesde — ventana de detección de fallos para _resetearDatosEmpresa', () => {
+  it('solo cuenta errores registrados desde el instante indicado en adelante', () => {
+    const antes = Date.now();
+    _erroresGuardadoRecientes.push({ tabla: 'vieja', ts: antes - 1000 });
+    const desde = Date.now();
+    _erroresGuardadoRecientes.push({ tabla: 'nueva', ts: desde + 10 });
+    const encontrados = _erroresGuardadoDesde(desde);
+    expect(encontrados.map((e) => e.tabla)).toEqual(['nueva']);
+  });
+
+  it('vacío si no hay errores en la ventana', () => {
+    expect(_erroresGuardadoDesde(Date.now())).toEqual([]);
   });
 });
