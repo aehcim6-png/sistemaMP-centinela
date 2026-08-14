@@ -143,9 +143,21 @@ window.renderDash=function(){
     if(!(o.tipo==='Correctivo'||o.tipo==='Falla Operacional'))return false;
     return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
   }).length;
-  var hrsMesEstim=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*_diasMes;},0);
   var totalFallas=fallasMes;
-  var mtbfFlota=fallasMes>0?Math.round(hrsMesEstim/fallasMes):null; // null = sin dato real
+  // Auditoría 2026-08: acá se calculaba mtbfFlota como "horas estimadas de flota del
+  // mes ÷ fallas del mes" — exactamente el cociente que el propio logic.js ya
+  // documenta como bug (ver comentario de mtbfFlotaReal): reparte todas las fallas
+  // parejo desde la hora 0 y no usa el horómetro real de cada falla. Se reemplaza
+  // por la fuente única ya corregida (mismo cálculo que usa Costos>MTBF/MTTR y el
+  // Reporte Ejecutivo) — MTBF real de flota, promedio de los intervalos reales
+  // entre fallas sucesivas de cada equipo, con TODO su historial (no acotado al
+  // mes elegido: un MTBF con datos de un solo mes casi siempre tiene muy pocos
+  // intervalos para ser representativo).
+  var mtbfFlota=mtbfFlotaReal(eq,ot);
+  // Horas de operación promedio por equipo en el período elegido — el "t" de
+  // R(t)=e^(-t/MTBF) más abajo (ver confiabilidadReal en logic.js).
+  var eqHrsUnidad=eq.filter(function(e){return e.unidad!=='km';});
+  var horasPeriodoProm=eqHrsUnidad.length?eqHrsUnidad.reduce(function(s,e){return s+(e.hrsDia||12)*_diasMes;},0)/eqHrsUnidad.length:null;
   var hhTotal=Math.round(reg.reduce(function(s,r){return s+(r.duracionH||0)},0));
   var otPend=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   // Utilización de dotación según la última fecha cargada en Programación Diaria
@@ -166,8 +178,18 @@ window.renderDash=function(){
     return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
   }).map(function(o){return o.sigla;})).size;
   var idxConf=eq.length>0?Math.round((eq.length-eqConFallaMes)/eq.length*100):100;
-  // MTTR del mes
+  // Confiabilidad real (R) — probabilidad de NO fallar durante el período, según
+  // R(t)=e^(-t/MTBF) (fórmula estándar RAM/ISO 14224, asume tasa de falla
+  // constante). Distinto de idxConf de arriba: idxConf es un conteo simple
+  // ("¿tuvo o no tuvo correctivos?"), esto es una probabilidad estadística real
+  // usando el MTBF de flota ya corregido. null si no hay MTBF (mínimo 2 fallas
+  // reales por equipo) — nunca se inventa un número.
+  var confReal=confiabilidadReal(mtbfFlota,horasPeriodoProm);
+  // MTTR del mes — cuando una OT no tiene duración registrada, se asume 8h en vez
+  // de dejarla fuera del promedio (ver tooltip de la tarjeta más abajo: esto es
+  // una ESTIMACIÓN, no un dato medido, para no perder la OT del cálculo).
   var otFallasMes=ot.filter(function(o){return(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;});
+  var otFallasMesSinDuracion=otFallasMes.filter(function(o){return!o.duracion||!o.duracion.match(/(\d+)h/);}).length;
   var mttrF=otFallasMes.length>0?Math.round(otFallasMes.reduce(function(s,o){var d=0;if(o.duracion){var m=o.duracion.match(/(\d+)h/);if(m)d=parseInt(m[1]);}return s+(d||8);},0)/otFallasMes.length*10)/10:0;
   var dispInh=(mtbfFlota&&mtbfFlota>0)?Math.round(mtbfFlota/(mtbfFlota+mttrF)*1000)/10:null;
   // Backlog en semanas (HH pendientes / HH disponibles por semana)
@@ -271,7 +293,7 @@ window.renderDash=function(){
     // Disponibilidad grande — lo primero que ve el ojo
     '<div class="dg1" style="display:grid;grid-template-columns:300px 1fr;gap:20px;margin-bottom:24px">'+
 
-    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:24px;text-align:center;border:2px solid '+dispCol+';position:relative">'+
+    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:24px;text-align:center;border:2px solid '+dispCol+';position:relative" title="Disponibilidad física/mecánica = (horas disponibles del día − horas caídas) / horas disponibles, promediado día a día del mes. Cuando un registro de PM o correctivo no tiene duración registrada, se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — son estimaciones, no datos medidos.">'+
     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:3px;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA</div>'+
     '<div style="font-size:64px;font-weight:900;color:'+dispCol+';line-height:1;margin:8px 0">'+(dispFlota===null?'—':dispFlota)+(dispFlota===null?'':'<span style="font-size:28px">%</span>')+'</div>'+
     '<div style="margin:10px auto;width:85%;background:color-mix(in srgb,'+dispCol+' 18%,var(--bg4));border-radius:10px;height:12px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+(dispFlota===null?'Sin equipos con datos de disponibilidad en '+dashLabel:dispVals.length+' equipos con dato · promedio '+dispFlota+'% · meta '+meta+'%')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+dispCol+';height:100%;width:'+Math.min(dispFlota||0,100)+'%;border-radius:10px;transition:width .5s"></div></div>'+
@@ -303,10 +325,10 @@ window.renderDash=function(){
      '<div style="font-size:9px;color:var(--tx3)">'+(hasPlanData?progEjec+' de '+progPlan+' a tiempo':'Cerrar semanas en Plan Semanal')+'</div></div>'+
 
     // Fila 2: Indicadores técnicos
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(mtbfFlota?(mtbfFlota>2000?'#22c55e':mtbfFlota>500?'#f59e0b':'#ef4444'):'var(--bd)')+'">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">MTBF ≈ '+dashLabel+'</div>'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(mtbfFlota?(mtbfFlota>2000?'#22c55e':mtbfFlota>500?'#f59e0b':'#ef4444'):'var(--bd)')+'" title="MTBF real de flota: promedio del intervalo real entre fallas sucesivas de cada equipo (horómetro registrado en cada falla), con todo su historial — no se acota al mes elegido, un solo mes casi nunca tiene fallas suficientes para un promedio representativo. Fórmula estándar RAM/ISO 14224.">'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">MTBF Real de Flota</div>'+
     '<div style="font-size:28px;font-weight:800;color:'+(mtbfFlota?(mtbfFlota>2000?'#22c55e':mtbfFlota>500?'#f59e0b':'#ef4444'):'var(--tx3)')+';line-height:1.2">'+(mtbfFlota?mtbfFlota+'<span style="font-size:12px">h</span>':'—')+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(mtbfFlota?totalFallas+' fallas · hrs estim.':'Sin fallas tipificadas en el período')+'</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(mtbfFlota?totalFallas+' fallas en '+dashLabel+' · todo el historial':'Sin equipos con ≥2 fallas registradas')+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid var(--ac)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Gasto '+dashLabel+'</div>'+
@@ -325,8 +347,9 @@ window.renderDash=function(){
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Meta: &lt;2%')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">Eq sin falla en '+dashLabel+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--bd)')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">MTBF/(MTBF+MTTR)</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'" title="Conteo simple, NO es una probabilidad de confiabilidad: % de equipos que no tuvieron NINGÚN correctivo/falla operacional este mes. Para la confiabilidad estadística real (R), ver la tarjeta Confiabilidad (R) más adelante."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">% Flota sin falla</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">Eq sin falla en '+dashLabel+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(confReal==null?'var(--bd)':confReal>=85?'#22c55e':confReal>=60?'#f59e0b':'#ef4444')+'" title="Confiabilidad estadística real: R(t)=e^(-t/MTBF) — probabilidad de que un equipo promedio NO falle durante las horas que opera en '+dashLabel+', asumiendo tasa de falla constante (supuesto estándar RAM/ISO 14224 cuando solo se tiene el MTBF). Requiere MTBF real (≥2 fallas por equipo)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad (R)</div><div style="font-size:20px;font-weight:800;color:'+(confReal==null?'var(--tx3)':confReal>=85?'#22c55e':confReal>=60?'#f59e0b':'#ef4444')+'">'+(confReal==null?'—':confReal+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(confReal==null?'Sin MTBF suficiente':'R(t)=e^(-t/MTBF)')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--bd)')+'" title="Disponibilidad Inherente = MTBF/(MTBF+MTTR), fórmula estándar RAM/ISO 14224. MTTR: cuando una OT no tiene duración registrada se asume 8h para no perderla del promedio ('+otFallasMesSinDuracion+' de '+otFallasMes.length+' OT de '+dashLabel+' sin duración registrada) — es una estimación, no un dato medido."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">MTBF/(MTBF+MTTR)</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(pctRetrab===null?'var(--bd)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Retrabajo</div><div style="font-size:20px;font-weight:800;color:'+(pctRetrab===null?'var(--tx3)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'">'+(pctRetrab===null?'—':pctRetrab+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(pctRetrab===null?'Sin fallas en el período':'Meta: &lt;5%')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:#ef4444">'+eqCrit+'</span> Crít · <span style="color:#f59e0b">'+eqEsen+'</span> Esen · <span style="color:#22c55e">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
