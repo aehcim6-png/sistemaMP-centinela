@@ -59,17 +59,47 @@ function _auditOTSinSolucion(){
   }).sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
 }
 
+const _AUDIT_MESES=[{v:'01',l:'Ene'},{v:'02',l:'Feb'},{v:'03',l:'Mar'},{v:'04',l:'Abr'},{v:'05',l:'May'},{v:'06',l:'Jun'},{v:'07',l:'Jul'},{v:'08',l:'Ago'},{v:'09',l:'Sep'},{v:'10',l:'Oct'},{v:'11',l:'Nov'},{v:'12',l:'Dic'}];
+
 window.renderAudit=function(){
-  const saltos=_auditHorometroRetrocede();
-  const compsSinValidar=_auditComponentesSinValidar();
-  const otSinSolucion=_auditOTSinSolucion();
+  const eq=S.g('eq')||[];
+  const ot=S.g('ot')||[];
+  const fSig=$('faSigla')?.value||'';
+  const fAnio=$('faAnio')?.value||'';
+  const fMes=$('faMes')?.value||'';
+
+  // Los 3 chequeos se calculan siempre sobre TODOS los datos — el filtro
+  // solo decide qué mostrar, así los contadores de arriba nunca mienten
+  // por un filtro que el usuario dejó puesto sin darse cuenta.
+  function pasaFiltro(fecha,sigla){
+    if(fSig&&sigla!==fSig)return false;
+    if(fAnio&&(fecha||'').slice(0,4)!==fAnio)return false;
+    if(fMes&&(fecha||'').slice(5,7)!==fMes)return false;
+    return true;
+  }
+  const saltos=_auditHorometroRetrocede().filter(function(h){return pasaFiltro(h.fecha,h.sigla);});
+  const otSinSolucion=_auditOTSinSolucion().filter(function(o){return pasaFiltro(o.fecha,o.sigla);});
+  // Componentes sin validar no tiene fecha real (fechaInst queda null en la
+  // estimación genérica) — solo se filtra por equipo, Mes/Año no aplica.
+  const compsSinValidar=_auditComponentesSinValidar().map(function(c){
+    var equipos=fSig?c.equipos.filter(function(s){return s===fSig;}):c.equipos;
+    return{comp:c.comp,n:equipos.length,equipos:equipos};
+  }).filter(function(c){return c.n>0;});
   const totalCompsSinValidar=compsSinValidar.reduce(function(s,c){return s+c.n;},0);
+
+  const anios=[...new Set(ot.map(function(o){return(o.fecha||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
   $('s-audit').innerHTML=`
     <div class="sec-h"><div>
       <div class="sec-t">${ICONS.eye} Auditoría de Datos</div>
       <div class="sec-s">Cruce automático de fuentes — se recalcula solo cada vez que abres esta pestaña</div>
     </div></div>
+    <div class="toolbar" style="margin-bottom:14px">
+      <select id="faSigla" onchange="renders.audit()"><option value="">Todos los equipos</option>${eq.slice().sort(function(a,b){return(a.sigla||'').localeCompare(b.sigla||'');}).map(function(e){return`<option${e.sigla===fSig?' selected':''}>${escapeHtml(e.sigla)}</option>`;}).join('')}</select>
+      <select id="faAnio" onchange="renders.audit()"><option value="">Todos los años</option>${anios.map(function(a){return`<option value="${a}"${a===fAnio?' selected':''}>${a}</option>`;}).join('')}</select>
+      <select id="faMes" onchange="renders.audit()"><option value="">Todos los meses</option>${_AUDIT_MESES.map(function(m){return`<option value="${m.v}"${m.v===fMes?' selected':''}>${m.l}</option>`;}).join('')}</select>
+      ${(fSig||fAnio||fMes)?'<button class="btn-o" onclick="$(\'faSigla\').value=\'\';$(\'faAnio\').value=\'\';$(\'faMes\').value=\'\';renders.audit()">Limpiar filtros</button>':''}
+    </div>
     <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${saltos.length?'border-color:var(--danger)':''}">
         <div style="font-size:24px;font-weight:700;color:${saltos.length?'var(--danger)':'var(--ok)'}">${saltos.length}</div>
@@ -98,7 +128,7 @@ window.renderAudit=function(){
     </table></div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Sin saltos hacia atrás detectados</div>'}
 
     <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.bulb} Componentes con dato genérico sin validar (${compsSinValidar.length} tipos)</div>
-    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Todavía usan vida útil/costo estimado de industria — falta cruzarlos contra un reemplazo real (correctivos u Órdenes de Compra) como ya se hizo con Batería, Alternador, Motor de Partida, Bomba de Combustible y Balde.</div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Todavía usan vida útil/costo estimado de industria — falta cruzarlos contra un reemplazo real (correctivos u Órdenes de Compra) como ya se hizo con Batería, Alternador, Motor de Partida, Bomba de Combustible y Balde.${(fAnio||fMes)?' Este listado no tiene fecha propia, así que el filtro de Año/Mes no le aplica — solo el de Equipo.':''}</div>
     ${compsSinValidar.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Componente</th><th>N° equipos</th><th>Equipos</th></tr>
       ${compsSinValidar.map(function(c){
