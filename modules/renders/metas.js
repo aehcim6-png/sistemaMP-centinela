@@ -30,6 +30,9 @@ window.renderMetas = function () {
   MSN.forEach(function (m, mi) {
     var mes = anioMetas + '-' + ('0' + (mi + 1)).slice(-2);
     var regM = reg.filter(function (r) { return (r.fechaEntrada || r.fechaEjec || '').slice(0, 7) === mes });
+    // regEsATiempo (logic.js): fuente única — antes r.estado==='A tiempo' nunca
+    // coincidía con el dato real guardado (bug real, auditoría 2026-08).
+    var regMev = regM.filter(function (r) { return regEsATiempo(r) !== null; });
     var prev = regM.filter(function (r) { return r.tipoPM !== 'Correctivo' }).length;
     var dispValsM = eq.map(function (e) { return dispEquipoMes(e.sigla, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, hrsDia: e.hrsDia || 12 }); }).filter(function (v) { return v !== null && v !== undefined });
     var hhMes = Math.round(regM.reduce(function (s, r) { return s + (r.duracionH || 0) }, 0));
@@ -58,7 +61,7 @@ window.renderMetas = function () {
       pms: regM.length,
       hh: hhMes,
       gasto: (regM.length || costoRepM) ? Math.round(hhMes * tarifaHH + costoRepM) : null,
-      cumpl: regM.length ? Math.round(regM.filter(function (r) { return r.estado === 'A tiempo' }).length / regM.length * 100) : null,
+      cumpl: regMev.length ? Math.round(regMev.filter(function (r) { return regEsATiempo(r) === true }).length / regMev.length * 100) : null,
       ratio: regM.length ? Math.round(prev / regM.length * 100) : null,
       backlog: backlogMes
     };

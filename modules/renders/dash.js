@@ -64,10 +64,16 @@ window.renderDash=function(){
       else alDia.push(eCopia);
     });
   }
-  const ant=reg.filter(r=>r.estado==='A tiempo'&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
-  const atr=reg.filter(r=>r.estado?.includes('ATRASADA')&&(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo).length;
   const regMes=reg.filter(r=>(r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo);
-  const cum=regMes.length?Math.round(ant/regMes.length*100):null;
+  // regEsATiempo (logic.js): fuente única para "¿fue a tiempo?" — antes se
+  // comparaba r.estado==='A tiempo' (bug real, auditoría 2026-08: ese campo
+  // nunca vale ese string exacto, ver comentario en logic.js). Se excluyen los
+  // registros no evaluables (ej. importados por CSV sin fecha esperada de
+  // referencia) del cálculo en vez de contarlos como cumplidos o atrasados.
+  const regClasifPeriodo=regMes.filter(r=>regEsATiempo(r)!==null);
+  const ant=regClasifPeriodo.filter(r=>regEsATiempo(r)===true).length;
+  const atr=regClasifPeriodo.filter(r=>regEsATiempo(r)===false).length;
+  const cum=regClasifPeriodo.length?Math.round(ant/regClasifPeriodo.length*100):null;
   // ── KPI CUMPLIMIENTO DE PROGRAMA (ejecutado a tiempo) del mes ──
   const semHistD=S.g('planSemHist')||{};
   let progPlan=0,progEjec=0;
@@ -192,13 +198,23 @@ window.renderDash=function(){
   var otFallasMesSinDuracion=otFallasMes.filter(function(o){return!o.duracion||!o.duracion.match(/(\d+)h/);}).length;
   var mttrF=otFallasMes.length>0?Math.round(otFallasMes.reduce(function(s,o){var d=0;if(o.duracion){var m=o.duracion.match(/(\d+)h/);if(m)d=parseInt(m[1]);}return s+(d||8);},0)/otFallasMes.length*10)/10:0;
   var dispInh=(mtbfFlota&&mtbfFlota>0)?Math.round(mtbfFlota/(mtbfFlota+mttrF)*1000)/10:null;
-  // Backlog en semanas (HH pendientes / HH disponibles por semana)
+  // Backlog en semanas (HH pendientes / HH disponibles por semana). HH pendientes
+  // asume 8h por OT sin duración propia (no hay otro dato disponible por OT). La
+  // capacidad semanal SÍ tiene un dato real disponible — la dotación programada
+  // en Programación Diaria (progDiaHoy, ya calculado arriba) — se usa cuando
+  // existe; si no hay Programación Diaria cargada, cae a la estimación vieja
+  // (5 técnicos por equipo × 8h), declarada como tal en el tooltip de la tarjeta.
   var hhPend=otPend*8;
-  var hhSem=eq.length*5*8;
+  var dotacionReal=progDiaHoy?[...new Set(progDiaTodo.filter(function(p){return p.fecha===progDiaUltima;}).map(function(p){return p.nombre;}).filter(Boolean))].length:0;
+  var hhSemFuente=dotacionReal>0?'real':'estimado';
+  var hhSem=(dotacionReal>0?dotacionReal:eq.length*5)*8;
   var backlogSem=hhSem>0?Math.round(hhPend/hhSem*10)/10:0;
-  // Costo/RAV
+  // Costo/RAV — el benchmark de la industria (<2-3%) es ANUAL; costoTotal acá es
+  // de UN mes, así que se anualiza (×12) para comparar en la misma escala. Antes
+  // se comparaba el gasto de 1 mes directo contra el benchmark anual, mostrando
+  // un número ~12x más sano de lo real.
   var totalRAV=eq.reduce(function(s,e){return s+(e.valorCompra||0)},0);
-  var costoRAV=totalRAV>0?Math.round(costoTotal/totalRAV*10000)/100:0;
+  var costoRAV=totalRAV>0?Math.round(costoTotal*12/totalRAV*10000)/100:0;
   // Retrabajo (fallas repetidas en mismo equipo+componente dentro de 30 días).
   // Antes comparaba cada OT del período contra TODAS las OT del sistema (O(n²)) en
   // una función que corre después de casi cada guardado de la app. Se agrupa primero
@@ -316,9 +332,9 @@ window.renderDash=function(){
     '<div style="font-size:9px;color:var(--tx3)">'+(dashFuente==='vivo'?'En plan mensual':dashFuente==='historico'?'Reconstruido desde historial':'Estimado por horas/día')+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(cum===null?'var(--bd)':cum>=80?'#22c55e':'#ef4444')+'">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Cumplimiento</div>'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px" title="% de PMs/correctivos ejecutados a tiempo o antes de su fecha esperada. Registros sin fecha esperada de referencia (ej. importados por CSV) no se pueden evaluar y quedan fuera del cálculo.">Cumplimiento PM</div>'+
     '<div style="font-size:32px;font-weight:800;color:'+(cum===null?'var(--tx3)':cum>=80?'#22c55e':'#ef4444')+';line-height:1.2">'+(cum===null?'—':cum+'%')+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(cum===null?'Sin PMs en '+dashLabel:ant+' de '+regMes.length+' PMs')+'</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(cum===null?'Sin PMs evaluables en '+dashLabel:ant+' de '+regClasifPeriodo.length+' PMs evaluables'+(regMes.length>regClasifPeriodo.length?' ('+(regMes.length-regClasifPeriodo.length)+' sin fecha esperada)':''))+'</div></div>'+
      '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(hasPlanData?(cumProg>=85?'#22c55e':cumProg>=70?'#f59e0b':'#ef4444'):'var(--bd)')+'">'+
      '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Cumpl. Programa</div>'+
      '<div style="font-size:32px;font-weight:800;color:'+(hasPlanData?(cumProg>=85?'#22c55e':cumProg>=70?'#f59e0b':'#ef4444'):'var(--tx3)')+';line-height:1.2">'+(hasPlanData?cumProg+'%':'—')+'</div>'+
@@ -345,8 +361,8 @@ window.renderDash=function(){
     // ═══ KPIs AVANZADOS ROW ═══
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:20px">'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Meta: &lt;2%')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'" title="Gasto de mantención ÷ Valor de Reemplazo de Activo (RAV), ANUALIZADO (gasto del mes ×12) para comparar contra el benchmark de industria (&lt;2-3% anual) en la misma escala."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Anualizado · Meta: &lt;2%')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'" title="HH pendientes (OT abiertas × 8h, único dato disponible por OT) ÷ capacidad semanal (dotación'+(hhSemFuente==='real'?' real de Programación Diaria: '+dotacionReal+' personas':' ESTIMADA: 5 técnicos por equipo, sin dato real de dotación cargado')+' × 5 días × 8h)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4 · dotación '+(hhSemFuente==='real'?'real':'estimada')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'" title="Conteo simple, NO es una probabilidad de confiabilidad: % de equipos que no tuvieron NINGÚN correctivo/falla operacional este mes. Para la confiabilidad estadística real (R), ver la tarjeta Confiabilidad (R) más adelante."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">% Flota sin falla</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">Eq sin falla en '+dashLabel+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(confReal==null?'var(--bd)':confReal>=85?'#22c55e':confReal>=60?'#f59e0b':'#ef4444')+'" title="Confiabilidad estadística real: R(t)=e^(-t/MTBF) — probabilidad de que un equipo promedio NO falle durante las horas que opera en '+dashLabel+', asumiendo tasa de falla constante (supuesto estándar RAM/ISO 14224 cuando solo se tiene el MTBF). Requiere MTBF real (≥2 fallas por equipo)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad (R)</div><div style="font-size:20px;font-weight:800;color:'+(confReal==null?'var(--tx3)':confReal>=85?'#22c55e':confReal>=60?'#f59e0b':'#ef4444')+'">'+(confReal==null?'—':confReal+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(confReal==null?'Sin MTBF suficiente':'R(t)=e^(-t/MTBF)')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--bd)')+'" title="Disponibilidad Inherente = MTBF/(MTBF+MTTR), fórmula estándar RAM/ISO 14224. MTTR: cuando una OT no tiene duración registrada se asume 8h para no perderla del promedio ('+otFallasMesSinDuracion+' de '+otFallasMes.length+' OT de '+dashLabel+' sin duración registrada) — es una estimación, no un dato medido."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">MTBF/(MTBF+MTTR)</div></div>'+

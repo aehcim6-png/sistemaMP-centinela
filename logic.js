@@ -404,6 +404,24 @@ function mtbfFlotaReal(eq,ot){
   return Math.round(perEq.reduce(function(a,b){return a+b;},0)/perEq.length);
 }
 
+// ═══ CUMPLIMIENTO PM — fuente ÚNICA para "¿este registro fue a tiempo?" ═══
+// Bug real (auditoría 2026-08): el Dashboard/KPI/Metas comparaban literal
+// r.estado==='A tiempo', pero ese campo NUNCA vale ese string exacto — saveReg/
+// saveEditReg (reg.js) guardan un HTML con ícono/emoji ('...ANTICIPADA' o
+// '🔴 ATRASADA'), y la importación CSV (reg.js processImportReg) ponía
+// 'A tiempo' fijo en TODOS los registros sin calcular nada. Resultado: todo
+// registro manual contaba como NO cumplido (aunque fuera a tiempo) y todo
+// registro importado contaba como cumplido (aunque estuviera atrasado) — el
+// "% Cumplimiento PM" no medía puntualidad real, medía por qué canal se
+// cargó el dato. Se reemplaza la comparación de string por el dato numérico
+// real (desvioDias, ya calculado y guardado por ambos flujos de registro
+// manual). null = no evaluable (ej. importado por CSV, sin fecha esperada de
+// referencia) — se excluye del cálculo en vez de inventar un resultado.
+function regEsATiempo(r){
+  if(!r||typeof r.desvioDias!=='number'||!isFinite(r.desvioDias))return null;
+  return r.desvioDias<=0;
+}
+
 // ═══ CONFIABILIDAD REAL (R) — probabilidad de que un equipo NO falle durante
 // un período de operación dado, asumiendo tasa de falla constante (distribución
 // exponencial) — el supuesto estándar en análisis RAM (Reliability-Availability-
@@ -1154,6 +1172,7 @@ if (typeof window !== 'undefined') {
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
   window.mtbfFlotaReal = mtbfFlotaReal;
   window.confiabilidadReal = confiabilidadReal;
+  window.regEsATiempo = regEsATiempo;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1165,6 +1184,6 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo
   };
 }
