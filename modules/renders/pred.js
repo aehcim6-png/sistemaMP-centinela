@@ -39,12 +39,39 @@ var _CATEGORIAS_COMPONENTE=[
   ['Conectores/Cableado',['conector','conectores','arnes','arnés']],
   ['Mangueras/Fugas',['manguera','mangueras','flexible hidraulico','flexible hidráulico']],
   ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste']],
-  ['Foco/Ampolleta',['ampolleta','foco delantero','foco trasero']],
+  // Ampliado (auditoría 2026-08, pedido del usuario: "revisa bien, si cambian
+  // tanto foco o ampolleta indica que la falla es más compleja"): el listado
+  // original solo reconocía 'foco delantero'/'foco trasero' — no atrapaba
+  // "foco faenero"/"focos faeneros" (la redacción real más común en las OT de
+  // esta flota) ni errores de tipeo reales vistos en los datos ('ampoleta',
+  // 'alpolleta', 'amplolleta'). Con el hueco, esos eventos quedaban SIN
+  // categoría y el conteo de fallas repetidas (compFallas>=2/3 en
+  // diagnosticoFlota) no los veía — un patrón real como el de CN-5133 (~18
+  // eventos de foco/eléctrico en un año, probable falla de cableado/tierra,
+  // no desgaste de ampolleta) pasaba invisible pese a estar en los datos.
+  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta']],
   ['Sistema Hidráulico',['hidraulico','hidráulico']],
   ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico']],
   ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
   ['GET / Cuchillas',['cuchilla','entrediente','gets']],
-  ['Balde/Implemento',['pasador del balde','pasador balde']],
+  // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
+  // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
+  // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde
+  // completo, la redacción real encontrada en correctivos) — esos eventos
+  // quedaban sin categoría.
+  ['Balde/Implemento',['pasador del balde','pasador de balde','pasador balde','cambio de balde','desgaste del balde','balde nuevo','balde por rotura']],
+  // Nueva (auditoría 2026-08, pedido del usuario: "biela, pantógrafo, cambio
+  // de pasadores y buje de balde o biela"): no existía ninguna categoría para
+  // el varillaje/linkage del balde (biela de volteo/pantógrafo) — quedaba sin
+  // categorizar pese a un patrón real serio: CF-9510 tuvo juego excesivo en
+  // el eje de la biela (feb-2025), fisura en la biela (jul-2025) y rotura del
+  // pantógrafo que obligó a cambiar el balde (feb-2026) — no es desgaste
+  // normal, es una falla estructural recurrente en el mismo conjunto.
+  // CF-8769 tuvo fisura de pantógrafo (feb-2026, 60 días fuera de servicio) y
+  // otra falla estructural en el mismo conjunto + pasador del cilindro de
+  // volteo (jul-2026, aún fuera de servicio). Ambos casos ameritan revisión
+  // de ingeniería (sobrecarga, fatiga), no solo cambiar la pieza rota de nuevo.
+  ['Biela/Pantógrafo',['biela','pantografo','pantógrafo']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el

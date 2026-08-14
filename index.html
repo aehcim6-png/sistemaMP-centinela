@@ -288,11 +288,11 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/comp2.js?v=2026-08-04"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
-<script src="modules/renders/lub.js?v=2026-08-08"></script>
-<script src="modules/renders/stk.js?v=2026-08-08"></script>
+<script src="modules/renders/lub.js?v=2026-08-14"></script>
+<script src="modules/renders/stk.js?v=2026-08-14"></script>
 <script src="modules/renders/cos.js?v=2026-08-14"></script>
 <script src="modules/renders/mov.js?v=2026-08-05"></script>
-<script src="modules/renders/rep.js?v=2026-08-08"></script>
+<script src="modules/renders/rep.js?v=2026-08-14"></script>
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
@@ -307,7 +307,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/gantt.js?v=2026-08-07b"></script>
 <script src="modules/renders/informes.js?v=2026-08-07"></script>
 <script src="modules/renders/venc.js?v=2026-08-07"></script>
-<script src="modules/renders/comp.js?v=2026-08-08b"></script>
+<script src="modules/renders/comp.js?v=2026-08-14c"></script>
 <script src="modules/renders/buscar.js?v=2026-08-07b"></script>
 <script src="modules/renders/pau.js?v=2026-08-08"></script>
 <script src="modules/renders/plan.js?v=2026-08-08"></script>
@@ -319,7 +319,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/reg.js?v=2026-08-14"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-08d"></script>
-<script src="modules/renders/pred.js?v=2026-08-08b"></script>
+<script src="modules/renders/pred.js?v=2026-08-14c"></script>
 <script src="modules/renders/kpi.js?v=2026-08-14"></script>
 <script src="modules/renders/neu.js?v=2026-08-14b"></script>
 <script src="modules/renders/cfg.js?v=2026-08-07c"></script>
@@ -2209,7 +2209,7 @@ window.processImportNeu=function(){
 // ═══ IMPORTAR STOCK FILTROS ═══
 window.importStkCSV=function(){
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Stock Filtros</h3>'+
-    '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: equipoModelo, descripcion, nParte, stockBodega, consumoMes, precioUnit<br><br>También acepta JSON (array de objetos).</p>'+
+    '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: equipoModelo, descripcion, nParte, stockBodega, consumoMes, precioUnit, leadTime (días de reposición — opcional, si no se incluye queda en el default de 34 días)<br><br>También acepta JSON (array de objetos).</p>'+
     '<input type="file" id="stkFile" accept=".csv,.json" style="margin:12px 0"><br>'+
     '<label><input type="checkbox" id="stkReplace"> Reemplazar todo (si no, agrega)</label><br><br>'+
     '<button class="btn" onclick="processImportStk()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
@@ -2238,6 +2238,11 @@ window.processImportStk=function(){
             pendiente:parseInt(row.pendiente)||0,
             precioUnit:parseInt(row.precioUnit||row.precio)||0,
             proyMes:parseInt(row.proyMes)||0,
+            // Bug real (auditoría 2026-08): esta importación nunca mapeaba
+            // leadTime aunque el CSV lo trajera — todo ítem importado quedaba
+            // en el default de 34 días (stockEstado, logic.js) sin forma de
+            // cargar el tiempo de reposición real desde el archivo de origen.
+            leadTime:parseInt(row.leadTime||row.lead_time||row.leadtime)||0,
             estado:''
           });added++;
         }
