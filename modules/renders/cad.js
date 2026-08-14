@@ -50,8 +50,8 @@ window.renderCad = function () {
         const proy = cadProyeccion(c);
         return `<tr style="${sinDatos ? '' : p < 30 ? 'background:rgba(239,68,68,.05)' : p < 50 ? 'background:rgba(234,179,8,.04)' : ''}">
           <td class="mono" style="font-size:11px">${escapeHtml(c.sigla)}</td>
-          <td style="font-size:11px">${escapeHtml(c.lado)}</td>
-          <td style="font-size:11px">${escapeHtml(c.componente)}</td>
+          ${edCell(c.lado, 'lado', i, 'cad', 'select', CAD_LADOS)}
+          ${edCell(c.componente, 'componente', i, 'cad', 'select', CAD_COMPONENTES)}
           ${edCell(c.valorNuevo != null ? c.valorNuevo : '', 'valorNuevo', i, 'cad', 'number')}
           ${edCell(c.limiteDesgaste != null ? c.limiteDesgaste : '', 'limiteDesgaste', i, 'cad', 'number')}
           <td class="mono" style="font-size:11px">${c.valorActual != null ? c.valorActual : '—'}</td>
