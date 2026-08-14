@@ -527,7 +527,12 @@ window.processImportReg=function(){
             fechaEntrada:fe,horaEntrada:he,fechaSalida:fs||fe,horaSalida:hs,
             duracion:durRaw||(durH>0?durH+'h':'—'),duracionH:Math.round(durH*10)/10,
             horomReal:horom,estatusEq:estatus,tecnico:tecnico,obs:obs,
-            estado:'A tiempo',fechaEjec:fe
+            // Sin fecha de PM esperada en el CSV no hay con qué comparar la fecha
+            // real — no se inventa "A tiempo" (bug real, auditoría 2026-08: esto
+            // hacía que TODO registro importado contara como cumplido en el KPI de
+            // Cumplimiento PM, atrasado o no). Queda sin desvioDias/estado —
+            // regEsATiempo() (logic.js) lo excluye del cálculo en vez de adivinar.
+            fechaEjec:fe
           });added++;
         }
       }

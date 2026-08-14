@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -142,6 +142,23 @@ describe('confiabilidadReal — R(t)=e^(-t/MTBF), probabilidad de no fallar en e
   it('período mucho mayor que el MTBF -> confiabilidad baja, tendiendo a 0 (nunca negativa)', () => {
     // t=5000, MTBF=500 -> e^-10 ≈ 0.0000454
     expect(confiabilidadReal(500, 5000)).toBe(0);
+  });
+});
+
+describe('regEsATiempo — fuente única de "¿este PM fue a tiempo?" (bug real, auditoría 2026-08: r.estado==="A tiempo" nunca coincidía con el dato real guardado)', () => {
+  it('desvioDias<=0 (a tiempo o anticipado) -> true', () => {
+    expect(regEsATiempo({ desvioDias: 0 })).toBe(true);
+    expect(regEsATiempo({ desvioDias: -3 })).toBe(true);
+  });
+  it('desvioDias>0 (atrasado) -> false', () => {
+    expect(regEsATiempo({ desvioDias: 5 })).toBe(false);
+  });
+  it('sin desvioDias numérico (ej. importado por CSV sin fecha esperada) -> null, no se inventa un resultado', () => {
+    expect(regEsATiempo({})).toBeNull();
+    expect(regEsATiempo({ estado: 'A tiempo' })).toBeNull(); // el string viejo ya no se usa ni se confía en él
+    expect(regEsATiempo({ desvioDias: null })).toBeNull();
+    expect(regEsATiempo({ desvioDias: NaN })).toBeNull();
+    expect(regEsATiempo(null)).toBeNull();
   });
 });
 

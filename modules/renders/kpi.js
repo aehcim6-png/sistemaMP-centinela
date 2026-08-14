@@ -79,9 +79,13 @@ window._getHHData=function(){
 };
 window._getCumplData=function(){
   var reg=S.g('reg')||[];var eq=S.g('eq')||[];var pE={};
-  reg.forEach(function(r){if(!pE[r.equipo])pE[r.equipo]={e:0,a:0,t:0};pE[r.equipo].e++;if(r.estado==='A tiempo')pE[r.equipo].a++;else pE[r.equipo].t++;});
+  // regEsATiempo (logic.js): fuente única — antes r.estado==='A tiempo' nunca
+  // coincidía con el dato real guardado (bug real, auditoría 2026-08). Registros
+  // no evaluables (ej. importados por CSV sin fecha esperada) no cuentan ni como
+  // a tiempo ni como atrasados — quedan fuera de "e" (ejecutados evaluables).
+  reg.forEach(function(r){var ev=regEsATiempo(r);if(ev===null)return;if(!pE[r.equipo])pE[r.equipo]={e:0,a:0,t:0};pE[r.equipo].e++;if(ev)pE[r.equipo].a++;else pE[r.equipo].t++;});
   eq.forEach(function(e){if(!pE[e.sigla])pE[e.sigla]={e:0,a:0,t:0};});
-  var h=['Equipo','Tipo','Ejecutados','A Tiempo','Atrasados','% Cumplimiento','Estado'];
+  var h=['Equipo','Tipo','Ejecutados evaluables','A Tiempo','Atrasados','% Cumplimiento','Estado'];
   var r=Object.entries(pE).sort(function(a,b){return b[1].e-a[1].e}).map(function(e){var p=e[1].e>0?Math.round(e[1].a/e[1].e*100):null;return[e[0],(eq.find(function(x){return x.sigla===e[0]})||{}).tipo||'',e[1].e,e[1].a,e[1].t,p===null?'—':p,p===null?'Sin datos':p>=80?'OK':p>=50?'Regular':'Bajo'];});
   return{headers:h,rows:r};
 };
@@ -221,13 +225,16 @@ window.renderKpi=function(){
   var mtbfActual=mtbfFlotaReal(eq,ot);
   var totalFallas=ot.filter(function(o){return o.tipo==='Correctivo'||o.tipo==='Falla Operacional'}).length;
 
-  // 3. CUMPLIMIENTO by month
+  // 3. CUMPLIMIENTO by month — regEsATiempo (logic.js) en vez de comparar
+  // r.estado==='A tiempo' (bug real, auditoría 2026-08, ver logic.js). Solo
+  // cuenta registros evaluables (con desvioDias real).
   var cumplMes=last12.map(function(mes){
-    var regM=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes});
-    var ant=regM.filter(function(r){return r.estado==='A tiempo'}).length;
-    return regM.length?Math.round(ant/regM.length*100):null;
+    var regMev=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes&&regEsATiempo(r)!==null});
+    var ant=regMev.filter(function(r){return regEsATiempo(r)===true}).length;
+    return regMev.length?Math.round(ant/regMev.length*100):null;
   });
-  var cumplActual=reg.length?Math.round(reg.filter(function(r){return r.estado==='A tiempo'}).length/reg.length*100):null;
+  var regEvActual=reg.filter(function(r){return regEsATiempo(r)!==null});
+  var cumplActual=regEvActual.length?Math.round(regEvActual.filter(function(r){return regEsATiempo(r)===true}).length/regEvActual.length*100):null;
 
   // 4. COSTO POR HORA OPERADA by month
   var costoHrMes=last12.map(function(mes){
