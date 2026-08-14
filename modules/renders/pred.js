@@ -60,6 +60,18 @@ var _CATEGORIAS_COMPONENTE=[
   // completo, la redacción real encontrada en correctivos) — esos eventos
   // quedaban sin categoría.
   ['Balde/Implemento',['pasador del balde','pasador de balde','pasador balde','cambio de balde','desgaste del balde','balde nuevo','balde por rotura']],
+  // Nueva (auditoría 2026-08, pedido del usuario: "biela, pantógrafo, cambio
+  // de pasadores y buje de balde o biela"): no existía ninguna categoría para
+  // el varillaje/linkage del balde (biela de volteo/pantógrafo) — quedaba sin
+  // categorizar pese a un patrón real serio: CF-9510 tuvo juego excesivo en
+  // el eje de la biela (feb-2025), fisura en la biela (jul-2025) y rotura del
+  // pantógrafo que obligó a cambiar el balde (feb-2026) — no es desgaste
+  // normal, es una falla estructural recurrente en el mismo conjunto.
+  // CF-8769 tuvo fisura de pantógrafo (feb-2026, 60 días fuera de servicio) y
+  // otra falla estructural en el mismo conjunto + pasador del cilindro de
+  // volteo (jul-2026, aún fuera de servicio). Ambos casos ameritan revisión
+  // de ingeniería (sobrecarga, fatiga), no solo cambiar la pieza rota de nuevo.
+  ['Biela/Pantógrafo',['biela','pantografo','pantógrafo']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
