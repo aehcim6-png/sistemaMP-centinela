@@ -3,15 +3,14 @@
 // siempre. _edCampo vive en index.html (compartido). exportTabla/
 // imprimirTab (botones globales de la barra superior) también quedan en
 // index.html — no son propios de esta pestaña.
-window.renderAce=function(){
-  var ace=S.g('aceite')||[];
-  var fEq=$('fAceEq')?.value||'';
-  var fEst=$('fAceEst')?.value||'';
-  var eq=S.g('eq')||[];
-
-  // Map component codes to equipment siglas — usa el campo 'equipo' directo si existe (datos COPEC nuevos);
-  // si no, recurre al parsing legacy del campo 'componente' (datos cargados manualmente antes).
-  var siglaMap={};
+// Resuelve m._sigla en cada registro de aceite — usa el campo 'equipo' directo
+// si existe (datos COPEC nuevos); si no, recurre al parsing legacy del campo
+// 'componente' (datos cargados manualmente antes). Extraída a función
+// compartida (auditoría 2026-08) porque Buscador Maestro también la necesita
+// para poder filtrar el análisis de aceite por equipo en la ficha — antes
+// vivía solo inline en renderAce() y ambas pantallas se habrían desincronizado
+// si el mapeo se corregía en una sin tocar la otra.
+window._aceiteResolverSiglas=function(ace){
   ace.forEach(function(m){
     if(m.equipo){m._sigla=m.equipo;return;}
     var comp=(m.componente||'').replace(/[-_]?(MT|SH|TR|MFD|MFI|DIF|DD|DT|TRANS|HID|FR|REF|RF|MC|MDI|MG|MGT|DF|HD|TAND|TANI|FRENO|REFRIGERANTE)$/i,'');
@@ -36,6 +35,15 @@ window.renderAce=function(){
     comp=comp.replace(/^CE-/,'CN-').replace(/^CF-/,'CF-').replace(/^BD-/,'BD-').replace(/^MN-/,'MN-');
     m._sigla=comp;
   });
+};
+
+window.renderAce=function(){
+  var ace=S.g('aceite')||[];
+  var fEq=$('fAceEq')?.value||'';
+  var fEst=$('fAceEst')?.value||'';
+  var eq=S.g('eq')||[];
+
+  window._aceiteResolverSiglas(ace);
 
   var fil=ace.filter(function(m){
     if(fEq&&!(m._sigla||'').includes(fEq)&&!(m.componente||'').includes(fEq))return false;
