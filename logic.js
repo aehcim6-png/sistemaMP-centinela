@@ -392,11 +392,28 @@ function rangoDias(desde, hasta){
 // cociente para el "MTBF Flota" que ve la jefatura). Equipos con menos de 2 fallas
 // con horómetro válido no aportan — no hay intervalo real que promediar. null si
 // ningún equipo de la flota tiene datos suficientes.
+// Fuente única: ¿esta OT es una FALLA real para efectos de confiabilidad
+// (MTBF, Confiabilidad R(t), % Flota sin falla, MTTR/Disponibilidad
+// Inherente)? Incluye 'Fuera de Servicio' con criticidad 'Reparación
+// Inmediata' — auditoría 2026-08: desde abril 2026 las fallas graves se
+// empezaron a registrar por ahí (el flujo rápido de Disponibilidad) en vez
+// de como Correctivo/Falla Operacional, y estas métricas solo miraban esos
+// dos tipos — 5 meses de fallas reales (motor, diferencial, estructura)
+// invisibles para MTBF/Confiabilidad aunque sí contaban para Disponibilidad
+// Mecánica. No incluye otras 'Fuera de Servicio' (ej. sin repuesto, no es
+// necesariamente una falla del equipo en sí) — solo las marcadas con la
+// criticidad más alta.
+function esFallaMTBF(o){
+  if(!o)return false;
+  if(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')return true;
+  return o.tipo==='Fuera de Servicio'&&o.criticidad==='Reparación Inmediata';
+}
+
 function mtbfFlotaReal(eq,ot){
   var perEq=[];
   (eq||[]).forEach(function(e){
     if(!e||e.unidad==='km')return;
-    var horoms=(ot||[]).filter(function(o){return o&&o.sigla===e.sigla&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&o.horom>0;}).map(function(o){return o.horom;});
+    var horoms=(ot||[]).filter(function(o){return o&&o.sigla===e.sigla&&esFallaMTBF(o)&&o.horom>0;}).map(function(o){return o.horom;});
     var m=C.mtbfReal(horoms);
     if(m!=null)perEq.push(m);
   });
@@ -1171,6 +1188,7 @@ if (typeof window !== 'undefined') {
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
   window.mtbfFlotaReal = mtbfFlotaReal;
+  window.esFallaMTBF = esFallaMTBF;
   window.confiabilidadReal = confiabilidadReal;
   window.regEsATiempo = regEsATiempo;
 }
@@ -1184,6 +1202,6 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF
   };
 }

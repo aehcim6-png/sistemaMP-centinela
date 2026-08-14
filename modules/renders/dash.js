@@ -152,9 +152,11 @@ window.renderDash=function(){
   var dispFlota=dispVals.length?Math.round(dispVals.reduce(function(s,v){return s+v},0)/dispVals.length*10)/10:null;
   var dispCol=dispFlota===null?'var(--tx3)':dispFlota>=meta?'#22c55e':dispFlota>=70?'#f59e0b':'#ef4444';
   var bajoMeta=dispVals.filter(function(v){return v<meta}).length;
-  // MTBF del mes — fallas tipificadas como Correctivo o Falla Operacional en el período
+  // MTBF del mes — esFallaMTBF (logic.js): fuente única, incluye 'Fuera de
+  // Servicio' con criticidad 'Reparación Inmediata' además de Correctivo/
+  // Falla Operacional (ver comentario ahí — auditoría 2026-08).
   var fallasMes=ot.filter(function(o){
-    if(!(o.tipo==='Correctivo'||o.tipo==='Falla Operacional'))return false;
+    if(!esFallaMTBF(o))return false;
     return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
   }).length;
   var totalFallas=fallasMes;
@@ -188,7 +190,7 @@ window.renderDash=function(){
   var hrsFlotaMes=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
   // Confiabilidad: equipos sin falla en el PERÍODO seleccionado (no en toda la historia)
   var eqConFallaMes=new Set(ot.filter(function(o){
-    if(!(o.tipo==='Correctivo'||o.tipo==='Falla Operacional'))return false;
+    if(!esFallaMTBF(o))return false;
     return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
   }).map(function(o){return o.sigla;})).size;
   var idxConf=eq.length>0?Math.round((eq.length-eqConFallaMes)/eq.length*100):100;
@@ -202,7 +204,7 @@ window.renderDash=function(){
   // MTTR del mes — cuando una OT no tiene duración registrada, se asume 8h en vez
   // de dejarla fuera del promedio (ver tooltip de la tarjeta más abajo: esto es
   // una ESTIMACIÓN, no un dato medido, para no perder la OT del cálculo).
-  var otFallasMes=ot.filter(function(o){return(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;});
+  var otFallasMes=ot.filter(function(o){return esFallaMTBF(o)&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;});
   var otFallasMesSinDuracion=otFallasMes.filter(function(o){return!o.duracion||!o.duracion.match(/(\d+)h/);}).length;
   // Bug real (encontrado por el usuario, agosto 2026): con 0 correctivos en el
   // período elegido, mttrF caía a 0 en vez de "sin dato" — y MTBF/(MTBF+0) da

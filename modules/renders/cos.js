@@ -57,7 +57,7 @@ window.renderCos = function () {
   }
   var mtbfEquipo = {};
   eq.forEach(function (e) {
-    var fallas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return (o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional'); });
+    var fallas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return esFallaMTBF(o); });
     var reparaciones = fallas.filter(function (o) { return o.duracion && o.duracion !== '—'; });
     // MTTR = promedio duración reparaciones
     var totalRepH = 0;

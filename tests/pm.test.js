@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -82,12 +82,21 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
     expect(mtbfFlotaReal([], [])).toBeNull();
   });
 
-  it('ignora correctivos de tipo distinto a Correctivo/Falla Operacional (ej. Fuera de Servicio administrativo)', () => {
+  it('ignora correctivos de tipo distinto a Correctivo/Falla Operacional/Fuera de Servicio', () => {
     const eq = [{ sigla: 'A' }];
     const ot = [
       { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
       { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
       { sigla: 'A', tipo: 'Otro', horom: 9999 }, // no cuenta
+    ];
+    expect(mtbfFlotaReal(eq, ot)).toBe(1000);
+  });
+
+  it('cuenta Fuera de Servicio con criticidad Reparación Inmediata como falla real (auditoría 2026-08)', () => {
+    const eq = [{ sigla: 'A' }];
+    const ot = [
+      { sigla: 'A', tipo: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', horom: 1000 },
+      { sigla: 'A', tipo: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', horom: 2000 },
     ];
     expect(mtbfFlotaReal(eq, ot)).toBe(1000);
   });
@@ -117,6 +126,26 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
     const r2 = mtbfFlotaReal(eq, ot); // "otro día", mismos datos de fallas
     expect(r1).toBe(r2);
     expect(r1).toBe(1000);
+  });
+});
+
+describe('esFallaMTBF — fuente única de "¿esta OT es una falla real?" (auditoría 2026-08: desde abril 2026 las fallas graves se registraban como Fuera de Servicio y quedaban invisibles para MTBF/Confiabilidad/% Flota sin falla)', () => {
+  it('Correctivo y Falla Operacional siempre cuentan', () => {
+    expect(esFallaMTBF({ tipo: 'Correctivo' })).toBe(true);
+    expect(esFallaMTBF({ tipo: 'Falla Operacional' })).toBe(true);
+  });
+  it('Fuera de Servicio cuenta SOLO con criticidad Reparación Inmediata', () => {
+    expect(esFallaMTBF({ tipo: 'Fuera de Servicio', criticidad: 'Reparación Inmediata' })).toBe(true);
+    expect(esFallaMTBF({ tipo: 'Fuera de Servicio', criticidad: 'No Aplica' })).toBe(false);
+    expect(esFallaMTBF({ tipo: 'Fuera de Servicio' })).toBe(false);
+  });
+  it('otros tipos (Cambio de Componente, Reasignación de Neumático, etc.) no cuentan', () => {
+    expect(esFallaMTBF({ tipo: 'Cambio de Componente' })).toBe(false);
+    expect(esFallaMTBF({ tipo: 'Reasignación de Neumático' })).toBe(false);
+  });
+  it('null/undefined no revienta, devuelve false', () => {
+    expect(esFallaMTBF(null)).toBe(false);
+    expect(esFallaMTBF(undefined)).toBe(false);
   });
 });
 

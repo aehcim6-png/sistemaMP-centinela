@@ -87,7 +87,7 @@ window.renderMetas = function () {
           // MTBF mensual = horas de flota ÷ fallas del mes. Un mes SIN fallas ya no
           // devuelve las horas completas (número absurdo que siempre gana la meta): queda
           // "sin dato", porque no hubo intervalo entre fallas que medir ese mes.
-          if (ind.id === 'mtbf') { var fM = ot.filter(function (o) { return (o.fecha || '').slice(0, 7) === anioMetas + '-' + ('0' + (mi + 1)).slice(-2) && (o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional') }).length; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 ? Math.round(hM / fM) : null; }
+          if (ind.id === 'mtbf') { var fM = ot.filter(function (o) { return (o.fecha || '').slice(0, 7) === anioMetas + '-' + ('0' + (mi + 1)).slice(-2) && esFallaMTBF(o) }).length; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 ? Math.round(hM / fM) : null; }
           var sinDato = real === null;
           var ok = sinDato ? null : (ind.higher ? (real >= metaM) : (real <= metaM));
           var col = sinDato ? 'var(--tx3)' : ok ? '#22c55e' : '#ef4444';
