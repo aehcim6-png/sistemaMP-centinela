@@ -420,6 +420,20 @@ window.saveOT=function(){
     if(ms>0)durStr=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
   }
   const horom=parseInt($('oHor').value)||0;
+  // Mismo resguardo que reg.js (registro de PM): sin esto, un horómetro mal
+  // digitado en una OT correctiva se guardaba sin aviso y quedaba como un
+  // retroceso imposible en 'correctivos' — encontrado en auditoría 2026-08
+  // (decenas de saltos hacia atrás en el histórico, varios equipos).
+  const eqChk=S.g('eq')||[];const eChk=eqChk.find(function(x){return x.sigla===sig;});
+  if(horom>0&&eChk&&eChk.horomActual){
+    const esRetroactivo=!!(eChk.fechaHorom&&fechaEsAnterior(fEnt,eChk.fechaHorom));
+    if(!esRetroactivo&&horom<eChk.horomActual){
+      if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+sig+' tiene horómetro actual: '+eChk.horomActual.toLocaleString('es-CL')+'h\nEstás registrando: '+horom.toLocaleString('es-CL')+'h ('+(eChk.horomActual-horom).toLocaleString('es-CL')+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
+    } else if(!esRetroactivo){
+      const chkSalto=validarSaltoHorometro(horom,eChk.horomActual,eChk.fechaHorom,fEnt,eChk.hrsDia);
+      if(!chkSalto.valido&&!confirm('⚠️ '+chkSalto.motivo+'\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
+    }
+  }
   const estadoOTNueva=$('oEstOT')?.value||'Cerrada';
   ot.unshift({sigla:sig,fecha:fEnt,fechaEntrada:fEnt,horaEntrada:hEnt,
     fechaSalida:fSal,horaSalida:hSal,duracion:durStr,
