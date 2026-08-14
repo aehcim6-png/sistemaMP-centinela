@@ -54,7 +54,12 @@ var _CATEGORIAS_COMPONENTE=[
   ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico']],
   ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
   ['GET / Cuchillas',['cuchilla','entrediente','gets']],
-  ['Balde/Implemento',['pasador del balde','pasador balde']],
+  // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
+  // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
+  // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde
+  // completo, la redacción real encontrada en correctivos) — esos eventos
+  // quedaban sin categoría.
+  ['Balde/Implemento',['pasador del balde','pasador de balde','pasador balde','cambio de balde','desgaste del balde','balde nuevo','balde por rotura']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
