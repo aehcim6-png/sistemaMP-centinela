@@ -79,14 +79,14 @@ pierde en silencio el cambio de uno de los dos.
 | Disponibilidad | % de disponibilidad mecánica, meta y tendencia |
 | Análisis Aceite | Muestras de laboratorio, estado por componente |
 | Vencimientos | Documentos legales por equipo (revisión técnica, seguro, etc.) |
-| Stock & Insumos | Filtros, lubricantes, costos y consumos |
-| Horómetros / Repuestos | Control de inventario y órdenes de compra |
+| Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) |
 | Predictivo | Diagnóstico automático, alertas cruzadas, backlog |
-| Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Programación Diaria |
+| Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
-| Componentes | Componentes Mayores, Destrabe, Informes de Falla, Tren de Rodaje |
+| Componentes | Componentes Mayores, Predictivo, Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes |
 | Metas & KPIs | Plan vs. real, avance mensual, informes descargables |
-| Buscar | Historial completo de cualquier equipo en una sola pantalla |
+| Buscar | Ficha completa por equipo (PM, correctivos, componentes, horómetros, inspecciones, neumáticos, tren de rodaje, aceite, vencimientos, historial, destrabe y costos) + ranking de equipos problemáticos |
+| Auditoría de Datos | Cruce automático: horómetros que retroceden, componentes sin validar, OT sin solución — se recalcula solo cada vez que se abre |
 | Configuración | Usuarios, seguridad, respaldo, tema, información del sistema |
 
 ## 7. Preguntas frecuentes

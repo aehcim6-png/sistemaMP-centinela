@@ -62,14 +62,14 @@
     <li><b>index.html</b> (~3.300 líneas) — el esqueleto: la barra de navegación, el login, el
     arranque de la aplicación, y la infraestructura compartida entre pestañas que no encajaba en
     un módulo propio (autoguardado a carpeta local, auditoría, MFA, gestión de usuarios).</li>
-    <li><b>modules/renders/*.js</b> (40 archivos) — un archivo por pestaña o sub-pestaña del
+    <li><b>modules/renders/*.js</b> (41 archivos) — un archivo por pestaña o sub-pestaña del
     sistema. Cada uno define <code>window.render&lt;Tab&gt;</code> más los botones/formularios
     exclusivos de esa pestaña. Son scripts planos, no módulos ES — comparten el mismo espacio de
     variables globales que el resto del sistema, a propósito.</li>
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
     disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los
-    archivos con pruebas automatizadas (312 casos, corren con Vitest).</li>
+    archivos con pruebas automatizadas (429 casos, corren con Vitest).</li>
   </ul>
 
   <h3>2. Dónde vive — Vercel</h3>
@@ -88,7 +88,7 @@
   <p>Al llamar <code>S.s(categoria, valor)</code> ocurren, en este orden:</p>
   <ol>
     <li><b>localStorage</b> — se escribe de inmediato, siempre, funcione o no internet.</li>
-    <li><b>Supabase</b> — si la categoría es una de las 31 tablas reales, se envía sin demora un
+    <li><b>Supabase</b> — si la categoría es una de las 33 tablas reales, se envía sin demora un
     <code>upsert</code> más un <code>delete</code> de filas eliminadas — pero antes se hace un
     chequeo de conflicto (ver más abajo).</li>
     <li><b>Carpeta de respaldo</b> (opcional) — si alguien conectó una carpeta local, 5 segundos
@@ -124,7 +124,9 @@
   crear/editar/eliminar para este rol — queda para un paso aparte.</p>
 
   <h3>6. Estructura de datos en Supabase</h3>
-  <p>~31 tablas, una por categoría, más 6 "singleton" de configuración. El mapeo vive en
+  <p>33 tablas, una por categoría (incluye historial_componentes e historial_neumaticos, agregadas
+  en agosto 2026 para no perder "cuánto duró cada instalación real"), más 7 "singleton" de
+  configuración. El mapeo vive en
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.
   El schema está versionado como código en <code>supabase/migrations/*.sql</code>.</p>
 

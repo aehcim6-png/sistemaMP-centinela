@@ -62,18 +62,25 @@ Política mínima configurada en Supabase Auth: 14 caracteres, con
 mayúscula/minúscula/dígito/símbolo. Las cuentas nuevas se crean con una
 contraseña temporal que fuerza el cambio al primer ingreso.
 
-### Auditoría
+### Auditoría (trazabilidad — quién cambió qué)
 
 **Configuración → Accesos recientes** — quién entró, cuándo, desde qué
 computador. **Configuración → Log de cambios** — cada edición, creación o
 eliminación en el sistema, con fecha, usuario y detalle.
 
+No confundir con la pestaña **Auditoría de Datos** (agosto 2026, en el menú
+principal): esa es otra cosa — no rastrea quién cambió qué, sino si los
+datos son consistentes entre sí (horómetros que retroceden entre OT,
+componentes mayores con dato genérico sin validar, OT cerradas sin
+solución). Se recalcula sola cada vez que se abre.
+
 ## 4. Base de datos (Supabase)
 
-- **31 tablas reales** (una por categoría: `equipos`, `correctivos`,
-  `registros_pm`, etc.) + 6 tablas "singleton" de configuración. El mapeo
-  completo vive en `TABLA_REAL`/`TABLA_SINGLETON` dentro de
-  `modules/store.js`.
+- **33 tablas reales** (una por categoría: `equipos`, `correctivos`,
+  `registros_pm`, etc. — incluye `historial_componentes` e
+  `historial_neumaticos`, agregadas en agosto 2026) + 7 tablas "singleton"
+  de configuración. El mapeo completo vive en `TABLA_REAL`/`TABLA_SINGLETON`
+  dentro de `modules/store.js`.
 - **El schema está versionado como código** en `supabase/migrations/*.sql`.
   Cualquier cambio de estructura (agregar una columna, una tabla, una
   política RLS) debe hacerse como un archivo de migración nuevo — con la
@@ -137,7 +144,7 @@ datos en un backend nuevo, siguiendo el mismo mapeo de `TABLA_REAL`.
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (40 en total)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (41 en total)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario)
 tests/                   — pruebas de logic.js y store.js (Vitest, 312 casos)
