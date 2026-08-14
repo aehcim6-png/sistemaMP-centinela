@@ -27,16 +27,59 @@ function cadProyeccion(c) {
   const diasRestantes = Math.round(hrsRestantes / hrsDia);
   return { hrsRestantes, diasRestantes, tasaMes: Math.round(tasa * hrsDia * 30 * 100) / 100 };
 }
+// Cuánto duró (en horas de horómetro) cada instalación de tren de rodaje que
+// ya fue reemplazada. A diferencia de componentes_mayores, acá el historial
+// NO necesitó tabla nueva: cada cambio real encontrado se registró como fila
+// aparte con estado='Cambiado' en vez de pisar la fila anterior (ver sesión
+// 2026-08), así que la materia prima ya estaba en 'cad'. Mismo criterio de
+// cálculo y de alerta (⚠️ = duró menos de la mitad del promedio de su tipo)
+// que Historial de Componentes (modules/renders/histcomp.js).
+function _cadResumenVida(cad) {
+  const porClave = {};
+  cad.forEach(function (c) {
+    const k = c.sigla + '|' + c.lado + '|' + c.componente;
+    (porClave[k] = porClave[k] || []).push(c);
+  });
+  const statsPorComp = {};
+  Object.keys(porClave).forEach(function (k) {
+    const arr = porClave[k].slice().sort(function (a, b) { return (parseFloat(a.horomInstalacion) || 0) - (parseFloat(b.horomInstalacion) || 0); });
+    for (let i = 1; i < arr.length; i++) {
+      const hAnt = parseFloat(arr[i - 1].horomInstalacion), hAct = parseFloat(arr[i].horomInstalacion);
+      if (isNaN(hAnt) || isNaN(hAct) || hAct <= hAnt) continue;
+      (statsPorComp[arr[i].componente] = statsPorComp[arr[i].componente] || []).push(Math.round(hAct - hAnt));
+    }
+  });
+  return Object.keys(statsPorComp).map(function (c) {
+    const arr = statsPorComp[c];
+    const prom = Math.round(arr.reduce(function (s, v) { return s + v; }, 0) / arr.length);
+    return { comp: c, n: arr.length, prom: prom, min: Math.min.apply(null, arr), max: Math.max.apply(null, arr) };
+  }).sort(function (a, b) { return a.comp.localeCompare(b.comp); });
+}
 window.renderCad = function () {
   const cad = S.g('cad') || [];
   const fEq = $('fCadEq')?.value || '';
   const eqs = [...new Set(cad.map(function (c) { return c.sigla; }))].sort();
   const fil = cad.filter(function (c) { return !fEq || c.sigla === fEq; });
   const crit = fil.filter(function (c) { return c.pctRemanente != null && c.pctRemanente < 30; }).length;
+  const resumenVida = _cadResumenVida(cad);
   $('s-cad').innerHTML = `
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Tren de Rodaje</div><div class="sec-s">${cad.length} componentes registrados en ${eqs.length} equipos · 🔴 ${crit} críticos</div></div>
       <button class="btn" onclick="addCad()">+ Agregar componente</button>
     </div>
+    ${resumenVida.length ? `<div class="tbl-wrap" style="margin-bottom:16px"><table>
+      <tr><th>Componente</th><th>N° cambios medidos</th><th>Promedio (h)</th><th>Mínimo (h)</th><th>Máximo (h)</th></tr>
+      ${resumenVida.map(function (r) {
+        const alerta = r.min < r.prom * 0.5;
+        return `<tr${alerta ? ' style="background:rgba(239,68,68,.05)"' : ''}>
+          <td style="font-weight:600">${escapeHtml(r.comp)}</td>
+          <td class="mono">${r.n}</td>
+          <td class="mono">${r.prom.toLocaleString()}</td>
+          <td class="mono" style="${alerta ? 'color:var(--danger);font-weight:700' : ''}">${r.min.toLocaleString()}${alerta ? ' ⚠️' : ''}</td>
+          <td class="mono">${r.max.toLocaleString()}</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+    <div style="font-size:11px;color:var(--tx2);margin-bottom:16px">⚠️ = algún cambio duró menos de la mitad del promedio de su tipo — candidato a revisar garantía o calidad del repuesto/proveedor. Se cuenta cada vez que una instalación anterior (fila con estado "Cambiado") fue reemplazada por otra más reciente del mismo equipo+lado+componente.</div>` : ''}
     <div class="toolbar">
       <select id="fCadEq" onchange="renders.cad()"><option value="">Todos los equipos</option>${eqs.map(function (s) { return '<option' + (s === fEq ? ' selected' : '') + '>' + escapeHtml(s) + '</option>'; }).join('')}</select>
     </div>
