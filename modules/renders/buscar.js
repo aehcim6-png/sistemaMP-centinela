@@ -62,7 +62,7 @@ window.renderBuscar=function(){
 
     // KPIs del equipo
     var hhEq=Math.round(regF.reduce(function(s,r){return s+(r.duracionH||0)},0));
-    var fallasEqArr=otF.filter(function(o){return o.tipo==='Correctivo'||o.tipo==='Falla Operacional'});
+    var fallasEqArr=otF.filter(function(o){return esFallaMTBF(o);});
     var fallasEq=fallasEqArr.length;
     var mtbfEq=C.mtbfReal(fallasEqArr.map(function(o){return o.horom;}));
     var costoEq=hhEq*(S.g('hh')||25000);
@@ -168,7 +168,7 @@ window.renderBuscar=function(){
     // O(equipos × filas) en la vista que se ve primero al abrir esta pestaña.
     var otPorSiglaBuscar={},regPorSiglaBuscar={};
     ot.forEach(function(o){
-      if(!o.sigla||!((o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&inRange(o.fecha)))return;
+      if(!o.sigla||!(esFallaMTBF(o)&&inRange(o.fecha)))return;
       (otPorSiglaBuscar[o.sigla]=otPorSiglaBuscar[o.sigla]||[]).push(o);
     });
     reg.forEach(function(r){
