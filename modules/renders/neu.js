@@ -50,7 +50,14 @@ window.renderNeu=function(){
   // Crítico = debe cambiarse YA (delantera pasada de horas o remanente en el límite de
   // retiro ~10mm), NO por % de goma bajo — un trasero al 25% aún tiene vida (se corre
   // hasta ~10mm/tela). Ver neuDebeCambiar / neuProxCambio.
-  const crit=fil.filter(neuDebeCambiar).length;
+  // Bug real (auditoría 2026-08): "Costo est. cambiar ya" usaba un precio parejo
+  // (~USD 12.500/un) para CUALQUIER neumático crítico, aunque el sistema ya tiene
+  // precios reales por tipo en NEU_PRECIOS (desde $195.304 un delantero de bus
+  // hasta $19.601.166 uno de cargador CF) — podía salir hasta ~100x errado según
+  // qué tipo de equipo tuviera los críticos. Ahora suma el precio real por tipo.
+  const criticosNeu=fil.filter(neuDebeCambiar);
+  const crit=criticosNeu.length;
+  const costoCambiarYa=criticosNeu.reduce(function(s,n){return s+(neuPrecio(n).precio||0);},0);
   const prox=fil.filter(neuProxCambio).length;
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
   const pg=_pagSlice('neu',fil);
@@ -62,7 +69,7 @@ window.renderNeu=function(){
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
       <div class="card" onclick="verNeuLista('cambiar')" style="cursor:pointer" title="Ver cuáles son"><div class="card-t" style="color:var(--danger)">Cambiar ya <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg></div><div class="card-v" style="color:var(--danger)">${crit}</div><div class="card-s">delantera +2.800h o goma ≤límite · clic para ver</div></div>
       <div class="card" onclick="verNeuLista('proximo')" style="cursor:pointer" title="Ver cuáles son"><div class="card-t" style="color:var(--warn)">Próximos (≤30 días) <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg></div><div class="card-v" style="color:var(--warn)">${prox}</div><div class="card-s">clic para ver</div></div>
-      <div class="card"><div class="card-t">Costo est. cambiar ya</div><div class="card-v" style="color:var(--ac)">$${fn(crit*8500000)}</div><div class="card-s">~USD 12.500/un</div></div>
+      <div class="card"><div class="card-t">Costo est. cambiar ya</div><div class="card-v" style="color:var(--ac)">$${fn(costoCambiarYa)}</div><div class="card-s">Precio real por tipo (NEU_PRECIOS)</div></div>
     </div>
     <div class="toolbar">
       <select id="fNeuEq" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos equipos</option>${eqs.map(s=>`<option${s===fEq?' selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
@@ -360,7 +367,13 @@ window.saveCambio=function(i,hAct){
   // las 2 filas competirían por la misma fila real en la base (mismo id, mismo
   // upsert por lote) y una se pisaría a la otra.
   neu.push({...n,id:_uuidV4(),serie:n.serie,estado:$('cDest').value==='Stock'?'Stock':'De baja',remanente:remAnt,fechaBaja:new Date().toISOString().slice(0,10)});
-  n.serie=serieNuevo;n.horomInstalacion=hAct;n.horasAcum=0;
+  // Bug real (auditoría 2026-08): el sensor del neumático retirado (n.serie, ANTES
+  // de mutar) nunca se desmontaba acá — a diferencia de saveNeu/confirmarInstalarExistencias,
+  // que sí llaman _desmontarSensorSiTiene. El neumático nuevo quedaba mostrando el
+  // N° de sensor del que se retiró, y sensores_neumaticos seguía apuntando al
+  // neumático viejo (ya en Stock/De baja) como si siguiera montado.
+  _desmontarSensorSiTiene(n.serie);
+  n.serie=serieNuevo;n.horomInstalacion=hAct;n.horasAcum=0;n.numSensor='';
   // Igual que en saveNeu: el remanente de un neumático "nuevo" depende de la marca
   // (n.marca no cambia en este flujo, sigue siendo la misma posición) — usar
   // neuCriterio en vez del campo n.remNuevo guardado, que puede quedar desactualizado.
