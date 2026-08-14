@@ -22,6 +22,29 @@
 // también queda compartida en index.html, no es de Neumáticos.
 // ═══════════════════════════════════════════════════════════════════════
 
+// El horómetro guardado en 'equipos' (horomActual) se actualiza solo
+// periódicamente (import manual/Excel) — puede quedar rezagado frente a los
+// horómetros que ya se registraron por OT en 'correctivos' para ese mismo
+// equipo. Si se usa horomActual tal cual para timbrar un evento "ahora"
+// (cambio/reasignación de neumático), un horomActual desactualizado escribe
+// un horómetro que retrocede en el tiempo — encontrado en auditoría 2026-08
+// en varios equipos (CN-4656, CN-9500, CN-9501, CN-9503, CN-9507...). Nunca
+// bajar del máximo horómetro ya visto para ese equipo.
+function _horomEquipoSeguro(sig){
+  const eq=S.g('eq')||[];
+  const e=eq.find(function(x){return x.sigla===sig;});
+  const base=e?(parseFloat(e.horomActual)||0):0;
+  const ot=S.g('ot')||[];
+  let maxOt=0;
+  ot.forEach(function(r){
+    if(r.sigla===sig){
+      const h=parseFloat(r.horom);
+      if(!isNaN(h)&&h>maxOt)maxOt=h;
+    }
+  });
+  return Math.max(base,maxOt);
+}
+
 window.renderNeu=function(){
   const neu=S.g('neu')||[];
   const eqMapN={};(S.g('eq')||[]).forEach(e=>eqMapN[e.sigla]=e);
@@ -327,8 +350,7 @@ window.saveNeu=function(){
   const c=neuCriterio({tipoEquipo:tipo,posicion:pos,marca});
   const remNuevo=c.remNuevo||81;
   const pct=rem!=null?neuPct({tipoEquipo:tipo,posicion:pos,marca,remanente:rem}):null;
-  const eq=S.g('eq')||[];const e=eq.find(x=>x.sigla===sig);
-  const hAct=e?e.horomActual:0;
+  const hAct=_horomEquipoSeguro(sig);
   const acum=parseInt($('nNAcum').value)||0;
   neu.push({id:_uuidV4(),sigla:sig,tipoEquipo:tipo,tipo:'Neumático',posicion:pos,
     numPos:parseInt($('nNNumPos').value)||1,numSensor:$('nNSensor').value,serie,
@@ -339,8 +361,7 @@ window.saveNeu=function(){
 };
 window.cambiarNeu=function(i){
   const neu=S.g('neu')||[];const n=neu[i];
-  const eq=S.g('eq')||[];const e=eq.find(x=>x.sigla===n.sigla);
-  const hAct=e?e.horomActual:0;
+  const hAct=_horomEquipoSeguro(n.sigla);
   sm(`<h3>↺ Cambio — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
     <p style="color:var(--tx2);margin-bottom:12px">Serie: <b>${escapeHtml(n.serie)}</b> · Remanente: <b>${n.remanente||'—'}mm</b></p>
     <div class="form-row">
@@ -419,9 +440,7 @@ window.confirmarInstalarExistencias=function(){
     neu[ocupadoIdx].numSensor='';
     neu[ocupadoIdx].fechaBaja=new Date().toISOString().slice(0,10);
   }
-  const eq=S.g('eq')||[];
-  const e=eq.find(x=>x.sigla===sig);
-  const hAct=e?e.horomActual:0;
+  const hAct=_horomEquipoSeguro(sig);
   const origen=n.sigla?`${n.sigla} ${n.posicion||''}`.trim():'Existencias';
   n.sigla=sig;n.posicion=pos;n.numPos=numPos;
   n.horomInstalacion=hAct;n.estado='Operativo';n.fechaInst=new Date().toISOString().slice(0,10);
