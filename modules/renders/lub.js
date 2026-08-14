@@ -51,9 +51,15 @@ window.renderLub = function () {
       var acum = Math.round(totalCons[l.nombre] || 0);
       var proy = l.proyMes || 0;
       var cm = l.consumoMes || 0;
-      var divisor = cm || proy || 1;
-      var meses = (l.stock || 0) / divisor;
-      var estCol = meses < 1 ? 'var(--danger)' : meses < 3 ? 'var(--w)' : 'var(--ok)';
+      // Bug real (auditoría 2026-08): Lubricantes tenía su propia fórmula
+      // ("stock ÷ consumo", el proxy de 1 mes) en vez de stockEstado — la
+      // misma fuente única que ya unificó este cálculo para Stock Filtros y
+      // el Dashboard, justo porque ese proxy marcaba "OK" cosas que con un
+      // lead time real de 34 días (más de 1 mes) ya iban a quebrar antes de
+      // que llegara el pedido. Ahora usa stockEstado igual que el resto.
+      var se = stockEstado(l.stock || 0, cm || proy, l.leadTime);
+      var meses = se.meses;
+      var estCol = se.nivel === 'COMPRAR' ? 'var(--danger)' : se.nivel === 'BAJO' ? 'var(--w)' : 'var(--ok)';
       var is = CELL_INPUT_STYLE + ';font-size:11px;padding:2px';
       // Producto descontinuado: se avisa en la fila para no cargarle precio ni
       // stock por error — su demanda ya se pide bajo el vigente que lo reemplaza.
@@ -70,7 +76,7 @@ window.renderLub = function () {
         '<td><input type="number" value="' + cm + '" onchange="edI(\'lub\',' + idx + ',\'consumoMes\',parseFloat(this.value)||0)" style="width:50px;' + is + '"></td>' +
         '<td style="font-size:10px;color:var(--tx3)">' + last + '</td>' +
         '<td><input type="number" value="' + proy + '" onchange="edI(\'lub\',' + idx + ',\'proyMes\',parseFloat(this.value)||0)" style="width:50px;' + is + ';color:var(--w);font-weight:600" title="Proyección mensual manual"></td>' +
-        '<td style="text-align:center;font-weight:600;color:' + estCol + '">' + meses.toFixed(1) + '</td>' +
+        '<td style="text-align:center;font-weight:600;color:' + estCol + '" title="' + escapeHtml(se.motivo) + '">' + (meses == null ? '—' : meses.toFixed(1)) + '</td>' +
         '<td><input type="number" value="' + (l.precio || 0) + '" onchange="edI(\'lub\',' + idx + ',\'precio\',parseInt(this.value)||0)" style="width:55px;' + is + '"></td>' +
         '<td><button class="btn-s btn-d" onclick="delRow(\'lub\',' + idx + ',\'lub\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('') +

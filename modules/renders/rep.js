@@ -40,10 +40,23 @@ window.renderRep = function () {
   if (JSON.stringify(rep) !== repAntes) S.s('repuestos', rep);
 
   // Calculate estado for each
+  // Bug real (auditoría 2026-08): consMes se sacaba dividiendo stockMinimo/1.5
+  // — exactamente la fórmula usada para GENERAR stockMinimo automáticamente
+  // (líneas 26/34 arriba). Si el usuario editaba stockMinimo por otro motivo
+  // (ej. más margen de seguridad), el sistema lo reinterpretaba como "ahora se
+  // consume 1.5x más rápido" y podía invertir la alerta (subir el mínimo
+  // podía disparar 🔴 PEDIR YA falso; bajarlo podía esconder un quiebre real).
+  // Ahora se busca primero el consumo REAL del ítem vinculado en Stock
+  // Filtros/Lubricantes (mismo dato que ya usan esas pestañas) por N° de
+  // parte o nombre; solo si no hay vínculo real cae al estimado viejo.
   rep.forEach(function (r) {
     var ratio = (r.stockActual || 0) / (r.stockMinimo || 1);
     var leadMeses = (r.leadTime || 34) / 30;
-    var consMes = r.stockMinimo / 1.5 || 1;
+    var stkMatch = stk.find(function (s) { return (r.nParte && s.nParte && s.nParte === r.nParte) || (s.descripcion && s.descripcion === r.componente); });
+    var lubMatch = !stkMatch ? lub.find(function (l) { return l.nombre === r.componente; }) : null;
+    var consMesReal = stkMatch ? (stkMatch.consumoMes || stkMatch.proyMes) : (lubMatch ? (lubMatch.consumoMes || lubMatch.proyMes) : null);
+    r._consEstimado = !consMesReal;
+    var consMes = consMesReal || (r.stockMinimo / 1.5) || 1;
     var mesesStock = consMes > 0 ? (r.stockActual || 0) / consMes : 99;
     if (r.stockActual <= 0) r.estado = '🔴 SIN STOCK';
     else if (mesesStock < leadMeses) r.estado = '🔴 PEDIR YA';
@@ -107,7 +120,7 @@ window.renderRep = function () {
       else accion = '<span style="font-size:10px;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK</span>';
 
       return '<tr style="background:' + bg + '">' +
-        '<td style="font-size:11px;white-space:nowrap">' + r.estado + '</td>' +
+        '<td style="font-size:11px;white-space:nowrap" title="' + (r._consEstimado ? 'Sin vínculo con Stock Filtros/Lubricantes — consumo estimado desde el stock mínimo, no es dato real medido' : 'Consumo real desde Stock Filtros/Lubricantes') + '">' + r.estado + (r._consEstimado ? ' <span style="color:var(--tx3)">≈</span>' : '') + '</td>' +
         '<td><input value="' + escapeHtml(r.componente || '') + '" onchange="edRep(' + i + ',\'componente\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px"></td>' +
         '<td><input value="' + escapeHtml(r.nParte || '') + '" onchange="edRep(' + i + ',\'nParte\',this.value)" style="width:80px;background:transparent;border:none;color:var(--tx3);font-size:10px"></td>' +
         '<td><input value="' + escapeHtml(r.equipo || '') + '" onchange="edRep(' + i + ',\'equipo\',this.value)" style="width:70px;background:transparent;border:none;color:var(--tx);font-size:10px"></td>' +
