@@ -42,8 +42,15 @@ window.renderComp=function(){
   // fechas/horómetros por equipo) queda en historial_componentes — ver
   // hallazgo real: CN-4656 cambió motor de partida 5 veces en menos de 1 año
   // (19.014h→22.540h), patrón que apunta a falla de origen, no desgaste normal.
+  // (2026-08d) Bomba de Combustible se agrega igual (costoRef real: $1.316.032
+  // promedio/9 compras) — 4 equipos con instalación real confirmada. Inyectores
+  // NO se agregó pese a tener costo real (7 compras, $643.084 promedio): solo se
+  // encontró 1 evento real de cambio en correctivos y sin horómetro capturado
+  // (equipo fuera de servicio), insuficiente para trackear "cuánto dura". Bomba
+  // de Agua tampoco: el único hallazgo real (MN-6112, alza de temperatura/falla
+  // bomba de agua) es un diagnóstico, no confirma que se haya cambiado.
   if(newEqs.length){
-    var defaultComps=[{comp:'Motor',vidaUtil:15000,costoRef:45000000},{comp:'Transmisión',vidaUtil:12000,costoRef:35000000},{comp:'Diferencial',vidaUtil:12000,costoRef:25000000},{comp:'Convertidor',vidaUtil:10000,costoRef:20000000},{comp:'Mandos Finales',vidaUtil:10000,costoRef:18000000},{comp:'Bomba Hidráulica',vidaUtil:8000,costoRef:15000000},{comp:'Turbo',vidaUtil:12000,costoRef:8000000},{comp:'Cilindro de Dirección',vidaUtil:15000,costoRef:6000000},{comp:'Suspensión Delantera',vidaUtil:15000,costoRef:10000000},{comp:'Soporte de Cabina',vidaUtil:20000,costoRef:4000000},{comp:'Tolva',vidaUtil:25000,costoRef:15000000},{comp:'Asiento',vidaUtil:6000,costoRef:491000},{comp:'Batería',vidaUtil:4000,costoRef:435570},{comp:'Alternador',vidaUtil:6000,costoRef:399924},{comp:'Motor de Partida',vidaUtil:5000,costoRef:365938}];
+    var defaultComps=[{comp:'Motor',vidaUtil:15000,costoRef:45000000},{comp:'Transmisión',vidaUtil:12000,costoRef:35000000},{comp:'Diferencial',vidaUtil:12000,costoRef:25000000},{comp:'Convertidor',vidaUtil:10000,costoRef:20000000},{comp:'Mandos Finales',vidaUtil:10000,costoRef:18000000},{comp:'Bomba Hidráulica',vidaUtil:8000,costoRef:15000000},{comp:'Turbo',vidaUtil:12000,costoRef:8000000},{comp:'Cilindro de Dirección',vidaUtil:15000,costoRef:6000000},{comp:'Suspensión Delantera',vidaUtil:15000,costoRef:10000000},{comp:'Soporte de Cabina',vidaUtil:20000,costoRef:4000000},{comp:'Tolva',vidaUtil:25000,costoRef:15000000},{comp:'Asiento',vidaUtil:6000,costoRef:491000},{comp:'Batería',vidaUtil:4000,costoRef:435570},{comp:'Alternador',vidaUtil:6000,costoRef:399924},{comp:'Motor de Partida',vidaUtil:5000,costoRef:365938},{comp:'Bomba de Combustible',vidaUtil:8000,costoRef:1316032}];
     newEqs.forEach(function(e){defaultComps.forEach(function(dc){compData.push({sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,comp:dc.comp,horomComp:null,vidaUtil:dc.vidaUtil,costoRef:dc.costoRef,fechaInst:null,obs:'',estado:''});});});
   }
   if(!compData.length){
@@ -62,7 +69,8 @@ window.renderComp=function(){
       {comp:'Asiento',vidaUtil:6000,costoRef:491000},
       {comp:'Batería',vidaUtil:4000,costoRef:435570},
       {comp:'Alternador',vidaUtil:6000,costoRef:399924},
-      {comp:'Motor de Partida',vidaUtil:5000,costoRef:365938}
+      {comp:'Motor de Partida',vidaUtil:5000,costoRef:365938},
+      {comp:'Bomba de Combustible',vidaUtil:8000,costoRef:1316032}
     ];
     eq.forEach(function(e){
       defaultComps.forEach(function(dc){

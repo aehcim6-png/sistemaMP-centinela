@@ -39,7 +39,17 @@ var _CATEGORIAS_COMPONENTE=[
   ['Conectores/Cableado',['conector','conectores','arnes','arnés']],
   ['Mangueras/Fugas',['manguera','mangueras','flexible hidraulico','flexible hidráulico']],
   ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste']],
-  ['Foco/Ampolleta',['ampolleta','foco delantero','foco trasero']],
+  // Ampliado (auditoría 2026-08, pedido del usuario: "revisa bien, si cambian
+  // tanto foco o ampolleta indica que la falla es más compleja"): el listado
+  // original solo reconocía 'foco delantero'/'foco trasero' — no atrapaba
+  // "foco faenero"/"focos faeneros" (la redacción real más común en las OT de
+  // esta flota) ni errores de tipeo reales vistos en los datos ('ampoleta',
+  // 'alpolleta', 'amplolleta'). Con el hueco, esos eventos quedaban SIN
+  // categoría y el conteo de fallas repetidas (compFallas>=2/3 en
+  // diagnosticoFlota) no los veía — un patrón real como el de CN-5133 (~18
+  // eventos de foco/eléctrico en un año, probable falla de cableado/tierra,
+  // no desgaste de ampolleta) pasaba invisible pese a estar en los datos.
+  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta']],
   ['Sistema Hidráulico',['hidraulico','hidráulico']],
   ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico']],
   ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
