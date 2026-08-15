@@ -273,13 +273,13 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-08-14c"></script>
+<script src="logic.js?v=2026-08-15"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
      entre scripts planos no importa (nada se ejecuta hasta que la página
      termina de cargar). -->
-<script src="modules/store.js?v=2026-08-14"></script>
+<script src="modules/store.js?v=2026-08-15"></script>
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización) — scripts planos, mismo scope global de siempre. -->
 <script src="modules/renders/al.js?v=2026-08-04"></script>
@@ -319,7 +319,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/reg.js?v=2026-08-14"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-14"></script>
-<script src="modules/renders/pred.js?v=2026-08-14c"></script>
+<script src="modules/renders/pred.js?v=2026-08-15"></script>
 <script src="modules/renders/kpi.js?v=2026-08-14b"></script>
 <script src="modules/renders/neu.js?v=2026-08-14c"></script>
 <script src="modules/renders/cfg.js?v=2026-08-14"></script>
