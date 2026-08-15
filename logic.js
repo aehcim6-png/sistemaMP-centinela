@@ -409,6 +409,47 @@ function esFallaMTBF(o){
   return o.tipo==='Fuera de Servicio'&&o.criticidad==='Reparación Inmediata';
 }
 
+// Probabilidad de falla por equipo+componente (2026-08, a pedido del usuario:
+// "podemos usar probabilidad" leyendo el historial real de correctivos).
+// Recibe una lista plana de eventos {sigla, componente, fecha} — ya resueltos
+// por quien llama (normalmente pred.js, que combina 'ot' con 'otHist', el
+// historial 2022-2025 cargado desde Excel, usando su propia categorización de
+// componente) para que esta función no dependa de esa lógica de texto libre y
+// se pueda probar con datos sintéticos.
+//
+// Modelo: proceso de Poisson simple — el intervalo promedio entre fallas
+// pasadas (MTBF en días, del mismo equipo+componente) estima la tasa de
+// falla, y la probabilidad de que ocurra al menos una falla en los próximos
+// 30 días es 1-e^(-30/MTBF). Es la misma familia de fórmula que ya usa
+// mtbfFlotaReal/C.mtbfReal para horas, pero acá en días de calendario porque
+// el historial de Excel no siempre trae horómetro confiable.
+//
+// Umbral de 3+ eventos (mismo criterio que diagnosticoFlota en pred.js para
+// "requiereRCA"): con 1-2 fallas el promedio no significa nada — se descarta
+// en vez de mostrar un número inventado.
+function probabilidadFallaDesdeEventos(eventos){
+  var grupos={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.sigla||!e.componente||!e.fecha)return;
+    var k=e.sigla+'|'+e.componente;
+    if(!grupos[k])grupos[k]={sigla:e.sigla,componente:e.componente,fechas:[]};
+    grupos[k].fechas.push(e.fecha);
+  });
+  return Object.keys(grupos).map(function(k){
+    var g=grupos[k];
+    // Dedup de fechas duplicadas consecutivas: varias líneas cargadas la
+    // misma visita a terreno no deben contar como "intervalo de 0 días".
+    var fechas=g.fechas.slice().sort().filter(function(f,i,arr){return i===0||f!==arr[i-1];});
+    if(fechas.length<3)return null;
+    var gaps=[];
+    for(var i=1;i<fechas.length;i++)gaps.push((new Date(fechas[i])-new Date(fechas[i-1]))/864e5);
+    var mtbfDias=gaps.reduce(function(a,b){return a+b;},0)/gaps.length;
+    if(!mtbfDias||mtbfDias<=0)return null;
+    var prob30=Math.round((1-Math.exp(-30/mtbfDias))*100);
+    return{sigla:g.sigla,componente:g.componente,nEventos:fechas.length,mtbfDias:Math.round(mtbfDias),prob30dPct:prob30,ultimaFecha:fechas[fechas.length-1]};
+  }).filter(Boolean).sort(function(a,b){return b.prob30dPct-a.prob30dPct;});
+}
+
 function mtbfFlotaReal(eq,ot){
   var perEq=[];
   (eq||[]).forEach(function(e){
@@ -1189,6 +1230,7 @@ if (typeof window !== 'undefined') {
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
   window.mtbfFlotaReal = mtbfFlotaReal;
   window.esFallaMTBF = esFallaMTBF;
+  window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.confiabilidadReal = confiabilidadReal;
   window.regEsATiempo = regEsATiempo;
 }
@@ -1202,6 +1244,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
+    probabilidadFallaDesdeEventos
   };
 }

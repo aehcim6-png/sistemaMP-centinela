@@ -106,6 +106,11 @@ const TABLA_REAL={
   // app llama S.s('ocHist', ...), así que nunca dispara el sync genérico (upsert/delete)
   // sobre esta tabla — evita que un guardado accidental borre datos financieros reales.
   ocHist:{tabla:'ordenes_compra_historico',clave:'_id',claveDb:'id',cols:['pedido','fecha','sigla','detalle','oc','cant','precioUnit','costo','rut','proveedor','tipo']},
+  // Historial de correctivos 2022-2025 (previo a este sistema), cargado desde Excel
+  // (ver conversación 2026-08-15). Mismo patrón de solo lectura que 'ocHist': nada en
+  // la app llama S.s('otHist', ...) — alimenta el cálculo de probabilidad de falla en
+  // Predictivo (probabilidadFallaDesdeEventos, logic.js) con más muestra histórica.
+  otHist:{tabla:'correctivos_historico',clave:'id',claveDb:'id',cols:['id','sigla','siglaOriginal','fecha','horometro','sistema','descripcion','tipoInt','fuente']},
   progDia:{tabla:'programacion_diaria',clave:'_id',claveDb:'id',cols:['fecha','turno','orden','nombre','cargo','responsable','bloques']},
   // Sensor de neumático como entidad propia (2026-07) — antes 'numSensor' era solo
   // un campo de texto dentro de 'neu', sin vida propia: si el sensor físico se
@@ -138,7 +143,7 @@ const TABLA_REAL={
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={
-  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual']},
+  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual','alertaWhatsApp']},
   hh:{tabla:'tarifa_hh',modo:'valor'},
   dispMeta:{tabla:'meta_disponibilidad',modo:'valor'},
   metas:{tabla:'metas',modo:'datos'},

@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF, probabilidadFallaDesdeEventos } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -146,6 +146,77 @@ describe('esFallaMTBF — fuente única de "¿esta OT es una falla real?" (audit
   it('null/undefined no revienta, devuelve false', () => {
     expect(esFallaMTBF(null)).toBe(false);
     expect(esFallaMTBF(undefined)).toBe(false);
+  });
+});
+
+describe('probabilidadFallaDesdeEventos — probabilidad de falla en 30 días por equipo+componente (2026-08, combina correctivos actuales + historial 2022-2025 cargado desde Excel)', () => {
+  it('con menos de 3 eventos distintos, no aparece en el resultado (muestra insuficiente, no se inventa un número)', () => {
+    const eventos = [
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-03-01' },
+    ];
+    expect(probabilidadFallaDesdeEventos(eventos)).toEqual([]);
+  });
+  it('con 4 eventos cada 30 días exactos, MTBF=30 y probabilidad = 1-e^(-1) ≈ 63%', () => {
+    const eventos = [
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-01-31' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-03-01' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-03-31' },
+    ];
+    const r = probabilidadFallaDesdeEventos(eventos);
+    expect(r.length).toBe(1);
+    expect(r[0]).toMatchObject({ sigla: 'CN-1', componente: 'Turbo', nEventos: 4, mtbfDias: 30, prob30dPct: 63 });
+  });
+  it('fechas duplicadas (misma visita a terreno, varias líneas el mismo día) no cuentan como intervalo de 0 días', () => {
+    const eventos = [
+      { sigla: 'CN-1', componente: 'Neumáticos', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: 'Neumáticos', fecha: '2024-01-01' }, // mismo día, otra línea
+      { sigla: 'CN-1', componente: 'Neumáticos', fecha: '2024-02-01' },
+      { sigla: 'CN-1', componente: 'Neumáticos', fecha: '2024-03-01' },
+    ];
+    const r = probabilidadFallaDesdeEventos(eventos);
+    expect(r[0].nEventos).toBe(3); // 4 líneas, 3 fechas distintas
+  });
+  it('agrupa por sigla+componente por separado, no mezcla equipos ni componentes distintos', () => {
+    const eventos = [
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-02-01' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-03-01' },
+      { sigla: 'CN-1', componente: 'Frenos', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: 'Frenos', fecha: '2024-02-01' },
+      { sigla: 'CN-2', componente: 'Turbo', fecha: '2024-01-01' },
+      { sigla: 'CN-2', componente: 'Turbo', fecha: '2024-02-01' },
+    ];
+    const r = probabilidadFallaDesdeEventos(eventos);
+    // Frenos y CN-2/Turbo tienen solo 2 fechas cada uno -> quedan afuera
+    expect(r.length).toBe(1);
+    expect(r[0]).toMatchObject({ sigla: 'CN-1', componente: 'Turbo' });
+  });
+  it('ignora eventos sin sigla, componente o fecha', () => {
+    const eventos = [
+      { sigla: '', componente: 'Turbo', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: '', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '' },
+      null,
+    ];
+    expect(probabilidadFallaDesdeEventos(eventos)).toEqual([]);
+  });
+  it('ordena de mayor a menor probabilidad', () => {
+    const eventos = [
+      // MTBF ~10 días -> probabilidad alta
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-01-01' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-01-11' },
+      { sigla: 'CN-1', componente: 'Turbo', fecha: '2024-01-21' },
+      // MTBF ~200 días -> probabilidad baja
+      { sigla: 'CN-2', componente: 'Frenos', fecha: '2024-01-01' },
+      { sigla: 'CN-2', componente: 'Frenos', fecha: '2024-07-19' },
+      { sigla: 'CN-2', componente: 'Frenos', fecha: '2025-02-04' },
+    ];
+    const r = probabilidadFallaDesdeEventos(eventos);
+    expect(r.length).toBe(2);
+    expect(r[0].componente).toBe('Turbo');
+    expect(r[0].prob30dPct).toBeGreaterThan(r[1].prob30dPct);
   });
 });
 

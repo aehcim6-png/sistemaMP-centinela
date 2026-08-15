@@ -1010,6 +1010,40 @@ window.renderPred=function(){
         }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficientes correctivos con "componente" registrado para detectar patrones. Se necesitan al menos 2 fallas del mismo componente.</div>')+
       '</div>';
+  } else if(fVista==='probabilidad'){
+    // Combina 'ot' (correctivos actuales, filtrados por esFallaMTBF — misma fuente
+    // única que MTBF/Confiabilidad) con 'otHist' (historial 2022-2025 cargado desde
+    // Excel, ver conversación 2026-08-15) en una sola lista de eventos {sigla,
+    // componente, fecha}, y de ahí probabilidadFallaDesdeEventos (logic.js) calcula
+    // MTBF empírico y probabilidad de falla en 30 días por equipo+componente.
+    var otHistProb=S.g('otHist')||[];
+    var eventosProb=[];
+    ot.forEach(function(o){
+      if(!esFallaMTBF(o))return;
+      var comp=(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma);
+      if(comp)eventosProb.push({sigla:o.sigla,componente:comp,fecha:o.fecha});
+    });
+    otHistProb.forEach(function(o){
+      if(o&&o.sigla&&o.sistema)eventosProb.push({sigla:o.sigla,componente:o.sistema,fecha:o.fecha});
+    });
+    var probs=probabilidadFallaDesdeEventos(eventosProb).slice(0,40);
+    content=
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🎲 Probabilidad de falla en los próximos 30 días</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta): usa el intervalo promedio real entre fallas pasadas del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ fallas registradas; con menos, el número no sería confiable.</div>'+
+      (probs.length?
+        '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Componente</th><th>N° fallas</th><th>MTBF (días)</th><th>Prob. falla 30 días</th><th>Última falla</th></tr>'+
+        probs.map(function(p){
+          var col=p.prob30dPct>=60?'var(--danger)':p.prob30dPct>=30?'var(--w)':'var(--ok)';
+          return'<tr><td class="mono" style="font-weight:600">'+escapeHtml(p.sigla)+'</td>'+
+            '<td style="font-size:11px">'+escapeHtml(p.componente)+'</td>'+
+            '<td style="text-align:center">'+p.nEventos+'</td>'+
+            '<td style="text-align:center">'+p.mtbfDias+'</td>'+
+            '<td style="text-align:center;font-weight:700;color:'+col+'">'+p.prob30dPct+'%</td>'+
+            '<td style="font-size:10px;color:var(--tx3)">'+escapeHtml(p.ultimaFecha||'—')+'</td></tr>';
+        }).join('')+
+        '</table></div>'
+      :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficiente historial (se necesitan 3+ fallas del mismo equipo+componente) para calcular una probabilidad confiable.</div>')+
+      '</div>';
   } else if(fVista==='stockpm'){
     var hz=parseInt(window._predHorizonte)||90;
     var sp=stockVsProximosPM(hz);
@@ -1090,6 +1124,7 @@ $('s-pred').innerHTML=
     '<option value="items"'+(fVista==='items'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Top Items</option>'+
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
+    '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option></select>'+
     (fVista==='equipo'||fVista==='diag'?
