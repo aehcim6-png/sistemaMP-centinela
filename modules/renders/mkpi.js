@@ -21,4 +21,4 @@ window.renderMkpi = function () {
   else if (sub === 'kpi') renders.kpi();
   setTimeout(() => aplicarOrdenUniversal('s-mkpi'), 60);
 };
-window.mkpiSub = function (s) { window._mkpiSub = s; renders.mkpi(); };
+window.mkpiSub = function (s) { window._mkpiSub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('mkpi.' + s); renders.mkpi(); };

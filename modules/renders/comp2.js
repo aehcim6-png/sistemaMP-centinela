@@ -35,4 +35,4 @@ window.renderComp2 = function () {
   else if (sub === 'estadistica') renders.estadistica();
   setTimeout(() => aplicarOrdenUniversal('s-comp2'), 60);
 };
-window.comp2Sub = function (s) { window._comp2Sub = s; renders.comp2(); };
+window.comp2Sub = function (s) { window._comp2Sub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('comp2.' + s); renders.comp2(); };

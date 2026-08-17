@@ -99,6 +99,13 @@ window.renderCfg=function(){
     '<button class="btn btn-o" onclick="verLogCambios()">Ver log de cambios</button>'+
     '</div>'+
 
+    // USO DEL SISTEMA (telemetría — qué pestañas se abren de verdad)
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
+    '<b style="font-size:14px">📊 Uso del sistema</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Cuántas veces se abrió cada pestaña/sub-pestaña en los últimos 7/30/90 días — para saber qué se usa de verdad antes de seguir agregando funciones nuevas. Registrado desde el 2026-08-17.</p>'+
+    '<button class="btn btn-o" onclick="verUsoPestanas()">Ver uso del sistema</button>'+
+    '</div>'+
+
     // VERIFICADOR DE INTEGRIDAD (control de gestión — datos físicamente imposibles)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #14b8a6">'+
     '<b style="font-size:14px">🔍 Verificador de Integridad</b>'+
