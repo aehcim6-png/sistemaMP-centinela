@@ -508,17 +508,27 @@ const TABS=[
   {id:'buscar',l:'Buscar',i:ICONS.search},
   {id:'audit',l:'Auditoría de Datos',i:ICONS.eye}
 ];
-// Pestañas originales que ahora son sub-tabs (sus secciones siguen existiendo en el DOM)
-const TABS_EXTRA=['al','stk','lub','plan','insp','pred','destrabe','ayuda','cfg'];
+// Pestañas fijas que se alcanzan por un atajo de contexto (no por un botón del
+// menú principal) y NO se recrean dentro de ningún contenedor de sub-pestañas:
+// 'al' (Alertas PM4, botón en Dashboard), 'insp' (Inspecciones, botón en
+// Correctivos), 'ayuda'/'cfg' (íconos fijos arriba a la derecha). Antes esta
+// lista también traía 'stk'/'lub'/'plan'/'pred'/'destrabe' — pestañas que ya
+// migraron a vivir DENTRO de un contenedor (Stock & Insumos, Planificación,
+// Componentes), que crea su propio <div id="s-xxx"> anidado la primera vez
+// que se abre. Dejarlas acá de paso creaba un <div> vacío duplicado con el
+// mismo id apenas se visitaba ese contenedor — HTML inválido, sin efecto
+// visible (getElementById siempre devuelve el nodo con contenido), pero
+// basura de un refactor viejo que nadie terminó de limpiar (auditoría 2026-08).
+const TABS_EXTRA=['al','insp','ayuda','cfg'];
 let currentTab='dash';
 function initNav(){
-  // Barra principal con 15 pestañas
+  // Barra principal con 16 pestañas
   $('nav').innerHTML=TABS.map(t=>`<button class="${t.id==='dash'?'on':''}" onclick="go('${t.id}')">${t.i} ${t.l}</button>`).join('')
     + '<div style="margin-left:auto;display:flex;gap:4px">'
     + '<button class="" title="Manual de Usuario" onclick="go(\'ayuda\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.book+'</button>'
     + '<button class="" title="Configuración" onclick="go(\'cfg\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.sliders+'</button>'
     + '</div>';
-  // Crear secciones para las 15 pestañas + las extra (sub-tabs y fijas)
+  // Crear secciones para las 16 pestañas + las extra (atajos de contexto y fijas)
   const allIds=[...TABS.map(t=>t.id),...TABS_EXTRA];
   $('main').innerHTML=allIds.map(id=>`<div class="sec${id==='dash'?' on':''}" id="s-${id}"></div>`).join('');
 }
