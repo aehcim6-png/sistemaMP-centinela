@@ -1031,17 +1031,22 @@ window.renderPred=function(){
       '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🎲 Probabilidad de falla en los próximos 30 días</div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta): usa el intervalo promedio real entre fallas pasadas del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ fallas registradas; con menos, el número no sería confiable.</div>'+
       (probs.length?
-        '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Componente</th><th>N° fallas</th><th>MTBF (días)</th><th>Prob. falla 30 días</th><th>Última falla</th></tr>'+
         probs.map(function(p){
+          var nivel=p.prob30dPct>=60?'Alta':p.prob30dPct>=30?'Media':'Baja';
           var col=p.prob30dPct>=60?'var(--danger)':p.prob30dPct>=30?'var(--w)':'var(--ok)';
-          return'<tr><td class="mono" style="font-weight:600">'+escapeHtml(p.sigla)+'</td>'+
-            '<td style="font-size:11px">'+escapeHtml(p.componente)+'</td>'+
-            '<td style="text-align:center">'+p.nEventos+'</td>'+
-            '<td style="text-align:center">'+p.mtbfDias+'</td>'+
-            '<td style="text-align:center;font-weight:700;color:'+col+'">'+p.prob30dPct+'%</td>'+
-            '<td style="font-size:10px;color:var(--tx3)">'+escapeHtml(p.ultimaFecha||'—')+'</td></tr>';
-        }).join('')+
-        '</table></div>'
+          return'<div class="card" style="margin-bottom:10px;border-left:3px solid '+col+'">'+
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">'+
+              '<div style="min-width:0">'+
+                '<div style="font-weight:700;font-size:14px"><span class="mono" style="color:var(--ac)">'+escapeHtml(p.sigla)+'</span> · '+escapeHtml(p.componente)+'</div>'+
+                '<div style="font-size:11px;color:var(--tx3);margin-top:2px">Falla en promedio cada <b>'+p.mtbfDias+' día(s)</b> ('+p.nEventos+' eventos registrados) · última vez '+escapeHtml(p.ultimaFecha||'—')+'</div>'+
+              '</div>'+
+              '<div style="text-align:right;flex-shrink:0">'+
+                '<div style="font-size:22px;font-weight:800;color:'+col+'">'+p.prob30dPct+'%</div>'+
+                '<div style="font-size:10px;color:'+col+';font-weight:600">Probabilidad '+nivel+'</div>'+
+              '</div>'+
+            '</div>'+
+          '</div>';
+        }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficiente historial (se necesitan 3+ fallas del mismo equipo+componente) para calcular una probabilidad confiable.</div>')+
       '</div>';
   } else if(fVista==='stockpm'){
