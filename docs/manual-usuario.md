@@ -83,7 +83,7 @@ pierde en silencio el cambio de uno de los dos.
 | Predictivo | Diagnóstico automático, alertas cruzadas, backlog |
 | Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
-| Componentes | Componentes Mayores, Predictivo, Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes |
+| Componentes | Componentes Mayores, Predictivo (incluye Probabilidad de Falla), Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes, Estadística (comparativas por equipo/componente/técnico/modelo) |
 | Metas & KPIs | Plan vs. real, avance mensual, informes descargables |
 | Buscar | Ficha completa por equipo (PM, correctivos, componentes, horómetros, inspecciones, neumáticos, tren de rodaje, aceite, vencimientos, historial, destrabe y costos) + ranking de equipos problemáticos |
 | Auditoría de Datos | Cruce automático: horómetros que retroceden, componentes sin validar, OT sin solución — se recalcula solo cada vez que se abre |

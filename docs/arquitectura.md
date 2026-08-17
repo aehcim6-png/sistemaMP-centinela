@@ -24,7 +24,7 @@ framework nuevo a mitad de camino.
   login, el arranque de la aplicación, y la infraestructura compartida entre
   pestañas que no encajaba en un módulo propio (autoguardado a carpeta local,
   auditoría, MFA, gestión de usuarios).
-- **`modules/renders/*.js`** (41 archivos) — un archivo por pestaña o
+- **`modules/renders/*.js`** (42 archivos) — un archivo por pestaña o
   sub-pestaña del sistema. Cada uno define `window.render<Tab>` (la función
   que dibuja esa pantalla) más los botones/formularios exclusivos de esa
   pestaña. Son scripts planos (`<script src="...">`), no módulos ES —
@@ -35,7 +35,7 @@ framework nuevo a mitad de camino.
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
   materiales, etc. Junto con `store.js`, son los archivos con pruebas
-  automatizadas (`tests/*.test.js`, 429 casos, corren con Vitest).
+  automatizadas (`tests/*.test.js`, 443 casos, corren con Vitest).
 
 ### 2. Dónde vive — Vercel
 
@@ -58,7 +58,7 @@ Al llamar `S.s(categoria, valor)` ocurren, en este orden:
 
 1. **`localStorage`** — se escribe de inmediato, siempre, funcione o no
    internet. El sistema sigue siendo usable sin conexión.
-2. **Supabase** — si la categoría es una de las 33 tablas reales
+2. **Supabase** — si la categoría es una de las 34 tablas reales
    (`TABLA_REAL`/`TABLA_SINGLETON`), se envía sin demora un `upsert` (crear o
    actualizar) más un `delete` de las filas que ya no están — pero antes de
    escribir, se hace un chequeo de conflicto (ver más abajo).
@@ -118,14 +118,16 @@ un paso aparte, todavía no hecho.
 
 ### 6. Estructura de datos en Supabase
 
-33 tablas, una por categoría (equipos, correctivos, registros_pm, etc. —
+34 tablas, una por categoría (equipos, correctivos, registros_pm, etc. —
 incluye `historial_componentes` e `historial_neumaticos`, agregadas en la
 auditoría de agosto 2026 para poder responder "cuánto duró cada instalación
-real" sin perder el dato cada vez que se actualiza el estado actual), más 7
-"singleton" de configuración (una sola fila fija: `configuracion`,
-`tarifa_hh`, `metas`, etc.). El mapeo completo entre cada categoría del
-frontend y su tabla real vive en `TABLA_REAL`/`TABLA_SINGLETON`, dentro de
-`modules/store.js`.
+real" sin perder el dato cada vez que se actualiza el estado actual, y
+`correctivos_historico`, cargada en agosto 2026 desde planillas Excel
+2022-2025 previas a este sistema — alimenta el cálculo de Probabilidad de
+Falla en Predictivo con más muestra histórica), más 7 "singleton" de
+configuración (una sola fila fija: `configuracion`, `tarifa_hh`, `metas`,
+etc.). El mapeo completo entre cada categoría del frontend y su tabla real
+vive en `TABLA_REAL`/`TABLA_SINGLETON`, dentro de `modules/store.js`.
 
 El schema (tablas, RLS, triggers) está versionado como código en
 `supabase/migrations/*.sql` — cualquier cambio de estructura pasa por un
