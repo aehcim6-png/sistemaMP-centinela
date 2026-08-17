@@ -64,6 +64,24 @@ function _sbHeaders(){
   return{'apikey':c.key,'Authorization':'Bearer '+(userToken||c.key),'Content-Type':'application/json'};
 }
 
+// Telemetría de uso (agosto 2026) — un POST directo a PostgREST por cada
+// pestaña/sub-pestaña que alguien realmente abre (llamado desde go() y
+// comp2Sub/mkpiSub/planiSub/stk2Sub, no en cada carga de página). A
+// propósito NO pasa por S.g/S.s: esa vía descarga la tabla completa en
+// cada login, que es lo último que quiere un log que solo crece con cada
+// clic (ver 20260817050000_crear_tabla_uso_pestanas.sql — se purga solo a
+// los 90 días). Fire-and-forget: un fallo acá nunca debe interrumpir la
+// navegación real del usuario.
+function _logUsoPestana(id){
+  try{
+    if(!_sbOk())return;
+    const c=_sbCfg();
+    fetch(c.url+'/rest/v1/uso_pestanas',{method:'POST',headers:_sbHeaders(),
+      body:JSON.stringify({pestana:id,usuario:window._userName||'Sistema'})}).catch(function(){});
+  }catch(e){}
+}
+window._logUsoPestana=_logUsoPestana;
+
 // ══════════════════════════════════════════════════════════════════
 // FASE B — mapeo de cada clave vieja de kv a su tabla real nueva.
 // clave: nombre del campo en el objeto JS que identifica la fila.

@@ -86,6 +86,11 @@
   esa no rastrea quién cambió qué, sino si los datos son consistentes entre sí (horómetros que
   retroceden entre OT, componentes mayores sin validar, OT cerradas sin solución). Se recalcula
   sola cada vez que se abre.</p>
+  <p><b>Configuración → Uso del sistema</b> (agosto 2026) — tampoco es auditoría de quién cambió
+  qué: cuenta cuántas veces se abrió cada pestaña/sub-pestaña en los últimos 7/30/90 días, para
+  decidir con datos dónde vale la pena seguir invirtiendo. Vive en su propia tabla
+  (<code>uso_pestanas</code>), fuera de <code>TABLA_REAL</code> a propósito — se purga sola cada
+  90 días con un cron diario.</p>
 
   <h2>4. Base de datos (Supabase)</h2>
   <p><b>34 tablas reales</b> (incluye <code>historial_componentes</code> e
@@ -136,7 +141,7 @@
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (42 en total)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43 en total)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario)
 tests/                   — pruebas de logic.js y store.js (Vitest, 443 casos)

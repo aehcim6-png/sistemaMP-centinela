@@ -35,4 +35,4 @@ window.renderStk2 = function () {
   else if (sub === 'rep') renders.rep();
   setTimeout(() => aplicarOrdenUniversal('s-stk2'), 60);
 };
-window.stk2Sub = function (s) { window._stk2Sub = s; renders.stk2(); };
+window.stk2Sub = function (s) { window._stk2Sub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('stk2.' + s); renders.stk2(); };

@@ -296,6 +296,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
 <script src="modules/renders/papelera.js?v=2026-08-05"></script>
+<script src="modules/renders/uso.js?v=2026-08-17"></script>
 <script src="modules/renders/cad.js?v=2026-08-14b"></script>
 <script src="modules/renders/histcomp.js?v=2026-08-14"></script>
 <script src="modules/renders/estadistica.js?v=2026-08-15"></script>
@@ -534,6 +535,7 @@ function initNav(){
 }
 function go(id){
   if(id==='cfg' && window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede entrar a Configuración');return;}
+  if(typeof _logUsoPestana==='function')_logUsoPestana(id);
   currentTab=id;
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nav button:not([title])').forEach(b=>b.classList.remove('on'));
@@ -2599,6 +2601,7 @@ function _logChangeGenerico(k,anterior,nuevo){
 
 renders.log=renderLog;
 renders.papelera=renderPapelera;
+renders.uso=renderUso;
 
 
 window.importDispCSV=function(){

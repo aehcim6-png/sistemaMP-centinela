@@ -28,4 +28,4 @@ window.renderPlani=function(){
   else if(sub==='progdia')renders.progdia();
   setTimeout(()=>aplicarOrdenUniversal('s-plani'),60);
 };
-window.planiSub=function(s){window._planiSub=s;renders.plani();};
+window.planiSub=function(s){window._planiSub=s;if(typeof _logUsoPestana==='function')_logUsoPestana('plani.'+s);renders.plani();};
