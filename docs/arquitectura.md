@@ -24,7 +24,7 @@ framework nuevo a mitad de camino.
   login, el arranque de la aplicación, y la infraestructura compartida entre
   pestañas que no encajaba en un módulo propio (autoguardado a carpeta local,
   auditoría, MFA, gestión de usuarios).
-- **`modules/renders/*.js`** (42 archivos) — un archivo por pestaña o
+- **`modules/renders/*.js`** (43 archivos) — un archivo por pestaña o
   sub-pestaña del sistema. Cada uno define `window.render<Tab>` (la función
   que dibuja esa pantalla) más los botones/formularios exclusivos de esa
   pestaña. Son scripts planos (`<script src="...">`), no módulos ES —
