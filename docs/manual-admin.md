@@ -76,10 +76,12 @@ solución). Se recalcula sola cada vez que se abre.
 
 ## 4. Base de datos (Supabase)
 
-- **33 tablas reales** (una por categoría: `equipos`, `correctivos`,
+- **34 tablas reales** (una por categoría: `equipos`, `correctivos`,
   `registros_pm`, etc. — incluye `historial_componentes` e
-  `historial_neumaticos`, agregadas en agosto 2026) + 7 tablas "singleton"
-  de configuración. El mapeo completo vive en `TABLA_REAL`/`TABLA_SINGLETON`
+  `historial_neumaticos`, agregadas en agosto 2026, y `correctivos_historico`
+  (agosto 2026, planillas Excel 2022-2025 previas a este sistema, alimenta
+  Probabilidad de Falla en Predictivo)) + 7 tablas "singleton" de
+  configuración. El mapeo completo vive en `TABLA_REAL`/`TABLA_SINGLETON`
   dentro de `modules/store.js`.
 - **El schema está versionado como código** en `supabase/migrations/*.sql`.
   Cualquier cambio de estructura (agregar una columna, una tabla, una
@@ -144,10 +146,10 @@ datos en un backend nuevo, siguiendo el mismo mapeo de `TABLA_REAL`.
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (41 en total)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (42 en total)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario)
-tests/                   — pruebas de logic.js y store.js (Vitest, 312 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 443 casos)
 docs/                    — esta carpeta
 ```
 
