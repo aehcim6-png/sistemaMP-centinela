@@ -33,7 +33,15 @@ window.renderMetas = function () {
     // regEsATiempo (logic.js): fuente única — antes r.estado==='A tiempo' nunca
     // coincidía con el dato real guardado (bug real, auditoría 2026-08).
     var regMev = regM.filter(function (r) { return regEsATiempo(r) !== null; });
-    var prev = regM.filter(function (r) { return r.tipoPM !== 'Correctivo' }).length;
+    // Bug real (auditoría 2026-08): 'registros_pm' (reg) NUNCA tiene tipoPM='Correctivo'
+    // en toda su historia — los correctivos viven en una tabla aparte ('correctivos'/ot),
+    // que este cálculo nunca miraba. Resultado: "Ratio Preventivo" daba 100% en los 20
+    // meses completos verificados (ene-2025 a ago-2026), incluso en meses con 100+
+    // correctivos reales (ej. feb-2025: 117). Ahora el denominador es preventivos+
+    // correctivos reales del mes (esFallaMTBF, misma fuente única que MTBF/Confiabilidad),
+    // no solo los PM — así el ratio SÍ baja cuando hay mucha reactividad.
+    var prev = regM.length;
+    var correctivosDelMes = ot.filter(function (o) { return (o.fecha || '').slice(0, 7) === mes && esFallaMTBF(o) }).length;
     var dispValsM = eq.map(function (e) { return dispEquipoMes(e.sigla, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, hrsDia: e.hrsDia || 12 }); }).filter(function (v) { return v !== null && v !== undefined });
     var hhMes = Math.round(regM.reduce(function (s, r) { return s + (r.duracionH || 0) }, 0));
     // Gasto REAL del mes = mano de obra (HH×tarifa) + repuestos/materiales consumidos.
@@ -62,7 +70,8 @@ window.renderMetas = function () {
       hh: hhMes,
       gasto: (regM.length || costoRepM) ? Math.round(hhMes * tarifaHH + costoRepM) : null,
       cumpl: regMev.length ? Math.round(regMev.filter(function (r) { return regEsATiempo(r) === true }).length / regMev.length * 100) : null,
-      ratio: regM.length ? Math.round(prev / regM.length * 100) : null,
+      ratio: (prev + correctivosDelMes) ? Math.round(prev / (prev + correctivosDelMes) * 100) : null,
+      correctivosDelMes: correctivosDelMes,
       backlog: backlogMes
     };
   });
@@ -87,7 +96,7 @@ window.renderMetas = function () {
           // MTBF mensual = horas de flota ÷ fallas del mes. Un mes SIN fallas ya no
           // devuelve las horas completas (número absurdo que siempre gana la meta): queda
           // "sin dato", porque no hubo intervalo entre fallas que medir ese mes.
-          if (ind.id === 'mtbf') { var fM = ot.filter(function (o) { return (o.fecha || '').slice(0, 7) === anioMetas + '-' + ('0' + (mi + 1)).slice(-2) && esFallaMTBF(o) }).length; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 ? Math.round(hM / fM) : null; }
+          if (ind.id === 'mtbf') { var fM = realData[mes] ? realData[mes].correctivosDelMes : 0; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 ? Math.round(hM / fM) : null; }
           var sinDato = real === null;
           var ok = sinDato ? null : (ind.higher ? (real >= metaM) : (real <= metaM));
           var col = sinDato ? 'var(--tx3)' : ok ? '#22c55e' : '#ef4444';
