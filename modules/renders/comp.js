@@ -92,6 +92,26 @@ window.renderComp=function(){
   var fil=fEquipo?compData.filter(function(c){return c.sigla===fEquipo}):compData;
   var siglas=[...new Set(compData.map(function(c){return c.sigla}))];
 
+  // Cruce con Historial de Componentes (2026-08, a pedido del usuario) — 'compHist'
+  // trae eventos reales de cambio (varios cargados desde Excel histórico 2022-2025)
+  // con nombres de componente propios (ej. 'Balde/Implemento'), que no siempre
+  // calzan uno a uno con el nombre fijo que usa esta pestaña (ej. 'Balde'). Solo se
+  // mapean los casos donde el cruce es inequívoco — 'Suspensión' del historial no
+  // se cruza porque no distingue delantera/trasera, y esta pestaña sí.
+  var MAPA_COMP_HIST={'Motor':'Motor','Transmisión':'Transmisión','Diferencial':'Diferencial',
+    'Turbo':'Turbo','Cilindro de Dirección':'Cilindro de Dirección','Soporte de Cabina':'Soporte de Cabina',
+    'Asiento':'Asiento','Batería':'Batería','Alternador':'Alternador','Balde':'Balde/Implemento'};
+  var compHistTodo=S.g('compHist')||[];
+  var ultimoCambioHist={};
+  compHistTodo.forEach(function(h){
+    if(!h||!h.sigla||!h.comp||!h.fechaInst)return;
+    Object.keys(MAPA_COMP_HIST).forEach(function(compMayor){
+      if(MAPA_COMP_HIST[compMayor]!==h.comp)return;
+      var k=h.sigla+'|'+compMayor;
+      if(!ultimoCambioHist[k]||h.fechaInst>ultimoCambioHist[k].fechaInst)ultimoCambioHist[k]=h;
+    });
+  });
+
   // Índice de lecturas reales por equipo (para estimar el horómetro de instalación).
   var histComp=S.g('hist')||[];
   var lecturasPorSigla={};
@@ -121,6 +141,7 @@ window.renderComp=function(){
       horomComp=e.horom;c._estimado=true;c._metodoEst=e.metodo;
     }
     c._horomEff=horomComp;
+    c._histInfo=ultimoCambioHist[c.sigla+'|'+c.comp]||null;
     var st=compEstado({esOriginal:c.esOriginal,fechaInst:c.fechaInst,horomComp:horomComp,vidaUtil:c.vidaUtil},horomActual,hrsDia);
     c._st=st;
     c.hrsUsadas=st.hrsUsadas;c.hrsRest=st.hrsRest;c.pctVida=st.pctVida;
@@ -149,7 +170,7 @@ window.renderComp=function(){
     '</div>'+
     (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> <b>'+sinDato+' de '+fil.length+' componentes</b> sin datos para proyectar. Dos formas de completarlo: <b>(1)</b> si es el <b>original</b> del equipo (instalado nuevo), marca la casilla "Orig." → sus horas usadas = el horómetro completo. <b>(2)</b> si se cambió, ingresa la <b>fecha de instalación</b> y el sistema <b>estima el horómetro a esa fecha</b> anclando en la puesta en marcha del equipo (aparece con "≈"). <b>Ojo:</b> si el equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>.</div>':'')+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
+    '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th title="Último evento real encontrado en Historial de Componentes (Equipos → Componentes → Historial), incluye lo cargado desde Excel histórico 2022-2025">Últ. Cambio (Hist.)</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
     fil.map(function(c,idx){
       var realIdx=compData.indexOf(c);
       var st=c._st;var cd=st.conDato;var dash='<span style="color:var(--tx3)">—</span>';var orig=!!c.esOriginal;
@@ -159,6 +180,7 @@ window.renderComp=function(){
         '<td style="text-align:center"><input type="checkbox" '+(orig?'checked':'')+' onchange="edComp('+realIdx+',\'esOriginal\',this.checked)" title="Componente original del equipo (instalado nuevo). Sus horas usadas = horómetro completo."></td>'+
         '<td class="mono">'+(orig?'<span style="color:var(--tx3);font-size:10px">nuevo</span>':('<span class="ed" contenteditable onblur="edComp('+realIdx+',\'horomComp\',this.innerText.trim()===\'\'?null:(parseFloat(this.innerText.replace(/[^0-9.]/g,\'\'))||null))" style="display:inline-block;min-width:36px">'+((c.horomComp==null||c.horomComp==='')?'':c.horomComp)+'</span>'+(c._estimado?' <span style="color:var(--tx3);font-size:10px" title="Horómetro estimado a la fecha de instalación anclando en la puesta en marcha del equipo ('+c._metodoEst+'). Ingresa el valor medido si lo tienes.">≈'+Number(c._horomEff).toLocaleString()+'</span>':'')))+'</td>'+
         '<td>'+(orig?dash:'<input type="date" value="'+(c.fechaInst||'')+'" onchange="edComp('+realIdx+',\'fechaInst\',this.value||null)" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px;font-size:10px">')+'</td>'+
+        '<td style="font-size:10px">'+(c._histInfo?'<span title="'+escapeHtml(c._histInfo.obs||'')+' ('+escapeHtml(c._histInfo.fuente||'')+')" style="color:var(--tx2);cursor:help">'+escapeHtml(c._histInfo.fechaInst)+(c._histInfo.horomInstalacion!=null?' · '+Number(c._histInfo.horomInstalacion).toLocaleString()+'h':'')+'</span>'+(!c.fechaInst&&!orig?' <button class="btn-x" style="font-size:9px;padding:1px 4px" onclick="edComp('+realIdx+',\'fechaInst\',\''+c._histInfo.fechaInst+'\');'+(c._histInfo.horomInstalacion!=null?'edComp('+realIdx+',\'horomComp\','+c._histInfo.horomInstalacion+');':'')+'" title="Completar Fecha Inst. (y Horóm. Inst. si está disponible) con este dato del historial">usar ↑</button>':''):dash)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'vidaUtil\',parseFloat(this.innerText)||0)">'+c.vidaUtil+'</td>'+
         '<td class="mono">'+(cd?c.hrsUsadas:dash)+'</td>'+
         '<td>'+(cd?'<div style="display:flex;align-items:center;gap:4px"><div style="background:color-mix(in srgb,'+st.barCol+' 18%,var(--bg4));border-radius:3px;height:8px;width:60px;overflow:hidden"><div style="background:'+st.barCol+';height:100%;width:'+Math.min(c.pctVida,100)+'%"></div></div><span style="font-size:10px">'+c.pctVida+'%</span></div>':dash)+'</td>'+
