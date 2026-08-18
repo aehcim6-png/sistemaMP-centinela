@@ -105,18 +105,10 @@ window.renderDash=function(){
   });
   const cumProg=progPlan?Math.round(progEjec/progPlan*100):0;
   const prev=regMes.filter(r=>r.tipoPM!=='Correctivo').length;
-  // Bug real (auditoría 2026-08-18, encontrado tras un cuarto reporte del usuario
-  // de que "Ratio [Preventivo/Mantención]" seguía en 100%): esta es la TERCERA
-  // implementación de este mismo cálculo en el sistema (metas.js e Informes KPI
-  // ya se habían corregido) — la tarjeta "Ratio Mantención" del Dashboard, la
-  // primera pantalla que se ve al entrar, nunca se tocó porque usa otra fuente
-  // ('reg'/registros_pm con tipoPM==='Correctivo') en vez de esFallaMTBF/ot/otHist,
-  // así que no aparecía en los barridos anteriores de esa función. Como 'reg'
-  // NUNCA tiene tipoPM==='Correctivo' en toda su historia (los correctivos viven
-  // en 'ot'/'otHist', tabla aparte), 'corr' siempre daba 0 acá. Ahora usa la misma
-  // fuente única que el resto del Dashboard (otConHist, esFallaMTBF) para contar
-  // los correctivos reales del mes.
-  const corr=otConHist.filter(function(o){return esFallaMTBF(o)&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;}).length;
+  // contarFallasMes (logic.js, auditoría 2026-08-18): fuente única de "correctivos
+  // reales del mes" reutilizada también por 'fallasMes'/'totalFallas' más abajo —
+  // antes cada tarjeta del Dashboard tenía su propia copia de este mismo filtro.
+  const corr=contarFallasMes(otConHist,dashPeriodo);
   const pmC={PM1:0,PM2:0,PM3:0,PM4:0,Correctivo:0};regMes.forEach(r=>{if(pmC[r.tipoPM]!==undefined)pmC[r.tipoPM]++});
   const MS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
   const pm=MS.map((_,i)=>reg.filter(r=>{var d=new Date(r.fechaEjec||r.fechaEntrada);return d.getMonth()===i&&d.getFullYear()===2026}).length);
@@ -172,13 +164,9 @@ window.renderDash=function(){
   var dispFlota=dispVals.length?Math.round(dispVals.reduce(function(s,v){return s+v},0)/dispVals.length*10)/10:null;
   var dispCol=dispFlota===null?'var(--tx3)':dispFlota>=meta?'#22c55e':dispFlota>=70?'#f59e0b':'#ef4444';
   var bajoMeta=dispVals.filter(function(v){return v<meta}).length;
-  // MTBF del mes — esFallaMTBF (logic.js): fuente única, incluye 'Fuera de
-  // Servicio' con criticidad 'Reparación Inmediata' además de Correctivo/
-  // Falla Operacional (ver comentario ahí — auditoría 2026-08).
-  var fallasMes=otConHist.filter(function(o){
-    if(!esFallaMTBF(o))return false;
-    return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
-  }).length;
+  // MTBF del mes — mismo conteo que 'corr' más arriba (contarFallasMes,
+  // logic.js), reutilizado en vez de volver a filtrar otConHist.
+  var fallasMes=corr;
   var totalFallas=fallasMes;
   // Auditoría 2026-08: acá se calculaba mtbfFlota como "horas estimadas de flota del
   // mes ÷ fallas del mes" — exactamente el cociente que el propio logic.js ya
@@ -206,7 +194,7 @@ window.renderDash=function(){
   var utilDia=progDiaHoy?progDiaHoy.utilizacion:null;
   var otEjec=ot.filter(function(o){return o.estadoOT==='En Ejecución'}).length;
   var otCerr=otConHist.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo}).length;
-  var prevPct=(prev+corr)?Math.round(prev/(prev+corr)*100):null;
+  var prevPct=ratioPreventivo(prev,corr);
   var hrsFlotaMes=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
   // Confiabilidad: equipos sin falla en el PERÍODO seleccionado (no en toda la historia).
   // Bug real #3 de la misma familia (auditoría 2026-08-18, mismo hallazgo que Ratio

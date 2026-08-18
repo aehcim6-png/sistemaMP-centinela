@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF, probabilidadFallaDesdeEventos } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF, probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -146,6 +146,31 @@ describe('esFallaMTBF — fuente única de "¿esta OT es una falla real?" (audit
   it('null/undefined no revienta, devuelve false', () => {
     expect(esFallaMTBF(null)).toBe(false);
     expect(esFallaMTBF(undefined)).toBe(false);
+  });
+});
+
+describe('contarFallasMes / ratioPreventivo — fuente única de "Ratio Preventivo/Mantención" (auditoría 2026-08-18: Metas, Informes KPI y Dashboard tenían cada uno su propia copia de este cálculo, desincronizadas entre sí — la del Dashboard ni siquiera miraba ot/otHist)', () => {
+  it('contarFallasMes cuenta ot+otHist combinados (vía _otHistComoOt), filtrados por esFallaMTBF', () => {
+    const ot = [{ tipo: 'Correctivo', fecha: '2026-08-05' }, { tipo: 'Cambio de Componente', fecha: '2026-08-06' }];
+    const otHist = [{ sigla: 'CN-9500', fecha: '2026-08-01', sistema: 'Neumáticos' }, { sigla: 'CN-9500', fecha: '2026-08-10', sistema: 'Turbo' }];
+    const otConHist = ot.concat(_otHistComoOt(otHist));
+    expect(contarFallasMes(otConHist, '2026-08')).toBe(3); // 1 correctivo real + 2 otHist (el 'Cambio de Componente' no cuenta)
+  });
+  it('contarFallasMes filtra por mes cuando se indica, y cuenta todo el histórico si se omite', () => {
+    const otConHist = [{ tipo: 'Correctivo', fecha: '2026-07-15' }, { tipo: 'Correctivo', fecha: '2026-08-01' }];
+    expect(contarFallasMes(otConHist, '2026-08')).toBe(1);
+    expect(contarFallasMes(otConHist)).toBe(2);
+  });
+  it('contarFallasMes con arreglo vacío/undefined no revienta', () => {
+    expect(contarFallasMes([], '2026-08')).toBe(0);
+    expect(contarFallasMes(undefined, '2026-08')).toBe(0);
+  });
+  it('ratioPreventivo = prev / (prev+corr) — el bug real: reg nunca tiene correctivos, así que antes el denominador era solo prev y siempre daba 100%', () => {
+    expect(ratioPreventivo(5, 69)).toBe(7); // agosto-2026 real: 5 PM en 'reg', 69 correctivos reales en otHist
+    expect(ratioPreventivo(5, 0)).toBe(100); // mes sin correctivos de verdad: 100% es correcto
+  });
+  it('ratioPreventivo devuelve null sin inventar 100%/0% cuando no hubo ninguna intervención', () => {
+    expect(ratioPreventivo(0, 0)).toBe(null);
   });
 });
 

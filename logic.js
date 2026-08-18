@@ -428,6 +428,34 @@ function _otHistComoOt(otHist){
   });
 }
 
+// Cuenta correctivos reales (esFallaMTBF) de un mes 'YYYY-MM' dado, sobre un
+// arreglo YA combinado de ot+otHist (ver _otHistComoOt/otConHist arriba, el
+// mismo patrón que ya usan dash.js/kpi.js/buscar.js/pred.js/cos.js). Sin
+// 'mes', cuenta el histórico completo. Fuente única para "Ratio Preventivo/
+// Mantención" — auditoría 2026-08-18: Metas, Informes KPI y el Dashboard
+// tenían cada uno su propia copia de este filtro, y las 3 terminaron
+// desincronizadas entre sí (la del Dashboard ni siquiera miraba ot/otHist:
+// contaba tipoPM==='Correctivo' sobre 'reg', un valor que nunca existe ahí).
+function contarFallasMes(otConHist,mes){
+  return (otConHist||[]).filter(function(o){
+    if(!esFallaMTBF(o))return false;
+    if(mes&&(o.fecha||o.fechaEntrada||'').slice(0,7)!==mes)return false;
+    return true;
+  }).length;
+}
+
+// Ratio Preventivo/Mantención: % de intervenciones preventivas (PM, 'reg')
+// sobre el total (PM + correctivos reales). 'reg'/registros_pm NUNCA tiene
+// tipoPM==='Correctivo' en toda su historia (los correctivos viven en
+// 'ot'/'otHist', tabla aparte) — así que la cantidad de PM del período ES el
+// conteo preventivo completo, sin necesidad de filtrar nada más. null si no
+// hubo ninguna intervención de ningún tipo ese período — nunca se inventa un
+// 100%/0% por falta de dato.
+function ratioPreventivo(prevCount,corrCount){
+  var total=(prevCount||0)+(corrCount||0);
+  return total?Math.round(prevCount/total*100):null;
+}
+
 // Probabilidad de falla por equipo+componente (2026-08, a pedido del usuario:
 // "podemos usar probabilidad" leyendo el historial real de correctivos).
 // Recibe una lista plana de eventos {sigla, componente, fecha} — ya resueltos
@@ -1250,6 +1278,8 @@ if (typeof window !== 'undefined') {
   window.mtbfFlotaReal = mtbfFlotaReal;
   window.esFallaMTBF = esFallaMTBF;
   window._otHistComoOt = _otHistComoOt;
+  window.contarFallasMes = contarFallasMes;
+  window.ratioPreventivo = ratioPreventivo;
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.confiabilidadReal = confiabilidadReal;
   window.regEsATiempo = regEsATiempo;
@@ -1265,6 +1295,6 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
-    probabilidadFallaDesdeEventos, _otHistComoOt
+    probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo
   };
 }

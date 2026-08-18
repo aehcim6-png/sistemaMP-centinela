@@ -4,6 +4,7 @@
 window.renderMetas = function () {
   if (!$("s-metas")) return;
   var eq = S.g('eq') || []; var reg = S.g('reg') || []; var ot = S.g('ot') || []; var otHist = S.g('otHist') || [];
+  var otConHist = ot.concat(_otHistComoOt(otHist));
   var stkM = S.g('stk') || []; var lubM = S.g('lub') || []; var movM = S.g('mov') || []; var tarifaHH = S.g('hh') || 25000;
   var metas = S.g('metas') || {};
   var MSN = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -41,19 +42,16 @@ window.renderMetas = function () {
     // correctivos reales del mes (esFallaMTBF, misma fuente única que MTBF/Confiabilidad),
     // no solo los PM — así el ratio SÍ baja cuando hay mucha reactividad.
     var prev = regM.length;
-    // Bug real #2 (auditoría 2026-08-18): 'correctivosDelMes' solo miraba 'ot' (correctivos
-    // en vivo) — pero se descubrió (cruzando contra el chat de WhatsApp "BSM_CEN - EQUIPOS",
-    // que sí registra cada "fuera de servicio" en tiempo real) que agosto-2026 tenía 0
-    // correctivos en vivo y 69 fallas reales en el histórico (correctivos_historico):
-    // el sistema formal simplemente no las tenía cargadas. Ahora se SUMAN ambas fuentes,
-    // a pedido explícito del usuario tras revisar el trade-off: para meses con buena
-    // cobertura en vivo (ej. marzo-2026: 51 en 'ot') esto puede sobre-contar si la misma
-    // falla quedó también en el histórico un día distinto (no hay deduplicación entre
-    // fuentes más allá de la que ya se hizo al cargar el histórico, por sigla+día exacto)
-    // — se acepta ese riesgo a cambio de que los meses vacíos en 'ot' (como agosto) dejen
-    // de mostrar un Ratio Preventivo 100% falso por falta de dato, no por buena gestión.
-    var correctivosDelMes = ot.filter(function (o) { return (o.fecha || '').slice(0, 7) === mes && esFallaMTBF(o) }).length
-      + otHist.filter(function (o) { return o && o.sigla && o.sistema && (o.fecha || '').slice(0, 7) === mes }).length;
+    // contarFallasMes (logic.js, auditoría 2026-08-18): fuente única de "correctivos
+    // reales del mes" (ot+otHist), compartida ahora con kpi.js y dash.js — antes cada
+    // uno tenía su propia copia y terminaron desincronizados entre sí. Se SUMAN ambas
+    // fuentes a pedido explícito del usuario tras revisar el trade-off: para meses con
+    // buena cobertura en vivo (ej. marzo-2026: 51 en 'ot') esto puede sobre-contar si la
+    // misma falla quedó también en el histórico un día distinto (no hay deduplicación
+    // entre fuentes más allá de la que ya se hizo al cargar el histórico, por sigla+día
+    // exacto) — se acepta ese riesgo a cambio de que los meses vacíos en 'ot' (como
+    // agosto) dejen de mostrar un Ratio Preventivo 100% falso por falta de dato.
+    var correctivosDelMes = contarFallasMes(otConHist, mes);
     var dispValsM = eq.map(function (e) { return dispEquipoMes(e.sigla, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, hrsDia: e.hrsDia || 12 }); }).filter(function (v) { return v !== null && v !== undefined });
     var hhMes = Math.round(regM.reduce(function (s, r) { return s + (r.duracionH || 0) }, 0));
     // Gasto REAL del mes = mano de obra (HH×tarifa) + repuestos/materiales consumidos.
@@ -82,7 +80,7 @@ window.renderMetas = function () {
       hh: hhMes,
       gasto: (regM.length || costoRepM) ? Math.round(hhMes * tarifaHH + costoRepM) : null,
       cumpl: regMev.length ? Math.round(regMev.filter(function (r) { return regEsATiempo(r) === true }).length / regMev.length * 100) : null,
-      ratio: (prev + correctivosDelMes) ? Math.round(prev / (prev + correctivosDelMes) * 100) : null,
+      ratio: ratioPreventivo(prev, correctivosDelMes),
       correctivosDelMes: correctivosDelMes,
       backlog: backlogMes
     };

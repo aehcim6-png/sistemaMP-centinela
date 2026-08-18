@@ -223,12 +223,12 @@ window.renderKpi=function(){
   // SIN fallas ya no devuelve las horas completas (número absurdo que siempre gana la meta):
   // se muestra como "sin dato", porque no hubo un intervalo entre fallas que medir.
   var mtbfMes=last12.map(function(mes){
-    var fallasM=otConHist.filter(function(o){return(o.fecha||'').slice(0,7)===mes&&esFallaMTBF(o)}).length;
+    var fallasM=contarFallasMes(otConHist,mes);
     var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
     return fallasM>0?Math.round(hrsM/fallasM):null;
   });
   var mtbfActual=mtbfFlotaReal(eq,otConHist);
-  var totalFallas=otConHist.filter(function(o){return esFallaMTBF(o)}).length;
+  var totalFallas=contarFallasMes(otConHist);
 
   // 3. CUMPLIMIENTO by month — regEsATiempo (logic.js) en vez de comparar
   // r.estado==='A tiempo' (bug real, auditoría 2026-08, ver logic.js). Solo
@@ -254,26 +254,19 @@ window.renderKpi=function(){
   });
   var costoHrActual=costoHrMes.length?costoHrMes[costoHrMes.length-1]:0;
 
-  // 5. RATIO PREV/CORR by month
-  // Bug real (auditoría 2026-08-18, encontrado tras el reporte del usuario de que
-  // "Ratio Preventivo" seguía en 100%): esta tarjeta es una implementación APARTE
-  // de la ya corregida en metas.js — no la reusaba, así que el mismo fix nunca
-  // llegó acá. 'reg' (registros_pm) NUNCA tiene tipoPM==='Correctivo' en toda su
-  // historia (los correctivos viven en 'ot'/'otHist', una tabla aparte), así que
-  // 'prev' siempre era igual a regM.length y el ratio daba 100% exacto siempre
-  // que hubiera algún PM — sin importar cuántos correctivos reales hubiera ese
-  // mes. Ahora el denominador suma los correctivos reales del mes (ot+otHist,
-  // esFallaMTBF, misma fuente única que MTBF arriba y que metas.js), mismo
-  // criterio de "sumar ambas fuentes" ya aprobado por el usuario para este KPI.
+  // 5. RATIO PREV/CORR by month — contarFallasMes/ratioPreventivo (logic.js,
+  // auditoría 2026-08-18): fuente única compartida con metas.js y dash.js, que
+  // tenían cada uno su propia copia de este mismo cálculo (ver logic.js para
+  // el detalle del bug: 'reg' nunca tiene tipoPM==='Correctivo', así que el
+  // denominador tiene que sumar los correctivos reales de ot+otHist).
   var ratioMes=last12.map(function(mes){
     var regM=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes});
     var prev=regM.filter(function(r){return r.tipoPM!=='Correctivo'}).length;
-    var corrM=otConHist.filter(function(o){return(o.fecha||'').slice(0,7)===mes&&esFallaMTBF(o);}).length;
-    return(prev+corrM)?Math.round(prev/(prev+corrM)*100):null;
+    return ratioPreventivo(prev,contarFallasMes(otConHist,mes));
   });
   var prevTotal=reg.filter(function(r){return r.tipoPM!=='Correctivo'}).length;
   var corrTotal=totalFallas;
-  var ratioActual=(prevTotal+corrTotal)?Math.round(prevTotal/(prevTotal+corrTotal)*100):null;
+  var ratioActual=ratioPreventivo(prevTotal,corrTotal);
 
   // 6. HH EFICIENCIA by month
   // Eficiencia HH: plan = duración típica real (mediana equipo+tipo), no la
