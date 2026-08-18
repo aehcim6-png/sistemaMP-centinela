@@ -61,7 +61,7 @@ window._getDispData=function(){
   return{headers:h,rows:r};
 };
 window._getMTBFData=function(){
-  var eq=S.g('eq')||[];var ot=S.g('ot')||[];
+  var eq=S.g('eq')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
   var h=['Equipo','Modelo','Horómetro','Fallas','MTBF (hrs)','Confiabilidad','Reparaciones','MTTR (hrs)','Mantenibilidad'];
   var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var rp=f.filter(function(o){return o.duracion&&o.duracion!=='—'});var tH=0;rp.forEach(function(o){var m=o.duracion.match(/(\d+)h/);if(m)tH+=parseInt(m[1]);});var mttr=rp.length>0?Math.round(tH/rp.length*10)/10:0;var mtbf=C.mtbfReal(f.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',rp.length,mttr,mttr===0?'Sin datos':mttr<4?'Rápido':mttr<8?'Normal':'Lento'];});
   return{headers:h,rows:r};
@@ -126,7 +126,7 @@ window._getCompData=function(){
   return{headers:h,rows:r};
 };
 window._getEjecutivoData=function(){
-  var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=S.g('ot')||[];var cd=S.g('compMayores')||[];var dd=S.g('dispCalc')||{};var dA=INIT.dispAbril||{};var meta=S.g('dispMeta')||85;
+  var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));var cd=S.g('compMayores')||[];var dd=S.g('dispCalc')||{};var dA=INIT.dispAbril||{};var meta=S.g('dispMeta')||85;
   eq.forEach(function(e){if(!dd[e.sigla])dd[e.sigla]={};if(dA[e.sigla]!==undefined&&!dd[e.sigla]['2026-04'])dd[e.sigla]['2026-04']=dA[e.sigla];});
   var dV=eq.map(function(e){var d=dd[e.sigla];if(!d)return null;var v=Object.values(d);return v.length?v[v.length-1]:null}).filter(function(v){return v!==null});
   var dP=dV.length?Math.round(dV.reduce(function(s,v){return s+v},0)/dV.length*10)/10:null;
@@ -178,6 +178,11 @@ window.renderKpi=function(){
   var eq=S.g('eq')||[];
   var reg=S.g('reg')||[];
   var ot=S.g('ot')||[];
+  // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
+  // falla): 'ot' a secas sigue siendo la fuente para Disponibilidad (downMap) y
+  // Backlog, que 'otHist' no puede alimentar (sin estadoOT/fechaSalida) — solo se usa
+  // esta versión combinada para mesesAll y los cálculos de MTBF/fallas, más abajo.
+  var otConHist=ot.concat(_otHistComoOt(S.g('otHist')||[]));
   var mov=S.g('mov')||[];
   var stk=S.g('stk')||[];
   var lub=S.g('lub')||[];
@@ -187,7 +192,7 @@ window.renderKpi=function(){
   var dAbr=INIT.dispAbril||{};
 
   // ═══ CALCULATE ALL KPIs BY MONTH ═══
-  var mesesAll=[...new Set(reg.map(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)}).concat(ot.map(function(o){return(o.fecha||'').slice(0,7)})).filter(function(m){return m}))].sort();
+  var mesesAll=[...new Set(reg.map(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)}).concat(otConHist.map(function(o){return(o.fecha||'').slice(0,7)})).filter(function(m){return m}))].sort();
   var mesActualStr0=new Date().toISOString().slice(0,7);
   if(mesesAll.indexOf(mesActualStr0)===-1)mesesAll.push(mesActualStr0);
   mesesAll.sort();
@@ -218,12 +223,12 @@ window.renderKpi=function(){
   // SIN fallas ya no devuelve las horas completas (número absurdo que siempre gana la meta):
   // se muestra como "sin dato", porque no hubo un intervalo entre fallas que medir.
   var mtbfMes=last12.map(function(mes){
-    var fallasM=ot.filter(function(o){return(o.fecha||'').slice(0,7)===mes&&esFallaMTBF(o)}).length;
+    var fallasM=otConHist.filter(function(o){return(o.fecha||'').slice(0,7)===mes&&esFallaMTBF(o)}).length;
     var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
     return fallasM>0?Math.round(hrsM/fallasM):null;
   });
-  var mtbfActual=mtbfFlotaReal(eq,ot);
-  var totalFallas=ot.filter(function(o){return esFallaMTBF(o)}).length;
+  var mtbfActual=mtbfFlotaReal(eq,otConHist);
+  var totalFallas=otConHist.filter(function(o){return esFallaMTBF(o)}).length;
 
   // 3. CUMPLIMIENTO by month — regEsATiempo (logic.js) en vez de comparar
   // r.estado==='A tiempo' (bug real, auditoría 2026-08, ver logic.js). Solo
