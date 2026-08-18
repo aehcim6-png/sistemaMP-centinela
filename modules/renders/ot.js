@@ -134,12 +134,18 @@ window.analisisFallas=function(){
   const reg=S.g('reg')||[];
   const eq=S.g('eq')||[];
   const fn2=v=>Math.round(v||0).toLocaleString('es-CL');
-  // Reunir todas las fallas (OT + correctivos de PM)
+  // Reunir todas las fallas (OT + correctivos de PM + otHist)
   const regCorr=reg.filter(r=>r.tipoPM==='Correctivo'||r.estatusEq==='Fuera de Servicio').map(r=>({
     sigla:r.equipo,fecha:r.fechaEntrada,componente:r.componente||'',sistema:'',
     sintoma:r.obs||'',horom:r.horomReal||0,duracion:r.duracion||''
   }));
-  const fallas=[...ot,...regCorr].filter(f=>f.sigla);
+  // otHist (auditoría 2026-08-18, mismo hallazgo que diagnosticoFlota en pred.js):
+  // este popup ("Análisis de Fallas — MTBF", accesible desde Correctivos) es el
+  // criterio "más suelto/antiguo" que Estadística ya mencionaba mejorar — nunca
+  // miraba correctivos_historico (WhatsApp). Seguro de combinar: usa sigla/fecha/
+  // componente/horom, todos presentes en el adaptador; 'duracion' no se usa acá.
+  const otHistFallas=_otHistComoOt(S.g('otHist')||[]);
+  const fallas=[...ot,...regCorr,...otHistFallas].filter(f=>f.sigla);
 
   // ── MTBF por COMPONENTE — tasa acotada a los últimos 12 meses ──
   // Antes: horómetro EN VIVO de toda la flota ÷ fallas de TODA la vida de ese
