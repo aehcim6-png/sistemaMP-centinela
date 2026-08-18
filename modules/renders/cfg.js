@@ -179,6 +179,28 @@ window.renderCfg=function(){
     '<input id="cfgAlertaWhatsApp" type="text" value="'+escapeHtml(c.alertaWhatsApp||'')+'" placeholder="+56912345678, +56987654321" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
     '<button class="btn" onclick="guardarAlertaWhatsApp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar destinatarios</button>'+
     '</div>';})():'')+
+    // REPORTE DE FALLAS POR WHATSAPP/CORREO (2026-08-18, a pedido del usuario) —
+    // canal de ENTRADA, al revés de las 2 tarjetas de arriba (que son de salida).
+    // Un técnico le escribe al número de Twilio o al correo configurado en
+    // Resend ("CN-9500 fuera de servicio, falla de turbo") y las Edge Functions
+    // whatsapp-webhook/email-webhook lo insertan en correctivos_historico
+    // automáticamente. Esta lista es el candado de seguridad: sin un remitente
+    // acá, ese canal simplemente ignora el mensaje (no inserta nada) — así
+    // cualquiera que le escriba al número/correo público de Twilio/Resend no
+    // puede inyectar datos falsos en la flota. Los reportes que no logran
+    // identificar el equipo con confianza quedan con fuente "— revisar" y
+    // aparecen en Auditoría de Datos para revisión manual, nunca se descartan
+    // en silencio ni se inventa un equipo/componente.
+    (window._userRole==='admin'?(function(){const c=S.g('cfg')||{};return ''+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #06b6d4">'+
+    '<b style="font-size:14px">📥 Reporte de Fallas por WhatsApp/Correo</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Quiénes pueden reportar una falla escribiéndole al número de WhatsApp o al correo del sistema (se suma directo a correctivos_historico). Sin al menos un remitente cargado acá, ese canal no acepta nada — evita que un mensaje de un número/correo desconocido termine como dato real de la flota. Formato internacional "+" para WhatsApp, separar varios con coma.</p>'+
+    '<label style="font-size:10px;color:var(--tx3)">Números de WhatsApp autorizados</label>'+
+    '<input id="cfgWhatsappRemitentes" type="text" value="'+escapeHtml(c.whatsappRemitentesPermitidos||'')+'" placeholder="+56912345678, +56987654321" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
+    '<label style="font-size:10px;color:var(--tx3)">Correos autorizados</label>'+
+    '<input id="cfgCorreoRemitentes" type="text" value="'+escapeHtml(c.correoRemitentesPermitidos||'')+'" placeholder="jefe.taller@besalco.cl, supervisor@besalco.cl" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
+    '<button class="btn" onclick="guardarRemitentesPermitidos()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar remitentes</button>'+
+    '</div>';})():'')+
     (function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #3ecf8e">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="8"/><ellipse cx="10" cy="10" rx="3.5" ry="8"/><line x1="2" y1="10" x2="18" y2="10"/></svg> Sincronización en la nube (Supabase)</b>'+
@@ -591,6 +613,14 @@ window.guardarAlertaWhatsApp=function(){
   c.alertaWhatsApp=($('cfgAlertaWhatsApp').value||'').trim();
   S.s('cfg',c);
   toast('✅ Destinatarios de WhatsApp guardados');
+  if(currentTab==='cfg')renders.cfg();
+};
+window.guardarRemitentesPermitidos=function(){
+  const c=S.g('cfg')||{};
+  c.whatsappRemitentesPermitidos=($('cfgWhatsappRemitentes').value||'').trim();
+  c.correoRemitentesPermitidos=($('cfgCorreoRemitentes').value||'').trim();
+  S.s('cfg',c);
+  toast('✅ Remitentes autorizados guardados');
   if(currentTab==='cfg')renders.cfg();
 };
 // Reemplaza a la vieja limpiarMovAntiguos(), que hacia S.s('mov', recientes) -- con
