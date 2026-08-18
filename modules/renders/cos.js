@@ -42,8 +42,17 @@ window.renderCos = function () {
   // Índice ot-por-sigla, construido UNA vez — antes cada equipo filtraba 'ot'
   // COMPLETO, y esto corre siempre (sin importar qué sub-pestaña de Costos & Stock
   // esté visible), O(equipos × correctivos) en cada apertura de esta pestaña.
+  // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
+  // falla/Informes KPI/Buscar/Dashboard): 'ot' a secas deja meses sin registro
+  // formal (ver correctivos_historico, cargado desde WhatsApp) invisibles en
+  // Fallas/MTBF. Acá es seguro sumar además para MTTR y SLA: 'reparaciones' y
+  // 'conSla' ya filtran por o.duracion/o.primeraAtencionEn presentes — como
+  // otHist nunca trae esos campos (no hay fallback tipo "asumir 8h" en este
+  // archivo, a diferencia del Dashboard), sus filas se cuentan en Fallas/MTBF
+  // pero quedan automáticamente afuera del promedio de MTTR/SLA, sin distorsión.
+  var otConHistCos = ot.concat(_otHistComoOt(S.g('otHist') || []));
   var otPorSiglaCos = {};
-  ot.forEach(function (o) { if (o && o.sigla) (otPorSiglaCos[o.sigla] = otPorSiglaCos[o.sigla] || []).push(o); });
+  otConHistCos.forEach(function (o) { if (o && o.sigla) (otPorSiglaCos[o.sigla] = otPorSiglaCos[o.sigla] || []).push(o); });
   // SLA de primera respuesta: horas entre 'fecha' (día reportado) y
   // 'primeraAtencionEn' (timestamp que ot.js marca la primera vez que la OT
   // deja de estar Pendiente). Solo existe para OT creadas/editadas desde que
