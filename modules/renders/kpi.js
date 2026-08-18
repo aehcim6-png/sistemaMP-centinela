@@ -255,13 +255,25 @@ window.renderKpi=function(){
   var costoHrActual=costoHrMes.length?costoHrMes[costoHrMes.length-1]:0;
 
   // 5. RATIO PREV/CORR by month
+  // Bug real (auditoría 2026-08-18, encontrado tras el reporte del usuario de que
+  // "Ratio Preventivo" seguía en 100%): esta tarjeta es una implementación APARTE
+  // de la ya corregida en metas.js — no la reusaba, así que el mismo fix nunca
+  // llegó acá. 'reg' (registros_pm) NUNCA tiene tipoPM==='Correctivo' en toda su
+  // historia (los correctivos viven en 'ot'/'otHist', una tabla aparte), así que
+  // 'prev' siempre era igual a regM.length y el ratio daba 100% exacto siempre
+  // que hubiera algún PM — sin importar cuántos correctivos reales hubiera ese
+  // mes. Ahora el denominador suma los correctivos reales del mes (ot+otHist,
+  // esFallaMTBF, misma fuente única que MTBF arriba y que metas.js), mismo
+  // criterio de "sumar ambas fuentes" ya aprobado por el usuario para este KPI.
   var ratioMes=last12.map(function(mes){
     var regM=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes});
     var prev=regM.filter(function(r){return r.tipoPM!=='Correctivo'}).length;
-    return regM.length?Math.round(prev/regM.length*100):null;
+    var corrM=otConHist.filter(function(o){return(o.fecha||'').slice(0,7)===mes&&esFallaMTBF(o);}).length;
+    return(prev+corrM)?Math.round(prev/(prev+corrM)*100):null;
   });
   var prevTotal=reg.filter(function(r){return r.tipoPM!=='Correctivo'}).length;
-  var ratioActual=reg.length?Math.round(prevTotal/reg.length*100):null;
+  var corrTotal=totalFallas;
+  var ratioActual=(prevTotal+corrTotal)?Math.round(prevTotal/(prevTotal+corrTotal)*100):null;
 
   // 6. HH EFICIENCIA by month
   // Eficiencia HH: plan = duración típica real (mediana equipo+tipo), no la
@@ -397,9 +409,9 @@ window.renderKpi=function(){
     '<div class="chart-box" style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-bottom:16px;padding:16px">'+
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">RATIO PREVENTIVO</div>'+
-    meterKPI(ratioActual,100,80,'%',ratioActual===null?'':'Ratio preventivo: '+ratioActual+'% · '+prevTotal+' prev / '+(reg.length-prevTotal)+' corr')+
+    meterKPI(ratioActual,100,80,'%',ratioActual===null?'':'Ratio preventivo: '+ratioActual+'% · '+prevTotal+' prev / '+corrTotal+' corr')+
     '<div style="font-size:10px;margin-top:4px;color:'+(ratioActual===null?'var(--tx3)':ratioActual>=80?'#22c55e':ratioActual>=60?'#f59e0b':'#ef4444')+'">'+(ratioActual===null?'Sin datos':'Meta: 80% preventivo')+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+prevTotal+' prev / '+(reg.length-prevTotal)+' corr</div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+prevTotal+' prev / '+corrTotal+' corr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptBacklog(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
     '<button class="btn-s" onclick="rptBacklog(\'print\')" style="font-size:9px" title="Imprimir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
