@@ -25,7 +25,7 @@ function _estFallasCombinadas(ot, otHist) {
   });
   (otHist || []).forEach(function (o) {
     if (!o || !o.sigla) return;
-    eventos.push({ sigla: o.sigla, componente: o.sistema || '', fecha: o.fechaInst, horom: o.horometro });
+    eventos.push({ sigla: o.sigla, componente: o.sistema || '', fecha: o.fecha, horom: o.horometro });
   });
   return eventos;
 }
