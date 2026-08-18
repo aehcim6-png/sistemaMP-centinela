@@ -59,6 +59,19 @@ function _auditOTSinSolucion(){
   }).sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
 }
 
+// Chequeo 4 (2026-08-18): reportes cargados automáticamente por WhatsApp/
+// correo (whatsapp-webhook/email-webhook) que el parser no pudo clasificar
+// con confianza (equipo no reconocido, parece pregunta, parece PM
+// programado en vez de correctivo, etc.) — se insertan igual en
+// correctivos_historico (nunca se descartan en silencio), pero con
+// fuente terminada en "— revisar" para que quede visible acá hasta que un
+// admin confirme el dato o lo corrija/borre por SQL.
+function _auditOtHistPorRevisar(){
+  const otHist=S.g('otHist')||[];
+  return otHist.filter(function(o){return o&&o.fuente&&/— revisar$/.test(o.fuente);})
+    .sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
+}
+
 const _AUDIT_MESES=[{v:'01',l:'Ene'},{v:'02',l:'Feb'},{v:'03',l:'Mar'},{v:'04',l:'Abr'},{v:'05',l:'May'},{v:'06',l:'Jun'},{v:'07',l:'Jul'},{v:'08',l:'Ago'},{v:'09',l:'Sep'},{v:'10',l:'Oct'},{v:'11',l:'Nov'},{v:'12',l:'Dic'}];
 
 window.renderAudit=function(){
@@ -86,6 +99,10 @@ window.renderAudit=function(){
     return{comp:c.comp,n:equipos.length,equipos:equipos};
   }).filter(function(c){return c.n>0;});
   const totalCompsSinValidar=compsSinValidar.reduce(function(s,c){return s+c.n;},0);
+  // otHist no tiene 'estadoOT' pendiente/en ejecución (el adaptador siempre le
+  // pone 'Cerrada'), así que pasaFiltro (pensado para 'ot') igual le sirve —
+  // fecha/sigla son campos comunes a ambas tablas.
+  const porRevisar=_auditOtHistPorRevisar().filter(function(o){return pasaFiltro(o.fecha,o.sigla);});
 
   const anios=[...new Set(ot.map(function(o){return(o.fecha||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
@@ -113,6 +130,10 @@ window.renderAudit=function(){
         <div style="font-size:24px;font-weight:700">${otSinSolucion.length}</div>
         <div style="font-size:11px;color:var(--tx3)">OT cerradas sin solución registrada</div>
       </div>
+      <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${porRevisar.length?'border-color:var(--warn)':''}">
+        <div style="font-size:24px;font-weight:700;color:${porRevisar.length?'var(--warn)':'var(--ok)'}">${porRevisar.length}</div>
+        <div style="font-size:11px;color:var(--tx3)">Reportes automáticos (WhatsApp/correo) por revisar</div>
+      </div>
     </div>
 
     <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Horómetro retrocede entre OT consecutivas (${saltos.length})</div>
@@ -137,11 +158,20 @@ window.renderAudit=function(){
     </table></div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Todos los componentes tienen dato validado</div>'}
 
     <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.doc} OT cerradas sin solución registrada (${otSinSolucion.length})</div>
-    ${otSinSolucion.length?`<div class="tbl-wrap"><table>
+    ${otSinSolucion.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Fecha</th><th>Síntoma</th></tr>
       ${otSinSolucion.slice(0,50).map(function(o){
         return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(o.sigla)}</td><td>${escapeHtml(o.fecha||'')}</td><td style="font-size:11px;color:var(--tx2)">${escapeHtml(o.sintoma||'')}</td></tr>`;
       }).join('')}
-    </table>${otSinSolucion.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${otSinSolucion.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Todas las OT cerradas tienen solución registrada</div>'}
+    </table>${otSinSolucion.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${otSinSolucion.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Todas las OT cerradas tienen solución registrada</div>'}
+
+    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Reportes automáticos por revisar (${porRevisar.length})</div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Cargados solos desde WhatsApp/correo (whatsapp-webhook/email-webhook), pero el parser no logró clasificarlos con confianza — se guardaron igual (nunca se descartan en silencio) para que se confirmen o corrijan acá. Si el equipo/componente es correcto, no hace falta hacer nada; si no, corrígelo por SQL directo sobre correctivos_historico (tabla de solo lectura desde la app, a propósito).</div>
+    ${porRevisar.length?`<div class="tbl-wrap"><table>
+      <tr><th>Equipo</th><th>Fecha</th><th>Sistema</th><th>Descripción</th><th>Fuente</th></tr>
+      ${porRevisar.slice(0,50).map(function(o){
+        return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(o.sigla||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.sistema||'')}</td><td style="font-size:11px;color:var(--tx2)">${escapeHtml((o.descripcion||'').slice(0,120))}</td><td style="font-size:10px;color:var(--warn)">${escapeHtml(o.fuente||'')}</td></tr>`;
+      }).join('')}
+    </table>${porRevisar.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${porRevisar.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Sin reportes automáticos pendientes de revisión</div>'}
   `;
 };
