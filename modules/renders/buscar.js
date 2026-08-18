@@ -4,6 +4,12 @@
 // compEstado vive en logic.js.
 window.renderBuscar=function(){
   var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=S.g('ot')||[];
+  // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
+  // falla/Informes KPI): 'ot' a secas dejaba fallas de meses sin registro formal
+  // (ver correctivos_historico) invisibles en el conteo de Fallas/MTBF de la ficha
+  // y del ranking de más abajo — solo se usa para eso, nunca se muestra fila por
+  // fila (otHist no trae síntoma/solución/operador para una tabla detallada).
+  var otConHist=ot.concat(_otHistComoOt(S.g('otHist')||[]));
   var hist=S.g('hist')||[];var insp=S.g('insp')||[];
   var comp=S.g('compMayores')||[];
   // Ficha completa (auditoría 2026-08): antes faltaban 6 fuentes de datos que
@@ -27,7 +33,7 @@ window.renderBuscar=function(){
   // Años reales presentes en registros PM y correctivos
   var aniosBuscar={};
   reg.forEach(function(r){var f=(r.fechaEntrada||r.fechaEjec||'').slice(0,4);if(f.length===4)aniosBuscar[f]=1;});
-  ot.forEach(function(o){var f=(o.fecha||'').slice(0,4);if(f.length===4)aniosBuscar[f]=1;});
+  otConHist.forEach(function(o){var f=(o.fecha||'').slice(0,4);if(f.length===4)aniosBuscar[f]=1;});
   var aniosBuscarArr=Object.keys(aniosBuscar).sort().reverse();
 
   // Filtro por rango de fecha — se aplica IGUAL en la ficha y en el ranking.
@@ -46,7 +52,7 @@ window.renderBuscar=function(){
   if(fEq){
     var eqObj=eq.find(function(e){return e.sigla===fEq});
     var regF=reg.filter(function(r){return r.equipo===fEq&&inRange(r.fechaEntrada||r.fechaEjec)});
-    var otF=ot.filter(function(o){return o.sigla===fEq&&inRange(o.fecha)});
+    var otF=otConHist.filter(function(o){return o.sigla===fEq&&inRange(o.fecha)});
     var histF=hist.filter(function(h){return h.sigla===fEq&&inRange(h.fecha)});
     var inspF=insp.filter(function(i){return i.equipo===fEq&&inRange(i.fecha)});
     var compF=comp.filter(function(c){return c.sigla===fEq});
@@ -167,7 +173,7 @@ window.renderBuscar=function(){
     // equipo — con cientos de equipos y miles de correctivos/registros, esto era
     // O(equipos × filas) en la vista que se ve primero al abrir esta pestaña.
     var otPorSiglaBuscar={},regPorSiglaBuscar={};
-    ot.forEach(function(o){
+    otConHist.forEach(function(o){
       if(!o.sigla||!(esFallaMTBF(o)&&inRange(o.fecha)))return;
       (otPorSiglaBuscar[o.sigla]=otPorSiglaBuscar[o.sigla]||[]).push(o);
     });

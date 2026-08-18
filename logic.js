@@ -409,6 +409,25 @@ function esFallaMTBF(o){
   return o.tipo==='Fuera de Servicio'&&o.criticidad==='Reparación Inmediata';
 }
 
+// Adapta 'otHist' (correctivos_historico: sigla/fecha/horometro/sistema, sin 'tipo'
+// ni 'criticidad') a la misma forma que espera esFallaMTBF/mtbfFlotaReal — se le pone
+// tipo:'Correctivo' a propósito (así es como se clasificó al cargar el histórico vía
+// WhatsApp/Excel) para que se sume vía la MISMA función esFallaMTBF, no un criterio
+// aparte. estadoOT:'Cerrada' (nunca 'Pendiente'/'En Ejecución') — un correctivo del
+// histórico nunca debe aparecer en un Backlog de pendientes, y evita que quede
+// literalmente "undefined" en tablas que muestran el estado de cada fila (ej. la
+// tabla de Correctivos en Buscar → Ficha por equipo, bug real encontrado al probar
+// este mismo cambio). Función pura (recibe otHist ya traído por quien llama, no toca
+// S.g) para mantener el mismo criterio de logic.js que el resto del archivo — usado
+// por kpi.js (Informes/Reporte Ejecutivo) y buscar.js (Ficha por equipo), auditoría
+// 2026-08-18: mismo hallazgo que Ratio Preventivo/Flota sin falla, estos reportes
+// también estaban ciegos a 'otHist'.
+function _otHistComoOt(otHist){
+  return (otHist||[]).map(function(o){
+    return{sigla:o.sigla,fecha:o.fecha,horom:o.horometro,tipo:'Correctivo',componente:o.sistema,sintoma:o.sistema,estadoOT:'Cerrada'};
+  });
+}
+
 // Probabilidad de falla por equipo+componente (2026-08, a pedido del usuario:
 // "podemos usar probabilidad" leyendo el historial real de correctivos).
 // Recibe una lista plana de eventos {sigla, componente, fecha} — ya resueltos
@@ -1230,6 +1249,7 @@ if (typeof window !== 'undefined') {
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
   window.mtbfFlotaReal = mtbfFlotaReal;
   window.esFallaMTBF = esFallaMTBF;
+  window._otHistComoOt = _otHistComoOt;
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.confiabilidadReal = confiabilidadReal;
   window.regEsATiempo = regEsATiempo;
@@ -1245,6 +1265,6 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
-    probabilidadFallaDesdeEventos
+    probabilidadFallaDesdeEventos, _otHistComoOt
   };
 }
