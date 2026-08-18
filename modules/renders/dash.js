@@ -18,6 +18,14 @@ window.renderDash=function(){
   const mov=S.g('mov')||[];
   const ot=S.g('ot')||[];
   const otHist=S.g('otHist')||[];
+  // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
+  // falla/Informes KPI/Buscar): para TODO lo que cuenta fallas/MTBF/OT cerradas —
+  // 'ot' a secas deja meses sin registro formal (ej. agosto-2026: 0 en 'ot', 69+ en
+  // 'otHist' vía WhatsApp) invisibles. Disponibilidad (downMap) y Pendientes/En
+  // Ejecución siguen con 'ot' puro: otHist no tiene fechaSalida real, y sus filas
+  // siempre son estadoOT:'Cerrada' (nunca pueden aparecer como pendientes de todos
+  // modos, por diseño del adaptador).
+  const otConHist=ot.concat(_otHistComoOt(otHist));
   const neu=S.g('neu')||[];
   const stk=S.g('stk')||[];
   const lub=S.g('lub')||[];
@@ -156,7 +164,7 @@ window.renderDash=function(){
   // MTBF del mes — esFallaMTBF (logic.js): fuente única, incluye 'Fuera de
   // Servicio' con criticidad 'Reparación Inmediata' además de Correctivo/
   // Falla Operacional (ver comentario ahí — auditoría 2026-08).
-  var fallasMes=ot.filter(function(o){
+  var fallasMes=otConHist.filter(function(o){
     if(!esFallaMTBF(o))return false;
     return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
   }).length;
@@ -170,7 +178,7 @@ window.renderDash=function(){
   // entre fallas sucesivas de cada equipo, con TODO su historial (no acotado al
   // mes elegido: un MTBF con datos de un solo mes casi siempre tiene muy pocos
   // intervalos para ser representativo).
-  var mtbfFlota=mtbfFlotaReal(eq,ot);
+  var mtbfFlota=mtbfFlotaReal(eq,otConHist);
   // Horas de operación promedio por equipo en el período elegido — el "t" de
   // R(t)=e^(-t/MTBF) más abajo (ver confiabilidadReal en logic.js).
   var eqHrsUnidad=eq.filter(function(e){return e.unidad!=='km';});
@@ -186,7 +194,7 @@ window.renderDash=function(){
   var progDiaHoy=progDiaUltima?_progDiaResumen(progDiaTodo.filter(function(p){return p.fecha===progDiaUltima;})):null;
   var utilDia=progDiaHoy?progDiaHoy.utilizacion:null;
   var otEjec=ot.filter(function(o){return o.estadoOT==='En Ejecución'}).length;
-  var otCerr=ot.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo}).length;
+  var otCerr=otConHist.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo}).length;
   var prevPct=regMes.length?Math.round(prev/regMes.length*100):null;
   var hrsFlotaMes=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
   // Confiabilidad: equipos sin falla en el PERÍODO seleccionado (no en toda la historia).
@@ -218,6 +226,12 @@ window.renderDash=function(){
   // MTTR del mes — cuando una OT no tiene duración registrada, se asume 8h en vez
   // de dejarla fuera del promedio (ver tooltip de la tarjeta más abajo: esto es
   // una ESTIMACIÓN, no un dato medido, para no perder la OT del cálculo).
+  // A propósito NO se usa otConHist acá: 'otHist' (correctivos_historico, cargado
+  // desde WhatsApp) nunca trae 'duracion' — no es un dato que ese canal capture.
+  // Si se sumara, cada evento de otHist caería siempre en el fallback de 8h, y en
+  // meses dominados por otHist (ej. agosto-2026: 69 otHist vs 0 en 'ot') el MTTR
+  // dejaría de medir nada real y se volvería un ~8h plano — igual que Disponibilidad
+  // (downMap) más arriba, este cálculo necesita datos que solo 'ot' puede dar.
   var otFallasMes=ot.filter(function(o){return esFallaMTBF(o)&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;});
   var otFallasMesSinDuracion=otFallasMes.filter(function(o){return!o.duracion||!o.duracion.match(/(\d+)h/);}).length;
   // Bug real (encontrado por el usuario, agosto 2026): con 0 correctivos en el
