@@ -105,7 +105,18 @@ window.renderDash=function(){
   });
   const cumProg=progPlan?Math.round(progEjec/progPlan*100):0;
   const prev=regMes.filter(r=>r.tipoPM!=='Correctivo').length;
-  const corr=regMes.filter(r=>r.tipoPM==='Correctivo').length;
+  // Bug real (auditoría 2026-08-18, encontrado tras un cuarto reporte del usuario
+  // de que "Ratio [Preventivo/Mantención]" seguía en 100%): esta es la TERCERA
+  // implementación de este mismo cálculo en el sistema (metas.js e Informes KPI
+  // ya se habían corregido) — la tarjeta "Ratio Mantención" del Dashboard, la
+  // primera pantalla que se ve al entrar, nunca se tocó porque usa otra fuente
+  // ('reg'/registros_pm con tipoPM==='Correctivo') en vez de esFallaMTBF/ot/otHist,
+  // así que no aparecía en los barridos anteriores de esa función. Como 'reg'
+  // NUNCA tiene tipoPM==='Correctivo' en toda su historia (los correctivos viven
+  // en 'ot'/'otHist', tabla aparte), 'corr' siempre daba 0 acá. Ahora usa la misma
+  // fuente única que el resto del Dashboard (otConHist, esFallaMTBF) para contar
+  // los correctivos reales del mes.
+  const corr=otConHist.filter(function(o){return esFallaMTBF(o)&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;}).length;
   const pmC={PM1:0,PM2:0,PM3:0,PM4:0,Correctivo:0};regMes.forEach(r=>{if(pmC[r.tipoPM]!==undefined)pmC[r.tipoPM]++});
   const MS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
   const pm=MS.map((_,i)=>reg.filter(r=>{var d=new Date(r.fechaEjec||r.fechaEntrada);return d.getMonth()===i&&d.getFullYear()===2026}).length);
@@ -195,7 +206,7 @@ window.renderDash=function(){
   var utilDia=progDiaHoy?progDiaHoy.utilizacion:null;
   var otEjec=ot.filter(function(o){return o.estadoOT==='En Ejecución'}).length;
   var otCerr=otConHist.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo}).length;
-  var prevPct=regMes.length?Math.round(prev/regMes.length*100):null;
+  var prevPct=(prev+corr)?Math.round(prev/(prev+corr)*100):null;
   var hrsFlotaMes=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
   // Confiabilidad: equipos sin falla en el PERÍODO seleccionado (no en toda la historia).
   // Bug real #3 de la misma familia (auditoría 2026-08-18, mismo hallazgo que Ratio
@@ -448,17 +459,25 @@ window.renderDash=function(){
     }).join('')+'</div></div>'+
 
     '<div class="chart-box" style="padding:16px"><div class="chart-t">Distribución PM · '+dashLabel+'</div>'+
-    '<div style="padding:10px 0">'+["PM1","PM2","PM3","PM4"].map(function(p,i){
-      var v=pmC[p]||0;var total=regMes.length||1;var pct=Math.round(v/total*100);
-      var colors=["#22c55e","#3b82f6","#f59e0b","#ef4444"];
-      var tipTxt=p+': '+v+' de '+total+' ('+pct+'%)';
-      // Identidad la lleva el swatch de color, no el texto (el texto usa tinta neutra)
-      return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
-        '<div style="width:44px;font-size:10px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:'+colors[i]+';display:inline-block;flex-shrink:0"></span>'+p+'</div>'+
-        '<div style="flex:1;background:color-mix(in srgb,'+colors[i]+' 18%,var(--bg4));border-radius:4px;height:14px;overflow:hidden"><div style="background:'+colors[i]+';height:100%;width:'+pct+'%;border-radius:4px"></div></div>'+
-        '<div style="width:40px;text-align:right;font-size:10px;font-weight:600;color:var(--tx)">'+v+'</div></div>';
-    }).join('')+
-    (corr?(function(){var pctC=Math.round(corr/(regMes.length||1)*100);var tipTxt='Correctivo: '+corr+' de '+(regMes.length||1)+' ('+pctC+'%)';return'<div style="display:flex;align-items:center;gap:8px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="width:44px;font-size:10px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#64748b;display:inline-block;flex-shrink:0"></span>Corr</div><div style="flex:1;background:color-mix(in srgb,#64748b 18%,var(--bg4));border-radius:4px;height:14px;overflow:hidden"><div style="background:#64748b;height:100%;width:'+pctC+'%;border-radius:4px"></div></div><div style="width:40px;text-align:right;font-size:10px;font-weight:600;color:var(--tx)">'+corr+'</div></div>';})():'')+
+    '<div style="padding:10px 0">'+(function(){
+      // totalDist (auditoría 2026-08-18, mismo hallazgo que "Ratio Mantención" más
+      // arriba): antes 'corr' era siempre 0, así que el denominador regMes.length
+      // (solo PM) coincidía con el total real. Ahora que 'corr' cuenta correctivos
+      // de verdad (ot+otHist), el denominador tiene que sumarlos también — si no,
+      // la barra "Corr" mostraría porcentajes de más de 100%.
+      var totalDist=(regMes.length||0)+corr||1;
+      return["PM1","PM2","PM3","PM4"].map(function(p,i){
+        var v=pmC[p]||0;var pct=Math.round(v/totalDist*100);
+        var colors=["#22c55e","#3b82f6","#f59e0b","#ef4444"];
+        var tipTxt=p+': '+v+' de '+totalDist+' ('+pct+'%)';
+        // Identidad la lleva el swatch de color, no el texto (el texto usa tinta neutra)
+        return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
+          '<div style="width:44px;font-size:10px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:'+colors[i]+';display:inline-block;flex-shrink:0"></span>'+p+'</div>'+
+          '<div style="flex:1;background:color-mix(in srgb,'+colors[i]+' 18%,var(--bg4));border-radius:4px;height:14px;overflow:hidden"><div style="background:'+colors[i]+';height:100%;width:'+pct+'%;border-radius:4px"></div></div>'+
+          '<div style="width:40px;text-align:right;font-size:10px;font-weight:600;color:var(--tx)">'+v+'</div></div>';
+      }).join('')+
+      (corr?(function(){var pctC=Math.round(corr/totalDist*100);var tipTxt='Correctivo: '+corr+' de '+totalDist+' ('+pctC+'%)';return'<div style="display:flex;align-items:center;gap:8px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="width:44px;font-size:10px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#64748b;display:inline-block;flex-shrink:0"></span>Corr</div><div style="flex:1;background:color-mix(in srgb,#64748b 18%,var(--bg4));border-radius:4px;height:14px;overflow:hidden"><div style="background:#64748b;height:100%;width:'+pctC+'%;border-radius:4px"></div></div><div style="width:40px;text-align:right;font-size:10px;font-weight:600;color:var(--tx)">'+corr+'</div></div>';})():'');
+    })()+
     '</div></div>'+
 
     '</div>'+
