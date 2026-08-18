@@ -17,6 +17,7 @@ window.renderDash=function(){
   const eq=C.recalcAll(),reg=S.g('reg')||[];
   const mov=S.g('mov')||[];
   const ot=S.g('ot')||[];
+  const otHist=S.g('otHist')||[];
   const neu=S.g('neu')||[];
   const stk=S.g('stk')||[];
   const lub=S.g('lub')||[];
@@ -188,11 +189,24 @@ window.renderDash=function(){
   var otCerr=ot.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo}).length;
   var prevPct=regMes.length?Math.round(prev/regMes.length*100):null;
   var hrsFlotaMes=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
-  // Confiabilidad: equipos sin falla en el PERÍODO seleccionado (no en toda la historia)
-  var eqConFallaMes=new Set(ot.filter(function(o){
-    if(!esFallaMTBF(o))return false;
-    return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
-  }).map(function(o){return o.sigla;})).size;
+  // Confiabilidad: equipos sin falla en el PERÍODO seleccionado (no en toda la historia).
+  // Bug real #3 de la misma familia (auditoría 2026-08-18, mismo hallazgo que Ratio
+  // Preventivo): solo miraba 'ot' (correctivos en vivo) — meses vacíos en el sistema
+  // formal (ej. agosto-2026, 0 correctivos en 'ot' pero 69 en 'correctivos_historico'
+  // vía WhatsApp) mostraban "100% Flota sin falla" por falta de dato, no por buena
+  // gestión. A diferencia de Ratio Preventivo, acá el riesgo de sobre-contar por sumar
+  // ambas fuentes es mínimo: es un Set de SIGLAS (¿tuvo o no tuvo alguna falla?), no una
+  // suma de eventos — un equipo que aparece en 'ot' Y en 'otHist' el mismo mes solo
+  // cuenta una vez de todos modos.
+  var eqConFallaMes=new Set(
+    ot.filter(function(o){
+      if(!esFallaMTBF(o))return false;
+      return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
+    }).map(function(o){return o.sigla;})
+    .concat(otHist.filter(function(o){
+      return o&&o.sigla&&o.sistema&&(o.fecha||'').slice(0,7)===dashPeriodo;
+    }).map(function(o){return o.sigla;}))
+  ).size;
   var idxConf=eq.length>0?Math.round((eq.length-eqConFallaMes)/eq.length*100):100;
   // Confiabilidad real (R) — probabilidad de NO fallar durante el período, según
   // R(t)=e^(-t/MTBF) (fórmula estándar RAM/ISO 14224, asume tasa de falla
