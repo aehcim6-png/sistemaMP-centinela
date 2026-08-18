@@ -194,7 +194,11 @@ function generarDiagnostico(sigla){
   if(aceAlertas.length)porQue.push('Desgaste interno detectado por análisis de aceite');
   if(noks.length)porQue.push('Anomalías detectadas en inspección visual');
   var compFallas={};
-  ot.filter(function(o){return o.sigla===sigla;}).forEach(function(o){
+  // Suma otHist acá (auditoría 2026-08-18, mismo hallazgo que en el resto del
+  // sistema): "Falla recurrente en X (N veces)" se veía ciego a lo cargado desde
+  // WhatsApp. otPend arriba se queda con 'ot' puro a propósito — otHist nunca es
+  // 'Pendiente'.
+  ot.concat(_otHistComoOt(S.g('otHist')||[])).filter(function(o){return o.sigla===sigla;}).forEach(function(o){
     var comp=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
     if(comp)compFallas[comp]=(compFallas[comp]||0)+1;
   });
@@ -311,7 +315,10 @@ function _cruceSistemas(sigla,categoria){
 
   // Batería + Motor de Partida + Alternador repitiéndose juntos = sistema de carga, no la batería sola
   if(categoria==='Batería'||categoria==='Motor de Partida'||categoria==='Alternador'){
-    var ot=S.g('ot')||[];
+    // otConHist (auditoría 2026-08-18, mismo hallazgo que el resto del sistema):
+    // sin esto, un patrón de sistema de carga solo visible en WhatsApp quedaba
+    // invisible acá.
+    var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
     var otEq=ot.filter(function(o){return o.sigla===sigla;});
     var cats={};
     otEq.forEach(function(o){var c=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);if(c)cats[c]=(cats[c]||0)+1;});
@@ -511,7 +518,14 @@ function lubVsProximosPM(horizonteDias){
 // la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
 // cuántos de ellos? — para saber DÓNDE mirar antes de entrar al detalle por equipo.
 function diagnosticoFlota(){
-  var ot=S.g('ot')||[];
+  // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
+  // falla/Dashboard/Costos/KPI/Buscar): este diagnóstico de flota completa ("qué
+  // componente falla más y en cuántos equipos") solo miraba 'ot' — invisible a lo
+  // cargado desde WhatsApp (otHist). Es seguro sumar: causaRaiz/solución/costo no
+  // existen en otHist, así que sus filas cuentan en 'total'/'equipos' (correcto,
+  // son fallas reales) pero caen solas en sinCausa/sinSolucion (también correcto,
+  // WhatsApp no capturó esos datos) y nunca en 'pendientes' (siempre 'Cerrada').
+  var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
   var porComp={};
   ot.forEach(function(o){
     var k=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
@@ -654,7 +668,12 @@ window.renderPred=function(){
   // (m._sigla||m.componente).includes(sigla), no una clave exacta agrupable.
   var inspPorSiglaPred={},otPorSiglaPred={},eqPorSiglaPred={};
   insp.forEach(function(r){if(r&&r.sigla)(inspPorSiglaPred[r.sigla]=inspPorSiglaPred[r.sigla]||[]).push(r);});
-  ot.forEach(function(o){if(o&&o.sigla)(otPorSiglaPred[o.sigla]=otPorSiglaPred[o.sigla]||[]).push(o);});
+  // otPorSiglaPred (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota
+  // sin falla/Dashboard/Costos/KPI/Buscar) alimenta alertaCruzada() — el 🔴🟡🟢 de
+  // "fallas repetidas por componente" que se muestra por equipo. 'ot' a secas deja
+  // afuera lo cargado desde WhatsApp (otHist); se suma acá igual que en los demás
+  // lugares ya corregidos.
+  ot.concat(_otHistComoOt(S.g('otHist')||[])).forEach(function(o){if(o&&o.sigla)(otPorSiglaPred[o.sigla]=otPorSiglaPred[o.sigla]||[]).push(o);});
   eq.forEach(function(e){if(e&&e.sigla)eqPorSiglaPred[e.sigla]=e;});
 
   // ═══ INTELLIGENCE ENGINE ═══
