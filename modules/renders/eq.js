@@ -157,6 +157,15 @@ window.editFicha=function(sigla){
 // como clave (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa,
 // Pautas, Componentes Mayores, Gantt, Vencimientos, Disponibilidad) — si no, el equipo
 // renombrado queda huérfano de toda su historia.
+// OJO (auditoría 2026-08-18): esto NO alcanza a 'otHist' (correctivos_historico,
+// cargado desde WhatsApp/Excel) — esa tabla es de solo lectura a propósito (ver
+// store.js: nada en la app llama S.s('otHist',...), para que el sync genérico
+// nunca pueda borrar/sobrescribir datos históricos reales por accidente). Si se
+// renombra la sigla de un equipo que SÍ tiene eventos en otHist, esos eventos
+// quedan con la sigla vieja y dejan de aparecer en Ratio Preventivo/Flota sin
+// falla/Dashboard/Costos/KPI/Buscar/Predictivo para el equipo renombrado — hay
+// que actualizar 'sigla' en correctivos_historico a mano vía SQL después de un
+// rename así (mismo patrón ya usado para cargar/corregir este historial).
 function _cascadeRenameSigla(oldSigla,newSigla){
   if(!oldSigla||!newSigla||oldSigla===newSigla)return;
   var reg=S.g('reg')||[];var chReg=false;
