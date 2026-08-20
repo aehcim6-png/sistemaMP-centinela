@@ -517,7 +517,12 @@ function lubVsProximosPM(horizonteDias){
 // generarDiagnostico() responde "qué pasa" para UN equipo ya elegido. Esto responde
 // la pregunta anterior: de los 35 equipos, ¿qué componente falla más seguido y en
 // cuántos de ellos? — para saber DÓNDE mirar antes de entrar al detalle por equipo.
-function diagnosticoFlota(){
+// sigla/mes (2026-08-18, a pedido del usuario: "en Predictivo si quiero buscar un
+// equipo o año o mes no está"): filtros OPCIONALES — sin ellos, se comporta
+// exactamente igual que antes (toda la flota, todo el histórico). mes es
+// 'YYYY-MM'; con solo año, pasar 'YYYY' (se compara por prefijo, así que
+// matchea cualquier mes de ese año).
+function diagnosticoFlota(sigla,mes){
   // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
   // falla/Dashboard/Costos/KPI/Buscar): este diagnóstico de flota completa ("qué
   // componente falla más y en cuántos equipos") solo miraba 'ot' — invisible a lo
@@ -525,7 +530,12 @@ function diagnosticoFlota(){
   // existen en otHist, así que sus filas cuentan en 'total'/'equipos' (correcto,
   // son fallas reales) pero caen solas en sinCausa/sinSolucion (también correcto,
   // WhatsApp no capturó esos datos) y nunca en 'pendientes' (siempre 'Cerrada').
-  var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
+  var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]))
+    .filter(function(o){
+      if(sigla&&o.sigla!==sigla)return false;
+      if(mes&&(o.fecha||o.fechaEntrada||'').indexOf(mes)!==0)return false;
+      return true;
+    });
   var porComp={};
   ot.forEach(function(o){
     var k=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
@@ -659,6 +669,20 @@ window.renderPred=function(){
   var mov=S.g('mov')||[];
   var fVista=$('fPredVista')?.value||'general';
   var fEq=$('fPredEq')?.value||'';
+  // fPredAnio/fPredMes (2026-08-18, a pedido del usuario: "en Predictivo si quiero
+  // buscar un equipo o año o mes no está") — filtro persistente, visible en TODAS
+  // las vistas (antes el selector de equipo solo aparecía en "Por Equipo"/
+  // "Diagnóstico"). Se aplica donde tiene sentido real: Fallas Repetitivas y
+  // Backlog/Top Items (equipo), Probabilidad de Falla (solo equipo — año/mes no
+  // aplica ahí, el cálculo estadístico necesita TODO el historial disponible para
+  // ser confiable, acotarlo a un mes rompería la muestra). El histórico de compras
+  // de la vista "Necesita atención" (Zona 2, computePred()) queda sin filtrar a
+  // propósito: esa función es compartida con Plan Semanal, tocarla acá desincronizaría
+  // ese otro lugar.
+  var fAnio=$('fPredAnio')?.value||'';
+  var fMes=$('fPredMes')?.value||'';
+  var fMesCompleto=fAnio&&fMes?(fAnio+'-'+fMes):fAnio;
+  var aniosPred=[...new Set(ot.concat(_otHistComoOt(S.g('otHist')||[])).map(function(o){return(o.fecha||o.fechaEntrada||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
   // Índices por sigla, construidos UNA vez — alertaCruzada() se llama por cada
   // equipo (dos veces: para el resumen y para la tabla completa) y filtraba insp/ot/
@@ -798,7 +822,7 @@ window.renderPred=function(){
     var quiebres=riesgoQuiebre();
     var maxC=Math.max.apply(null,P.costoMes.map(function(m){return m.c;}))||1;
     // Datos accionables para la Zona 1
-    var reinc=(typeof diagnosticoFlota==='function')?diagnosticoFlota():[];
+    var reinc=(typeof diagnosticoFlota==='function')?diagnosticoFlota(fEq,fMesCompleto):[];
     var reincEmpeora=reinc.filter(function(c){return c.tendencia==='empeora';}).length;
     var alertEq=eq.map(function(e){return alertaCruzada(e.sigla);});
     var eqCrit=alertEq.filter(function(a){return a.severity>=5;}).length;
@@ -854,7 +878,7 @@ window.renderPred=function(){
       '<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">🚦 Alerta Cruzada por Equipo (Inspección + Fallas + Consumo + PM)</div>'+
       '<div class="tbl-wrap"><table>'+
       '<tr><th>Equipo</th><th>Modelo</th><th>Estado</th><th>Confianza</th><th>Próx PM</th><th>Alertas Cruzadas</th><th>Recomendación</th></tr>'+
-      eq.map(function(e){
+      eq.filter(function(e){return !fEq||e.sigla===fEq;}).map(function(e){
         var ac=alertaCruzada(e.sigla);
         var conf=calcConfianza(e.sigla);
         var confCol=conf.nivel==='Alta'?'var(--ok)':conf.nivel==='Media'?'var(--w)':'var(--tx3)';
@@ -958,6 +982,7 @@ window.renderPred=function(){
           motivo:'PM vencida',impacto:'Alto',prioridad:'🔴 Crítico',estadoOT:'Pendiente',componente:'',predCumplida:''});
       }
     });
+    if(fEq)backlog=backlog.filter(function(b){return b.sigla===fEq;});
     backlog.sort(function(a,b){return b.dias-a.dias;});
 
     var is=CELL_INPUT_STYLE+';font-size:11px;padding:2px';
@@ -989,7 +1014,7 @@ window.renderPred=function(){
       '</table></div>';
 
   } else if(fVista==='items'){
-    var items=P.topItems.slice(0,40);
+    var items=(fEq?P.topItems.filter(function(it){return it.equipos.includes(fEq);}):P.topItems).slice(0,40);
     content=
       '<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Top 40 Items</div>'+
       '<div class="tbl-wrap"><table><tr><th>Item</th><th>Pedidos</th><th>Prom/Mes</th><th>Lead</th><th>Equipos</th><th>Costo</th></tr>'+
@@ -1000,7 +1025,7 @@ window.renderPred=function(){
           '<td style="text-align:right;font-size:11px">$'+it.costoTotal.toLocaleString()+'</td></tr>';
       }).join('')+'</table></div></div>';
   } else if(fVista==='flota'){
-    var df=diagnosticoFlota();
+    var df=diagnosticoFlota(fEq,fMesCompleto);
     content=
       '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏭 Componentes con fallas repetitivas — toda la flota</div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Agrupa TODOS los correctivos por componente, sin importar el equipo. Ordenado por severidad: primero lo que se repite en el mismo equipo o en varios equipos a la vez.</div>'+
@@ -1045,7 +1070,7 @@ window.renderPred=function(){
     otHistProb.forEach(function(o){
       if(o&&o.sigla&&o.sistema)eventosProb.push({sigla:o.sigla,componente:o.sistema,fecha:o.fecha});
     });
-    var probs=probabilidadFallaDesdeEventos(eventosProb).slice(0,40);
+    var probs=probabilidadFallaDesdeEventos(eventosProb).filter(function(p){return !fEq||p.sigla===fEq;}).slice(0,40);
     content=
       '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🎲 Probabilidad de falla en los próximos 30 días</div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta): usa el intervalo promedio real entre fallas pasadas del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ fallas registradas; con menos, el número no sería confiable.</div>'+
@@ -1151,8 +1176,12 @@ $('s-pred').innerHTML=
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option></select>'+
-    (fVista==='equipo'||fVista==='diag'?
-      '<select id="fPredEq" onchange="renders.pred()"><option value="">Seleccionar equipo...</option>'+
-      eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>':'')+
+    '<select id="fPredEq" onchange="renders.pred()"><option value="">'+(fVista==='equipo'||fVista==='diag'?'Seleccionar equipo...':'Todos los equipos')+'</option>'+
+      eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>'+
+    '<select id="fPredAnio" onchange="renders.pred()"><option value="">Todos los años</option>'+
+      aniosPred.map(function(a){return'<option value="'+a+'"'+(fAnio===a?' selected':'')+'>'+a+'</option>';}).join('')+'</select>'+
+    '<select id="fPredMes" onchange="renders.pred()"><option value="">Todos los meses</option>'+
+      _AUDIT_MESES.map(function(m){return'<option value="'+m.v+'"'+(fMes===m.v?' selected':'')+'>'+m.l+'</option>';}).join('')+'</select>'+
+    ((fEq||fAnio||fMes)?'<button class="btn-o" onclick="$(\'fPredEq\').value=\'\';$(\'fPredAnio\').value=\'\';$(\'fPredMes\').value=\'\';renders.pred()">Limpiar filtros</button>':'')+
     '</div>'+content;
 }
