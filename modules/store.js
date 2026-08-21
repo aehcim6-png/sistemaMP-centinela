@@ -135,7 +135,14 @@ const TABLA_REAL={
   // reutilizaba en OTRO neumático (no el mismo par rueda+sensor de siempre), no
   // había forma de seguirle la pista por separado. 'neuSerie' enlaza al
   // neumático actual por N° de serie (igual que neuMed ya hace con las mediciones).
-  sen:{tabla:'sensores_neumaticos',clave:'_id',claveDb:'id',cols:['numSensor','marca','sigla','posicion','neuSerie','estado','fechaInst','obs','historial']},
+  // horomInstalacion/horasAcum (2026-08-21, a pedido del usuario: "tendré su hora
+  // de uso, en qué equipo estuvo y en qué posiciones"): mismo patrón que 'neu' —
+  // horomInstalacion es el horómetro del equipo al montar el sensor actual;
+  // horasAcum es el total de horas de uso acumuladas SUMANDO todos los montajes
+  // anteriores (se congela cada vez que se desmonta, ver _horasMontajeSensor en
+  // neu.js). Antes el sensor solo tenía 'historial' con fechas — no había forma
+  // de saber cuántas horas trabajó, solo cuándo se movió.
+  sen:{tabla:'sensores_neumaticos',clave:'_id',claveDb:'id',cols:['numSensor','marca','sigla','posicion','neuSerie','estado','fechaInst','obs','historial','horomInstalacion','horasAcum']},
   // Tren de rodaje (cadena) de bulldozers — una fila por lado+componente (eslabón,
   // buje, zapata, sprocket, rueda guía, rodillo superior/inferior), mismo patrón que
   // 'neu' pero sin criterio fijo por marca: cada equipo/proveedor trae su propio

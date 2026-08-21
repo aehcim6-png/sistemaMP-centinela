@@ -44,6 +44,23 @@ function _horomEquipoSeguro(sig){
   });
   return Math.max(base,maxOt);
 }
+// Horas reales acumuladas por un neumático HASTA AHORA (horómetro actual del
+// equipo donde está montado, menos el horómetro que tenía al instalarse) —
+// mismo cálculo que window.hrsLive() usa para mostrarlas en pantalla mientras
+// está Operativo. Se llama justo ANTES de archivar el neumático a Stock/De
+// baja, para CONGELAR ese número en la fila archivada (bug real, auditoría
+// 2026-08-21, a pedido del usuario: "el neumático en stock, ¿tendré claro las
+// horas de uso?" — no, hasta ahora no: el valor solo se calculaba al mostrar
+// la tabla, nunca se guardaba de vuelta, así que un neumático retirado quedaba
+// con las horas de cuando se instaló por última vez, normalmente 0, no las que
+// realmente trabajó).
+function _horasNeuAlRetiro(n){
+  const eq=S.g('eq')||[];
+  const e=eq.find(function(x){return x.sigla===n.sigla;});
+  if(n.horomInstalacion==null||!e)return n.horasAcum||0;
+  const base=n.horasBase!=null?n.horasBase:(n.horasAcum||0);
+  return Math.max(0,Math.round(base+Math.max(0,(e.horomActual||0)-n.horomInstalacion)));
+}
 
 window.renderNeu=function(){
   const neu=S.g('neu')||[];
@@ -335,10 +352,13 @@ window.saveNeu=function(){
   const ocupadoIdx=neu.findIndex(x=>x.sigla===sig&&x.posicion===pos&&x.estado==='Operativo');
   if(ocupadoIdx>=0){
     if(!confirm(`Ya hay un neumático operativo en ${sig} ${pos} (serie ${neu[ocupadoIdx].serie}). ¿Moverlo a Existencias e instalar este nuevo en su lugar?`))return;
+    const horasRetiroOcup=_horasNeuAlRetiro(neu[ocupadoIdx]);
     _desmontarSensorSiTiene(neu[ocupadoIdx].serie);
     neu[ocupadoIdx].estado='Stock';
     neu[ocupadoIdx].numSensor='';
     neu[ocupadoIdx].fechaBaja=new Date().toISOString().slice(0,10);
+    neu[ocupadoIdx].horasAcum=horasRetiroOcup;
+    neu[ocupadoIdx].horasBase=null;
   }
   const rem=parseFloat($('nNRem').value)||null;
   const tipo=$('nNTipo').value;
@@ -387,7 +407,8 @@ window.saveCambio=function(i,hAct){
   // de 'n' (que sigue en el arreglo, mutado más abajo para representar el nuevo),
   // las 2 filas competirían por la misma fila real en la base (mismo id, mismo
   // upsert por lote) y una se pisaría a la otra.
-  neu.push({...n,id:_uuidV4(),serie:n.serie,estado:$('cDest').value==='Stock'?'Stock':'De baja',remanente:remAnt,fechaBaja:new Date().toISOString().slice(0,10)});
+  const horasRetiro=_horasNeuAlRetiro(n);
+  neu.push({...n,id:_uuidV4(),serie:n.serie,estado:$('cDest').value==='Stock'?'Stock':'De baja',remanente:remAnt,fechaBaja:new Date().toISOString().slice(0,10),horasAcum:horasRetiro,horasBase:null});
   // Bug real (auditoría 2026-08): el sensor del neumático retirado (n.serie, ANTES
   // de mutar) nunca se desmontaba acá — a diferencia de saveNeu/confirmarInstalarExistencias,
   // que sí llaman _desmontarSensorSiTiene. El neumático nuevo quedaba mostrando el
@@ -435,10 +456,13 @@ window.confirmarInstalarExistencias=function(){
   const ocupadoIdx=neu.findIndex(x=>x.sigla===sig&&x.posicion===pos&&x.estado==='Operativo');
   if(ocupadoIdx>=0){
     if(!confirm(`Ya hay un neumático operativo en ${sig} ${pos} (serie ${neu[ocupadoIdx].serie}). ¿Moverlo a Existencias e instalar este en su lugar?`))return;
+    const horasRetiroOcup=_horasNeuAlRetiro(neu[ocupadoIdx]);
     _desmontarSensorSiTiene(neu[ocupadoIdx].serie);
     neu[ocupadoIdx].estado='Stock';
     neu[ocupadoIdx].numSensor='';
     neu[ocupadoIdx].fechaBaja=new Date().toISOString().slice(0,10);
+    neu[ocupadoIdx].horasAcum=horasRetiroOcup;
+    neu[ocupadoIdx].horasBase=null;
   }
   const hAct=_horomEquipoSeguro(sig);
   const origen=n.sigla?`${n.sigla} ${n.posicion||''}`.trim():'Existencias';
@@ -464,31 +488,56 @@ window.confirmarInstalarExistencias=function(){
 // altas en el mismo equipo+posición, ver saveNeu/confirmarInstalarExistencias),
 // su sensor NO puede seguir mostrándose "Operativo" en ese equipo — quedaría
 // mostrando una ubicación donde el neumático ya no está.
+// Horas de uso reales del MONTAJE ACTUAL de un sensor (desde que se instaló
+// hasta el horómetro actual del equipo donde está) — mismo criterio que
+// _horasNeuAlRetiro() para neumáticos. Se llama al desmontar, para congelar la
+// duración de ESE montaje en el historial y sumarla a s.horasAcum (total de
+// vida del sensor) — a pedido del usuario 2026-08-21 ("el sensor también
+// tendré su hora de uso"): antes el historial solo tenía fechas, sin ninguna
+// forma de saber cuántas horas de uso real acumuló.
+function _horasMontajeSensor(s){
+  if(s.horomInstalacion==null||!s.sigla)return 0;
+  const eq=S.g('eq')||[];
+  const e=eq.find(function(x){return x.sigla===s.sigla;});
+  if(!e)return 0;
+  return Math.max(0,Math.round((e.horomActual||0)-s.horomInstalacion));
+}
+// Total de horas de uso del sensor: lo ya acumulado en montajes anteriores
+// (congelado en s.horasAcum al desmontar) más lo que lleva en el montaje
+// actual si sigue Operativo — mismo patrón "en vivo" que hrsLive() para
+// neumáticos.
+function _horasSensorTotal(s){
+  return (s.horasAcum||0)+(s.estado==='Operativo'?_horasMontajeSensor(s):0);
+}
 function _desmontarSensorSiTiene(neuSerie){
   const sen=S.g('sen')||[];
   const s=sen.find(x=>x.neuSerie===neuSerie&&x.estado==='Operativo');
   if(!s)return;
+  const horasMontaje=_horasMontajeSensor(s);
   if(!Array.isArray(s.historial))s.historial=[];
-  s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:s.sigla,posicion:s.posicion,neuSerie:s.neuSerie});
-  s.estado='Stock';s.sigla='';s.posicion='';
+  s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:s.sigla,posicion:s.posicion,neuSerie:s.neuSerie,horasUso:horasMontaje});
+  s.horasAcum=(s.horasAcum||0)+horasMontaje;
+  s.estado='Stock';s.sigla='';s.posicion='';s.horomInstalacion=null;
   S.s('sen',sen);
 }
 window.verSensores=function(){
   const sen=S.g('sen')||[];
   const rows=sen.map((s,i)=>{
     const ubic=s.estado==='Operativo'?escapeHtml(s.sigla||'—')+' '+escapeHtml(s.posicion||''):'<span style="color:var(--tx3)">En Existencias</span>';
+    const horasTot=_horasSensorTotal(s);
     return`<tr>
       <td class="mono">${escapeHtml(s.numSensor||'—')}</td>
       <td style="font-size:11px">${escapeHtml(s.marca||'—')}</td>
       <td style="font-size:11px">${ubic}</td>
       <td class="mono" style="font-size:11px">${escapeHtml(s.neuSerie||'—')}</td>
+      <td style="font-size:11px;text-align:right">${horasTot.toLocaleString('es-CL')}h</td>
       <td style="white-space:nowrap">${s.estado==='Operativo'?`<button class="btn-s" style="background:rgba(239,68,68,.15);color:var(--danger)" onclick="desmontarSensor(${i})">Desmontar</button>`:`<button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="instalarSensor(${i})">Instalar</button>`} <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialSensor(${i})"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial</button></td>
     </tr>`;
   }).join('');
   sm(`<div style="max-width:820px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores de Neumáticos</h3>
     <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
-    <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">N° Sensor</th><th>Marca</th><th>Ubicación</th><th>Neumático (serie)</th><th></th></tr>
-    ${rows||'<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--tx3)">Sin sensores registrados</td></tr>'}
+    <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">N° Sensor</th><th>Marca</th><th>Ubicación</th><th>Neumático (serie)</th><th>Horas uso</th><th></th></tr>
+    ${rows||'<tr><td colspan="6" style="padding:12px;text-align:center;color:var(--tx3)">Sin sensores registrados</td></tr>'}
     </table></div>
     <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>`);
 };
@@ -497,10 +546,12 @@ window.verHistorialSensor=function(i){
   const s=sen[i];
   if(!s)return;
   const hist=(s.historial||[]).slice().reverse();
+  const horasTot=_horasSensorTotal(s);
   sm(`<div style="max-width:560px"><h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial — Sensor ${escapeHtml(s.numSensor||'')}</h3>
-    <p style="color:var(--tx2);margin-bottom:10px;font-size:12px">Ubicación actual: <b>${s.estado==='Operativo'?escapeHtml(s.sigla||'')+' '+escapeHtml(s.posicion||''):'En Existencias'}</b></p>
+    <p style="color:var(--tx2);margin-bottom:4px;font-size:12px">Ubicación actual: <b>${s.estado==='Operativo'?escapeHtml(s.sigla||'')+' '+escapeHtml(s.posicion||''):'En Existencias'}</b></p>
+    <p style="color:var(--tx2);margin-bottom:10px;font-size:12px">Horas de uso acumuladas${s.estado==='Operativo'?' <span title="Incluye lo que lleva en el montaje actual, calculado en vivo" style="color:var(--tx3)">(en vivo)</span>':''}: <b>${horasTot.toLocaleString('es-CL')}h</b></p>
     ${hist.length?`<div>${hist.map(h=>`<div style="font-size:11px;padding:6px 8px;border-left:2px solid ${h.accion==='Instalado'?'var(--ok)':'var(--danger)'};margin-bottom:4px;background:var(--bg3);border-radius:4px">
-      <b>${h.fecha}</b> — ${h.accion==='Instalado'?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Instalado en':'⬅️ Desmontado de'} <b>${escapeHtml(h.sigla||'')} ${escapeHtml(h.posicion||'')}</b>${h.neuSerie?' (neumático serie '+escapeHtml(h.neuSerie)+')':''}
+      <b>${h.fecha}</b> — ${h.accion==='Instalado'?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Instalado en':'⬅️ Desmontado de'} <b>${escapeHtml(h.sigla||'')} ${escapeHtml(h.posicion||'')}</b>${h.neuSerie?' (neumático serie '+escapeHtml(h.neuSerie)+')':''}${h.accion==='Desmontado'&&h.horasUso!=null?' <span style="color:var(--tx3)">— '+h.horasUso.toLocaleString('es-CL')+'h en este montaje</span>':''}
     </div>`).join('')}</div>`:'<p style="font-size:11px;color:var(--tx3)">Sin movimientos registrados todavía</p>'}
     <button class="btn btn-o" style="margin-top:12px" onclick="verSensores()">← Volver</button></div>`);
 };
@@ -514,9 +565,11 @@ window.desmontarSensor=function(i){
   const neu=S.g('neu')||[];
   const ni=neu.findIndex(n=>n.serie===s.neuSerie&&n.numSensor===s.numSensor);
   if(ni>=0){neu[ni].numSensor='';S.s('neu',neu);}
+  const horasMontaje=_horasMontajeSensor(s);
   if(!Array.isArray(s.historial))s.historial=[];
-  s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:s.sigla,posicion:s.posicion,neuSerie:s.neuSerie});
-  s.estado='Stock';s.sigla='';s.posicion='';
+  s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:s.sigla,posicion:s.posicion,neuSerie:s.neuSerie,horasUso:horasMontaje});
+  s.horasAcum=(s.horasAcum||0)+horasMontaje;
+  s.estado='Stock';s.sigla='';s.posicion='';s.horomInstalacion=null;
   S.s('sen',sen);verSensores();
   toast('✅ Sensor '+s.numSensor+' movido a Existencias');
 };
@@ -544,15 +597,18 @@ window.confirmarInstalarSensor=function(i){
   const otroIdx=sen.findIndex(function(x,xi){return xi!==i&&x.neuSerie===n.serie&&x.estado==='Operativo';});
   if(otroIdx>=0){
     const otro=sen[otroIdx];
+    const horasMontajeOtro=_horasMontajeSensor(otro);
     if(!Array.isArray(otro.historial))otro.historial=[];
-    otro.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:otro.sigla,posicion:otro.posicion,neuSerie:otro.neuSerie});
-    otro.estado='Stock';otro.sigla='';otro.posicion='';
+    otro.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Desmontado',sigla:otro.sigla,posicion:otro.posicion,neuSerie:otro.neuSerie,horasUso:horasMontajeOtro});
+    otro.horasAcum=(otro.horasAcum||0)+horasMontajeOtro;
+    otro.estado='Stock';otro.sigla='';otro.posicion='';otro.horomInstalacion=null;
   }
   // Respaldo: si este sensor quedó marcado en OTRO neumático (ej. se instaló sin
   // pasar por "Desmontar" primero), se limpia ahí también — nunca debe quedar el
   // mismo N° de sensor mostrado en dos neumáticos a la vez.
   neu.forEach(function(x){if(x!==n&&x.numSensor===s.numSensor)x.numSensor='';});
   s.estado='Operativo';s.sigla=n.sigla;s.posicion=n.posicion;s.neuSerie=n.serie;s.fechaInst=new Date().toISOString().slice(0,10);
+  s.horomInstalacion=_horomEquipoSeguro(n.sigla);
   if(!Array.isArray(s.historial))s.historial=[];
   s.historial.push({fecha:new Date().toISOString().slice(0,10),accion:'Instalado',sigla:n.sigla,posicion:n.posicion,neuSerie:n.serie});
   n.numSensor=s.numSensor;
