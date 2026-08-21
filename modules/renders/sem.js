@@ -434,7 +434,7 @@ window.renderSem=function(){
     '<option value="tabla"'+(fVistaSem==="tabla"?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Vista Tabla (editar)</option>'+
     '</select>'+
     '</div>'+
-    '<div class="cards">'+
+    '<div class="cards no-imprimir">'+
     '<div class="card"><div class="card-t">Trabajos Semana</div><div class="card-v">'+items.length+'</div></div>'+
     '<div class="card"><div class="card-t">HH Plan</div><div class="card-v">'+Math.round(totalHHPlan)+'h</div></div>'+
     (esPasada||esCerrada||totalHHReal>0?'<div class="card"><div class="card-t">HH Real</div><div class="card-v" style="color:var(--ok)">'+Math.round(totalHHReal)+'h</div></div>'+

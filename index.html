@@ -248,6 +248,11 @@ td.calc{color:var(--tx3);font-style:italic}
   table{font-size:9px}
   .btn{padding:8px 10px;font-size:12px}
 }
+/* Elementos marcados para no salir al imprimir (Ctrl+P) ni al exportar con
+   imprimirTab() — se ven normal en pantalla, el dato real no se toca. */
+@media print{
+  .no-imprimir{display:none!important}
+}
 </style>
 
   <!-- ══ FIREBASE SDK ══════════════════════════════════════════ -->
@@ -316,7 +321,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/disp.js?v=2026-08-14"></script>
 <script src="modules/renders/ace.js?v=2026-08-14"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-17"></script>
-<script src="modules/renders/sem.js?v=2026-08-07c"></script>
+<script src="modules/renders/sem.js?v=2026-08-21"></script>
 <script src="modules/renders/dash.js?v=2026-08-18d"></script>
 <script src="modules/renders/reg.js?v=2026-08-14"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
@@ -2518,6 +2523,10 @@ window.imprimirTab=function(tabId,nombre){
   // Remove delete buttons
   clone.querySelectorAll('button').forEach(function(btn){btn.remove();});
   clone.querySelectorAll('.toolbar').forEach(function(tb){tb.remove();});
+  // Elementos marcados para no salir en impresión/descarga (ej. tarjetas de
+  // costo del Plan Semanal) — se ven normal en pantalla, solo se quitan acá,
+  // en el CLON, así el dato real nunca se toca ni se borra.
+  clone.querySelectorAll('.no-imprimir').forEach(function(el){el.remove();});
   
   win.document.write(clone.innerHTML);
   win.document.write('<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px;font-size:10px;color:#999;display:flex;justify-content:space-between">'+
