@@ -323,7 +323,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/ot.js?v=2026-08-18"></script>
 <script src="modules/renders/pred.js?v=2026-08-18b"></script>
 <script src="modules/renders/kpi.js?v=2026-08-18c"></script>
-<script src="modules/renders/neu.js?v=2026-08-21c"></script>
+<script src="modules/renders/neu.js?v=2026-08-21d"></script>
 <script src="modules/renders/cfg.js?v=2026-08-18"></script>
 <script>
 // ============ DATA ============
@@ -1616,6 +1616,13 @@ function neuPrecio(n){
   }
   return NEU_PRECIOS[n.tipoEquipo]||NEU_PRECIOS.DEFAULT;
 }
+
+// Costo de sensores de presión (TPMS) — cotización comercial real Michelin Chile
+// a Besalco Minería (folio MIN-MEMS-25022026, 25-02-2026, vigente hasta 30-06-2026).
+// Precio en USD tal cual el documento — no se convierte a CLP acá porque el documento
+// no fija un tipo de cambio (indica que la factura usará el dólar observado del Banco
+// Central AL MOMENTO de facturar, un valor que no conocemos hoy y no corresponde inventar).
+const SEN_PRECIO={usd:610,ivaIncluido:false,proveedor:'Michelin',modelo:'MEMS SENSOR DRY SP40',sku:'527706',fuente:'Propuesta comercial Michelin Chile a Besalco, 25-02-2026 (MIN-MEMS-25022026)'};
 
 // ── Criterios de retiro por tipo y posición ───────────────
 const NEU_CRITERIOS={
