@@ -520,9 +520,31 @@ function _desmontarSensorSiTiene(neuSerie){
   s.estado='Stock';s.sigla='';s.posicion='';s.horomInstalacion=null;
   S.s('sen',sen);
 }
+// filtro de la ventana "Ver Sensores" (2026-08-21, a pedido del usuario: "no
+// puedo ver el historial... de cuando fue instalado o en que equipo, o
+// filtrar") — antes era una tabla plana de los 52 sensores sin buscador ni
+// forma de acotar por equipo, y la fecha de instalación solo se veía
+// entrando al historial de cada uno de a uno. window._senFiltroEq/_senFiltroTxt
+// se guardan en window (no en el estado normal de la app) porque este modal
+// se re-renderiza llamándose a sí mismo en cada tecla/cambio, sin pasar por
+// renders.neu().
+window._senFiltroEq=window._senFiltroEq||'';
+window._senFiltroTxt=window._senFiltroTxt||'';
 window.verSensores=function(){
   const sen=S.g('sen')||[];
-  const rows=sen.map((s,i)=>{
+  const eq=S.g('eq')||[];
+  const fEq=window._senFiltroEq||'';
+  const fTxt=(window._senFiltroTxt||'').trim().toLowerCase();
+  const filtrados=sen.map((s,i)=>({s,i})).filter(function(x){
+    if(fEq&&x.s.sigla!==fEq)return false;
+    if(fTxt){
+      const hay=[x.s.numSensor,x.s.sigla,x.s.posicion,x.s.neuSerie,x.s.marca].some(function(v){return(v||'').toLowerCase().includes(fTxt);});
+      if(!hay)return false;
+    }
+    return true;
+  });
+  const rows=filtrados.map(function(x){
+    const s=x.s,i=x.i;
     const ubic=s.estado==='Operativo'?escapeHtml(s.sigla||'—')+' '+escapeHtml(s.posicion||''):'<span style="color:var(--tx3)">En Existencias</span>';
     const horasTot=_horasSensorTotal(s);
     return`<tr>
@@ -530,16 +552,27 @@ window.verSensores=function(){
       <td style="font-size:11px">${escapeHtml(s.marca||'—')}</td>
       <td style="font-size:11px">${ubic}</td>
       <td class="mono" style="font-size:11px">${escapeHtml(s.neuSerie||'—')}</td>
+      <td style="font-size:11px">${escapeHtml(s.fechaInst||'—')}</td>
       <td style="font-size:11px;text-align:right">${horasTot.toLocaleString('es-CL')}h</td>
       <td style="white-space:nowrap">${s.estado==='Operativo'?`<button class="btn-s" style="background:rgba(239,68,68,.15);color:var(--danger)" onclick="desmontarSensor(${i})">Desmontar</button>`:`<button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="instalarSensor(${i})">Instalar</button>`} <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialSensor(${i})"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial</button></td>
     </tr>`;
   }).join('');
-  sm(`<div style="max-width:820px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores de Neumáticos</h3>
+  const eqsConSensor=[...new Set(sen.map(function(s){return s.sigla;}).filter(Boolean))].sort();
+  sm(`<div style="max-width:900px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores de Neumáticos</h3>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <input id="senFiltroTxt" placeholder="Buscar N° sensor, serie de neumático..." value="${escapeHtml(window._senFiltroTxt||'')}" oninput="window._senFiltroTxt=this.value;verSensores()" style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:6px 8px;border-radius:4px;font-size:12px">
+      <select onchange="window._senFiltroEq=this.value;verSensores()" style="background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:6px 8px;border-radius:4px;font-size:12px">
+        <option value="">Todos los equipos</option>
+        ${eqsConSensor.map(function(sg){return'<option value="'+escapeHtml(sg)+'"'+(fEq===sg?' selected':'')+'>'+escapeHtml(sg)+'</option>';}).join('')}
+      </select>
+      ${(fEq||fTxt)?'<button class="btn-o" onclick="window._senFiltroEq=\'\';window._senFiltroTxt=\'\';verSensores()">Limpiar</button>':''}
+    </div>
+    <p style="font-size:11px;color:var(--tx3);margin:-4px 0 10px">${filtrados.length} de ${sen.length} sensores</p>
     <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
-    <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">N° Sensor</th><th>Marca</th><th>Ubicación</th><th>Neumático (serie)</th><th>Horas uso</th><th></th></tr>
-    ${rows||'<tr><td colspan="6" style="padding:12px;text-align:center;color:var(--tx3)">Sin sensores registrados</td></tr>'}
+    <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">N° Sensor</th><th>Marca</th><th>Ubicación</th><th>Neumático (serie)</th><th>Instalado</th><th>Horas uso</th><th></th></tr>
+    ${rows||'<tr><td colspan="7" style="padding:12px;text-align:center;color:var(--tx3)">Sin sensores que coincidan con el filtro</td></tr>'}
     </table></div>
-    <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>`);
+    <button class="btn btn-o" style="margin-top:12px" onclick="window._senFiltroEq=\'\';window._senFiltroTxt=\'\';cm()">Cerrar</button></div>`);
 };
 window.verHistorialSensor=function(i){
   const sen=S.g('sen')||[];
