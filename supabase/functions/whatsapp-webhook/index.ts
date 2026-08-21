@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
     const firmaEsperada = req.headers.get('X-Twilio-Signature') || '';
     const firmaCalculada = await verificarFirmaTwilio(TWILIO_AUTH_TOKEN, req.url, params);
     if (firmaCalculada !== firmaEsperada) {
+      console.error('whatsapp-webhook: firma invalida', JSON.stringify({ reqUrl: req.url, firmaEsperada, firmaCalculada }));
       return new Response(JSON.stringify({ error: 'Firma de Twilio inválida' }), { status: 401 });
     }
 
