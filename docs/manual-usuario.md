@@ -106,6 +106,15 @@ Los datos reales viven en Supabase (la nube), no solo en tu navegador.
 Además existe un respaldo manual (Backup JSON, en Configuración) y uno
 automático a una carpeta local si alguien lo conectó.
 
+**¿Puedo reportar una falla sin entrar al sistema?**
+Sí, si un administrador ya autorizó tu número o correo (Configuración →
+Reporte de Fallas por WhatsApp/Correo). Escribe al WhatsApp del sistema (o
+manda un correo) con el equipo y la falla, por ejemplo:
+*"CN-9500 fuera de servicio, falla de turbo"*. Queda registrado directo en
+Correctivos — el sistema responde confirmando o avisando si no lo entendió.
+Si el mensaje es ambiguo, igual se guarda pero marcado para que un admin lo
+revise, nunca se pierde en silencio.
+
 ---
 
 Para el detalle completo de cada función (con capturas conceptuales y

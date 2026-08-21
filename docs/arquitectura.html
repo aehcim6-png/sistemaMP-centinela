@@ -69,7 +69,7 @@
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
     disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los
-    archivos con pruebas automatizadas (443 casos, corren con Vitest).</li>
+    archivos con pruebas automatizadas (448 casos, corren con Vitest).</li>
   </ul>
 
   <h3>2. Dónde vive — Vercel</h3>
@@ -184,6 +184,41 @@
   que está en <code>public/</code> se copia tal cual. El service worker usa red-primero-con-
   respaldo-en-caché, para no pisar el caché-busting por <code>?v=</code> que ya usan los
   <code>&lt;script&gt;</code> del sistema.</p>
+
+  <h3>12. Canal de reportes por WhatsApp/Correo (entrada)</h3>
+  <p>A diferencia de Sentry o <code>backup-diario</code> (que son de <i>salida</i>, el sistema
+  avisando algo), <code>whatsapp-webhook</code> y <code>email-webhook</code> son de <i>entrada</i>:
+  un técnico le escribe al número de WhatsApp Business de Twilio o al correo de recepción de
+  Resend ("CN-9500 fuera de servicio, falla de turbo") y el mensaje se parsea e inserta directo en
+  <code>correctivos_historico</code>, sin que nadie tenga que copiar el chat a mano.</p>
+  <p>Seguridad en 2 capas, igual criterio en ambas funciones:</p>
+  <ol>
+    <li><b>Firma criptográfica del proveedor</b> (Twilio: HMAC-SHA1 con el Auth Token; Resend:
+    formato Svix, HMAC-SHA256) — confirma que el mensaje vino de verdad del proveedor, no de
+    alguien que adivinó la URL del webhook.</li>
+    <li><b>Lista de remitentes autorizados</b> (<code>configuracion.whatsappRemitentesPermitidos</code>
+    / <code>correoRemitentesPermitidos</code>, editable en Configuración → "📥 Reporte de Fallas
+    por WhatsApp/Correo") — sin al menos un remitente cargado, el canal no acepta nada. Un mensaje
+    de un número/correo no autorizado se ignora en silencio.</li>
+  </ol>
+  <p>El parser (<code>supabase/functions/_shared/parseCorrectivo.ts</code>) nunca inventa un dato:
+  si no reconoce el equipo o el mensaje es ambiguo, igual lo inserta pero con
+  <code>fuente='… (auto) — revisar'</code>, visible en Auditoría de Datos para que un humano lo
+  confirme.</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>Bug real (2026-08-21), lección para cualquier Edge Function que verifique firmas de
+    webhooks:</b> la verificación de firma de <code>whatsapp-webhook</code> usaba
+    <code>req.url</code> tal cual lo entrega el runtime de Supabase — pero ese valor es una URL
+    <b>INTERNA</b> (<code>http://…/whatsapp-webhook</code>, sin <code>/functions/v1</code>),
+    distinta de la URL <b>PÚBLICA</b> que Twilio realmente usa para firmar
+    (<code>https://…/functions/v1/whatsapp-webhook</code>, la configurada en la consola de
+    Twilio). La firma nunca podía coincidir, sin importar qué tan correcto fuera el Auth Token —
+    varias rotaciones de credencial no solucionaron nada porque el problema nunca fue la
+    credencial. Se corrigió fijando la URL pública real como constante en el código en vez de
+    confiar en <code>req.url</code>. Moraleja: si una firma de webhook falla de forma consistente
+    pese a credenciales verificadas, sospechar primero de la URL usada para firmar antes de rotar
+    secretos.
+  </div>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
