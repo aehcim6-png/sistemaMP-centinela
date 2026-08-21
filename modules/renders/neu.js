@@ -151,6 +151,7 @@ window.renderNeu=function(){
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
             <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">📍</button>
+            <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialNeu(${i})" title="Historial de este neumático (equipos/posiciones por los que pasó)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg></button>
           </td>
         </tr>`;
       }).join('')}
@@ -794,6 +795,29 @@ window.histPosicion=function(sigla,posNum,numPos){
   </div>`);
 };
 
+// Historial del neumático por N° DE SERIE (2026-08-21, a pedido del usuario:
+// "no puedo ver el historial... del neumático, de cuándo fue instalado o en
+// qué equipo, o filtrar") — a diferencia de histPosicion (que muestra todos
+// los neumáticos que pasaron por una POSICIÓN), esto muestra los equipos y
+// posiciones por los que pasó ESTE neumático puntual, igual que "Ver
+// Historial" ya hace para los sensores. La 'posicion' de cada evento es el
+// número crudo del reporte de montaje del sensor (1-6), no la etiqueta
+// descriptiva (ej. "P3-TraIzExt") — no hay forma confiable de traducir uno al
+// otro para eventos históricos, así que se muestra tal cual en vez de
+// inventar la etiqueta.
+window.verHistorialNeu=function(neuIdx){
+  const neu=S.g('neu')||[];
+  const n=neu[neuIdx];
+  if(!n)return;
+  const hist=(n.historial||[]).slice().reverse();
+  sm(`<div style="max-width:560px"><h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial — Neumático ${escapeHtml(n.serie||'')}</h3>
+    <p style="color:var(--tx2);margin-bottom:10px;font-size:12px">Ubicación actual: <b>${escapeHtml(n.sigla||'')} ${escapeHtml(n.posicion||'')}</b> · Instalado: <b>${escapeHtml(n.fechaInst||'—')}</b></p>
+    ${hist.length?`<div>${hist.map(h=>`<div style="font-size:11px;padding:6px 8px;border-left:2px solid ${h.accion==='Instalado'?'var(--ok)':'var(--danger)'};margin-bottom:4px;background:var(--bg3);border-radius:4px">
+      <b>${h.fecha}</b> — ${h.accion==='Instalado'?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Instalado en':'⬅️ Desmontado de'} <b>${escapeHtml(h.sigla||'')} pos. ${escapeHtml(h.posicion||'')}</b>${h.numSensor?' <span style="color:var(--tx3)">(sensor '+escapeHtml(h.numSensor)+')</span>':''}${h.accion==='Desmontado'&&h.horasUso!=null?' <span style="color:var(--tx3)">— '+h.horasUso.toLocaleString('es-CL')+'h en este montaje</span>':''}
+    </div>`).join('')}</div>`:'<p style="font-size:11px;color:var(--tx3)">Sin historial de montajes registrado para este neumático.</p>'}
+    <button class="btn btn-o" style="margin-top:12px" onclick="verDetalleNeu(${neuIdx})">← Volver</button></div>`);
+};
+
 // ── Ordenamiento de columnas (fin) ─────────────────────────
 window.verDetalleNeu=function(neuIdx){
   const neu=S.g('neu')||[];const n=neu[neuIdx];
@@ -932,6 +956,7 @@ window.verDetalleNeu=function(neuIdx){
     })()}
     <div style="display:flex;gap:8px">
       <button class="btn" onclick="cm();addMedicionNeu(${neuIdx})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> Nueva medición</button>
+      <button class="btn btn-o" onclick="verHistorialNeu(${neuIdx})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial</button>
       <button class="btn btn-o" onclick="cm()">Cerrar</button>
     </div>
   </div>`);
