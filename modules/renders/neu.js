@@ -99,6 +99,8 @@ window.renderNeu=function(){
   const crit=criticosNeu.length;
   const costoCambiarYa=criticosNeu.reduce(function(s,n){return s+(neuPrecio(n).precio||0);},0);
   const prox=fil.filter(neuProxCambio).length;
+  const sensoresOperativos=(S.g('sen')||[]).filter(s=>s.estado==='Operativo').length;
+  const costoSensoresUSD=sensoresOperativos*SEN_PRECIO.usd;
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
@@ -110,6 +112,7 @@ window.renderNeu=function(){
       <div class="card" onclick="verNeuLista('cambiar')" style="cursor:pointer" title="Ver cuáles son"><div class="card-t" style="color:var(--danger)">Cambiar ya <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg></div><div class="card-v" style="color:var(--danger)">${crit}</div><div class="card-s">delantera +2.800h o goma ≤límite · clic para ver</div></div>
       <div class="card" onclick="verNeuLista('proximo')" style="cursor:pointer" title="Ver cuáles son"><div class="card-t" style="color:var(--warn)">Próximos (≤30 días) <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg></div><div class="card-v" style="color:var(--warn)">${prox}</div><div class="card-s">clic para ver</div></div>
       <div class="card"><div class="card-t">Costo est. cambiar ya</div><div class="card-v" style="color:var(--ac)">$${fn(costoCambiarYa)}</div><div class="card-s">Precio real por tipo (NEU_PRECIOS)</div></div>
+      <div class="card"><div class="card-t">Costo sensores (Operativo)</div><div class="card-v" style="color:var(--ac)">US$${costoSensoresUSD.toLocaleString('es-CL')}</div><div class="card-s">${sensoresOperativos} × US$${SEN_PRECIO.usd} + IVA · ${SEN_PRECIO.proveedor}</div></div>
     </div>
     <div class="toolbar">
       <select id="fNeuEq" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos equipos</option>${eqs.map(s=>`<option${s===fEq?' selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
@@ -555,11 +558,13 @@ window.verSensores=function(){
       <td class="mono" style="font-size:11px">${escapeHtml(s.neuSerie||'—')}</td>
       <td style="font-size:11px">${escapeHtml(s.fechaInst||'—')}</td>
       <td style="font-size:11px;text-align:right">${horasTot.toLocaleString('es-CL')}h</td>
+      <td style="font-size:11px;text-align:right">US$${SEN_PRECIO.usd}</td>
       <td style="white-space:nowrap">${s.estado==='Operativo'?`<button class="btn-s" style="background:rgba(239,68,68,.15);color:var(--danger)" onclick="desmontarSensor(${i})">Desmontar</button>`:`<button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="instalarSensor(${i})">Instalar</button>`} <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialSensor(${i})"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Historial</button></td>
     </tr>`;
   }).join('');
   const eqsConSensor=[...new Set(sen.map(function(s){return s.sigla;}).filter(Boolean))].sort();
-  sm(`<div style="max-width:900px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores de Neumáticos</h3>
+  const costoFiltradosUSD=filtrados.length*SEN_PRECIO.usd;
+  sm(`<div style="max-width:960px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores de Neumáticos</h3>
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <input id="senFiltroTxt" placeholder="Buscar N° sensor, serie de neumático..." value="${escapeHtml(window._senFiltroTxt||'')}" oninput="window._senFiltroTxt=this.value;verSensores()" style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:6px 8px;border-radius:4px;font-size:12px">
       <select onchange="window._senFiltroEq=this.value;verSensores()" style="background:var(--bg3);border:1px solid var(--border);color:var(--tx);padding:6px 8px;border-radius:4px;font-size:12px">
@@ -568,10 +573,11 @@ window.verSensores=function(){
       </select>
       ${(fEq||fTxt)?'<button class="btn-o" onclick="window._senFiltroEq=\'\';window._senFiltroTxt=\'\';verSensores()">Limpiar</button>':''}
     </div>
-    <p style="font-size:11px;color:var(--tx3);margin:-4px 0 10px">${filtrados.length} de ${sen.length} sensores</p>
+    <p style="font-size:11px;color:var(--tx3);margin:-4px 0 4px">${filtrados.length} de ${sen.length} sensores · Costo US$${SEN_PRECIO.usd} + IVA c/u (${SEN_PRECIO.proveedor}, ${SEN_PRECIO.modelo}) → <b>US$${costoFiltradosUSD.toLocaleString('es-CL')}</b> + IVA en pantalla</p>
+    <p style="font-size:10px;color:var(--tx3);margin:0 0 10px" title="${escapeHtml(SEN_PRECIO.fuente)}">SKU ${SEN_PRECIO.sku} · precio sin conversión a CLP (cotización no fija tipo de cambio)</p>
     <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
-    <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">N° Sensor</th><th>Marca</th><th>Ubicación</th><th>Neumático (serie)</th><th>Instalado</th><th>Horas uso</th><th></th></tr>
-    ${rows||'<tr><td colspan="7" style="padding:12px;text-align:center;color:var(--tx3)">Sin sensores que coincidan con el filtro</td></tr>'}
+    <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">N° Sensor</th><th>Marca</th><th>Ubicación</th><th>Neumático (serie)</th><th>Instalado</th><th>Horas uso</th><th>Costo</th><th></th></tr>
+    ${rows||'<tr><td colspan="8" style="padding:12px;text-align:center;color:var(--tx3)">Sin sensores que coincidan con el filtro</td></tr>'}
     </table></div>
     <button class="btn btn-o" style="margin-top:12px" onclick="window._senFiltroEq=\'\';window._senFiltroTxt=\'\';cm()">Cerrar</button></div>`);
 };
