@@ -26,9 +26,19 @@
 // (pregunta, posible PM programado), igual lo inserta pero con
 // fuente='WhatsApp Twilio (auto) — revisar' para que quede visible en
 // Auditoría de Datos en vez de perderse o insertarse como si fuera certero.
+//
+// Bug real (2026-08-21): la verificación de firma usaba req.url tal cual lo
+// entrega el runtime de Supabase, pero ese valor es una URL INTERNA
+// ("http://…/whatsapp-webhook", sin "/functions/v1") distinta de la URL
+// PÚBLICA que Twilio realmente usó para firmar ("https://…/functions/v1/
+// whatsapp-webhook", la configurada en el Sandbox de Twilio) — la firma
+// nunca podía coincidir, sin importar qué tan correcto fuera el Auth Token.
+// Se fija la URL pública real como constante en vez de confiar en req.url.
 // ============================================================
 
 import { parsearReporteFalla } from '../_shared/parseCorrectivo.ts';
+
+const URL_PUBLICA_WEBHOOK = 'https://jyhpfwivhwzylkzxrsbt.supabase.co/functions/v1/whatsapp-webhook';
 
 async function verificarFirmaTwilio(authToken: string, url: string, params: URLSearchParams): Promise<string> {
   // Algoritmo documentado por Twilio: URL completa + cada parámetro POST
@@ -57,11 +67,12 @@ Deno.serve(async (req) => {
     const bodyTexto = await req.text();
     const params = new URLSearchParams(bodyTexto);
 
-    // 1. Verificar que la petición vino de verdad de Twilio.
+    // 1. Verificar que la petición vino de verdad de Twilio. Se usa la URL
+    // PÚBLICA fija (ver comentario arriba), no req.url — Supabase entrega ahí
+    // una URL interna distinta de la que Twilio realmente firmó.
     const firmaEsperada = req.headers.get('X-Twilio-Signature') || '';
-    const firmaCalculada = await verificarFirmaTwilio(TWILIO_AUTH_TOKEN, req.url, params);
+    const firmaCalculada = await verificarFirmaTwilio(TWILIO_AUTH_TOKEN, URL_PUBLICA_WEBHOOK, params);
     if (firmaCalculada !== firmaEsperada) {
-      console.error('whatsapp-webhook: firma invalida', JSON.stringify({ reqUrl: req.url, firmaEsperada, firmaCalculada }));
       return new Response(JSON.stringify({ error: 'Firma de Twilio inválida' }), { status: 401 });
     }
 
