@@ -133,7 +133,53 @@ grande (ej. "Configurar Nueva Empresa", que borra todo).
 JSON de cualquiera de los respaldos de arriba permite reconstruir todos los
 datos en un backend nuevo, siguiendo el mismo mapeo de `TABLA_REAL`.
 
-## 6. Despliegue (Vercel)
+## 6. Reporte de fallas por WhatsApp o correo (canal de entrada)
+
+Desde agosto 2026 existe un canal adicional para registrar correctivos sin
+entrar al sistema: un técnico le escribe a un número de WhatsApp Business (o
+manda un correo) y el mensaje se parsea e inserta directo en
+`correctivos_historico`. Por dentro son dos Edge Functions de Supabase:
+`whatsapp-webhook` (Twilio) y `email-webhook` (Resend).
+
+### Configuración inicial (una sola vez)
+
+1. **Secrets en Supabase** (Project Settings → Edge Functions → Secrets, o
+   `supabase secrets set`): `TWILIO_ACCOUNT_SID` y `TWILIO_AUTH_TOKEN`
+   (desde la consola de Twilio, Account → API keys & tokens) para WhatsApp;
+   el equivalente de Resend para correo ya estaba configurado (se reutiliza
+   el mismo usado para las alertas salientes de `alerta-pm`).
+2. **Webhook de Twilio**: en la consola de Twilio, Messaging → Try it out →
+   Send a WhatsApp message (Sandbox) → Sandbox Settings, campo "WHEN A
+   MESSAGE COMES IN": pegar la URL pública de la función,
+   `https://jyhpfwivhwzylkzxrsbt.supabase.co/functions/v1/whatsapp-webhook`,
+   método POST.
+3. **Remitentes autorizados**: Configuración → tarjeta "📥 Reporte de Fallas
+   por WhatsApp/Correo" → cargar los números (`+56...`) o correos
+   autorizados a reportar. Sin nadie cargado ahí, el canal no acepta ningún
+   mensaje aunque las credenciales estén bien configuradas.
+
+No confundir esa tarjeta con "💬 Alertas por WhatsApp" (`alertaWhatsApp`) —
+esa es para el envío de alertas de PM (salida), no para autorizar quién
+puede reportar (entrada). Son dos tarjetas distintas de Configuración aunque
+se vean parecidas y esto causó una confusión real durante la puesta en
+marcha.
+
+### Formato del mensaje
+
+`"SIGLA fuera de servicio, falla de X"` (o similar) — el parser
+(`supabase/functions/_shared/parseCorrectivo.ts`) reconoce la sigla del
+equipo y una palabra clave de falla. Si el mensaje es ambiguo, igual se
+registra pero queda marcado `fuente = 'WhatsApp Twilio (auto) — revisar'`,
+visible en Auditoría de Datos para que un admin lo revise, en vez de
+perderse o insertarse como si fuera un dato certero.
+
+> **Bug real corregido (2026-08-21)**: la verificación de firma de Twilio
+> fallaba siempre con 401, incluso con credenciales correctas, porque usaba
+> `req.url` (una URL interna que entrega el runtime de Supabase) en vez de
+> la URL pública real que Twilio efectivamente firma. Ver el detalle
+> completo en [`arquitectura.md`](./arquitectura.md), sección 12.
+
+## 7. Despliegue (Vercel)
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
   y un despliegue automático a `sistema-mp-centinela.vercel.app`.
@@ -147,7 +193,7 @@ datos en un backend nuevo, siguiendo el mismo mapeo de `TABLA_REAL`.
   el preview automático que Vercel genera para cada rama, y solo se fusiona
   a producción con aprobación explícita.
 
-## 7. Estructura del código
+## 8. Estructura del código
 
 ```
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
@@ -155,8 +201,9 @@ logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
 modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43 en total)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario)
-tests/                   — pruebas de logic.js y store.js (Vitest, 443 casos)
+supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
+                            whatsapp-webhook, email-webhook, _shared/ parser común)
+tests/                   — pruebas de logic.js y store.js (Vitest, 448 casos)
 docs/                    — esta carpeta
 ```
 
@@ -166,7 +213,7 @@ Las funciones realmente compartidas entre pestañas (helpers de fecha,
 `escapeHtml`, el motor de voz genérico, etc.) quedan en `index.html` a
 propósito.
 
-## 8. Si algo se rompe — por dónde empezar
+## 9. Si algo se rompe — por dónde empezar
 
 1. **¿Es un error de guardado?** Revisar la consola del navegador
    (F12 → Console) — el sistema avisa con un toast rojo cuando un guardado
@@ -185,7 +232,7 @@ propósito.
    agosto 2026 — ver `manual-usuario.md` → sección de novedades dentro del
    sistema).
 
-## 9. Continuidad — si la persona que mantiene esto no está disponible
+## 10. Continuidad — si la persona que mantiene esto no está disponible
 
 Este sistema hoy lo entiende y mantiene una sola persona, sesión a sesión.
 Para reducir ese riesgo:
