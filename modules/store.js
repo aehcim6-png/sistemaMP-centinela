@@ -118,7 +118,13 @@ const TABLA_REAL={
   mapaRep:{tabla:'mapeo_repuestos',clave:'_id',claveDb:'id',cols:['pautaId','tipo','refId']},
   // Clave natural: el propio campo ya identifica la fila, tanto en JS como en la tabla.
   eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato','unidad','criticidad','inicioOper','pmPendienteManual']},
-  neu:{tabla:'neumaticos',clave:'id',claveDb:'id',cols:['id','sigla','tipo','marca','serie','medida','posicion','numPos','estado','tipoEquipo','vidaUtil','remNuevo','remanente','pctRemanente','alerta','fechaInst','ultimaMedicion','horasAcum','horomActual','horomInstalacion','horasBase','numSensor','obs']},
+  // historial (2026-08-21, a pedido del usuario: "no puedo ver el historial
+  // del... neumático, de cuándo fue instalado o en qué equipo, o filtrar") —
+  // mismo patrón que 'sen' (sensores): lista de eventos {fecha,accion,sigla,
+  // posicion,numSensor} armada desde el historial real de montaje del sensor
+  // (el mismo CSV trae la serie del neumático en cada fila, así que ya se
+  // podía reconstruir sin pedir un archivo nuevo).
+  neu:{tabla:'neumaticos',clave:'id',claveDb:'id',cols:['id','sigla','tipo','marca','serie','medida','posicion','numPos','estado','tipoEquipo','vidaUtil','remNuevo','remanente','pctRemanente','alerta','fechaInst','ultimaMedicion','horasAcum','horomActual','horomInstalacion','horasBase','numSensor','obs','historial']},
   informesFalla:{tabla:'informes_falla',clave:'id',claveDb:'id',cols:['id','sigla','tipo','modelo','componente','tipoEvento','descripcion','causaProbable','costoEstimado','horometroActual','generadoPor','fecha','fechaCreacion','fotos']},
   // Histórico real de órdenes de compra (jun-2022 a jun-2026). Solo lectura: nada en la
   // app llama S.s('ocHist', ...), así que nunca dispara el sync genérico (upsert/delete)
