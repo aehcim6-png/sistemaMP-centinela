@@ -155,7 +155,7 @@
 
   <figure>
     <div class="diagram-scroll">
-      <svg viewBox="0 0 1000 830" role="img" aria-label="Diagrama: Vercel sirve los archivos al navegador; dentro del navegador, index.html carga 43 módulos de pestañas y store.js; store.js guarda al mismo tiempo en localStorage de este equipo, en Supabase (Auth, 34 tablas con RLS, 5 Edge Functions) y opcionalmente en una carpeta de respaldo paralelo como OneDrive o Drive.">
+      <svg viewBox="0 0 1000 830" role="img" aria-label="Diagrama: Vercel sirve los archivos al navegador; dentro del navegador, index.html carga 43 módulos de pestañas y store.js; store.js guarda al mismo tiempo en localStorage de este equipo, en Supabase (Auth, 34 tablas con RLS, 6 Edge Functions) y opcionalmente en una carpeta de respaldo paralelo como OneDrive o Drive.">
         <defs>
           <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -224,18 +224,19 @@
 
         <line x1="565" y1="556" x2="565" y2="570" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".5"/>
 
-        <rect x="424" y="572" width="282" height="69" rx="7" fill="none" stroke="currentColor" stroke-width="1" opacity=".85"/>
-        <text x="565" y="592" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">5 Edge Functions</text>
-        <text x="565" y="608" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">crear-operador · alerta-pm · backup-diario</text>
-        <text x="565" y="623" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">whatsapp-webhook · email-webhook</text>
+        <rect x="424" y="572" width="282" height="85" rx="7" fill="none" stroke="currentColor" stroke-width="1" opacity=".85"/>
+        <text x="565" y="592" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">6 Edge Functions</text>
+        <text x="565" y="607" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">crear-operador · alerta-pm · backup-diario</text>
+        <text x="565" y="622" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">whatsapp-webhook · email-webhook</text>
+        <text x="565" y="637" text-anchor="middle" font-family="var(--sans)" font-size="9.5" fill="currentColor" opacity=".65">registrar-intento-acceso</text>
 
-        <rect x="424" y="655" width="282" height="108" rx="7" fill="var(--panel2)" stroke="var(--green)" stroke-width="1"/>
-        <text x="565" y="677" text-anchor="middle" font-family="var(--sans)" font-size="10.5" font-weight="600" fill="var(--green)">el candado real vive aquí</text>
-        <text x="440" y="697" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">Cada tabla tiene su propia regla:</text>
-        <text x="440" y="714" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">quién puede leer, escribir o solo</text>
-        <text x="440" y="731" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">un admin puede cambiar ciertos</text>
-        <text x="440" y="748" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">campos — se aplica en la base de</text>
-        <text x="440" y="765" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">datos, no solo en la pantalla.</text>
+        <rect x="424" y="671" width="282" height="108" rx="7" fill="var(--panel2)" stroke="var(--green)" stroke-width="1"/>
+        <text x="565" y="693" text-anchor="middle" font-family="var(--sans)" font-size="10.5" font-weight="600" fill="var(--green)">el candado real vive aquí</text>
+        <text x="440" y="713" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">Cada tabla tiene su propia regla:</text>
+        <text x="440" y="730" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">quién puede leer, escribir o solo</text>
+        <text x="440" y="747" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">un admin puede cambiar ciertos</text>
+        <text x="440" y="764" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">campos — se aplica en la base de</text>
+        <text x="440" y="781" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".8">datos, no solo en la pantalla.</text>
 
         <!-- ══ Destino 3: Respaldo paralelo ══ -->
         <rect x="750" y="390" width="120" height="110" rx="10" fill="var(--panel)" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity=".9"/>

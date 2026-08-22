@@ -220,6 +220,39 @@
     secretos.
   </div>
 
+  <h3>13. Seguridad de sesión — inactividad y registro de accesos bloqueados</h3>
+  <p>Caso real (auditoría 2026-08-22): un usuario desactivado seguía con la pestaña abierta en
+  otro computador, y no había forma de confirmar desde el sistema si su sesión realmente había
+  quedado sin efecto ni si había intentado volver a entrar.</p>
+  <p><b>Cierre por inactividad</b> (<code>index.html</code>, sin tabla nueva): a los 55 min sin
+  <code>mousemove</code>/<code>keydown</code>/<code>touchstart</code>/<code>scroll</code>
+  aparece un aviso con cuenta regresiva; a los 60 min, si nadie interactuó, se llama
+  <code>_logout()</code> sola. 100% cliente — no depende de ningún timeout del lado de Supabase
+  Auth (que sigue siendo el candado real: RLS revisa <code>es_usuario_activo()</code> en cada
+  consulta, así que una cuenta desactivada queda sin acceso a los datos de inmediato aunque la
+  pestaña siga abierta visualmente).</p>
+  <p><b>Registro de intentos bloqueados</b> (<code>registrar-intento-acceso</code>, Edge
+  Function nueva): hasta ahora <code>changelog</code> solo se llenaba con logins <i>exitosos</i>
+  (<code>_registrarLogin</code>, llamado con el token recién obtenido). Un intento fallido —
+  clave incorrecta, cuenta baneada, o una sesión vieja que no logra renovarse al recargar — no
+  tiene ningún token de usuario válido con el que insertar, y la política RLS de
+  <code>changelog</code> exige <code>to authenticated</code>. Se resolvió con el mismo patrón que
+  <code>crear-operador</code>: una función aparte con <code>SUPABASE_SERVICE_ROLE_KEY</code> que
+  inserta saltándose RLS.</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>Decisión de diseño no obvia:</b> la función se dejó con <code>verify_jwt=true</code> (el
+    default seguro), no con <code>verify_jwt=false</code>. El cliente le manda la <b>anon
+    key</b> como <code>Authorization: Bearer</code> — eso es un JWT válido firmado por el
+    proyecto (pasa el gateway) aunque no represente a ningún usuario real. Es el mismo truco que
+    ya usan endpoints "públicos" de Supabase en general; evita tener que desactivar la
+    verificación de JWT (que si algún día esa función creciera y alguien copiara el patrón sin
+    pensarlo, quedaría un endpoint abierto sin ningún control).
+  </div>
+  <p>Deliberadamente no distingue "clave incorrecta" de "cuenta bloqueada": Supabase Auth
+  devuelve el mismo error genérico para ambos casos (no le filtra a un atacante si una cuenta
+  existe o está baneada), así que tampoco se puede — ni se debe — distinguir del lado del
+  cliente.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No convertir a módulos ES</b>: cambiar a <code>type="module"</code> cambia reglas de

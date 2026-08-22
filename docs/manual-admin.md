@@ -62,17 +62,43 @@ Política mínima configurada en Supabase Auth: 14 caracteres, con
 mayúscula/minúscula/dígito/símbolo. Las cuentas nuevas se crean con una
 contraseña temporal que fuerza el cambio al primer ingreso.
 
+### Cierre de sesión por inactividad
+
+Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll)
+aparece un aviso en pantalla ("¿Sigues ahí?") con cuenta regresiva; si nadie
+hace nada, a la hora completa la sesión se cierra sola (`_logout()`). Corre
+en cualquier pestaña abierta, no solo la que está en primer plano. Pensado
+para el caso de un computador compartido (taller) con una sesión olvidada
+abierta.
+
 ### Auditoría (trazabilidad — quién cambió qué)
 
 **Configuración → Accesos recientes** — quién entró, cuándo, desde qué
-computador. **Configuración → Log de cambios** — cada edición, creación o
-eliminación en el sistema, con fecha, usuario y detalle.
+computador, y también los **intentos que NO prosperaron** (clave incorrecta,
+cuenta desactivada, o sesión que no logró renovarse), marcados en rojo con
+🚫. Antes (hasta agosto 2026) solo se registraban los logins exitosos — un
+usuario desactivado que insistía en entrar no dejaba ningún rastro. Los
+intentos fallidos se registran vía la Edge Function
+`registrar-intento-acceso` (clave de servicio, porque en ese momento no hay
+sesión de usuario con la que insertar directo en `changelog`).
+
+**Configuración → Log de cambios** — cada edición, creación o eliminación en
+el sistema, con fecha, usuario y detalle.
 
 No confundir con la pestaña **Auditoría de Datos** (agosto 2026, en el menú
 principal): esa es otra cosa — no rastrea quién cambió qué, sino si los
-datos son consistentes entre sí (horómetros que retroceden entre OT,
-componentes mayores con dato genérico sin validar, OT cerradas sin
-solución). Se recalcula sola cada vez que se abre.
+datos son consistentes entre sí. Se recalcula sola cada vez que se abre, con
+5 chequeos hoy:
+1. Horómetros que retroceden entre OT consecutivas del mismo equipo.
+2. Componentes mayores con dato genérico de industria sin validar contra un
+   reemplazo real.
+3. OT cerradas sin ningún texto en "solución".
+4. Reportes automáticos por WhatsApp/correo que el parser no pudo clasificar
+   con confianza (fuente terminada en "— revisar").
+5. **Neumáticos cambiados sin registrar la salida** (agosto 2026): la última
+   medición real de una posición trae una serie distinta a la que el
+   sistema todavía muestra como montada — señal de que se cambió el
+   neumático en terreno pero nadie lo movió a Existencias/De baja.
 
 **Configuración → Uso del sistema** (agosto 2026) — tampoco es auditoría de
 quién cambió qué: cuenta cuántas veces se abrió cada pestaña/sub-pestaña en
@@ -202,7 +228,8 @@ modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-
 modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43 en total)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
-                            whatsapp-webhook, email-webhook, _shared/ parser común)
+                            whatsapp-webhook, email-webhook, registrar-intento-acceso,
+                            _shared/ parser común)
 tests/                   — pruebas de logic.js y store.js (Vitest, 448 casos)
 docs/                    — esta carpeta
 ```

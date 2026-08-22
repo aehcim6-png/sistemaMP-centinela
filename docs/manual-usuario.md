@@ -86,7 +86,7 @@ pierde en silencio el cambio de uno de los dos.
 | Componentes | Componentes Mayores, Predictivo (incluye Probabilidad de Falla), Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes, Estadística (comparativas por equipo/componente/técnico/modelo) |
 | Metas & KPIs | Plan vs. real, avance mensual, informes descargables |
 | Buscar | Ficha completa por equipo (PM, correctivos, componentes, horómetros, inspecciones, neumáticos, tren de rodaje, aceite, vencimientos, historial, destrabe y costos) + ranking de equipos problemáticos |
-| Auditoría de Datos | Cruce automático: horómetros que retroceden, componentes sin validar, OT sin solución — se recalcula solo cada vez que se abre |
+| Auditoría de Datos | Cruce automático (5 chequeos): horómetros que retroceden, componentes sin validar, OT sin solución, reportes automáticos por revisar, neumáticos cambiados sin registrar salida — se recalcula solo cada vez que se abre |
 | Configuración | Usuarios, seguridad, respaldo, tema, información del sistema |
 
 ## 7. Preguntas frecuentes
@@ -114,6 +114,13 @@ manda un correo) con el equipo y la falla, por ejemplo:
 Correctivos — el sistema responde confirmando o avisando si no lo entendió.
 Si el mensaje es ambiguo, igual se guarda pero marcado para que un admin lo
 revise, nunca se pierde en silencio.
+
+**¿Qué pasa si me quedo inactivo mucho rato con la sesión abierta?**
+A los 55 minutos sin usar el mouse/teclado aparece un aviso en pantalla
+("¿Sigues ahí?") con cuenta regresiva. Si no haces nada, a la hora completa
+la sesión se cierra sola — vuelve a entrar con tu clave normalmente. Es por
+seguridad, para que un computador compartido no quede con una sesión
+olvidada abierta.
 
 ---
 
