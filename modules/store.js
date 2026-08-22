@@ -162,7 +162,7 @@ const TABLA_REAL={
   // acá queda CADA reemplazo real como su propia fila. Sin esto no se puede
   // responder "cada cuántas horas se cambia el asiento" — compMayores pisa el
   // dato anterior cada vez que se actualiza a la instalación más reciente.
-  compHist:{tabla:'historial_componentes',clave:'id',claveDb:'id',cols:['id','sigla','comp','fechaInst','horomInstalacion','fuente','obs']},
+  compHist:{tabla:'historial_componentes',clave:'id',claveDb:'id',cols:['id','sigla','comp','fechaInst','horomInstalacion','fuente','obs','posibleCausa','origen']},
   // Historial de cambios de neumático por POSICIÓN (no por serie — el archivo
   // de neumáticos retirados en 'neu', pensado para esto, nunca se usó en los
   // datos reales, ver comentario en modules/renders/neu.js:_neuResumenVida).
