@@ -12,6 +12,20 @@ window.renderAyuda=function(){
     '<div class="sec-s">Guía completa de operación del sistema</div></div>'+
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div>'+
 
+    // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-22)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Novedades y correcciones recientes (22 de agosto 2026)</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Auditoría a fondo de Neumáticos (cruce de decenas de planillas Excel + datos de sensores MEMS4 contra Existencias) y refuerzo de seguridad de acceso.</p>'+
+    '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Neumáticos: columna "F.Salida":</b> para los que están en Stock o De baja, muestra la fecha en que salieron del equipo (antes solo era visible pasando el mouse sobre la columna H.Acum).</li>'+
+    '<li><b>Auditoría de Datos: 5to chequeo — "Neumáticos cambiados sin registrar la salida":</b> compara la última medición real de cada posición contra la serie que el sistema todavía muestra como montada, y avisa solo si detecta una diferencia real (no cuando el cambio ya está bien registrado y solo falta su primera medición nueva).</li>'+
+    '<li><b>Existencias al día:</b> se cargaron ~100 neumáticos que habían salido de CAEX/Cargadores/Motoniveladoras (Stock o De baja) y nunca quedaron registrados como tales — cruzados contra sensores MEMS4 y las planillas "Retiros"/"Flota Producción" para no inventar ningún dato.</li>'+
+    '<li><b>Accesos recientes ahora también muestra intentos bloqueados:</b> si alguien con clave incorrecta o cuenta desactivada intenta entrar (o una sesión abierta no logra renovarse), queda marcado en rojo con 🚫 — antes un login fallido no dejaba ningún rastro.</li>'+
+    '<li><b>Cierre de sesión automático por inactividad:</b> a los 55 min sin uso aparece un aviso en pantalla con cuenta regresiva; a la hora completa, si nadie respondió, la sesión se cierra sola.</li>'+
+    '<li><b>Registro de accesos más confiable:</b> si el aviso de login fallaba por un corte de red puntual, antes se perdía en silencio — ahora reintenta y, si sigue sin poder, lo guarda para reenviarlo en el próximo login.</li>'+
+    '</ul>'+
+    '</div>'+
+
     // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-14)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (14 de agosto 2026)</b>'+
@@ -682,7 +696,8 @@ window.renderAyuda=function(){
     'En Configuración → tarjeta "Verificación en dos pasos" → botón <b>Activar</b>. Escanea el código QR con tu app de autenticación (o ingresa el código manual si no puedes escanear) y escribe el código de 6 dígitos que te muestre para confirmar. Desde ese momento, cada inicio de sesión pide ese código además de tu clave.<br><br>'+
     '<b>▶ Desactivarla</b><br>'+
     'Mismo lugar → botón <b>Desactivar</b>. Vuelve a bastar con la clave sola.<br><br>'+
-    '<b>▶ Otras dos herramientas de seguridad, en la misma pestaña</b><br>'+
-    '<b>Accesos recientes</b> — quién entró al sistema, cuándo, y desde qué computador (útil si algo no se guardó y quieres saber si fue por una sesión vencida en otro equipo).<br>'+
-    '<b>Log de cambios</b> — auditoría de cada edición, creación o eliminación en el sistema, con fecha, usuario y detalle — no solo los inicios de sesión.</div></div>';
+    '<b>▶ Otras herramientas de seguridad, en la misma pestaña</b><br>'+
+    '<b>Accesos recientes</b> — quién entró al sistema, cuándo, y desde qué computador (útil si algo no se guardó y quieres saber si fue por una sesión vencida en otro equipo). También muestra los intentos que NO prosperaron (clave incorrecta, cuenta desactivada, o sesión que no logró renovarse), marcados en rojo con 🚫.<br>'+
+    '<b>Log de cambios</b> — auditoría de cada edición, creación o eliminación en el sistema, con fecha, usuario y detalle — no solo los inicios de sesión.<br>'+
+    '<b>Cierre de sesión por inactividad</b> — si dejas la sesión abierta sin usarla, a los 55 min aparece un aviso en pantalla con cuenta regresiva; a la hora completa se cierra sola si nadie respondió.</div></div>';
 };

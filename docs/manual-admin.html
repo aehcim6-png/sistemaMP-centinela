@@ -81,13 +81,25 @@
   <h3>Contraseñas</h3>
   <p>Política mínima: 14 caracteres, con mayúscula/minúscula/dígito/símbolo. Las cuentas nuevas
   fuerzan el cambio al primer ingreso.</p>
+  <h3>Cierre de sesión por inactividad</h3>
+  <p>Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll) aparece un aviso
+  en pantalla ("¿Sigues ahí?") con cuenta regresiva; si nadie hace nada, a la hora completa la
+  sesión se cierra sola (<code>_logout()</code>). Corre en cualquier pestaña abierta, pensado
+  para un computador compartido con una sesión olvidada.</p>
   <h3>Auditoría (trazabilidad — quién cambió qué)</h3>
-  <p><b>Accesos recientes</b> — quién entró, cuándo, desde qué computador.
+  <p><b>Accesos recientes</b> — quién entró, cuándo, desde qué computador, y también los
+  <b>intentos que NO prosperaron</b> (clave incorrecta, cuenta desactivada, o sesión que no
+  logró renovarse), marcados en rojo con 🚫. Antes solo se registraban los logins exitosos.
+  Los fallidos se registran vía la Edge Function <code>registrar-intento-acceso</code> (clave
+  de servicio, porque en ese momento no hay sesión de usuario).
   <b>Log de cambios</b> — cada edición, creación o eliminación, con fecha, usuario y detalle.</p>
   <p>No confundir con la pestaña <b>Auditoría de Datos</b> (agosto 2026, en el menú principal):
-  esa no rastrea quién cambió qué, sino si los datos son consistentes entre sí (horómetros que
-  retroceden entre OT, componentes mayores sin validar, OT cerradas sin solución). Se recalcula
-  sola cada vez que se abre.</p>
+  esa no rastrea quién cambió qué, sino si los datos son consistentes entre sí. Se recalcula
+  sola cada vez que se abre, con 5 chequeos hoy: horómetros que retroceden entre OT,
+  componentes mayores sin validar, OT cerradas sin solución, reportes automáticos por
+  WhatsApp/correo sin clasificar, y <b>neumáticos cambiados sin registrar la salida</b>
+  (agosto 2026 — la última medición real de una posición trae una serie distinta a la que el
+  sistema muestra como montada).</p>
   <p><b>Configuración → Uso del sistema</b> (agosto 2026) — tampoco es auditoría de quién cambió
   qué: cuenta cuántas veces se abrió cada pestaña/sub-pestaña en los últimos 7/30/90 días, para
   decidir con datos dónde vale la pena seguir invirtiendo. Vive en su propia tabla
@@ -187,7 +199,8 @@ modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-
 modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43 en total)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
-                            whatsapp-webhook, email-webhook, _shared/ parser común)
+                            whatsapp-webhook, email-webhook, registrar-intento-acceso,
+                            _shared/ parser común)
 tests/                   — pruebas de logic.js y store.js (Vitest, 448 casos)
 docs/                    — esta documentación</pre>
 

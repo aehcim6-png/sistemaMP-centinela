@@ -262,6 +262,45 @@ componente que no está en el texto.
 > credenciales verificadas, sospechar primero de la URL usada para firmar
 > antes de rotar secretos.
 
+### 13. Seguridad de sesión — inactividad y registro de accesos bloqueados
+
+Caso real (auditoría 2026-08-22): un usuario desactivado seguía con la
+pestaña abierta en otro computador, y no había forma de confirmar desde el
+sistema si su sesión realmente había quedado sin efecto ni si había
+intentado volver a entrar.
+
+**Cierre por inactividad** (`index.html`, sin tabla nueva): a los 55 min sin
+`mousemove`/`keydown`/`touchstart`/`scroll` aparece un aviso con cuenta
+regresiva; a los 60 min, si nadie interactuó, se llama `_logout()` sola.
+100% cliente — no depende de ningún timeout del lado de Supabase Auth (que
+sigue siendo el candado real: RLS revisa `es_usuario_activo()` en cada
+consulta, así que una cuenta desactivada queda sin acceso a los datos de
+inmediato aunque la pestaña siga abierta visualmente).
+
+**Registro de intentos bloqueados** (`registrar-intento-acceso`, Edge
+Function nueva): hasta ahora `changelog` solo se llenaba con logins
+*exitosos* (`_registrarLogin`, llamado con el token recién obtenido). Un
+intento fallido — clave incorrecta, cuenta baneada, o una sesión vieja que
+no logra renovarse al recargar — no tiene ningún token de usuario válido con
+el que insertar, y la política RLS de `changelog` exige `to authenticated`
+(ver sección de RLS más arriba). Se resolvió con el mismo patrón que
+`crear-operador`: una función aparte con `SUPABASE_SERVICE_ROLE_KEY` que
+inserta saltándose RLS.
+
+Decisión de diseño no obvia: la función se dejó con `verify_jwt=true` (el
+default seguro), no con `verify_jwt=false`. El cliente le manda la **anon
+key** como `Authorization: Bearer` — eso es un JWT válido firmado por el
+proyecto (pasa el gateway) aunque no represente a ningún usuario real. Es el
+mismo truco que ya usan endpoints "públicos" de Supabase en general; evita
+tener que desactivar la verificación de JWT (que si algún día esa función
+creciera y alguien copiara el patrón sin pensarlo, quedaría un endpoint
+abierto sin ningún control).
+
+Deliberadamente no distingue "clave incorrecta" de "cuenta bloqueada":
+Supabase Auth devuelve el mismo error genérico para ambos casos (no le
+filtra a un atacante si una cuenta existe o está baneada), así que tampoco
+se puede — ni se debe — distinguir del lado del cliente.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No convertir a módulos ES**: cambiar `<script>` planos a
