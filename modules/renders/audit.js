@@ -6,7 +6,7 @@
 // OT cerradas sin dejar registrada la solución). Corre sobre los datos ya
 // cargados en memoria (S.g) cada vez que se abre la pestaña — no requiere
 // pedirlo, se recalcula solo con cada visita.
-// window.renderAudit + los 3 chequeos que alimenta.
+// window.renderAudit + los 5 chequeos que alimenta.
 // ═══════════════════════════════════════════════════════════════════════
 
 // Chequeo 1: horómetro que retrocede entre OT/correctivos consecutivas del
@@ -72,6 +72,39 @@ function _auditOtHistPorRevisar(){
     .sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
 }
 
+// Chequeo 5 (2026-08-22, a pedido del usuario — automatiza lo que se hizo a
+// mano cruzando ~40 Excel en la auditoría 2026-08 de neumáticos): la última
+// medición REAL de una posición (planilla mensual, en 'neuMed') registra un
+// neumático distinto al que 'neu' todavía muestra como montado ('Operativo')
+// — señal de que el equipo cambió esa goma pero nadie movió la saliente a
+// Existencias/De baja ni actualizó la serie acá.
+// Mismo criterio de emparejamiento sigla+posición que ya usa verDetalleNeu
+// (neu.js) — no se inventa uno nuevo que pudiera divergir del historial que
+// el usuario ya ve al abrir el detalle de cada neumático.
+// Filtro de falso positivo: si la medición "distinta" es ANTERIOR o igual a
+// la fecha de instalación que ya tiene el neumático actual (n.fechaInst), no
+// es un dato perdido — es un cambio bien registrado en el sistema, solo que
+// todavía no le ha tocado su primera medición nueva (normal, no un hallazgo).
+function _auditNeuSinSalida(){
+  const neu=S.g('neu')||[];
+  const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
+  var hallazgos=[];
+  neu.forEach(function(n){
+    if(!n||n.estado!=='Operativo'||!n.sigla)return;
+    var posStr=String(n.numPos||n.posicion||'');
+    var deEstaPosicion=allMeds.filter(function(m){
+      return m&&m.sigla===n.sigla&&m.serie&&m.fecha&&(String(m.posicion)===posStr||m.posicion===n.posicion);
+    });
+    if(!deEstaPosicion.length)return;
+    var ultima=deEstaPosicion.reduce(function(a,b){return b.fecha>a.fecha?b:a;});
+    if(ultima.serie===n.serie)return;
+    if(n.fechaInst&&ultima.fecha<=n.fechaInst)return;
+    hallazgos.push({sigla:n.sigla,posicion:n.posicion,serieSistema:n.serie,fechaInstSistema:n.fechaInst,
+      serieUltimaMedicion:ultima.serie,fechaUltimaMedicion:ultima.fecha,remanenteUltimaMedicion:ultima.remProm});
+  });
+  return hallazgos.sort(function(a,b){return(b.fechaUltimaMedicion||'').localeCompare(a.fechaUltimaMedicion||'');});
+}
+
 const _AUDIT_MESES=[{v:'01',l:'Ene'},{v:'02',l:'Feb'},{v:'03',l:'Mar'},{v:'04',l:'Abr'},{v:'05',l:'May'},{v:'06',l:'Jun'},{v:'07',l:'Jul'},{v:'08',l:'Ago'},{v:'09',l:'Sep'},{v:'10',l:'Oct'},{v:'11',l:'Nov'},{v:'12',l:'Dic'}];
 
 window.renderAudit=function(){
@@ -103,6 +136,7 @@ window.renderAudit=function(){
   // pone 'Cerrada'), así que pasaFiltro (pensado para 'ot') igual le sirve —
   // fecha/sigla son campos comunes a ambas tablas.
   const porRevisar=_auditOtHistPorRevisar().filter(function(o){return pasaFiltro(o.fecha,o.sigla);});
+  const neuSinSalida=_auditNeuSinSalida().filter(function(h){return pasaFiltro(h.fechaUltimaMedicion,h.sigla);});
 
   const anios=[...new Set(ot.map(function(o){return(o.fecha||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
@@ -133,6 +167,10 @@ window.renderAudit=function(){
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${porRevisar.length?'border-color:var(--warn)':''}">
         <div style="font-size:24px;font-weight:700;color:${porRevisar.length?'var(--warn)':'var(--ok)'}">${porRevisar.length}</div>
         <div style="font-size:11px;color:var(--tx3)">Reportes automáticos (WhatsApp/correo) por revisar</div>
+      </div>
+      <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${neuSinSalida.length?'border-color:var(--danger)':''}">
+        <div style="font-size:24px;font-weight:700;color:${neuSinSalida.length?'var(--danger)':'var(--ok)'}">${neuSinSalida.length}</div>
+        <div style="font-size:11px;color:var(--tx3)">Neumáticos cambiados sin registrar la salida</div>
       </div>
     </div>
 
@@ -167,11 +205,20 @@ window.renderAudit=function(){
 
     <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Reportes automáticos por revisar (${porRevisar.length})</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Cargados solos desde WhatsApp/correo (whatsapp-webhook/email-webhook), pero el parser no logró clasificarlos con confianza — se guardaron igual (nunca se descartan en silencio) para que se confirmen o corrijan acá. Si el equipo/componente es correcto, no hace falta hacer nada; si no, corrígelo por SQL directo sobre correctivos_historico (tabla de solo lectura desde la app, a propósito).</div>
-    ${porRevisar.length?`<div class="tbl-wrap"><table>
+    ${porRevisar.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Fecha</th><th>Sistema</th><th>Descripción</th><th>Fuente</th></tr>
       ${porRevisar.slice(0,50).map(function(o){
         return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(o.sigla||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.sistema||'')}</td><td style="font-size:11px;color:var(--tx2)">${escapeHtml((o.descripcion||'').slice(0,120))}</td><td style="font-size:10px;color:var(--warn)">${escapeHtml(o.fuente||'')}</td></tr>`;
       }).join('')}
-    </table>${porRevisar.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${porRevisar.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Sin reportes automáticos pendientes de revisión</div>'}
+    </table>${porRevisar.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${porRevisar.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Sin reportes automáticos pendientes de revisión</div>'}
+
+    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Neumáticos cambiados sin registrar la salida (${neuSinSalida.length})</div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">La última medición real de esa posición (planilla mensual) trae una serie distinta a la que el sistema todavía muestra como montada — probablemente se cambió el neumático en terreno pero nunca se movió el saliente a Existencias/De baja acá. Usa "↺ Cambio" en Neumáticos para corregirlo.</div>
+    ${neuSinSalida.length?`<div class="tbl-wrap"><table>
+      <tr><th>Equipo</th><th>Posición</th><th>Serie en sistema</th><th>Serie última medición</th><th>Fecha medición</th><th>Remanente medido</th></tr>
+      ${neuSinSalida.slice(0,50).map(function(h){
+        return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(h.sigla)}</td><td>${escapeHtml(h.posicion||'')}</td><td class="mono">${escapeHtml(h.serieSistema||'—')}</td><td class="mono" style="color:var(--danger);font-weight:700">${escapeHtml(h.serieUltimaMedicion)}</td><td>${escapeHtml(h.fechaUltimaMedicion)}</td><td class="mono">${h.remanenteUltimaMedicion!=null?h.remanenteUltimaMedicion+'mm':'—'}</td></tr>`;
+      }).join('')}
+    </table>${neuSinSalida.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${neuSinSalida.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Sin cambios de neumático pendientes de registrar</div>'}
   `;
 };
