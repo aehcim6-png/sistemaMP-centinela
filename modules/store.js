@@ -134,7 +134,7 @@ const TABLA_REAL={
   // (ver conversación 2026-08-15). Mismo patrón de solo lectura que 'ocHist': nada en
   // la app llama S.s('otHist', ...) — alimenta el cálculo de probabilidad de falla en
   // Predictivo (probabilidadFallaDesdeEventos, logic.js) con más muestra histórica.
-  otHist:{tabla:'correctivos_historico',clave:'id',claveDb:'id',cols:['id','sigla','siglaOriginal','fecha','horometro','sistema','descripcion','tipoInt','fuente']},
+  otHist:{tabla:'correctivos_historico',clave:'id',claveDb:'id',cols:['id','sigla','siglaOriginal','fecha','horometro','sistema','descripcion','tipoInt','fuente','observacion','estadoOT','responsable']},
   progDia:{tabla:'programacion_diaria',clave:'_id',claveDb:'id',cols:['fecha','turno','orden','nombre','cargo','responsable','bloques']},
   // Sensor de neumático como entidad propia (2026-07) — antes 'numSensor' era solo
   // un campo de texto dentro de 'neu', sin vida propia: si el sensor físico se
