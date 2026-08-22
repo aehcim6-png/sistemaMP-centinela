@@ -3534,15 +3534,53 @@ function _getDeviceLabel(){
   if(!l){l='Equipo-'+Math.random().toString(36).slice(2,6).toUpperCase();localStorage.setItem('smp_device_label',l);}
   return l;
 }
+// Caso real (auditoría 2026-08): un acceso autorizado y usado normalmente
+// nunca apareció en "Accesos recientes" — el fetch de abajo fallaba en
+// silencio (.catch(function(){}), sin reintento) si había un corte de red
+// justo en ese instante, y el evento se perdía para siempre sin que nadie
+// se enterara. Ahora: 1 reintento a los 3s, y si sigue sin poder, el evento
+// se guarda en 'smp_logins_pendientes' (cola local) para reenviarse en el
+// próximo login de ESTE navegador — recién ahí hay token fresco de nuevo.
+function _enviarEventoLogin(evento,token,cb){
+  fetch(_SB_DEFAULT_URL+'/rest/v1/changelog',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify(evento)
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);cb(true);}).catch(function(){cb(false);});
+}
+function _encolarLoginsPendientes(eventos){
+  try{
+    var cola=JSON.parse(localStorage.getItem('smp_logins_pendientes')||'[]').concat(eventos);
+    if(cola.length>20)cola=cola.slice(-20); // tope para no crecer sin límite si el navegador queda offline mucho tiempo
+    localStorage.setItem('smp_logins_pendientes',JSON.stringify(cola));
+  }catch(e){}
+}
+function _flushLoginsPendientes(token){
+  var cola;
+  try{cola=JSON.parse(localStorage.getItem('smp_logins_pendientes')||'[]');}catch(e){cola=[];}
+  if(!cola.length)return;
+  localStorage.removeItem('smp_logins_pendientes'); // se vuelve a encolar lo que siga fallando
+  var fallidos=[];
+  var restantes=cola.length;
+  cola.forEach(function(ev){
+    _enviarEventoLogin(ev,token,function(ok){
+      if(!ok)fallidos.push(ev);
+      if(--restantes===0&&fallidos.length)_encolarLoginsPendientes(fallidos);
+    });
+  });
+}
 function _registrarLogin(origen){
   try{
     var token=localStorage.getItem('smp_access_token');
     if(!token)return;
-    fetch(_SB_DEFAULT_URL+'/rest/v1/changelog',{
-      method:'POST',
-      headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({fecha:new Date().toISOString(),usuario:window._userName||'',accion:'Login',detalle:origen+' · 💻 '+_getDeviceLabel()+' · '+(navigator.userAgent||'').slice(0,150)})
-    }).catch(function(){});
+    var evento={fecha:new Date().toISOString(),usuario:window._userName||'',accion:'Login',detalle:origen+' · 💻 '+_getDeviceLabel()+' · '+(navigator.userAgent||'').slice(0,150)};
+    _enviarEventoLogin(evento,token,function(ok){
+      if(ok)return;
+      setTimeout(function(){
+        _enviarEventoLogin(evento,token,function(ok2){if(!ok2)_encolarLoginsPendientes([evento]);});
+      },3000);
+    });
+    _flushLoginsPendientes(token);
   }catch(e){}
 }
 
