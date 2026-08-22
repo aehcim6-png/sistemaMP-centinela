@@ -30,6 +30,14 @@
 // un horómetro que retrocede en el tiempo — encontrado en auditoría 2026-08
 // en varios equipos (CN-4656, CN-9500, CN-9501, CN-9503, CN-9507...). Nunca
 // bajar del máximo horómetro ya visto para ese equipo.
+
+// Estados que significan "salió del equipo" — para estos, ultimaMedicion
+// guarda la fecha de salida (no la de una medición real) y se muestra en la
+// columna F.Salida de la tabla. No existe columna fechaBaja en Supabase
+// (el campo lo setea cambiarNeu/saveCambio pero nunca se persiste ni se
+// muestra en ningún lado), así que ultimaMedicion es el único dato real.
+const ESTADOS_RETIRO_NEU=['Stock','De baja','Baja Desgaste','Baja Imprevisto'];
+
 function _horomEquipoSeguro(sig){
   const eq=S.g('eq')||[];
   const e=eq.find(function(x){return x.sigla===sig;});
@@ -122,7 +130,7 @@ window.renderNeu=function(){
     <datalist id="dlMarcasNeu"><option value="MICHELIN"><option value="BRIDGESTONE"><option value="GOODYEAR"><option value="WESTLAKE"></datalist>
     <datalist id="dlSeriesNeu">${[...new Set(neu.map(n=>n.serie).filter(Boolean))].sort().map(s=>`<option value="${escapeHtml(s)}">`).join('')}</datalist>
     <div class="tbl-wrap"><table>
-      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th>↺</th></tr>
+      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th title="Fecha en que el neumático salió del equipo (queda registrada en ultimaMedicion al pasar a Stock/De baja) — vacío para los que siguen montados">F.Salida</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
         const i=neu.indexOf(n);
         const pLive=neuPct(n);
@@ -149,6 +157,7 @@ window.renderNeu=function(){
           <td><div style="background:var(--bg3);border-radius:3px;height:8px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle"><div style="background:${col};height:100%;width:${sinDatosRem?0:Math.min(p,100)}%"></div></div> <span style="color:${col};font-size:11px" title="${sinDatosRem?'Nunca se registró una medición de remanente para este neumático':''}">${sinDatosRem?'— sin datos':p+'%'}</span></td>
           <td style="font-size:10px;color:${proyCol}" title="${proy?'Motivo: '+escapeHtml(proy.motivoCambio)+' · Confianza: '+escapeHtml(proy.confianza):'Sin mediciones suficientes para proyectar'}">${proy?'≈'+proy.diasRestantes+'d ('+fn(proy.hrsRestantes)+'h)':'—'}</td>
           ${edCell(n.estado||'Operativo','estado',i,'neu','select',['Operativo','Evaluación','Reparación','Disponible Usado','Stock','Fuera de servicio','Baja Desgaste','Baja Imprevisto'])}
+          <td class="mono" style="font-size:11px;color:var(--tx2)">${ESTADOS_RETIRO_NEU.includes(n.estado)?escapeHtml(n.ultimaMedicion||'—'):'—'}</td>
           <td>
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
