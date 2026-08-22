@@ -3439,6 +3439,58 @@ function _logout(){
   _sbAuthLogout().finally(function(){location.reload();});
 }
 
+// ============ CIERRE DE SESIÓN POR INACTIVIDAD ============
+// A los 55 min sin actividad (mouse/teclado/touch/scroll) aparece un aviso
+// en pantalla con cuenta regresiva; si nadie hace nada, a la hora completa
+// (60 min) se cierra la sesión sola — mismo criterio en cualquier pestaña
+// que quede olvidada abierta, no solo la del computador que se comparte.
+// Cualquier actividad, incluso apretar "Seguir conectado", reinicia el
+// reloj desde cero.
+var IDLE_AVISO_MS=55*60*1000;
+var IDLE_CIERRE_MS=60*60*1000;
+var _ultimaActividad=Date.now();
+var _idleAvisoMostrado=false;
+function _marcarActividad(){
+  _ultimaActividad=Date.now();
+  if(_idleAvisoMostrado)_ocultarAvisoInactividad();
+}
+['mousemove','mousedown','keydown','touchstart','scroll','wheel'].forEach(function(ev){
+  document.addEventListener(ev,_marcarActividad,{passive:true});
+});
+function _ocultarAvisoInactividad(){
+  _idleAvisoMostrado=false;
+  var ov=document.getElementById('idleOverlay');
+  if(ov)ov.remove();
+}
+function _mostrarAvisoInactividad(restanteMs){
+  _idleAvisoMostrado=true;
+  var m=Math.floor(restanteMs/60000),s=Math.floor((restanteMs%60000)/1000);
+  var txt=m+':'+(s<10?'0':'')+s;
+  var el=document.getElementById('idleCountdown');
+  if(el){el.textContent=txt;return;}
+  var overlay=document.createElement('div');
+  overlay.id='idleOverlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.85);font-family:system-ui,sans-serif';
+  overlay.innerHTML=
+    '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:32px;width:100%;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4)">'+
+    '<div style="font-size:32px;margin-bottom:10px">⏳</div>'+
+    '<div style="color:#f1f5f9;font-size:16px;font-weight:600;margin-bottom:8px">¿Sigues ahí?</div>'+
+    '<div style="color:#94a3b8;font-size:13px;margin-bottom:16px">No se detectó actividad. Por seguridad, la sesión se cerrará en <b id="idleCountdown" style="color:#f87171">'+txt+'</b> si no haces nada.</div>'+
+    '<button onclick="_marcarActividad()" style="width:100%;padding:10px;background:#3ecf8e;border:none;border-radius:6px;color:#0f172a;font-weight:600;cursor:pointer;font-size:14px">Seguir conectado</button>'+
+    '</div>';
+  document.body.appendChild(overlay);
+}
+setInterval(function(){
+  if(!localStorage.getItem('smp_access_token'))return; // sin sesión, nada que cerrar
+  var inactivoMs=Date.now()-_ultimaActividad;
+  if(inactivoMs>=IDLE_CIERRE_MS){
+    _ocultarAvisoInactividad();
+    _logout();
+    return;
+  }
+  if(inactivoMs>=IDLE_AVISO_MS)_mostrarAvisoInactividad(IDLE_CIERRE_MS-inactivoMs);
+},5000);
+
 // ============ VERIFICACIÓN EN DOS PASOS (MFA — TOTP) ============
 // API estándar de Supabase Auth para segundo factor. No se usa ningún SDK
 // externo, son los mismos fetch directos que el resto de este archivo.
