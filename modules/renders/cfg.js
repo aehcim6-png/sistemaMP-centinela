@@ -831,11 +831,16 @@ window.nombrarEquipo=function(){
 };
 
 window.verAccesos=function(){
-  const logs=(S.g('changelog')||[]).filter(function(c){return c.accion==='Login';}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
+  // Incluye tanto logins exitosos como intentos rechazados (clave incorrecta,
+  // cuenta desactivada, o sesión que no pudo renovarse) — antes solo se veían
+  // los exitosos, así que un usuario bloqueado que insistía en entrar no
+  // dejaba ningún rastro visible acá (ver _registrarIntentoBloqueado).
+  const logs=(S.g('changelog')||[]).filter(function(c){return c.accion==='Login'||c.accion==='Login bloqueado';}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
   const rows=logs.map(function(c){
     const d=new Date(c.fecha);
     const fechaStr=isNaN(d)?(c.fecha||'—'):d.toLocaleString('es-CL');
-    return `<tr><td style="padding:4px;font-size:11px">${fechaStr}</td><td style="font-size:11px">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
+    const bloqueado=c.accion==='Login bloqueado';
+    return `<tr>${bloqueado?'<td style="padding:4px;font-size:11px;color:var(--danger)">🚫 '+fechaStr+'</td>':'<td style="padding:4px;font-size:11px">'+fechaStr+'</td>'}<td style="font-size:11px;color:${bloqueado?'var(--danger)':'inherit'}">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
   }).join('');
   sm(`<div style="max-width:700px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg> Accesos recientes</h3>
     <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">Este computador se identifica como: <b style="color:var(--tx)">💻 ${escapeHtml(_getDeviceLabel())}</b> — <a href="javascript:void(0)" onclick="nombrarEquipo()" style="color:var(--ac)">cambiar nombre</a></p>
