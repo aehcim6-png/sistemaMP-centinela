@@ -27,6 +27,13 @@ window.renderDash=function(){
   // modos, por diseño del adaptador).
   const otConHist=ot.concat(_otHistComoOt(otHist));
   const neu=S.g('neu')||[];
+  // compMayores/aceite: solo para el Score de Salud por equipo, más abajo
+  // (bloque "Equipos con Salud Baja") — mismas fuentes que ya usa la ficha de
+  // Buscar, acá se cargan una vez para toda la flota en vez de una vez por
+  // equipo.
+  const compMayoresDash=S.g('compMayores')||[];
+  const aceiteDash=S.g('aceite')||[];
+  if(aceiteDash.length&&typeof window._aceiteResolverSiglas==='function')window._aceiteResolverSiglas(aceiteDash);
   const stk=S.g('stk')||[];
   const lub=S.g('lub')||[];
   const cfg=S.g('cfg')||{};
@@ -555,9 +562,70 @@ window.renderDash=function(){
   trendBlock+='<div style="margin-top:8px;font-size:10px;color:var(--tx3)">Meta: '+meta+'% · Verde ≥ meta · Amarillo ≥ 70% · Rojo < 70%</div>';
   trendBlock+='</div>';
 
-  // Agregar los 3 bloques al innerHTML existente
+  // ═══ BLOQUE 4: EQUIPOS CON SALUD BAJA — mismo Score de Salud del Equipo que
+  // ya se ve en la ficha de Buscar (scoreSaludEquipo, logic.js), pero calculado
+  // para TODA la flota de una vez acá, para encontrar de un vistazo a quién hay
+  // que mirar sin tener que abrir equipo por equipo. Índices por sigla armados
+  // UNA vez (mismo criterio de performance que otPorSiglaBuscar/regPorSiglaBuscar
+  // en Buscar) — con cientos de equipos, recorrer compMayores/neu/aceite/ot
+  // completos por cada equipo sería O(equipos × filas).
+  var compPorSiglaDash={};
+  compMayoresDash.forEach(function(c){if(c&&c.sigla)(compPorSiglaDash[c.sigla]=compPorSiglaDash[c.sigla]||[]).push(c);});
+  var neuOpPorSiglaDash={};
+  neu.forEach(function(n){if(n&&n.sigla&&n.estado==='Operativo')(neuOpPorSiglaDash[n.sigla]=neuOpPorSiglaDash[n.sigla]||[]).push(n);});
+  var aceUltimaPorSiglaComp={};
+  aceiteDash.forEach(function(m){
+    if(!m||!m._sigla||!m.fecha)return;
+    var k=m._sigla+'|'+(m.componente||'?');
+    if(!aceUltimaPorSiglaComp[k]||m.fecha>aceUltimaPorSiglaComp[k].fecha)aceUltimaPorSiglaComp[k]=m;
+  });
+  var aceUltimasPorSiglaDash={};
+  Object.keys(aceUltimaPorSiglaComp).forEach(function(k){
+    var sigla=k.slice(0,k.lastIndexOf('|'));
+    (aceUltimasPorSiglaDash[sigla]=aceUltimasPorSiglaDash[sigla]||[]).push(aceUltimaPorSiglaComp[k]);
+  });
+  var otFallasPorSiglaDash={};
+  otConHist.forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o)&&o.horom>0)(otFallasPorSiglaDash[o.sigla]=otFallasPorSiglaDash[o.sigla]||[]).push(o.horom);});
+  var medsPorSerieDash=(typeof _neuMedPorSerie==='function')?_neuMedPorSerie():null;
+  var eqPorSiglaDash=(typeof _eqPorSigla==='function')?_eqPorSigla():null;
+  var equiposConSalud=eq.map(function(e){
+    var compsConDato=(compPorSiglaDash[e.sigla]||[]).map(function(c){return compEstado(c,e.horomActual,e.hrsDia);}).filter(function(s){return s.conDato;});
+    var componentesPct=compsConDato.length?Math.round(compsConDato.filter(function(s){return s.hrsRest>1000;}).length/compsConDato.length*1000)/10:null;
+    var neuOp=neuOpPorSiglaDash[e.sigla]||[];
+    var neumaticosPct=neuOp.length&&typeof neuDebeCambiar==='function'?Math.round(neuOp.filter(function(n){return!neuDebeCambiar(n,medsPorSerieDash,eqPorSiglaDash);}).length/neuOp.length*1000)/10:null;
+    var aceUlt=aceUltimasPorSiglaDash[e.sigla]||[];
+    var aceitePct=aceUlt.length?Math.round(aceUlt.filter(function(m){return m.estado==='NORMAL';}).length/aceUlt.length*1000)/10:null;
+    var mtbfE=C.mtbfReal(otFallasPorSiglaDash[e.sigla]||[]);
+    var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
+    var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
+    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score};
+  }).filter(function(r){return r.score.valor!=null&&r.score.valor<70;})
+    .sort(function(a,b){return a.score.valor-b.score.valor;})
+    .slice(0,10);
+  var saludBajaBlock='';
+  if(equiposConSalud.length){
+    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">🩺 Equipos con Salud Baja <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
+    saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
+    equiposConSalud.forEach(function(r){
+      var col=r.score.valor>=55?'#f59e0b':'#ef4444';
+      var d={};r.score.detalle.forEach(function(c){d[c.nombre]=c.valor;});
+      saludBajaBlock+='<tr>'+
+        '<td class="mono" style="color:var(--ac);font-weight:700;cursor:pointer" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)">'+escapeHtml(r.sigla)+'</td>'+
+        '<td>'+escapeHtml(r.tipo)+'</td>'+
+        '<td style="font-size:10px">'+escapeHtml(r.modelo)+'</td>'+
+        '<td class="mono" style="color:'+col+';font-weight:700">'+r.score.valor+'%</td>'+
+        '<td style="font-size:10px;color:var(--tx3)">'+(d['Componentes']==null?'—':d['Componentes']+'%')+'</td>'+
+        '<td style="font-size:10px;color:var(--tx3)">'+(d['Neumáticos']==null?'—':d['Neumáticos']+'%')+'</td>'+
+        '<td style="font-size:10px;color:var(--tx3)">'+(d['Aceite']==null?'—':d['Aceite']+'%')+'</td>'+
+        '<td style="font-size:10px;color:var(--tx3)">'+(d['Confiabilidad']==null?'—':d['Confiabilidad']+'%')+'</td>'+
+        '</tr>';
+    });
+    saludBajaBlock+='</table></div></div>';
+  }
+
+  // Agregar los bloques al innerHTML existente
   var dashEl=document.getElementById('s-dash');
-  dashEl.innerHTML+=proxBlock+trendBlock;
+  dashEl.innerHTML+=proxBlock+trendBlock+saludBajaBlock;
 
   renderHeader();
 };
