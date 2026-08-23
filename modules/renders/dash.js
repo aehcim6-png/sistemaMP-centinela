@@ -13,6 +13,21 @@ window.dashHoy=function(){
   window._dashMes=null;window._dashAnio=null;
   renders.dash();
 };
+// Aviso proactivo de Score de Salud (WhatsApp/correo) — solo dispara la
+// Edge Function con lo que el Dashboard ya calculó; el dedup de "máx. 1 por
+// equipo por día" vive del lado del servidor, ver avisar-salud-equipo.
+// Fire-and-forget: nunca debe interrumpir el render del Dashboard.
+function _avisarSaludEquipo(sigla,score,motivo,delta){
+  try{
+    var token=localStorage.getItem('smp_access_token');
+    if(!token||typeof _SB_DEFAULT_URL==='undefined')return;
+    fetch(_SB_DEFAULT_URL+'/functions/v1/avisar-salud-equipo',{
+      method:'POST',
+      headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({sigla:sigla,score:score,motivo:motivo,delta:delta})
+    }).catch(function(){});
+  }catch(e){}
+}
 window.renderDash=function(){
   const eq=C.recalcAll(),reg=S.g('reg')||[];
   const mov=S.g('mov')||[];
@@ -612,6 +627,23 @@ window.renderDash=function(){
     histEquipoNuevo[r.sigla]=registrarSnapshotSalud(histEquipoNuevo[r.sigla]||{},r.score.valor,_hoyISO);
   });
   if(JSON.stringify(histEquipoNuevo)!==JSON.stringify(histEquipoPrevio))S.s('saludEquipoHist',histEquipoNuevo);
+  // Aviso proactivo (WhatsApp/correo) — se dispara al detectar, con el
+  // historial que se acaba de actualizar, que un equipo CRUZÓ hoy a Salud
+  // Baja (ayer ≥70, hoy <70) o CAYÓ fuerte en la semana (≥15 pts vs hace 7
+  // días), aunque siga por sobre 70 — ese es justo el caso que interesa
+  // avisar antes de que sea tarde. Fire-and-forget: el dedup real (máx. 1
+  // aviso por equipo por día) lo hace la Edge Function, no acá, así no
+  // importa si esto corre varias veces el mismo día en pestañas distintas.
+  equiposConSaludTodos.forEach(function(r){
+    if(r.score.valor==null||typeof _avisarSaludEquipo!=='function')return;
+    var histSigla=histEquipoPrevio[r.sigla]||{};
+    var fechasAntes=Object.keys(histSigla).filter(function(f){return f<_hoyISO;}).sort();
+    var valorAyer=fechasAntes.length?histSigla[fechasAntes[fechasAntes.length-1]]:null;
+    var cruzoHoy=valorAyer!=null&&valorAyer>=70&&r.score.valor<70;
+    if(cruzoHoy){_avisarSaludEquipo(r.sigla,r.score.valor,'cruce',null);return;}
+    var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
+    if(tend&&tend.delta!=null&&tend.delta<=-15)_avisarSaludEquipo(r.sigla,r.score.valor,'caida',tend.delta);
+  });
   var equiposConSalud=equiposConSaludTodos
     .filter(function(r){return r.score.valor!=null&&r.score.valor<70;})
     .sort(function(a,b){return a.score.valor-b.score.valor;})
