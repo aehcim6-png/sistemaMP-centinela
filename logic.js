@@ -1156,6 +1156,33 @@ function indiceSaludFlota(m){
   return {valor:valor,n:usados.length,detalle:componentes};
 }
 
+// ═══ SCORE DE SALUD DEL EQUIPO — mismo patrón que indiceSaludFlota de arriba
+// (promedio de dimensiones que YA se calculan cada una por separado), pero para
+// UN equipo en vez de la flota completa. Las dimensiones no son las mismas que
+// las de flota — "Stock sano" y "Cumplimiento PM" son conceptos de flota/bodega
+// compartida, no de un equipo individual — sino las 4 que sí describen a un
+// equipo puntual: estado de sus Componentes Mayores, sus Neumáticos, sus últimas
+// muestras de Aceite, y su Confiabilidad real (MTBF propio). Cada valor se recibe
+// YA calculado por quien llama (misma separación que indiceSaludFlota: acá solo
+// se combina, no se recalcula compEstado/neuDebeCambiar/confiabilidadReal). Si
+// falta alguna dimensión (ej. equipo sin muestras de aceite, o sin 2 fallas
+// registradas para tener MTBF) se promedia solo con las disponibles — nunca se
+// rellena con un supuesto. null si NINGUNA dimensión tiene dato.
+function scoreSaludEquipo(m){
+  var d=m||{};
+  var dimensiones=[
+    {nombre:'Componentes',valor:(typeof d.componentesPct==='number'&&isFinite(d.componentesPct))?d.componentesPct:null},
+    {nombre:'Neumáticos',valor:(typeof d.neumaticosPct==='number'&&isFinite(d.neumaticosPct))?d.neumaticosPct:null},
+    {nombre:'Aceite',valor:(typeof d.aceitePct==='number'&&isFinite(d.aceitePct))?d.aceitePct:null},
+    {nombre:'Confiabilidad',valor:(typeof d.confiabilidadPct==='number'&&isFinite(d.confiabilidadPct))?d.confiabilidadPct:null}
+  ];
+  var usadas=dimensiones.filter(function(c){return c.valor!=null;});
+  if(!usadas.length)return {valor:null,n:0,detalle:dimensiones};
+  var suma=usadas.reduce(function(s,c){return s+c.valor;},0);
+  var valor=Math.round((suma/usadas.length)*10)/10;
+  return {valor:valor,n:usadas.length,detalle:dimensiones};
+}
+
 // Guarda (o actualiza, si ya corrió hoy) el valor del índice del día en el histórico
 // {fecha: valor}, y descarta lo más viejo que SALUD_HIST_DIAS_MAX días — solo hace
 // falta guardar suficiente para comparar semana a semana, no un historial indefinido.
@@ -1271,6 +1298,7 @@ if (typeof window !== 'undefined') {
   window.resolverDestrabePorOC = resolverDestrabePorOC;
   window.verificarIntegridad = verificarIntegridad;
   window.indiceSaludFlota = indiceSaludFlota;
+  window.scoreSaludEquipo = scoreSaludEquipo;
   window.registrarSnapshotSalud = registrarSnapshotSalud;
   window.tendenciaSaludSemanal = tendenciaSaludSemanal;
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
@@ -1293,7 +1321,7 @@ if (typeof module !== 'undefined' && module.exports) {
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
-    indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal,
+    indiceSaludFlota, scoreSaludEquipo, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo
   };
