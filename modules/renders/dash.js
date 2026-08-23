@@ -647,6 +647,42 @@ window.renderDash=function(){
     var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
     if(tend&&tend.delta!=null&&tend.delta<=-15)_avisarSaludEquipo(r.sigla,r.score.valor,'caida',tend.delta,causa);
   });
+  // ═══ MAPA DE SALUD DE LA FLOTA ═══ — toda la operación de un vistazo, no
+  // solo los peores 10 (eso ya lo cubre la tabla de "Equipos con Salud Baja"
+  // de más abajo). Agrupado por tipo de equipo (mismo criterio que la
+  // tarjeta "Flota" del panel lateral), ordenado de peor a mejor score
+  // DENTRO de cada grupo, para que un problema resalte sin tener que leer
+  // número por número. Reusa exactamente equiposConSaludTodos — ningún
+  // cálculo nuevo, solo una forma distinta de mirarlo.
+  var mapaSaludBlock='';
+  if(equiposConSaludTodos.length){
+    var porTipoMapa={};
+    equiposConSaludTodos.forEach(function(r){
+      (porTipoMapa[r.tipo||'Otro']=porTipoMapa[r.tipo||'Otro']||[]).push(r);
+    });
+    var tiposOrdenMapa=Object.keys(porTipoMapa).sort();
+    mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">🗺️ Mapa de Salud de la Flota</div>'+
+      '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">🟢 ≥80% · 🟡 55-79% · 🔴 &lt;55% · ⚪ sin datos suficientes — clic en un equipo para ver su ficha completa.</div>'+
+      tiposOrdenMapa.map(function(tipo){
+        var equipos=porTipoMapa[tipo].slice().sort(function(a,b){
+          var av=a.score.valor==null?999:a.score.valor,bv=b.score.valor==null?999:b.score.valor;
+          return av-bv;
+        });
+        return '<div style="margin-bottom:10px">'+
+          '<div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'+escapeHtml(tipo)+' ('+equipos.length+')</div>'+
+          '<div style="display:flex;flex-wrap:wrap;gap:4px">'+
+          equipos.map(function(r){
+            var v=r.score.valor;
+            var bg=v==null?'var(--bg4)':v>=80?'#22c55e':v>=55?'#f59e0b':'#ef4444';
+            var fg=v==null?'var(--tx3)':'#0f172a';
+            return '<div style="background:'+bg+';color:'+fg+';border-radius:6px;padding:6px 8px;min-width:64px;text-align:center;cursor:pointer;font-size:10px;font-weight:700;line-height:1.5" title="'+escapeHtml(r.sigla)+' — Score '+(v==null?'sin datos suficientes':v+'%')+'" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)">'+
+              escapeHtml(r.sigla)+'<br>'+(v==null?'—':v+'%')+
+              '</div>';
+          }).join('')+
+          '</div></div>';
+      }).join('')+
+      '</div>';
+  }
   var equiposConSalud=equiposConSaludTodos
     .filter(function(r){return r.score.valor!=null&&r.score.valor<70;})
     .sort(function(a,b){return a.score.valor-b.score.valor;})
@@ -679,7 +715,7 @@ window.renderDash=function(){
 
   // Agregar los bloques al innerHTML existente
   var dashEl=document.getElementById('s-dash');
-  dashEl.innerHTML+=proxBlock+trendBlock+saludBajaBlock;
+  dashEl.innerHTML+=proxBlock+trendBlock+mapaSaludBlock+saludBajaBlock;
 
   renderHeader();
 };
