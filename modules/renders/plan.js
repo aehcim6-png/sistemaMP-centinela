@@ -232,12 +232,48 @@ window.renderPlan=function(){
     </table>`;
   }
 
+  // ═══ FLUJO DE CAJA DE MANTENCIÓN — 6 MESES ═══ (siempre fijo, independiente
+  // del selector de vista/periodo de arriba — un resumen estable cada vez que
+  // se abre esta pestaña). Junta dos proyecciones que hasta ahora vivían
+  // separadas: los materiales de PM programado (lo que esta misma pestaña ya
+  // calcula) y el costo de Componentes Mayores por vencer
+  // (proyeccionCostoComponentesMayores, compartida con el "Calendario de
+  // Reemplazos" de Componentes Mayores — mismo criterio, mismo número).
+  const pmPorMesFC={};
+  for(let _mFC=0;_mFC<6;_mFC++){
+    const _dFC=new Date(hoy.getFullYear(),hoy.getMonth()+_mFC,1);
+    pmPorMesFC[_dFC.getFullYear()+'-'+String(_dFC.getMonth()+1).padStart(2,'0')]=0;
+  }
+  eq.forEach(e=>{
+    _cadenaPMEnHorizonte(e,183).forEach(h=>{
+      if(h.fecha<isoHoy)return;
+      const kFC=h.fecha.slice(0,7);
+      if(!(kFC in pmPorMesFC))return;
+      materialesEquipo(e,h.tipoPM).forEach(m=>{pmPorMesFC[kFC]+=m.cantidad*m.precio;});
+    });
+  });
+  const compFC=(typeof proyeccionCostoComponentesMayores==='function')?proyeccionCostoComponentesMayores(6):{porMes:{},labels:{},vencido:0};
+  const mesesFC=Object.keys(pmPorMesFC).sort();
+  let totalFC=compFC.vencido||0;
+  const flujoHtml=`<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">💰 Flujo de Caja de Mantención — Próximos 6 Meses</div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Combina lo programado (PM: filtros/aceite/grasa según la pauta de cada equipo) con lo proyectado por desgaste (Componentes Mayores: motor, transmisión, etc. — mismo criterio que su Calendario de Reemplazos).</div>
+    <div class="tbl-wrap"><table style="font-size:11px"><tr><th>Mes</th><th>Materiales PM</th><th>Componentes Mayores</th><th>Total</th></tr>
+    ${mesesFC.map(k=>{
+      const pmCosto=pmPorMesFC[k]||0,compCosto=compFC.porMes[k]||0,tot=pmCosto+compCosto;
+      totalFC+=tot;
+      return `<tr><td style="font-weight:700">${compFC.labels[k]||k}</td><td class="mono">$${fn2(pmCosto)}</td><td class="mono">$${fn2(compCosto)}</td><td class="mono" style="color:var(--ac);font-weight:700">$${fn2(tot)}</td></tr>`;
+    }).join('')}
+    ${compFC.vencido?`<tr style="background:rgba(239,68,68,.06)"><td style="font-weight:700">🔴 Componentes ya vencidos</td><td class="mono">—</td><td class="mono" style="color:var(--danger)">$${fn2(compFC.vencido)}</td><td class="mono" style="color:var(--danger);font-weight:700">$${fn2(compFC.vencido)}</td></tr>`:''}
+    <tr style="background:var(--ac);color:#000"><td colspan="3" style="text-align:right;padding:8px"><b>TOTAL 6 MESES</b></td><td style="text-align:right;padding:8px"><b>$${fn2(totalFC)}</b></td></tr>
+    </table></div></div>`;
+
   $('s-plan').innerHTML=`
     <div class="sec-h"><div><div class="sec-t">🗓️ Planificador de Materiales y Costos</div>
       <div class="sec-s">Proyección de filtros, aceite, lubricantes y costo · ${pmsEnPeriodo.length} PM en ${periodo==='calendario'?['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][(window._planMesCal||(hoy.getMonth()+1))-1]+' '+(window._planAnioCal||hoy.getFullYear()):periodo}</div></div>
       <button class="btn btn-o" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Histórico consumido</button>
       <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button>
     </div>
+    ${flujoHtml}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${btnVista}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"><span style="font-size:11px;color:var(--tx3);align-self:center">Periodo:</span> ${btnPer}</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
