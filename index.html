@@ -317,7 +317,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/comp.js?v=2026-08-23a"></script>
 <script src="modules/renders/buscar.js?v=2026-08-23c"></script>
 <script src="modules/renders/pau.js?v=2026-08-08"></script>
-<script src="modules/renders/plan.js?v=2026-08-08"></script>
+<script src="modules/renders/plan.js?v=2026-08-23a"></script>
 <script src="modules/renders/disp.js?v=2026-08-14"></script>
 <script src="modules/renders/ace.js?v=2026-08-14"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-22a"></script>
@@ -1722,6 +1722,55 @@ function _eqPorSigla(){
   const idx={};
   (S.g('eq')||[]).forEach(function(e){if(e&&e.sigla)idx[e.sigla]=e;});
   return idx;
+}
+
+// Proyección de costo de Componentes Mayores por mes calendario, para el
+// Flujo de Caja de Mantención del Planificador de Materiales (plan.js) —
+// compartida porque Componentes Mayores (comp.js) usa el MISMO criterio
+// (compEstado + estimación de horómetro cuando falta el dato medido, ver
+// horomEnFecha) para su propio "Calendario de Reemplazos", y las dos
+// pantallas deben coincidir en el número. Se recalcula acá en vez de leer el
+// resultado de comp.js porque esa pantalla no siempre está renderizada — el
+// Planificador tiene que poder mostrar su propio total sin depender de que
+// alguien haya abierto Componentes Mayores antes en la misma sesión.
+// Solo el TOTAL por mes (sin desglose de pieza ni "ritmo acelerado" — eso
+// sigue siendo exclusivo de comp.js, este cálculo es más liviano a propósito).
+function proyeccionCostoComponentesMayores(horizonteMeses){
+  var compData=S.g('compMayores')||[];
+  var eq=S.g('eq')||[];
+  var hist=S.g('hist')||[];
+  var lecturasPorSigla={};
+  hist.forEach(function(h){
+    if(!h||!h.sigla||!h.fecha)return;
+    var val=(h.horomFin!=null?h.horomFin:h.horom);
+    if(val==null)return;
+    (lecturasPorSigla[h.sigla]=lecturasPorSigla[h.sigla]||[]).push({fecha:h.fecha,horom:val});
+  });
+  var HOY=new Date(),hoyISO=HOY.toISOString().slice(0,10);
+  var _MESNOM=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var porMes={},labels={},vencido=0;
+  for(var mOff=0;mOff<horizonteMeses;mOff++){
+    var d=new Date(HOY.getFullYear(),HOY.getMonth()+mOff,1);
+    var k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    porMes[k]=0;labels[k]=_MESNOM[d.getMonth()]+' '+d.getFullYear();
+  }
+  compData.forEach(function(c){
+    var eqObj=eq.find(function(e){return e.sigla===c.sigla});
+    if(!eqObj)return;
+    var horomActual=eqObj.horomActual||0,hrsDia=eqObj.hrsDia||12,inicio=eqObj.inicioOper||null;
+    var horomComp=c.horomComp;
+    if(!c.esOriginal&&(horomComp==null||horomComp==='')&&c.fechaInst){
+      var est=horomEnFecha(lecturasPorSigla[c.sigla]||[],c.fechaInst,horomActual,hoyISO,hrsDia,inicio);
+      horomComp=est.horom;
+    }
+    var st=compEstado({esOriginal:c.esOriginal,fechaInst:c.fechaInst,horomComp:horomComp,vidaUtil:c.vidaUtil},horomActual,hrsDia);
+    if(!st.conDato)return;
+    if(st.hrsRest<=0){vencido+=(c.costoRef||0);return;}
+    var fechaObj=new Date(HOY.getTime()+st.diasRest*86400000);
+    var k2=fechaObj.getFullYear()+'-'+String(fechaObj.getMonth()+1).padStart(2,'0');
+    if(k2 in porMes)porMes[k2]+=(c.costoRef||0);
+  });
+  return {porMes:porMes,labels:labels,vencido:vencido};
 }
 
 // Horas REALES acumuladas del neumático = suma de tramos de horómetro entre mediciones
