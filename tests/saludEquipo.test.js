@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scoreSaludEquipo } from '../logic.js';
+import { scoreSaludEquipo, motivoPrincipalSalud } from '../logic.js';
 
 describe('scoreSaludEquipo', () => {
   it('devuelve null si no hay ninguna dimensión con dato', () => {
@@ -42,5 +42,35 @@ describe('scoreSaludEquipo', () => {
     const r = scoreSaludEquipo({ componentesPct: 80, neumaticosPct: undefined, aceitePct: NaN, confiabilidadPct: '50' });
     expect(r.valor).toBe(80);
     expect(r.n).toBe(1);
+  });
+});
+
+describe('motivoPrincipalSalud', () => {
+  it('devuelve null si el detalle está vacío', () => {
+    expect(motivoPrincipalSalud([])).toBeNull();
+  });
+
+  it('devuelve null si ninguna dimensión tiene dato', () => {
+    const detalle = [{ nombre: 'Componentes', valor: null }, { nombre: 'Aceite', valor: null }];
+    expect(motivoPrincipalSalud(detalle)).toBeNull();
+  });
+
+  it('elige la dimensión de valor más bajo entre las que tienen dato', () => {
+    const detalle = [
+      { nombre: 'Componentes', valor: 40 },
+      { nombre: 'Neumáticos', valor: 90 },
+      { nombre: 'Aceite', valor: null },
+      { nombre: 'Confiabilidad', valor: 70 },
+    ];
+    expect(motivoPrincipalSalud(detalle)).toEqual({ nombre: 'Componentes', valor: 40 });
+  });
+
+  it('ignora las dimensiones sin dato al elegir la peor', () => {
+    const detalle = [
+      { nombre: 'Componentes', valor: null },
+      { nombre: 'Neumáticos', valor: 55 },
+      { nombre: 'Aceite', valor: 60 },
+    ];
+    expect(motivoPrincipalSalud(detalle)?.nombre).toBe('Neumáticos');
   });
 });

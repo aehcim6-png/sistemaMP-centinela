@@ -1183,6 +1183,16 @@ function scoreSaludEquipo(m){
   return {valor:valor,n:usadas.length,detalle:dimensiones};
 }
 
+// Cuál de las dimensiones del Score de Salud del Equipo es la que más lo está
+// arrastrando hacia abajo — para poder decir "por qué" en vez de solo mostrar
+// el número (avisos de WhatsApp/correo, ficha de Buscar). La de valor más
+// bajo entre las que tienen dato; null si ninguna dimensión tiene dato.
+function motivoPrincipalSalud(detalle){
+  var conDato=(detalle||[]).filter(function(c){return c&&typeof c.valor==='number'&&isFinite(c.valor);});
+  if(!conDato.length)return null;
+  return conDato.reduce(function(peor,c){return c.valor<peor.valor?c:peor;});
+}
+
 // Guarda (o actualiza, si ya corrió hoy) el valor del índice del día en el histórico
 // {fecha: valor}, y descarta lo más viejo que SALUD_HIST_DIAS_MAX días — solo hace
 // falta guardar suficiente para comparar semana a semana, no un historial indefinido.
@@ -1299,6 +1309,7 @@ if (typeof window !== 'undefined') {
   window.verificarIntegridad = verificarIntegridad;
   window.indiceSaludFlota = indiceSaludFlota;
   window.scoreSaludEquipo = scoreSaludEquipo;
+  window.motivoPrincipalSalud = motivoPrincipalSalud;
   window.registrarSnapshotSalud = registrarSnapshotSalud;
   window.tendenciaSaludSemanal = tendenciaSaludSemanal;
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
@@ -1321,7 +1332,7 @@ if (typeof module !== 'undefined' && module.exports) {
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
-    indiceSaludFlota, scoreSaludEquipo, registrarSnapshotSalud, tendenciaSaludSemanal,
+    indiceSaludFlota, scoreSaludEquipo, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo
   };

@@ -17,14 +17,14 @@ window.dashHoy=function(){
 // Edge Function con lo que el Dashboard ya calculó; el dedup de "máx. 1 por
 // equipo por día" vive del lado del servidor, ver avisar-salud-equipo.
 // Fire-and-forget: nunca debe interrumpir el render del Dashboard.
-function _avisarSaludEquipo(sigla,score,motivo,delta){
+function _avisarSaludEquipo(sigla,score,motivo,delta,causa){
   try{
     var token=localStorage.getItem('smp_access_token');
     if(!token||typeof _SB_DEFAULT_URL==='undefined')return;
     fetch(_SB_DEFAULT_URL+'/functions/v1/avisar-salud-equipo',{
       method:'POST',
       headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({sigla:sigla,score:score,motivo:motivo,delta:delta})
+      body:JSON.stringify({sigla:sigla,score:score,motivo:motivo,delta:delta,causa:causa||null})
     }).catch(function(){});
   }catch(e){}
 }
@@ -640,9 +640,12 @@ window.renderDash=function(){
     var fechasAntes=Object.keys(histSigla).filter(function(f){return f<_hoyISO;}).sort();
     var valorAyer=fechasAntes.length?histSigla[fechasAntes[fechasAntes.length-1]]:null;
     var cruzoHoy=valorAyer!=null&&valorAyer>=70&&r.score.valor<70;
-    if(cruzoHoy){_avisarSaludEquipo(r.sigla,r.score.valor,'cruce',null);return;}
+    // Causa principal (motivoPrincipalSalud, logic.js) — para que el aviso
+    // diga "por qué" (ej. "por Componentes") y no solo el número.
+    var causa=(typeof motivoPrincipalSalud==='function')?motivoPrincipalSalud(r.score.detalle):null;
+    if(cruzoHoy){_avisarSaludEquipo(r.sigla,r.score.valor,'cruce',null,causa);return;}
     var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
-    if(tend&&tend.delta!=null&&tend.delta<=-15)_avisarSaludEquipo(r.sigla,r.score.valor,'caida',tend.delta);
+    if(tend&&tend.delta!=null&&tend.delta<=-15)_avisarSaludEquipo(r.sigla,r.score.valor,'caida',tend.delta,causa);
   });
   var equiposConSalud=equiposConSaludTodos
     .filter(function(r){return r.score.valor!=null&&r.score.valor<70;})

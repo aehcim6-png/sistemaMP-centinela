@@ -55,6 +55,12 @@ Deno.serve(async (req: Request) => {
     const score = body.score;
     const motivo = body.motivo === "caida" ? "caida" : "cruce";
     const delta = typeof body.delta === "number" && isFinite(body.delta) ? body.delta : null;
+    // Causa principal — la dimensión más afectada (motivoPrincipalSalud, ya
+    // decidida en el cliente con logic.js), para poder decir "por qué" en el
+    // aviso en vez de solo el número. Opcional: si no llega, el mensaje queda
+    // genérico (nunca se inventa una causa acá).
+    const causaNombre = body.causa && typeof body.causa.nombre === "string" ? body.causa.nombre : null;
+    const causaValor = body.causa && typeof body.causa.valor === "number" && isFinite(body.causa.valor) ? body.causa.valor : null;
 
     if (!sigla) return json({ error: "Falta sigla." }, 400);
     if (typeof score !== "number" || !isFinite(score)) return json({ error: "Falta score válido." }, 400);
@@ -80,10 +86,14 @@ Deno.serve(async (req: Request) => {
     const motivoTxt = motivo === "caida"
       ? `bajó ${Math.abs(delta ?? 0)} puntos en la última semana`
       : "cruzó a Salud Baja (bajo 70%)";
+    // "Por qué" en lenguaje simple — la señal más afectada, si llegó del
+    // cliente (causaNombre/causaValor). Sin causa, el mensaje sigue siendo
+    // igual de correcto, solo más genérico.
+    const causaTxt = causaNombre ? ` La señal más afectada es ${causaNombre}${causaValor != null ? ` (${causaValor}%)` : ""}.` : "";
     const asunto = `🩺 ${sigla} ${motivoTxt} — Score ${score}%`;
     const html =
       `<h2>🩺 SistemaMP Centinela — alerta de salud de equipo</h2>` +
-      `<p><b>${sigla}</b> ${motivoTxt}. Score de Salud actual: <b>${score}%</b>.</p>` +
+      `<p><b>${sigla}</b> ${motivoTxt}. Score de Salud actual: <b>${score}%</b>.${causaTxt}</p>` +
       `<p>Revisa el detalle en el sistema, pestaña Buscar → ${sigla}.</p>` +
       `<p style="color:#888;font-size:12px;margin-top:16px">Alerta automática de SistemaMP Centinela.</p>`;
 
@@ -107,7 +117,7 @@ Deno.serve(async (req: Request) => {
     let whatsappResultados: { numero: string; ok: boolean }[] = [];
     if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_WHATSAPP_FROM && whatsapps.length > 0) {
       const textoWhatsApp =
-        `🩺 *SistemaMP Centinela*\n\n${sigla} ${motivoTxt}.\nScore de Salud: ${score}%\n\n` +
+        `🩺 *SistemaMP Centinela*\n\n${sigla} ${motivoTxt}.\nScore de Salud: ${score}%\n${causaTxt}\n\n` +
         `Detalle en el sistema, pestaña Buscar → ${sigla}.`;
       const authHeaderTwilio = "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
       whatsappResultados = await Promise.all(
@@ -135,6 +145,7 @@ Deno.serve(async (req: Request) => {
       usuario: callerData.user.email || callerData.user.id,
       accion: "Alerta salud equipo",
       detalle: `${marcaDedup}motivo=${motivo}|score=${score}` + (delta != null ? `|delta=${delta}` : "") +
+        (causaNombre ? `|causa=${causaNombre}` : "") +
         ` — email:${emailEnviado ? "ok" : "no"} whatsapp:${whatsappResultados.filter((r) => r.ok).length}/${whatsappResultados.length}`,
     }).catch(() => {});
 
