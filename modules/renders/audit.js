@@ -6,7 +6,7 @@
 // OT cerradas sin dejar registrada la solución). Corre sobre los datos ya
 // cargados en memoria (S.g) cada vez que se abre la pestaña — no requiere
 // pedirlo, se recalcula solo con cada visita.
-// window.renderAudit + los 5 chequeos que alimenta.
+// window.renderAudit + los 6 chequeos que alimenta.
 // ═══════════════════════════════════════════════════════════════════════
 
 // Chequeo 1: horómetro que retrocede entre OT/correctivos consecutivas del
@@ -105,6 +105,54 @@ function _auditNeuSinSalida(){
   return hallazgos.sort(function(a,b){return(b.fechaUltimaMedicion||'').localeCompare(a.fechaUltimaMedicion||'');});
 }
 
+// Chequeo 6 (2026-08-23): cierra el círculo del aviso proactivo de Score de
+// Salud (avisar-salud-equipo) — hasta ahora, una vez mandado el WhatsApp/
+// correo, nada confirmaba si de verdad se hizo algo con eso. Busca equipos
+// con una alerta ('changelog', accion='Alerta salud equipo') de hace 3 días
+// o más SIN ningún correctivo nuevo registrado desde esa fecha — probable
+// aviso leído y no seguido.
+// Parsea sigla/fecha/motivo/causa del mismo 'detalle' delimitado que arma
+// avisar-salud-equipo (no hay columnas propias — el aviso vive en el mismo
+// changelog genérico que el resto de la auditoría de accesos).
+// Limitación real, no oculta: un equipo puede haberse arreglado sin que
+// quede una OT/correctivo formal (ej. se cambió un componente directo en
+// Componentes Mayores, o el dato de origen era un error) — como el resto de
+// esta pestaña, esto es "revisar", no una prueba de que nadie hizo nada.
+var _AUDIT_ALERTA_SALUD_DIAS=3;
+function _auditAlertaSaludSinSeguimiento(){
+  const log=S.g('changelog')||[];
+  const ot=S.g('ot')||[];
+  const otHist=S.g('otHist')||[];
+  const hoy=new Date().toISOString().slice(0,10);
+  var ultimaPorSigla={};
+  log.forEach(function(c){
+    if(!c||c.accion!=='Alerta salud equipo'||!c.detalle)return;
+    var partes=c.detalle.split('|');
+    var sigla=partes[0],fecha=partes[1];
+    if(!sigla||!fecha)return;
+    if(!ultimaPorSigla[sigla]||fecha>ultimaPorSigla[sigla].fecha){
+      var motivoM=/motivo=([a-z]+)/.exec(c.detalle);
+      var causaM=/causa=([^|]+)/.exec(c.detalle);
+      ultimaPorSigla[sigla]={fecha:fecha,motivo:motivoM?motivoM[1]:'',causa:causaM?causaM[1].split(' —')[0].trim():''};
+    }
+  });
+  var ultimoCorrectivoPorSigla={};
+  ot.concat(otHist).forEach(function(o){
+    if(!o||!o.sigla||!o.fecha)return;
+    if(!ultimoCorrectivoPorSigla[o.sigla]||o.fecha>ultimoCorrectivoPorSigla[o.sigla])ultimoCorrectivoPorSigla[o.sigla]=o.fecha;
+  });
+  var hallazgos=[];
+  Object.keys(ultimaPorSigla).forEach(function(sigla){
+    var a=ultimaPorSigla[sigla];
+    var dias=Math.floor((new Date(hoy)-new Date(a.fecha))/86400000);
+    if(dias<_AUDIT_ALERTA_SALUD_DIAS)return;
+    var ultCorr=ultimoCorrectivoPorSigla[sigla];
+    if(ultCorr&&ultCorr>a.fecha)return; // hubo un correctivo DESPUÉS de la alerta — seguimiento real
+    hallazgos.push({sigla:sigla,fechaAlerta:a.fecha,dias:dias,motivo:a.motivo,causa:a.causa,ultimoCorrectivo:ultCorr||null});
+  });
+  return hallazgos.sort(function(a,b){return b.dias-a.dias;});
+}
+
 const _AUDIT_MESES=[{v:'01',l:'Ene'},{v:'02',l:'Feb'},{v:'03',l:'Mar'},{v:'04',l:'Abr'},{v:'05',l:'May'},{v:'06',l:'Jun'},{v:'07',l:'Jul'},{v:'08',l:'Ago'},{v:'09',l:'Sep'},{v:'10',l:'Oct'},{v:'11',l:'Nov'},{v:'12',l:'Dic'}];
 
 window.renderAudit=function(){
@@ -137,6 +185,7 @@ window.renderAudit=function(){
   // fecha/sigla son campos comunes a ambas tablas.
   const porRevisar=_auditOtHistPorRevisar().filter(function(o){return pasaFiltro(o.fecha,o.sigla);});
   const neuSinSalida=_auditNeuSinSalida().filter(function(h){return pasaFiltro(h.fechaUltimaMedicion,h.sigla);});
+  const alertasSinSeguimiento=_auditAlertaSaludSinSeguimiento().filter(function(h){return pasaFiltro(h.fechaAlerta,h.sigla);});
 
   const anios=[...new Set(ot.map(function(o){return(o.fecha||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
@@ -171,6 +220,10 @@ window.renderAudit=function(){
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${neuSinSalida.length?'border-color:var(--danger)':''}">
         <div style="font-size:24px;font-weight:700;color:${neuSinSalida.length?'var(--danger)':'var(--ok)'}">${neuSinSalida.length}</div>
         <div style="font-size:11px;color:var(--tx3)">Neumáticos cambiados sin registrar la salida</div>
+      </div>
+      <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${alertasSinSeguimiento.length?'border-color:var(--warn)':''}">
+        <div style="font-size:24px;font-weight:700;color:${alertasSinSeguimiento.length?'var(--warn)':'var(--ok)'}">${alertasSinSeguimiento.length}</div>
+        <div style="font-size:11px;color:var(--tx3)">Alertas de Salud de Equipo sin seguimiento (${_AUDIT_ALERTA_SALUD_DIAS}+ días)</div>
       </div>
     </div>
 
@@ -214,11 +267,20 @@ window.renderAudit=function(){
 
     <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Neumáticos cambiados sin registrar la salida (${neuSinSalida.length})</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">La última medición real de esa posición (planilla mensual) trae una serie distinta a la que el sistema todavía muestra como montada — probablemente se cambió el neumático en terreno pero nunca se movió el saliente a Existencias/De baja acá. Usa "↺ Cambio" en Neumáticos para corregirlo.</div>
-    ${neuSinSalida.length?`<div class="tbl-wrap"><table>
+    ${neuSinSalida.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Posición</th><th>Serie en sistema</th><th>Serie última medición</th><th>Fecha medición</th><th>Remanente medido</th></tr>
       ${neuSinSalida.slice(0,50).map(function(h){
         return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(h.sigla)}</td><td>${escapeHtml(h.posicion||'')}</td><td class="mono">${escapeHtml(h.serieSistema||'—')}</td><td class="mono" style="color:var(--danger);font-weight:700">${escapeHtml(h.serieUltimaMedicion)}</td><td>${escapeHtml(h.fechaUltimaMedicion)}</td><td class="mono">${h.remanenteUltimaMedicion!=null?h.remanenteUltimaMedicion+'mm':'—'}</td></tr>`;
       }).join('')}
-    </table>${neuSinSalida.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${neuSinSalida.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Sin cambios de neumático pendientes de registrar</div>'}
+    </table>${neuSinSalida.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${neuSinSalida.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Sin cambios de neumático pendientes de registrar</div>'}
+
+    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Alertas de Salud de Equipo sin seguimiento (${alertasSinSeguimiento.length})</div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">El sistema ya avisó por WhatsApp/correo que este equipo cruzó a Salud Baja o cayó fuerte (Dashboard → Equipos con Salud Baja), hace ${_AUDIT_ALERTA_SALUD_DIAS} días o más, y no hay ningún correctivo nuevo registrado desde entonces — probable aviso sin seguimiento. Ojo: si se arregló sin dejar una OT formal (ej. cambio de componente directo en Componentes Mayores), esto puede ser un falso positivo — revisar, no es prueba de que nadie hizo nada.</div>
+    ${alertasSinSeguimiento.length?`<div class="tbl-wrap"><table>
+      <tr><th>Equipo</th><th>Fecha alerta</th><th>Días sin seguimiento</th><th>Motivo</th><th>Causa</th><th>Último correctivo</th></tr>
+      ${alertasSinSeguimiento.slice(0,50).map(function(h){
+        return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(h.sigla)}</td><td>${escapeHtml(h.fechaAlerta)}</td><td class="mono" style="color:var(--danger);font-weight:700">${h.dias}</td><td>${h.motivo==='caida'?'Caída fuerte':'Cruce a Salud Baja'}</td><td style="font-size:11px;color:var(--tx2)">${escapeHtml(h.causa||'—')}</td><td>${escapeHtml(h.ultimoCorrectivo||'Sin correctivos registrados')}</td></tr>`;
+      }).join('')}
+    </table>${alertasSinSeguimiento.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${alertasSinSeguimiento.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Sin alertas de salud pendientes de seguimiento</div>'}
   `;
 };
