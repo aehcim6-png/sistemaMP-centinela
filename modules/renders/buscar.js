@@ -81,6 +81,32 @@ window.renderBuscar=function(){
       else{var l=lubBuscar.find(function(lb){return lb.nombre===mv.item});costoMatEq+=(mv.cant||0)*((l&&l.precio)||0);}
     });
 
+    // ═══ SCORE DE SALUD DEL EQUIPO — combina 4 señales que este sistema ya
+    // calcula cada una por separado (Componentes Mayores, Neumáticos, Aceite,
+    // Confiabilidad) en un solo número, vía scoreSaludEquipo (logic.js) — mismo
+    // patrón que el Índice de Salud de Flota del Dashboard, a nivel de UN equipo.
+    // "Componentes"/"Neumáticos" reflejan el estado ACTUAL (no dependen del rango
+    // de fecha elegido arriba, igual que compF/neuF); "Aceite" usa el historial
+    // completo del equipo (no aceF, que sí está acotado al rango) porque importa
+    // la ÚLTIMA muestra de cada componente lubricado, no las que caen dentro de
+    // un rango elegido para otra cosa. "Confiabilidad" reutiliza el mismo mtbfEq
+    // de arriba, sobre una ventana fija de 30 días (mismo horizonte que la
+    // Probabilidad de Falla de Predictivo) — sí depende del rango si mtbfEq
+    // cambia con él, mismo comportamiento que el resto de esta ficha.
+    var compsConDato=compF.map(function(c){return compEstado(c,eqObj?eqObj.horomActual:0,eqObj?eqObj.hrsDia:null);}).filter(function(s){return s.conDato;});
+    var componentesPct=compsConDato.length?Math.round(compsConDato.filter(function(s){return s.hrsRest>1000;}).length/compsConDato.length*1000)/10:null;
+    var neuOperativos=neuF.filter(function(n){return n.estado==='Operativo';});
+    var neumaticosPct=neuOperativos.length?Math.round(neuOperativos.filter(function(n){return typeof neuDebeCambiar!=='function'||!neuDebeCambiar(n);}).length/neuOperativos.length*1000)/10:null;
+    var aceHistEq=aceTodos.filter(function(m){return m._sigla===fEq;});
+    var aceUltimaPorComp={};
+    aceHistEq.forEach(function(m){var k=m.componente||'?';if(!aceUltimaPorComp[k]||(m.fecha||'')>(aceUltimaPorComp[k].fecha||''))aceUltimaPorComp[k]=m;});
+    var aceUltimas=Object.keys(aceUltimaPorComp).map(function(k){return aceUltimaPorComp[k];});
+    var aceitePct=aceUltimas.length?Math.round(aceUltimas.filter(function(m){return m.estado==='NORMAL';}).length/aceUltimas.length*1000)/10:null;
+    var horasPeriodoEq=eqObj?(eqObj.hrsDia||12)*30:null;
+    var confiabilidadPct=confiabilidadReal(mtbfEq,horasPeriodoEq);
+    var scoreEq=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
+    var scoreCol=scoreEq.valor==null?'var(--bd)':scoreEq.valor>=80?'#22c55e':scoreEq.valor>=55?'#f59e0b':'#ef4444';
+
     content=
     // Ficha del equipo
     '<div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:16px">'+
@@ -90,6 +116,22 @@ window.renderBuscar=function(){
     '<div><div style="font-size:10px;color:var(--tx3)">HORÓMETRO</div><div style="font-size:20px;font-weight:700">'+(eqObj?eqObj.horomActual:0)+'h</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">ESTADO</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.estado:'')+'</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">PRÓX PM</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.tipoPM:'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj?eqObj.diasParaPM:0)+' días</div></div>'+
+    '</div></div>'+
+
+    // ═══ SCORE DE SALUD DEL EQUIPO ═══
+    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:10px;padding:14px 18px;margin-bottom:16px;border:2px solid '+scoreCol+';display:flex;align-items:center;gap:18px;flex-wrap:wrap">'+
+    '<div style="text-align:center;min-width:120px">'+
+    '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--tx3)">Score de Salud</div>'+
+    '<div style="font-size:38px;font-weight:900;color:'+scoreCol+';line-height:1;margin:2px 0">'+(scoreEq.valor==null?'—':scoreEq.valor)+(scoreEq.valor==null?'':'<span style="font-size:16px">%</span>')+'</div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(scoreEq.n?scoreEq.n+' de 4 señales con dato':'sin datos suficientes')+'</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">'+
+    scoreEq.detalle.map(function(c){
+      var col=c.valor==null?'var(--tx3)':c.valor>=80?'#22c55e':c.valor>=55?'#f59e0b':'#ef4444';
+      return '<div style="background:var(--bg4);border-radius:8px;padding:6px 12px;text-align:center;min-width:84px">'+
+        '<div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">'+c.nombre+'</div>'+
+        '<div style="font-size:15px;font-weight:700;color:'+col+'">'+(c.valor==null?'—':c.valor+'%')+'</div></div>';
+    }).join('')+
     '</div></div>'+
 
     // KPIs del período
