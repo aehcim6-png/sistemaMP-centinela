@@ -3239,10 +3239,23 @@ async function _sbAuthSession(){
 
 async function _sbAuthLogout(){
   const token = localStorage.getItem('smp_access_token');
-  if(token) await fetch(_SB_DEFAULT_URL+'/auth/v1/logout',{
-    method:'POST',
-    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token}
-  }).catch(()=>{});
+  // Invalidar el token en el servidor es best-effort — NUNCA debe bloquear el
+  // cierre real (borrar localStorage + recargar). Bug real (2026-08-23,
+  // reportado por el usuario: "la app la tuve abierta una hora y no se
+  // cerró"): este fetch quedaba con 'await', así que si el dispositivo está
+  // dormido o sin red justo cuando el cierre por inactividad dispara
+  // _logout(), la llamada podía quedar colgada indefinidamente — nunca se
+  // llegaba a limpiar el token ni a recargar la página, y la sesión parecía
+  // "no cerrarse" aunque el cierre sí se había disparado a tiempo. Ahora se
+  // dispara sin esperar (igual que el resto de los fetch "best-effort" de
+  // este archivo, ej. _registrarIntentoBloqueado) y el cierre real (borrar
+  // localStorage) pasa de inmediato, sin depender de la red.
+  if(token){
+    fetch(_SB_DEFAULT_URL+'/auth/v1/logout',{
+      method:'POST',
+      headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token}
+    }).catch(()=>{});
+  }
   localStorage.removeItem('smp_access_token');
   localStorage.removeItem('smp_refresh_token');
   if(_refreshTimer){clearTimeout(_refreshTimer);_refreshTimer=null;}
