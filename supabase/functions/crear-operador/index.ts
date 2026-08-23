@@ -128,8 +128,53 @@ Deno.serve(async (req: Request) => {
         .eq("activo", true);
       if (rolesErr) return json({ error: "No se pudo consultar activos: " + rolesErr.message }, 500);
 
-      const activos = (rolesRows || []).map((r) => ({ userId: r.user_id, nombre: r.nombre, rol: r.role }));
+      // Se consulta si cada uno tiene verificación en dos pasos activada
+      // (para saber si mostrarle al admin el botón de recuperación) — son
+      // pocos usuarios, así que una consulta por usuario es aceptable.
+      const activos = await Promise.all((rolesRows || []).map(async (r) => {
+        const { data: ud } = await admin.auth.admin.getUserById(r.user_id);
+        const mfaActivo = ((ud?.user?.factors) || []).some(
+          (f: { factor_type: string; status: string }) => f.factor_type === "totp" && f.status === "verified"
+        );
+        return { userId: r.user_id, nombre: r.nombre, rol: r.role, mfaActivo };
+      }));
       return json({ ok: true, activos });
+    }
+
+    // ---------- DESACTIVAR VERIFICACIÓN EN DOS PASOS DE OTRO USUARIO ----------
+    // Vía de recuperación para "perdí el teléfono / cambié de teléfono": sin
+    // esto, un usuario con el segundo factor activado y sin acceso a su app
+    // autenticadora queda bloqueado sin ninguna forma de recuperar la cuenta
+    // desde el sistema (el auto-servicio de Configuración exige la sesión ya
+    // autenticada, que es precisamente lo que no puede lograr en ese caso).
+    if (action === "desactivar_mfa") {
+      const { userId, nombre } = body;
+      if (!userId) return json({ error: "Falta userId." }, 400);
+
+      const { data: targetData, error: targetErr } = await admin.auth.admin.getUserById(userId);
+      if (targetErr || !targetData?.user) return json({ error: "Usuario no encontrado." }, 404);
+
+      const factores = (targetData.user.factors || []).filter(
+        (f: { factor_type: string }) => f.factor_type === "totp"
+      );
+      if (!factores.length) {
+        return json({ error: "Ese usuario no tiene verificación en dos pasos activada." }, 400);
+      }
+
+      for (const f of factores as { id: string }[]) {
+        const { error: delErr } = await admin.auth.admin.mfa.deleteFactor({ id: f.id, userId });
+        if (delErr) return json({ error: "No se pudo desactivar: " + delErr.message }, 500);
+      }
+
+      await admin.from("changelog").insert({
+        fecha: new Date().toISOString(),
+        usuario: callerData.user.email || callerData.user.id,
+        accion: "MFA desactivado por admin",
+        detalle: "Se desactivó la verificación en dos pasos de " + String(nombre ?? "").slice(0, 100) +
+          " (userId " + userId + ") — usado como recuperación de cuenta bloqueada.",
+      }).catch(() => {});
+
+      return json({ ok: true });
     }
 
     // ---------- ACTIVAR ----------

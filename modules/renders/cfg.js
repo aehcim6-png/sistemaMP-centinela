@@ -933,13 +933,27 @@ window.cargarActivosUI=async function(){
     var act=res.activos||[];
     if(!act.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios activos.</span>';return;}
     cont.innerHTML=act.map(function(u){
+      var esYo=u.userId===_currentUser?.id;
+      var botonMfa=u.mfaActivo?'<button class="btn-o btn-s" style="margin-right:6px" onclick="desactivarMfaUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')" title="Usar si perdió el teléfono/app autenticadora y quedó sin poder entrar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Quitar 2FA</button>':'';
       return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
-        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span></span>'+
-        (u.userId===_currentUser?.id?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
-        '<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Desactivar</button>')+
+        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span>'+(u.mfaActivo?' <span style="color:var(--ac);font-size:10px" title="Tiene verificación en dos pasos activada">🔐</span>':'')+'</span>'+
+        (esYo?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
+        '<span>'+botonMfa+'<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Desactivar</button></span>')+
         '</div>';
     }).join('');
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+window.desactivarMfaUsuarioUI=async function(userId,nombre){
+  if(!confirm('¿Quitar la verificación en dos pasos de '+nombre+'?\n\nÚsalo solo si perdió el teléfono o la app autenticadora y quedó sin poder entrar — vuelve a bastarle su clave normal para entrar. Puede volver a activarla cuando quiera desde su cuenta.'))return;
+  var out=document.getElementById('nuResultado');
+  if(out)out.innerHTML='Desactivando verificación en dos pasos...';
+  try{
+    var res=await _accionUsuarios({action:'desactivar_mfa',userId:userId,nombre:nombre});
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
+    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Verificación en dos pasos de '+escapeHtml(nombre)+' desactivada. Ya puede entrar solo con su clave.</div>';
+    cargarActivosUI();
+  }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
 
 window.desactivarUsuarioUI=async function(userId,nombre){
