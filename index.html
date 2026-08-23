@@ -3480,7 +3480,7 @@ function _mostrarAvisoInactividad(restanteMs){
     '</div>';
   document.body.appendChild(overlay);
 }
-setInterval(function(){
+function _revisarInactividad(){
   if(!localStorage.getItem('smp_access_token'))return; // sin sesión, nada que cerrar
   var inactivoMs=Date.now()-_ultimaActividad;
   if(inactivoMs>=IDLE_CIERRE_MS){
@@ -3489,7 +3489,18 @@ setInterval(function(){
     return;
   }
   if(inactivoMs>=IDLE_AVISO_MS)_mostrarAvisoInactividad(IDLE_CIERRE_MS-inactivoMs);
-},5000);
+}
+setInterval(_revisarInactividad,5000);
+// El navegador congela temporizadores en pestañas en segundo plano (celular
+// bloqueado, o cambio a otra app/pestaña) — el intervalo de arriba no corre
+// mientras tanto. Por eso también revisamos apenas la pestaña vuelve a
+// primer plano, para cerrar altiro si ya se cumplió la hora en vez de
+// esperar a que el intervalo se ponga al día.
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible')_revisarInactividad();
+});
+window.addEventListener('focus',_revisarInactividad);
+window.addEventListener('pageshow',_revisarInactividad);
 
 // ============ VERIFICACIÓN EN DOS PASOS (MFA — TOTP) ============
 // API estándar de Supabase Auth para segundo factor. No se usa ningún SDK
