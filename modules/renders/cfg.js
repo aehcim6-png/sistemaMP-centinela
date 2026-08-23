@@ -767,12 +767,28 @@ window._mfaEstado=async function(){
   var factores=(u&&u.factors)||[];
   return factores.find(function(f){return f.factor_type==='totp'&&f.status==='verified';})||null;
 };
+// Supabase entrega el QR como 'data:image/svg+xml;utf8,<svg ...>' con el SVG
+// SIN codificar — además de romper el atributo HTML si tiene comillas (ya
+// arreglado con escapeHtml más abajo), un '#' literal dentro del SVG (ej.
+// fill="#000000", el color normal de cualquier QR en blanco y negro) se
+// interpreta como el separador de FRAGMENTO de la URL y trunca la imagen
+// justo ahí — bug real, encontrado con una segunda captura de pantalla: el
+// atributo ya no se rompía, pero quedaba un cuadro blanco vacío (la imagen
+// nunca cargaba). Se re-arma como URL de datos correctamente codificada
+// (encodeURIComponent) en vez de insertar el SVG crudo.
+function _qrComoDataUrl(qrCrudo){
+  if(!qrCrudo)return '';
+  var marcaSvg='data:image/svg+xml;utf8,';
+  var svgTxt=qrCrudo.indexOf(marcaSvg)===0?qrCrudo.slice(marcaSvg.length):qrCrudo;
+  if(svgTxt.indexOf('<svg')===-1)return qrCrudo; // no es el formato esperado — se deja tal cual
+  return 'data:image/svg+xml,'+encodeURIComponent(svgTxt);
+}
 window.activarMFA=async function(){
   var token=localStorage.getItem('smp_access_token');
   var en=await _mfaEnroll(token);
   if(en.error||!en.id){toast('❌ No se pudo iniciar la activación: '+(en.error?.message||en.msg||'error desconocido'));return;}
   var factorId=en.id;
-  var qr=en.totp?.qr_code||'';
+  var qr=_qrComoDataUrl(en.totp?.qr_code||'');
   var secreto=en.totp?.secret||'';
   sm('<div style="max-width:360px">'+
     '<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Activar verificación en dos pasos</h3>'+
