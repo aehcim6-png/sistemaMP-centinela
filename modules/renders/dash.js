@@ -588,7 +588,7 @@ window.renderDash=function(){
   otConHist.forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o)&&o.horom>0)(otFallasPorSiglaDash[o.sigla]=otFallasPorSiglaDash[o.sigla]||[]).push(o.horom);});
   var medsPorSerieDash=(typeof _neuMedPorSerie==='function')?_neuMedPorSerie():null;
   var eqPorSiglaDash=(typeof _eqPorSigla==='function')?_eqPorSigla():null;
-  var equiposConSalud=eq.map(function(e){
+  var equiposConSaludTodos=eq.map(function(e){
     var compsConDato=(compPorSiglaDash[e.sigla]||[]).map(function(c){return compEstado(c,e.horomActual,e.hrsDia);}).filter(function(s){return s.conDato;});
     var componentesPct=compsConDato.length?Math.round(compsConDato.filter(function(s){return s.hrsRest>1000;}).length/compsConDato.length*1000)/10:null;
     var neuOp=neuOpPorSiglaDash[e.sigla]||[];
@@ -599,21 +599,40 @@ window.renderDash=function(){
     var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
     var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
     return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score};
-  }).filter(function(r){return r.score.valor!=null&&r.score.valor<70;})
+  });
+  // Tendencia por equipo (mismo mecanismo que la Tendencia del Índice de Salud
+  // de Flota de arriba: un snapshot diario, guardado por sigla en vez de uno
+  // solo global) — se registra el de TODOS los equipos con score, no solo los
+  // que hoy están bajo 70, porque el valor de esto es avisar que un equipo está
+  // BAJANDO antes de que cruce ese umbral, no solo confirmarlo después.
+  var histEquipoPrevio=S.g('saludEquipoHist')||{};
+  var histEquipoNuevo=Object.assign({},histEquipoPrevio);
+  equiposConSaludTodos.forEach(function(r){
+    if(r.score.valor==null)return;
+    histEquipoNuevo[r.sigla]=registrarSnapshotSalud(histEquipoNuevo[r.sigla]||{},r.score.valor,_hoyISO);
+  });
+  if(JSON.stringify(histEquipoNuevo)!==JSON.stringify(histEquipoPrevio))S.s('saludEquipoHist',histEquipoNuevo);
+  var equiposConSalud=equiposConSaludTodos
+    .filter(function(r){return r.score.valor!=null&&r.score.valor<70;})
     .sort(function(a,b){return a.score.valor-b.score.valor;})
     .slice(0,10);
   var saludBajaBlock='';
   if(equiposConSalud.length){
     saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">🩺 Equipos con Salud Baja <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
-    saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
+    saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
     equiposConSalud.forEach(function(r){
       var col=r.score.valor>=55?'#f59e0b':'#ef4444';
       var d={};r.score.detalle.forEach(function(c){d[c.nombre]=c.valor;});
+      var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
+      var tendHtml=(tend&&tend.delta!=null)?
+        '<span style="color:'+(tend.delta>0?'#22c55e':tend.delta<0?'#ef4444':'var(--tx3)')+';font-weight:600">'+(tend.delta>0?'▲':tend.delta<0?'▼':'→')+' '+Math.abs(tend.delta)+' pts</span>'
+        :'<span style="color:var(--tx3);font-size:10px">sin dato 7d</span>';
       saludBajaBlock+='<tr>'+
         '<td class="mono" style="color:var(--ac);font-weight:700;cursor:pointer" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)">'+escapeHtml(r.sigla)+'</td>'+
         '<td>'+escapeHtml(r.tipo)+'</td>'+
         '<td style="font-size:10px">'+escapeHtml(r.modelo)+'</td>'+
         '<td class="mono" style="color:'+col+';font-weight:700">'+r.score.valor+'%</td>'+
+        '<td style="font-size:10px">'+tendHtml+'</td>'+
         '<td style="font-size:10px;color:var(--tx3)">'+(d['Componentes']==null?'—':d['Componentes']+'%')+'</td>'+
         '<td style="font-size:10px;color:var(--tx3)">'+(d['Neumáticos']==null?'—':d['Neumáticos']+'%')+'</td>'+
         '<td style="font-size:10px;color:var(--tx3)">'+(d['Aceite']==null?'—':d['Aceite']+'%')+'</td>'+
