@@ -106,6 +106,12 @@ window.renderBuscar=function(){
     var confiabilidadPct=confiabilidadReal(mtbfEq,horasPeriodoEq);
     var scoreEq=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
     var scoreCol=scoreEq.valor==null?'var(--bd)':scoreEq.valor>=80?'#22c55e':scoreEq.valor>=55?'#f59e0b':'#ef4444';
+    // Tendencia — el Dashboard es quien guarda el snapshot diario por equipo
+    // (saludEquipoHist) cada vez que se abre; acá solo se lee, con el mismo
+    // registrarSnapshotSalud/tendenciaSaludSemanal que ya usa la Tendencia del
+    // Índice de Salud de Flota, un historial por sigla en vez de uno global.
+    var _hoyISOBuscar=new Date().toISOString().slice(0,10);
+    var tendenciaEq=scoreEq.valor!=null?tendenciaSaludSemanal((S.g('saludEquipoHist')||{})[fEq]||{},_hoyISOBuscar):null;
 
     content=
     // Ficha del equipo
@@ -124,6 +130,9 @@ window.renderBuscar=function(){
     '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--tx3)">Score de Salud</div>'+
     '<div style="font-size:38px;font-weight:900;color:'+scoreCol+';line-height:1;margin:2px 0">'+(scoreEq.valor==null?'—':scoreEq.valor)+(scoreEq.valor==null?'':'<span style="font-size:16px">%</span>')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(scoreEq.n?scoreEq.n+' de 4 señales con dato':'sin datos suficientes')+'</div>'+
+    (tendenciaEq&&tendenciaEq.delta!=null?
+      '<div style="font-size:11px;font-weight:600;margin-top:2px;color:'+(tendenciaEq.delta>0?'#22c55e':tendenciaEq.delta<0?'#ef4444':'var(--tx3)')+'">'+(tendenciaEq.delta>0?'▲':tendenciaEq.delta<0?'▼':'→')+' '+Math.abs(tendenciaEq.delta)+' pts vs hace 7 días</div>'
+      :(scoreEq.valor!=null?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">Sin dato de hace 7 días aún</div>':''))+
     '</div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">'+
     scoreEq.detalle.map(function(c){
