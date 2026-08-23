@@ -112,6 +112,11 @@ window.renderBuscar=function(){
     // Índice de Salud de Flota, un historial por sigla en vez de uno global.
     var _hoyISOBuscar=new Date().toISOString().slice(0,10);
     var tendenciaEq=scoreEq.valor!=null?tendenciaSaludSemanal((S.g('saludEquipoHist')||{})[fEq]||{},_hoyISOBuscar):null;
+    // Motivo principal — "por qué" en vez de solo el número, la señal más
+    // afectada de las 4 (motivoPrincipalSalud, logic.js). Solo se muestra si
+    // el score amerita explicación (bajo 80) — para un equipo sano no hay
+    // ninguna "causa" que señalar.
+    var motivoEq=(scoreEq.valor!=null&&scoreEq.valor<80)?motivoPrincipalSalud(scoreEq.detalle):null;
 
     content=
     // Ficha del equipo
@@ -133,6 +138,7 @@ window.renderBuscar=function(){
     (tendenciaEq&&tendenciaEq.delta!=null?
       '<div style="font-size:11px;font-weight:600;margin-top:2px;color:'+(tendenciaEq.delta>0?'#22c55e':tendenciaEq.delta<0?'#ef4444':'var(--tx3)')+'">'+(tendenciaEq.delta>0?'▲':tendenciaEq.delta<0?'▼':'→')+' '+Math.abs(tendenciaEq.delta)+' pts vs hace 7 días</div>'
       :(scoreEq.valor!=null?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">Sin dato de hace 7 días aún</div>':''))+
+    (motivoEq?'<div style="font-size:10px;color:var(--tx2);margin-top:4px">Principal causa: <b>'+escapeHtml(motivoEq.nombre)+'</b> ('+motivoEq.valor+'%)</div>':'')+
     '</div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">'+
     scoreEq.detalle.map(function(c){

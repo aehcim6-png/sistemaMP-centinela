@@ -152,6 +152,75 @@ window.renderComp=function(){
   var criticos=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=1000}).length;
   var costoTotal=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=2000}).reduce(function(s,c){return s+(c.costoRef||0)},0);
 
+  // ═══ CALENDARIO DE REEMPLAZOS — agrupa los componentes con dato por mes de
+  // vencimiento proyectado y tipo de pieza, para presupuestar con
+  // anticipación en vez de enterarse equipo por equipo, uno a la vez, cuando
+  // ya está vencido. Respeta el mismo filtro de equipo que el resto de la
+  // pestaña (fil) — con "Todos los equipos" es el calendario de TODA la
+  // flota. El mes "oficial" de cada fila usa diasRest de compEstado (ritmo
+  // NOMINAL, mismo criterio que el resto del sistema).
+  // "Ritmo acelerado": mismo mecanismo que ya usa C.recalcAll para el
+  // calendario de PM (_ritmoRealEq, el ritmo REAL observado del equipo vía su
+  // historial de horómetro) — si al ritmo real el componente se vence bastante
+  // antes que con el nominal, se marca aparte en vez de descubrirlo recién
+  // cuando ya esté vencido. Memorizado por sigla (no por componente) para no
+  // recalcular el ritmo real 17 veces por equipo.
+  var _MESNOM_COMP=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var histPorSiglaComp=(typeof _indicesRecalc==='function')?_indicesRecalc().histPorSigla:null;
+  var ritmoRealPorSiglaComp={};
+  function _ritmoRealDeComp(sigla,hrsDiaNominal){
+    if(!(sigla in ritmoRealPorSiglaComp)){
+      ritmoRealPorSiglaComp[sigla]=(typeof _ritmoRealEq==='function')?_ritmoRealEq(sigla,hrsDiaNominal,histPorSiglaComp):hrsDiaNominal;
+    }
+    return ritmoRealPorSiglaComp[sigla];
+  }
+  var HOY_CAL=new Date();
+  var calendario={};
+  fil.forEach(function(c){
+    if(!c._st||!c._st.conDato)return;
+    var eqObjCal=eq.find(function(e){return e.sigla===c.sigla});
+    var hrsDiaNom=eqObjCal?(eqObjCal.hrsDia||12):12;
+    var bucketKey,bucketLabel;
+    if(c.hrsRest<=0){
+      bucketKey='Vencido';bucketLabel='🔴 Vencido ahora';
+    }else{
+      var fechaObj=new Date(HOY_CAL.getTime()+c.diasRest*86400000);
+      var mesIdx=fechaObj.getMonth(),anioObj=fechaObj.getFullYear();
+      var mesesFuturo=(anioObj-HOY_CAL.getFullYear())*12+(mesIdx-HOY_CAL.getMonth());
+      if(mesesFuturo>5){bucketKey='Después';bucketLabel='Más adelante (6+ meses)';}
+      else{bucketKey=anioObj+'-'+String(mesIdx+1).padStart(2,'0');bucketLabel=_MESNOM_COMP[mesIdx]+' '+anioObj;}
+    }
+    var ritmoReal=_ritmoRealDeComp(c.sigla,hrsDiaNom);
+    var diasRestReal=(ritmoReal>0)?Math.round(c.hrsRest/ritmoReal):c.diasRest;
+    var acelerado=c.hrsRest>0&&diasRestReal<c.diasRest*0.8;
+    if(!calendario[bucketKey])calendario[bucketKey]={label:bucketLabel,porTipo:{},costo:0,cantidad:0,acelerados:0};
+    var b=calendario[bucketKey];
+    b.costo+=(c.costoRef||0);b.cantidad++;
+    if(acelerado)b.acelerados++;
+    if(!b.porTipo[c.comp])b.porTipo[c.comp]={cantidad:0};
+    b.porTipo[c.comp].cantidad++;
+  });
+  var ordenBuckets=['Vencido'];
+  for(var _mOff=0;_mOff<6;_mOff++){var _dCal=new Date(HOY_CAL.getFullYear(),HOY_CAL.getMonth()+_mOff,1);ordenBuckets.push(_dCal.getFullYear()+'-'+String(_dCal.getMonth()+1).padStart(2,'0'));}
+  ordenBuckets.push('Después');
+  var bucketsConDato=ordenBuckets.filter(function(k){return calendario[k];});
+  var calendarioHtml=!bucketsConDato.length?'':(
+    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">📅 Calendario de Reemplazos'+(fEquipo?' — '+escapeHtml(fEquipo):' — toda la flota')+'</div>'+
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Período</th><th>Piezas</th><th>Cantidad</th><th>Costo estimado</th><th title="Componentes cuyo equipo lleva un ritmo real de uso bastante más alto que el nominal — al ritmo real se vencerían antes de lo que muestra este período">⚠️ Ritmo acelerado</th></tr>'+
+    bucketsConDato.map(function(k){
+      var b=calendario[k];
+      var piezas=Object.keys(b.porTipo).map(function(t){return t+' ('+b.porTipo[t].cantidad+')';}).join(', ');
+      return '<tr'+(k==='Vencido'?' style="background:rgba(239,68,68,.06)"':'')+'>'+
+        '<td style="font-weight:700">'+b.label+'</td>'+
+        '<td style="font-size:10px;color:var(--tx2)">'+escapeHtml(piezas)+'</td>'+
+        '<td class="mono">'+b.cantidad+'</td>'+
+        '<td class="mono" style="color:var(--ac)">$'+Math.round(b.costo).toLocaleString()+'</td>'+
+        '<td class="mono" style="color:'+(b.acelerados?'var(--danger)':'var(--tx3)')+'">'+(b.acelerados||'—')+'</td>'+
+        '</tr>';
+    }).join('')+
+    '</table></div></div>'
+  );
+
   $('s-comp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Control de Componentes Mayores</div>'+
     '<div class="sec-s">'+compData.length+' componentes · '+eq.length+' equipos · Vida útil y proyección de cambio</div></div>'+
@@ -168,6 +237,7 @@ window.renderComp=function(){
     '<div class="card"><div class="card-t">Costo Próximos Cambios</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoTotal).toLocaleString()+'</div><div class="card-s">Componentes &lt;2000h restantes</div></div>'+
     '<div class="card"><div class="card-t">⚪ Falta instalación</div><div class="card-v" style="color:var(--tx3)">'+sinDato+'</div><div class="card-s">Sin proyección hasta ingresar el dato</div></div>'+
     '</div>'+
+    calendarioHtml+
     (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> <b>'+sinDato+' de '+fil.length+' componentes</b> sin datos para proyectar. Dos formas de completarlo: <b>(1)</b> si es el <b>original</b> del equipo (instalado nuevo), marca la casilla "Orig." → sus horas usadas = el horómetro completo. <b>(2)</b> si se cambió, ingresa la <b>fecha de instalación</b> y el sistema <b>estima el horómetro a esa fecha</b> anclando en la puesta en marcha del equipo (aparece con "≈"). <b>Ojo:</b> si el equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>.</div>':'')+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th title="Último evento real encontrado en Historial de Componentes (Equipos → Componentes → Historial), incluye lo cargado desde Excel histórico 2022-2025">Últ. Cambio (Hist.)</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
