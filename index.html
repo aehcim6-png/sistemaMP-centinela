@@ -3292,6 +3292,20 @@ function _registrarIntentoBloqueado(email){
 // refresco en curso en vez de disparar una segunda petición.
 let _refreshEnCurso=null;
 async function _sbAuthRefresh(){
+  // Punto único de entrada de TODO refresco de sesión (timer programado por
+  // _programarRefreshToken, el listener de visibilitychange, y el reintento
+  // ante un 401) — si ya se cumplió el umbral de cierre por inactividad
+  // (IDLE_CIERRE_MS), nunca hay que renovar la sesión en silencio sin
+  // importar quién llamó a esta función; eso reabriría una sesión que
+  // debería estar cerrada. Bug real (2026-08-23): antes solo el listener de
+  // visibilitychange del cierre por inactividad revisaba esto — el timer
+  // programado corría por su cuenta y podía refrescar el token igual,
+  // dejando la sesión "viva" pese a llevar horas inactiva.
+  if(typeof _ultimaActividad!=='undefined'&&typeof IDLE_CIERRE_MS!=='undefined'&&(Date.now()-_ultimaActividad)>=IDLE_CIERRE_MS){
+    if(typeof _ocultarAvisoInactividad==='function')_ocultarAvisoInactividad();
+    _logout();
+    return false;
+  }
   if(_refreshEnCurso)return _refreshEnCurso;
   _refreshEnCurso=_sbAuthRefreshConLock().finally(function(){_refreshEnCurso=null;});
   return _refreshEnCurso;
@@ -3356,6 +3370,9 @@ function _programarRefreshToken(accessToken){
 
 // Si el navegador pausó el timer (pestaña en segundo plano o equipo dormido),
 // al volver a primer plano se revisa el token y se refresca si hace falta.
+// El guardián real contra reabrir una sesión que ya debería estar cerrada por
+// inactividad vive DENTRO de _sbAuthRefresh() (punto único de entrada de todo
+// refresco, sin importar quién lo dispare) — acá no hace falta duplicarlo.
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState!=='visible') return;
   const token = localStorage.getItem('smp_access_token');
