@@ -777,7 +777,7 @@ window.activarMFA=async function(){
   sm('<div style="max-width:360px">'+
     '<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Activar verificación en dos pasos</h3>'+
     '<p style="font-size:12px;color:var(--tx3);margin-bottom:12px">1. Abre Google Authenticator (o similar) en tu teléfono y escanea este código:</p>'+
-    (qr?'<div style="text-align:center;margin-bottom:12px"><img src="'+qr+'" style="width:180px;height:180px;background:#fff;padding:8px;border-radius:8px"></div>':'')+
+    (qr?'<div style="text-align:center;margin-bottom:12px"><img src="'+escapeHtml(qr)+'" style="width:180px;height:180px;background:#fff;padding:8px;border-radius:8px"></div>':'')+
     (secreto?'<p style="font-size:10px;color:var(--tx3);text-align:center;margin-bottom:12px">¿No puedes escanear? Ingresa este código manualmente:<br><b style="font-size:12px;color:var(--tx);letter-spacing:1px">'+escapeHtml(secreto)+'</b></p>':'')+
     '<p style="font-size:12px;color:var(--tx3);margin-bottom:8px">2. Escribe el código de 6 dígitos que te muestra la app para confirmar:</p>'+
     '<input id="mfaEnrollCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:20px;letter-spacing:6px;text-align:center;box-sizing:border-box;margin-bottom:12px">'+
