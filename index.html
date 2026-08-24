@@ -411,19 +411,25 @@ window.cev=function(store,idx,key,val,type){
   const d=S.g(store);if(!d||!d[idx])return;
   const horomAntes=d[idx].horomActual;
   d[idx][key]=type==='number'?parseFloat(val)||0:val;
+  const horomCambio=store==='eq'&&key==='horomActual'&&d[idx].horomActual>0&&d[idx].horomActual!==horomAntes;
+  const hoy=new Date().toISOString().slice(0,10);
+  // Bug real (2026-08-23, reportado por el usuario: tras actualizar el horómetro
+  // en la tabla de Equipos, "días para PM" quedaba mostrando muchos más días de
+  // los esperados). Esta celda usaba el fechaHorom YA GUARDADO del equipo —a
+  // menudo viejo, de semanas atrás— como fecha del nuevo registro de historial,
+  // en vez de la fecha real de la edición. Eso dejaba lecturas de historial con
+  // fecha vieja y un salto de horómetro enorme en pocos "días" (según esa fecha
+  // vieja), que tasaDiariaReal descartaba por implausible — el ritmo real quedaba
+  // calculado con datos de semanas/meses atrás y el pronóstico de días para PM
+  // desactualizado (confirmado en producción: CN-9501 y CN-9502). saveFicha ya
+  // sincronizaba fechaHorom=hoy al cambiar el horómetro; esta celda no lo hacía.
+  if(horomCambio)d[idx].fechaHorom=hoy;
   if(store==='eq')_recalcEq(d[idx]);
   if(store==='cad')_recalcCad(d[idx]);
   if(store==='reg'&&_CAMPOS_DUR.includes(key))_recalcDurReg(d[idx]);
   S.s(store,d);
-  // Bug real: editar el horómetro directo en la celda de Equipos no dejaba rastro
-  // en historial_horometros. Con el tiempo esto deja el ritmo real (tasaDiariaReal)
-  // calculando con datos viejos aunque el horómetro EN VIVO del equipo ya avanzó
-  // mucho más (caso real: CF-9511 tenía su último dato de historial 45 días atrás
-  // del horómetro actual). Ahora cada edición de horómetro alimenta el historial
-  // igual que un registro de PM — dedupe por (sigla,fecha,horómetro) para no
-  // duplicar si se guarda la misma celda dos veces sin cambios reales.
-  if(store==='eq'&&key==='horomActual'&&d[idx].horomActual>0&&d[idx].horomActual!==horomAntes){
-    const sigla=d[idx].sigla,fecha=d[idx].fechaHorom||new Date().toISOString().slice(0,10);
+  if(horomCambio){
+    const sigla=d[idx].sigla,fecha=hoy;
     const hist=S.g('hist')||[];
     const yaExiste=hist.some(function(h){return h.sigla===sigla&&h.fecha===fecha&&(h.horomFin!=null?h.horomFin:h.horom)===d[idx].horomActual;});
     if(!yaExiste){
