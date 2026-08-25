@@ -162,7 +162,7 @@ window.renderNeu=function(){
             // (sinDatosRem) el anillo queda solo con el track, sin arco de color.
             var pFill=sinDatosRem?0:Math.max(0,Math.min(100,100-p));
             var _nC=2*Math.PI*10,_nOff=Math.round((_nC*(1-pFill/100))*100)/100;
-            return '<td><div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg3)" stroke-width="3.5"></circle>'+(sinDatosRem?'':'<circle cx="13" cy="13" r="10" fill="none" stroke="'+col+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+_nC+'" stroke-dashoffset="'+_nOff+'"></circle>')+'</svg><span style="color:'+col+';font-size:11px" title="'+(sinDatosRem?'Nunca se registró una medición de remanente para este neumático':'')+'">'+(sinDatosRem?'— sin datos':p+'%')+'</span></div></td>';
+            return '<td><div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg3)" stroke-width="3.5"></circle>'+(sinDatosRem?'':'<circle class="gauge-ring" cx="13" cy="13" r="10" fill="none" stroke="'+col+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+_nC+'" stroke-dashoffset="'+_nC+'" data-off="'+_nOff+'"></circle>')+'</svg><span style="color:'+col+';font-size:11px" title="'+(sinDatosRem?'Nunca se registró una medición de remanente para este neumático':'')+'">'+(sinDatosRem?'— sin datos':p+'%')+'</span></div></td>';
           })()}
           <td style="font-size:10px;color:${proyCol}" title="${proy?'Motivo: '+escapeHtml(proy.motivoCambio)+' · Confianza: '+escapeHtml(proy.confianza):'Sin mediciones suficientes para proyectar'}">${proy?'≈'+proy.diasRestantes+'d ('+fn(proy.hrsRestantes)+'h)':'—'}</td>
           ${edCell(n.estado||'Operativo','estado',i,'neu','select',['Operativo','Evaluación','Reparación','Disponible Usado','Stock','Fuera de servicio','Baja Desgaste','Baja Imprevisto'])}
@@ -177,6 +177,7 @@ window.renderNeu=function(){
         </tr>`;
       }).join('')}
     </table></div>${_pagHTML('neu',pg)}`;
+  if(typeof _animGauges==='function')_animGauges('s-neu');
 };
 
 // Listado de neumáticos que hay que cambiar YA (o próximos) al apretar la tarjeta —

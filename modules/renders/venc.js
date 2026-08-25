@@ -94,7 +94,7 @@ window.renderVenc=function(){
         var vDias=f.estado.dias, vCol=f.estado.color;
         var vPct=vDias<=0?100:Math.max(0,Math.min(100,100-(vDias/90*100)));
         var vC=2*Math.PI*10, vOff=Math.round((vC*(1-vPct/100))*100)/100;
-        estCelda='<div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle cx="13" cy="13" r="10" fill="none" stroke="'+vCol+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+vC+'" stroke-dashoffset="'+vOff+'"></circle></svg><span>'+f.estado.label+'</span></div>';
+        estCelda='<div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle class="gauge-ring" cx="13" cy="13" r="10" fill="none" stroke="'+vCol+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+vC+'" stroke-dashoffset="'+vC+'" data-off="'+vOff+'"></circle></svg><span>'+f.estado.label+'</span></div>';
       }
       return '<tr style="'+(f.estado.dias!==null&&f.estado.dias<=30?'background:rgba(239,68,68,.04)':'')+'">'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(f.sigla)+'</td>'+
@@ -110,6 +110,7 @@ window.renderVenc=function(){
     }).join('')+
     '</table></div>'+
     '<input type="file" id="vencFotoInput" accept="image/*,application/pdf" style="display:none" onchange="_vencFotoSeleccionada(event)">';
+  if(typeof _animGauges==='function')_animGauges('s-venc');
 };
 
 function celdaFotoVenc(sigla,vencTipo,fotoUrl,fotoTipo){

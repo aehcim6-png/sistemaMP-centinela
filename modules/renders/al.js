@@ -19,7 +19,7 @@ window.renderAl = function () {
     const col = dias <= 7 ? 'var(--danger)' : dias <= 30 ? 'var(--warn)' : 'var(--ok)';
     const pct = dias <= 0 ? 100 : Math.max(0, Math.min(100, 100 - (dias / 45 * 100)));
     const C = 2 * Math.PI * 12, off = Math.round((C * (1 - pct / 100)) * 100) / 100;
-    return `<div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 30 30" width="24" height="24" style="transform:rotate(-90deg);flex:none"><circle cx="15" cy="15" r="12" fill="none" stroke="var(--bg4)" stroke-width="4"></circle><circle cx="15" cy="15" r="12" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"></circle></svg><span class="mono" style="color:${col}">${dias}</span></div>`;
+    return `<div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 30 30" width="24" height="24" style="transform:rotate(-90deg);flex:none"><circle cx="15" cy="15" r="12" fill="none" stroke="var(--bg4)" stroke-width="4"></circle><circle class="gauge-ring" cx="15" cy="15" r="12" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${off}"></circle></svg><span class="mono" style="color:${col}">${dias}</span></div>`;
   };
   $('s-al').innerHTML = `
     <div class="sec-h"><div><div class="sec-t">🔴 Alertas PM4 — Overhaul (8× frecPM propio de cada equipo)</div><div class="sec-s">Click en repuestos para editar</div></div></div>
@@ -34,6 +34,7 @@ window.renderAl = function () {
         <td style="font-size:10px;max-width:300px;white-space:normal;cursor:pointer" onclick="editAlRep('${escapeHtml(e.sigla)}')">${e.rep ? escapeHtml(e.rep) : '<span style=color:var(--tx3)>Click para agregar</span>'}</td>
       </tr>`).join('')}
     </table></div>`;
+  if (typeof _animGauges === 'function') _animGauges('s-al');
 };
 window.editAlRep = function (sigla) {
   const al = S.g('al') || [], a = al.find(x => x.sigla === sigla) || { sigla, repuestos: '' };

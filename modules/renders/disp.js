@@ -123,7 +123,7 @@ window.renderDisp=function(){
           // es directamente "qué tan lleno/completo" está el mes, no una cuenta
           // regresiva hacia un umbral.
           var _dC=2*Math.PI*10,_dOff=Math.round((_dC*(1-Math.min(e.pct,100)/100))*100)/100;
-          return '<div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 26 26" width="22" height="22" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle cx="13" cy="13" r="10" fill="none" stroke="'+c+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+_dC+'" stroke-dashoffset="'+_dOff+'"></circle></svg></div>';
+          return '<div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 26 26" width="22" height="22" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle class="gauge-ring" cx="13" cy="13" r="10" fill="none" stroke="'+c+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+_dC+'" stroke-dashoffset="'+_dC+'" data-off="'+_dOff+'"></circle></svg></div>';
         })()+'</td>'+
         '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK':'🔴 Bajo')+'</span></td>'+
         '<td>'+datos+'</td></tr>';
@@ -273,4 +273,5 @@ window.renderDisp=function(){
     '<div style="font-size:11px;color:var(--tx3)">Meta: <span contenteditable style="color:var(--ac);font-weight:700;cursor:pointer" onblur="var v=parseFloat(this.innerText);if(v>0){S.s(\'dispMeta\',v);refreshAll()}">'+meta+'%</span></div>'+
     '</div>'+
     content;
+  if(typeof _animGauges==='function')_animGauges('s-disp');
 };
