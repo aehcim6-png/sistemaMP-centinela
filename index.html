@@ -130,6 +130,8 @@ th{background:var(--bg3);color:var(--ac);font-weight:600;text-align:left;padding
 td{padding:5px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
 tr:hover td{background:var(--bg3)}
 .mono{font-family:var(--mono)}
+.gauge-ring{transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)}
+@media (prefers-reduced-motion: reduce){.gauge-ring{transition:none}}
 /* Tema Claro: encabezado de tabla con banda de color sólida (no solo texto de
    color) — inspirado en el informe real de Finning/CAT que maneja Besalco
    (fondo blanco, tabla con cabecera en banda amarilla, texto oscuro). */
@@ -287,13 +289,13 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/store.js?v=2026-08-22b"></script>
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización) — scripts planos, mismo scope global de siempre. -->
-<script src="modules/renders/al.js?v=2026-08-24a"></script>
+<script src="modules/renders/al.js?v=2026-08-24b"></script>
 <script src="modules/renders/stk2.js?v=2026-08-14"></script>
 <script src="modules/renders/comp2.js?v=2026-08-15"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
 <script src="modules/renders/lub.js?v=2026-08-14"></script>
-<script src="modules/renders/stk.js?v=2026-08-24a"></script>
+<script src="modules/renders/stk.js?v=2026-08-24b"></script>
 <script src="modules/renders/cos.js?v=2026-08-18"></script>
 <script src="modules/renders/mov.js?v=2026-08-05"></script>
 <script src="modules/renders/rep.js?v=2026-08-14"></script>
@@ -309,26 +311,26 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/metas.js?v=2026-08-18b"></script>
 <script src="modules/renders/mkpi.js?v=2026-08-05"></script>
 <script src="modules/renders/insp.js?v=2026-08-07"></script>
-<script src="modules/renders/eq.js?v=2026-08-24a"></script>
+<script src="modules/renders/eq.js?v=2026-08-24b"></script>
 <script src="modules/renders/plani.js?v=2026-08-05"></script>
 <script src="modules/renders/gantt.js?v=2026-08-07b"></script>
 <script src="modules/renders/informes.js?v=2026-08-07"></script>
-<script src="modules/renders/venc.js?v=2026-08-24a"></script>
+<script src="modules/renders/venc.js?v=2026-08-24b"></script>
 <script src="modules/renders/comp.js?v=2026-08-23a"></script>
 <script src="modules/renders/buscar.js?v=2026-08-23c"></script>
 <script src="modules/renders/pau.js?v=2026-08-08"></script>
 <script src="modules/renders/plan.js?v=2026-08-23a"></script>
-<script src="modules/renders/disp.js?v=2026-08-24a"></script>
+<script src="modules/renders/disp.js?v=2026-08-24b"></script>
 <script src="modules/renders/ace.js?v=2026-08-14"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-22a"></script>
 <script src="modules/renders/sem.js?v=2026-08-21"></script>
-<script src="modules/renders/dash.js?v=2026-08-24b"></script>
+<script src="modules/renders/dash.js?v=2026-08-24c"></script>
 <script src="modules/renders/reg.js?v=2026-08-14"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-18"></script>
 <script src="modules/renders/pred.js?v=2026-08-18b"></script>
 <script src="modules/renders/kpi.js?v=2026-08-18c"></script>
-<script src="modules/renders/neu.js?v=2026-08-24a"></script>
+<script src="modules/renders/neu.js?v=2026-08-24b"></script>
 <script src="modules/renders/cfg.js?v=2026-08-23c"></script>
 <script>
 // ============ DATA ============
@@ -725,6 +727,29 @@ window.vizTipMove=function(ev){
   tip.style.top=Math.min(y,window.innerHeight-50)+'px';
 };
 window.vizTipHide=function(){var tip=document.getElementById('_vizTip');if(tip)tip.style.display='none';};
+
+// ---- GAUGES (anillos SVG de Dashboard/Equipos/Alertas PM4/Vencimientos/
+// Stock/Neumáticos/Disponibilidad) — se dibujan al aparecer en vez de
+// mostrarse ya llenos (pedido del usuario, 2026-08-24, mismo criterio que
+// el mockup "Sala de Máquinas"). Cada anillo arranca vacío (stroke-dashoffset
+// = su propia circunferencia, ya así en el HTML) y guarda su relleno real en
+// data-off; acá se anima hasta ahí con doble rAF (necesario para que el
+// navegador pinte primero el estado vacío antes de animar — sin eso, la
+// transición CSS no tiene "desde dónde" partir y el anillo aparece ya lleno).
+window._animGauges=function(contId){
+  var cont=document.getElementById(contId);
+  if(!cont)return;
+  var rings=cont.querySelectorAll('.gauge-ring');
+  if(!rings.length)return;
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      rings.forEach(function(c){
+        var off=c.getAttribute('data-off');
+        if(off!=null)c.style.strokeDashoffset=off;
+      });
+    });
+  });
+};
 
 // ---- DASHBOARD ----
 

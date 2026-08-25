@@ -560,7 +560,7 @@ window.renderDash=function(){
       proxBlock+='<div style="position:relative;width:64px;height:64px;flex:none">';
       proxBlock+='<svg viewBox="0 0 70 70" width="64" height="64" style="transform:rotate(-90deg)">';
       proxBlock+='<circle cx="35" cy="35" r="30" fill="none" stroke="var(--bg4)" stroke-width="6"></circle>';
-      proxBlock+='<circle cx="35" cy="35" r="30" fill="none" stroke="'+bColor+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+_GC+'" stroke-dashoffset="'+offset+'"></circle>';
+      proxBlock+='<circle class="gauge-ring" cx="35" cy="35" r="30" fill="none" stroke="'+bColor+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+_GC+'" stroke-dashoffset="'+_GC+'" data-off="'+offset+'"></circle>';
       proxBlock+='</svg>';
       proxBlock+='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
       proxBlock+='<div class="mono" style="font-size:17px;font-weight:700;line-height:1;color:'+bColor+'">'+e.diasParaPM+'</div>';
@@ -745,6 +745,7 @@ window.renderDash=function(){
   // Agregar los bloques al innerHTML existente
   var dashEl=document.getElementById('s-dash');
   dashEl.innerHTML+=proxBlock+trendBlock+mapaSaludBlock+saludBajaBlock;
+  if(typeof _animGauges==='function')_animGauges('s-dash');
 
   renderHeader();
 };

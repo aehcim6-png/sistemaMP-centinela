@@ -11,7 +11,7 @@ function _mesesGauge(meses, nivel) {
   var col = nivel === 'COMPRAR' ? 'var(--danger)' : nivel === 'BAJO' ? 'var(--warn)' : 'var(--ok)';
   var pct = meses >= 2 ? 0 : Math.max(0, Math.min(100, 100 - (meses / 2 * 100)));
   var C = 2 * Math.PI * 10, off = Math.round((C * (1 - pct / 100)) * 100) / 100;
-  return '<div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle cx="13" cy="13" r="10" fill="none" stroke="' + col + '" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + off + '"></circle></svg><span class="mono" style="color:' + col + ';font-weight:600">' + meses.toFixed(1) + '</span></div>';
+  return '<div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle class="gauge-ring" cx="13" cy="13" r="10" fill="none" stroke="' + col + '" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + off + '"></circle></svg><span class="mono" style="color:' + col + ';font-weight:600">' + meses.toFixed(1) + '</span></div>';
 }
 window.renderStk = function () {
   const stk = S.g('stk') || [];
@@ -76,6 +76,7 @@ window.renderStk = function () {
     }).join('') +
     '</table></div>' +
     _pagHTML('stk', pg);
+  if (typeof _animGauges === 'function') _animGauges('s-stk');
 };
 window.addStock = function () {
   sm(`<h3>Nuevo Filtro</h3>

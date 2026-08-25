@@ -45,7 +45,7 @@ window.renderEq=function(){
           ${edCell(e.frecPM,'frecPM',i,'eq','number')}
           <td class="mono calc">${fn(e.horomProxPM)}</td>
           <td class="mono calc">${fn(e.hrsRestantes)}</td>
-          <td class="mono calc"><div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 30 30" width="24" height="24" style="transform:rotate(-90deg);flex:none"><circle cx="15" cy="15" r="12" fill="none" stroke="var(--bg4)" stroke-width="4"></circle><circle cx="15" cy="15" r="12" fill="none" stroke="${_diasCol}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${_diasC}" stroke-dashoffset="${_diasOff}"></circle></svg><span style="color:${_diasCol}">${e.diasParaPM}</span></div></td>
+          <td class="mono calc"><div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 30 30" width="24" height="24" style="transform:rotate(-90deg);flex:none"><circle cx="15" cy="15" r="12" fill="none" stroke="var(--bg4)" stroke-width="4"></circle><circle class="gauge-ring" cx="15" cy="15" r="12" fill="none" stroke="${_diasCol}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${_diasC}" stroke-dashoffset="${_diasC}" data-off="${_diasOff}"></circle></svg><span style="color:${_diasCol}">${e.diasParaPM}</span></div></td>
           <td class="mono calc">${fd(e.fechaProxPM)}</td>
           <td class="calc">${pb(e.tipoPM)}</td>
           <td><span class="badge ${e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')?'b-r':e.estado?.includes('PRÓXIMA')?'b-y':'b-g'}">${e.estado||''}</span></td>
@@ -53,6 +53,7 @@ window.renderEq=function(){
         </tr>`;
       }).join('')}
     </table></div>`;
+  if(typeof _animGauges==='function')_animGauges('s-eq');
 };
 window.addEquipo=function(){
   sm(`<h3>Nuevo Equipo</h3>
