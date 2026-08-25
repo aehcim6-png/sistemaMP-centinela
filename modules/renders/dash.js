@@ -13,6 +13,35 @@ window.dashHoy=function(){
   window._dashMes=null;window._dashAnio=null;
   renders.dash();
 };
+// Resumen de turno para WhatsApp (2026-08-24, pedido del usuario): arma el
+// texto que hoy alguien escribe a mano en cada cambio de turno (se ve en el
+// chat de la faena: "Estimados, Informo distribución TURNO DÍA...") a partir
+// de los datos que el Dashboard ya calculó — sin volver a consultar nada.
+// Formato con *asteriscos*/_guiones bajos_ porque así WhatsApp los renderiza
+// en negrita/cursiva al pegar.
+window.copiarResumenTurno=function(){
+  var d=window._dashResumenTurno;
+  if(!d){toast('⚠️ Vuelve a "Hoy" en el Dashboard primero — el resumen es solo del día actual');return;}
+  var p=d.fecha.split('-'),fechaFmt=p[2]+'-'+p[1]+'-'+p[0];
+  var l=[];
+  l.push('*RESUMEN TURNO '+d.turno.toUpperCase()+' — '+fechaFmt+'*');
+  l.push('');
+  if(d.dispFlota!=null)l.push('📊 Disponibilidad flota: *'+d.dispFlota+'%*'+(d.dispFlota>=d.meta?' ✅':' ⚠️ bajo meta '+d.meta+'%'));
+  l.push('🟡 Próximas: '+d.proxCount+'  🔴 Urgentes: '+d.urg.length);
+  if(d.urg.length){
+    l.push('');
+    l.push('*Para el próximo turno:*');
+    d.urg.forEach(function(e){
+      l.push('- '+e.sigla+': '+(e.tipoPM||'PM')+' en '+e.dias+'d ('+fn(e.horomActual)+'/'+fn(e.horomProxPM)+e.unidad+')');
+    });
+  }else{
+    l.push('');
+    l.push('Nada urgente pendiente de entregar 👍');
+  }
+  l.push('');
+  l.push('_Entrega ~'+d.horaEntrega+' · SistemaMP Centinela_');
+  if(typeof _copiarTexto==='function')_copiarTexto(l.join('\n'));
+};
 // Aviso proactivo de Score de Salud (WhatsApp/correo) — solo dispara la
 // Edge Function con lo que el Dashboard ya calculó; el dedup de "máx. 1 por
 // equipo por día" vive del lado del servidor, ver avisar-salud-equipo.
@@ -344,6 +373,21 @@ window.renderDash=function(){
   }
   var saludCol=salud.valor==null?'var(--bd)':salud.valor>=85?'#22c55e':salud.valor>=70?'#f59e0b':'#ef4444';
 
+  // Resumen de turno para WhatsApp (2026-08-24, pedido del usuario): guarda
+  // acá lo que copiarResumenTurno() necesita — más simple y sin duplicar
+  // cálculos que recomponer disponibilidad/urgentes por su cuenta en otra
+  // función. Solo tiene sentido en vivo (mes actual): un resumen de turno es
+  // sobre HOY, no sobre un mes histórico/proyectado.
+  window._dashResumenTurno=dashFuente==='vivo'?{
+    fecha:_hoy.toISOString().slice(0,10),
+    turno:turnoActual,
+    horaEntrega:horaEntregaTurno,
+    dispFlota:dispFlota,
+    meta:meta,
+    urg:urg.map(function(e){return{sigla:e.sigla,tipoPM:e.tipoPM,dias:e.diasParaPM,horomActual:e.horomActual,horomProxPM:e.horomProxPM,unidad:e.unidad};}),
+    proxCount:prox.length
+  }:null;
+
   $('s-dash').innerHTML=
 
     // ═══ SELECTOR DE PERÍODO ═══
@@ -357,6 +401,7 @@ window.renderDash=function(){
     '</select>'+
     '<button class="btn-s btn-o" onclick="dashHoy()">Hoy</button>'+
     '<button class="btn-s '+(urgPM4?'':'btn-o')+'" style="'+(urgPM4?'background:var(--danger);color:#fff;border-color:var(--danger)':'')+'" onclick="go(\'al\')" title="Equipos acercándose a su PM4/overhaul (8× frecPM propio) y los repuestos clave que necesitan">🔴 Alertas PM4'+(urgPM4?' ('+urgPM4+')':'')+'</button>'+
+    (dashFuente==='vivo'?'<button class="btn-s btn-o" onclick="copiarResumenTurno()" title="Arma un resumen de turno (disponibilidad, urgentes, qué le queda al próximo turno) y lo copia listo para pegar en WhatsApp"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/></svg> Resumen de turno</button>':'')+
     '<span style="font-size:11px;color:var(--tx3);margin-left:auto">Mostrando: <b style="color:var(--ac)">'+dashLabel+'</b></span>'+
     '</div>'+
 
