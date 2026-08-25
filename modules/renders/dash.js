@@ -531,18 +531,37 @@ window.renderDash=function(){
     '</div></div>';
 
   // ═══ BLOQUE 2: PRÓXIMOS PMs — 14 DÍAS ═══
+  // Tarjetas-gauge (2026-08-24): un horómetro ES un medidor, así que en vez del
+  // borde de color + texto de antes, cada equipo se lee como el instrumento real
+  // — un anillo que se va llenando mientras se acerca el PM, mismo lenguaje de
+  // color que el resto del Dashboard (rojo/ámbar), sin fuentes ni paleta nuevas.
   var proxPMs=eq.filter(function(e){return e.diasParaPM>0&&e.diasParaPM<=14;}).sort(function(a,b){return a.diasParaPM-b.diasParaPM;}).slice(0,8);
   var proxBlock='';
   if(proxPMs.length){
+    var _GC=2*Math.PI*30; // circunferencia del anillo, r=30
     proxBlock+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">';
     proxBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2);display:flex;align-items:center;gap:6px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs <span style="font-size:11px;color:var(--tx3)">(próximos 14 días)</span></div>';
-    proxBlock+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">';
+    proxBlock+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:10px">';
     proxPMs.forEach(function(e){
-      var bColor=e.diasParaPM<=3?'#ef4444':'#f59e0b';
-      proxBlock+='<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;border-left:3px solid '+bColor+'">';
-      proxBlock+='<div style="font-weight:700;font-size:14px;color:var(--ac)">'+escapeHtml(e.sigla)+'</div>';
-      proxBlock+='<div style="font-size:11px;color:var(--tx2);margin-top:2px">'+pb(e.tipoPM)+' · <b style="color:'+bColor+'">'+e.diasParaPM+'d</b></div>';
-      proxBlock+='<div style="font-size:10px;color:var(--tx3);margin-top:2px">'+fd(e.fechaProxPM)+'</div>';
+      var bColor=e.diasParaPM<=3?'var(--danger)':'var(--ac)';
+      var pctLleno=Math.max(0,Math.min(100,100-(e.diasParaPM/14*100)));
+      var offset=Math.round((_GC*(1-pctLleno/100))*100)/100;
+      proxBlock+='<div style="background:var(--bg3);border-radius:10px;padding:12px;display:flex;gap:12px;align-items:center">';
+      proxBlock+='<div style="position:relative;width:64px;height:64px;flex:none">';
+      proxBlock+='<svg viewBox="0 0 70 70" width="64" height="64" style="transform:rotate(-90deg)">';
+      proxBlock+='<circle cx="35" cy="35" r="30" fill="none" stroke="var(--bg4)" stroke-width="6"></circle>';
+      proxBlock+='<circle cx="35" cy="35" r="30" fill="none" stroke="'+bColor+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+_GC+'" stroke-dashoffset="'+offset+'"></circle>';
+      proxBlock+='</svg>';
+      proxBlock+='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
+      proxBlock+='<div class="mono" style="font-size:17px;font-weight:700;line-height:1;color:'+bColor+'">'+e.diasParaPM+'</div>';
+      proxBlock+='<div style="font-size:8px;color:var(--tx3);letter-spacing:.03em">DÍAS</div>';
+      proxBlock+='</div></div>';
+      proxBlock+='<div style="min-width:0;flex:1">';
+      proxBlock+='<div style="font-weight:700;font-size:14.5px;color:var(--ac)">'+escapeHtml(e.sigla)+'</div>';
+      proxBlock+='<div style="margin-top:3px">'+pb(e.tipoPM)+'</div>';
+      proxBlock+='<div class="mono" style="font-size:10px;color:var(--tx3);margin-top:5px">'+fn(e.horomActual)+' / '+fn(e.horomProxPM)+'</div>';
+      proxBlock+='<div style="font-size:9.5px;color:var(--tx3);margin-top:1px">'+fd(e.fechaProxPM)+'</div>';
+      proxBlock+='</div>';
       proxBlock+='</div>';
     });
     proxBlock+='</div></div>';
