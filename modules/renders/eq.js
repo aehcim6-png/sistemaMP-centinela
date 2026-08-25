@@ -26,6 +26,15 @@ window.renderEq=function(){
         return true;
       }).map((e,_,arr)=>{
         const i=eq.indexOf(e);
+        // Gauge del horómetro (2026-08-24, mismo lenguaje que "Próximos PMs" del
+        // Dashboard): la celda "Días" pasa de número pelado a un anillo que se
+        // llena a medida que se acerca el PM — se lee el estado antes de leer el
+        // número. Normalizado a 45 días (mismo tope que el Dashboard); vencida
+        // (días<=0) siempre se ve llena.
+        const _diasCol=e.diasParaPM<=7?'var(--danger)':e.diasParaPM<=30?'var(--warn)':'var(--ok)';
+        const _diasPct=e.diasParaPM<=0?100:Math.max(0,Math.min(100,100-(e.diasParaPM/45*100)));
+        const _diasC=2*Math.PI*12;
+        const _diasOff=Math.round((_diasC*(1-_diasPct/100))*100)/100;
         return`<tr data-sigla="${escapeHtml(e.sigla)}">
           ${edCell(e.sigla,'sigla',i,'eq')}
           ${edCell(e.tipo,'tipo',i,'eq','select',_tiposEquipoDisponibles())}
@@ -36,7 +45,7 @@ window.renderEq=function(){
           ${edCell(e.frecPM,'frecPM',i,'eq','number')}
           <td class="mono calc">${fn(e.horomProxPM)}</td>
           <td class="mono calc">${fn(e.hrsRestantes)}</td>
-          <td class="mono calc" style="color:${e.diasParaPM<=7?'var(--danger)':e.diasParaPM<=30?'var(--warn)':'var(--ok)'}">${e.diasParaPM}</td>
+          <td class="mono calc"><div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 30 30" width="24" height="24" style="transform:rotate(-90deg);flex:none"><circle cx="15" cy="15" r="12" fill="none" stroke="var(--bg4)" stroke-width="4"></circle><circle cx="15" cy="15" r="12" fill="none" stroke="${_diasCol}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${_diasC}" stroke-dashoffset="${_diasOff}"></circle></svg><span style="color:${_diasCol}">${e.diasParaPM}</span></div></td>
           <td class="mono calc">${fd(e.fechaProxPM)}</td>
           <td class="calc">${pb(e.tipoPM)}</td>
           <td><span class="badge ${e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')?'b-r':e.estado?.includes('PRÓXIMA')?'b-y':'b-g'}">${e.estado||''}</span></td>
