@@ -83,6 +83,19 @@ window.renderVenc=function(){
     '<tr><th>Equipo</th><th>Tipo</th><th>Documento</th><th>Último trámite <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Periodicidad (meses) <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Próximo vencimiento</th><th>Estado</th><th>Foto</th><th>Obs <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th></tr>'+
     filas.map(function(f){
       var fotoUrl=((venc[f.sigla]||{})[f.vencTipo]||{}).foto||'';
+      // Gauge de "días hasta vencer" (2026-08-24, mismo lenguaje que
+      // Dashboard/Equipos/Alertas PM4): tope de 90 días — la escala de un
+      // vencimiento documental (meses/años) es mucho más larga que un PM, un
+      // tope de 45 dejaría casi todo el anillo vacío incluso ya cerca. Solo se
+      // dibuja si hay días reales (f.estado.dias!==null) — sin regla/sin dato
+      // sigue mostrando el texto solo, nunca se inventa un número.
+      var estCelda=f.estado.label;
+      if(f.estado.dias!==null){
+        var vDias=f.estado.dias, vCol=f.estado.color;
+        var vPct=vDias<=0?100:Math.max(0,Math.min(100,100-(vDias/90*100)));
+        var vC=2*Math.PI*10, vOff=Math.round((vC*(1-vPct/100))*100)/100;
+        estCelda='<div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle cx="13" cy="13" r="10" fill="none" stroke="'+vCol+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+vC+'" stroke-dashoffset="'+vOff+'"></circle></svg><span>'+f.estado.label+'</span></div>';
+      }
       return '<tr style="'+(f.estado.dias!==null&&f.estado.dias<=30?'background:rgba(239,68,68,.04)':'')+'">'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(f.sigla)+'</td>'+
         '<td style="font-size:11px;color:var(--tx3)">'+(f.tipo||'—')+'</td>'+
@@ -90,7 +103,7 @@ window.renderVenc=function(){
         '<td><input type="date" value="'+f.ultima+'" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'ultima\',this.value)" style="background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
         '<td><input type="number" value="'+(f.periodicidad!=null?f.periodicidad:'')+'" placeholder="—" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'periodicidadMeses\',this.value)" style="width:60px;background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
         '<td><input type="date" value="'+f.proxima+'" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'proxima\',this.value)" style="background:transparent;border:none;color:var(--tx);font-size:11px"></td>'+
-        '<td style="color:'+f.estado.color+';font-weight:600;font-size:11px">'+f.estado.label+'</td>'+
+        '<td style="color:'+f.estado.color+';font-weight:600;font-size:11px">'+estCelda+'</td>'+
         celdaFotoVenc(f.sigla,f.vencTipo,fotoUrl,((venc[f.sigla]||{})[f.vencTipo]||{}).fotoTipo)+
         '<td><input value="'+escapeHtml(f.obs||'')+'" onchange="edVenc(\''+escapeHtml(f.sigla)+'\',\''+escapeHtml(f.vencTipo)+'\',\'obs\',this.value)" style="width:100%;background:transparent;border:none;color:var(--tx);font-size:11px" placeholder="..."></td>'+
         '</tr>';
