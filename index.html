@@ -324,7 +324,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/ace.js?v=2026-08-14"></script>
 <script src="modules/renders/ayuda.js?v=2026-08-22a"></script>
 <script src="modules/renders/sem.js?v=2026-08-21"></script>
-<script src="modules/renders/dash.js?v=2026-08-24c"></script>
+<script src="modules/renders/dash.js?v=2026-08-24d"></script>
 <script src="modules/renders/reg.js?v=2026-08-14"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-18"></script>
@@ -736,6 +736,32 @@ window.vizTipHide=function(){var tip=document.getElementById('_vizTip');if(tip)t
 // data-off; acá se anima hasta ahí con doble rAF (necesario para que el
 // navegador pinte primero el estado vacío antes de animar — sin eso, la
 // transición CSS no tiene "desde dónde" partir y el anillo aparece ya lleno).
+// Copia texto al portapapeles con toast de confirmación — usado por el
+// Resumen de Turno del Dashboard (2026-08-24) y pensado para reutilizarse en
+// cualquier otro "copiar y pegar en WhatsApp" que se agregue después.
+// Fallback a execCommand('copy') para navegadores/contextos donde
+// navigator.clipboard no está disponible (ej. http sin TLS).
+window._copiarTexto=function(texto){
+  function ok(){toast('✅ Copiado — pégalo en WhatsApp');}
+  function fail(){toast('⚠️ No se pudo copiar automático — selecciona el texto a mano');}
+  function viaFallback(){
+    try{
+      var ta=document.createElement('textarea');
+      ta.value=texto;
+      ta.style.position='fixed';ta.style.opacity='0';ta.style.left='-9999px';
+      document.body.appendChild(ta);
+      ta.focus();ta.select();
+      var listo=document.execCommand('copy');
+      document.body.removeChild(ta);
+      listo?ok():fail();
+    }catch(e){fail();}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(ok).catch(viaFallback);
+  }else{
+    viaFallback();
+  }
+};
 window._animGauges=function(contId){
   var cont=document.getElementById(contId);
   if(!cont)return;
