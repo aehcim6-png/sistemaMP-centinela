@@ -2,6 +2,17 @@
 // propio archivo (Fase 2 de modularización). Script plano (NO módulo ES),
 // mismo scope global de siempre. window.edI queda en index.html porque
 // también lo usa renders.lub (ya extraída, comparte el mismo helper).
+// Gauge de cobertura de stock (2026-08-24, mismo lenguaje que
+// Dashboard/Equipos/Alertas PM4/Vencimientos): acá el anillo se llena al
+// REVÉS que en un PM — mientras MENOS meses de cobertura queden, más lleno
+// (más urgente), tope de 2 meses (ventana corta y relevante para reponer
+// stock, a diferencia de los 45-90 días de las otras pantallas).
+function _mesesGauge(meses, nivel) {
+  var col = nivel === 'COMPRAR' ? 'var(--danger)' : nivel === 'BAJO' ? 'var(--warn)' : 'var(--ok)';
+  var pct = meses >= 2 ? 0 : Math.max(0, Math.min(100, 100 - (meses / 2 * 100)));
+  var C = 2 * Math.PI * 10, off = Math.round((C * (1 - pct / 100)) * 100) / 100;
+  return '<div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle cx="13" cy="13" r="10" fill="none" stroke="' + col + '" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + off + '"></circle></svg><span class="mono" style="color:' + col + ';font-weight:600">' + meses.toFixed(1) + '</span></div>';
+}
 window.renderStk = function () {
   const stk = S.g('stk') || [];
   const mov = S.g('mov') || [];
@@ -58,7 +69,7 @@ window.renderStk = function () {
         '<td style="font-size:10px;color:var(--tx3)">' + lastD + '</td>' +
         '<td><input type="number" value="' + proy + '" onchange="edI(\'stk\',' + i + ',\'proyMes\',parseInt(this.value)||0)" style="width:40px;' + is + ';color:var(--w);font-weight:600" title="Proyección manual"></td>' +
         '<td><input type="number" value="' + (s.leadTime || '') + '" placeholder="34" onchange="edI(\'stk\',' + i + ',\'leadTime\',parseInt(this.value)||0)" style="width:40px;' + is + (s.leadTime ? '' : ';color:var(--tx3);border-style:dashed') + '" title="' + (s.leadTime ? 'Dato real de este ítem' : 'Sin dato real — usando el default de 34 días') + '"></td>' +
-        '<td style="text-align:center;font-weight:600;color:' + (se.nivel === 'COMPRAR' ? 'var(--danger)' : se.nivel === 'BAJO' ? 'var(--w)' : 'var(--ok)') + '" title="' + escapeHtml(se.motivo) + '">' + meses.toFixed(1) + '</td>' +
+        '<td style="text-align:center" title="' + escapeHtml(se.motivo) + '">' + _mesesGauge(meses, se.nivel) + '</td>' +
         '<td><span style="font-size:10px">' + est + '</span></td>' +
         '<td><input type="number" value="' + (s.precioUnit || 0) + '" onchange="edI(\'stk\',' + i + ',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;' + is + (s.precioUnit ? '' : ';color:var(--tx3);border-style:dashed') + '" title="' + (s.precioUnit ? '' : 'Sin precio cargado (no confirmado que valga $0)') + '"></td>' +
         '<td><button class="btn-s btn-d" onclick="delRow(\'stk\',' + i + ',\'stk\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';

@@ -12,6 +12,15 @@ window.renderAl = function () {
     const orig = al.find(a => a.sigla === e.sigla);
     return { ...e, proxPM4: p4, hrsP4: h, diasP4: d, unidad, fechaP4: new Date(Date.now() + d * 864e5).toISOString().slice(0, 10), alerta: C.alertaPM4(h, f, unidad), rep: orig?.repuestos || '' }
   }).sort((a, b) => a.hrsP4 - b.hrsP4);
+  // Gauge de "Días" (2026-08-24, mismo lenguaje que Dashboard/Equipos): un
+  // overhaul PM4 es el mismo tipo de medida (horómetro hacia un umbral), así
+  // que usa el mismo anillo mini y mismo tope de normalización (45 días).
+  const _diasGauge = (dias) => {
+    const col = dias <= 7 ? 'var(--danger)' : dias <= 30 ? 'var(--warn)' : 'var(--ok)';
+    const pct = dias <= 0 ? 100 : Math.max(0, Math.min(100, 100 - (dias / 45 * 100)));
+    const C = 2 * Math.PI * 12, off = Math.round((C * (1 - pct / 100)) * 100) / 100;
+    return `<div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 30 30" width="24" height="24" style="transform:rotate(-90deg);flex:none"><circle cx="15" cy="15" r="12" fill="none" stroke="var(--bg4)" stroke-width="4"></circle><circle cx="15" cy="15" r="12" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"></circle></svg><span class="mono" style="color:${col}">${dias}</span></div>`;
+  };
   $('s-al').innerHTML = `
     <div class="sec-h"><div><div class="sec-t">🔴 Alertas PM4 — Overhaul (8× frecPM propio de cada equipo)</div><div class="sec-s">Click en repuestos para editar</div></div></div>
     <div class="tbl-wrap"><table>
@@ -20,7 +29,7 @@ window.renderAl = function () {
         <td class="mono" style="color:var(--ac)">${escapeHtml(e.sigla)}</td><td>${escapeHtml(e.tipo)}</td>
         <td class="mono">${fn(e.horomActual)}${e.unidad}</td><td class="mono">${fn(e.proxPM4)}${e.unidad}</td>
         <td class="mono" style="color:${e.hrsP4 < (e.frecPM || 250) * 2 ? 'var(--danger)' : 'var(--tx)'};font-weight:700">${fn(e.hrsP4)}${e.unidad}</td>
-        <td class="mono">${e.diasP4}</td><td class="mono">${fd(e.fechaP4)}</td>
+        <td>${_diasGauge(e.diasP4)}</td><td class="mono">${fd(e.fechaP4)}</td>
         <td><span class="badge ${e.alerta.c}">${e.alerta.t}</span></td>
         <td style="font-size:10px;max-width:300px;white-space:normal;cursor:pointer" onclick="editAlRep('${escapeHtml(e.sigla)}')">${e.rep ? escapeHtml(e.rep) : '<span style=color:var(--tx3)>Click para agregar</span>'}</td>
       </tr>`).join('')}
