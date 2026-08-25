@@ -325,7 +325,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/ayuda.js?v=2026-08-22a"></script>
 <script src="modules/renders/sem.js?v=2026-08-21"></script>
 <script src="modules/renders/dash.js?v=2026-08-24d"></script>
-<script src="modules/renders/reg.js?v=2026-08-14"></script>
+<script src="modules/renders/reg.js?v=2026-08-25a"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-18"></script>
 <script src="modules/renders/pred.js?v=2026-08-18b"></script>
@@ -2792,6 +2792,32 @@ function comprimirImagen(file){
     reader.onerror=function(){resolve(null);};
     reader.readAsDataURL(file);
   });
+}
+
+// Llama a la Edge Function que lee una foto de pauta de PM firmada y devuelve
+// los campos de cabecera ya extraídos (ver modules/renders/reg.js, botón
+// "Leer pauta" en Registrar PM). Nunca escribe nada sola — solo entrega datos
+// para prellenar el formulario, la persona sigue confirmando con Guardar.
+async function _leerPautaPM(imagenBase64,mimeType){
+  var token=localStorage.getItem('smp_access_token');
+  var body=JSON.stringify({imagenBase64:imagenBase64,mimeType:mimeType||'image/jpeg'});
+  var r=await fetch(_SB_DEFAULT_URL+'/functions/v1/leer-pauta-pm',{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:body
+  });
+  if(r.status===401){
+    var refrescado=await _sbAuthRefresh();
+    if(refrescado){
+      token=localStorage.getItem('smp_access_token');
+      r=await fetch(_SB_DEFAULT_URL+'/functions/v1/leer-pauta-pm',{
+        method:'POST',
+        headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:body
+      });
+    }
+  }
+  return r.json();
 }
 
 // Sube un blob ya comprimido a una ruta dentro del bucket compartido y devuelve su URL pública.

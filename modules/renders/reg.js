@@ -76,6 +76,12 @@ window.addReg=function(){
   const hoy=new Date().toISOString().slice(0,10);
   const hora=new Date().toTimeString().slice(0,5);
   sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registrar Mantención</h3>
+    <div style="margin-bottom:10px">
+      <button type="button" class="btn btn-o" onclick="_activarLeerPauta()">📷 Leer pauta (foto)</button>
+      <input type="file" id="rPautaFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerPautaFotoSeleccionada(this)">
+      <span id="rPautaEstado" style="font-size:11px;color:var(--tx3);margin-left:8px"></span>
+      <div style="font-size:11px;color:var(--tx3);margin-top:3px">Prellena el formulario desde la foto — revisa lo marcado en amarillo antes de guardar, no se guarda solo.</div>
+    </div>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label>
         <select id="rEq" onchange="rAutoHorom();rMostrarConsumos()">
@@ -409,6 +415,91 @@ window.saveReg=function(){
   cm();refreshAll();
   const msgRetro=esRetroactivo?' · <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Fecha retroactiva: no se modificó el horómetro actual del equipo':'';
   toast('✅ '+tp+' — '+eqSigla+(logC&&logC.length?' · Stock: -'+logC.length+' items':'')+msgOT+msgOp+msgRetro);
+};
+
+// ---- Leer pauta de PM desde foto (OCR con Gemini vía leer-pauta-pm) ----
+// Motivado por el mismo trabajo real de esta sesión que originó leer-pauta-pm:
+// tipear a mano 7 pautas firmadas, una por una. Solo PRELLENA el formulario —
+// nunca llama a saveReg() sola, la persona revisa y aprieta Guardar. Probado
+// en vivo contra fotos reales: sigla/tipoPM/horómetro/hora suelen salir bien,
+// pero la fecha (sobre todo el año) puede fallar sin quedar marcada como
+// incierta — por eso el aviso de "revisa antes de guardar" es fijo, no solo
+// cuando camposInciertos trae algo.
+window._activarLeerPauta=function(){
+  const inp=$('rPautaFoto');
+  if(inp)inp.click();
+};
+window._leerPautaFotoSeleccionada=async function(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const estadoEl=$('rPautaEstado');
+  if(estadoEl)estadoEl.textContent='⏳ Leyendo pauta...';
+  try{
+    const comp=await comprimirImagen(file);
+    if(!comp){if(estadoEl)estadoEl.textContent='';toast('⚠️ No se pudo leer la foto');input.value='';return;}
+    const base64=comp.dataUrl.split(',')[1];
+    const resp=await _leerPautaPM(base64,'image/jpeg');
+    if(estadoEl)estadoEl.textContent='';
+    if(resp.error){toast('⚠️ '+resp.error);input.value='';return;}
+    _prellenarDesdeOCR(resp.datos||{});
+  }catch(err){
+    if(estadoEl)estadoEl.textContent='';
+    toast('⚠️ Error leyendo pauta: '+err.message);
+  }
+  input.value='';
+};
+// Busca UN equipo cuya sigla comparta letras y termine en los mismos dígitos
+// que lo leído en el papel (ej. pauta "MN-26" → sistema "MN-5926", visto en
+// producción). Si hay más de un candidato o ninguno, no autoselecciona —
+// nunca adivina de qué equipo se trata, eso lo confirma la persona.
+window._matchEquipoPorSiglaOCR=function(siglaOCR,eq){
+  const s=(siglaOCR||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const m=s.match(/^([A-Z]+)(\d+)$/);
+  if(!m)return null;
+  const letras=m[1],digitos=m[2];
+  const candidatos=eq.filter(function(e){
+    const es=(e.sigla||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const em=es.match(/^([A-Z]+)(\d+)$/);
+    if(!em||em[1]!==letras)return false;
+    return em[2]===digitos||em[2].endsWith(digitos);
+  });
+  return candidatos.length===1?candidatos[0]:null;
+};
+window._prellenarDesdeOCR=function(datos){
+  const inc=datos.camposInciertos||[];
+  function marcar(id,incierto){
+    const el=$(id);
+    if(!el)return;
+    el.style.outline=incierto?'2px solid var(--warn)':'';
+    el.style.background=incierto?'rgba(234,179,8,.12)':'';
+  }
+  if(datos.horaInicio){$('rHoraEnt').value=datos.horaInicio;marcar('rHoraEnt',inc.includes('horaInicio'));}
+  if(datos.horaTermino){$('rHoraSal').value=datos.horaTermino;marcar('rHoraSal',inc.includes('horaTermino'));}
+  if(datos.fecha){$('rFecEnt').value=datos.fecha;$('rFecSal').value=datos.fecha;marcar('rFecEnt',true);}
+  if(datos.horometro){$('rHor').value=datos.horometro;marcar('rHor',inc.includes('horometro'));}
+  if(datos.tipoPM){$('rPM').value=datos.tipoPM;marcar('rPM',inc.includes('tipoPM'));}
+  calcDurReg();
+  if(datos.sigla){
+    const eq=S.g('eq')||[];
+    const cand=_matchEquipoPorSiglaOCR(datos.sigla,eq);
+    marcar('rEq',true); // siempre queda para revisión manual, haya match o no
+    if(cand){
+      $('rEq').value=cand.sigla;
+      rAutoHorom();
+      if(datos.horometro)$('rHor').value=datos.horometro;
+      if(datos.tipoPM)$('rPM').value=datos.tipoPM;
+    }
+  }
+  // Sin campo dedicado para técnico/supervisor — se listan en observaciones
+  // para que la persona los lea y elija manualmente en el dropdown (nunca se
+  // asigna solo: el nombre puede venir mal leído, y el dropdown solo trae
+  // personal autorizado).
+  const nombres=[datos.tecnico1,datos.tecnico2,datos.supervisor].filter(Boolean);
+  if(nombres.length){
+    const obsEl=$('rObs');
+    if(obsEl&&!obsEl.value)obsEl.value='Pauta indica: '+nombres.join(', ');
+  }
+  toast('📷 Pauta leída — revisa los campos marcados en amarillo antes de guardar');
 };
 
 // ---- Flujo: Registro PM por voz ----
