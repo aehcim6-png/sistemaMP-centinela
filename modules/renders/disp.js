@@ -116,7 +116,15 @@ window.renderDisp=function(){
       else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real."><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> sin registros</span>';
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
         '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+escapeHtml(e.sigla)+'\'])d[\''+escapeHtml(e.sigla)+'\']={}; d[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
-        '<td><div style="background:color-mix(in srgb,'+c+' 18%,var(--bg4));border-radius:4px;height:10px;width:120px;overflow:hidden"><div style="background:'+c+';height:100%;width:'+Math.min(e.pct,100)+'%"></div></div></td>'+
+        '<td>'+(function(){
+          // Gauge circular (2026-08-24, mismo lenguaje que Dashboard/Equipos/Alertas
+          // PM4/Vencimientos/Stock/Neumáticos): a diferencia de esas pantallas, acá el
+          // anillo se llena EN EL MISMO SENTIDO que el %, no al revés — disponibilidad
+          // es directamente "qué tan lleno/completo" está el mes, no una cuenta
+          // regresiva hacia un umbral.
+          var _dC=2*Math.PI*10,_dOff=Math.round((_dC*(1-Math.min(e.pct,100)/100))*100)/100;
+          return '<div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 26 26" width="22" height="22" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle cx="13" cy="13" r="10" fill="none" stroke="'+c+'" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="'+_dC+'" stroke-dashoffset="'+_dOff+'"></circle></svg></div>';
+        })()+'</td>'+
         '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK':'🔴 Bajo')+'</span></td>'+
         '<td>'+datos+'</td></tr>';
     }).join('')+
