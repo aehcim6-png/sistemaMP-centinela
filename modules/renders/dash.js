@@ -63,6 +63,15 @@ window.renderDash=function(){
   }).length;
   // ── PERÍODO DEL DASHBOARD (mes/año seleccionable) ──
   const _hoy=new Date();
+  // Relevo de turno (2026-08-24, pedido del usuario): la faena rota 24/7 en
+  // turnos Día/Noche (se ve en toda la coordinación por WhatsApp — "favor
+  // enviar horómetros turno noche", listas de armado de turno G1-G4) y hoy la
+  // única forma de saber qué le queda pendiente al próximo turno es
+  // preguntar. Los horarios (08:00-19:45 / 20:00-07:30) son los que se ven
+  // repetidos en los informes de producción reales, no un supuesto inventado.
+  const _horaActual=_hoy.getHours();
+  const turnoActual=(_horaActual>=8&&_horaActual<20)?'Día':'Noche';
+  const horaEntregaTurno=turnoActual==='Día'?'19:45':'07:30';
   const dashMes=(window._dashMes!=null?window._dashMes:_hoy.getMonth()+1);
   const dashAnio=(window._dashAnio!=null?window._dashAnio:_hoy.getFullYear());
   const dashPeriodo=dashAnio+'-'+String(dashMes).padStart(2,'0'); // 'YYYY-MM'
@@ -496,6 +505,7 @@ window.renderDash=function(){
     '<div class="dg1" style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
 
     '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:#ef4444;font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
+    (dashFuente==='vivo'?'<div style="font-size:11px;color:var(--tx3);margin:-4px 0 10px;display:flex;align-items:center;gap:5px"><svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Turno '+turnoActual+' · entrega ~'+horaEntregaTurno+(urg.length?' · <b style="color:#ef4444">'+urg.length+' equipo'+(urg.length===1?'':'s')+'</b> para pasarle al próximo turno':' · nada urgente que entregar 👍')+'</div>':'')+
     (urg.length?
     '<div class="tbl-wrap"><table style="font-size:11px">'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Horóm.</th><th>Próx PM</th><th>Días</th><th>PM</th></tr>'+
