@@ -77,10 +77,12 @@ window.addReg=function(){
   const hora=new Date().toTimeString().slice(0,5);
   sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registrar Mantención</h3>
     <div style="margin-bottom:10px">
-      <button type="button" class="btn btn-o" onclick="_activarLeerPauta()">📷 Leer pauta (foto)</button>
+      <button type="button" class="btn btn-o" onclick="_activarLeerPauta()">📷 Leer pauta PM (foto)</button>
       <input type="file" id="rPautaFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerPautaFotoSeleccionada(this)">
+      <button type="button" class="btn btn-o" onclick="_activarLeerCorrectivo()">📷 Leer informe correctivo (foto)</button>
+      <input type="file" id="rCorrectivoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerCorrectivoFotoSeleccionada(this)">
       <span id="rPautaEstado" style="font-size:11px;color:var(--tx3);margin-left:8px"></span>
-      <div style="font-size:11px;color:var(--tx3);margin-top:3px">Prellena el formulario desde la foto — revisa lo marcado en amarillo antes de guardar, no se guarda solo.</div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:3px">Prellena el formulario desde la foto (usa la que corresponda al papel que tienes) — revisa lo marcado en amarillo antes de guardar, no se guarda solo.</div>
     </div>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label>
@@ -500,6 +502,84 @@ window._prellenarDesdeOCR=function(datos){
     if(obsEl&&!obsEl.value)obsEl.value='Pauta indica: '+nombres.join(', ');
   }
   toast('📷 Pauta leída — revisa los campos marcados en amarillo antes de guardar');
+};
+
+// ---- Leer informe de correctivo desde foto (leer-informe-correctivo) ----
+// Hermano de la lectura de pautas de arriba, para el otro papel ("INFORME
+// MANTENIMIENTO EN TALLER"). Reutiliza el mismo modal de Registrar PM
+// (tipoPM='Correctivo' ya es una opción ahí) y el mismo matching de sigla —
+// nunca guarda solo, mismo principio.
+window._activarLeerCorrectivo=function(){
+  const inp=$('rCorrectivoFoto');
+  if(inp)inp.click();
+};
+window._leerCorrectivoFotoSeleccionada=async function(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const estadoEl=$('rPautaEstado');
+  if(estadoEl)estadoEl.textContent='⏳ Leyendo informe...';
+  try{
+    const comp=await comprimirImagen(file);
+    if(!comp){if(estadoEl)estadoEl.textContent='';toast('⚠️ No se pudo leer la foto');input.value='';return;}
+    const base64=comp.dataUrl.split(',')[1];
+    const resp=await _leerInformeCorrectivo(base64,'image/jpeg');
+    if(estadoEl)estadoEl.textContent='';
+    if(resp.error){toast('⚠️ '+resp.error);input.value='';return;}
+    _prellenarDesdeOCRCorrectivo(resp.datos||{});
+  }catch(err){
+    if(estadoEl)estadoEl.textContent='';
+    toast('⚠️ Error leyendo informe: '+err.message);
+  }
+  input.value='';
+};
+window._prellenarDesdeOCRCorrectivo=function(datos){
+  const inc=datos.camposInciertos||[];
+  function marcar(id,incierto){
+    const el=$(id);
+    if(!el)return;
+    el.style.outline=incierto?'2px solid var(--warn)':'';
+    el.style.background=incierto?'rgba(234,179,8,.12)':'';
+  }
+  $('rPM').value='Correctivo';
+  if(datos.horometro){$('rHor').value=datos.horometro;marcar('rHor',inc.includes('horometro'));}
+  if(datos.fecha){$('rFecEnt').value=datos.fecha;$('rFecSal').value=datos.fecha;marcar('rFecEnt',true);}
+  calcDurReg();
+  if(datos.sigla){
+    const eq=S.g('eq')||[];
+    const cand=_matchEquipoPorSiglaOCR(datos.sigla,eq);
+    marcar('rEq',true); // siempre queda para revisión manual, haya match o no
+    if(cand){
+      $('rEq').value=cand.sigla;
+      rAutoHorom();
+      if(datos.horometro)$('rHor').value=datos.horometro;
+      $('rPM').value='Correctivo';
+    }
+  }
+  // Este papel no tiene campo de "hora de inicio" — Fecha/Hora de Entrega y
+  // Recepción son de la conformidad de servicio del taller, no calzan
+  // directo con Hora Entrada/Salida del formulario, así que van como
+  // referencia en observaciones en vez de forzarlas en un campo que no les
+  // corresponde. Mismo criterio para Incidente/Aprobado/N° OT/Mantenedor:
+  // sin campo propio acá, se listan para que la persona los lea.
+  const partes=[];
+  if(datos.reparacionEfectuada)partes.push(datos.reparacionEfectuada);
+  if(datos.observacionesDetectadas)partes.push('Observaciones detectadas: '+datos.observacionesDetectadas);
+  if(datos.accionASeguir)partes.push('Acción a seguir: '+datos.accionASeguir);
+  const refs=[];
+  if(datos.numeroOT)refs.push('OT '+datos.numeroOT);
+  if(datos.incidente)refs.push('Incidente: '+datos.incidente);
+  if(datos.mantenimientoAprobado)refs.push('Mantenimiento aprobado: '+datos.mantenimientoAprobado);
+  if(datos.horaEntrega||datos.horaRecepcion)refs.push('Entrega '+(datos.horaEntrega||'—')+' · Recepción '+(datos.horaRecepcion||'—'));
+  if(datos.mantenedor)refs.push('Mantenedor: '+datos.mantenedor);
+  if(refs.length)partes.push('['+refs.join(' · ')+']');
+  if(partes.length){
+    const obsEl=$('rObs');
+    if(obsEl){
+      obsEl.value=partes.join(' — ');
+      marcar('rObs',inc.includes('reparacionEfectuada')||inc.includes('observacionesDetectadas')||inc.includes('accionASeguir'));
+    }
+  }
+  toast('📷 Informe leído — revisa los campos marcados en amarillo antes de guardar');
 };
 
 // ---- Flujo: Registro PM por voz ----
