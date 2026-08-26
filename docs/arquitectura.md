@@ -122,9 +122,18 @@ un paso aparte, todavía no hecho.
 incluye `historial_componentes` e `historial_neumaticos`, agregadas en la
 auditoría de agosto 2026 para poder responder "cuánto duró cada instalación
 real" sin perder el dato cada vez que se actualiza el estado actual, y
-`correctivos_historico`, cargada en agosto 2026 desde planillas Excel
-2022-2025 previas a este sistema — alimenta el cálculo de Probabilidad de
-Falla en Predictivo con más muestra histórica), más 7 "singleton" de
+`correctivos_historico`, cargada en agosto 2026 desde 3 fuentes previas a
+este sistema — 3.285 registros en total: 1.180 de órdenes de trabajo
+Excel, 1.680 de planillas "Disponibilidad Mecánica" 2021-2024 (sumadas
+2026-08-26) y 425 de mensajes WhatsApp históricos — alimenta el cálculo de
+Probabilidad de Falla en Predictivo con más muestra histórica. Las 3
+fuentes comparten la misma columna `sistema` (componente) con el mismo
+listado de categorías que usa el clasificador de correctivos actuales
+(`_CATEGORIAS_COMPONENTE` en `pred.js`) — reconciliadas 2026-08-26 tras
+encontrar categorías inconsistentes entre fuentes (ej. "Superestructura" vs
+"Soporte de Cabina" para el mismo componente real) y, en la fuente
+WhatsApp, 201 registros donde ese campo había quedado con el mensaje
+original en vez de una categoría), más 7 "singleton" de
 configuración (una sola fila fija: `configuracion`, `tarifa_hh`, `metas`,
 etc.). El mapeo completo entre cada categoría del frontend y su tabla real
 vive en `TABLA_REAL`/`TABLA_SINGLETON`, dentro de `modules/store.js`.

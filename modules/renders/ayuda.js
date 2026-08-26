@@ -12,6 +12,19 @@ window.renderAyuda=function(){
     '<div class="sec-s">Guía completa de operación del sistema</div></div>'+
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div>'+
 
+    // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-26)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Novedades y correcciones recientes (26 de agosto 2026)</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Ampliación del historial de correctivos (Disponibilidad Mecánica 2021-2024) y limpieza de su clasificación por componente, más búsqueda por palabra clave en Correctivos.</p>'+
+    '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Correctivos: buscador por palabra clave</b> (ej. "alternador", "soporte de cabina") — filtra por componente/síntoma/causa raíz/solución y, al buscar, suma también coincidencias del historial 2022-2024 (antes solo miraba las OT actuales, así que un evento real cargado desde Excel nunca aparecía). Muestra un resumen (cuántas veces, en cuántos equipos, entre qué fechas) y una alerta cuando el mismo equipo concentra 3+ resultados para lo buscado, con el intervalo promedio en días.</li>'+
+    '<li><b>Neumáticos: filtro por Estado</b> (Operativo/Stock/De baja) en la pestaña, junto a los filtros de equipo y tipo.</li>'+
+    '<li><b>~1.680 correctivos más en el historial:</b> cargados desde planillas "Disponibilidad Mecánica" 2021-2024 (Excel, previas a este sistema) — alimentan MTBF, Estadística y Predictivo con más muestra real, igual que el resto del historial ya cargado.</li>'+
+    '<li><b>Nueva categoría de componente "Tren de Rodaje"</b> (oruga, cadena, sprocket, zapata, rodillo, rueda tensora/motriz) — específica de equipos con orugas (bulldozer). No existía antes: un correctivo con "tensado de cadena" quedaba sin clasificar o caía por accidente en otra categoría. Ya aparece en Estadística → Por Componente y Predictivo con datos reales de 3 bulldozers.</li>'+
+    '<li><b>Limpieza de datos reales:</b> 201 registros del historial (fuente WhatsApp) tenían el campo de componente roto (guardaba el mensaje completo en vez de una categoría) — se corrigieron con evidencia real, reclasificando los que sí mencionaban un componente reconocible y dejando vacíos los que genuinamente no lo nombran (mejor vacío que una etiqueta falsa).</li>'+
+    '</ul>'+
+    '</div>'+
+
     // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-22)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (22 de agosto 2026)</b>'+

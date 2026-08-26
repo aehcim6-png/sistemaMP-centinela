@@ -126,8 +126,14 @@
   <h3>6. Estructura de datos en Supabase</h3>
   <p>34 tablas, una por categoría (incluye historial_componentes e historial_neumaticos, agregadas
   en agosto 2026 para no perder "cuánto duró cada instalación real", y correctivos_historico,
-  cargada en agosto 2026 desde planillas Excel 2022-2025 previas a este sistema para alimentar
-  Probabilidad de Falla), más 7 "singleton" de configuración. El mapeo vive en
+  cargada en agosto 2026 desde 3 fuentes previas a este sistema — 3.285 registros: 1.180 de
+  órdenes de trabajo Excel, 1.680 de planillas "Disponibilidad Mecánica" 2021-2024 (sumadas
+  2026-08-26) y 425 de WhatsApp histórico — para alimentar Probabilidad de Falla), más 7
+  "singleton" de configuración. Las 3 fuentes comparten el mismo listado de categorías de
+  componente (<code>_CATEGORIAS_COMPONENTE</code> en <code>pred.js</code>) que usa el
+  clasificador de correctivos actuales — reconciliadas 2026-08-26 (categorías inconsistentes
+  entre fuentes, y 201 registros de WhatsApp donde ese campo tenía el mensaje original en vez de
+  una categoría). El mapeo vive en
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.
   El schema está versionado como código en <code>supabase/migrations/*.sql</code>.</p>
 

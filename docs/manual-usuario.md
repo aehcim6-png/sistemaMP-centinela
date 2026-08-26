@@ -73,7 +73,7 @@ pierde en silencio el cambio de uno de los dos.
 | Dashboard | Vista general: KPIs, urgentes, próximas PM, tendencias |
 | Equipos | Flota completa, horómetros, estado de PM, ficha técnica |
 | Registro PM | Registrar cada mantención preventiva ejecutada |
-| Correctivos | Órdenes de trabajo por falla, causa raíz, componente |
+| Correctivos | Órdenes de trabajo por falla, causa raíz, componente — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces |
 | Neumáticos | Remanente, cambios, sensores de presión |
 | Horómetros | Historial de lecturas por equipo |
 | Disponibilidad | % de disponibilidad mecánica, meta y tendencia |
