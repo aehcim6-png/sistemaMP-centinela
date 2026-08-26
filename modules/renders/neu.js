@@ -113,7 +113,7 @@ window.renderNeu=function(){
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button>
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">📷 Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -727,6 +727,111 @@ window.saveMedicionNeu=function(neuIdx){
   n.ultimaMedicion=med.fecha;
   S.s('neu',neu);cm();renders.neu();
   toast('✅ Medición guardada — '+n.sigla+' '+n.posicion+': '+remProm+'mm');
+};
+
+// ── Leer chequeo diario de neumáticos desde foto (leer-chequeo-neumaticos) ──
+// La hoja trae hasta 4 paneles (uno por equipo), cada uno con su tabla de
+// hasta 10 neumáticos — a diferencia de leer-pauta-pm/leer-informe-correctivo
+// (que prellenan UN formulario), acá cada fila leída se empareja con un
+// neumático YA REGISTRADO en ese Equipo+Posición y se muestra como una
+// posible Medición Remanente para revisar y tildar antes de guardar. Nunca
+// crea neumáticos nuevos ni guarda solo — la persona confirma cada fila.
+window._activarLeerChequeoNeu=function(){
+  const inp=$('neuChequeoFoto');
+  if(inp)inp.click();
+};
+window._leerChequeoNeuFotoSeleccionada=async function(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  toast('⏳ Leyendo chequeo...');
+  try{
+    const comp=await comprimirImagen(file);
+    if(!comp){toast('⚠️ No se pudo leer la foto');input.value='';return;}
+    const base64=comp.dataUrl.split(',')[1];
+    const resp=await _llamarOCRFuncion('leer-chequeo-neumaticos',base64,'image/jpeg');
+    if(resp.error){toast('⚠️ '+resp.error);input.value='';return;}
+    _revisarChequeoNeuOCR(resp.datos||{paneles:[]});
+  }catch(err){
+    toast('⚠️ Error leyendo chequeo: '+err.message);
+  }
+  input.value='';
+};
+window._revisarChequeoNeuOCR=function(datos){
+  const eqArr=S.g('eq')||[];
+  const neu=S.g('neu')||[];
+  const paneles=(datos.paneles||[]).map(function(panel){
+    const match=panel.equipo?_matchEquipoPorSiglaOCR(panel.equipo,eqArr):null;
+    const siglaReal=match?match.sigla:null;
+    const filas=(panel.neumaticos||[]).map(function(row){
+      const idxNeu=siglaReal?neu.findIndex(function(n){return n.sigla===siglaReal&&n.numPos===row.posicion&&n.estado==='Operativo';}):-1;
+      return{row,idxNeu};
+    });
+    return{panel,siglaReal,filas};
+  });
+  window._chequeoNeuOCRData=paneles;
+  const bloques=paneles.map(function(pn,pi){
+    const p=pn.panel;
+    const eqLabel=pn.siglaReal?escapeHtml(pn.siglaReal):(p.equipo?'⚠️ "'+escapeHtml(p.equipo)+'" no identificado':'⚠️ sin equipo leído');
+    const filasHtml=pn.filas.map(function(f,fi){
+      const r=f.row;
+      if(f.idxNeu<0){
+        return `<tr style="opacity:.5"><td>${r.posicion}</td><td colspan="5" style="font-size:12px">Sin neumático Operativo registrado en esa posición — se omite</td></tr>`;
+      }
+      const n=neu[f.idxNeu];
+      const dudoso=r.incierto?' style="background:rgba(234,179,8,.12)"':'';
+      return `<tr${dudoso}>
+        <td><input type="checkbox" id="chqSel_${pi}_${fi}" checked></td>
+        <td>${r.posicion}<br><span style="font-size:11px;color:var(--tx3)">${escapeHtml(n.serie||'')}</span></td>
+        <td><input type="number" id="chqPres_${pi}_${fi}" value="${r.presion??''}" style="width:60px"></td>
+        <td><input type="number" id="chqTemp_${pi}_${fi}" value="${r.temperatura??''}" style="width:60px"></td>
+        <td><input type="number" id="chqExt_${pi}_${fi}" value="${r.remExt??''}" style="width:60px"></td>
+        <td><input type="number" id="chqInt_${pi}_${fi}" value="${r.remInt??''}" style="width:60px"></td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:16px">
+      <h4 style="margin-bottom:6px">${eqLabel} — ${p.fecha?escapeHtml(p.fecha):'sin fecha'}${p.horometro?' · '+p.horometro+'h':''}</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th></th><th>Pos.</th><th>Presión</th><th>Temp.</th><th>Rem.Ext</th><th>Rem.Int</th></tr>
+        ${filasHtml||'<tr><td colspan="6" style="font-size:12px">Sin filas con datos</td></tr>'}
+      </table></div>
+    </div>`;
+  }).join('');
+  sm(`<div style="max-width:720px"><h3>📷 Chequeo de neumáticos leído</h3>
+    <p style="color:var(--tx2);font-size:13px;margin-bottom:12px">Revisa los valores antes de guardar — desmarca las filas que no correspondan. Las filas en amarillo tienen letra dudosa.</p>
+    ${bloques||'<p>No se detectó ningún panel en la foto.</p>'}
+    <button class="btn" onclick="_guardarChequeoNeuOCR()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar mediciones seleccionadas</button> <button class="btn btn-o" onclick="cm()">Cancelar</button></div>`);
+};
+window._guardarChequeoNeuOCR=function(){
+  const paneles=window._chequeoNeuOCRData||[];
+  const neu=S.g('neu')||[];
+  const meds=S.g('neuMed')||[];
+  let count=0;
+  paneles.forEach(function(pn,pi){
+    pn.filas.forEach(function(f,fi){
+      if(f.idxNeu<0)return;
+      const chk=$('chqSel_'+pi+'_'+fi);
+      if(!chk||!chk.checked)return;
+      const n=neu[f.idxNeu];
+      const presion=parseFloat($('chqPres_'+pi+'_'+fi).value);
+      const temp=parseFloat($('chqTemp_'+pi+'_'+fi).value);
+      const remExt=parseFloat($('chqExt_'+pi+'_'+fi).value)||0;
+      const remInt=parseFloat($('chqInt_'+pi+'_'+fi).value)||0;
+      const remMin=Math.min(remExt||999,remInt||999);
+      const remProm=remExt&&remInt?Math.round((remExt+remInt)/2):remExt||remInt;
+      if(!remProm)return; // mismo criterio que saveMedicionNeu: sin remanente no se guarda
+      const horom=pn.panel.horometro||_horomEquipoSeguro(n.sigla);
+      const fecha=pn.panel.fecha||new Date().toISOString().slice(0,10);
+      const med={neuId:n.id||n.serie,sigla:n.sigla,posicion:n.posicion,serie:n.serie,
+        fecha,horom,remExt:remExt||null,remInt:remInt||null,remMin,remProm,
+        presion:isNaN(presion)?null:presion,temp:isNaN(temp)?null:temp,
+        obs:f.row.comentarios||''};
+      meds.push(med);
+      n.remanente=remProm;n.pctRemanente=neuPct(n);n.ultimaMedicion=fecha;
+      count++;
+    });
+  });
+  S.s('neuMed',meds);S.s('neu',neu);cm();renders.neu();
+  toast(count?('✅ '+count+' medición(es) guardada(s)'):'⚠️ No se guardó ninguna medición');
 };
 
 // ── Ordenamiento de columnas ──────────────────────────────
