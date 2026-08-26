@@ -1,3 +1,4 @@
+<meta charset="UTF-8">
 <title>Arquitectura — SistemaMP Centinela</title>
 <style>
   :root{
@@ -258,6 +259,27 @@
   devuelve el mismo error genérico para ambos casos (no le filtra a un atacante si una cuenta
   existe o está baneada), así que tampoco se puede — ni se debe — distinguir del lado del
   cliente.</p>
+
+  <h3>14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)</h3>
+  <p>3 Edge Functions (<code>leer-pauta-pm</code>, <code>leer-informe-correctivo</code>,
+  <code>leer-chequeo-neumaticos</code>) le sacan una foto a un papel firmado en terreno (pauta de
+  PM, informe de correctivo, o chequeo diario de neumáticos) y devuelven los campos como JSON
+  estructurado, para prellenar el formulario correspondiente en vez de tipear todo a mano.
+  Nacieron de una tarea real de esta sesión: 7 pautas firmadas en PDF que había que leer y tipear
+  una por una, incluyendo un caso de letra ambigua.</p>
+  <p><b>Nunca escriben directo a producción</b>: solo prellenan el formulario (el usuario sigue
+  apretando Guardar) — mismo principio de "no inventar" que ya sigue <code>parseCorrectivo.ts</code>
+  (sección 12). Cada respuesta incluye <code>camposInciertos</code>, que marca en amarillo qué
+  campo conviene revisar con más cuidado antes de confirmar.</p>
+  <div class="callout">
+    <b>Modelo</b>: <code>gemini-3.6-flash</code> (Google Generative Language API, HTTP directo,
+    sin SDK). <code>gemini-2.5-flash</code> quedó deprecado para llaves nuevas, probado en vivo el
+    2026-08-25. <b>Por qué Gemini</b>: <code>GEMINI_API_KEY</code> es una cuenta separada de la de
+    Claude.ai del usuario (Google AI Studio, nivel gratuito propio) — se eligió porque no requería
+    medio de pago para partir. <b>Seguridad</b>: <code>verify_jwt=true</code>, igual que el resto —
+    no hace falta validar el token adentro, a diferencia de <code>crear-operador</code> (que
+    además necesita confirmar rol admin).
+  </div>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

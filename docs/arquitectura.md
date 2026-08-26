@@ -310,6 +310,39 @@ Supabase Auth devuelve el mismo error genérico para ambos casos (no le
 filtra a un atacante si una cuenta existe o está baneada), así que tampoco
 se puede — ni se debe — distinguir del lado del cliente.
 
+### 14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)
+
+3 Edge Functions (`leer-pauta-pm`, `leer-informe-correctivo`,
+`leer-chequeo-neumaticos`) le sacan una foto a un papel firmado en terreno
+(pauta de PM programada, informe de correctivo de taller, o chequeo diario
+de neumáticos) y devuelven los campos como JSON estructurado, para
+prellenar el formulario correspondiente en vez de tipear todo a mano.
+Nacieron de una tarea real de esta sesión: 7 pautas firmadas en PDF que
+había que leer y tipear una por una, incluyendo un caso de letra ambigua
+(horómetro que podía leerse de dos formas distintas).
+
+**Nunca escriben directo a producción**: solo prellenan el formulario (el
+usuario sigue apretando Guardar) — mismo principio de "no inventar" que ya
+sigue `parseCorrectivo.ts` (sección 12). Cada respuesta incluye
+`camposInciertos`, que marca en amarillo qué campo conviene revisar con más
+cuidado antes de confirmar, en vez de asumir que la lectura automática
+siempre acertó.
+
+**Modelo**: `gemini-3.6-flash` (Google Generative Language API, llamada
+directo por HTTP — sin SDK). `gemini-2.5-flash` quedó deprecado para llaves
+nuevas, probado en vivo el 2026-08-25 al desplegar la primera de las tres.
+
+**Por qué Gemini y no otro proveedor**: `GEMINI_API_KEY` es una cuenta
+separada de la de Claude.ai del usuario (Google AI Studio, con nivel
+gratuito propio) — se eligió específicamente porque no requería medio de
+pago para partir.
+
+**Seguridad**: `verify_jwt=true` (el default seguro) ya exige un usuario
+logueado real antes de que el código corra — no hace falta validar el
+token de nuevo adentro, a diferencia de `crear-operador` (que además
+necesita confirmar que el usuario es admin; acá cualquiera que puede usar
+la pestaña correspondiente puede usar el OCR).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No convertir a módulos ES**: cambiar `<script>` planos a
