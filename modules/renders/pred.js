@@ -72,6 +72,15 @@ var _CATEGORIAS_COMPONENTE=[
   // volteo (jul-2026, aún fuera de servicio). Ambos casos ameritan revisión
   // de ingeniería (sobrecarga, fatiga), no solo cambiar la pieza rota de nuevo.
   ['Biela/Pantógrafo',['biela','pantografo','pantógrafo']],
+  // Nueva (2026-08, pedido del usuario al revisar el historial de "soporte de
+  // cabina" cargado desde ordenes_trabajo): esos datos ya traían una categoría
+  // propia, "Tren de Rodaje" (10 eventos reales — tensado de oruga/cadena,
+  // pernos de sprocket y zapata, cambio de rodillos), específica de equipos
+  // con orugas (bulldozer BD-xxxx). No existía en este listado — sin categoría
+  // acá, un correctivo nuevo con "se cambian rodillos" o "tensado de cadena"
+  // en el campo síntoma (que es donde vive el texto real, ver nota arriba)
+  // quedaba sin clasificar o caía por accidente en otra categoría genérica.
+  ['Tren de Rodaje',['oruga','cadena','sprocket','zapata','rodillo','rueda tensora']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
