@@ -122,9 +122,18 @@ un paso aparte, todavía no hecho.
 incluye `historial_componentes` e `historial_neumaticos`, agregadas en la
 auditoría de agosto 2026 para poder responder "cuánto duró cada instalación
 real" sin perder el dato cada vez que se actualiza el estado actual, y
-`correctivos_historico`, cargada en agosto 2026 desde planillas Excel
-2022-2025 previas a este sistema — alimenta el cálculo de Probabilidad de
-Falla en Predictivo con más muestra histórica), más 7 "singleton" de
+`correctivos_historico`, cargada en agosto 2026 desde 3 fuentes previas a
+este sistema — 3.285 registros en total: 1.180 de órdenes de trabajo
+Excel, 1.680 de planillas "Disponibilidad Mecánica" 2021-2024 (sumadas
+2026-08-26) y 425 de mensajes WhatsApp históricos — alimenta el cálculo de
+Probabilidad de Falla en Predictivo con más muestra histórica. Las 3
+fuentes comparten la misma columna `sistema` (componente) con el mismo
+listado de categorías que usa el clasificador de correctivos actuales
+(`_CATEGORIAS_COMPONENTE` en `pred.js`) — reconciliadas 2026-08-26 tras
+encontrar categorías inconsistentes entre fuentes (ej. "Superestructura" vs
+"Soporte de Cabina" para el mismo componente real) y, en la fuente
+WhatsApp, 201 registros donde ese campo había quedado con el mensaje
+original en vez de una categoría), más 7 "singleton" de
 configuración (una sola fila fija: `configuracion`, `tarifa_hh`, `metas`,
 etc.). El mapeo completo entre cada categoría del frontend y su tabla real
 vive en `TABLA_REAL`/`TABLA_SINGLETON`, dentro de `modules/store.js`.
@@ -300,6 +309,39 @@ Deliberadamente no distingue "clave incorrecta" de "cuenta bloqueada":
 Supabase Auth devuelve el mismo error genérico para ambos casos (no le
 filtra a un atacante si una cuenta existe o está baneada), así que tampoco
 se puede — ni se debe — distinguir del lado del cliente.
+
+### 14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)
+
+3 Edge Functions (`leer-pauta-pm`, `leer-informe-correctivo`,
+`leer-chequeo-neumaticos`) le sacan una foto a un papel firmado en terreno
+(pauta de PM programada, informe de correctivo de taller, o chequeo diario
+de neumáticos) y devuelven los campos como JSON estructurado, para
+prellenar el formulario correspondiente en vez de tipear todo a mano.
+Nacieron de una tarea real de esta sesión: 7 pautas firmadas en PDF que
+había que leer y tipear una por una, incluyendo un caso de letra ambigua
+(horómetro que podía leerse de dos formas distintas).
+
+**Nunca escriben directo a producción**: solo prellenan el formulario (el
+usuario sigue apretando Guardar) — mismo principio de "no inventar" que ya
+sigue `parseCorrectivo.ts` (sección 12). Cada respuesta incluye
+`camposInciertos`, que marca en amarillo qué campo conviene revisar con más
+cuidado antes de confirmar, en vez de asumir que la lectura automática
+siempre acertó.
+
+**Modelo**: `gemini-3.6-flash` (Google Generative Language API, llamada
+directo por HTTP — sin SDK). `gemini-2.5-flash` quedó deprecado para llaves
+nuevas, probado en vivo el 2026-08-25 al desplegar la primera de las tres.
+
+**Por qué Gemini y no otro proveedor**: `GEMINI_API_KEY` es una cuenta
+separada de la de Claude.ai del usuario (Google AI Studio, con nivel
+gratuito propio) — se eligió específicamente porque no requería medio de
+pago para partir.
+
+**Seguridad**: `verify_jwt=true` (el default seguro) ya exige un usuario
+logueado real antes de que el código corra — no hace falta validar el
+token de nuevo adentro, a diferencia de `crear-operador` (que además
+necesita confirmar que el usuario es admin; acá cualquiera que puede usar
+la pestaña correspondiente puede usar el OCR).
 
 ## Lo que decidimos NO hacer (y por qué)
 
