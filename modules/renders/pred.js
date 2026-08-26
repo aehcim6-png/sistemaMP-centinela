@@ -80,7 +80,11 @@ var _CATEGORIAS_COMPONENTE=[
   // acá, un correctivo nuevo con "se cambian rodillos" o "tensado de cadena"
   // en el campo síntoma (que es donde vive el texto real, ver nota arriba)
   // quedaba sin clasificar o caía por accidente en otra categoría genérica.
-  ['Tren de Rodaje',['oruga','cadena','sprocket','zapata','rodillo','rueda tensora']],
+  // 'rueda motriz' sumada (2026-08, auditoría de la fuente WhatsApp): 3 eventos
+  // reales de BD-509 ("pernos sueltos de rueda motriz", "segmento rueda motriz
+  // suelto") quedaban sin categoría — es la rueda dentada que mueve la oruga,
+  // mismo conjunto mecánico que sprocket/zapata/cadena.
+  ['Tren de Rodaje',['oruga','cadena','sprocket','zapata','rodillo','rueda tensora','rueda motriz']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
