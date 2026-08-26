@@ -38,7 +38,7 @@ window.renderOt=function(){
         '</div>';
     }).join('')+
     '</div>':'';
-  const fEq=$('fOtEq')?.value||'',fTipo=$('fOtTipo')?.value||'',fEst=$('fOtEst')?.value||'';
+  const fEq=$('fOtEq')?.value||'',fTipo=$('fOtTipo')?.value||'',fEst=$('fOtEst')?.value||'',fTexto=($('fOtTexto')?.value||'').trim().toLowerCase();
   // Incluir correctivos que vienen de Registro PM
   const regCorr=reg.filter(r=>r.tipoPM==='Correctivo'||r.estatusEq==='Fuera de Servicio');
   const todos=[...ot,...regCorr.map(r=>({sigla:r.equipo,fecha:r.fechaEntrada,tipo:'Correctivo (desde PM)',
@@ -48,7 +48,8 @@ window.renderOt=function(){
     fechaEntrada:r.fechaEntrada,horaEntrada:r.horaEntrada,
     fechaSalida:r.fechaSalida,horaSalida:r.horaSalida,
     estatusEq:r.estatusEq,fromReg:true}))];
-  const fil=todos.filter(o=>(!fEq||o.sigla===fEq)&&(!fTipo||o.tipo?.includes(fTipo))&&(!fEst||o.estatusEq===fEst));
+  const fil=todos.filter(o=>(!fEq||o.sigla===fEq)&&(!fTipo||o.tipo?.includes(fTipo))&&(!fEst||o.estatusEq===fEst)&&
+    (!fTexto||[o.componente,o.sintoma,o.causaRaiz,o.solucion].some(t=>(t||'').toLowerCase().includes(fTexto))));
   const pg=_pagSlice('ot',fil);
   const tc=ot.reduce((s,o)=>s+(o.costo||0),0);
   const inmed=fil.filter(o=>o.criticidad==='Reparación Inmediata').length;
@@ -91,6 +92,7 @@ window.renderOt=function(){
       <select id="fOtEq" onchange="window._pag.ot=1;renders.ot()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${escapeHtml(e.sigla)}</option>`).join('')}</select>
       <select id="fOtTipo" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo tipo</option><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option></select>
       <select id="fOtEst" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo estatus</option><option value="Fuera de Servicio">Fuera de Servicio</option><option value="Operativo">Operativo</option></select>
+      <input type="text" id="fOtTexto" value="${escapeHtml(fTexto)}" placeholder="🔍 Buscar por componente/síntoma/solución (ej: alternador, turbo, asiento)..." oninput="window._pag.ot=1;renders.ot()" style="min-width:280px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:5px 8px">
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
     ${compCards}
