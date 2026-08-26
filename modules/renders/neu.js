@@ -81,8 +81,8 @@ window.renderNeu=function(){
     }
     return{h:Math.round(n.horasAcum||0),live:false};
   };
-  const fEq=$('fNeuEq')?.value||'',fTipo=$('fNeuTipo')?.value||'';
-  const fil=neu.filter(n=>(!fEq||n.sigla===fEq)&&(!fTipo||n.tipoEquipo===fTipo));
+  const fEq=$('fNeuEq')?.value||'',fTipo=$('fNeuTipo')?.value||'',fEstado=$('fNeuEstado')?.value||'';
+  const fil=neu.filter(n=>(!fEq||n.sigla===fEq)&&(!fTipo||n.tipoEquipo===fTipo)&&(!fEstado||(n.estado||'Operativo')===fEstado));
   // Ordenamiento por columna
   if(window._neuSort){
     const{key,dir}=window._neuSort;
@@ -110,6 +110,7 @@ window.renderNeu=function(){
   const sensoresOperativos=(S.g('sen')||[]).filter(s=>s.estado==='Operativo').length;
   const costoSensoresUSD=sensoresOperativos*SEN_PRECIO.usd;
   const eqs=[...new Set(neu.map(n=>n.sigla))].sort();
+  const estadosNeu=[...new Set(neu.map(n=>n.estado||'Operativo'))].sort();
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
@@ -125,6 +126,7 @@ window.renderNeu=function(){
     <div class="toolbar">
       <select id="fNeuEq" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos equipos</option>${eqs.map(s=>`<option${s===fEq?' selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
       <select id="fNeuTipo" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos tipos</option><option value="CAEX">CAEX</option><option value="CF">Cargador</option><option value="MN">Motoniveladora</option><option value="ALJ">Aljibe</option><option value="CAM">Camioneta</option><option value="BUS">Bus</option></select>
+      <select id="fNeuEstado" onchange="window._pag.neu=1;renders.neu()"><option value="">Todos estados</option>${estadosNeu.map(s=>`<option${s===fEstado?' selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
     </div>
     ${_pagHTML('neu',pg)}
     <datalist id="dlMarcasNeu"><option value="MICHELIN"><option value="BRIDGESTONE"><option value="GOODYEAR"><option value="WESTLAKE"></datalist>
