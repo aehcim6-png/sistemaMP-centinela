@@ -382,7 +382,78 @@ window.addOT=function(){
     <div class="fg"><label>LOTO Aplicado</label><select id="otLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     <div class="fg"><label>Autorizado por</label><input id="otAutoriza" placeholder="Nombre..."></div>
     </div>
-    <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarOTPorVoz()">${ICONS.mic} Completar por voz</button>`);
+    <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarOTPorVoz()">${ICONS.mic} Completar por voz</button> <button type="button" class="btn btn-o" onclick="_activarLeerCorrectivoOT()">📷 Leer informe (foto)</button><input type="file" id="otCorrectivoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerCorrectivoOTFotoSeleccionada(this)">`);
+};
+
+// ── Leer informe de correctivo desde foto (leer-informe-correctivo) ──
+// Misma función OCR que usa Registrar PM (reg.js) para el papel "INFORME
+// MANTENIMIENTO EN TALLER" — acá prellena la ficha real donde se registran
+// los correctivos, "Nueva OT Correctivo", en vez del registro de PM.
+window._activarLeerCorrectivoOT=function(){
+  const inp=$('otCorrectivoFoto');
+  if(inp)inp.click();
+};
+window._leerCorrectivoOTFotoSeleccionada=async function(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  toast('⏳ Leyendo informe...');
+  try{
+    const comp=await comprimirImagen(file);
+    if(!comp){toast('⚠️ No se pudo leer la foto');input.value='';return;}
+    const base64=comp.dataUrl.split(',')[1];
+    const resp=await _llamarOCRFuncion('leer-informe-correctivo',base64,'image/jpeg');
+    if(resp.error){toast('⚠️ '+resp.error);input.value='';return;}
+    _prellenarDesdeOCRCorrectivoOT(resp.datos||{});
+  }catch(err){
+    toast('⚠️ Error leyendo informe: '+err.message);
+  }
+  input.value='';
+};
+window._prellenarDesdeOCRCorrectivoOT=function(datos){
+  const inc=datos.camposInciertos||[];
+  function marcar(id,incierto){
+    const el=$(id);
+    if(!el)return;
+    el.style.outline=incierto?'2px solid var(--warn)':'';
+    el.style.background=incierto?'rgba(234,179,8,.12)':'';
+  }
+  if(datos.sigla){
+    const eq=S.g('eq')||[];
+    const cand=_matchEquipoPorSiglaOCR(datos.sigla,eq);
+    marcar('oEq',true);
+    if(cand)$('oEq').value=cand.sigla;
+  }
+  if(datos.horometro){$('oHor').value=datos.horometro;marcar('oHor',inc.includes('horometro'));}
+  // "Entrega del equipo" = cuando entra a taller (inicio de la intervención);
+  // "Recepción del equipo" = cuando se recibe de vuelta (fin) — mismo orden
+  // que Entrada/Salida de este formulario.
+  if(datos.fechaEntrega){$('oFecEnt').value=datos.fechaEntrega;marcar('oFecEnt',true);}
+  else if(datos.fecha){$('oFecEnt').value=datos.fecha;marcar('oFecEnt',true);}
+  if(datos.horaEntrega)$('oHoraEnt').value=datos.horaEntrega;
+  if(datos.fechaRecepcion)$('oFecSal').value=datos.fechaRecepcion;
+  if(datos.horaRecepcion)$('oHoraSal').value=datos.horaRecepcion;
+  calcDurOT();
+  if(datos.reparacionEfectuada){
+    $('oSint').value=datos.reparacionEfectuada;
+    marcar('oSint',inc.includes('reparacionEfectuada'));
+  }
+  const refs=[];
+  if(datos.numeroOT)refs.push('OT '+datos.numeroOT);
+  if(datos.incidente)refs.push('Incidente: '+datos.incidente);
+  if(datos.mantenimientoAprobado)refs.push('Mantenimiento aprobado: '+datos.mantenimientoAprobado);
+  if(datos.mantenedor)refs.push('Mantenedor: '+datos.mantenedor);
+  if(datos.accionASeguir)refs.push('Acción a seguir: '+datos.accionASeguir);
+  const causaEl=$('oCausa');
+  if(causaEl){
+    const partes=[];
+    if(datos.observacionesDetectadas)partes.push(datos.observacionesDetectadas);
+    if(refs.length)partes.push('['+refs.join(' · ')+']');
+    if(partes.length){
+      causaEl.value=partes.join(' — ');
+      marcar('oCausa',inc.includes('observacionesDetectadas'));
+    }
+  }
+  toast('📷 Informe leído — revisa los campos marcados en amarillo antes de guardar');
 };
 
 // ---- Flujo: Nueva OT Correctivo por voz ----
