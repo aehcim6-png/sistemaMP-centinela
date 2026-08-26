@@ -9,6 +9,50 @@
 // voz genérico) y cerrarSalidaServicio (también usado por Disponibilidad)
 // quedan compartidos en index.html.
 // ═══════════════════════════════════════════════════════════════
+// Resumen de búsqueda por palabra clave (2026-08, a pedido del usuario:
+// "puedo buscar cualquier cosa y me indica cuándo se cambió y cuánto se
+// cambió") — arriba de la tabla filtrada por 'fOtTexto' se agrega cuántas
+// veces aparece el término, en qué rango de fechas y en cuántos equipos, más
+// una alerta cuando el MISMO equipo concentra 3+ resultados para ese término
+// — mismo umbral que ya usan compCards (>=3 = rojo) y el patrón de
+// Biela/Pantógrafo en pred.js para fallas recurrentes en el mismo conjunto:
+// no es evidencia de mala reparación por sí sola (depende de qué se buscó),
+// así que el mensaje queda como sugerencia a revisar, no una conclusión.
+function _otResumenBusquedaHTML(fil,fTexto){
+  if(!fTexto||!fil.length)return'';
+  var porEq={};
+  fil.forEach(function(o){
+    if(!o.sigla)return;
+    (porEq[o.sigla]=porEq[o.sigla]||[]).push(o.fechaEntrada||o.fecha||'');
+  });
+  var fechas=fil.map(function(o){return o.fechaEntrada||o.fecha||'';}).filter(Boolean).sort();
+  var nEquipos=Object.keys(porEq).length;
+  var recurrentes=Object.keys(porEq).filter(function(s){return porEq[s].length>=3;})
+    .map(function(s){
+      var fs=porEq[s].filter(Boolean).slice().sort();
+      var intervalos=[];
+      for(var i=1;i<fs.length;i++){
+        var d=_diasEntreISO(fs[i-1],fs[i]);
+        if(d>0)intervalos.push(d);
+      }
+      var promDias=intervalos.length?Math.round(intervalos.reduce(function(a,b){return a+b;},0)/intervalos.length):null;
+      return{sigla:s,veces:porEq[s].length,promDias:promDias};
+    }).sort(function(a,b){return b.veces-a.veces;});
+  var html='<div class="card" style="margin-bottom:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<b style="font-size:12px">🔍 '+fil.length+' resultado'+(fil.length===1?'':'s')+' para "'+escapeHtml(fTexto)+'"</b>'+
+    '<span style="font-size:11px;color:var(--tx3)">'+nEquipos+' equipo'+(nEquipos===1?'':'s')+
+    (fechas.length?' · entre '+fd(fechas[0])+' y '+fd(fechas[fechas.length-1]):'')+'</span></div>';
+  if(recurrentes.length){
+    html+='<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:10px">'+
+      '<b style="font-size:12px;color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Se repite 3+ veces en el mismo equipo — si es la misma falla, vale revisar causa raíz en vez de solo repetir el cambio</b>'+
+      recurrentes.map(function(r){
+        return'<div style="font-size:12px;margin-top:6px"><span class="mono" style="color:var(--ac);font-weight:600">'+escapeHtml(r.sigla)+'</span>'+
+          ' — '+r.veces+' veces'+(r.promDias?' · cada ~'+r.promDias+' día'+(r.promDias===1?'':'s')+' en promedio':'')+'</div>';
+      }).join('')+
+      '</div>';
+  }
+  return html;
+}
 window.renderOt=function(){
   const ot=S.g('ot')||[],eq=S.g('eq')||[];
   const reg=S.g('reg')||[];
@@ -48,8 +92,25 @@ window.renderOt=function(){
     fechaEntrada:r.fechaEntrada,horaEntrada:r.horaEntrada,
     fechaSalida:r.fechaSalida,horaSalida:r.horaSalida,
     estatusEq:r.estatusEq,fromReg:true}))];
-  const fil=todos.filter(o=>(!fEq||o.sigla===fEq)&&(!fTipo||o.tipo?.includes(fTipo))&&(!fEst||o.estatusEq===fEst)&&
-    (!fTexto||[o.componente,o.sintoma,o.causaRaiz,o.solucion].some(t=>(t||'').toLowerCase().includes(fTexto))));
+  const _filtroOt=o=>(!fEq||o.sigla===fEq)&&(!fTipo||o.tipo?.includes(fTipo))&&(!fEst||o.estatusEq===fEst)&&
+    (!fTexto||[o.componente,o.sintoma,o.causaRaiz,o.solucion].some(t=>(t||'').toLowerCase().includes(fTexto)));
+  let fil=todos.filter(_filtroOt);
+  // Al buscar por palabra clave, sumar también coincidencias del historial 2022-2024
+  // (correctivos_historico, cargado vía otHist) — antes esta búsqueda solo miraba
+  // 'ot' del día a día, así que un evento real como "cambio de alternador" cargado
+  // desde Excel (con fecha y horómetro reales) no aparecía nunca acá, aunque sí
+  // está en la base y ya se usa en Estadística/Predictivo. No se suma al listado
+  // base sin búsqueda activa para no inflar "Total OT" con miles de filas
+  // históricas de golpe — solo aparecen cuando el usuario efectivamente busca algo.
+  if(fTexto){
+    const histAsOt=(S.g('otHist')||[]).map(function(h){
+      return{sigla:h.sigla,fecha:h.fecha,fechaEntrada:h.fecha,tipo:'Correctivo (histórico)',
+        criticidad:'No Aplica',sintoma:h.descripcion||'',componente:h.sistema||'',
+        causaRaiz:'',solucion:'',horom:h.horometro,costo:0,duracion:'—',
+        estatusEq:'Operativo',tecnico:h.responsable||'',estadoOT:'Cerrada',fromHist:true};
+    });
+    fil=[...fil,...histAsOt.filter(_filtroOt)];
+  }
   const pg=_pagSlice('ot',fil);
   const tc=ot.reduce((s,o)=>s+(o.costo||0),0);
   const inmed=fil.filter(o=>o.criticidad==='Reparación Inmediata').length;
@@ -97,6 +158,7 @@ window.renderOt=function(){
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
     ${compCards}
     </div>
+    ${_otResumenBusquedaHTML(fil,fTexto)}
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
     ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
@@ -106,25 +168,37 @@ window.renderOt=function(){
         const idx=fil.indexOf(o);
         const col=o.estatusEq==='Fuera de Servicio'?'var(--danger)':'var(--ok)';
         const fromReg=o.fromReg;
+        const fromHist=o.fromHist;
+        const readOnly=fromReg||fromHist;
         const es='background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
         const estOT=o.estadoOT||'Cerrada';
         const estCol2=estOT==='Pendiente'?'var(--danger)':estOT==='En Ejecución'?'var(--w)':'var(--ok)';
         var otRow='<tr style="'+(o.estatusEq==='Fuera de Servicio'||estOT==='Pendiente'?'background:rgba(239,68,68,.04)':'')+'">';
-        otRow+='<td class="mono" style="color:var(--tx3)">'+(fromReg?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>REG':'OT-'+String(idx+1).padStart(3,'0'))+'</td>';
+        otRow+='<td class="mono" style="color:var(--tx3)">'+(fromReg?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>REG':fromHist?'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5 V10 l3 2" fill="none"/></svg>HIST':'OT-'+String(idx+1).padStart(3,'0'))+'</td>';
         otRow+='<td class="mono" style="color:var(--ac)">'+escapeHtml(o.sigla||'—')+'</td>';
         otRow+='<td style="font-size:10px"><span class="badge '+(o.tipo?.includes('Falla')||o.tipo==='Correctivo'?'b-r':'b-y')+'">'+(o.tipo||'—')+'</span></td>';
         otRow+='<td class="mono" style="font-size:10px">'+fd(o.fechaEntrada||o.fecha)+'</td>';
         otRow+='<td class="mono" style="font-size:10px;color:var(--w)">'+(o.duracion||'—')+'</td>';
-        otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.sintoma||'')+'" '+(fromReg?'disabled':'onchange="edOT('+i+',\'sintoma\',this.value)"')+' style="'+es+'" title="'+escapeHtml(o.sintoma||'')+'"></td>';
-        otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.causaRaiz||'')+'" '+(fromReg?'disabled':'onchange="edOT('+i+',\'causaRaiz\',this.value)"')+' style="'+es+';color:var(--w)" placeholder="Causa..."></td>';
-        otRow+='<td style="max-width:90px"><input value="'+escapeHtml(o.componente||'')+'" '+(fromReg?'disabled':'onchange="edOT('+i+',\'componente\',this.value)"')+' style="'+es+'" placeholder="Componente..."></td>';
-        otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.solucion||'')+'" '+(fromReg?'disabled':'onchange="edOT('+i+',\'solucion\',this.value)"')+' style="'+es+';color:var(--ok)" placeholder="Solución..."></td>';
+        otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.sintoma||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'sintoma\',this.value)"')+' style="'+es+'" title="'+escapeHtml(o.sintoma||'')+'"></td>';
+        otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.causaRaiz||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'causaRaiz\',this.value)"')+' style="'+es+';color:var(--w)" placeholder="Causa..."></td>';
+        otRow+='<td style="max-width:90px"><input value="'+escapeHtml(o.componente||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'componente\',this.value)"')+' style="'+es+'" placeholder="Componente..."></td>';
+        otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.solucion||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'solucion\',this.value)"')+' style="'+es+';color:var(--ok)" placeholder="Solución..."></td>';
         if(fromReg){otRow+='<td><span style="font-size:10px">PM</span></td>';}
+        else if(fromHist){otRow+='<td><span style="font-size:10px;color:var(--tx3)">Histórico</span></td>';}
         else{otRow+='<td><select onchange="edOT('+i+',\'estadoOT\',this.value)" style="font-size:10px;background:var(--bg3);color:'+estCol2+';border:1px solid var(--bd);border-radius:3px;font-weight:600"><option'+(estOT==='Pendiente'?' selected':'')+'>Pendiente</option><option'+(estOT==='En Ejecución'?' selected':'')+'>En Ejecución</option><option'+(estOT==='Cerrada'?' selected':'')+'>Cerrada</option></select></td>';}
         otRow+='<td style="font-size:10px">'+escapeHtml(o.tecnico||'—')+'</td>';
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
+        else if(fromHist){otRow+='<td class="mono" style="font-size:10px;color:var(--tx3)">—</td>';}
         else{otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;'+CELL_INPUT_STYLE+';font-size:10px"></td>';}
-        otRow+='<td>'+(fromReg?'<span style="font-size:9px;color:var(--tx3)">PM</span> ':'<button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia (foto o PDF)" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button>')+'<button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>';
+        // Botón eliminar: solo para OT reales de este equipo (i>=0) — para filas que
+        // vienen de Registro PM o del historial, 'i' es -1 (ot.indexOf no las
+        // encuentra) y delRow('ot',-1,...) hace splice(-1,1), que borra el ÚLTIMO
+        // elemento de 'ot' (una OT real y distinta), no un no-op. Bug preexistente
+        // en fromReg que quedaba oculto porque casi nadie hacía clic ahí; se hace
+        // explícito acá porque las filas de historial (fromHist) multiplican por
+        // mucho cuántas filas ajenas a 'ot' aparecen en esta tabla al buscar.
+        if(i<0){otRow+='<td><span style="font-size:9px;color:var(--tx3)">'+(fromReg?'PM':'HIST')+'</span></td>';}
+        else{otRow+='<td><button class="btn-x" onclick="gestionarFotosOT('+i+')" title="Evidencia (foto o PDF)" style="margin-right:4px">📷'+(o.fotos&&o.fotos.length?' '+o.fotos.length:'')+'</button><button class="btn-s btn-d" onclick="delRow(\'ot\','+i+',\'ot\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>';}
         otRow+='</tr>';
         return otRow;
       }).join('')}
