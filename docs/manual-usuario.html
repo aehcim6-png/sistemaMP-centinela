@@ -97,12 +97,12 @@
     <tr><td><b>Equipos</b></td><td>Flota completa, horómetros, estado de PM, ficha técnica</td></tr>
     <tr><td><b>Registro PM</b></td><td>Registrar cada mantención preventiva ejecutada</td></tr>
     <tr><td><b>Correctivos</b></td><td>Órdenes de trabajo por falla, causa raíz, componente — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces</td></tr>
-    <tr><td><b>Neumáticos</b></td><td>Remanente, cambios, sensores de presión</td></tr>
+    <tr><td><b>Neumáticos</b></td><td>Remanente, cambios, sensores de presión, gráfico de desgaste con fecha de cambio por neumático — "Resumen flota" proyecta cuántos neumáticos vas a necesitar por mes/semestre/año</td></tr>
     <tr><td><b>Horómetros</b></td><td>Historial de lecturas por equipo</td></tr>
     <tr><td><b>Disponibilidad</b></td><td>% de disponibilidad mecánica, meta y tendencia</td></tr>
     <tr><td><b>Análisis Aceite</b></td><td>Muestras de laboratorio, estado por componente</td></tr>
     <tr><td><b>Vencimientos</b></td><td>Documentos legales por equipo</td></tr>
-    <tr><td><b>Stock & Insumos</b></td><td>Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra": historial real por mes/semestre/año y en qué fecha conviene pedirlo</td></tr>
+    <tr><td><b>Stock & Insumos</b></td><td>Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo</td></tr>
     <tr><td><b>Predictivo</b></td><td>Diagnóstico automático, alertas cruzadas, backlog</td></tr>
     <tr><td><b>Planificación y Agenda</b></td><td>Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria</td></tr>
     <tr><td><b>Pautas</b></td><td>Actividades de mantención por tipo de PM</td></tr>
@@ -147,6 +147,11 @@
   cuántos meses de cobertura le quedan al stock actual, en qué mes se agotaría, y la fecha
   sugerida para pedirlo (restando el tiempo de entrega del proveedor). Si el ítem todavía no
   tiene historial real, el sistema lo dice en vez de inventar un número.</p>
+  <p><b>¿Cómo sé cuántos neumáticos voy a necesitar este año?</b><br>En <b>Neumáticos → Resumen
+  flota</b> hay una sección "Proyección de reemplazos por período" (Mes/Semestre/Año), con una
+  tarjeta destacada de cuántos neumáticos — y cuánto costo — vas a necesitar hasta fin de año. No
+  es un promedio: es la suma de la fecha de cambio real que cada neumático ya calcula por su
+  cuenta (gráfico de desgaste, botón 🔍 en cada fila), agrupada por período.</p>
 
   <div class="callout">
     Para el detalle completo de cada función, abre el sistema y ve a la pestaña <b>❓ Ayuda</b> —

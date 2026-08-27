@@ -74,12 +74,12 @@ pierde en silencio el cambio de uno de los dos.
 | Equipos | Flota completa, horómetros, estado de PM, ficha técnica |
 | Registro PM | Registrar cada mantención preventiva ejecutada |
 | Correctivos | Órdenes de trabajo por falla, causa raíz, componente — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces |
-| Neumáticos | Remanente, cambios, sensores de presión |
+| Neumáticos | Remanente, cambios, sensores de presión, gráfico de desgaste con fecha de cambio por neumático — "Resumen flota" proyecta cuántos neumáticos vas a necesitar por mes/semestre/año |
 | Horómetros | Historial de lecturas por equipo |
 | Disponibilidad | % de disponibilidad mecánica, meta y tendencia |
 | Análisis Aceite | Muestras de laboratorio, estado por componente |
 | Vencimientos | Documentos legales por equipo (revisión técnica, seguro, etc.) |
-| Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra": historial real por mes/semestre/año y en qué fecha conviene pedirlo |
+| Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo |
 | Predictivo | Diagnóstico automático, alertas cruzadas, backlog |
 | Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
@@ -144,6 +144,14 @@ cobertura le quedan al stock actual, en qué mes se agotaría, y la fecha
 sugerida para pedirlo (restando el tiempo de entrega del proveedor). Si el
 ítem todavía no tiene historial real, el sistema lo dice en vez de
 inventar un número.
+
+**¿Cómo sé cuántos neumáticos voy a necesitar este año?**
+En **Neumáticos → Resumen flota** hay una sección "Proyección de reemplazos
+por período" (Mes/Semestre/Año), con una tarjeta destacada de cuántos
+neumáticos — y cuánto costo — vas a necesitar hasta fin de año. No es un
+promedio: es la suma de la fecha de cambio real que cada neumático ya
+calcula por su cuenta (gráfico de desgaste, botón 🔍 en cada fila),
+agrupada por período.
 
 ---
 
