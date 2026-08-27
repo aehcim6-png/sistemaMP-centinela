@@ -245,7 +245,8 @@ window.renderCfg=function(){
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
       '<button class="btn" onclick="applyTheme(\'dark\');toast(\'🌙 Tema oscuro aplicado\')" style="background:#1a1a2e;color:#fff">🌙 Oscuro</button>'+
       '<button class="btn" onclick="applyTheme(\'light\');toast(\'☀️ Tema claro aplicado\')" style="background:#f8f9fa;color:#333">☀️ Claro</button>'+
-      '<button class="btn" onclick="applyTheme(\'blue\');toast(\'💎 Tema azul aplicado\')" style="background:#0a1628;color:#64b5f6">💎 Azul Minero</button></div>'+
+      '<button class="btn" onclick="applyTheme(\'blue\');toast(\'💎 Tema azul aplicado\')" style="background:#0a1628;color:#64b5f6">💎 Azul Minero</button>'+
+      '<button class="btn" onclick="applyTheme(\'ejecutiva\');toast(\'👔 Tema Ejecutivo aplicado\')" style="background:#F8FAFC;color:#0D1B2A;border:1px solid #D1D5DB">👔 Ejecutivo</button></div>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Tamaño de letra</label><br>'+
       '<select onchange="document.documentElement.style.fontSize=this.value;var c=S.g(\'cfg\')||{};c.fontSize=this.value;S.s(\'cfg\',c)" style="padding:4px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
       '<option value="13px">Normal</option><option value="12px">Pequeña</option><option value="14px">Grande</option><option value="15px">Extra Grande</option></select></div>'+
