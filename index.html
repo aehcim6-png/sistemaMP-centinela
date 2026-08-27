@@ -294,11 +294,11 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/comp2.js?v=2026-08-15"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
-<script src="modules/renders/lub.js?v=2026-08-14"></script>
-<script src="modules/renders/stk.js?v=2026-08-24b"></script>
+<script src="modules/renders/lub.js?v=2026-08-27a"></script>
+<script src="modules/renders/stk.js?v=2026-08-27a"></script>
 <script src="modules/renders/cos.js?v=2026-08-18"></script>
 <script src="modules/renders/mov.js?v=2026-08-05"></script>
-<script src="modules/renders/rep.js?v=2026-08-14"></script>
+<script src="modules/renders/rep.js?v=2026-08-27a"></script>
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
@@ -1158,6 +1158,104 @@ renders.lub=renderLub;
 window.edI=function(store,idx,key,val){
   var d=S.g(store)||[];
   if(_edCampo(store,d,idx,key,val))refreshAll();
+};
+
+// ═══ TENDENCIA Y PROYECCIÓN DE COMPRA (por ítem) ═══ (2026-08-27, a pedido
+// del usuario tras usar Dotación de Taller: "¿puedo usar algo así para
+// indicar cuándo debo comprar un repuesto, un filtro, un aceite?"). Mismo
+// método que Dotación de Taller (pred.js): agrupa eventos reales por
+// mes/semestre/año y proyecta con el promedio móvil de los últimos meses con
+// datos — nunca inventa un consumo si no hay historial real. Compartido por
+// Stock Filtros (mov filtrado por tipo Filtro), Lubricantes (mov filtrado por
+// tipo Lubricante) y Control de Repuestos (ordenes de compra, ya que la mayoría
+// de sus ítems no pasan por 'mov' — no tienen consumo de pauta vinculado).
+function _agruparPeriodoItem(mes,gran){
+  if(gran==='año')return mes.slice(0,4);
+  if(gran==='semestre'){var yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
+  return mes;
+}
+function _tendenciaCompraHTML(eventos,stockActual,unidad,gran,leadTimeDias){
+  gran=gran||'mes';
+  var porMes={};
+  (eventos||[]).forEach(function(e){
+    if(!e.fecha)return;
+    var mes=e.fecha.slice(0,7);
+    porMes[mes]=(porMes[mes]||0)+(e.cant||0);
+  });
+  var meses=Object.keys(porMes).sort();
+  if(!meses.length){
+    return '<p style="color:var(--tx3);font-size:12px">Sin historial real de consumo/compra para este ítem — no se puede proyectar sin datos (evita inventar un número).</p>';
+  }
+  var periodos={};
+  meses.forEach(function(m){var p=_agruparPeriodoItem(m,gran);periodos[p]=(periodos[p]||0)+porMes[m];});
+  var periodosOrd=Object.keys(periodos).sort();
+
+  var ultimos=meses.slice(-6);
+  var promMovil=ultimos.reduce(function(s,m){return s+porMes[m];},0)/ultimos.length;
+  var mesesRestantes=promMovil>0?(stockActual||0)/promMovil:null;
+  var fechaAgotaTxt='—',fechaPedirTxt='—';
+  if(mesesRestantes!=null){
+    var dAgota=new Date();dAgota.setDate(1);dAgota.setMonth(dAgota.getMonth()+Math.round(mesesRestantes));
+    fechaAgotaTxt=dAgota.getFullYear()+'-'+String(dAgota.getMonth()+1).padStart(2,'0');
+    if(leadTimeDias>0){
+      var dPedir=new Date(dAgota.getTime()-leadTimeDias*864e5);
+      fechaPedirTxt=dPedir.getFullYear()+'-'+String(dPedir.getMonth()+1).padStart(2,'0')+'-'+String(dPedir.getDate()).padStart(2,'0');
+    }
+  }
+  var colUrg=mesesRestantes==null?'var(--tx3)':mesesRestantes<1?'var(--danger)':mesesRestantes<2?'var(--w)':'var(--ok)';
+  return(
+    '<div class="cards" style="margin-bottom:10px">'+
+    '<div class="card"><div class="card-t">Promedio móvil (últ. '+ultimos.length+' mes(es) con datos)</div><div class="card-v">'+(Math.round(promMovil*100)/100)+' '+unidad+'/mes</div></div>'+
+    '<div class="card" style="border-left:3px solid '+colUrg+'"><div class="card-t">Cobertura de stock actual</div><div class="card-v" style="color:'+colUrg+'">'+(mesesRestantes==null?'—':(Math.round(mesesRestantes*10)/10)+' meses')+'</div><div class="card-s">Se agotaría ≈ '+fechaAgotaTxt+'</div></div>'+
+    (leadTimeDias>0?'<div class="card"><div class="card-t">Sugerido pedir antes de</div><div class="card-v" style="font-size:16px">'+fechaPedirTxt+'</div><div class="card-s">Restando lead time ('+leadTimeDias+'d) a la fecha de agotamiento</div></div>':'')+
+    '</div>'+
+    '<div class="tbl-wrap"><table><tr><th>Período</th><th>Cantidad</th></tr>'+
+    periodosOrd.map(function(p){return'<tr><td>'+escapeHtml(p)+'</td><td style="text-align:center;font-weight:600">'+(Math.round(periodos[p]*100)/100)+' '+unidad+'</td></tr>';}).join('')+
+    '</table></div>'+
+    '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Proyección simple (promedio móvil, no regresión) — asume que el ritmo reciente se mantiene. No reemplaza el criterio de quien compra.</p>'
+  );
+}
+function _selGranTendItem(gran,fnName,arg){
+  return '<div style="display:flex;gap:8px;margin:8px 0">'+
+    ['mes','semestre','año'].map(function(g){return'<button class="btn '+(gran===g?'':'btn-o')+'" onclick="window._tendItemGran=\''+g+'\';'+fnName+'('+arg+')" style="text-transform:capitalize;font-size:11px;padding:4px 10px">'+g+'</button>';}).join('')+
+    '</div>';
+}
+window.verTendenciaStk=function(i){
+  var stk=S.g('stk')||[];var s=stk[i];if(!s)return;
+  var mov=S.g('mov')||[];
+  var eventos=mov.filter(function(m){return m.tipo==='Filtro'&&(m.item===s.descripcion||(s.nParte&&m.nParte===s.nParte));}).map(function(m){return{fecha:m.fecha,cant:m.cant};});
+  var gran=window._tendItemGran||'mes';
+  sm('<h3>📈 Tendencia y Proyección de Compra</h3>'+
+    '<p style="font-size:12px;color:var(--tx2);margin-bottom:8px"><b>'+escapeHtml(s.descripcion||'')+'</b>'+(s.nParte?' ('+escapeHtml(s.nParte)+')':'')+' · Stock actual: <b>'+((s.stockBodega||0)+(s.pendiente||0))+'</b></p>'+
+    _selGranTendItem(gran,'verTendenciaStk',i)+
+    _tendenciaCompraHTML(eventos,(s.stockBodega||0)+(s.pendiente||0),'un.',gran,s.leadTime||34)+
+    '<button class="btn btn-o" onclick="cm()" style="margin-top:6px">Cerrar</button>');
+};
+window.verTendenciaLub=function(i){
+  var lub=S.g('lub')||[];var l=lub[i];if(!l)return;
+  var mov=S.g('mov')||[];
+  var eventos=mov.filter(function(m){return m.tipo==='Lubricante'&&m.item===l.nombre;}).map(function(m){return{fecha:m.fecha,cant:m.cant};});
+  var gran=window._tendItemGran||'mes';
+  sm('<h3>📈 Tendencia y Proyección de Compra</h3>'+
+    '<p style="font-size:12px;color:var(--tx2);margin-bottom:8px"><b>'+escapeHtml(l.nombre||'')+'</b> · Stock actual: <b>'+(l.stock||0)+' '+(l.unidad||'')+'</b></p>'+
+    _selGranTendItem(gran,'verTendenciaLub',i)+
+    _tendenciaCompraHTML(eventos,l.stock||0,l.unidad==='Litro'?'L':(l.unidad||'un.'),gran,l.leadTime||15)+
+    '<button class="btn btn-o" onclick="cm()" style="margin-top:6px">Cerrar</button>');
+};
+window.verTendenciaRep=function(i){
+  var rep=S.g('repuestos')||[];var r=rep[i];if(!r)return;
+  var oc=S.g('ordenes')||[];
+  // 'ordenes' (órdenes de compra reales) — la mayoría de los ítems de Repuestos
+  // no pasan por 'mov' (esa tabla solo registra consumo de PAUTA para Filtro/
+  // Lubricante), así que el historial real de compra es la fuente disponible.
+  var eventos=oc.filter(function(o){return(r.nParte&&o.nParte===r.nParte)||o.componente===r.componente;}).map(function(o){return{fecha:o.fecha,cant:o.cantidad};});
+  var gran=window._tendItemGran||'mes';
+  sm('<h3>📈 Tendencia y Proyección de Compra</h3>'+
+    '<p style="font-size:12px;color:var(--tx2);margin-bottom:8px"><b>'+escapeHtml(r.componente||'')+'</b>'+(r.nParte?' ('+escapeHtml(r.nParte)+')':'')+' · Stock actual: <b>'+(r.stockActual||0)+'</b></p>'+
+    _selGranTendItem(gran,'verTendenciaRep',i)+
+    _tendenciaCompraHTML(eventos,r.stockActual||0,'un.',gran,r.leadTime||34)+
+    (eventos.length?'':'<p style="font-size:11px;color:var(--tx3)">Este ítem no tiene órdenes de compra registradas — usa "Órdenes de Compra" para empezar a construir su historial real.</p>')+
+    '<button class="btn btn-o" onclick="cm()" style="margin-top:6px">Cerrar</button>');
 };
 // ---- FILTROS PRECIO (full CRUD + inline) ----
 /* Tabla de Precios fusionada en Stock Filtros (v16.3) */
