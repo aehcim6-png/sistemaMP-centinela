@@ -79,7 +79,7 @@ pierde en silencio el cambio de uno de los dos.
 | Disponibilidad | % de disponibilidad mecánica, meta y tendencia |
 | Análisis Aceite | Muestras de laboratorio, estado por componente |
 | Vencimientos | Documentos legales por equipo (revisión técnica, seguro, etc.) |
-| Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) |
+| Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra": historial real por mes/semestre/año y en qué fecha conviene pedirlo |
 | Predictivo | Diagnóstico automático, alertas cruzadas, backlog |
 | Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
@@ -135,6 +135,15 @@ Es fácil leerlo al revés la primera vez: el número mide cuánto trabajo hay
 *en relación a* la gente que tienes, no cuánta gente sobra directamente. Más
 carga que gente (arriba de 100%) = faltan manos. Menos carga que gente
 (abajo de 100%) = sobran manos.
+
+**¿Cómo sé cuándo comprar un repuesto, filtro o aceite?**
+En **Stock Filtros**, **Lubricantes** y **Control de Repuestos**, cada fila
+tiene un botón **📈** ("Tendencia y Proyección de Compra"): muestra el
+consumo/compra real de ese ítem por mes/semestre/año, cuántos meses de
+cobertura le quedan al stock actual, en qué mes se agotaría, y la fecha
+sugerida para pedirlo (restando el tiempo de entrega del proveedor). Si el
+ítem todavía no tiene historial real, el sistema lo dice en vez de
+inventar un número.
 
 ---
 
