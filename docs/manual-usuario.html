@@ -102,7 +102,7 @@
     <tr><td><b>Disponibilidad</b></td><td>% de disponibilidad mecánica, meta y tendencia</td></tr>
     <tr><td><b>Análisis Aceite</b></td><td>Muestras de laboratorio, estado por componente</td></tr>
     <tr><td><b>Vencimientos</b></td><td>Documentos legales por equipo</td></tr>
-    <tr><td><b>Stock & Insumos</b></td><td>Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo</td></tr>
+    <tr><td><b>Stock & Insumos</b></td><td>Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo. Botón 📊 "Resumen" (por categoría) proyecta el gasto total hasta fin de año</td></tr>
     <tr><td><b>Predictivo</b></td><td>Diagnóstico automático, alertas cruzadas, backlog</td></tr>
     <tr><td><b>Planificación y Agenda</b></td><td>Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria</td></tr>
     <tr><td><b>Pautas</b></td><td>Actividades de mantención por tipo de PM</td></tr>
@@ -147,6 +147,14 @@
   cuántos meses de cobertura le quedan al stock actual, en qué mes se agotaría, y la fecha
   sugerida para pedirlo (restando el tiempo de entrega del proveedor). Si el ítem todavía no
   tiene historial real, el sistema lo dice en vez de inventar un número.</p>
+  <p><b>¿Cuánto voy a gastar en total en filtros, aceite o repuestos este año?</b><br>En
+  <b>Stock Filtros</b>, <b>Lubricantes</b> y <b>Control de Repuestos</b>, botón <b>📊 Resumen</b>
+  (arriba de la tabla) — a diferencia del 📈 (que es por ítem), este suma TODOS los ítems de esa
+  categoría con historial real: el ritmo de consumo/compra reciente de cada uno × su precio, con
+  una tarjeta destacada de cuánto vas a gastar hasta fin de año y el desglose por
+  mes/semestre/año. No usa correctivos (no hay ningún ítem de stock vinculado a un correctivo en
+  la base de datos) ni reemplaza Predictivo → Stock/Lubricantes vs. Próximos PM (esa es la
+  proyección exacta según el calendario de PM ya agendado).</p>
   <p><b>¿Cómo sé cuántos neumáticos voy a necesitar este año?</b><br>En <b>Neumáticos → Resumen
   flota</b> hay una sección "Proyección de reemplazos por período" (Mes/Semestre/Año), con una
   tarjeta destacada de cuántos neumáticos — y cuánto costo — vas a necesitar hasta fin de año. No

@@ -79,7 +79,7 @@ pierde en silencio el cambio de uno de los dos.
 | Disponibilidad | % de disponibilidad mecánica, meta y tendencia |
 | Análisis Aceite | Muestras de laboratorio, estado por componente |
 | Vencimientos | Documentos legales por equipo (revisión técnica, seguro, etc.) |
-| Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo |
+| Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo. Botón 📊 "Resumen" (por categoría) proyecta el gasto total hasta fin de año |
 | Predictivo | Diagnóstico automático, alertas cruzadas, backlog |
 | Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
@@ -144,6 +144,17 @@ cobertura le quedan al stock actual, en qué mes se agotaría, y la fecha
 sugerida para pedirlo (restando el tiempo de entrega del proveedor). Si el
 ítem todavía no tiene historial real, el sistema lo dice en vez de
 inventar un número.
+
+**¿Cuánto voy a gastar en total en filtros, aceite o repuestos este año?**
+En **Stock Filtros**, **Lubricantes** y **Control de Repuestos**, botón
+**📊 Resumen** (arriba de la tabla) — a diferencia del 📈 (que es por
+ítem), este suma TODOS los ítems de esa categoría con historial real: el
+ritmo de consumo/compra reciente de cada uno × su precio, con una tarjeta
+destacada de cuánto vas a gastar hasta fin de año y el desglose por
+mes/semestre/año. No usa correctivos (no hay ningún ítem de stock
+vinculado a un correctivo en la base de datos) ni reemplaza Predictivo →
+Stock/Lubricantes vs. Próximos PM (esa es la proyección exacta según el
+calendario de PM ya agendado).
 
 **¿Cómo sé cuántos neumáticos voy a necesitar este año?**
 En **Neumáticos → Resumen flota** hay una sección "Proyección de reemplazos
