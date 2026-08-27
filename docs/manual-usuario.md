@@ -83,7 +83,7 @@ pierde en silencio el cambio de uno de los dos.
 | Predictivo | Diagnóstico automático, alertas cruzadas, backlog |
 | Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
-| Componentes | Componentes Mayores, Predictivo (incluye Probabilidad de Falla), Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes, Estadística (comparativas por equipo/componente/técnico/modelo) |
+| Componentes | Componentes Mayores, Predictivo (incluye Probabilidad de Falla y Dotación de Taller — dotación real vs. carga de trabajo, con tendencia y proyección a futuro), Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes, Estadística (comparativas por equipo/componente/técnico/modelo) |
 | Metas & KPIs | Plan vs. real, avance mensual, informes descargables |
 | Buscar | Ficha completa por equipo (PM, correctivos, componentes, horómetros, inspecciones, neumáticos, tren de rodaje, aceite, vencimientos, historial, destrabe y costos) + ranking de equipos problemáticos |
 | Auditoría de Datos | Cruce automático (5 chequeos): horómetros que retroceden, componentes sin validar, OT sin solución, reportes automáticos por revisar, neumáticos cambiados sin registrar salida — se recalcula solo cada vez que se abre |
@@ -121,6 +121,20 @@ A los 55 minutos sin usar el mouse/teclado aparece un aviso en pantalla
 la sesión se cierra sola — vuelve a entrar con tu clave normalmente. Es por
 seguridad, para que un computador compartido no quede con una sesión
 olvidada abierta.
+
+**¿Cómo sé si me faltan o me sobran técnicos?**
+En **Componentes → Predictivo → 👷 Dotación de Taller** hay un **Índice
+Carga/Capacidad**, por mes/semestre/año y proyectado a futuro:
+- **100%** = la dotación actual está justa (cubre exactamente la carga real).
+- **Bajo 100%** (ej. 70%, 43%) = hay menos trabajo que gente disponible →
+  **sobran técnicos**.
+- **Sobre 100%** (ej. 110%) = hay más trabajo que lo que la dotación actual
+  alcanza a cubrir → **faltan técnicos**.
+
+Es fácil leerlo al revés la primera vez: el número mide cuánto trabajo hay
+*en relación a* la gente que tienes, no cuánta gente sobra directamente. Más
+carga que gente (arriba de 100%) = faltan manos. Menos carga que gente
+(abajo de 100%) = sobran manos.
 
 ---
 
