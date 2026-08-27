@@ -1149,6 +1149,109 @@ window.renderPred=function(){
         }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> El stock de lubricantes alcanza para todos los PM proyectados en los próximos '+hz+' días.</div>')+
       '</div>';
+  } else if(fVista==='dotacion'){
+    // DOTACIÓN DE TALLER — cruza la dotación real cargada en Programación Diaria con
+    // la carga de trabajo real del taller (Backlog, HH, Disponibilidad, MTBF). Pedido
+    // 2026-08-27: el usuario compartió una conversación externa con fórmulas de
+    // dotación de taller minero (carga de trabajo, eficiencia HH, backlog en semanas)
+    // ilustradas con una flota HIPOTÉTICA de 25 equipos — acá se usan las mismas
+    // fórmulas pero solo con datos reales de SistemaMP (35 equipos reales,
+    // Programación Diaria real), nunca los números del ejemplo pegado.
+    var progDia=S.g('progDia')||[];
+    var fechasProg=[...new Set(progDia.map(function(p){return p.fecha;}))].sort().reverse();
+    var fechaUlt=fechasProg[0]||'';
+    var itemsUlt=progDia.filter(function(p){return p.fecha===fechaUlt;});
+    var turnosUlt={};
+    itemsUlt.forEach(function(p){
+      var t=p.turno||'—';
+      if(!turnosUlt[t])turnosUlt[t]={personas:0,cargos:{}};
+      turnosUlt[t].personas++;
+      var c=p.cargo||'Sin cargo';
+      turnosUlt[t].cargos[c]=(turnosUlt[t].cargos[c]||0)+1;
+    });
+    var mecDia=turnosUlt['Día']?turnosUlt['Día'].personas:0;
+    var mecNoche=turnosUlt['Noche']?turnosUlt['Noche'].personas:0;
+
+    // Equipos "pesados/producción" vs "livianos/apoyo" — agrupados por TIPO real.
+    // No se usa el campo criticidad: en la BD real está NULL para los 35 equipos
+    // (verificado 2026-08-27), así que no sirve como criterio. Confirmado con el
+    // usuario.
+    var TIPOS_PESADOS_TALLER=['Camion','Camión','Cargador Frontal','Bulldozer','Motoniveladora'];
+    var eqPesadosD=eq.filter(function(e){return TIPOS_PESADOS_TALLER.indexOf(e.tipo)>=0;});
+    var eqLivianosD=eq.filter(function(e){return TIPOS_PESADOS_TALLER.indexOf(e.tipo)<0;});
+    var ratioPesadoD=mecDia>0?Math.round(eqPesadosD.length/mecDia*10)/10:null;
+
+    // Disponibilidad mecánica de flota (mes actual) — misma fuente única que
+    // Disponibilidad/KPI/Metas/Dashboard (dispEquipoMes, logic.js).
+    var _hoyDot=new Date();
+    var mesActDot=_hoyDot.getFullYear()+'-'+String(_hoyDot.getMonth()+1).padStart(2,'0');
+    var dispCalcDot=S.g('dispCalc')||{};var dAbrDot=INIT.dispAbril||{};
+    var downMapDot=dispDownMap(reg,ot);
+    var dispValsDot=eq.map(function(e){return dispEquipoMes(e.sigla,mesActDot,{downMap:downMapDot,dispCalc:dispCalcDot,dAbr:dAbrDot,hrsDia:e.hrsDia||12});}).filter(function(v){return v!=null;});
+    var dispFlotaDot=dispValsDot.length?Math.round(dispValsDot.reduce(function(s,v){return s+v;},0)/dispValsDot.length*10)/10:null;
+
+    // HH real vs. plan — mismo cálculo que Costos & Stock → HH por Técnico (cos.js)
+    var _hhPlanDeDot=hhPlanEstimator(reg);
+    var hhRealDot=0,hhPlanDot=0;
+    reg.forEach(function(r){
+      hhRealDot+=(r.duracionH||0);
+      hhPlanDot+=_hhPlanDeDot(r.equipo||'',r.tipoPM||'PM1');
+    });
+    var efHHDot=hhRealDot>0?Math.round(hhPlanDot/hhRealDot*100):null;
+
+    // MTBF promedio flota — mismo cálculo que Costos & Stock → MTBF/MTTR (cos.js)
+    var otConHistDot=ot.concat(_otHistComoOt(S.g('otHist')||[]));
+    var otPorSiglaDot={};
+    otConHistDot.forEach(function(o){if(o&&o.sigla)(otPorSiglaDot[o.sigla]=otPorSiglaDot[o.sigla]||[]).push(o);});
+    var mtbfsDot=eq.map(function(e){
+      var fallas=(otPorSiglaDot[e.sigla]||[]).filter(function(o){return esFallaMTBF(o);});
+      return fallas.length>=2?C.mtbfReal(fallas.map(function(o){return o.horom;})):null;
+    }).filter(function(v){return v!=null;});
+    var mtbfFlotaDot=mtbfsDot.length?Math.round(mtbfsDot.reduce(function(s,v){return s+v;},0)/mtbfsDot.length):null;
+
+    // Backlog pendiente — mismo criterio que la vista "Backlog Inteligente" de esta
+    // misma pestaña (más arriba)
+    var backlogPendDot=ot.filter(function(o){return o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución';});
+    var backlogXMecDot=mecDia>0?Math.round(backlogPendDot.length/mecDia*10)/10:null;
+
+    // Historial de dotación cargada (todas las fechas de Programación Diaria)
+    var histDotacionDot=fechasProg.map(function(f){
+      var itemsF=progDia.filter(function(p){return p.fecha===f;});
+      return{fecha:f,dia:itemsF.filter(function(p){return p.turno==='Día';}).length,noche:itemsF.filter(function(p){return p.turno==='Noche';}).length};
+    });
+
+    content=
+      '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:12px;font-size:12px">'+
+      '📋 Cruza la dotación real cargada en <b>Programación Diaria</b> con la carga de trabajo real del taller (Backlog, HH, Disponibilidad, MTBF) — es una lectura descriptiva, no reemplaza una decisión de RR.HH.'+
+      (fechaUlt?'':' <b style="color:var(--w)">Aún no hay ninguna Programación Diaria cargada — importa un Excel en esa pestaña primero.</b>')+
+      '</div>'+
+      (fechaUlt?(
+      '<div class="cards">'+
+      '<div class="card"><div class="card-t">Dotación turno Día ('+escapeHtml(fechaUlt)+')</div><div class="card-v">'+mecDia+'</div><div class="card-s">mecánicos/técnicos</div></div>'+
+      '<div class="card"><div class="card-t">Dotación turno Noche</div><div class="card-v">'+mecNoche+'</div></div>'+
+      '<div class="card"><div class="card-t">Equipos pesados/producción</div><div class="card-v">'+eqPesadosD.length+'</div><div class="card-s">de '+eq.length+' equipos totales · '+eqLivianosD.length+' liviano/apoyo</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Equipos pesados por mecánico (día)</div><div class="card-v" style="color:var(--ac)">'+(ratioPesadoD==null?'—':ratioPesadoD)+'</div><div class="card-s">'+eqPesadosD.length+' ÷ '+mecDia+' — sin umbral definido para esta operación, solo descriptivo</div></div>'+
+      '</div>'+
+      '<div class="cards">'+
+      '<div class="card"><div class="card-t">Disponibilidad Mecánica ('+mesActDot+')</div><div class="card-v" style="color:'+(dispFlotaDot==null?'var(--tx3)':dispFlotaDot>=85?'var(--ok)':dispFlotaDot>=70?'var(--w)':'var(--danger)')+'">'+(dispFlotaDot==null?'—':dispFlotaDot+'%')+'</div></div>'+
+      '<div class="card"><div class="card-t">Eficiencia HH (plan/real)</div><div class="card-v" style="color:'+(efHHDot==null?'var(--tx3)':efHHDot>=80?'var(--ok)':'var(--w)')+'">'+(efHHDot==null?'—':efHHDot+'%')+'</div><div class="card-s">Real: '+Math.round(hhRealDot)+'h · Plan: '+Math.round(hhPlanDot)+'h</div></div>'+
+      '<div class="card"><div class="card-t">MTBF Promedio Flota</div><div class="card-v">'+(mtbfFlotaDot==null?'—':mtbfFlotaDot+'h')+'</div></div>'+
+      '<div class="card"><div class="card-t">Backlog pendiente</div><div class="card-v">'+backlogPendDot.length+'</div><div class="card-s">'+(backlogXMecDot==null?'—':'≈'+backlogXMecDot+' trabajos por mecánico de día')+'</div></div>'+
+      '</div>'+
+      '<div class="sec-t" style="font-size:14px;margin:16px 0 8px">Dotación por cargo — turno Día ('+escapeHtml(fechaUlt)+')</div>'+
+      '<div class="tbl-wrap"><table><tr><th>Cargo</th><th>Personas</th></tr>'+
+      Object.entries(turnosUlt['Día']?turnosUlt['Día'].cargos:{}).sort(function(a,b){return b[1]-a[1];}).map(function(c){
+        return'<tr><td>'+escapeHtml(c[0])+'</td><td style="text-align:center;font-weight:600">'+c[1]+'</td></tr>';
+      }).join('')+
+      '</table></div>'+
+      '<div class="sec-t" style="font-size:14px;margin:16px 0 8px">Historial de dotación cargada</div>'+
+      '<div class="tbl-wrap"><table><tr><th>Fecha</th><th>Día</th><th>Noche</th></tr>'+
+      histDotacionDot.map(function(h){
+        return'<tr><td>'+escapeHtml(h.fecha)+'</td><td style="text-align:center">'+h.dia+'</td><td style="text-align:center">'+h.noche+'</td></tr>';
+      }).join('')+
+      '</table></div>'+
+      '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Fuente: pestaña Programación Diaria (Excel importado por el supervisor de terreno). Grupo "pesado/producción" = Camión + Cargador Frontal + Bulldozer + Motoniveladora; "liviano/apoyo" = Camioneta, Bus, Generador, Grúa, Torre Iluminación.</p>'
+      ):'');
   }
 
 
@@ -1188,7 +1291,8 @@ $('s-pred').innerHTML=
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
-    '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option></select>'+
+    '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
+    '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option></select>'+
     '<select id="fPredEq" onchange="renders.pred()"><option value="">'+(fVista==='equipo'||fVista==='diag'?'Seleccionar equipo...':'Todos los equipos')+'</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>'+
     '<select id="fPredAnio" onchange="renders.pred()"><option value="">Todos los años</option>'+
