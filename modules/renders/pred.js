@@ -1220,6 +1220,65 @@ window.renderPred=function(){
       return{fecha:f,dia:itemsF.filter(function(p){return p.turno==='Día';}).length,noche:itemsF.filter(function(p){return p.turno==='Noche';}).length};
     });
 
+    // TENDENCIA Y PROYECCIÓN — pedido 2026-08-27: "puedo ver si en un año,
+    // semestre o mes tengo suficientes técnicos... y proyectar a futuro".
+    // Cruza correctivos+preventivos+disponibilidad (tal como pidió el usuario)
+    // reutilizando downMapDot (ya calculado arriba para Disponibilidad Mecánica):
+    // esa función YA combina horas de PM (reg) + horas de equipo detenido por
+    // correctivo (ot) por sigla/día — es el mismo número que alimenta Disponibilidad
+    // en toda la app, no un cálculo nuevo. La dotación ACTUAL (mecDia) se aplica
+    // hacia atrás en el tiempo porque el usuario confirmó que el equipo de técnicos
+    // ha sido estable desde 2022 a la fecha — no existe un historial real de
+    // dotación mes a mes, así que este es un supuesto explícito, no un dato inventado
+    // en silencio. Nota de unidades: la "carga" son horas de EQUIPO detenido
+    // (preventivo+correctivo combinados), no horas-técnico exactas — es un índice,
+    // no una conversión 1:1 a personas.
+    var granTend=window._dotGranularidad||'mes';
+    var cargaPorMes={};
+    Object.keys(downMapDot).forEach(function(sigla){
+      Object.keys(downMapDot[sigla]).forEach(function(fecha){
+        var mes=fecha.slice(0,7);
+        cargaPorMes[mes]=(cargaPorMes[mes]||0)+downMapDot[sigla][fecha];
+      });
+    });
+    var mesesConDatosDot=Object.keys(cargaPorMes).sort();
+    var HRS_TURNO_DIA_DOT=12;
+    function _diasDelMesDot(mesStr){var yy=parseInt(mesStr.slice(0,4)),mm=parseInt(mesStr.slice(5,7));return new Date(yy,mm,0).getDate();}
+    function _capacidadMesDot(mesStr){return mecDia*HRS_TURNO_DIA_DOT*_diasDelMesDot(mesStr);}
+    function _agruparPeriodoDot(mes,gran){
+      if(gran==='año')return mes.slice(0,4);
+      if(gran==='semestre'){var yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
+      return mes;
+    }
+    var periodosDot={};
+    mesesConDatosDot.forEach(function(m){
+      var p=_agruparPeriodoDot(m,granTend);
+      if(!periodosDot[p])periodosDot[p]={carga:0,capacidad:0};
+      periodosDot[p].carga+=cargaPorMes[m];
+      periodosDot[p].capacidad+=_capacidadMesDot(m);
+    });
+    var periodosOrdenadosDot=Object.keys(periodosDot).sort();
+
+    // Proyección: promedio móvil de los últimos 6 meses con datos, proyectado a
+    // 3/6/12 meses, comparado contra la capacidad teórica de esos meses futuros
+    // con la dotación actual.
+    var ultimosMesesDot=mesesConDatosDot.slice(-6);
+    var promMovilCargaDot=ultimosMesesDot.length?ultimosMesesDot.reduce(function(s,m){return s+cargaPorMes[m];},0)/ultimosMesesDot.length:0;
+    function _mesesFuturosDot(n){
+      var out=[];var d=new Date();d.setDate(1);
+      for(var i=1;i<=n;i++){var f=new Date(d.getFullYear(),d.getMonth()+i,1);out.push(f.getFullYear()+'-'+String(f.getMonth()+1).padStart(2,'0'));}
+      return out;
+    }
+    var proyDot=[3,6,12].map(function(n){
+      var mesesF=_mesesFuturosDot(n);
+      var capacidadProy=mesesF.reduce(function(s,m){return s+_capacidadMesDot(m);},0);
+      var cargaProy=promMovilCargaDot*n;
+      var ratioProy=capacidadProy>0?Math.round(cargaProy/capacidadProy*1000)/10:null;
+      return{n:n,cargaProy:Math.round(cargaProy),capacidadProy:Math.round(capacidadProy),ratio:ratioProy};
+    });
+    function _colorRatioDot(r){return r==null?'var(--tx3)':r>100?'var(--danger)':r>=70?'var(--ok)':'var(--w)';}
+    function _lecturaRatioDot(r){return r==null?'':r>100?'Carga sobre la capacidad teórica — señal de falta de personal':r>=70?'Dentro de rango razonable':'Bajo la capacidad teórica — señal de personal de sobra';}
+
     content=
       '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:12px;font-size:12px">'+
       '📋 Cruza la dotación real cargada en <b>Programación Diaria</b> con la carga de trabajo real del taller (Backlog, HH, Disponibilidad, MTBF) — es una lectura descriptiva, no reemplaza una decisión de RR.HH.'+
@@ -1250,7 +1309,35 @@ window.renderPred=function(){
         return'<tr><td>'+escapeHtml(h.fecha)+'</td><td style="text-align:center">'+h.dia+'</td><td style="text-align:center">'+h.noche+'</td></tr>';
       }).join('')+
       '</table></div>'+
-      '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Fuente: pestaña Programación Diaria (Excel importado por el supervisor de terreno). Grupo "pesado/producción" = Camión + Cargador Frontal + Bulldozer + Motoniveladora; "liviano/apoyo" = Camioneta, Bus, Generador, Grúa, Torre Iluminación.</p>'
+      '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Fuente: pestaña Programación Diaria (Excel importado por el supervisor de terreno). Grupo "pesado/producción" = Camión + Cargador Frontal + Bulldozer + Motoniveladora; "liviano/apoyo" = Camioneta, Bus, Generador, Grúa, Torre Iluminación.</p>'+
+
+      '<div class="sec-t" style="font-size:14px;margin:20px 0 8px">Tendencia de carga de taller vs. capacidad ('+mesesConDatosDot.length+' meses con datos, '+(mesesConDatosDot[0]||'—')+' a '+(mesesConDatosDot[mesesConDatosDot.length-1]||'—')+')</div>'+
+      '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:10px;font-size:11px;color:var(--tx2)">'+
+      '"Carga" = horas de equipo detenido por preventivo (PM) + correctivo, mismo cálculo que ya usa Disponibilidad Mecánica en toda la app — no son horas-técnico exactas, es un índice de esfuerzo de mantención. "Capacidad" = dotación turno Día ACTUAL ('+mecDia+' técnicos) × '+HRS_TURNO_DIA_DOT+'h × días del período. La dotación actual se aplica hacia atrás en el tiempo porque el equipo de técnicos ha sido estable desde 2022 (confirmado por el usuario) — no hay un historial real de dotación mes a mes anterior a Programación Diaria.'+
+      '</div>'+
+      '<div style="display:flex;gap:8px;margin-bottom:10px">'+
+      ['mes','semestre','año'].map(function(g){return'<button class="btn '+(granTend===g?'':'btn-o')+'" onclick="window._dotGranularidad=\''+g+'\';renders.pred()" style="text-transform:capitalize">'+g+'</button>';}).join('')+
+      '</div>'+
+      (periodosOrdenadosDot.length?
+      '<div class="tbl-wrap"><table><tr><th>Período</th><th>Carga (h-equipo)</th><th>Capacidad (h-técnico)</th><th>Índice Carga/Capacidad</th><th>Lectura</th></tr>'+
+      periodosOrdenadosDot.map(function(p){
+        var d=periodosDot[p];var ratio=d.capacidad>0?Math.round(d.carga/d.capacidad*1000)/10:null;
+        return'<tr><td><b>'+escapeHtml(p)+'</b></td><td style="text-align:center">'+Math.round(d.carga)+'h</td><td style="text-align:center">'+Math.round(d.capacidad)+'h</td>'+
+          '<td style="text-align:center;font-weight:600;color:'+_colorRatioDot(ratio)+'">'+(ratio==null?'—':ratio+'%')+'</td>'+
+          '<td style="font-size:11px;color:'+_colorRatioDot(ratio)+'">'+_lecturaRatioDot(ratio)+'</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<p style="color:var(--tx3);font-size:12px">Sin datos suficientes de PM/correctivos para calcular la tendencia.</p>')+
+
+      '<div class="sec-t" style="font-size:14px;margin:20px 0 8px">Proyección a futuro (promedio móvil de los últimos '+ultimosMesesDot.length+' meses con datos)</div>'+
+      '<div class="cards">'+
+      proyDot.map(function(p){
+        return'<div class="card"><div class="card-t">Próximos '+p.n+' meses</div><div class="card-v" style="color:'+_colorRatioDot(p.ratio)+'">'+(p.ratio==null?'—':p.ratio+'%')+'</div>'+
+          '<div class="card-s">Carga proy.: '+p.cargaProy+'h · Capacidad (dotación actual): '+p.capacidadProy+'h</div>'+
+          '<div class="card-s" style="color:'+_colorRatioDot(p.ratio)+'">'+_lecturaRatioDot(p.ratio)+'</div></div>';
+      }).join('')+
+      '</div>'+
+      '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Proyección simple (promedio móvil, no regresión) — asume que el patrón de los últimos meses se mantiene. No reemplaza una decisión de RR.HH., es una lectura de tendencia sobre datos reales.</p>'
       ):'');
   }
 
