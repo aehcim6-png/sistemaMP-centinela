@@ -330,7 +330,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/ot.js?v=2026-08-26c"></script>
 <script src="modules/renders/pred.js?v=2026-08-27b"></script>
 <script src="modules/renders/kpi.js?v=2026-08-18c"></script>
-<script src="modules/renders/neu.js?v=2026-08-26b"></script>
+<script src="modules/renders/neu.js?v=2026-08-27a"></script>
 <script src="modules/renders/cfg.js?v=2026-08-23c"></script>
 <script>
 // ============ DATA ============
@@ -1209,11 +1209,45 @@ function _tendenciaCompraHTML(eventos,stockActual,unidad,gran,leadTimeDias){
     '<div class="card" style="border-left:3px solid '+colUrg+'"><div class="card-t">Cobertura de stock actual</div><div class="card-v" style="color:'+colUrg+'">'+(mesesRestantes==null?'—':(Math.round(mesesRestantes*10)/10)+' meses')+'</div><div class="card-s">Se agotaría ≈ '+fechaAgotaTxt+'</div></div>'+
     (leadTimeDias>0?'<div class="card"><div class="card-t">Sugerido pedir antes de</div><div class="card-v" style="font-size:16px">'+fechaPedirTxt+'</div><div class="card-s">Restando lead time ('+leadTimeDias+'d) a la fecha de agotamiento</div></div>':'')+
     '</div>'+
+    _tendenciaCompraSVG(periodosOrd,periodos,promMovil,unidad)+
     '<div class="tbl-wrap"><table><tr><th>Período</th><th>Cantidad</th></tr>'+
     periodosOrd.map(function(p){return'<tr><td>'+escapeHtml(p)+'</td><td style="text-align:center;font-weight:600">'+(Math.round(periodos[p]*100)/100)+' '+unidad+'</td></tr>';}).join('')+
     '</table></div>'+
     '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Proyección simple (promedio móvil, no regresión) — asume que el ritmo reciente se mantiene. No reemplaza el criterio de quien compra.</p>'
   );
+}
+// Gráfico de barras del consumo/compra real por período, mismo lenguaje visual que
+// el gráfico de desgaste de Neumáticos (verDetalleNeu): fondo var(--bg3), grilla
+// sutil, línea de referencia punteada (acá el promedio móvil en vez del umbral de
+// retiro). A propósito NO dibuja una curva de "stock proyectado hacia atrás": no
+// existe un historial real de niveles de stock por fecha, solo de eventos de
+// consumo/compra — inventar esa curva sería inventar datos.
+function _tendenciaCompraSVG(periodosOrd,periodos,promMovil,unidad){
+  if(!periodosOrd.length)return'';
+  var W=560,H=190,padL=40,padR=16,padT=14,padB=28;
+  var plotW=W-padL-padR,plotH=H-padT-padB;
+  var vals=periodosOrd.map(function(p){return periodos[p];});
+  var maxV=Math.max.apply(null,vals.concat([promMovil||0,1]));
+  var n=periodosOrd.length;
+  var step=plotW/n;
+  var barW=Math.max(6,Math.min(40,step*0.6));
+  function py(v){return padT+plotH-Math.round(v/maxV*plotH);}
+  function px(i){return padL+i*step+step/2;}
+  var bars='';
+  periodosOrd.forEach(function(p,i){
+    var v=periodos[p];
+    var x=px(i)-barW/2,y=py(v),h=(padT+plotH)-y;
+    bars+='<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+h+'" fill="var(--ac)" rx="2"><title>'+p+': '+(Math.round(v*100)/100)+' '+unidad+'</title></rect>';
+    bars+='<text x="'+px(i)+'" y="'+(H-padB+13)+'" text-anchor="middle" font-size="8" fill="var(--tx3)">'+escapeHtml(p.length>7?p.slice(2):p)+'</text>';
+  });
+  var yProm=py(promMovil||0);
+  return '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:'+W+'px;background:var(--bg3);border-radius:8px;margin:8px 0">'+
+    '<line x1="'+padL+'" y1="'+yProm+'" x2="'+(W-padR)+'" y2="'+yProm+'" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6"/>'+
+    '<text x="'+(W-padR)+'" y="'+(yProm-4)+'" text-anchor="end" font-size="9" fill="#a78bfa">promedio móvil</text>'+
+    '<line x1="'+padL+'" y1="'+padT+'" x2="'+padL+'" y2="'+(H-padB)+'" stroke="var(--tx3)" stroke-width="1"/>'+
+    '<line x1="'+padL+'" y1="'+(H-padB)+'" x2="'+(W-padR)+'" y2="'+(H-padB)+'" stroke="var(--tx3)" stroke-width="1"/>'+
+    bars+
+    '</svg>';
 }
 function _selGranTendItem(gran,fnName,arg){
   return '<div style="display:flex;gap:8px;margin:8px 0">'+

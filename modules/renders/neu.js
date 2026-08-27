@@ -1156,11 +1156,39 @@ window.resumenFlotaNeu=function(){
   // Proyección de vida restante (TD/RUL, ver neuProyeccion) agregada a nivel de
   // flota — antes solo se veía neumático por neumático dentro del modal <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg>.
   const operativos=neu.filter(n=>n.estado==='Operativo'||!n.estado);
-  const proyecciones=operativos.map(n=>neuProyeccion(n)).filter(Boolean);
+  const proyConNeu=operativos.map(n=>({n,proy:neuProyeccion(n)})).filter(x=>x.proy);
+  const proyecciones=proyConNeu.map(x=>x.proy);
   const necesita30=proyecciones.filter(p=>p.diasRestantes<30).length;
   const necesita60=proyecciones.filter(p=>p.diasRestantes>=30&&p.diasRestantes<60).length;
   const sinDatos=operativos.length-proyecciones.length;
   const vidaReal=_neuResumenVida();
+
+  // PROYECCIÓN DE REEMPLAZOS POR PERÍODO (2026-08-27, a pedido del usuario tras ver
+  // el gráfico de un neumático: "que me indique que de acuerdo al desgaste, de aquí
+  // a fin de año vas a necesitar una cantidad de neumáticos" — no un promedio móvil
+  // inventado, sino la SUMA de las fechaCambio ya calculadas por neuProyeccion
+  // (regresión real sobre mediciones), agrupadas por período. Es más preciso que
+  // Dotación de Taller/Tendencia de Compra porque cada neumático YA trae su propia
+  // fecha proyectada — acá solo se agrupa, no se re-estima nada.
+  const granNeu=window._neuProyGran||'mes';
+  function _agruparPeriodoNeu(fechaISO,gran){
+    const mes=fechaISO.slice(0,7);
+    if(gran==='año')return mes.slice(0,4);
+    if(gran==='semestre'){const yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
+    return mes;
+  }
+  const porPeriodoNeu={};
+  proyConNeu.forEach(function(x){
+    const p=_agruparPeriodoNeu(x.proy.fechaCambio,granNeu);
+    if(!porPeriodoNeu[p])porPeriodoNeu[p]={cant:0,costo:0};
+    porPeriodoNeu[p].cant++;
+    porPeriodoNeu[p].costo+=neuPrecio(x.n).precio||0;
+  });
+  const periodosNeuOrd=Object.keys(porPeriodoNeu).sort();
+  const hoyISONeu=new Date().toISOString().slice(0,10);
+  const finAnioISO=new Date().getFullYear()+'-12-31';
+  const hastaFinAnio=proyConNeu.filter(x=>x.proy.fechaCambio<=finAnioISO);
+  const costoHastaFinAnio=hastaFinAnio.reduce((s,x)=>s+(neuPrecio(x.n).precio||0),0);
 
   sm(`<div style="max-width:760px">
     <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen Flota Neumáticos</h3>
@@ -1217,6 +1245,25 @@ window.resumenFlotaNeu=function(){
         <b style="font-size:18px;color:var(--tx3)">${sinDatos}</b>
       </div>
     </div>
+    <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Proyección de reemplazos por período:</b>
+    <div class="card" style="margin:8px 0 10px;border-left:3px solid var(--ac)">
+      <div style="font-size:11px;color:var(--tx3)">Necesarios hasta fin de ${new Date().getFullYear()} (según desgaste real de cada neumático operativo)</div>
+      <b style="font-size:20px;color:var(--ac)">${hastaFinAnio.length} neumático(s)</b>
+      <span style="font-size:12px;color:var(--tx2)"> · $${fn2(costoHastaFinAnio)}</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      ${['mes','semestre','año'].map(g=>`<button class="btn ${granNeu===g?'':'btn-o'}" onclick="window._neuProyGran='${g}';resumenFlotaNeu()" style="text-transform:capitalize;font-size:11px;padding:4px 10px">${g}</button>`).join('')}
+    </div>
+    ${periodosNeuOrd.length?`<div class="tbl-wrap" style="margin-bottom:16px"><table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Período</th><th>Neumáticos</th><th>Costo estimado</th></tr>
+      ${periodosNeuOrd.map(p=>{const d=porPeriodoNeu[p];const pasado=p<_agruparPeriodoNeu(hoyISONeu,granNeu);
+        return`<tr style="border-bottom:1px solid var(--bd)${pasado?';background:rgba(239,68,68,.05)':''}">
+        <td style="padding:6px"><b>${escapeHtml(p)}</b>${pasado?' <span style="color:var(--danger);font-size:9px">(atrasado)</span>':''}</td>
+        <td style="text-align:center;font-weight:600">${d.cant}</td>
+        <td style="text-align:center">$${fn2(d.costo)}</td>
+      </tr>`;}).join('')}
+    </table></div>
+    <p style="font-size:10px;color:var(--tx3);margin:-10px 0 16px">Cada fecha sale de la proyección real de ESE neumático (regresión sobre sus mediciones, ver botón 🔍 en cada fila) — acá solo se agrupan por período, no se re-estima nada.</p>`:`<p style="font-size:11px;color:var(--tx3);margin-bottom:16px">Ningún neumático operativo tiene mediciones suficientes para proyectar todavía.</p>`}
     <b style="font-size:13px">Por estado:</b>
     <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Estado</th><th>Cant.</th><th>Rem. prom</th><th>Hrs prom</th><th>Rend. prom</th><th>Costo total</th></tr>
