@@ -317,7 +317,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/informes.js?v=2026-08-07"></script>
 <script src="modules/renders/venc.js?v=2026-08-24b"></script>
 <script src="modules/renders/comp.js?v=2026-08-23a"></script>
-<script src="modules/renders/buscar.js?v=2026-08-23c"></script>
+<script src="modules/renders/buscar.js?v=2026-08-27a"></script>
 <script src="modules/renders/pau.js?v=2026-08-08"></script>
 <script src="modules/renders/plan.js?v=2026-08-23a"></script>
 <script src="modules/renders/disp.js?v=2026-08-24b"></script>
@@ -429,6 +429,13 @@ window.cev=function(store,idx,key,val,type){
   if(store==='eq')_recalcEq(d[idx]);
   if(store==='cad')_recalcCad(d[idx]);
   if(store==='reg'&&_CAMPOS_DUR.includes(key))_recalcDurReg(d[idx]);
+  // Bug real (2026-08-27, hallado revisando por qué Buscar podía mostrar un %
+  // de neumático desactualizado): editar el Remanente directo en la celda de la
+  // tabla de Neumáticos pasaba por este cev() genérico, que no tenía caso especial
+  // para 'neu' — pctRemanente quedaba con el valor viejo (solo se recalculaba al
+  // agregar una medición o crear el neumático, ver neu.js). Ahora se mantiene en
+  // sync con la misma fórmula que ya usa el resto de Neumáticos (neuPct).
+  if(store==='neu'&&key==='remanente'&&typeof neuPct==='function')d[idx].pctRemanente=neuPct(d[idx]);
   S.s(store,d);
   if(horomCambio){
     const sigla=d[idx].sigla,fecha=hoy;

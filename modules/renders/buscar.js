@@ -194,7 +194,15 @@ window.renderBuscar=function(){
     // Neumáticos
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Neumáticos ('+neuF.length+')</div>'+
     (neuF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Posición</th><th>Serie</th><th>Marca</th><th>Medida</th><th>Remanente</th><th>%</th><th>Estado</th></tr>'+
-    neuF.map(function(n){return'<tr><td>'+escapeHtml(n.posicion||'')+'</td><td class="mono">'+escapeHtml(n.serie||'')+'</td><td>'+escapeHtml(n.marca||'')+'</td><td>'+escapeHtml(n.medida||'')+'</td><td>'+(n.remanente!=null?n.remanente+'mm':'—')+'</td><td>'+(n.pctRemanente!=null?n.pctRemanente+'%':'—')+'</td><td style="font-size:10px">'+escapeHtml(n.estado||'')+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin neumáticos registrados</div>')+'</div>'+
+    neuF.map(function(n){
+      // % en vivo (neuPct, index.html) — no el pctRemanente guardado: ese campo solo
+      // se recalcula al agregar una medición o al crear el neumático (ver neu.js), así
+      // que si alguien edita el Remanente directo en la celda de la tabla de Neumáticos
+      // (cev() genérico, sin caso especial para 'neu'), pctRemanente queda desactualizado
+      // y esta ficha mostraría un % viejo. Mismo criterio que ya usa neu.js en todos lados.
+      var pctLive=neuPct(n);
+      return'<tr><td>'+escapeHtml(n.posicion||'')+'</td><td class="mono">'+escapeHtml(n.serie||'')+'</td><td>'+escapeHtml(n.marca||'')+'</td><td>'+escapeHtml(n.medida||'')+'</td><td>'+(n.remanente!=null?n.remanente+'mm':'—')+'</td><td>'+(pctLive!=null?pctLive+'%':'—')+'</td><td style="font-size:10px">'+escapeHtml(n.estado||'')+'</td></tr>';
+    }).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin neumáticos registrados</div>')+'</div>'+
 
     // Tren de Rodaje — solo aplica a equipos con oruga, se muestra igual con
     // "sin registros" para los que no, mismo criterio que el resto de la ficha.
