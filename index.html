@@ -294,11 +294,11 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/comp2.js?v=2026-08-15"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
-<script src="modules/renders/lub.js?v=2026-08-27a"></script>
-<script src="modules/renders/stk.js?v=2026-08-27a"></script>
+<script src="modules/renders/lub.js?v=2026-08-27b"></script>
+<script src="modules/renders/stk.js?v=2026-08-27b"></script>
 <script src="modules/renders/cos.js?v=2026-08-18"></script>
 <script src="modules/renders/mov.js?v=2026-08-05"></script>
-<script src="modules/renders/rep.js?v=2026-08-27a"></script>
+<script src="modules/renders/rep.js?v=2026-08-27b"></script>
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
@@ -1290,6 +1290,108 @@ window.verTendenciaRep=function(i){
     _tendenciaCompraHTML(eventos,r.stockActual||0,'un.',gran,r.leadTime||34)+
     (eventos.length?'':'<p style="font-size:11px;color:var(--tx3)">Este ítem no tiene órdenes de compra registradas — usa "Órdenes de Compra" para empezar a construir su historial real.</p>')+
     '<button class="btn btn-o" onclick="cm()" style="margin-top:6px">Cerrar</button>');
+};
+
+// ═══ GASTO PROYECTADO AGREGADO POR CATEGORÍA (Filtros/Lubricantes/Repuestos) ═══
+// (2026-08-27, a pedido del usuario: "arma ese agregado total" — mismo espíritu que
+// el "hasta fin de año" de Neumáticos, pero acá un ítem de stock NO tiene un solo
+// evento de reemplazo como una goma: se consume y se repone en ciclos continuos.
+// Por eso NO se cuenta "N ítems se agotan el mes X" (eso subestimaría el gasto real
+// de un ítem que se repone varias veces antes de fin de año) — en cambio se proyecta
+// el GASTO mensual al ritmo de consumo/compra real reciente de cada ítem (mismo
+// promedio móvil que ya usa el botón 📈), y se distribuye hacia adelante.
+// NO usa correctivos: en la BD real no existe ningún vínculo entre un correctivo y
+// un ítem de stock específico (los correctivos solo tienen texto libre de síntoma/
+// solución) — cruzarlos sería inventar una relación que no está. Para lo que exige
+// el calendario de PM ya agendado (pautas + horómetro), esa proyección determinística
+// ya existe aparte en Predictivo → Stock/Lubricantes vs. Próximos PM.
+function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
+  gran=gran||'mes';
+  var hoy=new Date();hoy.setDate(1);
+  var itemsConDatos=0,itemsSinDatos=0;
+  var HORIZONTE_MESES=12;
+  var mesesFuturos=[];
+  for(var i=0;i<HORIZONTE_MESES;i++){
+    var d=new Date(hoy.getFullYear(),hoy.getMonth()+i,1);
+    mesesFuturos.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  var gastoMensual={};mesesFuturos.forEach(function(m){gastoMensual[m]=0;});
+
+  items.forEach(function(item){
+    var eventos=getEventos(item);
+    var porMes={};
+    (eventos||[]).forEach(function(e){if(!e.fecha)return;var m=e.fecha.slice(0,7);porMes[m]=(porMes[m]||0)+(e.cant||0);});
+    var mesesConDatos=Object.keys(porMes).sort();
+    if(!mesesConDatos.length){itemsSinDatos++;return;}
+    itemsConDatos++;
+    var ultimos=mesesConDatos.slice(-6);
+    var promMovil=ultimos.reduce(function(s,m){return s+porMes[m];},0)/ultimos.length;
+    var gastoMes=promMovil*(getPrecio(item)||0);
+    mesesFuturos.forEach(function(m){gastoMensual[m]+=gastoMes;});
+  });
+
+  function agrupar(mes){
+    if(gran==='año')return mes.slice(0,4);
+    if(gran==='semestre'){var yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
+    return mes;
+  }
+  var porPeriodo={};
+  mesesFuturos.forEach(function(m){var p=agrupar(m);porPeriodo[p]=(porPeriodo[p]||0)+gastoMensual[m];});
+  var periodosOrd=Object.keys(porPeriodo).sort();
+
+  var anioActual=hoy.getFullYear();
+  var mesesHastaFinAnio=mesesFuturos.filter(function(m){return m.slice(0,4)===String(anioActual);});
+  var gastoHastaFinAnio=mesesHastaFinAnio.reduce(function(s,m){return s+gastoMensual[m];},0);
+
+  return{porPeriodo:porPeriodo,periodosOrd:periodosOrd,gastoHastaFinAnio:gastoHastaFinAnio,itemsConDatos:itemsConDatos,itemsSinDatos:itemsSinDatos};
+}
+function _gastoProyectadoHTML(resumen,gran,fnName){
+  var anioActual=new Date().getFullYear();
+  var fmt=function(v){return Math.round(v).toLocaleString('es-CL');};
+  return(
+    '<div class="card" style="margin:8px 0 10px;border-left:3px solid var(--ac)">'+
+    '<div style="font-size:11px;color:var(--tx3)">Gasto proyectado hasta fin de '+anioActual+' (al ritmo de consumo/compra real reciente)</div>'+
+    '<b style="font-size:20px;color:var(--ac)">$'+fmt(resumen.gastoHastaFinAnio)+'</b>'+
+    '<div style="font-size:10px;color:var(--tx3)">'+resumen.itemsConDatos+' ítem(s) con historial real'+(resumen.itemsSinDatos?' · '+resumen.itemsSinDatos+' sin historial (no incluidos, evita inventar su consumo)':'')+'</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:8px">'+
+    ['mes','semestre','año'].map(function(g){return'<button class="btn '+(gran===g?'':'btn-o')+'" onclick="window._gastoProyGran=\''+g+'\';'+fnName+'()" style="text-transform:capitalize;font-size:11px;padding:4px 10px">'+g+'</button>';}).join('')+
+    '</div>'+
+    '<div class="tbl-wrap"><table><tr><th>Período</th><th>Gasto proyectado</th></tr>'+
+    resumen.periodosOrd.map(function(p){return'<tr><td>'+escapeHtml(p)+'</td><td style="text-align:center;font-weight:600">$'+fmt(resumen.porPeriodo[p])+'</td></tr>';}).join('')+
+    '</table></div>'+
+    '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Gasto = promedio móvil real de consumo/compra de cada ítem (últimos meses con datos) × su precio, proyectado hacia adelante (horizonte 12 meses) — asume que el ritmo reciente se mantiene. No incluye correctivos (sin vínculo real a un ítem de stock en la base de datos) ni lo que ya exige el calendario de PM agendado (ver Predictivo → Stock/Lubricantes vs. Próximos PM, que usa pautas + horómetro).</p>'
+  );
+}
+window.resumenFlotaStk=function(){
+  var stk=S.g('stk')||[];var mov=S.g('mov')||[];
+  var gran=window._gastoProyGran||'mes';
+  var res=_gastoProyectadoCategoria(stk,
+    function(s){return mov.filter(function(m){return m.tipo==='Filtro'&&(m.item===s.descripcion||(s.nParte&&m.nParte===s.nParte));}).map(function(m){return{fecha:m.fecha,cant:m.cant};});},
+    function(s){return s.precioUnit||0;},gran);
+  sm('<div style="max-width:600px"><h3>📊 Resumen — Gasto proyectado en Filtros</h3>'+
+    _gastoProyectadoHTML(res,gran,'resumenFlotaStk')+
+    '<button class="btn btn-o" style="margin-top:10px" onclick="cm()">Cerrar</button></div>');
+};
+window.resumenFlotaLub=function(){
+  var lub=S.g('lub')||[];var mov=S.g('mov')||[];
+  var gran=window._gastoProyGran||'mes';
+  var res=_gastoProyectadoCategoria(lub,
+    function(l){return mov.filter(function(m){return m.tipo==='Lubricante'&&m.item===l.nombre;}).map(function(m){return{fecha:m.fecha,cant:m.cant};});},
+    function(l){return l.precio||0;},gran);
+  sm('<div style="max-width:600px"><h3>📊 Resumen — Gasto proyectado en Lubricantes</h3>'+
+    _gastoProyectadoHTML(res,gran,'resumenFlotaLub')+
+    '<button class="btn btn-o" style="margin-top:10px" onclick="cm()">Cerrar</button></div>');
+};
+window.resumenFlotaRep=function(){
+  var rep=S.g('repuestos')||[];var oc=S.g('ordenes')||[];
+  var gran=window._gastoProyGran||'mes';
+  var res=_gastoProyectadoCategoria(rep,
+    function(r){return oc.filter(function(o){return(r.nParte&&o.nParte===r.nParte)||o.componente===r.componente;}).map(function(o){return{fecha:o.fecha,cant:o.cantidad};});},
+    function(r){return r.precioUnit||0;},gran);
+  sm('<div style="max-width:600px"><h3>📊 Resumen — Gasto proyectado en Repuestos</h3>'+
+    _gastoProyectadoHTML(res,gran,'resumenFlotaRep')+
+    '<button class="btn btn-o" style="margin-top:10px" onclick="cm()">Cerrar</button></div>');
 };
 // ---- FILTROS PRECIO (full CRUD + inline) ----
 /* Tabla de Precios fusionada en Stock Filtros (v16.3) */
