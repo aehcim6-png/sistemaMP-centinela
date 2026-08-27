@@ -1315,7 +1315,16 @@ window.verTendenciaRep=function(i){
 function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
   gran=gran||'mes';
   var hoy=new Date();hoy.setDate(1);
-  var itemsConDatos=0,itemsSinDatos=0;
+  // Auditoría 2026-08-27 (a pedido del usuario, revisando bugs de lo construido el
+  // día anterior): con datos reales, la mayoría de los ítems NO tienen precio
+  // cargado (127/167 Filtros, 7/13 Lubricantes, 165/165 — el 100% — de Repuestos).
+  // Antes, un ítem con historial real pero precio $0/vacío se contaba como "con
+  // datos" y aportaba $0 en silencio — el total podía verse bajo (o directamente
+  // $0 en Repuestos) sin ningún aviso de que la mayoría de los ítems quedaron
+  // afuera. Ahora se separan 3 grupos: con historial Y precio (los únicos que
+  // aportan al total), con historial pero SIN precio (excluidos del total, se
+  // avisa aparte), y sin historial (excluidos, ya se avisaba antes).
+  var itemsConDatos=0,itemsSinDatos=0,itemsSinPrecio=0;
   var HORIZONTE_MESES=12;
   var mesesFuturos=[];
   for(var i=0;i<HORIZONTE_MESES;i++){
@@ -1330,10 +1339,12 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
     (eventos||[]).forEach(function(e){if(!e.fecha)return;var m=e.fecha.slice(0,7);porMes[m]=(porMes[m]||0)+(e.cant||0);});
     var mesesConDatos=Object.keys(porMes).sort();
     if(!mesesConDatos.length){itemsSinDatos++;return;}
+    var precio=getPrecio(item)||0;
+    if(!precio){itemsSinPrecio++;return;}
     itemsConDatos++;
     var ultimos=mesesConDatos.slice(-6);
     var promMovil=ultimos.reduce(function(s,m){return s+porMes[m];},0)/ultimos.length;
-    var gastoMes=promMovil*(getPrecio(item)||0);
+    var gastoMes=promMovil*precio;
     mesesFuturos.forEach(function(m){gastoMensual[m]+=gastoMes;});
   });
 
@@ -1350,7 +1361,7 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
   var mesesHastaFinAnio=mesesFuturos.filter(function(m){return m.slice(0,4)===String(anioActual);});
   var gastoHastaFinAnio=mesesHastaFinAnio.reduce(function(s,m){return s+gastoMensual[m];},0);
 
-  return{porPeriodo:porPeriodo,periodosOrd:periodosOrd,gastoHastaFinAnio:gastoHastaFinAnio,itemsConDatos:itemsConDatos,itemsSinDatos:itemsSinDatos};
+  return{porPeriodo:porPeriodo,periodosOrd:periodosOrd,gastoHastaFinAnio:gastoHastaFinAnio,itemsConDatos:itemsConDatos,itemsSinDatos:itemsSinDatos,itemsSinPrecio:itemsSinPrecio};
 }
 function _gastoProyectadoHTML(resumen,gran,fnName){
   var anioActual=new Date().getFullYear();
@@ -1359,7 +1370,8 @@ function _gastoProyectadoHTML(resumen,gran,fnName){
     '<div class="card" style="margin:8px 0 10px;border-left:3px solid var(--ac)">'+
     '<div style="font-size:11px;color:var(--tx3)">Gasto proyectado hasta fin de '+anioActual+' (al ritmo de consumo/compra real reciente)</div>'+
     '<b style="font-size:20px;color:var(--ac)">$'+fmt(resumen.gastoHastaFinAnio)+'</b>'+
-    '<div style="font-size:10px;color:var(--tx3)">'+resumen.itemsConDatos+' ítem(s) con historial real'+(resumen.itemsSinDatos?' · '+resumen.itemsSinDatos+' sin historial (no incluidos, evita inventar su consumo)':'')+'</div>'+
+    '<div style="font-size:10px;color:var(--tx3)">'+resumen.itemsConDatos+' ítem(s) con historial y precio cargado'+(resumen.itemsSinDatos?' · '+resumen.itemsSinDatos+' sin historial (no incluidos, evita inventar su consumo)':'')+'</div>'+
+    (resumen.itemsSinPrecio?'<div style="font-size:11px;color:var(--w);margin-top:4px"><svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+resumen.itemsSinPrecio+' ítem(s) más tienen consumo real pero SIN precio cargado — no están incluidos en este total, así que el gasto real probablemente es mayor. Carga el precio de esos ítems para que cuenten.</div>':'')+
     '</div>'+
     '<div style="display:flex;gap:8px;margin-bottom:8px">'+
     ['mes','semestre','año'].map(function(g){return'<button class="btn '+(gran===g?'':'btn-o')+'" onclick="window._gastoProyGran=\''+g+'\';'+fnName+'()" style="text-transform:capitalize;font-size:11px;padding:4px 10px">'+g+'</button>';}).join('')+
