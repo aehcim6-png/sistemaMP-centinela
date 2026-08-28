@@ -1454,7 +1454,17 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // 'posicion 1/3 baja presion' a Neumáticos como FRASES exactas, no la
 // palabra "presión" sola (porque "código baja presión de FRENOS" es un
 // caso real distinto que ya clasificaba bien por "freno" — una palabra
-// suelta lo habría roto). Cobertura real medida: 64.9% (807/1243). El resto
+// suelta lo habría roto). Cobertura real medida: 64.9% (807/1243). Séptima
+// pasada (mismo día — el usuario definió 6 términos que no se lograban
+// interpretar solo con el texto, todos confirmados por él como experto del
+// dominio antes de agregarlos): 'reel' (sensores de motor) a Motor;
+// 'canillera'/'canilleras' (protecciones de desgaste del balde/pala) a
+// GET/Cuchillas; 'garra maestar'/'garra maestra' (conexión maestra de
+// cadena de oruga) a Tren de Rodaje; 'f&s' (abreviación real de "Fatiga y
+// Somnolencia") a Sistema Anticolisión/Fatiga; 'check point'/'check  point'
+// (testigo de torque en pernos de rueda) a Neumáticos; 'viscoso' (embrague
+// viscoso del ventilador) a Radiador/Enfriamiento. Cobertura real medida:
+// 65.6% (816/1243). El resto
 // son mayormente
 // casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
@@ -1490,7 +1500,10 @@ var _CATEGORIAS_COMPONENTE=[
   // "codigo baja presion de frenos" (otro caso real) es de Frenos, no de
   // neumáticos, así que una palabra suelta habría generado un falso
   // positivo ahí.
-  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresuriz','desprezuriz','presuriz','posicion 1 baja presion','posicion 3 baja presion']],
+  // 'check  point'/'check point' agregadas (2026-08-28, séptima pasada, el
+  // usuario confirmó el término): es el testigo/indicador de torque que se
+  // instala en los pernos de rueda del neumático.
+  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresuriz','desprezuriz','presuriz','posicion 1 baja presion','posicion 3 baja presion','check  point','check point']],
   ['Frenos',['freno']],
   // 'kick dawn'/'pick dawn' agregadas (2026-08-28, quinta pasada): grafía
   // real encontrada en los datos para "kickdown" (el mecanismo de la
@@ -1512,7 +1525,10 @@ var _CATEGORIAS_COMPONENTE=[
   // concepto que 'radiador'/'refrigerante' con otra familia de palabras
   // ("limpieza de enfriadores", "cañería de refrigeración rota") que no
   // calzaba con ninguna de las dos.
-  ['Radiador/Enfriamiento',['radiador','refrigerante','enfriador','enfriadores','refrigeracion']],
+  // 'viscoso' agregada (2026-08-28, séptima pasada, el usuario confirmó el
+  // término): es el embrague viscoso del ventilador de enfriamiento del
+  // motor.
+  ['Radiador/Enfriamiento',['radiador','refrigerante','enfriador','enfriadores','refrigeracion','viscoso']],
   // 'suspencion' agregada (2026-08-28, tercera pasada): typo real muy
   // frecuente (20 filas) — "suspensión" escrita con "c" en vez de "s". El
   // único caso ambiguo real ("cable de suspensión neumática de ASIENTO")
@@ -1590,7 +1606,10 @@ var _CATEGORIAS_COMPONENTE=[
   // 'ripper'/'riper' agregadas (2026-08-28, sexta pasada): el ripper (diente
   // desgarrador de bulldozer) es la misma familia de herramienta de corte
   // que cuchillas/GET (9 filas reales).
-  ['GET / Cuchillas',['cuchilla','entrediente','gets','entrecalza','entrecalzas','ripper','riper']],
+  // 'canillera'/'canilleras' agregadas (2026-08-28, séptima pasada, el
+  // usuario confirmó el término): protecciones de desgaste del balde/pala,
+  // misma familia que el resto de GET/Cuchillas.
+  ['GET / Cuchillas',['cuchilla','entrediente','gets','entrecalza','entrecalzas','ripper','riper','canillera','canilleras']],
   // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
   // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
   // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde
@@ -1623,7 +1642,10 @@ var _CATEGORIAS_COMPONENTE=[
   // mismo conjunto mecánico que sprocket/zapata/cadena.
   // 'sproket' agregada (2026-08-28, sexta pasada): typo real muy consistente
   // (4 filas, todas sin la "c") — "sprocket" ya estaba, faltaba esta grafía.
-  ['Tren de Rodaje',['oruga','cadena','sprocket','sproket','zapata','rodillo','rueda tensora','rueda motriz']],
+  // 'garra maestar'/'garra maestra' agregadas (2026-08-28, séptima pasada,
+  // el usuario confirmó el término): las conexiones maestras de la cadena
+  // de oruga del bulldozer.
+  ['Tren de Rodaje',['oruga','cadena','sprocket','sproket','zapata','rodillo','rueda tensora','rueda motriz','garra maestar','garra maestra']],
   // Nueva (2026-08-28): "engrase"/"relleno de grasa" es un patrón real muy
   // frecuente (39 filas) que no calzaba en ninguna categoría existente — es
   // una actividad de lubricación, no una falla de un componente específico,
@@ -1645,7 +1667,9 @@ var _CATEGORIAS_COMPONENTE=[
   // de fatiga/somnolencia (cámara DMS) — tecnología de asistencia al
   // conductor, categoría de seguridad propia, no un componente mecánico
   // más (11 filas reales combinadas).
-  ['Sistema Anticolisión/Fatiga (ADAS)',['somnolencia','anticolision','anticolisión']],
+  // 'f&s' agregada (2026-08-28, séptima pasada, el usuario confirmó el
+  // término): abreviación real de "Fatiga y Somnolencia", el mismo sistema.
+  ['Sistema Anticolisión/Fatiga (ADAS)',['somnolencia','anticolision','anticolisión','f&s']],
   // Nueva (2026-08-28, tercera pasada, término sugerido por el usuario): la
   // tornamesa es el mecanismo de giro de la superestructura (cargador
   // frontal/excavadora) — sin categoría hasta ahora (2 filas reales).
@@ -1665,7 +1689,9 @@ var _CATEGORIAS_COMPONENTE=[
   // (7 filas reales: "estanque combustible", "falta de tapa combustible",
   // "se cambia tapa de llenado de combustible").
   ['Estanque/Tapa de Combustible',['estanque combustible','estanque de combustible','tapa combustible','tapa de combustible','tapa de llenado de combustible']],
-  ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
+  // 'reel' agregada (2026-08-28, séptima pasada, el usuario confirmó el
+  // término): son sensores del motor.
+  ['Motor',['motor','reel']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
 // campo estructurado viene vacío (que es casi siempre, ver nota arriba).

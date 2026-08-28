@@ -226,4 +226,13 @@ describe('_componenteDeSintoma', () => {
     // Caso real que NO debe verse afectado: es de Frenos, no de neumáticos.
     expect(_componenteDeSintoma('codigo baja presion de frenos')).toBe('Frenos');
   });
+
+  it('clasifica los 6 términos que el usuario confirmó como experto del dominio (2026-08-28, séptima pasada)', () => {
+    expect(_componenteDeSintoma('se cambia sensor de reel')).toBe('Motor');
+    expect(_componenteDeSintoma('cambio de canillera balde')).toBe('GET / Cuchillas');
+    expect(_componenteDeSintoma('pernos cortados de garra maestar lado derecho')).toBe('Tren de Rodaje');
+    expect(_componenteDeSintoma('sistema f&s')).toBe('Sistema Anticolisión/Fatiga (ADAS)');
+    expect(_componenteDeSintoma('retorque pernos rueda posicion 6 y se instala check  point')).toBe('Neumáticos');
+    expect(_componenteDeSintoma('se inicia proceso de cambio de viscoso')).toBe('Radiador/Enfriamiento');
+  });
 });
