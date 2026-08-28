@@ -130,4 +130,34 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('sensor de levante sucio, se limpia')).toBe('');
     expect(_componenteDeSintoma('cambio valvula de carga')).toBe('');
   });
+
+  it('clasifica "foco" sin especificar posición como Foco/Ampolleta (2026-08-28, cuarta pasada)', () => {
+    expect(_componenteDeSintoma('se normaliza foco central derecho')).toBe('Foco/Ampolleta');
+    expect(_componenteDeSintoma('se normaliza funcionamiento de focos trasero')).toBe('Foco/Ampolleta');
+  });
+
+  it('clasifica "orbitrol" como parte de la dirección hidráulica (2026-08-28, cuarta pasada)', () => {
+    expect(_componenteDeSintoma('fuga orbitrol')).toBe('Cilindro de Dirección');
+    expect(_componenteDeSintoma('se reapreta manguera de orbitrol')).toBe('Cilindro de Dirección');
+  });
+
+  it('clasifica las categorías nuevas Sistema AFEX y Estanque/Tapa de Combustible (2026-08-28, cuarta pasada)', () => {
+    expect(_componenteDeSintoma('se normaliza sistema afex')).toBe('Sistema AFEX (Extinción de Incendios)');
+    expect(_componenteDeSintoma('falta de tapa combustible')).toBe('Estanque/Tapa de Combustible');
+    expect(_componenteDeSintoma('estanque de combustible ,no funcional')).toBe('Estanque/Tapa de Combustible');
+  });
+
+  it('clasifica el plural "filtros de combustible" (2026-08-28, cuarta pasada)', () => {
+    expect(_componenteDeSintoma('se realiza cambio de filtros de combustible')).toBe('Filtro de Combustible');
+  });
+
+  it('NO inventa "plumilla" — cero ocurrencias reales en la base (2026-08-28, cuarta pasada)', () => {
+    expect(_componenteDeSintoma('cambio de plumilla')).toBe('');
+  });
+
+  it('confirma que "engrase"/"relleno"/"ampolleta" ya estaban cubiertas antes de esta pasada (sin cambios)', () => {
+    expect(_componenteDeSintoma('engrase general')).toBe('Engrase/Lubricación');
+    expect(_componenteDeSintoma('relleno de grasa')).toBe('Engrase/Lubricación');
+    expect(_componenteDeSintoma('ampolleta quemada')).toBe('Foco/Ampolleta');
+  });
 });

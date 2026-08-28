@@ -1413,7 +1413,20 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // 'flexible' ampliada de frase a palabra sola y 'cañería' agregada a
 // Mangueras/Fugas (34 filas combinadas, revisadas una por una — es el
 // equivalente rígido de una manguera), y categoría nueva Tornamesa/Giro (2
-// filas). Cobertura real medida: 59.7% (742/1243). El resto son mayormente
+// filas). Cuarta pasada (mismo día, nueva lista de términos a revisar: foco,
+// ampolleta, engrase, relleno, código activo, orbitrol, plumilla, afex,
+// combustible): 'plumilla' tiene CERO ocurrencias reales — no se agrega.
+// 'foco'/'ampolleta'/'engrase'/'relleno' ya estaban cubiertas por pasadas
+// anteriores (verificado, no hacía falta nada), salvo "foco" sin especificar
+// posición ("foco central derecho", "focos trasero"), que se amplió a
+// palabra sola. 'código activo' se confirma correctamente sin categoría (un
+// código de falla no dice a qué sistema pertenece sin más contexto — no es
+// un hueco). Con evidencia real sí se agregan: 'orbitrol' (parte de
+// dirección hidráulica, 3 filas) a Cilindro de Dirección, categoría nueva
+// "Sistema AFEX" (extinción de incendios, 4 filas), categoría nueva
+// "Estanque/Tapa de Combustible" (7 filas, distinto de filtro/bomba/
+// inyectores) y plural 'filtros de combustible' a Filtro de Combustible.
+// Cobertura real medida: 61.1% (760/1243). El resto son mayormente
 // casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
 // equipo, código de falla activo sin especificar sistema) — que quedan
@@ -1427,7 +1440,11 @@ var _CATEGORIAS_COMPONENTE=[
   ['Asiento',['asiento']],
   ['Batería',['bateria','batería','baterias','baterías']],
   ['Motor de Partida',['motor de partida','motor partida']],
-  ['Cilindro de Dirección',['cilindro direccion','cilindro de direccion','cilindro dirección','cilindro de dirección','cilindro volante']],
+  // 'orbitrol' agregada (2026-08-28, cuarta pasada): la válvula orbitrol es
+  // parte del sistema de dirección hidráulica (3 filas reales, todas
+  // claramente de dirección: "falla en orbitrol", "fuga orbitrol",
+  // "manguera de orbitrol").
+  ['Cilindro de Dirección',['cilindro direccion','cilindro de direccion','cilindro dirección','cilindro de dirección','cilindro volante','orbitrol']],
   // 'despresuriz'/'desprezuriz' (typo real visto en los datos)/'presuriz'
   // agregadas como RAÍZ, no palabra completa (2026-08-28, segunda pasada):
   // en el vocabulario real de esta flota (correctivos con "posición 1-6", el
@@ -1461,7 +1478,10 @@ var _CATEGORIAS_COMPONENTE=[
   ['Inyectores',['inyector','inyectores']],
   // 'filtro decombustible' agregada (2026-08-28): typo real sin espacio
   // ("se reemplaza filtro decombustible y se puraga sistema", 2 filas).
-  ['Filtro de Combustible',['filtro de combustible','filtro combustible','filtro decombustible']],
+  // 'filtros de combustible'/'filtros combustible' agregadas (2026-08-28,
+  // cuarta pasada): plural real ("se realiza cambio de filtros de
+  // combustible") que no calzaba con el singular.
+  ['Filtro de Combustible',['filtro de combustible','filtro combustible','filtro decombustible','filtros de combustible','filtros combustible']],
   ['Filtro de Aire',['filtro de aire','filtro aire']],
   // 'bomba de inyeccion'/'bomba inyeccion' agregadas (2026-08-28): variante
   // real vista en los datos ("perno de bomba inyeccion") que no calzaba con
@@ -1500,7 +1520,12 @@ var _CATEGORIAS_COMPONENTE=[
   // diagnosticoFlota) no los veía — un patrón real como el de CN-5133 (~18
   // eventos de foco/eléctrico en un año, probable falla de cableado/tierra,
   // no desgaste de ampolleta) pasaba invisible pese a estar en los datos.
-  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta']],
+  // 'foco'/'focos' agregadas como palabra sola (2026-08-28, cuarta pasada):
+  // las frases específicas ('foco delantero', etc.) no atrapaban variantes
+  // reales como "foco central derecho", "focos trasero", "falla en foco,
+  // se cambia foco bajo derecho" — revisados todos los casos reales que
+  // contienen "foco" sin categoría, los 3 son de focos del equipo.
+  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta','foco','focos']],
   ['Sistema Hidráulico',['hidraulico','hidráulico']],
   // 'eléctrica'/'electrica' (2026-08-28, forma femenina — "falla eléctrica" no
   // calzaba con el keyword 'eléctrico' por la concordancia de género, 15
@@ -1564,6 +1589,16 @@ var _CATEGORIAS_COMPONENTE=[
   // tornamesa es el mecanismo de giro de la superestructura (cargador
   // frontal/excavadora) — sin categoría hasta ahora (2 filas reales).
   ['Tornamesa/Giro',['tornamesa','torna mesa']],
+  // Nueva (2026-08-28, cuarta pasada, término sugerido por el usuario): AFEX
+  // es el sistema automático de extinción de incendios del equipo — una
+  // falla ahí es de seguridad, no un componente mecánico más (4 filas
+  // reales: "se normaliza sistema afex", "sistema afex...codigo activo").
+  ['Sistema AFEX (Extinción de Incendios)',['afex']],
+  // Nueva (2026-08-28, cuarta pasada): estanque y tapa de combustible — un
+  // problema físicamente distinto de filtro/bomba/inyectores de combustible
+  // (7 filas reales: "estanque combustible", "falta de tapa combustible",
+  // "se cambia tapa de llenado de combustible").
+  ['Estanque/Tapa de Combustible',['estanque combustible','estanque de combustible','tapa combustible','tapa de combustible','tapa de llenado de combustible']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
