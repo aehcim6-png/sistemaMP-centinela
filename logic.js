@@ -1397,7 +1397,24 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // los 51 son de neumáticos, cero falsos positivos) + variantes de plural/
 // espaciado/typo en 4 categorías existentes + una categoría nueva
 // (Radio/Comunicaciones), subiendo la cobertura real medida a 57.6%
-// (716/1243). El resto son mayormente casos genuinamente SIN componente
+// (716/1243). Tercera pasada (mismo día, a pedido del usuario contra una
+// lista de términos a revisar: lainas, sello, sensores, tornamesa, válvula,
+// cañería, flexible, bomba centrífuga, cardán, retén — verificados uno por
+// uno contra los datos reales antes de agregar nada): 'lainas' y 'bomba
+// centrífuga' tienen CERO ocurrencias reales en toda la base — no se
+// agregan, sería inventar. 'sello'/'sensor'/'válvula' aparecen pero cruzan
+// demasiados sistemas distintos entre sí (un sensor puede ser de motor,
+// suspensión o neumático; una válvula puede ser de freno, motor o carga) —
+// forzarlos a una sola categoría sería menos preciso que dejarlos sin
+// clasificar. 'retén' ya quedaba cubierto por 'diferecial' en el único caso
+// real que existe. Sí se agregaron con evidencia real: 'suspencion' (typo
+// con "c", 20 filas), 'cardán' (unido a Crucetas — un caso real muestra
+// ambos términos en la misma falla, es el mismo conjunto mecánico),
+// 'flexible' ampliada de frase a palabra sola y 'cañería' agregada a
+// Mangueras/Fugas (34 filas combinadas, revisadas una por una — es el
+// equivalente rígido de una manguera), y categoría nueva Tornamesa/Giro (2
+// filas). Cobertura real medida: 59.7% (742/1243). El resto son mayormente
+// casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
 // equipo, código de falla activo sin especificar sistema) — que quedan
 // correctamente sin categoría, no es un hueco a rellenar — más una cola larga
@@ -1435,7 +1452,12 @@ var _CATEGORIAS_COMPONENTE=[
   // ("limpieza de enfriadores", "cañería de refrigeración rota") que no
   // calzaba con ninguna de las dos.
   ['Radiador/Enfriamiento',['radiador','refrigerante','enfriador','enfriadores','refrigeracion']],
-  ['Suspensión',['suspension','suspensión']],
+  // 'suspencion' agregada (2026-08-28, tercera pasada): typo real muy
+  // frecuente (20 filas) — "suspensión" escrita con "c" en vez de "s". El
+  // único caso ambiguo real ("cable de suspensión neumática de ASIENTO")
+  // igual clasifica bien porque "Asiento" está antes en esta lista y gana
+  // primero.
+  ['Suspensión',['suspension','suspensión','suspencion']],
   ['Inyectores',['inyector','inyectores']],
   // 'filtro decombustible' agregada (2026-08-28): typo real sin espacio
   // ("se reemplaza filtro decombustible y se puraga sistema", 2 filas).
@@ -1445,13 +1467,26 @@ var _CATEGORIAS_COMPONENTE=[
   // real vista en los datos ("perno de bomba inyeccion") que no calzaba con
   // 'bomba inyectora'.
   ['Bomba de Combustible',['bomba de combustible','bomba combustible','bomba inyectora','bomba de inyeccion','bomba inyeccion']],
-  ['Crucetas',['cruceta','crucetas']],
+  // Renombrada a 'Crucetas/Cardán' y agregado 'cardan'/'cardán' (2026-08-28,
+  // tercera pasada): un caso real muestra ambos términos en la MISMA falla
+  // ("...sector de cardan hacia transmision...se desmonta cardan y se
+  // evidencia desgaste en polines de crucetas...") — es el mismo conjunto
+  // mecánico (el cardán conecta transmisión y diferencial mediante las
+  // crucetas), así que se unifican en una sola categoría.
+  ['Crucetas/Cardán',['cruceta','crucetas','cardan','cardán']],
   // 'soportes de cabina' agregada (2026-08-28): plural real que no calzaba
   // con el singular ("soportes de cabina" tiene una "s" de más antes del
   // "de" que rompe el substring match).
   ['Soporte de Cabina',['soporte de cabina','soporte cabina','soportes de cabina']],
   ['Conectores/Cableado',['conector','conectores','arnes','arnés']],
-  ['Mangueras/Fugas',['manguera','mangueras','flexible hidraulico','flexible hidráulico']],
+  // 'flexible' (2026-08-28, tercera pasada): ampliada de la frase completa
+  // 'flexible hidraulico' a la palabra sola — revisados los 24 casos reales
+  // que contienen "flexible" en toda la base, los 24 son de mangueras/líneas
+  // flexibles (hidráulico, combustible, freno, refrigeración), cero falsos
+  // positivos. 'cañeria'/'cañería'/'caneria' agregadas (10 filas reales) —
+  // es el equivalente rígido de una manguera (línea de combustible,
+  // refrigerante, dirección), misma naturaleza física de falla.
+  ['Mangueras/Fugas',['manguera','mangueras','flexible','cañeria','cañería','caneria']],
   // 'elementos desgaste' agregada (2026-08-28): variante real sin "de"
   // entre las dos palabras.
   ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste','elementos desgaste']],
@@ -1525,6 +1560,10 @@ var _CATEGORIAS_COMPONENTE=[
   // Nueva (2026-08-28): "falla en radio base"/"falla ptt radio" (4 filas
   // reales) — el radio de comunicación del equipo, sin categoría hasta ahora.
   ['Radio/Comunicaciones',['radio base','falla ptt']],
+  // Nueva (2026-08-28, tercera pasada, término sugerido por el usuario): la
+  // tornamesa es el mecanismo de giro de la superestructura (cargador
+  // frontal/excavadora) — sin categoría hasta ahora (2 filas reales).
+  ['Tornamesa/Giro',['tornamesa','torna mesa']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
