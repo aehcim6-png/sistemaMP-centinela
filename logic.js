@@ -1387,15 +1387,21 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 //
 // Auditoría de cobertura real (2026-08-28, a pedido del usuario: "normaliza
 // sintoma y sistema con NLP"): medida contra los 1.243 correctivos reales de
-// la tabla 'correctivos' (889 síntomas distintos), la versión anterior de
-// este diccionario solo clasificaba el 42.1% de las filas (523/1243) — el
-// resto quedaba sin componente. Se agregaron las categorías/palabras clave de
-// abajo marcadas "(2026-08-28)", subiendo la cobertura real medida a 52.9%
-// (658/1243). El resto son mayormente casos genuinamente SIN componente
+// la tabla 'correctivos' (889 síntomas distintos), la versión original de
+// este diccionario solo clasificaba el 42.1% de las filas (523/1243). Una
+// primera pasada de correcciones subió eso a 52.9% (658/1243). Segunda
+// pasada (mismo día, revisando el siguiente tramo de síntomas sin
+// categoría): ampliar 'presurizacion'→'presuriz' a nivel de raíz (atrapa
+// también el verbo conjugado "se presuriza", no solo el sustantivo —
+// revisados los 51 casos reales que contienen "presuriz" en toda la base,
+// los 51 son de neumáticos, cero falsos positivos) + variantes de plural/
+// espaciado/typo en 4 categorías existentes + una categoría nueva
+// (Radio/Comunicaciones), subiendo la cobertura real medida a 57.6%
+// (716/1243). El resto son mayormente casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
 // equipo, código de falla activo sin especificar sistema) — que quedan
 // correctamente sin categoría, no es un hueco a rellenar — más una cola larga
-// de ~800 síntomas únicos, casi todos con errores de tipeo distintos entre sí
+// de síntomas únicos, casi todos con errores de tipeo distintos entre sí
 // (ej. "trasnmision", "poscion", "sproket"), que queda fuera de esta pasada:
 // no se puede tapar toda esa cola de una vez sin arriesgar clasificaciones
 // falsas, así que se deja para ir sumando caso a caso con evidencia real,
@@ -1405,13 +1411,18 @@ var _CATEGORIAS_COMPONENTE=[
   ['Batería',['bateria','batería','baterias','baterías']],
   ['Motor de Partida',['motor de partida','motor partida']],
   ['Cilindro de Dirección',['cilindro direccion','cilindro de direccion','cilindro dirección','cilindro de dirección','cilindro volante']],
-  // 'despresurizacion'/'desprezurizacion' (typo real visto en los datos) y
-  // 'presurizacion' agregadas (2026-08-28): en el vocabulario real de esta
-  // flota (correctivos con "posición 1-6", el mismo esquema P1-P2 delanteros/
-  // P3-P6 traseros de los Parámetros de Neumáticos en Configuración) hablar
-  // de presión sin decir "neumático" es casi siempre de todas formas sobre
-  // neumáticos — 24 filas reales que quedaban sin categoría.
-  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresurizacion','desprezurizacion','presurizacion']],
+  // 'despresuriz'/'desprezuriz' (typo real visto en los datos)/'presuriz'
+  // agregadas como RAÍZ, no palabra completa (2026-08-28, segunda pasada):
+  // en el vocabulario real de esta flota (correctivos con "posición 1-6", el
+  // mismo esquema P1-P2 delanteros/P3-P6 traseros de los Parámetros de
+  // Neumáticos en Configuración) hablar de presión sin decir "neumático" es
+  // casi siempre de todas formas sobre neumáticos. Usar la raíz en vez de la
+  // palabra completa ('presurizacion') además atrapa las formas conjugadas
+  // reales del verbo ("se presuriza posición 3", "se despresuriza") que la
+  // primera pasada dejaba fuera — revisados los 51 casos reales que
+  // contienen "presuriz" en toda la base: los 51 son de neumáticos, cero
+  // falsos positivos.
+  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresuriz','desprezuriz','presuriz']],
   ['Frenos',['freno']],
   ['Transmisión',['transmision','transmisión']],
   ['Diferencial',['diferencial','diferecial']],
@@ -1419,20 +1430,31 @@ var _CATEGORIAS_COMPONENTE=[
   ['Turbo',['turbo']],
   ['Alternador',['alternador']],
   ['Bomba de Agua',['bomba de agua','bomba agua']],
-  ['Radiador/Enfriamiento',['radiador','refrigerante']],
+  // 'enfriador'/'enfriadores'/'refrigeracion' agregadas (2026-08-28): mismo
+  // concepto que 'radiador'/'refrigerante' con otra familia de palabras
+  // ("limpieza de enfriadores", "cañería de refrigeración rota") que no
+  // calzaba con ninguna de las dos.
+  ['Radiador/Enfriamiento',['radiador','refrigerante','enfriador','enfriadores','refrigeracion']],
   ['Suspensión',['suspension','suspensión']],
   ['Inyectores',['inyector','inyectores']],
-  ['Filtro de Combustible',['filtro de combustible','filtro combustible']],
+  // 'filtro decombustible' agregada (2026-08-28): typo real sin espacio
+  // ("se reemplaza filtro decombustible y se puraga sistema", 2 filas).
+  ['Filtro de Combustible',['filtro de combustible','filtro combustible','filtro decombustible']],
   ['Filtro de Aire',['filtro de aire','filtro aire']],
   // 'bomba de inyeccion'/'bomba inyeccion' agregadas (2026-08-28): variante
   // real vista en los datos ("perno de bomba inyeccion") que no calzaba con
   // 'bomba inyectora'.
   ['Bomba de Combustible',['bomba de combustible','bomba combustible','bomba inyectora','bomba de inyeccion','bomba inyeccion']],
   ['Crucetas',['cruceta','crucetas']],
-  ['Soporte de Cabina',['soporte de cabina','soporte cabina']],
+  // 'soportes de cabina' agregada (2026-08-28): plural real que no calzaba
+  // con el singular ("soportes de cabina" tiene una "s" de más antes del
+  // "de" que rompe el substring match).
+  ['Soporte de Cabina',['soporte de cabina','soporte cabina','soportes de cabina']],
   ['Conectores/Cableado',['conector','conectores','arnes','arnés']],
   ['Mangueras/Fugas',['manguera','mangueras','flexible hidraulico','flexible hidráulico']],
-  ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste']],
+  // 'elementos desgaste' agregada (2026-08-28): variante real sin "de"
+  // entre las dos palabras.
+  ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste','elementos desgaste']],
   // Ampliado (auditoría 2026-08, pedido del usuario: "revisa bien, si cambian
   // tanto foco o ampolleta indica que la falla es más compleja"): el listado
   // original solo reconocía 'foco delantero'/'foco trasero' — no atrapaba
@@ -1450,7 +1472,13 @@ var _CATEGORIAS_COMPONENTE=[
   // filas reales perdidas por esto solo) y 'bocina' (accesorio eléctrico)
   // agregadas.
   ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico','eléctrica','electrica','bocina']],
-  ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
+  // 'se carga ac'/'chequeo a/c'/'bajo flujo de a/c'/'sistema de ac'
+  // agregadas (2026-08-28): variantes reales de "a/c" sin el espacio
+  // requerido a ambos lados por el keyword ' a/c ' — se agregan como
+  // frases completas, no la sigla sola ("ac"), porque "ac" de 2 letras
+  // aparece dentro de otras palabras sin relación (ej. "AdBlue" escrito
+  // "acblue" en un síntoma real) y generaría falsos positivos.
+  ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador','se carga ac','chequeo a/c','bajo flujo de a/c','sistema de ac']],
   ['GET / Cuchillas',['cuchilla','entrediente','gets']],
   // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
   // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
@@ -1494,6 +1522,9 @@ var _CATEGORIAS_COMPONENTE=[
   // no necesariamente una manguera — así que se separa en su propia categoría
   // en vez de mezclarla ahí.
   ['Fuga de Aceite',['fuga de aceite','fuga aceite']],
+  // Nueva (2026-08-28): "falla en radio base"/"falla ptt radio" (4 filas
+  // reales) — el radio de comunicación del equipo, sin categoría hasta ahora.
+  ['Radio/Comunicaciones',['radio base','falla ptt']],
   ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
 ];
 // Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
