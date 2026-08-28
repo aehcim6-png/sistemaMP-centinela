@@ -1464,7 +1464,16 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // Somnolencia") a Sistema Anticolisión/Fatiga; 'check point'/'check  point'
 // (testigo de torque en pernos de rueda) a Neumáticos; 'viscoso' (embrague
 // viscoso del ventilador) a Radiador/Enfriamiento. Cobertura real medida:
-// 65.6% (816/1243). El resto
+// 65.6% (816/1243). Octava pasada (mismo día): 'conversor' a Sistema
+// Eléctrico y categoría nueva "Parabrisas/Vidrios" (2 filas cada una — las
+// últimas dos con 2+ ocurrencias reales que quedaban sin categoría). De
+// acá en adelante lo que resta son, de los 1.243 correctivos reales, ~145
+// filas genuinamente sin componente (mantenimiento preventivo, chequeo
+// preventivo, cierre de backlog, partida de equipo, código activo,
+// mantención diaria/semanal, equipo empantanado) y el resto ya es una cola
+// de síntomas ÚNICOS (n=1 cada uno) — seguir ampliando el diccionario ahí
+// exige revisar caso a caso con quien conoce el taller, no con evidencia
+// estadística sola. Cobertura real medida: 66.0% (821/1243). El resto
 // son mayormente
 // casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
@@ -1591,7 +1600,11 @@ var _CATEGORIAS_COMPONENTE=[
   // calzaba con el keyword 'eléctrico' por la concordancia de género, 15
   // filas reales perdidas por esto solo) y 'bocina' (accesorio eléctrico)
   // agregadas.
-  ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico','eléctrica','electrica','bocina']],
+  // 'conversor' agregada (2026-08-28, octava pasada): convertidor de
+  // voltaje/alimentación eléctrica (2 filas reales, ambas de naturaleza
+  // eléctrica pese a alimentar sistemas distintos — cableado general y
+  // radio musical).
+  ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico','eléctrica','electrica','bocina','conversor']],
   // 'se carga ac'/'chequeo a/c'/'bajo flujo de a/c'/'sistema de ac'
   // agregadas (2026-08-28): variantes reales de "a/c" sin el espacio
   // requerido a ambos lados por el keyword ' a/c ' — se agregan como
@@ -1679,6 +1692,9 @@ var _CATEGORIAS_COMPONENTE=[
   // se dejó sin clasificar por cruzar demasiados sistemas) — 3 filas
   // reales, todas claramente sobre el joystick.
   ['Joystick/Palanca de Mando',['joystick','joytick','joitick']],
+  // Nueva (2026-08-28, octava pasada): parabrisas/vidrios — 2 filas reales,
+  // sin categoría hasta ahora.
+  ['Parabrisas/Vidrios',['parabrisas']],
   // Nueva (2026-08-28, cuarta pasada, término sugerido por el usuario): AFEX
   // es el sistema automático de extinción de incendios del equipo — una
   // falla ahí es de seguridad, no un componente mecánico más (4 filas

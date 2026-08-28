@@ -235,4 +235,9 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('retorque pernos rueda posicion 6 y se instala check  point')).toBe('Neumáticos');
     expect(_componenteDeSintoma('se inicia proceso de cambio de viscoso')).toBe('Radiador/Enfriamiento');
   });
+
+  it('clasifica "conversor" y la categoría nueva Parabrisas/Vidrios (2026-08-28, octava pasada)', () => {
+    expect(_componenteDeSintoma('se reemplaza conversor cableado de alimentacion')).toBe('Sistema Eléctrico');
+    expect(_componenteDeSintoma('parabrisas')).toBe('Parabrisas/Vidrios');
+  });
 });
