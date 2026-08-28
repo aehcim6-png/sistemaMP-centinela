@@ -1426,7 +1426,26 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // "Sistema AFEX" (extinción de incendios, 4 filas), categoría nueva
 // "Estanque/Tapa de Combustible" (7 filas, distinto de filtro/bomba/
 // inyectores) y plural 'filtros de combustible' a Filtro de Combustible.
-// Cobertura real medida: 61.1% (760/1243). El resto son mayormente
+// Cobertura real medida: 61.1% (760/1243). Quinta pasada (mismo día,
+// respuesta del usuario a la cuarta: confirma que orbitrol es del
+// subsistema de dirección — correcto, ya estaba así — y agrega una lista
+// nueva de términos): 'carrilera', 'fusible' y 'reflectores'/'cinta
+// reflectores' tienen CERO ocurrencias reales — no se agregan. 'válvula
+// corta/larga de neumático' tampoco aparece con esa redacción exacta en
+// ningún correctivo real — no se agrega (si en el futuro aparece con otra
+// redacción, se revisa con evidencia en ese momento). 'acumulador' ya
+// quedaba cubierto por 'freno' en el 100% de los casos reales (siempre es
+// "acumulador de freno" en esta flota). Con evidencia real sí se agregan:
+// 'antena' a Radio/Comunicaciones (2 filas sin "radio base" cerca);
+// categoría nueva "Sistema Anticolisión/Fatiga (ADAS)" uniendo somnolencia +
+// anticolisión (11 filas — es tecnología de asistencia al conductor, no un
+// componente mecánico); 'entrecalza'/'entrecalzas' a GET/Cuchillas (16
+// filas — son los separadores entre segmentos de cuchilla, misma familia
+// GET); categoría nueva "Correas" para correas de accesorios que no
+// mencionan alternador (5 filas — colocada DESPUÉS de Alternador a
+// propósito para no cambiar la clasificación ya correcta de "correa
+// alternador"); y 'kick dawn'/'pick dawn' a Transmisión (grafía real del
+// kickdown). Cobertura real medida: 63.6% (791/1243). El resto son mayormente
 // casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
 // equipo, código de falla activo sin especificar sistema) — que quedan
@@ -1458,11 +1477,21 @@ var _CATEGORIAS_COMPONENTE=[
   // falsos positivos.
   ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresuriz','desprezuriz','presuriz']],
   ['Frenos',['freno']],
-  ['Transmisión',['transmision','transmisión']],
+  // 'kick dawn'/'pick dawn' agregadas (2026-08-28, quinta pasada): grafía
+  // real encontrada en los datos para "kickdown" (el mecanismo de la
+  // palanca/pedal que fuerza el cambio a marcha inferior).
+  ['Transmisión',['transmision','transmisión','kick dawn','pick dawn']],
   ['Diferencial',['diferencial','diferecial']],
   ['Mandos Finales',['mandos finales','mando final']],
   ['Turbo',['turbo']],
   ['Alternador',['alternador']],
+  // Nueva (2026-08-28, quinta pasada): correas de accesorios (alternador,
+  // compresor de A/C, ventilador) — se pone DESPUÉS de Alternador a
+  // propósito, para que "correa alternador" siga ganando como Alternador
+  // (ya lo hacía) y esta categoría solo atrape el resto ("correa
+  // compresor", "correa del ventilador", 5 filas reales que no
+  // mencionaban ningún sistema más específico).
+  ['Correas',['correa']],
   ['Bomba de Agua',['bomba de agua','bomba agua']],
   // 'enfriador'/'enfriadores'/'refrigeracion' agregadas (2026-08-28): mismo
   // concepto que 'radiador'/'refrigerante' con otra familia de palabras
@@ -1539,7 +1568,11 @@ var _CATEGORIAS_COMPONENTE=[
   // aparece dentro de otras palabras sin relación (ej. "AdBlue" escrito
   // "acblue" en un síntoma real) y generaría falsos positivos.
   ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador','se carga ac','chequeo a/c','bajo flujo de a/c','sistema de ac']],
-  ['GET / Cuchillas',['cuchilla','entrediente','gets']],
+  // 'entrecalza'/'entrecalzas' agregadas (2026-08-28, quinta pasada): son
+  // los separadores/adaptadores entre segmentos de cuchilla — parte de la
+  // misma familia GET (Ground Engaging Tools), 16 filas reales sin
+  // categoría hasta ahora.
+  ['GET / Cuchillas',['cuchilla','entrediente','gets','entrecalza','entrecalzas']],
   // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
   // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
   // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde
@@ -1584,7 +1617,15 @@ var _CATEGORIAS_COMPONENTE=[
   ['Fuga de Aceite',['fuga de aceite','fuga aceite']],
   // Nueva (2026-08-28): "falla en radio base"/"falla ptt radio" (4 filas
   // reales) — el radio de comunicación del equipo, sin categoría hasta ahora.
-  ['Radio/Comunicaciones',['radio base','falla ptt']],
+  // 'antena' agregada (2026-08-28, quinta pasada): variantes reales sin
+  // "radio base" cerca ("falla cable antena", "se cambia cable de antena
+  // principal").
+  ['Radio/Comunicaciones',['radio base','falla ptt','antena']],
+  // Nueva (2026-08-28, quinta pasada): sistema anticolisión y de detección
+  // de fatiga/somnolencia (cámara DMS) — tecnología de asistencia al
+  // conductor, categoría de seguridad propia, no un componente mecánico
+  // más (11 filas reales combinadas).
+  ['Sistema Anticolisión/Fatiga (ADAS)',['somnolencia','anticolision','anticolisión']],
   // Nueva (2026-08-28, tercera pasada, término sugerido por el usuario): la
   // tornamesa es el mecanismo de giro de la superestructura (cargador
   // frontal/excavadora) — sin categoría hasta ahora (2 filas reales).

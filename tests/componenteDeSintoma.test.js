@@ -160,4 +160,46 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('relleno de grasa')).toBe('Engrase/Lubricación');
     expect(_componenteDeSintoma('ampolleta quemada')).toBe('Foco/Ampolleta');
   });
+
+  it('confirma que "orbitrol" sigue clasificando como dirección (2026-08-28, quinta pasada — el usuario confirmó que es correcto)', () => {
+    expect(_componenteDeSintoma('falla en orbitrol')).toBe('Cilindro de Dirección');
+  });
+
+  it('clasifica "correa" de accesorios sin competir con Alternador ya existente (2026-08-28, quinta pasada)', () => {
+    expect(_componenteDeSintoma('correa alternador')).toBe('Alternador'); // sin cambios
+    expect(_componenteDeSintoma('se cambia correa del ventilador')).toBe('Correas');
+    expect(_componenteDeSintoma('correa compresor en mal estado/se cambia')).toBe('Correas');
+  });
+
+  it('clasifica "entrecalza"/"entrecalzas" como GET/Cuchillas (2026-08-28, quinta pasada)', () => {
+    expect(_componenteDeSintoma('cambio juego entrecalzas')).toBe('GET / Cuchillas');
+    expect(_componenteDeSintoma('se desprende entrecalza central/se repone')).toBe('GET / Cuchillas');
+  });
+
+  it('amplía Radio/Comunicaciones a "antena" sin "radio base" cerca (2026-08-28, quinta pasada)', () => {
+    expect(_componenteDeSintoma('falla cable antena')).toBe('Radio/Comunicaciones');
+  });
+
+  it('clasifica la categoría nueva Sistema Anticolisión/Fatiga (ADAS) (2026-08-28, quinta pasada)', () => {
+    expect(_componenteDeSintoma('sistema anticolision')).toBe('Sistema Anticolisión/Fatiga (ADAS)');
+    expect(_componenteDeSintoma('se calibra sistema de somnolencia')).toBe('Sistema Anticolisión/Fatiga (ADAS)');
+  });
+
+  it('clasifica "kick dawn"/"pick dawn" (grafía real del kickdown) como Transmisión (2026-08-28, quinta pasada)', () => {
+    expect(_componenteDeSintoma('se instala palanca  kick dawn')).toBe('Transmisión');
+  });
+
+  it('NO inventa "carrilera"/"fusible"/"reflectores" — sin evidencia real (2026-08-28, quinta pasada)', () => {
+    expect(_componenteDeSintoma('cambio de carrilera')).toBe('');
+    expect(_componenteDeSintoma('fusible quemado')).toBe('');
+    expect(_componenteDeSintoma('cinta reflectores dañada')).toBe('');
+  });
+
+  it('"valvula corta/larga de neumático" ya clasifica bien por la palabra "neumático" — la frase exacta con "válvula" no aparece en la base, pero no hace falta agregarla', () => {
+    expect(_componenteDeSintoma('cambio de valvula corta de neumatico')).toBe('Neumáticos');
+  });
+
+  it('confirma que "acumulador de freno" ya quedaba cubierto por Frenos (sin cambios necesarios)', () => {
+    expect(_componenteDeSintoma('acumulador de freno  bajo,se carga')).toBe('Frenos');
+  });
 });
