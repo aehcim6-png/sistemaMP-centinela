@@ -10,7 +10,8 @@ window.renderAyuda=function(){
   $('s-ayuda').innerHTML=
     '<div class="sec-h"><div><div class="sec-t">📖 Manual de Usuario — SistemaMP Centinela</div>'+
     '<div class="sec-s">Guía completa de operación del sistema</div></div>'+
-    '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div>'+
+    '<div style="display:flex;gap:8px"><a href="#m32" class="btn btn-o" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">📚 Glosario de Términos</a>'+
+    '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div></div>'+
 
     // NOVEDADES DE ESTA VERSIÓN (2026-08-27)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
@@ -201,6 +202,7 @@ window.renderAyuda=function(){
     '<a href="#m29" style="color:var(--ac);text-decoration:none;padding:2px 0">29. Sensores de Neumáticos</a>'+
     '<a href="#m30" style="color:var(--ac);text-decoration:none;padding:2px 0">30. Programación Diaria</a>'+
     '<a href="#m31" style="color:var(--ac);text-decoration:none;padding:2px 0">31. Verificación en Dos Pasos</a>'+
+    '<a href="#m32" style="color:var(--ac);text-decoration:none;padding:2px 0">32. Glosario de Términos</a>'+
     '</div></div>'+
 
     // 1. QUÉ ES
@@ -740,5 +742,39 @@ window.renderAyuda=function(){
     '<b>▶ Otras herramientas de seguridad, en la misma pestaña</b><br>'+
     '<b>Accesos recientes</b> — quién entró al sistema, cuándo, y desde qué computador (útil si algo no se guardó y quieres saber si fue por una sesión vencida en otro equipo). También muestra los intentos que NO prosperaron (clave incorrecta, cuenta desactivada, o sesión que no logró renovarse), marcados en rojo con 🚫.<br>'+
     '<b>Log de cambios</b> — auditoría de cada edición, creación o eliminación en el sistema, con fecha, usuario y detalle — no solo los inicios de sesión.<br>'+
-    '<b>Cierre de sesión por inactividad</b> — si dejas la sesión abierta sin usarla, a los 55 min aparece un aviso en pantalla con cuenta regresiva; a la hora completa se cierra sola si nadie respondió.</div></div>';
+    '<b>Cierre de sesión por inactividad</b> — si dejas la sesión abierta sin usarla, a los 55 min aparece un aviso en pantalla con cuenta regresiva; a la hora completa se cierra sola si nadie respondió.</div></div>'+
+
+    // 32. GLOSARIO DE TÉRMINOS (2026-08-28, pedido del usuario: traducir la
+    // jerga técnica del sistema — PM1-4, MTBF, RAV, etc. — a español simple
+    // para quien no viene del mundo de mantenimiento/confiabilidad).
+    '<div class="card" style="margin-bottom:12px" id="m32">'+
+    '<div class="card-t" style="font-size:16px;margin-bottom:10px">32. Glosario de Términos Técnicos</div>'+
+    '<p style="font-size:12px;color:var(--tx3);margin:0 0 12px">Traducción en español simple de las siglas y términos técnicos que vas a ver repetidos por todo el sistema.</p>'+
+    '<div style="font-size:13px;line-height:1.9">'+
+
+    '<b style="color:var(--ac)">Ciclos de mantención</b><br>'+
+    '<b>PM</b> — "Preventive Maintenance" (Mantención Preventiva): una revisión/cambio de piezas programada por horas de uso, no porque algo ya falló.<br>'+
+    '<b>PM1 / PM2 / PM3 / PM4</b> — los 4 niveles de mantención preventiva, cada uno más completo que el anterior: PM1 cada 250h, PM2 cada 500h, PM3 cada 1.000h, PM4 cada 2.000h (el "overhaul" o revisión mayor). Un PM mayor incluye todo lo del menor — al hacer un PM4 también se hace PM1+2+3.<br>'+
+    '<b>Horómetro</b> — el "odómetro" del equipo, pero en horas de uso en vez de kilómetros. Es la referencia que usa el sistema para saber cuándo toca cada PM.<br>'+
+    '<b>OT</b> — Orden de Trabajo: el papel/registro de una intervención (preventiva o correctiva) sobre un equipo.<br><br>'+
+
+    '<b style="color:var(--ac)">Confiabilidad (qué tan seguido falla un equipo)</b><br>'+
+    '<b>MTBF</b> — "Mean Time Between Failures" (Tiempo Medio Entre Fallas): el promedio de horas que un equipo trabaja entre una falla y la siguiente. Más alto = más confiable.<br>'+
+    '<b>MTTR</b> — "Mean Time To Repair" (Tiempo Medio de Reparación): el promedio de horas que toma reparar el equipo una vez que falla.<br>'+
+    '<b>Disponibilidad Inherente</b> — qué % del tiempo el equipo está disponible considerando solo fallas y su reparación (fórmula: MTBF ÷ (MTBF + MTTR)). Es distinta a la "Disponibilidad Mecánica" del Dashboard, que también cuenta las horas detenido por mantención programada.<br>'+
+    '<b>Confiabilidad (R)</b> — la probabilidad de que un equipo NO falle durante el período que se está mirando, calculada con la fórmula estándar R(t)=e^(-t/MTBF). No es lo mismo que "% Flota sin falla" (ese es un conteo simple, no una probabilidad).<br>'+
+    '<b>RAM/ISO 14224</b> — la norma internacional de la industria que define cómo se calculan MTBF, MTTR y disponibilidad — el sistema usa esas mismas fórmulas estándar, no un cálculo inventado.<br><br>'+
+
+    '<b style="color:var(--ac)">Costos y carga de trabajo</b><br>'+
+    '<b>RAV</b> — "Replacement Asset Value" (Valor de Reemplazo del Activo): lo que costaría comprar el equipo nuevo hoy. Se usa para comparar el gasto en mantención contra el valor del equipo.<br>'+
+    '<b>Costo/RAV</b> — gasto de mantención ÷ RAV, anualizado. El benchmark de la industria es menos de 2-3% al año; si un equipo supera eso, suele convenir más reemplazarlo que seguir reparándolo.<br>'+
+    '<b>Backlog</b> — el trabajo pendiente acumulado (OT abiertas sin cerrar), medido en semanas que tomaría ponerse al día con la dotación actual. Sano: 2-4 semanas.<br>'+
+    '<b>% Retrabajo</b> — de las fallas del período, cuántas son la MISMA falla repitiéndose en menos de 30 días en el mismo equipo/componente — señal de que la reparación anterior no quedó bien hecha.<br>'+
+    '<b>Lead time</b> — cuántos días demora en llegar un repuesto/filtro/lubricante desde que se pide al proveedor hasta que llega a bodega.<br>'+
+    '<b>Índice Carga/Capacidad</b> (Dotación de Taller) — compara cuánto trabajo real hay contra cuánta gente hay disponible para hacerlo. 100% = justo, bajo 100% = sobran técnicos, sobre 100% = faltan técnicos.<br><br>'+
+
+    '<b style="color:var(--ac)">Otros</b><br>'+
+    '<b>Criticidad</b> — qué tan grave es que un equipo específico falle: Crítico (detiene toda la operación), Esencial (afecta la producción pero hay cómo seguir), General (tiene respaldo/reemplazo). Se define en la Ficha Técnica de cada equipo.<br>'+
+    '<b>Score de Salud</b> — un número de 0 a 100% que resume en un solo dato el estado de un equipo, combinando sus componentes mayores, neumáticos, análisis de aceite y confiabilidad — se ve en el Dashboard (Mapa de Salud) y en la ficha de cada equipo en Buscar.<br>'+
+    '<b>KPI</b> — "Key Performance Indicator" (Indicador Clave de Desempeño): cualquiera de los números que el sistema hace seguimiento mes a mes contra una meta (ej. Disponibilidad, Cumplimiento PM).</div></div>';
 };
