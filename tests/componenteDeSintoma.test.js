@@ -62,4 +62,33 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('tensado de cadena')).toBe('Tren de Rodaje');
     expect(_componenteDeSintoma('pernos sueltos de rueda motriz')).toBe('Tren de Rodaje');
   });
+
+  it('clasifica el verbo conjugado "se presuriza"/"se despresuriza", no solo el sustantivo (2026-08-28, segunda pasada)', () => {
+    expect(_componenteDeSintoma('se presuriza posicion 3')).toBe('Neumáticos');
+    expect(_componenteDeSintoma('se presuriza posicion 4 /6')).toBe('Neumáticos');
+    expect(_componenteDeSintoma('se despresuriza posicion 2')).toBe('Neumáticos');
+  });
+
+  it('clasifica variantes de plural/espaciado/typo reales de la segunda pasada (2026-08-28)', () => {
+    expect(_componenteDeSintoma('soportes de cabina')).toBe('Soporte de Cabina');
+    expect(_componenteDeSintoma('elementos desgaste')).toBe('Elemento de Desgaste');
+    expect(_componenteDeSintoma('se reemplaza filtro decombustible y se puraga sistema')).toBe('Filtro de Combustible');
+    expect(_componenteDeSintoma('se realiza limpieza de enfriadores')).toBe('Radiador/Enfriamiento');
+    expect(_componenteDeSintoma('cañeria de refrigeracion rota')).toBe('Radiador/Enfriamiento');
+  });
+
+  it('clasifica variantes reales de Aire Acondicionado sin espacios alrededor de "a/c" (2026-08-28)', () => {
+    expect(_componenteDeSintoma('se carga ac')).toBe('Aire Acondicionado');
+    expect(_componenteDeSintoma('chequeo a/c')).toBe('Aire Acondicionado');
+    expect(_componenteDeSintoma('bajo flujo de a/c')).toBe('Aire Acondicionado');
+  });
+
+  it('NO clasifica "acblue" (AdBlue) como Aire Acondicionado — evita el falso positivo de la sigla "ac" sola', () => {
+    expect(_componenteDeSintoma('bajo flujo de acblue')).toBe('');
+  });
+
+  it('clasifica la categoría nueva Radio/Comunicaciones (2026-08-28)', () => {
+    expect(_componenteDeSintoma('falla en radio base')).toBe('Radio/Comunicaciones');
+    expect(_componenteDeSintoma('falla ptt radio,se cambia')).toBe('Radio/Comunicaciones');
+  });
 });
