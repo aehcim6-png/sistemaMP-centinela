@@ -25,6 +25,17 @@ window.renderAyuda=function(){
     '</ul>'+
     '</div>'+
 
+    // NOVEDADES DE ESTA VERSIÓN (2026-08-28)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Novedades y correcciones recientes (28 de agosto 2026)</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Nuevo tema visual "Ejecutivo" en Configuración, más relieve/profundidad y un filtro para mostrar solo lo que te interesa en el Dashboard.</p>'+
+    '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>👔 Tema Ejecutivo (nueva opción en Configuración → Tema):</b> 4ª paleta de colores, junto a Oscuro/Claro/Azul Minero — fondo claro sobrio con acento azul. Se agrega como opción nueva, no reemplaza ninguna de las que ya existían.</li>'+
+    '<li><b>Formato 3D en las tarjetas del Dashboard:</b> más sombra y un efecto de elevación al pasar el mouse sobre las tarjetas y paneles del tablero, en los 4 temas. No se tocaron los gráficos (barras/torta) — un gráfico en 3D distorsiona la lectura real de los valores, así que ahí no cambió nada.</li>'+
+    '<li><b>Filtro de bloques en el Dashboard:</b> 5 botones arriba del tablero (🩺 Salud de Flota / 📊 Disponibilidad / 📈 Gráficos / 🔴 Equipos Urgentes / 💰 Costos y Stock) para mostrar solo el bloque que te interesa en el momento — por ejemplo, dejar solo "Salud de Flota" o solo "Equipos Urgentes". Es puramente visual: los cálculos y avisos automáticos (ej. la notificación cuando un equipo cruza a Salud Baja) siguen funcionando igual aunque el bloque esté oculto. Tu elección queda guardada y se recuerda la próxima vez que entras.</li>'+
+    '</ul>'+
+    '</div>'+
+
     // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-26)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (26 de agosto 2026)</b>'+
@@ -263,7 +274,7 @@ window.renderAyuda=function(){
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">4. Pestañas del Sistema</div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Pestaña</th><th>Función</th><th>Qué se hace ahí</th></tr>'+
-    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Dashboard</b></td><td>Vista general</td><td>KPIs, gráficos, equipos urgentes, semáforos</td></tr>'+
+    '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Dashboard</b></td><td>Vista general</td><td>KPIs, gráficos, equipos urgentes, semáforos — con 5 chips arriba para mostrar solo el bloque que te interesa (Salud de Flota, Disponibilidad, Gráficos, Equipos Urgentes, Costos y Stock)</td></tr>'+
     '<tr><td><b>🔴 Alertas PM4</b></td><td>Repuestos overhaul</td><td>Botón en el Dashboard (junto al selector de período) — equipos acercándose a su PM4/overhaul (8× frecPM propio) y los repuestos clave que necesitan, editables por fila</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="6"/><line x1="9" y1="10" x2="4" y2="10"/><line x1="4" y1="10" x2="4" y2="13"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14" cy="15" r="3.5"/><line x1="15" y1="10" x2="15" y2="4"/></svg> Equipos</b></td><td>Flota completa</td><td>Ver/editar equipos, horómetros, estado PM</td></tr>'+
     '<tr><td><b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registro PM</b></td><td>Mantención preventiva</td><td>Registrar cada PM con fechas, técnico, horómetro</td></tr>'+
@@ -401,7 +412,7 @@ window.renderAyuda=function(){
     '<b>Acceso:</b> Contraseña por defecto: <b>1234</b> (se puede cambiar)<br><br>'+
     '<b>Opciones disponibles:</b><br>'+
     '• <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16"/><rect x="6.3" y="4.5" width="1.8" height="1.8"/><rect x="9.1" y="4.5" width="1.8" height="1.8"/><rect x="11.9" y="4.5" width="1.8" height="1.8"/><rect x="6.3" y="8" width="1.8" height="1.8"/><rect x="9.1" y="8" width="1.8" height="1.8"/><rect x="11.9" y="8" width="1.8" height="1.8"/><rect x="8.5" y="13" width="3" height="5"/></svg> Empresa y faena<br>'+
-    '• 🎨 Tema: Oscuro / Claro / Azul Minero<br>'+
+    '• 🎨 Tema: Oscuro / Claro / Azul Minero / Ejecutivo<br>'+
     '• 🎨 Colores personalizables: principal, OK, peligro<br>'+
     '• <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Opciones de Dashboard: gráficos, proyección, costos<br>'+
     '• <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Exportar/Importar backup JSON<br>'+
@@ -661,7 +672,8 @@ window.renderAyuda=function(){
     '<b>🚨 Tabla de Equipos Urgentes</b> — Lista los equipos con PM vencida o crítica, con horómetro actual, horómetro de próxima PM, días restantes y tipo de PM. Se ordena por urgencia.<br><br>'+
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs (14 días)</b> — Tarjetas visuales con los equipos que tienen mantención programada en las próximas dos semanas, coloreadas según cercanía (rojo ≤3 días, amarillo 4-14 días).<br><br>'+
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Tendencia de Disponibilidad (6 meses)</b> — Gráfico de barras con la disponibilidad mecánica promedio de la flota mes a mes, comparada contra la meta configurada en Config.<br><br>'+
-    'Además, dentro de la pestaña <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis Aceite</b> existe un mini-dashboard propio con: torta de Estado General (Normal/Precaución/Alerta), gráfico de muestras mensuales, y rankings por Tipo de Equipo, Tipo de Componente y Lubricante — replicando el formato del reporte oficial de Mobil Assistance, pero calculado en vivo desde tus datos cargados.</div></div>'+
+    'Además, dentro de la pestaña <b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Análisis Aceite</b> existe un mini-dashboard propio con: torta de Estado General (Normal/Precaución/Alerta), gráfico de muestras mensuales, y rankings por Tipo de Equipo, Tipo de Componente y Lubricante — replicando el formato del reporte oficial de Mobil Assistance, pero calculado en vivo desde tus datos cargados.<br><br>'+
+    '<b>🎛️ Filtro de bloques (28 de agosto 2026):</b> arriba del tablero hay 5 botones — Salud de Flota, Disponibilidad, Gráficos, Equipos Urgentes, Costos y Stock — para apagar los que no necesitas ver en el momento. Es solo visual: los cálculos y avisos automáticos siguen corriendo igual estén ocultos o no. Tu elección se guarda y se recuerda la próxima vez.</div></div>'+
 
     // 27. VENCIMIENTOS DOCUMENTALES
     '<div class="card" style="margin-bottom:12px" id="m27">'+
