@@ -240,4 +240,30 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('se reemplaza conversor cableado de alimentacion')).toBe('Sistema Eléctrico');
     expect(_componenteDeSintoma('parabrisas')).toBe('Parabrisas/Vidrios');
   });
+
+  it('encuentra 6 categorías nuevas con análisis de frecuencia de palabras, no solo lectura manual (2026-08-28, novena pasada)', () => {
+    expect(_componenteDeSintoma('tolva no baja')).toBe('Tolva/Dumper');
+    expect(_componenteDeSintoma('puerta izquierda trabada')).toBe('Puertas');
+    expect(_componenteDeSintoma('regulacion de espejos')).toBe('Espejos');
+    expect(_componenteDeSintoma('baliza mal estado')).toBe('Baliza/Pértiga (Señalización)');
+    expect(_componenteDeSintoma('pertica y baliza  no funcional,se cambian')).toBe('Baliza/Pértiga (Señalización)');
+    expect(_componenteDeSintoma('se repara cable de camara de retroceso')).toBe('Cámara de Retroceso');
+  });
+
+  it('amplía categorías existentes: arranque, luces, calefacción, ptt, filtro de cabina, typo anticolicion (2026-08-28, novena pasada)', () => {
+    expect(_componenteDeSintoma('equipo no da arranque')).toBe('Motor de Partida');
+    expect(_componenteDeSintoma('luces')).toBe('Foco/Ampolleta');
+    expect(_componenteDeSintoma('falla en calefaccion, solo se ocupa de dia')).toBe('Aire Acondicionado');
+    expect(_componenteDeSintoma('ptt  de radio en mal estado,se cambia')).toBe('Radio/Comunicaciones');
+    expect(_componenteDeSintoma('saturacion filtro cabina')).toBe('Filtro de Aire');
+    expect(_componenteDeSintoma('se normaliza camara trasera de anticolicion')).toBe('Sistema Anticolisión/Fatiga (ADAS)');
+  });
+
+  it('NO agrega "pala" como palabra suelta — es prefijo de "palanca" (ambigua, sin categoría a propósito) y la rompería', () => {
+    expect(_componenteDeSintoma('palanca accionamiento')).toBe('');
+    expect(_componenteDeSintoma('se instala palanca control')).toBe('');
+    // "pala" bare no está en el diccionario — casos reales de motoniveladora
+    // que no mencionan otro componente reconocido siguen sin categoría.
+    expect(_componenteDeSintoma('reparacion en pala ,se normaliza presiones de trabajo')).toBe('');
+  });
 });

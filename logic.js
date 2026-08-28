@@ -1473,7 +1473,28 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // mantención diaria/semanal, equipo empantanado) y el resto ya es una cola
 // de síntomas ÚNICOS (n=1 cada uno) — seguir ampliando el diccionario ahí
 // exige revisar caso a caso con quien conoce el taller, no con evidencia
-// estadística sola. Cobertura real medida: 66.0% (821/1243). El resto
+// estadística sola. Cobertura real medida: 66.0% (821/1243). Novena pasada
+// (mismo día — el usuario preguntó "¿se puede o no?" seguir sumando):
+// esta vez, en vez de solo leer la lista ordenada por frecuencia, se contó
+// la frecuencia de CADA PALABRA suelta a través de las filas restantes
+// (excluyendo las ya conocidas como "no es componente") — encontró grupos
+// reales que la lectura manual anterior no había juntado: tolva (9 filas,
+// categoría nueva "Tolva/Dumper"), puerta (4, categoría nueva "Puertas"),
+// espejo (4, categoría nueva "Espejos"), baliza+pértiga (6, categoría
+// nueva "Baliza/Pértiga", van juntas porque un caso real las menciona en
+// la misma falla), cámara de retroceso (distinta de la cámara ADAS, que
+// ya tenía categoría propia), 'arranque' (sinónimo real de "motor de
+// partida"), 'luces' sin "baja/alta" cerca, 'calefaccion' (la otra mitad
+// de climatización junto a Aire Acondicionado), 'ptt' sin "falla" cerca,
+// 'filtro de cabina' (junto a Filtro de Aire) y el typo 'anticolicion'.
+// 'pala' (motoniveladora) apareció con volumen real pero se descartó
+// agregarla como palabra suelta: "pala" es tan corta que calza como
+// PREFIJO de "palanca" ("palanca" empieza con "pala") — agregarla habría
+// clasificado mal cada mención de "palanca" (que se mantiene sin
+// categoría a propósito, por ambigua) como si fuera de la pala de la
+// motoniveladora. Se necesitarían frases exactas más largas para agregarla
+// con seguridad, caso no abordado en esta pasada. Cobertura real medida:
+// 69.3% (862/1243). El resto
 // son mayormente
 // casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
@@ -1487,7 +1508,10 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 var _CATEGORIAS_COMPONENTE=[
   ['Asiento',['asiento']],
   ['Batería',['bateria','batería','baterias','baterías']],
-  ['Motor de Partida',['motor de partida','motor partida']],
+  // 'arranque' agregada (2026-08-28, novena pasada): sinónimo real de
+  // "motor de partida" en el vocabulario de esta flota (5 filas reales
+  // adicionales: "sin arranque", "equipo no da arranque", etc.).
+  ['Motor de Partida',['motor de partida','motor partida','arranque']],
   // 'orbitrol' agregada (2026-08-28, cuarta pasada): la válvula orbitrol es
   // parte del sistema de dirección hidráulica (3 filas reales, todas
   // claramente de dirección: "falla en orbitrol", "fuga orbitrol",
@@ -1551,7 +1575,10 @@ var _CATEGORIAS_COMPONENTE=[
   // cuarta pasada): plural real ("se realiza cambio de filtros de
   // combustible") que no calzaba con el singular.
   ['Filtro de Combustible',['filtro de combustible','filtro combustible','filtro decombustible','filtros de combustible','filtros combustible']],
-  ['Filtro de Aire',['filtro de aire','filtro aire']],
+  // 'filtro de cabina'/'filtro cabina' agregadas (2026-08-28, novena
+  // pasada): el filtro de aire de la cabina (ventilación/climatización),
+  // misma familia funcional que el filtro de aire del motor.
+  ['Filtro de Aire',['filtro de aire','filtro aire','filtro de cabina','filtro cabina']],
   // 'bomba de inyeccion'/'bomba inyeccion' agregadas (2026-08-28): variante
   // real vista en los datos ("perno de bomba inyeccion") que no calzaba con
   // 'bomba inyectora'.
@@ -1594,7 +1621,9 @@ var _CATEGORIAS_COMPONENTE=[
   // reales como "foco central derecho", "focos trasero", "falla en foco,
   // se cambia foco bajo derecho" — revisados todos los casos reales que
   // contienen "foco" sin categoría, los 3 son de focos del equipo.
-  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta','foco','focos']],
+  // 'luces' agregada (2026-08-28, novena pasada): variantes reales sin
+  // "baja"/"alta" cerca ("luces trasera quemadas", "luces niblineras").
+  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta','foco','focos','luces']],
   ['Sistema Hidráulico',['hidraulico','hidráulico']],
   // 'eléctrica'/'electrica' (2026-08-28, forma femenina — "falla eléctrica" no
   // calzaba con el keyword 'eléctrico' por la concordancia de género, 15
@@ -1611,7 +1640,9 @@ var _CATEGORIAS_COMPONENTE=[
   // frases completas, no la sigla sola ("ac"), porque "ac" de 2 letras
   // aparece dentro de otras palabras sin relación (ej. "AdBlue" escrito
   // "acblue" en un síntoma real) y generaría falsos positivos.
-  ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador','se carga ac','chequeo a/c','bajo flujo de a/c','sistema de ac']],
+  // 'calefaccion' agregada (2026-08-28, novena pasada): la otra mitad del
+  // sistema de climatización (calefacción, no solo enfriamiento).
+  ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador','se carga ac','chequeo a/c','bajo flujo de a/c','sistema de ac','calefaccion']],
   // 'entrecalza'/'entrecalzas' agregadas (2026-08-28, quinta pasada): son
   // los separadores/adaptadores entre segmentos de cuchilla — parte de la
   // misma familia GET (Ground Engaging Tools), 16 filas reales sin
@@ -1675,14 +1706,18 @@ var _CATEGORIAS_COMPONENTE=[
   // 'antena' agregada (2026-08-28, quinta pasada): variantes reales sin
   // "radio base" cerca ("falla cable antena", "se cambia cable de antena
   // principal").
-  ['Radio/Comunicaciones',['radio base','falla ptt','antena']],
+  // 'ptt' agregada como palabra sola (2026-08-28, novena pasada): variante
+  // real sin "falla" cerca ("ptt de radio en mal estado,se cambia").
+  ['Radio/Comunicaciones',['radio base','falla ptt','antena','ptt']],
   // Nueva (2026-08-28, quinta pasada): sistema anticolisión y de detección
   // de fatiga/somnolencia (cámara DMS) — tecnología de asistencia al
   // conductor, categoría de seguridad propia, no un componente mecánico
   // más (11 filas reales combinadas).
   // 'f&s' agregada (2026-08-28, séptima pasada, el usuario confirmó el
   // término): abreviación real de "Fatiga y Somnolencia", el mismo sistema.
-  ['Sistema Anticolisión/Fatiga (ADAS)',['somnolencia','anticolision','anticolisión','f&s']],
+  // 'anticolicion' agregada (2026-08-28, novena pasada): typo real
+  // ("anticolicion" con "c", en vez de "anticolision"/"anticolisión").
+  ['Sistema Anticolisión/Fatiga (ADAS)',['somnolencia','anticolision','anticolisión','anticolicion','f&s']],
   // Nueva (2026-08-28, tercera pasada, término sugerido por el usuario): la
   // tornamesa es el mecanismo de giro de la superestructura (cargador
   // frontal/excavadora) — sin categoría hasta ahora (2 filas reales).
@@ -1695,6 +1730,18 @@ var _CATEGORIAS_COMPONENTE=[
   // Nueva (2026-08-28, octava pasada): parabrisas/vidrios — 2 filas reales,
   // sin categoría hasta ahora.
   ['Parabrisas/Vidrios',['parabrisas']],
+  // Nuevas (2026-08-28, novena pasada), todas con evidencia real revisada
+  // una por una:
+  ['Tolva/Dumper',['tolva']], // 9 filas — la caja/batea de volteo
+  ['Puertas',['puerta']], // 4 filas
+  ['Espejos',['espejo']], // 4 filas
+  // Baliza (luz giratoria) y pértiga (el mástil que la sostiene) van
+  // juntas — un caso real las menciona en la misma falla ("pertica y
+  // baliza no funcional").
+  ['Baliza/Pértiga (Señalización)',['baliza','pertiga','pertica']],
+  // Cámara de retroceso simple (reversa) — distinta de la cámara del
+  // sistema ADAS (fatiga/anticolisión), que ya tiene su propia categoría.
+  ['Cámara de Retroceso',['camara de retroceso','camara retroceso']],
   // Nueva (2026-08-28, cuarta pasada, término sugerido por el usuario): AFEX
   // es el sistema automático de extinción de incendios del equipo — una
   // falla ahí es de seguridad, no un componente mecánico más (4 filas
