@@ -79,11 +79,46 @@ window._descargarQR=function(sigla){
   a.click();
 };
 
+// ═══ Uso de espacio local (localStorage) — una sola fuente para el medidor
+// de "Mantenimiento de datos" de más abajo y la tarjeta resumen de arriba,
+// en vez de calcular lo mismo dos veces en el mismo render (2026-08-28).
+function _medirUsoLocal(){
+  var totalBytes=0;for(var k in localStorage){if(localStorage.hasOwnProperty(k))totalBytes+=(localStorage[k].length||0)*2;}
+  var limite=5*1024*1024;
+  var pct=Math.min(100,totalBytes/limite*100);
+  var col=pct>80?'#ef4444':pct>50?'#f59e0b':'#22c55e';
+  return{totalBytes:totalBytes,pct:pct,col:col};
+}
+
 window.renderCfg=function(){
   const cfg=S.g('cfg')||{};
   $('s-cfg').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Configuración</div>'+
     '<div class="sec-s">Administración del sistema</div></div></div>'+
+
+    // ═══ RESUMEN DE ESTADO — todo lo de abajo, de un vistazo (2026-08-28,
+    // pedido del usuario). Solo datos reales, sintéticos con lo ya cargado
+    // en memoria y sin agregar ninguna llamada de red nueva — a propósito
+    // NO incluye "Uso del sistema" (esa tabla vive solo en Supabase, se trae
+    // on-demand para no descargarla en cada apertura de esta pestaña) ni un
+    // conteo de "tests pasando" (eso no es algo que el navegador en
+    // producción pueda saber realmente).
+    (function(){
+      var papelera=(S.g('papelera')||[]).length;
+      var dataInt={eq:S.g('eq')||[],reg:S.g('reg')||[],hist:S.g('hist')||[],stk:S.g('stk')||[],repuestos:S.g('repuestos')||[],lub:S.g('lub')||[],ordenes:S.g('ordenes')||[],compMayores:S.g('compMayores')||[],dispCalc:S.g('dispCalc')||{}};
+      var hallazgos=verificarIntegridad(dataInt);
+      var altaCount=hallazgos.filter(function(h){return h.severidad==='alta';}).length;
+      var intCol=altaCount?'var(--danger)':hallazgos.length?'#eab308':'#22c55e';
+      var intVal=altaCount?altaCount+' alta(s)':hallazgos.length?hallazgos.length+' media':'Sin hallazgos';
+      var uso=_medirUsoLocal();
+      return '<div class="cards" style="margin-bottom:16px">'+
+        '<div class="card" style="border-left:4px solid '+intCol+'"><div class="card-t">🔍 Integridad</div><div class="card-v" style="font-size:16px;color:'+intCol+'">'+intVal+'</div><div class="card-s">'+hallazgos.length+' hallazgo(s) en total</div></div>'+
+        '<div class="card" style="border-left:4px solid '+(papelera?'#f59e0b':'#22c55e')+'"><div class="card-t">🗑️ Papelera</div><div class="card-v">'+papelera+'</div><div class="card-s">elemento(s), 30 días</div></div>'+
+        '<div class="card" style="border-left:4px solid '+uso.col+'"><div class="card-t">💾 Datos locales</div><div class="card-v" style="font-size:16px;color:'+uso.col+'">'+uso.pct.toFixed(1)+'%</div><div class="card-s">'+(uso.totalBytes/1048576).toFixed(2)+' MB de 5 MB</div></div>'+
+        '<div class="card" style="border-left:4px solid '+(window._clStatusColor||'var(--tx3)')+'"><div class="card-t">☁️ Sync nube</div><div class="card-v" style="font-size:13px">'+(window._clStatusTxt||'⚪ Sin configurar')+'</div><div class="card-s">Supabase</div></div>'+
+        '<div class="card" style="border-left:4px solid '+(window._asStatusColor||'var(--tx3)')+'"><div class="card-t">📂 Backup local</div><div class="card-v" style="font-size:13px">'+(window._asStatusTxt||'⚪ Sin carpeta conectada')+'</div><div class="card-s">Carpeta autoguardado</div></div>'+
+      '</div>';
+    })()+
 
     // ACCESOS (quién entró, cuándo, desde qué navegador/equipo)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
@@ -220,10 +255,8 @@ window.renderCfg=function(){
 
     // MANTENIMIENTO DE DATOS (medidor localStorage — ya no hay botón de borrado real)
     (function(){
-      var totalBytes=0;for(var k in localStorage){if(localStorage.hasOwnProperty(k))totalBytes+=(localStorage[k].length||0)*2;}
-      var limite=5*1024*1024;
-      var pct=Math.min(100,totalBytes/limite*100);
-      var col=pct>80?'#ef4444':pct>50?'#f59e0b':'#22c55e';
+      var uso=_medirUsoLocal();
+      var totalBytes=uso.totalBytes,pct=uso.pct,col=uso.col;
       return ''+
       '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid '+col+'">'+
       '<b style="font-size:14px">🗄️ Mantenimiento de datos</b>'+
