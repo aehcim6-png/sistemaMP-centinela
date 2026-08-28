@@ -1171,15 +1171,9 @@ window.resumenFlotaNeu=function(){
   // Dotación de Taller/Tendencia de Compra porque cada neumático YA trae su propia
   // fecha proyectada — acá solo se agrupa, no se re-estima nada.
   const granNeu=window._neuProyGran||'mes';
-  function _agruparPeriodoNeu(fechaISO,gran){
-    const mes=fechaISO.slice(0,7);
-    if(gran==='año')return mes.slice(0,4);
-    if(gran==='semestre'){const yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
-    return mes;
-  }
   const porPeriodoNeu={};
   proyConNeu.forEach(function(x){
-    const p=_agruparPeriodoNeu(x.proy.fechaCambio,granNeu);
+    const p=agruparPeriodo(x.proy.fechaCambio,granNeu);
     if(!porPeriodoNeu[p])porPeriodoNeu[p]={cant:0,costo:0};
     porPeriodoNeu[p].cant++;
     porPeriodoNeu[p].costo+=neuPrecio(x.n).precio||0;
@@ -1256,7 +1250,7 @@ window.resumenFlotaNeu=function(){
     </div>
     ${periodosNeuOrd.length?`<div class="tbl-wrap" style="margin-bottom:16px"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Período</th><th>Neumáticos</th><th>Costo estimado</th></tr>
-      ${periodosNeuOrd.map(p=>{const d=porPeriodoNeu[p];const pasado=p<_agruparPeriodoNeu(hoyISONeu,granNeu);
+      ${periodosNeuOrd.map(p=>{const d=porPeriodoNeu[p];const pasado=p<agruparPeriodo(hoyISONeu,granNeu);
         return`<tr style="border-bottom:1px solid var(--bd)${pasado?';background:rgba(239,68,68,.05)':''}">
         <td style="padding:6px"><b>${escapeHtml(p)}</b>${pasado?' <span style="color:var(--danger);font-size:9px">(atrasado)</span>':''}</td>
         <td style="text-align:center;font-weight:600">${d.cant}</td>

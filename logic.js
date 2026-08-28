@@ -1289,6 +1289,20 @@ function hayConflictoIds(idsAntes,idsServidor){
   return false;
 }
 
+// ═══ AGRUPAR UNA FECHA/MES EN SU PERÍODO (Mes/Semestre/Año) ═══
+// Consolidada acá (2026-08-28, paso 2 del plan) desde 3 copias casi idénticas
+// que habían salido cada una por su cuenta al construir Tendencia de Compra
+// (_agruparPeriodoItem, index.html), Neumáticos (_agruparPeriodoNeu, neu.js) y
+// Dotación de Taller (_agruparPeriodoDot, pred.js) — mismo cálculo, sin
+// ninguna razón real para tener 3 versiones. Acepta tanto 'YYYY-MM' como una
+// fecha ISO completa 'YYYY-MM-DD' (slice(0,7) es un no-op sobre 'YYYY-MM').
+function agruparPeriodo(fechaOMes,gran){
+  var mes=String(fechaOMes).slice(0,7);
+  if(gran==='año')return mes.slice(0,4);
+  if(gran==='semestre'){var yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
+  return mes;
+}
+
 // ═══ GASTO PROYECTADO AGREGADO POR CATEGORÍA (Filtros/Lubricantes/Repuestos) ═══
 // Movida acá desde index.html (2026-08-28, paso 2 del plan de reducir el
 // acoplamiento entre lógica de negocio y UI) — es una función pura (sin DOM,
@@ -1394,6 +1408,7 @@ if (typeof window !== 'undefined') {
   window.confiabilidadReal = confiabilidadReal;
   window.regEsATiempo = regEsATiempo;
   window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
+  window.agruparPeriodo = agruparPeriodo;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1407,6 +1422,6 @@ if (typeof module !== 'undefined' && module.exports) {
     indiceSaludFlota, scoreSaludEquipo, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo,
-    _gastoProyectadoCategoria
+    _gastoProyectadoCategoria, agruparPeriodo
   };
 }
