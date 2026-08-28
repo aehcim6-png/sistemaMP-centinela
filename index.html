@@ -289,7 +289,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-08-28a"></script>
+<script src="logic.js?v=2026-08-28b"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -337,9 +337,9 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/reg.js?v=2026-08-25b"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-26c"></script>
-<script src="modules/renders/pred.js?v=2026-08-27b"></script>
+<script src="modules/renders/pred.js?v=2026-08-28a"></script>
 <script src="modules/renders/kpi.js?v=2026-08-18c"></script>
-<script src="modules/renders/neu.js?v=2026-08-27a"></script>
+<script src="modules/renders/neu.js?v=2026-08-28a"></script>
 <script src="modules/renders/cfg.js?v=2026-08-27a"></script>
 <script>
 // ============ DATA ============
@@ -1185,11 +1185,6 @@ window.edI=function(store,idx,key,val){
 // Stock Filtros (mov filtrado por tipo Filtro), Lubricantes (mov filtrado por
 // tipo Lubricante) y Control de Repuestos (ordenes de compra, ya que la mayoría
 // de sus ítems no pasan por 'mov' — no tienen consumo de pauta vinculado).
-function _agruparPeriodoItem(mes,gran){
-  if(gran==='año')return mes.slice(0,4);
-  if(gran==='semestre'){var yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
-  return mes;
-}
 function _tendenciaCompraHTML(eventos,stockActual,unidad,gran,leadTimeDias){
   gran=gran||'mes';
   var porMes={};
@@ -1203,7 +1198,7 @@ function _tendenciaCompraHTML(eventos,stockActual,unidad,gran,leadTimeDias){
     return '<p style="color:var(--tx3);font-size:12px">Sin historial real de consumo/compra para este ítem — no se puede proyectar sin datos (evita inventar un número).</p>';
   }
   var periodos={};
-  meses.forEach(function(m){var p=_agruparPeriodoItem(m,gran);periodos[p]=(periodos[p]||0)+porMes[m];});
+  meses.forEach(function(m){var p=agruparPeriodo(m,gran);periodos[p]=(periodos[p]||0)+porMes[m];});
   var periodosOrd=Object.keys(periodos).sort();
 
   var ultimos=meses.slice(-6);

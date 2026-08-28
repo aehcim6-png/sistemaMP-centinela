@@ -1245,14 +1245,9 @@ window.renderPred=function(){
     var HRS_TURNO_DIA_DOT=12;
     function _diasDelMesDot(mesStr){var yy=parseInt(mesStr.slice(0,4)),mm=parseInt(mesStr.slice(5,7));return new Date(yy,mm,0).getDate();}
     function _capacidadMesDot(mesStr){return mecDia*HRS_TURNO_DIA_DOT*_diasDelMesDot(mesStr);}
-    function _agruparPeriodoDot(mes,gran){
-      if(gran==='año')return mes.slice(0,4);
-      if(gran==='semestre'){var yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
-      return mes;
-    }
     var periodosDot={};
     mesesConDatosDot.forEach(function(m){
-      var p=_agruparPeriodoDot(m,granTend);
+      var p=agruparPeriodo(m,granTend);
       if(!periodosDot[p])periodosDot[p]={carga:0,capacidad:0};
       periodosDot[p].carga+=cargaPorMes[m];
       periodosDot[p].capacidad+=_capacidadMesDot(m);
