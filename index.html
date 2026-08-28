@@ -191,6 +191,11 @@ td.calc{color:var(--tx3);font-style:italic}
 .pg-x{background:#374151;color:#aab5c3}
 
 .chart-box{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+/* Formato 3D del Dashboard: relieve + elevación al pasar el mouse.
+   Solo tarjetas/paneles (#s-dash), nunca los gráficos — un gráfico 3D
+   distorsiona la lectura real de los valores, así que los datos no se tocan. */
+#s-dash .card,#s-dash .chart-box{box-shadow:var(--shadow-md);transition:transform .18s ease,box-shadow .18s ease}
+#s-dash .card:hover,#s-dash .chart-box:hover{transform:translateY(-3px);box-shadow:0 14px 28px rgba(0,0,0,.18),var(--shadow-md)}
 .chart-t{font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:12px}
 .bars{display:flex;align-items:end;gap:6px;height:160px;padding-top:16px}
 /* height:100% + justify-content:flex-end: bug real encontrado al pedir más
