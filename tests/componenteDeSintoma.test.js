@@ -259,11 +259,22 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('se normaliza camara trasera de anticolicion')).toBe('Sistema Anticolisión/Fatiga (ADAS)');
   });
 
-  it('NO agrega "pala" como palabra suelta — es prefijo de "palanca" (ambigua, sin categoría a propósito) y la rompería', () => {
+  it('"pala" (motoniveladora) se agrega con /\\bpala\\b/ (palabra completa) y NO choca con "palanca" (2026-08-28, corrección posterior a la novena pasada)', () => {
+    // 'palanca' sigue sin categoría — sigue siendo ambigua entre subsistemas
+    // y NO debe matchear por ser 'pala' prefijo suyo.
     expect(_componenteDeSintoma('palanca accionamiento')).toBe('');
     expect(_componenteDeSintoma('se instala palanca control')).toBe('');
-    // "pala" bare no está en el diccionario — casos reales de motoniveladora
-    // que no mencionan otro componente reconocido siguen sin categoría.
-    expect(_componenteDeSintoma('reparacion en pala ,se normaliza presiones de trabajo')).toBe('');
+    // el usuario confirmó el término con ejemplo real: "se cambia elemento
+    // de pala de moto" — 'pala' es la hoja/cuchilla de la motoniveladora.
+    expect(_componenteDeSintoma('se cambia elemento de pala de moto')).toBe('Pala (Motoniveladora)');
+    expect(_componenteDeSintoma('reparacion en pala ,se normaliza presiones de trabajo')).toBe('Pala (Motoniveladora)');
+    expect(_componenteDeSintoma('se reemplaza barra tensora pala')).toBe('Pala (Motoniveladora)');
+    expect(_componenteDeSintoma('se cambia juego completo de pala.')).toBe('Pala (Motoniveladora)');
+    // cuando el síntoma ya menciona un componente más específico (cilindro
+    // de dirección, hidráulico, GET/cuchillas, foco), esa categoría más
+    // específica gana primero — es correcto, "pala" es genérico.
+    expect(_componenteDeSintoma('cilindro direccion pala')).toBe('Cilindro de Dirección');
+    expect(_componenteDeSintoma('falla en cilindro hidráulico de pala')).toBe('Sistema Hidráulico');
+    expect(_componenteDeSintoma('se cambia cuchillas de la pala')).toBe('GET / Cuchillas');
   });
 });

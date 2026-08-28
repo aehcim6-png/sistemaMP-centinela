@@ -1487,14 +1487,18 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // partida"), 'luces' sin "baja/alta" cerca, 'calefaccion' (la otra mitad
 // de climatización junto a Aire Acondicionado), 'ptt' sin "falla" cerca,
 // 'filtro de cabina' (junto a Filtro de Aire) y el typo 'anticolicion'.
-// 'pala' (motoniveladora) apareció con volumen real pero se descartó
-// agregarla como palabra suelta: "pala" es tan corta que calza como
-// PREFIJO de "palanca" ("palanca" empieza con "pala") — agregarla habría
-// clasificado mal cada mención de "palanca" (que se mantiene sin
-// categoría a propósito, por ambigua) como si fuera de la pala de la
-// motoniveladora. Se necesitarían frases exactas más largas para agregarla
-// con seguridad, caso no abordado en esta pasada. Cobertura real medida:
-// 69.3% (862/1243). El resto
+// 'pala' (motoniveladora) apareció con volumen real pero en esta pasada se
+// descartó agregarla como SUBSTRING suelto: "pala" es tan corta que calza
+// como PREFIJO de "palanca" ("palanca" empieza con "pala") — agregarla así
+// habría clasificado mal cada mención de "palanca" (que se mantiene sin
+// categoría a propósito, por ambigua). CORRECCIÓN POSTERIOR (mismo día): el
+// usuario confirmó el término con ejemplo real ("se cambia elemento de pala
+// de moto") y se agregó de forma segura extendiendo _componenteDeSintoma
+// para aceptar también RegExp (no solo strings) y usando /\bpala\b/
+// (coincidencia de PALABRA COMPLETA, no substring) — ver categoría "Pala
+// (Motoniveladora)" más abajo. Verificado: matchea las 11 filas reales de
+// pala de motoniveladora y sigue sin matchear 'palanca'. Cobertura real
+// medida: 69.9% (869/1243). El resto
 // son mayormente
 // casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
@@ -1752,6 +1756,24 @@ var _CATEGORIAS_COMPONENTE=[
   // (7 filas reales: "estanque combustible", "falta de tapa combustible",
   // "se cambia tapa de llenado de combustible").
   ['Estanque/Tapa de Combustible',['estanque combustible','estanque de combustible','tapa combustible','tapa de combustible','tapa de llenado de combustible']],
+  // Nueva (2026-08-28, novena pasada, corrección posterior): 'pala' es la
+  // hoja/cuchilla de la motoniveladora (el usuario lo confirmó con ejemplo
+  // real: "se cambia elemento de pala de moto"). En la novena pasada se
+  // había descartado a propósito como palabra suelta porque 'pala' es
+  // prefijo literal de 'palanca' (término deliberadamente sin categoría,
+  // ambiguo entre subsistemas) — agregarla como substring habría
+  // clasificado mal cada mención de 'palanca'. Solución: se extendió
+  // _componenteDeSintoma para aceptar también RegExp además de strings, y
+  // aquí se usa /\bpala\b/ (coincidencia de palabra completa) en vez de
+  // substring. Verificado contra las 889 filas reales distintas: matchea
+  // exactamente 11 filas limpias de pala de motoniveladora ("se reemplaza
+  // barra tensora pala", "cilindro direccion pala", "cambio
+  // dedeslizdera de pala", etc.) y NO matchea 'palanca accionamiento' ni
+  // 'se instala palanca control' (se probó explícitamente con
+  // re.test(...)===false en ambos casos). Se ubica cerca del final para
+  // que categorías más específicas que también podrían mencionar "pala"
+  // en otro sentido (p.ej. Cilindro de Dirección) sigan ganando primero.
+  ['Pala (Motoniveladora)',[/\bpala\b/]],
   // 'reel' agregada (2026-08-28, séptima pasada, el usuario confirmó el
   // término): son sensores del motor.
   ['Motor',['motor','reel']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
@@ -1763,7 +1785,7 @@ function _componenteDeSintoma(sintoma){
   var t=sintoma.toLowerCase();
   for(var i=0;i<_CATEGORIAS_COMPONENTE.length;i++){
     var cat=_CATEGORIAS_COMPONENTE[i][0],keys=_CATEGORIAS_COMPONENTE[i][1];
-    for(var j=0;j<keys.length;j++){if(t.indexOf(keys[j])>=0)return cat;}
+    for(var j=0;j<keys.length;j++){var k=keys[j];if(k instanceof RegExp ? k.test(t) : t.indexOf(k)>=0)return cat;}
   }
   return '';
 }
