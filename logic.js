@@ -1374,6 +1374,140 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
   return{porPeriodo:porPeriodo,periodosOrd:periodosOrd,gastoHastaFinAnio:gastoHastaFinAnio,itemsConDatos:itemsConDatos,itemsSinDatos:itemsSinDatos,itemsSinPrecio:itemsSinPrecio};
 }
 
+// ═══ MOTOR DE INTERPRETACIÓN AUTOMÁTICA — CATEGORÍA DE COMPONENTE DESDE SÍNTOMA ═══
+// Movido acá desde pred.js (2026-08-28, paso 2 del plan) — es lógica pura de
+// clasificación de texto, sin nada de UI, así que pertenece en logic.js junto
+// al resto del cálculo de negocio. El campo "componente" de correctivos está
+// vacío en el 100% de los registros reales (verificado 2026-07 — nadie lo
+// llena en terreno); la descripción real vive como texto libre en "síntoma",
+// sin formato consistente ("Asiento", "ASIENTO NO FUNCIONAL", "asiento con
+// falla en respaldar", etc.). Sin esto, toda detección de "falla recurrente
+// en el mismo componente" (Predictivo, Estadística) queda ciega — nunca
+// encuentra nada que agrupar.
+//
+// Auditoría de cobertura real (2026-08-28, a pedido del usuario: "normaliza
+// sintoma y sistema con NLP"): medida contra los 1.243 correctivos reales de
+// la tabla 'correctivos' (889 síntomas distintos), la versión anterior de
+// este diccionario solo clasificaba el 42.1% de las filas (523/1243) — el
+// resto quedaba sin componente. Se agregaron las categorías/palabras clave de
+// abajo marcadas "(2026-08-28)", subiendo la cobertura real medida a 52.9%
+// (658/1243). El resto son mayormente casos genuinamente SIN componente
+// específico (mantenimiento preventivo, cierre de backlog, partida de
+// equipo, código de falla activo sin especificar sistema) — que quedan
+// correctamente sin categoría, no es un hueco a rellenar — más una cola larga
+// de ~800 síntomas únicos, casi todos con errores de tipeo distintos entre sí
+// (ej. "trasnmision", "poscion", "sproket"), que queda fuera de esta pasada:
+// no se puede tapar toda esa cola de una vez sin arriesgar clasificaciones
+// falsas, así que se deja para ir sumando caso a caso con evidencia real,
+// mismo criterio que ya se venía aplicando en las auditorías anteriores.
+var _CATEGORIAS_COMPONENTE=[
+  ['Asiento',['asiento']],
+  ['Batería',['bateria','batería','baterias','baterías']],
+  ['Motor de Partida',['motor de partida','motor partida']],
+  ['Cilindro de Dirección',['cilindro direccion','cilindro de direccion','cilindro dirección','cilindro de dirección','cilindro volante']],
+  // 'despresurizacion'/'desprezurizacion' (typo real visto en los datos) y
+  // 'presurizacion' agregadas (2026-08-28): en el vocabulario real de esta
+  // flota (correctivos con "posición 1-6", el mismo esquema P1-P2 delanteros/
+  // P3-P6 traseros de los Parámetros de Neumáticos en Configuración) hablar
+  // de presión sin decir "neumático" es casi siempre de todas formas sobre
+  // neumáticos — 24 filas reales que quedaban sin categoría.
+  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresurizacion','desprezurizacion','presurizacion']],
+  ['Frenos',['freno']],
+  ['Transmisión',['transmision','transmisión']],
+  ['Diferencial',['diferencial','diferecial']],
+  ['Mandos Finales',['mandos finales','mando final']],
+  ['Turbo',['turbo']],
+  ['Alternador',['alternador']],
+  ['Bomba de Agua',['bomba de agua','bomba agua']],
+  ['Radiador/Enfriamiento',['radiador','refrigerante']],
+  ['Suspensión',['suspension','suspensión']],
+  ['Inyectores',['inyector','inyectores']],
+  ['Filtro de Combustible',['filtro de combustible','filtro combustible']],
+  ['Filtro de Aire',['filtro de aire','filtro aire']],
+  // 'bomba de inyeccion'/'bomba inyeccion' agregadas (2026-08-28): variante
+  // real vista en los datos ("perno de bomba inyeccion") que no calzaba con
+  // 'bomba inyectora'.
+  ['Bomba de Combustible',['bomba de combustible','bomba combustible','bomba inyectora','bomba de inyeccion','bomba inyeccion']],
+  ['Crucetas',['cruceta','crucetas']],
+  ['Soporte de Cabina',['soporte de cabina','soporte cabina']],
+  ['Conectores/Cableado',['conector','conectores','arnes','arnés']],
+  ['Mangueras/Fugas',['manguera','mangueras','flexible hidraulico','flexible hidráulico']],
+  ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste']],
+  // Ampliado (auditoría 2026-08, pedido del usuario: "revisa bien, si cambian
+  // tanto foco o ampolleta indica que la falla es más compleja"): el listado
+  // original solo reconocía 'foco delantero'/'foco trasero' — no atrapaba
+  // "foco faenero"/"focos faeneros" (la redacción real más común en las OT de
+  // esta flota) ni errores de tipeo reales vistos en los datos ('ampoleta',
+  // 'alpolleta', 'amplolleta'). Con el hueco, esos eventos quedaban SIN
+  // categoría y el conteo de fallas repetidas (compFallas>=2/3 en
+  // diagnosticoFlota) no los veía — un patrón real como el de CN-5133 (~18
+  // eventos de foco/eléctrico en un año, probable falla de cableado/tierra,
+  // no desgaste de ampolleta) pasaba invisible pese a estar en los datos.
+  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta']],
+  ['Sistema Hidráulico',['hidraulico','hidráulico']],
+  // 'eléctrica'/'electrica' (2026-08-28, forma femenina — "falla eléctrica" no
+  // calzaba con el keyword 'eléctrico' por la concordancia de género, 15
+  // filas reales perdidas por esto solo) y 'bocina' (accesorio eléctrico)
+  // agregadas.
+  ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico','eléctrica','electrica','bocina']],
+  ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
+  ['GET / Cuchillas',['cuchilla','entrediente','gets']],
+  // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
+  // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
+  // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde
+  // completo, la redacción real encontrada en correctivos) — esos eventos
+  // quedaban sin categoría.
+  ['Balde/Implemento',['pasador del balde','pasador de balde','pasador balde','cambio de balde','desgaste del balde','balde nuevo','balde por rotura']],
+  // Nueva (auditoría 2026-08, pedido del usuario: "biela, pantógrafo, cambio
+  // de pasadores y buje de balde o biela"): no existía ninguna categoría para
+  // el varillaje/linkage del balde (biela de volteo/pantógrafo) — quedaba sin
+  // categorizar pese a un patrón real serio: CF-9510 tuvo juego excesivo en
+  // el eje de la biela (feb-2025), fisura en la biela (jul-2025) y rotura del
+  // pantógrafo que obligó a cambiar el balde (feb-2026) — no es desgaste
+  // normal, es una falla estructural recurrente en el mismo conjunto.
+  // CF-8769 tuvo fisura de pantógrafo (feb-2026, 60 días fuera de servicio) y
+  // otra falla estructural en el mismo conjunto + pasador del cilindro de
+  // volteo (jul-2026, aún fuera de servicio). Ambos casos ameritan revisión
+  // de ingeniería (sobrecarga, fatiga), no solo cambiar la pieza rota de nuevo.
+  ['Biela/Pantógrafo',['biela','pantografo','pantógrafo']],
+  // Nueva (2026-08, pedido del usuario al revisar el historial de "soporte de
+  // cabina" cargado desde ordenes_trabajo): esos datos ya traían una categoría
+  // propia, "Tren de Rodaje" (10 eventos reales — tensado de oruga/cadena,
+  // pernos de sprocket y zapata, cambio de rodillos), específica de equipos
+  // con orugas (bulldozer BD-xxxx). No existía en este listado — sin categoría
+  // acá, un correctivo nuevo con "se cambian rodillos" o "tensado de cadena"
+  // en el campo síntoma (que es donde vive el texto real, ver nota arriba)
+  // quedaba sin clasificar o caía por accidente en otra categoría genérica.
+  // 'rueda motriz' sumada (2026-08, auditoría de la fuente WhatsApp): 3 eventos
+  // reales de BD-509 ("pernos sueltos de rueda motriz", "segmento rueda motriz
+  // suelto") quedaban sin categoría — es la rueda dentada que mueve la oruga,
+  // mismo conjunto mecánico que sprocket/zapata/cadena.
+  ['Tren de Rodaje',['oruga','cadena','sprocket','zapata','rodillo','rueda tensora','rueda motriz']],
+  // Nueva (2026-08-28): "engrase"/"relleno de grasa" es un patrón real muy
+  // frecuente (39 filas) que no calzaba en ninguna categoría existente — es
+  // una actividad de lubricación, no una falla de un componente específico,
+  // así que se le da su propia categoría en vez de forzarla en otra.
+  ['Engrase/Lubricación',['engrase','relleno de grasa','carga de grasa','tk de grasa','tk grasa','nivel de grasa','nivel grasa']],
+  // Nueva (2026-08-28): "fuga de aceite"/"fuga aceite" (6 filas reales) es
+  // físicamente distinto de una falla de manguera (Mangueras/Fugas, arriba) —
+  // una fuga de aceite puede venir de un sello, un cárter fisurado, una junta,
+  // no necesariamente una manguera — así que se separa en su propia categoría
+  // en vez de mezclarla ahí.
+  ['Fuga de Aceite',['fuga de aceite','fuga aceite']],
+  ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
+];
+// Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
+// campo estructurado viene vacío (que es casi siempre, ver nota arriba).
+function _componenteDeSintoma(sintoma){
+  if(!sintoma)return '';
+  var t=sintoma.toLowerCase();
+  for(var i=0;i<_CATEGORIAS_COMPONENTE.length;i++){
+    var cat=_CATEGORIAS_COMPONENTE[i][0],keys=_CATEGORIAS_COMPONENTE[i][1];
+    for(var j=0;j<keys.length;j++){if(t.indexOf(keys[j])>=0)return cat;}
+  }
+  return '';
+}
+
 if (typeof window !== 'undefined') {
   window._tokensMaterial = _tokensMaterial;
   window._scoreMaterial = _scoreMaterial;
@@ -1409,6 +1543,8 @@ if (typeof window !== 'undefined') {
   window.regEsATiempo = regEsATiempo;
   window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
   window.agruparPeriodo = agruparPeriodo;
+  window._CATEGORIAS_COMPONENTE = _CATEGORIAS_COMPONENTE;
+  window._componenteDeSintoma = _componenteDeSintoma;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1422,6 +1558,7 @@ if (typeof module !== 'undefined' && module.exports) {
     indiceSaludFlota, scoreSaludEquipo, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo,
-    _gastoProyectadoCategoria, agruparPeriodo
+    _gastoProyectadoCategoria, agruparPeriodo,
+    _CATEGORIAS_COMPONENTE, _componenteDeSintoma
   };
 }

@@ -9,95 +9,10 @@
 // pestaña y se junta acá.
 // ═══════════════════════════════════════════════════════════════
 // ═══ MOTOR DE INTERPRETACIÓN AUTOMÁTICA ═══
-// El campo "componente" de correctivos está vacío en el 100% de los registros
-// reales (verificado 2026-07 — nadie lo llena en terreno); la descripción real
-// vive como texto libre en "síntoma", sin formato consistente ("Asiento",
-// "ASIENTO NO FUNCIONAL", "asiento con falla en respaldar", etc.). Sin esto,
-// toda detección de "falla recurrente en el mismo componente" (acá y en
-// generarDiagnostico) queda ciega — nunca encuentra nada que agrupar.
-var _CATEGORIAS_COMPONENTE=[
-  ['Asiento',['asiento']],
-  ['Batería',['bateria','batería','baterias','baterías']],
-  ['Motor de Partida',['motor de partida','motor partida']],
-  ['Cilindro de Dirección',['cilindro direccion','cilindro de direccion','cilindro dirección','cilindro de dirección','cilindro volante']],
-  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos']],
-  ['Frenos',['freno']],
-  ['Transmisión',['transmision','transmisión']],
-  ['Diferencial',['diferencial','diferecial']],
-  ['Mandos Finales',['mandos finales','mando final']],
-  ['Turbo',['turbo']],
-  ['Alternador',['alternador']],
-  ['Bomba de Agua',['bomba de agua','bomba agua']],
-  ['Radiador/Enfriamiento',['radiador','refrigerante']],
-  ['Suspensión',['suspension','suspensión']],
-  ['Inyectores',['inyector','inyectores']],
-  ['Filtro de Combustible',['filtro de combustible','filtro combustible']],
-  ['Filtro de Aire',['filtro de aire','filtro aire']],
-  ['Bomba de Combustible',['bomba de combustible','bomba combustible','bomba inyectora']],
-  ['Crucetas',['cruceta','crucetas']],
-  ['Soporte de Cabina',['soporte de cabina','soporte cabina']],
-  ['Conectores/Cableado',['conector','conectores','arnes','arnés']],
-  ['Mangueras/Fugas',['manguera','mangueras','flexible hidraulico','flexible hidráulico']],
-  ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste']],
-  // Ampliado (auditoría 2026-08, pedido del usuario: "revisa bien, si cambian
-  // tanto foco o ampolleta indica que la falla es más compleja"): el listado
-  // original solo reconocía 'foco delantero'/'foco trasero' — no atrapaba
-  // "foco faenero"/"focos faeneros" (la redacción real más común en las OT de
-  // esta flota) ni errores de tipeo reales vistos en los datos ('ampoleta',
-  // 'alpolleta', 'amplolleta'). Con el hueco, esos eventos quedaban SIN
-  // categoría y el conteo de fallas repetidas (compFallas>=2/3 en
-  // diagnosticoFlota) no los veía — un patrón real como el de CN-5133 (~18
-  // eventos de foco/eléctrico en un año, probable falla de cableado/tierra,
-  // no desgaste de ampolleta) pasaba invisible pese a estar en los datos.
-  ['Foco/Ampolleta',['ampolleta','ampoleta','alpolleta','amplolleta','foco delantero','foco trasero','foco frontal','foco faenero','focos faeneros','faenero','luz baja','luz alta']],
-  ['Sistema Hidráulico',['hidraulico','hidráulico']],
-  ['Sistema Eléctrico',['electrico','eléctrico','elÃ©ctrico']],
-  ['Aire Acondicionado',['aire acondicionado',' a/c ','a/c.','condensador']],
-  ['GET / Cuchillas',['cuchilla','entrediente','gets']],
-  // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
-  // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
-  // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde
-  // completo, la redacción real encontrada en correctivos) — esos eventos
-  // quedaban sin categoría.
-  ['Balde/Implemento',['pasador del balde','pasador de balde','pasador balde','cambio de balde','desgaste del balde','balde nuevo','balde por rotura']],
-  // Nueva (auditoría 2026-08, pedido del usuario: "biela, pantógrafo, cambio
-  // de pasadores y buje de balde o biela"): no existía ninguna categoría para
-  // el varillaje/linkage del balde (biela de volteo/pantógrafo) — quedaba sin
-  // categorizar pese a un patrón real serio: CF-9510 tuvo juego excesivo en
-  // el eje de la biela (feb-2025), fisura en la biela (jul-2025) y rotura del
-  // pantógrafo que obligó a cambiar el balde (feb-2026) — no es desgaste
-  // normal, es una falla estructural recurrente en el mismo conjunto.
-  // CF-8769 tuvo fisura de pantógrafo (feb-2026, 60 días fuera de servicio) y
-  // otra falla estructural en el mismo conjunto + pasador del cilindro de
-  // volteo (jul-2026, aún fuera de servicio). Ambos casos ameritan revisión
-  // de ingeniería (sobrecarga, fatiga), no solo cambiar la pieza rota de nuevo.
-  ['Biela/Pantógrafo',['biela','pantografo','pantógrafo']],
-  // Nueva (2026-08, pedido del usuario al revisar el historial de "soporte de
-  // cabina" cargado desde ordenes_trabajo): esos datos ya traían una categoría
-  // propia, "Tren de Rodaje" (10 eventos reales — tensado de oruga/cadena,
-  // pernos de sprocket y zapata, cambio de rodillos), específica de equipos
-  // con orugas (bulldozer BD-xxxx). No existía en este listado — sin categoría
-  // acá, un correctivo nuevo con "se cambian rodillos" o "tensado de cadena"
-  // en el campo síntoma (que es donde vive el texto real, ver nota arriba)
-  // quedaba sin clasificar o caía por accidente en otra categoría genérica.
-  // 'rueda motriz' sumada (2026-08, auditoría de la fuente WhatsApp): 3 eventos
-  // reales de BD-509 ("pernos sueltos de rueda motriz", "segmento rueda motriz
-  // suelto") quedaban sin categoría — es la rueda dentada que mueve la oruga,
-  // mismo conjunto mecánico que sprocket/zapata/cadena.
-  ['Tren de Rodaje',['oruga','cadena','sprocket','zapata','rodillo','rueda tensora','rueda motriz']],
-  ['Motor',['motor']] // genérico — al final para que las categorías específicas de arriba (Motor de Partida, Bomba de Agua, etc.) ganen primero
-];
-// Deriva una categoría de componente desde el texto libre de "síntoma" cuando el
-// campo estructurado viene vacío (que es casi siempre, ver nota arriba).
-function _componenteDeSintoma(sintoma){
-  if(!sintoma)return '';
-  var t=sintoma.toLowerCase();
-  for(var i=0;i<_CATEGORIAS_COMPONENTE.length;i++){
-    var cat=_CATEGORIAS_COMPONENTE[i][0],keys=_CATEGORIAS_COMPONENTE[i][1];
-    for(var j=0;j<keys.length;j++){if(t.indexOf(keys[j])>=0)return cat;}
-  }
-  return '';
-}
+// _CATEGORIAS_COMPONENTE/_componenteDeSintoma viven en logic.js desde
+// 2026-08-28 (paso 2 del plan — es lógica pura de clasificación de texto,
+// sin nada de UI). Acá solo queda lo que sigue siendo exclusivo de esta
+// pestaña (causa raíz, diagnóstico integral, predicción de PM).
 // Palabras clave de causa raíz típicas en minería — compartido entre predecirCausa
 // (por equipo) y diagnosticoFlota (toda la flota, ver más abajo).
 var _DICC_CAUSA_RAIZ=['desgaste','fatiga','contaminación','contaminacion','sobrecarga','corrosión','corrosion',
