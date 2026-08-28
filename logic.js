@@ -1289,6 +1289,77 @@ function hayConflictoIds(idsAntes,idsServidor){
   return false;
 }
 
+// ═══ GASTO PROYECTADO AGREGADO POR CATEGORÍA (Filtros/Lubricantes/Repuestos) ═══
+// Movida acá desde index.html (2026-08-28, paso 2 del plan de reducir el
+// acoplamiento entre lógica de negocio y UI) — es una función pura (sin DOM,
+// sin S.g), así que pertenece junto al resto de logic.js, no mezclada con
+// renderizado. La versión que construye HTML (_gastoProyectadoHTML) se quedó
+// en index.html porque esa sí es UI.
+//
+// (2026-08-27, a pedido del usuario: "arma ese agregado total" — mismo espíritu que
+// el "hasta fin de año" de Neumáticos, pero acá un ítem de stock NO tiene un solo
+// evento de reemplazo como una goma: se consume y se repone en ciclos continuos.
+// Por eso NO se cuenta "N ítems se agotan el mes X" (eso subestimaría el gasto real
+// de un ítem que se repone varias veces antes de fin de año) — en cambio se proyecta
+// el GASTO mensual al ritmo de consumo/compra real reciente de cada ítem (mismo
+// promedio móvil que ya usa el botón 📈), y se distribuye hacia adelante.
+// NO usa correctivos: en la BD real no existe ningún vínculo entre un correctivo y
+// un ítem de stock específico (los correctivos solo tienen texto libre de síntoma/
+// solución) — cruzarlos sería inventar una relación que no está. Para lo que exige
+// el calendario de PM ya agendado (pautas + horómetro), esa proyección determinística
+// ya existe aparte en Predictivo → Stock/Lubricantes vs. Próximos PM.
+function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
+  gran=gran||'mes';
+  var hoy=new Date();hoy.setDate(1);
+  // Auditoría 2026-08-27 (a pedido del usuario, revisando bugs de lo construido el
+  // día anterior): con datos reales, la mayoría de los ítems NO tienen precio
+  // cargado (127/167 Filtros, 7/13 Lubricantes, 165/165 — el 100% — de Repuestos).
+  // Antes, un ítem con historial real pero precio $0/vacío se contaba como "con
+  // datos" y aportaba $0 en silencio — el total podía verse bajo (o directamente
+  // $0 en Repuestos) sin ningún aviso de que la mayoría de los ítems quedaron
+  // afuera. Ahora se separan 3 grupos: con historial Y precio (los únicos que
+  // aportan al total), con historial pero SIN precio (excluidos del total, se
+  // avisa aparte), y sin historial (excluidos, ya se avisaba antes).
+  var itemsConDatos=0,itemsSinDatos=0,itemsSinPrecio=0;
+  var HORIZONTE_MESES=12;
+  var mesesFuturos=[];
+  for(var i=0;i<HORIZONTE_MESES;i++){
+    var d=new Date(hoy.getFullYear(),hoy.getMonth()+i,1);
+    mesesFuturos.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  var gastoMensual={};mesesFuturos.forEach(function(m){gastoMensual[m]=0;});
+
+  items.forEach(function(item){
+    var eventos=getEventos(item);
+    var porMes={};
+    (eventos||[]).forEach(function(e){if(!e.fecha)return;var m=e.fecha.slice(0,7);porMes[m]=(porMes[m]||0)+(e.cant||0);});
+    var mesesConDatos=Object.keys(porMes).sort();
+    if(!mesesConDatos.length){itemsSinDatos++;return;}
+    var precio=getPrecio(item)||0;
+    if(!precio){itemsSinPrecio++;return;}
+    itemsConDatos++;
+    var ultimos=mesesConDatos.slice(-6);
+    var promMovil=ultimos.reduce(function(s,m){return s+porMes[m];},0)/ultimos.length;
+    var gastoMes=promMovil*precio;
+    mesesFuturos.forEach(function(m){gastoMensual[m]+=gastoMes;});
+  });
+
+  function agrupar(mes){
+    if(gran==='año')return mes.slice(0,4);
+    if(gran==='semestre'){var yy=mes.slice(0,4),mm=parseInt(mes.slice(5,7));return yy+'-S'+(mm<=6?1:2);}
+    return mes;
+  }
+  var porPeriodo={};
+  mesesFuturos.forEach(function(m){var p=agrupar(m);porPeriodo[p]=(porPeriodo[p]||0)+gastoMensual[m];});
+  var periodosOrd=Object.keys(porPeriodo).sort();
+
+  var anioActual=hoy.getFullYear();
+  var mesesHastaFinAnio=mesesFuturos.filter(function(m){return m.slice(0,4)===String(anioActual);});
+  var gastoHastaFinAnio=mesesHastaFinAnio.reduce(function(s,m){return s+gastoMensual[m];},0);
+
+  return{porPeriodo:porPeriodo,periodosOrd:periodosOrd,gastoHastaFinAnio:gastoHastaFinAnio,itemsConDatos:itemsConDatos,itemsSinDatos:itemsSinDatos,itemsSinPrecio:itemsSinPrecio};
+}
+
 if (typeof window !== 'undefined') {
   window._tokensMaterial = _tokensMaterial;
   window._scoreMaterial = _scoreMaterial;
@@ -1322,6 +1393,7 @@ if (typeof window !== 'undefined') {
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.confiabilidadReal = confiabilidadReal;
   window.regEsATiempo = regEsATiempo;
+  window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1334,6 +1406,7 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
-    probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo
+    probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo,
+    _gastoProyectadoCategoria
   };
 }
