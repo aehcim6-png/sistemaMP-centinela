@@ -202,4 +202,28 @@ describe('_componenteDeSintoma', () => {
   it('confirma que "acumulador de freno" ya quedaba cubierto por Frenos (sin cambios necesarios)', () => {
     expect(_componenteDeSintoma('acumulador de freno  bajo,se carga')).toBe('Frenos');
   });
+
+  it('clasifica "ripper"/"riper" como GET/Cuchillas (2026-08-28, sexta pasada)', () => {
+    expect(_componenteDeSintoma('se cambia ripper')).toBe('GET / Cuchillas');
+    expect(_componenteDeSintoma('se cambian 5 puntas riper')).toBe('GET / Cuchillas');
+  });
+
+  it('clasifica el typo real "sproket" (sin "c") como Tren de Rodaje (2026-08-28, sexta pasada)', () => {
+    expect(_componenteDeSintoma('pernos sueltos de sproket,se apreta')).toBe('Tren de Rodaje');
+  });
+
+  it('clasifica la categoría nueva Joystick/Palanca de Mando, distinta de "palanca" genérica (2026-08-28, sexta pasada)', () => {
+    expect(_componenteDeSintoma('se repara joytick')).toBe('Joystick/Palanca de Mando');
+    expect(_componenteDeSintoma('botones de joystick')).toBe('Joystick/Palanca de Mando');
+    // "palanca" sola sigue sin clasificar — sigue siendo ambigua entre
+    // sistemas (transmisión, cuchillas, balde, biela, según el caso).
+    expect(_componenteDeSintoma('palanca accionamiento')).toBe('');
+  });
+
+  it('clasifica "posicion 1/3 baja presion" como Neumáticos, sin afectar "baja presión de frenos" (2026-08-28, sexta pasada)', () => {
+    expect(_componenteDeSintoma('posicion 1 baja presion')).toBe('Neumáticos');
+    expect(_componenteDeSintoma('posicion 3 baja presion')).toBe('Neumáticos');
+    // Caso real que NO debe verse afectado: es de Frenos, no de neumáticos.
+    expect(_componenteDeSintoma('codigo baja presion de frenos')).toBe('Frenos');
+  });
 });

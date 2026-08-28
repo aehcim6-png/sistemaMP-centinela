@@ -1445,7 +1445,17 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
 // mencionan alternador (5 filas — colocada DESPUÉS de Alternador a
 // propósito para no cambiar la clasificación ya correcta de "correa
 // alternador"); y 'kick dawn'/'pick dawn' a Transmisión (grafía real del
-// kickdown). Cobertura real medida: 63.6% (791/1243). El resto son mayormente
+// kickdown). Cobertura real medida: 63.6% (791/1243). Sexta pasada (mismo
+// día, continuando la revisión del siguiente tramo de síntomas sin
+// categoría): 'ripper'/'riper' a GET/Cuchillas (9 filas — misma familia de
+// herramienta de corte), 'sproket' (typo sin "c") a Tren de Rodaje (4
+// filas), categoría nueva "Joystick/Palanca de Mando" (3 filas — distinto
+// de la "palanca" genérica, que se mantiene sin clasificar por ambigua) y
+// 'posicion 1/3 baja presion' a Neumáticos como FRASES exactas, no la
+// palabra "presión" sola (porque "código baja presión de FRENOS" es un
+// caso real distinto que ya clasificaba bien por "freno" — una palabra
+// suelta lo habría roto). Cobertura real medida: 64.9% (807/1243). El resto
+// son mayormente
 // casos genuinamente SIN componente
 // específico (mantenimiento preventivo, cierre de backlog, partida de
 // equipo, código de falla activo sin especificar sistema) — que quedan
@@ -1475,7 +1485,12 @@ var _CATEGORIAS_COMPONENTE=[
   // primera pasada dejaba fuera — revisados los 51 casos reales que
   // contienen "presuriz" en toda la base: los 51 son de neumáticos, cero
   // falsos positivos.
-  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresuriz','desprezuriz','presuriz']],
+  // 'posicion 1 baja presion'/'posicion 3 baja presion' agregadas (2026-08-28,
+  // sexta pasada) como FRASES exactas, no la palabra "presion" sola —
+  // "codigo baja presion de frenos" (otro caso real) es de Frenos, no de
+  // neumáticos, así que una palabra suelta habría generado un falso
+  // positivo ahí.
+  ['Neumáticos',['neumatico','neumático','neumaticos','neumáticos','despresuriz','desprezuriz','presuriz','posicion 1 baja presion','posicion 3 baja presion']],
   ['Frenos',['freno']],
   // 'kick dawn'/'pick dawn' agregadas (2026-08-28, quinta pasada): grafía
   // real encontrada en los datos para "kickdown" (el mecanismo de la
@@ -1572,7 +1587,10 @@ var _CATEGORIAS_COMPONENTE=[
   // los separadores/adaptadores entre segmentos de cuchilla — parte de la
   // misma familia GET (Ground Engaging Tools), 16 filas reales sin
   // categoría hasta ahora.
-  ['GET / Cuchillas',['cuchilla','entrediente','gets','entrecalza','entrecalzas']],
+  // 'ripper'/'riper' agregadas (2026-08-28, sexta pasada): el ripper (diente
+  // desgarrador de bulldozer) es la misma familia de herramienta de corte
+  // que cuchillas/GET (9 filas reales).
+  ['GET / Cuchillas',['cuchilla','entrediente','gets','entrecalza','entrecalzas','ripper','riper']],
   // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
   // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
   // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde
@@ -1603,7 +1621,9 @@ var _CATEGORIAS_COMPONENTE=[
   // reales de BD-509 ("pernos sueltos de rueda motriz", "segmento rueda motriz
   // suelto") quedaban sin categoría — es la rueda dentada que mueve la oruga,
   // mismo conjunto mecánico que sprocket/zapata/cadena.
-  ['Tren de Rodaje',['oruga','cadena','sprocket','zapata','rodillo','rueda tensora','rueda motriz']],
+  // 'sproket' agregada (2026-08-28, sexta pasada): typo real muy consistente
+  // (4 filas, todas sin la "c") — "sprocket" ya estaba, faltaba esta grafía.
+  ['Tren de Rodaje',['oruga','cadena','sprocket','sproket','zapata','rodillo','rueda tensora','rueda motriz']],
   // Nueva (2026-08-28): "engrase"/"relleno de grasa" es un patrón real muy
   // frecuente (39 filas) que no calzaba en ninguna categoría existente — es
   // una actividad de lubricación, no una falla de un componente específico,
@@ -1630,6 +1650,11 @@ var _CATEGORIAS_COMPONENTE=[
   // tornamesa es el mecanismo de giro de la superestructura (cargador
   // frontal/excavadora) — sin categoría hasta ahora (2 filas reales).
   ['Tornamesa/Giro',['tornamesa','torna mesa']],
+  // Nueva (2026-08-28, sexta pasada): el joystick de control de implementos
+  // es un componente físico propio, distinto de la "palanca" genérica (que
+  // se dejó sin clasificar por cruzar demasiados sistemas) — 3 filas
+  // reales, todas claramente sobre el joystick.
+  ['Joystick/Palanca de Mando',['joystick','joytick','joitick']],
   // Nueva (2026-08-28, cuarta pasada, término sugerido por el usuario): AFEX
   // es el sistema automático de extinción de incendios del equipo — una
   // falla ahí es de seguridad, no un componente mecánico más (4 filas
