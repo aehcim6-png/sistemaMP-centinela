@@ -91,4 +91,43 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('falla en radio base')).toBe('Radio/Comunicaciones');
     expect(_componenteDeSintoma('falla ptt radio,se cambia')).toBe('Radio/Comunicaciones');
   });
+
+  it('clasifica "suspencion" (typo con "c") como Suspensión, salvo cuando es del asiento (2026-08-28, tercera pasada)', () => {
+    expect(_componenteDeSintoma('carga nitrogeno a suspencion trasera izq')).toBe('Suspensión');
+    expect(_componenteDeSintoma('suspencion trasera lado izq con fuga')).toBe('Suspensión');
+    // "Asiento" gana primero porque está antes en la lista — es correcto,
+    // es la suspensión neumática del asiento, no la del equipo.
+    expect(_componenteDeSintoma('se repara cable de suspencion neumatica de asiento')).toBe('Asiento');
+  });
+
+  it('unifica Crucetas/Cardán — mismo conjunto mecánico (2026-08-28, tercera pasada)', () => {
+    expect(_componenteDeSintoma('se desmonta cardan y se evidencia desgaste en polines de crucetas')).toBe('Crucetas/Cardán');
+    expect(_componenteDeSintoma('cruceta trasera con juego')).toBe('Crucetas/Cardán');
+  });
+
+  it('amplía Mangueras/Fugas a "flexible" (palabra sola) y "cañería" (2026-08-28, tercera pasada)', () => {
+    expect(_componenteDeSintoma('flexible hidraulico dañado')).toBe('Mangueras/Fugas');
+    expect(_componenteDeSintoma('cañeria de combustible fisurada')).toBe('Mangueras/Fugas');
+    expect(_componenteDeSintoma('oring de cañeria direccon en mal estado')).toBe('Mangueras/Fugas');
+    // Cuando el síntoma ya apunta a un sistema más específico (Frenos,
+    // listado antes en la lista), esa categoría gana primero — Mangueras/
+    // Fugas queda como la genérica para cuando no hay una más precisa.
+    expect(_componenteDeSintoma('se cambia flexible de freno')).toBe('Frenos');
+  });
+
+  it('clasifica la categoría nueva Tornamesa/Giro (2026-08-28, tercera pasada)', () => {
+    expect(_componenteDeSintoma('cambio deslizaderas tornamesa')).toBe('Tornamesa/Giro');
+  });
+
+  it('NO inventa categorías para términos sin evidencia real en la base (2026-08-28, tercera pasada)', () => {
+    // 'lainas' y 'bomba centrífuga' no aparecen ni una vez en los 1.243
+    // correctivos reales — verificado por SQL antes de decidir no agregarlos.
+    expect(_componenteDeSintoma('cambio de lainas')).toBe('');
+    expect(_componenteDeSintoma('falla bomba centrifuga')).toBe('');
+  });
+
+  it('deja "sensor"/"válvula" sin categoría — cruzan demasiados sistemas distintos para clasificar con confianza', () => {
+    expect(_componenteDeSintoma('sensor de levante sucio, se limpia')).toBe('');
+    expect(_componenteDeSintoma('cambio valvula de carga')).toBe('');
+  });
 });
