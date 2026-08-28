@@ -13,6 +13,18 @@ window.dashHoy=function(){
   window._dashMes=null;window._dashAnio=null;
   renders.dash();
 };
+// Filtro de bloques del Dashboard (2026-08-28, pedido del usuario): mostrar
+// solo el bloque de Salud, o solo Equipos Urgentes, etc. Es puramente visual
+// (display:none) — los cálculos y avisos automáticos (ej. notificación de
+// equipo que cruzó a Salud Baja) siguen corriendo igual estén ocultos o no,
+// para no perder un aviso solo porque el bloque no se estaba mostrando.
+window.dashToggleBloque=function(k){
+  var cfg=S.g('cfg')||{};
+  cfg.dashBloques=Object.assign({salud:true,disp:true,graficos:true,urgentes:true,costos:true},cfg.dashBloques||{});
+  cfg.dashBloques[k]=!cfg.dashBloques[k];
+  S.s('cfg',cfg);
+  renders.dash();
+};
 // Resumen de turno para WhatsApp (2026-08-24, pedido del usuario): arma el
 // texto que hoy alguien escribe a mano en cada cambio de turno (se ve en el
 // chat de la faena: "Estimados, Informo distribución TURNO DÍA...") a partir
@@ -81,6 +93,7 @@ window.renderDash=function(){
   const stk=S.g('stk')||[];
   const lub=S.g('lub')||[];
   const cfg=S.g('cfg')||{};
+  const dashBloques=Object.assign({salud:true,disp:true,graficos:true,urgentes:true,costos:true},cfg.dashBloques||{});
   const ordenes=S.g('ordenes')||[];
   // Contador para el botón de Alertas PM4 (overhaul) — mismo cálculo que al.js,
   // solo para saber cuántos equipos están en URGENTE. La pestaña en sí (al.js)
@@ -405,7 +418,16 @@ window.renderDash=function(){
     '<span style="font-size:11px;color:var(--tx3);margin-left:auto">Mostrando: <b style="color:var(--ac)">'+dashLabel+'</b></span>'+
     '</div>'+
 
+    // ═══ FILTRO DE BLOQUES — mostrar/ocultar secciones del tablero ═══
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">'+
+    [['salud','🩺 Salud de Flota'],['disp','📊 Disponibilidad'],['graficos','📈 Gráficos'],['urgentes','🔴 Equipos Urgentes'],['costos','💰 Costos y Stock']].map(function(b){
+      var on=dashBloques[b[0]]!==false;
+      return '<button class="btn-s '+(on?'':'btn-o')+'" style="'+(on?'':'opacity:.55')+'" onclick="dashToggleBloque(\''+b[0]+'\')" title="Mostrar/ocultar este bloque del tablero">'+b[1]+'</button>';
+    }).join('')+
+    '</div>'+
+
     // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número, arriba de todo ═══
+    '<div id="dashBlk-salud" style="display:'+(dashBloques.salud?'':'none')+'">'+
     '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:18px 22px;margin-bottom:20px;border:2px solid '+saludCol+';display:flex;align-items:center;gap:22px;flex-wrap:wrap">'+
     '<div style="text-align:center;min-width:150px">'+
     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--tx3)">Índice de Salud de Flota</div>'+
@@ -424,9 +446,11 @@ window.renderDash=function(){
         '<div style="font-size:17px;font-weight:700;color:'+col+'">'+(c.valor==null?'—':c.valor+'%')+'</div></div>';
     }).join('')+
     '</div></div>'+
+    '</div>'+
 
     // ═══ Z1: ARRIBA IZQUIERDA — KPI PRINCIPAL ═══
     // Disponibilidad grande — lo primero que ve el ojo
+    '<div id="dashBlk-disp" style="display:'+(dashBloques.disp?'':'none')+'">'+
     '<div class="dg1" style="display:grid;grid-template-columns:300px 1fr;gap:20px;margin-bottom:24px">'+
 
     '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:24px;text-align:center;border:2px solid '+dispCol+';position:relative" title="Disponibilidad física/mecánica = (horas disponibles del día − horas caídas) / horas disponibles, promediado día a día del mes. Cuando un registro de PM o correctivo no tiene duración registrada, se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — son estimaciones, no datos medidos.">'+
@@ -477,8 +501,10 @@ window.renderDash=function(){
     '<div style="font-size:9px;color:var(--tx3)">'+otEjec+' en ejec · '+otCerr+' cerradas en '+dashLabel+'</div></div>'+
 
     '</div></div>'+
+    '</div>'+
 
     // ═══ KPIs AVANZADOS ROW ═══
+    '<div id="dashBlk-costos" style="display:'+(dashBloques.costos?'':'none')+'">'+
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:20px">'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'" title="Gasto de mantención ÷ Valor de Reemplazo de Activo (RAV), ANUALIZADO (gasto del mes ×12) para comparar contra el benchmark de industria (&lt;2-3% anual) en la misma escala."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Anualizado · Meta: &lt;2%')+'</div></div>'+
@@ -490,8 +516,10 @@ window.renderDash=function(){
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:#ef4444">'+eqCrit+'</span> Crít · <span style="color:#f59e0b">'+eqEsen+'</span> Esen · <span style="color:#22c55e">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
     '</div>'+
+    '</div>'+
 
         // ═══ Z3: ABAJO IZQUIERDA — DESGLOSE / TENDENCIA ═══
+    '<div id="dashBlk-graficos" style="display:'+(dashBloques.graficos?'':'none')+'">'+
     '<div class="dg1" style="display:grid;grid-template-columns:1fr 1.8fr 1fr;gap:16px;margin-bottom:24px">'+
 
     // Ratio Mantención: una proporción contra una meta → medidor (meter), no un donut de 2 rebanadas
@@ -545,8 +573,11 @@ window.renderDash=function(){
     '</div></div>'+
 
     '</div>'+
+    '</div>'+
+
 
     // ═══ Z4: ABAJO DERECHA — ACCIÓN ═══
+    '<div id="dashBlk-urgentes" style="display:'+(dashBloques.urgentes?'':'none')+'">'+
     '<div class="dg1" style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
 
     '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:#ef4444;font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
@@ -583,7 +614,7 @@ window.renderDash=function(){
     '<div style="font-size:28px;font-weight:800;color:#22c55e">'+alDia.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Sin intervención próxima</div></div>'+
 
-    '</div></div>';
+    '</div></div></div>';
 
   // ═══ BLOQUE 2: PRÓXIMOS PMs — 14 DÍAS ═══
   // Tarjetas-gauge (2026-08-24): un horómetro ES un medidor, así que en vez del
@@ -789,7 +820,11 @@ window.renderDash=function(){
 
   // Agregar los bloques al innerHTML existente
   var dashEl=document.getElementById('s-dash');
-  dashEl.innerHTML+=proxBlock+trendBlock+mapaSaludBlock+saludBajaBlock;
+  var wrapProx=proxBlock?'<div style="display:'+(dashBloques.urgentes?'':'none')+'">'+proxBlock+'</div>':'';
+  var wrapTrend='<div style="display:'+(dashBloques.graficos?'':'none')+'">'+trendBlock+'</div>';
+  var wrapMapa=mapaSaludBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+mapaSaludBlock+'</div>':'';
+  var wrapSaludBaja=saludBajaBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+saludBajaBlock+'</div>':'';
+  dashEl.innerHTML+=wrapProx+wrapTrend+wrapMapa+wrapSaludBaja;
   if(typeof _animGauges==='function')_animGauges('s-dash');
 
   renderHeader();
