@@ -87,7 +87,7 @@ pierde en silencio el cambio de uno de los dos.
 | Metas & KPIs | Plan vs. real, avance mensual, informes descargables |
 | Buscar | Ficha completa por equipo (PM, correctivos, componentes, horómetros, inspecciones, neumáticos, tren de rodaje, aceite, vencimientos, historial, destrabe y costos) + ranking de equipos problemáticos |
 | Auditoría de Datos | Cruce automático (5 chequeos): horómetros que retroceden, componentes sin validar, OT sin solución, reportes automáticos por revisar, neumáticos cambiados sin registrar salida — se recalcula solo cada vez que se abre |
-| Configuración | Usuarios, seguridad, respaldo, tema, información del sistema |
+| Configuración | Usuarios, seguridad, respaldo, tema (Oscuro/Claro/Azul Minero/Ejecutivo), información del sistema — con una franja de Estado del Sistema arriba de todo (integridad, papelera, datos locales, sincronización, backup) |
 
 ## 7. Preguntas frecuentes
 
