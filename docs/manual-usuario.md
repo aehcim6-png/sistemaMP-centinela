@@ -70,7 +70,7 @@ pierde en silencio el cambio de uno de los dos.
 
 | Pestaña | Para qué |
 |---|---|
-| Dashboard | Vista general: KPIs, urgentes, próximas PM, tendencias |
+| Dashboard | Vista general: KPIs, urgentes, próximas PM, tendencias — con filtro (5 botones arriba) para mostrar solo el bloque que te interesa: Salud de Flota, Disponibilidad, Gráficos, Equipos Urgentes o Costos y Stock |
 | Equipos | Flota completa, horómetros, estado de PM, ficha técnica |
 | Registro PM | Registrar cada mantención preventiva ejecutada |
 | Correctivos | Órdenes de trabajo por falla, causa raíz, componente — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces |
@@ -163,6 +163,14 @@ neumáticos — y cuánto costo — vas a necesitar hasta fin de año. No es un
 promedio: es la suma de la fecha de cambio real que cada neumático ya
 calcula por su cuenta (gráfico de desgaste, botón 🔍 en cada fila),
 agrupada por período.
+
+**¿Puedo ver solo una parte del Dashboard, sin todos los bloques a la vez?**
+Sí. Arriba del tablero hay 5 botones — 🩺 Salud de Flota, 📊 Disponibilidad,
+📈 Gráficos, 🔴 Equipos Urgentes, 💰 Costos y Stock — y con un clic apagas
+el que no te interesa ver en el momento (por ejemplo, dejar solo "Salud de
+Flota"). Es solo visual: los cálculos y avisos automáticos de la flota
+siguen funcionando igual, esté el bloque mostrado o no. Tu elección queda
+guardada y se recuerda la próxima vez que entras.
 
 ---
 
