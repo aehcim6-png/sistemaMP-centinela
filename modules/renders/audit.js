@@ -232,9 +232,9 @@ window.renderAudit=function(){
     ${saltos.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Fecha anterior</th><th>Horóm. anterior</th><th>Fecha</th><th>Horóm.</th><th>Delta</th><th>Síntoma</th></tr>
       ${saltos.map(function(h){
-        return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(h.sigla)}</td><td>${escapeHtml(h.fechaAnt)}</td><td class="mono">${h.horomAnt.toLocaleString('es-CL')}</td>
-          <td>${escapeHtml(h.fecha)}</td><td class="mono">${h.horom.toLocaleString('es-CL')}</td>
-          <td class="mono" style="color:var(--danger);font-weight:700">${h.delta.toLocaleString('es-CL')}</td>
+        return`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(h.sigla)}</td><td>${escapeHtml(h.fechaAnt)}</td><td class="mono">${fn(h.horomAnt)}</td>
+          <td>${escapeHtml(h.fecha)}</td><td class="mono">${fn(h.horom)}</td>
+          <td class="mono" style="color:var(--danger);font-weight:700">${fn(h.delta)}</td>
           <td style="font-size:11px;color:var(--tx2)">${escapeHtml(h.sintoma)}</td></tr>`;
       }).join('')}
     </table></div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Sin saltos hacia atrás detectados</div>'}

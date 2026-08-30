@@ -132,7 +132,7 @@ function generarDiagnostico(sigla){
   });
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=2)porQue.push('Falla recurrente en '+cf[0]+' ('+cf[1]+' veces)');});
   if(estadoPM.includes('URGENTE'))porQue.push('Horas de operación superan intervalo de mantención');
-  if(eqData&&eqData.promCostoMes>5e6)porQue.push('Costo mensual alto: $'+eqData.promCostoMes.toLocaleString()+'/mes');
+  if(eqData&&eqData.promCostoMes>5e6)porQue.push('Costo mensual alto: $'+fn(eqData.promCostoMes)+'/mes');
   if(!porQue.length)porQue.push('Sin causas identificadas — operación dentro de parámetros');
   d.secciones.push({titulo:'⚠️ ¿Por qué está pasando?',items:porQue,color:'var(--w)'});
 
@@ -142,7 +142,7 @@ function generarDiagnostico(sigla){
   else if(e.diasParaPM<=14)queViene.push('PM '+e.tipoPM+' estimada en '+e.diasParaPM+' días');
   if(aceAlertas.length)queViene.push('Tendencia de desgaste en '+(aceAlertas[0].descriptor||'componente')+' — riesgo de falla progresiva');
   if(eqData){
-    queViene.push('Proyección: ~'+Math.round(eqData.promPedMes)+' pedidos y $'+eqData.promCostoMes.toLocaleString()+' próximo mes');
+    queViene.push('Proyección: ~'+Math.round(eqData.promPedMes)+' pedidos y $'+fn(eqData.promCostoMes)+' próximo mes');
   }
   if(otPend.length)queViene.push(otPend.length+' trabajo(s) pendiente(s) pueden escalar');
   if(!queViene.length)queViene.push('Sin riesgos proyectados a corto plazo');
@@ -164,7 +164,7 @@ function generarDiagnostico(sigla){
 
   // 5. ¿QUÉ PASA SI NO LO HAGO?
   var impacto=[];
-  if(estadoPM.includes('URGENTE'))impacto.push('Detención no programada — costo estimado $'+(eqData?Math.round(eqData.promCostoMes*0.5).toLocaleString():'N/D'));
+  if(estadoPM.includes('URGENTE'))impacto.push('Detención no programada — costo estimado $'+(eqData?fn(Math.round(eqData.promCostoMes*0.5)):'N/D'));
   if(aceAlertas.length)impacto.push('Falla catastrófica en '+(aceAlertas[0].descriptor||'componente')+' — daño mayor');
   if(otPend.length>2)impacto.push('Acumulación de backlog — riesgo operacional');
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)impacto.push('Falla repetitiva en '+cf[0]+' puede escalar a daño mayor');});
@@ -836,7 +836,7 @@ window.renderPred=function(){
       // ── ZONA 2: HISTÓRICO DE COMPRAS (reporte, mira para atrás) ──
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin:6px 0 14px"><div style="font-size:15px;font-weight:700;color:var(--tx2);position:relative;padding-left:16px"><span style="position:absolute;left:0;top:6px;width:8px;height:8px;border-radius:2px;background:var(--tx3)"></span>Gasto y compras — histórico</div><div style="font-size:11px;color:var(--tx3)">reporte: mira para atrás, no predice</div></div>'+
       '<div class="cards">'+
-      '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Pedidos históricos</div><div class="card-v">'+R.totalPedidos.toLocaleString()+'</div><div class="card-s">'+R.rangoDesde+' a '+R.rangoHasta+'</div></div>'+
+      '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Pedidos históricos</div><div class="card-v">'+fn(R.totalPedidos)+'</div><div class="card-s">'+R.rangoDesde+' a '+R.rangoHasta+'</div></div>'+
       '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Gasto acumulado</div><div class="card-v" style="font-size:22px">$'+(R.totalCosto/1e6).toFixed(0)+'M</div><div class="card-s">~$'+(R.promedioMensual/1e6).toFixed(1)+'M / mes</div></div>'+
       '<div class="card"><div class="card-t">⏱ Lead time promedio</div><div class="card-v">'+R.leadTimeGlobal+'<span style="font-size:14px;color:var(--tx3)">d</span></div><div class="card-s">supuesto (histórico sin fecha de entrega)</div></div>'+
       '<div class="card"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Ítem más pedido</div><div class="card-v" style="font-size:14px;font-weight:650;padding:7px 0">'+escapeHtml((P.topItems[0]?P.topItems[0].item:'—').substring(0,22))+'</div><div class="card-s">'+(P.topItems[0]?P.topItems[0].total+' pedidos':'sin datos')+'</div></div>'+
@@ -861,7 +861,7 @@ window.renderPred=function(){
       '<div class="cards">'+
       '<div class="card"><div class="card-t">Pedidos</div><div class="card-v">'+E.totalPedidos+'</div><div class="card-s">en '+E.meses+' meses</div></div>'+
       '<div class="card"><div class="card-t">Prom/Mes</div><div class="card-v" style="color:var(--ac)">'+E.promPedMes+'</div></div>'+
-      '<div class="card"><div class="card-t">Costo/Mes</div><div class="card-v" style="font-size:16px">$'+E.promCostoMes.toLocaleString()+'</div></div>'+
+      '<div class="card"><div class="card-t">Costo/Mes</div><div class="card-v" style="font-size:16px">$'+fn(E.promCostoMes)+'</div></div>'+
       '<div class="card"><div class="card-t">Lead Time</div><div class="card-v">'+E.leadTimeProm+'d</div></div>'+
       '<div class="card"><div class="card-t">Confianza</div><div class="card-v" style="color:'+confCol+'">'+conf.nivel+'</div><div class="card-s">Score: '+conf.score+'/7</div></div>'+
       '<div class="card" style="border-left:3px solid '+(ac.severity>=5?'var(--danger)':ac.severity>=2?'var(--w)':'var(--ok)')+'"><div class="card-t">Estado</div><div class="card-v">'+ac.estado+'</div><div class="card-s">'+recom+'</div></div>'+
@@ -881,7 +881,7 @@ window.renderPred=function(){
       eqItems.map(function(it){
         return'<tr><td style="font-size:11px">'+escapeHtml(it.item)+'</td><td style="text-align:center;font-weight:600">'+it.total+'</td>'+
           '<td style="text-align:center">'+it.promMes+'</td><td style="text-align:center">'+it.leadTime+'d</td>'+
-          '<td style="text-align:right;font-size:11px">$'+it.costoTotal.toLocaleString()+'</td></tr>';
+          '<td style="text-align:right;font-size:11px">$'+fn(it.costoTotal)+'</td></tr>';
       }).join('')+'</table></div></div>';
 
   } else if(fVista==='backlog'){
@@ -950,7 +950,7 @@ window.renderPred=function(){
         return'<tr><td style="font-size:11px">'+escapeHtml(it.item)+'</td><td style="text-align:center;font-weight:600;color:var(--ac)">'+it.total+'</td>'+
           '<td style="text-align:center">'+it.promMes+'</td><td style="text-align:center">'+it.leadTime+'d</td>'+
           '<td style="font-size:10px">'+it.equipos.join(', ')+'</td>'+
-          '<td style="text-align:right;font-size:11px">$'+it.costoTotal.toLocaleString()+'</td></tr>';
+          '<td style="text-align:right;font-size:11px">$'+fn(it.costoTotal)+'</td></tr>';
       }).join('')+'</table></div></div>';
   } else if(fVista==='flota'){
     var df=diagnosticoFlota(fEq,fMesCompleto);
@@ -977,7 +977,7 @@ window.renderPred=function(){
               (c.causasFMEA?' Esto NO es un diagnóstico, es el checklist estándar de la industria (FMEA) para descartar en terreno:<ul style="margin:4px 0 0 16px;padding:0">'+c.causasFMEA.map(function(h){return'<li>'+escapeHtml(h)+'</li>';}).join('')+'</ul>'
                 :' Sin checklist FMEA cargado todavía para "'+escapeHtml(c.componente)+'" — requiere revisión manual de un técnico.')+
               '</div>':'')+
-            '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+Math.round(c.costoTotal).toLocaleString()+' acumulado':'')+'</div>'+
+            '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+fn(Math.round(c.costoTotal))+' acumulado':'')+'</div>'+
             '</div>';
         }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficientes correctivos con "componente" registrado para detectar patrones. Se necesitan al menos 2 fallas del mismo componente.</div>')+

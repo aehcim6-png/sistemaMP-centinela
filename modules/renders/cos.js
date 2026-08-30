@@ -68,13 +68,8 @@ window.renderCos = function () {
   eq.forEach(function (e) {
     var fallas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return esFallaMTBF(o); });
     var reparaciones = fallas.filter(function (o) { return o.duracion && o.duracion !== '—'; });
-    // MTTR = promedio duración reparaciones
-    var totalRepH = 0;
-    reparaciones.forEach(function (o) {
-      var m = o.duracion.match(/(\d+)h/);
-      if (m) totalRepH += parseInt(m[1]);
-    });
-    var mttr = reparaciones.length > 0 ? Math.round(totalRepH / reparaciones.length * 10) / 10 : 0;
+    // MTTR = promedio duración reparaciones — fuente única C.mttrReal (logic.js)
+    var mttr = C.mttrReal(fallas.map(function (o) { return o.duracion; }));
     // MTBF real = horas entre fallas sucesivas, usando el horómetro registrado en
     // cada falla (no el horómetro actual del equipo, que infla el número con el
     // simple paso del tiempo sin que haya vuelto a fallar)
@@ -118,20 +113,20 @@ window.renderCos = function () {
   if (fVista === 'costos') {
     content =
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px">' +
-      '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Total Acumulado</div><div style="font-size:20px;font-weight:700;color:var(--ac)">$' + Math.round(totalG).toLocaleString() + '</div></div>' +
+      '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Total Acumulado</div><div style="font-size:20px;font-weight:700;color:var(--ac)">$' + fn(Math.round(totalG)) + '</div></div>' +
       '<div class="card"><div class="card-t">HH Reales</div><div class="card-v">' + Math.round(hhRealTotal) + 'h</div><div class="card-s">' + reg.length + ' intervenciones</div></div>' +
       '<div class="card"><div class="card-t">HH Planificadas</div><div class="card-v">' + Math.round(hhPlanTotal) + 'h</div><div class="card-s" title="Mediana histórica de duración real por equipo+tipoPM (hhPlanEstimator, logic.js) — ya no usa el intervalo de las pautas, que sobreestimaba el plan">Mediana histórica</div></div>' +
       '<div class="card"><div class="card-t">Eficiencia HH</div><div class="card-v" style="color:' + (eficiencia === null ? 'var(--tx3)' : eficiencia >= 80 ? 'var(--ok)' : eficiencia >= 60 ? 'var(--w)' : 'var(--danger)') + '">' + (eficiencia === null ? '—' : eficiencia + '%') + '</div><div class="card-s">' + (eficiencia === null ? 'Sin datos' : 'Plan vs Real') + '</div></div>' +
-      '<div class="card"><div class="card-t">Presupuesto vs Real (' + (mesActual || 'mes actual') + ')</div><div class="card-v" style="color:' + (desvMesActual === null ? 'var(--tx3)' : desvMesActual > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (desvMesActual === null ? '—' : (desvMesActual > 0 ? '+' : '') + desvMesActual + '%') + '</div><div class="card-s">' + (presupuestoMensual ? '$' + Math.round(presupuestoMensual).toLocaleString() + '/mes' : 'Sin definir (Configuración)') + '</div></div>' +
+      '<div class="card"><div class="card-t">Presupuesto vs Real (' + (mesActual || 'mes actual') + ')</div><div class="card-v" style="color:' + (desvMesActual === null ? 'var(--tx3)' : desvMesActual > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (desvMesActual === null ? '—' : (desvMesActual > 0 ? '+' : '') + desvMesActual + '%') + '</div><div class="card-s">' + (presupuestoMensual ? '$' + fn(Math.round(presupuestoMensual)) + '/mes' : 'Sin definir (Configuración)') + '</div></div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:14px">' +
-      meses.slice(0, 6).map(function (m) { var c = costoMes[m]; return '<div class="card"><b>' + m + '</b> (' + c.pms + ' PMs)<br><span style="font-size:11px">HH: $' + Math.round(c.hh).toLocaleString() + '</span><br><span style="font-size:11px">Filtros: $' + Math.round(c.filtros).toLocaleString() + '</span><br><span style="font-size:11px">Lub: $' + Math.round(c.lubricantes).toLocaleString() + '</span><br><b style="color:var(--ac)">Total: $' + Math.round(c.total).toLocaleString() + '</b></div>'; }).join('') +
+      meses.slice(0, 6).map(function (m) { var c = costoMes[m]; return '<div class="card"><b>' + m + '</b> (' + c.pms + ' PMs)<br><span style="font-size:11px">HH: $' + fn(Math.round(c.hh)) + '</span><br><span style="font-size:11px">Filtros: $' + fn(Math.round(c.filtros)) + '</span><br><span style="font-size:11px">Lub: $' + fn(Math.round(c.lubricantes)) + '</span><br><b style="color:var(--ac)">Total: $' + fn(Math.round(c.total)) + '</b></div>'; }).join('') +
       '</div>' +
       '<div class="tbl-wrap"><table><tr><th>Mes</th><th>PMs</th><th>HH ($)</th><th>Filtros ($)</th><th>Lubricantes ($)</th><th>Total ($)</th><th>Desviación Presupuesto</th></tr>' +
       meses.map(function (m) {
         var c = costoMes[m]; var d = desviacionPresupuesto(c.total);
         var dTxt = d === null ? '<span style="color:var(--tx3)">—</span>' : '<b style="color:' + (d > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (d > 0 ? '+' : '') + d + '%</b>';
-        return '<tr><td><b>' + m + '</b></td><td>' + c.pms + '</td><td>$' + Math.round(c.hh).toLocaleString() + '</td><td>$' + Math.round(c.filtros).toLocaleString() + '</td><td>$' + Math.round(c.lubricantes).toLocaleString() + '</td><td style="color:var(--ac);font-weight:700">$' + Math.round(c.total).toLocaleString() + '</td><td style="text-align:center">' + dTxt + '</td></tr>';
+        return '<tr><td><b>' + m + '</b></td><td>' + c.pms + '</td><td>$' + fn(Math.round(c.hh)) + '</td><td>$' + fn(Math.round(c.filtros)) + '</td><td>$' + fn(Math.round(c.lubricantes)) + '</td><td style="color:var(--ac);font-weight:700">$' + fn(Math.round(c.total)) + '</td><td style="text-align:center">' + dTxt + '</td></tr>';
       }).join('') +
       '</table></div>';
 
@@ -216,7 +211,7 @@ window.renderCos = function () {
 
   $('s-cos').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos, HH y Confiabilidad</div>' +
-    '<div class="sec-s">Desde registros PM + consumos · HH: $' + hh.toLocaleString() + '/hr</div></div></div>' +
+    '<div class="sec-s">Desde registros PM + consumos · HH: $' + fn(hh) + '/hr</div></div></div>' +
     '<div class="toolbar">' +
     '<select id="fCosVista" onchange="renders.cos()" style="font-weight:600">' +
     '<option value="costos"' + (fVista === 'costos' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos por Mes</option>' +

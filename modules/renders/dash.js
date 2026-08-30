@@ -492,7 +492,7 @@ window.renderDash=function(){
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid var(--ac)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Gasto '+dashLabel+'</div>'+
-    '<div style="font-size:22px;font-weight:800;color:var(--ac);line-height:1.2">$'+Math.round(costoTotal/1000).toLocaleString()+'K</div>'+
+    '<div style="font-size:22px;font-weight:800;color:var(--ac);line-height:1.2">$'+fn(Math.round(costoTotal/1000))+'K</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(ordenes.length?'OC reales del mes':'estimado')+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(otPend>0?'#ef4444':'#22c55e')+'">'+

@@ -65,9 +65,9 @@ window.renderHistComp = function () {
         return `<tr${alerta ? ' style="background:rgba(239,68,68,.05)"' : ''}>
           <td style="font-weight:600">${escapeHtml(r.comp)}</td>
           <td class="mono">${r.n}</td>
-          <td class="mono">${r.prom.toLocaleString()}</td>
-          <td class="mono" style="${alerta ? 'color:var(--danger);font-weight:700' : ''}">${r.min.toLocaleString()}${alerta ? ' ⚠️' : ''}</td>
-          <td class="mono">${r.max.toLocaleString()}</td>
+          <td class="mono">${fn(r.prom)}</td>
+          <td class="mono" style="${alerta ? 'color:var(--danger);font-weight:700' : ''}">${fn(r.min)}${alerta ? ' ⚠️' : ''}</td>
+          <td class="mono">${fn(r.max)}</td>
         </tr>`;
       }).join('')}
     </table></div>
@@ -84,7 +84,7 @@ window.renderHistComp = function () {
           <td style="font-weight:600">${escapeHtml(r.comp)}</td>
           <td>${escapeHtml(r.fechaInst || '')}</td>
           <td class="mono">${r.horomInstalacion != null ? r.horomInstalacion : '—'}</td>
-          <td class="mono" style="font-weight:700">${f.horasVida != null ? f.horasVida.toLocaleString() : (f.esActual ? '<span style="color:var(--tx3);font-size:10px">en uso</span>' : '—')}</td>
+          <td class="mono" style="font-weight:700">${f.horasVida != null ? fn(f.horasVida) : (f.esActual ? '<span style="color:var(--tx3);font-size:10px">en uso</span>' : '—')}</td>
           <td style="font-size:10px;color:var(--tx2)">${escapeHtml(r.fuente || '')}</td>
           <td class="ed" contenteditable onblur="edHistComp(${f.idx},'obs',this.innerText.trim())" style="font-size:10px;max-width:200px">${escapeHtml(r.obs || '')}</td>
           <td><button class="btn-x" onclick="delHistComp(${f.idx})" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>

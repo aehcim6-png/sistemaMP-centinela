@@ -722,7 +722,7 @@ window.reporteEjecutivoExcel=function(){
   const neu=S.g('neu')||[];
   const cfg=S.g('cfg')||{};
   const hoy=new Date().toLocaleDateString('es-CL');
-  const fn2=v=>Math.round(v||0).toLocaleString('es-CL');
+  const fn2=v=>fn(Math.round(v||0));
 
   // Calcular KPIs
   const total=eq.length;

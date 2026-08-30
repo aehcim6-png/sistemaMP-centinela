@@ -73,9 +73,9 @@ window.renderCad = function () {
         return `<tr${alerta ? ' style="background:rgba(239,68,68,.05)"' : ''}>
           <td style="font-weight:600">${escapeHtml(r.comp)}</td>
           <td class="mono">${r.n}</td>
-          <td class="mono">${r.prom.toLocaleString()}</td>
-          <td class="mono" style="${alerta ? 'color:var(--danger);font-weight:700' : ''}">${r.min.toLocaleString()}${alerta ? ' ⚠️' : ''}</td>
-          <td class="mono">${r.max.toLocaleString()}</td>
+          <td class="mono">${fn(r.prom)}</td>
+          <td class="mono" style="${alerta ? 'color:var(--danger);font-weight:700' : ''}">${fn(r.min)}${alerta ? ' ⚠️' : ''}</td>
+          <td class="mono">${fn(r.max)}</td>
         </tr>`;
       }).join('')}
     </table></div>

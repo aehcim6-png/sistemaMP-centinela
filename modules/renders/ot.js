@@ -209,7 +209,7 @@ window.analisisFallas=function(){
   const ot=S.g('ot')||[];
   const reg=S.g('reg')||[];
   const eq=S.g('eq')||[];
-  const fn2=v=>Math.round(v||0).toLocaleString('es-CL');
+  const fn2=v=>fn(Math.round(v||0));
   // Reunir todas las fallas (OT + correctivos de PM + otHist)
   const regCorr=reg.filter(r=>r.tipoPM==='Correctivo'||r.estatusEq==='Fuera de Servicio').map(r=>({
     sigla:r.equipo,fecha:r.fechaEntrada,componente:r.componente||'',sistema:'',
@@ -581,7 +581,7 @@ window.saveOT=function(){
   if(horom>0&&eChk&&eChk.horomActual){
     const esRetroactivo=!!(eChk.fechaHorom&&fechaEsAnterior(fEnt,eChk.fechaHorom));
     if(!esRetroactivo&&horom<eChk.horomActual){
-      if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+sig+' tiene horómetro actual: '+eChk.horomActual.toLocaleString('es-CL')+'h\nEstás registrando: '+horom.toLocaleString('es-CL')+'h ('+(eChk.horomActual-horom).toLocaleString('es-CL')+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
+      if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+sig+' tiene horómetro actual: '+fn(eChk.horomActual)+'h\nEstás registrando: '+fn(horom)+'h ('+fn((eChk.horomActual-horom))+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
     } else if(!esRetroactivo){
       const chkSalto=validarSaltoHorometro(horom,eChk.horomActual,eChk.fechaHorom,fEnt,eChk.hrsDia);
       if(!chkSalto.valido&&!confirm('⚠️ '+chkSalto.motivo+'\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;

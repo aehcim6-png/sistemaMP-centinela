@@ -53,7 +53,7 @@ function _estTablaEquipo(eq, eventos) {
       return '<tr><td class="mono" style="color:var(--ac);font-weight:600">' + escapeHtml(r.sigla) + '</td>' +
         '<td style="font-size:11px">' + escapeHtml(r.modelo) + '</td>' +
         '<td style="text-align:center;font-weight:700">' + r.fallas + '</td>' +
-        '<td style="text-align:center">' + (r.mtbf == null ? '<span style="color:var(--tx3)">—</span>' : Math.round(r.mtbf).toLocaleString()) + '</td></tr>';
+        '<td style="text-align:center">' + (r.mtbf == null ? '<span style="color:var(--tx3)">—</span>' : fn(Math.round(r.mtbf))) + '</td></tr>';
     }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--tx3)">Sin fallas registradas todavía</td></tr>') +
     '</table></div></div>';
 }

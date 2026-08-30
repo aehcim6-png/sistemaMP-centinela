@@ -12,7 +12,7 @@ window.renderPlan=function(){
   const cfg=S.g('cfg')||{};
   const vista=window._planVista||'equipo';   // equipo | periodo | material
   const periodo=window._planPeriodo||'mes';   // semana | mes | semestre | anio
-  const fn2=v=>Math.round(v||0).toLocaleString('es-CL');
+  const fn2=v=>fn(Math.round(v||0));
 
   // Días del periodo (rolling) o ventana de mes calendario específico
   const hoy=new Date();
@@ -306,7 +306,7 @@ window.planMesCal=function(){
 };
 
 window.planHistorico=function(){
-  var fn2=v=>Math.round(v||0).toLocaleString('es-CL');
+  var fn2=v=>fn(Math.round(v||0));
   var PR=computePred();
   var ordenesCrudo=S.g('ocHist')||[];
   var mov=S.g('mov')||[];
@@ -417,7 +417,7 @@ window.planHistorico=function(){
       ${PR.resumen.totalPedidos?`
       <p style="font-size:11px;color:var(--tx3);margin-top:8px">Resumen agregado de órdenes de compra históricas — no es filtrable por tipo/equipo a este nivel, es el total general.</p>
       <div style="display:flex;gap:8px;margin:8px 0">
-        <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Pedidos totales</div><b>${PR.resumen.totalPedidos.toLocaleString('es-CL')}</b></div>
+        <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Pedidos totales</div><b>${fn(PR.resumen.totalPedidos)}</b></div>
         <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Costo total histórico</div><b style="color:var(--ac)">$${fn2(PR.resumen.totalCosto)}</b></div>
         <div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Promedio mensual</div><b>$${fn2(PR.resumen.promedioMensual)}</b></div>
       </div>

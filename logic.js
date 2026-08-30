@@ -101,6 +101,25 @@ const C = {
     if(validos.length<2)return null;
     return Math.round((validos[validos.length-1]-validos[0])/(validos.length-1));
   },
+  // MTTR real: promedio de horas de reparación (campo 'duracion' de la OT,
+  // formato "Xh") de las reparaciones con ese dato registrado. Consolidada
+  // 2026-08-30 como fuente ÚNICA — a diferencia de mtbfReal (que ya tenía ese
+  // comentario desde antes), este cálculo se había quedado reimplementado por
+  // separado, línea por línea casi idéntico, en cos.js y kpi.js. Recibe la
+  // lista de valores 'duracion' de las OT que SÍ son fallas (esFallaMTBF) —
+  // filtra acá mismo las vacías/'—', igual que hacían ambas copias. El
+  // denominador es la cantidad de reparaciones con 'duracion' registrada
+  // (no solo las que matchean el regex "Xh"), y devuelve 0 (no null) cuando
+  // no hay ninguna — mismo comportamiento exacto de las dos copias
+  // originales, preservado a propósito para no cambiar ningún número que ya
+  // se ve en pantalla.
+  mttrReal(duraciones){
+    const reps=(duraciones||[]).filter(d=>d&&d!=='—');
+    if(!reps.length)return 0;
+    let totalH=0;
+    reps.forEach(d=>{const m=String(d).match(/(\d+)h/);if(m)totalH+=parseInt(m[1],10);});
+    return Math.round(totalH/reps.length*10)/10;
+  },
   // Lecturas de historial_horometros de un equipo, ordenadas por fecha, con las
   // sospechosas descartadas: retrocede respecto de la lectura válida anterior, o
   // avanza más de 4x lo nominal en el tiempo transcurrido (mismo criterio que ya

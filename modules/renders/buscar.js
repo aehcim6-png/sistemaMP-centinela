@@ -155,8 +155,8 @@ window.renderBuscar=function(){
     '<div class="card" style="margin:0"><div class="card-t">Correctivos</div><div class="card-v" style="color:var(--danger)">'+fallasEq+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">MTBF</div><div class="card-v" style="color:'+(mtbfEq==null?'var(--tx3)':mtbfEq>2000?'var(--ok)':'var(--w)')+'">'+(mtbfEq==null?'—':mtbfEq+'h')+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">HH Total</div><div class="card-v">'+hhEq+'h</div></div>'+
-    '<div class="card" style="margin:0"><div class="card-t">Costo MO</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoEq).toLocaleString()+'</div></div>'+
-    '<div class="card" style="margin:0"><div class="card-t">Costo Materiales</div><div class="card-v" style="color:var(--ac)">$'+Math.round(costoMatEq).toLocaleString()+'</div></div>'+
+    '<div class="card" style="margin:0"><div class="card-t">Costo MO</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(costoEq))+'</div></div>'+
+    '<div class="card" style="margin:0"><div class="card-t">Costo Materiales</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(costoMatEq))+'</div></div>'+
     '</div>'+
 
     // Registros PM
@@ -264,7 +264,7 @@ window.renderBuscar=function(){
         '<td>'+escapeHtml(r.tipo)+'</td>'+
         '<td style="color:'+(r.fallas>3?'var(--danger)':'var(--tx)')+';font-weight:700">'+r.fallas+'</td>'+
         '<td>'+r.hh+'h</td>'+
-        '<td style="color:var(--ac)">$'+Math.round(r.costo).toLocaleString()+'</td>'+
+        '<td style="color:var(--ac)">$'+fn(Math.round(r.costo))+'</td>'+
         '<td style="color:'+(mtbf==null?'var(--tx3)':mtbf>2000?'var(--ok)':'var(--w)')+'">'+(mtbf==null?'—':mtbf+'h')+'</td>'+
         '<td><button class="btn-s" onclick="$(\'fBuscarEq\').value=\''+escapeHtml(r.sigla)+'\';renders.buscar()">Ver →</button></td></tr>';
     }).join('')+'</table></div></div>';

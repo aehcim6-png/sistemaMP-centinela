@@ -226,7 +226,7 @@ function generarPDFInforme(inf,dataUrls){
   }
   campoDual('EQUIPO',inf.sigla+' — '+(inf.modelo||inf.tipo||''),'FECHA DEL EVENTO',inf.fecha);
   campoDual('HORÓMETRO ACTUAL',inf.horometroActual+' '+(inf.unidad==='km'?'km':'h'),'TIPO DE EVENTO',inf.tipoEvento);
-  campoDual('COMPONENTE AFECTADO',inf.componente,'COSTO ESTIMADO','$'+Number(inf.costoEstimado||0).toLocaleString('es-CL'));
+  campoDual('COMPONENTE AFECTADO',inf.componente,'COSTO ESTIMADO','$'+fn(Number(inf.costoEstimado||0)));
   campoDual('GENERADO POR',inf.generadoPor,'','');
   y+=2;
 
@@ -283,7 +283,7 @@ window.renderInformes=function(){
   var pg=_pagSlice('informes',lista);
   $('s-informes').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla y Cambio de Componente</div>'+
-    '<div class="sec-s">'+lista.length+' informe(s) · Costo total estimado: $'+Math.round(costoTotal).toLocaleString('es-CL')+'</div></div>'+
+    '<div class="sec-s">'+lista.length+' informe(s) · Costo total estimado: $'+fn(Math.round(costoTotal))+'</div></div>'+
     '<button class="btn" onclick="nuevoInforme(\'\',null)">+ Nuevo Informe</button></div>'+
     _pagHTML('informes',pg)+
     '<div class="tbl-wrap"><table>'+
@@ -294,7 +294,7 @@ window.renderInformes=function(){
         '<td class="mono">'+i.fecha+'</td>'+
         '<td>'+(i.tipoEvento==='Falla Catastrófica'?'🔴 Falla Catastrófica':'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Cambio Componente')+'</td>'+
         '<td>'+escapeHtml(i.componente||'—')+'</td>'+
-        '<td class="mono">$'+Math.round(i.costoEstimado||0).toLocaleString('es-CL')+'</td>'+
+        '<td class="mono">$'+fn(Math.round(i.costoEstimado||0))+'</td>'+
         '<td>'+(i.fotos?i.fotos.length:0)+' 📷</td>'+
         '<td style="font-size:11px">'+escapeHtml(i.generadoPor||'—')+'</td>'+
         '<td><button class="btn-x" onclick="regenerarPDF(\''+i.id+'\')" title="Descargar PDF"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button> <button class="btn-x" onclick="delInforme(\''+i.id+'\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';

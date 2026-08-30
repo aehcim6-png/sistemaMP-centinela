@@ -374,7 +374,7 @@ window.renderSem=function(){
           '<td>'+pb(it.tipoPM)+'</td>'+
           '<td class="mono" style="color:'+(it.diasPM<=3?'var(--danger)':it.diasPM<=7?'var(--warn)':'var(--ok)')+'">'+it.diasPM+'</td>'+
           '<td class="mono ed" contenteditable style="'+lockStyle+'" onblur="edSem('+idx+',\'hhPlan\',parseFloat(this.innerText)||0)">'+it.hhPlan+'</td>'+
-          '<td class="mono ed" contenteditable style="'+lockStyle+'" onblur="edSem('+idx+',\'costoEst\',parseFloat(this.innerText)||0)">$'+Math.round(it.costoEst).toLocaleString()+'</td>'+
+          '<td class="mono ed" contenteditable style="'+lockStyle+'" onblur="edSem('+idx+',\'costoEst\',parseFloat(this.innerText)||0)">$'+fn(Math.round(it.costoEst))+'</td>'+
           '<td class="ed" contenteditable style="font-size:11px;'+lockStyle+'" onblur="edSem('+idx+',\'tecnico\',this.innerText.trim())">'+escapeHtml(it.tecnico)+'</td>'+
           '<td class="ed" contenteditable style="font-size:11px;color:var(--ac3);'+lockStyle+'" onblur="edSem('+idx+',\'diaSem\',this.innerText.trim())">'+escapeHtml(it.diaSem)+'</td>'+
           '<td style="'+lockStyle+'"><select onchange="edSem('+idx+',\'estado\',this.value)" style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px">'+
@@ -439,8 +439,8 @@ window.renderSem=function(){
     '<div class="card"><div class="card-t">HH Plan</div><div class="card-v">'+Math.round(totalHHPlan)+'h</div></div>'+
     (esPasada||esCerrada||totalHHReal>0?'<div class="card"><div class="card-t">HH Real</div><div class="card-v" style="color:var(--ok)">'+Math.round(totalHHReal)+'h</div></div>'+
     '<div class="card"><div class="card-t">Cumplimiento</div><div class="card-v" style="color:'+(cumpl===null?'var(--tx3)':cumpl>=80?'var(--ok)':cumpl>=50?'var(--warn)':'var(--danger)')+'">'+(cumpl===null?'—':cumpl+'%')+'</div></div>':'')+''+
-    '<div class="card"><div class="card-t">Costo Estimado</div><div class="card-v" style="color:var(--ac)">$'+Math.round(totalCosto).toLocaleString()+'</div></div>'+
-    '<div class="card"><div class="card-t">Tarifa HH</div><div class="card-v">$'+hh.toLocaleString()+'</div></div>'+
+    '<div class="card"><div class="card-t">Costo Estimado</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(totalCosto))+'</div></div>'+
+    '<div class="card"><div class="card-t">Tarifa HH</div><div class="card-v">$'+fn(hh)+'</div></div>'+
     '</div>'+
     contenido;
 };

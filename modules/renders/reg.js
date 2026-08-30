@@ -319,7 +319,7 @@ window.saveReg=function(){
   // hacia atrás — solo lo hace el registro más reciente cronológicamente.
   const esRetroactivo=!!(e&&e.fechaHorom&&fechaEsAnterior(fEnt,e.fechaHorom));
   if(!esRetroactivo&&e&&e.horomActual&&hr<e.horomActual){
-    if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+eqSigla+' tiene horómetro actual: '+e.horomActual.toLocaleString('es-CL')+'h\nEstás registrando: '+hr.toLocaleString('es-CL')+'h ('+(e.horomActual-hr).toLocaleString('es-CL')+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
+    if(!confirm('⚠️ REGRESIÓN DE HORÓMETRO\n\n'+eqSigla+' tiene horómetro actual: '+fn(e.horomActual)+'h\nEstás registrando: '+fn(hr)+'h ('+fn((e.horomActual-hr))+'h menos)\n\n¿Es error de digitación? Cancela y corrige.\n¿Continuar de todas formas?'))return;
   } else if(!esRetroactivo&&e&&e.horomActual){
     // Salto implausible hacia adelante (no es regresión, esa ya se chequeó arriba) —
     // ver validarSaltoHorometro en logic.js, mismo espíritu que el "Report Mantención"
