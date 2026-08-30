@@ -316,7 +316,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/cad.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/histcomp.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/estadistica.js?v=2026-08-30b"></script>
-<script src="modules/renders/audit.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/audit.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/metas.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/mkpi.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/insp.js?v=2026-08-30"></script>
@@ -3433,7 +3433,8 @@ window.syncEquipos=function(){
 // se cablea acá, igual que histcomp.js (mismo grupo).
 // renders.estadistica: ya NO se cablea acá — estadistica.js es módulo ES
 // (Fase 3, 2026-08-30) y se auto-registra al final del archivo.
-renders.audit=renderAudit;
+// renders.audit: ya NO se cablea acá — audit.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 // Pestaña Metas & KPIs: mkpi.js es módulo ES (Fase 3, 2026-08-30) — ya NO
 // se cablea acá, igual que metas.js (mismo grupo). Ver nota en mov.js.

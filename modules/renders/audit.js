@@ -7,6 +7,18 @@
 // cargados en memoria (S.g) cada vez que se abre la pestaña — no requiere
 // pedirlo, se recalcula solo con cada visita.
 // window.renderAudit + los 6 chequeos que alimenta.
+//
+// Módulo ES real (Fase 3, 2026-08-30, undécima tanda: Grupo 6 — depende de
+// neu.js, ya migrado en la décima tanda) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón). Único caso de esta migración con un dato
+// (no función) compartido entre archivos: _AUDIT_MESES (más abajo) lo lee
+// también pred.js por nombre de variable suelto. Mientras audit.js era
+// script plano, ese `const` de nivel superior vivía en el scope global
+// compartido y cualquier módulo podía leerlo así. Al pasar audit.js a
+// módulo ES, su propio `const` de nivel superior queda privado al módulo
+// — deja de ser visible por fuera — así que se agrega el puente
+// window._AUDIT_MESES más abajo para que pred.js lo siga encontrando
+// exactamente igual que antes.
 // ═══════════════════════════════════════════════════════════════════════
 
 // Chequeo 1: horómetro que retrocede entre OT/correctivos consecutivas del
@@ -155,7 +167,7 @@ function _auditAlertaSaludSinSeguimiento(){
 
 const _AUDIT_MESES=[{v:'01',l:'Ene'},{v:'02',l:'Feb'},{v:'03',l:'Mar'},{v:'04',l:'Abr'},{v:'05',l:'May'},{v:'06',l:'Jun'},{v:'07',l:'Jul'},{v:'08',l:'Ago'},{v:'09',l:'Sep'},{v:'10',l:'Oct'},{v:'11',l:'Nov'},{v:'12',l:'Dic'}];
 
-window.renderAudit=function(){
+export function renderAudit(){
   const eq=S.g('eq')||[];
   const ot=S.g('ot')||[];
   const fSig=$('faSigla')?.value||'';
@@ -283,4 +295,11 @@ window.renderAudit=function(){
       }).join('')}
     </table>${alertasSinSeguimiento.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${alertasSinSeguimiento.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Sin alertas de salud pendientes de seguimiento</div>'}
   `;
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda). _AUDIT_MESES
+// también se puentea (no es función) porque pred.js lo lee por nombre
+// suelto — ver nota de migración arriba.
+window.renderAudit = renderAudit;
+window._AUDIT_MESES = _AUDIT_MESES;
+renders.audit = renderAudit;
