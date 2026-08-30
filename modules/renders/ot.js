@@ -139,7 +139,7 @@ export function renderOt(){
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="analisisFallas()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button> <button class="btn btn-o" onclick="analisisReingresos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="go('comp2');comp2Sub('estadistica')" title="Ahora vive en Estadística — Por Equipo (Bad Actors) y Por Componente, con más historial (suma correctivos_historico) y la misma fuente única de fallas (esFallaMTBF) que el resto de la app"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button> <button class="btn btn-o" onclick="analisisReingresos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
     </div>
     ${fsEnCursoOTHTML}
     <div class="cards">
@@ -209,94 +209,13 @@ export function renderOt(){
     </table></div>
     ${_pagHTML('ot',pg)}`}`;
 };
-export function analisisFallas(){
-  const ot=S.g('ot')||[];
-  const reg=S.g('reg')||[];
-  const eq=S.g('eq')||[];
-  const fn2=v=>fn(Math.round(v||0));
-  // Reunir todas las fallas (OT + correctivos de PM + otHist)
-  const regCorr=reg.filter(r=>r.tipoPM==='Correctivo'||r.estatusEq==='Fuera de Servicio').map(r=>({
-    sigla:r.equipo,fecha:r.fechaEntrada,componente:r.componente||'',sistema:'',
-    sintoma:r.obs||'',horom:r.horomReal||0,duracion:r.duracion||''
-  }));
-  // otHist (auditoría 2026-08-18, mismo hallazgo que diagnosticoFlota en pred.js):
-  // este popup ("Análisis de Fallas — MTBF", accesible desde Correctivos) es el
-  // criterio "más suelto/antiguo" que Estadística ya mencionaba mejorar — nunca
-  // miraba correctivos_historico (WhatsApp). Seguro de combinar: usa sigla/fecha/
-  // componente/horom, todos presentes en el adaptador; 'duracion' no se usa acá.
-  const otHistFallas=_otHistComoOt(S.g('otHist')||[]);
-  const fallas=[...ot,...regCorr,...otHistFallas].filter(f=>f.sigla);
-
-  // ── MTBF por COMPONENTE — tasa acotada a los últimos 12 meses ──
-  // Antes: horómetro EN VIVO de toda la flota ÷ fallas de TODA la vida de ese
-  // componente — el mismo defecto que C.mtbfReal ya documenta (el número sube
-  // solo con el paso del tiempo, sin que el componente haya vuelto a fallar),
-  // aplicado acá a nivel flota. Un intervalo real (C.mtbfReal) por componente
-  // exigiría ≥2 fallas del MISMO componente en el MISMO equipo — en la práctica
-  // deja "sin dato" a casi todos los componentes. Se usa en cambio el mismo
-  // criterio ya validado en dash.js/metas.js para MTBF mensual: horas de flota
-  // ESTIMADAS en un período ÷ fallas de ese componente en ESE MISMO período —
-  // acotar ambos al mismo período rolling de 12 meses corta el crecimiento
-  // artificial sin perder la utilidad práctica del reporte.
-  const _hoyMTBF=new Date();
-  const _desdeMTBF=new Date(_hoyMTBF);_desdeMTBF.setMonth(_desdeMTBF.getMonth()-12);
-  const _desdeMTBFISO=_desdeMTBF.toISOString().slice(0,10);
-  const fechaFalla=f=>f.fecha||f.fechaEntrada||'';
-  const fallas12m=fallas.filter(f=>fechaFalla(f)>=_desdeMTBFISO);
-  const diasPeriodoMTBF=Math.max(1,Math.round((_hoyMTBF-_desdeMTBF)/86400000));
-  const horasFlotaPeriodo=eq.reduce((s,e)=>e.unidad==='km'?s:s+(e.hrsDia||12)*diasPeriodoMTBF,0);
-  const porComp={};
-  fallas12m.forEach(f=>{
-    const c=f.componente||'Sin clasificar';
-    if(!porComp[c])porComp[c]={comp:c,fallas:0,equipos:new Set(),horas:0};
-    porComp[c].fallas++;
-    porComp[c].equipos.add(f.sigla);
-  });
-  const comps=Object.values(porComp).map(c=>({
-    ...c,nEquipos:c.equipos.size,
-    mtbf:c.fallas>0?Math.round(horasFlotaPeriodo/c.fallas):0
-  })).sort((a,b)=>b.fallas-a.fallas);
-
-  // ── BAD ACTORS: equipos con más fallas ──
-  const porEq={};
-  fallas.forEach(f=>{if(!porEq[f.sigla])porEq[f.sigla]=[];porEq[f.sigla].push(f.horom);});
-  const badActors=Object.entries(porEq).map(([sig,horoms])=>({sigla:sig,fallas:horoms.length,
-    mtbf:C.mtbfReal(horoms)}))
-    .sort((a,b)=>b.fallas-a.fallas).slice(0,8);
-
-  const totalFallas=fallas.length;
-  sm(`<div style="max-width:720px">
-    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas — MTBF</h3>
-    <p style="font-size:12px;color:var(--tx3)">Tiempo Medio Entre Fallas por componente (últimos 12 meses) y por equipo (histórico completo) · ${totalFallas} fallas registradas en total</p>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
-      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Fallas (12 meses)</div><b style="font-size:22px">${fallas12m.length}</b></div>
-      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Componentes afectados (12m)</div><b style="font-size:22px;color:var(--warn)">${comps.length}</b></div>
-      <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--tx3)">Horas flota estim. (12m)</div><b style="font-size:14px;color:var(--ac)">${fn2(horasFlotaPeriodo)}h</b></div>
-    </div>
-    <b style="font-size:13px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> MTBF por Componente — últimos 12 meses (menor MTBF = más problemático)</b>
-    <div style="overflow-x:auto;margin:8px 0 16px"><table style="width:100%;font-size:11px">
-      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Componente</th><th>Fallas</th><th>Equipos</th><th>MTBF (h)</th><th>Criticidad</th></tr>
-      ${comps.map(c=>{const crit=c.mtbf<2000?'🔴 Alta':c.mtbf<5000?'🟡 Media':'🟢 Baja';return `<tr style="border-bottom:1px solid var(--bd)">
-        <td style="padding:6px"><b>${escapeHtml(c.comp)}</b></td>
-        <td style="text-align:center">${c.fallas}</td>
-        <td style="text-align:center">${c.nEquipos}</td>
-        <td style="text-align:center"><b>${fn2(c.mtbf)}</b></td>
-        <td style="text-align:center">${crit}</td>
-      </tr>`;}).join('')||'<tr><td colspan=5 style="text-align:center;padding:20px;color:var(--tx3)">Sin fallas con componente clasificado</td></tr>'}
-    </table></div>
-    <b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="6"/><line x1="9" y1="10" x2="4" y2="10"/><line x1="4" y1="10" x2="4" y2="13"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14" cy="15" r="3.5"/><line x1="15" y1="10" x2="15" y2="4"/></svg> Top Equipos Problemáticos (Bad Actors)</b>
-    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;font-size:11px">
-      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Equipo</th><th>Fallas</th><th>MTBF (h)</th></tr>
-      ${badActors.map(b=>`<tr style="border-bottom:1px solid var(--bd)">
-        <td style="padding:6px"><b>${escapeHtml(b.sigla)}</b></td>
-        <td style="text-align:center">${b.fallas}</td>
-        <td style="text-align:center">${b.mtbf==null?'—':fn2(b.mtbf)}</td>
-      </tr>`).join('')||'<tr><td colspan=3 style="text-align:center;padding:20px;color:var(--tx3)">Sin datos</td></tr>'}
-    </table></div>
-    <p style="font-size:10px;color:var(--tx3);margin-top:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="5"/><line x1="8" y1="16" x2="12" y2="16"/><line x1="8.5" y1="13" x2="8.5" y2="16"/><line x1="11.5" y1="13" x2="11.5" y2="16"/></svg> MTBF por Componente = horas de flota estimadas EN LOS ÚLTIMOS 12 MESES ÷ fallas de ese componente en ese mismo período (así el número no sube solo porque pasa el tiempo sin que el componente haya vuelto a fallar). MTBF por Equipo (Bad Actors) = promedio de intervalos reales entre fallas sucesivas, histórico completo. Componentes con MTBF bajo son candidatos a revisión de proveedor o reemplazo preventivo.</p>
-    <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
-  </div>`);
-};
+// analisisFallas() se eliminó (2026-08-30): duplicaba el cálculo de MTBF
+// por Equipo/Componente que ya vive en estadistica.js, con una versión
+// PEOR (no sumaba correctivos_historico, no usaba esFallaMTBF como fuente
+// única — ver el propio header de estadistica.js, que ya documentaba esto
+// como "el criterio más suelto/antiguo"). El botón "Análisis de Fallas
+// (MTBF)" de arriba ahora enlaza directo a Estadística en vez de
+// recalcular una versión distinta.
 
 // Documentación por técnico — solo admin (ver botón condicionado arriba). De
 // una auditoría real (2026-08): 56% de las OT cerradas de toda la flota no
@@ -702,7 +621,6 @@ export function edOT(i,key,val){
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderOt = renderOt;
-window.analisisFallas = analisisFallas;
 window.analisisDocumentacion = analisisDocumentacion;
 window.analisisReingresos = analisisReingresos;
 window.addOT = addOT;

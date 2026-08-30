@@ -3,16 +3,26 @@
 // y por Modelo. A pedido del usuario ("i.a nuestro programa tiene predictivo,
 // probabilidad y destrabe, pero estadística no lo tiene").
 //
-// Reusa el mismo cálculo que ya existía disperso en ventanas emergentes de
-// Correctivos (analisisFallas/analisisDocumentacion/analisisReingresos en
-// ot.js) en vez de duplicarlo — con dos mejoras al traerlo acá:
-//   1. Equipo/Componente ahora usan esFallaMTBF() (logic.js) como filtro,
-//      la misma fuente única que ya usa MTBF/Confiabilidad/% Flota sin falla
-//      (analisisFallas en ot.js todavía usa un criterio más suelto/antiguo).
+// Reusa el mismo cálculo que originalmente vivía disperso en ventanas
+// emergentes de Correctivos (analisisFallas/analisisDocumentacion/
+// analisisReingresos en ot.js) en vez de duplicarlo — con dos mejoras:
+//   1. Equipo/Componente usan esFallaMTBF() (logic.js) como filtro, la
+//      misma fuente única que ya usa MTBF/Confiabilidad/% Flota sin falla
+//      (el popup analisisFallas de ot.js usaba un criterio más suelto).
 //   2. Equipo/Componente/Modelo suman 'otHist' (historial 2022-2025 cargado
 //      desde Excel, ver conversación 2026-08-15) para más muestra — Técnico
 //      no, porque ese historial no trae quién hizo el trabajo.
 // La comparativa por Modelo es enteramente nueva: no existía en ningún lado.
+// Consolidación 2026-08-30: el botón "Análisis de Fallas (MTBF)" de
+// Correctivos (ot.js) enlazaba a un popup propio que recalculaba lo mismo
+// que Por Equipo/Por Componente acá, con una versión peor (sin esFallaMTBF
+// ni otHist). Ese popup se eliminó — ahora el botón de Correctivos enlaza
+// directo a esta pestaña. Documentación por Técnico y Reingresos Tempranos
+// siguen viviendo también como popups en ot.js (no se tocaron en esta
+// consolidación): esa lógica está anclada por
+// tests/sincroniaReglasCorrectivos.test.js, que la compara contra la Edge
+// Function del correo diario (alerta-pm/index.ts) — fusionarla con la
+// vista Por Técnico de acá implicaría reescribir ese guardarrail.
 // Módulo ES real (Fase 3, 2026-08-30, octava tanda: Grupo 3 — depende de
 // ot.js, ya migrado en la séptima tanda) — ver nota de migración en mov.js
 // (primera tanda, mismo patrón).
