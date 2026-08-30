@@ -1,8 +1,9 @@
 // Pestaña Vencimientos Documentales — extraída a su propio archivo (Fase 2
-// de modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. vencReglaDefault/vencCalcProximo/vencEstado viven en logic.js.
-// comprimirImagen/_subirArchivoBucket quedan en index.html — bucket/helpers
-// de subida compartidos también por Informes de Falla y OT.
+// de modularización). Módulo ES real (Fase 3, 2026-08-30, quinta tanda:
+// Equipos y Mantención) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón). vencReglaDefault/vencCalcProximo/vencEstado viven en
+// logic.js. comprimirImagen/_subirArchivoBucket quedan en index.html —
+// bucket/helpers de subida compartidos también por Informes de Falla y OT.
 
 // Reglas por tipo de equipo, confirmadas por el usuario. NO se inventan periodicidades
 // para tipos sin regla conocida (quedan vacías y editables manualmente).
@@ -26,7 +27,7 @@ function _vencTipoEfectivo(e){
   return e?e.tipo:'';
 }
 
-window.renderVenc=function(){
+export function renderVenc(){
   var eq=S.g('eq')||[];
   var venc=S.g('venc')||{}; // { sigla: { tipoVenc: {ultima:'YYYY-MM-DD', periodicidadMeses:N, proxima:'YYYY-MM-DD', obs:''} } }
   var fEq=$('fVencEq')?.value||'';
@@ -111,7 +112,7 @@ window.renderVenc=function(){
     '</table></div>'+
     '<input type="file" id="vencFotoInput" accept="image/*,application/pdf" style="display:none" onchange="_vencFotoSeleccionada(event)">';
   if(typeof _animGauges==='function')_animGauges('s-venc');
-};
+}
 
 function celdaFotoVenc(sigla,vencTipo,fotoUrl,fotoTipo){
   if(fotoUrl){
@@ -124,11 +125,11 @@ function celdaFotoVenc(sigla,vencTipo,fotoUrl,fotoTipo){
   return '<td style="text-align:center"><button class="btn-x" onclick="_vencAbrirSelector(\''+escapeHtml(sigla)+'\',\''+escapeHtml(vencTipo)+'\')" title="Subir foto o PDF del documento"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button></td>';
 }
 window._vencFotoTarget=null;
-window._vencAbrirSelector=function(sigla,vencTipo){
+export function _vencAbrirSelector(sigla,vencTipo){
   window._vencFotoTarget={sigla:sigla,vencTipo:vencTipo};
   $('vencFotoInput').click();
-};
-window._vencFotoSeleccionada=async function(ev){
+}
+export async function _vencFotoSeleccionada(ev){
   var file=ev.target.files&&ev.target.files[0];
   var target=window._vencFotoTarget;
   ev.target.value=''; // permite volver a elegir el mismo archivo después si hace falta
@@ -157,9 +158,9 @@ window._vencFotoSeleccionada=async function(ev){
   }catch(err){
     toast('❌ Error subiendo: '+err.message);
   }
-};
+}
 
-window.edVenc=function(sigla,vencTipo,campo,val){
+export function edVenc(sigla,vencTipo,campo,val){
   var venc=S.g('venc')||{};
   if(!venc[sigla])venc[sigla]={};
   if(!venc[sigla][vencTipo])venc[sigla][vencTipo]={};
@@ -188,9 +189,9 @@ window.edVenc=function(sigla,vencTipo,campo,val){
   if(est.requiereAtencion){
     toast('⚠️ '+sigla+' · '+vencTipo+': '+est.label);
   }
-};
+}
 
-window.exportVencCSV=function(){
+export function exportVencCSV(){
   var eq=S.g('eq')||[];
   var venc=S.g('venc')||{};
   var filas=[];
@@ -238,4 +239,12 @@ window.exportVencCSV=function(){
   a.download='vencimientos_centinela_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
   toast('📥 CSV vencimientos exportado ('+filas.length+' filas)');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderVenc = renderVenc;
+window._vencAbrirSelector = _vencAbrirSelector;
+window._vencFotoSeleccionada = _vencFotoSeleccionada;
+window.edVenc = edVenc;
+window.exportVencCSV = exportVencCSV;
+renders.venc = renderVenc;

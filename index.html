@@ -319,22 +319,22 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/renders/audit.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/metas.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/mkpi.js?v=2026-08-30"></script>
-<script src="modules/renders/insp.js?v=2026-08-07"></script>
-<script src="modules/renders/eq.js?v=2026-08-24b"></script>
+<script type="module" src="modules/renders/insp.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/eq.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/plani.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/gantt.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/informes.js?v=2026-08-30b"></script>
-<script src="modules/renders/venc.js?v=2026-08-24b"></script>
+<script type="module" src="modules/renders/venc.js?v=2026-08-30"></script>
 <script src="modules/renders/comp.js?v=2026-08-30"></script>
 <script src="modules/renders/buscar.js?v=2026-08-30"></script>
-<script src="modules/renders/pau.js?v=2026-08-08"></script>
+<script type="module" src="modules/renders/pau.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/plan.js?v=2026-08-30b"></script>
-<script src="modules/renders/disp.js?v=2026-08-24b"></script>
+<script type="module" src="modules/renders/disp.js?v=2026-08-30"></script>
 <script src="modules/renders/ace.js?v=2026-08-14"></script>
 <script type="module" src="modules/renders/ayuda.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/sem.js?v=2026-08-30b"></script>
 <script src="modules/renders/dash.js?v=2026-08-30"></script>
-<script src="modules/renders/reg.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/reg.js?v=2026-08-30b"></script>
 <script src="modules/renders/hist.js?v=2026-08-07b"></script>
 <script src="modules/renders/ot.js?v=2026-08-30"></script>
 <script src="modules/renders/pred.js?v=2026-08-30"></script>
@@ -823,7 +823,8 @@ function _tiposEquipoDisponibles(){
   return base.concat(extra.sort());
 }
 // ---- EQUIPOS (full CRUD + inline edit) ----
-renders.eq=renderEq;
+// renders.eq: ya NO se cablea acá — eq.js es módulo ES (Fase 3, 2026-08-30)
+// y se auto-registra al final del archivo (ver nota en mov.js).
 
 // Lista de técnicos para los <select> de Registro PM: los 5 nombres base +
 // cualquier variante que ya exista en los datos reales (ej. con RUT pegado),
@@ -835,7 +836,8 @@ function _tecnicosDisponibles(){
   var extra=[...new Set(reg.map(function(r){return r.tecnico}).filter(function(t){return t&&base.indexOf(t)<0;}))];
   return base.concat(extra.sort());
 }
-renders.reg=renderReg;
+// renders.reg: ya NO se cablea acá — reg.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra solo (ver nota en mov.js).
 
 
 // ---- PROGRAMA ANUAL ----
@@ -954,7 +956,8 @@ function _progDiaResumen(todo){
 renders.al=renderAl;
 
 // ---- PAUTAS (full CRUD) ----
-renders.pau=renderPau;
+// renders.pau: ya NO se cablea acá — pau.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 // Estilo compartido de inputs numéricos inline en tablas editables (Stock
 // Filtros, Lubricantes, Repuestos, Análisis de Aceite, Predictivo, Pautas,
 // Correctivos) — antes cada pestaña tenía su propia copia idéntica de este
@@ -2290,7 +2293,8 @@ function neuMetricas(n){
 })();
 
 // ---- DISPONIBILIDAD ----
-renders.disp=renderDisp;
+// renders.disp: ya NO se cablea acá — disp.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 // Formulario de SALIDA DE SERVICIO por período (desde–hasta–motivo). Registra que un
 // equipo estuvo fuera de servicio un rango de días completo; el cálculo de disponibilidad
@@ -2767,9 +2771,9 @@ renders.pred=renderPred;
 
 
 // ═══ INSPECCIONES DIARIAS ═══
-renders.insp=renderInsp;
-
-renders.venc=renderVenc;
+// renders.insp: ya NO se cablea acá — insp.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra solo, igual que venc.js (mismo grupo).
+// Ver nota en mov.js.
 
 renders.ace=renderAce;
 

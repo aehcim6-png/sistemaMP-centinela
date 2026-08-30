@@ -1,7 +1,8 @@
 // Pestaña Inspecciones Diarias — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre.
-window.renderInsp = function () {
+// modularización). Módulo ES real (Fase 3, 2026-08-30, quinta tanda:
+// Equipos y Mantención) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón).
+export function renderInsp() {
   var insp = S.g('insp') || [];
   var eq = S.g('eq') || [];
   var fEq = $('fInspEq')?.value || '';
@@ -40,8 +41,8 @@ window.renderInsp = function () {
     }).join('') +
     '</table></div>' +
     _pagHTML('insp', pg);
-};
-window.edInsp = function (i, key, val) {
+}
+export function edInsp(i, key, val) {
   var insp = S.g('insp') || [];
   if (insp[i]) {
     insp[i][key] = val; S.s('insp', insp);
@@ -51,12 +52,12 @@ window.edInsp = function (i, key, val) {
     }
     refreshAll();
   }
-};
-window.delInsp = function (i) {
+}
+export function delInsp(i) {
   if (!confirm('¿Eliminar inspección?')) return;
   var insp = S.g('insp') || []; _moverAPapelera('insp', insp[i]); insp.splice(i, 1); S.s('insp', insp); refreshAll(); toast('🗑️ Eliminada');
-};
-window.addInsp = function () {
+}
+export function addInsp() {
   var eq = S.g('eq') || [];
   var hoy = new Date().toISOString().slice(0, 10);
   var per = _tecnicosDisponibles();
@@ -76,8 +77,8 @@ window.addInsp = function () {
     '<div class="fg"><label>Neumáticos</label><select id="iNeu"><option>OK</option><option value="NOK">NOK</option></select></div></div>' +
     '<div class="form-row"><div class="fg" style="flex:1"><label>Observaciones</label><input id="iObs" style="width:100%" placeholder="Detalles..."></div></div>' +
     '<button class="btn" onclick="saveInsp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.saveInsp = function () {
+}
+export function saveInsp() {
   var insp = S.g('insp') || [];
   var r = {
     sigla: $('iEq').value, fecha: $('iFec').value, horom: parseInt($('iHor').value) || 0,
@@ -102,4 +103,12 @@ window.saveInsp = function () {
   }
   cm(); refreshAll();
   toast(noks.length ? '⚠️ ' + noks.length + ' NOK — ' + r.sigla + ' · OT ' + (noks.indexOf('frenos') >= 0 || noks.indexOf('fugas') >= 0 ? 'INMEDIATA' : 'programable') + ' creada' : '✅ Inspección OK — ' + r.sigla);
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderInsp = renderInsp;
+window.edInsp = edInsp;
+window.delInsp = delInsp;
+window.addInsp = addInsp;
+window.saveInsp = saveInsp;
+renders.insp = renderInsp;

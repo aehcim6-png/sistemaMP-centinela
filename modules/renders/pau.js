@@ -1,9 +1,11 @@
 // Pestaña Pautas de Mantención — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. GRUPO_PAUTAS/getPautasConsumo/descontarStock/_edCampo quedan en
-// index.html — son compartidos también por el flujo de guardado de
-// Registro PM (consumo de stock al registrar un PM real) y otras pestañas.
-window.renderPau=function(){
+// modularización). Módulo ES real (Fase 3, 2026-08-30, quinta tanda:
+// Equipos y Mantención) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón). GRUPO_PAUTAS/getPautasConsumo/descontarStock/_edCampo
+// quedan en index.html — son compartidos también por el flujo de guardado
+// de Registro PM (consumo de stock al registrar un PM real) y otras
+// pestañas.
+export function renderPau(){
   const pau=S.g('pau')||INIT.pautas||[];
   const allEq=(S.g('eq')||[]).map(e=>e.sigla).sort();
   const se=$('fPauEq')?.value||allEq[0]||'';
@@ -55,20 +57,20 @@ window.renderPau=function(){
     }).join('')+
     '</table></div>'+
     _pagHTML('pau',pg);
-};
-window.edPau=function(i,key,val){
+}
+export function edPau(i,key,val){
   var pau=S.g('pau')||INIT.pautas||[];
   if(_edCampo('pau',pau,i,key,val)){refreshAll();toast('✅ Guardado');}
-};
-window.delPauta=function(i){
+}
+export function delPauta(i){
   if(!confirm('¿Eliminar actividad?'))return;
   var pau=S.g('pau')||INIT.pautas||[];
   _moverAPapelera('pau',pau[i]);
   pau.splice(i,1);S.s('pau',pau);
   refreshAll();
   toast('🗑️ Eliminada');
-};
-window.addPauta=function(){
+}
+export function addPauta(){
   const eq=S.g('eq')||[];
   sm('<h3>Nueva Actividad</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="pEq">'+eq.map(e=>'<option>'+escapeHtml(e.sigla)+'</option>').join('')+'</select></div>'+
@@ -77,10 +79,18 @@ window.addPauta=function(){
     '<div class="form-row"><div class="fg" style="flex:1"><label>Actividad</label><input id="pAct" style="width:100%"></div></div>'+
     '<div class="form-row"><div class="fg" style="flex:1"><label>Repuesto</label><input id="pRep" style="width:100%"></div><div class="fg"><label>Cant</label><input type="number" id="pCant"></div></div>'+
     '<button class="btn" onclick="savePauta()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.savePauta=function(){
+}
+export function savePauta(){
   var pau=S.g('pau')||INIT.pautas||[];
   pau.push({sigla:$('pEq').value,hoja:'Manual',pm:$('pPM').value,cat:$('pCat').value,act:$('pAct').value,hrs:parseInt($('pHrs').value)||0,rep:$('pRep').value,can:parseInt($('pCant').value)||0});
   S.s('pau',pau);
   cm();refreshAll();toast('✅ Actividad agregada');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderPau = renderPau;
+window.edPau = edPau;
+window.delPauta = delPauta;
+window.addPauta = addPauta;
+window.savePauta = savePauta;
+renders.pau = renderPau;

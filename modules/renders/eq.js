@@ -1,11 +1,12 @@
 // Pestaña Equipos (Control PM Dinámico) — extraída a su propio archivo (Fase
-// 2 de modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. Incluye la Ficha Técnica (editFicha/saveFicha) y su cascada de
-// renombre de sigla (_cascadeRenameSigla), que en el monolito vivían lejos
-// (cerca del final del archivo) pero solo las usa esta pestaña.
-// _tecnicosDisponibles() queda en index.html porque también la usan
-// renders.reg e renders.insp.
-window.renderEq=function(){
+// 2 de modularización). Módulo ES real (Fase 3, 2026-08-30, quinta tanda:
+// Equipos y Mantención) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón). Incluye la Ficha Técnica (editFicha/saveFicha) y su
+// cascada de renombre de sigla (_cascadeRenameSigla), que en el monolito
+// vivían lejos (cerca del final del archivo) pero solo las usa esta
+// pestaña. _tecnicosDisponibles() queda en index.html porque también la
+// usan renders.reg e renders.insp.
+export function renderEq(){
   const eq=C.recalcAll();
   const tipos=[...new Set(eq.map(e=>e.tipo))];
   $('s-eq').innerHTML=`
@@ -54,8 +55,8 @@ window.renderEq=function(){
       }).join('')}
     </table></div>`;
   if(typeof _animGauges==='function')_animGauges('s-eq');
-};
-window.addEquipo=function(){
+}
+export function addEquipo(){
   sm(`<h3>Nuevo Equipo</h3>
     <div class="form-row"><div class="fg"><label>Sigla</label><input id="nSigla"></div><div class="fg"><label>Tipo</label><select id="nTipo" onchange="window._nTipoChange&&window._nTipoChange()">${_tiposEquipoDisponibles().map(function(t){return'<option>'+escapeHtml(t)+'</option>'}).join('')}</select></div></div>
     <div class="form-row"><div class="fg"><label>Modelo</label><input id="nModelo"></div><div class="fg"><label>Proveedor</label><input id="nProv" value="Besalco"></div></div>
@@ -83,8 +84,8 @@ window.addEquipo=function(){
     if(esKm&&parseFloat($('nFrec').value)<=500){$('nFrec').value=10000;$('nHd').value=0;}
     if(!esKm&&parseFloat($('nFrec').value)>=10000){$('nFrec').value=250;$('nHd').value=16;}
   };
-};
-window.saveNewEq=function(){
+}
+export function saveNewEq(){
   const s=$('nSigla').value.trim();if(!s)return toast('Ingrese sigla');
   const eq=S.g('eq')||[];
   if(eq.find(function(x){return x.sigla===s;}))return toast('⚠️ La sigla '+s+' ya existe');
@@ -101,9 +102,9 @@ window.saveNewEq=function(){
     horomProxPM:0,hrsRestantes:0,diasParaPM:0,fechaProxPM:'',tipoPM:'',estado:''
   };
   _recalcEq(n);eq.push(n);S.s('eq',eq);cm();refreshAll();toast('✅ Equipo '+s+' agregado');
-};
+}
 
-window.importarEquiposNuevos=function(){
+export function importarEquiposNuevos(){
   var eq=S.g('eq')||[];
   var hoy=new Date().toISOString().slice(0,10);
 
@@ -137,8 +138,8 @@ window.importarEquiposNuevos=function(){
   if(omitidos.length)msg+='\n⚠️ Ya existían (omitidos): '+omitidos.join(', ');
   msg+='\n\n<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (✏️) para ingresar km/día cuando tengas el dato.';
   alert(msg);
-};
-window.editFicha=function(sigla){
+}
+export function editFicha(sigla){
   var eq=S.g('eq')||[];
   var e=eq.find(function(x){return x.sigla===sigla});
   if(!e)return;
@@ -162,7 +163,7 @@ window.editFicha=function(sigla){
     '<div class="form-row"><div class="fg" style="flex:1"><label title="Usalo solo si SABES que un hito de PM quedo sin hacerse (el sistema no puede detectarlo solo). Se limpia solo cuando registres ese PM.">Hito PM pendiente conocido (opcional)</label><input type="number" id="ftPmPendiente" value="'+(e.pmPendienteManual||'')+'" placeholder="ej: 15500"></div>'+
     '<div class="fg" style="flex:2"><label title="Obligatorio si marcas o cambias este hito — queda en el Log de Cambios junto con el número, para que quede registro de por qué, no solo de qué se cambió">Motivo (obligatorio si marcas/cambias el hito)</label><input id="ftPmMotivo" placeholder="ej: PM4 lo hizo el proveedor externo en terreno, no se alcanzó a registrar acá"></div></div>'+
     '<br><button class="btn" onclick="saveFicha(\''+escapeHtml(sigla)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
+}
 // Si se renombra la sigla de un equipo, propaga el cambio a todo lo que la referencia
 // como clave (Registro PM, Correctivos, Horómetros, Neumáticos, Movimientos, Programa,
 // Pautas, Componentes Mayores, Gantt, Vencimientos, Disponibilidad) — si no, el equipo
@@ -212,7 +213,7 @@ function _cascadeRenameSigla(oldSigla,newSigla){
   if(GRUPO_PAUTAS[oldSigla]!==undefined){GRUPO_PAUTAS[newSigla]=GRUPO_PAUTAS[oldSigla];delete GRUPO_PAUTAS[oldSigla];}
   Object.keys(GRUPO_PAUTAS).forEach(function(k){if(GRUPO_PAUTAS[k]===oldSigla)GRUPO_PAUTAS[k]=newSigla;});
 }
-window.saveFicha=function(sigla){
+export function saveFicha(sigla){
   var eq=S.g('eq')||[];
   var idx=eq.findIndex(function(x){return x.sigla===sigla});
   if(idx<0)return;
@@ -267,4 +268,13 @@ window.saveFicha=function(sigla){
   _cascadeRenameSigla(sigla,nuevaSigla);
   cm();refreshAll();
   toast('✅ Ficha de '+eq[idx].sigla+' actualizada');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderEq = renderEq;
+window.addEquipo = addEquipo;
+window.saveNewEq = saveNewEq;
+window.importarEquiposNuevos = importarEquiposNuevos;
+window.editFicha = editFicha;
+window.saveFicha = saveFicha;
+renders.eq = renderEq;

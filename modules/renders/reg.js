@@ -3,10 +3,12 @@
 // El flujo por voz (REG_VOZ_PASOS/_regVozResumenTexto/_iniciarRegPorVoz) y el
 // importador CSV (importRegCSV/processImportReg) vivían lejos, mezclados con
 // los de otras pestañas (voz: junto a OT/Stock/Lub/Neu; CSV: junto al de
-// Neumáticos) — se juntan acá porque solo los usa este módulo.
+// Neumáticos) — se juntan acá porque solo los usa este módulo. Módulo ES
+// real (Fase 3, 2026-08-30, quinta tanda: Equipos y Mantención) — ver nota
+// de migración en mov.js (primera tanda, mismo patrón).
 // ═══════════════════════════════════════════════════════════════
 // ---- REGISTRO EJECUCION (full CRUD + inline) ----
-window.renderReg=function(){
+export function renderReg(){
   const reg=S.g('reg')||[],eq=S.g('eq')||[];
   const fEq=$('fRegEq')?.value||'',fPM=$('fRegPM')?.value||'',fEst=$('fRegEst')?.value||'';
   const fil=reg.filter(r=>{
@@ -69,8 +71,8 @@ window.renderReg=function(){
       }).join('')}
     </table></div>
     ${_pagHTML('reg',pg)}`;
-};
-window.addReg=function(){
+}
+export function addReg(){
   const eq=S.g('eq')||[];
   const per=_tecnicosDisponibles();
   const hoy=new Date().toISOString().slice(0,10);
@@ -142,8 +144,8 @@ window.addReg=function(){
     <br><button class="btn" onclick="saveReg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>
     <button type="button" class="btn btn-o" onclick="_iniciarRegPorVoz()">${ICONS.mic} Completar por voz</button>`);
-};
-window.editarReg=function(i){
+}
+export function editarReg(i){
   const reg=S.g('reg')||[];
   const r=reg[i];if(!r)return;
   const eq=S.g('eq')||[];
@@ -193,13 +195,13 @@ window.editarReg=function(i){
     </div>
     <button class="btn" onclick="saveEditReg(${i})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar cambios</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
-};
-window.calcDurEdit=function(){
+}
+export function calcDurEdit(){
   const d=duracionHM($('eFecEnt')?.value,$('eHoraEnt')?.value,$('eFecSal')?.value,$('eHoraSal')?.value);
   if(!d)return;
   $('eDur').value=d.ms<0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Hora inválida':d.texto;
-};
-window.saveEditReg=function(i){
+}
+export function saveEditReg(i){
   const reg=S.g('reg')||[];
   if(!reg[i])return;
   const fEnt=$('eFecEnt').value,hEnt=$('eHoraEnt').value;
@@ -258,8 +260,8 @@ window.saveEditReg=function(i){
     _recalcEq(e);S.s('eq',eq);renderHeader();
   }
   cm();refreshAll();toast('✅ Registro actualizado');
-};
-window.rAutoHorom=function(){
+}
+export function rAutoHorom(){
   const eq=S.g('eq')||[];
   const e=eq.find(x=>x.sigla===$('rEq').value);
   if(e&&e.horomActual)$('rHor').value=e.horomActual;
@@ -276,7 +278,7 @@ window.rAutoHorom=function(){
     $('rUltEjec').value=ult?(ult.fechaEntrada||ult.fechaEjec||'Sin fecha'):'Sin registros';
   }
 }
-window.rMostrarConsumos=function(){
+export function rMostrarConsumos(){
   const sig=$('rEq')?.value,pm=$('rPM')?.value;
   if(!sig||!pm)return;
   const cons=getPautasConsumo(sig,pm);
@@ -286,14 +288,13 @@ window.rMostrarConsumos=function(){
   div.style.display='block';
   lista.innerHTML=cons.map(c=>'<span style="display:inline-block;background:var(--bg4);border-radius:4px;padding:2px 8px;margin:2px;font-size:11px">'+
     (c.rep||c.act)+': <b>'+(c.can||0)+'</b></span>').join('');
-};
-;
-window.calcDurReg=function(){
+}
+export function calcDurReg(){
   const d=duracionHM($('rFecEnt').value,$('rHoraEnt').value,$('rFecSal').value,$('rHoraSal').value);
   if(!d)return;
   $('rDur').value=d.ms<0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Hora inválida':d.texto;
-};
-window.saveReg=function(){
+}
+export function saveReg(){
   const eqSigla=$('rEq').value;
   if(!eqSigla)return toast('⚠️ Selecciona un equipo');
   const hr=parseInt($('rHor').value)||0;
@@ -417,7 +418,7 @@ window.saveReg=function(){
   cm();refreshAll();
   const msgRetro=esRetroactivo?' · <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Fecha retroactiva: no se modificó el horómetro actual del equipo':'';
   toast('✅ '+tp+' — '+eqSigla+(logC&&logC.length?' · Stock: -'+logC.length+' items':'')+msgOT+msgOp+msgRetro);
-};
+}
 
 // ---- Leer pauta de PM desde foto (OCR con Gemini vía leer-pauta-pm) ----
 // Motivado por el mismo trabajo real de esta sesión que originó leer-pauta-pm:
@@ -427,11 +428,11 @@ window.saveReg=function(){
 // pero la fecha (sobre todo el año) puede fallar sin quedar marcada como
 // incierta — por eso el aviso de "revisa antes de guardar" es fijo, no solo
 // cuando camposInciertos trae algo.
-window._activarLeerPauta=function(){
+export function _activarLeerPauta(){
   const inp=$('rPautaFoto');
   if(inp)inp.click();
-};
-window._leerPautaFotoSeleccionada=async function(input){
+}
+export async function _leerPautaFotoSeleccionada(input){
   const file=input.files&&input.files[0];
   if(!file)return;
   const estadoEl=$('rPautaEstado');
@@ -449,12 +450,12 @@ window._leerPautaFotoSeleccionada=async function(input){
     toast('⚠️ Error leyendo pauta: '+err.message);
   }
   input.value='';
-};
+}
 // Busca UN equipo cuya sigla comparta letras y termine en los mismos dígitos
 // que lo leído en el papel (ej. pauta "MN-26" → sistema "MN-5926", visto en
 // producción). Si hay más de un candidato o ninguno, no autoselecciona —
 // nunca adivina de qué equipo se trata, eso lo confirma la persona.
-window._matchEquipoPorSiglaOCR=function(siglaOCR,eq){
+export function _matchEquipoPorSiglaOCR(siglaOCR,eq){
   const s=(siglaOCR||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   const m=s.match(/^([A-Z]+)(\d+)$/);
   if(!m)return null;
@@ -466,8 +467,8 @@ window._matchEquipoPorSiglaOCR=function(siglaOCR,eq){
     return em[2]===digitos||em[2].endsWith(digitos);
   });
   return candidatos.length===1?candidatos[0]:null;
-};
-window._prellenarDesdeOCR=function(datos){
+}
+export function _prellenarDesdeOCR(datos){
   const inc=datos.camposInciertos||[];
   function marcar(id,incierto){
     const el=$(id);
@@ -502,18 +503,18 @@ window._prellenarDesdeOCR=function(datos){
     if(obsEl&&!obsEl.value)obsEl.value='Pauta indica: '+nombres.join(', ');
   }
   toast('📷 Pauta leída — revisa los campos marcados en amarillo antes de guardar');
-};
+}
 
 // ---- Leer informe de correctivo desde foto (leer-informe-correctivo) ----
 // Hermano de la lectura de pautas de arriba, para el otro papel ("INFORME
 // MANTENIMIENTO EN TALLER"). Reutiliza el mismo modal de Registrar PM
 // (tipoPM='Correctivo' ya es una opción ahí) y el mismo matching de sigla —
 // nunca guarda solo, mismo principio.
-window._activarLeerCorrectivo=function(){
+export function _activarLeerCorrectivo(){
   const inp=$('rCorrectivoFoto');
   if(inp)inp.click();
-};
-window._leerCorrectivoFotoSeleccionada=async function(input){
+}
+export async function _leerCorrectivoFotoSeleccionada(input){
   const file=input.files&&input.files[0];
   if(!file)return;
   const estadoEl=$('rPautaEstado');
@@ -531,8 +532,8 @@ window._leerCorrectivoFotoSeleccionada=async function(input){
     toast('⚠️ Error leyendo informe: '+err.message);
   }
   input.value='';
-};
-window._prellenarDesdeOCRCorrectivo=function(datos){
+}
+export function _prellenarDesdeOCRCorrectivo(datos){
   const inc=datos.camposInciertos||[];
   function marcar(id,incierto){
     const el=$(id);
@@ -580,7 +581,7 @@ window._prellenarDesdeOCRCorrectivo=function(datos){
     }
   }
   toast('📷 Informe leído — revisa los campos marcados en amarillo antes de guardar');
-};
+}
 
 // ---- Flujo: Registro PM por voz ----
 window.REG_VOZ_PASOS=[
@@ -597,20 +598,20 @@ function _regVozResumenTexto(){
   var obs=document.getElementById('rObs').value||'';
   return 'Resumen: equipo '+sig+', horómetro '+hor+(pm?', tipo '+pm:'')+(obs?', trabajos: '+obs:'')+'.';
 }
-window._iniciarRegPorVoz=function(){
+export function _iniciarRegPorVoz(){
   if(!document.getElementById('rEq')&&typeof addReg==='function')addReg();
   _iniciarFlujoVoz(window.REG_VOZ_PASOS,function(){if(typeof saveReg==='function')saveReg();},_regVozResumenTexto);
-};
+}
 
 // ═══ IMPORTAR REGISTRO PM ═══
-window.importRegCSV=function(){
+export function importRegCSV(){
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Registros PM</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: equipo, tipoPM, fechaEntrada, horaEntrada, fechaSalida, horaSalida, horomReal, estatusEq, tecnico, obs<br><br>También acepta JSON (array de objetos).</p>'+
     '<input type="file" id="regFile" accept=".csv,.json" style="margin:12px 0"><br>'+
     '<label><input type="checkbox" id="regReplace"> Reemplazar todo (si no, agrega)</label><br><br>'+
     '<button class="btn" onclick="processImportReg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.processImportReg=function(){
+}
+export function processImportReg(){
   var file=$('regFile')?.files[0];if(!file)return toast('⚠️ Selecciona un archivo');
   var replace=$('regReplace')?.checked||false;
   var reader=new FileReader();
@@ -711,4 +712,26 @@ window.processImportReg=function(){
       toast('✅ '+added+' registros '+(replace?'cargados':'agregados')+(dup?' · '+dup+' duplicado(s) omitido(s)':''));
     }catch(err){toast('❌ Error: '+err.message);}
   };reader.readAsText(file,'UTF-8');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderReg = renderReg;
+window.addReg = addReg;
+window.editarReg = editarReg;
+window.calcDurEdit = calcDurEdit;
+window.saveEditReg = saveEditReg;
+window.rAutoHorom = rAutoHorom;
+window.rMostrarConsumos = rMostrarConsumos;
+window.calcDurReg = calcDurReg;
+window.saveReg = saveReg;
+window._activarLeerPauta = _activarLeerPauta;
+window._leerPautaFotoSeleccionada = _leerPautaFotoSeleccionada;
+window._matchEquipoPorSiglaOCR = _matchEquipoPorSiglaOCR;
+window._prellenarDesdeOCR = _prellenarDesdeOCR;
+window._activarLeerCorrectivo = _activarLeerCorrectivo;
+window._leerCorrectivoFotoSeleccionada = _leerCorrectivoFotoSeleccionada;
+window._prellenarDesdeOCRCorrectivo = _prellenarDesdeOCRCorrectivo;
+window._iniciarRegPorVoz = _iniciarRegPorVoz;
+window.importRegCSV = importRegCSV;
+window.processImportReg = processImportReg;
+renders.reg = renderReg;

@@ -1,11 +1,12 @@
 // Pestaña Disponibilidad Mecánica — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. dispDownMap/dispEquipoMes viven en logic.js (fuente única
+// modularización). Módulo ES real (Fase 3, 2026-08-30, quinta tanda:
+// Equipos y Mantención) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón). dispDownMap/dispEquipoMes viven en logic.js (fuente única
 // compartida). registrarSalidaServicio/guardarSalidaServicio/
 // cerrarSalidaServicio quedan en index.html — cerrarSalidaServicio también
 // lo usa renders.ot (aún sin extraer) para el mismo listado de "fuera de
 // servicio en curso".
-window.renderDisp=function(){
+export function renderDisp(){
   var eq=S.g('eq')||[];
   var reg=S.g('reg')||[];
   var ot=S.g('ot')||[];
@@ -274,4 +275,8 @@ window.renderDisp=function(){
     '</div>'+
     content;
   if(typeof _animGauges==='function')_animGauges('s-disp');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderDisp = renderDisp;
+renders.disp = renderDisp;
