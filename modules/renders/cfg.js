@@ -307,7 +307,10 @@ export function renderCfg(){
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="exportAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Exportar JSON (backup completo)</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar JSON (restaurar backup)</button>'+
       '<hr style="border-color:var(--bd);margin:12px 0">'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ok)" onclick="reporteEjecutivoExcel()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Reporte Ejecutivo Excel (para jefatura)</button>'+
+      // Reporte Ejecutivo Excel: se fusionó con el de Metas & KPIs →
+      // Informes (2026-08-30) — antes había dos reportes distintos con el
+      // mismo nombre, y "Urgentes" salía con un número distinto en cada
+      // uno. Ver nota de consolidación en kpi.js.
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--w)" onclick="resetAll()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--danger)" onclick="resetEmpresa()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16"/><rect x="6.3" y="4.5" width="1.8" height="1.8"/><rect x="9.1" y="4.5" width="1.8" height="1.8"/><rect x="11.9" y="4.5" width="1.8" height="1.8"/><rect x="6.3" y="8" width="1.8" height="1.8"/><rect x="9.1" y="8" width="1.8" height="1.8"/><rect x="11.9" y="8" width="1.8" height="1.8"/><rect x="8.5" y="13" width="3" height="5"/></svg> Configurar Nueva Empresa</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Descargar Plantilla Limpia (para otra empresa)</button>'+
@@ -724,81 +727,13 @@ export function importAllJSON(){
   };inp.click();
 };
 
-export function reporteEjecutivoExcel(){
-  const eq=S.g('eq')||[];
-  const reg=S.g('reg')||[];
-  const ot=S.g('ot')||[];
-  const neu=S.g('neu')||[];
-  const cfg=S.g('cfg')||{};
-  const hoy=new Date().toLocaleDateString('es-CL');
-  const fn2=v=>fn(Math.round(v||0));
-
-  // Calcular KPIs
-  const total=eq.length;
-  const urgentes=eq.filter(e=>e.estado&&e.estado.includes('URGENTE')).length;
-  const proximas=eq.filter(e=>e.estado&&e.estado.includes('PRÓXIMA')).length;
-  const alDia=eq.filter(e=>e.estado&&e.estado.includes('AL DÍA')).length;
-  const cumplimiento=total>0?Math.round(alDia/total*100):0;
-  const neuCriticos=neu.filter(neuDebeCambiar).length;
-
-  // Estilos Excel
-  const est={
-    titulo:'style="background:#1e3a8a;color:#fff;font-size:16px;font-weight:bold;padding:10px;text-align:center"',
-    sub:'style="background:#3b82f6;color:#fff;font-weight:bold;padding:6px"',
-    th:'style="background:#1e40af;color:#fff;font-weight:bold;padding:5px;border:1px solid #94a3b8"',
-    td:'style="padding:4px;border:1px solid #cbd5e1"',
-    urg:'style="padding:4px;border:1px solid #cbd5e1;background:#fecaca;color:#991b1b;font-weight:bold"',
-    ok:'style="padding:4px;border:1px solid #cbd5e1;background:#bbf7d0;color:#166534"',
-    warn:'style="padding:4px;border:1px solid #cbd5e1;background:#fef08a;color:#854d0e"'
-  };
-
-  let html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>';
-  html+='<table border="0" cellspacing="0">';
-  html+='<tr><td colspan="6" '+est.titulo+'>REPORTE EJECUTIVO DE MANTENIMIENTO</td></tr>';
-  html+='<tr><td colspan="6" style="text-align:center;padding:6px;background:#e0e7ff">'+escapeHtml(cfg.empresa||'Besalco Minería S.A.')+' — '+escapeHtml(cfg.faena||'Faena Centinela')+' · '+hoy+'</td></tr>';
-  html+='<tr><td colspan="6" style="height:10px"></td></tr>';
-
-  // RESUMEN KPI
-  html+='<tr><td colspan="6" '+est.sub+'>1. INDICADORES CLAVE</td></tr>';
-  html+='<tr><td '+est.th+'>Total Equipos</td><td '+est.th+'>Al Día</td><td '+est.th+'>Próximas PM</td><td '+est.th+'>Urgentes</td><td '+est.th+'>Cumplimiento</td><td '+est.th+'>Neu. Críticos</td></tr>';
-  html+='<tr><td '+est.td+' align="center">'+total+'</td><td '+est.ok+' align="center">'+alDia+'</td><td '+est.warn+' align="center">'+proximas+'</td><td '+est.urg+' align="center">'+urgentes+'</td><td '+est.td+' align="center">'+cumplimiento+'%</td><td '+est.urg+' align="center">'+neuCriticos+'</td></tr>';
-  html+='<tr><td colspan="6" style="height:10px"></td></tr>';
-
-  // ESTADO DE EQUIPOS
-  html+='<tr><td colspan="6" '+est.sub+'>2. ESTADO DE LA FLOTA</td></tr>';
-  html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Tipo</td><td '+est.th+'>Horómetro</td><td '+est.th+'>Próx. PM</td><td '+est.th+'>Fecha</td><td '+est.th+'>Estado</td></tr>';
-  eq.forEach(e=>{
-    const cl=e.estado&&e.estado.includes('URGENTE')?est.urg:e.estado&&e.estado.includes('PRÓXIMA')?est.warn:est.ok;
-    html+='<tr><td '+est.td+'>'+e.sigla+'</td><td '+est.td+'>'+(e.tipo||'')+'</td><td '+est.td+' align="right">'+fn2(e.horomActual)+'</td><td '+est.td+' align="center">'+(e.tipoPM||'')+'</td><td '+est.td+' align="center">'+(e.fechaProxPM||'')+'</td><td '+cl+' align="center">'+(e.estado||'').replace(/[🔴🟡✅⚪]/g,'').trim()+'</td></tr>';
-  });
-  html+='<tr><td colspan="6" style="height:10px"></td></tr>';
-
-  // NEUMÁTICOS EN ALERTA = los que hay que cambiar YA o programar (mismo criterio real
-  // que la tabla y el resumen: neuDebeCambiar/neuProxCambio), no por % de goma.
-  const neuCrit=neu.filter(n=>neuDebeCambiar(n)||neuProxCambio(n))
-    .sort((a,b)=>(neuDebeCambiar(b)?1:0)-(neuDebeCambiar(a)?1:0));
-  if(neuCrit.length){
-    html+='<tr><td colspan="6" '+est.sub+'>3. NEUMÁTICOS EN ALERTA</td></tr>';
-    html+='<tr><td '+est.th+'>Equipo</td><td '+est.th+'>Posición</td><td '+est.th+'>Serie</td><td '+est.th+'>Remanente</td><td '+est.th+'>%</td><td '+est.th+'>Estado</td></tr>';
-    neuCrit.forEach(n=>{
-      const pn=neuPct(n); const ec=neuEstadoCalc(n);
-      const cl=neuDebeCambiar(n)?est.urg:est.warn;
-      html+='<tr><td '+est.td+'>'+n.sigla+'</td><td '+est.td+'>'+(n.posicion||'')+'</td><td '+est.td+'>'+(n.serie||'')+'</td><td '+est.td+' align="center">'+(n.remanente||'—')+'mm</td><td '+cl+' align="center">'+(pn!=null?pn+'%':'—')+'</td><td '+cl+'>'+ec.txt+'</td></tr>';
-    });
-    html+='<tr><td colspan="6" style="height:10px"></td></tr>';
-  }
-
-  html+='<tr><td colspan="6" style="padding:8px;font-size:10px;color:#64748b;text-align:center">Generado por SistemaMP Centinela · '+hoy+'</td></tr>';
-  html+='</table></body></html>';
-
-  const blob=new Blob([html],{type:'application/vnd.ms-excel'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download='Reporte_Ejecutivo_'+hoy.replace(/\//g,'-')+'.xls';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('✅ Reporte ejecutivo Excel descargado');
-};
+// reporteEjecutivoExcel() se eliminó (2026-08-30): existía un segundo
+// "Reporte Ejecutivo" acá, con su propio motor HTML→Excel y sin la fuente
+// única correcta de MTBF (mtbfFlotaReal, logic.js) que ya tenía la versión
+// de Metas & KPIs → Informes. Peor: "Urgentes" salía distinto en cada uno.
+// Se fusionaron en uno solo — ver rptEjecutivo/_getEjecutivoData en kpi.js,
+// que ahora incluye también la tabla de estado de flota y neumáticos en
+// alerta que traía esta versión.
 
 // Activar / desactivar — se maneja desde Configuración, con la sesión ya
 // completa (aal1 o aal2, da igual: enrolar exige el código igual que
@@ -1045,7 +980,6 @@ window.exportarMovCSV = exportarMovCSV;
 window.cloudGuardarCfg = cloudGuardarCfg;
 window.exportAllJSON = exportAllJSON;
 window.importAllJSON = importAllJSON;
-window.reporteEjecutivoExcel = reporteEjecutivoExcel;
 window._mfaEstado = _mfaEstado;
 window.activarMFA = activarMFA;
 window._confirmarActivarMFA = _confirmarActivarMFA;

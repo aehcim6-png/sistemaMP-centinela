@@ -13,8 +13,9 @@
 // El MOTOR de cálculo (NEU_PRECIOS/NEU_CRITERIOS/neuCriterio/neuPct/
 // neuHorasAcum/neuDebeCambiar/neuProxCambio/neuEstadoCalc/neuProyeccion/
 // neuMetricas) queda COMPARTIDO en index.html a propósito: lo usan también
-// dash.js (neuDebeCambiar), pred.js (neuPct) y reporteEjecutivoExcel de
-// Configuración (varios) — mismo patrón que computePred con Predictivo.
+// dash.js (neuDebeCambiar), pred.js (neuPct) y el Reporte Ejecutivo de
+// Metas & KPIs → Informes (kpi.js, varios) — mismo patrón que computePred
+// con Predictivo.
 //
 // verCodigosQR/_descargarQR (aunque viven físicamente pegados a este bloque)
 // son de Configuración, no de acá — quedan compartidos en index.html.

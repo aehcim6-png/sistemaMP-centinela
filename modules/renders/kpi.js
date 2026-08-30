@@ -2,12 +2,25 @@
 // METAS & KPIs — Cuadro de Mando e Informes Descargables
 // window.renderKpi + el generador Excel multi-hoja y los 8 informes
 // descargables (Disponibilidad/MTBF/HH/Cumplimiento/Costos/Backlog/
-// Componentes/Ejecutivo), exclusivos de esta pestaña. reporteEjecutivoExcel
-// (otro reporte, con su propio motor HTML→Excel más simple) es de
-// Configuración, no de acá — queda compartido en index.html.
+// Componentes/Ejecutivo), exclusivos de esta pestaña.
 // Módulo ES real (Fase 3, 2026-08-30, décima tanda: Grupo 5 — depende de
 // cfg.js, ya migrado en la novena tanda) — ver nota de migración en mov.js
 // (primera tanda, mismo patrón).
+//
+// Consolidación 2026-08-30: hasta acá convivían DOS "Reporte Ejecutivo"
+// con el mismo nombre — este (rptEjecutivo/_getEjecutivoData, scorecard de
+// 9 indicadores con la fuente única correcta de MTBF, ver mtbfFlotaReal en
+// logic.js) y otro en Configuración (reporteEjecutivoExcel, con su propio
+// motor HTML→Excel y una tabla de estado de flota + neumáticos en alerta
+// que este no tenía). Peor: "Urgentes" se calculaba distinto en cada uno
+// (acá diasParaPM<=3; en Configuración e.estado.includes('URGENTE')) — dos
+// Excel llamados igual podían mostrarle a jefatura un número distinto de
+// equipos urgentes el mismo día. Se fusionan en uno solo acá: el scorecard
+// original + las dos tablas que traía la versión de Configuración, ahora
+// como hojas adicionales del mismo Excel (o secciones adicionales de la
+// misma vista de impresión). "Urgentes" pasa a usar el mismo criterio que
+// ya usa el Dashboard (estado URGENTE o VENCIDA), no diasParaPM<=3. El
+// botón de Configuración se eliminó — reporteEjecutivoExcel ya no existe.
 // ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
 // INFORMES KPI — 8 REPORTES DESCARGABLES
@@ -141,13 +154,42 @@ export function _getEjecutivoData(){
   // "MTBF Flota" que subía día a día sin que la confiabilidad real cambiara en nada.
   var mtbf=mtbfFlotaReal(eq,ot);
   var hhR=Math.round(reg.reduce(function(s,r){return s+(r.duracionH||0)},0));
-  var urg=eq.filter(function(e){return e.diasParaPM<=3}).length;
+  // Urgentes: mismo criterio que la tarjeta "Urgentes" del Dashboard
+  // (estado URGENTE o VENCIDA) — antes acá se usaba diasParaPM<=3, una
+  // definición distinta a la del resto de la app, encontrada al fusionar
+  // este reporte con el que tenía Configuración (ver nota arriba).
+  var urg=eq.filter(function(e){return e.estado&&(e.estado.includes('URGENTE')||e.estado.includes('VENCIDA'));}).length;
   cd.forEach(function(c){var eO=eq.find(function(e){return e.sigla===c.sigla});c.hrsRest=Math.max((c.vidaUtil||0)-(eO?eO.horomActual:0)+(c.horomComp||0),0);});
   var cC=cd.filter(function(c){return c.hrsRest<=1000}).length;var pO=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   var h=['KPI','Valor','Meta/Ref','Estado'];
   var r=[['Equipos en Flota',eq.length,'—','—'],['Disponibilidad Mecánica',dP===null?'—':dP+'%',meta+'%',dP===null?'Sin datos':dP>=meta?'OK':'Bajo'],['MTBF Flota',mtbf===null?'—':mtbf+' hrs','>2000 hrs',mtbf===null?'Sin datos':mtbf>2000?'Alta':mtbf>500?'Media':'Baja'],['Total Fallas',tF,'—','—'],['HH Reales',hhR+' hrs','—','—'],['PMs Ejecutados',reg.length,'—','—'],['Equipos Urgentes',urg,'0',urg===0?'OK':urg+' equipos'],['Backlog Pendientes',pO,'0',pO===0?'OK':pO+' pendientes'],['Componentes Críticos',cC,'0',cC===0?'OK':cC+' comp']];
   return{headers:h,rows:r};
 };
+// Estado de flota equipo por equipo — venía de reporteEjecutivoExcel
+// (Configuración) antes de fusionarse acá (ver nota arriba).
+export function _getEjecutivoFlotaData(){
+  var eq=S.g('eq')||[];
+  var h=['Equipo','Tipo','Horómetro','Próx. PM','Fecha','Estado'];
+  var r=eq.map(function(e){
+    return[e.sigla,e.tipo||'',Math.round(e.horomActual||0),e.tipoPM||'',e.fechaProxPM||'',(e.estado||'').replace(/[🔴🟡✅⚪]/g,'').trim()];
+  });
+  return{headers:h,rows:r};
+}
+// Neumáticos en alerta (cambiar ya o próximos) — mismo criterio real que
+// usa la propia pestaña Neumáticos (neuDebeCambiar/neuProxCambio), no un
+// % de goma. Venía de reporteEjecutivoExcel (Configuración) antes de
+// fusionarse acá (ver nota arriba).
+export function _getEjecutivoNeuAlertaData(){
+  var neu=S.g('neu')||[];
+  var neuCrit=neu.filter(function(n){return neuDebeCambiar(n)||neuProxCambio(n);})
+    .sort(function(a,b){return(neuDebeCambiar(b)?1:0)-(neuDebeCambiar(a)?1:0);});
+  var h=['Equipo','Posición','Serie','Remanente','%','Estado'];
+  var r=neuCrit.map(function(n){
+    var pn=neuPct(n);var ec=neuEstadoCalc(n);
+    return[n.sigla,n.posicion||'',n.serie||'',n.remanente!=null?n.remanente+'mm':'—',pn!=null?pn+'%':'—',ec.txt];
+  });
+  return{headers:h,rows:r};
+}
 
 // ═══ DOWNLOAD ALL 8 IN ONE EXCEL ═══
 export function rptTodos(){
@@ -171,7 +213,21 @@ export function rptCumpl(fmt){var d=_getCumplData();if(fmt==='excel')genExcel('C
 export function rptCostos(fmt){var d=_getCostosData();if(fmt==='excel')genExcel('Costos',d.headers,d.rows,'Informe_Costos.xls');else{var h='<h2>Costos Mantención</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+(typeof c==='number'?'$'+fn(c):escapeHtml(c))+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Costos',h);}};
 export function rptBacklog(fmt){var d=_getBacklogData();if(fmt==='excel')genExcel('Backlog',d.headers,d.rows,'Informe_Backlog.xls');else{var h='<h2>Backlog OT</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[8]==='CRÍTICO'?'danger':r[8]==='URGENTE'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Backlog',h);}};
 export function rptComp(fmt){var d=_getCompData();if(fmt==='excel')genExcel('Componentes',d.headers,d.rows,'Informe_Componentes.xls');else{var h='<h2>Componentes Mayores</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[9]==='VENCIDO'?'danger':r[9]==='PLANIFICAR'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Componentes',h);}};
-export function rptEjecutivo(fmt){var d=_getEjecutivoData();if(fmt==='excel')genExcel('Ejecutivo',d.headers,d.rows,'Informe_Ejecutivo.xls');else{var h='<h2>Resumen Ejecutivo</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Ejecutivo',h);}};
+export function rptEjecutivo(fmt){
+  var d=_getEjecutivoData(),flota=_getEjecutivoFlotaData(),neuA=_getEjecutivoNeuAlertaData();
+  if(fmt==='excel'){
+    var xml=_excelStyles();
+    xml+=genExcelSheet('EJECUTIVO',d.headers,d.rows);
+    xml+=genExcelSheet('ESTADO FLOTA',flota.headers,flota.rows);
+    if(neuA.rows.length)xml+=genExcelSheet('NEUMATICOS ALERTA',neuA.headers,neuA.rows);
+    _dlExcel(xml,'Informe_Ejecutivo.xls');
+  }else{
+    var h='<h2>Resumen Ejecutivo</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
+    h+='<h2>Estado de la Flota</h2><table><tr>'+flota.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+flota.rows.map(function(r){var est=r[5];var cl=/URGENTE|VENCIDA/.test(est)?'danger':/PR[OÓ]XIMA/.test(est)?'warn':'ok';return'<tr class="'+cl+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
+    if(neuA.rows.length)h+='<h2>Neumáticos en Alerta</h2><table><tr>'+neuA.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+neuA.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
+    printReport('Informe Ejecutivo',h);
+  }
+};
 
 
 
