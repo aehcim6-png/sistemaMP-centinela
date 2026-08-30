@@ -1,10 +1,11 @@
 // Pestaña Planificador de Materiales y Costos (sub-pestaña de Planificación
 // y Agenda) — extraída a su propio archivo (Fase 2 de modularización).
-// Script plano (NO módulo ES), mismo scope global de siempre.
+// Módulo ES real (Fase 3, 2026-08-30, segunda tanda: Planificación y
+// Agenda) — ver nota de migración en mov.js (primera tanda, mismo patrón).
 // GRUPO_PAUTAS/lubVigente/precioMaterial/computePred/_cadenaPMEnHorizonte/
 // diagVinculos quedan en index.html — infraestructura compartida con
 // Predictivo, Plan Semanal y otras pestañas.
-window.renderPlan=function(){
+export function renderPlan(){
   const eq=S.g('eq')||[];
   const pau=S.g('pau')||INIT.pautas||[];
   const lub=S.g('lub')||[];
@@ -294,18 +295,18 @@ window.renderPlan=function(){
         <button class="btn" style="margin-top:10px" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Ver compras del periodo</button>
       </div>`
       :contenido}`;
-};
+}
 
-window.planVista=function(v){window._planVista=v;renders.plan();};
-window.planPeriodo=function(p){window._planPeriodo=p;renders.plan();};
-window.planMesCal=function(){
+export function planVista(v){window._planVista=v;renders.plan();}
+export function planPeriodo(p){window._planPeriodo=p;renders.plan();}
+export function planMesCal(){
   const m=$('planMesCalSel'),a=$('planAnioCalSel');
   if(m)window._planMesCal=parseInt(m.value);
   if(a)window._planAnioCal=parseInt(a.value);
   renders.plan();
-};
+}
 
-window.planHistorico=function(){
+export function planHistorico(){
   var fn2=v=>fn(Math.round(v||0));
   var PR=computePred();
   var ordenesCrudo=S.g('ocHist')||[];
@@ -429,8 +430,8 @@ window.planHistorico=function(){
 
     <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button>
   </div>`);
-};
-window.planHistoricoFiltrar=function(){
+}
+export function planHistoricoFiltrar(){
   window._histFiltro={
     desde:$('histDesde')?.value||'',
     hasta:$('histHasta')?.value||'',
@@ -438,8 +439,18 @@ window.planHistoricoFiltrar=function(){
     equipo:$('histEquipo')?.value||''
   };
   planHistorico();
-};
-window.planHistoricoLimpiar=function(){
+}
+export function planHistoricoLimpiar(){
   window._histFiltro={desde:'',hasta:'',tipo:'',equipo:''};
   planHistorico();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderPlan = renderPlan;
+window.planVista = planVista;
+window.planPeriodo = planPeriodo;
+window.planMesCal = planMesCal;
+window.planHistorico = planHistorico;
+window.planHistoricoFiltrar = planHistoricoFiltrar;
+window.planHistoricoLimpiar = planHistoricoLimpiar;
+renders.plan = renderPlan;

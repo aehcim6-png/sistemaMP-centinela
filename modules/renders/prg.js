@@ -1,6 +1,7 @@
 // Pestaña Programación (Programa Anual PM por mes) — extraída a su propio
-// archivo (Fase 2 de modularización). Script plano (NO módulo ES), mismo
-// scope global de siempre.
+// archivo (Fase 2 de modularización). Módulo ES real (Fase 3, 2026-08-30,
+// segunda tanda: Planificación y Agenda) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón).
 
 // El programa anual de cada equipo se genera UNA vez (al aparecer el equipo) y
 // queda guardado — las correcciones a proxPM/tipoPM/ritmo real no lo tocan solo.
@@ -8,14 +9,14 @@
 // guardadas y deja que el sync de renders.prg las regenere con las fórmulas
 // vigentes. Las celdas del programa no son editables, así que no se pierde nada
 // manual; las marcas EJEC se calculan en vivo desde registros_pm y no se tocan.
-window.regenPrg = function () {
+export function regenPrg() {
   if (!confirm('¿Recalcular la proyección anual de TODOS los equipos con el horómetro y ritmo real actuales?')) return;
   C.recalcAll();
   S.s('prg', []);
   renders.prg();
   toast('✅ Programa anual recalculado');
-};
-window.renderPrg = function () {
+}
+export function renderPrg() {
   if (!$("s-prg")) return;
   var eq = S.g('eq') || [];
   var prg = S.g('prg') || [];
@@ -97,8 +98,8 @@ window.renderPrg = function () {
         }).join('');
     }).join('') +
     '</div>';
-};
-window.cyclePrg = function (pi, mes, esEjecAuto) {
+}
+export function cyclePrg(pi, mes, esEjecAuto) {
   var prg = S.g('prg') || [];
   if (pi >= prg.length) return;
   if (esEjecAuto) {
@@ -109,4 +110,10 @@ window.cyclePrg = function (pi, mes, esEjecAuto) {
   var idx = cycle.indexOf(cur); if (idx < 0) idx = 0;
   prg[pi].meses[mes] = cycle[(idx + 1) % cycle.length];
   S.s('prg', prg); refreshAll();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.regenPrg = regenPrg;
+window.renderPrg = renderPrg;
+window.cyclePrg = cyclePrg;
+renders.prg = renderPrg;

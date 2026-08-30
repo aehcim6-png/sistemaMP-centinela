@@ -3,8 +3,9 @@
 // importado desde el Excel "Programa Diario" que llena el supervisor de terreno.
 // Es un dato distinto a Programa Anual/Gantt (esos son por EQUIPO y por MES; este
 // es por PERSONA y por DÍA), así que vive en su propia sub-pestaña y tabla.
-// Extraída a su propio archivo (Fase 2 de modularización). Script plano
-// (NO módulo ES), mismo scope global de siempre. _progDiaResumen (y sus
+// Extraída a su propio archivo (Fase 2 de modularización). Módulo ES real
+// (Fase 3, 2026-08-30, segunda tanda: Planificación y Agenda) — ver nota de
+// migración en mov.js (primera tanda, mismo patrón). _progDiaResumen (y sus
 // helpers ALIAS_EQUIPOS_PROGDIA/_progDiaDetectarSigla/_esBloqueNoProductivo)
 // quedan en index.html porque también los usa renders.dash.
 // ═══════════════════════════════════════════════════════════
@@ -153,7 +154,7 @@ function _parseProgDiariaLibro(workbook) {
   });
   return Object.values(porFecha);
 }
-window.importProgDiaXLSX = function (ev) {
+export function importProgDiaXLSX(ev) {
   var file = ev.target.files && ev.target.files[0];
   ev.target.value = '';
   if (!file) return;
@@ -191,13 +192,13 @@ window.importProgDiaXLSX = function (ev) {
     refreshAll();
   };
   reader.readAsArrayBuffer(file);
-};
+}
 
-window.edProgDia = function (realIdx, key, val) {
+export function edProgDia(realIdx, key, val) {
   var d = S.g('progDia') || [];
   if (_edCampo('progDia', d, realIdx, key, val)) refreshAll();
-};
-window.delProgDia = function (realIdx) {
+}
+export function delProgDia(realIdx) {
   var d = S.g('progDia') || [];
   var p = d[realIdx];
   if (!p) return;
@@ -206,21 +207,21 @@ window.delProgDia = function (realIdx) {
   d.splice(realIdx, 1);
   S.s('progDia', d);
   refreshAll();
-};
+}
 // No usa _edCampo a propósito: _edCampo hace S.s(store,arr) asumiendo que 'arr' es
 // el arreglo COMPLETO de la categoría — acá lo que se edita es un campo DENTRO de
 // un arreglo anidado (bloques de una persona), así que hay que guardar 'd' entero
 // (la categoría completa), no 'd[realIdx].bloques' (eso pisaría todo 'progDia' con
 // solo los bloques de esa persona).
-window.edProgDiaBloque = function (realIdx, bloqueIdx, val) {
+export function edProgDiaBloque(realIdx, bloqueIdx, val) {
   var d = S.g('progDia') || [];
   if (!d[realIdx] || !d[realIdx].bloques || !d[realIdx].bloques[bloqueIdx]) return;
   d[realIdx].bloques[bloqueIdx].actividad = val;
   S.s('progDia', d);
   refreshAll();
-};
+}
 
-window.renderProgdia = function () {
+export function renderProgdia() {
   if (!$('s-progdia')) return;
   var todo = S.g('progDia') || [];
   var vista = window._progDiaVista || 'detalle';
@@ -308,4 +309,12 @@ window.renderProgdia = function () {
       }).join('') +
       '</table></div>'
       : '<p style="color:var(--tx3)">Sin personal registrado para este turno en esta fecha.</p>');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.importProgDiaXLSX = importProgDiaXLSX;
+window.edProgDia = edProgDia;
+window.delProgDia = delProgDia;
+window.edProgDiaBloque = edProgDiaBloque;
+window.renderProgdia = renderProgdia;
+renders.progdia = renderProgdia;

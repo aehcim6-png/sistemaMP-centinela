@@ -1,9 +1,11 @@
 // Pestaña Carta Gantt (Gantt de Mantención, sub-pestaña de Planificación y
-// Agenda) — extraída a su propio archivo (Fase 2 de modularización). Script
-// plano (NO módulo ES), mismo scope global de siempre. mesesAutomaticos() y
-// _progDiaDetectarSigla() quedan en index.html — también las usan
-// renders.avance y el parser de Programación Diaria respectivamente.
-window.renderGantt=function(){
+// Agenda) — extraída a su propio archivo (Fase 2 de modularización). Módulo
+// ES real (Fase 3, 2026-08-30, segunda tanda: Planificación y Agenda) — ver
+// nota de migración en mov.js (primera tanda, mismo patrón).
+// mesesAutomaticos() y _progDiaDetectarSigla() quedan en index.html —
+// también las usan renders.avance y el parser de Programación Diaria
+// respectivamente.
+export function renderGantt(){
   if(!$("s-gantt"))return;
   var eq=S.g('eq')||[];var ganttData=S.g('gantt')||[];
   var fMes=$('fGanttMes')?.value||new Date().toISOString().slice(0,7);
@@ -137,9 +139,14 @@ window.renderGantt=function(){
         }).join('')+'</tr>';
     }).join('')+
     '</table></div>';
-};
-window.edGantt=function(idx,key,val){
+}
+export function edGantt(idx,key,val){
   var g=S.g('gantt')||[];
   _edCampo('gantt',g,idx,key,val);
   refreshAll();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderGantt = renderGantt;
+window.edGantt = edGantt;
+renders.gantt = renderGantt;

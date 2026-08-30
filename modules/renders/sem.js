@@ -1,7 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
 // PLAN SEMANAL — Planificación Semanal de Mantenciones
 // verificarStockPM se movió acá porque solo la usa esta pestaña (chequeo de
-// disponibilidad de repuestos en la Vista Tabla).
+// disponibilidad de repuestos en la Vista Tabla). Módulo ES real (Fase 3,
+// 2026-08-30, segunda tanda: Planificación y Agenda) — ver nota de
+// migración en mov.js (primera tanda, mismo patrón).
 // ═══════════════════════════════════════════════════════════════
 // ═══ MEJORA 4: Verificación de stock para plan semanal ═══
 function verificarStockPM(sigla, tipoPM){
@@ -50,7 +52,7 @@ function verificarStockPM(sigla, tipoPM){
   }
 }
 
-window.renderSem=function(){
+export function renderSem(){
   if(!$("s-sem"))return;
   var eq=S.g('eq')||[];
   var reg=S.g('reg')||[];
@@ -443,9 +445,9 @@ window.renderSem=function(){
     '<div class="card"><div class="card-t">Tarifa HH</div><div class="card-v">$'+fn(hh)+'</div></div>'+
     '</div>'+
     contenido;
-};
+}
 
-window.edSem=function(idx,key,val){
+export function edSem(idx,key,val){
   var eq=S.g('eq')||[];
   var semData=S.g('planSem')||[];
   var semHist=S.g('planSemHist')||{};
@@ -465,8 +467,8 @@ window.edSem=function(idx,key,val){
     S.s('planSem',semData);
   }
   refreshAll();
-};
-window.addSemItem=function(){
+}
+export function addSemItem(){
   var eq=S.g('eq')||[];
   if(!eq.length)return toast('⚠️ No hay equipos cargados');
   sm('<h3>Agregar Ítem al Plan Semanal</h3>'+
@@ -474,8 +476,8 @@ window.addSemItem=function(){
     eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Tipo PM</label><select id="semTipoPM"><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option></select></div></div>'+
     '<br><button class="btn" onclick="saveNuevoSemItem()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.saveNuevoSemItem=function(){
+}
+export function saveNuevoSemItem(){
   var sigla=$('semEq').value;
   var tipoPM=$('semTipoPM').value;
   var eq=S.g('eq')||[];
@@ -484,8 +486,8 @@ window.saveNuevoSemItem=function(){
   var fSemana=parseInt($('fSemNum')?.value||1);
   semData.push({sigla:sigla,tipo:e?e.tipo:'',modelo:e?e.modelo:'',tipoPM:tipoPM,diasPM:0,hhPlan:0,repuestos:'',costoEst:0,tecnico:'',estado:'Planificado',diaSem:'',obs:'',hhReal:0,estadoReal:'',obsReal:'',semana:fSemana,auto:false});
   S.s('planSem',semData);cm();refreshAll();
-};
-window.delSem=function(idx){
+}
+export function delSem(idx){
   var eq=S.g('eq')||[];var semData=S.g('planSem')||[];
   var fSemana=$('fSemNum')?.value||1;
   var autoItems=eq.filter(function(e){return e.diasParaPM<=14}).map(function(e){
@@ -501,15 +503,15 @@ window.delSem=function(idx){
     semData=semData.filter(function(s){return!(s.sigla===removed.sigla&&s.semana==fSemana)});
     S.s('planSem',semData);refreshAll();
   }
-};
-window.navSem=function(delta){
+}
+export function navSem(delta){
   var sel=$('fSemNum');if(!sel)return;
   var cur=parseInt(sel.value)||1;
   var next=Math.max(1,Math.min(52,cur+delta));
   sel.value=next;renders.sem();
-};
+}
 // edSemReal: edita SOLO columnas Real — funciona en semanas abiertas Y cerradas
-window.edSemReal=function(semana,idx,key,val){
+export function edSemReal(semana,idx,key,val){
   var semHist=S.g('planSemHist')||{};
   var histEntry=semHist[semana];
   if(histEntry&&histEntry.cerrada){
@@ -537,8 +539,8 @@ window.edSemReal=function(semana,idx,key,val){
     }
   }
   refreshAll();
-};
-window.cerrarSemana=function(w){
+}
+export function cerrarSemana(w){
   if(!confirm('¿Cerrar semana '+w+'?\n\nEsto congela el histórico Plan vs Real. Podrás reabrirla si necesitas corregir.'))return;
   var eq=S.g('eq')||[];
   var semData=S.g('planSem')||[];
@@ -554,15 +556,15 @@ window.cerrarSemana=function(w){
   semHist[w]={cerrada:true,fechaCierre:new Date().toISOString().slice(0,10),items:JSON.parse(JSON.stringify(items))};
   S.s('planSemHist',semHist);
   refreshAll();alert('✅ Semana '+w+' cerrada y guardada en histórico.');
-};
-window.reabrirSemana=function(w){
+}
+export function reabrirSemana(w){
   if(!confirm('¿Reabrir semana '+w+'?\n\nPodrás editar el Plan y el Real nuevamente.'))return;
   var semHist=S.g('planSemHist')||{};
   if(semHist[w]){semHist[w].cerrada=false;}
   S.s('planSemHist',semHist);
   refreshAll();
-};
-window.importSemCSV=function(){
+}
+export function importSemCSV(){
   var inp=document.createElement('input');inp.type='file';inp.accept='.csv,.json';
   inp.onchange=function(ev){
     var f=ev.target.files[0];if(!f)return;
@@ -582,4 +584,17 @@ window.importSemCSV=function(){
       }catch(er){alert('❌ Error: '+er.message)}
     };r.readAsText(f);
   };inp.click();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderSem = renderSem;
+window.edSem = edSem;
+window.addSemItem = addSemItem;
+window.saveNuevoSemItem = saveNuevoSemItem;
+window.delSem = delSem;
+window.navSem = navSem;
+window.edSemReal = edSemReal;
+window.cerrarSemana = cerrarSemana;
+window.reabrirSemana = reabrirSemana;
+window.importSemCSV = importSemCSV;
+renders.sem = renderSem;

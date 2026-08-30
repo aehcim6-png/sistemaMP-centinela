@@ -1,9 +1,11 @@
 // Pestaña Planificación y Agenda (contenedor con 5 sub-pestañas: Plan
 // Semanal/Programa Anual/Carta Gantt/Planificador/Programación Diaria) —
-// extraída a su propio archivo (Fase 2 de modularización). Script plano (NO
-// módulo ES), mismo scope global de siempre. Solo despacha a
-// renders.sem/prg/gantt/plan/progdia.
-window.renderPlani=function(){
+// extraída a su propio archivo (Fase 2 de modularización). Módulo ES real
+// (Fase 3, 2026-08-30, segunda tanda: Planificación y Agenda) — ver nota de
+// migración en mov.js (primera tanda, mismo patrón). Solo despacha a
+// renders.sem/prg/gantt/plan/progdia vía el registro 'renders' (búsqueda en
+// tiempo de ejecución, no import).
+export function renderPlani(){
   const sub=window._planiSub||'sem';
   $('s-plani').innerHTML=`
     <div class="sec-h"><div><div class="sec-t">🗓️ Planificación y Agenda</div>
@@ -27,5 +29,10 @@ window.renderPlani=function(){
   else if(sub==='plan')renders.plan();
   else if(sub==='progdia')renders.progdia();
   setTimeout(()=>aplicarOrdenUniversal('s-plani'),60);
-};
-window.planiSub=function(s){window._planiSub=s;if(typeof _logUsoPestana==='function')_logUsoPestana('plani.'+s);renders.plani();};
+}
+export function planiSub(s){window._planiSub=s;if(typeof _logUsoPestana==='function')_logUsoPestana('plani.'+s);renders.plani();}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderPlani = renderPlani;
+window.planiSub = planiSub;
+renders.plani = renderPlani;
