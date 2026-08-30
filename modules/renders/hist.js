@@ -5,9 +5,12 @@
 // utilidades genéricas al final del archivo. importHorom/processImportHorom
 // vivían junto a los otros importadores CSV (OT, Neumáticos), dentro de lo
 // que será el futuro cfg.js. Se juntan acá porque solo los usa esta pestaña.
+// Módulo ES real (Fase 3, 2026-08-30, sexta tanda: Núcleo — Dashboard/
+// Alertas/Aceite/Buscador) — ver nota de migración en mov.js (primera
+// tanda, mismo patrón).
 // ═══════════════════════════════════════════════════════════════
 // ---- HISTORIAL ----
-window.renderHist=function(){
+export function renderHist(){
   var h=S.g('hist')||[];
   var eq=S.g('eq')||[];
   var fEq=$('fHistEq')?.value||'';
@@ -175,13 +178,13 @@ window.renderHist=function(){
     content;
 };
 
-window.importHorom=function(){
+export function importHorom(){
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Horómetros</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">CSV con columnas: sigla, fecha, horometro<br>El sistema actualiza automáticamente cada equipo.</p>'+
     '<input type="file" id="horomFile" accept=".csv,.json" style="margin:12px 0">'+
     '<br><button class="btn" onclick="processImportHorom()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
-window.processImportHorom=function(){
+export function processImportHorom(){
   var file=$('horomFile')?.files[0];
   if(!file)return toast('⚠️ Selecciona un archivo');
   var reader=new FileReader();
@@ -268,7 +271,7 @@ window.processImportHorom=function(){
   reader.readAsText(file,'UTF-8');
 };
 
-window.edHist=function(idx,key,val){
+export function edHist(idx,key,val){
   var h=S.g('hist')||[];
   _edCampo('hist',h,idx,key,val);
   // If editing horom, update equipment too
@@ -296,7 +299,7 @@ function recalcularHorometroDesdeHistorial(sigla){
   _recalcEq(eq[eqIdx]);
   S.s('eq',eq);
 }
-window.delHist=function(idx){
+export function delHist(idx){
   if(window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede eliminar registros');return;}
   var h=S.g('hist')||[];
   if(!h[idx])return;
@@ -314,7 +317,7 @@ window.delHist=function(idx){
     refreshAll();
   }
 };
-window.addHist=function(){
+export function addHist(){
   var eq=S.g('eq')||[];
   var hoy=new Date().toISOString().slice(0,10);
   sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Registrar Lectura Horómetro</h3>'+
@@ -325,7 +328,7 @@ window.addHist=function(){
     '<div class="fg"><label>Horómetro Final</label><input type="number" id="hFin" value="0"></div></div>'+
     '<br><button class="btn" onclick="saveHist()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
-window.saveHist=function(){
+export function saveHist(){
   var sigla=$('hEq').value;
   var fecha=$('hFecha').value;
   var ini=parseFloat($('hIni').value)||0;
@@ -340,4 +343,14 @@ window.saveHist=function(){
   if(eqIdx>=0&&fin>eq[eqIdx].horomActual){eq[eqIdx].horomActual=fin;eq[eqIdx].fechaHorom=fecha;_recalcEq(eq[eqIdx]);S.s('eq',eq);}
   cm();refreshAll();
   toast('✅ Lectura registrada: '+sigla+' = '+fin+'h');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderHist = renderHist;
+window.importHorom = importHorom;
+window.processImportHorom = processImportHorom;
+window.edHist = edHist;
+window.delHist = delHist;
+window.addHist = addHist;
+window.saveHist = saveHist;
+renders.hist = renderHist;

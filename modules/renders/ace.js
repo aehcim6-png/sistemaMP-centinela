@@ -1,8 +1,9 @@
 // Pestaña Análisis de Aceite — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. _edCampo vive en index.html (compartido). exportTabla/
-// imprimirTab (botones globales de la barra superior) también quedan en
-// index.html — no son propios de esta pestaña.
+// modularización). Módulo ES real (Fase 3, 2026-08-30, sexta tanda: Núcleo
+// — Dashboard/Alertas/Aceite/Buscador) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón). _edCampo vive en index.html (compartido).
+// exportTabla/imprimirTab (botones globales de la barra superior) también
+// quedan en index.html — no son propios de esta pestaña.
 // Resuelve m._sigla en cada registro de aceite — usa el campo 'equipo' directo
 // si existe (datos COPEC nuevos); si no, recurre al parsing legacy del campo
 // 'componente' (datos cargados manualmente antes). Extraída a función
@@ -10,7 +11,7 @@
 // para poder filtrar el análisis de aceite por equipo en la ficha — antes
 // vivía solo inline en renderAce() y ambas pantallas se habrían desincronizado
 // si el mapeo se corregía en una sin tocar la otra.
-window._aceiteResolverSiglas=function(ace){
+export function _aceiteResolverSiglas(ace){
   ace.forEach(function(m){
     if(m.equipo){m._sigla=m.equipo;return;}
     var comp=(m.componente||'').replace(/[-_]?(MT|SH|TR|MFD|MFI|DIF|DD|DT|TRANS|HID|FR|REF|RF|MC|MDI|MG|MGT|DF|HD|TAND|TANI|FRENO|REFRIGERANTE)$/i,'');
@@ -37,7 +38,7 @@ window._aceiteResolverSiglas=function(ace){
   });
 };
 
-window.renderAce=function(){
+export function renderAce(){
   var ace=S.g('aceite')||[];
   var fEq=$('fAceEq')?.value||'';
   var fEst=$('fAceEst')?.value||'';
@@ -313,11 +314,11 @@ function renderAceDash(ace){
   holder.innerHTML=html;
 }
 
-window.edAce=function(i,key,val){
+export function edAce(i,key,val){
   var ace=S.g('aceite')||[];
   if(_edCampo('aceite',ace,i,key,val)){refreshAll();toast('✅ Guardado');}
 };
-window.delAce=function(i){
+export function delAce(i){
   if(!confirm('¿Eliminar muestra?'))return;
   var ace=S.g('aceite')||[];_moverAPapelera('aceite',ace[i]);ace.splice(i,1);S.s('aceite',ace);refreshAll();toast('🗑️ Eliminada');
 };
@@ -373,14 +374,14 @@ function aceParseCSVLine(line){
   out.push(cur);
   return out.map(function(v){return v.trim();});
 }
-window.importAceite=function(){
+export function importAceite(){
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Muestras de Aceite (CSV)</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">Acepta el CSV exportado directamente del laboratorio COPEC (encabezados tipo NOMBRE_CLIENTE, EQUIPO, HIERRO, ESTADO, COMENTARIO, etc.) o el formato corto anterior (nMuestra, fecha, hierro...). Detecta automáticamente cuál es.</p>'+
     '<input type="file" id="aceFile" accept=".csv" style="margin:12px 0"><br>'+
     '<div style="margin:8px 0"><label><input type="checkbox" id="aceReplace"> Reemplazar todo</label></div>'+
     '<button class="btn" onclick="processAceCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
-window.processAceCSV=function(){
+export function processAceCSV(){
   var file=$('aceFile')?.files[0];
   if(!file)return toast('⚠️ Selecciona archivo');
   var replace=$('aceReplace')?.checked||false;
@@ -443,7 +444,7 @@ window.processAceCSV=function(){
   reader.readAsText(file);
 };
 
-window.addAceite=function(){
+export function addAceite(){
   var eq=S.g('eq')||[];
   sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="8"/><line x1="12" y1="2" x2="12" y2="8"/><line x1="6.5" y1="2" x2="13.5" y2="2"/><polygon points="8,8 12,8 16,17 4,17"/><line x1="6" y1="13" x2="14" y2="13"/></svg> Nueva Muestra de Aceite</h3>'+
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="aEq">'+
@@ -464,7 +465,7 @@ window.addAceite=function(){
     '<div class="form-row"><div class="fg" style="flex:1"><label>Comentario</label><input id="aObs" style="width:100%"></div></div>'+
     '<button class="btn" onclick="saveAceite()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
-window.saveAceite=function(){
+export function saveAceite(){
   var ace=S.g('aceite')||[];
   ace.push({
     nMuestra:'M-'+Date.now(),fecha:$('aFec').value,
@@ -478,4 +479,15 @@ window.saveAceite=function(){
   });
   S.s('aceite',ace);cm();refreshAll();
   toast('✅ Muestra guardada');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window._aceiteResolverSiglas = _aceiteResolverSiglas;
+window.renderAce = renderAce;
+window.edAce = edAce;
+window.delAce = delAce;
+window.importAceite = importAceite;
+window.processAceCSV = processAceCSV;
+window.addAceite = addAceite;
+window.saveAceite = saveAceite;
+renders.ace = renderAce;

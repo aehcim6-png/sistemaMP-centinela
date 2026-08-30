@@ -1,8 +1,9 @@
 // Pestaña Buscador Maestro — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. Solo lectura (ficha por equipo + ranking de problemáticos);
-// compEstado vive en logic.js.
-window.renderBuscar=function(){
+// modularización). Módulo ES real (Fase 3, 2026-08-30, sexta tanda: Núcleo
+// — Dashboard/Alertas/Aceite/Buscador) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón). Solo lectura (ficha por equipo + ranking
+// de problemáticos); compEstado vive en logic.js.
+export function renderBuscar(){
   var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=S.g('ot')||[];
   // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
   // falla/Informes KPI): 'ot' a secas dejaba fallas de meses sin registro formal
@@ -283,4 +284,8 @@ window.renderBuscar=function(){
     '<input type="date" id="fBuscarHasta" value="'+fHasta+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Hasta" aria-label="Fecha hasta">'+
     ((fEq||fAnio||fDesde||fHasta)?'<button class="btn btn-o" onclick="$(\'fBuscarEq\').value=\'\';$(\'fBuscarAnio\').value=\'\';$(\'fBuscarDesde\').value=\'\';$(\'fBuscarHasta\').value=\'\';renders.buscar()">✕ Limpiar</button>':'')+
     '</div>'+content;
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderBuscar = renderBuscar;
+renders.buscar = renderBuscar;

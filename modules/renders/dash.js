@@ -2,14 +2,20 @@
 // DASHBOARD — Tablero principal con KPIs de flota
 // dashSetPeriodo/dashHoy se movieron acá porque solo las usa esta pestaña
 // (selector de mes/año del tablero).
+// Módulo ES real (Fase 3, 2026-08-30, sexta tanda: Núcleo — Dashboard/
+// Alertas/Aceite/Buscador) — ver nota de migración en mov.js (primera
+// tanda, mismo patrón). Es la pestaña por defecto/de aterrizaje: renders.dash
+// lo llama _arrancar() (index.html) al bootear la app, dentro del handler de
+// DOMContentLoaded — que corre después de que todos los módulos ya se
+// ejecutaron, así que el bridge de abajo ya está asignado a tiempo.
 // ═══════════════════════════════════════════════════════════════
-window.dashSetPeriodo=function(){
+export function dashSetPeriodo(){
   var m=document.getElementById('dashMesSel'),a=document.getElementById('dashAnioSel');
   if(m)window._dashMes=parseInt(m.value);
   if(a)window._dashAnio=parseInt(a.value);
   renders.dash();
 };
-window.dashHoy=function(){
+export function dashHoy(){
   window._dashMes=null;window._dashAnio=null;
   renders.dash();
 };
@@ -18,7 +24,7 @@ window.dashHoy=function(){
 // (display:none) — los cálculos y avisos automáticos (ej. notificación de
 // equipo que cruzó a Salud Baja) siguen corriendo igual estén ocultos o no,
 // para no perder un aviso solo porque el bloque no se estaba mostrando.
-window.dashToggleBloque=function(k){
+export function dashToggleBloque(k){
   var cfg=S.g('cfg')||{};
   cfg.dashBloques=Object.assign({salud:true,disp:true,graficos:true,urgentes:true,costos:true},cfg.dashBloques||{});
   cfg.dashBloques[k]=!cfg.dashBloques[k];
@@ -31,7 +37,7 @@ window.dashToggleBloque=function(k){
 // de los datos que el Dashboard ya calculó — sin volver a consultar nada.
 // Formato con *asteriscos*/_guiones bajos_ porque así WhatsApp los renderiza
 // en negrita/cursiva al pegar.
-window.copiarResumenTurno=function(){
+export function copiarResumenTurno(){
   var d=window._dashResumenTurno;
   if(!d){toast('⚠️ Vuelve a "Hoy" en el Dashboard primero — el resumen es solo del día actual');return;}
   var p=d.fecha.split('-'),fechaFmt=p[2]+'-'+p[1]+'-'+p[0];
@@ -69,7 +75,7 @@ function _avisarSaludEquipo(sigla,score,motivo,delta,causa){
     }).catch(function(){});
   }catch(e){}
 }
-window.renderDash=function(){
+export function renderDash(){
   const eq=C.recalcAll(),reg=S.g('reg')||[];
   const mov=S.g('mov')||[];
   const ot=S.g('ot')||[];
@@ -828,4 +834,12 @@ window.renderDash=function(){
   if(typeof _animGauges==='function')_animGauges('s-dash');
 
   renderHeader();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.dashSetPeriodo = dashSetPeriodo;
+window.dashHoy = dashHoy;
+window.dashToggleBloque = dashToggleBloque;
+window.copiarResumenTurno = copiarResumenTurno;
+window.renderDash = renderDash;
+renders.dash = renderDash;

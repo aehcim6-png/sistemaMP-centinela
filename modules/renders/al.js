@@ -1,9 +1,8 @@
 // Pestaña Alertas PM4 (overhaul) — primera extracción de la Fase 2 de
-// modularización. Script plano (NO módulo ES): sigue viviendo en el mismo
-// scope global de siempre (S, C, $, escapeHtml, fn, fd, cm, toast, renders),
-// igual que logic.js. Se carga antes del script principal, que solo hace
-// `renders.al = renderAl;` para enchufarlo — nada más cambia.
-window.renderAl = function () {
+// modularización. Módulo ES real (Fase 3, 2026-08-30, sexta tanda: Núcleo
+// — Dashboard/Alertas/Aceite/Buscador) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón).
+export function renderAl() {
   const eq = S.g('eq') || [], al = S.g('al') || [];
   const data = eq.map(e => {
     const f = e.frecPM || 250, unidad = e.unidad === 'km' ? 'km' : 'h';
@@ -35,15 +34,21 @@ window.renderAl = function () {
       </tr>`).join('')}
     </table></div>`;
   if (typeof _animGauges === 'function') _animGauges('s-al');
-};
-window.editAlRep = function (sigla) {
+}
+export function editAlRep(sigla) {
   const al = S.g('al') || [], a = al.find(x => x.sigla === sigla) || { sigla, repuestos: '' };
   sm(`<h3>Repuestos PM4 — ${escapeHtml(sigla)}</h3>
     <div class="fg"><label>Repuestos Clave (separar con |)</label><textarea id="aRep">${escapeHtml(a.repuestos || '')}</textarea></div><br>
     <button class="btn" onclick="saveAlRep('${sigla}')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button>`);
-};
-window.saveAlRep = function (sigla) {
+}
+export function saveAlRep(sigla) {
   const al = S.g('al') || [], a = al.find(x => x.sigla === sigla);
   if (a) a.repuestos = $('aRep').value; else al.push({ sigla, repuestos: $('aRep').value });
   S.s('al', al); cm(); renders.al(); toast('✅ Repuestos actualizados');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderAl = renderAl;
+window.editAlRep = editAlRep;
+window.saveAlRep = saveAlRep;
+renders.al = renderAl;

@@ -298,7 +298,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script src="modules/store.js?v=2026-08-22b"></script>
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización) — scripts planos, mismo scope global de siempre. -->
-<script src="modules/renders/al.js?v=2026-08-24b"></script>
+<script type="module" src="modules/renders/al.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/stk2.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/comp2.js?v=2026-08-30"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
@@ -326,16 +326,16 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/informes.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/venc.js?v=2026-08-30"></script>
 <script src="modules/renders/comp.js?v=2026-08-30"></script>
-<script src="modules/renders/buscar.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/buscar.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/pau.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/plan.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/disp.js?v=2026-08-30"></script>
-<script src="modules/renders/ace.js?v=2026-08-14"></script>
+<script type="module" src="modules/renders/ace.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/ayuda.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/sem.js?v=2026-08-30b"></script>
-<script src="modules/renders/dash.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/dash.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/reg.js?v=2026-08-30b"></script>
-<script src="modules/renders/hist.js?v=2026-08-07b"></script>
+<script type="module" src="modules/renders/hist.js?v=2026-08-30"></script>
 <script src="modules/renders/ot.js?v=2026-08-30"></script>
 <script src="modules/renders/pred.js?v=2026-08-30"></script>
 <script src="modules/renders/kpi.js?v=2026-08-30"></script>
@@ -812,7 +812,8 @@ function refreshAll(){
   else if(renders[currentTab])renders[currentTab]();
   setTimeout(()=>aplicarOrdenUniversal('s-'+currentTab),50);
 }
-renders.dash=renderDash;
+// renders.dash: ya NO se cablea acá — dash.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 // Lista de tipos de equipo para el <select> de edición: la lista base + cualquier
 // tipo que ya exista en los datos reales (Camioneta, Bus, Generador quedaban afuera
 // y el select mostraba el primer tipo de la lista como si fuera el real al editar).
@@ -951,9 +952,8 @@ function _progDiaResumen(todo){
 // [v10.4 cleanup] editPrgCell, savePrgCell — funciones muertas (0 usos) eliminadas
 
 // ---- ALERTAS PM4 ----
-// Pestaña Alertas PM4: extraída a modules/renders/al.js (Fase 2 de
-// modularización) — window.renderAl/editAlRep/saveAlRep se cargan desde ahí.
-renders.al=renderAl;
+// renders.al: ya NO se cablea acá — al.js es módulo ES (Fase 3, 2026-08-30)
+// y se auto-registra al final del archivo (ver nota en mov.js).
 
 // ---- PAUTAS (full CRUD) ----
 // renders.pau: ya NO se cablea acá — pau.js es módulo ES (Fase 3,
@@ -1369,7 +1369,8 @@ window.resumenFlotaRep=function(){
 // renders.cos: ya NO se cablea acá — cos.js es módulo ES (Fase 3,
 // 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
-renders.hist=renderHist;
+// renders.hist: ya NO se cablea acá — hist.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 // ============ GENERIC DELETE ============
 window.delRow=function(store,idx,tab){
@@ -2775,7 +2776,8 @@ renders.pred=renderPred;
 // 2026-08-30) y se auto-registra solo, igual que venc.js (mismo grupo).
 // Ver nota en mov.js.
 
-renders.ace=renderAce;
+// renders.ace: ya NO se cablea acá — ace.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 
 // ═══ EXPORTAR E IMPRIMIR ═══
@@ -3462,7 +3464,8 @@ renders.destrabe=renderDestrabe;
 
 
 
-renders.buscar=renderBuscar;
+// renders.buscar: ya NO se cablea acá — buscar.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 
 // [v10.4 cleanup] delNeu — función muerta (0 usos) eliminada
