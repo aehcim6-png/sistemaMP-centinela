@@ -209,19 +209,16 @@ export function renderDisp(){
     var anio=parseInt(fAnio)||2026;
     var mesesAnio=['01','02','03','04','05','06','07','08','09','10','11','12'];
     var MSN=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-    var todayA=new Date().toISOString().slice(0,10);
-    var calcMF=function(sigla,mes){
-      if(dispCalc[sigla]&&dispCalc[sigla][mes]!==undefined)return dispCalc[sigla][mes];
-      if(mes==='2026-04'&&dAbr[sigla]!==undefined)return dAbr[sigla];
-      var yyM=parseInt(mes.slice(0,4)),mmM=parseInt(mes.slice(5,7));
-      var daysM=new Date(yyM,mmM,0).getDate();
-      var eqObj=eq.find(function(e){return e.sigla===sigla});
-      var hrsDia=eqObj?eqObj.hrsDia||12:12;
-      var totalDown=0;var diasConDatos=0;
-      for(var dd=1;dd<=daysM;dd++){var ds=mes+'-'+('0'+dd).slice(-2);if(ds>todayA)break;diasConDatos++;if(downMap[sigla]&&downMap[sigla][ds])totalDown+=downMap[sigla][ds];}
-      if(!diasConDatos)return undefined;
-      return Math.round((diasConDatos*hrsDia-totalDown)/(diasConDatos*hrsDia)*1000)/10;
-    };
+    // Bug real (auditoría 2026-08-30): la vista Anual tenía su propia calcMF()
+    // en vez de reusar calcMonthDisp() (la que ya usa la vista Mensual, envoltorio
+    // de dispEquipoMes — fuente única, logic.js). calcMF sumaba el downtime de
+    // todos los días del mes SIN acotar cada día a hrsDia antes de sumar;
+    // dispEquipoMes acota cada día (un Fuera de Servicio de 24h con hrsDia=12
+    // cuenta como "0% ese día", no como "-100% ese día" arrastrando el promedio
+    // más abajo). Mismo equipo, mismo mes, podía dar un % distinto en Anual que
+    // en Mensual/Semanal/Diario de esta misma pestaña. Ahora las 4 vistas usan
+    // la misma función.
+    var calcMF=calcMonthDisp;
     var fleetMonth=mesesAnio.map(function(mm){var mes=anio+'-'+mm;var vals=eqFil.map(function(e){return calcMF(e.sigla,mes)}).filter(function(v){return v!==undefined});return vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:undefined;});
     var fleetVals=fleetMonth.filter(function(v){return v!==undefined});
     var fleetAnual=fleetVals.length?Math.round(fleetVals.reduce(function(s,v){return s+v},0)/fleetVals.length*10)/10:0;
