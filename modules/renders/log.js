@@ -1,6 +1,8 @@
 // Pestaña Log de Cambios (auditoría) — extraída a su propio archivo
-// (Fase 2 de modularización). Script plano (NO módulo ES), mismo scope
-// global de siempre.
+// (Fase 2 de modularización). Módulo ES real (Fase 3, 2026-08-30, novena
+// tanda: Grupo 4 — cfg.js↔log.js, ver nota de migración completa en
+// cfg.js) — ver también nota general en mov.js (primera tanda, mismo
+// patrón).
 //
 // renderLog() en sí no tenía ningún botón ni contenedor que la mostrara en
 // ninguna pestaña — quedaba huérfana desde antes de esta extracción. Se
@@ -10,11 +12,11 @@
 // filtros/paginación/"Limpiar" de adentro siguen funcionando porque cada
 // uno vuelve a llamar renders.log(), que sigue encontrando el mismo div
 // mientras el modal esté abierto.
-window.verLogCambios = function () {
+export function verLogCambios() {
   sm('<div style="max-width:900px"><div id="s-log"></div><button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>');
   renders.log();
-};
-window.renderLog = function () {
+}
+export function renderLog() {
   var log = S.g('changelog') || [];
   var fAccion = $('fLogAccion')?.value || '';
   var fil = log.filter(function (l) { return !fAccion || l.accion.includes(fAccion); });
@@ -38,4 +40,9 @@ window.renderLog = function () {
     }).join('') +
     '</table></div>' +
     _pagHTML('log', pg);
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.verLogCambios = verLogCambios;
+window.renderLog = renderLog;
+renders.log = renderLog;

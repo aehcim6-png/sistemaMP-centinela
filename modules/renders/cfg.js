@@ -38,10 +38,19 @@
 //   de accesos (_getDeviceLabel, usado también por _registrarLogin en cada
 //   login) — corre en el arranque del sistema, antes de que exista ninguna
 //   pestaña abierta.
+//
+// Módulo ES real (Fase 3, 2026-08-30, novena tanda: Grupo 4 — cfg.js↔log.js,
+// el único par con una referencia cruzada real: cfg.js llama verLogCambios()
+// de log.js, sin equivalente en sentido contrario). El "ciclo" no es un
+// problema de orden de carga: la llamada corre dentro de un onclick, en
+// tiempo de ejecución (después de que TODOS los módulos ya se registraron
+// en window/renders), no en tiempo de parseo — mismo razonamiento que el
+// resto de los cruces entre pestañas en esta migración. Ver nota de
+// migración en mov.js (primera tanda, mismo patrón).
 // ═══════════════════════════════════════════════════════════════════════
 
 // ---- CÓDIGOS QR POR EQUIPO ----
-window.verCodigosQR=function(){
+export function verCodigosQR(){
   var eq=(S.g('eq')||[]).slice().sort(function(a,b){return (a.sigla||'').localeCompare(b.sigla||'');});
   if(!eq.length)return toast('⚠️ No hay equipos cargados');
   if(typeof QRCode==='undefined')return toast('❌ No se pudo cargar el generador de QR (revisa conexión a internet)');
@@ -69,7 +78,7 @@ window.verCodigosQR=function(){
     });
   },50);
 };
-window._descargarQR=function(sigla){
+export function _descargarQR(sigla){
   var el=document.getElementById('qr-'+sigla);
   var canvas=el&&el.querySelector('canvas');
   if(!canvas)return toast('❌ QR no generado todavía, espera un segundo e intenta de nuevo');
@@ -90,7 +99,7 @@ function _medirUsoLocal(){
   return{totalBytes:totalBytes,pct:pct,col:col};
 }
 
-window.renderCfg=function(){
+export function renderCfg(){
   const cfg=S.g('cfg')||{};
   $('s-cfg').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Configuración</div>'+
@@ -397,7 +406,7 @@ async function _refrescarEstadoMFA(){
 // ---- VERIFICADOR DE INTEGRIDAD ----
 var SEV_LABEL={alta:'🔴 Alta — dato imposible en sí mismo',media:'🟡 Media — inconsistencia entre campos, revisar'};
 var SEV_COLOR={alta:'var(--danger)',media:'#eab308'};
-window.ejecutarVerificacionIntegridad=function(){
+export function ejecutarVerificacionIntegridad(){
   var box=$('integridadResultado');
   if(box)box.innerHTML='<span style="font-size:11px;color:var(--tx3)">Verificando…</span>';
   var data={
@@ -428,7 +437,7 @@ window.ejecutarVerificacionIntegridad=function(){
   toast('⚠️ Verificación de integridad: '+hallazgos.length+' hallazgo(s)');
 };
 
-window.resetAll=function(){
+export function resetAll(){
   if(!confirm('⚠️ ¿Restaurar TODOS los datos a valores iniciales? Se perderán cambios.'))return;
   // Clear EVERYTHING with smp10_ prefix
   Object.keys(localStorage).filter(function(k){return k.startsWith('smp10_')}).forEach(function(k){localStorage.removeItem(k)});
@@ -436,7 +445,7 @@ window.resetAll=function(){
   location.reload();
 };
 
-window.descargarPlantillaLimpia=function(){
+export function descargarPlantillaLimpia(){
   if(!confirm('Esto genera un ARCHIVO NUEVO con el sistema vacío (sin equipos, pautas ni registros) para usar en otra empresa.\n\nTu archivo actual NO se modifica — quedas con todos tus datos intactos.\n\n¿Continuar?'))return;
   const INIT_LIMPIO={empresa:'',faena:'',equipos:[],pautas:[],registros:[],neumaticos:[],neuMed:[],stockFiltros:[],lubricantes:[],filtrosMaestro:[],alertas:[],mov:[],ot:[],insp:[],aceite:[],repuestos:[]};
   fetch(location.href).then(r=>r.text()).then(html=>{
@@ -450,7 +459,7 @@ window.descargarPlantillaLimpia=function(){
     toast('✅ Plantilla limpia descargada. Tu archivo actual quedó intacto.');
   }).catch(e=>{toast('⚠️ No se pudo leer el archivo. Usa Configurar Nueva Empresa como alternativa.');});
 };
-window.resetEmpresa=function(){
+export function resetEmpresa(){
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16"/><rect x="6.3" y="4.5" width="1.8" height="1.8"/><rect x="9.1" y="4.5" width="1.8" height="1.8"/><rect x="11.9" y="4.5" width="1.8" height="1.8"/><rect x="6.3" y="8" width="1.8" height="1.8"/><rect x="9.1" y="8" width="1.8" height="1.8"/><rect x="11.9" y="8" width="1.8" height="1.8"/><rect x="8.5" y="13" width="3" height="5"/></svg> Configurar Nueva Empresa</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">Esto borra TODOS los datos actuales y reconfigura el sistema para una nueva empresa.<br>'+
     'Sube un archivo JSON con la estructura:<br><br>'+
@@ -482,7 +491,7 @@ async function _esperarYRecargarNuevaEmpresa(){
   toast('✅ Nueva empresa configurada. Recargando...');
   setTimeout(function(){location.reload();},1200);
 }
-window.processResetEmpresa=async function(){
+export async function processResetEmpresa(){
   if(!confirm('⚠️ ¿Estás seguro? Esto borra TODOS los datos operacionales actuales de la nube — equipos, PM, correctivos, stock, neumáticos, Gantt, Papelera, historial, todo — no solo equipos y pautas.'))return;
   if(!confirm('⚠️ ÚLTIMA CONFIRMACIÓN: ¿Exportaste un backup JSON? Esto es irreversible y puede tardar varios minutos en terminar — no cierres esta pestaña mientras corre.'))return;
 
@@ -616,7 +625,7 @@ window.processResetEmpresa=async function(){
   reader.readAsText(eqFile);
 };
 
-window.cloudProbar=async function(){
+export async function cloudProbar(){
   if(!_clOk()){toast('⚠️ Pega la URL y la clave anon primero');return;}
   try{
     const c=_clCfg();
@@ -627,7 +636,7 @@ window.cloudProbar=async function(){
   }catch(e){toast('❌ No se pudo conectar: '+e.message);}
 };
 
-window.guardarNeuParams=function(){
+export function guardarNeuParams(){
   const c=S.g('cfg')||{};
   c.neuTargetHrs=parseInt($('neuTarget').value)||9000;
   c.neuProyMes=parseInt($('neuProyMes').value)||450;
@@ -635,21 +644,21 @@ window.guardarNeuParams=function(){
   toast('✅ Parámetros de neumáticos guardados');
   if(currentTab==='cfg')renders.cfg();
 };
-window.guardarAlertaEmails=function(){
+export function guardarAlertaEmails(){
   const c=S.g('cfg')||{};
   c.alertaEmails=($('cfgAlertaEmails').value||'').trim();
   S.s('cfg',c);
   toast('✅ Destinatarios de alerta guardados');
   if(currentTab==='cfg')renders.cfg();
 };
-window.guardarAlertaWhatsApp=function(){
+export function guardarAlertaWhatsApp(){
   const c=S.g('cfg')||{};
   c.alertaWhatsApp=($('cfgAlertaWhatsApp').value||'').trim();
   S.s('cfg',c);
   toast('✅ Destinatarios de WhatsApp guardados');
   if(currentTab==='cfg')renders.cfg();
 };
-window.guardarRemitentesPermitidos=function(){
+export function guardarRemitentesPermitidos(){
   const c=S.g('cfg')||{};
   c.whatsappRemitentesPermitidos=($('cfgWhatsappRemitentes').value||'').trim();
   c.correoRemitentesPermitidos=($('cfgCorreoRemitentes').value||'').trim();
@@ -664,7 +673,7 @@ window.guardarRemitentesPermitidos=function(){
 // inofensiva por el limite de 5MB del navegador. Ya no hace falta borrar nada -- el
 // recorte de localStorage ahora es automatico (ver _recorteParaLocal) y nunca toca
 // la base real. Esta funcion solo exporta a CSV, no borra ni localmente ni en la nube.
-window.exportarMovCSV=function(){
+export function exportarMovCSV(){
   var mov=S.g('mov')||[];
   var info=$('mtoInfo');
   if(!mov.length){if(info)info.innerHTML='ℹ️ No hay movimientos en el sistema.';return;}
@@ -680,7 +689,7 @@ window.exportarMovCSV=function(){
   toast('✅ '+mov.length+' movimientos exportados a CSV');
   if(info)info.innerHTML='<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Exportados '+mov.length+' movimientos a CSV. No se borro nada -- ni local ni en la nube.';
 };
-window.cloudGuardarCfg=function(){
+export function cloudGuardarCfg(){
   const c=S.g('cfg')||{};
   c.sbUrl=($('sbUrl')?.value||'').trim();
   c.sbKey=($('sbKey')?.value||'').trim();
@@ -689,7 +698,7 @@ window.cloudGuardarCfg=function(){
   toast('✅ Configuración de nube guardada');
 };
 
-window.exportAllJSON=function(){
+export function exportAllJSON(){
   var data={};
   // Mismas claves que el respaldo automático en carpeta (_asWrite/AUTOSAVE_KEYS en
   // index.html) — antes esta lista estaba duplicada y desactualizada, sin Destrabe,
@@ -701,7 +710,7 @@ window.exportAllJSON=function(){
   a.download='SistemaMP_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
   toast('✅ Backup descargado');
 };
-window.importAllJSON=function(){
+export function importAllJSON(){
   var inp=document.createElement('input');inp.type='file';inp.accept='.json';
   inp.onchange=function(ev){
     var f=ev.target.files[0];if(!f)return;
@@ -715,7 +724,7 @@ window.importAllJSON=function(){
   };inp.click();
 };
 
-window.reporteEjecutivoExcel=function(){
+export function reporteEjecutivoExcel(){
   const eq=S.g('eq')||[];
   const reg=S.g('reg')||[];
   const ot=S.g('ot')||[];
@@ -795,7 +804,7 @@ window.reporteEjecutivoExcel=function(){
 // completa (aal1 o aal2, da igual: enrolar exige el código igual que
 // cualquier challenge, así que no hay forma de activarlo sin probar que
 // realmente funciona el código antes de dejarlo activo).
-window._mfaEstado=async function(){
+export async function _mfaEstado(){
   var token=localStorage.getItem('smp_access_token');
   var u=await _sbAuthSession();
   var factores=(u&&u.factors)||[];
@@ -817,7 +826,7 @@ function _qrComoDataUrl(qrCrudo){
   if(svgTxt.indexOf('<svg')===-1)return qrCrudo; // no es el formato esperado — se deja tal cual
   return 'data:image/svg+xml,'+encodeURIComponent(svgTxt);
 }
-window.activarMFA=async function(){
+export async function activarMFA(){
   var token=localStorage.getItem('smp_access_token');
   var en=await _mfaEnroll(token);
   if(en.error||!en.id){toast('❌ No se pudo iniciar la activación: '+(en.error?.message||en.msg||'error desconocido'));return;}
@@ -836,7 +845,7 @@ window.activarMFA=async function(){
     '<button class="btn btn-o" onclick="_cancelarActivarMFA(\''+factorId+'\')">Cancelar</button>'+
     '</div>');
 };
-window._confirmarActivarMFA=async function(factorId){
+export async function _confirmarActivarMFA(factorId){
   var token=localStorage.getItem('smp_access_token');
   var code=(document.getElementById('mfaEnrollCode')?.value||'').trim();
   var err=document.getElementById('mfaEnrollErr');
@@ -854,7 +863,7 @@ window._confirmarActivarMFA=async function(factorId){
   toast('✅ Verificación en dos pasos activada');
   if(currentTab==='cfg')renders.cfg();
 };
-window._cancelarActivarMFA=async function(factorId){
+export async function _cancelarActivarMFA(factorId){
   var token=localStorage.getItem('smp_access_token');
   // El factor recién creado con activarMFA() queda "unverified" hasta
   // confirmarse con un código — si el usuario cancela, se borra para no
@@ -862,7 +871,7 @@ window._cancelarActivarMFA=async function(factorId){
   await _mfaUnenroll(token,factorId).catch(function(){});
   cm();
 };
-window.desactivarMFA=async function(){
+export async function desactivarMFA(){
   if(!confirm('¿Desactivar la verificación en dos pasos? Con eso basta el usuario y la contraseña para entrar.'))return;
   var token=localStorage.getItem('smp_access_token');
   var f=await window._mfaEstado();
@@ -873,14 +882,14 @@ window.desactivarMFA=async function(){
   if(currentTab==='cfg')renders.cfg();
 };
 
-window.nombrarEquipo=function(){
+export function nombrarEquipo(){
   var actual=_getDeviceLabel();
   var nuevo=prompt('Nombre para identificar ESTE computador en los accesos (ej. "PC Taller", "Notebook Juan"):',actual);
   if(nuevo&&nuevo.trim()){localStorage.setItem('smp_device_label',nuevo.trim());toast('✅ Este equipo ahora se llama "'+nuevo.trim()+'"');}
   if(typeof verAccesos==='function')verAccesos();
 };
 
-window.verAccesos=function(){
+export function verAccesos(){
   // Incluye tanto logins exitosos como intentos rechazados (clave incorrecta,
   // cuenta desactivada, o sesión que no pudo renovarse) — antes solo se veían
   // los exitosos, así que un usuario bloqueado que insistía en entrar no
@@ -923,7 +932,7 @@ async function _accionUsuarios(payload){
   return r.json();
 }
 
-window.crearUsuarioUI=async function(){
+export async function crearUsuarioUI(){
   var nombre=(document.getElementById('nuNombre')?.value||'').trim();
   var email=(document.getElementById('nuEmail')?.value||'').trim();
   var rol=document.getElementById('nuRol')?.value||'operador';
@@ -942,7 +951,7 @@ window.crearUsuarioUI=async function(){
   }catch(e){out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
 
-window.cargarPendientesUI=async function(){
+export async function cargarPendientesUI(){
   var cont=document.getElementById('nuPendientes');
   if(!cont)return;
   cont.innerHTML='Cargando...';
@@ -960,7 +969,7 @@ window.cargarPendientesUI=async function(){
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
 
-window.activarUsuarioUI=async function(userId,nombre){
+export async function activarUsuarioUI(userId,nombre){
   var out=document.getElementById('nuResultado');
   if(out)out.innerHTML='Activando...';
   try{
@@ -973,7 +982,7 @@ window.activarUsuarioUI=async function(userId,nombre){
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
 
-window.cargarActivosUI=async function(){
+export async function cargarActivosUI(){
   var cont=document.getElementById('nuActivos');
   if(!cont)return;
   cont.innerHTML='Cargando...';
@@ -994,7 +1003,7 @@ window.cargarActivosUI=async function(){
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
 
-window.desactivarMfaUsuarioUI=async function(userId,nombre){
+export async function desactivarMfaUsuarioUI(userId,nombre){
   if(!confirm('¿Quitar la verificación en dos pasos de '+nombre+'?\n\nÚsalo solo si perdió el teléfono o la app autenticadora y quedó sin poder entrar — vuelve a bastarle su clave normal para entrar. Puede volver a activarla cuando quiera desde su cuenta.'))return;
   var out=document.getElementById('nuResultado');
   if(out)out.innerHTML='Desactivando verificación en dos pasos...';
@@ -1006,7 +1015,7 @@ window.desactivarMfaUsuarioUI=async function(userId,nombre){
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
 
-window.desactivarUsuarioUI=async function(userId,nombre){
+export async function desactivarUsuarioUI(userId,nombre){
   if(!confirm('¿Desactivar a '+nombre+'? Perderá acceso al sistema de inmediato.'))return;
   var out=document.getElementById('nuResultado');
   if(out)out.innerHTML='Desactivando...';
@@ -1016,4 +1025,38 @@ window.desactivarUsuarioUI=async function(userId,nombre){
     if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-top:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> '+escapeHtml(nombre)+' desactivado.</div>';
     cargarActivosUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.verCodigosQR = verCodigosQR;
+window._descargarQR = _descargarQR;
+window.renderCfg = renderCfg;
+window.ejecutarVerificacionIntegridad = ejecutarVerificacionIntegridad;
+window.resetAll = resetAll;
+window.descargarPlantillaLimpia = descargarPlantillaLimpia;
+window.resetEmpresa = resetEmpresa;
+window.processResetEmpresa = processResetEmpresa;
+window.cloudProbar = cloudProbar;
+window.guardarNeuParams = guardarNeuParams;
+window.guardarAlertaEmails = guardarAlertaEmails;
+window.guardarAlertaWhatsApp = guardarAlertaWhatsApp;
+window.guardarRemitentesPermitidos = guardarRemitentesPermitidos;
+window.exportarMovCSV = exportarMovCSV;
+window.cloudGuardarCfg = cloudGuardarCfg;
+window.exportAllJSON = exportAllJSON;
+window.importAllJSON = importAllJSON;
+window.reporteEjecutivoExcel = reporteEjecutivoExcel;
+window._mfaEstado = _mfaEstado;
+window.activarMFA = activarMFA;
+window._confirmarActivarMFA = _confirmarActivarMFA;
+window._cancelarActivarMFA = _cancelarActivarMFA;
+window.desactivarMFA = desactivarMFA;
+window.nombrarEquipo = nombrarEquipo;
+window.verAccesos = verAccesos;
+window.crearUsuarioUI = crearUsuarioUI;
+window.cargarPendientesUI = cargarPendientesUI;
+window.activarUsuarioUI = activarUsuarioUI;
+window.cargarActivosUI = cargarActivosUI;
+window.desactivarMfaUsuarioUI = desactivarMfaUsuarioUI;
+window.desactivarUsuarioUI = desactivarUsuarioUI;
+renders.cfg = renderCfg;
