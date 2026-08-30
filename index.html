@@ -301,7 +301,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/al.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/stk2.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/comp2.js?v=2026-08-30"></script>
-<script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
+<script type="module" src="modules/renders/destrabe.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/avance.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/lub.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/stk.js?v=2026-08-30"></script>
@@ -325,7 +325,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/gantt.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/informes.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/venc.js?v=2026-08-30"></script>
-<script src="modules/renders/comp.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/comp.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/buscar.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/pau.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/plan.js?v=2026-08-30b"></script>
@@ -336,7 +336,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/dash.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/reg.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/hist.js?v=2026-08-30"></script>
-<script src="modules/renders/ot.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/ot.js?v=2026-08-30b"></script>
 <script src="modules/renders/pred.js?v=2026-08-30"></script>
 <script src="modules/renders/kpi.js?v=2026-08-30"></script>
 <script src="modules/renders/neu.js?v=2026-08-30"></script>
@@ -1427,7 +1427,8 @@ window.exportCSV=function(store){
 // ============ INIT ============
 
 // ---- CORRECTIVOS ----
-renders.ot=renderOt;
+// renders.ot: ya NO se cablea acá — ot.js es módulo ES (Fase 3, 2026-08-30)
+// y se auto-registra al final del archivo (ver nota en mov.js).
 
 
 // ---- NEUMÁTICOS ----
@@ -2988,7 +2989,8 @@ window.importDispCSV=function(){
 // renders.sem: ya NO se cablea acá — sem.js es módulo ES (Fase 3,
 // 2026-08-30) y se auto-registra solo (ver nota en mov.js).
 
-renders.comp=renderComp;
+// renders.comp: ya NO se cablea acá — comp.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 // ═══════════════════════════════════════════════════════════════
 // Helpers de subida de fotos a Supabase Storage — compartidos por Informes
@@ -3451,10 +3453,8 @@ function mesesAutomaticos(extraFechas){
 // ═══════════════════════════════════════════════════════════
 // DESTRABE — Gestión de bloqueos
 // ═══════════════════════════════════════════════════════════
-// Pestaña Gestión de Destrabe: extraída a modules/renders/destrabe.js
-// (Fase 2 de modularización) — se cargan desde ahí window.renderDestrabe/
-// edDestrabe/addDestrabe/delDestrabe.
-renders.destrabe=renderDestrabe;
+// renders.destrabe: ya NO se cablea acá — destrabe.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 // ═══════════════════════════════════════════════════════════
 // AVANCE — Progreso mensual plan vs real: extraída a

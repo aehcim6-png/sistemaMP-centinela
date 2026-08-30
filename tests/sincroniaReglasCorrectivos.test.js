@@ -61,7 +61,7 @@ describe('Sincronía de reglas de Documentación/Reingresos entre ot.js y alerta
   });
 
   it('el umbral mínimo de OT para entrar en "Reingresos Tempranos" (15) es el MISMO en ambos lados', () => {
-    const otMin = ot.slice(ot.indexOf('window.analisisReingresos')).match(/filter\(function\(t\)\{return t\.total>=(\d+);/)[1];
+    const otMin = ot.slice(ot.indexOf('export function analisisReingresos(')).match(/filter\(function\(t\)\{return t\.total>=(\d+);/)[1];
     const pmMin = pm.match(/\.filter\(\(t\) => t\.total >= (\d+) && t\.pct >= 15\)/)[1];
     expect(pmMin).toBe(otMin);
   });

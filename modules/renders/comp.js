@@ -1,9 +1,11 @@
 // Pestaña Componentes Mayores (sub-pestaña de Componentes) — extraída a su
-// propio archivo (Fase 2 de modularización). Script plano (NO módulo ES),
-// mismo scope global de siempre. horomEnFecha/compEstado viven en logic.js;
-// nuevoInforme() viene de modules/renders/informes.js (botón "Generar
-// informe de falla/cambio" de cada fila).
-window.renderComp=function(){
+// propio archivo (Fase 2 de modularización). horomEnFecha/compEstado viven
+// en logic.js; nuevoInforme() viene de modules/renders/informes.js (botón
+// "Generar informe de falla/cambio" de cada fila). Módulo ES real (Fase 3,
+// 2026-08-30, séptima tanda: Grupo 2 — depende de informes.js, ya migrado
+// en la tercera tanda) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón).
+export function renderComp(){
   var eq=S.g('eq')||[];
   var compData=S.g('compMayores')||[];
   var fEquipo=$('fCompEq')?.value||'';
@@ -263,12 +265,12 @@ window.renderComp=function(){
     }).join('')+
     '</table></div>';
 };
-window.edComp=function(idx,key,val){
+export function edComp(idx,key,val){
   var d=S.g('compMayores')||[];
   _edCampo('compMayores',d,idx,key,val);
   refreshAll();
 };
-window.addComp=function(){
+export function addComp(){
   var eq=S.g('eq')||[];
   if(!eq.length)return toast('⚠️ No hay equipos cargados');
   sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Agregar Componente</h3>'+
@@ -283,7 +285,7 @@ window.addComp=function(){
 // borraba de inmediato por no reconocerla como equipo real, y la tabla no tiene
 // celda editable de "Equipo" para corregirla — el botón "+ Agregar" parecía no
 // hacer nada.
-window.saveNuevoComp=function(){
+export function saveNuevoComp(){
   var sigla=$('cpEq').value;
   var nombre=($('cpNombre').value||'').trim()||'Nuevo Componente';
   var eq=S.g('eq')||[];
@@ -292,14 +294,14 @@ window.saveNuevoComp=function(){
   d.push({sigla:sigla,tipo:e?e.tipo:'',modelo:e?e.modelo:'',comp:nombre,horomComp:0,vidaUtil:10000,costoRef:0,fechaInst:'',obs:'',estado:''});
   S.s('compMayores',d);cm();refreshAll();
 };
-window.delComp=function(idx){
+export function delComp(idx){
   var d=S.g('compMayores')||[];
   if(confirm('¿Eliminar componente '+d[idx].comp+' de '+d[idx].sigla+'?')){
     _moverAPapelera('compMayores',d[idx]);
     d.splice(idx,1);S.s('compMayores',d);refreshAll();
   }
 };
-window.importCompCSV=function(){
+export function importCompCSV(){
   var inp=document.createElement('input');inp.type='file';inp.accept='.csv,.json';
   inp.onchange=function(ev){
     var f=ev.target.files[0];if(!f)return;
@@ -318,4 +320,13 @@ window.importCompCSV=function(){
       }catch(er){alert('❌ Error: '+er.message)}
     };r.readAsText(f);
   };inp.click();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderComp = renderComp;
+window.edComp = edComp;
+window.addComp = addComp;
+window.saveNuevoComp = saveNuevoComp;
+window.delComp = delComp;
+window.importCompCSV = importCompCSV;
+renders.comp = renderComp;

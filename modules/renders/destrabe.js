@@ -1,7 +1,9 @@
 // Pestaña Gestión de Destrabe (sub-pestaña de Componentes) — extraída a su
-// propio archivo (Fase 2 de modularización). Script plano (NO módulo ES),
-// mismo scope global de siempre.
-window.renderDestrabe = function () {
+// propio archivo (Fase 2 de modularización). Módulo ES real (Fase 3,
+// 2026-08-30, séptima tanda: Grupo 2 — depende de rep.js, ya migrado en la
+// primera tanda) — ver nota de migración en mov.js (primera tanda, mismo
+// patrón).
+export function renderDestrabe() {
   var items = S.g('destrabe') || [];
   var eqDestrabe = S.g('eq') || [];
   var ordenesDestrabe = S.g('ordenes') || [];
@@ -48,15 +50,15 @@ window.renderDestrabe = function () {
     }).join('') +
     '</table></div>';
 };
-window.edDestrabe = function (i, k, v) { var d = S.g('destrabe') || []; if (i < d.length) { d[i][k] = v; S.s('destrabe', d); } refreshAll(); };
-window.addDestrabe = function () { var d = S.g('destrabe') || []; d.push({ equipo: '', trabajo: '', tipo: 'PM', fechaSol: new Date().toISOString().slice(0, 10), motivo: '', accion: '', responsable: '', fechaComp: '', estado: 'Bloqueado', dias: 0 }); S.s('destrabe', d); refreshAll(); };
-window.delDestrabe = function (i) { var d = S.g('destrabe') || []; if (confirm('¿Eliminar?')) { _moverAPapelera('destrabe', d[i]); d.splice(i, 1); S.s('destrabe', d); refreshAll(); } };
+export function edDestrabe(i, k, v) { var d = S.g('destrabe') || []; if (i < d.length) { d[i][k] = v; S.s('destrabe', d); } refreshAll(); }
+export function addDestrabe() { var d = S.g('destrabe') || []; d.push({ equipo: '', trabajo: '', tipo: 'PM', fechaSol: new Date().toISOString().slice(0, 10), motivo: '', accion: '', responsable: '', fechaComp: '', estado: 'Bloqueado', dias: 0 }); S.s('destrabe', d); refreshAll(); }
+export function delDestrabe(i) { var d = S.g('destrabe') || []; if (confirm('¿Eliminar?')) { _moverAPapelera('destrabe', d[i]); d.splice(i, 1); S.s('destrabe', d); refreshAll(); } }
 
 // Vincula una fila de Destrabe a una Orden de Compra — a una ya "Pendiente"
 // existente, o crea una nueva (mismo formato que confirmarOC() en rep.js, pero
 // con el _id generado acá mismo para poder guardar el vínculo de inmediato, sin
 // esperar la vuelta de Supabase — mismo mecanismo que usa _syncTablaGenericaInner).
-window.abrirVincularOC = function (i) {
+export function abrirVincularOC(i) {
   var d = S.g('destrabe') || []; var it = d[i];
   if (!it) return;
   var ordenes = S.g('ordenes') || [];
@@ -74,7 +76,7 @@ window.abrirVincularOC = function (i) {
     '</div>' +
     '<button class="btn" onclick="confirmarVincularOC(' + i + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Vincular</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
-window.confirmarVincularOC = function (i) {
+export function confirmarVincularOC(i) {
   var d = S.g('destrabe') || []; var it = d[i];
   if (!it) return;
   var sel = $('vincOcSel').value;
@@ -96,4 +98,13 @@ window.confirmarVincularOC = function (i) {
   S.s('destrabe', d);
   cm(); refreshAll();
   toast('🛒 OC vinculada');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderDestrabe = renderDestrabe;
+window.edDestrabe = edDestrabe;
+window.addDestrabe = addDestrabe;
+window.delDestrabe = delDestrabe;
+window.abrirVincularOC = abrirVincularOC;
+window.confirmarVincularOC = confirmarVincularOC;
+renders.destrabe = renderDestrabe;

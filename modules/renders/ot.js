@@ -8,6 +8,10 @@
 // acá porque solo los usa esta pestaña. _dictarBtn/_dictar (dictado por
 // voz genérico) y cerrarSalidaServicio (también usado por Disponibilidad)
 // quedan compartidos en index.html.
+// Módulo ES real (Fase 3, 2026-08-30, séptima tanda: Grupo 2 — Componentes/
+// Destrabe/Correctivos, dependen de informes.js/rep.js/reg.js, ya migrados
+// en tandas anteriores) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón).
 // ═══════════════════════════════════════════════════════════════
 // Resumen de búsqueda por palabra clave (2026-08, a pedido del usuario:
 // "puedo buscar cualquier cosa y me indica cuándo se cambió y cuánto se
@@ -53,7 +57,7 @@ function _otResumenBusquedaHTML(fil,fTexto){
   }
   return html;
 }
-window.renderOt=function(){
+export function renderOt(){
   const ot=S.g('ot')||[],eq=S.g('eq')||[];
   const reg=S.g('reg')||[];
   // Equipos AÚN fuera de servicio (mismo criterio y banner que Disponibilidad) — con
@@ -205,7 +209,7 @@ window.renderOt=function(){
     </table></div>
     ${_pagHTML('ot',pg)}`}`;
 };
-window.analisisFallas=function(){
+export function analisisFallas(){
   const ot=S.g('ot')||[];
   const reg=S.g('reg')||[];
   const eq=S.g('eq')||[];
@@ -303,7 +307,7 @@ window.analisisFallas=function(){
 // Normaliza el nombre del técnico (a veces viene "Nombre / RUT", a veces solo
 // "Nombre") para no duplicar a la misma persona en dos filas — mismo criterio
 // ya usado en el análisis de reincidencia por técnico.
-window.analisisDocumentacion=function(){
+export function analisisDocumentacion(){
   const ot=S.g('ot')||[];
   const porTecnico={};
   ot.forEach(function(o){
@@ -355,7 +359,7 @@ window.analisisDocumentacion=function(){
 // flota (23 equipos en común, así que no es que a uno le toquen los camiones
 // peores), dos técnicos de volumen comparable mostraron 16.0% vs 7.2% de
 // reingreso — más del doble.
-window.analisisReingresos=function(){
+export function analisisReingresos(){
   const ot=S.g('ot')||[];
   const EXCLUIR=['Neumáticos','GET / Cuchillas','Elemento de Desgaste','Filtro de Aire','Filtro de Combustible','Foco/Ampolleta'];
   const porGrupo={};
@@ -408,7 +412,7 @@ window.analisisReingresos=function(){
   </div>`);
 };
 
-window.addOT=function(){
+export function addOT(){
   const eq=S.g('eq')||[];
   const per=_tecnicosDisponibles();
   const sis=['Motor diésel','Hidráulico','Transmisión','Eléctrico','Frenos','Ruedas y neumáticos','Dirección','Estructura','Cabina','Climatización'];
@@ -465,11 +469,11 @@ window.addOT=function(){
 // Misma función OCR que usa Registrar PM (reg.js) para el papel "INFORME
 // MANTENIMIENTO EN TALLER" — acá prellena la ficha real donde se registran
 // los correctivos, "Nueva OT Correctivo", en vez del registro de PM.
-window._activarLeerCorrectivoOT=function(){
+export function _activarLeerCorrectivoOT(){
   const inp=$('otCorrectivoFoto');
   if(inp)inp.click();
 };
-window._leerCorrectivoOTFotoSeleccionada=async function(input){
+export async function _leerCorrectivoOTFotoSeleccionada(input){
   const file=input.files&&input.files[0];
   if(!file)return;
   toast('⏳ Leyendo informe...');
@@ -485,7 +489,7 @@ window._leerCorrectivoOTFotoSeleccionada=async function(input){
   }
   input.value='';
 };
-window._prellenarDesdeOCRCorrectivoOT=function(datos){
+export function _prellenarDesdeOCRCorrectivoOT(datos){
   const inc=datos.camposInciertos||[];
   function marcar(id,incierto){
     const el=$(id);
@@ -547,12 +551,12 @@ function _otVozResumenTexto(){
   var crit=document.getElementById('oCrit').value||'';
   return 'Resumen: equipo '+sig+', síntoma '+sint+(tipo?', tipo '+tipo:'')+(crit&&crit!=='No Aplica'?', criticidad '+crit:'')+'.';
 }
-window._iniciarOTPorVoz=function(){
+export function _iniciarOTPorVoz(){
   if(!document.getElementById('oEq')&&typeof addOT==='function')addOT();
   _iniciarFlujoVoz(window.OT_VOZ_PASOS,function(){if(typeof saveOT==='function')saveOT();},_otVozResumenTexto);
 };
 
-window.calcDurOT=function(){
+export function calcDurOT(){
   const fe=$('oFecEnt')?.value,he=$('oHoraEnt')?.value;
   const fs=$('oFecSal')?.value,hs=$('oHoraSal')?.value;
   if(!fe||!he||!fs||!hs)return;
@@ -560,7 +564,7 @@ window.calcDurOT=function(){
   if(ms<0){$('oDur').value='⚠️ Inválido';return;}
   $('oDur').value=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
 };
-window.saveOT=function(){
+export function saveOT(){
   const sig=$('oEq').value,sint=$('oSint').value.trim();
   if(!sig)return toast('⚠️ Selecciona equipo');
   if(!sint)return toast('⚠️ Ingresa síntoma');
@@ -612,7 +616,7 @@ window.saveOT=function(){
 };
 
 // ---- EVIDENCIA FOTOGRÁFICA DE OT ----
-window.gestionarFotosOT=function(idx){
+export function gestionarFotosOT(idx){
   var ot=S.g('ot')||[];
   if(!ot[idx])return toast('❌ OT no encontrada');
   window._otFotoIdx=idx;
@@ -641,7 +645,7 @@ function _renderModalFotosOT(){
     '<br><br><button class="btn btn-o" onclick="cm()">Cerrar</button>'+
   '</div>');
 }
-window._otFotosSeleccionadas=async function(ev){
+export async function _otFotosSeleccionadas(ev){
   var files=Array.prototype.slice.call(ev.target.files||[]);
   ev.target.value='';
   if(!files.length)return;
@@ -674,7 +678,7 @@ window._otFotosSeleccionadas=async function(ev){
   _renderModalFotosOT();
   renders.ot();
 };
-window.quitarFotoOT=function(fi){
+export function quitarFotoOT(fi){
   var ot=S.g('ot')||[];
   var o=ot[window._otFotoIdx];
   if(!o||!o.fotos)return;
@@ -685,7 +689,7 @@ window.quitarFotoOT=function(fi){
   renders.ot();
 };
 
-window.edOT=function(i,key,val){
+export function edOT(i,key,val){
   var ot=S.g('ot')||[];
   // SLA de primera respuesta: se marca UNA sola vez, apenas la OT deja de
   // estar 'Pendiente' (a 'En Ejecución' o directo a 'Cerrada') — ver Costos >
@@ -694,4 +698,22 @@ window.edOT=function(i,key,val){
     ot[i].primeraAtencionEn=new Date().toISOString();
   }
   if(_edCampo('ot',ot,i,key,val)){refreshAll();toast('✅ Guardado');}
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderOt = renderOt;
+window.analisisFallas = analisisFallas;
+window.analisisDocumentacion = analisisDocumentacion;
+window.analisisReingresos = analisisReingresos;
+window.addOT = addOT;
+window._activarLeerCorrectivoOT = _activarLeerCorrectivoOT;
+window._leerCorrectivoOTFotoSeleccionada = _leerCorrectivoOTFotoSeleccionada;
+window._prellenarDesdeOCRCorrectivoOT = _prellenarDesdeOCRCorrectivoOT;
+window._iniciarOTPorVoz = _iniciarOTPorVoz;
+window.calcDurOT = calcDurOT;
+window.saveOT = saveOT;
+window.gestionarFotosOT = gestionarFotosOT;
+window._otFotosSeleccionadas = _otFotosSeleccionadas;
+window.quitarFotoOT = quitarFotoOT;
+window.edOT = edOT;
+renders.ot = renderOt;
