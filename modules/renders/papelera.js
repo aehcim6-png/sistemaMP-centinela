@@ -2,7 +2,9 @@
 // patrón que log.js: verPapelera() la abre como modal (sm() + <div id="s-papelera">
 // vacío), renderPapelera() lo llena. Los helpers _moverAPapelera/_restaurarDePapelera/
 // _purgarPapeleraVieja viven en index.html (compartidos por los ~18 puntos de
-// eliminación que alimentan esta papelera).
+// eliminación que alimentan esta papelera). Módulo ES real (Fase 3,
+// 2026-08-30, cuarta tanda: Metas, KPIs y Reportes) — ver nota de migración
+// en mov.js (primera tanda, mismo patrón).
 const _PAPELERA_LABEL={
   reg:'Registro de Mantención',ot:'Correctivos / OT',mov:'Movimientos de Stock',
   hist:'Historial de Horómetros',pau:'Pautas',stk:'Stock de Filtros',
@@ -18,11 +20,11 @@ function _papeleraResumen(fila){
   var partes=[id,fecha].filter(function(x){return x;});
   return partes.length?escapeHtml(partes.join(' · ')):'—';
 }
-window.verPapelera=function(){
+export function verPapelera(){
   sm('<div style="max-width:950px"><div id="s-papelera"></div><button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>');
   renders.papelera();
-};
-window.renderPapelera=function(){
+}
+export function renderPapelera(){
   var pap=S.g('papelera')||[];
   var fCat=$('fPapCat')?.value||'';
   var fil=pap.filter(function(p){return!fCat||p.categoria===fCat;}).sort(function(a,b){return(b.fechaEliminacion||'').localeCompare(a.fechaEliminacion||'');});
@@ -50,4 +52,9 @@ window.renderPapelera=function(){
     '</table></div>'+
     _pagHTML('papelera',pg)+
     (pap.length?'':'<p style="padding:20px;color:var(--muted)">La papelera está vacía.</p>');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.verPapelera = verPapelera;
+window.renderPapelera = renderPapelera;
+renders.papelera = renderPapelera;

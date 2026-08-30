@@ -302,7 +302,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/stk2.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/comp2.js?v=2026-08-30"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
-<script src="modules/renders/avance.js?v=2026-08-04"></script>
+<script type="module" src="modules/renders/avance.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/lub.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/stk.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/cos.js?v=2026-08-30b"></script>
@@ -311,14 +311,14 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/prg.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/progdia.js?v=2026-08-30"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
-<script src="modules/renders/papelera.js?v=2026-08-05"></script>
+<script type="module" src="modules/renders/papelera.js?v=2026-08-30"></script>
 <script src="modules/renders/uso.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/cad.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/histcomp.js?v=2026-08-30b"></script>
 <script src="modules/renders/estadistica.js?v=2026-08-30"></script>
 <script src="modules/renders/audit.js?v=2026-08-30"></script>
-<script src="modules/renders/metas.js?v=2026-08-18b"></script>
-<script src="modules/renders/mkpi.js?v=2026-08-05"></script>
+<script type="module" src="modules/renders/metas.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/mkpi.js?v=2026-08-30"></script>
 <script src="modules/renders/insp.js?v=2026-08-07"></script>
 <script src="modules/renders/eq.js?v=2026-08-24b"></script>
 <script type="module" src="modules/renders/plani.js?v=2026-08-30"></script>
@@ -331,7 +331,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/plan.js?v=2026-08-30b"></script>
 <script src="modules/renders/disp.js?v=2026-08-24b"></script>
 <script src="modules/renders/ace.js?v=2026-08-14"></script>
-<script src="modules/renders/ayuda.js?v=2026-08-28l"></script>
+<script type="module" src="modules/renders/ayuda.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/sem.js?v=2026-08-30b"></script>
 <script src="modules/renders/dash.js?v=2026-08-30"></script>
 <script src="modules/renders/reg.js?v=2026-08-30"></script>
@@ -2866,7 +2866,8 @@ window.imprimirTab=function(tabId,nombre){
 
 
 
-renders.ayuda=renderAyuda;
+// renders.ayuda: ya NO se cablea acá — ayuda.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 
 // ═══ LOG DE CAMBIOS (AUDITORÍA) ═══
@@ -2942,7 +2943,8 @@ function _logChangeGenerico(k,anterior,nuevo){
 
 
 renders.log=renderLog;
-renders.papelera=renderPapelera;
+// renders.papelera: ya NO se cablea acá — papelera.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra solo (ver nota en mov.js).
 renders.uso=renderUso;
 
 
@@ -3418,12 +3420,8 @@ window.syncEquipos=function(){
 renders.estadistica=renderEstadistica;
 renders.audit=renderAudit;
 
-// Pestaña Metas & KPIs: extraída a modules/renders/mkpi.js (Fase 2 de
-// modularización) — window.renderMkpi/mkpiSub se cargan desde ahí.
-renders.mkpi=renderMkpi;
-
-
-renders.metas=renderMetas;
+// Pestaña Metas & KPIs: mkpi.js es módulo ES (Fase 3, 2026-08-30) — ya NO
+// se cablea acá, igual que metas.js (mismo grupo). Ver nota en mov.js.
 
 // ═══════════════════════════════════════════════════════════
 // GANTT — Plan visual de mantención
@@ -3454,9 +3452,9 @@ renders.destrabe=renderDestrabe;
 
 // ═══════════════════════════════════════════════════════════
 // AVANCE — Progreso mensual plan vs real: extraída a
-// modules/renders/avance.js (Fase 2 de modularización).
+// modules/renders/avance.js (Fase 2 de modularización). Módulo ES (Fase 3,
+// 2026-08-30) — ya NO se cablea acá, se auto-registra (ver nota en mov.js).
 // ═══════════════════════════════════════════════════════════
-renders.avance=renderAvance;
 
 
 

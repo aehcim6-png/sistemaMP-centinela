@@ -1,7 +1,8 @@
 // Pestaña Avance Mensual (Plan vs Ejecución) — extraída a su propio
-// archivo (Fase 2 de modularización). Script plano (NO módulo ES),
-// mismo scope global de siempre.
-window.renderAvance = function () {
+// archivo (Fase 2 de modularización). Módulo ES real (Fase 3, 2026-08-30,
+// cuarta tanda: Metas, KPIs y Reportes) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón).
+export function renderAvance() {
   if (!$("s-avance")) return;
   var eq = S.g('eq') || []; var reg = S.g('reg') || [];
   var fMes = $('fAvanceMes')?.value || new Date().toISOString().slice(0, 7);
@@ -64,4 +65,8 @@ window.renderAvance = function () {
     '<td style="text-align:center;color:' + (totalPct === null ? 'var(--tx3)' : totalPct >= pctEsperado ? 'var(--ok)' : 'var(--danger)') + '">' + (totalPct === null ? '—' : (totalPct - pctEsperado >= 0 ? '+' : '') + (totalPct - pctEsperado) + '%') + '</td>' +
     '<td>' + (totalPct === null ? '⚪ SIN PLAN' : totalPct >= pctEsperado ? '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> EN PLAN' : '🔴 ATRASADO') + '</td></tr>' +
     '</table></div>';
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderAvance = renderAvance;
+renders.avance = renderAvance;

@@ -1,8 +1,10 @@
 // Pestaña Metas & KPIs (contenedor con 3 sub-pestañas: Metas / Avance del
 // Mes / Informes KPI) — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. Solo despacha a renders.metas/avance/kpi.
-window.renderMkpi = function () {
+// modularización). Módulo ES real (Fase 3, 2026-08-30, cuarta tanda: Metas,
+// KPIs y Reportes) — ver nota de migración en mov.js (primera tanda, mismo
+// patrón). Solo despacha a renders.metas/avance/kpi vía el registro
+// 'renders' (búsqueda en tiempo de ejecución, no import).
+export function renderMkpi() {
   const sub = window._mkpiSub || 'metas';
   $('s-mkpi').innerHTML = `
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas & KPIs</div>
@@ -20,5 +22,10 @@ window.renderMkpi = function () {
   else if (sub === 'avance') renders.avance();
   else if (sub === 'kpi') renders.kpi();
   setTimeout(() => aplicarOrdenUniversal('s-mkpi'), 60);
-};
-window.mkpiSub = function (s) { window._mkpiSub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('mkpi.' + s); renders.mkpi(); };
+}
+export function mkpiSub(s) { window._mkpiSub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('mkpi.' + s); renders.mkpi(); }
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderMkpi = renderMkpi;
+window.mkpiSub = mkpiSub;
+renders.mkpi = renderMkpi;

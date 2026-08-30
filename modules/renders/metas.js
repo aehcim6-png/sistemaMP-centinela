@@ -1,7 +1,8 @@
 // Pestaña Metas vs Realidad (sub-pestaña de Metas & KPIs) — extraída a su
-// propio archivo (Fase 2 de modularización). Script plano (NO módulo ES),
-// mismo scope global de siempre.
-window.renderMetas = function () {
+// propio archivo (Fase 2 de modularización). Módulo ES real (Fase 3,
+// 2026-08-30, cuarta tanda: Metas, KPIs y Reportes) — ver nota de
+// migración en mov.js (primera tanda, mismo patrón).
+export function renderMetas() {
   if (!$("s-metas")) return;
   var eq = S.g('eq') || []; var reg = S.g('reg') || []; var ot = S.g('ot') || []; var otHist = S.g('otHist') || [];
   var otConHist = ot.concat(_otHistComoOt(otHist));
@@ -116,4 +117,8 @@ window.renderMetas = function () {
     }).join('') +
     '</table></div>';
   if (JSON.stringify(metas) !== metasAntes) S.s('metas', metas);
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderMetas = renderMetas;
+renders.metas = renderMetas;

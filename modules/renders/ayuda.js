@@ -1,9 +1,10 @@
 // Pestaña Ayuda / Manual de Usuario — extraída a su propio archivo (Fase 2
-// de modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. Contenido 100% estático (sin funciones auxiliares propias) —
-// solo usa imprimirTab(), compartida en index.html (botón global de la
-// barra superior, usado por todas las pestañas).
-window.renderAyuda=function(){
+// de modularización). Módulo ES real (Fase 3, 2026-08-30, cuarta tanda:
+// Metas, KPIs y Reportes) — ver nota de migración en mov.js (primera
+// tanda, mismo patrón). Contenido 100% estático (sin funciones auxiliares
+// propias) — solo usa imprimirTab(), compartida en index.html (botón
+// global de la barra superior, usado por todas las pestañas).
+export function renderAyuda(){
   var eq=S.g('eq')||[];
   var reg=S.g('reg')||[];
   var ot=S.g('ot')||[];
@@ -781,4 +782,8 @@ window.renderAyuda=function(){
     '<b>Criticidad</b> — qué tan grave es que un equipo específico falle: Crítico (detiene toda la operación), Esencial (afecta la producción pero hay cómo seguir), General (tiene respaldo/reemplazo). Se define en la Ficha Técnica de cada equipo.<br>'+
     '<b>Score de Salud</b> — un número de 0 a 100% que resume en un solo dato el estado de un equipo, combinando sus componentes mayores, neumáticos, análisis de aceite y confiabilidad — se ve en el Dashboard (Mapa de Salud) y en la ficha de cada equipo en Buscar.<br>'+
     '<b>KPI</b> — "Key Performance Indicator" (Indicador Clave de Desempeño): cualquiera de los números que el sistema hace seguimiento mes a mes contra una meta (ej. Disponibilidad, Cumplimiento PM).</div></div>';
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderAyuda = renderAyuda;
+renders.ayuda = renderAyuda;
