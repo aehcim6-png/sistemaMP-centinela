@@ -1,8 +1,9 @@
 // Pestaña Lubricantes (sub-pestaña de Stock & Insumos) — extraída a su
-// propio archivo (Fase 2 de modularización). Script plano (NO módulo ES),
-// mismo scope global de siempre. window.edI queda en index.html porque
-// también lo usa renders.stk (aún no extraída).
-window.renderLub = function () {
+// propio archivo (Fase 2 de modularización). Módulo ES real (Fase 3,
+// 2026-08-30, primera tanda: Stock & Insumos) — ver nota de migración en
+// mov.js (mismo grupo). window.edI queda en index.html porque también lo
+// usa renders.stk (mismo helper compartido).
+export function renderLub() {
   const lub = S.g('lub') || [];
   const mov = S.g('mov') || [];
   const hh = S.g('hh') || 25000;
@@ -83,17 +84,23 @@ window.renderLub = function () {
     }).join('') +
     '</table></div>' +
     _pagHTML('lub', pg);
-};
-window.addLub = function () {
+}
+export function addLub() {
   sm('<h3>Nuevo Lubricante</h3>' +
     '<div class="form-row"><div class="fg" style="flex:1"><label>Nombre</label><input id="lNom" style="width:100%" placeholder="Ej: Mobil Delvac 1300 Super 15W-40"></div></div>' +
     '<div class="form-row"><div class="fg"><label>Unidad</label><select id="lUni"><option>Litro</option><option>Kilo</option></select></div>' +
     '<div class="fg"><label>Stock actual</label><input type="number" id="lStk" value="0"></div>' +
     '<div class="fg"><label>Precio</label><input type="number" id="lPre" value="0"></div></div>' +
     '<button class="btn" onclick="saveLub()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarLubPorVoz()">' + ICONS.mic + ' Completar por voz</button>');
-};
-window.saveLub = function () {
+}
+export function saveLub() {
   var lub = S.g('lub') || [];
   lub.push({ nombre: $('lNom').value, unidad: $('lUni').value, stock: parseFloat($('lStk').value) || 0, consumoMes: 0, precio: parseInt($('lPre').value) || 0 });
   S.s('lub', lub); cm(); refreshAll(); toast('✅ Lubricante agregado');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (mismo grupo de migración).
+window.renderLub = renderLub;
+window.addLub = addLub;
+window.saveLub = saveLub;
+renders.lub = renderLub;

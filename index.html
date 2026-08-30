@@ -299,15 +299,15 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización) — scripts planos, mismo scope global de siempre. -->
 <script src="modules/renders/al.js?v=2026-08-24b"></script>
-<script src="modules/renders/stk2.js?v=2026-08-14"></script>
+<script type="module" src="modules/renders/stk2.js?v=2026-08-30"></script>
 <script src="modules/renders/comp2.js?v=2026-08-15"></script>
 <script src="modules/renders/destrabe.js?v=2026-08-07b"></script>
 <script src="modules/renders/avance.js?v=2026-08-04"></script>
-<script src="modules/renders/lub.js?v=2026-08-27b"></script>
-<script src="modules/renders/stk.js?v=2026-08-27b"></script>
+<script type="module" src="modules/renders/lub.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/stk.js?v=2026-08-30"></script>
 <script src="modules/renders/cos.js?v=2026-08-30"></script>
-<script src="modules/renders/mov.js?v=2026-08-05"></script>
-<script src="modules/renders/rep.js?v=2026-08-27b"></script>
+<script type="module" src="modules/renders/mov.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/rep.js?v=2026-08-30"></script>
 <script src="modules/renders/prg.js?v=2026-08-05"></script>
 <script src="modules/renders/progdia.js?v=2026-08-05"></script>
 <script src="modules/renders/log.js?v=2026-08-05"></script>
@@ -1164,13 +1164,11 @@ function descontarStock(consumos, fecha, equipo, tipoPM){
 }
 
 // ═══ CONSUMOS TAB ═══
-renders.mov=renderMov;
-
-
-renders.stk=renderStk;
+// renders.mov / renders.stk / renders.lub: ya NO se cablean acá — mov.js,
+// stk.js y lub.js son módulos ES (Fase 3, 2026-08-30) y se auto-registran
+// al final de cada archivo (ver nota en mov.js).
 
 // ---- LUBRICANTES (full CRUD + inline) ----
-renders.lub=renderLub;
 window.edI=function(store,idx,key,val){
   var d=S.g(store)||[];
   if(_edCampo(store,d,idx,key,val))refreshAll();
@@ -2760,8 +2758,8 @@ function _cadenaPMEnHorizonte(e,horizonteDias){
 
 renders.pred=renderPred;
 
-
-renders.rep=renderRep;
+// renders.rep: ya NO se cablea acá — rep.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo.
 
 
 
@@ -3404,9 +3402,8 @@ window.syncEquipos=function(){
 // METAS — Plan vs Real mensual
 // ═══════════════════════════════════════════════════════════
 // ═══ STOCK & INSUMOS (agrupa: Stock Filtros / Lubricantes / Costos & Stock) ═══
-// Pestaña Stock & Insumos: extraída a modules/renders/stk2.js (Fase 2 de
-// modularización) — window.renderStk2/stk2Sub se cargan desde ahí.
-renders.stk2=renderStk2;
+// Pestaña Stock & Insumos: stk2.js es módulo ES (Fase 3, 2026-08-30) y se
+// auto-registra solo — ya NO se cablea acá (ver nota en mov.js).
 
 // ═══ COMPONENTES (agrupa: Componentes Mayores / Predictivo / Destrabe) ═══
 // Pestaña Componentes: extraída a modules/renders/comp2.js (Fase 2 de

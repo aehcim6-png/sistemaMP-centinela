@@ -1,7 +1,17 @@
 // Pestaña Consumos (Historial de Consumos, sub-pestaña de Costos & Stock) —
-// extraída a su propio archivo (Fase 2 de modularización). Script plano
-// (NO módulo ES), mismo scope global de siempre.
-window.renderMov = function () {
+// extraída a su propio archivo (Fase 2 de modularización). Módulo ES real
+// (Fase 3, 2026-08-30, primera tanda: Stock & Insumos) — usa import/export
+// en vez de depender solo de variables globales compartidas. logic.js y el
+// resto de pestañas TODAVÍA son scripts planos (migración incremental, no
+// se tocan todos a la vez): las funciones que este archivo necesita de
+// ellos ($, S, escapeHtml, etc.) siguen siendo globales por ahora, así que
+// se siguen usando por nombre simple, sin import — se migrarán a import
+// explícito cuando logic.js también sea módulo. Sí se exportan las propias
+// funciones de este archivo, y se auto-registran en window/renders al final
+// (index.html ya NO las cablea desde afuera: un <script type="module"> se
+// ejecuta DESPUÉS de todos los scripts clásicos de la página, así que si
+// index.html intentara asignarlas antes, todavía no existirían).
+export function renderMov() {
   if (!$("s-mov")) return;
   const mov = S.g('mov') || [];
   const fMes = $('fMovMes')?.value || '';
@@ -79,11 +89,11 @@ window.renderMov = function () {
     '</table></div>' +
     _pagHTML('mov', pg);
 };
-window.editMov = function (idx, key, val) {
+export function editMov(idx, key, val) {
   var mov = S.g('mov') || [];
   if (mov[idx]) { mov[idx][key] = val; S.s('mov', mov); refreshAll(); }
 };
-window.delMov = function (idx) {
+export function delMov(idx) {
   if (!confirm('¿Eliminar este movimiento y restaurar stock?')) return;
   var mov = S.g('mov') || [];
   var m = mov[idx];
@@ -104,7 +114,7 @@ window.delMov = function (idx) {
   refreshAll();
   toast('🗑️ Eliminado — stock restaurado');
 };
-window.clearConsumos = function () {
+export function clearConsumos() {
   if (!confirm('¿Limpiar todo el historial de consumos? Esto restaura el stock que estos movimientos habían descontado.')) return;
   // Restaura el stock de cada movimiento antes de borrar — si no, "Recalcular + stock"
   // vuelve a descontar todo de nuevo sobre un stock que ya está descontado (doble descuento).
@@ -131,7 +141,7 @@ window.clearConsumos = function () {
 };
 
 // ═══ RECALCULAR CONSUMO HISTÓRICO ═══
-window.recalcHistorial = function () {
+export function recalcHistorial() {
   const reg = S.g('reg') || [];
   const pau = S.g('pau') || INIT.pautas || [];
   const stk = S.g('stk') || [];
@@ -218,7 +228,7 @@ window.recalcHistorial = function () {
 };
 
 // Recálculo SOLO COSTOS: asigna consumos por pauta sin tocar stock ni generar movimientos de descuento
-window.recalcSoloCostos = function () {
+export function recalcSoloCostos() {
   const reg = S.g('reg') || [];
   const sinConsumo = reg.filter(r => !r.consumosPauta || r.consumosPauta.length === 0);
   if (sinConsumo.length === 0) {
@@ -238,4 +248,16 @@ window.recalcSoloCostos = function () {
   S.s('reg', reg);
   refreshAll();
   toast('✅ ' + totalReg + ' mantenciones con consumos asignados (stock intacto)' + (sinPauta.length ? ' · ⚠️ Sin pauta: ' + sinPauta.join(', ') : ''));
-};
+}
+
+// Puente window/renders — necesario porque los onclick del HTML generado
+// (ej. onclick="delMov(3)") no pueden ver bindings de un módulo, y renders
+// (el registro de pestañas) ya no se cablea desde index.html para este
+// archivo (ver nota arriba).
+window.renderMov = renderMov;
+window.editMov = editMov;
+window.delMov = delMov;
+window.clearConsumos = clearConsumos;
+window.recalcHistorial = recalcHistorial;
+window.recalcSoloCostos = recalcSoloCostos;
+renders.mov = renderMov;

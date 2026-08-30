@@ -1,7 +1,8 @@
 // Pestaña Stock Filtros (sub-pestaña de Stock & Insumos) — extraída a su
-// propio archivo (Fase 2 de modularización). Script plano (NO módulo ES),
-// mismo scope global de siempre. window.edI queda en index.html porque
-// también lo usa renders.lub (ya extraída, comparte el mismo helper).
+// propio archivo (Fase 2 de modularización). Módulo ES real (Fase 3,
+// 2026-08-30, primera tanda: Stock & Insumos) — ver nota de migración en
+// mov.js (mismo grupo). window.edI queda en index.html porque también lo
+// usa renders.lub (ya extraída, comparte el mismo helper).
 // Gauge de cobertura de stock (2026-08-24, mismo lenguaje que
 // Dashboard/Equipos/Alertas PM4/Vencimientos): acá el anillo se llena al
 // REVÉS que en un PM — mientras MENOS meses de cobertura queden, más lleno
@@ -13,7 +14,7 @@ function _mesesGauge(meses, nivel) {
   var C = 2 * Math.PI * 10, off = Math.round((C * (1 - pct / 100)) * 100) / 100;
   return '<div style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 26 26" width="20" height="20" style="transform:rotate(-90deg);flex:none"><circle cx="13" cy="13" r="10" fill="none" stroke="var(--bg4)" stroke-width="3.5"></circle><circle class="gauge-ring" cx="13" cy="13" r="10" fill="none" stroke="' + col + '" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + off + '"></circle></svg><span class="mono" style="color:' + col + ';font-weight:600">' + meses.toFixed(1) + '</span></div>';
 }
-window.renderStk = function () {
+export function renderStk() {
   const stk = S.g('stk') || [];
   const mov = S.g('mov') || [];
   // Nivel en vivo (stockEstado) — no el estado guardado, para que conteo, filtro y tabla
@@ -78,16 +79,22 @@ window.renderStk = function () {
     '</table></div>' +
     _pagHTML('stk', pg);
   if (typeof _animGauges === 'function') _animGauges('s-stk');
-};
-window.addStock = function () {
+}
+export function addStock() {
   sm(`<h3>Nuevo Filtro</h3>
     <div class="form-row"><div class="fg"><label>Equipo/Modelo</label><input id="sEq"></div><div class="fg"><label>Descripción</label><input id="sDesc"></div></div>
     <div class="form-row"><div class="fg"><label>N° Parte</label><input id="sParte"></div><div class="fg"><label>Stock</label><input type="number" id="sStk" value="0"></div><div class="fg"><label>Consumo/Mes</label><input type="number" id="sCon" value="1"></div></div>
     <div class="form-row"><div class="fg"><label>Precio Unit.</label><input type="number" id="sPre" value="0"></div><div class="fg"><label>Lead Time (días)</label><input type="number" id="sLead" placeholder="34 (default si se deja vacío)"></div></div>
     <button class="btn" onclick="saveStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarStockPorVoz()">${ICONS.mic} Completar por voz</button>`);
-};
-window.saveStock = function () {
+}
+export function saveStock() {
   const stk = S.g('stk') || [];
   stk.push({ equipoModelo: $('sEq').value, descripcion: $('sDesc').value, nParte: $('sParte').value, stockBodega: parseInt($('sStk').value) || 0, consumoMes: parseInt($('sCon').value) || 1, pendiente: 0, mesesCubierto: 0, precioUnit: parseInt($('sPre').value) || 0, leadTime: parseInt($('sLead').value) || 0, comprar: 0, estado: '' });
   S.s('stk', stk); cm(); refreshAll(); toast('✅ Filtro agregado');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (mismo grupo de migración).
+window.renderStk = renderStk;
+window.addStock = addStock;
+window.saveStock = saveStock;
+renders.stk = renderStk;

@@ -1,7 +1,8 @@
 // Pestaña Control de Repuestos (sub-pestaña de Costos & Stock) —
-// extraída a su propio archivo (Fase 2 de modularización). Script plano
-// (NO módulo ES), mismo scope global de siempre.
-window.renderRep = function () {
+// extraída a su propio archivo (Fase 2 de modularización). Módulo ES real
+// (Fase 3, 2026-08-30, primera tanda: Stock & Insumos) — ver nota de
+// migración en mov.js (mismo grupo).
+export function renderRep() {
   if (!$("s-rep")) return;
   var rep = S.g('repuestos') || [];
   var mov = S.g('mov') || [];
@@ -136,18 +137,18 @@ window.renderRep = function () {
     }).join('') +
     '</table></div>' +
     _pagHTML('rep', pg);
-};
+}
 
-window.edRep = function (i, key, val) {
+export function edRep(i, key, val) {
   var rep = S.g('repuestos') || [];
   if (_edCampo('repuestos', rep, i, key, val)) { refreshAll(); toast('✅ Guardado'); }
-};
-window.delRep = function (i) {
+}
+export function delRep(i) {
   if (!confirm('¿Eliminar?')) return;
   var rep = S.g('repuestos') || []; _moverAPapelera('repuestos', rep[i]); rep.splice(i, 1); S.s('repuestos', rep); refreshAll();
   toast('🗑️ Eliminado');
-};
-window.addRep = function () {
+}
+export function addRep() {
   var eq = S.g('eq') || [];
   sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Nuevo Repuesto</h3>' +
     '<div class="form-row"><div class="fg" style="flex:2"><label>Componente</label><input id="rComp" style="width:100%"></div>' +
@@ -161,8 +162,8 @@ window.addRep = function () {
     '<div class="fg"><label>Precio unit.</label><input type="number" id="rPU" value="0"></div></div>' +
     '<div class="form-row"><div class="fg" style="flex:1"><label>Proveedor</label><input id="rProv" style="width:100%"></div></div>' +
     '<button class="btn" onclick="saveRep()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.saveRep = function () {
+}
+export function saveRep() {
   var rep = S.g('repuestos') || [];
   rep.push({
     componente: $('rComp').value, nParte: $('rNP').value, equipo: $('rEqR').value, tipo: $('rTipoR').value,
@@ -171,8 +172,8 @@ window.saveRep = function () {
     proveedor: $('rProv').value, ultCompra: '', estado: ''
   });
   S.s('repuestos', rep); cm(); refreshAll(); toast('✅ Repuesto agregado');
-};
-window.crearOC = function (i) {
+}
+export function crearOC(i) {
   var rep = S.g('repuestos') || []; var r = rep[i];
   if (!r) return;
   var cantPedir = Math.max((r.stockMinimo || 2) - (r.stockActual || 0), 1);
@@ -189,8 +190,8 @@ window.crearOC = function (i) {
     '<div class="fg"><label>Fecha pedido</label><input type="date" id="ocFecha" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>' +
     '<div class="form-row"><div class="fg" style="flex:1"><label>Observaciones</label><input id="ocObs" style="width:100%"></div></div>' +
     '<button class="btn" onclick="confirmarOC(' + i + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Confirmar Pedido</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.confirmarOC = function (i) {
+}
+export function confirmarOC(i) {
   var rep = S.g('repuestos') || []; var r = rep[i];
   var oc = S.g('ordenes') || [];
   oc.push({
@@ -204,11 +205,11 @@ window.confirmarOC = function (i) {
   S.s('ordenes', oc); S.s('repuestos', rep);
   cm(); refreshAll();
   toast('🛒 OC creada — ' + r.componente + ' x' + $('ocCant').value);
-};
+}
 // Panel de Órdenes de Compra — hasta ahora 'ordenes' se creaba desde crearOC()
 // pero no existía ninguna pantalla para verlas ni marcarlas como recibidas, así
 // que quedaban "Pendiente" para siempre sin que nada avisara cuando llegaban.
-window.verOrdenesCompra = function () {
+export function verOrdenesCompra() {
   var oc = S.g('ordenes') || [];
   var lista = oc.slice().sort(function (a, b) { return (b.fecha || '').localeCompare(a.fecha || '') });
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Órdenes de Compra</h3>' +
@@ -230,11 +231,11 @@ window.verOrdenesCompra = function () {
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin órdenes de compra</td></tr>') +
     '</table></div>' +
     '<button class="btn btn-o" onclick="cm()" style="margin-top:10px">Cerrar</button>');
-};
+}
 // Marca una OC como recibida y, si tenía filas de Gestión de Destrabe bloqueadas
 // esperándola (destrabe.idOrdenCompra), las resuelve solas (resolverDestrabePorOC
 // en logic.js) — no toca el estadoOT del correctivo, eso lo confirma el técnico.
-window.recibirOC = function (i) {
+export function recibirOC(i) {
   var oc = S.g('ordenes') || []; var o = oc[i];
   if (!o) return;
   var hoy = new Date().toISOString().slice(0, 10);
@@ -247,8 +248,8 @@ window.recibirOC = function (i) {
   }
   refreshAll(); verOrdenesCompra();
   toast('✅ OC marcada como recibida' + (nPendientes ? ' — ' + nPendientes + ' bloqueo(s) de Destrabe resuelto(s)' : ''));
-};
-window.syncRepStock = function () {
+}
+export function syncRepStock() {
   var rep = S.g('repuestos') || [];
   var stk = S.g('stk') || [];
   var lub = S.g('lub') || [];
@@ -264,10 +265,9 @@ window.syncRepStock = function () {
   });
   S.s('repuestos', rep); refreshAll();
   toast('🔄 ' + updated + ' items sincronizados con Stock/Lubricantes');
-};
+}
 
-
-window.importRepCSV = function () {
+export function importRepCSV() {
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos (CSV)</h3>' +
     '<p style="font-size:12px;color:var(--tx3)">Sube el CSV de pedidos con columnas:<br>' +
     'nPI, fecha, sigla, cantidad, detalle, tiempo, fechaEstado, OC, cantAprobada, precioUnit, costo, rutProv, proveedor<br><br>' +
@@ -275,8 +275,8 @@ window.importRepCSV = function () {
     '<input type="file" id="repFile" accept=".csv" style="margin:12px 0"><br>' +
     '<div style="margin:8px 0"><label><input type="checkbox" id="repMerge" checked> Fusionar con repuestos existentes (si no, reemplaza todo)</label></div>' +
     '<button class="btn" onclick="processRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.processRepCSV = function () {
+}
+export function processRepCSV() {
   var file = $('repFile')?.files[0];
   if (!file) return toast('⚠️ Selecciona un archivo CSV');
   var merge = $('repMerge')?.checked !== false;
@@ -386,4 +386,19 @@ window.processRepCSV = function () {
     }
   };
   reader.readAsText(file);
-};
+}
+
+// Puente window/renders — ver nota en mov.js (mismo grupo de migración).
+window.renderRep = renderRep;
+window.edRep = edRep;
+window.delRep = delRep;
+window.addRep = addRep;
+window.saveRep = saveRep;
+window.crearOC = crearOC;
+window.confirmarOC = confirmarOC;
+window.verOrdenesCompra = verOrdenesCompra;
+window.recibirOC = recibirOC;
+window.syncRepStock = syncRepStock;
+window.importRepCSV = importRepCSV;
+window.processRepCSV = processRepCSV;
+renders.rep = renderRep;
