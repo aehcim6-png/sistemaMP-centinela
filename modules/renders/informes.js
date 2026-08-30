@@ -1,7 +1,8 @@
 // Pestaña Informes de Falla Catastrófica / Cambio de Componente Mayor
 // (sub-pestaña de Componentes) — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. FOTOS_BUCKET/comprimirImagen/_subirArchivoBucket quedan en
+// modularización). Módulo ES real (Fase 3, 2026-08-30, tercera tanda:
+// Componentes/Costos) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón). FOTOS_BUCKET/comprimirImagen/_subirArchivoBucket quedan en
 // index.html — son un bucket/helpers de subida compartidos también por OT
 // (fotos de correctivos) y Vencimientos (fotos de documentos).
 const INFORMES_COMPS_SUGERIDOS=['Motor','Transmisión','Diferencial','Convertidor','Mandos Finales','Bomba Hidráulica','Turbo','Alternador','Motor de partida','Frenos','Dirección','Suspensión','Neumáticos','Sistema eléctrico','Cabina','Estructura','Refrigeración','Compresor A/C'];
@@ -35,13 +36,13 @@ function _infVozResumenTexto(){
   var gen=document.getElementById('ifGen').value||'';
   return 'Resumen: '+tipo+' en '+sig+(comp?', componente '+comp:'')+', descripción: '+desc+(gen?', generado por '+gen:'')+'.';
 }
-window._iniciarInformePorVoz=function(){
+export function _iniciarInformePorVoz(){
   if(!document.getElementById('ifEq')&&typeof nuevoInforme==='function')nuevoInforme();
   _iniciarFlujoVoz(window.INFORME_VOZ_PASOS,function(){if(typeof guardarInforme==='function')guardarInforme();},_infVozResumenTexto);
-};
+}
 
 // Abre el formulario. sigla/compIdx opcionales — si vienen desde una fila de Componentes Mayores, precarga datos.
-window.nuevoInforme=function(sigla,compIdx){
+export function nuevoInforme(sigla,compIdx){
   var eq=S.g('eq')||[];
   var compData=S.g('compMayores')||[];
   var compRow=(compIdx!=null && compIdx>=0)?compData[compIdx]:null;
@@ -77,14 +78,14 @@ window.nuevoInforme=function(sigla,compIdx){
     </div>
     <br><button class="btn" id="ifBtnGuardar" onclick="guardarInforme()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Generar Informe y PDF</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarInformePorVoz()">${ICONS.mic} Completar por voz</button>
   </div>`);
-};
-window._infEqChange=function(){
+}
+export function _infEqChange(){
   var sig=$('ifEq').value;
   var eq=S.g('eq')||[];
   var e=eq.find(function(x){return x.sigla===sig;});
   if(e && $('ifHorom'))$('ifHorom').value=e.horomActual;
-};
-window._infFotosChange=async function(ev){
+}
+export async function _infFotosChange(ev){
   var files=Array.prototype.slice.call(ev.target.files||[]);
   var prev=$('ifPreview');
   prev.innerHTML='⏳ Procesando fotos...';
@@ -96,8 +97,8 @@ window._infFotosChange=async function(ev){
   window._infFotos=resultados;
   prev.innerHTML=resultados.map(function(r){return '<img src="'+r.dataUrl+'" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--bor)">';}).join('')
     || '<span style="font-size:11px;color:var(--muted)">No se pudieron procesar las fotos seleccionadas</span>';
-};
-window.guardarInforme=async function(){
+}
+export async function guardarInforme(){
   var sigla=$('ifEq').value;
   var tipoEvento=$('ifTipo').value;
   var desc=$('ifDesc').value.trim();
@@ -162,10 +163,10 @@ window.guardarInforme=async function(){
   toast('✅ Informe generado y PDF descargado');
   renders.informes();
   refreshAll();
-};
+}
 
 // Vuelve a descargar el PDF de un informe ya guardado (re-descarga las fotos desde Storage)
-window.regenerarPDF=async function(id){
+export async function regenerarPDF(id){
   var lista=S.g('informesFalla')||[];
   var inf=lista.find(function(x){return x.id===id;});
   if(!inf)return toast('❌ Informe no encontrado');
@@ -180,7 +181,7 @@ window.regenerarPDF=async function(id){
     }catch(e){}
   }
   generarPDFInforme(inf,dataUrls);
-};
+}
 
 function generarPDFInforme(inf,dataUrls){
   var jspdfNs=window.jspdf;
@@ -277,7 +278,7 @@ function generarPDFInforme(inf,dataUrls){
   doc.save('Informe_'+inf.sigla+'_'+inf.fecha+'.pdf');
 }
 
-window.renderInformes=function(){
+export function renderInformes(){
   var lista=(S.g('informesFalla')||[]).slice().sort(function(a,b){return (b.fechaCreacion||'').localeCompare(a.fechaCreacion||'');});
   var costoTotal=lista.reduce(function(s,i){return s+(i.costoEstimado||0);},0);
   var pg=_pagSlice('informes',lista);
@@ -302,8 +303,8 @@ window.renderInformes=function(){
     '</table></div>'+
     _pagHTML('informes',pg)+
     (lista.length?'':'<p style="padding:20px;color:var(--muted)">No hay informes generados todavía.</p>');
-};
-window.delInforme=function(id){
+}
+export function delInforme(id){
   if(!confirm('¿Eliminar este informe? (Las fotos quedan guardadas en Supabase Storage, no se borran automáticamente)'))return;
   var todos=S.g('informesFalla')||[];
   var fila=todos.find(function(x){return x.id===id;});
@@ -311,4 +312,18 @@ window.delInforme=function(id){
   var lista=todos.filter(function(x){return x.id!==id;});
   S.s('informesFalla',lista);
   renders.informes();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda). Nótese que
+// las funciones async (_infFotosChange/guardarInforme/regenerarPDF) también
+// se exponen igual: `async function` en window sigue devolviendo una
+// Promise normal al llamarla desde un onclick, no cambia nada del flujo.
+window._iniciarInformePorVoz = _iniciarInformePorVoz;
+window.nuevoInforme = nuevoInforme;
+window._infEqChange = _infEqChange;
+window._infFotosChange = _infFotosChange;
+window.guardarInforme = guardarInforme;
+window.regenerarPDF = regenerarPDF;
+window.renderInformes = renderInformes;
+window.delInforme = delInforme;
+renders.informes = renderInformes;

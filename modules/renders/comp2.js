@@ -1,10 +1,11 @@
 // Pestaña Componentes (contenedor con 7 sub-pestañas: Componentes Mayores /
 // Predictivo / Destrabe / Informes de Falla / Tren de Rodaje / Historial de
 // Componentes / Estadística) — extraída a su propio archivo (Fase 2 de
-// modularización). Script plano (NO módulo ES), mismo scope global de
-// siempre. Solo despacha a renders.comp/pred/destrabe/informes/cad, que
-// siguen viviendo en index.html por ahora.
-window.renderComp2 = function () {
+// modularización). Módulo ES real (Fase 3, 2026-08-30, tercera tanda:
+// Componentes/Costos) — ver nota de migración en mov.js (primera tanda,
+// mismo patrón). Solo despacha a renders.comp/pred/destrabe/informes/cad
+// vía el registro 'renders' (búsqueda en tiempo de ejecución, no import).
+export function renderComp2() {
   const sub = window._comp2Sub || 'comp';
   $('s-comp2').innerHTML = `
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</div>
@@ -34,5 +35,10 @@ window.renderComp2 = function () {
   else if (sub === 'histcomp') renders.histcomp();
   else if (sub === 'estadistica') renders.estadistica();
   setTimeout(() => aplicarOrdenUniversal('s-comp2'), 60);
-};
-window.comp2Sub = function (s) { window._comp2Sub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('comp2.' + s); renders.comp2(); };
+}
+export function comp2Sub(s) { window._comp2Sub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('comp2.' + s); renders.comp2(); }
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderComp2 = renderComp2;
+window.comp2Sub = comp2Sub;
+renders.comp2 = renderComp2;

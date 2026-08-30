@@ -1,7 +1,8 @@
 // Pestaña Costos, HH y Confiabilidad (sub-pestaña de Costos & Stock) —
-// extraída a su propio archivo (Fase 2 de modularización). Script plano
-// (NO módulo ES), mismo scope global de siempre.
-window.renderCos = function () {
+// extraída a su propio archivo (Fase 2 de modularización). Módulo ES real
+// (Fase 3, 2026-08-30, tercera tanda: Componentes/Costos) — ver nota de
+// migración en mov.js (primera tanda, mismo patrón).
+export function renderCos() {
   if (!$("s-cos")) return;
   var reg = S.g('reg') || [];
   var ot = S.g('ot') || [];
@@ -219,3 +220,7 @@ window.renderCos = function () {
     '<option value="mtbf"' + (fVista === 'mtbf' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option></select></div>' +
     content;
 }
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderCos = renderCos;
+renders.cos = renderCos;

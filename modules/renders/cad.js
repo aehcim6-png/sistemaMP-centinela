@@ -1,6 +1,7 @@
 // Pestaña Tren de Rodaje (sub-pestaña de Componentes) — extraída a su
-// propio archivo (Fase 2 de modularización). Script plano (NO módulo ES),
-// mismo scope global de siempre.
+// propio archivo (Fase 2 de modularización). Módulo ES real (Fase 3,
+// 2026-08-30, tercera tanda: Componentes/Costos) — ver nota de migración en
+// mov.js (primera tanda, mismo patrón).
 //
 // A diferencia de neumáticos, cada fabricante/proveedor entrega su propio valor
 // nuevo y límite de desgaste (hoja técnica del componente) — no hay una tabla de
@@ -55,7 +56,7 @@ function _cadResumenVida(cad) {
     return { comp: c, n: arr.length, prom: prom, min: Math.min.apply(null, arr), max: Math.max.apply(null, arr) };
   }).sort(function (a, b) { return a.comp.localeCompare(b.comp); });
 }
-window.renderCad = function () {
+export function renderCad() {
   const cad = S.g('cad') || [];
   const fEq = $('fCadEq')?.value || '';
   const eqs = [...new Set(cad.map(function (c) { return c.sigla; }))].sort();
@@ -111,8 +112,8 @@ window.renderCad = function () {
         </tr>`;
       }).join('')}
     </table></div>`;
-};
-window.addCad = function () {
+}
+export function addCad() {
   const eq = S.g('eq') || [];
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Agregar componente de tren de rodaje</h3>' +
     '<div class="form-row"><div class="fg"><label>Equipo *</label><select id="cdEq"><option value="">Seleccionar...</option>' +
@@ -124,8 +125,8 @@ window.addCad = function () {
     '<div class="fg"><label>Valor actual (mm)</label><input type="number" id="cdActual"></div></div>' +
     '<div class="form-row"><div class="fg"><label>F. Instalación</label><input type="date" id="cdFecha" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>' +
     '<br><button class="btn" onclick="saveCad()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.saveCad = function () {
+}
+export function saveCad() {
   const sigla = $('cdEq').value;
   if (!sigla) return toast('⚠️ Selecciona equipo');
   const valorNuevo = parseFloat($('cdNuevo').value) || null;
@@ -139,8 +140,8 @@ window.saveCad = function () {
     fechaInst: $('cdFecha').value, ultimaMedicion: null, estado: 'Operativo'
   });
   S.s('cad', cad); cm(); renders.cad(); toast('✅ Componente agregado');
-};
-window.addMedicionCad = function (idx) {
+}
+export function addMedicionCad(idx) {
   const cad = S.g('cad') || []; const c = cad[idx]; if (!c) return;
   const eq = (S.g('eq') || []).find(function (e) { return e.sigla === c.sigla; });
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg> Medición — ' + escapeHtml(c.sigla) + ' ' + escapeHtml(c.lado) + ' ' + escapeHtml(c.componente) + '</h3>' +
@@ -149,8 +150,8 @@ window.addMedicionCad = function (idx) {
     '<div class="form-row"><div class="fg"><label>Valor medido (mm)</label><input type="number" id="cmValor"></div></div>' +
     '<div class="fg"><label>Observación</label><input id="cmObs" style="width:100%"></div>' +
     '<br><button class="btn" onclick="saveMedicionCad(' + idx + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.saveMedicionCad = function (idx) {
+}
+export function saveMedicionCad(idx) {
   const cad = S.g('cad') || []; const c = cad[idx]; if (!c) return;
   const valorMedido = parseFloat($('cmValor').value);
   if (isNaN(valorMedido)) return toast('⚠️ Ingresa el valor medido');
@@ -165,8 +166,8 @@ window.saveMedicionCad = function (idx) {
     c.pctRemanente = Math.round(Math.max(0, (valorMedido - c.limiteDesgaste) / (c.valorNuevo - c.limiteDesgaste) * 100));
   }
   S.s('cad', cad); cm(); renders.cad(); toast('✅ Medición guardada');
-};
-window.verHistorialCad = function (idx) {
+}
+export function verHistorialCad(idx) {
   const cad = S.g('cad') || []; const c = cad[idx]; if (!c) return;
   const meds = (S.g('cadMed') || []).filter(function (m) { return m.sigla === c.sigla && m.lado === c.lado && m.componente === c.componente; })
     .sort(function (a, b) { return (b.fecha || '').localeCompare(a.fecha || ''); });
@@ -175,11 +176,21 @@ window.verHistorialCad = function (idx) {
     '<div class="tbl-wrap"><table><tr><th>Fecha</th><th>Horómetro</th><th>Valor medido</th><th>Obs.</th></tr>' +
     meds.map(function (m) { return '<tr><td>' + escapeHtml(m.fecha || '') + '</td><td class="mono">' + fn(m.horom || 0) + 'h</td><td class="mono">' + m.valorMedido + 'mm</td><td style="font-size:11px">' + escapeHtml(m.obs || '') + '</td></tr>'; }).join('') +
     '</table></div><br><button class="btn btn-o" onclick="cm()">Cerrar</button>');
-};
-window.delCad = function (idx) {
+}
+export function delCad(idx) {
   if (window._userRole && window._userRole !== 'admin') return toast('⛔ Solo un administrador puede eliminar registros');
   const cad = S.g('cad') || []; const c = cad[idx]; if (!c) return;
   if (!confirm('¿Eliminar ' + c.sigla + ' ' + c.lado + ' ' + c.componente + '?')) return;
   _moverAPapelera('cad', c);
   cad.splice(idx, 1); S.s('cad', cad); renders.cad();
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderCad = renderCad;
+window.addCad = addCad;
+window.saveCad = saveCad;
+window.addMedicionCad = addMedicionCad;
+window.saveMedicionCad = saveMedicionCad;
+window.verHistorialCad = verHistorialCad;
+window.delCad = delCad;
+renders.cad = renderCad;

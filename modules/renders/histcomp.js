@@ -5,8 +5,9 @@
 // como su propia fila en 'historial_componentes'. Con eso se puede
 // responder "cada cuántas horas se cambia el asiento" — dato que antes
 // se perdía cada vez que se actualizaba compMayores al cambio más nuevo.
-// Script plano (NO módulo ES), mismo scope global de siempre.
-window.renderHistComp = function () {
+// Módulo ES real (Fase 3, 2026-08-30, tercera tanda: Componentes/Costos) —
+// ver nota de migración en mov.js (primera tanda, mismo patrón).
+export function renderHistComp() {
   var h = S.g('compHist') || [];
   var fComp = $('fHistComp') ? $('fHistComp').value : '';
 
@@ -91,16 +92,16 @@ window.renderHistComp = function () {
         </tr>`;
       }).join('')}
     </table></div>`;
-};
-window.edHistComp = function (idx, key, val) {
+}
+export function edHistComp(idx, key, val) {
   var d = S.g('compHist') || [];
   if (!d[idx]) return;
   d[idx][key] = val;
   S.s('compHist', d);
   refreshAll();
   toast('✅ Guardado');
-};
-window.delHistComp = function (idx) {
+}
+export function delHistComp(idx) {
   var d = S.g('compHist') || [];
   if (!d[idx]) return;
   if (confirm('¿Eliminar este evento de ' + d[idx].comp + ' en ' + d[idx].sigla + '?')) {
@@ -109,8 +110,8 @@ window.delHistComp = function (idx) {
     refreshAll();
     toast('✅ Eliminado');
   }
-};
-window.addHistComp = function () {
+}
+export function addHistComp() {
   var eq = S.g('eq') || [];
   var compData = S.g('compMayores') || [];
   var comps = [...new Set(compData.map(function (c) { return c.comp; }))].sort();
@@ -123,8 +124,8 @@ window.addHistComp = function () {
     '<div class="fg"><label>Horómetro</label><input type="number" id="hcHorom"></div></div>' +
     '<div class="form-row"><div class="fg"><label>Obs</label><input id="hcObs" placeholder="Detalle del cambio"></div></div>' +
     '<br><button class="btn" onclick="saveHistComp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
-};
-window.saveHistComp = function () {
+}
+export function saveHistComp() {
   var sigla = $('hcEq').value;
   var comp = ($('hcComp').value || '').trim();
   if (!sigla) return toast('⚠️ Selecciona equipo');
@@ -137,4 +138,12 @@ window.saveHistComp = function () {
     fuente: 'Registro manual', obs: ($('hcObs').value || '').trim()
   });
   S.s('compHist', d); cm(); renders.histcomp(); toast('✅ Evento agregado');
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderHistComp = renderHistComp;
+window.edHistComp = edHistComp;
+window.delHistComp = delHistComp;
+window.addHistComp = addHistComp;
+window.saveHistComp = saveHistComp;
+renders.histcomp = renderHistComp;
