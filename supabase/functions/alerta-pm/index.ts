@@ -84,47 +84,74 @@ function calcVencEstado(proximaFecha: string | null) {
 }
 
 // Misma categorización por texto libre que _componenteDeSintoma() en
-// pred.js (modules/renders/pred.js) — el campo 'componente' estructurado
-// viene vacío en casi todos los correctivos reales, así que la descripción
-// vive como texto libre en 'síntoma'. Mismo orden de reglas (primera que
-// matchea gana) para que el correo nunca contradiga la vista en pantalla.
+// logic.js — el campo 'componente' estructurado viene vacío en casi todos
+// los correctivos reales, así que la descripción vive como texto libre en
+// 'síntoma'. Mismo orden de reglas (primera que matchea gana) para que el
+// correo nunca contradiga la vista en pantalla.
+// PORTADA a mano el 2026-08-30, sincronizada con logic.js tras las 9
+// pasadas de normalización NLP + el ajuste de 'pala'. Deno (donde corre
+// esta función) no puede importar logic.js directamente (es un archivo
+// CommonJS/browser), así que esta lista es una COPIA que hay que volver a
+// sincronizar a mano cada vez que se agregue una categoría nueva en
+// logic.js — si agregas algo allá, cópialo también acá y en
+// _shared/parseCorrectivo.ts. Acepta tanto strings (substring) como RegExp
+// (coincidencia de patrón, ej. palabra completa) como keyword.
+type Keyword = string | RegExp;
 function componenteDeSintoma(sintoma: string | null): string {
   if (!sintoma) return '';
   const t = sintoma.toLowerCase();
-  const reglas: [string, string[]][] = [
+  const reglas: [string, Keyword[]][] = [
     ['Asiento', ['asiento']],
-    ['Batería', ['bateria', 'batería']],
-    ['Motor de Partida', ['motor de partida', 'motor partida']],
-    ['Cilindro de Dirección', ['cilindro direccion', 'cilindro de direccion', 'cilindro dirección', 'cilindro de dirección', 'cilindro volante']],
-    ['Neumáticos', ['neumatico', 'neumático']],
+    ['Batería', ['bateria', 'batería', 'baterias', 'baterías']],
+    ['Motor de Partida', ['motor de partida', 'motor partida', 'arranque']],
+    ['Cilindro de Dirección', ['cilindro direccion', 'cilindro de direccion', 'cilindro dirección', 'cilindro de dirección', 'cilindro volante', 'orbitrol']],
+    ['Neumáticos', ['neumatico', 'neumático', 'neumaticos', 'neumáticos', 'despresuriz', 'desprezuriz', 'presuriz', 'posicion 1 baja presion', 'posicion 3 baja presion', 'check  point', 'check point']],
     ['Frenos', ['freno']],
-    ['Transmisión', ['transmision', 'transmisión']],
+    ['Transmisión', ['transmision', 'transmisión', 'kick dawn', 'pick dawn']],
     ['Diferencial', ['diferencial', 'diferecial']],
     ['Mandos Finales', ['mandos finales', 'mando final']],
     ['Turbo', ['turbo']],
     ['Alternador', ['alternador']],
+    ['Correas', ['correa']],
     ['Bomba de Agua', ['bomba de agua', 'bomba agua']],
-    ['Radiador/Enfriamiento', ['radiador', 'refrigerante']],
-    ['Suspensión', ['suspension', 'suspensión']],
-    ['Inyectores', ['inyector']],
-    ['Filtro de Combustible', ['filtro de combustible', 'filtro combustible']],
-    ['Filtro de Aire', ['filtro de aire', 'filtro aire']],
-    ['Bomba de Combustible', ['bomba de combustible', 'bomba combustible', 'bomba inyectora']],
-    ['Crucetas', ['cruceta']],
-    ['Soporte de Cabina', ['soporte de cabina', 'soporte cabina']],
-    ['Conectores/Cableado', ['conector', 'arnes', 'arnés']],
-    ['Mangueras/Fugas', ['manguera', 'flexible hidraulico', 'flexible hidráulico']],
-    ['Elemento de Desgaste', ['elemento de desgaste', 'elementos de desgaste']],
-    ['Foco/Ampolleta', ['ampolleta', 'foco delantero', 'foco trasero']],
+    ['Radiador/Enfriamiento', ['radiador', 'refrigerante', 'enfriador', 'enfriadores', 'refrigeracion', 'viscoso']],
+    ['Suspensión', ['suspension', 'suspensión', 'suspencion']],
+    ['Inyectores', ['inyector', 'inyectores']],
+    ['Filtro de Combustible', ['filtro de combustible', 'filtro combustible', 'filtro decombustible', 'filtros de combustible', 'filtros combustible']],
+    ['Filtro de Aire', ['filtro de aire', 'filtro aire', 'filtro de cabina', 'filtro cabina']],
+    ['Bomba de Combustible', ['bomba de combustible', 'bomba combustible', 'bomba inyectora', 'bomba de inyeccion', 'bomba inyeccion']],
+    ['Crucetas/Cardán', ['cruceta', 'crucetas', 'cardan', 'cardán']],
+    ['Soporte de Cabina', ['soporte de cabina', 'soporte cabina', 'soportes de cabina']],
+    ['Conectores/Cableado', ['conector', 'conectores', 'arnes', 'arnés']],
+    ['Mangueras/Fugas', ['manguera', 'mangueras', 'flexible', 'cañeria', 'cañería', 'caneria']],
+    ['Elemento de Desgaste', ['elemento de desgaste', 'elementos de desgaste', 'elementos desgaste']],
+    ['Foco/Ampolleta', ['ampolleta', 'ampoleta', 'alpolleta', 'amplolleta', 'foco delantero', 'foco trasero', 'foco frontal', 'foco faenero', 'focos faeneros', 'faenero', 'luz baja', 'luz alta', 'foco', 'focos', 'luces']],
     ['Sistema Hidráulico', ['hidraulico', 'hidráulico']],
-    ['Sistema Eléctrico', ['electrico', 'eléctrico']],
-    ['Aire Acondicionado', ['aire acondicionado', ' a/c ', 'a/c.', 'condensador']],
-    ['GET / Cuchillas', ['cuchilla', 'entrediente', 'gets']],
-    ['Balde/Implemento', ['pasador del balde', 'pasador balde']],
-    ['Motor', ['motor']],
+    ['Sistema Eléctrico', ['electrico', 'eléctrico', 'elÃ©ctrico', 'eléctrica', 'electrica', 'bocina', 'conversor']],
+    ['Aire Acondicionado', ['aire acondicionado', ' a/c ', 'a/c.', 'condensador', 'se carga ac', 'chequeo a/c', 'bajo flujo de a/c', 'sistema de ac', 'calefaccion']],
+    ['GET / Cuchillas', ['cuchilla', 'entrediente', 'gets', 'entrecalza', 'entrecalzas', 'ripper', 'riper', 'canillera', 'canilleras']],
+    ['Balde/Implemento', ['pasador del balde', 'pasador de balde', 'pasador balde', 'cambio de balde', 'desgaste del balde', 'balde nuevo', 'balde por rotura']],
+    ['Biela/Pantógrafo', ['biela', 'pantografo', 'pantógrafo']],
+    ['Tren de Rodaje', ['oruga', 'cadena', 'sprocket', 'sproket', 'zapata', 'rodillo', 'rueda tensora', 'rueda motriz', 'garra maestar', 'garra maestra']],
+    ['Engrase/Lubricación', ['engrase', 'relleno de grasa', 'carga de grasa', 'tk de grasa', 'tk grasa', 'nivel de grasa', 'nivel grasa']],
+    ['Fuga de Aceite', ['fuga de aceite', 'fuga aceite']],
+    ['Radio/Comunicaciones', ['radio base', 'falla ptt', 'antena', 'ptt']],
+    ['Sistema Anticolisión/Fatiga (ADAS)', ['somnolencia', 'anticolision', 'anticolisión', 'anticolicion', 'f&s']],
+    ['Tornamesa/Giro', ['tornamesa', 'torna mesa']],
+    ['Joystick/Palanca de Mando', ['joystick', 'joytick', 'joitick']],
+    ['Parabrisas/Vidrios', ['parabrisas']],
+    ['Tolva/Dumper', ['tolva']],
+    ['Puertas', ['puerta']],
+    ['Espejos', ['espejo']],
+    ['Baliza/Pértiga (Señalización)', ['baliza', 'pertiga', 'pertica']],
+    ['Cámara de Retroceso', ['camara de retroceso', 'camara retroceso']],
+    ['Sistema AFEX (Extinción de Incendios)', ['afex']],
+    ['Estanque/Tapa de Combustible', ['estanque combustible', 'estanque de combustible', 'tapa combustible', 'tapa de combustible', 'tapa de llenado de combustible']],
+    ['Pala (Motoniveladora)', [/\bpala\b/]],
+    ['Motor', ['motor', 'reel']],
   ];
   for (const [cat, keys] of reglas) {
-    if (keys.some((k) => t.indexOf(k) >= 0)) return cat;
+    if (keys.some((k) => (k instanceof RegExp ? k.test(t) : t.indexOf(k) >= 0))) return cat;
   }
   return '';
 }
