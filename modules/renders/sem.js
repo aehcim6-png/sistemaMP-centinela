@@ -25,17 +25,22 @@ function verificarStockPM(sigla, tipoPM){
                (s.descripcion && norm(s.descripcion).length>5 && nr.indexOf(norm(s.descripcion).slice(0,12))>=0);
       });
       if(sf){
-        var stock = sf.stockBodega||0;
-        var consumoMes = sf.consumoMes||1;
-        if(stock<=0 || (sf.estado&&sf.estado.indexOf('COMPRAR')>=0)) criticos++;
-        else if(stock < consumoMes*1.5) faltantes++;
+        // Misma fuente única que Stock Filtros (stockEstado, logic.js) — antes
+        // acá había un umbral fijo propio (stock < consumoMes×1.5, sin lead
+        // time, y el corte "crítico" mirando sf.estado, un campo que Stock
+        // Filtros nunca guarda porque lo calcula en vivo) que podía decir
+        // "disponible" para un ítem que Stock Filtros ya marcaba 🔴 COMPRAR.
+        var se=stockEstado((sf.stockBodega||0)+(sf.pendiente||0), sf.consumoMes||sf.proyMes, sf.leadTime);
+        if(se.nivel==='COMPRAR') criticos++;
+        else if(se.nivel==='BAJO') faltantes++;
         return;
       }
       // Buscar en lubricantes
       var lb = lub.find(function(l){return l.nombre && nr.indexOf(norm(l.nombre).slice(0,10))>=0;});
       if(lb){
-        if((lb.stock||0)<=0) criticos++;
-        else if((lb.stock||0) < (lb.consumoMes||1)*1.5) faltantes++;
+        var se=stockEstado(lb.stock||0, lb.consumoMes||lb.proyMes, lb.leadTime);
+        if(se.nivel==='COMPRAR') criticos++;
+        else if(se.nivel==='BAJO') faltantes++;
         return;
       }
       // No encontrado en inventario = sin dato

@@ -50,19 +50,32 @@ export function renderRep() {
   // Ahora se busca primero el consumo REAL del ítem vinculado en Stock
   // Filtros/Lubricantes (mismo dato que ya usan esas pestañas) por N° de
   // parte o nombre; solo si no hay vínculo real cae al estimado viejo.
+  //
+  // Bug real #2 (auditoría 2026-08-30): cuando SÍ había vínculo real, este
+  // semáforo igual usaba su propio umbral para "BAJO" (ratio stockActual/
+  // stockMinimo < 1) en vez de stockEstado() — la fuente única de Stock
+  // Filtros/Lubricantes (umbral: menos de 2 meses de cobertura). El mismo
+  // ítem podía verse 🟢 OK acá y 🟡 BAJO en Stock Filtros, o viceversa. Ahora,
+  // si hay vínculo real, el estado sale directo de stockEstado() con el
+  // mismo stock/consumo/lead time que usa esa pestaña — coincide siempre.
+  // Sin vínculo (Neumático/Correa/Otro, o repuesto no encontrado) no hay
+  // consumo mensual real que darle a stockEstado, así que se sigue
+  // estimando contra el stock mínimo cargado a mano.
   rep.forEach(function (r) {
-    var ratio = (r.stockActual || 0) / (r.stockMinimo || 1);
-    var leadMeses = (r.leadTime || 34) / 30;
     var stkMatch = stk.find(function (s) { return (r.nParte && s.nParte && s.nParte === r.nParte) || (s.descripcion && s.descripcion === r.componente); });
     var lubMatch = !stkMatch ? lub.find(function (l) { return l.nombre === r.componente; }) : null;
     var consMesReal = stkMatch ? (stkMatch.consumoMes || stkMatch.proyMes) : (lubMatch ? (lubMatch.consumoMes || lubMatch.proyMes) : null);
     r._consEstimado = !consMesReal;
-    var consMes = consMesReal || (r.stockMinimo / 1.5) || 1;
-    var mesesStock = consMes > 0 ? (r.stockActual || 0) / consMes : 99;
-    if (r.stockActual <= 0) r.estado = '🔴 SIN STOCK';
-    else if (mesesStock < leadMeses) r.estado = '🔴 PEDIR YA';
-    else if (ratio < 1) r.estado = '🟡 STOCK BAJO';
-    else r.estado = '🟢 OK';
+    if (consMesReal) {
+      var leadUsar = r.leadTime || (stkMatch && stkMatch.leadTime) || (lubMatch && lubMatch.leadTime);
+      var se = stockEstado(r.stockActual || 0, consMesReal, leadUsar);
+      r.estado = se.nivel !== 'COMPRAR' ? (se.nivel === 'BAJO' ? '🟡 STOCK BAJO' : '🟢 OK') : ((r.stockActual || 0) <= 0 ? '🔴 SIN STOCK' : '🔴 PEDIR YA');
+    } else {
+      var ratio = (r.stockActual || 0) / (r.stockMinimo || 1);
+      if ((r.stockActual || 0) <= 0) r.estado = '🔴 SIN STOCK';
+      else if (ratio < 1) r.estado = '🟡 STOCK BAJO';
+      else r.estado = '🟢 OK';
+    }
   });
 
   var fil = rep.filter(function (r) {
