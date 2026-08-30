@@ -6,12 +6,25 @@
 // vivían lejos (cerca del final del archivo) pero solo las usa esta
 // pestaña. _tecnicosDisponibles() queda en index.html porque también la
 // usan renders.reg e renders.insp.
+//
+// Consolidación 2026-08-30: el botón "Solo PM4 Urgentes" filtraba acá con
+// e.estado.includes('URGENTE') — el umbral GENÉRICO de PM regular
+// (diasParaPM<=7, ver C.estado en logic.js), no el pensado para overhaul.
+// tipoPM==='PM4' SÍ es el mismo umbral de overhaul que usa Alertas PM4
+// (8×frecPM, ver C.tipoPM en logic.js), pero "urgente" para un evento a
+// escala de 8×frecPM necesita su propia vara (C.alertaPM4: horas
+// restantes vs. frecPM), no la de un PM semanal — con la vieja fórmula,
+// un equipo a semanas del overhaul podía no aparecer como "urgente" acá
+// mientras Alertas PM4 ya lo marcaba en rojo. Se elimina el filtro
+// (window._eqFiltroUrgente) y el botón pasa a enlazar directo a Alertas
+// PM4, que ya tiene el umbral correcto, ordenado por urgencia y con las
+// notas de repuestos por equipo.
 export function renderEq(){
   const eq=C.recalcAll();
   const tipos=[...new Set(eq.map(e=>e.tipo))];
   $('s-eq').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Control PM Dinámico — Equipos</div><div class="sec-s">${eq.length} equipos · Click en celda azul para editar</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,#3b82f6)" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><button class="btn btn-o" onclick="exportCSV('eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="window._eqFiltroUrgente=!window._eqFiltroUrgente;renders.eq()" id="btnFiltroUrg">🔴 Solo PM4 Urgentes</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,#3b82f6)" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><button class="btn btn-o" onclick="exportCSV('eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="go('al')" title="Alerta de overhaul (8× frecPM) — con el umbral pensado para esa escala (horas restantes vs. frecPM), no el genérico de PM regular (días)">🔴 PM4 Urgentes (Alertas PM4)</button></div>
     </div>
     <div class="help-tip">🔵 Celdas editables = click y escriba · ⚫ Celdas grises = se calculan solas · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> = eliminar fila</div>
     <div class="toolbar">
@@ -23,7 +36,6 @@ export function renderEq(){
       ${eq.filter(e=>{
         const ft=$('fTipo')?.value,fe=$('fEst')?.value;
         if(ft&&e.tipo!==ft)return false;if(fe&&!e.estado?.includes(fe))return false;
-        if(window._eqFiltroUrgente&&!(e.tipoPM==='PM4'&&e.estado?.includes('URGENTE')))return false;
         return true;
       }).map((e,_,arr)=>{
         const i=eq.indexOf(e);
