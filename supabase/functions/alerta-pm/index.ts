@@ -72,11 +72,17 @@ function calcStockEstado(stockBodega: number, consumoMes: number, leadDias: numb
   return { nivel: 'OK', meses };
 }
 
-function calcVencEstado(proximaFecha: string | null) {
-  if (!proximaFecha) return { dias: null as number | null, requiereAtencion: false, vencido: false };
+// 'tieneRegla' agregado (2026-08-30, encontrado al construir el guardarraíl
+// de sincronía con vencEstado() de logic.js): un vencimiento con periodicidad
+// configurada pero SIN fecha próxima registrada debe requerir atención (así
+// lo hace el Dashboard: "🟠 Sin registrar (requerido)") — antes esta copia
+// no recibía ese dato y lo dejaba pasar en silencio, así que el correo
+// diario podía no avisar de un documento requerido que nunca se calculó.
+function calcVencEstado(proximaFecha: string | null, tieneRegla: boolean) {
+  if (!proximaFecha) return { dias: null as number | null, requiereAtencion: !!tieneRegla, vencido: false };
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const prox = new Date(proximaFecha + 'T00:00:00');
-  if (isNaN(prox.getTime())) return { dias: null, requiereAtencion: false, vencido: false };
+  if (isNaN(prox.getTime())) return { dias: null, requiereAtencion: !!tieneRegla, vencido: false };
   const dias = Math.round((prox.getTime() - hoy.getTime()) / 86400000);
   if (dias < 0) return { dias, requiereAtencion: true, vencido: true };
   if (dias <= 30) return { dias, requiereAtencion: true, vencido: false };
@@ -299,9 +305,9 @@ Deno.serve(async (req) => {
     }
 
     // ── 3. VENCIMIENTOS (documentos/certificaciones) ────────────
-    const vencs = await get('vencimientos?select=sigla,vencTipo,proxima');
+    const vencs = await get('vencimientos?select=sigla,vencTipo,proxima,periodicidadMeses');
     const vencsCriticos = vencs
-      .map((v: any) => ({ ...v, _v: calcVencEstado(v.proxima) }))
+      .map((v: any) => ({ ...v, _v: calcVencEstado(v.proxima, v.periodicidadMeses != null) }))
       .filter((v: any) => v._v.requiereAtencion)
       .sort((a: any, b: any) => (a._v.dias ?? 0) - (b._v.dias ?? 0));
 
