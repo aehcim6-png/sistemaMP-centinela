@@ -7,6 +7,9 @@
 // porque también los usa Plan Semanal / Planificador de Materiales
 // (ya extraídos). Todo lo demás de este motor es exclusivo de esta
 // pestaña y se junta acá.
+// Módulo ES real (Fase 3, 2026-08-30, octava tanda: Grupo 3 — depende de
+// ot.js, ya migrado en la séptima tanda) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón).
 // ═══════════════════════════════════════════════════════════════
 // ═══ MOTOR DE INTERPRETACIÓN AUTOMÁTICA ═══
 // _CATEGORIAS_COMPONENTE/_componenteDeSintoma viven en logic.js desde
@@ -585,7 +588,7 @@ function diagnosticoFlota(sigla,mes){
   return lista;
 }
 
-window.renderPred=function(){
+export function renderPred(){
   var P=computePred();
   var R=P.resumen;
   var stk=S.g('stk')||[];
@@ -1299,3 +1302,7 @@ $('s-pred').innerHTML=
     ((fEq||fAnio||fMes)?'<button class="btn-o" onclick="$(\'fPredEq\').value=\'\';$(\'fPredAnio\').value=\'\';$(\'fPredMes\').value=\'\';renders.pred()">Limpiar filtros</button>':'')+
     '</div>'+content;
 }
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderPred = renderPred;
+renders.pred = renderPred;

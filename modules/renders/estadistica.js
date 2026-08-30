@@ -13,7 +13,9 @@
 //      desde Excel, ver conversación 2026-08-15) para más muestra — Técnico
 //      no, porque ese historial no trae quién hizo el trabajo.
 // La comparativa por Modelo es enteramente nueva: no existía en ningún lado.
-// Script plano (NO módulo ES), mismo scope global de siempre.
+// Módulo ES real (Fase 3, 2026-08-30, octava tanda: Grupo 3 — depende de
+// ot.js, ya migrado en la séptima tanda) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón).
 
 function _estFallasCombinadas(ot, otHist) {
   // Une ambas fuentes en una sola lista de eventos {sigla, componente, fecha, horom}.
@@ -185,7 +187,7 @@ function _estTablaTecnico(ot) {
     '</div>';
 }
 
-window.renderEstadistica = function () {
+export function renderEstadistica() {
   if (!$('s-estadistica')) return;
   var vista = window._estadisticaVista || 'equipo';
   var eq = S.g('eq') || [];
@@ -209,4 +211,8 @@ window.renderEstadistica = function () {
     '<option value="tecnico"' + (vista === 'tecnico' ? ' selected' : '') + '>👷 Por Técnico</option>' +
     '</select>' +
     content;
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderEstadistica = renderEstadistica;
+renders.estadistica = renderEstadistica;
