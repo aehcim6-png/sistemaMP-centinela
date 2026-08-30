@@ -18,8 +18,15 @@
 //
 // verCodigosQR/_descargarQR (aunque viven físicamente pegados a este bloque)
 // son de Configuración, no de acá — quedan compartidos en index.html.
-// importarRepuestosKomatsu es de Stock Filtros (ya extraída a stk.js) — 
+// importarRepuestosKomatsu es de Stock Filtros (ya extraída a stk.js) —
 // también queda compartida en index.html, no es de Neumáticos.
+//
+// Módulo ES real (Fase 3, 2026-08-30, décima tanda: Grupo 5 — depende de
+// cfg.js/reg.js, ya migrados en la novena y quinta tanda) — ver nota de
+// migración en mov.js (primera tanda, mismo patrón). window.hrsLive
+// (asignado dentro de renderNeu, no acá arriba) y window.NEU_VOZ_PASOS/
+// NEUMED_VOZ_PASOS/_senFiltroEq/_senFiltroTxt (datos, no funciones) quedan
+// sin tocar, mismo criterio que OT_VOZ_PASOS en ot.js (séptima tanda).
 // ═══════════════════════════════════════════════════════════════════════
 
 // El horómetro guardado en 'equipos' (horomActual) se actualiza solo
@@ -70,7 +77,7 @@ function _horasNeuAlRetiro(n){
   return Math.max(0,Math.round(base+Math.max(0,(e.horomActual||0)-n.horomInstalacion)));
 }
 
-window.renderNeu=function(){
+export function renderNeu(){
   const neu=S.g('neu')||[];
   const eqMapN={};(S.g('eq')||[]).forEach(e=>eqMapN[e.sigla]=e);
   window.hrsLive=n=>{
@@ -185,7 +192,7 @@ window.renderNeu=function(){
 // Listado de neumáticos que hay que cambiar YA (o próximos) al apretar la tarjeta —
 // muestra equipo, posición, serie y el motivo concreto, sin tener que revisar equipo
 // por equipo. Ordena por urgencia (menos días restantes primero).
-window.verNeuLista=function(modo){
+export function verNeuLista(modo){
   const neu=S.g('neu')||[];
   const esCambiar=modo!=='proximo';
   const lista=neu.filter(esCambiar?neuDebeCambiar:neuProxCambio)
@@ -232,7 +239,7 @@ function _neuVozResumenTexto(){
   var pos=document.getElementById('nNPos').value||'';
   return 'Resumen: neumático para '+sig+(pos?', posición '+pos:'')+', serie '+serie+(marca?', marca '+marca:'')+'.';
 }
-window._iniciarNeuPorVoz=function(){
+export function _iniciarNeuPorVoz(){
   if(!document.getElementById('nNEq')&&typeof addNeu==='function')addNeu();
   _iniciarFlujoVoz(window.NEU_VOZ_PASOS,function(){if(typeof saveNeu==='function')saveNeu();},_neuVozResumenTexto);
 };
@@ -254,10 +261,10 @@ function _neuMedVozResumenTexto(){
   var int=document.getElementById('mRemInt').value||'sin dato';
   return 'Resumen: remanente exterior '+ext+' milímetros, interior '+int+' milímetros.';
 }
-window._continuarMedicionPorVoz=function(neuIdx){
+export function _continuarMedicionPorVoz(neuIdx){
   _iniciarFlujoVoz(window.NEUMED_VOZ_PASOS,function(){if(typeof saveMedicionNeu==='function')saveMedicionNeu(neuIdx);},_neuMedVozResumenTexto);
 };
-window._iniciarMedicionNeuPorVoz=function(){
+export function _iniciarMedicionNeuPorVoz(){
   _hablarLuego('¿Qué equipo?',_neuMedVozEscucharEquipo);
 };
 function _neuMedVozEscucharEquipo(){
@@ -339,7 +346,7 @@ function _neuMedVozAbrir(neuIdx){
 
 // ---- NEUMÁTICOS ----
 /* renders.neu viejo eliminado v16.6 - usaba versión sin edición */
-window.addNeu=function(){
+export function addNeu(){
   const eq=S.g('eq')||[];
   sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Nuevo Neumático</h3>
     <div class="form-row">
@@ -365,7 +372,7 @@ window.addNeu=function(){
     </div>
     <button class="btn" onclick="saveNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarNeuPorVoz()">${ICONS.mic} Completar por voz</button>`);
 };
-window.saveNeu=function(){
+export function saveNeu(){
   const sig=$('nNEq').value,serie=$('nNSerie').value.trim();
   if(!sig)return toast('⚠️ Selecciona equipo');
   if(!serie)return toast('⚠️ Ingresa N° serie');
@@ -404,7 +411,7 @@ window.saveNeu=function(){
     pctRemanente:pct,fechaInst:$('nNFec').value,alerta:450,estado:'Operativo'});
   S.s('neu',neu);cm();renders.neu();toast('✅ Neumático agregado');
 };
-window.cambiarNeu=function(i){
+export function cambiarNeu(i){
   const neu=S.g('neu')||[];const n=neu[i];
   const hAct=_horomEquipoSeguro(n.sigla);
   sm(`<h3>↺ Cambio — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
@@ -419,7 +426,7 @@ window.cambiarNeu=function(i){
     </div>
     <button class="btn" onclick="saveCambio(${i},${hAct})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Confirmar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
-window.saveCambio=function(i,hAct){
+export function saveCambio(i,hAct){
   const neu=S.g('neu')||[];const n=neu[i];
   const serieNuevo=$('cSerie').value.trim();
   if(!serieNuevo)return toast('⚠️ Ingresa serie nuevo');
@@ -453,7 +460,7 @@ window.saveCambio=function(i,hAct){
 // nuevo), acá se REACTIVA una fila que ya existe — el historial de mediciones
 // sigue funcionando porque neuProyeccion() lo sigue por N° de serie, no por
 // equipo/posición, así que no se pierde nada al reasignarlo.
-window.instalarDesdeExistencias=function(){
+export function instalarDesdeExistencias(){
   const neu=S.g('neu')||[];
   const stock=neu.map((n,i)=>({n,i})).filter(x=>x.n.estado==='Stock');
   if(!stock.length)return toast('⚠️ No hay neumáticos en Existencias (estado "Stock")');
@@ -467,7 +474,7 @@ window.instalarDesdeExistencias=function(){
     <div class="fg"><label>N° Posición</label><input type="number" id="iexNumPos" min="1" max="10" value="1"></div>
     <button class="btn" onclick="confirmarInstalarExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
-window.confirmarInstalarExistencias=function(){
+export function confirmarInstalarExistencias(){
   const idx=parseInt($('iexNeu').value);
   const sig=$('iexEq').value;
   const pos=$('iexPos').value.trim();
@@ -555,7 +562,7 @@ function _desmontarSensorSiTiene(neuSerie){
 // renders.neu().
 window._senFiltroEq=window._senFiltroEq||'';
 window._senFiltroTxt=window._senFiltroTxt||'';
-window.verSensores=function(){
+export function verSensores(){
   const sen=S.g('sen')||[];
   const eq=S.g('eq')||[];
   const fEq=window._senFiltroEq||'';
@@ -602,7 +609,7 @@ window.verSensores=function(){
     </table></div>
     <button class="btn btn-o" style="margin-top:12px" onclick="window._senFiltroEq=\'\';window._senFiltroTxt=\'\';cm()">Cerrar</button></div>`);
 };
-window.verHistorialSensor=function(i){
+export function verHistorialSensor(i){
   const sen=S.g('sen')||[];
   const s=sen[i];
   if(!s)return;
@@ -616,7 +623,7 @@ window.verHistorialSensor=function(i){
     </div>`).join('')}</div>`:'<p style="font-size:11px;color:var(--tx3)">Sin movimientos registrados todavía</p>'}
     <button class="btn btn-o" style="margin-top:12px" onclick="verSensores()">← Volver</button></div>`);
 };
-window.desmontarSensor=function(i){
+export function desmontarSensor(i){
   const sen=S.g('sen')||[];
   const s=sen[i];
   if(!s)return;
@@ -634,7 +641,7 @@ window.desmontarSensor=function(i){
   S.s('sen',sen);verSensores();
   toast('✅ Sensor '+s.numSensor+' movido a Existencias');
 };
-window.instalarSensor=function(i){
+export function instalarSensor(i){
   const sen=S.g('sen')||[];
   const s=sen[i];
   if(!s)return;
@@ -645,7 +652,7 @@ window.instalarSensor=function(i){
     <div class="fg"><label>Neumático destino</label><select id="isenNeu">${activos.map(x=>`<option value="${x.ni}">${escapeHtml(x.n.sigla)} ${escapeHtml(x.n.posicion||'')} — serie ${escapeHtml(x.n.serie)}</option>`).join('')}</select></div>
     <button class="btn" onclick="confirmarInstalarSensor(${i})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Instalar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 };
-window.confirmarInstalarSensor=function(i){
+export function confirmarInstalarSensor(i){
   const ni=parseInt($('isenNeu').value);
   const neu=S.g('neu')||[];
   const n=neu[ni];
@@ -678,7 +685,7 @@ window.confirmarInstalarSensor=function(i){
 };
 
 // ── Registrar medición de remanente ───────────────────────
-window.addMedicionNeu=function(neuIdx){
+export function addMedicionNeu(neuIdx){
   const neu=S.g('neu')||[];const n=neu[neuIdx];
   if(!n)return;
   const eqArr=S.g('eq')||[];const e=eqArr.find(x=>x.sigla===n.sigla);
@@ -703,7 +710,7 @@ window.addMedicionNeu=function(neuIdx){
     <button type="button" class="btn btn-o" onclick="_continuarMedicionPorVoz(${neuIdx})">${ICONS.mic} Completar por voz</button>`);
 };
 
-window.saveMedicionNeu=function(neuIdx){
+export function saveMedicionNeu(neuIdx){
   const neu=S.g('neu')||[];const n=neu[neuIdx];
   const remExt=parseFloat($('mRemExt').value)||0;
   const remInt=parseFloat($('mRemInt').value)||0;
@@ -738,11 +745,11 @@ window.saveMedicionNeu=function(neuIdx){
 // neumático YA REGISTRADO en ese Equipo+Posición y se muestra como una
 // posible Medición Remanente para revisar y tildar antes de guardar. Nunca
 // crea neumáticos nuevos ni guarda solo — la persona confirma cada fila.
-window._activarLeerChequeoNeu=function(){
+export function _activarLeerChequeoNeu(){
   const inp=$('neuChequeoFoto');
   if(inp)inp.click();
 };
-window._leerChequeoNeuFotoSeleccionada=async function(input){
+export async function _leerChequeoNeuFotoSeleccionada(input){
   const file=input.files&&input.files[0];
   if(!file)return;
   toast('⏳ Leyendo chequeo...');
@@ -758,7 +765,7 @@ window._leerChequeoNeuFotoSeleccionada=async function(input){
   }
   input.value='';
 };
-window._revisarChequeoNeuOCR=function(datos){
+export function _revisarChequeoNeuOCR(datos){
   const eqArr=S.g('eq')||[];
   const neu=S.g('neu')||[];
   const paneles=(datos.paneles||[]).map(function(panel){
@@ -803,7 +810,7 @@ window._revisarChequeoNeuOCR=function(datos){
     ${bloques||'<p>No se detectó ningún panel en la foto.</p>'}
     <button class="btn" onclick="_guardarChequeoNeuOCR()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar mediciones seleccionadas</button> <button class="btn btn-o" onclick="cm()">Cancelar</button></div>`);
 };
-window._guardarChequeoNeuOCR=function(){
+export function _guardarChequeoNeuOCR(){
   const paneles=window._chequeoNeuOCRData||[];
   const neu=S.g('neu')||[];
   const meds=S.g('neuMed')||[];
@@ -837,7 +844,7 @@ window._guardarChequeoNeuOCR=function(){
 };
 
 // ── Ordenamiento de columnas ──────────────────────────────
-window.neuSort=function(key){
+export function neuSort(key){
   if(window._neuSort&&window._neuSort.key===key){
     window._neuSort.dir*=-1;
   }else{
@@ -848,7 +855,7 @@ window.neuSort=function(key){
 };
 
 // ── Historial por POSICIÓN (toda la vida de esa posición) ──
-window.histPosicion=function(sigla,posNum,numPos){
+export function histPosicion(sigla,posNum,numPos){
   const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
   // Las mediciones históricas (carga masiva) guardaron 'posicion' como el N°
   // de posición (ej. "6"), no la etiqueta descriptiva actual (ej. "P6-TraDeInt")
@@ -937,7 +944,7 @@ window.histPosicion=function(sigla,posNum,numPos){
 // descriptiva (ej. "P3-TraIzExt") — no hay forma confiable de traducir uno al
 // otro para eventos históricos, así que se muestra tal cual en vez de
 // inventar la etiqueta.
-window.verHistorialNeu=function(neuIdx){
+export function verHistorialNeu(neuIdx){
   const neu=S.g('neu')||[];
   const n=neu[neuIdx];
   if(!n)return;
@@ -951,7 +958,7 @@ window.verHistorialNeu=function(neuIdx){
 };
 
 // ── Ordenamiento de columnas (fin) ─────────────────────────
-window.verDetalleNeu=function(neuIdx){
+export function verDetalleNeu(neuIdx){
   const neu=S.g('neu')||[];const n=neu[neuIdx];
   const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
   const posStr=String(n.numPos||n.posicion||'');
@@ -1129,7 +1136,7 @@ function _neuResumenVida(){
     porPosicion:Object.keys(porPosicion).sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).map(p=>({posicion:p,...stats(porPosicion[p])}))
   };
 }
-window.resumenFlotaNeu=function(){
+export function resumenFlotaNeu(){
   const neu=S.g('neu')||[];
   const fn2=v=>v?.toLocaleString('es-CL')||'0';
   // Agrupar por estado
@@ -1272,4 +1279,34 @@ window.resumenFlotaNeu=function(){
     </table></div>
     <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button>
   </div>`);
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.renderNeu = renderNeu;
+window.verNeuLista = verNeuLista;
+window._iniciarNeuPorVoz = _iniciarNeuPorVoz;
+window._continuarMedicionPorVoz = _continuarMedicionPorVoz;
+window._iniciarMedicionNeuPorVoz = _iniciarMedicionNeuPorVoz;
+window.addNeu = addNeu;
+window.saveNeu = saveNeu;
+window.cambiarNeu = cambiarNeu;
+window.saveCambio = saveCambio;
+window.instalarDesdeExistencias = instalarDesdeExistencias;
+window.confirmarInstalarExistencias = confirmarInstalarExistencias;
+window.verSensores = verSensores;
+window.verHistorialSensor = verHistorialSensor;
+window.desmontarSensor = desmontarSensor;
+window.instalarSensor = instalarSensor;
+window.confirmarInstalarSensor = confirmarInstalarSensor;
+window.addMedicionNeu = addMedicionNeu;
+window.saveMedicionNeu = saveMedicionNeu;
+window._activarLeerChequeoNeu = _activarLeerChequeoNeu;
+window._leerChequeoNeuFotoSeleccionada = _leerChequeoNeuFotoSeleccionada;
+window._revisarChequeoNeuOCR = _revisarChequeoNeuOCR;
+window._guardarChequeoNeuOCR = _guardarChequeoNeuOCR;
+window.neuSort = neuSort;
+window.histPosicion = histPosicion;
+window.verHistorialNeu = verHistorialNeu;
+window.verDetalleNeu = verDetalleNeu;
+window.resumenFlotaNeu = resumenFlotaNeu;
+renders.neu = renderNeu;

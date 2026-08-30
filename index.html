@@ -312,7 +312,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/progdia.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/log.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/papelera.js?v=2026-08-30"></script>
-<script src="modules/renders/uso.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/uso.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/cad.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/histcomp.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/estadistica.js?v=2026-08-30b"></script>
@@ -338,8 +338,8 @@ td.calc{color:var(--tx3);font-style:italic}
 <script type="module" src="modules/renders/hist.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/ot.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/pred.js?v=2026-08-30b"></script>
-<script src="modules/renders/kpi.js?v=2026-08-30"></script>
-<script src="modules/renders/neu.js?v=2026-08-30"></script>
+<script type="module" src="modules/renders/kpi.js?v=2026-08-30b"></script>
+<script type="module" src="modules/renders/neu.js?v=2026-08-30b"></script>
 <script type="module" src="modules/renders/cfg.js?v=2026-08-30b"></script>
 <script>
 // ============ DATA ============
@@ -1432,7 +1432,8 @@ window.exportCSV=function(store){
 
 
 // ---- NEUMÁTICOS ----
-renders.neu=renderNeu;
+// renders.neu: ya NO se cablea acá — neu.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 // [v10.2 cleanup] addEquipo v2 (idéntica a v1 en línea 911) eliminada
 // [v10.3 cleanup] saveNewEq v2 (idéntica a v1 en línea 940) eliminada
@@ -2955,7 +2956,8 @@ function _logChangeGenerico(k,anterior,nuevo){
 // 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 // renders.papelera: ya NO se cablea acá — papelera.js es módulo ES (Fase 3,
 // 2026-08-30) y se auto-registra solo (ver nota en mov.js).
-renders.uso=renderUso;
+// renders.uso: ya NO se cablea acá — uso.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 
 window.importDispCSV=function(){
@@ -3084,7 +3086,8 @@ async function _subirArchivoBucket(blob,path,contentType){
 // renders.informes: ya NO se cablea acá — informes.js es módulo ES (Fase 3,
 // 2026-08-30) y se auto-registra solo (ver nota en mov.js).
 
-renders.kpi=renderKpi;
+// renders.kpi: ya NO se cablea acá — kpi.js es módulo ES (Fase 3,
+// 2026-08-30) y se auto-registra al final del archivo (ver nota en mov.js).
 
 
 // ═══════════ AUTOGUARDADO EN CARPETA (v16.4) ═══════════

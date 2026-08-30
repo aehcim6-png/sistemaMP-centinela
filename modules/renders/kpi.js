@@ -5,6 +5,9 @@
 // Componentes/Ejecutivo), exclusivos de esta pestaña. reporteEjecutivoExcel
 // (otro reporte, con su propio motor HTML→Excel más simple) es de
 // Configuración, no de acá — queda compartido en index.html.
+// Módulo ES real (Fase 3, 2026-08-30, décima tanda: Grupo 5 — depende de
+// cfg.js, ya migrado en la novena tanda) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón).
 // ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
 // INFORMES KPI — 8 REPORTES DESCARGABLES
@@ -15,7 +18,7 @@
 // EXCEL MULTI-SHEET GENERATOR + 8 KPI REPORTS
 // ═══════════════════════════════════════════════════════════════
 
-window._excelStyles=function(){
+export function _excelStyles(){
   return '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>'+
   '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
   '<Styles>'+
@@ -25,7 +28,7 @@ window._excelStyles=function(){
   '</Styles>';
 };
 
-window.genExcelSheet=function(title,headers,rows){
+export function genExcelSheet(title,headers,rows){
   var xml='<Worksheet ss:Name="'+escapeHtml(title.substring(0,31))+'">';
   xml+='<Table>';
   xml+='<Row><Cell ss:StyleID="title"><Data ss:Type="String">'+escapeHtml(title)+' — SistemaMP Centinela</Data></Cell></Row>';
@@ -40,11 +43,11 @@ window.genExcelSheet=function(title,headers,rows){
   xml+='</Table></Worksheet>';return xml;
 };
 
-window._dlExcel=function(xml,fn){xml+='</Workbook>';var b=new Blob([xml],{type:'application/vnd.ms-excel'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();toast('✅ '+fn+' descargado');};
+export function _dlExcel(xml,fn){xml+='</Workbook>';var b=new Blob([xml],{type:'application/vnd.ms-excel'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();toast('✅ '+fn+' descargado');};
 
-window.genExcel=function(title,headers,rows,fn){var xml=_excelStyles();xml+=genExcelSheet(title,headers,rows);_dlExcel(xml,fn);};
+export function genExcel(title,headers,rows,fn){var xml=_excelStyles();xml+=genExcelSheet(title,headers,rows);_dlExcel(xml,fn);};
 
-window.printReport=function(title,html){
+export function printReport(title,html){
   var w=window.open('','','width=900,height=700');
   w.document.write('<html><head><title>'+title+'</title><style>body{font-family:Arial;margin:20px;color:#222}table{border-collapse:collapse;width:100%;margin:10px 0}th,td{border:1px solid #ddd;padding:6px 8px;font-size:11px}th{background:#2C3E50;color:#fff;text-align:center}.ok{background:#D5F5E3}.warn{background:#FEF9E7}.danger{background:#FADBD8}h1{color:#2C3E50;font-size:18px}h2{color:#1A5276;font-size:14px;margin-top:16px}.meta{color:#7F8C8D;font-size:11px;margin-bottom:16px}.kpi{display:inline-block;border:1px solid #ddd;border-radius:6px;padding:10px 20px;margin:4px;text-align:center}.kpi b{display:block;font-size:22px;color:#2C3E50}.kpi span{font-size:10px;color:#7F8C8D}</style></head><body>');
   w.document.write('<h1>'+title+'</h1><div class="meta">Besalco Minería S.A. — Faena Centinela Ripios OXE · '+new Date().toISOString().slice(0,10)+'</div>');
@@ -52,7 +55,7 @@ window.printReport=function(title,html){
 };
 
 // ═══ DATA COLLECTORS (shared between individual + rptTodos) ═══
-window._getDispData=function(){
+export function _getDispData(){
   var eq=S.g('eq')||[];var dd=S.g('dispCalc')||{};var dA=INIT.dispAbril||{};var meta=S.g('dispMeta')||85;
   eq.forEach(function(e){if(!dd[e.sigla])dd[e.sigla]={};if(dA[e.sigla]!==undefined&&!dd[e.sigla]['2026-04'])dd[e.sigla]['2026-04']=dA[e.sigla];});
   var ms=[...new Set(Object.values(dd).flatMap(function(d){return Object.keys(d)}))].sort();if(!ms.length)ms=['2026-04'];
@@ -60,13 +63,13 @@ window._getDispData=function(){
   var r=eq.map(function(e){var vs=ms.map(function(m){return dd[e.sigla]&&dd[e.sigla][m]!==undefined?dd[e.sigla][m]:'—';});var n=vs.filter(function(v){return v!=='—'});var p=n.length?Math.round(n.reduce(function(s,v){return s+v},0)/n.length*10)/10:0;return[e.sigla,e.tipo,e.modelo].concat(vs).concat([p,p>=meta?'OK':'Bajo']);});
   return{headers:h,rows:r};
 };
-window._getMTBFData=function(){
+export function _getMTBFData(){
   var eq=S.g('eq')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
   var h=['Equipo','Modelo','Horómetro','Fallas','MTBF (hrs)','Confiabilidad','Reparaciones','MTTR (hrs)','Mantenibilidad'];
   var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var rp=f.filter(function(o){return o.duracion&&o.duracion!=='—'});var mttr=C.mttrReal(f.map(function(o){return o.duracion;}));var mtbf=C.mtbfReal(f.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',rp.length,mttr,mttr===0?'Sin datos':mttr<4?'Rápido':mttr<8?'Normal':'Lento'];});
   return{headers:h,rows:r};
 };
-window._getHHData=function(){
+export function _getHHData(){
   var reg=S.g('reg')||[];var hT={},hE={};
   // HH Plan = duración típica real (mediana equipo+tipo), no la suma de p.hrs
   // de las pautas — esa columna es el intervalo de cada tarea, no su duración.
@@ -77,7 +80,7 @@ window._getHHData=function(){
   r=r.concat(Object.entries(hE).sort(function(a,b){return b[1].r-a[1].r}).map(function(e){return['Equipo',e[0],Math.round(e[1].r),Math.round(e[1].p),e[1].r>0?Math.round(e[1].p/e[1].r*100):0,e[1].n];}));
   return{headers:h,rows:r};
 };
-window._getCumplData=function(){
+export function _getCumplData(){
   var reg=S.g('reg')||[];var eq=S.g('eq')||[];var pE={};
   // regEsATiempo (logic.js): fuente única — antes r.estado==='A tiempo' nunca
   // coincidía con el dato real guardado (bug real, auditoría 2026-08). Registros
@@ -89,7 +92,7 @@ window._getCumplData=function(){
   var r=Object.entries(pE).sort(function(a,b){return b[1].e-a[1].e}).map(function(e){var p=e[1].e>0?Math.round(e[1].a/e[1].e*100):null;return[e[0],(eq.find(function(x){return x.sigla===e[0]})||{}).tipo||'',e[1].e,e[1].a,e[1].t,p===null?'—':p,p===null?'Sin datos':p>=80?'OK':p>=50?'Regular':'Bajo'];});
   return{headers:h,rows:r};
 };
-window._getCostosData=function(){
+export function _getCostosData(){
   var reg=S.g('reg')||[];var mov=S.g('mov')||[];var stk=S.g('stk')||[];var lub=S.g('lub')||[];var hh=S.g('hh')||25000;var cM={};
   reg.forEach(function(r){var m=(r.fechaEntrada||r.fechaEjec||'').slice(0,7);if(!m)return;if(!cM[m])cM[m]={h:0,f:0,l:0,t:0,p:0};cM[m].h+=(r.duracionH||2)*hh;cM[m].p++;});
   mov.forEach(function(m){if(!cM[m.mes])cM[m.mes]={h:0,f:0,l:0,t:0,p:0};if(m.tipo==='Filtro'){var f=stk.find(function(s){return s.descripcion===m.item||s.nParte===m.nParte});cM[m.mes].f+=(m.cant||0)*(f&&f.precioUnit?f.precioUnit:0);}else{var l=lub.find(function(lb){return lb.nombre===m.item});cM[m.mes].l+=(m.cant||0)*(l&&l.precio?l.precio:0);}});
@@ -100,7 +103,7 @@ window._getCostosData=function(){
   r.push(['TOTAL',r.reduce(function(s,x){return s+x[1]},0),r.reduce(function(s,x){return s+x[2]},0),r.reduce(function(s,x){return s+x[3]},0),r.reduce(function(s,x){return s+x[4]},0),Math.round(tG)]);
   return{headers:h,rows:r};
 };
-window._getBacklogData=function(){
+export function _getBacklogData(){
   var ot=S.g('ot')||[];var eq=S.g('eq')||[];
   var eqPorSigla={};eq.forEach(function(e){if(e&&e.sigla)eqPorSigla[e.sigla]=e;});
   var pd=ot.filter(function(o){return o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución'});
@@ -118,14 +121,14 @@ window._getBacklogData=function(){
   }).sort(function(a,b){return ORDEN_PRIORIDAD[a.prioridad]-ORDEN_PRIORIDAD[b.prioridad]||b.dias-a.dias;}).map(function(x){return x.fila;});
   return{headers:h,rows:r};
 };
-window._getCompData=function(){
+export function _getCompData(){
   var eq=S.g('eq')||[];var cd=S.g('compMayores')||[];
   cd.forEach(function(c){var eO=eq.find(function(e){return e.sigla===c.sigla});var hA=eO?eO.horomActual:0;c.hrsUsadas=hA-(c.horomComp||0);if(c.hrsUsadas<0)c.hrsUsadas=hA;c.hrsRest=Math.max((c.vidaUtil||0)-c.hrsUsadas,0);c.pctVida=c.vidaUtil?Math.round(c.hrsUsadas/c.vidaUtil*100):0;var hD=eO?eO.hrsDia:12;c.diasRest=hD>0?Math.round(c.hrsRest/hD):0;c.estadoCalc=c.hrsRest<=0?'VENCIDO':c.hrsRest<1000?'PLANIFICAR':c.hrsRest<2000?'MONITOREAR':'OK';});
   var h=['Equipo','Componente','Hrs Instalación','Vida Útil','Hrs Usadas','% Vida','Hrs Restantes','Días Rest','Costo Ref ($)','Estado'];
   var r=cd.sort(function(a,b){return a.hrsRest-b.hrsRest}).map(function(c){return[c.sigla,c.comp,c.horomComp,c.vidaUtil,c.hrsUsadas,c.pctVida,c.hrsRest,c.diasRest,Math.round(c.costoRef||0),c.estadoCalc];});
   return{headers:h,rows:r};
 };
-window._getEjecutivoData=function(){
+export function _getEjecutivoData(){
   var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));var cd=S.g('compMayores')||[];var dd=S.g('dispCalc')||{};var dA=INIT.dispAbril||{};var meta=S.g('dispMeta')||85;
   eq.forEach(function(e){if(!dd[e.sigla])dd[e.sigla]={};if(dA[e.sigla]!==undefined&&!dd[e.sigla]['2026-04'])dd[e.sigla]['2026-04']=dA[e.sigla];});
   var dV=eq.map(function(e){var d=dd[e.sigla];if(!d)return null;var v=Object.values(d);return v.length?v[v.length-1]:null}).filter(function(v){return v!==null});
@@ -147,7 +150,7 @@ window._getEjecutivoData=function(){
 };
 
 // ═══ DOWNLOAD ALL 8 IN ONE EXCEL ═══
-window.rptTodos=function(){
+export function rptTodos(){
   var xml=_excelStyles();
   xml+=genExcelSheet('EJECUTIVO',_getEjecutivoData().headers,_getEjecutivoData().rows);
   xml+=genExcelSheet('DISPONIBILIDAD',_getDispData().headers,_getDispData().rows);
@@ -161,19 +164,19 @@ window.rptTodos=function(){
 };
 
 // ═══ INDIVIDUAL REPORTS ═══
-window.rptDisp=function(fmt){var d=_getDispData();if(fmt==='excel')genExcel('Disponibilidad',d.headers,d.rows,'Informe_Disponibilidad.xls');else{var h='<h2>Disponibilidad Mecánica</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){var p=r[r.length-2];return'<tr class="'+(p>=85?'ok':p>=70?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Disponibilidad',h);}};
-window.rptMTBF=function(fmt){var d=_getMTBFData();if(fmt==='excel')genExcel('MTBF-MTTR',d.headers,d.rows,'Informe_MTBF_MTTR.xls');else{var h='<h2>MTBF / MTTR</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='Alta'?'ok':r[5]==='Media'?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe MTBF/MTTR',h);}};
-window.rptHH=function(fmt){var d=_getHHData();if(fmt==='excel')genExcel('Horas Hombre',d.headers,d.rows,'Informe_HH.xls');else{var h='<h2>Horas Hombre</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe HH',h);}};
-window.rptCumpl=function(fmt){var d=_getCumplData();if(fmt==='excel')genExcel('Cumplimiento PM',d.headers,d.rows,'Informe_Cumplimiento_PM.xls');else{var h='<h2>Cumplimiento PM</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='—'?'':r[5]>=80?'ok':r[5]>=50?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Cumplimiento PM',h);}};
-window.rptCostos=function(fmt){var d=_getCostosData();if(fmt==='excel')genExcel('Costos',d.headers,d.rows,'Informe_Costos.xls');else{var h='<h2>Costos Mantención</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+(typeof c==='number'?'$'+fn(c):escapeHtml(c))+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Costos',h);}};
-window.rptBacklog=function(fmt){var d=_getBacklogData();if(fmt==='excel')genExcel('Backlog',d.headers,d.rows,'Informe_Backlog.xls');else{var h='<h2>Backlog OT</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[8]==='CRÍTICO'?'danger':r[8]==='URGENTE'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Backlog',h);}};
-window.rptComp=function(fmt){var d=_getCompData();if(fmt==='excel')genExcel('Componentes',d.headers,d.rows,'Informe_Componentes.xls');else{var h='<h2>Componentes Mayores</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[9]==='VENCIDO'?'danger':r[9]==='PLANIFICAR'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Componentes',h);}};
-window.rptEjecutivo=function(fmt){var d=_getEjecutivoData();if(fmt==='excel')genExcel('Ejecutivo',d.headers,d.rows,'Informe_Ejecutivo.xls');else{var h='<h2>Resumen Ejecutivo</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Ejecutivo',h);}};
+export function rptDisp(fmt){var d=_getDispData();if(fmt==='excel')genExcel('Disponibilidad',d.headers,d.rows,'Informe_Disponibilidad.xls');else{var h='<h2>Disponibilidad Mecánica</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){var p=r[r.length-2];return'<tr class="'+(p>=85?'ok':p>=70?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Disponibilidad',h);}};
+export function rptMTBF(fmt){var d=_getMTBFData();if(fmt==='excel')genExcel('MTBF-MTTR',d.headers,d.rows,'Informe_MTBF_MTTR.xls');else{var h='<h2>MTBF / MTTR</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='Alta'?'ok':r[5]==='Media'?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe MTBF/MTTR',h);}};
+export function rptHH(fmt){var d=_getHHData();if(fmt==='excel')genExcel('Horas Hombre',d.headers,d.rows,'Informe_HH.xls');else{var h='<h2>Horas Hombre</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe HH',h);}};
+export function rptCumpl(fmt){var d=_getCumplData();if(fmt==='excel')genExcel('Cumplimiento PM',d.headers,d.rows,'Informe_Cumplimiento_PM.xls');else{var h='<h2>Cumplimiento PM</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='—'?'':r[5]>=80?'ok':r[5]>=50?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Cumplimiento PM',h);}};
+export function rptCostos(fmt){var d=_getCostosData();if(fmt==='excel')genExcel('Costos',d.headers,d.rows,'Informe_Costos.xls');else{var h='<h2>Costos Mantención</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+(typeof c==='number'?'$'+fn(c):escapeHtml(c))+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Costos',h);}};
+export function rptBacklog(fmt){var d=_getBacklogData();if(fmt==='excel')genExcel('Backlog',d.headers,d.rows,'Informe_Backlog.xls');else{var h='<h2>Backlog OT</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[8]==='CRÍTICO'?'danger':r[8]==='URGENTE'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Backlog',h);}};
+export function rptComp(fmt){var d=_getCompData();if(fmt==='excel')genExcel('Componentes',d.headers,d.rows,'Informe_Componentes.xls');else{var h='<h2>Componentes Mayores</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[9]==='VENCIDO'?'danger':r[9]==='PLANIFICAR'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Componentes',h);}};
+export function rptEjecutivo(fmt){var d=_getEjecutivoData();if(fmt==='excel')genExcel('Ejecutivo',d.headers,d.rows,'Informe_Ejecutivo.xls');else{var h='<h2>Resumen Ejecutivo</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Ejecutivo',h);}};
 
 
 
 
-window.renderKpi=function(){
+export function renderKpi(){
   if(!$("s-kpi"))return;
   var eq=S.g('eq')||[];
   var reg=S.g('reg')||[];
@@ -431,4 +434,30 @@ window.renderKpi=function(){
     '<button class="btn btn-o" onclick="rptComp(\'excel\')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</button>'+
     '<button class="btn btn-o" onclick="rptEjecutivo(\'print\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Ejecutivo</button>'+
     '</div>';
-};
+}
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window._excelStyles = _excelStyles;
+window.genExcelSheet = genExcelSheet;
+window._dlExcel = _dlExcel;
+window.genExcel = genExcel;
+window.printReport = printReport;
+window._getDispData = _getDispData;
+window._getMTBFData = _getMTBFData;
+window._getHHData = _getHHData;
+window._getCumplData = _getCumplData;
+window._getCostosData = _getCostosData;
+window._getBacklogData = _getBacklogData;
+window._getCompData = _getCompData;
+window._getEjecutivoData = _getEjecutivoData;
+window.rptTodos = rptTodos;
+window.rptDisp = rptDisp;
+window.rptMTBF = rptMTBF;
+window.rptHH = rptHH;
+window.rptCumpl = rptCumpl;
+window.rptCostos = rptCostos;
+window.rptBacklog = rptBacklog;
+window.rptComp = rptComp;
+window.rptEjecutivo = rptEjecutivo;
+window.renderKpi = renderKpi;
+renders.kpi = renderKpi;

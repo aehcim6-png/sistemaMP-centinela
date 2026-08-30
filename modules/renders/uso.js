@@ -9,12 +9,15 @@
 // fetch directo a PostgREST, on-demand, solo cuando un admin abre este
 // modal — el mismo mecanismo que ya escribe los eventos (_logUsoPestana,
 // modules/store.js).
-window.verUsoPestanas = function () {
+// Módulo ES real (Fase 3, 2026-08-30, décima tanda: Grupo 5 — depende de
+// log.js, ya migrado en la novena tanda) — ver nota de migración en mov.js
+// (primera tanda, mismo patrón).
+export function verUsoPestanas() {
   sm('<div style="max-width:760px"><div id="s-uso">Cargando…</div><button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>');
   renderUso();
-};
+}
 
-window.renderUso = function () {
+export function renderUso() {
   var el = $('s-uso');
   if (!el) return;
   el.innerHTML = '<p style="font-size:12px;color:var(--tx3)">Cargando…</p>';
@@ -67,3 +70,8 @@ function _pintarUso(el, filas) {
     }).join('') +
     '</table></div>';
 }
+
+// Puente window/renders — ver nota en mov.js (primera tanda).
+window.verUsoPestanas = verUsoPestanas;
+window.renderUso = renderUso;
+renders.uso = renderUso;
