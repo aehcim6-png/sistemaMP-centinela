@@ -297,7 +297,13 @@ td.calc{color:var(--tx3);font-style:italic}
      termina de cargar). -->
 <script src="modules/store.js?v=2026-08-22b"></script>
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
-     modularización) — scripts planos, mismo scope global de siempre. -->
+     modularización). Todas son módulos ES reales (Fase 3, 2026-08-30,
+     completada en la undécima tanda) — cada uno se autoregistra en
+     window/renders al final de su propio archivo; ver la nota de
+     migración completa en mov.js (primera tanda). El orden de estos
+     <script type="module"> no importa: todos ejecutan después de que
+     termina de cargar la página (igual que los scripts planos de antes),
+     y entre sí se comunican por window/renders, no por import/export. -->
 <script type="module" src="modules/renders/al.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/stk2.js?v=2026-08-30"></script>
 <script type="module" src="modules/renders/comp2.js?v=2026-08-30"></script>
