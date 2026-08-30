@@ -100,7 +100,6 @@ export function renderDash(){
   const lub=S.g('lub')||[];
   const cfg=S.g('cfg')||{};
   const dashBloques=Object.assign({salud:true,disp:true,graficos:true,urgentes:true,costos:true},cfg.dashBloques||{});
-  const ordenes=S.g('ordenes')||[];
   // Contador para el botón de Alertas PM4 (overhaul) — mismo cálculo que al.js,
   // solo para saber cuántos equipos están en URGENTE. La pestaña en sí (al.js)
   // no tenía ningún botón en todo el sistema que llevara a ella — quedaba
@@ -193,22 +192,26 @@ export function renderDash(){
   const pm=MS.map((_,i)=>reg.filter(r=>{var d=new Date(r.fechaEjec||r.fechaEntrada);return d.getMonth()===i&&d.getFullYear()===2026}).length);
   const mx=Math.max(...pm,1);
   const tipos={};eq.forEach(e=>tipos[e.tipo]=(tipos[e.tipo]||0)+1);
-  // Costs — Gasto del MES seleccionado (usa OC real si está cargada; si no, cae al cálculo viejo)
+  // Costs — Gasto del MES seleccionado.
+  // Bug real (auditoría 2026-08-30): acá había una rama que, apenas existía
+  // CUALQUIER orden de compra en el sistema (S.g('ordenes')), reemplazaba
+  // este cálculo por la suma de o.costo del mes — un campo que NINGÚN punto
+  // de la app llega a escribir (rep.js/destrabe.js guardan costoEstimado, no
+  // costo). Resultado: apenas alguien creaba una OC, esta tarjeta pasaba a
+  // mostrar $0 en silencio para todos los meses, y además, aunque el campo
+  // hubiera estado bien, esa rama usaba una fuente distinta a la que
+  // comparten Costos (cos.js), Informes KPI (kpi.js) y Metas (metas.js) —
+  // mismo mes, números distintos según la pestaña. Ahora Gasto del mes usa
+  // siempre la misma fórmula que esas tres: HH×tarifa (reg) + repuestos
+  // consumidos (mov), fuente única para "gasto real del mes" en toda la app.
   const hh=S.g('hh')||25000;
   var costoTotal=0;
-  if(ordenes.length){
-    // Fuente real: órdenes de compra del mes elegido (cada una con fecha y costo)
-    ordenes.forEach(function(o){
-      if((o.fecha||'').slice(0,7)===dashPeriodo)costoTotal+=(o.costo||0);
-    });
-  } else {
-    reg.forEach(r=>{if((r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo)costoTotal+=(r.duracionH||2)*hh;});
-    mov.forEach(m=>{
-      if(m.mes!==dashPeriodo)return;
-      if(m.tipo==='Filtro'){var f=stk.find(s=>s.descripcion===m.item);costoTotal+=(m.cant||0)*(f?.precioUnit||0);}
-      else{var l=lub.find(lb=>lb.nombre===m.item);costoTotal+=(m.cant||0)*(l?.precio||0);}
-    });
-  }
+  reg.forEach(r=>{if((r.fechaEjec||r.fechaEntrada||'').slice(0,7)===dashPeriodo)costoTotal+=(r.duracionH||2)*hh;});
+  mov.forEach(m=>{
+    if(m.mes!==dashPeriodo)return;
+    if(m.tipo==='Filtro'){var f=stk.find(s=>s.descripcion===m.item);costoTotal+=(m.cant||0)*(f?.precioUnit||0);}
+    else{var l=lub.find(lb=>lb.nombre===m.item);costoTotal+=(m.cant||0)*(l?.precio||0);}
+  });
   // Neumaticos stats
   var neuOk=neu.filter(n=>n.estado==='Operativo').length;
   var neuDet=neu.filter(n=>n.estado==='Deteriorado').length;
@@ -499,7 +502,7 @@ export function renderDash(){
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid var(--ac)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Gasto '+dashLabel+'</div>'+
     '<div style="font-size:22px;font-weight:800;color:var(--ac);line-height:1.2">$'+fn(Math.round(costoTotal/1000))+'K</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(ordenes.length?'OC reales del mes':'estimado')+'</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)">HH + repuestos consumidos</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(otPend>0?'#ef4444':'#22c55e')+'">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Backlog</div>'+
