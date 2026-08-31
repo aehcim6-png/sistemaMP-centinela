@@ -410,7 +410,15 @@ export function renderDash(){
     proxCount:prox.length
   }:null;
 
-  $('s-dash').innerHTML=
+  // Nivel 5 de identidad visual (2026-08-31): el Dashboard se arma en 6 trozos
+  // de HTML (htmlChrome/htmlSalud/htmlDisp/htmlCostos/htmlGraficos/
+  // htmlUrgentes) en vez de un solo innerHTML= gigante, para poder ordenarlos
+  // como una historia (¿cómo estamos? → ¿qué hacer ahora? → detalle) en el
+  // ensamblado final de más abajo, en vez del orden en que fueron
+  // implementados históricamente. Ningún bloque cambió por dentro — mismos
+  // ids, mismos cálculos, mismos toggles de dashBloques — solo el ORDEN en
+  // que se concatenan al final.
+  var htmlChrome=
 
     // ═══ SELECTOR DE PERÍODO ═══
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:var(--bg3);border-radius:10px;flex-wrap:wrap">'+
@@ -433,8 +441,9 @@ export function renderDash(){
       var on=dashBloques[b[0]]!==false;
       return '<button class="btn-s '+(on?'':'btn-o')+'" style="'+(on?'':'opacity:.55')+'" onclick="dashToggleBloque(\''+b[0]+'\')" title="Mostrar/ocultar este bloque del tablero">'+b[1]+'</button>';
     }).join('')+
-    '</div>'+
+    '</div>';
 
+  var htmlSalud=
     // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número, arriba de todo ═══
     '<div id="dashBlk-salud" style="display:'+(dashBloques.salud?'':'none')+'">'+
     '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:18px 22px;margin-bottom:20px;border:2px solid '+saludCol+';display:flex;align-items:center;gap:22px;flex-wrap:wrap">'+
@@ -455,8 +464,9 @@ export function renderDash(){
         '<div style="font-size:17px;font-weight:700;color:'+col+'">'+(c.valor==null?'—':c.valor+'%')+'</div></div>';
     }).join('')+
     '</div></div>'+
-    '</div>'+
+    '</div>';
 
+  var htmlDisp=
     // ═══ Z1: ARRIBA IZQUIERDA — KPI PRINCIPAL ═══
     // Disponibilidad grande — lo primero que ve el ojo
     '<div id="dashBlk-disp" style="display:'+(dashBloques.disp?'':'none')+'">'+
@@ -510,8 +520,9 @@ export function renderDash(){
     '<div style="font-size:9px;color:var(--tx3)">'+otEjec+' en ejec · '+otCerr+' cerradas en '+dashLabel+'</div></div>'+
 
     '</div></div>'+
-    '</div>'+
+    '</div>';
 
+  var htmlCostos=
     // ═══ KPIs AVANZADOS ROW ═══
     '<div id="dashBlk-costos" style="display:'+(dashBloques.costos?'':'none')+'">'+
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:20px">'+
@@ -525,9 +536,10 @@ export function renderDash(){
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:var(--danger)">'+eqCrit+'</span> Crít · <span style="color:var(--ac)">'+eqEsen+'</span> Esen · <span style="color:var(--ok)">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
     '</div>'+
-    '</div>'+
+    '</div>';
 
-        // ═══ Z3: ABAJO IZQUIERDA — DESGLOSE / TENDENCIA ═══
+  var htmlGraficos=
+    // ═══ Z3: ABAJO IZQUIERDA — DESGLOSE / TENDENCIA ═══
     '<div id="dashBlk-graficos" style="display:'+(dashBloques.graficos?'':'none')+'">'+
     '<div class="dg1" style="display:grid;grid-template-columns:1fr 1.8fr 1fr;gap:16px;margin-bottom:24px">'+
 
@@ -582,9 +594,9 @@ export function renderDash(){
     '</div></div>'+
 
     '</div>'+
-    '</div>'+
+    '</div>';
 
-
+  var htmlUrgentes=
     // ═══ Z4: ABAJO DERECHA — ACCIÓN ═══
     '<div id="dashBlk-urgentes" style="display:'+(dashBloques.urgentes?'':'none')+'">'+
     '<div class="dg1" style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
@@ -827,13 +839,20 @@ export function renderDash(){
     saludBajaBlock+='</table></div></div>';
   }
 
-  // Agregar los bloques al innerHTML existente
+  // Ensamblado final — un solo innerHTML= con TODOS los trozos ya calculados,
+  // en orden narrativo (Nivel 5, 2026-08-31, ver comentario junto a
+  // htmlChrome más arriba): ¿cómo estamos? (salud+disponibilidad) → ¿qué
+  // hacer ahora? (urgentes, próximos PM, salud baja) → detalle operativo
+  // (KPIs avanzados, gráficos, mapa de salud, tendencia 6 meses). Antes eran
+  // dos escrituras a innerHTML (una al principio, otra += al final) en el
+  // orden en que cada bloque se fue agregando históricamente — ahora es una
+  // sola, así que también se ahorra un reflow.
   var dashEl=document.getElementById('s-dash');
   var wrapProx=proxBlock?'<div style="display:'+(dashBloques.urgentes?'':'none')+'">'+proxBlock+'</div>':'';
   var wrapTrend='<div style="display:'+(dashBloques.graficos?'':'none')+'">'+trendBlock+'</div>';
   var wrapMapa=mapaSaludBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+mapaSaludBlock+'</div>':'';
   var wrapSaludBaja=saludBajaBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+saludBajaBlock+'</div>':'';
-  dashEl.innerHTML+=wrapProx+wrapTrend+wrapMapa+wrapSaludBaja;
+  dashEl.innerHTML=htmlChrome+htmlSalud+htmlDisp+htmlUrgentes+wrapProx+wrapSaludBaja+htmlCostos+htmlGraficos+wrapMapa+wrapTrend;
   if(typeof _animGauges==='function')_animGauges('s-dash');
 
   renderHeader();
