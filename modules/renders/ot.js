@@ -194,6 +194,20 @@ export function renderOt(){
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
         else if(fromHist){otRow+='<td class="mono" style="font-size:10px;color:var(--tx3)">—</td>';}
         else{otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;'+CELL_INPUT_STYLE+';font-size:10px"></td>';}
+        // Modo de falla (codFalla) + AST/LOTO/Autorizado: existían como campos del
+        // formulario "Nueva OT" (saveOT() ya los guarda, ver más abajo) pero nunca
+        // se mostraban ni se podían editar acá — el encabezado de la tabla SÍ traía
+        // estas 4 columnas (Cód.Falla/AST/LOTO/Autoriz.), pero como ninguna fila
+        // agregaba su <td>, quedaban vacías para siempre y el botón de acciones caía
+        // corrido bajo el encabezado "Cód.Falla" en vez del suyo. Bug real
+        // encontrado auditando la taxonomía de modos de falla (2026-08-31) —
+        // codFalla es justo esa taxonomía (Eléctrico/Hidráulico/Mecánico/etc.), ya
+        // existía, solo estaba huérfana en esta tabla.
+        var _codFallaOpts=['Eléctrico','Hidráulico','Mecánico','Estructural','Neumático','Motor','Transmisión','Error Operación','Otro'];
+        otRow+='<td style="max-width:100px">'+(readOnly?'<span style="font-size:10px;color:var(--tx3)">'+escapeHtml(o.codFalla||'—')+'</span>':'<select onchange="edOT('+i+',\'codFalla\',this.value)" style="font-size:10px;background:transparent;color:var(--tx);border:1px solid var(--bd);border-radius:3px;width:100%"><option value=""'+(!o.codFalla?' selected':'')+'>—</option>'+_codFallaOpts.map(function(c){return'<option'+(o.codFalla===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select>')+'</td>';
+        otRow+='<td>'+(readOnly?'<span style="font-size:10px;color:var(--tx3)">'+escapeHtml(o.ast||'—')+'</span>':'<select onchange="edOT('+i+',\'ast\',this.value)" style="font-size:10px;background:transparent;color:var(--tx);border:1px solid var(--bd);border-radius:3px"><option'+(o.ast==='Sí'?' selected':'')+'>Sí</option><option'+(o.ast==='No'?' selected':'')+'>No</option><option'+(o.ast!=='Sí'&&o.ast!=='No'?' selected':'')+'>N/A</option></select>')+'</td>';
+        otRow+='<td>'+(readOnly?'<span style="font-size:10px;color:var(--tx3)">'+escapeHtml(o.loto||'—')+'</span>':'<select onchange="edOT('+i+',\'loto\',this.value)" style="font-size:10px;background:transparent;color:var(--tx);border:1px solid var(--bd);border-radius:3px"><option'+(o.loto==='Sí'?' selected':'')+'>Sí</option><option'+(o.loto==='No'?' selected':'')+'>No</option><option'+(o.loto!=='Sí'&&o.loto!=='No'?' selected':'')+'>N/A</option></select>')+'</td>';
+        otRow+='<td style="max-width:90px">'+(readOnly?'<span style="font-size:10px;color:var(--tx3)">'+escapeHtml(o.autorizadoPor||'—')+'</span>':'<input value="'+escapeHtml(o.autorizadoPor||'')+'" onchange="edOT('+i+',\'autorizadoPor\',this.value)" style="'+es+'" placeholder="Autorizó...">')+'</td>';
         // Botón eliminar: solo para OT reales de este equipo (i>=0) — para filas que
         // vienen de Registro PM o del historial, 'i' es -1 (ot.indexOf no las
         // encuentra) y delRow('ot',-1,...) hace splice(-1,1), que borra el ÚLTIMO
