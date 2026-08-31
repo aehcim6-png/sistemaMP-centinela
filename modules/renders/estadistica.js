@@ -28,16 +28,20 @@
 // (primera tanda, mismo patrón).
 
 function _estFallasCombinadas(ot, otHist) {
-  // Une ambas fuentes en una sola lista de eventos {sigla, componente, fecha, horom}.
+  // Une ambas fuentes en una sola lista de eventos {sigla, componente, fecha, horom, codFalla}.
+  // codFalla (modo de falla: Eléctrico/Hidráulico/Mecánico/etc., ver ot.js) solo
+  // existe en 'ot' — el historial cargado desde WhatsApp/Excel (otHist) no trae
+  // esa clasificación, así que sus eventos quedan sin codFalla (se agrupan como
+  // "Sin clasificar" en _estTablaModoFalla, nunca se inventa un valor).
   var eventos = [];
   (ot || []).forEach(function (o) {
     if (!o || !o.sigla || !esFallaMTBF(o)) return;
     var comp = (o.componente && o.componente.trim()) || _componenteDeSintoma(o.sintoma);
-    eventos.push({ sigla: o.sigla, componente: comp || '', fecha: o.fecha, horom: o.horom });
+    eventos.push({ sigla: o.sigla, componente: comp || '', fecha: o.fecha, horom: o.horom, codFalla: o.codFalla || '' });
   });
   (otHist || []).forEach(function (o) {
     if (!o || !o.sigla) return;
-    eventos.push({ sigla: o.sigla, componente: o.sistema || '', fecha: o.fecha, horom: o.horometro });
+    eventos.push({ sigla: o.sigla, componente: o.sistema || '', fecha: o.fecha, horom: o.horometro, codFalla: '' });
   });
   return eventos;
 }
@@ -130,6 +134,53 @@ function _estTablaModelo(eq, eventos) {
     '</table></div></div>';
 }
 
+// Pareto de modos de falla (2026-08-31, propuesta de "control de gestión ↔
+// confiabilidad de activos" de esta sesión): la herramienta más básica de RCM
+// (Reliability Centered Maintenance) — de todos los modos de falla, ¿cuáles
+// pocos explican la mayoría de las fallas? Antes esto era imposible: "Causa
+// Raíz" es texto libre (cada quien escribe distinto, nunca agrupa). codFalla
+// (Código Falla) ya existía como campo estructurado en el formulario de OT
+// pero recién quedó visible/editable en la tabla de Correctivos — ver el
+// arreglo de columnas de esa tabla, mismo día.
+function _estTablaModoFalla(eventos) {
+  var porModo = {};
+  eventos.forEach(function (e) {
+    var m = e.codFalla || 'Sin clasificar';
+    porModo[m] = (porModo[m] || 0) + 1;
+  });
+  var total = eventos.length;
+  var lista = Object.keys(porModo).map(function (m) { return { modo: m, fallas: porModo[m] }; })
+    .sort(function (a, b) { return b.fallas - a.fallas; });
+  var maxFallas = lista.length ? lista[0].fallas : 0;
+  var acumPrev = 0;
+  lista.forEach(function (r) {
+    r.pct = total ? Math.round(r.fallas / total * 1000) / 10 : 0;
+    // "Pocos vitales" de Pareto: si el acumulado ANTES de esta fila ya llegó al
+    // 80%, esta fila ya no es vital. La fila que recién cruza el 80% (ej. de 72%
+    // a 91%) sí cuenta — es la que empuja el total sobre el umbral.
+    r.vital = acumPrev < 80;
+    acumPrev += r.pct;
+    r.acumulado = Math.round(acumPrev * 10) / 10;
+    r.barPct = maxFallas ? Math.round(r.fallas / maxFallas * 100) : 0;
+  });
+  var sinClasificar = porModo['Sin clasificar'] || 0;
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">📊 Pareto de Modos de Falla — toda la flota</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales + historial 2022-2025 (el historial no trae modo de falla clasificado, cae en "Sin clasificar"). Los modos marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas — ahí es donde más rinde enfocar un plan de confiabilidad.' +
+    (sinClasificar ? ' ' + sinClasificar + ' de ' + total + ' fallas (' + Math.round(sinClasificar / total * 100) + '%) todavía no tienen modo de falla clasificado — clasifícalas en Correctivos (columna "Cód.Falla") para que este análisis sea más completo.' : '') +
+    '</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Modo de Falla</th><th>Fallas</th><th>% del total</th><th>Barra</th><th>Acumulado</th></tr>' +
+    (total ? lista.map(function (r) {
+      return '<tr style="' + (r.vital ? 'background:rgba(245,158,11,.08)' : '') + '">' +
+        '<td style="font-weight:600' + (r.vital ? ';color:var(--ac)' : '') + '">' + (r.vital ? '⭐ ' : '') + escapeHtml(r.modo) + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + r.fallas + '</td>' +
+        '<td style="text-align:center">' + r.pct + '%</td>' +
+        '<td><div style="background:color-mix(in srgb,var(--ac) 18%,var(--bg4));border-radius:4px;height:12px;width:140px;overflow:hidden"><div style="background:var(--ac);height:100%;width:' + r.barPct + '%"></div></div></td>' +
+        '<td style="text-align:center;color:var(--tx3)">' + r.acumulado + '%</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tx3)">Sin fallas registradas todavía</td></tr>') +
+    '</table></div></div>';
+}
+
 function _estTablaTecnico(ot) {
   // Documentación: mismo cálculo que analisisDocumentacion() (ot.js).
   var porTecDoc = {};
@@ -208,6 +259,7 @@ export function renderEstadistica() {
   var content = '';
   if (vista === 'equipo') content = _estTablaEquipo(eq, eventos);
   else if (vista === 'componente') content = _estTablaComponente(eventos);
+  else if (vista === 'modo') content = _estTablaModoFalla(eventos);
   else if (vista === 'modelo') content = _estTablaModelo(eq, eventos);
   else if (vista === 'tecnico') content = _estTablaTecnico(ot);
 
@@ -217,6 +269,7 @@ export function renderEstadistica() {
     '<select id="fEstadisticaVista" onchange="window._estadisticaVista=this.value;renders.estadistica()" style="margin-bottom:16px;font-weight:600">' +
     '<option value="equipo"' + (vista === 'equipo' ? ' selected' : '') + '>🏗 Por Equipo</option>' +
     '<option value="componente"' + (vista === 'componente' ? ' selected' : '') + '>🔧 Por Componente</option>' +
+    '<option value="modo"' + (vista === 'modo' ? ' selected' : '') + '>📊 Pareto de Modo de Falla</option>' +
     '<option value="modelo"' + (vista === 'modelo' ? ' selected' : '') + '>🚜 Por Modelo</option>' +
     '<option value="tecnico"' + (vista === 'tecnico' ? ' selected' : '') + '>👷 Por Técnico</option>' +
     '</select>' +
