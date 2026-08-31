@@ -63,7 +63,7 @@
     <li><b>index.html</b> (~3.300 líneas) — el esqueleto: la barra de navegación, el login, el
     arranque de la aplicación, y la infraestructura compartida entre pestañas que no encajaba en
     un módulo propio (autoguardado a carpeta local, auditoría, MFA, gestión de usuarios).</li>
-    <li><b>modules/renders/*.js</b> (43 archivos) — un archivo por pestaña o sub-pestaña del
+    <li><b>modules/renders/*.js</b> (44 archivos) — un archivo por pestaña o sub-pestaña del
     sistema. Cada uno exporta su función de dibujo (<code>export function render&lt;Tab&gt;()</code>)
     y también la deja en <code>window.render&lt;Tab&gt;</code> — el puente hace falta porque el
     HTML generado usa <code>onclick="..."</code> con nombres de función simples, que no ven
@@ -75,13 +75,13 @@
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
     disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los
-    archivos con pruebas automatizadas (533 casos, corren con Vitest).</li>
+    archivos con pruebas automatizadas (536 casos, corren con Vitest).</li>
   </ul>
 
   <h3>2. Dónde vive — Vercel</h3>
   <p>Vercel sirve los archivos estáticos (no hay servidor propio corriendo en ningún lado). Cada
   push a la rama <code>main</code> dispara un build (<code>vite build</code>) y un despliegue
-  nuevo automático. Vite bundlea y minifica de verdad los ~43 módulos ES de
+  nuevo automático. Vite bundlea y minifica de verdad los ~44 módulos ES de
   <code>modules/renders/*.js</code> en un único archivo (<code>dist/assets/index-*.js</code>),
   siguiendo el grafo de imports desde <code>index.html</code>. <code>logic.js</code> y
   <code>modules/store.js</code> siguen siendo scripts planos (sin <code>type="module"</code>) a
@@ -93,7 +93,7 @@
   <p>Todo el sistema lee y escribe datos a través de dos únicas funciones:
   <code>S.g(categoria)</code> (leer) y <code>S.s(categoria, valor)</code> (guardar). Ninguna
   pantalla llama directo a Supabase — todas pasan por acá, lo que permite que el resto del
-  sistema (más de 550 llamadas repartidas en las 43 pestañas) nunca necesite saber cómo ni dónde
+  sistema (más de 550 llamadas repartidas en las 44 pestañas) nunca necesite saber cómo ni dónde
   se guardan realmente los datos.</p>
   <p>Al llamar <code>S.s(categoria, valor)</code> ocurren, en este orden:</p>
   <ol>

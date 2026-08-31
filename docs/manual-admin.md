@@ -210,7 +210,7 @@ perderse o insertarse como si fuera un dato certero.
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
   y un despliegue automático a `sistema-mp-centinela.vercel.app`.
-- El build sí transforma `modules/renders/*.js` (43 archivos, módulos ES
+- El build sí transforma `modules/renders/*.js` (44 archivos, módulos ES
   reales desde la migración de Fase 3, 2026-08-30): Vite los bundlea y
   minifica en un único archivo. `logic.js`, `vendor/*.js` y `modules/store.js`
   siguen siendo scripts planos a propósito — Vite los copia tal cual, sin
@@ -233,7 +233,7 @@ supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
                             whatsapp-webhook, email-webhook, registrar-intento-acceso,
                             _shared/ parser común)
-tests/                   — pruebas de logic.js y store.js (Vitest, 533 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
 docs/                    — esta carpeta
 ```
 

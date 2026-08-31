@@ -24,7 +24,7 @@ framework nuevo a mitad de camino.
   login, el arranque de la aplicación, y la infraestructura compartida entre
   pestañas que no encajaba en un módulo propio (autoguardado a carpeta local,
   auditoría, MFA, gestión de usuarios).
-- **`modules/renders/*.js`** (43 archivos) — un archivo por pestaña o
+- **`modules/renders/*.js`** (44 archivos) — un archivo por pestaña o
   sub-pestaña del sistema. Cada uno exporta su función de dibujo
   (`export function render<Tab>()`) y también la deja en
   `window.render<Tab>` — el puente hace falta porque el HTML generado usa
@@ -39,14 +39,14 @@ framework nuevo a mitad de camino.
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
   materiales, etc. Junto con `store.js`, son los archivos con pruebas
-  automatizadas (`tests/*.test.js`, 533 casos, corren con Vitest).
+  automatizadas (`tests/*.test.js`, 536 casos, corren con Vitest).
 
 ### 2. Dónde vive — Vercel
 
 [Vercel](https://vercel.com) sirve los archivos estáticos (no hay servidor
 propio corriendo en ningún lado). Cada push a la rama `main` dispara un build
 (`vite build`) y un despliegue nuevo automático. Vite bundlea y minifica de
-verdad los ~43 módulos ES de `modules/renders/*.js` en un único archivo
+verdad los ~44 módulos ES de `modules/renders/*.js` en un único archivo
 (`dist/assets/index-*.js`), siguiendo el grafo de imports desde
 `index.html`. `logic.js` y `modules/store.js` siguen siendo scripts planos
 (sin `type="module"`) a propósito, así que Vite no los toca por diseño —
@@ -58,7 +58,7 @@ del build (junto con `vendor/*.js` y `docs/`).
 Todo el sistema lee y escribe datos a través de dos únicas funciones:
 `S.g(categoria)` (leer) y `S.s(categoria, valor)` (guardar). Ninguna pantalla
 llama directo a Supabase — todas pasan por acá, lo que permite que el resto
-del sistema (más de 550 llamadas repartidas en las 43 pestañas) nunca
+del sistema (más de 550 llamadas repartidas en las 44 pestañas) nunca
 necesite saber cómo ni dónde se guardan realmente los datos.
 
 Al llamar `S.s(categoria, valor)` ocurren, en este orden:

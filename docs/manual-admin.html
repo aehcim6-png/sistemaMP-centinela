@@ -186,7 +186,7 @@
   <h2>7. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
-    <li>El build sí transforma <code>modules/renders/*.js</code> (43 archivos, módulos ES reales
+    <li>El build sí transforma <code>modules/renders/*.js</code> (44 archivos, módulos ES reales
     desde la Fase 3, 2026-08-30): Vite los bundlea y minifica en un único archivo.
     <code>logic.js</code>, <code>vendor/*.js</code> y <code>modules/store.js</code> siguen siendo
     scripts planos a propósito — Vite los copia tal cual, junto con <code>docs/</code>.</li>
@@ -205,7 +205,7 @@ supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
                             whatsapp-webhook, email-webhook, registrar-intento-acceso,
                             _shared/ parser común)
-tests/                   — pruebas de logic.js y store.js (Vitest, 533 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
 docs/                    — esta documentación</pre>
 
   <h2>9. Si algo se rompe — por dónde empezar</h2>
