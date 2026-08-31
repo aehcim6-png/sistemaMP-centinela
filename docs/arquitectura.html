@@ -249,7 +249,11 @@
   <code>_logout()</code> sola. 100% cliente — no depende de ningún timeout del lado de Supabase
   Auth (que sigue siendo el candado real: RLS revisa <code>es_usuario_activo()</code> en cada
   consulta, así que una cuenta desactivada queda sin acceso a los datos de inmediato aunque la
-  pestaña siga abierta visualmente).</p>
+  pestaña siga abierta visualmente). El reloj de "última actividad" se persiste en
+  <code>localStorage</code> (<code>smp_ultima_actividad</code>), no solo en una variable en
+  memoria — bug real reportado por el usuario (2026-08-31): una pestaña de celular en 2do plano
+  mucho tiempo suele recargarse entera al volver a abrirla, y con la variable solo en memoria esa
+  recarga reiniciaba el reloj a "ahora", escondiendo que en realidad habían pasado horas.</p>
   <p><b>Registro de intentos bloqueados</b> (<code>registrar-intento-acceso</code>, Edge
   Function nueva): hasta ahora <code>changelog</code> solo se llenaba con logins <i>exitosos</i>
   (<code>_registrarLogin</code>, llamado con el token recién obtenido). Un intento fallido —

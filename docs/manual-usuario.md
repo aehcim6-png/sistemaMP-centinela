@@ -73,7 +73,7 @@ pierde en silencio el cambio de uno de los dos.
 | Dashboard | Vista general: KPIs, urgentes, próximas PM, tendencias — con filtro (5 botones arriba) para mostrar solo el bloque que te interesa: Salud de Flota, Disponibilidad, Gráficos, Equipos Urgentes o Costos y Stock |
 | Equipos | Flota completa, horómetros, estado de PM, ficha técnica |
 | Registro PM | Registrar cada mantención preventiva ejecutada |
-| Correctivos | Órdenes de trabajo por falla, causa raíz, componente — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces |
+| Correctivos | Órdenes de trabajo por falla, causa raíz, componente, modo de falla clasificado (Cód.Falla) y AST/LOTO/Autorizado — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces |
 | Neumáticos | Remanente, cambios, sensores de presión, gráfico de desgaste con fecha de cambio por neumático — "Resumen flota" proyecta cuántos neumáticos vas a necesitar por mes/semestre/año |
 | Horómetros | Historial de lecturas por equipo |
 | Disponibilidad | % de disponibilidad mecánica, meta y tendencia |
@@ -82,7 +82,7 @@ pierde en silencio el cambio de uno de los dos.
 | Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo. Botón 📊 "Resumen" (por categoría) proyecta el gasto total hasta fin de año |
 | Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
-| Componentes | Componentes Mayores, Predictivo (incluye Probabilidad de Falla y Dotación de Taller — dotación real vs. carga de trabajo, con tendencia y proyección a futuro), Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes, Estadística (comparativas por equipo/componente/técnico/modelo) |
+| Componentes | Componentes Mayores (vida útil por pieza, con columna de Riesgo que combina vida útil + análisis de aceite + retrabajo reciente), Predictivo (incluye Probabilidad de Falla y Dotación de Taller — dotación real vs. carga de trabajo, con tendencia y proyección a futuro), Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes, Estadística (comparativas por equipo/componente/técnico/modelo, más un Pareto de Modo de Falla) |
 | Metas & KPIs | Plan vs. real, avance mensual, informes descargables — cada indicador fuera de meta explica su causa probable (tooltip), la compara contra el mes anterior, se puede ver como cadena visual con un clic, avisa si viene empeorando varios meses seguidos aunque todavía esté en verde, y se le puede registrar un compromiso (acción/responsable/fecha) que el sistema marca cumplido o vencido solo. Su sub-pestaña **Resumen Ejecutivo** junta todo eso en una sola pantalla imprimible/exportable — pensada para mandarle a un dueño o gerente que nunca entra al sistema |
 | Buscar | Ficha completa por equipo (PM, correctivos, componentes, horómetros, inspecciones, neumáticos, tren de rodaje, aceite, vencimientos, historial, destrabe y costos) + ranking de equipos problemáticos |
 | Auditoría de Datos | Cruce automático (5 chequeos): horómetros que retroceden, componentes sin validar, OT sin solución, reportes automáticos por revisar, neumáticos cambiados sin registrar salida — se recalcula solo cada vez que se abre |

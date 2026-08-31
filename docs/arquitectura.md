@@ -296,7 +296,12 @@ regresiva; a los 60 min, si nadie interactuó, se llama `_logout()` sola.
 100% cliente — no depende de ningún timeout del lado de Supabase Auth (que
 sigue siendo el candado real: RLS revisa `es_usuario_activo()` en cada
 consulta, así que una cuenta desactivada queda sin acceso a los datos de
-inmediato aunque la pestaña siga abierta visualmente).
+inmediato aunque la pestaña siga abierta visualmente). El reloj de "última
+actividad" se persiste en `localStorage` (`smp_ultima_actividad`), no solo en
+una variable en memoria — bug real reportado por el usuario (2026-08-31):
+una pestaña de celular en 2do plano mucho tiempo suele recargarse entera al
+volver a abrirla, y con la variable solo en memoria esa recarga reiniciaba
+el reloj a "ahora", escondiendo que en realidad habían pasado horas.
 
 **Registro de intentos bloqueados** (`registrar-intento-acceso`, Edge
 Function nueva): hasta ahora `changelog` solo se llenaba con logins
