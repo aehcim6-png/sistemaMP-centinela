@@ -139,7 +139,7 @@ export function renderOt(){
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="go('comp2');comp2Sub('estadistica')" title="Ahora vive en Estadística — Por Equipo (Bad Actors) y Por Componente, con más historial (suma correctivos_historico) y la misma fuente única de fallas (esFallaMTBF) que el resto de la app"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button> <button class="btn btn-o" onclick="analisisReingresos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="addOTRapido()" title="Pensado para el celular en terreno: solo equipo, qué pasó y urgencia — el resto se completa después">⚡ Registro Rápido</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="go('comp2');comp2Sub('estadistica')" title="Ahora vive en Estadística — Por Equipo (Bad Actors) y Por Componente, con más historial (suma correctivos_historico) y la misma fuente única de fallas (esFallaMTBF) que el resto de la app"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button> <button class="btn btn-o" onclick="analisisReingresos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
     </div>
     ${fsEnCursoOTHTML}
     <div class="cards">
@@ -398,6 +398,54 @@ export function addOT(){
     <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarOTPorVoz()">${ICONS.mic} Completar por voz</button> <button type="button" class="btn btn-o" onclick="_activarLeerCorrectivoOT()">📷 Leer informe (foto)</button><input type="file" id="otCorrectivoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerCorrectivoOTFotoSeleccionada(this)">`);
 };
 
+// ── Registro Rápido (Nivel 4 de la propuesta UX/mobile de esta sesión,
+// 2026-08-31) — "Nueva OT" completa tiene más de 20 campos, pensados para
+// cargarse desde un escritorio con tiempo. Esto es lo opuesto: el caso de
+// alguien en terreno, con el celular, que solo quiere dejar constancia de
+// una falla ANTES de olvidarla — 3 campos con letra grande (16px, evita que
+// Safari/iOS haga zoom automático al enfocar un input más chico) y todo lo
+// demás con un valor por defecto razonable, editable después desde la
+// tabla de Correctivos cuando haya más tiempo. Complementa (no reemplaza)
+// el flujo por voz que ya existía (_iniciarOTPorVoz) — útil cuando hablar
+// no es práctico (sitio ruidoso, alrededor de gente).
+export function addOTRapido(){
+  var eq=S.g('eq')||[];
+  sm(`<h3>⚡ Registro Rápido de Correctivo</h3>
+    <p style="font-size:12px;color:var(--tx3);margin-bottom:12px">Para cargar desde el celular en terreno: solo lo esencial. Horómetro, componente, técnico y el resto se completan después desde Correctivos.</p>
+    <div class="form-row"><div class="fg" style="width:100%"><label>Equipo *</label><select id="orEq" style="width:100%;padding:10px;font-size:16px">${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div></div>
+    <div class="form-row"><div class="fg" style="width:100%"><label>¿Qué pasó? *</label><div style="display:flex;gap:6px"><input id="orSint" style="width:100%;padding:10px;font-size:16px">${_dictarBtn('orSint')}</div></div></div>
+    <div class="form-row"><div class="fg" style="width:100%"><label>Urgencia</label><select id="orCrit" style="width:100%;padding:10px;font-size:16px"><option>No Aplica</option><option>Reparación Inmediata</option><option>Proxima Mantención</option></select></div></div>
+    <button class="btn" onclick="saveOTRapido()" style="width:100%;margin-top:10px;padding:12px;font-size:15px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button>
+    <button class="btn btn-o" onclick="cm()" style="width:100%;margin-top:8px;padding:12px;font-size:15px">Cancelar</button>`);
+};
+export function saveOTRapido(){
+  var sig=$('orEq')?.value,sint=$('orSint')?.value.trim();
+  if(!sig)return toast('⚠️ Selecciona equipo');
+  if(!sint)return toast('⚠️ Cuenta qué pasó');
+  var crit=$('orCrit')?.value||'No Aplica';
+  var ot=S.g('ot')||[];
+  var hoy=new Date().toISOString().slice(0,10);
+  var horaAhora=new Date().toTimeString().slice(0,5);
+  // Mismo criterio de turno que ya usa el Dashboard (dash.js, turnoActual):
+  // 08:00-19:59 Día, resto Noche — no vale la pena preguntarlo, se infiere.
+  var horaNum=new Date().getHours();
+  var turno=(horaNum>=8&&horaNum<20)?'Día':'Noche';
+  ot.unshift({sigla:sig,fecha:hoy,fechaEntrada:hoy,horaEntrada:horaAhora,
+    tipo:'Correctivo',criticidad:crit,
+    sintoma:sint,sistema:'',tecnico:window._userName||'',
+    causaRaiz:'',solucion:'',componente:'',
+    estadoOT:'Pendiente',horom:0,
+    // Reparación Inmediata casi siempre implica que el equipo quedó detenido
+    // — se asume Fuera de Servicio como punto de partida, corregible después
+    // si no fue así.
+    estatusEq:crit==='Reparación Inmediata'?'Fuera de Servicio':'Operativo',
+    costo:0,turno:turno,operador:'',ubicacion:'',
+    codFalla:'',ast:'',loto:'',autorizadoPor:'',
+    fechaIngreso:hoy,primeraAtencionEn:null});
+  S.s('ot',ot);cm();refreshAll();
+  toast('✅ '+sig+' registrado — completa los datos que falten cuando tengas tiempo');
+};
+
 // ── Leer informe de correctivo desde foto (leer-informe-correctivo) ──
 // Misma función OCR que usa Registrar PM (reg.js) para el papel "INFORME
 // MANTENIMIENTO EN TALLER" — acá prellena la ficha real donde se registran
@@ -638,6 +686,8 @@ window.renderOt = renderOt;
 window.analisisDocumentacion = analisisDocumentacion;
 window.analisisReingresos = analisisReingresos;
 window.addOT = addOT;
+window.addOTRapido = addOTRapido;
+window.saveOTRapido = saveOTRapido;
 window._activarLeerCorrectivoOT = _activarLeerCorrectivoOT;
 window._leerCorrectivoOTFotoSeleccionada = _leerCorrectivoOTFotoSeleccionada;
 window._prellenarDesdeOCRCorrectivoOT = _prellenarDesdeOCRCorrectivoOT;
