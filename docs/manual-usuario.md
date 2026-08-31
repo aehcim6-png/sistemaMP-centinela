@@ -80,7 +80,6 @@ pierde en silencio el cambio de uno de los dos.
 | Análisis Aceite | Muestras de laboratorio, estado por componente |
 | Vencimientos | Documentos legales por equipo (revisión técnica, seguro, etc.) |
 | Stock & Insumos | Stock Filtros, Lubricantes, Costos, Consumos y Repuestos (control de inventario y órdenes de compra) — cada ítem tiene un botón 📈 "Tendencia y Proyección de Compra" con gráfico: historial real por mes/semestre/año y en qué fecha conviene pedirlo. Botón 📊 "Resumen" (por categoría) proyecta el gasto total hasta fin de año |
-| Predictivo | Diagnóstico automático, alertas cruzadas, backlog |
 | Planificación y Agenda | Plan Semanal, Programa Anual, Gantt, Planificador de Materiales, Programación Diaria |
 | Pautas | Actividades de mantención por tipo de PM |
 | Componentes | Componentes Mayores, Predictivo (incluye Probabilidad de Falla y Dotación de Taller — dotación real vs. carga de trabajo, con tendencia y proyección a futuro), Destrabe, Informes de Falla, Tren de Rodaje, Historial de Componentes, Estadística (comparativas por equipo/componente/técnico/modelo) |
