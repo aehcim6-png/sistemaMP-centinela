@@ -67,14 +67,36 @@ export function renderMetas() {
     // Backlog histórico: OT que estaban ABIERTAS al cierre de ese mes (se abrieron
     // antes de fin de mes y todavía no se habían cerrado). Antes se mostraba el conteo
     // de pendientes de HOY en los 12 meses por igual — un histórico falso.
+    // Se agrupa por equipo (backlogPorEq) para poder decir, además del total, cuál
+    // equipo concentra más pendientes ese mes (usado más abajo en "motivos").
     var finMes = mes + '-' + ('0' + new Date(anioMetas, mi + 1, 0).getDate()).slice(-2);
-    var backlogMes = ot.filter(function (o) {
+    var backlogPorEq = {};
+    ot.forEach(function (o) {
       var abierto = (o.fechaEntrada || o.fecha || o.fechaIngreso || '').slice(0, 10);
-      if (!abierto || abierto > finMes) return false;
+      if (!abierto || abierto > finMes) return;
       var cerrado = (o.fechaSalida || '').slice(0, 10);
-      if (cerrado) return cerrado > finMes;
-      return o.estadoOT === 'Pendiente' || o.estadoOT === 'En Ejecución';
-    }).length;
+      var siguePendiente = cerrado ? cerrado > finMes : (o.estadoOT === 'Pendiente' || o.estadoOT === 'En Ejecución');
+      if (!siguePendiente) return;
+      backlogPorEq[o.sigla] = (backlogPorEq[o.sigla] || 0) + 1;
+    });
+    var backlogMes = Object.values(backlogPorEq).reduce(function (s, n) { return s + n }, 0);
+    var peorEqBacklog = Object.keys(backlogPorEq).sort(function (a, b) { return backlogPorEq[b] - backlogPorEq[a] })[0];
+    // Motivo probable de cada indicador — Nivel 1 de "conectar los números": no es un
+    // motor causal, solo muestra en el propio indicador el dato que ya se calculó acá
+    // mismo y que normalmente explica por qué se movió (ej. MTBF cae junto con
+    // correctivosDelMes, porque es su propio denominador). Se ve como tooltip solo en
+    // las celdas rojas (real fuera de meta) — ver más abajo, en el render.
+    var atrasadosM = regMev.length - regMev.filter(function (r) { return regEsATiempo(r) === true }).length;
+    var motivos = {
+      disp: correctivosDelMes + ' correctivo(s) y ' + backlogMes + ' OT pendiente(s) ese mes',
+      pms: correctivosDelMes + ' correctivo(s) atendidos ese mes (compiten por las mismas horas de taller)',
+      cumpl: regMev.length ? (atrasadosM + ' de ' + regMev.length + ' PM evaluables llegaron atrasados') : 'sin PM evaluables ese mes',
+      gasto: '$' + fn(Math.round(hhMes * tarifaHH)) + ' en HH + $' + fn(Math.round(costoRepM)) + ' en repuestos',
+      hh: prev + ' PM ejecutados' + (prev ? ' (' + Math.round(hhMes / prev * 10) / 10 + 'h promedio c/u)' : ''),
+      ratio: correctivosDelMes + ' correctivo(s) vs ' + prev + ' preventivo(s) ese mes',
+      mtbf: correctivosDelMes + ' falla(s) registrada(s) ese mes',
+      backlog: peorEqBacklog ? (backlogPorEq[peorEqBacklog] + ' de ' + backlogMes + ' pendiente(s) son de ' + peorEqBacklog) : ''
+    };
     realData[m] = {
       disp: dispValsM.length ? Math.round(dispValsM.reduce(function (s, v) { return s + v }, 0) / dispValsM.length * 10) / 10 : null,
       pms: regM.length,
@@ -83,7 +105,8 @@ export function renderMetas() {
       cumpl: regMev.length ? Math.round(regMev.filter(function (r) { return regEsATiempo(r) === true }).length / regMev.length * 100) : null,
       ratio: ratioPreventivo(prev, correctivosDelMes),
       correctivosDelMes: correctivosDelMes,
-      backlog: backlogMes
+      backlog: backlogMes,
+      motivos: motivos
     };
   });
 
@@ -111,8 +134,11 @@ export function renderMetas() {
           var sinDato = real === null;
           var ok = sinDato ? null : (ind.higher ? (real >= metaM) : (real <= metaM));
           var col = sinDato ? 'var(--tx3)' : ok ? '#22c55e' : '#ef4444';
+          // Motivo probable (Nivel 1, ver "motivos" más arriba) — solo en celdas rojas,
+          // para no ensuciar visualmente las que ya están dentro de meta.
+          var motivo = (!sinDato && !ok && realData[mes] && realData[mes].motivos) ? realData[mes].motivos[ind.id] : '';
           return '<td class="ed" style="color:#3b82f6;text-align:center;font-size:10px" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; if(!m[\'' + ind.id + '\'].meses)m[\'' + ind.id + '\'].meses={}; if(!m[\'' + ind.id + '\'].meses[\'' + mes + '\'])m[\'' + ind.id + '\'].meses[\'' + mes + '\']={}; m[\'' + ind.id + '\'].meses[\'' + mes + '\'].meta=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + metaM + '</td>' +
-            '<td style="text-align:center;font-weight:600;color:' + col + ';font-size:10px">' + (sinDato ? '—' : real) + '</td>';
+            '<td style="text-align:center;font-weight:600;color:' + col + ';font-size:10px' + (motivo ? ';cursor:help;text-decoration:underline dotted' : '') + '"' + (motivo ? ' title="' + escapeHtml(motivo) + '"' : '') + '>' + (sinDato ? '—' : real) + '</td>';
         }).join('') + '</tr>';
     }).join('') +
     '</table></div>';
