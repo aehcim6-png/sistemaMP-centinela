@@ -65,7 +65,7 @@ Al llamar `S.s(categoria, valor)` ocurren, en este orden:
 
 1. **`localStorage`** — se escribe de inmediato, siempre, funcione o no
    internet. El sistema sigue siendo usable sin conexión.
-2. **Supabase** — si la categoría es una de las 34 tablas reales
+2. **Supabase** — si la categoría es una de las 35 tablas reales
    (`TABLA_REAL`/`TABLA_SINGLETON`), se envía sin demora un `upsert` (crear o
    actualizar) más un `delete` de las filas que ya no están — pero antes de
    escribir, se hace un chequeo de conflicto (ver más abajo).
@@ -125,7 +125,7 @@ un paso aparte, todavía no hecho.
 
 ### 6. Estructura de datos en Supabase
 
-34 tablas, una por categoría (equipos, correctivos, registros_pm, etc. —
+35 tablas, una por categoría (equipos, correctivos, registros_pm, etc. —
 incluye `historial_componentes` e `historial_neumaticos`, agregadas en la
 auditoría de agosto 2026 para poder responder "cuánto duró cada instalación
 real" sin perder el dato cada vez que se actualiza el estado actual, y
@@ -140,7 +140,12 @@ listado de categorías que usa el clasificador de correctivos actuales
 encontrar categorías inconsistentes entre fuentes (ej. "Superestructura" vs
 "Soporte de Cabina" para el mismo componente real) y, en la fuente
 WhatsApp, 201 registros donde ese campo había quedado con el mensaje
-original en vez de una categoría), más 7 "singleton" de
+original en vez de una categoría), y `compromisos` (2026-08-31): loop de
+responsabilidad de Metas & KPIs — qué acción se comprometió, quién es
+responsable y para cuándo, frente a un indicador rojo o con alerta de
+tendencia; se evalúa sola contra el valor del indicador cuando se creó
+(ver `modules/renders/metas.js`, `verCadenaCausas`/`abrirFormCompromiso`),
+más 7 "singleton" de
 configuración (una sola fila fija: `configuracion`, `tarifa_hh`, `metas`,
 etc.). El mapeo completo entre cada categoría del frontend y su tabla real
 vive en `TABLA_REAL`/`TABLA_SINGLETON`, dentro de `modules/store.js`.

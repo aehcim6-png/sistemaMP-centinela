@@ -109,11 +109,12 @@ para no crecer sin límite y comerse cuota del plan gratis.
 
 ## 4. Base de datos (Supabase)
 
-- **34 tablas reales** (una por categoría: `equipos`, `correctivos`,
+- **35 tablas reales** (una por categoría: `equipos`, `correctivos`,
   `registros_pm`, etc. — incluye `historial_componentes` e
-  `historial_neumaticos`, agregadas en agosto 2026, y `correctivos_historico`
+  `historial_neumaticos`, agregadas en agosto 2026, `correctivos_historico`
   (agosto 2026, planillas Excel 2022-2025 previas a este sistema, alimenta
-  Probabilidad de Falla en Predictivo)) + 7 tablas "singleton" de
+  Probabilidad de Falla en Predictivo), y `compromisos` (2026-08-31, loop de
+  responsabilidad de Metas & KPIs)) + 7 tablas "singleton" de
   configuración. El mapeo completo vive en `TABLA_REAL`/`TABLA_SINGLETON`
   dentro de `modules/store.js`.
 - **El schema está versionado como código** en `supabase/migrations/*.sql`.

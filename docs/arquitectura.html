@@ -98,7 +98,7 @@
   <p>Al llamar <code>S.s(categoria, valor)</code> ocurren, en este orden:</p>
   <ol>
     <li><b>localStorage</b> — se escribe de inmediato, siempre, funcione o no internet.</li>
-    <li><b>Supabase</b> — si la categoría es una de las 34 tablas reales, se envía sin demora un
+    <li><b>Supabase</b> — si la categoría es una de las 35 tablas reales, se envía sin demora un
     <code>upsert</code> más un <code>delete</code> de filas eliminadas — pero antes se hace un
     chequeo de conflicto (ver más abajo).</li>
     <li><b>Carpeta de respaldo</b> (opcional) — si alguien conectó una carpeta local, 5 segundos
@@ -134,11 +134,14 @@
   crear/editar/eliminar para este rol — queda para un paso aparte.</p>
 
   <h3>6. Estructura de datos en Supabase</h3>
-  <p>34 tablas, una por categoría (incluye historial_componentes e historial_neumaticos, agregadas
-  en agosto 2026 para no perder "cuánto duró cada instalación real", y correctivos_historico,
+  <p>35 tablas, una por categoría (incluye historial_componentes e historial_neumaticos, agregadas
+  en agosto 2026 para no perder "cuánto duró cada instalación real", correctivos_historico,
   cargada en agosto 2026 desde 3 fuentes previas a este sistema — 3.285 registros: 1.180 de
   órdenes de trabajo Excel, 1.680 de planillas "Disponibilidad Mecánica" 2021-2024 (sumadas
-  2026-08-26) y 425 de WhatsApp histórico — para alimentar Probabilidad de Falla), más 7
+  2026-08-26) y 425 de WhatsApp histórico — para alimentar Probabilidad de Falla, y compromisos
+  (2026-08-31): loop de responsabilidad de Metas & KPIs — qué acción se comprometió, quién es
+  responsable y para cuándo, frente a un indicador rojo o con alerta de tendencia; se evalúa
+  sola contra el valor del indicador cuando se creó), más 7
   "singleton" de configuración. Las 3 fuentes comparten el mismo listado de categorías de
   componente (<code>_CATEGORIAS_COMPONENTE</code> en <code>pred.js</code>) que usa el
   clasificador de correctivos actuales — reconciliadas 2026-08-26 (categorías inconsistentes

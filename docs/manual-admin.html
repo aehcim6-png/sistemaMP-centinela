@@ -108,10 +108,11 @@
   90 días con un cron diario.</p>
 
   <h2>4. Base de datos (Supabase)</h2>
-  <p><b>34 tablas reales</b> (incluye <code>historial_componentes</code> e
-  <code>historial_neumaticos</code>, agregadas en agosto 2026, y
+  <p><b>35 tablas reales</b> (incluye <code>historial_componentes</code> e
+  <code>historial_neumaticos</code>, agregadas en agosto 2026,
   <code>correctivos_historico</code>, agosto 2026, planillas Excel 2022-2025 previas a este
-  sistema, alimenta Probabilidad de Falla en Predictivo) + 7 "singleton" de configuración.
+  sistema, alimenta Probabilidad de Falla en Predictivo, y <code>compromisos</code>
+  (2026-08-31, loop de responsabilidad de Metas & KPIs)) + 7 "singleton" de configuración.
   El mapeo vive en
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.</p>
   <p><b>El schema está versionado como código</b> en <code>supabase/migrations/*.sql</code>.
