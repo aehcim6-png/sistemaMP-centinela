@@ -19,6 +19,23 @@ export function renderMetas() {
     { id: 'mtbf', name: 'MTBF Mínimo (hrs)', meta: 2000, unit: 'h', higher: true },
     { id: 'backlog', name: 'OT Pendientes Máx', meta: 5, unit: '', higher: false }
   ];
+  // Nivel 2 de "conectar los números" (control de gestión): mapa de dependencias
+  // declarado a mano — qué indicador es causa CONOCIDA de cuál, según su propia
+  // fórmula (ratio/mtbf se calculan directo desde correctivosDelMes; gasto desde hh)
+  // o la relación operativa evidente (correctivos compiten por horas de taller, así
+  // que empujan pms/disp/backlog). No es un motor que infiera causalidad de los
+  // datos — es la misma cadena que ya describen los comentarios de este archivo,
+  // ahora usada para comparar cada causa contra el mes anterior (ver el render).
+  // cumpl no tiene causa declarada entre estos 8: no depende de ninguno de ellos.
+  var DEP_MAP = {
+    ratio: [{ id: 'correctivosDelMes', label: 'Correctivos del mes' }],
+    mtbf: [{ id: 'correctivosDelMes', label: 'Correctivos del mes' }],
+    pms: [{ id: 'correctivosDelMes', label: 'Correctivos del mes' }],
+    disp: [{ id: 'correctivosDelMes', label: 'Correctivos del mes' }, { id: 'backlog', label: 'OT pendientes' }],
+    hh: [{ id: 'pms', label: 'PM ejecutados' }],
+    gasto: [{ id: 'hh', label: 'HH del mes' }],
+    backlog: [{ id: 'correctivosDelMes', label: 'Correctivos del mes' }]
+  };
   var metasAntes = JSON.stringify(metas);
   // Auto-calculate REAL values per month
   var realData = {};
@@ -137,6 +154,19 @@ export function renderMetas() {
           // Motivo probable (Nivel 1, ver "motivos" más arriba) — solo en celdas rojas,
           // para no ensuciar visualmente las que ya están dentro de meta.
           var motivo = (!sinDato && !ok && realData[mes] && realData[mes].motivos) ? realData[mes].motivos[ind.id] : '';
+          // Nivel 2: si el indicador tiene causas declaradas (DEP_MAP) y hay dato del
+          // mes anterior, se agrega cómo se movió cada causa — no afirma "por eso bajó",
+          // solo muestra el número antes/después para que la persona saque su propia
+          // conclusión (correlación conocida por fórmula/operación, no inferida).
+          if (motivo && mi > 0 && DEP_MAP[ind.id] && realData[MSN[mi - 1]]) {
+            var mesAnt = MSN[mi - 1];
+            var clausulas = [];
+            DEP_MAP[ind.id].forEach(function (dep) {
+              var antes = realData[mesAnt][dep.id], ahora = realData[mes][dep.id];
+              if (antes != null && ahora != null && antes !== ahora) clausulas.push(dep.label + ': ' + antes + ' → ' + ahora);
+            });
+            if (clausulas.length) motivo += ' · vs. mes anterior: ' + clausulas.join(', ');
+          }
           return '<td class="ed" style="color:#3b82f6;text-align:center;font-size:10px" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; if(!m[\'' + ind.id + '\'].meses)m[\'' + ind.id + '\'].meses={}; if(!m[\'' + ind.id + '\'].meses[\'' + mes + '\'])m[\'' + ind.id + '\'].meses[\'' + mes + '\']={}; m[\'' + ind.id + '\'].meses[\'' + mes + '\'].meta=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + metaM + '</td>' +
             '<td style="text-align:center;font-weight:600;color:' + col + ';font-size:10px' + (motivo ? ';cursor:help;text-decoration:underline dotted' : '') + '"' + (motivo ? ' title="' + escapeHtml(motivo) + '"' : '') + '>' + (sinDato ? '—' : real) + '</td>';
         }).join('') + '</tr>';
