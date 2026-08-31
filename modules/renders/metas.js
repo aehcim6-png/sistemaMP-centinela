@@ -153,8 +153,10 @@ export function renderMetas() {
   // snapshot recién calculado — se guarda acá (ya con hMFlota, para que el chequeo
   // especial de MTBF de abajo también pueda usarse fuera de esta función) en vez
   // de recalcularlo de nuevo al abrir el modal, para que muestre exactamente lo
-  // que la persona está viendo en la tabla en ese momento.
-  window._metasCadena = { realData: realData, DEP_MAP: DEP_MAP, indicators: indicators, MSN: MSN, hMFlota: hMFlota };
+  // que la persona está viendo en la tabla en ese momento. alertasTendencia se
+  // agrega más abajo, después de calcularse — resumenejec.js (Resumen Ejecutivo)
+  // lee este mismo snapshot en vez de duplicar el cálculo.
+  window._metasCadena = { realData: realData, DEP_MAP: DEP_MAP, indicators: indicators, MSN: MSN, hMFlota: hMFlota, mesActualIdx: mesActualIdx };
   function serieReciente(id, maxLen) {
     var i = mesActualIdx;
     while (i >= 0 && valorIndicador(id, MSN[i]) == null) i--; // ancla en el último mes CON dato
@@ -193,6 +195,7 @@ export function renderMetas() {
     alertasTendencia.push(ind.name + ' lleva ' + (serie.length - 1) + ' mes(es) seguidos empeorando: ' + serie.join(' → ') +
       (causasEnRacha.length ? ' — junto con ' + causasEnRacha.map(function (d) { return d.label }).join(' y ') + ', que también viene subiendo' : '') + '.');
   });
+  window._metasCadena.alertasTendencia = alertasTendencia;
   var tendenciaHtml = alertasTendencia.length ?
     '<div style="background:rgba(239,68,68,.06);border:1px solid var(--danger);border-radius:8px;padding:12px 16px;margin-bottom:14px">' +
     '<b style="color:var(--danger);font-size:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Tendencia — antes de que se ponga roja</b>' +
