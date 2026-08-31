@@ -209,9 +209,11 @@ perderse o insertarse como si fuera un dato certero.
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
   y un despliegue automático a `sistema-mp-centinela.vercel.app`.
-- El build no transforma el código JavaScript — solo empaqueta `index.html`
-  y copia `logic.js`, `vendor/*.js` y toda la carpeta `modules/` tal cual
-  (ver `vite.config.js`).
+- El build sí transforma `modules/renders/*.js` (43 archivos, módulos ES
+  reales desde la migración de Fase 3, 2026-08-30): Vite los bundlea y
+  minifica en un único archivo. `logic.js`, `vendor/*.js` y `modules/store.js`
+  siguen siendo scripts planos a propósito — Vite los copia tal cual, sin
+  tocarlos (ver `vite.config.js`).
 - **Si un despliegue sale mal**: en el panel de Vercel se puede volver
   ("Promote to Production") a cualquier despliegue anterior con un clic —
   no hace falta revertir código a mano bajo presión.
@@ -225,17 +227,19 @@ perderse o insertarse como si fuera un dato certero.
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43 en total)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43, módulos ES reales)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
                             whatsapp-webhook, email-webhook, registrar-intento-acceso,
                             _shared/ parser común)
-tests/                   — pruebas de logic.js y store.js (Vitest, 448 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 533 casos)
 docs/                    — esta carpeta
 ```
 
-Cada módulo de `modules/renders/` es autocontenido: define su
-`window.render<Tab>` más los botones/formularios exclusivos de esa pestaña.
+Cada módulo de `modules/renders/` es autocontenido: exporta su
+`render<Tab>` (y también lo deja en `window.render<Tab>`, porque el HTML
+generado usa `onclick="..."` que no ve bindings de un módulo) más los
+botones/formularios exclusivos de esa pestaña.
 Las funciones realmente compartidas entre pestañas (helpers de fecha,
 `escapeHtml`, el motor de voz genérico, etc.) quedan en `index.html` a
 propósito.

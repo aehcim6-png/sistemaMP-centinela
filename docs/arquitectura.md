@@ -25,33 +25,40 @@ framework nuevo a mitad de camino.
   pestañas que no encajaba en un módulo propio (autoguardado a carpeta local,
   auditoría, MFA, gestión de usuarios).
 - **`modules/renders/*.js`** (43 archivos) — un archivo por pestaña o
-  sub-pestaña del sistema. Cada uno define `window.render<Tab>` (la función
-  que dibuja esa pantalla) más los botones/formularios exclusivos de esa
-  pestaña. Son scripts planos (`<script src="...">`), no módulos ES —
-  comparten el mismo espacio de variables globales que el resto del sistema,
-  a propósito, para no arriesgar un cambio de semántica de JavaScript a
-  mitad de una migración.
+  sub-pestaña del sistema. Cada uno exporta su función de dibujo
+  (`export function render<Tab>()`) y también la deja en
+  `window.render<Tab>` — el puente hace falta porque el HTML generado usa
+  `onclick="..."` con nombres de función simples, que no ven bindings de un
+  módulo. Son módulos ES reales (`<script type="module">`) desde la
+  migración de Fase 3 (2026-08-30): se convirtieron uno por uno, cada uno
+  probado (tests + build + Playwright) antes de fusionar, en vez de todos a
+  la vez — el riesgo que antes hacía preferible mantenerlos como scripts
+  planos. `logic.js` y `modules/store.js` siguen siendo scripts planos a
+  propósito (ver sección 2).
 - **`modules/store.js`** — el motor de sincronización (ver sección 3).
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
   materiales, etc. Junto con `store.js`, son los archivos con pruebas
-  automatizadas (`tests/*.test.js`, 448 casos, corren con Vitest).
+  automatizadas (`tests/*.test.js`, 533 casos, corren con Vitest).
 
 ### 2. Dónde vive — Vercel
 
 [Vercel](https://vercel.com) sirve los archivos estáticos (no hay servidor
 propio corriendo en ningún lado). Cada push a la rama `main` dispara un build
-(`vite build`) y un despliegue nuevo automático. `vite.config.js` tiene un
-plugin chico que copia `logic.js`, `vendor/*.js` y toda la carpeta `modules/`
-al resultado del build, ya que Vite por diseño no "empaqueta" scripts que no
-son módulos ES.
+(`vite build`) y un despliegue nuevo automático. Vite bundlea y minifica de
+verdad los ~43 módulos ES de `modules/renders/*.js` en un único archivo
+(`dist/assets/index-*.js`), siguiendo el grafo de imports desde
+`index.html`. `logic.js` y `modules/store.js` siguen siendo scripts planos
+(sin `type="module"`) a propósito, así que Vite no los toca por diseño —
+`vite.config.js` tiene un plugin chico que los copia tal cual al resultado
+del build (junto con `vendor/*.js` y `docs/`).
 
 ### 3. El motor de sincronización — `modules/store.js`
 
 Todo el sistema lee y escribe datos a través de dos únicas funciones:
 `S.g(categoria)` (leer) y `S.s(categoria, valor)` (guardar). Ninguna pantalla
 llama directo a Supabase — todas pasan por acá, lo que permite que el resto
-del sistema (más de 550 llamadas repartidas en las 40 pestañas) nunca
+del sistema (más de 550 llamadas repartidas en las 43 pestañas) nunca
 necesite saber cómo ni dónde se guardan realmente los datos.
 
 Al llamar `S.s(categoria, valor)` ocurren, en este orden:
@@ -345,13 +352,15 @@ la pestaña correspondiente puede usar el OCR).
 
 ## Lo que decidimos NO hacer (y por qué)
 
-- **No convertir a módulos ES**: cambiar `<script>` planos a
-  `type="module"` cambia reglas de JavaScript (modo estricto, alcance,
-  `this`) en miles de líneas a la vez — mucho riesgo para cero beneficio
-  real hoy.
 - **No backend propio**: agregar un servidor Node/Express entre el
   navegador y Supabase solo se justifica si aparece una razón concreta (una
   regla de negocio que RLS no pueda expresar, un secreto que ni RLS proteja,
   pasos que necesiten reintentos transaccionales reales). Hoy no existe esa
   razón — el patrón ya usado (`crear-operador`) alcanza para lo que hace
   falta.
+
+**Ya hecho, no pendiente**: convertir `modules/renders/*.js` a módulos ES
+(antes en esta lista como "no hacer" por el riesgo de cambiar reglas de
+JavaScript en miles de líneas a la vez) se hizo igual, pero incremental — un
+archivo a la vez, cada uno probado antes de fusionar (Fase 3, completada
+2026-08-30). Ver sección 1.

@@ -185,8 +185,10 @@
   <h2>7. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
-    <li>El build no transforma JavaScript — solo empaqueta <code>index.html</code> y copia
-    <code>logic.js</code>, <code>vendor/*.js</code>, <code>modules/</code> y <code>docs/</code> tal cual.</li>
+    <li>El build sí transforma <code>modules/renders/*.js</code> (43 archivos, módulos ES reales
+    desde la Fase 3, 2026-08-30): Vite los bundlea y minifica en un único archivo.
+    <code>logic.js</code>, <code>vendor/*.js</code> y <code>modules/store.js</code> siguen siendo
+    scripts planos a propósito — Vite los copia tal cual, junto con <code>docs/</code>.</li>
     <li><b>Si un despliegue sale mal</b>: en Vercel se puede volver ("Promote to Production") a
     cualquier despliegue anterior con un clic.</li>
     <li><b>Antes de fusionar algo grande a main</b>: siempre se prueba primero en el preview
@@ -197,12 +199,12 @@
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43 en total)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43, módulos ES reales)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
                             whatsapp-webhook, email-webhook, registrar-intento-acceso,
                             _shared/ parser común)
-tests/                   — pruebas de logic.js y store.js (Vitest, 448 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 533 casos)
 docs/                    — esta documentación</pre>
 
   <h2>9. Si algo se rompe — por dónde empezar</h2>
