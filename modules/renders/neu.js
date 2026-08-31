@@ -181,7 +181,7 @@ export function renderNeu(){
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
-            <button class="btn-s" style="background:rgba(245,158,11,.15);color:#f59e0b" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">📍</button>
+            <button class="btn-s" style="background:rgba(245,158,11,.15);color:var(--ac)" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">📍</button>
             <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialNeu(${i})" title="Historial de este neumático (equipos/posiciones por los que pasó)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg></button>
           </td>
         </tr>`;
@@ -892,7 +892,7 @@ export function histPosicion(sigla,posNum,numPos){
     svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;background:var(--bg3);border-radius:8px;margin:12px 0">
       <rect x="${padL}" y="${py(10)}" width="${plotW}" height="${H-padB-py(10)}" fill="rgba(239,68,68,0.10)"/>
       ${grid}
-      <line x1="${padL}" y1="${py(10)}" x2="${W-padR}" y2="${py(10)}" stroke="#ef4444" stroke-width="1.5"/>
+      <line x1="${padL}" y1="${py(10)}" x2="${W-padR}" y2="${py(10)}" stroke="var(--danger)" stroke-width="1.5"/>
       <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>
       <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>
       ${lineas}
@@ -1005,7 +1005,7 @@ export function verDetalleNeu(neuIdx){
       <rect x="${padL}" y="${py(remRet)}" width="${plotW}" height="${H-padB-py(remRet)}" fill="rgba(239,68,68,0.10)"/>
       ${c.remRotar?`<rect x="${padL}" y="${py(c.remRotar)}" width="${plotW}" height="${py(remRet)-py(c.remRotar)}" fill="rgba(250,204,21,0.08)"/>`:''}
       ${grid}
-      <line x1="${padL}" y1="${py(remRet)}" x2="${W-padR}" y2="${py(remRet)}" stroke="#ef4444" stroke-width="1.5"/>
+      <line x1="${padL}" y1="${py(remRet)}" x2="${W-padR}" y2="${py(remRet)}" stroke="var(--danger)" stroke-width="1.5"/>
       ${c.remRotar?`<line x1="${padL}" y1="${py(c.remRotar)}" x2="${W-padR}" y2="${py(c.remRotar)}" stroke="#facc15" stroke-width="1.5"/>`:''}
       <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>
       <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--tx3)" stroke-width="1"/>

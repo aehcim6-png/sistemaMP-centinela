@@ -272,7 +272,7 @@ export function renderPlan(){
     <div class="sec-h"><div><div class="sec-t">🗓️ Planificador de Materiales y Costos</div>
       <div class="sec-s">Proyección de filtros, aceite, lubricantes y costo · ${pmsEnPeriodo.length} PM en ${periodo==='calendario'?['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][(window._planMesCal||(hoy.getMonth()+1))-1]+' '+(window._planAnioCal||hoy.getFullYear()):periodo}</div></div>
       <button class="btn btn-o" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Histórico consumido</button>
-      <button class="btn" style="background:var(--warn,#eab308);color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button>
+      <button class="btn" style="background:var(--warn,var(--warn));color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button>
     </div>
     ${flujoHtml}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${btnVista}</div>

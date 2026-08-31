@@ -106,7 +106,7 @@ export function renderBuscar(){
     var horasPeriodoEq=eqObj?(eqObj.hrsDia||12)*30:null;
     var confiabilidadPct=confiabilidadReal(mtbfEq,horasPeriodoEq);
     var scoreEq=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
-    var scoreCol=scoreEq.valor==null?'var(--bd)':scoreEq.valor>=80?'#22c55e':scoreEq.valor>=55?'#f59e0b':'#ef4444';
+    var scoreCol=scoreEq.valor==null?'var(--bd)':scoreEq.valor>=80?'var(--ok)':scoreEq.valor>=55?'var(--ac)':'var(--danger)';
     // Tendencia — el Dashboard es quien guarda el snapshot diario por equipo
     // (saludEquipoHist) cada vez que se abre; acá solo se lee, con el mismo
     // registrarSnapshotSalud/tendenciaSaludSemanal que ya usa la Tendencia del
@@ -137,13 +137,13 @@ export function renderBuscar(){
     '<div style="font-size:38px;font-weight:900;color:'+scoreCol+';line-height:1;margin:2px 0">'+(scoreEq.valor==null?'—':scoreEq.valor)+(scoreEq.valor==null?'':'<span style="font-size:16px">%</span>')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(scoreEq.n?scoreEq.n+' de 4 señales con dato':'sin datos suficientes')+'</div>'+
     (tendenciaEq&&tendenciaEq.delta!=null?
-      '<div style="font-size:11px;font-weight:600;margin-top:2px;color:'+(tendenciaEq.delta>0?'#22c55e':tendenciaEq.delta<0?'#ef4444':'var(--tx3)')+'">'+(tendenciaEq.delta>0?'▲':tendenciaEq.delta<0?'▼':'→')+' '+Math.abs(tendenciaEq.delta)+' pts vs hace 7 días</div>'
+      '<div style="font-size:11px;font-weight:600;margin-top:2px;color:'+(tendenciaEq.delta>0?'var(--ok)':tendenciaEq.delta<0?'var(--danger)':'var(--tx3)')+'">'+(tendenciaEq.delta>0?'▲':tendenciaEq.delta<0?'▼':'→')+' '+Math.abs(tendenciaEq.delta)+' pts vs hace 7 días</div>'
       :(scoreEq.valor!=null?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">Sin dato de hace 7 días aún</div>':''))+
     (motivoEq?'<div style="font-size:10px;color:var(--tx2);margin-top:4px">Principal causa: <b>'+escapeHtml(motivoEq.nombre)+'</b> ('+motivoEq.valor+'%)</div>':'')+
     '</div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">'+
     scoreEq.detalle.map(function(c){
-      var col=c.valor==null?'var(--tx3)':c.valor>=80?'#22c55e':c.valor>=55?'#f59e0b':'#ef4444';
+      var col=c.valor==null?'var(--tx3)':c.valor>=80?'var(--ok)':c.valor>=55?'var(--ac)':'var(--danger)';
       return '<div style="background:var(--bg4);border-radius:8px;padding:6px 12px;text-align:center;min-width:84px">'+
         '<div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">'+c.nombre+'</div>'+
         '<div style="font-size:15px;font-weight:700;color:'+col+'">'+(c.valor==null?'—':c.valor+'%')+'</div></div>';

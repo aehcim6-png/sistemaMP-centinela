@@ -95,7 +95,7 @@ function _medirUsoLocal(){
   var totalBytes=0;for(var k in localStorage){if(localStorage.hasOwnProperty(k))totalBytes+=(localStorage[k].length||0)*2;}
   var limite=5*1024*1024;
   var pct=Math.min(100,totalBytes/limite*100);
-  var col=pct>80?'#ef4444':pct>50?'#f59e0b':'#22c55e';
+  var col=pct>80?'var(--danger)':pct>50?'var(--ac)':'var(--ok)';
   return{totalBytes:totalBytes,pct:pct,col:col};
 }
 
@@ -117,12 +117,12 @@ export function renderCfg(){
       var dataInt={eq:S.g('eq')||[],reg:S.g('reg')||[],hist:S.g('hist')||[],stk:S.g('stk')||[],repuestos:S.g('repuestos')||[],lub:S.g('lub')||[],ordenes:S.g('ordenes')||[],compMayores:S.g('compMayores')||[],dispCalc:S.g('dispCalc')||{}};
       var hallazgos=verificarIntegridad(dataInt);
       var altaCount=hallazgos.filter(function(h){return h.severidad==='alta';}).length;
-      var intCol=altaCount?'var(--danger)':hallazgos.length?'#eab308':'#22c55e';
+      var intCol=altaCount?'var(--danger)':hallazgos.length?'var(--warn)':'var(--ok)';
       var intVal=altaCount?altaCount+' alta(s)':hallazgos.length?hallazgos.length+' media':'Sin hallazgos';
       var uso=_medirUsoLocal();
       return '<div class="cards" style="margin-bottom:16px">'+
         '<div class="card" style="border-left:4px solid '+intCol+'"><div class="card-t">🔍 Integridad</div><div class="card-v" style="font-size:16px;color:'+intCol+'">'+intVal+'</div><div class="card-s">'+hallazgos.length+' hallazgo(s) en total</div></div>'+
-        '<div class="card" style="border-left:4px solid '+(papelera?'#f59e0b':'#22c55e')+'"><div class="card-t">🗑️ Papelera</div><div class="card-v">'+papelera+'</div><div class="card-s">elemento(s), 30 días</div></div>'+
+        '<div class="card" style="border-left:4px solid '+(papelera?'var(--ac)':'var(--ok)')+'"><div class="card-t">🗑️ Papelera</div><div class="card-v">'+papelera+'</div><div class="card-s">elemento(s), 30 días</div></div>'+
         '<div class="card" style="border-left:4px solid '+uso.col+'"><div class="card-t">💾 Datos locales</div><div class="card-v" style="font-size:16px;color:'+uso.col+'">'+uso.pct.toFixed(1)+'%</div><div class="card-s">'+(uso.totalBytes/1048576).toFixed(2)+' MB de 5 MB</div></div>'+
         '<div class="card" style="border-left:4px solid '+(window._clStatusColor||'var(--tx3)')+'"><div class="card-t">☁️ Sync nube</div><div class="card-v" style="font-size:13px">'+(window._clStatusTxt||'⚪ Sin configurar')+'</div><div class="card-s">Supabase</div></div>'+
         '<div class="card" style="border-left:4px solid '+(window._asStatusColor||'var(--tx3)')+'"><div class="card-t">📂 Backup local</div><div class="card-v" style="font-size:13px">'+(window._asStatusTxt||'⚪ Sin carpeta conectada')+'</div><div class="card-s">Carpeta autoguardado</div></div>'+
@@ -166,7 +166,7 @@ export function renderCfg(){
     '</div>'+
 
     // VERIFICACIÓN EN DOS PASOS (MFA/TOTP) — estado se carga aparte, es async
-    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #ef4444" id="mfaCard">'+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--danger)" id="mfaCard">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Verificación en dos pasos</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Además del usuario y la clave, pide un código de 6 dígitos que cambia cada 30 segundos (app tipo Google Authenticator). Así aunque alguien consiga tu clave, no puede entrar sin tu teléfono.</p>'+
     '<div id="mfaEstadoBox" style="font-size:12px;color:var(--tx3)">Revisando estado…</div>'+
@@ -186,7 +186,7 @@ export function renderCfg(){
 
     // PARÁMETROS NEUMÁTICOS
     (function(){const c=S.g('cfg')||{};return ''+
-    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #f59e0b">'+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--ac)">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Parámetros de Neumáticos (CAEX 27.00R49)</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Estos valores ajustan las proyecciones de vida y fechas de cambio. La vida útil es variable según TKPH, rutas y proveedor — ajústala a tu campaña real.</p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'+
@@ -202,7 +202,7 @@ export function renderCfg(){
     // de Supabase (env var ALERTA_PM_DESTINATARIOS); ahora cualquier admin la
     // edita acá. Si queda vacío, alerta-pm sigue usando esa env var de respaldo.
     (window._userRole==='admin'?(function(){const c=S.g('cfg')||{};return ''+
-    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #f59e0b">'+
+    '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--ac)">'+
     '<b style="font-size:14px">📧 Alertas por Correo</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Correos que reciben el resumen diario automático (PM urgente, stock crítico, vencimientos y backlog pendiente). Separar varios con coma.</p>'+
     '<input id="cfgAlertaEmails" type="text" value="'+escapeHtml(c.alertaEmails||'')+'" placeholder="correo1@empresa.com, correo2@empresa.com" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
@@ -297,7 +297,7 @@ export function renderCfg(){
       '<option value="system-ui,sans-serif">System (default)</option><option value="Arial,sans-serif">Arial</option><option value="Verdana,sans-serif">Verdana</option><option value="Courier New,monospace">Monospace</option></select></div>'+
       '<div><label style="font-size:11px;color:var(--tx3)">Color de acento</label><br>'+
       '<div style="display:flex;gap:6px;margin-top:4px">'+
-      ['#f59e0b','#3b82f6','#22c55e','#ef4444','#8b5cf6','#ec4899','#06b6d4'].map(function(c){
+      ['var(--ac)','var(--info)','var(--ok)','var(--danger)','#8b5cf6','#ec4899','#06b6d4'].map(function(c){
         return'<div onclick="document.documentElement.style.setProperty(\'--ac\',\''+c+'\');var cfg=S.g(\'cfg\')||{};cfg.colorAc=\''+c+'\';S.s(\'cfg\',cfg);toast(\'✅ Color guardado\')" style="width:24px;height:24px;border-radius:50%;background:'+c+';cursor:pointer;border:2px solid var(--bd)"></div>';
       }).join('')+'</div></div>'+
       '</div>'+
@@ -408,7 +408,7 @@ async function _refrescarEstadoMFA(){
 
 // ---- VERIFICADOR DE INTEGRIDAD ----
 var SEV_LABEL={alta:'🔴 Alta — dato imposible en sí mismo',media:'🟡 Media — inconsistencia entre campos, revisar'};
-var SEV_COLOR={alta:'var(--danger)',media:'#eab308'};
+var SEV_COLOR={alta:'var(--danger)',media:'var(--warn)'};
 export function ejecutarVerificacionIntegridad(){
   var box=$('integridadResultado');
   if(box)box.innerHTML='<span style="font-size:11px;color:var(--tx3)">Verificando…</span>';

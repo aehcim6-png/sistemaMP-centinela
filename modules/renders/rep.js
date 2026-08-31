@@ -101,9 +101,9 @@ export function renderRep() {
 
     // Semáforo resumen
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">' +
-    '<div class="card" style="cursor:pointer;border-left:3px solid #ef4444" onclick="$(\'fRepEst\').value=\'rojo\';window._pag.rep=1;renders.rep()"><div class="card-t">🔴 Sin Stock / Pedir</div><div class="card-v" style="color:#ef4444">' + rojos + '</div><div class="card-s">Acción inmediata</div></div>' +
-    '<div class="card" style="cursor:pointer;border-left:3px solid #f59e0b" onclick="$(\'fRepEst\').value=\'amarillo\';window._pag.rep=1;renders.rep()"><div class="card-t">🟡 Stock Bajo</div><div class="card-v" style="color:#f59e0b">' + amarillos + '</div><div class="card-s">Planificar compra</div></div>' +
-    '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fRepEst\').value=\'verde\';window._pag.rep=1;renders.rep()"><div class="card-t">🟢 Stock OK</div><div class="card-v" style="color:#22c55e">' + verdes + '</div><div class="card-s">Sin acción</div></div>' +
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--danger)" onclick="$(\'fRepEst\').value=\'rojo\';window._pag.rep=1;renders.rep()"><div class="card-t">🔴 Sin Stock / Pedir</div><div class="card-v" style="color:var(--danger)">' + rojos + '</div><div class="card-s">Acción inmediata</div></div>' +
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fRepEst\').value=\'amarillo\';window._pag.rep=1;renders.rep()"><div class="card-t">🟡 Stock Bajo</div><div class="card-v" style="color:var(--ac)">' + amarillos + '</div><div class="card-s">Planificar compra</div></div>' +
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--ok)" onclick="$(\'fRepEst\').value=\'verde\';window._pag.rep=1;renders.rep()"><div class="card-t">🟢 Stock OK</div><div class="card-v" style="color:var(--ok)">' + verdes + '</div><div class="card-s">Sin acción</div></div>' +
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fRepEst\').value=\'\';window._pag.rep=1;renders.rep()"><div class="card-t">Total</div><div class="card-v">' + rep.length + '</div><div class="card-s">Todos</div></div>' +
     '</div>' +
 

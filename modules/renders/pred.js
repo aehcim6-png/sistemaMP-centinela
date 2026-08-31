@@ -746,7 +746,7 @@ export function renderPred(){
 
   // ═══ BUILD VIEWS ═══
   var content='';
-  var pc=['#3b82f6','#ef4444','#22c55e','#f59e0b','#06b6d4','#8b5cf6','#ec4899','#f97316','#84cc16','#14b8a6'];
+  var pc=['var(--info)','var(--danger)','var(--ok)','var(--ac)','#06b6d4','#8b5cf6','#ec4899','#f97316','#84cc16','#14b8a6'];
 
   if(fVista==='general'){
     var carga=proyeccionCarga();
@@ -873,7 +873,7 @@ export function renderPred(){
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">'+
       '<div class="chart-box"><div class="chart-t">Pedidos/Mes</div><div class="bars">'+E.trend.map(function(t){
         var tipTxt=t.m+': '+t.n+' pedidos';
-        return'<div class="bar-c"><div class="bar-v">'+(t.n||'')+'</div><div class="bar" style="height:'+Math.max(t.n/maxN*100,3)+'%;background:#3b82f6;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+t.m.slice(5)+'</div></div>';
+        return'<div class="bar-c"><div class="bar-v">'+(t.n||'')+'</div><div class="bar" style="height:'+Math.max(t.n/maxN*100,3)+'%;background:var(--info);cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"></div><div class="bar-l">'+t.m.slice(5)+'</div></div>';
       }).join('')+'</div></div>'+
       '<div class="chart-box"><div class="chart-t">Costo/Mes</div><div class="bars">'+E.trend.map(function(t){
         var tipTxt=t.m+': $'+fn(Math.round(t.c));

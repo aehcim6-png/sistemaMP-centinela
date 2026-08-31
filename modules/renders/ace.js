@@ -106,9 +106,9 @@ export function renderAce(){
     alertasPersistentesHTML+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #22c55e" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:#22c55e">'+normal+'</div></div>'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #f59e0b" onclick="$(\'fAceEst\').value=\'PRECAUCION\';window._pag.ace=1;renders.ace()"><div class="card-t">🟡 Precaución</div><div class="card-v" style="color:#f59e0b">'+precaucion+'</div></div>'+
-    '<div class="card" style="cursor:pointer;border-left:3px solid #ef4444" onclick="$(\'fAceEst\').value=\'ALERTA\';window._pag.ace=1;renders.ace()"><div class="card-t">🔴 Alerta</div><div class="card-v" style="color:#ef4444">'+alerta+'</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--ok)" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:var(--ok)">'+normal+'</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fAceEst\').value=\'PRECAUCION\';window._pag.ace=1;renders.ace()"><div class="card-t">🟡 Precaución</div><div class="card-v" style="color:var(--ac)">'+precaucion+'</div></div>'+
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--danger)" onclick="$(\'fAceEst\').value=\'ALERTA\';window._pag.ace=1;renders.ace()"><div class="card-t">🔴 Alerta</div><div class="card-v" style="color:var(--danger)">'+alerta+'</div></div>'+
     '<div class="card" style="cursor:pointer" onclick="$(\'fAceEst\').value=\'\';window._pag.ace=1;renders.ace()"><div class="card-t">Total</div><div class="card-v">'+ace.length+'</div></div>'+
     '</div>'+
 
@@ -186,7 +186,7 @@ function renderAceDash(ace){
     var largeArc=(endAngle-startAngle)>Math.PI?1:0;
     return'M'+cx+','+cy+' L'+x1+','+y1+' A'+r+','+r+' 0 '+largeArc+' 1 '+x2+','+y2+' Z';
   }
-  var datos=[{v:normal,c:'#22c55e',l:'NORMAL'},{v:precaucion,c:'#eab308',l:'PRECAUCIÓN'},{v:alerta,c:'#ef4444',l:'ALERTA'}];
+  var datos=[{v:normal,c:'var(--ok)',l:'NORMAL'},{v:precaucion,c:'var(--warn)',l:'PRECAUCIÓN'},{v:alerta,c:'var(--danger)',l:'ALERTA'}];
   var ang=-Math.PI/2,svgSlices='';
   datos.forEach(function(d){
     if(d.v===0)return;
@@ -253,9 +253,9 @@ function renderAceDash(ace){
     return '<div style="display:grid;grid-template-columns:140px 1fr 40px;gap:8px;align-items:center;margin-bottom:5px;font-size:11px">'+
       '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx2)" title="'+escapeHtml(item.label)+'">'+escapeHtml(item.label)+'</div>'+
       '<div style="display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--bg4);width:'+Math.max(pctN,8)+'%;gap:2px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
-      (item.a?'<div style="flex:'+item.a+' 1 0;background:#ef4444"></div>':'')+
-      (item.p?'<div style="flex:'+item.p+' 1 0;background:#eab308"></div>':'')+
-      (item.norm?'<div style="flex:'+item.norm+' 1 0;background:#22c55e"></div>':'')+
+      (item.a?'<div style="flex:'+item.a+' 1 0;background:var(--danger)"></div>':'')+
+      (item.p?'<div style="flex:'+item.p+' 1 0;background:var(--warn)"></div>':'')+
+      (item.norm?'<div style="flex:'+item.norm+' 1 0;background:var(--ok)"></div>':'')+
       '</div>'+
       '<div style="text-align:right;color:var(--tx3)">'+item.n+'</div></div>';
   }
@@ -309,7 +309,7 @@ function renderAceDash(ace){
   html+=lubOrdenados.map(function(l){return barraEstado({label:l,n:porLub[l].n,a:porLub[l].a,p:porLub[l].p,norm:porLub[l].norm},maxLub);}).join('');
   html+='</div>';
 
-  html+='<div class="legend" style="margin-top:4px"><i style="background:#22c55e"></i>Normal &nbsp; <i style="background:#eab308"></i>Precaución &nbsp; <i style="background:#ef4444"></i>Alerta</div>';
+  html+='<div class="legend" style="margin-top:4px"><i style="background:var(--ok)"></i>Normal &nbsp; <i style="background:var(--warn)"></i>Precaución &nbsp; <i style="background:var(--danger)"></i>Alerta</div>';
 
   holder.innerHTML=html;
 }

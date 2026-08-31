@@ -244,7 +244,7 @@ export function renderDash(){
   var mesAct=dashPeriodo;
   var dispVals=eq.map(function(e){return dispEquipoMes(e.sigla,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null&&v!==undefined});
   var dispFlota=dispVals.length?Math.round(dispVals.reduce(function(s,v){return s+v},0)/dispVals.length*10)/10:null;
-  var dispCol=dispFlota===null?'var(--tx3)':dispFlota>=meta?'#22c55e':dispFlota>=70?'#f59e0b':'#ef4444';
+  var dispCol=dispFlota===null?'var(--tx3)':dispFlota>=meta?'var(--ok)':dispFlota>=70?'var(--ac)':'var(--danger)';
   var bajoMeta=dispVals.filter(function(v){return v<meta}).length;
   // MTBF del mes — mismo conteo que 'corr' más arriba (contarFallasMes,
   // logic.js), reutilizado en vez de volver a filtrar otConHist.
@@ -393,7 +393,7 @@ export function renderDash(){
     if(JSON.stringify(histSaludNuevo)!==JSON.stringify(histSaludPrevio))S.s('saludFlotaHist',histSaludNuevo);
     tendenciaSalud=tendenciaSaludSemanal(histSaludNuevo,_hoyISO);
   }
-  var saludCol=salud.valor==null?'var(--bd)':salud.valor>=85?'#22c55e':salud.valor>=70?'#f59e0b':'#ef4444';
+  var saludCol=salud.valor==null?'var(--bd)':salud.valor>=85?'var(--ok)':salud.valor>=70?'var(--ac)':'var(--danger)';
 
   // Resumen de turno para WhatsApp (2026-08-24, pedido del usuario): guarda
   // acá lo que copiarResumenTurno() necesita — más simple y sin duplicar
@@ -443,13 +443,13 @@ export function renderDash(){
     '<div style="font-size:48px;font-weight:900;color:'+saludCol+';line-height:1;margin:4px 0">'+(salud.valor==null?'—':salud.valor)+(salud.valor==null?'':'<span style="font-size:20px">%</span>')+'</div>'+
     (esMesActual?
       (tendenciaSalud&&tendenciaSalud.delta!=null?
-        '<div style="font-size:11px;font-weight:600;color:'+(tendenciaSalud.delta>0?'#22c55e':tendenciaSalud.delta<0?'#ef4444':'var(--tx3)')+'">'+(tendenciaSalud.delta>0?'▲':tendenciaSalud.delta<0?'▼':'→')+' '+Math.abs(tendenciaSalud.delta)+' pts vs hace 7 días</div>'
+        '<div style="font-size:11px;font-weight:600;color:'+(tendenciaSalud.delta>0?'var(--ok)':tendenciaSalud.delta<0?'var(--danger)':'var(--tx3)')+'">'+(tendenciaSalud.delta>0?'▲':tendenciaSalud.delta<0?'▼':'→')+' '+Math.abs(tendenciaSalud.delta)+' pts vs hace 7 días</div>'
         :'<div style="font-size:10px;color:var(--tx3)">Sin dato de hace 7 días aún</div>')
       :'<div style="font-size:10px;color:var(--tx3)">Tendencia solo viendo el mes actual</div>')+
     '</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">'+
     salud.detalle.map(function(c){
-      var col=c.valor==null?'var(--tx3)':c.valor>=85?'#22c55e':c.valor>=70?'#f59e0b':'#ef4444';
+      var col=c.valor==null?'var(--tx3)':c.valor>=85?'var(--ok)':c.valor>=70?'var(--ac)':'var(--danger)';
       return '<div style="background:var(--bg4);border-radius:8px;padding:8px 14px;text-align:center;min-width:96px">'+
         '<div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">'+c.nombre+'</div>'+
         '<div style="font-size:17px;font-weight:700;color:'+col+'">'+(c.valor==null?'—':c.valor+'%')+'</div></div>';
@@ -474,29 +474,29 @@ export function renderDash(){
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:10px">'+
 
     // Fila 1: Estado de flota
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid #ef4444">'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid var(--danger)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Urgentes'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
-    '<div style="font-size:32px;font-weight:800;color:#ef4444;line-height:1.2">'+urg.length+'</div>'+
+    '<div style="font-size:32px;font-weight:800;color:var(--danger);line-height:1.2">'+urg.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(urg.length?urg.slice(0,2).map(function(e){return escapeHtml(e.sigla)}).join(', '):(dashFuente==='vivo'?'—':'En '+dashLabel))+'</div></div>'+
 
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid #f59e0b">'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid var(--ac)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Próximas'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
-    '<div style="font-size:32px;font-weight:800;color:#f59e0b;line-height:1.2">'+prox.length+'</div>'+
+    '<div style="font-size:32px;font-weight:800;color:var(--ac);line-height:1.2">'+prox.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(dashFuente==='vivo'?'En plan mensual':dashFuente==='historico'?'Reconstruido desde historial':'Estimado por horas/día')+'</div></div>'+
 
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(cum===null?'var(--bd)':cum>=80?'#22c55e':'#ef4444')+'">'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(cum===null?'var(--bd)':cum>=80?'var(--ok)':'var(--danger)')+'">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px" title="% de PMs/correctivos ejecutados a tiempo o antes de su fecha esperada. Registros sin fecha esperada de referencia (ej. importados por CSV) no se pueden evaluar y quedan fuera del cálculo.">Cumplimiento PM</div>'+
-    '<div style="font-size:32px;font-weight:800;color:'+(cum===null?'var(--tx3)':cum>=80?'#22c55e':'#ef4444')+';line-height:1.2">'+(cum===null?'—':cum+'%')+'</div>'+
+    '<div style="font-size:32px;font-weight:800;color:'+(cum===null?'var(--tx3)':cum>=80?'var(--ok)':'var(--danger)')+';line-height:1.2">'+(cum===null?'—':cum+'%')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(cum===null?'Sin PMs evaluables en '+dashLabel:ant+' de '+regClasifPeriodo.length+' PMs evaluables'+(regMes.length>regClasifPeriodo.length?' ('+(regMes.length-regClasifPeriodo.length)+' sin fecha esperada)':''))+'</div></div>'+
-     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(hasPlanData?(cumProg>=85?'#22c55e':cumProg>=70?'#f59e0b':'#ef4444'):'var(--bd)')+'">'+
+     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(hasPlanData?(cumProg>=85?'var(--ok)':cumProg>=70?'var(--ac)':'var(--danger)'):'var(--bd)')+'">'+
      '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Cumpl. Programa</div>'+
-     '<div style="font-size:32px;font-weight:800;color:'+(hasPlanData?(cumProg>=85?'#22c55e':cumProg>=70?'#f59e0b':'#ef4444'):'var(--tx3)')+';line-height:1.2">'+(hasPlanData?cumProg+'%':'—')+'</div>'+
+     '<div style="font-size:32px;font-weight:800;color:'+(hasPlanData?(cumProg>=85?'var(--ok)':cumProg>=70?'var(--ac)':'var(--danger)'):'var(--tx3)')+';line-height:1.2">'+(hasPlanData?cumProg+'%':'—')+'</div>'+
      '<div style="font-size:9px;color:var(--tx3)">'+(hasPlanData?progEjec+' de '+progPlan+' a tiempo':'Cerrar semanas en Plan Semanal')+'</div></div>'+
 
     // Fila 2: Indicadores técnicos
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(mtbfFlota?(mtbfFlota>2000?'#22c55e':mtbfFlota>500?'#f59e0b':'#ef4444'):'var(--bd)')+'" title="MTBF real de flota: promedio del intervalo real entre fallas sucesivas de cada equipo (horómetro registrado en cada falla), con todo su historial — no se acota al mes elegido, un solo mes casi nunca tiene fallas suficientes para un promedio representativo. Fórmula estándar RAM/ISO 14224.">'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(mtbfFlota?(mtbfFlota>2000?'var(--ok)':mtbfFlota>500?'var(--ac)':'var(--danger)'):'var(--bd)')+'" title="MTBF real de flota: promedio del intervalo real entre fallas sucesivas de cada equipo (horómetro registrado en cada falla), con todo su historial — no se acota al mes elegido, un solo mes casi nunca tiene fallas suficientes para un promedio representativo. Fórmula estándar RAM/ISO 14224.">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">MTBF Real de Flota</div>'+
-    '<div style="font-size:28px;font-weight:800;color:'+(mtbfFlota?(mtbfFlota>2000?'#22c55e':mtbfFlota>500?'#f59e0b':'#ef4444'):'var(--tx3)')+';line-height:1.2">'+(mtbfFlota?mtbfFlota+'<span style="font-size:12px">h</span>':'—')+'</div>'+
+    '<div style="font-size:28px;font-weight:800;color:'+(mtbfFlota?(mtbfFlota>2000?'var(--ok)':mtbfFlota>500?'var(--ac)':'var(--danger)'):'var(--tx3)')+';line-height:1.2">'+(mtbfFlota?mtbfFlota+'<span style="font-size:12px">h</span>':'—')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(mtbfFlota?totalFallas+' fallas en '+dashLabel+' · todo el historial':'Sin equipos con ≥2 fallas registradas')+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid var(--ac)">'+
@@ -504,9 +504,9 @@ export function renderDash(){
     '<div style="font-size:22px;font-weight:800;color:var(--ac);line-height:1.2">$'+fn(Math.round(costoTotal/1000))+'K</div>'+
     '<div style="font-size:9px;color:var(--tx3)">HH + repuestos consumidos</div></div>'+
 
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(otPend>0?'#ef4444':'#22c55e')+'">'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(otPend>0?'var(--danger)':'var(--ok)')+'">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Backlog</div>'+
-    '<div style="font-size:28px;font-weight:800;color:'+(otPend>0?'#ef4444':'#22c55e')+';line-height:1.2">'+otPend+'</div>'+
+    '<div style="font-size:28px;font-weight:800;color:'+(otPend>0?'var(--danger)':'var(--ok)')+';line-height:1.2">'+otPend+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+otEjec+' en ejec · '+otCerr+' cerradas en '+dashLabel+'</div></div>'+
 
     '</div></div>'+
@@ -515,15 +515,15 @@ export function renderDash(){
     // ═══ KPIs AVANZADOS ROW ═══
     '<div id="dashBlk-costos" style="display:'+(dashBloques.costos?'':'none')+'">'+
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:20px">'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'#22c55e':stkCrit<=3?'#f59e0b':'#ef4444')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'" title="Gasto de mantención ÷ Valor de Reemplazo de Activo (RAV), ANUALIZADO (gasto del mes ×12) para comparar contra el benchmark de industria (&lt;2-3% anual) en la misma escala."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'#22c55e':costoRAV<3?'#f59e0b':'#ef4444')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Anualizado · Meta: &lt;2%')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'" title="HH pendientes (OT abiertas × 8h, único dato disponible por OT) ÷ capacidad semanal (dotación'+(hhSemFuente==='real'?' real de Programación Diaria: '+dotacionReal+' personas':' ESTIMADA: 5 técnicos por equipo, sin dato real de dotación cargado')+' × 5 días × 8h)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'#22c55e':backlogSem<=6?'#f59e0b':'#ef4444')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4 · dotación '+(hhSemFuente==='real'?'real':'estimada')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'" title="Conteo simple, NO es una probabilidad de confiabilidad: % de equipos que no tuvieron NINGÚN correctivo/falla operacional este mes. Para la confiabilidad estadística real (R), ver la tarjeta Confiabilidad (R) más adelante."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">% Flota sin falla</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'#22c55e':idxConf>=70?'#f59e0b':'#ef4444')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">'+(eqConFallaMes===0?'0 correctivos en '+dashLabel+' aún':'Eq sin falla en '+dashLabel)+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(confReal==null?'var(--bd)':confReal>=85?'#22c55e':confReal>=60?'#f59e0b':'#ef4444')+'" title="Confiabilidad estadística real: R(t)=e^(-t/MTBF) — probabilidad de que un equipo promedio NO falle durante las horas que opera en '+dashLabel+', asumiendo tasa de falla constante (supuesto estándar RAM/ISO 14224 cuando solo se tiene el MTBF). Requiere MTBF real (≥2 fallas por equipo)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad (R)</div><div style="font-size:20px;font-weight:800;color:'+(confReal==null?'var(--tx3)':confReal>=85?'#22c55e':confReal>=60?'#f59e0b':'#ef4444')+'">'+(confReal==null?'—':confReal+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(confReal==null?'Sin MTBF suficiente':'R(t)=e^(-t/MTBF)')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--bd)')+'" title="Disponibilidad Inherente = MTBF/(MTBF+MTTR), fórmula estándar RAM/ISO 14224. MTTR: cuando una OT no tiene duración registrada se asume 8h para no perderla del promedio ('+otFallasMesSinDuracion+' de '+otFallasMes.length+' OT de '+dashLabel+' sin duración registrada) — es una estimación, no un dato medido."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'#22c55e':dispInh>=80?'#f59e0b':'#ef4444'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">'+(dispInh?'MTBF/(MTBF+MTTR)':'Sin correctivos en '+dashLabel+' aún')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(pctRetrab===null?'var(--bd)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Retrabajo</div><div style="font-size:20px;font-weight:800;color:'+(pctRetrab===null?'var(--tx3)':pctRetrab<=5?'#22c55e':pctRetrab<=10?'#f59e0b':'#ef4444')+'">'+(pctRetrab===null?'—':pctRetrab+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(pctRetrab===null?'Sin fallas en el período':'Meta: &lt;5%')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:#ef4444">'+eqCrit+'</span> Crít · <span style="color:#f59e0b">'+eqEsen+'</span> Esen · <span style="color:#22c55e">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'#f59e0b':utilDia>85?'#ef4444':'#22c55e')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'var(--ok)':stkCrit<=3?'var(--ac)':'var(--danger)')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'var(--ok)':stkCrit<=3?'var(--ac)':'var(--danger)')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'var(--ok)':costoRAV<3?'var(--ac)':'var(--danger)')+'" title="Gasto de mantención ÷ Valor de Reemplazo de Activo (RAV), ANUALIZADO (gasto del mes ×12) para comparar contra el benchmark de industria (&lt;2-3% anual) en la misma escala."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'var(--ok)':costoRAV<3?'var(--ac)':'var(--danger)')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Anualizado · Meta: &lt;2%')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'" title="HH pendientes (OT abiertas × 8h, único dato disponible por OT) ÷ capacidad semanal (dotación'+(hhSemFuente==='real'?' real de Programación Diaria: '+dotacionReal+' personas':' ESTIMADA: 5 técnicos por equipo, sin dato real de dotación cargado')+' × 5 días × 8h)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4 · dotación '+(hhSemFuente==='real'?'real':'estimada')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'" title="Conteo simple, NO es una probabilidad de confiabilidad: % de equipos que no tuvieron NINGÚN correctivo/falla operacional este mes. Para la confiabilidad estadística real (R), ver la tarjeta Confiabilidad (R) más adelante."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">% Flota sin falla</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">'+(eqConFallaMes===0?'0 correctivos en '+dashLabel+' aún':'Eq sin falla en '+dashLabel)+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(confReal==null?'var(--bd)':confReal>=85?'var(--ok)':confReal>=60?'var(--ac)':'var(--danger)')+'" title="Confiabilidad estadística real: R(t)=e^(-t/MTBF) — probabilidad de que un equipo promedio NO falle durante las horas que opera en '+dashLabel+', asumiendo tasa de falla constante (supuesto estándar RAM/ISO 14224 cuando solo se tiene el MTBF). Requiere MTBF real (≥2 fallas por equipo)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad (R)</div><div style="font-size:20px;font-weight:800;color:'+(confReal==null?'var(--tx3)':confReal>=85?'var(--ok)':confReal>=60?'var(--ac)':'var(--danger)')+'">'+(confReal==null?'—':confReal+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(confReal==null?'Sin MTBF suficiente':'R(t)=e^(-t/MTBF)')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'var(--ok)':dispInh>=80?'var(--ac)':'var(--danger)'):'var(--bd)')+'" title="Disponibilidad Inherente = MTBF/(MTBF+MTTR), fórmula estándar RAM/ISO 14224. MTTR: cuando una OT no tiene duración registrada se asume 8h para no perderla del promedio ('+otFallasMesSinDuracion+' de '+otFallasMes.length+' OT de '+dashLabel+' sin duración registrada) — es una estimación, no un dato medido."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'var(--ok)':dispInh>=80?'var(--ac)':'var(--danger)'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">'+(dispInh?'MTBF/(MTBF+MTTR)':'Sin correctivos en '+dashLabel+' aún')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(pctRetrab===null?'var(--bd)':pctRetrab<=5?'var(--ok)':pctRetrab<=10?'var(--ac)':'var(--danger)')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Retrabajo</div><div style="font-size:20px;font-weight:800;color:'+(pctRetrab===null?'var(--tx3)':pctRetrab<=5?'var(--ok)':pctRetrab<=10?'var(--ac)':'var(--danger)')+'">'+(pctRetrab===null?'—':pctRetrab+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(pctRetrab===null?'Sin fallas en el período':'Meta: &lt;5%')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:var(--danger)">'+eqCrit+'</span> Crít · <span style="color:var(--ac)">'+eqEsen+'</span> Esen · <span style="color:var(--ok)">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
     '</div>'+
     '</div>'+
 
@@ -536,7 +536,7 @@ export function renderDash(){
     (function(){
       var totalPC=prev+corr;
       if(!totalPC)return'<div style="color:var(--tx3);text-align:center;padding:30px 10px;font-size:11px">Sin intervenciones registradas</div>';
-      var mCol=prevPct>=80?'#22c55e':prevPct>=60?'#f59e0b':'#ef4444';
+      var mCol=prevPct>=80?'var(--ok)':prevPct>=60?'var(--ac)':'var(--danger)';
       var tipTxt='Preventivo: '+prev+' · Correctivo: '+corr+' de '+totalPC+' intervenciones';
       return '<div style="text-align:center;padding:6px 0 0">'+
         '<div style="font-size:36px;font-weight:800;color:'+mCol+';line-height:1">'+prevPct+'<span style="font-size:15px">%</span></div>'+
@@ -569,7 +569,7 @@ export function renderDash(){
       var totalDist=(regMes.length||0)+corr||1;
       return["PM1","PM2","PM3","PM4"].map(function(p,i){
         var v=pmC[p]||0;var pct=Math.round(v/totalDist*100);
-        var colors=["#22c55e","#3b82f6","#f59e0b","#ef4444"];
+        var colors=["var(--ok)","var(--info)","var(--ac)","var(--danger)"];
         var tipTxt=p+': '+v+' de '+totalDist+' ('+pct+'%)';
         // Identidad la lleva el swatch de color, no el texto (el texto usa tinta neutra)
         return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:default" onmouseenter="vizTip(event,\''+tipTxt+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()">'+
@@ -589,8 +589,8 @@ export function renderDash(){
     '<div id="dashBlk-urgentes" style="display:'+(dashBloques.urgentes?'':'none')+'">'+
     '<div class="dg1" style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
 
-    '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:#ef4444;font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
-    (dashFuente==='vivo'?'<div style="font-size:11px;color:var(--tx3);margin:-4px 0 10px;display:flex;align-items:center;gap:5px"><svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Turno '+turnoActual+' · entrega ~'+horaEntregaTurno+(urg.length?' · <b style="color:#ef4444">'+urg.length+' equipo'+(urg.length===1?'':'s')+'</b> para pasarle al próximo turno':' · nada urgente que entregar 👍')+'</div>':'')+
+    '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:var(--danger);font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
+    (dashFuente==='vivo'?'<div style="font-size:11px;color:var(--tx3);margin:-4px 0 10px;display:flex;align-items:center;gap:5px"><svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Turno '+turnoActual+' · entrega ~'+horaEntregaTurno+(urg.length?' · <b style="color:var(--danger)">'+urg.length+' equipo'+(urg.length===1?'':'s')+'</b> para pasarle al próximo turno':' · nada urgente que entregar 👍')+'</div>':'')+
     (urg.length?
     '<div class="tbl-wrap"><table style="font-size:11px">'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Horóm.</th><th>Próx PM</th><th>Días</th><th>PM</th></tr>'+
@@ -600,7 +600,7 @@ export function renderDash(){
       '<td style="font-size:10px">'+escapeHtml(e.modelo)+'</td>'+
       '<td class="mono">'+fn(e.horomActual)+'</td>'+
       '<td class="mono">'+fn(e.horomProxPM)+'</td>'+
-      '<td class="mono" style="color:#ef4444;font-weight:700">'+e.diasParaPM+'</td>'+
+      '<td class="mono" style="color:var(--danger);font-weight:700">'+e.diasParaPM+'</td>'+
       '<td>'+pb(e.tipoPM)+'</td></tr>'}).join('')+
     '</table></div>'
     :'<div style="padding:20px;text-align:center;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sin equipos urgentes</div>')+
@@ -620,7 +620,7 @@ export function renderDash(){
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Al Día</div>'+
-    '<div style="font-size:28px;font-weight:800;color:#22c55e">'+alDia.length+'</div>'+
+    '<div style="font-size:28px;font-weight:800;color:var(--ok)">'+alDia.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Sin intervención próxima</div></div>'+
 
     '</div></div></div>';
@@ -679,7 +679,7 @@ export function renderDash(){
   trendBlock+='<div style="display:flex;align-items:flex-end;gap:8px;height:80px;padding-top:10px">';
   dispTrend6.forEach(function(v,i){
     var pct=v!==null?Math.max(v/maxTrend*100,2):2;
-    var col=v!==null?(v>=meta?'#22c55e':v>=70?'#f59e0b':'#ef4444'):'var(--bg4)';
+    var col=v!==null?(v>=meta?'var(--ok)':v>=70?'var(--ac)':'var(--danger)'):'var(--bg4)';
     var label=meses6[i].slice(5);
     trendBlock+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">';
     trendBlock+='<div style="font-size:9px;font-weight:600;color:'+(v!==null?col:'var(--tx3)')+'">'+( v!==null?v+'%':'—')+'</div>';
@@ -787,7 +787,7 @@ export function renderDash(){
           '<div style="display:flex;flex-wrap:wrap;gap:4px">'+
           equipos.map(function(r){
             var v=r.score.valor;
-            var bg=v==null?'var(--bg4)':v>=80?'#22c55e':v>=55?'#f59e0b':'#ef4444';
+            var bg=v==null?'var(--bg4)':v>=80?'var(--ok)':v>=55?'var(--ac)':'var(--danger)';
             var fg=v==null?'var(--tx3)':'#0f172a';
             return '<div style="background:'+bg+';color:'+fg+';border-radius:6px;padding:6px 8px;min-width:64px;text-align:center;cursor:pointer;font-size:10px;font-weight:700;line-height:1.5" title="'+escapeHtml(r.sigla)+' — Score '+(v==null?'sin datos suficientes':v+'%')+'" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)">'+
               escapeHtml(r.sigla)+'<br>'+(v==null?'—':v+'%')+
@@ -806,11 +806,11 @@ export function renderDash(){
     saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">🩺 Equipos con Salud Baja <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
     saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
     equiposConSalud.forEach(function(r){
-      var col=r.score.valor>=55?'#f59e0b':'#ef4444';
+      var col=r.score.valor>=55?'var(--ac)':'var(--danger)';
       var d={};r.score.detalle.forEach(function(c){d[c.nombre]=c.valor;});
       var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
       var tendHtml=(tend&&tend.delta!=null)?
-        '<span style="color:'+(tend.delta>0?'#22c55e':tend.delta<0?'#ef4444':'var(--tx3)')+';font-weight:600">'+(tend.delta>0?'▲':tend.delta<0?'▼':'→')+' '+Math.abs(tend.delta)+' pts</span>'
+        '<span style="color:'+(tend.delta>0?'var(--ok)':tend.delta<0?'var(--danger)':'var(--tx3)')+';font-weight:600">'+(tend.delta>0?'▲':tend.delta<0?'▼':'→')+' '+Math.abs(tend.delta)+' pts</span>'
         :'<span style="color:var(--tx3);font-size:10px">sin dato 7d</span>';
       saludBajaBlock+='<tr>'+
         '<td class="mono" style="color:var(--ac);font-weight:700;cursor:pointer" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)">'+escapeHtml(r.sigla)+'</td>'+

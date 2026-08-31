@@ -50,7 +50,7 @@ export function renderAvance() {
       return '<tr>' +
         '<td class="mono" style="color:var(--ac)">' + escapeHtml(e.sigla) + '</td>' +
         '<td style="font-size:11px">' + escapeHtml(e.tipo) + '</td>' +
-        '<td class="ed mono" contenteditable onblur="var a=S.g(\'avanceData\')||{};if(!a[\'' + escapeHtml(e.sigla) + '\'])a[\'' + escapeHtml(e.sigla) + '\']={}; a[\'' + escapeHtml(e.sigla) + '\'][\'' + fMes + '\']=parseInt(this.innerText)||0;S.s(\'avanceData\',a);refreshAll()" style="color:#3b82f6;text-align:center">' + e.plan + '</td>' +
+        '<td class="ed mono" contenteditable onblur="var a=S.g(\'avanceData\')||{};if(!a[\'' + escapeHtml(e.sigla) + '\'])a[\'' + escapeHtml(e.sigla) + '\']={}; a[\'' + escapeHtml(e.sigla) + '\'][\'' + fMes + '\']=parseInt(this.innerText)||0;S.s(\'avanceData\',a);refreshAll()" style="color:var(--info);text-align:center">' + e.plan + '</td>' +
         '<td class="mono" style="text-align:center;font-weight:600">' + e.ejec + '</td>' +
         '<td class="mono" style="color:' + col + ';font-weight:700;text-align:center">' + (sinPlan ? '—' : e.pct + '%') + '</td>' +
         '<td><div style="position:relative;background:color-mix(in srgb,' + col + ' 18%,var(--bg4));border-radius:4px;height:12px;width:100px;overflow:hidden"><div style="position:absolute;left:' + e.esp + '%;top:0;bottom:0;width:1px;background:var(--tx3)"></div><div style="background:' + col + ';height:100%;width:' + Math.min(e.pct || 0, 100) + '%"></div></div></td>' +

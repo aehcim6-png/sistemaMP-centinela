@@ -664,7 +664,7 @@ function vencEstado(proximaFecha, tieneRegla){
   var prox=new Date(proximaFecha+'T00:00:00');
   var dias=Math.round((prox-hoy)/86400000);
   if(dias<0)return{label:'🔴 VENCIDO ('+Math.abs(dias)+'d)',color:'var(--danger)',dias:dias,requiereAtencion:true};
-  if(dias<=30)return{label:'🟡 Vence en '+dias+'d',color:'#eab308',dias:dias,requiereAtencion:true};
+  if(dias<=30)return{label:'🟡 Vence en '+dias+'d',color:'var(--warn)',dias:dias,requiereAtencion:true};
   return{label:'🟢 OK ('+dias+'d)',color:'var(--ok)',dias:dias,requiereAtencion:false};
 }
 

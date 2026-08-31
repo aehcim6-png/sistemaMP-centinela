@@ -194,8 +194,8 @@ export function renderMetas() {
       (causasEnRacha.length ? ' — junto con ' + causasEnRacha.map(function (d) { return d.label }).join(' y ') + ', que también viene subiendo' : '') + '.');
   });
   var tendenciaHtml = alertasTendencia.length ?
-    '<div style="background:rgba(239,68,68,.06);border:1px solid #ef4444;border-radius:8px;padding:12px 16px;margin-bottom:14px">' +
-    '<b style="color:#ef4444;font-size:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Tendencia — antes de que se ponga roja</b>' +
+    '<div style="background:rgba(239,68,68,.06);border:1px solid var(--danger);border-radius:8px;padding:12px 16px;margin-bottom:14px">' +
+    '<b style="color:var(--danger);font-size:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Tendencia — antes de que se ponga roja</b>' +
     '<div style="font-size:10px;color:var(--tx3);margin:2px 0 6px">Viene empeorando 3+ meses seguidos, esté o no dentro de meta todavía.</div>' +
     '<ul style="margin:0;padding-left:18px;font-size:11px;color:var(--tx2)">' +
     alertasTendencia.map(function (t) { return '<li style="margin-bottom:4px">' + escapeHtml(t) + '</li>'; }).join('') +
@@ -240,7 +240,7 @@ export function renderMetas() {
       // sync real con Supabase (S.s → _syncTablaGenericaInner), así que offline
       // o antes de la primera sincronización todavía no existe.
       var i = compromisos.indexOf(c);
-      var colEst = c.estado === 'Cumplido' ? '#22c55e' : c.estado === 'Vencido' ? '#ef4444' : 'var(--tx3)';
+      var colEst = c.estado === 'Cumplido' ? 'var(--ok)' : c.estado === 'Vencido' ? 'var(--danger)' : 'var(--tx3)';
       var icoEst = c.estado === 'Cumplido' ? '✅' : c.estado === 'Vencido' ? '🔴' : '⏳';
       return '<tr><td>' + escapeHtml(c.indicadorName || c.indicadorId) + '</td>' +
         '<td style="max-width:220px">' + escapeHtml(c.accion || '') + '</td>' +
@@ -258,12 +258,12 @@ export function renderMetas() {
     '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:11px">' +
     '<tr><th rowspan="2" style="min-width:140px">Indicador</th><th rowspan="2">Meta Anual</th>' +
     MSN.map(function (m) { return '<th colspan="2" style="text-align:center;min-width:80px">' + m + '</th>' }).join('') + '</tr>' +
-    '<tr>' + MSN.map(function () { return '<th style="color:#3b82f6;font-size:9px">META</th><th style="color:#22c55e;font-size:9px">REAL</th>' }).join('') + '</tr>' +
+    '<tr>' + MSN.map(function () { return '<th style="color:var(--info);font-size:9px">META</th><th style="color:var(--ok);font-size:9px">REAL</th>' }).join('') + '</tr>' +
     indicators.map(function (ind) {
       if (!metas[ind.id]) metas[ind.id] = { metaAnual: ind.meta, meses: {} };
       var data = metas[ind.id];
       return '<tr><td style="font-weight:600">' + ind.name + '</td>' +
-        '<td class="ed" style="color:#3b82f6;text-align:center;font-weight:700" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; m[\'' + ind.id + '\'].metaAnual=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + ind.meta + '</td>' +
+        '<td class="ed" style="color:var(--info);text-align:center;font-weight:700" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; m[\'' + ind.id + '\'].metaAnual=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + ind.meta + '</td>' +
         MSN.map(function (mes, mi) {
           var metaM = data.meses && data.meses[mes] ? data.meses[mes].meta : ind.meta;
           var real = realData[mes] ? realData[mes][ind.id] : null;
@@ -275,7 +275,7 @@ export function renderMetas() {
           if (ind.id === 'mtbf') { var fM = realData[mes] ? realData[mes].correctivosDelMes : 0; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 ? Math.round(hM / fM) : null; }
           var sinDato = real === null;
           var ok = sinDato ? null : (ind.higher ? (real >= metaM) : (real <= metaM));
-          var col = sinDato ? 'var(--tx3)' : ok ? '#22c55e' : '#ef4444';
+          var col = sinDato ? 'var(--tx3)' : ok ? 'var(--ok)' : 'var(--danger)';
           // Motivo probable (Nivel 1, ver "motivos" más arriba) — solo en celdas rojas,
           // para no ensuciar visualmente las que ya están dentro de meta.
           var motivo = (!sinDato && !ok && realData[mes] && realData[mes].motivos) ? realData[mes].motivos[ind.id] : '';
@@ -295,7 +295,7 @@ export function renderMetas() {
           // Nivel 3: la celda roja además es clickeable — abre "Cadena de Causas", el
           // mismo dato del tooltip pero como flujo visual con hasta 2 niveles de causa.
           var clickCadena = motivo ? ' onclick="verCadenaCausas(\'' + ind.id + '\',\'' + mes + '\')"' : '';
-          return '<td class="ed" style="color:#3b82f6;text-align:center;font-size:10px" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; if(!m[\'' + ind.id + '\'].meses)m[\'' + ind.id + '\'].meses={}; if(!m[\'' + ind.id + '\'].meses[\'' + mes + '\'])m[\'' + ind.id + '\'].meses[\'' + mes + '\']={}; m[\'' + ind.id + '\'].meses[\'' + mes + '\'].meta=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + metaM + '</td>' +
+          return '<td class="ed" style="color:var(--info);text-align:center;font-size:10px" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; if(!m[\'' + ind.id + '\'].meses)m[\'' + ind.id + '\'].meses={}; if(!m[\'' + ind.id + '\'].meses[\'' + mes + '\'])m[\'' + ind.id + '\'].meses[\'' + mes + '\']={}; m[\'' + ind.id + '\'].meses[\'' + mes + '\'].meta=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + metaM + '</td>' +
             '<td style="text-align:center;font-weight:600;color:' + col + ';font-size:10px' + (motivo ? ';cursor:pointer;text-decoration:underline dotted' : '') + '"' + (motivo ? ' title="' + escapeHtml(motivo) + ' — clic para ver la cadena completa"' : '') + clickCadena + '>' + (sinDato ? '—' : real) + '</td>';
         }).join('') + '</tr>';
     }).join('') +
@@ -337,7 +337,7 @@ export function verCadenaCausas(indId, mes) {
   function caja(label, id, destacada) {
     var ahora = valor(id, mes), antes = mesAnt ? valor(id, mesAnt) : null;
     var okEst = estadoDe(id, mes);
-    var col = okEst === null ? 'var(--tx)' : (okEst ? '#22c55e' : '#ef4444');
+    var col = okEst === null ? 'var(--tx)' : (okEst ? 'var(--ok)' : 'var(--danger)');
     var texto = ahora == null ? '—' : (antes != null && antes !== ahora ? (antes + ' → ' + ahora) : String(ahora));
     return '<div style="background:var(--bg3);border:1px solid var(--bd);border-left:4px solid ' + col + ';border-radius:8px;padding:10px 14px;min-width:150px' + (destacada ? ';box-shadow:0 0 0 2px ' + col : '') + '">' +
       '<div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">' + escapeHtml(label) + '</div>' +

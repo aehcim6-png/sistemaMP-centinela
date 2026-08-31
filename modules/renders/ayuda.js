@@ -15,7 +15,7 @@ export function renderAyuda(){
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div></div>'+
 
     // NOVEDADES DE ESTA VERSIÓN (2026-08-27)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (27 de agosto 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Nuevo reporte "Dotación de Taller" en Predictivo (¿alcanza el personal actual?, con tendencia y proyección a futuro), el mismo método aplicado por ítem en Stock Filtros/Lubricantes/Repuestos (¿cuándo debo comprar?, ahora con gráfico y un resumen de gasto total por categoría), y en Neumáticos la misma pregunta a nivel de flota (¿cuántos voy a necesitar hasta fin de año?).</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -28,7 +28,7 @@ export function renderAyuda(){
     '</div>'+
 
     // NOVEDADES DE ESTA VERSIÓN (2026-08-28)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (28 de agosto 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Nuevo tema visual "Ejecutivo" en Configuración, más relieve/profundidad y un filtro para mostrar solo lo que te interesa en el Dashboard, un glosario de términos técnicos, y una franja de Estado del Sistema arriba de Configuración.</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -42,7 +42,7 @@ export function renderAyuda(){
     '</div>'+
 
     // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-26)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (26 de agosto 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Ampliación del historial de correctivos (Disponibilidad Mecánica 2021-2024) y limpieza de su clasificación por componente, más búsqueda por palabra clave en Correctivos.</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -55,7 +55,7 @@ export function renderAyuda(){
     '</div>'+
 
     // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-22)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (22 de agosto 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Auditoría a fondo de Neumáticos (cruce de decenas de planillas Excel + datos de sensores MEMS4 contra Existencias) y refuerzo de seguridad de acceso.</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -69,7 +69,7 @@ export function renderAyuda(){
     '</div>'+
 
     // NOVEDADES DE ESTA VERSIÓN (auditoría 2026-08-14)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (14 de agosto 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Auditoría a fondo de Confiabilidad/KPI/Neumáticos/Stock, cruce de datos con Excel y correctivos para encontrar más bugs, y reordenamiento de la navegación donde la estructura confundía.</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -87,7 +87,7 @@ export function renderAyuda(){
     '</div>'+
 
     // NOVEDADES DE ESTA VERSIÓN (agosto 2026)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (agosto 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">4 correcciones puntuales encontradas durante un reordenamiento interno del sistema (sin cambios de comportamiento salvo estos 4 puntos).</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -101,25 +101,25 @@ export function renderAyuda(){
     '</div>'+
 
     // NUEVA FUNCIÓN — validación de salto de horómetro (agosto 2026)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Nueva función: aviso al ingresar un horómetro poco plausible</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Al registrar un PM (nuevo o editado) o corregir el horómetro directo en la Ficha Técnica de un equipo, el sistema ahora compara el valor nuevo contra el último registrado y avisa si el avance es demasiado grande para los días transcurridos — ver el detalle en Preguntas Frecuentes, más abajo. No bloquea el guardado: si el dato es real, se confirma y sigue igual que antes.</p>'+
     '</div>'+
 
     // NUEVA FUNCIÓN — vínculo Destrabe ↔ Orden de Compra (agosto 2026)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Nueva función: Gestión de Destrabe se cierra sola cuando llega la compra</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Un bloqueo por falta de repuesto ahora se puede vincular a su Orden de Compra (botón "Vincular OC" en Gestión de Destrabe). Antes había que acordarse de marcar "Resuelto" a mano; ahora, al marcar esa OC como "Recibida" (nuevo botón "Órdenes de Compra" en Control de Repuestos — antes tampoco existía forma de ver ni cerrar una OC ya creada), el bloqueo se cierra solo, con una nota automática de cuándo llegó. Ver el detalle en las secciones 8 y 19, más abajo.</p>'+
     '</div>'+
 
     // NUEVA FUNCIÓN — hito PM pendiente conocido (agosto 2026)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Nueva función: marcar a mano un PM que sabes que quedó pendiente</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Caso real (CF-8769): el sistema no siempre puede saber si un hueco desde el último PM registrado significa "de verdad no se hizo" o "se hizo pero no se anotó" — por defecto asume lo segundo, para no inventar alertas de vencido con datos históricos incompletos. Si sabes que un hito específico quedó pendiente de verdad, ahora puedes marcarlo tú mismo en la Ficha Técnica del equipo ("Hito PM pendiente conocido") y el sistema lo muestra como vencido correctamente. Se limpia solo al registrar ese PM. Ver el detalle en Preguntas Frecuentes, más abajo.</p>'+
     '</div>'+
 
     // NOVEDADES ANTERIORES (julio 2026)
-    '<div class="card" style="margin-bottom:16px;border-left:3px solid #f59e0b;background:rgba(245,158,11,.05)">'+
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (julio 2026)</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Auditoría completa del sistema, pestaña por pestaña, buscando cálculos que muestran algo fácil de calcular en vez de lo que realmente importa. Tus datos siguen intactos; lo que cambió es que varios números ahora reflejan mejor la realidad.</p>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
@@ -238,20 +238,20 @@ export function renderAyuda(){
     '<div class="card" style="margin-bottom:12px" id="m3">'+
     '<div class="card-t" style="font-size:16px;margin-bottom:10px">3. Flujo Diario de Trabajo</div>'+
     '<div style="display:grid;grid-template-columns:1fr;gap:8px;font-size:13px">'+
-    '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid #3b82f6">'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--info)">'+
     '<b>🌅 MAÑANA — Planificación</b><br>'+
     '1. Abre <b>Dashboard</b> → revisa equipos urgentes y alertas<br>'+
     '2. Revisa <b>Predictivo → Recomendaciones</b> → qué intervenir hoy<br>'+
     '3. Revisa <b>Repuestos</b> → semáforo de stock, hay 🔴? → comprar</div>'+
 
-    '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid #22c55e">'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ok)">'+
     '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> DURANTE EL DÍA — Ejecución</b><br>'+
     '1. Realiza <b>Inspección Diaria</b> → pestaña <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> → checklist rápido<br>'+
     '2. Ejecuta PM → pestaña <b>Registro PM</b> → registra con horómetro real<br>'+
     '3. Si hay correctivo → pestaña <b>Correctivos</b> → crea OT con causa y solución<br>'+
     '4. El sistema descuenta stock automáticamente</div>'+
 
-    '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid #f59e0b">'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--ac)">'+
     '<b>🌙 CIERRE — Registro y análisis</b><br>'+
     '1. Actualiza <b>Horómetros</b> de los equipos que trabajaron<br>'+
     '2. Revisa <b>Consumos</b> → ¿cuadran los filtros y lubricantes?<br>'+
@@ -636,7 +636,7 @@ export function renderAyuda(){
     '<b>LOTO (Lockout/Tagout):</b> Registro de si se aplicó el protocolo de bloqueo de energías. Opciones: Sí / No / N/A.<br><br>'+
     '<b>Código de Falla (solo Correctivos):</b> Clasificación del tipo de falla: Eléctrico, Hidráulico, Mecánico, Estructural, Neumático, Motor, Transmisión, Error Operación, Otro. Permite análisis estadístico de fallas por tipo.<br><br>'+
     '<b>Autorizado por (solo Correctivos):</b> Quién autorizó la intervención. Trazabilidad para auditoría ISO.<br><br>'+
-    '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid #ef4444">'+
+    '<div style="padding:8px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--danger)">'+
     '<b><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Importante:</b> En minería, una OT sin AST y LOTO registrado es una no conformidad grave en auditoría. Siempre completa estos campos.</div></div></div>'+
 
     '<div class="card" style="margin-bottom:12px" id="m23">'+

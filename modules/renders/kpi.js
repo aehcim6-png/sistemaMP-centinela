@@ -357,7 +357,7 @@ export function renderKpi(){
     }
     var pct=Math.min(val/max*100,100);
     var metaPct=Math.min(meta/max*100,100);
-    var col=invert?(val<=meta?'#22c55e':val<=meta*1.3?'#f59e0b':'#ef4444'):(val>=meta?'#22c55e':val>=meta*0.7?'#f59e0b':'#ef4444');
+    var col=invert?(val<=meta?'var(--ok)':val<=meta*1.3?'var(--ac)':'var(--danger)'):(val>=meta?'var(--ok)':val>=meta*0.7?'var(--ac)':'var(--danger)');
     return '<div style="padding:2px 0 4px">'+
       '<div style="font-size:30px;font-weight:800;color:'+col+';line-height:1">'+val+'</div>'+
       '<div style="font-size:9px;color:var(--tx3);margin:4px 0 8px">'+unit+'</div>'+
@@ -383,7 +383,7 @@ export function renderKpi(){
         }
         var h=maxVal>0?Math.max(v/maxVal*100,2):2;
         var ok=invertMeta?(v<=metaVal):(v>=metaVal);
-        var col=ok?'#22c55e':(v>=metaVal*0.7||invertMeta&&v<=metaVal*1.3)?'#f59e0b':'#ef4444';
+        var col=ok?'var(--ok)':(v>=metaVal*0.7||invertMeta&&v<=metaVal*1.3)?'var(--ac)':'var(--danger)';
         var tipTxt=labels[i]+': '+v+unit;
         return '<div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%">'+
           '<div style="font-size:7px;font-weight:600;color:var(--tx)">'+v+'</div>'+
@@ -410,7 +410,7 @@ export function renderKpi(){
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA</div>'+
     meterKPI(dispActual,100,meta,'%',dispActual===null?'':'Disponibilidad: '+dispActual+'% · meta '+meta+'%')+
-    '<div style="font-size:10px;margin-top:4px;color:'+(dispActual===null?'var(--tx3)':dispActual>=meta?'#22c55e':'#ef4444')+'">'+(dispActual===null?'Sin datos':'Meta: '+meta+'%')+'</div>'+
+    '<div style="font-size:10px;margin-top:4px;color:'+(dispActual===null?'var(--tx3)':dispActual>=meta?'var(--ok)':'var(--danger)')+'">'+(dispActual===null?'Sin datos':'Meta: '+meta+'%')+'</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptDisp(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
     '<button class="btn-s" onclick="rptDisp(\'print\')" style="font-size:9px" title="Imprimir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
@@ -423,7 +423,7 @@ export function renderKpi(){
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">MTBF FLOTA</div>'+
     (mtbfActual!=null?
       meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF real: '+mtbfActual+'h · promedio de intervalos entre fallas')+
-      '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'#22c55e':mtbfActual>500?'#f59e0b':'#ef4444')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'
+      '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'var(--ok)':mtbfActual>500?'var(--ac)':'var(--danger)')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'
       :'<div style="font-size:26px;font-weight:800;color:var(--tx3);padding:14px 0">—</div><div style="font-size:10px;color:var(--tx3)">Ningún equipo con ≥2 fallas registradas para medir el intervalo</div>')+
     '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+totalFallas+' fallas totales</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
@@ -437,7 +437,7 @@ export function renderKpi(){
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">CUMPLIMIENTO PM</div>'+
     meterKPI(cumplActual,100,90,'%',cumplActual===null?'':'Cumplimiento: '+cumplActual+'% · '+reg.length+' ejecuciones')+
-    '<div style="font-size:10px;margin-top:4px;color:'+(cumplActual===null?'var(--tx3)':cumplActual>=90?'#22c55e':cumplActual>=70?'#f59e0b':'#ef4444')+'">'+(cumplActual===null?'Sin datos':'Meta: 90%')+'</div>'+
+    '<div style="font-size:10px;margin-top:4px;color:'+(cumplActual===null?'var(--tx3)':cumplActual>=90?'var(--ok)':cumplActual>=70?'var(--ac)':'var(--danger)')+'">'+(cumplActual===null?'Sin datos':'Meta: 90%')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+reg.length+' ejecuciones</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptCumpl(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
@@ -450,7 +450,7 @@ export function renderKpi(){
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">COSTO / HORA OPERADA</div>'+
     meterKPI(costoHrActual,Math.max(costoHrActual*2,5000),3000,'$/hr','Costo: $'+fn(costoHrActual)+'/hr · meta ≤$3.000/hr',true)+
-    '<div style="font-size:10px;margin-top:4px;color:'+(costoHrActual<=3000?'#22c55e':'#ef4444')+'">Meta: ≤$3.000/hr</div>'+
+    '<div style="font-size:10px;margin-top:4px;color:'+(costoHrActual<=3000?'var(--ok)':'var(--danger)')+'">Meta: ≤$3.000/hr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptCostos(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
     '<button class="btn-s" onclick="rptCostos(\'print\')" style="font-size:9px" title="Imprimir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
@@ -462,7 +462,7 @@ export function renderKpi(){
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">RATIO PREVENTIVO</div>'+
     meterKPI(ratioActual,100,80,'%',ratioActual===null?'':'Ratio preventivo: '+ratioActual+'% · '+prevTotal+' prev / '+corrTotal+' corr')+
-    '<div style="font-size:10px;margin-top:4px;color:'+(ratioActual===null?'var(--tx3)':ratioActual>=80?'#22c55e':ratioActual>=60?'#f59e0b':'#ef4444')+'">'+(ratioActual===null?'Sin datos':'Meta: 80% preventivo')+'</div>'+
+    '<div style="font-size:10px;margin-top:4px;color:'+(ratioActual===null?'var(--tx3)':ratioActual>=80?'var(--ok)':ratioActual>=60?'var(--ac)':'var(--danger)')+'">'+(ratioActual===null?'Sin datos':'Meta: 80% preventivo')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+prevTotal+' prev / '+corrTotal+' corr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptBacklog(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
@@ -475,7 +475,7 @@ export function renderKpi(){
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">EFICIENCIA HH</div>'+
     meterKPI(hhEfActual,150,80,'%',hhEfActual===null?'':'Eficiencia HH: '+hhEfActual+'% · Real '+Math.round(hhRealT)+'h / Plan '+Math.round(hhPlanT)+'h')+
-    '<div style="font-size:10px;margin-top:4px;color:'+(hhEfActual===null?'var(--tx3)':hhEfActual>=80?'#22c55e':'#f59e0b')+'">'+(hhEfActual===null?'Sin datos':'Meta: 80%')+'</div>'+
+    '<div style="font-size:10px;margin-top:4px;color:'+(hhEfActual===null?'var(--tx3)':hhEfActual>=80?'var(--ok)':'var(--ac)')+'">'+(hhEfActual===null?'Sin datos':'Meta: 80%')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Real: '+Math.round(hhRealT)+'h · Plan: '+Math.round(hhPlanT)+'h</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptHH(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+

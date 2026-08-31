@@ -94,7 +94,7 @@ export function renderPrg() {
           var cls = v === 'PM1' ? 'pg-1' : v === 'PM2' ? 'pg-2' : v === 'PM3' ? 'pg-3' : v === 'PM4' ? 'pg-4' : v === 'EJEC' ? 'pg-x' : (v.indexOf('EJEC≠') === 0 ? 'pg-x' : '');
           var tip = ejecTipo ? (coincide ? 'EJEC (auto, desde registros). Click para corregir el plan base de esta celda' : '⚠️ Se ejecutó ' + ejecTipo + ' pero estaba planificado ' + base + '. Click para corregir')
             : 'Click para cambiar PM';
-          return '<div class="pg-c ' + cls + '" title="' + escapeHtml(tip) + '" style="' + (!coincide ? 'color:#f59e0b' : '') + '" onclick="cyclePrg(' + pi + ',\'' + m + '\',' + (ejecTipo ? 'true' : 'false') + ')">' + (v || '·') + '</div>';
+          return '<div class="pg-c ' + cls + '" title="' + escapeHtml(tip) + '" style="' + (!coincide ? 'color:var(--ac)' : '') + '" onclick="cyclePrg(' + pi + ',\'' + m + '\',' + (ejecTipo ? 'true' : 'false') + ')">' + (v || '·') + '</div>';
         }).join('');
     }).join('') +
     '</div>';
