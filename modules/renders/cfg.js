@@ -382,7 +382,7 @@ export function renderCfg(){
       'Pautas: <b>'+INIT.pautas.length+'</b><br>'+
       'Registros PM: <b>'+(S.g('reg')||[]).length+'</b><br>'+
       'Correctivos: <b>'+(S.g('ot')||[]).length+'</b><br>'+
-      'Pestañas: <b>25</b><br>'+
+      'Pestañas: <b>'+Object.keys(renders).length+'</b><br>'+
       'Archivo: <b>'+Math.round(document.documentElement.outerHTML.length/1024)+'KB</b><br>'+
       'localStorage: <b>'+Math.round(JSON.stringify(localStorage).length/1024)+'KB</b>'+
       '</div></div>'+
