@@ -74,6 +74,39 @@ function _estTablaEquipo(eq, eventos) {
     '</table></div></div>';
 }
 
+// MTBF típico por TIPO de componente (Nivel 3 de "control de gestión ↔
+// confiabilidad de activos", 2026-08-31): hasta acá el único MTBF del
+// sistema era el de flota completa (mtbfFlotaReal, logic.js) — un motor y un
+// neumático no fallan con el mismo patrón, mezclarlos en un solo número
+// esconde cuáles tipos de componente realmente están fallando más seguido.
+// Mismo método que mtbfFlotaReal (promedio de MTBFs por EQUIPO, nunca un
+// intervalo mezclando horómetros de máquinas distintas — no son comparables
+// entre sí): acá se agrupa primero por equipo+componente (mínimo 2 fallas de
+// ESE componente en ESE equipo, con horómetro real, para tener un intervalo
+// que medir) y luego se promedian esos MTBFs entre todos los equipos que
+// comparten el mismo tipo de componente.
+function _estMtbfPorComponente(eventos) {
+  var porEquipoComp = {};
+  eventos.forEach(function (e) {
+    if (!e.componente || !(e.horom > 0)) return;
+    var k = e.sigla + '|' + e.componente;
+    (porEquipoComp[k] = porEquipoComp[k] || { componente: e.componente, horoms: [] }).horoms.push(e.horom);
+  });
+  var porComponente = {};
+  Object.keys(porEquipoComp).forEach(function (k) {
+    var g = porEquipoComp[k];
+    var m = C.mtbfReal(g.horoms);
+    if (m == null) return;
+    (porComponente[g.componente] = porComponente[g.componente] || []).push(m);
+  });
+  var mtbfPorComp = {};
+  Object.keys(porComponente).forEach(function (c) {
+    var vals = porComponente[c];
+    mtbfPorComp[c] = Math.round(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length);
+  });
+  return mtbfPorComp;
+}
+
 function _estTablaComponente(eventos) {
   var porComp = {};
   eventos.forEach(function (e) {
@@ -82,19 +115,21 @@ function _estTablaComponente(eventos) {
     porComp[e.componente].fallas++;
     porComp[e.componente].equipos[e.sigla] = true;
   });
+  var mtbfPorComp = _estMtbfPorComponente(eventos);
   var lista = Object.keys(porComp).map(function (c) {
     var d = porComp[c];
-    return { comp: c, fallas: d.fallas, nEquipos: Object.keys(d.equipos).length };
+    return { comp: c, fallas: d.fallas, nEquipos: Object.keys(d.equipos).length, mtbf: mtbfPorComp[c] != null ? mtbfPorComp[c] : null };
   }).sort(function (a, b) { return b.fallas - a.fallas; });
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">🔧 Componentes que más fallan — toda la flota</div>' +
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales + historial 2022-2025. Componente resuelto por texto libre del síntoma cuando el campo estructurado viene vacío (casi siempre).</div>' +
-    '<div class="tbl-wrap"><table><tr><th>Componente</th><th>Fallas</th><th>Equipos afectados</th></tr>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales + historial 2022-2025. Componente resuelto por texto libre del síntoma cuando el campo estructurado viene vacío (casi siempre). MTBF típico = promedio del intervalo real entre fallas sucesivas (horómetro), promediado entre todos los equipos con 2+ fallas de ese componente — igual de exigente que el MTBF de flota, solo que por tipo de componente.</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Componente</th><th>Fallas</th><th>Equipos afectados</th><th>MTBF típico (h)</th></tr>' +
     (lista.length ? lista.map(function (r) {
       return '<tr><td style="font-weight:600">' + escapeHtml(r.comp) + '</td>' +
         '<td style="text-align:center;font-weight:700">' + r.fallas + '</td>' +
-        '<td style="text-align:center">' + r.nEquipos + '</td></tr>';
-    }).join('') : '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
+        '<td style="text-align:center">' + r.nEquipos + '</td>' +
+        '<td style="text-align:center;color:' + (r.mtbf == null ? 'var(--tx3)' : r.mtbf > 2000 ? 'var(--ok)' : r.mtbf > 500 ? 'var(--ac)' : 'var(--danger)') + '">' + (r.mtbf == null ? '—' : fn(r.mtbf)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
     '</table></div></div>';
 }
 
