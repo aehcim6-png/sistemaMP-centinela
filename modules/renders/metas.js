@@ -131,8 +131,6 @@ export function renderMetas() {
   // (realData/DEP_MAP/indicators/MSN) recién calculado — se guarda acá en vez de
   // recalcularlo de nuevo al abrir el modal, para que muestre exactamente lo que
   // la persona está viendo en la tabla en ese momento, no un recálculo aparte.
-  window._metasCadena = { realData: realData, DEP_MAP: DEP_MAP, indicators: indicators, MSN: MSN };
-
   // Nivel 4 ("anticipar"): alertas de TENDENCIA — a diferencia de los Niveles 1-3
   // (que solo explican una celda YA roja), esto avisa aunque el indicador todavía
   // esté en verde, si viene empeorando 3+ meses seguidos. No es un modelo
@@ -151,6 +149,12 @@ export function renderMetas() {
     return v === undefined ? null : v;
   }
   var mesActualIdx = new Date().getMonth(); // 0=ENE, coincide con el índice de MSN
+  // Nivel 3 ("Cadena de Causas") y abrirFormCompromiso() necesitan este mismo
+  // snapshot recién calculado — se guarda acá (ya con hMFlota, para que el chequeo
+  // especial de MTBF de abajo también pueda usarse fuera de esta función) en vez
+  // de recalcularlo de nuevo al abrir el modal, para que muestre exactamente lo
+  // que la persona está viendo en la tabla en ese momento.
+  window._metasCadena = { realData: realData, DEP_MAP: DEP_MAP, indicators: indicators, MSN: MSN, hMFlota: hMFlota };
   function serieReciente(id, maxLen) {
     var i = mesActualIdx;
     while (i >= 0 && valorIndicador(id, MSN[i]) == null) i--; // ancla en el último mes CON dato
@@ -196,6 +200,57 @@ export function renderMetas() {
     '<ul style="margin:0;padding-left:18px;font-size:11px;color:var(--tx2)">' +
     alertasTendencia.map(function (t) { return '<li style="margin-bottom:4px">' + escapeHtml(t) + '</li>'; }).join('') +
     '</ul></div>' : '';
+
+  // Compromisos (loop de responsabilidad): evalúa solos los pendientes contra el
+  // ÚLTIMO mes con dato real (no contra el mes en que se creó el compromiso otra
+  // vez) — se marca "Cumplido" en cuanto el indicador mejora respecto a la línea
+  // base guardada al crearlo (no hace falta que llegue a meta), y "Vencido" si ya
+  // pasó la fecha comprometida y no mejoró. Nadie tiene que cerrar nada a mano.
+  var compromisos = S.g('compromisos') || [];
+  var compromisosAntes = JSON.stringify(compromisos);
+  var hoyStr = new Date().toISOString().slice(0, 10);
+  compromisos.forEach(function (c) {
+    if (c.estado !== 'Pendiente' || c.valorBase == null) return;
+    var ultimo = null;
+    for (var i = mesActualIdx; i >= 0; i--) {
+      var v = valorIndicador(c.indicadorId, MSN[i]);
+      if (v != null) { ultimo = v; break; }
+    }
+    if (ultimo == null) return;
+    var mejoro = c.higherEsMejor ? ultimo > c.valorBase : ultimo < c.valorBase;
+    if (mejoro) { c.estado = 'Cumplido'; c.valorFinal = ultimo; c.fechaResolucion = hoyStr; }
+    else if (c.fechaCompromiso && hoyStr > c.fechaCompromiso) { c.estado = 'Vencido'; c.valorFinal = ultimo; c.fechaResolucion = hoyStr; }
+  });
+  if (JSON.stringify(compromisos) !== compromisosAntes) S.s('compromisos', compromisos);
+
+  var resueltos = compromisos.filter(function (c) { return c.estado === 'Cumplido' || c.estado === 'Vencido'; });
+  var pctCumplidos = resueltos.length ? Math.round(resueltos.filter(function (c) { return c.estado === 'Cumplido'; }).length / resueltos.length * 100) : null;
+  var ORDEN_ESTADO = { Pendiente: 0, Vencido: 1, Cumplido: 2 };
+  var compromisosHtml = compromisos.length ?
+    '<div style="margin-top:16px">' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+    '<b style="font-size:12px">📝 Compromisos</b>' +
+    (pctCumplidos != null ? '<span style="font-size:11px;color:var(--tx3)">' + pctCumplidos + '% cumplidos a tiempo (' + resueltos.length + ' resuelto(s))</span>' : '') +
+    '</div>' +
+    '<div class="tbl-wrap"><table style="font-size:11px">' +
+    '<tr><th>Indicador</th><th>Acción</th><th>Responsable</th><th>Fecha compromiso</th><th>Base → Actual</th><th>Estado</th><th></th></tr>' +
+    compromisos.slice().sort(function (a, b) { return (ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado]) || (a.fechaCompromiso || '').localeCompare(b.fechaCompromiso || ''); }).map(function (c) {
+      // Índice en el arreglo SIN ordenar (mismo patrón que el resto del sistema,
+      // ej. stk.js/pau.js) — no usa c._id porque ese campo solo lo asigna el
+      // sync real con Supabase (S.s → _syncTablaGenericaInner), así que offline
+      // o antes de la primera sincronización todavía no existe.
+      var i = compromisos.indexOf(c);
+      var colEst = c.estado === 'Cumplido' ? '#22c55e' : c.estado === 'Vencido' ? '#ef4444' : 'var(--tx3)';
+      var icoEst = c.estado === 'Cumplido' ? '✅' : c.estado === 'Vencido' ? '🔴' : '⏳';
+      return '<tr><td>' + escapeHtml(c.indicadorName || c.indicadorId) + '</td>' +
+        '<td style="max-width:220px">' + escapeHtml(c.accion || '') + '</td>' +
+        '<td>' + escapeHtml(c.responsable || '—') + '</td>' +
+        '<td class="mono">' + (c.fechaCompromiso || '—') + '</td>' +
+        '<td class="mono">' + (c.valorBase == null ? '—' : c.valorBase) + (c.valorFinal != null ? ' → ' + c.valorFinal : '') + '</td>' +
+        '<td style="color:' + colEst + ';font-weight:600">' + icoEst + ' ' + c.estado + '</td>' +
+        '<td><button class="btn-s btn-d" onclick="delCompromiso(' + i + ')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
+    }).join('') +
+    '</table></div></div>' : '';
 
   $('s-metas').innerHTML = tendenciaHtml +
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas vs Realidad</div>' +
@@ -244,7 +299,7 @@ export function renderMetas() {
             '<td style="text-align:center;font-weight:600;color:' + col + ';font-size:10px' + (motivo ? ';cursor:pointer;text-decoration:underline dotted' : '') + '"' + (motivo ? ' title="' + escapeHtml(motivo) + ' — clic para ver la cadena completa"' : '') + clickCadena + '>' + (sinDato ? '—' : real) + '</td>';
         }).join('') + '</tr>';
     }).join('') +
-    '</table></div>';
+    '</table></div>' + compromisosHtml;
   if (JSON.stringify(metas) !== metasAntes) S.s('metas', metas);
 }
 
@@ -255,13 +310,20 @@ export function renderMetas() {
 export function verCadenaCausas(indId, mes) {
   var snap = window._metasCadena;
   if (!snap) { toast('⚠️ Abre primero Metas & KPIs → Metas'); return; }
-  var indicators = snap.indicators, DEP_MAP = snap.DEP_MAP, realData = snap.realData, MSN = snap.MSN;
+  var indicators = snap.indicators, DEP_MAP = snap.DEP_MAP, realData = snap.realData, MSN = snap.MSN, hMFlota = snap.hMFlota;
   var ind = indicators.find(function (i) { return i.id === indId; });
   if (!ind) return;
   var mi = MSN.indexOf(mes);
   var mesAnt = mi > 0 ? MSN[mi - 1] : null;
 
-  function valor(id, m) { return (m && realData[m]) ? realData[m][id] : null; }
+  // MTBF no vive en realData directo (se calcula aparte, igual que en la tabla
+  // principal) — sin este caso especial, la caja de MTBF siempre mostraba "—".
+  function valor(id, m) {
+    if (!m || !realData[m]) return null;
+    if (id === 'mtbf') { var fM = realData[m].correctivosDelMes; return fM > 0 ? Math.round(hMFlota / fM) : null; }
+    var v = realData[m][id];
+    return v === undefined ? null : v;
+  }
   // Si el id es uno de los 8 indicadores de Metas, usa SU PROPIA meta para pintarlo
   // rojo/verde (ej. "PM ejecutados" como causa de HH también muestra si él mismo
   // está dentro de meta). Un id que no es indicador (ej. correctivosDelMes) no
@@ -307,11 +369,73 @@ export function verCadenaCausas(indId, mes) {
     (mesAnt ? 'Cada caja compara ' + mesAnt + ' → ' + mes + '.' : 'Sin mes anterior disponible para comparar (es el primer mes del año).') +
     ' No afirma que sea la única explicación — solo muestra la causa conocida (por fórmula u operación) y cómo se movió.</p>' +
     cadenaHtml +
+    '<button class="btn" onclick="abrirFormCompromiso(\'' + indId + '\',\'' + mes + '\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar compromiso</button> ' +
     '<button class="btn btn-o" onclick="cm()">Cerrar</button>' +
     '</div>');
+}
+
+// Loop de responsabilidad: registrar QUÉ se va a hacer con un indicador rojo,
+// QUIÉN es responsable y PARA CUÁNDO — se dispara desde el botón del modal de
+// verCadenaCausas(). El valor actual del indicador queda como línea base: el
+// compromiso se marca "Cumplido" solo (ver renderMetas) cuando el indicador
+// mejore respecto a ese número, no cuando alguien lo tilde a mano.
+export function abrirFormCompromiso(indId, mes) {
+  var snap = window._metasCadena;
+  if (!snap) { toast('⚠️ Abre primero Metas & KPIs → Metas'); return; }
+  var ind = snap.indicators.find(function (i) { return i.id === indId; });
+  if (!ind) return;
+  var valorBase = snap.realData[mes] ? snap.realData[mes][indId] : null;
+  if (indId === 'mtbf') {
+    var fM = snap.realData[mes] ? snap.realData[mes].correctivosDelMes : 0;
+    valorBase = fM > 0 ? Math.round(snap.hMFlota / fM) : null;
+  }
+  var per = _tecnicosDisponibles();
+  var fechaSugerida = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+  sm('<div style="max-width:480px">' +
+    '<h3>📝 Registrar compromiso — ' + escapeHtml(ind.name) + ' · ' + mes + '</h3>' +
+    '<p style="font-size:11px;color:var(--tx3)">Línea base: <b>' + (valorBase == null ? '—' : valorBase) + '</b>. Se marca cumplido solo cuando el indicador mejore respecto a este número — no hace falta que llegue a meta.</p>' +
+    '<div class="form-row"><div class="fg" style="flex:1;width:100%"><label>Acción</label><textarea id="cpAccion" rows="2" style="width:100%" placeholder="Ej: reforzar dotación de mecánicos turno noche"></textarea></div></div>' +
+    '<div class="form-row"><div class="fg"><label>Responsable</label><select id="cpResp"><option value="">Sin asignar</option>' + per.map(function (p) { return '<option>' + escapeHtml(p) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="fg"><label>Fecha compromiso</label><input type="date" id="cpFecha" value="' + fechaSugerida + '"></div></div>' +
+    '<button class="btn" onclick="guardarCompromiso(\'' + indId + '\',\'' + escapeHtml(ind.name).replace(/'/g, "\\'") + '\',\'' + mes + '\',' + (valorBase == null ? 'null' : valorBase) + ',' + (ind.higher ? 'true' : 'false') + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> ' +
+    '<button class="btn btn-o" onclick="cm()">Cancelar</button>' +
+    '</div>');
+}
+export function guardarCompromiso(indId, indName, mes, valorBase, higherEsMejor) {
+  var accion = ($('cpAccion') && $('cpAccion').value.trim()) || '';
+  if (!accion) return toast('⚠️ Describe la acción');
+  var compromisos = S.g('compromisos') || [];
+  compromisos.push({
+    indicadorId: indId,
+    indicadorName: indName,
+    mes: mes,
+    accion: accion,
+    responsable: $('cpResp') ? $('cpResp').value : '',
+    fechaCompromiso: $('cpFecha') ? $('cpFecha').value : '',
+    fechaCreacion: new Date().toISOString().slice(0, 10),
+    valorBase: valorBase,
+    higherEsMejor: !!higherEsMejor,
+    estado: 'Pendiente',
+    valorFinal: null,
+    fechaResolucion: null
+  });
+  S.s('compromisos', compromisos);
+  cm();
+  toast('✅ Compromiso registrado');
+  refreshAll();
+}
+export function delCompromiso(i) {
+  if (!confirm('¿Eliminar este compromiso?')) return;
+  var compromisos = S.g('compromisos') || [];
+  compromisos.splice(i, 1);
+  S.s('compromisos', compromisos);
+  refreshAll();
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderMetas = renderMetas;
 window.verCadenaCausas = verCadenaCausas;
+window.abrirFormCompromiso = abrirFormCompromiso;
+window.guardarCompromiso = guardarCompromiso;
+window.delCompromiso = delCompromiso;
 renders.metas = renderMetas;

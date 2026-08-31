@@ -108,6 +108,9 @@ const TABLA_REAL={
   planSemHist:{tabla:'plan_semanal_historico',clave:'_id',claveDb:'id',cols:['sigla','semana','datos']},
   gantt:{tabla:'gantt',clave:'_id',claveDb:'id',cols:['sigla','actividad','inicio','fin','datos']},
   destrabe:{tabla:'destrabe',clave:'_id',claveDb:'id',cols:['equipo','trabajo','tipo','fechaSol','motivo','accion','responsable','fechaComp','estado','idOrdenCompra']},
+  // Compromisos (loop de responsabilidad de Metas & KPIs) — ver
+  // 20260831120000_crear_tabla_compromisos.sql y modules/renders/metas.js.
+  compromisos:{tabla:'compromisos',clave:'_id',claveDb:'id',cols:['indicadorId','indicadorName','mes','accion','responsable','fechaCompromiso','fechaCreacion','valorBase','higherEsMejor','estado','valorFinal','fechaResolucion']},
   changelog:{tabla:'changelog',clave:'_id',claveDb:'id',cols:['fecha','usuario','accion','detalle']},
   fil:{tabla:'tabla_precios_maestro',clave:'_id',claveDb:'id',cols:['nParte','precio']},
   al:{tabla:'alertas',clave:'_id',claveDb:'id',cols:['sigla','repuestos']},
