@@ -273,7 +273,13 @@ td.calc{color:var(--tx3);font-style:italic}
   .cards{grid-template-columns:1fr 1fr}
   .nav button{font-size:10px;padding:7px 8px}
   .sec-t{font-size:15px}
-  table{font-size:9px}
+  /* Legibilidad de tablas en mobile (2026-08-31, Nivel 3 de la propuesta UX de
+     esta sesión, a pedido explícito del usuario): 9px es difícil de leer en
+     un celular real — sube a 11px. El scroll horizontal ya resuelto (regla
+     ".sec table" más abajo) absorbe el ancho extra en tablas con muchas
+     columnas (ej. Correctivos tiene 17) — se prefirió eso a decidir qué
+     columnas ocultar por tabla, un rediseño mucho más grande. */
+  table{font-size:11px}
   .btn{padding:10px 14px;font-size:13px;min-height:44px}
   /* Tamaño de tap en mobile (2026-08-31, propuesta UX de esta sesión): a este
      ancho .btn ya alcanzaba el mínimo recomendado de 44px con solo padding,
