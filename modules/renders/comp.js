@@ -125,6 +125,51 @@ export function renderComp(){
   });
   var HOY_COMP=new Date().toISOString().slice(0,10);
 
+  // ═══ ÍNDICE DE RIESGO DE FALLA INMINENTE (Nivel 4 de "control de gestión ↔
+  // confiabilidad de activos", 2026-08-31) — junta 3 señales que hoy viven
+  // separadas en 3 pestañas distintas: vida útil (esta misma tabla), análisis
+  // de aceite (ace.js) y retrabajo reciente en correctivos (ot.js). A
+  // propósito NO se mezclan en un solo número inventado (0-100 sin
+  // significado real): se cuenta cuántas de las 3 señales, cada una
+  // verificable por separado, están en rojo — 2+ señales rojas coincidiendo
+  // en el mismo componente es una alerta mucho más confiable que cualquiera
+  // de las 3 sola.
+  // Señal aceite: mismo criterio "persistente" que ya usa ace.js (2 muestras
+  // SEGUIDAS en ALERTA/PRECAUCION) — su propia auditoría real documenta que
+  // una alerta suelta rara vez termina en correctivo (15% en 60 días), pero
+  // una que se repite en la muestra siguiente es harina de otro costal.
+  var aceiteTodo=S.g('aceite')||[];
+  if(typeof window._aceiteResolverSiglas==='function')window._aceiteResolverSiglas(aceiteTodo);
+  var aceitePorSiglaComp={};
+  aceiteTodo.forEach(function(m){
+    var k=(m._sigla||'')+'|'+(m.componente||'');
+    if(!(m._sigla||'').trim()||!(m.componente||'').trim()||!m.fecha)return;
+    (aceitePorSiglaComp[k]=aceitePorSiglaComp[k]||[]).push(m);
+  });
+  function _aceiteEsProblemaPersistente(sigla,comp){
+    var muestras=(aceitePorSiglaComp[sigla+'|'+comp]||[]).slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+    if(muestras.length<2)return null; // sin dato suficiente, no "no problema"
+    var ultima=muestras[muestras.length-1],anterior=muestras[muestras.length-2];
+    var esProblema=function(m){return m.estado==='ALERTA'||m.estado==='PRECAUCION';};
+    return esProblema(ultima)&&esProblema(anterior);
+  }
+  // Señal retrabajo: 2+ correctivos del MISMO componente en el MISMO equipo
+  // dentro de los últimos 90 días — un patrón que se repite, no un evento
+  // aislado. otHist no se suma (no siempre trae 'componente' clasificado de
+  // forma comparable, y esto es sobre actividad RECIENTE, terreno que ya
+  // cubre 'ot' del día a día).
+  var otTodo=S.g('ot')||[];
+  var HOY_RIESGO=new Date();
+  var otRecientePorSiglaComp={};
+  otTodo.forEach(function(o){
+    if(!o||!o.sigla||!o.componente||!esFallaMTBF(o))return;
+    var f=o.fecha||o.fechaEntrada;if(!f)return;
+    var dias=(HOY_RIESGO-new Date(f))/86400000;
+    if(dias<0||dias>90)return;
+    var k=o.sigla+'|'+o.componente;
+    otRecientePorSiglaComp[k]=(otRecientePorSiglaComp[k]||0)+1;
+  });
+
   // Estado de vida útil — fuente única compEstado (logic.js). Sin fecha de instalación
   // NO se inventa un % ni un "OK": el componente queda como "falta instalación". Si hay
   // fecha pero NO horómetro de instalación medido, se ESTIMA el horómetro a esa fecha
@@ -148,6 +193,34 @@ export function renderComp(){
     c._st=st;
     c.hrsUsadas=st.hrsUsadas;c.hrsRest=st.hrsRest;c.pctVida=st.pctVida;
     c.diasRest=st.diasRest;c.estadoCalc=st.estado;
+
+    // Señal A: vida útil <1000h restantes — mismo umbral que la tarjeta
+    // "🔴 Críticos (<1000h)" de arriba, no uno nuevo inventado acá.
+    var sVida=st.conDato?(c.hrsRest<=1000):null;
+    var sAceite=_aceiteEsProblemaPersistente(c.sigla,c.comp);
+    var repetidos=otRecientePorSiglaComp[c.sigla+'|'+c.comp]||0;
+    var sRetrabajo=repetidos>=2;
+    var señales=[sVida,sAceite,sRetrabajo];
+    var evaluables=señales.filter(function(s){return s!=null;});
+    var rojas=evaluables.filter(function(s){return s===true;}).length;
+    var motivos=[];
+    if(sVida)motivos.push('vida útil <1000h restantes');
+    if(sAceite)motivos.push('aceite en alerta persistente');
+    if(sRetrabajo)motivos.push(repetidos+' correctivos de este componente en 90 días');
+    // "Alto"/"Medio"/"Bajo" exigen 2+ señales evaluables — el valor real de
+    // este índice es la CONVERGENCIA de fuentes independientes, no repetir
+    // una sola (esa ya la muestra "Estado" al lado, sin necesidad de esto).
+    // Con una sola señal evaluable y en rojo, se avisa igual (no se esconde
+    // un dato real) pero como "revisar", no como veredicto compuesto.
+    if(evaluables.length>=2){
+      if(rojas>=2)c._riesgo={nivel:'🔴 Alto',col:'var(--danger)',tip:motivos.join(' · ')};
+      else if(rojas===1)c._riesgo={nivel:'🟡 Medio',col:'var(--ac)',tip:motivos.join(' · ')};
+      else c._riesgo={nivel:'🟢 Bajo',col:'var(--ok)',tip:'Ninguna de las señales evaluadas (vida útil/aceite/retrabajo) está en rojo'};
+    }else if(evaluables.length===1&&rojas===1){
+      c._riesgo={nivel:'🟡 Revisar',col:'var(--ac)',tip:motivos.join(' · ')+' (solo esta señal tiene dato — sin corroborar con las otras 2)'};
+    }else{
+      c._riesgo={nivel:'⚪ Sin datos',col:'var(--tx3)',tip:'Sin suficientes señales (vida útil/aceite/retrabajo) para evaluar'};
+    }
   });
 
   var sinDato=fil.filter(function(c){return !c._st.conDato}).length;
@@ -242,7 +315,7 @@ export function renderComp(){
     calendarioHtml+
     (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> <b>'+sinDato+' de '+fil.length+' componentes</b> sin datos para proyectar. Dos formas de completarlo: <b>(1)</b> si es el <b>original</b> del equipo (instalado nuevo), marca la casilla "Orig." → sus horas usadas = el horómetro completo. <b>(2)</b> si se cambió, ingresa la <b>fecha de instalación</b> y el sistema <b>estima el horómetro a esa fecha</b> anclando en la puesta en marcha del equipo (aparece con "≈"). <b>Ojo:</b> si el equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>.</div>':'')+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th title="Último evento real encontrado en Historial de Componentes (Equipos → Componentes → Historial), incluye lo cargado desde Excel histórico 2022-2025">Últ. Cambio (Hist.)</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th>Obs</th><th></th></tr>'+
+    '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th title="Último evento real encontrado en Historial de Componentes (Equipos → Componentes → Historial), incluye lo cargado desde Excel histórico 2022-2025">Últ. Cambio (Hist.)</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th title="Combina vida útil restante + análisis de aceite en alerta persistente + retrabajo reciente en correctivos — 2 o más señales coincidiendo en rojo es más confiable que cualquiera sola">Riesgo</th><th>Obs</th><th></th></tr>'+
     fil.map(function(c,idx){
       var realIdx=compData.indexOf(c);
       var st=c._st;var cd=st.conDato;var dash='<span style="color:var(--tx3)">—</span>';var orig=!!c.esOriginal;
@@ -260,6 +333,7 @@ export function renderComp(){
         '<td class="mono">'+(cd?c.diasRest:dash)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+fn(Math.round(c.costoRef||0))+'</td>'+
         '<td style="font-size:11px">'+c.estadoCalc+'</td>'+
+        '<td style="font-size:11px;font-weight:600;color:'+c._riesgo.col+'" title="'+escapeHtml(c._riesgo.tip)+'">'+c._riesgo.nivel+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(c.obs)+'</td>'+
         '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg></button><button class="btn-x" onclick="delComp('+realIdx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
