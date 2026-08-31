@@ -116,6 +116,26 @@ export function _getCostosData(){
   r.push(['TOTAL',r.reduce(function(s,x){return s+x[1]},0),r.reduce(function(s,x){return s+x[2]},0),r.reduce(function(s,x){return s+x[3]},0),r.reduce(function(s,x){return s+x[4]},0),Math.round(tG)]);
   return{headers:h,rows:r};
 };
+// Ratio Preventivo/Correctivo por mes — mismo cálculo que ratioMes/ratioActual
+// más abajo en renderKpi() (contarFallasMes/ratioPreventivo, logic.js), pero
+// recalculado acá de forma independiente: cada _getXData() de este archivo se
+// arma directo desde S.g(), sin depender de las variables locales de
+// renderKpi(), para poder llamarse solo (botón individual, o rptTodos).
+export function _getRatioData(){
+  var reg=S.g('reg')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
+  var meses=[...new Set(reg.map(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)}).concat(ot.map(function(o){return(o.fecha||'').slice(0,7)})).filter(function(m){return m}))].sort();
+  var h=['Mes','Preventivos','Correctivos','Total','% Preventivo'];
+  var r=meses.map(function(mes){
+    var prev=reg.filter(function(rr){return(rr.fechaEntrada||rr.fechaEjec||'').slice(0,7)===mes&&rr.tipoPM!=='Correctivo'}).length;
+    var corr=contarFallasMes(ot,mes);
+    var pct=ratioPreventivo(prev,corr);
+    return[mes,prev,corr,prev+corr,pct===null?'—':pct];
+  });
+  var prevTotal=reg.filter(function(rr){return rr.tipoPM!=='Correctivo'}).length;
+  var corrTotal=contarFallasMes(ot);
+  r.push(['TOTAL',prevTotal,corrTotal,prevTotal+corrTotal,(function(){var p=ratioPreventivo(prevTotal,corrTotal);return p===null?'—':p;})()]);
+  return{headers:h,rows:r};
+};
 export function _getBacklogData(){
   var ot=S.g('ot')||[];var eq=S.g('eq')||[];
   var eqPorSigla={};eq.forEach(function(e){if(e&&e.sigla)eqPorSigla[e.sigla]=e;});
@@ -211,6 +231,7 @@ export function rptMTBF(fmt){var d=_getMTBFData();if(fmt==='excel')genExcel('MTB
 export function rptHH(fmt){var d=_getHHData();if(fmt==='excel')genExcel('Horas Hombre',d.headers,d.rows,'Informe_HH.xls');else{var h='<h2>Horas Hombre</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe HH',h);}};
 export function rptCumpl(fmt){var d=_getCumplData();if(fmt==='excel')genExcel('Cumplimiento PM',d.headers,d.rows,'Informe_Cumplimiento_PM.xls');else{var h='<h2>Cumplimiento PM</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[5]==='—'?'':r[5]>=80?'ok':r[5]>=50?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Cumplimiento PM',h);}};
 export function rptCostos(fmt){var d=_getCostosData();if(fmt==='excel')genExcel('Costos',d.headers,d.rows,'Informe_Costos.xls');else{var h='<h2>Costos Mantención</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+(typeof c==='number'?'$'+fn(c):escapeHtml(c))+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Costos',h);}};
+export function rptRatio(fmt){var d=_getRatioData();if(fmt==='excel')genExcel('Ratio Preventivo',d.headers,d.rows,'Informe_Ratio_Preventivo.xls');else{var h='<h2>Ratio Preventivo / Correctivo</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){var p=r[4];return'<tr class="'+(p==='—'?'':p>=80?'ok':p>=60?'warn':'danger')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Ratio Preventivo',h);}};
 export function rptBacklog(fmt){var d=_getBacklogData();if(fmt==='excel')genExcel('Backlog',d.headers,d.rows,'Informe_Backlog.xls');else{var h='<h2>Backlog OT</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[8]==='CRÍTICO'?'danger':r[8]==='URGENTE'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Backlog',h);}};
 export function rptComp(fmt){var d=_getCompData();if(fmt==='excel')genExcel('Componentes',d.headers,d.rows,'Informe_Componentes.xls');else{var h='<h2>Componentes Mayores</h2><table><tr>'+d.headers.map(function(x){return'<th>'+x+'</th>'}).join('')+'</tr>'+d.rows.map(function(r){return'<tr class="'+(r[9]==='VENCIDO'?'danger':r[9]==='PLANIFICAR'?'warn':'')+'">'+r.map(function(c){return'<td>'+escapeHtml(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';printReport('Informe Componentes',h);}};
 export function rptEjecutivo(fmt){
@@ -465,8 +486,8 @@ export function renderKpi(){
     '<div style="font-size:10px;margin-top:4px;color:'+(ratioActual===null?'var(--tx3)':ratioActual>=80?'var(--ok)':ratioActual>=60?'var(--ac)':'var(--danger)')+'">'+(ratioActual===null?'Sin datos':'Meta: 80% preventivo')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+prevTotal+' prev / '+corrTotal+' corr</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
-    '<button class="btn-s" onclick="rptBacklog(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
-    '<button class="btn-s" onclick="rptBacklog(\'print\')" style="font-size:9px" title="Imprimir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
+    '<button class="btn-s" onclick="rptRatio(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
+    '<button class="btn-s" onclick="rptRatio(\'print\')" style="font-size:9px" title="Imprimir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+
     '</div>'+
     '<div>'+barsWithMeta(ratioMes,mesLabels,80,100,'%',false)+'</div></div>'+
 
@@ -505,6 +526,7 @@ window._getCumplData = _getCumplData;
 window._getCostosData = _getCostosData;
 window._getBacklogData = _getBacklogData;
 window._getCompData = _getCompData;
+window._getRatioData = _getRatioData;
 window._getEjecutivoData = _getEjecutivoData;
 window.rptTodos = rptTodos;
 window.rptDisp = rptDisp;
@@ -512,6 +534,7 @@ window.rptMTBF = rptMTBF;
 window.rptHH = rptHH;
 window.rptCumpl = rptCumpl;
 window.rptCostos = rptCostos;
+window.rptRatio = rptRatio;
 window.rptBacklog = rptBacklog;
 window.rptComp = rptComp;
 window.rptEjecutivo = rptEjecutivo;
