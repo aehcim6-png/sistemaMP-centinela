@@ -133,7 +133,71 @@ export function renderMetas() {
   // la persona está viendo en la tabla en ese momento, no un recálculo aparte.
   window._metasCadena = { realData: realData, DEP_MAP: DEP_MAP, indicators: indicators, MSN: MSN };
 
-  $('s-metas').innerHTML =
+  // Nivel 4 ("anticipar"): alertas de TENDENCIA — a diferencia de los Niveles 1-3
+  // (que solo explican una celda YA roja), esto avisa aunque el indicador todavía
+  // esté en verde, si viene empeorando 3+ meses seguidos. No es un modelo
+  // estadístico ni predice un mes exacto: es una racha simple (cada mes igual o
+  // peor que el anterior, con al menos un cambio real), la misma idea que "lleva
+  // 3 meses cayendo" que cualquiera vería mirando la fila completa — solo que acá
+  // se calcula y se muestra antes de que la persona tenga que notarlo sola.
+  // Limitación conocida: solo mira dentro del año calendario en curso (MSN es
+  // ENE-DIC de anioMetas) — en enero/febrero puede no alcanzar a ver una racha
+  // que ya venía de diciembre del año anterior.
+  var hMFlota = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0);
+  function valorIndicador(id, mes) {
+    if (!realData[mes]) return null;
+    if (id === 'mtbf') { var fM = realData[mes].correctivosDelMes; return fM > 0 ? Math.round(hMFlota / fM) : null; }
+    var v = realData[mes][id];
+    return v === undefined ? null : v;
+  }
+  var mesActualIdx = new Date().getMonth(); // 0=ENE, coincide con el índice de MSN
+  function serieReciente(id, maxLen) {
+    var i = mesActualIdx;
+    while (i >= 0 && valorIndicador(id, MSN[i]) == null) i--; // ancla en el último mes CON dato
+    var serie = [];
+    for (; i >= 0 && serie.length < maxLen; i--) {
+      var v = valorIndicador(id, MSN[i]);
+      if (v == null) break;
+      serie.unshift(v);
+    }
+    return serie;
+  }
+  // higherIsBetter=true → empeora si BAJA; false → empeora si SUBE. Exige al menos
+  // un cambio real (una racha de puros empates no cuenta como "tendencia").
+  function siempreEmpeora(serie, higherIsBetter) {
+    if (serie.length < 3) return false;
+    var huboCambio = false;
+    for (var i = 1; i < serie.length; i++) {
+      var mejora = higherIsBetter ? serie[i] > serie[i - 1] : serie[i] < serie[i - 1];
+      if (mejora) return false;
+      if (serie[i] !== serie[i - 1]) huboCambio = true;
+    }
+    return huboCambio;
+  }
+  var alertasTendencia = [];
+  indicators.forEach(function (ind) {
+    var serie = serieReciente(ind.id, 4);
+    if (!siempreEmpeora(serie, ind.higher)) return;
+    // Causas declaradas (DEP_MAP) que vienen subiendo en el mismo tramo — todas las
+    // causas actuales de este archivo empeoran cuando SUBEN (correctivos, backlog,
+    // pms, hh como causa de otro), así que se compara con higherIsBetter=false.
+    var deps = DEP_MAP[ind.id] || [];
+    var causasEnRacha = deps.filter(function (dep) {
+      var s2 = serieReciente(dep.id, serie.length);
+      return s2.length === serie.length && siempreEmpeora(s2, false);
+    });
+    alertasTendencia.push(ind.name + ' lleva ' + (serie.length - 1) + ' mes(es) seguidos empeorando: ' + serie.join(' → ') +
+      (causasEnRacha.length ? ' — junto con ' + causasEnRacha.map(function (d) { return d.label }).join(' y ') + ', que también viene subiendo' : '') + '.');
+  });
+  var tendenciaHtml = alertasTendencia.length ?
+    '<div style="background:rgba(239,68,68,.06);border:1px solid #ef4444;border-radius:8px;padding:12px 16px;margin-bottom:14px">' +
+    '<b style="color:#ef4444;font-size:12px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Tendencia — antes de que se ponga roja</b>' +
+    '<div style="font-size:10px;color:var(--tx3);margin:2px 0 6px">Viene empeorando 3+ meses seguidos, esté o no dentro de meta todavía.</div>' +
+    '<ul style="margin:0;padding-left:18px;font-size:11px;color:var(--tx2)">' +
+    alertasTendencia.map(function (t) { return '<li style="margin-bottom:4px">' + escapeHtml(t) + '</li>'; }).join('') +
+    '</ul></div>' : '';
+
+  $('s-metas').innerHTML = tendenciaHtml +
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas vs Realidad</div>' +
     '<div class="sec-s">Meta editable · Real se calcula automático desde registros</div></div></div>' +
     '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:11px">' +
