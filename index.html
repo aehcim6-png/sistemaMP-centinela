@@ -120,6 +120,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#dc2626}
 .btn-o{background:none;border:1px solid var(--bd);color:var(--tx2);box-shadow:none}.btn-o:hover{border-color:var(--ac);color:var(--ac);box-shadow:none;transform:none}
 .btn-s{padding:3px 8px;font-size:11px}
+/* .btn-x: botón de acción de fila (editar/eliminar/restaurar/subir evidencia)
+   usado en 12+ tablas — no tenía NINGUNA regla propia (encontrado auditando
+   el tamaño de tap en mobile, 2026-08-31): quedaba con el estilo nativo del
+   navegador, sin relación visual con el resto de los botones del sistema. */
+.btn-x{background:none;border:1px solid var(--bd);color:var(--tx2);border-radius:4px;padding:4px 6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
+.btn-x:hover{border-color:var(--ac);color:var(--ac)}
 .mic-btn{background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);border-radius:6px;padding:0 8px;cursor:pointer;display:flex;align-items:center}
 .mic-btn:hover{border-color:var(--ac);color:var(--ac)}
 .mic-btn.mic-listening{background:var(--danger);border-color:var(--danger);color:#fff;animation:micPulse 1s ease-in-out infinite}
@@ -268,7 +274,17 @@ td.calc{color:var(--tx3);font-style:italic}
   .nav button{font-size:10px;padding:7px 8px}
   .sec-t{font-size:15px}
   table{font-size:9px}
-  .btn{padding:8px 10px;font-size:12px}
+  .btn{padding:10px 14px;font-size:13px;min-height:44px}
+  /* Tamaño de tap en mobile (2026-08-31, propuesta UX de esta sesión): a este
+     ancho .btn ya alcanzaba el mínimo recomendado de 44px con solo padding,
+     pero .btn-s (usado para los botones de acción de cada fila — editar,
+     eliminar, ver evidencia — en TODAS las tablas del sistema) se quedaba en
+     su tamaño de escritorio (3px 8px, ~20px de alto): el más chico de todos,
+     justo en el lugar donde es más fácil apretar el botón vecino por error.
+     Los selects/inputs de filtro (.toolbar) también quedaban sin ajustar. */
+  .btn-s,.btn-x{padding:8px 10px;font-size:12px;min-height:36px;min-width:36px}
+  .toolbar select,.toolbar input{padding:9px 10px;font-size:13px;min-height:40px}
+  .mic-btn{padding:9px 8px;min-height:36px}
 }
 /* Elementos marcados para no salir al imprimir (Ctrl+P) ni al exportar con
    imprimirTab() — se ven normal en pantalla, el dato real no se toca. */
