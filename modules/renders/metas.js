@@ -127,6 +127,12 @@ export function renderMetas() {
     };
   });
 
+  // Nivel 3 ("Cadena de Causas"): verCadenaCausas() necesita este mismo snapshot
+  // (realData/DEP_MAP/indicators/MSN) recién calculado — se guarda acá en vez de
+  // recalcularlo de nuevo al abrir el modal, para que muestre exactamente lo que
+  // la persona está viendo en la tabla en ese momento, no un recálculo aparte.
+  window._metasCadena = { realData: realData, DEP_MAP: DEP_MAP, indicators: indicators, MSN: MSN };
+
   $('s-metas').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas vs Realidad</div>' +
     '<div class="sec-s">Meta editable · Real se calcula automático desde registros</div></div></div>' +
@@ -167,14 +173,81 @@ export function renderMetas() {
             });
             if (clausulas.length) motivo += ' · vs. mes anterior: ' + clausulas.join(', ');
           }
+          // Nivel 3: la celda roja además es clickeable — abre "Cadena de Causas", el
+          // mismo dato del tooltip pero como flujo visual con hasta 2 niveles de causa.
+          var clickCadena = motivo ? ' onclick="verCadenaCausas(\'' + ind.id + '\',\'' + mes + '\')"' : '';
           return '<td class="ed" style="color:#3b82f6;text-align:center;font-size:10px" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; if(!m[\'' + ind.id + '\'].meses)m[\'' + ind.id + '\'].meses={}; if(!m[\'' + ind.id + '\'].meses[\'' + mes + '\'])m[\'' + ind.id + '\'].meses[\'' + mes + '\']={}; m[\'' + ind.id + '\'].meses[\'' + mes + '\'].meta=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + metaM + '</td>' +
-            '<td style="text-align:center;font-weight:600;color:' + col + ';font-size:10px' + (motivo ? ';cursor:help;text-decoration:underline dotted' : '') + '"' + (motivo ? ' title="' + escapeHtml(motivo) + '"' : '') + '>' + (sinDato ? '—' : real) + '</td>';
+            '<td style="text-align:center;font-weight:600;color:' + col + ';font-size:10px' + (motivo ? ';cursor:pointer;text-decoration:underline dotted' : '') + '"' + (motivo ? ' title="' + escapeHtml(motivo) + ' — clic para ver la cadena completa"' : '') + clickCadena + '>' + (sinDato ? '—' : real) + '</td>';
         }).join('') + '</tr>';
     }).join('') +
     '</table></div>';
   if (JSON.stringify(metas) !== metasAntes) S.s('metas', metas);
 }
 
+// Nivel 3 de "conectar los números": el mismo mapa de causas del Nivel 2 (DEP_MAP),
+// pero como flujo visual en vez de un tooltip de una línea — hasta 2 niveles de
+// causa (ej. Gasto ← HH del mes ← PM ejecutados). No agrega ningún dato nuevo: usa
+// el snapshot que renderMetas() ya calculó (window._metasCadena).
+export function verCadenaCausas(indId, mes) {
+  var snap = window._metasCadena;
+  if (!snap) { toast('⚠️ Abre primero Metas & KPIs → Metas'); return; }
+  var indicators = snap.indicators, DEP_MAP = snap.DEP_MAP, realData = snap.realData, MSN = snap.MSN;
+  var ind = indicators.find(function (i) { return i.id === indId; });
+  if (!ind) return;
+  var mi = MSN.indexOf(mes);
+  var mesAnt = mi > 0 ? MSN[mi - 1] : null;
+
+  function valor(id, m) { return (m && realData[m]) ? realData[m][id] : null; }
+  // Si el id es uno de los 8 indicadores de Metas, usa SU PROPIA meta para pintarlo
+  // rojo/verde (ej. "PM ejecutados" como causa de HH también muestra si él mismo
+  // está dentro de meta). Un id que no es indicador (ej. correctivosDelMes) no
+  // tiene meta propia — queda en color neutro.
+  function estadoDe(id, m) {
+    var i2 = indicators.find(function (x) { return x.id === id; });
+    var v = valor(id, m);
+    if (!i2 || v == null) return null;
+    return i2.higher ? v >= i2.meta : v <= i2.meta;
+  }
+  function caja(label, id, destacada) {
+    var ahora = valor(id, mes), antes = mesAnt ? valor(id, mesAnt) : null;
+    var okEst = estadoDe(id, mes);
+    var col = okEst === null ? 'var(--tx)' : (okEst ? '#22c55e' : '#ef4444');
+    var texto = ahora == null ? '—' : (antes != null && antes !== ahora ? (antes + ' → ' + ahora) : String(ahora));
+    return '<div style="background:var(--bg3);border:1px solid var(--bd);border-left:4px solid ' + col + ';border-radius:8px;padding:10px 14px;min-width:150px' + (destacada ? ';box-shadow:0 0 0 2px ' + col : '') + '">' +
+      '<div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">' + escapeHtml(label) + '</div>' +
+      '<div style="font-size:17px;font-weight:800;color:' + col + '">' + escapeHtml(texto) + '</div></div>';
+  }
+  var flecha = '<div style="font-size:20px;color:var(--tx3);align-self:center">→</div>';
+
+  var deps = DEP_MAP[indId] || [];
+  var cadenaHtml;
+  if (!deps.length) {
+    cadenaHtml = '<p style="font-size:12px;color:var(--tx3);padding:16px 0">Este indicador no tiene una causa declarada entre los otros 7 de Metas — es de nivel raíz acá (depende de factores fuera de este tablero, como dotación o programación de PM).</p>';
+  } else {
+    cadenaHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0">';
+    deps.forEach(function (dep) {
+      cadenaHtml += caja(dep.label, dep.id);
+      var deps2 = DEP_MAP[dep.id];
+      if (deps2 && deps2.length) {
+        cadenaHtml += '<div style="font-size:10px;color:var(--tx3);width:100%;padding-left:6px">↳ "' + escapeHtml(dep.label) + '" a su vez depende de:</div>';
+        deps2.forEach(function (dep2) { cadenaHtml += caja(dep2.label, dep2.id); });
+        cadenaHtml += '<div style="width:100%"></div>';
+      }
+    });
+    cadenaHtml += flecha + caja(ind.name, indId, true) + '</div>';
+  }
+
+  sm('<div style="max-width:680px">' +
+    '<h3>🔗 Cadena de Causas — ' + escapeHtml(ind.name) + ' · ' + mes + '</h3>' +
+    '<p style="font-size:11px;color:var(--tx3);margin:4px 0 0">' +
+    (mesAnt ? 'Cada caja compara ' + mesAnt + ' → ' + mes + '.' : 'Sin mes anterior disponible para comparar (es el primer mes del año).') +
+    ' No afirma que sea la única explicación — solo muestra la causa conocida (por fórmula u operación) y cómo se movió.</p>' +
+    cadenaHtml +
+    '<button class="btn btn-o" onclick="cm()">Cerrar</button>' +
+    '</div>');
+}
+
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderMetas = renderMetas;
+window.verCadenaCausas = verCadenaCausas;
 renders.metas = renderMetas;
