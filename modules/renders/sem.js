@@ -560,7 +560,7 @@ export function cerrarSemana(w){
   var items=manualItems.concat(autoItems);
   semHist[w]={cerrada:true,fechaCierre:new Date().toISOString().slice(0,10),items:JSON.parse(JSON.stringify(items))};
   S.s('planSemHist',semHist);
-  refreshAll();alert('✅ Semana '+w+' cerrada y guardada en histórico.');
+  refreshAll();toast('✅ Semana '+w+' cerrada y guardada en histórico.');
 }
 export function reabrirSemana(w){
   if(!confirm('¿Reabrir semana '+w+'?\n\nPodrás editar el Plan y el Real nuevamente.'))return;
@@ -585,8 +585,8 @@ export function importSemCSV(){
           }
           S.s('planSem',sem);
         }
-        refreshAll();alert('✅ Plan semanal importado');
-      }catch(er){alert('❌ Error: '+er.message)}
+        refreshAll();toast('✅ Plan semanal importado');
+      }catch(er){toast('❌ Error: '+er.message)}
     };r.readAsText(f);
   };inp.click();
 }

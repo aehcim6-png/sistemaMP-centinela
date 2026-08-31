@@ -261,12 +261,15 @@ export function processImportHorom(){
         }
       });
       S.s('eq',eq);S.s('hist',hist);cm();refreshAll();
-      var msg='✅ '+nuevas+' lecturas nuevas · '+updated+' equipos actualizados';
-      if(dup)msg+=' · '+dup+' duplicadas omitidas';
       var noEx=Object.keys(equiposNoExisten);
-      if(noEx.length)msg+='\n⚠️ '+noEx.length+' equipo(s) no existen y se omitieron: '+noEx.join(', ');
-      alert(msg);
-    }catch(err){alert('❌ Error: '+err.message);}
+      // sm() en vez de alert(): el resumen puede tener 2 líneas (conteo +
+      // aviso de equipos no encontrados) y un toast de 2.5s no alcanza a
+      // leerse cuando hay una lista larga de siglas omitidas.
+      sm('<h3>'+ICONS.check+' Horómetros importados</h3>'+
+        '<p style="font-size:13px">'+nuevas+' lecturas nuevas · '+updated+' equipos actualizados'+(dup?' · '+dup+' duplicadas omitidas':'')+'</p>'+
+        (noEx.length?'<p style="font-size:13px;color:var(--w)">⚠️ '+noEx.length+' equipo(s) no existen y se omitieron: '+escapeHtml(noEx.join(', '))+'</p>':'')+
+        '<button class="btn" onclick="cm()">Cerrar</button>');
+    }catch(err){toast('❌ Error: '+err.message);}
   };
   reader.readAsText(file,'UTF-8');
 };

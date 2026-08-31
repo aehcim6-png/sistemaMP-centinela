@@ -390,8 +390,8 @@ export function importCompCSV(){
           }
           S.s('compMayores',d);
         }
-        refreshAll();alert('✅ Componentes importados');
-      }catch(er){alert('❌ Error: '+er.message)}
+        refreshAll();toast('✅ Componentes importados');
+      }catch(er){toast('❌ Error: '+er.message)}
     };r.readAsText(f);
   };inp.click();
 }

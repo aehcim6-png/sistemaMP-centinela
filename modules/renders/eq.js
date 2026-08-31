@@ -146,10 +146,14 @@ export function importarEquiposNuevos(){
 
   S.s('eq',eq);
   refreshAll();
-  var msg='✅ Importados: '+agregados.join(', ');
-  if(omitidos.length)msg+='\n⚠️ Ya existían (omitidos): '+omitidos.join(', ');
-  msg+='\n\n<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Camionetas y Bus tienen hrsDia=0.\nEdita cada ficha técnica (✏️) para ingresar km/día cuando tengas el dato.';
-  alert(msg);
+  // sm() en vez de alert(): el resumen es multi-línea (importados/omitidos +
+  // el aviso de hrsDia=0) y alert() no renderiza HTML — el ícono de acá abajo
+  // salía como texto crudo "<svg..." en el cuadro nativo del navegador.
+  sm('<h3>'+ICONS.check+' Equipos importados</h3>'+
+    '<p style="font-size:13px">Importados: <b>'+escapeHtml(agregados.join(', ')||'ninguno')+'</b></p>'+
+    (omitidos.length?'<p style="font-size:13px;color:var(--w)">⚠️ Ya existían (omitidos): '+escapeHtml(omitidos.join(', '))+'</p>':'')+
+    '<p style="font-size:12px;color:var(--tx3);display:flex;align-items:flex-start;gap:6px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Camionetas y Bus tienen hrsDia=0. Edita cada ficha técnica (✏️) para ingresar km/día cuando tengas el dato.</p>'+
+    '<button class="btn" onclick="cm()">Cerrar</button>');
 }
 export function editFicha(sigla){
   var eq=S.g('eq')||[];
