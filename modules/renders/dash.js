@@ -265,6 +265,11 @@ export function renderDash(){
   var eqHrsUnidad=eq.filter(function(e){return e.unidad!=='km';});
   var horasPeriodoProm=eqHrsUnidad.length?eqHrsUnidad.reduce(function(s,e){return s+(e.hrsDia||12)*_diasMes;},0)/eqHrsUnidad.length:null;
   var hhTotal=Math.round(reg.reduce(function(s,r){return s+(r.duracionH||0)},0));
+  // Nivel 2 de "alerta predictiva" (2026-09-01) — cuenta componentes con
+  // riesgoNivel='🔴 Alto', el mismo campo que ya persiste comp.js (ver su
+  // comentario) y que lee resumen-semanal. Solo lectura del dato ya
+  // calculado y guardado — no se recalcula el Índice de Riesgo acá.
+  var compRiesgoAlto=compMayoresDash.filter(function(c){return c&&c.riesgoNivel==='🔴 Alto';}).length;
   var otPend=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   // Utilización de dotación según la última fecha cargada en Programación Diaria
   // (no "hoy" — se puede importar con 1-2 días de desfase, así que se usa la
@@ -634,6 +639,14 @@ export function renderDash(){
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Al Día</div>'+
     '<div style="font-size:28px;font-weight:800;color:var(--ok)">'+alDia.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Sin intervención próxima</div></div>'+
+
+    // Nivel 2 de "alerta predictiva" (2026-09-01) — lleva directo a
+    // Componentes con el filtro de Riesgo ya en '🔴 Alto' (mismo patrón de
+    // drill-down que las filas de Ranking de Confiabilidad, más abajo).
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center;cursor:pointer" onclick="go(\'comp\');setTimeout(function(){var s=document.getElementById(\'fCompRiesgo\');if(s){s.value=\'🔴 Alto\';renders.comp();}},50)" title="Ver los componentes en riesgo alto de falla (vida útil + análisis de aceite + retrabajo reciente) — Componentes → Riesgo">'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">🔴 Riesgo Alto</div>'+
+    '<div style="font-size:28px;font-weight:800;color:'+(compRiesgoAlto?'var(--danger)':'var(--ok)')+'">'+compRiesgoAlto+'</div>'+
+    '<div style="font-size:9px;color:var(--tx3)">Componentes · clic para ver</div></div>'+
 
     '</div></div></div>';
 

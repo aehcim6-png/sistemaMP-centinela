@@ -239,6 +239,15 @@ export function renderComp(){
   var _riesgoDespues=fil.map(function(c){return c.riesgoNivel+'|'+c.riesgoTip;}).join('~');
   if(_riesgoDespues!==_riesgoAntes)S.s('compMayores',compData);
 
+  // Filtro por nivel de Riesgo (Nivel 2 de "alerta predictiva", 2026-09-01) —
+  // se aplica DESPUÉS de calcular/persistir el riesgo de arriba (sobre 'fil'
+  // completo, filtrado solo por equipo) para que la persistencia nunca
+  // dependa de qué nivel esté filtrado en pantalla; de acá para abajo se usa
+  // 'fil' filtrado también por riesgo, para que tarjetas/calendario/tabla
+  // muestren siempre lo mismo entre sí.
+  var fRiesgo=$('fCompRiesgo')?.value||'';
+  if(fRiesgo)fil=fil.filter(function(c){return c.riesgoNivel===fRiesgo;});
+
   var sinDato=fil.filter(function(c){return !c._st.conDato}).length;
   var criticos=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=1000}).length;
   var costoTotal=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=2000}).reduce(function(s,c){return s+(c.costoRef||0)},0);
@@ -321,7 +330,10 @@ export function renderComp(){
     '<button class="btn btn-o" onclick="importCompCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button>'+
     '</div></div>'+
     '<div class="toolbar"><select id="fCompEq" onchange="renders.comp()"><option value="">Todos los equipos</option>'+
-    siglas.map(function(s){return'<option'+(fEquipo===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></div>'+
+    siglas.map(function(s){return'<option'+(fEquipo===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'+
+    '<select id="fCompRiesgo" onchange="renders.comp()"><option value="">Todos los niveles de riesgo</option>'+
+    ['🔴 Alto','🟡 Medio','🟡 Revisar','🟢 Bajo','⚪ Sin datos'].map(function(n){return'<option'+(fRiesgo===n?' selected':'')+'>'+n+'</option>'}).join('')+
+    '</select></div>'+
     '<div class="cards">'+
     '<div class="card"><div class="card-t">Componentes</div><div class="card-v">'+fil.length+'</div></div>'+
     '<div class="card"><div class="card-t">🔴 Críticos (&lt;1000h)</div><div class="card-v" style="color:var(--danger)">'+criticos+'</div></div>'+
