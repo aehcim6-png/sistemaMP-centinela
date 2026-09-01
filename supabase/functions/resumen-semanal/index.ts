@@ -32,6 +32,16 @@
 //
 // Pensada para correr una vez por semana (lunes) vía pg_cron (job
 // 'resumen-semanal-lunes').
+//
+// (2026-09-01) Sumada la sección de "Componentes en riesgo alto de falla"
+// (Nivel 1 de la propuesta "alerta predictiva") — lee 'riesgoNivel'/
+// 'riesgoTip' de 'componentes_mayores', el mismo Índice de Riesgo que ya
+// calcula comp.js (vida útil + análisis de aceite + retrabajo reciente) y
+// que ahora también GUARDA en esas dos columnas cada vez que alguien abre
+// Componentes — mismo patrón que equipos.estado/diasParaPM/horomProxPM. No
+// se reimplementa la fórmula acá: la señal de vida útil necesita estimar el
+// horómetro de instalación (horomEnFecha/tasaDiariaReal en logic.js), y esa
+// lógica debe vivir en un solo lugar.
 // ============================================================
 
 const EXCLUIDOS = new Set(['BD-8708', 'CA-5137', 'CA-5140', 'CN-9506']); // decomisionados
@@ -150,6 +160,19 @@ Deno.serve(async (req) => {
     const pmSemanaActual = regsDesdeAnterior.filter((r: any) => fechaReg(r) >= iso(inicioActual)).length;
     const pmSemanaAnterior = regsDesdeAnterior.filter((r: any) => fechaReg(r) >= iso(inicioAnterior) && fechaReg(r) < finAnteriorExcl).length;
 
+    // ── COMPONENTES EN RIESGO ALTO (Nivel 1 de "alerta predictiva", 2026-09-01) ──
+    // No se reimplementa el Índice de Riesgo acá: la señal de vida útil
+    // requiere estimar el horómetro de instalación (horomEnFecha/
+    // tasaDiariaReal en logic.js), lógica que solo debe vivir una vez. En vez
+    // de eso, se lee 'riesgoNivel'/'riesgoTip' — el mismo veredicto que ya
+    // calcula y GUARDA comp.js cada vez que alguien abre Componentes (mismo
+    // patrón que equipos.estado/diasParaPM/horomProxPM) — así este correo
+    // nunca puede decir algo distinto de lo que se ve en pantalla.
+    const compsRiesgo = await get('componentes_mayores?select=sigla,comp,riesgoNivel,riesgoTip');
+    const componentesRiesgoAlto = compsRiesgo
+      .filter((c: any) => c.riesgoNivel === '🔴 Alto' && c.sigla && !EXCLUIDOS.has(c.sigla))
+      .sort((a: any, b: any) => (a.sigla < b.sigla ? -1 : a.sigla > b.sigla ? 1 : 0));
+
     // ── Snapshot de pendientes de fondo (solo contador, sin tabla —
     // el detalle línea por línea ya lo manda alerta-pm todos los días) ────
     const backlog = await get('correctivos?select=sigla&estadoOT=eq.Pendiente');
@@ -194,6 +217,7 @@ Deno.serve(async (req) => {
       `${moneda(costoActual)} en costo`,
       `${pmSemanaActual} PM ejecutado(s)`,
       `${backlogCount} pendiente(s) en backlog`,
+      `${componentesRiesgoAlto.length} componente(s) en riesgo alto de falla`,
     ];
 
     const html = `
@@ -211,6 +235,12 @@ Deno.serve(async (req) => {
             rankingEquipos.map((r) => [r.sigla, String(r.n)])
           )
         : `<p style="font-size:13px;color:#888">Sin correctivos registrados esta semana.</p>`}
+      ${componentesRiesgoAlto.length > 0
+        ? `<h3>🔴 Componentes en riesgo alto de falla</h3>` + tabla(
+            ['Equipo', 'Componente', 'Motivo'],
+            componentesRiesgoAlto.map((c: any) => [c.sigla, c.comp || '', c.riesgoTip || ''])
+          )
+        : `<p style="font-size:13px;color:#888">Ningún componente en riesgo alto esta semana (vida útil + análisis de aceite + retrabajo reciente).</p>`}
       <h3>📋 Pendiente hace tiempo (snapshot — detalle en el correo diario o el Dashboard)</h3>
       ${tabla(
         ['Backlog (correctivos pendientes)', 'Fuera de servicio ≥14 días', 'Documentos por vencer/vencidos', 'Ítems de stock crítico'],

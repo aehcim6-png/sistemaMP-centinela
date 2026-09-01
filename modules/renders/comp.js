@@ -174,6 +174,14 @@ export function renderComp(){
   // NO se inventa un % ni un "OK": el componente queda como "falta instalación". Si hay
   // fecha pero NO horómetro de instalación medido, se ESTIMA el horómetro a esa fecha
   // desde la tasa real del equipo (horomEnFecha) y se marca como estimado (≈).
+  // Snapshot de riesgo ANTES de recalcular — guarda de nuevo solo si algo
+  // realmente cambió (mismo patrón que C.recalcAll para 'eq', ver store.js):
+  // sin esto, cada apertura de esta pestaña resubiría 'compMayores' completo
+  // aunque el riesgo de cada fila sea idéntico al de la última vez, porque
+  // hrsUsadas/hrsRest/etc. del bloque de abajo son ephemeral y no deben
+  // disparar guardado — solo riesgoNivel/riesgoTip, que sí se persisten
+  // (ver siguiente comentario).
+  var _riesgoAntes=fil.map(function(c){return c.riesgoNivel+'|'+c.riesgoTip;}).join('~');
   fil.forEach(function(c){
     var eqObj=eq.find(function(e){return e.sigla===c.sigla});
     var horomActual=eqObj?eqObj.horomActual:0;
@@ -221,7 +229,15 @@ export function renderComp(){
     }else{
       c._riesgo={nivel:'⚪ Sin datos',col:'var(--tx3)',tip:'Sin suficientes señales (vida útil/aceite/retrabajo) para evaluar'};
     }
+    // Persistido (no solo '_riesgo', que es prefijo de "no se guarda" en todo
+    // el resto del código) para que resumen-semanal (Edge Function, sin
+    // acceso a esta lógica) pueda leer el mismo veredicto ya resuelto en vez
+    // de reimplementar la fórmula del lado del servidor — mismo patrón que
+    // equipos.estado/diasParaPM/horomProxPM (ver C.recalcAll en store.js).
+    c.riesgoNivel=c._riesgo.nivel;c.riesgoTip=c._riesgo.tip;
   });
+  var _riesgoDespues=fil.map(function(c){return c.riesgoNivel+'|'+c.riesgoTip;}).join('~');
+  if(_riesgoDespues!==_riesgoAntes)S.s('compMayores',compData);
 
   var sinDato=fil.filter(function(c){return !c._st.conDato}).length;
   var criticos=fil.filter(function(c){return c._st.conDato&&c.hrsRest<=1000}).length;

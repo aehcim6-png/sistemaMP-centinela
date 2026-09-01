@@ -100,7 +100,7 @@ const TABLA_REAL={
   lub:{tabla:'lubricantes',clave:'_id',claveDb:'id',cols:['nombre','unidad','stock','consumoMes','proyMes','precio']},
   repuestos:{tabla:'repuestos',clave:'_id',claveDb:'id',cols:['componente','nParte','equipo','stockActual','stockMinimo','leadTime','precioUnit','proveedor']},
   prg:{tabla:'programa',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','hrsDia','horomActual','meses']},
-  compMayores:{tabla:'componentes_mayores',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','comp','horomComp','vidaUtil','costoRef','fechaInst','estado','obs','esOriginal']},
+  compMayores:{tabla:'componentes_mayores',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','comp','horomComp','vidaUtil','costoRef','fechaInst','estado','obs','esOriginal','riesgoNivel','riesgoTip']},
   insp:{tabla:'inspecciones',clave:'_id',claveDb:'id',cols:['equipo','fecha','horometro','visual','niveles','fugas','luces','frenos','neumaticos','obs','inspector']},
   aceite:{tabla:'analisis_aceite',clave:'_id',claveDb:'id',cols:['sigla','equipo','fecha','nMuestra','hrsComp','hrsLub','lubricante','componente','descriptor','hierro','cobre','plomo','aluminio','silicio','cromo','sodio','visc40','visc100','pq','tbn','tan','isoCode','espEst1','espEst2','espEst3','demulsibilidad','estado','comentario']},
   ordenes:{tabla:'ordenes_compra',clave:'_id',claveDb:'id',cols:['componente','nParte','cantidad','costoEstimado','proveedor','fecha','estado','equipo','obs','fechaEntrega']},

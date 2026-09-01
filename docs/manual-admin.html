@@ -193,9 +193,10 @@
     persistentes, reingresos tempranos. Se omite el envío si no hay nada urgente ese día.</li>
     <li><b><code>resumen-semanal</code></b> (lunes, 11:00 UTC): un check-in ejecutivo, no una
     alerta — compara la semana contra la anterior (correctivos, costo, PM ejecutados, %
-    documentado), el ranking de equipos con más fallas, y un snapshot de solo 4 contadores de lo
-    pendiente hace tiempo (sin repetir el detalle diario). A diferencia de <code>alerta-pm</code>,
-    SIEMPRE se manda, incluso en una semana tranquila.</li>
+    documentado), el ranking de equipos con más fallas, los componentes en riesgo alto de falla
+    (ver más abajo), y un snapshot de solo 4 contadores de lo pendiente hace tiempo (sin repetir
+    el detalle diario). A diferencia de <code>alerta-pm</code>, SIEMPRE se manda, incluso en una
+    semana tranquila.</li>
   </ul>
   <p>Ambas leen los mismos destinatarios — Configuración → "📧 Alertas por Correo" / "💬 Alertas
   por WhatsApp" (columnas <code>alertaEmails</code>/<code>alertaWhatsApp</code> de
@@ -208,6 +209,17 @@
   <p>Mismo patrón de seguridad que <code>backup-diario</code> (ver
   <a href="arquitectura.html">Arquitectura</a>, sección 9): el secreto de cada cron vive en
   Supabase Vault, nunca en texto plano en el código ni en <code>cron.job.command</code>.</p>
+  <div class="callout">
+  <p style="margin:0"><b>Componentes en riesgo alto (2026-09-01):</b> <code>resumen-semanal</code>
+  no recalcula el Índice de Riesgo de Componentes Mayores (Componentes → Riesgo) — esa fórmula
+  necesita estimar horómetros pasados, lógica que solo debe vivir en <code>logic.js</code>. En vez
+  de eso, el navegador GUARDA el veredicto ya resuelto en
+  <code>componentes_mayores.riesgoNivel</code>/<code>riesgoTip</code> cada vez que alguien abre
+  Componentes (mismo patrón que <code>equipos.estado</code>/<code>diasParaPM</code>), y el correo
+  semanal solo lee esas dos columnas. Si nadie ha abierto Componentes recientemente, esos campos
+  pueden estar desactualizados — el correo dice literalmente lo mismo que la última vez que
+  alguien vio esa pestaña, nunca un número inventado aparte.</p>
+  </div>
 
   <h2>8. Despliegue (Vercel)</h2>
   <ul>

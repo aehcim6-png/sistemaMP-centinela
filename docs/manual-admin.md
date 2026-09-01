@@ -219,10 +219,11 @@ desde afuera:
   tempranos. Se omite el envío si no hay nada urgente ese día.
 - **`resumen-semanal`** (lunes, 11:00 UTC): un check-in ejecutivo, no una
   alerta — compara la semana contra la anterior (correctivos, costo, PM
-  ejecutados, % documentado), el ranking de equipos con más fallas, y un
-  snapshot de solo 4 contadores de lo pendiente hace tiempo (sin repetir el
-  detalle diario). A diferencia de `alerta-pm`, SIEMPRE se manda, incluso en
-  una semana tranquila.
+  ejecutados, % documentado), el ranking de equipos con más fallas, los
+  componentes en riesgo alto de falla (ver más abajo), y un snapshot de solo
+  4 contadores de lo pendiente hace tiempo (sin repetir el detalle diario).
+  A diferencia de `alerta-pm`, SIEMPRE se manda, incluso en una semana
+  tranquila.
 
 Ambas leen los mismos destinatarios — Configuración → "📧 Alertas por
 Correo" / "💬 Alertas por WhatsApp" (columnas `alertaEmails`/`alertaWhatsApp`
@@ -237,6 +238,17 @@ Mismo patrón de seguridad que `backup-diario` (ver
 [`arquitectura.md`](./arquitectura.md), sección 9): el secreto de cada cron
 vive en Supabase Vault, nunca en texto plano en el código ni en
 `cron.job.command`.
+
+**Componentes en riesgo alto (2026-09-01):** `resumen-semanal` no recalcula
+el Índice de Riesgo de Componentes Mayores (Componentes → Riesgo) — esa
+fórmula necesita estimar horómetros pasados, lógica que solo debe vivir en
+`logic.js`. En vez de eso, el navegador GUARDA el veredicto ya resuelto en
+`componentes_mayores.riesgoNivel`/`riesgoTip` cada vez que alguien abre
+Componentes (mismo patrón que `equipos.estado`/`diasParaPM`), y el correo
+semanal solo lee esas dos columnas. Si nadie ha abierto Componentes
+recientemente, esos campos pueden estar desactualizados — el correo dice
+literalmente lo mismo que la última vez que alguien vio esa pestaña, nunca
+un número inventado aparte.
 
 ## 8. Despliegue (Vercel)
 
