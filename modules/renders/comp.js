@@ -170,6 +170,26 @@ export function renderComp(){
     otRecientePorSiglaComp[k]=(otRecientePorSiglaComp[k]||0)+1;
   });
 
+  // ═══ DÍAS ESTIMADOS PARA POSIBLE FALLA (Nivel 3 de "alerta predictiva",
+  // 2026-09-01) — cruza el MTBF típico por TIPO de componente (mismo cálculo
+  // que Estadística: _estFallasCombinadas/_estMtbfPorComponente, puenteados
+  // por window desde estadistica.js — no se reimplementa acá) contra las
+  // horas transcurridas desde la ÚLTIMA falla real de ESE componente en ESE
+  // equipo. Es una estimación estadística de la flota, no una predicción
+  // exacta de esta unidad — por eso vive como columna aparte, nunca se
+  // mezcla con el Índice de Riesgo (que solo cuenta señales verificables).
+  // Sin al menos una falla previa de ese componente en ese equipo (o sin
+  // MTBF típico con muestra suficiente), no se inventa un número: queda '—'.
+  var otHistTodo=S.g('otHist')||[];
+  var eventosMtbfComp=(typeof _estFallasCombinadas==='function')?_estFallasCombinadas(otTodo,otHistTodo):[];
+  var mtbfPorCompTipico=(typeof _estMtbfPorComponente==='function')?_estMtbfPorComponente(eventosMtbfComp):{};
+  var ultimaFallaPorSiglaComp={};
+  eventosMtbfComp.forEach(function(e){
+    if(!e.sigla||!e.componente||!(e.horom>0)||!e.fecha)return;
+    var k=e.sigla+'|'+e.componente;
+    if(!ultimaFallaPorSiglaComp[k]||e.fecha>ultimaFallaPorSiglaComp[k].fecha)ultimaFallaPorSiglaComp[k]=e;
+  });
+
   // Estado de vida útil — fuente única compEstado (logic.js). Sin fecha de instalación
   // NO se inventa un % ni un "OK": el componente queda como "falta instalación". Si hay
   // fecha pero NO horómetro de instalación medido, se ESTIMA el horómetro a esa fecha
@@ -235,6 +255,22 @@ export function renderComp(){
     // de reimplementar la fórmula del lado del servidor — mismo patrón que
     // equipos.estado/diasParaPM/horomProxPM (ver C.recalcAll en store.js).
     c.riesgoNivel=c._riesgo.nivel;c.riesgoTip=c._riesgo.tip;
+
+    // Días estimados para posible falla, cruzando MTBF típico del componente
+    // contra las horas desde la última falla real de este equipo+componente.
+    var mtbfTipico=mtbfPorCompTipico[c.comp];
+    var ultimaFalla=ultimaFallaPorSiglaComp[c.sigla+'|'+c.comp];
+    c._diasEstFalla=null;c._diasEstTexto='—';
+    if(mtbfTipico!=null&&ultimaFalla&&horomActual>=ultimaFalla.horom){
+      var horasTranscurridas=horomActual-ultimaFalla.horom;
+      var horasRestantesMtbf=mtbfTipico-horasTranscurridas;
+      if(horasRestantesMtbf<=0){
+        c._diasEstTexto='⚠️ superó el MTBF típico';
+      }else{
+        c._diasEstFalla=Math.round(horasRestantesMtbf/(hrsDia>0?hrsDia:12));
+        c._diasEstTexto='~'+c._diasEstFalla+' días';
+      }
+    }
   });
   var _riesgoDespues=fil.map(function(c){return c.riesgoNivel+'|'+c.riesgoTip;}).join('~');
   if(_riesgoDespues!==_riesgoAntes)S.s('compMayores',compData);
@@ -343,7 +379,7 @@ export function renderComp(){
     calendarioHtml+
     (sinDato?'<div style="background:rgba(148,163,184,.10);border:1px solid var(--bd);border-left:3px solid var(--w);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--tx2)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> <b>'+sinDato+' de '+fil.length+' componentes</b> sin datos para proyectar. Dos formas de completarlo: <b>(1)</b> si es el <b>original</b> del equipo (instalado nuevo), marca la casilla "Orig." → sus horas usadas = el horómetro completo. <b>(2)</b> si se cambió, ingresa la <b>fecha de instalación</b> y el sistema <b>estima el horómetro a esa fecha</b> anclando en la puesta en marcha del equipo (aparece con "≈"). <b>Ojo:</b> si el equipo ya acumuló más horas que la vida útil del componente, ese componente ya no es el original — usa la fecha del <b>último cambio</b>.</div>':'')+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th title="Último evento real encontrado en Historial de Componentes (Equipos → Componentes → Historial), incluye lo cargado desde Excel histórico 2022-2025">Últ. Cambio (Hist.)</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th title="Combina vida útil restante + análisis de aceite en alerta persistente + retrabajo reciente en correctivos — 2 o más señales coincidiendo en rojo es más confiable que cualquiera sola">Riesgo</th><th>Obs</th><th></th></tr>'+
+    '<tr><th>Equipo</th><th>Componente</th><th title="Instalado con el equipo nuevo">Orig.</th><th>Horóm. Inst.</th><th>Fecha Inst.</th><th title="Último evento real encontrado en Historial de Componentes (Equipos → Componentes → Historial), incluye lo cargado desde Excel histórico 2022-2025">Últ. Cambio (Hist.)</th><th>Vida Útil</th><th>Hrs Usadas</th><th>% Vida</th><th>Hrs Rest</th><th>Días Rest</th><th>Costo Ref ($)</th><th>Estado</th><th title="Combina vida útil restante + análisis de aceite en alerta persistente + retrabajo reciente en correctivos — 2 o más señales coincidiendo en rojo es más confiable que cualquiera sola">Riesgo</th><th title="Estimación estadística: MTBF típico de este TIPO de componente en toda la flota, menos las horas transcurridas desde la última falla real de este componente en este equipo. No es una predicción exacta de esta unidad — requiere al menos una falla previa registrada de este equipo+componente.">Días Est. (MTBF)</th><th>Obs</th><th></th></tr>'+
     fil.map(function(c,idx){
       var realIdx=compData.indexOf(c);
       var st=c._st;var cd=st.conDato;var dash='<span style="color:var(--tx3)">—</span>';var orig=!!c.esOriginal;
@@ -362,6 +398,7 @@ export function renderComp(){
         '<td class="mono ed" contenteditable onblur="edComp('+realIdx+',\'costoRef\',parseFloat(this.innerText.replace(/[$.]/g,\'\'))||0)">$'+fn(Math.round(c.costoRef||0))+'</td>'+
         '<td style="font-size:11px">'+c.estadoCalc+'</td>'+
         '<td style="font-size:11px;font-weight:600;color:'+c._riesgo.col+'" title="'+escapeHtml(c._riesgo.tip)+'">'+c._riesgo.nivel+'</td>'+
+        '<td class="mono" style="font-size:11px;color:'+(c._diasEstFalla!=null&&c._diasEstFalla<=90?'var(--danger)':c._diasEstTexto.indexOf('⚠️')===0?'var(--danger)':'var(--tx2)')+'">'+c._diasEstTexto+'</td>'+
         '<td class="ed" contenteditable onblur="edComp('+realIdx+',\'obs\',this.innerText.trim())" style="font-size:10px;max-width:150px">'+escapeHtml(c.obs)+'</td>'+
         '<td><button class="btn-x" onclick="nuevoInforme(\''+escapeHtml(c.sigla)+'\','+realIdx+')" title="Generar informe de falla/cambio" style="margin-right:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg></button><button class="btn-x" onclick="delComp('+realIdx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+

@@ -311,6 +311,11 @@ export function renderEstadistica() {
     content;
 }
 
-// Puente window/renders — ver nota en mov.js (primera tanda).
+// Puente window/renders — ver nota en mov.js (primera tanda). _estFallasCombinadas/
+// _estMtbfPorComponente se puentean también (Nivel 3 de "alerta predictiva",
+// 2026-09-01) para que comp.js reuse el MISMO cálculo de MTBF típico por
+// componente en vez de reimplementarlo — misma fuente única de siempre.
 window.renderEstadistica = renderEstadistica;
+window._estFallasCombinadas = _estFallasCombinadas;
+window._estMtbfPorComponente = _estMtbfPorComponente;
 renders.estadistica = renderEstadistica;
