@@ -279,6 +279,13 @@ un número inventado aparte.
   el preview automático que Vercel genera para cada rama, y solo se fusiona
   a producción con aprobación explícita.
 
+Esto describe cómo se despliega ESTE sistema (el de Besalco). Para levantar
+una instancia separada para un cliente nuevo — proyecto Supabase propio,
+sin compartir datos ni backend con Besalco — ver
+[`nuevo-cliente.md`](./nuevo-cliente.md): ni "Configurar Nueva Empresa" ni
+"Descargar Plantilla Limpia" (Configuración) alcanzan solos para eso, esa
+guía explica por qué y el proceso real completo.
+
 ## 9. Estructura del código
 
 ```

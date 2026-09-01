@@ -313,7 +313,7 @@ export function renderCfg(){
       // uno. Ver nota de consolidación en kpi.js.
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--w)" onclick="resetAll()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Restaurar datos iniciales</button>'+
       '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--danger)" onclick="resetEmpresa()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16"/><rect x="6.3" y="4.5" width="1.8" height="1.8"/><rect x="9.1" y="4.5" width="1.8" height="1.8"/><rect x="11.9" y="4.5" width="1.8" height="1.8"/><rect x="6.3" y="8" width="1.8" height="1.8"/><rect x="9.1" y="8" width="1.8" height="1.8"/><rect x="11.9" y="8" width="1.8" height="1.8"/><rect x="8.5" y="13" width="3" height="5"/></svg> Configurar Nueva Empresa</button>'+
-      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Descargar Plantilla Limpia (para otra empresa)</button>'+
+      '<button class="btn btn-o" style="width:100%;margin-bottom:8px;color:var(--ac)" onclick="descargarPlantillaLimpia()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Descargar Plantilla Limpia (paso parcial — ver docs/nuevo-cliente.md)</button>'+
       '<div style="font-size:10px;color:var(--tx3)">Nueva Empresa: borra TODO y permite cargar nuevos equipos y pautas</div>'+
       '</div>'+
 
@@ -448,8 +448,20 @@ export function resetAll(){
   location.reload();
 };
 
+// Corrección real (2026-09-01, propuesta "clonar la arquitectura para un
+// cliente nuevo", Nivel 1): este botón SOLO reemplaza el objeto INIT que
+// vive en index.html — nunca tocó, y no puede tocar desde el navegador,
+// modules/store.js (archivo aparte, cargado por su cuenta), donde viven
+// _SB_DEFAULT_URL/_SB_DEFAULT_KEY (el proyecto Supabase real de Besalco,
+// codificados a mano). Si alguien descargaba esto pensando que ya tenía un
+// "sistema nuevo" listo para otra empresa, en realidad el login, el
+// storage y las Edge Functions de ese archivo seguían apuntando al backend
+// real de Besalco — solo la semilla local de equipos/pautas cambiaba. El
+// aviso ahora lo dice explícitamente, y remite a la guía real del proceso
+// completo (docs/nuevo-cliente.md) en vez de dar a entender que esto solo
+// alcanza.
 export function descargarPlantillaLimpia(){
-  if(!confirm('Esto genera un ARCHIVO NUEVO con el sistema vacío (sin equipos, pautas ni registros) para usar en otra empresa.\n\nTu archivo actual NO se modifica — quedas con todos tus datos intactos.\n\n¿Continuar?'))return;
+  if(!confirm('Este archivo NO trae un backend propio: index.html queda con los equipos/pautas vacíos, pero modules/store.js (archivo aparte) sigue apuntando al proyecto Supabase real de Besalco a menos que lo edites a mano antes de desplegar.\n\nEsto NO es "lista para otra empresa" por sí solo — es un paso dentro de un proceso más largo (proyecto Supabase nuevo, migraciones, Edge Functions, y recién ahí cambiar _SB_DEFAULT_URL/_SB_DEFAULT_KEY en modules/store.js). Ver docs/nuevo-cliente.md para la guía completa.\n\nTu archivo actual NO se modifica — quedas con todos tus datos intactos.\n\n¿Continuar de todas formas?'))return;
   const INIT_LIMPIO={empresa:'',faena:'',equipos:[],pautas:[],registros:[],neumaticos:[],neuMed:[],stockFiltros:[],lubricantes:[],filtrosMaestro:[],alertas:[],mov:[],ot:[],insp:[],aceite:[],repuestos:[]};
   fetch(location.href).then(r=>r.text()).then(html=>{
     const finalHtml=html.replace(/const INIT=\{.*?\};\n/s,'const INIT='+JSON.stringify(INIT_LIMPIO)+';\n');
@@ -459,7 +471,7 @@ export function descargarPlantillaLimpia(){
     a.href=url;a.download='SistemaMP_PLANTILLA_LIMPIA.html';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast('✅ Plantilla limpia descargada. Tu archivo actual quedó intacto.');
+    toast('✅ Plantilla limpia descargada — recuerda que igual necesitas un proyecto Supabase propio antes de usarla (ver docs/nuevo-cliente.md).');
   }).catch(e=>{toast('⚠️ No se pudo leer el archivo. Usa Configurar Nueva Empresa como alternativa.');});
 };
 export function resetEmpresa(){

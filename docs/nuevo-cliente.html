@@ -1,0 +1,175 @@
+<meta charset="UTF-8">
+<title>Guía: Cliente Nuevo — SistemaMP Centinela</title>
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#12151c; --panel2:#171b24; --line:#232838;
+    --ink:#e7e9ee; --ink-dim:#8992a3; --amber:#f2a93b; --green:#3ecf8e;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+    --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+      --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);padding:40px 20px 72px}
+  .wrap{max-width:760px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+  h1{font-size:clamp(26px,4vw,34px);line-height:1.15;margin:0 0 12px;text-wrap:balance;font-weight:700}
+  h2{font-size:19px;margin:36px 0 12px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:8px}
+  h3{font-size:14.5px;margin:18px 0 6px;font-weight:700;color:var(--amber)}
+  p{font-size:14.5px;line-height:1.7;color:var(--ink-dim);max-width:66ch}
+  p b, li b, td b{color:var(--ink);font-weight:600}
+  ul,ol{font-size:14.5px;line-height:1.75;color:var(--ink-dim);max-width:66ch;padding-left:22px}
+  li{margin-bottom:4px}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink)}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink)}
+  pre code{background:none;border:none;padding:0}
+  a{color:var(--amber)}
+  .callout{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:8px;padding:14px 16px;margin:16px 0;font-size:13.5px;color:var(--ink-dim)}
+  .callout b{color:var(--ink)}
+  .warn{border-left-color:var(--amber)}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">SistemaMP Centinela — documentación</p>
+  <h1>Guía real: desplegar para un cliente nuevo</h1>
+  <p>Nivel 1 de la propuesta "¿se puede vender esto a otra minera?" (2026-09-01). Esta guía existe
+  porque se comprobó, revisando el código, que <b>ni "Configurar Nueva Empresa" ni "Descargar
+  Plantilla Limpia" (Configuración) arrancan por sí solos una instancia nueva</b> — ver el porqué
+  abajo. No se automatizó nada todavía: esto es el proceso manual real, ordenado, para que sea
+  reproducible.</p>
+
+  <h2>Antes de empezar — qué NO hacen las herramientas que ya existen</h2>
+  <ul>
+    <li><b>"Configurar Nueva Empresa"</b> resetea el <b>mismo backend de Besalco, en el lugar</b>
+    — borra los datos operacionales actuales y carga los que subas. Sirve para reconvertir ESTE
+    despliegue en otra cosa, no para sumar un cliente nuevo al lado del actual (usarlo así
+    borraría los datos reales de Besalco).</li>
+    <li><b>"Descargar Plantilla Limpia"</b> solo reemplaza el objeto <code>INIT</code> dentro de
+    <code>index.html</code> (la semilla local de equipos/pautas). No puede tocar
+    <code>modules/store.js</code> — un archivo aparte, cargado por su cuenta — donde viven
+    <code>_SB_DEFAULT_URL</code>/<code>_SB_DEFAULT_KEY</code>, el proyecto Supabase real de
+    Besalco codificado a mano. El archivo descargado, si se despliega tal cual, sigue apuntando
+    el login, el storage y las Edge Functions al backend real de Besalco.</li>
+  </ul>
+  <p>Ambas siguen existiendo (son útiles para lo que sí hacen), pero ninguna reemplaza este
+  proceso.</p>
+
+  <h2>1. Proyecto Supabase nuevo</h2>
+  <p>Crear un proyecto nuevo en Supabase (dashboard o <code>mcp__Supabase__create_project</code>).
+  Guardar: URL del proyecto, <code>anon</code>/<code>publishable</code> key, <code>service_role</code>
+  key.</p>
+
+  <h2>2. Aplicar el esquema</h2>
+  <p>Aplicar las 51 migraciones de <code>supabase/migrations/</code> <b>en orden</b> (por nombre
+  de archivo, ya vienen con timestamp). Traen: las ~35 tablas reales, RLS por tabla, el trigger
+  <code>proteger_columnas_admin</code>, las funciones
+  <code>verificar_secreto_cron</code>/<code>obtener_secreto_para_cron</code>, y la creación del
+  bucket <code>informes-fotos</code>.</p>
+  <div class="callout warn">
+  <p style="margin:0"><b>⚠️ Trampa real encontrada:</b> 4 de esas migraciones traen la URL del
+  proyecto de Besalco <b>escrita a mano</b> dentro del SQL del cron
+  (<code>20260805213000_programar_backup_diario.sql</code>,
+  <code>20260806014500_asegurar_backup_diario.sql</code>,
+  <code>20260806040000_asegurar_alerta_pm_diaria.sql</code>,
+  <code>20260901010000_programar_resumen_semanal.sql</code>). Aplicarlas tal cual en el proyecto
+  nuevo programaría los cron jobs para llamar a las Edge Functions <b>del proyecto de Besalco</b>,
+  no las del cliente nuevo. Más fácil que editar esas migraciones históricas: dejarlas aplicarse
+  igual y <b>reprogramar los 3 cron jobs a mano al final</b> (paso 6), con la URL y el
+  <code>apikey</code> correctos del proyecto nuevo.</p>
+  </div>
+
+  <h2>3. Configurar Supabase Auth (dashboard — no versionado)</h2>
+  <ul>
+    <li><b>Password policy</b>: 14+ caracteres, mayúscula/minúscula/dígito/símbolo
+    (Authentication → Policies). No vive en ninguna migración, es puramente configuración de
+    dashboard.</li>
+    <li><b>Site URL / Redirect URLs</b> (Authentication → URL Configuration): agregar la URL real
+    de este cliente (ej. <code>https://sistema-mp-&lt;cliente&gt;.vercel.app/**</code>) — sin
+    esto, el link de "¿Olvidaste tu contraseña?" no vuelve bien a la app.</li>
+    <li><b>SMTP de correo</b> (Authentication → Emails): por defecto Supabase manda los correos
+    de Auth (confirmación, recuperación de clave) con su propio servidor, con un límite bajo de
+    envíos por hora — para un cliente real conviene configurar un SMTP propio (ej. Resend, mismo
+    proveedor que ya usan las alertas) para no toparse con ese límite.</li>
+  </ul>
+
+  <h2>4. Secrets de las Edge Functions</h2>
+  <p>Cargar en Project Settings → Edge Functions → Secrets (o <code>supabase secrets set</code>):</p>
+  <ul>
+    <li><code>RESEND_API_KEY</code>, <code>ALERTA_PM_REMITENTE</code> (correo de alertas/resumen
+    semanal)</li>
+    <li><code>TWILIO_ACCOUNT_SID</code>/<code>TWILIO_AUTH_TOKEN</code>/<code>TWILIO_WHATSAPP_FROM</code>
+    (opcional, solo si el cliente quiere alertas por WhatsApp)</li>
+    <li>La clave de Gemini que usan <code>leer-pauta-pm</code>/<code>leer-informe-correctivo</code>/
+    <code>leer-chequeo-neumaticos</code> (OCR de fotos)</li>
+    <li><code>SUPABASE_URL</code>/<code>SUPABASE_SERVICE_ROLE_KEY</code> los provee Supabase solo
+    a cada función, no hace falta cargarlos a mano.</li>
+  </ul>
+
+  <h2>5. Vault — secretos de cron</h2>
+  <p>Insertar (vía SQL, <code>vault.create_secret(valor, nombre, descripción)</code>) un secreto
+  aleatorio de 32 bytes para cada uno: <code>backup_diario_cron_secret</code>,
+  <code>alerta_pm_cron_secret</code>, <code>resumen_semanal_cron_secret</code>. Las funciones que
+  los verifican (<code>verificar_secreto_cron</code>) ya quedaron creadas en el paso 2.</p>
+
+  <h2>6. Desplegar las Edge Functions y programar los cron jobs</h2>
+  <p>Desplegar las 11 funciones de <code>supabase/functions/</code>. Después, programar (o
+  reprogramar, por la trampa del paso 2) los 3 cron jobs con <code>cron.schedule(...)</code>,
+  apuntando a <code>https://&lt;proyecto-nuevo&gt;.supabase.co/functions/v1/&lt;función&gt;</code>
+  y el <code>apikey</code> anon del proyecto nuevo — copiar la forma exacta de
+  <code>supabase/migrations/20260901010000_programar_resumen_semanal.sql</code>, solo con los
+  valores del proyecto nuevo.</p>
+
+  <h2>7. Fork del código + branding</h2>
+  <p>Clonar el repositorio. Editar a mano:</p>
+  <ul>
+    <li><code>modules/store.js</code> líneas 53-54: <code>_SB_DEFAULT_URL</code>/<code>_SB_DEFAULT_KEY</code>
+    → los del proyecto nuevo. <b>Este es el paso que de verdad "cambia de backend"</b> — sin esto,
+    todo lo demás (login, storage, Edge Functions) sigue hablando con Besalco sin importar qué se
+    haya hecho en Configuración.</li>
+    <li>Nombre del sistema/empresa donde aparece escrito a mano: <code>&lt;title&gt;</code> de
+    <code>index.html</code>, el encabezado de impresión ("SistemaMP CENTINELA" + "Besalco Minería
+    S.A. — Faena..."), el pie de página, y el subtítulo del login ("Besalco Minería", bajo el
+    candado).</li>
+    <li><b>Revisar datos de referencia específicos de Besalco embebidos en el código</b>, no solo
+    texto de marca — encontrados en esta pasada:
+      <ul>
+        <li><code>EXCLUIDOS</code> en <code>alerta-pm/index.ts</code> y
+        <code>resumen-semanal/index.ts</code> (siglas de equipos decomisionados de Besalco — para
+        otro cliente, esta lista debería empezar vacía).</li>
+        <li><code>SEN_PRECIO</code> en <code>index.html</code> (cotización real de Michelin a
+        Besalco para sensores TPMS, usada en cálculos de costo de neumáticos).</li>
+        <li>Revisar también <code>REPUESTOS_CRITICOS_KOMATSU</code> y cualquier otra lista de
+        "referencia de industria" que haya quedado ajustada a la flota real de Besalco en vez de
+        ser un valor genérico.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>8. Desplegar y arrancar</h2>
+  <ul>
+    <li>Nuevo proyecto Vercel, apuntado a este fork.</li>
+    <li>Crear el primer usuario admin (Edge Function <code>crear-operador</code>, o insertar
+    directo en <code>user_roles</code>).</li>
+    <li>Entrar y usar <b>"Configurar Nueva Empresa"</b> (Configuración) — ahora sí, contra el
+    backend correcto — para cargar los equipos y pautas reales del cliente nuevo.</li>
+  </ul>
+
+  <div class="callout">
+  <p style="margin:0">Nada de este proceso toca el sistema que usa Besalco hoy — es enteramente
+  sobre cómo levantar una instancia SEPARADA. Los Niveles 2+ de la propuesta comercial (sacar el
+  branding a una configuración real en vez de texto fijo, y más adelante multi-tenencia
+  compartida) reducirían varios de estos pasos manuales, pero no son requisito para que esta guía
+  funcione tal cual está.</p>
+  </div>
+
+  <footer>SistemaMP Centinela — documentación técnica interna.</footer>
+</div>
