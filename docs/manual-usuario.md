@@ -121,6 +121,13 @@ la sesión se cierra sola — vuelve a entrar con tu clave normalmente. Es por
 seguridad, para que un computador compartido no quede con una sesión
 olvidada abierta.
 
+**Se me olvidó mi contraseña, ¿qué hago?**
+En la pantalla de inicio de sesión, toca "¿Olvidaste tu contraseña?", escribe
+tu correo y te llega un link para definir una nueva clave — no hace falta
+pedirle a un administrador que te la resetee. Por seguridad, el sistema
+muestra el mismo mensaje exista o no ese correo registrado, así que si no
+te llega nada revisa que hayas escrito bien tu correo (y la carpeta de spam).
+
 **¿Cómo sé si me faltan o me sobran técnicos?**
 En **Componentes → Predictivo → 👷 Dotación de Taller** hay un **Índice
 Carga/Capacidad**, por mes/semestre/año y proyectado a futuro:

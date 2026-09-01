@@ -3545,6 +3545,26 @@ document.addEventListener('DOMContentLoaded',function(){
   (header||document.body).appendChild(right);
 });
 var _cfg=S.g('cfg')||{};if(_cfg.colorAc||_cfg.tema)applyTheme(_cfg);
+// Link de recuperación de contraseña (Nivel 2 de rediseño del login,
+// 2026-09-01): GoTrue redirige de vuelta acá con
+// #access_token=...&refresh_token=...&type=recovery en el hash de la URL.
+// Se captura ANTES del bootstrap de sesión de más abajo (mismo lugar donde
+// ya corre el resto de la infraestructura que no depende de ninguna
+// pestaña) para que el chequeo de "hay token guardado" del arranque lo vea
+// como una sesión recién iniciada. El hash se limpia de inmediato con
+// replaceState — un refresh de página no debe repetir esto, y el token no
+// debe quedar visible en el historial del navegador.
+var _esRecuperacionClave=false;
+(function(){
+  if(location.hash.indexOf('type=recovery')<0)return;
+  var params=new URLSearchParams(location.hash.slice(1));
+  var at=params.get('access_token'),rt=params.get('refresh_token');
+  if(!at)return;
+  localStorage.setItem('smp_access_token',at);
+  localStorage.setItem('smp_refresh_token',rt||'');
+  _esRecuperacionClave=true;
+  history.replaceState(null,'',location.pathname+location.search);
+})();
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
 function _arrancar(){S.init();initNav();C.recalcAll();renders.dash();_jumpToEquipoQR();_purgarPapeleraVieja();}
 function _jumpToEquipoQR(){
@@ -3814,6 +3834,7 @@ function _mostrarLoginOverlay(msg){
       '</div>' +
       '<button id="li_btn" style="width:100%;padding:12px;border-radius:6px;border:none;background:var(--ac);color:var(--bg);font-weight:700;font-size:14px;cursor:pointer">Ingresar</button>' +
       '<div id="li_loading" style="display:none;text-align:center;margin-top:10px;font-size:12px;color:var(--tx3)">Verificando...</div>' +
+      '<div style="text-align:center;margin-top:16px"><a href="javascript:void(0)" id="li_forgot" style="color:var(--tx3);font-size:11px">¿Olvidaste tu contraseña?</a></div>' +
     '</div>';
   document.body.appendChild(overlay);
   document.getElementById('li_email').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('li_pass').focus();});
@@ -3825,7 +3846,75 @@ function _mostrarLoginOverlay(msg){
     inp.type=oculta?'text':'password';
     eye.innerHTML=oculta?_LOGIN_EYE_OFF:_LOGIN_EYE_ON;
   });
+  document.getElementById('li_forgot').addEventListener('click',function(){
+    _mostrarRecuperarClaveUI(document.getElementById('li_email').value||'');
+  });
   setTimeout(function(){document.getElementById('li_email').focus();},100);
+}
+
+// ============ RECUPERAR CONTRASEÑA (Nivel 2 de rediseño del login, 2026-09-01) ============
+// Mismo shell visual que _mostrarLoginOverlay (candado, marca de agua,
+// tarjeta) — solo cambia el contenido de la tarjeta. GoTrue (Supabase Auth)
+// manda el correo con un link que redirige de vuelta a este mismo origin con
+// un token en el hash (#access_token=...&type=recovery) — lo captura el
+// bootstrap de arranque (ver DOMContentLoaded, más abajo) y desde ahí se
+// entra directo a _mostrarCambioClaveOverlay(), reusando el mismo flujo que
+// ya existe para "cambio de clave obligatorio en el primer ingreso" en vez
+// de duplicar la pantalla de "define tu nueva clave".
+async function _sbRecoverPassword(email){
+  var redirectTo=location.origin+location.pathname;
+  var r=await fetch(_SB_DEFAULT_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirectTo),{
+    method:'POST',
+    headers:{'apikey':_SB_DEFAULT_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email:email})
+  });
+  return r.ok;
+}
+function _mostrarRecuperarClaveUI(emailPrevio){
+  var existing=document.getElementById('loginOverlay');
+  if(existing)existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='loginOverlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--bg);font-family:system-ui,sans-serif;overflow:hidden';
+  overlay.innerHTML=
+    '<div style="position:absolute;right:-30px;bottom:-10px;width:480px;height:260px;max-width:70vw;background:var(--ac);opacity:.10;pointer-events:none;-webkit-mask-image:url(&quot;'+_LOGIN_TRUCK_MASK+'&quot;);-webkit-mask-repeat:no-repeat;-webkit-mask-size:contain;-webkit-mask-position:center"></div>'+
+    '<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:var(--shadow-md);position:relative">'+
+      '<div style="text-align:center;margin-bottom:24px">'+
+        '<div style="margin-bottom:8px;color:var(--ac)">'+_LOGIN_LOCK_ICON+'</div>'+
+        '<div style="font-size:16px;font-weight:700;color:var(--tx)">Recuperar contraseña</div>'+
+        '<div style="font-size:12px;color:var(--tx3);margin-top:6px">Te mandamos un link para definir una nueva clave</div>'+
+      '</div>'+
+      '<div id="rc_msg" style="display:none;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px"></div>'+
+      '<div style="margin-bottom:16px">'+
+        '<label style="font-size:11px;color:var(--tx3);display:block;margin-bottom:4px">Email</label>'+
+        '<input id="rc_email" type="email" value="'+escapeHtml(emailPrevio||'')+'" placeholder="tu@email.com" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);color:var(--tx);font-size:14px;box-sizing:border-box">'+
+      '</div>'+
+      '<button id="rc_btn" style="width:100%;padding:12px;border-radius:6px;border:none;background:var(--ac);color:var(--bg);font-weight:700;font-size:14px;cursor:pointer">Enviar link de recuperación</button>'+
+      '<div id="rc_loading" style="display:none;text-align:center;margin-top:10px;font-size:12px;color:var(--tx3)">Enviando...</div>'+
+      '<div style="text-align:center;margin-top:16px"><a href="javascript:void(0)" id="rc_volver" style="color:var(--tx3);font-size:11px">← Volver a iniciar sesión</a></div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('rc_volver').addEventListener('click',function(){_mostrarLoginOverlay();});
+  var enviar=async function(){
+    var email=(document.getElementById('rc_email').value||'').trim();
+    var msg=document.getElementById('rc_msg');
+    if(!email){msg.style.cssText='display:block;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px;background:color-mix(in srgb,var(--danger) 15%,transparent);border:1px solid var(--danger);color:var(--danger)';msg.textContent='Ingresa tu email.';return;}
+    document.getElementById('rc_btn').disabled=true;
+    document.getElementById('rc_loading').style.display='block';
+    msg.style.display='none';
+    try{
+      await _sbRecoverPassword(email);
+    }catch(e){}
+    // Mismo mensaje siempre exista o no la cuenta — GoTrue responde igual en
+    // ambos casos a propósito (evita que alguien use este formulario para
+    // averiguar qué correos están registrados en el sistema).
+    document.getElementById('rc_loading').style.display='none';
+    msg.style.cssText='display:block;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px;background:color-mix(in srgb,var(--ok) 15%,transparent);border:1px solid var(--ok);color:var(--ok)';
+    msg.textContent='Si '+email+' está registrado en el sistema, te llegará un correo con el link (revisa spam si no aparece). El botón queda desactivado para no reenviar más de una vez.';
+  };
+  document.getElementById('rc_btn').addEventListener('click',enviar);
+  document.getElementById('rc_email').addEventListener('keydown',function(e){if(e.key==='Enter')enviar();});
+  setTimeout(function(){document.getElementById('rc_email').focus();},100);
 }
 
 function _loginError(msg){
@@ -4165,21 +4254,23 @@ function _registrarLogin(origen){
   }catch(e){}
 }
 
-// ============ CAMBIO DE CLAVE OBLIGATORIO (primer ingreso) ============
+// ============ CAMBIO DE CLAVE (primer ingreso, o tras recuperar contraseña) ============
 function _mostrarCambioClaveOverlay(){
   var existing=document.getElementById('loginOverlay');if(existing)existing.remove();
   var overlay=document.createElement('div');
   overlay.id='loginOverlay';
-  overlay.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#0f172a;font-family:system-ui,sans-serif';
+  overlay.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--bg);font-family:system-ui,sans-serif';
+  var titulo=_esRecuperacionClave?'🔑 Nueva contraseña':'🔑 Primer ingreso';
+  var subt=_esRecuperacionClave?'Define tu nueva contraseña para volver a entrar.':'Debes definir tu contraseña definitiva antes de continuar.';
   overlay.innerHTML=
-    '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.4)">'+
-    '<div style="color:#f1f5f9;font-size:18px;font-weight:600;margin-bottom:6px">🔑 Primer ingreso</div>'+
-    '<div style="color:#94a3b8;font-size:12px;margin-bottom:20px">Debes definir tu contraseña definitiva antes de continuar.</div>'+
-    '<input type="password" id="cc_pass1" placeholder="Nueva contraseña (mín. 6 caracteres)" style="width:100%;padding:10px;margin-bottom:10px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#f1f5f9;font-size:14px;box-sizing:border-box">'+
-    '<input type="password" id="cc_pass2" placeholder="Repite la contraseña" style="width:100%;padding:10px;margin-bottom:14px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#f1f5f9;font-size:14px;box-sizing:border-box">'+
-    '<div id="cc_err" style="color:#f87171;font-size:12px;margin-bottom:10px;display:none"></div>'+
-    '<button id="cc_btn" onclick="_doChangePassword()" style="width:100%;padding:10px;background:#3ecf8e;border:none;border-radius:6px;color:#0f172a;font-weight:600;cursor:pointer;font-size:14px">Guardar y continuar</button>'+
-    '<div id="cc_loading" style="display:none;color:#94a3b8;font-size:12px;margin-top:10px;text-align:center">Guardando...</div>'+
+    '<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:var(--shadow-md)">'+
+    '<div style="color:var(--tx);font-size:18px;font-weight:600;margin-bottom:6px">'+titulo+'</div>'+
+    '<div style="color:var(--tx3);font-size:12px;margin-bottom:20px">'+subt+'</div>'+
+    '<input type="password" id="cc_pass1" placeholder="Nueva contraseña (mín. 6 caracteres)" style="width:100%;padding:10px;margin-bottom:10px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;color:var(--tx);font-size:14px;box-sizing:border-box">'+
+    '<input type="password" id="cc_pass2" placeholder="Repite la contraseña" style="width:100%;padding:10px;margin-bottom:14px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;color:var(--tx);font-size:14px;box-sizing:border-box">'+
+    '<div id="cc_err" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>'+
+    '<button id="cc_btn" onclick="_doChangePassword()" style="width:100%;padding:10px;background:var(--ok);border:none;border-radius:6px;color:var(--bg);font-weight:600;cursor:pointer;font-size:14px">Guardar y continuar</button>'+
+    '<div id="cc_loading" style="display:none;color:var(--tx3);font-size:12px;margin-top:10px;text-align:center">Guardando...</div>'+
     '</div>';
   document.body.appendChild(overlay);
   document.getElementById('cc_pass2').addEventListener('keydown',function(e){if(e.key==='Enter')_doChangePassword();});
@@ -4262,9 +4353,9 @@ document.addEventListener('DOMContentLoaded',async function(){
       window._userRole = _currentRole;
       if(window.Sentry)Sentry.setUser({email:user.email,username:window._userName});
       _programarRefreshToken(_token);
-      _registrarLogin('Sesión restaurada');
+      _registrarLogin(_esRecuperacionClave?'Recuperación de contraseña':'Sesión restaurada');
       _arrancarSistema();
-      if(user?.user_metadata?.must_change_password){
+      if(user?.user_metadata?.must_change_password||_esRecuperacionClave){
         setTimeout(_mostrarCambioClaveOverlay,600);
       }else{
         setTimeout(_aplicarRolUI,600);

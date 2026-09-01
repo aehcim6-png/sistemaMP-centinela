@@ -82,6 +82,18 @@
   <h3>Contraseñas</h3>
   <p>Política mínima: 14 caracteres, con mayúscula/minúscula/dígito/símbolo. Las cuentas nuevas
   fuerzan el cambio al primer ingreso.</p>
+  <div class="callout">
+  <p style="margin:0"><b>Recuperación self-service (2026-09-01):</b> el login tiene un link
+  "¿Olvidaste tu contraseña?" que dispara <code>POST /auth/v1/recover</code> (GoTrue) — sin
+  depender de un admin para desbloquear a nadie. GoTrue redirige el correo de vuelta al mismo
+  origin con el token en el hash de la URL (<code>#access_token=...&amp;type=recovery</code>),
+  que el arranque del sistema captura y lleva directo a la pantalla de "define tu nueva
+  contraseña" (la misma que ya existía para el primer ingreso). <b>Requiere que la URL de
+  producción esté en la lista de Redirect URLs permitidas</b> — Supabase → Authentication → URL
+  Configuration → Redirect URLs (agregar <code>https://sistema-mp-centinela.vercel.app/**</code>,
+  o el dominio que corresponda) — si no está autorizada, GoTrue rechaza el <code>redirect_to</code>
+  y el link del correo no vuelve bien a la app.</p>
+  </div>
   <h3>Cierre de sesión por inactividad</h3>
   <p>Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll) aparece un aviso
   en pantalla ("¿Sigues ahí?") con cuenta regresiva; si nadie hace nada, a la hora completa la

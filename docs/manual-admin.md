@@ -62,6 +62,19 @@ Política mínima configurada en Supabase Auth: 14 caracteres, con
 mayúscula/minúscula/dígito/símbolo. Las cuentas nuevas se crean con una
 contraseña temporal que fuerza el cambio al primer ingreso.
 
+**Recuperación self-service (2026-09-01):** el login tiene un link
+"¿Olvidaste tu contraseña?" que dispara `POST /auth/v1/recover` (GoTrue) —
+sin depender de un admin para desbloquear a nadie. GoTrue redirige el correo
+de vuelta al mismo origin con el token en el hash de la URL
+(`#access_token=...&type=recovery`), que el arranque del sistema captura y
+lleva directo a la pantalla de "define tu nueva contraseña" (la misma que
+ya existía para el primer ingreso). **Requiere que la URL de producción
+esté en la lista de Redirect URLs permitidas** — Supabase → Authentication
+→ URL Configuration → Redirect URLs (agregar `https://sistema-mp-
+centinela.vercel.app/**`, o el dominio que corresponda) — si no está
+autorizada, GoTrue rechaza el `redirect_to` y el link del correo no vuelve
+bien a la app.
+
 ### Cierre de sesión por inactividad
 
 Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll)
