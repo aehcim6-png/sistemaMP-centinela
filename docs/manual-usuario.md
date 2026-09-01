@@ -73,7 +73,7 @@ pierde en silencio el cambio de uno de los dos.
 | Dashboard | Vista general: KPIs, urgentes, próximas PM, tendencias — con filtro (5 botones arriba) para mostrar solo el bloque que te interesa: Salud de Flota, Disponibilidad, Gráficos, Equipos Urgentes o Costos y Stock |
 | Equipos | Flota completa, horómetros, estado de PM, ficha técnica |
 | Registro PM | Registrar cada mantención preventiva ejecutada |
-| Correctivos | Órdenes de trabajo por falla, causa raíz, componente, modo de falla clasificado (Cód.Falla) y AST/LOTO/Autorizado — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces |
+| Correctivos | Órdenes de trabajo por falla, causa raíz, componente, modo de falla clasificado (Cód.Falla) y AST/LOTO/Autorizado — buscador por palabra clave (incluye historial 2022-2024) con alerta si el mismo equipo repite 3+ veces. El botón **⚡ Registro Rápido** es la vía corta desde el celular en terreno: solo equipo, qué pasó y urgencia — el resto se completa después |
 | Neumáticos | Remanente, cambios, sensores de presión, gráfico de desgaste con fecha de cambio por neumático — "Resumen flota" proyecta cuántos neumáticos vas a necesitar por mes/semestre/año |
 | Horómetros | Historial de lecturas por equipo |
 | Disponibilidad | % de disponibilidad mecánica, meta y tendencia |
