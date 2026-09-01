@@ -206,7 +206,39 @@ perderse o insertarse como si fuera un dato certero.
 > la URL pública real que Twilio efectivamente firma. Ver el detalle
 > completo en [`arquitectura.md`](./arquitectura.md), sección 12.
 
-## 7. Despliegue (Vercel)
+## 7. Alertas automáticas de salida (correo y WhatsApp)
+
+Dos Edge Functions programadas por `pg_cron` mandan resúmenes sin que nadie
+abra el sistema — pensadas para el dueño/gerente que revisa la información
+desde afuera:
+
+- **`alerta-pm`** (diaria, 11:00 UTC ~7-8h Chile): TODO lo urgente hoy — PM
+  vencido/urgente, stock crítico, documentos por vencer, backlog de
+  correctivos, equipos fuera de servicio prolongado, cierres sin evidencia,
+  documentación por técnico, alertas de aceite persistentes, reingresos
+  tempranos. Se omite el envío si no hay nada urgente ese día.
+- **`resumen-semanal`** (lunes, 11:00 UTC): un check-in ejecutivo, no una
+  alerta — compara la semana contra la anterior (correctivos, costo, PM
+  ejecutados, % documentado), el ranking de equipos con más fallas, y un
+  snapshot de solo 4 contadores de lo pendiente hace tiempo (sin repetir el
+  detalle diario). A diferencia de `alerta-pm`, SIEMPRE se manda, incluso en
+  una semana tranquila.
+
+Ambas leen los mismos destinatarios — Configuración → "📧 Alertas por
+Correo" / "💬 Alertas por WhatsApp" (columnas `alertaEmails`/`alertaWhatsApp`
+de `configuracion`) — no hay un campo separado para cada una. El canal de
+correo (Resend) ya está configurado y no necesita nada adicional; **el canal
+de WhatsApp requiere además `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` y
+`TWILIO_WHATSAPP_FROM` como *secrets* del proyecto** — sin esos tres, ambas
+funciones responden igual (correo enviado, WhatsApp con
+`"motivo":"No configurado"`) sin que eso afecte el envío del correo.
+
+Mismo patrón de seguridad que `backup-diario` (ver
+[`arquitectura.md`](./arquitectura.md), sección 9): el secreto de cada cron
+vive en Supabase Vault, nunca en texto plano en el código ni en
+`cron.job.command`.
+
+## 8. Despliegue (Vercel)
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
   y un despliegue automático a `sistema-mp-centinela.vercel.app`.
@@ -222,16 +254,18 @@ perderse o insertarse como si fuera un dato certero.
   el preview automático que Vercel genera para cada rama, y solo se fusiona
   a producción con aprobación explícita.
 
-## 8. Estructura del código
+## 9. Estructura del código
 
 ```
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (44, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
-                            whatsapp-webhook, email-webhook, registrar-intento-acceso,
+supabase/functions/      — 11 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+                            backup-diario, whatsapp-webhook, email-webhook,
+                            registrar-intento-acceso, avisar-salud-equipo, leer-pauta-pm,
+                            leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común)
 tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
 docs/                    — esta carpeta
@@ -245,7 +279,7 @@ Las funciones realmente compartidas entre pestañas (helpers de fecha,
 `escapeHtml`, el motor de voz genérico, etc.) quedan en `index.html` a
 propósito.
 
-## 9. Si algo se rompe — por dónde empezar
+## 10. Si algo se rompe — por dónde empezar
 
 1. **¿Es un error de guardado?** Revisar la consola del navegador
    (F12 → Console) — el sistema avisa con un toast rojo cuando un guardado
@@ -264,7 +298,7 @@ propósito.
    agosto 2026 — ver `manual-usuario.md` → sección de novedades dentro del
    sistema).
 
-## 10. Continuidad — si la persona que mantiene esto no está disponible
+## 11. Continuidad — si la persona que mantiene esto no está disponible
 
 Este sistema hoy lo entiende y mantiene una sola persona, sesión a sesión.
 Para reducir ese riesgo:

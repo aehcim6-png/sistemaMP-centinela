@@ -188,6 +188,11 @@
     correcto, 401. La clave real de Resend y el destinatario ya no se reciben del llamador: la
     función los busca ella misma en Vault, y el destinatario queda fijo en el código.
   </div>
+  <p>Mismo patrón (secreto propio de 32 bytes en Vault, verificado vía
+  <code>verificar_secreto_cron</code>) protege las otras dos funciones que corren solas por
+  <code>pg_cron</code>: <code>alerta-pm</code> (diaria) y <code>resumen-semanal</code> (lunes,
+  agregada 2026-09-01) — ver <a href="manual-admin.html">Manual de Administrador</a>, sección 7,
+  para qué manda cada una y cómo se configuran los destinatarios.</p>
 
   <h3>10. Papelera (soft-delete con recuperación)</h3>
   <p>Nada se borra de golpe. Al eliminar cualquier fila (equipo, registro de PM, stock, orden de

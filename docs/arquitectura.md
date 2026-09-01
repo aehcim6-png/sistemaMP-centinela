@@ -215,6 +215,12 @@ llamador — la función los busca ella misma en Vault, y el destinatario
 queda fijo en el código. La programación del cron vive en
 `supabase/migrations/20260806014500_asegurar_backup_diario.sql`.
 
+Mismo patrón (secreto propio de 32 bytes en Vault, verificado vía
+`verificar_secreto_cron`) protege las otras dos funciones que corren solas
+por `pg_cron`: `alerta-pm` (diaria) y `resumen-semanal` (lunes, agregada
+2026-09-01) — ver [`manual-admin.md`](./manual-admin.md), sección 7, para
+qué manda cada una y cómo se configuran los destinatarios.
+
 ### 10. Papelera (soft-delete con recuperación)
 
 Nada se borra de golpe. Al eliminar cualquier fila (un equipo, un registro

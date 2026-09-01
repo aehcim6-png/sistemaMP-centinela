@@ -183,7 +183,33 @@
   sección 12.</p>
   </div>
 
-  <h2>7. Despliegue (Vercel)</h2>
+  <h2>7. Alertas automáticas de salida (correo y WhatsApp)</h2>
+  <p>Dos Edge Functions programadas por <code>pg_cron</code> mandan resúmenes sin que nadie abra
+  el sistema — pensadas para el dueño/gerente que revisa la información desde afuera:</p>
+  <ul>
+    <li><b><code>alerta-pm</code></b> (diaria, 11:00 UTC ~7-8h Chile): TODO lo urgente hoy — PM
+    vencido/urgente, stock crítico, documentos por vencer, backlog de correctivos, equipos fuera
+    de servicio prolongado, cierres sin evidencia, documentación por técnico, alertas de aceite
+    persistentes, reingresos tempranos. Se omite el envío si no hay nada urgente ese día.</li>
+    <li><b><code>resumen-semanal</code></b> (lunes, 11:00 UTC): un check-in ejecutivo, no una
+    alerta — compara la semana contra la anterior (correctivos, costo, PM ejecutados, %
+    documentado), el ranking de equipos con más fallas, y un snapshot de solo 4 contadores de lo
+    pendiente hace tiempo (sin repetir el detalle diario). A diferencia de <code>alerta-pm</code>,
+    SIEMPRE se manda, incluso en una semana tranquila.</li>
+  </ul>
+  <p>Ambas leen los mismos destinatarios — Configuración → "📧 Alertas por Correo" / "💬 Alertas
+  por WhatsApp" (columnas <code>alertaEmails</code>/<code>alertaWhatsApp</code> de
+  <code>configuracion</code>) — no hay un campo separado para cada una. El canal de correo
+  (Resend) ya está configurado y no necesita nada adicional; <b>el canal de WhatsApp requiere
+  además <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code> y
+  <code>TWILIO_WHATSAPP_FROM</code> como <i>secrets</i> del proyecto</b> — sin esos tres, ambas
+  funciones responden igual (correo enviado, WhatsApp con <code>"motivo":"No configurado"</code>)
+  sin que eso afecte el envío del correo.</p>
+  <p>Mismo patrón de seguridad que <code>backup-diario</code> (ver
+  <a href="arquitectura.html">Arquitectura</a>, sección 9): el secreto de cada cron vive en
+  Supabase Vault, nunca en texto plano en el código ni en <code>cron.job.command</code>.</p>
+
+  <h2>8. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
     <li>El build sí transforma <code>modules/renders/*.js</code> (44 archivos, módulos ES reales
@@ -196,19 +222,21 @@
     automático, y solo se fusiona con aprobación explícita.</li>
   </ul>
 
-  <h2>8. Estructura del código</h2>
+  <h2>9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (43, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (44, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — Edge Functions (crear-operador, alerta-pm, backup-diario,
-                            whatsapp-webhook, email-webhook, registrar-intento-acceso,
+supabase/functions/      — 11 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+                            backup-diario, whatsapp-webhook, email-webhook,
+                            registrar-intento-acceso, avisar-salud-equipo, leer-pauta-pm,
+                            leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común)
 tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
 docs/                    — esta documentación</pre>
 
-  <h2>9. Si algo se rompe — por dónde empezar</h2>
+  <h2>10. Si algo se rompe — por dónde empezar</h2>
   <ol>
     <li><b>¿Error de guardado?</b> Consola del navegador (F12 → Console) — el toast rojo y el
     error real quedan ahí.</li>
@@ -223,7 +251,7 @@ docs/                    — esta documentación</pre>
     celdas más comunes en agosto 2026).</li>
   </ol>
 
-  <h2>10. Continuidad — si quien mantiene esto no está disponible</h2>
+  <h2>11. Continuidad — si quien mantiene esto no está disponible</h2>
   <p>Este sistema hoy lo entiende y mantiene una sola persona, sesión a sesión. Para reducir ese
   riesgo: los tres accesos de la sección 1 deberían quedar guardados en un lugar que más de una
   persona alcance; el código y el schema están versionados — cualquier desarrollador con esos
