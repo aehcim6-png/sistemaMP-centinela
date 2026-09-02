@@ -94,6 +94,28 @@
   o el dominio que corresponda) — si no está autorizada, GoTrue rechaza el <code>redirect_to</code>
   y el link del correo no vuelve bien a la app.</p>
   </div>
+  <h3>Vencimiento de contraseña (rotación periódica, 2026-09-02)</h3>
+  <p>Además de la política mínima, el propio sistema fuerza una rotación: la fecha del último
+  cambio real se guarda en <code>user_metadata.passwordChangedAt</code> (se estampa en cada
+  cambio exitoso). En cada login se compara contra hoy: <b>80-89 días</b> = aviso blando (toast +
+  estado en Configuración → Mi contraseña), no bloquea. <b>90+ días</b> = pantalla de cambio
+  OBLIGATORIA al iniciar sesión, sin forma de saltarla — mismo mecanismo que "primer ingreso".
+  Cuentas que cambiaron su clave antes de que existiera este campo usan la fecha de creación de
+  la cuenta como respaldo.</p>
+  <p>Desde <b>Configuración → Mi contraseña</b> cualquier usuario puede cambiarla voluntariamente
+  en cualquier momento — antes esto no existía, solo se podía cambiar si el sistema obligaba o
+  vía recuperación por correo.</p>
+  <h3>Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</h3>
+  <p>Tras cada login exitoso, <code>avisar-dispositivo-nuevo</code> evalúa el historial de esa
+  cuenta y manda un correo/WhatsApp si detecta: <b>(1)</b> dispositivo nunca visto antes,
+  <b>(2)</b> horario fuera del patrón histórico de la cuenta (mínimo 5 logins previos, margen
+  ±1 hora), o <b>(3)</b> 3+ dispositivos nuevos distintos en los últimos 7 días — indicio de
+  clave compartida o filtrada. Si dispara más de una señal, un solo aviso las lista todas.</p>
+  <p>Por separado, <code>registrar-intento-acceso</code> avisa si una cuenta acumula <b>5
+  intentos fallidos en 15 minutos</b> (posible fuerza bruta), solo al cruzar el umbral. Ambas
+  reutilizan los destinatarios y secrets ya configurados para alerta-pm/resumen-semanal.</p>
+  <p>En pantalla, <b>Accesos recientes</b> marca con 🆕 la primera vez que aparece un dispositivo
+  en el historial completo de la cuenta — mismo criterio, calculado en el navegador.</p>
   <h3>Cierre de sesión por inactividad</h3>
   <p>Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll) aparece un aviso
   en pantalla ("¿Sigues ahí?") con cuenta regresiva; si nadie hace nada, a la hora completa la
@@ -194,6 +216,29 @@
   efectivamente firma. Ver el detalle completo en <a href="arquitectura.html">Arquitectura</a>,
   sección 12.</p>
   </div>
+  <h3>Segunda pasada con IA (2026-09-02)</h3>
+  <p>Cuando el parser por reglas no reconoce el mensaje o queda con confianza "baja", se le pasa
+  el texto a Claude (<code>claude-haiku-4-5-20251001</code>, por costo) como último intento antes
+  de marcarlo "revisar" o descartarlo. La IA <b>nunca inventa</b> una sigla ni una categoría: solo
+  elige de las listas reales que se le dan como contexto (equipos, categorías válidas) — si
+  devuelve algo fuera de esas listas, se descarta igual que si no hubiera reconocido nada.</p>
+  <p><b>Requiere el secret <code>ANTHROPIC_API_KEY</code></b> (console.anthropic.com → API Keys),
+  cargado igual que los de Twilio. Sin él, el comportamiento queda idéntico al de solo-reglas — la
+  IA solo puede mejorar el resultado, nunca empeorarlo. Los reportes clasificados por IA quedan
+  con <code>fuente = '... (auto, IA)'</code>, distinguibles en Auditoría de Datos. Por ahora solo
+  corre en <code>whatsapp-webhook</code>, no en <code>email-webhook</code>.</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+  <p style="margin:0"><b>Bug real corregido (2026-09-02)</b>: la versión de
+  <code>whatsapp-webhook</code> REALMENTE desplegada traía el parser de reglas copiado a mano y
+  desactualizado — 19 categorías de componente en vez de las 46 que ya tenía
+  <code>_shared/parseCorrectivo.ts</code> (usado correctamente por <code>email-webhook</code>).
+  Cualquier reporte que mencionara una de las 27 categorías faltantes (Inyectores, Correas,
+  GET/Cuchillas, etc.) caía siempre en "componente no identificado". Se corrigió sincronizando el
+  parser completo y dejando <code>whatsapp-webhook</code> autocontenido (sin import cruzado a
+  <code>_shared/</code>) — Deno Deploy no resolvía ese import de forma confiable entre carpetas de
+  funciones distintas, la razón real por la que producción se había desincronizado del
+  repositorio sin que nadie lo notara.</p>
+  </div>
 
   <h2>7. Alertas automáticas de salida (correo y WhatsApp)</h2>
   <p>Dos Edge Functions programadas por <code>pg_cron</code> mandan resúmenes sin que nadie abra
@@ -257,11 +302,12 @@ logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
 modules/renders/*.js     — un archivo por pestaña/sub-pestaña (44, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — 11 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+supabase/functions/      — 12 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
-                            registrar-intento-acceso, avisar-salud-equipo, leer-pauta-pm,
+                            registrar-intento-acceso, avisar-salud-equipo,
+                            avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
-                            _shared/ parser común)
+                            _shared/ parser común + interpretación con IA)
 tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
 docs/                    — esta documentación</pre>
 

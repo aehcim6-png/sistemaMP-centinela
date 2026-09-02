@@ -75,6 +75,62 @@ centinela.vercel.app/**`, o el dominio que corresponda) — si no está
 autorizada, GoTrue rechaza el `redirect_to` y el link del correo no vuelve
 bien a la app.
 
+### Vencimiento de contraseña (rotación periódica, 2026-09-02)
+
+Además de la política mínima de Supabase Auth, el propio sistema fuerza una
+rotación: la fecha del último cambio real de contraseña se guarda en
+`user_metadata.passwordChangedAt` (se estampa en cada cambio exitoso —
+primer ingreso, recuperación, o voluntario). En cada login se compara
+contra hoy:
+
+- **80-89 días**: aviso blando (toast al entrar + estado visible en
+  Configuración → Mi contraseña), no bloquea.
+- **90+ días**: pantalla de cambio OBLIGATORIA al iniciar sesión, sin forma
+  de saltarla — mismo mecanismo que "primer ingreso".
+
+Cuentas que cambiaron su clave antes de que existiera este campo no tienen
+`passwordChangedAt` — se usa la fecha de creación de la cuenta como
+respaldo, sabiendo que puede ser más vieja que la clave real (un falso
+positivo acá solo significa pedir el cambio un poco antes de lo
+estrictamente necesario, nunca más tarde).
+
+Desde **Configuración → Mi contraseña** cualquier usuario puede cambiarla
+voluntariamente en cualquier momento, sin esperar a que el sistema lo pida
+— antes esto no existía: solo se podía cambiar la clave si el sistema
+obligaba (primer ingreso/vencida) o vía recuperación por correo.
+
+### Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)
+
+Tras cada login exitoso, la Edge Function `avisar-dispositivo-nuevo` trae
+el historial de accesos de esa cuenta (tabla `changelog`, últimos 60 días,
+una sola consulta) y manda un correo/WhatsApp si detecta cualquiera de
+estas señales — si dispara más de una a la vez, un solo aviso las lista
+todas:
+
+1. **Dispositivo nuevo** — la cuenta nunca había entrado desde ese
+   navegador/equipo (etiqueta guardada en `localStorage`, ver
+   `_getDeviceLabel()` en `index.html`).
+2. **Horario inusual** — el login ocurre fuera del rango de horas en que
+   esa cuenta históricamente entra (mínimo 5 logins previos para tener una
+   base real, margen de ±1 hora).
+3. **Varios dispositivos nuevos en poco tiempo** — 3 o más dispositivos
+   distintos, nunca vistos antes, en los últimos 7 días — indicio de que la
+   clave se compartió o se filtró.
+
+Por separado, `registrar-intento-acceso` (ver "Auditoría" más abajo) avisa
+si una cuenta acumula **5 intentos de acceso fallidos en 15 minutos**
+—posible fuerza bruta—, solo la vez que se cruza el umbral, no en cada
+intento posterior (para no saturar si el ataque sigue).
+
+Ambas reutilizan los mismos destinatarios y secrets ya configurados para
+`alerta-pm`/`resumen-semanal` (sección 7) — sin `TWILIO_*`, el correo sigue
+funcionando igual, solo el WhatsApp queda inactivo.
+
+En pantalla, **Configuración → Accesos recientes** marca con 🆕 la primera
+vez que aparece un dispositivo en el historial completo de la cuenta —
+mismo criterio que usa la Edge Function, calculado en el navegador sobre el
+mismo dato (no es una llamada nueva a Supabase).
+
 ### Cierre de sesión por inactividad
 
 Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll)
@@ -219,6 +275,40 @@ perderse o insertarse como si fuera un dato certero.
 > la URL pública real que Twilio efectivamente firma. Ver el detalle
 > completo en [`arquitectura.md`](./arquitectura.md), sección 12.
 
+### Segunda pasada con IA (2026-09-02)
+
+Cuando el parser por reglas no reconoce el mensaje de WhatsApp o queda con
+confianza "baja" (lenguaje informal que no matchea ninguna palabra clave ni
+sigla), se le pasa el texto a Claude (`claude-haiku-4-5-20251001`, elegido
+por costo — es una clasificación acotada) como último intento antes de
+marcarlo "revisar" o descartarlo. La IA **nunca inventa** una sigla ni una
+categoría: solo puede elegir de las listas reales que se le entregan como
+contexto (equipos existentes, categorías de componente válidas) — si
+devuelve algo fuera de esas listas, se descarta igual que si no hubiera
+reconocido nada.
+
+**Requiere el secret `ANTHROPIC_API_KEY`** (console.anthropic.com → API
+Keys), cargado igual que los de Twilio (Project Settings → Edge Functions →
+Secrets). Sin él, el comportamiento queda idéntico al de solo-reglas — la
+IA solo puede mejorar el resultado, nunca empeorarlo. Los reportes
+clasificados por la IA quedan con `fuente = '... (auto, IA)'`, distinguibles
+en Auditoría de Datos de los que resolvió la regla determinística. Por
+ahora solo corre en `whatsapp-webhook`, no en `email-webhook`.
+
+> **Bug real corregido (2026-09-02)**: la versión de `whatsapp-webhook`
+> REALMENTE desplegada traía el parser de reglas copiado a mano y
+> desactualizado — 19 categorías de componente en vez de las 46 que ya
+> tenía `_shared/parseCorrectivo.ts` (usado correctamente por
+> `email-webhook`). Cualquier reporte de WhatsApp que mencionara una de las
+> 27 categorías faltantes (Inyectores, Correas, GET/Cuchillas, etc.) caía
+> siempre en "componente no identificado" aunque el texto fuera claro. Se
+> corrigió sincronizando el parser completo y dejando `whatsapp-webhook`
+> autocontenido (sin import cruzado a `_shared/`), igual que el resto de
+> las Edge Functions del proyecto — Deno Deploy no resolvía ese import de
+> forma confiable entre carpetas de funciones distintas, la razón real por
+> la que la versión en producción se había desincronizado del repositorio
+> sin que nadie lo notara.
+
 ## 7. Alertas automáticas de salida (correo y WhatsApp)
 
 Dos Edge Functions programadas por `pg_cron` mandan resúmenes sin que nadie
@@ -294,11 +384,12 @@ logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
 modules/renders/*.js     — un archivo por pestaña/sub-pestaña (44, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — 11 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+supabase/functions/      — 12 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
-                            registrar-intento-acceso, avisar-salud-equipo, leer-pauta-pm,
+                            registrar-intento-acceso, avisar-salud-equipo,
+                            avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
-                            _shared/ parser común)
+                            _shared/ parser común + interpretación con IA)
 tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
 docs/                    — esta carpeta
 ```

@@ -243,6 +243,8 @@
     pese a credenciales verificadas, sospechar primero de la URL usada para firmar antes de rotar
     secretos.
   </div>
+  <p><code>whatsapp-webhook</code> además tiene una segunda pasada con IA (Claude) para los
+  mensajes que el parser por reglas no logra resolver solo — ver sección 16.</p>
 
   <h3>13. Seguridad de sesión — inactividad y registro de accesos bloqueados</h3>
   <p>Caso real (auditoría 2026-08-22): un usuario desactivado seguía con la pestaña abierta en
@@ -300,6 +302,63 @@
     medio de pago para partir. <b>Seguridad</b>: <code>verify_jwt=true</code>, igual que el resto —
     no hace falta validar el token adentro, a diferencia de <code>crear-operador</code> (que
     además necesita confirmar rol admin).
+  </div>
+
+  <h3>15. Alertas de seguridad de cuenta (2026-09-01/02)</h3>
+  <p>Tres capacidades nuevas, todas leyendo el mismo historial que ya existía en
+  <code>changelog</code> (<code>accion='Login'</code>/<code>'Login bloqueado'</code>) — ninguna
+  crea infraestructura de rastreo nueva.</p>
+  <p><b><code>avisar-dispositivo-nuevo</code></b> (<code>verify_jwt=true</code>, disparada por el
+  cliente justo después de un login exitoso, best-effort — nunca bloquea el login si falla): trae
+  el historial de logins de la cuenta (60 días, una sola consulta) y evalúa 3 señales sobre esos
+  mismos datos: dispositivo nunca visto antes; horario fuera del patrón histórico de esa cuenta
+  (mínimo 5 logins previos para tener base, margen ±1 hora); 3+ dispositivos nuevos distintos en
+  los últimos 7 días. Si dispara más de una señal a la vez, un solo correo/WhatsApp las lista
+  todas juntas. Reutiliza los secrets ya existentes de alerta-pm/resumen-semanal
+  (<code>RESEND_API_KEY</code>, <code>TWILIO_*</code>).</p>
+  <p>Simplificación consciente: el historial se filtra por <code>usuario</code> = el email de la
+  cuenta, pero <code>changelog.usuario</code> a veces guarda el email y a veces el nombre visible
+  — un dispositivo ya visto podría, en un caso raro, volver a contar como "nuevo". Se prefiere
+  avisar de más a quedarse callado: el costo de un falso positivo es un correo de más, no un
+  riesgo de seguridad.</p>
+  <p><b><code>registrar-intento-acceso</code></b> (ya existía para dejar constancia de logins
+  fallidos, sección 13) se extendió con detección de ráfaga: tras cada intento bloqueado, cuenta
+  cuántos lleva esa cuenta en los últimos 15 minutos — al llegar exactamente a 5, avisa por
+  correo/WhatsApp (posible fuerza bruta). Avisa solo al CRUZAR el umbral, no en cada intento
+  posterior. Este endpoint es público a propósito (sin sesión, ver sección 13) — alguien podría
+  en teoría spamear el umbral con requests directos, pero el costo es como mucho alertas de más
+  al administrador, nunca al que llama, y una ráfaga real produce la misma señal — no hay forma
+  de distinguir "ataque simulado contra el endpoint" de "ataque real" sin CAPTCHA, fuera de
+  alcance por ahora.</p>
+  <p><b>Marca 🆕 en pantalla</b> (Configuración → Accesos recientes, <code>modules/renders/cfg.js</code>):
+  reproduce en el cliente, sobre el historial COMPLETO de la cuenta, la misma definición de
+  "dispositivo nuevo" que usa la Edge Function. Cálculo puramente client-side, sin llamada nueva
+  a Supabase.</p>
+  <p><b>Vencimiento de contraseña</b>: la fecha del último cambio real se guarda en
+  <code>user_metadata.passwordChangedAt</code> (GoTrue no trae esto de fábrica), estampada en
+  cada cambio exitoso de clave. A los 80 días, aviso blando; a los 90, cambio obligatorio al
+  iniciar sesión (mismo mecanismo que "primer ingreso"). Un cambio voluntario (Configuración →
+  Mi contraseña) es la única variante de la pantalla de cambio con botón "Cancelar".</p>
+
+  <h3>16. Segunda pasada con IA en el parser de WhatsApp (2026-09-02)</h3>
+  <p><code>whatsapp-webhook</code> (sección 12) llama a Claude (<code>claude-haiku-4-5-20251001</code>)
+  como respaldo del parser por reglas, solo cuando éste no resuelve el mensaje con confianza —
+  nunca como primera opción, para no pagar el costo de una llamada a la API en cada mensaje
+  cuando el parser por reglas ya resuelve bien la mayoría (validado a mano sobre 8 meses de
+  historial real).</p>
+  <p>La IA recibe como contexto la lista real de siglas de equipo (<code>equipos</code>) y las
+  categorías de componente válidas, y usa <code>tool_choice</code> forzado (tool-use de la API de
+  Anthropic) para devolver JSON estructurado en vez de texto libre a interpretar. Su salida se
+  valida siempre contra esas mismas listas antes de usarse — si sugiere algo fuera de ellas, se
+  descarta, igual que haría el parser por reglas. Requiere el secret
+  <code>ANTHROPIC_API_KEY</code>; sin él, <code>interpretarConIA()</code> devuelve <code>null</code>
+  de inmediato y el comportamiento es idéntico al de solo-reglas.</p>
+  <div class="callout">
+    <code>whatsapp-webhook</code> quedó <b>autocontenido</b> (todo el parser + la llamada a la IA
+    inlineados en su propio <code>index.ts</code>, sin <code>import</code> a
+    <code>../_shared/</code>) — mismo criterio que el resto de las Edge Functions de este
+    proyecto. Esto fue, de hecho, la causa de un bug real descubierto al hacer este cambio: ver la
+    nota en <a href="manual-admin.html">Manual de Administrador</a>, sección 6.
   </div>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>

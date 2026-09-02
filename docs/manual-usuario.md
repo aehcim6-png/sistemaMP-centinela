@@ -128,6 +128,20 @@ pedirle a un administrador que te la resetee. Por seguridad, el sistema
 muestra el mismo mensaje exista o no ese correo registrado, así que si no
 te llega nada revisa que hayas escrito bien tu correo (y la carpeta de spam).
 
+**¿Por qué me pide cambiar la contraseña de repente?**
+Por seguridad, el sistema pide renovarla cada 90 días (con un aviso previo
+desde los 80). Si te aparece la pantalla de "Contraseña vencida" al entrar,
+es justamente eso — no es un error, solo hay que definir una nueva para
+seguir. También puedes cambiarla cuando quieras, sin esperar a que te lo
+pida: **Configuración → Mi contraseña → Cambiar mi contraseña**.
+
+**Vi un 🆕 al lado de un acceso en "Accesos recientes", ¿qué significa?**
+Marca la primera vez que ESE dispositivo entra a tu cuenta. Si lo reconoces
+(tu celular nuevo, un computador que recién configuraste), no hay nada que
+hacer. Si no lo reconoces, cambia tu contraseña y avisa a un administrador
+— probablemente ya te haya llegado un correo o WhatsApp avisando lo mismo
+apenas ocurrió el acceso.
+
 **¿Cómo sé si me faltan o me sobran técnicos?**
 En **Componentes → Predictivo → 👷 Dotación de Taller** hay un **Índice
 Carga/Capacidad**, por mes/semestre/año y proyectado a futuro:
