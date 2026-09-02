@@ -1,17 +1,21 @@
 // ============================================================
 // avisar-dispositivo-nuevo — SistemaMP Centinela
-// Aviso PROACTIVO por correo/WhatsApp cuando una cuenta inicia sesión desde
-// un dispositivo que nunca se había visto antes para ESA cuenta — mismo
-// espíritu que la alerta de "nuevo dispositivo" de un banco. No crea
-// infraestructura nueva de rastreo: reusa el registro que YA existe en
-// 'changelog' (accion='Login'), donde cada login ya guarda una etiqueta de
-// dispositivo (_getDeviceLabel(), ver index.html) dentro de 'detalle'.
-//
-// "Nuevo" = la primera vez que esa etiqueta de dispositivo aparece en el
-// historial de logins de esa cuenta (se cuenta cuántas filas hay con esa
-// combinación; si es la única — la que se acaba de insertar al loguearse —
-// es nueva). No hace falta una marca de dedup aparte: por definición, una
-// vez que un dispositivo ya apareció una vez, nunca vuelve a contar como 1.
+// Aviso PROACTIVO por correo/WhatsApp tras un login exitoso, cuando alguna
+// de estas señales se cumple — mismo espíritu que la alerta de "actividad
+// inusual" de un banco:
+//  1. Dispositivo nuevo — la cuenta nunca había iniciado sesión desde este
+//     dispositivo (Nivel 1, 2026-09-01).
+//  2. Horario inusual — la cuenta entra a una hora fuera de su patrón
+//     histórico de acceso (Nivel 4, 2026-09-02).
+//  3. Varios dispositivos nuevos en poco tiempo — no un dispositivo nuevo
+//     aislado (eso ya es la señal 1), sino 3 o más dispositivos DISTINTOS
+//     que aparecieron por primera vez en los últimos 7 días para la misma
+//     cuenta — indicio de que la clave se compartió o se filtró
+//     (Nivel 4, 2026-09-02).
+// No crea infraestructura nueva de rastreo: las 3 señales se calculan sobre
+// el mismo historial que ya existe en 'changelog' (accion='Login'), donde
+// cada login ya guarda una etiqueta de dispositivo (_getDeviceLabel(), ver
+// index.html) dentro de 'detalle'.
 //
 // Disparada por el propio navegador justo después de un login exitoso (no
 // por cron) — el llamador manda su propio token, la función verifica que
@@ -19,13 +23,14 @@
 // falla, nunca debe bloquear ni demorar el login (el cliente la llama sin
 // esperar la respuesta).
 //
-// Simplificación consciente (2026-09-01): el historial se filtra por
-// 'usuario' = el email de la cuenta, no por un id estable — 'changelog.usuario'
-// guarda a veces el email y a veces el nombre visible (según en qué momento
-// del login se escribió, ver _registrarLogin en index.html), así que un
-// dispositivo ya visto podría, en un caso raro, volver a contar como
-// "nuevo" si sus apariciones previas quedaron todas con el nombre en vez
-// del email. Prefiere avisar de más a quedarse callado — el costo de un
+// Simplificación consciente (2026-09-01, sigue aplicando a las 3 señales):
+// el historial se filtra por 'usuario' = el email de la cuenta, no por un
+// id estable — 'changelog.usuario' guarda a veces el email y a veces el
+// nombre visible (según en qué momento del login se escribió, ver
+// _registrarLogin en index.html), así que la base histórica de cada señal
+// puede quedar más chica de lo real si hay apariciones previas guardadas
+// con el nombre en vez del email. Prefiere avisar de más (o no reconocer
+// del todo un patrón histórico débil) a quedarse callado — el costo de un
 // falso positivo acá es un correo de más, no un riesgo de seguridad.
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -38,6 +43,23 @@ const cors = {
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+}
+
+// Ventana de historial que se trae para calcular las 3 señales — acota el
+// costo de la consulta sin perder patrón útil (60 días de logins de una
+// misma cuenta es de sobra para "hora habitual" y "dispositivos nuevos
+// recientes", que solo mira los últimos 7).
+const DIAS_HISTORIAL = 60;
+const UMBRAL_MIN_HISTORIAL_HORARIO = 5;
+const UMBRAL_DISPOSITIVOS_NUEVOS = 3;
+const VENTANA_DISPOSITIVOS_NUEVOS_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Hora (0-23) de una fecha en huso de Chile. hour12:false puede devolver
+// "24" para la medianoche en vez de "00" (comportamiento real de
+// Intl.DateTimeFormat en algunos motores) — el módulo 24 lo normaliza.
+function horaChile(fecha: string | Date): number {
+  const s = new Date(fecha).toLocaleString("en-US", { timeZone: "America/Santiago", hour: "numeric", hour12: false });
+  return Number(s) % 24;
 }
 
 Deno.serve(async (req: Request) => {
@@ -62,32 +84,72 @@ Deno.serve(async (req: Request) => {
     const email = callerData.user.email || "";
     if (!email) return json({ ok: true, nuevo: false, motivo: "sin email en la cuenta" });
 
-    // Cuenta cuántas veces aparece EXACTAMENTE esta combinación email+dispositivo
-    // en el historial de logins — el emoji del ícono queda como parte del
-    // patrón para no calzar por accidente con otro texto que solo contenga
-    // el nombre del dispositivo suelto.
-    // 'detalle' es jsonb (guarda el string entero como escalar JSON, ver
-    // migración 20260713231212), no text — .like() normal contra esa
-    // columna falla en Postgres ("operator does not exist: jsonb ~~
-    // unknown"), verificado en vivo contra datos reales antes de
-    // desplegar esto. Se castea a texto en el propio nombre de columna
-    // del filtro (sintaxis que PostgREST soporta), la única forma de
-    // hacer LIKE sobre una columna jsonb sin cambiar el esquema.
-    const marca = `💻 ${dispositivo} ·`;
-    const hist = await admin
+    // Un solo fetch del historial (fecha + detalle) sirve para las 3 señales
+    // — evita 3 consultas separadas para lo mismo.
+    const desde = new Date(Date.now() - DIAS_HISTORIAL * 24 * 60 * 60 * 1000).toISOString();
+    const histR = await admin
       .from("changelog")
-      .select("id", { count: "exact", head: true })
+      .select("fecha,detalle")
       .eq("accion", "Login")
       .eq("usuario", email)
-      .filter("detalle::text", "like", `%${marca}%`);
+      .gte("fecha", desde)
+      .order("fecha", { ascending: true });
+    const historial: { fecha: string; detalle: string | null }[] = histR.data || [];
 
-    const apariciones = hist.count ?? 0;
-    // 0 podría pasar si el registro del login mismo todavía no terminó de
-    // guardarse cuando esta función corrió (ambas llamadas son best-effort,
-    // sin garantía de orden) — se trata igual como "nuevo", nunca como
-    // "no avisar", para no arriesgar quedarse callado por una carrera.
-    const esNuevo = apariciones <= 1;
-    if (!esNuevo) return json({ ok: true, nuevo: false });
+    // --- Señal 1: dispositivo nuevo ---
+    // 'detalle' guarda "<origen> · 💻 <dispositivo> · <userAgent>" (ver
+    // _registrarLogin en index.html) — el emoji queda como parte del patrón
+    // para no calzar por accidente con otro texto que solo contenga el
+    // nombre del dispositivo suelto.
+    const marca = `💻 ${dispositivo} ·`;
+    const aparicionesEsteDispositivo = historial.filter((f) => (f.detalle || "").includes(marca)).length;
+    // <=1 en vez de ===0: la fila del login que disparó esta misma llamada
+    // puede o no haber terminado de guardarse todavía (ambas llamadas son
+    // best-effort, sin garantía de orden) — si ya está, cuenta como 1 y
+    // sigue siendo "nuevo".
+    const dispositivoNuevo = aparicionesEsteDispositivo <= 1;
+
+    // --- Señal 2: horario inusual ---
+    // Con muy poco historial cualquier hora es "normal" (no hay patrón
+    // todavía que romper) — se exige un mínimo de logins previos antes de
+    // evaluar esta señal, para no marcar como rara la hora de una cuenta
+    // recién creada.
+    let horarioInusual = false;
+    if (historial.length >= UMBRAL_MIN_HISTORIAL_HORARIO) {
+      const horasHistoricas = new Set(historial.map((f) => horaChile(f.fecha)));
+      const horaActual = horaChile(new Date());
+      // ±1 hora de margen: no marcar por un login 20 minutos antes o
+      // después de lo habitual como si fuera un patrón distinto.
+      const dentroDeLoHabitual = [horaActual, (horaActual + 1) % 24, (horaActual + 23) % 24].some((h) => horasHistoricas.has(h));
+      horarioInusual = !dentroDeLoHabitual;
+    }
+
+    // --- Señal 3: varios dispositivos nuevos en poco tiempo ---
+    // Recorre el historial en orden cronológico y marca, por cada
+    // dispositivo distinto, la fecha de su PRIMERA aparición — luego cuenta
+    // cuántas de esas primeras apariciones caen dentro de la ventana
+    // reciente (incluye el dispositivo actual si es nuevo: su primera
+    // aparición es ahora mismo).
+    let dispositivosNuevosEnVentana = 0;
+    {
+      const vistos = new Set<string>();
+      const corte = Date.now() - VENTANA_DISPOSITIVOS_NUEVOS_MS;
+      for (const fila of historial) {
+        const m = /💻 (.+?) ·/.exec(fila.detalle || "");
+        if (!m) continue;
+        const disp = m[1];
+        if (!vistos.has(disp)) {
+          vistos.add(disp);
+          if (new Date(fila.fecha).getTime() >= corte) dispositivosNuevosEnVentana++;
+        }
+      }
+      if (dispositivoNuevo && !vistos.has(dispositivo)) dispositivosNuevosEnVentana++;
+    }
+    const muchosDispositivosNuevos = dispositivosNuevosEnVentana >= UMBRAL_DISPOSITIVOS_NUEVOS;
+
+    if (!dispositivoNuevo && !horarioInusual && !muchosDispositivosNuevos) {
+      return json({ ok: true, nuevo: false });
+    }
 
     const cfgR = await admin.from("configuracion").select("alertaEmails,alertaWhatsApp").limit(1);
     const cfgRow = cfgR.data?.[0] || {};
@@ -97,10 +159,19 @@ Deno.serve(async (req: Request) => {
     const nombreVisible = email;
     const ahora = new Date();
     const fechaTxt = ahora.toLocaleString("es-CL", { timeZone: "America/Santiago" });
-    const asunto = `🔐 Dispositivo nuevo — ${nombreVisible} (${dispositivo})`;
+
+    // Lista de motivos, en texto — arma tanto el asunto como el cuerpo a
+    // partir de las mismas señales, para no repetir la lógica de "qué pasó".
+    const motivos: string[] = [];
+    if (dispositivoNuevo) motivos.push(`Dispositivo nuevo: <b>${dispositivo}</b>`);
+    if (horarioInusual) motivos.push(`Horario fuera de lo habitual para esta cuenta`);
+    if (muchosDispositivosNuevos) motivos.push(`${dispositivosNuevosEnVentana} dispositivos nuevos distintos en los últimos 7 días`);
+
+    const asunto = `🔐 Actividad inusual — ${nombreVisible} (${dispositivo})`;
     const html =
-      `<h2>🔐 SistemaMP Centinela — dispositivo nuevo</h2>` +
-      `<p><b>${nombreVisible}</b> inició sesión desde un dispositivo que no se había visto antes en esta cuenta.</p>` +
+      `<h2>🔐 SistemaMP Centinela — actividad inusual</h2>` +
+      `<p><b>${nombreVisible}</b> inició sesión y se detectó lo siguiente:</p>` +
+      `<ul>${motivos.map((m) => `<li>${m}</li>`).join("")}</ul>` +
       `<p>Dispositivo: <b>${dispositivo}</b><br>Fecha: ${fechaTxt} (hora Chile)</p>` +
       `<p style="color:#888;font-size:12px;margin-top:16px">Si reconoces este acceso, no necesitas hacer nada. Si no, revisa Configuración → Accesos recientes y considera cambiar la contraseña de esa cuenta.</p>`;
 
@@ -121,8 +192,9 @@ Deno.serve(async (req: Request) => {
     const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM");
     let whatsappResultados: { numero: string; ok: boolean }[] = [];
     if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_WHATSAPP_FROM && whatsapps.length > 0) {
+      const motivosTexto = motivos.map((m) => "- " + m.replace(/<[^>]+>/g, "")).join("\n");
       const textoWhatsApp =
-        `🔐 *SistemaMP Centinela* — dispositivo nuevo\n\n${nombreVisible} inició sesión desde ${dispositivo}.\n${fechaTxt} (hora Chile)\n\n` +
+        `🔐 *SistemaMP Centinela* — actividad inusual\n\n${nombreVisible} inició sesión desde ${dispositivo}.\n${motivosTexto}\n${fechaTxt} (hora Chile)\n\n` +
         `Si no reconoces este acceso, revisa Accesos recientes en el sistema.`;
       const authHeaderTwilio = "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
       whatsappResultados = await Promise.all(
@@ -142,7 +214,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    return json({ ok: true, nuevo: true, emailEnviado, whatsapp: whatsappResultados });
+    return json({
+      ok: true,
+      nuevo: dispositivoNuevo,
+      horarioInusual,
+      muchosDispositivosNuevos,
+      emailEnviado,
+      whatsapp: whatsappResultados,
+    });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
