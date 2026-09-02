@@ -841,15 +841,36 @@ export function verAccesos(){
   // cuenta desactivada, o sesión que no pudo renovarse) — antes solo se veían
   // los exitosos, así que un usuario bloqueado que insistía en entrar no
   // dejaba ningún rastro visible acá (ver _registrarIntentoBloqueado).
-  const logs=(S.g('changelog')||[]).filter(function(c){return c.accion==='Login'||c.accion==='Login bloqueado';}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
+  const todos=S.g('changelog')||[];
+  // Marca "🆕 dispositivo nuevo": reproduce en el cliente, sobre el
+  // historial COMPLETO (no solo las 60 filas que se muestran), la misma
+  // definición de "nuevo" que usa la función avisar-dispositivo-nuevo en
+  // el servidor — la primera vez que aparece la combinación usuario+
+  // dispositivo en el historial de logins de esa cuenta. Se recorre en
+  // orden ascendente y se marca por REFERENCIA de fila (S.g devuelve una
+  // copia superficial del arreglo pero las mismas filas — ver comentario
+  // en S.g arriba), así que la marca calza con las mismas filas que
+  // 'logs' abajo aunque vengan de una llamada distinta a S.g.
+  const primeraAparicion=new Set();
+  const vistos=new Set();
+  todos.filter(function(c){return c.accion==='Login';}).slice().sort(function(a,b){return (a.fecha||'').localeCompare(b.fecha||'');}).forEach(function(c){
+    const m=/💻 (.+?) ·/.exec(c.detalle||'');
+    if(!m)return;
+    const clave=(c.usuario||'')+'|'+m[1];
+    if(!vistos.has(clave)){vistos.add(clave);primeraAparicion.add(c);}
+  });
+  const logs=todos.filter(function(c){return c.accion==='Login'||c.accion==='Login bloqueado';}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
   const rows=logs.map(function(c){
     const d=new Date(c.fecha);
     const fechaStr=isNaN(d)?(c.fecha||'—'):d.toLocaleString('es-CL');
     const bloqueado=c.accion==='Login bloqueado';
-    return `<tr>${bloqueado?'<td style="padding:4px;font-size:11px;color:var(--danger)">🚫 '+fechaStr+'</td>':'<td style="padding:4px;font-size:11px">'+fechaStr+'</td>'}<td style="font-size:11px;color:${bloqueado?'var(--danger)':'inherit'}">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
+    const nuevo=!bloqueado&&primeraAparicion.has(c);
+    const marcaNuevo=nuevo?'<span title="Dispositivo nunca antes visto para esta cuenta" style="color:var(--ac);font-weight:600">🆕 </span>':'';
+    return `<tr>${bloqueado?'<td style="padding:4px;font-size:11px;color:var(--danger)">🚫 '+fechaStr+'</td>':'<td style="padding:4px;font-size:11px">'+marcaNuevo+fechaStr+'</td>'}<td style="font-size:11px;color:${bloqueado?'var(--danger)':'inherit'}">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
   }).join('');
   sm(`<div style="max-width:700px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg> Accesos recientes</h3>
     <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">Este computador se identifica como: <b style="color:var(--tx)">💻 ${escapeHtml(_getDeviceLabel())}</b> — <a href="javascript:void(0)" onclick="nombrarEquipo()" style="color:var(--ac)">cambiar nombre</a></p>
+    <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">🆕 = dispositivo que nunca había iniciado sesión antes en esa cuenta.</p>
     <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%">
     <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Fecha/hora</th><th style="text-align:left">Usuario</th><th style="text-align:left">Detalle</th></tr>
     ${rows||'<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--tx3)">Sin accesos registrados todavía</td></tr>'}
