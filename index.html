@@ -3796,9 +3796,21 @@ async function _sbGetRole(userId, accessToken){
 // propio (silueta simplificada, canopy + tolva + rueda trasera grande), no
 // una foto con licencia de otra empresa.
 var _LOGIN_TRUCK_MASK = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 130' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M70 96 L70 52 L90 40 L205 34 L222 50 L222 96 Z'/%3E%3Cpath d='M70 52 L34 58'/%3E%3Cline x1='34' y1='58' x2='34' y2='66'/%3E%3Cpath d='M16 96 V76 Q16 70 22 70 L46 70 Q52 70 52 76 V96'/%3E%3Cline x1='24' y1='70' x2='24' y2='82'/%3E%3Ccircle cx='34' cy='100' r='18'/%3E%3Ccircle cx='34' cy='100' r='6'/%3E%3Ccircle cx='180' cy='100' r='26'/%3E%3Ccircle cx='180' cy='100' r='9'/%3E%3Cline x1='54' y1='96' x2='151' y2='96'/%3E%3C/svg%3E";
-// Ícono de candado del login — reemplaza al ícono de engranaje/config que
-// había antes (confuso en una pantalla de acceso: no comunica seguridad).
-var _LOGIN_LOCK_ICON = '<svg viewBox="0 0 20 20" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1.5"/><path d="M7 9 V6.5 a3 3 0 0 1 6 0 V9"/><circle cx="10" cy="12.5" r="1" fill="currentColor" stroke="none"/></svg>';
+// Ícono de "faro/centinela" del login (2026-09-02) — reemplaza al candado
+// estático de antes (que a su vez había reemplazado al engranaje/config
+// original, confuso en una pantalla de acceso). Una torre con un lente que
+// pulsa y un haz que gira sin parar — referencia directa al nombre del
+// sistema (Centinela = vigilancia activa), reusando el mismo ícono ya
+// probado en la maqueta de "Torre de Control". La animación vive en
+// _asegurarEstiloLoginFuturista(), no acá (ese estilo ya se inyecta una
+// sola vez y ya lo llaman ambas pantallas que usan este ícono).
+var _LOGIN_FARO_ICON = '<svg viewBox="0 0 60 60" width="44" height="44" xmlns="http://www.w3.org/2000/svg">'+
+  '<path d="M23 55 L37 55 L34 41 L26 41 Z" fill="currentColor"/>'+
+  '<line x1="30" y1="41" x2="30" y2="15" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'+
+  '<circle class="li-faro-pulse" cx="30" cy="14" r="9" fill="currentColor" opacity=".18"/>'+
+  '<g class="li-faro-beam"><path d="M30 14 L41 9 L41 19 Z" fill="currentColor" opacity=".45"/></g>'+
+  '<circle cx="30" cy="14" r="5.5" fill="currentColor"/>'+
+'</svg>';
 var _LOGIN_EYE_ON = '<path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z"/><circle cx="10" cy="10" r="2.3"/>';
 var _LOGIN_EYE_OFF = _LOGIN_EYE_ON + '<line x1="3" y1="17" x2="17" y2="3"/>';
 // Fondo decorativo del login, versión 2 (2026-09-02) — la marca de agua
@@ -3825,7 +3837,11 @@ function _asegurarEstiloLoginFuturista(){
     '@keyframes liBarrido{0%{background-position:220% 0}100%{background-position:-40% 0}}'+
     '.li-camion{animation:liPulso 5s ease-in-out infinite}'+
     '.li-barrido{animation:liBarrido 3.6s linear infinite}'+
-    '@media (prefers-reduced-motion: reduce){.li-camion,.li-barrido{animation:none}}';
+    '@keyframes liFaroBarrido{to{transform:rotate(360deg)}}'+
+    '@keyframes liFaroPulso{0%,100%{opacity:.14;transform:scale(1)}50%{opacity:.34;transform:scale(1.4)}}'+
+    '.li-faro-beam{transform-origin:30px 14px;animation:liFaroBarrido 4.5s linear infinite}'+
+    '.li-faro-pulse{transform-origin:30px 14px;animation:liFaroPulso 3s ease-in-out infinite}'+
+    '@media (prefers-reduced-motion: reduce){.li-camion,.li-barrido,.li-faro-beam,.li-faro-pulse{animation:none}}';
   document.head.appendChild(s);
 }
 function _loginFondoDecorativo(){
@@ -3852,7 +3868,7 @@ function _mostrarLoginOverlay(msg){
     _loginFondoDecorativo() +
     '<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:var(--shadow-md);position:relative">' +
       '<div style="text-align:center;margin-bottom:28px">' +
-        '<div style="margin-bottom:8px;color:var(--ac)">'+_LOGIN_LOCK_ICON+'</div>' +
+        '<div style="margin-bottom:8px;color:var(--ac)">'+_LOGIN_FARO_ICON+'</div>' +
         '<div style="font-size:18px;font-weight:700;color:var(--tx)">SistemaMP Centinela</div>' +
         '<div style="font-size:12px;color:var(--tx3);margin-top:4px">Besalco Minería</div>' +
       '</div>' +
@@ -3917,7 +3933,7 @@ function _mostrarRecuperarClaveUI(emailPrevio){
     _loginFondoDecorativo()+
     '<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:36px;width:100%;max-width:380px;box-shadow:var(--shadow-md);position:relative">'+
       '<div style="text-align:center;margin-bottom:24px">'+
-        '<div style="margin-bottom:8px;color:var(--ac)">'+_LOGIN_LOCK_ICON+'</div>'+
+        '<div style="margin-bottom:8px;color:var(--ac)">'+_LOGIN_FARO_ICON+'</div>'+
         '<div style="font-size:16px;font-weight:700;color:var(--tx)">Recuperar contraseña</div>'+
         '<div style="font-size:12px;color:var(--tx3);margin-top:6px">Te mandamos un link para definir una nueva clave</div>'+
       '</div>'+
