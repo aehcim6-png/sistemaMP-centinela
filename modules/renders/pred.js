@@ -1222,7 +1222,7 @@ export function renderPred(){
         return'<tr><td>'+escapeHtml(h.fecha)+'</td><td style="text-align:center">'+h.dia+'</td><td style="text-align:center">'+h.noche+'</td></tr>';
       }).join('')+
       '</table></div>'+
-      '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Fuente: pestaña Programación Diaria (Excel importado por el supervisor de terreno). Grupo "pesado/producción" = Camión + Cargador Frontal + Bulldozer + Motoniveladora; "liviano/apoyo" = Camioneta, Bus, Generador, Grúa, Torre Iluminación.</p>'+
+      '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Fuente: pestaña Programación Diaria (Excel importado por el supervisor de terreno). Grupo "pesado/producción" = Camión + Cargador Frontal + Bulldozer + Motoniveladora; "liviano/apoyo" = Camioneta, Bus, Generador, Camión Aljibe, Minicargador, Torre Iluminación.</p>'+
 
       '<div class="sec-t" style="font-size:14px;margin:20px 0 8px">Tendencia de carga de taller vs. capacidad ('+mesesConDatosDot.length+' meses con datos, '+(mesesConDatosDot[0]||'—')+' a '+(mesesConDatosDot[mesesConDatosDot.length-1]||'—')+')</div>'+
       '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:10px;font-size:11px;color:var(--tx2)">'+

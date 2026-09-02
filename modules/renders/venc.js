@@ -14,13 +14,17 @@ var VENC_TIPOS = ['Revisión Técnica','Permiso Circulación','Seguro','Sistema 
 // vencReglaDefault / vencCalcProximo / vencEstado viven en logic.js.
 
 // Los camiones aljibe (Mercedes Benz Arocs 3340, circulan por caminos públicos y SÍ
-// necesitan Revisión Técnica/Permiso de Circulación) tienen el mismo campo tipo='Camion'
-// que los CAEX (Komatsu HD785, uso interno de mina, no llevan esos documentos) — el dato
-// no permite distinguirlos. Bug real encontrado: vencReglaDefault busca 'ALJIBE' dentro de
-// tipo, que nunca aparece ahí, así que los aljibe NUNCA recibían la periodicidad sugerida
-// (hoy no se nota porque ya tienen el dato cargado a mano, pero si se agrega otro aljibe o
-// se borra el campo, quedaría sin ningún aviso). Se identifican por sigla, mismo criterio
-// que ya usa GRUPO_PAUTAS para darles su propia pauta de mantención.
+// necesitan Revisión Técnica/Permiso de Circulación) tenían el mismo campo tipo='Camion'
+// que los CAEX (Komatsu HD785, uso interno de mina, no llevan esos documentos) — CN-5131 y
+// CN-5133 ya se corrigieron en la base de datos (equipos.tipo='Camión Aljibe', 2026-09-02),
+// pero este parche por sigla se mantiene a propósito: vencReglaDefault (logic.js) para
+// Sistema AFEX compara contra 'CAMION' SIN tilde (t==='CAMION'||t.indexOf('CAMION ')>=0) —
+// 'CAMIÓN ALJIBE' (con tilde, en mayúsculas) ya NO calza ahí, así que simplificar esto para
+// leer e.tipo directo cambiaría en silencio si un aljibe recibe o no la periodicidad
+// sugerida de AFEX, sin que nadie haya confirmado si un aljibe realmente necesita ese
+// sistema. Se sigue identificando por sigla, mismo criterio que ya usa GRUPO_PAUTAS para
+// darles su propia pauta de mantención, hasta que alguien confirme esa regla y se pueda
+// simplificar de verdad.
 var VENC_SIGLAS_ALJIBE=['CN-5131','CN-5133'];
 function _vencTipoEfectivo(e){
   if(e&&VENC_SIGLAS_ALJIBE.indexOf(e.sigla)>=0)return 'Camion Aljibe';
