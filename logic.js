@@ -1202,6 +1202,49 @@ function scoreSaludEquipo(m){
   return {valor:valor,n:usadas.length,detalle:dimensiones};
 }
 
+// equiposConSaludFlota (2026-09-02): Score de Salud de TODA la flota de una vez,
+// extraído desde el Dashboard (era un bloque inline en dash.js) para que la pestaña
+// "Torre de Control" y el resumen compacto del Dashboard usen EXACTAMENTE el mismo
+// número por equipo, en vez de dos copias del mismo cálculo que con el tiempo
+// terminarían divergiendo — mismo criterio que ya se aplicó con otras fuentes únicas
+// de este archivo (regEsATiempo, contarFallasMes, dispEquipoMes, etc.). Recibe los
+// arreglos ya cargados por quien llama (eq, compMayores, neu, aceite con _sigla ya
+// resuelto, otConHist con el historial de WhatsApp incluido) y arma los índices por
+// sigla acá adentro — el llamador no necesita saber cómo, solo pasar los datos.
+function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
+  var compPorSigla={};
+  (compMayores||[]).forEach(function(c){if(c&&c.sigla)(compPorSigla[c.sigla]=compPorSigla[c.sigla]||[]).push(c);});
+  var neuOpPorSigla={};
+  (neu||[]).forEach(function(n){if(n&&n.sigla&&n.estado==='Operativo')(neuOpPorSigla[n.sigla]=neuOpPorSigla[n.sigla]||[]).push(n);});
+  var aceUltimaPorSiglaComp={};
+  (aceite||[]).forEach(function(m){
+    if(!m||!m._sigla||!m.fecha)return;
+    var k=m._sigla+'|'+(m.componente||'?');
+    if(!aceUltimaPorSiglaComp[k]||m.fecha>aceUltimaPorSiglaComp[k].fecha)aceUltimaPorSiglaComp[k]=m;
+  });
+  var aceUltimasPorSigla={};
+  Object.keys(aceUltimaPorSiglaComp).forEach(function(k){
+    var sigla=k.slice(0,k.lastIndexOf('|'));
+    (aceUltimasPorSigla[sigla]=aceUltimasPorSigla[sigla]||[]).push(aceUltimaPorSiglaComp[k]);
+  });
+  var otFallasPorSigla={};
+  (otConHist||[]).forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o)&&o.horom>0)(otFallasPorSigla[o.sigla]=otFallasPorSigla[o.sigla]||[]).push(o.horom);});
+  var medsPorSerie=(typeof _neuMedPorSerie==='function')?_neuMedPorSerie():null;
+  var eqPorSigla=(typeof _eqPorSigla==='function')?_eqPorSigla():null;
+  return (eq||[]).map(function(e){
+    var compsConDato=(compPorSigla[e.sigla]||[]).map(function(c){return compEstado(c,e.horomActual,e.hrsDia);}).filter(function(s){return s.conDato;});
+    var componentesPct=compsConDato.length?Math.round(compsConDato.filter(function(s){return s.hrsRest>1000;}).length/compsConDato.length*1000)/10:null;
+    var neuOp=neuOpPorSigla[e.sigla]||[];
+    var neumaticosPct=neuOp.length&&typeof neuDebeCambiar==='function'?Math.round(neuOp.filter(function(n){return!neuDebeCambiar(n,medsPorSerie,eqPorSigla);}).length/neuOp.length*1000)/10:null;
+    var aceUlt=aceUltimasPorSigla[e.sigla]||[];
+    var aceitePct=aceUlt.length?Math.round(aceUlt.filter(function(m){return m.estado==='NORMAL';}).length/aceUlt.length*1000)/10:null;
+    var mtbfE=C.mtbfReal(otFallasPorSigla[e.sigla]||[]);
+    var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
+    var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
+    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score};
+  });
+}
+
 // Cuál de las dimensiones del Score de Salud del Equipo es la que más lo está
 // arrastrando hacia abajo — para poder decir "por qué" en vez de solo mostrar
 // el número (avisos de WhatsApp/correo, ficha de Buscar). La de valor más
@@ -1829,6 +1872,7 @@ if (typeof window !== 'undefined') {
   window.verificarIntegridad = verificarIntegridad;
   window.indiceSaludFlota = indiceSaludFlota;
   window.scoreSaludEquipo = scoreSaludEquipo;
+  window.equiposConSaludFlota = equiposConSaludFlota;
   window.motivoPrincipalSalud = motivoPrincipalSalud;
   window.registrarSnapshotSalud = registrarSnapshotSalud;
   window.tendenciaSaludSemanal = tendenciaSaludSemanal;
@@ -1856,7 +1900,7 @@ if (typeof module !== 'undefined' && module.exports) {
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
-    indiceSaludFlota, scoreSaludEquipo, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
+    indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo,

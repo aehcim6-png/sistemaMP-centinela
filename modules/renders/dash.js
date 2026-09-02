@@ -718,42 +718,12 @@ export function renderDash(){
 
   // ═══ BLOQUE 4: EQUIPOS CON SALUD BAJA — mismo Score de Salud del Equipo que
   // ya se ve en la ficha de Buscar (scoreSaludEquipo, logic.js), pero calculado
-  // para TODA la flota de una vez acá, para encontrar de un vistazo a quién hay
-  // que mirar sin tener que abrir equipo por equipo. Índices por sigla armados
-  // UNA vez (mismo criterio de performance que otPorSiglaBuscar/regPorSiglaBuscar
-  // en Buscar) — con cientos de equipos, recorrer compMayores/neu/aceite/ot
-  // completos por cada equipo sería O(equipos × filas).
-  var compPorSiglaDash={};
-  compMayoresDash.forEach(function(c){if(c&&c.sigla)(compPorSiglaDash[c.sigla]=compPorSiglaDash[c.sigla]||[]).push(c);});
-  var neuOpPorSiglaDash={};
-  neu.forEach(function(n){if(n&&n.sigla&&n.estado==='Operativo')(neuOpPorSiglaDash[n.sigla]=neuOpPorSiglaDash[n.sigla]||[]).push(n);});
-  var aceUltimaPorSiglaComp={};
-  aceiteDash.forEach(function(m){
-    if(!m||!m._sigla||!m.fecha)return;
-    var k=m._sigla+'|'+(m.componente||'?');
-    if(!aceUltimaPorSiglaComp[k]||m.fecha>aceUltimaPorSiglaComp[k].fecha)aceUltimaPorSiglaComp[k]=m;
-  });
-  var aceUltimasPorSiglaDash={};
-  Object.keys(aceUltimaPorSiglaComp).forEach(function(k){
-    var sigla=k.slice(0,k.lastIndexOf('|'));
-    (aceUltimasPorSiglaDash[sigla]=aceUltimasPorSiglaDash[sigla]||[]).push(aceUltimaPorSiglaComp[k]);
-  });
-  var otFallasPorSiglaDash={};
-  otConHist.forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o)&&o.horom>0)(otFallasPorSiglaDash[o.sigla]=otFallasPorSiglaDash[o.sigla]||[]).push(o.horom);});
-  var medsPorSerieDash=(typeof _neuMedPorSerie==='function')?_neuMedPorSerie():null;
-  var eqPorSiglaDash=(typeof _eqPorSigla==='function')?_eqPorSigla():null;
-  var equiposConSaludTodos=eq.map(function(e){
-    var compsConDato=(compPorSiglaDash[e.sigla]||[]).map(function(c){return compEstado(c,e.horomActual,e.hrsDia);}).filter(function(s){return s.conDato;});
-    var componentesPct=compsConDato.length?Math.round(compsConDato.filter(function(s){return s.hrsRest>1000;}).length/compsConDato.length*1000)/10:null;
-    var neuOp=neuOpPorSiglaDash[e.sigla]||[];
-    var neumaticosPct=neuOp.length&&typeof neuDebeCambiar==='function'?Math.round(neuOp.filter(function(n){return!neuDebeCambiar(n,medsPorSerieDash,eqPorSiglaDash);}).length/neuOp.length*1000)/10:null;
-    var aceUlt=aceUltimasPorSiglaDash[e.sigla]||[];
-    var aceitePct=aceUlt.length?Math.round(aceUlt.filter(function(m){return m.estado==='NORMAL';}).length/aceUlt.length*1000)/10:null;
-    var mtbfE=C.mtbfReal(otFallasPorSiglaDash[e.sigla]||[]);
-    var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
-    var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
-    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score};
-  });
+  // para TODA la flota de una vez, para encontrar de un vistazo a quién hay
+  // que mirar sin tener que abrir equipo por equipo. equiposConSaludFlota
+  // (logic.js, 2026-09-02) es la fuente única — la misma que usa la pestaña
+  // "Torre de Control" (torre.js) para su tablero visual completo; antes este
+  // cálculo vivía inline acá y arriesgaba divergir si se duplicaba.
+  var equiposConSaludTodos=equiposConSaludFlota(eq,compMayoresDash,neu,aceiteDash,otConHist);
   // Tendencia por equipo (mismo mecanismo que la Tendencia del Índice de Salud
   // de Flota de arriba: un snapshot diario, guardado por sigla en vez de uno
   // solo global) — se registra el de TODOS los equipos con score, no solo los
@@ -786,40 +756,28 @@ export function renderDash(){
     var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
     if(tend&&tend.delta!=null&&tend.delta<=-15)_avisarSaludEquipo(r.sigla,r.score.valor,'caida',tend.delta,causa);
   });
-  // ═══ MAPA DE SALUD DE LA FLOTA ═══ — toda la operación de un vistazo, no
-  // solo los peores 10 (eso ya lo cubre la tabla de "Equipos con Salud Baja"
-  // de más abajo). Agrupado por tipo de equipo (mismo criterio que la
-  // tarjeta "Flota" del panel lateral), ordenado de peor a mejor score
-  // DENTRO de cada grupo, para que un problema resalte sin tener que leer
-  // número por número. Reusa exactamente equiposConSaludTodos — ningún
-  // cálculo nuevo, solo una forma distinta de mirarlo.
+  // ═══ MAPA DE SALUD DE LA FLOTA ═══ — resumen compacto (conteos), no más el
+  // tablero completo de equipos: eso pasó a vivir solo en la pestaña "Torre de
+  // Control" (torre.js), que usa la misma fuente única equiposConSaludFlota
+  // (logic.js). Antes este bloque y esa pestaña mostraban exactamente lo mismo
+  // en dos lugares (confirmado con el usuario, 2026-09-02: "la torre y mapa de
+  // salud cumplen las mismas funciones") — ahora el Dashboard solo da el vistazo
+  // rápido y enlaza a la Torre para el detalle completo por equipo.
   var mapaSaludBlock='';
   if(equiposConSaludTodos.length){
-    var porTipoMapa={};
+    var cOkMapa=0,cWarnMapa=0,cCritMapa=0,cNoneMapa=0;
     equiposConSaludTodos.forEach(function(r){
-      (porTipoMapa[r.tipo||'Otro']=porTipoMapa[r.tipo||'Otro']||[]).push(r);
+      var v=r.score.valor;
+      if(v==null)cNoneMapa++;else if(v>=80)cOkMapa++;else if(v>=55)cWarnMapa++;else cCritMapa++;
     });
-    var tiposOrdenMapa=Object.keys(porTipoMapa).sort();
     mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">🗺️ Mapa de Salud de la Flota</div>'+
-      '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">🟢 ≥80% · 🟡 55-79% · 🔴 &lt;55% · ⚪ sin datos suficientes — clic en un equipo para ver su ficha completa.</div>'+
-      tiposOrdenMapa.map(function(tipo){
-        var equipos=porTipoMapa[tipo].slice().sort(function(a,b){
-          var av=a.score.valor==null?999:a.score.valor,bv=b.score.valor==null?999:b.score.valor;
-          return av-bv;
-        });
-        return '<div style="margin-bottom:10px">'+
-          '<div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'+escapeHtml(tipo)+' ('+equipos.length+')</div>'+
-          '<div style="display:flex;flex-wrap:wrap;gap:4px">'+
-          equipos.map(function(r){
-            var v=r.score.valor;
-            var bg=v==null?'var(--bg4)':v>=80?'var(--ok)':v>=55?'var(--ac)':'var(--danger)';
-            var fg=v==null?'var(--tx3)':'#0f172a';
-            return '<div style="background:'+bg+';color:'+fg+';border-radius:6px;padding:6px 8px;min-width:64px;text-align:center;cursor:pointer;font-size:10px;font-weight:700;line-height:1.5" title="'+escapeHtml(r.sigla)+' — Score '+(v==null?'sin datos suficientes':v+'%')+'" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)">'+
-              escapeHtml(r.sigla)+'<br>'+(v==null?'—':v+'%')+
-              '</div>';
-          }).join('')+
-          '</div></div>';
-      }).join('')+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0">'+
+      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--ok)">'+cOkMapa+'</div><div style="font-size:10px;color:var(--tx3)">🟢 ≥80%</div></div>'+
+      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--ac)">'+cWarnMapa+'</div><div style="font-size:10px;color:var(--tx3)">🟡 55-79%</div></div>'+
+      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--danger)">'+cCritMapa+'</div><div style="font-size:10px;color:var(--tx3)">🔴 &lt;55%</div></div>'+
+      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--tx3)">'+cNoneMapa+'</div><div style="font-size:10px;color:var(--tx3)">⚪ sin datos</div></div>'+
+      '</div>'+
+      '<button class="btn-s btn-o" style="width:100%" onclick="go(\'torre\')">🎛️ Ver Torre de Control — detalle por equipo →</button>'+
       '</div>';
   }
   var equiposConSalud=equiposConSaludTodos
