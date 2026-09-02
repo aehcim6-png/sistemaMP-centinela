@@ -132,6 +132,11 @@ const CATEGORIAS_COMPONENTE: [string, Keyword[]][] = [
   ['Motor', ['motor', 'reel']],
 ];
 
+// Lista plana de nombres de categoría — usada como "vocabulario válido"
+// al pedirle a la IA que clasifique un mensaje (ver interpretarConIA.ts):
+// nunca puede inventar una categoría que no esté en esta lista.
+export const CATEGORIAS_VALIDAS: string[] = CATEGORIAS_COMPONENTE.map(([nombre]) => nombre);
+
 function clasificarComponente(texto: string): string {
   const t = texto.toLowerCase();
   for (const [cat, keys] of CATEGORIAS_COMPONENTE) {
