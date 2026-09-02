@@ -3980,6 +3980,7 @@ async function _completarLogin(email,data){
   // guardado en vez de perderse silenciosamente.
   window._userName = email;
   _registrarLogin('Login manual');
+  _avisarSiDispositivoNuevo(data.access_token);
   var rol = await _sbGetRole(_currentUser.id, data.access_token);
   _currentRole = rol?.role||'operador';
   window._userName = rol?.nombre||email;
@@ -4254,6 +4255,23 @@ function _registrarLogin(origen){
   }catch(e){}
 }
 
+// Alerta de "dispositivo nuevo" (Nivel 1 de la propuesta de ciberseguridad,
+// 2026-09-01) — dispara la Edge Function que compara este dispositivo
+// contra el historial de logins de la cuenta y avisa por correo/WhatsApp
+// solo si nunca se había visto antes (ver el comentario del propio archivo
+// para el criterio exacto). Best-effort, sin esperar respuesta ni bloquear
+// el login si falla — mismo patrón que _sbAuthLogout() para llamadas que no
+// pueden retrasar el flujo principal.
+function _avisarSiDispositivoNuevo(token){
+  try{
+    fetch(_SB_DEFAULT_URL+'/functions/v1/avisar-dispositivo-nuevo',{
+      method:'POST',
+      headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({dispositivo:_getDeviceLabel()})
+    }).catch(function(){});
+  }catch(e){}
+}
+
 // ============ CAMBIO DE CLAVE (primer ingreso, o tras recuperar contraseña) ============
 function _mostrarCambioClaveOverlay(){
   var existing=document.getElementById('loginOverlay');if(existing)existing.remove();
@@ -4354,6 +4372,11 @@ document.addEventListener('DOMContentLoaded',async function(){
       if(window.Sentry)Sentry.setUser({email:user.email,username:window._userName});
       _programarRefreshToken(_token);
       _registrarLogin(_esRecuperacionClave?'Recuperación de contraseña':'Sesión restaurada');
+      // Solo se chequea dispositivo nuevo en un acceso real (login normal,
+      // ya cubierto en _completarLogin, o recuperación de clave) — no en
+      // cada recarga de página con un token todavía válido ("Sesión
+      // restaurada"), que no es un evento de acceso nuevo.
+      if(_esRecuperacionClave)_avisarSiDispositivoNuevo(_token);
       _arrancarSistema();
       if(user?.user_metadata?.must_change_password||_esRecuperacionClave){
         setTimeout(_mostrarCambioClaveOverlay,600);
