@@ -66,13 +66,20 @@ Deno.serve(async (req: Request) => {
     // en el historial de logins — el emoji del ícono queda como parte del
     // patrón para no calzar por accidente con otro texto que solo contenga
     // el nombre del dispositivo suelto.
+    // 'detalle' es jsonb (guarda el string entero como escalar JSON, ver
+    // migración 20260713231212), no text — .like() normal contra esa
+    // columna falla en Postgres ("operator does not exist: jsonb ~~
+    // unknown"), verificado en vivo contra datos reales antes de
+    // desplegar esto. Se castea a texto en el propio nombre de columna
+    // del filtro (sintaxis que PostgREST soporta), la única forma de
+    // hacer LIKE sobre una columna jsonb sin cambiar el esquema.
     const marca = `💻 ${dispositivo} ·`;
     const hist = await admin
       .from("changelog")
       .select("id", { count: "exact", head: true })
       .eq("accion", "Login")
       .eq("usuario", email)
-      .like("detalle", `%${marca}%`);
+      .filter("detalle::text", "like", `%${marca}%`);
 
     const apariciones = hist.count ?? 0;
     // 0 podría pasar si el registro del login mismo todavía no terminó de
