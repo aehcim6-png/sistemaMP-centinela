@@ -165,6 +165,26 @@ export function renderCfg(){
     '<button class="btn btn-o" onclick="verPapelera()">Ver papelera</button>'+
     '</div>'+
 
+    // MI CONTRASEÑA (vencimiento/rotación periódica, ver DIAS_VENCE_CLAVE en
+    // index.html) — muestra hace cuánto no se cambia y deja cambiarla
+    // voluntariamente en cualquier momento, sin tener que esperar a que el
+    // sistema la obligue.
+    (function(){
+      var dias=(typeof _diasDesdeCambioClave==='function')?_diasDesdeCambioClave(_currentUser):null;
+      var estado=dias==null
+        ? 'Cámbiala periódicamente por seguridad — se pide renovarla cada '+DIAS_VENCE_CLAVE+' días.'
+        : dias>=DIAS_VENCE_CLAVE
+          ? '🔴 Vencida — llevas '+dias+' días con la misma contraseña.'
+          : dias>=DIAS_AVISO_CLAVE
+            ? '🟡 Vence pronto — llevas '+dias+' días con la misma contraseña, se renueva a los '+DIAS_VENCE_CLAVE+'.'
+            : '🟢 Al día — la cambiaste hace '+dias+' día'+(dias===1?'':'s')+'.';
+      return '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--danger)">'+
+      '<b style="font-size:14px">🔑 Mi contraseña</b>'+
+      '<p style="font-size:11px;color:var(--tx3);margin:8px 0">'+estado+'</p>'+
+      '<button class="btn btn-o" onclick="_mostrarCambioClaveOverlay(\'voluntario\')">Cambiar mi contraseña</button>'+
+      '</div>';
+    })()+
+
     // VERIFICACIÓN EN DOS PASOS (MFA/TOTP) — estado se carga aparte, es async
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--danger)" id="mfaCard">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Verificación en dos pasos</b>'+
