@@ -52,6 +52,13 @@ const _sbSingletonUpdatedAt={};
 // Credenciales por defecto — permiten que Vercel conecte sin configuración manual
 const _SB_DEFAULT_URL='https://jyhpfwivhwzylkzxrsbt.supabase.co';
 const _SB_DEFAULT_KEY='sb_publishable_mI_CTe7yV23tllXXkdp-Aw_2UZCtwbi';
+// Site key de Cloudflare Turnstile (CAPTCHA del login, 2026-09-04) — es
+// pública a propósito (va incrustada en el HTML que ve cualquiera, es lo
+// normal para una site key, distinta de la Secret Key que solo vive en la
+// config de Supabase Auth). Vacía por defecto: sin este valor, el widget no
+// se dibuja y el login sigue funcionando exactamente igual que antes — nunca
+// debe ser un requisito para poder entrar mientras no esté configurada.
+const _TURNSTILE_SITE_KEY='';
 function _sbCfg(){
   try{const c=JSON.parse(localStorage.getItem(K+'cfg'))||{};
     return{url:(c.sbUrl||_SB_DEFAULT_URL).replace(/\/+$/,''),key:c.sbKey||_SB_DEFAULT_KEY};}

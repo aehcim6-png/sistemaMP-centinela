@@ -42,6 +42,15 @@ if(window.Sentry){
   });
 }
 </script>
+<!-- CAPTCHA del login (Cloudflare Turnstile, 2026-09-04) — checklist de
+     seguridad, punto "protección contra bots". Se carga async/defer (nunca
+     bloquea el arranque) y por CDN de Cloudflare a propósito, a diferencia
+     de sentry/jspdf/qrcode/xlsx: no es vendorizable (el widget necesita
+     hablar en vivo con los servidores de Cloudflare para el desafío, un
+     archivo estático no sirve). Ver _TURNSTILE_SITE_KEY más abajo — sin esa
+     clave configurada, el widget simplemente no se dibuja y el login sigue
+     funcionando igual que antes (nunca bloquea el acceso por sí solo). -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 :root{--bg:#0a0e17;--bg2:#111827;--bg3:#1a2236;--bg4:#243049;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--ac:#f59e0b;--ac2:#d97706;--ac3:#fbbf24;--ok:#22c55e;--warn:#eab308;--danger:#ef4444;--info:#3b82f6;--pm1:#22c55e;--pm2:#3b82f6;--pm3:#f59e0b;--pm4:#ef4444;--edit:#1e293b;--editBorder:#334155;--border:#1e293b;
@@ -328,7 +337,7 @@ td.calc{color:var(--tx3);font-style:italic}
      pestañas porque todas dependen de S, aunque en la práctica el orden
      entre scripts planos no importa (nada se ejecuta hasta que la página
      termina de cargar). -->
-<script src="modules/store.js?v=2026-08-31"></script>
+<script src="modules/store.js?v=2026-09-04"></script>
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización). Todas son módulos ES reales (Fase 3, 2026-08-30,
      completada en la undécima tanda) — cada uno se autoregistra en
@@ -3602,11 +3611,17 @@ let _currentUser = null;
 let _currentRole = null;
 let _refreshTimer = null;
 
-async function _sbAuthLogin(email, password){
+async function _sbAuthLogin(email, password, captchaToken){
+  var body={email:email,password:password};
+  // gotrue_meta_security.captcha_token: nombre de campo que espera Supabase
+  // Auth (GoTrue) para validar el CAPTCHA server-side contra Cloudflare —
+  // solo se manda si hay token (login sigue funcionando sin él mientras
+  // Turnstile no esté configurado en el proyecto de Supabase).
+  if(captchaToken)body.gotrue_meta_security={captcha_token:captchaToken};
   const r = await fetch(_SB_DEFAULT_URL+'/auth/v1/token?grant_type=password',{
     method:'POST',
     headers:{'apikey':_SB_DEFAULT_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({email,password})
+    body:JSON.stringify(body)
   });
   return r.json();
 }
@@ -3855,6 +3870,44 @@ function _loginFondoDecorativo(){
     '<div class="li-barrido" style="position:absolute;right:20px;bottom:20px;width:560px;height:300px;max-width:80vw;pointer-events:none;background:linear-gradient(100deg,transparent 40%,var(--ac) 50%,transparent 60%);background-size:300% 100%;opacity:.5;'+maskCss+'"></div>'
   );
 }
+// CAPTCHA del login/recuperación (Cloudflare Turnstile, 2026-09-04) — un solo
+// widget compartido entre las 2 pantallas porque nunca están abiertas al
+// mismo tiempo (una reemplaza a la otra, ver 'loginOverlay'). _renderTurnstileEn
+// reintenta cada 150ms si el script de Cloudflare (cargado async/defer en el
+// <head>) todavía no terminó de cargar cuando se dibuja el overlay — sin esto,
+// abrir el login apenas carga la página en una conexión lenta podría llegar
+// antes que 'turnstile' exista en window. El token se guarda en
+// _turnstileToken (no en el DOM) porque el callback de Turnstile solo entrega
+// el valor una vez, al completarse el desafío.
+var _turnstileWidgetId=null;
+var _turnstileToken=null;
+function _renderTurnstileEn(contId){
+  if(!_TURNSTILE_SITE_KEY)return; // sin site key configurada, no hay widget que dibujar — el login sigue sin CAPTCHA
+  _turnstileToken=null;
+  (function intentar(){
+    var el=document.getElementById(contId);
+    if(!el)return; // el overlay se cerró/reemplazó antes de que Cloudflare terminara de cargar
+    if(window.turnstile&&typeof turnstile.render==='function'){
+      _turnstileWidgetId=turnstile.render(el,{
+        sitekey:_TURNSTILE_SITE_KEY,
+        theme:'auto',
+        callback:function(token){_turnstileToken=token;},
+        'error-callback':function(){_turnstileToken=null;},
+        'expired-callback':function(){_turnstileToken=null;}
+      });
+    }else{
+      setTimeout(intentar,150);
+    }
+  })();
+}
+// Los tokens de Turnstile son de un solo uso — hay que pedir uno nuevo antes
+// de reintentar (clave incorrecta, o falló el envío del correo).
+function _resetTurnstile(){
+  _turnstileToken=null;
+  if(_turnstileWidgetId!=null&&window.turnstile&&typeof turnstile.reset==='function'){
+    try{turnstile.reset(_turnstileWidgetId);}catch(e){}
+  }
+}
 function _mostrarLoginOverlay(msg){
   var existing = document.getElementById('loginOverlay');
   if(existing) existing.remove();
@@ -3887,6 +3940,7 @@ function _mostrarLoginOverlay(msg){
           '<button type="button" id="li_eyebtn" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--tx3);padding:6px;display:flex" title="Mostrar/ocultar contraseña"><svg id="li_eye" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+_LOGIN_EYE_ON+'</svg></button>' +
         '</div>' +
       '</div>' +
+      (_TURNSTILE_SITE_KEY?'<div id="li_captcha" style="margin-bottom:16px;display:flex;justify-content:center"></div>':'') +
       '<button id="li_btn" style="width:100%;padding:12px;border-radius:6px;border:none;background:var(--ac);color:var(--bg);font-weight:700;font-size:14px;cursor:pointer">Ingresar</button>' +
       '<div id="li_loading" style="display:none;text-align:center;margin-top:10px;font-size:12px;color:var(--tx3)">Verificando...</div>' +
       '<div style="text-align:center;margin-top:16px"><a href="javascript:void(0)" id="li_forgot" style="color:var(--tx3);font-size:11px">¿Olvidaste tu contraseña?</a></div>' +
@@ -3904,6 +3958,7 @@ function _mostrarLoginOverlay(msg){
   document.getElementById('li_forgot').addEventListener('click',function(){
     _mostrarRecuperarClaveUI(document.getElementById('li_email').value||'');
   });
+  _renderTurnstileEn('li_captcha');
   setTimeout(function(){document.getElementById('li_email').focus();},100);
 }
 
@@ -3916,12 +3971,14 @@ function _mostrarLoginOverlay(msg){
 // entra directo a _mostrarCambioClaveOverlay(), reusando el mismo flujo que
 // ya existe para "cambio de clave obligatorio en el primer ingreso" en vez
 // de duplicar la pantalla de "define tu nueva clave".
-async function _sbRecoverPassword(email){
+async function _sbRecoverPassword(email,captchaToken){
   var redirectTo=location.origin+location.pathname;
+  var body={email:email};
+  if(captchaToken)body.gotrue_meta_security={captcha_token:captchaToken};
   var r=await fetch(_SB_DEFAULT_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirectTo),{
     method:'POST',
     headers:{'apikey':_SB_DEFAULT_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({email:email})
+    body:JSON.stringify(body)
   });
   return r.ok;
 }
@@ -3945,6 +4002,7 @@ function _mostrarRecuperarClaveUI(emailPrevio){
         '<label style="font-size:11px;color:var(--tx3);display:block;margin-bottom:4px">Email</label>'+
         '<input id="rc_email" type="email" value="'+escapeHtml(emailPrevio||'')+'" placeholder="tu@email.com" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);color:var(--tx);font-size:14px;box-sizing:border-box">'+
       '</div>'+
+      (_TURNSTILE_SITE_KEY?'<div id="rc_captcha" style="margin-bottom:16px;display:flex;justify-content:center"></div>':'')+
       '<button id="rc_btn" style="width:100%;padding:12px;border-radius:6px;border:none;background:var(--ac);color:var(--bg);font-weight:700;font-size:14px;cursor:pointer">Enviar link de recuperación</button>'+
       '<div id="rc_loading" style="display:none;text-align:center;margin-top:10px;font-size:12px;color:var(--tx3)">Enviando...</div>'+
       '<div style="text-align:center;margin-top:16px"><a href="javascript:void(0)" id="rc_volver" style="color:var(--tx3);font-size:11px">← Volver a iniciar sesión</a></div>'+
@@ -3955,12 +4013,14 @@ function _mostrarRecuperarClaveUI(emailPrevio){
     var email=(document.getElementById('rc_email').value||'').trim();
     var msg=document.getElementById('rc_msg');
     if(!email){msg.style.cssText='display:block;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px;background:color-mix(in srgb,var(--danger) 15%,transparent);border:1px solid var(--danger);color:var(--danger)';msg.textContent='Ingresa tu email.';return;}
+    if(_TURNSTILE_SITE_KEY&&!_turnstileToken){msg.style.cssText='display:block;border-radius:6px;padding:10px;margin-bottom:16px;font-size:12px;background:color-mix(in srgb,var(--danger) 15%,transparent);border:1px solid var(--danger);color:var(--danger)';msg.textContent='Completa la verificación de seguridad antes de continuar.';return;}
     document.getElementById('rc_btn').disabled=true;
     document.getElementById('rc_loading').style.display='block';
     msg.style.display='none';
     try{
-      await _sbRecoverPassword(email);
+      await _sbRecoverPassword(email,_turnstileToken);
     }catch(e){}
+    _resetTurnstile();
     // Mismo mensaje siempre exista o no la cuenta — GoTrue responde igual en
     // ambos casos a propósito (evita que alguien use este formulario para
     // averiguar qué correos están registrados en el sistema).
@@ -3970,6 +4030,7 @@ function _mostrarRecuperarClaveUI(emailPrevio){
   };
   document.getElementById('rc_btn').addEventListener('click',enviar);
   document.getElementById('rc_email').addEventListener('keydown',function(e){if(e.key==='Enter')enviar();});
+  _renderTurnstileEn('rc_captcha');
   setTimeout(function(){document.getElementById('rc_email').focus();},100);
 }
 
@@ -3996,13 +4057,19 @@ async function _doLogin(){
   var email=(document.getElementById('li_email')?.value||'').trim();
   var pass=document.getElementById('li_pass')?.value||'';
   if(!email||!pass){_loginError('Ingresa email y contraseña.');return;}
+  // Si el CAPTCHA está configurado (_TURNSTILE_SITE_KEY no vacío) pero
+  // todavía no se completó el desafío, se corta acá antes de gastar un
+  // intento real — evita un viaje redondo a Supabase que igual va a
+  // rechazar por falta de captcha_token.
+  if(_TURNSTILE_SITE_KEY&&!_turnstileToken){_loginError('Completa la verificación de seguridad antes de continuar.');return;}
   document.getElementById('li_btn').disabled=true;
   document.getElementById('li_loading').style.display='block';
   document.getElementById('li_err').style.display='none';
   try{
-    var data = await _sbAuthLogin(email,pass);
+    var data = await _sbAuthLogin(email,pass,_turnstileToken);
     if(data.error||!data.access_token){
       _registrarIntentoBloqueado(email);
+      _resetTurnstile();
       _loginError('Email o contraseña incorrectos.');return;
     }
     // Si la cuenta tiene verificación en dos pasos activada, la clave sola no
@@ -4018,7 +4085,7 @@ async function _doLogin(){
       return;
     }
     await _completarLogin(email,data);
-  }catch(e){_loginError('Error de conexión. Intenta de nuevo.');}
+  }catch(e){_resetTurnstile();_loginError('Error de conexión. Intenta de nuevo.');}
 }
 
 async function _completarLogin(email,data){
