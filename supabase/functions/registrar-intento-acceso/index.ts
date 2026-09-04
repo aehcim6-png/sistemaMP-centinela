@@ -18,23 +18,59 @@
 // bloqueada), así que tampoco se puede distinguir acá. Se registra el
 // intento tal cual, sin inventar el motivo.
 //
-// Nivel 4 de la propuesta de ciberseguridad (2026-09-02) — señal "ráfaga
-// de intentos fallidos": tras registrar el intento, cuenta cuántos
-// intentos bloqueados lleva ESTA cuenta en los últimos 15 minutos: si
-// justo llega a 5, avisa por correo/WhatsApp (mismos canales que
-// avisar-dispositivo-nuevo). Se alerta solo la vez que se CRUZA el
-// umbral (count === UMBRAL), no en cada intento posterior — si el ataque
-// sigue, seguiría fallando en silencio hasta el próximo múltiplo de 5
-// (ver más abajo), en vez de mandar un correo por cada intento.
+// Nivel 4 de la propuesta de ciberseguridad (2026-09-02, endurecido 2026-09-04)
+// — señal "ráfaga de intentos fallidos": tras registrar el intento, cuenta
+// cuántos intentos bloqueados lleva ESTA cuenta en los últimos 15 minutos: si
+// justo llega a 5, (a) avisa por correo/WhatsApp (mismos canales que
+// avisar-dispositivo-nuevo) Y (b) bloquea la cuenta de verdad en Supabase Auth
+// por 15 minutos (ban_duration, misma API que ya usa crear-operador para
+// desactivar usuarios — acá temporal, se autolevanta solo, nadie tiene que
+// entrar a desbloquear nada). Antes (2026-09-02) solo se avisaba; un atacante
+// con tiempo podía seguir probando contraseñas indefinidamente mientras el
+// admin recibía notificaciones. Se dispara solo la vez que se CRUZA el
+// umbral (count === UMBRAL), no en cada intento posterior — mismo criterio
+// que ya usaba el aviso, ahora también para el bloqueo.
+//
 // Este endpoint es público a propósito (ver arriba, sin sesión) — alguien
-// podría en teoría spamear este umbral con requests directos, pero el
-// costo de eso es, como mucho, alertas de más al administrador (nunca al
-// que llama), y una ráfaga real de fuerza bruta produce exactamente la
-// misma señal — no hay forma de distinguir "ataque simulado contra el
-// endpoint" de "ataque real contra la cuenta" sin CAPTCHA, que está fuera
-// de alcance de este nivel.
+// podría en teoría spamear este umbral con requests directos usando el email
+// de un admin conocido, sin saber su clave, y lograr que quede bloqueado 15
+// minutos (antes esto solo generaba alertas de más; ahora sí bloquea el
+// acceso real, es un costo mayor). Se acepta el riesgo porque: (1) el
+// bloqueo es corto y se autolevanta, el peor caso es una molestia de minutos,
+// no una cuenta perdida; (2) dispara la MISMA alerta al admin en el momento,
+// así que nunca queda bloqueado en silencio sin enterarse; y (3) la
+// alternativa — no bloquear nunca — deja una fuerza bruta real completamente
+// sin freno, que es el riesgo más grave de los dos. Sin CAPTCHA (fuera de
+// alcance de este nivel) no hay forma de distinguir "ataque simulado contra
+// el endpoint" de "ataque real contra la cuenta", así que ambos casos
+// reciben el mismo tratamiento.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+const BLOQUEO_TEMPORAL_DURACION = "15m";
+
+// Busca el user_id de Supabase Auth por email — no hay tabla propia con ese
+// mapeo (user_roles no guarda email, ver 20260827.../user_roles.sql), así
+// que se recorre auth.users vía el Admin API paginado. Aceptable a esta
+// escala (equipo de mantención, no miles de usuarios); tope defensivo de 10
+// páginas para nunca quedar en un loop si algo raro pasa con la paginación.
+async function buscarUserIdPorEmail(admin: ReturnType<typeof createClient>, email: string): Promise<string | null> {
+  const emailLower = email.toLowerCase();
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error || !data?.users?.length) break;
+    const found = data.users.find((u) => (u.email || "").toLowerCase() === emailLower);
+    if (found) return found.id;
+    if (data.users.length < 200) break; // última página
+  }
+  return null;
+}
+
+async function bloquearCuentaTemporalmente(admin: ReturnType<typeof createClient>, email: string) {
+  const userId = await buscarUserIdPorEmail(admin, email);
+  if (!userId) return; // email no corresponde a ninguna cuenta real — nada que bloquear
+  await admin.auth.admin.updateUserById(userId, { ban_duration: BLOQUEO_TEMPORAL_DURACION }).catch(() => {});
+}
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -62,12 +98,12 @@ async function avisarRafaga(admin: ReturnType<typeof createClient>, email: strin
 
   const fechaTxt = new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" });
   const asunto = `🚨 Posible fuerza bruta — ${email}`;
-  const resumen = `${intentos} intentos de acceso fallidos en los últimos 15 minutos para la cuenta ${email}.`;
+  const resumen = `${intentos} intentos de acceso fallidos en los últimos 15 minutos para la cuenta ${email}. La cuenta quedó bloqueada automáticamente por 15 minutos.`;
   const html =
     `<h2>🚨 SistemaMP Centinela — posible fuerza bruta</h2>` +
     `<p>${resumen}</p>` +
     `<p>Fecha: ${fechaTxt} (hora Chile)</p>` +
-    `<p style="color:#888;font-size:12px;margin-top:16px">Si no reconoces esta actividad, considera bloquear la cuenta desde Configuración → Usuarios o avisarle al dueño de la cuenta que cambie su contraseña.</p>`;
+    `<p style="color:#888;font-size:12px;margin-top:16px">El bloqueo se levanta solo en 15 minutos — no hace falta que hagas nada. Si el ataque sigue después de eso, se vuelve a bloquear. Si no reconoces esta actividad, avísale al dueño de la cuenta que cambie su contraseña, o desactívala desde Configuración → Usuarios si quieres cortarlo de raíz.</p>`;
 
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   const REMITENTE = Deno.env.get("ALERTA_PM_REMITENTE") || "Sistema MP Centinela <onboarding@resend.dev>";
@@ -129,7 +165,10 @@ Deno.serve(async (req: Request) => {
         .gte("fecha", new Date(Date.now() - VENTANA_RAFAGA_MS).toISOString());
       const intentosRecientes = conteoR.count ?? 0;
       if (intentosRecientes === UMBRAL_RAFAGA) {
-        await avisarRafaga(admin, email, intentosRecientes).catch(() => {});
+        await Promise.all([
+          avisarRafaga(admin, email, intentosRecientes).catch(() => {}),
+          bloquearCuentaTemporalmente(admin, email).catch(() => {}),
+        ]);
       }
     }
 
