@@ -15,3 +15,9 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm test
+      # Escaneo de dependencias (checklist de seguridad, 2026-09-03): falla el
+      # build solo ante vulnerabilidades ALTAS o CRÍTICAS ya conocidas y con
+      # parche disponible — nivel "moderate" para abajo se reporta pero no
+      # bloquea, para no frenar el pipeline por hallazgos de bajo impacto real
+      # (frecuentes en devDependencies de build, nunca llegan al navegador).
+      - run: npm audit --audit-level=high
