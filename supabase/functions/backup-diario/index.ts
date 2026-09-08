@@ -36,6 +36,14 @@ import { encodeBase64 } from "jsr:@std/encoding/base64";
 // reconstruir accesos ante un desastre total). Lista manual a propósito —
 // mismo criterio que TABLA_REAL: una tabla nueva se agrega acá cuando se
 // agrega allá, no se auto-descubre.
+//
+// Auditoría 2026-09-07: esta lista había quedado desactualizada — 7 tablas
+// reales agregadas después (historial_componentes, historial_neumaticos,
+// salud_flota_historico, correctivos_historico, gestion_compras, compromisos,
+// uso_pestanas) nunca se sumaron acá, así que el respaldo diario las venía
+// omitiendo en silencio. Grave en particular para correctivos_historico: ahí
+// caen los reportes automáticos de WhatsApp/correo (whatsapp-webhook/
+// email-webhook), que sin esto no quedaban respaldados en absoluto.
 const TABLAS = [
   'kv', 'user_roles', 'equipos', 'registros_pm', 'correctivos', 'movimientos_stock',
   'historial_horometros', 'neumaticos', 'neumaticos_mediciones', 'pautas',
@@ -46,7 +54,9 @@ const TABLAS = [
   'meta_disponibilidad', 'metas', 'disponibilidad_calculada', 'avance_data',
   'mapeo_repuestos', 'ordenes_compra_historico', 'programacion_diaria',
   'sensores_neumaticos', 'tren_rodaje', 'tren_rodaje_mediciones',
-  'movimientos_stock_backup_lub', 'stock_filtros_backup_csv', 'papelera'
+  'movimientos_stock_backup_lub', 'stock_filtros_backup_csv', 'papelera',
+  'historial_componentes', 'historial_neumaticos', 'salud_flota_historico',
+  'correctivos_historico', 'gestion_compras', 'compromisos', 'uso_pestanas'
 ];
 
 // PostgREST impone un tope de filas por request (~1000 en este proyecto,

@@ -24,7 +24,7 @@ framework nuevo a mitad de camino.
   login, el arranque de la aplicación, y la infraestructura compartida entre
   pestañas que no encajaba en un módulo propio (autoguardado a carpeta local,
   auditoría, MFA, gestión de usuarios).
-- **`modules/renders/*.js`** (44 archivos) — un archivo por pestaña o
+- **`modules/renders/*.js`** (45 archivos) — un archivo por pestaña o
   sub-pestaña del sistema. Cada uno exporta su función de dibujo
   (`export function render<Tab>()`) y también la deja en
   `window.render<Tab>` — el puente hace falta porque el HTML generado usa
@@ -46,7 +46,7 @@ framework nuevo a mitad de camino.
 [Vercel](https://vercel.com) sirve los archivos estáticos (no hay servidor
 propio corriendo en ningún lado). Cada push a la rama `main` dispara un build
 (`vite build`) y un despliegue nuevo automático. Vite bundlea y minifica de
-verdad los ~44 módulos ES de `modules/renders/*.js` en un único archivo
+verdad los ~45 módulos ES de `modules/renders/*.js` en un único archivo
 (`dist/assets/index-*.js`), siguiendo el grafo de imports desde
 `index.html`. `logic.js` y `modules/store.js` siguen siendo scripts planos
 (sin `type="module"`) a propósito, así que Vite no los toca por diseño —
@@ -58,14 +58,14 @@ del build (junto con `vendor/*.js` y `docs/`).
 Todo el sistema lee y escribe datos a través de dos únicas funciones:
 `S.g(categoria)` (leer) y `S.s(categoria, valor)` (guardar). Ninguna pantalla
 llama directo a Supabase — todas pasan por acá, lo que permite que el resto
-del sistema (más de 550 llamadas repartidas en las 44 pestañas) nunca
+del sistema (más de 550 llamadas repartidas en las 45 pestañas) nunca
 necesite saber cómo ni dónde se guardan realmente los datos.
 
 Al llamar `S.s(categoria, valor)` ocurren, en este orden:
 
 1. **`localStorage`** — se escribe de inmediato, siempre, funcione o no
    internet. El sistema sigue siendo usable sin conexión.
-2. **Supabase** — si la categoría es una de las 35 tablas reales
+2. **Supabase** — si la categoría es una de las 42 tablas reales
    (`TABLA_REAL`/`TABLA_SINGLETON`), se envía sin demora un `upsert` (crear o
    actualizar) más un `delete` de las filas que ya no están — pero antes de
    escribir, se hace un chequeo de conflicto (ver más abajo).
@@ -103,6 +103,20 @@ silencio el trabajo de otra persona.
 - **Gestión de usuarios**: crear/activar/desactivar cuentas pasa por una
   única Edge Function (`crear-operador`), no por el frontend directo — es el
   único punto del sistema con privilegio elevado (`service_role`).
+- **Resolución de rol resistente a blips de red (2026-09-07)**: buscar el rol
+  en `user_roles` justo después del login/al restaurar sesión hacía un solo
+  intento — cualquier timeout transitorio o un PostgREST recién despertando
+  bastaba para que fallara, y el código caía a `'operador'` por defecto sin
+  avisar ni reintentar. Bug real reportado por un admin: entraba como
+  administrador y, tras el blip, su propia sesión se veía degradada a
+  operador (panel de Configuración desaparecido) sin ningún error visible.
+  Ahora `_sbGetRoleConReintento` reintenta hasta 3 veces con espera
+  creciente, y si aun así falla, `_resolverRolConCache` usa el último rol
+  confirmado con éxito en ese dispositivo (guardado en `localStorage`) en
+  vez de asumir `'operador'` a ciegas. Sin ningún rol cacheado todavía
+  (primera vez en el dispositivo), sigue cayendo a `'operador'` como piso de
+  seguridad — nunca sobre-privilegia por un blip, solo evita
+  sub-privilegiar a un admin real.
 
 ### 5b. Rol "lector" (solo lectura) — solo backend por ahora
 
@@ -125,7 +139,8 @@ un paso aparte, todavía no hecho.
 
 ### 6. Estructura de datos en Supabase
 
-35 tablas, una por categoría (equipos, correctivos, registros_pm, etc. —
+49 tablas en total (42 "reales" + 7 "singleton" de configuración), una por
+categoría (equipos, correctivos, registros_pm, etc. —
 incluye `historial_componentes` e `historial_neumaticos`, agregadas en la
 auditoría de agosto 2026 para poder responder "cuánto duró cada instalación
 real" sin perder el dato cada vez que se actualiza el estado actual, y
@@ -191,7 +206,7 @@ viva.
 Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de
 Postgres (`pg_cron`) llama a la Edge Function `backup-diario`
 (`supabase/functions/backup-diario/`), que junta TODAS las tablas reales
-(41, incluye `kv` y `user_roles` para poder reconstruir accesos ante un
+(49, incluye `kv` y `user_roles` para poder reconstruir accesos ante un
 desastre total), las comprime (gzip) y las manda por email vía Resend a un
 destinatario fijo como adjunto `.json.gz` — sin depender de que la app esté
 abierta en ningún navegador (a diferencia del respaldo a carpeta local, que
@@ -203,7 +218,7 @@ invoca. Antes solo exigía que llegara un header `X-Resend-Key` no vacío,
 sin comparar su valor contra nada — como la verificación de sesión acepta
 la clave pública anónima (la misma que viaja en el HTML servido), cualquier
 persona con internet podía invocarla directamente con su propia clave de
-Resend y su propio destinatario, y recibir un volcado completo de las 41
+Resend y su propio destinatario, y recibir un volcado completo de las 49
 tablas usando el permiso de máximo nivel de la función para saltarse RLS.
 Ahora la función verifica un secreto propio contra dos funciones SQL
 restringidas a `service_role` (`verificar_secreto_cron`,
@@ -220,6 +235,18 @@ Mismo patrón (secreto propio de 32 bytes en Vault, verificado vía
 por `pg_cron`: `alerta-pm` (diaria) y `resumen-semanal` (lunes, agregada
 2026-09-01) — ver [`manual-admin.md`](./manual-admin.md), sección 7, para
 qué manda cada una y cómo se configuran los destinatarios.
+
+**Auditoría 2026-09-07 — lista de tablas desactualizada:** la constante
+`TABLAS` de esta función se escribió una vez y desde entonces 7 tablas
+reales agregadas después (`historial_componentes`, `historial_neumaticos`,
+`salud_flota_historico`, `correctivos_historico`, `gestion_compras`,
+`compromisos`, `uso_pestanas`) nunca se sumaron — el respaldo diario las
+omitía en silencio (42 tablas respaldadas de las 49 reales). Grave en
+particular para `correctivos_historico`, donde caen los reportes
+automáticos de WhatsApp/correo: sin este fix no quedaban respaldados en
+absoluto. Ya corregido; la lista es manual a propósito (ver comentario en
+el propio archivo), así que una tabla nueva futura necesita el mismo cuidado
+de sumarse acá también.
 
 ### 10. Papelera (soft-delete con recuperación)
 
@@ -311,6 +338,18 @@ una variable en memoria — bug real reportado por el usuario (2026-08-31):
 una pestaña de celular en 2do plano mucho tiempo suele recargarse entera al
 volver a abrirla, y con la variable solo en memoria esa recarga reiniciaba
 el reloj a "ahora", escondiendo que en realidad habían pasado horas.
+
+**Segundo bug relacionado, distinto (2026-09-07):** un equipo de escritorio
+que se DUERME (sin recargar la pestaña) tampoco disparaba el cierre al
+despertar. El gesto físico de despertarlo (mover el mouse, tocar una tecla)
+cuenta como "actividad" y reseteaba el reloj de inactividad ANTES de que el
+chequeo periódico (cada 5s) alcanzara a notar que en realidad había pasado
+más de una hora dormido — el evento de "actividad" ganaba la carrera contra
+el chequeo. Se agregó `_ultimoTick`, una brecha de tiempo independiente
+medida en memoria (sin depender de ningún evento de usuario): si entre dos
+chequeos consecutivos pasó más tiempo real del esperado, es señal de que el
+intervalo estuvo suspendido ese tiempo, sin importar qué evento del sistema
+operativo se procese primero al reanudarse.
 
 **Registro de intentos bloqueados** (`registrar-intento-acceso`, Edge
 Function nueva): hasta ahora `changelog` solo se llenaba con logins
@@ -446,6 +485,44 @@ la IA inlineados en su propio `index.ts`, sin `import` a `../_shared/`) —
 mismo criterio que el resto de las Edge Functions de este proyecto. Esto
 fue, de hecho, la causa de un bug real descubierto al hacer este cambio:
 ver la nota en [`manual-admin.md`](./manual-admin.md), sección 6.
+
+### 17. Sistema de íconos SVG (reemplazo de emoji, 2026-09-07)
+
+`index.html` define un registro `const ICONS={...}` (~50 entradas) de SVG en
+línea con trazo consistente (`viewBox="0 0 20 20"`, `stroke="currentColor"`),
+usado como `ICONS.nombre` desde cualquier módulo de `modules/renders/` —
+sin `import`, porque `ICONS` es una constante de nivel superior de un
+`<script>` clásico (no un módulo), y ese ámbito léxico global es compartido
+con los módulos ES cargados en la misma página (mismo patrón ya usado para
+otras funciones/constantes de `index.html`). Reemplaza emoji sueltos usados
+como ícono de botón/título/tarjeta — un emoji renderiza distinto según
+sistema operativo/fuente instalada, a veces como un cuadrado vacío.
+
+**Regla dura, nunca romper**: un emoji que además es un VALOR DE DATO real
+(🔴/🟡/🟢/⚪/🔵/🟠 en `riesgoNivel`, `prioridad`, estado OK/NOK de
+inspecciones, guardado en la base y comparado por código — incluida la Edge
+Function `resumen-semanal`) y el marcador `💻` (que `cfg.js` y
+`avisar-dispositivo-nuevo` extraen de `detalle` con una regex) **no se
+tocan nunca** — no son un ícono de interfaz, son datos.
+
+**Gotcha real encontrado en la migración (2026-09-07): no todo destino
+soporta HTML.** Varios reemplazos de emoji→`ICONS.xxx` se hicieron a ciegas
+dentro de sitios que en realidad solo aceptan texto plano, y el ícono SVG
+quedó mostrándose como el código fuente crudo en vez de renderizar:
+
+- **`toast(m)` usa `element.textContent=m`, no `innerHTML`** — nunca
+  soportó HTML. Cualquier ícono dentro de un `toast(...)` debe seguir
+  siendo emoji.
+- **`<option>` solo soporta texto**, no elementos hijos — un `<svg>` dentro
+  de una opción de `<select>` se ve como espacio vacío, no un ícono.
+- `alert()` / `confirm()` del navegador son diálogos nativos de solo texto.
+- Asignar por `element.textContent=...` (a diferencia de `.innerHTML=...`)
+  tampoco interpreta HTML.
+
+Los correos y mensajes de WhatsApp que mandan las Edge Functions tienen la
+misma restricción (sin motor HTML/CSS confiable del lado del cliente de
+correo/WhatsApp) — ahí el emoji sigue siendo la elección técnicamente
+correcta, no un descuido.
 
 ## Lo que decidimos NO hacer (y por qué)
 

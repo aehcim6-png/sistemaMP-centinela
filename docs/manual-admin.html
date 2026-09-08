@@ -76,6 +76,16 @@
   Postgres</b> — el candado que de verdad importa. 4 tablas tienen además un trigger
   (<code>proteger_columnas_admin</code>) que bloquea a un operador que intente cambiar columnas
   reservadas, aunque manipule el navegador directamente.</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>Fix real (2026-09-07) — un admin se veía degradado a operador solo:</b> buscar el rol justo
+    después del login/al restaurar sesión hacía un solo intento contra <code>user_roles</code>;
+    cualquier blip de red transitorio bastaba para que fallara y el sistema cayera a
+    <code>'operador'</code> por defecto sin avisar — escondiendo el panel de administrador de una
+    cuenta admin real, sin ningún error visible. Ahora reintenta hasta 3 veces con espera
+    creciente y, si aun así falla, usa el último rol confirmado con éxito en ese dispositivo en
+    vez de asumir <code>'operador'</code> a ciegas (ver <a href="arquitectura.html">Arquitectura</a>,
+    sección 5, para el detalle técnico).
+  </div>
   <h3>Verificación en dos pasos (MFA)</h3>
   <p>Cualquier usuario puede activarla desde Configuración. No es obligatoria por ahora, pero
   conviene activarla al menos en las cuentas admin.</p>
@@ -121,6 +131,15 @@
   en pantalla ("¿Sigues ahí?") con cuenta regresiva; si nadie hace nada, a la hora completa la
   sesión se cierra sola (<code>_logout()</code>). Corre en cualquier pestaña abierta, pensado
   para un computador compartido con una sesión olvidada.</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>Fix real (2026-09-07) — un equipo que se DORMÍA no cerraba sesión al despertar:</b> el
+    gesto físico de despertarlo (mover el mouse, tocar una tecla) reseteaba el reloj de
+    inactividad antes de que el sistema alcanzara a notar que en realidad había pasado más de una
+    hora dormido. Ahora se mide también, de forma independiente de cualquier evento del usuario,
+    cuánto tiempo real pasó entre dos chequeos — si el equipo estuvo dormido ese tiempo, la sesión
+    se cierra igual (ver <a href="arquitectura.html">Arquitectura</a>, sección 13, para el detalle
+    técnico).
+  </div>
   <h3>Auditoría (trazabilidad — quién cambió qué)</h3>
   <p><b>Accesos recientes</b> — quién entró, cuándo, desde qué computador, y también los
   <b>intentos que NO prosperaron</b> (clave incorrecta, cuenta desactivada, o sesión que no

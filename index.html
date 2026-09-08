@@ -3806,6 +3806,39 @@ async function _sbGetRole(userId, accessToken){
   const data = await r.json();
   return data?.[0]||null;
 }
+// Bug real reportado por el usuario (2026-09-07): "entro como administrador
+// y después se pone con mi mismo correo como operador" — _sbGetRole hacía
+// UN SOLO intento; un blip de red, un token recién emitido, o PostgREST
+// recién despertando bastaban para que la consulta fallara (r.ok=false) y
+// _sbGetRole devolviera null, degradando en silencio a un admin real a
+// 'operador' (ver los dos call sites más abajo, que usaban ese null||
+// 'operador' a ciegas) — mismo criterio de fondo que _conReintento en
+// store.js, nunca aplicado acá pese a que acá el costo de fallar es mucho
+// peor (esconde todo el panel de administrador, no solo una pestaña sin
+// refrescar). Reintenta hasta 3 veces con espera creciente antes de rendirse.
+async function _sbGetRoleConReintento(userId, accessToken){
+  for(let i=0;i<3;i++){
+    const rol=await _sbGetRole(userId, accessToken);
+    if(rol) return rol;
+    if(i<2) await new Promise(function(res){setTimeout(res,300*(i+1));});
+  }
+  return null;
+}
+// Si los 3 intentos fallan, en vez de asumir 'operador' a ciegas se usa el
+// último rol que sí se confirmó con éxito alguna vez en este dispositivo
+// (guardado en localStorage la vez que _sbGetRole respondió bien) — un
+// admin real no debe verse degradado por un blip de red pasajero. Sin
+// ningún rol cacheado (primera vez en este dispositivo), sí se cae a
+// 'operador' como piso de seguridad — nunca se asume admin sin confirmarlo.
+function _resolverRolConCache(rol, email){
+  if(rol){
+    try{localStorage.setItem('smp_rol_cache', JSON.stringify({role:rol.role, nombre:rol.nombre}));}catch(e){}
+    return {role:rol.role, nombre:rol.nombre||email};
+  }
+  var cache=null;
+  try{cache=JSON.parse(localStorage.getItem('smp_rol_cache')||'null');}catch(e){}
+  return {role:(cache&&cache.role)||'operador', nombre:(cache&&cache.nombre)||email};
+}
 
 // Marca de agua de camión minero (CAEX) en el login — mismo mecanismo que ya
 // usa .header::before (ver ese comentario, arriba): un div con background
@@ -4104,9 +4137,10 @@ async function _completarLogin(email,data){
   window._userName = email;
   _registrarLogin('Login manual');
   _avisarSiDispositivoNuevo(data.access_token);
-  var rol = await _sbGetRole(_currentUser.id, data.access_token);
-  _currentRole = rol?.role||'operador';
-  window._userName = rol?.nombre||email;
+  var rol = await _sbGetRoleConReintento(_currentUser.id, data.access_token);
+  var _rolResuelto = _resolverRolConCache(rol, email);
+  _currentRole = _rolResuelto.role;
+  window._userName = _rolResuelto.nombre;
   window._userRole = _currentRole;
   if(window.Sentry)Sentry.setUser({email:email,username:window._userName});
   if(_currentUser?.user_metadata?.must_change_password){
@@ -4189,9 +4223,35 @@ function _mostrarAvisoInactividad(restanteMs){
     '</div>';
   document.body.appendChild(overlay);
 }
+// _ultimoTick vive solo en memoria (no en localStorage): mide cada cuánto
+// realmente alcanza a correr este chequeo. Bug real reportado por el usuario
+// (2026-09-07): dejó el equipo dormirse con la sesión abierta, lo despertó
+// pasada una hora, y la sesión seguía abierta. Causa: el propio gesto físico
+// para despertar el equipo (tocar el mouse/teclado) dispara los mismos
+// eventos que ya cuentan como "actividad" (ver _marcarActividad arriba), y
+// ese evento puede procesarse justo al reanudar la pestaña, ANTES de que
+// _revisarInactividad alcance a notar que en realidad pasó una hora dormido
+// — _ultimaActividad quedaba reseteada a "ahora mismo" antes de que se
+// pudiera medir la brecha real. La brecha de tick es inmune a esa carrera:
+// se calcula sola, sin mirar ningún evento del usuario, así que no importa
+// cuál de los dos (el evento que despierta, o este chequeo) llegue a correr
+// primero al reanudarse — mientras el hilo de JS estuvo pausado (equipo
+// dormido, pestaña congelada en segundo plano), este intervalo tampoco pudo
+// correr, así que la próxima vez que sí corre, la brecha contra su propio
+// último tick refleja fielmente cuánto tiempo real pasó sin que nada (ni el
+// usuario ni el programa) pudiera hacer nada.
+var _ultimoTick=Date.now();
 function _revisarInactividad(){
   if(!localStorage.getItem('smp_access_token'))return; // sin sesión, nada que cerrar
-  var inactivoMs=Date.now()-_ultimaActividad;
+  var ahora=Date.now();
+  var brechaTick=ahora-_ultimoTick;
+  _ultimoTick=ahora;
+  if(brechaTick>=IDLE_CIERRE_MS){
+    _ocultarAvisoInactividad();
+    _logout();
+    return;
+  }
+  var inactivoMs=ahora-_ultimaActividad;
   if(inactivoMs>=IDLE_CIERRE_MS){
     _ocultarAvisoInactividad();
     _logout();
@@ -4540,9 +4600,10 @@ document.addEventListener('DOMContentLoaded',async function(){
     }
     if(user && user.id){
       _currentUser = user;
-      var rol = await _sbGetRole(user.id, _token);
-      _currentRole = rol?.role||'operador';
-      window._userName = rol?.nombre||user.email;
+      var rol = await _sbGetRoleConReintento(user.id, _token);
+      var _rolResuelto = _resolverRolConCache(rol, user.email);
+      _currentRole = _rolResuelto.role;
+      window._userName = _rolResuelto.nombre;
       window._userRole = _currentRole;
       if(window.Sentry)Sentry.setUser({email:user.email,username:window._userName});
       _programarRefreshToken(_token);

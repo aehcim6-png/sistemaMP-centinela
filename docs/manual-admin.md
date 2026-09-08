@@ -50,6 +50,16 @@ para dos cosas:
   intente cambiar columnas reservadas (precio, datos estructurales del
   equipo), aunque manipule el navegador directamente.
 
+**Fix real (2026-09-07) — un admin se veía degradado a operador solo**:
+buscar el rol justo después del login/al restaurar sesión hacía un solo
+intento contra `user_roles`; cualquier blip de red transitorio bastaba para
+que fallara y el sistema cayera a `'operador'` por defecto sin avisar —
+escondiendo el panel de administrador de una cuenta admin real, sin ningún
+error visible. Ahora reintenta hasta 3 veces con espera creciente y, si aun
+así falla, usa el último rol confirmado con éxito en ese dispositivo en vez
+de asumir `'operador'` a ciegas (ver
+[`arquitectura.md`](./arquitectura.md), sección 5, para el detalle técnico).
+
 ### Verificación en dos pasos (MFA)
 
 Cualquier usuario puede activarla desde Configuración → Verificación en dos
@@ -139,6 +149,15 @@ hace nada, a la hora completa la sesión se cierra sola (`_logout()`). Corre
 en cualquier pestaña abierta, no solo la que está en primer plano. Pensado
 para el caso de un computador compartido (taller) con una sesión olvidada
 abierta.
+
+**Fix real (2026-09-07) — un equipo que se DORMÍA no cerraba sesión al
+despertar**: el gesto físico de despertarlo (mover el mouse, tocar una
+tecla) reseteaba el reloj de inactividad antes de que el sistema alcanzara
+a notar que en realidad había pasado más de una hora dormido. Ahora se mide
+también, de forma independiente de cualquier evento del usuario, cuánto
+tiempo real pasó entre dos chequeos — si el equipo estuvo dormido ese
+tiempo, la sesión se cierra igual (ver [`arquitectura.md`](./arquitectura.md),
+sección 13, para el detalle técnico).
 
 ### Auditoría (trazabilidad — quién cambió qué)
 
