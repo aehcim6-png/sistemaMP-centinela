@@ -58,7 +58,7 @@ const _SB_DEFAULT_KEY='sb_publishable_mI_CTe7yV23tllXXkdp-Aw_2UZCtwbi';
 // config de Supabase Auth). Vacía por defecto: sin este valor, el widget no
 // se dibuja y el login sigue funcionando exactamente igual que antes — nunca
 // debe ser un requisito para poder entrar mientras no esté configurada.
-const _TURNSTILE_SITE_KEY='';
+const _TURNSTILE_SITE_KEY='0x4AAAAAAEsPYS_djsh49Ajr';
 function _sbCfg(){
   try{const c=JSON.parse(localStorage.getItem(K+'cfg'))||{};
     return{url:(c.sbUrl||_SB_DEFAULT_URL).replace(/\/+$/,''),key:c.sbKey||_SB_DEFAULT_KEY};}
