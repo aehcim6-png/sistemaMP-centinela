@@ -141,6 +141,27 @@ vez que aparece un dispositivo en el historial completo de la cuenta —
 mismo criterio que usa la Edge Function, calculado en el navegador sobre el
 mismo dato (no es una llamada nueva a Supabase).
 
+### Protección contra bots (CAPTCHA, activado 2026-09-08)
+
+El login y la recuperación de contraseña tienen un widget de **Cloudflare
+Turnstile** (gratis, sin límite de uso) validado en dos capas:
+- **Cliente**: `_TURNSTILE_SITE_KEY` en `modules/store.js` — mientras esté
+  vacía, el widget no se dibuja y el login funciona exactamente igual que
+  sin CAPTCHA (nunca es un requisito por accidente).
+- **Servidor**: Supabase → Authentication → Attack Protection → "Enable
+  Captcha protection", proveedor **Turnstile**, con la Secret Key
+  correspondiente — sin este paso, el cliente exige completar el widget
+  pero Supabase Auth no lo estaría validando de verdad.
+
+Ambas claves se generan juntas al crear un "widget" en el dashboard de
+Cloudflare Turnstile (Site Key pública + Secret Key privada) — **cada
+dominio necesita su propio widget**: la Site Key está atada al hostname
+que se declaró al crearlo, así que no sirve copiar la de otra instancia
+sin volver a crear uno nuevo apuntando al dominio real de esta.
+
+Estado actual: activado y probado en vivo (widget se resuelve solo, login
+funciona) el 2026-09-08.
+
 ### Cierre de sesión por inactividad
 
 Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll)

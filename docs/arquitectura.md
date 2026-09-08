@@ -524,6 +524,35 @@ misma restricción (sin motor HTML/CSS confiable del lado del cliente de
 correo/WhatsApp) — ahí el emoji sigue siendo la elección técnicamente
 correcta, no un descuido.
 
+### 18. CAPTCHA del login — Cloudflare Turnstile (2026-09-04, activado 2026-09-08)
+
+Widget de Cloudflare Turnstile en login y recuperación de contraseña,
+validado server-side por Supabase Auth (GoTrue) vía
+`gotrue_meta_security.captcha_token` — no se construyó verificación propia,
+se usa el soporte nativo de Supabase para CAPTCHA.
+
+`_TURNSTILE_SITE_KEY` (`modules/store.js`) es la clave pública, incrustada
+en el HTML a propósito (así funciona una site key, a diferencia de la
+Secret Key que solo vive en la config de Supabase Auth). Mientras esté
+vacía, `_renderTurnstileEn()` no dibuja nada y el login sigue funcionando
+exactamente igual que sin CAPTCHA — nunca es un requisito por accidente.
+Un solo widget (`_turnstileWidgetId`/`_turnstileToken`) se comparte entre
+login y recuperación porque nunca están abiertas a la vez; los tokens son
+de un solo uso, así que `_resetTurnstile()` pide uno nuevo tras cualquier
+intento fallido. El script de Cloudflare se carga por CDN (`async defer`),
+no vendorizado como Sentry/jspdf/qrcode/xlsx — el widget necesita hablar en
+vivo con los servidores de Cloudflare para el desafío, un archivo estático
+no sirve. `vercel.json` permite `challenges.cloudflare.com` en la CSP
+(`script-src`, `connect-src`, `frame-src`).
+
+**Cada dominio necesita su propio widget de Cloudflare** (Site Key +
+Secret Key, generadas juntas al crearlo) — la Site Key queda atada al
+hostname declarado, así que no sirve copiar la de otra instancia sin crear
+un widget nuevo apuntando al dominio real de esta. Activado y probado en
+vivo (widget se resuelve solo, login funciona) el 2026-09-08 — ver
+[`manual-admin.md`](./manual-admin.md), sección 3, para el paso de
+configuración en el dashboard de Supabase (Attack Protection).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
