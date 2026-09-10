@@ -50,6 +50,18 @@ para dos cosas:
   intente cambiar columnas reservadas (precio, datos estructurales del
   equipo), aunque manipule el navegador directamente.
 
+**Bloqueo del campo "Tipo" de un equipo puntual** (2026-09-10): `equipos`
+tiene una columna `tipo_bloqueado` — cualquier fila con `tipo_bloqueado=true`
+no puede cambiar su `tipo` (un UPDATE que lo intente se revierte solo, en
+silencio, sin importar el rol). Reemplaza a un trigger viejo
+(`blindar_tipo_torres_iluminacion`) que protegía 6 torres de iluminación
+puntuales con sus siglas escritas a mano en el SQL — se generalizó a
+cualquier equipo, sin siglas hardcodeadas, migrando esos 6 al campo nuevo
+(mismo comportamiento de antes para ellos). Hoy no hay ninguna casilla en
+Configuración → Equipos para tocar esta bandera; para bloquear/desbloquear
+el tipo de otro equipo hace falta un `UPDATE equipos SET
+tipo_bloqueado=... WHERE sigla='...'` directo en Supabase.
+
 **Fix real (2026-09-07) — un admin se veía degradado a operador solo**:
 buscar el rol justo después del login/al restaurar sesión hacía un solo
 intento contra `user_roles`; cualquier blip de red transitorio bastaba para

@@ -77,6 +77,16 @@
   (<code>proteger_columnas_admin</code>) que bloquea a un operador que intente cambiar columnas
   reservadas, aunque manipule el navegador directamente.</p>
   <div class="callout" style="border-left-color:var(--amber)">
+    <b>Bloqueo del campo "Tipo" de un equipo puntual (2026-09-10):</b> <code>equipos</code> tiene
+    una columna <code>tipo_bloqueado</code> — cualquier fila con <code>tipo_bloqueado=true</code>
+    no puede cambiar su <code>tipo</code> (un UPDATE que lo intente se revierte solo, en
+    silencio, sin importar el rol). Reemplaza a un trigger viejo que protegía 6 torres de
+    iluminación puntuales con sus siglas escritas a mano en el SQL — se generalizó a cualquier
+    equipo, sin siglas hardcodeadas. Hoy no hay ninguna casilla en Configuración → Equipos para
+    tocar esta bandera; para bloquear/desbloquear el tipo de otro equipo hace falta un
+    <code>UPDATE equipos SET tipo_bloqueado=... WHERE sigla='...'</code> directo en Supabase.
+  </div>
+  <div class="callout" style="border-left-color:var(--amber)">
     <b>Fix real (2026-09-07) — un admin se veía degradado a operador solo:</b> buscar el rol justo
     después del login/al restaurar sesión hacía un solo intento contra <code>user_roles</code>;
     cualquier blip de red transitorio bastaba para que fallara y el sistema cayera a
