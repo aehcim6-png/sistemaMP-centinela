@@ -12,6 +12,11 @@ module.exports = defineConfig({
     baseURL: 'http://localhost:4173',
     trace: 'on-first-retry',
   },
+  // Las peticiones mockeadas (page.route()) siguen pasando por un roundtrip
+  // real del navegador — bajo contención pesada de CPU (varios specs en
+  // paralelo) el timeout de 5s por defecto de expect() puede quedar corto y
+  // producir un fallo de timing que no refleja un bug real de la app.
+  expect: { timeout: 10000 },
   projects: [
     {
       name: 'chromium',
