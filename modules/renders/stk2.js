@@ -12,7 +12,7 @@
 // confundía si eran o no la misma sección. Se aplanó a un solo nivel
 // (auditoría 2026-08); cstk.js se eliminó por completo, no quedó nada
 // enrutando ahí.
-export function renderStk2() {
+export async function renderStk2() {
   const sub = window._stk2Sub || 'stk';
   $('s-stk2').innerHTML = `
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock & Insumos</div>
@@ -30,6 +30,10 @@ export function renderStk2() {
     <div id="s-mov" class="${sub === 'mov' ? '' : 'hidden'}"></div>
     <div id="s-rep" class="${sub === 'rep' ? '' : 'hidden'}"></div>
   `;
+  // Carga perezosa (2026-09-10): stk/lub/cos/mov/rep son de las 32 pestañas
+  // sin dependencias cruzadas conocidas, así que pueden no estar cargadas
+  // todavía — ver _LAZY_VERS/_cargarModuloLazy en index.html.
+  if (typeof _LAZY_VERS !== 'undefined' && _LAZY_VERS[sub]) await _cargarModuloLazy(sub);
   if (sub === 'stk') renders.stk();
   else if (sub === 'lub') renders.lub();
   else if (sub === 'cos') renders.cos();

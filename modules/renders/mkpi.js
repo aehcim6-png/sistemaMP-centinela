@@ -4,7 +4,7 @@
 // tanda: Metas, KPIs y Reportes) — ver nota de migración en mov.js (primera
 // tanda, mismo patrón). Solo despacha a renders.metas/avance/kpi/resumen vía
 // el registro 'renders' (búsqueda en tiempo de ejecución, no import).
-export function renderMkpi() {
+export async function renderMkpi() {
   const sub = window._mkpiSub || 'metas';
   $('s-mkpi').innerHTML = `
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas & KPIs</div>
@@ -20,6 +20,10 @@ export function renderMkpi() {
     <div id="s-kpi" class="${sub === 'kpi' ? '' : 'hidden'}"></div>
     <div id="s-resumen" class="${sub === 'resumen' ? '' : 'hidden'}"></div>
   `;
+  // Carga perezosa (2026-09-10) — solo avance/kpi son de las 32 sin
+  // dependencias cruzadas; metas/resumen siguen estáticas (ver _LAZY_VERS
+  // en index.html), _cargarModuloLazy no se llama para esas.
+  if (typeof _LAZY_VERS !== 'undefined' && _LAZY_VERS[sub]) await _cargarModuloLazy(sub);
   if (sub === 'metas') renders.metas();
   else if (sub === 'avance') renders.avance();
   else if (sub === 'kpi') renders.kpi();

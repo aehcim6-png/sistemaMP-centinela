@@ -5,7 +5,7 @@
 // migración en mov.js (primera tanda, mismo patrón). Solo despacha a
 // renders.sem/prg/gantt/plan/progdia vía el registro 'renders' (búsqueda en
 // tiempo de ejecución, no import).
-export function renderPlani(){
+export async function renderPlani(){
   const sub=window._planiSub||'sem';
   $('s-plani').innerHTML=`
     <div class="sec-h"><div><div class="sec-t">🗓️ Planificación y Agenda</div>
@@ -23,6 +23,8 @@ export function renderPlani(){
     <div id="s-plan" class="${sub==='plan'?'':'hidden'}"></div>
     <div id="s-progdia" class="${sub==='progdia'?'':'hidden'}"></div>
   `;
+  // Carga perezosa (2026-09-10) — ver nota igual en stk2.js.
+  if(typeof _LAZY_VERS!=='undefined'&&_LAZY_VERS[sub])await _cargarModuloLazy(sub);
   if(sub==='sem')renders.sem();
   else if(sub==='prg')renders.prg();
   else if(sub==='gantt')renders.gantt();
