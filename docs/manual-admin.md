@@ -162,6 +162,21 @@ sin volver a crear uno nuevo apuntando al dominio real de esta.
 Estado actual: activado y probado en vivo (widget se resuelve solo, login
 funciona) el 2026-09-08.
 
+**Extensión a `registrar-intento-acceso` (auditoría de seguridad,
+2026-09-08):** ese endpoint (el que cuenta la ráfaga de intentos fallidos y
+dispara el bloqueo temporal de 15 minutos) es público y hasta ese día
+confiaba ciegamente en el email que mandaba el cliente — cualquiera podía
+golpearlo directo con curl usando el correo de un admin conocido y dejarlo
+bloqueado repetidamente, sin necesitar su clave ni pasar por el navegador.
+Se agregó una segunda llave en Vault, `turnstile_secret_key` (la misma
+Secret Key de Cloudflare, guardada una vez más ahí), para que ese endpoint
+también exija un CAPTCHA válido antes de contar un intento hacia el
+umbral. Si en algún momento hay que rotar la Secret Key de Cloudflare,
+actualízala en los dos lugares: Attack Protection (arriba) y este segundo
+secreto de Vault — con `select vault.update_secret((select id from
+vault.secrets where name = 'turnstile_secret_key'), 'LA_NUEVA_LLAVE');` en
+el SQL Editor.
+
 ### Cierre de sesión por inactividad
 
 Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll)

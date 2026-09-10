@@ -438,13 +438,27 @@ es un correo de más, no un riesgo de seguridad.
 fallidos, sección 13) se extendió con detección de ráfaga: tras cada
 intento bloqueado, cuenta cuántos lleva esa cuenta en los últimos 15
 minutos — al llegar exactamente a 5, avisa por correo/WhatsApp (posible
-fuerza bruta). Avisa solo al CRUZAR el umbral, no en cada intento
-posterior, para no saturar si el ataque sigue. Este endpoint es público a
-propósito (sin sesión, ver sección 13) — alguien podría en teoría spamear
-el umbral con requests directos, pero el costo es como mucho alertas de más
-al administrador, nunca al que llama, y una ráfaga real produce la misma
-señal — no hay forma de distinguir "ataque simulado contra el endpoint" de
-"ataque real" sin CAPTCHA, fuera de alcance por ahora.
+fuerza bruta) y bloquea la cuenta 15 minutos (`ban_duration`, ver sección
+11). Avisa solo al CRUZAR el umbral, no en cada intento posterior, para no
+saturar si el ataque sigue.
+
+**Fix real (auditoría de seguridad, 2026-09-08):** este endpoint es público
+a propósito (sin sesión) y hasta esta fecha confiaba ciegamente en el email
+que mandaba el cliente para contar la ráfaga — cualquiera podía golpearlo 5
+veces con el correo de un admin conocido, sin saber su clave, y dejarlo
+bloqueado 15 minutos repetidamente, sin pasar por ningún navegador real.
+Ahora, si hay una `turnstile_secret_key` cargada en Vault, cada intento
+debe venir con un `captchaToken` válido (verificado server-side contra
+`challenges.cloudflare.com/turnstile/v0/siteverify`) para que CUENTE hacia
+el umbral — un script que golpee el endpoint directo con curl ya no logra
+acumular intentos ni disparar el bloqueo. El token del widget del login se
+gasta en el login mismo (Turnstile es de un solo uso); el cliente resetea
+ese mismo widget y espera hasta 4s un token nuevo antes de registrar el
+intento, sin bloquear el mensaje de error que ya ve el usuario. Sin
+`turnstile_secret_key` configurada, se mantiene el comportamiento de
+siempre (mismo criterio de "opcional hasta que se configure a propósito"
+que usa el resto del sistema) — ver sección 18 para el resto del mecanismo
+de CAPTCHA.
 
 **Marca 🆕 en pantalla** (`Configuración → Accesos recientes`,
 `modules/renders/cfg.js`): reproduce en el cliente, sobre el historial
