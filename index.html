@@ -420,6 +420,12 @@ function sm(h){
   _smElementoAnterior=document.activeElement;
   $('mc').innerHTML=h;
   $('mbg').classList.add('show');
+  // Los 57 modales que usan sm() (crear/editar equipos, OT, config, etc.)
+  // se arman con HTML nuevo cada vez que se abren — hay que reaplicar acá
+  // el ocultamiento de botones de escritura para el rol lector, la pasada
+  // que corre en go() no alcanza a este contenido (vive fuera del flujo
+  // normal de pestañas).
+  if(typeof _aplicarRolUI==='function')_aplicarRolUI();
   // Mueve el foco DENTRO del modal recién abierto — sin esto, un usuario de
   // teclado seguía "parado" en el botón que lo abrió, con el foco fuera de la
   // ventana que acaba de aparecer encima.
@@ -623,6 +629,11 @@ function go(id){
   const sec=$('s-'+id);if(sec)sec.classList.add('on');
   [...$('nav').querySelectorAll('button:not([title])')].forEach((b,i)=>{if(i<TABS.length&&TABS[i].id===id)b.classList.add('on')});
   renders[id]?.();
+  // Cada pestaña se redibuja de cero al navegar — los botones de crear/editar
+  // que _aplicarRolUI() oculta para el rol lector vuelven a aparecer en el
+  // DOM nuevo si no se reaplica acá (la primera pasada, al iniciar sesión,
+  // solo alcanza a los elementos que existían en ese momento).
+  if(typeof _aplicarRolUI==='function')_aplicarRolUI();
   setTimeout(()=>aplicarOrdenUniversal('s-'+id),50);
 }
 
@@ -4392,10 +4403,35 @@ function _mfaError(msg){
 }
 
 
+// Prefijos de función usados en onclick="..." por los botones de crear/
+// editar/guardar/borrar/importar repartidos en las ~50 pestañas — no hay
+// una convención única (cada archivo nombra distinto: saveOT, delCompromiso,
+// confirmarOC, cloudPush, etc.), así que se hace matching por prefijo en
+// vez de intentar una lista exhaustiva de nombres exactos (se acepta un
+// guion bajo inicial opcional, porque varios helpers "privados" siguen el
+// mismo patrón: _guardarChequeoNeuOCR, _restaurarDePapelera). La verdadera
+// red de seguridad es el guard en S.s() (modules/store.js) — esto es la
+// capa de UI, para que un lector ni siquiera vea el botón en vez de hacer
+// clic y recibir un aviso. Ni perfecto ni exhaustivo a propósito: un falso
+// positivo (ocultar de más) es inofensivo; un falso negativo (no ocultar
+// algo) también lo es, porque S.s() igual corta la escritura real.
+var _RE_ACCION_ESCRITURA=/^(save|add|crear|nuevo|nueva|guardar|import|activar|desactivar|editarReg|del|reset|confirmar|abrirForm|abrirVincular|cambiarNeu|cerrarSemana|clearConsumos|cloudGuardarCfg|cloudPush|conectarCarpeta|desconectarCarpeta|desmontarSensor|cerrarSalidaServicio|registrarSalidaServicio|restaurarDePapelera)/i;
 function _aplicarRolUI(){
   if(window._userRole==='admin')return;
   document.querySelectorAll('button,a,li').forEach(function(el){
     try{var oc=el.getAttribute('onclick')||'';if(oc.includes("go('cfg')"))el.style.display='none';}catch(e){}
+  });
+  if(window._userRole!=='lector')return;
+  // Solo lector: oculta además los botones que abren/ejecutan una acción de
+  // escritura (crear, editar, guardar, importar, borrar) — el candado real
+  // ya está en RLS (privado.es_editor_activo()) y en S.s(), esto es para
+  // que la pantalla no muestre algo que de todas formas va a fallar.
+  document.querySelectorAll('button,a').forEach(function(el){
+    try{
+      var oc=el.getAttribute('onclick')||'';
+      var m=oc.match(/^_?([a-zA-Z_][a-zA-Z0-9_]*)\(/);
+      if(m&&_RE_ACCION_ESCRITURA.test(m[1]))el.style.display='none';
+    }catch(e){}
   });
 }
 

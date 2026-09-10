@@ -788,6 +788,21 @@ const S={
     return null;
   },
   s(k,v){
+    // Candado real para el rol lector (hallazgo de auditoría: "un lector ve
+    // botones que no puede usar" — hoy RLS ya bloquea la escritura en el
+    // servidor, pero en silencio: la cache local y localStorage SÍ se
+    // actualizaban acá antes de llegar a Supabase, así que la pantalla
+    // mostraba el cambio como guardado aunque el servidor lo hubiera
+    // rechazado — quedaba divergente hasta el próximo refresco). Se corta
+    // acá, antes de tocar cache/localStorage/red, en el único choke point
+    // por el que pasa CUALQUIER escritura del sistema (S.s), así que cubre
+    // los botones de crear/editar/guardar/importar sin tener que tocarlos
+    // uno por uno — la UI que los oculta (_aplicarRolUI en index.html) es
+    // solo cosmética, este es el candado que de verdad importa.
+    if(typeof window!=='undefined'&&window._userRole==='lector'){
+      if(typeof window.toast==='function')window.toast('⛔ Tu cuenta es de solo lectura — no se puede guardar');
+      return false;
+    }
     // Fase B: si esta clave ya vive en una tabla real (o venc/singleton), se
     // necesita el estado anterior (capturado ANTES de sobreescribir la cache) para
     // poder diferenciar filas nuevas/editadas/borradas al sincronizar, y para el
