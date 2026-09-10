@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { mockSupabase } = require('./helpers/mock-supabase');
+const { mockSupabase, SB_URL } = require('./helpers/mock-supabase');
 
 // Espera a que el widget mockeado de Turnstile ya haya entregado el token
 // (ver mock-supabase.js: llega ~10ms después de que "carga" el script) antes
@@ -61,5 +61,38 @@ test.describe('Login', () => {
     await llenarLogin(page, 'nuevo@test.com', 'claveTemporal123');
     await page.locator('#li_btn').click();
     await expect(page.locator('#loginOverlay')).toContainText('Primer ingreso', { timeout: 10000 });
+  });
+
+  // _esperarTurnstileTokenNuevo/_registrarIntentoBloqueado (index.html):
+  // hallazgo de auditoría de seguridad 2026-09-08 — los tokens de Turnstile
+  // son de un solo uso, así que el token ya gastado en el login fallido NO
+  // sirve para autorizar TAMBIÉN el registro del intento hacia
+  // registrar-intento-acceso (Cloudflare lo rechazaría). Este test cubre
+  // justo esa regresión: que el POST a registrar-intento-acceso vaya SIEMPRE
+  // con un token distinto (recién emitido tras resetear el widget), nunca
+  // con el que ya se usó para el intento de login en sí.
+  test('tras un login fallido, se pide un token de CAPTCHA nuevo antes de registrar el intento', async ({ page }) => {
+    await mockSupabase(page, { loginOk: false });
+
+    let bodyRegistrado = null;
+    await page.route(`${SB_URL}/functions/v1/registrar-intento-acceso`, (route) => {
+      bodyRegistrado = route.request().postDataJSON();
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+    });
+
+    await page.goto('/');
+    await esperarCaptchaListo(page);
+    const tokenDeLogin = await page.evaluate(() => window._turnstileToken);
+    await llenarLogin(page, 'victima@test.com', 'claveIncorrecta');
+    await page.locator('#li_btn').click();
+    await expect(page.locator('#li_err')).toBeVisible();
+
+    await expect.poll(() => bodyRegistrado, { timeout: 10000 }).not.toBeNull();
+    expect(bodyRegistrado.email).toBe('victima@test.com');
+    // El token mandado a registrar-intento-acceso NUNCA debe ser el mismo
+    // que ya se gastó en el intento de login (Cloudflare lo rechazaría por
+    // ser de un solo uso) — tiene que venir de un reseteo posterior del widget.
+    expect(bodyRegistrado.captchaToken).toBeTruthy();
+    expect(bodyRegistrado.captchaToken).not.toBe(tokenDeLogin);
   });
 });
