@@ -3685,12 +3685,12 @@ function _decodeJwtEmail(token){
 // activa para insertar (RLS to authenticated) y acá, por definición, no hay
 // sesión — se manda la anon key como Bearer (JWT válido para el gateway,
 // pero sin usuario real detrás).
-function _registrarIntentoBloqueado(email){
+function _registrarIntentoBloqueado(email,captchaToken){
   try{
     fetch(_SB_DEFAULT_URL+'/functions/v1/registrar-intento-acceso',{
       method:'POST',
       headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+_SB_DEFAULT_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({email:email||'',dispositivo:_getDeviceLabel(),userAgent:(navigator.userAgent||'').slice(0,150)})
+      body:JSON.stringify({email:email||'',dispositivo:_getDeviceLabel(),userAgent:(navigator.userAgent||'').slice(0,150),captchaToken:captchaToken||''})
     }).catch(function(){});
   }catch(e){}
 }
@@ -3941,6 +3941,37 @@ function _resetTurnstile(){
     try{turnstile.reset(_turnstileWidgetId);}catch(e){}
   }
 }
+// Reintenta el widget de Turnstile ya visible y espera (con tope de tiempo)
+// un token nuevo — usado para autorizar el registro de intentos fallidos en
+// registrar-intento-acceso (hallazgo de auditoría de seguridad, 2026-09-08):
+// ese endpoint es público a propósito (sin sesión, por diseño — ver el
+// propio Edge Function) y antes de este cambio confiaba ciegamente en el
+// email que mandaba el cliente para contar la ráfaga y bloquear la cuenta —
+// cualquiera podía golpearlo 5 veces con el correo de un admin conocido, sin
+// saber su clave, y dejarlo bloqueado 15 minutos repetidamente. El token que
+// ya se usó en _sbAuthLogin/_sbRecoverPassword no sirve para autorizar
+// TAMBIÉN este segundo llamado (los tokens de Turnstile son de un solo uso,
+// Cloudflare rechaza un token ya verificado) — hay que pedir uno nuevo. En
+// vez de un segundo widget separado (Cloudflare exige que el widget sea
+// visible para resolverse; uno oculto solo para esto no calza con eso), se
+// resetea el mismo widget del login (que de todas formas hay que resetear
+// para el siguiente intento) y se espera un momento a que Managed lo
+// resuelva solo. Si no llega a tiempo, se sigue igual sin token — el
+// servidor simplemente no cuenta ese intento hacia el umbral (ver Edge
+// Function), nunca bloquea el acceso normal de la persona por esto.
+function _esperarTurnstileTokenNuevo(timeoutMs){
+  _resetTurnstile();
+  return new Promise(function(resolve){
+    var esperado=0;
+    var paso=200;
+    (function chequear(){
+      if(_turnstileToken){resolve(_turnstileToken);return;}
+      esperado+=paso;
+      if(esperado>=timeoutMs){resolve(null);return;}
+      setTimeout(chequear,paso);
+    })();
+  });
+}
 function _mostrarLoginOverlay(msg){
   var existing = document.getElementById('loginOverlay');
   if(existing) existing.remove();
@@ -4101,9 +4132,13 @@ async function _doLogin(){
   try{
     var data = await _sbAuthLogin(email,pass,_turnstileToken);
     if(data.error||!data.access_token){
-      _registrarIntentoBloqueado(email);
-      _resetTurnstile();
-      _loginError('Email o contraseña incorrectos.');return;
+      _loginError('Email o contraseña incorrectos.');
+      // No se espera este resultado antes de mostrar el error (mala UX si
+      // el visitante tuviera que esperar la resolución del CAPTCHA nuevo
+      // para enterarse de que su clave estaba mal) — corre en paralelo,
+      // reseteando de paso el widget para el siguiente intento.
+      _esperarTurnstileTokenNuevo(4000).then(function(token){_registrarIntentoBloqueado(email,token);});
+      return;
     }
     // Si la cuenta tiene verificación en dos pasos activada, la clave sola no
     // basta: se pide el código antes de guardar ninguna sesión utilizable. El
@@ -4624,7 +4659,11 @@ document.addEventListener('DOMContentLoaded',async function(){
     }else{
       // La sesión que había quedaba inválida (token vencido y el refresh
       // también falló — ej. la cuenta se desactivó/bloqueó mientras la
-      // pestaña seguía abierta en otro computador, caso real: Héctor).
+      // pestaña seguía abierta en otro computador, caso real: Héctor). No
+      // hay ningún widget de Turnstile abierto en este punto (no es la
+      // pantalla de login) — se manda sin token; el servidor simplemente no
+      // cuenta este caso hacia el umbral de ráfaga si el CAPTCHA está
+      // configurado, sin impedir que quede igual el registro en el log si no.
       _registrarIntentoBloqueado(_decodeJwtEmail(_token));
       localStorage.removeItem('smp_access_token');
       localStorage.removeItem('smp_refresh_token');

@@ -35,17 +35,40 @@
 // podría en teoría spamear este umbral con requests directos usando el email
 // de un admin conocido, sin saber su clave, y lograr que quede bloqueado 15
 // minutos (antes esto solo generaba alertas de más; ahora sí bloquea el
-// acceso real, es un costo mayor). Se acepta el riesgo porque: (1) el
-// bloqueo es corto y se autolevanta, el peor caso es una molestia de minutos,
-// no una cuenta perdida; (2) dispara la MISMA alerta al admin en el momento,
-// así que nunca queda bloqueado en silencio sin enterarse; y (3) la
-// alternativa — no bloquear nunca — deja una fuerza bruta real completamente
-// sin freno, que es el riesgo más grave de los dos. Sin CAPTCHA (fuera de
-// alcance de este nivel) no hay forma de distinguir "ataque simulado contra
-// el endpoint" de "ataque real contra la cuenta", así que ambos casos
-// reciben el mismo tratamiento.
+// acceso real, es un costo mayor).
+//
+// Fix real (auditoría de seguridad, 2026-09-08): lo de arriba se aceptaba
+// como riesgo porque "sin CAPTCHA no hay forma de distinguir ataque
+// simulado de ataque real" — pero para entonces ya existía Turnstile en el
+// login (commit del 4-sep), solo nunca se conectó a ESTE endpoint. Ahora,
+// si hay una `turnstile_secret_key` cargada en Vault, cada intento debe
+// venir con un `captchaToken` válido (verificado server-side contra
+// Cloudflare) para que CUENTE hacia el umbral de ráfaga — un atacante que
+// golpee este endpoint directo con curl, sin pasar por un navegador real
+// que resuelva el desafío, ya no logra que sus intentos se acumulen ni que
+// se dispare el bloqueo. Si `turnstile_secret_key` no está configurada
+// (instalación sin CAPTCHA activado todavía), se mantiene el comportamiento
+// de siempre — mismo criterio de "opcional hasta que se configure a
+// propósito" que usa el resto del sistema.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+async function verificarTurnstile(secretKey: string, token: string, remoteip: string | null): Promise<boolean> {
+  try {
+    const params = new URLSearchParams({ secret: secretKey, response: token });
+    if (remoteip) params.set("remoteip", remoteip);
+    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params,
+    });
+    if (!r.ok) return false;
+    const data = await r.json();
+    return data?.success === true;
+  } catch {
+    return false;
+  }
+}
 
 const BLOQUEO_TEMPORAL_DURACION = "15m";
 
@@ -147,6 +170,21 @@ Deno.serve(async (req: Request) => {
     const email = recortar(body.email, 150) || "(sin email)";
     const dispositivo = recortar(body.dispositivo, 80);
     const userAgent = recortar(body.userAgent, 150);
+    const captchaToken = recortar(body.captchaToken, 2000);
+
+    const { data: turnstileSecret } = await admin.rpc("obtener_secreto_para_cron", {
+      nombre_secreto: "turnstile_secret_key",
+    });
+    if (turnstileSecret) {
+      const remoteip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+      const valido = captchaToken ? await verificarTurnstile(turnstileSecret, captchaToken, remoteip) : false;
+      if (!valido) {
+        // Silencioso a propósito, mismo criterio que el resto de este
+        // sistema con endpoints públicos: no le confirma a quien llama si
+        // "casi" funcionó — simplemente no registra ni cuenta nada.
+        return json({ ok: true });
+      }
+    }
 
     const { error } = await admin.from("changelog").insert({
       fecha: new Date().toISOString(),
