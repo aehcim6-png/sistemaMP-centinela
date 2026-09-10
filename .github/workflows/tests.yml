@@ -21,3 +21,11 @@ jobs:
       # bloquea, para no frenar el pipeline por hallazgos de bajo impacto real
       # (frecuentes en devDependencies de build, nunca llegan al navegador).
       - run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
