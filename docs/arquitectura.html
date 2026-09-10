@@ -347,6 +347,33 @@
   devuelve el mismo error genérico para ambos casos (no le filtra a un atacante si una cuenta
   existe o está baneada), así que tampoco se puede — ni se debe — distinguir del lado del
   cliente.</p>
+  <p><b>Tests Deno</b> (2026-09-10, <code>supabase/functions/registrar-intento-acceso/index.test.ts</code>):
+  era la única lógica de seguridad real del sistema (umbral de ráfaga, verificación de
+  Turnstile, recorte de entradas no confiables) sin ningún test automatizado — Vitest no sirve
+  acá porque estos archivos corren en el runtime de Deno (Edge Functions), no en Node/navegador.
+  Se exportaron las funciones puras (<code>recortar</code>, <code>cruzaUmbralRafaga</code>,
+  <code>verificarTurnstile</code>, <code>buscarUserIdPorEmail</code>) y se agregó
+  <code>deno.json</code> en la raíz del repo (<code>{"nodeModulesDir": "auto"}</code>, necesario
+  para que Deno resuelva los imports <code>npm:@supabase/supabase-js</code> y
+  <code>jsr:@supabase/functions-js</code> del archivo bajo test).</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>Efecto secundario evitado:</b> <code>Deno.serve(...)</code> se envolvió en
+    <code>if (import.meta.main) { ... }</code> — sin este guard, el solo hecho de <i>importar</i>
+    el archivo desde el test (para llegar a sus funciones exportadas) levantaba un servidor HTTP
+    real. <code>import.meta.main</code> es <code>true</code> solo cuando Deno ejecuta el archivo
+    directamente (el caso real en producción/Supabase Edge Runtime), <code>false</code> cuando
+    otro módulo lo importa.
+  </div>
+  <p>Se corren con:</p>
+  <pre>deno test --allow-net --allow-env --no-check --config deno.json \
+  supabase/functions/registrar-intento-acceso/index.test.ts</pre>
+  <p>Requieren tener Deno instalado aparte — <b>no</b> se agregó como dependencia de este
+  proyecto npm (el paquete <code>deno-bin</code>, la única forma práctica de obtener un binario
+  de Deno vía npm, trae 2 vulnerabilidades HIGH transitivas por <code>adm-zip</code>, lo que
+  habría roto el estándar de "0 vulnerabilidades" de <code>npm audit</code> recién alcanzado esta
+  sesión). No corren en CI todavía por el mismo motivo (no hay Deno preinstalado en el runner de
+  GitHub Actions actual); quedan como suite manual hasta que se agregue un paso de CI que
+  instale Deno de forma oficial (no vía npm).</p>
 
   <h3>14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)</h3>
   <p>3 Edge Functions (<code>leer-pauta-pm</code>, <code>leer-informe-correctivo</code>,

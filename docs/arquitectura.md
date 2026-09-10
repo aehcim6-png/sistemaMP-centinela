@@ -407,6 +407,35 @@ Supabase Auth devuelve el mismo error genérico para ambos casos (no le
 filtra a un atacante si una cuenta existe o está baneada), así que tampoco
 se puede — ni se debe — distinguir del lado del cliente.
 
+**Tests Deno** (2026-09-10, `supabase/functions/registrar-intento-acceso/index.test.ts`):
+era la única lógica de seguridad real del sistema (umbral de ráfaga,
+verificación de Turnstile, recorte de entradas no confiables) sin ningún
+test automatizado — Vitest no sirve acá porque estos archivos corren en el
+runtime de Deno (Edge Functions), no en Node/navegador. Se exportaron las
+funciones puras (`recortar`, `cruzaUmbralRafaga`, `verificarTurnstile`,
+`buscarUserIdPorEmail`) y se agregó `deno.json` en la raíz del repo
+(`{"nodeModulesDir": "auto"}`, necesario para que Deno resuelva los
+imports `npm:@supabase/supabase-js` y `jsr:@supabase/functions-js` del
+archivo bajo test). `Deno.serve(...)` se envolvió en
+`if (import.meta.main) { ... }` — sin este guard, el solo hecho de
+*importar* el archivo desde el test (para llegar a sus funciones
+exportadas) levantaba un servidor HTTP real como efecto secundario;
+`import.meta.main` es `true` solo cuando Deno ejecuta el archivo
+directamente (el caso real en producción/Supabase Edge Runtime), `false`
+cuando otro módulo lo importa. Se corren con:
+```
+deno test --allow-net --allow-env --no-check --config deno.json \
+  supabase/functions/registrar-intento-acceso/index.test.ts
+```
+Requieren tener Deno instalado aparte — **no** se agregó como dependencia
+de este proyecto npm (el paquete `deno-bin`, la única forma práctica de
+obtener un binario de Deno vía npm, trae 2 vulnerabilidades HIGH
+transitivas por `adm-zip`, lo que habría roto el estándar de "0
+vulnerabilidades" de `npm audit` recién alcanzado esta sesión). No corren
+en CI todavía por el mismo motivo (no hay Deno preinstalado en el runner
+de GitHub Actions actual); quedan como suite manual hasta que se agregue
+un paso de CI que instale Deno de forma oficial (no vía npm).
+
 ### 14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)
 
 3 Edge Functions (`leer-pauta-pm`, `leer-informe-correctivo`,

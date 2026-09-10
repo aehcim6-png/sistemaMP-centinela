@@ -53,7 +53,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-async function verificarTurnstile(secretKey: string, token: string, remoteip: string | null): Promise<boolean> {
+export async function verificarTurnstile(secretKey: string, token: string, remoteip: string | null): Promise<boolean> {
   try {
     const params = new URLSearchParams({ secret: secretKey, response: token });
     if (remoteip) params.set("remoteip", remoteip);
@@ -77,7 +77,7 @@ const BLOQUEO_TEMPORAL_DURACION = "15m";
 // que se recorre auth.users vía el Admin API paginado. Aceptable a esta
 // escala (equipo de mantención, no miles de usuarios); tope defensivo de 10
 // páginas para nunca quedar en un loop si algo raro pasa con la paginación.
-async function buscarUserIdPorEmail(admin: ReturnType<typeof createClient>, email: string): Promise<string | null> {
+export async function buscarUserIdPorEmail(admin: ReturnType<typeof createClient>, email: string): Promise<string | null> {
   const emailLower = email.toLowerCase();
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
@@ -106,12 +106,22 @@ function json(body: unknown, status = 200) {
 
 // Recorte defensivo — esto lo llena cualquiera que llegue a la pantalla de
 // login (sin autenticar todavía), así que el texto es 100% no confiable.
-function recortar(v: unknown, max: number): string {
+export function recortar(v: unknown, max: number): string {
   return String(v ?? "").slice(0, max);
 }
 
 const UMBRAL_RAFAGA = 5;
 const VENTANA_RAFAGA_MS = 15 * 60 * 1000;
+
+// Se dispara SOLO la vez que se CRUZA el umbral (count === UMBRAL), no en
+// cada intento posterior — si se disparara con >= UMBRAL, cada intento
+// nuevo después del quinto volvería a avisar/bloquear (el bloqueo real de
+// 15 min ya cubre el abuso; repetir la alerta y el update de ban_duration
+// en cada intento siguiente sería ruido, no protección adicional). Función
+// separada solo para poder testear esta regla exacta de forma aislada.
+export function cruzaUmbralRafaga(intentosRecientes: number): boolean {
+  return intentosRecientes === UMBRAL_RAFAGA;
+}
 
 async function avisarRafaga(admin: ReturnType<typeof createClient>, email: string, intentos: number) {
   const cfgR = await admin.from("configuracion").select("alertaEmails,alertaWhatsApp").limit(1);
@@ -157,61 +167,67 @@ async function avisarRafaga(admin: ReturnType<typeof createClient>, email: strin
   }
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
+// import.meta.main: true cuando Deno ejecuta este archivo directamente
+// (siempre el caso en producción — así corre Supabase Edge Runtime), false
+// cuando otro módulo lo importa (ver index.test.ts) — evita que correr los
+// tests levante un servidor HTTP real como efecto secundario del import.
+if (import.meta.main) {
+  Deno.serve(async (req: Request) => {
+    if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+    if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(supabaseUrl, serviceKey);
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const admin = createClient(supabaseUrl, serviceKey);
 
-    const body = await req.json().catch(() => ({}));
-    const email = recortar(body.email, 150) || "(sin email)";
-    const dispositivo = recortar(body.dispositivo, 80);
-    const userAgent = recortar(body.userAgent, 150);
-    const captchaToken = recortar(body.captchaToken, 2000);
+      const body = await req.json().catch(() => ({}));
+      const email = recortar(body.email, 150) || "(sin email)";
+      const dispositivo = recortar(body.dispositivo, 80);
+      const userAgent = recortar(body.userAgent, 150);
+      const captchaToken = recortar(body.captchaToken, 2000);
 
-    const { data: turnstileSecret } = await admin.rpc("obtener_secreto_para_cron", {
-      nombre_secreto: "turnstile_secret_key",
-    });
-    if (turnstileSecret) {
-      const remoteip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
-      const valido = captchaToken ? await verificarTurnstile(turnstileSecret, captchaToken, remoteip) : false;
-      if (!valido) {
-        // Silencioso a propósito, mismo criterio que el resto de este
-        // sistema con endpoints públicos: no le confirma a quien llama si
-        // "casi" funcionó — simplemente no registra ni cuenta nada.
-        return json({ ok: true });
+      const { data: turnstileSecret } = await admin.rpc("obtener_secreto_para_cron", {
+        nombre_secreto: "turnstile_secret_key",
+      });
+      if (turnstileSecret) {
+        const remoteip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+        const valido = captchaToken ? await verificarTurnstile(turnstileSecret, captchaToken, remoteip) : false;
+        if (!valido) {
+          // Silencioso a propósito, mismo criterio que el resto de este
+          // sistema con endpoints públicos: no le confirma a quien llama si
+          // "casi" funcionó — simplemente no registra ni cuenta nada.
+          return json({ ok: true });
+        }
       }
-    }
 
-    const { error } = await admin.from("changelog").insert({
-      fecha: new Date().toISOString(),
-      usuario: email,
-      accion: "Login bloqueado",
-      detalle: "Intento de acceso rechazado (clave incorrecta, cuenta desactivada, o sesión vencida sin poder renovarse) · 💻 " + dispositivo + " · " + userAgent,
-    });
-    if (error) return json({ error: "No se pudo registrar: " + error.message }, 500);
+      const { error } = await admin.from("changelog").insert({
+        fecha: new Date().toISOString(),
+        usuario: email,
+        accion: "Login bloqueado",
+        detalle: "Intento de acceso rechazado (clave incorrecta, cuenta desactivada, o sesión vencida sin poder renovarse) · 💻 " + dispositivo + " · " + userAgent,
+      });
+      if (error) return json({ error: "No se pudo registrar: " + error.message }, 500);
 
-    if (email !== "(sin email)") {
-      const conteoR = await admin
-        .from("changelog")
-        .select("id", { count: "exact", head: true })
-        .eq("accion", "Login bloqueado")
-        .eq("usuario", email)
-        .gte("fecha", new Date(Date.now() - VENTANA_RAFAGA_MS).toISOString());
-      const intentosRecientes = conteoR.count ?? 0;
-      if (intentosRecientes === UMBRAL_RAFAGA) {
-        await Promise.all([
-          avisarRafaga(admin, email, intentosRecientes).catch(() => {}),
-          bloquearCuentaTemporalmente(admin, email).catch(() => {}),
-        ]);
+      if (email !== "(sin email)") {
+        const conteoR = await admin
+          .from("changelog")
+          .select("id", { count: "exact", head: true })
+          .eq("accion", "Login bloqueado")
+          .eq("usuario", email)
+          .gte("fecha", new Date(Date.now() - VENTANA_RAFAGA_MS).toISOString());
+        const intentosRecientes = conteoR.count ?? 0;
+        if (cruzaUmbralRafaga(intentosRecientes)) {
+          await Promise.all([
+            avisarRafaga(admin, email, intentosRecientes).catch(() => {}),
+            bloquearCuentaTemporalmente(admin, email).catch(() => {}),
+          ]);
+        }
       }
-    }
 
-    return json({ ok: true });
-  } catch (e) {
-    return json({ error: String(e) }, 500);
-  }
-});
+      return json({ ok: true });
+    } catch (e) {
+      return json({ error: String(e) }, 500);
+    }
+  });
+}
