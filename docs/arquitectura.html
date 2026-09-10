@@ -71,7 +71,21 @@
     la migración de Fase 3 (2026-08-30): se convirtieron uno por uno, cada uno probado (tests +
     build + Playwright) antes de fusionar, en vez de todos a la vez — el riesgo que antes hacía
     preferible mantenerlos como scripts planos. <code>logic.js</code> y
-    <code>modules/store.js</code> siguen siendo scripts planos a propósito (ver sección 2).</li>
+    <code>modules/store.js</code> siguen siendo scripts planos a propósito (ver sección 2).
+    <b>Carga perezosa (code-splitting, 2026-09-10)</b>: 43 de los 45 se cargan con
+    <code>dynamic import()</code> recién al visitar esa pestaña, no todos al arrancar — bajó el
+    bundle inicial de ~900kB a ~70kB. <code>index.html</code> define <code>_LAZY_VERS</code> (qué
+    archivo/versión carga cada uno), <code>_LAZY_EXPORTS</code> (sus funciones públicas) y
+    <code>_LAZY_CLUSTERS</code> (grupos que se llaman entre sí sin chequeo de que el otro ya cargó
+    — <code>audit</code>+<code>pred</code>, <code>metas</code>+<code>resumenejec</code>,
+    <code>reg</code>+<code>neu</code>+<code>ot</code>, <code>comp</code>+<code>estadistica</code> —
+    se cargan siempre juntos, nunca uno sin el otro). Como red de seguridad ante un caso cruzado
+    que se le escape a esa lista (un <code>onclick="..."</code> generado por OTRO archivo, ej.
+    <code>cfg.js</code> invocando <code>verLogCambios()</code> de <code>log.js</code>), cada
+    función pública queda con un "stub" desde el arranque que, si se llama antes de tiempo, carga
+    el archivo real y reintenta. Solo <code>dash.js</code> (se dibuja en el arranque, antes del
+    login) y <code>ace.js</code> (lo usan varias pestañas de forma no crítica, pero si nunca
+    cargara el widget de aceite del Dashboard quedaría vacío toda la sesión) siguen eager.</li>
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
     disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los

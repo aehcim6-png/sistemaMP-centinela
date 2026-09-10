@@ -35,6 +35,21 @@ framework nuevo a mitad de camino.
   la vez — el riesgo que antes hacía preferible mantenerlos como scripts
   planos. `logic.js` y `modules/store.js` siguen siendo scripts planos a
   propósito (ver sección 2).
+  **Carga perezosa (code-splitting, 2026-09-10)**: 43 de los 45 se cargan
+  con `dynamic import()` recién al visitar esa pestaña, no todos al
+  arrancar — bajó el bundle inicial de ~900kB a ~70kB. `index.html` define
+  `_LAZY_VERS` (qué archivo/versión carga cada uno), `_LAZY_EXPORTS` (sus
+  funciones públicas) y `_LAZY_CLUSTERS` (grupos que se llaman entre sí sin
+  chequeo de que el otro ya cargó — `audit`+`pred`, `metas`+`resumenejec`,
+  `reg`+`neu`+`ot`, `comp`+`estadistica` — se cargan siempre juntos, nunca
+  uno sin el otro). Como red de seguridad ante un caso cruzado que se le
+  escape a esa lista (un `onclick="..."` generado por OTRO archivo, ej.
+  `cfg.js` invocando `verLogCambios()` de `log.js`), cada función pública
+  queda con un "stub" desde el arranque que, si se llama antes de tiempo,
+  carga el archivo real y reintenta. Solo `dash.js` (se dibuja en el
+  arranque, antes del login) y `ace.js` (lo usan varias pestañas de forma
+  no crítica, pero si nunca cargara el widget de aceite del Dashboard
+  quedaría vacío toda la sesión) siguen eager.
 - **`modules/store.js`** — el motor de sincronización (ver sección 3).
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
