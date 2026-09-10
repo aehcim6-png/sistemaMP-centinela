@@ -44,6 +44,13 @@ async function mockSupabase(page, opts = {}) {
     role = 'admin',
     nombre = 'Admin Test',
     mustChangePassword = false,
+    // Si se pasa, el login devuelve un factor TOTP ya verificado (activa el
+    // segundo paso de MFA) — ver _mostrarMfaChallengeUI en index.html. El
+    // access_token del login en sí queda a nivel aal1 (sin guardar sesión
+    // todavía); mfaCodigoValido es el único código de 6 dígitos que
+    // _mfaVerify acepta en este mock.
+    mfaFactorId = null,
+    mfaCodigoValido = '123456',
   } = opts;
 
   await mockTurnstile(page);
@@ -70,10 +77,43 @@ async function mockSupabase(page, opts = {}) {
           user: {
             id: userId,
             email,
-            factors: [],
+            factors: mfaFactorId ? [{ id: mfaFactorId, factor_type: 'totp', status: 'verified' }] : [],
             user_metadata: mustChangePassword ? { must_change_password: true } : {},
           },
         }),
+      });
+    }
+
+    if (mfaFactorId && path === `/auth/v1/factors/${mfaFactorId}/challenge` && method === 'POST') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'mock-challenge-id' }),
+      });
+    }
+
+    if (mfaFactorId && path === `/auth/v1/factors/${mfaFactorId}/verify` && method === 'POST') {
+      const body = route.request().postDataJSON();
+      if (body && body.code === mfaCodigoValido) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            access_token: 'mock.aal2.access.token',
+            refresh_token: 'mock-aal2-refresh-token',
+            user: {
+              id: userId,
+              email,
+              factors: [{ id: mfaFactorId, factor_type: 'totp', status: 'verified' }],
+              user_metadata: {},
+            },
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'invalid_code', message: 'Invalid TOTP code entered' }),
       });
     }
 

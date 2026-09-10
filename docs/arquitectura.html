@@ -92,12 +92,15 @@
     archivos con pruebas automatizadas (536 casos, corren con Vitest).</li>
     <li><b>tests/e2e/</b> (2026-09-10) — pruebas de extremo a extremo con Playwright Test, que sí
     arrancan un navegador real (Chromium) contra un servidor Vite local, a diferencia de Vitest
-    (que corre sin DOM). Cubren los 4 flujos que antes solo se probaban a mano cada vez: login
-    (CAPTCHA, credenciales correctas/incorrectas, cambio de clave obligatorio), guardado offline
+    (que corre sin DOM). Cubren los flujos que antes solo se probaban a mano cada vez: login
+    (CAPTCHA, credenciales correctas/incorrectas, cambio de clave obligatorio, token de CAPTCHA
+    fresco al registrar un intento fallido), verificación en dos pasos (cuenta con MFA activo pide
+    el código de 6 dígitos y no guarda sesión hasta confirmarlo), guardado offline
     (<code>S.s()</code> nunca debe fingir un guardado en la nube que no llegó), conflicto de
     edición concurrente (<code>_chequearConflicto</code> debe abortar sin pisar el cambio de otra
-    persona), y la lectura de pauta PM por foto (OCR: solo prellena, nunca guarda solo). Todas las
-    llamadas a Supabase/Cloudflare se mockean con <code>page.route()</code> — no dependen de, ni
+    persona), y la lectura de pauta PM/chequeo de neumáticos por foto (OCR: solo prellena o guarda
+    lo tildado, nunca guarda a ciegas). Todas las llamadas a Supabase/Cloudflare se mockean con
+    <code>page.route()</code> — no dependen de, ni
     gastan cuota de, infraestructura real. Corren en CI
     (<code>.github/workflows/tests.yml</code>) después de Vitest y <code>npm audit</code>, con
     reintentos automáticos ante un fallo puntual de timing (<code>retries: 2</code> en CI).</li>
