@@ -59,7 +59,7 @@
 
 const EXCLUIDOS = new Set(['BD-8708', 'CA-5137', 'CA-5140', 'CN-9506']); // decomisionados
 
-function calcStockEstado(stockBodega: number, consumoMes: number, leadDias: number | null) {
+export function calcStockEstado(stockBodega: number, consumoMes: number, leadDias: number | null) {
   const cm = consumoMes || 0;
   const stock = stockBodega || 0;
   const lead = leadDias && leadDias > 0 ? leadDias : 34;
@@ -78,7 +78,7 @@ function calcStockEstado(stockBodega: number, consumoMes: number, leadDias: numb
 // lo hace el Dashboard: "🟠 Sin registrar (requerido)") — antes esta copia
 // no recibía ese dato y lo dejaba pasar en silencio, así que el correo
 // diario podía no avisar de un documento requerido que nunca se calculó.
-function calcVencEstado(proximaFecha: string | null, tieneRegla: boolean) {
+export function calcVencEstado(proximaFecha: string | null, tieneRegla: boolean) {
   if (!proximaFecha) return { dias: null as number | null, requiereAtencion: !!tieneRegla, vencido: false };
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const prox = new Date(proximaFecha + 'T00:00:00');
@@ -103,10 +103,12 @@ function calcVencEstado(proximaFecha: string | null, tieneRegla: boolean) {
 // _shared/parseCorrectivo.ts. Acepta tanto strings (substring) como RegExp
 // (coincidencia de patrón, ej. palabra completa) como keyword.
 type Keyword = string | RegExp;
-function componenteDeSintoma(sintoma: string | null): string {
-  if (!sintoma) return '';
-  const t = sintoma.toLowerCase();
-  const reglas: [string, Keyword[]][] = [
+// Hoisted a nivel de módulo (antes vivía dentro de componenteDeSintoma) para
+// poder exportar CATEGORIAS_VALIDAS y comparar, en tests, que esta copia no
+// se desincronice de _shared/parseCorrectivo.ts / whatsapp-webhook — el
+// mismo tipo de drift que ya pasó una vez entre whatsapp-webhook y el
+// parser compartido (ver comentario "Bug real #2" en whatsapp-webhook).
+const CATEGORIAS_COMPONENTE_ALERTA: [string, Keyword[]][] = [
     ['Asiento', ['asiento']],
     ['Batería', ['bateria', 'batería', 'baterias', 'baterías']],
     ['Motor de Partida', ['motor de partida', 'motor partida', 'arranque']],
@@ -155,14 +157,19 @@ function componenteDeSintoma(sintoma: string | null): string {
     ['Estanque/Tapa de Combustible', ['estanque combustible', 'estanque de combustible', 'tapa combustible', 'tapa de combustible', 'tapa de llenado de combustible']],
     ['Pala (Motoniveladora)', [/\bpala\b/]],
     ['Motor', ['motor', 'reel']],
-  ];
-  for (const [cat, keys] of reglas) {
+];
+export const CATEGORIAS_VALIDAS: string[] = CATEGORIAS_COMPONENTE_ALERTA.map(([nombre]) => nombre);
+
+export function componenteDeSintoma(sintoma: string | null): string {
+  if (!sintoma) return '';
+  const t = sintoma.toLowerCase();
+  for (const [cat, keys] of CATEGORIAS_COMPONENTE_ALERTA) {
     if (keys.some((k) => (k instanceof RegExp ? k.test(t) : t.indexOf(k) >= 0))) return cat;
   }
   return '';
 }
 
-function diasEntreISO(desdeISO: string | null, hastaISO: string | null): number {
+export function diasEntreISO(desdeISO: string | null, hastaISO: string | null): number {
   if (!desdeISO || !hastaISO) return 9999;
   const d1 = new Date(desdeISO + 'T00:00:00Z').getTime();
   const d2 = new Date(hastaISO + 'T00:00:00Z').getTime();
@@ -177,6 +184,7 @@ function tabla(headers: string[], filas: string[][]) {
   </table>`;
 }
 
+if (import.meta.main) {
 Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -562,3 +570,4 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });
+}

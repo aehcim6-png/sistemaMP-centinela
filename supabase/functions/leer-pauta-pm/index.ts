@@ -61,6 +61,18 @@ const PROMPT = `Esta es una foto de una pauta de mantención preventiva de una f
 
 Lee solo esos datos de cabecera (ignora la tabla larga de actividades/checklist de abajo). Si un campo no aparece en la foto o es ilegible, déjalo en null — nunca inventes un valor. Si un campo SÍ tiene un valor pero la letra es ambigua (por ejemplo un dígito que podría ser 1 o 7, o un dígito del año que no se ve con total claridad), da tu mejor intento de todas formas pero agrega el nombre de ese campo a camposInciertos — prefiere marcar un campo como incierto de más antes que devolverlo con total confianza si tienes cualquier duda real al leerlo.`;
 
+// Tope generoso (~8MB en base64) — la app ya comprime la foto a máx.
+// 1600px/JPEG 0.75 antes de mandarla (ver comprimirImagen en index.html),
+// esto es solo un resguardo contra un payload gigante.
+export const TOPE_IMAGEN_BASE64 = 11_000_000;
+
+export function validarImagenBase64(body: { imagenBase64?: string }): string | null {
+  if (!body?.imagenBase64) return "Falta imagenBase64.";
+  if (body.imagenBase64.length > TOPE_IMAGEN_BASE64) return "La imagen es muy grande, inténtalo con una foto más liviana.";
+  return null;
+}
+
+if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
@@ -72,11 +84,8 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const imagenBase64: string | undefined = body?.imagenBase64;
     const mimeType: string = body?.mimeType || "image/jpeg";
-    if (!imagenBase64) return json({ error: "Falta imagenBase64." }, 400);
-    // Tope generoso (~8MB en base64) — la app ya comprime la foto a máx.
-    // 1600px/JPEG 0.75 antes de mandarla (ver comprimirImagen en
-    // index.html), esto es solo un resguardo contra un payload gigante.
-    if (imagenBase64.length > 11_000_000) return json({ error: "La imagen es muy grande, inténtalo con una foto más liviana." }, 400);
+    const errorValidacion = validarImagenBase64(body);
+    if (errorValidacion) return json({ error: errorValidacion }, 400);
 
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${GEMINI_API_KEY}`,
@@ -125,3 +134,4 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(e) }, 500);
   }
 });
+}

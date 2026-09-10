@@ -26,7 +26,7 @@
 
 import { parsearReporteFalla } from '../_shared/parseCorrectivo.ts';
 
-async function verificarFirmaResend(secretoConPrefijo: string, svixId: string, svixTimestamp: string, cuerpo: string, svixSignature: string): Promise<boolean> {
+export async function verificarFirmaResend(secretoConPrefijo: string, svixId: string, svixTimestamp: string, cuerpo: string, svixSignature: string): Promise<boolean> {
   const secretoB64 = secretoConPrefijo.replace(/^whsec_/, '');
   const secretoBytes = Uint8Array.from(atob(secretoB64), (c) => c.charCodeAt(0));
   const contenidoFirmado = `${svixId}.${svixTimestamp}.${cuerpo}`;
@@ -41,10 +41,11 @@ async function verificarFirmaResend(secretoConPrefijo: string, svixId: string, s
 // Texto plano desde HTML simple, cuando el correo no trae 'text' (solo
 // 'html') — best-effort, no un parser HTML completo: basta para extraer
 // palabras clave/sigla del cuerpo del mensaje.
-function htmlATexto(html: string): string {
+export function htmlATexto(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+if (import.meta.main) {
 Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -138,3 +139,4 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });
+}

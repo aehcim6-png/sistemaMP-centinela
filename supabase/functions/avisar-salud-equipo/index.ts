@@ -35,6 +35,30 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 }
 
+export function normalizarMotivo(m: unknown): "cruce" | "caida" {
+  return m === "caida" ? "caida" : "cruce";
+}
+
+// Dedup: máximo un aviso por equipo por día calendario — ver 'like'
+// contra 'changelog.detalle' en el handler, que busca este prefijo exacto.
+export function marcaDedupSalud(sigla: string, fechaISO: string): string {
+  return `${sigla}|${fechaISO}|`;
+}
+
+export function formatearMotivoTxt(motivo: "cruce" | "caida", delta: number | null): string {
+  return motivo === "caida"
+    ? `bajó ${Math.abs(delta ?? 0)} puntos en la última semana`
+    : "cruzó a Salud Baja (bajo 70%)";
+}
+
+// "Por qué" en lenguaje simple — la señal más afectada, si llegó del
+// cliente (causaNombre/causaValor). Sin causa, el mensaje sigue siendo
+// igual de correcto, solo más genérico.
+export function formatearCausaTxt(causaNombre: string | null, causaValor: number | null): string {
+  return causaNombre ? ` La señal más afectada es ${causaNombre}${causaValor != null ? ` (${causaValor}%)` : ""}.` : "";
+}
+
+if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -53,7 +77,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const sigla = String(body.sigla ?? "").trim();
     const score = body.score;
-    const motivo = body.motivo === "caida" ? "caida" : "cruce";
+    const motivo = normalizarMotivo(body.motivo);
     const delta = typeof body.delta === "number" && isFinite(body.delta) ? body.delta : null;
     // Causa principal — la dimensión más afectada (motivoPrincipalSalud, ya
     // decidida en el cliente con logic.js), para poder decir "por qué" en el
@@ -66,7 +90,7 @@ Deno.serve(async (req: Request) => {
     if (typeof score !== "number" || !isFinite(score)) return json({ error: "Falta score válido." }, 400);
 
     const hoy = new Date().toISOString().slice(0, 10);
-    const marcaDedup = `${sigla}|${hoy}|`;
+    const marcaDedup = marcaDedupSalud(sigla, hoy);
 
     const dup = await admin
       .from("changelog")
@@ -83,13 +107,8 @@ Deno.serve(async (req: Request) => {
     const emails = String(cfgRow.alertaEmails || "").split(",").map((s: string) => s.trim()).filter(Boolean);
     const whatsapps = String(cfgRow.alertaWhatsApp || "").split(",").map((s: string) => s.trim()).filter(Boolean);
 
-    const motivoTxt = motivo === "caida"
-      ? `bajó ${Math.abs(delta ?? 0)} puntos en la última semana`
-      : "cruzó a Salud Baja (bajo 70%)";
-    // "Por qué" en lenguaje simple — la señal más afectada, si llegó del
-    // cliente (causaNombre/causaValor). Sin causa, el mensaje sigue siendo
-    // igual de correcto, solo más genérico.
-    const causaTxt = causaNombre ? ` La señal más afectada es ${causaNombre}${causaValor != null ? ` (${causaValor}%)` : ""}.` : "";
+    const motivoTxt = formatearMotivoTxt(motivo, delta);
+    const causaTxt = formatearCausaTxt(causaNombre, causaValor);
     const asunto = `🩺 ${sigla} ${motivoTxt} — Score ${score}%`;
     const html =
       `<h2>🩺 SistemaMP Centinela — alerta de salud de equipo</h2>` +
@@ -154,3 +173,4 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(e) }, 500);
   }
 });
+}

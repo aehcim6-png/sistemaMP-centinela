@@ -108,7 +108,7 @@ const MAPEO_SIGLA: [RegExp, string][] = [
   [/\b(CN|CF|BD|MN)-?\d{4,5}\b/i, ''],
 ];
 
-function resolverSigla(texto: string): { sigla: string | null; siglaOriginal: string | null } {
+export function resolverSigla(texto: string): { sigla: string | null; siglaOriginal: string | null } {
   for (const [regex, destino] of MAPEO_SIGLA) {
     const m = texto.match(regex);
     if (m) {
@@ -170,9 +170,9 @@ const CATEGORIAS_COMPONENTE: [string, Keyword[]][] = [
   ['Pala (Motoniveladora)', [/\bpala\b/]],
   ['Motor', ['motor', 'reel']],
 ];
-const CATEGORIAS_VALIDAS: string[] = CATEGORIAS_COMPONENTE.map(([nombre]) => nombre);
+export const CATEGORIAS_VALIDAS: string[] = CATEGORIAS_COMPONENTE.map(([nombre]) => nombre);
 
-function clasificarComponente(texto: string): string {
+export function clasificarComponente(texto: string): string {
   const t = texto.toLowerCase();
   for (const [cat, keys] of CATEGORIAS_COMPONENTE) {
     if (keys.some((k) => (k instanceof RegExp ? k.test(t) : t.indexOf(k) >= 0))) return cat;
@@ -181,25 +181,25 @@ function clasificarComponente(texto: string): string {
 }
 
 const KEYWORDS_PM = ['mantencion programada', 'mantención programada', 'lavado para pm', /\bpm[1-4]\b/i];
-function pareceMantencionProgramada(texto: string): boolean {
+export function pareceMantencionProgramada(texto: string): boolean {
   const t = texto.toLowerCase();
   return KEYWORDS_PM.some((k) => (typeof k === 'string' ? t.indexOf(k) >= 0 : (k as RegExp).test(texto)));
 }
-function pareceExactaPregunta(texto: string): boolean {
+export function pareceExactaPregunta(texto: string): boolean {
   return texto.indexOf('¿') >= 0 || /\?\s*$/.test(texto.trim());
 }
 const KEYWORDS_FALLA = ['fuera de servicio', 'se rompio', 'se rompió', 'no funciona', 'no enciende', 'no parte', 'falla de', 'con falla'];
-function pareceReporteFalla(texto: string): boolean {
+export function pareceReporteFalla(texto: string): boolean {
   const t = texto.toLowerCase();
   return KEYWORDS_FALLA.some((k) => t.indexOf(k) >= 0);
 }
 
-function extraerHorometro(texto: string): number | null {
+export function extraerHorometro(texto: string): number | null {
   const m = texto.match(/(\d{3,6})\s*(?:hrs?|horas?)\b/i);
   return m ? parseInt(m[1], 10) : null;
 }
 
-function parsearReporteFalla(textoOriginal: string): ReporteFalla | null {
+export function parsearReporteFalla(textoOriginal: string): ReporteFalla | null {
   const texto = (textoOriginal || '').trim();
   if (!texto) return null;
 
@@ -319,7 +319,7 @@ async function interpretarConIA(texto: string, siglasValidas: string[], categori
 
 // ============ WEBHOOK ============
 
-async function verificarFirmaTwilio(authToken: string, url: string, params: URLSearchParams): Promise<string> {
+export async function verificarFirmaTwilio(authToken: string, url: string, params: URLSearchParams): Promise<string> {
   const claves = [...params.keys()].sort();
   let base = url;
   for (const k of claves) base += k + params.get(k);
@@ -328,11 +328,12 @@ async function verificarFirmaTwilio(authToken: string, url: string, params: URLS
   return btoa(String.fromCharCode(...new Uint8Array(firma)));
 }
 
-function twiml(mensaje: string): Response {
+export function twiml(mensaje: string): Response {
   const xml = `<?xml version="1.0" encoding="UTF-8"?><Response>${mensaje ? `<Message>${mensaje.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</Message>` : ''}</Response>`;
   return new Response(xml, { status: 200, headers: { 'Content-Type': 'text/xml' } });
 }
 
+if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -456,3 +457,4 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });
+}

@@ -17,12 +17,12 @@ const BLOQUEO_DURACION = "87600h";
 // cambiarla en el primer login) — Math.random() no es un generador
 // criptográficamente seguro, sus salidas se pueden llegar a predecir a
 // partir de valores anteriores del mismo proceso.
-function randomIndex(max: number) {
+export function randomIndex(max: number) {
   const buf = new Uint32Array(1);
   crypto.getRandomValues(buf);
   return buf[0] % max;
 }
-function randomPassword(len = 18) {
+export function randomPassword(len = 18) {
   const lower = "abcdefghijkmnpqrstuvwxyz";
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const digits = "23456789";
@@ -47,6 +47,14 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 }
 
+// Únicos 3 roles reales del sistema (ver user_roles.role, texto libre sin
+// CHECK — esta función es el único lugar que de verdad restringe los
+// valores aceptados al crear una cuenta).
+export function rolValido(rol: unknown): boolean {
+  return rol === "admin" || rol === "operador" || rol === "lector";
+}
+
+if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -81,7 +89,7 @@ Deno.serve(async (req: Request) => {
     if (action === "crear") {
       const { nombre, email, rol } = body;
       if (!nombre || !email || !rol) return json({ error: "Faltan datos (nombre, email, rol)." }, 400);
-      if (rol !== "admin" && rol !== "operador" && rol !== "lector") return json({ error: "Rol inválido." }, 400);
+      if (!rolValido(rol)) return json({ error: "Rol inválido." }, 400);
 
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,
@@ -220,3 +228,4 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(e) }, 500);
   }
 });
+}

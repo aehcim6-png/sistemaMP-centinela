@@ -60,7 +60,19 @@ describe('Sincronía del clasificador de componente entre logic.js y las funcion
 
   it('alerta-pm/index.ts (alertas de mantención por correo) tiene EXACTAMENTE las mismas categorías y palabras clave que logic.js', () => {
     const copia = normalizar(
-      extraerArrayDeArchivo('supabase/functions/alerta-pm/index.ts', 'const reglas')
+      extraerArrayDeArchivo('supabase/functions/alerta-pm/index.ts', 'const CATEGORIAS_COMPONENTE_ALERTA')
+    );
+    expect(copia).toEqual(base);
+  });
+
+  // whatsapp-webhook/index.ts trae su PROPIA copia inlineada (no importa
+  // '../_shared/parseCorrectivo.ts' — ver el comentario "Bug real #2" en ese
+  // archivo: Deno Deploy no resolvía ese import de forma confiable) — sin
+  // este chequeo directo contra logic.js, esta tercera copia podría
+  // desincronizarse sin que ninguno de los otros dos tests de arriba lo note.
+  it('whatsapp-webhook/index.ts (reportes de falla por WhatsApp) tiene EXACTAMENTE las mismas categorías y palabras clave que logic.js', () => {
+    const copia = normalizar(
+      extraerArrayDeArchivo('supabase/functions/whatsapp-webhook/index.ts', 'const CATEGORIAS_COMPONENTE')
     );
     expect(copia).toEqual(base);
   });

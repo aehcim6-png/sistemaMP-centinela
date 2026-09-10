@@ -44,7 +44,7 @@ import { encodeBase64 } from "jsr:@std/encoding/base64";
 // omitiendo en silencio. Grave en particular para correctivos_historico: ahí
 // caen los reportes automáticos de WhatsApp/correo (whatsapp-webhook/
 // email-webhook), que sin esto no quedaban respaldados en absoluto.
-const TABLAS = [
+export const TABLAS = [
   'kv', 'user_roles', 'equipos', 'registros_pm', 'correctivos', 'movimientos_stock',
   'historial_horometros', 'neumaticos', 'neumaticos_mediciones', 'pautas',
   'stock_filtros', 'lubricantes', 'repuestos', 'informes_falla', 'programa',
@@ -63,8 +63,8 @@ const TABLAS = [
 // mismo límite ya documentado en _fetchPaginado de modules/store.js) sin
 // avisar — pedir de a PASO filas y seguir pidiendo hasta una página
 // incompleta esquiva el tope sin depender de conocer su valor exacto.
-const PASO = 500;
-async function traerTodasLasFilas(supabase: any, tabla: string) {
+export const PASO = 500;
+export async function traerTodasLasFilas(supabase: any, tabla: string) {
   let todas: any[] = [];
   let desde = 0;
   while (true) {
@@ -77,6 +77,7 @@ async function traerTodasLasFilas(supabase: any, tabla: string) {
   return todas;
 }
 
+if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   try {
     const supabase = createClient(
@@ -164,3 +165,4 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), { status: 500 });
   }
 });
+}

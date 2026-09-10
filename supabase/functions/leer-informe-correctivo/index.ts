@@ -57,6 +57,15 @@ const PROMPT = `Esta es una foto de un "INFORME MANTENIMIENTO EN TALLER" de una 
 
 Lee todos esos campos. Si un campo no aparece en la foto, está en blanco, o es ilegible, déjalo en null — nunca inventes un valor ni completes la narrativa de tu cuenta. Para "Reparación Efectuada" y las demás secciones narrativas, transcribe el texto manuscrito tal cual está, sin resumir ni corregir. Si un campo SÍ tiene un valor pero la letra es ambigua (un dígito que podría ser 1 o 7, un dígito del año que no se ve con total claridad, una palabra difícil de leer), da tu mejor intento de todas formas pero agrega el nombre de ese campo a camposInciertos.`;
 
+export const TOPE_IMAGEN_BASE64 = 11_000_000;
+
+export function validarImagenBase64(body: { imagenBase64?: string }): string | null {
+  if (!body?.imagenBase64) return "Falta imagenBase64.";
+  if (body.imagenBase64.length > TOPE_IMAGEN_BASE64) return "La imagen es muy grande, inténtalo con una foto más liviana.";
+  return null;
+}
+
+if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
@@ -68,8 +77,8 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const imagenBase64: string | undefined = body?.imagenBase64;
     const mimeType: string = body?.mimeType || "image/jpeg";
-    if (!imagenBase64) return json({ error: "Falta imagenBase64." }, 400);
-    if (imagenBase64.length > 11_000_000) return json({ error: "La imagen es muy grande, inténtalo con una foto más liviana." }, 400);
+    const errorValidacion = validarImagenBase64(body);
+    if (errorValidacion) return json({ error: errorValidacion }, 400);
 
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${GEMINI_API_KEY}`,
@@ -118,3 +127,4 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(e) }, 500);
   }
 });
+}

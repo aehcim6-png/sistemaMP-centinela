@@ -347,26 +347,59 @@
   devuelve el mismo error genérico para ambos casos (no le filtra a un atacante si una cuenta
   existe o está baneada), así que tampoco se puede — ni se debe — distinguir del lado del
   cliente.</p>
-  <p><b>Tests Deno</b> (2026-09-10, <code>supabase/functions/registrar-intento-acceso/index.test.ts</code>):
-  era la única lógica de seguridad real del sistema (umbral de ráfaga, verificación de
-  Turnstile, recorte de entradas no confiables) sin ningún test automatizado — Vitest no sirve
-  acá porque estos archivos corren en el runtime de Deno (Edge Functions), no en Node/navegador.
-  Se exportaron las funciones puras (<code>recortar</code>, <code>cruzaUmbralRafaga</code>,
-  <code>verificarTurnstile</code>, <code>buscarUserIdPorEmail</code>) y se agregó
-  <code>deno.json</code> en la raíz del repo (<code>{"nodeModulesDir": "auto"}</code>, necesario
-  para que Deno resuelva los imports <code>npm:@supabase/supabase-js</code> y
-  <code>jsr:@supabase/functions-js</code> del archivo bajo test).</p>
+  <p><b>Tests Deno</b> (2026-09-10, empezó con <code>registrar-intento-acceso</code>, extendido el
+  mismo día a las 11 Edge Functions restantes + <code>_shared/parseCorrectivo.ts</code>): antes de
+  esto, TODA la lógica que corre en Deno (no solo la de seguridad) estaba sin ningún test
+  automatizado — Vitest no sirve acá porque estos archivos corren en el runtime de Deno (Edge
+  Functions), no en Node/navegador. Cada archivo sigue el mismo patrón: se exportan sus funciones
+  puras (sin tocar red/DB) y <code>deno.json</code> en la raíz del repo
+  (<code>{"nodeModulesDir": "auto"}</code>) resuelve los imports <code>npm:@supabase/supabase-js</code>
+  y <code>jsr:@supabase/functions-js</code>.</p>
   <div class="callout" style="border-left-color:var(--amber)">
     <b>Efecto secundario evitado:</b> <code>Deno.serve(...)</code> se envolvió en
-    <code>if (import.meta.main) { ... }</code> — sin este guard, el solo hecho de <i>importar</i>
-    el archivo desde el test (para llegar a sus funciones exportadas) levantaba un servidor HTTP
-    real. <code>import.meta.main</code> es <code>true</code> solo cuando Deno ejecuta el archivo
-    directamente (el caso real en producción/Supabase Edge Runtime), <code>false</code> cuando
-    otro módulo lo importa.
+    <code>if (import.meta.main) { ... }</code> en las 12 funciones — sin este guard, el solo hecho
+    de <i>importar</i> el archivo desde el test (para llegar a sus funciones exportadas) levantaba
+    un servidor HTTP real. <code>import.meta.main</code> es <code>true</code> solo cuando Deno
+    ejecuta el archivo directamente (el caso real en producción/Supabase Edge Runtime),
+    <code>false</code> cuando otro módulo lo importa.
   </div>
+  <p>Qué cubre cada uno (115 tests en total):</p>
+  <ul>
+    <li><b>crear-operador</b>: <code>randomPassword</code>/<code>randomIndex</code> (política de
+    clave real vía <code>crypto.getRandomValues</code>, no <code>Math.random</code>) y
+    <code>rolValido</code>.</li>
+    <li><b>avisar-dispositivo-nuevo</b>: las 3 señales de "actividad inusual" (dispositivo nuevo,
+    horario fuera de patrón, varios dispositivos nuevos en 7 días) extraídas a funciones puras que
+    toman el historial como parámetro, más <code>horaChile</code>.</li>
+    <li><b>avisar-salud-equipo</b>: normalización del motivo, clave de dedup, y el armado de los
+    textos de aviso.</li>
+    <li><b>email-webhook</b>: <code>verificarFirmaResend</code> (HMAC-SHA256 estilo Svix, probado
+    con una firma real calculada en el propio test, no un valor mágico) y <code>htmlATexto</code>.</li>
+    <li><b>whatsapp-webhook</b>: el parser por reglas completo (<code>resolverSigla</code>,
+    <code>clasificarComponente</code>, detección de pregunta/mantención programada/horómetro) y
+    <code>verificarFirmaTwilio</code> (HMAC-SHA1). Incluye un test que compara su
+    <code>CATEGORIAS_VALIDAS</code> contra <code>_shared/parseCorrectivo.ts</code> byte a byte —
+    este archivo trae su propia copia inlineada del parser (Deno Deploy no resolvía el import
+    cruzado de forma confiable) y ya se desincronizó una vez en producción ("Bug real #2", ver
+    comentario en el propio archivo); el test lo vuelve a romper en CI si pasa de nuevo.
+    <code>tests/sincroniaComponenteBackend.test.js</code> (Vitest, ya existente) hace el chequeo
+    complementario: compara esta misma lista contra <code>logic.js</code> directamente, así como
+    la de <code>alerta-pm</code> y <code>_shared/parseCorrectivo.ts</code>.</li>
+    <li><b>alerta-pm</b>: <code>calcStockEstado</code>/<code>calcVencEstado</code> (misma fórmula
+    que <code>logic.js</code>), <code>componenteDeSintoma</code>, <code>diasEntreISO</code>.</li>
+    <li><b>resumen-semanal</b>: <code>pctDelta</code> (sin dividir por cero cuando la semana
+    anterior fue 0), <code>moneda</code>, <code>iso</code>.</li>
+    <li><b>backup-diario</b>: <code>traerTodasLasFilas</code> probada con un cliente Supabase falso
+    (verifica la paginación real de a 500 filas, no solo que "el código compile"), y guardarraíles
+    sobre <code>TABLAS</code> (sin duplicados, incluye las 7 tablas que la auditoría 2026-09-07
+    encontró faltando).</li>
+    <li><b>leer-pauta-pm/leer-informe-correctivo/leer-chequeo-neumaticos</b>: solo la validación de
+    <code>imagenBase64</code> (falta/tamaño) — son wrappers finos sobre Gemini, el grueso de su
+    comportamiento ya lo cubre el flujo de OCR en <code>tests/e2e/ocr.spec.js</code> (mockeado).</li>
+  </ul>
   <p>Se corren con:</p>
   <pre>deno test --allow-net --allow-env --no-check --config deno.json \
-  supabase/functions/registrar-intento-acceso/index.test.ts</pre>
+  supabase/functions/</pre>
   <p>Para correrlos localmente hace falta tener Deno instalado aparte — <b>no</b> se agregó como
   dependencia de este proyecto npm (el paquete <code>deno-bin</code>, la única forma práctica de
   obtener un binario de Deno vía npm, trae 2 vulnerabilidades HIGH transitivas por

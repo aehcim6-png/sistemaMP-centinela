@@ -49,19 +49,78 @@ function json(body: unknown, status = 200) {
 // costo de la consulta sin perder patrón útil (60 días de logins de una
 // misma cuenta es de sobra para "hora habitual" y "dispositivos nuevos
 // recientes", que solo mira los últimos 7).
-const DIAS_HISTORIAL = 60;
-const UMBRAL_MIN_HISTORIAL_HORARIO = 5;
-const UMBRAL_DISPOSITIVOS_NUEVOS = 3;
-const VENTANA_DISPOSITIVOS_NUEVOS_MS = 7 * 24 * 60 * 60 * 1000;
+export const DIAS_HISTORIAL = 60;
+export const UMBRAL_MIN_HISTORIAL_HORARIO = 5;
+export const UMBRAL_DISPOSITIVOS_NUEVOS = 3;
+export const VENTANA_DISPOSITIVOS_NUEVOS_MS = 7 * 24 * 60 * 60 * 1000;
+
+export type FilaHistorialLogin = { fecha: string; detalle: string | null };
 
 // Hora (0-23) de una fecha en huso de Chile. hour12:false puede devolver
 // "24" para la medianoche en vez de "00" (comportamiento real de
 // Intl.DateTimeFormat en algunos motores) — el módulo 24 lo normaliza.
-function horaChile(fecha: string | Date): number {
+export function horaChile(fecha: string | Date): number {
   const s = new Date(fecha).toLocaleString("en-US", { timeZone: "America/Santiago", hour: "numeric", hour12: false });
   return Number(s) % 24;
 }
 
+// --- Señal 1: dispositivo nuevo ---
+// 'detalle' guarda "<origen> · 💻 <dispositivo> · <userAgent>" (ver
+// _registrarLogin en index.html) — el emoji queda como parte del patrón
+// para no calzar por accidente con otro texto que solo contenga el
+// nombre del dispositivo suelto.
+export function esDispositivoNuevo(historial: FilaHistorialLogin[], dispositivo: string): boolean {
+  const marca = `💻 ${dispositivo} ·`;
+  // <=1 en vez de ===0: la fila del login que disparó esta misma llamada
+  // puede o no haber terminado de guardarse todavía (ambas llamadas son
+  // best-effort, sin garantía de orden) — si ya está, cuenta como 1 y
+  // sigue siendo "nuevo".
+  const apariciones = historial.filter((f) => (f.detalle || "").includes(marca)).length;
+  return apariciones <= 1;
+}
+
+// --- Señal 2: horario inusual ---
+// Con muy poco historial cualquier hora es "normal" (no hay patrón todavía
+// que romper) — se exige un mínimo de logins previos antes de evaluar esta
+// señal, para no marcar como rara la hora de una cuenta recién creada.
+export function esHorarioInusual(historial: FilaHistorialLogin[], ahora: Date = new Date()): boolean {
+  if (historial.length < UMBRAL_MIN_HISTORIAL_HORARIO) return false;
+  const horasHistoricas = new Set(historial.map((f) => horaChile(f.fecha)));
+  const horaActual = horaChile(ahora);
+  // ±1 hora de margen: no marcar por un login 20 minutos antes o después
+  // de lo habitual como si fuera un patrón distinto.
+  const dentroDeLoHabitual = [horaActual, (horaActual + 1) % 24, (horaActual + 23) % 24].some((h) => horasHistoricas.has(h));
+  return !dentroDeLoHabitual;
+}
+
+// --- Señal 3: varios dispositivos nuevos en poco tiempo ---
+// Recorre el historial en orden cronológico y marca, por cada dispositivo
+// distinto, la fecha de su PRIMERA aparición — luego cuenta cuántas de esas
+// primeras apariciones caen dentro de la ventana reciente (incluye el
+// dispositivo actual si es nuevo: su primera aparición es ahora mismo).
+export function contarDispositivosNuevosEnVentana(
+  historial: FilaHistorialLogin[],
+  dispositivoActual: string,
+  dispositivoEsNuevo: boolean,
+  ahoraMs: number = Date.now()
+): number {
+  const vistos = new Set<string>();
+  const corte = ahoraMs - VENTANA_DISPOSITIVOS_NUEVOS_MS;
+  let cuenta = 0;
+  for (const fila of historial) {
+    const m = /💻 (.+?) ·/.exec(fila.detalle || "");
+    if (!m) continue;
+    const disp = m[1];
+    if (!vistos.has(disp)) {
+      vistos.add(disp);
+      if (new Date(fila.fecha).getTime() >= corte) cuenta++;
+    }
+  }
+  if (dispositivoEsNuevo && !vistos.has(dispositivoActual)) cuenta++;
+  return cuenta;
+}
+
+if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -96,55 +155,9 @@ Deno.serve(async (req: Request) => {
       .order("fecha", { ascending: true });
     const historial: { fecha: string; detalle: string | null }[] = histR.data || [];
 
-    // --- Señal 1: dispositivo nuevo ---
-    // 'detalle' guarda "<origen> · 💻 <dispositivo> · <userAgent>" (ver
-    // _registrarLogin en index.html) — el emoji queda como parte del patrón
-    // para no calzar por accidente con otro texto que solo contenga el
-    // nombre del dispositivo suelto.
-    const marca = `💻 ${dispositivo} ·`;
-    const aparicionesEsteDispositivo = historial.filter((f) => (f.detalle || "").includes(marca)).length;
-    // <=1 en vez de ===0: la fila del login que disparó esta misma llamada
-    // puede o no haber terminado de guardarse todavía (ambas llamadas son
-    // best-effort, sin garantía de orden) — si ya está, cuenta como 1 y
-    // sigue siendo "nuevo".
-    const dispositivoNuevo = aparicionesEsteDispositivo <= 1;
-
-    // --- Señal 2: horario inusual ---
-    // Con muy poco historial cualquier hora es "normal" (no hay patrón
-    // todavía que romper) — se exige un mínimo de logins previos antes de
-    // evaluar esta señal, para no marcar como rara la hora de una cuenta
-    // recién creada.
-    let horarioInusual = false;
-    if (historial.length >= UMBRAL_MIN_HISTORIAL_HORARIO) {
-      const horasHistoricas = new Set(historial.map((f) => horaChile(f.fecha)));
-      const horaActual = horaChile(new Date());
-      // ±1 hora de margen: no marcar por un login 20 minutos antes o
-      // después de lo habitual como si fuera un patrón distinto.
-      const dentroDeLoHabitual = [horaActual, (horaActual + 1) % 24, (horaActual + 23) % 24].some((h) => horasHistoricas.has(h));
-      horarioInusual = !dentroDeLoHabitual;
-    }
-
-    // --- Señal 3: varios dispositivos nuevos en poco tiempo ---
-    // Recorre el historial en orden cronológico y marca, por cada
-    // dispositivo distinto, la fecha de su PRIMERA aparición — luego cuenta
-    // cuántas de esas primeras apariciones caen dentro de la ventana
-    // reciente (incluye el dispositivo actual si es nuevo: su primera
-    // aparición es ahora mismo).
-    let dispositivosNuevosEnVentana = 0;
-    {
-      const vistos = new Set<string>();
-      const corte = Date.now() - VENTANA_DISPOSITIVOS_NUEVOS_MS;
-      for (const fila of historial) {
-        const m = /💻 (.+?) ·/.exec(fila.detalle || "");
-        if (!m) continue;
-        const disp = m[1];
-        if (!vistos.has(disp)) {
-          vistos.add(disp);
-          if (new Date(fila.fecha).getTime() >= corte) dispositivosNuevosEnVentana++;
-        }
-      }
-      if (dispositivoNuevo && !vistos.has(dispositivo)) dispositivosNuevosEnVentana++;
-    }
+    const dispositivoNuevo = esDispositivoNuevo(historial, dispositivo);
+    const horarioInusual = esHorarioInusual(historial);
+    const dispositivosNuevosEnVentana = contarDispositivosNuevosEnVentana(historial, dispositivo, dispositivoNuevo);
     const muchosDispositivosNuevos = dispositivosNuevosEnVentana >= UMBRAL_DISPOSITIVOS_NUEVOS;
 
     if (!dispositivoNuevo && !horarioInusual && !muchosDispositivosNuevos) {
@@ -226,3 +239,4 @@ Deno.serve(async (req: Request) => {
     return json({ error: String(e) }, 500);
   }
 });
+}

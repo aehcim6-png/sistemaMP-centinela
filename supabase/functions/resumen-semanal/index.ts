@@ -46,17 +46,17 @@
 
 const EXCLUIDOS = new Set(['BD-8708', 'CA-5137', 'CA-5140', 'CN-9506']); // decomisionados
 
-function iso(d: Date): string {
+export function iso(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function pctDelta(actual: number, anterior: number): string {
+export function pctDelta(actual: number, anterior: number): string {
   if (anterior <= 0) return actual > 0 ? '(antes: 0)' : '(sin cambio)';
   const d = Math.round(((actual - anterior) / anterior) * 100);
   return `(semana anterior: ${anterior}, ${d >= 0 ? '+' : ''}${d}%)`;
 }
 
-function moneda(n: number): string {
+export function moneda(n: number): string {
   return '$' + Math.round(n).toLocaleString('es-CL');
 }
 
@@ -75,6 +75,7 @@ function tarjeta(titulo: string, valor: string, sub: string) {
   </td>`;
 }
 
+if (import.meta.main) {
 Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -303,3 +304,4 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });
+}

@@ -407,25 +407,62 @@ Supabase Auth devuelve el mismo error genérico para ambos casos (no le
 filtra a un atacante si una cuenta existe o está baneada), así que tampoco
 se puede — ni se debe — distinguir del lado del cliente.
 
-**Tests Deno** (2026-09-10, `supabase/functions/registrar-intento-acceso/index.test.ts`):
-era la única lógica de seguridad real del sistema (umbral de ráfaga,
-verificación de Turnstile, recorte de entradas no confiables) sin ningún
-test automatizado — Vitest no sirve acá porque estos archivos corren en el
-runtime de Deno (Edge Functions), no en Node/navegador. Se exportaron las
-funciones puras (`recortar`, `cruzaUmbralRafaga`, `verificarTurnstile`,
-`buscarUserIdPorEmail`) y se agregó `deno.json` en la raíz del repo
-(`{"nodeModulesDir": "auto"}`, necesario para que Deno resuelva los
-imports `npm:@supabase/supabase-js` y `jsr:@supabase/functions-js` del
-archivo bajo test). `Deno.serve(...)` se envolvió en
+**Tests Deno** (2026-09-10, empezó con `registrar-intento-acceso`, extendido
+el mismo día a las 11 Edge Functions restantes + `_shared/parseCorrectivo.ts`):
+antes de esto, TODA la lógica que corre en Deno (no solo la de seguridad)
+estaba sin ningún test automatizado — Vitest no sirve acá porque estos
+archivos corren en el runtime de Deno (Edge Functions), no en Node/navegador.
+Cada archivo sigue el mismo patrón: se exportan sus funciones puras (sin
+tocar red/DB) y `Deno.serve(...)` se envuelve en
 `if (import.meta.main) { ... }` — sin este guard, el solo hecho de
 *importar* el archivo desde el test (para llegar a sus funciones
 exportadas) levantaba un servidor HTTP real como efecto secundario;
 `import.meta.main` es `true` solo cuando Deno ejecuta el archivo
 directamente (el caso real en producción/Supabase Edge Runtime), `false`
-cuando otro módulo lo importa. Se corren con:
+cuando otro módulo lo importa. `deno.json` en la raíz del repo
+(`{"nodeModulesDir": "auto"}`) resuelve los imports `npm:@supabase/supabase-js`
+y `jsr:@supabase/functions-js` de estos archivos.
+
+Qué cubre cada uno (115 tests en total):
+- `crear-operador`: `randomPassword`/`randomIndex` (política de clave real
+  vía `crypto.getRandomValues`, no `Math.random`) y `rolValido`.
+- `avisar-dispositivo-nuevo`: las 3 señales de "actividad inusual"
+  (dispositivo nuevo, horario fuera de patrón, varios dispositivos nuevos
+  en 7 días) extraídas a funciones puras que toman el historial como
+  parámetro, más `horaChile`.
+- `avisar-salud-equipo`: normalización del motivo, clave de dedup, y el
+  armado de los textos de aviso.
+- `email-webhook`: `verificarFirmaResend` (HMAC-SHA256 estilo Svix,
+  probado con una firma real calculada en el propio test, no un valor
+  mágico) y `htmlATexto`.
+- `whatsapp-webhook`: el parser por reglas completo (`resolverSigla`,
+  `clasificarComponente`, detección de pregunta/mantención programada/
+  horómetro) y `verificarFirmaTwilio` (HMAC-SHA1). Incluye un test que
+  compara su `CATEGORIAS_VALIDAS` contra `_shared/parseCorrectivo.ts`
+  byte a byte — este archivo trae su propia copia inlineada del parser
+  (Deno Deploy no resolvía el import cruzado de forma confiable) y ya se
+  desincronizó una vez en producción ("Bug real #2", ver comentario en el
+  propio archivo); el test lo vuelve a romper en CI si pasa de nuevo.
+  `tests/sincroniaComponenteBackend.test.js` (Vitest, ya existente) hace el
+  chequeo complementario: compara esta misma lista contra `logic.js`
+  directamente, así como la de `alerta-pm` y `_shared/parseCorrectivo.ts`.
+- `alerta-pm`: `calcStockEstado`/`calcVencEstado` (misma fórmula que
+  `logic.js`), `componenteDeSintoma`, `diasEntreISO`.
+- `resumen-semanal`: `pctDelta` (sin dividir por cero cuando la semana
+  anterior fue 0), `moneda`, `iso`.
+- `backup-diario`: `traerTodasLasFilas` probada con un cliente Supabase
+  falso (verifica la paginación real de a 500 filas, no solo que "el
+  código compile"), y guardarraíles sobre `TABLAS` (sin duplicados, incluye
+  las 7 tablas que la auditoría 2026-09-07 encontró faltando).
+- `leer-pauta-pm`/`leer-informe-correctivo`/`leer-chequeo-neumaticos`: solo
+  la validación de `imagenBase64` (falta/tamaño) — son wrappers finos sobre
+  Gemini, el grueso de su comportamiento ya lo cubre el flujo de OCR en
+  `tests/e2e/ocr.spec.js` (mockeado).
+
+Se corren con:
 ```
 deno test --allow-net --allow-env --no-check --config deno.json \
-  supabase/functions/registrar-intento-acceso/index.test.ts
+  supabase/functions/
 ```
 Para correrlos localmente hace falta tener Deno instalado aparte — **no**
 se agregó como dependencia de este proyecto npm (el paquete `deno-bin`,
