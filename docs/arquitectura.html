@@ -367,13 +367,16 @@
   <p>Se corren con:</p>
   <pre>deno test --allow-net --allow-env --no-check --config deno.json \
   supabase/functions/registrar-intento-acceso/index.test.ts</pre>
-  <p>Requieren tener Deno instalado aparte — <b>no</b> se agregó como dependencia de este
-  proyecto npm (el paquete <code>deno-bin</code>, la única forma práctica de obtener un binario
-  de Deno vía npm, trae 2 vulnerabilidades HIGH transitivas por <code>adm-zip</code>, lo que
-  habría roto el estándar de "0 vulnerabilidades" de <code>npm audit</code> recién alcanzado esta
-  sesión). No corren en CI todavía por el mismo motivo (no hay Deno preinstalado en el runner de
-  GitHub Actions actual); quedan como suite manual hasta que se agregue un paso de CI que
-  instale Deno de forma oficial (no vía npm).</p>
+  <p>Para correrlos localmente hace falta tener Deno instalado aparte — <b>no</b> se agregó como
+  dependencia de este proyecto npm (el paquete <code>deno-bin</code>, la única forma práctica de
+  obtener un binario de Deno vía npm, trae 2 vulnerabilidades HIGH transitivas por
+  <code>adm-zip</code>, lo que habría roto el estándar de "0 vulnerabilidades" de
+  <code>npm audit</code> recién alcanzado esta sesión). <b>En CI sí corren</b>
+  (<code>.github/workflows/tests.yml</code>, después de <code>npm audit</code>): se instala Deno
+  ahí con la acción oficial <code>denoland/setup-deno</code> (no vía npm, así que no afecta el
+  audit del proyecto), fijada a la misma versión (2.2.7) usada para verificar estos tests
+  localmente. <code>deno.lock</code> va commiteado para que la resolución de
+  <code>npm:</code>/<code>jsr:</code> sea determinística.</p>
 
   <h3>14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)</h3>
   <p>3 Edge Functions (<code>leer-pauta-pm</code>, <code>leer-informe-correctivo</code>,

@@ -427,14 +427,17 @@ cuando otro módulo lo importa. Se corren con:
 deno test --allow-net --allow-env --no-check --config deno.json \
   supabase/functions/registrar-intento-acceso/index.test.ts
 ```
-Requieren tener Deno instalado aparte — **no** se agregó como dependencia
-de este proyecto npm (el paquete `deno-bin`, la única forma práctica de
-obtener un binario de Deno vía npm, trae 2 vulnerabilidades HIGH
-transitivas por `adm-zip`, lo que habría roto el estándar de "0
-vulnerabilidades" de `npm audit` recién alcanzado esta sesión). No corren
-en CI todavía por el mismo motivo (no hay Deno preinstalado en el runner
-de GitHub Actions actual); quedan como suite manual hasta que se agregue
-un paso de CI que instale Deno de forma oficial (no vía npm).
+Para correrlos localmente hace falta tener Deno instalado aparte — **no**
+se agregó como dependencia de este proyecto npm (el paquete `deno-bin`,
+la única forma práctica de obtener un binario de Deno vía npm, trae 2
+vulnerabilidades HIGH transitivas por `adm-zip`, lo que habría roto el
+estándar de "0 vulnerabilidades" de `npm audit` recién alcanzado esta
+sesión). **En CI sí corren** (`.github/workflows/tests.yml`, después de
+`npm audit`): se instala Deno ahí con la acción oficial
+`denoland/setup-deno` (no vía npm, así que no afecta el audit del
+proyecto), fijada a la misma versión (2.2.7) usada para verificar estos
+tests localmente. `deno.lock` va commiteado para que la resolución de
+`npm:`/`jsr:` sea determinística.
 
 ### 14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)
 

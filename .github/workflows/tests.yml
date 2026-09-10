@@ -21,6 +21,16 @@ jobs:
       # bloquea, para no frenar el pipeline por hallazgos de bajo impacto real
       # (frecuentes en devDependencies de build, nunca llegan al navegador).
       - run: npm audit --audit-level=high
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: "2.2.7"
+      # Tests de la lógica de seguridad de las Edge Functions (corren en el
+      # runtime de Deno, no en Node — por eso quedan fuera de `npm test`).
+      # deno.lock ya viene commiteado, así que esto no golpea la red salvo
+      # que el lockfile quede desactualizado.
+      - run: >
+          deno test --allow-net --allow-env --no-check --config deno.json
+          supabase/functions/registrar-intento-acceso/index.test.ts
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
       - if: always()
