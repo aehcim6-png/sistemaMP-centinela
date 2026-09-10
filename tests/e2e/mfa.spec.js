@@ -3,11 +3,17 @@ const { mockSupabase } = require('./helpers/mock-supabase');
 
 const MFA_FACTOR_ID = 'mock-totp-factor-1';
 
+// expect(locator).toHaveValue() reintenta hasta que el DOM converge (ver
+// mismo patrón en login.spec.js) — bajo carga pesada (varios specs en
+// paralelo), un fill() seguido de un click inmediato puede dejar los dos
+// campos concatenados en uno solo si el overlay se redibuja entre medio.
+// Hay que verificar AMBOS campos, no solo el email.
 async function loginConCredencialesCorrectas(page) {
   await page.waitForFunction(() => !!window._turnstileToken);
   await page.locator('#li_email').fill('admin@test.com');
   await page.locator('#li_pass').fill('claveCorrecta123');
   await expect(page.locator('#li_email')).toHaveValue('admin@test.com', { timeout: 15000 });
+  await expect(page.locator('#li_pass')).toHaveValue('claveCorrecta123', { timeout: 15000 });
   await page.locator('#li_btn').click();
 }
 
