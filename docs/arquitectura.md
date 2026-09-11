@@ -925,6 +925,20 @@ la misma pregunta. Se revisó cada tarjeta:
 Con esto, el badge "● EN VIVO" queda en 9 bloques del Dashboard (los 6
 originales + Flota, HH Acumuladas y Riesgo Alto).
 
+**Tercera pasada, mismo día**: el usuario mostró el encabezado global de la
+app (`index.html`, `renderHeader()`, el bloque `#hs` visible en TODAS las
+pestañas, ya existente desde antes de esta conversación, ya rotulado "Flota
+en vivo — no cambia con la pestaña") junto al Dashboard, y señaló dos
+cosas: que la tarjeta "Flota" del resumen lateral repite el mismo total de
+equipos que ya está siempre arriba (se decidió con el usuario dejarla así,
+ya que también aporta el desglose por tipo de equipo que el encabezado no
+tiene), y que 3 tarjetas del bloque de Costos (Costo/RAV, Disp. Inherente,
+Retrabajo) mostraban un guión grande "—" con la explicación en letra
+gris de 8px — a simple vista parecían vacías/rotas en vez de "sin dato
+aún". Se agrandó y aclaró ese texto (10px, `var(--tx2)` en vez de
+`var(--tx3)`, texto tipo "Sin dato aún · falta cargar el valor de compra")
+solo en el estado vacío — el estado con dato real no cambió.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

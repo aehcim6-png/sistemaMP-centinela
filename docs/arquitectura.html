@@ -743,6 +743,17 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Confiabilidad/Costos (% Flota sin falla, Confiabilidad (R), Retrabajo, Costo/RAV) ya filtran por
   <code>dashPeriodo</code> y lo dicen en su propio subtítulo → tampoco necesitaban badge. El aviso
   "● EN VIVO" queda así en 9 bloques del Dashboard.</p>
+  <p><b>Tercera pasada, mismo día:</b> el usuario mostró el encabezado global de la app
+  (<code>index.html</code>, <code>renderHeader()</code>, el bloque <code>#hs</code> visible en TODAS las
+  pestañas, ya existente desde antes de esta conversación, ya rotulado "Flota en vivo — no cambia con
+  la pestaña") junto al Dashboard, y señaló dos cosas: que la tarjeta "Flota" del resumen lateral
+  repite el mismo total de equipos que ya está siempre arriba (se decidió con el usuario dejarla así,
+  ya que también aporta el desglose por tipo de equipo que el encabezado no tiene), y que 3 tarjetas
+  del bloque de Costos (Costo/RAV, Disp. Inherente, Retrabajo) mostraban un guión grande "—" con la
+  explicación en letra gris de 8px — a simple vista parecían vacías/rotas en vez de "sin dato aún".
+  Se agrandó y aclaró ese texto (10px, <code>var(--tx2)</code> en vez de <code>var(--tx3)</code>,
+  texto tipo "Sin dato aún · falta cargar el valor de compra") solo en el estado vacío — el estado
+  con dato real no cambió.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
