@@ -1048,6 +1048,61 @@ principal" y "Qué revisar" renderizan con datos reales calculados, el
 horómetro se muestra, y el botón de Crear OT abre el formulario real con
 el equipo prellenado.
 
+### 23. Ajuste Weibull real por equipo — más allá de la fórmula de libro (2026-09-11)
+
+Origen real: el usuario compartió una infografía sobre los 4 roles típicos
+en un equipo de datos (Ingeniero, Analista, Científico de Datos, BI) y
+preguntó cómo vería cada uno a SistemaMP Centinela. La respuesta honesta
+para "Científico de Datos" fue que `confiabilidadReal` (la tarjeta
+"Confiabilidad (R)") **asume** tasa de falla constante
+(`R(t)=e^(-t/MTBF)`, distribución exponencial, β=1 implícito) sin nunca
+medir la forma real de falla de cada equipo — el usuario pidió construir
+esa pieza que faltaba.
+
+**`logic.js` — 3 funciones puras nuevas, sin librería estadística
+externa** (la app no tiene ninguna cargada; todo con `Math.log`/`Math.exp`):
+- `ajusteWeibull(horomFallas)`: ajusta β (forma) y η (escala) por
+  **regresión de rango mediano** sobre el gráfico de probabilidad Weibull
+  — el método estándar de análisis de confiabilidad cuando se hace sin
+  software especializado (el mismo que enseña cualquier curso de RCM):
+  linealiza la CDF Weibull con x=ln(intervalo), y=ln(-ln(1-F)), estima F
+  de cada intervalo ordenado con la aproximación de Bernard
+  F_i=(i-0.3)/(n+0.4), y ajusta una recta por mínimos cuadrados. La
+  pendiente es β, la ordenada al origen da η. Usa los intervalos entre
+  fallas SUCESIVAS (mismo dato crudo que ya usa `mtbfReal`, no uno nuevo),
+  con el mismo supuesto de "queda como nuevo tras cada reparación" que ya
+  usa implícitamente el MTBF de siempre. Exige **mínimo 5 intervalos (6
+  fallas)** — más que el mínimo de 2 fallas de `mtbfReal`, porque acá se
+  ajusta una recta, no se promedia, y con pocos puntos la pendiente es
+  puro ruido. `null` (nunca `NaN`/`Infinity`) si no alcanza el mínimo, o
+  si los intervalos no tienen variación (pendiente indefinida — caso
+  degenerado real, cubierto por test).
+- `confiabilidadWeibull(ajuste, horasPeriodo)`: `R(t)=e^(-(t/η)^β)`, la
+  generalización de la fórmula exponencial de siempre (con β=1 da
+  exactamente lo mismo que `confiabilidadReal`).
+- `interpretacionFormaWeibull(beta)`: texto fijo según el rango de β —
+  <0.9 "fallas tempranas", 0.9-1.1 "fallas aleatorias", >1.1 "desgaste".
+
+`equiposConSaludFlota` se extiende para calcular y devolver también
+`weibull` (el ajuste, o `null`) y `hrsDia` por equipo — campos aditivos.
+
+**`torre.js`**: nuevo bloque "Forma de falla (Weibull)" en el drawer,
+solo visible cuando hay ajuste (no siempre hay 6 fallas), mostrando β +
+su interpretación, y comparando lado a lado la Confiabilidad a 30 días
+calculada con la fórmula exponencial de siempre vs. la calculada con la
+forma real ajustada — en un caso de prueba con fallas que se acortan en
+el tiempo (patrón de desgaste, β≈2.9), la exponencial daba 52% y el
+ajuste real 81.3%: la vida característica ajustada (η≈620h) está bien
+por encima del horizonte de 30 días (360h), algo que la fórmula que
+asume tasa constante no puede capturar.
+
+17 tests nuevos (`tests/weibull.test.js`), incluyendo el caso degenerado
+de intervalos sin variación y verificación de insensibilidad al orden de
+entrada. Deliberadamente no se agregó ninguna librería de estadística
+(scipy/numpy-equivalente): el método de regresión de rango mediano es
+suficiente para el volumen de datos real de la flota y no agrega una
+dependencia externa a una app que hoy no tiene ninguna para cálculo.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

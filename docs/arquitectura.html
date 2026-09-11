@@ -827,6 +827,39 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   calculados, el horómetro se muestra, y el botón de Crear OT abre el formulario real con el equipo
   prellenado.</p>
 
+  <h3>23. Ajuste Weibull real por equipo — más allá de la fórmula de libro (2026-09-11)</h3>
+  <p>Origen real: el usuario compartió una infografía sobre los 4 roles típicos en un equipo de datos
+  (Ingeniero, Analista, Científico de Datos, BI) y preguntó cómo vería cada uno a SistemaMP
+  Centinela. La respuesta honesta para "Científico de Datos" fue que <code>confiabilidadReal</code>
+  (la tarjeta "Confiabilidad (R)") <b>asume</b> tasa de falla constante
+  (<code>R(t)=e^(-t/MTBF)</code>, distribución exponencial, β=1 implícito) sin nunca medir la forma
+  real de falla de cada equipo — el usuario pidió construir esa pieza que faltaba.</p>
+  <p><b><code>logic.js</code> — 3 funciones puras nuevas, sin librería estadística externa</b> (la
+  app no tiene ninguna cargada; todo con <code>Math.log</code>/<code>Math.exp</code>):
+  <code>ajusteWeibull(horomFallas)</code> ajusta β (forma) y η (escala) por <b>regresión de rango
+  mediano</b> sobre el gráfico de probabilidad Weibull — el método estándar de análisis de
+  confiabilidad sin software especializado: linealiza la CDF Weibull con x=ln(intervalo),
+  y=ln(-ln(1-F)), estima F de cada intervalo ordenado con la aproximación de Bernard
+  F_i=(i-0.3)/(n+0.4), y ajusta una recta por mínimos cuadrados. Usa los intervalos entre fallas
+  SUCESIVAS (mismo dato crudo que ya usa <code>mtbfReal</code>), exige mínimo 5 intervalos (6
+  fallas) — más que el mínimo de 2 fallas de <code>mtbfReal</code>, porque acá se ajusta una recta,
+  no se promedia. <code>null</code> si no alcanza el mínimo o si los intervalos no tienen variación
+  (pendiente indefinida). <code>confiabilidadWeibull(ajuste, horasPeriodo)</code> es
+  <code>R(t)=e^(-(t/η)^β)</code>, la generalización de la fórmula exponencial (β=1 da lo mismo que
+  <code>confiabilidadReal</code>). <code>interpretacionFormaWeibull(beta)</code> da un texto fijo
+  según el rango de β. <code>equiposConSaludFlota</code> se extiende para devolver también
+  <code>weibull</code> (el ajuste, o <code>null</code>) y <code>hrsDia</code> por equipo.</p>
+  <p><code>torre.js</code>: nuevo bloque "Forma de falla (Weibull)" en el drawer, solo visible
+  cuando hay ajuste, mostrando β + su interpretación, y comparando la Confiabilidad a 30 días
+  exponencial vs. la forma real ajustada — en un caso de prueba con fallas que se acortan en el
+  tiempo (patrón de desgaste, β≈2.9), la exponencial daba 52% y el ajuste real 81.3%: la vida
+  característica ajustada (η≈620h) está bien por encima del horizonte de 30 días (360h), algo que la
+  fórmula de tasa constante no puede capturar.</p>
+  <p>17 tests nuevos (<code>tests/weibull.test.js</code>), incluyendo el caso degenerado de
+  intervalos sin variación y verificación de insensibilidad al orden de entrada. Deliberadamente no
+  se agregó ninguna librería de estadística: el método de regresión de rango mediano alcanza para el
+  volumen de datos real de la flota, sin sumar una dependencia externa nueva.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

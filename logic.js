@@ -604,6 +604,79 @@ function confiabilidadReal(mtbf,horasPeriodo){
   return Math.round(Math.exp(-horasPeriodo/mtbf)*1000)/10;
 }
 
+// ═══ AJUSTE WEIBULL — reemplaza el supuesto de tasa de falla CONSTANTE de
+// confiabilidadReal (de arriba) por la forma real de falla de CADA equipo,
+// estimada de sus propios intervalos entre fallas (2026-09-11, pedido del
+// usuario tras comparar los 4 roles de una infografía de datos: "el
+// Científico de Datos vería que esto asume una fórmula de libro, no un
+// modelo ajustado a los datos reales").
+//
+// Método: regresión de rango mediano sobre el gráfico de probabilidad
+// Weibull (el método estándar de análisis de confiabilidad cuando se hace
+// a mano/sin librería estadística — el mismo que enseña cualquier curso de
+// RCM/Weibull++): se linealiza la función de distribución acumulada Weibull
+// con el cambio de variable x=ln(t), y=ln(-ln(1-F)), y el rango mediano F_i
+// de cada intervalo ordenado se aproxima con la fórmula de Bernard
+// F_i=(i-0.3)/(n+0.4). Una regresión lineal simple sobre (x,y) da la
+// pendiente (β, el parámetro de FORMA) y la ordenada al origen (de la que
+// sale η, el parámetro de ESCALA). β=1 recupera la exponencial de siempre
+// (tasa de falla constante); β<1 = fallas tempranas/infantiles (la tasa de
+// falla BAJA con el uso); β>1 = desgaste (la tasa de falla SUBE con el
+// uso) — información que confiabilidadReal no puede dar porque asume β=1
+// de entrada, nunca lo mide.
+//
+// Los intervalos son las diferencias entre horómetros de fallas SUCESIVAS
+// (mismo dato crudo que ya usa mtbfReal) — no los horómetros en sí. Se
+// asume que el equipo queda "como nuevo" después de cada reparación (el
+// mismo supuesto de proceso de renovación que ya usa implícitamente
+// mtbfReal/confiabilidadReal, no uno nuevo). Mínimo 5 intervalos (6 fallas)
+// — más exigente que mtbfReal (2 fallas): acá se ajusta una recta a los
+// datos, no se promedia, y con pocos puntos la pendiente ajustada es puro
+// ruido, no una forma real. Devuelve null si no hay suficiente historial —
+// nunca se inventa una forma de falla sin datos para sostenerla.
+function ajusteWeibull(horomFallas){
+  var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+  var intervalos=[];
+  for(var i=1;i<validos.length;i++){
+    var t=validos[i]-validos[i-1];
+    if(t>0)intervalos.push(t);
+  }
+  if(intervalos.length<5)return null;
+  intervalos.sort(function(a,b){return a-b;});
+  var n=intervalos.length;
+  var sumX=0,sumY=0,sumXY=0,sumXX=0;
+  for(var j=0;j<n;j++){
+    var rangoMediano=(j+1-0.3)/(n+0.4);
+    var x=Math.log(intervalos[j]);
+    var y=Math.log(-Math.log(1-rangoMediano));
+    sumX+=x;sumY+=y;sumXY+=x*y;sumXX+=x*x;
+  }
+  var beta=(n*sumXY-sumX*sumY)/(n*sumXX-sumX*sumX);
+  var intercepto=(sumY-beta*sumX)/n;
+  var eta=Math.exp(-intercepto/beta);
+  if(!isFinite(beta)||!isFinite(eta)||beta<=0||eta<=0)return null;
+  return {beta:Math.round(beta*100)/100,eta:Math.round(eta),n:n};
+}
+
+// R(t) real según el ajuste Weibull de arriba — mismo rol que confiabilidadReal
+// pero con β/η propios del equipo en vez de asumir β=1. R(t)=e^(-(t/η)^β),
+// la generalización de la fórmula exponencial (con β=1 da exactamente lo
+// mismo que confiabilidadReal).
+function confiabilidadWeibull(ajuste,horasPeriodo){
+  if(!ajuste||horasPeriodo==null||horasPeriodo<0)return null;
+  var r=Math.exp(-Math.pow(horasPeriodo/ajuste.eta,ajuste.beta));
+  return Math.round(r*1000)/10;
+}
+
+// Interpretación en palabras de β (2026-09-11, mismo pedido) — para que el
+// número no quede suelto sin explicación de qué significa.
+function interpretacionFormaWeibull(beta){
+  if(beta==null)return null;
+  if(beta<0.9)return 'Fallas tempranas — la tasa de falla BAJA con el uso (posible problema de instalación/rodaje)';
+  if(beta<=1.1)return 'Fallas aleatorias — tasa de falla estable, no depende de la edad del componente';
+  return 'Desgaste — la tasa de falla SUBE con el uso (esperable, priorizar reemplazo preventivo)';
+}
+
 // ═══ DISPONIBILIDAD — fuente ÚNICA compartida por Disponibilidad, KPI y Metas ═══
 // Antes cada pestaña tenía su propia copia del cálculo, con supuestos distintos (KPI sin
 // el manejo de salida de servicio por período, Metas usando solo overrides manuales), así
@@ -1285,10 +1358,17 @@ function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
     var mtbfE=C.mtbfReal(otFallasPorSigla[e.sigla]||[]);
     var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
     var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
-    // horomActual (2026-09-11, pedido del usuario: más contexto en el drawer
-    // de Torre de Control) — campo aditivo, ningún llamador existente lo
-    // rompe por no usarlo.
-    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad};
+    // weibull (2026-09-11, pedido del usuario: el Score de Salud/Confiabilidad
+    // de arriba asume tasa de falla constante — acá se ajusta la forma REAL de
+    // falla de este equipo específico con sus propios intervalos entre fallas,
+    // cuando hay historial suficiente (ajusteWeibull exige ≥5 intervalos, más
+    // que el mínimo de 2 que ya exige mtbfReal — con pocos puntos no hay forma
+    // real que ajustar). null cuando no alcanza, nunca una forma inventada.
+    var weibull=ajusteWeibull(otFallasPorSigla[e.sigla]||[]);
+    // horomActual/hrsDia (2026-09-11, pedido del usuario: más contexto en el
+    // drawer de Torre de Control) — campos aditivos, ningún llamador existente
+    // se rompe por no usarlos.
+    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad,hrsDia:e.hrsDia,weibull:weibull};
   });
 }
 
@@ -1986,6 +2066,9 @@ if (typeof window !== 'undefined') {
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.paretoAcumulado = paretoAcumulado;
   window.confiabilidadReal = confiabilidadReal;
+  window.ajusteWeibull = ajusteWeibull;
+  window.confiabilidadWeibull = confiabilidadWeibull;
+  window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
   window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
   window.agruparPeriodo = agruparPeriodo;
@@ -2002,7 +2085,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, confiabilidadWeibull, interpretacionFormaWeibull, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma

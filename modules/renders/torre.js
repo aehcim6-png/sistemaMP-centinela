@@ -163,6 +163,7 @@ export function renderTorre(){
     '<span style="font-size:10px;color:var(--tx3);text-transform:uppercase">Score de<br>salud</span>'+
     '</div>'+
     '<div id="torreDDims"></div>'+
+    '<div id="torreDWeibull"></div>'+
     '<div id="torreDCalculado" style="font-size:10px;color:var(--ok);font-weight:600;margin-top:8px">—</div>'+
     '<div id="torreDTend" style="font-size:11px;color:var(--tx3);margin-top:6px"></div>'+
     '<div id="torreDProblema"></div>'+
@@ -203,6 +204,25 @@ window._torreAbrirDrawer=function(sigla){
       '<span style="font-weight:600">'+(d.valor==null?'—':d.valor+'%')+'</span></div>';
   });
   document.getElementById('torreDDims').innerHTML=dimsHtml;
+  // Ajuste Weibull (2026-09-11, pedido del usuario: comparar el rol de
+  // Científico de Datos con el de BI — la "Confiabilidad" de arriba asume
+  // tasa de falla constante (exponencial); acá se muestra la forma REAL
+  // ajustada a los intervalos de falla de ESTE equipo, cuando hay suficiente
+  // historial (ajusteWeibull, logic.js). Solo se muestra si hay dato — con
+  // pocas fallas no hay forma real que ajustar, y no se inventa una.
+  var weibullEl=document.getElementById('torreDWeibull');
+  if(r.weibull&&typeof confiabilidadWeibull==='function'){
+    var horasPeriodoW=(r.hrsDia||12)*30;
+    var rWeibull=confiabilidadWeibull(r.weibull,horasPeriodoW);
+    var interp=(typeof interpretacionFormaWeibull==='function')?interpretacionFormaWeibull(r.weibull.beta):null;
+    weibullEl.innerHTML='<div style="margin-top:10px;padding:8px 10px;background:var(--bg4);border-radius:6px">'+
+      '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);font-weight:700;margin-bottom:4px">Forma de falla (Weibull) <span style="font-weight:400;text-transform:none;color:var(--tx3)">· '+r.weibull.n+' intervalos</span></div>'+
+      '<div style="font-size:11.5px;color:var(--tx2)">β='+r.weibull.beta+(interp?' — '+escapeHtml(interp):'')+'</div>'+
+      (rWeibull!=null?'<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Confiabilidad a 30 días — exponencial (de siempre): <b style="color:var(--tx2)">'+(r.score.detalle||[]).reduce(function(v,d){return d.nombre==='Confiabilidad'?d.valor:v;},null)+'%</b> · Weibull (forma real): <b style="color:var(--tx2)">'+rWeibull+'%</b></div>':'')+
+      '</div>';
+  }else{
+    weibullEl.innerHTML='';
+  }
   // Aviso "calculado ahora" (2026-09-11, pedido del usuario: "no me dice de
   // qué fecha es") — el Score de Salud es un cálculo EN VIVO, siempre con
   // los datos actuales, no una foto guardada de un día pasado. Se aclara
