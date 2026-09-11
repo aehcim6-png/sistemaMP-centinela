@@ -53,24 +53,34 @@ function _estTablaEquipo(eq, eventos) {
     porEq[e.sigla].fallas++;
     if (e.horom > 0) porEq[e.sigla].horoms.push(e.horom);
   });
-  var lista = Object.keys(porEq).map(function (s) {
+  var todos = Object.keys(porEq).map(function (s) {
     var d = porEq[s];
     var eqObj = eq.find(function (x) { return x.sigla === s; });
     return {
       sigla: s, modelo: eqObj ? (eqObj.modelo || '—') : '—',
       fallas: d.fallas, mtbf: d.horoms.length >= 2 ? C.mtbfReal(d.horoms) : null
     };
-  }).sort(function (a, b) { return b.fallas - a.fallas; }).slice(0, 25);
+  });
+  // paretoAcumulado ANTES de recortar a 25 (logic.js): el % del total y el
+  // acumulado deben reflejar TODA la flota, no solo las 25 filas que se
+  // muestran — si se calculara después del slice, un equipo #30 igual de
+  // problemático quedaría invisible pero además el acumulado del resto
+  // quedaría inflado, como si esos 25 fueran el 100% de las fallas.
+  var lista = paretoAcumulado(todos).slice(0, 25);
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">🏗 Equipos con más fallas (Bad Actors)</div>' +
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales (esFallaMTBF) + historial 2022-2025 cargado desde Excel. MTBF = intervalo real entre fallas sucesivas de horómetro, solo con 2+ fallas con horómetro registrado.</div>' +
-    '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Fallas</th><th>MTBF (h)</th></tr>' +
+    '<div class="chart-t">🏗 Equipos con más fallas (Bad Actors) — Pareto</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales (esFallaMTBF) + historial 2022-2025 cargado desde Excel. MTBF = intervalo real entre fallas sucesivas de horómetro, solo con 2+ fallas con horómetro registrado. Los equipos marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas de toda la flota — ahí es donde más rinde enfocar inspecciones o reemplazo. % y acumulado se calculan sobre TODA la flota, aunque la tabla solo muestre los primeros 25.</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Fallas</th><th>% del total</th><th>Barra</th><th>Acumulado</th><th>MTBF (h)</th></tr>' +
     (lista.length ? lista.map(function (r) {
-      return '<tr><td class="mono" style="color:var(--ac);font-weight:600">' + escapeHtml(r.sigla) + '</td>' +
+      return '<tr style="' + (r.vital ? 'background:rgba(245,158,11,.08)' : '') + '">' +
+        '<td class="mono" style="color:var(--ac);font-weight:600">' + (r.vital ? '⭐ ' : '') + escapeHtml(r.sigla) + '</td>' +
         '<td style="font-size:11px">' + escapeHtml(r.modelo) + '</td>' +
         '<td style="text-align:center;font-weight:700">' + r.fallas + '</td>' +
+        '<td style="text-align:center">' + r.pct + '%</td>' +
+        '<td><div style="background:color-mix(in srgb,var(--ac) 18%,var(--bg4));border-radius:4px;height:12px;width:140px;overflow:hidden"><div style="background:var(--ac);height:100%;width:' + r.barPct + '%"></div></div></td>' +
+        '<td style="text-align:center;color:var(--tx3)">' + r.acumulado + '%</td>' +
         '<td style="text-align:center">' + (r.mtbf == null ? '<span style="color:var(--tx3)">—</span>' : fn(Math.round(r.mtbf))) + '</td></tr>';
-    }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--tx3)">Sin fallas registradas todavía</td></tr>') +
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin fallas registradas todavía</td></tr>') +
     '</table></div></div>';
 }
 
@@ -116,20 +126,24 @@ function _estTablaComponente(eventos) {
     porComp[e.componente].equipos[e.sigla] = true;
   });
   var mtbfPorComp = _estMtbfPorComponente(eventos);
-  var lista = Object.keys(porComp).map(function (c) {
+  var lista = paretoAcumulado(Object.keys(porComp).map(function (c) {
     var d = porComp[c];
     return { comp: c, fallas: d.fallas, nEquipos: Object.keys(d.equipos).length, mtbf: mtbfPorComp[c] != null ? mtbfPorComp[c] : null };
-  }).sort(function (a, b) { return b.fallas - a.fallas; });
+  }));
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">🔧 Componentes que más fallan — toda la flota</div>' +
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales + historial 2022-2025. Componente resuelto por texto libre del síntoma cuando el campo estructurado viene vacío (casi siempre). MTBF típico = promedio del intervalo real entre fallas sucesivas (horómetro), promediado entre todos los equipos con 2+ fallas de ese componente — igual de exigente que el MTBF de flota, solo que por tipo de componente.</div>' +
-    '<div class="tbl-wrap"><table><tr><th>Componente</th><th>Fallas</th><th>Equipos afectados</th><th>MTBF típico (h)</th></tr>' +
+    '<div class="chart-t">🔧 Componentes que más fallan — toda la flota (Pareto)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales + historial 2022-2025. Componente resuelto por texto libre del síntoma cuando el campo estructurado viene vacío (casi siempre). MTBF típico = promedio del intervalo real entre fallas sucesivas (horómetro), promediado entre todos los equipos con 2+ fallas de ese componente — igual de exigente que el MTBF de flota, solo que por tipo de componente. Los componentes marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas — ahí es donde más rinde revisar la pauta de PM o el proveedor del repuesto.</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Componente</th><th>Fallas</th><th>% del total</th><th>Barra</th><th>Acumulado</th><th>Equipos afectados</th><th>MTBF típico (h)</th></tr>' +
     (lista.length ? lista.map(function (r) {
-      return '<tr><td style="font-weight:600">' + escapeHtml(r.comp) + '</td>' +
+      return '<tr style="' + (r.vital ? 'background:rgba(245,158,11,.08)' : '') + '">' +
+        '<td style="font-weight:600' + (r.vital ? ';color:var(--ac)' : '') + '">' + (r.vital ? '⭐ ' : '') + escapeHtml(r.comp) + '</td>' +
         '<td style="text-align:center;font-weight:700">' + r.fallas + '</td>' +
+        '<td style="text-align:center">' + r.pct + '%</td>' +
+        '<td><div style="background:color-mix(in srgb,var(--ac) 18%,var(--bg4));border-radius:4px;height:12px;width:140px;overflow:hidden"><div style="background:var(--ac);height:100%;width:' + r.barPct + '%"></div></div></td>' +
+        '<td style="text-align:center;color:var(--tx3)">' + r.acumulado + '%</td>' +
         '<td style="text-align:center">' + r.nEquipos + '</td>' +
         '<td style="text-align:center;color:' + (r.mtbf == null ? 'var(--tx3)' : r.mtbf > 2000 ? 'var(--ok)' : r.mtbf > 500 ? 'var(--ac)' : 'var(--danger)') + '">' + (r.mtbf == null ? '—' : fn(r.mtbf)) + '</td></tr>';
-    }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
     '</table></div></div>';
 }
 
@@ -184,20 +198,10 @@ function _estTablaModoFalla(eventos) {
     porModo[m] = (porModo[m] || 0) + 1;
   });
   var total = eventos.length;
-  var lista = Object.keys(porModo).map(function (m) { return { modo: m, fallas: porModo[m] }; })
-    .sort(function (a, b) { return b.fallas - a.fallas; });
-  var maxFallas = lista.length ? lista[0].fallas : 0;
-  var acumPrev = 0;
-  lista.forEach(function (r) {
-    r.pct = total ? Math.round(r.fallas / total * 1000) / 10 : 0;
-    // "Pocos vitales" de Pareto: si el acumulado ANTES de esta fila ya llegó al
-    // 80%, esta fila ya no es vital. La fila que recién cruza el 80% (ej. de 72%
-    // a 91%) sí cuenta — es la que empuja el total sobre el umbral.
-    r.vital = acumPrev < 80;
-    acumPrev += r.pct;
-    r.acumulado = Math.round(acumPrev * 10) / 10;
-    r.barPct = maxFallas ? Math.round(r.fallas / maxFallas * 100) : 0;
-  });
+  // paretoAcumulado (logic.js, 2026-09-11): antes el cálculo de %/acumulado/
+  // vital/barra vivía inline acá — generalizado para que Equipo y Componente
+  // (más abajo) reusen exactamente el mismo tratamiento en vez de duplicarlo.
+  var lista = paretoAcumulado(Object.keys(porModo).map(function (m) { return { modo: m, fallas: porModo[m] }; }));
   var sinClasificar = porModo['Sin clasificar'] || 0;
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">📊 Pareto de Modos de Falla — toda la flota</div>' +

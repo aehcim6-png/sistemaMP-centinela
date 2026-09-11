@@ -516,6 +516,38 @@ function probabilidadFallaDesdeEventos(eventos){
   }).filter(Boolean).sort(function(a,b){return b.prob30dPct-a.prob30dPct;});
 }
 
+// Pareto genérico (2026-09-11, generalizado desde el Pareto de Modo de Falla
+// que ya vivía inline en modules/renders/estadistica.js, 2026-08-31): dada
+// una lista YA agrupada (por modo de falla, equipo, componente, o cualquier
+// otra agrupación con un campo numérico de conteo), la ordena descendente por
+// ese campo y agrega el tratamiento Pareto completo: % del total, barra
+// relativa al máximo, % acumulado, y la marca de "pocos vitales" (los
+// primeros que juntos explican el 80% del total) — la regla básica de RCM
+// para decidir dónde enfocar un plan de confiabilidad primero. No muta la
+// lista de entrada. 'campo' por defecto 'fallas' (nombre ya usado en las 3
+// vistas de Estadística que lo consumen: Equipo, Componente, Modo de Falla).
+function paretoAcumulado(lista,campo){
+  campo=campo||'fallas';
+  var ordenada=(lista||[]).slice().sort(function(a,b){return (b[campo]||0)-(a[campo]||0);});
+  var total=ordenada.reduce(function(s,r){return s+(r[campo]||0);},0);
+  var max=ordenada.length?(ordenada[0][campo]||0):0;
+  var acumPrev=0;
+  return ordenada.map(function(r){
+    var pct=total?Math.round(r[campo]/total*1000)/10:0;
+    // "Pocos vitales": si el acumulado ANTES de esta fila ya llegó al 80%, esta
+    // fila ya no es vital. La fila que recién cruza el 80% sí cuenta — es la
+    // que empuja el total sobre el umbral.
+    var vital=acumPrev<80;
+    acumPrev+=pct;
+    return Object.assign({},r,{
+      pct:pct,
+      acumulado:Math.round(acumPrev*10)/10,
+      vital:vital,
+      barPct:max?Math.round(r[campo]/max*100):0
+    });
+  });
+}
+
 function mtbfFlotaReal(eq,ot){
   var perEq=[];
   (eq||[]).forEach(function(e){
@@ -1884,6 +1916,7 @@ if (typeof window !== 'undefined') {
   window.contarFallasMes = contarFallasMes;
   window.ratioPreventivo = ratioPreventivo;
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
+  window.paretoAcumulado = paretoAcumulado;
   window.confiabilidadReal = confiabilidadReal;
   window.regEsATiempo = regEsATiempo;
   window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
@@ -1902,7 +1935,7 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
-    probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo,
+    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma
   };

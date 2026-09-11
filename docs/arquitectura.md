@@ -769,6 +769,43 @@ vivo (widget se resuelve solo, login funciona) el 2026-09-08 — ver
 [`manual-admin.md`](./manual-admin.md), sección 3, para el paso de
 configuración en el dashboard de Supabase (Attack Protection).
 
+### 19. Estadística — comparativas de flota y Pareto de fallas (2026-08-31, extendido 2026-09-11)
+
+Sub-pestaña de Componentes (`modules/renders/estadistica.js`) con 5 vistas
+sobre el mismo conjunto de fallas combinadas (correctivos actuales +
+`otHist`, historial 2022-2025 cargado desde Excel): Por Equipo, Por
+Componente, Por Modo de Falla, Por Modelo, Por Técnico. Nace de un pedido
+directo del usuario ("nuestro programa tiene predictivo, probabilidad y
+destrabe, pero estadística no lo tiene") y consolida cálculos que antes
+vivían dispersos en ventanas emergentes de Correctivos (`ot.js`).
+
+**Pareto de fallas**: la vista "Por Modo de Falla" ya aplicaba el
+tratamiento completo de Pareto (RCM 101 — de todos los modos de falla,
+¿cuáles pocos explican la mayoría?): % del total, barra, % acumulado, y la
+marca ⭐ de "pocos vitales" (los primeros que juntos explican el 80% del
+total). Las vistas "Por Equipo" ("Bad Actors") y "Por Componente" ya
+rankeaban por cantidad de fallas, pero sin ese tratamiento — se veía "quién
+falla más" pero no "estos pocos equipos/componentes concentran el 80% de
+las fallas de la flota". Extendido el 2026-09-11: se generalizó el cálculo
+inline de la vista de Modo de Falla a una función pura nueva,
+`paretoAcumulado(lista, campo)` (`logic.js`) — ordena descendente por el
+campo de conteo, calcula %/acumulado/vital sin mutar la entrada, cualquier
+grupo de "conteo por categoría" puede reusarla — y se aplicó también a
+Equipo y Componente, con el mismo estilo visual (barra + fila resaltada
+para los ⭐ vitales).
+
+Detalle no obvio en "Por Equipo": el Pareto se calcula sobre TODA la
+flota, `.slice(0, 25)` recién DESPUÉS — si se recortara antes, el %/
+acumulado quedaría relativo solo a los 25 mostrados (como si fueran el
+100% de las fallas), no a la flota completa.
+
+Probado con Vitest (`tests/paretoAcumulado.test.js`, 8 casos: orden, %,
+acumulado, marca vital en el borde del 80%, barra relativa al máximo, lista
+vacía, campo de conteo configurable, no descarta campos originales) y
+verificado visualmente en navegador (Playwright ad-hoc con datos
+sintéticos, no parte de la suite permanente): ambas tablas muestran las
+columnas nuevas, la barra y la marca ⭐ correctamente.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
