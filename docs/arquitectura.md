@@ -855,6 +855,53 @@ criterio que el aviso de "Sin clasificar" del Pareto de Modo de Falla — para
 que dejar de cargar este dato deje de ser invisible. No se tocó el esquema
 ni la UI de carga (ya existían); esto es puramente un aviso de adopción.
 
+### 20. Selector de fecha exacta en el Dashboard + aviso "En vivo" (2026-09-11)
+
+Origen real (conversación con el usuario, mirando el popup de Torre de
+Control): "no me dice de qué fecha es el Score de Salud" → al investigar,
+el Dashboard sí tenía un selector de Mes/Año que reconstruye varias
+secciones (Disponibilidad, Urgentes/Próximas, Confiabilidad, Costos) desde
+el historial — pero **siempre resolvía al último día del mes elegido**, sin
+poder pedir un día puntual, y encima **varias secciones (Mapa de Salud,
+Equipos con Salud Baja, Stock Crítico, Backlog, Criticidad, Dotación) son
+siempre "ahora mismo"**, sin decirlo — así que alguien viendo "Mostrando:
+Agosto 2026" arriba podía asumir que TODO el tablero era de agosto, cuando
+la mitad seguía siendo el estado actual.
+
+**Selector de fecha exacta** (`dash.js`): se agrega `window._dashDia`
+(día exacto elegido, o `null` = "todo el mes", el comportamiento de
+siempre — Gasto/Ejecuciones/Cumplimiento PM del mes siguen intactos, no se
+tocó su semántica mensual). Tres formas de fijar una fecha puntual:
+- Botones **Ayer** / **Año pasado** (mismo día y mes, un año atrás) —
+  atajos que resuelven la fecha con dos funciones puras nuevas en
+  `logic.js`, `fechaAyer(hoyISO)` y `fechaMismoDiaAnioPasado(hoyISO)`
+  (`tests/fechaAtajos.test.js`, 7 casos: cruce de mes, cruce de año, 29 de
+  febrero bisiesto).
+- Un `<input type="date">` (`dashSetFecha()`) para elegir cualquier día.
+- El botón **Hoy** vuelve al modo dinámico de siempre (sigue siendo "hoy"
+  cada día, sin fijar nada).
+
+La condición de "¿esto es en vivo o reconstruido?" pasó de `esMesActual`
+(el MES coincide con el actual) a `enVivo` (la FECHA exacta coincide con
+hoy, cuando hay una fecha exacta elegida) — así "Ayer" (que casi siempre
+cae dentro del mes actual) se reconstruye de verdad desde
+`historial_horometros` en vez de mostrarse como si fuera "ahora" solo
+porque el mes coincide. `esMesActual` se sigue usando tal cual cuando no
+hay día exacto (compatibilidad total con el comportamiento anterior).
+
+**Aviso "● EN VIVO"**: badge verde agregado al título de los 6 bloques que
+nunca cambian con el selector (Mapa de Salud, Equipos con Salud Baja,
+Stock Crítico, Backlog, Criticidad, Dotación), para que se distingan de un
+vistazo de los que sí respetan la fecha elegida. Mismo aviso, con fecha y
+hora exactas del cálculo, en el drawer de Torre de Control (`torre.js`,
+`#torreDCalculado`) — el punto de partida real de esta conversación.
+
+Verificado visualmente en navegador (Playwright ad-hoc con datos
+sintéticos): los atajos cambian correctamente el label ("Ayer" → fecha de
+ayer, "Año pasado" → mismo día del año anterior), el input de fecha se
+sincroniza, "Hoy" vuelve a vaciar todo, y los 6 badges aparecen exactamente
+donde corresponde (ninguno en las tarjetas que sí varían con el período).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -1299,6 +1299,25 @@ function motivoPrincipalSalud(detalle){
   return conDato.reduce(function(peor,c){return c.valor<peor.valor?c:peor;});
 }
 
+// Atajos de fecha para el selector del Dashboard ("Hoy"/"Ayer"/"Año pasado",
+// 2026-09-11 — pedido del usuario: "cualquiera querrá saber qué mes/año/día
+// es... como vamos hoy, como nos fue ayer, comparado con el año pasado del
+// mismo día"). Puras — 'hoyISO' siempre se pasa desde afuera (nunca
+// 'new Date()' acá adentro) para poder testear la aritmética de fechas sin
+// depender del reloj real. setDate/setFullYear "ruedan" al día siguiente
+// válido cuando la fecha resultante no existe (ej. 29-feb de año bisiesto
+// menos un año cae en 1-mar) — comportamiento estándar de Date, no un bug.
+function fechaAyer(hoyISO){
+  var d=new Date(hoyISO+'T00:00:00');
+  d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+function fechaMismoDiaAnioPasado(hoyISO){
+  var d=new Date(hoyISO+'T00:00:00');
+  d.setFullYear(d.getFullYear()-1);
+  return d.toISOString().slice(0,10);
+}
+
 // Guarda (o actualiza, si ya corrió hoy) el valor del índice del día en el histórico
 // {fecha: valor}, y descarta lo más viejo que SALUD_HIST_DIAS_MAX días — solo hace
 // falta guardar suficiente para comparar semana a semana, no un historial indefinido.
@@ -1928,6 +1947,8 @@ if (typeof window !== 'undefined') {
   window.contarFallasMes = contarFallasMes;
   window.ratioPreventivo = ratioPreventivo;
   window.equiposSinCriticidad = equiposSinCriticidad;
+  window.fechaAyer = fechaAyer;
+  window.fechaMismoDiaAnioPasado = fechaMismoDiaAnioPasado;
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.paretoAcumulado = paretoAcumulado;
   window.confiabilidadReal = confiabilidadReal;
@@ -1949,7 +1970,7 @@ if (typeof module !== 'undefined' && module.exports) {
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
-    _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad,
+    _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma
   };
 }

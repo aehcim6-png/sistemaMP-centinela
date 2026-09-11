@@ -13,11 +13,40 @@ export function dashSetPeriodo(){
   var m=document.getElementById('dashMesSel'),a=document.getElementById('dashAnioSel');
   if(m)window._dashMes=parseInt(m.value);
   if(a)window._dashAnio=parseInt(a.value);
+  // Tocar el mes/año a mano vuelve a "todo el mes" (comportamiento de
+  // siempre) — un día exacto elegido antes (vía Ayer/Año pasado/input de
+  // fecha) ya no tendría sentido si cambió el mes.
+  window._dashDia=null;
   renders.dash();
 };
 export function dashHoy(){
-  window._dashMes=null;window._dashAnio=null;
+  window._dashMes=null;window._dashAnio=null;window._dashDia=null;
   renders.dash();
+};
+// dashSetFecha/dashAyer/dashAnioPasado (2026-09-11, pedido del usuario:
+// "como vamos hoy, como nos fue ayer, comparado con el año pasado del mismo
+// día") — fijan mes/año/día EXPLÍCITOS (nunca null) a partir de una fecha
+// concreta, a diferencia de dashHoy() (que vuelve al comportamiento
+// dinámico "siempre hoy" sin fijar nada). _dashIrAFecha es el punto único
+// que parsea 'YYYY-MM-DD' → los 3 window._dash*, para no repetir el parseo
+// en cada atajo.
+function _dashIrAFecha(fechaISO){
+  var partes=fechaISO.split('-');
+  window._dashAnio=parseInt(partes[0]);
+  window._dashMes=parseInt(partes[1]);
+  window._dashDia=parseInt(partes[2]);
+  renders.dash();
+}
+export function dashSetFecha(){
+  var f=document.getElementById('dashFechaSel');
+  if(!f||!f.value)return;
+  _dashIrAFecha(f.value);
+};
+export function dashAyer(){
+  _dashIrAFecha(fechaAyer(new Date().toISOString().slice(0,10)));
+};
+export function dashAnioPasado(){
+  _dashIrAFecha(fechaMismoDiaAnioPasado(new Date().toISOString().slice(0,10)));
 };
 // Filtro de bloques del Dashboard (2026-08-28, pedido del usuario): mostrar
 // solo el bloque de Salud, o solo Equipos Urgentes, etc. Es puramente visual
@@ -124,22 +153,50 @@ export function renderDash(){
   const dashPeriodo=dashAnio+'-'+String(dashMes).padStart(2,'0'); // 'YYYY-MM'
   const _diasMes=new Date(dashAnio,dashMes,0).getDate();
   const _MESNOM=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  const dashLabel=_MESNOM[dashMes-1]+' '+dashAnio;
-  // ── Urgentes/Próximas/Al Día del período elegido: en vivo si es el mes actual;
-  // reconstruido desde historial_horometros si es un mes pasado; proyectado
-  // (horomActual + hrsDia×días) si es un mes futuro. Un equipo sin dato histórico
-  // suficiente para un mes pasado se excluye — nunca se inventa un número.
+  // dashDia (2026-09-11, pedido del usuario: "como vamos hoy, como nos fue
+  // ayer, comparado con el año pasado del mismo día") — día EXACTO elegido
+  // (vía input de fecha o los atajos Ayer/Año pasado), o null = "todo el
+  // mes" (comportamiento de siempre, sin cambios: Gasto/Ejecuciones/
+  // Cumplimiento PM siguen siendo agregados mensuales, dashPeriodo no
+  // cambia). Solo afecta a lo que ya sabía reconstruirse a una fecha puntual
+  // (Urgentes/Próximas, vía C.estadoPeriodo) y a la etiqueta mostrada.
+  const dashDia=(window._dashDia!=null?window._dashDia:null);
+  const dashLabel=dashDia!=null?String(dashDia).padStart(2,'0')+' '+_MESNOM[dashMes-1]+' '+dashAnio:_MESNOM[dashMes-1]+' '+dashAnio;
+  // ── Urgentes/Próximas/Al Día del período elegido: en vivo si es HOY (mes
+  // actual sin día específico, o el día exacto elegido coincide con hoy);
+  // reconstruido desde historial_horometros si es una fecha pasada;
+  // proyectado (horomActual + hrsDia×días) si es una fecha futura. Un equipo
+  // sin dato histórico suficiente para una fecha pasada se excluye — nunca
+  // se inventa un número.
   const hist=S.g('hist')||[];
   const _hoyISO=_hoy.toISOString().slice(0,10);
+  // Para resaltar qué botón (Ayer/Año pasado) está activo, y precargar el
+  // input de fecha — mismas funciones puras que usan los atajos.
+  const _diaAyerISO=fechaAyer(_hoyISO);
+  const _mismoDiaAnioPasadoISO=fechaMismoDiaAnioPasado(_hoyISO);
   const _mesActualISO=_hoy.getFullYear()+'-'+String(_hoy.getMonth()+1).padStart(2,'0');
   const esMesActual=(dashPeriodo===_mesActualISO);
+  // Fecha objetivo real: el día exacto elegido si hay uno, si no el último
+  // día del mes (mismo criterio de siempre). "En vivo" pasa a depender de
+  // esa fecha exacta cuando se eligió una — así "Ayer" (que casi siempre
+  // cae dentro del mes actual) SÍ se reconstruye en vez de mostrarse como
+  // si fuera "ahora mismo" solo porque el mes coincide.
+  const _targetISO=dashAnio+'-'+String(dashMes).padStart(2,'0')+'-'+String(dashDia!=null?dashDia:_diasMes).padStart(2,'0');
+  const enVivo=dashDia!=null?(_targetISO===_hoyISO):esMesActual;
+  // Badge reutilizable (2026-09-11, pedido del usuario): varios bloques del
+  // tablero (Mapa de Salud, Equipos con Salud Baja, Stock Crítico, Backlog,
+  // Criticidad, Dotación) SIEMPRE muestran el estado actual — nunca cambian
+  // con el selector de fecha de arriba, a diferencia de Disponibilidad/
+  // Confiabilidad/Costos que sí lo respetan. Sin este aviso, alguien que ve
+  // "Mostrando: 10 Sep 2026" arriba puede asumir que TODO el tablero es de
+  // esa fecha, cuando estos bloques en realidad son de ahora mismo.
+  const badgeEnVivo='<span style="font-size:9px;color:var(--ok);font-weight:700;margin-left:6px;letter-spacing:.5px" title="Este dato es siempre el estado ACTUAL — no cambia aunque elijas otra fecha en el selector de arriba">● EN VIVO</span>';
   let urg=[],prox=[],alDia=[],dashFuente='vivo';
-  if(esMesActual){
+  if(enVivo){
     urg=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA'));
     prox=eq.filter(e=>e.estado?.includes('PROXIMA')||e.estado?.includes('PRÓXIMA'));
     alDia=eq.filter(e=>e.estado?.includes('AL DÍA')||e.estado?.includes('OK'));
   } else {
-    const _targetISO=dashAnio+'-'+String(dashMes).padStart(2,'0')+'-'+String(_diasMes).padStart(2,'0');
     dashFuente=_targetISO<_hoyISO?'historico':'proyectado';
     // hist agrupado por sigla, UNA sola vez — antes cada equipo pasaba el arreglo
     // COMPLETO de historial_horometros a C.estadoPeriodo/C.horomHistorico, que lo
@@ -378,10 +435,10 @@ export function renderDash(){
   // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número que resume las 4 dimensiones de
   // arriba (Cumplimiento PM, Disponibilidad, Stock sano, Confiabilidad), con
   // tendencia semana a semana. Solo se registra el snapshot del día (y solo tiene
-  // sentido mostrar tendencia) viendo el mes ACTUAL — un mes histórico/proyectado
+  // sentido mostrar tendencia) viendo HOY (enVivo) — una fecha pasada/futura
   // no es "el estado de hoy" y guardarlo ahí ensuciaría la serie de tiempo real.
   // Denominador: equipos REALMENTE clasificados (alDia+urg+prox), no eq.length.
-  // En vivo (esMesActual) son lo mismo — todo equipo cae en una de las 3 bandas.
+  // En vivo (enVivo) son lo mismo — todo equipo cae en una de las 3 bandas.
   // Pero para un mes histórico/proyectado, C.estadoPeriodo excluye a propósito los
   // equipos sin dato para esa fecha (arriba, línea ~51: "if(!r)return" — no inventa
   // un número), así que dividir por eq.length subestimaba el cumplimiento cada vez
@@ -392,7 +449,7 @@ export function renderDash(){
   var stockSano=totalStkSalud?Math.round(stkOk/totalStkSalud*1000)/10:null;
   var salud=indiceSaludFlota({cumplPM:cumplPM,disponibilidad:dispFlota,stockSano:stockSano,confiabilidad:idxConf});
   var tendenciaSalud=null;
-  if(esMesActual&&salud.valor!=null){
+  if(enVivo&&salud.valor!=null){
     var histSaludPrevio=S.g('saludFlotaHist')||{};
     var histSaludNuevo=registrarSnapshotSalud(histSaludPrevio,salud.valor,_hoyISO);
     if(JSON.stringify(histSaludNuevo)!==JSON.stringify(histSaludPrevio))S.s('saludFlotaHist',histSaludNuevo);
@@ -434,7 +491,10 @@ export function renderDash(){
     '<select id="dashAnioSel" onchange="dashSetPeriodo()" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:5px 8px;font-size:12px">'+
     [dashAnio-2,dashAnio-1,dashAnio,dashAnio+1].filter(function(v,i,a){return a.indexOf(v)===i;}).map(function(y){return '<option value="'+y+'"'+(dashAnio===y?' selected':'')+'>'+y+'</option>';}).join('')+
     '</select>'+
-    '<button class="btn-s btn-o" onclick="dashHoy()">Hoy</button>'+
+    '<button class="btn-s '+(dashDia==null?'':'btn-o')+'" onclick="dashHoy()" title="Vuelve al modo dinámico de siempre: sigue siendo hoy aunque pasen los días, sin tener que tocar nada">Hoy</button>'+
+    '<button class="btn-s '+(_targetISO===_diaAyerISO?'':'btn-o')+'" onclick="dashAyer()" title="Cómo estaba todo ayer, reconstruido desde el historial">Ayer</button>'+
+    '<button class="btn-s '+(_targetISO===_mismoDiaAnioPasadoISO?'':'btn-o')+'" onclick="dashAnioPasado()" title="Mismo día y mes, un año atrás — para comparar contra el año pasado">Año pasado</button>'+
+    '<input type="date" id="dashFechaSel" value="'+(dashDia!=null?_targetISO:'')+'" onchange="dashSetFecha()" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:4px 8px;font-size:12px" title="Elegir cualquier fecha puntual">'+
     '<button class="btn-s '+(urgPM4?'':'btn-o')+'" style="'+(urgPM4?'background:var(--danger);color:#fff;border-color:var(--danger)':'')+'" onclick="go(\'al\')" title="Equipos acercándose a su PM4/overhaul (8× frecPM propio) y los repuestos clave que necesitan">🔴 Alertas PM4'+(urgPM4?' ('+urgPM4+')':'')+'</button>'+
     (dashFuente==='vivo'?'<button class="btn-s btn-o" onclick="copiarResumenTurno()" title="Arma un resumen de turno (disponibilidad, urgentes, qué le queda al próximo turno) y lo copia listo para pegar en WhatsApp"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/></svg> Resumen de turno</button>':'')+
     '<span style="font-size:11px;color:var(--tx3);margin-left:auto">Mostrando: <b style="color:var(--ac)">'+dashLabel+'</b></span>'+
@@ -455,11 +515,11 @@ export function renderDash(){
     '<div style="text-align:center;min-width:150px">'+
     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--tx3)">Índice de Salud de Flota</div>'+
     '<div style="font-size:48px;font-weight:900;color:'+saludCol+';line-height:1;margin:4px 0">'+(salud.valor==null?'—':salud.valor)+(salud.valor==null?'':'<span style="font-size:20px">%</span>')+'</div>'+
-    (esMesActual?
+    (enVivo?
       (tendenciaSalud&&tendenciaSalud.delta!=null?
         '<div style="font-size:11px;font-weight:600;color:'+(tendenciaSalud.delta>0?'var(--ok)':tendenciaSalud.delta<0?'var(--danger)':'var(--tx3)')+'">'+(tendenciaSalud.delta>0?'▲':tendenciaSalud.delta<0?'▼':'→')+' '+Math.abs(tendenciaSalud.delta)+' pts vs hace 7 días</div>'
         :'<div style="font-size:10px;color:var(--tx3)">Sin dato de hace 7 días aún</div>')
-      :'<div style="font-size:10px;color:var(--tx3)">Tendencia solo viendo el mes actual</div>')+
+      :'<div style="font-size:10px;color:var(--tx3)">Tendencia solo disponible viendo hoy</div>')+
     '</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">'+
     salud.detalle.map(function(c){
@@ -520,9 +580,9 @@ export function renderDash(){
     '<div style="font-size:9px;color:var(--tx3)">HH + repuestos consumidos</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(otPend>0?'var(--danger)':'var(--ok)')+'">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Backlog</div>'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Backlog'+badgeEnVivo+'</div>'+
     '<div style="font-size:28px;font-weight:800;color:'+(otPend>0?'var(--danger)':'var(--ok)')+';line-height:1.2">'+otPend+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+otEjec+' en ejec · '+otCerr+' cerradas en '+dashLabel+'</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+otEjec+' en ejec (ahora) · '+otCerr+' cerradas en '+dashLabel+'</div></div>'+
 
     '</div></div>'+
     '</div>';
@@ -531,15 +591,15 @@ export function renderDash(){
     // ═══ KPIs AVANZADOS ROW ═══
     '<div id="dashBlk-costos" style="display:'+(dashBloques.costos?'':'none')+'">'+
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:20px">'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'var(--ok)':stkCrit<=3?'var(--ac)':'var(--danger)')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'var(--ok)':stkCrit<=3?'var(--ac)':'var(--danger)')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(stkCrit===0?'var(--ok)':stkCrit<=3?'var(--ac)':'var(--danger)')+'" title="Ítems por comprar / bajo stock / OK"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Stock Crítico'+badgeEnVivo+'</div><div style="font-size:20px;font-weight:800;color:'+(stkCrit===0?'var(--ok)':stkCrit<=3?'var(--ac)':'var(--danger)')+'">'+stkCrit+'</div><div style="font-size:8px;color:var(--tx3)">🔴'+stkCrit+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg>'+stkBajo+' · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg>'+stkOk+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'var(--ok)':costoRAV<3?'var(--ac)':'var(--danger)')+'" title="Gasto de mantención ÷ Valor de Reemplazo de Activo (RAV), ANUALIZADO (gasto del mes ×12) para comparar contra el benchmark de industria (&lt;2-3% anual) en la misma escala."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'var(--ok)':costoRAV<3?'var(--ac)':'var(--danger)')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(totalRAV===0?'Sin valor de compra (RAV) cargado':'Anualizado · Meta: &lt;2%')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'" title="HH pendientes (OT abiertas × 8h, único dato disponible por OT) ÷ capacidad semanal (dotación'+(hhSemFuente==='real'?' real de Programación Diaria: '+dotacionReal+' personas':' ESTIMADA: 5 técnicos por equipo, sin dato real de dotación cargado')+' × 5 días × 8h)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4 · dotación '+(hhSemFuente==='real'?'real':'estimada')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'" title="HH pendientes (OT abiertas × 8h, único dato disponible por OT) ÷ capacidad semanal (dotación'+(hhSemFuente==='real'?' real de Programación Diaria: '+dotacionReal+' personas':' ESTIMADA: 5 técnicos por equipo, sin dato real de dotación cargado')+' × 5 días × 8h)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog'+badgeEnVivo+'</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4 · dotación '+(hhSemFuente==='real'?'real':'estimada')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'" title="Conteo simple, NO es una probabilidad de confiabilidad: % de equipos que no tuvieron NINGÚN correctivo/falla operacional este mes. Para la confiabilidad estadística real (R), ver la tarjeta Confiabilidad (R) más adelante."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">% Flota sin falla</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">'+(eqConFallaMes===0?'0 correctivos en '+dashLabel+' aún':'Eq sin falla en '+dashLabel)+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(confReal==null?'var(--bd)':confReal>=85?'var(--ok)':confReal>=60?'var(--ac)':'var(--danger)')+'" title="Confiabilidad estadística real: R(t)=e^(-t/MTBF) — probabilidad de que un equipo promedio NO falle durante las horas que opera en '+dashLabel+', asumiendo tasa de falla constante (supuesto estándar RAM/ISO 14224 cuando solo se tiene el MTBF). Requiere MTBF real (≥2 fallas por equipo)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad (R)</div><div style="font-size:20px;font-weight:800;color:'+(confReal==null?'var(--tx3)':confReal>=85?'var(--ok)':confReal>=60?'var(--ac)':'var(--danger)')+'">'+(confReal==null?'—':confReal+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(confReal==null?'Sin MTBF suficiente':'R(t)=e^(-t/MTBF)')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'var(--ok)':dispInh>=80?'var(--ac)':'var(--danger)'):'var(--bd)')+'" title="Disponibilidad Inherente = MTBF/(MTBF+MTTR), fórmula estándar RAM/ISO 14224. MTTR: cuando una OT no tiene duración registrada se asume 8h para no perderla del promedio ('+otFallasMesSinDuracion+' de '+otFallasMes.length+' OT de '+dashLabel+' sin duración registrada) — es una estimación, no un dato medido."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'var(--ok)':dispInh>=80?'var(--ac)':'var(--danger)'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:8px;color:var(--tx3)">'+(dispInh?'MTBF/(MTBF+MTTR)':'Sin correctivos en '+dashLabel+' aún')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(pctRetrab===null?'var(--bd)':pctRetrab<=5?'var(--ok)':pctRetrab<=10?'var(--ac)':'var(--danger)')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Retrabajo</div><div style="font-size:20px;font-weight:800;color:'+(pctRetrab===null?'var(--tx3)':pctRetrab<=5?'var(--ok)':pctRetrab<=10?'var(--ac)':'var(--danger)')+'">'+(pctRetrab===null?'—':pctRetrab+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(pctRetrab===null?'Sin fallas en el período':'Meta: &lt;5%')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad</div><div style="font-size:11px;font-weight:700"><span style="color:var(--danger)">'+eqCrit+'</span> Crít · <span style="color:var(--ac)">'+eqEsen+'</span> Esen · <span style="color:var(--ok)">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid #8b5cf6"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Criticidad'+badgeEnVivo+'</div><div style="font-size:11px;font-weight:700"><span style="color:var(--danger)">'+eqCrit+'</span> Crít · <span style="color:var(--ac)">'+eqEsen+'</span> Esen · <span style="color:var(--ok)">'+eqGral+'</span> Gen</div><div style="font-size:8px;color:var(--tx3)">'+eq.length+' equipos</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid '+(utilDia==null?'var(--bd)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'" title="Bloques de 30 min con trabajo productivo (excluye charla, colación, vacaciones, licencia; incluye comisión de servicio) vs. disponibles, según Programación Diaria"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Dotación (Prog. Diaria)'+badgeEnVivo+'</div><div style="font-size:20px;font-weight:800;color:'+(utilDia==null?'var(--tx3)':utilDia<40?'var(--ac)':utilDia>85?'var(--danger)':'var(--ok)')+'">'+(utilDia==null?'—':utilDia+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(progDiaUltima?progDiaUltima:'Sin datos importados')+'</div></div>'+
     '</div>'+
     '</div>';
 
@@ -770,7 +830,7 @@ export function renderDash(){
       var v=r.score.valor;
       if(v==null)cNoneMapa++;else if(v>=80)cOkMapa++;else if(v>=55)cWarnMapa++;else cCritMapa++;
     });
-    mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">🗺️ Mapa de Salud de la Flota</div>'+
+    mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">🗺️ Mapa de Salud de la Flota'+badgeEnVivo+'</div>'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0">'+
       '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--ok)">'+cOkMapa+'</div><div style="font-size:10px;color:var(--tx3)">🟢 ≥80%</div></div>'+
       '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--ac)">'+cWarnMapa+'</div><div style="font-size:10px;color:var(--tx3)">🟡 55-79%</div></div>'+
@@ -786,7 +846,7 @@ export function renderDash(){
     .slice(0,10);
   var saludBajaBlock='';
   if(equiposConSalud.length){
-    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">🩺 Equipos con Salud Baja <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
+    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">🩺 Equipos con Salud Baja'+badgeEnVivo+' <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
     saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
     equiposConSalud.forEach(function(r){
       var col=r.score.valor>=55?'var(--ac)':'var(--danger)';
@@ -832,6 +892,9 @@ export function renderDash(){
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.dashSetPeriodo = dashSetPeriodo;
 window.dashHoy = dashHoy;
+window.dashSetFecha = dashSetFecha;
+window.dashAyer = dashAyer;
+window.dashAnioPasado = dashAnioPasado;
 window.dashToggleBloque = dashToggleBloque;
 window.copiarResumenTurno = copiarResumenTurno;
 window.renderDash = renderDash;

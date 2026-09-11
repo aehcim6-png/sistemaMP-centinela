@@ -163,7 +163,8 @@ export function renderTorre(){
     '<span style="font-size:10px;color:var(--tx3);text-transform:uppercase">Score de<br>salud</span>'+
     '</div>'+
     '<div id="torreDDims"></div>'+
-    '<div id="torreDTend" style="font-size:11px;color:var(--tx3);margin-top:10px"></div>'+
+    '<div id="torreDCalculado" style="font-size:10px;color:var(--ok);font-weight:600;margin-top:8px">—</div>'+
+    '<div id="torreDTend" style="font-size:11px;color:var(--tx3);margin-top:6px"></div>'+
     '<button class="btn-s btn-o" style="width:100%;margin-top:16px" id="torreDCta">Ver ficha completa en Buscar →</button>'+
     '</div>';
 
@@ -198,6 +199,13 @@ window._torreAbrirDrawer=function(sigla){
       '<span style="font-weight:600">'+(d.valor==null?'—':d.valor+'%')+'</span></div>';
   });
   document.getElementById('torreDDims').innerHTML=dimsHtml;
+  // Aviso "calculado ahora" (2026-09-11, pedido del usuario: "no me dice de
+  // qué fecha es") — el Score de Salud es un cálculo EN VIVO, siempre con
+  // los datos actuales, no una foto guardada de un día pasado. Se aclara
+  // acá con la fecha/hora exacta del momento en que se abrió este drawer,
+  // en vez de dejarlo implícito.
+  var _ahoraTorre=new Date();
+  document.getElementById('torreDCalculado').innerHTML='● Calculado ahora · '+_ahoraTorre.toISOString().slice(0,10)+' '+String(_ahoraTorre.getHours()).padStart(2,'0')+':'+String(_ahoraTorre.getMinutes()).padStart(2,'0');
   var tend=(typeof tendenciaSaludSemanal==='function')?tendenciaSaludSemanal((window._torreHistSalud||{})[r.sigla]||{},window._torreHoyISO):null;
   var tendEl=document.getElementById('torreDTend');
   if(tend&&tend.delta!=null){
