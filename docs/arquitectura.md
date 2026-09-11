@@ -806,6 +806,28 @@ verificado visualmente en navegador (Playwright ad-hoc con datos
 sintéticos, no parte de la suite permanente): ambas tablas muestran las
 columnas nuevas, la barra y la marca ⭐ correctamente.
 
+**Criticidad de equipo (RCM) — ya existía, nunca se cargó (hallazgo
+2026-09-11):** al investigar si faltaba una clasificación de criticidad
+por equipo (A/B/C, para priorizar PM/stock/respuesta según qué tan clave es
+cada activo), se encontró que **ya existe completa**:
+`equipos.criticidad` (dropdown Crítico/Esencial/General en Ficha Técnica,
+`eq.js`, solo-admin vía `proteger_columnas_admin`) y un consumidor real
+(Backlog Inteligente, `pred.js`: un correctivo pendiente en un equipo
+"Crítico" pesa más que uno en un equipo de apoyo). El problema no era de
+código: una auditoría anterior (2026-08-27, comentario en `pred.js`) ya
+había encontrado que el campo estaba `NULL` para los 35 equipos reales de
+Besalco — la clasificación nunca se cargó, así que ese consumidor no tenía
+ningún efecto real en la práctica. De paso se encontró y corrigió un chequeo
+muerto (`eqInfoB.criticidad==='Crítico'||eqInfoB.criticidad==='Alta'` —
+`'Alta'` no es una opción posible del dropdown, nunca podía matchear).
+
+Se agregó `equiposSinCriticidad(eq)` (`logic.js`, función pura, probada en
+`tests/equiposSinCriticidad.test.js`) y un aviso en la vista "Backlog
+Inteligente" que dice cuántos equipos siguen sin clasificar — mismo
+criterio que el aviso de "Sin clasificar" del Pareto de Modo de Falla — para
+que dejar de cargar este dato deje de ser invisible. No se tocó el esquema
+ni la UI de carga (ya existían); esto es puramente un aviso de adopción.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

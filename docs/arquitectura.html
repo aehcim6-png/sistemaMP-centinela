@@ -670,6 +670,24 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ad-hoc con datos sintéticos, no parte de la suite permanente): ambas tablas muestran las columnas
   nuevas, la barra y la marca ⭐ correctamente.</p>
 
+  <p><b>Criticidad de equipo (RCM) — ya existía, nunca se cargó (hallazgo 2026-09-11):</b> al
+  investigar si faltaba una clasificación de criticidad por equipo (A/B/C, para priorizar
+  PM/stock/respuesta según qué tan clave es cada activo), se encontró que <b>ya existe
+  completa</b>: <code>equipos.criticidad</code> (dropdown Crítico/Esencial/General en Ficha
+  Técnica, <code>eq.js</code>, solo-admin vía <code>proteger_columnas_admin</code>) y un
+  consumidor real (Backlog Inteligente, <code>pred.js</code>: un correctivo pendiente en un equipo
+  "Crítico" pesa más que uno en un equipo de apoyo). El problema no era de código: una auditoría
+  anterior (2026-08-27, comentario en <code>pred.js</code>) ya había encontrado que el campo
+  estaba <code>NULL</code> para los 35 equipos reales de Besalco — la clasificación nunca se
+  cargó, así que ese consumidor no tenía ningún efecto real en la práctica. De paso se encontró y
+  corrigió un chequeo muerto (<code>criticidad==='Crítico'||criticidad==='Alta'</code> —
+  <code>'Alta'</code> no es una opción posible del dropdown, nunca podía matchear).</p>
+  <p>Se agregó <code>equiposSinCriticidad(eq)</code> (<code>logic.js</code>, función pura, probada
+  en <code>tests/equiposSinCriticidad.test.js</code>) y un aviso en la vista "Backlog Inteligente"
+  que dice cuántos equipos siguen sin clasificar — mismo criterio que el aviso de "Sin clasificar"
+  del Pareto de Modo de Falla — para que dejar de cargar este dato deje de ser invisible. No se
+  tocó el esquema ni la UI de carga (ya existían); esto es puramente un aviso de adopción.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

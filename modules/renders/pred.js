@@ -899,7 +899,10 @@ export function renderPred(){
         // "Fuera de Servicio": también pesa la criticidad del equipo (un equipo crítico
         // parado importa más que uno de apoyo). Antes era binario y solo miraba el flag.
         var eqInfoB=eq.find(function(x){return x.sigla===o.sigla;});
-        var esCritEq=eqInfoB&&(eqInfoB.criticidad==='Crítico'||eqInfoB.criticidad==='Alta');
+        // Único valor real del dropdown de Ficha Técnica (eq.js) que marca un
+        // equipo como crítico — 'Alta' no es una opción posible ahí, se sacó
+        // (nunca podía matchear, código muerto encontrado 2026-09-11).
+        var esCritEq=eqInfoB&&eqInfoB.criticidad==='Crítico';
         var impacto=(o.estatusEq==='Fuera de Servicio'||esCritEq)?'Alto':'Medio';
         var prioridad=diasPend>7&&impacto==='Alto'?'🔴 Crítico':diasPend>3?'🟡 Atrasado':'🟢 Normal';
         backlog.push({idx:i,sigla:o.sigla,trabajo:o.sintoma||o.tipo,origen:'Correctivo',dias:diasPend,
@@ -918,7 +921,18 @@ export function renderPred(){
 
     var is=CELL_INPUT_STYLE+';font-size:11px;padding:2px';
 
+    // Aviso de adopción (2026-09-11): "impacto" de una OT pendiente pesa la
+    // criticidad del equipo (arriba), pero ese campo es opcional y nadie lo
+    // carga solo — sin aviso, queda invisible que esta priorización está
+    // funcionando a medias. Mismo criterio que "Sin clasificar" en el Pareto
+    // de Modo de Falla (Estadística).
+    var sinCriticidad=equiposSinCriticidad(eq);
+
     content=
+      (sinCriticidad?'<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px;font-size:11px;color:var(--tx3)">'+
+        '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> '+
+        sinCriticidad+' de '+eq.length+' equipos todavía sin "Criticidad" clasificada (Ficha Técnica → Crítico/Esencial/General) — sin esto, la columna "Impacto" de abajo no puede distinguir un equipo clave parado de uno de apoyo, y todo correctivo pendiente pesa igual.'+
+        '</div>':'')+
       '<div class="cards">'+
       '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔴 Críticos</div><div class="card-v" style="color:var(--danger)">'+backlog.filter(function(b){return b.prioridad.includes('🔴');}).length+'</div></div>'+
       '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">🟡 Atrasados</div><div class="card-v" style="color:var(--w)">'+backlog.filter(function(b){return b.prioridad.includes('🟡');}).length+'</div></div>'+

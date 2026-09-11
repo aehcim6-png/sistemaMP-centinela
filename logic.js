@@ -475,6 +475,18 @@ function ratioPreventivo(prevCount,corrCount){
   return total?Math.round(prevCount/total*100):null;
 }
 
+// Cuántos equipos todavía no tienen 'criticidad' clasificada (dropdown Crítico/
+// Esencial/General de Ficha Técnica, equipos.criticidad — solo-admin). Auditoría
+// 2026-08-27 (ver comentario en pred.js, vista "dotacion"): en la base real de
+// Besalco este campo estaba NULL para los 35 equipos, así que el único consumidor
+// que sí lo usa (Backlog Inteligente, para pesar el impacto de una OT pendiente)
+// no tenía ningún efecto real en la práctica. Esta cuenta es la fuente única para
+// avisarle al admin que clasificarlos desbloquea esa priorización — mismo criterio
+// que ya usa el Pareto de Modo de Falla con "Sin clasificar" (codFalla).
+function equiposSinCriticidad(eq){
+  return (eq||[]).filter(function(e){return e&&!e.criticidad;}).length;
+}
+
 // Probabilidad de falla por equipo+componente (2026-08, a pedido del usuario:
 // "podemos usar probabilidad" leyendo el historial real de correctivos).
 // Recibe una lista plana de eventos {sigla, componente, fecha} — ya resueltos
@@ -1915,6 +1927,7 @@ if (typeof window !== 'undefined') {
   window._otHistComoOt = _otHistComoOt;
   window.contarFallasMes = contarFallasMes;
   window.ratioPreventivo = ratioPreventivo;
+  window.equiposSinCriticidad = equiposSinCriticidad;
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.paretoAcumulado = paretoAcumulado;
   window.confiabilidadReal = confiabilidadReal;
@@ -1936,7 +1949,7 @@ if (typeof module !== 'undefined' && module.exports) {
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
-    _gastoProyectadoCategoria, agruparPeriodo,
+    _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma
   };
 }
