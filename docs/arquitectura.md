@@ -889,7 +889,7 @@ cae dentro del mes actual) se reconstruye de verdad desde
 porque el mes coincide. `esMesActual` se sigue usando tal cual cuando no
 hay día exacto (compatibilidad total con el comportamiento anterior).
 
-**Aviso "● EN VIVO"**: badge verde agregado al título de los 6 bloques que
+**Aviso "● EN VIVO"**: badge verde agregado al título de los bloques que
 nunca cambian con el selector (Mapa de Salud, Equipos con Salud Baja,
 Stock Crítico, Backlog, Criticidad, Dotación), para que se distingan de un
 vistazo de los que sí respetan la fecha elegida. Mismo aviso, con fecha y
@@ -899,8 +899,31 @@ hora exactas del cálculo, en el drawer de Torre de Control (`torre.js`,
 Verificado visualmente en navegador (Playwright ad-hoc con datos
 sintéticos): los atajos cambian correctamente el label ("Ayer" → fecha de
 ayer, "Año pasado" → mismo día del año anterior), el input de fecha se
-sincroniza, "Hoy" vuelve a vaciar todo, y los 6 badges aparecen exactamente
+sincroniza, "Hoy" vuelve a vaciar todo, y los badges aparecen exactamente
 donde corresponde (ninguno en las tarjetas que sí varían con el período).
+
+**Segunda pasada, mismo día**: el usuario señaló el "Resumen rápido
+lateral" del Dashboard (Flota / HH Acumuladas / Al Día / Riesgo Alto), con
+la misma pregunta. Se revisó cada tarjeta:
+- **Flota** (`eq.length`) y **🔴 Riesgo Alto** (`compRiesgoAlto`, lectura
+  directa del `riesgoNivel` ya calculado y guardado por `comp.js` — nunca
+  se recalcula acá) son siempre el estado actual → se les agregó el mismo
+  badge "● EN VIVO".
+- **HH Acumuladas** (`hhTotal`/`reg.length`) es un acumulado histórico
+  TOTAL (`reg.reduce(...)` sobre todos los registros, sin filtro de fecha)
+  → mismo caso, badge agregado.
+- **Al Día** (`alDia.length`) usa el mismo arreglo `alDia` que ya se
+  reconstruye correctamente dentro del bloque `enVivo`/histórico de más
+  arriba (Urgentes/Próximas) → **no necesitaba cambio**, ya respeta la
+  fecha elegida.
+- Se revisaron también las 4 tarjetas de Confiabilidad/Costos (% Flota sin
+  falla, Confiabilidad (R), Retrabajo, Costo/RAV): todas filtran
+  explícitamente por `dashPeriodo` (el mes elegido) y sus propios
+  subtítulos dicen "en el período" → **ya eran correctas, sin badge
+  necesario** (el badge es solo para lo que NUNCA cambia con el selector).
+
+Con esto, el badge "● EN VIVO" queda en 9 bloques del Dashboard (los 6
+originales + Flota, HH Acumuladas y Riesgo Alto).
 
 ## Lo que decidimos NO hacer (y por qué)
 
