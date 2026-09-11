@@ -313,15 +313,28 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Qué NO puede recuperar, y por qué:</b> contraseñas ni secretos de MFA — la Admin API de
   Supabase directamente no los expone a nadie. Es una limitación de la plataforma, no de este
   script.</p>
-  <p><b>Cómo se probó</b> (sin credenciales reales de un proyecto disponibles en el entorno de
-  desarrollo, no se ejecutó contra infraestructura real): las 4 funciones puras
-  (<code>ordenarTablasParaRestaurar</code>, <code>construirMapaDeIds</code>,
-  <code>remapearUserRoles</code>, <code>enLotes</code>) tienen tests unitarios, y
-  <code>ejecutarRestauracion</code> (la orquestación completa) se probó de punta a punta contra un
-  cliente Supabase admin <b>falso</b> que imita <code>auth.admin.listUsers/createUser</code> y
-  <code>.from().insert()</code> — usuario ya existente, usuario faltante recreado, remapeo de
-  <code>user_roles</code>, orden FK-safe, y un error de insert que no corta el resto. 20 tests en
-  <code>scripts/restaurar-backup.test.ts</code>.</p>
+  <p><b>Cómo se probó:</b> las 4 funciones puras (<code>ordenarTablasParaRestaurar</code>,
+  <code>construirMapaDeIds</code>, <code>remapearUserRoles</code>, <code>enLotes</code>) tienen
+  tests unitarios, y <code>ejecutarRestauracion</code> (la orquestación completa) se probó de
+  punta a punta contra un cliente Supabase admin <b>falso</b> que imita
+  <code>auth.admin.listUsers/createUser</code> y <code>.from().insert()</code> — usuario ya
+  existente, usuario faltante recreado, remapeo de <code>user_roles</code>, orden FK-safe, y un
+  error de insert que no corta el resto. 20 tests en <code>scripts/restaurar-backup.test.ts</code>.</p>
+  <div class="callout" style="border-left-color:var(--ok)">
+    <b>Prueba real contra infraestructura (2026-09-11):</b> el entorno de desarrollo no tiene
+    salida de red hacia <code>*.supabase.co</code> (política de la plataforma), así que la
+    ejecución real la corrió el usuario en su propia máquina (Windows, PowerShell + Deno local)
+    contra el proyecto real y vacío de sistema-mp2 (0 datos reales — el único lugar seguro para
+    probar esto de verdad), con un respaldo sintético de 2 tablas y 2 cuentas (una ya existente,
+    una ficticia nueva). Verificado con SQL real después: la cuenta existente no se recreó, la
+    ficticia se creó de verdad en <code>auth.users</code> vía la Admin API real con contraseña
+    temporal, <code>user_roles</code> se remapeó al ID nuevo real generado por Supabase (no al
+    ficticio del respaldo), y <code>equipos</code> insertó sin errores. Primera ejecución contra
+    un proyecto real, funcionó sin ajustes al código. Los registros de prueba se limpiaron
+    después. De paso se confirmó que el nuevo esquema de API keys de Supabase (<code>secret
+    key</code>, prefijo <code>sb_secret_...</code>) funciona sin cambios con
+    <code>createClient()</code> de <code>supabase-js</code>.
+  </div>
 
   <h3>10. Papelera (soft-delete con recuperación)</h3>
   <p>Nada se borra de golpe. Al eliminar cualquier fila (equipo, registro de PM, stock, orden de

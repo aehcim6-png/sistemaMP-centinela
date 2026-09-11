@@ -360,19 +360,46 @@ de la plataforma, no de este script; el flujo de "contraseña temporal +
 cambio forzado en el primer login" es lo mismo que ya usa el alta normal de
 un operador nuevo.
 
-**Cómo se probó** (sin credenciales reales de un proyecto disponibles en
-el entorno de desarrollo, no se ejecutó contra infraestructura real): las 4
-funciones puras (`ordenarTablasParaRestaurar`, `construirMapaDeIds`,
-`remapearUserRoles`, `enLotes`) tienen tests unitarios, y además
-`ejecutarRestauracion` (la orquestación completa: recrear cuentas, remapear
-`user_roles`, insertar en orden FK-safe) se probó de punta a punta contra un
-cliente Supabase admin **falso** que imita fielmente `auth.admin.listUsers/
-createUser` y `.from().insert()` — cubre usuario ya existente (no se
-recrea), usuario faltante (se recrea con contraseña temporal y marca de
-MFA), remapeo de `user_roles` por email, orden `ordenes_compra` antes de
-`destrabe`, y un error de insert en una tabla que no corta la restauración
-del resto. 20 tests en `scripts/restaurar-backup.test.ts`, corridos con el
-mismo runner que las Edge Functions (ver sección 13, "Tests Deno").
+**Cómo se probó**: las 4 funciones puras (`ordenarTablasParaRestaurar`,
+`construirMapaDeIds`, `remapearUserRoles`, `enLotes`) tienen tests
+unitarios, y además `ejecutarRestauracion` (la orquestación completa:
+recrear cuentas, remapear `user_roles`, insertar en orden FK-safe) se
+probó de punta a punta contra un cliente Supabase admin **falso** que
+imita fielmente `auth.admin.listUsers/createUser` y `.from().insert()` —
+cubre usuario ya existente (no se recrea), usuario faltante (se recrea con
+contraseña temporal y marca de MFA), remapeo de `user_roles` por email,
+orden `ordenes_compra` antes de `destrabe`, y un error de insert en una
+tabla que no corta la restauración del resto. 20 tests en
+`scripts/restaurar-backup.test.ts`, corridos con el mismo runner que las
+Edge Functions (ver sección 13, "Tests Deno").
+
+**Prueba real contra infraestructura (2026-09-11):** el entorno de
+desarrollo no tiene salida de red hacia `*.supabase.co` (política de la
+plataforma), así que la ejecución real del script la corrió el usuario en
+su propia máquina (Windows, PowerShell + Deno instalado local) contra el
+proyecto real y vacío de sistema-mp2 (`mzboxosxbaqtysuqdohj`, 0 datos
+reales — el único lugar seguro para probar esto de verdad), con un
+respaldo sintético de 2 tablas (`equipos`, `user_roles`) y 2 cuentas: una
+que ya existía en el destino (no debía recrearse) y una ficticia nueva
+(debía recrearse con contraseña temporal y marca de MFA). Resultado,
+verificado con SQL real después de la corrida:
+- La cuenta ya existente **no** se recreó (comportamiento correcto).
+- La cuenta ficticia se creó de verdad en `auth.users`, vía la Admin API
+  real (no simulada), con contraseña temporal y `must_change_password:
+  true`.
+- `user_roles` se remapeó al **ID nuevo real** generado por Supabase al
+  crear la cuenta (no al ID ficticio del respaldo), y con un `id`
+  autoincremental fresco (no el original) — exactamente el comportamiento
+  documentado arriba.
+- `equipos` insertó la fila de prueba sin errores.
+
+Fue la primera ejecución del script contra un proyecto Supabase real, y
+funcionó sin necesitar ningún ajuste al código. Los 3 registros de prueba
+se limpiaron después (vía SQL) y el proyecto volvió a su estado original.
+De paso se confirmó que el nuevo esquema de API keys de Supabase (`secret
+key`, prefijo `sb_secret_...`, reemplazo del `service_role` JWT clásico)
+funciona sin cambios con `createClient()` de `supabase-js` — no hizo falta
+tocar el script para usarlo.
 
 ### 10. Papelera (soft-delete con recuperación)
 
