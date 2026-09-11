@@ -77,6 +77,66 @@ export async function traerTodasLasFilas(supabase: any, tabla: string) {
   return todas;
 }
 
+// Investigación 2026-09-11: el respaldo diario nunca incluía las cuentas de
+// Supabase Auth — solo `public.user_roles` (que dice a qué rol pertenece
+// cada user_id, pero no sirve de nada si el user_id ya no existe). Si el
+// proyecto se perdiera por completo, restaurar las 49 tablas de `public`
+// perfectamente dejaba el sistema con CERO logins funcionando: las cuentas
+// (email, contraseña hasheada, MFA) viven en el esquema `auth`, que esta
+// función nunca tocaba.
+//
+// Esto NO respalda contraseñas ni secretos de MFA — la Admin API de
+// Supabase directamente no los expone (ni siquiera al service_role), así
+// que no son recuperables bajo ningún diseño. Lo que sí permite: en una
+// restauración real, recrear cada cuenta con una contraseña temporal
+// (mismo mecanismo que ya usa crear-operador) y volver a mapear
+// `user_roles` por email en vez de por un user_id que ya no existe. Cada
+// persona debe cambiar su contraseña y volver a activar MFA después — eso
+// es inevitable, no un defecto de este respaldo.
+export type UsuarioAuthRespaldado = {
+  id: string;
+  email: string | null;
+  created_at: string;
+  banned_until: string | null;
+  user_metadata: Record<string, unknown>;
+  mfaFactorTypes: string[];
+};
+
+export function resumirUsuarioAuth(u: {
+  id: string;
+  email?: string | null;
+  created_at: string;
+  banned_until?: string | null;
+  user_metadata?: Record<string, unknown>;
+  factors?: { factor_type: string; status: string }[] | null;
+}): UsuarioAuthRespaldado {
+  return {
+    id: u.id,
+    email: u.email ?? null,
+    created_at: u.created_at,
+    banned_until: u.banned_until ?? null,
+    user_metadata: u.user_metadata ?? {},
+    // Solo el TIPO de los factores VERIFICADOS — no hay secreto de MFA que
+    // extraer (la Admin API no lo expone), esto es únicamente para que la
+    // restauración sepa a quién avisarle "tenías 2FA activo, actívalo de
+    // nuevo" en vez de dejarlo en silencio.
+    mfaFactorTypes: (u.factors || []).filter((f) => f.status === 'verified').map((f) => f.factor_type),
+  };
+}
+
+const PASO_USUARIOS = 200;
+export async function traerTodosLosUsuariosAuth(supabase: any): Promise<UsuarioAuthRespaldado[]> {
+  const todos: UsuarioAuthRespaldado[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: PASO_USUARIOS });
+    if (error) throw new Error(`usuarios_auth: ${error.message}`);
+    const usuarios = data?.users || [];
+    todos.push(...usuarios.map(resumirUsuarioAuth));
+    if (usuarios.length < PASO_USUARIOS) break;
+  }
+  return todos;
+}
+
 if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   try {
@@ -117,8 +177,16 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    let usuariosAuth: UsuarioAuthRespaldado[] = [];
+    try {
+      usuariosAuth = await traerTodosLosUsuariosAuth(supabase);
+      resumen.push(`usuarios_auth: ${usuariosAuth.length} (sin contraseñas ni secretos MFA — no son recuperables)`);
+    } catch (e) {
+      resumen.push(`usuarios_auth: ERROR (${(e as Error).message})`);
+    }
+
     const fecha = new Date().toISOString().slice(0, 10);
-    const payload = JSON.stringify({ fecha, tablas }, null, 0);
+    const payload = JSON.stringify({ fecha, tablas, usuariosAuth }, null, 0);
 
     // Comprime antes de mandar por email — un JSON de ~20-30MB sin comprimir
     // se acerca peligrosamente al límite de adjuntos de Resend (40MB); gzip

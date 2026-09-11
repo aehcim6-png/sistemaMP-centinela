@@ -237,6 +237,41 @@
   permite reconstruir todos los datos en un backend nuevo, siguiendo el mismo mapeo de
   <code>TABLA_REAL</code>.</p>
 
+  <h3>Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</h3>
+  <p>Procedimiento real para el peor caso: el proyecto Supabase ya no existe (borrado, cuenta
+  suspendida, etc.), no solo datos corruptos. Requiere a alguien con acceso técnico (terminal, Deno
+  instalado) — no es un flujo para hacer desde la app.</p>
+  <ol>
+    <li><b>Crear el proyecto Supabase nuevo</b> (mismo plan gratis) y aplicar todas las migraciones
+    de <code>supabase/migrations/</code> en orden. Reconstruye el esquema completo, incluidas las 8
+    tablas que antes solo existían "a mano" en el dashboard (ver <a href="arquitectura.html">Arquitectura</a>,
+    sección 9b).</li>
+    <li><b>Conseguir el respaldo más reciente</b>: el <code>.json.gz</code> que
+    <code>backup-diario</code> manda todos los días por correo.</li>
+    <li><b>Correr el script de restauración</b> desde una terminal con Deno instalado, apuntando al
+    proyecto <b>nuevo</b> (nunca al perdido):
+    <pre>SUPABASE_URL=https://xxxx.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=xxxx \
+deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
+  sistemamp-backup-2026-09-11.json.gz</pre>
+    <code>SUPABASE_URL</code>/<code>SUPABASE_SERVICE_ROLE_KEY</code> son los del proyecto nuevo
+    (Configuración del proyecto → API) — la clave de <code>service_role</code>, no la
+    pública/anon.</li>
+    <li><b>Al terminar, el script imprime</b>: un resumen de filas restauradas por tabla, y la
+    lista de <b>cuentas que tuvo que recrear</b> (sin email coincidente en el proyecto nuevo), cada
+    una con una <b>contraseña temporal</b> — no queda guardada en ningún lado más que esa salida de
+    terminal.</li>
+    <li><b>Avisar a cada persona de la lista, directamente</b> (no un canal grupal): su contraseña
+    temporal (deben cambiarla al entrar, queda forzado) y, si aparece marcada con "tenía 2FA
+    activo", que debe volver a activar la verificación en dos pasos — el script <b>no puede</b>
+    recuperar contraseñas ni secretos de MFA (limitación de la plataforma Supabase, no de este
+    proceso).</li>
+    <li><b>Reconfigurar los secretos de Supabase Vault</b> en el proyecto nuevo
+    (<code>resend_api_key</code>, <code>backup_diario_cron_secret</code>, y los equivalentes para
+    <code>alerta-pm</code>/<code>resumen-semanal</code>) y volver a programar los
+    <code>pg_cron</code> — no viajan en el respaldo de datos.</li>
+  </ol>
+
   <h2>6. Reporte de fallas por WhatsApp o correo (canal de entrada)</h2>
   <p>Desde agosto 2026 existe un canal adicional para registrar correctivos sin entrar al
   sistema: un técnico le escribe a un número de WhatsApp Business (o manda un correo) y el

@@ -24,14 +24,15 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: "2.2.7"
-      # Tests de las Edge Functions (corren en el runtime de Deno, no en
-      # Node — por eso quedan fuera de `npm test`). deno.lock ya viene
-      # commiteado, así que esto no golpea la red salvo que el lockfile
-      # quede desactualizado. supabase/functions/ recorre todos los
-      # index.test.ts del directorio, incluido _shared/.
+      # Tests de las Edge Functions y de scripts/ (corren en el runtime de
+      # Deno, no en Node — por eso quedan fuera de `npm test`). deno.lock ya
+      # viene commiteado, así que esto no golpea la red salvo que el
+      # lockfile quede desactualizado. supabase/functions/ recorre todos los
+      # index.test.ts del directorio, incluido _shared/; scripts/ cubre
+      # restaurar-backup.ts (script manual de recuperación ante desastre).
       - run: >
           deno test --allow-net --allow-env --no-check --config deno.json
-          supabase/functions/
+          supabase/functions/ scripts/
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
       - if: always()

@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "jsr:@std/assert@1";
-import { TABLAS, PASO, traerTodasLasFilas } from "./index.ts";
+import { TABLAS, PASO, traerTodasLasFilas, resumirUsuarioAuth, traerTodosLosUsuariosAuth } from "./index.ts";
 
 // ---- TABLAS ----
 // Lista manual a propósito (mismo criterio que TABLA_REAL en
@@ -107,4 +107,82 @@ Deno.test("traerTodasLasFilas: un error de Postgrest se propaga con el nombre de
   assert(error);
   assert(error!.message.includes("user_roles"));
   assert(error!.message.includes("permiso denegado"));
+});
+
+// ---- resumirUsuarioAuth / traerTodosLosUsuariosAuth ----
+// Investigación 2026-09-11: el respaldo diario nunca incluía las cuentas de
+// Supabase Auth (solo user_roles) — sin esto, restaurar el proyecto entero
+// dejaba el sistema sin ningún login funcionando.
+
+Deno.test("resumirUsuarioAuth: nunca incluye contraseña ni secreto de MFA (la Admin API no los expone)", () => {
+  const r = resumirUsuarioAuth({
+    id: "u1",
+    email: "admin@test.com",
+    created_at: "2026-01-01T00:00:00Z",
+    banned_until: null,
+    user_metadata: { nombre: "Admin" },
+    factors: [{ factor_type: "totp", status: "verified" }],
+  });
+  assertEquals(r.id, "u1");
+  assertEquals(r.email, "admin@test.com");
+  assertEquals(r.mfaFactorTypes, ["totp"]);
+  assertEquals(Object.keys(r).includes("password" as never), false);
+});
+
+Deno.test("resumirUsuarioAuth: solo cuenta factores VERIFICADOS, no los pendientes de confirmar", () => {
+  const r = resumirUsuarioAuth({
+    id: "u2",
+    email: "op@test.com",
+    created_at: "2026-01-01T00:00:00Z",
+    factors: [
+      { factor_type: "totp", status: "unverified" },
+      { factor_type: "totp", status: "verified" },
+    ],
+  });
+  assertEquals(r.mfaFactorTypes, ["totp"]);
+});
+
+Deno.test("resumirUsuarioAuth: sin factores da arreglo vacío, no null/undefined", () => {
+  const r = resumirUsuarioAuth({ id: "u3", email: "x@test.com", created_at: "2026-01-01T00:00:00Z" });
+  assertEquals(r.mfaFactorTypes, []);
+  assertEquals(r.user_metadata, {});
+});
+
+function fakeSupabaseAuth(usuarios: { id: string; email: string }[]) {
+  return {
+    auth: {
+      admin: {
+        listUsers({ page, perPage }: { page: number; perPage: number }) {
+          const desde = (page - 1) * perPage;
+          const pagina = usuarios.slice(desde, desde + perPage).map((u) => ({ ...u, created_at: "2026-01-01T00:00:00Z" }));
+          return Promise.resolve({ data: { users: pagina }, error: null });
+        },
+      },
+    },
+  };
+}
+
+Deno.test("traerTodosLosUsuariosAuth: una sola página cuando hay pocos usuarios", async () => {
+  const supabase = fakeSupabaseAuth([{ id: "u1", email: "a@test.com" }, { id: "u2", email: "b@test.com" }]);
+  const usuarios = await traerTodosLosUsuariosAuth(supabase);
+  assertEquals(usuarios.length, 2);
+  assertEquals(usuarios[0].id, "u1");
+});
+
+Deno.test("traerTodosLosUsuariosAuth: nunca pasa de 50 páginas (tope defensivo, mismo criterio que buscarUserIdPorEmail)", async () => {
+  let llamadas = 0;
+  const supabase = {
+    auth: {
+      admin: {
+        listUsers() {
+          llamadas++;
+          const paginaLlena = Array.from({ length: 200 }, (_, i) => ({ id: `u${i}`, email: `u${i}@test.com`, created_at: "2026-01-01T00:00:00Z" }));
+          return Promise.resolve({ data: { users: paginaLlena }, error: null });
+        },
+      },
+    },
+  };
+  const usuarios = await traerTodosLosUsuariosAuth(supabase);
+  assertEquals(llamadas, 50);
+  assertEquals(usuarios.length, 50 * 200);
 });

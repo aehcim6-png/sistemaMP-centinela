@@ -248,6 +248,81 @@
     cuidado de sumarse acá también.
   </div>
 
+  <h3>9b. ¿El backup diario es realmente restaurable? (investigación y fix, 2026-09-11)</h3>
+  <p>Pregunta real que nunca se había puesto a prueba: si el proyecto Supabase se pierde por
+  completo (no una corrupción de datos, sino el proyecto entero: borrado, cuenta suspendida, etc.),
+  ¿el respaldo diario de la sección anterior alcanza para levantar el sistema de nuevo? La
+  respuesta, antes de esta investigación, era <b>no</b> — por dos motivos concretos, ya
+  corregidos:</p>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>1. Ocho tablas nunca tuvieron <code>CREATE TABLE</code> en ninguna migración.</b>
+    <code>user_roles</code>, <code>kv</code>, <code>tren_rodaje</code>,
+    <code>tren_rodaje_mediciones</code>, <code>historial_componentes</code>,
+    <code>historial_neumaticos</code>, <code>movimientos_stock_backup_lub</code> y
+    <code>stock_filtros_backup_csv</code> se crearon a mano en el dashboard de Supabase en algún
+    momento — el respaldo diario sí las incluye, pero reconstruir el <b>esquema completo</b> desde
+    el repo en un proyecto nuevo habría fallado silenciosamente al llegar a cualquiera de estas
+    ocho, porque el repo no sabía que existían. Corregido en
+    <code>supabase/migrations/20260911120000_formaliza_tablas_creadas_a_mano.sql</code>:
+    <code>CREATE TABLE IF NOT EXISTS</code> + políticas RLS con guardas <code>IF NOT EXISTS</code>
+    para cada una, copiado 1:1 del esquema real — en los proyectos reales (Besalco, sistema-mp2),
+    donde ya existen, esta migración es un no-op comprobado (conteo de filas idéntico
+    antes/después); solo importa para reproducir el esquema completo en un proyecto nuevo desde
+    cero.
+  </div>
+  <div class="callout" style="border-left-color:var(--amber)">
+    <b>2. El respaldo nunca incluía las cuentas de Supabase Auth.</b> <code>backup-diario</code>
+    solo junta tablas de <code>public</code> — nunca tocaba <code>auth.users</code> (emails,
+    contraseñas hasheadas, factores MFA). Restaurar las 49 tablas de <code>public</code> a la
+    perfección en un proyecto nuevo dejaba el sistema con <b>cero logins funcionando</b>:
+    <code>user_roles.user_id</code> apuntaría a IDs de Auth que ya no existen en ningún lado.
+    Corregido: <code>backup-diario</code> ahora también junta <code>usuariosAuth</code> (vía
+    <code>supabase.auth.admin.listUsers</code>, paginado de a 200) — por cada cuenta guarda
+    <code>id</code>, <code>email</code>, <code>created_at</code>, <code>banned_until</code>,
+    <code>user_metadata</code>, y <b>solo el tipo</b> de los factores MFA ya verificados (nunca el
+    secreto — la Admin API de Supabase no lo expone a nadie, ni siquiera a <code>service_role</code>;
+    información no recuperable bajo ningún diseño posible).
+  </div>
+  <p><b>El script de restauración — <code>scripts/restaurar-backup.ts</code>:</b> manual, NO es una
+  Edge Function (una "restaurar" como endpoint HTTP desplegado sería en sí misma un riesgo de
+  seguridad). Se corre a mano con Deno instalado aparte, apuntando — vía
+  <code>SUPABASE_URL</code>/<code>SUPABASE_SERVICE_ROLE_KEY</code> — al proyecto Supabase
+  <b>nuevo</b> que reemplaza al perdido:</p>
+  <pre>SUPABASE_URL=https://xxxx.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=xxxx \
+deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
+  sistemamp-backup-2026-09-11.json.gz</pre>
+  <p>Qué hace, en orden:</p>
+  <ol>
+    <li>Lee el <code>.json.gz</code> (o <code>.json</code> ya descomprimido, detecta solo por
+    extensión).</li>
+    <li>Lista las cuentas de Auth que ya existen en el destino y recrea (por <code>email</code> —
+    nunca por el <code>user_id</code> viejo, que no sobrevive) las que falten, con contraseña
+    temporal (mismo generador que <code>crear-operador</code>) y
+    <code>user_metadata.must_change_password: true</code>.</li>
+    <li>Construye el mapeo <code>user_id</code> viejo → nuevo por email, y remapea
+    <code>user_roles</code> antes de insertarla — descarta el <code>id</code> autoincremental
+    original (nada más lo referencia, solo <code>user_roles.user_id</code>).</li>
+    <li>Inserta el resto de las 49 tablas en lotes de 500, en un orden que respeta la <b>única</b>
+    foreign key real de todo el esquema (<code>destrabe.idOrdenCompra</code> →
+    <code>ordenes_compra.id</code> — todo lo demás usa referencias sueltas por texto).</li>
+    <li>Imprime un resumen por tabla y las contraseñas temporales para avisar directamente a cada
+    persona recreada (no queda en ningún log) — quienes tenían MFA activo quedan marcados para
+    que se les avise que deben volver a activarlo.</li>
+  </ol>
+  <p><b>Qué NO puede recuperar, y por qué:</b> contraseñas ni secretos de MFA — la Admin API de
+  Supabase directamente no los expone a nadie. Es una limitación de la plataforma, no de este
+  script.</p>
+  <p><b>Cómo se probó</b> (sin credenciales reales de un proyecto disponibles en el entorno de
+  desarrollo, no se ejecutó contra infraestructura real): las 4 funciones puras
+  (<code>ordenarTablasParaRestaurar</code>, <code>construirMapaDeIds</code>,
+  <code>remapearUserRoles</code>, <code>enLotes</code>) tienen tests unitarios, y
+  <code>ejecutarRestauracion</code> (la orquestación completa) se probó de punta a punta contra un
+  cliente Supabase admin <b>falso</b> que imita <code>auth.admin.listUsers/createUser</code> y
+  <code>.from().insert()</code> — usuario ya existente, usuario faltante recreado, remapeo de
+  <code>user_roles</code>, orden FK-safe, y un error de insert que no corta el resto. 20 tests en
+  <code>scripts/restaurar-backup.test.ts</code>.</p>
+
   <h3>10. Papelera (soft-delete con recuperación)</h3>
   <p>Nada se borra de golpe. Al eliminar cualquier fila (equipo, registro de PM, stock, orden de
   trabajo, etc.), el sistema primero la mueve a una tabla <code>papelera</code> — con qué
@@ -363,7 +438,7 @@
     ejecuta el archivo directamente (el caso real en producción/Supabase Edge Runtime),
     <code>false</code> cuando otro módulo lo importa.
   </div>
-  <p>Qué cubre cada uno (115 tests en total):</p>
+  <p>Qué cubre cada uno (140 tests en total):</p>
   <ul>
     <li><b>crear-operador</b>: <code>randomPassword</code>/<code>randomIndex</code> (política de
     clave real vía <code>crypto.getRandomValues</code>, no <code>Math.random</code>) y
@@ -390,16 +465,21 @@
     <li><b>resumen-semanal</b>: <code>pctDelta</code> (sin dividir por cero cuando la semana
     anterior fue 0), <code>moneda</code>, <code>iso</code>.</li>
     <li><b>backup-diario</b>: <code>traerTodasLasFilas</code> probada con un cliente Supabase falso
-    (verifica la paginación real de a 500 filas, no solo que "el código compile"), y guardarraíles
+    (verifica la paginación real de a 500 filas, no solo que "el código compile"), guardarraíles
     sobre <code>TABLAS</code> (sin duplicados, incluye las 7 tablas que la auditoría 2026-09-07
-    encontró faltando).</li>
+    encontró faltando), y — sumado 2026-09-11 tras la investigación de restaurabilidad (sección
+    9b) — <code>resumirUsuarioAuth</code>/<code>traerTodosLosUsuariosAuth</code> (nunca incluyen
+    contraseña ni secreto MFA, solo cuentan factores verificados).</li>
     <li><b>leer-pauta-pm/leer-informe-correctivo/leer-chequeo-neumaticos</b>: solo la validación de
     <code>imagenBase64</code> (falta/tamaño) — son wrappers finos sobre Gemini, el grueso de su
     comportamiento ya lo cubre el flujo de OCR en <code>tests/e2e/ocr.spec.js</code> (mockeado).</li>
+    <li><b>scripts/restaurar-backup.ts</b> (2026-09-11, ver sección 9b): las 4 funciones puras de
+    orden/remapeo/loteo, más <code>ejecutarRestauracion</code> (el flujo completo) contra un
+    cliente Supabase admin falso — 20 tests.</li>
   </ul>
   <p>Se corren con:</p>
   <pre>deno test --allow-net --allow-env --no-check --config deno.json \
-  supabase/functions/</pre>
+  supabase/functions/ scripts/</pre>
   <p>Para correrlos localmente hace falta tener Deno instalado aparte — <b>no</b> se agregó como
   dependencia de este proyecto npm (el paquete <code>deno-bin</code>, la única forma práctica de
   obtener un binario de Deno vía npm, trae 2 vulnerabilidades HIGH transitivas por
