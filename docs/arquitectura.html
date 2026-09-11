@@ -755,6 +755,46 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   texto tipo "Sin dato aún · falta cargar el valor de compra") solo en el estado vacío — el estado
   con dato real no cambió.</p>
 
+  <h3>21. Reordenamiento del Dashboard en 3 secciones numeradas (2026-09-11)</h3>
+  <p>Origen real: después de las 3 pasadas de "aviso En vivo"/textos claros de arriba, el usuario
+  insistió en que el problema no era falta de claridad puntual sino desorden general — "es difícil de
+  entender y está desordenado" — y mandó dos referencias visuales mostrando secciones numeradas con
+  título real, tarjetas con jerarquía de tamaño, y un mapa de calor real por equipo en vez de solo
+  contadores agregados.</p>
+  <p><b>Diagnóstico concreto, no solo "hay mucho":</b> revisando el propio código aparecieron dos
+  colisiones de nombre reales en la misma pantalla — "Cumplimiento PM" se usaba para dos cálculos
+  distintos (% de equipos Al Día ahora, dentro del Índice de Salud, vs. % de PMs ejecutados a tiempo
+  este mes, en la grilla de KPIs) y "Backlog" también (cantidad de OTs pendientes vs. semanas de
+  atraso) — mismo nombre, cálculos y unidades distintas, en la misma pantalla.</p>
+  <p><b>Cambios</b> (<code>index.html</code>, <code>modules/renders/dash.js</code>), sin tocar ningún
+  cálculo existente — puramente reordenamiento/etiquetado: clases CSS nuevas
+  <code>.dash-sec</code>/<code>.dash-sec-head</code>/<code>.dash-sec-num</code>/
+  <code>.dash-sec-title</code>/<code>.dash-sec-sub</code> para encabezados de sección reales (número
+  en círculo, título, bajada, línea divisoria); el Dashboard se reagrupa en 3 secciones narrativas vía
+  un helper interno <code>_dashSeccion()</code>: <b>1) Equipos que Requieren Atención Ahora</b> (tabla
+  de urgentes + Próximos PMs), <b>2) Salud General de la Flota</b> (Índice de Salud, Disponibilidad,
+  Mapa de Salud, Equipos con Salud Baja, KPIs de Costos y Stock), <b>3) Tendencias y Análisis</b> (los
+  4 gráficos existentes) — cada bloque interno sigue siendo el mismo HTML/cálculo de antes, con los
+  mismos toggles de <code>dashBloques</code>, el helper solo envuelve.</p>
+  <p>La fila de "mostrar/ocultar secciones" (confundible con pestañas reales, por estar pegada justo
+  debajo de la barra de navegación) se hizo notoriamente más chica/apagada con el prefijo "Mostrar:".
+  "Mapa de Salud de la Flota" pasó de 4 numeritos del mismo tamaño a 3 tarjetas grandes con fondo de
+  color (Crítica/Advertencia/Salud buena) más una grilla nueva de un cuadrado por equipo (coloreado
+  por banda, clic lleva a su ficha), con datos 100% reales de <code>equiposConSaludFlota</code>
+  (logic.js). Las dos colisiones de nombre se resolvieron renombrando solo en pantalla: "Cumplimiento
+  PM" del Índice de Salud → "Equipos al Día" (el dato <code>cumplPM</code> no cambia de nombre en
+  logic.js porque también lo usa <code>kpi.js</code>); el conteo de OTs pendientes → "OTs Pendientes",
+  dejando "Backlog" solo para la tarjeta de semanas de atraso.</p>
+  <div class="callout">
+    <b>Deliberadamente NO se copió</b> de las referencias: la columna "Alerta" con motivo específico
+    por equipo (Aceite Crítico, Vibración Alta) — el sistema no calcula ese motivo puntual hoy, y
+    agregarlo con datos inventados sería peor que no tenerlo. Tampoco un feed de "Actividad reciente"
+    — implicaría un log que no existe todavía en el sistema.
+  </div>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, 20 equipos sintéticos con estados
+  variados): las 3 secciones se ven con su número, título y línea divisoria; el mapa de calor pinta
+  un cuadrado por equipo; los nombres ya no chocan entre sí.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

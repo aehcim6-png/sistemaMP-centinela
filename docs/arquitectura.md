@@ -939,6 +939,68 @@ aún". Se agrandó y aclaró ese texto (10px, `var(--tx2)` en vez de
 `var(--tx3)`, texto tipo "Sin dato aún · falta cargar el valor de compra")
 solo en el estado vacío — el estado con dato real no cambió.
 
+### 21. Reordenamiento del Dashboard en 3 secciones numeradas (2026-09-11)
+
+Origen real: después de las 3 pasadas de "aviso En vivo"/textos claros de
+arriba, el usuario insistió en que el problema no era falta de claridad
+puntual sino desorden general — "es difícil de entender y está
+desordenado" — y mandó dos referencias visuales (capturas de dashboards de
+otros sistemas) mostrando secciones numeradas con título real, tarjetas con
+jerarquía de tamaño, y un mapa de calor real por equipo en vez de solo
+contadores agregados.
+
+**Diagnóstico concreto, no solo "hay mucho"**: revisando el propio código
+aparecieron dos colisiones de nombre reales en la misma pantalla —
+"Cumplimiento PM" se usaba para dos cálculos distintos (% de equipos Al Día
+ahora, dentro del Índice de Salud, vs. % de PMs ejecutados a tiempo este
+mes, en la grilla de KPIs) y "Backlog" también (cantidad de OTs pendientes
+en la grilla de KPIs vs. semanas de atraso en Costos y Stock) — mismo
+nombre, cálculos y unidades distintas, en la misma pantalla.
+
+**Cambios** (`index.html`, `modules/renders/dash.js`), sin tocar ningún
+cálculo existente — puramente reordenamiento/etiquetado:
+- Clases CSS nuevas `.dash-sec`/`.dash-sec-head`/`.dash-sec-num`/
+  `.dash-sec-title`/`.dash-sec-sub` (`index.html`) para encabezados de
+  sección reales: número en círculo, título, bajada explicativa, línea
+  divisoria — antes no existía ningún separador visual entre bloques
+  temáticamente distintos, solo cajas grises apiladas sin fin.
+- El Dashboard se reagrupa en 3 secciones narrativas vía un helper interno
+  `_dashSeccion()`: **1) Equipos que Requieren Atención Ahora** (tabla de
+  urgentes + Próximos PMs), **2) Salud General de la Flota** (Índice de
+  Salud, Disponibilidad, Mapa de Salud, Equipos con Salud Baja, KPIs de
+  Costos y Stock), **3) Tendencias y Análisis** (los 4 gráficos existentes).
+  Cada bloque interno sigue siendo exactamente el mismo HTML/cálculo de
+  antes, con los mismos toggles de `dashBloques` — el helper solo envuelve.
+- La fila de botones "mostrar/ocultar secciones" (que el usuario confundía
+  con pestañas de navegación real, por estar pegada justo debajo de la
+  barra de pestañas) se hizo notoriamente más chica/apagada y con el
+  prefijo "Mostrar:" para separarla visualmente de la navegación real.
+- "Mapa de Salud de la Flota": de 4 numeritos del mismo tamaño pasó a 3
+  tarjetas grandes con fondo de color (Crítica/Advertencia/Salud buena,
+  mismos umbrales de siempre) más una grilla nueva de un cuadrado por
+  equipo (coloreado por banda, clic lleva a su ficha en Buscar) — mismo
+  patrón visual "mapa de calor" de las referencias que mandó el usuario,
+  con datos 100% reales de `equiposConSaludFlota` (logic.js), sin inventar
+  ninguna dimensión nueva.
+- Las dos colisiones de nombre: la tarjeta de "Cumplimiento PM" dentro del
+  Índice de Salud se renombra (solo en pantalla, el dato `cumplPM` de
+  logic.js no cambia de nombre porque también lo usa `kpi.js`) a "Equipos
+  al Día"; la tarjeta de conteo de OTs pendientes pasa de "Backlog" a "OTs
+  Pendientes", dejando "Backlog" solo para la de semanas de atraso.
+
+**Deliberadamente NO se copió** de las referencias: la columna "Alerta" con
+motivo específico por equipo (Aceite Crítico, Vibración Alta, etc.) — hoy
+el sistema no calcula un motivo puntual por equipo urgente, solo cuánto le
+queda para su PM, y agregar esa columna con datos inventados habría sido
+peor que no tenerla. Tampoco se agregó un feed de "Actividad reciente" —
+implicaría un log de actividad que no existe todavía en ningún lado del
+sistema.
+
+Verificado visualmente en navegador (Playwright ad-hoc, 20 equipos
+sintéticos con estados variados): las 3 secciones se ven con su número,
+título y línea divisoria; el mapa de calor pinta un cuadrado por equipo; los
+nombres ya no chocan entre sí.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

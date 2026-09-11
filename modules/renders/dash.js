@@ -501,10 +501,16 @@ export function renderDash(){
     '</div>'+
 
     // ═══ FILTRO DE BLOQUES — mostrar/ocultar secciones del tablero ═══
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">'+
+    // Estilo deliberadamente MÁS chico/apagado que las pestañas reales de
+    // arriba (2026-09-11, pedido del usuario: "esto parece navegación real,
+    // no casilleros de mostrar/ocultar") — antes usaba el mismo tamaño btn-s
+    // que cualquier botón de acción, fácil de confundir con la barra de
+    // pestañas que está justo encima.
+    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;font-size:10px">'+
+    '<span style="color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">Mostrar:</span>'+
     [['salud','🩺 Salud de Flota'],['disp','📊 Disponibilidad'],['graficos','📈 Gráficos'],['urgentes','🔴 Equipos Urgentes'],['costos','💰 Costos y Stock']].map(function(b){
       var on=dashBloques[b[0]]!==false;
-      return '<button class="btn-s '+(on?'':'btn-o')+'" style="'+(on?'':'opacity:.55')+'" onclick="dashToggleBloque(\''+b[0]+'\')" title="Mostrar/ocultar este bloque del tablero">'+b[1]+'</button>';
+      return '<button style="font-size:10px;padding:2px 7px;border-radius:5px;background:none;cursor:pointer;border:1px solid var(--bd);color:'+(on?'var(--tx2)':'var(--tx3)')+';'+(on?'':'opacity:.55')+'" onclick="dashToggleBloque(\''+b[0]+'\')" title="Mostrar/ocultar esta sección del tablero">'+b[1]+'</button>';
     }).join('')+
     '</div>';
 
@@ -524,8 +530,15 @@ export function renderDash(){
     '<div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">'+
     salud.detalle.map(function(c){
       var col=c.valor==null?'var(--tx3)':c.valor>=85?'var(--ok)':c.valor>=70?'var(--ac)':'var(--danger)';
+      // Solo para esta etiqueta chica (2026-09-11): 'Cumplimiento PM' acá es
+      // % de equipos Al Día AHORA — un nombre distinto de la tarjeta
+      // "Cumplimiento PM" de más abajo (% de PMs ejecutados a tiempo este
+      // mes), que es un cálculo real distinto. Mismo dato subyacente
+      // (cumplPM, logic.js) sin tocar — nombre de PANTALLA nada más, para
+      // que las dos tarjetas no choquen visualmente con el mismo título.
+      var nombreMostrado=c.nombre==='Cumplimiento PM'?'Equipos al Día':c.nombre;
       return '<div style="background:var(--bg4);border-radius:8px;padding:8px 14px;text-align:center;min-width:96px">'+
-        '<div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">'+c.nombre+'</div>'+
+        '<div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">'+nombreMostrado+'</div>'+
         '<div style="font-size:17px;font-weight:700;color:'+col+'">'+(c.valor==null?'—':c.valor+'%')+'</div></div>';
     }).join('')+
     '</div></div>'+
@@ -579,8 +592,8 @@ export function renderDash(){
     '<div style="font-size:22px;font-weight:800;color:var(--ac);line-height:1.2">$'+fn(Math.round(costoTotal/1000))+'K</div>'+
     '<div style="font-size:9px;color:var(--tx3)">HH + repuestos consumidos</div></div>'+
 
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(otPend>0?'var(--danger)':'var(--ok)')+'">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Backlog'+badgeEnVivo+'</div>'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;border-left:4px solid '+(otPend>0?'var(--danger)':'var(--ok)')+'" title="Cantidad de OTs pendientes — distinto de la tarjeta Backlog de Costos y Stock más abajo, que mide semanas de atraso (HH pendientes ÷ capacidad semanal), no cantidad de OTs.">'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">OTs Pendientes'+badgeEnVivo+'</div>'+
     '<div style="font-size:28px;font-weight:800;color:'+(otPend>0?'var(--danger)':'var(--ok)')+';line-height:1.2">'+otPend+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+otEjec+' en ejec (ahora) · '+otCerr+' cerradas en '+dashLabel+'</div></div>'+
 
@@ -830,14 +843,31 @@ export function renderDash(){
       var v=r.score.valor;
       if(v==null)cNoneMapa++;else if(v>=80)cOkMapa++;else if(v>=55)cWarnMapa++;else cCritMapa++;
     });
+    // Tarjetas grandes por banda (2026-09-11, pedido del usuario, referencia
+    // visual que mandó) en vez de 4 numeritos chicos del mismo tamaño — acá
+    // SÍ importa que "Crítica" pese más a la vista que "Salud buena", así que
+    // usan fondo de color lleno (no solo un número de color sobre gris) para
+    // que el ojo capte la proporción sin tener que leer los números.
     mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">🗺️ Mapa de Salud de la Flota'+badgeEnVivo+'</div>'+
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0">'+
-      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--ok)">'+cOkMapa+'</div><div style="font-size:10px;color:var(--tx3)">🟢 ≥80%</div></div>'+
-      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--ac)">'+cWarnMapa+'</div><div style="font-size:10px;color:var(--tx3)">🟡 55-79%</div></div>'+
-      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--danger)">'+cCritMapa+'</div><div style="font-size:10px;color:var(--tx3)">🔴 &lt;55%</div></div>'+
-      '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--tx3)">'+cNoneMapa+'</div><div style="font-size:10px;color:var(--tx3)">⚪ sin datos</div></div>'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px">'+
+      '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--danger) 16%,var(--bg3));border:1px solid color-mix(in srgb,var(--danger) 40%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--danger)">'+cCritMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🔴 Crítica</div><div style="font-size:9px;color:var(--tx3)">&lt;55% · requieren atención</div></div>'+
+      '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--ac) 14%,var(--bg3));border:1px solid color-mix(in srgb,var(--ac) 35%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--ac)">'+cWarnMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🟡 Advertencia</div><div style="font-size:9px;color:var(--tx3)">55-79% · a revisar</div></div>'+
+      '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--ok) 12%,var(--bg3));border:1px solid color-mix(in srgb,var(--ok) 30%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--ok)">'+cOkMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🟢 Salud buena</div><div style="font-size:9px;color:var(--tx3)">≥80% · dentro de parámetros</div></div>'+
+      (cNoneMapa?'<div style="flex:none;min-width:70px;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--tx3)">'+cNoneMapa+'</div><div style="font-size:9px;color:var(--tx3)">⚪ sin datos</div></div>':'')+
       '</div>'+
-      '<button class="btn-s btn-o" style="width:100%" onclick="go(\'torre\')">🎛️ Ver Torre de Control — detalle por equipo →</button>'+
+      // Grilla — un cuadrado por equipo, coloreado por banda, con el sigla+score
+      // al pasar el mouse. Mismos colores/umbrales que las tarjetas de arriba y
+      // que la Torre de Control (equiposConSaludFlota, logic.js) — un solo
+      // lugar decide qué es "crítico", acá solo se pinta.
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(20px,1fr));gap:4px" title="Un cuadrado por equipo — pasa el mouse para ver cuál es cuál">'+
+      equiposConSaludTodos.map(function(r){
+        var v=r.score.valor;
+        var col=v==null?'var(--bd)':v>=80?'var(--ok)':v>=55?'var(--ac)':'var(--danger)';
+        var tip=escapeHtml(r.sigla)+': '+(v==null?'sin dato':v+'%');
+        return '<div style="aspect-ratio:1;border-radius:3px;background:'+col+';cursor:pointer" onmouseenter="vizTip(event,\''+tip+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)"></div>';
+      }).join('')+
+      '</div>'+
+      '<button class="btn-s btn-o" style="width:100%;margin-top:14px" onclick="go(\'torre\')">🎛️ Ver Torre de Control — detalle por equipo →</button>'+
       '</div>';
   }
   var equiposConSalud=equiposConSaludTodos
@@ -883,7 +913,25 @@ export function renderDash(){
   var wrapTrend='<div style="display:'+(dashBloques.graficos?'':'none')+'">'+trendBlock+'</div>';
   var wrapMapa=mapaSaludBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+mapaSaludBlock+'</div>':'';
   var wrapSaludBaja=saludBajaBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+saludBajaBlock+'</div>':'';
-  dashEl.innerHTML=htmlChrome+htmlSalud+htmlDisp+htmlUrgentes+wrapProx+wrapSaludBaja+htmlCostos+htmlGraficos+wrapMapa+wrapTrend;
+  // Secciones numeradas (2026-09-11, pedido del usuario: "está desordenado,
+  // difícil de entender", mostró referencias visuales) — antes era un río
+  // continuo de bloques sin ningún título ni separador entre temas (salud,
+  // costos, gráficos quedaban visualmente pegados). Agrupar en 3 secciones
+  // con encabezado real (número + título + bajada) no cambia NINGÚN cálculo
+  // ni oculta nada que antes se viera — cada bloque interno sigue siendo el
+  // mismo, con los mismos toggles de dashBloques; esto es puramente el
+  // envoltorio que le da una historia legible: 1) qué requiere acción ahora,
+  // 2) cómo está la flota en general, 3) tendencias para planificar.
+  function _dashSeccion(num,titulo,sub,contenido){
+    return '<div class="dash-sec">'+
+      '<div class="dash-sec-head"><span class="dash-sec-num">'+num+'</span><div><div class="dash-sec-title">'+titulo+'</div><div class="dash-sec-sub">'+sub+'</div></div></div>'+
+      contenido+
+      '</div>';
+  }
+  var sec1=_dashSeccion(1,'⚡ Equipos que Requieren Atención Ahora','Prioriza estas intervenciones para evitar fallas y downtime.',htmlUrgentes+wrapProx);
+  var sec2=_dashSeccion(2,'🩺 Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
+  var sec3=_dashSeccion(3,'📈 Tendencias y Análisis','Datos que impulsan decisiones predictivas y mejora continua.',htmlGraficos+wrapTrend);
+  dashEl.innerHTML=htmlChrome+sec1+sec2+sec3;
   if(typeof _animGauges==='function')_animGauges('s-dash');
 
   renderHeader();
