@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal } from '../logic.js';
+import { indiceSaludFlota, registrarSnapshotSalud, tendenciaSaludSemanal, peoresDimensionesSalud, recomendacionDimensionSalud } from '../logic.js';
 
 describe('indiceSaludFlota', () => {
   it('devuelve null si no hay ninguna dimensión con dato', () => {
@@ -90,5 +90,53 @@ describe('tendenciaSaludSemanal', () => {
     const historico = { '2026-07-31': 90, '2026-08-07': 82 };
     const r = tendenciaSaludSemanal(historico, '2026-08-07');
     expect(r.delta).toBe(-8);
+  });
+});
+
+describe('peoresDimensionesSalud', () => {
+  const detalle = [
+    { nombre: 'Componentes', valor: 100 },
+    { nombre: 'Neumáticos', valor: 80 },
+    { nombre: 'Aceite', valor: 16.7 },
+    { nombre: 'Confiabilidad', valor: 0.2 },
+  ];
+
+  it('devuelve las 2 peores por defecto, ordenadas de peor a mejor', () => {
+    const r = peoresDimensionesSalud(detalle, 2);
+    expect(r.map(c => c.nombre)).toEqual(['Confiabilidad', 'Aceite']);
+  });
+
+  it('respeta el máximo pedido', () => {
+    const r = peoresDimensionesSalud(detalle, 1);
+    expect(r).toHaveLength(1);
+    expect(r[0].nombre).toBe('Confiabilidad');
+  });
+
+  it('ignora las dimensiones sin dato (null)', () => {
+    const conNulls = [{ nombre: 'A', valor: null }, { nombre: 'B', valor: 50 }];
+    const r = peoresDimensionesSalud(conNulls, 2);
+    expect(r).toEqual([{ nombre: 'B', valor: 50 }]);
+  });
+
+  it('array vacío si ninguna dimensión tiene dato', () => {
+    expect(peoresDimensionesSalud([{ nombre: 'A', valor: null }], 2)).toEqual([]);
+  });
+
+  it('no muta el arreglo original (pura)', () => {
+    const original = detalle.map(c => ({ ...c }));
+    peoresDimensionesSalud(detalle, 2);
+    expect(detalle).toEqual(original);
+  });
+});
+
+describe('recomendacionDimensionSalud', () => {
+  it('devuelve un texto para cada una de las 4 dimensiones reales', () => {
+    ['Componentes', 'Neumáticos', 'Aceite', 'Confiabilidad'].forEach(nombre => {
+      expect(typeof recomendacionDimensionSalud(nombre)).toBe('string');
+    });
+  });
+
+  it('devuelve null para un nombre que no es una dimensión conocida', () => {
+    expect(recomendacionDimensionSalud('Inventada')).toBeNull();
   });
 });

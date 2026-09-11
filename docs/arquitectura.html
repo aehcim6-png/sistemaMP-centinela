@@ -795,6 +795,38 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   variados): las 3 secciones se ven con su número, título y línea divisoria; el mapa de calor pinta
   un cuadrado por equipo; los nombres ya no chocan entre sí.</p>
 
+  <h3>22. Drawer de Torre de Control: problema principal, recomendación y contexto (2026-09-11)</h3>
+  <p>Origen real: el usuario mostró el drawer de detalle de un equipo (CN-9507, 49.2%, Aceite
+  16.7%/Confiabilidad 0.2%) y pidió, con una maqueta de texto detallada, que el drawer diga "por qué"
+  está mal, "qué hacer", y agregue más contexto y botones de acción — no solo el número y el desglose
+  crudo que ya mostraba.</p>
+  <p><b>Se construyó con datos 100% reales, nada inventado:</b> en <code>logic.js</code>,
+  <code>peoresDimensionesSalud(detalle, max)</code> (pura, testeada) da las 1-2 dimensiones más bajas
+  del Score de Salud, mismo criterio de "con dato" que la ya existente <code>motivoPrincipalSalud</code>
+  (que da solo la peor). <code>recomendacionDimensionSalud(nombre)</code> es texto FIJO por dimensión
+  (una de las 4: Componentes/Neumáticos/Aceite/Confiabilidad) — dice DÓNDE mirar, nunca inventa una
+  causa raíz que el sistema no puede conocer (no hay telemetría/sensores). <code>equiposConSaludFlota</code>
+  se extiende para devolver también <code>horomActual</code>/<code>unidad</code> (campo aditivo).</p>
+  <p>En <code>torre.js</code> (<code>_torreAbrirDrawer</code>): <b>Problema principal</b> solo se
+  muestra si el equipo está en warn/crit (nunca en uno sano); <b>Qué revisar</b> lista la
+  recomendación de cada dimensión débil; <b>Contexto</b> muestra el horómetro actual real y la
+  comparación contra el promedio de la flota (calculado sobre los equipos ya cargados en el drawer);
+  la <b>Tendencia 7 días</b> mejora su wording (Mejorando/Bajando/Estable); y un botón nuevo
+  <b>"Crear Orden de Trabajo"</b> reutiliza el formulario real de Nueva OT Correctivo
+  (<code>ot.js</code>, <code>addOT()</code>) ya existente, solo prellenando el equipo.</p>
+  <div class="callout">
+    <b>Deliberadamente NO se copió</b> de la maqueta del usuario: alertas con lecturas de sensor (el
+    sistema no tiene telemetría, solo sabe si un análisis de aceite salió NORMAL o no); botón "Marcar
+    como en revisión" (no existe ese estado en el esquema); botón "Contactar al técnico asignado" (no
+    existe asignación de técnico por equipo). Agregar cualquiera de estos habría significado inventar
+    datos o funcionalidad que no existe.
+  </div>
+  <p>7 tests nuevos (<code>tests/saludFlota.test.js</code>) para las 2 funciones puras nuevas.
+  Verificado visualmente en navegador (Playwright ad-hoc, equipo sintético con componente sin vida
+  útil restante): el bloque "Problema principal" y "Qué revisar" renderizan con datos reales
+  calculados, el horómetro se muestra, y el botón de Crear OT abre el formulario real con el equipo
+  prellenado.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

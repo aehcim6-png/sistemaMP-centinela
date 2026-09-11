@@ -1285,7 +1285,10 @@ function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
     var mtbfE=C.mtbfReal(otFallasPorSigla[e.sigla]||[]);
     var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
     var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
-    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score};
+    // horomActual (2026-09-11, pedido del usuario: más contexto en el drawer
+    // de Torre de Control) — campo aditivo, ningún llamador existente lo
+    // rompe por no usarlo.
+    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad};
   });
 }
 
@@ -1297,6 +1300,35 @@ function motivoPrincipalSalud(detalle){
   var conDato=(detalle||[]).filter(function(c){return c&&typeof c.valor==='number'&&isFinite(c.valor);});
   if(!conDato.length)return null;
   return conDato.reduce(function(peor,c){return c.valor<peor.valor?c:peor;});
+}
+
+// Las N dimensiones más bajas del Score de Salud (2026-09-11, pedido del
+// usuario: el drawer de Torre de Control solo mostraba el número, sin decir
+// "por qué" — quería el detalle de las 1-2 dimensiones que más lo arrastran,
+// no solo la peor sola como ya hacía motivoPrincipalSalud). Mismo criterio
+// de "con dato" que esa función; ordena ascendente (peor primero) y corta en
+// max. No inventa causas nuevas — son las mismas 4 dimensiones que ya
+// calcula equiposConSaludFlota.
+function peoresDimensionesSalud(detalle,max){
+  var conDato=(detalle||[]).filter(function(c){return c&&typeof c.valor==='number'&&isFinite(c.valor);});
+  return conDato.slice().sort(function(a,b){return a.valor-b.valor;}).slice(0,max||2);
+}
+
+// Recomendación de acción por dimensión (2026-09-11, mismo pedido) — texto
+// FIJO por dimensión, no un diagnóstico inventado por equipo: el sistema no
+// tiene telemetría/sensores para decir "presión de aceite baja" o similar,
+// solo sabe QUÉ dimensión está mal (a partir de datos ya cargados: análisis
+// de aceite, vida útil de componentes, neumáticos, historial de fallas). El
+// texto dice dónde mirar, no inventa una causa raíz que el sistema no puede
+// conocer.
+var RECOMENDACION_DIMENSION_SALUD={
+  'Componentes':'Revisar los componentes mayores con menos vida útil restante — ficha del equipo → Componentes.',
+  'Neumáticos':'Revisar los neumáticos marcados para cambio — ficha del equipo → Neumáticos.',
+  'Aceite':'Revisar los últimos análisis de aceite fuera de NORMAL — ficha del equipo → Análisis Aceite.',
+  'Confiabilidad':'Equipo con historial de fallas frecuente (MTBF bajo) — evaluar una intervención preventiva antes de la próxima falla.'
+};
+function recomendacionDimensionSalud(nombre){
+  return RECOMENDACION_DIMENSION_SALUD[nombre]||null;
 }
 
 // Atajos de fecha para el selector del Dashboard ("Hoy"/"Ayer"/"Año pasado",
@@ -1937,6 +1969,8 @@ if (typeof window !== 'undefined') {
   window.scoreSaludEquipo = scoreSaludEquipo;
   window.equiposConSaludFlota = equiposConSaludFlota;
   window.motivoPrincipalSalud = motivoPrincipalSalud;
+  window.peoresDimensionesSalud = peoresDimensionesSalud;
+  window.recomendacionDimensionSalud = recomendacionDimensionSalud;
   window.registrarSnapshotSalud = registrarSnapshotSalud;
   window.tendenciaSaludSemanal = tendenciaSaludSemanal;
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
@@ -1967,7 +2001,7 @@ if (typeof module !== 'undefined' && module.exports) {
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
-    indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
+    indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,

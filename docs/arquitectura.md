@@ -1001,6 +1001,53 @@ sintéticos con estados variados): las 3 secciones se ven con su número,
 título y línea divisoria; el mapa de calor pinta un cuadrado por equipo; los
 nombres ya no chocan entre sí.
 
+### 22. Drawer de Torre de Control: problema principal, recomendación y contexto (2026-09-11)
+
+Origen real: el usuario mostró el drawer de detalle de un equipo (CN-9507,
+49.2%, Aceite 16.7%/Confiabilidad 0.2%) y pidió, con una maqueta de texto
+detallada, que el drawer diga "por qué" está mal, "qué hacer", y agregue
+más contexto y botones de acción — no solo el número y el desglose crudo
+que ya mostraba.
+
+**Se construyó con datos 100% reales, nada inventado**:
+- `logic.js`: `peoresDimensionesSalud(detalle, max)` (pura, testeada) — las
+  1-2 dimensiones más bajas del Score de Salud del equipo, mismo criterio
+  de "con dato" que la ya existente `motivoPrincipalSalud` (que da solo la
+  peor; esta da varias). `recomendacionDimensionSalud(nombre)` — texto FIJO
+  por dimensión (una de las 4: Componentes/Neumáticos/Aceite/Confiabilidad),
+  no un diagnóstico por equipo: dice DÓNDE mirar (ej. "Revisar los últimos
+  análisis de aceite fuera de NORMAL"), nunca inventa una causa raíz que el
+  sistema no puede conocer (no hay telemetría/sensores, solo los datos ya
+  cargados). `equiposConSaludFlota` se extiende para devolver también
+  `horomActual`/`unidad` (campo aditivo, ningún llamador existente se rompe).
+- `torre.js` (`_torreAbrirDrawer`): **Problema principal** — solo se muestra
+  si el equipo está en warn/crit (nunca en uno sano, para no inventar un
+  problema donde no lo hay), con las dimensiones <80% de
+  `peoresDimensionesSalud`. **Qué revisar** — la recomendación de cada
+  dimensión listada. **Contexto** — horómetro actual real del equipo, y
+  comparación contra el promedio de la flota (calculado sobre los equipos
+  con score ya cargados en el drawer, sin nueva consulta). **Tendencia 7
+  días** — mismo cálculo de siempre, wording mejorado (Mejorando/Bajando/
+  Estable en vez de solo la flecha). **Botón "Crear Orden de Trabajo"** —
+  reutiliza el formulario real de Nueva OT Correctivo (`ot.js`, `addOT()`)
+  ya existente, solo prellenando el campo Equipo — ningún formulario nuevo.
+
+**Deliberadamente NO se copió** de la maqueta del usuario: alertas
+específicas con lecturas de sensor (ej. "Presión de aceite baja: 4.7
+mm/s") — el sistema no tiene telemetría, solo sabe si un análisis de
+aceite salió NORMAL o no. Botón "Marcar como en revisión" — no existe ese
+campo/estado en el esquema. Botón "Contactar al técnico asignado" — no
+existe una asignación de técnico por equipo en el sistema. Agregar
+cualquiera de estos habría significado inventar datos o funcionalidad que
+no existe.
+
+7 tests nuevos (`tests/saludFlota.test.js`) para las 2 funciones puras
+nuevas. Verificado visualmente en navegador (Playwright ad-hoc, equipo
+sintético con componente sin vida útil restante): el bloque "Problema
+principal" y "Qué revisar" renderizan con datos reales calculados, el
+horómetro se muestra, y el botón de Crear OT abre el formulario real con
+el equipo prellenado.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

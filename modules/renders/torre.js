@@ -165,7 +165,11 @@ export function renderTorre(){
     '<div id="torreDDims"></div>'+
     '<div id="torreDCalculado" style="font-size:10px;color:var(--ok);font-weight:600;margin-top:8px">—</div>'+
     '<div id="torreDTend" style="font-size:11px;color:var(--tx3);margin-top:6px"></div>'+
+    '<div id="torreDProblema"></div>'+
+    '<div id="torreDRecom"></div>'+
+    '<div id="torreDContexto" style="font-size:11px;color:var(--tx3);margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)"></div>'+
     '<button class="btn-s btn-o" style="width:100%;margin-top:16px" id="torreDCta">Ver ficha completa en Buscar →</button>'+
+    '<button class="btn-s btn-o" style="width:100%;margin-top:8px" id="torreDOtCta">🔧 Crear Orden de Trabajo →</button>'+
     '</div>';
 
   document.getElementById('s-torre').innerHTML=html;
@@ -211,14 +215,63 @@ window._torreAbrirDrawer=function(sigla){
   if(tend&&tend.delta!=null){
     var col=tend.delta>0?'var(--ok)':tend.delta<0?'var(--danger)':'var(--tx3)';
     var flecha=tend.delta>0?'▲':tend.delta<0?'▼':'→';
-    tendEl.innerHTML='Tendencia 7 días: <span style="color:'+col+';font-weight:600">'+flecha+' '+Math.abs(tend.delta)+' pts</span>';
+    var palabra=tend.delta>0?'Mejorando':tend.delta<0?'Bajando':'Estable';
+    tendEl.innerHTML='Tendencia 7 días: <span style="color:'+col+';font-weight:600">'+flecha+' '+palabra+' ('+(tend.delta>0?'+':'')+tend.delta+' pts)</span>';
   }else{
     tendEl.textContent='Tendencia 7 días: sin dato suficiente todavía.';
   }
+  // "Problema principal" + recomendación (2026-09-11, pedido del usuario: el
+  // drawer mostraba el detalle por dimensión pero no decía "por qué" ni "qué
+  // hacer" — solo con equipos que están warn/crit (st), nunca en uno sano,
+  // para no inventar un "problema" donde no lo hay. peoresDimensionesSalud
+  // ya viene ordenada peor-primero; se filtra a <80 (mismo umbral warn/crit
+  // que usa toda la Torre) por si la 2ª peor en realidad está bien.
+  var probEl=document.getElementById('torreDProblema');
+  var recomEl=document.getElementById('torreDRecom');
+  if((st==='warn'||st==='crit')&&typeof peoresDimensionesSalud==='function'){
+    var peores=peoresDimensionesSalud(r.score.detalle,2).filter(function(d){return d.valor<80;});
+    if(peores.length){
+      probEl.innerHTML='<div style="margin-top:14px;padding:10px 12px;background:color-mix(in srgb,'+colorVar+' 12%,var(--bg3));border-left:3px solid '+colorVar+';border-radius:6px">'+
+        '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:'+colorVar+';font-weight:700;margin-bottom:3px">Problema principal</div>'+
+        '<div style="font-size:12px;color:var(--tx)">'+peores.map(function(d){return escapeHtml(d.nombre)+' ('+d.valor+'%)';}).join(' y ')+'</div></div>';
+      if(typeof recomendacionDimensionSalud==='function'){
+        var recomItems=peores.map(function(d){return recomendacionDimensionSalud(d.nombre);}).filter(Boolean);
+        if(recomItems.length){
+          recomEl.innerHTML='<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);font-weight:700;margin-bottom:5px">Qué revisar</div>'+
+            '<ul style="margin:0;padding-left:16px;font-size:11.5px;color:var(--tx2);display:flex;flex-direction:column;gap:5px">'+
+            recomItems.map(function(t){return '<li>'+escapeHtml(t)+'</li>';}).join('')+
+            '</ul></div>';
+        }else recomEl.innerHTML='';
+      }
+    }else{probEl.innerHTML='';recomEl.innerHTML='';}
+  }else{probEl.innerHTML='';recomEl.innerHTML='';}
+  // Contexto (2026-09-11, mismo pedido): horómetro real del equipo (mismo
+  // dato que ya usa toda la app, ver equiposConSaludFlota) y comparación
+  // contra el promedio de la flota que HOY tiene score calculado — ambos
+  // 100% datos ya existentes, nada nuevo que medir.
+  var ctxEl=document.getElementById('torreDContexto');
+  var ctxLineas=[];
+  if(r.horomActual!=null)ctxLineas.push('Horómetro actual: <b style="color:var(--tx2)">'+fn(r.horomActual)+(r.unidad||'h')+'</b>');
+  var todos=Object.values(window._torreDatos||{}).map(function(x){return x.score.valor;}).filter(function(x){return x!=null;});
+  if(v!=null&&todos.length>1){
+    var promFlota=Math.round(todos.reduce(function(s,x){return s+x;},0)/todos.length*10)/10;
+    var difProm=Math.round((v-promFlota)*10)/10;
+    ctxLineas.push('Promedio de la flota: <b style="color:var(--tx2)">'+promFlota+'%</b> ('+(difProm>=0?'+':'')+difProm+' pts vs. este equipo)');
+  }
+  ctxEl.innerHTML=ctxLineas.length?ctxLineas.join('<br>'):'';
   document.getElementById('torreDCta').onclick=function(){
     _torreCerrarDrawer();
     go('buscar');
     setTimeout(function(){var s=document.getElementById('fBuscarEq');if(s){s.value=sigla;renders.buscar();}},50);
+  };
+  // "Crear OT" (2026-09-11, mismo pedido) — reutiliza el formulario real de
+  // Nueva OT Correctivo (ot.js, addOT()) ya existente, solo prellenando el
+  // equipo — ningún formulario ni flujo nuevo, mismo camino que si se
+  // creara a mano desde Correctivos.
+  document.getElementById('torreDOtCta').onclick=function(){
+    _torreCerrarDrawer();
+    if(typeof addOT==='function')addOT();
+    setTimeout(function(){var s=document.getElementById('oEq');if(s)s.value=sigla;},50);
   };
   document.getElementById('torreDrawer').classList.add('on');
   document.getElementById('torreScrim').classList.add('on');
