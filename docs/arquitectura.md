@@ -1150,6 +1150,37 @@ problema real de layout en la primera pasada (la columna η quedaba fuera
 de la vista del modal por el texto largo de interpretación empujándola;
 se resolvió con columnas de ancho fijo y el texto largo al final).
 
+### 25. Weibull de población en Componentes Mayores (2026-09-12)
+
+Origen real: siguiendo la misma lógica de "¿y esto también sirve en
+[otra parte del sistema]?" que llevó al Weibull de neumáticos, el usuario
+preguntó por Componentes o Correctivos. Antes de elegir, se investigó
+cuál tenía datos reales ya disponibles (agente de investigación) — a
+diferencia de neumáticos, acá **sí existe** el equivalente exacto a
+`historial_neumaticos`: la tabla `historial_componentes` (`compHist`),
+con cada reemplazo real de un componente mayor (motor, batería,
+alternador, etc.) como su propia fila — y `modules/renders/histcomp.js`
+**ya calculaba** la "vida" de cada instalación (horas hasta el siguiente
+cambio) agrupada por tipo de componente, para un resumen de
+promedio/mínimo/máximo. Es el mismo insumo pre-Weibull que neumáticos,
+sin necesidad de descartar ningún plan esta vez.
+
+**Cambios**: en `histcomp.js`, la misma muestra de `horasVida` ya
+agrupada por tipo de componente (`statsPorComp`) se ajusta también con
+`analisisVidaUtilPorGrupo` (logic.js, ya existente desde la sección 24 —
+ninguna función nueva en logic.js esta vez, pura reutilización), y se
+agrega una tabla "Forma real de vida por componente (Weibull)" en la
+misma pestaña Historial de Componentes, con el mismo formato ya
+establecido (Componente, N° cambios, β, η, interpretación; grupos sin
+historial suficiente mostrados atenuados).
+
+Sin tests nuevos en `logic.js` (no se agregó ninguna función — se
+reutilizó `analisisVidaUtilPorGrupo` tal cual, ya cubierto por los 24
+tests de `weibull.test.js` de las secciones 23-24). Verificado
+visualmente en navegador (Playwright ad-hoc, 7 reemplazos sintéticos de
+"Motor"): la tabla renderiza β=10.34 (desgaste marcado), η≈3.867h,
+consistente con la interpretación esperada para un patrón de vida creciente.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

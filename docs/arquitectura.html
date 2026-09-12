@@ -889,6 +889,25 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   un problema real de layout en la primera pasada (la columna η quedaba fuera de la vista por el
   texto largo de interpretación empujándola) con columnas de ancho fijo y el texto largo al final.</p>
 
+  <h3>25. Weibull de población en Componentes Mayores (2026-09-12)</h3>
+  <p>Origen real: siguiendo la misma lógica de "¿y esto también sirve en [otra parte del
+  sistema]?" que llevó al Weibull de neumáticos, el usuario preguntó por Componentes o Correctivos.
+  Antes de elegir, se investigó cuál tenía datos reales ya disponibles — a diferencia de neumáticos,
+  acá <b>sí existe</b> el equivalente exacto a <code>historial_neumaticos</code>: la tabla
+  <code>historial_componentes</code> (<code>compHist</code>), con cada reemplazo real de un
+  componente mayor como su propia fila — y <code>modules/renders/histcomp.js</code> <b>ya
+  calculaba</b> la "vida" de cada instalación agrupada por tipo de componente, para un resumen de
+  promedio/mínimo/máximo. Es el mismo insumo pre-Weibull que neumáticos, sin necesidad de descartar
+  ningún plan esta vez.</p>
+  <p><b>Cambios:</b> en <code>histcomp.js</code>, la misma muestra de <code>horasVida</code> ya
+  agrupada por tipo de componente se ajusta también con <code>analisisVidaUtilPorGrupo</code>
+  (logic.js, ya existente — ninguna función nueva esta vez, pura reutilización), y se agrega una
+  tabla "Forma real de vida por componente (Weibull)" en la misma pestaña, con el mismo formato ya
+  establecido (Componente, N° cambios, β, η, interpretación).</p>
+  <p>Sin tests nuevos en <code>logic.js</code> (no se agregó ninguna función). Verificado
+  visualmente en navegador (Playwright ad-hoc, 7 reemplazos sintéticos de "Motor"): la tabla
+  renderiza β=10.34 (desgaste marcado), η≈3.867h.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

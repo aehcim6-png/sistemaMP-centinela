@@ -50,6 +50,22 @@ export function renderHistComp() {
     return { comp: c, n: arr.length, prom: prom, min: Math.min.apply(null, arr), max: Math.max.apply(null, arr) };
   }).sort(function (a, b) { return a.comp.localeCompare(b.comp); });
 
+  // Weibull por tipo de componente (2026-09-12, pedido del usuario: "¿y ahora
+  // en componentes?", después del mismo análisis en neumáticos) — misma
+  // muestra de horasVida ya agrupada arriba para el promedio simple (nada
+  // nuevo que medir), ajustada con analisisVidaUtilPorGrupo (logic.js) para
+  // dar además la FORMA real de vida de cada tipo (¿se reemplaza por
+  // desgaste parejo o hay mucha dispersión/fallas tempranas?). A diferencia
+  // de neumáticos (que no tenía de otra por posición porque el estado de
+  // retiro nunca se usó con datos reales), acá SÍ hay un historial de
+  // reemplazos real y ya agrupado por tipo de componente — mismo patrón,
+  // fuente distinta.
+  var itemsWeibull = [];
+  Object.keys(statsPorComp).forEach(function (c) {
+    statsPorComp[c].forEach(function (v) { itemsWeibull.push({ grupo: c, vida: v }); });
+  });
+  var weibullPorComp = (typeof analisisVidaUtilPorGrupo === 'function') ? analisisVidaUtilPorGrupo(itemsWeibull) : [];
+
   var comps = [...new Set(h.map(function (r) { return r.comp; }))].sort();
   var filFilas = (fComp ? filas.filter(function (f) { return f.ref.comp === fComp; }) : filas)
     .sort(function (a, b) { return (b.ref.fechaInst || '').localeCompare(a.ref.fechaInst || ''); });
@@ -73,6 +89,26 @@ export function renderHistComp() {
       }).join('')}
     </table></div>
     <div style="font-size:11px;color:var(--tx2);margin-bottom:16px">⚠️ = algún cambio duró menos de la mitad del promedio de su tipo — candidato a revisar garantía o calidad del repuesto/proveedor.</div>` : ''}
+    ${weibullPorComp.length ? `<div style="font-weight:600;font-size:13px;margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Forma real de vida por componente (Weibull)</div>
+    <div class="tbl-wrap" style="margin-bottom:4px"><table style="table-layout:fixed">
+      <tr><th style="text-align:left;width:22%">Componente</th><th style="width:13%">N° cambios</th><th style="width:12%">β (forma)</th><th style="width:20%">η (vida caract.)</th><th style="text-align:left">Interpretación</th></tr>
+      ${weibullPorComp.map(function (g) {
+        if (!g.ajuste) return `<tr style="opacity:.55">
+          <td style="font-weight:600">${escapeHtml(g.grupo)}</td>
+          <td class="mono">${g.n}</td>
+          <td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 6 cambios)</td>
+        </tr>`;
+        var interp = typeof interpretacionFormaWeibull === 'function' ? interpretacionFormaWeibull(g.ajuste.beta) : '';
+        return `<tr>
+          <td style="font-weight:600">${escapeHtml(g.grupo)}</td>
+          <td class="mono">${g.n}</td>
+          <td class="mono" style="font-weight:700">${g.ajuste.beta}</td>
+          <td class="mono">${fn(g.ajuste.eta)}h</td>
+          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp || '')}</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre reemplazos de ese componente. β&lt;1 = varios se cambian temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de ese componente según el ajuste real.</div>` : ''}
     <div class="toolbar">
       <select id="fHistComp" onchange="renders.histcomp()"><option value="">Todos los componentes</option>${comps.map(function (c) { return '<option' + (c === fComp ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('')}</select>
     </div>
