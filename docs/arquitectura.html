@@ -996,6 +996,22 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   tabla renderiza "80% (n=5)" vs "20% (n=5)", lift "4x" en verde, con la lectura "El aceite SÍ
   anticipa fallas reales de este componente".</p>
 
+  <h3>30. Campo de costo en Registro PM — preparación para vida económica óptima (2026-09-12)</h3>
+  <p>Origen real: al descartar "vida económica óptima" por falta de datos, se ofreció preparar el
+  terreno para construirla a futuro sin inventar nada, y se eligió como siguiente paso. Este cambio
+  es deliberadamente solo de captura de datos, no de análisis: <code>correctivos.costo</code> ya
+  existe (opcional) pero <code>registros_pm</code> no tenía ningún campo de costo.</p>
+  <p><b>Migración</b> (<code>20260912150000_agregar_costo_a_registros_pm.sql</code>):
+  <code>alter table registros_pm add column if not exists costo numeric</code> — aditiva y nullable.
+  <b>Cambios:</b> <code>TABLA_REAL.reg.cols</code> suma <code>costo</code>; nuevo campo "Costo ($)"
+  opcional en el formulario de crear y editar PM (<code>reg.js</code>), con tooltip explicando el
+  motivo. Sin funciones nuevas en <code>logic.js</code> (es solo un campo de formulario); el CSV
+  export ya lo incluye automáticamente. Verificado visualmente (Playwright ad-hoc): PM con
+  Costo=$85.000 confirma que <code>S.g('reg')[0].costo</code> queda guardado.</p>
+  <p>Con este campo capturando datos reales, la vida económica óptima descartada en la sección 29
+  pasa de "no se puede construir sin inventar datos" a "se puede construir cuando haya suficiente
+  historial real acumulado".</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

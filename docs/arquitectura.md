@@ -1399,6 +1399,46 @@ con solo 1 correctivo cercano): la tabla renderiza "80% (n=5)" vs
 "20% (n=5)", lift "4x" en verde, con la lectura "El aceite SÍ anticipa
 fallas reales de este componente".
 
+### 30. Campo de costo en Registro PM — preparación para vida económica óptima (2026-09-12)
+
+Origen real: al descartar "vida económica óptima" (sección 29) por falta
+de datos reales de costo, se ofreció como alternativa preparar el
+terreno para que sí se pueda construir a futuro, sin inventar nada. El
+usuario la eligió como siguiente paso. Este cambio es deliberadamente
+**solo de captura de datos, no de análisis**: no agrega ninguna fórmula
+ni tabla nueva, solo habilita que el dato empiece a existir.
+
+Investigación previa confirmó el hueco exacto: `correctivos.costo` ya
+existe (opcional) pero `registros_pm` (los PM preventivos) no tenía
+**ningún** campo de costo — sin él, nunca se podría comparar costo
+preventivo real contra costo correctivo real, sin importar cuánto tiempo
+pasara.
+
+**Migración** (`20260912150000_agregar_costo_a_registros_pm.sql`):
+`alter table registros_pm add column if not exists costo numeric` —
+aditiva y nullable, no rompe ninguna fila existente.
+
+**Cambios**: `TABLA_REAL.reg.cols` (`store.js`) suma `'costo'`. En
+`reg.js`, nuevo campo "Costo ($)" opcional en el formulario de crear PM
+(junto a AST/LOTO) y en el de editar, con un tooltip explicando el
+motivo ("permite comparar a futuro el costo preventivo real contra el de
+un correctivo"). `saveReg`/`saveEditReg` lo guardan tal cual los demás
+campos numéricos del formulario.
+
+Sin funciones nuevas en `logic.js` (no hay fórmula que probar todavía —
+es solo un campo de formulario) y sin tests nuevos de lógica pura por el
+mismo motivo; el CSV export (`exportCSV`, genérico, lee las columnas
+reales de cada fila) ya incluye el campo automáticamente sin cambios
+adicionales. Verificado visualmente en navegador (Playwright ad-hoc):
+se completa un PM con Costo=$85.000 y se confirma que `S.g('reg')[0].costo`
+queda guardado correctamente en el store.
+
+Con este campo capturando datos reales durante un tiempo, la "vida
+económica óptima" descartada en la sección 29 pasa de "no se puede
+construir sin inventar datos" a "se puede construir cuando haya
+suficiente historial real acumulado" — sin haber tocado el modelo
+todavía, solo la base para que sea posible.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

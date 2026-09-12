@@ -140,6 +140,7 @@ export function addReg(){
     <div class="form-row">
     <div class="fg"><label>AST Completado</label><select id="regAST"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     <div class="fg"><label>LOTO Aplicado</label><select id="regLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
+    <div class="fg"><label>Costo ($)</label><input type="number" id="rCosto" placeholder="0" title="Opcional — repuestos + mano de obra de este PM. Permite comparar a futuro el costo preventivo real contra el de un correctivo."></div>
     </div>
     <br><button class="btn" onclick="saveReg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>
@@ -192,6 +193,7 @@ export function editarReg(i){
       <div class="fg"><label>Repuestos utilizados</label>
         <input id="eRep" value="${escapeHtml(r.repuestos||'')}" style="width:100%">
       </div>
+      <div class="fg"><label>Costo ($)</label><input type="number" id="eCosto" value="${r.costo||''}" placeholder="0"></div>
     </div>
     <button class="btn" onclick="saveEditReg(${i})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar cambios</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
@@ -249,6 +251,7 @@ export function saveEditReg(i){
     tecnico:$('eTec').value,
     obs:$('eObs').value,
     repuestos:$('eRep').value,
+    costo:parseFloat($('eCosto')?.value)||0,
   };
   S.s('reg',reg);
   // Actualizar horómetro del equipo si corresponde. Guardar 'reg' ANTES de
@@ -351,6 +354,7 @@ export function saveReg(){
     ubicacion:$('regUbicacion')?.value||'',
     ast:$('regAST')?.value||'',
     loto:$('regLOTO')?.value||'',
+    costo:parseFloat($('rCosto')?.value)||0,
     proxTipo:C.tipoPM(C.proxPM(hr,e?.frecPM||250),e?.frecPM||250),
     horomProx:C.proxPM(hr,e?.frecPM||250),
   });
