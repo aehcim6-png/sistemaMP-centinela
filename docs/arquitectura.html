@@ -957,6 +957,23 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   "IC90 0.39–1.87" junto con la advertencia de rango amplio. Portado a sistema-mp2 y verificado ahí
   antes de subir.</p>
 
+  <h3>28. Detección de outliers en Análisis de Aceite (2026-09-12)</h3>
+  <p>Origen real: <code>ordenesSinOutliers</code> (2026-08) es la única detección de errores de
+  digitación de todo el sistema, y solo cubre costos. Un análisis de aceite con un cero de más en
+  el hierro (500 en vez de 50 ppm) hoy se clasifica igual que un desgaste real. <b>Cambios:</b>
+  nueva función <code>aceiteOutliers(ace)</code> en <code>logic.js</code>, mismo criterio que
+  <code>ordenesSinOutliers</code> (mediana de la misma categoría, mínimo 5 muestras) pero agrupando
+  por <code>descriptor</code> (tipo de aceite estandarizado) y por cada uno de los 6 metales de
+  desgaste ya mostrados en la tabla. A diferencia de costos, exige DOS señales a la vez: el valor
+  es 10x+ la mediana de ese metal en ese tipo de aceite Y supera 2x el umbral fijo de alerta
+  (<code>metalCell</code>) — evita marcar como "posible error" una alerta genuina de desgaste real.
+  Nunca modifica <code>estado</code> ni oculta la muestra.</p>
+  <p>Nuevo panel en <code>ace.js</code> (mismo estilo que "alertas persistentes") listando cada
+  posible error con equipo, descriptor, fecha, metal+valor y la mediana histórica de ese tipo. 10
+  tests nuevos en <code>aceiteOutliers.test.js</code>. Verificado visualmente (6 muestras
+  sintéticas de "MOTOR", una con hierro=500): el panel muestra "1 posible error de digitación" con
+  el detalle completo, sin alterar el estado ALERTA ya cargado en esa fila.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

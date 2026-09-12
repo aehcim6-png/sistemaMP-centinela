@@ -1289,6 +1289,56 @@ la advertencia de rango amplio, confirmando que el caso con menos certeza
 real efectivamente se marca como tal. Portado a sistema-mp2 (mismo
 `logic.js`/tests, mismas 4 pantallas) y verificado ahí antes de subir.
 
+### 28. Detección de outliers en Análisis de Aceite (2026-09-12)
+
+Origen real: siguiendo el mismo repaso por los 4 roles de datos que llevó
+al IC90 (sección 27), quedaba un segundo hueco real: `ordenesSinOutliers`
+(2026-08) es la ÚNICA detección de errores de digitación de todo el
+sistema, y solo cubre costos de órdenes de compra. Un análisis de aceite
+con un cero de más en el hierro (ej. 500 en vez de 50 ppm) hoy se
+clasifica igual que un desgaste real — nadie lo distingue de una alerta
+genuina, y ese dato erróneo contamina cualquier análisis que use aceite
+(Índice de Salud, Torre de Control, y cualquier correlación futura entre
+aceite y fallas reales).
+
+**`logic.js`**: nueva función `aceiteOutliers(ace)`, mismo criterio que
+`ordenesSinOutliers` (mediana de la MISMA categoría, mínimo 5 muestras
+para una mediana confiable) pero agrupando por `descriptor` (el tipo de
+aceite estandarizado — MOTOR, TRANSMISIÓN, etc. — no `componente`, que es
+texto libre por equipo) y por cada uno de los 6 metales de desgaste ya
+mostrados en la tabla (hierro, cobre, plomo, aluminio, silicio, cromo). A
+diferencia de costos, acá se exigen **dos señales a la vez**, no una
+sola: (1) el valor es 10x o más la mediana histórica de ESE metal en ESE
+tipo de aceite, Y (2) el valor supera además 2x el umbral fijo de alerta
+que ya usa la tabla (`metalCell`, ace.js) — un desgaste real severo
+puede superar la mediana igual sin ser un error de digitación; exigir
+ambas condiciones evita marcar como "posible error" una alerta genuina
+(ej. TRANSMISIÓN con desgaste típico alto pero parejo no se marca, ver
+tests). Nunca modifica `estado` ni oculta la muestra — solo la separa
+para revisión humana, mismo espíritu que `ordenesSinOutliers`.
+
+**`ace.js`**: nuevo panel de advertencia (mismo estilo que el ya existente
+de "alertas persistentes") listando cada posible error con equipo,
+descriptor, fecha, metal+valor y la mediana histórica de ese tipo de
+aceite, para que el usuario confirme con el laboratorio antes de tratarlo
+como una alerta real.
+
+10 tests nuevos en `aceiteOutliers.test.js`: muestra insuficiente no
+marca nada; caso real de error de digitación (500 ppm) sí se marca;
+desgaste real alto que supera la mediana pero no el umbral fijo NO se
+marca (evita falso positivo); valor alto pero estadísticamente normal
+para su propio grupo NO se marca; agrupa por descriptor sin mezclar tipos
+de aceite; revisa varios metales por muestra; ignora muestras sin
+descriptor o con metal en 0; array vacío; pureza (no muta el arreglo
+original); nunca modifica el campo `estado`.
+
+Verificado visualmente en navegador (Playwright ad-hoc, 6 muestras
+sintéticas de "MOTOR" con un hierro de 500 en la última): el panel
+muestra "1 posible error de digitación — confirmar con el laboratorio
+antes de tratarlo como alerta real" con "CN-1 · MOTOR · 2026-01-06 ·
+hierro=500 · mediana histórica de ese tipo: 11", sin alterar el estado
+ALERTA ya cargado en esa fila de la tabla.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

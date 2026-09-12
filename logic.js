@@ -965,6 +965,54 @@ function ordenesSinOutliers(oc){
   return{limpias:limpias,outliers:outliers};
 }
 
+// ═══ FILTRO DE OUTLIERS EN ANÁLISIS DE ACEITE (2026-09-12) ═══
+// Origen real: mirando el sistema desde los 4 roles de datos (Ingeniero,
+// Analista, Científico, BI), un hueco quedó pendiente — ordenesSinOutliers
+// (arriba) es la ÚNICA detección de errores de digitación que existe en todo
+// el sistema, y solo cubre costos. Un análisis de aceite con un cero de más
+// en el hierro (ej. 500 en vez de 50 ppm) hoy se clasifica igual que un
+// desgaste real: nadie lo distingue de una alerta genuina, y ese dato erróneo
+// puede terminar contaminando cualquier análisis que use aceite (Torre de
+// Control, Índice de Salud, y cualquier correlación futura entre aceite y
+// fallas reales). Mismo criterio que ordenesSinOutliers (mediana de la MISMA
+// categoría, mínimo 5 muestras para una mediana confiable) pero exige DOS
+// señales a la vez, no una sola: (1) el valor es 10x o más la mediana
+// histórica de ese metal en ESE tipo de aceite (descriptor — no 'componente',
+// que es texto libre por equipo) Y (2) el valor supera además 2x el umbral
+// fijo de alerta ya usado en la tabla (metalCell, ace.js) — un desgaste real
+// severo puede superar la mediana igual sin ser un error de digitación; exigir
+// ambas condiciones evita marcar como "posible error" una alerta genuina.
+// Nunca modifica 'estado' ni borra nada — solo separa para revisión humana,
+// mismo espíritu que ordenesSinOutliers.
+var _ACEITE_UMBRAL_METAL={hierro:50,cobre:30,plomo:20,aluminio:20,silicio:25,cromo:10};
+function aceiteOutliers(ace){
+  var metales=Object.keys(_ACEITE_UMBRAL_METAL);
+  var porGrupoMetal={};
+  (ace||[]).forEach(function(m){
+    if(!m||!m.descriptor)return;
+    metales.forEach(function(met){
+      if(m[met]>0)(porGrupoMetal[m.descriptor+'|'+met]=porGrupoMetal[m.descriptor+'|'+met]||[]).push(m[met]);
+    });
+  });
+  var medianaPorGrupoMetal={};
+  Object.keys(porGrupoMetal).forEach(function(k){
+    if(porGrupoMetal[k].length<5)return;
+    medianaPorGrupoMetal[k]=medianaPositiva(porGrupoMetal[k]);
+  });
+  var outliers=[];
+  (ace||[]).forEach(function(m){
+    if(!m||!m.descriptor)return;
+    metales.forEach(function(met){
+      if(!(m[met]>0))return;
+      var mediana=medianaPorGrupoMetal[m.descriptor+'|'+met];
+      if(mediana!=null&&m[met]>10*mediana&&m[met]>2*_ACEITE_UMBRAL_METAL[met]){
+        outliers.push({muestra:m,metal:met,valor:m[met],mediana:mediana});
+      }
+    });
+  });
+  return outliers;
+}
+
 // ═══ PREDICTIVO (2026-07) — estadísticas en vivo desde ordenes_compra_historico ═══
 // Extraído de index.html/computePred() para poder testearlo sin arrancar la app.
 // leadTime queda fijo en 34 días porque el histórico real no trae fecha de entrega —
@@ -2229,7 +2277,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, regEsATiempo, esFallaMTBF,

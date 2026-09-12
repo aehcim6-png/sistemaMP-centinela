@@ -89,6 +89,26 @@ export function renderAce(){
     }).join('')+
     '</div>':'';
 
+  // Posibles errores de digitación (2026-09-12, pedido del usuario: mirando el
+  // sistema desde los 4 roles de datos, faltaba detección de outliers fuera de
+  // costos — aceiteOutliers, logic.js). Nunca cambia 'estado' ni oculta la
+  // muestra: solo la señala para que alguien confirme el valor con el
+  // laboratorio antes de tomarla como una alerta real de desgaste.
+  var aceOutliers=(typeof aceiteOutliers==='function')?aceiteOutliers(ace):[];
+  var aceOutliersHTML=aceOutliers.length?
+    '<div style="background:rgba(245,158,11,.08);border:1px solid var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
+    '<b style="font-size:12px;color:var(--warn)">⚠️ '+aceOutliers.length+' posible'+(aceOutliers.length===1?'':'s')+' error'+(aceOutliers.length===1?'':'es')+' de digitación — confirmar con el laboratorio antes de tratarlo como alerta real</b>'+
+    aceOutliers.slice(0,10).map(function(o){
+      return'<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;font-size:12px;flex-wrap:wrap">'+
+        '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(o.muestra._sigla||o.muestra.componente||'')+'</span>'+
+        '<span style="color:var(--tx2)">'+escapeHtml(o.muestra.descriptor||'')+' · '+o.muestra.fecha+'</span>'+
+        '<b style="color:var(--warn)">'+o.metal+'='+o.valor+'</b>'+
+        '<span style="color:var(--tx3)">mediana histórica de ese tipo: '+Math.round(o.mediana)+'</span>'+
+        '</div>';
+    }).join('')+
+    (aceOutliers.length>10?'<div style="font-size:11px;color:var(--tx3);margin-top:6px">+'+(aceOutliers.length-10)+' más</div>':'')+
+    '</div>':'';
+
   // Stats
   var normal=ace.filter(function(m){return m.estado==='NORMAL';}).length;
   var precaucion=ace.filter(function(m){return m.estado==='PRECAUCION';}).length;
@@ -104,6 +124,7 @@ export function renderAce(){
     '<div><button class="btn" onclick="addAceite()">+ Manual</button> <button class="btn btn-o" onclick="importAceite()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button></div></div>'+
 
     alertasPersistentesHTML+
+    aceOutliersHTML+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ok)" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:var(--ok)">'+normal+'</div></div>'+
