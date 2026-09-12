@@ -1103,6 +1103,53 @@ entrada. Deliberadamente no se agregó ninguna librería de estadística
 suficiente para el volumen de datos real de la flota y no agrega una
 dependencia externa a una app que hoy no tiene ninguna para cálculo.
 
+### 24. Weibull de población en Neumáticos — vida real por posición (2026-09-12)
+
+Origen real: el usuario preguntó si el ajuste Weibull recién construido
+para equipos "puede servir en los neumáticos". La respuesta honesta: sí,
+pero es un uso DISTINTO del método — no intervalos entre fallas repetidas
+de un mismo equipo (proceso de renovación), sino la vida completa de
+**unidades distintas** de la misma familia — el análisis de vida de
+población que enseña cualquier curso de confiabilidad para componentes
+reemplazables.
+
+**Decisión de diseño importante, encontrada leyendo el propio código**:
+el plan original era agrupar por marca/medida de neumático usando el
+`estado` de la tabla `neu` (`'Baja Desgaste'`/`'Baja Imprevisto'`) — pero
+el comentario ya existente en `_neuResumenVida()` (`modules/renders/
+neu.js`) advierte que ese campo **nunca se usó con datos reales**: no hay
+de dónde sacar la vida por marca. La fuente que SÍ tiene datos reales es
+`neuHist` (`historial_neumaticos`), agrupada por **posición** (Delantero
+Izq, Trasero Der, etc.) — el mismo dato que ya usa
+`_neuResumenVida()`/"Resumen flota" para el promedio simple. Se ajustó el
+plan para usar esa fuente real en vez de una teóricamente mejor pero vacía
+en la práctica.
+
+**`logic.js`**: se refactoriza `ajusteWeibull` para compartir su núcleo de
+regresión (`_ajusteWeibullDeMuestra`, interno) con la función nueva
+`ajusteWeibullVidas(vidas)` — misma matemática, misma exigencia de ≥5
+datos, pero recibe vidas completas en vez de calcular intervalos.
+`analisisVidaUtilPorGrupo(items)` agrupa `{grupo, vida}` (genérica, no
+sabe qué es "grupo" — podría reusarse para otra población de componentes
+reemplazables) y ajusta Weibull a cada grupo por separado, para no
+mezclar posiciones con vidas típicas distintas.
+
+**`neu.js`**: `_neuResumenVida()` calcula además `weibullPorPosicion`
+(mismas duraciones ya calculadas para el promedio simple, sin medir nada
+nuevo) y el modal "Resumen Flota Neumáticos" (`resumenFlotaNeu()`) agrega
+una tabla nueva "Forma real de vida por posición (Weibull)" — posición, N°
+de cambios, β, η (vida característica) e interpretación en palabras, con
+las posiciones sin historial suficiente (mínimo 6 cambios) mostradas
+igual pero atenuadas, para que se vea que se está acumulando el dato.
+
+7 tests nuevos (`tests/weibull.test.js`, ampliando el archivo de la
+sección 23). Verificado visualmente en navegador (Playwright ad-hoc,
+historial sintético de 8 cambios en una posición): la tabla nueva
+renderiza β/η/interpretación correctamente — se detectó y corrigió un
+problema real de layout en la primera pasada (la columna η quedaba fuera
+de la vista del modal por el texto largo de interpretación empujándola;
+se resolvió con columnas de ancho fijo y el texto largo al final).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

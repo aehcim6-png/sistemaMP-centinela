@@ -634,20 +634,22 @@ function confiabilidadReal(mtbf,horasPeriodo){
 // datos, no se promedia, y con pocos puntos la pendiente ajustada es puro
 // ruido, no una forma real. Devuelve null si no hay suficiente historial —
 // nunca se inventa una forma de falla sin datos para sostenerla.
-function ajusteWeibull(horomFallas){
-  var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
-  var intervalos=[];
-  for(var i=1;i<validos.length;i++){
-    var t=validos[i]-validos[i-1];
-    if(t>0)intervalos.push(t);
-  }
-  if(intervalos.length<5)return null;
-  intervalos.sort(function(a,b){return a-b;});
-  var n=intervalos.length;
+// Núcleo del ajuste — regresión de rango mediano sobre una MUESTRA ya
+// preparada (no sabe si son intervalos entre fallas o vidas completas,
+// eso lo decide quien llama). Compartido por ajusteWeibull (abajo, para
+// equipos que fallan varias veces) y ajusteWeibullVidas (para poblaciones
+// de unidades distintas — ver comentario de esa función). Extraído acá
+// 2026-09-12 al agregar el segundo caso de uso, para no duplicar la
+// regresión — el criterio de "≥5 datos" y el resto de la matemática es
+// idéntico en ambos casos, solo cambia qué números se le pasan.
+function _ajusteWeibullDeMuestra(muestra){
+  var validos=(muestra||[]).filter(function(t){return t>0;}).sort(function(a,b){return a-b;});
+  if(validos.length<5)return null;
+  var n=validos.length;
   var sumX=0,sumY=0,sumXY=0,sumXX=0;
   for(var j=0;j<n;j++){
     var rangoMediano=(j+1-0.3)/(n+0.4);
-    var x=Math.log(intervalos[j]);
+    var x=Math.log(validos[j]);
     var y=Math.log(-Math.log(1-rangoMediano));
     sumX+=x;sumY+=y;sumXY+=x*y;sumXX+=x*x;
   }
@@ -656,6 +658,47 @@ function ajusteWeibull(horomFallas){
   var eta=Math.exp(-intercepto/beta);
   if(!isFinite(beta)||!isFinite(eta)||beta<=0||eta<=0)return null;
   return {beta:Math.round(beta*100)/100,eta:Math.round(eta),n:n};
+}
+function ajusteWeibull(horomFallas){
+  var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+  var intervalos=[];
+  for(var i=1;i<validos.length;i++){
+    var t=validos[i]-validos[i-1];
+    if(t>0)intervalos.push(t);
+  }
+  return _ajusteWeibullDeMuestra(intervalos);
+}
+
+// ═══ AJUSTE WEIBULL DE POBLACIÓN — el uso "de libro" de Weibull en
+// ingeniería de confiabilidad (2026-09-12, pedido del usuario: "¿y eso
+// puede servir en los neumáticos?"): a diferencia de ajusteWeibull (arriba,
+// intervalos entre fallas SUCESIVAS de UN mismo equipo — un proceso de
+// renovación), acá la muestra es la vida completa de UNIDADES DISTINTAS de
+// la misma familia (ej. neumáticos de la misma marca/medida ya dados de
+// baja) — el análisis clásico de "vida de una población de componentes".
+// Mismo núcleo de regresión, mismo mínimo de 5 datos, mismo significado de
+// β/η — solo cambia de dónde sale cada número de la muestra.
+function ajusteWeibullVidas(vidas){
+  return _ajusteWeibullDeMuestra(vidas||[]);
+}
+
+// Agrupa una lista de {grupo, vida} (2026-09-12, mismo pedido) y ajusta
+// Weibull de población a cada grupo por separado — mezclar grupos distintos
+// (ej. dos marcas de neumático con vidas típicas muy distintas) diluiría la
+// señal real de cada uno. Función genérica (no sabe qué es "grupo" ni
+// "vida" — el llamador decide: marca+medida de neumático, modelo de
+// componente, lo que corresponda) para poder reusarla más allá de
+// neumáticos sin duplicar la lógica de agrupar+ajustar.
+function analisisVidaUtilPorGrupo(items){
+  var porGrupo={};
+  (items||[]).forEach(function(it){
+    if(!it||!it.grupo||!(it.vida>0))return;
+    (porGrupo[it.grupo]=porGrupo[it.grupo]||[]).push(it.vida);
+  });
+  return Object.keys(porGrupo).sort().map(function(g){
+    var vidas=porGrupo[g];
+    return {grupo:g,n:vidas.length,ajuste:ajusteWeibullVidas(vidas)};
+  });
 }
 
 // R(t) real según el ajuste Weibull de arriba — mismo rol que confiabilidadReal
@@ -2067,6 +2110,8 @@ if (typeof window !== 'undefined') {
   window.paretoAcumulado = paretoAcumulado;
   window.confiabilidadReal = confiabilidadReal;
   window.ajusteWeibull = ajusteWeibull;
+  window.ajusteWeibullVidas = ajusteWeibullVidas;
+  window.analisisVidaUtilPorGrupo = analisisVidaUtilPorGrupo;
   window.confiabilidadWeibull = confiabilidadWeibull;
   window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
@@ -2085,7 +2130,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, confiabilidadWeibull, interpretacionFormaWeibull, regEsATiempo, esFallaMTBF,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, confiabilidadWeibull, interpretacionFormaWeibull, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma

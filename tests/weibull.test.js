@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ajusteWeibull, confiabilidadWeibull, interpretacionFormaWeibull } from '../logic.js';
+import { ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, confiabilidadWeibull, interpretacionFormaWeibull } from '../logic.js';
 
 describe('ajusteWeibull', () => {
   it('null con menos de 5 intervalos (4 intervalos = 5 fallas, bajo el mínimo)', () => {
@@ -70,6 +70,62 @@ describe('confiabilidadWeibull', () => {
   it('con beta=2 (forma de desgaste) da un resultado distinto a la exponencial para el mismo t/eta', () => {
     // (500/1000)^2 = 0.25 -> e^-0.25 = 0.7788...
     expect(confiabilidadWeibull({ beta: 2, eta: 1000 }, 500)).toBe(77.9);
+  });
+});
+
+describe('ajusteWeibullVidas', () => {
+  it('ajusta directamente sobre vidas completas (no calcula intervalos, a diferencia de ajusteWeibull)', () => {
+    const r = ajusteWeibullVidas([2200, 2450, 2600, 2750, 2900, 3100, 3300]);
+    expect(r).toEqual({ beta: 7.71, eta: 2921, n: 7 });
+  });
+
+  it('null con menos de 5 vidas', () => {
+    expect(ajusteWeibullVidas([2200, 2450, 2600, 2750])).toBeNull();
+  });
+
+  it('null sin datos', () => {
+    expect(ajusteWeibullVidas([])).toBeNull();
+    expect(ajusteWeibullVidas(undefined)).toBeNull();
+  });
+});
+
+describe('analisisVidaUtilPorGrupo', () => {
+  const items = [
+    { grupo: 'Michelin 24.00R35', vida: 2200 },
+    { grupo: 'Michelin 24.00R35', vida: 2450 },
+    { grupo: 'Michelin 24.00R35', vida: 2600 },
+    { grupo: 'Michelin 24.00R35', vida: 2750 },
+    { grupo: 'Michelin 24.00R35', vida: 2900 },
+    { grupo: 'Michelin 24.00R35', vida: 3100 },
+    { grupo: 'Michelin 24.00R35', vida: 3300 },
+    { grupo: 'Bridgestone 24.00R35', vida: 1800 },
+    { grupo: 'Bridgestone 24.00R35', vida: 2000 },
+    { grupo: 'Bridgestone 24.00R35', vida: 2100 },
+  ];
+
+  it('agrupa por "grupo" y ajusta cada grupo por separado (no mezcla marcas distintas)', () => {
+    const r = analisisVidaUtilPorGrupo(items);
+    expect(r).toEqual([
+      { grupo: 'Bridgestone 24.00R35', n: 3, ajuste: null },
+      { grupo: 'Michelin 24.00R35', n: 7, ajuste: { beta: 7.71, eta: 2921, n: 7 } },
+    ]);
+  });
+
+  it('grupo con menos de 5 vidas trae ajuste null pero igual aparece listado con su n real', () => {
+    const r = analisisVidaUtilPorGrupo(items).find(g => g.grupo === 'Bridgestone 24.00R35');
+    expect(r.n).toBe(3);
+    expect(r.ajuste).toBeNull();
+  });
+
+  it('ignora ítems sin grupo o sin vida válida (>0)', () => {
+    const conInvalidos = [...items, { grupo: 'X', vida: 0 }, { grupo: null, vida: 5000 }, { grupo: 'Y' }];
+    const r = analisisVidaUtilPorGrupo(conInvalidos);
+    expect(r.find(g => g.grupo === 'X')).toBeUndefined();
+    expect(r.find(g => g.grupo === 'Y')).toBeUndefined();
+  });
+
+  it('array vacío sin ítems', () => {
+    expect(analisisVidaUtilPorGrupo([])).toEqual([]);
   });
 });
 

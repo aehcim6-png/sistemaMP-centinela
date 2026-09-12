@@ -860,6 +860,35 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   se agregó ninguna librería de estadística: el método de regresión de rango mediano alcanza para el
   volumen de datos real de la flota, sin sumar una dependencia externa nueva.</p>
 
+  <h3>24. Weibull de población en Neumáticos — vida real por posición (2026-09-12)</h3>
+  <p>Origen real: el usuario preguntó si el ajuste Weibull recién construido para equipos "puede
+  servir en los neumáticos". La respuesta honesta: sí, pero es un uso DISTINTO del método — no
+  intervalos entre fallas repetidas de un mismo equipo, sino la vida completa de <b>unidades
+  distintas</b> de la misma familia — el análisis de vida de población que enseña cualquier curso de
+  confiabilidad para componentes reemplazables.</p>
+  <div class="callout">
+    <b>Decisión de diseño importante, encontrada leyendo el propio código:</b> el plan original era
+    agrupar por marca/medida de neumático usando el <code>estado</code> de la tabla <code>neu</code>
+    ("Baja Desgaste"/"Baja Imprevisto") — pero el comentario ya existente en
+    <code>_neuResumenVida()</code> advierte que ese campo <b>nunca se usó con datos reales</b>. La
+    fuente que SÍ tiene datos reales es <code>neuHist</code>, agrupada por <b>posición</b> — el mismo
+    dato que ya usa "Resumen flota" para el promedio simple. Se ajustó el plan para usar esa fuente
+    real en vez de una teóricamente mejor pero vacía en la práctica.
+  </div>
+  <p><b><code>logic.js</code>:</b> se refactoriza <code>ajusteWeibull</code> para compartir su
+  núcleo de regresión (<code>_ajusteWeibullDeMuestra</code>, interno) con la función nueva
+  <code>ajusteWeibullVidas(vidas)</code> — misma matemática, misma exigencia de ≥5 datos, pero recibe
+  vidas completas en vez de calcular intervalos. <code>analisisVidaUtilPorGrupo(items)</code> agrupa
+  <code>{grupo, vida}</code> (genérica) y ajusta Weibull a cada grupo por separado.</p>
+  <p><b><code>neu.js</code>:</b> <code>_neuResumenVida()</code> calcula además
+  <code>weibullPorPosicion</code> (mismas duraciones ya calculadas para el promedio simple) y el
+  modal "Resumen Flota Neumáticos" agrega una tabla nueva "Forma real de vida por posición
+  (Weibull)" — posición, N° de cambios, β, η e interpretación, con las posiciones sin historial
+  suficiente mostradas igual pero atenuadas.</p>
+  <p>7 tests nuevos. Verificado visualmente en navegador (Playwright ad-hoc): se detectó y corrigió
+  un problema real de layout en la primera pasada (la columna η quedaba fuera de la vista por el
+  texto largo de interpretación empujándola) con columnas de ancho fijo y el texto largo al final.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

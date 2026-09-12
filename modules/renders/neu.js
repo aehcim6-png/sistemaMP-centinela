@@ -1132,9 +1132,26 @@ function _neuResumenVida(){
     }
   });
   const stats=arr=>({n:arr.length,prom:Math.round(arr.reduce((s,v)=>s+v,0)/arr.length),min:Math.min(...arr),max:Math.max(...arr)});
+  // Weibull por posición (2026-09-12, pedido del usuario: "¿y eso puede servir
+  // en los neumáticos?", tras agregar el ajuste Weibull de equipos). Se
+  // agrupa por POSICIÓN, no por marca/medida — a diferencia de lo que haría
+  // un análisis de vida de población "de libro", acá no hay de otra: el
+  // estado de retiro de 'neu' (Baja Desgaste/Baja Imprevisto) nunca se usó
+  // con datos reales (ver comentario de arriba), así que la única fuente con
+  // datos reales de verdad es este mismo neuHist por posición — misma
+  // muestra de duraciones ya calculada arriba, sin medir nada nuevo, solo
+  // ajustada con analisisVidaUtilPorGrupo (logic.js) para dar además del
+  // promedio simple la FORMA real de esa posición (vida homogénea vs.
+  // mucha dispersión/fallas tempranas), cuando hay suficiente historial.
+  const itemsWeibull=[];
+  Object.keys(porPosicion).forEach(function(p){
+    porPosicion[p].forEach(function(dur){itemsWeibull.push({grupo:p,vida:dur});});
+  });
+  const weibullPorPosicion=(typeof analisisVidaUtilPorGrupo==='function')?analisisVidaUtilPorGrupo(itemsWeibull):[];
   return{
     general:todas.length?stats(todas):null,
-    porPosicion:Object.keys(porPosicion).sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).map(p=>({posicion:p,...stats(porPosicion[p])}))
+    porPosicion:Object.keys(porPosicion).sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).map(p=>({posicion:p,...stats(porPosicion[p])})),
+    weibullPorPosicion:weibullPorPosicion
   };
 }
 export function resumenFlotaNeu(){
@@ -1214,6 +1231,26 @@ export function resumenFlotaNeu(){
       }).join('')}
     </table></div>
     <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">⚠️ = algún cambio duró menos de la mitad del promedio de su posición — candidato a revisar garantía o calidad del neumático/proveedor.</div>`:''}
+    ${vidaReal.weibullPorPosicion&&vidaReal.weibullPorPosicion.length?`<b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Forma real de vida por posición (Weibull):</b>
+    <div class="tbl-wrap" style="margin:8px 0 4px"><table style="width:100%;font-size:11px;table-layout:fixed">
+      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left;width:22%">Posición</th><th style="width:13%">N° cambios</th><th style="width:12%">β (forma)</th><th style="width:20%">η (vida caract.)</th><th style="text-align:left">Interpretación</th></tr>
+      ${vidaReal.weibullPorPosicion.map(g=>{
+        if(!g.ajuste)return`<tr style="border-bottom:1px solid var(--bd);opacity:.55">
+          <td style="padding:6px;font-weight:600">${escapeHtml(g.grupo)}</td>
+          <td style="text-align:center">${g.n}</td>
+          <td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 6 cambios)</td>
+        </tr>`;
+        const interp=typeof interpretacionFormaWeibull==='function'?interpretacionFormaWeibull(g.ajuste.beta):'';
+        return`<tr style="border-bottom:1px solid var(--bd)">
+          <td style="padding:6px;font-weight:600">${escapeHtml(g.grupo)}</td>
+          <td style="text-align:center">${g.n}</td>
+          <td style="text-align:center;font-weight:700">${g.ajuste.beta}</td>
+          <td style="text-align:center">${fn2(g.ajuste.eta)}h</td>
+          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp||'')}</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre neumáticos de esa posición. β&lt;1 = varios se retiran temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de esa posición según el ajuste real.</div>`:''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Total neumáticos</div>
