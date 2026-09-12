@@ -701,6 +701,38 @@ function analisisVidaUtilPorGrupo(items){
   });
 }
 
+// Ajusta Weibull por tipo de componente/categoría de falla, A NIVEL FLOTA
+// (2026-09-12, mismo pedido que neumáticos/componentes mayores — la parte
+// de Correctivos). A diferencia de ajusteWeibull (un equipo a la vez) y de
+// analisisVidaUtilPorGrupo (recibe las vidas ya agrupadas por quien llama),
+// acá se hacen las DOS cosas porque el agrupamiento es más específico:
+// primero se agrupan los eventos por sigla+componente (no se pueden mezclar
+// horómetros de equipos DISTINTOS entre sí — mismo criterio que ya usa
+// _estMtbfPorComponente en estadistica.js), se calculan los intervalos
+// reales DENTRO de cada equipo, y recién ahí se agrupan por componente para
+// juntar (pool) entre equipos — la muestra que responde "¿cómo es la forma
+// de falla de Motor/Frenos/etc. en TODA la flota?", no equipo por equipo.
+// 'eventos' es la misma forma que ya arma _estFallasCombinadas
+// (estadistica.js): {sigla, componente, horom, ...}.
+function analisisVidaUtilCorrectivosPorComponente(eventos){
+  var porEquipoComp={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.componente||!(e.horom>0)||!e.sigla)return;
+    var k=e.sigla+'|'+e.componente;
+    (porEquipoComp[k]=porEquipoComp[k]||{componente:e.componente,horoms:[]}).horoms.push(e.horom);
+  });
+  var items=[];
+  Object.keys(porEquipoComp).forEach(function(k){
+    var g=porEquipoComp[k];
+    var validos=g.horoms.filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+    for(var i=1;i<validos.length;i++){
+      var t=validos[i]-validos[i-1];
+      if(t>0)items.push({grupo:g.componente,vida:t});
+    }
+  });
+  return analisisVidaUtilPorGrupo(items);
+}
+
 // R(t) real según el ajuste Weibull de arriba — mismo rol que confiabilidadReal
 // pero con β/η propios del equipo en vez de asumir β=1. R(t)=e^(-(t/η)^β),
 // la generalización de la fórmula exponencial (con β=1 da exactamente lo
@@ -2112,6 +2144,7 @@ if (typeof window !== 'undefined') {
   window.ajusteWeibull = ajusteWeibull;
   window.ajusteWeibullVidas = ajusteWeibullVidas;
   window.analisisVidaUtilPorGrupo = analisisVidaUtilPorGrupo;
+  window.analisisVidaUtilCorrectivosPorComponente = analisisVidaUtilCorrectivosPorComponente;
   window.confiabilidadWeibull = confiabilidadWeibull;
   window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
@@ -2130,7 +2163,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, confiabilidadWeibull, interpretacionFormaWeibull, regEsATiempo, esFallaMTBF,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma

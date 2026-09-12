@@ -1181,6 +1181,59 @@ visualmente en navegador (Playwright ad-hoc, 7 reemplazos sintéticos de
 "Motor"): la tabla renderiza β=10.34 (desgaste marcado), η≈3.867h,
 consistente con la interpretación esperada para un patrón de vida creciente.
 
+### 26. Weibull de población en Correctivos por componente — a nivel flota (2026-09-12)
+
+Origen real: al elegir entre Componentes o Correctivos (sección 25), el
+usuario luego pidió seguir también con Correctivos. A diferencia de
+Componentes Mayores y Neumáticos, acá no hay "vidas completas" de una
+unidad reemplazable — un correctivo es una falla puntual, no el fin de
+vida de una pieza física con serie propia. Lo que sí existe es el mismo
+patrón usado en MTBF/Pareto de fallas (`estadistica.js`): categorizar cada
+correctivo por componente (`o.componente` o, si viene vacío,
+`_componenteDeSintoma(o.sintoma)` — el clasificador ya auditado contra
+1.243 correctivos reales, ~70% de cobertura) y mirar los intervalos reales
+entre fallas sucesivas.
+
+La dificultad nueva: los horómetros de fallas sucesivas solo tienen
+sentido **dentro del mismo equipo** (no se puede restar el horómetro de
+una falla de motor en CN-1 menos el de CN-2). Pero para tener muestra
+suficiente por componente hay que juntar varios equipos. La solución:
+calcular los intervalos **equipo por equipo** (igual que
+`ajusteWeibull` de la sección 23) y recién después **juntar esos
+intervalos entre todos los equipos que comparten la misma categoría de
+componente**, antes de ajustar Weibull sobre el conjunto combinado — un
+híbrido entre la técnica por-equipo (23) y la técnica por-población (24-25).
+
+**`logic.js`**: nueva función `analisisVidaUtilCorrectivosPorComponente(eventos)` —
+agrupa los eventos `{sigla, componente, horom}` por `sigla+componente`,
+calcula los intervalos sucesivos dentro de cada grupo (mismo patrón que
+`ajusteWeibull`, sin mezclar horómetros entre equipos), junta todos esos
+intervalos por categoría de componente en una lista plana
+`{grupo, vida}` y se la pasa a `analisisVidaUtilPorGrupo` (ya existente
+desde la sección 24 — sin reinventar el ajuste ni la agrupación final).
+5 tests nuevos en `weibull.test.js` (29 en total): agrupamiento correcto
+sin mezclar equipos, un componente con solo 1 intervalo queda listado con
+`ajuste:null` (bajo el mínimo de 5, nunca se inventa un ajuste), se
+ignoran eventos sin componente/sigla/horómetro válido, arreglo vacío, y
+pureza (no muta los eventos de entrada).
+
+**`estadistica.js`**: en la vista "Por Componente", después de la tabla
+Pareto existente, nueva función `_estWeibullPorComponente(eventos)` agrega
+una tabla "Forma real de falla por componente — toda la flota (Weibull)"
+con el mismo formato ya establecido (Componente, N° intervalos, β, η,
+interpretación; columnas con ancho fijo para evitar el bug ya conocido de
+la interpretación empujando la columna η fuera de pantalla). Usa los
+mismos `eventos` que ya arma `_estFallasCombinadas(ot, otHist)` para el
+Pareto — sin nueva fuente de datos.
+
+Verificado visualmente en navegador (Playwright ad-hoc, 8 correctivos
+sintéticos de "Motor" repartidos en 2 equipos): la tabla renderiza Motor,
+N°=6 intervalos combinados, β=1.13, η=784h, interpretación "Desgaste" —
+consistente con el resto de la familia Weibull. Portado a sistema-mp2
+(mismo `logic.js`, mismos tests, mismo `estadistica.js` sustituyendo el
+emoji "📐" por `ICONS.ruler`) y verificado ahí con el mismo procedimiento
+antes de subir.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

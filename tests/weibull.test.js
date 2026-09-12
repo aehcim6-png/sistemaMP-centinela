@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, confiabilidadWeibull, interpretacionFormaWeibull } from '../logic.js';
+import { ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull } from '../logic.js';
 
 describe('ajusteWeibull', () => {
   it('null con menos de 5 intervalos (4 intervalos = 5 fallas, bajo el mínimo)', () => {
@@ -126,6 +126,60 @@ describe('analisisVidaUtilPorGrupo', () => {
 
   it('array vacío sin ítems', () => {
     expect(analisisVidaUtilPorGrupo([])).toEqual([]);
+  });
+});
+
+describe('analisisVidaUtilCorrectivosPorComponente', () => {
+  const eventosBase = () => [
+    { sigla: 'CN-1', componente: 'Motor', horom: 1000 },
+    { sigla: 'CN-1', componente: 'Motor', horom: 1800 },
+    { sigla: 'CN-1', componente: 'Motor', horom: 2500 },
+    { sigla: 'CN-1', componente: 'Motor', horom: 3100 },
+    { sigla: 'CN-2', componente: 'Motor', horom: 500 },
+    { sigla: 'CN-2', componente: 'Motor', horom: 1300 },
+    { sigla: 'CN-2', componente: 'Motor', horom: 1900 },
+    { sigla: 'CN-2', componente: 'Motor', horom: 2000 },
+    { sigla: 'CN-3', componente: 'Frenos', horom: 800 },
+    { sigla: 'CN-3', componente: 'Frenos', horom: 1200 },
+  ];
+
+  it('agrupa primero por sigla+componente (no mezcla horómetros de equipos distintos) y luego junta los intervalos por componente', () => {
+    const r = analisisVidaUtilCorrectivosPorComponente(eventosBase());
+    const motor = r.find(g => g.grupo === 'Motor');
+    // CN-1 aporta 3 intervalos (1000->1800->2500->3100), CN-2 aporta 3 (500->1300->1900->2000) = 6 pooled
+    expect(motor.n).toBe(6);
+    expect(motor.ajuste).not.toBeNull();
+  });
+
+  it('un componente con solo 1 intervalo queda listado con ajuste null (bajo el mínimo de 5)', () => {
+    const r = analisisVidaUtilCorrectivosPorComponente(eventosBase());
+    const frenos = r.find(g => g.grupo === 'Frenos');
+    expect(frenos.n).toBe(1);
+    expect(frenos.ajuste).toBeNull();
+  });
+
+  it('ignora eventos sin componente, sin sigla o con horómetro inválido', () => {
+    const conInvalidos = [
+      ...eventosBase(),
+      { sigla: 'CN-1', componente: '', horom: 5000 },
+      { sigla: '', componente: 'Motor', horom: 9000 },
+      { sigla: 'CN-4', componente: 'Motor', horom: 0 },
+    ];
+    const r = analisisVidaUtilCorrectivosPorComponente(conInvalidos);
+    const motor = r.find(g => g.grupo === 'Motor');
+    expect(motor.n).toBe(6); // no cambia respecto al caso base
+  });
+
+  it('array vacío sin eventos', () => {
+    expect(analisisVidaUtilCorrectivosPorComponente([])).toEqual([]);
+    expect(analisisVidaUtilCorrectivosPorComponente(undefined)).toEqual([]);
+  });
+
+  it('no muta el arreglo de eventos original (pura)', () => {
+    const eventos = eventosBase();
+    const copia = eventos.map(e => ({ ...e }));
+    analisisVidaUtilCorrectivosPorComponente(eventos);
+    expect(eventos).toEqual(copia);
   });
 });
 

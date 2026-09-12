@@ -144,6 +144,38 @@ function _estTablaComponente(eventos) {
         '<td style="text-align:center">' + r.nEquipos + '</td>' +
         '<td style="text-align:center;color:' + (r.mtbf == null ? 'var(--tx3)' : r.mtbf > 2000 ? 'var(--ok)' : r.mtbf > 500 ? 'var(--ac)' : 'var(--danger)') + '">' + (r.mtbf == null ? '—' : fn(r.mtbf)) + '</td></tr>';
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
+    '</table></div>' +
+    _estWeibullPorComponente(eventos) +
+    '</div>';
+}
+
+// Weibull por componente/categoría de falla, A NIVEL FLOTA (2026-09-12,
+// pedido del usuario tras el mismo análisis en neumáticos y componentes
+// mayores — "¿y ahora en componentes o correctivos?"). A diferencia del
+// MTBF típico de la tabla de arriba (un promedio simple de promedios por
+// equipo), acá se ajusta la FORMA real de la distribución de intervalos
+// pooled entre todos los equipos con ese componente (analisisVidaUtil
+// CorrectivosPorComponente, logic.js) — dice si un componente falla por
+// desgaste homogéneo (β&gt;1, priorizar PM preventivo) o de forma más
+// aleatoria/temprana (β≈1 o β&lt;1, un cambio preventivo no ayudaría tanto
+// como mejorar calidad/instalación).
+function _estWeibullPorComponente(eventos) {
+  var lista = (typeof analisisVidaUtilCorrectivosPorComponente === 'function') ? analisisVidaUtilCorrectivosPorComponente(eventos) : [];
+  if (!lista.length) return '';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">📐 Forma real de falla por componente — toda la flota (Weibull)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Intervalos reales entre fallas sucesivas del mismo componente, calculados equipo por equipo y luego juntados entre todos los equipos con ese componente (no se mezclan horómetros de equipos distintos). β cerca de 1 = fallas parejas/aleatorias en el tiempo. β&lt;1 = fallas más tempranas (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable, priorizar reemplazo preventivo antes de la falla) — η es la vida característica de ese componente según el ajuste real.</div>' +
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Componente</th><th style="width:15%">N° intervalos</th><th style="width:13%">β (forma)</th><th style="width:18%">η (vida caract.)</th><th style="text-align:left">Interpretación</th></tr>' +
+    lista.map(function (g) {
+      if (!g.ajuste) return '<tr style="opacity:.55"><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td><td style="text-align:center">' + g.n + '</td><td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 6 intervalos)</td></tr>';
+      var interp = typeof interpretacionFormaWeibull === 'function' ? interpretacionFormaWeibull(g.ajuste.beta) : '';
+      return '<tr>' +
+        '<td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
+        '<td style="text-align:center">' + g.n + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + g.ajuste.beta + '</td>' +
+        '<td style="text-align:center">' + fn(g.ajuste.eta) + 'h</td>' +
+        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + escapeHtml(interp || '') + '</td></tr>';
+    }).join('') +
     '</table></div></div>';
 }
 
