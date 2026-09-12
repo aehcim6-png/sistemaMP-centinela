@@ -1234,6 +1234,61 @@ consistente con el resto de la familia Weibull. Portado a sistema-mp2
 emoji "📐" por `ICONS.ruler`) y verificado ahí con el mismo procedimiento
 antes de subir.
 
+### 27. Intervalo de confianza 90% (IC90) para β/η — cuánto confiar en la forma ajustada (2026-09-12)
+
+Origen real: tras completar las cuatro variantes de Weibull (equipo,
+neumáticos, componentes mayores, correctivos por componente), el usuario
+preguntó, viéndolo desde los cuatro roles de datos (Ingeniero, Analista,
+Científico, BI), qué fórmula o dato todavía faltaba. Un hueco real: β/η se
+mostraban como si fueran ciertos, sin margen de error — con el mínimo de
+5-6 datos que exige el ajuste, la recta ajustada puede estar lejos de la
+forma real, y no decirlo es aparentar más certeza de la que hay. El caso
+de Correctivos (sección 26) lo hace evidente: el β puntual de Motor
+(1.13, "Desgaste") tiene un IC90 real de 0.39–1.87, que cruza las tres
+zonas de interpretación (tempranas/aleatorias/desgaste) — con solo 6
+intervalos pooled, la forma real todavía no se conoce con certeza.
+
+**`logic.js`**: `_ajusteWeibullDeMuestra` (el núcleo de regresión
+compartido por las 4 variantes) ahora calcula además el error estándar de
+la pendiente (β) y el intercepto de la MISMA regresión de mínimos
+cuadrados que ya se usaba (fórmulas estándar de OLS, sin librería
+externa), y propaga ese error a η con el **método delta** — η=e^(-intercepto/β)
+depende de ambos parámetros de la regresión a la vez, que están
+correlacionados entre sí, no son independientes. Nueva función interna
+`_intervaloConfianzaWeibull` (no exportada, uso interno) y una tabla fija
+de valores críticos t de Student (df=1-30, aproximación normal más allá)
+para el **90% de confianza** — el estándar de la industria en análisis de
+confiabilidad Weibull (así reporta Minitab/ReliaSoft por defecto), no un
+número elegido al azar. El resultado de cada ajuste ahora incluye
+`ic90:{betaMin,betaMax,etaMin,etaMax}` (campo aditivo — ningún llamador
+existente se rompe por no leerlo), o queda ausente si la varianza sale
+indefinida (nunca se inventa un intervalo). `betaMin` se acota a un
+mínimo positivo (β&lt;=0 no es interpretable).
+
+4 tests nuevos en `weibull.test.js` (33 en total): con datos muy
+regulares el IC90 sale angosto; con el caso real de Correctivos pooled el
+IC90 confirma que cruza las tres zonas de interpretación; el caso mínimo
+(n=5) sigue devolviendo un IC90 válido; `betaMin` nunca es negativo.
+
+**UI**: se agrega la línea "IC90 x–y" bajo β y η en las 4 pantallas que
+muestran un ajuste Weibull — Torre de Control (drawer, por equipo),
+Neumáticos (resumen flota, por posición), Historial de Componentes (por
+tipo de componente) y Estadística → Por Componente (Correctivos, pooled a
+nivel flota). En Torre de Control y en la tabla de Correctivos, además,
+cuando el IC90 de β cruza tanto &lt;0.9 como &gt;1.1 se agrega una
+advertencia explícita ("rango amplio, todavía no hay certeza sobre la
+forma real") en vez de dejar que el usuario confíe en un β puntual que
+podría significar cualquier cosa.
+
+Verificado visualmente en navegador (Playwright ad-hoc, una prueba por
+cada una de las 4 pantallas): Torre de Control muestra "IC 90%: β entre
+2.7 y 3.09" bajo β=2.9 (CN-1, mismo caso de la sección 23); Neumáticos
+muestra "IC90 7.63–11.22" bajo β=9.43 y "IC90 2.926–3.058h" bajo η=2.990h;
+Estadística → Correctivos muestra "IC90 0.39–1.87" bajo β=1.13 junto con
+la advertencia de rango amplio, confirmando que el caso con menos certeza
+real efectivamente se marca como tal. Portado a sistema-mp2 (mismo
+`logic.js`/tests, mismas 4 pantallas) y verificado ahí antes de subir.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

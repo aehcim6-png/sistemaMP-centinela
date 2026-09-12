@@ -933,6 +933,30 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   sistema-mp2 (mismo <code>logic.js</code>/tests, <code>estadistica.js</code> sustituyendo el
   emoji por <code>ICONS.ruler</code>) y verificado ahí igual antes de subir.</p>
 
+  <h3>27. Intervalo de confianza 90% (IC90) para β/η (2026-09-12)</h3>
+  <p>Origen real: viendo el sistema desde los cuatro roles de datos (Ingeniero, Analista,
+  Científico, BI), el usuario preguntó qué fórmula o dato todavía faltaba. Un hueco real: β/η se
+  mostraban como ciertos, sin margen de error — con el mínimo de 5-6 datos exigido, la recta
+  ajustada puede estar lejos de la forma real. El caso de Correctivos (sección 26) lo hace
+  evidente: el β puntual de Motor (1.13, "Desgaste") tiene un IC90 real de 0.39–1.87, que cruza las
+  tres zonas de interpretación (tempranas/aleatorias/desgaste) — con solo 6 intervalos pooled, la
+  forma real todavía no se conoce con certeza.</p>
+  <p><b>Cambios:</b> <code>_ajusteWeibullDeMuestra</code> (el núcleo compartido por las 4 variantes
+  de Weibull) calcula el error estándar de la pendiente/intercepto de la misma regresión OLS ya
+  existente (sin librería externa) y lo propaga a η con el <b>método delta</b> (η depende de ambos
+  parámetros correlacionados de la regresión). Tabla fija de valores críticos t de Student (df 1-30)
+  para el <b>90% de confianza</b> — estándar de la industria en confiabilidad Weibull (Minitab,
+  ReliaSoft). Cada ajuste ahora incluye <code>ic90:{betaMin,betaMax,etaMin,etaMax}</code> (campo
+  aditivo), o queda ausente si la varianza sale indefinida.</p>
+  <p>4 tests nuevos (33 en total). En la UI se agrega la línea "IC90 x–y" bajo β y η en las 4
+  pantallas con ajuste Weibull (Torre de Control, Neumáticos, Historial de Componentes,
+  Estadística → Correctivos); en Torre de Control y Correctivos, cuando el IC90 de β cruza tanto
+  &lt;0.9 como &gt;1.1 se agrega la advertencia "rango amplio, todavía no hay certeza sobre la forma
+  real". Verificado visualmente en las 4 pantallas (Playwright ad-hoc): Torre de Control muestra
+  "IC 90%: β entre 2.7 y 3.09"; Neumáticos "IC90 7.63–11.22"/"IC90 2.926–3.058h"; Correctivos
+  "IC90 0.39–1.87" junto con la advertencia de rango amplio. Portado a sistema-mp2 y verificado ahí
+  antes de subir.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

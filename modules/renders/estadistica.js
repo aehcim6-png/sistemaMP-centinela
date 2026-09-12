@@ -164,17 +164,19 @@ function _estWeibullPorComponente(eventos) {
   if (!lista.length) return '';
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">📐 Forma real de falla por componente — toda la flota (Weibull)</div>' +
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Intervalos reales entre fallas sucesivas del mismo componente, calculados equipo por equipo y luego juntados entre todos los equipos con ese componente (no se mezclan horómetros de equipos distintos). β cerca de 1 = fallas parejas/aleatorias en el tiempo. β&lt;1 = fallas más tempranas (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable, priorizar reemplazo preventivo antes de la falla) — η es la vida característica de ese componente según el ajuste real.</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Intervalos reales entre fallas sucesivas del mismo componente, calculados equipo por equipo y luego juntados entre todos los equipos con ese componente (no se mezclan horómetros de equipos distintos). β cerca de 1 = fallas parejas/aleatorias en el tiempo. β&lt;1 = fallas más tempranas (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable, priorizar reemplazo preventivo antes de la falla) — η es la vida característica de ese componente según el ajuste real. IC90 = intervalo de confianza 90%: con pocos intervalos pooled, el β puntual puede estar lejos de la forma real.</div>' +
     '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Componente</th><th style="width:15%">N° intervalos</th><th style="width:13%">β (forma)</th><th style="width:18%">η (vida caract.)</th><th style="text-align:left">Interpretación</th></tr>' +
     lista.map(function (g) {
       if (!g.ajuste) return '<tr style="opacity:.55"><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td><td style="text-align:center">' + g.n + '</td><td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 6 intervalos)</td></tr>';
       var interp = typeof interpretacionFormaWeibull === 'function' ? interpretacionFormaWeibull(g.ajuste.beta) : '';
+      var ic = g.ajuste.ic90;
+      var icAmplio = ic && ic.betaMin < 0.9 && ic.betaMax > 1.1;
       return '<tr>' +
         '<td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
         '<td style="text-align:center">' + g.n + '</td>' +
-        '<td style="text-align:center;font-weight:700">' + g.ajuste.beta + '</td>' +
-        '<td style="text-align:center">' + fn(g.ajuste.eta) + 'h</td>' +
-        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + escapeHtml(interp || '') + '</td></tr>';
+        '<td style="text-align:center;font-weight:700">' + g.ajuste.beta + (ic ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ' + ic.betaMin + '–' + ic.betaMax + '</div>' : '') + '</td>' +
+        '<td style="text-align:center">' + fn(g.ajuste.eta) + 'h' + (ic ? '<div style="font-size:9px;color:var(--tx3)">IC90 ' + fn(ic.etaMin) + '–' + fn(ic.etaMax) + 'h</div>' : '') + '</td>' +
+        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + escapeHtml(interp || '') + (icAmplio ? ' <span style="color:var(--warn)">— rango amplio, todavía no hay certeza sobre la forma real</span>' : '') + '</td></tr>';
     }).join('') +
     '</table></div></div>';
 }

@@ -1241,16 +1241,17 @@ export function resumenFlotaNeu(){
           <td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 6 cambios)</td>
         </tr>`;
         const interp=typeof interpretacionFormaWeibull==='function'?interpretacionFormaWeibull(g.ajuste.beta):'';
+        const ic=g.ajuste.ic90;
         return`<tr style="border-bottom:1px solid var(--bd)">
           <td style="padding:6px;font-weight:600">${escapeHtml(g.grupo)}</td>
           <td style="text-align:center">${g.n}</td>
-          <td style="text-align:center;font-weight:700">${g.ajuste.beta}</td>
-          <td style="text-align:center">${fn2(g.ajuste.eta)}h</td>
+          <td style="text-align:center;font-weight:700">${g.ajuste.beta}${ic?`<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ${ic.betaMin}–${ic.betaMax}</div>`:''}</td>
+          <td style="text-align:center">${fn2(g.ajuste.eta)}h${ic?`<div style="font-size:9px;color:var(--tx3)">IC90 ${fn2(ic.etaMin)}–${fn2(ic.etaMax)}h</div>`:''}</td>
           <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp||'')}</td>
         </tr>`;
       }).join('')}
     </table></div>
-    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre neumáticos de esa posición. β&lt;1 = varios se retiran temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de esa posición según el ajuste real.</div>`:''}
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre neumáticos de esa posición. β&lt;1 = varios se retiran temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de esa posición según el ajuste real. IC90 = intervalo de confianza 90%: el rango donde probablemente está el valor real, no solo el número puntual — con pocos cambios el rango es más amplio.</div>`:''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Total neumáticos</div>

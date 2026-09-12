@@ -24,7 +24,7 @@ describe('ajusteWeibull', () => {
 
   it('devuelve beta/eta/n con datos suficientes (7 fallas, forma de desgaste)', () => {
     const r = ajusteWeibull([1000, 1800, 2500, 3100, 3600, 4000, 4300]);
-    expect(r).toEqual({ beta: 2.9, eta: 620, n: 6 });
+    expect(r).toEqual({ beta: 2.9, eta: 620, n: 6, ic90: { betaMin: 2.7, betaMax: 3.09, etaMin: 604, etaMax: 636 } });
   });
 
   it('es insensible al orden de entrada (no depende de que vengan ya ordenadas)', () => {
@@ -45,6 +45,45 @@ describe('ajusteWeibull', () => {
     const copia = [...original];
     ajusteWeibull(original);
     expect(original).toEqual(copia);
+  });
+});
+
+describe('intervalo de confianza (ic90) del ajuste Weibull', () => {
+  it('con datos que se ajustan casi perfecto a la recta, el intervalo es angosto', () => {
+    // Intervalos muy regulares (800,700,600,500,400,300) -> la regresión
+    // explica casi toda la variación -> error estándar chico -> ic90 angosto.
+    const r = ajusteWeibull([1000, 1800, 2500, 3100, 3600, 4000, 4300]);
+    expect(r.ic90.betaMin).toBeLessThan(r.beta);
+    expect(r.ic90.betaMax).toBeGreaterThan(r.beta);
+    expect(r.ic90.etaMin).toBeLessThan(r.eta);
+    expect(r.ic90.etaMax).toBeGreaterThan(r.eta);
+    // Angosto: menos de medio punto de beta de margen a cada lado.
+    expect(r.ic90.betaMax - r.ic90.betaMin).toBeLessThan(1);
+  });
+
+  it('con pocos datos reales y ruidosos (correctivos pooled de 2 equipos), el intervalo es amplio y puede cruzar zonas de interpretación distintas', () => {
+    // Mismo caso que analisisVidaUtilCorrectivosPorComponente en producción
+    // (ver ese describe): 6 intervalos pooled de Motor entre 2 equipos,
+    // beta puntual=1.13 ("Desgaste"), pero el ic90 real cruza tanto <0.9
+    // (tempranas) como >1.1 (desgaste) — la muestra es chica, no hay certeza
+    // real de la forma. Se prueba acá vía ajusteWeibullVidas directamente
+    // sobre los mismos intervalos ya pooled (misma matemática que usa
+    // analisisVidaUtilCorrectivosPorComponente internamente).
+    const pooled = ajusteWeibullVidas([800, 700, 600, 800, 600, 100]);
+    expect(pooled.beta).toBe(1.13);
+    expect(pooled.ic90.betaMin).toBeLessThan(0.9);
+    expect(pooled.ic90.betaMax).toBeGreaterThan(1.1);
+  });
+
+  it('null cuando df<1 (n=5, el mínimo posible, sigue dando ic90 — df=3)', () => {
+    const r = ajusteWeibullVidas([2200, 2450, 2600, 2750, 2900]);
+    expect(r).not.toBeNull();
+    expect(r.ic90).not.toBeNull();
+  });
+
+  it('betaMin nunca es negativo (se acota a un mínimo positivo, un beta<=0 no es interpretable)', () => {
+    const r = ajusteWeibullVidas([100, 5000, 200, 8000, 50]);
+    expect(r.ic90.betaMin).toBeGreaterThan(0);
   });
 });
 
@@ -76,7 +115,7 @@ describe('confiabilidadWeibull', () => {
 describe('ajusteWeibullVidas', () => {
   it('ajusta directamente sobre vidas completas (no calcula intervalos, a diferencia de ajusteWeibull)', () => {
     const r = ajusteWeibullVidas([2200, 2450, 2600, 2750, 2900, 3100, 3300]);
-    expect(r).toEqual({ beta: 7.71, eta: 2921, n: 7 });
+    expect(r).toEqual({ beta: 7.71, eta: 2921, n: 7, ic90: { betaMin: 7.1, betaMax: 8.31, etaMin: 2888, etaMax: 2954 } });
   });
 
   it('null con menos de 5 vidas', () => {
@@ -107,7 +146,7 @@ describe('analisisVidaUtilPorGrupo', () => {
     const r = analisisVidaUtilPorGrupo(items);
     expect(r).toEqual([
       { grupo: 'Bridgestone 24.00R35', n: 3, ajuste: null },
-      { grupo: 'Michelin 24.00R35', n: 7, ajuste: { beta: 7.71, eta: 2921, n: 7 } },
+      { grupo: 'Michelin 24.00R35', n: 7, ajuste: { beta: 7.71, eta: 2921, n: 7, ic90: { betaMin: 7.1, betaMax: 8.31, etaMin: 2888, etaMax: 2954 } } },
     ]);
   });
 

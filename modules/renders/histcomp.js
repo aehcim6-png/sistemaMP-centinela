@@ -99,16 +99,17 @@ export function renderHistComp() {
           <td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 6 cambios)</td>
         </tr>`;
         var interp = typeof interpretacionFormaWeibull === 'function' ? interpretacionFormaWeibull(g.ajuste.beta) : '';
+        var ic = g.ajuste.ic90;
         return `<tr>
           <td style="font-weight:600">${escapeHtml(g.grupo)}</td>
           <td class="mono">${g.n}</td>
-          <td class="mono" style="font-weight:700">${g.ajuste.beta}</td>
-          <td class="mono">${fn(g.ajuste.eta)}h</td>
+          <td class="mono" style="font-weight:700">${g.ajuste.beta}${ic ? `<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ${ic.betaMin}–${ic.betaMax}</div>` : ''}</td>
+          <td class="mono">${fn(g.ajuste.eta)}h${ic ? `<div style="font-size:9px;color:var(--tx3)">IC90 ${fn(ic.etaMin)}–${fn(ic.etaMax)}h</div>` : ''}</td>
           <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp || '')}</td>
         </tr>`;
       }).join('')}
     </table></div>
-    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre reemplazos de ese componente. β&lt;1 = varios se cambian temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de ese componente según el ajuste real.</div>` : ''}
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre reemplazos de ese componente. β&lt;1 = varios se cambian temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de ese componente según el ajuste real. IC90 = intervalo de confianza 90%: el rango donde probablemente está el valor real, no solo el número puntual.</div>` : ''}
     <div class="toolbar">
       <select id="fHistComp" onchange="renders.histcomp()"><option value="">Todos los componentes</option>${comps.map(function (c) { return '<option' + (c === fComp ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('')}</select>
     </div>

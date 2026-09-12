@@ -647,17 +647,86 @@ function _ajusteWeibullDeMuestra(muestra){
   if(validos.length<5)return null;
   var n=validos.length;
   var sumX=0,sumY=0,sumXY=0,sumXX=0;
+  var xs=[],ys=[];
   for(var j=0;j<n;j++){
     var rangoMediano=(j+1-0.3)/(n+0.4);
     var x=Math.log(validos[j]);
     var y=Math.log(-Math.log(1-rangoMediano));
+    xs.push(x);ys.push(y);
     sumX+=x;sumY+=y;sumXY+=x*y;sumXX+=x*x;
   }
   var beta=(n*sumXY-sumX*sumY)/(n*sumXX-sumX*sumX);
   var intercepto=(sumY-beta*sumX)/n;
   var eta=Math.exp(-intercepto/beta);
   if(!isFinite(beta)||!isFinite(eta)||beta<=0||eta<=0)return null;
-  return {beta:Math.round(beta*100)/100,eta:Math.round(eta),n:n};
+  var r={beta:Math.round(beta*100)/100,eta:Math.round(eta),n:n};
+  var ic90=_intervaloConfianzaWeibull(xs,ys,sumX,sumXX,n,beta,intercepto);
+  if(ic90)r.ic90=ic90;
+  return r;
+}
+
+// Valores críticos t de Student, dos colas, 90% de confianza (α=0.10) — tabla
+// estándar de cualquier libro de estadística, para df=1..30; más allá se usa
+// la aproximación normal (z=1.645), ya prácticamente igual al t exacto. 90%
+// (no 95%) porque es el estándar de la industria en análisis de
+// confiabilidad Weibull (así reporta Minitab/ReliaSoft por defecto), no un
+// número elegido al azar.
+var _T_STUDENT_90=[6.314,2.920,2.353,2.132,2.015,1.943,1.895,1.860,1.833,1.812,1.796,1.782,1.771,1.761,1.753,1.746,1.740,1.734,1.729,1.725,1.721,1.717,1.714,1.711,1.708,1.706,1.703,1.701,1.699,1.697];
+function _tCritico90(df){
+  if(df<1)return 1.645;
+  if(df<=30)return _T_STUDENT_90[df-1];
+  return 1.645;
+}
+
+// Intervalo de confianza 90% para β/η (2026-09-12, pedido del usuario: "con
+// qué formula no hemos puesto"): el ajuste de arriba da un β/η puntual, pero
+// con muestras chicas (mínimo 5-6 datos) esa recta puede estar lejos de la
+// realidad — mostrar solo el número sin su margen de error aparenta más
+// certeza de la que hay. Se usa el error estándar de la pendiente/intercepto
+// de la MISMA regresión de mínimos cuadrados de arriba (fórmulas estándar de
+// OLS, sin librería externa) y se propaga a η con el método delta, ya que
+// η=e^(-intercepto/β) depende de ambos parámetros de la regresión a la vez
+// (que están correlacionados entre sí, no son independientes). Recibe los
+// mismos xs/ys/sumas ya calculados por el llamador para no repetir el
+// trabajo. Devuelve null si la varianza sale indefinida (df<1 o los x son
+// todos iguales) en vez de inventar un intervalo.
+function _intervaloConfianzaWeibull(xs,ys,sumX,sumXX,n,beta,intercepto){
+  var df=n-2;
+  if(df<1)return null;
+  var sse=0;
+  for(var i=0;i<n;i++){
+    var pred=intercepto+beta*xs[i];
+    var res=ys[i]-pred;
+    sse+=res*res;
+  }
+  var mse=sse/df;
+  var sxx=sumXX-(sumX*sumX)/n;
+  if(!(sxx>0))return null;
+  var varBeta=mse/sxx;
+  var xBar=sumX/n;
+  var varIntercepto=mse*(1/n+(xBar*xBar)/sxx);
+  var covBetaIntercepto=-mse*xBar/sxx;
+  // Método delta para ln(η) = -intercepto/β (η no sale directo de la
+  // regresión, así que su varianza tampoco — hay que propagarla).
+  var dBeta=intercepto/(beta*beta);
+  var dIntercepto=-1/beta;
+  var varLnEta=dBeta*dBeta*varBeta+dIntercepto*dIntercepto*varIntercepto+2*dBeta*dIntercepto*covBetaIntercepto;
+  if(!(varBeta>=0)||!(varLnEta>=0))return null;
+  var t=_tCritico90(df);
+  var seBeta=Math.sqrt(varBeta);
+  var seLnEta=Math.sqrt(varLnEta);
+  var lnEta=-intercepto/beta;
+  var betaMin=Math.max(0.01,beta-t*seBeta);
+  var betaMax=beta+t*seBeta;
+  var etaMin=Math.exp(lnEta-t*seLnEta);
+  var etaMax=Math.exp(lnEta+t*seLnEta);
+  if(!isFinite(betaMin)||!isFinite(betaMax)||!isFinite(etaMin)||!isFinite(etaMax))return null;
+  return {
+    betaMin:Math.round(betaMin*100)/100,
+    betaMax:Math.round(betaMax*100)/100,
+    etaMin:Math.round(etaMin),
+    etaMax:Math.round(etaMax)
+  };
 }
 function ajusteWeibull(horomFallas){
   var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});

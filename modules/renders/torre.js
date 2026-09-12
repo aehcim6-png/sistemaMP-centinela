@@ -218,6 +218,11 @@ window._torreAbrirDrawer=function(sigla){
     weibullEl.innerHTML='<div style="margin-top:10px;padding:8px 10px;background:var(--bg4);border-radius:6px">'+
       '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);font-weight:700;margin-bottom:4px">Forma de falla (Weibull) <span style="font-weight:400;text-transform:none;color:var(--tx3)">· '+r.weibull.n+' intervalos</span></div>'+
       '<div style="font-size:11.5px;color:var(--tx2)">β='+r.weibull.beta+(interp?' — '+escapeHtml(interp):'')+'</div>'+
+      // Intervalo de confianza 90% (2026-09-12, pedido del usuario tras el
+      // trabajo de Weibull: "¿qué fórmula no hemos puesto?") — con pocos
+      // intervalos (mínimo 5-6) el β puntual puede estar lejos de la forma
+      // real; se muestra el rango en vez de aparentar una certeza que no hay.
+      (r.weibull.ic90?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">IC 90%: β entre '+r.weibull.ic90.betaMin+' y '+r.weibull.ic90.betaMax+(r.weibull.ic90.betaMin<0.9&&r.weibull.ic90.betaMax>1.1?' <span style="color:var(--warn)">— rango amplio, todavía no hay certeza sobre la forma real</span>':'')+'</div>':'')+
       (rWeibull!=null?'<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Confiabilidad a 30 días — exponencial (de siempre): <b style="color:var(--tx2)">'+(r.score.detalle||[]).reduce(function(v,d){return d.nombre==='Confiabilidad'?d.valor:v;},null)+'%</b> · Weibull (forma real): <b style="color:var(--tx2)">'+rWeibull+'%</b></div>':'')+
       '</div>';
   }else{
