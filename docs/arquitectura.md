@@ -1339,6 +1339,66 @@ antes de tratarlo como alerta real" con "CN-1 · MOTOR · 2026-01-06 ·
 hierro=500 · mediana histórica de ese tipo: 11", sin alterar el estado
 ALERTA ya cargado en esa fila de la tabla.
 
+### 29. Correlación Aceite ↔ Fallas reales (2026-09-12)
+
+Origen real: eligiendo entre "vida económica óptima" (Científico de
+Datos) y "correlación aceite-fallas" (Analista/BI) como siguiente paso
+del repaso por los 4 roles de datos, se investigó primero si existían
+datos reales de costo preventivo vs. correctivo suficientes para la vida
+económica óptima — la investigación encontró que **no**: el campo
+`costo` de correctivos es opcional y el propio sistema lo excluye de la
+pestaña Costos por no confiable; `costoRef` de Componentes Mayores es
+real solo para piezas chicas, y para los componentes grandes (Motor,
+Transmisión) el propio código ya documenta que son "estimaciones
+genéricas de industria minera, no datos reales de Besalco"; y en ningún
+lado existe un campo que distinga costo preventivo de costo por falla.
+Construir vida económica óptima ahí habría exigido inventar el costo de
+falla — se descartó, y se optó por correlación aceite-fallas, que sí
+tiene datos reales de sobra.
+
+El módulo de Análisis de Aceite da por sentado, sin haberlo probado
+nunca, que una muestra en ALERTA/PRECAUCIÓN anticipa una falla real —
+esta sección lo mide por primera vez con datos reales.
+
+**`logic.js`**: nueva función `correlacionAceiteFallas(ace, eventos,
+diasVentana)`. Se investigó primero si había cruce de vocabulario entre
+`descriptor` (aceite, dropdown real `#aComp`: Motor/Transmisión/
+Hidráulico/Diferencial/Mando Final/Frenos) y `componente` (correctivos,
+dropdown real `#oComp`) — coinciden en varias categorías normalizando
+mayúsculas/tildes; deliberadamente **no** se inventó ningún alias entre
+categorías que no coinciden textualmente (ej. "Hidráulico" no se fuerza
+a calzar con "Bomba hidráulica"). Para cada categoría de componente,
+compara la tasa de "a esta muestra le siguió un correctivo real del
+mismo equipo+componente dentro de 60 días" entre las muestras
+ALERTA/PRECAUCIÓN y las NORMAL, y calcula el `lift` (cuántas veces más
+probable es la falla tras una ALERTA que tras una muestra NORMAL). Exige
+mínimo 5 muestras de cada lado antes de reportar una tasa — con menos,
+no se dice nada en vez de inventar un porcentaje sin base.
+
+**`estadistica.js`**: en la vista "Por Componente", después de la tabla
+Weibull existente, nueva función `_estCorrelacionAceite(eventos, ace)`
+agrega una tabla "Correlación Aceite ↔ Fallas reales — ¿el análisis
+anticipa la falla?" con % falla tras ALERTA, % falla tras NORMAL, lift y
+una lectura en palabras (lift≥2 = "SÍ anticipa fallas reales"; ≥1.2 =
+"anticipa algo, con margen de error"; menor = "hoy no está anticipando
+fallas reales — revisar los umbrales de alerta").
+
+11 tests nuevos en `correlacionAceiteFallas.test.js`: sample insuficiente
+no reporta tasa; detecta correctamente una tasa alta de ALERTA seguida
+de falla real; no cuenta una falla fuera de la ventana de días; no
+cuenta una falla anterior a la muestra (solo mira hacia adelante);
+compara ALERTA vs NORMAL y calcula el lift (con `lift:null` cuando
+`tasaNormal=0`, para no dividir por cero ni inventar un número); lift>1
+real cuando ALERTA predice mejor que NORMAL; normaliza mayúsculas/tildes
+para cruzar descriptor con componente; no mezcla equipos distintos;
+ignora datos inválidos; array vacío; pureza.
+
+Verificado visualmente en navegador (Playwright ad-hoc, 5 muestras
+ALERTA de "Motor" con 4 correctivos reales dentro de ventana + 5 NORMAL
+con solo 1 correctivo cercano): la tabla renderiza "80% (n=5)" vs
+"20% (n=5)", lift "4x" en verde, con la lectura "El aceite SÍ anticipa
+fallas reales de este componente".
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

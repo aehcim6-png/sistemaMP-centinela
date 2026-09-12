@@ -802,6 +802,73 @@ function analisisVidaUtilCorrectivosPorComponente(eventos){
   return analisisVidaUtilPorGrupo(items);
 }
 
+// ═══ CORRELACIÓN ACEITE ↔ FALLAS REALES (2026-09-12) ═══
+// Origen real: mirando el sistema desde los 4 roles de datos, después del
+// IC90 (Científico) y de aceiteOutliers (Analista/BI, calidad de dato)
+// quedaba la pregunta de fondo que todo el módulo de Análisis de Aceite da
+// por sentada sin haberla probado nunca: ¿un aceite en ALERTA/PRECAUCIÓN
+// realmente anticipa una falla real, o es una alarma que no se cumple? Antes
+// de esto nadie lo había medido — solo se asumía. Se investigó primero si
+// existía un cruce de vocabulario entre 'descriptor' (aceite, dropdown real
+// #aComp: Motor/Transmisión/Hidráulico/Diferencial/Mando Final/Frenos) y
+// 'componente' (correctivos, dropdown real #oComp) — coinciden en varias
+// categorías (Motor, Transmisión, Diferencial, Frenos), normalizando
+// mayúsculas/tildes; no se inventa ningún alias entre categorías que no
+// coincidan textualmente (ej. "Hidráulico" no se fuerza a calzar con "Bomba
+// hidráulica" — son dropdowns distintos, y forzarlo sería inventar un cruce
+// que el dato real no sostiene).
+// Compara, por cada categoría de componente, la tasa de "a esta muestra le
+// siguió una falla real del mismo equipo+componente dentro de la ventana"
+// entre las muestras en ALERTA/PRECAUCIÓN vs las que salieron NORMAL. Un
+// 'lift' >1 (la tasa de ALERTA es más alta que la de NORMAL) es evidencia de
+// que el análisis de aceite SÍ anticipa fallas reales para ese componente;
+// cerca de 1 es evidencia de que hoy no está anticipando nada. Mínimo 5
+// muestras de cada lado (mismo criterio de sample size que el resto de
+// logic.js) antes de reportar una tasa — con menos, no se dice nada en vez
+// de inventar un porcentaje sin base.
+function _normComponente(s){
+  return (s||'').toUpperCase().trim()
+    .replace(/Á/g,'A').replace(/É/g,'E').replace(/Í/g,'I').replace(/Ó/g,'O').replace(/Ú/g,'U');
+}
+function correlacionAceiteFallas(ace,eventos,diasVentana){
+  diasVentana=diasVentana>0?diasVentana:60;
+  var fechasFallaPorGrupo={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.sigla||!e.componente||!e.fecha)return;
+    var k=e.sigla+'|'+_normComponente(e.componente);
+    (fechasFallaPorGrupo[k]=fechasFallaPorGrupo[k]||[]).push(e.fecha);
+  });
+  var porComponente={};
+  (ace||[]).forEach(function(m){
+    if(!m||!m._sigla||!m.descriptor||!m.fecha)return;
+    if(m.estado!=='ALERTA'&&m.estado!=='PRECAUCION'&&m.estado!=='NORMAL')return;
+    var comp=_normComponente(m.descriptor);
+    var fechasFalla=fechasFallaPorGrupo[m._sigla+'|'+comp]||[];
+    var siguioFalla=fechasFalla.some(function(f){
+      var dias=_diasEntreISO(m.fecha,f);
+      return dias>=0&&dias<=diasVentana;
+    });
+    if(!porComponente[comp])porComponente[comp]={alertaTotal:0,alertaConFalla:0,normalTotal:0,normalConFalla:0};
+    var g=porComponente[comp];
+    if(m.estado==='NORMAL'){
+      g.normalTotal++;
+      if(siguioFalla)g.normalConFalla++;
+    }else{
+      g.alertaTotal++;
+      if(siguioFalla)g.alertaConFalla++;
+    }
+  });
+  var MIN=5;
+  return Object.keys(porComponente).sort().map(function(comp){
+    var g=porComponente[comp];
+    var tasaAlerta=g.alertaTotal>=MIN?Math.round(g.alertaConFalla/g.alertaTotal*1000)/10:null;
+    var tasaNormal=g.normalTotal>=MIN?Math.round(g.normalConFalla/g.normalTotal*1000)/10:null;
+    var lift=(tasaAlerta!=null&&tasaNormal!=null&&tasaNormal>0)?Math.round(tasaAlerta/tasaNormal*100)/100:null;
+    return{componente:comp,alertaTotal:g.alertaTotal,alertaConFalla:g.alertaConFalla,tasaAlerta:tasaAlerta,
+      normalTotal:g.normalTotal,normalConFalla:g.normalConFalla,tasaNormal:tasaNormal,lift:lift};
+  });
+}
+
 // R(t) real según el ajuste Weibull de arriba — mismo rol que confiabilidadReal
 // pero con β/η propios del equipo en vez de asumir β=1. R(t)=e^(-(t/η)^β),
 // la generalización de la fórmula exponencial (con β=1 da exactamente lo
@@ -2280,7 +2347,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, regEsATiempo, esFallaMTBF,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma

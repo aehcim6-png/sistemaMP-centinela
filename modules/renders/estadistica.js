@@ -117,7 +117,7 @@ function _estMtbfPorComponente(eventos) {
   return mtbfPorComp;
 }
 
-function _estTablaComponente(eventos) {
+function _estTablaComponente(eventos, ace) {
   var porComp = {};
   eventos.forEach(function (e) {
     if (!e.componente) return;
@@ -146,6 +146,7 @@ function _estTablaComponente(eventos) {
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
     '</table></div>' +
     _estWeibullPorComponente(eventos) +
+    _estCorrelacionAceite(eventos, ace) +
     '</div>';
 }
 
@@ -177,6 +178,36 @@ function _estWeibullPorComponente(eventos) {
         '<td style="text-align:center;font-weight:700">' + g.ajuste.beta + (ic ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ' + ic.betaMin + '–' + ic.betaMax + '</div>' : '') + '</td>' +
         '<td style="text-align:center">' + fn(g.ajuste.eta) + 'h' + (ic ? '<div style="font-size:9px;color:var(--tx3)">IC90 ' + fn(ic.etaMin) + '–' + fn(ic.etaMax) + 'h</div>' : '') + '</td>' +
         '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + escapeHtml(interp || '') + (icAmplio ? ' <span style="color:var(--warn)">— rango amplio, todavía no hay certeza sobre la forma real</span>' : '') + '</td></tr>';
+    }).join('') +
+    '</table></div></div>';
+}
+
+// Correlación Aceite ↔ Fallas reales (2026-09-12, pedido del usuario: mirando
+// el sistema desde los 4 roles de datos, después del IC90 y de aceiteOutliers
+// quedaba la pregunta de fondo que Análisis de Aceite da por sentada sin
+// haberla probado nunca — ¿un aceite en ALERTA/PRECAUCIÓN realmente anticipa
+// una falla real? correlacionAceiteFallas, logic.js. lift>1 = evidencia real
+// de que sí anticipa; cerca de 1 = evidencia de que hoy no anticipa nada.
+function _estCorrelacionAceite(eventos, ace) {
+  var lista = (typeof correlacionAceiteFallas === 'function') ? correlacionAceiteFallas(ace, eventos) : [];
+  var conDatos = lista.filter(function (g) { return g.tasaAlerta != null || g.tasaNormal != null; });
+  if (!conDatos.length) return '';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">🧪 Correlación Aceite ↔ Fallas reales — ¿el análisis anticipa la falla?</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Por cada componente, compara qué % de las muestras en ALERTA/PRECAUCIÓN tuvieron un correctivo real del mismo equipo+componente dentro de los 60 días siguientes, contra el mismo % para las muestras NORMAL. Lift = cuántas veces más probable es que una ALERTA anticipe una falla real, comparado con una muestra NORMAL. Lift alto (&gt;2) = el análisis de aceite SÍ está anticipando fallas para ese componente. Lift cercano a 1 = hoy no está anticipando nada — la alerta y la falla no están relacionadas en los datos reales. Requiere mínimo 5 muestras de cada lado (ALERTA y NORMAL) para reportar una tasa.</div>' +
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:20%">Componente</th><th style="width:18%">% falla tras ALERTA</th><th style="width:18%">% falla tras NORMAL</th><th style="width:14%">Lift</th><th style="text-align:left">Lectura</th></tr>' +
+    conDatos.map(function (g) {
+      var lectura = g.lift == null ? 'Muestra insuficiente de un lado para comparar' :
+        g.lift >= 2 ? 'El aceite SÍ anticipa fallas reales de este componente' :
+        g.lift >= 1.2 ? 'Anticipa algo, pero con margen de error' :
+        'Hoy no está anticipando fallas reales — revisar los umbrales de alerta';
+      var colorLift = g.lift == null ? 'var(--tx3)' : g.lift >= 2 ? 'var(--ok)' : g.lift >= 1.2 ? 'var(--warn)' : 'var(--danger)';
+      return '<tr>' +
+        '<td style="font-weight:600">' + escapeHtml(g.componente) + '</td>' +
+        '<td style="text-align:center">' + (g.tasaAlerta == null ? '<span style="color:var(--tx3);font-size:10px">n=' + g.alertaTotal + ', insuficiente</span>' : g.tasaAlerta + '% (n=' + g.alertaTotal + ')') + '</td>' +
+        '<td style="text-align:center">' + (g.tasaNormal == null ? '<span style="color:var(--tx3);font-size:10px">n=' + g.normalTotal + ', insuficiente</span>' : g.tasaNormal + '% (n=' + g.normalTotal + ')') + '</td>' +
+        '<td style="text-align:center;font-weight:700;color:' + colorLift + '">' + (g.lift == null ? '—' : g.lift + 'x') + '</td>' +
+        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
     }).join('') +
     '</table></div></div>';
 }
@@ -328,10 +359,12 @@ export function renderEstadistica() {
   var ot = S.g('ot') || [];
   var otHist = S.g('otHist') || [];
   var eventos = _estFallasCombinadas(ot, otHist);
+  var ace = S.g('aceite') || [];
+  if (ace.length && typeof window._aceiteResolverSiglas === 'function') window._aceiteResolverSiglas(ace);
 
   var content = '';
   if (vista === 'equipo') content = _estTablaEquipo(eq, eventos);
-  else if (vista === 'componente') content = _estTablaComponente(eventos);
+  else if (vista === 'componente') content = _estTablaComponente(eventos, ace);
   else if (vista === 'modo') content = _estTablaModoFalla(eventos);
   else if (vista === 'modelo') content = _estTablaModelo(eq, eventos);
   else if (vista === 'tecnico') content = _estTablaTecnico(ot);

@@ -974,6 +974,28 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   sintéticas de "MOTOR", una con hierro=500): el panel muestra "1 posible error de digitación" con
   el detalle completo, sin alterar el estado ALERTA ya cargado en esa fila.</p>
 
+  <h3>29. Correlación Aceite ↔ Fallas reales (2026-09-12)</h3>
+  <p>Origen real: se investigó primero "vida económica óptima" (costo preventivo vs. correctivo
+  para decidir cuándo conviene reemplazar un componente antes de que falle) y se encontró que NO
+  hay datos reales suficientes — el costo de correctivos es opcional y excluido de la pestaña
+  Costos por no confiable, y <code>costoRef</code> de componentes grandes (Motor, Transmisión) ya
+  está documentado en el código como "estimación genérica de industria, no dato real". Se descartó
+  para no inventar el costo de falla, y se optó por correlación aceite-fallas, que sí tiene datos
+  reales de sobra. El módulo de Aceite da por sentado, sin haberlo probado nunca, que una muestra
+  en ALERTA anticipa una falla real — esta sección lo mide por primera vez.</p>
+  <p><b>Cambios:</b> nueva función <code>correlacionAceiteFallas(ace, eventos, diasVentana)</code>
+  en <code>logic.js</code>. Cruza <code>descriptor</code> (aceite) con <code>componente</code>
+  (correctivos) normalizando mayúsculas/tildes — sin inventar alias entre categorías que no
+  coinciden textualmente. Compara, por componente, la tasa de "correctivo real dentro de 60 días"
+  entre muestras ALERTA/PRECAUCIÓN y NORMAL, y calcula el <code>lift</code> (cuántas veces más
+  probable es la falla tras una ALERTA). Mínimo 5 muestras de cada lado antes de reportar una tasa.
+  En <code>estadistica.js</code>, vista "Por Componente", nueva tabla "Correlación Aceite ↔ Fallas
+  reales" con % falla tras ALERTA/NORMAL, lift y una lectura en palabras.</p>
+  <p>11 tests nuevos en <code>correlacionAceiteFallas.test.js</code>. Verificado visualmente
+  (5 ALERTA de "Motor" con 4 correctivos reales dentro de ventana + 5 NORMAL con solo 1 cercano): la
+  tabla renderiza "80% (n=5)" vs "20% (n=5)", lift "4x" en verde, con la lectura "El aceite SÍ
+  anticipa fallas reales de este componente".</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
