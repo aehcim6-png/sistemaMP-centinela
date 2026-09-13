@@ -1211,6 +1211,85 @@ function stockEstado(stockBodega, consumoMes, leadDias){
   return{nivel:'OK',ico:'✅',txt:'OK',meses:meses,motivo:Math.round(meses*10)/10+' meses de cobertura'};
 }
 
+// ═══ DEMANDA DE REPUESTOS — DISTRIBUCIÓN DE POISSON (2026-09-13) ═══
+// Origen real: llevando la misma disciplina estadística de Weibull hacia
+// otra pregunta real del sistema. stockEstado (arriba) decide "cuántos
+// meses de cobertura quedan" dividiendo el stock por 'consumoMes' — un
+// número FIJO tipeado a mano (ver stk.js) que nunca refleja que la demanda
+// real varía mes a mes. Pero sí existe un registro real y fechado de cada
+// consumo (movimientos_stock, generado automáticamente al descontar stock
+// en cada PM — nunca a mano) que hoy solo alimenta el "Consumido"
+// acumulado y el gasto proyectado ($), nunca la variabilidad real de la
+// demanda. Poisson es la distribución estándar de teoría de inventario
+// para "cantidad de unidades demandadas en un período" cuando la demanda
+// viene de eventos discretos e independientes (cada PM que gasta un
+// filtro) — exactamente el patrón real de este sistema.
+//
+// Detalle importante: 'movimientos_stock' solo registra consumo REAL —
+// nunca hay una fila con cant=0 para un mes sin consumo de un ítem. Si se
+// dividiera el total consumido por "cantidad de meses CON alguna fila",
+// se ignorarían los meses de consumo cero y λ saldría inflado. Por eso el
+// denominador es la cantidad de meses TOTALES observados por todo el
+// sistema (desde el primer movimiento registrado hasta el último), no la
+// cantidad de meses con movimiento de ESE ítem en particular.
+function _factorialPoisson(n){
+  var r=1;
+  for(var i=2;i<=n;i++)r*=i;
+  return r;
+}
+function _poissonPMF(k,lambda){
+  if(lambda==null||!isFinite(lambda)||lambda<0||k<0)return null;
+  return Math.exp(-lambda)*Math.pow(lambda,k)/_factorialPoisson(k);
+}
+// Menor cantidad Q tal que P(demanda mensual ≤ Q) ≥ nivelServicio — la
+// pregunta real de bodega: "¿cuánto stock cubre el X% de los meses sin
+// quebrar?". Se acumula la PMF de Poisson término a término (sin librería
+// externa) hasta cruzar el umbral.
+function _stockParaNivelServicio(lambda,nivelServicio){
+  var meta=(nivelServicio>0&&nivelServicio<1)?nivelServicio:0.95;
+  var acumulado=0;
+  for(var k=0;k<500;k++){
+    acumulado+=_poissonPMF(k,lambda);
+    if(acumulado>=meta)return k;
+  }
+  return 500;
+}
+function _contarMesesEntre(mesIni,mesFin){
+  if(!mesIni||!mesFin)return 0;
+  var a=mesIni.split('-').map(Number),b=mesFin.split('-').map(Number);
+  if(a.length<2||b.length<2||a.some(isNaN)||b.some(isNaN))return 0;
+  return (b[0]-a[0])*12+(b[1]-a[1])+1;
+}
+// Mínimo 3 meses de historial ANTES de reportar nada — con menos, un
+// promedio mensual es puro ruido, no una demanda real medida.
+var _DEMANDA_MIN_MESES=3;
+function analisisDemandaRepuestos(movimientos){
+  var todos=(movimientos||[]).filter(function(m){return m&&m.nParte&&m.mes;});
+  if(!todos.length)return[];
+  var mesesOrdenados=todos.map(function(m){return m.mes;}).sort();
+  var mesesTotales=_contarMesesEntre(mesesOrdenados[0],mesesOrdenados[mesesOrdenados.length-1]);
+  var porNParte={};
+  todos.forEach(function(m){
+    var g=(porNParte[m.nParte]=porNParte[m.nParte]||{});
+    g[m.mes]=(g[m.mes]||0)+(m.cant||0);
+  });
+  return Object.keys(porNParte).sort().map(function(nParte){
+    if(mesesTotales<_DEMANDA_MIN_MESES)return{nParte:nParte,nMeses:mesesTotales,lambda:null};
+    var porMes=porNParte[nParte];
+    var total=Object.keys(porMes).reduce(function(s,mes){return s+porMes[mes];},0);
+    var lambda=total/mesesTotales;
+    var p0=_poissonPMF(0,lambda);
+    return{
+      nParte:nParte,
+      nMeses:mesesTotales,
+      lambda:Math.round(lambda*100)/100,
+      probSinConsumo:Math.round(p0*1000)/1000,
+      probAlMenosUno:Math.round((1-p0)*1000)/1000,
+      stockSeguridad95:_stockParaNivelServicio(lambda,0.95)
+    };
+  });
+}
+
 // ═══ COMPONENTES MAYORES — estado según vida útil real ═══
 // Un componente solo tiene proyección confiable si se conoce CUÁNDO se instaló.
 // Sin fechaInst no sabemos su antigüedad real: los defaults auto-generados ponen
@@ -2344,7 +2423,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,

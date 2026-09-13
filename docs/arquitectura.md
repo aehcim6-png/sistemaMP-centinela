@@ -1439,6 +1439,67 @@ construir sin inventar datos" a "se puede construir cuando haya
 suficiente historial real acumulado" — sin haber tocado el modelo
 todavía, solo la base para que sea posible.
 
+### 31. Demanda de repuestos con distribución de Poisson (2026-09-13)
+
+Origen real: el usuario compartió contenido sobre modelos estadísticos
+usados en confiabilidad minera (Weibull, exponencial, log-normal, normal,
+Poisson) y preguntó cuáles aplicaban acá. Se descartaron LSTM/RUL/Digital
+Twins/PINNs — exigen telemetría continua de sensores en tiempo real que
+este sistema no tiene (es de captura periódica: PM, correctivos, muestras
+de aceite cada tanto, no un stream IoT) — y se identificaron dos ideas
+reales y construibles sin inventar nada: Poisson para demanda de
+repuestos (elegida primero) y log-normal para MTTR (pendiente).
+
+Hueco real encontrado: `stockEstado` (la función que decide "cuántos
+meses de cobertura quedan" y dispara COMPRAR/BAJO/OK) divide el stock por
+`consumoMes` — un número FIJO tipeado a mano en la tabla de Stock Filtros,
+que nunca se actualiza solo ni refleja que la demanda real varía mes a
+mes. Pero sí existe un registro real y fechado de cada consumo
+(`movimientos_stock`, generado automáticamente al descontar stock en cada
+PM — nunca a mano) que hoy solo alimenta el "Consumido" acumulado y el
+gasto proyectado en $, nunca la variabilidad real de la demanda. Poisson
+es la distribución estándar de teoría de inventario para "cantidad de
+unidades demandadas en un período" cuando la demanda viene de eventos
+discretos e independientes (cada PM que gasta un filtro) — exactamente el
+patrón real de este sistema.
+
+**Detalle metodológico importante**: `movimientos_stock` solo registra
+consumo real — nunca hay una fila con `cant=0` para un mes sin consumo de
+un ítem. Dividir el total consumido por "cantidad de meses CON alguna
+fila" habría ignorado los meses de consumo cero e inflado λ. El
+denominador correcto es la cantidad de meses TOTALES observados por todo
+el sistema (desde el primer movimiento registrado hasta el último), no
+solo los meses con movimiento de ESE ítem en particular — se verificó
+explícitamente con un test que compara ambos cálculos.
+
+**`logic.js`**: `analisisDemandaRepuestos(movimientos)` agrupa por
+`nParte`, calcula λ (consumo promedio mensual real) sobre el total de
+meses observados por el sistema, y devuelve además `probSinConsumo`,
+`probAlMenosUno` y `stockSeguridad95` (la cantidad mínima que cubre el
+95% de los meses sin quebrar, acumulando la PMF de Poisson término a
+término — sin librería externa, mismo criterio que toda la familia
+Weibull). Mínimo 3 meses de historial total antes de reportar nada.
+
+**UI**: nueva tabla "Demanda mensual real (Poisson)" dentro del modal
+"Resumen — Gasto proyectado en Filtros" (`resumenFlotaStk`, index.html),
+mostrando N°Parte, meses observados, λ, P(sin consumo), stock recomendado
+al 95% y el stock actual — resaltado en rojo con ⚠️ cuando el stock
+actual queda por debajo del recomendado.
+
+8 tests nuevos en `analisisDemandaRepuestos.test.js`: sin historial
+suficiente no reporta nada; λ se calcula sobre el total de meses
+observados (no solo los meses con consumo de ese ítem, con un caso
+explícito que hubiera dado un resultado 3x mayor con el cálculo
+incorrecto); las probabilidades coinciden con el valor conocido de e⁻¹
+para λ=1; el stock de seguridad crece con λ; agrupa por nParte sin
+mezclar ítems; ignora datos inválidos; pureza.
+
+Verificado visualmente en navegador (Playwright ad-hoc, F-100 con 2
+unidades consumidas en 3 de 6 meses observados, λ=1): la tabla renderiza
+"F-100 · 6 meses · λ=1 · P(sin consumo)=37% · Stock 95%=3 · Stock
+actual=2 ⚠️" — marcando correctamente que el stock cargado (2) queda por
+debajo de lo que la demanda real recomienda (3).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -1562,14 +1562,47 @@ function _gastoProyectadoHTML(resumen,gran,fnName){
     '<p style="font-size:10px;color:var(--tx3);margin-top:8px">Gasto = promedio móvil real de consumo/compra de cada ítem (últimos meses con datos) × su precio, proyectado hacia adelante (horizonte 12 meses) — asume que el ritmo reciente se mantiene. No incluye correctivos (sin vínculo real a un ítem de stock en la base de datos) ni lo que ya exige el calendario de PM agendado (ver Predictivo → Stock/Lubricantes vs. Próximos PM, que usa pautas + horómetro).</p>'
   );
 }
+// Demanda mensual real por Poisson (2026-09-13, pedido del usuario tras
+// repasar el sistema desde los 4 roles de datos: llevar la misma
+// disciplina estadística de Weibull a la pregunta de stock). A diferencia
+// del 'consumoMes' tipeado a mano (columna editable de la tabla), λ sale
+// de contar el consumo real registrado en movimientos_stock —
+// analisisDemandaRepuestos (logic.js) ya se encarga de no ignorar los
+// meses de consumo cero. Solo se listan los ítems con λ calculable
+// (mínimo 3 meses de historial real del sistema completo).
+function _demandaPoissonHTML(stk,mov){
+  var lista=(typeof analisisDemandaRepuestos==='function')?analisisDemandaRepuestos(mov.filter(function(m){return m.tipo==='Filtro';})):[];
+  var conDatos=lista.filter(function(g){return g.lambda!=null;});
+  if(!conDatos.length)return'';
+  var stkPorParte={};
+  stk.forEach(function(s){if(s.nParte)stkPorParte[s.nParte]=s;});
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin:14px 0">'+
+    '<div class="chart-t">📦 Demanda mensual real (Poisson)</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">λ = consumo promedio mensual REAL (movimientos_stock, no el "Cons/Mes" tipeado a mano), contando también los meses sin consumo. Stock 95% = cantidad mínima que cubre el 95% de los meses sin quebrar, según la distribución de Poisson de esa demanda real.</div>'+
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:26%">N°Parte</th><th style="width:14%">Meses</th><th style="width:14%">λ/mes</th><th style="width:16%">P(sin consumo)</th><th style="width:15%">Stock 95%</th><th style="width:15%">Stock actual</th></tr>'+
+    conDatos.map(function(g){
+      var s=stkPorParte[g.nParte];
+      var actual=s?(s.stockBodega||0):null;
+      var bajo=actual!=null&&actual<g.stockSeguridad95;
+      return '<tr>'+
+        '<td style="font-weight:600" title="'+escapeHtml(s?s.descripcion||'':'')+'">'+escapeHtml(g.nParte)+'</td>'+
+        '<td style="text-align:center">'+g.nMeses+'</td>'+
+        '<td style="text-align:center;font-weight:700">'+g.lambda+'</td>'+
+        '<td style="text-align:center">'+Math.round(g.probSinConsumo*100)+'%</td>'+
+        '<td style="text-align:center;font-weight:700">'+g.stockSeguridad95+'</td>'+
+        '<td style="text-align:center;color:'+(bajo?'var(--danger)':'var(--tx2)')+(bajo?';font-weight:700':'')+'">'+(actual!=null?actual:'—')+(bajo?' ⚠️':'')+'</td></tr>';
+    }).join('')+
+    '</table></div></div>';
+}
 window.resumenFlotaStk=function(){
   var stk=S.g('stk')||[];var mov=S.g('mov')||[];
   var gran=window._gastoProyGran||'mes';
   var res=_gastoProyectadoCategoria(stk,
     function(s){return mov.filter(function(m){return m.tipo==='Filtro'&&(m.item===s.descripcion||(s.nParte&&m.nParte===s.nParte));}).map(function(m){return{fecha:m.fecha,cant:m.cant};});},
     function(s){return s.precioUnit||0;},gran);
-  sm('<div style="max-width:600px"><h3>📊 Resumen — Gasto proyectado en Filtros</h3>'+
+  sm('<div style="max-width:700px"><h3>📊 Resumen — Gasto proyectado en Filtros</h3>'+
     _gastoProyectadoHTML(res,gran,'resumenFlotaStk')+
+    _demandaPoissonHTML(stk,mov)+
     '<button class="btn btn-o" style="margin-top:10px" onclick="cm()">Cerrar</button></div>');
 };
 window.resumenFlotaLub=function(){

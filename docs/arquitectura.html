@@ -1012,6 +1012,28 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   pasa de "no se puede construir sin inventar datos" a "se puede construir cuando haya suficiente
   historial real acumulado".</p>
 
+  <h3>31. Demanda de repuestos con distribución de Poisson (2026-09-13)</h3>
+  <p>Origen real: el usuario compartió contenido sobre modelos estadísticos de confiabilidad minera
+  y preguntó cuáles aplicaban acá. Se descartaron LSTM/Digital Twins/PINNs (exigen telemetría
+  continua que este sistema no tiene) y se identificaron dos ideas reales: Poisson para demanda de
+  repuestos (elegida) y log-normal para MTTR (pendiente). Hueco real: <code>stockEstado</code>
+  divide el stock por <code>consumoMes</code>, un número fijo tipeado a mano, cuando existe un
+  registro real y fechado de cada consumo en <code>movimientos_stock</code> (generado
+  automáticamente al descontar stock en cada PM) que hoy no se usa para modelar la variabilidad
+  real de la demanda.</p>
+  <p><b>Detalle metodológico:</b> <code>movimientos_stock</code> solo registra consumo real — nunca
+  hay una fila con <code>cant=0</code> para un mes sin consumo. El denominador correcto de λ es la
+  cantidad de meses TOTALES observados por todo el sistema, no solo los meses con movimiento de ese
+  ítem — verificado explícitamente con un test que compara ambos cálculos.</p>
+  <p><b>Cambios:</b> <code>analisisDemandaRepuestos(movimientos)</code> en <code>logic.js</code>
+  calcula λ real por <code>nParte</code>, <code>probSinConsumo</code>, <code>probAlMenosUno</code> y
+  <code>stockSeguridad95</code> (cantidad mínima que cubre el 95% de los meses, acumulando la PMF de
+  Poisson sin librería externa). Mínimo 3 meses de historial. Nueva tabla "Demanda mensual real
+  (Poisson)" en el modal de Resumen de Stock Filtros, resaltando en rojo cuando el stock actual
+  queda bajo el recomendado.</p>
+  <p>8 tests nuevos en <code>analisisDemandaRepuestos.test.js</code>. Verificado visualmente
+  (F-100, λ=1): "6 meses · λ=1 · P(sin consumo)=37% · Stock 95%=3 · Stock actual=2 ⚠️".</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
