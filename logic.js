@@ -1290,6 +1290,45 @@ function analisisDemandaRepuestos(movimientos){
   });
 }
 
+// ═══ MTTR CON DISTRIBUCIÓN LOG-NORMAL (2026-09-13) ═══
+// Origen real: mismo repaso de distribuciones estadísticas de confiabilidad
+// que llevó a Poisson para stock (sección anterior). El MTTR que ya muestra
+// Costos & Stock (mttrReal, arriba) es un PROMEDIO simple de horas de
+// reparación — pero los tiempos de reparación real casi nunca son
+// simétricos: la mayoría de las reparaciones son rápidas y unas pocas se
+// alargan mucho (un repuesto que no estaba en bodega, un diagnóstico
+// difícil), lo que arrastra el promedio hacia arriba y lo hace parecer peor
+// de lo que es "típicamente". Log-normal es la distribución estándar para
+// modelar exactamente ese patrón (el LOGARITMO de la duración sigue una
+// normal) — mismo principio que ya se usa para Weibull, aplicado a otra
+// pregunta real: no "cuándo va a fallar" sino "cuánto va a durar la
+// reparación una vez que ya falló".
+// mu/sigma son la media y desviación estándar MUESTRAL (n-1) del logaritmo
+// de las duraciones reales — nunca se inventan, se calculan de la muestra.
+// mediana = e^mu (el "típico" real, no distorsionado por la cola larga).
+// p90 = e^(mu + 1.2816*sigma) — 1.2816 es el z-score estándar del percentil
+// 90 de una normal (valor de tabla, igual que los t-críticos de Weibull),
+// no un número elegido a mano: "9 de cada 10 reparaciones terminan dentro
+// de este tiempo".
+var _Z_P90=1.2816;
+function analisisMTTRLogNormal(horas){
+  var validos=(horas||[]).filter(function(h){return h>0;});
+  if(validos.length<5)return null;
+  var n=validos.length;
+  var logs=validos.map(Math.log);
+  var mu=logs.reduce(function(s,x){return s+x;},0)/n;
+  var varianza=logs.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/(n-1);
+  var sigma=Math.sqrt(varianza);
+  if(!isFinite(mu)||!isFinite(sigma))return null;
+  var promedioSimple=validos.reduce(function(s,x){return s+x;},0)/n;
+  return{
+    n:n,
+    mediana:Math.round(Math.exp(mu)*10)/10,
+    p90:Math.round(Math.exp(mu+_Z_P90*sigma)*10)/10,
+    promedioSimple:Math.round(promedioSimple*10)/10
+  };
+}
+
 // ═══ COMPONENTES MAYORES — estado según vida útil real ═══
 // Un componente solo tiene proyección confiable si se conoce CUÁNDO se instaló.
 // Sin fechaInst no sabemos su antigüedad real: los defaults auto-generados ponen
@@ -2423,7 +2462,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,

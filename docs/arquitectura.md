@@ -1500,6 +1500,50 @@ unidades consumidas en 3 de 6 meses observados, λ=1): la tabla renderiza
 actual=2 ⚠️" — marcando correctamente que el stock cargado (2) queda por
 debajo de lo que la demanda real recomienda (3).
 
+### 32. MTTR con distribución log-normal (2026-09-13)
+
+Origen real: la segunda idea real identificada en el mismo repaso de
+distribuciones estadísticas que llevó a Poisson (sección 31) — elegida
+después de esa. El "MTTR Promedio" que ya muestra Costos & Stock
+(`mttrReal`) es un promedio simple de horas de reparación, pero los
+tiempos de reparación real casi nunca son simétricos: la mayoría son
+rápidas y unas pocas se alargan mucho (un repuesto sin stock, un
+diagnóstico difícil), lo que arrastra el promedio hacia arriba y lo hace
+ver peor de lo que es "típicamente". Log-normal es la distribución
+estándar para modelar exactamente ese patrón (el logaritmo de la
+duración sigue una normal) — mismo principio que Weibull, aplicado a
+"cuánto dura la reparación" en vez de "cuándo va a fallar".
+
+**`logic.js`**: `analisisMTTRLogNormal(horas)` calcula μ/σ (media y
+desviación estándar muestral, n-1, del logaritmo de las duraciones
+reales — nunca inventadas), y devuelve `mediana` (e^μ, el "típico" real,
+no distorsionado por la cola larga), `p90` (e^(μ+1.2816σ) — 1.2816 es el
+z-score estándar del percentil 90 de una normal, valor de tabla, mismo
+criterio que los t-críticos de Weibull) y `promedioSimple` (para
+comparar). Mínimo 5 reparaciones con duración real.
+
+**`cos.js`**: se juntan las reparaciones de CADA equipo (reusando la
+misma lista `reparaciones` ya filtrada por `esFallaMTBF`+`duracion` que
+ya usa MTTR — mismo universo de equipos que ya cuentan Total
+Fallas/MTBF/MTTR, para no divergir con una fuente distinta) y se ajusta
+el log-normal a nivel FLOTA. Nueva tabla "Forma real del MTTR — toda la
+flota (log-normal)" en la vista MTBF/MTTR, con 3 tarjetas: Mediana real
+(vs. promedio simple), P90, y tamaño de muestra.
+
+8 tests nuevos en `analisisMTTRLogNormal.test.js`: muestra insuficiente
+devuelve null; ignora horas inválidas; la mediana real queda bajo el
+promedio simple cuando hay una reparación excepcionalmente larga (el
+caso real que justifica usar log-normal en vez de un promedio); p90
+siempre ≥ mediana; con datos log-simétricos mediana≈promedio (caso de
+control); pureza.
+
+Verificado visualmente en navegador (Playwright ad-hoc, 5 reparaciones
+rápidas de 2-4h + 1 excepcional de 48h): la tabla renderiza "Mediana
+real 4.4h — vs. promedio simple 10.3h", "P90 20.4h" y "Muestra: 6",
+confirmando que el promedio simple (arrastrado por la reparación de
+48h) sobreestima el tiempo "típico" de reparación casi 2.5x respecto a
+la mediana real.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

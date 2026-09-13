@@ -1034,6 +1034,23 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>8 tests nuevos en <code>analisisDemandaRepuestos.test.js</code>. Verificado visualmente
   (F-100, λ=1): "6 meses · λ=1 · P(sin consumo)=37% · Stock 95%=3 · Stock actual=2 ⚠️".</p>
 
+  <h3>32. MTTR con distribución log-normal (2026-09-13)</h3>
+  <p>Origen real: segunda idea del repaso de distribuciones estadísticas (sección 31). El "MTTR
+  Promedio" ya existente es un promedio simple, pero los tiempos de reparación reales casi nunca son
+  simétricos: la mayoría rápidas, unas pocas muy largas (repuesto sin stock, diagnóstico difícil),
+  lo que arrastra el promedio hacia arriba. Log-normal modela ese patrón — mismo principio que
+  Weibull, aplicado a "cuánto dura la reparación" en vez de "cuándo va a fallar".</p>
+  <p><b>Cambios:</b> <code>analisisMTTRLogNormal(horas)</code> en <code>logic.js</code> calcula
+  μ/σ del logaritmo de las duraciones reales y devuelve <code>mediana</code> (e^μ, el típico real),
+  <code>p90</code> (e^(μ+1.2816σ), z-score estándar del percentil 90) y <code>promedioSimple</code>
+  para comparar. Mínimo 5 reparaciones. En <code>cos.js</code> se juntan las reparaciones de cada
+  equipo (mismo universo que ya usa MTTR/MTBF) y se ajusta a nivel flota — nueva tabla "Forma real
+  del MTTR" con Mediana real, P90 y tamaño de muestra.</p>
+  <p>8 tests nuevos en <code>analisisMTTRLogNormal.test.js</code>. Verificado visualmente (5
+  reparaciones de 2-4h + 1 excepcional de 48h): "Mediana real 4.4h — vs. promedio simple 10.3h",
+  "P90 20.4h" — el promedio simple sobreestima el tiempo típico casi 2.5x respecto a la mediana
+  real.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

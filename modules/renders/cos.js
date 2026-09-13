@@ -66,6 +66,15 @@ export function renderCos() {
     return Math.max(0, Math.round((atendido - reportado) / 3600000));
   }
   var mtbfEquipo = {};
+  // Forma real de la distribución de MTTR, a nivel FLOTA (2026-09-13, mismo
+  // repaso de distribuciones estadísticas que llevó a Poisson en stock). El
+  // "MTTR Promedio" de abajo es un promedio simple — mezcla equipos con muy
+  // pocas reparaciones cada uno, casi ninguno llega a 5 para un ajuste propio.
+  // Se juntan acá mismo las reparaciones de CADA equipo (misma lista
+  //'reparaciones' ya filtrada por esFallaMTBF+duracion que ya usa MTTR, para
+  // no divergir del universo de equipos que ya cuentan Total Fallas/MTBF/MTTR)
+  // parseadas a horas con el mismo regex que usa C.mttrReal.
+  var horasReparacionFlota = [];
   eq.forEach(function (e) {
     var fallas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return esFallaMTBF(o); });
     var reparaciones = fallas.filter(function (o) { return o.duracion && o.duracion !== '—'; });
@@ -78,7 +87,12 @@ export function renderCos() {
     var conSla = fallas.map(_slaRespuestaHoras).filter(function (h) { return h != null; });
     var sla = conSla.length ? Math.round(conSla.reduce(function (s, h) { return s + h; }, 0) / conSla.length) : null;
     mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length };
+    reparaciones.forEach(function (o) {
+      var m = String(o.duracion).match(/(\d+)h/);
+      if (m) horasReparacionFlota.push(parseInt(m[1], 10));
+    });
   });
+  var mttrLogNormal = (typeof analisisMTTRLogNormal === 'function') ? analisisMTTRLogNormal(horasReparacionFlota) : null;
 
   // ═══ COST DATA ═══
   var meses = [...new Set(reg.map(function (r) { return (r.fechaEntrada || r.fechaEjec || '').slice(0, 7) }))].filter(function (m) { return m; }).sort().reverse();
@@ -186,6 +200,16 @@ export function renderCos() {
       '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF</b> = Horas entre fallas sucesivas, según el horómetro registrado en cada falla (necesita ≥2 fallas) → mientras MÁS alto, MEJOR (equipo más confiable)<br>' +
       '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTTR</b> = Promedio duración reparaciones → mientras MÁS bajo, MEJOR (reparaciones más rápidas)<br>' +
       '<b><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> SLA 1ra Respuesta</b> = Horas entre que se reportó la falla y que alguien la atendió por primera vez (no el cierre) → mientras MÁS bajo, MEJOR. Solo cuenta correctivos registrados desde que se agregó esta medición.</div>' +
+
+      (mttrLogNormal ?
+        '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:12px">' +
+        '<div class="chart-t">📐 Forma real del MTTR — toda la flota (log-normal)</div>' +
+        '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Los tiempos de reparación casi nunca son simétricos: la mayoría son rápidas y unas pocas se alargan mucho (repuesto sin stock, diagnóstico difícil), lo que arrastra el promedio hacia arriba. La mediana real (log-normal) no se distorsiona por esa cola. P90 = 9 de cada 10 reparaciones terminan dentro de ese tiempo.</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' +
+        '<div class="card"><div class="card-t">Mediana real</div><div class="card-v">' + mttrLogNormal.mediana + 'h</div><div class="card-s">vs. promedio simple ' + mttrLogNormal.promedioSimple + 'h</div></div>' +
+        '<div class="card"><div class="card-t">P90</div><div class="card-v" style="color:var(--w)">' + mttrLogNormal.p90 + 'h</div><div class="card-s">9 de cada 10 reparaciones terminan antes</div></div>' +
+        '<div class="card"><div class="card-t">Muestra</div><div class="card-v">' + mttrLogNormal.n + '</div><div class="card-s">reparaciones con duración real</div></div>' +
+        '</div></div>' : '') +
 
       '<div class="tbl-wrap"><table>' +
       '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Fallas</th><th>MTBF (hrs)</th><th>Confiabilidad</th><th>Reparaciones</th><th>MTTR (hrs)</th><th>Mantenibilidad</th><th>SLA 1ra Resp. (hrs)</th></tr>' +
