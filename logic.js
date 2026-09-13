@@ -1881,6 +1881,37 @@ function validarMotivoPmPendiente(pendienteAnterior,pendienteNuevo,motivo){
   return{valido:true};
 }
 
+// ═══ AGRUPACIÓN OPORTUNISTA DE OT (2026-09-13) ═══
+// Origen real: repasando ideas de mantenimiento avanzado para minería, el
+// usuario preguntó cuáles eran reales para este sistema (no requerían
+// telemetría de sensores que no existe acá). Esta sí: cuando un equipo
+// entra al taller por un correctivo IMPREVISTO, conviene revisar si su
+// próximo PM programado está lo bastante cerca como para hacerlo en la
+// misma detención — evita una segunda parada innecesaria pocos días/horas
+// después, sin agregar ningún dato nuevo: solo cruza dos cosas que el
+// sistema YA calcula por separado (diasParaPM/hrsRestantes/tipoPM, ver
+// C.recalc arriba) en el momento exacto en que más sirve saberlo — al
+// crear la OT de correctivo, no en un reporte aparte que nadie mira a
+// tiempo. Es una SUGERENCIA para que decida una persona, nunca agenda ni
+// modifica nada por su cuenta.
+function sugerenciaAgruparPM(equipo,umbralDias,umbralHoras){
+  if(!equipo)return null;
+  var uDias=umbralDias>0?umbralDias:7;
+  var uHoras=umbralHoras>0?umbralHoras:48;
+  var dias=equipo.diasParaPM;
+  var horas=equipo.hrsRestantes;
+  var cercaPorDias=dias!=null&&dias<=uDias;
+  var cercaPorHoras=horas!=null&&horas<=uHoras;
+  if(!cercaPorDias&&!cercaPorHoras)return null;
+  return{
+    tipoPM:equipo.tipoPM||'PM',
+    diasParaPM:dias!=null?dias:null,
+    hrsRestantes:horas!=null?horas:null,
+    fechaProxPM:equipo.fechaProxPM||null,
+    vencido:(dias!=null&&dias<0)||(horas!=null&&horas<0)
+  };
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -2465,7 +2496,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma

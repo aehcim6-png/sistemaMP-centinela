@@ -1051,6 +1051,25 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   "P90 20.4h" — el promedio simple sobreestima el tiempo típico casi 2.5x respecto a la mediana
   real.</p>
 
+  <h3>33. Agrupación oportunista de OTs — sugerir sumar el PM cuando el equipo ya entra al taller (2026-09-13)</h3>
+  <p>Origen real: de las ideas de mantenimiento minero más avanzadas discutidas, la única aplicable
+  sin inventar datos: cuando un equipo entra al taller por una falla correctiva imprevista y además
+  le queda poco para su próximo PM programado, conviene aprovechar la detención y hacer el PM en la
+  misma visita en vez de parar el equipo dos veces. No requiere datos nuevos — solo cruza dos cosas
+  que el sistema ya calcula (<code>diasParaPM</code>/<code>hrsRestantes</code>, mantenidos por
+  <code>C.recalc()</code>).</p>
+  <p><b>Cambios:</b> <code>sugerenciaAgruparPM(equipo, umbralDias=7, umbralHoras=48)</code> en
+  <code>logic.js</code> — función pura: si <code>diasParaPM</code> o <code>hrsRestantes</code> están
+  dentro del umbral, devuelve <code>{tipoPM, diasParaPM, hrsRestantes, fechaProxPM, vencido}</code>;
+  si no, <code>null</code>. <code>vencido:true</code> cuando el PM ya está atrasado — razón de más
+  para agruparlo. En <code>ot.js</code>, al elegir el equipo en "Nueva OT" se muestra un aviso
+  amarillo con la sugerencia y los días/horas exactos — es solo informativo, no crea ni modifica
+  ninguna OT automáticamente.</p>
+  <p>8 tests nuevos en <code>sugerenciaAgruparPM.test.js</code>. Verificado visualmente (equipo con
+  0 días/0h restantes reales, recalculados por <code>C.recalc()</code>): "💡 Este equipo tiene un PM3
+  próximo / Faltan 0 día(s) · 0h restantes — ya que está en el taller por esto, considera hacer el
+  PM3 ahora y evitar una segunda detención".</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

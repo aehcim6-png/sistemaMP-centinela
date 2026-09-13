@@ -1544,6 +1544,55 @@ confirmando que el promedio simple (arrastrado por la reparación de
 48h) sobreestima el tiempo "típico" de reparación casi 2.5x respecto a
 la mediana real.
 
+### 33. Agrupación oportunista de OTs — sugerir sumar el PM cuando el equipo ya entra al taller (2026-09-13)
+
+Origen real: conversación sobre ideas de mantenimiento minero más
+avanzadas (scheduling dinámico, agrupación inteligente de OTs, Monte
+Carlo de disponibilidad) — de esas, la única aplicable sin inventar
+datos que no existen: cuando un equipo entra al taller por una falla
+correctiva imprevista y ADEMÁS le queda poco para su próximo PM
+programado, tiene sentido aprovechar la detención y hacer el PM en la
+misma visita en vez de parar el equipo dos veces. No requiere ningún
+dato nuevo — solo cruza dos cosas que el sistema ya calcula
+(`diasParaPM`/`hrsRestantes`, mantenidos por `C.recalc()`).
+
+**`logic.js`**: `sugerenciaAgruparPM(equipo, umbralDias=7, umbralHoras=48)`
+es una función pura: si `diasParaPM` o `hrsRestantes` del equipo están
+dentro del umbral (por defecto 7 días u 48 horas — lo que se cumpla
+primero), devuelve `{tipoPM, diasParaPM, hrsRestantes, fechaProxPM,
+vencido}`; si no, `null`. `vencido:true` cuando el PM ya está atrasado
+(días u horas negativas) — razón de más para agruparlo, no de menos.
+Sin datos calculados (equipo recién creado, sin horómetro) no sugiere
+nada — ausencia de dato no se trata como "cerca".
+
+**`ot.js`**: al elegir el equipo en el formulario de nueva OT
+(`#oEq`), `oComprobarAgruparPM()` busca el equipo real en `S.g('eq')`,
+llama a `sugerenciaAgruparPM` y, si corresponde, muestra un aviso
+amarillo bajo el selector: "💡 Este equipo tiene un PM3 próximo/vencido
+— ya que está en el taller por esto, considera hacer el PM3 ahora y
+evitar una segunda detención", con los días/horas exactos. Es solo una
+sugerencia informativa — no crea ni modifica ninguna OT
+automáticamente, la decisión la sigue tomando la persona.
+
+8 tests nuevos en `sugerenciaAgruparPM.test.js`: null sin equipo;
+sugiere por días cerca; sugiere por horas cerca aunque los días estén
+lejos; no sugiere si ambos están lejos; `vencido:true` cuando ya pasó
+la fecha; `vencido:false` cuando está cerca pero no vencido; respeta
+umbrales personalizados; no confunde "sin dato" con "cero" (no
+sugiere si `diasParaPM`/`hrsRestantes` son `undefined`).
+
+Verificado visualmente en navegador (Playwright ad-hoc: equipo con
+`horomActual`/`frecPM` tal que la grilla de PM cae exactamente en el
+horómetro actual, o sea 0 días/0h restantes): al seleccionar el equipo
+en "Nueva OT" aparece el aviso "💡 Este equipo tiene un PM3 próximo /
+Faltan 0 día(s) · 0h restantes — ya que está en el taller por esto,
+considera hacer el PM3 ahora y evitar una segunda detención" — usando
+los valores reales recalculados por `C.recalc()`, no un mock fijo (una
+primera versión de la prueba fijaba `diasParaPM`/`tipoPM` a mano y el
+propio `recalc()` los sobrescribía con los valores reales; se corrigió
+la prueba, no la lógica, una vez confirmado que el conteo real era
+correcto).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

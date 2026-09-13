@@ -353,10 +353,11 @@ export function addOT(){
   const hora=new Date().toTimeString().slice(0,5);
   sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Nueva OT Correctivo</h3>
     <div class="form-row">
-      <div class="fg"><label>Equipo *</label><select id="oEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
+      <div class="fg"><label>Equipo *</label><select id="oEq" onchange="oComprobarAgruparPM()"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
       <div class="fg"><label>Tipo</label><select id="oTipo"><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option><option>Cambio de Neumático</option><option>Relleno de Fluidos</option><option>Inspección</option></select></div>
       <div class="fg"><label>Estatus Equipo</label><select id="oEstatusEq"><option>Operativo</option><option>Fuera de Servicio</option></select></div>
     </div>
+    <div id="oSugerenciaPM"></div>
     <div class="form-row">
       <div class="fg"><label>Fecha Entrada *</label><input type="date" id="oFecEnt" value="${hoy}" onchange="calcDurOT()"></div>
       <div class="fg"><label>Hora Entrada</label><input type="time" id="oHoraEnt" value="${hora}" onchange="calcDurOT()"></div>
@@ -396,6 +397,28 @@ export function addOT(){
     <div class="fg"><label>Autorizado por</label><input id="otAutoriza" placeholder="Nombre..."></div>
     </div>
     <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarOTPorVoz()">${ICONS.mic} Completar por voz</button> <button type="button" class="btn btn-o" onclick="_activarLeerCorrectivoOT()">📷 Leer informe (foto)</button><input type="file" id="otCorrectivoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerCorrectivoOTFotoSeleccionada(this)">`);
+};
+
+// Agrupación oportunista de OT (2026-09-13, pedido del usuario tras repasar
+// ideas de mantenimiento avanzado para minería): al elegir el equipo de un
+// correctivo, avisa si su próximo PM ya está cerca (sugerenciaAgruparPM,
+// logic.js) — mientras el equipo ya está en el taller por algo imprevisto,
+// conviene aprovechar y hacer el PM en la misma detención en vez de una
+// segunda parada pocos días/horas después. Es solo información para que
+// decida la persona — no agenda ni crea nada por su cuenta.
+window.oComprobarAgruparPM=function(){
+  var el=$('oSugerenciaPM');if(!el)return;
+  var sigla=$('oEq')?.value;
+  var equipo=(S.g('eq')||[]).find(function(e){return e.sigla===sigla;});
+  var s=(typeof sugerenciaAgruparPM==='function')?sugerenciaAgruparPM(equipo):null;
+  if(!s){el.innerHTML='';return;}
+  el.innerHTML='<div style="background:rgba(245,158,11,.08);border:1px solid var(--warn);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:12px">'+
+    '<b style="color:var(--warn)">💡 '+(s.vencido?'Este equipo tiene un '+escapeHtml(s.tipoPM)+' VENCIDO':'Este equipo tiene un '+escapeHtml(s.tipoPM)+' próximo')+'</b>'+
+    '<div style="color:var(--tx2);margin-top:3px">'+
+    (s.diasParaPM!=null?(s.vencido?'Atrasado hace '+Math.abs(s.diasParaPM)+' día(s)':'Faltan '+s.diasParaPM+' día(s)'):'')+
+    (s.hrsRestantes!=null?' · '+(s.vencido?'':'')+Math.abs(Math.round(s.hrsRestantes))+'h '+(s.vencido?'de atraso':'restantes'):'')+
+    ' — ya que está en el taller por esto, considera hacer el '+escapeHtml(s.tipoPM)+' ahora y evitar una segunda detención.'+
+    '</div></div>';
 };
 
 // ── Registro Rápido (Nivel 4 de la propuesta UX/mobile de esta sesión,
