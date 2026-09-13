@@ -1593,6 +1593,74 @@ propio `recalc()` los sobrescribía con los valores reales; se corrigió
 la prueba, no la lógica, una vez confirmado que el conteo real era
 correcto).
 
+### 34. Monte Carlo de disponibilidad de flota — proyección honesta a 30/60/90 días (2026-09-13)
+
+Origen real: la segunda idea aplicable del mismo repaso de mantenimiento
+avanzado para minería (junto con la sección 33). Todo lo demás de esa
+lista se descartó por requerir datos que este sistema no tiene
+(sensores, telemetría, datos de planta). Esta sí aplica: en vez de un
+solo número "promedio" de MTBF/MTTR (que no dice nada sobre qué tan
+seguido las cosas salen peor que el promedio), se remuestrea
+(bootstrap) miles de veces el historial REAL de intervalos entre
+fallas y duraciones de reparación de TODA la flota, simulando
+escenarios futuros posibles — el resultado es un RANGO honesto
+(P10-P90), no una falsa certeza de un solo número. Deliberadamente NO
+se modela la mantención programada (PM): su fecha ya se conoce con
+certeza (`diasParaPM`/`hrsRestantes`), no hay nada aleatorio que
+remuestrear ahí — simularlo solo agregaría ruido a un dato que ya es
+determinístico.
+
+**`logic.js`**: `intervalosFallaFlotaDias(ot)` agrupa TODAS las fallas
+reales (`esFallaMTBF`) de TODA la flota en una sola línea de tiempo
+(no por equipo — interesa "cada cuántos días falla algo en la flota")
+y devuelve los intervalos en DÍAS CALENDARIO entre fallas sucesivas —
+a diferencia de `ajusteWeibull`/`mtbfFlotaReal` (que usan horómetro,
+horas de uso), acá se necesita tiempo de calendario porque la
+proyección es "de aquí a 30/60/90 días corridos".
+`duracionesReparacionFlotaHoras(ot)` extrae las duraciones reales
+(mismo parseo "Xh" que ya usa MTTR). `simulacionMonteCarloDisponibilidad
+(intervalosDias, duracionesHoras, horizonteDias, horasFlotaDiarias,
+nSimulaciones, rngOpcional)` remuestrea con reemplazo (bootstrap
+clásico) esos intervalos/duraciones para construir miles de historias
+futuras posibles y resume la disponibilidad resultante de cada una:
+devuelve `dispP10`/`dispP50`/`dispP90` (percentiles de disponibilidad,
+%), `fallasEsperadas` (promedio de fallas simuladas) y el tamaño de
+cada muestra real usada. Mínimo 8 intervalos y 5 duraciones — menos que
+eso y el remuestreo repite tan poca variedad real que el resultado es
+más ruido que señal. `rngOpcional` permite inyectar un generador
+determinístico en las pruebas (en producción usa `Math.random`).
+
+**`disp.js`** (pestaña Disponibilidad Mecánica): nuevo panel "🎲
+Proyección Monte Carlo de disponibilidad de flota" con 3 tarjetas
+(30/60/90 días), cada una con la disponibilidad mediana (P50), el
+rango P10-P90 y las fallas esperadas en la flota. `horasFlotaDiarias`
+se calcula sumando `hrsDia` de todos los equipos activos (excluyendo
+los de unidad `km`, mismo criterio que `mtbfFlotaReal`) — es el
+"presupuesto" real de horas de operación que la disponibilidad puede
+perder.
+
+14 tests nuevos en `simulacionMonteCarloDisponibilidad.test.js`:
+`intervalosFallaFlotaDias`/`duracionesReparacionFlotaHoras` (agrupación,
+filtrado de no-fallas, fechas alternativas, intervalos de 0 días);
+`simulacionMonteCarloDisponibilidad` null con muestra insuficiente
+(intervalos o duraciones) o parámetros inválidos; con muestras
+CONSTANTES el resultado es exacto y determinístico sin depender del
+azar (cualquier valor de `rng()` elige siempre el mismo dato de una
+lista de un solo valor repetido — verificado a mano: 2 fallas
+esperadas y disponibilidad exacta en un horizonte de 30 días); a mayor
+horizonte, más fallas esperadas; P10≤P50≤P90 siempre, verificado con un
+generador determinístico que cicla una secuencia fija (no
+`Math.random`, reproducible).
+
+Verificado visualmente en navegador (Playwright ad-hoc: 3 equipos,
+10hrs/día cada uno, 10 correctivos reales espaciados cada 5 días con
+duraciones reales variadas): el panel muestra "9 intervalos reales
+entre fallas y 10 duraciones reales de reparación", y las 3 tarjetas
+con disponibilidad ~97% y su rango P10-P90 más las fallas esperadas
+por horizonte (5 a 30 días, 11 a 60 días, 17 a 90 días — escala
+proporcionalmente con el horizonte, como se espera de un proceso de
+llegada real).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

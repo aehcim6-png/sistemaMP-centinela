@@ -257,11 +257,38 @@ export function renderDisp(){
     }).join('')+
     '</div>':'';
 
+  // ═══ MONTE CARLO DE DISPONIBILIDAD — proyección 30/60/90 días (2026-09-13,
+  // ver simulacionMonteCarloDisponibilidad en logic.js) ═══ Remuestrea el
+  // historial REAL de intervalos entre fallas y duraciones de reparación de
+  // toda la flota — no modela el PM porque su fecha ya se conoce con
+  // certeza (diasParaPM), no hay nada aleatorio que remuestrear ahí.
+  var _mcIv=intervalosFallaFlotaDias(ot);
+  var _mcDu=duracionesReparacionFlotaHoras(ot);
+  var _mcHorasFlota=eq.filter(function(e){return e.unidad!=='km';}).reduce(function(s,e){return s+(e.hrsDia>0?e.hrsDia:12);},0);
+  var _mcHorizontes=[30,60,90];
+  var _mcResultados=_mcHorizontes.map(function(h){return simulacionMonteCarloDisponibilidad(_mcIv,_mcDu,h,_mcHorasFlota,1000);});
+  var monteCarloHTML=
+    '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:14px">'+
+    '<div class="chart-t">🎲 Proyección Monte Carlo de disponibilidad de flota</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Remuestrea (bootstrap) '+_mcIv.length+' intervalos reales entre fallas y '+_mcDu.length+' duraciones reales de reparación de TODA la flota, 1.000 veces por horizonte, para proyectar un RANGO honesto de disponibilidad (P10-P90) — no un solo número. No incluye mantención programada (PM): su fecha ya se conoce con certeza, no hay nada que remuestrear ahí.</div>'+
+    (_mcResultados[0]?
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+
+      _mcResultados.map(function(r,i){
+        var h=_mcHorizontes[i];
+        if(!r)return '<div class="card"><div class="card-t">'+h+' días</div><div class="card-v" style="color:var(--tx3)">—</div><div class="card-s">Historial insuficiente</div></div>';
+        var col=r.dispP50>=90?'var(--ok)':r.dispP50>=75?'var(--w)':'var(--danger)';
+        return '<div class="card"><div class="card-t">'+h+' días</div><div class="card-v" style="color:'+col+'">'+r.dispP50+'%</div><div class="card-s">Rango P10-P90: '+r.dispP10+'% – '+r.dispP90+'%</div><div class="card-s">'+r.fallasEsperadas+' falla(s) esperada(s) en la flota</div></div>';
+      }).join('')+
+      '</div>':
+      '<div style="font-size:12px;color:var(--tx3);padding:4px 0">Historial insuficiente todavía ('+_mcIv.length+' intervalos entre fallas, '+_mcDu.length+' duraciones de reparación reales — se necesitan al menos 8 y 5 respectivamente).</div>')+
+    '</div>';
+
   $('s-disp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Disponibilidad Mecánica</div>'+
     '<div class="sec-s" title="Disponibilidad = (horas disponibles del día − horas caídas) / horas disponibles, promediado por período. Cuando un registro no tiene duración registrada se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — estimación, no dato medido.">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable · <span style="text-decoration:underline dotted">sin duración registrada = 4h/8h asumidas</span></div></div>'+
     '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
+    monteCarloHTML+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Anual</option></select>'+
     '<select id="fDispMes" onchange="renders.disp()">'+meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+

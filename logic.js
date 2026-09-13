@@ -1912,6 +1912,107 @@ function sugerenciaAgruparPM(equipo,umbralDias,umbralHoras){
   };
 }
 
+// ═══ MONTE CARLO DE DISPONIBILIDAD DE FLOTA — proyección a 30/60/90 días
+// (2026-09-13) ═══
+// Origen real: la segunda idea real (junto con la agrupación oportunista de
+// arriba) del mismo repaso de mantenimiento avanzado para minería que el
+// usuario pidió evaluar. Todo lo demás de esa lista se descartó por
+// requerir datos que este sistema no tiene (sensores, telemetría, datos de
+// planta) — esta SÍ es aplicable: en vez de un solo número de MTBF/MTTR
+// "promedio" (que no dice nada sobre qué tan seguido las cosas salen peor
+// que el promedio), se remuestrea (bootstrap) el historial REAL de
+// intervalos entre fallas y duraciones de reparación de TODA la flota miles
+// de veces, simulando escenarios futuros posibles — el resultado es un
+// RANGO honesto (P10-P90), no una falsa certeza de un solo número.
+//
+// Deliberadamente NO se modela el PM (mantención programada): a diferencia
+// de un correctivo, el momento del próximo PM de cada equipo ya se conoce
+// con certeza (diasParaPM/hrsRestantes, ver C.recalc) — no hay nada
+// aleatorio que remuestrear ahí, simularlo solo agregaría ruido a un dato
+// que ya es determinístico. El Monte Carlo se enfoca en lo único que
+// realmente es incierto: CUÁNDO va a fallar algo y CUÁNTO va a tardar en
+// repararse.
+
+// Agrupa TODAS las fallas reales (esFallaMTBF) de TODA la flota en una sola
+// línea de tiempo (no por equipo — acá interesa "cada cuántos días falla
+// ALGO en la flota", el proceso de llegada agregado) y devuelve los
+// intervalos en DÍAS CALENDARIO entre fallas sucesivas — a diferencia de
+// ajusteWeibull/mtbfFlotaReal (que usan horómetro, horas de uso), acá
+// necesitamos tiempo de calendario porque la proyección es "de aquí a 30/60/
+// 90 días corridos", no "de aquí a que el equipo acumule tantas horas".
+function intervalosFallaFlotaDias(ot){
+  var fechas=(ot||[]).filter(esFallaMTBF).map(function(o){return o.fecha||o.fechaEntrada;}).filter(Boolean).sort();
+  var gaps=[];
+  for(var i=1;i<fechas.length;i++){
+    var d1=new Date(fechas[i-1]+'T00:00:00'),d2=new Date(fechas[i]+'T00:00:00');
+    var dias=Math.round((d2-d1)/86400000);
+    if(dias>0)gaps.push(dias);
+  }
+  return gaps;
+}
+
+// Duraciones reales de reparación (horas) de TODA la flota — mismo parseo
+// "Xh" de o.duracion que ya usa MTTR/analisisMTTRLogNormal (mismo criterio
+// de "duración real registrada", no un supuesto).
+function duracionesReparacionFlotaHoras(ot){
+  var horas=[];
+  (ot||[]).filter(esFallaMTBF).forEach(function(o){
+    if(!o.duracion||o.duracion==='—')return;
+    var m=String(o.duracion).match(/(\d+)h/);
+    if(m)horas.push(parseInt(m[1],10));
+  });
+  return horas;
+}
+
+// Núcleo de la simulación: remuestrea (con reemplazo, bootstrap clásico) los
+// intervalos y duraciones REALES para construir miles de historias futuras
+// posibles de la flota durante horizonteDias, y resume la disponibilidad
+// resultante de cada una. horasFlotaDiarias = horas de operación programadas
+// de TODA la flota por día (suma de hrsDia de cada equipo activo — el
+// "presupuesto" de horas que la disponibilidad puede perder). rngOpcional
+// permite inyectar un generador determinístico en las pruebas — en
+// producción se usa Math.random. Mínimo 8 intervalos y 5 duraciones (menos
+// que eso y el remuestreo repite tan poca variedad real que el resultado es
+// más ruido que señal) — null si no alcanza, nunca se inventa una muestra.
+function simulacionMonteCarloDisponibilidad(intervalosDias,duracionesHoras,horizonteDias,horasFlotaDiarias,nSimulaciones,rngOpcional){
+  var iv=(intervalosDias||[]).filter(function(x){return x>0;});
+  var du=(duracionesHoras||[]).filter(function(x){return x>0;});
+  if(iv.length<8||du.length<5)return null;
+  if(!(horizonteDias>0)||!(horasFlotaDiarias>0))return null;
+  var n=nSimulaciones>0?Math.round(nSimulaciones):1000;
+  var rng=rngOpcional||Math.random;
+  var horasTotales=horizonteDias*horasFlotaDiarias;
+  var disponibilidades=[];
+  var fallasPorSim=[];
+  for(var s=0;s<n;s++){
+    var t=0,downtime=0,fallas=0;
+    while(true){
+      t+=iv[Math.floor(rng()*iv.length)];
+      if(t>=horizonteDias)break;
+      fallas++;
+      downtime+=du[Math.floor(rng()*du.length)];
+    }
+    disponibilidades.push(Math.max(0,1-downtime/horasTotales));
+    fallasPorSim.push(fallas);
+  }
+  disponibilidades.sort(function(a,b){return a-b;});
+  function pct(p){
+    var idx=Math.min(disponibilidades.length-1,Math.max(0,Math.floor(p*(disponibilidades.length-1))));
+    return disponibilidades[idx];
+  }
+  var sumFallas=fallasPorSim.reduce(function(a,b){return a+b;},0);
+  return{
+    horizonteDias:horizonteDias,
+    nSimulaciones:n,
+    dispP10:Math.round(pct(0.10)*1000)/10,
+    dispP50:Math.round(pct(0.50)*1000)/10,
+    dispP90:Math.round(pct(0.90)*1000)/10,
+    fallasEsperadas:Math.round(sumFallas/n*10)/10,
+    muestraIntervalos:iv.length,
+    muestraDuraciones:du.length
+  };
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -2496,7 +2597,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma
