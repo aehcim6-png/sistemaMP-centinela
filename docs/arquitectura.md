@@ -150,24 +150,31 @@ silencio el trabajo de otra persona.
   seguridad — nunca sobre-privilegia por un blip, solo evita
   sub-privilegiar a un admin real.
 
-### 5b. Rol "lector" (solo lectura) — solo backend por ahora
+### 5b. Rol "lector" (solo lectura)
 
 Tercer rol en `user_roles.role` (además de `admin`/`operador`), pensado para
-alguien que necesita VER el sistema sin poder editarlo. La base de datos ya
-lo hace cumplir de verdad: `privado.es_editor_activo()` (activo Y rol
+alguien que necesita VER el sistema sin poder editarlo. Dos capas, ninguna
+depende de la otra:
+
+**Candado real (backend)**: `privado.es_editor_activo()` (activo Y rol
 admin/operador) reemplazó a `privado.es_usuario_activo()` en el
 INSERT/UPDATE/DELETE de todas las tablas operacionales y mixtas — un
 usuario `lector` puede leer todo pero cualquier escritura la rechaza
 Postgres, sin depender de que el frontend se porte bien
-(`20260805215000_agregar_rol_lector_solo_lectura.sql`).
+(`20260805215000_agregar_rol_lector_solo_lectura.sql`). Además, `S.s()`
+(el único choke point por el que pasa cualquier escritura del sistema,
+`modules/store.js`) corta antes de tocar cache/localStorage/red si
+`window._userRole==='lector'` — así la pantalla nunca muestra un cambio
+como "guardado" cuando el servidor lo habría rechazado.
 
-**Deliberadamente incompleto todavía**: la interfaz no oculta ni deshabilita
-los botones de crear/editar/eliminar para este rol — un usuario lector los
-va a seguir viendo, y si toca uno, la escritura se descarta en el servidor
-pero la fila puede parpadear como "editada" en su pantalla hasta el próximo
-refresco (porque S.s() actualiza el estado local en optimista antes de
-confirmar contra Supabase). Ocultar esos controles en las ~30 pestañas es
-un paso aparte, todavía no hecho.
+**Cosmético (frontend)**: `_aplicarRolUI()` (`index.html`) recorre los
+botones/links de la pestaña o modal recién dibujado y oculta los que
+matchean `_RE_ACCION_ESCRITURA` (crear/editar/guardar/importar/borrar,
+~20 patrones de nombre de función) cuando el rol es `lector` — para que un
+lector no vea controles que de todas formas van a fallar. Se reaplica en
+cada `go()` (cambio de pestaña) y cada `sm()` (apertura de modal), porque
+cada uno redibuja su contenido desde cero. Verificado con 2 tests E2E
+(`rol-lector-ui.spec.js`): un lector no ve "+ Nueva OT"; un admin sí.
 
 ### 6. Estructura de datos en Supabase
 

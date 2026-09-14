@@ -166,14 +166,17 @@
     sub-privilegiar a un admin real.
   </div>
 
-  <h3>5b. Rol "lector" (solo lectura) — solo backend por ahora</h3>
-  <p>Pensado para alguien que necesita VER el sistema sin poder editarlo.
-  <code>privado.es_editor_activo()</code> (activo Y rol admin/operador) reemplazó a
-  <code>privado.es_usuario_activo()</code> en el INSERT/UPDATE/DELETE de todas las tablas
-  operacionales y mixtas — un usuario <code>lector</code> puede leer todo pero cualquier
-  escritura la rechaza Postgres, sin depender de que el frontend se porte bien.
-  <b>Deliberadamente incompleto todavía</b>: la interfaz no oculta ni deshabilita los botones de
-  crear/editar/eliminar para este rol — queda para un paso aparte.</p>
+  <h3>5b. Rol "lector" (solo lectura)</h3>
+  <p>Pensado para alguien que necesita VER el sistema sin poder editarlo. Dos capas
+  independientes: <b>candado real (backend)</b> — <code>privado.es_editor_activo()</code>
+  (activo Y rol admin/operador) reemplazó a <code>privado.es_usuario_activo()</code> en el
+  INSERT/UPDATE/DELETE de todas las tablas operacionales y mixtas, y <code>S.s()</code> (único
+  choke point de escritura en <code>store.js</code>) corta antes de tocar cache/red si el rol es
+  <code>lector</code> — un usuario lector puede leer todo pero cualquier escritura la rechaza
+  Postgres/el frontend, sin depender de que la UI se porte bien. <b>Cosmético (frontend)</b> —
+  <code>_aplicarRolUI()</code> oculta los botones de crear/editar/guardar/importar/borrar cuando
+  el rol es <code>lector</code>, reaplicado en cada cambio de pestaña y cada apertura de modal.
+  Verificado con 2 tests E2E (<code>rol-lector-ui.spec.js</code>).</p>
 
   <h3>6. Estructura de datos en Supabase</h3>
   <p>49 tablas en total (42 "reales" + 7 "singleton" de configuración), una por categoría (incluye
