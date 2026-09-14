@@ -1717,6 +1717,59 @@ por horizonte (5 a 30 días, 11 a 60 días, 17 a 90 días — escala
 proporcionalmente con el horizonte, como se espera de un proceso de
 llegada real).
 
+### 35. Detector de salud del sistema — Capa 1 (2026-09-14)
+
+Origen real: el usuario preguntó por qué el sistema no tiene "un
+detector de situaciones" que avise cuando algo deja de funcionar (ej.
+un cron que falla en silencio, o un canal de reportes caído) sin que
+alguien tenga que enterarse mirando los logs de Supabase a mano. La
+respuesta acordada fue en dos capas: **Capa 1** (esta, ya construida) —
+un cron que detecta y avisa directo al humano por correo, sin depender
+de que haya una sesión de IA conectada; Capa 2 (además despertar una
+sesión de Claude para investigar antes de avisar) queda para una pasada
+futura, no está construida.
+
+Dos señales reales elegidas a propósito para evitar falsos positivos:
+1. **Salud de `backup-diario`**: ¿corrió hoy y le fue bien? Tanto el
+   éxito como el fallo quedan registrados, así que "nunca corrió" y
+   "corrió pero falló" son distinguibles.
+2. **Salud del canal de reportes entrantes** (`whatsapp-webhook` +
+   `email-webhook`): solo se registra un FALLO real (una excepción no
+   manejada, o un `insert` fallido contra `correctivos_historico`) —
+   deliberadamente NUNCA se infiere que el canal está roto por la
+   AUSENCIA de mensajes un día dado (que nadie reporte nada no es lo
+   mismo que el webhook estar caído).
+
+**Tabla `salud_crons`** (`nombre` PK, `ultimaEjecucion`, `exito`,
+`detalle`) — cada una de las 3 funciones anteriores le hace un upsert
+best-effort al terminar, vía el helper `_shared/registrarSaludCron.ts`
+(en `whatsapp-webhook`, copiado inline en vez de importado, mismo
+criterio que el resto de esa función — ver sección 16). "Best-effort"
+en serio: si el registro falla, se traga el error y nunca afecta la
+respuesta real del cron/webhook que lo llamó.
+
+**Edge Function nueva `vigilar-salud-sistema`**: función pura
+`evaluarSaludCrons(filas, ahoraISO)` (testeable sin red, 10 casos)
+decide si hay problema — `backup-diario` sin fila, con `exito=false`,
+o con más de 26h desde la última ejecución exitosa (no corrió hoy); o
+alguno de los dos webhooks con un fallo registrado en las últimas 24h.
+Si encuentra 0 problemas, no manda nada (mismo criterio "se omite el
+envío si no hay nada urgente" que ya usa `alerta-pm`, sección 15, para
+no generar ruido diario de "todo bien"). Si encuentra 1 o más, manda un
+único correo a `aehcim6@gmail.com` vía Resend con la lista. Mismo
+patrón de seguridad que `backup-diario`/`alerta-pm`: secreto propio
+(`vigilar_salud_cron_secret`) en Supabase Vault, verificado con
+`verificar_secreto_cron`. Programada por `pg_cron` todos los días a las
+13:00 UTC, una hora después de `backup-diario` (12:00 UTC), para que ya
+haya alcanzado a registrar su resultado del día.
+
+Verificado end-to-end contra el proyecto real (no solo con los tests
+unitarios): se invocó `backup-diario` manualmente, quedó registrado en
+`salud_crons` (`exito:true`), y al invocar `vigilar-salud-sistema` a
+continuación devolvió `{"ok":true,"enviado":false,"motivo":"Sin
+problemas detectados"}` — sin mandar ninguna alerta, como corresponde
+cuando no hay nada roto.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
