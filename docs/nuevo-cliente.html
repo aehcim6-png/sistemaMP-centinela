@@ -69,21 +69,22 @@
   key.</p>
 
   <h2>2. Aplicar el esquema</h2>
-  <p>Aplicar las 57 migraciones de <code>supabase/migrations/</code> <b>en orden</b> (por nombre
+  <p>Aplicar las 60 migraciones de <code>supabase/migrations/</code> <b>en orden</b> (por nombre
   de archivo, ya vienen con timestamp). Traen: las ~42 tablas reales, RLS por tabla, el trigger
   <code>proteger_columnas_admin</code>, las funciones
   <code>verificar_secreto_cron</code>/<code>obtener_secreto_para_cron</code>, y la creación del
   bucket <code>informes-fotos</code>.</p>
   <div class="callout warn">
-  <p style="margin:0"><b>⚠️ Trampa real encontrada:</b> 4 de esas migraciones traen la URL del
+  <p style="margin:0"><b>⚠️ Trampa real encontrada:</b> 5 de esas migraciones traen la URL del
   proyecto de Besalco <b>escrita a mano</b> dentro del SQL del cron
   (<code>20260805213000_programar_backup_diario.sql</code>,
   <code>20260806014500_asegurar_backup_diario.sql</code>,
   <code>20260806040000_asegurar_alerta_pm_diaria.sql</code>,
-  <code>20260901010000_programar_resumen_semanal.sql</code>). Aplicarlas tal cual en el proyecto
-  nuevo programaría los cron jobs para llamar a las Edge Functions <b>del proyecto de Besalco</b>,
-  no las del cliente nuevo. Más fácil que editar esas migraciones históricas: dejarlas aplicarse
-  igual y <b>reprogramar los 3 cron jobs a mano al final</b> (paso 6), con la URL y el
+  <code>20260901010000_programar_resumen_semanal.sql</code>,
+  <code>20260914100000_programar_vigilar_salud_sistema.sql</code>). Aplicarlas tal cual en el
+  proyecto nuevo programaría los cron jobs para llamar a las Edge Functions <b>del proyecto de
+  Besalco</b>, no las del cliente nuevo. Más fácil que editar esas migraciones históricas: dejarlas
+  aplicarse igual y <b>reprogramar los 4 cron jobs a mano al final</b> (paso 6), con la URL y el
   <code>apikey</code> correctos del proyecto nuevo.</p>
   </div>
 
@@ -117,12 +118,13 @@
   <h2>5. Vault — secretos de cron</h2>
   <p>Insertar (vía SQL, <code>vault.create_secret(valor, nombre, descripción)</code>) un secreto
   aleatorio de 32 bytes para cada uno: <code>backup_diario_cron_secret</code>,
-  <code>alerta_pm_cron_secret</code>, <code>resumen_semanal_cron_secret</code>. Las funciones que
-  los verifican (<code>verificar_secreto_cron</code>) ya quedaron creadas en el paso 2.</p>
+  <code>alerta_pm_cron_secret</code>, <code>resumen_semanal_cron_secret</code>,
+  <code>vigilar_salud_cron_secret</code>. Las funciones que los verifican
+  (<code>verificar_secreto_cron</code>) ya quedaron creadas en el paso 2.</p>
 
   <h2>6. Desplegar las Edge Functions y programar los cron jobs</h2>
-  <p>Desplegar las 11 funciones de <code>supabase/functions/</code>. Después, programar (o
-  reprogramar, por la trampa del paso 2) los 3 cron jobs con <code>cron.schedule(...)</code>,
+  <p>Desplegar las 13 funciones de <code>supabase/functions/</code>. Después, programar (o
+  reprogramar, por la trampa del paso 2) los 4 cron jobs con <code>cron.schedule(...)</code>,
   apuntando a <code>https://&lt;proyecto-nuevo&gt;.supabase.co/functions/v1/&lt;función&gt;</code>
   y el <code>apikey</code> anon del proyecto nuevo — copiar la forma exacta de
   <code>supabase/migrations/20260901010000_programar_resumen_semanal.sql</code>, solo con los

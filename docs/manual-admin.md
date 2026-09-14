@@ -469,6 +469,41 @@ recientemente, esos campos pueden estar desactualizados — el correo dice
 literalmente lo mismo que la última vez que alguien vio esa pestaña, nunca
 un número inventado aparte.
 
+## 7b. Detector de salud del sistema (2026-09-14)
+
+A diferencia de `alerta-pm`/`resumen-semanal` (que avisan de cosas
+urgentes DENTRO de los datos del sistema), esto vigila que el sistema
+MISMO siga funcionando — que el respaldo diario efectivamente corra, y
+que el canal de reportes por WhatsApp/correo (sección 6) no esté
+tirando error en silencio. Nadie tiene que mirar los logs de Supabase a
+mano para enterarse.
+
+- **Capa 1 (detección + aviso automático)**: `backup-diario`,
+  `whatsapp-webhook` y `email-webhook` registran su propio resultado
+  (éxito o fallo, con detalle) en la tabla `salud_crons`. La Edge
+  Function `vigilar-salud-sistema` corre todos los días a las 13:00 UTC
+  (una hora después de `backup-diario`) y revisa esos registros: si el
+  respaldo diario falló o no corrió en más de 26h, o si alguno de los
+  webhooks tuvo un fallo real en las últimas 24h, manda un correo de
+  alerta a `aehcim6@gmail.com`. Si no encuentra nada raro, **no manda
+  nada** — a propósito, para no generar un correo de "todo bien" todos
+  los días. Importante: que no llegue ningún WhatsApp/correo en un día
+  dado NUNCA cuenta como una falla — eso solo significa que nadie
+  reportó nada.
+- **Capa 2 (diagnóstico automático)**: si Capa 1 encuentra un problema,
+  además se despierta una sesión de Claude (Rutina programada, ~20 min
+  después) que investiga la causa real (logs de Supabase, advisors) y
+  manda un correo aparte con el diagnóstico. Esta capa **solo
+  diagnostica, nunca aplica un fix por su cuenta** — si el problema es
+  de código dice cuál sería la corrección, pero la aplica un humano; si
+  es algo externo (saldo de Twilio, configuración de Resend, etc.) dice
+  qué acción hace falta.
+
+Mismo patrón de seguridad que el resto de los cron jobs: secreto propio
+(`vigilar_salud_cron_secret`) en Supabase Vault. Ver
+[`arquitectura.md`](./arquitectura.md), sección 35, para el detalle
+técnico completo.
+
 ## 8. Despliegue (Vercel)
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
@@ -502,10 +537,10 @@ logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
 modules/renders/*.js     — un archivo por pestaña/sub-pestaña (45, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — 12 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
-                            registrar-intento-acceso, avisar-salud-equipo,
-                            avisar-dispositivo-nuevo, leer-pauta-pm,
+                            vigilar-salud-sistema, registrar-intento-acceso,
+                            avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
 tests/                   — pruebas de logic.js y store.js (Vitest, 656 casos)
