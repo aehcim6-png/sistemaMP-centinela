@@ -716,14 +716,14 @@ export function renderPred(){
       var se=stockEstado((s.stockBodega||0)+(s.pendiente||0),cm,s.leadTime);
       if(se.nivel==='OK')return;
       var riesgo=se.nivel==='COMPRAR'?((s.stockBodega||0)<=0?'🔴 SIN STOCK':'🔴 QUIEBRE'):'🟡 BAJO';
-      risks.push({item:s.descripcion,nParte:s.nParte,stock:s.stockBodega||0,consMes:cm,lead:s.leadTime||34,riesgo:riesgo,accion:se.motivo});
+      risks.push({item:s.descripcion,nParte:s.nParte,stock:s.stockBodega||0,consMes:cm,lead:s.leadTime||34,riesgo:riesgo,accion:se.motivo,precioUnit:s.precioUnit||null});
     });
     lub.forEach(function(l){
       var cm=l.consumoMes||l.proyMes||0;if(cm<=0)return;
       var se=stockEstado(l.stock||0,cm,15);
       if(se.nivel==='OK')return;
       var riesgo=se.nivel==='COMPRAR'?((l.stock||0)<=0?'🔴 SIN STOCK':'🔴 QUIEBRE'):'🟡 BAJO';
-      risks.push({item:l.nombre,nParte:'',stock:l.stock||0,consMes:cm,lead:15,riesgo:riesgo,accion:se.motivo});
+      risks.push({item:l.nombre,nParte:'',stock:l.stock||0,consMes:cm,lead:15,riesgo:riesgo,accion:se.motivo,precioUnit:l.precio||null});
     });
     return risks.sort(function(a,b){return a.riesgo>b.riesgo?1:-1;});
   }
@@ -1292,6 +1292,102 @@ export function renderPred(){
       }).join(''));
   }
 
+  // ═══ MATRIZ DE RIESGO (Probabilidad × Impacto) — Nivel 1, 2026-09-14 ═══
+  // No inventa riesgos: cruza 4 señales que el sistema YA calcula en otro
+  // lado (Índice de Riesgo de componentes de comp.js, severidad de alerta
+  // cruzada de arriba, riesgoQuiebre() de stock/lubricantes, y los
+  // componentes reincidentes de diagnosticoFlota()) en una grilla 5×5
+  // estándar, para priorizar entre categorías distintas con un criterio
+  // único. La fórmula de Probabilidad/Impacto/Nivel vive en logic.js
+  // (probabilidad*/umbralesImpacto/impactoDeValor/nivelRiesgoPxI, con
+  // tests) — acá solo se arma la lista con datos reales y se renderiza.
+  if(fVista==='matriz'){
+    var riesgos=[];
+    (S.g('compMayores')||[]).forEach(function(c){
+      if(fEq&&c.sigla!==fEq)return;
+      var p=probabilidadComponente(c.riesgoNivel);
+      if(p==null)return;
+      riesgos.push({origen:'Componente',item:(c.comp||'—'),equipo:c.sigla||'',prob:p,valorImpacto:c.costoRef||null,detalle:c.riesgoTip||'',etiqueta:c.riesgoNivel||''});
+    });
+    eq.forEach(function(e){
+      if(fEq&&e.sigla!==fEq)return;
+      var a=alertaCruzada(e.sigla);
+      var p=probabilidadEquipoSeveridad(a.severity);
+      if(p==null)return;
+      var eqData=P.equipos[e.sigla];
+      riesgos.push({origen:'Equipo',item:'Alerta cruzada ('+(a.alertas.length)+' señal(es))',equipo:e.sigla,prob:p,valorImpacto:eqData?eqData.promCostoMes:null,detalle:a.alertas.join(' · '),etiqueta:a.estado+' severidad '+a.severity});
+    });
+    riesgoQuiebre().forEach(function(r){
+      var p=probabilidadStockQuiebre(r.riesgo);
+      if(p==null)return;
+      riesgos.push({origen:'Stock',item:r.item||r.nParte||'—',equipo:'',prob:p,valorImpacto:r.precioUnit||null,detalle:r.accion||'',etiqueta:r.riesgo});
+    });
+    (typeof diagnosticoFlota==='function'?diagnosticoFlota(fEq,fMesCompleto):[]).forEach(function(c){
+      var p=probabilidadReincidencia(c.severidad);
+      if(p==null)return;
+      riesgos.push({origen:'Reincidencia',item:c.componente,equipo:c.equipoMasRepetido||'',prob:p,valorImpacto:c.costoTotal||null,detalle:c.total+' fallas en '+c.nEquipos+' equipo(s), '+(c.vecesEnEsePeor||0)+' en '+(c.equipoMasRepetido||'—'),etiqueta:c.total+' fallas'});
+    });
+    var umbralesMatriz=umbralesImpacto(riesgos.map(function(r){return r.valorImpacto;}));
+    riesgos.forEach(function(r){
+      r.impacto=impactoDeValor(r.valorImpacto,umbralesMatriz);
+      var nv=nivelRiesgoPxI(r.prob,r.impacto);
+      r.pxi=nv.pxi;r.nivel=nv.nivel;r.color=nv.color;
+    });
+    riesgos.sort(function(a,b){return b.pxi-a.pxi;});
+    var porNivel={Extremo:0,Alto:0,Moderado:0,Bajo:0};
+    riesgos.forEach(function(r){porNivel[r.nivel]++;});
+    var filasGrilla=[];
+    for(var _fi=5;_fi>=1;_fi--){
+      var _cols=[];
+      for(var _pi=1;_pi<=5;_pi++){
+        var _nv=nivelRiesgoPxI(_pi,_fi);
+        var _cnt=riesgos.filter(function(r){return r.prob===_pi&&r.impacto===_fi;}).length;
+        _cols.push({prob:_pi,impacto:_fi,color:_nv.color,cnt:_cnt});
+      }
+      filasGrilla.push(_cols);
+    }
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Matriz de Riesgo</div><div style="font-size:11px;color:var(--tx3)">Probabilidad × Impacto — cruza el Índice de Riesgo de componentes, alerta cruzada de equipos, riesgo de quiebre de stock y componentes reincidentes</div></div>'+
+      '<div class="cards" style="margin-bottom:16px">'+
+      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔴 Extremo</div><div class="card-v" style="color:var(--danger)">'+porNivel.Extremo+'</div><div class="card-s">PxI &gt; 15</div></div>'+
+      '<div class="card" style="border-left:3px solid #f97316"><div class="card-t">🟠 Alto</div><div class="card-v" style="color:#f97316">'+porNivel.Alto+'</div><div class="card-s">PxI 10-15</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--warn)"><div class="card-t">🟡 Moderado</div><div class="card-v" style="color:var(--warn)">'+porNivel.Moderado+'</div><div class="card-s">PxI 5-9</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--ok)"><div class="card-t">🟢 Bajo</div><div class="card-v" style="color:var(--ok)">'+porNivel.Bajo+'</div><div class="card-s">PxI ≤ 4</div></div>'+
+      '</div>'+
+      (riesgos.length?
+      '<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">Grilla Probabilidad × Impacto <span style="font-size:11px;color:var(--tx3)">— cada celda muestra cuántos riesgos caen ahí</span></div>'+
+      '<div class="tbl-wrap"><table style="border-collapse:collapse;max-width:520px;margin:8px auto"><tbody>'+
+      filasGrilla.map(function(fila,fi){
+        return '<tr>'+
+          (fi===2?'<td rowspan="5" style="writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:10px;color:var(--tx3);padding-right:6px">IMPACTO →</td>':'')+
+          '<td style="width:20px;text-align:center;font-size:10px;color:var(--tx3);font-weight:700">'+fila[0].impacto+'</td>'+
+          fila.map(function(c){
+            return '<td style="width:60px;height:44px;text-align:center;font-weight:700;font-size:13px;border:1px solid var(--bd);background:color-mix(in srgb,'+c.color+' '+(c.cnt?38:12)+'%,var(--bg2));color:'+(c.cnt?c.color:'var(--tx3)')+'" title="Probabilidad '+c.prob+' × Impacto '+c.impacto+'">'+(c.cnt||'')+'</td>';
+          }).join('')+
+          '</tr>';
+      }).join('')+
+      '<tr><td></td><td></td>'+[1,2,3,4,5].map(function(p){return'<td style="text-align:center;font-size:10px;color:var(--tx3);font-weight:700;padding-top:2px">'+p+'</td>';}).join('')+'</tr>'+
+      '<tr><td></td><td></td><td colspan="5" style="text-align:center;font-size:10px;color:var(--tx3);padding-top:2px">← PROBABILIDAD →</td></tr>'+
+      '</tbody></table></div></div>'
+      :'')+
+      '<div class="chart-box"><div class="chart-t">Registro de riesgos <span style="font-size:11px;color:var(--tx3)">— ordenado de mayor a menor PxI</span></div>'+
+      (riesgos.length?
+      '<div class="tbl-wrap"><table><tr><th>Origen</th><th>Riesgo</th><th>Equipo</th><th>P</th><th>I</th><th>PxI</th><th>Nivel</th><th>Detalle</th></tr>'+
+      riesgos.map(function(r){
+        return '<tr><td style="font-size:10px;color:var(--tx3)">'+escapeHtml(r.origen)+'</td>'+
+          '<td style="font-size:11px">'+escapeHtml(r.item)+'</td>'+
+          '<td class="mono" style="font-size:10px">'+escapeHtml(r.equipo||'—')+'</td>'+
+          '<td style="text-align:center">'+r.prob+'</td>'+
+          '<td style="text-align:center">'+r.impacto+'</td>'+
+          '<td style="text-align:center;font-weight:700">'+r.pxi+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+r.color+'">'+r.nivel+'</td>'+
+          '<td style="font-size:10px;color:var(--tx2)">'+escapeHtml(r.detalle||r.etiqueta||'')+'</td></tr>';
+      }).join('')+'</table></div>'
+      :'<div style="color:var(--ok);text-align:center;padding:20px">✓ Sin riesgos activos en ninguna categoría (componentes, equipos, stock, reincidencia)</div>')+
+      '</div>'+
+      '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Nivel 1: solo lee señales que el sistema ya calcula en Componentes, Predictivo y Stock — no agrega riesgos manuales de otras áreas (financiero, personal, etc.).</p>';
+  }
+
 $('s-pred').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Predictivo &amp; Confiabilidad</div>'+
     '<div class="sec-s">Arriba lo accionable (qué anticipar) · abajo el histórico de compras · todo desde datos reales</div></div></div>'+
@@ -1304,6 +1400,7 @@ $('s-pred').innerHTML=
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
+    '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
     '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option></select>'+

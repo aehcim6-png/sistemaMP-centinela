@@ -1360,6 +1360,101 @@ function compEstado(comp, horomActual, hrsDia){
     diasRest:diasRest, estado:estado, barCol:barCol};
 }
 
+// ═══ MATRIZ DE RIESGO (Probabilidad × Impacto) ═══
+// Nivel 1 (2026-09-14): no inventa riesgos nuevos — mapea señales que el
+// sistema YA calcula en otro lado (Índice de Riesgo de componentes,
+// severidad de alerta cruzada por equipo, riesgo de quiebre de stock,
+// componentes reincidentes de flota) a los ejes de una matriz de riesgo
+// 5×5 (Probabilidad 1-5 × Impacto 1-5), para priorizar entre categorías
+// distintas con un criterio único en vez de mirar 4 pantallas separadas.
+// Funciones puras — pred.js arma la lista de riesgos con datos reales
+// (modules/renders/pred.js, sub-vista "matriz") y llama a estas para
+// clasificar cada uno.
+
+// Probabilidad según el Índice de Riesgo de un componente mayor (comp.js,
+// campo riesgoNivel ya persistido). Bajo/Sin datos no entran a la matriz —
+// no son un riesgo activo, son "sin problema" o "sin evidencia".
+function probabilidadComponente(riesgoNivel){
+  if(riesgoNivel==='🔴 Alto')return 5;
+  if(riesgoNivel==='🟡 Medio')return 3;
+  if(riesgoNivel==='🟡 Revisar')return 2;
+  return null;
+}
+
+// Probabilidad según la severidad de alerta cruzada de un equipo
+// (pred.js, alertaCruzada() — combina inspección NOK, fallas repetidas,
+// tendencia de costo, PM urgente y aceite). severity<2 (🟢) no entra: es
+// el mismo corte que ya usa la vista "general" de Predictivo para no
+// contar un equipo como "a vigilar".
+function probabilidadEquipoSeveridad(severity){
+  var s=severity||0;
+  if(s>=8)return 5;
+  if(s>=5)return 4;
+  if(s>=3)return 3;
+  if(s>=2)return 2;
+  return null;
+}
+
+// Probabilidad de un ítem de stock/lubricante en riesgo de quiebre
+// (pred.js, riesgoQuiebre() — ya usa stockEstado(), la fuente única de
+// "cuándo comprar"). BAJO (🟡, cobertura entre el lead time y 2 meses) es
+// el único nivel no-crítico que igual entra: ya es una señal real.
+function probabilidadStockQuiebre(etiquetaRiesgo){
+  var r=etiquetaRiesgo||'';
+  if(r.indexOf('SIN STOCK')!==-1)return 5;
+  if(r.indexOf('QUIEBRE')!==-1)return 4;
+  if(r.indexOf('BAJO')!==-1)return 2;
+  return null;
+}
+
+// Probabilidad de un componente reincidente de flota (pred.js,
+// diagnosticoFlota() — ya exige 3+ fallas para severidad>0). severidad=0
+// ("aún sin patrón claro") no entra a la matriz.
+function probabilidadReincidencia(severidad){
+  if(severidad>=3)return 5;
+  if(severidad===2)return 3;
+  return null;
+}
+
+// Umbrales de Impacto (quintiles) sobre un conjunto de valores $ heterogéneo
+// (costoRef de componente, promCostoMes de equipo, precioUnit de repuesto)
+// — se recalculan en cada armado de la matriz sobre los riesgos presentes,
+// en vez de usar montos fijos en pesos: así el Impacto queda relativo a
+// "cuánto pesa este riesgo frente a los demás riesgos de HOY", útil para
+// priorizar, y portable a cualquier cliente sin retocar umbrales en $ que
+// no tendrían sentido en otra escala de costos.
+function umbralesImpacto(valores){
+  var nums=(valores||[]).filter(function(v){return typeof v==='number'&&isFinite(v)&&v>0;}).sort(function(a,b){return a-b;});
+  if(!nums.length)return null;
+  // ceil(p*n)-1, no floor(p*n): con floor, el percentil 80 de un set chico cae
+  // exactamente en el ÚLTIMO elemento (su propio índice), así que el valor más
+  // alto del conjunto nunca podía superar su propio umbral y quedaba atrapado
+  // en Impacto 4 en vez de 5 — encontrado escribiendo el test de este archivo.
+  function pct(p){var idx=Math.min(nums.length-1,Math.max(0,Math.ceil(p*nums.length)-1));return nums[idx];}
+  return [pct(0.2),pct(0.4),pct(0.6),pct(0.8)];
+}
+
+// Impacto (1-5) de un valor $ contra los umbrales de umbralesImpacto().
+// Sin valor (null/0/sin dato de costo) -> 3: ni oculta el riesgo ni lo
+// sobre/sub-pondera por falta de dato.
+function impactoDeValor(valor,umbrales){
+  if(valor==null||!isFinite(valor)||valor<=0||!umbrales)return 3;
+  if(valor<=umbrales[0])return 1;
+  if(valor<=umbrales[1])return 2;
+  if(valor<=umbrales[2])return 3;
+  if(valor<=umbrales[3])return 4;
+  return 5;
+}
+
+// Nivel de riesgo Probabilidad×Impacto (PxI, rango 1-25), con las 4 bandas
+// clásicas de una matriz de riesgo 5×5 (Bajo/Moderado/Alto/Extremo).
+function nivelRiesgoPxI(probabilidad,impacto){
+  var pxi=(probabilidad||0)*(impacto||0);
+  var nivel = pxi<=4?'Bajo':pxi<=9?'Moderado':pxi<=15?'Alto':'Extremo';
+  var color = pxi<=4?'var(--ok)':pxi<=9?'var(--warn)':pxi<=15?'#f97316':'var(--danger)';
+  return {pxi:pxi,nivel:nivel,color:color};
+}
+
 // ═══ ESTIMACIÓN DE HORÓMETRO/KM EN UNA FECHA PASADA ═══
 // Días calendario entre dos fechas ISO (yyyy-mm-dd). 0 si alguna es inválida.
 function _diasEntreISO(desdeISO, hastaISO){
@@ -2586,6 +2681,13 @@ if (typeof window !== 'undefined') {
   window.agruparPeriodo = agruparPeriodo;
   window._CATEGORIAS_COMPONENTE = _CATEGORIAS_COMPONENTE;
   window._componenteDeSintoma = _componenteDeSintoma;
+  window.probabilidadComponente = probabilidadComponente;
+  window.probabilidadEquipoSeveridad = probabilidadEquipoSeveridad;
+  window.probabilidadStockQuiebre = probabilidadStockQuiebre;
+  window.probabilidadReincidencia = probabilidadReincidencia;
+  window.umbralesImpacto = umbralesImpacto;
+  window.impactoDeValor = impactoDeValor;
+  window.nivelRiesgoPxI = nivelRiesgoPxI;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -2600,6 +2702,8 @@ if (typeof module !== 'undefined' && module.exports) {
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
-    _CATEGORIAS_COMPONENTE, _componenteDeSintoma
+    _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
+    probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
+    umbralesImpacto, impactoDeValor, nivelRiesgoPxI
   };
 }

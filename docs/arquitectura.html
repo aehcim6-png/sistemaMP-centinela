@@ -1182,6 +1182,48 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   sesión recibió el aviso, corrió la consulta real contra <code>salud_crons</code>, y como no había
   ningún problema, terminó sin mandar nada — comportamiento correcto confirmado, no asumido.</p>
 
+  <h3>36. Matriz de Riesgo (Probabilidad × Impacto) en Predictivo (2026-09-14)</h3>
+  <p>Origen real: el usuario preguntó si el sistema tiene una "matriz de riesgo" (mostró de
+  referencia una matriz genérica de gestión de procesos — identificación → análisis → evaluación
+  P×I → tratamiento). Decisión acordada explícitamente: <b>automática, con datos reales</b>, no un
+  registro manual tipo corporativo — no inventa riesgos nuevos, cruza 4 señales que el sistema YA
+  calcula en otro lado a los ejes estándar de una matriz 5×5, para priorizar entre categorías
+  distintas con un criterio único en vez de mirar 4 pantallas separadas. Vive como una sub-vista
+  nueva ("🎯 Matriz de Riesgo") dentro de Predictivo, no como pestaña propia.</p>
+  <p><b>Las 4 señales de origen</b> (ninguna se recalcula, todas ya existen): (1) Índice de Riesgo
+  por componente mayor (<code>comp.js</code>, campo <code>riesgoNivel</code> ya persistido —
+  sección "Nivel 1 de alerta predictiva de fallas", 2026-09-01); (2) severidad de alerta cruzada
+  por equipo (<code>pred.js</code>, <code>alertaCruzada()</code>); (3) riesgo de quiebre de
+  stock/lubricantes (<code>pred.js</code>, <code>riesgoQuiebre()</code>, misma fuente única
+  <code>stockEstado()</code> que Stock/Dashboard/Plan Semanal); (4) componentes reincidentes de
+  flota (<code>pred.js</code>, <code>diagnosticoFlota()</code>).</p>
+  <p><b>Fórmulas puras nuevas en <code>logic.js</code></b> (con tests,
+  <code>tests/matrizRiesgo.test.js</code>, 16 casos): <code>probabilidadComponente</code>,
+  <code>probabilidadEquipoSeveridad</code>, <code>probabilidadStockQuiebre</code>,
+  <code>probabilidadReincidencia</code> mapean cada señal a un eje Probabilidad 1-5 (un riesgo
+  "Bajo"/"Sin datos"/severidad 0 no entra a la matriz). El eje Impacto usa
+  <code>umbralesImpacto()</code> + <code>impactoDeValor()</code>: en vez de umbrales fijos en
+  pesos, calcula quintiles sobre los valores $ de los riesgos presentes en ESE render
+  (<code>costoRef</code> de componente, <code>promCostoMes</code> de equipo,
+  <code>precioUnit</code> de repuesto/lubricante) — el Impacto queda relativo a "cuánto pesa este
+  riesgo frente a los demás riesgos de HOY". Sin dato de costo → Impacto 3 (ni se oculta ni se
+  sobre/sub-pondera). <code>nivelRiesgoPxI()</code> aplica las 4 bandas clásicas de una matriz 5×5:
+  PxI≤4 Bajo, ≤9 Moderado, ≤15 Alto, &gt;15 Extremo.</p>
+  <p><b>Bug real encontrado escribiendo el test</b> (no en producción — recién escrito): el primer
+  cálculo de quintiles usaba <code>nums[Math.floor(p*n)]</code>, que en un set chico hace que el
+  percentil 80 caiga exactamente en el ÚLTIMO elemento del array — el valor más alto del conjunto
+  quedaba atrapado en Impacto 4, nunca podía llegar a Impacto 5. Corregido a
+  <code>nums[Math.ceil(p*n)-1]</code>.</p>
+  <p><b>Render:</b> tarjetas resumen por nivel (Extremo/Alto/Moderado/Bajo), grilla 5×5 (cada
+  celda cuenta cuántos riesgos caen ahí, coloreada por nivel), y una tabla de registro ordenada de
+  mayor a menor PxI. Respeta el filtro de equipo ya existente de Predictivo (<code>fPredEq</code>);
+  stock queda sin filtrar por equipo, igual que la vista "Necesita atención".</p>
+  <p>Verificado con una simulación de extremo a extremo (datos con forma realista, no productivos)
+  que reproduce exactamente la orquestación de <code>pred.js</code>: confirma exclusión correcta de
+  riesgos Bajo/Sin datos, orden por PxI correcto, y conteo por nivel cuadrado. Consulta real contra
+  <code>componentes_mayores</code> (proyecto Besalco) confirmó además que <code>riesgoNivel</code>
+  hoy tiene 14 componentes en 🟡 Medio y ninguno en 🔴 Alto — la matriz parte de datos reales.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -1798,6 +1798,71 @@ sesión recibió el aviso, corrió la consulta real contra
 `salud_crons`, y como no había ningún problema, terminó sin mandar
 nada — comportamiento correcto confirmado, no asumido.
 
+### 36. Matriz de Riesgo (Probabilidad × Impacto) en Predictivo (2026-09-14)
+
+Origen real: el usuario preguntó si el sistema tiene una "matriz de
+riesgo" (mostró de referencia una matriz genérica de gestión de
+procesos — identificación → análisis → evaluación P×I → tratamiento).
+Decisión acordada explícitamente: **automática, con datos reales**, no
+un registro manual tipo corporativo — no inventa riesgos nuevos, cruza
+4 señales que el sistema YA calcula en otro lado a los ejes estándar
+de una matriz 5×5, para poder priorizar entre categorías distintas con
+un criterio único en vez de mirar 4 pantallas separadas. Vive como una
+sub-vista nueva ("🎯 Matriz de Riesgo") dentro de Predictivo, no como
+pestaña propia.
+
+**Las 4 señales de origen** (ninguna se recalcula, todas ya existen):
+1. Índice de Riesgo por componente mayor (`comp.js`, campo
+   `riesgoNivel` ya persistido — sección previa "Nivel 1 de alerta
+   predictiva de fallas", 2026-09-01).
+2. Severidad de alerta cruzada por equipo (`pred.js`, `alertaCruzada()`
+   — combina inspección NOK, fallas repetidas, tendencia de costo, PM
+   urgente y aceite).
+3. Riesgo de quiebre de stock/lubricantes (`pred.js`, `riesgoQuiebre()`
+   — misma fuente única `stockEstado()` que usan Stock, Dashboard,
+   Plan Semanal, etc.).
+4. Componentes reincidentes de flota (`pred.js`, `diagnosticoFlota()`).
+
+**Fórmulas puras nuevas en `logic.js`** (con tests,
+`tests/matrizRiesgo.test.js`, 16 casos): `probabilidadComponente`,
+`probabilidadEquipoSeveridad`, `probabilidadStockQuiebre`,
+`probabilidadReincidencia` mapean cada señal a un eje Probabilidad
+1-5 (un riesgo "Bajo"/"Sin datos"/severidad 0 no entra a la matriz —
+no es un riesgo activo). El eje Impacto usa `umbralesImpacto()` +
+`impactoDeValor()`: en vez de umbrales fijos en pesos (que no tendrían
+sentido en la escala de costos de otro cliente), calcula quintiles
+sobre los valores $ de los riesgos presentes en ESE render
+(`costoRef` de componente, `promCostoMes` de equipo, `precioUnit` de
+repuesto/lubricante) — el Impacto queda relativo a "cuánto pesa este
+riesgo frente a los demás riesgos de HOY". Un riesgo sin dato de costo
+cae en Impacto 3 (ni se oculta ni se sobre/sub-pondera). `nivelRiesgoPxI()`
+aplica las 4 bandas clásicas de una matriz 5×5: PxI≤4 Bajo, ≤9
+Moderado, ≤15 Alto, &gt;15 Extremo.
+
+**Bug real encontrado escribiendo el test** (no en producción — recién
+escrito): el primer cálculo de quintiles usaba
+`nums[Math.floor(p*n)]`, que en un set chico hace que el percentil 80
+caiga exactamente en el ÚLTIMO elemento del array — el valor más alto
+del conjunto quedaba atrapado en Impacto 4, nunca podía llegar a
+Impacto 5 (comparado contra sí mismo con `&lt;=`). Corregido a
+`nums[Math.ceil(p*n)-1]`.
+
+**Render**: tarjetas resumen por nivel (Extremo/Alto/Moderado/Bajo),
+grilla 5×5 (cada celda cuenta cuántos riesgos caen ahí, coloreada por
+nivel), y una tabla de registro ordenada de mayor a menor PxI con
+origen/riesgo/equipo/P/I/PxI/nivel/detalle. Respeta el filtro de
+equipo ya existente de Predictivo (`fPredEq`); stock queda sin filtrar
+por equipo, igual que en la vista "Necesita atención".
+
+Verificado con una simulación de extremo a extremo (datos con forma
+realista, no productivos) que reproduce exactamente la orquestación de
+`pred.js`: confirma que componentes con riesgo Bajo/Sin datos quedan
+correctamente excluidos, que el orden por PxI es correcto, y que el
+conteo por nivel cuadra. Consulta real contra `componentes_mayores`
+(proyecto Besalco) confirmó además que `riesgoNivel` hoy tiene 14
+componentes en `🟡 Medio` y ninguno en `🔴 Alto` — la matriz parte de
+datos reales, no de un escenario inventado.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
