@@ -14,6 +14,14 @@ export function renderAyuda(){
     '<div style="display:flex;gap:8px"><a href="#m32" class="btn btn-o" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">📚 Glosario de Términos</a>'+
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div></div>'+
 
+    // NOVEDADES DE ESTA VERSIÓN (2026-09-14)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Novedades y correcciones recientes (14 de septiembre 2026)</b>'+
+    '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Criticidad clasificada en los 35 equipos:</b> cada equipo real ya tiene su Criticidad (Crítico/Esencial/General, visible y editable en Ficha Técnica → Equipos) cargada según su tipo — camiones, cargadores frontales, bulldozers y motoniveladoras como Crítico; camión aljibe como Esencial; el resto como General. El Backlog Inteligente (Predictivo) ya usaba este dato para priorizar correctivos pendientes en equipos clave, pero al estar vacío no tenía ningún efecto real hasta ahora — se puede seguir ajustando equipo por equipo si alguno no calza con la regla general.</li>'+
+    '</ul>'+
+    '</div>'+
+
     // NOVEDADES DE ESTA VERSIÓN (2026-09-13)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (13 de septiembre 2026)</b>'+
