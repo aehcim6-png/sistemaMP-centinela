@@ -703,6 +703,15 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   que dice cuántos equipos siguen sin clasificar — mismo criterio que el aviso de "Sin clasificar"
   del Pareto de Modo de Falla — para que dejar de cargar este dato deje de ser invisible. No se
   tocó el esquema ni la UI de carga (ya existían); esto es puramente un aviso de adopción.</p>
+  <p><b>Cargado (2026-09-14)</b>: el usuario confirmó una clasificación por tipo de equipo,
+  reusando el mismo criterio "pesados/producción vs. livianos/apoyo" que ya usa Dotación de Taller
+  — Camión/Cargador Frontal/Bulldozer/Motoniveladora → Crítico (19 equipos), Camión Aljibe →
+  Esencial (2), Camioneta/Bus/Generador/Minicargador/Torre Iluminación → General (14). Cargado con
+  un <code>UPDATE</code> directo (no una migración: es dato real específico de la flota de
+  Besalco, no un cambio de esquema/comportamiento reutilizable en otro proyecto) contra los 35
+  equipos reales, deshabilitando momentáneamente el trigger <code>proteger_columnas_admin</code>
+  (exige rol admin autenticado vía <code>auth.uid()</code>, inexistente en una sesión SQL directa)
+  y reactivándolo de inmediato después. Verificado: 0 equipos sin clasificar.</p>
 
   <h3>20. Selector de fecha exacta en el Dashboard + aviso "En vivo" (2026-09-11)</h3>
   <p>Origen real (conversación con el usuario, mirando el popup de Torre de Control): "no me dice de

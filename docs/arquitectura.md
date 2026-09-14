@@ -862,6 +862,18 @@ criterio que el aviso de "Sin clasificar" del Pareto de Modo de Falla — para
 que dejar de cargar este dato deje de ser invisible. No se tocó el esquema
 ni la UI de carga (ya existían); esto es puramente un aviso de adopción.
 
+**Cargado (2026-09-14)**: el usuario confirmó una clasificación por tipo de
+equipo, reusando el mismo criterio "pesados/producción vs. livianos/apoyo"
+que ya usa Dotación de Taller — Camión/Cargador Frontal/Bulldozer/
+Motoniveladora → Crítico (19 equipos), Camión Aljibe → Esencial (2),
+Camioneta/Bus/Generador/Minicargador/Torre Iluminación → General (14).
+Cargado con un `UPDATE` directo (no una migración: es dato real específico
+de la flota de Besalco, no un cambio de esquema/comportamiento reutilizable
+en otro proyecto) contra los 35 equipos reales, deshabilitando
+momentáneamente el trigger `proteger_columnas_admin` (exige rol admin
+autenticado vía `auth.uid()`, que no existe en una sesión SQL directa) y
+reactivándolo de inmediato después. Verificado: 0 equipos sin clasificar.
+
 ### 20. Selector de fecha exacta en el Dashboard + aviso "En vivo" (2026-09-11)
 
 Origen real (conversación con el usuario, mirando el popup de Torre de
