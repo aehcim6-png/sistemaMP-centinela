@@ -1131,13 +1131,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ~97% con su rango P10-P90 y fallas esperadas escalando proporcionalmente con el horizonte (5→11→17
   fallas en 30/60/90 días).</p>
 
-  <h3>35. Detector de salud del sistema — Capa 1 (2026-09-14)</h3>
+  <h3>35. Detector de salud del sistema — Capa 1 y Capa 2 (2026-09-14)</h3>
   <p>Origen real: el usuario preguntó por qué el sistema no tiene "un detector de situaciones" que
   avise cuando algo deja de funcionar (ej. un cron que falla en silencio, o un canal de reportes
   caído) sin que alguien tenga que mirar los logs de Supabase a mano. Respuesta en dos capas:
-  <b>Capa 1</b> (esta, construida) — un cron que detecta y avisa directo al humano por correo, sin
-  depender de que haya una sesión de IA conectada; Capa 2 (además despertar una sesión de Claude
-  para investigar antes de avisar) queda para una pasada futura, no está construida.</p>
+  <b>Capa 1</b> — un cron que detecta y avisa directo al humano por correo, sin depender de que haya
+  una sesión de IA conectada; <b>Capa 2</b> — además, despertar una sesión de Claude para investigar
+  la causa antes de avisar con más detalle. Las dos están construidas.</p>
   <p>Dos señales reales elegidas a propósito para evitar falsos positivos: (1) <b>salud de
   <code>backup-diario</code></b> — ¿corrió hoy y le fue bien? Éxito y fallo quedan registrados, así
   que "nunca corrió" y "corrió pero falló" son distinguibles; (2) <b>salud del canal de reportes
@@ -1160,6 +1160,26 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   manualmente, quedó registrado en <code>salud_crons</code> (<code>exito:true</code>), y
   <code>vigilar-salud-sistema</code> devolvió <code>{"ok":true,"enviado":false,"motivo":"Sin
   problemas detectados"}</code> — sin alerta, como corresponde cuando no hay nada roto.</p>
+  <p><b>Capa 2 — diagnóstico automático (2026-09-14):</b> una Rutina de Claude Code Remote
+  (<code>trig_01LMZu3L11pn4USz1LKrxqrE</code>, cron <code>20 13 * * *</code>, ~20 min después de
+  <code>vigilar-salud-sistema</code>) despierta esta misma sesión todos los días. Alcance decidido
+  explícitamente con el usuario: <b>solo diagnostica, nunca aplica un fix</b> — si encuentra un
+  problema real investiga la causa con <code>mcp__Supabase__get_advisors</code>/<code>query_logs</code>/
+  <code>execute_sql</code> (nunca inventa una causa) y manda un correo aparte con el diagnóstico; si
+  el problema es de código de este repo, dice cuál sería el fix pero no lo aplica (no edita, no
+  commitea, no pushea); si es algo externo (Twilio, Resend, Cloudflare...) lo dice así, con la
+  acción que le toca al humano. Si no hay ningún problema, termina sin mandar nada ni responder —
+  mismo criterio de "cero ruido" que Capa 1.</p>
+  <p>Restricción real encontrada al construirla: las Rutinas de tipo "sesión nueva por disparo"
+  (<code>create_new_session_on_fire</code>) no pueden recibir el conector de Supabase en esta
+  organización (<code>the connectors parameter is not available for this organization</code>) — una
+  sesión nueva así arrancaría sin ninguna herramienta <code>mcp__Supabase__*</code>. La solución
+  real: la Rutina se ata en cambio a ESTA sesión existente (modo "self-bind" de
+  <code>create_trigger</code>, sin <code>create_new_session_on_fire</code>), que ya tiene el
+  conector Supabase habilitado — retoma la misma conversación cada vez que dispara, en vez de crear
+  una sesión nueva cada día. Verificado disparando la Rutina a mano (<code>fire_trigger</code>): la
+  sesión recibió el aviso, corrió la consulta real contra <code>salud_crons</code>, y como no había
+  ningún problema, terminó sin mandar nada — comportamiento correcto confirmado, no asumido.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

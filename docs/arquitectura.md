@@ -1717,17 +1717,17 @@ por horizonte (5 a 30 días, 11 a 60 días, 17 a 90 días — escala
 proporcionalmente con el horizonte, como se espera de un proceso de
 llegada real).
 
-### 35. Detector de salud del sistema — Capa 1 (2026-09-14)
+### 35. Detector de salud del sistema — Capa 1 y Capa 2 (2026-09-14)
 
 Origen real: el usuario preguntó por qué el sistema no tiene "un
 detector de situaciones" que avise cuando algo deja de funcionar (ej.
 un cron que falla en silencio, o un canal de reportes caído) sin que
 alguien tenga que enterarse mirando los logs de Supabase a mano. La
-respuesta acordada fue en dos capas: **Capa 1** (esta, ya construida) —
-un cron que detecta y avisa directo al humano por correo, sin depender
-de que haya una sesión de IA conectada; Capa 2 (además despertar una
-sesión de Claude para investigar antes de avisar) queda para una pasada
-futura, no está construida.
+respuesta acordada fue en dos capas: **Capa 1** — un cron que detecta y
+avisa directo al humano por correo, sin depender de que haya una
+sesión de IA conectada; **Capa 2** — además, despertar una sesión de
+Claude para investigar la causa antes de avisar con más detalle. Las
+dos están construidas.
 
 Dos señales reales elegidas a propósito para evitar falsos positivos:
 1. **Salud de `backup-diario`**: ¿corrió hoy y le fue bien? Tanto el
@@ -1769,6 +1769,33 @@ unitarios): se invocó `backup-diario` manualmente, quedó registrado en
 continuación devolvió `{"ok":true,"enviado":false,"motivo":"Sin
 problemas detectados"}` — sin mandar ninguna alerta, como corresponde
 cuando no hay nada roto.
+
+**Capa 2 — diagnóstico automático (2026-09-14)**: una Rutina de Claude
+Code Remote (`trig_01LMZu3L11pn4USz1LKrxqrE`, cron `20 13 * * *`, ~20
+min después de `vigilar-salud-sistema`) despierta esta misma sesión
+todos los días. Alcance decidido explícitamente con el usuario: **solo
+diagnostica, nunca aplica un fix** — si encuentra un problema real
+investiga la causa con `mcp__Supabase__get_advisors`/`query_logs`/
+`execute_sql` (nunca inventa una causa) y manda un correo aparte con el
+diagnóstico; si el problema es de código de este repo, dice cuál sería
+el fix pero no lo aplica (no edita, no commitea, no pushea); si es algo
+externo (Twilio, Resend, Cloudflare...) lo dice así, con la acción que
+le toca al humano. Si no hay ningún problema, termina sin mandar nada
+ni responder — mismo criterio de "cero ruido" que Capa 1.
+
+Restricción real encontrada al construirla: las Rutinas de tipo
+"sesión nueva por disparo" (`create_new_session_on_fire`) no pueden
+recibir el conector de Supabase en esta organización (`the connectors
+parameter is not available for this organization`) — una sesión nueva
+así arrancaría sin ninguna herramienta `mcp__Supabase__*`. La solución
+real: la Rutina se ata en cambio a ESTA sesión existente (modo
+"self-bind" de `create_trigger`, sin `create_new_session_on_fire`), que
+ya tiene el conector Supabase habilitado — se retoma la misma
+conversación cada vez que dispara, en vez de crear una sesión nueva
+cada día. Verificado disparando la Rutina a mano (`fire_trigger`): la
+sesión recibió el aviso, corrió la consulta real contra
+`salud_crons`, y como no había ningún problema, terminó sin mandar
+nada — comportamiento correcto confirmado, no asumido.
 
 ## Lo que decidimos NO hacer (y por qué)
 
