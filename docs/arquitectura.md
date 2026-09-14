@@ -1901,6 +1901,88 @@ $150.000), la manguera de $50.000 bajó de "Extremo" (PxI=20) a "Alto"
 (PxI=10) — sigue siendo urgente por estar sin stock (Probabilidad
 alta), pero ya no aparenta ser un riesgo financiero extremo.
 
+### 37. Auditoría completa del sistema — 34 huecos reales, 7 corregidos (2026-09-14)
+
+Origen real: en la misma conversación de la Matriz de Riesgo, el
+usuario cuestionó directamente el patrón de trabajo — "las mejoras
+siempre las traigo de afuera [de otra herramienta de IA]" — pidiendo
+una auditoría propia, dura, de TODO el sistema, no solo de lo
+construido ese día. Se lanzaron 6 agentes de auditoría en paralelo
+(Matriz de Riesgo, Disponibilidad/Salud de Flota, Predictivo,
+Costos/Stock, Confiabilidad estadística, Reportes a gerencia), cada
+uno con instrucción explícita de leer código real línea por línea y
+reportar solo hallazgos con escenario concreto (input → output
+incorrecto), no preferencias de estilo.
+
+**Resultado: 34 huecos reales verificados.** De esos, 7 se corrigieron
+el mismo día (el bug de percentiles de la sección 36 arriba, más 6
+adicionales):
+
+1. **`alertaCruzada` (pred.js) descartaba la severidad de aceite** —
+   `var total=severity` se congelaba ANTES del bloque de aceite; el
+   `return` usaba `total`, no `severity`. Un equipo con aceite en
+   ALERTA real podía devolver `estado:'🟢'` y desaparecer de la Matriz
+   de Riesgo (`probabilidadEquipoSeveridad` descarta `severity<2`).
+2. **`.includes('URGENTE')` nunca matchea `'VENCIDA'`** — 8 lugares en
+   `pred.js` (diagnóstico integral ×5, conteo de flota, `_cruceSistemas`,
+   `alertaCruzada`), más un noveno en Backlog Inteligente con un bug
+   doble: exigía `URGENTE` (0-7 días) Y `diasParaPM<=0` a la vez,
+   matemáticamente solo posible en `d===0` exacto — un equipo
+   genuinamente vencido (`d<0`, estado `VENCIDA`) nunca entraba, casi
+   código muerto. `estado()` (`logic.js`) hace VENCIDA/URGENTE
+   mutuamente excluyentes por diseño — el sistema subestimaba
+   sistemáticamente los equipos MÁS atrasados, no solo los "por vencer".
+3. **`dispDownMap` (logic.js) descartaba duración real de <1h** — una
+   reparación real registrada como `"0h 32min"` parseaba `durH=0` (dato
+   REAL medido), pero `0` es falsy en JS y `if(!durH)durH=8` lo
+   sobreescribía con 8h asumidas — no era el caso de "sin duración
+   registrada" (que el resto del sistema sí asume con honestidad), era
+   un dato real siendo tirado.
+4. **Meta Anual editable ignorada (metas.js) — veredicto opuesto entre
+   pantallas.** La celda "Meta Anual" siempre mostraba `ind.meta` (el
+   default hardcodeado), nunca `data.metaAnual`; y la meta de cada mes
+   caía directo a `ind.meta` si no había override de ese mes puntual,
+   saltándose la Meta Anual custom por completo. Con el mismo dato real
+   del mismo mes, "Metas vs Realidad" (que ignoraba la meta custom) y
+   "Resumen Ejecutivo" (`resumenejec.js`, que sí hacía el fallback bien)
+   podían mostrar semáforos OPUESTOS — verde en la pantalla donde el
+   admin configura la meta, rojo en la que se imprime para gerencia.
+5. **`EXCLUIDOS` en `alerta-pm` solo se aplicaba en 1 de 9 secciones**
+   — se definía pero únicamente se usaba en la sección de PM urgente.
+   La más grave: un equipo decomisionado normalmente queda "Fuera de
+   Servicio" para siempre (sin `fechaSalida`), así que sin el filtro en
+   la sección 5 aparecía en el correo diario TODOS LOS DÍAS, en rojo,
+   mezclado con alertas reales. Corregido también en vencimientos
+   (sección 3) y backlog (sección 4).
+
+2 tests nuevos de regresión en `disponibilidad.test.js`
+(`dispDownMap` con duración real <1h vs. sin ningún dato). `pred.js`,
+`logic.js` y `metas.js` no son unit-testeables sin refactor (dependen
+de closures/DOM) — verificados con lectura de código, build, suite
+completa y Playwright E2E (17/17, uno con flakiness conocida bajo
+carga concurrente, confirmado en aislamiento).
+
+**Quedan 27 hallazgos adicionales sin corregir**, documentados como
+backlog priorizado (no perdidos): entre los de mayor impacto —
+Informes de Falla Catastrófica invisibles para MTBF/Weibull/Pareto
+(mismo tipo de bug ya corregido una vez para "Fuera de Servicio", sin
+corregir para este canal); `alerta-pm`/`resumen-semanal` sin conectar
+al detector de salud (sección 35) — un fallo real del correo a
+gerencia pasa inadvertido; compromisos vencidos y "componentes en
+riesgo alto" del correo semanal dependen 100% de que un humano abra
+la pestaña correspondiente, sin ningún aviso proactivo; Monte Carlo de
+disponibilidad no descuenta equipos ya fuera de servicio del
+"presupuesto" de horas; score de salud de equipo puede salir 100%
+"perfecto" con un solo dato de 4 dimensiones posibles, sin que la UI
+lo distinga; Presupuesto vs Real sin prorratear el mes en curso
+(muestra verde engañoso los primeros días del mes); gasto proyectado
+que puede inflarse hasta 6x en repuestos de compra esporádica; demanda
+de repuestos (Poisson) con el denominador de λ calculado sobre los
+meses del sistema completo en vez de los del ítem, subestimando la
+demanda de ítems agregados recientemente; y "sin repuesto" (motivo NO-
+falla) contado como falla real en `esFallaMTBF` por un `criticidad`
+hardcodeado en "Registrar salida de servicio".
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

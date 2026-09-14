@@ -1246,6 +1246,37 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   la manguera de $50.000 bajó de "Extremo" (PxI=20) a "Alto" (PxI=10) — sigue siendo urgente por
   estar sin stock (Probabilidad alta), pero ya no aparenta ser un riesgo financiero extremo.</p>
 
+  <h3>37. Auditoría completa del sistema — 34 huecos reales, 7 corregidos (2026-09-14)</h3>
+  <p>Origen real: el usuario cuestionó directamente el patrón de trabajo de la sesión — "las
+  mejoras siempre las traigo de afuera [de otra herramienta de IA]" — pidiendo una auditoría
+  propia, dura, de TODO el sistema. Se lanzaron 6 agentes en paralelo (Matriz de Riesgo,
+  Disponibilidad/Salud de Flota, Predictivo, Costos/Stock, Confiabilidad estadística, Reportes a
+  gerencia), cada uno con instrucción de leer código real línea por línea y reportar solo
+  hallazgos con escenario concreto, no preferencias de estilo.</p>
+  <p><b>Resultado: 34 huecos reales verificados.</b> 7 se corrigieron el mismo día (el bug de
+  percentiles de la sección 36, más 6 adicionales): (1) <code>alertaCruzada</code> descartaba la
+  severidad de aceite (variable congelada antes del bloque de aceite) — un equipo con aceite en
+  ALERTA real podía desaparecer de la Matriz de Riesgo; (2) <code>.includes('URGENTE')</code>
+  nunca matchea <code>'VENCIDA'</code> en 8-9 lugares de <code>pred.js</code> — subestimaba
+  sistemáticamente los equipos YA vencidos, incluido un bug doble en Backlog Inteligente
+  (<code>URGENTE&amp;&amp;diasParaPM&lt;=0</code>, solo posible en d=0 exacto); (3)
+  <code>dispDownMap</code> descartaba duración real de reparaciones &lt;1h ("0h 32min" → durH=0,
+  falsy en JS, sobreescrito con 8h asumidas); (4) Meta Anual editable en <code>metas.js</code>
+  siempre mostraba el default hardcodeado, nunca el valor guardado — "Metas vs Realidad" y
+  "Resumen Ejecutivo" podían dar veredictos OPUESTOS sobre el mismo dato; (5) <code>EXCLUIDOS</code>
+  en <code>alerta-pm</code> solo se aplicaba en 1 de 9 secciones — un equipo decomisionado podía
+  aparecer TODOS LOS DÍAS en "Fuera de servicio prolongado".</p>
+  <p>2 tests nuevos de regresión en <code>disponibilidad.test.js</code>. Verificado con build,
+  suite completa y Playwright E2E (17/17, uno con flakiness conocida confirmada en aislamiento).</p>
+  <p><b>Quedan 27 hallazgos adicionales sin corregir</b>, documentados como backlog priorizado:
+  Informes de Falla Catastrófica invisibles para MTBF/Weibull; <code>alerta-pm</code>/<code>resumen-semanal</code>
+  sin conectar al detector de salud (sección 35); compromisos vencidos y "componentes en riesgo
+  alto" del correo semanal dependen de que un humano abra la pestaña correspondiente; Monte Carlo
+  no descuenta equipos ya fuera de servicio; score de salud puede salir 100% "perfecto" con 1 dato
+  de 4 posibles; Presupuesto vs Real sin prorratear el mes en curso; gasto proyectado que puede
+  inflarse hasta 6x; demanda de repuestos (Poisson) con denominador mal calculado; y "sin
+  repuesto" contado como falla real por un <code>criticidad</code> hardcodeado.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
