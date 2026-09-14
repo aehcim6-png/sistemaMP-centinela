@@ -1425,7 +1425,19 @@ function probabilidadReincidencia(severidad){
 // no tendrían sentido en otra escala de costos.
 function umbralesImpacto(valores){
   var nums=(valores||[]).filter(function(v){return typeof v==='number'&&isFinite(v)&&v>0;}).sort(function(a,b){return a-b;});
-  if(!nums.length)return null;
+  // Mínimo 5 valores — mismo criterio de sample size que el resto de logic.js
+  // (aceiteOutliers, correlacionAceiteFallas, ajusteWeibull: todos exigen ≥5
+  // antes de calcular algo). Bug real encontrado el 2026-09-14 (auditoría,
+  // el mismo día del fix anterior): con <5 valores, ceil(p*n)-1 devuelve el
+  // ÍNDICE DEL ÚLTIMO ELEMENTO para el percentil 80 en todo n<5 — el mismo
+  // defecto que el fix de "ceil, no floor" creyó haber resuelto, solo que
+  // sobrevivía exactamente en el rango más común (pocos riesgos activos el
+  // día que se arma la matriz), no en el caso de prueba (n=5). Con n=1 esto
+  // forzaba Impacto=1 al ÚNICO riesgo del día sin importar su costo real.
+  // Por debajo de 5, no se inventan quintiles: impactoDeValor() ya sabe
+  // devolver Impacto 3 (neutral) cuando umbrales es null — mismo camino que
+  // "sin dato de costo", honesto en vez de fingir precisión sin muestra.
+  if(nums.length<5)return null;
   // ceil(p*n)-1, no floor(p*n): con floor, el percentil 80 de un set chico cae
   // exactamente en el ÚLTIMO elemento (su propio índice), así que el valor más
   // alto del conjunto nunca podía superar su propio umbral y quedaba atrapado

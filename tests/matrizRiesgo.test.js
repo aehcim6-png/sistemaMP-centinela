@@ -60,6 +60,17 @@ describe('umbralesImpacto — quintiles sobre valores $ heterogéneos', () => {
     expect(umbralesImpacto([])).toBeNull();
     expect(umbralesImpacto([0, -5, null, undefined, NaN])).toBeNull();
   });
+  it('bug real (auditoría 2026-09-14): con <5 valores -> null, no umbrales rotos', () => {
+    // Antes del fix, ceil(p*n)-1 devolvía el índice del ÚLTIMO elemento para
+    // el percentil 80 en TODO n<5 — el mismo defecto que el fix de "ceil, no
+    // floor" creyó haber resuelto, sobreviviendo justo en el caso más común
+    // (pocos riesgos activos el día que se arma la matriz).
+    expect(umbralesImpacto([500000000])).toBeNull(); // n=1
+    expect(umbralesImpacto([10000, 500000000])).toBeNull(); // n=2
+    expect(umbralesImpacto([10000, 20000, 500000000])).toBeNull(); // n=3
+    expect(umbralesImpacto([10000, 20000, 30000, 500000000])).toBeNull(); // n=4
+    expect(umbralesImpacto([10000, 20000, 30000, 40000, 500000000])).not.toBeNull(); // n=5, ya funciona
+  });
   it('ignora valores no numéricos/negativos/cero y ordena antes de cortar', () => {
     const u = umbralesImpacto([50, 10, 0, null, 30, 20, 40]);
     expect(u).toHaveLength(4);
