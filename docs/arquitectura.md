@@ -1718,6 +1718,22 @@ por horizonte (5 a 30 días, 11 a 60 días, 17 a 90 días — escala
 proporcionalmente con el horizonte, como se espera de un proceso de
 llegada real).
 
+**Aclaración real (2026-09-14): alcance de flota, no por equipo.** Un
+análisis externo del usuario señaló, correctamente, que
+`intervalosFallaFlotaDias`/`duracionesReparacionFlotaHoras` agrupan el
+historial de TODA la flota por igual — un motor recién ajustado a cero
+horas pesa lo mismo en el remuestreo que uno con 15.000h de uso. Esto
+es intencional (esta herramienta responde "¿cada cuántos días falla
+algo en la flota?", no "¿qué tan riesgoso es ESTE equipo?" — esa
+segunda pregunta ya la responde Weibull por componente y el Índice de
+Riesgo de Componentes Mayores, que sí usan las horas reales de cada
+equipo), pero el panel no lo aclaraba, así que un gerente podía leer
+"proyección de flota" como si fuera "riesgo por máquina". Se agregó
+una línea en negrita al panel de `disp.js` remitiendo a Componentes/
+Weibull para el riesgo de un equipo puntual — cambio de texto
+únicamente, el algoritmo no se tocó porque responde una pregunta
+distinta y válida por sí misma.
+
 ### 35. Detector de salud del sistema — Capa 1 y Capa 2 (2026-09-14)
 
 Origen real: el usuario preguntó por qué el sistema no tiene "un
@@ -1862,6 +1878,28 @@ conteo por nivel cuadra. Consulta real contra `componentes_mayores`
 (proyecto Besalco) confirmó además que `riesgoNivel` hoy tiene 14
 componentes en `🟡 Medio` y ninguno en `🔴 Alto` — la matriz parte de
 datos reales, no de un escenario inventado.
+
+**Corrección real (2026-09-14, el mismo día): piso absoluto de
+Impacto.** Un análisis externo del usuario encontró un problema real
+de diseño: el Impacto es puramente RELATIVO a los riesgos presentes
+ese día (quintiles) — un día con solo fallas baratas (ej. una manguera
+de $50.000 y una ampolleta de $10.000) igual pinta "Extremo" a la más
+cara de las baratas, porque gana el quintil sin importar la escala
+real. `impactoDeValor()` ahora acepta un tercer parámetro opcional
+`pisoAbsoluto` (en pesos): un valor por debajo del piso queda topado
+en Impacto 2, sin importar qué quintil gane — no puede pesar
+"alto/extremo" en términos absolutos si en plata real es menor.
+`pred.js` calcula el piso como 1% de `configuracion.presupuestoMensual`
+(el mismo campo que ya usa Costos para "Presupuesto vs Real") — sin
+presupuesto configurado, no hay piso, y la Matriz lo aclara con una
+nota bajo la grilla en vez de fingir precisión que no tiene. 4 tests
+nuevos en `matrizRiesgo.test.js` (20 en total), incluido el escenario
+exacto reportado (manguera $50.000 sin piso → Impacto 5/Extremo; con
+piso de $1.000.000 → Impacto 2). Verificado con una simulación que
+reproduce el caso real: con un presupuesto de $15.000.000/mes (piso de
+$150.000), la manguera de $50.000 bajó de "Extremo" (PxI=20) a "Alto"
+(PxI=10) — sigue siendo urgente por estar sin stock (Probabilidad
+alta), pero ya no aparenta ser un riesgo financiero extremo.
 
 ## Lo que decidimos NO hacer (y por qué)
 

@@ -1328,8 +1328,18 @@ export function renderPred(){
       riesgos.push({origen:'Reincidencia',item:c.componente,equipo:c.equipoMasRepetido||'',prob:p,valorImpacto:c.costoTotal||null,detalle:c.total+' fallas en '+c.nEquipos+' equipo(s), '+(c.vecesEnEsePeor||0)+' en '+(c.equipoMasRepetido||'—'),etiqueta:c.total+' fallas'});
     });
     var umbralesMatriz=umbralesImpacto(riesgos.map(function(r){return r.valorImpacto;}));
+    // Piso absoluto (2026-09-14, bug real): sin esto, un día con solo fallas
+    // baratas igual pinta "Extremo" a la más cara de las baratas, porque el
+    // Impacto es puramente relativo a los riesgos de HOY. 1% del presupuesto
+    // mensual configurado (Configuración > Tarifas y Metas, mismo campo que
+    // usa Costos para Presupuesto vs Real) como piso: por debajo de eso, no
+    // puede pesar "alto/extremo" en términos absolutos aunque gane el
+    // quintil. Sin presupuesto configurado, no hay piso — ver la nota bajo
+    // la grilla que aclara que el Impacto es relativo en ese caso.
+    var presupuestoMensualMatriz=(S.g('cfg')||{}).presupuestoMensual||0;
+    var pisoImpactoMatriz=presupuestoMensualMatriz?presupuestoMensualMatriz*0.01:0;
     riesgos.forEach(function(r){
-      r.impacto=impactoDeValor(r.valorImpacto,umbralesMatriz);
+      r.impacto=impactoDeValor(r.valorImpacto,umbralesMatriz,pisoImpactoMatriz);
       var nv=nivelRiesgoPxI(r.prob,r.impacto);
       r.pxi=nv.pxi;r.nivel=nv.nivel;r.color=nv.color;
     });
@@ -1385,7 +1395,8 @@ export function renderPred(){
       }).join('')+'</table></div>'
       :'<div style="color:var(--ok);text-align:center;padding:20px">✓ Sin riesgos activos en ninguna categoría (componentes, equipos, stock, reincidencia)</div>')+
       '</div>'+
-      '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Nivel 1: solo lee señales que el sistema ya calcula en Componentes, Predictivo y Stock — no agrega riesgos manuales de otras áreas (financiero, personal, etc.).</p>';
+      '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Nivel 1: solo lee señales que el sistema ya calcula en Componentes, Predictivo y Stock — no agrega riesgos manuales de otras áreas (financiero, personal, etc.).</p>'+
+      '<p style="font-size:10px;color:var(--tx3);margin-top:4px">El Impacto es relativo a los riesgos presentes hoy (quintiles), no una escala fija en pesos'+(pisoImpactoMatriz?', excepto que un riesgo bajo $'+fn(Math.round(pisoImpactoMatriz))+' (1% del presupuesto mensual configurado) nunca puede pesar Alto/Extremo en términos absolutos, aunque gane el quintil':' — configurá el presupuesto mensual en Configuración para que la Matriz aplique un piso absoluto y no marque "Extremo" un repuesto barato solo por ser el más caro de un día tranquilo')+'.</p>';
   }
 
 $('s-pred').innerHTML=

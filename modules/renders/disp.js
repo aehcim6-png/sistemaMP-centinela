@@ -270,7 +270,7 @@ export function renderDisp(){
   var monteCarloHTML=
     '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:14px">'+
     '<div class="chart-t">🎲 Proyección Monte Carlo de disponibilidad de flota</div>'+
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Remuestrea (bootstrap) '+_mcIv.length+' intervalos reales entre fallas y '+_mcDu.length+' duraciones reales de reparación de TODA la flota, 1.000 veces por horizonte, para proyectar un RANGO honesto de disponibilidad (P10-P90) — no un solo número. No incluye mantención programada (PM): su fecha ya se conoce con certeza, no hay nada que remuestrear ahí.</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Remuestrea (bootstrap) '+_mcIv.length+' intervalos reales entre fallas y '+_mcDu.length+' duraciones reales de reparación de TODA la flota, 1.000 veces por horizonte, para proyectar un RANGO honesto de disponibilidad (P10-P90) — no un solo número. No incluye mantención programada (PM): su fecha ya se conoce con certeza, no hay nada que remuestrear ahí. <b>Es un promedio de flota: mezcla por igual el historial de equipos nuevos y viejos, no dice qué tan riesgoso es UN equipo puntual</b> — para eso, ver el Índice de Riesgo en Componentes o Weibull en Estadística, que sí usan las horas reales de cada equipo.</div>'+
     (_mcResultados[0]?
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+
       _mcResultados.map(function(r,i){

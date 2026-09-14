@@ -1437,13 +1437,21 @@ function umbralesImpacto(valores){
 // Impacto (1-5) de un valor $ contra los umbrales de umbralesImpacto().
 // Sin valor (null/0/sin dato de costo) -> 3: ni oculta el riesgo ni lo
 // sobre/sub-pondera por falta de dato.
-function impactoDeValor(valor,umbrales){
+// pisoAbsoluto (opcional, en pesos — ej. 1% del presupuesto mensual
+// configurado): bug real encontrado el 2026-09-14 — como el Impacto es
+// puramente RELATIVO a los riesgos presentes hoy, un día con solo fallas
+// baratas (ej. una manguera de $50.000) igual entrega Impacto 5 al más
+// caro de los baratos, porque gana el quintil sin importar la escala real.
+// Con un piso absoluto, un valor por debajo de ese piso queda topado en
+// Impacto 2 sin importar qué quintil gane — no puede pesar como "alto/
+// extremo" en términos absolutos si en plata real es menor. Sin piso
+// (undefined/0 — sin presupuesto configurado), se comporta exactamente
+// igual que antes: puramente relativo.
+function impactoDeValor(valor,umbrales,pisoAbsoluto){
   if(valor==null||!isFinite(valor)||valor<=0||!umbrales)return 3;
-  if(valor<=umbrales[0])return 1;
-  if(valor<=umbrales[1])return 2;
-  if(valor<=umbrales[2])return 3;
-  if(valor<=umbrales[3])return 4;
-  return 5;
+  var bin = valor<=umbrales[0]?1:valor<=umbrales[1]?2:valor<=umbrales[2]?3:valor<=umbrales[3]?4:5;
+  if(pisoAbsoluto>0&&valor<pisoAbsoluto)bin=Math.min(bin,2);
+  return bin;
 }
 
 // Nivel de riesgo Probabilidad×Impacto (PxI, rango 1-25), con las 4 bandas

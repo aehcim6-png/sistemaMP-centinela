@@ -84,6 +84,30 @@ describe('impactoDeValor — bin 1-5 contra los umbrales', () => {
   });
 });
 
+describe('impactoDeValor — piso absoluto (bug real: día con solo fallas baratas)', () => {
+  it('un valor bajo el piso queda topado en 2 aunque gane el quintil más alto', () => {
+    // Escenario real reportado: manguera $50.000 y ampolleta $10.000 —
+    // sin piso, la manguera gana el quintil más alto (impacto 5).
+    const u = umbralesImpacto([10000, 20000, 30000, 40000, 50000]);
+    expect(impactoDeValor(50000, u)).toBe(5); // sin piso, se confirma el bug
+    expect(impactoDeValor(50000, u, 1000000)).toBe(2); // con piso de $1.000.000, queda topado
+  });
+  it('un valor sobre el piso se comporta como si no hubiera piso', () => {
+    const u = umbralesImpacto([10000, 20000, 30000, 40000, 5000000]);
+    expect(impactoDeValor(5000000, u, 1000000)).toBe(5);
+  });
+  it('piso 0/undefined/null no cambia el comportamiento (compatibilidad hacia atrás)', () => {
+    const u = umbralesImpacto([10, 20, 30, 40, 50]);
+    expect(impactoDeValor(50, u, 0)).toBe(5);
+    expect(impactoDeValor(50, u, undefined)).toBe(5);
+    expect(impactoDeValor(50, u, null)).toBe(5);
+  });
+  it('el piso nunca sube un valor que ya estaba en un bin bajo', () => {
+    const u = umbralesImpacto([10000, 20000, 30000, 40000, 50000]);
+    expect(impactoDeValor(10000, u, 1000000)).toBe(1); // ya era 1, el piso no lo "sube" a 2
+  });
+});
+
 describe('nivelRiesgoPxI — bandas clásicas de una matriz 5×5', () => {
   it('Bajo: PxI<=4', () => {
     expect(nivelRiesgoPxI(2, 2).nivel).toBe('Bajo');

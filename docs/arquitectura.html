@@ -1131,6 +1131,15 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   inyectado). Verificado visualmente (3 equipos, 10 correctivos reales cada 5 días): disponibilidad
   ~97% con su rango P10-P90 y fallas esperadas escalando proporcionalmente con el horizonte (5→11→17
   fallas en 30/60/90 días).</p>
+  <p><b>Aclaración real (2026-09-14): alcance de flota, no por equipo.</b> Un análisis externo del
+  usuario señaló, correctamente, que <code>intervalosFallaFlotaDias</code>/
+  <code>duracionesReparacionFlotaHoras</code> agrupan el historial de TODA la flota por igual — un
+  motor recién ajustado a cero horas pesa lo mismo en el remuestreo que uno con 15.000h de uso. Esto
+  es intencional (responde "¿cada cuántos días falla algo en la flota?", no "¿qué tan riesgoso es
+  ESTE equipo?" — esa segunda pregunta ya la responde Weibull por componente y el Índice de Riesgo
+  de Componentes Mayores, que sí usan las horas reales de cada equipo), pero el panel no lo
+  aclaraba. Se agregó una línea en negrita en <code>disp.js</code> remitiendo a Componentes/Weibull
+  para el riesgo de un equipo puntual — cambio de texto únicamente, el algoritmo no se tocó.</p>
 
   <h3>35. Detector de salud del sistema — Capa 1 y Capa 2 (2026-09-14)</h3>
   <p>Origen real: el usuario preguntó por qué el sistema no tiene "un detector de situaciones" que
@@ -1223,6 +1232,19 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   riesgos Bajo/Sin datos, orden por PxI correcto, y conteo por nivel cuadrado. Consulta real contra
   <code>componentes_mayores</code> (proyecto Besalco) confirmó además que <code>riesgoNivel</code>
   hoy tiene 14 componentes en 🟡 Medio y ninguno en 🔴 Alto — la matriz parte de datos reales.</p>
+  <p><b>Corrección real (2026-09-14, el mismo día): piso absoluto de Impacto.</b> Un análisis
+  externo del usuario encontró un problema real de diseño: el Impacto es puramente RELATIVO a los
+  riesgos presentes ese día (quintiles) — un día con solo fallas baratas (ej. una manguera de
+  $50.000 y una ampolleta de $10.000) igual pinta "Extremo" a la más cara de las baratas, porque
+  gana el quintil sin importar la escala real. <code>impactoDeValor()</code> ahora acepta un tercer
+  parámetro opcional <code>pisoAbsoluto</code> (en pesos): un valor por debajo del piso queda topado
+  en Impacto 2, sin importar qué quintil gane. <code>pred.js</code> calcula el piso como 1% de
+  <code>configuracion.presupuestoMensual</code> (el mismo campo que ya usa Costos para "Presupuesto
+  vs Real") — sin presupuesto configurado, no hay piso, y la Matriz lo aclara con una nota bajo la
+  grilla en vez de fingir precisión que no tiene. 4 tests nuevos (20 en total), incluido el
+  escenario exacto reportado. Verificado: con un presupuesto de $15.000.000/mes (piso de $150.000),
+  la manguera de $50.000 bajó de "Extremo" (PxI=20) a "Alto" (PxI=10) — sigue siendo urgente por
+  estar sin stock (Probabilidad alta), pero ya no aparenta ser un riesgo financiero extremo.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
