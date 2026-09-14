@@ -223,8 +223,9 @@
   <h3>9. Backup automático diario</h3>
   <p>Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de Postgres
   (<code>pg_cron</code>) llama a la Edge Function <code>backup-diario</code>, que junta TODAS las
-  tablas reales (49, incluye <code>kv</code> y <code>user_roles</code> para poder reconstruir
-  accesos ante un desastre total), las comprime (gzip) y las manda por email vía Resend a un
+  tablas reales (50, incluye <code>kv</code>/<code>user_roles</code> para poder reconstruir
+  accesos ante un desastre total, y <code>salud_crons</code> del detector de salud — sección 35),
+  las comprime (gzip) y las manda por email vía Resend a un
   destinatario fijo como adjunto <code>.json.gz</code> — sin depender de que la app esté abierta
   en ningún navegador.</p>
   <div class="callout" style="border-left-color:var(--amber)">
@@ -281,7 +282,7 @@
   <div class="callout" style="border-left-color:var(--amber)">
     <b>2. El respaldo nunca incluía las cuentas de Supabase Auth.</b> <code>backup-diario</code>
     solo junta tablas de <code>public</code> — nunca tocaba <code>auth.users</code> (emails,
-    contraseñas hasheadas, factores MFA). Restaurar las 49 tablas de <code>public</code> a la
+    contraseñas hasheadas, factores MFA). Restaurar las 50 tablas de <code>public</code> a la
     perfección en un proyecto nuevo dejaba el sistema con <b>cero logins funcionando</b>:
     <code>user_roles.user_id</code> apuntaría a IDs de Auth que ya no existen en ningún lado.
     Corregido: <code>backup-diario</code> ahora también junta <code>usuariosAuth</code> (vía
@@ -311,7 +312,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li>Construye el mapeo <code>user_id</code> viejo → nuevo por email, y remapea
     <code>user_roles</code> antes de insertarla — descarta el <code>id</code> autoincremental
     original (nada más lo referencia, solo <code>user_roles.user_id</code>).</li>
-    <li>Inserta el resto de las 49 tablas en lotes de 500, en un orden que respeta la <b>única</b>
+    <li>Inserta el resto de las 50 tablas en lotes de 500, en un orden que respeta la <b>única</b>
     foreign key real de todo el esquema (<code>destrabe.idOrdenCompra</code> →
     <code>ordenes_compra.id</code> — todo lo demás usa referencias sueltas por texto).</li>
     <li>Imprime un resumen por tabla y las contraseñas temporales para avisar directamente a cada

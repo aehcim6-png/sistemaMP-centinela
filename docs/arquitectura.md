@@ -251,8 +251,9 @@ viva.
 Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de
 Postgres (`pg_cron`) llama a la Edge Function `backup-diario`
 (`supabase/functions/backup-diario/`), que junta TODAS las tablas reales
-(49, incluye `kv` y `user_roles` para poder reconstruir accesos ante un
-desastre total), las comprime (gzip) y las manda por email vía Resend a un
+(50, incluye `kv`/`user_roles` para poder reconstruir accesos ante un
+desastre total, y `salud_crons` del detector de salud — sección 35), las
+comprime (gzip) y las manda por email vía Resend a un
 destinatario fijo como adjunto `.json.gz` — sin depender de que la app esté
 abierta en ningún navegador (a diferencia del respaldo a carpeta local, que
 sí lo necesita).
@@ -320,7 +321,7 @@ levantar el esquema completo en un proyecto nuevo desde cero.
 
 **2. El respaldo nunca incluía las cuentas de Supabase Auth.** `backup-diario`
 solo junta tablas de `public` — nunca tocaba `auth.users` (emails,
-contraseñas hasheadas, factores MFA). Restaurar las 49 tablas de `public`
+contraseñas hasheadas, factores MFA). Restaurar las 50 tablas de `public`
 a la perfección en un proyecto nuevo dejaba el sistema con **cero logins
 funcionando**: `user_roles.user_id` apuntaría a IDs de usuario de Auth que
 ya no existen en ningún lado. Corregido: `backup-diario` ahora también junta
@@ -357,7 +358,7 @@ Qué hace, en orden:
    autoincremental original de esa tabla (nada más en el sistema lo
    referencia, solo `user_roles.user_id`, así que dejarlo autogenerar de
    nuevo es más simple que pelear con la secuencia).
-4. Inserta el resto de las 49 tablas en lotes de 500, en un orden que
+4. Inserta el resto de las 50 tablas en lotes de 500, en un orden que
    respeta la **única** foreign key real de todo el esquema (confirmado por
    introspección de `information_schema`: `destrabe.idOrdenCompra` →
    `ordenes_compra.id` — todo lo demás usa referencias sueltas por texto,

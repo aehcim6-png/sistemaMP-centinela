@@ -31,8 +31,8 @@ Deno.test("TABLAS: incluye las tablas que la auditoría 2026-09-07 encontró fal
   for (const t of criticas) assert(TABLAS.includes(t), `falta ${t} en TABLAS`);
 });
 
-Deno.test("TABLAS: tamaño esperado (49) — cambiar a propósito si se agrega una tabla real nueva", () => {
-  assertEquals(TABLAS.length, 49);
+Deno.test("TABLAS: tamaño esperado (50) — cambiar a propósito si se agrega una tabla real nueva", () => {
+  assertEquals(TABLAS.length, 50);
 });
 
 // ---- traerTodasLasFilas ----

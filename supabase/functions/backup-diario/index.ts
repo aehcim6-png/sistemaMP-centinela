@@ -45,6 +45,10 @@ import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
 // omitiendo en silencio. Grave en particular para correctivos_historico: ahí
 // caen los reportes automáticos de WhatsApp/correo (whatsapp-webhook/
 // email-webhook), que sin esto no quedaban respaldados en absoluto.
+//
+// 2026-09-14: sumada 'salud_crons' (tabla nueva del detector de salud) el
+// mismo día en que se creó — para no repetir el error de la auditoría de
+// arriba con esta.
 export const TABLAS = [
   'kv', 'user_roles', 'equipos', 'registros_pm', 'correctivos', 'movimientos_stock',
   'historial_horometros', 'neumaticos', 'neumaticos_mediciones', 'pautas',
@@ -57,7 +61,8 @@ export const TABLAS = [
   'sensores_neumaticos', 'tren_rodaje', 'tren_rodaje_mediciones',
   'movimientos_stock_backup_lub', 'stock_filtros_backup_csv', 'papelera',
   'historial_componentes', 'historial_neumaticos', 'salud_flota_historico',
-  'correctivos_historico', 'gestion_compras', 'compromisos', 'uso_pestanas'
+  'correctivos_historico', 'gestion_compras', 'compromisos', 'uso_pestanas',
+  'salud_crons'
 ];
 
 // PostgREST impone un tope de filas por request (~1000 en este proyecto,
