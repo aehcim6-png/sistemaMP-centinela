@@ -314,7 +314,11 @@ Deno.serve(async (req) => {
 
     // ── 3. VENCIMIENTOS (documentos/certificaciones) ────────────
     const vencs = await get('vencimientos?select=sigla,vencTipo,proxima,periodicidadMeses');
+    // !EXCLUIDOS.has() agregado acá (auditoría 2026-09-14, bug real): EXCLUIDOS
+    // se definía pero solo se aplicaba en la sección 1 — un equipo decomisionado
+    // con un documento por vencer seguía apareciendo en el correo diario.
     const vencsCriticos = vencs
+      .filter((v: any) => v.sigla && !EXCLUIDOS.has(v.sigla))
       .map((v: any) => ({ ...v, _v: calcVencEstado(v.proxima, v.periodicidadMeses != null) }))
       .filter((v: any) => v._v.requiereAtencion)
       .sort((a: any, b: any) => (a._v.dias ?? 0) - (b._v.dias ?? 0));
@@ -332,7 +336,11 @@ Deno.serve(async (req) => {
     }
 
     // ── 4. CORRECTIVOS PENDIENTES (backlog) ─────────────────────
-    const pendientes = await get('correctivos?select=sigla,sintoma,fecha,estadoOT&estadoOT=eq.Pendiente');
+    // !EXCLUIDOS.has() agregado acá (auditoría 2026-09-14, mismo bug que
+    // vencimientos arriba): un equipo decomisionado con OT abierta seguía
+    // sumando al backlog reportado.
+    const pendientes = (await get('correctivos?select=sigla,sintoma,fecha,estadoOT&estadoOT=eq.Pendiente'))
+      .filter((p: any) => p.sigla && !EXCLUIDOS.has(p.sigla));
     if (pendientes.length > 0) {
       totalItems += pendientes.length;
       resumen.push(`${pendientes.length} correctivo(s) pendiente(s)`);
@@ -351,8 +359,12 @@ Deno.serve(async (req) => {
       `correctivos?select=sigla,fechaEntrada,sintoma&estatusEq=eq.${encodeURIComponent('Fuera de Servicio')}&fechaSalida=is.null`
     );
     const hoyMs = Date.now();
+    // !EXCLUIDOS.has() agregado acá (auditoría 2026-09-14, el más grave de
+    // los 3: un equipo decomisionado normalmente queda "Fuera de Servicio"
+    // para siempre — sin fechaSalida — así que sin este filtro aparecía en
+    // ESTE correo TODOS LOS DÍAS, en rojo, mezclado con alertas reales).
     const fueraServicioProlongado = fueraServicio
-      .filter((f: any) => f.fechaEntrada)
+      .filter((f: any) => f.fechaEntrada && f.sigla && !EXCLUIDOS.has(f.sigla))
       .map((f: any) => ({ ...f, dias: Math.round((hoyMs - new Date(f.fechaEntrada + 'T00:00:00').getTime()) / 86400000) }))
       .filter((f: any) => f.dias >= 14)
       .sort((a: any, b: any) => b.dias - a.dias);

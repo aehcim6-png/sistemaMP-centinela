@@ -927,8 +927,16 @@ function dispDownMap(reg, ot, hoy){
       return;
     }
     var fecha=o.fecha||o.fechaEntrada||''; if(!fecha)return;
-    var durH=0; if(o.duracion){ var m=String(o.duracion).match(/(\d+)h/); if(m)durH=parseInt(m[1]); }
-    if(!durH)durH=8; // supuesto si no hay duración
+    // Bug real (auditoría 2026-09-14): 'duracion' llega como texto "0h 32min"
+    // para reparaciones reales de menos de 1 hora (ot.js:569,581) — el regex
+    // matchea "0h" y parseInt da 0, un dato REAL medido. Pero '0' es falsy en
+    // JS: 'if(!durH)durH=8' descartaba ese dato real y lo reemplazaba por 8h
+    // asumidas, silenciosamente — no es el caso de "sin duración registrada"
+    // (que el resto del sistema sí asume con honestidad), es un dato real
+    // siendo tirado. Se distingue "el regex no matcheó nada" (sin dato) de
+    // "matcheó y dio 0" (dato real, se respeta).
+    var durH=null; if(o.duracion){ var m=String(o.duracion).match(/(\d+)h/); if(m)durH=parseInt(m[1]); }
+    if(durH==null)durH=8; // supuesto SOLO si de verdad no hay duración registrada
     if(fs)durH=24;   // fuera de servicio de un solo día
     add(sigla,fecha,durH);
   });

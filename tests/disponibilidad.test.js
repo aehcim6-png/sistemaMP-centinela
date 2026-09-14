@@ -22,6 +22,19 @@ describe('dispDownMap — mapa de horas de detención (fuente única)', () => {
     expect(dm['CN-3']['2026-07-02']).toBe(4);
   });
 
+  it('correctivo con duración real <1h ("0h 32min") NO se sobreescribe con el supuesto de 8h', () => {
+    // Bug real (auditoría 2026-09-14): el regex /(\d+)h/ sobre "0h 32min" da
+    // durH=0, un dato REAL medido — pero '0' es falsy en JS y el código viejo
+    // lo trataba igual que "sin duración registrada", reemplazándolo por 8h.
+    const dm = dispDownMap([], [{ sigla: 'CN-5', fecha: '2026-07-06', duracion: '0h 32min' }]);
+    expect(dm['CN-5']['2026-07-06']).toBe(0);
+  });
+
+  it('correctivo SIN ningún dato de duración sí usa el supuesto de 8h', () => {
+    const dm = dispDownMap([], [{ sigla: 'CN-6', fecha: '2026-07-07' }]);
+    expect(dm['CN-6']['2026-07-07']).toBe(8);
+  });
+
   it('salida de servicio SIN fecha de término (aún en curso) marca cada día hasta hoy', () => {
     // El equipo sigue fuera de servicio — no hay fechaSalida todavía.
     const ot = [{ sigla: 'CN-4', estatusEq: 'Fuera de Servicio', fechaEntrada: '2026-07-20', fechaSalida: null }];

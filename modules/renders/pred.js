@@ -134,14 +134,14 @@ function generarDiagnostico(sigla){
     if(comp)compFallas[comp]=(compFallas[comp]||0)+1;
   });
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=2)porQue.push('Falla recurrente en '+cf[0]+' ('+cf[1]+' veces)');});
-  if(estadoPM.includes('URGENTE'))porQue.push('Horas de operación superan intervalo de mantención');
+  if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))porQue.push('Horas de operación superan intervalo de mantención');
   if(eqData&&eqData.promCostoMes>5e6)porQue.push('Costo mensual alto: $'+fn(eqData.promCostoMes)+'/mes');
   if(!porQue.length)porQue.push('Sin causas identificadas — operación dentro de parámetros');
   d.secciones.push({titulo:'⚠️ ¿Por qué está pasando?',items:porQue,color:'var(--w)'});
 
   // 3. ¿QUÉ VA A PASAR?
   var queViene=[];
-  if(estadoPM.includes('URGENTE'))queViene.push('Riesgo de falla por PM vencida — intervenir antes de '+Math.max(Math.abs(e.diasParaPM)*2,7)+' días');
+  if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))queViene.push('Riesgo de falla por PM vencida — intervenir antes de '+Math.max(Math.abs(e.diasParaPM)*2,7)+' días');
   else if(e.diasParaPM<=14)queViene.push('PM '+e.tipoPM+' estimada en '+e.diasParaPM+' días');
   if(aceAlertas.length)queViene.push('Tendencia de desgaste en '+(aceAlertas[0].descriptor||'componente')+' — riesgo de falla progresiva');
   if(eqData){
@@ -156,7 +156,7 @@ function generarDiagnostico(sigla){
 
   // 4. ¿QUÉ DEBO HACER?
   var hacer=[];
-  if(estadoPM.includes('URGENTE'))hacer.push('🔧 Programar '+e.tipoPM+' INMEDIATO');
+  if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))hacer.push('🔧 Programar '+e.tipoPM+' INMEDIATO');
   else if(e.diasParaPM<=7)hacer.push('🔧 Programar '+e.tipoPM+' esta semana');
   if(aceAlertas.length)hacer.push('🔧 Intervenir '+aceAlertas[0].descriptor+' — cambio de aceite/inspección interna');
   if(otPend.length)hacer.push('📋 Resolver '+otPend.length+' OT pendiente(s)');
@@ -167,7 +167,7 @@ function generarDiagnostico(sigla){
 
   // 5. ¿QUÉ PASA SI NO LO HAGO?
   var impacto=[];
-  if(estadoPM.includes('URGENTE'))impacto.push('Detención no programada — costo estimado $'+(eqData?fn(Math.round(eqData.promCostoMes*0.5)):'N/D'));
+  if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))impacto.push('Detención no programada — costo estimado $'+(eqData?fn(Math.round(eqData.promCostoMes*0.5)):'N/D'));
   if(aceAlertas.length)impacto.push('Falla catastrófica en '+(aceAlertas[0].descriptor||'componente')+' — daño mayor');
   if(otPend.length>2)impacto.push('Acumulación de backlog — riesgo operacional');
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)impacto.push('Falla repetitiva en '+cf[0]+' puede escalar a daño mayor');});
@@ -199,7 +199,7 @@ function generarDiagnostico(sigla){
       }
     }
   }
-  var eqUrgentes=eq.filter(function(x){return (x.estado||'').includes('URGENTE');}).length;
+  var eqUrgentes=eq.filter(function(x){return (x.estado||'').includes('URGENTE')||(x.estado||'').includes('VENCIDA');}).length;
   if(eqUrgentes>3)vision.push('⚠️ '+eqUrgentes+' equipos urgentes en la flota — carga alta');
   var pm2sem=eq.filter(function(x){return x.diasParaPM<=14;}).length;
   vision.push('📅 '+pm2sem+' intervenciones proyectadas próximas 2 semanas');
@@ -258,7 +258,7 @@ function _cruceSistemas(sigla,categoria){
   }
 
   // PM vencida en el mismo equipo donde se repite la falla
-  if(e&&(e.estado||'').includes('URGENTE'))obs.push('📅 Este equipo además tiene PM vencida — operar fuera de la mantención programada puede estar acelerando el desgaste que origina la falla.');
+  if(e&&((e.estado||'').includes('URGENTE')||(e.estado||'').includes('VENCIDA')))obs.push('📅 Este equipo además tiene PM vencida — operar fuera de la mantención programada puede estar acelerando el desgaste que origina la falla.');
 
   return obs;
 }
@@ -692,9 +692,7 @@ export function renderPred(){
     }
     // Equipment status
     var eqInfo=eqPorSiglaPred[sigla];
-    if(eqInfo&&(eqInfo.estado||'').includes('URGENTE')){alertas.push('PM vencida/urgente');severity+=2;}
-    var total=severity;
-    var estado=total>=5?'🔴':total>=2?'🟡':'🟢';
+    if(eqInfo&&((eqInfo.estado||'').includes('URGENTE')||(eqInfo.estado||'').includes('VENCIDA'))){alertas.push('PM vencida/urgente');severity+=2;}
     // Check oil samples
     var aceite=S.g('aceite')||[];
     var aceMuestras=aceite.filter(function(m){return (m._sigla||m.componente||'').includes(sigla);});
@@ -702,6 +700,14 @@ export function renderPred(){
     var acePrec=aceMuestras.filter(function(m){return m.estado==='PRECAUCION';}).length;
     if(aceAlertas>=1){alertas.push('Aceite: '+aceAlertas+' ALERTA');severity+=3;}
     else if(acePrec>=2){alertas.push('Aceite: '+acePrec+' precaución');severity+=1;}
+    // 'total'/'estado' se calculan ACÁ, después de TODAS las señales — bug real
+    // encontrado en auditoría (2026-09-14): antes 'total=severity' se congelaba
+    // ANTES del bloque de aceite (arriba), así que severity+=3/+=1 de aceite
+    // modificaban una variable que ya no se usaba para nada — un equipo con
+    // aceite en ALERTA activo podía devolver estado:'🟢' y quedar invisible en
+    // la Matriz de Riesgo (probabilidadEquipoSeveridad descarta severity<2).
+    var total=severity;
+    var estado=total>=5?'🔴':total>=2?'🟡':'🟢';
     return{estado:estado,severity:total,alertas:alertas};
   }
 
@@ -909,9 +915,13 @@ export function renderPred(){
           motivo:motivo,impacto:impacto,prioridad:prioridad,estadoOT:o.estadoOT,componente:o.componente||''});
       }
     });
-    // From predictive alerts
+    // From predictive alerts — bug real (auditoría 2026-09-14): antes exigía
+    // 'URGENTE' (0-7 días) Y diasParaPM<=0 A LA VEZ, matemáticamente solo
+    // posible en d===0 exacto (estado()/logic.js:54 hace VENCIDA y URGENTE
+    // mutuamente excluyentes) — un equipo genuinamente vencido (d<0, estado
+    // VENCIDA) nunca entraba acá, dejando este bloque casi siempre muerto.
     eq.forEach(function(e){
-      if((e.estado||'').includes('URGENTE')&&e.diasParaPM<=0){
+      if(e.diasParaPM<=0){
         backlog.push({idx:-1,sigla:e.sigla,trabajo:e.tipoPM+' vencida',origen:'Preventivo',dias:Math.abs(e.diasParaPM),
           motivo:'PM vencida',impacto:'Alto',prioridad:'🔴 Crítico',estadoOT:'Pendiente',componente:'',predCumplida:''});
       }

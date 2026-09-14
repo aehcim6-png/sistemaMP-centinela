@@ -265,10 +265,23 @@ export function renderMetas() {
     indicators.map(function (ind) {
       if (!metas[ind.id]) metas[ind.id] = { metaAnual: ind.meta, meses: {} };
       var data = metas[ind.id];
+      // metaAnualEfectiva/metaM: bug real (auditoría 2026-09-14) — esta celda
+      // siempre mostraba 'ind.meta' (el default hardcodeado), nunca
+      // 'data.metaAnual', así que un admin que editaba la Meta Anual veía su
+      // valor guardarse (persiste bien) pero la pantalla volvía a mostrar el
+      // default en cualquier re-render — parecía que la edición no pegaba. Y
+      // 'metaM' por mes caía directo a 'ind.meta' si no había override de ESE
+      // mes puntual, saltándose 'data.metaAnual' por completo: la Meta Anual
+      // personalizada no se usaba para NINGÚN mes salvo llenar los 12 a mano.
+      // Mismo fallback que ya usa correctamente resumenejec.js (metaActual)
+      // — antes esta tabla y el Resumen Ejecutivo podían dar veredictos
+      // OPUESTOS (🟢 acá, 🔴 en el resumen que se imprime) sobre el mismo
+      // dato real, mismo mes, solo porque acá se ignoraba la meta custom.
+      var metaAnualEfectiva = data.metaAnual != null ? data.metaAnual : ind.meta;
       return '<tr><td style="font-weight:600">' + ind.name + '</td>' +
-        '<td class="ed" style="color:var(--info);text-align:center;font-weight:700" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; m[\'' + ind.id + '\'].metaAnual=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + ind.meta + '</td>' +
+        '<td class="ed" style="color:var(--info);text-align:center;font-weight:700" contenteditable onblur="var m=S.g(\'metas\')||{};if(!m[\'' + ind.id + '\'])m[\'' + ind.id + '\']={}; m[\'' + ind.id + '\'].metaAnual=parseFloat(this.innerText)||0;S.s(\'metas\',m)">' + metaAnualEfectiva + '</td>' +
         MSN.map(function (mes, mi) {
-          var metaM = data.meses && data.meses[mes] ? data.meses[mes].meta : ind.meta;
+          var metaM = (data.meses && data.meses[mes] && data.meses[mes].meta != null) ? data.meses[mes].meta : metaAnualEfectiva;
           var real = realData[mes] ? realData[mes][ind.id] : null;
           if (real === undefined) real = null;
           if (ind.id === 'gasto') real = realData[mes] ? realData[mes].gasto : null; // HH + repuestos, no solo HH
