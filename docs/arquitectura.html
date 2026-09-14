@@ -109,13 +109,18 @@
   <h3>2. Dónde vive — Vercel</h3>
   <p>Vercel sirve los archivos estáticos (no hay servidor propio corriendo en ningún lado). Cada
   push a la rama <code>main</code> dispara un build (<code>vite build</code>) y un despliegue
-  nuevo automático. Vite bundlea y minifica de verdad los ~45 módulos ES de
-  <code>modules/renders/*.js</code> en un único archivo (<code>dist/assets/index-*.js</code>),
-  siguiendo el grafo de imports desde <code>index.html</code>. <code>logic.js</code> y
+  nuevo automático. Vite bundlea y minifica de verdad solo el puñado de módulos ES que
+  <code>index.html</code> importa de forma estática (<code>dash.js</code>/<code>ace.js</code>, los
+  dos que siguen eager — ver sección 1) en un único archivo
+  (<code>dist/assets/index-*.js</code>). Los otros 43 módulos de <code>modules/renders/*.js</code>
+  (carga perezosa) NO entran a ese bundle — Vite no puede verlos en el grafo estático porque se
+  piden con <code>dynamic import()</code> usando una ruta armada en tiempo de ejecución
+  (<code>_LAZY_VERS</code>) — se copian tal cual, sin bundlear ni minificar, a
+  <code>dist/modules/renders/*.js</code> y se sirven como archivos sueltos (verificado corriendo
+  <code>npm run build</code> e inspeccionando <code>dist/</code>). <code>logic.js</code> y
   <code>modules/store.js</code> siguen siendo scripts planos (sin <code>type="module"</code>) a
-  propósito, así que Vite no los toca por diseño — <code>vite.config.js</code> tiene un plugin
-  chico que los copia tal cual al resultado del build (junto con <code>vendor/*.js</code> y
-  <code>docs/</code>).</p>
+  propósito, así que Vite tampoco los toca — <code>vite.config.js</code> tiene un plugin chico que
+  los copia igual (junto con <code>vendor/*.js</code> y <code>docs/</code>).</p>
 
   <h3>3. El motor de sincronización — modules/store.js</h3>
   <p>Todo el sistema lee y escribe datos a través de dos únicas funciones:
@@ -344,6 +349,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   trabajo, etc.), el sistema primero la mueve a una tabla <code>papelera</code> — con qué
   categoría era, quién la eliminó y cuándo — y recién ahí la saca de la tabla original. Queda
   recuperable desde Configuración → Papelera durante 30 días antes de purgarse en serio.</p>
+  <p><b>Dos capas de purga, no una (2026-09-14)</b>: <code>_purgarPapeleraVieja()</code> corre del
+  lado del cliente una vez al arrancar la app — pero si nadie abre el sistema por un tiempo, la
+  papelera no se poda (hueco real: no había mecanismo del lado del servidor, a diferencia de
+  <code>uso_pestanas</code>). Se agregó <code>purgar-papelera</code> (<code>pg_cron</code>, mismo
+  mecanismo que <code>purgar-uso-pestanas</code>): un <code>DELETE</code> diario contra filas con
+  más de 30 días, corriendo dentro de Postgres, sin depender de que alguien abra la app.</p>
 
   <h3>11. App instalable (PWA)</h3>
   <p>El sistema se puede agregar a la pantalla de inicio del celular como una app normal, con

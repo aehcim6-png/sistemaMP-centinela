@@ -78,12 +78,18 @@ framework nuevo a mitad de camino.
 [Vercel](https://vercel.com) sirve los archivos estáticos (no hay servidor
 propio corriendo en ningún lado). Cada push a la rama `main` dispara un build
 (`vite build`) y un despliegue nuevo automático. Vite bundlea y minifica de
-verdad los ~45 módulos ES de `modules/renders/*.js` en un único archivo
-(`dist/assets/index-*.js`), siguiendo el grafo de imports desde
-`index.html`. `logic.js` y `modules/store.js` siguen siendo scripts planos
-(sin `type="module"`) a propósito, así que Vite no los toca por diseño —
-`vite.config.js` tiene un plugin chico que los copia tal cual al resultado
-del build (junto con `vendor/*.js` y `docs/`).
+verdad solo el puñado de módulos ES que `index.html` importa de forma
+estática (`dash.js`/`ace.js`, los dos que siguen eager — ver sección 1) en
+un único archivo (`dist/assets/index-*.js`), siguiendo su grafo de imports.
+Los otros 43 módulos de `modules/renders/*.js` (los de carga perezosa) NO
+entran a ese bundle — Vite no puede verlos en el grafo estático porque se
+piden con `dynamic import()` usando una ruta armada en tiempo de ejecución
+(`_LAZY_VERS`), así que se copian TAL CUAL, sin bundlear ni minificar, a
+`dist/modules/renders/*.js` y se sirven como archivos sueltos (verificado
+corriendo `npm run build` e inspeccionando `dist/`). `logic.js` y
+`modules/store.js` siguen siendo scripts planos (sin `type="module"`) a
+propósito, así que Vite tampoco los toca — `vite.config.js` tiene un plugin
+chico que los copia igual (junto con `vendor/*.js` y `docs/`).
 
 ### 3. El motor de sincronización — `modules/store.js`
 
@@ -414,12 +420,24 @@ Nada se borra de golpe. Al eliminar cualquier fila (un equipo, un registro
 de PM, stock, una orden de trabajo, etc.), el sistema primero la mueve a
 una tabla `papelera` — con qué categoría era, quién la eliminó y cuándo —
 y recién ahí la saca de la tabla original. Queda recuperable desde
-Configuración → Papelera durante 30 días antes de purgarse en serio
-(`_purgarPapeleraVieja`, corre sola). `_moverAPapelera` y
-`_purgarPapeleraVieja` viven en `modules/store.js` (lógica de datos pura,
-sin DOM — mismo criterio que `logic.js`, testeable con Vitest sin arrancar
-la app); la pantalla de recuperación (`modules/renders/papelera.js`) sigue
-el mismo patrón que el resto de las pestañas.
+Configuración → Papelera durante 30 días antes de purgarse en serio.
+`_moverAPapelera` y `_purgarPapeleraVieja` viven en `modules/store.js`
+(lógica de datos pura, sin DOM — mismo criterio que `logic.js`, testeable
+con Vitest sin arrancar la app); la pantalla de recuperación
+(`modules/renders/papelera.js`) sigue el mismo patrón que el resto de las
+pestañas.
+
+**Dos capas de purga, no una (2026-09-14)**: `_purgarPapeleraVieja()` corre
+del lado del cliente una vez al arrancar la app (`_arrancar()`,
+`index.html`) — pero eso significa que si nadie abre el sistema por un
+tiempo, la papelera no se poda (una auditoría externa lo señaló como hueco
+real: no había ningún mecanismo del lado del servidor, a diferencia de
+`uso_pestanas`, que sí tenía su propio cron desde que se creó). Se agregó
+`purgar-papelera` (`pg_cron`, mismo mecanismo que ya usa
+`purgar-uso-pestanas`): un `DELETE` diario a las 6am UTC contra filas con
+más de 30 días, corriendo dentro de Postgres — sin depender de que alguien
+abra la app, y sin que esa persona tenga que bajarse toda la tabla primero
+solo para podarla.
 
 ### 11. App instalable (PWA)
 
