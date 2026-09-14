@@ -30,6 +30,7 @@ const DESTINATARIO_FIJO = 'aehcim6@gmail.com';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding/base64";
+import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
 
 // Mismo set de tablas reales que TABLA_REAL/TABLA_SINGLETON en
 // modules/store.js, más 'kv' (banderas legacy) y 'user_roles' (para poder
@@ -139,11 +140,10 @@ export async function traerTodosLosUsuariosAuth(supabase: any): Promise<UsuarioA
 
 if (import.meta.main) {
 Deno.serve(async (req: Request) => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Verifica el secreto ANTES de tocar cualquier tabla — sin esto, nada
     // de lo que sigue debe ejecutarse.
@@ -223,13 +223,16 @@ Deno.serve(async (req: Request) => {
 
     if (!rEmail.ok) {
       const detalle = await rEmail.text();
+      await registrarSaludCron(supabaseUrl, serviceKey, 'backup-diario', false, `envio_email: ${rEmail.status} ${detalle}`);
       return new Response(JSON.stringify({ ok: false, paso: 'envio_email', status: rEmail.status, detalle }), { status: 502 });
     }
 
+    await registrarSaludCron(supabaseUrl, serviceKey, 'backup-diario', true, `ok — ${resumen.length} tablas`);
     return new Response(JSON.stringify({ ok: true, fecha, resumen }), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (e) {
+    await registrarSaludCron(supabaseUrl, serviceKey, 'backup-diario', false, (e as Error).message);
     return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), { status: 500 });
   }
 });

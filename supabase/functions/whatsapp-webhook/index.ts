@@ -70,6 +70,27 @@
 
 const URL_PUBLICA_WEBHOOK = 'https://jyhpfwivhwzylkzxrsbt.supabase.co/functions/v1/whatsapp-webhook';
 
+// Copia inline de _shared/registrarSaludCron.ts (mismo criterio que el resto
+// de este archivo: nada de imports relativos fuera de la carpeta, ver
+// comentario arriba). Best-effort: nunca debe tumbar la respuesta real del
+// webhook si falla.
+async function registrarSaludCron(supabaseUrl: string, serviceKey: string, nombre: string, exito: boolean, detalle: string): Promise<void> {
+  try {
+    await fetch(`${supabaseUrl}/rest/v1/salud_crons?on_conflict=nombre`, {
+      method: 'POST',
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({ nombre, ultimaEjecucion: new Date().toISOString(), exito, detalle: detalle.slice(0, 500) }),
+    });
+  } catch {
+    // best-effort
+  }
+}
+
 interface ReporteFalla {
   sigla: string;
   siglaOriginal: string;
@@ -445,7 +466,9 @@ Deno.serve(async (req: Request) => {
       }),
     });
     if (!insR.ok) {
-      console.error('whatsapp-webhook: insert falló', await insR.text());
+      const detalleError = await insR.text();
+      console.error('whatsapp-webhook: insert falló', detalleError);
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'whatsapp-webhook', false, `insert falló: ${detalleError}`);
       return twiml('Hubo un error guardando el reporte, avisa al administrador del sistema.');
     }
 
@@ -454,6 +477,7 @@ Deno.serve(async (req: Request) => {
     }
     return twiml(`⚠️ Registrado con dudas (${reporte.motivoBaja}) — un admin lo revisará en Auditoría de Datos: ${reporte.sigla} — ${reporte.componente}`);
   } catch (e) {
+    await registrarSaludCron(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, 'whatsapp-webhook', false, String(e));
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });

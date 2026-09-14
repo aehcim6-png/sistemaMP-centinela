@@ -25,6 +25,7 @@
 // ============================================================
 
 import { parsearReporteFalla } from '../_shared/parseCorrectivo.ts';
+import { registrarSaludCron } from '../_shared/registrarSaludCron.ts';
 
 export async function verificarFirmaResend(secretoConPrefijo: string, svixId: string, svixTimestamp: string, cuerpo: string, svixSignature: string): Promise<boolean> {
   const secretoB64 = secretoConPrefijo.replace(/^whsec_/, '');
@@ -123,7 +124,9 @@ Deno.serve(async (req) => {
       }),
     });
     if (!insR.ok) {
-      console.error('email-webhook: insert falló', await insR.text());
+      const detalleError = await insR.text();
+      console.error('email-webhook: insert falló', detalleError);
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'email-webhook', false, `insert falló: ${detalleError}`);
       await responderCorreo(desde, 'Error al registrar tu reporte', 'Hubo un error guardando el reporte, avisa al administrador del sistema.');
       return new Response(JSON.stringify({ ok: false, error: 'insert falló' }), { status: 500 });
     }
@@ -136,6 +139,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true, insertado: true, confianza: reporte.confianza }), { status: 200 });
   } catch (e) {
+    await registrarSaludCron(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, 'email-webhook', false, String(e));
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });
