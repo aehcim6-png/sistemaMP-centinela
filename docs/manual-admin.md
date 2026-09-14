@@ -40,11 +40,16 @@ con el link entre sin autorización.
 
 ### Roles
 
-Cada cuenta tiene un rol en `user_roles`: `admin` u `operador`. El rol se usa
-para dos cosas:
-- Ocultar/mostrar botones en pantalla (cosmético).
+Cada cuenta tiene un rol en `user_roles`: `admin`, `operador` o `lector`
+(este último, solo lectura — pensado para alguien que necesita VER el
+sistema sin poder editarlo). El rol se usa para dos cosas:
+- Ocultar/mostrar botones en pantalla (cosmético; `_aplicarRolUI()` en
+  `index.html` oculta los de crear/editar/guardar/borrar para `lector`).
 - **Row Level Security (RLS) real en Postgres** — el candado que de verdad
-  importa. Cada una de las ~31 tablas tiene su propia política; 4 tablas
+  importa, y el único del que depende la seguridad (`lector` puede leer
+  todo pero cualquier escritura la rechaza Postgres, aunque alguien
+  manipule el navegador directamente). Cada una de las ~42 tablas tiene su
+  propia política; 4 tablas
   (`equipos`, `stock_filtros`, `lubricantes`, `repuestos`) tienen además un
   *trigger* (`proteger_columnas_admin`) que bloquea a un operador que
   intente cambiar columnas reservadas (precio, datos estructurales del
@@ -245,14 +250,14 @@ para no crecer sin límite y comerse cuota del plan gratis.
 
 ## 4. Base de datos (Supabase)
 
-- **35 tablas reales** (una por categoría: `equipos`, `correctivos`,
+- **42 tablas reales** (una por categoría: `equipos`, `correctivos`,
   `registros_pm`, etc. — incluye `historial_componentes` e
   `historial_neumaticos`, agregadas en agosto 2026, `correctivos_historico`
   (agosto 2026, planillas Excel 2022-2025 previas a este sistema, alimenta
   Probabilidad de Falla en Predictivo), y `compromisos` (2026-08-31, loop de
   responsabilidad de Metas & KPIs)) + 7 tablas "singleton" de
-  configuración. El mapeo completo vive en `TABLA_REAL`/`TABLA_SINGLETON`
-  dentro de `modules/store.js`.
+  configuración (49 tablas en total). El mapeo completo vive en
+  `TABLA_REAL`/`TABLA_SINGLETON` dentro de `modules/store.js`.
 - **El schema está versionado como código** en `supabase/migrations/*.sql`.
   Cualquier cambio de estructura (agregar una columna, una tabla, una
   política RLS) debe hacerse como un archivo de migración nuevo — con la
@@ -468,11 +473,13 @@ un número inventado aparte.
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
   y un despliegue automático a `sistema-mp-centinela.vercel.app`.
-- El build sí transforma `modules/renders/*.js` (44 archivos, módulos ES
-  reales desde la migración de Fase 3, 2026-08-30): Vite los bundlea y
-  minifica en un único archivo. `logic.js`, `vendor/*.js` y `modules/store.js`
-  siguen siendo scripts planos a propósito — Vite los copia tal cual, sin
-  tocarlos (ver `vite.config.js`).
+- `modules/renders/*.js` (45 archivos, módulos ES reales desde la migración
+  de Fase 3, 2026-08-30): Vite bundlea y minifica de verdad solo el par
+  que `index.html` importa de forma estática (`dash.js`/`ace.js`, eager);
+  los otros 43 (carga perezosa, `dynamic import()`) no entran a ese grafo
+  estático — se copian tal cual, sin bundlear, a `dist/modules/renders/`.
+  `logic.js`, `vendor/*.js` y `modules/store.js` siguen siendo scripts
+  planos a propósito — Vite tampoco los toca (ver `vite.config.js`).
 - **Si un despliegue sale mal**: en el panel de Vercel se puede volver
   ("Promote to Production") a cualquier despliegue anterior con un clic —
   no hace falta revertir código a mano bajo presión.
@@ -493,7 +500,7 @@ guía explica por qué y el proceso real completo.
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (44, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (45, módulos ES reales)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — 12 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
@@ -501,7 +508,7 @@ supabase/functions/      — 12 Edge Functions (crear-operador, alerta-pm, resum
                             avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 656 casos)
 docs/                    — esta carpeta
 ```
 

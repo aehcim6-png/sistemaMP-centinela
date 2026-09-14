@@ -71,11 +71,14 @@
 
   <h2>3. Seguridad</h2>
   <h3>Roles</h3>
-  <p>Cada cuenta tiene un rol en <code>user_roles</code>: <code>admin</code> u <code>operador</code>.
-  Se usa para ocultar/mostrar botones (cosmético) y para <b>Row Level Security real en
-  Postgres</b> — el candado que de verdad importa. 4 tablas tienen además un trigger
+  <p>Cada cuenta tiene un rol en <code>user_roles</code>: <code>admin</code>, <code>operador</code>
+  o <code>lector</code> (este último, solo lectura). Se usa para ocultar/mostrar botones
+  (cosmético — <code>_aplicarRolUI()</code> oculta los de escritura para <code>lector</code>) y
+  para <b>Row Level Security real en Postgres</b> — el candado del que de verdad depende la
+  seguridad (<code>lector</code> puede leer todo pero cualquier escritura la rechaza Postgres,
+  aunque manipule el navegador directamente). 4 tablas tienen además un trigger
   (<code>proteger_columnas_admin</code>) que bloquea a un operador que intente cambiar columnas
-  reservadas, aunque manipule el navegador directamente.</p>
+  reservadas.</p>
   <div class="callout" style="border-left-color:var(--amber)">
     <b>Bloqueo del campo "Tipo" de un equipo puntual (2026-09-10):</b> <code>equipos</code> tiene
     una columna <code>tipo_bloqueado</code> — cualquier fila con <code>tipo_bloqueado=true</code>
@@ -203,12 +206,12 @@
   90 días con un cron diario.</p>
 
   <h2>4. Base de datos (Supabase)</h2>
-  <p><b>35 tablas reales</b> (incluye <code>historial_componentes</code> e
+  <p><b>42 tablas reales</b> (incluye <code>historial_componentes</code> e
   <code>historial_neumaticos</code>, agregadas en agosto 2026,
   <code>correctivos_historico</code>, agosto 2026, planillas Excel 2022-2025 previas a este
   sistema, alimenta Probabilidad de Falla en Predictivo, y <code>compromisos</code>
-  (2026-08-31, loop de responsabilidad de Metas & KPIs)) + 7 "singleton" de configuración.
-  El mapeo vive en
+  (2026-08-31, loop de responsabilidad de Metas & KPIs)) + 7 "singleton" de configuración (49
+  tablas en total). El mapeo vive en
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.</p>
   <p><b>El schema está versionado como código</b> en <code>supabase/migrations/*.sql</code>.
   Cualquier cambio de estructura debe ser un archivo de migración nuevo, nunca una edición manual
@@ -377,10 +380,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <h2>8. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
-    <li>El build sí transforma <code>modules/renders/*.js</code> (44 archivos, módulos ES reales
-    desde la Fase 3, 2026-08-30): Vite los bundlea y minifica en un único archivo.
-    <code>logic.js</code>, <code>vendor/*.js</code> y <code>modules/store.js</code> siguen siendo
-    scripts planos a propósito — Vite los copia tal cual, junto con <code>docs/</code>.</li>
+    <li><code>modules/renders/*.js</code> (45 archivos, módulos ES reales desde la Fase 3,
+    2026-08-30): Vite bundlea y minifica de verdad solo el par eager que <code>index.html</code>
+    importa de forma estática (<code>dash.js</code>/<code>ace.js</code>); los otros 43 (carga
+    perezosa) no entran a ese grafo — se copian tal cual, sin bundlear, a
+    <code>dist/modules/renders/</code>. <code>logic.js</code>, <code>vendor/*.js</code> y
+    <code>modules/store.js</code> siguen siendo scripts planos a propósito — Vite tampoco los
+    toca, se copian junto con <code>docs/</code>.</li>
     <li><b>Si un despliegue sale mal</b>: en Vercel se puede volver ("Promote to Production") a
     cualquier despliegue anterior con un clic.</li>
     <li><b>Antes de fusionar algo grande a main</b>: siempre se prueba primero en el preview
@@ -396,7 +402,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (44, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (45, módulos ES reales)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — 12 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
@@ -404,7 +410,7 @@ supabase/functions/      — 12 Edge Functions (crear-operador, alerta-pm, resum
                             avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 536 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 656 casos)
 docs/                    — esta documentación</pre>
 
   <h2>10. Si algo se rompe — por dónde empezar</h2>

@@ -54,7 +54,7 @@ framework nuevo a mitad de camino.
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
   materiales, etc. Junto con `store.js`, son los archivos con pruebas
-  automatizadas (`tests/*.test.js`, 536 casos, corren con Vitest).
+  automatizadas (`tests/*.test.js`, 656 casos, corren con Vitest).
 - **`tests/e2e/`** (2026-09-10) — pruebas de extremo a extremo con Playwright
   Test, que sí arrancan un navegador real (Chromium) contra un servidor Vite
   local, a diferencia de Vitest (que corre sin DOM). Cubren los flujos que
@@ -131,7 +131,7 @@ silencio el trabajo de otra persona.
   guardado en la tabla `user_roles`. El rol se usa para dos cosas, con
   distinto peso:
   - Ocultar/mostrar botones y pestañas en pantalla (primera línea, cosmética).
-  - **Row Level Security (RLS) real en Postgres** — cada una de las 31 tablas
+  - **Row Level Security (RLS) real en Postgres** — cada una de las 42 tablas
     tiene su propia política de quién puede leer/escribir, y 4 tablas
     "mixtas" (equipos, stock_filtros, lubricantes, repuestos) tienen además
     un *trigger* que bloquea a un operador que intente cambiar columnas
@@ -413,6 +413,25 @@ De paso se confirmó que el nuevo esquema de API keys de Supabase (`secret
 key`, prefijo `sb_secret_...`, reemplazo del `service_role` JWT clásico)
 funciona sin cambios con `createClient()` de `supabase-js` — no hizo falta
 tocar el script para usarlo.
+
+**3. Seis columnas (y un índice) tampoco tenían migración propia — hallazgo
+de una auditoría completa (2026-09-14).** El fix del punto 1 arriba cubría
+tablas enteras creadas a mano, pero no columnas sueltas agregadas después a
+tablas que sí existían en el repo. Comparando `mcp__Supabase__list_migrations`
+(71 migraciones aplicadas en la base real) contra los 57 archivos locales,
+aparecieron 14 nombres sin archivo correspondiente: 2 ya quedaban cubiertas
+por el fix del punto 1, 1 resultó duplicada sin columnas nuevas, 5
+(`cargar_whatsapp_equipos_batch_00`..`04`) fueron cargas de **datos**
+históricos reales (no de esquema — no se reconstruyen para no arriesgarse a
+inventar su contenido exacto; ya están cubiertas por el backup diario +
+restauración de arriba) y las 6 restantes sí eran columnas reales en uso,
+verificadas contra `information_schema.columns` antes de escribir nada:
+`configuracion.alertaEmails`/`presupuestoMensual`, `correctivos.fotos`/
+`primeraAtencionEn`, `sensores_neumaticos.horomInstalacion`/`horasAcum`, y
+el índice `idx_destrabe_id_orden_compra`. Corregido en
+`supabase/migrations/20260914060000_formaliza_columnas_creadas_a_mano.sql`
+(mismo patrón `ADD COLUMN IF NOT EXISTS`/`CREATE INDEX IF NOT EXISTS`,
+no-op comprobado en ambos proyectos reales, donde ya existían).
 
 ### 10. Papelera (soft-delete con recuperación)
 

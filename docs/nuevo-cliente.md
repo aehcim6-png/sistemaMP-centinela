@@ -32,8 +32,8 @@ Guardar: URL del proyecto, `anon`/`publishable` key, `service_role` key.
 
 ## 2. Aplicar el esquema
 
-Aplicar las 51 migraciones de `supabase/migrations/` **en orden** (por
-nombre de archivo, ya vienen con timestamp). Traen: las ~35 tablas reales,
+Aplicar las 57 migraciones de `supabase/migrations/` **en orden** (por
+nombre de archivo, ya vienen con timestamp). Traen: las ~42 tablas reales,
 RLS por tabla, el trigger `proteger_columnas_admin`, las funciones
 `verificar_secreto_cron`/`obtener_secreto_para_cron`, y la creación del
 bucket `informes-fotos`.

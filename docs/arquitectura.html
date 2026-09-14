@@ -89,7 +89,7 @@
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
     disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los
-    archivos con pruebas automatizadas (536 casos, corren con Vitest).</li>
+    archivos con pruebas automatizadas (656 casos, corren con Vitest).</li>
     <li><b>tests/e2e/</b> (2026-09-10) — pruebas de extremo a extremo con Playwright Test, que sí
     arrancan un navegador real (Chromium) contra un servidor Vite local, a diferencia de Vitest
     (que corre sin DOM). Cubren los flujos que antes solo se probaban a mano cada vez: login
@@ -343,6 +343,21 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     key</code>, prefijo <code>sb_secret_...</code>) funciona sin cambios con
     <code>createClient()</code> de <code>supabase-js</code>.
   </div>
+
+  <p><b>3. Seis columnas (y un índice) tampoco tenían migración propia — hallazgo de una
+  auditoría completa (2026-09-14).</b> El fix del punto 1 cubría tablas enteras creadas a mano,
+  no columnas sueltas agregadas después a tablas que sí existían en el repo. Comparando
+  <code>mcp__Supabase__list_migrations</code> (71 aplicadas en la base real) contra los 57
+  archivos locales, aparecieron 14 nombres sin archivo: 2 ya cubiertas por el punto 1, 1
+  duplicada sin columnas nuevas, 5 cargas de <b>datos</b> históricos reales (no de esquema, no
+  reconstruidas para no inventar su contenido — cubiertas por el backup+restauración de arriba)
+  y 6 columnas reales en uso, verificadas contra <code>information_schema.columns</code>:
+  <code>configuracion.alertaEmails</code>/<code>presupuestoMensual</code>,
+  <code>correctivos.fotos</code>/<code>primeraAtencionEn</code>,
+  <code>sensores_neumaticos.horomInstalacion</code>/<code>horasAcum</code>, y el índice
+  <code>idx_destrabe_id_orden_compra</code>. Corregido en
+  <code>20260914060000_formaliza_columnas_creadas_a_mano.sql</code> (no-op comprobado en ambos
+  proyectos reales).</p>
 
   <h3>10. Papelera (soft-delete con recuperación)</h3>
   <p>Nada se borra de golpe. Al eliminar cualquier fila (equipo, registro de PM, stock, orden de
