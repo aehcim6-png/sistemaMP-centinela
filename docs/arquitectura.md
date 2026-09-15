@@ -1983,6 +1983,44 @@ demanda de ítems agregados recientemente; y "sin repuesto" (motivo NO-
 falla) contado como falla real en `esFallaMTBF` por un `criticidad`
 hardcodeado en "Registrar salida de servicio".
 
+## Disponibilidad Intrínseca (Ai) además de la Operacional (Ao)
+
+2026-09-15: hasta ahora "Disponibilidad" (`disp.js`/`dispEquipoMes`) era un
+solo número que mezclaba el tiempo caído por fallas (correctivos, tabla
+`correctivos`) con el tiempo caído por PM planificado (`reg`) — el
+equivalente a la Disponibilidad Operacional (Ao) de la terminología RAM
+(Reliability/Availability/Maintainability). No había forma de ver "¿la
+disponibilidad bajó por una falla, o porque yo mismo programé la
+mantención?" — la pregunta real de un gerente al mirar el número.
+
+Se agregó la Disponibilidad Intrínseca (Ai): mismo cálculo día a día que
+Ao, pero descontando SOLO el downtime de correctivos, nunca el de PM.
+Como `reg` (PM) y `ot` (correctivos) ya estaban separados en la base, es
+calculable con datos reales:
+
+- `dispDownMap(reg, ot, hoy, {incluirPM:false})` — mismo mapa de siempre,
+  con un parámetro nuevo que salta el loop de `reg` y deja solo `ot`.
+- `_dispPctDesdeMapa` — el loop día-a-día que antes vivía dentro de
+  `dispEquipoMes` se extrajo a una función compartida, para que Ao y Ai
+  midan el mismo mes exactamente de la misma forma y solo difieran en el
+  downMap que reciben.
+- `dispIntrinsecaEquipoMes(sigla, mes, {downMapCorrectivo,...})` — la
+  versión Ai de `dispEquipoMes`. A diferencia de Ao, no usa los overrides
+  manuales (`dispCalc`/`dAbr`): esos representan un Ao ya mezclado a mano,
+  no hay forma de separar de ahí cuánto era PM y cuánto era falla.
+- `disp.js`, vista mensual: bajo la tarjeta de Disponibilidad de flota se
+  agregó una línea con el Ai de flota y la brecha Ao−Ai en puntos
+  (cuando es relevante), con tooltip explicando qué significa cada una.
+  Solo en la vista mensual (donde vive el % que se compara contra meta) —
+  diario/semanal/anual no se tocaron.
+
+10 tests nuevos en `disponibilidad.test.js` (el mapa Ai excluye PM y
+conserva correctivos; Ai ≥ Ao cuando hubo PM; casos sin dato → null).
+Origen: comparación contra contenido de Predictiva21 (curso RAM) —
+a diferencia de la mayoría de ese material (glosarios, autoevaluaciones
+cualitativas, KPIs que piden datos que el sistema no registra), esta
+distinción sí era calculable con datos 100% reales y ya existentes.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

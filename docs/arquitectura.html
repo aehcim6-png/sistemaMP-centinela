@@ -1277,6 +1277,20 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   inflarse hasta 6x; demanda de repuestos (Poisson) con denominador mal calculado; y "sin
   repuesto" contado como falla real por un <code>criticidad</code> hardcodeado.</p>
 
+  <h2>Disponibilidad Intrínseca (Ai) además de la Operacional (Ao)</h2>
+  <p>2026-09-15: "Disponibilidad" (<code>disp.js</code>/<code>dispEquipoMes</code>) mezclaba en un
+  solo número el tiempo caído por fallas (correctivos) y por PM planificado (<code>reg</code>) —
+  el equivalente a la Disponibilidad Operacional (Ao, terminología RAM). Se agregó la
+  Disponibilidad Intrínseca (Ai): mismo cálculo día a día, pero descontando SOLO el downtime de
+  correctivos. <code>dispDownMap</code> ganó un parámetro <code>{incluirPM:false}</code> que salta
+  el loop de PM; el loop día-a-día se extrajo a <code>_dispPctDesdeMapa</code> (compartido por Ao y
+  Ai, para que midan el mismo mes de la misma forma); <code>dispIntrinsecaEquipoMes</code> es la
+  versión Ai de <code>dispEquipoMes</code> (sin overrides manuales, que ya vienen mezclados). La
+  pestaña Disponibilidad muestra, en la vista mensual, el Ai de flota y la brecha Ao−Ai en puntos.
+  10 tests nuevos en <code>disponibilidad.test.js</code>. Origen: única idea aprovechable de una
+  revisión de contenido de Predictiva21 (curso RAM) — el resto (glosarios, autoevaluaciones
+  cualitativas, KPIs sin dato fuente) no era implementable con datos reales.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

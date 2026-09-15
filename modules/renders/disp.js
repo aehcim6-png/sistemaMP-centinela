@@ -98,13 +98,26 @@ export function renderDisp(){
     var sinRegistros=conDatos.filter(function(e){return !e.manual&&e.diasReg===0}).length;
     var col=totalFlota===null?'var(--tx3)':totalFlota>=meta?'var(--ok)':totalFlota>=70?'var(--w)':'var(--danger)';
 
+    // ═══ DISPONIBILIDAD INTRÍNSECA (Ai) — mismo mes, mismo criterio de flota, pero
+    // contando solo el tiempo perdido por fallas (correctivos), sin el PM planificado
+    // (dispIntrinsecaEquipoMes, logic.js). La brecha Ao−Ai es la pregunta real de
+    // gerencia: ¿la disponibilidad baja por fallas, o por la mantención que la empresa
+    // misma programó? Solo se calcula en la vista mensual (donde vive el % de flota que
+    // se compara contra meta) para no tocar diario/semanal/anual.
+    var downMapCorrectivo=dispDownMap(reg,ot,undefined,{incluirPM:false});
+    var aiVals=eqFil.map(function(e){return dispIntrinsecaEquipoMes(e.sigla,fMes,{downMapCorrectivo:downMapCorrectivo,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null;});
+    var aiFlota=aiVals.length?Math.round(aiVals.reduce(function(s,v){return s+v},0)/aiVals.length*10)/10:null;
+    var brechaAoAi=(totalFlota!==null&&aiFlota!==null)?Math.round((aiFlota-totalFlota)*10)/10:null;
+
     content=
     '<div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:16px">'+
     '<div style="text-align:center;min-width:100px"><div style="font-size:36px;font-weight:800;color:'+col+'">'+(totalFlota===null?'—':totalFlota+'%')+'</div><div style="font-size:10px;color:var(--tx3)">FLOTA '+fMes+'</div></div>'+
     '<div style="flex:1">'+
     '<div style="background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:6px;height:18px;overflow:hidden;margin-bottom:6px;cursor:default" onmouseenter="vizTip(event,\''+(totalFlota===null?'Sin equipos con datos de disponibilidad este período':'Flota: '+totalFlota+'% · '+conDatos.length+' equipos con dato · '+bajoMeta+' bajo meta')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+col+';height:100%;width:'+Math.min(totalFlota||0,100)+'%"></div></div>'+
     '<div style="font-size:12px;color:'+col+'">'+(totalFlota===null?'Sin datos para este período':totalFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+(totalFlota===null?'':' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta')+'</div>'+
-    (sinRegistros>0?'<div style="font-size:11px;color:var(--warn);margin-top:4px" title="Estos equipos no tienen ninguna detención cargada este mes, así que su 100% es asumido — el promedio de flota puede estar inflado hasta que cargues sus datos"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+sinRegistros+' equipo'+(sinRegistros===1?'':'s')+' sin registros este mes (100% asumido — cargá sus salidas de servicio para que el número sea real)</div>':'')+'</div></div>'+
+    (sinRegistros>0?'<div style="font-size:11px;color:var(--warn);margin-top:4px" title="Estos equipos no tienen ninguna detención cargada este mes, así que su 100% es asumido — el promedio de flota puede estar inflado hasta que cargues sus datos"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+sinRegistros+' equipo'+(sinRegistros===1?'':'s')+' sin registros este mes (100% asumido — cargá sus salidas de servicio para que el número sea real)</div>':'')+
+    (aiFlota!==null?'<div style="font-size:11px;color:var(--tx3);margin-top:6px;padding-top:6px;border-top:1px solid var(--bg4)" title="Disponibilidad Operacional (Ao, arriba) cuenta fallas + PM planificado. Disponibilidad Intrínseca (Ai) cuenta SOLO fallas, sin el PM. La diferencia es cuánto de la indisponibilidad es mantención que la propia empresa programó, no un imprevisto.">Ai (solo fallas, sin PM): <b style="color:var(--tx)">'+aiFlota+'%</b>'+(brechaAoAi&&brechaAoAi>0.05?' · brecha Ao−Ai: <b style="color:var(--warn)">'+brechaAoAi+' pts</b> por PM planificado':'')+'</div>':'')+
+    '</div></div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th><th title="Respaldo del número: registros reales de detención, valor cargado a mano, o asumido por falta de datos">Datos</th></tr>'+
     eqDisp.sort(function(a,b){return(a.pct||999)-(b.pct||999)}).map(function(e){

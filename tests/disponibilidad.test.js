@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dispDownMap, dispEquipoMes } from '../logic.js';
+import { dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes } from '../logic.js';
 
 describe('dispDownMap — mapa de horas de detención (fuente única)', () => {
   it('salida de servicio por período marca cada día del rango con día completo', () => {
@@ -69,5 +69,46 @@ describe('dispEquipoMes — disponibilidad mensual (%)', () => {
 
   it('mes sin ningún día con dato -> null', () => {
     expect(dispEquipoMes('CN-1', '2027-01', { downMap: {}, hoy: '2026-07-31' })).toBeNull();
+  });
+});
+
+describe('dispDownMap con opts.incluirPM:false — mapa solo de correctivos (para Ai)', () => {
+  it('excluye el downtime de PM (reg), conserva el de correctivos (ot)', () => {
+    const reg = [{ equipo: 'CN-1', fechaEntrada: '2026-07-01', duracionH: 6 }];
+    const ot = [{ sigla: 'CN-1', fecha: '2026-07-15', estatusEq: 'Fuera de Servicio' }];
+    const dmAo = dispDownMap(reg, ot);
+    const dmAi = dispDownMap(reg, ot, undefined, { incluirPM: false });
+    expect(dmAo['CN-1']['2026-07-01']).toBe(6); // Ao sí cuenta el PM
+    expect(dmAi['CN-1']['2026-07-01']).toBeUndefined(); // Ai no
+    expect(dmAo['CN-1']['2026-07-15']).toBe(24); // ambos cuentan el correctivo
+    expect(dmAi['CN-1']['2026-07-15']).toBe(24);
+  });
+
+  it('sin correctivos y solo PM, el mapa Ai queda vacío para ese equipo', () => {
+    const reg = [{ equipo: 'CN-9', fechaEntrada: '2026-07-01', duracionH: 8 }];
+    const dmAi = dispDownMap(reg, [], undefined, { incluirPM: false });
+    expect(dmAi['CN-9']).toBeUndefined();
+  });
+});
+
+describe('dispIntrinsecaEquipoMes (Ai) — disponibilidad intrínseca mensual (%)', () => {
+  const hoy = '2026-07-31';
+  it('sin fallas registradas = 100% (aunque haya habido PM, que no cuenta acá)', () => {
+    const v = dispIntrinsecaEquipoMes('CN-1', '2026-07', { downMapCorrectivo: {}, hrsDia: 12, hoy });
+    expect(v).toBe(100);
+  });
+
+  it('Ai es mayor o igual que Ao cuando el equipo tuvo PM además de fallas', () => {
+    const reg = [{ equipo: 'CN-1', fechaEntrada: '2026-07-05', duracionH: 6 }];
+    const ot = [{ sigla: 'CN-1', fecha: '2026-07-20', estatusEq: 'Fuera de Servicio' }];
+    const downMapAo = dispDownMap(reg, ot);
+    const downMapAi = dispDownMap(reg, ot, undefined, { incluirPM: false });
+    const ao = dispEquipoMes('CN-1', '2026-07', { downMap: downMapAo, hrsDia: 12, hoy });
+    const ai = dispIntrinsecaEquipoMes('CN-1', '2026-07', { downMapCorrectivo: downMapAi, hrsDia: 12, hoy });
+    expect(ai).toBeGreaterThan(ao);
+  });
+
+  it('mes sin ningún día con dato -> null', () => {
+    expect(dispIntrinsecaEquipoMes('CN-1', '2027-01', { downMapCorrectivo: {}, hoy: '2026-07-31' })).toBeNull();
   });
 });

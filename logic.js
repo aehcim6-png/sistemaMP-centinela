@@ -901,11 +901,17 @@ function interpretacionFormaWeibull(beta){
 // 'hoy' (parámetro opcional, default = fecha actual). Sin esto, una salida abierta solo
 // contaba como caída su primer día y el equipo volvía a figurar disponible al día
 // siguiente aunque en la realidad siguiera detenido.
-function dispDownMap(reg, ot, hoy){
+// 'opts.incluirPM' (default true): false excluye el downtime de 'reg' (PM planificado),
+// dejando solo el de 'ot' (correctivos = tabla 'correctivos', ver store.js) — es el mapa
+// que usa dispIntrinsecaEquipoMes para la Disponibilidad Intrínseca (Ai), que responde
+// "cuánto tiempo perdí SOLO por fallas" separado de "cuánto perdí por mantención que yo
+// mismo programé" (Ao, la Disponibilidad de siempre, sigue incluyendo ambos por defecto).
+function dispDownMap(reg, ot, hoy, opts){
+  var incluirPM=!(opts&&opts.incluirPM===false);
   var down={};
   var hoyISO=hoy||new Date().toISOString().slice(0,10);
   function add(sigla,fecha,horas){ if(!sigla||!fecha)return; if(!down[sigla])down[sigla]={}; down[sigla][fecha]=(down[sigla][fecha]||0)+horas; }
-  (reg||[]).forEach(function(r){
+  if(incluirPM)(reg||[]).forEach(function(r){
     var sigla=r.equipo, fecha=r.fechaEntrada||r.fechaEjec||'';
     var durH=r.duracionH||0;
     if(!durH&&r.horaEntrada&&r.horaSalida){
@@ -943,15 +949,11 @@ function dispDownMap(reg, ot, hoy){
   return down;
 }
 
-// Disponibilidad mensual de un equipo (%). Prioridad: override manual (dispCalc) > dato
-// original de abril (dAbr) > cálculo automático día a día desde el downMap. Devuelve null
-// si no hay ningún dato (para distinguir "sin datos" de "0%").
-function dispEquipoMes(sigla, mes, opts){
-  opts=opts||{};
-  var dispCalc=opts.dispCalc||{}, dAbr=opts.dAbr||{}, downMap=opts.downMap||{};
-  var hrsDia=opts.hrsDia||12, hoyISO=opts.hoy||new Date().toISOString().slice(0,10);
-  if(dispCalc[sigla]&&dispCalc[sigla][mes]!==undefined)return dispCalc[sigla][mes];
-  if(mes==='2026-04'&&dAbr[sigla]!==undefined)return dAbr[sigla];
+// Promedia el % de disponibilidad día a día de un mes a partir de un downMap ya armado
+// (dispDownMap) — loop compartido por dispEquipoMes (Ao) y dispIntrinsecaEquipoMes (Ai),
+// para que ambas midan el mismo mes de la misma forma y solo difieran en qué downMap
+// reciben. Devuelve null si no hay ningún día con dato (para distinguir "sin datos" de "0%").
+function _dispPctDesdeMapa(sigla, mes, downMap, hrsDia, hoyISO){
   var yy=parseInt(mes.slice(0,4),10), mm=parseInt(mes.slice(5,7),10);
   var dias=new Date(yy,mm,0).getDate();
   var totalDisp=0, conDato=0;
@@ -965,6 +967,32 @@ function dispEquipoMes(sigla, mes, opts){
   }
   if(!conDato)return null;
   return Math.round(totalDisp/conDato*10)/10;
+}
+
+// Disponibilidad OPERACIONAL (Ao) mensual de un equipo (%). Prioridad: override manual
+// (dispCalc) > dato original de abril (dAbr) > cálculo automático día a día desde el
+// downMap. Devuelve null si no hay ningún dato (para distinguir "sin datos" de "0%").
+function dispEquipoMes(sigla, mes, opts){
+  opts=opts||{};
+  var dispCalc=opts.dispCalc||{}, dAbr=opts.dAbr||{}, downMap=opts.downMap||{};
+  var hrsDia=opts.hrsDia||12, hoyISO=opts.hoy||new Date().toISOString().slice(0,10);
+  if(dispCalc[sigla]&&dispCalc[sigla][mes]!==undefined)return dispCalc[sigla][mes];
+  if(mes==='2026-04'&&dAbr[sigla]!==undefined)return dAbr[sigla];
+  return _dispPctDesdeMapa(sigla, mes, downMap, hrsDia, hoyISO);
+}
+
+// Disponibilidad INTRÍNSECA (Ai) mensual de un equipo (%) — mismo cálculo que
+// dispEquipoMes pero recibe un downMap armado con dispDownMap(reg,ot,hoy,{incluirPM:false})
+// (solo fallas reales, sin el tiempo de PM planificado). La brecha Ao−Ai es la pregunta
+// real de gerencia: ¿la disponibilidad baja por fallas, o por la mantención que la propia
+// empresa programó? (Predictiva21, terminología RAM: Ao = operacional, Ai = intrínseca).
+// No usa overrides manuales (dispCalc/dAbr) porque esos representan un Ao ya mezclado a
+// mano — no hay forma de separar de ahí cuánto era PM y cuánto era falla.
+function dispIntrinsecaEquipoMes(sigla, mes, opts){
+  opts=opts||{};
+  var downMapCorrectivo=opts.downMapCorrectivo||{};
+  var hrsDia=opts.hrsDia||12, hoyISO=opts.hoy||new Date().toISOString().slice(0,10);
+  return _dispPctDesdeMapa(sigla, mes, downMapCorrectivo, hrsDia, hoyISO);
 }
 
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
@@ -2716,6 +2744,7 @@ if (typeof window !== 'undefined') {
   window.umbralesImpacto = umbralesImpacto;
   window.impactoDeValor = impactoDeValor;
   window.nivelRiesgoPxI = nivelRiesgoPxI;
+  window.dispIntrinsecaEquipoMes = dispIntrinsecaEquipoMes;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -2724,7 +2753,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, pagSlice, hayConflictoIds,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
