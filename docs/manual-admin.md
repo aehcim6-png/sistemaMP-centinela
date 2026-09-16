@@ -543,7 +543,7 @@ supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resum
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 656 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 726 casos)
 docs/                    — esta carpeta
 ```
 

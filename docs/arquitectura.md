@@ -54,7 +54,7 @@ framework nuevo a mitad de camino.
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
   materiales, etc. Junto con `store.js`, son los archivos con pruebas
-  automatizadas (`tests/*.test.js`, 656 casos, corren con Vitest).
+  automatizadas (`tests/*.test.js`, 726 casos, corren con Vitest).
 - **`tests/e2e/`** (2026-09-10) — pruebas de extremo a extremo con Playwright
   Test, que sí arrancan un navegador real (Chromium) contra un servidor Vite
   local, a diferencia de Vitest (que corre sin DOM). Cubren los flujos que
