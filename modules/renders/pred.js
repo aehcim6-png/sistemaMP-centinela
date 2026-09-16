@@ -1008,7 +1008,25 @@ export function renderPred(){
             '</div>';
         }).join('')
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficientes correctivos con "componente" registrado para detectar patrones. Se necesitan al menos 2 fallas del mismo componente.</div>')+
-      '</div>';
+      '</div>'+
+      // Tasa de falla por ubicación (2026-09-16, pedido del usuario: versión
+      // honesta y simplificada de un modelo de riesgos proporcionales — Cox —
+      // usando 'ubicacion' (Pit/Rampa/Planta, ot.js), la única covariable de
+      // operación que el sistema registra sin sensores. Ver tasaFallaPorUbicacion
+      // en logic.js para el porqué NO es un hazard ratio ajustado real (no hay
+      // horas de exposición por ubicación, solo dónde ocurrió cada falla).
+      (function(){
+        var tu=tasaFallaPorUbicacion(ot);
+        if(!tu.length)return'';
+        return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-top:16px"><div class="chart-t">📍 Tasa de falla por ubicación</div>'+
+          '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Compara la mediana de días entre fallas de cada ubicación contra el resto de la flota. Razón &lt; 1 = esa ubicación falla MÁS seguido que el resto. NO es un hazard ratio ajustado (no hay horas de exposición por ubicación, solo dónde ocurrió cada falla) — es una asociación, no una causa probada. Mínimo 5 fallas por ubicación.</div>'+
+          '<div class="tbl-wrap"><table><tr><th>Ubicación</th><th>N° Fallas</th><th>Mediana días (grupo)</th><th>Mediana días (resto)</th><th>Razón</th></tr>'+
+          tu.map(function(u){
+            var col=u.razon<0.5?'var(--danger)':u.razon<1?'var(--w)':'var(--ok)';
+            return'<tr><td>'+escapeHtml(u.ubicacion)+'</td><td style="text-align:center">'+u.nFallas+'</td><td style="text-align:center">'+u.medianaDiasGrupo+'</td><td style="text-align:center">'+u.medianaDiasResto+'</td><td style="text-align:center;font-weight:700;color:'+col+'">'+u.razon+'</td></tr>';
+          }).join('')+
+          '</table></div></div>';
+      })();
   } else if(fVista==='probabilidad'){
     // Combina 'ot' (correctivos actuales, filtrados por esFallaMTBF — misma fuente
     // única que MTBF/Confiabilidad) con 'otHist' (historial 2022-2025 cargado desde

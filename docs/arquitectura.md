@@ -1983,6 +1983,51 @@ demanda de ítems agregados recientemente; y "sin repuesto" (motivo NO-
 falla) contado como falla real en `esFallaMTBF` por un `criticidad`
 hardcodeado en "Registrar salida de servicio".
 
+## Tasa de falla por ubicación (Cox simplificado) y Edad Virtual (Kijima simplificado)
+
+2026-09-16: el usuario trajo una propuesta externa (código de "Quantum
+Annealing"/"Redes Neuronales Informadas por la Física"/"Teoría de Juegos
+Evolutivos" para mantenimiento) que se rechazó completa — el código
+mostrado generaba sus números con `Math.random()` disfrazado de física
+(fatiga atómica, subastas de Nash), sin ningún dato real detrás. Se
+identificaron 3 ideas legítimas (de la misma conversación con esa IA, no
+del código rechazado) que sí eran calculables con datos reales del
+sistema: Cox con covariables no-sensorizadas, Kijima (edad virtual), y un
+MDP de reemplazo de activos. El MDP se descartó tras verificar en la base
+real que `correctivos.costo` está en **$0 en 1.234 de 1.243 registros**
+— el campo existe en el formulario (`ot.js`, "Costo total ($)") pero en
+la práctica nadie lo completa; sin costo real no hay nada que comparar
+contra `valorCompra`. Se implementaron los otros dos, con el mismo criterio
+de honestidad que motivó el rechazo del código cuántico: si el nombre
+académico no corresponde exactamente a lo que el dato permite calcular, se
+dice explícitamente qué se simplificó y por qué.
+
+- **`tasaFallaPorUbicacion(ot)`** (logic.js) — versión simplificada de un
+  modelo de riesgos proporcionales (Cox): compara la mediana de días entre
+  fallas de cada `ubicacion` (Pit/Rampa/Planta, campo ya registrado en cada
+  correctivo, `ot.js`) contra el resto de la flota. NO es un hazard ratio
+  ajustado real — no hay horas de exposición por ubicación, solo se sabe
+  DÓNDE ocurrió cada falla, no cuántas horas trabajó cada equipo en cada
+  lugar — así que es una asociación, no una causa probada, y el código lo
+  dice así. Mínimo 5 fallas por ubicación (mismo umbral que
+  `umbralesImpacto`). Expuesto en Predictivo → Fallas Repetitivas (Flota),
+  debajo del listado de componentes.
+- **`edadVirtualEquipo(horomFallas)`** (logic.js) — proxy simplificado del
+  concepto de Kijima (modelos de renovación imperfecta: factor q=0 "como
+  nuevo" tras la reparación, q=1 "como estaba" — la reparación no restauró
+  nada). Compara la mediana de intervalos entre fallas de la primera mitad
+  cronológica del historial de un equipo contra la segunda mitad: si los
+  intervalos se acortan, las reparaciones no están restaurando el equipo.
+  NO es un ajuste de máxima verosimilitud del q real de Kijima (eso pide
+  resolver una verosimilitud no lineal) — es una comparación de medianas,
+  documentada como tal. Reutiliza el mismo horómetro de fallas por equipo
+  que ya usa `ajusteWeibull` (`otFallasPorSigla`, dentro de
+  `equiposConSaludFlota`), mínimo 7 fallas (más exigente que Weibull,
+  porque acá se parte la muestra en dos). Expuesto en Torre de Control,
+  en el drawer de detalle de cada equipo, junto al bloque de Weibull.
+
+11 tests nuevos en `tests/confiabilidadAvanzada.test.js`.
+
 ## Disponibilidad Intrínseca (Ai) además de la Operacional (Ao)
 
 2026-09-15: hasta ahora "Disponibilidad" (`disp.js`/`dispEquipoMes`) era un

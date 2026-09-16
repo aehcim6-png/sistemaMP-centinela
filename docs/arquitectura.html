@@ -1277,6 +1277,21 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   inflarse hasta 6x; demanda de repuestos (Poisson) con denominador mal calculado; y "sin
   repuesto" contado como falla real por un <code>criticidad</code> hardcodeado.</p>
 
+  <h2>Tasa de falla por ubicación (Cox simplificado) y Edad Virtual (Kijima simplificado)</h2>
+  <p>2026-09-16: se rechazó una propuesta externa de "Quantum Annealing"/PINNs/Teoría de Juegos
+  para mantenimiento — el código generaba sus números con <code>Math.random()</code> disfrazado de
+  física, sin dato real detrás. De la misma conversación se identificaron 3 ideas legítimas: Cox con
+  covariables no-sensorizadas, Kijima (edad virtual) y un MDP de reemplazo de activos. El MDP se
+  descartó al verificar que <code>correctivos.costo</code> está en $0 en 1.234 de 1.243 registros
+  (el campo existe en el formulario pero nadie lo completa). Se implementaron los otros dos, con el
+  mismo criterio de honestidad: <code>tasaFallaPorUbicacion(ot)</code> compara la mediana de días
+  entre fallas por <code>ubicacion</code> (Pit/Rampa/Planta) contra el resto de la flota — NO es un
+  hazard ratio ajustado real (no hay horas de exposición por ubicación), es una asociación, no una
+  causa probada (Predictivo → Fallas Repetitivas). <code>edadVirtualEquipo(horomFallas)</code>
+  compara la mediana de intervalos entre fallas de la primera vs. segunda mitad del historial de un
+  equipo — si se acortan, las reparaciones no restauran el equipo (Torre de Control, drawer de
+  detalle). 11 tests nuevos en <code>confiabilidadAvanzada.test.js</code>.</p>
+
   <h2>Disponibilidad Intrínseca (Ai) además de la Operacional (Ao)</h2>
   <p>2026-09-15: "Disponibilidad" (<code>disp.js</code>/<code>dispEquipoMes</code>) mezclaba en un
   solo número el tiempo caído por fallas (correctivos) y por PM planificado (<code>reg</code>) —

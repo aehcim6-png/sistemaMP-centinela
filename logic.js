@@ -738,6 +738,42 @@ function ajusteWeibull(horomFallas){
   return _ajusteWeibullDeMuestra(intervalos);
 }
 
+// ═══ EDAD VIRTUAL (Kijima simplificado) — estima si las reparaciones de un
+// equipo lo dejan efectivamente "como nuevo" o si solo tapan el síntoma y la
+// degradación se acumula pese a las intervenciones (concepto de Kijima,
+// modelos de renovación imperfecta: q=0 "as good as new", q=1 "as bad as
+// old"). NO es un ajuste de máxima verosimilitud del factor q real de Kijima
+// (eso requiere resolver una verosimilitud no lineal) — es un proxy simple y
+// honesto: toma los mismos intervalos entre fallas sucesivas que usa
+// ajusteWeibull, los parte en primera y segunda mitad cronológica, y compara
+// sus medianas. Si la segunda mitad falla MÁS seguido que la primera
+// (intervalos más cortos), las reparaciones no están restaurando el equipo —
+// factorQ se acerca a 1. Si se mantiene o mejora, factorQ=0 (sin evidencia de
+// degradación acumulada). Mínimo 6 intervalos (7 fallas) — más exigente que
+// ajusteWeibull (5 intervalos) porque acá se parte la muestra en dos mitades.
+// Devuelve null si no hay suficiente historial — nunca se inventa un factor
+// sin datos para sostenerlo.
+function edadVirtualEquipo(horomFallas){
+  var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+  var intervalos=[];
+  for(var i=1;i<validos.length;i++){
+    var t=validos[i]-validos[i-1];
+    if(t>0)intervalos.push(t);
+  }
+  if(intervalos.length<6)return null;
+  var mitad=Math.floor(intervalos.length/2);
+  var medPrimera=medianaPositiva(intervalos.slice(0,mitad));
+  var medSegunda=medianaPositiva(intervalos.slice(intervalos.length-mitad));
+  if(medPrimera==null||medSegunda==null)return null;
+  var factorQ=medSegunda>=medPrimera?0:Math.round(Math.min(1,1-medSegunda/medPrimera)*100)/100;
+  var interpretacion=
+    factorQ===0?'Sin evidencia de degradación acumulada — las reparaciones mantienen el intervalo entre fallas':
+    factorQ<0.34?'Degradación leve — las reparaciones restauran la mayor parte del equipo':
+    factorQ<0.67?'Degradación moderada — las reparaciones tapan el síntoma pero no restauran del todo':
+    'Degradación alta — las fallas vuelven cada vez más rápido pese a las reparaciones';
+  return{nFallas:validos.length,medianaHorasPrimeraMitad:Math.round(medPrimera),medianaHorasSegundaMitad:Math.round(medSegunda),factorQ:factorQ,interpretacion:interpretacion};
+}
+
 // ═══ AJUSTE WEIBULL DE POBLACIÓN — el uso "de libro" de Weibull en
 // ingeniería de confiabilidad (2026-09-12, pedido del usuario: "¿y eso
 // puede servir en los neumáticos?"): a diferencia de ajusteWeibull (arriba,
@@ -1893,10 +1929,16 @@ function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
     // que el mínimo de 2 que ya exige mtbfReal — con pocos puntos no hay forma
     // real que ajustar). null cuando no alcanza, nunca una forma inventada.
     var weibull=ajusteWeibull(otFallasPorSigla[e.sigla]||[]);
+    // edadVirtual (2026-09-16, pedido del usuario: "¿las reparaciones dejan el
+    // equipo como nuevo, o solo tapan el síntoma?" — Kijima simplificado, ver
+    // edadVirtualEquipo en logic.js). Mismo horómetro de fallas que ya usa
+    // weibull arriba, ningún dato nuevo — exige más historial (7 fallas vs 6
+    // de Weibull) porque acá se parte la muestra en dos mitades.
+    var edadVirtual=edadVirtualEquipo(otFallasPorSigla[e.sigla]||[]);
     // horomActual/hrsDia (2026-09-11, pedido del usuario: más contexto en el
     // drawer de Torre de Control) — campos aditivos, ningún llamador existente
     // se rompe por no usarlos.
-    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad,hrsDia:e.hrsDia,weibull:weibull};
+    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad,hrsDia:e.hrsDia,weibull:weibull,edadVirtual:edadVirtual};
   });
 }
 
@@ -2091,15 +2133,65 @@ function sugerenciaAgruparPM(equipo,umbralDias,umbralHoras){
 // ajusteWeibull/mtbfFlotaReal (que usan horómetro, horas de uso), acá
 // necesitamos tiempo de calendario porque la proyección es "de aquí a 30/60/
 // 90 días corridos", no "de aquí a que el equipo acumule tantas horas".
-function intervalosFallaFlotaDias(ot){
-  var fechas=(ot||[]).filter(esFallaMTBF).map(function(o){return o.fecha||o.fechaEntrada;}).filter(Boolean).sort();
+// Gaps en días calendario entre fechas YA ordenadas — núcleo compartido por
+// intervalosFallaFlotaDias y tasaFallaPorUbicacion (misma cuenta, distinto
+// subconjunto de fechas de entrada).
+function _gapsDiasDeFechasOrdenadas(fechasOrdenadas){
   var gaps=[];
-  for(var i=1;i<fechas.length;i++){
-    var d1=new Date(fechas[i-1]+'T00:00:00'),d2=new Date(fechas[i]+'T00:00:00');
+  for(var i=1;i<fechasOrdenadas.length;i++){
+    var d1=new Date(fechasOrdenadas[i-1]+'T00:00:00'),d2=new Date(fechasOrdenadas[i]+'T00:00:00');
     var dias=Math.round((d2-d1)/86400000);
     if(dias>0)gaps.push(dias);
   }
   return gaps;
+}
+
+function intervalosFallaFlotaDias(ot){
+  var fechas=(ot||[]).filter(esFallaMTBF).map(function(o){return o.fecha||o.fechaEntrada;}).filter(Boolean).sort();
+  return _gapsDiasDeFechasOrdenadas(fechas);
+}
+
+// ═══ TASA DE FALLA POR UBICACIÓN — versión simplificada y honesta de lo que en
+// ingeniería de confiabilidad se llama un modelo de riesgos proporcionales (Cox):
+// compara el intervalo entre fallas SEGÚN la ubicación registrada en el
+// correctivo (o.ubicacion — "Pit, Rampa, Planta...", ver ot.js), la única
+// covariable de operación real que el sistema ya registra sin sensores.
+// NO es una regresión de Cox real: no hay tiempo de exposición por ubicación
+// (sabemos DÓNDE ocurrió cada falla, no cuántas horas trabajó cada equipo en
+// cada lugar), así que no se calcula un hazard ratio ajustado — se compara la
+// MEDIANA de días entre fallas de cada ubicación contra el resto de la flota,
+// con el límite honesto que eso implica: equipos más viejos o con más uso
+// pueden concentrarse en una ubicación y sesgar la comparación, esto muestra
+// una asociación, no una causa probada. Mínimo 5 fallas por ubicación (mismo
+// umbral que umbralesImpacto) para no comparar con muestras chicas. Devuelve
+// razon = medianaDiasGrupo/medianaDiasResto — menor a 1 significa que esa
+// ubicación falla MÁS seguido que el resto de la flota.
+function tasaFallaPorUbicacion(ot, minFallasPorGrupo){
+  var min=minFallasPorGrupo||5;
+  var reales=(ot||[]).filter(esFallaMTBF).filter(function(o){return o.ubicacion&&String(o.ubicacion).trim();});
+  var porUbicacion={};
+  reales.forEach(function(o){
+    var u=String(o.ubicacion).trim();
+    if(!porUbicacion[u])porUbicacion[u]=[];
+    porUbicacion[u].push(o.fecha||o.fechaEntrada);
+  });
+  var resultado=[];
+  Object.keys(porUbicacion).forEach(function(u){
+    var fechasGrupo=porUbicacion[u].filter(Boolean).sort();
+    if(fechasGrupo.length<min)return;
+    var fechasResto=reales.filter(function(o){return String(o.ubicacion).trim()!==u;}).map(function(o){return o.fecha||o.fechaEntrada;}).filter(Boolean).sort();
+    var gapsGrupo=_gapsDiasDeFechasOrdenadas(fechasGrupo);
+    var gapsResto=_gapsDiasDeFechasOrdenadas(fechasResto);
+    var medGrupo=medianaPositiva(gapsGrupo);
+    var medResto=medianaPositiva(gapsResto);
+    if(medGrupo==null||medResto==null)return;
+    resultado.push({
+      ubicacion:u, nFallas:fechasGrupo.length,
+      medianaDiasGrupo:medGrupo, medianaDiasResto:medResto,
+      razon:Math.round((medGrupo/medResto)*100)/100
+    });
+  });
+  return resultado.sort(function(a,b){return a.razon-b.razon;});
 }
 
 // Duraciones reales de reparación (horas) de TODA la flota — mismo parseo
@@ -2745,6 +2837,8 @@ if (typeof window !== 'undefined') {
   window.impactoDeValor = impactoDeValor;
   window.nivelRiesgoPxI = nivelRiesgoPxI;
   window.dispIntrinsecaEquipoMes = dispIntrinsecaEquipoMes;
+  window.tasaFallaPorUbicacion = tasaFallaPorUbicacion;
+  window.edadVirtualEquipo = edadVirtualEquipo;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -2756,7 +2850,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

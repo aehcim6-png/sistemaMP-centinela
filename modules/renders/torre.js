@@ -164,6 +164,7 @@ export function renderTorre(){
     '</div>'+
     '<div id="torreDDims"></div>'+
     '<div id="torreDWeibull"></div>'+
+    '<div id="torreDEdadVirtual"></div>'+
     '<div id="torreDCalculado" style="font-size:10px;color:var(--ok);font-weight:600;margin-top:8px">—</div>'+
     '<div id="torreDTend" style="font-size:11px;color:var(--tx3);margin-top:6px"></div>'+
     '<div id="torreDProblema"></div>'+
@@ -227,6 +228,25 @@ window._torreAbrirDrawer=function(sigla){
       '</div>';
   }else{
     weibullEl.innerHTML='';
+  }
+  // Edad Virtual — Kijima simplificado (2026-09-16, pedido del usuario: "¿las
+  // reparaciones dejan el equipo como nuevo, o solo tapan el síntoma?"). Se
+  // muestra solo si hay suficiente historial (edadVirtualEquipo exige 7
+  // fallas) — con pocas no hay forma de comparar la primera mitad del
+  // historial contra la segunda, y no se inventa un factor sin datos.
+  var edadVirtualEl=document.getElementById('torreDEdadVirtual');
+  if(edadVirtualEl){
+    if(r.edadVirtual){
+      var ev=r.edadVirtual;
+      var evColor=ev.factorQ===0?'var(--ok)':ev.factorQ<0.34?'var(--ok)':ev.factorQ<0.67?'var(--warn)':'var(--danger)';
+      edadVirtualEl.innerHTML='<div style="margin-top:10px;padding:8px 10px;background:var(--bg4);border-radius:6px">'+
+        '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);font-weight:700;margin-bottom:4px">Edad Virtual — reparaciones <span style="font-weight:400;text-transform:none;color:var(--tx3)">· '+ev.nFallas+' fallas</span></div>'+
+        '<div style="font-size:11.5px;color:var(--tx2)">Factor Q: <b style="color:'+evColor+'">'+ev.factorQ+'</b> — '+escapeHtml(ev.interpretacion)+'</div>'+
+        '<div style="font-size:10px;color:var(--tx3);margin-top:2px">Mediana entre fallas: primera mitad del historial '+ev.medianaHorasPrimeraMitad+'h · segunda mitad '+ev.medianaHorasSegundaMitad+'h</div>'+
+        '</div>';
+    }else{
+      edadVirtualEl.innerHTML='';
+    }
   }
   // Aviso "calculado ahora" (2026-09-11, pedido del usuario: "no me dice de
   // qué fecha es") — el Score de Salud es un cálculo EN VIVO, siempre con
