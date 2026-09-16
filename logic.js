@@ -1215,6 +1215,93 @@ function mcfCorrectivosPorComponente(eventos,eq){
   });
 }
 
+// ═══ CROW-AMSAA — TENDENCIA DE LA TASA DE FALLAS (2026-09-16) ═══
+// Tercer ítem del orden de prioridad elegido por el usuario, tras
+// Kaplan-Meier+MCF. Ninguna de las herramientas anteriores contesta "¿la
+// confiabilidad está mejorando o empeorando con el tiempo?": Weibull
+// ajusta una forma fija a una muestra ya cerrada, Kaplan-Meier mide
+// supervivencia hasta la primera falla, MCF acumula fallas esperadas — los
+// tres miran una foto, no una tendencia en el tiempo calendario. Crow-AMSAA
+// (ley de potencia no homogénea de Poisson, el estándar de "reliability
+// growth analysis" de MIL-HDBK-189, el mismo método detrás del gráfico de
+// Duane que reportan Minitab/ReliaSoft) modela el conteo acumulado de
+// fallas N(t)=λ·t^β sobre el eje de TIEMPO CALENDARIO (no horómetro, la
+// pregunta acá es de gestión/proceso, no de desgaste físico de una pieza):
+// β&lt;1 = las fallas se están espaciando (mejorando), β≈1 = tasa estable,
+// β&gt;1 = las fallas se están juntando (empeorando, revisar causa raíz o
+// calidad del repuesto/proveedor).
+//
+// Estimador de máxima verosimilitud (MIL-HDBK-189, dato censurado en el
+// tiempo — T es "hoy", no la última falla, porque el proceso sigue
+// observándose después de la última falla registrada):
+// β̂=n/Σln(T/t_i), λ̂=n/T^β̂. Con muestras chicas (el caso típico acá) el
+// MLE de β tiene un sesgo positivo conocido — con datos simulados de un
+// proceso realmente estable (β verdadero=1, n=8) el estimador crudo
+// promedia ~1.14, no 1 — por eso se aplica la corrección estándar de
+// MIL-HDBK-189 para dato censurado en el tiempo, β̂_corregido=β̂×(n-1)/n
+// (verificado con simulación: reduce el promedio a ~0.99 en el mismo
+// escenario). IC90 vía aproximación normal asintótica del MLE
+// (SE(β̂)≈β̂/√n, misma convención z=1.645 del resto del archivo) — más
+// simple que el intervalo exacto de chi-cuadrado de MIL-HDBK-189, pero
+// sin agregar una segunda tabla de valores críticos al archivo.
+function crowAMSAA(dias,horizonteDias){
+  var validos=(dias||[]).filter(function(t){return t>0;}).sort(function(a,b){return a-b;});
+  var n=validos.length;
+  if(n<5)return null;
+  var T=(horizonteDias>0?horizonteDias:0);
+  if(T<validos[n-1])T=validos[n-1];
+  var sumLn=0;
+  validos.forEach(function(t){sumLn+=Math.log(T/t);});
+  if(!(sumLn>0))return null;
+  var betaCrudo=n/sumLn;
+  var beta=betaCrudo*(n-1)/n;
+  var lambda=n/Math.pow(T,beta);
+  var se=beta/Math.sqrt(n);
+  var betaMin=Math.max(0,Math.round((beta-1.645*se)*1000)/1000);
+  var betaMax=Math.round((beta+1.645*se)*1000)/1000;
+  var tendencia=betaMax<1?'mejorando':betaMin>1?'empeorando':'sin_certeza';
+  return{
+    n:n,T:T,
+    beta:Math.round(beta*1000)/1000,
+    lambda:Math.round(lambda*100000)/100000,
+    ic90:{betaMin:betaMin,betaMax:betaMax},
+    tendencia:tendencia
+  };
+}
+
+function interpretacionCrowAMSAA(tendencia){
+  if(tendencia==='mejorando')return 'Las fallas se están espaciando en el tiempo — la confiabilidad está mejorando';
+  if(tendencia==='empeorando')return 'Las fallas se están juntando en el tiempo — la confiabilidad está empeorando, revisar causa raíz o calidad del repuesto/proveedor';
+  return 'Sin certeza estadística todavía sobre si la tendencia mejora o empeora (el IC90 de β cruza 1)';
+}
+
+// Crow-AMSAA por componente, a nivel FLOTA — junta las fechas de falla de
+// TODOS los equipos con ese componente en un solo proceso de llegadas (el
+// método de "dato agrupado" de MIL-HDBK-189 para flotas de sistemas
+// reparables similares), no un ajuste por equipo. Eje de tiempo = días
+// calendario desde la primera falla registrada de ESE componente (+1 para
+// que t_1 nunca sea 0), hasta 'hoy' (o el 'hoy' pasado por parámetro, para
+// tests deterministas — mismo patrón que dispEquipoMes/simulacionMonteCarlo).
+function crowAMSAAPorComponente(eventos,hoy){
+  var porComp={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.componente||!e.fecha)return;
+    (porComp[e.componente]=porComp[e.componente]||[]).push(e.fecha);
+  });
+  var hoyISO=hoy||new Date().toISOString().slice(0,10);
+  var hoyDate=new Date(hoyISO+'T00:00:00');
+  return Object.keys(porComp).sort().map(function(comp){
+    var fechas=porComp[comp].slice().sort();
+    var ref=new Date(fechas[0]+'T00:00:00');
+    var dias=fechas.map(function(f){
+      var d=new Date(f+'T00:00:00');
+      return Math.round((d-ref)/86400000)+1;
+    });
+    var horizonte=Math.round((hoyDate-ref)/86400000)+1;
+    return{componente:comp,n:dias.length,crow:crowAMSAA(dias,horizonte)};
+  });
+}
+
 // ═══ CORRELACIÓN ACEITE ↔ FALLAS REALES (2026-09-12) ═══
 // Origen real: mirando el sistema desde los 4 roles de datos, después del
 // IC90 (Científico) y de aceiteOutliers (Analista/BI, calidad de dato)
@@ -3269,6 +3356,9 @@ if (typeof window !== 'undefined') {
   window.kaplanMeierCorrectivosPorComponente = kaplanMeierCorrectivosPorComponente;
   window.mcf = mcf;
   window.mcfCorrectivosPorComponente = mcfCorrectivosPorComponente;
+  window.crowAMSAA = crowAMSAA;
+  window.crowAMSAAPorComponente = crowAMSAAPorComponente;
+  window.interpretacionCrowAMSAA = interpretacionCrowAMSAA;
   window.confiabilidadWeibull = confiabilidadWeibull;
   window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
@@ -3301,7 +3391,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, mcf, mcfCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

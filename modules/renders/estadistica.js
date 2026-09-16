@@ -154,6 +154,7 @@ function _estTablaComponente(eventos, ace, eq) {
     _estWeibullPorComponente(eventos) +
     _estKaplanMeierPorComponente(eventos, eq) +
     _estMcfPorComponente(eventos, eq) +
+    _estCrowAmsaaPorComponente(eventos) +
     _estCorrelacionAceite(eventos, ace) +
     '</div>';
 }
@@ -250,6 +251,37 @@ function _estMcfPorComponente(eventos, eq) {
         '<td style="text-align:center">' + m.nFallas + '</td>' +
         '<td style="text-align:center;font-weight:700">' + m.mcfFinal +
           '<div style="font-size:9px;font-weight:400;color:var(--tx3)">a ' + fn(ultimo.tiempo) + 'h · IC90 ' + ultimo.ic90Min + '–' + ultimo.ic90Max + '</div></td>' +
+        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
+    }).join('') +
+    '</table></div></div>';
+}
+
+// Crow-AMSAA por componente, a nivel FLOTA (2026-09-16 — tercer ítem del
+// orden de prioridad elegido por el usuario, tras Kaplan-Meier+MCF).
+// Ninguna de las 3 tablas de arriba contesta si la confiabilidad está
+// mejorando o empeorando CON EL TIEMPO CALENDARIO — todas miran una foto
+// fija. Crow-AMSAA junta las fechas de falla de todos los equipos con ese
+// componente en un solo proceso de llegadas y ajusta la tendencia (β&lt;1
+// mejorando, β&gt;1 empeorando) — el mismo método detrás del gráfico de
+// Duane (crowAMSAAPorComponente, logic.js).
+function _estCrowAmsaaPorComponente(eventos) {
+  var lista = (typeof crowAMSAAPorComponente === 'function') ? crowAMSAAPorComponente(eventos) : [];
+  if (!lista.length) return '';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">📊 Tendencia de la tasa de fallas por componente — toda la flota (Crow-AMSAA)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Complemento a las 3 tablas de arriba: ninguna mira el tiempo CALENDARIO. Junta las fechas de falla de todos los equipos con este componente en un solo proceso y ajusta si las fallas se están espaciando (mejorando) o juntando (empeorando) con el correr de los meses — el mismo método de "reliability growth" que reporta Minitab/ReliaSoft (gráfico de Duane). β&lt;1 = mejorando. β&gt;1 = empeorando, revisar causa raíz o calidad del repuesto/proveedor. Con el IC90 cruzando 1, no hay certeza todavía. Mínimo 5 fallas por componente.</div>' +
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Componente</th><th style="width:13%">Fallas</th><th style="width:20%">β (tendencia)</th><th style="width:18%">Tendencia</th><th style="text-align:left">Lectura</th></tr>' +
+    lista.map(function (g) {
+      if (!g.crow) return '<tr style="opacity:.55"><td style="font-weight:600">' + escapeHtml(g.componente) + '</td><td style="text-align:center">' + g.n + '</td><td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 5 fallas)</td></tr>';
+      var c = g.crow;
+      var lectura = typeof interpretacionCrowAMSAA === 'function' ? interpretacionCrowAMSAA(c.tendencia) : '';
+      var colorTend = c.tendencia === 'mejorando' ? 'var(--ok)' : c.tendencia === 'empeorando' ? 'var(--danger)' : 'var(--tx3)';
+      var etiquetaTend = c.tendencia === 'mejorando' ? '↓ Mejorando' : c.tendencia === 'empeorando' ? '↑ Empeorando' : 'Sin certeza';
+      return '<tr>' +
+        '<td style="font-weight:600">' + escapeHtml(g.componente) + '</td>' +
+        '<td style="text-align:center">' + c.n + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + c.beta + '<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ' + c.ic90.betaMin + '–' + c.ic90.betaMax + '</div></td>' +
+        '<td style="text-align:center;font-weight:700;color:' + colorTend + '">' + etiquetaTend + '</td>' +
         '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
     }).join('') +
     '</table></div></div>';

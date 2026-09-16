@@ -2605,6 +2605,93 @@ después detección de aceleración de desgaste en aceite (CUSUM) — uno por
 uno, cada uno probado antes de seguir con el siguiente, por instrucción
 explícita del usuario.
 
+### 40. Crow-AMSAA — tendencia de la tasa de fallas por componente en el tiempo (2026-09-16)
+
+Tercer ítem del orden de prioridad elegido por el usuario, tras completar
+Kaplan-Meier+MCF (secciones 38-39). Ninguna de las herramientas de la
+familia Weibull/Kaplan-Meier/MCF contesta "¿la confiabilidad está
+mejorando o empeorando con el correr del tiempo?": todas miran una
+muestra ya cerrada (Weibull), tiempo hasta la primera falla (Kaplan-Meier)
+o un conteo acumulado (MCF), pero ninguna mira la evolución sobre el eje
+calendario. Crow-AMSAA (ley de potencia no homogénea de Poisson, el
+estándar de "reliability growth analysis" de MIL-HDBK-189, el mismo
+método detrás del gráfico de Duane que reportan Minitab/ReliaSoft) modela
+el conteo acumulado de fallas N(t)=λ·t^β sobre **días calendario** (no
+horómetro — acá la pregunta es de gestión/proceso, no de desgaste físico
+de una pieza): β&lt;1 = las fallas se están espaciando (mejorando), β≈1 =
+tasa estable, β&gt;1 = se están juntando (empeorando, revisar causa raíz o
+calidad del repuesto/proveedor).
+
+**`logic.js`**: tres funciones nuevas.
+- `crowAMSAA(dias, horizonteDias)` — estimador de máxima verosimilitud de
+  MIL-HDBK-189 con dato censurado en el tiempo (T="hoy", no la última
+  falla, porque el proceso sigue observándose después): β̂=n/Σln(T/t_i),
+  λ̂=n/T^β̂. Con muestras chicas (el caso típico acá) el MLE crudo tiene un
+  sesgo positivo conocido — verificado con una simulación Monte Carlo
+  (Python, 3.000 corridas de un proceso realmente estable con β
+  verdadero=1, n=8): el estimador crudo promedia ~1.14, no 1. Se aplica la
+  corrección estándar de MIL-HDBK-189 para dato censurado en el tiempo,
+  β̂_corregido=β̂×(n-1)/n, que en la misma simulación baja el promedio a
+  ~0.99. IC90 vía aproximación normal asintótica del MLE
+  (SE(β̂)≈β̂/√n, mismo z=1.645 del resto del archivo) — más simple que el
+  intervalo exacto de chi-cuadrado de MIL-HDBK-189, sin agregar una
+  segunda tabla de valores críticos. Mínimo 5 fallas. `null` si la suma de
+  logaritmos no es positiva (dato degenerado).
+- `interpretacionCrowAMSAA(tendencia)` — texto fijo para las 3
+  tendencias posibles: `mejorando` (IC90 de β totalmente bajo 1),
+  `empeorando` (IC90 totalmente sobre 1), `sin_certeza` (el IC90 cruza 1 —
+  nunca se afirma una dirección sin que el intervalo la respalde).
+- `crowAMSAAPorComponente(eventos, hoy)` — junta las fechas de falla de
+  TODOS los equipos con ese componente en un solo proceso de llegadas (el
+  método de "dato agrupado" de MIL-HDBK-189 para flotas de sistemas
+  reparables similares — a diferencia de Weibull/Kaplan-Meier/MCF, que
+  agrupan por sigla+componente antes de juntar, acá se agrupa
+  directamente por componente porque el proceso de llegadas ya es a nivel
+  flota). Eje de tiempo = días calendario desde la primera falla
+  registrada de ese componente (+1 para que t_1 nunca sea 0), hasta 'hoy'
+  (parámetro opcional para tests deterministas, mismo patrón que
+  `dispEquipoMes`/`simulacionMonteCarloDisponibilidad`).
+
+11 tests nuevos en `tests/crowAMSAA.test.js`: tendencia "mejorando" con
+IC90 totalmente bajo 1; tendencia "empeorando" con IC90 totalmente sobre
+1; con solo 5 puntos el mismo patrón de "empeorando" queda "sin_certeza"
+(el IC90 cruza 1 con tan poca muestra — nunca se afirma sin evidencia); la
+corrección de sesgo efectivamente reduce β respecto del crudo; el
+horizonte T nunca puede ser menor que la última falla observada; tiempos
+inválidos se descartan; agrupamiento juntando fechas de todos los equipos
+en un solo proceso; eventos sin componente/fecha se ignoran; el eje de
+tiempo nunca arranca en 0. Suite completa 771/771.
+
+**`estadistica.js`**: en la vista "Por Componente", nueva función
+`_estCrowAmsaaPorComponente(eventos)` agrega una tabla "Tendencia de la
+tasa de fallas por componente — toda la flota (Crow-AMSAA)" después de la
+tabla MCF. Columnas: Componente, Fallas, β (+ IC90), Tendencia (↓
+Mejorando / ↑ Empeorando / Sin certeza, con color), Lectura en texto
+plano.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos`/`equipos` vía `tests/e2e/helpers/mock-supabase.js`, sin
+tocar la red real de Supabase): 6 correctivos sintéticos de "Motor" en 2
+equipos, con fechas entre enero 2024 y abril 2025. La tabla renderiza
+Motor con β=0.395 (IC90 0.13–0.66), tendencia "↓ Mejorando" — verificado
+con un script Python independiente usando la misma fórmula (mismo
+resultado exacto: β=0.395, IC90 0.13–0.66). Nota real encontrada durante
+la verificación: aunque los gaps ENTRE las 6 fallas sintéticas se acortan
+progresivamente (lo que sugeriría "empeorando" mirando solo esas 6
+fechas), el resultado real es "mejorando" — porque el horizonte T llega
+hasta HOY (17 meses después de la última falla sintética), y ese tramo
+largo sin fallas nuevas domina la estimación. Es el comportamiento
+correcto de un modelo censurado en el tiempo (no en la última falla): no
+un error del cálculo, sino la razón real de por qué T=hoy es la elección
+metodológicamente correcta y no T=última falla. Sin errores de JavaScript
+de la aplicación.
+
+Con esto, 3 de los 4 ítems del orden de prioridad elegido por el usuario
+están completos (Kaplan-Meier+MCF+Crow-AMSAA). Sigue Matriz de
+Criticidad Dinámica, después detección de aceleración de desgaste en
+aceite (CUSUM) — uno por uno, cada uno probado antes de seguir con el
+siguiente.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
