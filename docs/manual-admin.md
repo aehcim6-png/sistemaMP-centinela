@@ -469,27 +469,31 @@ recientemente, esos campos pueden estar desactualizados — el correo dice
 literalmente lo mismo que la última vez que alguien vio esa pestaña, nunca
 un número inventado aparte.
 
-## 7b. Detector de salud del sistema (2026-09-14)
+## 7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)
 
-A diferencia de `alerta-pm`/`resumen-semanal` (que avisan de cosas
-urgentes DENTRO de los datos del sistema), esto vigila que el sistema
-MISMO siga funcionando — que el respaldo diario efectivamente corra, y
-que el canal de reportes por WhatsApp/correo (sección 6) no esté
-tirando error en silencio. Nadie tiene que mirar los logs de Supabase a
-mano para enterarse.
+Vigila que el sistema MISMO siga funcionando — que el respaldo diario y los
+2 correos automáticos a gerencia efectivamente corran, y que el canal de
+reportes por WhatsApp/correo (sección 6) no esté tirando error en silencio.
+Nadie tiene que mirar los logs de Supabase a mano para enterarse.
 
 - **Capa 1 (detección + aviso automático)**: `backup-diario`,
-  `whatsapp-webhook` y `email-webhook` registran su propio resultado
-  (éxito o fallo, con detalle) en la tabla `salud_crons`. La Edge
-  Function `vigilar-salud-sistema` corre todos los días a las 13:00 UTC
-  (una hora después de `backup-diario`) y revisa esos registros: si el
-  respaldo diario falló o no corrió en más de 26h, o si alguno de los
-  webhooks tuvo un fallo real en las últimas 24h, manda un correo de
-  alerta a `aehcim6@gmail.com`. Si no encuentra nada raro, **no manda
-  nada** — a propósito, para no generar un correo de "todo bien" todos
-  los días. Importante: que no llegue ningún WhatsApp/correo en un día
-  dado NUNCA cuenta como una falla — eso solo significa que nadie
-  reportó nada.
+  `alerta-pm`, `resumen-semanal`, `whatsapp-webhook` y `email-webhook`
+  registran su propio resultado (éxito o fallo, con detalle) en la tabla
+  `salud_crons`. La Edge Function `vigilar-salud-sistema` corre todos los
+  días a las 13:00 UTC (una hora después de `backup-diario`) y revisa esos
+  registros: si el respaldo diario o `alerta-pm` fallaron o no corrieron en
+  más de 26h, si `resumen-semanal` falló o no corrió en más de 8 días, o si
+  alguno de los webhooks tuvo un fallo real en las últimas 24h, manda un
+  correo de alerta a `aehcim6@gmail.com`. Si no encuentra nada raro, **no
+  manda nada** — a propósito, para no generar un correo de "todo bien"
+  todos los días. Importante: que no llegue ningún WhatsApp/correo en un
+  día dado NUNCA cuenta como una falla — eso solo significa que nadie
+  reportó nada. `alerta-pm` con "nada urgente hoy" (no mandó correo porque
+  no había nada que avisar) tampoco cuenta como falla — sí se ejecutó y
+  registró éxito, simplemente no tenía nada que reportar. (2026-09-16,
+  hallazgo de auditoría: `alerta-pm`/`resumen-semanal` ya existían pero no
+  registraban ni se chequeaban — un fallo real de esos 2 correos a
+  gerencia podía pasar inadvertido indefinidamente.)
 - **Capa 2 (diagnóstico automático)**: si Capa 1 encuentra un problema,
   además se despierta una sesión de Claude (Rutina programada, ~20 min
   después) que investiga la causa real (logs de Supabase, advisors) y
@@ -543,7 +547,7 @@ supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resum
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 726 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 737 casos)
 docs/                    — esta carpeta
 ```
 

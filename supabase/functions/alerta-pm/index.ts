@@ -184,11 +184,13 @@ function tabla(headers: string[], filas: string[][]) {
   </table>`;
 }
 
+import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
+
 if (import.meta.main) {
 Deno.serve(async (req) => {
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+  const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
     // --- Seguridad (corregida 2026-08-06): antes comparaba x-cron-secret contra
@@ -513,6 +515,7 @@ Deno.serve(async (req) => {
 
     // ── Enviar (o no, si no hay nada urgente) ───────────────────
     if (totalItems === 0) {
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'alerta-pm', true, 'ok — nada urgente hoy');
       return new Response(JSON.stringify({ ok: true, enviado: false, motivo: 'Nada urgente hoy' }), { status: 200 });
     }
 
@@ -535,6 +538,7 @@ Deno.serve(async (req) => {
 
     const erData = await er.json();
     if (!er.ok) {
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'alerta-pm', false, `Resend rechazó el envío: ${JSON.stringify(erData).slice(0, 300)}`);
       return new Response(JSON.stringify({ ok: false, error: 'Resend rechazó el envío', detalle: erData }), { status: 500 });
     }
 
@@ -574,11 +578,17 @@ Deno.serve(async (req) => {
       whatsapp = { enviado: resultados.some((r) => r.ok), resultados };
     }
 
+    // Registro en salud_crons (auditoría 2026-09: alerta-pm corría a diario
+    // sin dejar ningún rastro propio — un fallo real de este correo pasaba
+    // inadvertido hasta que alguien notaba que dejó de llegar. Mismo patrón
+    // ya usado por backup-diario/whatsapp-webhook/email-webhook.)
+    await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'alerta-pm', true, `ok — ${totalItems} alerta(s)`);
     return new Response(
       JSON.stringify({ ok: true, enviado: true, resumen, resend_id: erData.id, whatsapp }),
       { status: 200 }
     );
   } catch (e) {
+    await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'alerta-pm', false, String(e));
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });

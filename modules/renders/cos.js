@@ -52,7 +52,7 @@ export function renderCos() {
   // otHist nunca trae esos campos (no hay fallback tipo "asumir 8h" en este
   // archivo, a diferencia del Dashboard), sus filas se cuentan en Fallas/MTBF
   // pero quedan automáticamente afuera del promedio de MTTR/SLA, sin distorsión.
-  var otConHistCos = ot.concat(_otHistComoOt(S.g('otHist') || []));
+  var otConHistCos = ot.concat(_otHistComoOt(S.g('otHist') || []), _informesFallaComoOt(S.g('informesFalla') || []));
   var otPorSiglaCos = {};
   otConHistCos.forEach(function (o) { if (o && o.sigla) (otPorSiglaCos[o.sigla] = otPorSiglaCos[o.sigla] || []).push(o); });
   // SLA de primera respuesta: horas entre 'fecha' (día reportado) y
@@ -117,12 +117,22 @@ export function renderCos() {
   // presupuesto definido (0/vacío) se muestra "Sin definir" en vez de una
   // desviación sin sentido contra cero.
   var presupuestoMensual = (S.g('cfg') || {}).presupuestoMensual || 0;
-  function desviacionPresupuesto(totalReal) {
+  var _hoyISOCos = new Date().toISOString().slice(0, 10);
+  // desviacionPresupuesto ahora recibe el mes (YYYY-MM) para prorratear el
+  // presupuesto SOLO cuando es el mes en curso (presupuestoProrrateado,
+  // logic.js) — hallazgo de auditoría 2026-09: antes comparaba el gasto real
+  // de, por ejemplo, los primeros 3 días del mes contra el presupuesto
+  // COMPLETO, mostrando "bajo presupuesto" (verde) engañoso casi todo el mes
+  // sin importar el ritmo real de gasto. Meses ya cerrados siguen comparando
+  // contra el presupuesto completo, sin cambios.
+  function desviacionPresupuesto(totalReal, mes) {
     if (!presupuestoMensual) return null;
-    return Math.round((totalReal - presupuestoMensual) / presupuestoMensual * 100);
+    var base = presupuestoProrrateado(presupuestoMensual, mes, _hoyISOCos);
+    if (!base) return null;
+    return Math.round((totalReal - base) / base * 100);
   }
   var mesActual = meses[0] || '';
-  var desvMesActual = mesActual ? desviacionPresupuesto(costoMes[mesActual].total) : null;
+  var desvMesActual = mesActual ? desviacionPresupuesto(costoMes[mesActual].total, mesActual) : null;
 
   var content = '';
 
@@ -133,14 +143,14 @@ export function renderCos() {
       '<div class="card"><div class="card-t">HH Reales</div><div class="card-v">' + Math.round(hhRealTotal) + 'h</div><div class="card-s">' + reg.length + ' intervenciones</div></div>' +
       '<div class="card"><div class="card-t">HH Planificadas</div><div class="card-v">' + Math.round(hhPlanTotal) + 'h</div><div class="card-s" title="Mediana histórica de duración real por equipo+tipoPM (hhPlanEstimator, logic.js) — ya no usa el intervalo de las pautas, que sobreestimaba el plan">Mediana histórica</div></div>' +
       '<div class="card"><div class="card-t">Eficiencia HH</div><div class="card-v" style="color:' + (eficiencia === null ? 'var(--tx3)' : eficiencia >= 80 ? 'var(--ok)' : eficiencia >= 60 ? 'var(--w)' : 'var(--danger)') + '">' + (eficiencia === null ? '—' : eficiencia + '%') + '</div><div class="card-s">' + (eficiencia === null ? 'Sin datos' : 'Plan vs Real') + '</div></div>' +
-      '<div class="card"><div class="card-t">Presupuesto vs Real (' + (mesActual || 'mes actual') + ')</div><div class="card-v" style="color:' + (desvMesActual === null ? 'var(--tx3)' : desvMesActual > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (desvMesActual === null ? '—' : (desvMesActual > 0 ? '+' : '') + desvMesActual + '%') + '</div><div class="card-s">' + (presupuestoMensual ? '$' + fn(Math.round(presupuestoMensual)) + '/mes' : 'Sin definir (Configuración)') + '</div></div>' +
+      '<div class="card" title="Mes en curso: presupuesto prorrateado por días transcurridos, no el mes completo"><div class="card-t">Presupuesto vs Real (' + (mesActual || 'mes actual') + ')</div><div class="card-v" style="color:' + (desvMesActual === null ? 'var(--tx3)' : desvMesActual > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (desvMesActual === null ? '—' : (desvMesActual > 0 ? '+' : '') + desvMesActual + '%') + '</div><div class="card-s">' + (presupuestoMensual ? '$' + fn(Math.round(presupuestoMensual)) + '/mes' + (mesActual === _hoyISOCos.slice(0, 7) ? ' (prorrateado a la fecha)' : '') : 'Sin definir (Configuración)') + '</div></div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:14px">' +
       meses.slice(0, 6).map(function (m) { var c = costoMes[m]; return '<div class="card"><b>' + m + '</b> (' + c.pms + ' PMs)<br><span style="font-size:11px">HH: $' + fn(Math.round(c.hh)) + '</span><br><span style="font-size:11px">Filtros: $' + fn(Math.round(c.filtros)) + '</span><br><span style="font-size:11px">Lub: $' + fn(Math.round(c.lubricantes)) + '</span><br><b style="color:var(--ac)">Total: $' + fn(Math.round(c.total)) + '</b></div>'; }).join('') +
       '</div>' +
       '<div class="tbl-wrap"><table><tr><th>Mes</th><th>PMs</th><th>HH ($)</th><th>Filtros ($)</th><th>Lubricantes ($)</th><th>Total ($)</th><th>Desviación Presupuesto</th></tr>' +
       meses.map(function (m) {
-        var c = costoMes[m]; var d = desviacionPresupuesto(c.total);
+        var c = costoMes[m]; var d = desviacionPresupuesto(c.total, m);
         var dTxt = d === null ? '<span style="color:var(--tx3)">—</span>' : '<b style="color:' + (d > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (d > 0 ? '+' : '') + d + '%</b>';
         return '<tr><td><b>' + m + '</b></td><td>' + c.pms + '</td><td>$' + fn(Math.round(c.hh)) + '</td><td>$' + fn(Math.round(c.filtros)) + '</td><td>$' + fn(Math.round(c.lubricantes)) + '</td><td style="color:var(--ac);font-weight:700">$' + fn(Math.round(c.total)) + '</td><td style="text-align:center">' + dTxt + '</td></tr>';
       }).join('') +

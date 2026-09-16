@@ -89,7 +89,7 @@
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
     disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los
-    archivos con pruebas automatizadas (726 casos, corren con Vitest).</li>
+    archivos con pruebas automatizadas (737 casos, corren con Vitest).</li>
     <li><b>tests/e2e/</b> (2026-09-10) — pruebas de extremo a extremo con Playwright Test, que sí
     arrancan un navegador real (Chromium) contra un servidor Vite local, a diferencia de Vitest
     (que corre sin DOM). Cubren los flujos que antes solo se probaban a mano cada vez: login
@@ -1268,14 +1268,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   aparecer TODOS LOS DÍAS en "Fuera de servicio prolongado".</p>
   <p>2 tests nuevos de regresión en <code>disponibilidad.test.js</code>. Verificado con build,
   suite completa y Playwright E2E (17/17, uno con flakiness conocida confirmada en aislamiento).</p>
-  <p><b>Quedan 27 hallazgos adicionales sin corregir</b>, documentados como backlog priorizado:
-  Informes de Falla Catastrófica invisibles para MTBF/Weibull; <code>alerta-pm</code>/<code>resumen-semanal</code>
-  sin conectar al detector de salud (sección 35); compromisos vencidos y "componentes en riesgo
-  alto" del correo semanal dependen de que un humano abra la pestaña correspondiente; Monte Carlo
-  no descuenta equipos ya fuera de servicio; score de salud puede salir 100% "perfecto" con 1 dato
-  de 4 posibles; Presupuesto vs Real sin prorratear el mes en curso; gasto proyectado que puede
-  inflarse hasta 6x; demanda de repuestos (Poisson) con denominador mal calculado; y "sin
-  repuesto" contado como falla real por un <code>criticidad</code> hardcodeado.</p>
+  <p><b>Quedaron 27 hallazgos adicionales sin corregir</b> en esa auditoría, documentados como
+  backlog priorizado. <b>2026-09-16: 7 de esos 27 se corrigieron</b> (ver sección "7 hallazgos del
+  backlog, corregidos" más abajo) — quedan 20 pendientes, entre ellos: compromisos vencidos y
+  "componentes en riesgo alto" del correo semanal siguen dependiendo de que un humano abra la
+  pestaña correspondiente, sin ningún aviso proactivo; y gasto proyectado que puede inflarse hasta
+  6x en repuestos de compra esporádica.</p>
 
   <h2>Nudge de costo al cerrar una OT + Señal Unificada de Reemplazo (6 señales)</h2>
   <p>2026-09-16: <code>edOT()</code> ahora avisa (sin bloquear) al cerrar una OT con costo en $0, mostrando
@@ -1347,6 +1345,58 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   10 tests nuevos en <code>disponibilidad.test.js</code>. Origen: única idea aprovechable de una
   revisión de contenido de Predictiva21 (curso RAM) — el resto (glosarios, autoevaluaciones
   cualitativas, KPIs sin dato fuente) no era implementable con datos reales.</p>
+
+  <h2>7 hallazgos del backlog, corregidos (2026-09-16)</h2>
+  <p>El usuario priorizó 7 de los 27 hallazgos de la auditoría completa para corregir ahora. Los 7
+  se verificaron contra el código real antes de tocar nada.</p>
+  <ol>
+    <li><b>Score de Salud "perfecto" con pocos datos</b>: <code>scoreSaludEquipo</code> ya devolvía
+    <code>n</code> (cuántas de las 4 dimensiones tenían dato), pero ningún lugar de la UI lo
+    mostraba — un score 100% con <code>n=1</code> se veía igual de confiable que uno con
+    <code>n=4</code>. No se tocó el número; se agregó el aviso donde faltaba: drawer de Torre de
+    Control (nuevo <code>#torreDScoreN</code>, "⚠️ calculado con solo N de 4 señales"), tiles de la
+    grilla de Torre y tooltip del Mapa de Salud del Dashboard.</li>
+    <li><b>Monte Carlo no descontaba equipos fuera de servicio</b>: <code>_mcHorasFlota</code>
+    (<code>disp.js</code>) sumaba <code>hrsDia</code> de TODA la flota como presupuesto de horas,
+    incluyendo equipos que <code>fsEnCurso</code> (ya calculado en el mismo render) marca como aún
+    detenidos hoy. Ahora se excluyen esas siglas antes de sumar.</li>
+    <li><b>Presupuesto vs Real sin prorratear el mes en curso</b>: nueva función pura
+    <code>presupuestoProrrateado(presupuestoMensual, mes, hoyISO)</code> — prorratea solo el mes EN
+    CURSO (presupuesto × días transcurridos/días del mes); un mes cerrado usa el presupuesto
+    completo, sin cambios. <code>desviacionPresupuesto</code> (<code>cos.js</code>) ahora recibe el
+    mes; la tarjeta indica "(prorrateado a la fecha)" cuando aplica. 6 tests nuevos.</li>
+    <li><b>"Sin repuesto" contado como falla real</b>: "Registrar salida de servicio" hardcodeaba
+    <code>criticidad:'Reparación Inmediata'</code> sin importar el motivo (texto libre) — y
+    <code>esFallaMTBF</code> cuenta exactamente esa combinación como falla real. No se intentó
+    adivinar la clasificación parseando el texto libre; se agregó un selector explícito "¿Es una
+    falla real del equipo?" (Sí por defecto, mismo comportamiento que antes si nadie lo cambia).</li>
+    <li><b>Informes de Falla Catastrófica invisibles para MTBF/Weibull/Pareto</b>: mismo tipo de bug
+    ya corregido una vez para "Fuera de Servicio" — la tabla <code>informesFalla</code> nunca se
+    sumaba a <code>ot</code>/<code>otHist</code>. Nueva función pura
+    <code>_informesFallaComoOt(informesFalla)</code> (mismo patrón que <code>_otHistComoOt</code>,
+    solo <code>tipoEvento==='Falla Catastrófica'</code>) sumada a <code>dash.js</code>,
+    <code>torre.js</code>, <code>cos.js</code> (MTBF/MTTR) y <code>estadistica.js</code> (Pareto).
+    4 tests nuevos.</li>
+    <li><b><code>alerta-pm</code>/<code>resumen-semanal</code> sin registrar su propia salud</b>:
+    ambas Edge Functions corrían sin dejar rastro en <code>salud_crons</code>. Se sumó
+    <code>registrarSaludCron</code> (mismo helper de <code>backup-diario</code>) en éxito
+    (incluyendo "nada urgente hoy"), el <code>catch</code> genérico y el rechazo de Resend.
+    Registrar solos no bastaba: <code>vigilar-salud-sistema</code> tenía una lista hardcodeada de
+    crons a chequear que no incluía a ninguno de los 2 — se extendió <code>evaluarSaludCrons</code>
+    con un chequeo de cadencia (nunca registrado/falló/stale) para <code>alerta-pm</code> (26h) y
+    <code>resumen-semanal</code> (8 días). 12 tests nuevos/reescritos.</li>
+    <li><b>Denominador de la demanda Poisson subestimaba ítems agregados recientemente</b>:
+    <code>analisisDemandaRepuestos</code> dividía el consumo de CADA ítem por los meses observados
+    por TODO el sistema — un repuesto agregado hace 2 meses diluía su λ entre, por ejemplo, 24
+    meses del sistema. El fix preserva el FIN del período (último mes observado por el sistema, para
+    no reabrir el bug de ignorar meses de consumo cero que ese criterio evitaba originalmente) pero
+    cambia el INICIO al primer mes con movimiento de CADA ítem. Los 8 tests existentes siguen
+    pasando sin cambios (coinciden matemáticamente); 1 test nuevo para el caso de ítem reciente.</li>
+  </ol>
+  <p>Verificación: suite completa (737/737, incluyendo 10 tests nuevos), <code>npx vite build</code>,
+  <code>esbuild</code> sobre los 5 módulos de render y las 2 Edge Functions tocadas. Los cambios de
+  UI (selector de criticidad, avisos de confianza) no se probaron con Playwright en este pase —
+  verificados por lectura de código.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

@@ -60,6 +60,22 @@ describe('analisisDemandaRepuestos', () => {
     expect(alta.stockSeguridad95).toBeGreaterThan(f1.stockSeguridad95);
   });
 
+  it('un ítem agregado recientemente no diluye su λ entre los meses del sistema completo — solo cuenta desde su propio primer movimiento (auditoría 2026-09)', () => {
+    // Sistema con 8 meses de historial (ene-ago), pero F-NUEVO solo aparece
+    // desde junio (3 meses: jun/jul/ago) con consumo alto y constante. Con el
+    // denominador viejo (8 meses del sistema completo) hubiera dado
+    // 9/8≈1.13; el real, contando solo desde que existe, es 9/3=3.
+    const movs = [
+      mov('OTRO', '2026-01', 1), mov('OTRO', '2026-02', 1), mov('OTRO', '2026-03', 1),
+      mov('OTRO', '2026-04', 1), mov('OTRO', '2026-05', 1),
+      mov('F-NUEVO', '2026-06', 3), mov('F-NUEVO', '2026-07', 3), mov('F-NUEVO', '2026-08', 3),
+    ];
+    const r = analisisDemandaRepuestos(movs);
+    const nuevo = r.find((x) => x.nParte === 'F-NUEVO');
+    expect(nuevo.nMeses).toBe(3);
+    expect(nuevo.lambda).toBe(3);
+  });
+
   it('agrupa por nParte sin mezclar ítems distintos', () => {
     const movs = [
       mov('F-1', '2026-01', 10), mov('F-1', '2026-02', 10), mov('F-1', '2026-03', 10),

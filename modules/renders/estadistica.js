@@ -27,12 +27,14 @@
 // ot.js, ya migrado en la séptima tanda) — ver nota de migración en mov.js
 // (primera tanda, mismo patrón).
 
-function _estFallasCombinadas(ot, otHist) {
-  // Une ambas fuentes en una sola lista de eventos {sigla, componente, fecha, horom, codFalla}.
+function _estFallasCombinadas(ot, otHist, informesFalla) {
+  // Une las 3 fuentes en una sola lista de eventos {sigla, componente, fecha, horom, codFalla}.
   // codFalla (modo de falla: Eléctrico/Hidráulico/Mecánico/etc., ver ot.js) solo
   // existe en 'ot' — el historial cargado desde WhatsApp/Excel (otHist) no trae
   // esa clasificación, así que sus eventos quedan sin codFalla (se agrupan como
-  // "Sin clasificar" en _estTablaModoFalla, nunca se inventa un valor).
+  // "Sin clasificar" en _estTablaModoFalla, nunca se inventa un valor). Lo mismo
+  // aplica a 'informesFalla' (Falla Catastrófica, auditoría 2026-09: quedaba
+  // invisible para este Pareto — mismo hallazgo que otHist).
   var eventos = [];
   (ot || []).forEach(function (o) {
     if (!o || !o.sigla || !esFallaMTBF(o)) return;
@@ -42,6 +44,10 @@ function _estFallasCombinadas(ot, otHist) {
   (otHist || []).forEach(function (o) {
     if (!o || !o.sigla) return;
     eventos.push({ sigla: o.sigla, componente: o.sistema || '', fecha: o.fecha, horom: o.horometro, codFalla: '' });
+  });
+  (informesFalla || []).forEach(function (i) {
+    if (!i || !i.sigla || i.tipoEvento !== 'Falla Catastrófica') return;
+    eventos.push({ sigla: i.sigla, componente: (i.componente && i.componente.trim()) || '', fecha: i.fecha, horom: i.horometroActual, codFalla: '' });
   });
   return eventos;
 }
@@ -358,7 +364,8 @@ export function renderEstadistica() {
   var eq = S.g('eq') || [];
   var ot = S.g('ot') || [];
   var otHist = S.g('otHist') || [];
-  var eventos = _estFallasCombinadas(ot, otHist);
+  var informesFalla = S.g('informesFalla') || [];
+  var eventos = _estFallasCombinadas(ot, otHist, informesFalla);
   var ace = S.g('aceite') || [];
   if (ace.length && typeof window._aceiteResolverSiglas === 'function') window._aceiteResolverSiglas(ace);
 

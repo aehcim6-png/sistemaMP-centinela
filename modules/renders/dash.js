@@ -115,8 +115,10 @@ export function renderDash(){
   // 'otHist' vía WhatsApp) invisibles. Disponibilidad (downMap) y Pendientes/En
   // Ejecución siguen con 'ot' puro: otHist no tiene fechaSalida real, y sus filas
   // siempre son estadoOT:'Cerrada' (nunca pueden aparecer como pendientes de todos
-  // modos, por diseño del adaptador).
-  const otConHist=ot.concat(_otHistComoOt(otHist));
+  // modos, por diseño del adaptador). Se suma además _informesFallaComoOt
+  // (auditoría 2026-09): los eventos de Falla Catastrófica reportados por su
+  // propio formulario dedicado tampoco vivían acá, mismo hallazgo que otHist.
+  const otConHist=ot.concat(_otHistComoOt(otHist),_informesFallaComoOt(S.g('informesFalla')||[]));
   const neu=S.g('neu')||[];
   // compMayores/aceite: solo para el Score de Salud por equipo, más abajo
   // (bloque "Equipos con Salud Baja") — mismas fuentes que ya usa la ficha de
@@ -863,7 +865,7 @@ export function renderDash(){
       equiposConSaludTodos.map(function(r){
         var v=r.score.valor;
         var col=v==null?'var(--bd)':v>=80?'var(--ok)':v>=55?'var(--ac)':'var(--danger)';
-        var tip=escapeHtml(r.sigla)+': '+(v==null?'sin dato':v+'%');
+        var tip=escapeHtml(r.sigla)+': '+(v==null?'sin dato':v+'%'+(r.score.n<4?' (solo '+r.score.n+' de 4 señales)':''));
         return '<div style="aspect-ratio:1;border-radius:3px;background:'+col+';cursor:pointer" onmouseenter="vizTip(event,\''+tip+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)"></div>';
       }).join('')+
       '</div>'+

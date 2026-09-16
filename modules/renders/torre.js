@@ -87,7 +87,7 @@ export function renderTorre(){
   if(aceite.length&&typeof window._aceiteResolverSiglas==='function')window._aceiteResolverSiglas(aceite);
   var ot=S.g('ot')||[];
   var otHist=S.g('otHist')||[];
-  var otConHist=ot.concat(typeof _otHistComoOt==='function'?_otHistComoOt(otHist):[]);
+  var otConHist=ot.concat(typeof _otHistComoOt==='function'?_otHistComoOt(otHist):[],typeof _informesFallaComoOt==='function'?_informesFallaComoOt(S.g('informesFalla')||[]):[]);
   var equipos=equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist);
   var histSalud=S.g('saludEquipoHist')||{};
   var hoyISO=new Date().toISOString().slice(0,10);
@@ -141,7 +141,7 @@ export function renderTorre(){
         lista.map(function(r,i){
           var v=r.score.valor;
           var st=_torreStatus(v);
-          return '<div class="torre-tile" data-st="'+st+'" title="'+escapeHtml(r.sigla)+' — '+(v==null?'sin datos suficientes':'Score '+v+'%')+'" onclick="_torreAbrirDrawer(\''+escapeHtml(r.sigla)+'\')">'+
+          return '<div class="torre-tile" data-st="'+st+'" title="'+escapeHtml(r.sigla)+' — '+(v==null?'sin datos suficientes':'Score '+v+'%'+(r.score.n<4?' (solo '+r.score.n+' de 4 señales — menos confiable)':''))+'" onclick="_torreAbrirDrawer(\''+escapeHtml(r.sigla)+'\')">'+
             '<div class="ti-icon">'+_torreIconSvg(r.tipo)+'</div>'+
             '<div class="ti-sigla">'+escapeHtml(r.sigla)+'</div>'+
             '<div class="ti-score">'+(v==null?'sin datos':v+'%')+'</div>'+
@@ -158,10 +158,11 @@ export function renderTorre(){
     '<div id="torreDIcon" style="width:100%;height:100px;display:flex;align-items:center;justify-content:center;margin:6px 0 12px"></div>'+
     '<div id="torreDSigla" style="font-weight:700;font-size:20px;margin-bottom:2px">—</div>'+
     '<div id="torreDModelo" style="color:var(--tx3);font-size:12px;margin-bottom:14px">—</div>'+
-    '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px">'+
+    '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">'+
     '<span id="torreDScore" style="font-weight:700;font-size:32px">—</span>'+
     '<span style="font-size:10px;color:var(--tx3);text-transform:uppercase">Score de<br>salud</span>'+
     '</div>'+
+    '<div id="torreDScoreN" style="font-size:10px;margin-bottom:14px"></div>'+
     '<div id="torreDDims"></div>'+
     '<div id="torreDWeibull"></div>'+
     '<div id="torreDEdadVirtual"></div>'+
@@ -198,6 +199,17 @@ window._torreAbrirDrawer=function(sigla){
   var scoreEl=document.getElementById('torreDScore');
   scoreEl.textContent=v==null?'—':v+'%';
   scoreEl.style.color=colorVar;
+  // Aviso de confianza (2026-09-16, hallazgo de auditoría): un score puede salir
+  // 100% "perfecto" con una sola de las 4 dimensiones con dato — sin este aviso
+  // se veía exactamente igual de confiable que un 100% real con las 4 dimensiones
+  // evaluadas. No se toca el número (nunca se inventa relleno para las que faltan,
+  // mismo criterio de scoreSaludEquipo en logic.js), solo se avisa cuándo confiar menos.
+  var nEl=document.getElementById('torreDScoreN');
+  if(nEl){
+    if(v==null){nEl.textContent='';}
+    else if(r.score.n<4){nEl.innerHTML='⚠️ calculado con solo '+r.score.n+' de 4 señales — menos confiable';nEl.style.color='var(--w)';}
+    else{nEl.textContent=r.score.n+' de 4 señales con dato';nEl.style.color='var(--tx3)';}
+  }
   var dimsHtml='';
   (r.score.detalle||[]).forEach(function(d){
     dimsHtml+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid var(--bd)">'+

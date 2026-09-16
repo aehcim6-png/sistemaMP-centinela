@@ -277,7 +277,12 @@ export function renderDisp(){
   // certeza (diasParaPM), no hay nada aleatorio que remuestrear ahí.
   var _mcIv=intervalosFallaFlotaDias(ot);
   var _mcDu=duracionesReparacionFlotaHoras(ot);
-  var _mcHorasFlota=eq.filter(function(e){return e.unidad!=='km';}).reduce(function(s,e){return s+(e.hrsDia>0?e.hrsDia:12);},0);
+  // Equipos AÚN fuera de servicio (fsEnCurso, ya calculado arriba) se excluyen del
+  // "presupuesto" de horas — hallazgo de auditoría: incluirlos infla horasFlotaDiarias
+  // con horas que hoy ya sabemos que no se van a operar, haciendo ver la disponibilidad
+  // proyectada mejor de lo real.
+  var _mcSiglasFS={};fsEnCurso.forEach(function(x){_mcSiglasFS[x.o.sigla]=true;});
+  var _mcHorasFlota=eq.filter(function(e){return e.unidad!=='km'&&!_mcSiglasFS[e.sigla];}).reduce(function(s,e){return s+(e.hrsDia>0?e.hrsDia:12);},0);
   var _mcHorizontes=[30,60,90];
   var _mcResultados=_mcHorizontes.map(function(h){return simulacionMonteCarloDisponibilidad(_mcIv,_mcDu,h,_mcHorasFlota,1000);});
   var monteCarloHTML=

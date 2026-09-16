@@ -13,9 +13,15 @@
 // los webhooks de WhatsApp/correo (que no llegue ningún mensaje un día
 // dado no significa que el canal esté caído, puede que simplemente nadie
 // haya reportado nada) — solo cuenta como problema un FALLO real y
-// registrado por el propio proceso. backup-diario es distinto: SÍ debe
-// correr todos los días sin falta, así que además de "falló" se chequea
-// "no corrió en más de 26h" (staleness).
+// registrado por el propio proceso. backup-diario, alerta-pm y
+// resumen-semanal son distintos: SÍ deben correr en su propia cadencia sin
+// falta (diaria, diaria y semanal respectivamente), así que además de
+// "falló" se chequea staleness (que no hayan corrido a tiempo).
+//
+// 2026-09-16 (hallazgo de auditoría): alerta-pm/resumen-semanal ya
+// registraban en salud_crons (registrarSaludCron agregado ese mismo día),
+// pero este detector nunca los leía — un fallo real de esos 2 correos a
+// gerencia podía pasar inadvertido igual que antes de tener el registro.
 //
 // Pensada para correr una vez al día vía pg_cron, después de backup-diario
 // (ver supabase/migrations/*_programar_vigilar_salud_sistema.sql).
@@ -33,7 +39,23 @@ export interface FilaSaludCron {
 }
 
 const HORAS_STALE_BACKUP = 26;
+const HORAS_STALE_ALERTA_PM = 26; // corre a diario, igual cadencia que backup-diario
+const HORAS_STALE_RESUMEN_SEMANAL = 8 * 24; // corre semanal — 8 días de margen sobre 7
 const HORAS_VENTANA_FALLO_WEBHOOK = 24;
+
+// Chequeo compartido para los crons que deben correr en una cadencia fija sin
+// falta (backup-diario, alerta-pm, resumen-semanal): problema si nunca se
+// registró, si la última ejecución falló, o si la última exitosa quedó más
+// vieja que 'horasStale' (no corrió a tiempo). Devuelve el mensaje de
+// problema, o null si está todo bien.
+function _chequeoCronConCadencia(porNombre: Map<string, FilaSaludCron>, nombre: string, horasStale: number, ahora: number): string | null {
+  const fila = porNombre.get(nombre);
+  if (!fila) return `${nombre}: nunca se ha registrado ninguna ejecución.`;
+  const horasDesde = (ahora - new Date(fila.ultimaEjecucion).getTime()) / 3_600_000;
+  if (!fila.exito) return `${nombre}: la última ejecución (${fila.ultimaEjecucion}) falló — ${fila.detalle || 'sin detalle'}.`;
+  if (horasDesde > horasStale) return `${nombre}: la última ejecución exitosa fue hace ${horasDesde.toFixed(1)}h (más de ${horasStale}h) — no ha corrido a tiempo.`;
+  return null;
+}
 
 // Pura y testeable sin red: recibe las filas ya leídas de salud_crons y la
 // hora actual (inyectada, no Date.now() directo, para que los tests sean
@@ -44,16 +66,14 @@ export function evaluarSaludCrons(filas: FilaSaludCron[], ahoraISO: string): str
   const problemas: string[] = [];
   const porNombre = new Map(filas.map((f) => [f.nombre, f]));
 
-  const backup = porNombre.get('backup-diario');
-  if (!backup) {
-    problemas.push('backup-diario: nunca se ha registrado ninguna ejecución.');
-  } else {
-    const horasDesde = (ahora - new Date(backup.ultimaEjecucion).getTime()) / 3_600_000;
-    if (!backup.exito) {
-      problemas.push(`backup-diario: la última ejecución (${backup.ultimaEjecucion}) falló — ${backup.detalle || 'sin detalle'}.`);
-    } else if (horasDesde > HORAS_STALE_BACKUP) {
-      problemas.push(`backup-diario: la última ejecución exitosa fue hace ${horasDesde.toFixed(1)}h (más de ${HORAS_STALE_BACKUP}h) — no ha corrido hoy.`);
-    }
+  const conCadencia: [string, number][] = [
+    ['backup-diario', HORAS_STALE_BACKUP],
+    ['alerta-pm', HORAS_STALE_ALERTA_PM],
+    ['resumen-semanal', HORAS_STALE_RESUMEN_SEMANAL],
+  ];
+  for (const [nombre, horasStale] of conCadencia) {
+    const problema = _chequeoCronConCadencia(porNombre, nombre, horasStale, ahora);
+    if (problema) problemas.push(problema);
   }
 
   for (const nombre of ['whatsapp-webhook', 'email-webhook']) {

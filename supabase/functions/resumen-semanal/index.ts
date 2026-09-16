@@ -75,11 +75,13 @@ function tarjeta(titulo: string, valor: string, sub: string) {
   </td>`;
 }
 
+import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
+
 if (import.meta.main) {
 Deno.serve(async (req) => {
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+  const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
     // Mismo patrón que alerta-pm (corregido 2026-08-06): secreto propio de
@@ -262,6 +264,7 @@ Deno.serve(async (req) => {
 
     const erData = await er.json();
     if (!er.ok) {
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'resumen-semanal', false, `Resend rechazó el envío: ${JSON.stringify(erData).slice(0, 300)}`);
       return new Response(JSON.stringify({ ok: false, error: 'Resend rechazó el envío', detalle: erData }), { status: 500 });
     }
 
@@ -296,11 +299,15 @@ Deno.serve(async (req) => {
       whatsapp = { enviado: resultados.some((r) => r.ok), resultados };
     }
 
+    // Registro en salud_crons (auditoría 2026-09: mismo hallazgo que
+    // alerta-pm — este correo corría semanalmente sin dejar rastro propio).
+    await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'resumen-semanal', true, 'ok');
     return new Response(
       JSON.stringify({ ok: true, enviado: true, resumen: resumenCorto, resend_id: erData.id, whatsapp }),
       { status: 200 }
     );
   } catch (e) {
+    await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'resumen-semanal', false, String(e));
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
 });

@@ -54,7 +54,7 @@ framework nuevo a mitad de camino.
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
   materiales, etc. Junto con `store.js`, son los archivos con pruebas
-  automatizadas (`tests/*.test.js`, 726 casos, corren con Vitest).
+  automatizadas (`tests/*.test.js`, 737 casos, corren con Vitest).
 - **`tests/e2e/`** (2026-09-10) — pruebas de extremo a extremo con Playwright
   Test, que sí arrancan un navegador real (Chromium) contra un servidor Vite
   local, a diferencia de Vitest (que corre sin DOM). Cubren los flujos que
@@ -1962,26 +1962,16 @@ de closures/DOM) — verificados con lectura de código, build, suite
 completa y Playwright E2E (17/17, uno con flakiness conocida bajo
 carga concurrente, confirmado en aislamiento).
 
-**Quedan 27 hallazgos adicionales sin corregir**, documentados como
-backlog priorizado (no perdidos): entre los de mayor impacto —
-Informes de Falla Catastrófica invisibles para MTBF/Weibull/Pareto
-(mismo tipo de bug ya corregido una vez para "Fuera de Servicio", sin
-corregir para este canal); `alerta-pm`/`resumen-semanal` sin conectar
-al detector de salud (sección 35) — un fallo real del correo a
-gerencia pasa inadvertido; compromisos vencidos y "componentes en
-riesgo alto" del correo semanal dependen 100% de que un humano abra
-la pestaña correspondiente, sin ningún aviso proactivo; Monte Carlo de
-disponibilidad no descuenta equipos ya fuera de servicio del
-"presupuesto" de horas; score de salud de equipo puede salir 100%
-"perfecto" con un solo dato de 4 dimensiones posibles, sin que la UI
-lo distinga; Presupuesto vs Real sin prorratear el mes en curso
-(muestra verde engañoso los primeros días del mes); gasto proyectado
-que puede inflarse hasta 6x en repuestos de compra esporádica; demanda
-de repuestos (Poisson) con el denominador de λ calculado sobre los
-meses del sistema completo en vez de los del ítem, subestimando la
-demanda de ítems agregados recientemente; y "sin repuesto" (motivo NO-
-falla) contado como falla real en `esFallaMTBF` por un `criticidad`
-hardcodeado en "Registrar salida de servicio".
+**Quedaron 27 hallazgos adicionales sin corregir** en esa auditoría,
+documentados como backlog priorizado (no perdidos). **2026-09-16:
+7 de esos 27 se corrigieron** (ver sección "7 hallazgos del backlog,
+corregidos" más abajo) — quedan 20 pendientes, entre ellos:
+`alerta-pm`/`resumen-semanal` sin conectar al detector de salud
+(sección 35) corregido, pero compromisos vencidos y "componentes en
+riesgo alto" del correo semanal siguen dependiendo 100% de que un
+humano abra la pestaña correspondiente, sin ningún aviso proactivo; y
+gasto proyectado que puede inflarse hasta 6x en repuestos de compra
+esporádica.
 
 ## Nudge de costo al cerrar una OT (2)
 
@@ -2183,6 +2173,112 @@ Origen: comparación contra contenido de Predictiva21 (curso RAM) —
 a diferencia de la mayoría de ese material (glosarios, autoevaluaciones
 cualitativas, KPIs que piden datos que el sistema no registra), esta
 distinción sí era calculable con datos 100% reales y ya existentes.
+
+## 7 hallazgos del backlog, corregidos (2026-09-16)
+
+El usuario priorizó 7 de los 27 hallazgos de la auditoría completa (sección
+anterior) para corregir ahora. Los 7 se verificaron contra el código real
+antes de tocar nada (ninguno se asumió del texto del hallazgo solo).
+
+1. **Score de Salud "perfecto" con pocos datos** — `scoreSaludEquipo`
+   (`logic.js`) ya devolvía `n` (cuántas de las 4 dimensiones tenían dato),
+   pero ningún lugar de la UI lo mostraba: un score 100% con `n=1` se veía
+   idéntico a uno con `n=4`. No se tocó el número (nunca se rellena una
+   dimensión faltante con un supuesto — eso ya lo evitaba la función). Se
+   agregó el aviso donde faltaba: el drawer de Torre de Control (`torre.js`,
+   `_torreAbrirDrawer`, nuevo `#torreDScoreN`) ahora muestra "⚠️ calculado
+   con solo N de 4 señales — menos confiable" cuando `n<4`; los tiles de la
+   grilla de Torre y el Mapa de Salud del Dashboard (`dash.js`) suman lo
+   mismo al tooltip. `buscar.js` (Ficha por equipo) ya lo mostraba desde
+   antes.
+
+2. **Monte Carlo de disponibilidad no descontaba equipos fuera de
+   servicio** — `_mcHorasFlota` (`disp.js`) sumaba `hrsDia` de TODA la flota
+   como "presupuesto" de horas de la proyección, incluyendo equipos que
+   `equiposFueraDeServicioAhora` (ya calculado más arriba en el mismo
+   render, como `fsEnCurso`) marca como aún detenidos hoy — inflando el
+   presupuesto con horas que ya se sabe que no se van a operar, y mostrando
+   una disponibilidad proyectada mejor de la real. Ahora se excluyen esas
+   siglas antes de sumar.
+
+3. **Presupuesto vs Real sin prorratear el mes en curso** — nueva función
+   pura `presupuestoProrrateado(presupuestoMensual, mes, hoyISO)`
+   (`logic.js`): para el mes EN CURSO, devuelve el presupuesto × (días
+   transcurridos / días del mes); para un mes ya cerrado, el presupuesto
+   completo, sin tocar. `desviacionPresupuesto` (`cos.js`) ahora recibe el
+   mes y prorratea solo cuando corresponde — antes comparaba el gasto real
+   de, por ejemplo, los primeros 3 días del mes contra el presupuesto
+   COMPLETO, mostrando "bajo presupuesto" (verde) engañoso casi todo el mes.
+   La tarjeta indica "(prorrateado a la fecha)" cuando aplica. 6 tests
+   nuevos en `presupuestoProrrateado.test.js`.
+
+4. **"Sin repuesto" contado como falla real** — "Registrar salida de
+   servicio" (`index.html`) hardcodeaba `criticidad:'Reparación Inmediata'`
+   sin importar el motivo (texto libre: "sin repuesto", "accidente",
+   cualquier cosa) — y `esFallaMTBF` (`logic.js`) cuenta exactamente esa
+   combinación (`tipo==='Fuera de Servicio' && criticidad==='Reparación
+   Inmediata'`) como falla real, inflando MTBF/Confiabilidad/Weibull con
+   eventos administrativos o logísticos, no mecánicos. No se intentó
+   adivinar la clasificación parseando el texto libre de "Motivo" (mismo
+   criterio de "nunca inventar un dato" del resto del sistema) — se agregó
+   un selector explícito "¿Es una falla real del equipo?" (Sí/No) que decide
+   la `criticidad` real, con "Sí" como opción por defecto (mismo
+   comportamiento que antes si nadie cambia el selector).
+
+5. **Informes de Falla Catastrófica invisibles para MTBF/Weibull/Pareto** —
+   mismo tipo de bug ya corregido una vez para "Fuera de Servicio": la
+   tabla `informesFalla` (formulario dedicado para el evento más grave, ver
+   `informes.js`) nunca se sumaba a `ot`/`otHist` en ningún cálculo de
+   fallas. Nueva función pura `_informesFallaComoOt(informesFalla)`
+   (`logic.js`, mismo patrón que `_otHistComoOt`) — solo adapta filas con
+   `tipoEvento==='Falla Catastrófica'` (un "Cambio Componente Mayor" es un
+   reemplazo planificado, no una falla, y no debe inflar el conteo). Sumada
+   al `otConHist` de `dash.js` y `torre.js` (Score de Salud/Confiabilidad,
+   Weibull, Edad Virtual), a `otConHistCos` de `cos.js` (MTBF/MTTR por
+   equipo) y a `_estFallasCombinadas` de `estadistica.js` (Pareto por
+   Equipo/Componente/Modo de Falla). 4 tests nuevos en
+   `informesFallaComoOt.test.js`.
+
+6. **`alerta-pm`/`resumen-semanal` sin registrar su propia salud** — ambas
+   Edge Functions corrían a diario/semanalmente sin dejar ningún rastro en
+   `salud_crons` (sección 35): un fallo real del correo pasaba inadvertido
+   hasta que alguien notaba que dejó de llegar. Se sumó `registrarSaludCron`
+   (mismo helper ya usado por `backup-diario`/`whatsapp-webhook`/
+   `email-webhook`) en los mismos 2 puntos que backup-diario: éxito real
+   (incluyendo "nada urgente hoy" en alerta-pm, que es una ejecución válida,
+   no un fallo) y el `catch` genérico — más el caso específico de que Resend
+   rechace el envío. Registrar solos no bastaba: `vigilar-salud-sistema`
+   (el lector de `salud_crons`, sección 7b del manual admin) tenía una
+   lista hardcodeada de crons a chequear que no incluía a ninguno de los 2
+   — se extendió `evaluarSaludCrons` con un chequeo compartido de
+   "cadencia" (nunca registrado / falló / stale) para `alerta-pm` (26h,
+   igual que backup-diario) y `resumen-semanal` (8 días, con margen sobre
+   los 7 reales). 12 tests nuevos/reescritos en
+   `vigilar-salud-sistema/index.test.ts`.
+
+7. **Denominador de la demanda Poisson subestimaba ítems agregados
+   recientemente** — `analisisDemandaRepuestos` (`logic.js`) calculaba λ
+   dividiendo el consumo total de CADA ítem por los meses observados por
+   TODO el sistema. Eso fue una decisión deliberada y verificada en su
+   momento (sección 31) para no ignorar los meses de consumo cero de un
+   ítem que ya existía — pero tiene un efecto secundario real: un repuesto
+   agregado hace 2 meses, con consumo constante esos 2 meses, diluía su λ
+   entre 24 meses del sistema completo en vez de los 2 que realmente lleva
+   trackeado. El fix preserva el criterio original (el FIN del período
+   sigue siendo el último mes observado por el sistema, para no reabrir el
+   bug que ese criterio evitaba) pero cambia el INICIO al primer mes con
+   movimiento de CADA ítem, no el primer mes del sistema — los meses antes
+   de que el ítem existiera ya no cuentan como "demanda cero", porque no son
+   un dato real, es que el ítem no se rastreaba todavía. Los 8 tests
+   existentes siguen pasando sin cambios (coinciden matemáticamente en todos
+   los casos que ya cubrían); se sumó 1 test nuevo específico para el
+   escenario de ítem agregado recientemente.
+
+**Verificación**: suite completa (`npx vitest run`, 737/737, incluyendo 10
+tests nuevos), `npx vite build`, `npx esbuild` sobre los 5 módulos de
+render tocados y las 2 Edge Functions tocadas (sintaxis). Los cambios de UI
+(selector de criticidad, avisos de confianza) no se probaron con Playwright
+en este pase — verificados por lectura de código contra el HTML/JS real.
 
 ## Lo que decidimos NO hacer (y por qué)
 

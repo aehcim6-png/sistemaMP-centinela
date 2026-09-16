@@ -507,6 +507,22 @@ function _otHistComoOt(otHist){
   });
 }
 
+// Adapta 'informesFalla' (tabla separada de Informes de Falla Catastrófica /
+// Cambio de Componente Mayor, ver informes.js) a la misma forma que espera
+// esFallaMTBF — mismo patrón que _otHistComoOt de arriba. Auditoría 2026-09:
+// una falla catastrófica reportada por este formulario dedicado (el canal que
+// alguien usa parado al lado de un equipo detenido, para el evento más grave)
+// nunca se sumaba a 'ot'/'otHist', así que quedaba invisible para MTBF/
+// Weibull/Pareto — el mismo tipo de bug ya corregido una vez para 'Fuera de
+// Servicio' (ver esFallaMTBF, más arriba). Solo tipoEvento==='Falla
+// Catastrófica' cuenta como falla real — 'Cambio Componente Mayor' es un
+// reemplazo preventivo/planificado, no una falla, y no debe inflar el conteo.
+function _informesFallaComoOt(informesFalla){
+  return (informesFalla||[]).filter(function(i){return i&&i.sigla&&i.tipoEvento==='Falla Catastrófica';}).map(function(i){
+    return{sigla:i.sigla,fecha:i.fecha,horom:i.horometroActual,tipo:'Correctivo',componente:i.componente,sintoma:i.descripcion,estadoOT:'Cerrada'};
+  });
+}
+
 // Cuenta correctivos reales (esFallaMTBF) de un mes 'YYYY-MM' dado, sobre un
 // arreglo YA combinado de ot+otHist (ver _otHistComoOt/otConHist arriba, el
 // mismo patrón que ya usan dash.js/kpi.js/buscar.js/pred.js/cos.js). Sin
@@ -1494,19 +1510,33 @@ function _contarMesesEntre(mesIni,mesFin){
 // Mínimo 3 meses de historial ANTES de reportar nada — con menos, un
 // promedio mensual es puro ruido, no una demanda real medida.
 var _DEMANDA_MIN_MESES=3;
+// Denominador de λ (auditoría 2026-09, corrige un hallazgo real sin reabrir el
+// que este mismo cálculo ya evitó una vez, ver test "no ignora meses de
+// consumo cero" en analisisDemandaRepuestos.test.js): el FIN del período
+// sigue siendo el último mes observado por TODO el sistema (mesFinSistema) —
+// eso preserva el criterio original de no ignorar los meses de consumo cero
+// de un ítem que ya existía. Pero el INICIO ahora es el primer mes con
+// movimiento de CADA ítem, no el primer mes del sistema completo — antes, un
+// repuesto agregado recientemente (ej. sistema con 24 meses de historial,
+// ítem nuevo con solo 2 meses de vida) diluía su consumo real entre 24 meses
+// en vez de los 2 que realmente lleva trackeado, subestimando su demanda
+// real. Meses ANTES de que el ítem existiera ya no cuentan como "demanda
+// cero" — no son un dato real, es que el ítem todavía no se rastreaba.
 function analisisDemandaRepuestos(movimientos){
   var todos=(movimientos||[]).filter(function(m){return m&&m.nParte&&m.mes;});
   if(!todos.length)return[];
-  var mesesOrdenados=todos.map(function(m){return m.mes;}).sort();
-  var mesesTotales=_contarMesesEntre(mesesOrdenados[0],mesesOrdenados[mesesOrdenados.length-1]);
+  var mesesSistema=todos.map(function(m){return m.mes;}).sort();
+  var mesFinSistema=mesesSistema[mesesSistema.length-1];
   var porNParte={};
   todos.forEach(function(m){
     var g=(porNParte[m.nParte]=porNParte[m.nParte]||{});
     g[m.mes]=(g[m.mes]||0)+(m.cant||0);
   });
   return Object.keys(porNParte).sort().map(function(nParte){
-    if(mesesTotales<_DEMANDA_MIN_MESES)return{nParte:nParte,nMeses:mesesTotales,lambda:null};
     var porMes=porNParte[nParte];
+    var mesInicioItem=Object.keys(porMes).sort()[0];
+    var mesesTotales=_contarMesesEntre(mesInicioItem,mesFinSistema);
+    if(mesesTotales<_DEMANDA_MIN_MESES)return{nParte:nParte,nMeses:mesesTotales,lambda:null};
     var total=Object.keys(porMes).reduce(function(s,mes){return s+porMes[mes];},0);
     var lambda=total/mesesTotales;
     var p0=_poissonPMF(0,lambda);
@@ -2157,6 +2187,25 @@ function fechaMismoDiaAnioPasado(hoyISO){
   var d=new Date(hoyISO+'T00:00:00');
   d.setFullYear(d.getFullYear()-1);
   return d.toISOString().slice(0,10);
+}
+
+// Prorratea un presupuesto mensual fijo por días transcurridos — SOLO cuando
+// 'mes' (YYYY-MM) es el mes en curso de 'hoyISO'; un mes ya cerrado devuelve
+// el presupuesto completo sin tocar (auditoría 2026-09: Presupuesto vs Real
+// comparaba el gasto real de los primeros días del mes contra el presupuesto
+// COMPLETO, mostrando "bajo presupuesto" en verde de forma engañosa casi
+// todo el mes, sin importar el ritmo de gasto real). new Date(año,mesJs,0)
+// devuelve el último día del mes anterior a 'mesJs' (0-based +1 = mes actual
+// 1-based), truco estándar para "días en este mes".
+function presupuestoProrrateado(presupuestoMensual,mes,hoyISO){
+  if(!presupuestoMensual||!mes||!hoyISO)return presupuestoMensual||0;
+  if(mes!==hoyISO.slice(0,7))return presupuestoMensual;
+  var partes=mes.split('-');
+  var anio=parseInt(partes[0],10),mesJs=parseInt(partes[1],10);
+  var diasEnMes=new Date(anio,mesJs,0).getDate();
+  var diaHoy=parseInt(hoyISO.slice(8,10),10);
+  var diasTranscurridos=Math.min(Math.max(diaHoy,1),diasEnMes);
+  return presupuestoMensual*diasTranscurridos/diasEnMes;
 }
 
 // Guarda (o actualiza, si ya corrió hoy) el valor del índice del día en el histórico
@@ -2969,11 +3018,13 @@ if (typeof window !== 'undefined') {
   window.mtbfFlotaReal = mtbfFlotaReal;
   window.esFallaMTBF = esFallaMTBF;
   window._otHistComoOt = _otHistComoOt;
+  window._informesFallaComoOt = _informesFallaComoOt;
   window.contarFallasMes = contarFallasMes;
   window.ratioPreventivo = ratioPreventivo;
   window.equiposSinCriticidad = equiposSinCriticidad;
   window.fechaAyer = fechaAyer;
   window.fechaMismoDiaAnioPasado = fechaMismoDiaAnioPasado;
+  window.presupuestoProrrateado = presupuestoProrrateado;
   window.probabilidadFallaDesdeEventos = probabilidadFallaDesdeEventos;
   window.paretoAcumulado = paretoAcumulado;
   window.confiabilidadReal = confiabilidadReal;
@@ -3014,8 +3065,8 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
-    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, contarFallasMes, ratioPreventivo,
-    _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado,
+    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
+    _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
     umbralesImpacto, impactoDeValor, nivelRiesgoPxI
