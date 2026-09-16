@@ -76,6 +76,22 @@ describe('analisisDemandaRepuestos', () => {
     expect(nuevo.lambda).toBe(3);
   });
 
+  it('con lambda alto (≳129) no desborda numéricamente y sigue dando un stock de seguridad plausible (auditoría 2026-09-16)', () => {
+    // 3 meses consecutivos con consumo de 150 unidades/mes -> lambda=150. Antes del fix,
+    // Math.pow(150,k) desbordaba a Infinity dentro de la PMF y _stockParaNivelServicio
+    // cortaba de inmediato con un valor MUY por debajo del correcto (~142, menos que el
+    // propio promedio mensual) — acá se verifica que el resultado quede cerca del valor
+    // real esperado por la aproximación normal de Poisson al 95% (lambda+1.645*sqrt(lambda) ≈ 170).
+    const movs = [
+      mov('F-ALTA', '2026-01', 150), mov('F-ALTA', '2026-02', 150), mov('F-ALTA', '2026-03', 150),
+    ];
+    const r = analisisDemandaRepuestos(movs);
+    const alta = r.find((x) => x.nParte === 'F-ALTA');
+    expect(alta.lambda).toBe(150);
+    expect(alta.stockSeguridad95).toBeGreaterThan(160);
+    expect(alta.stockSeguridad95).toBeLessThan(180);
+  });
+
   it('agrupa por nParte sin mezclar ítems distintos', () => {
     const movs = [
       mov('F-1', '2026-01', 10), mov('F-1', '2026-02', 10), mov('F-1', '2026-03', 10),

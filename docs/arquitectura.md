@@ -2280,6 +2280,164 @@ render tocados y las 2 Edge Functions tocadas (sintaxis). Los cambios de UI
 (selector de criticidad, avisos de confianza) no se probaron con Playwright
 en este pase — verificados por lectura de código contra el HTML/JS real.
 
+## Re-auditoría y 16 hallazgos corregidos (2026-09-16, segunda pasada)
+
+El usuario preguntó por los 27 hallazgos originales del backlog (sección
+"37. Auditoría completa"), y se descubrió que esa lista nunca se guardó
+completa en el repo — solo quedaron 9 ejemplos resumidos, documentados como
+prosa. Se relanzaron los mismos 6 agentes de auditoría (Matriz de Riesgo,
+Disponibilidad/Salud de Flota, Predictivo, Costos/Stock, Confiabilidad
+estadística, Reportes a gerencia) sobre el sistema **actual** (incluyendo
+los 7 fixes de la sección anterior, para no reportarlos de nuevo) — misma
+metodología: leer código real, solo hallazgos con escenario concreto
+verificado, nada de preferencias de estilo. Resultado: **16 hallazgos
+nuevos, verificados** (2 confirmados con SQL directo contra datos reales de
+producción). El usuario pidió corregir los 16 en orden de severidad.
+
+### Críticos
+
+1. **`kpi.js` — Informe Componentes/Excel mostraba "VENCIDO" falso**
+   (confirmado con datos reales: CN-9502 tenía 5 componentes en este
+   estado). `_getCompData()`/`_getEjecutivoData()` usaban una guarda
+   invertida a la de `compEstado()` (logic.js) cuando `horomComp>horomActual`
+   (error de dato/reseteo de horómetro): en vez de tratar `hrsUsadas=0`
+   (instalación posterior al horómetro actual = dato inválido, no se
+   inventa desgaste), usaban el horómetro COMPLETO como "horas usadas" —
+   la hoja `COMPONENTES` del Excel mostraba "VENCIDO" y la hoja `EJECUTIVO`
+   del MISMO archivo mostraba "OK" para el mismo componente. Corregido con
+   el mismo guard en ambas funciones.
+
+2. **Gasto Proyectado sin techo real para compras esporádicas** —
+   `_gastoProyectadoCategoria` dividía el consumo de los últimos 6 meses
+   CON datos por la CANTIDAD de esos meses, no por el span calendario real
+   entre ellos — un repuesto comprado 2 veces al año (cada 6 meses) daba
+   "1 unidad/mes" en vez de la tasa real (~0.17/mes), inflando el gasto
+   proyectado ~5-6x. Se corrigió el denominador a `_contarMesesEntre`
+   (mismo criterio ya usado en el fix de Poisson de la sección anterior) —
+   para compra mensual consecutiva da el mismo resultado de siempre, solo
+   cambia con eventos espaciados en el tiempo.
+
+3. **`_poissonPMF` desbordaba numéricamente** — para λ≳129/mes (plausible
+   en un repuesto genérico consumido por buena parte de una flota de ~35
+   equipos), `Math.pow(lambda,k)` desbordaba a `Infinity` ANTES de dividir
+   por el factorial, y `_stockParaNivelServicio` (que acumula la PMF
+   término a término) cortaba de inmediato con un stock de seguridad MUY
+   por debajo del correcto — **en silencio, sin ningún error visible**
+   (para λ=150, devolvía 142 en vez de 170, un déficit real de 28
+   unidades). Reescrito en espacio logarítmico (suma de logaritmos, nunca
+   desborda) — mismo valor matemático, sin el desborde intermedio. 1 test
+   nuevo de regresión (λ=150).
+
+4. **Informes de Falla Catastrófica seguían invisibles** en `pred.js`
+   (Matriz de Riesgo, Probabilidad de Falla, Alerta Cruzada, Señal de
+   Reemplazo, Dotación de Taller — 7 construcciones de "ot combinado"),
+   `kpi.js` (Excel MTBF-MTTR, Reporte Ejecutivo — 4 lugares), `buscar.js`
+   (Ficha por Equipo) y `disp.js` (Monte Carlo) — el fix de la sección
+   anterior solo llegó a dash.js/torre.js/cos.js/estadistica.js.
+   `_informesFallaComoOt` se sumó en los 12 lugares restantes.
+
+5. **"Registrar salida de servicio" nunca pedía horómetro** — aunque el
+   fix anterior ya dejaba que quien registra decida si cuenta como falla
+   real (`ssCriticidad`), sin horómetro esas fallas seguían siendo
+   invisibles para MTBF/Confiabilidad/Weibull/Edad Virtual (exigen
+   `o.horom>0`). Se agregó el campo (precargado con el horómetro actual
+   del equipo elegido, ajustable) — opcional, nunca inventado si se deja
+   vacío.
+
+### Medios
+
+6. **Disponibilidad Intrínseca (Ai) seguía contando salidas de servicio
+   NO-falla** — `dispDownMap` no miraba `criticidad` en absoluto: una
+   salida marcada explícitamente "No" en el selector `ssCriticidad` (sin
+   repuesto, logística, administrativo) seguía restando a Ai (que debería
+   medir SOLO fallas). Se excluye ahora cuando `incluirPM:false` (modo Ai)
+   Y `criticidad` está presente y no es `'Reparación Inmediata'` — dato
+   histórico sin `criticidad` (anterior a ese selector) sigue contando
+   como antes, no se reinterpreta un vacío. 1 test nuevo.
+
+7. **Dashboard: "Tendencia Disponibilidad 6 Meses" casi vacía** — el
+   bloque reimplementaba su propio fallback (solo override manual +
+   legado de abril-2026) en vez de usar `dispEquipoMes` (la fuente única
+   que el propio Dashboard ya usa 60 líneas arriba para el número grande
+   de disponibilidad) — para cualquier mes sin override manual (el caso
+   normal) la barra quedaba en "—", contradiciendo el KPI principal de la
+   misma pantalla. Ahora usa `dispEquipoMes` con el `downMapD` ya
+   calculado.
+
+8. **"Total Acumulado" de Costos con mes fantasma** — `mov.js` fechaba
+   con un `'2026-01-01'` fijo los movimientos de registros PM importados
+   sin `fechaEntrada` NI `fechaEjec` — ese "enero" fantasma se sumaba al
+   Total Acumulado sin aparecer en el detalle mensual (que sí filtra por
+   fecha real). Ya no se inventa una fecha (`fechaReg:null` en ese caso —
+   el descuento de stock sigue ocurriendo igual, solo se deja de fingir
+   saber CUÁNDO); `cos.js` y `mov.js` (vista Historial de Consumos) ya
+   filtran los movimientos sin fecha real.
+
+9. **Señal "Reincidencia" de Reemplazo ignoraba patrones de flota
+   compartidos** — cuando 3+ equipos tenían cada uno 3+ fallas del mismo
+   componente (el caso real documentado: "6 camiones del mismo modelo,
+   cada uno con reincidencia propia"), `diagnosticoFlota` ya calculaba
+   `equiposConcentrados` con todos ellos, pero la Señal Unificada de
+   Reemplazo solo marcaba al `equipoMasRepetido` — el resto quedaba sin
+   la señal pese a cumplir la misma definición. Se marca ahora a todos los
+   de `equiposConcentrados`.
+
+10. **Dotación de Taller ignoraba el turno Noche** — `_capacidadMesDot`
+    solo multiplicaba `mecDia`, mientras que la "carga" (`downMapDot`)
+    suma horas de PM+correctivo de AMBOS turnos sin distinguir — en una
+    operación 24/7 con dotación de noche significativa, el ratio
+    Carga/Capacidad quedaba sistemáticamente inflado (ej. mecDia=3,
+    mecNoche=10 → antes mostraba ~370% "falta personal" cuando la
+    dotación total podía ser adecuada). Ahora suma `(mecDia+mecNoche)`.
+
+11. **`resumen-semanal` sin `EXCLUIDOS` en vencimientos/registros_pm** —
+    confirmado con dato real (CN-9506, decomisionado, con un vencimiento
+    de Sistema AFEX contado en el snapshot semanal). La query de
+    vencimientos ni siquiera traía `sigla`; corregido, junto con
+    `registros_pm` (sin manifestación real hoy, mismo gap de código).
+
+12. **`registrarSaludCron` no se llamaba si faltaba `RESEND_API_KEY`** —
+    el `return` temprano por falta del secret vive dentro del `try` pero
+    nunca pasa por el `catch` (es `return`, no `throw`) — un secret roto
+    dejaba a `alerta-pm`/`resumen-semanal` fallando sin ningún rastro en
+    `salud_crons`, y el detector recién lo notaba por staleness (hasta 26h
+    /8 días después). Se agregó el registro explícito en ese punto.
+
+13. **"Compromisos vencidos" seguía 100% pasivo** — la transición
+    Pendiente→Vencido/Cumplido (metas.js) solo corre en el navegador
+    cuando alguien abre Metas o Resumen Ejecutivo; si nadie entra esa
+    semana, ni la base sabe que un compromiso venció. No se reimplementó
+    el chequeo de "mejoró" (exige recorrer la serie mensual completa de
+    cada indicador, lógica que solo debe vivir en metas.js), pero
+    `resumen-semanal` ahora lee `compromisos` y reporta los que tienen
+    `fechaCompromiso` ya pasada y siguen `'Pendiente'` — un hecho simple
+    y verificable sin esa lógica, que cierra la brecha real para la
+    audiencia semanal (antes: cero canales avisaban esto salvo abrir esa
+    pestaña específica).
+
+### Menores
+
+14. **`alertaCruzada` nunca devolvía `null`** — con `severity` arrancando
+    en 0 y solo sumando, "Equipos evaluables" (Señal de Reemplazo) nunca
+    podía excluir a nadie, ni siquiera un equipo sin ninguna
+    inspección/correctivo/tendencia de costo/muestra de aceite real. Se
+    agregó un campo `tieneDato` (sin cambiar el contrato de retorno para
+    los otros 5 call sites de la función) que solo consulta ese llamador.
+
+15. **`alerta-pm` secciones 6 y 8 sin `EXCLUIDOS`** (Cierres sin
+    evidencia, Alertas de aceite persistentes) — sin manifestación
+    verificada hoy, mismo hallazgo ya corregido en las secciones 1/3/4/5.
+
+16. **Texto de ayuda en Estadística decía "mínimo 6 intervalos"** cuando
+    el código (`_ajusteWeibullDeMuestra`) exige 5 — corregido el texto,
+    ningún cálculo estaba afectado.
+
+**Verificación**: suite completa (739/739, incluyendo 2 tests nuevos),
+`npx vite build`, `esbuild` sobre los 10 módulos/Edge Functions tocados.
+`alerta-pm` y `resumen-semanal` desplegadas a producción
+(`jyhpfwivhwzylkzxrsbt`). Los cambios de UI (campo de horómetro) no se
+probaron con Playwright en este pase — verificados por lectura de código.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

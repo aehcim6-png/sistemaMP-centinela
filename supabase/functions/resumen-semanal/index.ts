@@ -100,6 +100,11 @@ Deno.serve(async (req) => {
     const REMITENTE = Deno.env.get('ALERTA_PM_REMITENTE') || 'Sistema MP Centinela <onboarding@resend.dev>';
 
     if (!RESEND_API_KEY) {
+      // Mismo hallazgo que alerta-pm (auditoría 2026-09-16, segunda pasada): este
+      // 'return' está dentro del try pero nunca pasa por el catch — sin este registro,
+      // un RESEND_API_KEY roto podía dejar este correo semanal fallando en silencio
+      // hasta 8 días antes de que vigilar-salud-sistema lo detectara por staleness.
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'resumen-semanal', false, 'Falta configurar el secret RESEND_API_KEY');
       return new Response(JSON.stringify({ error: 'Falta configurar el secret RESEND_API_KEY' }), { status: 500 });
     }
 
@@ -160,8 +165,12 @@ Deno.serve(async (req) => {
       `registros_pm?select=equipo,fechaEntrada,fechaEjec&or=(fechaEntrada.gte.${iso(inicioAnterior)},fechaEjec.gte.${iso(inicioAnterior)})`
     );
     const fechaReg = (r: any) => r.fechaEntrada || r.fechaEjec || '';
-    const pmSemanaActual = regsDesdeAnterior.filter((r: any) => fechaReg(r) >= iso(inicioActual)).length;
-    const pmSemanaAnterior = regsDesdeAnterior.filter((r: any) => fechaReg(r) >= iso(inicioAnterior) && fechaReg(r) < finAnteriorExcl).length;
+    // !EXCLUIDOS.has() (auditoría 2026-09-16, segunda pasada): esta query no filtraba
+    // equipos decomisionados — hoy sin manifestación real (los últimos PM de esos
+    // equipos son de 2025), pero el gap era real y del mismo tipo ya corregido arriba.
+    const pmRelevante = (r: any) => !r.equipo || !EXCLUIDOS.has(r.equipo);
+    const pmSemanaActual = regsDesdeAnterior.filter((r: any) => pmRelevante(r) && fechaReg(r) >= iso(inicioActual)).length;
+    const pmSemanaAnterior = regsDesdeAnterior.filter((r: any) => pmRelevante(r) && fechaReg(r) >= iso(inicioAnterior) && fechaReg(r) < finAnteriorExcl).length;
 
     // ── COMPONENTES EN RIESGO ALTO (Nivel 1 de "alerta predictiva", 2026-09-01) ──
     // No se reimplementa el Índice de Riesgo acá: la señal de vida útil
@@ -190,12 +199,33 @@ Deno.serve(async (req) => {
       .filter((f: any) => Math.round((hoyMs - new Date(f.fechaEntrada + 'T00:00:00').getTime()) / 86400000) >= 14)
       .length;
 
-    const vencs = await get('vencimientos?select=proxima,periodicidadMeses');
+    // sigla + !EXCLUIDOS.has() (auditoría 2026-09-16, segunda pasada): esta consulta
+    // no traía 'sigla' y por lo tanto no podía filtrar EXCLUIDOS en absoluto — un
+    // equipo decomisionado con un documento vencido se seguía contando acá, mismo
+    // hallazgo ya corregido en alerta-pm (sección 3) pero que nunca llegó a este correo.
+    const vencs = await get('vencimientos?select=sigla,proxima,periodicidadMeses');
     const vencsCriticosCount = vencs.filter((v: any) => {
+      if (v.sigla && EXCLUIDOS.has(v.sigla)) return false;
       if (!v.proxima) return !!v.periodicidadMeses;
       const dias = Math.round((new Date(v.proxima + 'T00:00:00').getTime() - hoyMs) / 86400000);
       return dias <= 30;
     }).length;
+
+    // Compromisos vencidos (auditoría 2026-09-16, segunda pasada — "loop de
+    // responsabilidad" 100% pasivo): la transición Pendiente→Vencido/Cumplido
+    // (metas.js) solo corre en el navegador, cuando alguien abre Metas o Resumen
+    // Ejecutivo — si nadie entra esa semana, ni siquiera queda registrado en la
+    // base que un compromiso venció. No se reimplementa acá el chequeo de "mejoró"
+    // (exige recorrer toda la serie mensual de cada indicador, lógica que solo
+    // debe vivir en metas.js) — pero un compromiso con fechaCompromiso ya pasada Y
+    // todavía 'Pendiente' en la base es un hecho simple y verificable sin eso: hoy
+    // no llega a nadie salvo que alguien abra esa pestaña específica. Esto cierra
+    // esa brecha para la audiencia real de este correo (dueño/gerente semanal).
+    const compromisos = await get('compromisos?select=indicadorName,accion,responsable,fechaCompromiso&estado=eq.Pendiente');
+    const hoyISOStr = iso(hoy);
+    const compromisosVencidos = compromisos
+      .filter((c: any) => c.fechaCompromiso && c.fechaCompromiso < hoyISOStr)
+      .sort((a: any, b: any) => (a.fechaCompromiso < b.fechaCompromiso ? -1 : 1));
 
     const filtros = await get('stock_filtros?select=stockBodega,consumoMes,proyMes,pendiente');
     const filtrosCriticosCount = filtros.filter((f: any) => {
@@ -221,6 +251,7 @@ Deno.serve(async (req) => {
       `${pmSemanaActual} PM ejecutado(s)`,
       `${backlogCount} pendiente(s) en backlog`,
       `${componentesRiesgoAlto.length} componente(s) en riesgo alto de falla`,
+      `${compromisosVencidos.length} compromiso(s) vencido(s) sin resolver`,
     ];
 
     const html = `
@@ -249,6 +280,12 @@ Deno.serve(async (req) => {
         ['Backlog (correctivos pendientes)', 'Fuera de servicio ≥14 días', 'Documentos por vencer/vencidos', 'Ítems de stock crítico'],
         [[String(backlogCount), String(fueraServicioProlongadoCount), String(vencsCriticosCount), String(stockCriticoCount)]]
       )}
+      ${compromisosVencidos.length > 0
+        ? `<h3>⏰ Compromisos vencidos sin resolver</h3>` + tabla(
+            ['Indicador', 'Acción comprometida', 'Responsable', 'Vencía el'],
+            compromisosVencidos.map((c: any) => [c.indicadorName || '', c.accion || '', c.responsable || '', c.fechaCompromiso || ''])
+          )
+        : `<p style="font-size:13px;color:#888">Sin compromisos vencidos pendientes de resolver.</p>`}
       <p style="color:#888;font-size:12px;margin-top:16px">Resumen ejecutivo automático semanal de SistemaMP Centinela. Para el detalle completo del mes (semáforo de metas, tendencias, compromisos), ver la pestaña Metas & KPIs → Resumen Ejecutivo dentro del sistema.</p>`;
 
     const er = await fetch('https://api.resend.com/emails', {

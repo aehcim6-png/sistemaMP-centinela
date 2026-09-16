@@ -765,12 +765,17 @@ export function renderDash(){
   // ═══ BLOQUE 3: TENDENCIA DISPONIBILIDAD 6 MESES ═══
   var meses6=[];
   for(var mi=5;mi>=0;mi--){var md=new Date();md.setMonth(md.getMonth()-mi);meses6.push(md.toISOString().slice(0,7));}
+  // dispEquipoMes (auditoría 2026-09-16, segunda pasada): antes este bloque
+  // reimplementaba su propio fallback (solo override manual dispCalc + legado
+  // dAbr de abril-2026) en vez de usar la fuente única — para cualquier mes SIN
+  // override manual (el caso normal: nadie carga overrides de todos los equipos
+  // todos los meses) la barra quedaba en "—" aunque el cálculo automático vía
+  // downMap (downMapD, ya calculado arriba para el mes actual) sí tuviera dato
+  // real, contradiciendo el número grande "Disponibilidad flota" de esta misma
+  // pantalla. downMapD no está acotado a un mes — dispEquipoMes filtra el rango
+  // de días internamente, así que sirve igual para los 6 meses de este gráfico.
   var dispTrend6=meses6.map(function(m){
-    var vals=eq.map(function(e){
-      if(dispCalcD[e.sigla]&&dispCalcD[e.sigla][m]!==undefined)return dispCalcD[e.sigla][m];
-      if(m==='2026-04'&&dAbr[e.sigla]!==undefined)return dAbr[e.sigla];
-      return null;
-    }).filter(function(v){return v!==null;});
+    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,m,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,hoy:_hoyISO});}).filter(function(v){return v!==null&&v!==undefined;});
     return vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*10)/10:null;
   });
   var maxTrend=Math.max.apply(null,dispTrend6.filter(function(v){return v!==null;}).concat([100]));

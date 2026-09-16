@@ -104,6 +104,13 @@ export function renderCos() {
     costoMes[mes].hh += (r.duracionH || 2) * hh; costoMes[mes].pms++;
   });
   mov.forEach(function (m) {
+    // Auditoría 2026-09-16: antes un movimiento sin fecha real (registro PM importado
+    // sin fechaEntrada/fechaEjec) llegaba con un mes FABRICADO ('2026-01', ver mov.js) —
+    // indistinguible de un enero real, inflando "Total Acumulado" con un mes fantasma
+    // que ni siquiera aparecía en el detalle mensual (que sí venía filtrando por 'reg').
+    // mov.js ya no inventa esa fecha (mes:null en ese caso) — mismo guard que 'reg' de
+    // arriba, ahora consistente entre ambas fuentes.
+    if (!m.mes) return;
     if (!costoMes[m.mes]) costoMes[m.mes] = { hh: 0, filtros: 0, lubricantes: 0, total: 0, pms: 0 };
     if (m.tipo === 'Filtro') { var f = stk.find(function (s) { return s.descripcion === m.item || s.nParte === m.nParte; }); costoMes[m.mes].filtros += (m.cant || 0) * (f && f.precioUnit ? f.precioUnit : 0); }
     else { var l = lub.find(function (lb) { return lb.nombre === m.item; }); costoMes[m.mes].lubricantes += (m.cant || 0) * (l && l.precio ? l.precio : 0); }

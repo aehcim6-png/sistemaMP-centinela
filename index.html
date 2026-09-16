@@ -2574,9 +2574,12 @@ function neuMetricas(n){
 window.registrarSalidaServicio=function(){
   var eq=(S.g('eq')||[]).slice().sort(function(a,b){return(a.sigla||'').localeCompare(b.sigla||'')});
   var hoy=new Date().toISOString().slice(0,10);
+  var eqPorSiglaSS={};eq.forEach(function(e){eqPorSiglaSS[e.sigla]=e;});
+  window._ssEqPorSigla=eqPorSiglaSS;
+  var primerEqSS=eq[0];
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</h3>'+
     '<p style="font-size:12px;color:var(--tx3);margin-bottom:12px">Marca un equipo como fuera de servicio un rango de días completo. Esos días cuentan como 0% de disponibilidad.</p>'+
-    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="ssEq">'+
+    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="ssEq" onchange="_ssEqChangeSS()">'+
       eq.map(function(e){return'<option value="'+escapeHtml(e.sigla)+'">'+escapeHtml(e.sigla)+(e.modelo?' — '+escapeHtml(e.modelo):'')+'</option>'}).join('')+'</select></div></div>'+
     '<div class="form-row">'+
       '<div class="fg"><label>Desde</label><input type="date" id="ssDesde" value="'+hoy+'" max="'+hoy+'"></div>'+
@@ -2587,8 +2590,20 @@ window.registrarSalidaServicio=function(){
       ' El equipo AÚN sigue fuera de servicio (no ha vuelto a operar — no pongas fecha de término)</label></div>'+
     '<div class="fg" style="margin-bottom:12px"><label>Motivo</label><input id="ssMotivo" placeholder="Ej: falla motor, sin repuesto, accidente…" style="width:100%"></div>'+
     '<div class="fg" style="margin-bottom:12px"><label>¿Es una falla real del equipo?</label><select id="ssCriticidad" style="width:100%"><option value="Reparación Inmediata">Sí — cuenta para MTBF/Confiabilidad/Weibull</option><option value="No Aplica">No — es por repuesto, logística, administrativo, etc. (no cuenta como falla)</option></select></div>'+
+    '<div class="fg" style="margin-bottom:12px"><label>Horómetro al momento de la falla</label><input type="number" id="ssHorom" value="'+(primerEqSS&&primerEqSS.horomActual?primerEqSS.horomActual:'')+'" style="width:100%"><div style="font-size:11px;color:var(--tx3);margin-top:2px">Sin este dato, aunque quede marcada como falla real, no aporta a MTBF/Confiabilidad/Weibull/Edad Virtual (esas fórmulas necesitan el horómetro, no solo la fecha) — se precarga con el horómetro actual del equipo, ajústalo si corresponde.</div></div>'+
     '<button class="btn" onclick="guardarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar</button> '+
     '<button class="btn btn-o" onclick="cm()">Cancelar</button>');
+};
+// Precarga el horómetro actual del equipo elegido (auditoría 2026-09-16, C5): antes
+// este formulario no pedía horómetro en absoluto, así que aunque una salida de
+// servicio quedara marcada como falla real (ssCriticidad), esFallaMTBF la contaba
+// como falla pero MTBF/Confiabilidad/Weibull/Edad Virtual (logic.js) exigen o.horom>0
+// y seguían sin verla — quedaban invisibles para esas 4 métricas igual. No se exige
+// (queda vacío si no hay dato), pero se sugiere el valor real más reciente conocido.
+window._ssEqChangeSS=function(){
+  var e=(window._ssEqPorSigla||{})[$('ssEq').value];
+  var h=$('ssHorom');
+  if(h)h.value=(e&&e.horomActual)?e.horomActual:'';
 };
 window.guardarSalidaServicio=function(){
   var sigla=$('ssEq').value;
@@ -2596,6 +2611,8 @@ window.guardarSalidaServicio=function(){
   var sigueFS=$('ssSigueFS')&&$('ssSigueFS').checked;
   var hasta=sigueFS?'':$('ssHasta').value;
   var motivo=($('ssMotivo').value||'').trim();
+  var horomSS=parseFloat($('ssHorom')&&$('ssHorom').value);
+  if(!isFinite(horomSS)||horomSS<=0)horomSS=null;
   if(!sigla||!desde){alert('Falta equipo o fecha de inicio.');return;}
   if(!sigueFS&&!hasta){alert('Falta la fecha "hasta", o marca la casilla si el equipo aún sigue fuera de servicio.');return;}
   if(hasta&&hasta<desde){alert('La fecha "hasta" no puede ser anterior a "desde".');return;}
@@ -2612,7 +2629,7 @@ window.guardarSalidaServicio=function(){
   var hoy=new Date().toISOString().slice(0,10);
   var dias=(typeof rangoDias==='function'?rangoDias(desde,hasta||hoy):[desde]).length;
   var ot=S.g('ot')||[];
-  ot.unshift({sigla:sigla,tipo:'Fuera de Servicio',fecha:desde,
+  ot.unshift({sigla:sigla,tipo:'Fuera de Servicio',fecha:desde,horom:horomSS,
     sintoma:motivo,sistema:'',estatusEq:'Fuera de Servicio',estadoOT:hasta?'Cerrada':'Pendiente',
     criticidad:criticidadSS,fechaEntrada:desde,fechaSalida:hasta||null,
     fechaIngreso:new Date().toISOString().slice(0,10),

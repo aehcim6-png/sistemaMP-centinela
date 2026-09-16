@@ -27,7 +27,7 @@ export function renderMov() {
     if (fItem && !(m.item || '').toLowerCase().includes(fItem.toLowerCase())) return false;
     return true;
   }).slice().reverse();
-  const meses = [...new Set(mov.map(m => m.mes))].sort().reverse();
+  const meses = [...new Set(mov.map(m => m.mes))].filter(Boolean).sort().reverse();
   const equipos = [...new Set(mov.map(m => m.equipo))].sort();
   const items = [...new Set(mov.map(m => m.item || ''))].sort();
   const totMes = {};
@@ -163,7 +163,17 @@ export function recalcHistorial() {
 
     r.consumosPauta = consumos.map(c => ({ rep: c.rep || '', cant: c.can || 0 }));
     totalReg++;
-    const fechaReg = r.fechaEntrada || r.fechaEjec || '2026-01-01';
+    // Sin fecha hardcodeada (auditoría 2026-09-16, hallazgo real): un registro PM
+    // importado sin fechaEntrada NI fechaEjec (columna de fecha que no matcheó al
+    // importar, o vacía en la planilla de terreno) antes caía en un '2026-01-01' fijo
+    // — el stock SÍ se descontaba bien, pero el movimiento quedaba fechado a un mes
+    // que puede no tener ningún registro real, inflando "Total Acumulado" de Costos
+    // con un mes fantasma que nunca aparece en el detalle mensual (cos.js ya excluye
+    // estos registros de 'meses'/HH por no tener fecha real — el gasto de filtros/
+    // lubricantes de este movimiento quedaba siendo la única pieza que sí se colaba).
+    // null en vez de inventar una fecha: el descuento de stock sigue ocurriendo
+    // igual (es lo operacionalmente importante), solo se deja de fingir saber CUÁNDO.
+    const fechaReg = r.fechaEntrada || r.fechaEjec || null;
 
     consumos.forEach(c => {
       const rep = (c.rep || '').toLowerCase().trim();
@@ -187,7 +197,7 @@ export function recalcHistorial() {
         stk[fi].estado = _se.ico + ' ' + _se.txt;
         mov.push({
           fecha: fechaReg, tipo: 'Filtro', item: stk[fi].descripcion, nParte: stk[fi].nParte,
-          cant, equipo: r.equipo, pm: r.tipoPM, ant, nuevo: stk[fi].stockBodega, mes: fechaReg.slice(0, 7)
+          cant, equipo: r.equipo, pm: r.tipoPM, ant, nuevo: stk[fi].stockBodega, mes: fechaReg ? fechaReg.slice(0, 7) : null
         });
         totalFil += cant;
         return;
@@ -215,7 +225,7 @@ export function recalcHistorial() {
         lub[li].consumoMes = Math.round(((lub[li].consumoMes || 0) + cant) / 2);
         mov.push({
           fecha: fechaReg, tipo: 'Lubricante', item: lub[li].nombre, unidad: lub[li].unidad,
-          cant, equipo: r.equipo, pm: r.tipoPM, ant, nuevo: lub[li].stock, mes: fechaReg.slice(0, 7)
+          cant, equipo: r.equipo, pm: r.tipoPM, ant, nuevo: lub[li].stock, mes: fechaReg ? fechaReg.slice(0, 7) : null
         });
         totalLub += cant;
       }

@@ -89,6 +89,14 @@ describe('dispDownMap con opts.incluirPM:false — mapa solo de correctivos (par
     const dmAi = dispDownMap(reg, [], undefined, { incluirPM: false });
     expect(dmAi['CN-9']).toBeUndefined();
   });
+
+  it('una salida de servicio marcada explícitamente como NO falla real (criticidad="No Aplica") no resta en Ai, pero sí en Ao (auditoría 2026-09-16)', () => {
+    const ot = [{ sigla: 'CN-1', fecha: '2026-07-15', estatusEq: 'Fuera de Servicio', criticidad: 'No Aplica' }];
+    const dmAo = dispDownMap([], ot);
+    const dmAi = dispDownMap([], ot, undefined, { incluirPM: false });
+    expect(dmAo['CN-1']['2026-07-15']).toBe(24); // Ao cuenta cualquier causa de detención
+    expect(dmAi['CN-1']).toBeUndefined(); // Ai no — no es una falla real del equipo
+  });
 });
 
 describe('dispIntrinsecaEquipoMes (Ai) — disponibilidad intrínseca mensual (%)', () => {

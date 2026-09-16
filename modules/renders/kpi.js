@@ -77,7 +77,7 @@ export function _getDispData(){
   return{headers:h,rows:r};
 };
 export function _getMTBFData(){
-  var eq=S.g('eq')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
+  var eq=S.g('eq')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
   var h=['Equipo','Modelo','Horómetro','Fallas','MTBF (hrs)','Confiabilidad','Reparaciones','MTTR (hrs)','Mantenibilidad'];
   var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var rp=f.filter(function(o){return o.duracion&&o.duracion!=='—'});var mttr=C.mttrReal(f.map(function(o){return o.duracion;}));var mtbf=C.mtbfReal(f.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',rp.length,mttr,mttr===0?'Sin datos':mttr<4?'Rápido':mttr<8?'Normal':'Lento'];});
   return{headers:h,rows:r};
@@ -122,7 +122,7 @@ export function _getCostosData(){
 // arma directo desde S.g(), sin depender de las variables locales de
 // renderKpi(), para poder llamarse solo (botón individual, o rptTodos).
 export function _getRatioData(){
-  var reg=S.g('reg')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
+  var reg=S.g('reg')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
   var meses=[...new Set(reg.map(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)}).concat(ot.map(function(o){return(o.fecha||'').slice(0,7)})).filter(function(m){return m}))].sort();
   var h=['Mes','Preventivos','Correctivos','Total','% Preventivo'];
   var r=meses.map(function(mes){
@@ -156,13 +156,19 @@ export function _getBacklogData(){
 };
 export function _getCompData(){
   var eq=S.g('eq')||[];var cd=S.g('compMayores')||[];
-  cd.forEach(function(c){var eO=eq.find(function(e){return e.sigla===c.sigla});var hA=eO?eO.horomActual:0;c.hrsUsadas=hA-(c.horomComp||0);if(c.hrsUsadas<0)c.hrsUsadas=hA;c.hrsRest=Math.max((c.vidaUtil||0)-c.hrsUsadas,0);c.pctVida=c.vidaUtil?Math.round(c.hrsUsadas/c.vidaUtil*100):0;var hD=eO?eO.hrsDia:12;c.diasRest=hD>0?Math.round(c.hrsRest/hD):0;c.estadoCalc=c.hrsRest<=0?'VENCIDO':c.hrsRest<1000?'PLANIFICAR':c.hrsRest<2000?'MONITOREAR':'OK';});
+  // hrsUsadas (auditoría 2026-09-16, hallazgo real confirmado con datos de producción
+  // — CN-9502 mostraba 5 componentes "VENCIDO" falsos): cuando horomComp>horomActual
+  // (instalación registrada DESPUÉS del horómetro actual — error de dato o reseteo de
+  // horómetro), esta copia usaba el horómetro COMPLETO como "horas usadas" en vez de 0,
+  // justo lo opuesto del guard de compEstado() (logic.js) — "no el horómetro completo".
+  // Mismo criterio que esa fuente única: instalación posterior al horómetro actual = 0.
+  cd.forEach(function(c){var eO=eq.find(function(e){return e.sigla===c.sigla});var hA=eO?eO.horomActual:0;c.hrsUsadas=hA-(c.horomComp||0);if(c.hrsUsadas<0)c.hrsUsadas=0;c.hrsRest=Math.max((c.vidaUtil||0)-c.hrsUsadas,0);c.pctVida=c.vidaUtil?Math.round(c.hrsUsadas/c.vidaUtil*100):0;var hD=eO?eO.hrsDia:12;c.diasRest=hD>0?Math.round(c.hrsRest/hD):0;c.estadoCalc=c.hrsRest<=0?'VENCIDO':c.hrsRest<1000?'PLANIFICAR':c.hrsRest<2000?'MONITOREAR':'OK';});
   var h=['Equipo','Componente','Hrs Instalación','Vida Útil','Hrs Usadas','% Vida','Hrs Restantes','Días Rest','Costo Ref ($)','Estado'];
   var r=cd.sort(function(a,b){return a.hrsRest-b.hrsRest}).map(function(c){return[c.sigla,c.comp,c.horomComp,c.vidaUtil,c.hrsUsadas,c.pctVida,c.hrsRest,c.diasRest,Math.round(c.costoRef||0),c.estadoCalc];});
   return{headers:h,rows:r};
 };
 export function _getEjecutivoData(){
-  var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));var cd=S.g('compMayores')||[];var dd=S.g('dispCalc')||{};var dA=INIT.dispAbril||{};var meta=S.g('dispMeta')||85;
+  var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));var cd=S.g('compMayores')||[];var dd=S.g('dispCalc')||{};var dA=INIT.dispAbril||{};var meta=S.g('dispMeta')||85;
   eq.forEach(function(e){if(!dd[e.sigla])dd[e.sigla]={};if(dA[e.sigla]!==undefined&&!dd[e.sigla]['2026-04'])dd[e.sigla]['2026-04']=dA[e.sigla];});
   var dV=eq.map(function(e){var d=dd[e.sigla];if(!d)return null;var v=Object.values(d);return v.length?v[v.length-1]:null}).filter(function(v){return v!==null});
   var dP=dV.length?Math.round(dV.reduce(function(s,v){return s+v},0)/dV.length*10)/10:null;
@@ -179,7 +185,11 @@ export function _getEjecutivoData(){
   // definición distinta a la del resto de la app, encontrada al fusionar
   // este reporte con el que tenía Configuración (ver nota arriba).
   var urg=eq.filter(function(e){return e.estado&&(e.estado.includes('URGENTE')||e.estado.includes('VENCIDA'));}).length;
-  cd.forEach(function(c){var eO=eq.find(function(e){return e.sigla===c.sigla});c.hrsRest=Math.max((c.vidaUtil||0)-(eO?eO.horomActual:0)+(c.horomComp||0),0);});
+  // Mismo hallazgo que _getCompData() arriba (auditoría 2026-09-16): sin el piso en 0
+  // de hrsUsadas, un horomComp>horomActual (error de dato) restaba un negativo y daba
+  // hrsRest INFLADO por sobre vidaUtil — ese mismo componente aparecía "OK" acá y
+  // "VENCIDO" en la hoja COMPONENTES del mismo Excel, contradiciéndose entre sí.
+  cd.forEach(function(c){var eO=eq.find(function(e){return e.sigla===c.sigla});var hrsUsadas=(eO?eO.horomActual:0)-(c.horomComp||0);if(hrsUsadas<0)hrsUsadas=0;c.hrsRest=Math.max((c.vidaUtil||0)-hrsUsadas,0);});
   var cC=cd.filter(function(c){return c.hrsRest<=1000}).length;var pO=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   var h=['KPI','Valor','Meta/Ref','Estado'];
   var r=[['Equipos en Flota',eq.length,'—','—'],['Disponibilidad Mecánica',dP===null?'—':dP+'%',meta+'%',dP===null?'Sin datos':dP>=meta?'OK':'Bajo'],['MTBF Flota',mtbf===null?'—':mtbf+' hrs','>2000 hrs',mtbf===null?'Sin datos':mtbf>2000?'Alta':mtbf>500?'Media':'Baja'],['Total Fallas',tF,'—','—'],['HH Reales',hhR+' hrs','—','—'],['PMs Ejecutados',reg.length,'—','—'],['Equipos Urgentes',urg,'0',urg===0?'OK':urg+' equipos'],['Backlog Pendientes',pO,'0',pO===0?'OK':pO+' pendientes'],['Componentes Críticos',cC,'0',cC===0?'OK':cC+' comp']];
@@ -262,7 +272,7 @@ export function renderKpi(){
   // falla): 'ot' a secas sigue siendo la fuente para Disponibilidad (downMap) y
   // Backlog, que 'otHist' no puede alimentar (sin estadoOT/fechaSalida) — solo se usa
   // esta versión combinada para mesesAll y los cálculos de MTBF/fallas, más abajo.
-  var otConHist=ot.concat(_otHistComoOt(S.g('otHist')||[]));
+  var otConHist=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
   var mov=S.g('mov')||[];
   var stk=S.g('stk')||[];
   var lub=S.g('lub')||[];

@@ -1135,6 +1135,15 @@ function dispDownMap(reg, ot, hoy, opts){
   (ot||[]).forEach(function(o){
     var sigla=o.sigla; if(!sigla)return;
     var fs=(o.estatusEq==='Fuera de Servicio'||o.estadoEq==='Fuera de Servicio');
+    // Ai (incluirPM:false, Disponibilidad Intrínseca — solo fallas reales): una salida de
+    // servicio marcada EXPLÍCITAMENTE como NO falla real (criticidad presente y distinta
+    // de 'Reparación Inmediata' — selector ssCriticidad en index.html, ej. sin repuesto,
+    // logística, administrativo) no debe restar acá, aunque sí siga restando en Ao
+    // (Disponibilidad Operacional), que cuenta cualquier causa de detención por diseño.
+    // 'criticidad' AUSENTE (dato histórico previo a ese selector) sigue contando como
+    // antes — no se reinterpreta silenciosamente un vacío como "no es falla". Auditoría
+    // 2026-09-16, segunda pasada: el fix que agregó ese selector nunca llegó a este mapa.
+    if(fs&&!incluirPM&&o.criticidad&&o.criticidad!=='Reparación Inmediata')return;
     if(fs&&o.fechaEntrada&&o.fechaSalida&&o.fechaSalida>o.fechaEntrada){
       rangoDias(o.fechaEntrada,o.fechaSalida).forEach(function(d){ add(sigla,d,24); });
       return;
@@ -1479,14 +1488,24 @@ function stockEstado(stockBodega, consumoMes, leadDias){
 // denominador es la cantidad de meses TOTALES observados por todo el
 // sistema (desde el primer movimiento registrado hasta el último), no la
 // cantidad de meses con movimiento de ESE ítem en particular.
-function _factorialPoisson(n){
-  var r=1;
-  for(var i=2;i<=n;i++)r*=i;
+// Suma de logaritmos en vez de producto directo (auditoría 2026-09-16, hallazgo real):
+// la versión anterior calculaba Math.pow(lambda,k)/factorial(k) en aritmética normal —
+// para λ y k moderadamente grandes (λ≳129, ej. un repuesto genérico consumido por buena
+// parte de una flota grande) Math.pow(lambda,k) desborda a Infinity ANTES de dividirse
+// por el factorial, y _stockParaNivelServicio (que acumula término a término hasta
+// cruzar el 95%) corta apenas encuentra ese Infinity — devolviendo un stock de
+// seguridad MUY por debajo del correcto, en silencio, sin ningún NaN/error visible.
+// log(k!) se acumula como suma de logaritmos (nunca desborda, crece linealmente) y solo
+// se exponencia el resultado final — mismo valor matemático, sin el desborde intermedio.
+function _logFactorial(n){
+  var r=0;
+  for(var i=2;i<=n;i++)r+=Math.log(i);
   return r;
 }
 function _poissonPMF(k,lambda){
   if(lambda==null||!isFinite(lambda)||lambda<0||k<0)return null;
-  return Math.exp(-lambda)*Math.pow(lambda,k)/_factorialPoisson(k);
+  if(lambda===0)return k===0?1:0;
+  return Math.exp(-lambda+k*Math.log(lambda)-_logFactorial(k));
 }
 // Menor cantidad Q tal que P(demanda mensual ≤ Q) ≥ nivelServicio — la
 // pregunta real de bodega: "¿cuánto stock cubre el X% de los meses sin
@@ -2550,7 +2569,19 @@ function _gastoProyectadoCategoria(items,getEventos,getPrecio,gran){
     if(!precio){itemsSinPrecio++;return;}
     itemsConDatos++;
     var ultimos=mesesConDatos.slice(-6);
-    var promMovil=ultimos.reduce(function(s,m){return s+porMes[m];},0)/ultimos.length;
+    // Denominador (auditoría 2026-09-16, hallazgo real): antes se dividía por la
+    // CANTIDAD de meses con compra (ultimos.length) — correcto para un ítem de compra
+    // mensual, pero para uno de compra esporádica (ej. cada 6 meses) eso calculaba
+    // "unidades por EVENTO de compra", no "unidades por mes real", inflando el gasto
+    // proyectado hasta 5-6x (repuesto comprado 2 veces al año, ultimos.length=2 →
+    // promedio = 1 unidad/mes en vez de ~0.17 real). Ahora se divide por los meses
+    // CALENDARIO reales entre el primer y último de esos eventos (_contarMesesEntre,
+    // mismo criterio ya usado en analisisDemandaRepuestos) — para compra mensual
+    // consecutiva da el mismo resultado de siempre (span=cantidad de meses), y solo
+    // cambia cuando los eventos están espaciados en el tiempo real.
+    var totalUltimos=ultimos.reduce(function(s,m){return s+porMes[m];},0);
+    var mesesSpan=_contarMesesEntre(ultimos[0],ultimos[ultimos.length-1])||1;
+    var promMovil=totalUltimos/mesesSpan;
     var gastoMes=promMovil*precio;
     mesesFuturos.forEach(function(m){gastoMensual[m]+=gastoMes;});
   });

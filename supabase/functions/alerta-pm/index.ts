@@ -214,6 +214,14 @@ Deno.serve(async (req) => {
     const REMITENTE = Deno.env.get('ALERTA_PM_REMITENTE') || 'Sistema MP Centinela <onboarding@resend.dev>';
 
     if (!RESEND_API_KEY) {
+      // registrarSaludCron acá también (auditoría 2026-09-16, segunda pasada): este
+      // 'return' vive DENTRO del try pero nunca pasa por el catch (es un return, no un
+      // throw) — sin este registro explícito, si el secret RESEND_API_KEY se borra o se
+      // rota mal, alerta-pm fallaba en cada corrida sin dejar NINGÚN rastro en
+      // salud_crons, y vigilar-salud-sistema recién lo detectaba hasta que la última fila
+      // EXITOSA se volviera stale (hasta 26h después) — justo el silencio que el
+      // detector de salud se creó para evitar.
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'alerta-pm', false, 'Falta configurar el secret RESEND_API_KEY');
       return new Response(JSON.stringify({ error: 'Falta configurar el secret RESEND_API_KEY' }), { status: 500 });
     }
 
@@ -386,7 +394,11 @@ Deno.serve(async (req) => {
     // repita para siempre el mismo backlog acumulado.
     const hace7dias = new Date(hoyMs - 7 * 86400000).toISOString().slice(0, 10);
     const recientes = await get(`correctivos?select=sigla,fecha,sintoma,solucion,estadoOT,tipo&fecha=gte.${hace7dias}`);
+    // !EXCLUIDOS.has() agregado acá (auditoría 2026-09-16, segunda pasada: esta
+    // sección se había quedado fuera de la corrección original de EXCLUIDOS —
+    // sin manifestación verificada hoy, pero mismo hallazgo que las secciones 3/4/5).
     const cierresSinEvidencia = recientes.filter((o: any) =>
+      o.sigla && !EXCLUIDOS.has(o.sigla) &&
       (o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional') &&
       (!o.estadoOT || o.estadoOT === 'Cerrada') &&
       !(o.solucion && String(o.solucion).trim())
@@ -439,7 +451,10 @@ Deno.serve(async (req) => {
     const muestrasAceite = await get('analisis_aceite?select=sigla,componente,fecha,estado&order=fecha.asc');
     const porGrupoAceite: Record<string, { sigla: string; componente: string; fecha: string; estado: string }[]> = {};
     muestrasAceite.forEach((m: any) => {
-      if (!m.sigla || !m.componente || !m.fecha) return;
+      // !EXCLUIDOS.has() agregado acá (auditoría 2026-09-16, segunda pasada): mismo
+      // hallazgo que la sección 6 — un equipo decomisionado con muestras de aceite
+      // cargadas por error seguiría generando alertas en este correo indefinidamente.
+      if (!m.sigla || !m.componente || !m.fecha || EXCLUIDOS.has(m.sigla)) return;
       const k = `${m.sigla}|${m.componente}`;
       (porGrupoAceite[k] = porGrupoAceite[k] || []).push(m);
     });

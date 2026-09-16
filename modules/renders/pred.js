@@ -128,8 +128,13 @@ function generarDiagnostico(sigla){
   // Suma otHist acá (auditoría 2026-08-18, mismo hallazgo que en el resto del
   // sistema): "Falla recurrente en X (N veces)" se veía ciego a lo cargado desde
   // WhatsApp. otPend arriba se queda con 'ot' puro a propósito — otHist nunca es
-  // 'Pendiente'.
-  ot.concat(_otHistComoOt(S.g('otHist')||[])).filter(function(o){return o.sigla===sigla;}).forEach(function(o){
+  // 'Pendiente'. También se suma _informesFallaComoOt acá y en las otras 6
+  // construcciones de "ot combinado" de este archivo (auditoría 2026-09-16,
+  // segunda pasada): los Informes de Falla Catastrófica quedaron ciegos a TODO
+  // Predictivo (Matriz de Riesgo, Probabilidad de Falla, Alerta Cruzada, Señal
+  // de Reemplazo, Dotación de Taller) pese a corregirse ese mismo día para
+  // Dashboard/Torre/Costos/Estadística — mismo hallazgo, un frente distinto.
+  ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[])).filter(function(o){return o.sigla===sigla;}).forEach(function(o){
     var comp=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);
     if(comp)compFallas[comp]=(compFallas[comp]||0)+1;
   });
@@ -249,7 +254,7 @@ function _cruceSistemas(sigla,categoria){
     // otConHist (auditoría 2026-08-18, mismo hallazgo que el resto del sistema):
     // sin esto, un patrón de sistema de carga solo visible en WhatsApp quedaba
     // invisible acá.
-    var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]));
+    var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
     var otEq=ot.filter(function(o){return o.sigla===sigla;});
     var cats={};
     otEq.forEach(function(o){var c=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);if(c)cats[c]=(cats[c]||0)+1;});
@@ -461,7 +466,7 @@ function diagnosticoFlota(sigla,mes){
   // existen en otHist, así que sus filas cuentan en 'total'/'equipos' (correcto,
   // son fallas reales) pero caen solas en sinCausa/sinSolucion (también correcto,
   // WhatsApp no capturó esos datos) y nunca en 'pendientes' (siempre 'Cerrada').
-  var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]))
+  var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
     .filter(function(o){
       if(sigla&&o.sigla!==sigla)return false;
       if(mes&&(o.fecha||o.fechaEntrada||'').indexOf(mes)!==0)return false;
@@ -613,7 +618,7 @@ export function renderPred(){
   var fAnio=$('fPredAnio')?.value||'';
   var fMes=$('fPredMes')?.value||'';
   var fMesCompleto=fAnio&&fMes?(fAnio+'-'+fMes):fAnio;
-  var aniosPred=[...new Set(ot.concat(_otHistComoOt(S.g('otHist')||[])).map(function(o){return(o.fecha||o.fechaEntrada||'').slice(0,4);}).filter(Boolean))].sort().reverse();
+  var aniosPred=[...new Set(ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[])).map(function(o){return(o.fecha||o.fechaEntrada||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
   // Índices por sigla, construidos UNA vez — alertaCruzada() se llama por cada
   // equipo (dos veces: para el resumen y para la tabla completa) y filtraba insp/ot/
@@ -628,7 +633,7 @@ export function renderPred(){
   // "fallas repetidas por componente" que se muestra por equipo. 'ot' a secas deja
   // afuera lo cargado desde WhatsApp (otHist); se suma acá igual que en los demás
   // lugares ya corregidos.
-  ot.concat(_otHistComoOt(S.g('otHist')||[])).forEach(function(o){if(o&&o.sigla)(otPorSiglaPred[o.sigla]=otPorSiglaPred[o.sigla]||[]).push(o);});
+  ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[])).forEach(function(o){if(o&&o.sigla)(otPorSiglaPred[o.sigla]=otPorSiglaPred[o.sigla]||[]).push(o);});
   eq.forEach(function(e){if(e&&e.sigla)eqPorSiglaPred[e.sigla]=e;});
 
   // ═══ INTELLIGENCE ENGINE ═══
@@ -708,7 +713,16 @@ export function renderPred(){
     // la Matriz de Riesgo (probabilidadEquipoSeveridad descarta severity<2).
     var total=severity;
     var estado=total>=5?'🔴':total>=2?'🟡':'🟢';
-    return{estado:estado,severity:total,alertas:alertas};
+    // tieneDato (auditoría 2026-09-16, segunda pasada): 'severity' arranca en 0 y
+    // solo suma — esta función NUNCA devolvía "sin dato" (a diferencia de las otras
+    // 5 señales de Señal Unificada de Reemplazo, que sí dan null genuino sin
+    // historial), así que "Equipos evaluables" ahí nunca podía excluir a nadie: un
+    // equipo sin ninguna inspección/correctivo/tendencia de costo/muestra de aceite
+    // real igual contaba como "evaluable" con severity=0. No se cambia el contrato
+    // de retorno (los otros 5 call sites de esta función siguen recibiendo siempre
+    // un objeto) — se agrega este campo aparte, que solo consulta ese llamador.
+    var tieneDatoCruzado=inspRecent.length>0||Object.keys(compFallas).length>0||(eqData&&eqData.trend.length>=4)||aceMuestras.length>0;
+    return{estado:estado,severity:total,alertas:alertas,tieneDato:tieneDatoCruzado};
   }
 
   // 3. Stock break risk
@@ -1160,7 +1174,7 @@ export function renderPred(){
     var efHHDot=hhRealDot>0?Math.round(hhPlanDot/hhRealDot*100):null;
 
     // MTBF promedio flota — mismo cálculo que Costos & Stock → MTBF/MTTR (cos.js)
-    var otConHistDot=ot.concat(_otHistComoOt(S.g('otHist')||[]));
+    var otConHistDot=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
     var otPorSiglaDot={};
     otConHistDot.forEach(function(o){if(o&&o.sigla)(otPorSiglaDot[o.sigla]=otPorSiglaDot[o.sigla]||[]).push(o);});
     var mtbfsDot=eq.map(function(e){
@@ -1204,7 +1218,13 @@ export function renderPred(){
     var mesesConDatosDot=Object.keys(cargaPorMes).sort();
     var HRS_TURNO_DIA_DOT=12;
     function _diasDelMesDot(mesStr){var yy=parseInt(mesStr.slice(0,4)),mm=parseInt(mesStr.slice(5,7));return new Date(yy,mm,0).getDate();}
-    function _capacidadMesDot(mesStr){return mecDia*HRS_TURNO_DIA_DOT*_diasDelMesDot(mesStr);}
+    // mecDia+mecNoche (auditoría 2026-09-16, segunda pasada): antes la capacidad solo
+    // contaba mecDia — pero 'carga' (cargaPorMes, arriba) suma TODO el downtime de PM+
+    // correctivo sin filtrar por turno (un PM registrado de noche pesa igual que uno de
+    // día), así que en una operación real 24/7 con dotación de noche significativa el
+    // ratio Carga/Capacidad quedaba sistemáticamente inflado — mecNoche ya se calculaba
+    // (línea de arriba, se muestra en su propia tarjeta) pero nunca entraba acá.
+    function _capacidadMesDot(mesStr){return (mecDia+mecNoche)*HRS_TURNO_DIA_DOT*_diasDelMesDot(mesStr);}
     var periodosDot={};
     mesesConDatosDot.forEach(function(m){
       var p=agruparPeriodo(m,granTend);
@@ -1439,7 +1459,7 @@ export function renderPred(){
     var neuRepl=S.g('neu')||[];
     var aceiteRepl=S.g('aceite')||[];
     var ocHistRepl=S.g('ocHist')||[];
-    var otConHistRepl=ot.concat(_otHistComoOt(S.g('otHist')||[]));
+    var otConHistRepl=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
 
     var saludRepl={};
     equiposConSaludFlota(eq,compMayoresRepl,neuRepl,aceiteRepl,otConHistRepl).forEach(function(s){saludRepl[s.sigla]=s;});
@@ -1455,7 +1475,19 @@ export function renderPred(){
     // arrastra un patrón histórico?", no "¿pasó este mes?".
     var dfRepl=diagnosticoFlota('','');
     var reincidentesRepl={};
-    dfRepl.forEach(function(c){if(c.severidad>=2&&c.equipoMasRepetido)reincidentesRepl[c.equipoMasRepetido]=true;});
+    // c.equiposConcentrados (auditoría 2026-09-16, segunda pasada): antes solo se
+    // marcaba el equipoMasRepetido — cuando el patrón es de GRUPO (severidad=3,
+    // "6 camiones del mismo modelo, cada uno con reincidencia propia", ver comentario
+    // real en diagnosticoFlota más arriba), el resto de esos equipos quedaba SIN la
+    // señal de reincidencia pese a tener individualmente 3+ fallas del mismo
+    // componente — la propia definición que usa esta señal. equiposConcentrados ya
+    // incluye a equipoMasRepetido cuando corresponde, así que no se pierde el caso
+    // de un solo equipo.
+    dfRepl.forEach(function(c){
+      if(c.severidad<2)return;
+      if(c.equipoMasRepetido)reincidentesRepl[c.equipoMasRepetido]=true;
+      (c.equiposConcentrados||[]).forEach(function(s){reincidentesRepl[s]=true;});
+    });
 
     var candidatosRepl=eq.map(function(e){
       var salud=saludRepl[e.sigla]||{};
@@ -1474,7 +1506,7 @@ export function renderPred(){
         weibullBeta:salud.weibull?salud.weibull.beta:null,
         tieneComponenteRiesgoAlto:tieneRiesgoAlto,
         esReincidente:esReincidente,
-        alertaCruzadaSeverity:ac?ac.severity:null,
+        alertaCruzadaSeverity:(ac&&ac.tieneDato)?ac.severity:null,
         edadVirtualFactorQ:salud.edadVirtual?salud.edadVirtual.factorQ:null,
         costoRelativoPct:crm?crm.pct:null
       });

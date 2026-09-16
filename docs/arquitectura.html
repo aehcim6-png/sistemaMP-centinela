@@ -1398,6 +1398,56 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   UI (selector de criticidad, avisos de confianza) no se probaron con Playwright en este pase —
   verificados por lectura de código.</p>
 
+  <h2>Re-auditoría y 16 hallazgos corregidos (2026-09-16, segunda pasada)</h2>
+  <p>El usuario preguntó por los 27 hallazgos originales del backlog — se descubrió que esa lista nunca
+  se guardó completa en el repo (solo 9 ejemplos resumidos). Se relanzaron los mismos 6 agentes de
+  auditoría sobre el sistema actual (evitando repetir los 7 fixes ya hechos ese día): <b>16 hallazgos
+  nuevos verificados</b>, 2 confirmados con SQL contra datos reales de producción. Corregidos todos, en
+  orden de severidad.</p>
+  <p><b>Críticos:</b></p>
+  <ol>
+    <li><code>kpi.js</code> Informe Componentes/Excel mostraba "VENCIDO" falso (confirmado: CN-9502, 5
+    componentes) — guarda invertida a <code>compEstado()</code> cuando <code>horomComp&gt;horomActual</code>.</li>
+    <li>Gasto Proyectado sin techo real: dividía por CANTIDAD de meses con datos, no por el span
+    calendario — un repuesto semestral se inflaba ~5-6x. Corregido con <code>_contarMesesEntre</code>.</li>
+    <li><code>_poissonPMF</code> desbordaba para λ≳129/mes — <code>Math.pow</code> a Infinity, stock de
+    seguridad SUBESTIMADO en silencio (λ=150: 142 en vez de 170). Reescrito en espacio logarítmico.</li>
+    <li>Informes de Falla Catastrófica seguían invisibles en <code>pred.js</code> (7 lugares),
+    <code>kpi.js</code> (4), <code>buscar.js</code> y <code>disp.js</code> — el fix anterior solo llegó a
+    4 archivos. <code>_informesFallaComoOt</code> sumada en los 12 restantes.</li>
+    <li>"Registrar salida de servicio" nunca pedía horómetro — sin ese dato, aunque contara como falla
+    real, seguía invisible para MTBF/Weibull/Edad Virtual. Campo agregado, precargado, opcional.</li>
+  </ol>
+  <p><b>Medios:</b></p>
+  <ol start="6">
+    <li>Disponibilidad Intrínseca (Ai) seguía contando salidas de servicio marcadas explícitamente
+    "No falla" — <code>dispDownMap</code> no miraba <code>criticidad</code>. Corregido.</li>
+    <li>Dashboard "Tendencia Disponibilidad 6 Meses" casi vacía — no usaba <code>dispEquipoMes</code>
+    (la fuente única que el propio Dashboard usa arriba), solo overrides manuales. Corregido.</li>
+    <li>"Total Acumulado" de Costos con mes fantasma ('2026-01' fijo para registros PM sin fecha en
+    <code>mov.js</code>) — ya no se inventa fecha; <code>cos.js</code>/<code>mov.js</code> filtran.</li>
+    <li>Señal "Reincidencia" de Reemplazo ignoraba patrones de flota compartidos (solo marcaba al
+    <code>equipoMasRepetido</code>) — ahora marca a todo <code>equiposConcentrados</code>.</li>
+    <li>Dotación de Taller ignoraba turno Noche en la capacidad, mientras la carga sí incluía ambos
+    turnos — <code>_capacidadMesDot</code> ahora suma <code>mecDia+mecNoche</code>.</li>
+    <li><code>resumen-semanal</code> sin EXCLUIDOS en vencimientos (confirmado: CN-9506) ni
+    registros_pm — corregido.</li>
+    <li><code>registrarSaludCron</code> no se llamaba si faltaba <code>RESEND_API_KEY</code> (return
+    sin pasar por el catch) — agregado el registro explícito.</li>
+    <li>"Compromisos vencidos" seguía 100% pasivo — <code>resumen-semanal</code> ahora reporta los
+    que tienen <code>fechaCompromiso</code> pasada y siguen 'Pendiente' (sin reimplementar el chequeo
+    completo de "mejoró", que vive solo en metas.js).</li>
+  </ol>
+  <p><b>Menores:</b></p>
+  <ol start="14">
+    <li><code>alertaCruzada</code> nunca devolvía null — "Equipos evaluables" nunca excluía a nadie.
+    Nuevo campo <code>tieneDato</code>, sin cambiar el contrato para los otros 5 call sites.</li>
+    <li><code>alerta-pm</code> secciones 6 y 8 sin EXCLUIDOS (sin manifestación actual).</li>
+    <li>Texto de ayuda en Estadística decía "mínimo 6 intervalos", el código exige 5.</li>
+  </ol>
+  <p>Verificación: suite completa (739/739, 2 tests nuevos), build, esbuild sobre los 10 archivos
+  tocados. <code>alerta-pm</code>/<code>resumen-semanal</code> desplegadas a producción.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

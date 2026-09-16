@@ -275,8 +275,18 @@ export function renderDisp(){
   // historial REAL de intervalos entre fallas y duraciones de reparación de
   // toda la flota — no modela el PM porque su fecha ya se conoce con
   // certeza (diasParaPM), no hay nada aleatorio que remuestrear ahí.
-  var _mcIv=intervalosFallaFlotaDias(ot);
-  var _mcDu=duracionesReparacionFlotaHoras(ot);
+  // otMC (auditoría 2026-09-16, segunda pasada): a diferencia del resto de este
+  // archivo (Ao/Ai, que se quedan con 'ot' puro a propósito — otHist no tiene
+  // fechaSalida real), acá SÍ conviene sumar otHist + informesFalla: el texto de
+  // esta sección promete remuestrear "TODA la flota", pero solo veía la tabla 'ot'
+  // en vivo — un mes con 0 en 'ot' y 69 en otHist (caso real documentado en
+  // dash.js) podía mostrar "historial insuficiente" o una proyección sesgada,
+  // aunque el sistema sí tuviera de sobra. otHist/informesFalla no traen duración
+  // de reparación (mismo caso ya documentado en cos.js) — quedan afuera de
+  // _mcDu automáticamente, sin distorsión, solo aportan a los intervalos.
+  var otMC=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
+  var _mcIv=intervalosFallaFlotaDias(otMC);
+  var _mcDu=duracionesReparacionFlotaHoras(otMC);
   // Equipos AÚN fuera de servicio (fsEnCurso, ya calculado arriba) se excluyen del
   // "presupuesto" de horas — hallazgo de auditoría: incluirlos infla horasFlotaDiarias
   // con horas que hoy ya sabemos que no se van a operar, haciendo ver la disponibilidad

@@ -10,7 +10,7 @@ export function renderBuscar(){
   // (ver correctivos_historico) invisibles en el conteo de Fallas/MTBF de la ficha
   // y del ranking de más abajo — solo se usa para eso, nunca se muestra fila por
   // fila (otHist no trae síntoma/solución/operador para una tabla detallada).
-  var otConHist=ot.concat(_otHistComoOt(S.g('otHist')||[]));
+  var otConHist=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
   var hist=S.g('hist')||[];var insp=S.g('insp')||[];
   var comp=S.g('compMayores')||[];
   // Ficha completa (auditoría 2026-08): antes faltaban 6 fuentes de datos que
