@@ -2918,6 +2918,99 @@ Alternador"/"Frenos" debajo, y la tabla filtrada muestra exactamente las
 4 OT sin costo (la de $500.000 ya cargado queda correctamente excluida).
 Sin errores de JavaScript de la aplicación.
 
+### 44. RUL — Vida Útil Remanente híbrida (Weibull + tendencia real de aceite) (2026-09-16)
+
+Primer ítem de un segundo lote de algoritmos "nivel siguiente" propuesto
+por el usuario tras completar Kaplan-Meier/MCF/Crow-AMSAA/Criticidad
+Dinámica/CUSUM. Del lote de 8 ítems evaluados, 2 quedaron descartados con
+evidencia real antes de tocar código: **Delay-Time (inspección óptima)**
+— la tabla `inspecciones` tiene **0 filas** en producción, sin ningún
+dato no hay distribución delay-time que estimar; **Simulación Age vs
+Block Replacement** — mismo bloqueo de siempre, necesita Cf (costo real
+de falla no planificada), que sigue en 0% real. Un tercer ítem,
+**Actualización Bayesiana de Weibull**, se reemplazó por decisión propia
+explicada al usuario: hoy el sistema recalcula Weibull completo desde
+cero en cada render con todo el historial disponible (barato, sin
+problema de performance que resolver), así que "actualizar
+incrementalmente" no aporta nada real acá — un Bayesiano genuino para
+Weibull no tiene prior conjugado simple (necesitaría MCMC) y cualquier
+atajo (promediar β viejo con nuevo) sería matemática inventada disfrazada
+de rigor.
+
+RUL contesta la pregunta que ninguna herramienta anterior contesta
+directamente: "¿cuántas horas le quedan de verdad a ESTE componente de
+ESTE equipo?". Weibull da la forma de la CATEGORÍA de componente a nivel
+flota; CUSUM (sección 42) detecta si el aceite de ESE equipo específico
+muestra una aceleración de desgaste real. RUL los combina: vida remanente
+condicional de Weibull, ajustada hacia abajo SOLO cuando hay evidencia
+real de aceleración — nunca al revés, nunca sin evidencia.
+
+**`logic.js`**: tres funciones nuevas + una extensión.
+- `rulWeibull(ajuste, edadActual, p)` — vida remanente condicional
+  (el mismo principio detrás de las "vidas B10/B50" que reporta cualquier
+  software de confiabilidad, aplicado como REMANENTE desde la edad actual
+  t, no desde cero): dado que el componente sobrevivió hasta t, el Δt tal
+  que P(falla en [t,t+Δt]|sobrevivió a t)=p cumple R(t+Δt)/R(t)=1−p, que
+  para Weibull tiene forma cerrada: Δt=η·[(t/η)^β−ln(1−p)]^(1/β)−t. p=0.10
+  (B10 remanente) = estimación conservadora recomendada para programar el
+  reemplazo (el mismo criterio "vida de diseño" que ya usa la industria).
+  p=0.50 (B50) = mediana. Verificado matemáticamente: R(t+RUL_p)/R(t)=1−p
+  exacto para cualquier p, y con β=1 (proceso sin memoria) el RUL mediana
+  sale CONSTANTE sin importar la edad — la propiedad "memoryless" real de
+  la distribución exponencial, confirmando que la fórmula es correcta.
+- `cusumAceitePorComponente` (sección 42) se extiende — aditivo, no
+  cambia nada existente — con `factorAceleracion` por metal: compara la
+  pendiente real (metal/día, con FECHAS reales, no el índice ordinal de
+  la muestra) antes vs. después del punto donde CUSUM detectó la
+  aceleración. Acotado a [0,1] con el mismo estilo que ya usa
+  `edadVirtualEquipo` (factorQ) — 0 sin diferencia real, cerca de 1
+  cuanto más grande el salto real de velocidad de desgaste.
+- `rulHibridoComponente(ajuste, edadActual, cusumPorMetal)` — RUL base de
+  Weibull, y si algún metal tiene aceleración detectada, ajusta la edad
+  efectiva = edadActual×(1+factor) (nunca más del doble) y recalcula — el
+  mismo principio de "edad virtual" ya usado en el archivo, aplicado con
+  la métrica de aceite. Con varios metales, usa el de MAYOR factor (el
+  peor caso manda, nunca se promedia hacia abajo una alerta real).
+- `rulHibridoPorComponente(eventos, eq, ace)` — arma el RUL por cada
+  instancia real equipo+componente (mismo agrupamiento de Kaplan-Meier/
+  MCF), Weibull pooled por categoría (≥5 intervalos ya exigido), edad
+  actual = horómetro actual del equipo menos su última falla registrada
+  (mismo criterio de censura de Kaplan-Meier). Sin Weibull suficiente o
+  sin horómetro actual, esa instancia se omite — nunca se inventa un RUL.
+
+13 tests nuevos en `tests/rulHibrido.test.js`: caso calculado a mano
+verificado con script Python (β=2.5, η=5000h, edad=3000h → B10≈410h,
+B50≈1944h); verificación matemática R(t+RUL)/R(t)=1−p para varios p;
+propiedad memoryless de β=1; B50 disminuye con la edad para β>1 (a
+diferencia de β=1); sin aceleración detectada el ajustado=base; con
+aceleración (factor 0,787, mismo caso verificado en Python) el RUL cae de
+forma consistente (410→185h B10, 1944→1080h B50) y el ajustado nunca
+supera al base; con varios metales usa el de mayor factor; instancias sin
+Weibull suficiente o sin horómetro se omiten; orden de menor a mayor RUL
+(más urgente primero). Suite completa 806/806.
+
+**`pred.js`**: nueva sub-vista "⏳ RUL — Vida Útil Remanente" en
+Predictivo (selector `fPredVista`, mismo lugar donde ya viven Matriz de
+Riesgo/Criticidad Dinámica/Señal Unificada de Reemplazo — herramientas de
+"qué actuar primero a nivel de toda la flota"). Tabla por instancia
+equipo+componente: Equipo, Componente, Edad actual, RUL base (B10/B50),
+RUL ajustado por aceite (si corresponde, resaltado), Detalle (metal
+causante + % de aceleración). Respeta el filtro de equipo ya existente.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos`/`equipos`/`analisis_aceite` vía
+`tests/e2e/helpers/mock-supabase.js`, sin tocar la red real de Supabase):
+6 correctivos sintéticos de "Motor" en CN-1 (Weibull real ajustado sobre
+5 intervalos), horómetro actual 9500h (edad real 1.500h desde la última
+falla), y el mismo caso de aceleración de aceite ya verificado en la
+sección 42 (hierro, factor 79%). La tabla renderiza CN-1/Motor con edad
+1.500h, RUL base 61,8h/344,3h, RUL ajustado 21,6h/136,5h (proporción
+consistente con edad efectiva=1500×1,79=2685h) — coincide con el pipeline
+completo Weibull real→RUL→ajuste CUSUM funcionando de punta a punta. Sin
+errores de JavaScript de la aplicación.
+
+Sigue Competing Risks (segundo ítem del orden elegido).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

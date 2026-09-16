@@ -1702,6 +1702,22 @@ function cusumAceite(valores){
 // para cada uno de los 6 metales de desgaste ya trackeados
 // (_ACEITE_UMBRAL_METAL, arriba). Solo devuelve grupos con al menos un
 // metal con historial suficiente (nunca null en todos).
+// Pendiente promedio (unidades de metal por DÍA calendario) entre la primera
+// y la última muestra de una lista YA ordenada cronológicamente — usa solo
+// los extremos (no una regresión completa) a propósito: con pocas muestras
+// por tramo (el caso típico acá, antes/después de una alerta CUSUM) una
+// regresión de mínimos cuadrados es más sensible a un solo punto ruidoso que
+// la pendiente extremo a extremo, y acá solo se necesita la dirección y
+// magnitud gruesa del cambio, no un ajuste fino.
+function _pendienteEntreMuestras(muestras){
+  if(!muestras||muestras.length<2)return null;
+  var d0=new Date(muestras[0].fecha+'T00:00:00');
+  var dN=new Date(muestras[muestras.length-1].fecha+'T00:00:00');
+  var dias=(dN-d0)/86400000;
+  if(!(dias>0))return null;
+  return(muestras[muestras.length-1].valor-muestras[0].valor)/dias;
+}
+
 function cusumAceitePorComponente(ace){
   var metales=Object.keys(_ACEITE_UMBRAL_METAL);
   var porGrupo={};
@@ -1717,12 +1733,34 @@ function cusumAceitePorComponente(ace){
     var ordenadas=g.muestras.slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
     var porMetal={},tieneAlguno=false;
     metales.forEach(function(met){
-      var vals=ordenadas.filter(function(m){return m[met]>0;}).map(function(m){return m[met];});
+      var conValor=ordenadas.filter(function(m){return m[met]>0;});
+      var vals=conValor.map(function(m){return m[met];});
       var r=cusumAceite(vals);
       if(r){
         // Fecha real de la muestra donde se disparó la alerta, para mostrarla.
-        var conValor=ordenadas.filter(function(m){return m[met]>0;});
         r.fechaAlerta=r.indiceAlerta!=null?conValor[r.indiceAlerta].fecha:null;
+        // Factor de aceleración real (2026-09-16, para RUL híbrido — ver
+        // rulHibridoPorComponente): compara la pendiente real (metal/día)
+        // ANTES vs DESPUÉS del punto donde CUSUM detectó la aceleración,
+        // usando fechas reales (no el índice ordinal de la muestra, que
+        // asumiría muestreo uniforme en el tiempo — falso en la realidad).
+        // Acotado a [0,1] con el mismo estilo que ya usa edadVirtualEquipo
+        // (arriba) para su factorQ: 0 = sin diferencia real de pendiente,
+        // se acerca a 1 cuanto más grande es el salto real de velocidad de
+        // desgaste. Si la pendiente "antes" no era positiva (desgaste
+        // estable o bajando hasta ese punto), el salto es máximo (factor=1)
+        // — no hay pendiente previa positiva contra la cual comparar.
+        if(r.indiceAlerta!=null){
+          var antes=conValor.slice(0,r.indiceAlerta+1).map(function(m){return{fecha:m.fecha,valor:m[met]};});
+          var despues=conValor.slice(r.indiceAlerta).map(function(m){return{fecha:m.fecha,valor:m[met]};});
+          var pAntes=_pendienteEntreMuestras(antes);
+          var pDespues=_pendienteEntreMuestras(despues);
+          if(pAntes!=null&&pDespues!=null&&pDespues>0){
+            r.pendienteAntes=Math.round(pAntes*1000)/1000;
+            r.pendienteDespues=Math.round(pDespues*1000)/1000;
+            r.factorAceleracion=Math.round(Math.max(0,Math.min(1,pAntes<=0?1:(pDespues-pAntes)/pDespues))*100)/100;
+          }
+        }
         tieneAlguno=true;
       }
       porMetal[met]=r;
@@ -1730,6 +1768,118 @@ function cusumAceitePorComponente(ace){
     if(tieneAlguno)resultado.push({sigla:g.sigla,componente:g.componente,porMetal:porMetal});
   });
   return resultado;
+}
+
+// ═══ RUL HÍBRIDO — VIDA ÚTIL REMANENTE (Weibull + tendencia real de aceite,
+// 2026-09-16) ═══
+// Primer ítem del segundo orden de prioridad elegido por el usuario ("nivel
+// siguiente"). Ninguna herramienta anterior contesta "¿cuántas horas le
+// quedan de verdad a ESTE componente de ESTE equipo?": Weibull da la forma
+// de la distribución de vida de la CATEGORÍA de componente a nivel flota,
+// Kaplan-Meier/MCF miran supervivencia/conteo acumulado, Crow-AMSAA mira
+// tendencia calendario. RUL (Remaining Useful Life) es el estándar de la
+// industria de mantenimiento predictivo (CBM — condition-based maintenance)
+// para la pregunta operativa real: "¿cuándo conviene programar el cambio?".
+//
+// Base matemática (Weibull, vida remanente condicional — el mismo principio
+// detrás de las "vidas B10/B50" que reporta cualquier software de
+// confiabilidad, aplicado acá como REMANENTE desde la edad actual t, no
+// desde cero): dado que el componente sobrevivió hasta t, el tiempo
+// adicional Δt tal que P(falla en [t,t+Δt] | sobrevivió a t)=p cumple
+// R(t+Δt)/R(t)=1-p, que para Weibull tiene forma cerrada:
+// Δt = η·[(t/η)^β − ln(1−p)]^(1/β) − t
+// p=0.10 (B10 remanente) = estimación CONSERVADORA, el valor que ya usa la
+// industria como "vida de diseño" — acá recomendado como el horizonte para
+// programar el reemplazo. p=0.50 (B50 remanente) = estimación típica/mediana,
+// el rango de incertidumbre real entre ambos es lo que pidió el usuario
+// ("horas estimadas restantes con rango de incertidumbre"), no un número
+// puntual que aparente más certeza de la que hay.
+function rulWeibull(ajuste,edadActual,p){
+  if(!ajuste||!(ajuste.beta>0)||!(ajuste.eta>0))return null;
+  if(edadActual==null||edadActual<0||!(p>0)||!(p<1))return null;
+  var inner=Math.pow(edadActual/ajuste.eta,ajuste.beta)-Math.log(1-p);
+  if(!(inner>=0))return null;
+  var tTotal=ajuste.eta*Math.pow(inner,1/ajuste.beta);
+  return Math.max(0,Math.round((tTotal-edadActual)*10)/10);
+}
+
+// Combina el RUL base de Weibull (arriba) con la tendencia real de desgaste
+// de aceite (cusumAceitePorComponente) para AJUSTAR la edad efectiva del
+// componente cuando hay evidencia real de que se está desgastando más rápido
+// que su propio historial — nunca cuando no hay esa evidencia (sin CUSUM
+// detectado, o sin datos de aceite suficientes, el RUL queda igual al de
+// Weibull puro, sin inventar un ajuste). edadEfectiva = edadActual×(1+factor),
+// con factor∈[0,1] (nunca más que duplicar la edad efectiva) — mismo criterio
+// de acotamiento que factorQ de edadVirtualEquipo. Con varios metales con
+// aceleración detectada para el mismo componente, se usa el MAYOR factor
+// (el metal que muestra la señal más fuerte manda — nunca se promedia hacia
+// abajo una alerta real).
+function rulHibridoComponente(ajuste,edadActual,cusumPorMetal){
+  var base={b10:rulWeibull(ajuste,edadActual,0.10),b50:rulWeibull(ajuste,edadActual,0.50)};
+  var mejorFactor=0,metalCausante=null;
+  Object.keys(cusumPorMetal||{}).forEach(function(met){
+    var r=cusumPorMetal[met];
+    if(r&&r.detectado&&r.factorAceleracion>mejorFactor){
+      mejorFactor=r.factorAceleracion;
+      metalCausante=met;
+    }
+  });
+  if(mejorFactor<=0||base.b10==null){
+    return{b10:base.b10,b50:base.b50,ajustadoPorAceite:false,b10Ajustado:base.b10,b50Ajustado:base.b50,factorAceleracion:0,metalCausante:null};
+  }
+  var edadEfectiva=edadActual*(1+mejorFactor);
+  return{
+    b10:base.b10,b50:base.b50,
+    ajustadoPorAceite:true,
+    b10Ajustado:rulWeibull(ajuste,edadEfectiva,0.10),
+    b50Ajustado:rulWeibull(ajuste,edadEfectiva,0.50),
+    factorAceleracion:mejorFactor,
+    metalCausante:metalCausante
+  };
+}
+
+// Arma el RUL híbrido para cada instancia real equipo+componente — mismo
+// agrupamiento sigla+componente que kaplanMeierCorrectivosPorComponente/
+// mcfCorrectivosPorComponente (arriba), Weibull pooled a nivel flota por
+// categoría de componente (analisisVidaUtilCorrectivosPorComponente, ya
+// exige ≥5 intervalos), edad actual = horómetro actual del equipo menos su
+// última falla registrada de ese componente (mismo criterio de censura que
+// ya usa Kaplan-Meier). Sin ajuste de Weibull para esa categoría, o sin
+// horómetro actual del equipo, esa instancia se omite — nunca se inventa
+// un RUL sin ambos datos reales.
+function rulHibridoPorComponente(eventos,eq,ace){
+  var ajustePorComponente={};
+  analisisVidaUtilCorrectivosPorComponente(eventos).forEach(function(g){
+    ajustePorComponente[g.grupo]=g.ajuste;
+  });
+  var cusumPorGrupo={};
+  cusumAceitePorComponente(ace).forEach(function(g){
+    cusumPorGrupo[g.sigla+'|'+g.componente]=g.porMetal;
+  });
+  var porEquipoComp={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.componente||!(e.horom>0)||!e.sigla)return;
+    var k=e.sigla+'|'+e.componente;
+    (porEquipoComp[k]=porEquipoComp[k]||{sigla:e.sigla,componente:e.componente,horoms:[]}).horoms.push(e.horom);
+  });
+  var eqPorSigla={};
+  (eq||[]).forEach(function(x){if(x&&x.sigla)eqPorSigla[x.sigla]=x;});
+  var resultado=[];
+  Object.keys(porEquipoComp).sort().forEach(function(k){
+    var g=porEquipoComp[k];
+    var ajuste=ajustePorComponente[g.componente];
+    if(!ajuste)return;
+    var eqObj=eqPorSigla[g.sigla];
+    if(!eqObj||!(eqObj.horomActual>0))return;
+    var validos=g.horoms.filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+    var ultimaFalla=validos[validos.length-1];
+    var edadActual=eqObj.horomActual-ultimaFalla;
+    if(!(edadActual>=0))return;
+    var rul=rulHibridoComponente(ajuste,edadActual,cusumPorGrupo[k]);
+    if(rul.b10==null)return;
+    resultado.push(Object.assign({sigla:g.sigla,componente:g.componente,edadActual:edadActual},rul));
+  });
+  return resultado.sort(function(a,b){return(a.b10Ajustado!=null?a.b10Ajustado:a.b10)-(b.b10Ajustado!=null?b.b10Ajustado:b.b10);});
 }
 
 // ═══ PREDICTIVO (2026-07) — estadísticas en vivo desde ordenes_compra_historico ═══
@@ -3575,7 +3725,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

@@ -1703,6 +1703,50 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   fallas, 1 con costo, 2 pendientes, 33% avance" y la tabla filtrada muestra exactamente las 4 OT
   sin costo (la de $500.000 queda correctamente excluida). Sin errores de JavaScript.</p>
 
+  <h3>44. RUL — Vida Útil Remanente híbrida (Weibull + tendencia real de aceite) (2026-09-16)</h3>
+  <p>Primer ítem de un segundo lote de algoritmos "nivel siguiente". De 8 propuestas evaluadas, 2
+  quedaron descartadas con evidencia real: <b>Delay-Time</b> (tabla <code>inspecciones</code> con 0
+  filas en producción) y <b>Age vs Block Replacement</b> (mismo bloqueo de siempre: falta Cf, costo
+  real de falla). <b>Actualización Bayesiana de Weibull</b> se reemplazó por decisión propia: el
+  sistema ya recalcula Weibull completo desde cero en cada render (barato, sin problema de
+  performance), así que "actualizar incrementalmente" no aporta nada real — un Bayesiano genuino
+  necesitaría MCMC, y cualquier atajo sería matemática inventada disfrazada de rigor.</p>
+  <p>RUL contesta "¿cuántas horas le quedan de verdad a ESTE componente de ESTE equipo?" — Weibull
+  da la forma de la categoría a nivel flota, CUSUM (sección 42) detecta si el aceite de ese equipo
+  específico muestra aceleración real. RUL combina ambos: vida remanente condicional de Weibull,
+  ajustada hacia abajo SOLO con evidencia real, nunca al revés.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>rulWeibull(ajuste, edadActual, p)</code> — vida remanente condicional (mismo
+    principio de las "vidas B10/B50" de cualquier software de confiabilidad, aplicado como
+    remanente desde la edad actual): Δt=η·[(t/η)^β−ln(1−p)]^(1/β)−t. B10 (p=0.10) = estimación
+    conservadora para programar reemplazo; B50 = mediana. Verificado: R(t+RUL)/R(t)=1−p exacto, y
+    con β=1 el RUL mediana sale constante (propiedad memoryless real).</li>
+    <li><code>cusumAceitePorComponente</code> se extiende (aditivo) con <code>factorAceleracion</code>
+    por metal: pendiente real (metal/día, con fechas reales) antes vs. después del punto de
+    detección CUSUM, acotado [0,1] con el mismo estilo de <code>edadVirtualEquipo</code>.</li>
+    <li><code>rulHibridoComponente</code> — ajusta edad efectiva=edadActual×(1+factor) cuando hay
+    aceleración detectada (nunca más del doble); con varios metales usa el de mayor factor.</li>
+    <li><code>rulHibridoPorComponente(eventos, eq, ace)</code> — arma el RUL por instancia
+    equipo+componente, mismo agrupamiento de Kaplan-Meier/MCF. Sin Weibull suficiente o sin
+    horómetro actual, la instancia se omite.</li>
+  </ul>
+  <p>13 tests nuevos en <code>tests/rulHibrido.test.js</code> (806/806 en total): caso calculado a
+  mano verificado con script Python; R(t+RUL)/R(t)=1−p para varios p; propiedad memoryless de β=1;
+  B50 disminuye con la edad para β&gt;1; sin aceleración el ajustado=base; con aceleración
+  (factor 0,787) el RUL cae de forma consistente y nunca supera al base; con varios metales usa el
+  mayor factor; instancias sin dato se omiten; orden de menor a mayor RUL.</p>
+  <p><b>Cambios en <code>pred.js</code>:</b> nueva sub-vista "⏳ RUL — Vida Útil Remanente", mismo
+  lugar que Matriz de Riesgo/Criticidad Dinámica/Señal Unificada de Reemplazo. Tabla por instancia:
+  Equipo, Componente, Edad actual, RUL base (B10/B50), RUL ajustado por aceite, Detalle.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>correctivos</code>/<code>equipos</code>/<code>analisis_aceite</code>): 6 correctivos
+  sintéticos de "Motor" en CN-1, horómetro actual 9500h (edad real 1.500h), mismo caso de
+  aceleración de aceite de la sección 42 (hierro, factor 79%). La tabla renderiza edad 1.500h, RUL
+  base 61,8h/344,3h, RUL ajustado 21,6h/136,5h — pipeline completo Weibull real→RUL→ajuste CUSUM
+  funcionando de punta a punta. Sin errores de JavaScript.</p>
+  <p>Sigue Competing Risks (segundo ítem del orden elegido).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

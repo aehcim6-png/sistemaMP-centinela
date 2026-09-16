@@ -1486,6 +1486,51 @@ export function renderPred(){
       '</div>';
   }
 
+  // ═══ RUL — VIDA ÚTIL REMANENTE (2026-09-16) ═══
+  // Primer ítem del segundo orden de prioridad elegido por el usuario tras
+  // completar Kaplan-Meier/MCF/Crow-AMSAA/Criticidad Dinámica/CUSUM.
+  // Ninguna herramienta anterior contesta directamente "¿cuántas horas le
+  // quedan a ESTE componente de ESTE equipo?" — Weibull describe la forma
+  // de la categoría a nivel flota, CUSUM detecta tendencia de desgaste real
+  // en el aceite. rulHibridoPorComponente (logic.js) combina ambos: RUL
+  // base desde Weibull (vida remanente condicional B10/B50, el estándar de
+  // la industria) y lo ajusta hacia abajo SOLO cuando hay evidencia real de
+  // aceleración en el aceite de ESE equipo — nunca al revés, nunca sin
+  // evidencia.
+  if(fVista==='rul'){
+    var eventosRul=ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
+      .map(function(o){
+        var comp=(o.componente&&o.componente.trim())||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma):'');
+        return{sigla:o.sigla,componente:comp||'',horom:o.horom};
+      });
+    var aceiteRul=S.g('aceite')||[];
+    if(aceiteRul.length&&typeof window._aceiteResolverSiglas==='function')window._aceiteResolverSiglas(aceiteRul);
+    var rulLista=(typeof rulHibridoPorComponente==='function'?rulHibridoPorComponente(eventosRul,eq,aceiteRul):[])
+      .filter(function(r){return!fEq||r.sigla===fEq;});
+    var rulConAceleracion=rulLista.filter(function(r){return r.ajustadoPorAceite;}).length;
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>RUL — Vida Útil Remanente</div><div style="font-size:11px;color:var(--tx3)">Horas estimadas restantes por componente real (Weibull) — ajustadas cuando el aceite muestra una aceleración de desgaste real (CUSUM)</div></div>'+
+      '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
+      '<div style="font-size:12px;line-height:1.6">B10 = horas restantes con 90% de confianza de seguir en servicio (conservador, recomendado para programar el reemplazo). B50 = mediana esperada. Requiere Weibull ajustado para esa categoría de componente (≥5 intervalos reales) y horómetro actual del equipo — sin ambos, esa instancia no aparece acá (nunca se inventa un RUL).'+
+      (rulConAceleracion?' <b style="color:var(--danger)">'+rulConAceleracion+' instancia(s) con RUL reducido por aceleración real de desgaste en el aceite.</b>':'')+
+      '</div></div>'+
+      (rulLista.length?
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:12%">Equipo</th><th style="text-align:left;width:16%">Componente</th><th style="width:12%">Edad actual</th><th style="width:16%">RUL base (B10 / B50)</th><th style="width:18%">RUL ajustado (aceite)</th><th style="text-align:left">Detalle</th></tr>'+
+      rulLista.map(function(r){
+        var rulRef=r.b10Ajustado!=null?r.b10Ajustado:r.b10;
+        var col=rulRef<200?'var(--danger)':rulRef<800?'var(--warn)':'var(--ok)';
+        return'<tr style="'+(r.ajustadoPorAceite?'background:rgba(239,68,68,.06)':'')+'">'+
+          '<td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+'</td>'+
+          '<td style="font-weight:600">'+escapeHtml(r.componente)+'</td>'+
+          '<td style="text-align:center">'+fn(r.edadActual)+'h</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+col+'">'+fn(r.b10)+'h / '+fn(r.b50)+'h</td>'+
+          '<td style="text-align:center">'+(r.ajustadoPorAceite?'<b style="color:var(--danger)">'+fn(r.b10Ajustado)+'h / '+fn(r.b50Ajustado)+'h</b>':'<span style="color:var(--tx3)">—</span>')+'</td>'+
+          '<td style="font-size:10px;color:var(--tx2)">'+(r.ajustadoPorAceite?'Aceleración real en '+escapeHtml(r.metalCausante)+' (factor '+Math.round(r.factorAceleracion*100)+'%)':'Sin datos de aceite, o sin aceleración detectada — RUL solo de Weibull')+'</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin instancias equipo+componente con Weibull y horómetro suficientes todavía</p></div>');
+  }
+
   // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en
   // pausa desde el 2026-09-14 (la auditoría completa del sistema tomó
   // prioridad). Cruza 6 señales reales, ya calculadas cada una en su propia
@@ -1589,6 +1634,7 @@ $('s-pred').innerHTML=
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
+    '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
     '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
