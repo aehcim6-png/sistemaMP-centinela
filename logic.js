@@ -236,6 +236,66 @@ function precioMaterial(rep,lub,stk){
   return mejor>=0.6?precio:0;
 }
 
+// ═══ COSTO SUGERIDO POR CRUCE — cruza el texto de un correctivo (síntoma +
+// solución + componente) contra el 'detalle' de las Órdenes de Compra
+// reales del MISMO equipo (ordenes_compra_historico), dentro de una ventana
+// de días, para sugerir de dónde podría salir el costo real de esa
+// reparación — 2026-09-16, pedido del usuario tras notar que muchas OT
+// mencionan el mismo repuesto/servicio que su OC (ej. real verificado: OT
+// de CF-9510 15-mar-2026, síntoma "Falla eléctrica", solución "...cambio de
+// alternador...", cruza con una OC del mismo día "Servicio Reparacion
+// Alter[nador]", $550.000).
+//
+// El 'detalle' de ordenes_compra_historico está TRUNCADO a 25 caracteres
+// (confirmado: ninguna fila supera esa longitud) — "alternador" queda
+// "Alter". Por eso NO se puede reusar _scoreMaterial tal cual (exige
+// coincidencia exacta de token): acá un token del detalle (candidato, casi
+// siempre truncado) cuenta como coincidencia si es IGUAL o PREFIJO de un
+// token del texto de la OT — mínimo 4 caracteres, para no dar falsos
+// positivos con palabras cortas genéricas.
+//
+// Devuelve una LISTA de candidatos (puede haber más de uno: reparaciones
+// similares del mismo equipo caen en la misma ventana de días), ordenada
+// por score y cercanía de fecha — NUNCA un costo único "confirmado". Es una
+// sugerencia para que un humano revise, no un reemplazo automático del
+// costo real de la OT — mismo umbral (0.6) que ya usa precioMaterial.
+function _tokenCoincideConTruncamiento(tokenCorto,tokenLargo){
+  if(tokenCorto===tokenLargo)return true;
+  if(tokenCorto.length>=4&&tokenLargo.indexOf(tokenCorto)===0)return true;
+  if(tokenLargo.length>=4&&tokenCorto.indexOf(tokenLargo)===0)return true;
+  return false;
+}
+function _scoreConTruncamiento(tokensQuery,textoCandidato){
+  var tc=_tokensMaterial(textoCandidato);
+  if(!tc.length)return 0;
+  var hits=0;
+  tc.forEach(function(t){
+    if(tokensQuery.some(function(q){return _tokenCoincideConTruncamiento(t,q);}))hits++;
+  });
+  return hits/tc.length;
+}
+function costoSugeridoPorCruce(correctivo,ocHist,opts){
+  opts=opts||{};
+  var ventanaDias=opts.ventanaDias!=null?opts.ventanaDias:15;
+  var umbral=opts.umbral!=null?opts.umbral:0.6;
+  if(!correctivo||!correctivo.sigla||!correctivo.fecha)return[];
+  var textoOT=[correctivo.sintoma,correctivo.solucion,correctivo.componente].filter(Boolean).join(' ');
+  var tokensOT=_tokensMaterial(textoOT);
+  if(!tokensOT.length)return[];
+  var fechaOT=new Date(correctivo.fecha+'T00:00:00');
+  var candidatos=[];
+  (ocHist||[]).forEach(function(o){
+    if(!o||o.sigla!==correctivo.sigla||!o.fecha||!(o.costo>0))return;
+    var fechaOC=new Date(o.fecha+'T00:00:00');
+    var diffDias=Math.round(Math.abs((fechaOC-fechaOT)/86400000));
+    if(diffDias>ventanaDias)return;
+    var score=_scoreConTruncamiento(tokensOT,o.detalle);
+    if(score<umbral)return;
+    candidatos.push({fecha:o.fecha,detalle:o.detalle,costo:o.costo,proveedor:o.proveedor||'',diffDias:diffDias,score:Math.round(score*100)/100});
+  });
+  return candidatos.sort(function(a,b){return b.score-a.score||a.diffDias-b.diffDias;});
+}
+
 // Determina si un repuesto de pauta es lubricante vs filtro
 function esLubricante(rep){
   if(!rep)return false;
@@ -2888,6 +2948,7 @@ if (typeof window !== 'undefined') {
   window.edadVirtualEquipo = edadVirtualEquipo;
   window.costoRelativoMantenimiento = costoRelativoMantenimiento;
   window.costoRelativoMantenimientoFlota = costoRelativoMantenimientoFlota;
+  window.costoSugeridoPorCruce = costoSugeridoPorCruce;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -2896,7 +2957,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,

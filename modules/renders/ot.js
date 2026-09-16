@@ -60,6 +60,7 @@ function _otResumenBusquedaHTML(fil,fTexto){
 export function renderOt(){
   const ot=S.g('ot')||[],eq=S.g('eq')||[];
   const reg=S.g('reg')||[];
+  const ocHist=S.g('ocHist')||[];
   // Equipos AÚN fuera de servicio (mismo criterio y banner que Disponibilidad) — con
   // cientos de correctivos acumulados, estas OT (a veces de meses atrás) quedaban
   // enterradas varias páginas adentro de la tabla, sin ningún aviso arriba que las
@@ -193,7 +194,27 @@ export function renderOt(){
         otRow+='<td style="font-size:10px">'+escapeHtml(o.tecnico||'—')+'</td>';
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
         else if(fromHist){otRow+='<td class="mono" style="font-size:10px;color:var(--tx3)">—</td>';}
-        else{otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;'+CELL_INPUT_STYLE+';font-size:10px"></td>';}
+        else{
+          otRow+='<td><input type="number" value="'+(o.costo||0)+'" onchange="edOT('+i+',\'costo\',parseFloat(this.value)||0)" style="width:60px;'+CELL_INPUT_STYLE+';font-size:10px">';
+          // Costo sugerido por cruce con OC reales (2026-09-16, pedido del usuario:
+          // cruzar el texto de la OT contra el detalle de ordenes_compra_historico
+          // del mismo equipo — ver costoSugeridoPorCruce, logic.js). Solo se muestra
+          // si NO hay costo cargado y el cruce encuentra un candidato con score
+          // suficiente — es una SUGERENCIA con un botón para aplicarla, nunca se
+          // escribe sola. Se recalcula en cada render (barato: la ventana de días
+          // acota cuántas OC hay que revisar por OT).
+          if(!(o.costo>0)){
+            var _sug=costoSugeridoPorCruce(o,ocHist);
+            if(_sug.length){
+              var _c=_sug[0];
+              otRow+='<div style="font-size:9px;margin-top:2px" title="'+escapeHtml(_c.detalle)+' · '+fd(_c.fecha)+' · '+escapeHtml(_c.proveedor)+' · coincidencia '+Math.round(_c.score*100)+'%">'+
+                '<span style="color:var(--w)">💡 $'+fn(_c.costo)+'</span> '+
+                '<a href="javascript:void(0)" onclick="edOT('+i+',\'costo\',' + _c.costo + ');renders.ot()" style="color:var(--ac);text-decoration:underline">usar</a>'+
+                '</div>';
+            }
+          }
+          otRow+='</td>';
+        }
         // Modo de falla (codFalla) + AST/LOTO/Autorizado: existían como campos del
         // formulario "Nueva OT" (saveOT() ya los guarda, ver más abajo) pero nunca
         // se mostraban ni se podían editar acá — el encabezado de la tabla SÍ traía

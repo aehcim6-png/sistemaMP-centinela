@@ -1983,6 +1983,43 @@ demanda de ítems agregados recientemente; y "sin repuesto" (motivo NO-
 falla) contado como falla real en `esFallaMTBF` por un `criticidad`
 hardcodeado en "Registrar salida de servicio".
 
+## Costo sugerido por cruce OT ↔ OC (síntoma/solución vs. detalle real de compra)
+
+2026-09-16: pedido del usuario tras notar, leyendo los correctivos reales,
+que el texto de la OT suele mencionar el mismo repuesto/servicio que su
+Orden de Compra — ej. real verificado: OT de **CF-9510, 15-mar-2026**,
+síntoma "Falla eléctrica", solución "...cambio de alternador y relleno
+depósito grasa" → hay una OC del **mismo día**, "Servicio Reparacion
+Alter[nador]", **$550.000**.
+
+`costoSugeridoPorCruce(correctivo, ocHist, opts)` (logic.js) tokeniza el
+síntoma+solución+componente de la OT y el `detalle` de cada línea de
+`ordenes_compra_historico` del MISMO equipo dentro de una ventana de días
+(±15 por defecto), y calcula un score de coincidencia — reutilizando
+`_tokensMaterial` (el mismo tokenizador que ya usa `precioMaterial` para
+repuestos de pauta vs. catálogo de precios). Una complicación real
+encontrada al validarlo: el campo `detalle` de `ordenes_compra_historico`
+está **truncado a 25 caracteres** en el 100% de las 6.848 filas
+("alternador" queda "Alter") — por eso el matcher no exige token exacto,
+acepta que un token del detalle (candidato, casi siempre truncado) sea
+prefijo de un token de la OT (mínimo 4 caracteres). Umbral 0.6, igual que
+`precioMaterial`, para mantener el mismo criterio de "match confiable" en
+toda la app.
+
+Devuelve una **lista de candidatos** ordenada por score y cercanía de
+fecha — nunca un costo único "confirmado": es una sugerencia para que un
+humano la revise y aplique con un clic, no un reemplazo automático del
+costo real. Validado con datos reales antes de implementar (no solo el
+caso del alternador: se comprobó también que el matcher rechaza
+correctamente una OC de $50 sin relación real — "Bateria Ac/dc Power
+Wand" — que un cruce ingenuo por palabra suelta hubiera podido confundir
+con una OT de "cambio de baterías").
+
+Expuesto en OT (`ot.js`): cuando una OT no tiene costo cargado y el cruce
+encuentra un candidato, aparece "💡 $X — usar" junto al campo de costo;
+un clic aplica el valor (mismo `edOT()` que ya usa la edición manual). 9
+tests nuevos en `costoSugeridoPorCruce.test.js`.
+
 ## Costo Relativo de Mantenimiento — primer indicador financiero con costo real
 
 2026-09-16: el usuario compartió un archivo real de Órdenes de Compra

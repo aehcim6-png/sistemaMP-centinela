@@ -1277,6 +1277,18 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   inflarse hasta 6x; demanda de repuestos (Poisson) con denominador mal calculado; y "sin
   repuesto" contado como falla real por un <code>criticidad</code> hardcodeado.</p>
 
+  <h2>Costo sugerido por cruce OT ↔ OC (síntoma/solución vs. detalle real de compra)</h2>
+  <p>2026-09-16: <code>costoSugeridoPorCruce</code> (logic.js) tokeniza el síntoma+solución+componente de una
+  OT y el <code>detalle</code> de cada línea de <code>ordenes_compra_historico</code> del mismo equipo dentro
+  de una ventana de días (±15 por defecto), reutilizando <code>_tokensMaterial</code> (el mismo tokenizador de
+  <code>precioMaterial</code>). Caso real verificado: OT de CF-9510 15-mar-2026 ("cambio de alternador") cruza
+  con una OC del mismo día, "Servicio Reparacion Alter[nador]", $550.000. Complicación real encontrada: el
+  campo <code>detalle</code> está truncado a 25 caracteres en el 100% de las filas — el matcher acepta que un
+  token del detalle sea PREFIJO (mín. 4 caracteres) de un token de la OT, no exige coincidencia exacta. Umbral
+  0.6 (igual que <code>precioMaterial</code>). Devuelve una lista de candidatos ordenada por score y cercanía
+  de fecha, nunca un costo único "confirmado" — sugerencia con un clic para aplicar (<code>edOT()</code>),
+  expuesta en la pestaña OT junto al campo de costo cuando está vacío. 9 tests nuevos.</p>
+
   <h2>Costo Relativo de Mantenimiento — primer indicador financiero con costo real</h2>
   <p>2026-09-16: se cargó un archivo real de Órdenes de Compra (Iconstruye/Komatsu, 1.335 líneas).
   Se creó por error una tabla nueva sin revisar si ya existía algo así — y existía:
