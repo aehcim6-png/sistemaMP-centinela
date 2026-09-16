@@ -109,6 +109,35 @@ export function renderAce(){
     (aceOutliers.length>10?'<div style="font-size:11px;color:var(--tx3);margin-top:6px">+'+(aceOutliers.length-10)+' más</div>':'')+
     '</div>':'';
 
+  // Aceleración de desgaste — CUSUM (2026-09-16, quinto y último ítem del
+  // orden de prioridad elegido por el usuario). 'estado' (arriba) es un
+  // umbral fijo por muestra, y "alertas persistentes" ve solo 2 muestras
+  // seguidas ya marcadas como problema — ninguno ve una tendencia
+  // sostenida en los números mismos. CUSUM (cusumAceitePorComponente,
+  // logic.js) sí: varias muestras seguidas levemente elevadas para ESE
+  // equipo, que juntas significan una aceleración real de desgaste, aunque
+  // ninguna sola cruce el umbral fijo de alerta.
+  var aceCusum=(typeof cusumAceitePorComponente==='function')?cusumAceitePorComponente(ace):[];
+  var aceCusumDetectados=[];
+  aceCusum.forEach(function(g){
+    Object.keys(g.porMetal).forEach(function(met){
+      var r=g.porMetal[met];
+      if(r&&r.detectado)aceCusumDetectados.push({sigla:g.sigla,componente:g.componente,metal:met,cusum:r});
+    });
+  });
+  var aceCusumHTML=aceCusumDetectados.length?
+    '<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
+    '<b style="font-size:12px;color:var(--danger)">🔺 '+aceCusumDetectados.length+' aceleración'+(aceCusumDetectados.length===1?'':'es')+' de desgaste detectada'+(aceCusumDetectados.length===1?'':'s')+' (CUSUM) — varias muestras seguidas levemente elevadas, no una sola fuera de rango</b>'+
+    aceCusumDetectados.map(function(d){
+      return'<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;font-size:12px;flex-wrap:wrap">'+
+        '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(d.sigla)+'</span>'+
+        '<span style="color:var(--tx2);font-weight:600">'+escapeHtml(d.componente)+'</span>'+
+        '<b style="color:var(--danger)">'+d.metal+'</b>'+
+        '<span style="color:var(--tx3)">desde la muestra del '+d.cusum.fechaAlerta+' — mediana histórica '+d.cusum.mu0+', CUSUM '+d.cusum.curva[d.cusum.curva.length-1].cusum+' (umbral '+d.cusum.h+')</span>'+
+        '</div>';
+    }).join('')+
+    '</div>':'';
+
   // Stats
   var normal=ace.filter(function(m){return m.estado==='NORMAL';}).length;
   var precaucion=ace.filter(function(m){return m.estado==='PRECAUCION';}).length;
@@ -124,6 +153,7 @@ export function renderAce(){
     '<div><button class="btn" onclick="addAceite()">+ Manual</button> <button class="btn btn-o" onclick="importAceite()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button></div></div>'+
 
     alertasPersistentesHTML+
+    aceCusumHTML+
     aceOutliersHTML+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+

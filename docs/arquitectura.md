@@ -2774,6 +2774,89 @@ Con esto, los 4 ítems del orden de prioridad elegido por el usuario están
 completos salvo el último: detección de aceleración de desgaste en aceite
 (CUSUM).
 
+### 42. CUSUM — detección de aceleración de desgaste en Análisis de Aceite (2026-09-16)
+
+Quinto y último ítem del orden de prioridad elegido por el usuario entre
+las 7 propuestas evaluadas (secciones 38-41 fueron las 4 anteriores).
+Antes de implementar se revisó qué existe hoy en Análisis de Aceite para
+no duplicar: `estado` (NORMAL/PRECAUCION/ALERTA) es un umbral fijo por
+**muestra individual**; `aceiteOutliers` (2026-09-12) busca un valor
+absurdamente alto en UNA muestra (error de digitación); "alertas
+persistentes" (`ace.js`) ve 2 muestras SEGUIDAS ya marcadas como problema
+por el laboratorio. Ninguno de los tres ve una **tendencia sostenida**
+directamente en los números: varias muestras seguidas levemente elevadas
+para ese equipo+componente, donde cada una sola no cruza el umbral fijo
+de alerta, pero juntas significan que el desgaste se está acelerando de
+verdad — y donde "alertas persistentes" no ayuda si el laboratorio nunca
+llegó a marcar ninguna de esas muestras como PRECAUCION/ALERTA.
+
+**`logic.js`**: dos funciones nuevas.
+- `cusumAceite(valores)` — CUSUM de un solo lado (control de procesos,
+  Montgomery "Introduction to Statistical Quality Control", el método
+  estándar de la industria para detectar un corrimiento sostenido de la
+  media). Solo importa que el metal SUBA (desgaste), nunca que baje.
+  μ0 = mediana histórica de la serie (robusta a un outlier suelto, ya
+  separado por `aceiteOutliers`). **σ se estima con el rango móvil
+  promedio entre muestras consecutivas** (σ=MR̄/1,128, el método estándar
+  de Montgomery para "individuals charts" sin subgrupos racionales) — NO
+  con la varianza muestral de toda la serie: la varianza simple se infla
+  con la propia aceleración que se está buscando, lo que sube su propio
+  umbral de detección y la vuelve invisible. Verificado con un caso de
+  prueba real (serie estable seguida de una subida sostenida): con
+  varianza muestral simple σ=11,19 y el CUSUM JAMÁS cruza el umbral; con
+  rango móvil σ=3,99 y sí detecta, exactamente en el punto donde empieza
+  la subida real. k (holgura)=0,5σ y h (umbral de decisión)=4σ son los
+  valores de tabla estándar de la literatura de control de procesos
+  (ARL≈168 en control) — no números elegidos a mano. Mínimo 6 muestras
+  (necesita historial suficiente para estimar σ con algo de confianza).
+  `null` si la serie es constante (σ=0, no hay variación real que
+  evaluar).
+- `cusumAceitePorComponente(ace)` — agrupa por `sigla+componente` (mismo
+  criterio que "alertas persistentes" de `ace.js`), ordena por fecha, y
+  corre `cusumAceite` para cada uno de los 6 metales de desgaste ya
+  trackeados (`_ACEITE_UMBRAL_METAL`). Cada metal se evalúa por separado
+  — un metal sin historial suficiente no bloquea a otro del mismo grupo
+  que sí lo tiene. `fechaAlerta` guarda la fecha real de la muestra donde
+  se disparó la alerta, para mostrarla.
+
+11 tests nuevos en `tests/cusumAceite.test.js`: umbral mínimo de 6
+muestras; serie constante devuelve `null`; detección exacta calculada a
+mano y verificada con un script Python independiente (curva CUSUM punto
+por punto); serie estable con ruido normal NO dispara alerta; confirma
+explícitamente que la varianza simple pierde sensibilidad frente al rango
+móvil (mismo caso, ambos métodos comparados); valores inválidos (≤0) se
+descartan; la curva nunca es negativa; agrupamiento y ordenamiento
+cronológico correctos aunque las muestras lleguen desordenadas; muestras
+sin sigla/componente/fecha se ignoran; un grupo sin ningún metal con
+historial suficiente queda excluido del resultado. Suite completa
+793/793.
+
+**`ace.js`**: nuevo bloque de aviso "🔺 N aceleración(es) de desgaste
+detectada(s) (CUSUM)" en `renderAce()`, en el mismo lugar y con el mismo
+estilo visual que ya usan "alertas persistentes" y "posibles errores de
+digitación" — equipo, componente, metal, fecha de la muestra donde se
+disparó, mediana histórica y valor CUSUM final vs. umbral.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`analisis_aceite` vía `tests/e2e/helpers/mock-supabase.js`, sin tocar la
+red real de Supabase): 9 muestras sintéticas de "Motor" en CN-1, mismos
+valores de hierro del caso de prueba a mano (18,20,19,21,20,26,32,40,50),
+**todas marcadas `NORMAL` por el laboratorio** (para probar que el CUSUM
+detecta la tendencia aunque nadie haya marcado ninguna muestra como
+problema). El bloque renderiza "CN-1 · Motor · hierro · desde la muestra
+del 2026-06-15 — mediana histórica 21, CUSUM 56.02 (umbral 15.96)" —
+coincide exactamente con el cálculo a mano, y confirma el objetivo real
+de la herramienta: encontró una aceleración real de desgaste que el
+sistema existente (estado por muestra, alertas persistentes) no había
+detectado en absoluto. Sin errores de JavaScript de la aplicación.
+
+Con esto se completa el orden de prioridad elegido por el usuario entre
+las 7 propuestas evaluadas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de
+Criticidad Dinámica, CUSUM — 5 de 6 ítems viables, implementados uno por
+uno con verificación completa en cada paso). Edad de Reemplazo Óptima
+queda descartada, sin cambios desde su evaluación inicial: sigue
+bloqueada por falta de dato real de costo en `correctivos.costo`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

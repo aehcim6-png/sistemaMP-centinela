@@ -1625,6 +1625,113 @@ function aceiteOutliers(ace){
   return outliers;
 }
 
+// ═══ CUSUM — DETECCIÓN DE ACELERACIÓN DE DESGASTE EN ACEITE (2026-09-16) ═══
+// Quinto y último ítem del orden de prioridad elegido por el usuario. Lo
+// que YA existe en Análisis de Aceite mira cada muestra SOLA: 'estado'
+// (NORMAL/PRECAUCION/ALERTA) es un umbral fijo puntual, y aceiteOutliers
+// (arriba) busca un valor absurdamente alto en UNA muestra (error de
+// digitación). Ninguno de los dos ve una tendencia sostenida: varias
+// muestras SEGUIDAS levemente por encima de lo normal para ESE equipo —
+// cada una, sola, puede no cruzar el umbral fijo de alerta — pero juntas
+// significan que el desgaste se está acelerando de verdad. Es el mismo
+// hueco que "alertas persistentes" (arriba en ace.js) detecta a medias
+// (2 muestras seguidas en ALERTA/PRECAUCION), pero acotado a que alguien
+// ya haya marcado ambas como problema — un CUSUM lo ve directo en los
+// números, sin depender de que 'estado' esté bien puesto.
+//
+// cusumAceite(valores) asume que 'valores' YA viene en orden CRONOLÓGICO
+// (el llamador es responsable de ordenar por fecha antes de pasarlo acá —
+// ver cusumAceitePorComponente, abajo, que hace exactamente eso): un
+// rango móvil sobre datos desordenados no significa nada.
+//
+// CUSUM (suma acumulativa, control de procesos — Montgomery, "Introduction
+// to Statistical Quality Control", el método estándar de la industria
+// para detectar un corrimiento sostenido de la media, no un valor puntual
+// fuera de rango) de UN SOLO LADO: acá solo importa que el metal SUBA
+// (desgaste), nunca que baje. μ0 = mediana histórica de ESE metal para
+// ESE equipo+componente (robusta a un outlier suelto, ya separado por
+// aceiteOutliers). σ se estima con el RANGO MÓVIL promedio entre muestras
+// consecutivas (σ=MR̄/1,128, d2 estándar para subgrupos de 2 — el método
+// de Montgomery para "individuals charts" sin subgrupos racionales), NO
+// con la varianza muestral de toda la serie: la varianza simple se infla
+// con la propia aceleración que se está buscando (el corrimiento real
+// termina inflando su propio umbral de detección y se vuelve invisible —
+// verificado con un caso de prueba real donde la varianza simple daba
+// σ=11 y NUNCA detectaba, contra σ=4 con rango móvil que sí detecta en el
+// punto correcto). k (holgura) = 0.5σ y h (umbral de decisión) = 4σ son
+// los valores de tabla estándar de la literatura de control de procesos
+// (ARL≈168 en control, la misma referencia que ya se usa para el
+// z=1.645/t-críticos de Weibull en este archivo) — no números elegidos a
+// mano. C_i = max(0, C_{i-1} + (x_i - μ0 - k)); se dispara cuando C_i
+// supera h.
+function cusumAceite(valores){
+  var validos=(valores||[]).filter(function(v){return v>0;});
+  var n=validos.length;
+  if(n<6)return null;
+  var mu0=medianaPositiva(validos);
+  var rangosMoviles=[];
+  for(var i=1;i<n;i++)rangosMoviles.push(Math.abs(validos[i]-validos[i-1]));
+  var mrBarra=rangosMoviles.reduce(function(s,x){return s+x;},0)/rangosMoviles.length;
+  var sigma=mrBarra/1.128;
+  if(!(sigma>0))return null;
+  var k=0.5*sigma,h=4*sigma;
+  var c=0,curva=[],indiceAlerta=null;
+  validos.forEach(function(v,i){
+    c=Math.max(0,c+(v-mu0-k));
+    curva.push({indice:i,valor:v,cusum:Math.round(c*100)/100});
+    if(indiceAlerta==null&&c>h)indiceAlerta=i;
+  });
+  return{
+    n:n,
+    mu0:Math.round(mu0*100)/100,
+    sigma:Math.round(sigma*100)/100,
+    k:Math.round(k*100)/100,
+    h:Math.round(h*100)/100,
+    curva:curva,
+    indiceAlerta:indiceAlerta,
+    detectado:indiceAlerta!=null
+  };
+}
+
+// CUSUM por equipo+componente+metal, a nivel de cada instancia real (no
+// pooled entre equipos — el desgaste de ESE motor se compara contra su
+// propia historia, no contra la de otro equipo). 'ace' = muestras de
+// analisis_aceite ya con m._sigla resuelto (_aceiteResolverSiglas,
+// ace.js) — se agrupa por sigla+componente (mismo criterio que "alertas
+// persistentes" en ace.js), ordenado por fecha, y se corre cusumAceite
+// para cada uno de los 6 metales de desgaste ya trackeados
+// (_ACEITE_UMBRAL_METAL, arriba). Solo devuelve grupos con al menos un
+// metal con historial suficiente (nunca null en todos).
+function cusumAceitePorComponente(ace){
+  var metales=Object.keys(_ACEITE_UMBRAL_METAL);
+  var porGrupo={};
+  (ace||[]).forEach(function(m){
+    var sigla=(m&&m._sigla||'').trim(),comp=(m&&m.componente||'').trim();
+    if(!m||!sigla||!comp||!m.fecha)return;
+    var k=sigla+'|'+comp;
+    (porGrupo[k]=porGrupo[k]||{sigla:sigla,componente:comp,muestras:[]}).muestras.push(m);
+  });
+  var resultado=[];
+  Object.keys(porGrupo).sort().forEach(function(k){
+    var g=porGrupo[k];
+    var ordenadas=g.muestras.slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+    var porMetal={},tieneAlguno=false;
+    metales.forEach(function(met){
+      var vals=ordenadas.filter(function(m){return m[met]>0;}).map(function(m){return m[met];});
+      var r=cusumAceite(vals);
+      if(r){
+        // Fecha real de la muestra donde se disparó la alerta, para mostrarla.
+        var conValor=ordenadas.filter(function(m){return m[met]>0;});
+        r.fechaAlerta=r.indiceAlerta!=null?conValor[r.indiceAlerta].fecha:null;
+        tieneAlguno=true;
+      }
+      porMetal[met]=r;
+    });
+    if(tieneAlguno)resultado.push({sigla:g.sigla,componente:g.componente,porMetal:porMetal});
+  });
+  return resultado;
+}
+
 // ═══ PREDICTIVO (2026-07) — estadísticas en vivo desde ordenes_compra_historico ═══
 // Extraído de index.html/computePred() para poder testearlo sin arrancar la app.
 // leadTime queda fijo en 34 días porque el histórico real no trae fecha de entrega —
@@ -3465,7 +3572,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,

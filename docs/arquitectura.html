@@ -1625,6 +1625,48 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Con esto, 4 de los 4 ítems del orden de prioridad elegido están implementados, salvo el
   último: detección de aceleración de desgaste en aceite (CUSUM).</p>
 
+  <h3>42. CUSUM — detección de aceleración de desgaste en Análisis de Aceite (2026-09-16)</h3>
+  <p>Quinto y último ítem del orden de prioridad elegido por el usuario entre las 7 propuestas
+  evaluadas. Lo que ya existe mira cada muestra sola o de a 2: <code>estado</code> es un umbral fijo
+  por muestra individual, <code>aceiteOutliers</code> busca un valor absurdo en UNA muestra (error
+  de digitación), "alertas persistentes" ve 2 muestras seguidas YA marcadas como problema por el
+  laboratorio. Ninguno ve una tendencia sostenida directamente en los números: varias muestras
+  seguidas levemente elevadas, que juntas significan una aceleración real de desgaste aunque
+  ninguna sola cruce el umbral fijo — y que "alertas persistentes" no detecta si el laboratorio
+  nunca marcó ninguna como problema.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>cusumAceite(valores)</code> — CUSUM de un solo lado (Montgomery, control de
+    procesos), solo detecta que el metal SUBA. μ0=mediana histórica (robusta a outliers, ya
+    separados por <code>aceiteOutliers</code>). <b>σ se estima con el rango móvil promedio entre
+    muestras consecutivas</b> (σ=MR̄/1,128, método estándar para "individuals charts"), NO con la
+    varianza muestral de toda la serie — la varianza simple se infla con la propia aceleración que
+    se busca, subiendo su propio umbral hasta volverse invisible (verificado con un caso real:
+    varianza simple σ=11,19 nunca detecta; rango móvil σ=3,99 sí detecta en el punto correcto).
+    k=0,5σ, h=4σ (valores de tabla estándar, ARL≈168). Mínimo 6 muestras.</li>
+    <li><code>cusumAceitePorComponente(ace)</code> — agrupa por sigla+componente (mismo criterio
+    que "alertas persistentes"), ordena por fecha, corre CUSUM por cada uno de los 6 metales de
+    desgaste trackeados, cada uno evaluado por separado.</li>
+  </ul>
+  <p>11 tests nuevos en <code>tests/cusumAceite.test.js</code> (793/793 en total): umbral mínimo de
+  6 muestras; serie constante devuelve null; detección exacta verificada con script Python
+  independiente; serie estable con ruido normal no dispara alerta; confirma que la varianza simple
+  pierde sensibilidad frente al rango móvil; valores inválidos descartados; agrupamiento y
+  ordenamiento cronológico correctos aunque lleguen desordenadas; un grupo sin historial suficiente
+  queda excluido.</p>
+  <p><b>Cambios en <code>ace.js</code>:</b> nuevo bloque "🔺 N aceleración(es) de desgaste
+  detectada(s) (CUSUM)" en <code>renderAce()</code>, mismo lugar y estilo que "alertas
+  persistentes" y "posibles errores de digitación".</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de <code>analisis_aceite</code>):
+  9 muestras sintéticas de "Motor" en CN-1 (hierro: 18,20,19,21,20,26,32,40,50), todas marcadas
+  NORMAL por el laboratorio. El bloque renderiza "CN-1 · Motor · hierro · desde la muestra del
+  2026-06-15 — mediana histórica 21, CUSUM 56.02 (umbral 15.96)" — coincide exactamente con el
+  cálculo a mano, y confirma el objetivo real: encontró una aceleración real de desgaste que el
+  sistema existente no había detectado en absoluto. Sin errores de JavaScript.</p>
+  <p>Con esto se completa el orden de prioridad elegido por el usuario entre las 7 propuestas
+  evaluadas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de Criticidad Dinámica, CUSUM — 5 de 6 ítems
+  viables). Edad de Reemplazo Óptima sigue descartada por falta de dato real de costo.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
