@@ -3147,6 +3147,67 @@ JavaScript de la aplicación.
 
 Sigue Índice de Efectividad del Mantenimiento.
 
+### 47. Índice de Efectividad del Mantenimiento — antes/después de cada PM (2026-09-16)
+
+Cuarto ítem del segundo lote "nivel siguiente" (reemplaza a "Actualización
+Bayesiana de Weibull" en la propuesta original, descartada en la sección
+44). Ninguna herramienta anterior contesta la pregunta de gestión real:
+"¿el mantenimiento preventivo está funcionando, o solo generamos
+trabajo?". Crow-AMSAA (sección 40) mide tendencia calendario, pero no
+distingue si hubo un PM real de por medio. Esta herramienta sí: compara,
+para cada equipo con PM realmente ejecutados (`registros_pm` con fecha
+real — 448 registros reales confirmados contra la base de producción, 288
+con `fechaEjec`), el intervalo hasta la falla siguiente ANTES de cada PM
+contra el intervalo hasta la falla siguiente DESPUÉS de ese mismo PM.
+
+**`logic.js`**: dos funciones nuevas.
+- `indiceEfectividadMantenimiento(fallas, pmEjecutados)` — método de
+  **comparación de medianas antes/después** (mismo principio ya
+  establecido en el archivo por `edadVirtualEquipo`, que compara 2
+  mitades de una serie con `medianaPositiva`), deliberadamente más simple
+  que ajustar Crow-AMSAA por separado a cada segmento: la cantidad real
+  de PM ejecutados por equipo no da muestra para dos ajustes de máxima
+  verosimilitud separados con confianza suficiente; una comparación de
+  medianas es más robusta con esa muestra. Para cada PM real, busca la
+  última falla antes y la primera después, acumula esos intervalos
+  pooled a nivel flota, y calcula `ratio = medianaDespués/medianaAntes`:
+  &gt;1 el intervalo se alarga (el PM ayuda), &lt;1 se acorta (no está
+  resolviendo la causa real, o llega tarde/mal). Mínimo 5 intervalos de
+  cada lado.
+- `interpretacionEfectividadMantenimiento(veredicto)` — texto fijo para
+  los 3 veredictos: `efectivo` (ratio≥1.2), `no_efectivo` (ratio≤0.8),
+  `sin_diferencia_clara` (entre medio — nunca se afirma una dirección sin
+  que el número la respalde con margen real).
+
+6 tests nuevos en `tests/efectividadMantenimiento.test.js`: caso "PM
+efectivo" calculado a mano y verificado con script Python (mediana antes
+9 días, después 76 días, ratio≈8,44); caso "PM no efectivo" también
+verificado con Python (mediana antes 19 días, después 5 días,
+ratio≈0,263); mínimo de 5 intervalos de cada lado; sin PM ejecutados o
+sin fallas registradas devuelve `null`; eventos sin sigla/fecha válida se
+ignoran. Suite completa 831/831.
+
+**`pred.js`**: nueva sub-vista "🔧 Efectividad del Mantenimiento" en
+Predictivo. Construye `fallas` con el mismo patrón ya usado en el resto
+del archivo (`ot.filter(esFallaMTBF).concat(_otHistComoOt(...),
+_informesFallaComoOt(...))`) y `pmEjecutados` desde `reg`
+(`tipoPM!=='Correctivo'` y con `fechaEjec` o `fechaEntrada` real).
+Tarjetas: Mediana antes, Mediana después, Ratio (con veredicto y color) +
+la interpretación en texto plano. Respeta el filtro de equipo ya
+existente.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos`/`registros_pm`/`equipos` vía
+`tests/e2e/helpers/mock-supabase.js`): mismo caso "PM efectivo" ya
+verificado en Python, repetido en 2 equipos para pasar el mínimo de
+muestra. Las tarjetas renderizan mediana antes=9d, después=76d,
+ratio=8,44x, "✓ Efectivo", con el texto de interpretación correcto — el
+pipeline completo coincide exactamente con el cálculo a mano. Sin errores
+de JavaScript de la aplicación.
+
+Sigue Detección de estacionalidad / patrones ocultos, el último ítem del
+orden elegido por el usuario.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -1586,6 +1586,33 @@ export function renderPred(){
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin repuestos con demanda e historial suficientes todavía (mínimo 3 meses de consumo real por repuesto)</p></div>');
   }
 
+  // ═══ ÍNDICE DE EFECTIVIDAD DEL MANTENIMIENTO (2026-09-16) ═══
+  // Cuarto ítem del segundo lote "nivel siguiente". Responde la pregunta de
+  // gestión real que ninguna otra vista contesta: "¿el mantenimiento
+  // preventivo está funcionando, o solo generamos trabajo?" — compara,
+  // para cada equipo con PM realmente ejecutados, cuánto tarda en volver a
+  // fallar DESPUÉS de un PM contra cuánto tardaba ANTES
+  // (indiceEfectividadMantenimiento, logic.js).
+  if(fVista==='efectpm'){
+    var fallasEfectPM=ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
+      .filter(function(o){return!fEq||o.sigla===fEq;})
+      .map(function(o){return{sigla:o.sigla,fecha:o.fecha};});
+    var pmEjecutadosEfect=reg.filter(function(r){return r&&r.tipoPM&&r.tipoPM!=='Correctivo'&&(r.fechaEjec||r.fechaEntrada);})
+      .filter(function(r){return!fEq||r.equipo===fEq;})
+      .map(function(r){return{sigla:r.equipo,fecha:r.fechaEjec||r.fechaEntrada};});
+    var efectPM=typeof indiceEfectividadMantenimiento==='function'?indiceEfectividadMantenimiento(fallasEfectPM,pmEjecutadosEfect):null;
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Efectividad del Mantenimiento</div><div style="font-size:11px;color:var(--tx3)">¿Los equipos tardan real y sostenidamente más en volver a fallar después de un PM? — compara el intervalo hasta la falla siguiente antes vs. después de cada PM realmente ejecutado</div></div>'+
+      (efectPM?
+      '<div class="cards" style="margin-bottom:16px">'+
+      '<div class="card" style="border-left:3px solid var(--tx3)"><div class="card-t">Mediana ANTES del PM</div><div class="card-v">'+efectPM.medianaAntesDias+'<span style="font-size:14px;color:var(--tx3)">d</span></div><div class="card-s">n='+efectPM.nAntes+'</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Mediana DESPUÉS del PM</div><div class="card-v" style="color:var(--ac)">'+efectPM.medianaDespuesDias+'<span style="font-size:14px;color:var(--tx3)">d</span></div><div class="card-s">n='+efectPM.nDespues+'</div></div>'+
+      '<div class="card" style="border-left:3px solid '+(efectPM.veredicto==='efectivo'?'var(--ok)':efectPM.veredicto==='no_efectivo'?'var(--danger)':'var(--warn)')+'"><div class="card-t">Ratio (después/antes)</div><div class="card-v" style="color:'+(efectPM.veredicto==='efectivo'?'var(--ok)':efectPM.veredicto==='no_efectivo'?'var(--danger)':'var(--warn)')+'">'+efectPM.ratio+'x</div><div class="card-s">'+(efectPM.veredicto==='efectivo'?'✓ Efectivo':efectPM.veredicto==='no_efectivo'?'✗ No efectivo':'Sin diferencia clara')+'</div></div>'+
+      '</div>'+
+      '<div class="card" style="padding:14px"><div style="font-size:13px;line-height:1.6">'+(typeof interpretacionEfectividadMantenimiento==='function'?interpretacionEfectividadMantenimiento(efectPM.veredicto):'')+'</div></div>'
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin suficientes PM ejecutados con fecha real y fallas registradas todavía (mínimo 5 intervalos antes y 5 después)</p></div>');
+  }
+
   // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en
   // pausa desde el 2026-09-14 (la auditoría completa del sistema tomó
   // prioridad). Cruza 6 señales reales, ya calculadas cada una en su propia
@@ -1691,6 +1718,7 @@ $('s-pred').innerHTML=
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
+    '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
     '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+

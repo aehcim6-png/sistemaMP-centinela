@@ -1808,6 +1808,31 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Sin errores de JavaScript.</p>
   <p>Sigue Índice de Efectividad del Mantenimiento.</p>
 
+  <h3>47. Índice de Efectividad del Mantenimiento — antes/después de cada PM (2026-09-16)</h3>
+  <p>Cuarto ítem del segundo lote "nivel siguiente" (reemplaza a "Actualización Bayesiana de
+  Weibull"). Responde "¿el mantenimiento preventivo está funcionando, o solo generamos trabajo?" —
+  compara, para cada equipo con PM realmente ejecutados (448 registros reales, 288 con
+  <code>fechaEjec</code>), el intervalo hasta la falla siguiente antes vs. después de cada PM.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>indiceEfectividadMantenimiento(fallas, pmEjecutados)</code> — comparación de
+    medianas antes/después (mismo principio de <code>edadVirtualEquipo</code>), más robusta que
+    ajustar Crow-AMSAA por separado con la muestra real disponible. ratio=medianaDespués/medianaAntes:
+    &gt;1 el PM ayuda, &lt;1 no resuelve la causa real. Mínimo 5 intervalos de cada lado.</li>
+    <li><code>interpretacionEfectividadMantenimiento</code> — texto para 3 veredictos: efectivo
+    (ratio≥1.2), no_efectivo (ratio≤0.8), sin_diferencia_clara.</li>
+  </ul>
+  <p>6 tests nuevos en <code>tests/efectividadMantenimiento.test.js</code> (831/831 en total): caso
+  "PM efectivo" verificado con Python (mediana 9d→76d, ratio≈8,44); caso "PM no efectivo" verificado
+  con Python (19d→5d, ratio≈0,263); mínimo de muestra; sin datos devuelve null.</p>
+  <p><b>Cambios en <code>pred.js</code>:</b> nueva sub-vista "🔧 Efectividad del Mantenimiento".
+  Tarjetas: Mediana antes, Mediana después, Ratio (con veredicto y color) + interpretación.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>correctivos</code>/<code>registros_pm</code>/<code>equipos</code>): mismo caso "PM
+  efectivo" verificado en Python. Las tarjetas renderizan mediana antes=9d, después=76d,
+  ratio=8,44x, "✓ Efectivo" — coincide exactamente. Sin errores de JavaScript.</p>
+  <p>Sigue Detección de estacionalidad / patrones ocultos, el último ítem del orden elegido.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -1409,6 +1409,81 @@ function crowAMSAAPorComponente(eventos,hoy){
   });
 }
 
+// ═══ ÍNDICE DE EFECTIVIDAD DEL MANTENIMIENTO (2026-09-16) ═══
+// Cuarto ítem del segundo lote de algoritmos "nivel siguiente" (reemplaza a
+// "Actualización Bayesiana de Weibull" en el orden original — ver nota de
+// la sección de RUL sobre por qué se descartó). Ninguna herramienta
+// anterior contesta la pregunta de gestión real: "¿el mantenimiento
+// preventivo está funcionando, o solo generamos trabajo?". Crow-AMSAA mide
+// tendencia calendario, pero no distingue SI hubo un PM real de por medio —
+// acá sí: compara, para cada equipo con PM realmente ejecutados
+// (registros_pm con fecha real), el intervalo hasta la falla siguiente
+// ANTES de cada PM contra el intervalo hasta la falla siguiente DESPUÉS de
+// ese mismo PM. Si el mantenimiento preventivo funciona, el equipo debería
+// tardar MÁS en volver a fallar después de un PM que antes — si no hay
+// diferencia real (o el intervalo se acorta), el PM no está aportando lo
+// que se espera de él.
+//
+// Método: comparación de medianas antes/después (mismo principio ya
+// establecido en este archivo por edadVirtualEquipo, que compara 2 mitades
+// de una serie de intervalos con medianaPositiva) — deliberadamente MÁS
+// SIMPLE que ajustar Crow-AMSAA por separado a cada segmento (la cantidad
+// real de PM ejecutados por equipo, 288 registros con fecha real
+// confirmados contra la base de producción, no da muestra para dos ajustes
+// de máxima verosimilitud separados con la confianza suficiente — una
+// comparación de medianas es más robusta con esa muestra). ratio =
+// medianaDespués/medianaAntes: &gt;1 el intervalo se alarga (el PM ayuda),
+// cerca de 1 sin diferencia real, &lt;1 se acorta (el PM no está
+// resolviendo la causa real, o llega tarde/mal).
+function indiceEfectividadMantenimiento(fallas,pmEjecutados){
+  var porEquipoFallas={};
+  (fallas||[]).forEach(function(f){
+    if(!f||!f.sigla||!f.fecha)return;
+    (porEquipoFallas[f.sigla]=porEquipoFallas[f.sigla]||[]).push(f.fecha);
+  });
+  var porEquipoPM={};
+  (pmEjecutados||[]).forEach(function(p){
+    if(!p||!p.sigla||!p.fecha)return;
+    (porEquipoPM[p.sigla]=porEquipoPM[p.sigla]||[]).push(p.fecha);
+  });
+  var intervalosAntes=[],intervalosDespues=[];
+  Object.keys(porEquipoPM).forEach(function(sigla){
+    var fallasEq=(porEquipoFallas[sigla]||[]).slice().sort();
+    var pmsEq=porEquipoPM[sigla].slice().sort();
+    pmsEq.forEach(function(fechaPM){
+      var antes=fallasEq.filter(function(f){return f<fechaPM;});
+      var despues=fallasEq.filter(function(f){return f>fechaPM;});
+      if(antes.length){
+        var dA=_diasEntreISO(antes[antes.length-1],fechaPM);
+        if(dA>0)intervalosAntes.push(dA);
+      }
+      if(despues.length){
+        var dD=_diasEntreISO(fechaPM,despues[0]);
+        if(dD>0)intervalosDespues.push(dD);
+      }
+    });
+  });
+  // Mínimo 5 intervalos de cada lado — mismo criterio de muestra mínima que
+  // el resto del archivo (Weibull/aceiteOutliers/correlacionAceiteFallas).
+  if(intervalosAntes.length<5||intervalosDespues.length<5)return null;
+  var medAntes=medianaPositiva(intervalosAntes);
+  var medDespues=medianaPositiva(intervalosDespues);
+  if(!(medAntes>0))return null;
+  var ratio=Math.round((medDespues/medAntes)*100)/100;
+  var veredicto=ratio>=1.2?'efectivo':ratio<=0.8?'no_efectivo':'sin_diferencia_clara';
+  return{
+    nAntes:intervalosAntes.length,nDespues:intervalosDespues.length,
+    medianaAntesDias:Math.round(medAntes),medianaDespuesDias:Math.round(medDespues),
+    ratio:ratio,veredicto:veredicto
+  };
+}
+
+function interpretacionEfectividadMantenimiento(veredicto){
+  if(veredicto==='efectivo')return 'Los equipos tardan real y sostenidamente más en volver a fallar después de un PM — el mantenimiento preventivo está funcionando';
+  if(veredicto==='no_efectivo')return 'No hay evidencia de que el mantenimiento preventivo alargue el tiempo hasta la próxima falla — revisar si la pauta ataca la causa real, o si el PM llega tarde/mal ejecutado';
+  return 'Diferencia real pero no concluyente entre antes y después del PM — sin certeza todavía sobre si está funcionando';
+}
+
 // ═══ CORRELACIÓN ACEITE ↔ FALLAS REALES (2026-09-12) ═══
 // Origen real: mirando el sistema desde los 4 roles de datos, después del
 // IC90 (Científico) y de aceiteOutliers (Analista/BI, calidad de dato)
@@ -3917,7 +3992,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
