@@ -153,6 +153,7 @@ function _estTablaComponente(eventos, ace, eq) {
     '</table></div>' +
     _estWeibullPorComponente(eventos) +
     _estKaplanMeierPorComponente(eventos, eq) +
+    _estMcfPorComponente(eventos, eq) +
     _estCorrelacionAceite(eventos, ace) +
     '</div>';
 }
@@ -217,6 +218,38 @@ function _estKaplanMeierPorComponente(eventos, eq) {
         '<td style="text-align:center">' + km.nCensurados + '</td>' +
         '<td style="text-align:center;font-weight:700">' + (mediana != null ? fn(mediana) + 'h' : '—') +
           (ultimo ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">S final ' + Math.round(ultimo.supervivencia * 100) + '% (IC90 ' + Math.round(ultimo.ic90Min * 100) + '–' + Math.round(ultimo.ic90Max * 100) + '%)</div>' : '') + '</td>' +
+        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
+    }).join('') +
+    '</table></div></div>';
+}
+
+// MCF (Mean Cumulative Function) por componente, a nivel FLOTA (2026-09-16
+// — segunda mitad del par "Kaplan-Meier + MCF". Kaplan-Meier de arriba mide
+// tiempo hasta la PRIMERA falla; una vez que un equipo falló, deja de
+// aportar. MCF en cambio usa la trayectoria COMPLETA de cada equipo —
+// cuenta todas sus fallas recurrentes de ese componente — y estima el
+// número acumulado ESPERADO de fallas por equipo según el horómetro: "¿a
+// cuántas fallas de Motor debería llegar, en promedio, un equipo de este
+// tipo a las X horas?" — el insumo real para presupuestar repuestos y mano
+// de obra a futuro (mcfCorrectivosPorComponente, logic.js).
+function _estMcfPorComponente(eventos, eq) {
+  var lista = (typeof mcfCorrectivosPorComponente === 'function') ? mcfCorrectivosPorComponente(eventos, eq) : [];
+  if (!lista.length) return '';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">📈 Fallas acumuladas esperadas por componente — toda la flota (MCF)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Complemento a Kaplan-Meier (arriba): esa curva mide tiempo hasta la PRIMERA falla — una vez que el equipo falló, deja de aportar. Acá se usa la trayectoria completa de cada equipo (todas sus fallas recurrentes de este componente) para estimar cuántas fallas acumuladas debería esperar, en promedio, un equipo de este tipo a esta altura del horómetro — el número de referencia para presupuestar repuestos y mano de obra futura, no solo saber si va a fallar. IC90 (Nelson) = qué tan segura es la curva en ese tramo. Mínimo 5 fallas totales por componente.</div>' +
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Componente</th><th style="width:13%">Equipos</th><th style="width:13%">Fallas totales</th><th style="width:24%">Fallas acumuladas esperadas</th><th style="text-align:left">Lectura</th></tr>' +
+    lista.map(function (g) {
+      if (!g.mcf) return '<tr style="opacity:.55"><td style="font-weight:600">' + escapeHtml(g.componente) + '</td><td style="text-align:center">' + g.nEquipos + '</td><td colspan="3" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 5 fallas)</td></tr>';
+      var m = g.mcf;
+      var ultimo = m.curva[m.curva.length - 1];
+      var lectura = 'A las ' + fn(ultimo.tiempo) + 'h de horómetro, se acumularon en promedio ' + m.mcfFinal + ' fallas de ' + g.componente.toLowerCase() + ' por equipo.';
+      return '<tr>' +
+        '<td style="font-weight:600">' + escapeHtml(g.componente) + '</td>' +
+        '<td style="text-align:center">' + g.nEquipos + '</td>' +
+        '<td style="text-align:center">' + m.nFallas + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + m.mcfFinal +
+          '<div style="font-size:9px;font-weight:400;color:var(--tx3)">a ' + fn(ultimo.tiempo) + 'h · IC90 ' + ultimo.ic90Min + '–' + ultimo.ic90Max + '</div></td>' +
         '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
     }).join('') +
     '</table></div></div>';

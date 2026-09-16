@@ -1111,6 +1111,110 @@ function kaplanMeierCorrectivosPorComponente(eventos,eq){
   });
 }
 
+// ═══ MCF — MEAN CUMULATIVE FUNCTION (2026-09-16) ═══
+// Segunda mitad del par "Kaplan-Meier + MCF" (orden de prioridad elegido
+// por el usuario). Kaplan-Meier (arriba) mide tiempo hasta la PRIMERA
+// falla de cada componente — una vez que falló, ese equipo ya no aporta
+// más información a la curva. Pero un componente que se repara y sigue en
+// servicio puede volver a fallar (evento RECURRENTE) — eso es lo que
+// Weibull y Kaplan-Meier de este archivo no capturan (ambos tratan cada
+// intervalo/observación como independiente, perdiendo la trayectoria
+// completa de cada equipo). MCF (Nelson, análisis de eventos recurrentes
+// — el mismo método que reportan Minitab/ReliaSoft como "Recurrence
+// Analysis") estima el número ACUMULADO ESPERADO de fallas de ese
+// componente por equipo, en función del horómetro — responde "¿cuántas
+// fallas de Motor debería esperar, en promedio, un equipo de este tipo a
+// las X horas?", el insumo real para presupuestar repuestos/mano de obra
+// a futuro, algo que ni el MTBF simple ni Weibull contestan directamente.
+//
+// Fórmula clásica (estimador de Nelson + su varianza, misma referencia
+// que Kaplan-Meier/Greenwood arriba): en cada horómetro t_i donde ocurrió
+// al menos una falla, M̂(t_i) = M̂(t_{i-1}) + d_i/n_i, con n_i = sistemas
+// (equipos) aún "bajo observación" en t_i (su fin de observación es
+// ≥t_i) y d_i = total de fallas exactamente en t_i, sumadas entre todos
+// esos sistemas. Var(M̂(t)) = Σ_{t_i≤t} (1/n_i²)·Σ_j (d_ij−d̄_i)², donde
+// d_ij es la cantidad de fallas del sistema j exactamente en t_i (casi
+// siempre 0 o 1) y d̄_i=d_i/n_i — la varianza de Nelson para MCF, no la
+// misma fórmula de Greenwood de Kaplan-Meier (son estimadores distintos:
+// KM estima una probabilidad que nunca supera 1, MCF estima un conteo
+// acumulado que no tiene techo).
+//
+// 'sistemas': [{fin, eventos:[horom,...]}] — fin = horómetro hasta donde
+// ese sistema estuvo bajo observación (su censura), eventos = horómetros
+// donde falló dentro de esa ventana. Eje de "edad" = horómetro absoluto
+// (no calendario): asume que el horómetro arranca en 0 cuando el equipo
+// entra en servicio nuevo — la misma asunción que ya usa el resto del
+// sistema (Torre de Control, programa de PM), no una fecha de instalación
+// de componente que este sistema no registra de forma confiable.
+function mcf(sistemas){
+  var sis=(sistemas||[]).filter(function(s){return s&&s.fin>0;}).map(function(s){
+    return{fin:s.fin,eventos:(s.eventos||[]).filter(function(t){return t>0&&t<=s.fin;})};
+  });
+  var todosEventos=[];
+  sis.forEach(function(s){todosEventos=todosEventos.concat(s.eventos);});
+  if(todosEventos.length<5)return null;
+  var tiemposUnicos=Array.from(new Set(todosEventos)).sort(function(a,b){return a-b;});
+  var m=0,varAcum=0;
+  var curva=[];
+  tiemposUnicos.forEach(function(t){
+    var enEstudio=sis.filter(function(s){return s.fin>=t;});
+    var n=enEstudio.length;
+    if(n<=0)return;
+    var conteos=enEstudio.map(function(s){
+      return s.eventos.filter(function(x){return x===t;}).length;
+    });
+    var d=conteos.reduce(function(a,b){return a+b;},0);
+    var dbar=d/n;
+    m+=dbar;
+    var sumSqDev=conteos.reduce(function(acc,dij){return acc+Math.pow(dij-dbar,2);},0);
+    varAcum+=sumSqDev/(n*n);
+    var se=Math.sqrt(varAcum);
+    curva.push({
+      tiempo:t,enEstudio:n,fallas:d,
+      mcf:Math.round(m*1000)/1000,
+      ic90Min:Math.max(0,Math.round((m-1.645*se)*1000)/1000),
+      ic90Max:Math.round((m+1.645*se)*1000)/1000
+    });
+  });
+  if(!curva.length)return null;
+  return{
+    nSistemas:sis.length,
+    nFallas:todosEventos.length,
+    curva:curva,
+    mcfFinal:curva[curva.length-1].mcf
+  };
+}
+
+// MCF por componente, a nivel FLOTA — mismo agrupamiento sigla+componente
+// que kaplanMeierCorrectivosPorComponente (arriba), pero en vez de
+// intervalos entre fallas sucesivas, usa la trayectoria completa de cada
+// equipo (todas sus fallas de ese componente dentro de su ventana de
+// observación) — el insumo que MCF necesita para tratar eventos
+// recurrentes. 'eq' se usa SOLO para leer horomActual (fin de
+// observación real); sin ese dato, el fin de observación es la última
+// falla registrada (nunca se inventa un tramo de observación adicional).
+function mcfCorrectivosPorComponente(eventos,eq){
+  var porCompEquipo={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.componente||!(e.horom>0)||!e.sigla)return;
+    porCompEquipo[e.componente]=porCompEquipo[e.componente]||{};
+    (porCompEquipo[e.componente][e.sigla]=porCompEquipo[e.componente][e.sigla]||[]).push(e.horom);
+  });
+  var eqPorSigla={};
+  (eq||[]).forEach(function(x){if(x&&x.sigla)eqPorSigla[x.sigla]=x;});
+  return Object.keys(porCompEquipo).sort().map(function(comp){
+    var porEquipo=porCompEquipo[comp];
+    var sistemas=Object.keys(porEquipo).map(function(sigla){
+      var horoms=porEquipo[sigla].filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+      var eqObj=eqPorSigla[sigla];
+      var ultimaFalla=horoms[horoms.length-1];
+      var fin=(eqObj&&eqObj.horomActual>ultimaFalla)?eqObj.horomActual:ultimaFalla;
+      return{sigla:sigla,fin:fin,eventos:horoms};
+    });
+    return{componente:comp,nEquipos:sistemas.length,mcf:mcf(sistemas)};
+  });
+}
+
 // ═══ CORRELACIÓN ACEITE ↔ FALLAS REALES (2026-09-12) ═══
 // Origen real: mirando el sistema desde los 4 roles de datos, después del
 // IC90 (Científico) y de aceiteOutliers (Analista/BI, calidad de dato)
@@ -3163,6 +3267,8 @@ if (typeof window !== 'undefined') {
   window.analisisVidaUtilCorrectivosPorComponente = analisisVidaUtilCorrectivosPorComponente;
   window.kaplanMeier = kaplanMeier;
   window.kaplanMeierCorrectivosPorComponente = kaplanMeierCorrectivosPorComponente;
+  window.mcf = mcf;
+  window.mcfCorrectivosPorComponente = mcfCorrectivosPorComponente;
   window.confiabilidadWeibull = confiabilidadWeibull;
   window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
@@ -3195,7 +3301,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, mcf, mcfCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

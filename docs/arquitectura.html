@@ -1502,6 +1502,46 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   censurado, mediana 1.000h, S final 0% (IC90 0–0%) — coincide exactamente con el cálculo a mano.
   Sin errores de consola de la aplicación.</p>
 
+  <h3>39. MCF (Mean Cumulative Function) — fallas acumuladas esperadas por componente (2026-09-16)</h3>
+  <p>Segunda mitad del par "Kaplan-Meier + MCF" (sección 38). Kaplan-Meier mide tiempo hasta la
+  <b>primera</b> falla: una vez que un equipo falla, deja de aportar. MCF en cambio usa la
+  trayectoria completa de cada equipo (todas sus fallas recurrentes de ese componente) para estimar
+  cuántas fallas acumuladas debería esperar, en promedio, un equipo de este tipo a esta altura del
+  horómetro — el número de referencia para presupuestar repuestos y mano de obra futura, no solo
+  saber si va a fallar. Método de Nelson (análisis de eventos recurrentes), el mismo que reportan
+  Minitab/ReliaSoft como "Recurrence Analysis".</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>mcf(sistemas)</code> — recibe <code>[{fin, eventos:[horom,...]}]</code>.
+    <code>null</code> bajo 5 fallas totales. En cada horómetro t_i con al menos una falla:
+    M̂(t_i)=M̂(t_{i-1})+d_i/n_i, con n_i=sistemas aún bajo observación (fin≥t_i) y d_i=fallas en
+    t_i entre esos sistemas. Varianza de <b>Nelson</b> (distinta de Greenwood de Kaplan-Meier — KM
+    estima una probabilidad acotada en [0,1], MCF un conteo acumulado sin techo), mismo z=1.645
+    (IC90) del resto del archivo. Eje de edad = horómetro absoluto, asumiendo que arranca en 0
+    cuando el equipo entra en servicio nuevo.</li>
+    <li><code>mcfCorrectivosPorComponente(eventos, eq)</code> — mismo agrupamiento sigla+componente
+    que <code>kaplanMeierCorrectivosPorComponente</code>, pero usa la trayectoria completa de cada
+    equipo (todas sus fallas), no solo intervalos. Sin dato de equipo, el fin de observación es la
+    última falla registrada (nunca inventa un tramo adicional).</li>
+  </ul>
+  <p>10 tests nuevos en <code>tests/mcf.test.js</code> (760/760 en total): curva exacta a mano
+  (verificada también con un script Python independiente); la curva nunca decrece; tiempos
+  empatados entre sistemas distintos sin NaN/Infinity; IC90 de Nelson siempre contiene el punto
+  estimado y nunca es negativo; eventos fuera de la ventana de observación se descartan; sin
+  eventos reales devuelve null; agrupamiento usando TODAS las fallas de cada equipo (no solo
+  intervalos); sin dato de equipo no inventa censura extra.</p>
+  <p><b>Cambios en <code>estadistica.js</code>:</b> en la vista "Por Componente", nueva función
+  <code>_estMcfPorComponente(eventos, eq)</code> agrega una tabla "Fallas acumuladas esperadas por
+  componente — toda la flota (MCF)" después de la tabla Kaplan-Meier.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mismo mock de
+  <code>correctivos</code>/<code>equipos</code> usado para Kaplan-Meier): mismos 6 correctivos
+  sintéticos de "Motor" en 2 equipos. La tabla renderiza Motor con 2 equipos, 6 fallas totales, 3.5
+  fallas acumuladas esperadas a 3.000h de horómetro (IC90 2.2–4.8) — coincide exactamente con el
+  cálculo a mano. Sin errores de JavaScript de la aplicación.</p>
+  <p>Con esto se completa el par "Kaplan-Meier + MCF". Sigue Crow-AMSAA, después Matriz de
+  Criticidad Dinámica, después detección de aceleración de desgaste en aceite (CUSUM) — uno por
+  uno, cada uno probado antes de seguir con el siguiente.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
