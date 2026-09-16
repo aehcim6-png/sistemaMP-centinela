@@ -3074,6 +3074,79 @@ ordenado con el primero resaltado. Sin errores de JavaScript.
 
 Sigue Matriz de Criticidad de Repuestos avanzada.
 
+### 46. Matriz de Criticidad de Repuestos avanzada (2026-09-16)
+
+Tercer ítem del segundo lote de algoritmos "nivel siguiente".
+`riesgoQuiebre()` (alimenta Stock de la Matriz de Riesgo, sección 36) ya
+usa `stockEstado` — un criterio **determinístico**: meses de cobertura
+(stock/consumo mensual fijo) comparado contra meses de lead time. No dice
+CUÁNTO riesgo real hay de quebrar antes de que llegue la reposición, ni
+CUÁNTO duele si pasa. Esta vista combina 4 señales, todas ya existentes,
+sin inventar ninguna nueva: Poisson (demanda real,
+`analisisDemandaRepuestos`, sección "Demanda de Repuestos con
+distribución de Poisson"), lead time real, criticidad del equipo que usa
+el repuesto (`eq.criticidad`) y stock actual — en la MISMA matriz
+Probabilidad×Impacto ya establecida (`probabilidadComponente`/
+`umbralesImpacto`/`impactoDeValor`/`nivelRiesgoPxI`, sección 36), aplicada
+acá a un dominio nuevo con una Probabilidad más rigurosa que las bandas
+cualitativas de `probabilidadStockQuiebre`.
+
+**`logic.js`**: cuatro funciones nuevas.
+- `probabilidadQuiebreLeadTime(lambdaMensual, leadDias, stockDisponible)`
+  — a diferencia de `stockEstado` (que solo compara MESES de cobertura
+  contra MESES de lead time), usa directamente la PMF de Poisson ya usada
+  para `stockSeguridad95`: P(demanda en la ventana de lead time > stock
+  disponible) = 1 − Σ_{k=0}^{stock} PMF(k, λ_ventana), con
+  λ_ventana=λ_mensual×(leadDias/30) — la demanda esperada en el tiempo
+  REAL que tarda la reposición, no un mes fijo. Verificado con casos
+  calculados a mano (script Python): más stock siempre reduce (o
+  mantiene) la probabilidad, nunca la aumenta; un lead time más largo con
+  la misma demanda mensual siempre la aumenta.
+- `probabilidadQuiebreABanda(probQuiebre)` — mapea la probabilidad
+  continua a bandas 1-5 (mismo espíritu que `probabilidadStockQuiebre`,
+  que mapea la etiqueta cualitativa de `stockEstado`). 0 exacto no es un
+  riesgo activo, no entra a la matriz.
+- `criticidadEquipoABanda(criticidad)` — mapea los 3 valores reales de
+  `eq.criticidad` confirmados contra la base (`'Crítico'`, `'Esencial'`,
+  `'General'`) a la escala 1-5, mapeo disperso (5/3/1) como ya hace
+  `probabilidadComponente`.
+- `matrizCriticidadRepuestos(items)` — arma la matriz final: el Impacto
+  toma el **PEOR CASO** entre "cuesta caro" (quintiles reales, mismo
+  criterio de la Matriz de Riesgo estática) y "lo usa un equipo crítico"
+  — nunca se minimiza una señal real con la otra.
+
+11 tests nuevos en `tests/matrizCriticidadRepuestos.test.js`: casos
+calculados a mano y verificados con script Python; más stock nunca
+aumenta la probabilidad de quiebre; lead time más largo siempre la
+aumenta; sin demanda real (λ=0) nunca hay riesgo; el Impacto toma el peor
+caso entre costo y criticidad de equipo (caso de borde probado
+explícitamente: repuesto barato en equipo Crítico sale con Impacto 5, no
+el bajo de su costo); orden por PxI descendente; con menos de 5 valores
+de costo el Impacto por costo queda neutral. Suite completa 825/825.
+
+**`pred.js`**: nueva sub-vista "📦 Criticidad de Repuestos" en
+Predictivo. Construye λ por `nParte` desde `analisisDemandaRepuestos(mov)`,
+mapea criticidad por MODELO de equipo (peor caso entre los equipos reales
+de ese modelo — un ítem de stock está asociado a un modelo, no a un
+equipo específico), y arma los ítems para `matrizCriticidadRepuestos`
+desde `stk` (stock_filtros) con `leadTime`/`stockBodega`/`pendiente`/
+`precioUnit` reales. Tabla: Repuesto, Probabilidad de quiebre, Impacto
+(marcado "(equipo)" cuando la criticidad del equipo pesa más que el
+costo), PxI, Nivel, Detalle (λ, stock, lead time, precio).
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`movimientos_stock`/`stock_filtros`/`equipos` vía
+`tests/e2e/helpers/mock-supabase.js`): "Filtro Aceite Motor" con 4 meses
+de consumo real (λ=2/mes), lead time 34d, stock=1, equipo asociado
+`Crítico`. La tabla renderiza P. quiebre 66% (coincide exacto con el caso
+ya verificado en Python), Impacto 5 marcado "(equipo)" (el costo real de
+$350.000 solo daría un impacto bajo por quintiles — la criticidad del
+equipo es la que domina), PxI=20 (banda 4×impacto 5), Nivel "Extremo" —
+consistente con el cálculo a mano de punta a punta. Sin errores de
+JavaScript de la aplicación.
+
+Sigue Índice de Efectividad del Mantenimiento.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

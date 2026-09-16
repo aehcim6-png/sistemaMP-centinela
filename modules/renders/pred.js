@@ -1531,6 +1531,61 @@ export function renderPred(){
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin instancias equipo+componente con Weibull y horómetro suficientes todavía</p></div>');
   }
 
+  // ═══ MATRIZ DE CRITICIDAD DE REPUESTOS AVANZADA (2026-09-16) ═══
+  // Tercer ítem del segundo lote de algoritmos "nivel siguiente". riesgoQuiebre
+  // (arriba, alimenta la Matriz de Riesgo general) ya usa stockEstado — un
+  // criterio DETERMINÍSTICO (meses de cobertura < lead time = comprar), sin
+  // decir cuánto riesgo real hay ni cuánto duele si pasa. Esta vista combina
+  // 4 señales 100% reales, ya existentes: Poisson (demanda real,
+  // analisisDemandaRepuestos), lead time real, stock actual y criticidad del
+  // equipo que lo usa — en la misma matriz Probabilidad×Impacto que ya usa la
+  // Matriz de Riesgo (nivelRiesgoPxI), aplicada acá a repuestos con una
+  // Probabilidad más rigurosa (probabilidad real de quiebre en la ventana de
+  // reposición, no una banda de meses de cobertura).
+  if(fVista==='critrep'){
+    var lambdaPorNParte={};
+    (typeof analisisDemandaRepuestos==='function'?analisisDemandaRepuestos(mov):[]).forEach(function(d){
+      if(d.lambda!=null)lambdaPorNParte[d.nParte]=d.lambda;
+    });
+    // Criticidad por modelo de equipo (peor caso entre los equipos reales de
+    // ese modelo) — un repuesto de stock está asociado a un modelo
+    // (equipoModelo), no a un equipo específico.
+    var critPorModeloRep={};
+    eq.forEach(function(e){
+      if(!e||!e.modelo)return;
+      var banda=typeof criticidadEquipoABanda==='function'?criticidadEquipoABanda(e.criticidad):null;
+      if(banda==null)return;
+      if(critPorModeloRep[e.modelo]==null||banda>critPorModeloRep[e.modelo])critPorModeloRep[e.modelo]=banda;
+    });
+    var itemsCritRep=stk.filter(function(s){return s&&s.nParte;}).map(function(s){
+      var lambda=lambdaPorNParte[s.nParte];
+      if(lambda==null)return null;
+      var leadDiasRep=s.leadTime>0?s.leadTime:34;
+      var stockDispRep=(s.stockBodega||0)+(s.pendiente||0);
+      var probQ=typeof probabilidadQuiebreLeadTime==='function'?probabilidadQuiebreLeadTime(lambda,leadDiasRep,stockDispRep):null;
+      return{nParte:s.nParte,item:s.descripcion||s.nParte,probQuiebre:probQ,precioUnit:s.precioUnit||null,
+        criticidadEquipo:critPorModeloRep[s.equipoModelo]||null,stockDisponible:stockDispRep,leadDias:leadDiasRep,lambda:lambda};
+    }).filter(Boolean);
+    var critRepLista=typeof matrizCriticidadRepuestos==='function'?matrizCriticidadRepuestos(itemsCritRep):[];
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Criticidad de Repuestos</div><div style="font-size:11px;color:var(--tx3)">Probabilidad real de quiebre (Poisson + lead time real) × Impacto (costo + criticidad del equipo que lo usa)</div></div>'+
+      '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
+      '<div style="font-size:12px;line-height:1.6">Probabilidad = P(demanda real en la ventana de reposición &gt; stock disponible), calculada con la misma distribución de Poisson que ya usa Demanda de Repuestos — no una banda de "meses de cobertura". Impacto = el PEOR CASO entre cuánto cuesta (quintiles reales) y si lo usa un equipo Crítico/Esencial — nunca se minimiza una señal real con la otra. Requiere al menos 3 meses de historial de consumo real para ese repuesto (mismo mínimo de analisisDemandaRepuestos) — sin eso, no aparece acá (nunca se inventa una probabilidad).</div></div>'+
+      (critRepLista.length?
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Repuesto</th><th style="width:11%">P. quiebre</th><th style="width:11%">Impacto</th><th style="width:10%">PxI</th><th style="width:12%">Nivel</th><th style="text-align:left">Detalle</th></tr>'+
+      critRepLista.map(function(r){
+        return'<tr>'+
+          '<td style="font-weight:600" title="'+escapeHtml(r.nParte)+'">'+escapeHtml(r.item)+'</td>'+
+          '<td style="text-align:center">'+Math.round(r.probQuiebre*100)+'%</td>'+
+          '<td style="text-align:center">'+r.impacto+(r.criticidadEquipo!=null&&r.criticidadEquipo>r.impactoCosto?' <span style="color:var(--danger);font-size:9px">(equipo)</span>':'')+'</td>'+
+          '<td style="text-align:center;font-weight:700">'+r.pxi+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+r.color+'">'+r.nivel+'</td>'+
+          '<td style="font-size:10px;color:var(--tx2)">λ='+r.lambda+'/mes · stock '+fn(r.stockDisponible)+' · lead '+r.leadDias+'d'+(r.precioUnit?' · $'+fn(r.precioUnit):'')+'</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin repuestos con demanda e historial suficientes todavía (mínimo 3 meses de consumo real por repuesto)</p></div>');
+  }
+
   // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en
   // pausa desde el 2026-09-14 (la auditoría completa del sistema tomó
   // prioridad). Cruza 6 señales reales, ya calculadas cada una en su propia
@@ -1635,6 +1690,7 @@ $('s-pred').innerHTML=
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
+    '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
     '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+

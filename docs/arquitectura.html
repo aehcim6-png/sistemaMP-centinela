@@ -1774,6 +1774,40 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Hidraulico 40%, Transmision 10% — suma exacta 100%. Sin errores de JavaScript.</p>
   <p>Sigue Matriz de Criticidad de Repuestos avanzada.</p>
 
+  <h3>46. Matriz de Criticidad de Repuestos avanzada (2026-09-16)</h3>
+  <p>Tercer ítem del segundo lote "nivel siguiente". <code>riesgoQuiebre()</code> ya usa
+  <code>stockEstado</code> — criterio determinístico (meses de cobertura vs. meses de lead time),
+  sin decir cuánto riesgo real hay ni cuánto duele si pasa. Esta vista combina 4 señales ya
+  existentes: Poisson (demanda real), lead time real, criticidad del equipo (<code>eq.criticidad</code>)
+  y stock actual — en la misma matriz Probabilidad×Impacto ya establecida (sección 36), con una
+  Probabilidad más rigurosa.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>probabilidadQuiebreLeadTime(lambdaMensual, leadDias, stockDisponible)</code> — usa
+    la PMF de Poisson ya usada para <code>stockSeguridad95</code>: P(demanda en la ventana de lead
+    time &gt; stock) = 1−Σ PMF(k,λ_ventana), λ_ventana=λ_mensual×(leadDias/30). Verificado: más
+    stock nunca aumenta la probabilidad; lead time más largo siempre la aumenta.</li>
+    <li><code>probabilidadQuiebreABanda</code> — mapea la probabilidad continua a bandas 1-5.</li>
+    <li><code>criticidadEquipoABanda</code> — mapea los 3 valores reales de
+    <code>eq.criticidad</code> ('Crítico'/'Esencial'/'General') a 5/3/1.</li>
+    <li><code>matrizCriticidadRepuestos(items)</code> — Impacto = PEOR CASO entre costo (quintiles
+    reales) y criticidad de equipo, nunca se minimiza una señal real con la otra.</li>
+  </ul>
+  <p>11 tests nuevos en <code>tests/matrizCriticidadRepuestos.test.js</code> (825/825 en total):
+  casos verificados con script Python; más stock nunca aumenta el riesgo; lead time más largo
+  siempre lo aumenta; sin demanda real no hay riesgo; caso de borde (repuesto barato en equipo
+  Crítico → Impacto 5, no el bajo de su costo); orden por PxI; muestra chica → impacto neutral.</p>
+  <p><b>Cambios en <code>pred.js</code>:</b> nueva sub-vista "📦 Criticidad de Repuestos". λ por
+  nParte desde <code>analisisDemandaRepuestos(mov)</code>, criticidad por modelo de equipo (peor
+  caso), ítems desde <code>stk</code> (stock_filtros). Tabla: Repuesto, P. quiebre, Impacto
+  (marcado "(equipo)" cuando corresponde), PxI, Nivel, Detalle.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>movimientos_stock</code>/<code>stock_filtros</code>/<code>equipos</code>): "Filtro Aceite
+  Motor" con λ=2/mes, lead 34d, stock=1, equipo Crítico. La tabla renderiza P. quiebre 66%
+  (coincide con el caso ya verificado en Python), Impacto 5 "(equipo)", PxI=20, Nivel "Extremo".
+  Sin errores de JavaScript.</p>
+  <p>Sigue Índice de Efectividad del Mantenimiento.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

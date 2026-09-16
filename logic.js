@@ -2223,6 +2223,91 @@ function analisisDemandaRepuestos(movimientos){
   });
 }
 
+// ═══ MATRIZ DE CRITICIDAD DE REPUESTOS AVANZADA (2026-09-16) ═══
+// Tercer ítem del segundo lote de algoritmos "nivel siguiente". stockEstado
+// (arriba) ya decide "cuántos meses de cobertura quedan" con un criterio
+// DETERMINÍSTICO (meses de cobertura < meses de lead time = COMPRAR) — no
+// dice CUÁNTO RIESGO real hay de quebrar antes de que llegue la reposición,
+// ni cuánto DUELE si pasa. Esta matriz combina 4 señales, todas ya
+// existentes en el sistema, sin inventar ninguna nueva: Poisson (demanda
+// real, analisisDemandaRepuestos arriba), lead time real (repuestos/stock),
+// criticidad del equipo que lo usa (eq.criticidad) y stock actual — en la
+// misma matriz Probabilidad×Impacto ya establecida (probabilidadComponente/
+// umbralesImpacto/impactoDeValor/nivelRiesgoPxI, sección 36), aplicada acá
+// a un dominio nuevo (repuestos) con una Probabilidad más rigurosa que las
+// bandas cualitativas de probabilidadStockQuiebre.
+//
+// P(quiebre en la ventana de reposición) — a diferencia de stockEstado
+// (que solo compara MESES de cobertura contra MESES de lead time, un
+// umbral sin margen de error), acá se usa directamente la PMF de Poisson
+// ya usada para stockSeguridad95: P(demanda en la ventana de lead time >
+// stock disponible) = 1 − P(demanda ≤ stock) = 1 − Σ_{k=0}^{stock} PMF(k,
+// λ_ventana), con λ_ventana=λ_mensual×(leadDias/30) — la demanda esperada
+// en el tiempo real que tarda la reposición, no un mes fijo.
+function probabilidadQuiebreLeadTime(lambdaMensual,leadDias,stockDisponible){
+  if(lambdaMensual==null||!(lambdaMensual>=0)||!(leadDias>0))return null;
+  var lambdaVentana=lambdaMensual*(leadDias/30);
+  var stock=stockDisponible>0?Math.floor(stockDisponible):0;
+  var acumulado=0;
+  for(var k=0;k<=stock;k++){
+    var p=_poissonPMF(k,lambdaVentana);
+    if(p==null)return null;
+    acumulado+=p;
+    if(acumulado>=1)break;
+  }
+  return Math.max(0,Math.min(1,Math.round((1-acumulado)*1000)/1000));
+}
+
+// Probabilidad 1-5 desde la probabilidad continua de quiebre — mismo
+// espíritu que probabilidadStockQuiebre (que mapea la ETIQUETA cualitativa
+// de stockEstado), pero sobre el número real de Poisson en vez de bandas
+// de meses de cobertura. 0 exacto no es un riesgo activo (no entra a la
+// matriz, mismo criterio que el resto de la familia probabilidad*).
+function probabilidadQuiebreABanda(probQuiebre){
+  if(probQuiebre==null||!(probQuiebre>0))return null;
+  if(probQuiebre>=0.8)return 5;
+  if(probQuiebre>=0.5)return 4;
+  if(probQuiebre>=0.2)return 3;
+  if(probQuiebre>=0.05)return 2;
+  return 1;
+}
+
+// Criticidad real de equipo (tabla 'equipos', valores reales confirmados:
+// 'Crítico'/'Esencial'/'General') a la misma escala 1-5 del resto de la
+// Matriz de Riesgo — mismo patrón que probabilidadComponente (mapeo
+// disperso, no denso: refleja que "Crítico" pesa mucho más que un salto de
+// 1 punto respecto a "Esencial").
+function criticidadEquipoABanda(criticidad){
+  if(criticidad==='Crítico')return 5;
+  if(criticidad==='Esencial')return 3;
+  if(criticidad==='General')return 1;
+  return null;
+}
+
+// Arma la matriz final: 'items' ya viene armado por quien llama (pred.js) —
+// una fila por repuesto/insumo con riesgo de quiebre real (mismo criterio
+// de stk/lub que ya usa riesgoQuiebre), con 'probQuiebre' (de
+// probabilidadQuiebreLeadTime), 'precioUnit' (costo real) y
+// 'criticidadEquipo' (banda 1-5 ya resuelta, o null si el ítem no está
+// asociado a ningún equipo con criticidad cargada). El Impacto toma el
+// PEOR CASO entre "cuesta caro" (quintiles reales, mismo criterio de la
+// Matriz de Riesgo) y "lo usa un equipo crítico" — nunca se minimiza una
+// señal real con la otra.
+function matrizCriticidadRepuestos(items){
+  var conRiesgo=(items||[]).map(function(it){
+    var p=probabilidadQuiebreABanda(it.probQuiebre);
+    return Object.assign({},it,{probabilidad:p});
+  }).filter(function(it){return it.probabilidad!=null;});
+  var umbrales=umbralesImpacto(conRiesgo.map(function(it){return it.precioUnit;}));
+  conRiesgo.forEach(function(it){
+    var impactoCosto=impactoDeValor(it.precioUnit,umbrales,null);
+    var impacto=it.criticidadEquipo!=null?Math.max(impactoCosto,it.criticidadEquipo):impactoCosto;
+    var nv=nivelRiesgoPxI(it.probabilidad,impacto);
+    it.impacto=impacto;it.impactoCosto=impactoCosto;it.pxi=nv.pxi;it.nivel=nv.nivel;it.color=nv.color;
+  });
+  return conRiesgo.sort(function(a,b){return b.pxi-a.pxi;});
+}
+
 // ═══ MTTR CON DISTRIBUCIÓN LOG-NORMAL (2026-09-13) ═══
 // Origen real: mismo repaso de distribuciones estadísticas de confiabilidad
 // que llevó a Poisson para stock (sección anterior). El MTTR que ya muestra
@@ -3829,7 +3914,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
