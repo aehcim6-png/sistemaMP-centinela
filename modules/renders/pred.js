@@ -1427,6 +1427,84 @@ export function renderPred(){
       '<p style="font-size:10px;color:var(--tx3);margin-top:4px">El Impacto es relativo a los riesgos presentes hoy (quintiles), no una escala fija en pesos'+(pisoImpactoMatriz?', excepto que un riesgo bajo $'+fn(Math.round(pisoImpactoMatriz))+' (1% del presupuesto mensual configurado) nunca puede pesar Alto/Extremo en términos absolutos, aunque gane el quintil':' — configurá el presupuesto mensual en Configuración para que la Matriz aplique un piso absoluto y no marque "Extremo" un repuesto barato solo por ser el más caro de un día tranquilo')+'.</p>';
   }
 
+  // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en
+  // pausa desde el 2026-09-14 (la auditoría completa del sistema tomó
+  // prioridad). Cruza 6 señales reales, ya calculadas cada una en su propia
+  // pantalla (Weibull, riesgo de componentes, reincidencia, alerta cruzada,
+  // Edad Virtual, Costo Relativo de Mantenimiento) — nunca inventa una
+  // fórmula nueva, solo cuenta cuántas coinciden para el mismo equipo. Ver
+  // senalUnificadaReemplazo (logic.js) para el umbral (4 de 6) y el porqué.
+  if(fVista==='reemplazo'){
+    var compMayoresRepl=S.g('compMayores')||[];
+    var neuRepl=S.g('neu')||[];
+    var aceiteRepl=S.g('aceite')||[];
+    var ocHistRepl=S.g('ocHist')||[];
+    var otConHistRepl=ot.concat(_otHistComoOt(S.g('otHist')||[]));
+
+    var saludRepl={};
+    equiposConSaludFlota(eq,compMayoresRepl,neuRepl,aceiteRepl,otConHistRepl).forEach(function(s){saludRepl[s.sigla]=s;});
+
+    var crmRepl={};
+    costoRelativoMantenimientoFlota(ocHistRepl,eq).forEach(function(r){crmRepl[r.sigla]=r;});
+
+    var compPorSiglaRepl={};
+    compMayoresRepl.forEach(function(c){if(c&&c.sigla)(compPorSiglaRepl[c.sigla]=compPorSiglaRepl[c.sigla]||[]).push(c);});
+
+    // Reincidencia a nivel de TODA la flota/todo el período (no acotado al mes
+    // filtrado de la vista Diagnóstico) — la pregunta acá es "¿este equipo
+    // arrastra un patrón histórico?", no "¿pasó este mes?".
+    var dfRepl=diagnosticoFlota('','');
+    var reincidentesRepl={};
+    dfRepl.forEach(function(c){if(c.severidad>=2&&c.equipoMasRepetido)reincidentesRepl[c.equipoMasRepetido]=true;});
+
+    var candidatosRepl=eq.map(function(e){
+      var salud=saludRepl[e.sigla]||{};
+      var crm=crmRepl[e.sigla];
+      var ac=alertaCruzada(e.sigla);
+      var comps=compPorSiglaRepl[e.sigla];
+      // Valores reales de riesgoNivel (comp.js): '🔴 Alto', '🟡 Medio', '🟡 Revisar',
+      // '🟢 Bajo', '⚪ Sin datos' — con emoji, sin "Extremo" (ese nivel no existe
+      // en este campo, es de la escala de la Matriz de Riesgo, distinta). Mismo
+      // valor exacto que ya usa dash.js para su tarjeta "Componentes en riesgo alto".
+      var tieneRiesgoAlto=(comps&&comps.length)?comps.some(function(c){return c.riesgoNivel==='🔴 Alto';}):null;
+      var histOT=otPorSiglaPred[e.sigla];
+      var esReincidente=(histOT&&histOT.length)?!!reincidentesRepl[e.sigla]:null;
+      var r=senalUnificadaReemplazo({
+        sigla:e.sigla,
+        weibullBeta:salud.weibull?salud.weibull.beta:null,
+        tieneComponenteRiesgoAlto:tieneRiesgoAlto,
+        esReincidente:esReincidente,
+        alertaCruzadaSeverity:ac?ac.severity:null,
+        edadVirtualFactorQ:salud.edadVirtual?salud.edadVirtual.factorQ:null,
+        costoRelativoPct:crm?crm.pct:null
+      });
+      return r?Object.assign({tipo:e.tipo,modelo:e.modelo},r):null;
+    }).filter(Boolean);
+    candidatosRepl.sort(function(a,b){return b.nEncendidas-a.nEncendidas;});
+    var nCandidatosRepl=candidatosRepl.filter(function(c){return c.candidato;}).length;
+
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Señal Unificada de Reemplazo</div><div style="font-size:11px;color:var(--tx3)">Cruza 6 señales reales (Weibull, riesgo de componentes, reincidencia, alerta cruzada, Edad Virtual, Costo Relativo) — candidato cuando 4 de 6 coinciden para el mismo equipo</div></div>'+
+      '<div class="cards" style="margin-bottom:16px">'+
+      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔴 Candidatos a evaluación</div><div class="card-v" style="color:var(--danger)">'+nCandidatosRepl+'</div><div class="card-s">≥4 de 6 señales encendidas</div></div>'+
+      '<div class="card"><div class="card-t">Equipos evaluables</div><div class="card-v">'+candidatosRepl.length+'</div><div class="card-s">de '+eq.length+' equipos — el resto no tiene dato en NINGUNA de las 6 señales</div></div>'+
+      '</div>'+
+      '<div class="chart-box"><div class="chart-t">Detalle por equipo <span style="font-size:11px;color:var(--tx3)">— ordenado por señales encendidas</span></div>'+
+      (candidatosRepl.length?
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Tipo</th><th>Señales</th><th>Candidato</th><th>Cuáles</th></tr>'+
+      candidatosRepl.map(function(r){
+        var col=r.candidato?'var(--danger)':r.nEncendidas>=2?'var(--w)':'var(--ok)';
+        return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+'</td>'+
+          '<td style="font-size:11px">'+escapeHtml(r.tipo||'')+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+col+'">'+r.nEncendidas+' / '+r.nEvaluables+'</td>'+
+          '<td style="text-align:center">'+(r.candidato?'<span class="badge b-r">🔴 Evaluar reemplazo</span>':'—')+'</td>'+
+          '<td style="font-size:10px;color:var(--tx2)">'+escapeHtml(r.encendidasNombres.join(' · ')||'Ninguna encendida')+'</td></tr>';
+      }).join('')+'</table></div>'
+      :'<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo tiene dato en al menos una de las 6 señales todavía.</div>')+
+      '</div>'+
+      '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Cada señal puede faltar por equipo (ej. sin historial suficiente para Weibull, o sin Órdenes de Compra para Costo Relativo) — una señal sin dato NO cuenta ni a favor ni en contra, nunca se inventa. "Candidato" es una señal para EVALUAR reemplazo, no una decisión automática.</p>';
+  }
+
 $('s-pred').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Predictivo &amp; Confiabilidad</div>'+
     '<div class="sec-s">Arriba lo accionable (qué anticipar) · abajo el histórico de compras · todo desde datos reales</div></div></div>'+
@@ -1440,6 +1518,7 @@ $('s-pred').innerHTML=
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
+    '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
     '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option></select>'+

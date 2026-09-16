@@ -1277,6 +1277,22 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   inflarse hasta 6x; demanda de repuestos (Poisson) con denominador mal calculado; y "sin
   repuesto" contado como falla real por un <code>criticidad</code> hardcodeado.</p>
 
+  <h2>Nudge de costo al cerrar una OT + Señal Unificada de Reemplazo (6 señales)</h2>
+  <p>2026-09-16: <code>edOT()</code> ahora avisa (sin bloquear) al cerrar una OT con costo en $0, mostrando
+  el candidato de <code>costoSugeridoPorCruce</code> si existe uno. Se retomó la <b>Señal Unificada de
+  Reemplazo</b> (en pausa desde el 2026-09-14): diseño original 4 señales/umbral 3 de 4, ampliado a
+  <b>6 señales</b> (se suman Edad Virtual y Costo Relativo, implementadas después) con umbral <b>4 de 6</b>
+  (misma exigencia relativa, ~75%). <code>senalUnificadaReemplazo</code> (logic.js) es pura: cuenta señales
+  encendidas de las 6 que recibe, cada una puede ser <code>null</code> sin inflar el conteo. La UI
+  (<code>pred.js</code>, sub-vista "reemplazo") junta Weibull+Edad Virtual (<code>equiposConSaludFlota</code>),
+  riesgo de componente (<code>compMayores</code>), reincidencia histórica (<code>diagnosticoFlota</code>,
+  toda la flota/todo el período), Alerta Cruzada y Costo Relativo. <b>Bug real corregido antes de
+  terminar</b>: el primer intento comparaba <code>riesgoNivel==='Alto'||'Extremo'</code>, pero los valores
+  reales son <code>'🔴 Alto'</code>/<code>'🟡 Medio'</code>/<code>'🟡 Revisar'</code>/<code>'🟢 Bajo'</code>/
+  <code>'⚪ Sin datos'</code> (con emoji, sin nivel "Extremo" — ese nombre es de la Matriz de Riesgo, un
+  campo distinto) — con la comparación original la señal nunca se hubiera encendido para ningún equipo
+  real. 10 tests nuevos.</p>
+
   <h2>Costo sugerido por cruce OT ↔ OC (síntoma/solución vs. detalle real de compra)</h2>
   <p>2026-09-16: <code>costoSugeridoPorCruce</code> (logic.js) tokeniza el síntoma+solución+componente de una
   OT y el <code>detalle</code> de cada línea de <code>ordenes_compra_historico</code> del mismo equipo dentro

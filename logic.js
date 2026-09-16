@@ -881,6 +881,58 @@ function costoRelativoMantenimientoFlota(ocHist, eq, opts){
   return resultado.sort(function(a,b){return b.pct-a.pct;});
 }
 
+// ═══ SEÑAL UNIFICADA DE REEMPLAZO — cruza 6 señales reales, cada una ya
+// calculada en otra parte del sistema (Weibull, Matriz de Riesgo, Alerta
+// Cruzada, Edad Virtual, Costo Relativo de Mantenimiento), para marcar un
+// equipo como "candidato a evaluación de reemplazo" cuando varias coinciden
+// a la vez. NO es un puntaje inventado ni un CAE/OEE con datos que no
+// existen (rechazado varias veces en esta conversación por esa razón
+// exacta) — cada señal individual ya se muestra en su propia pantalla, acá
+// solo se CUENTAN cuántas están "encendidas" para el mismo equipo al mismo
+// tiempo. Diseño original (2026-09-14): 4 señales, umbral 3 de 4. Ampliado
+// 2026-09-16 a 6 señales (se sumaron Edad Virtual y Costo Relativo, ambas
+// implementadas después); el umbral se reescala a 4 de 6 para mantener la
+// misma exigencia relativa (~75%) que el diseño original, a pedido
+// explícito del usuario.
+//
+// Las 6 señales:
+// 1. Weibull β>1.5 — desgaste acelerado (ajusteWeibull)
+// 2. Al menos un componente mayor con riesgoNivel '🔴 Alto' (compMayores —
+//    ese campo no tiene nivel "Extremo", solo Alto/Medio/Revisar/Bajo/Sin datos)
+// 3. Reincidencia — este equipo es el "equipoMasRepetido" de un componente
+//    con severidad≥2 (diagnosticoFlota, pred.js)
+// 4. Alerta Cruzada severity≥5 (alertaCruzada, pred.js)
+// 5. Edad Virtual — factorQ≥0.67, "degradación alta" (edadVirtualEquipo)
+// 6. Costo Relativo de Mantenimiento ≥15%/año (costoRelativoMantenimiento)
+//
+// Cada señal puede venir null (sin datos suficientes para evaluarla ESE
+// equipo) — nunca se inventa un valor para completar el conteo; una señal
+// null simplemente no suma ni resta. Devuelve null solo si NINGUNA de las
+// 6 tiene dato (nada que concluir sobre ese equipo todavía).
+function senalUnificadaReemplazo(entrada){
+  entrada=entrada||{};
+  var UMBRAL=4;
+  var senales=[
+    {clave:'weibull',nombre:'Weibull β>1.5 (desgaste acelerado)',activa:entrada.weibullBeta==null?null:entrada.weibullBeta>1.5},
+    {clave:'riesgoComponente',nombre:'Componente con riesgo Alto',activa:entrada.tieneComponenteRiesgoAlto==null?null:!!entrada.tieneComponenteRiesgoAlto},
+    {clave:'reincidencia',nombre:'Reincidencia (mismo equipo, misma falla)',activa:entrada.esReincidente==null?null:!!entrada.esReincidente},
+    {clave:'alertaCruzada',nombre:'Alerta Cruzada severidad≥5',activa:entrada.alertaCruzadaSeverity==null?null:entrada.alertaCruzadaSeverity>=5},
+    {clave:'edadVirtual',nombre:'Edad Virtual — degradación alta (Q≥0.67)',activa:entrada.edadVirtualFactorQ==null?null:entrada.edadVirtualFactorQ>=0.67},
+    {clave:'costoRelativo',nombre:'Costo Relativo de Mantenimiento ≥15%/año',activa:entrada.costoRelativoPct==null?null:entrada.costoRelativoPct>=15}
+  ];
+  var evaluables=senales.filter(function(s){return s.activa!=null;});
+  if(!evaluables.length)return null;
+  var encendidas=senales.filter(function(s){return s.activa===true;});
+  return{
+    sigla:entrada.sigla||null,
+    senales:senales,
+    nEvaluables:evaluables.length,
+    nEncendidas:encendidas.length,
+    candidato:encendidas.length>=UMBRAL,
+    encendidasNombres:encendidas.map(function(s){return s.nombre;})
+  };
+}
+
 // ═══ AJUSTE WEIBULL DE POBLACIÓN — el uso "de libro" de Weibull en
 // ingeniería de confiabilidad (2026-09-12, pedido del usuario: "¿y eso
 // puede servir en los neumáticos?"): a diferencia de ajusteWeibull (arriba,
@@ -2949,6 +3001,7 @@ if (typeof window !== 'undefined') {
   window.costoRelativoMantenimiento = costoRelativoMantenimiento;
   window.costoRelativoMantenimientoFlota = costoRelativoMantenimientoFlota;
   window.costoSugeridoPorCruce = costoSugeridoPorCruce;
+  window.senalUnificadaReemplazo = senalUnificadaReemplazo;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -2957,7 +3010,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,

@@ -1983,6 +1983,53 @@ demanda de ítems agregados recientemente; y "sin repuesto" (motivo NO-
 falla) contado como falla real en `esFallaMTBF` por un `criticidad`
 hardcodeado en "Registrar salida de servicio".
 
+## Nudge de costo al cerrar una OT (2)
+
+2026-09-16: `correctivos.costo` seguía en $0 en el 100% de los registros
+(el campo existe en el formulario pero nadie lo completa). No se fuerza
+desde la creación de la OT (muchos correctivos quedan "en curso" semanas
+mientras llega el repuesto, cuando el costo real todavía no se sabe) —
+`edOT()` (`ot.js`) ahora, al cambiar el estado a "Cerrada" con costo
+todavía en $0, muestra un `confirm()` de aviso (no bloqueante: hay
+correctivos legítimamente sin costo — garantía, mano de obra interna ya
+contada en otro lado) y, si `costoSugeridoPorCruce` encuentra un candidato
+real para esa OT, se lo muestra en el mensaje antes de decidir.
+
+## Señal Unificada de Reemplazo (3) — retomada, ampliada a 6 señales
+
+2026-09-16: se retoma la tarea que había quedado en pausa desde
+2026-09-14 (la auditoría completa del sistema tomó prioridad). Diseño
+original: 4 señales (Weibull β>1.5, componente con riesgo Alto, Alerta
+Cruzada severidad≥5, reincidencia), umbral 3 de 4. Se amplía a 6 señales
+—se suman Edad Virtual (factorQ≥0.67) y Costo Relativo de Mantenimiento
+(≥15%/año), ambas implementadas después del diseño original— y el umbral
+se reescala a **4 de 6** para mantener la misma exigencia relativa (~75%),
+a pedido explícito del usuario.
+
+`senalUnificadaReemplazo` (logic.js) es una función pura: recibe las 6
+señales ya evaluadas (cada una puede venir `null` si no hay dato
+suficiente para ESE equipo — nunca se inventa un valor para completar el
+conteo) y cuenta cuántas están encendidas. La UI (`pred.js`, sub-vista
+"reemplazo") junta las 6 fuentes reales por equipo:
+`equiposConSaludFlota` (Weibull + Edad Virtual), `compMayores` filtrado
+por sigla (riesgo de componente), `diagnosticoFlota` de toda la flota/todo
+el período (reincidencia — no acotado al mes de la vista Diagnóstico:
+la pregunta acá es "¿arrastra un patrón histórico?"), `alertaCruzada`
+(ya existía en pred.js) y `costoRelativoMantenimientoFlota`.
+
+**Bug real encontrado y corregido antes de terminar**: el primer intento
+comparaba `c.riesgoNivel==='Alto'||c.riesgoNivel==='Extremo'`, pero los
+valores REALES de ese campo (confirmados contra la base y contra
+`comp.js`/`dash.js`) son `'🔴 Alto'`, `'🟡 Medio'`, `'🟡 Revisar'`,
+`'🟢 Bajo'`, `'⚪ Sin datos'` — con emoji, y **sin ningún nivel
+"Extremo"** (ese nombre es de la escala de la Matriz de Riesgo, un campo
+distinto). Con la comparación original la señal nunca se hubiera
+encendido para ningún equipo real. Corregido a `'🔴 Alto'` exacto, mismo
+valor que ya usa `dash.js` para su propia tarjeta de "Componentes en
+riesgo alto".
+
+10 tests nuevos en `senalUnificadaReemplazo.test.js`.
+
 ## Costo sugerido por cruce OT ↔ OC (síntoma/solución vs. detalle real de compra)
 
 2026-09-16: pedido del usuario tras notar, leyendo los correctivos reales,

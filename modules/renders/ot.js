@@ -722,6 +722,22 @@ export function edOT(i,key,val){
   if(key==='estadoOT'&&val!=='Pendiente'&&ot[i]&&ot[i].estadoOT==='Pendiente'&&!ot[i].primeraAtencionEn){
     ot[i].primeraAtencionEn=new Date().toISOString();
   }
+  // Nudge de costo al cerrar (2026-09-16, pedido del usuario: correctivos.costo
+  // está en $0 en el 100% de los registros reales porque el campo existe pero
+  // nadie lo completa — acá, no antes, porque forzarlo desde el momento de
+  // crear la OT bloquearía correctivos que quedan "en curso" semanas mientras
+  // llega el repuesto, cuando el costo real todavía no se sabe). Solo avisa al
+  // CERRAR sin costo — no bloquea (hay correctivos legítimamente sin costo:
+  // garantía, mano de obra interna ya contada en otro lado). Si hay un
+  // candidato real de costoSugeridoPorCruce, se lo muestra en el aviso para
+  // que lo revise antes de decidir.
+  if(key==='estadoOT'&&val==='Cerrada'&&ot[i]&&!(ot[i].costo>0)){
+    var _sugCierre=(typeof costoSugeridoPorCruce==='function')?costoSugeridoPorCruce(ot[i],S.g('ocHist')||[]):[];
+    var _msg=_sugCierre.length
+      ?'Esta OT se va a cerrar SIN costo registrado.\n\nHay un costo sugerido por cruce con una Orden de Compra real: $'+fn(_sugCierre[0].costo)+' ('+_sugCierre[0].detalle+', '+fd(_sugCierre[0].fecha)+').\n\nRecomendado: Cancelar, aplicar el costo sugerido (botón "usar" en la fila) y recién ahí cerrar.\n\n¿Cerrar igual sin costo?'
+      :'Esta OT se va a cerrar SIN costo registrado.\n\n¿Cerrar igual sin costo? (si es una reparación con costo real conocido, cancelá y completá el campo Costo antes de cerrar)';
+    if(!confirm(_msg))return;
+  }
   if(_edCampo('ot',ot,i,key,val)){refreshAll();toast('✅ Guardado');}
 }
 
