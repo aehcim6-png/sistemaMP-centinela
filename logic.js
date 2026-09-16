@@ -2044,6 +2044,81 @@ function nivelRiesgoPxI(probabilidad,impacto){
   return {pxi:pxi,nivel:nivel,color:color};
 }
 
+// ═══ MATRIZ DE CRITICIDAD DINÁMICA (2026-09-16) ═══
+// Cuarto ítem del orden de prioridad elegido por el usuario. La Matriz de
+// Riesgo de arriba es una FOTO: la Probabilidad de cada componente sale de
+// riesgoNivel (comp.js), un campo que solo cambia cuando alguien vuelve a
+// evaluar ese equipo A MANO. No hay forma de que esa matriz "sepa" que un
+// tipo de componente lleva meses fallando cada vez más seguido, salvo que
+// alguien lo note y actualice riesgoNivel manualmente. Crow-AMSAA (arriba)
+// SÍ mide esa tendencia real, a nivel de categoría de componente en toda
+// la flota — acá se usa para ajustar dinámicamente la Probabilidad de
+// cada instancia de ese tipo de componente, en vez de dejarla fija hasta
+// la próxima revisión manual. No es una matriz nueva ni un score
+// inventado: reusa tal cual probabilidadComponente/umbralesImpacto/
+// impactoDeValor/nivelRiesgoPxI de arriba, con un único ajuste real
+// encima (la tendencia medida).
+//
+// +1 nivel de Probabilidad si la tendencia real de ESE tipo de componente
+// (toda la flota) es 'empeorando' (tope en 5), -1 si es 'mejorando' (piso
+// en 1), sin cambio si 'sin_certeza' o sin dato de tendencia — nunca se
+// ajusta sin evidencia real de la dirección.
+function criticidadDinamicaComponente(probEstatica,tendencia){
+  if(probEstatica==null)return null;
+  if(tendencia==='empeorando')return Math.min(5,probEstatica+1);
+  if(tendencia==='mejorando')return Math.max(1,probEstatica-1);
+  return probEstatica;
+}
+
+// Arma la matriz completa: una fila por cada instancia de componente mayor
+// (equipo+tipo) con Índice de Riesgo real (mismo filtro de
+// probabilidadComponente que ya usa la Matriz de Riesgo estática), con su
+// Probabilidad estática Y dinámica, Impacto (mismos umbralesImpacto/
+// impactoDeValor de la matriz estática, sobre costoRef, sin piso
+// absoluto — mismo criterio simple que el resto de esta función), y los 2
+// niveles PxI resultantes. 'cambioNivel' marca solo las filas donde la
+// tendencia real efectivamente CAMBIA la banda de riesgo (Bajo/Moderado/
+// Alto/Extremo) — el caso que más importa mostrar primero: un componente
+// que la matriz estática no marcaría como urgente, pero que la tendencia
+// real dice que sí (o al revés). 'crowPorComponente' = salida de
+// crowAMSAAPorComponente (arriba) — no se recalcula acá, se reusa tal
+// cual, matcheada por el mismo nombre de componente ('comp' en
+// componentes_mayores).
+function matrizCriticidadDinamica(compMayores,crowPorComponente){
+  var tendenciaPorTipo={};
+  (crowPorComponente||[]).forEach(function(g){
+    if(g&&g.componente&&g.crow)tendenciaPorTipo[g.componente]=g.crow.tendencia;
+  });
+  var items=[];
+  (compMayores||[]).forEach(function(c){
+    if(!c)return;
+    var p=probabilidadComponente(c.riesgoNivel);
+    if(p==null)return;
+    var tendencia=tendenciaPorTipo[c.comp]||null;
+    items.push({
+      sigla:c.sigla||'',
+      comp:c.comp||'—',
+      probEstatica:p,
+      tendencia:tendencia,
+      probDinamica:criticidadDinamicaComponente(p,tendencia),
+      valorImpacto:c.costoRef||null,
+      detalle:c.riesgoTip||'',
+      etiqueta:c.riesgoNivel||''
+    });
+  });
+  var umbrales=umbralesImpacto(items.map(function(r){return r.valorImpacto;}));
+  items.forEach(function(r){
+    r.impacto=impactoDeValor(r.valorImpacto,umbrales,null);
+    var nvEstatico=nivelRiesgoPxI(r.probEstatica,r.impacto);
+    var nvDinamico=nivelRiesgoPxI(r.probDinamica,r.impacto);
+    r.pxiEstatico=nvEstatico.pxi;r.nivelEstatico=nvEstatico.nivel;
+    r.pxiDinamico=nvDinamico.pxi;r.nivelDinamico=nvDinamico.nivel;r.colorDinamico=nvDinamico.color;
+    r.cambioNivel=nvDinamico.nivel!==nvEstatico.nivel?(nvDinamico.pxi>nvEstatico.pxi?'escalada':'desescalada'):null;
+  });
+  items.sort(function(a,b){return b.pxiDinamico-a.pxiDinamico;});
+  return items;
+}
+
 // ═══ ESTIMACIÓN DE HORÓMETRO/KM EN UNA FECHA PASADA ═══
 // Días calendario entre dos fechas ISO (yyyy-mm-dd). 0 si alguna es inválida.
 function _diasEntreISO(desdeISO, hastaISO){
@@ -3373,6 +3448,8 @@ if (typeof window !== 'undefined') {
   window.umbralesImpacto = umbralesImpacto;
   window.impactoDeValor = impactoDeValor;
   window.nivelRiesgoPxI = nivelRiesgoPxI;
+  window.criticidadDinamicaComponente = criticidadDinamicaComponente;
+  window.matrizCriticidadDinamica = matrizCriticidadDinamica;
   window.dispIntrinsecaEquipoMes = dispIntrinsecaEquipoMes;
   window.tasaFallaPorUbicacion = tasaFallaPorUbicacion;
   window.edadVirtualEquipo = edadVirtualEquipo;
@@ -3396,6 +3473,6 @@ if (typeof module !== 'undefined' && module.exports) {
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
-    umbralesImpacto, impactoDeValor, nivelRiesgoPxI
+    umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica
   };
 }

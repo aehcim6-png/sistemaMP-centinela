@@ -2692,6 +2692,88 @@ Criticidad Dinámica, después detección de aceleración de desgaste en
 aceite (CUSUM) — uno por uno, cada uno probado antes de seguir con el
 siguiente.
 
+### 41. Matriz de Criticidad Dinámica (2026-09-16)
+
+Cuarto ítem del orden de prioridad elegido por el usuario, tras
+Kaplan-Meier+MCF+Crow-AMSAA (secciones 38-40). Antes de implementar, se
+evaluó explícitamente si esto duplicaba la Matriz de Riesgo
+(Probabilidad × Impacto) ya existente (sección 36) — la respuesta real es
+no: esa matriz es una **foto**. La Probabilidad de cada componente sale
+de `riesgoNivel` (Componentes Mayores), un campo que solo cambia cuando
+alguien vuelve a evaluar ese equipo A MANO. No hay forma de que esa
+matriz "sepa" que un tipo de componente lleva meses fallando cada vez más
+seguido, salvo que alguien lo note y actualice `riesgoNivel` por su
+cuenta. Crow-AMSAA (sección 40, recién implementado) sí mide esa
+tendencia real, a nivel de categoría de componente en toda la flota —
+acá se usa para ajustar dinámicamente la Probabilidad de cada instancia
+de ese tipo de componente, en vez de dejarla fija hasta la próxima
+revisión manual. No es una matriz nueva ni un score inventado: **reusa
+tal cual** `probabilidadComponente`/`umbralesImpacto`/`impactoDeValor`/
+`nivelRiesgoPxI` de la Matriz de Riesgo estática, con un único ajuste
+real encima (la tendencia medida).
+
+**`logic.js`**: dos funciones nuevas.
+- `criticidadDinamicaComponente(probEstatica, tendencia)` — +1 nivel de
+  Probabilidad si la tendencia real de ese tipo de componente es
+  `empeorando` (tope en 5), -1 si es `mejorando` (piso en 1), sin cambio
+  si `sin_certeza` o sin dato — nunca se ajusta sin evidencia real de la
+  dirección.
+- `matrizCriticidadDinamica(compMayores, crowPorComponente)` — una fila
+  por cada instancia de componente mayor (equipo+tipo) con Índice de
+  Riesgo real (mismo filtro que la Matriz de Riesgo estática), Probabilidad
+  estática Y dinámica, Impacto (mismos `umbralesImpacto`/`impactoDeValor`
+  sobre `costoRef`), y los 2 niveles PxI resultantes. `cambioNivel` marca
+  solo las filas donde la tendencia real efectivamente CAMBIA la banda de
+  riesgo (Bajo/Moderado/Alto/Extremo) — el caso que más importa mostrar
+  primero: un componente que la matriz estática no marcaría como urgente,
+  pero que la tendencia real dice que sí. `crowPorComponente` = salida de
+  `crowAMSAAPorComponente` (sección 40), matcheada por el mismo nombre de
+  componente (`comp` en `componentes_mayores`) — no se recalcula nada.
+
+11 tests nuevos en `tests/criticidadDinamica.test.js`: ajuste ±1 con
+topes correctos; sin tendencia o `sin_certeza` no cambia nada; el Impacto
+reusa los mismos umbrales de la matriz estática (verificado con el mismo
+caso de 5 componentes calculado a mano); `cambioNivel` marca "escalada"
+solo cuando la BANDA cambia de verdad (caso de borde probado
+explícitamente: un PxI que baja de 2 a 1 pero se queda en la misma banda
+"Bajo" no cuenta como cambio); orden por PxI dinámico descendente;
+componentes sin Índice de Riesgo reconocido quedan excluidos, igual que
+en la matriz estática; con menos de 5 valores de `costoRef` el Impacto
+queda neutral (3) para todos, mismo criterio ya establecido. Suite
+completa 782/782.
+
+**`pred.js`**: dentro de la sub-vista existente "🎯 Matriz de Riesgo"
+(no una pestaña nueva — es una extensión directa de esa misma vista), se
+agrega un bloque "📈 Criticidad Dinámica" después de la grilla y el
+registro de riesgos estáticos. Construye los eventos de falla con el
+mismo patrón ya usado en el resto de `pred.js`
+(`ot.filter(esFallaMTBF).concat(_otHistComoOt(...), _informesFallaComoOt(...))`,
+con el mismo fallback `_componenteDeSintoma` que usa Estadística),
+calcula `crowAMSAAPorComponente` y `matrizCriticidadDinamica`, y muestra
+una tabla con Equipo/Componente/Tendencia/P estática/P dinámica/Nivel
+estático→dinámico/Detalle — las filas que escalan de banda quedan
+resaltadas, y un aviso arriba de la tabla cuenta cuántas escalan. Respeta
+el filtro de equipo ya existente de Predictivo (`fPredEq`), igual que la
+grilla estática.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos`/`equipos`/`componentes_mayores` vía
+`tests/e2e/helpers/mock-supabase.js`, sin tocar la red real de Supabase):
+6 correctivos sintéticos de "Motor" en 2 equipos + 5 filas de
+`componentes_mayores` (Motor×2, Frenos, Transmisión, Hidráulico). La
+tabla de Criticidad Dinámica renderiza las 5 filas con Probabilidad
+estática/dinámica, Nivel estático→dinámico y Detalle correctos — con este
+historial sintético en particular la tendencia de Motor quedó
+"Sin certeza" (muestra chica y fechas muy cercanas a "hoy", el mismo tipo
+de caso ya cubierto explícitamente por los tests de `crowAMSAA.test.js`),
+así que ningún componente escaló de banda en esta corrida — comportamiento
+correcto: sin evidencia real de tendencia, `criticidadDinamicaComponente`
+no ajusta nada. Sin errores de JavaScript de la aplicación.
+
+Con esto, los 4 ítems del orden de prioridad elegido por el usuario están
+completos salvo el último: detección de aceleración de desgaste en aceite
+(CUSUM).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

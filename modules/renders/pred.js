@@ -1445,6 +1445,45 @@ export function renderPred(){
       '</div>'+
       '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Nivel 1: solo lee señales que el sistema ya calcula en Componentes, Predictivo y Stock — no agrega riesgos manuales de otras áreas (financiero, personal, etc.).</p>'+
       '<p style="font-size:10px;color:var(--tx3);margin-top:4px">El Impacto es relativo a los riesgos presentes hoy (quintiles), no una escala fija en pesos'+(pisoImpactoMatriz?', excepto que un riesgo bajo $'+fn(Math.round(pisoImpactoMatriz))+' (1% del presupuesto mensual configurado) nunca puede pesar Alto/Extremo en términos absolutos, aunque gane el quintil':' — configurá el presupuesto mensual en Configuración para que la Matriz aplique un piso absoluto y no marque "Extremo" un repuesto barato solo por ser el más caro de un día tranquilo')+'.</p>';
+
+    // ═══ CRITICIDAD DINÁMICA (2026-09-16) — cuarto ítem del orden de
+    // prioridad elegido por el usuario, tras Kaplan-Meier+MCF+Crow-AMSAA.
+    // La grilla de arriba es una FOTO: la Probabilidad de cada componente
+    // sale de riesgoNivel (comp.js), que solo cambia si alguien lo
+    // reevalúa a mano. Acá se usa Crow-AMSAA (misma tendencia real que ya
+    // se calcula en Estadística → Por Componente, a nivel de categoría de
+    // componente en toda la flota) para AJUSTAR esa Probabilidad de forma
+    // dinámica — matrizCriticidadDinamica (logic.js), no una matriz nueva:
+    // reusa tal cual probabilidadComponente/umbralesImpacto/impactoDeValor/
+    // nivelRiesgoPxI de la grilla de arriba, con un único ajuste real
+    // encima (+1 si empeora, -1 si mejora, sin cambio sin evidencia).
+    var eventosCritDin=ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
+      .map(function(o){
+        var comp=(o.componente&&o.componente.trim())||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma):'');
+        return{componente:comp||'',fecha:o.fecha};
+      });
+    var crowPorCompMatriz=typeof crowAMSAAPorComponente==='function'?crowAMSAAPorComponente(eventosCritDin):[];
+    var critDinamica=(typeof matrizCriticidadDinamica==='function'?matrizCriticidadDinamica(S.g('compMayores')||[],crowPorCompMatriz):[])
+      .filter(function(r){return !fEq||r.sigla===fEq;});
+    var escaladas=critDinamica.filter(function(r){return r.cambioNivel==='escalada';}).length;
+    content+=
+      '<div class="chart-box" style="margin-top:16px;border-left:3px solid var(--ac)"><div class="chart-t">📈 Criticidad Dinámica <span style="font-size:11px;color:var(--tx3)">— la misma Probabilidad de arriba, ajustada con la tendencia real de fallas (Crow-AMSAA)</span></div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">La grilla de arriba usa el Índice de Riesgo de cada componente (riesgoNivel, Componentes Mayores) — un valor que solo cambia si alguien lo reevalúa a mano. Acá se ajusta esa Probabilidad con la tendencia real medida por Crow-AMSAA (Estadística → Por Componente): +1 nivel si ese tipo de componente se está deteriorando en toda la flota, -1 si está mejorando, sin cambio si no hay certeza o no hay historial suficiente. '+(escaladas?'<b style="color:var(--danger)">'+escaladas+' componente(s) escalan de banda de riesgo</b> con este ajuste — la tendencia real los hace más urgentes de lo que dice la evaluación manual.':'Ningún componente escala de banda con el historial actual.')+'</div>'+
+      (critDinamica.length?
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:14%">Equipo</th><th style="text-align:left;width:18%">Componente</th><th style="width:12%">Tendencia</th><th style="width:10%">P estática</th><th style="width:10%">P dinámica</th><th style="width:16%">Nivel estático→dinámico</th><th style="text-align:left">Detalle</th></tr>'+
+      critDinamica.map(function(r){
+        var etiquetaTend=r.tendencia==='empeorando'?'<span style="color:var(--danger)">↑ Empeorando</span>':r.tendencia==='mejorando'?'<span style="color:var(--ok)">↓ Mejorando</span>':r.tendencia==='sin_certeza'?'<span style="color:var(--tx3)">Sin certeza</span>':'<span style="color:var(--tx3)">Sin historial</span>';
+        return '<tr style="'+(r.cambioNivel==='escalada'?'background:rgba(239,68,68,.08)':'')+'">'+
+          '<td class="mono" style="font-size:10px">'+escapeHtml(r.sigla)+'</td>'+
+          '<td style="font-size:11px;font-weight:600">'+escapeHtml(r.comp)+'</td>'+
+          '<td style="text-align:center;font-size:10px">'+etiquetaTend+'</td>'+
+          '<td style="text-align:center">'+r.probEstatica+'</td>'+
+          '<td style="text-align:center;font-weight:700">'+r.probDinamica+'</td>'+
+          '<td style="text-align:center;font-size:10px;font-weight:700;color:'+r.colorDinamico+'">'+r.nivelEstatico+(r.cambioNivel?' → '+r.nivelDinamico:'')+'</td>'+
+          '<td style="font-size:10px;color:var(--tx2)">'+escapeHtml(r.detalle||r.etiqueta||'')+'</td></tr>';
+      }).join('')+'</table></div>'
+      :'<div style="color:var(--tx3);text-align:center;padding:20px">Sin componentes con Índice de Riesgo evaluado todavía</div>')+
+      '</div>';
   }
 
   // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en

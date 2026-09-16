@@ -1584,6 +1584,47 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Con esto, 3 de los 4 ítems del orden de prioridad elegido están completos. Sigue Matriz de
   Criticidad Dinámica, después detección de aceleración de desgaste en aceite (CUSUM).</p>
 
+  <h3>41. Matriz de Criticidad Dinámica (2026-09-16)</h3>
+  <p>Cuarto ítem del orden de prioridad elegido por el usuario, tras Kaplan-Meier+MCF+Crow-AMSAA
+  (secciones 38-40). Antes de implementar se evaluó si esto duplicaba la Matriz de Riesgo ya
+  existente (sección 36) — no: esa matriz es una <b>foto</b>. La Probabilidad de cada componente
+  sale de <code>riesgoNivel</code> (Componentes Mayores), que solo cambia si alguien lo reevalúa A
+  MANO. Crow-AMSAA (recién implementado) sí mide la tendencia real, a nivel de categoría de
+  componente en toda la flota — acá se usa para ajustar dinámicamente esa Probabilidad, en vez de
+  dejarla fija hasta la próxima revisión manual. No es una matriz nueva: <b>reusa tal cual</b>
+  <code>probabilidadComponente</code>/<code>umbralesImpacto</code>/<code>impactoDeValor</code>/
+  <code>nivelRiesgoPxI</code> de la Matriz de Riesgo estática, con un único ajuste real encima.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>criticidadDinamicaComponente(probEstatica, tendencia)</code> — +1 nivel de
+    Probabilidad si empeorando (tope 5), -1 si mejorando (piso 1), sin cambio si sin_certeza o sin
+    dato.</li>
+    <li><code>matrizCriticidadDinamica(compMayores, crowPorComponente)</code> — una fila por
+    instancia de componente mayor con Probabilidad estática Y dinámica, Impacto (mismos umbrales
+    de la matriz estática), y los 2 niveles PxI. <code>cambioNivel</code> marca solo las filas
+    donde la tendencia real efectivamente cambia la BANDA de riesgo.</li>
+  </ul>
+  <p>11 tests nuevos en <code>tests/criticidadDinamica.test.js</code> (782/782 en total): ajuste
+  ±1 con topes correctos; sin tendencia no cambia nada; el Impacto reusa los mismos umbrales de la
+  matriz estática; cambioNivel marca "escalada" solo cuando la banda cambia de verdad (caso de
+  borde probado: un PxI que baja pero se queda en la misma banda no cuenta); orden por PxI dinámico
+  descendente; componentes sin Índice de Riesgo reconocido excluidos, igual que en la matriz
+  estática.</p>
+  <p><b>Cambios en <code>pred.js</code>:</b> dentro de la sub-vista existente "🎯 Matriz de Riesgo"
+  (extensión directa, no pestaña nueva), se agrega un bloque "📈 Criticidad Dinámica" después de la
+  grilla y el registro de riesgos estáticos — tabla con Equipo/Componente/Tendencia/P
+  estática/P dinámica/Nivel estático→dinámico/Detalle, filas que escalan resaltadas. Respeta el
+  filtro de equipo ya existente de Predictivo.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>correctivos</code>/<code>equipos</code>/<code>componentes_mayores</code>): 6 correctivos
+  sintéticos de "Motor" en 2 equipos + 5 filas de componentes mayores. La tabla renderiza las 5
+  filas correctamente — con este historial sintético la tendencia de Motor quedó "Sin certeza"
+  (muestra chica, fechas cercanas a "hoy", mismo caso ya cubierto por los tests de Crow-AMSAA), así
+  que ningún componente escaló de banda — comportamiento correcto: sin evidencia real, no se ajusta
+  nada. Sin errores de JavaScript de la aplicación.</p>
+  <p>Con esto, 4 de los 4 ítems del orden de prioridad elegido están implementados, salvo el
+  último: detección de aceleración de desgaste en aceite (CUSUM).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
