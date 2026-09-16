@@ -774,6 +774,53 @@ function edadVirtualEquipo(horomFallas){
   return{nFallas:validos.length,medianaHorasPrimeraMitad:Math.round(medPrimera),medianaHorasSegundaMitad:Math.round(medSegunda),factorQ:factorQ,interpretacion:interpretacion};
 }
 
+// ═══ COSTO RELATIVO DE MANTENIMIENTO — uno de los indicadores de la norma EN
+// 15341 (A&S1: costo de mantenimiento ÷ valor de reposición del activo).
+// 2026-09-16: "gasto de mantenimiento" acá es el gasto REAL en repuestos y
+// materiales (ordenes_compra_historico, cargado desde Órdenes de Compra
+// reales) — NO incluye mano de obra: correctivos.costo sigue en $0 en el
+// 100% de los registros (el campo existe en el formulario de OT pero nadie
+// lo completa), así que no hay ese dato para sumar. Es un proxy real
+// parcial, no el costo total de mantenimiento.
+//
+// Se anualiza: cada equipo tiene un historial de OC de distinto largo
+// (algunos desde 2022, otros recién este año) — sumar el gasto total sin
+// ajustar por cuántos días cubre ese historial castigaría injustamente a
+// los equipos con más años de datos. Exige al menos 90 días de historial
+// cubierto (si no, "gasto por año" sería una extrapolación de muy pocos
+// datos) y un valorCompra real (>0). Devuelve null si no se cumplen esas
+// condiciones — nunca un ratio inventado con datos insuficientes.
+function costoRelativoMantenimiento(ocEquipo, valorCompra, opts){
+  opts=opts||{};
+  var minDias=opts.minDias||90;
+  var conFecha=(ocEquipo||[]).filter(function(o){return o&&o.fecha;});
+  var fechas=conFecha.map(function(o){return o.fecha;}).sort();
+  if(!fechas.length||!valorCompra||valorCompra<=0)return null;
+  var dias=(new Date(fechas[fechas.length-1]+'T00:00:00')-new Date(fechas[0]+'T00:00:00'))/86400000;
+  if(dias<minDias)return null;
+  var gastoTotal=conFecha.reduce(function(s,o){return s+(o.costo||0);},0);
+  var gastoAnual=gastoTotal/(dias/365);
+  var pct=Math.round((gastoAnual/valorCompra)*1000)/10;
+  return{gastoTotal:Math.round(gastoTotal),gastoAnual:Math.round(gastoAnual),diasHistorial:Math.round(dias),pct:pct};
+}
+
+// Versión de flota: agrupa el histórico de OC por sigla y calcula
+// costoRelativoMantenimiento para cada equipo con valorCompra real, ordenado
+// de mayor a menor % (los que más gastan en repuestos respecto a su propio
+// valor de compra primero — candidatos a revisar si conviene seguir
+// invirtiendo en reparaciones o evaluar reemplazo).
+function costoRelativoMantenimientoFlota(ocHist, eq, opts){
+  var porSigla={};
+  (ocHist||[]).forEach(function(o){if(o&&o.sigla)(porSigla[o.sigla]=porSigla[o.sigla]||[]).push(o);});
+  var resultado=[];
+  (eq||[]).forEach(function(e){
+    if(!e||!e.valorCompra||e.valorCompra<=0)return;
+    var r=costoRelativoMantenimiento(porSigla[e.sigla]||[],e.valorCompra,opts);
+    if(r)resultado.push(Object.assign({sigla:e.sigla,tipo:e.tipo,valorCompra:e.valorCompra},r));
+  });
+  return resultado.sort(function(a,b){return b.pct-a.pct;});
+}
+
 // ═══ AJUSTE WEIBULL DE POBLACIÓN — el uso "de libro" de Weibull en
 // ingeniería de confiabilidad (2026-09-12, pedido del usuario: "¿y eso
 // puede servir en los neumáticos?"): a diferencia de ajusteWeibull (arriba,
@@ -2839,6 +2886,8 @@ if (typeof window !== 'undefined') {
   window.dispIntrinsecaEquipoMes = dispIntrinsecaEquipoMes;
   window.tasaFallaPorUbicacion = tasaFallaPorUbicacion;
   window.edadVirtualEquipo = edadVirtualEquipo;
+  window.costoRelativoMantenimiento = costoRelativoMantenimiento;
+  window.costoRelativoMantenimientoFlota = costoRelativoMantenimientoFlota;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -2847,7 +2896,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,

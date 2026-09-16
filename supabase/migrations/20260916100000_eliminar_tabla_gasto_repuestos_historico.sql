@@ -1,0 +1,17 @@
+-- Revierte la migración 20260916090000: 'gasto_repuestos_historico' resultó
+-- ser REDUNDANTE. Se creó sin revisar primero si ya existía algo así — y sí
+-- existía: 'ordenes_compra_historico' (tabla real, ya conectada en
+-- store.js como 'ocHist') ya tenía 6.748 líneas reales de OC para 34 de los
+-- 35 equipos ($7.843.269.484), desde 2022-06-23 hasta 2026-06-15. La tabla
+-- nueva solo cubría 479 líneas de 27 equipos — un subconjunto mucho más
+-- chico del mismo archivo Excel.
+--
+-- Lo único real que el Excel aportaba y 'ordenes_compra_historico' no tenía
+-- todavía: ~100 líneas posteriores al 2026-06-15 (hasta 2026-09-05). Esas
+-- se insertaron directo en 'ordenes_compra_historico' (mismo esquema, con
+-- 'tipo' en NULL para esas filas — no se inventó la clasificación
+-- Repuesto/Servicio/Filtro/Aceite/Neumático/Grasa que usa el resto de la
+-- tabla, porque no es derivable de forma confiable solo del texto del
+-- detalle). Se borra acá la tabla redundante — nunca llegó a usarse en
+-- ningún render ni en store.js.
+drop table public.gasto_repuestos_historico;

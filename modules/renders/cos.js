@@ -10,6 +10,7 @@ export function renderCos() {
   var eq = S.g('eq') || [];
   var stk = S.g('stk') || [];
   var lub = S.g('lub') || [];
+  var ocHist = S.g('ocHist') || [];
   var hh = S.g('hh') || 25000;
   var fVista = $('fCosVista')?.value || 'costos';
 
@@ -232,6 +233,32 @@ export function renderCos() {
           '<td style="text-align:center;font-weight:700;color:' + slaCol + '">' + (m[1].sla == null ? '—' : m[1].sla) + '</td></tr>';
       }).join('') +
       '</table></div>';
+  } else if (fVista === 'relativo') {
+    // ═══ COSTO RELATIVO DE MANTENIMIENTO — indicador EN 15341 A&S1 (2026-09-16,
+    // origen: revisión de contenido de Predictiva21 + carga real de Órdenes de
+    // Compra históricas). Gasto REAL en repuestos (ordenes_compra_historico) ÷
+    // valorCompra real del equipo, anualizado. Ver costoRelativoMantenimiento
+    // (logic.js) para el porqué no incluye mano de obra ni se compara sin
+    // anualizar entre equipos con distinto largo de historial.
+    var crm = costoRelativoMantenimientoFlota(ocHist, eq);
+    content =
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">💰 Costo Relativo de Mantenimiento</div>' +
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Gasto real en repuestos (Órdenes de Compra históricas) ÷ valor de compra del equipo, anualizado — indicador de la norma EN 15341 (A&S1). NO incluye mano de obra (el campo "Costo total" de las OT sigue sin completarse en la práctica) ni gastos de este sistema (solo lo que ya estaba en las OC importadas). Requiere valorCompra real y al menos 90 días de historial de OC para mostrarse — sin eso, no aparece.</div>' +
+      (crm.length ?
+        '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Tipo</th><th>Valor Compra</th><th>Gasto Repuestos (histórico)</th><th>Gasto Anualizado</th><th>Días Historial</th><th>% Anual</th></tr>' +
+        crm.map(function (r) {
+          var col = r.pct >= 15 ? 'var(--danger)' : r.pct >= 7 ? 'var(--w)' : 'var(--ok)';
+          return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(r.sigla) + '</td>' +
+            '<td style="font-size:11px">' + escapeHtml(r.tipo || '') + '</td>' +
+            '<td class="mono" style="font-size:11px">$' + fn(r.valorCompra) + '</td>' +
+            '<td class="mono" style="font-size:11px">$' + fn(r.gastoTotal) + '</td>' +
+            '<td class="mono" style="font-size:11px">$' + fn(r.gastoAnual) + '</td>' +
+            '<td style="text-align:center;font-size:11px;color:var(--tx3)">' + r.diasHistorial + '</td>' +
+            '<td style="text-align:center;font-weight:700;color:' + col + '">' + r.pct + '%</td></tr>';
+        }).join('') +
+        '</table></div>'
+        : '<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo cumple los dos requisitos a la vez: valorCompra real cargado y ≥90 días de historial de Órdenes de Compra.</div>') +
+      '</div>';
   }
 
   $('s-cos').innerHTML =
@@ -241,7 +268,8 @@ export function renderCos() {
     '<select id="fCosVista" onchange="renders.cos()" style="font-weight:600">' +
     '<option value="costos"' + (fVista === 'costos' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos por Mes</option>' +
     '<option value="hh"' + (fVista === 'hh' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> HH por Técnico / Equipo</option>' +
-    '<option value="mtbf"' + (fVista === 'mtbf' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option></select></div>' +
+    '<option value="mtbf"' + (fVista === 'mtbf' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option>' +
+    '<option value="relativo"' + (fVista === 'relativo' ? ' selected' : '') + '>💰 Costo Relativo de Mantenimiento</option></select></div>' +
     content;
 }
 

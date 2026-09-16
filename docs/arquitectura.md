@@ -1983,6 +1983,40 @@ demanda de ítems agregados recientemente; y "sin repuesto" (motivo NO-
 falla) contado como falla real en `esFallaMTBF` por un `criticidad`
 hardcodeado en "Registrar salida de servicio".
 
+## Costo Relativo de Mantenimiento — primer indicador financiero con costo real
+
+2026-09-16: el usuario compartió un archivo real de Órdenes de Compra
+(Iconstruye/Komatsu, 1.335 líneas, 2020-2026). Antes de cargarlo se creó
+por error una tabla nueva (`gasto_repuestos_historico`) sin revisar
+primero si ya existía algo así — y sí existía: **`ordenes_compra_historico`**
+(ya conectada en `store.js` como `ocHist`) tenía 6.748 líneas reales para
+34 de los 35 equipos, desde 2022-06-23 hasta 2026-06-15. La tabla nueva se
+eliminó (migración `20260916100000`); lo único real que el Excel aportaba
+—~100 líneas posteriores al 2026-06-15 (hasta 2026-09-05), sin solape de
+N° de OC con lo ya cargado— se insertó directo en `ordenes_compra_historico`
+(campo `tipo` en NULL para esas filas: no se inventó la clasificación
+Repuesto/Servicio/Filtro/Aceite/Neumático/Grasa que usa el resto de la
+tabla, no es derivable de forma confiable solo del texto del detalle).
+
+Con esa base (ahora 6.848 líneas, $7.934.982.746) más el `valorCompra` real
+cargado para los 35 equipos, se implementó el **Costo Relativo de
+Mantenimiento** — uno de los 48 indicadores EN 15341 (A&S1: costo de
+mantenimiento ÷ valor de reposición del activo) — con dos limitaciones
+declaradas explícitamente, no ocultas:
+- Es gasto en repuestos/materiales, **no** el costo total de mantenimiento:
+  `correctivos.costo` sigue en $0 en el 100% de los registros, así que no
+  hay mano de obra que sumar.
+- Se **anualiza** (`costoRelativoMantenimiento`, logic.js): cada equipo
+  tiene historial de OC de distinto largo, así que se divide el gasto total
+  por los días de historial reales y se proyecta a 365 días — sumar sin
+  anualizar castigaría a los equipos con más años de datos cargados.
+  Exige ≥90 días de historial y `valorCompra` real; devuelve `null` si no
+  se cumple, nunca un % inventado con datos insuficientes.
+
+`costoRelativoMantenimientoFlota` agrupa por equipo y ordena de mayor a
+menor %. Expuesto en Costos → Costo Relativo de Mantenimiento (`cos.js`).
+12 tests nuevos en `costoRelativoMantenimiento.test.js`.
+
 ## Tasa de falla por ubicación (Cox simplificado) y Edad Virtual (Kijima simplificado)
 
 2026-09-16: el usuario trajo una propuesta externa (código de "Quantum

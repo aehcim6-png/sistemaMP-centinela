@@ -1277,6 +1277,20 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   inflarse hasta 6x; demanda de repuestos (Poisson) con denominador mal calculado; y "sin
   repuesto" contado como falla real por un <code>criticidad</code> hardcodeado.</p>
 
+  <h2>Costo Relativo de Mantenimiento — primer indicador financiero con costo real</h2>
+  <p>2026-09-16: se cargó un archivo real de Órdenes de Compra (Iconstruye/Komatsu, 1.335 líneas).
+  Se creó por error una tabla nueva sin revisar si ya existía algo así — y existía:
+  <code>ordenes_compra_historico</code> (ya conectada como <code>ocHist</code>) ya tenía 6.748 líneas
+  reales para 34 de los 35 equipos. La tabla nueva se eliminó; solo las ~100 líneas posteriores al
+  corte existente (sin solape de N° de OC) se insertaron en la tabla real, con <code>tipo</code> en
+  NULL (no se inventó la clasificación Repuesto/Servicio/Filtro/etc. de las filas existentes). Con
+  6.848 líneas reales ($7.934.982.746) más <code>valorCompra</code> de los 35 equipos, se implementó
+  el <b>Costo Relativo de Mantenimiento</b> (EN 15341, A&amp;S1): gasto en repuestos ÷ valor de
+  reposición, <b>anualizado</b> por los días reales de historial de cada equipo (no castiga a los que
+  tienen más años de datos), sin mano de obra (<code>correctivos.costo</code> sigue en $0 en el 100%
+  de los registros). Null si no hay ≥90 días de historial o <code>valorCompra</code> real — nunca un
+  % inventado. Expuesto en Costos → Costo Relativo de Mantenimiento. 12 tests nuevos.</p>
+
   <h2>Tasa de falla por ubicación (Cox simplificado) y Edad Virtual (Kijima simplificado)</h2>
   <p>2026-09-16: se rechazó una propuesta externa de "Quantum Annealing"/PINNs/Teoría de Juegos
   para mantenimiento — el código generaba sus números con <code>Math.random()</code> disfrazado de
