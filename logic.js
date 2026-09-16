@@ -1013,6 +1013,156 @@ function analisisVidaUtilCorrectivosPorComponente(eventos){
   return analisisVidaUtilPorGrupo(items);
 }
 
+// ═══ WEIBULL CON CENSURA CORRECTA — MLE (2026-09-16) ═══
+// Los 4 ajustes Weibull de arriba (ajusteWeibull/ajusteWeibullVidas/
+// analisisVidaUtilPorGrupo/analisisVidaUtilCorrectivosPorComponente) usan
+// regresión de rango mediano sobre intervalos ya CERRADOS — el mismo
+// límite que Kaplan-Meier (abajo) vino a resolver para la curva de
+// supervivencia: un equipo que sigue en servicio sin haber vuelto a
+// fallar, o un neumático/componente que sigue montado sin haberse dado de
+// baja, "sobrevivió al menos hasta acá" — es información real que la
+// regresión descarta por completo. Acá se resuelve lo mismo para β/η vía
+// máxima verosimilitud (MLE), el método correcto de libro para Weibull con
+// censura (Meeker & Escobar, "Statistical Methods for Reliability Data" —
+// misma referencia que usan Minitab/ReliaSoft para "Weibull censored
+// fit"), en vez de la regresión.
+//
+// Derivación (verificada con script Python independiente — Newton-Raphson
+// de mano, sin scipy/numpy, comparado contra parámetros verdaderos
+// conocidos generando datos sintéticos, y confirmando que el punto hallado
+// es máximo local de la log-verosimilitud real, no solo raíz de la
+// derivada): con r fallas reales y c censuras, log-verosimilitud
+// ln L = r·ln β − r·β·ln η + (β−1)·Σ_fallas ln(t_i) − Σ_TODOS (t_i/η)^β.
+// De ∂lnL/∂η=0 sale η(β) en forma cerrada: η^β = (1/r)·Σ_TODOS t_i^β
+// (la suma es sobre TODOS —fallas y censuras—, pero se divide por r
+// —solo fallas—, la asimetría real de trabajar con censura). Sustituyendo
+// esa η(β) en ∂lnL/∂β=0 se cancela un término y queda una ecuación de una
+// sola variable: g(β) = S2(β)/S1(β) − (1/r)·Σ_fallas ln(t_i) − 1/β = 0,
+// con S1(β)=Σ_TODOS t_i^β, S2(β)=Σ_TODOS t_i^β·ln(t_i) — se resuelve con
+// Newton-Raphson (g'(β) = (S3·S1−S2²)/S1² + 1/β², con S3=Σ_TODOS
+// t_i^β·ln(t_i)²), sin ninguna librería externa. Semilla β=1 (asume
+// tasa de falla constante como punto de partida neutro).
+//
+// Mínimo 5 FALLAS reales (no cuenta censuras para este mínimo — mismo
+// umbral que el resto del stack Weibull de este archivo, la censura suma
+// precisión, no baja la exigencia de evidencia real de falla). Devuelve
+// null si Newton-Raphson no converge en 100 iteraciones o si algún
+// resultado sale no-finito — nunca se fuerza un ajuste que no converge.
+//
+// Es un COMPLEMENTO a ajusteWeibull/ajusteWeibullVidas, no un reemplazo:
+// esas 33+ funciones/tests existentes siguen intactos. 'observaciones' usa
+// la MISMA forma {tiempo,censurado} que ya usa kaplanMeier/competingRisks
+// (abajo) — no un formato nuevo.
+function ajusteWeibullCensurado(observaciones){
+  var obs=(observaciones||[]).filter(function(o){return o&&o.tiempo>0;});
+  var fallas=obs.filter(function(o){return !o.censurado;});
+  if(fallas.length<5)return null;
+  var r=fallas.length;
+  var sumLnFallas=0;
+  for(var i=0;i<r;i++)sumLnFallas+=Math.log(fallas[i].tiempo);
+  var C=sumLnFallas/r;
+  function sumas(beta){
+    var S1=0,S2=0,S3=0;
+    for(var j=0;j<obs.length;j++){
+      var t=obs[j].tiempo;
+      var lt=Math.log(t);
+      var p=Math.pow(t,beta);
+      S1+=p;S2+=p*lt;S3+=p*lt*lt;
+    }
+    return[S1,S2,S3];
+  }
+  var beta=1,convergio=false;
+  for(var it=0;it<100;it++){
+    var s=sumas(beta);
+    var S1=s[0],S2=s[1],S3=s[2];
+    if(!(S1>0))return null;
+    var g=S2/S1-C-1/beta;
+    var gp=(S3*S1-S2*S2)/(S1*S1)+1/(beta*beta);
+    if(!isFinite(g)||!isFinite(gp)||gp===0)return null;
+    var betaNuevo=beta-g/gp;
+    if(betaNuevo<=0)betaNuevo=beta/2;
+    if(Math.abs(betaNuevo-beta)<1e-9){beta=betaNuevo;convergio=true;break;}
+    beta=betaNuevo;
+  }
+  if(!convergio||!isFinite(beta)||beta<=0)return null;
+  var sFinal=sumas(beta);
+  var eta=Math.pow(sFinal[0]/r,1/beta);
+  if(!isFinite(eta)||eta<=0)return null;
+  return{beta:Math.round(beta*100)/100,eta:Math.round(eta),n:obs.length,nFallas:r,nCensurados:obs.length-r};
+}
+
+// Versión equipo-a-equipo de ajusteWeibull, agregando la censura real: el
+// tramo abierto desde la última falla registrada hasta el horómetro
+// ACTUAL del equipo, cuando sigue en servicio sin haber vuelto a fallar
+// (mismo criterio que ya usa kaplanMeierCorrectivosPorComponente/
+// competingRisksPorEquipo, abajo, con 'eq' solo para leer horomActual —
+// nunca se inventa un horómetro si el equipo no está en la lista).
+function ajusteWeibullEquipoCensurado(horomFallas,horomActual){
+  var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+  var obs=[];
+  for(var i=1;i<validos.length;i++){
+    var t=validos[i]-validos[i-1];
+    if(t>0)obs.push({tiempo:t,censurado:false});
+  }
+  if(validos.length&&horomActual>validos[validos.length-1]){
+    var tCens=horomActual-validos[validos.length-1];
+    if(tCens>0)obs.push({tiempo:tCens,censurado:true});
+  }
+  return ajusteWeibullCensurado(obs);
+}
+
+// Versión de población agrupada (neumáticos por posición, componentes
+// mayores por tipo, etc.) — mismo agrupamiento que analisisVidaUtilPorGrupo
+// pero cada ítem puede venir marcado censurado:true (la unidad sigue en
+// uso, todavía no se dio de baja/reemplazó — su 'vida' hasta ahora es un
+// mínimo real, no su vida completa).
+function analisisVidaUtilPorGrupoCensurado(items){
+  var porGrupo={};
+  (items||[]).forEach(function(it){
+    if(!it||!it.grupo||!(it.vida>0))return;
+    (porGrupo[it.grupo]=porGrupo[it.grupo]||[]).push({tiempo:it.vida,censurado:!!it.censurado});
+  });
+  return Object.keys(porGrupo).sort().map(function(g){
+    var obs=porGrupo[g];
+    return{grupo:g,n:obs.length,ajuste:ajusteWeibullCensurado(obs)};
+  });
+}
+
+// Versión "correctivos por componente, a nivel flota" con censura — mismo
+// agrupamiento sigla+componente que analisisVidaUtilCorrectivosPorComponente,
+// sumando el tramo final abierto de cada equipo (última falla de ESE
+// componente hasta horomActual del equipo) como censura, igual que hace
+// kaplanMeierCorrectivosPorComponente con Kaplan-Meier.
+function ajusteWeibullCorrectivosPorComponenteCensurado(eventos,eq){
+  var porEquipoComp={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.componente||!(e.horom>0)||!e.sigla)return;
+    var k=e.sigla+'|'+e.componente;
+    (porEquipoComp[k]=porEquipoComp[k]||{sigla:e.sigla,componente:e.componente,horoms:[]}).horoms.push(e.horom);
+  });
+  var eqPorSigla={};
+  (eq||[]).forEach(function(x){if(x&&x.sigla)eqPorSigla[x.sigla]=x;});
+  var porGrupo={};
+  Object.keys(porEquipoComp).forEach(function(k){
+    var g=porEquipoComp[k];
+    var validos=g.horoms.filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+    for(var i=1;i<validos.length;i++){
+      var t=validos[i]-validos[i-1];
+      if(t>0)(porGrupo[g.componente]=porGrupo[g.componente]||[]).push({tiempo:t,censurado:false});
+    }
+    var eqObj=eqPorSigla[g.sigla];
+    var ultimaFalla=validos[validos.length-1];
+    if(eqObj&&eqObj.horomActual>ultimaFalla){
+      var tCens=eqObj.horomActual-ultimaFalla;
+      if(tCens>0)(porGrupo[g.componente]=porGrupo[g.componente]||[]).push({tiempo:tCens,censurado:true});
+    }
+  });
+  return Object.keys(porGrupo).sort().map(function(comp){
+    var obs=porGrupo[comp];
+    return{componente:comp,n:obs.length,ajuste:ajusteWeibullCensurado(obs)};
+  });
+}
+
 // ═══ KAPLAN-MEIER — CURVA DE SUPERVIVENCIA NO PARAMÉTRICA (2026-09-16) ═══
 // Complemento a Weibull, no un reemplazo: Weibull (arriba) AJUSTA una forma
 // matemática (β/η) a la muestra — asume que la vida real sigue esa familia
@@ -4085,7 +4235,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

@@ -1867,6 +1867,55 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   lote — 10 herramientas nuevas de confiabilidad/mantenimiento predictivo implementadas, testeadas
   y verificadas visualmente en esta sesión, todas con datos 100% reales.</p>
 
+  <h3>49. Weibull con censura correcta — máxima verosimilitud (MLE) (2026-09-16)</h3>
+  <p>Primer ítem del tercer lote, el más ambicioso ("Weibull con censura correcta → Kijima Type
+  I/II → Mantenimiento Oportunista → Simulador What-If → GRP"). Los 4 ajustes Weibull existentes
+  usan regresión de rango mediano sobre intervalos ya CERRADOS — el mismo límite que Kaplan-Meier
+  vino a resolver para la curva de supervivencia: un equipo que sigue en servicio sin haber vuelto
+  a fallar, o un neumático/componente que sigue montado sin haberse dado de baja, "sobrevivió al
+  menos hasta acá" — información real que la regresión descarta por completo.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> 4 funciones nuevas, todas un COMPLEMENTO de las 4
+  existentes (no un reemplazo — los 33+ tests de <code>weibull.test.js</code> y los 4 sitios de UI
+  que ya usan la versión sin censura quedan intactos).</p>
+  <ul>
+    <li><code>ajusteWeibullCensurado(observaciones)</code> — núcleo: MLE con Newton-Raphson. Con r
+    fallas reales y c censuras, de la log-verosimilitud sale η(β) en forma cerrada dado β
+    (η^β=(1/r)·Σ_TODOS t_i^β) y, sustituyendo, una ecuación de una sola variable
+    g(β)=S2(β)/S1(β)−(1/r)·Σ_fallas ln(t_i)−1/β=0 (S1=Σ_TODOS t_i^β, S2=Σ_TODOS t_i^β·ln t_i) —
+    resuelta con Newton-Raphson (g'(β)=(S3·S1−S2²)/S1²+1/β², S3=Σ_TODOS t_i^β·ln(t_i)²), sin
+    ninguna librería externa. Mínimo 5 FALLAS reales (la censura suma precisión, no baja la
+    exigencia de evidencia real). Usa la misma forma <code>{tiempo,censurado}</code> que
+    <code>kaplanMeier</code>/<code>competingRisks</code>.</li>
+    <li><code>ajusteWeibullEquipoCensurado(horomFallas, horomActual)</code> — versión
+    equipo-a-equipo, agrega el tramo abierto desde la última falla hasta el horómetro actual.</li>
+    <li><code>analisisVidaUtilPorGrupoCensurado(items)</code> — versión de población agrupada
+    (neumáticos por posición, componentes mayores por tipo), ítems con <code>censurado:true</code>
+    para unidades todavía en uso.</li>
+    <li><code>ajusteWeibullCorrectivosPorComponenteCensurado(eventos, eq)</code> — versión
+    "componente a nivel flota" con censura, mismo agrupamiento sigla+componente.</li>
+  </ul>
+  <p>Derivación verificada con script Python independiente (Newton-Raphson de mano, sin
+  scipy/numpy): datos sintéticos con β/η conocidos (con y sin censura), confirmando que el punto
+  hallado es máximo local real de la log-verosimilitud (no solo raíz de la derivada) y que el
+  residuo de g(β̂) es ~0 (1,1e-16). Caso de referencia: fallas [100,150,200,250,300], censuras
+  [400,400] → β=1,8777, η=330,85 — las mismas 5 fallas SIN censura dan β=3,1956, η=224,19 (ignorar
+  la censura sesga β hacia arriba y η hacia abajo).</p>
+  <p>12 tests nuevos en <code>tests/weibullCensurado.test.js</code> (851/851 en total): mínimo de 5
+  fallas (las censuras no lo rebajan); caso calculado a mano y verificado con Python (β≈1,88,
+  η≈331); comparación con/sin censura; observaciones con tiempo≤0 ignoradas; equipo con/sin tramo
+  censurado final; agrupación descarta ítems inválidos; censura de componente solo con dato real
+  de equipo.</p>
+  <p><b>Cambios en <code>histcomp.js</code></b> (Historial de Componentes) y
+  <b><code>neu.js</code></b> (resumen de flota de Neumáticos): la instalación/neumático ACTUAL de
+  cada posición ya se mostraba "en uso" pero quedaba afuera del ajuste Weibull existente. Se
+  agregó, junto a la tabla ya existente (sin tocarla), una segunda tabla "Weibull con censura
+  (MLE)" que sí usa esa vida parcial como censura real.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>historial_componentes</code>/<code>historial_neumaticos</code>/<code>equipos</code>): mismo
+  caso verificado en Python (fallas=[100,150,200,250,300,1600], censura=[400]) — la tabla nueva
+  muestra "N° cambios: 6, En uso: 1, β=1,03, η=505h" en ambas vistas, coincidiendo con Python
+  (β=1,0345, η=505,41) redondeado. Sin errores de JavaScript.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

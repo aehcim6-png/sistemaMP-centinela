@@ -66,6 +66,26 @@ export function renderHistComp() {
   });
   var weibullPorComp = (typeof analisisVidaUtilPorGrupo === 'function') ? analisisVidaUtilPorGrupo(itemsWeibull) : [];
 
+  // Weibull CON censura (2026-09-16, tercer lote "más ambicioso" — task #83):
+  // la tabla de arriba solo usa reemplazos ya CERRADOS (f.horasVida!=null) —
+  // la instalación ACTUAL de cada equipo (f.esActual, "en uso" en la tabla
+  // de abajo) queda afuera aunque ya lleve horas reales acumuladas sin
+  // fallar, la misma información censurada que Kaplan-Meier ya aprovecha en
+  // otras vistas. Se agrega esa vida parcial (horomActual del equipo menos
+  // horómetro de instalación) como observación censurada real — nunca se
+  // inventa cuándo va a fallar, solo se usa que "todavía no falló".
+  var eqPorSiglaHist = {};
+  (S.g('eq') || []).forEach(function (e) { if (e && e.sigla) eqPorSiglaHist[e.sigla] = e; });
+  var itemsWeibullCens = itemsWeibull.slice();
+  filas.forEach(function (f) {
+    if (!f.esActual) return;
+    var eObj = eqPorSiglaHist[f.ref.sigla];
+    var hInst = parseFloat(f.ref.horomInstalacion);
+    if (!eObj || isNaN(hInst) || !(eObj.horomActual > hInst)) return;
+    itemsWeibullCens.push({ grupo: f.ref.comp, vida: Math.round(eObj.horomActual - hInst), censurado: true });
+  });
+  var weibullPorCompCens = (typeof analisisVidaUtilPorGrupoCensurado === 'function') ? analisisVidaUtilPorGrupoCensurado(itemsWeibullCens) : [];
+
   var comps = [...new Set(h.map(function (r) { return r.comp; }))].sort();
   var filFilas = (fComp ? filas.filter(function (f) { return f.ref.comp === fComp; }) : filas)
     .sort(function (a, b) { return (b.ref.fechaInst || '').localeCompare(a.ref.fechaInst || ''); });
@@ -110,6 +130,22 @@ export function renderHistComp() {
       }).join('')}
     </table></div>
     <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre reemplazos de ese componente. β&lt;1 = varios se cambian temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de ese componente según el ajuste real. IC90 = intervalo de confianza 90%: el rango donde probablemente está el valor real, no solo el número puntual.</div>` : ''}
+    ${weibullPorCompCens.filter(function (g) { return g.ajuste; }).length ? `<div style="font-weight:600;font-size:13px;margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Forma real de vida por componente — Weibull con censura (MLE)</div>
+    <div class="tbl-wrap" style="margin-bottom:4px"><table style="table-layout:fixed">
+      <tr><th style="text-align:left;width:22%">Componente</th><th style="width:11%">N° cambios</th><th style="width:11%">En uso</th><th style="width:12%">β (forma)</th><th style="width:16%">η (vida caract.)</th><th style="text-align:left">Interpretación</th></tr>
+      ${weibullPorCompCens.filter(function (g) { return g.ajuste; }).map(function (g) {
+        var interp = typeof interpretacionFormaWeibull === 'function' ? interpretacionFormaWeibull(g.ajuste.beta) : '';
+        return `<tr>
+          <td style="font-weight:600">${escapeHtml(g.grupo)}</td>
+          <td class="mono">${g.ajuste.nFallas}</td>
+          <td class="mono">${g.ajuste.nCensurados}</td>
+          <td class="mono" style="font-weight:700">${g.ajuste.beta}</td>
+          <td class="mono">${fn(g.ajuste.eta)}h</td>
+          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp || '')}</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">A diferencia de la tabla anterior, acá SÍ se usan las instalaciones que siguen "en uso" (columna "En uso" = cuántas de esas todavía no fallaron, contadas como vida parcial real vía máxima verosimilitud con censura) — misma familia β/η, estimación más precisa al no descartar esa información.</div>` : ''}
     <div class="toolbar">
       <select id="fHistComp" onchange="renders.histcomp()"><option value="">Todos los componentes</option>${comps.map(function (c) { return '<option' + (c === fComp ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('')}</select>
     </div>

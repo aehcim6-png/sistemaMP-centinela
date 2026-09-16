@@ -3284,6 +3284,92 @@ confiabilidad/mantenimiento predictivo implementadas, testeadas y
 verificadas visualmente en esta sesión, todas con datos 100% reales, sin
 ningún valor inventado.
 
+### 49. Weibull con censura correcta — máxima verosimilitud (MLE) (2026-09-16)
+
+Primer ítem del tercer lote, el más ambicioso, elegido por el usuario
+("Weibull con censura correcta → Kijima Type I/II → Mantenimiento
+Oportunista → Simulador What-If → GRP"). Los 4 ajustes Weibull existentes
+(`ajusteWeibull`/`ajusteWeibullVidas`/`analisisVidaUtilPorGrupo`/
+`analisisVidaUtilCorrectivosPorComponente`) usan regresión de rango
+mediano sobre intervalos ya CERRADOS — el mismo límite que Kaplan-Meier
+(sección de arriba) vino a resolver para la curva de supervivencia: un
+equipo que sigue en servicio sin haber vuelto a fallar, o un
+neumático/componente que sigue montado sin haberse dado de baja,
+"sobrevivió al menos hasta acá" — información real que la regresión
+descarta por completo.
+
+**`logic.js`**: 4 funciones nuevas, todas un COMPLEMENTO de las 4
+existentes (no un reemplazo — los 33+ tests de `weibull.test.js` y los 4
+sitios de UI que ya usan la versión sin censura quedan intactos).
+
+- `ajusteWeibullCensurado(observaciones)` — núcleo: MLE con
+  Newton-Raphson. Con r fallas reales y c censuras, la log-verosimilitud
+  es ln L = r·ln β − r·β·ln η + (β−1)·Σ_fallas ln(t_i) − Σ_TODOS
+  (t_i/η)^β. De ∂lnL/∂η=0 sale η(β) en forma cerrada: η^β = (1/r)·Σ_TODOS
+  t_i^β (la suma es sobre TODOS los datos —fallas y censuras—, dividida
+  por r —solo fallas—, la asimetría real de trabajar con censura).
+  Sustituyendo esa η(β) en ∂lnL/∂β=0 se cancela un término y queda una
+  ecuación de una sola variable: g(β) = S2(β)/S1(β) −
+  (1/r)·Σ_fallas ln(t_i) − 1/β = 0, con S1(β)=Σ_TODOS t_i^β,
+  S2(β)=Σ_TODOS t_i^β·ln(t_i) — resuelta con Newton-Raphson (g'(β) =
+  (S3·S1−S2²)/S1² + 1/β², S3=Σ_TODOS t_i^β·ln(t_i)²), sin ninguna
+  librería externa. Mínimo 5 FALLAS reales (la censura suma precisión,
+  no baja la exigencia de evidencia real de falla). `observaciones` usa
+  la misma forma `{tiempo,censurado}` que ya usa `kaplanMeier`/
+  `competingRisks` — no un formato nuevo.
+- `ajusteWeibullEquipoCensurado(horomFallas, horomActual)` — versión
+  equipo-a-equipo, agregando el tramo abierto desde la última falla hasta
+  el horómetro actual como censura (mismo criterio que
+  `kaplanMeierCorrectivosPorComponente`).
+- `analisisVidaUtilPorGrupoCensurado(items)` — versión de población
+  agrupada (neumáticos por posición, componentes mayores por tipo), cada
+  ítem puede venir `censurado:true` (unidad todavía en uso).
+- `ajusteWeibullCorrectivosPorComponenteCensurado(eventos, eq)` — versión
+  "componente a nivel flota" con censura, mismo agrupamiento sigla+
+  componente que la existente, sumando el tramo final abierto de cada
+  equipo.
+
+Derivación verificada con script Python independiente (Newton-Raphson de
+mano, sin scipy/numpy): generando datos sintéticos con β/η conocidos (con
+y sin censura) y confirmando que el punto hallado es máximo local real de
+la log-verosimilitud (no solo raíz de la derivada, chequeado evaluando la
+log-verosimilitud en el punto y en perturbaciones alrededor) y que el
+residuo de la ecuación g(β̂) es ~0 (1.1e-16). Caso de referencia: fallas
+[100,150,200,250,300], censuras [400,400] → β=1,8777, η=330,85 — las
+mismas 5 fallas SIN censura dan β=3,1956, η=224,19 (ignorar la censura
+sesga β hacia arriba y η hacia abajo: el modelo "no sabe" que 2 unidades
+sobrevivieron más allá de 400h).
+
+12 tests nuevos en `tests/weibullCensurado.test.js`: mínimo de 5 fallas
+reales (las censuras no lo rebajan); caso calculado a mano y verificado
+con Python (β≈1,88, η≈331, 5 fallas + 2 censuras); comparación directa
+con/sin censura mostrando que η sube al reconocer la censura; observaciones
+con tiempo≤0 ignoradas; `ajusteWeibullEquipoCensurado` sin/con tramo censurado
+final; `analisisVidaUtilPorGrupoCensurado` agrupa y descarta ítems
+inválidos; `ajusteWeibullCorrectivosPorComponenteCensurado` agrega censura
+solo cuando hay dato real de equipo (nunca la inventa). Suite completa
+851/851.
+
+**`histcomp.js`** (Historial de Componentes) y **`neu.js`** (resumen de
+flota de Neumáticos): en ambos, la instalación/neumático ACTUAL de cada
+posición ya se mostraba como "en uso" pero quedaba totalmente afuera del
+ajuste Weibull existente. Se agregó, junto a la tabla Weibull ya
+existente (sin tocarla), una segunda tabla "Weibull con censura (MLE)"
+que sí usa esa vida parcial como observación censurada real (horómetro
+actual del equipo − horómetro de la última instalación), vía
+`analisisVidaUtilPorGrupoCensurado`.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`historial_componentes`/`historial_neumaticos`/`equipos`): mismo caso ya
+verificado en Python (fallas=[100,150,200,250,300,1600] por ser los
+intervalos reales entre 7 instalaciones a horómetro
+0,100,250,450,700,1000,2600, más 1 censura de 400h por el equipo seguir a
+3000h) — la tabla nueva en Historial de Componentes muestra "N° cambios:
+6, En uso: 1, β=1,03, η=505h", exactamente igual en Resumen de Flota de
+Neumáticos con los mismos datos — coincide con el resultado de Python
+(β=1,0345, η=505,41) redondeado. Sin errores de JavaScript de la
+aplicación.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

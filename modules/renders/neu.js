@@ -1148,10 +1148,31 @@ function _neuResumenVida(){
     porPosicion[p].forEach(function(dur){itemsWeibull.push({grupo:p,vida:dur});});
   });
   const weibullPorPosicion=(typeof analisisVidaUtilPorGrupo==='function')?analisisVidaUtilPorGrupo(itemsWeibull):[];
+  // Weibull CON censura (2026-09-16, tercer lote "más ambicioso" — task #83):
+  // el bucle de arriba solo suma tramos CERRADOS (arr[i-1]→arr[i], un
+  // cambio real de neumático) — el neumático que está MONTADO ahora mismo
+  // en cada posición (el último de 'arr', desde su propio horom hasta el
+  // horómetro ACTUAL del equipo) queda afuera aunque ya acumula horas
+  // reales sin fallar. Se agrega esa vida parcial como censura real (MLE),
+  // sin inventar cuándo va a fallar.
+  const eqPorSiglaNeu={};
+  (S.g('eq')||[]).forEach(e=>{if(e&&e.sigla)eqPorSiglaNeu[e.sigla]=e;});
+  const itemsWeibullCens=itemsWeibull.slice();
+  Object.keys(porClave).forEach(k=>{
+    const arr=porClave[k].slice().sort((a,b)=>(parseFloat(a.horom)||0)-(parseFloat(b.horom)||0));
+    if(!arr.length)return;
+    const ultimo=arr[arr.length-1];
+    const eObj=eqPorSiglaNeu[ultimo.sigla];
+    const hUlt=parseFloat(ultimo.horom);
+    if(!eObj||isNaN(hUlt)||!(eObj.horomActual>hUlt))return;
+    itemsWeibullCens.push({grupo:ultimo.posicion,vida:Math.round(eObj.horomActual-hUlt),censurado:true});
+  });
+  const weibullPorPosicionCens=(typeof analisisVidaUtilPorGrupoCensurado==='function')?analisisVidaUtilPorGrupoCensurado(itemsWeibullCens):[];
   return{
     general:todas.length?stats(todas):null,
     porPosicion:Object.keys(porPosicion).sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).map(p=>({posicion:p,...stats(porPosicion[p])})),
-    weibullPorPosicion:weibullPorPosicion
+    weibullPorPosicion:weibullPorPosicion,
+    weibullPorPosicionCens:weibullPorPosicionCens
   };
 }
 export function resumenFlotaNeu(){
@@ -1252,6 +1273,22 @@ export function resumenFlotaNeu(){
       }).join('')}
     </table></div>
     <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">β cerca de 1 = vida pareja entre neumáticos de esa posición. β&lt;1 = varios se retiran temprano (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable) — η es la vida característica de esa posición según el ajuste real. IC90 = intervalo de confianza 90%: el rango donde probablemente está el valor real, no solo el número puntual — con pocos cambios el rango es más amplio.</div>`:''}
+    ${vidaReal.weibullPorPosicionCens&&vidaReal.weibullPorPosicionCens.filter(g=>g.ajuste).length?`<b style="font-size:13px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Forma real de vida por posición — Weibull con censura (MLE):</b>
+    <div class="tbl-wrap" style="margin:8px 0 4px"><table style="width:100%;font-size:11px;table-layout:fixed">
+      <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left;width:20%">Posición</th><th style="width:11%">N° cambios</th><th style="width:11%">Montados</th><th style="width:12%">β (forma)</th><th style="width:16%">η (vida caract.)</th><th style="text-align:left">Interpretación</th></tr>
+      ${vidaReal.weibullPorPosicionCens.filter(g=>g.ajuste).map(g=>{
+        const interp=typeof interpretacionFormaWeibull==='function'?interpretacionFormaWeibull(g.ajuste.beta):'';
+        return`<tr style="border-bottom:1px solid var(--bd)">
+          <td style="padding:6px;font-weight:600">${escapeHtml(g.grupo)}</td>
+          <td style="text-align:center">${g.ajuste.nFallas}</td>
+          <td style="text-align:center">${g.ajuste.nCensurados}</td>
+          <td style="text-align:center;font-weight:700">${g.ajuste.beta}</td>
+          <td style="text-align:center">${fn2(g.ajuste.eta)}h</td>
+          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp||'')}</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">A diferencia de la tabla anterior, acá SÍ se usan los neumáticos que siguen MONTADOS ahora mismo (columna "Montados" = cuántos todavía no se retiraron, contados como vida parcial real vía máxima verosimilitud con censura) — misma familia β/η, estimación más precisa al no descartar esa información.</div>`:''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
       <div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
         <div style="font-size:10px;color:var(--tx3)">Total neumáticos</div>
