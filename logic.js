@@ -1013,6 +1013,104 @@ function analisisVidaUtilCorrectivosPorComponente(eventos){
   return analisisVidaUtilPorGrupo(items);
 }
 
+// ═══ KAPLAN-MEIER — CURVA DE SUPERVIVENCIA NO PARAMÉTRICA (2026-09-16) ═══
+// Complemento a Weibull, no un reemplazo: Weibull (arriba) AJUSTA una forma
+// matemática (β/η) a la muestra — asume que la vida real sigue esa familia
+// de curvas. Kaplan-Meier no asume ninguna distribución: calcula la
+// probabilidad de supervivencia empírica directamente de los datos, punto
+// por punto. La diferencia real que importa acá es que Kaplan-Meier SÍ
+// puede usar observaciones CENSURADAS — un componente que todavía sigue en
+// servicio (no ha fallado) aporta información real ("sobrevivió al menos
+// hasta acá"), que el ajuste de Weibull de este archivo (regresión de rango
+// mediano sobre intervalos ya CERRADOS) descarta por completo. Con muestras
+// chicas — el caso típico acá — ignorar esa información censurada sesga la
+// muestra hacia los componentes que fallan rápido (los que sí terminan de
+// "vivir" a tiempo para entrar al cálculo).
+//
+// Fórmula clásica (estimador de Kaplan-Meier + varianza de Greenwood, la
+// misma que reporta cualquier software de confiabilidad — Minitab/R
+// survival/ReliaSoft): en cada tiempo de falla real t_i, S(t_i) = S(t_{i-1})
+// × (1 − d_i/n_i), con n_i = observaciones aún "en riesgo" (tiempo≥t_i) y
+// d_i = fallas exactamente en t_i. Las censuras no bajan la curva (no son
+// una falla) pero SÍ salen del grupo "en riesgo" para los tiempos
+// posteriores a su propio tiempo censurado.
+//
+// Mínimo 5 observaciones totales (mismo umbral que el resto del stack de
+// confiabilidad de este archivo) y al menos 1 falla real — con puros
+// censurados no hay ninguna caída que estimar.
+function kaplanMeier(observaciones){
+  var obs=(observaciones||[]).filter(function(o){return o&&o.tiempo>0;});
+  if(obs.length<5)return null;
+  var tiemposFalla=[].concat(obs).filter(function(o){return !o.censurado;}).map(function(o){return o.tiempo;});
+  if(!tiemposFalla.length)return null;
+  var tiemposUnicos=Array.from(new Set(tiemposFalla)).sort(function(a,b){return a-b;});
+  var s=1,varAcum=0;
+  var curva=[];
+  tiemposUnicos.forEach(function(t){
+    var enRiesgo=obs.filter(function(o){return o.tiempo>=t;}).length;
+    var fallas=obs.filter(function(o){return !o.censurado&&o.tiempo===t;}).length;
+    if(enRiesgo<=0)return;
+    s=s*(1-fallas/enRiesgo);
+    if(enRiesgo>fallas)varAcum+=fallas/(enRiesgo*(enRiesgo-fallas));
+    var varS=s*s*varAcum;
+    var se=Math.sqrt(varS);
+    curva.push({
+      tiempo:t,
+      enRiesgo:enRiesgo,
+      fallas:fallas,
+      supervivencia:Math.round(s*1000)/1000,
+      ic90Min:Math.max(0,Math.round((s-1.645*se)*1000)/1000),
+      ic90Max:Math.min(1,Math.round((s+1.645*se)*1000)/1000)
+    });
+  });
+  var medianaSupervivencia=null;
+  for(var i=0;i<curva.length;i++){if(curva[i].supervivencia<=0.5){medianaSupervivencia=curva[i].tiempo;break;}}
+  return{
+    n:obs.length,
+    nFallas:tiemposFalla.length,
+    nCensurados:obs.length-tiemposFalla.length,
+    curva:curva,
+    medianaSupervivencia:medianaSupervivencia
+  };
+}
+
+// Kaplan-Meier por componente, a nivel FLOTA (mismo agrupamiento sigla+
+// componente que analisisVidaUtilCorrectivosPorComponente, arriba — no se
+// duplica esa lógica de intervalos, solo se le agrega la censura real: el
+// tramo abierto desde la última falla registrada de cada equipo hasta su
+// horómetro actual, cuando el equipo sigue con ese componente en servicio
+// sin haber vuelto a fallar. 'eq' se usa SOLO para leer horomActual — nunca
+// se inventa un horómetro si el equipo no está en la lista.
+function kaplanMeierCorrectivosPorComponente(eventos,eq){
+  var porEquipoComp={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.componente||!(e.horom>0)||!e.sigla)return;
+    var k=e.sigla+'|'+e.componente;
+    (porEquipoComp[k]=porEquipoComp[k]||{sigla:e.sigla,componente:e.componente,horoms:[]}).horoms.push(e.horom);
+  });
+  var eqPorSigla={};
+  (eq||[]).forEach(function(x){if(x&&x.sigla)eqPorSigla[x.sigla]=x;});
+  var porGrupo={};
+  Object.keys(porEquipoComp).forEach(function(k){
+    var g=porEquipoComp[k];
+    var validos=g.horoms.filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+    for(var i=1;i<validos.length;i++){
+      var t=validos[i]-validos[i-1];
+      if(t>0)(porGrupo[g.componente]=porGrupo[g.componente]||[]).push({tiempo:t,censurado:false});
+    }
+    var eqObj=eqPorSigla[g.sigla];
+    var ultimaFalla=validos[validos.length-1];
+    if(eqObj&&eqObj.horomActual>ultimaFalla){
+      var tCens=eqObj.horomActual-ultimaFalla;
+      if(tCens>0)(porGrupo[g.componente]=porGrupo[g.componente]||[]).push({tiempo:tCens,censurado:true});
+    }
+  });
+  return Object.keys(porGrupo).sort().map(function(comp){
+    var obs=porGrupo[comp];
+    return{componente:comp,n:obs.length,km:kaplanMeier(obs)};
+  });
+}
+
 // ═══ CORRELACIÓN ACEITE ↔ FALLAS REALES (2026-09-12) ═══
 // Origen real: mirando el sistema desde los 4 roles de datos, después del
 // IC90 (Científico) y de aceiteOutliers (Analista/BI, calidad de dato)
@@ -3063,6 +3161,8 @@ if (typeof window !== 'undefined') {
   window.ajusteWeibullVidas = ajusteWeibullVidas;
   window.analisisVidaUtilPorGrupo = analisisVidaUtilPorGrupo;
   window.analisisVidaUtilCorrectivosPorComponente = analisisVidaUtilCorrectivosPorComponente;
+  window.kaplanMeier = kaplanMeier;
+  window.kaplanMeierCorrectivosPorComponente = kaplanMeierCorrectivosPorComponente;
   window.confiabilidadWeibull = confiabilidadWeibull;
   window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
@@ -3095,7 +3195,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

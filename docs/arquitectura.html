@@ -1448,6 +1448,60 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Verificación: suite completa (739/739, 2 tests nuevos), build, esbuild sobre los 10 archivos
   tocados. <code>alerta-pm</code>/<code>resumen-semanal</code> desplegadas a producción.</p>
 
+  <h3>38. Kaplan-Meier — curva de supervivencia no paramétrica, complemento a Weibull (2026-09-16)</h3>
+  <p>Origen real: propuesta externa evaluada con el usuario (7 ideas de confiabilidad/mantenimiento
+  tipo CMMS avanzado — Matriz de Criticidad Dinámica, Kaplan-Meier+MCF, Crow-AMSAA, Edad de
+  Reemplazo Óptima, detección de aceleración en aceite, Índice de Deuda de Mantenimiento),
+  contrastada contra los datos reales disponibles. 6 de 7 viables hoy (Edad de Reemplazo Óptima
+  sigue bloqueada por lo mismo que el MDP ya descartado antes: <code>correctivos.costo</code> casi
+  sin dato real). El usuario eligió el orden de prioridad propuesto: Kaplan-Meier+MCF primero, uno
+  por uno, cada uno probado antes de seguir con el siguiente. Esta sección cubre la primera mitad
+  (Kaplan-Meier); MCF queda para la siguiente pasada.</p>
+  <p>El hueco real que cierra: los 4 ajustes Weibull ya existentes (secciones 23-27) descartan por
+  completo las observaciones <b>censuradas</b> — un componente que todavía sigue en servicio sin
+  haber vuelto a fallar no aporta ningún intervalo cerrado, así que la regresión de rango mediano
+  simplemente lo ignora. Con muestras chicas eso sesga la curva hacia los componentes que fallan
+  rápido — los únicos que alcanzan a "cerrar" un intervalo a tiempo. Kaplan-Meier no ajusta ninguna
+  forma matemática: calcula la probabilidad de supervivencia empírica punto por punto directamente
+  de los datos, y sí puede usar la cola censurada de cada equipo todavía en servicio como
+  información real ("sobrevivió al menos hasta acá").</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>kaplanMeier(observaciones)</code> — recibe <code>[{tiempo, censurado}]</code>.
+    <code>null</code> bajo 5 observaciones (mismo umbral que <code>_ajusteWeibullDeMuestra</code>)
+    o si no hay ninguna falla real. Para cada tiempo de falla único t_i:
+    S(t_i)=S(t_{i-1})×(1−d_i/n_i), con n_i=en riesgo (tiempo≥t_i, incluye censuradas) y d_i=fallas
+    en t_i. IC90 por punto vía <b>fórmula de Greenwood</b>
+    (Var(S)=S²×Σd_i/(n_i×(n_i−d_i))) con el mismo z=1.645 que el IC90 de Weibull (sección 27).
+    Mediana de supervivencia = primer tiempo donde S≤0.5 (<code>null</code> si nunca llega, sin
+    extrapolar).</li>
+    <li><code>kaplanMeierCorrectivosPorComponente(eventos, eq)</code> — mismo patrón híbrido
+    equipo→componente de <code>analisisVidaUtilCorrectivosPorComponente</code> (sección 26). La
+    diferencia real: si el equipo sigue en servicio (<code>eq.horomActual</code> &gt; horómetro de
+    la última falla), agrega una observación censurada con
+    <code>tiempo=horomActual-últimaFalla</code> — el tramo que Weibull descarta y Kaplan-Meier sí
+    aprovecha. Sin dato de equipo, o sin avance de horómetro, no se inventa censura.</li>
+  </ul>
+  <p>11 tests nuevos en <code>tests/kaplanMeier.test.js</code>: curva exacta a mano (5 fallas sin
+  censura → S=[0.8,0.6,0.4,0.2,0], mediana=3); censura en el último tiempo impide llegar a 0;
+  tiempos empatados sin NaN/Infinity; mediana <code>null</code> cuando la curva nunca cae a ≤0.5;
+  IC90 de Greenwood siempre contiene el punto estimado y respeta [0,1]; tiempo≤0 se descarta;
+  agrupamiento con censura real (caso CN-1/CN-2 Motor); sin dato de equipo no se inventa censura;
+  eventos inválidos se ignoran. Suite completa 750/750.</p>
+  <p><b>Cambios en <code>estadistica.js</code>:</b> en la vista "Por Componente", nueva función
+  <code>_estKaplanMeierPorComponente(eventos, eq)</code> agrega una tabla "Curva de supervivencia
+  por componente — toda la flota (Kaplan-Meier)" justo después de la tabla Weibull existente —
+  mismos <code>eventos</code> de <code>_estFallasCombinadas</code>, más <code>eq</code> (ya
+  disponible en <code>renderEstadistica</code>). Columnas: Componente, Fallas, En servicio
+  (censurados), Mediana de supervivencia (+ S final e IC90), Lectura en texto plano. Componentes
+  bajo el mínimo de 5 observaciones se listan atenuados con "Sin historial suficiente aún".</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de <code>correctivos</code>/
+  <code>equipos</code> vía <code>tests/e2e/helpers/mock-supabase.js</code>, sin tocar la red real de
+  Supabase): 6 correctivos sintéticos de "Motor" en 2 equipos (CN-1: 3 fallas + cola censurada de
+  800h en servicio; CN-2: 3 fallas, sin cola censurada). La tabla renderiza Motor con 4 fallas, 1
+  censurado, mediana 1.000h, S final 0% (IC90 0–0%) — coincide exactamente con el cálculo a mano.
+  Sin errores de consola de la aplicación.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -2438,6 +2438,93 @@ producción). El usuario pidió corregir los 16 en orden de severidad.
 (`jyhpfwivhwzylkzxrsbt`). Los cambios de UI (campo de horómetro) no se
 probaron con Playwright en este pase — verificados por lectura de código.
 
+### 38. Kaplan-Meier — curva de supervivencia no paramétrica, complemento a Weibull (2026-09-16)
+
+Origen real: propuesta externa evaluada con el usuario (7 ideas de
+confiabilidad/mantenimiento tipo CMMS avanzado — Matriz de Criticidad
+Dinámica, Kaplan-Meier+MCF, Crow-AMSAA, Edad de Reemplazo Óptima,
+detección de aceleración en aceite, Índice de Deuda de Mantenimiento),
+contrastada contra los datos reales disponibles. 6 de 7 viables hoy (Edad
+de Reemplazo Óptima sigue bloqueada por lo mismo que el MDP ya descartado
+antes: `correctivos.costo` casi sin dato real). El usuario eligió el orden
+de prioridad propuesto: Kaplan-Meier+MCF primero, uno por uno, cada uno
+probado antes de seguir con el siguiente. Esta sección cubre la primera
+mitad (Kaplan-Meier); MCF queda para la siguiente pasada.
+
+El hueco real que cierra: los 4 ajustes Weibull ya existentes (secciones
+23-27) descartan por completo las observaciones **censuradas** — un
+componente que todavía sigue en servicio sin haber vuelto a fallar no
+aporta ningún intervalo cerrado, así que la regresión de rango mediano
+simplemente lo ignora. Con muestras chicas (el caso típico acá, mínimo 5
+observaciones) eso sesga la curva hacia los componentes que fallan rápido
+— los únicos que alcanzan a "cerrar" un intervalo a tiempo para entrar al
+cálculo. Kaplan-Meier no ajusta ninguna forma matemática (no asume familia
+de distribución): calcula la probabilidad de supervivencia empírica
+punto por punto directamente de los datos, y sí puede usar la cola
+censurada de cada equipo todavía en servicio como información real
+("sobrevivió al menos hasta acá").
+
+**`logic.js`**: dos funciones nuevas.
+- `kaplanMeier(observaciones)` — recibe `[{tiempo, censurado}]`. Devuelve
+  `null` bajo 5 observaciones (mismo umbral que
+  `_ajusteWeibullDeMuestra`) o si no hay ninguna falla real (puro
+  censurado, nada que estimar). Para cada tiempo de falla único t_i:
+  `S(t_i) = S(t_{i-1}) × (1 − d_i/n_i)`, con `n_i` = observaciones aún "en
+  riesgo" (tiempo≥t_i, incluye censuradas) y `d_i` = fallas exactamente en
+  t_i. Las censuras no bajan la curva pero sí salen del grupo en riesgo
+  después de su propio tiempo. IC90 por punto vía **fórmula de Greenwood**
+  (`Var(S)=S²×Σd_i/(n_i×(n_i−d_i))`) con el mismo z=1.645 (90% dos colas)
+  que ya usa el IC90 de Weibull (sección 27) — mismo estándar de industria,
+  mismo criterio en todo el archivo. Mediana de supervivencia = primer
+  tiempo donde S≤0.5 (`null` si la curva nunca llega, en vez de
+  extrapolar).
+- `kaplanMeierCorrectivosPorComponente(eventos, eq)` — mismo patrón
+  híbrido equipo→componente de `analisisVidaUtilCorrectivosPorComponente`
+  (sección 26): agrupa por `sigla+componente`, calcula intervalos
+  sucesivos dentro de cada equipo (nunca mezcla horómetros entre
+  equipos distintos) y junta esos intervalos por categoría de componente
+  a nivel flota. La diferencia real frente a la función de Weibull: si el
+  equipo sigue en servicio (`eq.horomActual` > horómetro de la última
+  falla registrada), agrega una observación censurada con
+  `tiempo=horomActual-últimaFalla` — el tramo que el equipo ya lleva sin
+  volver a fallar, que Weibull descarta y Kaplan-Meier sí aprovecha. Sin
+  dato de equipo, o sin avance de horómetro desde la última falla, no se
+  inventa censura.
+
+11 tests nuevos en `tests/kaplanMeier.test.js`: curva exacta calculada a
+mano (5 fallas sin censura → `[0.8,0.6,0.4,0.2,0]`, mediana=3); censura
+en el último tiempo impide que la curva llegue a 0 (la diferencia real
+frente al caso sin censura); tiempos de falla empatados no producen
+NaN/Infinity; mediana queda `null` cuando la curva nunca cae a ≤0.5; el
+IC90 de Greenwood siempre contiene el punto estimado y respeta [0,1];
+observaciones con tiempo≤0 se descartan; agrupamiento por
+`sigla+componente` con censura real (caso CN-1/CN-2 Motor, mismo ejemplo
+conceptual de la sección 26); sin dato de equipo no se inventa censura;
+eventos inválidos se ignoran. Suite completa 750/750.
+
+**`estadistica.js`**: en la vista "Por Componente", nueva función
+`_estKaplanMeierPorComponente(eventos, eq)` agrega una tabla "Curva de
+supervivencia por componente — toda la flota (Kaplan-Meier)" justo
+después de la tabla Weibull ya existente — mismos `eventos` de
+`_estFallasCombinadas`, más `eq` (ya disponible en `renderEstadistica`)
+para calcular la cola censurada de cada equipo. Columnas: Componente,
+Fallas, En servicio (censurados), Mediana de supervivencia (+ S final e
+IC90), Lectura en texto plano ("A las Xh, la mitad de los casos reales ya
+había fallado" o, si la curva nunca cae a la mitad, que puede ser buena
+señal o falta de historial — nunca se afirma una cosa u otra sin dato).
+Componentes bajo el mínimo de 5 observaciones se listan atenuados con
+"Sin historial suficiente aún", igual que el resto de la familia Weibull.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos`/`equipos` vía `tests/e2e/helpers/mock-supabase.js` — sin
+tocar la red real de Supabase): 6 correctivos sintéticos de "Motor" en 2
+equipos (CN-1: 3 fallas + cola censurada de 800h en servicio; CN-2: 3
+fallas, sin cola censurada). La tabla renderiza Motor con 4 fallas, 1
+censurado, mediana 1.000h, S final 0% (IC90 0–0%) — coincide exactamente
+con el cálculo a mano (2 intervalos de CN-1 + 1 censurado + 2 intervalos
+de CN-2 = 5 observaciones, 4 fallas). Sin errores de consola de la
+aplicación.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

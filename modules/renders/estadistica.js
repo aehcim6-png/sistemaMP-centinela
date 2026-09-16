@@ -123,7 +123,7 @@ function _estMtbfPorComponente(eventos) {
   return mtbfPorComp;
 }
 
-function _estTablaComponente(eventos, ace) {
+function _estTablaComponente(eventos, ace, eq) {
   var porComp = {};
   eventos.forEach(function (e) {
     if (!e.componente) return;
@@ -152,6 +152,7 @@ function _estTablaComponente(eventos, ace) {
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
     '</table></div>' +
     _estWeibullPorComponente(eventos) +
+    _estKaplanMeierPorComponente(eventos, eq) +
     _estCorrelacionAceite(eventos, ace) +
     '</div>';
 }
@@ -184,6 +185,39 @@ function _estWeibullPorComponente(eventos) {
         '<td style="text-align:center;font-weight:700">' + g.ajuste.beta + (ic ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ' + ic.betaMin + '–' + ic.betaMax + '</div>' : '') + '</td>' +
         '<td style="text-align:center">' + fn(g.ajuste.eta) + 'h' + (ic ? '<div style="font-size:9px;color:var(--tx3)">IC90 ' + fn(ic.etaMin) + '–' + fn(ic.etaMax) + 'h</div>' : '') + '</td>' +
         '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + escapeHtml(interp || '') + (icAmplio ? ' <span style="color:var(--warn)">— rango amplio, todavía no hay certeza sobre la forma real</span>' : '') + '</td></tr>';
+    }).join('') +
+    '</table></div></div>';
+}
+
+// Kaplan-Meier por componente, a nivel FLOTA (2026-09-16 — complemento a
+// Weibull de arriba, no un reemplazo: Weibull AJUSTA una forma matemática
+// (β/η); Kaplan-Meier calcula la supervivencia empírica directamente de los
+// datos, sin asumir ninguna distribución, y SÍ aprovecha los componentes que
+// siguen en servicio sin haber fallado todavía ("censurados") — información
+// real que el ajuste de Weibull de este archivo descarta por completo
+// (kaplanMeierCorrectivosPorComponente, logic.js).
+function _estKaplanMeierPorComponente(eventos, eq) {
+  var lista = (typeof kaplanMeierCorrectivosPorComponente === 'function') ? kaplanMeierCorrectivosPorComponente(eventos, eq) : [];
+  if (!lista.length) return '';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">📉 Curva de supervivencia por componente — toda la flota (Kaplan-Meier)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Complemento a Weibull (arriba): no asume ninguna forma matemática, calcula la probabilidad real de que el componente siga sin fallar a cada hora, directamente de los datos. A diferencia de Weibull, SÍ usa los componentes que siguen en servicio sin haber vuelto a fallar todavía (censurados) — ellos también son información real ("sobrevivió al menos hasta acá"), no solo los que ya fallaron. Mediana de supervivencia = a esa cantidad de horas, la mitad de los casos reales ya había fallado y la mitad seguía funcionando. IC90 (Greenwood) = qué tan segura es la curva en ese tramo — con pocos datos puede ser amplio. Mínimo 5 observaciones (fallas + censurados) por componente.</div>' +
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Componente</th><th style="width:13%">Fallas</th><th style="width:15%">En servicio (censurados)</th><th style="width:20%">Mediana supervivencia</th><th style="text-align:left">Lectura</th></tr>' +
+    lista.map(function (g) {
+      if (!g.km) return '<tr style="opacity:.55"><td style="font-weight:600">' + escapeHtml(g.componente) + '</td><td colspan="4" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 5 observaciones)</td></tr>';
+      var km = g.km;
+      var mediana = km.medianaSupervivencia;
+      var ultimo = km.curva[km.curva.length - 1];
+      var lectura = mediana != null
+        ? 'A las ' + fn(mediana) + 'h, la mitad de los casos reales ya había fallado.'
+        : 'Con el historial disponible, la supervivencia nunca bajó del 50% — buena señal, o falta más historial para confirmarlo.';
+      return '<tr>' +
+        '<td style="font-weight:600">' + escapeHtml(g.componente) + '</td>' +
+        '<td style="text-align:center">' + km.nFallas + '</td>' +
+        '<td style="text-align:center">' + km.nCensurados + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + (mediana != null ? fn(mediana) + 'h' : '—') +
+          (ultimo ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">S final ' + Math.round(ultimo.supervivencia * 100) + '% (IC90 ' + Math.round(ultimo.ic90Min * 100) + '–' + Math.round(ultimo.ic90Max * 100) + '%)</div>' : '') + '</td>' +
+        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
     }).join('') +
     '</table></div></div>';
 }
@@ -371,7 +405,7 @@ export function renderEstadistica() {
 
   var content = '';
   if (vista === 'equipo') content = _estTablaEquipo(eq, eventos);
-  else if (vista === 'componente') content = _estTablaComponente(eventos, ace);
+  else if (vista === 'componente') content = _estTablaComponente(eventos, ace, eq);
   else if (vista === 'modo') content = _estTablaModoFalla(eventos);
   else if (vista === 'modelo') content = _estTablaModelo(eq, eventos);
   else if (vista === 'tecnico') content = _estTablaTecnico(ot);
