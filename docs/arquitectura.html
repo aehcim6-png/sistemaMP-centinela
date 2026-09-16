@@ -1833,6 +1833,40 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ratio=8,44x, "✓ Efectivo" — coincide exactamente. Sin errores de JavaScript.</p>
   <p>Sigue Detección de estacionalidad / patrones ocultos, el último ítem del orden elegido.</p>
 
+  <h3>48. Detección de estacionalidad / patrones ocultos de falla (2026-09-16)</h3>
+  <p>Quinto y último ítem del segundo lote "nivel siguiente" — completa el orden de prioridad
+  elegido entre los 8 algoritmos evaluados. <code>tasaFallaPorUbicacion</code> ya compara
+  ubicaciones, pero sin decir si la diferencia es un patrón real o ruido. Esta herramienta agrega
+  un test de chi-cuadrado sobre 2 ejes nuevos: <b>mes calendario</b> (estacionalidad real) y
+  <b>turno</b> (Día/Noche, valores reales: 435 Noche, 412 Día, 396 sin dato).</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li>Tabla <code>_CHI2_CRITICO_95</code> — valores críticos (α=0,05) verificados con una
+    implementación independiente de la función gamma incompleta regularizada en Python, no
+    copiados de memoria.</li>
+    <li><code>testChiCuadradoUniforme(observado, exposicion)</code> — genérico: χ²=Σ(O−E)²/E. Si
+    supera el crítico de tabla, la diferencia es real, no ruido. La exposición debe justificarse
+    explícitamente por cada llamador (días reales del mes; exposición pareja entre turnos,
+    asunción documentada de operación 24/7).</li>
+    <li><code>patronesOcultosFalla(ot)</code> — aplica el test a MES y TURNO. UBICACIÓN queda
+    fuera a propósito (ya cubierta por <code>tasaFallaPorUbicacion</code> con otro enfoque que no
+    necesita asumir exposición pareja).</li>
+  </ul>
+  <p>9 tests nuevos en <code>tests/patronesOcultosFalla.test.js</code> (840/840 en total): caso
+  desbalanceado verificado con Python (80/20, χ²=36, significativo); caso balanceado (52/48,
+  χ²=0,16, no significativo); índice ordenado; exposición no pareja respetada; estacionalidad real
+  por mes verificada con Python (χ²≈63,53); desbalance de turno end-to-end; solo fallas reales
+  cuentan; sin datos devuelve null.</p>
+  <p><b>Cambios en <code>pred.js</code>:</b> nueva sub-vista "📅 Patrones Ocultos de Falla" — dos
+  bloques (mes, turno) con χ², crítico, veredicto y tabla por categoría.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de <code>correctivos</code>):
+  mismo caso de desbalance de turno verificado en Python. El bloque renderiza χ²=36 (crítico
+  3,841), "patrón real, no es ruido", Día 80/50=1,6x, Noche 20/50=0,4x — coincide exactamente. Sin
+  errores de JavaScript.</p>
+  <p>Con esto se completan los 5 ítems del segundo orden de prioridad, sumados a los 5 del primer
+  lote — 10 herramientas nuevas de confiabilidad/mantenimiento predictivo implementadas, testeadas
+  y verificadas visualmente en esta sesión, todas con datos 100% reales.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -1613,6 +1613,37 @@ export function renderPred(){
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin suficientes PM ejecutados con fecha real y fallas registradas todavía (mínimo 5 intervalos antes y 5 después)</p></div>');
   }
 
+  // ═══ PATRONES OCULTOS DE FALLA — ESTACIONALIDAD/TURNO (2026-09-16) ═══
+  // Quinto y último ítem del segundo lote "nivel siguiente". tasaFallaPorUbicacion
+  // ya compara ubicaciones, pero sin decir si la diferencia observada es un
+  // patrón real o ruido de muestra chica. Acá se agrega un test estadístico
+  // simple (chi-cuadrado de bondad de ajuste, patronesOcultosFalla, logic.js)
+  // sobre 2 ejes nuevos: MES calendario (estacionalidad real, todos los años
+  // juntos) y TURNO (Día/Noche).
+  if(fVista==='patrones'){
+    var otPatrones=(fEq?ot.filter(function(o){return o.sigla===fEq;}):ot);
+    var patrones=typeof patronesOcultosFalla==='function'?patronesOcultosFalla(otPatrones):{mes:null,turno:null};
+    var _mesNombre={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
+    function _bloquePatron(titulo,test,nombreCategoria){
+      if(!test)return '<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">'+titulo+': sin historial suficiente todavía (mínimo 5 fallas reales con dato)</p></div>';
+      return '<div class="chart-box" style="border-left:3px solid '+(test.significativo?'var(--danger)':'var(--ok)')+';margin-bottom:16px">'+
+        '<div class="chart-t">'+titulo+' — χ²='+test.chi2+' (crítico '+test.critico+', gl='+test.gl+') — '+(test.significativo?'<span style="color:var(--danger)">patrón real, no es ruido (95% de confianza)</span>':'<span style="color:var(--ok)">sin patrón real — la diferencia observada es ruido de muestra</span>')+'</div>'+
+        '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:30%">'+nombreCategoria+'</th><th style="width:20%">Fallas reales</th><th style="width:20%">Esperadas</th><th>Índice (obs/esp)</th></tr>'+
+        test.detalle.map(function(d){
+          var col=d.indice>1.2?'var(--danger)':d.indice<0.8?'var(--ok)':'var(--tx3)';
+          return '<tr><td style="font-weight:600">'+escapeHtml(_mesNombre[d.categoria]||d.categoria)+'</td>'+
+            '<td style="text-align:center">'+d.observado+'</td>'+
+            '<td style="text-align:center;color:var(--tx3)">'+d.esperado+'</td>'+
+            '<td style="text-align:center;font-weight:700;color:'+col+'">'+(d.indice!=null?d.indice+'x':'—')+'</td></tr>';
+        }).join('')+
+        '</table></div></div>';
+    }
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Patrones Ocultos de Falla</div><div style="font-size:11px;color:var(--tx3)">¿Hay meses o turnos con tasa de falla real y estadísticamente distinta, o la diferencia observada es solo ruido de muestra? (test de chi-cuadrado, 95% de confianza)</div></div>'+
+      _bloquePatron('📅 Estacionalidad por mes calendario',patrones.mes,'Mes') +
+      _bloquePatron('🌓 Por turno',patrones.turno,'Turno');
+  }
+
   // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en
   // pausa desde el 2026-09-14 (la auditoría completa del sistema tomó
   // prioridad). Cruza 6 señales reales, ya calculadas cada una en su propia
@@ -1719,6 +1750,7 @@ $('s-pred').innerHTML=
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
     '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
+    '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
     '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+

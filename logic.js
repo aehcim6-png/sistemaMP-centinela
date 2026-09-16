@@ -3309,6 +3309,99 @@ function tasaFallaPorUbicacion(ot, minFallasPorGrupo){
   return resultado.sort(function(a,b){return a.razon-b.razon;});
 }
 
+// ═══ DETECCIÓN DE ESTACIONALIDAD / PATRONES OCULTOS DE FALLA (2026-09-16) ═══
+// Quinto y último ítem del segundo lote de algoritmos "nivel siguiente".
+// tasaFallaPorUbicacion (arriba) ya compara ubicaciones entre sí, pero solo
+// con una razón de medianas — nunca dice si la diferencia observada podría
+// ser puro ruido de muestra chica o es un patrón real. Acá se agrega un
+// test estadístico simple y genérico (chi-cuadrado de bondad de ajuste,
+// el estándar para "¿la distribución observada entre categorías se aleja
+// de lo esperado más de lo que explicaría el azar?") aplicado a 2 ejes
+// nuevos que el sistema no había comparado nunca: MES calendario (para
+// estacionalidad — ¿hay meses con más fallas de lo esperable?) y TURNO
+// (Día/Noche, campo real de correctivos).
+//
+// Tabla de valores críticos de chi-cuadrado (α=0.05, la misma referencia
+// que usan los t-críticos de Weibull en este archivo — valores de tabla
+// estándar, no inventados; verificados con la función gamma incompleta
+// regularizada antes de escribirlos acá, no copiados de memoria sin
+// chequear).
+var _CHI2_CRITICO_95={1:3.841,2:5.991,3:7.815,4:9.488,5:11.070,6:12.592,7:14.067,8:15.507,9:16.919,10:18.307,11:19.675,12:21.026};
+
+// Test genérico: 'observado' = {categoria:conteo real}, 'exposicion' =
+// {categoria:peso relativo de exposición real} (ej. días del mes; 1 para
+// todas si se asume exposición pareja, una asunción que cada llamador debe
+// justificar explícitamente, nunca inventada en silencio). χ²=Σ(O-E)²/E,
+// con E=total_observado×(exposición_categoría/exposición_total). Si χ²
+// supera el valor crítico de la tabla (gl=k-1 categorías), la diferencia
+// observada es más grande de lo que el azar explicaría solo — hay un
+// patrón real, no ruido. 'indice' por categoría = observado/esperado (>1
+// = falla más de lo esperado ahí, &lt;1 = menos).
+function testChiCuadradoUniforme(observado,exposicion){
+  var categorias=Object.keys(observado||{});
+  var k=categorias.length;
+  if(k<2)return null;
+  var totalObs=categorias.reduce(function(s,c){return s+(observado[c]||0);},0);
+  var totalExp=categorias.reduce(function(s,c){return s+((exposicion&&exposicion[c])||1);},0);
+  if(totalObs<5||!(totalExp>0))return null;
+  var chi2=0;
+  var detalle=categorias.map(function(c){
+    var pesoExp=(exposicion&&exposicion[c])||1;
+    var esperado=totalObs*(pesoExp/totalExp);
+    var obs=observado[c]||0;
+    if(esperado>0)chi2+=Math.pow(obs-esperado,2)/esperado;
+    return{categoria:c,observado:obs,esperado:Math.round(esperado*10)/10,
+      indice:esperado>0?Math.round((obs/esperado)*100)/100:null};
+  });
+  var gl=k-1;
+  var critico=_CHI2_CRITICO_95[gl]!=null?_CHI2_CRITICO_95[gl]:null;
+  return{
+    chi2:Math.round(chi2*100)/100,gl:gl,critico:critico,
+    significativo:critico!=null?chi2>critico:null,
+    n:totalObs,
+    detalle:detalle.sort(function(a,b){return(b.indice||0)-(a.indice||0);})
+  };
+}
+
+var _DIAS_POR_MES={'01':31,'02':28.25,'03':31,'04':30,'05':31,'06':30,'07':31,'08':31,'09':30,'10':31,'11':30,'12':31};
+
+// Aplica el test a MES-DEL-AÑO (todas las fallas reales de todos los años
+// juntas, agrupadas por Enero..Diciembre — la pregunta es estacionalidad
+// real, no "qué mes tuvo más actividad este año en particular") y a TURNO.
+// Exposición de MES = días reales de ese mes (28.25 aproxima el año
+// bisiesto en febrero, sin inventar un calendario específico). Exposición
+// de TURNO = pareja entre los turnos reales presentes — asunción explícita
+// razonable en una operación 24/7 con turnos de igual duración (el mismo
+// equipo opera ambos turnos por diseño), no un dato medido. UBICACIÓN
+// queda fuera a propósito: ya la cubre tasaFallaPorUbicacion con un
+// enfoque distinto (mediana de intervalos) que no necesita asumir una
+// exposición pareja que ahí sería mucho menos defendible (Pit/Rampa/Planta
+// no tienen por qué repartirse el tiempo por igual).
+function patronesOcultosFalla(ot){
+  var reales=(ot||[]).filter(esFallaMTBF);
+  var porMes={};
+  reales.forEach(function(o){
+    var f=o.fecha||o.fechaEntrada;
+    if(!f)return;
+    var mm=String(f).slice(5,7);
+    if(!_DIAS_POR_MES[mm])return;
+    porMes[mm]=(porMes[mm]||0)+1;
+  });
+  var porTurno={};
+  reales.forEach(function(o){
+    if(!o.turno)return;
+    var t=String(o.turno).trim();
+    if(!t)return;
+    porTurno[t]=(porTurno[t]||0)+1;
+  });
+  var expTurno={};
+  Object.keys(porTurno).forEach(function(t){expTurno[t]=1;});
+  return{
+    mes:testChiCuadradoUniforme(porMes,_DIAS_POR_MES),
+    turno:testChiCuadradoUniforme(porTurno,expTurno)
+  };
+}
+
 // Duraciones reales de reparación (horas) de TODA la flota — mismo parseo
 // "Xh" de o.duracion que ya usa MTTR/analisisMTTRLogNormal (mismo criterio
 // de "duración real registrada", no un supuesto).
@@ -3992,7 +4085,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

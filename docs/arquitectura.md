@@ -3208,6 +3208,82 @@ de JavaScript de la aplicación.
 Sigue Detección de estacionalidad / patrones ocultos, el último ítem del
 orden elegido por el usuario.
 
+### 48. Detección de estacionalidad / patrones ocultos de falla (2026-09-16)
+
+Quinto y último ítem del segundo lote "nivel siguiente" — completa el
+orden de prioridad elegido por el usuario entre los 8 algoritmos
+"avanzados" evaluados. `tasaFallaPorUbicacion` (2026-09-14) ya compara
+ubicaciones (Pit/Rampa/Planta) entre sí, pero solo con una razón de
+medianas — nunca dice si la diferencia observada es un patrón real o
+ruido de muestra chica. Esta herramienta agrega un test estadístico
+simple (chi-cuadrado de bondad de ajuste, el estándar para "¿la
+distribución observada entre categorías se aleja de lo esperado más de
+lo que explicaría el azar?") sobre 2 ejes nuevos que el sistema no había
+comparado nunca: **mes calendario** (estacionalidad real, todos los años
+juntos) y **turno** (`Día`/`Noche`, valores reales confirmados contra la
+base: 435 Noche, 412 Día, 396 sin dato).
+
+**`logic.js`**: tres piezas nuevas.
+- Tabla `_CHI2_CRITICO_95` — valores críticos de chi-cuadrado (α=0,05,
+  por grados de libertad) verificados antes de escribirlos con una
+  implementación independiente de la función gamma incompleta
+  regularizada (algoritmo de Numerical Recipes, serie+fracción continua)
+  en Python — no copiados de memoria sin chequear, mismo estándar de
+  rigor que la tabla de t-críticos de Weibull.
+- `testChiCuadradoUniforme(observado, exposicion)` — genérico y
+  reutilizable: χ²=Σ(O−E)²/E, con E=total_observado×(exposición_categoría
+  /exposición_total). Si χ² supera el crítico de la tabla (gl=k−1
+  categorías), la diferencia es más grande de lo que el azar explicaría
+  — patrón real, no ruido. `exposicion` es un peso relativo que cada
+  llamador debe justificar explícitamente (nunca inventado en silencio):
+  para MES se usan los días reales de cada mes (28,25 en febrero, aproxima
+  el año bisiesto sin inventar un calendario específico); para TURNO se
+  asume exposición pareja entre los turnos presentes — asunción razonable
+  y documentada en una operación 24/7 de 2 turnos de igual duración (el
+  mismo equipo opera ambos por diseño), no un dato medido.
+- `patronesOcultosFalla(ot)` — aplica el test a MES y a TURNO sobre las
+  fallas reales (`esFallaMTBF`). UBICACIÓN queda fuera a propósito: ya la
+  cubre `tasaFallaPorUbicacion` con un enfoque que no necesita asumir una
+  exposición pareja — ahí sería mucho menos defendible (Pit/Rampa/Planta
+  no tienen por qué repartirse el tiempo por igual).
+
+9 tests nuevos en `tests/patronesOcultosFalla.test.js`: caso desbalanceado
+calculado a mano y verificado con script Python (80/20, χ²=36,
+significativo); caso balanceado (52/48, χ²=0,16, NO significativo — la
+diferencia es ruido); el índice por categoría (observado/esperado) queda
+ordenado de mayor a menor; exposición no pareja respetada (mismo número
+de días reales por mes → sin patrón aunque los conteos absolutos
+difieran); caso de estacionalidad real por mes verificado con Python
+(χ²≈63,53, gl=11, significativo); desbalance de turno detectado
+end-to-end vía el wrapper; solo cuenta fallas reales, ignora eventos sin
+fecha/turno válidos; sin ningún dato ambos ejes devuelven `null`. Suite
+completa 840/840.
+
+**`pred.js`**: nueva sub-vista "📅 Patrones Ocultos de Falla" en
+Predictivo. Dos bloques (Estacionalidad por mes, Por turno), cada uno con
+el χ² calculado, el valor crítico, el veredicto ("patrón real" en rojo o
+"sin patrón real — ruido de muestra" en verde), y una tabla por categoría
+con fallas reales/esperadas/índice.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos` vía `tests/e2e/helpers/mock-supabase.js`): mismo caso de
+desbalance de turno ya verificado en Python (80 Día / 20 Noche). El
+bloque "Por turno" renderiza χ²=36 (crítico 3,841, gl=1), "patrón real,
+no es ruido (95% de confianza)", Día 80 fallas/50 esperadas=1,6x, Noche
+20/50=0,4x — coincide exactamente con el cálculo a mano. El bloque de mes
+correctamente muestra "sin patrón real" con la misma data (sin diseño
+estacional intencional en ese eje) — comportamiento matemáticamente
+correcto, no un error. Sin errores de JavaScript de la aplicación.
+
+Con esto se completan los 5 ítems del segundo orden de prioridad elegido
+por el usuario (RUL híbrido, Competing Risks, Matriz de Criticidad de
+Repuestos, Índice de Efectividad del Mantenimiento, Patrones Ocultos de
+Falla) — sumados a los 5 del primer lote (Kaplan-Meier, MCF, Crow-AMSAA,
+Matriz de Criticidad Dinámica, CUSUM), 10 herramientas nuevas de
+confiabilidad/mantenimiento predictivo implementadas, testeadas y
+verificadas visualmente en esta sesión, todas con datos 100% reales, sin
+ningún valor inventado.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
