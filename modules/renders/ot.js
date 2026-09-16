@@ -57,6 +57,62 @@ function _otResumenBusquedaHTML(fil,fTexto){
   }
   return html;
 }
+// Prioridad de carga de costo (2026-09-16, pedido del usuario: "preparame
+// una vista para facilitar la carga manual" — tras confirmar con datos
+// reales que correctivos.costo está en 0% y que el cruce automático con
+// OC solo cubre ~4% con ruido, así que la única vía confiable es cargar
+// a mano, mismo componente por mismo componente que ya usa el Pareto real
+// de Estadística → Por Componente (misma clasificación: esFallaMTBF +
+// componente estructurado o _componenteDeSintoma como respaldo, misma
+// función paretoAcumulado). Agrega 'pendientes' (cuántos de ese grupo
+// siguen sin costo cargado) para poder priorizar dónde rinde más cargar
+// primero — los componentes de mayor volumen agotan la mayor cantidad de
+// "sin costo" por cada OT que se completa.
+function _otPrioridadCosto(ot){
+  var porComp={};
+  (ot||[]).forEach(function(o){
+    if(!o||!esFallaMTBF(o))return;
+    var comp=(o.componente&&o.componente.trim())||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma):'')||'';
+    if(!comp)return;
+    if(!porComp[comp])porComp[comp]={comp:comp,fallas:0,pendientes:0,equipos:{}};
+    porComp[comp].fallas++;
+    if(o.sigla)porComp[comp].equipos[o.sigla]=true;
+    if(!(o.costo>0))porComp[comp].pendientes++;
+  });
+  return paretoAcumulado(Object.keys(porComp).map(function(c){
+    var d=porComp[c];
+    return{comp:c,fallas:d.fallas,nEquipos:Object.keys(d.equipos).length,pendientes:d.pendientes};
+  }));
+}
+
+// Panel de prioridad para la vista "Carga de costos pendiente" — mismo
+// estilo visual que compCards (arriba), pero con el % ya cargado por
+// componente en vez de solo el conteo de fallas. Los ⭐ son los mismos
+// "pocos vitales" que ya marca paretoAcumulado (80% acumulado de fallas
+// reales) — cargar costo primero en esos es lo que más rinde para
+// cualquier análisis futuro que dependa de costo real por componente.
+function _otPrioridadCostoHTML(prioridad){
+  var conPendientes=(prioridad||[]).filter(function(r){return r.pendientes>0;});
+  if(!conPendientes.length){
+    return'<div class="card" style="border-left:3px solid var(--ok);margin-bottom:12px;padding:10px 14px"><b style="font-size:12px;color:var(--ok)">✓ Sin correctivos pendientes de costo en los componentes clasificados</b></div>';
+  }
+  return'<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:14px">'+
+    '<div class="chart-t">💰 Prioridad de carga — por componente, de mayor a menor aporte real de fallas</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Mismo Pareto real de Estadística → Por Componente. Los ⭐ son los "pocos vitales" (juntos explican el 80% de las fallas) — cargar costo ahí primero es lo que más rinde para cualquier análisis futuro (vida económica, Weibull con costo real, etc.). La tabla de abajo ya viene filtrada y ordenada con el mismo criterio.</div>'+
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:26%">Componente</th><th style="width:14%">Fallas</th><th style="width:14%">Con costo</th><th style="width:14%">Pendientes</th><th>Avance</th></tr>'+
+    conPendientes.slice(0,15).map(function(r){
+      var conCosto=r.fallas-r.pendientes;
+      var pctAvance=r.fallas?Math.round(conCosto/r.fallas*100):0;
+      return'<tr>'+
+        '<td style="font-weight:600'+(r.vital?';color:var(--ac)':'')+'">'+(r.vital?'⭐ ':'')+escapeHtml(r.comp)+'</td>'+
+        '<td style="text-align:center">'+r.fallas+'</td>'+
+        '<td style="text-align:center;color:var(--ok)">'+conCosto+'</td>'+
+        '<td style="text-align:center;color:var(--danger);font-weight:700">'+r.pendientes+'</td>'+
+        '<td><div style="display:flex;align-items:center;gap:6px"><div style="background:color-mix(in srgb,var(--ok) 18%,var(--bg4));border-radius:4px;height:10px;flex:1;overflow:hidden"><div style="background:var(--ok);height:100%;width:'+pctAvance+'%"></div></div><span style="font-size:10px;color:var(--tx3);min-width:32px;text-align:right">'+pctAvance+'%</span></div></td></tr>';
+    }).join('')+
+    '</table></div></div>';
+}
+
 export function renderOt(){
   const ot=S.g('ot')||[],eq=S.g('eq')||[];
   const reg=S.g('reg')||[];
@@ -88,6 +144,7 @@ export function renderOt(){
     }).join('')+
     '</div>':'';
   const fEq=$('fOtEq')?.value||'',fTipo=$('fOtTipo')?.value||'',fEst=$('fOtEst')?.value||'',fTexto=($('fOtTexto')?.value||'').trim().toLowerCase();
+  const fSoloSinCosto=$('fOtSoloSinCosto')?.checked||false;
   // Incluir correctivos que vienen de Registro PM
   const regCorr=reg.filter(r=>r.tipoPM==='Correctivo'||r.estatusEq==='Fuera de Servicio');
   const todos=[...ot,...regCorr.map(r=>({sigla:r.equipo,fecha:r.fechaEntrada,tipo:'Correctivo (desde PM)',
@@ -115,6 +172,24 @@ export function renderOt(){
         estatusEq:'Operativo',tecnico:h.responsable||'',estadoOT:'Cerrada',fromHist:true};
     });
     fil=[...fil,...histAsOt.filter(_filtroOt)];
+  }
+  // Vista "Carga de costos pendiente" (2026-09-16): solo OT reales (no
+  // fromReg/fromHist — esas no tienen costo editable), que cuentan como
+  // falla real y todavía no tienen costo, ordenadas por el mismo ranking
+  // de Pareto que ya usa Estadística → Por Componente — así se agota
+  // primero el componente que más aporta a la muestra usable de un futuro
+  // modelo de vida económica, no un orden arbitrario.
+  var prioridadCosto=fSoloSinCosto?_otPrioridadCosto(ot):[];
+  if(fSoloSinCosto){
+    var _rangoComp={};
+    prioridadCosto.forEach(function(r,i){_rangoComp[r.comp]=i;});
+    var _compDe=function(o){return(o.componente&&o.componente.trim())||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma):'')||'';};
+    fil=fil.filter(function(o){return!o.fromReg&&!o.fromHist&&esFallaMTBF(o)&&!(o.costo>0);})
+      .sort(function(a,b){
+        var ra=_rangoComp[_compDe(a)],rb=_rangoComp[_compDe(b)];
+        ra=ra==null?999:ra;rb=rb==null?999:rb;
+        return ra-rb;
+      });
   }
   const pg=_pagSlice('ot',fil);
   const tc=ot.reduce((s,o)=>s+(o.costo||0),0);
@@ -159,10 +234,14 @@ export function renderOt(){
       <select id="fOtTipo" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo tipo</option><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option></select>
       <select id="fOtEst" onchange="window._pag.ot=1;renders.ot()"><option value="">Todo estatus</option><option value="Fuera de Servicio">Fuera de Servicio</option><option value="Operativo">Operativo</option></select>
       <input type="text" id="fOtTexto" value="${escapeHtml(fTexto)}" placeholder="🔍 Buscar por componente/síntoma/solución (ej: alternador, turbo, asiento)..." oninput="window._pag.ot=1;renders.ot()" style="min-width:280px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:5px 8px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2);white-space:nowrap;cursor:pointer" title="Filtra a las OT reales que todavía no tienen costo cargado, ordenadas por el componente que más aporta a la muestra (Pareto real) — pensado para cargar costo a mano, empezando por donde más rinde.">
+        <input type="checkbox" id="fOtSoloSinCosto" ${fSoloSinCosto?'checked':''} onchange="window._pag.ot=1;renders.ot()"> 💰 Carga de costos pendiente
+      </label>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
     ${compCards}
     </div>
+    ${fSoloSinCosto?_otPrioridadCostoHTML(prioridadCosto):''}
     ${_otResumenBusquedaHTML(fil,fTexto)}
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
     ${_pagHTML('ot',pg)}

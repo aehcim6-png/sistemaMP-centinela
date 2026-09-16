@@ -2857,6 +2857,67 @@ uno con verificación completa en cada paso). Edad de Reemplazo Óptima
 queda descartada, sin cambios desde su evaluación inicial: sigue
 bloqueada por falta de dato real de costo en `correctivos.costo`.
 
+### 43. Vista "Carga de costos pendiente" en Correctivos (2026-09-16)
+
+Origen real: al cerrar la sección 42, el usuario preguntó si el cruce
+`costoSugeridoPorCruce` (ya existente, sección "Costo sugerido por cruce
+OT ↔ OC") no resolvía el problema de `correctivos.costo` en 0%. Se
+verificó en vivo contra la base real (`jyhpfwivhwzylkzxrsbt`): aplicado
+en bloque a los 1.243 correctivos reales, el cruce automático solo
+encuentra candidato en 53 (4,3%), y varios de esos matches son ruido
+real (ej. "Cambio de plumillas parabrisas" matcheando con "Sensor de
+Neumático" por coincidir solo en palabras genéricas como "de") — confirma
+que la única vía confiable sigue siendo carga manual, humano revisando
+caso por caso (ya sea tipeando el valor o confirmando una sugerencia real
+del cruce). El usuario pidió una vista que facilite exactamente eso.
+
+Antes de construirla se armó, con datos reales, el Pareto de qué
+componentes conviene priorizar (misma clasificación real que Estadística
+→ Por Componente: `esFallaMTBF` + `_componenteDeSintoma` como respaldo
+cuando el campo estructurado viene vacío) — sobre 1.126 correctivos
+reales que cuentan como falla, el top 10 (Neumáticos, GET/Cuchillas,
+Sistema Eléctrico, Engrase/Lubricación, Foco/Ampolleta,
+Radiador/Enfriamiento, Asiento, Mangueras/Fugas, Suspensión, Aire
+Acondicionado) ya cubre el 63,3% de todas las fallas reales de la flota.
+
+**`ot.js`**: nuevo checkbox "💰 Carga de costos pendiente" en el toolbar
+de Correctivos. Al activarlo:
+- `_otPrioridadCosto(ot)` (nueva función local, no exportada — mismo
+  criterio que `_estFallasCombinadas`/`_estTablaComponente` de
+  `estadistica.js`, sin duplicar esa lógica, solo reusando
+  `esFallaMTBF`/`_componenteDeSintoma`/`paretoAcumulado` de `logic.js`)
+  agrupa por componente clasificado y cuenta, por grupo, cuántas OT ya
+  tienen costo cargado vs. cuántas siguen pendientes.
+- La tabla principal se filtra a solo OT reales (nunca las que vienen de
+  Registro PM/histórico — esas no tienen costo editable) que cuentan
+  como falla real y todavía no tienen costo, **ordenadas por el ranking
+  de Pareto** de ese componente — se agota primero el componente que más
+  aporta a la muestra utilizable de cualquier análisis futuro con costo
+  real (vida económica, Weibull con costo, etc.), no un orden arbitrario.
+- `_otPrioridadCostoHTML` agrega un panel arriba de la tabla ("Prioridad
+  de carga") con Componente/Fallas/Con costo/Pendientes/barra de avance
+  por componente, mismos ⭐ "pocos vitales" que ya usa el Pareto de
+  Estadística — así se ve de un vistazo dónde rinde más seguir cargando.
+  Cada fila visible en la tabla, al no tener costo, sigue mostrando la
+  sugerencia existente de `costoSugeridoPorCruce` ("💡 $X — usar") cuando
+  hay un candidato real — no se duplica esa lógica, solo se prioriza el
+  ORDEN en que aparecen las filas para cargar.
+- Sin necesidad de ningún estado nuevo: en cuanto se carga un costo, esa
+  fila deja de cumplir el filtro y desaparece de la vista en el próximo
+  render — el criterio de salida es el dato real, no una marca manual de
+  "visto".
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos` vía `tests/e2e/helpers/mock-supabase.js`): 5 correctivos
+sintéticos (3 de "Neumáticos" —uno con costo ya cargado—, 1 sin
+componente estructurado pero con síntoma "cambio de alternador..." que
+`_componenteDeSintoma` reclasifica correctamente como "Alternador", 1 de
+"Frenos"). Con el checkbox activo, el panel de prioridad muestra
+"⭐ Neumáticos: 3 fallas, 1 con costo, 2 pendientes, 33% avance" y "⭐
+Alternador"/"Frenos" debajo, y la tabla filtrada muestra exactamente las
+4 OT sin costo (la de $500.000 ya cargado queda correctamente excluida).
+Sin errores de JavaScript de la aplicación.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

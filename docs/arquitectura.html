@@ -1667,6 +1667,42 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   evaluadas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de Criticidad Dinámica, CUSUM — 5 de 6 ítems
   viables). Edad de Reemplazo Óptima sigue descartada por falta de dato real de costo.</p>
 
+  <h3>43. Vista "Carga de costos pendiente" en Correctivos (2026-09-16)</h3>
+  <p>Origen real: tras la sección 42, el usuario preguntó si <code>costoSugeridoPorCruce</code> (ya
+  existente) no resolvía <code>correctivos.costo</code> en 0%. Verificado en vivo contra la base
+  real: aplicado en bloque a los 1.243 correctivos, el cruce automático solo encuentra candidato en
+  53 (4,3%), y varios son ruido real (coincidencias por palabras genéricas) — confirma que la única
+  vía confiable sigue siendo carga manual caso por caso. Antes de construir la vista se armó, con
+  datos reales, el Pareto de qué componentes conviene priorizar (misma clasificación que Estadística
+  → Por Componente): el top 10 (Neumáticos, GET/Cuchillas, Sistema Eléctrico, Engrase/Lubricación,
+  Foco/Ampolleta, Radiador/Enfriamiento, Asiento, Mangueras/Fugas, Suspensión, Aire Acondicionado)
+  ya cubre el 63,3% de todas las fallas reales.</p>
+  <p><b>Cambios en <code>ot.js</code>:</b> nuevo checkbox "💰 Carga de costos pendiente" en el
+  toolbar de Correctivos. Al activarlo:</p>
+  <ul>
+    <li><code>_otPrioridadCosto(ot)</code> (función local, reusa
+    <code>esFallaMTBF</code>/<code>_componenteDeSintoma</code>/<code>paretoAcumulado</code> de
+    <code>logic.js</code>, sin duplicar la lógica de <code>estadistica.js</code>) agrupa por
+    componente clasificado y cuenta, por grupo, cuántas OT ya tienen costo vs. cuántas siguen
+    pendientes.</li>
+    <li>La tabla se filtra a solo OT reales (nunca Registro PM/histórico, sin costo editable) sin
+    costo cargado, <b>ordenadas por el ranking de Pareto</b> de su componente — se agota primero el
+    componente que más aporta a la muestra de cualquier análisis futuro con costo real.</li>
+    <li><code>_otPrioridadCostoHTML</code> agrega un panel "Prioridad de carga" arriba de la tabla,
+    con Componente/Fallas/Con costo/Pendientes/barra de avance, mismos ⭐ "pocos vitales" del
+    Pareto. Cada fila visible sigue mostrando la sugerencia existente de
+    <code>costoSugeridoPorCruce</code> cuando hay candidato real — no se duplica esa lógica, solo
+    se prioriza el orden.</li>
+    <li>Sin estado nuevo: al cargar un costo, la fila deja de cumplir el filtro y desaparece sola
+    del próximo render — el criterio de salida es el dato real, no una marca manual.</li>
+  </ul>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de <code>correctivos</code>): 5
+  correctivos sintéticos (3 de "Neumáticos" —uno con costo ya cargado—, 1 sin componente
+  estructurado que <code>_componenteDeSintoma</code> reclasifica correctamente como "Alternador"
+  desde el síntoma, 1 de "Frenos"). Con el checkbox activo, el panel muestra "⭐ Neumáticos: 3
+  fallas, 1 con costo, 2 pendientes, 33% avance" y la tabla filtrada muestra exactamente las 4 OT
+  sin costo (la de $500.000 queda correctamente excluida). Sin errores de JavaScript.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
