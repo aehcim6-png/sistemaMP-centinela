@@ -155,6 +155,7 @@ function _estTablaComponente(eventos, ace, eq) {
     _estKaplanMeierPorComponente(eventos, eq) +
     _estMcfPorComponente(eventos, eq) +
     _estCrowAmsaaPorComponente(eventos) +
+    _estCompetingRisksHTML(eventos, eq) +
     _estCorrelacionAceite(eventos, ace) +
     '</div>';
 }
@@ -283,6 +284,33 @@ function _estCrowAmsaaPorComponente(eventos) {
         '<td style="text-align:center;font-weight:700">' + c.beta + '<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ' + c.ic90.betaMin + '–' + c.ic90.betaMax + '</div></td>' +
         '<td style="text-align:center;font-weight:700;color:' + colorTend + '">' + etiquetaTend + '</td>' +
         '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
+    }).join('') +
+    '</table></div></div>';
+}
+
+// Competing Risks — qué modo de falla "gana la carrera" primero (2026-09-16,
+// segundo ítem del segundo lote de algoritmos "nivel siguiente"). A
+// diferencia de las 4 tablas de arriba (cada una mira UN componente a la
+// vez), acá se comparan TODOS los componentes entre sí, a nivel de equipo:
+// Kaplan-Meier trata las fallas de otros componentes del mismo equipo como
+// si nunca hubieran pasado (sesga la probabilidad real de cada causa por
+// separado) — Competing Risks sí las tiene en cuenta, dando la probabilidad
+// real de que cada componente sea la PRÓXIMA falla que saque al equipo de
+// servicio (competingRisksPorEquipo, logic.js — estimador de Aalen-Johansen,
+// el estándar de confiabilidad para esta pregunta).
+function _estCompetingRisksHTML(eventos, eq) {
+  var r = (typeof competingRisksPorEquipo === 'function') ? competingRisksPorEquipo(eventos, eq) : null;
+  if (!r || !r.ranking.length) return '';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">🏆 ¿Qué modo de falla mata primero? — toda la flota (Competing Risks)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">A diferencia de las tablas de arriba (que miran cada componente por separado), acá se comparan TODOS los componentes entre sí a nivel de equipo — junta las fallas de cada equipo (de cualquier componente) y calcula, con el mismo criterio de censura de Kaplan-Meier, la probabilidad real de que cada componente sea el que saque al equipo de servicio primero, antes que los demás. Suma 100% junto con "sigue en servicio" (' + Math.round(r.supervivenciaFinal * 100) + '% del historial pooled). N=' + r.n + ' observaciones (' + r.nFallas + ' fallas reales, ' + r.nCensurados + ' censuradas). Mínimo 5 observaciones a nivel de toda la flota.</div>' +
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:26%">Componente</th><th style="width:20%">Probabilidad de ser la próxima falla</th><th>Barra</th></tr>' +
+    r.ranking.map(function (row, i) {
+      var pct = Math.round(row.cif * 1000) / 10;
+      return '<tr style="' + (i === 0 ? 'background:rgba(239,68,68,.08)' : '') + '">' +
+        '<td style="font-weight:600' + (i === 0 ? ';color:var(--danger)' : '') + '">' + (i === 0 ? '🥇 ' : '') + escapeHtml(row.causa) + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + pct + '%</td>' +
+        '<td><div style="background:color-mix(in srgb,var(--ac) 18%,var(--bg4));border-radius:4px;height:12px;width:160px;overflow:hidden"><div style="background:' + (i === 0 ? 'var(--danger)' : 'var(--ac)') + ';height:100%;width:' + Math.min(100, pct) + '%"></div></div></td></tr>';
     }).join('') +
     '</table></div></div>';
 }

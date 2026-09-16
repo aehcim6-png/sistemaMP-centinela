@@ -1747,6 +1747,33 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   funcionando de punta a punta. Sin errores de JavaScript.</p>
   <p>Sigue Competing Risks (segundo ítem del orden elegido).</p>
 
+  <h3>45. Competing Risks — qué modo de falla mata primero al equipo (2026-09-16)</h3>
+  <p>Segundo ítem del segundo lote "nivel siguiente". Kaplan-Meier/MCF/Crow-AMSAA miran un
+  componente a la vez, tratando fallas de otros componentes del mismo equipo como si nunca
+  hubieran pasado — error clásico de censura informativa que infla la probabilidad de cada causa.
+  Competing Risks sí compara causas entre sí.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>competingRisks(observaciones)</code> — estimador de <b>Aalen-Johansen</b> para la
+    Función de Incidencia Acumulada (CIF): CIF_k(t_i)=CIF_k(t_{i-1})+S(t_{i-1})×(d_i,k/n_i), con S
+    la supervivencia global. Verificado: ΣCIF_k(∞)+S(∞)=1 exacto. Mínimo 5 observaciones.</li>
+    <li><code>competingRisksPorEquipo(eventos, eq)</code> — agrupa SOLO por sigla (equipo, no por
+    componente): junta todas las fallas de cada equipo, cada intervalo sucesivo es una observación
+    con la causa siendo el componente que falló al final. Mismo criterio de censura de
+    Kaplan-Meier.</li>
+  </ul>
+  <p>8 tests nuevos en <code>tests/competingRisks.test.js</code> (814/814 en total): caso exacto
+  verificado con script Python (CIF Motor=0,8/Transmisión=0,2, conservación ΣCIF+S=1); ranking
+  ordenado; caso con 3 causas y tiempos empatados (verificado con Python); agrupamiento por equipo
+  confirmado; sin dato de equipo no inventa censura.</p>
+  <p><b>Cambios en <code>estadistica.js</code>:</b> nueva tabla "🏆 ¿Qué modo de falla mata
+  primero?" en "Por Componente", después de Crow-AMSAA — ranking único para toda la flota (no una
+  fila por componente con métricas independientes), primero destacado.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de <code>correctivos</code>/
+  <code>equipos</code>): 11 correctivos sintéticos en 3 equipos. La tabla renderiza Motor 50%,
+  Hidraulico 40%, Transmision 10% — suma exacta 100%. Sin errores de JavaScript.</p>
+  <p>Sigue Matriz de Criticidad de Repuestos avanzada.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

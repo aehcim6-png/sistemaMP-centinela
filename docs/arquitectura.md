@@ -3011,6 +3011,69 @@ errores de JavaScript de la aplicación.
 
 Sigue Competing Risks (segundo ítem del orden elegido).
 
+### 45. Competing Risks — qué modo de falla mata primero al equipo (2026-09-16)
+
+Segundo ítem del segundo lote de algoritmos "nivel siguiente". Ninguna de
+las herramientas de la familia Kaplan-Meier/MCF/Crow-AMSAA (secciones
+38-40) compara componentes entre sí: cada una mira UN componente a la
+vez, tratando las fallas de OTROS componentes del mismo equipo como si
+nunca hubieran pasado. En presencia de varias causas reales que compiten
+por sacar al equipo de servicio, eso es el error clásico de "censura
+informativa" en análisis de supervivencia — infla la probabilidad
+estimada de cada causa individual porque ignora que otra causa pudo
+"ganarle" antes. Competing Risks (riesgos competitivos, el estándar de
+confiabilidad exactamente para esta pregunta) sí lo hace bien.
+
+**`logic.js`**: dos funciones nuevas.
+- `competingRisks(observaciones)` — estimador de **Aalen-Johansen** (el
+  método no-paramétrico estándar para la Función de Incidencia Acumulada
+  — CIF —, la misma referencia que reportan Minitab/R `survival` para
+  "competing risks regression"): en cada tiempo de evento t_i (de
+  cualquier causa), CIF_k(t_i)=CIF_k(t_{i-1})+S(t_{i-1})×(d_i,k/n_i),
+  donde S es la supervivencia GLOBAL (todas las causas juntas) hasta
+  antes de t_i. Después se actualiza S(t_i)=S(t_{i-1})×(1−d_i/n_i) con el
+  total de eventos. Verificado con un caso de prueba a mano (Python):
+  ΣCIF_k(∞)+S(∞)=1 exacto — toda la probabilidad se reparte entre "no
+  falló" y "falló por causa k", ninguna causa contada de más ni de menos.
+  Mínimo 5 observaciones.
+- `competingRisksPorEquipo(eventos, eq)` — a diferencia de
+  `kaplanMeierCorrectivosPorComponente`/`mcfCorrectivosPorComponente`/
+  `rulHibridoPorComponente` (que agrupan por sigla+componente, porque
+  comparan la vida de UN componente contra sí mismo entre equipos), acá
+  se agrupa SOLO por sigla (equipo): dentro de cada equipo se ordenan
+  TODAS sus fallas reales (de cualquier componente) por horómetro, y cada
+  intervalo sucesivo es una observación con la causa siendo el componente
+  que falló al final de ese intervalo — hay que mirar todos los
+  componentes de un mismo equipo juntos, no uno a la vez. Mismo criterio
+  de censura de la familia Kaplan-Meier. No segmenta por tipo de equipo
+  — quien llama puede pre-filtrar si quiere un análisis por tipo.
+
+8 tests nuevos en `tests/competingRisks.test.js`: caso exacto calculado a
+mano y verificado con script Python (2 causas, CIF final Motor=0,8/
+Transmisión=0,2, propiedad de conservación ΣCIF+S=1); ranking ordenado de
+mayor a menor CIF; caso con 3 causas, varios equipos y tiempos empatados
+(verificado también con Python: Hidraulico=0,4/Motor=0,4/Transmision=0,2);
+tiempos inválidos descartados; agrupamiento por EQUIPO (no por
+componente) confirmado con el wrapper; eventos inválidos ignorados; sin
+dato de equipo no inventa censura. Suite completa 814/814.
+
+**`estadistica.js`**: en la vista "Por Componente", nueva tabla "🏆 ¿Qué
+modo de falla mata primero? — toda la flota (Competing Risks)" después de
+Crow-AMSAA — a diferencia de las 4 tablas anteriores (una fila por
+componente con sus propias métricas independientes), acá el ranking es
+ÚNICO para toda la flota: cada fila es un componente con su probabilidad
+real (CIF) de ser la próxima falla, ordenadas de mayor a menor, con el
+primero destacado (🥇).
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`correctivos`/`equipos` vía `tests/e2e/helpers/mock-supabase.js`): 11
+correctivos sintéticos de Motor/Transmisión/Hidráulico repartidos en 3
+equipos. La tabla renderiza Motor 50%, Hidraulico 40%, Transmision 10% —
+suma exacta 100% (con supervivencia final 0%), ranking correctamente
+ordenado con el primero resaltado. Sin errores de JavaScript.
+
+Sigue Matriz de Criticidad de Repuestos avanzada.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

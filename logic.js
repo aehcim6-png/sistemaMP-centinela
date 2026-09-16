@@ -1111,6 +1111,113 @@ function kaplanMeierCorrectivosPorComponente(eventos,eq){
   });
 }
 
+// ═══ COMPETING RISKS — QUÉ MODO DE FALLA "GANA LA CARRERA" PRIMERO (2026-09-16) ═══
+// Segundo ítem del segundo lote de algoritmos "nivel siguiente" elegido por
+// el usuario. Kaplan-Meier de arriba mide, PARA UN COMPONENTE A LA VEZ,
+// tiempo hasta su propia primera falla — trata las fallas de OTROS
+// componentes del mismo equipo como si nunca hubieran pasado, lo cual en
+// presencia de varias causas reales de falla que compiten por sacar al
+// equipo de servicio primero es un error clásico de análisis de
+// supervivencia (infla la probabilidad de falla de cada causa individual,
+// porque ignora que otra causa pudo "ganarle" antes). Competing Risks
+// (riesgos competitivos, el estándar de confiabilidad para exactamente esta
+// pregunta — "¿qué modo de falla es más probable que mate primero al
+// equipo?") sí lo hace bien: separa los modos de falla reales
+// (motor/transmisión/hidráulico/etc., ya clasificados) y estima, para cada
+// uno, la probabilidad real de que sea LA PRÓXIMA falla que saque al equipo
+// de servicio — información que Kaplan-Meier por componente no puede dar
+// porque no compara causas entre sí.
+//
+// Estimador de Aalen-Johansen (el método no-paramétrico estándar para la
+// Función de Incidencia Acumulada — CIF —, la misma referencia que reportan
+// Minitab/R survival para "competing risks regression"): en cada tiempo de
+// evento t_i (de CUALQUIER causa), CIF_k(t_i) = CIF_k(t_{i-1}) +
+// S(t_{i-1})×(d_i,k/n_i), donde S es la supervivencia GLOBAL acumulada
+// (todas las causas juntas, no por causa) HASTA ANTES de t_i, n_i = en
+// riesgo, d_i,k = eventos de causa k exactamente en t_i. Después se
+// actualiza S(t_i)=S(t_{i-1})×(1−d_i/n_i) con el total de eventos (todas
+// las causas). Propiedad de conservación verificada con un caso de prueba
+// a mano (script Python): Σ CIF_k(∞) + S(∞) = 1 exacto — todo el peso de
+// la distribución se reparte entre "todavía no falló" y "falló por causa
+// k", ninguna causa queda contada de más ni de menos.
+function competingRisks(observaciones){
+  var obs=(observaciones||[]).filter(function(o){return o&&o.tiempo>0;});
+  if(obs.length<5)return null;
+  var tiemposFalla=obs.filter(function(o){return !o.censurado;}).map(function(o){return o.tiempo;});
+  if(!tiemposFalla.length)return null;
+  var tiemposUnicos=Array.from(new Set(tiemposFalla)).sort(function(a,b){return a-b;});
+  var causas=Array.from(new Set(obs.filter(function(o){return !o.censurado;}).map(function(o){return o.causa;})));
+  var s=1,cifAcum={};
+  causas.forEach(function(c){cifAcum[c]=0;});
+  var curva=[];
+  tiemposUnicos.forEach(function(t){
+    var enRiesgo=obs.filter(function(o){return o.tiempo>=t;}).length;
+    if(enRiesgo<=0)return;
+    var eventosEnT=obs.filter(function(o){return !o.censurado&&o.tiempo===t;});
+    var dTotal=eventosEnT.length;
+    var porCausaEnT={};
+    eventosEnT.forEach(function(o){porCausaEnT[o.causa]=(porCausaEnT[o.causa]||0)+1;});
+    causas.forEach(function(c){
+      var dk=porCausaEnT[c]||0;
+      if(dk>0)cifAcum[c]+=s*(dk/enRiesgo);
+    });
+    s=s*(1-dTotal/enRiesgo);
+    var snap={};
+    causas.forEach(function(c){snap[c]=Math.round(cifAcum[c]*1000)/1000;});
+    curva.push({tiempo:t,enRiesgo:enRiesgo,dTotal:dTotal,supervivenciaGlobal:Math.round(s*1000)/1000,cif:snap});
+  });
+  if(!curva.length)return null;
+  var cifFinal={};
+  causas.forEach(function(c){cifFinal[c]=Math.round(cifAcum[c]*1000)/1000;});
+  var ranking=causas.map(function(c){return{causa:c,cif:cifFinal[c]};}).sort(function(a,b){return b.cif-a.cif;});
+  return{
+    n:obs.length,nFallas:tiemposFalla.length,nCensurados:obs.length-tiemposFalla.length,
+    curva:curva,cifFinal:cifFinal,ranking:ranking,
+    supervivenciaFinal:Math.round(s*1000)/1000
+  };
+}
+
+// Arma las observaciones para competingRisks a partir de eventos reales de
+// TODA la flota — a diferencia de kaplanMeierCorrectivosPorComponente/
+// mcfCorrectivosPorComponente/rulHibridoPorComponente (que agrupan por
+// sigla+componente porque comparan la vida de UN componente contra sí
+// mismo entre equipos), acá se agrupa SOLO por sigla (equipo): dentro de
+// cada equipo se ordenan TODAS sus fallas reales (de cualquier
+// componente) por horómetro, y cada intervalo sucesivo es una
+// observación con la causa siendo el componente que falló al final de
+// ese intervalo — la pregunta es "de todo lo que le puede pasar a este
+// equipo, ¿qué pasó primero después de la reparación anterior?", así que
+// hay que mirar TODOS los componentes de un mismo equipo juntos, no uno
+// a la vez. Mismo criterio de censura que el resto de la familia
+// Kaplan-Meier: si el equipo sigue en servicio después de su última
+// falla registrada, ese tramo final es censurado (sin causa, sin
+// invención). No segmenta por tipo/modelo de equipo — quien llama puede
+// pre-filtrar 'eventos'/'eq' si quiere un análisis por tipo de equipo.
+function competingRisksPorEquipo(eventos,eq){
+  var porEquipo={};
+  (eventos||[]).forEach(function(e){
+    if(!e||!e.componente||!(e.horom>0)||!e.sigla)return;
+    (porEquipo[e.sigla]=porEquipo[e.sigla]||[]).push({horom:e.horom,componente:e.componente});
+  });
+  var eqPorSigla={};
+  (eq||[]).forEach(function(x){if(x&&x.sigla)eqPorSigla[x.sigla]=x;});
+  var observaciones=[];
+  Object.keys(porEquipo).forEach(function(sigla){
+    var ordenados=porEquipo[sigla].slice().sort(function(a,b){return a.horom-b.horom;});
+    for(var i=1;i<ordenados.length;i++){
+      var t=ordenados[i].horom-ordenados[i-1].horom;
+      if(t>0)observaciones.push({tiempo:t,causa:ordenados[i].componente,censurado:false});
+    }
+    var eqObj=eqPorSigla[sigla];
+    var ultimo=ordenados[ordenados.length-1];
+    if(eqObj&&eqObj.horomActual>ultimo.horom){
+      var tCens=eqObj.horomActual-ultimo.horom;
+      if(tCens>0)observaciones.push({tiempo:tCens,causa:null,censurado:true});
+    }
+  });
+  return competingRisks(observaciones);
+}
+
 // ═══ MCF — MEAN CUMULATIVE FUNCTION (2026-09-16) ═══
 // Segunda mitad del par "Kaplan-Meier + MCF" (orden de prioridad elegido
 // por el usuario). Kaplan-Meier (arriba) mide tiempo hasta la PRIMERA
@@ -3725,7 +3832,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
