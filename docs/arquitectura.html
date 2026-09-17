@@ -1916,6 +1916,40 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   muestra "N° cambios: 6, En uso: 1, β=1,03, η=505h" en ambas vistas, coincidiendo con Python
   (β=1,0345, η=505,41) redondeado. Sin errores de JavaScript.</p>
 
+  <h3>50. Kijima Tipo I/II — factor de restauración q por máxima verosimilitud (2026-09-17)</h3>
+  <p>Segundo ítem del tercer lote. <code>edadVirtualEquipo</code> ya da un proxy simple de Kijima
+  comparando medianas de dos mitades — honesto, pero no es el factor q real de los modelos de
+  renovación imperfecta de Kijima (1989). Esta sección sí lo hace, con los dos modelos clásicos
+  (ambos con V₀=0): <b>Tipo I</b> (ARA1) V_n=V_{n-1}+q·X_n (reduce solo el daño del último
+  intervalo); <b>Tipo II</b> (ARA∞) V_n=q·(V_{n-1}+X_n) (reduce TODA la edad virtual acumulada).
+  Coinciden exactamente en los extremos (q=0 ⇒ como nuevo cada vez; q=1 ⇒ sin efecto de
+  reparación).</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> <code>kijimaEquipo(horomFallas, horomActual)</code>.
+  Reusa <code>_observacionesEquipoConCensura</code> (extraída de
+  <code>ajusteWeibullEquipoCensurado</code>) y <code>ajusteWeibullCensurado</code> para fijar β/η
+  de ese equipo (no se optimizan junto con q). Cada intervalo aporta
+  ln f(V_{n-1}+X_n)−ln S(V_{n-1}) a la log-verosimilitud (misma idea de "vida remanente
+  condicional" que <code>rulWeibull</code>); el tramo censurado aporta ln S(V_{n-1}+X_n)−ln
+  S(V_{n-1}). q∈[0,1] se resuelve con <b>búsqueda de sección áurea</b>
+  (<code>_seccionAureaMax</code>, sin derivadas ni librería externa — V_n es recursivo, no hay
+  ecuación cerrada como con β de Weibull). Se ajustan ambos tipos y se elige el de mayor
+  verosimilitud. Mínimo 5 fallas reales.</p>
+  <p>Derivación verificada con script Python independiente: simulando procesos Kijima sintéticos
+  con q y tipo conocidos, la sección áurea recupera el tipo correcto por verosimilitud en los casos
+  intermedios (en los extremos ambos tipos coinciden, como predice la teoría) y coincide con una
+  búsqueda exhaustiva en grilla de 1000 puntos.</p>
+  <p>6 tests nuevos en <code>tests/kijima.test.js</code> (857/857 en total): mínimo de 5 fallas;
+  caso verificado con Python (β=1,71/η=763, Tipo I q=0,00 vs Tipo II q=0,16 → elegido Tipo II);
+  mismo caso con censura real; en q=0 ambos tipos coinciden con log-verosimilitud idéntica;
+  interpretación según rango de q; q siempre en [0,1].</p>
+  <p><b>Cambios en <code>equiposConSaludFlota</code>:</b> nuevo campo <code>kijima</code> por
+  equipo. <b>Cambios en <code>pred.js</code>:</b> nueva sub-vista "🔁 Kijima — Factor de
+  Restauración".</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>equipos</code>/<code>correctivos</code>): los mismos 12 intervalos verificados en Python
+  renderizan "CN-1 · 12 · 1,71/763h · Tipo II · 0,16 · Restauración alta", exacto. Sin errores de
+  JavaScript.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

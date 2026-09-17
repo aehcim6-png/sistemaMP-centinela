@@ -3370,6 +3370,71 @@ Neumáticos con los mismos datos — coincide con el resultado de Python
 (β=1,0345, η=505,41) redondeado. Sin errores de JavaScript de la
 aplicación.
 
+### 50. Kijima Tipo I/II — factor de restauración q por máxima verosimilitud (2026-09-17)
+
+Segundo ítem del tercer lote, elegido por el usuario. `edadVirtualEquipo`
+(sección "EDAD VIRTUAL", más arriba) ya da un proxy simple de Kijima
+comparando medianas de dos mitades de la muestra — honesto, pero no es el
+factor q real de los modelos de renovación imperfecta de Kijima (1989),
+que requieren resolver una verosimilitud no lineal. Esta sección sí lo
+hace, con los dos modelos clásicos de la literatura (ambos con V₀=0):
+**Tipo I** (ARA1): V_n = V_{n-1} + q·X_n — la reparación reduce solo el
+daño acumulado en el ÚLTIMO intervalo. **Tipo II** (ARA∞): V_n =
+q·(V_{n-1} + X_n) — la reparación reduce TODA la edad virtual acumulada.
+Ambos coinciden exactamente en los extremos (q=0 ⇒ proceso de renovación,
+"como nuevo" cada vez; q=1 ⇒ edad real sin ningún efecto de reparación) y
+solo difieren en el rango intermedio.
+
+**`logic.js`**: `kijimaEquipo(horomFallas, horomActual)`. Reusa
+`_observacionesEquipoConCensura` (extraída de `ajusteWeibullEquipoCensurado`
+de la sección anterior para no duplicar la construcción de intervalos +
+censura) y `ajusteWeibullCensurado` para fijar β/η de ese equipo (no se
+optimizan junto con q — evita sobreparametrizar con pocos datos). Cada
+intervalo aporta ln f(V_{n-1}+X_n) − ln S(V_{n-1}) a la log-verosimilitud
+(la misma idea de "vida remanente condicional" que ya usa `rulWeibull`); el
+tramo final censurado aporta ln S(V_{n-1}+X_n) − ln S(V_{n-1}) en vez de la
+densidad. q∈[0,1] se resuelve con **búsqueda de sección áurea**
+(`_seccionAureaMax`, sin derivadas, sin librería externa — a diferencia del
+β de Weibull, acá no hay una ecuación trascendente cerrada de una sola raíz
+porque V_n es recursivo). Se ajustan AMBOS tipos y se elige el de mayor
+verosimilitud. Mínimo 5 fallas reales (mismo umbral que Weibull censurado).
+
+Derivación verificada con script Python independiente: simulando procesos
+Kijima sintéticos con q y tipo conocidos (Tipo I y Tipo II, q=0/0,3/0,7/1),
+la búsqueda de sección áurea recupera el tipo correcto por verosimilitud
+en los 3 casos intermedios (en los extremos q=0/q=1 ambos tipos coinciden
+exactamente, como predice la teoría) y coincide con una búsqueda
+exhaustiva en grilla de 1000 puntos (mismo q̂, misma verosimilitud) — no es
+un óptimo local espurio de la sección áurea.
+
+6 tests nuevos en `tests/kijima.test.js` (857/857 en total): mínimo de 5
+fallas; caso calculado y verificado con Python (12 intervalos, ajuste base
+β=1,71/η=763, Tipo I q=0,00 vs Tipo II q=0,16 con mayor verosimilitud →
+elegido Tipo II); mismo caso con censura real (equipo en servicio, cambia
+el ajuste base y el q); verificación de que en el límite q=0 ambos tipos
+coinciden con log-verosimilitud idéntica; interpretación según el rango de
+q; q siempre en [0,1].
+
+**`equiposConSaludFlota`** (misma función que ya agrega `weibull` y
+`edadVirtual` por equipo): nuevo campo `kijima` — mismo horómetro de
+fallas ya usado por Weibull/Edad Virtual, sin dato nuevo.
+
+**`pred.js`**: nueva sub-vista "🔁 Kijima — Factor de Restauración" en
+Predictivo, tabla por equipo con N° fallas (+censura si aplica), β/η,
+modelo elegido, q e interpretación.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`equipos`/`correctivos`): mismos 12 intervalos ya verificados en Python —
+la vista renderiza "CN-1 · 12 · 1,71 / 763h · Tipo II · 0,16 ·
+Restauración alta", coincidiendo exactamente. Nota de proceso: la
+selección del `<select>` vía Playwright competía ocasionalmente con el
+refresco asíncrono post-login de la app (`_refrescarDatosPostLogin`, que
+puede re-renderizar la pestaña activa mientras corre `_sbLoadHeavy` en
+paralelo) — se verificó fijando el valor del selector e invocando
+`renders.pred()` directamente, el mismo código que su `onchange` ejecuta,
+sin esa carrera de temporización. Sin errores de JavaScript de la
+aplicación.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

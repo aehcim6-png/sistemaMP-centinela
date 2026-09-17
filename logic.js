@@ -1091,13 +1091,13 @@ function ajusteWeibullCensurado(observaciones){
   return{beta:Math.round(beta*100)/100,eta:Math.round(eta),n:obs.length,nFallas:r,nCensurados:obs.length-r};
 }
 
-// Versión equipo-a-equipo de ajusteWeibull, agregando la censura real: el
-// tramo abierto desde la última falla registrada hasta el horómetro
-// ACTUAL del equipo, cuando sigue en servicio sin haber vuelto a fallar
-// (mismo criterio que ya usa kaplanMeierCorrectivosPorComponente/
-// competingRisksPorEquipo, abajo, con 'eq' solo para leer horomActual —
-// nunca se inventa un horómetro si el equipo no está en la lista).
-function ajusteWeibullEquipoCensurado(horomFallas,horomActual){
+// Arma los intervalos {tiempo,censurado} de UN equipo (fallas sucesivas +
+// el tramo final abierto hasta horomActual si sigue en servicio) — mismo
+// criterio que ya usa kaplanMeierCorrectivosPorComponente/
+// competingRisksPorEquipo, extraído acá para que ajusteWeibullEquipoCensurado
+// y kijimaEquipo (2026-09-17, tarea siguiente del mismo lote) no dupliquen
+// esta construcción. Nunca se inventa un horómetro si no hay dato real.
+function _observacionesEquipoConCensura(horomFallas,horomActual){
   var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
   var obs=[];
   for(var i=1;i<validos.length;i++){
@@ -1108,7 +1108,14 @@ function ajusteWeibullEquipoCensurado(horomFallas,horomActual){
     var tCens=horomActual-validos[validos.length-1];
     if(tCens>0)obs.push({tiempo:tCens,censurado:true});
   }
-  return ajusteWeibullCensurado(obs);
+  return obs;
+}
+
+// Versión equipo-a-equipo de ajusteWeibull, agregando la censura real: el
+// tramo abierto desde la última falla registrada hasta el horómetro
+// ACTUAL del equipo, cuando sigue en servicio sin haber vuelto a fallar.
+function ajusteWeibullEquipoCensurado(horomFallas,horomActual){
+  return ajusteWeibullCensurado(_observacionesEquipoConCensura(horomFallas,horomActual));
 }
 
 // Versión de población agrupada (neumáticos por posición, componentes
@@ -1161,6 +1168,117 @@ function ajusteWeibullCorrectivosPorComponenteCensurado(eventos,eq){
     var obs=porGrupo[comp];
     return{componente:comp,n:obs.length,ajuste:ajusteWeibullCensurado(obs)};
   });
+}
+
+// ═══ KIJIMA TYPE I/II — FACTOR DE RESTAURACIÓN q POR MÁXIMA VEROSIMILITUD
+// (2026-09-17) ═══ Segundo ítem del tercer lote, elegido por el usuario.
+// edadVirtualEquipo (arriba, sección "EDAD VIRTUAL") ya da un proxy simple
+// de Kijima comparando medianas de dos mitades de la muestra — honesto,
+// pero no es el factor q real de los modelos de renovación imperfecta de
+// Kijima (1989), que requieren resolver una verosimilitud no lineal. Esta
+// sección SÍ lo hace, con los dos modelos clásicos de la literatura
+// (ambos con V_0=0):
+//   Tipo I  (ARA1): V_n = V_{n-1} + q·X_n   — la reparación reduce solo el
+//     daño acumulado en el ÚLTIMO intervalo.
+//   Tipo II (ARA∞): V_n = q·(V_{n-1} + X_n) — la reparación reduce TODA la
+//     edad virtual acumulada hasta ese momento, no solo la última.
+// q=0 en cualquiera de los dos ⇒ V_n=0 siempre (equivalente a un proceso
+// de renovación, "como nuevo" cada vez). q=1 en cualquiera de los dos ⇒
+// V_n=Σ X_i (edad real, sin ningún efecto de reparación — "como estaba").
+// Los dos modelos COINCIDEN exactamente en esos dos extremos y solo
+// difieren en el rango intermedio — verificado con datos sintéticos.
+//
+// Verosimilitud: dado un ajuste Weibull base (β/η, tomado de
+// ajusteWeibullEquipoCensurado de ESTE equipo — se fijan, no se optimizan
+// junto con q, para evitar la sobreparametrización de una optimización
+// conjunta con pocos datos), cada intervalo X_n aporta la probabilidad
+// condicional de fallar a la edad virtual V_{n-1}+X_n habiendo sobrevivido
+// hasta V_{n-1} (misma idea de "vida remanente condicional" que ya usa
+// rulWeibull): ln f(V_{n-1}+X_n) − ln S(V_{n-1}). El tramo final censurado
+// (equipo todavía en servicio) aporta ln S(V_{n-1}+X_n) − ln S(V_{n-1}) en
+// vez de la densidad — mismo principio de censura ya usado en
+// ajusteWeibullCensurado. q∈[0,1] se resuelve con búsqueda de sección
+// áurea (golden-section search, sin asumir que la verosimilitud es
+// diferenciable en forma cerrada — a diferencia del β de Weibull arriba,
+// acá no hay una ecuación trascendente simple de una sola raíz porque V_n
+// es recursivo). Se ajustan AMBOS tipos y se elige el de mayor
+// verosimilitud — no se asume de antemano cuál describe mejor a ese
+// equipo.
+//
+// Verificado con script Python independiente: simulando procesos Kijima
+// sintéticos con q y tipo conocidos (Tipo I y Tipo II, q=0/0,3/0,7/1), la
+// búsqueda de sección áurea recupera el tipo correcto por verosimilitud en
+// los 3 casos intermedios y coincide con una búsqueda exhaustiva en grilla
+// de 1000 puntos (mismo q̂, misma verosimilitud) — no es un óptimo local
+// espurio de la sección áurea.
+function _logVerosimilitudKijima(obs,beta,eta,q,tipoII){
+  var v=0,ll=0;
+  for(var i=0;i<obs.length;i++){
+    var x=obs[i].tiempo;
+    var t=v+x;
+    var lnSv=-Math.pow(v/eta,beta);
+    var lnSt=-Math.pow(t/eta,beta);
+    if(obs[i].censurado){
+      ll+=lnSt-lnSv;
+    }else{
+      var lnft=Math.log(beta)-beta*Math.log(eta)+(beta-1)*Math.log(t)-Math.pow(t/eta,beta);
+      ll+=lnft-lnSv;
+    }
+    v=tipoII?q*(v+x):v+q*x;
+  }
+  return ll;
+}
+
+// Búsqueda de sección áurea genérica para maximizar una función unimodal
+// en [lo,hi] — sin derivadas, sin librería externa (misma técnica que
+// Newton-Raphson arriba pero para cuando no hay una ecuación cerrada de la
+// derivada, como acá con la verosimilitud recursiva de Kijima).
+function _seccionAureaMax(f,lo,hi,tol){
+  tol=tol||1e-4;
+  var razon=(Math.sqrt(5)-1)/2;
+  var a=lo,b=hi;
+  var c=b-razon*(b-a),d=a+razon*(b-a);
+  var fc=f(c),fd=f(d);
+  for(var it=0;it<200&&(b-a)>tol;it++){
+    if(fc>fd){b=d;d=c;fd=fc;c=b-razon*(b-a);fc=f(c);}
+    else{a=c;c=d;fc=fd;d=a+razon*(b-a);fd=f(d);}
+  }
+  var q=(a+b)/2;
+  return{q:q,valor:f(q)};
+}
+
+// Mínimo 5 fallas reales (mismo umbral que ajusteWeibullCensurado, del que
+// depende para β/η) — con censura opcional del tramo final si el equipo
+// sigue en servicio. Devuelve null si el ajuste base no converge — nunca
+// se inventa un q sin una forma Weibull real detrás.
+function kijimaEquipo(horomFallas,horomActual){
+  var obs=_observacionesEquipoConCensura(horomFallas,horomActual);
+  var fallas=obs.filter(function(o){return!o.censurado;});
+  if(fallas.length<5)return null;
+  var ajusteBase=ajusteWeibullCensurado(obs);
+  if(!ajusteBase)return null;
+  var beta=ajusteBase.beta,eta=ajusteBase.eta;
+  function evaluarTipo(tipoII){
+    var r=_seccionAureaMax(function(q){return _logVerosimilitudKijima(obs,beta,eta,q,tipoII);},0,1);
+    return{q:Math.round(r.q*100)/100,logLik:Math.round(r.valor*1000)/1000};
+  }
+  var tipoI=evaluarTipo(false);
+  var tipoII=evaluarTipo(true);
+  var modeloElegido=tipoI.logLik>=tipoII.logLik?'I':'II';
+  var q=modeloElegido==='I'?tipoI.q:tipoII.q;
+  var interpretacion=
+    q<=0.1?'Reparaciones efectivas — el equipo vuelve prácticamente como nuevo cada vez (comportamiento cercano a un proceso de renovación)':
+    q<0.34?'Restauración alta — las reparaciones recuperan la mayor parte de la vida del equipo':
+    q<0.67?'Restauración parcial — las reparaciones tapan el síntoma pero no restauran del todo, la edad virtual se acumula':
+    q<0.9?'Restauración baja — el desgaste se acumula pese a las reparaciones':
+    'Reparación mínima — equivalente a solo reemplazar la pieza que falló, sin efecto sobre el desgaste general del equipo';
+  return{
+    beta:beta,eta:eta,
+    nFallas:fallas.length,nCensurados:obs.length-fallas.length,
+    tipoI:tipoI,tipoII:tipoII,
+    modeloElegido:modeloElegido,q:q,
+    interpretacion:interpretacion
+  };
 }
 
 // ═══ KAPLAN-MEIER — CURVA DE SUPERVIVENCIA NO PARAMÉTRICA (2026-09-16) ═══
@@ -3181,10 +3299,17 @@ function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
     // weibull arriba, ningún dato nuevo — exige más historial (7 fallas vs 6
     // de Weibull) porque acá se parte la muestra en dos mitades.
     var edadVirtual=edadVirtualEquipo(otFallasPorSigla[e.sigla]||[]);
+    // kijima (2026-09-17, tercer lote "más ambicioso" — task #84): versión
+    // rigurosa de edadVirtual, con el factor q real estimado por máxima
+    // verosimilitud (Tipo I/II, ver kijimaEquipo) en vez de la comparación
+    // de medianas de dos mitades. Mismo horómetro de fallas de arriba, sin
+    // dato nuevo — exige el mismo mínimo de 5 intervalos que Weibull
+    // censurado (del que depende internamente para β/η).
+    var kijima=kijimaEquipo(otFallasPorSigla[e.sigla]||[],e.horomActual);
     // horomActual/hrsDia (2026-09-11, pedido del usuario: más contexto en el
     // drawer de Torre de Control) — campos aditivos, ningún llamador existente
     // se rompe por no usarlos.
-    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad,hrsDia:e.hrsDia,weibull:weibull,edadVirtual:edadVirtual};
+    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad,hrsDia:e.hrsDia,weibull:weibull,edadVirtual:edadVirtual,kijima:kijima};
   });
 }
 
@@ -4235,7 +4360,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

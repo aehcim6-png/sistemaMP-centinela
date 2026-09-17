@@ -1644,6 +1644,42 @@ export function renderPred(){
       _bloquePatron('🌓 Por turno',patrones.turno,'Turno');
   }
 
+  // ═══ KIJIMA TIPO I/II — FACTOR DE RESTAURACIÓN q POR MLE (2026-09-17) ═══
+  // Segundo ítem del tercer lote "más ambicioso". Versión rigurosa de Edad
+  // Virtual (edadVirtualEquipo, comparación simple de medianas): acá q se
+  // estima por máxima verosimilitud sobre AMBOS modelos clásicos de
+  // renovación imperfecta (Tipo I y Tipo II — ver kijimaEquipo en
+  // logic.js), eligiendo el que mejor explica el historial real de ese
+  // equipo. Reusa las mismas fallas reales (esFallaMTBF) que ya arma la
+  // vista RUL de arriba.
+  if(fVista==='kijima'){
+    var otFallasKijima={};
+    ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
+      .forEach(function(o){if(o&&o.sigla&&o.horom>0)(otFallasKijima[o.sigla]=otFallasKijima[o.sigla]||[]).push(o.horom);});
+    var kijimaLista=(eq||[]).filter(function(e){return!fEq||e.sigla===fEq;}).map(function(e){
+      return{sigla:e.sigla,tipo:e.tipo,r:typeof kijimaEquipo==='function'?kijimaEquipo(otFallasKijima[e.sigla]||[],e.horomActual):null};
+    }).filter(function(x){return x.r;});
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Kijima — Factor de Restauración q (MLE)</div><div style="font-size:11px;color:var(--tx3)">¿Las reparaciones dejan al equipo como nuevo (q≈0) o el desgaste se acumula pese a ellas (q≈1)? Estimado por máxima verosimilitud sobre los dos modelos clásicos de renovación imperfecta (Tipo I y Tipo II), eligiendo el que mejor explica el historial real</div></div>'+
+      '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
+      '<div style="font-size:12px;line-height:1.6">Tipo I: la reparación reduce solo el desgaste acumulado en el último intervalo. Tipo II: la reduce sobre TODA la edad virtual acumulada. Ambos coinciden exactamente en los extremos (q=0 ⇒ como nuevo cada vez; q=1 ⇒ sin ningún efecto de reparación). Requiere ≥5 fallas reales de ese equipo — sin eso, no aparece acá (nunca se inventa un q).</div></div>'+
+      (kijimaLista.length?
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:11%">Equipo</th><th style="width:9%">N fallas</th><th style="width:9%">β / η</th><th style="width:13%">Modelo elegido</th><th style="width:10%">q</th><th style="text-align:left">Interpretación</th></tr>'+
+      kijimaLista.map(function(x){
+        var r=x.r;
+        var col=r.q<=0.1?'var(--ok)':r.q<0.67?'var(--warn)':'var(--danger)';
+        return'<tr>'+
+          '<td class="mono" style="color:var(--ac)">'+escapeHtml(x.sigla)+'</td>'+
+          '<td style="text-align:center">'+r.nFallas+(r.nCensurados?' <span style="color:var(--tx3);font-size:9px">(+'+r.nCensurados+' censura)</span>':'')+'</td>'+
+          '<td style="text-align:center;font-size:11px">'+r.beta+' / '+fn(r.eta)+'h</td>'+
+          '<td style="text-align:center">Tipo '+r.modeloElegido+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+col+'">'+r.q+'</td>'+
+          '<td style="font-size:10px;color:var(--tx2)">'+escapeHtml(r.interpretacion)+'</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin equipos con al menos 5 fallas reales todavía</p></div>');
+  }
+
   // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en
   // pausa desde el 2026-09-14 (la auditoría completa del sistema tomó
   // prioridad). Cruza 6 señales reales, ya calculadas cada una en su propia
@@ -1751,6 +1787,7 @@ $('s-pred').innerHTML=
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
     '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
     '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
+    '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
     '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
