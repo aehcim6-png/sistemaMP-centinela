@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { costoRelativoMantenimiento, costoRelativoMantenimientoFlota } from '../logic.js';
+import { costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC } from '../logic.js';
 
 describe('costoRelativoMantenimiento', () => {
   it('null sin historial (arreglo vacío)', () => {
@@ -99,5 +99,75 @@ describe('costoRelativoMantenimientoFlota', () => {
 
   it('arreglo vacío sin equipos ni historial', () => {
     expect(costoRelativoMantenimientoFlota([], [])).toEqual([]);
+  });
+});
+
+describe('_concentracionMaximaOC', () => {
+  it('null con menos de 3 líneas válidas', () => {
+    expect(_concentracionMaximaOC([{ costo: 1000 }])).toBeNull();
+    expect(_concentracionMaximaOC([{ costo: 1000 }, { costo: 900 }])).toBeNull();
+    expect(_concentracionMaximaOC([])).toBeNull();
+    expect(_concentracionMaximaOC(null)).toBeNull();
+  });
+
+  it('null cuando la línea más grande no llega al 50% del total', () => {
+    // 3 líneas parejas, ninguna domina
+    const oc = [{ costo: 1000 }, { costo: 1200 }, { costo: 900 }];
+    expect(_concentracionMaximaOC(oc)).toBeNull();
+  });
+
+  it('caso real replicado (CN-9502, antes de corregir el error de tipeo): 91x el precio normal del mismo ítem -> 97,9% de concentración', () => {
+    // Mismos 3 números reales encontrados en ordenes_compra_historico antes
+    // de la corrección: 2 compras normales de "Mts. Flexible 3/4 R2 9850" a
+    // $139.997 c/u, y 1 con error de tipeo a $12.791.624 (19x ese precio
+    // unitario, pero acá ya viene como costo de línea).
+    const oc = [
+      { detalle: 'Mts. Flexible 3/4 R2 9850', fecha: '2022-01-01', costo: 139997 },
+      { detalle: 'Mts. Flexible 3/4 R2 9850', fecha: '2022-06-01', costo: 139997 },
+      { detalle: 'Mts. Flexible 3/4 R2 9850', fecha: '2023-10-19', costo: 12791624 },
+    ];
+    const r = _concentracionMaximaOC(oc);
+    expect(r).not.toBeNull();
+    expect(r.detalle).toBe('Mts. Flexible 3/4 R2 9850');
+    expect(r.fecha).toBe('2023-10-19');
+    expect(r.costo).toBe(12791624);
+    expect(r.pctDelTotal).toBeCloseTo(97.9, 1);
+  });
+
+  it('no marca como sospechosa una concentración real y legítima (reparación grande real, ~35%, con historial largo)', () => {
+    // Réplica de un caso real de la flota: una reparación grande genuina
+    // (motor/componente mayor) puede ser ~35% del gasto histórico de un
+    // equipo con muchas líneas de repuestos chicos alrededor — no debe
+    // marcarse como "línea sospechosa" solo por ser la más grande.
+    const oc = [{ costo: 176635833 }];
+    for (let i = 0; i < 50; i++) oc.push({ costo: 6500000 }); // 50 x 6.5M = 325M, total 501.6M, max/total ≈ 35.2%
+    const r = _concentracionMaximaOC(oc);
+    expect(r).toBeNull();
+  });
+
+  it('ignora líneas sin costo positivo', () => {
+    const oc = [{ costo: 1000 }, { costo: 0 }, { costo: null }, { costo: 900 }, { costo: 1100 }];
+    // de las válidas (1000,900,1100), ninguna llega al 50% del total (3000)
+    expect(_concentracionMaximaOC(oc)).toBeNull();
+  });
+});
+
+describe('costoRelativoMantenimiento — integración con concentracionMaxima', () => {
+  it('incluye concentracionMaxima cuando una sola línea domina el gasto del equipo', () => {
+    const oc = [
+      { fecha: '2022-01-01', detalle: 'Mts. Flexible 3/4 R2 9850', costo: 139997 },
+      { fecha: '2022-06-01', detalle: 'Mts. Flexible 3/4 R2 9850', costo: 139997 },
+      { fecha: '2023-10-19', detalle: 'Mts. Flexible 3/4 R2 9850', costo: 12791624 },
+    ];
+    const r = costoRelativoMantenimiento(oc, 783090000);
+    expect(r).not.toBeNull();
+    expect(r.concentracionMaxima).toBeDefined();
+    expect(r.concentracionMaxima.pctDelTotal).toBeCloseTo(97.9, 1);
+  });
+
+  it('NO incluye concentracionMaxima en el caso normal ya cubierto arriba (gasto parejo)', () => {
+    const oc = [{ fecha: '2023-01-01', costo: 40000 }, { fecha: '2024-01-01', costo: 60000 }];
+    const r = costoRelativoMantenimiento(oc, 1000000);
+    expect(r.concentracionMaxima).toBeUndefined();
   });
 });

@@ -877,7 +877,40 @@ function costoRelativoMantenimiento(ocEquipo, valorCompra, opts){
   var gastoTotal=conFecha.reduce(function(s,o){return s+(o.costo||0);},0);
   var gastoAnual=gastoTotal/(dias/365);
   var pct=Math.round((gastoAnual/valorCompra)*1000)/10;
-  return{gastoTotal:Math.round(gastoTotal),gastoAnual:Math.round(gastoAnual),diasHistorial:Math.round(dias),pct:pct};
+  var r={gastoTotal:Math.round(gastoTotal),gastoAnual:Math.round(gastoAnual),diasHistorial:Math.round(dias),pct:pct};
+  var concentracion=_concentracionMaximaOC(conFecha);
+  if(concentracion)r.concentracionMaxima=concentracion;
+  return r;
+}
+
+// ═══ CONCENTRACIÓN MÁXIMA EN UNA SOLA LÍNEA DE OC (2026-09-17) ═══ Caso
+// real encontrado por el usuario: una sola línea con error de tipeo en
+// precioUnit ($12.791.624 contra $139.997 de las otras 2 compras del mismo
+// ítem — 91 veces más) infló el gasto histórico de un equipo en +$2.500M,
+// llevando su Costo Relativo de 4,7% real a un 83,6% falso.
+// ordenesSinOutliers (más arriba) no lo detecta en este caso puntual porque
+// exige ≥5 compras comparables del mismo ítem para calcular una mediana
+// confiable, y acá solo había 3 — esta función es un chequeo complementario
+// e independiente: sin comparar contra el precio "normal" de ese ítem
+// (que puede no tener suficientes comparables), simplemente avisa cuando
+// UNA sola línea explica una fracción desproporcionada del gasto TOTAL de
+// ESE equipo — la misma señal que hubiera hecho evidente el error real de
+// tipeo con solo mirar la tabla. Umbral 50% elegido con los datos reales de
+// la flota: varias reparaciones grandes legítimas (motor/componente mayor,
+// compartidas por varios camiones del mismo modelo) llegan a ~35% de
+// concentración con historiales largos (n de hasta 750 líneas) sin ser un
+// error — 50% separa claramente esos casos reales de los que sí resultaron
+// ser errores de tipeo (91%, 94%, 98% en los casos reales encontrados).
+// Mínimo 3 líneas (con 1-2, "una línea domina el total" no dice nada).
+function _concentracionMaximaOC(ocEquipo){
+  var validas=(ocEquipo||[]).filter(function(o){return o&&o.costo>0;});
+  if(validas.length<3)return null;
+  var total=validas.reduce(function(s,o){return s+o.costo;},0);
+  if(!(total>0))return null;
+  var maxLinea=validas.reduce(function(m,o){return o.costo>m.costo?o:m;});
+  var pct=maxLinea.costo/total;
+  if(pct<0.5)return null;
+  return{detalle:maxLinea.detalle||null,fecha:maxLinea.fecha||null,costo:Math.round(maxLinea.costo),pctDelTotal:Math.round(pct*1000)/10};
 }
 
 // Versión de flota: agrupa el histórico de OC por sigla y calcula
@@ -4584,7 +4617,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,

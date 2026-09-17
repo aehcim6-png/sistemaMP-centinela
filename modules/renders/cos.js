@@ -265,15 +265,20 @@ export function renderCos() {
         '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Tipo</th><th>Valor Compra</th><th>Gasto Repuestos (histórico)</th><th>Gasto Anualizado</th><th>Días Historial</th><th>% Anual</th></tr>' +
         crm.map(function (r) {
           var col = r.pct >= 15 ? 'var(--danger)' : r.pct >= 7 ? 'var(--w)' : 'var(--ok)';
+          var c = r.concentracionMaxima;
+          var aviso = c ? (' <span title="' + escapeHtml('Revisar: una sola línea de OC (' + (c.detalle || 'sin detalle') + ', ' + (c.fecha || '') + ') explica el ' + c.pctDelTotal + '% del gasto histórico de este equipo — puede ser un error de tipeo real, como el que ya se corrigió en CN-9502.') + '" style="cursor:help;color:var(--danger)">⚠️</span>') : '';
           return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(r.sigla) + '</td>' +
             '<td style="font-size:11px">' + escapeHtml(r.tipo || '') + '</td>' +
             '<td class="mono" style="font-size:11px">$' + fn(r.valorCompra) + '</td>' +
             '<td class="mono" style="font-size:11px">$' + fn(r.gastoTotal) + '</td>' +
             '<td class="mono" style="font-size:11px">$' + fn(r.gastoAnual) + '</td>' +
             '<td style="text-align:center;font-size:11px;color:var(--tx3)">' + r.diasHistorial + '</td>' +
-            '<td style="text-align:center;font-weight:700;color:' + col + '">' + r.pct + '%</td></tr>';
+            '<td style="text-align:center;font-weight:700;color:' + col + '">' + r.pct + '%' + aviso + '</td></tr>';
         }).join('') +
-        '</table></div>'
+        '</table></div>' +
+        (crm.some(function (r) { return r.concentracionMaxima; }) ?
+          '<div style="font-size:10px;color:var(--tx3);margin-top:4px">⚠️ = una sola línea de Orden de Compra explica ≥50% del gasto histórico de ese equipo — pasá el mouse para ver cuál. No siempre es un error (una reparación grande real puede concentrar gasto), pero conviene revisarla — así se encontró el error de tipeo real corregido en CN-9502 (19-10-2023, $12.791.624 declarado contra $139.997 de las otras compras del mismo ítem).</div>'
+          : '')
         : '<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo cumple los dos requisitos a la vez: valorCompra real cargado y ≥90 días de historial de Órdenes de Compra.</div>') +
       '</div>';
   }

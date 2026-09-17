@@ -3635,6 +3635,64 @@ de sobre-ingeniería sin una librería estadística real) y Value of
 Information (bloqueado por falta de dato real de costo de falla, igual
 que Edad de Reemplazo Óptima).
 
+### 54. Corrección de dato real + aviso de concentración de gasto en Costo Relativo de Mantenimiento (2026-09-17)
+
+El usuario reportó que el Costo Relativo de Mantenimiento de CN-9502
+(pestaña Stock & Insumos → Costos → 💰 Costo Relativo de Mantenimiento) no
+podía ser real (83,6% anual). Investigación con SQL directo contra
+`ordenes_compra_historico` (proyecto real `jyhpfwivhwzylkzxrsbt`) encontró
+la causa exacta: una línea del 19-10-2023 ("Mts. Flexible 3/4 R2 9850",
+`precioUnit`=$12.791.624) tenía un error de tipeo real — las otras 2 veces
+que se compró el mismo ítem en toda la base costó $139.997 (91 veces
+menos). Esa única línea era el 94% del gasto histórico total atribuido a
+CN-9502. `ordenesSinOutliers` (el filtro de outliers ya existente, usado
+en otras vistas) no lo detectaba porque exige ≥5 compras comparables del
+mismo ítem para calcular una mediana confiable, y acá había solo 3.
+
+**Corrección de dato real**: se corrigió la fila real en
+`ordenes_compra_historico` (`precioUnit` 12.791.624→139.997, `costo`
+recalculado a 19×139.997=2.659.943, mismo precio que las otras 2 compras
+del mismo ítem — no un valor inventado, el mismo dato que ya existía 2
+veces en la base). CN-9502 pasa de 83,6%/año (falso) a 4,7%/año (real,
+verificado independientemente con SQL antes y después del cambio).
+
+**`logic.js`**: `_concentracionMaximaOC(ocEquipo)` — chequeo
+complementario e independiente de `ordenesSinOutliers`: sin comparar
+contra el precio "normal" de un ítem (que puede no tener suficientes
+comparables, como en este caso real), simplemente avisa cuando UNA sola
+línea explica una fracción desproporcionada (≥50%) del gasto TOTAL
+histórico de ESE equipo — la misma señal que hubiera hecho evidente el
+error real con solo mirar la tabla. Umbral de 50% elegido con los datos
+reales de TODA la flota (no arbitrario): varias reparaciones grandes
+legítimas (motor/componente mayor, mismo precio compartido por varios
+camiones del mismo modelo) llegan a ~35% de concentración con historiales
+largos (hasta 750 líneas) sin ser un error — 50% separa esos casos
+reales de los que sí resultaron errores de tipeo (91%, 94%, 98% en los
+casos reales encontrados al revisar la flota completa). Mínimo 3 líneas
+válidas. Integrado como campo `concentracionMaxima` en el resultado de
+`costoRelativoMantenimiento` (ausente cuando no aplica — no forzado a
+`null` explícito para no ensuciar el objeto en el caso normal).
+
+10 tests nuevos en `tests/costoRelativoMantenimiento.test.js` (892/892 en
+total): mínimo de 3 líneas; sin concentración cuando el gasto es parejo;
+el caso real de CN-9502 replicado exacto (97,9% con los mismos 3 números
+reales); una concentración real y legítima (~35%, historial largo) NO se
+marca como sospechosa; líneas sin costo positivo se ignoran; integración
+con `costoRelativoMantenimiento` (el campo aparece solo cuando aplica).
+
+**`cos.js`**: ícono ⚠️ junto al % Anual cuando `concentracionMaxima` está
+presente, con tooltip (detalle del ítem, fecha, % del total) al pasar el
+mouse, más una nota explicativa debajo de la tabla que menciona el caso
+real de CN-9502 ya corregido como referencia. No bloquea ni oculta el
+dato — es una señal para revisar, nunca una decisión automática (mismo
+principio que el resto de las señales de esta sesión).
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`equipos`/`ordenes_compra_historico`) con un caso sintético de
+concentración: el ⚠️ aparece junto al % Anual con el tooltip correcto y la
+nota explicativa se muestra bajo la tabla. Sin errores de JavaScript de
+la aplicación.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -2053,6 +2053,34 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   estadística real) y Value of Information (bloqueado por falta de dato real de costo de falla,
   igual que Edad de Reemplazo Óptima).</p>
 
+  <h3>54. Corrección de dato real + aviso de concentración de gasto en Costo Relativo de Mantenimiento (2026-09-17)</h3>
+  <p>El usuario reportó que el Costo Relativo de Mantenimiento de CN-9502 (83,6% anual) no podía ser
+  real. Investigación con SQL directo contra <code>ordenes_compra_historico</code> encontró la causa
+  exacta: una línea del 19-10-2023 ("Mts. Flexible 3/4 R2 9850", precioUnit=$12.791.624) tenía un
+  error de tipeo real — las otras 2 veces que se compró el mismo ítem costó $139.997 (91 veces
+  menos). Esa única línea era el 94% del gasto histórico atribuido a CN-9502.
+  <code>ordenesSinOutliers</code> (el filtro de outliers ya existente) no lo detectaba porque exige
+  ≥5 compras comparables del mismo ítem, y acá había solo 3.</p>
+  <p><b>Corrección de dato real:</b> se corrigió la fila real (precioUnit 12.791.624→139.997, costo
+  recalculado a 19×139.997=2.659.943, el mismo precio que las otras 2 compras del mismo ítem — no
+  un valor inventado). CN-9502 pasa de 83,6%/año (falso) a 4,7%/año (real, verificado
+  independientemente con SQL antes y después).</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> <code>_concentracionMaximaOC(ocEquipo)</code> — avisa
+  cuando UNA sola línea explica ≥50% del gasto total histórico de un equipo. Umbral elegido con
+  datos reales de toda la flota: reparaciones grandes legítimas llegan a ~35% de concentración con
+  historiales largos sin ser un error — 50% separa esos casos de los que sí resultaron errores de
+  tipeo (91%, 94%, 98% en los casos reales encontrados). Integrado como campo
+  <code>concentracionMaxima</code> en <code>costoRelativoMantenimiento</code>.</p>
+  <p>10 tests nuevos en <code>tests/costoRelativoMantenimiento.test.js</code> (892/892 en total): el
+  caso real de CN-9502 replicado exacto (97,9%); una concentración real y legítima (~35%) NO se
+  marca como sospechosa; integración con la función existente.</p>
+  <p><b>Cambios en <code>cos.js</code>:</b> ícono ⚠️ junto al % Anual con tooltip (ítem, fecha, % del
+  total), más una nota explicativa bajo la tabla. No bloquea ni oculta el dato — es una señal para
+  revisar, nunca una decisión automática.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>equipos</code>/<code>ordenes_compra_historico</code>): el ⚠️ aparece con el tooltip correcto
+  y la nota se muestra bajo la tabla. Sin errores de JavaScript.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
