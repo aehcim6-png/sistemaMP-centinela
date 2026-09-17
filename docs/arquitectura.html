@@ -1950,6 +1950,37 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   renderizan "CN-1 · 12 · 1,71/763h · Tipo II · 0,16 · Restauración alta", exacto. Sin errores de
   JavaScript.</p>
 
+  <h3>51. Mantenimiento Oportunista Multi-Componente (2026-09-17)</h3>
+  <p>Tercer ítem del tercer lote. Si un equipo va a parar igual porque un componente está por
+  fallar, conviene aprovechar esa MISMA parada para adelantar el cambio de otros componentes que ya
+  están cerca de su propio fin de vida — evita una segunda parada independiente para lo mismo
+  dentro de poco. Reusa el RUL híbrido ya construido (<code>rulHibridoPorComponente</code>), sin
+  medición nueva.</p>
+  <p>El "ahorro" NO asume un costo de falla inventado (Cf sigue bloqueado — Edad de Reemplazo
+  Óptima y Value of Information ya quedaron declarados bloqueados por esta misma razón). Es más
+  acotado y sí 100% real: el costo de MANO DE OBRA de una parada adicional que se evita — duración
+  real mediana de intervención (<code>duracionesReparacionFlotaHoras</code>, ya usada por el Monte
+  Carlo de disponibilidad) × tarifa HH real configurada (<code>tarifa_hh</code>, ya usada en todo
+  el resto de la app). El horizonte de "cuán cerca es cerca" usa <code>frecPM</code> del propio
+  equipo (su ciclo real de PM), no un umbral arbitrario nuevo.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> <code>oportunidadMantenimiento(componentesEquipo,
+  horizonHoras, ahorroPorStop)</code> — evalúa un equipo: el componente de menor RUL efectivo
+  "dispara", cualquier otro dentro del horizonte se marca candidato (requiere ≥2 componentes con
+  RUL real). <code>oportunidadesMantenimientoFlota(rulLista, eq, ot, tarifaHH)</code> — agrupa por
+  equipo con su propio <code>frecPM</code> real; sin duración mediana real o tarifa configurada
+  devuelve <code>[]</code>; equipos sin <code>frecPM</code> se omiten.</p>
+  <p>10 tests nuevos en <code>tests/oportunidadMantenimiento.test.js</code> (867/867 en total):
+  mínimo de 2 componentes; sin horizonte real devuelve null; caso calculado a mano (dispara/entra/no
+  entra); varios candidatos suman ahorro; usa el RUL ajustado por aceite, no el base; sin
+  duración/tarifa reales devuelve <code>[]</code>; equipos sin <code>frecPM</code> se omiten; caso
+  end-to-end con duración mediana real; orden por cantidad de candidatos.</p>
+  <p><b>Cambios en <code>pred.js</code>:</b> nueva sub-vista "🧰 Mantenimiento Oportunista".</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>equipos</code>/<code>correctivos</code>), cruzado con Python: Motor β=11,46/η=519,
+  edad=500→B10=6,6h; Frenos β=17,33/η=528, edad=400→B10=65,7h; diferencia=59,1h (dentro de
+  frecPM=250) → candidato; ahorro=mediana(11×6h,11×8h)=7h×25.000=$175.000. La vista renderiza
+  "CN-1 · Motor (7h) · Frenos (+59h) · $175.000", exacto. Sin errores de JavaScript.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

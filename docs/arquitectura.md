@@ -3435,6 +3435,72 @@ paralelo) — se verificó fijando el valor del selector e invocando
 sin esa carrera de temporización. Sin errores de JavaScript de la
 aplicación.
 
+### 51. Mantenimiento Oportunista Multi-Componente (2026-09-17)
+
+Tercer ítem del tercer lote. Idea real de mantenimiento oportunista
+(estándar de la industria — "group maintenance under opportunities"): si un
+equipo va a parar igual porque un componente está por fallar, conviene
+aprovechar esa MISMA parada para adelantar el cambio de otros componentes
+que ya están cerca de su propio fin de vida — evita una segunda parada
+independiente para lo mismo dentro de poco. Reusa el RUL híbrido ya
+construido (`rulHibridoPorComponente`) — ninguna medición nueva, solo se
+cruza contra sí mismo por equipo.
+
+El "ahorro" NO asume un costo de falla inventado (Cf sigue bloqueado por
+falta de dato real — Edad de Reemplazo Óptima y Value of Information ya
+quedaron declarados bloqueados por esta misma razón). Es más acotado y sí
+100% real: el costo de MANO DE OBRA de una parada de mantenimiento
+adicional que se evita — duración real mediana de una intervención
+(`duracionesReparacionFlotaHoras`, ya existente, usada por el Monte Carlo
+de disponibilidad) × tarifa HH real configurada (`tarifa_hh`, ya usada en
+`kpi.js`/`metas.js`/`dash.js`/etc. para costos de mano de obra en todo el
+resto de la app). Ninguno de los dos números se inventa para esta
+función — ambos ya existían con otro propósito.
+
+El horizonte de "cuán cerca es cerca" para agrupar NO es un umbral
+arbitrario nuevo: se usa `frecPM` del propio equipo (cada cuánto se
+planifica su mantenimiento real) — si a otro componente le queda más de un
+ciclo de PM de vida remanente respecto al que dispara la parada, todavía
+falta demasiado para que valga la pena adelantarlo.
+
+**`logic.js`**: dos funciones nuevas.
+- `oportunidadMantenimiento(componentesEquipo, horizonHoras, ahorroPorStop)`
+  — evalúa UN equipo: ordena sus componentes por RUL efectivo (el mismo
+  B10 ajustado por aceite que ya usa la vista RUL cuando hay aceleración
+  detectada), el de menor RUL "dispara", cualquier otro dentro del
+  horizonte se marca candidato. Requiere ≥2 componentes con RUL real —
+  devuelve `null` si no hay nada que agrupar o ninguno cae dentro del
+  horizonte.
+- `oportunidadesMantenimientoFlota(rulLista, eq, ot, tarifaHH)` — agrupa
+  por equipo y evalúa cada uno con su propio `frecPM` real. Sin duración
+  mediana real o sin tarifa configurada (>0), devuelve `[]`; equipos sin
+  `frecPM` real se omiten (sin ese dato no hay horizonte real de
+  planificación).
+
+10 tests nuevos en `tests/oportunidadMantenimiento.test.js` (867/867 en
+total): mínimo de 2 componentes con RUL; sin horizonte real devuelve null;
+caso calculado a mano (Motor dispara, Frenos dentro del horizonte entra,
+Neumático fuera del horizonte no entra); varios candidatos suman el
+ahorro; usa el RUL AJUSTADO por aceite cuando está disponible, no el
+base; sin duración real o sin tarifa configurada devuelve `[]`; equipos
+sin `frecPM` se omiten; caso end-to-end con duración mediana real
+calculada a mano; orden por cantidad de candidatos.
+
+**`pred.js`**: nueva sub-vista "🧰 Mantenimiento Oportunista" en
+Predictivo — tabla por equipo con el componente que dispara la parada, los
+candidatos a adelantar (con la diferencia de horas) y el ahorro estimado.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`equipos`/`correctivos`): con 2 componentes reales por equipo (Motor y
+Frenos, con horómetros e intervalos sintéticos), verificado
+independientemente con Python (misma regresión de rango mediano ya
+verificada en sesiones anteriores) — Motor: β=11,46/η=519,
+edadActual=500 → B10=6,6h; Frenos: β=17,33/η=528, edadActual=400 →
+B10=65,7h; diferencia=59,1h (dentro del frecPM=250 real) → Frenos
+candidato; ahorro = mediana(11×6h,11×8h)=7h × tarifa 25.000 = $175.000. La
+vista renderiza "CN-1 · Motor (7h) · Frenos (+59h) · $175.000",
+coincidiendo exactamente. Sin errores de JavaScript de la aplicación.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

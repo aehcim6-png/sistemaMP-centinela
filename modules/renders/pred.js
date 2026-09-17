@@ -1680,6 +1680,47 @@ export function renderPred(){
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin equipos con al menos 5 fallas reales todavía</p></div>');
   }
 
+  // ═══ MANTENIMIENTO OPORTUNISTA MULTI-COMPONENTE (2026-09-17) ═══ Tercer
+  // ítem del tercer lote. Reusa el mismo RUL híbrido por componente que ya
+  // arma la vista RUL de arriba — solo pregunta, para cada equipo, si algún
+  // OTRO componente le queda una vida remanente parecida a la del que va a
+  // fallar primero (dentro de su propio ciclo de PM real), para adelantar
+  // ambos cambios en la misma parada. El "ahorro" es solo mano de obra de
+  // una parada evitada (duración real mediana × tarifa HH real) — nunca un
+  // costo de falla inventado. Ver oportunidadesMantenimientoFlota (logic.js).
+  if(fVista==='oportunista'){
+    var eventosOport=ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
+      .map(function(o){
+        var comp=(o.componente&&o.componente.trim())||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma):'');
+        return{sigla:o.sigla,componente:comp||'',horom:o.horom};
+      });
+    var aceiteOport=S.g('aceite')||[];
+    if(aceiteOport.length&&typeof window._aceiteResolverSiglas==='function')window._aceiteResolverSiglas(aceiteOport);
+    var rulListaOport=(typeof rulHibridoPorComponente==='function'?rulHibridoPorComponente(eventosOport,eq,aceiteOport):[]);
+    var otConHistOport=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
+    var tarifaHHOport=S.g('hh')||0;
+    var oportunidades=(typeof oportunidadesMantenimientoFlota==='function'?oportunidadesMantenimientoFlota(rulListaOport,eq,otConHistOport,tarifaHHOport):[])
+      .filter(function(o){return!fEq||o.sigla===fEq;});
+    var ahorroTotalOport=oportunidades.reduce(function(s,o){return s+o.ahorroEstimado;},0);
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Mantenimiento Oportunista Multi-Componente</div><div style="font-size:11px;color:var(--tx3)">¿Ya que el equipo va a parar por un componente, conviene adelantar el cambio de otro que igual le queda poca vida?</div></div>'+
+      '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
+      '<div style="font-size:12px;line-height:1.6">Por equipo: el componente con menor RUL (B10/B50 híbrido, mismo dato que la vista RUL) "dispara" la parada. Cualquier OTRO componente con RUL dentro de un ciclo de PM real de ese equipo (frecPM) se marca como candidato a adelantar. Ahorro estimado = 1 parada de mano de obra evitada por candidato (duración real mediana de intervención × tarifa HH configurada) — no incluye el costo de los repuestos en sí, ni ningún supuesto de costo de falla.'+
+      (ahorroTotalOport?' <b style="color:var(--ok)">Ahorro potencial total: $'+fn(ahorroTotalOport)+'.</b>':'')+
+      '</div></div>'+
+      (oportunidades.length?
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:11%">Equipo</th><th style="text-align:left;width:20%">Dispara la parada</th><th style="text-align:left">Candidatos a adelantar</th><th style="width:14%">Ahorro estimado</th></tr>'+
+      oportunidades.map(function(o){
+        return'<tr>'+
+          '<td class="mono" style="color:var(--ac)">'+escapeHtml(o.sigla)+'</td>'+
+          '<td style="font-size:11px">'+escapeHtml(o.disparador.componente)+' <span style="color:var(--tx3)">('+fn(o.disparador.rul)+'h)</span></td>'+
+          '<td style="font-size:10px;color:var(--tx2)">'+o.candidatos.map(function(c){return escapeHtml(c.componente)+' (+'+fn(c.diferenciaHoras)+'h)';}).join(' · ')+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:var(--ok)">$'+fn(o.ahorroEstimado)+'</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin oportunidades de agrupar detectadas todavía (requiere ≥2 componentes con RUL real por equipo, frecPM configurado, y duración/tarifa real de intervención)</p></div>');
+  }
+
   // ═══ SEÑAL UNIFICADA DE REEMPLAZO — 2026-09-16, retomada tras quedar en
   // pausa desde el 2026-09-14 (la auditoría completa del sistema tomó
   // prioridad). Cruza 6 señales reales, ya calculadas cada una en su propia
@@ -1788,6 +1829,7 @@ $('s-pred').innerHTML=
     '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
     '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
     '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
+    '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
     '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+

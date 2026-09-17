@@ -2332,6 +2332,82 @@ function rulHibridoPorComponente(eventos,eq,ace){
   return resultado.sort(function(a,b){return(a.b10Ajustado!=null?a.b10Ajustado:a.b10)-(b.b10Ajustado!=null?b.b10Ajustado:b.b10);});
 }
 
+// ═══ MANTENIMIENTO OPORTUNISTA MULTI-COMPONENTE (2026-09-17) ═══ Tercer
+// ítem del tercer lote. Idea real de mantenimiento oportunista (estándar de
+// la industria — "group maintenance under opportunities"): si un equipo va
+// a parar igual porque un componente está por fallar, conviene aprovechar
+// esa MISMA parada para adelantar el cambio de otros componentes que ya
+// están cerca de su propio fin de vida — evita una segunda parada
+// independiente para lo mismo dentro de poco. Reusa el RUL híbrido ya
+// construido (rulHibridoPorComponente) — ninguna medición nueva, solo se
+// cruza contra sí mismo por equipo.
+//
+// El "ahorro" NO asume un costo de falla inventado (Cf sigue bloqueado por
+// falta de dato real — ver Edad de Reemplazo Óptima/VoI, ambos declarados
+// bloqueados esta sesión). Es más acotado y sí 100% real: el costo de
+// MANO DE OBRA de una parada de mantenimiento adicional que se evita —
+// duración real mediana de una intervención (duracionesReparacionFlotaHoras,
+// ya existente) × tarifa HH real configurada (tarifa_hh, ya usada en todo
+// el resto de la app para costos de mano de obra: kpi.js, metas.js, etc.).
+// Ninguno de los dos números se inventa para esta función — ambos ya
+// existían con otro propósito.
+//
+// El horizonte de "cuán cerca es cerca" para bundlear NO es un umbral
+// arbitrario nuevo: se usa frecPM del propio equipo (cada cuánto se
+// planifica su mantenimiento real) — si otro componente le queda más de un
+// ciclo de PM de vida remanente respecto al que dispara la parada, todavía
+// falta demasiado para que valga la pena adelantarlo.
+function _rulEfectivoComponente(r){return r&&(r.b10Ajustado!=null?r.b10Ajustado:r.b10);}
+
+// Evalúa UN equipo a la vez: 'componentesEquipo' es el subconjunto de
+// rulHibridoPorComponente para ESE equipo (mismo sigla). Requiere al menos
+// 2 componentes con RUL real — con solo 1 no hay nada que agrupar.
+// Devuelve null si ninguno cae dentro del horizonte del que dispara la
+// parada (el que tiene el RUL más bajo).
+function oportunidadMantenimiento(componentesEquipo,horizonHoras,ahorroPorStop){
+  var validos=(componentesEquipo||[]).filter(function(c){return c&&c.componente&&_rulEfectivoComponente(c)!=null&&_rulEfectivoComponente(c)>=0;});
+  if(validos.length<2||!(horizonHoras>0))return null;
+  var ordenados=validos.slice().sort(function(a,b){return _rulEfectivoComponente(a)-_rulEfectivoComponente(b);});
+  var disparador=ordenados[0];
+  var rulDisparador=_rulEfectivoComponente(disparador);
+  var candidatos=ordenados.slice(1).filter(function(c){return _rulEfectivoComponente(c)-rulDisparador<=horizonHoras;});
+  if(!candidatos.length)return null;
+  return{
+    disparador:{componente:disparador.componente,rul:Math.round(rulDisparador)},
+    candidatos:candidatos.map(function(c){return{componente:c.componente,rul:Math.round(_rulEfectivoComponente(c)),diferenciaHoras:Math.round(_rulEfectivoComponente(c)-rulDisparador)};}),
+    nCandidatos:candidatos.length,
+    ahorroEstimado:Math.round(candidatos.length*(ahorroPorStop||0))
+  };
+}
+
+// Versión a nivel FLOTA: agrupa rulHibridoPorComponente por equipo y evalúa
+// cada uno con su propio frecPM real como horizonte. 'ot' se usa solo para
+// la duración mediana real de intervención (duracionesReparacionFlotaHoras)
+// — el mismo insumo que ya usa el Monte Carlo de disponibilidad. 'tarifaHH'
+// es el valor real configurado (tarifa_hh) — se recibe como parámetro
+// porque este archivo no lee la store directamente. Sin duración mediana
+// real o sin tarifa configurada (>0), devuelve [] — nunca se inventa un
+// ahorro con datos faltantes. Equipos sin frecPM real (>0) se omiten: sin
+// ese dato no hay horizonte real de planificación para decidir "qué tan
+// cerca es cerca".
+function oportunidadesMantenimientoFlota(rulLista,eq,ot,tarifaHH){
+  var medianaDuracion=medianaPositiva(duracionesReparacionFlotaHoras(ot));
+  if(medianaDuracion==null||!(tarifaHH>0))return[];
+  var ahorroPorStop=medianaDuracion*tarifaHH;
+  var eqPorSigla={};
+  (eq||[]).forEach(function(e){if(e&&e.sigla)eqPorSigla[e.sigla]=e;});
+  var porSigla={};
+  (rulLista||[]).forEach(function(r){if(r&&r.sigla)(porSigla[r.sigla]=porSigla[r.sigla]||[]).push(r);});
+  var resultado=[];
+  Object.keys(porSigla).sort().forEach(function(sigla){
+    var eObj=eqPorSigla[sigla];
+    if(!eObj||!(eObj.frecPM>0))return;
+    var op=oportunidadMantenimiento(porSigla[sigla],eObj.frecPM,ahorroPorStop);
+    if(op)resultado.push(Object.assign({sigla:sigla},op));
+  });
+  return resultado.sort(function(a,b){return b.nCandidatos-a.nCandidatos||b.ahorroEstimado-a.ahorroEstimado;});
+}
+
 // ═══ PREDICTIVO (2026-07) — estadísticas en vivo desde ordenes_compra_historico ═══
 // Extraído de index.html/computePred() para poder testearlo sin arrancar la app.
 // leadTime queda fijo en 34 días porque el histórico real no trae fecha de entrega —
@@ -4360,7 +4436,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
