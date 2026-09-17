@@ -431,6 +431,48 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Empresa" ni "Descargar Plantilla Limpia" (Configuración) alcanzan solos para eso, esa guía
   explica por qué y el proceso real completo.</p>
 
+  <h2>8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</h2>
+  <p>15 herramientas nuevas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de Criticidad Dinámica, CUSUM
+  de aceite, RUL híbrido, Competing Risks, Matriz de Criticidad de Repuestos, Índice de
+  Efectividad del Mantenimiento, Patrones Ocultos de Falla, Weibull con censura/MLE, Kijima
+  Tipo I/II, Mantenimiento Oportunista, Simulador What-If y GRP — ver
+  <a href="arquitectura.html">Arquitectura</a>, secciones 38 a 53). Ninguna necesita
+  configuración propia ni una tabla nueva: todas se calculan en el navegador a partir de datos
+  que ya existen (<code>correctivos</code>, <code>analisis_aceite</code>, órdenes de compra,
+  stock), y se activan solas cuando hay suficiente historial real (mínimo 5-7 fallas según la
+  herramienta) — con menos, la vista lo dice explícitamente en vez de mostrar un número
+  inventado. Lo único que vale la pena revisar como admin, porque varias de estas herramientas
+  rinden más (o no aparecen del todo) sin esos datos bien cargados:</p>
+  <ul>
+    <li><b><code>correctivos.costo</code></b> sigue en $0 en prácticamente el 100% de los
+    registros reales — bloquea de raíz Edad de Reemplazo Óptima, el MDP de reemplazo y Value of
+    Information (descartados, no implementados), y limita la cobertura del checkbox
+    "💰 Carga de costos pendiente" (Correctivos) y de "Costo sugerido por cruce OT↔OC". Cargar
+    el costo real al cerrar una OT (el sistema avisa, sin bloquear, si queda en $0) es la única
+    palanca real que tiene el equipo de terreno para esto.</li>
+    <li><b><code>configuracion.presupuestoMensual</code></b> (Costos → Presupuesto vs Real) — sin
+    este valor, la Matriz de Riesgo no aplica el piso absoluto de Impacto (un riesgo barato en
+    términos reales podría pintar "Extremo" solo por ser el más caro del día) y Presupuesto
+    Prorrateado no tiene contra qué prorratear el mes en curso.</li>
+    <li><b><code>tarifa_hh</code></b> (tarifa de mano de obra, ya usada en Metas/KPI/Dashboard) —
+    sin ella configurada (&gt;0), Mantenimiento Oportunista no puede estimar el ahorro en mano de
+    obra y no devuelve ninguna sugerencia.</li>
+    <li><b><code>equipos.valorCompra</code></b> — sin este dato por equipo, Costo Relativo de
+    Mantenimiento no puede calcularse para ese equipo (exige también ≥90 días de historial de
+    Órdenes de Compra).</li>
+    <li><b><code>componentes_mayores.costoRef</code></b> — alimenta el eje Impacto de la Matriz de
+    Riesgo y de Criticidad de Repuestos; con menos de 5 valores de costo cargados el Impacto por
+    costo queda neutral (nivel 3) para todos, en vez de diferenciar.</li>
+    <li><b><code>equipos.frecPM</code></b> — Mantenimiento Oportunista lo usa como horizonte real
+    de "cuán cerca es cerca" para agrupar componentes; un equipo sin <code>frecPM</code> real
+    queda excluido de esa vista.</li>
+  </ul>
+  <p>Ninguno de estos campos es nuevo de esta tanda de herramientas — ya existían con otro
+  propósito (presupuesto mensual, tarifa de mano de obra, valor de compra del equipo, costo de
+  referencia del componente, frecuencia de PM) y simplemente se reutilizan tal cual. No hay
+  ningún interruptor nuevo en Configuración que activar: la única acción de un admin es mantener
+  esos datos cargados y reales.</p>
+
   <h2>9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
@@ -443,7 +485,7 @@ supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resum
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 737 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 885 casos)
 docs/                    — esta documentación</pre>
 
   <h2>10. Si algo se rompe — por dónde empezar</h2>
