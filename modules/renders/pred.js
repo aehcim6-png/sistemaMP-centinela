@@ -1656,8 +1656,12 @@ export function renderPred(){
     var otFallasKijima={};
     ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
       .forEach(function(o){if(o&&o.sigla&&o.horom>0)(otFallasKijima[o.sigla]=otFallasKijima[o.sigla]||[]).push(o.horom);});
+    var _grpDiasHorizonte=30;
     var kijimaLista=(eq||[]).filter(function(e){return!fEq||e.sigla===fEq;}).map(function(e){
-      return{sigla:e.sigla,tipo:e.tipo,r:typeof kijimaEquipo==='function'?kijimaEquipo(otFallasKijima[e.sigla]||[],e.horomActual):null};
+      var r=typeof kijimaEquipo==='function'?kijimaEquipo(otFallasKijima[e.sigla]||[],e.horomActual):null;
+      var horizonteHoras=(e.hrsDia>0?e.hrsDia:12)*_grpDiasHorizonte;
+      var grp=(r&&typeof simulacionTrayectoriasGRPDesdeKijima==='function')?simulacionTrayectoriasGRPDesdeKijima(r,horizonteHoras,2000):null;
+      return{sigla:e.sigla,tipo:e.tipo,r:r,grp:grp};
     }).filter(function(x){return x.r;});
     content=
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Kijima — Factor de Restauración q (MLE)</div><div style="font-size:11px;color:var(--tx3)">¿Las reparaciones dejan al equipo como nuevo (q≈0) o el desgaste se acumula pese a ellas (q≈1)? Estimado por máxima verosimilitud sobre los dos modelos clásicos de renovación imperfecta (Tipo I y Tipo II), eligiendo el que mejor explica el historial real</div></div>'+
@@ -1677,7 +1681,22 @@ export function renderPred(){
           '<td style="font-size:10px;color:var(--tx2)">'+escapeHtml(r.interpretacion)+'</td></tr>';
       }).join('')+
       '</table></div>'
-      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin equipos con al menos 5 fallas reales todavía</p></div>');
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin equipos con al menos 5 fallas reales todavía</p></div>')+
+      (kijimaLista.some(function(x){return x.grp;})?
+      '<div style="font-weight:600;font-size:13px;margin:18px 0 8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5 V10 l3 2"/></svg> GRP — Proyección de fallas por equipo (próximos '+_grpDiasHorizonte+' días, simulación de trayectorias)</div>'+
+      '<div class="tbl-wrap" style="margin-bottom:4px"><table style="table-layout:fixed"><tr><th style="text-align:left;width:14%">Equipo</th><th style="width:16%">Edad virtual actual</th><th style="width:22%">Fallas esperadas (P10–P50–P90)</th><th style="text-align:left">Prob. al menos 1 falla</th></tr>'+
+      kijimaLista.filter(function(x){return x.grp;}).map(function(x){
+        var g=x.grp;
+        var colProb=g.probAlMenosUnaFalla>=0.7?'var(--danger)':g.probAlMenosUnaFalla>=0.4?'var(--warn)':'var(--ok)';
+        return'<tr>'+
+          '<td class="mono" style="color:var(--ac)">'+escapeHtml(x.sigla)+'</td>'+
+          '<td style="text-align:center;font-size:11px">'+fn(x.r.edadVirtualActual)+'h</td>'+
+          '<td style="text-align:center;font-weight:700">'+g.fallasP10+' – '+g.fallasP50+' – '+g.fallasP90+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+colProb+'">'+Math.round(g.probAlMenosUnaFalla*100)+'%</td></tr>';
+      }).join('')+
+      '</table></div>'+
+      '<div style="font-size:10px;color:var(--tx2);margin-bottom:16px">A diferencia del Monte Carlo de Disponibilidad (que remuestrea intervalos reales de TODA la flota, un promedio), acá cada equipo se proyecta con su PROPIO β/η/q — respeta si sus reparaciones históricamente lo dejan como nuevo o si el desgaste se le viene acumulando. "Edad virtual actual" es el punto de partida real de la simulación (0 = se estima que el equipo está efectivamente "como nuevo" en este momento).</div>'
+      :'');
   }
 
   // ═══ MANTENIMIENTO OPORTUNISTA MULTI-COMPONENTE (2026-09-17) ═══ Tercer

@@ -2006,6 +2006,53 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (96,3% a 90 días); con 50%/40% la disponibilidad sube a 98,6% (+2,3pp) y las fallas esperadas
   bajan de 8 a 5. Sin errores de JavaScript.</p>
 
+  <h3>53. GRP — Proceso de Renovación General: simulación de trayectorias (2026-09-17)</h3>
+  <p>Quinto y último ítem del tercer lote. "GRP" (General Renewal Process, Kijima 1989) es el
+  nombre formal del modelo del que Tipo I/II son los dos casos concretos ya implementados — acá se
+  agrega la SIMULACIÓN hacia adelante: proyecta miles de trayectorias futuras de fallas para UN
+  equipo puntual, partiendo de su propia edad virtual actual y su propio β/η/q/tipo — a diferencia
+  del Monte Carlo de flota (que remuestrea intervalos reales de TODA la flota, sin memoria de
+  reparación imperfecta), acá cada equipo respeta su propio historial de restauración.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b></p>
+  <ul>
+    <li><code>_edadVirtualActual(obs, q, tipoII)</code> — replica la recursión de Kijima, pero el
+    tramo final censurado (equipo en servicio, sin reparación todavía) solo suma tiempo sin aplicar
+    q. Se agregó como campo nuevo <code>edadVirtualActual</code> en <code>kijimaEquipo</code>
+    (aditivo, no rompe nada existente).</li>
+    <li><code>simulacionTrayectoriasGRP(beta, eta, q, tipoII, edadVirtualActual, horizonteHoras,
+    nSimulaciones, rngOpcional)</code> — dado que el equipo está a edad virtual v, el tiempo hasta
+    la próxima falla se obtiene invirtiendo la supervivencia condicional S(v+x)/S(v)=1−u (mismo
+    principio que <code>rulWeibull</code>, generando un valor aleatorio en vez de un percentil
+    fijo). Tras cada falla simulada, la edad virtual se actualiza con la misma recursión de
+    Kijima.</li>
+    <li><code>simulacionTrayectoriasGRPDesdeKijima(...)</code> — wrapper sobre el resultado de
+    <code>kijimaEquipo</code>.</li>
+  </ul>
+  <p>Verificado con script Python independiente: con q=0 la simulación GRP coincide EXACTO (0,000%
+  de diferencia en 20.000 corridas) con un proceso de renovación clásico muestreado directo. Con q
+  creciente, el número esperado de fallas sube monótonamente (3,0→4,6→6,4→9,0 para
+  q=0/0,3/0,6/1,0). Caso determinístico (rng que siempre devuelve u=0,5) calculado paso a paso:
+  Tipo I q=0,4 da exactamente 6 fallas, usado como test exacto.</p>
+  <p>9 tests nuevos en <code>tests/simulacionTrayectoriasGRP.test.js</code> (885/885 en total): sin
+  parámetros válidos devuelve <code>null</code>; casos determinísticos q=0 y Tipo I q=0,4;
+  monotonía respecto a q; q fuera de [0,1] cae a 0; P10≤P50≤P90; nSimulaciones inválido cae al
+  default; integración completa con <code>kijimaEquipo</code> real.</p>
+  <p><b>Cambios en <code>pred.js</code>:</b> la sub-vista "Kijima" agrega una segunda tabla "GRP —
+  Proyección de fallas por equipo (próximos 30 días)" con edad virtual actual, fallas esperadas
+  (P10–P50–P90) y probabilidad de al menos una falla.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>equipos</code>/<code>correctivos</code>): mismo caso de Kijima ya verificado (β=1,71,
+  η=763h, Tipo II, q=0,16) — <code>edadVirtualActual</code> renderiza 201,3h, coincidiendo exacto
+  con una réplica manual de la recursión en Python. La tabla GRP muestra fallas esperadas 0–0–1 y
+  37% de probabilidad de al menos una falla en 30 días. Sin errores de JavaScript.</p>
+  <p>Con esto se completan los 5 ítems del tercer lote "más ambicioso" (Weibull con censura
+  correcta, Kijima Tipo I/II, Mantenimiento Oportunista, Simulador What-If, GRP) — sumados a los 10
+  de los dos lotes anteriores, 15 herramientas nuevas de confiabilidad/mantenimiento predictivo
+  implementadas, testeadas (885/885) y verificadas visualmente en esta sesión. Quedan pendientes de
+  decidir con el usuario: Frailty Model y Copulas (alto riesgo de sobre-ingeniería sin una librería
+  estadística real) y Value of Information (bloqueado por falta de dato real de costo de falla,
+  igual que Edad de Reemplazo Óptima).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

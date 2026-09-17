@@ -3555,6 +3555,86 @@ y las fallas esperadas bajan de 8 a 5 — la tabla y los controles
 reaccionan correctamente a los cambios de input. Sin errores de
 JavaScript de la aplicación.
 
+### 53. GRP — Proceso de Renovación General: simulación de trayectorias (2026-09-17)
+
+Quinto y último ítem del tercer lote, cierra la ronda de algoritmos "más
+ambiciosos" elegida por el usuario. "GRP" (General Renewal Process, Kijima
+1989) es el nombre formal del modelo del que Tipo I/II (sección anterior)
+son los dos casos concretos ya implementados — acá se agrega la
+SIMULACIÓN hacia adelante: en vez de solo estimar q a partir del
+historial, proyecta miles de trayectorias futuras posibles de fallas para
+UN equipo puntual, partiendo de su propia edad virtual actual y su propio
+β/η/q/tipo — a diferencia de `simulacionMonteCarloDisponibilidad` (que
+remuestrea intervalos reales de TODA la flota, un promedio sin memoria de
+reparación imperfecta), acá cada equipo respeta su propio historial de qué
+tan bien lo restauran sus reparaciones.
+
+**`logic.js`**: tres piezas nuevas.
+- `_edadVirtualActual(obs, q, tipoII)` — replica la recursión de Kijima
+  sobre las mismas observaciones ya usadas para ajustar q, pero el tramo
+  final CENSURADO (equipo sigue en servicio, sin reparación todavía) solo
+  suma el tiempo transcurrido sin aplicar el factor q — no hubo reparación
+  que restaure nada en ese tramo. Se agregó como campo nuevo
+  `edadVirtualActual` al resultado de `kijimaEquipo` (aditivo, no rompe
+  ningún test ni sitio existente que ya lo consume).
+- `simulacionTrayectoriasGRP(beta, eta, q, tipoII, edadVirtualActual,
+  horizonteHoras, nSimulaciones, rngOpcional)` — núcleo: dado que el
+  equipo está a edad virtual v, el tiempo hasta la próxima falla se
+  obtiene invirtiendo la supervivencia condicional S(v+x)/S(v)=1−u (mismo
+  principio que `rulWeibull`, pero generando un valor aleatorio u en vez
+  de un percentil fijo p): v_falla=η·(−ln(S(v)·(1−u)))^(1/β), x=v_falla−v.
+  Tras cada falla simulada, la edad virtual se actualiza con la MISMA
+  recursión de Kijima (Tipo I: v+q·x; Tipo II: q·v_falla).
+- `simulacionTrayectoriasGRPDesdeKijima(ajusteKijima, horizonteHoras,
+  nSimulaciones, rngOpcional)` — wrapper que toma directamente el
+  resultado de `kijimaEquipo`.
+
+Verificado con script Python independiente: con q=0 (cualquier tipo se
+vuelven idénticos en ese extremo) la simulación GRP coincide EXACTO
+(0,000% de diferencia en 20.000 corridas) con un proceso de renovación
+clásico muestreado directo — confirma que la recursión colapsa
+correctamente al caso simple. Con q creciente (peor restauración), el
+número esperado de fallas en el mismo horizonte sube monótonamente
+(3,0→4,6→6,4→9,0 fallas para q=0/0,3/0,6/1,0). Caso determinístico (rng
+que siempre devuelve el mismo u=0,5) calculado paso a paso en Python:
+Tipo I q=0,4 da exactamente 6 fallas en 6 pasos con longitudes decrecientes
+(832,6h → 297,1h), usado como test exacto.
+
+9 tests nuevos en `tests/simulacionTrayectoriasGRP.test.js` (885/885 en
+total): sin beta/eta/horizonte válidos devuelve `null`; caso determinístico
+q=0 (3 fallas siempre, ambos tipos idénticos); caso determinístico Tipo I
+q=0,4 (6 fallas, trayectoria verificada paso a paso); monotonía respecto a
+q; q fuera de [0,1] cae a 0; P10≤P50≤P90 con rng real; nSimulaciones
+inválido cae al default; integración completa con `kijimaEquipo` real
+(mismo caso ya verificado en `tests/kijima.test.js`).
+
+**`pred.js`**: la sub-vista "Kijima" ahora agrega una segunda tabla "GRP —
+Proyección de fallas por equipo (próximos 30 días)" con edad virtual
+actual, fallas esperadas (P10–P50–P90) y probabilidad de al menos una
+falla, para cada equipo con ajuste Kijima real (horizonte en horas =
+hrsDia del equipo × 30 días).
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`equipos`/`correctivos`): mismo caso de Kijima ya verificado (β=1,71,
+η=763h, Tipo II, q=0,16) — `edadVirtualActual` renderiza 201,3h,
+coincidiendo exacto con una réplica manual de la recursión en Python sobre
+los mismos 12 intervalos reales. La tabla GRP muestra fallas esperadas
+0–0–1 y 37% de probabilidad de al menos una falla en los próximos 30 días
+para ese equipo. Sin errores de JavaScript de la aplicación.
+
+Con esto se completan los 5 ítems del tercer lote "más ambicioso" elegido
+por el usuario (Weibull con censura correcta, Kijima Tipo I/II,
+Mantenimiento Oportunista, Simulador What-If, GRP) — sumados a los 10 de
+los dos lotes anteriores, 15 herramientas nuevas de confiabilidad/
+mantenimiento predictivo implementadas, testeadas (885/885) y verificadas
+visualmente en esta sesión, todas con datos 100% reales o análisis de
+sensibilidad explícitamente etiquetado como tal, sin ningún valor
+inventado. Quedan pendientes de decidir con el usuario: Frailty Model y
+Copulas (deferred desde la propuesta original, marcados como alto riesgo
+de sobre-ingeniería sin una librería estadística real) y Value of
+Information (bloqueado por falta de dato real de costo de falla, igual
+que Edad de Reemplazo Óptima).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
