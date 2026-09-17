@@ -2081,6 +2081,28 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>equipos</code>/<code>ordenes_compra_historico</code>): el ⚠️ aparece con el tooltip correcto
   y la nota se muestra bajo la tabla. Sin errores de JavaScript.</p>
 
+  <h3>55. Tarjeta "Neumáticos Críticos" en el Dashboard (2026-09-17)</h3>
+  <p>El usuario pasó una propuesta de "dashboard gerencial" con 4 tarjetas nuevas. Verificación contra
+  el código real: 3 de las 4 ya existen y ya se muestran hoy (Disponibilidad Mecánica,
+  Urgentes/Próximas/Cumplimiento PM, Presupuesto vs Real) — agregarlas de nuevo hubiera sido pura
+  duplicación. La afirmación de que el OCR de neumáticos "tilda de forma inteligente si hay daño
+  severo" es falsa: el esquema real (<code>supabase/functions/leer-chequeo-neumaticos/index.ts</code>)
+  solo transcribe valores literales (posicion, serie, presion, temperatura, remExt, remInt,
+  comentarios, incierto), y <code>incierto</code> marca únicamente letra manuscrita ambigua, nunca un
+  juicio de severidad. <code>S.g('categoria')</code> tampoco existe como clave real del store.</p>
+  <p>Lo único real y no duplicado de la propuesta: <code>dash.js</code> ya calculaba
+  <code>neuCrit</code> (cantidad de neumáticos operativos que llegaron a su límite real de cambio —
+  remanente de goma u horas de uso, vía la función ya existente <code>neuDebeCambiar()</code>, sin
+  relación con el OCR) pero nunca lo mostraba en ninguna tarjeta.</p>
+  <p>Se agregó una tarjeta "Neumáticos Críticos" junto a "Stock Crítico" (fila de KPIs avanzados de
+  Costos, mismo estilo visual: borde superior verde/ámbar/rojo según 0 / ≤3 / &gt;3, subtítulo con el
+  total de neumáticos operativos de referencia). Sin función pura nueva ni cambio de cálculo — solo
+  expone en la UI un valor que ya se calculaba en cada apertura del Dashboard. Verificado visualmente
+  en navegador (Playwright ad-hoc, inyectando 2 neumáticos vía <code>S.s('neu', […])</code>, uno con
+  remanente bajo el piso de retiro y otro sano): la tarjeta muestra "1 · De 2 operativos", igual al
+  resto de las tarjetas de esa fila. 892/892 tests (sin tests nuevos — no hay lógica pura nueva que
+  cubrir) y build limpio.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

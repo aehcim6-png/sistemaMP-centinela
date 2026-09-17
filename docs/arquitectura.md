@@ -3693,6 +3693,37 @@ concentración: el ⚠️ aparece junto al % Anual con el tooltip correcto y la
 nota explicativa se muestra bajo la tabla. Sin errores de JavaScript de
 la aplicación.
 
+### 55. Tarjeta "Neumáticos Críticos" en el Dashboard (2026-09-17)
+
+El usuario pasó una propuesta de "dashboard gerencial" con 4 tarjetas
+nuevas. Verificación contra el código real: 3 de las 4 ya existen y ya se
+muestran hoy (Disponibilidad Mecánica, Urgentes/Próximas/Cumplimiento PM,
+Presupuesto vs Real) — agregarlas de nuevo hubiera sido pura duplicación.
+La afirmación de que el OCR de neumáticos "tilda de forma inteligente si
+hay daño severo" es falsa: el esquema real
+(`supabase/functions/leer-chequeo-neumaticos/index.ts`) solo transcribe
+valores literales (`posicion, serie, presion, temperatura, remExt, remInt,
+comentarios, incierto`), y `incierto` marca únicamente letra manuscrita
+ambigua, nunca un juicio de severidad. `S.g('categoria')` tampoco existe
+como clave real del store.
+
+Lo único real y no duplicado de la propuesta: `dash.js` ya calculaba
+`neuCrit` (línea ~281, cantidad de neumáticos operativos que llegaron a su
+límite real de cambio — remanente de goma u horas de uso, vía la función
+ya existente `neuDebeCambiar()`, sin relación con el OCR) pero nunca lo
+mostraba en ninguna tarjeta.
+
+Se agregó una tarjeta "Neumáticos Críticos" junto a "Stock Crítico" (fila
+de KPIs avanzados de Costos, mismo estilo visual: borde superior verde/
+ámbar/rojo según 0 / ≤3 / >3, subtítulo con el total de neumáticos
+operativos de referencia). Sin función pura nueva ni cambio de cálculo —
+solo expone en la UI un valor que ya se calculaba en cada apertura del
+Dashboard. Verificado visualmente en navegador (Playwright ad-hoc,
+inyectando 2 neumáticos vía `S.s('neu', […])`, uno con remanente bajo el
+piso de retiro y otro sano): la tarjeta muestra "1 · De 2 operativos",
+igual al resto de las tarjetas de esa fila. 892/892 tests (sin tests
+nuevos — no hay lógica pura nueva que cubrir) y build limpio.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
