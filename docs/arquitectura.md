@@ -3501,6 +3501,60 @@ candidato; ahorro = mediana(11×6h,11×8h)=7h × tarifa 25.000 = $175.000. La
 vista renderiza "CN-1 · Motor (7h) · Frenos (+59h) · $175.000",
 coincidiendo exactamente. Sin errores de JavaScript de la aplicación.
 
+### 52. Simulador What-If de políticas de mantenimiento (2026-09-17)
+
+Cuarto ítem del tercer lote. `simulacionMonteCarloDisponibilidad` (sección
+anterior) ya remuestrea (bootstrap) los intervalos y duraciones REALES de
+toda la flota para proyectar un rango de disponibilidad futura — esta
+herramienta agrega la posibilidad de probar un escenario hipotético
+("¿y si...?") escalando esa MISMA distribución empírica por un factor que
+elige quien pregunta, nunca un valor que el sistema inventa: análisis de
+sensibilidad sobre datos reales (técnica estándar de simulación), no una
+predicción nueva.
+
+**`logic.js`**: dos funciones nuevas, ambas complemento de
+`simulacionMonteCarloDisponibilidad` (sin tocarla).
+- `simulacionWhatIf(intervalosDias, duracionesHoras, horizonteDias,
+  horasFlotaDiarias, nSimulaciones, factorIntervalo, factorDuracion,
+  rngOpcional)` — escala los intervalos por `factorIntervalo` (>1 =
+  fallas más espaciadas, ej. "¿y si mejoramos la confiabilidad un 20%?" →
+  1.2) y las duraciones por `factorDuracion` (<1 = reparaciones más
+  rápidas, ej. "¿y si reparamos 30% más rápido?" → 0.7), y corre el mismo
+  núcleo de Monte Carlo sobre esa muestra escalada. Con factores=1
+  coincide EXACTO con la función base.
+- `compararEscenariosMantenimiento(...)` — corre el escenario base (datos
+  reales, sin escalar) y el what-if con la misma muestra/horizonte, y
+  calcula el delta de disponibilidad P50 y de fallas esperadas.
+
+9 tests nuevos en `tests/simulacionWhatIf.test.js` (876/876 en total),
+reusando el mismo patrón de "muestra constante" que ya usa
+`simulacionMonteCarloDisponibilidad.test.js` (intervalos/duraciones
+constantes → resultado exacto y determinístico, calculable a mano sin
+depender de RNG): factores=1 coincide con la base; factorIntervalo=2 con
+intervalos de 10 días pasa de 2 a 1 falla esperada; factorDuracion=0,5
+mantiene las mismas fallas pero reduce el downtime a la mitad; ambos
+factores combinados; factores inválidos (≤0) caen a 1; sin muestra
+suficiente devuelve `null` igual que el núcleo; el delta es exactamente 0
+sin cambios.
+
+**`disp.js`** (Disponibilidad Mecánica): nueva tarjeta "🧪 Simulador
+What-If de políticas de mantenimiento", justo debajo de la proyección
+Monte Carlo existente (misma muestra `_mcIv`/`_mcDu`/`_mcHorasFlota`, sin
+medición nueva) — dos campos numéricos ("Mejora de confiabilidad", "Mejora
+de velocidad de reparación", ambos en %, elegidos por quien mira la
+pantalla) más un selector de horizonte (30/60/90 días), con una tabla
+Base vs What-If (disponibilidad P50, rango P10-P90, fallas esperadas, con
+el delta resaltado en verde/rojo). Botón "Resetear" cuando hay algún
+porcentaje distinto de 0.
+
+Verificado visualmente en navegador (Playwright ad-hoc, mock de
+`equipos`/`correctivos`): con 0%/0% el escenario coincide con la base
+(96,3% a 90 días); aplicando 50% de mejora de confiabilidad y 40% de
+mejora de velocidad de reparación, la disponibilidad sube a 98,6% (+2,3pp)
+y las fallas esperadas bajan de 8 a 5 — la tabla y los controles
+reaccionan correctamente a los cambios de input. Sin errores de
+JavaScript de la aplicación.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -1981,6 +1981,31 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   frecPM=250) → candidato; ahorro=mediana(11×6h,11×8h)=7h×25.000=$175.000. La vista renderiza
   "CN-1 · Motor (7h) · Frenos (+59h) · $175.000", exacto. Sin errores de JavaScript.</p>
 
+  <h3>52. Simulador What-If de políticas de mantenimiento (2026-09-17)</h3>
+  <p>Cuarto ítem del tercer lote. <code>simulacionMonteCarloDisponibilidad</code> ya remuestrea
+  (bootstrap) intervalos y duraciones REALES para proyectar disponibilidad futura — esta
+  herramienta agrega probar un escenario hipotético escalando esa MISMA distribución empírica por
+  un factor que elige quien pregunta, nunca un valor inventado por el sistema: análisis de
+  sensibilidad sobre datos reales, no una predicción nueva.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> <code>simulacionWhatIf(...)</code> — escala
+  intervalos por <code>factorIntervalo</code> (>1 = fallas más espaciadas) y duraciones por
+  <code>factorDuracion</code> (&lt;1 = reparaciones más rápidas), corre el mismo núcleo Monte Carlo
+  (con factores=1 coincide exacto con la base). <code>compararEscenariosMantenimiento(...)</code> —
+  corre base y what-if con la misma muestra/horizonte y calcula el delta.</p>
+  <p>9 tests nuevos en <code>tests/simulacionWhatIf.test.js</code> (876/876 en total), con el mismo
+  patrón de "muestra constante" ya usado en <code>simulacionMonteCarloDisponibilidad.test.js</code>
+  (resultado exacto y determinístico, calculable a mano): factores=1 coincide con la base;
+  factorIntervalo=2 reduce las fallas esperadas; factorDuracion=0,5 reduce el downtime a la mitad;
+  ambos combinados; factores inválidos caen a 1; sin muestra suficiente devuelve <code>null</code>.</p>
+  <p><b>Cambios en <code>disp.js</code>:</b> nueva tarjeta "🧪 Simulador What-If de políticas de
+  mantenimiento" bajo el Monte Carlo existente — dos campos numéricos (% mejora de confiabilidad, %
+  mejora de velocidad de reparación) más un selector de horizonte, con tabla Base vs What-If y el
+  delta resaltado.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, mock de
+  <code>equipos</code>/<code>correctivos</code>): con 0%/0% el escenario coincide con la base
+  (96,3% a 90 días); con 50%/40% la disponibilidad sube a 98,6% (+2,3pp) y las fallas esperadas
+  bajan de 8 a 5. Sin errores de JavaScript.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

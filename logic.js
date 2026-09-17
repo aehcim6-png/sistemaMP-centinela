@@ -3815,6 +3815,50 @@ function simulacionMonteCarloDisponibilidad(intervalosDias,duracionesHoras,horiz
   };
 }
 
+// ═══ SIMULADOR WHAT-IF DE POLÍTICAS DE MANTENIMIENTO (2026-09-17) ═══
+// Cuarto ítem del tercer lote. simulacionMonteCarloDisponibilidad (arriba)
+// ya remuestrea (bootstrap) los intervalos y duraciones REALES de la flota
+// para proyectar disponibilidad futura — acá se agrega la posibilidad de
+// probar un escenario hipotético ("¿y si...?") escalando esa MISMA
+// distribución empírica por un factor que elige quien pregunta, nunca un
+// valor que el sistema inventa: factorIntervalo (>1 = fallas más
+// espaciadas — ej. "¿y si mejoramos la confiabilidad un 20%?" →
+// factorIntervalo=1.2) y factorDuracion (<1 = reparaciones más rápidas —
+// ej. "¿y si con más stock reparamos 30% más rápido?" → factorDuracion=
+// 0.7). Es análisis de sensibilidad sobre datos reales (técnica estándar
+// de simulación — escalar una distribución empírica para probar un
+// supuesto), no una predicción nueva. Con factores=1 el resultado debe
+// coincidir EXACTO con simulacionMonteCarloDisponibilidad para la misma
+// muestra/semilla — verificado en tests.
+function simulacionWhatIf(intervalosDias,duracionesHoras,horizonteDias,horasFlotaDiarias,nSimulaciones,factorIntervalo,factorDuracion,rngOpcional){
+  var fi=factorIntervalo>0?factorIntervalo:1;
+  var fd=factorDuracion>0?factorDuracion:1;
+  var ivEsc=(intervalosDias||[]).map(function(x){return x*fi;});
+  var durEsc=(duracionesHoras||[]).map(function(x){return x*fd;});
+  var r=simulacionMonteCarloDisponibilidad(ivEsc,durEsc,horizonteDias,horasFlotaDiarias,nSimulaciones,rngOpcional);
+  if(!r)return null;
+  return Object.assign({factorIntervalo:fi,factorDuracion:fd},r);
+}
+
+// Compara el escenario base (datos reales, sin escalar) contra el
+// what-if, con la MISMA muestra e igual cantidad de simulaciones — el
+// delta es lo que importa para decidir si la política hipotética vale la
+// pena evaluar en la realidad. null si cualquiera de los dos escenarios no
+// tiene muestra suficiente (mismo mínimo que el núcleo, nunca se compara
+// contra un escenario sin datos reales de respaldo).
+function compararEscenariosMantenimiento(intervalosDias,duracionesHoras,horizonteDias,horasFlotaDiarias,nSimulaciones,factorIntervalo,factorDuracion,rngOpcional){
+  var base=simulacionMonteCarloDisponibilidad(intervalosDias,duracionesHoras,horizonteDias,horasFlotaDiarias,nSimulaciones,rngOpcional);
+  if(!base)return null;
+  var escenario=simulacionWhatIf(intervalosDias,duracionesHoras,horizonteDias,horasFlotaDiarias,nSimulaciones,factorIntervalo,factorDuracion,rngOpcional);
+  if(!escenario)return null;
+  return{
+    base:base,
+    escenario:escenario,
+    deltaDispP50:Math.round((escenario.dispP50-base.dispP50)*10)/10,
+    deltaFallasEsperadas:Math.round((escenario.fallasEsperadas-base.fallasEsperadas)*10)/10
+  };
+}
+
 // ═══ PAGINACIÓN — slicing puro, usado por _pagSlice en index.html ═══
 function pagSlice(arr,page,pageSize){
   var lista=arr||[];
@@ -4436,7 +4480,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

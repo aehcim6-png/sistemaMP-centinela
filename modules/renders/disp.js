@@ -311,12 +311,53 @@ export function renderDisp(){
       '<div style="font-size:12px;color:var(--tx3);padding:4px 0">Historial insuficiente todavía ('+_mcIv.length+' intervalos entre fallas, '+_mcDu.length+' duraciones de reparación reales — se necesitan al menos 8 y 5 respectivamente).</div>')+
     '</div>';
 
+  // ═══ SIMULADOR WHAT-IF DE POLÍTICAS DE MANTENIMIENTO (2026-09-17) ═══
+  // Cuarto ítem del tercer lote "más ambicioso". Mismo Monte Carlo de
+  // arriba (misma muestra real _mcIv/_mcDu/_mcHorasFlota, nada nuevo que
+  // medir), pero acá quien mira la pantalla elige un escenario hipotético
+  // — "¿y si mejoramos la confiabilidad un X%?" / "¿y si reparamos Y% más
+  // rápido?" — y lo compara contra el escenario base (datos reales, sin
+  // cambios). Es análisis de sensibilidad sobre datos reales, nunca una
+  // predicción ni un costo de falla inventado: los dos porcentajes los
+  // pone la persona, no el sistema (ver compararEscenariosMantenimiento,
+  // logic.js).
+  var _wiPctConfiab=window._whatIfPctConfiab!=null?window._whatIfPctConfiab:0;
+  var _wiPctReparacion=window._whatIfPctReparacion!=null?window._whatIfPctReparacion:0;
+  var _wiHorizonte=window._whatIfHorizonte||90;
+  var _wiFactorIntervalo=1+(_wiPctConfiab/100);
+  var _wiFactorDuracion=1-(_wiPctReparacion/100);
+  var _wiResultado=(typeof compararEscenariosMantenimiento==='function')?
+    compararEscenariosMantenimiento(_mcIv,_mcDu,_wiHorizonte,_mcHorasFlota,1000,_wiFactorIntervalo,_wiFactorDuracion):null;
+  var whatIfHTML=
+    '<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:14px">'+
+    '<div class="chart-t">🧪 Simulador What-If de políticas de mantenimiento</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Prueba un escenario hipotético sobre el mismo Monte Carlo de arriba — los porcentajes los elegís vos, no son una predicción del sistema. "Confiabilidad" escala los intervalos entre fallas (más espaciadas = menos fallas). "Velocidad de reparación" escala la duración de cada intervención.</div>'+
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">'+
+      '<div><label style="font-size:10px;color:var(--tx3);display:block">Mejora de confiabilidad</label>'+
+      '<div style="display:flex;align-items:center;gap:4px"><input type="number" id="wiPctConfiab" value="'+_wiPctConfiab+'" min="0" max="300" step="5" style="width:70px;padding:6px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px" onchange="window._whatIfPctConfiab=Math.max(0,Math.min(300,parseFloat(this.value)||0));renders.disp()"><span style="font-size:12px;color:var(--tx3)">% menos fallas</span></div></div>'+
+      '<div><label style="font-size:10px;color:var(--tx3);display:block">Mejora de velocidad de reparación</label>'+
+      '<div style="display:flex;align-items:center;gap:4px"><input type="number" id="wiPctReparacion" value="'+_wiPctReparacion+'" min="0" max="95" step="5" style="width:70px;padding:6px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px" onchange="window._whatIfPctReparacion=Math.max(0,Math.min(95,parseFloat(this.value)||0));renders.disp()"><span style="font-size:12px;color:var(--tx3)">% menos horas por reparación</span></div></div>'+
+      '<div><label style="font-size:10px;color:var(--tx3);display:block">Horizonte</label>'+
+      '<select id="wiHorizonte" style="padding:6px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px" onchange="window._whatIfHorizonte=parseInt(this.value);renders.disp()">'+
+        [30,60,90].map(function(h){return'<option value="'+h+'"'+(_wiHorizonte===h?' selected':'')+'>'+h+' días</option>';}).join('')+
+      '</select></div>'+
+      ((_wiPctConfiab||_wiPctReparacion)?'<button class="btn-o" onclick="window._whatIfPctConfiab=0;window._whatIfPctReparacion=0;renders.disp()">Resetear</button>':'')+
+    '</div>'+
+    (_wiResultado?
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Escenario</th><th>Disponibilidad P50</th><th>Rango P10-P90</th><th>Fallas esperadas</th></tr>'+
+    '<tr><td style="font-weight:600">Base (datos reales)</td><td style="text-align:center">'+_wiResultado.base.dispP50+'%</td><td style="text-align:center;color:var(--tx3)">'+_wiResultado.base.dispP10+'% – '+_wiResultado.base.dispP90+'%</td><td style="text-align:center">'+_wiResultado.base.fallasEsperadas+'</td></tr>'+
+    '<tr><td style="font-weight:600">What-If ('+(_wiPctConfiab||0)+'% confiab. / '+(_wiPctReparacion||0)+'% reparación)</td><td style="text-align:center;font-weight:700;color:'+(_wiResultado.deltaDispP50>0?'var(--ok)':_wiResultado.deltaDispP50<0?'var(--danger)':'var(--tx3)')+'">'+_wiResultado.escenario.dispP50+'% <span style="font-size:10px">('+(_wiResultado.deltaDispP50>0?'+':'')+_wiResultado.deltaDispP50+'pp)</span></td><td style="text-align:center;color:var(--tx3)">'+_wiResultado.escenario.dispP10+'% – '+_wiResultado.escenario.dispP90+'%</td><td style="text-align:center">'+_wiResultado.escenario.fallasEsperadas+' <span style="font-size:10px;color:var(--tx3)">('+(_wiResultado.deltaFallasEsperadas>0?'+':'')+_wiResultado.deltaFallasEsperadas+')</span></td></tr>'+
+    '</table></div>'
+    :'<div style="font-size:12px;color:var(--tx3);padding:4px 0">Historial insuficiente para simular escenarios todavía (mismo mínimo que el Monte Carlo de arriba).</div>')+
+    '</div>';
+
   $('s-disp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Disponibilidad Mecánica</div>'+
     '<div class="sec-s" title="Disponibilidad = (horas disponibles del día − horas caídas) / horas disponibles, promediado por período. Cuando un registro no tiene duración registrada se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — estimación, no dato medido.">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable · <span style="text-decoration:underline dotted">sin duración registrada = 4h/8h asumidas</span></div></div>'+
     '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
     monteCarloHTML+
+    whatIfHTML+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Anual</option></select>'+
     '<select id="fDispMes" onchange="renders.disp()">'+meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
