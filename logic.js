@@ -680,6 +680,74 @@ function confiabilidadReal(mtbf,horasPeriodo){
   return Math.round(Math.exp(-horasPeriodo/mtbf)*1000)/10;
 }
 
+// P(chi-cuadrado_df <= x) — CDF EXACTA (no una aproximación como
+// Wilson-Hilferty) para grados de libertad PARES, vía la relación cerrada
+// chi-cuadrado/Poisson: con df=2k (k entero), F(x)=1-Σ_{i=0}^{k-1}
+// PoissonPMF(i, x/2). Reutiliza _poissonPMF (ya con log-factorial, sin
+// desborde) en vez de implementar una función gamma aparte o una
+// aproximación numérica de la normal — evita perder precisión justo en
+// los grados de libertad bajos (2-4) que son el caso más común de esta
+// flota (equipos con muy pocas fallas registradas). df SIEMPRE sale par
+// acá (2r o 2r+2, ver intervaloConfianzaMTBF abajo), así que k=df/2 es
+// siempre entero — no hace falta el caso general de df impar.
+function _chiCuadradoCDF(x,df){
+  var k=df/2;
+  if(x<=0)return 0;
+  var suma=0;
+  for(var i=0;i<k;i++)suma+=_poissonPMF(i,x/2);
+  return 1-suma;
+}
+// Cuantil de chi-cuadrado (inversa de _chiCuadradoCDF) por búsqueda
+// binaria — la CDF de arriba es exacta y monótona creciente, así que la
+// búsqueda binaria converge al mismo valor que una tabla de chi-cuadrado
+// (verificado contra scipy.stats.chi2.ppf antes de escribir los tests:
+// coincide a más de 10 decimales), sin necesitar ninguna aproximación.
+function _chiCuadradoInv(p,df){
+  if(p<=0)return 0;
+  if(p>=1)return Infinity;
+  var lo=0,hi=df+50*Math.sqrt(2*df)+50;
+  for(var iter=0;iter<100;iter++){
+    var mid=(lo+hi)/2;
+    if(_chiCuadradoCDF(mid,df)<p)lo=mid;else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+// ═══ INTERVALO DE CONFIANZA DEL MTBF ═══ — el MTBF (y todo lo que se
+// deriva de él: Confiabilidad (R), Disp. Inherente) hoy se muestra como un
+// número suelto, con la misma "seguridad" visual para un equipo con 2
+// fallas que para uno con 50 — estadísticamente esos dos casos tienen
+// incertidumbre MUY distinta (verificado con datos reales de la flota:
+// CN-10155, 2 fallas, MTBF=430h pero IC95%=[77h,16984h] — el punto no
+// significa casi nada con tan poca muestra; CN-5133, 53 fallas, MTBF=143h
+// con IC95%=[109h,191h] — mucho más confiable). Método estándar de
+// ingeniería de confiabilidad (NIST Engineering Statistics Handbook
+// 8.1.5.2, ensayo terminado por tiempo): con r = intervalos entre fallas
+// (n-1 fallas válidas) observados en un tiempo total T (= rango de
+// horómetros), bajo el supuesto de tasa de falla constante (el mismo que
+// ya usa confiabilidadReal/mtbfReal — proceso de renovación exponencial):
+//   límite inferior = 2T / χ²(1-α/2; 2r+2)
+//   límite superior = 2T / χ²(α/2; 2r)
+// Mismo mínimo de datos y misma fuente cruda que C.mtbfReal (≥2 fallas
+// válidas, mismos horómetros) — sin eso ni siquiera hay un MTBF que
+// acompañar con un intervalo.
+function intervaloConfianzaMTBF(horomFallas,confianza){
+  confianza=(confianza>0&&confianza<1)?confianza:0.95;
+  var validos=(horomFallas||[]).filter(function(h){return h>0;}).sort(function(a,b){return a-b;});
+  if(validos.length<2)return null;
+  var r=validos.length-1;
+  var T=validos[validos.length-1]-validos[0];
+  var mtbf=Math.round(T/r);
+  var alpha=1-confianza;
+  var chiInf=_chiCuadradoInv(1-alpha/2,2*r+2);
+  var chiSup=_chiCuadradoInv(alpha/2,2*r);
+  return{
+    mtbf:mtbf,r:r,
+    inferior:chiInf>0?Math.round(2*T/chiInf):0,
+    superior:chiSup>0?Math.round(2*T/chiSup):null,
+    confianza:confianza
+  };
+}
+
 // ═══ AJUSTE WEIBULL — reemplaza el supuesto de tasa de falla CONSTANTE de
 // confiabilidadReal (de arriba) por la forma real de falla de CADA equipo,
 // estimada de sus propios intervalos entre fallas (2026-09-11, pedido del
@@ -4620,7 +4688,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

@@ -2129,6 +2129,34 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con "📈 Adelanto", sin romper el layout. 892/892 tests (sin tests nuevos — es una etiqueta visual
   fija por tarjeta) y build limpio.</p>
 
+  <h3>57. Intervalo de confianza del MTBF — método chi-cuadrado exacto (2026-09-19)</h3>
+  <p>El usuario compartió cheat sheets sobre estadística inferencial (p-value, intervalos de confianza,
+  hipótesis, distribución, outliers). Fact-check: la mayoría ya vive dentro del sistema — hypothesis
+  testing/chi-cuadrado ya existe en <code>testChiCuadradoUniforme</code>, la forma de la distribución
+  (skewness) ya existe como el parámetro β de Weibull, la MLE ya existe en
+  <code>ajusteWeibullCensurado</code>, y la detección de outliers ya existe (con otro método) en
+  <code>ordenesSinOutliers</code>/<code>_concentracionMaximaOC</code>.</p>
+  <p>Lo que sí faltaba: <b>intervalos de confianza</b>. El MTBF se mostraba como un número suelto, con la
+  misma "seguridad" visual para un equipo con 2 fallas que para uno con 50. Verificado con datos reales de
+  la flota: CN-10155 (2 fallas) da MTBF=430h pero IC95%=[77h,16.984h] — el punto casi no dice nada por sí
+  solo con 1 intervalo; CN-5133 (53 fallas) da MTBF=143h con IC95%=[109h,191h] — mucho más confiable.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> <code>intervaloConfianzaMTBF(horomFallas,confianza)</code> —
+  mismo input crudo y mínimo de datos que <code>C.mtbfReal</code>. Método estándar de ingeniería de
+  confiabilidad (NIST Engineering Statistics Handbook 8.1.5.2, ensayo terminado por tiempo): límite
+  inferior = 2T/χ²(1-α/2; 2r+2), límite superior = 2T/χ²(α/2; 2r). Los grados de libertad siempre salen
+  pares, así que en vez de una aproximación numérica (Wilson-Hilferty) se implementó la <b>CDF exacta</b> de
+  chi-cuadrado vía la relación cerrada con Poisson (reutiliza <code>_poissonPMF</code>), con el cuantil por
+  búsqueda binaria. Verificado contra <code>scipy.stats.chi2.ppf</code>: coincide a más de 10 decimales — no
+  es una aproximación, es exacto.</p>
+  <p>7 tests en <code>tests/intervaloConfianzaMTBF.test.js</code> (899/899 en total): los 2 casos reales de
+  arriba con los números exactos, insensibilidad al orden, nivel de confianza custom, confianza fuera de
+  rango cae al 95% default.</p>
+  <p><b>Cambios en <code>cos.js</code></b> (Stock & Insumos → Costos → MTBF/MTTR): bajo el MTBF de cada
+  equipo se muestra "IC95%: X–Yh (N intervalos)", con ⚠️ y color ámbar cuando la muestra es chica (r&lt;5,
+  mismo umbral que ya usa <code>ajusteWeibull</code>). No bloquea ni cambia el MTBF puntual — es una señal
+  de cuánto confiar en él. Verificado visualmente en navegador (Playwright ad-hoc, datos reales de
+  CN-10155): la tarjeta muestra "430" con "⚠️ IC95%: 77–16.984h (1 intervalo)" debajo.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

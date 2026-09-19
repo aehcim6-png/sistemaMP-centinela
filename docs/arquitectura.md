@@ -3768,6 +3768,66 @@ tarjetas con "📉 Retraso" y 4 con "📈 Adelanto", sin romper el layout de
 ninguna. 892/892 tests (sin tests nuevos — es una etiqueta visual fija por
 tarjeta, sin lógica pura que cubrir) y build limpio.
 
+### 57. Intervalo de confianza del MTBF — método chi-cuadrado exacto (2026-09-19)
+
+El usuario compartió un lote de cheat sheets sobre estadística inferencial
+(p-value, intervalos de confianza, hipótesis, distribución, outliers).
+Fact-check: la mayoría de esos conceptos ya viven dentro del sistema, solo
+que no se ven como "cheat sheet" — hypothesis testing/chi-cuadrado ya
+existe en `testChiCuadradoUniforme` (patrones ocultos de falla), la forma
+de la distribución (skewness) ya existe como el parámetro β de Weibull, la
+estimación de máxima verosimilitud ya existe en `ajusteWeibullCensurado`
+(Newton-Raphson), y la detección de outliers ya existe (con otro método)
+en `ordenesSinOutliers`/`_concentracionMaximaOC`.
+
+Lo que sí faltaba de verdad: **intervalos de confianza**. El MTBF (y todo
+lo que se deriva de él — Confiabilidad, Disp. Inherente) se mostraba como
+un número suelto, con la misma "seguridad" visual para un equipo con 2
+fallas que para uno con 50 — estadísticamente esos dos casos tienen
+incertidumbre muy distinta. Verificado con datos reales de la flota
+(Supabase `jyhpfwivhwzylkzxrsbt`): CN-10155 (2 fallas, horómetros
+729/1159) da MTBF=430h pero IC95%=[77h,16.984h] — el punto casi no dice
+nada por sí solo con 1 solo intervalo; CN-5133 (53 fallas) da MTBF=143h
+con IC95%=[109h,191h] — mucho más confiable con una muestra grande.
+
+**`logic.js`**: `intervaloConfianzaMTBF(horomFallas,confianza)` — mismo
+input crudo y mismo mínimo de datos que `C.mtbfReal` (≥2 fallas válidas).
+Método estándar de ingeniería de confiabilidad (NIST Engineering
+Statistics Handbook 8.1.5.2, ensayo terminado por tiempo): con r =
+intervalos entre fallas observados en un tiempo total T, bajo tasa de
+falla constante (mismo supuesto que ya usa `confiabilidadReal`/
+`mtbfReal`):
+- límite inferior = 2T / χ²(1-α/2; 2r+2)
+- límite superior = 2T / χ²(α/2; 2r)
+
+Los grados de libertad acá SIEMPRE salen pares (2r o 2r+2), así que en vez
+de una aproximación numérica (Wilson-Hilferty, la que usan la mayoría de
+las calculadoras "a mano") se implementó la **CDF exacta** de
+chi-cuadrado vía la relación cerrada con Poisson: con df=2k (k entero),
+F(x)=1-Σ PoissonPMF(i,x/2) para i=0..k-1 — reutiliza `_poissonPMF` (ya
+con log-factorial, sin desborde) en vez de necesitar una función gamma
+aparte. El cuantil (inversa) se obtiene por búsqueda binaria sobre esa
+CDF exacta y monótona. Verificado contra `scipy.stats.chi2.ppf` antes de
+escribir los tests: coincide a más de 10 decimales en todos los casos
+probados (r=1, 2, 5, 20) — no es una aproximación, es exacto.
+
+7 tests en `tests/intervaloConfianzaMTBF.test.js` (899/899 en total): los
+2 casos reales de arriba (CN-10155, CN-5133) con los números exactos;
+insensibilidad al orden/ceros intercalados; nivel de confianza custom
+(90% da un IC más angosto que 95%, el punto no cambia); confianza fuera
+de (0,1) cae al 95% default.
+
+**`cos.js`** (Stock & Insumos → Costos → MTBF/MTTR): bajo el MTBF de cada
+equipo se muestra "IC95%: X–Yh (N intervalos)", con ⚠️ y color ámbar
+cuando la muestra es chica (r&lt;5) — el mismo umbral que ya usa
+`ajusteWeibull` para exigir un mínimo de intervalos antes de ajustar una
+curva. No bloquea ni cambia el MTBF puntual — es una señal de cuánto
+confiar en él, mismo principio que el resto de las señales de esta
+sesión. Verificado visualmente en navegador (Playwright ad-hoc, datos
+reales de CN-10155 inyectados directo al store): la tarjeta muestra
+"430" con "⚠️ IC95%: 77–16.984h (1 intervalo)" debajo, tal como se
+diseñó.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

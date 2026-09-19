@@ -85,9 +85,15 @@ export function renderCos() {
     // cada falla (no el horómetro actual del equipo, que infla el número con el
     // simple paso del tiempo sin que haya vuelto a fallar)
     var mtbf = C.mtbfReal(fallas.map(function (o) { return o.horom; }));
+    // Intervalo de confianza del MTBF (95%, método chi-cuadrado exacto —
+    // ver intervaloConfianzaMTBF en logic.js): con pocas fallas el MTBF
+    // puntual es engañoso (ej. real: CN-10155 con 2 fallas da MTBF=430h
+    // pero IC95%=[77h,16984h] — el punto casi no dice nada por sí solo).
+    // null cuando hay <2 fallas, igual que mtbf.
+    var ic = intervaloConfianzaMTBF(fallas.map(function (o) { return o.horom; }));
     var conSla = fallas.map(_slaRespuestaHoras).filter(function (h) { return h != null; });
     var sla = conSla.length ? Math.round(conSla.reduce(function (s, h) { return s + h; }, 0) / conSla.length) : null;
-    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length };
+    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length, ic: ic };
     reparaciones.forEach(function (o) {
       var m = String(o.duracion).match(/(\d+)h/);
       if (m) horasReparacionFlota.push(parseInt(m[1], 10));
@@ -234,7 +240,14 @@ export function renderCos() {
       mtbfList.map(function (m) {
         var e = eq.find(function (x) { return x.sigla === m[0]; });
         var mb = m[1].mtbf;
+        var ic = m[1].ic;
         var mtbfCol = mb == null ? 'var(--tx3)' : mb > 2000 ? 'var(--ok)' : mb > 500 ? 'var(--w)' : 'var(--danger)';
+        var icHtml = '';
+        if (ic) {
+          var muestraChica = ic.r < 5;
+          icHtml = '<div style="font-size:8px;color:' + (muestraChica ? 'var(--w)' : 'var(--tx3)') + ';font-weight:400" title="Intervalo de confianza 95% del MTBF (método chi-cuadrado exacto, NIST 8.1.5.2) — con pocas fallas el punto es poco confiable por sí solo.">' +
+            (muestraChica ? '⚠️ ' : '') + 'IC95%: ' + fn(ic.inferior) + '–' + fn(ic.superior) + 'h (' + ic.r + (ic.r === 1 ? ' intervalo' : ' intervalos') + ')</div>';
+        }
         var mttrCol = m[1].mttr === 0 ? 'var(--tx3)' : m[1].mttr < 4 ? 'var(--ok)' : m[1].mttr < 8 ? 'var(--w)' : 'var(--danger)';
         var slaCol = m[1].sla == null ? 'var(--tx3)' : m[1].sla <= 4 ? 'var(--ok)' : m[1].sla <= 24 ? 'var(--w)' : 'var(--danger)';
         return '<tr>' +
@@ -242,7 +255,7 @@ export function renderCos() {
           '<td style="font-size:11px">' + (e ? escapeHtml(e.modelo) : '') + '</td>' +
           '<td style="text-align:center">' + (e ? e.horomActual : 0) + '</td>' +
           '<td style="text-align:center;color:var(--danger);font-weight:600">' + m[1].fallas + '</td>' +
-          '<td style="text-align:center;font-weight:700;color:' + mtbfCol + '">' + (mb == null ? '—' : mb) + '</td>' +
+          '<td style="text-align:center;font-weight:700;color:' + mtbfCol + '">' + (mb == null ? '—' : mb) + icHtml + '</td>' +
           '<td style="text-align:center"><span style="font-size:11px;color:' + mtbfCol + '">' + (mb == null ? 'Datos insuf. (' + m[1].fallas + ' falla' + (m[1].fallas === 1 ? '' : 's') + ')' : mb > 2000 ? '🟢 Alta' : mb > 500 ? '🟡 Media' : '🔴 Baja') + '</span></td>' +
           '<td style="text-align:center">' + m[1].reparaciones + '</td>' +
           '<td style="text-align:center;font-weight:700;color:' + mttrCol + '">' + m[1].mttr + '</td>' +
