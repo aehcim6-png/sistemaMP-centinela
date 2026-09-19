@@ -748,6 +748,74 @@ function intervaloConfianzaMTBF(horomFallas,confianza){
   };
 }
 
+// Aproximación racional de Acklam (2003) para el cuantil de la normal
+// estándar (inversa de la CDF) — error relativo <1.15e-9. No hay forma
+// cerrada de la inversa de la normal (a diferencia del chi-cuadrado de
+// arriba, que sí la tiene vía Poisson porque sus grados de libertad
+// siempre salen pares): toda implementación real usa una aproximación
+// numérica como esta, la misma familia de algoritmo que usan R y SciPy
+// como fallback. Verificado contra scipy.stats.norm.ppf antes de escribir
+// los tests: coincide a 7-9 cifras significativas.
+function _normInv(p){
+  if(p<=0)return -Infinity;
+  if(p>=1)return Infinity;
+  var a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  var b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  var c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  var d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  var plow=0.02425,phigh=1-plow,q,r;
+  if(p<plow){
+    q=Math.sqrt(-2*Math.log(p));
+    return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  }else if(p<=phigh){
+    q=p-0.5;r=q*q;
+    return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+  }else{
+    q=Math.sqrt(-2*Math.log(1-p));
+    return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  }
+}
+// ═══ ERROR ESTÁNDAR / INTERVALO DE CONFIANZA DEL MTTR ═══ — el MTTR
+// (tiempo promedio de reparación, Stock & Insumos → Costos → MTBF/MTTR) se
+// mostraba como un promedio puro, sin ningún indicador de cuán preciso es
+// — un MTTR de "4h" con 2 reparaciones no es igual de confiable que uno de
+// "4h" con 40. Método de libro para el promedio de una muestra (a
+// diferencia del MTBF, que es un CONTEO de fallas por unidad de tiempo —
+// proceso de Poisson/exponencial — el MTTR es un promedio de duraciones
+// individuales, el caso clásico de Error Estándar de la media):
+//   SE = s/√n  (s = desviación estándar muestral, n = reparaciones con
+//   duración registrada)
+//   IC = media ± z(1-α/2)·SE
+// Es una aproximación NORMAL (usa el cuantil z, no t de Student) — válida
+// para muestras razonablemente grandes; con muestras muy chicas (<5,
+// mismo umbral que ya usa ajusteWeibull/el aviso de IC del MTBF) la
+// cobertura real es algo menor a la nominal, así que la UI (cos.js) lo
+// marca visualmente en vez de mostrar una falsa precisión. Recibe el mismo
+// input crudo que C.mttrReal (array de 'duracion', formato "Xh"), mismo
+// mínimo de 2 reparaciones con dato — sin eso ni una desviación estándar
+// se puede calcular.
+function errorEstandarMTTR(duraciones,confianza){
+  confianza=(confianza>0&&confianza<1)?confianza:0.95;
+  var horas=(duraciones||[]).filter(function(d){return d&&d!=='—';}).map(function(d){
+    var m=String(d).match(/(\d+)h/);
+    return m?parseInt(m[1],10):null;
+  }).filter(function(h){return h!=null;});
+  var n=horas.length;
+  if(n<2)return null;
+  var media=horas.reduce(function(s,h){return s+h;},0)/n;
+  var sumSqDesv=horas.reduce(function(s,h){return s+Math.pow(h-media,2);},0);
+  var desvEst=Math.sqrt(sumSqDesv/(n-1));
+  var se=desvEst/Math.sqrt(n);
+  var alpha=1-confianza;
+  var z=_normInv(1-alpha/2);
+  return{
+    media:Math.round(media*10)/10,n:n,se:Math.round(se*100)/100,
+    inferior:Math.max(0,Math.round((media-z*se)*10)/10),
+    superior:Math.round((media+z*se)*10)/10,
+    confianza:confianza
+  };
+}
+
 // ═══ AJUSTE WEIBULL — reemplaza el supuesto de tasa de falla CONSTANTE de
 // confiabilidadReal (de arriba) por la forma real de falla de CADA equipo,
 // estimada de sus propios intervalos entre fallas (2026-09-11, pedido del
@@ -4688,7 +4756,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

@@ -3828,6 +3828,53 @@ reales de CN-10155 inyectados directo al store): la tarjeta muestra
 "430" con "⚠️ IC95%: 77–16.984h (1 intervalo)" debajo, tal como se
 diseñó.
 
+### 58. Error estándar / intervalo de confianza del MTTR (2026-09-19)
+
+Continuación directa de la sección 57: el usuario compartió más cheat
+sheets de estadística (scatter plot, error estándar). El scatter plot no
+aporta nada nuevo (el gráfico de probabilidad Weibull ya es, en esencia,
+un scatter plot con regresión). El **Error Estándar** sí es una pieza real
+y análoga a lo que se hizo para el MTBF, pero para el **MTTR**: a
+diferencia del MTBF (un conteo de fallas por unidad de tiempo — proceso
+de Poisson/exponencial, por eso usó chi-cuadrado), el MTTR es un promedio
+de duraciones individuales — el caso clásico de libro de Error Estándar
+de la media: SE = s/√n, con IC = media ± z(1-α/2)·SE.
+
+**`logic.js`**: `_normInv(p)` — aproximación racional de Acklam (2003)
+para el cuantil de la normal estándar (error relativo &lt;1.15e-9). A
+diferencia del chi-cuadrado del MTBF (que sí tiene forma cerrada vía
+Poisson porque sus grados de libertad siempre salen pares), la inversa de
+la normal NO tiene forma cerrada — cualquier implementación real usa una
+aproximación numérica como esta, la misma familia de algoritmo que usan R
+y SciPy como fallback. Verificado contra `scipy.stats.norm.ppf` antes de
+escribir los tests: coincide a 7-9 cifras significativas.
+
+`errorEstandarMTTR(duraciones,confianza)` — mismo input crudo y mínimo de
+datos que `C.mttrReal` (≥2 reparaciones con duración registrada). Es una
+aproximación NORMAL (cuantil z, no t de Student) — válida para muestras
+razonablemente grandes; con muestras muy chicas (&lt;5, mismo umbral que ya
+usa `ajusteWeibull`/el aviso del IC del MTBF) la cobertura real es algo
+menor a la nominal, marcado visualmente en la UI en vez de mostrar una
+falsa precisión. El límite inferior se acota a 0 (una duración de
+reparación negativa no tiene sentido).
+
+6 tests en `tests/errorEstandarMTTR.test.js` (905/905 en total, con
+`intervaloConfianzaMTBF`): sin datos reales de Supabase disponibles en
+esta sesión (el MCP de Supabase no respondió), se usaron casos sintéticos
+—pero verificados independientemente contra scipy antes de escribir el
+test, mismo estándar que los casos reales de las secciones anteriores—
+con 2 reparaciones muy dispersas (SE grande, IC muy ancho, incluso
+negativo antes de acotar a 0) y 20 reparaciones consistentes (SE chico,
+IC angosto); insensibilidad a entradas sin duración; nivel de confianza
+custom; confianza fuera de rango cae al 95% default.
+
+**`cos.js`** (misma tabla MTBF/MTTR): bajo el MTTR de cada equipo se
+muestra "IC95%: X–Yh (N reparaciones)", con ⚠️ y color ámbar cuando la
+muestra es chica (n&lt;5) — mismo patrón visual que el IC del MTBF, mismo
+umbral. Verificado visualmente en navegador (Playwright ad-hoc, 2
+reparaciones sintéticas de 2h y 10h): la tarjeta muestra "6" con "⚠️
+IC95%: 0–13,8h (2 reparaciones)" debajo, tal como se diseñó.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

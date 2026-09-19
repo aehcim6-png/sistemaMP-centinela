@@ -91,9 +91,15 @@ export function renderCos() {
     // pero IC95%=[77h,16984h] — el punto casi no dice nada por sí solo).
     // null cuando hay <2 fallas, igual que mtbf.
     var ic = intervaloConfianzaMTBF(fallas.map(function (o) { return o.horom; }));
+    // Error estándar / IC del MTTR (95%, aproximación normal — ver
+    // errorEstandarMTTR en logic.js): mismo motivo que el IC del MTBF de
+    // arriba, pero acá el MTTR es un promedio de duraciones (no un conteo
+    // de fallas), así que corresponde el método clásico SE=s/√n en vez de
+    // chi-cuadrado. null cuando hay <2 reparaciones con duración.
+    var seMttr = errorEstandarMTTR(fallas.map(function (o) { return o.duracion; }));
     var conSla = fallas.map(_slaRespuestaHoras).filter(function (h) { return h != null; });
     var sla = conSla.length ? Math.round(conSla.reduce(function (s, h) { return s + h; }, 0) / conSla.length) : null;
-    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length, ic: ic };
+    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length, ic: ic, seMttr: seMttr };
     reparaciones.forEach(function (o) {
       var m = String(o.duracion).match(/(\d+)h/);
       if (m) horasReparacionFlota.push(parseInt(m[1], 10));
@@ -249,6 +255,13 @@ export function renderCos() {
             (muestraChica ? '⚠️ ' : '') + 'IC95%: ' + fn(ic.inferior) + '–' + fn(ic.superior) + 'h (' + ic.r + (ic.r === 1 ? ' intervalo' : ' intervalos') + ')</div>';
         }
         var mttrCol = m[1].mttr === 0 ? 'var(--tx3)' : m[1].mttr < 4 ? 'var(--ok)' : m[1].mttr < 8 ? 'var(--w)' : 'var(--danger)';
+        var se = m[1].seMttr;
+        var seHtml = '';
+        if (se) {
+          var seMuestraChica = se.n < 5;
+          seHtml = '<div style="font-size:8px;color:' + (seMuestraChica ? 'var(--w)' : 'var(--tx3)') + ';font-weight:400" title="Intervalo de confianza 95% del MTTR (Error Estándar, aproximación normal) — con pocas reparaciones el promedio es poco confiable por sí solo.">' +
+            (seMuestraChica ? '⚠️ ' : '') + 'IC95%: ' + fn(se.inferior) + '–' + fn(se.superior) + 'h (' + se.n + (se.n === 1 ? ' reparación' : ' reparaciones') + ')</div>';
+        }
         var slaCol = m[1].sla == null ? 'var(--tx3)' : m[1].sla <= 4 ? 'var(--ok)' : m[1].sla <= 24 ? 'var(--w)' : 'var(--danger)';
         return '<tr>' +
           '<td class="mono" style="color:var(--ac)">' + m[0] + '</td>' +
@@ -258,7 +271,7 @@ export function renderCos() {
           '<td style="text-align:center;font-weight:700;color:' + mtbfCol + '">' + (mb == null ? '—' : mb) + icHtml + '</td>' +
           '<td style="text-align:center"><span style="font-size:11px;color:' + mtbfCol + '">' + (mb == null ? 'Datos insuf. (' + m[1].fallas + ' falla' + (m[1].fallas === 1 ? '' : 's') + ')' : mb > 2000 ? '🟢 Alta' : mb > 500 ? '🟡 Media' : '🔴 Baja') + '</span></td>' +
           '<td style="text-align:center">' + m[1].reparaciones + '</td>' +
-          '<td style="text-align:center;font-weight:700;color:' + mttrCol + '">' + m[1].mttr + '</td>' +
+          '<td style="text-align:center;font-weight:700;color:' + mttrCol + '">' + m[1].mttr + seHtml + '</td>' +
           '<td style="text-align:center"><span style="font-size:11px;color:' + mttrCol + '">' + (m[1].mttr === 0 ? '— Sin datos' : m[1].mttr < 4 ? '🟢 Rápido' : m[1].mttr < 8 ? '🟡 Normal' : '🔴 Lento') + '</span></td>' +
           '<td style="text-align:center;font-weight:700;color:' + slaCol + '">' + (m[1].sla == null ? '—' : m[1].sla) + '</td></tr>';
       }).join('') +

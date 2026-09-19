@@ -2157,6 +2157,29 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   de cuánto confiar en él. Verificado visualmente en navegador (Playwright ad-hoc, datos reales de
   CN-10155): la tarjeta muestra "430" con "⚠️ IC95%: 77–16.984h (1 intervalo)" debajo.</p>
 
+  <h3>58. Error estándar / intervalo de confianza del MTTR (2026-09-19)</h3>
+  <p>Continuación directa de la sección 57: el usuario compartió más cheat sheets (scatter plot, error
+  estándar). El scatter plot no aporta nada nuevo (el gráfico de probabilidad Weibull ya es, en esencia,
+  un scatter plot con regresión). El <b>Error Estándar</b> sí es real y análogo a lo hecho para el MTBF, pero
+  para el <b>MTTR</b>: a diferencia del MTBF (conteo de fallas — proceso de Poisson/exponencial, de ahí
+  el chi-cuadrado), el MTTR es un promedio de duraciones individuales — el caso clásico de Error
+  Estándar de la media: SE = s/√n, IC = media ± z(1-α/2)·SE.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> <code>_normInv(p)</code> — aproximación racional de Acklam
+  (2003) para el cuantil de la normal (error relativo &lt;1.15e-9). A diferencia del chi-cuadrado del MTBF
+  (forma cerrada vía Poisson), la inversa de la normal no tiene forma cerrada — se usa la misma familia
+  de aproximación que R/SciPy como fallback. Verificado contra <code>scipy.stats.norm.ppf</code>: coincide
+  a 7-9 cifras significativas. <code>errorEstandarMTTR(duraciones,confianza)</code> — mismo input crudo y
+  mínimo de datos que <code>C.mttrReal</code>. Aproximación NORMAL (no t de Student) — con muestras muy
+  chicas (&lt;5) la cobertura real es algo menor a la nominal, marcado visualmente en la UI. Límite
+  inferior acotado a 0.</p>
+  <p>6 tests en <code>tests/errorEstandarMTTR.test.js</code> (905/905 en total): sin acceso a datos reales de
+  Supabase en esta sesión, se usaron casos sintéticos verificados independientemente contra scipy antes
+  de escribir el test (2 reparaciones muy dispersas -> IC ancho; 20 consistentes -> IC angosto).</p>
+  <p><b>Cambios en <code>cos.js</code></b> (misma tabla MTBF/MTTR): bajo el MTTR se muestra "IC95%: X–Yh (N
+  reparaciones)", con ⚠️ cuando la muestra es chica (n&lt;5). Verificado visualmente en navegador
+  (Playwright ad-hoc, 2 reparaciones de 2h y 10h): la tarjeta muestra "6" con "⚠️ IC95%: 0–13,8h (2
+  reparaciones)" debajo.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
