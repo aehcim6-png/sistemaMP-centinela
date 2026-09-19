@@ -3724,6 +3724,50 @@ piso de retiro y otro sano): la tarjeta muestra "1 · De 2 operativos",
 igual al resto de las tarjetas de esa fila. 892/892 tests (sin tests
 nuevos — no hay lógica pura nueva que cubrir) y build limpio.
 
+### 56. Etiquetas de indicador de adelanto/retraso en el Dashboard (2026-09-19)
+
+El usuario compartió un lote de capturas de posts genéricos (indicadores
+de adelanto/retraso en mantenimiento, la cadena "mantenimiento hasta el
+EVA", conceptos de bases de datos, cheat sheets de Machine Learning).
+Fact-check honesto de cuáles aplican realmente a este sistema: los
+conceptos de bases de datos y los cheat sheets de ML (CNN, PCA, Bayes,
+regularización, ensemble learning) no aplican — el sistema usa modelos
+estadísticos de confiabilidad (Weibull, Kaplan-Meier, Crow-AMSAA, Kijima,
+GRP), no redes neuronales ni visión por computadora entrenada localmente,
+y agregar eso sería sobre-ingeniería sin caso de uso real. La cadena
+Mantenimiento→EVA es conceptualmente correcta pero no implementable: para
+calcular EVA/EBIT de verdad haría falta Ingresos reales y costo de
+capital de Besalco, datos que no están cargados en Supabase — mismo
+criterio de "no inventar" de toda la sesión.
+
+Lo único real e implementable: la clasificación de **indicadores de
+adelanto (leading)** — predictivos, corregibles en el momento — vs.
+**indicadores de retraso (lagging)** — resultado histórico ya cerrado,
+sirven para explicar lo que pasó, no para corregirlo. Se agregó
+`_dashBadgeTendencia(tipo)` en `dash.js`, una etiqueta visual pequeña
+(📈 Adelanto / 📉 Retraso, con tooltip explicativo) sin tocar ningún
+cálculo existente. Aplicada a 8 tarjetas donde la clasificación es
+inequívoca:
+
+- **De retraso**: Disponibilidad Mecánica, MTBF Real de Flota, Costo/RAV,
+  Confiabilidad (R) — resultado del período ya cerrado.
+- **De adelanto**: Cumplimiento PM, Backlog, Stock Crítico, Neumáticos
+  Críticos — accionables ahora, antes de que se conviertan en una falla o
+  un costo.
+
+Deliberadamente NO se etiquetaron el resto de las tarjetas (Urgentes,
+Próximas, Gasto del mes, OTs Pendientes, % Flota sin falla, Disp.
+Inherente, Retrabajo, Criticidad, Dotación) — varias son ambiguas o no
+encajan limpio en ninguno de los dos grupos (ej. Criticidad es una
+clasificación estática de riesgo, no una tendencia), y forzar una
+etiqueta ahí sería el mismo tipo de señal inventada que se evitó toda la
+sesión.
+
+Verificado visualmente en navegador (Playwright ad-hoc): exactamente 4
+tarjetas con "📉 Retraso" y 4 con "📈 Adelanto", sin romper el layout de
+ninguna. 892/892 tests (sin tests nuevos — es una etiqueta visual fija por
+tarjeta, sin lógica pura que cubrir) y build limpio.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
