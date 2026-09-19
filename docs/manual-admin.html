@@ -473,6 +473,29 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ningún interruptor nuevo en Configuración que activar: la única acción de un admin es mantener
   esos datos cargados y reales.</p>
 
+  <h2>8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</h2>
+  <p>Cuatro agregados chicos al Dashboard y a Costos → MTBF/MTTR, sin tabla ni configuración
+  nueva:</p>
+  <ul>
+    <li><b>Neumáticos Críticos</b> (Dashboard, junto a Stock Crítico) — cuenta neumáticos
+    operativos que ya llegaron a su límite real de cambio. Reutiliza una función que ya existía
+    (<code>neuDebeCambiar</code>), solo faltaba mostrarse.</li>
+    <li><b>Etiquetas 📈 Adelanto / 📉 Retraso</b> (Dashboard, 8 tarjetas) — puramente visual, no
+    cambia ningún cálculo.</li>
+    <li><b>Intervalo de confianza del MTBF</b> (Costos → MTBF/MTTR) — método chi-cuadrado EXACTO
+    (no una aproximación), ver <a href="arquitectura.html">Arquitectura</a> sección 57. Con pocas
+    fallas el MTBF puntual es engañoso (real: un equipo con 2 fallas dio MTBF=430h pero
+    IC95%=[77h,16.984h]) — el aviso ⚠️ aparece con menos de 5 intervalos entre fallas.</li>
+    <li><b>Error estándar / IC del MTTR</b> (misma vista) — aproximación normal (SE=s/√n), ver
+    Arquitectura sección 58. Mismo aviso ⚠️ con menos de 5 reparaciones con duración
+    registrada.</li>
+  </ul>
+  <p>Como admin no hay nada que configurar acá: ambos intervalos se calculan solos a partir de
+  <code>correctivos.horom</code> y <code>correctivos.duracion</code>, que ya se cargan por el
+  flujo normal de cierre de OT. Cuantas más fallas/reparaciones con esos campos completos tenga
+  un equipo, más angosto (más confiable) sale su intervalo — no hay ningún campo nuevo que
+  cargar, solo seguir completando duración y horómetro al cerrar correctivos, como ya se hace.</p>
+
   <h2>9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
