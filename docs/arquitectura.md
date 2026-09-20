@@ -3967,6 +3967,46 @@ sintético de 4 mediciones ruidosas, mismos números que el test de R²≈0.18
 en logic.js): la columna Vida Restante muestra "≈0d (0h) ⚠️" y el
 tooltip explica el ajuste débil.
 
+### 61. ANOVA de un factor: MTTR por técnico (2026-09-20)
+
+Las comparativas "por técnico" que ya existían (`tecnicosAltoReingreso`,
+`tecnicosBajaDocumentacion`, la tabla Por Técnico de Estadística) solo
+mostraban porcentajes/promedios crudos, sin ningún test de significancia
+— dos técnicos con muestras de tamaño distinto podían verse "distintos"
+en la tabla aunque la diferencia fuera puro ruido. `anovaUnFactor(grupos,
+minPorGrupo)` parte la varianza total de los datos en varianza ENTRE
+grupos (¿cuánto varían los promedios de cada técnico entre sí?) y
+varianza DENTRO de cada grupo (¿cuánto varía cada técnico contra su
+propio promedio?): si la de ENTRE domina (estadístico F alto), la
+diferencia es real, no ruido de muestra.
+
+El p-valor exacto de F requiere la función beta incompleta regularizada
+(relación estándar entre las distribuciones F y Beta) — sin fórmula
+cerrada simple, se usa el algoritmo estándar de fracción continua
+(Numerical Recipes, método de Lentz: `_logGamma`/`_betaContinuaFraccion`/
+`_betaIncompletaRegularizada`), el mismo tipo de método numérico ya usado
+esta sesión para `_normInv` (cuantil normal). Verificado independientemente
+contra `scipy.stats.f_oneway`/`scipy.stats.f.sf` con 5 casos (diferencia
+real de 3 grupos, sin diferencia real, 2 grupos, grupo descartado por
+muestra chica, valores null/NaN ignorados) — coincide a >9 dígitos
+significativos.
+
+Grupos con menos de `minPorGrupo` (default 5, mismo umbral ya usado esta
+sesión para el IC del MTBF/MTTR) se descartan ANTES del test — nunca se
+calcula significancia sobre una muestra insuficiente para siquiera estimar
+bien su propio promedio. Necesita al menos 2 grupos válidos.
+
+Integrado en Estadística → Por Técnico (`estadistica.js`), sobre el MTTR
+(duración de reparación, horas, mismo parseo "Xh" que
+`duracionesReparacionFlotaHoras`): nueva tarjeta "ANOVA: MTTR por técnico"
+con F, p-valor, grados de libertad, un veredicto en texto plano
+("diferencia significativa" / "puede ser ruido de muestra") y la tabla de
+promedio ± desviación estándar por técnico, ordenada de mayor a menor
+MTTR. 7 tests nuevos (`anovaUnFactor.test.js`). Verificado visualmente en
+navegador (Playwright ad-hoc, mismos 3 técnicos del test "caso realista":
+F=37.672, p≈1.13e-7, tabla ordenada Pedro Soto (8.29h) > Luis Diaz (5h) >
+Juan Perez (4.5h), veredicto "significativo" en rojo).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

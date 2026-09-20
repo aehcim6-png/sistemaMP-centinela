@@ -2226,6 +2226,26 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ruidosas, mismos números que el test R²≈0.18): la columna Vida Restante muestra "≈0d (0h) ⚠️" con
   el tooltip explicando el ajuste débil.</p>
 
+  <h3>61. ANOVA de un factor: MTTR por técnico (2026-09-20)</h3>
+  <p>Las comparativas "por técnico" que ya existían (<code>tecnicosAltoReingreso</code>,
+  <code>tecnicosBajaDocumentacion</code>, la tabla Por Técnico de Estadística) solo mostraban
+  porcentajes/promedios crudos, sin ningún test de significancia. <code>anovaUnFactor(grupos,
+  minPorGrupo)</code> parte la varianza total en varianza ENTRE grupos vs DENTRO de cada grupo: si
+  la de ENTRE domina (estadístico F alto), la diferencia entre técnicos es real, no ruido de
+  muestra chica.</p>
+  <p>El p-valor exacto de F requiere la función beta incompleta regularizada — sin fórmula cerrada
+  simple, se usa el algoritmo estándar de fracción continua (Numerical Recipes, método de Lentz:
+  <code>_logGamma</code>/<code>_betaContinuaFraccion</code>/<code>_betaIncompletaRegularizada</code>),
+  el mismo tipo de método numérico ya usado esta sesión para <code>_normInv</code>. Verificado
+  independientemente contra <code>scipy.stats.f_oneway</code>/<code>scipy.stats.f.sf</code> con 5
+  casos — coincide a &gt;9 dígitos significativos.</p>
+  <p>Grupos con menos de <code>minPorGrupo</code> (default 5, mismo umbral ya usado para el IC del
+  MTBF/MTTR) se descartan antes del test. Integrado en Estadística → Por Técnico
+  (<code>estadistica.js</code>) sobre el MTTR (duración de reparación): nueva tarjeta con F,
+  p-valor, grados de libertad, un veredicto en texto plano y la tabla de promedio ± desviación
+  estándar por técnico. 7 tests nuevos. Verificado visualmente en navegador (Playwright ad-hoc:
+  F=37.672, p≈1.13e-7, tabla ordenada correctamente, veredicto "significativo" en rojo).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

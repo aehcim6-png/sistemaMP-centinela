@@ -468,6 +468,23 @@ function _estTablaTecnico(ot) {
     };
   }).filter(function (t) { return t.total >= 15; })
     .sort(function (a, b) { return a.pctDoc - b.pctDoc; });
+  // ANOVA de un factor sobre MTTR (duración de reparación, horas) por técnico
+  // (2026-09-20): la tabla de arriba nunca dijo si un técnico "más lento" es
+  // una diferencia real o ruido de muestra chica — ANOVA parte la varianza en
+  // ENTRE técnicos vs DENTRO de cada técnico y da un F/p-valor real (ver
+  // anovaUnFactor, logic.js). Mismo parseo "Xh" de o.duracion que ya usa
+  // duracionesReparacionFlotaHoras — nunca se inventa una duración.
+  var porTecDuracion = {};
+  (ot || []).forEach(function (o) {
+    if (!(o.tipo === 'Correctivo' || o.tipo === 'Falla Operacional')) return;
+    if (!o.duracion || o.duracion === '—') return;
+    var m = String(o.duracion).match(/(\d+)h/);
+    if (!m) return;
+    var nombre = (o.tecnico || '').split('/')[0].trim();
+    if (!nombre) return;
+    (porTecDuracion[nombre] = porTecDuracion[nombre] || []).push(parseInt(m[1], 10));
+  });
+  var anovaMttr = (typeof anovaUnFactor === 'function') ? anovaUnFactor(porTecDuracion, 5) : null;
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">👷 Comparativa por Técnico</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Solo correctivos actuales (el historial de Excel no trae quién hizo el trabajo). % documentado = OT cerradas con "Solución" registrada. % reingreso = mismo equipo+componente vuelve a fallar dentro de 7 días (excluye consumibles de desgaste esperado). Solo técnicos con 15+ OT — con menos, el % no significa nada.</div>' +
@@ -482,6 +499,40 @@ function _estTablaTecnico(ot) {
     }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--tx3)">Sin técnicos con 15+ OT cerradas todavía</td></tr>') +
     '</table></div>' +
     '<div style="font-size:10px;color:var(--tx3);margin-top:8px">No mide calidad del trabajo, solo constancia escrita y si la reparación aguantó. Un % bajo amerita conversación de terreno, no una conclusión directa.</div>' +
+    '</div>' +
+    _estAnovaMttrHTML(anovaMttr);
+}
+
+// Bloque ANOVA de un factor sobre MTTR por técnico — separado del resto de
+// _estTablaTecnico solo para no inflar una función ya larga (2026-09-20).
+function _estAnovaMttrHTML(anova) {
+  if (!anova) {
+    return '<div class="chart-box" style="border-left:3px solid var(--tx3);margin-bottom:16px">' +
+      '<div class="chart-t">📐 ANOVA: MTTR por técnico</div>' +
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0">Menos de 2 técnicos con 5+ reparaciones con duración registrada — sin muestra suficiente para comparar.</div>' +
+      '</div>';
+  }
+  var colF = anova.significativo ? 'var(--danger)' : 'var(--tx3)';
+  var veredicto = anova.significativo
+    ? 'Diferencia estadísticamente significativa (p&lt;0.05) — probablemente no es solo ruido de muestra.'
+    : 'No hay evidencia de diferencia real entre técnicos (p≥0.05) — lo que se ve en la tabla puede ser ruido de muestra.';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">📐 ANOVA: MTTR por técnico</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">¿El tiempo de reparación (MTTR, horas) difiere REALMENTE entre técnicos, o es ruido de muestra chica? Parte la varianza en ENTRE técnicos (F alto = diferencia real) vs DENTRO de cada técnico. Solo técnicos con 5+ reparaciones con duración registrada.</div>' +
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">' +
+    '<div><div style="font-size:10px;color:var(--tx3)">F</div><div style="font-size:18px;font-weight:700;color:' + colF + '">' + anova.F + '</div></div>' +
+    '<div><div style="font-size:10px;color:var(--tx3)">p-valor</div><div style="font-size:18px;font-weight:700;color:' + colF + '">' + (anova.pValor < 0.0001 ? anova.pValor.toExponential(2) : Math.round(anova.pValor * 10000) / 10000) + '</div></div>' +
+    '<div><div style="font-size:10px;color:var(--tx3)">gl (entre, dentro)</div><div style="font-size:18px;font-weight:700">' + anova.glEntre + ', ' + anova.glDentro + '</div></div>' +
+    '</div>' +
+    '<div style="font-size:12px;font-weight:600;color:' + colF + ';margin-bottom:10px">' + veredicto + '</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR promedio</th><th>Desv. estándar</th></tr>' +
+    anova.grupos.map(function (g) {
+      return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
+        '<td style="text-align:center">' + g.n + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + g.media + 'h</td>' +
+        '<td style="text-align:center">' + g.desvEst + 'h</td></tr>';
+    }).join('') +
+    '</table></div>' +
     '</div>';
 }
 

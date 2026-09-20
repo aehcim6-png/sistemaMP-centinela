@@ -850,6 +850,127 @@ function r2RegresionLineal(pts){
   return{pendiente:pendiente,intercepto:intercepto,r2:Math.round(Math.max(0,Math.min(1,r2))*1000)/1000,n:n};
 }
 
+// ═══ ANOVA DE UN FACTOR — ¿el promedio real difiere entre grupos (ej.
+// MTTR por técnico), o es ruido de muestra chica? (2026-09-20) ═══
+// Hoy las comparativas "por técnico" (tecnicosAltoReingreso,
+// tecnicosBajaDocumentacion, la tabla Por Técnico de Estadística) solo
+// muestran porcentajes/promedios crudos, sin ningún test de significancia
+// — dos técnicos con 15 y 6 reparaciones podían verse "distintos" en la
+// tabla aunque la diferencia fuera puro ruido de muestra. ANOVA de un
+// factor responde eso: parte la varianza TOTAL de los datos en varianza
+// ENTRE grupos (¿cuánto varían los promedios de cada técnico entre sí?) y
+// varianza DENTRO de cada grupo (¿cuánto varía cada técnico contra su
+// propio promedio?) — si la de ENTRE es mucho más grande que la de DENTRO
+// (estadístico F alto), la diferencia entre técnicos es real, no ruido.
+//
+// _logGamma/_betaContinuaFraccion/_betaIncompletaRegularizada: el p-valor
+// exacto de F requiere la función beta incompleta regularizada
+// (relación estándar entre la distribución F y la Beta — ver cualquier
+// texto de estadística). No hay una fórmula cerrada simple, así que se usa
+// el algoritmo estándar de fracción continua (Numerical Recipes, Lentz),
+// el mismo tipo de método numérico ya usado en esta sesión para _normInv
+// — verificado independientemente contra scipy.stats.f.sf a >9 dígitos
+// significativos antes de integrarse (ver tests).
+function _logGamma(xx){
+  var cof=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  var x=xx,y=xx;
+  var tmp=x+5.5;
+  tmp-=(x+0.5)*Math.log(tmp);
+  var ser=1.000000000190015;
+  for(var j=0;j<=5;j++){y+=1;ser+=cof[j]/y;}
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+function _betaContinuaFraccion(a,b,x){
+  var MAXIT=200,EPS=3e-9,FPMIN=1e-300;
+  var qab=a+b,qap=a+1,qam=a-1;
+  var c=1;
+  var d=1-qab*x/qap;
+  if(Math.abs(d)<FPMIN)d=FPMIN;
+  d=1/d;
+  var h=d;
+  for(var m=1;m<=MAXIT;m++){
+    var m2=2*m;
+    var aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN;
+    c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN;
+    d=1/d;
+    h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN;
+    c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN;
+    d=1/d;
+    var del=d*c;
+    h*=del;
+    if(Math.abs(del-1)<EPS)break;
+  }
+  return h;
+}
+function _betaIncompletaRegularizada(x,a,b){
+  if(x<0||x>1)return null;
+  var bt;
+  if(x===0||x===1){bt=0;}
+  else{bt=Math.exp(_logGamma(a+b)-_logGamma(a)-_logGamma(b)+a*Math.log(x)+b*Math.log(1-x));}
+  if(x<(a+1)/(a+b+2)){
+    return bt*_betaContinuaFraccion(a,b,x)/a;
+  }else{
+    return 1-bt*_betaContinuaFraccion(b,a,1-x)/b;
+  }
+}
+// p-valor de cola superior de F(d1,d2) evaluado en f — ver derivación en
+// el comentario de arriba (relación F↔Beta incompleta regularizada).
+function _pValorF(f,d1,d2){
+  if(f<=0)return 1;
+  var x=d2/(d2+d1*f);
+  return _betaIncompletaRegularizada(x,d2/2,d1/2);
+}
+// 'grupos': objeto {nombreGrupo:[valores numéricos...]} (ej. horas de MTTR
+// por técnico, ya agrupadas por quien llama). minPorGrupo (default 5,
+// mismo umbral ya usado para IC del MTBF/MTTR esta sesión): un grupo con
+// menos observaciones se descarta ANTES del test — no se inventa
+// significancia sobre una muestra insuficiente para siquiera estimar bien
+// su propio promedio. Necesita al menos 2 grupos válidos para comparar.
+function anovaUnFactor(grupos,minPorGrupo){
+  var min=minPorGrupo||5;
+  var nombres=Object.keys(grupos||{}).filter(function(g){
+    var v=(grupos[g]||[]).filter(function(x){return x!=null&&isFinite(x);});
+    return v.length>=min;
+  });
+  if(nombres.length<2)return null;
+  var datosPorGrupo=nombres.map(function(g){return(grupos[g]||[]).filter(function(x){return x!=null&&isFinite(x);});});
+  var todos=[];
+  datosPorGrupo.forEach(function(d){todos=todos.concat(d);});
+  var N=todos.length;
+  var mediaGeneral=todos.reduce(function(s,x){return s+x;},0)/N;
+  var k=nombres.length;
+  var ssEntre=0,ssDentro=0;
+  var gruposInfo=nombres.map(function(g,i){
+    var d=datosPorGrupo[i];
+    var n=d.length;
+    var media=d.reduce(function(s,x){return s+x;},0)/n;
+    ssEntre+=n*Math.pow(media-mediaGeneral,2);
+    var sumSqDentro=d.reduce(function(s,x){return s+Math.pow(x-media,2);},0);
+    ssDentro+=sumSqDentro;
+    var desvEst=n>1?Math.sqrt(sumSqDentro/(n-1)):0;
+    return{grupo:g,n:n,media:Math.round(media*100)/100,desvEst:Math.round(desvEst*100)/100};
+  });
+  var glEntre=k-1,glDentro=N-k;
+  if(glDentro<1)return null;
+  var msEntre=ssEntre/glEntre;
+  var msDentro=ssDentro/glDentro;
+  var F=msDentro>0?msEntre/msDentro:(msEntre>0?Infinity:0);
+  var pValor=isFinite(F)?_pValorF(F,glEntre,glDentro):0;
+  return{
+    grupos:gruposInfo.sort(function(a,b){return b.media-a.media;}),
+    k:k,N:N,
+    ssEntre:Math.round(ssEntre*100)/100,ssDentro:Math.round(ssDentro*100)/100,
+    glEntre:glEntre,glDentro:glDentro,
+    msEntre:Math.round(msEntre*100)/100,msDentro:Math.round(msDentro*100)/100,
+    F:Math.round(F*1000)/1000,
+    pValor:pValor,
+    significativo:pValor<0.05
+  };
+}
+
 // ═══ AJUSTE WEIBULL — reemplaza el supuesto de tasa de falla CONSTANTE de
 // confiabilidadReal (de arriba) por la forma real de falla de CADA equipo,
 // estimada de sus propios intervalos entre fallas (2026-09-11, pedido del
@@ -4790,7 +4911,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
