@@ -2334,6 +2334,24 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   cuántas transiciones reales sustentan la matriz. Verificado en navegador (Playwright: mismos 18 equipos,
   panel muestra "18 transiciones reales de flota" y probabilidades coincidiendo con el cálculo puro).</p>
 
+  <h3>66. Log-Rank Test — ¿dos curvas de supervivencia son realmente distintas? (2026-09-20)</h3>
+  <p>Kaplan-Meier calcula la curva de supervivencia real de un componente, pero no dice si la diferencia ENTRE
+  dos curvas (Motor vs. Transmisión, dos modelos, dos ubicaciones) es real o ruido de muestra chica — mismo
+  hueco que <code>anovaUnFactor</code> cerró para promedios de MTTR, acá para curvas completas con censura,
+  que un ANOVA o t-test no pueden usar correctamente. <b>Log-Rank Test</b> es el estándar no paramétrico para
+  esto.</p>
+  <p>En cada tiempo de falla real: <code>E_iA = d_i×n_iA/n_i</code> (fallas esperadas en A si ambos grupos
+  tuvieran igual riesgo), <code>V_i = d_i×(n_i−d_i)×n_iA×n_iB / (n_i²×(n_i−1))</code> (varianza
+  hipergeométrica), <code>χ² = (ΣO_A−ΣE_A)² / ΣV_i</code> con 1 grado de libertad — reusa el mismo valor
+  crítico (3.841) que ya usaba <code>testChiCuadradoUniforme</code>. Mínimo 5 observaciones por grupo.</p>
+  <p>Verificado independientemente con Python (algoritmo desde cero a partir de la fórmula estándar): un caso
+  con diferencia chica (χ²≈1.00, no significativo) y uno con diferencia grande (χ²≈16.94, significativo) — 5
+  tests nuevos (<code>logRankTest.test.js</code>). <code>kaplanMeierCorrectivosPorComponente</code> ahora
+  también expone las observaciones crudas (<code>obs</code>) de cada componente. Integrado en Estadística →
+  Por Componente: dos selectores para elegir cualquier par de componentes, con el resultado actualizándose al
+  cambiar la selección. Verificado en navegador (Playwright: χ²=16.94 idéntico al caso verificado con
+  Python).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

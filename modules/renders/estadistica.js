@@ -202,6 +202,41 @@ function _estWeibullPorComponente(eventos) {
 function _estKaplanMeierPorComponente(eventos, eq) {
   var lista = (typeof kaplanMeierCorrectivosPorComponente === 'function') ? kaplanMeierCorrectivosPorComponente(eventos, eq) : [];
   if (!lista.length) return '';
+  // Log-Rank Test (2026-09-20) — Kaplan-Meier de abajo muestra la curva
+  // real de cada componente, pero no dice si la diferencia ENTRE dos
+  // curvas es real o ruido de muestra chica (mismo hueco que ANOVA cerró
+  // para promedios de MTTR, acá para curvas completas con censura, que un
+  // ANOVA no puede usar). Reusa 'obs' (observaciones crudas) que
+  // kaplanMeierCorrectivosPorComponente ya expone junto a la curva.
+  var conDatos = lista.filter(function (g) { return g.km; });
+  var compA = window._estLrCompA || (conDatos[0] && conDatos[0].componente) || '';
+  var compB = window._estLrCompB || (conDatos[1] && conDatos[1].componente) || '';
+  var itemA = conDatos.filter(function (g) { return g.componente === compA; })[0];
+  var itemB = conDatos.filter(function (g) { return g.componente === compB; })[0];
+  var logRank = (itemA && itemB && compA !== compB && typeof logRankTest === 'function') ? logRankTest(itemA.obs, itemB.obs) : null;
+  var comparacionHtml = '';
+  if (conDatos.length >= 2) {
+    var opciones = conDatos.map(function (g) { return g.componente; });
+    comparacionHtml =
+      '<div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">¿Es una diferencia real, o ruido de muestra chica? (Log-Rank Test)</div>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' +
+      '<select id="estLrCompA" onchange="window._estLrCompA=this.value;renders.estadistica()" style="font-size:12px">' +
+        opciones.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === compA ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+      '</select>' +
+      '<span style="font-size:11px;color:var(--tx3)">vs.</span>' +
+      '<select id="estLrCompB" onchange="window._estLrCompB=this.value;renders.estadistica()" style="font-size:12px">' +
+        opciones.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === compB ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+      '</select>' +
+      '</div>' +
+      (compA === compB
+        ? '<div style="font-size:11px;color:var(--tx3)">Elegí dos componentes distintos para comparar.</div>'
+        : logRank
+          ? '<div style="font-size:12px;color:var(--tx2)">χ²=' + logRank.chi2 + ' (gl=1) — <b style="color:' + (logRank.significativo ? 'var(--danger)' : 'var(--ok)') + '">' + (logRank.significativo ? 'diferencia real entre las dos curvas' : 'puede ser ruido de muestra chica') + '</b></div>' +
+            '<div style="font-size:10px;color:var(--tx3);margin-top:2px">' + escapeHtml(compA) + ': ' + logRank.fallasA + ' fallas de ' + logRank.nA + ' observaciones · ' + escapeHtml(compB) + ': ' + logRank.fallasB + ' fallas de ' + logRank.nB + ' observaciones. Compara las curvas de supervivencia completas, no solo un promedio — usa también los casos censurados (todavía en servicio sin haber fallado).</div>'
+          : '<div style="font-size:11px;color:var(--tx3)">Sin historial suficiente en alguno de los dos (mínimo 5 observaciones cada uno) para comparar con confianza.</div>') +
+      '</div>';
+  }
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">📉 Curva de supervivencia por componente — toda la flota (Kaplan-Meier)</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Complemento a Weibull (arriba): no asume ninguna forma matemática, calcula la probabilidad real de que el componente siga sin fallar a cada hora, directamente de los datos. A diferencia de Weibull, SÍ usa los componentes que siguen en servicio sin haber vuelto a fallar todavía (censurados) — ellos también son información real ("sobrevivió al menos hasta acá"), no solo los que ya fallaron. Mediana de supervivencia = a esa cantidad de horas, la mitad de los casos reales ya había fallado y la mitad seguía funcionando. IC90 (Greenwood) = qué tan segura es la curva en ese tramo — con pocos datos puede ser amplio. Mínimo 5 observaciones (fallas + censurados) por componente.</div>' +
@@ -222,7 +257,9 @@ function _estKaplanMeierPorComponente(eventos, eq) {
           (ultimo ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">S final ' + Math.round(ultimo.supervivencia * 100) + '% (IC90 ' + Math.round(ultimo.ic90Min * 100) + '–' + Math.round(ultimo.ic90Max * 100) + '%)</div>' : '') + '</td>' +
         '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + lectura + '</td></tr>';
     }).join('') +
-    '</table></div></div>';
+    '</table></div>' +
+    comparacionHtml +
+    '</div>';
 }
 
 // MCF (Mean Cumulative Function) por componente, a nivel FLOTA (2026-09-16

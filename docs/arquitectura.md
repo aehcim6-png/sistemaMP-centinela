@@ -4201,6 +4201,47 @@ navegador (Playwright: mismos 18 equipos sintéticos inyectados en
 "Estado actual: Sano", "Sano 15% · Alerta 46% · Crítico 39%" — coincide
 exactamente con el cálculo puro a 4 semanas).
 
+### 66. Log-Rank Test — ¿dos curvas de supervivencia son realmente distintas? (2026-09-20)
+
+Kaplan-Meier (sección 24/2026-09-16) calcula la curva de supervivencia real
+de un componente, pero no dice si la diferencia ENTRE dos curvas (Motor
+vs. Transmisión, dos modelos de equipo, dos ubicaciones) es real o ruido
+de muestra chica — el mismo hueco que `anovaUnFactor` cerró para
+promedios de MTTR, pero acá para curvas completas de supervivencia, con
+censura (equipos que siguen en servicio sin haber fallado todavía), un
+dato que un ANOVA o un t-test comunes no pueden usar correctamente.
+**Log-Rank Test** es el test estándar no paramétrico para esto, el mismo
+que reporta cualquier software/paquete de análisis de supervivencia
+(Real Statistics, biostatsquid, cualquier libro de bioestadística).
+
+En cada tiempo de falla real `t_i` (de cualquiera de los dos grupos):
+`n_iA`/`n_iB` = observaciones en riesgo en cada grupo, `d_iA`/`d_iB` =
+fallas reales ahí. `E_iA = d_i×n_iA/n_i` (fallas esperadas en A si ambos
+grupos tuvieran el mismo riesgo). `V_i = d_i×(n_i−d_i)×n_iA×n_iB /
+(n_i²×(n_i−1))` (varianza hipergeométrica). `χ² = (ΣO_A−ΣE_A)² / ΣV_i`,
+con 1 grado de libertad — reusa el mismo valor crítico de tabla (3.841,
+`_CHI2_CRITICO_95`) que ya usaba `testChiCuadradoUniforme`, sin reinventar
+esa parte. Mínimo 5 observaciones por grupo (mismo umbral que
+Kaplan-Meier).
+
+Verificado independientemente con Python (algoritmo escrito desde cero a
+partir de la fórmula estándar, antes de escribir el test, ya que no había
+una librería de supervivencia disponible en el sandbox para contrastar):
+dos casos, uno con diferencia chica entre 2 grupos de 6 con censura
+(χ²≈1.00, no significativo) y uno con diferencia grande entre 2 grupos de
+8 (χ²≈16.94, significativo) — 5 tests nuevos (`logRankTest.test.js`).
+`kaplanMeierCorrectivosPorComponente` ahora también expone las
+observaciones crudas (`obs`) de cada componente, para poder alimentar el
+test directamente sin duplicar el agrupamiento sigla+componente.
+
+Integrado en Estadística → Por Componente, debajo de la tabla
+Kaplan-Meier: dos selectores para elegir cualquier par de componentes con
+historial suficiente, con el resultado (χ², significativo sí/no, cuántas
+fallas/observaciones sustentan cada lado) actualizándose al cambiar la
+selección. Verificado en navegador (Playwright: Motor con fallas rápidas
+vs. Transmisión con fallas lentas, χ²=16.94 idéntico al caso verificado
+con Python, mostrando "diferencia real entre las dos curvas").
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -1820,6 +1820,61 @@ function kaplanMeier(observaciones){
   };
 }
 
+// ═══ LOG-RANK TEST — ¿DOS CURVAS DE SUPERVIVENCIA SON REALMENTE DISTINTAS? (2026-09-20) ═══
+// Kaplan-Meier (arriba) calcula la curva de supervivencia real de un grupo,
+// pero no dice si la diferencia ENTRE dos curvas (ej. dos componentes, dos
+// modelos, dos ubicaciones) es real o ruido de muestra chica — la misma
+// pregunta que anovaUnFactor ya resuelve para promedios de MTTR, pero acá
+// para curvas completas, con censura (equipos que siguen en servicio sin
+// haber fallado todavía) que un ANOVA o un t-test comunes no pueden usar
+// correctamente. Log-Rank es el test estándar no-paramétrico para esto
+// (Real Statistics, biostatsquid, cualquier libro de análisis de
+// supervivencia) — nunca ajusta una distribución, solo compara fallas
+// observadas contra las esperadas si ambos grupos tuvieran el mismo riesgo.
+// En cada tiempo de falla real t_i (de cualquiera de los dos grupos):
+// n_iA/n_iB = en riesgo en cada grupo, d_iA/d_iB = fallas reales ahí.
+// E_iA = d_i×n_iA/n_i (fallas esperadas en A si el riesgo fuera igual).
+// V_i = d_i×(n_i−d_i)×n_iA×n_iB / (n_i²×(n_i−1)) (varianza hipergeométrica).
+// χ² = (ΣO_A−ΣE_A)² / ΣV_i, con 1 grado de libertad — mismo valor crítico
+// de tabla (3.841, _CHI2_CRITICO_95) ya usado por testChiCuadradoUniforme
+// para la misma decisión "significativo sí/no", sin reinventar esa parte.
+// Mínimo 5 observaciones por grupo (mismo umbral que Kaplan-Meier) y al
+// menos 1 falla real combinada — con puros censurados no hay nada que comparar.
+function logRankTest(grupoA,grupoB){
+  var obsA=(grupoA||[]).filter(function(o){return o&&o.tiempo>0;});
+  var obsB=(grupoB||[]).filter(function(o){return o&&o.tiempo>0;});
+  if(obsA.length<5||obsB.length<5)return null;
+  var tiemposFalla=obsA.concat(obsB).filter(function(o){return !o.censurado;}).map(function(o){return o.tiempo;});
+  if(!tiemposFalla.length)return null;
+  var tiemposUnicos=Array.from(new Set(tiemposFalla)).sort(function(a,b){return a-b;});
+  var oA=0,eA=0,v=0;
+  tiemposUnicos.forEach(function(t){
+    var enRiesgoA=obsA.filter(function(o){return o.tiempo>=t;}).length;
+    var enRiesgoB=obsB.filter(function(o){return o.tiempo>=t;}).length;
+    var n=enRiesgoA+enRiesgoB;
+    var dA=obsA.filter(function(o){return !o.censurado&&o.tiempo===t;}).length;
+    var dB=obsB.filter(function(o){return !o.censurado&&o.tiempo===t;}).length;
+    var d=dA+dB;
+    if(n<=1||d<=0)return;
+    oA+=dA;
+    eA+=d*enRiesgoA/n;
+    if(n>1)v+=d*(n-d)*enRiesgoA*enRiesgoB/(n*n*(n-1));
+  });
+  if(!(v>0))return null;
+  var chi2=Math.pow(oA-eA,2)/v;
+  var critico=_CHI2_CRITICO_95[1];
+  return{
+    observadoA:oA,
+    esperadoA:Math.round(eA*100)/100,
+    chi2:Math.round(chi2*100)/100,
+    critico:critico,
+    significativo:chi2>critico,
+    nA:obsA.length,nB:obsB.length,
+    fallasA:obsA.filter(function(o){return !o.censurado;}).length,
+    fallasB:obsB.filter(function(o){return !o.censurado;}).length
+  };
+}
+
 // Kaplan-Meier por componente, a nivel FLOTA (mismo agrupamiento sigla+
 // componente que analisisVidaUtilCorrectivosPorComponente, arriba — no se
 // duplica esa lógica de intervalos, solo se le agrega la censura real: el
@@ -1853,7 +1908,7 @@ function kaplanMeierCorrectivosPorComponente(eventos,eq){
   });
   return Object.keys(porGrupo).sort().map(function(comp){
     var obs=porGrupo[comp];
-    return{componente:comp,n:obs.length,km:kaplanMeier(obs)};
+    return{componente:comp,n:obs.length,km:kaplanMeier(obs),obs:obs};
   });
 }
 
@@ -5180,7 +5235,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
