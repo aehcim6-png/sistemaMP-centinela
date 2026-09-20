@@ -3875,6 +3875,43 @@ umbral. Verificado visualmente en navegador (Playwright ad-hoc, 2
 reparaciones sintéticas de 2h y 10h): la tarjeta muestra "6" con "⚠️
 IC95%: 0–13,8h (2 reparaciones)" debajo, tal como se diseñó.
 
+### 59. Pulido visual del Dashboard — solo look, sin tocar cálculos (2026-09-20)
+
+El usuario compartió capturas de una conversación con Grok mostrando
+mockups de una app ficticia ("FleetHealth"/"FleetShield", datos
+inventados: sensores de vibración, equipos que no existen) con sugerencias
+genéricas de UI: más aire en móvil, jerarquía tipográfica más clara,
+tarjetas más pulidas, badges más refinados. Se tomó explícitamente solo el
+*look* — nunca el contenido inventado de esos mockups — y se aplicó al
+Dashboard real, sin tocar ningún cálculo ni agregar ningún dato nuevo.
+
+**`dash.js`**: `badgeEnVivo` y `_dashBadgeTendencia()` (📈 Adelanto/📉
+Retraso, sección 56) pasaron de texto plano a badges tipo *pill*
+(fondo tenue, borde sutil, bordes redondeados) — mismo patrón visual que
+los mockups de referencia. Más espaciado: el grid de Urgentes/Próximas/
+Cumplimiento/MTBF/Gasto/OTs pasó de `gap:10px` a `12px` y el padding de
+sus tarjetas de `14px` a `16px`; el grid de 8 KPIs avanzados de Costos
+pasó de `gap:8px` a `10px` y `padding:10px` a `12px`.
+
+**`index.html`**: en el breakpoint móvil (`max-width:768px`) ya existente,
+se agregó `#s-dash .dg2{gap:16px!important}` — más aire todavía en
+pantallas chicas, mismo mecanismo `!important` que ya usaba ese bloque
+para las columnas de los grids (el gap base de cada tarjeta viene fijado
+inline desde `dash.js` junto con sus colores condicionales por dato, así
+que no se movió a una clase para no reescribir ~15 tarjetas por un
+beneficio menor).
+
+No se tocaron bordes/sombras/hover 3D (`#s-dash .card,#s-dash .chart-box`)
+ni los estados "sin dato" (ya usan color atenuado + texto explicativo,
+suficientemente elegantes para el tamaño de estas tarjetas — el estado
+vacío ilustrado de los mockups de referencia es para paneles grandes, no
+para tarjetas KPI chicas).
+
+Verificado visualmente en navegador (Playwright ad-hoc, capturas a 1280px
+y 390px de ancho): badges como pills, tarjetas con más aire, grid móvil
+de 2 columnas con el espaciado ampliado. 905/905 tests (sin tests nuevos
+— cambio puramente visual, sin lógica pura) y build limpio.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

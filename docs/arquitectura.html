@@ -2180,6 +2180,26 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (Playwright ad-hoc, 2 reparaciones de 2h y 10h): la tarjeta muestra "6" con "⚠️ IC95%: 0–13,8h (2
   reparaciones)" debajo.</p>
 
+  <h3>59. Pulido visual del Dashboard — solo look, sin tocar cálculos (2026-09-20)</h3>
+  <p>El usuario compartió capturas de una conversación con Grok mostrando mockups de una app ficticia
+  ("FleetHealth"/"FleetShield", datos inventados) con sugerencias genéricas de UI: más aire en móvil,
+  jerarquía tipográfica más clara, tarjetas más pulidas, badges más refinados. Se tomó explícitamente
+  solo el <b>look</b> — nunca el contenido inventado de esos mockups — y se aplicó al Dashboard real, sin
+  tocar ningún cálculo ni agregar ningún dato nuevo.</p>
+  <p><b>Cambios en <code>dash.js</code>:</b> <code>badgeEnVivo</code> y <code>_dashBadgeTendencia()</code>
+  (📈 Adelanto/📉 Retraso, sección 56) pasaron de texto plano a badges tipo <i>pill</i> (fondo tenue,
+  borde sutil, bordes redondeados). Más espaciado: el grid de Urgentes/Próximas/Cumplimiento/MTBF/Gasto/OTs
+  pasó de <code>gap:10px</code> a <code>12px</code> y el padding de sus tarjetas de <code>14px</code> a
+  <code>16px</code>; el grid de 8 KPIs avanzados de Costos pasó de <code>gap:8px</code> a <code>10px</code> y
+  <code>padding:10px</code> a <code>12px</code>.</p>
+  <p><b>Cambios en <code>index.html</code>:</b> en el breakpoint móvil ya existente se agregó
+  <code>#s-dash .dg2{gap:16px!important}</code> — más aire todavía en pantallas chicas, mismo mecanismo
+  <code>!important</code> que ya usaba ese bloque.</p>
+  <p>No se tocaron bordes/sombras/hover 3D ni los estados "sin dato" (ya usan color atenuado + texto
+  explicativo, suficientemente elegantes para el tamaño de estas tarjetas). Verificado visualmente en
+  navegador (Playwright ad-hoc, capturas a 1280px y 390px de ancho). 905/905 tests (sin tests nuevos —
+  cambio puramente visual) y build limpio.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
