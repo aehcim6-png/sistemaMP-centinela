@@ -4515,6 +4515,54 @@ dataset del test — un repuesto clase Z con ROP=25 marcado en rojo con
 stock=20, uno clase X con el mismo consumo promedio y ROP=13 sin marca,
 idéntico al cálculo puro).
 
+### 73. Test de independencia Chi-cuadrado — tabla de contingencia componente × ubicación (2026-09-20)
+
+`testChiCuadradoUniforme` (usado por `patronesOcultosFalla`, sección
+anterior) responde una pregunta de UNA sola dimensión: "¿las fallas se
+reparten parejo entre estas categorías (mes, turno), o hay un patrón?".
+`tasaFallaPorUbicacion` responde otra pregunta relacionada pero distinta:
+"¿qué ubicación tiene, en general, más fallas?". Ninguna de las dos
+contesta la pregunta real de causa raíz: **¿ESTE componente en particular
+falla desproporcionadamente en ESTA ubicación, o es solo que esa ubicación
+tiene más fallas de TODO por igual?** Eso es un test de independencia de
+DOS variables categóricas — tabla de contingencia r×c —, matemática
+distinta a la bondad de ajuste de una sola dimensión.
+
+```
+χ² = Σ (O_ij − E_ij)² / E_ij
+E_ij = (total fila i × total columna j) / total general
+gl = (filas−1) × (columnas−1)
+```
+
+Reusa directamente la misma tabla `_CHI2_CRITICO_95` ya existente en el
+sistema (nunca se inventa un umbral nuevo); si los grados de libertad
+exceden el rango verificado de la tabla (>12), devuelve `null` en vez de
+comparar contra un umbral no verificado. Exige que TODAS las celdas
+esperadas sean ≥5 (regla estándar de Cochran, versión conservadora — la
+app siempre prefiere devolver `null` a una asociación con un p-value poco
+confiable).
+
+**Verificado** contra `scipy.stats.chi2_contingency` con una tabla
+sintética 3×3 (3 componentes × 3 ubicaciones) con una asociación real
+inyectada (neumáticos concentrados en Rampa): χ²=12.485, gl=4, coincide a
+3 decimales; y se confirmó que `_CHI2_CRITICO_95[1..12]` coincide
+exactamente con `scipy.stats.chi2.ppf(0.95, gl)` en todo el rango de la
+tabla. 10 tests nuevos (`testIndependenciaChi2.test.js`).
+
+Considerado y descartado explícitamente antes de esto: la política de
+reemplazo por edad óptima de Barlow-Proschan (minimizar costo esperado por
+unidad de tiempo dado el hazard de Weibull) — requiere el costo de mano de
+obra de una falla, que hoy está en $0 en el 100% de los registros reales
+(ver comentario en `costoRelativoMantenimiento`), así que habría sido una
+señal fabricada.
+
+Integrado en Predictivo → Patrones Ocultos de Falla, como tercer bloque
+junto a mes y turno: tabla componente × ubicación con observado/esperado
+por celda, resaltando en rojo la combinación que concentra la señal.
+Nunca se filtra por equipo (necesita ver toda la flota para que la tabla
+tenga sentido). Verificado en navegador (Playwright: mismo dataset del
+test unitario, χ²=12.49 idéntico al cálculo puro).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

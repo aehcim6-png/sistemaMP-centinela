@@ -4950,6 +4950,90 @@ function patronesOcultosFalla(ot){
   };
 }
 
+// ═══ TEST DE INDEPENDENCIA CHI-CUADRADO — TABLA DE CONTINGENCIA (2026-09-20) ═══
+// testChiCuadradoUniforme (arriba) responde una pregunta de UNA sola
+// dimensión: "¿las fallas se reparten parejo entre estas categorías, o hay
+// un patrón?" (mes, turno). tasaFallaPorUbicacion responde otra pregunta
+// relacionada pero distinta: "¿qué ubicación tiene, en general, más
+// fallas?". Ninguna de las dos contesta la pregunta real de causa raíz:
+// "¿ESTE componente en particular falla desproporcionadamente en ESTA
+// ubicación, o es solo que esa ubicación tiene más fallas de TODO por
+// igual?" — eso es un test de independencia de DOS variables categóricas
+// (tabla de contingencia r×c), matemática distinta a la bondad de ajuste
+// de una sola dimensión.
+//
+// χ² = Σ (O_ij − E_ij)² / E_ij, con E_ij = (total fila i × total columna
+// j) / total general. gl = (filas−1) × (columnas−1) — reusa la misma
+// tabla _CHI2_CRITICO_95 ya existente (nunca se inventa un umbral nuevo);
+// si gl excede el rango verificado de la tabla (>12), devuelve null en vez
+// de comparar contra un umbral no verificado.
+//
+// Exige que TODAS las celdas esperadas sean ≥5 (regla estándar de Cochran
+// para que el chi-cuadrado sea una aproximación confiable — versión
+// conservadora: la app siempre prefiere devolver null a una asociación con
+// un p-value poco confiable).
+//
+// Verificado contra scipy.stats.chi2_contingency con una tabla sintética
+// 3×3 (3 componentes × 3 ubicaciones) con una asociación real inyectada:
+// χ²=12.485, gl=4, coincide a 3 decimales con la implementación de scipy;
+// _CHI2_CRITICO_95[1..12] coincide exactamente con
+// scipy.stats.chi2.ppf(0.95, gl) en todo el rango de la tabla.
+function testIndependenciaChi2(tabla){
+  var filas=Object.keys(tabla||{});
+  if(filas.length<2)return null;
+  var columnas=[];
+  filas.forEach(function(f){
+    Object.keys(tabla[f]||{}).forEach(function(c){if(columnas.indexOf(c)<0)columnas.push(c);});
+  });
+  if(columnas.length<2)return null;
+  var totalFila={},totalCol={},total=0;
+  filas.forEach(function(f){
+    totalFila[f]=0;
+    columnas.forEach(function(c){
+      var v=(tabla[f]&&tabla[f][c])||0;
+      totalFila[f]+=v;
+      totalCol[c]=(totalCol[c]||0)+v;
+      total+=v;
+    });
+  });
+  if(!(total>0))return null;
+  var gl=(filas.length-1)*(columnas.length-1);
+  var critico=_CHI2_CRITICO_95[gl];
+  if(critico==null)return null;
+  var chi2=0,minEsperado=Infinity,celdas=[];
+  filas.forEach(function(f){
+    columnas.forEach(function(c){
+      var esperado=(totalFila[f]*totalCol[c])/total;
+      var obs=(tabla[f]&&tabla[f][c])||0;
+      if(esperado<minEsperado)minEsperado=esperado;
+      if(esperado>0)chi2+=Math.pow(obs-esperado,2)/esperado;
+      celdas.push({fila:f,columna:c,observado:obs,esperado:Math.round(esperado*10)/10,
+        indice:esperado>0?Math.round((obs/esperado)*100)/100:null});
+    });
+  });
+  if(minEsperado<5)return null;
+  return{
+    chi2:Math.round(chi2*100)/100,gl:gl,critico:critico,
+    significativo:chi2>critico,
+    filas:filas,columnas:columnas,celdas:celdas
+  };
+}
+
+// Arma la tabla de contingencia componente × ubicación desde las fallas
+// reales (mismo filtro esFallaMTBF que ya usa tasaFallaPorUbicacion y
+// patronesOcultosFalla) y aplica testIndependenciaChi2.
+function independenciaComponenteUbicacion(ot){
+  var reales=(ot||[]).filter(esFallaMTBF).filter(function(o){return o.componente&&o.ubicacion;});
+  var tabla={};
+  reales.forEach(function(o){
+    var comp=String(o.componente).trim();
+    var ubi=String(o.ubicacion).trim();
+    if(!comp||!ubi)return;
+    (tabla[comp]=tabla[comp]||{})[ubi]=(tabla[comp][ubi]||0)+1;
+  });
+  return testIndependenciaChi2(tabla);
+}
+
 // Duraciones reales de reparación (horas) de TODA la flota — mismo parseo
 // "Xh" de o.duracion que ya usa MTTR/analisisMTTRLogNormal (mismo criterio
 // de "duración real registrada", no un supuesto).
@@ -5677,7 +5761,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

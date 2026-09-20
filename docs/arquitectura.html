@@ -2465,6 +2465,27 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con ROP=25 marcado en rojo con stock=20, clase X con mismo consumo promedio y ROP=13 sin marca, idéntico al
   cálculo puro).</p>
 
+  <h3>73. Test de independencia Chi-cuadrado — tabla de contingencia componente × ubicación (2026-09-20)</h3>
+  <p><code>testChiCuadradoUniforme</code> responde una pregunta de UNA sola dimensión ("¿se reparten parejo entre
+  mes/turno?"). <code>tasaFallaPorUbicacion</code> responde otra distinta ("¿qué ubicación tiene, en general, más
+  fallas?"). Ninguna contesta la pregunta real de causa raíz: <b>¿ESTE componente falla desproporcionadamente en
+  ESTA ubicación, o es solo que esa ubicación tiene más fallas de TODO por igual?</b> — un test de independencia
+  de dos variables categóricas (tabla de contingencia r×c), matemática distinta a la bondad de ajuste de una sola
+  dimensión.</p>
+  <p><code>χ² = Σ (O_ij − E_ij)² / E_ij</code>, con <code>E_ij = (total fila i × total columna j) / total
+  general</code> y <code>gl = (filas−1) × (columnas−1)</code> — reusa la misma tabla <code>_CHI2_CRITICO_95</code>
+  ya existente (nunca se inventa un umbral nuevo; si gl&gt;12 devuelve null). Exige que todas las celdas esperadas
+  sean ≥5 (regla de Cochran, conservadora).</p>
+  <p><b>Verificado</b> contra <code>scipy.stats.chi2_contingency</code> con una tabla sintética 3×3 con asociación
+  real inyectada: χ²=12.485, gl=4, coincide a 3 decimales; <code>_CHI2_CRITICO_95[1..12]</code> coincide con
+  <code>scipy.stats.chi2.ppf(0.95, gl)</code> en todo el rango. 10 tests nuevos
+  (<code>testIndependenciaChi2.test.js</code>). Considerado y descartado antes: la política de reemplazo por edad
+  óptima de Barlow-Proschan — requiere costo de mano de obra de falla, que hoy está en $0 en el 100% de los
+  registros reales, habría sido una señal fabricada.</p>
+  <p>Integrado en Predictivo → Patrones Ocultos de Falla, tercer bloque junto a mes y turno: tabla componente ×
+  ubicación con observado/esperado por celda. Nunca se filtra por equipo (necesita toda la flota). Verificado en
+  navegador (Playwright: χ²=12.49 idéntico al cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

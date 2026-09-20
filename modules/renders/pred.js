@@ -1707,6 +1707,14 @@ export function renderPred(){
   if(fVista==='patrones'){
     var otPatrones=(fEq?ot.filter(function(o){return o.sigla===fEq;}):ot);
     var patrones=typeof patronesOcultosFalla==='function'?patronesOcultosFalla(otPatrones):{mes:null,turno:null};
+    // Test de independencia (2026-09-20): los dos bloques de arriba son
+    // bondad de ajuste de UNA dimensión ("¿se reparten parejo?"). Este es
+    // distinto — tabla de contingencia componente × ubicación
+    // (independenciaComponenteUbicacion, logic.js): "¿ESTE componente falla
+    // desproporcionadamente en ESTA ubicación, o es solo que esa ubicación
+    // tiene más fallas de todo por igual?". Nunca se filtra por equipo acá
+    // (fEq) — necesita ver toda la flota para que la tabla tenga sentido.
+    var indepCompUbi=typeof independenciaComponenteUbicacion==='function'?independenciaComponenteUbicacion(ot):null;
     var _mesNombre={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
     function _bloquePatron(titulo,test,nombreCategoria){
       if(!test)return '<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">'+titulo+': sin historial suficiente todavía (mínimo 5 fallas reales con dato)</p></div>';
@@ -1722,10 +1730,31 @@ export function renderPred(){
         }).join('')+
         '</table></div></div>';
     }
+    function _bloqueContingencia(titulo,test){
+      if(!test)return '<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">'+titulo+': sin historial suficiente todavía (necesita al menos 2 componentes y 2 ubicaciones, con 5+ fallas esperadas en cada combinación)</p></div>';
+      var celdaPorFilaCol={};
+      test.celdas.forEach(function(c){(celdaPorFilaCol[c.fila]=celdaPorFilaCol[c.fila]||{})[c.columna]=c;});
+      return '<div class="chart-box" style="border-left:3px solid '+(test.significativo?'var(--danger)':'var(--ok)')+'">'+
+        '<div class="chart-t">'+titulo+' — χ²='+test.chi2+' (crítico '+test.critico+', gl='+test.gl+') — '+(test.significativo?'<span style="color:var(--danger)">hay asociación real — algunos componentes se concentran en ciertas ubicaciones (95% de confianza)</span>':'<span style="color:var(--ok)">sin asociación real — cada componente falla parejo entre ubicaciones</span>')+'</div>'+
+        '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left">Componente</th>'+
+        test.columnas.map(function(c){return '<th>'+escapeHtml(c)+'</th>';}).join('')+'</tr>'+
+        test.filas.map(function(f){
+          return '<tr><td style="font-weight:600">'+escapeHtml(f)+'</td>'+
+            test.columnas.map(function(c){
+              var d=celdaPorFilaCol[f][c];
+              var col=d.indice>1.2?'var(--danger)':d.indice<0.8?'var(--ok)':'var(--tx3)';
+              return '<td style="text-align:center"><b style="color:'+col+'">'+d.observado+'</b><span style="color:var(--tx3);font-size:10px"> / '+d.esperado+'</span></td>';
+            }).join('')+'</tr>';
+        }).join('')+
+        '</table></div>'+
+        '<div style="font-size:10px;color:var(--tx3);padding:6px 2px 0">cada celda: fallas reales / esperadas si no hubiera asociación — un índice bien por sobre 1x marca la combinación que concentra la señal</div></div>';
+    }
     content=
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Patrones Ocultos de Falla</div><div style="font-size:11px;color:var(--tx3)">¿Hay meses o turnos con tasa de falla real y estadísticamente distinta, o la diferencia observada es solo ruido de muestra? (test de chi-cuadrado, 95% de confianza)</div></div>'+
       _bloquePatron('📅 Estacionalidad por mes calendario',patrones.mes,'Mes') +
-      _bloquePatron('🌓 Por turno',patrones.turno,'Turno');
+      _bloquePatron('🌓 Por turno',patrones.turno,'Turno') +
+      '<div style="font-size:12px;font-weight:700;color:var(--tx2);margin:18px 0 8px">🧩 ¿El tipo de falla depende de dónde ocurre? (toda la flota)</div>'+
+      _bloqueContingencia('Componente × Ubicación',indepCompUbi);
   }
 
   // ═══ KIJIMA TIPO I/II — FACTOR DE RESTAURACIÓN q POR MLE (2026-09-17) ═══
