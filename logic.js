@@ -1928,6 +1928,84 @@ function logRankTest(grupoA,grupoB){
   };
 }
 
+// ═══ REGRESIÓN DE COX — HAZARD RATIO ENTRE DOS GRUPOS (2026-09-20) ═══
+// logRankTest (arriba) responde "¿la diferencia es real o ruido?" — un
+// sí/no. Cox cuantifica CUÁNTO: un hazard ratio (ej. "el grupo B falla
+// 2.3 veces más rápido que el grupo A"), el número que sirve para una
+// decisión real, no solo confirmar que la diferencia existe. Reusa
+// exactamente los mismos datos {tiempo,censurado} de logRankTest/
+// kaplanMeier (grupoA=referencia X=0, grupoB=comparado X=1 — HR>1 =
+// grupoB falla más rápido que grupoA).
+// Verosimilitud parcial de Cox con aproximación de Breslow para empates
+// (la más simple de las dos estándar — mismo criterio "método práctico"
+// ya usado en el ajuste de Weibull por rango mediano) — un único β,
+// optimizado con Newton-Raphson (mismo tipo de algoritmo que Weibull
+// censurado/Kijima). Verificado independientemente contra
+// statsmodels.duration.hazard_regression.PHReg (ties='breslow'):
+// coincide β/error estándar/HR a 5+ decimales en el caso normal.
+// Guardia de divergencia (hallazgo real de la verificación, no teórico):
+// con separación perfecta entre grupos (uno falla siempre antes que el
+// otro, sin superposición de tiempos) la verosimilitud parcial no tiene
+// máximo finito — β diverge a infinito, la MISMA patología que produce
+// statsmodels en ese caso exacto (confirmado, no solo evitado). Si no
+// converge en 50 iteraciones o el β resultante es numéricamente absurdo
+// (|β|>15, HR de millones), se devuelve null — nunca se muestra una
+// falsa precisión sobre datos que no la sostienen.
+function coxPHBinario(grupoA,grupoB){
+  var obsA=(grupoA||[]).filter(function(o){return o&&o.tiempo>0;}).map(function(o){return{tiempo:o.tiempo,censurado:!!o.censurado,x:0};});
+  var obsB=(grupoB||[]).filter(function(o){return o&&o.tiempo>0;}).map(function(o){return{tiempo:o.tiempo,censurado:!!o.censurado,x:1};});
+  if(obsA.length<5||obsB.length<5)return null;
+  var obs=obsA.concat(obsB);
+  var tiemposEvento=Array.from(new Set(obs.filter(function(o){return !o.censurado;}).map(function(o){return o.tiempo;}))).sort(function(a,b){return a-b;});
+  if(!tiemposEvento.length)return null;
+  function derivadas(beta){
+    var l1=0,l2=0;
+    for(var i=0;i<tiemposEvento.length;i++){
+      var t=tiemposEvento[i];
+      var enRiesgo=obs.filter(function(o){return o.tiempo>=t;});
+      var n1=enRiesgo.filter(function(o){return o.x===1;}).length;
+      var n0=enRiesgo.length-n1;
+      var eventosEnT=obs.filter(function(o){return !o.censurado&&o.tiempo===t;});
+      var d=eventosEnT.length;
+      var s1=eventosEnT.filter(function(o){return o.x===1;}).length;
+      var eb=Math.exp(beta);
+      var D=n0+n1*eb;
+      if(!(D>0))return null;
+      l1+=s1-d*(n1*eb)/D;
+      l2+=-d*n1*n0*eb/(D*D);
+    }
+    return{l1:l1,l2:l2};
+  }
+  var beta=0,convergio=false;
+  for(var it=0;it<50;it++){
+    var der=derivadas(beta);
+    if(!der||!(der.l2<0))return null;
+    var betaNuevo=beta-der.l1/der.l2;
+    if(!isFinite(betaNuevo)||Math.abs(betaNuevo)>15)return null;
+    if(Math.abs(betaNuevo-beta)<1e-8){beta=betaNuevo;convergio=true;break;}
+    beta=betaNuevo;
+  }
+  if(!convergio||Math.abs(beta)>15)return null;
+  var derFinal=derivadas(beta);
+  if(!derFinal||!(derFinal.l2<0))return null;
+  var se=Math.sqrt(-1/derFinal.l2);
+  if(!isFinite(se)||se<=0)return null;
+  var z=beta/se;
+  var hr=Math.exp(beta);
+  return{
+    beta:Math.round(beta*1000)/1000,
+    se:Math.round(se*1000)/1000,
+    hr:Math.round(hr*100)/100,
+    hrMin:Math.round(Math.exp(beta-1.96*se)*100)/100,
+    hrMax:Math.round(Math.exp(beta+1.96*se)*100)/100,
+    z:Math.round(z*100)/100,
+    significativo:Math.abs(z)>1.96,
+    nA:obsA.length,nB:obsB.length,
+    fallasA:obsA.filter(function(o){return !o.censurado;}).length,
+    fallasB:obsB.filter(function(o){return !o.censurado;}).length
+  };
+}
+
 // Kaplan-Meier por componente, a nivel FLOTA (mismo agrupamiento sigla+
 // componente que analisisVidaUtilCorrectivosPorComponente, arriba — no se
 // duplica esa lógica de intervalos, solo se le agrega la censura real: el
@@ -5296,7 +5374,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

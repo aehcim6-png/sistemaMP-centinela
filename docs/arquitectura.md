@@ -4281,6 +4281,47 @@ equipos con PM real, intervalos antes cortos vs. después largos, z=-3.36
 idéntico al caso verificado contra scipy, mostrando "diferencia
 estadísticamente real").
 
+### 68. Regresión de Cox — Hazard Ratio entre dos grupos (2026-09-20)
+
+`logRankTest` (sección 66) responde "¿la diferencia entre dos curvas es
+real o ruido?" — un sí/no. **`coxPHBinario`** cuantifica **cuánto**: un
+*hazard ratio* (ej. "Frenos falla 2.08 veces más rápido que Suspensión"),
+el número que sirve para una decisión real (¿vale la pena pagar más por
+el proveedor que dura más?), no solo confirmar que la diferencia existe.
+Reusa exactamente los mismos datos `{tiempo,censurado}` de
+`logRankTest`/`kaplanMeier` — mismo punto de integración, sin pedir
+ningún dato nuevo.
+
+Verosimilitud parcial de Cox con **aproximación de Breslow** para
+empates (la más simple de las dos estándar — mismo criterio "método
+práctico, no el más sofisticado" ya usado en el ajuste de Weibull por
+rango mediano): `l(β) = Σ[β·s1_i − d_i·log(n0_i + n1_i·e^β)]`, con un
+único β (grupoA=referencia, grupoB=comparado — HR>1 implica que grupoB
+falla más rápido), optimizado con Newton-Raphson (mismo tipo de
+algoritmo que Weibull censurado/Kijima). Error estándar desde la segunda
+derivada en el β convergido; significativo si `|β/SE| > 1.96`.
+
+**Verificación reforzada, igual que Mann-Whitney**: se instaló
+`statsmodels` en el sandbox (`PHReg`, la implementación de referencia de
+Cox en Python) y se comparó la implementación línea por línea — coincide
+en β/SE/HR a 5+ decimales. **Hallazgo real durante la verificación**: con
+separación perfecta entre grupos (uno falla siempre antes que el otro,
+sin superposición de tiempos — el mismo dataset donde Log-Rank da
+χ²≈16.94), la verosimilitud parcial no tiene máximo finito: β diverge a
+infinito. Se confirmó que `statsmodels` **también diverge** en ese caso
+exacto (no es un error de mi implementación, es la patología real del
+método) — `coxPHBinario` detecta esto (no converge en 50 iteraciones, o
+`|β|>15`) y devuelve `null` en vez de un hazard ratio sin sentido. 4
+tests nuevos (`coxPHBinario.test.js`), incluido explícitamente el caso de
+divergencia.
+
+Integrado en Estadística → Por Componente, debajo del resultado de
+Log-Rank (mismo selector de par de componentes): el hazard ratio con su
+intervalo de confianza 95%, o un aviso de que la estimación no converge
+para ese par. Verificado en navegador (Playwright: Frenos vs. Suspensión
+con superposición real de tiempos, HR=0.48 idéntico al cálculo puro,
+"Frenos falla 2.08 veces más rápido que Suspensión").
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

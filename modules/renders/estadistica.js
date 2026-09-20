@@ -214,6 +214,12 @@ function _estKaplanMeierPorComponente(eventos, eq) {
   var itemA = conDatos.filter(function (g) { return g.componente === compA; })[0];
   var itemB = conDatos.filter(function (g) { return g.componente === compB; })[0];
   var logRank = (itemA && itemB && compA !== compB && typeof logRankTest === 'function') ? logRankTest(itemA.obs, itemB.obs) : null;
+  // Cox PH (2026-09-20) — Log-Rank de arriba ya dice si la diferencia es
+  // real o ruido; esto cuantifica CUÁNTO (hazard ratio), reusando las
+  // mismas observaciones crudas. Puede dar null aunque Log-Rank haya dado
+  // un resultado (separación perfecta entre grupos: la verosimilitud de
+  // Cox diverge, nunca se muestra un HR inventado en ese caso).
+  var coxPH = (itemA && itemB && compA !== compB && typeof coxPHBinario === 'function') ? coxPHBinario(itemA.obs, itemB.obs) : null;
   var comparacionHtml = '';
   if (conDatos.length >= 2) {
     var opciones = conDatos.map(function (g) { return g.componente; });
@@ -233,7 +239,11 @@ function _estKaplanMeierPorComponente(eventos, eq) {
         ? '<div style="font-size:11px;color:var(--tx3)">Elegí dos componentes distintos para comparar.</div>'
         : logRank
           ? '<div style="font-size:12px;color:var(--tx2)">χ²=' + logRank.chi2 + ' (gl=1) — <b style="color:' + (logRank.significativo ? 'var(--danger)' : 'var(--ok)') + '">' + (logRank.significativo ? 'diferencia real entre las dos curvas' : 'puede ser ruido de muestra chica') + '</b></div>' +
-            '<div style="font-size:10px;color:var(--tx3);margin-top:2px">' + escapeHtml(compA) + ': ' + logRank.fallasA + ' fallas de ' + logRank.nA + ' observaciones · ' + escapeHtml(compB) + ': ' + logRank.fallasB + ' fallas de ' + logRank.nB + ' observaciones. Compara las curvas de supervivencia completas, no solo un promedio — usa también los casos censurados (todavía en servicio sin haber fallado).</div>'
+            '<div style="font-size:10px;color:var(--tx3);margin-top:2px">' + escapeHtml(compA) + ': ' + logRank.fallasA + ' fallas de ' + logRank.nA + ' observaciones · ' + escapeHtml(compB) + ': ' + logRank.fallasB + ' fallas de ' + logRank.nB + ' observaciones. Compara las curvas de supervivencia completas, no solo un promedio — usa también los casos censurados (todavía en servicio sin haber fallado).</div>' +
+            (coxPH
+              ? '<div style="font-size:12px;color:var(--tx2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">Hazard Ratio (' + escapeHtml(compB) + ' vs. ' + escapeHtml(compA) + '): <b style="color:' + (coxPH.hr > 1 ? 'var(--danger)' : 'var(--ok)') + '">' + coxPH.hr + 'x</b> <span style="font-size:10px;color:var(--tx3)">(IC95% ' + coxPH.hrMin + '–' + coxPH.hrMax + ')</span></div>' +
+                '<div style="font-size:10px;color:var(--tx3);margin-top:2px">' + (coxPH.hr > 1 ? escapeHtml(compB) + ' falla ' + coxPH.hr + ' veces más rápido que ' + escapeHtml(compA) : escapeHtml(compA) + ' falla ' + Math.round((1 / coxPH.hr) * 100) / 100 + ' veces más rápido que ' + escapeHtml(compB)) + (coxPH.significativo ? '' : ' — el intervalo de confianza no descarta que no haya diferencia real') + '.</div>'
+              : '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Sin un Hazard Ratio confiable para este par (la estimación no converge — típico con muy poca superposición entre los tiempos de falla de ambos grupos).</div>')
           : '<div style="font-size:11px;color:var(--tx3)">Sin historial suficiente en alguno de los dos (mínimo 5 observaciones cada uno) para comparar con confianza.</div>') +
       '</div>';
   }

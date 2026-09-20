@@ -2368,6 +2368,24 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con el z y el veredicto de significancia. Verificado en navegador (Playwright: z=-3.36 idéntico al caso
   verificado contra scipy).</p>
 
+  <h3>68. Regresión de Cox — Hazard Ratio entre dos grupos (2026-09-20)</h3>
+  <p><code>logRankTest</code> responde si la diferencia es real o ruido. <b><code>coxPHBinario</code></b>
+  cuantifica cuánto: un hazard ratio (ej. "Frenos falla 2.08 veces más rápido que Suspensión"). Reusa los
+  mismos datos <code>{tiempo,censurado}</code> de <code>logRankTest</code>/<code>kaplanMeier</code>.</p>
+  <p>Verosimilitud parcial de Cox con aproximación de Breslow para empates:
+  <code>l(β) = Σ[β·s1_i − d_i·log(n0_i + n1_i·e^β)]</code>, un único β optimizado con Newton-Raphson (mismo
+  tipo de algoritmo que Weibull censurado/Kijima). Significativo si |β/SE| &gt; 1.96.</p>
+  <p><b>Verificación reforzada</b>: se instaló <code>statsmodels</code> (<code>PHReg</code>, la referencia de
+  Cox en Python) y se comparó línea por línea — coincide a 5+ decimales. <b>Hallazgo real durante la
+  verificación</b>: con separación perfecta entre grupos (el mismo dataset donde Log-Rank da χ²≈16.94), la
+  verosimilitud no tiene máximo finito — β diverge. Se confirmó que <code>statsmodels</code> también diverge
+  en ese caso exacto — <code>coxPHBinario</code> detecta la no-convergencia (o |β|&gt;15) y devuelve
+  <code>null</code> en vez de un HR sin sentido. 4 tests nuevos (<code>coxPHBinario.test.js</code>), incluido
+  el caso de divergencia.</p>
+  <p>Integrado en Estadística → Por Componente, debajo del Log-Rank (mismo selector de componentes): hazard
+  ratio con IC95%, o aviso de no-convergencia. Verificado en navegador (Playwright: HR=0.48 idéntico al
+  cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
