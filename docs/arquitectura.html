@@ -2486,6 +2486,21 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ubicación con observado/esperado por celda. Nunca se filtra por equipo (necesita toda la flota). Verificado en
   navegador (Playwright: χ²=12.49 idéntico al cálculo puro).</p>
 
+  <h3>74. Kruskal-Wallis H — chequeo no paramétrico del ANOVA de MTTR por técnico (2026-09-20)</h3>
+  <p><code>anovaUnFactor</code> (Estadística → Por Técnico) parte la varianza del MTTR en ENTRE vs DENTRO de cada
+  técnico asumiendo residuos normales — pero el propio sistema ya documentó lo contrario
+  (<code>analisisMTTRLogNormal</code>): los tiempos de reparación reales casi nunca son simétricos, sesgando hacia
+  la derecha (log-normal). Kruskal-Wallis es el equivalente no paramétrico de ANOVA — compara por RANGOS, sin
+  asumir normalidad, mismo principio que Mann-Whitney U pero para más de 2 grupos.</p>
+  <p><code>H = (12/(N(N+1))) × Σ(R_i²/n_i) − 3(N+1)</code>, con corrección por empates
+  <code>H/(1−Σ(t_j³−t_j)/(N³−N))</code>. Bajo H0, H sigue aproximadamente una chi-cuadrado con k−1 grados de
+  libertad — reusa directamente <code>_CHI2_CRITICO_95</code> (nunca un umbral nuevo).</p>
+  <p><b>Verificado</b> contra <code>scipy.stats.kruskal</code>, con y sin empates: coincide a 3+ decimales en
+  ambos casos. 6 tests nuevos (<code>kruskalWallis.test.js</code>).</p>
+  <p>Integrado en Estadística → Por Técnico, chequeo de robustez inmediatamente debajo del ANOVA existente (nunca
+  lo reemplaza — quedan los dos visibles). Verificado en navegador (Playwright: H=35.346 idéntico al cálculo
+  puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

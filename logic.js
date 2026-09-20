@@ -1071,6 +1071,76 @@ function anovaUnFactor(grupos,minPorGrupo){
   };
 }
 
+// ═══ KRUSKAL-WALLIS H — ANOVA NO PARAMÉTRICO (2026-09-20) ═══
+// anovaUnFactor (arriba) compara duraciones de reparación por técnico
+// asumiendo que los residuos son normales — pero el propio sistema ya
+// documentó (analisisMTTRLogNormal) que los tiempos de reparación reales
+// casi nunca son simétricos: la mayoría son rápidos y unos pocos se
+// alargan mucho, sesgando la distribución hacia la derecha (log-normal),
+// no normal. Kruskal-Wallis es el equivalente no paramétrico de ANOVA de
+// un factor — compara los grupos por RANGOS, no por la media directa, sin
+// asumir normalidad — mismo principio que Mann-Whitney U (arriba, ya usado
+// en Efectividad del Mantenimiento) pero para más de 2 grupos.
+//
+// H = (12/(N(N+1))) × Σ(R_i²/n_i) − 3(N+1), con corrección por empates
+// (rangos promedio en valores repetidos, mismo criterio que mannWhitneyU):
+// H_corregido = H / (1 − Σ(t_j³−t_j)/(N³−N)).
+// Bajo H0, H sigue aproximadamente una chi-cuadrado con k−1 grados de
+// libertad — reusa DIRECTAMENTE la misma tabla _CHI2_CRITICO_95 ya
+// existente (nunca se inventa un umbral nuevo).
+//
+// Verificado contra scipy.stats.kruskal, con y sin empates (valores
+// redondeados a enteros, como puede pasar con horas de reparación
+// tipeadas): coincide a 3+ decimales en ambos casos.
+function kruskalWallis(grupos,minPorGrupo){
+  var min=minPorGrupo||5;
+  var nombres=Object.keys(grupos||{}).filter(function(g){
+    var v=(grupos[g]||[]).filter(function(x){return x!=null&&isFinite(x);});
+    return v.length>=min;
+  });
+  if(nombres.length<2)return null;
+  var datosPorGrupo=nombres.map(function(g){return(grupos[g]||[]).filter(function(x){return x!=null&&isFinite(x);});});
+  var combinado=[];
+  datosPorGrupo.forEach(function(d,i){d.forEach(function(v){combinado.push({v:v,g:i});});});
+  var N=combinado.length;
+  combinado.sort(function(a,b){return a.v-b.v;});
+  var rangos=new Array(N);
+  var gruposEmpate=[];
+  var i=0;
+  while(i<N){
+    var j=i;
+    while(j+1<N&&combinado[j+1].v===combinado[i].v)j++;
+    var rangoProm=(i+1+j+1)/2;
+    for(var m=i;m<=j;m++)rangos[m]=rangoProm;
+    if(j>i)gruposEmpate.push(j-i+1);
+    i=j+1;
+  }
+  var sumaRangoPorGrupo=new Array(nombres.length).fill(0);
+  combinado.forEach(function(item,idx){sumaRangoPorGrupo[item.g]+=rangos[idx];});
+  var H=0;
+  nombres.forEach(function(g,idx){
+    var n=datosPorGrupo[idx].length;
+    H+=(sumaRangoPorGrupo[idx]*sumaRangoPorGrupo[idx])/n;
+  });
+  H=(12/(N*(N+1)))*H-3*(N+1);
+  var sumaEmpateCorr=gruposEmpate.reduce(function(s,t){return s+(t*t*t-t);},0);
+  var factorCorr=1-sumaEmpateCorr/(N*N*N-N);
+  if(factorCorr>0)H=H/factorCorr;
+  var k=nombres.length;
+  var gl=k-1;
+  var critico=_CHI2_CRITICO_95[gl];
+  if(critico==null)return null;
+  var gruposInfo=nombres.map(function(g,idx){
+    var d=datosPorGrupo[idx];
+    return{grupo:g,n:d.length,mediana:medianaPositiva(d),sumaRangos:Math.round(sumaRangoPorGrupo[idx]*100)/100};
+  });
+  return{
+    grupos:gruposInfo.sort(function(a,b){return a.mediana-b.mediana;}),
+    k:k,N:N,H:Math.round(H*1000)/1000,gl:gl,critico:critico,
+    significativo:H>critico
+  };
+}
+
 // ═══ AJUSTE WEIBULL — reemplaza el supuesto de tasa de falla CONSTANTE de
 // confiabilidadReal (de arriba) por la forma real de falla de CADA equipo,
 // estimada de sus propios intervalos entre fallas (2026-09-11, pedido del
@@ -5761,7 +5831,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, kruskalWallis, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

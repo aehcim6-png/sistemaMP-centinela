@@ -549,6 +549,13 @@ function _estTablaTecnico(ot) {
     (porTecDuracion[nombre] = porTecDuracion[nombre] || []).push(parseInt(m[1], 10));
   });
   var anovaMttr = (typeof anovaUnFactor === 'function') ? anovaUnFactor(porTecDuracion, 5) : null;
+  // Kruskal-Wallis (2026-09-20): ANOVA asume que los residuos son normales,
+  // pero el propio sistema ya documentó (análisis MTTR log-normal, Análisis
+  // Aceite/Stock) que los tiempos de reparación reales casi nunca lo son —
+  // la mayoría son rápidos y unos pocos se alargan mucho. Kruskal-Wallis
+  // compara los mismos grupos por RANGOS, sin asumir normalidad — chequeo
+  // de robustez independiente sobre la MISMA pregunta (kruskalWallis, logic.js).
+  var kruskalMttr = (typeof kruskalWallis === 'function') ? kruskalWallis(porTecDuracion, 5) : null;
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">👷 Comparativa por Técnico</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Solo correctivos actuales (el historial de Excel no trae quién hizo el trabajo). % documentado = OT cerradas con "Solución" registrada. % reingreso = mismo equipo+componente vuelve a fallar dentro de 7 días (excluye consumibles de desgaste esperado). Solo técnicos con 15+ OT — con menos, el % no significa nada.</div>' +
@@ -564,7 +571,35 @@ function _estTablaTecnico(ot) {
     '</table></div>' +
     '<div style="font-size:10px;color:var(--tx3);margin-top:8px">No mide calidad del trabajo, solo constancia escrita y si la reparación aguantó. Un % bajo amerita conversación de terreno, no una conclusión directa.</div>' +
     '</div>' +
-    _estAnovaMttrHTML(anovaMttr);
+    _estAnovaMttrHTML(anovaMttr) +
+    _estKruskalMttrHTML(kruskalMttr);
+}
+
+// Bloque Kruskal-Wallis — chequeo de robustez no paramétrico sobre la
+// misma pregunta que el ANOVA de arriba, sin asumir normalidad
+// (2026-09-20).
+function _estKruskalMttrHTML(kw) {
+  if (!kw) return '';
+  var col = kw.significativo ? 'var(--danger)' : 'var(--tx3)';
+  var veredicto = kw.significativo
+    ? 'Diferencia real entre técnicos (95% de confianza) — confirma el ANOVA sin asumir que el MTTR es normal.'
+    : 'Sin diferencia real entre técnicos (95% de confianza) — por rangos, no solo por promedio.';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">🔀 Kruskal-Wallis: MTTR por técnico (chequeo no paramétrico)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">El ANOVA de arriba asume que el MTTR se distribuye normal — pero los tiempos de reparación reales casi nunca lo son (la mayoría rápidos, unos pocos muy largos). Este test compara los mismos grupos por RANGOS, sin esa suposición — mismo principio que Mann-Whitney U, para más de 2 grupos.</div>' +
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">' +
+    '<div><div style="font-size:10px;color:var(--tx3)">H</div><div style="font-size:18px;font-weight:700;color:' + col + '">' + kw.H + '</div></div>' +
+    '<div><div style="font-size:10px;color:var(--tx3)">crítico (χ², gl=' + kw.gl + ')</div><div style="font-size:18px;font-weight:700">' + kw.critico + '</div></div>' +
+    '</div>' +
+    '<div style="font-size:12px;font-weight:600;color:' + col + ';margin-bottom:10px">' + veredicto + '</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR mediana</th></tr>' +
+    kw.grupos.map(function (g) {
+      return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
+        '<td style="text-align:center">' + g.n + '</td>' +
+        '<td style="text-align:center;font-weight:700">' + g.mediana + 'h</td></tr>';
+    }).join('') +
+    '</table></div>' +
+    '</div>';
 }
 
 // Bloque ANOVA de un factor sobre MTTR por técnico — separado del resto de

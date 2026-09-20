@@ -4563,6 +4563,41 @@ Nunca se filtra por equipo (necesita ver toda la flota para que la tabla
 tenga sentido). Verificado en navegador (Playwright: mismo dataset del
 test unitario, χ²=12.49 idéntico al cálculo puro).
 
+### 74. Kruskal-Wallis H — chequeo no paramétrico del ANOVA de MTTR por técnico (2026-09-20)
+
+`anovaUnFactor` (usado en Estadística → Por Técnico) compara el MTTR
+(duración de reparación) entre técnicos partiendo la varianza en ENTRE vs
+DENTRO de cada grupo — pero ese cálculo asume que los residuos son
+normales. El propio sistema ya documentó lo contrario (sección de
+`analisisMTTRLogNormal`, análisis de aceite/stock con Poisson): los
+tiempos de reparación reales casi nunca son simétricos — la mayoría son
+rápidos y unos pocos se alargan mucho, sesgando la distribución hacia la
+derecha (log-normal). Kruskal-Wallis es el equivalente no paramétrico de
+ANOVA de un factor — compara los mismos grupos por RANGOS, no por la media
+directa, sin asumir normalidad — mismo principio que Mann-Whitney U (ya
+usado en Efectividad del Mantenimiento) pero para más de 2 grupos.
+
+```
+H = (12/(N(N+1))) × Σ(R_i²/n_i) − 3(N+1)
+H_corregido = H / (1 − Σ(t_j³−t_j)/(N³−N))     — corrección por empates
+```
+
+Bajo H0, H sigue aproximadamente una chi-cuadrado con k−1 grados de
+libertad — reusa DIRECTAMENTE la misma tabla `_CHI2_CRITICO_95` ya
+existente (nunca se inventa un umbral nuevo).
+
+**Verificado** contra `scipy.stats.kruskal`, con y sin empates (valores
+redondeados a enteros, como puede pasar con horas de reparación tipeadas a
+mano): coincide a 3+ decimales en ambos casos — el caso con empates
+confirma que la corrección está bien aplicada. 6 tests nuevos
+(`kruskalWallis.test.js`).
+
+Integrado en Estadística → Por Técnico, como chequeo de robustez
+independiente inmediatamente debajo del ANOVA existente (nunca lo
+reemplaza — ambos quedan visibles, uno paramétrico y uno no, sobre la
+misma pregunta). Verificado en navegador (Playwright: H=35.346 idéntico al
+cálculo puro, medianas por técnico coincidentes).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
