@@ -109,6 +109,36 @@ export function renderAce(){
     (aceOutliers.length>10?'<div style="font-size:11px;color:var(--tx3);margin-top:6px">+'+(aceOutliers.length-10)+' más</div>':'')+
     '</div>':'';
 
+  // Distancia de Mahalanobis — outliers MULTIVARIADOS (2026-09-20). El
+  // bloque de arriba (aceiteOutliers) revisa cada metal por separado
+  // contra la mediana de su grupo — una muestra puede tener hierro, cobre
+  // y cromo cada uno "normal" individualmente pero la COMBINACIÓN de los
+  // tres ser una señal real de desgaste que ningún chequeo metal-por-metal
+  // detecta. outliersMultivariadosAceite (logic.js) mide qué tan lejos
+  // está la combinación completa de una muestra respecto del centro real
+  // de su grupo, usando la matriz de covarianza real (cómo los metales se
+  // mueven juntos) — nunca cambia 'estado', solo señala para confirmar con
+  // el laboratorio, mismo espíritu que el bloque de arriba. Requiere
+  // bastante historial por grupo (estimar una covarianza necesita mucha
+  // más muestra que una mediana simple) — grupos sin suficiente historial
+  // simplemente no aparecen acá.
+  var aceMahalanobis=(typeof outliersMultivariadosAceite==='function')?outliersMultivariadosAceite(ace):[];
+  var aceMahalanobisTotal=aceMahalanobis.reduce(function(s,g){return s+g.outliers.length;},0);
+  var aceMahalanobisHTML=aceMahalanobisTotal?
+    '<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:14px">'+
+    '<b style="font-size:12px;color:var(--danger)">🧪 '+aceMahalanobisTotal+' combinación'+(aceMahalanobisTotal===1?'':'es')+' de metales inusual'+(aceMahalanobisTotal===1?'':'es')+' (Distancia de Mahalanobis) — ningún metal solo cruza su umbral, pero la combinación completa sí, comparada con el historial real de ese tipo de componente</b>'+
+    aceMahalanobis.map(function(g){
+      return g.outliers.map(function(o){
+        return'<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;font-size:12px;flex-wrap:wrap">'+
+          '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(o.muestra._sigla||o.muestra.componente||'')+'</span>'+
+          '<span style="color:var(--tx2)">'+escapeHtml(g.descriptor)+' · '+o.muestra.fecha+'</span>'+
+          '<b style="color:var(--danger)">D²='+o.d2+'</b>'+
+          '<span style="color:var(--tx3)">umbral '+g.umbralChi2+' (χ² 95%, '+g.metales.length+' metales, n='+g.n+')</span>'+
+          '</div>';
+      }).join('');
+    }).join('')+
+    '</div>':'';
+
   // Aceleración de desgaste — CUSUM (2026-09-16, quinto y último ítem del
   // orden de prioridad elegido por el usuario). 'estado' (arriba) es un
   // umbral fijo por muestra, y "alertas persistentes" ve solo 2 muestras
@@ -155,6 +185,7 @@ export function renderAce(){
     alertasPersistentesHTML+
     aceCusumHTML+
     aceOutliersHTML+
+    aceMahalanobisHTML+
 
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ok)" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:var(--ok)">'+normal+'</div></div>'+

@@ -2419,6 +2419,29 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Aparece incluso con 1 sola falla, donde el MTBF crudo no existe. Verificado en navegador (Playwright: mismo
   dataset del test unitario, valores coincidiendo con el cálculo puro).</p>
 
+  <h3>71. Distancia de Mahalanobis — outliers multivariados de aceite (2026-09-20)</h3>
+  <p><code>aceiteOutliers</code> revisa cada metal <b>por separado</b> contra la mediana de su propio grupo. El
+  hueco real: una muestra puede tener hierro, cobre y cromo cada uno "normal" individualmente, pero la
+  <b>combinación</b> de los tres ser una señal de desgaste real que ningún chequeo metal-por-metal detecta — la
+  Distancia de Mahalanobis es la técnica estándar para esto en análisis de aceite/monitoreo de condición real.
+  Mide qué tan lejos está la combinación completa de metales de una muestra respecto del centro real de su
+  grupo, usando la matriz de covarianza real (cómo los metales suelen moverse juntos), no un promedio ingenuo
+  por separado.</p>
+  <p><code>D² = (x−μ)ᵀ Σ⁻¹ (x−μ)</code> sigue una chi-cuadrado con k grados de libertad (k = cantidad de
+  metales) — reusa directamente la tabla <code>_CHI2_CRITICO_95</code> ya existente en el sistema. Solo usa
+  muestras con TODOS los metales presentes (nunca completa un dato faltante) y exige harto historial por grupo:
+  <code>_MAHALANOBIS_MIN_MUESTRAS</code> (15) y siempre más muestras que dimensiones (n&gt;k) — si no,
+  <code>_invertirMatriz</code> devuelve <code>null</code> y el grupo se omite.</p>
+  <p><b>Verificación</b>: la inversión de matriz por Gauss-Jordan coincide con <code>numpy.linalg.inv</code> a 6
+  decimales; con un dataset determinístico de 24 muestras normales + 1 outlier combinado, el outlier inyectado
+  da D²≈19.65 (umbral χ²95%,gl=6≈12.592) y ninguna de las 24 normales lo supera (máximo ≈9.85) — y se confirmó
+  que ningún metal de esa muestra cruza el umbral fijo que ya usa <code>aceiteOutliers</code>, probando que es
+  un hueco real, no redundante. 5 tests nuevos (<code>outliersMultivariadosAceite.test.js</code>).</p>
+  <p>Integrado en Análisis de Aceite, junto al bloque existente de outliers de un solo metal: nuevo aviso "🧪
+  combinación de metales inusual", con equipo, fecha, D² y el umbral usado. Nunca cambia <code>estado</code>,
+  solo señala para confirmar con el laboratorio. Verificado en navegador (Playwright: D²=19.651 idéntico al
+  cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

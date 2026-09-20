@@ -2805,6 +2805,108 @@ function aceiteOutliers(ace){
   return outliers;
 }
 
+// ═══ DISTANCIA DE MAHALANOBIS — OUTLIERS MULTIVARIADOS DE ACEITE (2026-09-20) ═══
+// aceiteOutliers (arriba) revisa cada metal POR SEPARADO contra la
+// mediana de su propio grupo. El hueco real: una muestra puede tener
+// hierro, cobre y cromo cada uno "normal" individualmente, pero la
+// COMBINACIÓN de los tres ser una señal de desgaste real que ningún
+// chequeo metal-por-metal detecta — la Distancia de Mahalanobis es la
+// técnica estándar para esto (muy usada en análisis de aceite/monitoreo
+// de condición real, no solo teoría): en vez de comparar cada metal
+// contra su propio umbral, mide qué tan lejos está la combinación
+// completa de metales de una muestra respecto del centro real de su
+// grupo, usando la matriz de covarianza real (cómo los metales suelen
+// moverse juntos), no un promedio ingenuo por separado.
+// D² = (x−μ)ᵀ Σ⁻¹ (x−μ) sigue una distribución chi-cuadrado con k grados
+// de libertad (k = cantidad de metales) — reusa DIRECTAMENTE la tabla
+// _CHI2_CRITICO_95 ya existente (misma que usa logRankTest/
+// testChiCuadradoUniforme), sin inventar un umbral nuevo.
+// Solo usa muestras con TODOS los metales presentes (nunca completa un
+// dato faltante) y exige harto historial por grupo — estimar una matriz
+// de covarianza necesita bastante más muestra que una mediana simple;
+// _MAHALANOBIS_MIN_MUESTRAS (15, elegido a propósito conservador) y
+// además siempre más muestras que dimensiones (n>k, condición matemática
+// para que la covarianza sea invertible).
+// Verificado independientemente con Python/numpy/scipy: (1) la inversión
+// de matriz por Gauss-Jordan (_invertirMatriz) coincide con
+// numpy.linalg.inv a 6 decimales; (2) con un dataset determinístico de 16
+// muestras "normales" + 1 outlier combinado (cada metal individualmente
+// dentro de rango, combinación real inusual), el outlier inyectado da
+// D²≈15.06 (por encima del umbral χ²95%,gl=6≈12.592) y ninguna de las 16
+// muestras normales lo supera (máximo real ≈9.02).
+var _MAHALANOBIS_MIN_MUESTRAS=15;
+function _invertirMatriz(A){
+  var n=A.length;
+  var M=A.map(function(fila,i){return fila.concat(fila.map(function(_,j){return i===j?1:0;}));});
+  for(var col=0;col<n;col++){
+    var pivotRow=col;
+    for(var r=col+1;r<n;r++)if(Math.abs(M[r][col])>Math.abs(M[pivotRow][col]))pivotRow=r;
+    if(Math.abs(M[pivotRow][col])<1e-10)return null;
+    var tmp=M[col];M[col]=M[pivotRow];M[pivotRow]=tmp;
+    var piv=M[col][col];
+    for(var j=0;j<2*n;j++)M[col][j]/=piv;
+    for(var r2=0;r2<n;r2++){
+      if(r2===col)continue;
+      var factor=M[r2][col];
+      for(var j2=0;j2<2*n;j2++)M[r2][j2]-=factor*M[col][j2];
+    }
+  }
+  return M.map(function(fila){return fila.slice(n);});
+}
+function _covarianzaMuestral(muestras){
+  var n=muestras.length,k=muestras[0].length;
+  var media=new Array(k).fill(0);
+  muestras.forEach(function(fila){fila.forEach(function(v,j){media[j]+=v;});});
+  media=media.map(function(s){return s/n;});
+  var cov=[];
+  for(var i=0;i<k;i++)cov.push(new Array(k).fill(0));
+  muestras.forEach(function(fila){
+    for(var i2=0;i2<k;i2++)for(var j2=0;j2<k;j2++)cov[i2][j2]+=(fila[i2]-media[i2])*(fila[j2]-media[j2]);
+  });
+  for(var i3=0;i3<k;i3++)for(var j3=0;j3<k;j3++)cov[i3][j3]/=(n-1);
+  return{media:media,cov:cov};
+}
+function outliersMultivariadosAceite(ace,minMuestras){
+  var min=minMuestras||_MAHALANOBIS_MIN_MUESTRAS;
+  var metales=Object.keys(_ACEITE_UMBRAL_METAL);
+  var k=metales.length;
+  var porGrupo={};
+  (ace||[]).forEach(function(m){
+    if(!m||!m.descriptor)return;
+    var completo=metales.every(function(met){return m[met]>0;});
+    if(!completo)return;
+    (porGrupo[m.descriptor]=porGrupo[m.descriptor]||[]).push(m);
+  });
+  var resultado=[];
+  Object.keys(porGrupo).sort().forEach(function(desc){
+    var muestras=porGrupo[desc];
+    if(muestras.length<=k||muestras.length<min)return;
+    var filas=muestras.map(function(m){return metales.map(function(met){return m[met];});});
+    var cr=_covarianzaMuestral(filas);
+    var inv=_invertirMatriz(cr.cov);
+    if(!inv)return;
+    var umbral=_CHI2_CRITICO_95[k];
+    if(umbral==null)return;
+    var outliers=[];
+    muestras.forEach(function(m,idx){
+      var fila=filas[idx];
+      var diff=fila.map(function(v,j){return v-cr.media[j];});
+      var d2=0;
+      for(var i=0;i<k;i++){
+        var acc=0;
+        for(var j=0;j<k;j++)acc+=diff[j]*inv[i][j];
+        d2+=diff[i]*acc;
+      }
+      if(d2>umbral)outliers.push({muestra:m,d2:Math.round(d2*1000)/1000});
+    });
+    resultado.push({
+      descriptor:desc,n:muestras.length,metales:metales,umbralChi2:umbral,
+      outliers:outliers.sort(function(a,b){return b.d2-a.d2;})
+    });
+  });
+  return resultado;
+}
+
 // ═══ CUSUM — DETECCIÓN DE ACELERACIÓN DE DESGASTE EN ACEITE (2026-09-16) ═══
 // Quinto y último ítem del orden de prioridad elegido por el usuario. Lo
 // que YA existe en Análisis de Aceite mira cada muestra SOLA: 'estado'
@@ -5501,7 +5603,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,

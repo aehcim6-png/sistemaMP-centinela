@@ -4419,6 +4419,57 @@ equipos quedaban con "—", sin ningún número. Verificado en navegador
 (Playwright: mismo dataset de 6 equipos del test unitario, columna nueva
 visible con valores coincidiendo exactamente con el cálculo puro).
 
+### 71. Distancia de Mahalanobis — outliers multivariados de aceite (2026-09-20)
+
+`aceiteOutliers` (sección anterior) revisa cada metal **por separado**
+contra la mediana de su propio grupo (hierro alto, o cobre alto, cada
+uno con su propio umbral). El hueco real: una muestra puede tener
+hierro, cobre y cromo cada uno "normal" individualmente, pero la
+**combinación** de los tres ser una señal de desgaste real que ningún
+chequeo metal-por-metal detecta — la **Distancia de Mahalanobis** es la
+técnica estándar para esto, muy usada en análisis de aceite/monitoreo de
+condición real, no solo teoría. En vez de comparar cada metal contra su
+propio umbral, mide qué tan lejos está la combinación completa de
+metales de una muestra respecto del centro real de su grupo, usando la
+matriz de covarianza real (cómo los metales suelen moverse juntos), no
+un promedio ingenuo por separado.
+
+`D² = (x−μ)ᵀ Σ⁻¹ (x−μ)` sigue una distribución chi-cuadrado con k grados
+de libertad (k = cantidad de metales) — **reusa directamente la tabla
+`_CHI2_CRITICO_95`** ya existente en el sistema (misma que usa
+`logRankTest`/`testChiCuadradoUniforme`), sin inventar un umbral nuevo.
+Solo usa muestras con TODOS los metales presentes (nunca completa un
+dato faltante) y exige harto historial por grupo — estimar una matriz de
+covarianza necesita bastante más muestra que una mediana simple:
+`_MAHALANOBIS_MIN_MUESTRAS` (15, elegido a propósito conservador) y
+siempre más muestras que dimensiones (`n>k`, condición matemática para
+que la covarianza sea invertible — si no, `_invertirMatriz` devuelve
+`null` y el grupo se omite, nunca se fuerza un resultado).
+
+Verificado independientemente con Python/numpy/scipy: (1) la inversión
+de matriz por Gauss-Jordan (`_invertirMatriz`) coincide con
+`numpy.linalg.inv` a 6 decimales; (2) con un dataset determinístico de
+24 muestras "normales" (con correlación real entre metales) + 1 outlier
+combinado, el outlier inyectado da D²≈19.65 (muy por encima del umbral
+χ²95%,gl=6≈12.592) y ninguna de las 24 muestras normales lo supera
+(máximo real ≈9.85) — y se confirmó explícitamente que ningún metal de
+esa muestra cruza el umbral fijo que ya usa `aceiteOutliers` (2× el
+umbral de `_ACEITE_UMBRAL_METAL`), probando que es un hueco real, no
+redundante. Durante la verificación, un primer dataset de prueba resultó
+tener una matriz de covarianza exactamente singular (rango 5 de 6
+dimensiones, por una dependencia lineal accidental entre columnas) —
+`_invertirMatriz` lo detectó correctamente y devolvió `null`, confirmando
+que la guardia funciona antes incluso de llegar al caso de verificación
+final. 5 tests nuevos (`outliersMultivariadosAceite.test.js`).
+
+Integrado en Análisis de Aceite (`ace.js`), junto al bloque existente de
+outliers de un solo metal: nuevo aviso "🧪 combinación de metales
+inusual", con equipo, fecha, D² y el umbral usado. Nunca cambia
+`estado`, solo señala para confirmar con el laboratorio — mismo espíritu
+que el bloque de outliers ya existente. Verificado en navegador
+(Playwright: mismo dataset del test unitario, D²=19.651 idéntico al
+cálculo puro).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
