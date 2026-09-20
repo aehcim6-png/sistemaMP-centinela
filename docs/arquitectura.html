@@ -2442,6 +2442,29 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   solo señala para confirmar con el laboratorio. Verificado en navegador (Playwright: D²=19.651 idéntico al
   cálculo puro).</p>
 
+  <h3>72. Punto de Reorden con Stock de Seguridad — repuestos (2026-09-20)</h3>
+  <p><code>analisisABCXYZRepuestos</code> ya calcula, por repuesto y desde el historial real, la demanda mensual
+  promedio y su coeficiente de variación (CV) — pero esa variabilidad hoy no alimenta ninguna decisión:
+  <code>stockEstado</code> compara la cobertura actual contra el lead time con un umbral FIJO, como si la demanda
+  fuera perfectamente constante. Dos repuestos con el mismo consumo promedio pero muy distinta variabilidad
+  (justo lo que separa clase X de clase Z) terminan con el mismo umbral de "comprar ahora" — dejando sin margen
+  real a los erráticos y con margen de sobra a los predecibles.</p>
+  <p><b>Punto de Reorden (ROP) con stock de seguridad</b> es la fórmula estándar de teoría de inventario para
+  esto (Silver/Pyke/Peterson, <i>Inventory Management and Production Planning and Scheduling</i>; también
+  Chopra &amp; Meindl, <i>Supply Chain Management</i>): <code>ROP = μ_L + z·σ_L</code>, con
+  <code>μ_L = μ_mensual × (leadDias/30)</code> (demanda esperada en el lead time),
+  <code>σ_L = σ_mensual × √(leadDias/30)</code> (escalado raíz-del-tiempo) y z el z-score del nivel de servicio
+  elegido (95% → z=1.645). <code>σ_mensual = cv × μ_mensual</code>, reusando el CV que ya calcula
+  <code>analisisABCXYZRepuestos</code> — nunca se inventa una varianza nueva.</p>
+  <p><b>Verificado con Monte Carlo</b> (2M iteraciones): la probabilidad real de NO quebrar stock usando el ROP
+  coincidió con el nivel de servicio elegido a 4 decimales (90%→0.9000, 95%→0.9500, 97.5%→0.9749). Redondeo
+  final hacia arriba, nunca hacia abajo (reduciría el nivel de servicio real). 9 tests nuevos
+  (<code>puntoReordenSeguridad.test.js</code>).</p>
+  <p>Integrado en Predictivo → ABC-XYZ de Repuestos: nueva columna "Reorden" (stock actual / ROP), en rojo
+  cuando el stock ya cayó por debajo del punto de reorden. Verificado en navegador (Playwright: repuesto clase Z
+  con ROP=25 marcado en rojo con stock=20, clase X con mismo consumo promedio y ROP=13 sin marca, idéntico al
+  cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

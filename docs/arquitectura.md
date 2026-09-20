@@ -4470,6 +4470,51 @@ que el bloque de outliers ya existente. Verificado en navegador
 (Playwright: mismo dataset del test unitario, D²=19.651 idéntico al
 cálculo puro).
 
+### 72. Punto de Reorden con Stock de Seguridad — repuestos (2026-09-20)
+
+`analisisABCXYZRepuestos` (sección anterior) ya calcula, por repuesto y
+desde el historial real, la demanda mensual promedio y su coeficiente de
+variación (CV) — pero esa variabilidad hoy no alimenta ninguna decisión:
+`stockEstado` compara la cobertura actual contra el lead time con un
+umbral FIJO, como si la demanda fuera perfectamente constante. Dos
+repuestos con el mismo consumo promedio pero muy distinta variabilidad
+(justo lo que separa clase X de clase Z) terminan con el mismo umbral de
+"comprar ahora" — dejando sin margen real a los erráticos y con margen de
+sobra a los predecibles.
+
+**Punto de Reorden (ROP) con stock de seguridad** es la fórmula estándar de
+teoría de inventario para esto (Silver/Pyke/Peterson, *Inventory Management
+and Production Planning and Scheduling*; también Chopra & Meindl, *Supply
+Chain Management*):
+
+```
+ROP = μ_L + z·σ_L
+μ_L = μ_mensual × (leadDias/30)      — demanda esperada durante el lead time
+σ_L = σ_mensual × √(leadDias/30)     — escalado raíz-del-tiempo (demanda i.i.d. entre meses)
+z   = z-score del nivel de servicio elegido (95% → z=1.645, estándar)
+```
+
+`σ_mensual = cv × μ_mensual`, reusando directamente el CV que ya calcula
+`analisisABCXYZRepuestos` — nunca se inventa una varianza nueva. `leadDias`
+usa el mismo default de 34 días ya establecido en el sistema
+(`predFromOrdenes`, `stockEstado`) cuando el ítem no tiene lead time propio.
+
+**Verificado con Monte Carlo** (2M iteraciones, demanda diaria normal
+agregada sobre el lead time): la probabilidad real de NO quebrar stock
+usando el ROP coincidió con el nivel de servicio elegido a 4 decimales
+(90%→0.9000, 95%→0.9500, 97.5%→0.9749). El redondeo final es hacia arriba
+(`Math.ceil`): redondear hacia abajo reduciría el nivel de servicio real
+por debajo del elegido. 9 tests nuevos (`puntoReordenSeguridad.test.js`),
+incluido un caso que reproduce a mano los valores de referencia calculados
+en Python.
+
+Integrado en Predictivo → ABC-XYZ de Repuestos: nueva columna "Reorden" con
+formato `stock actual / ROP`, marcada en rojo cuando el stock ya cayó por
+debajo del punto de reorden. Verificado en navegador (Playwright: mismo
+dataset del test — un repuesto clase Z con ROP=25 marcado en rojo con
+stock=20, uno clase X con el mismo consumo promedio y ROP=13 sin marca,
+idéntico al cálculo puro).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

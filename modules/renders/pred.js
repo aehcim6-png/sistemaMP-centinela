@@ -1632,21 +1632,29 @@ export function renderPred(){
     var descPorNParteABC={};
     stk.forEach(function(s){if(s&&s.nParte)descPorNParteABC[s.nParte]=s.descripcion||s.nParte;});
     var abcxyzLista=typeof analisisABCXYZRepuestos==='function'?analisisABCXYZRepuestos(mov,stk):[];
+    // Punto de Reorden con stock de seguridad (2026-09-20): reusa la misma
+    // demanda (media, cv) que ABC-XYZ ya calculó, cruzada con lead time y
+    // stock real, para pasar de "qué tan predecible es" a un número
+    // accionable — "a cuántas unidades pedir de nuevo".
+    var reordenPorNParteABC={};
+    (typeof puntosReordenRepuestos==='function'?puntosReordenRepuestos(abcxyzLista,stk,0.95):[]).forEach(function(r){reordenPorNParteABC[r.nParte]=r;});
     var colorABC={A:'var(--danger)',B:'var(--w)',C:'var(--tx3)'};
     var colorXYZ={X:'var(--ok)',Y:'var(--w)',Z:'var(--danger)'};
     content=
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>ABC-XYZ de Repuestos</div><div style="font-size:11px;color:var(--tx3)">ABC: Pareto de valor de consumo anualizado (80/15/5) · XYZ: variabilidad de la demanda mensual (coeficiente de variación)</div></div>'+
       '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
-      '<div style="font-size:12px;line-height:1.6"><b>A/B/C</b> = qué tan grande es el gasto anual en este repuesto (A = los pocos que concentran ~80% del gasto, C = el resto). <b>X/Y/Z</b> = qué tan predecible es su consumo mes a mes (X = estable, Z = errático — un CV alto no penaliza, solo avisa que un promedio simple no alcanza para planificar ese repuesto). AX = alto valor y predecible (vale la pena un control estricto, punto de pedido fijo). AZ/BZ = alto valor pero errático (vigilar de cerca, no confiar en el promedio). CZ = bajo valor y errático (no vale la pena invertir esfuerzo ahí, solo un colchón de stock). Requiere al menos 3 meses de historial y precio unitario real — sin eso, el repuesto no aparece acá (nunca se inventa un precio).</div></div>'+
+      '<div style="font-size:12px;line-height:1.6"><b>A/B/C</b> = qué tan grande es el gasto anual en este repuesto (A = los pocos que concentran ~80% del gasto, C = el resto). <b>X/Y/Z</b> = qué tan predecible es su consumo mes a mes (X = estable, Z = errático — un CV alto no penaliza, solo avisa que un promedio simple no alcanza para planificar ese repuesto). AX = alto valor y predecible (vale la pena un control estricto, punto de pedido fijo). AZ/BZ = alto valor pero errático (vigilar de cerca, no confiar en el promedio). CZ = bajo valor y errático (no vale la pena invertir esfuerzo ahí, solo un colchón de stock). Requiere al menos 3 meses de historial y precio unitario real — sin eso, el repuesto no aparece acá (nunca se inventa un precio). <b>Punto de Reorden</b> (columna nueva) = a qué stock pedir de nuevo para no quebrar antes de que llegue la reposición, con 95% de nivel de servicio — un repuesto errático (Z) pide antes que uno predecible (X) con el mismo consumo promedio, porque necesita más colchón para su propia variabilidad.</div></div>'+
       (abcxyzLista.length?
-      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:24%">Repuesto</th><th style="width:12%">Clase</th><th style="width:16%">Valor Anual.</th><th style="width:12%">Consumo/mes</th><th style="width:10%">CV</th><th style="text-align:left">Detalle</th></tr>'+
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:21%">Repuesto</th><th style="width:10%">Clase</th><th style="width:14%">Valor Anual.</th><th style="width:11%">Consumo/mes</th><th style="width:8%">CV</th><th style="width:14%">Reorden</th><th style="text-align:left">Detalle</th></tr>'+
       abcxyzLista.map(function(it){
+        var ro=reordenPorNParteABC[it.nParte];
         return'<tr>'+
           '<td style="font-weight:600" title="'+escapeHtml(it.nParte)+'">'+escapeHtml(descPorNParteABC[it.nParte]||it.nParte)+'</td>'+
           '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span></td>'+
           '<td style="text-align:center">$'+fn(it.valorAnualizado)+'</td>'+
           '<td style="text-align:center">'+it.consumoMensualProm+'</td>'+
           '<td style="text-align:center">'+(it.cv!=null?it.cv:'—')+'</td>'+
+          '<td style="text-align:center;font-size:10.5px">'+(ro?'<b style="color:'+(ro.bajoReorden?'var(--danger)':'var(--tx2)')+'">'+fn(ro.stockActual)+' / '+fn(ro.rop)+'</b>'+(ro.bajoReorden?' 🔴':''):'—')+'</td>'+
           '<td style="font-size:10px;color:var(--tx2)">'+it.nMeses+' meses de historial · '+Math.round(it.pctAcumulado*100)+'% acumulado del gasto</td></tr>';
       }).join('')+
       '</table></div>'

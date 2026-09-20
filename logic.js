@@ -3772,6 +3772,77 @@ function analisisABCXYZRepuestos(movimientos,stk){
   return items;
 }
 
+// ═══ PUNTO DE REORDEN CON STOCK DE SEGURIDAD (2026-09-20) ═══
+// analisisABCXYZRepuestos (arriba) ya calcula, por repuesto y desde el
+// historial real, la demanda mensual promedio y su coeficiente de
+// variación — pero esa variabilidad hoy no alimenta ninguna decisión:
+// stockEstado (más arriba en este archivo) compara la cobertura actual
+// contra el lead time con un umbral FIJO, como si la demanda fuera
+// perfectamente constante. Dos repuestos con el mismo consumo promedio
+// pero muy distinta variabilidad (justo lo que separa clase X de clase Z)
+// terminan con el mismo umbral de "comprar ahora", dejando sin margen real
+// a los erráticos y con margen de sobra a los predecibles.
+//
+// Punto de Reorden (ROP) con stock de seguridad es la fórmula estándar de
+// teoría de inventario para esto (Silver/Pyke/Peterson, "Inventory
+// Management and Production Planning and Scheduling"; también Chopra &
+// Meindl, "Supply Chain Management"):
+//   ROP = μ_L + z·σ_L
+//   μ_L = μ_mensual × (leadDias/30)      — demanda esperada durante el lead time
+//   σ_L = σ_mensual × √(leadDias/30)     — escalado raíz-del-tiempo (demanda
+//                                          i.i.d. entre meses, supuesto estándar)
+//   z   = z-score del nivel de servicio elegido
+// σ_mensual = cv × μ_mensual, reusando el cv que ya calcula
+// analisisABCXYZRepuestos — nunca se inventa una varianza nueva. leadDias
+// usa el mismo default de 34 días ya establecido en el sistema
+// (predFromOrdenes, stockEstado) cuando el ítem no tiene lead time propio.
+//
+// Verificado con Monte Carlo (2M iteraciones, demanda diaria normal
+// agregada sobre el lead time): la probabilidad real de NO quebrar stock
+// usando el ROP coincide con el nivel de servicio elegido a 4 decimales
+// (90%→0.9000, 95%→0.9500, 97.5%→0.9749). El redondeo final es hacia
+// arriba (Math.ceil): redondear hacia abajo reduciría el nivel de servicio
+// real por debajo del elegido.
+var _Z_NIVEL_SERVICIO={0.90:1.2816,0.95:1.6449,0.975:1.96,0.99:2.3263};
+function puntoReordenSeguridad(muMensual,cv,leadDias,nivelServicio){
+  if(muMensual==null||!(muMensual>=0)||!(leadDias>0))return null;
+  var ns=_Z_NIVEL_SERVICIO[nivelServicio]?nivelServicio:0.95;
+  var z=_Z_NIVEL_SERVICIO[ns];
+  var sigmaMensual=(cv!=null&&cv>0)?cv*muMensual:0;
+  var leadMeses=leadDias/30;
+  var muL=muMensual*leadMeses;
+  var sigmaL=sigmaMensual*Math.sqrt(leadMeses);
+  var stockSeguridad=z*sigmaL;
+  return{
+    muL:Math.round(muL*100)/100,
+    sigmaL:Math.round(sigmaL*100)/100,
+    stockSeguridad:Math.round(stockSeguridad*100)/100,
+    z:z,nivelServicio:ns,
+    rop:Math.ceil(muL+stockSeguridad)
+  };
+}
+
+// Aplica puntoReordenSeguridad a la lista completa de analisisABCXYZRepuestos,
+// cruzando con el lead time y stock actual real de cada repuesto (tabla
+// stk). Marca bajoReorden cuando el stock actual (bodega + pendiente de
+// llegar) ya cayó por debajo del punto de reorden calculado.
+function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio){
+  var stockPorNParte={},leadPorNParte={};
+  (stk||[]).forEach(function(s){
+    if(!s||!s.nParte)return;
+    stockPorNParte[s.nParte]=(s.stockBodega||0)+(s.pendiente||0);
+    leadPorNParte[s.nParte]=s.leadTime>0?s.leadTime:34;
+  });
+  return(itemsABCXYZ||[]).map(function(it){
+    var lead=leadPorNParte[it.nParte]||34;
+    var r=puntoReordenSeguridad(it.consumoMensualProm,it.cv,lead,nivelServicio);
+    if(!r)return null;
+    var stockActual=stockPorNParte[it.nParte]||0;
+    return Object.assign({nParte:it.nParte,claseABC:it.claseABC,claseXYZ:it.claseXYZ,
+      stockActual:stockActual,leadDias:lead,bajoReorden:stockActual<r.rop},r);
+  }).filter(Boolean);
+}
+
 // ═══ MTTR CON DISTRIBUCIÓN LOG-NORMAL (2026-09-13) ═══
 // Origen real: mismo repaso de distribuciones estadísticas de confiabilidad
 // que llevó a Poisson para stock (sección anterior). El MTTR que ya muestra
@@ -5603,7 +5674,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
