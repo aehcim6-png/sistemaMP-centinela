@@ -67,6 +67,21 @@ function _estTablaEquipo(eq, eventos) {
       fallas: d.fallas, mtbf: d.horoms.length >= 2 ? C.mtbfReal(d.horoms) : null
     };
   });
+  // Bayes Empírico (2026-09-20) — MTBF de arriba exige 2+ fallas con
+  // horómetro; un equipo con exactamente 1 falla (entra a esta tabla, pero
+  // sin intervalo que medir) queda con "—", sin ningún número.
+  // bayesEmpiricoGammaPoisson (logic.js) da una tasa de falla ESTABILIZADA
+  // para TODOS los equipos con horómetro real que aparecen acá (incluidos
+  // los de 1 sola falla), combinando su propio dato con la tasa de toda la
+  // flota — nunca inventa una diferencia si no hay heterogeneidad real
+  // entre equipos (fullShrink). Exposición = horómetro actual del equipo
+  // (mismo horómetro que ya usa Weibull/RBD/Kijima como reloj de
+  // exposición real).
+  var gruposBayes = eq.filter(function (e) { return e && e.sigla && e.horomActual > 0; })
+    .map(function (e) { return { id: e.sigla, n: (porEq[e.sigla] || { fallas: 0 }).fallas, exposicion: e.horomActual }; });
+  var bayes = (typeof bayesEmpiricoGammaPoisson === 'function') ? bayesEmpiricoGammaPoisson(gruposBayes) : null;
+  var mtbfBayesPorSigla = {};
+  if (bayes) bayes.detalle.forEach(function (d) { mtbfBayesPorSigla[d.id] = d.mtbfEstabilizado; });
   // paretoAcumulado ANTES de recortar a 25 (logic.js): el % del total y el
   // acumulado deben reflejar TODA la flota, no solo las 25 filas que se
   // muestran — si se calculara después del slice, un equipo #30 igual de
@@ -75,9 +90,10 @@ function _estTablaEquipo(eq, eventos) {
   var lista = paretoAcumulado(todos).slice(0, 25);
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">🏗 Equipos con más fallas (Bad Actors) — Pareto</div>' +
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales (esFallaMTBF) + historial 2022-2025 cargado desde Excel. MTBF = intervalo real entre fallas sucesivas de horómetro, solo con 2+ fallas con horómetro registrado. Los equipos marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas de toda la flota — ahí es donde más rinde enfocar inspecciones o reemplazo. % y acumulado se calculan sobre TODA la flota, aunque la tabla solo muestre los primeros 25.</div>' +
-    '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Fallas</th><th>% del total</th><th>Barra</th><th>Acumulado</th><th>MTBF (h)</th></tr>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales (esFallaMTBF) + historial 2022-2025 cargado desde Excel. MTBF = intervalo real entre fallas sucesivas de horómetro, solo con 2+ fallas con horómetro registrado. MTBF estabilizado (Bayes) = tasa de falla combinando el dato propio del equipo con el de toda la flota (Bayes Empírico Gamma-Poisson) — aparece incluso con 1 sola falla, donde el MTBF crudo no existe (necesita 2+).' + (bayes && bayes.fullShrink ? ' Con el historial actual, no hay heterogeneidad real detectable entre equipos — todos comparten la misma tasa de flota.' : '') + ' Los equipos marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas de toda la flota — ahí es donde más rinde enfocar inspecciones o reemplazo. % y acumulado se calculan sobre TODA la flota, aunque la tabla solo muestre los primeros 25.</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Fallas</th><th>% del total</th><th>Barra</th><th>Acumulado</th><th>MTBF (h)</th><th>MTBF estabilizado (Bayes)</th></tr>' +
     (lista.length ? lista.map(function (r) {
+      var mtbfBayes = mtbfBayesPorSigla[r.sigla];
       return '<tr style="' + (r.vital ? 'background:rgba(245,158,11,.08)' : '') + '">' +
         '<td class="mono" style="color:var(--ac);font-weight:600">' + (r.vital ? '⭐ ' : '') + escapeHtml(r.sigla) + '</td>' +
         '<td style="font-size:11px">' + escapeHtml(r.modelo) + '</td>' +
@@ -85,8 +101,9 @@ function _estTablaEquipo(eq, eventos) {
         '<td style="text-align:center">' + r.pct + '%</td>' +
         '<td><div style="background:color-mix(in srgb,var(--ac) 18%,var(--bg4));border-radius:4px;height:12px;width:140px;overflow:hidden"><div style="background:var(--ac);height:100%;width:' + r.barPct + '%"></div></div></td>' +
         '<td style="text-align:center;color:var(--tx3)">' + r.acumulado + '%</td>' +
-        '<td style="text-align:center">' + (r.mtbf == null ? '<span style="color:var(--tx3)">—</span>' : fn(Math.round(r.mtbf))) + '</td></tr>';
-    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin fallas registradas todavía</td></tr>') +
+        '<td style="text-align:center">' + (r.mtbf == null ? '<span style="color:var(--tx3)">—</span>' : fn(Math.round(r.mtbf))) + '</td>' +
+        '<td style="text-align:center;color:var(--tx2)">' + (mtbfBayes == null ? '<span style="color:var(--tx3)">—</span>' : fn(mtbfBayes)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--tx3)">Sin fallas registradas todavía</td></tr>') +
     '</table></div></div>';
 }
 

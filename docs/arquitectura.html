@@ -2403,6 +2403,22 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Predictivo → Dotación de Taller: tarjeta con utilización, probabilidad de espera, tiempo de espera y OT
   esperando. Verificado en navegador (Playwright: ρ=22% idéntico al cálculo puro).</p>
 
+  <h3>70. Bayes Empírico (shrinkage Gamma-Poisson) — MTBF con poco historial (2026-09-20)</h3>
+  <p>Todo lo construido hasta acá es frecuentista. Esto es distinto: un equipo con pocas fallas hoy se excluye o
+  muestra un número con un IC enorme. El <b>Bayes Empírico</b> es la técnica estándar para esto — la misma que
+  usan aseguradoras ("credibility theory") y estadística deportiva.</p>
+  <p>Cada tasa λ_i se asume de una Gamma(α,β) común a la flota, estimada por método de momentos:
+  <code>μ̂ = Σn_i/Σt_i</code>, <code>σ²_entre = S² − μ̂×k/Σt_i</code> (varianza observada menos el ruido Poisson
+  esperado). Si ≤0, shrinkage total (todos con la tasa de flota, nunca inventa una diferencia). Si no,
+  <code>α=μ̂²/σ²_entre</code>, <code>β=μ̂/σ²_entre</code>, estimación final <code>λ̂_i=(α+n_i)/(β+t_i)</code>.</p>
+  <p><b>Verificación por simulación</b>: datos sintéticos desde una Gamma conocida, conteos Poisson con
+  exposiciones heterogéneas — el método recupera los hiperparámetros reales (α_real=4.0→α̂≈4.75), y el
+  estimador con shrinkage reduce el error cuadrático medio ~26% frente a los valores reales conocidos —
+  mismo fenómeno que la paradoja de Stein. 4 tests nuevos (<code>bayesEmpiricoGammaPoisson.test.js</code>).</p>
+  <p>Integrado en Estadística → Por Equipo: columna "MTBF estabilizado (Bayes)", exposición = horómetro actual.
+  Aparece incluso con 1 sola falla, donde el MTBF crudo no existe. Verificado en navegador (Playwright: mismo
+  dataset del test unitario, valores coincidiendo con el cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

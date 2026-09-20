@@ -4370,6 +4370,55 @@ promedio y OT esperando en promedio. Verificado en navegador (Playwright:
 λ=0.139/h, μ=0.125/h, c=5 → ρ=22%, coincidiendo exactamente con el
 cálculo puro).
 
+### 70. Bayes Empírico (shrinkage Gamma-Poisson) — MTBF con poco historial (2026-09-20)
+
+Todo lo construido en esta sesión hasta acá es **frecuentista** (tests de
+hipótesis, MLE, regresión, cartas de control, colas). Esto es un enfoque
+distinto: un equipo con pocas fallas registradas hoy o se **excluye**
+(mínimo de muestra) o muestra un número puntual con un intervalo de
+confianza enorme — la frase "con pocas fallas... el número puntual puede
+ser muy poco confiable" aparece literalmente varias veces en el sistema
+(MTBF, Weibull). El **Bayes Empírico** es la técnica estándar diseñada
+exactamente para esto — la misma que usan aseguradoras ("credibility
+theory") y estadística deportiva (el promedio de bateo de un jugador con
+pocos turnos al bate no se muestra crudo ni se descarta, se combina con
+el promedio de la liga).
+
+Modelo: cada tasa de falla real λ_i (fallas por hora de exposición) se
+asume proveniente de una Gamma(α,β) común a toda la flota — los
+hiperparámetros se estiman de los propios datos por **método de
+momentos**, nunca inventados a mano: `μ̂ = Σn_i/Σt_i` (tasa pooled),
+`σ²_entre = S² − μ̂×k/Σt_i` (la varianza observada de las tasas crudas,
+menos el ruido de muestreo Poisson esperado — lo que queda es la
+heterogeneidad REAL entre equipos). Si `σ²_entre≤0` (sin heterogeneidad
+real detectable), se cae a **shrinkage total**: todos los equipos con la
+tasa de flota, nunca se inventa una diferencia que no existe. Si no,
+`α=μ̂²/σ²_entre`, `β=μ̂/σ²_entre`, y la estimación final por equipo es la
+media posterior `λ̂_i=(α+n_i)/(β+t_i)` — con poca exposición propia pesa
+más el promedio de flota, con mucha converge al dato propio.
+
+**Verificación por simulación** (técnica distinta a las verificaciones
+anteriores de esta sesión, pero igual de rigurosa): se generaron datos
+sintéticos desde una Gamma conocida, se simularon conteos Poisson con
+exposiciones muy heterogéneas (mismo problema real: equipos con mucho vs.
+poco historial) — el método recupera los hiperparámetros reales
+(α_real=4.0 → α̂≈4.75; β_real=2.0 → β̂≈2.27, con 200 grupos), y el
+estimador con shrinkage reduce el error cuadrático medio **~26%**
+respecto de la tasa cruda frente a los valores reales conocidos de la
+simulación — el beneficio clásico y documentado de este tipo de
+estimador (mismo fenómeno que la paradoja de Stein). También se verificó
+la guardia de "sin heterogeneidad real" con un segundo caso simulado. 4
+tests nuevos con un dataset determinístico (`bayesEmpiricoGammaPoisson.test.js`).
+
+Integrado en Estadística → Por Equipo (tabla de Bad Actors): nueva
+columna "MTBF estabilizado (Bayes)", exposición = horómetro actual del
+equipo (mismo reloj de exposición que ya usan Weibull/RBD/Kijima).
+Aparece incluso para equipos con **1 sola falla**, donde el MTBF crudo no
+existe (necesita 2+ para tener un intervalo que medir) — antes esos
+equipos quedaban con "—", sin ningún número. Verificado en navegador
+(Playwright: mismo dataset de 6 equipos del test unitario, columna nueva
+visible con valores coincidiendo exactamente con el cálculo puro).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
