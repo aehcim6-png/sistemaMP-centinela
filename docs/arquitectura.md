@@ -3912,6 +3912,61 @@ y 390px de ancho): badges como pills, tarjetas con más aire, grid móvil
 de 2 columnas con el espaciado ampliado. 905/905 tests (sin tests nuevos
 — cambio puramente visual, sin lógica pura) y build limpio.
 
+### 60. R² (bondad de ajuste) en la proyección de desgaste de neumáticos (2026-09-20)
+
+Continuación de la revisión de cheat sheets de estadística (correlación
+vs. causación, hipergeométrica, exponencial, Pearson, regresión simple/
+múltiple, R², análisis de residuos, escalas de medición). La mayoría ya
+está cubierta o no aplica: la exponencial ya es la base de
+`confiabilidadReal` (R(t)=e^(-t/MTBF)); correlación-vs-causación es una
+advertencia general, no una técnica; la hipergeométrica (muestreo sin
+reemplazo de un lote finito) no tiene ningún caso de uso real en el
+sistema (el stock usa Poisson, tasa de demanda, no un lote finito
+muestreado); las escalas de medición son un marco conceptual, no algo
+para implementar.
+
+Lo real y faltante: el sistema YA hace regresión lineal (proyección de
+desgaste de neumáticos, `neuProyeccion` en index.html) pero nunca
+reportaba qué tan bueno es ese ajuste. Peor: el campo `confianza` que sí
+existía solo contaba CUÁNTAS mediciones había (3+ = "Alta"), sin mirar si
+la recta ajustaba bien — un neumático con 3-4 mediciones muy dispersas
+pasaba como "Alta confianza" solo por el número, aunque la recta
+explicara casi nada de los datos reales (el mismo error de "solo contar
+en vez de interpretar" que motivó esta revisión).
+
+**`logic.js`**: `r2RegresionLineal(pts)` — regresión lineal simple por
+mínimos cuadrados + R²=1-SSE/SST (SSE=Σ(y-ŷ)², SST=Σ(y-ȳ)²), fórmula de
+libro sin aproximación. Recibe los mismos puntos `{x,y}` que
+`neuProyeccion` ya armaba para su propio ajuste — no duplica el cálculo,
+solo lo evalúa. null con &lt;2 puntos válidos o si todos los x son iguales
+(caso degenerado, sin pendiente que ajustar).
+
+7 tests en `tests/r2RegresionLineal.test.js` (912/912 en total):
+verificados independientemente contra numpy antes de escribirlos — ajuste
+perfecto (R²=1), ajuste ruidoso sin relación clara (R²≈0.18), caso
+realista de desgaste con 8 mediciones y algo de ruido (R²≈0.99); ignora
+puntos sin `y`; caso degenerado (todos los y iguales) sin `NaN`.
+
+**`index.html`** (`neuProyeccion`): el bloque de regresión que ya existía
+ahí (armaba `nn/sx/sy/sxy/sx2/denom` a mano) ahora llama a
+`r2RegresionLineal`, mismo resultado exacto para la pendiente — y de paso
+obtiene R². Se agrega el campo `r2Desgaste` al resultado (solo cuando la
+proyección ganadora vino de esta regresión, no cuando ganó por horas o
+por vida útil objetivo genérica).
+
+**`neu.js`**: la columna "Vida Restante" agrega ⚠️ cuando `r2Desgaste<0.5`
+(umbral estándar de "ajuste débil" — coincide con los cheat sheets
+compartidos: 0-0.25 débil, 0.25-0.5 moderado), con el valor de R² y una
+nota explícita ("la fecha puede no ser confiable") en el tooltip y en el
+panel de detalle del neumático. No bloquea ni cambia la proyección — es
+una señal para leer el número con más o menos confianza, mismo principio
+que el resto de las señales de esta sesión.
+
+Verificado visualmente en navegador (Playwright ad-hoc, historial
+sintético de 4 mediciones ruidosas, mismos números que el test de R²≈0.18
+en logic.js): la columna Vida Restante muestra "≈0d (0h) ⚠️" y el
+tooltip explica el ajuste débil.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

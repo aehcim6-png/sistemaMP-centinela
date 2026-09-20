@@ -2200,6 +2200,32 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   navegador (Playwright ad-hoc, capturas a 1280px y 390px de ancho). 905/905 tests (sin tests nuevos —
   cambio puramente visual) y build limpio.</p>
 
+  <h3>60. R² (bondad de ajuste) en la proyección de desgaste de neumáticos (2026-09-20)</h3>
+  <p>Continuación de la revisión de cheat sheets de estadística. La mayoría ya estaba cubierta o no
+  aplica: la exponencial ya es la base de <code>confiabilidadReal</code>; correlación-vs-causación es
+  advertencia general; la hipergeométrica no tiene caso de uso real (el stock usa Poisson, no un lote
+  finito muestreado); las escalas de medición son marco conceptual.</p>
+  <p>Lo real y faltante: el sistema ya hace regresión lineal (proyección de desgaste de neumáticos,
+  <code>neuProyeccion</code>) pero nunca reportaba qué tan bueno es ese ajuste. Peor: el campo
+  <code>confianza</code> existía pero solo contaba CUÁNTAS mediciones había (3+ = "Alta"), sin mirar si la
+  recta ajustaba bien — el mismo error de "solo contar en vez de interpretar" que motivó esta
+  revisión.</p>
+  <p><b>Cambios en <code>logic.js</code>:</b> <code>r2RegresionLineal(pts)</code> — regresión lineal simple
+  por mínimos cuadrados + R²=1-SSE/SST, fórmula de libro sin aproximación. Recibe los mismos puntos
+  {x,y} que <code>neuProyeccion</code> ya armaba — no duplica el cálculo, solo lo evalúa. 7 tests
+  (912/912 en total), verificados contra numpy: ajuste perfecto (R²=1), ruidoso (R²≈0.18), desgaste
+  realista con 8 mediciones (R²≈0.99).</p>
+  <p><b>Cambios en <code>index.html</code></b> (<code>neuProyeccion</code>): el bloque de regresión que ya
+  existía ahora llama a <code>r2RegresionLineal</code>, mismo resultado exacto para la pendiente, y de
+  paso obtiene R². Se agrega el campo <code>r2Desgaste</code> al resultado.</p>
+  <p><b>Cambios en <code>neu.js</code>:</b> la columna "Vida Restante" agrega ⚠️ cuando
+  <code>r2Desgaste&lt;0.5</code> (0-0.25 débil, 0.25-0.5 moderado, mismos umbrales de los cheat sheets
+  compartidos), con el valor de R² y una nota explícita en el tooltip y en el panel de detalle. No
+  bloquea ni cambia la proyección — es una señal de cuánto confiar en ella.</p>
+  <p>Verificado visualmente en navegador (Playwright ad-hoc, historial sintético de 4 mediciones
+  ruidosas, mismos números que el test R²≈0.18): la columna Vida Restante muestra "≈0d (0h) ⚠️" con
+  el tooltip explicando el ajuste débil.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

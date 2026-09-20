@@ -816,6 +816,40 @@ function errorEstandarMTTR(duraciones,confianza){
   };
 }
 
+// ═══ BONDAD DE AJUSTE (R²) DE UNA REGRESIÓN LINEAL SIMPLE ═══ — la
+// proyección de desgaste de neumáticos (neuProyeccion, index.html) ajusta
+// una recta a las últimas mediciones de remanente y proyecta cuándo se
+// cambia, pero el campo 'confianza' que ya mostraba solo contaba CUÁNTAS
+// mediciones había (3+ = "Alta") sin mirar si esa recta realmente ajusta
+// bien — un neumático con 3 mediciones muy dispersas pasaba como "Alta
+// confianza" solo por el número. R² mide qué tan bien explica la recta
+// los datos reales: R²=1-SSE/SST, con SSE=Σ(y-ŷ)² (error del modelo) y
+// SST=Σ(y-ȳ)² (varianza total de los datos) — fórmula de libro, sin
+// aproximación. Recibe los mismos puntos {x,y} que ya arma neuProyeccion
+// para su propio ajuste — no repite el cálculo, solo lo evalúa. null con
+// menos de 2 puntos válidos o si todos los x son iguales (no hay
+// pendiente que ajustar, caso degenerado).
+function r2RegresionLineal(pts){
+  var validos=(pts||[]).filter(function(p){return p&&p.y!=null&&isFinite(p.x)&&isFinite(p.y);});
+  var n=validos.length;
+  if(n<2)return null;
+  var sx=0,sy=0,sxy=0,sx2=0;
+  validos.forEach(function(p){sx+=p.x;sy+=p.y;sxy+=p.x*p.y;sx2+=p.x*p.x;});
+  var denom=n*sx2-sx*sx;
+  if(denom===0)return null;
+  var pendiente=(n*sxy-sx*sy)/denom;
+  var intercepto=(sy-pendiente*sx)/n;
+  var media=sy/n;
+  var sse=0,sst=0;
+  validos.forEach(function(p){
+    var yPred=intercepto+pendiente*p.x;
+    sse+=Math.pow(p.y-yPred,2);
+    sst+=Math.pow(p.y-media,2);
+  });
+  var r2=sst===0?1:1-sse/sst;
+  return{pendiente:pendiente,intercepto:intercepto,r2:Math.round(Math.max(0,Math.min(1,r2))*1000)/1000,n:n};
+}
+
 // ═══ AJUSTE WEIBULL — reemplaza el supuesto de tasa de falla CONSTANTE de
 // confiabilidadReal (de arriba) por la forma real de falla de CADA equipo,
 // estimada de sus propios intervalos entre fallas (2026-09-11, pedido del
@@ -4756,7 +4790,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

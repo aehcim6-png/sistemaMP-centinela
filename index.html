@@ -348,7 +348,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-09-19b"></script>
+<script src="logic.js?v=2026-09-20"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -450,7 +450,7 @@ const _LAZY_VERS={
   metas:'2026-08-31c',
   resumenejec:'2026-08-31',
   reg:'2026-08-30b',
-  neu:'2026-08-31',
+  neu:'2026-09-20',
   ot:'2026-08-31b',
 };
 const _LAZY_EXPORTS={
@@ -2415,16 +2415,22 @@ function neuProyeccion(n,medsPorSerie,eqPorSigla){
   const esDelantero=_esDelanteraNeu(n);
 
   // ── Cálculo por REMANENTE (regresión sobre historial) ──
-  let hrsPorRem=null, desgasteHora=null;
+  let hrsPorRem=null, desgasteHora=null, r2Desgaste=null;
   if(hist.length>=2){
     const win=hist.slice(-8);
     const pts=win.map((m,i)=>({x:i,y:m.remProm})).filter(p=>p.y!=null);
     if(pts.length>=2){
-      const nn=pts.length, sx=pts.reduce((a,p)=>a+p.x,0), sy=pts.reduce((a,p)=>a+p.y,0);
-      const sxy=pts.reduce((a,p)=>a+p.x*p.y,0), sx2=pts.reduce((a,p)=>a+p.x*p.x,0);
-      const denom=nn*sx2-sx*sx;
-      if(denom!==0){
-        const slopeMed=(nn*sxy-sx*sy)/denom; // mm por medición
+      // r2RegresionLineal (logic.js) hace el mismo ajuste por mínimos cuadrados
+      // que antes se calculaba acá mismo (nn/sx/sy/sxy/sx2/denom), y de paso
+      // devuelve R² — qué tan bien esa recta explica los puntos reales. Antes
+      // la 'confianza' de la proyección solo contaba CUÁNTAS mediciones había
+      // (3+ = "Alta"), sin mirar si la recta ajustaba bien: un neumático con
+      // 3 mediciones muy dispersas pasaba como "Alta confianza" solo por el
+      // número. R² es la señal real de qué tan confiable es ESTA proyección
+      // en particular (ver arquitectura.md sección 60).
+      const ajuste=r2RegresionLineal(pts);
+      if(ajuste){
+        const slopeMed=ajuste.pendiente; // mm por medición
         // Convertir mm/medición a mm/hora usando las horas promedio entre mediciones de
         // la VENTANA usada. Se suman solo los tramos del mismo equipo (igual que
         // neuHorasAcum) para no mezclar horómetros si el neumático se transfirió — antes
@@ -2447,6 +2453,7 @@ function neuProyeccion(n,medsPorSerie,eqPorSigla){
         if(slopeMed<0&&tramoH>0){
           desgasteHora=Math.abs(slopeMed)/tramoH;
           hrsPorRem=(remActual-limiteRem)/desgasteHora;
+          r2Desgaste=ajuste.r2;
         }
       }
     }
@@ -2500,6 +2507,10 @@ function neuProyeccion(n,medsPorSerie,eqPorSigla){
     motivoCambio:gana.motivo,
     desgasteMes:desgasteHora?Math.round(desgasteHora*proyMes*10)/10:null,
     confianza:hist.length>=3?'Alta ('+hist.length+' mediciones)':hist.length>=1?'Media':'Estimado',
+    // R² del ajuste de desgaste (solo cuando la proyección ganadora vino de la
+    // regresión por remanente, ver r2Desgaste arriba) — null si el motivo fue
+    // por horas o por vida útil objetivo (esos no ajustan ninguna recta).
+    r2Desgaste:gana.motivo.indexOf('remanente')===0?r2Desgaste:null,
     targetHrs,proyMes
   };
 }
