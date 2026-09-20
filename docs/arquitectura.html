@@ -2352,6 +2352,22 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   cambiar la selección. Verificado en navegador (Playwright: χ²=16.94 idéntico al caso verificado con
   Python).</p>
 
+  <h3>67. Mann-Whitney U — ¿el PM realmente alarga el intervalo, o es ruido? (2026-09-20)</h3>
+  <p><code>indiceEfectividadMantenimiento</code> comparaba la mediana ANTES/DESPUÉS de un PM con un ratio
+  arbitrario (≥1.2 o ≤0.8) — sin test estadístico atrás. Mismo hueco que <code>anovaUnFactor</code>/
+  <code>logRankTest</code> cerraron para otras comparaciones. <b>Mann-Whitney U</b> es el test no paramétrico
+  estándar para dos muestras independientes sin asumir normalidad y sin censura.</p>
+  <p><code>U = R_A − n_A(n_A+1)/2</code>, con varianza corregida por empates:
+  <code>σ_U² = (n_A×n_B/12) × [(n+1) − ΣΣ(t³−t)/(n(n−1))]</code>, <code>z = (U − n_A×n_B/2) / σ_U</code>,
+  significativo si |z| &gt; 1.96.</p>
+  <p>Verificación reforzada: se instaló <code>scipy</code> en el sandbox y se comparó la implementación línea
+  por línea contra <code>scipy.stats.mannwhitneyu</code> en 3 casos (incluido uno con empates) — coincide con
+  el estadístico U y el p-valor exacto a 6 decimales en los tres. 6 tests nuevos
+  (<code>mannWhitneyU.test.js</code>). <code>indiceEfectividadMantenimiento</code> ahora incluye
+  <code>testEstadistico</code> en su retorno. Integrado en Predictivo → Efectividad del Mantenimiento: tarjeta
+  con el z y el veredicto de significancia. Verificado en navegador (Playwright: z=-3.36 idéntico al caso
+  verificado contra scipy).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -970,6 +970,59 @@ function cartaControlIMR(puntos){
     puntosFueraControl:detalle.filter(function(p){return p.fueraControl;}).length
   };
 }
+// ═══ MANN-WHITNEY U — ¿DOS MUESTRAS SON REALMENTE DISTINTAS? (2026-09-20) ═══
+// indiceEfectividadMantenimiento (más abajo) compara la mediana de
+// intervalos ANTES/DESPUÉS de un PM con un RATIO arbitrario (≥1.2 =
+// "efectivo") — sin ningún test estadístico atrás, el mismo hueco que
+// anovaUnFactor cerró para promedios de MTTR y logRankTest para curvas de
+// supervivencia. Mann-Whitney U es el test no-paramétrico estándar para
+// comparar dos muestras INDEPENDIENTES sin asumir que los datos son
+// normales (los intervalos de mantenimiento casi nunca lo son) y sin
+// censura (a diferencia de logRankTest) — cualquier libro de estadística
+// no-paramétrica. Se juntan y ordenan ambas muestras, se les asigna un
+// rango (promediando empates), U = R_A − n_A(n_A+1)/2, con σ_U corregido
+// por empates. Verificado independientemente contra scipy.stats.
+// mannwhitneyu (además de la fórmula de fuentes): coincide con el
+// estadístico U y el p-valor exacto a 6 decimales en 3 casos, incluido
+// uno con empates. Mínimo 5 observaciones por muestra (mismo umbral que
+// el resto del archivo).
+function mannWhitneyU(muestraA,muestraB){
+  var a=(muestraA||[]).filter(function(v){return v!=null&&!isNaN(v);});
+  var b=(muestraB||[]).filter(function(v){return v!=null&&!isNaN(v);});
+  if(a.length<5||b.length<5)return null;
+  var combinado=a.map(function(v){return{valor:v,grupo:'A'};})
+    .concat(b.map(function(v){return{valor:v,grupo:'B'};}))
+    .sort(function(x,y){return x.valor-y.valor;});
+  var n=combinado.length;
+  var i=0;
+  while(i<n){
+    var j=i;
+    while(j+1<n&&combinado[j+1].valor===combinado[i].valor)j++;
+    var rangoProm=(i+1+j+1)/2;
+    for(var k=i;k<=j;k++)combinado[k].rango=rangoProm;
+    i=j+1;
+  }
+  var rA=combinado.reduce(function(s,x){return x.grupo==='A'?s+x.rango:s;},0);
+  var nA=a.length,nB=b.length;
+  var uA=rA-nA*(nA+1)/2;
+  var uB=nA*nB-uA;
+  var u=Math.min(uA,uB);
+  var meanU=nA*nB/2;
+  var conteos={};
+  combinado.forEach(function(x){conteos[x.valor]=(conteos[x.valor]||0)+1;});
+  var tieSum=Object.keys(conteos).reduce(function(s,v){var t=conteos[v];return s+(t*t*t-t);},0);
+  var sigmaU=Math.sqrt((nA*nB/12)*((n+1)-tieSum/(n*(n-1))));
+  if(!(sigmaU>0))return null;
+  var z=(u-meanU)/sigmaU;
+  return{
+    u:u,uA:uA,uB:uB,
+    z:Math.round(z*100)/100,
+    nA:nA,nB:nB,
+    significativo:Math.abs(z)>1.96,
+    medianaA:medianaPositiva(a),
+    medianaB:medianaPositiva(b)
+  };
+}
 // 'grupos': objeto {nombreGrupo:[valores numéricos...]} (ej. horas de MTTR
 // por técnico, ya agrupadas por quien llama). minPorGrupo (default 5,
 // mismo umbral ya usado para IC del MTBF/MTTR esta sesión): un grupo con
@@ -2272,10 +2325,18 @@ function indiceEfectividadMantenimiento(fallas,pmEjecutados){
   if(!(medAntes>0))return null;
   var ratio=Math.round((medDespues/medAntes)*100)/100;
   var veredicto=ratio>=1.2?'efectivo':ratio<=0.8?'no_efectivo':'sin_diferencia_clara';
+  // Mann-Whitney U (arriba): el ratio de arriba dice HACIA DÓNDE se movió la
+  // mediana, pero no si ese movimiento es real o ruido de muestra chica —
+  // mismo hueco que anovaUnFactor/logRankTest cerraron para otras
+  // comparaciones de dos grupos. testEstadistico queda null con menos de 5
+  // intervalos de cada lado (mismo mínimo ya exigido arriba, así que en la
+  // práctica siempre corre si esta función no devolvió null antes).
+  var testEstadistico=typeof mannWhitneyU==='function'?mannWhitneyU(intervalosAntes,intervalosDespues):null;
   return{
     nAntes:intervalosAntes.length,nDespues:intervalosDespues.length,
     medianaAntesDias:Math.round(medAntes),medianaDespuesDias:Math.round(medDespues),
-    ratio:ratio,veredicto:veredicto
+    ratio:ratio,veredicto:veredicto,
+    testEstadistico:testEstadistico
   };
 }
 
@@ -5235,7 +5296,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

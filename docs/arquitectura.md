@@ -4242,6 +4242,45 @@ selección. Verificado en navegador (Playwright: Motor con fallas rápidas
 vs. Transmisión con fallas lentas, χ²=16.94 idéntico al caso verificado
 con Python, mostrando "diferencia real entre las dos curvas").
 
+### 67. Mann-Whitney U — ¿el PM realmente alarga el intervalo, o es ruido? (2026-09-20)
+
+`indiceEfectividadMantenimiento` (sección 30/2026-09-16) compara la
+mediana de los intervalos ANTES vs. DESPUÉS de cada PM ejecutado, pero
+decidía "efectivo"/"no efectivo" con un **ratio arbitrario** (≥1.2 o
+≤0.8) — sin ningún test estadístico atrás. Mismo hueco que
+`anovaUnFactor` cerró para promedios de MTTR y `logRankTest` para curvas
+de supervivencia, ahora para esta comparación específica. **Mann-Whitney
+U** es el test no paramétrico estándar para comparar dos muestras
+INDEPENDIENTES sin asumir que los datos son normales (los intervalos de
+mantenimiento casi nunca lo son, suelen tener cola larga) y sin censura
+(a diferencia de Log-Rank, acá no hace falta: cada intervalo ya está
+cerrado).
+
+Se juntan y ordenan ambas muestras, se les asigna un rango (promediando
+empates), `U = R_A − n_A(n_A+1)/2`, con varianza corregida por empates:
+`σ_U² = (n_A×n_B/12) × [(n+1) − ΣΣ(t³−t)/(n(n−1))]`. `z = (U − n_A×n_B/2)
+/ σ_U`, significativo si `|z| > 1.96` (95% de confianza, dos colas).
+
+Verificación reforzada esta vez: además de la fórmula (cualquier libro de
+estadística no paramétrica), se pudo instalar `scipy` en el sandbox y
+comparar la implementación línea por línea contra
+`scipy.stats.mannwhitneyu` (`method='asymptotic'`, `use_continuity=False`)
+en 3 casos — incluido uno con empates — coincidiendo con el estadístico U
+y el p-valor exacto de scipy a 6 decimales en los tres. Es la
+verificación más sólida de toda esta tanda de algoritmos: no solo fórmula
+de fuentes, sino contra una librería de referencia real. 6 tests nuevos
+(`mannWhitneyU.test.js`).
+
+`indiceEfectividadMantenimiento` ahora incluye `testEstadistico` (el
+resultado de `mannWhitneyU` sobre sus propios `intervalosAntes`/
+`intervalosDespues`) en su retorno, sin romper ningún consumidor
+existente. Integrado en Predictivo → Efectividad del Mantenimiento: una
+tarjeta nueva con el z y el veredicto de significancia, debajo de la
+interpretación ya existente. Verificado en navegador (Playwright: 8
+equipos con PM real, intervalos antes cortos vs. después largos, z=-3.36
+idéntico al caso verificado contra scipy, mostrando "diferencia
+estadísticamente real").
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

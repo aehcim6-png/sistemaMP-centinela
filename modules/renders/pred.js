@@ -1642,7 +1642,16 @@ export function renderPred(){
       '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Mediana DESPUÉS del PM</div><div class="card-v" style="color:var(--ac)">'+efectPM.medianaDespuesDias+'<span style="font-size:14px;color:var(--tx3)">d</span></div><div class="card-s">n='+efectPM.nDespues+'</div></div>'+
       '<div class="card" style="border-left:3px solid '+(efectPM.veredicto==='efectivo'?'var(--ok)':efectPM.veredicto==='no_efectivo'?'var(--danger)':'var(--warn)')+'"><div class="card-t">Ratio (después/antes)</div><div class="card-v" style="color:'+(efectPM.veredicto==='efectivo'?'var(--ok)':efectPM.veredicto==='no_efectivo'?'var(--danger)':'var(--warn)')+'">'+efectPM.ratio+'x</div><div class="card-s">'+(efectPM.veredicto==='efectivo'?'✓ Efectivo':efectPM.veredicto==='no_efectivo'?'✗ No efectivo':'Sin diferencia clara')+'</div></div>'+
       '</div>'+
-      '<div class="card" style="padding:14px"><div style="font-size:13px;line-height:1.6">'+(typeof interpretacionEfectividadMantenimiento==='function'?interpretacionEfectividadMantenimiento(efectPM.veredicto):'')+'</div></div>'
+      '<div class="card" style="padding:14px"><div style="font-size:13px;line-height:1.6">'+(typeof interpretacionEfectividadMantenimiento==='function'?interpretacionEfectividadMantenimiento(efectPM.veredicto):'')+'</div></div>'+
+      // Mann-Whitney U (2026-09-20): el ratio de arriba dice hacia dónde se
+      // movió la mediana, pero no si el movimiento es real o ruido de
+      // muestra chica — mismo principio que ya usan ANOVA/Log-Rank en
+      // Estadística para otras comparaciones de dos grupos.
+      (efectPM.testEstadistico?
+      '<div class="card" style="margin-top:10px;padding:10px 12px;background:var(--bg3)"><div style="font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">¿Es una diferencia real, o ruido de muestra chica? (Mann-Whitney U)</div>'+
+        '<div style="font-size:12px;color:var(--tx2)">z='+efectPM.testEstadistico.z+' — <b style="color:'+(efectPM.testEstadistico.significativo?'var(--ok)':'var(--warn)')+'">'+(efectPM.testEstadistico.significativo?'diferencia estadísticamente real':'no alcanza para confirmar la diferencia (95% de confianza)')+'</b></div>'+
+        '<div style="font-size:10px;color:var(--tx3);margin-top:2px">No asume que los intervalos son normales (casi nunca lo son) — compara las dos muestras completas por rangos, no solo la mediana.</div></div>'
+      :'')
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin suficientes PM ejecutados con fecha real y fallas registradas todavía (mínimo 5 intervalos antes y 5 después)</p></div>');
   }
 
