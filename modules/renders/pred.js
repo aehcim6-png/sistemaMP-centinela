@@ -1586,6 +1586,39 @@ export function renderPred(){
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin repuestos con demanda e historial suficientes todavía (mínimo 3 meses de consumo real por repuesto)</p></div>');
   }
 
+  // ═══ ANÁLISIS ABC-XYZ DE REPUESTOS (2026-09-20) ═══
+  // critrep (arriba) mide RIESGO (probabilidad de quiebre × impacto) —
+  // "¿qué tan grave sería quedarme sin esto?". ABC-XYZ responde una
+  // pregunta distinta y complementaria: "¿dónde conviene invertir esfuerzo
+  // de control de inventario?", cruzando valor de consumo anualizado
+  // (Pareto, clase A/B/C) con variabilidad de la demanda mensual
+  // (coeficiente de variación, clase X/Y/Z) — analisisABCXYZRepuestos,
+  // logic.js.
+  if(fVista==='abcxyz'){
+    var descPorNParteABC={};
+    stk.forEach(function(s){if(s&&s.nParte)descPorNParteABC[s.nParte]=s.descripcion||s.nParte;});
+    var abcxyzLista=typeof analisisABCXYZRepuestos==='function'?analisisABCXYZRepuestos(mov,stk):[];
+    var colorABC={A:'var(--danger)',B:'var(--w)',C:'var(--tx3)'};
+    var colorXYZ={X:'var(--ok)',Y:'var(--w)',Z:'var(--danger)'};
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>ABC-XYZ de Repuestos</div><div style="font-size:11px;color:var(--tx3)">ABC: Pareto de valor de consumo anualizado (80/15/5) · XYZ: variabilidad de la demanda mensual (coeficiente de variación)</div></div>'+
+      '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
+      '<div style="font-size:12px;line-height:1.6"><b>A/B/C</b> = qué tan grande es el gasto anual en este repuesto (A = los pocos que concentran ~80% del gasto, C = el resto). <b>X/Y/Z</b> = qué tan predecible es su consumo mes a mes (X = estable, Z = errático — un CV alto no penaliza, solo avisa que un promedio simple no alcanza para planificar ese repuesto). AX = alto valor y predecible (vale la pena un control estricto, punto de pedido fijo). AZ/BZ = alto valor pero errático (vigilar de cerca, no confiar en el promedio). CZ = bajo valor y errático (no vale la pena invertir esfuerzo ahí, solo un colchón de stock). Requiere al menos 3 meses de historial y precio unitario real — sin eso, el repuesto no aparece acá (nunca se inventa un precio).</div></div>'+
+      (abcxyzLista.length?
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:24%">Repuesto</th><th style="width:12%">Clase</th><th style="width:16%">Valor Anual.</th><th style="width:12%">Consumo/mes</th><th style="width:10%">CV</th><th style="text-align:left">Detalle</th></tr>'+
+      abcxyzLista.map(function(it){
+        return'<tr>'+
+          '<td style="font-weight:600" title="'+escapeHtml(it.nParte)+'">'+escapeHtml(descPorNParteABC[it.nParte]||it.nParte)+'</td>'+
+          '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span></td>'+
+          '<td style="text-align:center">$'+fn(it.valorAnualizado)+'</td>'+
+          '<td style="text-align:center">'+it.consumoMensualProm+'</td>'+
+          '<td style="text-align:center">'+(it.cv!=null?it.cv:'—')+'</td>'+
+          '<td style="font-size:10px;color:var(--tx2)">'+it.nMeses+' meses de historial · '+Math.round(it.pctAcumulado*100)+'% acumulado del gasto</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin repuestos con historial y precio suficientes todavía (mínimo 3 meses de consumo real, con precio unitario cargado)</p></div>');
+  }
+
   // ═══ ÍNDICE DE EFECTIVIDAD DEL MANTENIMIENTO (2026-09-16) ═══
   // Cuarto ítem del segundo lote "nivel siguiente". Responde la pregunta de
   // gestión real que ninguna otra vista contesta: "¿el mantenimiento
@@ -1845,6 +1878,7 @@ $('s-pred').innerHTML=
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
+    '<option value="abcxyz"'+(fVista==='abcxyz'?' selected':'')+'>🗂 ABC-XYZ de Repuestos</option>'+
     '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
     '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
     '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+

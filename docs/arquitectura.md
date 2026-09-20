@@ -4104,6 +4104,50 @@ $1.000.000–$1.050.000 la mayoría y un mes en $3.000.000 — único mes
 marcado "⚠ Fuera de control" en rojo, los demás "Normal" en verde,
 límites mostrados $468.583–$1.998.083).
 
+### 64. Análisis ABC-XYZ de Repuestos (2026-09-20)
+
+`matrizCriticidadRepuestos` (sección anterior) mide **riesgo**
+(probabilidad de quiebre × impacto) — responde "¿qué tan grave sería
+quedarme sin esto?". `analisisABCXYZRepuestos(movimientos, stk)` responde
+una pregunta distinta y complementaria, clásica de gestión de inventario:
+**"¿dónde conviene invertir esfuerzo de control?"**, cruzando dos ejes que
+hasta ahora no se calculaban en ningún lado del sistema:
+
+- **ABC**: Pareto sobre el valor de consumo anualizado (consumo mensual
+  promedio × 12 × precio unitario) — el 20% de los ítems que concentran
+  ~80% del gasto son clase A (control estricto), hasta C (bajo valor, no
+  vale la pena over-invertir esfuerzo ahí). Umbrales estándar 80/15/5
+  acumulado, no inventados (MRPeasy, Eazystock).
+- **XYZ**: coeficiente de variación de la demanda mensual (σ/μ), calculado
+  sobre TODOS los meses del ítem, incluyendo meses de consumo cero — mismo
+  criterio ya establecido en `analisisDemandaRepuestos` (un mes sin
+  consumo es un dato real, no un hueco a ignorar; por eso se enumeran los
+  meses con `_mesesEntreLista` en vez de solo iterar los meses con
+  movimiento real). Umbrales CV≤0.5 (X, estable), 0.5–1.0 (Y, moderada),
+  >1.0 (Z, errática) — ajustados hacia arriba respecto al 0.25/0.5 típico
+  de retail, apropiado para repuestos (demanda naturalmente más
+  intermitente que en un comercio minorista).
+
+Cruzando ambos ejes en una matriz 3×3 se distingue, por ejemplo, un
+repuesto caro y predecible (AX: vale la pena un punto de pedido fijo) de
+uno caro pero errático (AZ/BZ: vigilar de cerca, no confiar en el
+promedio) — matiz que la Matriz de Criticidad (riesgo puro) no captura,
+porque dos ítems con la misma probabilidad de quiebre pueden tener
+patrones de demanda completamente distintos. Reusa `_DEMANDA_MIN_MESES`
+(mínimo 3 meses de historial) y requiere `precioUnit` real — sin eso, el
+ítem se excluye (nunca se inventa un precio ni una probabilidad).
+
+Verificado independientemente con Python antes de escribir el test: 4
+ítems sintéticos con el MISMO patrón de precio×volumen cruzado
+deliberadamente con distinta variabilidad (dos ítems caros con igual
+media de consumo pero uno estable y otro errático, quedando en clases ABC
+y XYZ distintas) — resultado AX/BZ/CY/CX exacto. 5 tests nuevos
+(`analisisABCXYZRepuestos.test.js`). Integrado en Predictivo → nueva
+sub-vista "🗂 ABC-XYZ de Repuestos" (`pred.js`), junto a Criticidad de
+Repuestos. Verificado en navegador (Playwright: mismos 4 ítems sintéticos,
+tabla con clases AX/BZ/CY/CX coincidiendo exactamente con el cálculo
+puro).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

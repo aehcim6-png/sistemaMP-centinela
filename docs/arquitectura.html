@@ -2295,6 +2295,25 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Verificado en navegador (Playwright: 9 meses sintéticos, un mes en $3.000.000 marcado "⚠ Fuera de control" en
   rojo, el resto "Normal" en verde).</p>
 
+  <h3>64. Análisis ABC-XYZ de Repuestos (2026-09-20)</h3>
+  <p><code>matrizCriticidadRepuestos</code> mide riesgo (probabilidad de quiebre × impacto).
+  <code>analisisABCXYZRepuestos(movimientos, stk)</code> responde una pregunta distinta y complementaria,
+  clásica de gestión de inventario: <b>"¿dónde conviene invertir esfuerzo de control?"</b>, cruzando dos ejes
+  que hasta ahora no se calculaban en el sistema.</p>
+  <p><b>ABC</b>: Pareto sobre el valor de consumo anualizado (consumo mensual promedio × 12 × precio unitario)
+  — el 20% de los ítems que concentran ~80% del gasto son clase A, hasta C. Umbrales estándar 80/15/5
+  acumulado (MRPeasy, Eazystock). <b>XYZ</b>: coeficiente de variación de la demanda mensual (σ/μ), sobre
+  TODOS los meses del ítem incluyendo meses de consumo cero — mismo criterio de <code>analisisDemandaRepuestos</code>.
+  Umbrales CV≤0.5 (X, estable), 0.5–1.0 (Y, moderada), &gt;1.0 (Z, errática) — ajustados hacia arriba respecto
+  al 0.25/0.5 típico de retail, apropiado para repuestos.</p>
+  <p>Cruzando ambos ejes se distingue un repuesto caro y predecible (AX: punto de pedido fijo) de uno caro
+  pero errático (AZ/BZ: vigilar de cerca) — matiz que la Matriz de Criticidad (riesgo puro) no captura.
+  Reusa <code>_DEMANDA_MIN_MESES</code> y requiere <code>precioUnit</code> real. Verificado independientemente
+  con Python: 4 ítems sintéticos, dos con igual valor pero distinta variabilidad, dan AX/BZ/CY/CX exacto — 5
+  tests nuevos (<code>analisisABCXYZRepuestos.test.js</code>). Integrado en Predictivo → "🗂 ABC-XYZ de
+  Repuestos" (<code>pred.js</code>), junto a Criticidad de Repuestos. Verificado en navegador (Playwright:
+  mismos 4 ítems, clases coincidiendo con el cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

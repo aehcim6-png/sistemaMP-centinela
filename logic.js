@@ -3263,6 +3263,89 @@ function matrizCriticidadRepuestos(items){
   return conRiesgo.sort(function(a,b){return b.pxi-a.pxi;});
 }
 
+// ═══ ANÁLISIS ABC-XYZ DE REPUESTOS (2026-09-20) ═══
+// matrizCriticidadRepuestos (arriba) mide RIESGO (probabilidad de quiebre ×
+// impacto) — responde "¿qué tan grave sería quedarme sin esto?". ABC-XYZ
+// responde una pregunta distinta y complementaria, clásica de gestión de
+// inventario: "¿dónde conviene invertir esfuerzo de control?", cruzando
+// dos ejes que hoy no se calculan en ningún lado del sistema:
+// - ABC: Pareto sobre el VALOR de consumo anualizado (consumo mensual
+//   promedio × 12 × precio unitario) — el 20% de los ítems que concentran
+//   ~80% del gasto son clase A (control estricto), hasta C (bajo valor).
+//   Umbrales estándar 80/15/5 acumulado (no inventados — ver fuentes en
+//   docs/arquitectura.md).
+// - XYZ: coeficiente de variación de la demanda MENSUAL (σ/μ), calculado
+//   sobre TODOS los meses del ítem, incluyendo meses de consumo cero —
+//   mismo criterio ya establecido en analisisDemandaRepuestos (un mes sin
+//   consumo es un dato real, no un hueco a ignorar: por eso se enumeran
+//   los meses con _mesesEntreLista en vez de solo iterar los meses con
+//   movimiento real). Umbrales CV≤0.5 (X, estable), 0.5–1.0 (Y, moderada),
+//   >1.0 (Z, errática) — ajustados hacia arriba respecto al 0.25/0.5 típico
+//   de retail, apropiado para repuestos (demanda naturalmente más
+//   intermitente).
+// Reusa _DEMANDA_MIN_MESES: sin suficiente historial, ni el valor ni la
+// variabilidad de un ítem son medibles con confianza. Requiere precioUnit
+// real (nunca se inventa un precio) — sin eso, el ítem se excluye.
+function _mesesEntreLista(mesIni,mesFin){
+  var a=mesIni.split('-').map(Number),b=mesFin.split('-').map(Number);
+  if(a.length<2||b.length<2||a.some(isNaN)||b.some(isNaN))return[];
+  var out=[],y=a[0],m=a[1];
+  while(y<b[0]||(y===b[0]&&m<=b[1])){
+    out.push(y+'-'+(m<10?'0'+m:''+m));
+    m++;if(m>12){m=1;y++;}
+  }
+  return out;
+}
+function _cvClaseXYZ(cv){
+  if(cv<=0.5)return'X';
+  if(cv<=1.0)return'Y';
+  return'Z';
+}
+function analisisABCXYZRepuestos(movimientos,stk){
+  var todos=(movimientos||[]).filter(function(m){return m&&m.nParte&&m.mes;});
+  if(!todos.length)return[];
+  var mesFinSistema=todos.map(function(m){return m.mes;}).sort().slice(-1)[0];
+  var precioPorNParte={};
+  (stk||[]).forEach(function(s){if(s&&s.nParte&&s.precioUnit>0)precioPorNParte[s.nParte]=s.precioUnit;});
+  var porNParte={};
+  todos.forEach(function(m){
+    var g=(porNParte[m.nParte]=porNParte[m.nParte]||{});
+    g[m.mes]=(g[m.mes]||0)+(m.cant||0);
+  });
+  var items=Object.keys(porNParte).map(function(nParte){
+    var porMes=porNParte[nParte];
+    var mesInicioItem=Object.keys(porMes).sort()[0];
+    var mesesTotales=_contarMesesEntre(mesInicioItem,mesFinSistema);
+    if(mesesTotales<_DEMANDA_MIN_MESES)return null;
+    var precioUnit=precioPorNParte[nParte];
+    if(!(precioUnit>0))return null;
+    var serie=_mesesEntreLista(mesInicioItem,mesFinSistema).map(function(mes){return porMes[mes]||0;});
+    var media=serie.reduce(function(s,v){return s+v;},0)/serie.length;
+    var varianza=serie.reduce(function(s,v){return s+(v-media)*(v-media);},0)/(serie.length-1);
+    var cv=media>0?Math.sqrt(varianza)/media:null;
+    return{
+      nParte:nParte,
+      nMeses:mesesTotales,
+      consumoMensualProm:Math.round(media*100)/100,
+      valorAnualizado:Math.round(media*12*precioUnit),
+      cv:cv!=null?Math.round(cv*100)/100:null,
+      claseXYZ:cv!=null?_cvClaseXYZ(cv):null
+    };
+  }).filter(Boolean);
+  if(!items.length)return[];
+  items.sort(function(a,b){return b.valorAnualizado-a.valorAnualizado;});
+  var totalValor=items.reduce(function(s,it){return s+it.valorAnualizado;},0);
+  var acumulado=0;
+  items.forEach(function(it){
+    acumulado+=it.valorAnualizado;
+    var pctAcum=totalValor>0?acumulado/totalValor:1;
+    it.pctAcumulado=Math.round(pctAcum*1000)/1000;
+    it.claseABC=pctAcum<=0.8?'A':pctAcum<=0.95?'B':'C';
+    it.clase=it.claseXYZ?it.claseABC+it.claseXYZ:null;
+  });
+  return items;
+}
+
 // ═══ MTTR CON DISTRIBUCIÓN LOG-NORMAL (2026-09-13) ═══
 // Origen real: mismo repaso de distribuciones estadísticas de confiabilidad
 // que llevó a Poisson para stock (sección anterior). El MTTR que ya muestra
@@ -5013,7 +5096,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
