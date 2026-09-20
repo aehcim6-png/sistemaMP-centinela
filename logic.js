@@ -4124,6 +4124,87 @@ function tendenciaSaludSemanal(historico,hoyISO){
   return {actual:actual,hace7d:h[mejorFecha],delta:delta,fechaHace7d:mejorFecha};
 }
 
+// ═══ CADENA DE MARKOV DE ESTADOS DE SALUD (2026-09-20) ═══
+// Kijima/GRP/Weibull modelan la confiabilidad de forma CONTINUA a partir
+// del tiempo entre fallas. Esto es distinto: usa el historial real de
+// Score de Salud por equipo que el Dashboard ya guarda día a día
+// (registrarSnapshotSalud, arriba, hasta SALUD_HIST_DIAS_MAX días), cuenta
+// TRANSICIONES REALES observadas entre estados discretos y arma una
+// cadena de Markov empírica — útil justo donde Weibull no aplica bien
+// (salud que sube y baja por carga operacional variable, no un reloj de
+// desgaste monótono). No es una curva ajustada: es la frecuencia real con
+// que la flota completa pasó de un estado a otro.
+// Estados = mismos umbrales que ya usa el Dashboard para avisar "cruce"
+// (70) y colorear (55) — no se inventan umbrales nuevos.
+var ESTADOS_SALUD=['Sano','Alerta','Crítico'];
+function _estadoSalud(valor){
+  if(valor>=70)return'Sano';
+  if(valor>=55)return'Alerta';
+  return'Crítico';
+}
+// Pares de snapshots con separación real de 4-10 días (misma ventana de
+// tolerancia que tendenciaSaludSemanal para "una semana"), pooled entre
+// TODA la flota — un equipo solo no tiene suficientes transiciones, la
+// flota completa sí. Por cada fecha de inicio se cuenta solo la PRIMERA
+// pareja válida (evita contar la misma transición semanal más de una vez
+// si hay snapshots de días intermedios). minPorFila (default 5, mismo
+// umbral que minPorGrupo de anovaUnFactor): un estado de origen con menos
+// transiciones reales observadas no tiene una fila confiable — se
+// descarta la matriz completa (nunca se inventa una probabilidad de
+// transición).
+function matrizTransicionSalud(historicosPorEquipo,minPorFila){
+  var min=minPorFila||5;
+  var conteos={};
+  ESTADOS_SALUD.forEach(function(e1){conteos[e1]={};ESTADOS_SALUD.forEach(function(e2){conteos[e1][e2]=0;});});
+  var total=0;
+  Object.keys(historicosPorEquipo||{}).forEach(function(sigla){
+    var hist=historicosPorEquipo[sigla]||{};
+    var fechas=Object.keys(hist).sort();
+    for(var i=0;i<fechas.length;i++){
+      for(var j=i+1;j<fechas.length;j++){
+        var dias=_diasEntreISO(fechas[i],fechas[j]);
+        if(dias<4)continue;
+        if(dias>10)break;
+        var e1=_estadoSalud(hist[fechas[i]]),e2=_estadoSalud(hist[fechas[j]]);
+        conteos[e1][e2]++;total++;
+        break;
+      }
+    }
+  });
+  var filasOk=ESTADOS_SALUD.every(function(e1){
+    return ESTADOS_SALUD.reduce(function(s,e2){return s+conteos[e1][e2];},0)>=min;
+  });
+  if(!filasOk)return null;
+  var matriz={};
+  ESTADOS_SALUD.forEach(function(e1){
+    var totalFila=ESTADOS_SALUD.reduce(function(s,e2){return s+conteos[e1][e2];},0);
+    matriz[e1]={};
+    ESTADOS_SALUD.forEach(function(e2){matriz[e1][e2]=Math.round((conteos[e1][e2]/totalFila)*1000)/1000;});
+  });
+  return{matriz:matriz,conteos:conteos,totalTransiciones:total};
+}
+// Ecuación de Chapman-Kolmogorov (P(n)=Pⁿ): probabilidad de estar en cada
+// estado dentro de N semanas, partiendo del estado actual — multiplica el
+// vector de estado por la matriz de transición N veces.
+function proyeccionSaludNSemanas(resultadoMatriz,estadoActual,nSemanas){
+  if(!resultadoMatriz||!resultadoMatriz.matriz)return null;
+  if(ESTADOS_SALUD.indexOf(estadoActual)===-1)return null;
+  if(!(nSemanas>=1))return null;
+  var m=resultadoMatriz.matriz;
+  var vector={};
+  ESTADOS_SALUD.forEach(function(e){vector[e]=e===estadoActual?1:0;});
+  for(var paso=0;paso<nSemanas;paso++){
+    var siguiente={};
+    ESTADOS_SALUD.forEach(function(e2){
+      siguiente[e2]=ESTADOS_SALUD.reduce(function(s,e1){return s+vector[e1]*(m[e1][e2]||0);},0);
+    });
+    vector=siguiente;
+  }
+  var out={};
+  ESTADOS_SALUD.forEach(function(e){out[e]=Math.round(vector[e]*1000)/1000;});
+  return out;
+}
+
 // ═══ EQUIPOS FUERA DE SERVICIO AHORA MISMO ═══
 // Mismo criterio que ya usaban disp.js y ot.js cada uno por su lado (duplicado
 // literal): una OT con estatusEq='Fuera de Servicio', con fecha de entrada pero
@@ -5098,7 +5179,7 @@ if (typeof module !== 'undefined' && module.exports) {
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
-    indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
+    indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,

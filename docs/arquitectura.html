@@ -2314,6 +2314,26 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Repuestos" (<code>pred.js</code>), junto a Criticidad de Repuestos. Verificado en navegador (Playwright:
   mismos 4 ítems, clases coincidiendo con el cálculo puro).</p>
 
+  <h3>65. Cadena de Markov de Estados de Salud (2026-09-20)</h3>
+  <p>Kijima, GRP y Weibull modelan la confiabilidad de forma continua, a partir del tiempo entre fallas. Este
+  enfoque es distinto: el Dashboard ya guarda día a día un snapshot del Score de Salud de cada equipo
+  (<code>saludEquipoHist</code>, hasta 120 días) — historial que solo se usaba para comparar un equipo contra sí
+  mismo hace 7 días. <code>matrizTransicionSalud</code> + <code>proyeccionSaludNSemanas</code> lo explotan de
+  forma nueva: contar transiciones reales entre estados discretos de salud y armar una cadena de Markov
+  empírica — útil donde Weibull no aplica bien (salud que sube y baja por carga operacional variable).</p>
+  <p>Estados (Sano ≥70, Alerta 55-69, Crítico &lt;55) = los mismos umbrales que ya usa el Dashboard para el
+  "cruce" y el color. <code>matrizTransicionSalud</code> busca, por cada equipo y cada fecha de inicio, la
+  primera pareja de snapshots con separación real de 4-10 días (misma ventana que <code>tendenciaSaludSemanal</code>),
+  pooled entre toda la flota. <code>minPorFila</code> (default 5): si un estado de origen no junta 5
+  transiciones reales, se descarta la matriz completa. <code>proyeccionSaludNSemanas</code> implementa
+  Chapman-Kolmogorov (<code>P(n) = Pⁿ</code>): multiplica el vector de estado por la matriz N veces.</p>
+  <p>Verificado independientemente con Python: 18 equipos sintéticos con transiciones conocidas dan la matriz
+  esperada (fila Sano 62.5%/37.5%/0%, Alerta 0%/40%/60%, Crítico 0%/60%/40%) y las proyecciones a 1-3 semanas
+  coinciden a 3+ decimales — 4 tests nuevos (<code>matrizTransicionSalud.test.js</code>). Integrado en Torre de
+  Control (<code>torre.js</code>), panel de detalle: "Proyección de salud — 4 semanas", con transparencia sobre
+  cuántas transiciones reales sustentan la matriz. Verificado en navegador (Playwright: mismos 18 equipos,
+  panel muestra "18 transiciones reales de flota" y probabilidades coincidiendo con el cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -4148,6 +4148,59 @@ Repuestos. Verificado en navegador (Playwright: mismos 4 ítems sintéticos,
 tabla con clases AX/BZ/CY/CX coincidiendo exactamente con el cálculo
 puro).
 
+### 65. Cadena de Markov de Estados de Salud (2026-09-20)
+
+Kijima, GRP y Weibull modelan la confiabilidad de forma **continua**, a
+partir del tiempo entre fallas — responden "¿cuándo va a fallar?". Este
+enfoque es distinto: el Dashboard ya guarda, día a día, un snapshot del
+Score de Salud de cada equipo (`registrarSnapshotSalud`, `saludEquipoHist`
+en el store, hasta `SALUD_HIST_DIAS_MAX`=120 días de historial real) — un
+historial que hasta ahora solo se usaba para comparar un equipo contra sí
+mismo hace 7 días (`tendenciaSaludSemanal`). `matrizTransicionSalud` +
+`proyeccionSaludNSemanas` lo explotan de una forma nueva: contar
+**transiciones reales observadas** entre estados discretos de salud y
+armar una cadena de Markov empírica — útil justo donde Weibull no aplica
+bien (salud que sube y baja por carga operacional variable, no un reloj
+de desgaste monótono).
+
+Los estados (Sano ≥70, Alerta 55-69, Crítico <55) son los mismos umbrales
+que ya usa el Dashboard para avisar un "cruce" (70) y colorear (55) — no
+se inventan umbrales nuevos. `matrizTransicionSalud(historicosPorEquipo,
+minPorFila)` recorre el historial de CADA equipo buscando, por cada fecha
+de inicio, la primera pareja de snapshots con separación real de 4-10 días
+(misma ventana de tolerancia que `tendenciaSaludSemanal` para "una
+semana"), cuenta las transiciones POOLED entre toda la flota (un equipo
+solo no tiene suficientes transiciones; la flota completa sí) y arma la
+matriz 3×3. `minPorFila` (default 5, mismo umbral que `minPorGrupo` de
+`anovaUnFactor`): si algún estado de origen no junta al menos 5
+transiciones reales, se descarta la matriz completa — nunca se inventa
+una probabilidad de transición sobre una fila sin base.
+
+`proyeccionSaludNSemanas(resultadoMatriz, estadoActual, nSemanas)`
+implementa la ecuación de **Chapman-Kolmogorov** (`P(n) = Pⁿ`):
+multiplica el vector de estado por la matriz de transición N veces, dando
+la probabilidad de estar en cada estado dentro de N semanas partiendo del
+estado actual — no una curva ajustada, la frecuencia real con que la
+flota completa pasó de un estado a otro, proyectada hacia adelante.
+
+Verificado independientemente con Python antes de escribir el test: 18
+equipos sintéticos, cada uno con exactamente 1 transición semanal real (5×
+Sano→Sano, 3× Sano→Alerta, 2× Alerta→Alerta, 3× Alerta→Crítico, 2×
+Crítico→Crítico, 3× Crítico→Alerta) dan la matriz esperada (fila Sano:
+62.5%/37.5%/0%, fila Alerta: 0%/40%/60%, fila Crítico: 0%/60%/40%) y las
+proyecciones a 1, 2 y 3 semanas coinciden a 3+ decimales. 4 tests nuevos
+(`matrizTransicionSalud.test.js`).
+
+Integrado en Torre de Control (`torre.js`), panel de detalle de cada
+equipo, junto a Weibull y Edad Virtual: "Proyección de salud — 4 semanas",
+con el estado actual y la probabilidad de cada estado dentro de un mes,
+más la cantidad de transiciones reales de flota que sustentan la matriz
+(transparencia sobre cuán robusta es la estimación). Verificado en
+navegador (Playwright: mismos 18 equipos sintéticos inyectados en
+`saludEquipoHist`, panel muestra "18 transiciones reales de flota",
+"Estado actual: Sano", "Sano 15% · Alerta 46% · Crítico 39%" — coincide
+exactamente con el cálculo puro a 4 semanas).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

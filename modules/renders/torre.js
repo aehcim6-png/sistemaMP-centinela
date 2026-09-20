@@ -166,6 +166,7 @@ export function renderTorre(){
     '<div id="torreDDims"></div>'+
     '<div id="torreDWeibull"></div>'+
     '<div id="torreDEdadVirtual"></div>'+
+    '<div id="torreDMarkov"></div>'+
     '<div id="torreDCalculado" style="font-size:10px;color:var(--ok);font-weight:600;margin-top:8px">—</div>'+
     '<div id="torreDTend" style="font-size:11px;color:var(--tx3);margin-top:6px"></div>'+
     '<div id="torreDProblema"></div>'+
@@ -258,6 +259,30 @@ window._torreAbrirDrawer=function(sigla){
         '</div>';
     }else{
       edadVirtualEl.innerHTML='';
+    }
+  }
+  // Cadena de Markov de estados de salud (2026-09-20) — a diferencia de
+  // Weibull/Edad Virtual (que miran el TIEMPO ENTRE FALLAS de este equipo),
+  // esto usa las transiciones reales día a día del Score de Salud de TODA
+  // la flota (matrizTransicionSalud, logic.js) para proyectar la
+  // probabilidad de que ESTE equipo, en su estado actual, esté en cada
+  // estado dentro de 4 semanas (Chapman-Kolmogorov). Solo se muestra con
+  // suficientes transiciones reales observadas en la flota (mínimo 5 por
+  // estado de origen) — sin eso, no se inventa una matriz.
+  var markovEl=document.getElementById('torreDMarkov');
+  if(markovEl){
+    var estadoActualMarkov=v!=null&&typeof _estadoSalud==='function'?_estadoSalud(v):null;
+    var matrizSalud=typeof matrizTransicionSalud==='function'?matrizTransicionSalud(window._torreHistSalud||{}):null;
+    var proyMarkov=matrizSalud&&estadoActualMarkov&&typeof proyeccionSaludNSemanas==='function'?proyeccionSaludNSemanas(matrizSalud,estadoActualMarkov,4):null;
+    if(proyMarkov){
+      var colorEstado={'Sano':'var(--ok)','Alerta':'var(--warn)','Crítico':'var(--danger)'};
+      markovEl.innerHTML='<div style="margin-top:10px;padding:8px 10px;background:var(--bg4);border-radius:6px">'+
+        '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);font-weight:700;margin-bottom:4px">Proyección de salud — 4 semanas <span style="font-weight:400;text-transform:none;color:var(--tx3)">· '+matrizSalud.totalTransiciones+' transiciones reales de flota</span></div>'+
+        '<div style="font-size:11.5px;color:var(--tx2)">Estado actual: <b style="color:'+colorEstado[estadoActualMarkov]+'">'+estadoActualMarkov+'</b></div>'+
+        '<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Sano <b style="color:var(--ok)">'+Math.round(proyMarkov.Sano*100)+'%</b> · Alerta <b style="color:var(--warn)">'+Math.round(proyMarkov.Alerta*100)+'%</b> · Crítico <b style="color:var(--danger)">'+Math.round(proyMarkov['Crítico']*100)+'%</b></div>'+
+        '</div>';
+    }else{
+      markovEl.innerHTML='';
     }
   }
   // Aviso "calculado ahora" (2026-09-11, pedido del usuario: "no me dice de
