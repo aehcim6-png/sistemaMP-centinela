@@ -2246,6 +2246,35 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   estándar por técnico. 7 tests nuevos. Verificado visualmente en navegador (Playwright ad-hoc:
   F=37.672, p≈1.13e-7, tabla ordenada correctamente, veredicto "significativo" en rojo).</p>
 
+  <h3>62. Confiabilidad de sistema por equipo — RBD en serie (2026-09-20)</h3>
+  <p>La confiabilidad Weibull se calculaba por tipo de componente a nivel flota, pero nunca se
+  combinaba a nivel de un equipo concreto: un equipo puede tener motor, transmisión y frenos en
+  edades muy distintas, y la pregunta real del taller es "¿cuál es la probabilidad de que ESTE
+  equipo llegue sin ninguna falla mayor a las próximas 500h?".
+  <code>confiabilidadSistemaEquipo(componentes, ajustesPorTipo, horomActualEquipo, horasPeriodo)</code>
+  cierra ese hueco.</p>
+  <p>El equipo se modela como un <b>Diagrama de Bloques de Confiabilidad (RBD) en serie</b>:
+  <code>R_sistema(t) = R_1(t) × R_2(t) × ... × R_n(t)</code>, la fórmula estándar para sistemas
+  donde la falla de cualquier componente detiene todo el equipo — misma suposición que ya usan
+  <code>esFallaMTBF</code> y <code>dispDownMap</code> en el resto del sistema. Fórmula verificada
+  contra Wikipedia, Accendo Reliability y ReliaSoft.</p>
+  <p>Cada componente ya tiene uso acumulado (edad ≠ 0) al evaluar el período futuro — usar
+  <code>R(horasPeriodo)</code> directo desde 0 ignoraría el desgaste ya ocurrido. Se usa
+  <b>confiabilidad condicional</b>: <code>R_condicional = R(edad+horasPeriodo) / R(edad)</code>,
+  con <code>edad = horómetro actual del equipo − horómetro al que se instaló el componente</code>,
+  acotada a un piso de 0. El ajuste β/η de cada tipo viene de <code>ajusteWeibullCensurado</code> a
+  nivel flota; un componente sin ajuste real para su tipo se excluye del producto, nunca se
+  aproxima.</p>
+  <p>Verificado independientemente con Python antes de escribir el test: sistema de 3 componentes
+  con β/η/edad distintos da R_sistema≈49.1%, con el componente más débil (frenos,
+  R_condicional≈58.2%) dominando el producto — 5 tests nuevos
+  (<code>confiabilidadSistemaEquipo.test.js</code>). Integrado en Historial de Componentes
+  (<code>histcomp.js</code>), horizonte fijo de 500h: tarjeta "Confiabilidad de sistema por
+  equipo — próximas 500h (RBD en serie)" con una fila por equipo (confiabilidad % color-coded,
+  componentes usados/total, componente más débil), ordenada de menor a mayor confiabilidad.
+  Verificado en navegador (Playwright: motor 40000h→97.3%, transmisión 20000h→87.1%, frenos
+  47500h→98.2%, R_sistema=83.2%, transmisión como componente más débil).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

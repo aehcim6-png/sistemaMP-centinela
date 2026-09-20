@@ -4007,6 +4007,60 @@ navegador (Playwright ad-hoc, mismos 3 técnicos del test "caso realista":
 F=37.672, p≈1.13e-7, tabla ordenada Pedro Soto (8.29h) > Luis Diaz (5h) >
 Juan Perez (4.5h), veredicto "significativo" en rojo).
 
+### 62. Confiabilidad de sistema por equipo — RBD en serie (2026-09-20)
+
+Hasta ahora la confiabilidad Weibull (`confiabilidadWeibull`,
+`ajusteWeibullCensurado`) se calculaba por tipo de componente a nivel
+flota, pero nunca se combinaba a nivel de un equipo concreto: un equipo
+puede tener su motor, transmisión y frenos en edades muy distintas, y la
+pregunta real del taller es "¿cuál es la probabilidad de que ESTE equipo
+llegue sin ninguna falla mayor a las próximas 500h?", no la de un
+componente aislado. `confiabilidadSistemaEquipo(componentes,
+ajustesPorTipo, horomActualEquipo, horasPeriodo)` cierra ese hueco.
+
+El equipo se modela como un **Diagrama de Bloques de Confiabilidad (RBD)
+en serie**: `R_sistema(t) = R_1(t) × R_2(t) × ... × R_n(t)`, la fórmula
+estándar para sistemas donde la falla de cualquier componente detiene
+todo el equipo — la misma suposición que ya usan `esFallaMTBF` y
+`dispDownMap` en el resto del sistema ("cualquier falla para la
+máquina"), así que no es un supuesto nuevo, es el que ya regía. Fórmula
+verificada contra Wikipedia, Accendo Reliability y ReliaSoft (buscadas
+explícitamente para este gap, no una fórmula recordada de memoria).
+
+El punto no trivial es que cada componente YA tiene uso acumulado (edad
+distinta de 0) al momento de evaluar el período futuro — usar
+`R(horasPeriodo)` directo desde 0 ignoraría el desgaste ya ocurrido y
+sobreestimaría la confiabilidad de un componente viejo. Se usa
+**confiabilidad condicional**: `R_condicional = R(edad+horasPeriodo) /
+R(edad)` (probabilidad de sobrevivir el período adicional DADO que ya
+sobrevivió hasta su edad actual), con `edad = horómetro actual del
+equipo − horómetro al que se instaló el componente`, acotada a un piso de
+0 (nunca negativa, por si hay un error de dato con la fecha de
+instalación). `_rWeibullRaw`/`_confiabilidadCondicionalRaw` son los
+helpers internos; el ajuste β/η de cada tipo de componente viene de
+`ajusteWeibullCensurado` a nivel flota (mismo principio de "nunca
+inventar una señal": un componente sin ajuste real para su tipo se
+excluye del producto, no se aproxima).
+
+Verificado independientemente con Python antes de escribir el test
+(mismas fórmulas, sin depender del código): sistema de 3 componentes con
+β/η/edad distintos por componente da R_sistema≈49.1%, con el componente
+más débil (frenos, R_condicional≈58.2%) dominando el producto — 5 tests
+nuevos (`confiabilidadSistemaEquipo.test.js`) cubren ese caso, exclusión
+de componentes sin ajuste, edad negativa acotada a 0, y el caso trivial
+de un componente sin uso previo (se reduce a `confiabilidadWeibull`
+simple).
+
+Integrado en Historial de Componentes (`histcomp.js`), horizonte fijo de
+500h: nueva tarjeta "Confiabilidad de sistema por equipo — próximas 500h
+(RBD en serie)" con una fila por equipo (confiabilidad %, color-coded
+&lt;50% rojo / &lt;80% amarillo, componentes usados sobre total, y el
+componente más débil como el que domina el riesgo), ordenada de menor a
+mayor confiabilidad. Verificado en navegador (Playwright, evaluación
+atómica de la misma función sobre datos inyectados de 3 componentes:
+motor 40000h de edad→97.3%, transmisión 20000h→87.1%, frenos 47500h→98.2%,
+R_sistema=83.2%, transmisión como componente más débil).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

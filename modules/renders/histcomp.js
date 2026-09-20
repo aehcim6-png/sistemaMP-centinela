@@ -86,6 +86,30 @@ export function renderHistComp() {
   });
   var weibullPorCompCens = (typeof analisisVidaUtilPorGrupoCensurado === 'function') ? analisisVidaUtilPorGrupoCensurado(itemsWeibullCens) : [];
 
+  // Confiabilidad de sistema en serie por equipo (2026-09-20) — combina los
+  // ajustes Weibull con censura de arriba (por TIPO de componente, a nivel
+  // flota) con la instalación ACTUAL de cada componente mayor de cada equipo
+  // (compMayores), vía confiabilidadSistemaEquipo (logic.js). Ver comentario
+  // de esa función para la fórmula (RBD en serie + confiabilidad condicional).
+  var ajustesPorTipo = {};
+  weibullPorCompCens.forEach(function (g) { if (g.ajuste) ajustesPorTipo[g.grupo] = g.ajuste; });
+  var HORAS_HORIZONTE_SISTEMA = 500;
+  var compMayoresHist = S.g('compMayores') || [];
+  var compsPorEquipo = {};
+  compMayoresHist.forEach(function (c) {
+    if (!c || !c.sigla || !c.comp) return;
+    (compsPorEquipo[c.sigla] = compsPorEquipo[c.sigla] || []).push({ comp: c.comp, horomComp: c.horomComp });
+  });
+  var confSistema = (typeof confiabilidadSistemaEquipo === 'function' && Object.keys(ajustesPorTipo).length)
+    ? Object.keys(compsPorEquipo).map(function (sigla) {
+        var eObj = eqPorSiglaHist[sigla];
+        if (!eObj) return null;
+        var r = confiabilidadSistemaEquipo(compsPorEquipo[sigla], ajustesPorTipo, eObj.horomActual, HORAS_HORIZONTE_SISTEMA);
+        if (!r) return null;
+        return { sigla: sigla, modelo: eObj.modelo || '', r: r };
+      }).filter(Boolean).sort(function (a, b) { return a.r.rSistema - b.r.rSistema; })
+    : [];
+
   var comps = [...new Set(h.map(function (r) { return r.comp; }))].sort();
   var filFilas = (fComp ? filas.filter(function (f) { return f.ref.comp === fComp; }) : filas)
     .sort(function (a, b) { return (b.ref.fechaInst || '').localeCompare(a.ref.fechaInst || ''); });
@@ -146,6 +170,22 @@ export function renderHistComp() {
       }).join('')}
     </table></div>
     <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">A diferencia de la tabla anterior, acá SÍ se usan las instalaciones que siguen "en uso" (columna "En uso" = cuántas de esas todavía no fallaron, contadas como vida parcial real vía máxima verosimilitud con censura) — misma familia β/η, estimación más precisa al no descartar esa información.</div>` : ''}
+    ${confSistema.length ? `<div style="font-weight:600;font-size:13px;margin-bottom:8px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="4" height="8"/><rect x="8" y="5" width="4" height="12"/><rect x="13" y="2" width="4" height="15"/></svg> Confiabilidad de sistema por equipo — próximas ${HORAS_HORIZONTE_SISTEMA}h (RBD en serie)</div>
+    <div class="tbl-wrap" style="margin-bottom:4px"><table style="table-layout:fixed">
+      <tr><th style="text-align:left;width:14%">Equipo</th><th style="width:16%">Modelo</th><th style="width:13%">Confiabilidad</th><th style="width:10%">Componentes</th><th style="text-align:left">Componente más débil</th></tr>
+      ${confSistema.map(function (e) {
+        var col = e.r.rSistema < 50 ? 'var(--danger)' : e.r.rSistema < 80 ? 'var(--w)' : 'var(--ok)';
+        var peor = e.r.detalle[0];
+        return `<tr>
+          <td class="mono" style="color:var(--ac)">${escapeHtml(e.sigla)}</td>
+          <td style="font-size:11px">${escapeHtml(e.modelo)}</td>
+          <td class="mono" style="font-weight:700;color:${col}">${e.r.rSistema}%</td>
+          <td class="mono">${e.r.componentesUsados}/${e.r.componentesTotal}</td>
+          <td style="font-size:10px;color:var(--tx2)">${peor ? escapeHtml(peor.comp) + ' (' + peor.r + '%, ' + fn(peor.edadActual) + 'h de uso)' : '—'}</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:16px">Probabilidad de que el equipo complete las próximas ${HORAS_HORIZONTE_SISTEMA}h SIN NINGUNA falla de sus componentes mayores — un camión es un sistema en serie: cualquier componente que falle para la máquina completa, así que la confiabilidad del sistema es el producto de las confiabilidades de cada componente (RBD en serie, ver arquitectura.html). Solo cuenta componentes con ajuste Weibull real a nivel flota (columna "Componentes" = cuántos de los instalados en ese equipo tienen suficiente historial — nunca se inventa β/η para los que no lo tienen). "Componente más débil" es el que más arrastra el número — buen punto de partida para priorizar inspección/reemplazo.</div>` : ''}
     <div class="toolbar">
       <select id="fHistComp" onchange="renders.histcomp()"><option value="">Todos los componentes</option>${comps.map(function (c) { return '<option' + (c === fComp ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('')}</select>
     </div>

@@ -2260,6 +2260,64 @@ function confiabilidadWeibull(ajuste,horasPeriodo){
   return Math.round(r*1000)/10;
 }
 
+// ═══ CONFIABILIDAD DE SISTEMA (RBD en serie) — 2026-09-20 ═══
+// confiabilidadWeibull (arriba) da R(t) de UN componente/equipo desde t=0. Un
+// camión es un sistema en SERIE: cualquier componente mayor que falle para la
+// máquina completa — el mismo supuesto que ya usa esFallaMTBF/dispDownMap en
+// todo el sistema (nunca se asume redundancia que no existe). La fórmula
+// estándar de confiabilidad de sistema en serie (cualquier libro de RCM/
+// Weibull++) es el PRODUCTO de las confiabilidades individuales:
+// R_sistema(t) = R_1(t) × R_2(t) × ... × R_n(t).
+//
+// Cada componente además ya tiene ALGO de uso (no arranca en t=0) — se usa
+// confiabilidad CONDICIONAL: dado que ya sobrevivió hasta su edad actual,
+// ¿cuál es la probabilidad de sobrevivir 'horasPeriodo' más?
+// R(edad+horas)/R(edad) — la forma correcta de combinar componentes usados,
+// no la ingenua R(horas) desde cero, que ignoraría que ya llevan desgaste.
+function _rWeibullRaw(ajuste,horasPeriodo){
+  if(!ajuste||horasPeriodo==null||horasPeriodo<0||!(ajuste.eta>0)||!(ajuste.beta>0))return null;
+  return Math.exp(-Math.pow(horasPeriodo/ajuste.eta,ajuste.beta));
+}
+function _confiabilidadCondicionalRaw(ajuste,edadActual,horasPeriodo){
+  var rEdad=_rWeibullRaw(ajuste,edadActual);
+  var rEdadMasPeriodo=_rWeibullRaw(ajuste,(edadActual||0)+horasPeriodo);
+  if(rEdad==null||rEdadMasPeriodo==null||rEdad<=0)return null;
+  return rEdadMasPeriodo/rEdad;
+}
+// 'componentes': [{comp:'Motor',horomComp:12000},...] — instalación ACTUAL de
+// cada componente mayor de ESE equipo (mismos campos que compMayores).
+// 'ajustesPorTipo': {comp:{beta,eta}} — ajuste Weibull con censura POR TIPO DE
+// COMPONENTE a nivel flota (ver ajusteWeibullCorrectivosPorComponenteCensurado/
+// analisisVidaUtilPorGrupoCensurado) — nunca se ajusta Weibull con la historia
+// de un solo equipo (muestra casi siempre insuficiente), se reusa la forma
+// real ya estimada con TODA la flota y se aplica a la edad de ESTE componente.
+// Componentes sin ajuste real (tipo con <5 cambios/censuras en toda la flota)
+// se EXCLUYEN del producto — nunca se inventa un β/η sin datos que lo sostengan.
+function confiabilidadSistemaEquipo(componentes,ajustesPorTipo,horomActualEquipo,horasPeriodo){
+  if(!componentes||!componentes.length||horasPeriodo==null||horasPeriodo<0)return null;
+  var rProducto=1,usados=0;
+  var detalle=[];
+  componentes.forEach(function(c){
+    if(!c||!c.comp)return;
+    var ajuste=ajustesPorTipo&&ajustesPorTipo[c.comp];
+    if(!ajuste)return;
+    var edadActual=Math.max(0,(horomActualEquipo||0)-(c.horomComp||0));
+    var ri=_confiabilidadCondicionalRaw(ajuste,edadActual,horasPeriodo);
+    if(ri==null)return;
+    rProducto*=ri;
+    usados++;
+    detalle.push({comp:c.comp,r:Math.round(ri*1000)/10,edadActual:Math.round(edadActual)});
+  });
+  if(usados===0)return null;
+  return{
+    rSistema:Math.round(rProducto*1000)/10,
+    componentesUsados:usados,
+    componentesTotal:componentes.length,
+    detalle:detalle.sort(function(a,b){return a.r-b.r;}),
+    horasPeriodo:horasPeriodo
+  };
+}
+
 // Interpretación en palabras de β (2026-09-11, mismo pedido) — para que el
 // número no quede suelto sin explicación de qué significa.
 function interpretacionFormaWeibull(beta){
@@ -4911,7 +4969,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
