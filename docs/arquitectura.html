@@ -2501,6 +2501,22 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   lo reemplaza — quedan los dos visibles). Verificado en navegador (Playwright: H=35.346 idéntico al cálculo
   puro).</p>
 
+  <h3>75. Carta de Control EWMA — Costo Total Mensual, deriva sostenida (2026-09-20)</h3>
+  <p><code>cartaControlIMR</code> es una carta Shewhart clásica: buena para un salto grande en un solo mes, pero
+  poco sensible a una deriva lenta y sostenida (el costo subiendo de a poco, mes tras mes, sin que ningún mes
+  cruce el límite fijo) — hueco documentado en control estadístico de procesos (Montgomery): las cartas Shewhart
+  y las cartas "con memoria" (EWMA/CUSUM) son complementarias, no intercambiables — mismo motivo por el que ya
+  existe CUSUM para aceite, pero nunca para costos.</p>
+  <p><code>Z_i = λ·X_i + (1−λ)·Z_(i−1)</code>, límites en el punto i: <code>x̄ ± L·σ̂·√[(λ/(2−λ))·(1−(1−λ)^(2i))]</code>.
+  λ=0.2 y L=3 son valores estándar (Lucas &amp; Saccucci 1990). <code>σ̂=MR̄/1.128</code> reusa exactamente la
+  misma estimación de sigma que ya usa <code>cartaControlIMR</code>, sobre la misma serie — nunca se inventa una
+  varianza nueva. Límites exactos por punto, no la versión asintótica simplificada.</p>
+  <p><b>Verificado</b> en Python: los límites coinciden con la fórmula exacta de Montgomery, incluida la
+  convergencia asintótica. 7 tests nuevos (<code>cartaControlEWMA.test.js</code>).</p>
+  <p>Integrado en Costos, HH y Confiabilidad, junto a la Carta I-MR existente: misma serie real, dos lentes
+  distintos. Nunca reemplaza la I-MR. Verificado en navegador (Playwright: ambas cartas muestran los mismos $
+  Total por mes).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

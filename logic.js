@@ -970,6 +970,65 @@ function cartaControlIMR(puntos){
     puntosFueraControl:detalle.filter(function(p){return p.fueraControl;}).length
   };
 }
+
+// ═══ CARTA DE CONTROL EWMA (2026-09-20) ═══
+// cartaControlIMR (arriba) es una carta Shewhart clásica: muy buena para
+// detectar un salto grande en un solo mes, pero estadísticamente poco
+// sensible a una DERIVA lenta y sostenida (el costo subiendo de a poco,
+// mes tras mes, sin que ningún mes individual cruce el límite) — hueco
+// bien documentado en control estadístico de procesos (Montgomery,
+// "Introduction to Statistical Quality Control"): las cartas Shewhart y
+// las cartas "con memoria" (EWMA/CUSUM) son complementarias, no
+// intercambiables — mismo motivo por el que ya existe CUSUM para aceite,
+// pero nunca para costos.
+//
+// Z_i = λ·X_i + (1−λ)·Z_(i−1), Z_0 = x̄. Límites EXACTOS en el punto i
+// (no la versión asintótica simplificada, que es demasiado angosta al
+// principio de la serie):
+//   x̄ ± L·σ̂·√[(λ/(2−λ))·(1−(1−λ)^(2i))]
+// λ=0.2 y L=3 son los valores estándar de la literatura (Lucas &
+// Saccucci 1990) — no elegidos a mano. σ̂=MR̄/1.128 reusa EXACTAMENTE la
+// misma estimación de sigma que ya usa cartaControlIMR, sobre la misma
+// serie — nunca se inventa una varianza nueva.
+//
+// Verificado en Python: los límites calculados en cada punto i coinciden
+// con la fórmula exacta de Montgomery, incluida la forma asintótica
+// (el ancho converge a σ̂·√(λ/(2−λ)) cuando i crece).
+function cartaControlEWMA(puntos,lambda,L){
+  var lam=(lambda>0&&lambda<=1)?lambda:0.2;
+  var Lm=L>0?L:3;
+  var validos=(puntos||[]).filter(function(p){return p&&p.periodo&&p.valor!=null&&!isNaN(p.valor);})
+    .slice().sort(function(a,b){return a.periodo<b.periodo?-1:a.periodo>b.periodo?1:0;});
+  if(validos.length<6)return null;
+  var valores=validos.map(function(p){return p.valor;});
+  var n=valores.length;
+  var xBarra=valores.reduce(function(s,v){return s+v;},0)/n;
+  var rangosMoviles=[];
+  for(var i=1;i<n;i++)rangosMoviles.push(Math.abs(valores[i]-valores[i-1]));
+  var mrBarra=rangosMoviles.reduce(function(s,v){return s+v;},0)/rangosMoviles.length;
+  var sigma=mrBarra/1.128;
+  var z=xBarra;
+  var detalle=validos.map(function(p,idx){
+    var i=idx+1;
+    z=lam*valores[idx]+(1-lam)*z;
+    var varFactor=(lam/(2-lam))*(1-Math.pow(1-lam,2*i));
+    var ancho=Lm*sigma*Math.sqrt(varFactor);
+    var ucl=xBarra+ancho,lcl=xBarra-ancho;
+    return{
+      periodo:p.periodo,valor:p.valor,
+      z:Math.round(z*100)/100,
+      UCL:Math.round(ucl*100)/100,LCL:Math.round(lcl*100)/100,
+      fueraControl:z>ucl||z<lcl
+    };
+  });
+  return{
+    n:n,xBarra:Math.round(xBarra*100)/100,sigma:Math.round(sigma*100)/100,
+    lambda:lam,L:Lm,
+    detalle:detalle,
+    puntosFueraControl:detalle.filter(function(d){return d.fueraControl;}).length
+  };
+}
+
 // ═══ MANN-WHITNEY U — ¿DOS MUESTRAS SON REALMENTE DISTINTAS? (2026-09-20) ═══
 // indiceEfectividadMantenimiento (más abajo) compara la mediana de
 // intervalos ANTES/DESPUÉS de un PM con un RATIO arbitrario (≥1.2 =
@@ -5831,7 +5890,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, kruskalWallis, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

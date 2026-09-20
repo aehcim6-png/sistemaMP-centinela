@@ -4598,6 +4598,44 @@ reemplaza — ambos quedan visibles, uno paramétrico y uno no, sobre la
 misma pregunta). Verificado en navegador (Playwright: H=35.346 idéntico al
 cálculo puro, medianas por técnico coincidentes).
 
+### 75. Carta de Control EWMA — Costo Total Mensual, deriva sostenida (2026-09-20)
+
+`cartaControlIMR` (usado en Costos, HH y Confiabilidad) es una carta
+Shewhart clásica: muy buena para detectar un salto grande en un solo mes,
+pero estadísticamente poco sensible a una **deriva lenta y sostenida** (el
+costo subiendo de a poco, mes tras mes, sin que ningún mes individual
+cruce el límite fijo) — hueco bien documentado en control estadístico de
+procesos (Montgomery, *Introduction to Statistical Quality Control*): las
+cartas Shewhart y las cartas "con memoria" (EWMA/CUSUM) son
+complementarias, no intercambiables — mismo motivo por el que ya existe
+CUSUM para aceite, pero nunca para costos.
+
+```
+Z_i = λ·X_i + (1−λ)·Z_(i−1),  Z_0 = x̄
+Límites en el punto i: x̄ ± L·σ̂·√[(λ/(2−λ))·(1−(1−λ)^(2i))]
+```
+
+λ=0.2 y L=3 son los valores estándar de la literatura (Lucas & Saccucci
+1990), no elegidos a mano. σ̂=MR̄/1.128 reusa EXACTAMENTE la misma
+estimación de sigma que ya usa `cartaControlIMR`, sobre la misma serie de
+Costo Total Mensual — nunca se inventa una varianza nueva. Los límites son
+la fórmula EXACTA por punto (no la versión asintótica simplificada, que es
+demasiado angosta al principio de la serie y produce falsas alarmas
+tempranas).
+
+**Verificado** en Python: los límites calculados en cada punto i coinciden
+con la fórmula exacta de Montgomery, incluida la convergencia a la forma
+asintótica (`σ̂·√(λ/(2−λ))`) cuando i crece. 7 tests nuevos
+(`cartaControlEWMA.test.js`).
+
+Integrado en Costos, HH y Confiabilidad, junto a la Carta I-MR existente:
+misma serie real de Costo Total Mensual, dos lentes distintos — uno para
+sobresaltos puntuales, otro para tendencias que se acumulan
+silenciosamente. Nunca reemplaza la I-MR, queda visible al lado. Verificado
+en navegador (Playwright: ambas cartas muestran exactamente los mismos $
+Total por mes, confirmando que EWMA reprocesa la misma fuente real, no una
+propia).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

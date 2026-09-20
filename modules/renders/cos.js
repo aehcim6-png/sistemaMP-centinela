@@ -162,6 +162,33 @@ export function renderCos() {
   var cartaCostoMensual = (typeof cartaControlIMR === 'function')
     ? cartaControlIMR(meses.map(function (m) { return { periodo: m, valor: costoMes[m].total }; }))
     : null;
+  // Carta de control EWMA (2026-09-20): la I-MR de arriba es buena para un
+  // salto grande en un solo mes, pero poco sensible a una deriva lenta y
+  // sostenida (el costo subiendo de a poco, mes tras mes, sin que ningún
+  // mes cruce el límite fijo) — mismo motivo por el que ya existe CUSUM
+  // para aceite. Reusa la misma serie y la misma estimación de sigma que
+  // la I-MR (cartaControlEWMA, logic.js).
+  var ewmaCostoMensual = (typeof cartaControlEWMA === 'function')
+    ? cartaControlEWMA(meses.map(function (m) { return { periodo: m, valor: costoMes[m].total }; }))
+    : null;
+  function _cosCartaEWMAHTML(carta) {
+    if (!carta) return '';
+    var filas = carta.detalle.slice().reverse();
+    return '<div class="chart-box" style="margin-top:14px">' +
+      '<div class="chart-t">📉 Carta de Control EWMA — Costo Total Mensual (deriva sostenida)</div>' +
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Complementa la carta I-MR de arriba: en vez de mirar cada mes por separado, suaviza la serie completa (λ=' + carta.lambda + ') para detectar una tendencia que se acumula de a poco, mes tras mes, aunque ningún mes individual sea una señal por sí solo. Línea central $' + fn(Math.round(carta.xBarra)) + '.</div>' +
+      (carta.puntosFueraControl > 0
+        ? '<div style="font-size:12px;color:var(--danger);font-weight:600;padding-bottom:8px">⚠ ' + carta.puntosFueraControl + ' mes(es) con deriva sostenida fuera de control</div>'
+        : '<div style="font-size:12px;color:var(--ok);padding-bottom:8px">Sin deriva sostenida — la tendencia suavizada se mantiene dentro de los límites</div>') +
+      '<div class="tbl-wrap"><table><tr><th>Mes</th><th>Total ($)</th><th>Suavizado (Z)</th><th>Estado</th></tr>' +
+      filas.map(function (d) {
+        var estado = d.fueraControl
+          ? '<b style="color:var(--danger)">⚠ Fuera de control</b>'
+          : '<span style="color:var(--ok)">Normal</span>';
+        return '<tr><td><b>' + d.periodo + '</b></td><td>$' + fn(Math.round(d.valor)) + '</td><td>$' + fn(Math.round(d.z)) + '</td><td>' + estado + '</td></tr>';
+      }).join('') +
+      '</table></div></div>';
+  }
   function _cosCartaControlHTML(carta) {
     if (!carta) return '';
     var filas = carta.detalle.slice().reverse();
@@ -202,7 +229,8 @@ export function renderCos() {
         return '<tr><td><b>' + m + '</b></td><td>' + c.pms + '</td><td>$' + fn(Math.round(c.hh)) + '</td><td>$' + fn(Math.round(c.filtros)) + '</td><td>$' + fn(Math.round(c.lubricantes)) + '</td><td style="color:var(--ac);font-weight:700">$' + fn(Math.round(c.total)) + '</td><td style="text-align:center">' + dTxt + '</td></tr>';
       }).join('') +
       '</table></div>' +
-      _cosCartaControlHTML(cartaCostoMensual);
+      _cosCartaControlHTML(cartaCostoMensual) +
+      _cosCartaEWMAHTML(ewmaCostoMensual);
 
   } else if (fVista === 'hh') {
     // HH POR TÉCNICO
