@@ -2275,6 +2275,26 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Verificado en navegador (Playwright: motor 40000h→97.3%, transmisión 20000h→87.1%, frenos
   47500h→98.2%, R_sistema=83.2%, transmisión como componente más débil).</p>
 
+  <h3>63. Carta de Control I-MR (Individuos y Rango Móvil) — Costo Total Mensual (2026-09-20)</h3>
+  <p>El sistema ya detectaba desvíos de dos formas: <code>ordenesSinOutliers</code>/<code>aceiteOutliers</code>
+  comparan cada registro contra la mediana de su grupo (outlier puntual), y CUSUM detecta una tendencia lenta
+  sostenida. Ninguna vigila una serie de un valor por mes para señalar el mes exacto en que algo cambió de
+  verdad — eso hace una <b>carta de control I-MR</b> (SPC clásico). <code>cartaControlIMR(puntos)</code> cierra
+  ese hueco.</p>
+  <p>Con la serie de valores individuales <code>X</code> (un dato por mes, sin subgrupos) y el rango móvil
+  <code>MR</code> entre meses consecutivos: <code>UCL = X̄ + 2.66·MR̄</code>, <code>LCL = X̄ − 2.66·MR̄</code>
+  (carta Individuos); <code>UCL_MR = 3.267·MR̄</code>, <code>LCL_MR = 0</code> (carta de Rango Móvil). Las
+  constantes 2.66 y 3.267 están tabuladas (2.66 = 3/d2, d2=1.128 para n=2), verificadas contra Wikipedia,
+  Quality Gurus y Six Sigma DSI. Mínimo 6 puntos — con menos, ni la media ni el rango móvil promedio son una
+  base confiable para fijar un límite.</p>
+  <p>Verificado independientemente con Python antes de escribir el test: serie de 9 meses con un valor muy por
+  encima de los demás (300 contra ~100) da X̄≈122.89, MR̄=28.5, UCL≈198.70, LCL≈47.08, UCL_MR≈93.11 — el único
+  punto fuera de control es el correcto. 5 tests nuevos (<code>cartaControlIMR.test.js</code>). Integrado en
+  Costos, HH y Confiabilidad (<code>cos.js</code>), vista "Costos por Mes", sobre <code>costoMes[mes].total</code>
+  ya existente: tarjeta con línea central, límites, aviso de meses fuera de control y tabla Mes/Total/Estado.
+  Verificado en navegador (Playwright: 9 meses sintéticos, un mes en $3.000.000 marcado "⚠ Fuera de control" en
+  rojo, el resto "Normal" en verde).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

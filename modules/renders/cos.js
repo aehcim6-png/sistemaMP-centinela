@@ -153,6 +153,34 @@ export function renderCos() {
   var mesActual = meses[0] || '';
   var desvMesActual = mesActual ? desviacionPresupuesto(costoMes[mesActual].total, mesActual) : null;
 
+  // Carta de control I-MR (SPC, logic.js) sobre el costo total mensual — no
+  // es un outlier puntual (compara un registro contra la mediana de su
+  // grupo) ni CUSUM (tendencia lenta sostenida): acá el límite es fijo,
+  // calculado sobre TODA la serie, y señala el mes exacto en que el gasto
+  // total salió del comportamiento normal del proceso. cartaControlIMR ya
+  // exige mínimo 6 meses — con menos historial simplemente no aparece.
+  var cartaCostoMensual = (typeof cartaControlIMR === 'function')
+    ? cartaControlIMR(meses.map(function (m) { return { periodo: m, valor: costoMes[m].total }; }))
+    : null;
+  function _cosCartaControlHTML(carta) {
+    if (!carta) return '';
+    var filas = carta.detalle.slice().reverse();
+    return '<div class="chart-box" style="margin-top:14px">' +
+      '<div class="chart-t">📈 Carta de Control I-MR — Costo Total Mensual</div>' +
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Control Estadístico de Procesos (SPC): límites fijos calculados sobre toda la serie (línea central $' + fn(Math.round(carta.xBarra)) + ', límites $' + fn(Math.round(Math.max(0, carta.LCL))) + ' – $' + fn(Math.round(carta.UCL)) + '). Un mes fuera de estos límites es una señal de causa especial (algo cambió de verdad), distinto de la variación normal mes a mes. Requiere al menos 6 meses de historial.</div>' +
+      (carta.puntosFueraControl > 0
+        ? '<div style="font-size:12px;color:var(--danger);font-weight:600;padding-bottom:8px">⚠ ' + carta.puntosFueraControl + ' mes(es) fuera de control</div>'
+        : '<div style="font-size:12px;color:var(--ok);padding-bottom:8px">Proceso bajo control — ningún mes fuera de los límites</div>') +
+      '<div class="tbl-wrap"><table><tr><th>Mes</th><th>Total ($)</th><th>Estado</th></tr>' +
+      filas.map(function (d) {
+        var estado = d.fueraControl
+          ? '<b style="color:var(--danger)">⚠ Fuera de control</b>'
+          : '<span style="color:var(--ok)">Normal</span>';
+        return '<tr><td><b>' + d.periodo + '</b></td><td>$' + fn(Math.round(d.valor)) + '</td><td>' + estado + '</td></tr>';
+      }).join('') +
+      '</table></div></div>';
+  }
+
   var content = '';
 
   if (fVista === 'costos') {
@@ -173,7 +201,8 @@ export function renderCos() {
         var dTxt = d === null ? '<span style="color:var(--tx3)">—</span>' : '<b style="color:' + (d > 0 ? 'var(--danger)' : 'var(--ok)') + '">' + (d > 0 ? '+' : '') + d + '%</b>';
         return '<tr><td><b>' + m + '</b></td><td>' + c.pms + '</td><td>$' + fn(Math.round(c.hh)) + '</td><td>$' + fn(Math.round(c.filtros)) + '</td><td>$' + fn(Math.round(c.lubricantes)) + '</td><td style="color:var(--ac);font-weight:700">$' + fn(Math.round(c.total)) + '</td><td style="text-align:center">' + dTxt + '</td></tr>';
       }).join('') +
-      '</table></div>';
+      '</table></div>' +
+      _cosCartaControlHTML(cartaCostoMensual);
 
   } else if (fVista === 'hh') {
     // HH POR TÉCNICO

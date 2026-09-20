@@ -923,6 +923,53 @@ function _pValorF(f,d1,d2){
   var x=d2/(d2+d1*f);
   return _betaIncompletaRegularizada(x,d2/2,d1/2);
 }
+// Carta de control I-MR (Individuos y Rango Móvil) — Control Estadístico de
+// Procesos (SPC) clásico para series de un solo valor por período (costo
+// mensual, MTBF mensual, etc: no hay subgrupos, un dato por mes). Detecta
+// el mes exacto en que un valor sale del comportamiento normal del
+// proceso, distinto de un outlier puntual (comparación contra la mediana,
+// ver ordenesSinOutliers/aceiteOutliers) o una tendencia lenta sostenida
+// (CUSUM): acá el límite es fijo, calculado sobre TODA la serie.
+// Constantes 2.66 (=3/d2, d2=1.128 tabulado para n=2) y 3.267 son las
+// constantes estándar de Shewhart para cartas Individuos/Rango Móvil, no
+// inventadas (Wikipedia "Shewhart individuals control chart", Quality
+// Gurus, Six Sigma DSI). 'puntos': [{periodo:'YYYY-MM', valor:número}].
+// Mínimo 6 puntos (mismo espíritu que el resto de los umbrales mínimos de
+// esta sesión): con menos, ni la media ni el rango móvil promedio son una
+// base confiable para fijar un límite.
+function cartaControlIMR(puntos){
+  var validos=(puntos||[]).filter(function(p){return p&&p.periodo&&p.valor!=null&&!isNaN(p.valor);})
+    .slice().sort(function(a,b){return a.periodo<b.periodo?-1:a.periodo>b.periodo?1:0;});
+  if(validos.length<6)return null;
+  var valores=validos.map(function(p){return p.valor;});
+  var n=valores.length;
+  var xBarra=valores.reduce(function(s,v){return s+v;},0)/n;
+  var rangosMoviles=[];
+  for(var i=1;i<n;i++)rangosMoviles.push(Math.abs(valores[i]-valores[i-1]));
+  var mrBarra=rangosMoviles.reduce(function(s,v){return s+v;},0)/rangosMoviles.length;
+  var UCL=xBarra+2.66*mrBarra;
+  var LCL=xBarra-2.66*mrBarra;
+  var UCL_MR=3.267*mrBarra;
+  var detalle=validos.map(function(p,i){
+    var mr=i===0?null:Math.abs(valores[i]-valores[i-1]);
+    return{
+      periodo:p.periodo,
+      valor:p.valor,
+      fueraControl:p.valor>UCL||p.valor<LCL,
+      rangoMovilFueraControl:mr!=null&&mr>UCL_MR
+    };
+  });
+  return{
+    n:n,
+    xBarra:Math.round(xBarra*100)/100,
+    mrBarra:Math.round(mrBarra*100)/100,
+    UCL:Math.round(UCL*100)/100,
+    LCL:Math.round(LCL*100)/100,
+    UCL_MR:Math.round(UCL_MR*100)/100,
+    detalle:detalle,
+    puntosFueraControl:detalle.filter(function(p){return p.fueraControl;}).length
+  };
+}
 // 'grupos': objeto {nombreGrupo:[valores numéricos...]} (ej. horas de MTTR
 // por técnico, ya agrupadas por quien llama). minPorGrupo (default 5,
 // mismo umbral ya usado para IC del MTBF/MTTR esta sesión): un grupo con
@@ -4969,7 +5016,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

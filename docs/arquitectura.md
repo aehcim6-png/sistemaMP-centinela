@@ -4061,6 +4061,49 @@ atómica de la misma función sobre datos inyectados de 3 componentes:
 motor 40000h de edad→97.3%, transmisión 20000h→87.1%, frenos 47500h→98.2%,
 R_sistema=83.2%, transmisión como componente más débil).
 
+### 63. Carta de Control I-MR (Individuos y Rango Móvil) — Costo Total Mensual (2026-09-20)
+
+El sistema ya detectaba desvíos de dos formas distintas: `ordenesSinOutliers`/
+`aceiteOutliers` comparan cada registro individual contra la mediana de su
+propio grupo (un outlier puntual), y CUSUM (`cusumAceite`) detecta una
+**tendencia lenta y sostenida** en el aceite. Ninguna de las dos vigila una
+serie de un valor por mes (costo total, por ejemplo) para señalar el mes
+exacto en que algo cambió de verdad, distinto de la variación normal —
+eso es justo lo que hace una **carta de control I-MR** (Individuos y Rango
+Móvil), herramienta clásica de Control Estadístico de Procesos (SPC).
+`cartaControlIMR(puntos)` cierra ese hueco.
+
+Con la serie de valores individuales `X` (un dato por mes, sin subgrupos —
+por eso "Individuos", a diferencia de una carta X-bar/R que necesita varias
+muestras por período) y el rango móvil `MR` entre meses consecutivos:
+`UCL = X̄ + 2.66·MR̄`, `LCL = X̄ − 2.66·MR̄` (carta Individuos);
+`UCL_MR = 3.267·MR̄`, `LCL_MR = 0` (carta de Rango Móvil, un rango nunca es
+negativo). Las constantes 2.66 y 3.267 no son arbitrarias — están tabuladas
+(2.66 = 3/d2, con d2=1.128 para n=2) y son las mismas que usa cualquier
+software de SPC estándar, verificadas contra Wikipedia, Quality Gurus y Six
+Sigma DSI (no de memoria). Mínimo 6 puntos (mismo espíritu que el resto de
+los umbrales mínimos de esta sesión): con menos, ni la media ni el rango
+móvil promedio son una base confiable para fijar un límite.
+
+Verificado independientemente con Python antes de escribir el test: serie
+de 9 meses con un valor muy por encima de los demás (300 contra una media
+del resto de ~100) da X̄≈122.89, MR̄=28.5, UCL≈198.70, LCL≈47.08,
+UCL_MR≈93.11 — el único punto fuera de control es el correcto, y su rango
+móvil de entrada también queda marcado. 5 tests nuevos
+(`cartaControlIMR.test.js`): mínimo de puntos, filtrado de puntos inválidos,
+el caso verificado con Python, una serie estable sin falsos positivos, y
+que ordena los puntos por período aunque lleguen desordenados.
+
+Integrado en Costos, HH y Confiabilidad (`cos.js`), vista "Costos por Mes",
+sobre la serie ya existente `costoMes[mes].total` (HH + filtros +
+lubricantes, ya calculada ahí para la tabla y las tarjetas): nueva tarjeta
+"Carta de Control I-MR — Costo Total Mensual" con la línea central y los
+límites en texto, un aviso si hay meses fuera de control, y una tabla
+Mes/Total/Estado. Verificado en navegador (Playwright: 9 meses sintéticos,
+$1.000.000–$1.050.000 la mayoría y un mes en $3.000.000 — único mes
+marcado "⚠ Fuera de control" en rojo, los demás "Normal" en verde,
+límites mostrados $468.583–$1.998.083).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
