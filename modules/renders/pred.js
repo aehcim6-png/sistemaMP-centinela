@@ -1188,6 +1188,23 @@ export function renderPred(){
     var backlogPendDot=ot.filter(function(o){return o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución';});
     var backlogXMecDot=mecDia>0?Math.round(backlogPendDot.length/mecDia*10)/10:null;
 
+    // ═══ MODELO DE COLAS M/M/c (2026-09-20) ═══ — λ real (tasa de llegada
+    // de correctivos, todo el historial real disponible ÷ horas que abarca)
+    // y μ real (1/MTTR, mismo parseo "Xh" de o.duracion ya usado en Costos &
+    // Stock → MTBF/MTTR). c = dotación Día+Noche actual — mismo criterio de
+    // combinar ambos turnos ya usado arriba para "capacidadMesDot" (no hay
+    // forma real de separar la tasa de llegada por turno, así que separar
+    // solo la dotación sería un supuesto a medias).
+    var fechasCorrectDot=otConHistDot.map(function(o){return o&&o.fecha;}).filter(Boolean).sort();
+    var horasSpanDot=fechasCorrectDot.length>1?_diasEntreISO(fechasCorrectDot[0],fechasCorrectDot[fechasCorrectDot.length-1])*24:0;
+    var lambdaDot=horasSpanDot>0?fechasCorrectDot.length/horasSpanDot:null;
+    var duracionesDot=[];
+    ot.forEach(function(o){var m=o&&o.duracion&&String(o.duracion).match(/(\d+)h/);if(m)duracionesDot.push(parseInt(m[1],10));});
+    var mttrRealDot=duracionesDot.length?duracionesDot.reduce(function(s,v){return s+v;},0)/duracionesDot.length:null;
+    var muDot=mttrRealDot>0?1/mttrRealDot:null;
+    var cDot=mecDia+mecNoche;
+    var colasDot=(lambdaDot!=null&&muDot!=null&&cDot>0&&typeof modeloColasMMC==='function')?modeloColasMMC(lambdaDot,muDot,cDot):null;
+
     // Historial de dotación cargada (todas las fechas de Programación Diaria)
     var histDotacionDot=fechasProg.map(function(f){
       var itemsF=progDia.filter(function(p){return p.fecha===f;});
@@ -1272,6 +1289,23 @@ export function renderPred(){
       '<div class="card"><div class="card-t">MTBF Promedio Flota</div><div class="card-v">'+(mtbfFlotaDot==null?'—':mtbfFlotaDot+'h')+'</div></div>'+
       '<div class="card"><div class="card-t">Backlog pendiente</div><div class="card-v">'+backlogPendDot.length+'</div><div class="card-s">'+(backlogXMecDot==null?'—':'≈'+backlogXMecDot+' trabajos por mecánico de día')+'</div></div>'+
       '</div>'+
+      // Modelo de Colas M/M/c (Erlang C) — con la dotación real actual
+      // (Día+Noche), ¿cuánto tiempo espera en promedio una OT antes de que
+      // un técnico la tome, y qué tan saturado está el taller? Nunca
+      // sugiere una dotación "ideal", solo reporta la métrica real para el
+      // c actual.
+      (colasDot?
+      '<div class="chart-box" style="border-left:3px solid '+(colasDot.saturado?'var(--danger)':'var(--ac)')+';margin-bottom:16px">'+
+      '<div class="chart-t">⏳ Modelo de Colas (M/M/c) — con la dotación actual</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Taller como sistema de colas: correctivos que llegan (λ='+Math.round(lambdaDot*1000)/1000+'/h, tasa real de todo el historial) atendidos por '+cDot+' técnicos en paralelo (μ=1/MTTR, MTTR real='+Math.round(mttrRealDot)+'h). Fórmula de Erlang C — el modelo estándar de teoría de colas, el mismo que usa cualquier call center o planificación de capacidad de taller. Nunca sugiere una dotación "ideal", solo mide qué tan saturado está el taller con la dotación real de hoy.</div>'+
+      '<div class="cards">'+
+      '<div class="card"><div class="card-t">Utilización (ρ)</div><div class="card-v" style="color:'+(colasDot.saturado?'var(--danger)':colasDot.rho>0.7?'var(--w)':'var(--ok)')+'">'+Math.round(colasDot.rho*100)+'%</div><div class="card-s">'+(colasDot.saturado?'⚠ Saturado (&gt;85%, regla estándar de teoría de colas)':'Dentro de rango')+'</div></div>'+
+      '<div class="card"><div class="card-t">Prob. de tener que esperar</div><div class="card-v">'+Math.round(colasDot.probEspera*100)+'%</div><div class="card-s">de las OT nuevas encuentran a todos los técnicos ocupados</div></div>'+
+      '<div class="card"><div class="card-t">Espera promedio</div><div class="card-v">'+colasDot.tiempoEsperaHoras+'<span style="font-size:14px;color:var(--tx3)">h</span></div><div class="card-s">antes de que un técnico la tome</div></div>'+
+      '<div class="card"><div class="card-t">OT esperando (promedio)</div><div class="card-v">'+colasDot.numeroEnCola+'</div><div class="card-s">en cola, en un momento cualquiera</div></div>'+
+      '</div>'+
+      '</div>'
+      :(lambdaDot!=null&&muDot!=null?'<div class="card" style="margin-bottom:16px"><p style="color:var(--tx3);text-align:center;padding:20px">Con λ='+Math.round((lambdaDot||0)*1000)/1000+'/h y '+cDot+' técnicos, el sistema está sobrecargado (ρ≥100%) — el modelo de colas no da un tiempo de espera finito con esta dotación.</p></div>':''))+
       '<div class="sec-t" style="font-size:14px;margin:16px 0 8px">Dotación por cargo — turno Día ('+escapeHtml(fechaUlt)+')</div>'+
       '<div class="tbl-wrap"><table><tr><th>Cargo</th><th>Personas</th></tr>'+
       Object.entries(turnosUlt['Día']?turnosUlt['Día'].cargos:{}).sort(function(a,b){return b[1]-a[1];}).map(function(c){

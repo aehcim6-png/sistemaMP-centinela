@@ -2386,6 +2386,23 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ratio con IC95%, o aviso de no-convergencia. Verificado en navegador (Playwright: HR=0.48 idéntico al
   cálculo puro).</p>
 
+  <h3>69. Modelo de Colas M/M/c (Erlang C) — Dotación de Taller (2026-09-20)</h3>
+  <p>Dotación de Taller solo comparaba dotación vs. carga de trabajo con tendencia, sin modelo matemático. Un
+  taller es, matemáticamente, un sistema de colas: correctivos que llegan (λ real) atendidos por técnicos en
+  paralelo (c = dotación real, μ=1/MTTR real). <b>M/M/c</b> (Erlang C) es el modelo estándar de investigación
+  operativa — dominio matemático nuevo en el sistema. Responde: con la dotación actual, ¿cuánto tiempo espera
+  en promedio una OT, y qué tan saturado está el taller?</p>
+  <p><code>a = λ/μ</code>, <code>ρ = a/c</code> — inestable (null) si ρ≥1. Los términos <code>a^k/k!</code> se
+  acumulan por razón sucesiva, evitando el desborde de factoriales que ya forzó corregir
+  <code>_poissonPMF</code> antes en esta sesión.</p>
+  <p><b>Verificación doble</b>: (1) analíticamente, c=1 se reduce exactamente a M/M1 (<code>Wq=ρ/(μ−λ)</code>);
+  (2) numéricamente, contra la recursión de Erlang B — algoritmo independiente, estándar en
+  telecomunicaciones, coincide a 10+ decimales. 6 tests nuevos (<code>modeloColasMMC.test.js</code>).</p>
+  <p>λ sobre el span real de fechas de correctivos, μ desde el MTTR real, c = dotación Día+Noche actual. ρ&gt;0.85
+  marca saturación (regla estándar, no inventada). Nunca sugiere una dotación "ideal". Integrado en
+  Predictivo → Dotación de Taller: tarjeta con utilización, probabilidad de espera, tiempo de espera y OT
+  esperando. Verificado en navegador (Playwright: ρ=22% idéntico al cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

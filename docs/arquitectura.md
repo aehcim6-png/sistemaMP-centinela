@@ -4322,6 +4322,54 @@ para ese par. Verificado en navegador (Playwright: Frenos vs. Suspensión
 con superposición real de tiempos, HR=0.48 idéntico al cálculo puro,
 "Frenos falla 2.08 veces más rápido que Suspensión").
 
+### 69. Modelo de Colas M/M/c (Erlang C) — Dotación de Taller (2026-09-20)
+
+Dotación de Taller solo comparaba dotación real vs. carga de trabajo con
+tendencia — sin ningún modelo matemático real detrás. Un taller es,
+matemáticamente, un sistema de colas: correctivos que llegan (arribos
+Poisson, tasa λ real), técnicos que los atienden (servidores en
+paralelo, c = dotación real), cada uno con un tiempo de reparación real
+(tasa de servicio μ=1/MTTR real). **M/M/c** (fórmula de Erlang C) es el
+modelo estándar de investigación operativa para esto — un dominio
+matemático nuevo en el sistema, distinto de todo lo de
+confiabilidad/estadística construido hasta ahora. Responde algo que
+nadie contestaba: con la dotación ACTUAL, ¿cuánto tiempo espera en
+promedio una OT antes de que un técnico la tome, y qué tan saturado está
+el taller?
+
+`a = λ/μ` (carga ofrecida, en Erlangs), `ρ = a/c` (utilización) — el
+sistema es inestable (cola crece sin límite) si `ρ≥1`, se devuelve
+`null` (nunca un tiempo de espera infinito o negativo). Los términos
+`a^k/k!` se acumulan por razón sucesiva (`term_k = term_{k-1}×a/k`) en
+vez de factoriales crudos — mismo motivo que ya forzó corregir
+`_poissonPMF` en una auditoría anterior de esta sesión (factoriales
+grandes desbordan), acá se evita el problema de raíz.
+
+**Verificación doble e independiente**: (1) analíticamente, el caso
+`c=1` se reduce exactamente a la fórmula clásica de M/M/1
+(`Wq=ρ/(μ−λ)`) — confirmado algebraicamente a mano antes de escribir una
+sola línea de código; (2) numéricamente, contra la recursión de Erlang B
+(`b(0)=1, b(n)=a·b(n-1)/(n+a·b(n-1))`, `C=c·b(c)/(c−a·(1−b(c)))`) — un
+algoritmo completamente distinto, estándar en telecomunicaciones, que
+coincide a 10+ decimales con el cálculo directo en varios casos. 6 tests
+nuevos (`modeloColasMMC.test.js`).
+
+λ se calcula sobre el span real de fechas de todo el historial de
+correctivos disponible (`fechasCorrectDot`); μ desde el MTTR real (mismo
+parseo "Xh" de `duracion` ya usado en Costos & Stock → MTBF/MTTR); `c` =
+dotación Día+Noche actual — mismo criterio de combinar ambos turnos ya
+usado en esta misma vista para "capacidadMesDot" (no hay forma real de
+separar la tasa de llegada por turno). `ρ>0.85` (regla de bolsillo
+estándar de teoría de colas, no inventada) marca saturación. Nunca
+sugiere una dotación "ideal": solo reporta las métricas reales para el
+`c` actual.
+
+Integrado en Predictivo → Dotación de Taller, nueva tarjeta "⏳ Modelo de
+Colas (M/M/c)" con utilización, probabilidad de espera, tiempo de espera
+promedio y OT esperando en promedio. Verificado en navegador (Playwright:
+λ=0.139/h, μ=0.125/h, c=5 → ρ=22%, coincidiendo exactamente con el
+cálculo puro).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

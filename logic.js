@@ -3322,6 +3322,60 @@ function _stockParaNivelServicio(lambda,nivelServicio){
   }
   return 500;
 }
+// ═══ MODELO DE COLAS M/M/c — DOTACIÓN DE TALLER (2026-09-20) ═══
+// Dotación de Taller hoy solo compara dotación real vs. carga de trabajo
+// con tendencia — sin ningún modelo matemático detrás. Un taller es,
+// matemáticamente, un sistema de colas: correctivos que llegan (arribos
+// Poisson, tasa λ real), técnicos que los atienden (servidores en
+// paralelo, c = dotación real), cada uno tardando un tiempo de reparación
+// real (tasa de servicio μ=1/MTTR real). M/M/c (fórmula de Erlang C) es
+// el modelo estándar de investigación operativa para esto — responde algo
+// que hoy nadie contesta: con la dotación ACTUAL, ¿cuánto tiempo espera en
+// promedio una OT antes de que un técnico la tome, y qué tan saturado está
+// el taller?
+// a = λ/μ (carga ofrecida, en "Erlangs"). ρ = a/c (utilización) — el
+// sistema es inestable (cola crece sin límite) si ρ≥1, se devuelve null
+// (nunca se muestra un tiempo de espera infinito o negativo).
+// Los términos a^k/k! se acumulan por RAZÓN SUCESIVA (term_k =
+// term_{k-1}×a/k) en vez de factoriales crudos — mismo motivo que ya
+// forzó corregir _poissonPMF (auditoría 2026-09: factoriales grandes
+// desbordan) — acá se evita el problema de raíz, sin necesitar log-espacio.
+// Verificado dos veces de forma independiente: (1) analíticamente, el caso
+// c=1 se reduce exactamente a la fórmula clásica de M/M/1 (Wq=ρ/(μ−λ));
+// (2) numéricamente, contra la recursión de Erlang B (b(0)=1,
+// b(n)=a·b(n-1)/(n+a·b(n-1)), C=c·b(c)/(c−a·(1−b(c)))) — un algoritmo
+// completamente distinto, estándar en telecomunicaciones, que coincide a
+// 10+ decimales con el cálculo directo en varios casos.
+// Nunca sugiere una dotación "ideal": solo reporta las métricas reales
+// para el c actual. ρ>0.85 (regla de bolsillo estándar de teoría de
+// colas, no inventada) marca saturación.
+function modeloColasMMC(lambda,mu,c){
+  if(!(lambda>0)||!(mu>0)||!(c>0))return null;
+  c=Math.round(c);
+  var a=lambda/mu;
+  var rho=a/c;
+  if(rho>=1)return null;
+  var term=1,sumB=term;
+  for(var k=1;k<c;k++){term=term*a/k;sumB+=term;}
+  var termC=term*a/c;
+  var numer=termC*c/(c-a);
+  var denom=sumB+numer;
+  var probEspera=numer/denom;
+  var tiempoEsperaHoras=probEspera/(c*mu-lambda);
+  var numeroEnCola=lambda*tiempoEsperaHoras;
+  var tiempoTotalHoras=tiempoEsperaHoras+1/mu;
+  var numeroEnSistema=lambda*tiempoTotalHoras;
+  return{
+    a:Math.round(a*100)/100,
+    rho:Math.round(rho*1000)/1000,
+    probEspera:Math.round(probEspera*1000)/1000,
+    tiempoEsperaHoras:Math.round(tiempoEsperaHoras*100)/100,
+    numeroEnCola:Math.round(numeroEnCola*100)/100,
+    tiempoTotalHoras:Math.round(tiempoTotalHoras*100)/100,
+    numeroEnSistema:Math.round(numeroEnSistema*100)/100,
+    saturado:rho>0.85
+  };
+}
 function _contarMesesEntre(mesIni,mesFin){
   if(!mesIni||!mesFin)return 0;
   var a=mesIni.split('-').map(Number),b=mesFin.split('-').map(Number);
@@ -5371,7 +5425,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, mannWhitneyU, anovaUnFactor, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, edadVirtualEquipo,
