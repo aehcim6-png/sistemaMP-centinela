@@ -522,13 +522,23 @@ function _estTablaTecnico(ot) {
     });
   });
   var nombres = Object.keys(porTecDoc);
+  // Wilson IC95% (2026-09-21): % documentado y % reingreso eran un número
+  // puntual sin margen de error — con n=15 (el mínimo que ya exige esta
+  // tabla) un 80% observado puede en realidad estar entre 55% y 93%.
+  // Reusa wilsonIC95 (logic.js), mismo principio que ya aplican
+  // intervaloConfianzaMTBF/errorEstandarMTTR: nunca mostrar una precisión
+  // que la muestra no respalda.
   var lista = nombres.map(function (n) {
     var doc = porTecDoc[n];
     var reing = porTecReing[n];
+    var icDoc = (typeof wilsonIC95 === 'function') ? wilsonIC95(doc.conSolucion, doc.total) : null;
+    var icReing = (typeof wilsonIC95 === 'function' && reing && reing.total >= 15) ? wilsonIC95(reing.reingresos, reing.total) : null;
     return {
       nombre: n, total: doc.total,
       pctDoc: Math.round(doc.conSolucion / doc.total * 100),
-      pctReing: reing && reing.total >= 15 ? Math.round(reing.reingresos / reing.total * 100) : null
+      icDoc: icDoc,
+      pctReing: reing && reing.total >= 15 ? Math.round(reing.reingresos / reing.total * 100) : null,
+      icReing: icReing
     };
   }).filter(function (t) { return t.total >= 15; })
     .sort(function (a, b) { return a.pctDoc - b.pctDoc; });
@@ -558,15 +568,15 @@ function _estTablaTecnico(ot) {
   var kruskalMttr = (typeof kruskalWallis === 'function') ? kruskalWallis(porTecDuracion, 5) : null;
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">👷 Comparativa por Técnico</div>' +
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Solo correctivos actuales (el historial de Excel no trae quién hizo el trabajo). % documentado = OT cerradas con "Solución" registrada. % reingreso = mismo equipo+componente vuelve a fallar dentro de 7 días (excluye consumibles de desgaste esperado). Solo técnicos con 15+ OT — con menos, el % no significa nada.</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Solo correctivos actuales (el historial de Excel no trae quién hizo el trabajo). % documentado = OT cerradas con "Solución" registrada. % reingreso = mismo equipo+componente vuelve a fallar dentro de 7 días (excluye consumibles de desgaste esperado). Solo técnicos con 15+ OT — con menos, el % no significa nada. El IC95% (Wilson) debajo de cada % muestra el rango real dado el tamaño de muestra — con pocas OT, dos técnicos que parecen distintos pueden no serlo.</div>' +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>OT cerradas</th><th>% documentado</th><th>% reingreso ≤7d</th></tr>' +
     (lista.length ? lista.map(function (t) {
       var colDoc = t.pctDoc < 50 ? 'var(--danger)' : t.pctDoc < 80 ? 'var(--w)' : 'var(--ok)';
       var colReing = t.pctReing == null ? 'var(--tx3)' : t.pctReing >= 15 ? 'var(--danger)' : 'var(--ok)';
       return '<tr><td style="font-weight:600">' + escapeHtml(t.nombre) + '</td>' +
         '<td style="text-align:center">' + t.total + '</td>' +
-        '<td style="text-align:center;font-weight:700;color:' + colDoc + '">' + t.pctDoc + '%</td>' +
-        '<td style="text-align:center;font-weight:700;color:' + colReing + '">' + (t.pctReing == null ? '—' : t.pctReing + '%') + '</td></tr>';
+        '<td style="text-align:center;font-weight:700;color:' + colDoc + '">' + t.pctDoc + '%' + (t.icDoc ? '<div style="font-size:9.5px;font-weight:400;color:var(--tx3)">IC95%: ' + t.icDoc.lo + '–' + t.icDoc.hi + '%</div>' : '') + '</td>' +
+        '<td style="text-align:center;font-weight:700;color:' + colReing + '">' + (t.pctReing == null ? '—' : t.pctReing + '%' + (t.icReing ? '<div style="font-size:9.5px;font-weight:400;color:var(--tx3)">IC95%: ' + t.icReing.lo + '–' + t.icReing.hi + '%</div>' : '')) + '</td></tr>';
     }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--tx3)">Sin técnicos con 15+ OT cerradas todavía</td></tr>') +
     '</table></div>' +
     '<div style="font-size:10px;color:var(--tx3);margin-top:8px">No mide calidad del trabajo, solo constancia escrita y si la reparación aguantó. Un % bajo amerita conversación de terreno, no una conclusión directa.</div>' +

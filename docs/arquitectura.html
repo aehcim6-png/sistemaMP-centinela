@@ -2517,6 +2517,21 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   distintos. Nunca reemplaza la I-MR. Verificado en navegador (Playwright: ambas cartas muestran los mismos $
   Total por mes).</p>
 
+  <h3>76. Intervalo de Confianza de Wilson para proporciones (2026-09-21)</h3>
+  <p><code>intervaloConfianzaMTBF</code>/<code>errorEstandarMTTR</code> ya dejaron de mostrar tasas y promedios sin
+  margen de error — pero los porcentajes del sistema ("% documentado", "% reingreso" en Estadística → Por
+  Técnico) seguían siendo un número puntual. Con muestra chica (n=15, el mínimo ya exigido), un 80% observado
+  puede en realidad estar entre 55% y 93%.</p>
+  <p>Wilson (1927) es el intervalo de confianza estándar para una proporción — mejor que la aproximación normal
+  simple (Wald) para n chico o p cerca de 0%/100% (recomendado por Agresti &amp; Coull 1998):
+  <code>centro = (p̂ + z²/(2n)) / (1 + z²/n)</code>, <code>margen = z·√(p̂(1−p̂)/n + z²/(4n²)) / (1 + z²/n)</code>.</p>
+  <p><b>Verificado</b> contra <code>statsmodels.stats.proportion.proportion_confint(method='wilson')</code> en 6
+  casos, incluidos los extremos p=0%/100% con n=15: coincide a 4 decimales en todos. 4 tests nuevos
+  (<code>wilsonIC95.test.js</code>).</p>
+  <p>Integrado en Estadística → Por Técnico, debajo de "% documentado" y "% reingreso ≤7d". Mismo principio que
+  MTBF/MTTR: nunca mostrar una precisión que la muestra no respalda. Verificado en navegador (Playwright:
+  13/15→87%, IC95%=62.1–96.3%, idéntico al cálculo puro).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

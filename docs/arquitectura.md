@@ -4636,6 +4636,39 @@ en navegador (Playwright: ambas cartas muestran exactamente los mismos $
 Total por mes, confirmando que EWMA reprocesa la misma fuente real, no una
 propia).
 
+### 76. Intervalo de Confianza de Wilson para proporciones (2026-09-21)
+
+`intervaloConfianzaMTBF`/`errorEstandarMTTR` ya dejaron de mostrar tasas y
+promedios sin margen de error — pero los **porcentajes** del sistema
+("% documentado", "% reingreso" en `_estTablaTecnico`, estadistica.js)
+seguían siendo un número puntual. Con muestra chica (n=15, el mínimo que
+ya exige esa tabla), un 80% observado puede en realidad estar entre 55% y
+93% — una diferencia enorme que no se veía.
+
+Wilson (1927) es el intervalo de confianza estándar para una proporción —
+mejor que la aproximación normal simple (Wald) para n chico o p cerca de
+0%/100%, donde Wald puede dar límites fuera de [0,1] o ser demasiado
+angosto (recomendado sobre Wald por Agresti & Coull 1998):
+
+```
+p̂ = x/n
+centro = (p̂ + z²/(2n)) / (1 + z²/n)
+margen = z·√(p̂(1−p̂)/n + z²/(4n²)) / (1 + z²/n)
+IC95% = [centro − margen, centro + margen]     (z=1.96)
+```
+
+**Verificado** contra `statsmodels.stats.proportion.proportion_confint`
+(method='wilson') en 6 casos, incluidos los extremos p=0% y p=100% con
+n=15 (donde la aproximación normal simple se rompe): coincide a 4
+decimales en todos. 4 tests nuevos (`wilsonIC95.test.js`).
+
+Integrado en Estadística → Por Técnico, debajo de "% documentado" y "%
+reingreso ≤7d": ej. "87% / IC95%: 62.1–96.3%". Mismo principio que ya
+aplican MTBF/MTTR: nunca mostrar una precisión que la muestra no respalda
+— con pocas OT, dos técnicos que parecen distintos pueden no serlo en
+realidad. Verificado en navegador (Playwright: 13/15 → 87%,
+IC95%=62.1–96.3%, idéntico al cálculo puro).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

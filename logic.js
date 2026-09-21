@@ -816,6 +816,37 @@ function errorEstandarMTTR(duraciones,confianza){
   };
 }
 
+// ═══ INTERVALO DE CONFIANZA DE WILSON PARA UNA PROPORCIÓN (2026-09-21) ═══
+// intervaloConfianzaMTBF/errorEstandarMTTR (arriba) ya dejaron de mostrar
+// tasas y promedios sin margen de error — pero los PORCENTAJES del sistema
+// ("% documentado", "% reingreso", etc., ver _estTablaTecnico en
+// estadistica.js) siguen siendo un número puntual. Con muestra chica (el
+// mínimo actual es n=15), un 80% observado puede en realidad estar entre
+// 55% y 93% — una diferencia enorme que hoy no se ve.
+//
+// Wilson (1927) es el intervalo de confianza estándar para una proporción
+// — mejor que la aproximación normal simple (Wald) para n chico o p cerca
+// de 0%/100%, donde Wald puede dar límites fuera de [0,1] o ser demasiado
+// angosto (recomendado sobre Wald por Agresti & Coull 1998):
+//   centro = (p̂ + z²/(2n)) / (1 + z²/n)
+//   margen = z·√(p̂(1−p̂)/n + z²/(4n²)) / (1 + z²/n)
+// Verificado contra statsmodels.stats.proportion.proportion_confint
+// (method='wilson') en 6 casos, incluidos los extremos p=0% y p=100% con
+// n=15 (donde Wald se rompe): coincide a 4 decimales en todos.
+function wilsonIC95(x,n){
+  if(!(n>0)||x==null||x<0||x>n)return null;
+  var z=1.96;
+  var pHat=x/n;
+  var denom=1+(z*z)/n;
+  var centro=(pHat+(z*z)/(2*n))/denom;
+  var margen=z*Math.sqrt(pHat*(1-pHat)/n+(z*z)/(4*n*n))/denom;
+  return{
+    pct:Math.round(pHat*1000)/10,
+    lo:Math.round(Math.max(0,centro-margen)*1000)/10,
+    hi:Math.round(Math.min(1,centro+margen)*1000)/10
+  };
+}
+
 // ═══ BONDAD DE AJUSTE (R²) DE UNA REGRESIÓN LINEAL SIMPLE ═══ — la
 // proyección de desgaste de neumáticos (neuProyeccion, index.html) ajusta
 // una recta a las últimas mediciones de remanente y proyecta cuándo se
@@ -5890,7 +5921,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
