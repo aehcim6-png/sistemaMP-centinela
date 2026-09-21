@@ -4669,6 +4669,41 @@ aplican MTBF/MTTR: nunca mostrar una precisión que la muestra no respalda
 realidad. Verificado en navegador (Playwright: 13/15 → 87%,
 IC95%=62.1–96.3%, idéntico al cálculo puro).
 
+### 77. Test de Levene (Brown-Forsythe) — variabilidad del MTTR entre técnicos (2026-09-21)
+
+`anovaUnFactor`/`kruskalWallis` (arriba) responden "¿el MTTR
+promedio/mediana difiere entre técnicos?" — pero ninguno dice si un
+técnico es **inconsistente** (a veces muy rápido, a veces muy lento)
+frente a otro que simplemente es uniformemente más lento. Son problemas
+operativos distintos: uno pide supervisión/estandarización, el otro
+capacitación o reasignación de tareas. Levene prueba si la
+**variabilidad** (no el centro) difiere entre grupos.
+
+Variante Brown-Forsythe (centrada en la mediana, no en la media) — la
+versión robusta recomendada cuando los datos no son normales, que es
+justo el caso ya documentado del MTTR (`analisisMTTRLogNormal`):
+
+```
+Z_ij = |X_ij − mediana_i|
+W = [(N−k)/(k−1)] × [Σnᵢ(Z̄ᵢ−Z̄)²] / [ΣΣ(Z_ij−Z̄ᵢ)²]
+```
+
+Bajo H0, W sigue una F(k−1, N−k) — reusa DIRECTAMENTE `_pValorF`, la misma
+función que ya usa `anovaUnFactor`, sin inventar una distribución nueva.
+`medianaPositiva` (ya existente) centra cada grupo.
+
+**Verificado** contra `scipy.stats.levene(center='median')`: W=17.0832
+idéntico, p coincide a 6 decimales. 5 tests nuevos
+(`levenePruebaVarianzas.test.js`).
+
+Integrado en Estadística → Por Técnico, tercer bloque junto al ANOVA y
+Kruskal-Wallis (misma `porTecDuracion` ya computada ahí, pregunta
+distinta). Verificado en navegador (Playwright, caso ilustrativo real: 3
+técnicos con la misma mediana de MTTR —ANOVA p=0.91 y Kruskal-Wallis no
+significativo, ninguno detecta diferencia— pero Levene sí detecta que uno
+de ellos es mucho más inconsistente, W=16.964, p=3.98e-6, exactamente el
+hueco que esta feature cierra).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

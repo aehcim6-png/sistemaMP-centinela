@@ -566,6 +566,13 @@ function _estTablaTecnico(ot) {
   // compara los mismos grupos por RANGOS, sin asumir normalidad — chequeo
   // de robustez independiente sobre la MISMA pregunta (kruskalWallis, logic.js).
   var kruskalMttr = (typeof kruskalWallis === 'function') ? kruskalWallis(porTecDuracion, 5) : null;
+  // Levene/Brown-Forsythe (2026-09-21): ANOVA y Kruskal-Wallis (arriba)
+  // responden si el CENTRO (promedio/mediana) del MTTR difiere entre
+  // técnicos. Ninguno dice si un técnico es INCONSISTENTE (a veces muy
+  // rápido, a veces muy lento) frente a otro uniformemente más lento —
+  // problemas operativos distintos. Levene prueba si la VARIABILIDAD
+  // difiere (levenePruebaVarianzas, logic.js).
+  var leveneMttr = (typeof levenePruebaVarianzas === 'function') ? levenePruebaVarianzas(porTecDuracion, 5) : null;
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
     '<div class="chart-t">👷 Comparativa por Técnico</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Solo correctivos actuales (el historial de Excel no trae quién hizo el trabajo). % documentado = OT cerradas con "Solución" registrada. % reingreso = mismo equipo+componente vuelve a fallar dentro de 7 días (excluye consumibles de desgaste esperado). Solo técnicos con 15+ OT — con menos, el % no significa nada. El IC95% (Wilson) debajo de cada % muestra el rango real dado el tamaño de muestra — con pocas OT, dos técnicos que parecen distintos pueden no serlo.</div>' +
@@ -582,7 +589,36 @@ function _estTablaTecnico(ot) {
     '<div style="font-size:10px;color:var(--tx3);margin-top:8px">No mide calidad del trabajo, solo constancia escrita y si la reparación aguantó. Un % bajo amerita conversación de terreno, no una conclusión directa.</div>' +
     '</div>' +
     _estAnovaMttrHTML(anovaMttr) +
-    _estKruskalMttrHTML(kruskalMttr);
+    _estKruskalMttrHTML(kruskalMttr) +
+    _estLeveneMttrHTML(leveneMttr);
+}
+
+// Bloque Levene/Brown-Forsythe — ¿la VARIABILIDAD (no el promedio/mediana)
+// del MTTR difiere entre técnicos? (2026-09-21).
+function _estLeveneMttrHTML(lv) {
+  if (!lv) return '';
+  var col = lv.significativo ? 'var(--danger)' : 'var(--tx3)';
+  var veredicto = lv.significativo
+    ? 'Al menos un técnico tiene una variabilidad real y distinta (95% de confianza) — más allá de si su promedio/mediana es más alto o más bajo.'
+    : 'Sin diferencia real de variabilidad entre técnicos (95% de confianza) — ninguno es más inconsistente que el resto.';
+  return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">📏 Levene: ¿variabilidad distinta entre técnicos?</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">El ANOVA y el Kruskal-Wallis de arriba comparan el CENTRO del MTTR (promedio o mediana) — pero un técnico puede tener el mismo típico y aun así ser mucho más inconsistente (a veces muy rápido, a veces muy lento), lo cual es un problema operativo distinto (supervisión/estandarización, no capacitación). Compara el desvío de cada reparación respecto a la mediana de su propio técnico.</div>' +
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">' +
+    '<div><div style="font-size:10px;color:var(--tx3)">W</div><div style="font-size:18px;font-weight:700;color:' + col + '">' + lv.W + '</div></div>' +
+    '<div><div style="font-size:10px;color:var(--tx3)">p-valor</div><div style="font-size:18px;font-weight:700;color:' + col + '">' + (lv.pValor < 0.0001 ? lv.pValor.toExponential(2) : Math.round(lv.pValor * 10000) / 10000) + '</div></div>' +
+    '<div><div style="font-size:10px;color:var(--tx3)">gl (entre, dentro)</div><div style="font-size:18px;font-weight:700">' + lv.glEntre + ', ' + lv.glDentro + '</div></div>' +
+    '</div>' +
+    '<div style="font-size:12px;font-weight:600;color:' + col + ';margin-bottom:10px">' + veredicto + '</div>' +
+    '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR mediana</th><th>Desvío típico vs. su mediana</th></tr>' +
+    lv.grupos.map(function (g) {
+      return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
+        '<td style="text-align:center">' + g.n + '</td>' +
+        '<td style="text-align:center">' + g.mediana + 'h</td>' +
+        '<td style="text-align:center;font-weight:700">±' + g.desvAbsMediana + 'h</td></tr>';
+    }).join('') +
+    '</table></div>' +
+    '</div>';
 }
 
 // Bloque Kruskal-Wallis — chequeo de robustez no paramétrico sobre la

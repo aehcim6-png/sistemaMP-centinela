@@ -1231,6 +1231,66 @@ function kruskalWallis(grupos,minPorGrupo){
   };
 }
 
+// ═══ TEST DE LEVENE (BROWN-FORSYTHE) — VARIABILIDAD ENTRE GRUPOS (2026-09-21) ═══
+// anovaUnFactor/kruskalWallis (arriba) responden "¿el MTTR promedio/mediana
+// difiere entre técnicos?" — pero ninguno de los dos dice si un técnico es
+// INCONSISTENTE (a veces muy rápido, a veces muy lento) frente a otro que
+// simplemente es uniformemente más lento. Son problemas operativos
+// distintos: uno pide supervisión/estandarización, el otro capacitación o
+// reasignación. Levene prueba si la VARIABILIDAD (no el centro) difiere
+// entre grupos.
+//
+// Variante Brown-Forsythe (centrada en la mediana, no en la media) —
+// la versión robusta recomendada cuando los datos no son normales, que es
+// justo el caso ya documentado del MTTR (analisisMTTRLogNormal):
+//   Z_ij = |X_ij − mediana_i|
+//   W = [(N−k)/(k−1)] × [Σnᵢ(Z̄ᵢ−Z̄)²] / [ΣΣ(Z_ij−Z̄ᵢ)²]
+// Bajo H0, W sigue una F(k−1, N−k) — reusa DIRECTAMENTE _pValorF, la misma
+// función que ya usa anovaUnFactor, sin inventar una distribución nueva.
+// medianaPositiva (ya existente) centra cada grupo.
+//
+// Verificado contra scipy.stats.levene(center='median'): W=17.0832
+// idéntico, p coincide a 6 decimales.
+function levenePruebaVarianzas(grupos,minPorGrupo){
+  var min=minPorGrupo||5;
+  var nombres=Object.keys(grupos||{}).filter(function(g){
+    var v=(grupos[g]||[]).filter(function(x){return x!=null&&isFinite(x)&&x>0;});
+    return v.length>=min;
+  });
+  if(nombres.length<2)return null;
+  var datosPorGrupo=nombres.map(function(g){return(grupos[g]||[]).filter(function(x){return x!=null&&isFinite(x)&&x>0;});});
+  var zPorGrupo=datosPorGrupo.map(function(d){
+    var med=medianaPositiva(d);
+    return d.map(function(x){return Math.abs(x-med);});
+  });
+  var N=0,k=nombres.length,todosZ=[];
+  zPorGrupo.forEach(function(z){N+=z.length;todosZ=todosZ.concat(z);});
+  var granMediaZ=todosZ.reduce(function(s,v){return s+v;},0)/N;
+  var ssEntre=0,ssDentro=0;
+  var gruposInfo=nombres.map(function(g,i){
+    var z=zPorGrupo[i];
+    var n=z.length;
+    var mediaZ=z.reduce(function(s,v){return s+v;},0)/n;
+    ssEntre+=n*Math.pow(mediaZ-granMediaZ,2);
+    var sumSqDentro=z.reduce(function(s,v){return s+Math.pow(v-mediaZ,2);},0);
+    ssDentro+=sumSqDentro;
+    return{grupo:g,n:n,mediana:medianaPositiva(datosPorGrupo[i]),desvAbsMediana:Math.round(mediaZ*100)/100};
+  });
+  var glEntre=k-1,glDentro=N-k;
+  if(glDentro<1)return null;
+  var msEntre=ssEntre/glEntre;
+  var msDentro=ssDentro/glDentro;
+  var W=msDentro>0?msEntre/msDentro:(msEntre>0?Infinity:0);
+  var pValor=isFinite(W)?_pValorF(W,glEntre,glDentro):0;
+  return{
+    grupos:gruposInfo.sort(function(a,b){return b.desvAbsMediana-a.desvAbsMediana;}),
+    k:k,N:N,glEntre:glEntre,glDentro:glDentro,
+    W:Math.round(W*1000)/1000,
+    pValor:pValor,
+    significativo:pValor<0.05
+  };
+}
+
 // ═══ AJUSTE WEIBULL — reemplaza el supuesto de tasa de falla CONSTANTE de
 // confiabilidadReal (de arriba) por la forma real de falla de CADA equipo,
 // estimada de sus propios intervalos entre fallas (2026-09-11, pedido del
@@ -5921,7 +5981,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
