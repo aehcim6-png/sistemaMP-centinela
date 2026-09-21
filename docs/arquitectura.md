@@ -4704,6 +4704,44 @@ significativo, ninguno detecta diferencia— pero Levene sí detecta que uno
 de ellos es mucho más inconsistente, W=16.964, p=3.98e-6, exactamente el
 hueco que esta feature cierra).
 
+### 78. Mann-Kendall + pendiente de Sen — tendencia de Disponibilidad (2026-09-21)
+
+"Tendencia Disponibilidad — Últimos 6 Meses" (Dashboard) era solo un
+gráfico de barras con el promedio mensual — sin ningún veredicto sobre si
+esa tendencia es real o es ruido normal mes a mes. Con solo 6 puntos, una
+barra más alta al final puede ser una mejora real o pura casualidad.
+
+Mann-Kendall (Mann 1945/Kendall 1975) es el test no paramétrico estándar
+para tendencia monotónica en series de tiempo cortas — no asume que la
+tendencia sea lineal (a diferencia de una regresión) ni que los datos sean
+normales, solo mira el signo de cada comparación par a par, por eso es
+robusto con pocos puntos y ante un mes atípico:
+
+```
+S = Σᵢ<ⱼ sign(xⱼ−xᵢ)
+Var(S) = [n(n−1)(2n+5) − Σt(t−1)(2t+5)] / 18     (corrección por empates, Gilbert 1987)
+Z = (S∓1) / √Var(S)
+```
+
+La **pendiente de Sen** es la mediana de todas las pendientes par a par
+`(xⱼ−xᵢ)/(j−i)` — estimador robusto de cuánto cambia por mes, no
+distorsionado por un outlier (a diferencia de la pendiente de una
+regresión de mínimos cuadrados).
+
+**Verificado** contra la librería `pymannkendall` (`original_test`) en 3
+series (creciente, ruido, con empates): S, Var(S), Z y pendiente de Sen
+coinciden EXACTAMENTE en los tres casos. 6 tests nuevos
+(`mannKendallTendencia.test.js`).
+
+Integrado en Dashboard, debajo del gráfico de barras existente: "Tendencia
+real: mejorando/empeorando/sin tendencia clara (95% confianza, Sen:
+±X.Xpp/mes)". Requiere al menos 4 meses con dato real (de los 6 posibles).
+Verificado en navegador (Playwright: serie de referencia inyectada vía
+`dispCalc`, verdict "mejorando" con la pendiente de Sen correcta,
+verificado con `toContainText` — la carrera contra el refresco de fondo ya
+documentada en esta sesión revierte el estado poco después, mismo patrón
+ya visto en otras features, no invalida la verificación).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

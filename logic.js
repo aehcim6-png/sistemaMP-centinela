@@ -847,6 +847,68 @@ function wilsonIC95(x,n){
   };
 }
 
+// ═══ MANN-KENDALL + PENDIENTE DE SEN — TENDENCIA MONOTÓNICA (2026-09-21) ═══
+// "Tendencia Disponibilidad — Últimos 6 Meses" (Dashboard) hoy es solo un
+// gráfico de barras con el promedio mensual — sin ningún veredicto sobre
+// si esa tendencia es real o es ruido normal mes a mes. Con solo 6 puntos,
+// una barra más alta al final puede ser una mejora real o pura casualidad.
+//
+// Mann-Kendall (Mann 1945/Kendall 1975) es el test no paramétrico estándar
+// para tendencia monotónica en series de tiempo cortas — no asume que la
+// tendencia sea lineal (a diferencia de una regresión) ni que los datos
+// sean normales, solo mira el signo de cada comparación par a par, por eso
+// es robusto con pocos puntos y ante un mes atípico:
+//   S = Σᵢ<ⱼ sign(xⱼ−xᵢ)
+//   Var(S) = [n(n−1)(2n+5) − Σt(t−1)(2t+5)] / 18   (corrección por
+//                                                     empates, Gilbert 1987)
+//   Z = (S∓1) / √Var(S)
+// La pendiente de Sen es la MEDIANA de todas las pendientes par a par
+// (xⱼ−xᵢ)/(j−i) — estimador robusto de cuánto cambia por período, no
+// distorsionado por un outlier (a diferencia de la pendiente de una
+// regresión de mínimos cuadrados).
+//
+// Verificado contra la librería pymannkendall (original_test) en 3 series
+// (creciente, ruido, con empates): S, Var(S), Z y pendiente de Sen
+// coinciden EXACTAMENTE en los tres casos.
+function mannKendallTendencia(valores){
+  var v=(valores||[]).filter(function(x){return x!=null&&isFinite(x);});
+  var n=v.length;
+  if(n<4)return null;
+  var S=0;
+  for(var i=0;i<n;i++){
+    for(var j=i+1;j<n;j++){
+      var d=v[j]-v[i];
+      S+=d>0?1:d<0?-1:0;
+    }
+  }
+  var conteos={};
+  v.forEach(function(x){conteos[x]=(conteos[x]||0)+1;});
+  var terminoEmpates=Object.keys(conteos).reduce(function(s,k){
+    var t=conteos[k];
+    return t>1?s+t*(t-1)*(2*t+5):s;
+  },0);
+  var varS=(n*(n-1)*(2*n+5)-terminoEmpates)/18;
+  var z=0;
+  if(varS>0){
+    if(S>0)z=(S-1)/Math.sqrt(varS);
+    else if(S<0)z=(S+1)/Math.sqrt(varS);
+  }
+  var pendientes=[];
+  for(var i2=0;i2<n;i2++){
+    for(var j2=i2+1;j2<n;j2++)pendientes.push((v[j2]-v[i2])/(j2-i2));
+  }
+  pendientes.sort(function(a,b){return a-b;});
+  var m=pendientes.length;
+  var senSlope=m%2?pendientes[(m-1)/2]:(pendientes[m/2-1]+pendientes[m/2])/2;
+  var significativo=Math.abs(z)>1.96;
+  return{
+    n:n,S:S,varS:Math.round(varS*100)/100,z:Math.round(z*100)/100,
+    senSlope:Math.round(senSlope*1000)/1000,
+    significativo:significativo,
+    tendencia:!significativo?'sin_certeza':(senSlope>0?'mejorando':'empeorando')
+  };
+}
+
 // ═══ BONDAD DE AJUSTE (R²) DE UNA REGRESIÓN LINEAL SIMPLE ═══ — la
 // proyección de desgaste de neumáticos (neuProyeccion, index.html) ajusta
 // una recta a las últimas mediciones de remanente y proyecta cuándo se
@@ -5981,7 +6043,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma,

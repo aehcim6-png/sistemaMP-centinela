@@ -812,6 +812,18 @@ export function renderDash(){
   });
   trendBlock+='</div>';
   trendBlock+='<div style="margin-top:8px;font-size:10px;color:var(--tx3)">Meta: '+meta+'% · Verde ≥ meta · Amarillo ≥ 70% · Rojo < 70%</div>';
+  // Mann-Kendall + pendiente de Sen (2026-09-21): el gráfico de barras de
+  // arriba no dice si la tendencia es real o ruido mes a mes — con solo 6
+  // puntos, una barra más alta al final puede ser casualidad. Test no
+  // paramétrico estándar para tendencia monotónica (mannKendallTendencia,
+  // logic.js), robusto a que la tendencia no sea lineal y a un mes
+  // atípico. Requiere al menos 4 meses con dato real.
+  var mkDisp=(typeof mannKendallTendencia==='function')?mannKendallTendencia(dispTrend6):null;
+  if(mkDisp){
+    var mkColor=mkDisp.tendencia==='mejorando'?'var(--ok)':mkDisp.tendencia==='empeorando'?'var(--danger)':'var(--tx3)';
+    var mkTexto=mkDisp.tendencia==='mejorando'?'Tendencia real: mejorando':mkDisp.tendencia==='empeorando'?'Tendencia real: empeorando':'Sin tendencia clara — la variación mes a mes es ruido normal';
+    trendBlock+='<div style="margin-top:6px;font-size:11px;font-weight:600;color:'+mkColor+'">'+mkTexto+(mkDisp.significativo?' (95% de confianza, Sen: '+(mkDisp.senSlope>0?'+':'')+mkDisp.senSlope+'pp/mes)':'')+'</div>';
+  }
   trendBlock+='</div>';
 
   // ═══ BLOQUE 4: EQUIPOS CON SALUD BAJA — mismo Score de Salud del Equipo que

@@ -2547,6 +2547,22 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   navegador (Playwright: caso donde ANOVA y Kruskal-Wallis no ven diferencia por tener la misma mediana, pero
   Levene sí detecta un técnico mucho más inconsistente, W=16.964, p=3.98e-6).</p>
 
+  <h3>78. Mann-Kendall + pendiente de Sen — tendencia de Disponibilidad (2026-09-21)</h3>
+  <p>"Tendencia Disponibilidad — Últimos 6 Meses" (Dashboard) era solo un gráfico de barras con el promedio
+  mensual — sin veredicto sobre si esa tendencia es real o ruido normal mes a mes. Con solo 6 puntos, una barra
+  más alta al final puede ser pura casualidad.</p>
+  <p>Mann-Kendall es el test no paramétrico estándar para tendencia monotónica en series cortas — no asume
+  linealidad ni normalidad, solo mira el signo de cada comparación par a par: <code>S = Σ sign(xⱼ−xᵢ) para i&lt;j</code>,
+  <code>Var(S) = [n(n−1)(2n+5) − Σt(t−1)(2t+5)] / 18</code> (corrección por empates, Gilbert 1987),
+  <code>Z = (S∓1) / √Var(S)</code>. La pendiente de Sen (mediana de todas las pendientes par a par) estima
+  cuánto cambia por mes, robusta a outliers.</p>
+  <p><b>Verificado</b> contra la librería <code>pymannkendall</code> (<code>original_test</code>) en 3 series:
+  S, Var(S), Z y pendiente de Sen coinciden exactamente. 6 tests nuevos
+  (<code>mannKendallTendencia.test.js</code>).</p>
+  <p>Integrado en Dashboard, debajo del gráfico de barras: "Tendencia real: mejorando/empeorando/sin tendencia
+  clara (95% confianza, Sen: ±X.Xpp/mes)". Requiere ≥4 meses con dato real. Verificado en navegador
+  (Playwright, con la carrera contra el refresco de fondo ya documentada en esta sesión).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
