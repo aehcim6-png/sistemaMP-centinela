@@ -4742,6 +4742,61 @@ verificado con `toContainText` — la carrera contra el refresco de fondo ya
 documentada en esta sesión revierte el estado poco después, mismo patrón
 ya visto en otras features, no invalida la verificación).
 
+### 79. Proyección de Consumo de Elementos de Desgaste — Cuchillas/GET (2026-09-23)
+
+Pedido real del usuario: un comparativo de cuánto se consume en elementos
+de desgaste (cuchillas de motoniveladora, entrecalzas/entredientes de
+cargador frontal, cantoneras/ripper de bulldozer) por semestre y año, para
+proyectar compra. Adjuntó como referencia una planilla propia de
+Neumáticos/Rodados que calcula el consumo con una **vida útil teórica
+asumida** (ej. "4.500 horas por neumático") multiplicada por horas
+trabajadas — explícitamente pidió ir más allá de ese enfoque.
+
+La diferencia real: `proyeccionElementosDesgaste` (logic.js) no asume una
+vida útil — usa la frecuencia real de cambios ya registrada en
+Correctivos. El texto libre de "síntoma" ya se clasifica con
+`_componenteDeSintoma` bajo la categoría `'GET / Cuchillas'` (cuchilla,
+entrediente, gets, entrecalza, ripper, canillera). Se agrupa por **tipo de
+equipo** (Motoniveladora/Cargador Frontal/Bulldozer) porque cada uno usa
+una pieza físicamente distinta aunque caigan en la misma categoría de
+componente — mismo criterio de "no mezclar peras con manzanas" que ya usa
+`analisisABCXYZRepuestos`. λ real = eventos reales ÷ meses de historial
+real de ESE tipo (mismo `_DEMANDA_MIN_MESES=3` que el resto de la familia
+demanda), proyectado ×6 y ×12.
+
+**Hallazgo al verificar contra los datos reales**: el clasificador
+`_componenteDeSintoma` tenía un hueco — reconocía "cuchilla"/"cuchillas"
+pero no "cuchillo"/"cuchillos", la misma pieza escrita en masculino por
+varios técnicos ("se cambia cuchillo", "CAMBIO DE CUCHILLOS"). 4 filas
+reales sin categoría hasta ahora. Se agregaron ambas variantes a la
+categoría `'GET / Cuchillas'` — y, como esa lista vive duplicada por
+necesidad en 3 Edge Functions (`whatsapp-webhook`, `alerta-pm`,
+`_shared/parseCorrectivo.ts`, cada una sin acceso de build a `logic.js`),
+se actualizaron las 3 en el mismo commit — el test
+`sincroniaComponenteBackend.test.js` ya existente lo habría bloqueado en
+CI si se hubiera olvidado alguna.
+
+No calcula costo proyectado: ningún elemento de este tipo tiene
+`precioUnit` real cargado en Stock hoy — mostrar un $ inventado sería peor
+que no mostrarlo. La proyección es de cantidad real, verificable contra el
+historial; el costo se puede agregar el día que exista un precio real
+cargado (nota visible en la propia vista).
+
+9 tests nuevos (`proyeccionElementosDesgaste.test.js`) + 1 archivo de test
+ya existente (`sincroniaComponenteBackend.test.js`) que pasó a cubrir la
+nueva palabra clave sin cambios. Integrado en Stock & Insumos → Repuestos
+(`rep.js`), como bloque fijo arriba de la tabla — no depende de que el
+usuario abra ningún modal. Verificado con datos reales de producción antes
+de escribir el código: Cargador Frontal ~4,7 cambios/mes (61 eventos en 13
+meses), Motoniveladora ~3,3/mes (43 eventos en 13 meses), Bulldozer ~0,4/mes
+(3 eventos en 8 meses, señal débil por poca muestra, mostrada igual con su
+`nMeses` real a la vista). Verificado en navegador (Playwright: `eq`/`ot`
+inyectados vía `S.s()`, tabla con Motoniveladora 8 cambios/4 meses→2/mes→12
+semestre/24 año y Cargador Frontal 4/4→1/mes→6/12, coincide exacto con la
+aritmética esperada, leído con `innerText()` — misma carrera de fondo ya
+documentada en la sección anterior afecta a screenshots tardíos, no a la
+lectura del DOM en el momento).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

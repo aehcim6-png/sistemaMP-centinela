@@ -2563,6 +2563,32 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   clara (95% confianza, Sen: ±X.Xpp/mes)". Requiere ≥4 meses con dato real. Verificado en navegador
   (Playwright, con la carrera contra el refresco de fondo ya documentada en esta sesión).</p>
 
+  <h3>79. Proyección de Consumo de Elementos de Desgaste — Cuchillas/GET (2026-09-23)</h3>
+  <p>Pedido real del usuario: un comparativo de cuánto se consume en elementos de desgaste (cuchillas de
+  motoniveladora, entrecalzas/entredientes de cargador frontal, cantoneras/ripper de bulldozer) por semestre y
+  año, para proyectar compra. Adjuntó como referencia una planilla propia que calcula el consumo con una
+  <b>vida útil teórica asumida</b> multiplicada por horas trabajadas — pidió explícitamente ir más allá de ese
+  enfoque.</p>
+  <p>La diferencia real: <code>proyeccionElementosDesgaste</code> (logic.js) no asume una vida útil — usa la
+  frecuencia real de cambios ya registrada en Correctivos, clasificada por <code>_componenteDeSintoma</code>
+  bajo <code>'GET / Cuchillas'</code>. Se agrupa por tipo de equipo (Motoniveladora/Cargador Frontal/Bulldozer),
+  porque cada uno usa una pieza físicamente distinta aunque caigan en la misma categoría. λ real = eventos
+  reales ÷ meses de historial real de ESE tipo (mismo <code>_DEMANDA_MIN_MESES=3</code> del resto de la
+  familia demanda), proyectado ×6 y ×12.</p>
+  <p><b>Hallazgo al verificar contra datos reales</b>: <code>_componenteDeSintoma</code> reconocía
+  "cuchilla"/"cuchillas" pero no "cuchillo"/"cuchillos" (misma pieza, masculino, 4 filas reales sin categoría).
+  Se agregaron ambas variantes — y como esa lista vive duplicada en 3 Edge Functions
+  (<code>whatsapp-webhook</code>, <code>alerta-pm</code>, <code>_shared/parseCorrectivo.ts</code>), se
+  actualizaron las 3 en el mismo commit; el test <code>sincroniaComponenteBackend.test.js</code> ya existente
+  lo habría bloqueado en CI si se hubiera olvidado alguna.</p>
+  <p>No calcula costo proyectado: ningún elemento de este tipo tiene <code>precioUnit</code> real cargado en
+  Stock hoy — mostrar un $ inventado sería peor que no mostrarlo. 9 tests nuevos
+  (<code>proyeccionElementosDesgaste.test.js</code>). Integrado en Stock &amp; Insumos → Repuestos, como bloque
+  fijo arriba de la tabla. Verificado contra datos reales de producción antes de escribir el código: Cargador
+  Frontal ~4,7 cambios/mes, Motoniveladora ~3,3/mes, Bulldozer ~0,4/mes (señal débil, mostrada igual con su
+  historial real a la vista). Verificado en navegador (Playwright, mismo patrón de carrera de fondo ya
+  documentado en la sección anterior).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

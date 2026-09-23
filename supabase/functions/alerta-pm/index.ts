@@ -137,7 +137,7 @@ const CATEGORIAS_COMPONENTE_ALERTA: [string, Keyword[]][] = [
     ['Sistema Hidráulico', ['hidraulico', 'hidráulico']],
     ['Sistema Eléctrico', ['electrico', 'eléctrico', 'elÃ©ctrico', 'eléctrica', 'electrica', 'bocina', 'conversor']],
     ['Aire Acondicionado', ['aire acondicionado', ' a/c ', 'a/c.', 'condensador', 'se carga ac', 'chequeo a/c', 'bajo flujo de a/c', 'sistema de ac', 'calefaccion']],
-    ['GET / Cuchillas', ['cuchilla', 'entrediente', 'gets', 'entrecalza', 'entrecalzas', 'ripper', 'riper', 'canillera', 'canilleras']],
+    ['GET / Cuchillas', ['cuchilla', 'cuchillo', 'cuchillos', 'entrediente', 'gets', 'entrecalza', 'entrecalzas', 'ripper', 'riper', 'canillera', 'canilleras']],
     ['Balde/Implemento', ['pasador del balde', 'pasador de balde', 'pasador balde', 'cambio de balde', 'desgaste del balde', 'balde nuevo', 'balde por rotura']],
     ['Biela/Pantógrafo', ['biela', 'pantografo', 'pantógrafo']],
     ['Tren de Rodaje', ['oruga', 'cadena', 'sprocket', 'sproket', 'zapata', 'rodillo', 'rueda tensora', 'rueda motriz', 'garra maestar', 'garra maestra']],

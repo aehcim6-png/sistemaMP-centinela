@@ -9,6 +9,7 @@ export function renderRep() {
   var stk = S.g('stk') || [];
   var lub = S.g('lub') || [];
   var eq = S.g('eq') || [];
+  var ot = S.g('ot') || [];
   var fEst = $('fRepEst')?.value || '';
   var fEq = $('fRepEq')?.value || '';
   var fBusq = $('fRepBusq')?.value || '';
@@ -91,6 +92,15 @@ export function renderRep() {
   var amarillos = rep.filter(function (r) { return r.estado.includes('🟡') }).length;
   var verdes = rep.filter(function (r) { return r.estado.includes('🟢') }).length;
 
+  // Proyección de consumo de Elementos de Desgaste — GET/Cuchillas (2026-09-23,
+  // pedido del usuario): cuchillas de motoniveladora, entrecalzas/entredientes
+  // de cargador frontal, cantoneras/ripper de bulldozer. proyeccionElementosDesgaste
+  // (logic.js) usa la frecuencia REAL de cambios ya registrados en Correctivos
+  // (texto libre de síntoma, clasificado por _componenteDeSintoma), no una vida
+  // útil teórica asumida — a diferencia de una planilla manual, cada número acá
+  // es verificable contra el historial real de la flota.
+  var proyDesgaste = typeof proyeccionElementosDesgaste === 'function' ? proyeccionElementosDesgaste(ot, eq) : [];
+
   var pg = _pagSlice('rep', fil);
   var is = CELL_INPUT_STYLE + ';font-size:11px;padding:2px';
 
@@ -98,6 +108,26 @@ export function renderRep() {
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Control de Repuestos</div>' +
     '<div class="sec-s">' + rep.length + ' componentes · Conectado con Predictivo</div></div>' +
     '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="resumenFlotaRep()">📊 Resumen</button> <button class="btn btn-o" onclick="syncRepStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sync Stock</button> <button class="btn btn-o" onclick="verOrdenesCompra()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Órdenes de Compra</button> <button class="btn btn-o" onclick="importRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos CSV</button></div></div>' +
+
+    // Proyección de Elementos de Desgaste (GET/Cuchillas) — real, desde el
+    // historial de Correctivos, no un supuesto de vida útil teórica.
+    (proyDesgaste.length ?
+    '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">📐 Proyección de Elementos de Desgaste — Cuchillas / Entrecalzas / GET</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Frecuencia real de cambios registrados en Correctivos (cuchillas de motoniveladora, entrecalzas/entredientes de cargador frontal, cantoneras/ripper de bulldozer) — proyectada a semestre y año. No es una vida útil teórica asumida: es lo que la flota viene consumiendo de verdad, verificable contra el historial.</div>' +
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:24%">Tipo de equipo</th><th style="width:16%">N° cambios</th><th style="width:16%">Meses historial</th><th style="width:14%">Cambios/mes</th><th style="width:15%">Proyección semestre</th><th style="width:15%">Proyección año</th></tr>' +
+    proyDesgaste.map(function (r) {
+      if (r.lambda == null) return '<tr style="opacity:.55"><td style="font-weight:600">' + escapeHtml(r.tipo) + '</td><td class="mono" style="text-align:center">' + r.nEventos + '</td><td colspan="4" style="text-align:center;color:var(--tx3);font-size:10px">Sin historial suficiente aún (mínimo 3 meses)</td></tr>';
+      return '<tr><td style="font-weight:600">' + escapeHtml(r.tipo) + '</td>' +
+        '<td class="mono" style="text-align:center">' + r.nEventos + '</td>' +
+        '<td class="mono" style="text-align:center">' + r.nMeses + '</td>' +
+        '<td class="mono" style="text-align:center;font-weight:700">' + r.lambda + '</td>' +
+        '<td class="mono" style="text-align:center;font-weight:700;color:var(--ac)">' + r.proyeccionSemestre + '</td>' +
+        '<td class="mono" style="text-align:center;font-weight:700;color:var(--ac)">' + r.proyeccionAnual + '</td></tr>';
+    }).join('') +
+    '</table></div>' +
+    '<div style="font-size:10px;color:var(--tx3);padding:6px 2px 0">No incluye costo proyectado: ningún elemento de este tipo tiene precio unitario real cargado en Stock hoy — cargalo en Repuestos (N° de parte + precio) para que la proyección de gasto se calcule sola, en vez de mostrar un número inventado.</div>' +
+    '</div>'
+    : '') +
 
     // Semáforo resumen
     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">' +
