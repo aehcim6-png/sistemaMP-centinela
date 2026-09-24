@@ -3887,51 +3887,97 @@ function analisisDemandaRepuestos(movimientos){
 }
 
 // ═══ PROYECCIÓN DE CONSUMO DE ELEMENTOS DE DESGASTE — GET/CUCHILLAS (2026-09-23) ═══
-// Pedido del usuario: un comparativo real de cuánto se gasta en elementos de
-// desgaste (cuchillas de motoniveladora, entrecalzas/entredientes de cargador
-// frontal, cantoneras/ripper de bulldozer) por semestre y año, para proyectar
-// compra — mismo tipo de pregunta que ya responde analisisDemandaRepuestos
-// para repuestos con nParte, pero acá el dato real no vive en movimientos_stock
-// (nadie carga estos cambios como movimiento de stock con nParte) sino en el
-// texto libre de "síntoma" de Correctivos, ya clasificado por
-// _componenteDeSintoma bajo la categoría 'GET / Cuchillas' (cuchilla,
-// entrediente, gets, entrecalza, ripper, canillera — ver _CATEGORIAS_COMPONENTE
-// más abajo). Se agrupa por TIPO de equipo (Motoniveladora/Cargador Frontal/
-// Bulldozer, ficha de 'equipos') porque cada uno usa una pieza físicamente
-// distinta aunque caigan en la misma categoría de componente — mismo criterio
-// de "no mezclar peras con manzanas" que ya usa analisisABCXYZRepuestos. λ
-// real = eventos reales ÷ meses de historial real de ESE tipo (mismo
-// _DEMANDA_MIN_MESES que el resto de la familia demanda — nunca se proyecta
-// con menos de 3 meses). No calcula costo: ningún repuesto de este tipo tiene
-// precioUnit real cargado en Stock hoy — mostrar un $ inventado sería peor que
-// no mostrar nada; la proyección es de CANTIDAD real, verificable contra el
-// historial.
+// Pedido del usuario: un comparativo real de cuánto se consume/compra en
+// elementos de desgaste (cuchillas, entrecalzas/entredientes, cantoneras,
+// ripper, zapatas, rodillos, oruga/cadena, deslizaderas, canilleras,
+// punteras) por semana/mes/semestre/año, para proyectar compra — mismo tipo
+// de pregunta que ya responde analisisDemandaRepuestos para repuestos con
+// nParte, pero acá el dato real no vive en movimientos_stock (nadie carga
+// estos cambios como movimiento de stock con nParte) sino en el texto libre
+// de "síntoma" de Correctivos.
+//
+// Se agrupa por TIPO de equipo + PIEZA específica (2026-09-24, corrección
+// pedida por el usuario tras revisar el primer Excel de esta misma
+// proyección: "Y NI TIENE CAMBIO DE CANTONERA, PUNTERA, CUCHILLA... O RIPPER
+// DE BULLDOZER" — juntar todo en una sola categoría por tipo de equipo era
+// mezclar piezas que se compran por separado y a precio distinto). Por eso
+// usa _SUBPIEZAS_DESGASTE, un clasificador PROPIO y más fino que
+// _CATEGORIAS_COMPONENTE — ese último junta cuchilla/entrecalza/ripper/
+// canillera bajo 'GET / Cuchillas' y zapata/rodillo/oruga bajo 'Tren de
+// Rodaje', que es la categorización correcta para el resto del sistema
+// (Kaplan-Meier, MCF, Crow-AMSAA agrupan por MODO DE FALLA), pero acá hace
+// falta la PIEZA concreta a comprar, no el modo de falla.
+//
+// λ real = eventos reales ÷ meses de historial real de ESA pieza en ESE tipo
+// de equipo (mismo _DEMANDA_MIN_MESES que el resto de la familia demanda —
+// nunca se proyecta con menos de 3 meses NI con menos de 3 eventos). El
+// consumo (semana/mes/semestre/año) se redondea siempre a número entero
+// (Math.round): no se compra media cuchilla — mismo criterio verificado a
+// mano contra el Excel que ya validó el usuario. "lambda" (la tasa
+// cambios/mes) sí queda con decimales porque es un promedio estadístico, no
+// una cantidad a comprar.
+//
+// No calcula costo: ningún repuesto de este tipo tiene precioUnit real
+// cargado en Stock hoy — mostrar un $ inventado sería peor que no mostrar
+// nada; la proyección es de CANTIDAD real, verificable contra el historial.
+var _SUBPIEZAS_DESGASTE=[
+  ['Cuchilla',['cuchilla','cuchillo','cuchillos']],
+  ['Ripper',['ripper','riper']],
+  ['Cantonera',['cantonera']],
+  ['Entrecalza',['entrecalza']],
+  ['Entrediente/GETS',['entrediente','gets']],
+  ['Canillera',['canillera']],
+  ['Puntera',['puntera']],
+  ['Zapata',['zapata']],
+  ['Rodillo',['rodillo']],
+  ['Oruga/Cadena',['oruga']],
+  ['Deslizadera',['deslizadera']]
+];
+function _subpiezasDeSintoma(sintoma){
+  var s=(sintoma||'').toLowerCase();
+  var out=[];
+  for(var i=0;i<_SUBPIEZAS_DESGASTE.length;i++){
+    var nombre=_SUBPIEZAS_DESGASTE[i][0],keys=_SUBPIEZAS_DESGASTE[i][1];
+    for(var j=0;j<keys.length;j++){
+      if(s.indexOf(keys[j])!==-1){out.push(nombre);break;}
+    }
+  }
+  return out;
+}
 function proyeccionElementosDesgaste(correctivos,equipos){
   var tipoPorSigla={};
   (equipos||[]).forEach(function(e){if(e&&e.sigla)tipoPorSigla[e.sigla]=e.tipo||'';});
-  var eventos=(correctivos||[]).filter(function(c){
-    return c&&c.sigla&&c.fecha&&typeof _componenteDeSintoma==='function'&&_componenteDeSintoma(c.sintoma)==='GET / Cuchillas';
-  });
-  if(!eventos.length)return[];
-  var porTipo={};
-  eventos.forEach(function(c){
+  var grupos={};
+  (correctivos||[]).forEach(function(c){
+    if(!c||!c.sigla||!c.fecha)return;
     var tipo=tipoPorSigla[c.sigla];
     if(!tipo)return;
-    (porTipo[tipo]=porTipo[tipo]||[]).push(c.fecha.slice(0,7));
+    _subpiezasDeSintoma(c.sintoma).forEach(function(pieza){
+      var k=tipo+'|'+pieza;
+      (grupos[k]=grupos[k]||{tipo:tipo,pieza:pieza,meses:[]}).meses.push(c.fecha.slice(0,7));
+    });
   });
-  return Object.keys(porTipo).sort().map(function(tipo){
-    var meses=porTipo[tipo].slice().sort();
+  return Object.keys(grupos).map(function(k){
+    var g=grupos[k];
+    var meses=g.meses.slice().sort();
+    var nEventos=meses.length;
     var mesInicio=meses[0],mesFin=meses[meses.length-1];
-    var mesesTotales=_contarMesesEntre(mesInicio,mesFin);
-    if(mesesTotales<_DEMANDA_MIN_MESES)return{tipo:tipo,nEventos:meses.length,nMeses:mesesTotales,lambda:null,proyeccionSemestre:null,proyeccionAnual:null};
-    var lambda=meses.length/mesesTotales;
+    var nMeses=_contarMesesEntre(mesInicio,mesFin);
+    if(nMeses<_DEMANDA_MIN_MESES||nEventos<3){
+      return{tipo:g.tipo,pieza:g.pieza,nEventos:nEventos,nMeses:nMeses,lambda:null,
+        consumoSemana:null,consumoMes:null,consumoSemestre:null,consumoAnual:null};
+    }
+    var lambda=nEventos/nMeses;
     return{
-      tipo:tipo,
-      nEventos:meses.length,
-      nMeses:mesesTotales,
+      tipo:g.tipo,
+      pieza:g.pieza,
+      nEventos:nEventos,
+      nMeses:nMeses,
       lambda:Math.round(lambda*100)/100,
-      proyeccionSemestre:Math.round(lambda*6*10)/10,
-      proyeccionAnual:Math.round(lambda*12*10)/10
+      consumoSemana:Math.round(lambda/30*7),
+      consumoMes:Math.round(lambda),
+      consumoSemestre:Math.round(lambda*6),
+      consumoAnual:Math.round(lambda*12)
     };
   }).sort(function(a,b){return (b.lambda||0)-(a.lambda||0);});
 }
@@ -6101,7 +6147,7 @@ if (typeof module !== 'undefined' && module.exports) {
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
-    _CATEGORIAS_COMPONENTE, _componenteDeSintoma,
+    _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
     umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica
   };

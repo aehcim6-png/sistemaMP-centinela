@@ -2563,31 +2563,41 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   clara (95% confianza, Sen: ±X.Xpp/mes)". Requiere ≥4 meses con dato real. Verificado en navegador
   (Playwright, con la carrera contra el refresco de fondo ya documentada en esta sesión).</p>
 
-  <h3>79. Proyección de Consumo de Elementos de Desgaste — Cuchillas/GET (2026-09-23)</h3>
-  <p>Pedido real del usuario: un comparativo de cuánto se consume en elementos de desgaste (cuchillas de
-  motoniveladora, entrecalzas/entredientes de cargador frontal, cantoneras/ripper de bulldozer) por semestre y
-  año, para proyectar compra. Adjuntó como referencia una planilla propia que calcula el consumo con una
-  <b>vida útil teórica asumida</b> multiplicada por horas trabajadas — pidió explícitamente ir más allá de ese
-  enfoque.</p>
+  <h3>79. Proyección de Consumo de Elementos de Desgaste — por pieza específica (2026-09-23, corregida 2026-09-24)</h3>
+  <p>Pedido real del usuario: un comparativo de cuánto se consume en elementos de desgaste (cuchillas,
+  entrecalzas/entredientes, cantoneras, ripper, zapatas, rodillos, oruga/cadena, deslizaderas, canilleras,
+  punteras) por semana/mes/semestre/año, cuánto hay que comprar y cuánto sale. Adjuntó como referencia una
+  planilla propia que calcula el consumo con una <b>vida útil teórica asumida</b> multiplicada por horas
+  trabajadas — pidió explícitamente ir más allá de ese enfoque.</p>
   <p>La diferencia real: <code>proyeccionElementosDesgaste</code> (logic.js) no asume una vida útil — usa la
-  frecuencia real de cambios ya registrada en Correctivos, clasificada por <code>_componenteDeSintoma</code>
-  bajo <code>'GET / Cuchillas'</code>. Se agrupa por tipo de equipo (Motoniveladora/Cargador Frontal/Bulldozer),
-  porque cada uno usa una pieza físicamente distinta aunque caigan en la misma categoría. λ real = eventos
-  reales ÷ meses de historial real de ESE tipo (mismo <code>_DEMANDA_MIN_MESES=3</code> del resto de la
-  familia demanda), proyectado ×6 y ×12.</p>
-  <p><b>Hallazgo al verificar contra datos reales</b>: <code>_componenteDeSintoma</code> reconocía
-  "cuchilla"/"cuchillas" pero no "cuchillo"/"cuchillos" (misma pieza, masculino, 4 filas reales sin categoría).
-  Se agregaron ambas variantes — y como esa lista vive duplicada en 3 Edge Functions
-  (<code>whatsapp-webhook</code>, <code>alerta-pm</code>, <code>_shared/parseCorrectivo.ts</code>), se
-  actualizaron las 3 en el mismo commit; el test <code>sincroniaComponenteBackend.test.js</code> ya existente
-  lo habría bloqueado en CI si se hubiera olvidado alguna.</p>
-  <p>No calcula costo proyectado: ningún elemento de este tipo tiene <code>precioUnit</code> real cargado en
-  Stock hoy — mostrar un $ inventado sería peor que no mostrarlo. 9 tests nuevos
-  (<code>proyeccionElementosDesgaste.test.js</code>). Integrado en Stock &amp; Insumos → Repuestos, como bloque
-  fijo arriba de la tabla. Verificado contra datos reales de producción antes de escribir el código: Cargador
-  Frontal ~4,7 cambios/mes, Motoniveladora ~3,3/mes, Bulldozer ~0,4/mes (señal débil, mostrada igual con su
-  historial real a la vista). Verificado en navegador (Playwright, mismo patrón de carrera de fondo ya
-  documentado en la sección anterior).</p>
+  frecuencia real de cambios ya registrada en Correctivos. <b>Primera versión (2026-09-23)</b>: agrupaba solo
+  por tipo de equipo, con la categoría general <code>_componenteDeSintoma</code> = <code>'GET /
+  Cuchillas'</code>.</p>
+  <p><b>Corrección 2026-09-24</b>, pedida explícitamente por el usuario sobre el Excel que se le entregó en
+  paralelo con el mismo análisis ("Y NI TIENE CAMBIO DE CANTONERA, PUNTERA, CUCHILLA... O RIPPER DE
+  BULLDOZER"): agrupar solo por tipo de equipo mezclaba piezas que se compran por separado, a precio distinto.
+  <code>'GET / Cuchillas'</code> junta cuchilla/entrecalza/ripper/canillera y <code>'Tren de Rodaje'</code>
+  junta zapata/rodillo/oruga — categorización correcta para el resto del sistema (Kaplan-Meier, MCF,
+  Crow-AMSAA agrupan por modo de falla), pero no sirve para decidir cuánto comprar de CADA pieza. Se agregó un
+  clasificador propio y más fino, <code>_SUBPIEZAS_DESGASTE</code> + <code>_subpiezasDeSintoma</code>
+  (independiente de <code>_CATEGORIAS_COMPONENTE</code>) con 11 piezas. <code>proyeccionElementosDesgaste</code>
+  ahora agrupa por <b>tipo de equipo + pieza</b> — un mismo evento puede contar en más de un grupo si el
+  síntoma menciona dos piezas a la vez. Guardrail: mínimo <code>_DEMANDA_MIN_MESES=3</code> meses
+  <b>y</b> mínimo 3 eventos (antes solo exigía meses).</p>
+  <p><b>Segunda corrección, misma sesión</b> ("NO PUEDE SER CAMBIO DE ENTRECALZAS 0,87"): el consumo
+  (semana/mes/semestre/año) ahora siempre redondea a número entero con <code>Math.round</code> — no se compra
+  media pieza. <code>lambda</code> (cambios/mes) sigue con decimales, es un promedio estadístico, no una
+  cantidad a comprar.</p>
+  <p>No calcula costo con datos reales: ningún elemento de este tipo tiene <code>precioUnit</code> real
+  cargado en Stock hoy. Se agregó un precio <b>editable directamente en la vista</b> (input por fila) para que
+  el Gasto se calcule solo — se guarda en <code>localStorage</code> del navegador
+  (<code>smp_precio_desgaste::&lt;tipo&gt;::&lt;pieza&gt;</code>), nunca en Supabase: es un supuesto del
+  usuario, no un dato real de la flota. Vacío → columna Gasto muestra "—", nunca un número inventado.</p>
+  <p>14 tests (<code>proyeccionElementosDesgaste.test.js</code>, reescrito). Integrado en Stock &amp; Insumos →
+  Repuestos, tabla fija arriba con columnas Tipo/Pieza/N° cambios/Meses hist./Frec.·mes/Cons.
+  mes·semestre·año/Precio unit./Gasto·año. Verificado en navegador (Playwright, precio pre-cargado en
+  <code>localStorage</code> antes del render): Motoniveladora/Cuchilla 8 eventos/4 meses → 2/mes → Cons. mes 2,
+  semestre 12, año 24, con precio 180.000 → Gasto/año "$4.320.000", exacto.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
