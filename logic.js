@@ -5328,6 +5328,48 @@ function patronesOcultosFalla(ot){
   };
 }
 
+// ═══ CAUSAS LATENTES REPETIDAS (2026-09-24) ═══
+// Pedido real del usuario, conectado con la pregunta que lo trae desde el
+// principio de esta conversación: por qué el mismo problema vuelve, aunque
+// el equipo "salga andando" cada vez. El campo de causa raíz de Correctivos
+// era texto libre — cada persona lo redacta distinto, nunca se podía
+// agregar de verdad. Se agregó `tipoCausa` (Física/Humana/Latente, marco
+// estándar de análisis causa raíz: qué se rompió / qué se hizo o dejó de
+// hacer / qué lo permitió — sistema, procedimiento o decisión).
+//
+// causasLatentesRepetidas agrupa por COMPONENTE, no por equipo: una causa
+// latente es, por definición, del SISTEMA de mantenimiento, no de una
+// máquina en particular — si se repite en equipos DISTINTOS es la prueba
+// más dura de que el problema es de proceso, no un caso aislado. Con 2
+// eventos ya alcanza para marcarla (mismo umbral que ya usa la señal de
+// retrabajo en comp.js) porque acá lo relevante no es "cuántas fallas tuvo
+// un equipo" sino "¿el sistema dejó pasar lo mismo más de una vez?" — con
+// 2 ya es una repetición real, no ruido estadístico.
+function causasLatentesRepetidas(correctivos){
+  var eventos=(correctivos||[]).filter(function(c){
+    return c&&c.tipoCausa==='Latente'&&c.componente&&c.sigla&&c.fecha;
+  });
+  if(!eventos.length)return[];
+  var porComponente={};
+  eventos.forEach(function(c){
+    (porComponente[c.componente]=porComponente[c.componente]||[]).push(c);
+  });
+  return Object.keys(porComponente).filter(function(comp){
+    return porComponente[comp].length>=2;
+  }).map(function(comp){
+    var evs=porComponente[comp].slice().sort(function(a,b){return a.fecha<b.fecha?-1:(a.fecha>b.fecha?1:0);});
+    var equipos=[];
+    evs.forEach(function(e){if(equipos.indexOf(e.sigla)===-1)equipos.push(e.sigla);});
+    return{
+      componente:comp,
+      nEventos:evs.length,
+      equipos:equipos,
+      nEquipos:equipos.length,
+      eventos:evs.map(function(e){return{sigla:e.sigla,fecha:e.fecha,causaRaiz:e.causaRaiz||'',solucion:e.solucion||''};})
+    };
+  }).sort(function(a,b){return b.nEventos-a.nEventos;});
+}
+
 // ═══ TEST DE INDEPENDENCIA CHI-CUADRADO — TABLA DE CONTINGENCIA (2026-09-20) ═══
 // testChiCuadradoUniforme (arriba) responde una pregunta de UNA sola
 // dimensión: "¿las fallas se reparten parejo entre estas categorías, o hay
@@ -6144,7 +6186,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

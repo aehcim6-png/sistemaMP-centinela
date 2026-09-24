@@ -215,7 +215,7 @@ export function renderOt(){
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
     </div>
-      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="addOTRapido()" title="Pensado para el celular en terreno: solo equipo, qué pasó y urgencia — el resto se completa después">⚡ Registro Rápido</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="go('comp2');comp2Sub('estadistica')" title="Ahora vive en Estadística — Por Equipo (Bad Actors) y Por Componente, con más historial (suma correctivos_historico) y la misma fuente única de fallas (esFallaMTBF) que el resto de la app"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button> <button class="btn btn-o" onclick="analisisReingresos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos</button>':''} <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
+      <button class="btn" onclick="addOT()">+ Nueva OT</button> <button class="btn btn-o" onclick="addOTRapido()" title="Pensado para el celular en terreno: solo equipo, qué pasó y urgencia — el resto se completa después">⚡ Registro Rápido</button> <button class="btn btn-o" onclick="importOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV/JSON</button> <button class="btn btn-o" onclick="go('comp2');comp2Sub('estadistica')" title="Ahora vive en Estadística — Por Equipo (Bad Actors) y Por Componente, con más historial (suma correctivos_historico) y la misma fuente única de fallas (esFallaMTBF) que el resto de la app"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Análisis de Fallas (MTBF)</button>${window._userRole==='admin'?' <button class="btn btn-o" onclick="analisisDocumentacion()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Documentación por Técnico</button> <button class="btn btn-o" onclick="analisisReingresos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 10.4-4.2M16 10a6 6 0 0 1-10.4 4.2"/><polyline points="14.4,3 14.4,5.8 11.6,5.8"/><polyline points="5.6,17 5.6,14.2 8.4,14.2"/></svg> Reingresos Tempranos</button>':''} <button class="btn btn-o" onclick="verCausasLatentesRepetidas()" title="Causa Latente = qué lo permitió (sistema/procedimiento), no qué se rompió — clasificá la Causa Raíz de cada OT y acá se ve si se repite"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><path d="M10 6 V10 l2.5 1.5"/></svg> Causas Latentes Repetidas</button> <button class="btn btn-o" onclick="go('insp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones</button>
     </div>
     ${fsEnCursoOTHTML}
     <div class="cards">
@@ -246,7 +246,7 @@ export function renderOt(){
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
     ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
-      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
+      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
       ${pg.items.map((o)=>{
         const i=ot.indexOf(o);
         const idx=fil.indexOf(o);
@@ -265,6 +265,7 @@ export function renderOt(){
         otRow+='<td class="mono" style="font-size:10px;color:var(--w)">'+(o.duracion||'—')+'</td>';
         otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.sintoma||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'sintoma\',this.value)"')+' style="'+es+'" title="'+escapeHtml(o.sintoma||'')+'"></td>';
         otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.causaRaiz||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'causaRaiz\',this.value)"')+' style="'+es+';color:var(--w)" placeholder="Causa..."></td>';
+        otRow+='<td><select '+(readOnly?'disabled':'onchange="edOT('+i+',\'tipoCausa\',this.value)"')+' style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px"><option value=""'+(!o.tipoCausa?' selected':'')+'>—</option><option'+(o.tipoCausa==='Física'?' selected':'')+' title="Qué se rompió">Física</option><option'+(o.tipoCausa==='Humana'?' selected':'')+' title="Qué se hizo o dejó de hacer">Humana</option><option'+(o.tipoCausa==='Latente'?' selected':'')+' title="Qué lo permitió: sistema/procedimiento">Latente</option></select></td>';
         otRow+='<td style="max-width:90px"><input value="'+escapeHtml(o.componente||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'componente\',this.value)"')+' style="'+es+'" placeholder="Componente..."></td>';
         otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.solucion||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'solucion\',this.value)"')+' style="'+es+';color:var(--ok)" placeholder="Solución..."></td>';
         if(fromReg){otRow+='<td><span style="font-size:10px">PM</span></td>';}
@@ -445,6 +446,38 @@ export function analisisReingresos(){
   </div>`);
 };
 
+// ═══ CAUSAS LATENTES REPETIDAS (2026-09-24) ═══ — pedido real del usuario,
+// conectado con la conversación de fondo de esta sesión: por qué el mismo
+// problema vuelve, aunque cada vez "se ajuste para salir del paso". Usa
+// causasLatentesRepetidas (logic.js), que agrupa por COMPONENTE (no por
+// equipo) las OT cuya Causa Raíz quedó clasificada como "Latente" (qué lo
+// permitió: sistema, procedimiento o decisión — no qué pieza se rompió).
+// Si el mismo componente repite causa latente en equipos DISTINTOS es la
+// prueba más dura de que el problema es de proceso, no un caso aislado.
+export function verCausasLatentesRepetidas(){
+  var ot=S.g('ot')||[];
+  var grupos=typeof causasLatentesRepetidas==='function'?causasLatentesRepetidas(ot):[];
+  var totalClasificadas=ot.filter(function(o){return o.tipoCausa;}).length;
+  var totalLatente=ot.filter(function(o){return o.tipoCausa==='Latente';}).length;
+  sm(`<div style="max-width:680px">
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><path d="M10 6 V10 l2.5 1.5"/></svg> Causas Latentes Repetidas</h3>
+    <p style="font-size:12px;color:var(--tx3)">Análisis Causa Raíz: cuando cerrás una OT, la Causa Raíz se puede clasificar como <b>Física</b> (qué se rompió), <b>Humana</b> (qué se hizo o dejó de hacer) o <b>Latente</b> (qué lo permitió — sistema, procedimiento o decisión). Acá se agrupan por <b>componente</b> las causas Latentes que se repiten 2+ veces — si se repite en equipos distintos, no es un caso aislado: es el sistema dejando pasar lo mismo más de una vez.</p>
+    ${totalClasificadas?`<p style="font-size:11px;color:var(--tx3)">${totalClasificadas} OT con Tipo de Causa clasificado en esta base (${totalLatente} como Latente).</p>`:'<p style="font-size:11px;color:var(--w)">Todavía no hay ninguna OT con Tipo de Causa clasificado — elegí Física/Humana/Latente al registrar o editar una Causa Raíz en Correctivos para que este análisis empiece a tener datos.</p>'}
+    ${grupos.length?grupos.map(function(g){
+      return `<div class="card" style="margin:10px 0;border-left:3px solid var(--danger)">
+        <div style="font-weight:700;font-size:13px">${escapeHtml(g.componente)} <span style="font-size:11px;font-weight:400;color:var(--tx3)">— ${g.nEventos} eventos con causa latente, en ${g.nEquipos} equipo(s): ${g.equipos.map(escapeHtml).join(', ')}</span></div>
+        <div style="overflow-x:auto;margin-top:6px"><table style="width:100%;font-size:11px">
+          <tr style="background:var(--bg3)"><th style="padding:4px;text-align:left">Equipo</th><th style="text-align:left">Fecha</th><th style="text-align:left">Causa raíz</th><th style="text-align:left">Solución aplicada</th></tr>
+          ${g.eventos.map(function(e){
+            return `<tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">${escapeHtml(e.sigla)}</td><td>${fd(e.fecha)}</td><td>${escapeHtml(e.causaRaiz||'—')}</td><td>${escapeHtml(e.solucion||'—')}</td></tr>`;
+          }).join('')}
+        </table></div>
+      </div>`;
+    }).join(''):(totalLatente?'<p style="color:var(--ok);text-align:center;padding:16px">Ninguna causa Latente se repite todavía por componente — sin patrón sistémico detectado con lo clasificado hasta ahora.</p>':'')}
+    <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
+  </div>`);
+};
+
 export function addOT(){
   const eq=S.g('eq')||[];
   const per=_tecnicosDisponibles();
@@ -476,6 +509,9 @@ export function addOT(){
     <div class="form-row">
       <div class="fg" style="flex:2"><label>Causa Raíz</label><input id="oCausa" style="width:100%" placeholder="¿Por qué falló?"></div>
       <div class="fg"><label>Componente</label><select id="oComp"><option value="">—</option><option>Motor</option><option>Bomba hidráulica</option><option>Transmisión</option><option>Diferencial</option><option>Mando final</option><option>Turbo</option><option>Alternador</option><option>Motor de partida</option><option>Frenos</option><option>Dirección</option><option>Suspensión</option><option>Neumáticos</option><option>Sistema eléctrico</option><option>Cabina</option><option>Estructura</option><option>Refrigeración</option><option>Compresor A/C</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Tipo de Causa</label><select id="oTipoCausa"><option value="">—</option><option value="Física">Física — qué se rompió</option><option value="Humana">Humana — qué se hizo o dejó de hacer</option><option value="Latente">Latente — qué lo permitió (sistema/procedimiento)</option></select></div>
     </div>
     <div class="form-row">
       <div class="fg" style="flex:2"><label>Solución aplicada</label><div style="display:flex;gap:4px"><input id="oSolucion" style="width:100%" placeholder="¿Qué se hizo?">${_dictarBtn('oSolucion')}</div></div>
@@ -556,7 +592,7 @@ export function saveOTRapido(){
   ot.unshift({sigla:sig,fecha:hoy,fechaEntrada:hoy,horaEntrada:horaAhora,
     tipo:'Correctivo',criticidad:crit,
     sintoma:sint,sistema:'',tecnico:window._userName||'',
-    causaRaiz:'',solucion:'',componente:'',
+    causaRaiz:'',tipoCausa:'',solucion:'',componente:'',
     estadoOT:'Pendiente',horom:0,
     // Reparación Inmediata casi siempre implica que el equipo quedó detenido
     // — se asume Fuera de Servicio como punto de partida, corregible después
@@ -700,7 +736,7 @@ export function saveOT(){
     fechaSalida:fSal,horaSalida:hSal,duracion:durStr,
     tipo:$('oTipo').value,criticidad:$('oCrit').value,
     sintoma:sint,sistema:$('oSis').value,tecnico:$('oTec').value,
-    causaRaiz:$('oCausa')?.value||'',solucion:$('oSolucion')?.value||'',
+    causaRaiz:$('oCausa')?.value||'',tipoCausa:$('oTipoCausa')?.value||'',solucion:$('oSolucion')?.value||'',
     componente:$('oComp')?.value||'',estadoOT:estadoOTNueva,
     horom,estatusEq:$('oEstatusEq').value,
     costo:parseFloat($('oCosto').value)||0,

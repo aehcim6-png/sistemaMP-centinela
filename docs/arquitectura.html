@@ -2599,6 +2599,30 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>localStorage</code> antes del render): Motoniveladora/Cuchilla 8 eventos/4 meses → 2/mes → Cons. mes 2,
   semestre 12, año 24, con precio 180.000 → Gasto/año "$4.320.000", exacto.</p>
 
+  <h3>80. Causas Latentes Repetidas — Análisis Causa Raíz estructurado (2026-09-24)</h3>
+  <p>Conectado con la conversación de fondo de toda esta sesión: por qué el mismo problema vuelve, aunque cada
+  equipo "salga andando" cada vez — "se ajusta para salir del paso" fue la frase real del usuario. Compartió una
+  infografía de Predyc sobre Análisis Causa Raíz (falla → preservar evidencia → línea de tiempo → árbol lógico →
+  causa física/humana/latente → acciones correctivas → seguimiento). El campo "Causa Raíz" de Correctivos siempre
+  fue texto libre — cada técnico lo redacta distinto, nunca se podía agregar de verdad para ver patrones.</p>
+  <p><b>Cambio de esquema real</b>: se agregó la columna <code>tipoCausa</code> (text) a <code>correctivos</code>
+  en Supabase (migración <code>agregar_tipo_causa_correctivos</code>) y a <code>TABLA_REAL.ot.cols</code>
+  (store.js). En la UI (<code>ot.js</code>): select con 3 opciones — <b>Física</b> (qué se rompió), <b>Humana</b>
+  (qué se hizo o dejó de hacer), <b>Latente</b> (qué lo permitió: sistema/procedimiento/decisión) — junto a Causa
+  Raíz, en Nueva OT y en la tabla de Correctivos. Opcional, no fuerza a clasificar OT viejas.</p>
+  <p><code>causasLatentesRepetidas</code> (logic.js) agrupa por <b>COMPONENTE, no por equipo</b>: una causa
+  latente es del SISTEMA de mantenimiento, no de una máquina — si se repite en equipos DISTINTOS es la prueba más
+  dura de que el problema es de proceso, no un caso aislado. Umbral: 2+ eventos (mismo criterio que la señal de
+  retrabajo en <code>comp.js</code>). Nunca inventa el agrupador: exige <code>tipoCausa==='Latente'</code> Y
+  componente Y sigla Y fecha reales.</p>
+  <p>10 tests (<code>causasLatentesRepetidas.test.js</code>). Integrado en Correctivos como botón "Causas
+  Latentes Repetidas" (visible para todos los roles) que abre un modal con cuántas OT ya están clasificadas y,
+  por componente con repetición, la lista de eventos (equipo, fecha, causa raíz, solución) como evidencia
+  concreta. Verificado: esbuild sin errores, suite completa 1039/1039 verde, y en navegador se confirmó el botón
+  renderizado en el DOM real con texto/tooltip correctos — la verificación interactiva del modal chocó con la
+  misma carrera de fondo ya documentada (revierte a login tras <code>S.s()</code>); no se insistió más dado que
+  la lógica ya está probada exhaustivamente por unit tests.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

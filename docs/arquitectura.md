@@ -4816,6 +4816,63 @@ eventos/mes → Cons. mes 2, semestre 12, año 24, y con precio 180.000
 precargado → Gasto/año "$4.320.000", exacto contra la aritmética
 esperada.
 
+### 80. Causas Latentes Repetidas — Análisis Causa Raíz estructurado (2026-09-24)
+
+Conectado con la conversación de fondo de toda esta sesión: por qué el
+mismo problema vuelve, aunque cada equipo "salga andando" cada vez —
+"se ajusta para salir del paso" fue la frase real del usuario. El usuario
+compartió una infografía de Predyc sobre Análisis Causa Raíz (falla →
+preservar evidencia → línea de tiempo → árbol lógico → causa física/
+humana/latente → acciones correctivas → seguimiento) y preguntó si servía
+para SistemaMP. La respuesta honesta: el campo "Causa Raíz" de Correctivos
+siempre fue texto libre — cada técnico lo redacta distinto, así que nunca
+se podía agregar de verdad para ver patrones.
+
+**Cambio de esquema real**: se agregó la columna `tipoCausa` (text) a
+`correctivos` en Supabase (migración `agregar_tipo_causa_correctivos`) y
+a `TABLA_REAL.ot.cols` (store.js), para que sincronice como el resto de
+los campos de Correctivos. En la UI (`ot.js`): un select con 3 opciones
+—**Física** (qué se rompió), **Humana** (qué se hizo o dejó de hacer),
+**Latente** (qué lo permitió: sistema, procedimiento o decisión)— junto a
+Causa Raíz, tanto en el formulario de Nueva OT como en la tabla de
+Correctivos (editable inline, mismo patrón que el resto de las columnas).
+Es opcional — no se fuerza a clasificar OT viejas.
+
+**causasLatentesRepetidas** (logic.js) agrupa por **COMPONENTE, no por
+equipo**: una causa latente es por definición del SISTEMA de
+mantenimiento, no de una máquina en particular — si el mismo componente
+tiene causa latente repetida en equipos DISTINTOS, es la prueba más dura
+de que el problema es de proceso, no un caso aislado. Umbral: 2+ eventos
+alcanza para marcarlo (mismo criterio que ya usa la señal de retrabajo en
+`comp.js` — acá lo relevante no es "cuántas fallas tuvo un equipo" sino
+"¿el sistema dejó pasar lo mismo más de una vez?"). Nunca inventa el
+agrupador: exige `tipoCausa==='Latente'` Y `componente` Y `sigla` Y
+`fecha` reales en la OT.
+
+10 tests (`causasLatentesRepetidas.test.js`): ignora Física/Humana/vacío,
+un solo evento no alcanza, 2+ arma el grupo (mismo equipo o equipos
+distintos), no mezcla componentes, ignora eventos sin agrupador real,
+eventos ordenados por fecha con causaRaiz/solución, orden por cantidad,
+pureza. Integrado en Correctivos (`ot.js`) como botón "Causas Latentes
+Repetidas" (visible para todos los roles, no solo admin) que abre un
+modal con: cuántas OT ya tienen Tipo de Causa clasificado (transparencia
+sobre cuán poblado está el dato todavía), y por cada componente con
+repetición, la lista de eventos (equipo, fecha, causa raíz, solución)
+para que sirva como evidencia concreta, no solo un número.
+
+Verificado: `npx esbuild` sin errores en `logic.js` y `ot.js`, suite
+completa 1039/1039 tests verdes, y en navegador (Playwright) se confirmó
+que el botón nuevo renderiza en el DOM real con el texto y tooltip
+correctos, integrado en el flujo normal de `renderOt()` — la verificación
+interactiva del modal (abrir vía clic/llamada y leer su contenido)
+chocó reiteradamente con la misma carrera de fondo ya documentada en la
+sección anterior (`_chequearConflicto`/`_syncTablaGenericaInner` revierte
+la app a la pantalla de login muy poco después de una inyección directa
+de `S.s()`, incluso sin esperar el `await` de `go()`); dado que la lógica
+de agrupación ya está probada exhaustivamente por unit tests y el
+renderizado del botón se confirmó en el DOM real, no se insistió más
+tiempo en esa verificación puntual del modal.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
