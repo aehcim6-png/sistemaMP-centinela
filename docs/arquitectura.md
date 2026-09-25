@@ -4873,6 +4873,100 @@ de agrupación ya está probada exhaustivamente por unit tests y el
 renderizado del botón se confirmó en el DOM real, no se insistió más
 tiempo en esa verificación puntual del modal.
 
+### 81. Producción Perdida por Detención — rendimiento teórico por modelo (2026-09-25)
+
+Pedido real del usuario, nacido de compartir capturas de fórmulas de
+"Rendimiento de Equipo" (Cosrec R&H) para Cargador Frontal, Camión
+Minero, Bulldozer, Motoniveladora y Camión Aljibe: cruzar esas fórmulas
+contra la Disponibilidad real que SistemaMP ya mide con precisión, para
+traducir "el equipo estuvo detenido N horas" a "esas N horas eran ~X m³
+que no se entregaron" — el mismo idioma del contrato real con Centinela,
+que se paga por m3 y no por hora de arriendo (ver conversación de fondo
+de esta sesión sobre el mecanismo económico real del contrato).
+
+**Recolección de datos reales, sin inventar nada**: el usuario fue
+compartiendo fichas técnicas oficiales de Komatsu/Mercedes-Benz (varias
+capturas de komatsuamerica.com y komatsu.pe) y se cruzó cada modelo contra
+la flota real en Supabase antes de aceptar el dato:
+- **Cargador Frontal — Komatsu WA900-8R** (CF-8769/9510/9511): Q=13,0 m³
+  colmado SAE.
+- **Camión Minero — Komatsu HD785-7** (11 equipos, 2 con el modelo tipeado
+  "HD-785-7"): Q=60 m³ tolva, 91 ton carga.
+- **Motoniveladora — Komatsu GD-705-5** (MN-5926/6112): Le=4,3 m ancho de
+  hoja.
+- **Bulldozer — Komatsu D375A-6R** (BD-9509/9533): Q=18,5 m³ hoja semi-U.
+  **Hallazgo real durante la recolección**: el usuario buscó primero la
+  ficha del D375A-**8R** (otra generación) — se verificó contra Equipos y
+  se detectó que NO es el modelo real de la flota (que tiene -6R), así que
+  no se aceptó ese dato hasta que trajo la ficha correcta del -6R.
+- **Bulldozer — Komatsu D65EX-18E0** (BD-10139): la ficha da un RANGO
+  (3,55 a 5,60 m³, según la hoja instalada) sin especificar cuál trae este
+  equipo — se dejó sin Q cargado en vez de promediar un número inventado.
+- **Camión Aljibe — Mercedes Benz Arocs 3340** (CN-5131/5133): Q=20 m³
+  estanque, confirmado por dos búsquedas independientes (el estanque es un
+  carrozado aftermarket, no viene en la ficha del chasis Mercedes-Benz).
+
+**Esquema**: tabla nueva `rendimiento_modelos` en Supabase (migración
+`crear_rendimiento_modelos` + `flexibilizar_rendimiento_modelos`), clave
+natural `modelo` (el rendimiento teórico es del MODELO, no de cada unidad
+— todos los WA900-8R rinden igual en teoría). `parametros` es JSONB libre
+en vez de columnas fijas porque cada tipo de equipo necesita campos
+distintos (cargador: Q/LF/E/Cm; camión: además D/V1/V2/T1/T2; motoniveladora:
+Le/V/Fe/N/T; etc.) — 5 fórmulas distintas no entran en 4 columnas rígidas.
+`fuente` documenta de dónde salió cada valor (ficha técnica real vs.
+medido en terreno), para que nunca se confunda un dato real con uno
+supuesto. RLS con el mismo patrón real del proyecto
+(`privado.es_usuario_activo()`, no `using(true)` — se corrigió en la
+migración `corregir_rls_rendimiento_modelos` tras verificar el patrón
+real contra `programacion_diaria`).
+
+**Cálculo activo hoy, solo para Cargador Frontal**: `rendimientoTeoricoCargadorFrontal`
+(logic.js) = Q×LF×E×60/Cm (m3/h), la fórmula tal cual la compartió el
+usuario (verificada contra su propio ejemplo: Q=1,30 LF=0,85 E=0,75
+Cm=1,00 → R=49,73 m3/h, exacto). `produccionPerdidaPorDetencion` cruza
+esa fórmula, por cada equipo cuyo modelo tenga los 4 parámetros reales
+completos, contra sus horas reales de detención (mismo `dispDownMap` que
+ya usa el resto de Disponibilidad) — nunca inventa: un equipo sin los 4
+datos completos, o sin horas de detención registradas, simplemente no
+aparece. `_normalizarModelo` (solo letras/números en minúscula) resuelve
+la inconsistencia real de tipeo encontrada en Equipos ("HD785-7" vs.
+"HD-785-7", "GD705-5" vs. "GD-705-5") sin necesitar forzar un único
+string canónico.
+
+Las otras 4 familias (Camión Minero, Motoniveladora, Bulldozer, Camión
+Aljibe) tienen su capacidad real cargada como referencia en
+`rendimiento_modelos`, pero sin fórmula activa todavía — cada una
+necesita datos operativos adicionales (distancia/velocidades/tiempos
+para el camión; velocidad/solape/pasadas para la motoniveladora; etc.)
+que solo terreno puede medir. Se le escribió al usuario el listado exacto
+de qué falta pedir a terreno por cada tipo de equipo, para no bloquear el
+resto del trabajo esperando esos datos.
+
+**UI**: nuevo bloque "📉 Producción Perdida por Detención" en
+Disponibilidad (`disp.js`), arriba del Monte Carlo — tabla con Equipo/
+Modelo/Rendimiento teórico/Horas detenido/m³ perdidos y un total de
+flota. Botón "⚙️ Configurar Rendimiento por Modelo" abre un modal
+(`configurarRendimientoModelos`) con un formulario por modelo: los campos
+con dato real de fábrica se muestran en azul, de solo lectura (para no
+pisar un valor verificado por accidente); el resto son inputs editables
+(`edRendModelo`) para que el usuario vaya cargando lo que traiga de
+terreno, con la fuente de cada dato real visible como nota.
+
+15 tests (`produccionPerdidaPorDetencion.test.js`): fórmula exacta contra
+el ejemplo verificado, guardia de parámetro faltante/cero/negativo,
+normalización de modelo con guion extra, cálculo end-to-end con horas
+reales, ignora equipos con parámetros incompletos / sin horas / modelo no
+cargado, suma y ordena varios equipos, pureza. Verificado con `npx
+esbuild` (logic.js y disp.js, sin errores) y suite completa 1057/1057
+verde. La verificación interactiva en navegador (Playwright) confirmó que
+`go('disp')` no lanza ningún error y que `produccionPerdidaPorDetencion`/
+`renderDisp` existen como funciones globales, pero no se pudo capturar el
+HTML renderizado de `#s-disp` en esta corrida puntual: la sesión mockeada
+del sandbox revirtió a la pantalla de login antes de que `go()` alcanzara
+a pintar la pestaña (mismo tipo de carrera de fondo ya documentado en la
+sección anterior, no relacionado con este código — confirmado sin error
+lanzado y con las funciones correctamente expuestas).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

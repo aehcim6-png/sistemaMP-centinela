@@ -2966,6 +2966,78 @@ function dispIntrinsecaEquipoMes(sigla, mes, opts){
   return _dispPctDesdeMapa(sigla, mes, downMapCorrectivo, hrsDia, hoyISO);
 }
 
+// ═══ PRODUCCIÓN PERDIDA POR DETENCIÓN (2026-09-25) ═══ — pedido real del
+// usuario: el contrato real con Centinela se paga por m3 (no por hora de
+// arriendo), así que "el equipo estuvo detenido 40 horas" no es el
+// argumento que mueve a un gerente — "esas 40 horas eran ~520 m3 que no se
+// entregaron" sí lo es, porque habla el mismo idioma del contrato.
+//
+// rendimiento_modelos (Supabase, nueva tabla) guarda, por MODELO real de
+// equipo (no por unidad — todos los de un mismo modelo rinden igual en
+// teoría), los parámetros de la fórmula de rendimiento del fabricante. Cada
+// tipo de equipo usa una fórmula distinta (cargador: Q×LF×E×60/Cm; camión:
+// necesita además distancia/velocidades/tiempos; motoniveladora: ancho de
+// hoja/velocidad/pasadas; etc.) — por eso 'parametros' es JSONB libre en
+// vez de columnas fijas, y por eso HOY solo está implementada la fórmula de
+// Cargador Frontal (la única con los 4 datos completos verificados: Q real
+// de ficha técnica Komatsu + LF/E/Cm reales de terreno). Las otras 4
+// familias (Camión Minero, Motoniveladora, Bulldozer, Camión Aljibe) tienen
+// su capacidad real cargada como referencia, pero sin fórmula activa
+// todavía — se agregan cuando terreno aporte el resto de sus parámetros
+// reales, nunca con valores inventados.
+//
+// _normalizarModelo existe porque el mismo modelo real aparece escrito de
+// más de una forma en Equipos (ej. "HD785-7" vs "HD-785-7", verificado
+// contra la base real) — normaliza a solo letras/números en minúscula para
+// que ese tipo de inconsistencia de tipeo no rompa el cruce.
+function _normalizarModelo(s){
+  return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+// R = Q×LF×E×60/Cm (m3/h) — misma fórmula publicada (Cosrec R&H) que el
+// usuario compartió y verificó contra su propio ejemplo práctico (Q=1,30
+// LF=0,85 E=0,75 Cm=1,00 → R=49,73 m3/h). Nunca inventa un parámetro
+// faltante: si Q, LF, E o Cm no son números > 0, devuelve null.
+function rendimientoTeoricoCargadorFrontal(params){
+  if(!params)return null;
+  var q=params.q, lf=params.lf, e=params.e, cm=params.cm;
+  if(!(q>0)||!(lf>0)||!(e>0)||!(cm>0))return null;
+  return q*lf*e*60/cm;
+}
+// Cruza cada equipo Cargador Frontal cuyo modelo tenga los 4 parámetros
+// reales cargados, contra sus horas reales de detención (downMap, mismo
+// formato que arma dispDownMap: {sigla:{fecha:horas}}) — nunca inventa
+// horas ni rendimiento: un equipo sin horas reales de detención registradas
+// o cuyo modelo no tenga los 4 parámetros completos, simplemente no
+// aparece en el resultado.
+function produccionPerdidaPorDetencion(equipos, rendModelos, downMap){
+  var porModeloNorm={};
+  (rendModelos||[]).forEach(function(r){
+    if(!r||!r.modelo)return;
+    porModeloNorm[_normalizarModelo(r.modelo)]=r;
+  });
+  var out=[];
+  (equipos||[]).forEach(function(eqp){
+    if(!eqp||!eqp.sigla||!eqp.modelo)return;
+    var rm=porModeloNorm[_normalizarModelo(eqp.modelo)];
+    if(!rm||rm.tipo!=='Cargador Frontal')return;
+    var r=rendimientoTeoricoCargadorFrontal(rm.parametros||{});
+    if(r==null)return;
+    var dias=(downMap&&downMap[eqp.sigla])||{};
+    var horasDet=0;
+    Object.keys(dias).forEach(function(d){horasDet+=dias[d]||0;});
+    if(!(horasDet>0))return;
+    out.push({
+      sigla:eqp.sigla,
+      tipo:eqp.tipo||'',
+      modelo:eqp.modelo,
+      rendimientoTeorico:Math.round(r*100)/100,
+      horasDetenidas:Math.round(horasDet*10)/10,
+      m3Perdidos:Math.round(horasDet*r)
+    });
+  });
+  return out.sort(function(a,b){return b.m3Perdidos-a.m3Perdidos;});
+}
+
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
@@ -6183,7 +6255,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

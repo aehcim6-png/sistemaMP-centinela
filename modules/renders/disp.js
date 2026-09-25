@@ -270,6 +270,38 @@ export function renderDisp(){
     }).join('')+
     '</div>':'';
 
+  // ═══ PRODUCCIÓN PERDIDA POR DETENCIÓN (2026-09-25) ═══ — ver
+  // produccionPerdidaPorDetencion en logic.js: el contrato real con
+  // Centinela se paga por m3, no por hora de arriendo, así que "estuvo
+  // detenido 40h" no es el número que convence a un gerente — "esas 40h
+  // eran ~520 m3 que no se entregaron" sí, porque habla el mismo idioma
+  // del contrato. Usa el mismo downMap real de arriba (dispDownMap) cruzado
+  // contra rendimiento_modelos (Q real de ficha técnica del fabricante +
+  // LF/E/Cm reales de terreno, cargados en "Configurar Rendimiento").
+  // Hoy solo tiene fórmula activa para Cargador Frontal — el resto de los
+  // tipos de equipo tienen su capacidad real cargada como referencia, pero
+  // sin fórmula completa todavía (ver comentario en logic.js).
+  var rendModelos=S.g('rendModelos')||[];
+  var prodPerdida=typeof produccionPerdidaPorDetencion==='function'?produccionPerdidaPorDetencion(eq,rendModelos,downMap):[];
+  var totalM3Perdidos=prodPerdida.reduce(function(a,r){return a+r.m3Perdidos;},0);
+  var prodPerdidaHTML=
+    '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">📉 Producción Perdida por Detención <span style="font-size:11px;color:var(--tx3)">— m³ que la flota no entregó por las horas reales de detención</span></div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Cruza las horas reales de detención (mismo dato de arriba) contra el rendimiento teórico del fabricante (Q real de ficha técnica × LF/E/Cm reales de terreno) — nunca inventa un parámetro faltante: un equipo sin los 4 datos completos de su modelo simplemente no aparece. Hoy solo Cargador Frontal tiene la fórmula completa activa.</div>'+
+    (prodPerdida.length?
+    '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:16%">Equipo</th><th style="text-align:left;width:26%">Modelo</th><th style="width:16%">Rendimiento teórico</th><th style="width:16%">Horas detenido</th><th style="width:16%">m³ perdidos</th></tr>'+
+    prodPerdida.map(function(r){
+      return '<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+'</td>'+
+        '<td style="font-size:11px">'+escapeHtml(r.modelo)+'</td>'+
+        '<td class="mono" style="text-align:center">'+r.rendimientoTeorico+' m³/h</td>'+
+        '<td class="mono" style="text-align:center">'+r.horasDetenidas+'h</td>'+
+        '<td class="mono" style="text-align:center;font-weight:700;color:var(--danger)">'+fn(r.m3Perdidos)+' m³</td></tr>';
+    }).join('')+
+    '<tr style="background:var(--bg3);font-weight:700"><td colspan="4">Total</td><td class="mono" style="text-align:center;color:var(--danger)">'+fn(totalM3Perdidos)+' m³</td></tr>'+
+    '</table></div>'
+    :'<div style="color:var(--tx3);text-align:center;padding:14px;font-size:12px">Sin equipos con los 4 parámetros reales completos (Q/LF/E/Cm) y horas de detención registradas todavía.</div>')+
+    '<div style="margin-top:8px"><button class="btn btn-o" style="font-size:11px" onclick="configurarRendimientoModelos()">⚙️ Configurar Rendimiento por Modelo</button></div>'+
+    '</div>';
+
   // ═══ MONTE CARLO DE DISPONIBILIDAD — proyección 30/60/90 días (2026-09-13,
   // ver simulacionMonteCarloDisponibilidad en logic.js) ═══ Remuestrea el
   // historial REAL de intervalos entre fallas y duraciones de reparación de
@@ -356,6 +388,7 @@ export function renderDisp(){
     '<div class="sec-s" title="Disponibilidad = (horas disponibles del día − horas caídas) / horas disponibles, promediado por período. Cuando un registro no tiene duración registrada se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — estimación, no dato medido.">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable · <span style="text-decoration:underline dotted">sin duración registrada = 4h/8h asumidas</span></div></div>'+
     '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
+    prodPerdidaHTML+
     monteCarloHTML+
     whatIfHTML+
     '<div class="toolbar">'+
@@ -368,6 +401,97 @@ export function renderDisp(){
     '</div>'+
     content;
   if(typeof _animGauges==='function')_animGauges('s-disp');
+}
+
+// ═══ CONFIGURAR RENDIMIENTO POR MODELO (2026-09-25) ═══ — cada tipo de
+// equipo usa una fórmula de rendimiento distinta (ver logic.js), así que
+// cada uno necesita campos distintos. 'locked:true' marca los campos que
+// ya tienen un valor REAL de ficha técnica del fabricante (no editables acá
+// para no pisar un dato verificado por accidente) — el resto son los
+// parámetros operativos que solo terreno puede medir.
+var _RENDIMIENTO_CAMPOS_POR_TIPO = {
+  'Cargador Frontal': [
+    { k: 'q', label: 'Q — Capacidad de balde (m³)', locked: true },
+    { k: 'lf', label: 'LF — Factor de llenado' },
+    { k: 'e', label: 'E — Eficiencia de operación' },
+    { k: 'cm', label: 'Cm — Tiempo de ciclo completo (min)' },
+  ],
+  'Camión Minero': [
+    { k: 'q', label: 'Q — Capacidad de tolva (m³)', locked: true },
+    { k: 'lf', label: 'LF — Factor de llenado' },
+    { k: 'e', label: 'E — Eficiencia de operación' },
+    { k: 'd', label: 'D — Distancia de transporte (km)' },
+    { k: 'v1', label: 'V1 — Velocidad cargado (km/h)' },
+    { k: 'v2', label: 'V2 — Velocidad vacío (km/h)' },
+    { k: 't1', label: 'T1 — Tiempo de carga (min)' },
+    { k: 't2', label: 'T2 — Tiempo de descarga (min)' },
+  ],
+  'Motoniveladora': [
+    { k: 'le', label: 'Le — Ancho de hoja (m)', locked: true },
+    { k: 'v', label: 'V — Velocidad de trabajo (km/h)' },
+    { k: 'fe', label: 'Fe — Solape entre pasadas (m)' },
+    { k: 'e', label: 'E — Eficiencia de operación' },
+    { k: 'n', label: 'N — N° de pasadas' },
+    { k: 't', label: 'T — Espesor de capa (m)' },
+  ],
+  'Bulldozer': [
+    { k: 'q', label: 'Q — Capacidad de hoja (m³)', locked: true },
+    { k: 'lf', label: 'LF — Factor de llenado' },
+    { k: 'f', label: 'F — Factor de esponjamiento' },
+    { k: 'e', label: 'E — Eficiencia de operación' },
+    { k: 'cm', label: 'Cm — Tiempo de ciclo (min)' },
+  ],
+  'Camión Aljibe': [
+    { k: 'q', label: 'Q — Capacidad de estanque (m³)', locked: true },
+    { k: 'd', label: 'd — Dosis de aplicación (L/m²)' },
+    { k: 'e', label: 'E — Eficiencia de operación' },
+    { k: 't1', label: 't1 — Tiempo de llenado (min)' },
+    { k: 't2', label: 't2 — Tiempo de descarga (min)' },
+    { k: 't3', label: 't3 — Tiempo de traslado (min)' },
+    { k: 't4', label: 't4 — Tiempo de retorno (min)' },
+    { k: 'tr', label: 'tr — Tiempo de maniobra (min)' },
+  ],
+};
+export function configurarRendimientoModelos() {
+  var rendModelos = S.g('rendModelos') || [];
+  sm('<div style="max-width:720px">' +
+    '<h3>⚙️ Rendimiento Teórico por Modelo</h3>' +
+    '<p style="font-size:12px;color:var(--tx3)">Los campos en <b>azul</b> son datos reales de ficha técnica del fabricante (no editables acá). Los demás son parámetros operativos que solo se consiguen midiendo en terreno — mientras falten, ese modelo no entra en el cálculo de "Producción Perdida por Detención" arriba. El campo "Fuente" documenta de dónde salió cada dato real.</p>' +
+    rendModelos.map(function (r) {
+      var campos = _RENDIMIENTO_CAMPOS_POR_TIPO[r.tipo] || [];
+      var p = r.parametros || {};
+      return '<div class="card" style="margin-bottom:12px">' +
+        '<div style="font-weight:700;font-size:13px">' + escapeHtml(r.modelo) + ' <span style="font-size:11px;font-weight:400;color:var(--tx3)">— ' + escapeHtml(r.tipo) + '</span></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px">' +
+        campos.map(function (c) {
+          var val = p[c.k];
+          if (c.locked) {
+            return '<div><label style="font-size:10px;color:var(--tx3);display:block">' + escapeHtml(c.label) + '</label>' +
+              '<div class="mono" style="color:var(--ac);font-weight:700">' + (val != null ? val : 'Sin dato') + '</div></div>';
+          }
+          return '<div><label style="font-size:10px;color:var(--tx3);display:block">' + escapeHtml(c.label) + '</label>' +
+            '<input type="number" step="any" value="' + (val != null ? val : '') + '" placeholder="Sin medir" onchange="edRendModelo(' + JSON.stringify(r.modelo) + ',' + JSON.stringify(c.k) + ',this.value)" style="width:100%;' + CELL_INPUT_STYLE + '"></div>';
+        }).join('') +
+        '</div>' +
+        (r.fuente ? '<div style="font-size:10px;color:var(--tx3);margin-top:8px;font-style:italic">' + escapeHtml(r.fuente) + '</div>' : '') +
+        '</div>';
+    }).join('') +
+    '<button class="btn btn-o" onclick="cm()">Cerrar</button>' +
+    '</div>');
+}
+export function edRendModelo(modelo, key, val) {
+  var rendModelos = S.g('rendModelos') || [];
+  var idx = rendModelos.findIndex(function (r) { return r.modelo === modelo; });
+  if (idx < 0) return;
+  var n = parseFloat(val);
+  var parametros = Object.assign({}, rendModelos[idx].parametros || {});
+  if (val === '' || isNaN(n)) delete parametros[key];
+  else parametros[key] = n;
+  rendModelos[idx] = Object.assign({}, rendModelos[idx], { parametros: parametros });
+  S.s('rendModelos', rendModelos);
+  refreshAll();
+  toast('✅ Guardado');
+  configurarRendimientoModelos();
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).

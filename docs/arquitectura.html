@@ -2623,6 +2623,40 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   misma carrera de fondo ya documentada (revierte a login tras <code>S.s()</code>); no se insistió más dado que
   la lógica ya está probada exhaustivamente por unit tests.</p>
 
+  <h3>81. Producción Perdida por Detención — rendimiento teórico por modelo (2026-09-25)</h3>
+  <p>Pedido real del usuario, nacido de compartir fórmulas de "Rendimiento de Equipo" para Cargador Frontal,
+  Camión Minero, Bulldozer, Motoniveladora y Camión Aljibe: cruzar esas fórmulas contra la Disponibilidad real
+  para traducir "el equipo estuvo detenido N horas" a "esas N horas eran ~X m³ que no se entregaron" — el mismo
+  idioma del contrato real con Centinela, pagado por m3.</p>
+  <p><b>Recolección de datos reales</b>: el usuario compartió fichas técnicas oficiales (Komatsu/Mercedes-Benz)
+  cruzadas contra la flota real en Supabase antes de aceptar cada dato: Cargador Frontal WA900-8R (Q=13,0 m³),
+  Camión Minero HD785-7 (Q=60 m³, 91 ton), Motoniveladora GD-705-5 (Le=4,3 m), Bulldozer D375A-6R (Q=18,5 m³
+  — <b>se descartó primero el D375A-8R</b>, otra generación, al no coincidir con la flota real), Bulldozer
+  D65EX-18E0 (rango 3,55–5,60 m³ sin Q cargado, por no saber qué hoja trae el equipo real), Camión Aljibe
+  Mercedes Arocs 3340 (Q=20 m³, confirmado por dos fuentes).</p>
+  <p><b>Esquema</b>: tabla <code>rendimiento_modelos</code> (Supabase), clave natural <code>modelo</code>.
+  <code>parametros</code> es JSONB libre porque cada tipo de equipo necesita campos distintos (5 fórmulas
+  distintas no entran en columnas rígidas). <code>fuente</code> documenta ficha real vs. medido en terreno. RLS
+  con el patrón real del proyecto (<code>privado.es_usuario_activo()</code>, corregido tras verificar contra
+  <code>programacion_diaria</code> — el primer intento usó <code>using(true)</code>, más permisivo de lo debido).</p>
+  <p><b>Cálculo activo hoy, solo Cargador Frontal</b>: <code>rendimientoTeoricoCargadorFrontal</code> = Q×LF×E×60/Cm
+  (m3/h), verificada contra el ejemplo real del usuario (Q=1,30 LF=0,85 E=0,75 Cm=1,00 → R=49,73 m3/h, exacto).
+  <code>produccionPerdidaPorDetencion</code> cruza esa fórmula contra <code>dispDownMap</code> (mismas horas
+  reales de detención que ya usa Disponibilidad) — nunca inventa: sin los 4 parámetros completos o sin horas de
+  detención, el equipo no aparece. <code>_normalizarModelo</code> resuelve inconsistencias reales de tipeo en
+  Equipos ("HD785-7" vs "HD-785-7"). Las otras 4 familias tienen su capacidad real cargada de referencia, sin
+  fórmula activa aún (falta distancia/velocidades/tiempos de terreno) — se le escribió al usuario el listado
+  exacto de qué pedir a terreno por tipo de equipo.</p>
+  <p><b>UI</b>: bloque "📉 Producción Perdida por Detención" en Disponibilidad, arriba del Monte Carlo — tabla
+  con Equipo/Modelo/Rendimiento teórico/Horas detenido/m³ perdidos y total de flota. Botón "⚙️ Configurar
+  Rendimiento por Modelo" abre un modal por modelo: campos con dato real de fábrica en azul (solo lectura),
+  resto editable para cargar lo que traiga terreno.</p>
+  <p>15 tests (<code>produccionPerdidaPorDetencion.test.js</code>). Verificado con esbuild (sin errores) y suite
+  completa 1057/1057 verde. En navegador se confirmó que <code>go('disp')</code> no lanza error y que las
+  funciones nuevas existen como globales, pero no se pudo capturar el HTML renderizado de <code>#s-disp</code>
+  en esta corrida: la sesión mockeada revirtió a login antes de que <code>go()</code> pintara la pestaña — misma
+  carrera de fondo ya documentada, no relacionada con este código.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

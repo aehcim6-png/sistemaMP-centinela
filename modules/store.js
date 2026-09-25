@@ -180,7 +180,20 @@ const TABLA_REAL={
   // Papelera (soft-delete con recuperación) — cada fila es una copia completa de
   // un registro eliminado de OTRA categoría, guardada acá antes de borrarlo de
   // verdad. Ver _moverAPapelera/_restaurarDePapelera/_purgarPapeleraVieja (index.html).
-  papelera:{tabla:'papelera',clave:'_id',claveDb:'id',cols:['categoria','fila','fechaEliminacion','eliminadoPor']}
+  papelera:{tabla:'papelera',clave:'_id',claveDb:'id',cols:['categoria','fila','fechaEliminacion','eliminadoPor']},
+  // Rendimiento teórico por MODELO de equipo (2026-09-25, pedido real del
+  // usuario: cruzar horas de detención real contra m³ que ese equipo habría
+  // producido, para cuantificar el costo real de la detención en el mismo
+  // lenguaje del contrato con Centinela, pagado por m3). Clave natural
+  // 'modelo' porque el rendimiento teórico es del MODELO, no de cada unidad
+  // individual (todos los WA900-8R rinden igual en teoría). 'parametros' es
+  // JSONB flexible porque cada tipo de equipo necesita campos distintos
+  // (cargador: q/lf/e/cm: camión: q/lf/e/d/v1/v2/t1/t2; motoniveladora:
+  // le/v/fe/e/n/t; etc.) — forzarlos a columnas fijas rígidas no sirve para
+  // 5 fórmulas distintas. 'fuente' documenta de dónde salió cada valor
+  // (ficha técnica real vs. medido en terreno) para que nunca se confunda
+  // un dato real con uno inventado.
+  rendModelos:{tabla:'rendimiento_modelos',clave:'modelo',claveDb:'modelo',cols:['modelo','tipo','parametros','fuente']}
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={
