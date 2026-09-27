@@ -5442,6 +5442,44 @@ function causasLatentesRepetidas(correctivos){
   }).sort(function(a,b){return b.nEventos-a.nEventos;});
 }
 
+// ═══ ANÁLISIS MTTR POR CATEGORÍA (2026-09-27) ═══
+// Pedido real del usuario a partir de un diagrama de espina de pescado de
+// Predyc sobre los factores que afectan la Mantenibilidad: el tiempo de
+// reparación (MTTR) se pierde en 4 categorías — Acceso (izaje, ergonomía,
+// accesibilidad), Diseño (intercambiabilidad, estandarización, modularidad),
+// Información (diagnóstico, documentación, identificación) e Intervención
+// (aislamiento, herramienta, repuesto y kit). Se agregó `categoriaMTTR` a
+// Correctivos — mismo patrón ya usado con `tipoCausa`: una clasificación
+// manual al cerrar la OT, nunca inferida ni inventada — para poder
+// contestar con datos reales de la flota "¿en qué categoría se nos va más
+// tiempo de reparación?" en vez de intuición.
+//
+// Reusa el mismo parseo de 'duracion' ("Xh...") que ya usa
+// duracionesReparacionFlotaHoras/MTTR — mismo criterio de "duración real
+// registrada" en todo el sistema, nunca se estima.
+var _CATEGORIAS_MTTR=['Acceso','Diseño','Información','Intervención'];
+function analisisMTTRPorCategoria(correctivos){
+  var porCategoria={};
+  (correctivos||[]).forEach(function(c){
+    if(!c||_CATEGORIAS_MTTR.indexOf(c.categoriaMTTR)<0)return;
+    if(!c.duracion||c.duracion==='—')return;
+    var m=String(c.duracion).match(/(\d+)h/);
+    if(!m)return;
+    var horas=parseInt(m[1],10);
+    (porCategoria[c.categoriaMTTR]=porCategoria[c.categoriaMTTR]||[]).push(horas);
+  });
+  return Object.keys(porCategoria).map(function(cat){
+    var horas=porCategoria[cat];
+    var total=horas.reduce(function(a,b){return a+b;},0);
+    return{
+      categoria:cat,
+      nEventos:horas.length,
+      horasTotales:total,
+      horasPromedio:Math.round((total/horas.length)*10)/10
+    };
+  }).sort(function(a,b){return b.horasTotales-a.horasTotales;});
+}
+
 // ═══ TEST DE INDEPENDENCIA CHI-CUADRADO — TABLA DE CONTINGENCIA (2026-09-20) ═══
 // testChiCuadradoUniforme (arriba) responde una pregunta de UNA sola
 // dimensión: "¿las fallas se reparten parejo entre estas categorías, o hay
@@ -6258,7 +6296,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

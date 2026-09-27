@@ -4967,6 +4967,59 @@ a pintar la pestaña (mismo tipo de carrera de fondo ya documentado en la
 sección anterior, no relacionado con este código — confirmado sin error
 lanzado y con las funciones correctamente expuestas).
 
+### 82. MTTR por Categoría — factores reales de Mantenibilidad, Predyc (2026-09-27)
+
+Pedido real del usuario, nacido de compartir un diagrama de espina de
+pescado de Predyc (Facebook) sobre "Principales Factores que Afectan la
+Mantenibilidad": el tiempo de reparación (MTTR) no es una sola cosa — se
+pierde en 4 categorías: **Acceso** (izaje, ergonomía, accesibilidad),
+**Diseño** (intercambiabilidad, estandarización, modularidad),
+**Información** (diagnóstico, documentación, identificación) e
+**Intervención** (aislamiento, herramienta, repuesto y kit). Mismo patrón
+ya usado con `tipoCausa`/Causas Latentes Repetidas (sección 80): en vez de
+adivinar dónde se pierde el tiempo, se agrega un campo de clasificación
+manual a cada OT y se deja que los datos reales de la flota contesten la
+pregunta.
+
+**Campo nuevo**: `categoriaMTTR` en `correctivos` (migración
+`agregar_categoria_mttr_correctivos`, columna `text` nullable — mismo
+patrón que `agregar_tipo_causa_correctivos`, sin RLS nuevo porque
+`correctivos` ya tiene su política). Select en la tabla de Correctivos
+(`ot.js`, columna nueva "Categoría MTTR" junto a "Tipo Causa") y en el
+formulario "Nueva OT", con las 4 opciones fijas — nunca se infiere del
+texto libre de síntoma/solución, a diferencia de `_componenteDeSintoma` o
+`_subpiezasDeSintoma` que sí clasifican por palabras clave: acá la
+persona que cierra la OT es quien mejor sabe si el atraso fue por no
+llegar con la grúa a tiempo (Acceso), por no tener el manual a mano
+(Información), etc.
+
+**Cálculo**: `analisisMTTRPorCategoria(correctivos)` (logic.js) agrupa por
+`categoriaMTTR` (solo las 4 válidas — cualquier otro valor o vacío se
+descarta, nunca se inventa una quinta categoría) y reusa el mismo parseo
+de `duracion` ("Xh...") que ya usa `duracionesReparacionFlotaHoras`/MTTR —
+mismo criterio de "duración real registrada" que el resto del sistema.
+Para cada categoría devuelve `nEventos`, `horasTotales` (dónde se pierde
+más tiempo en total — la pregunta real del usuario) y `horasPromedio`
+(redondeado a 1 decimal), ordenado de mayor a menor `horasTotales`.
+
+**UI**: botón "MTTR por Categoría" en Correctivos, junto a "Causas
+Latentes Repetidas" — mismo estilo de modal (`verAnalisisMTTRPorCategoria`),
+con una barra horizontal por categoría (ancho proporcional a la categoría
+con más horas) mostrando eventos/horas totales/horas promedio. Si no hay
+ninguna OT clasificada todavía, el modal lo dice explícitamente en vez de
+mostrar un gráfico vacío.
+
+10 tests (`analisisMTTRPorCategoria.test.js`): las 4 categorías son
+exactamente las del diagrama, ignora sin categoría/categoría inválida/sin
+duración o duración no parseable, suma horas y cuenta eventos por
+categoría, redondeo de promedio, separa varias categorías y ordena por
+horas totales, pureza. Verificado con `npx esbuild` (logic.js y ot.js, sin
+errores) y suite completa 1067/1067 verde. Misma limitación ya documentada
+en secciones anteriores para la verificación interactiva por Playwright en
+este sandbox (carrera de fondo del mock, no relacionada con este código) —
+no se repitió el intento porque el patrón de falla ya está confirmado y
+documentado.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

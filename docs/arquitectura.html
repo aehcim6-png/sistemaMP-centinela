@@ -2657,6 +2657,28 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   en esta corrida: la sesión mockeada revirtió a login antes de que <code>go()</code> pintara la pestaña — misma
   carrera de fondo ya documentada, no relacionada con este código.</p>
 
+  <h3>82. MTTR por Categoría — factores reales de Mantenibilidad, Predyc (2026-09-27)</h3>
+  <p>Pedido real del usuario, nacido de compartir un diagrama de espina de pescado de Predyc (Facebook) sobre los
+  factores que afectan la Mantenibilidad: el MTTR se pierde en 4 categorías — <b>Acceso</b> (izaje, ergonomía,
+  accesibilidad), <b>Diseño</b> (intercambiabilidad, estandarización, modularidad), <b>Información</b>
+  (diagnóstico, documentación, identificación) e <b>Intervención</b> (aislamiento, herramienta, repuesto y kit).
+  Mismo patrón que <code>tipoCausa</code>/Causas Latentes Repetidas (sección 80): clasificación manual al cerrar
+  la OT, nunca inferida del texto libre.</p>
+  <p><b>Campo nuevo</b>: <code>categoriaMTTR</code> en <code>correctivos</code> (migración
+  <code>agregar_categoria_mttr_correctivos</code>). Select en la tabla de Correctivos y en "Nueva OT", con las 4
+  opciones fijas — cualquier otro valor o vacío se descarta en el cálculo, nunca se inventa una quinta categoría.</p>
+  <p><b>Cálculo</b>: <code>analisisMTTRPorCategoria(correctivos)</code> agrupa por <code>categoriaMTTR</code> y
+  reusa el mismo parseo de <code>duracion</code> ("Xh...") que ya usa <code>duracionesReparacionFlotaHoras</code>/
+  MTTR. Por categoría: <code>nEventos</code>, <code>horasTotales</code> (la pregunta real: dónde se pierde más
+  tiempo) y <code>horasPromedio</code>, ordenado de mayor a menor horas totales.</p>
+  <p><b>UI</b>: botón "MTTR por Categoría" en Correctivos junto a "Causas Latentes Repetidas" — modal con una
+  barra horizontal por categoría (ancho proporcional a la de más horas) mostrando eventos/horas totales/promedio.
+  Sin datos clasificados, el modal lo dice explícitamente en vez de un gráfico vacío.</p>
+  <p>10 tests (<code>analisisMTTRPorCategoria.test.js</code>). Verificado con esbuild (logic.js y ot.js, sin
+  errores) y suite completa 1067/1067 verde. Misma limitación ya documentada para la verificación interactiva por
+  Playwright en este sandbox (carrera de fondo del mock) — no se repitió el intento porque el patrón de falla ya
+  está confirmado.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
