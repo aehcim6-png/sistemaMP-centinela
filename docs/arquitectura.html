@@ -2827,6 +2827,25 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Nueva sub-vista "🔍 Intervalo de Inspección (P-F)" en Predictivo. 15 tests nuevos
   (<code>intervalosPF.test.js</code>). Suite completa 1135/1135 verde, esbuild/vite build limpios.</p>
 
+  <h3>87. Fix real: RUL híbrido no cruzaba nunca con el aceite (2026-09-30)</h3>
+  <p>Pedido explícito del usuario tras la sección 86: revisar y corregir el mismo bug de normalización de
+  componente en <code>rulHibridoPorComponente</code> (sección 78, en producción desde 2026-09-16), señalado
+  pero no corregido antes. <b>El bug</b>: la clave de <code>cusumPorGrupo</code> ("TRANSMISION", de
+  <code>analisis_aceite</code>) nunca cruzaba contra la clave de búsqueda ("Transmisión", de
+  <code>correctivos</code>/<code>_componenteDeSintoma</code>) — comparación de string exacta. El ajuste del
+  RUL por aceleración real de aceite no estaba disparando nunca en la práctica, aunque hubiera datos reales
+  mostrándolo. <b>El fix</b>: <code>_normalizarComponente</code> aplicado solo a las claves del cruce
+  interno — el <code>componente</code> mostrado en el resultado sigue siendo el de <code>correctivos</code>,
+  sin tocar.</p>
+  <p><b>Alcance real, verificado contra los 236 registros de <code>analisis_aceite</code></b> (no asumido):
+  arregla el cruce cuando la única diferencia es mayúsculas/tilde — MOTOR↔Motor, TRANSMISION↔Transmisión,
+  DIFERENCIAL↔Diferencial (149 de 236 muestras, ~63%). No arregla diferencias de vocabulario (FRENO↔Frenos,
+  MANDO FINAL IZQ↔"Mandos Finales", HIDRAULICO↔"Bomba hidráulica") — eso exigiría una tabla de
+  equivalencias entre las dos taxonomías, deliberadamente fuera de esta pasada.</p>
+  <p>1 test de integración nuevo (<code>rulHibrido.test.js</code>) que reproduce el caso real y confirma que
+  ahora cruza (antes del fix, fallaba con <code>ajustadoPorAceite: false</code>). Suite completa 1136/1136
+  verde, esbuild/vite build limpios.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -5429,6 +5429,47 @@ cruza formatos de componente distintos (mayúsculas/tildes) gracias a la
 normalización, pureza. Suite completa 1135/1135 verde, `npx esbuild`
 (logic.js, pred.js)/`npx vite build` limpios.
 
+### 87. Fix real: RUL híbrido no cruzaba nunca con el aceite (2026-09-30)
+
+Pedido explícito del usuario tras la sección 86: revisar y corregir el
+mismo bug de normalización de componente en `rulHibridoPorComponente`
+(sección 78, ya en producción desde 2026-09-16), señalado pero no
+corregido en la pasada anterior.
+
+**El bug**: `cusumPorGrupo` se armaba con clave `g.sigla+'|'+g.componente`
+(componente de `analisis_aceite`, "TRANSMISION") y se leía con
+`porEquipoComp`'s `k=e.sigla+'|'+e.componente` (componente de
+`correctivos`/`_componenteDeSintoma`, "Transmisión") — comparación de
+string exacta, nunca cruzaban. En la práctica, el ajuste del RUL por
+aceleración real de aceite (`ajustadoPorAceite`) no estaba disparando
+nunca, aunque hubiera datos reales de aceite mostrando una aceleración
+clara.
+
+**El fix**: se aplica `_normalizarComponente` (la misma función de la
+sección 86) a la clave de `cusumPorGrupo` y a la clave de búsqueda —
+solo en el cruce interno, el valor `componente` que se muestra en el
+resultado sigue siendo el de `correctivos`, sin tocar.
+
+**Alcance real verificado contra los 236 registros de `analisis_aceite`**
+(consultado en Supabase antes de dar el fix por completo, no asumido):
+esto arregla el cruce cuando la ÚNICA diferencia es mayúsculas/tilde —
+`MOTOR`↔`Motor`, `TRANSMISION`↔`Transmisión`, `DIFERENCIAL`↔`Diferencial`
+(149 de las 236 muestras reales, ~63%). **NO arregla diferencias de
+vocabulario** — `FRENO`↔`Frenos`, `MANDO FINAL IZQ`↔`Mandos Finales`,
+`HIDRAULICO`↔`Bomba hidráulica`, `REFRIGERANTE`↔`Refrigeración` siguen
+sin cruzar, porque normalizar mayúsculas/tildes no resuelve que sean
+palabras distintas. Corregir eso exigiría una tabla de equivalencias
+entre las dos taxonomías (la de `analisis_aceite`, en gran parte libre, y
+la de `correctivos`/`_componenteDeSintoma`, controlada) — deliberadamente
+fuera de esta pasada, para no inventar un mapeo sin confirmarlo primero.
+
+1 test nuevo de integración (`rulHibrido.test.js`) que reproduce el caso
+real con datos de aceite en formato `analisis_aceite` (mayúsculas, sin
+tilde) y confirma que ahora sí cruza con `correctivos` (formato mixto,
+con tilde) — antes del fix, este mismo test fallaba con
+`ajustadoPorAceite: false`. Suite completa 1136/1136 verde, `npx esbuild`
+(logic.js)/`npx vite build` limpios.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

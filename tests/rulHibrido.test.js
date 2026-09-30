@@ -123,6 +123,30 @@ describe('rulHibridoPorComponente', () => {
     expect(r.find((x) => x.sigla === 'CN-3')).toBeUndefined();
   });
 
+  it('cruza el ajuste de aceite aunque analisis_aceite guarde el componente en formato distinto (mayúsculas/sin tilde) al de correctivos (2026-09-30, bug real encontrado construyendo Intervalo de Inspección P-F)', () => {
+    const eventos = [
+      ev('CN-5', 'Motor', 1000), ev('CN-5', 'Motor', 1800), ev('CN-5', 'Motor', 2900),
+      ev('CN-5', 'Motor', 4300), ev('CN-5', 'Motor', 6000), ev('CN-5', 'Motor', 8000),
+    ];
+    const eq = [{ sigla: 'CN-5', horomActual: 8100 }]; // edad chica -> RUL base alto si no se ajusta
+    // Componente 'MOTOR' (mayúsculas, sin tilde) — como lo guarda
+    // analisis_aceite en la base real — mientras 'eventos' usa 'Motor' (como
+    // lo elige la persona en el selector de Correctivos). Serie con
+    // aceleración real de desgaste (hierro) que deja muestras DESPUÉS del
+    // punto de alerta, para que también se pueda calcular factorAceleracion.
+    const fechasAce = ['2026-01-01', '2026-01-15', '2026-02-01', '2026-02-15', '2026-03-01', '2026-03-15', '2026-04-01', '2026-04-15', '2026-05-01', '2026-05-15'];
+    const valsAce = [18, 20, 19, 21, 20, 32, 45, 60, 75, 90];
+    const ace = fechasAce.map((f, i) => ({ _sigla: 'CN-5', componente: 'MOTOR', fecha: f, hierro: valsAce[i] }));
+    const r = rulHibridoPorComponente(eventos, eq, ace);
+    const motorCN5 = r.find((x) => x.sigla === 'CN-5' && x.componente === 'Motor');
+    expect(motorCN5).toBeDefined();
+    // El nombre mostrado sigue siendo el de correctivos ('Motor'), nunca el
+    // de analisis_aceite ('MOTOR') — la normalización es solo para cruzar.
+    expect(motorCN5.componente).toBe('Motor');
+    expect(motorCN5.ajustadoPorAceite).toBe(true);
+    expect(motorCN5.factorAceleracion).toBeGreaterThan(0);
+  });
+
   it('ordena de menor a mayor RUL ajustado (el más urgente primero)', () => {
     const eventos = [
       ev('CN-1', 'Motor', 1000), ev('CN-1', 'Motor', 1800), ev('CN-1', 'Motor', 2900),

@@ -3489,6 +3489,24 @@ function rulHibridoComponente(ajuste,edadActual,cusumPorMetal){
 // ya usa Kaplan-Meier). Sin ajuste de Weibull para esa categoría, o sin
 // horómetro actual del equipo, esa instancia se omite — nunca se inventa
 // un RUL sin ambos datos reales.
+//
+// Fix real (2026-09-30, encontrado construyendo Intervalo de Inspección
+// P-F — ver esa sección en arquitectura.md): el cruce con 'cusumPorGrupo'
+// comparaba 'e.componente' (correctivos, como lo elige la persona —
+// "Transmisión") contra 'g.componente' (analisis_aceite, guardado en
+// MAYÚSCULAS sin tilde — "TRANSMISION") con una clave de string exacta.
+// Nunca cruzaban, aun siendo el mismo componente real — el ajuste del RUL
+// por aceleración real de aceite no estaba disparando nunca en la
+// práctica. _normalizarComponente (ver intervalosPF, más abajo) resuelve
+// esto en la CLAVE de cusumPorGrupo — el valor mostrado en el resultado
+// sigue siendo 'g.componente' tal como lo eligió la persona, no se toca.
+// Alcance real verificado contra los datos (2026-09-30): esto arregla el
+// cruce cuando la ÚNICA diferencia es mayúsculas/tilde (MOTOR↔Motor,
+// TRANSMISION↔Transmisión, DIFERENCIAL↔Diferencial — 149 de ~236 muestras
+// reales de aceite). NO arregla diferencias de vocabulario (FRENO↔Frenos,
+// MANDO FINAL IZQ↔"Mandos Finales", HIDRAULICO↔"Bomba hidráulica") — eso
+// exigiría una tabla de equivalencias entre ambas taxonomías, deliberadamente
+// fuera de esta pasada (no se inventa un mapeo sin confirmarlo).
 function rulHibridoPorComponente(eventos,eq,ace){
   var ajustePorComponente={};
   analisisVidaUtilCorrectivosPorComponente(eventos).forEach(function(g){
@@ -3496,7 +3514,7 @@ function rulHibridoPorComponente(eventos,eq,ace){
   });
   var cusumPorGrupo={};
   cusumAceitePorComponente(ace).forEach(function(g){
-    cusumPorGrupo[g.sigla+'|'+g.componente]=g.porMetal;
+    cusumPorGrupo[g.sigla+'|'+_normalizarComponente(g.componente)]=g.porMetal;
   });
   var porEquipoComp={};
   (eventos||[]).forEach(function(e){
@@ -3517,7 +3535,8 @@ function rulHibridoPorComponente(eventos,eq,ace){
     var ultimaFalla=validos[validos.length-1];
     var edadActual=eqObj.horomActual-ultimaFalla;
     if(!(edadActual>=0))return;
-    var rul=rulHibridoComponente(ajuste,edadActual,cusumPorGrupo[k]);
+    var cusumKey=g.sigla+'|'+_normalizarComponente(g.componente);
+    var rul=rulHibridoComponente(ajuste,edadActual,cusumPorGrupo[cusumKey]);
     if(rul.b10==null)return;
     resultado.push(Object.assign({sigla:g.sigla,componente:g.componente,edadActual:edadActual},rul));
   });
