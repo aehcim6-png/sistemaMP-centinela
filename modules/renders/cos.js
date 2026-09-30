@@ -374,10 +374,48 @@ export function renderCos() {
     '<option value="costos"' + (fVista === 'costos' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos por Mes</option>' +
     '<option value="hh"' + (fVista === 'hh' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> HH por Técnico / Equipo</option>' +
     '<option value="mtbf"' + (fVista === 'mtbf' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option>' +
-    '<option value="relativo"' + (fVista === 'relativo' ? ' selected' : '') + '>💰 Costo Relativo de Mantenimiento</option></select></div>' +
+    '<option value="relativo"' + (fVista === 'relativo' ? ' selected' : '') + '>💰 Costo Relativo de Mantenimiento</option></select> ' +
+    '<button class="btn btn-o" onclick="verComprasProveedores()" title="Tiempo de respuesta real por proveedor y pedidos de compra que ya llevan más tiempo abierto de lo normal">📦 Compras — Proveedores</button></div>' +
     content;
+}
+
+// ═══ COMPRAS — TIEMPO DE RESPUESTA POR PROVEEDOR + PEDIDOS TRABADOS
+// (2026-09-30) ═══ — pedido real del usuario tras importar 8.628 líneas de
+// Compras reales (despacho.xlsx + OC.xlsx). Usa tiempoRespuestaPorProveedor
+// (solo 'Recepcion Bodega', ciclo cerrado — nunca mezcla pedidos todavía
+// abiertos) y pedidosPotencialmenteTrabados (los 'OC Firmada'/'OC por
+// Firmar' que ya llevan más días transcurridos que lo normal de ESE
+// proveedor, mediana real como respaldo si el proveedor no tiene muestra
+// propia suficiente).
+export function verComprasProveedores(){
+  var compras=S.g('comprasDetalle')||[];
+  var porProveedor=typeof tiempoRespuestaPorProveedor==='function'?tiempoRespuestaPorProveedor(compras):[];
+  var trabados=typeof pedidosPotencialmenteTrabados==='function'?pedidosPotencialmenteTrabados(compras):[];
+  sm(`<div style="max-width:760px">
+    <h3>📦 Compras — Tiempo de Respuesta por Proveedor</h3>
+    ${!compras.length?'<p style="font-size:11px;color:var(--w)">Todavía no hay datos de Compras importados.</p>':`
+    <p style="font-size:12px;color:var(--tx3)">Tiempo de respuesta real (Pedido → llegada a bodega), solo pedidos con ciclo ya <b>cerrado</b> ("Recepción Bodega") — un pedido todavía abierto no cuenta acá, porque sesgaría el promedio a la baja.</p>
+    <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+    <table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Proveedor</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Días prom.</th><th style="text-align:right">Días mediana</th><th style="text-align:right">Costo total</th></tr>
+      ${porProveedor.map(function(p){
+        return `<tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">${escapeHtml(p.proveedor)}</td><td style="text-align:right">${p.nPedidos}</td><td style="text-align:right;color:${p.diasPromedio>20?'var(--danger)':p.diasPromedio>10?'var(--warn)':'var(--ok)'}">${p.diasPromedio}</td><td style="text-align:right">${p.diasMediana}</td><td style="text-align:right">$${fn(p.costoTotal)}</td></tr>`;
+      }).join('')||'<tr><td colspan=5 style="text-align:center;padding:12px;color:var(--tx3)">Sin pedidos con ciclo cerrado todavía</td></tr>'}
+    </table></div>
+    <h3 style="margin-top:16px">⚠️ Pedidos Potencialmente Trabados</h3>
+    <p style="font-size:12px;color:var(--tx3)">De los pedidos todavía abiertos ("OC Firmada"/"OC por Firmar"), cuáles ya llevan más días transcurridos que lo normal para ESE proveedor (mediana real de sus propios pedidos cerrados, o la mediana global si el proveedor no tiene al menos 3 pedidos de referencia).</p>
+    ${trabados.length?`<div style="overflow-x:auto;max-height:260px;overflow-y:auto"><table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Pedido</th><th style="text-align:left">Equipo</th><th style="text-align:left">Proveedor</th><th style="text-align:left">Detalle</th><th style="text-align:right">Días transcurridos</th><th style="text-align:right">Referencia</th></tr>
+      ${trabados.map(function(t){
+        return `<tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">${escapeHtml(t.pedido||'—')}</td><td style="color:var(--ac)">${escapeHtml(t.sigla||'—')}</td><td>${escapeHtml(t.proveedor||'—')}</td><td style="max-width:200px">${escapeHtml(t.detalle||'—')}</td><td style="text-align:right;color:var(--danger)">${t.diasTranscurridos}</td><td style="text-align:right" title="${t.usaRespaldoGlobal?'Mediana global (proveedor sin muestra propia suficiente)':'Mediana propia del proveedor'}">${t.diasReferencia}${t.usaRespaldoGlobal?' *':''}</td></tr>`;
+      }).join('')}
+    </table></div><p style="font-size:10px;color:var(--tx3);margin-top:4px">* Mediana global (ese proveedor todavía no tiene al menos 3 pedidos cerrados propios como referencia).</p>`:'<p style="color:var(--ok);text-align:center;padding:16px">Ningún pedido abierto supera lo normal de su proveedor todavía.</p>'}
+    `}
+    <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
+  </div>`);
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderCos = renderCos;
+window.verComprasProveedores = verComprasProveedores;
 renders.cos = renderCos;

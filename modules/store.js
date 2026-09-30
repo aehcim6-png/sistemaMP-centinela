@@ -140,6 +140,7 @@ const TABLA_REAL={
   // app llama S.s('ocHist', ...), así que nunca dispara el sync genérico (upsert/delete)
   // sobre esta tabla — evita que un guardado accidental borre datos financieros reales.
   ocHist:{tabla:'ordenes_compra_historico',clave:'_id',claveDb:'id',cols:['pedido','fecha','sigla','detalle','oc','cant','precioUnit','costo','rut','proveedor','tipo']},
+  comprasDetalle:{tabla:'compras_detalle',clave:'_id',claveDb:'id',cols:['pedido','fecha','sigla','detalle','oc','cant','precioUnit','costo','rut','proveedor','tipo','estado','tiempoRespuesta','fechaEstado','comprador']},
   // Historial de correctivos 2022-2025 (previo a este sistema), cargado desde Excel
   // (ver conversación 2026-08-15). Mismo patrón de solo lectura que 'ocHist': nada en
   // la app llama S.s('otHist', ...) — alimenta el cálculo de probabilidad de falla en

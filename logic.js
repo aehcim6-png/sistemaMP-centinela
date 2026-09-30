@@ -5558,6 +5558,109 @@ function resumenTrazabilidadAvisoOrden(trazabilidad){
   };
 }
 
+// ═══ TIEMPO DE RESPUESTA POR PROVEEDOR + PEDIDOS POTENCIALMENTE TRABADOS
+// (2026-09-30) ═══ — pedido real del usuario tras importar 8.628 líneas
+// reales de Compras (despacho.xlsx + OC.xlsx, 2021-2026): "podemos sacar
+// mucha información, ejemplo tiempo de respuesta, costo, proveedores,
+// consumo". El campo 'Tiempo' (columna 'tiempoRespuesta') significa algo
+// distinto según 'estado': en 'Recepcion Bodega' es un ciclo YA CERRADO
+// (Pedido → llegó a bodega) — sirve para medir tiempo de respuesta real.
+// En 'OC Firmada'/'OC por Firmar' es tiempo transcurrido HASTA AHORA, de un
+// pedido que sigue abierto — no sirve para promediar tiempo de respuesta
+// (sesgaría a la baja: los pedidos lentos que siguen abiertos no están
+// "terminados" todavía), pero sí sirve para detectar cuáles ya llevan más
+// tiempo del normal y probablemente están trabados.
+//
+// _parsearTiempoRespuestaDias: el texto real tiene formato "X dias Yh Zm"
+// (cualquier parte puede faltar, ej. "1 dia 1h 0m"). Se convierte todo a
+// días (horas/24 + minutos/1440) para que el resultado sea comparable —
+// estos plazos se miden en días, no en horas como el MTTR de taller.
+function _parsearTiempoRespuestaDias(texto){
+  if(!texto)return null;
+  var s=String(texto);
+  var mD=s.match(/(\d+)\s*d[ií]as?/i);
+  var mH=s.match(/(\d+)\s*h/i);
+  var mM=s.match(/(\d+)\s*m(?!es)/i);
+  if(!mD&&!mH&&!mM)return null;
+  var dias=mD?parseInt(mD[1],10):0;
+  var horas=mH?parseInt(mH[1],10):0;
+  var min=mM?parseInt(mM[1],10):0;
+  return Math.round((dias+horas/24+min/1440)*10)/10;
+}
+
+// Tiempo de respuesta real por proveedor: SOLO 'Recepcion Bodega' (ciclo
+// cerrado) — nunca mezcla pedidos todavía abiertos, que sesgarían el
+// promedio a la baja. Por proveedor: nPedidos, diasPromedio, diasMediana
+// (más robusta a un pedido excepcionalmente lento/rápido) y costoTotal
+// (misma tanda de datos, responde también la pregunta de costo por
+// proveedor). Ordenado de mayor a menor diasPromedio — el proveedor más
+// lento primero, el más accionable para una conversación real.
+function tiempoRespuestaPorProveedor(comprasDetalle){
+  var porProveedor={};
+  (comprasDetalle||[]).forEach(function(c){
+    if(!c||c.estado!=='Recepcion Bodega'||!c.proveedor)return;
+    var dias=_parsearTiempoRespuestaDias(c.tiempoRespuesta);
+    if(dias==null)return;
+    var g=(porProveedor[c.proveedor]=porProveedor[c.proveedor]||{dias:[],costo:0});
+    g.dias.push(dias);
+    g.costo+=(c.costo>0?c.costo:0);
+  });
+  return Object.keys(porProveedor).map(function(prov){
+    var g=porProveedor[prov];
+    var total=g.dias.reduce(function(a,b){return a+b;},0);
+    return{
+      proveedor:prov,
+      nPedidos:g.dias.length,
+      diasPromedio:Math.round((total/g.dias.length)*10)/10,
+      diasMediana:medianaPositiva(g.dias),
+      costoTotal:Math.round(g.costo)
+    };
+  }).sort(function(a,b){return b.diasPromedio-a.diasPromedio;});
+}
+
+// Pedidos potencialmente trabados: de los todavía ABIERTOS ('OC Firmada'/
+// 'OC por Firmar'), cuáles ya llevan más días transcurridos que lo normal
+// para ESE proveedor (mediana real de sus pedidos ya cerrados, calculada
+// arriba) — con mínimo de 'minMuestraProveedor' pedidos cerrados de
+// referencia; si el proveedor no tiene esa mínima muestra propia, usa la
+// mediana global de TODOS los proveedores como respaldo (mismo patrón que
+// hhPlanEstimator: equipo+tipo primero, flota como respaldo). Un pedido se
+// marca trabado si sus días transcurridos superan la referencia ×
+// factorAlerta (default 1.5 — 50% más lento que lo típico de ese
+// proveedor). Nunca inventa una referencia sin al menos 1 dato real.
+function pedidosPotencialmenteTrabados(comprasDetalle,factorAlerta,minMuestraProveedor){
+  factorAlerta=factorAlerta>0?factorAlerta:1.5;
+  minMuestraProveedor=minMuestraProveedor>0?minMuestraProveedor:3;
+  var lista=comprasDetalle||[];
+  var porProveedorDias={};
+  var todasDias=[];
+  lista.forEach(function(c){
+    if(!c||c.estado!=='Recepcion Bodega')return;
+    var dias=_parsearTiempoRespuestaDias(c.tiempoRespuesta);
+    if(dias==null)return;
+    todasDias.push(dias);
+    if(c.proveedor)(porProveedorDias[c.proveedor]=porProveedorDias[c.proveedor]||[]).push(dias);
+  });
+  var medianaGlobal=medianaPositiva(todasDias);
+  var abiertos=lista.filter(function(c){return c&&(c.estado==='OC Firmada'||c.estado==='OC por Firmar');});
+  var resultado=abiertos.map(function(c){
+    var diasTranscurridos=_parsearTiempoRespuestaDias(c.tiempoRespuesta);
+    if(diasTranscurridos==null)return null;
+    var historicoProveedor=porProveedorDias[c.proveedor]||[];
+    var usaRespaldo=historicoProveedor.length<minMuestraProveedor;
+    var referencia=usaRespaldo?medianaGlobal:medianaPositiva(historicoProveedor);
+    if(referencia==null)return null;
+    return{
+      pedido:c.pedido,sigla:c.sigla,proveedor:c.proveedor,estado:c.estado,
+      detalle:c.detalle,diasTranscurridos:diasTranscurridos,
+      diasReferencia:referencia,usaRespaldoGlobal:usaRespaldo,
+      trabado:diasTranscurridos>referencia*factorAlerta
+    };
+  }).filter(Boolean);
+  return resultado.filter(function(r){return r.trabado;})
+    .sort(function(a,b){return(b.diasTranscurridos-b.diasReferencia)-(a.diasTranscurridos-a.diasReferencia);});
+}
+
 // ═══ TEST DE INDEPENDENCIA CHI-CUADRADO — TABLA DE CONTINGENCIA (2026-09-20) ═══
 // testChiCuadradoUniforme (arriba) responde una pregunta de UNA sola
 // dimensión: "¿las fallas se reparten parejo entre estas categorías, o hay
@@ -6374,7 +6477,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

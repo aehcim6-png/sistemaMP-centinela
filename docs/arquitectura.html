@@ -2705,6 +2705,31 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Verificado con esbuild (logic.js, ot.js, informes.js, sin errores), <code>npx vite build</code> limpio y suite
   completa 1089/1089 verde.</p>
 
+  <h3>84. Compras — Tiempo de Respuesta por Proveedor y Pedidos Trabados (2026-09-30)</h3>
+  <p>Cierre del trabajo de importación de <code>compras_detalle</code> (8.628 líneas reales de Compras
+  2021-2026, filtradas a la flota real): el pedido original fue "podemos sacar mucha información, ejemplo
+  tiempo de respuesta, costo, proveedores, consumo". <b>Regla central</b>: <code>tiempoRespuesta</code>
+  significa algo distinto según <code>estado</code> — en "Recepcion Bodega" es un ciclo YA CERRADO; en
+  "OC Firmada"/"OC por Firmar" es tiempo transcurrido HASTA AHORA de un pedido abierto. Nunca se mezclan
+  (sesgaría el promedio a la baja).</p>
+  <p><code>_parsearTiempoRespuestaDias(texto)</code> convierte "X dias Yh Zm" a días decimales.
+  <code>tiempoRespuestaPorProveedor(comprasDetalle)</code> — solo "Recepcion Bodega" — agrupa por proveedor:
+  <code>nPedidos</code>, <code>diasPromedio</code>, <code>diasMediana</code>, <code>costoTotal</code>, ordenado
+  de mayor a menor días promedio. <code>pedidosPotencialmenteTrabados(comprasDetalle, factorAlerta=1.5,
+  minMuestraProveedor=3)</code> marca los pedidos abiertos que ya llevan más días que
+  <code>medianaDelProveedor × factorAlerta</code> — con la mediana global como respaldo si el proveedor no
+  tiene muestra propia suficiente (mismo patrón "propio primero, flota como respaldo" que
+  <code>hhPlanEstimator</code>). Tabla nueva en <code>store.js</code>: <code>comprasDetalle</code> (solo
+  lectura). Botón "📦 Compras — Proveedores" en Costos &amp; Stock (<code>verComprasProveedores</code>,
+  <code>cos.js</code>).</p>
+  <p><b>Pendiente, señalado al usuario, no construido esta pasada</b>: el desglose "tiempo de creación de la
+  OC → tiempo hasta que llega al proveedor". Los datos importados no traen esa fecha intermedia — solo
+  <code>fecha</code> (Pedido) y <code>fechaEstado</code> (un único snapshot del estado actual, no un
+  historial de transiciones). No se inventó una estimación.</p>
+  <p>19 tests nuevos (<code>tiempoRespuestaCompras.test.js</code>). Verificado con esbuild (logic.js, cos.js,
+  sin errores), <code>npx vite build</code> limpio, suite completa 1111/1111 verde, y contra los datos reales
+  ya importados en Supabase (KOMATSU CHILE S.A. 1.590 pedidos cerrados, Cummins 700, Perkins 608).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

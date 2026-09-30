@@ -5087,6 +5087,76 @@ y ordena correctamente, pureza (Aviso→Orden). Verificado con `npx esbuild`
 (logic.js, ot.js, informes.js, sin errores), `npx vite build` limpio y
 suite completa 1089/1089 verde.
 
+### 84. Compras — Tiempo de Respuesta por Proveedor y Pedidos Trabados (2026-09-30)
+
+Cierre del trabajo de importación de `compras_detalle` (8.628 líneas reales
+de Compras 2021-2026, filtradas a la flota real — ver importación descrita
+en el hilo de esta sesión): el pedido original del usuario al compartir
+`despacho.xlsx`/`OC.xlsx` fue *"podemos sacar mucha información, ejemplo
+tiempo de respuesta, costo, proveedores, consumo"*. Esta sección construye
+las dos primeras preguntas reales sobre esos datos.
+
+**Regla central, ya establecida al mapear las columnas**: el campo
+`tiempoRespuesta` ("Tiempo" en el Excel, texto libre "X dias Yh Zm")
+significa algo DISTINTO según `estado` — en `Recepcion Bodega` es un ciclo
+YA CERRADO (Pedido → llegó a bodega); en `OC Firmada`/`OC por Firmar` es
+tiempo transcurrido HASTA AHORA de un pedido que sigue abierto. Mezclar
+ambos sesgaría cualquier promedio a la baja (los pedidos lentos que siguen
+abiertos "no cuentan" como lentos todavía). Cada función usa exactamente
+uno de los dos, nunca los combina.
+
+- **Parseo**: `_parsearTiempoRespuestaDias(texto)` (logic.js) — convierte
+  "19 dias 17h 40m" (cualquier parte puede faltar) a días decimales
+  (horas/24 + minutos/1440), redondeado a 1 decimal. Los plazos de compra
+  se miden en días, no en horas como el MTTR de taller.
+- **Tiempo de respuesta real por proveedor**:
+  `tiempoRespuestaPorProveedor(comprasDetalle)` — SOLO `Recepcion Bodega`.
+  Por proveedor: `nPedidos`, `diasPromedio`, `diasMediana` (más robusta a
+  un pedido excepcional) y `costoTotal` (responde también la pregunta de
+  costo por proveedor, con el mismo dato). Ordenado de mayor a menor
+  `diasPromedio` — el proveedor más lento primero.
+- **Pedidos potencialmente trabados**:
+  `pedidosPotencialmenteTrabados(comprasDetalle, factorAlerta=1.5,
+  minMuestraProveedor=3)` — de los todavía abiertos, marca `trabado` el
+  que ya lleva más días transcurridos que `medianaDelProveedor ×
+  factorAlerta`. Si el proveedor no tiene al menos `minMuestraProveedor`
+  pedidos cerrados propios de referencia, usa la mediana global de todos
+  los proveedores como respaldo (mismo patrón de "propio primero, flota
+  como respaldo" que `hhPlanEstimator`) — nunca inventa una referencia sin
+  al menos 1 dato real detrás. Devuelve solo los marcados `trabado`,
+  ordenados por mayor exceso sobre su referencia (`diasTranscurridos -
+  diasReferencia`).
+- **Tabla nueva en `store.js`**: `comprasDetalle` (`compras_detalle`,
+  solo lectura desde la UI — ninguna pantalla la edita, se llena por el
+  import masivo hecho una vez).
+- **UI**: botón "📦 Compras — Proveedores" en Costos & Stock
+  (`verComprasProveedores`, `cos.js`), junto al selector de sub-vista.
+  Modal con dos tablas: tiempo de respuesta por proveedor (semáforo:
+  rojo >20 días promedio, amarillo >10) y pedidos trabados (con asterisco
+  cuando la referencia usada es la mediana global, no la propia del
+  proveedor).
+
+**Pendiente, señalado al usuario, no construido esta pasada**: el desglose
+"tiempo de creación de la OC → tiempo hasta que llega al proveedor" que
+pidió a continuación. Los datos importados (despacho.xlsx/OC.xlsx) NO
+traen esa fecha intermedia — solo `fecha` (Pedido) y `fechaEstado` (fecha
+del estado ACTUAL, un único snapshot por línea, no un historial de
+transiciones). No se inventó una estimación: se necesita esa fecha
+intermedia real desde el sistema de origen para poder construir esta
+métrica.
+
+19 tests nuevos (`tiempoRespuestaCompras.test.js`): parseo de todas las
+combinaciones de "X dias Yh Zm" (completo, singular, solo días, solo
+horas, texto vacío/no parseable), agrupación y orden por proveedor, costo
+cero/negativo no cuenta, pedidos cerrados nunca entran a "trabados",
+detección con mediana propia y con respaldo global, `factorAlerta`
+explícito, orden por mayor exceso, pureza. Verificado con `npx esbuild`
+(logic.js, cos.js, sin errores), `npx vite build` limpio y suite completa
+1111/1111 verde. Verificado también contra los datos reales ya importados
+en Supabase (KOMATSU CHILE S.A. con 1.590 pedidos cerrados, Cummins 700,
+Perkins 608 — volumen real de sobra para que el análisis por proveedor
+tenga sentido).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
