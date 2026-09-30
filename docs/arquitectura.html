@@ -2737,6 +2737,28 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (logic.js, cos.js, sin errores), <code>npx vite build</code> limpio, suite completa 1120/1120 verde, y
   contra los datos reales ya importados en Supabase.</p>
 
+  <h3>85. Migración incremental de ocHist a compras_detalle — paso 1: costoSugeridoPorCruce (2026-09-30)</h3>
+  <p>El usuario preguntó si <code>compras_detalle</code> también sirve para lo que hoy usa
+  <code>ocHist</code>/<code>ordenes_compra_historico</code> (subconjunto curado, 6.848 filas, 2022-06-23 a
+  2026-09-05, vs. 8.628 filas de <code>compras_detalle</code>, 2021-01-12 a 2026-09-25, misma flota de 34
+  siglas). Hay 4 lugares que usan <code>ocHist</code>: <code>costoSugeridoPorCruce</code> (ot.js),
+  <code>costoRelativoMantenimiento</code> (cos.js), Matriz de Criticidad de Repuestos/ABC-XYZ (pred.js) y
+  plan.js. Se decidió migrar de a uno, empezando por el de menor riesgo, verificando cada uno contra datos
+  reales antes de seguir al próximo.</p>
+  <p><b>Verificación previa</b>: el 98,4% de <code>ocHist</code> (6.737 de 6.848 filas) tiene coincidencia
+  exacta (oc+sigla+costo) en <code>compras_detalle</code> — confirma que es la misma fuente subyacente,
+  <code>ocHist</code> es un subconjunto, no datos independientes con correcciones propias.</p>
+  <p><b>Paso 1 — costoSugeridoPorCruce</b> (ot.js): menor riesgo porque solo alimenta una sugerencia con
+  botón "usar", nunca se aplica sola. Se cambió <code>S.g('ocHist')||[]</code> por
+  <code>(S.g('ocHist')||[]).concat(S.g('comprasDetalle')||[])</code> en los 2 puntos donde se llama — se
+  concatena, no se reemplaza, así el ~1,6% sin match no se pierde y una fila duplicada en ambas fuentes es
+  inofensiva (la función ya ordena por score). Verificado con un correctivo real (CF-9511, 2026-07-21): con
+  solo <code>ocHist</code>, 3 candidatos en la ventana de ±15 días; con <code>compras_detalle</code> sumado,
+  25 — la cobertura se multiplica por 8 en este caso. Sin cambios en la función pura (ya era agnóstica a la
+  fuente). Suite 1120/1120 verde (sin tests nuevos: no hay lógica nueva, solo qué array se le pasa). Pasos 2
+  (costoRelativoMantenimiento) y 3-4 (Matriz de Criticidad de Repuestos/ABC-XYZ, plan.js) quedan pendientes,
+  cada uno con su propia verificación antes de aplicarse.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

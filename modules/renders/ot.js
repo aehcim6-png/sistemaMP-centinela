@@ -116,7 +116,14 @@ function _otPrioridadCostoHTML(prioridad){
 export function renderOt(){
   const ot=S.g('ot')||[],eq=S.g('eq')||[];
   const reg=S.g('reg')||[];
-  const ocHist=S.g('ocHist')||[];
+  // ocHist+comprasDetalle (2026-09-30, primer paso de la migración acordada
+  // con el usuario): 'compras_detalle' (import real 2021-2026, ver arquitectura.md
+  // sección 84) cubre el 98,4% de 'ocHist' con más profundidad histórica y más
+  // filas recientes — se concatenan (no se reemplaza) porque esto solo alimenta
+  // una SUGERENCIA con botón "usar" (nunca se aplica sola): sumar cobertura no
+  // tiene downside, y el ~1,6% de ocHist sin match exacto en compras_detalle
+  // (formato de costo/OC ligeramente distinto) no se pierde.
+  const ocHist=(S.g('ocHist')||[]).concat(S.g('comprasDetalle')||[]);
   // Equipos AÚN fuera de servicio (mismo criterio y banner que Disponibilidad) — con
   // cientos de correctivos acumulados, estas OT (a veces de meses atrás) quedaban
   // enterradas varias páginas adentro de la tabla, sin ningún aviso arriba que las
@@ -902,7 +909,7 @@ export function edOT(i,key,val){
   // candidato real de costoSugeridoPorCruce, se lo muestra en el aviso para
   // que lo revise antes de decidir.
   if(key==='estadoOT'&&val==='Cerrada'&&ot[i]&&!(ot[i].costo>0)){
-    var _sugCierre=(typeof costoSugeridoPorCruce==='function')?costoSugeridoPorCruce(ot[i],S.g('ocHist')||[]):[];
+    var _sugCierre=(typeof costoSugeridoPorCruce==='function')?costoSugeridoPorCruce(ot[i],(S.g('ocHist')||[]).concat(S.g('comprasDetalle')||[])):[];
     var _msg=_sugCierre.length
       ?'Esta OT se va a cerrar SIN costo registrado.\n\nHay un costo sugerido por cruce con una Orden de Compra real: $'+fn(_sugCierre[0].costo)+' ('+_sugCierre[0].detalle+', '+fd(_sugCierre[0].fecha)+').\n\nRecomendado: Cancelar, aplicar el costo sugerido (botón "usar" en la fila) y recién ahí cerrar.\n\n¿Cerrar igual sin costo?'
       :'Esta OT se va a cerrar SIN costo registrado.\n\n¿Cerrar igual sin costo? (si es una reparación con costo real conocido, cancelá y completá el campo Costo antes de cerrar)';

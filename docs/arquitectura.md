@@ -5182,6 +5182,52 @@ limpio y suite completa 1120/1120 verde. Verificado también contra los
 datos reales ya importados en Supabase (KOMATSU CHILE S.A. con 1.590
 pedidos cerrados, Cummins 700, Perkins 608).
 
+### 85. Migración incremental de `ocHist` a `compras_detalle` — paso 1: costoSugeridoPorCruce (2026-09-30)
+
+El usuario preguntó si `compras_detalle` (más completo, ver sección 84)
+también sirve para lo que hoy usa `ocHist`/`ordenes_compra_historico` (un
+subconjunto curado más chico, 6.848 filas, 2022-06-23 a 2026-09-05, vs.
+8.628 filas de `compras_detalle`, 2021-01-12 a 2026-09-25, mismas 34
+siglas de la flota). Hay 4 lugares reales que usan `ocHist`:
+`costoSugeridoPorCruce` (ot.js), `costoRelativoMantenimiento` (cos.js),
+Matriz de Criticidad de Repuestos/ABC-XYZ (pred.js) y plan.js. En vez de
+migrar los 4 de un tirón, se decidió ir de a uno, empezando por el de
+menor riesgo, y verificando cada uno contra datos reales antes de seguir
+al próximo (mismo criterio de toda la sesión).
+
+**Verificación previa (antes de tocar código)**: de las 6.848 filas de
+`ocHist`, el 98,4% (6.737) tiene una coincidencia exacta (mismo `oc` +
+`sigla` + `costo`) en `compras_detalle` — confirma que es la misma fuente
+subyacente, `ocHist` es un subconjunto, no una fuente independiente con
+correcciones propias.
+
+**Paso 1 — `costoSugeridoPorCruce`** (ot.js, líneas ~119 y ~912): es el de
+menor riesgo porque solo alimenta una SUGERENCIA con botón "usar" — nunca
+se aplica sola. Se cambió `S.g('ocHist')||[]` por
+`(S.g('ocHist')||[]).concat(S.g('comprasDetalle')||[])` en los 2 puntos
+donde se llama (al armar la tabla de Correctivos, y al avisar si se
+cierra una OT sin costo). Se concatena, NO se reemplaza — el ~1,6% de
+`ocHist` sin match exacto (probablemente diferencias de formato de
+costo/OC) no se pierde, y duplicar una fila que existe en ambas fuentes
+es inofensivo acá (la función ya ordena por score y solo se usa el mejor
+candidato).
+
+Verificado con un correctivo real: CF-9511, 2026-07-21 ("eslabón H
+fracturado, HUESO PERRO"), ventana ±15 días — `ocHist` solo, 3 candidatos
+posibles; con `compras_detalle` sumado, 25. La cobertura real de la
+sugerencia de costo se multiplica por 8 en este caso concreto.
+
+Sin cambios de lógica en `costoSugeridoPorCruce` (logic.js) — la función
+ya era agnóstica a la fuente, solo espera `sigla`/`fecha`/`costo`/
+`detalle`/`proveedor`, que `compras_detalle` tiene con los mismos
+nombres. Suite completa 1120/1120 verde (sin tests nuevos — no hay lógica
+nueva que probar, solo qué array se le pasa a una función ya testeada).
+`npx esbuild`/`npx vite build` limpios.
+
+Pasos 2 (`costoRelativoMantenimiento`) y 3-4 (Matriz de Criticidad de
+Repuestos/ABC-XYZ, plan.js) quedan para después, cada uno con su propia
+verificación antes de aplicarse.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
