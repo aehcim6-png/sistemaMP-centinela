@@ -206,12 +206,19 @@
   90 días con un cron diario.</p>
 
   <h2>4. Base de datos (Supabase)</h2>
-  <p><b>42 tablas reales</b> (incluye <code>historial_componentes</code> e
+  <p><b>44 tablas reales</b> (incluye <code>historial_componentes</code> e
   <code>historial_neumaticos</code>, agregadas en agosto 2026,
   <code>correctivos_historico</code>, agosto 2026, planillas Excel 2022-2025 previas a este
-  sistema, alimenta Probabilidad de Falla en Predictivo, y <code>compromisos</code>
-  (2026-08-31, loop de responsabilidad de Metas & KPIs)) + 7 "singleton" de configuración (49
-  tablas en total). El mapeo vive en
+  sistema, alimenta Probabilidad de Falla en Predictivo, <code>compromisos</code>
+  (2026-08-31, loop de responsabilidad de Metas & KPIs), y las 2 más recientes:
+  <code>compras_detalle</code> (2026-09-27, 8.628 líneas reales de pedidos de compra
+  2021-2026, importadas de despacho.xlsx + OC.xlsx — alimenta Tiempo de Respuesta por
+  Proveedor, Pedidos Potencialmente Trabados y Tiempo de Aprobación de OC, y reemplazó a
+  <code>ordenes_compra_historico</code> en varios cálculos de costo real; ver
+  <a href="arquitectura.html">Arquitectura</a>, secciones 84-85) y
+  <code>rendimiento_modelos</code> (2026-09-30, rendimiento teórico por modelo de equipo
+  para Producción Perdida por Detención; ver Arquitectura, sección 86)) + 7 "singleton" de
+  configuración (51 tablas en total). El mapeo vive en
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.</p>
   <p><b>El schema está versionado como código</b> en <code>supabase/migrations/*.sql</code>.
   Cualquier cambio de estructura debe ser un archivo de migración nuevo, nunca una edición manual
@@ -496,6 +503,25 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   un equipo, más angosto (más confiable) sale su intervalo — no hay ningún campo nuevo que
   cargar, solo seguir completando duración y horómetro al cerrar correctivos, como ya se hace.</p>
 
+  <h2>8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</h2>
+  <p>Tres campos nuevos y opcionales en Correctivos, todos del mismo patrón: se eligen a mano al
+  cargar/editar una OT (nunca se infieren del texto libre, porque son un criterio de la empresa,
+  no un dato técnico) y alimentan un análisis agregado que aparece vacío hasta que haya
+  suficientes OT clasificadas:</p>
+  <ul>
+    <li><b><code>tipoCausa</code></b> (Física/Humana/Latente) — alimenta <b>Causas Latentes
+    Repetidas</b> (botón en Correctivos): agrupa por componente las causas Latentes que se
+    repiten 2+ veces en equipos distintos.</li>
+    <li><b><code>categoriaMTTR</code></b> (Acceso/Diseño/Información/Intervención) — alimenta
+    <b>MTTR por Categoría</b> (botón en Correctivos): en cuál de esas 4 categorías se pierde más
+    tiempo real de reparación.</li>
+    <li><b><code>clasificacionCosto</code></b> (CAPEX/OPEX) — alimenta <b>CAPEX vs OPEX</b>
+    (botón en Correctivos): cuánto del gasto real se capitaliza vs. se lleva a resultados.</li>
+  </ul>
+  <p>Ver <a href="arquitectura.html">Arquitectura</a>, secciones 83-84 y 87, para el detalle
+  técnico de cada una. Como admin, no hay nada que activar — simplemente avisar al equipo de
+  terreno que estos 3 selectores existen, si se quiere que esos análisis empiecen a tener datos.</p>
+
   <h2>9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
@@ -508,7 +534,7 @@ supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resum
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 885 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 1136 casos)
 docs/                    — esta documentación</pre>
 
   <h2>10. Si algo se rompe — por dónde empezar</h2>
