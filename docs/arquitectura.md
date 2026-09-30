@@ -5260,8 +5260,69 @@ alarmante. Sin tests nuevos (mismo motivo que el paso 1 — no hay lógica
 nueva, solo qué array se pasa). Suite 1120/1120 verde, `npx esbuild`/
 `npx vite build` limpios.
 
-Pasos 3-4 (Matriz de Criticidad de Repuestos/ABC-XYZ en pred.js, y
-plan.js) quedan para después, cada uno con su propia verificación antes
+**Corrección al alcance original**: al ir a migrar "Matriz de Criticidad
+de Repuestos/ABC-XYZ" (pred.js), se encontró que esas dos pantallas en
+realidad usan `mov`/`stk` (movimientos de bodega y stock), **no**
+`ocHist` — el único uso real de `ocHist` en pred.js es dentro de **Señal
+Unificada de Reemplazo**, alimentando otra vez `costoRelativoMantenimientoFlota`
+(una de las 6 señales que cruza, ver sección 42). Ese fue el paso 3 real.
+
+**Paso 3 — Señal Unificada de Reemplazo** (pred.js, `crmRepl`): mismo
+reemplazo que el paso 2 (`ocHist` → `compras_detalle`, sin concatenar).
+Antes de aplicarlo se verificaron los 34 equipos completos (no solo 5) y
+aparecieron 4 con % imposibles (69%-166% anual, matemáticamente
+inviable): **CN-9502/9503/9506/9507**, todos por la MISMA compra de
+manguera hidráulica del 19-oct-2023 — un error real de digitación de
+cantidad en el Excel de origen (no introducido por esta importación).
+
+Investigando el mismo lote (mismo proveedor, mismo día) se encontraron
+comparables reales de precio normal 9 días antes (10-oct-2023, mismo
+ítem, mismo proveedor) para 3 de las 4 líneas, con evidencia cruzada
+(confirmado 2 veces de forma independiente para CN-9502, más el ajuste
+ya auditado que traía `ocHist`). Se corrigieron directamente en
+`compras_detalle` (con aprobación explícita del usuario antes de
+escribir):
+
+| Equipo | OC | Antes (cant / precioUnit) | Corregido | Evidencia |
+|---|---|---|---|---|
+| CN-9502 | 623511 | 197 / $12.791.624 | 19 / $139.997 | Ya auditado + confirmado 2 veces más el mismo día en otro equipo |
+| CN-9503 | 623513 | 394 / $12.791.598 | 38 / $139.997 | Mismo ítem exacto, cantidad cruda = 2× la de CN-9502 |
+| CN-9507 | 623342 | 179 / $14.990.558 | 17 / $149.073 | Ítem confirmado a ese precio el mismo día en otro equipo |
+| **CN-9506** | 623512 | 394 / $12.791.598 | **`costo=NULL`** | Su texto ("R32 12f") no calza con ningún ítem con precio comparable confirmado — se excluye en vez de inventar un número |
+
+Resultado tras corregir: CN-9502 5,0%, CN-9503 12,5%, CN-9506 13,2%,
+CN-9507 13,4% — los 4 ahora por debajo del umbral de 15% de la señal,
+valores sanos y consistentes con el resto de la flota.
+
+**Segundo hallazgo, de otro tipo**: verificando el resto de los 34
+equipos apareció **CA-10505** con 261,3% (también imposible). Causa
+distinta — no un error de tipeo, un problema conceptual: la compra del
+propio vehículo ("Camioneta", $23.030.336) quedó registrada como una
+línea más de OC, con costo == valorCompra exacto. Esto **ya existía en
+`ocHist`** (misma línea) — solo que antes no se mostraba porque
+`ocHist` no llegaba a los 90 días mínimos de historial para CA-10505; con
+más historial real, el problema se hizo visible. Mismo patrón en
+CA-10506 (concentración 93,3%, aunque sin llegar aún a los 90 días
+mínimos para mostrarse).
+
+**Fix, en la función pura (afecta también al paso 2, ya en `main`)**:
+`costoRelativoMantenimiento` (logic.js) ahora excluye, dentro de su
+propio filtro de líneas válidas, cualquier línea cuyo `costo` coincida
+EXACTO con el `valorCompra` del equipo — la compra del activo no es
+gasto de mantención, y comparar un equipo contra sí mismo no tiene
+sentido. Con el fix, CA-10505 pasó de 261,3% (imposible) a ~28,5% (alto
+pero plausible para un vehículo con apenas 113 días de historial — el
+mismo tipo de caso ya visto con CA-5979 en el paso 2).
+
+2 tests nuevos (`costoRelativoMantenimiento.test.js`): excluye la línea
+cuyo costo coincide exacto con `valorCompra`, y confirma que NO excluye
+de más (solo compara contra el `valorCompra` propio del equipo, no
+contra cualquier coincidencia numérica de otro). Suite completa
+1122/1122 verde, `npx esbuild` (logic.js, pred.js)/`npx vite build`
+limpios. Verificado en Supabase tras aplicar las correcciones: los 5
+equipos (4 de la manguera + CA-10505) dan valores sanos.
+
+Paso 4 (`plan.js`) queda para después, con su propia verificación antes
 de aplicarse.
 
 ## Lo que decidimos NO hacer (y por qué)

@@ -61,6 +61,25 @@ describe('costoRelativoMantenimiento', () => {
     expect(costoRelativoMantenimiento(oc, 1000000)).toBeNull(); // default 90 días
     expect(costoRelativoMantenimiento(oc, 1000000, { minDias: 20 })).not.toBeNull();
   });
+
+  it('excluye la línea cuyo costo coincide exacto con valorCompra (compra del propio activo, no mantención)', () => {
+    // Caso real: CA-10505/CA-10506 (camionetas) — la compra del vehículo
+    // quedó registrada como una línea más de OC, costo == valorCompra.
+    const oc = [
+      { fecha: '2024-01-01', costo: 23030336 }, // "Camioneta" — la compra del activo
+      { fecha: '2024-03-01', costo: 400000 },
+      { fecha: '2024-06-01', costo: 300000 },
+    ];
+    const r = costoRelativoMantenimiento(oc, 23030336);
+    expect(r).not.toBeNull();
+    expect(r.gastoTotal).toBe(700000);
+  });
+
+  it('no excluye una línea real cuyo costo simplemente coincide con otro equipo distinto (solo compara contra SU PROPIO valorCompra)', () => {
+    const oc = [{ fecha: '2024-01-01', costo: 500000 }, { fecha: '2024-06-01', costo: 500000 }];
+    const r = costoRelativoMantenimiento(oc, 1000000); // valorCompra distinto a cualquier costo de línea
+    expect(r.gastoTotal).toBe(1000000);
+  });
 });
 
 describe('costoRelativoMantenimientoFlota', () => {

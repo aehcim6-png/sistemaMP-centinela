@@ -1542,7 +1542,13 @@ function edadVirtualEquipo(horomFallas){
 function costoRelativoMantenimiento(ocEquipo, valorCompra, opts){
   opts=opts||{};
   var minDias=opts.minDias||90;
-  var conFecha=(ocEquipo||[]).filter(function(o){return o&&o.fecha;});
+  // Excluye líneas de OC cuyo costo coincide EXACTO con el valorCompra del
+  // equipo (2026-09-30, caso real: CA-10505/CA-10506 — dos camionetas de
+  // apoyo cuya propia compra quedó registrada como una línea más de OC
+  // ("Camioneta", costo == valorCompra). Si entrara al cálculo, comparar el
+  // equipo contra sí mismo da un Costo Relativo de ~92% que en realidad es 0
+  // — fue la compra inicial del activo, nunca un repuesto/mantención.
+  var conFecha=(ocEquipo||[]).filter(function(o){return o&&o.fecha&&o.costo!==valorCompra;});
   var fechas=conFecha.map(function(o){return o.fecha;}).sort();
   if(!fechas.length||!valorCompra||valorCompra<=0)return null;
   var dias=(new Date(fechas[fechas.length-1]+'T00:00:00')-new Date(fechas[0]+'T00:00:00'))/86400000;

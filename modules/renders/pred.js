@@ -1864,7 +1864,14 @@ export function renderPred(){
     var compMayoresRepl=S.g('compMayores')||[];
     var neuRepl=S.g('neu')||[];
     var aceiteRepl=S.g('aceite')||[];
-    var ocHistRepl=S.g('ocHist')||[];
+    // comprasDetalle (2026-09-30, paso 3 de la migración, ver arquitectura.md
+    // sección 85): mismo reemplazo que en cos.js (paso 2) — esta llamada
+    // también SUMA costo por sigla, así que se reemplaza 'ocHist', no se
+    // concatena. Antes de aplicar se encontró y corrigió en la base un error
+    // real de digitación de 2023 (línea de manguera hidráulica con cantidad
+    // mal tipeada en 4 equipos) que habría inflado esta señal falsamente para
+    // CN-9502/9503/9506/9507 — ver detalle en arquitectura.md.
+    var ocHistRepl=S.g('comprasDetalle')||[];
     var otConHistRepl=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
 
     var saludRepl={};
