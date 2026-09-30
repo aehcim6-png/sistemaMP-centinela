@@ -5136,26 +5136,51 @@ uno de los dos, nunca los combina.
   cuando la referencia usada es la mediana global, no la propia del
   proveedor).
 
-**Pendiente, señalado al usuario, no construido esta pasada**: el desglose
-"tiempo de creación de la OC → tiempo hasta que llega al proveedor" que
-pidió a continuación. Los datos importados (despacho.xlsx/OC.xlsx) NO
-traen esa fecha intermedia — solo `fecha` (Pedido) y `fechaEstado` (fecha
-del estado ACTUAL, un único snapshot por línea, no un historial de
-transiciones). No se inventó una estimación: se necesita esa fecha
-intermedia real desde el sistema de origen para poder construir esta
-métrica.
+**Tiempo interno de aprobación de OC** — el usuario pidió a continuación
+el desglose "tiempo de creación de la OC → tiempo hasta que llega al
+proveedor", y aclaró el dato que lo hace posible: *"en la misma fecha
+cuando se aprueba la OC se envía automático a proveedor"*. Es decir,
+`fechaEstado` de un pedido que HOY está en `OC Firmada` ES la fecha real
+de envío al proveedor (no hay una demora de "envío" separada de la
+aprobación) — la resta contra `fecha` (Pedido) da el tiempo INTERNO real,
+la parte del ciclo que la empresa controla y que afecta la capacidad de
+respuesta para reparaciones, sin mezclar el tiempo de despacho del
+proveedor.
 
-19 tests nuevos (`tiempoRespuestaCompras.test.js`): parseo de todas las
-combinaciones de "X dias Yh Zm" (completo, singular, solo días, solo
-horas, texto vacío/no parseable), agrupación y orden por proveedor, costo
-cero/negativo no cuenta, pedidos cerrados nunca entran a "trabados",
-detección con mediana propia y con respaldo global, `factorAlerta`
-explícito, orden por mayor exceso, pureza. Verificado con `npx esbuild`
-(logic.js, cos.js, sin errores), `npx vite build` limpio y suite completa
-1111/1111 verde. Verificado también contra los datos reales ya importados
-en Supabase (KOMATSU CHILE S.A. con 1.590 pedidos cerrados, Cummins 700,
-Perkins 608 — volumen real de sobra para que el análisis por proveedor
-tenga sentido).
+- `tiempoAprobacionOC(comprasDetalle)` (logic.js) — filtra `estado==='OC
+  Firmada'` con `fecha`/`fechaEstado` válidos (`fechaEstado >= fecha`,
+  nunca invent un valor si el dato viene invertido), calcula
+  `_diasEntreISO(fecha, fechaEstado)` y agrupa por `comprador` (bien
+  poblado en estos datos — a diferencia de `tipo`/Clasificación, que en
+  los pedidos abiertos viene siempre vacío — y el tiempo interno depende
+  de quién gestiona la compra, no del proveedor). Devuelve `nPedidos`,
+  `diasPromedio`, `diasMediana` por comprador, ordenado de mayor a menor.
+- **Limitación real, señalada explícitamente**: solo es reconstruible
+  para pedidos que HOY siguen en `OC Firmada` — para uno que ya llegó a
+  `Recepcion Bodega`, el dato exportado es un único snapshot del estado
+  actual; la fecha de aprobación de ESE pedido ya no está en el registro
+  (se perdió al pasar de estado). No hay forma de reconstruir el tiempo
+  interno histórico de pedidos ya cerrados con los datos de hoy — solo
+  hacia adelante, a medida que los pedidos abiertos se vayan cerrando.
+- **UI**: tercera tabla ("⏱️ Tiempo Interno de Aprobación de OC") en el
+  mismo modal de `verComprasProveedores` (`cos.js`), semáforo rojo >7 días
+  promedio, amarillo >3.
+- Verificado con datos reales: diferencia real entre compradores (Nicolás
+  Walker/Guillermo Tapia ~23-27 días promedio vs. Francisco Contreras
+  ~10.5 días) — un hallazgo accionable de verdad, no ruido.
+
+38 tests nuevos en total (`tiempoRespuestaCompras.test.js`): parseo de
+todas las combinaciones de "X dias Yh Zm", agrupación y orden por
+proveedor, costo cero/negativo no cuenta, pedidos cerrados nunca entran a
+"trabados", detección con mediana propia y con respaldo global,
+`factorAlerta` explícito, orden por mayor exceso; tiempo de aprobación:
+solo `OC Firmada`, fecha/fechaEstado inválidos o invertidos se descartan,
+agrupación por comprador, "Sin asignar" si falta, 0 días es válido
+(aprobación el mismo día), orden descendente; pureza en todas. Verificado
+con `npx esbuild` (logic.js, cos.js, sin errores), `npx vite build`
+limpio y suite completa 1120/1120 verde. Verificado también contra los
+datos reales ya importados en Supabase (KOMATSU CHILE S.A. con 1.590
+pedidos cerrados, Cummins 700, Perkins 608).
 
 ## Lo que decidimos NO hacer (y por qué)
 

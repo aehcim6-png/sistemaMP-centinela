@@ -391,6 +391,7 @@ export function verComprasProveedores(){
   var compras=S.g('comprasDetalle')||[];
   var porProveedor=typeof tiempoRespuestaPorProveedor==='function'?tiempoRespuestaPorProveedor(compras):[];
   var trabados=typeof pedidosPotencialmenteTrabados==='function'?pedidosPotencialmenteTrabados(compras):[];
+  var porComprador=typeof tiempoAprobacionOC==='function'?tiempoAprobacionOC(compras):[];
   sm(`<div style="max-width:760px">
     <h3>📦 Compras — Tiempo de Respuesta por Proveedor</h3>
     ${!compras.length?'<p style="font-size:11px;color:var(--w)">Todavía no hay datos de Compras importados.</p>':`
@@ -410,6 +411,14 @@ export function verComprasProveedores(){
         return `<tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">${escapeHtml(t.pedido||'—')}</td><td style="color:var(--ac)">${escapeHtml(t.sigla||'—')}</td><td>${escapeHtml(t.proveedor||'—')}</td><td style="max-width:200px">${escapeHtml(t.detalle||'—')}</td><td style="text-align:right;color:var(--danger)">${t.diasTranscurridos}</td><td style="text-align:right" title="${t.usaRespaldoGlobal?'Mediana global (proveedor sin muestra propia suficiente)':'Mediana propia del proveedor'}">${t.diasReferencia}${t.usaRespaldoGlobal?' *':''}</td></tr>`;
       }).join('')}
     </table></div><p style="font-size:10px;color:var(--tx3);margin-top:4px">* Mediana global (ese proveedor todavía no tiene al menos 3 pedidos cerrados propios como referencia).</p>`:'<p style="color:var(--ok);text-align:center;padding:16px">Ningún pedido abierto supera lo normal de su proveedor todavía.</p>'}
+    <h3 style="margin-top:16px">⏱️ Tiempo Interno de Aprobación de OC</h3>
+    <p style="font-size:12px;color:var(--tx3)">La OC se envía al proveedor automáticamente el mismo día en que se aprueba/firma — esto mide solo la parte INTERNA del ciclo (Pedido → aprobación), la que la empresa controla y afecta la capacidad de respuesta para reparaciones, sin mezclar el tiempo de despacho del proveedor. Solo pedidos que HOY están en "OC Firmada" (para pedidos ya recibidos, esta fecha intermedia no queda guardada en los datos exportados).</p>
+    ${porComprador.length?`<div style="overflow-x:auto;max-height:220px;overflow-y:auto"><table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Comprador</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Días prom.</th><th style="text-align:right">Días mediana</th></tr>
+      ${porComprador.map(function(c){
+        return `<tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">${escapeHtml(c.comprador)}</td><td style="text-align:right">${c.nPedidos}</td><td style="text-align:right;color:${c.diasPromedio>7?'var(--danger)':c.diasPromedio>3?'var(--warn)':'var(--ok)'}">${c.diasPromedio}</td><td style="text-align:right">${c.diasMediana}</td></tr>`;
+      }).join('')}
+    </table></div>`:'<p style="font-size:11px;color:var(--tx3);text-align:center;padding:12px">Sin pedidos en estado "OC Firmada" con fecha de aprobación registrada todavía.</p>'}
     `}
     <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
   </div>`);

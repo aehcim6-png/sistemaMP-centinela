@@ -5661,6 +5661,47 @@ function pedidosPotencialmenteTrabados(comprasDetalle,factorAlerta,minMuestraPro
     .sort(function(a,b){return(b.diasTranscurridos-b.diasReferencia)-(a.diasTranscurridos-a.diasReferencia);});
 }
 
+// ═══ TIEMPO DE APROBACIÓN INTERNA DE OC (2026-09-30) ═══ — el usuario
+// aclaró un dato clave: la OC se envía al proveedor AUTOMÁTICAMENTE el
+// mismo día en que se aprueba/firma — no hay una demora propia de "envío"
+// separada de la aprobación. Eso significa que 'fechaEstado' de un pedido
+// que está HOY en estado 'OC Firmada' SÍ es la fecha real de envío al
+// proveedor, y 'fecha' es la fecha del Pedido/solicitud interna — la resta
+// entre ambas es el tiempo INTERNO real (Pedido → aprobación/envío), la
+// parte del ciclo que la empresa controla y que afecta la capacidad de
+// respuesta para reparaciones, sin mezclar el tiempo que después demora
+// el proveedor en despachar.
+//
+// Limitación real, no resuelta: esto solo es reconstruible para pedidos
+// que HOY siguen en 'OC Firmada' (fechaEstado = su fecha de aprobación).
+// Para un pedido que YA llegó a 'Recepcion Bodega', el dato exportado es
+// un único snapshot del estado actual — la fecha en que se firmó la OC ya
+// no está en ese registro (se perdió al pasar de estado), así que no se
+// puede reconstruir el tiempo interno histórico de pedidos ya cerrados
+// con los datos de hoy. Se agrupa por 'comprador' (bien poblado en estos
+// datos, a diferencia de 'tipo'/Clasificación) porque el tiempo interno
+// depende de quién gestiona la compra, no del proveedor.
+function tiempoAprobacionOC(comprasDetalle){
+  var porComprador={};
+  (comprasDetalle||[]).forEach(function(c){
+    if(!c||c.estado!=='OC Firmada'||!c.fecha||!c.fechaEstado)return;
+    var dias=_diasEntreISO(c.fecha,c.fechaEstado);
+    if(dias<0)return;
+    var comprador=c.comprador||'Sin asignar';
+    (porComprador[comprador]=porComprador[comprador]||[]).push(dias);
+  });
+  return Object.keys(porComprador).map(function(comprador){
+    var dias=porComprador[comprador];
+    var total=dias.reduce(function(a,b){return a+b;},0);
+    return{
+      comprador:comprador,
+      nPedidos:dias.length,
+      diasPromedio:Math.round((total/dias.length)*10)/10,
+      diasMediana:medianaPositiva(dias)
+    };
+  }).sort(function(a,b){return b.diasPromedio-a.diasPromedio;});
+}
+
 // ═══ TEST DE INDEPENDENCIA CHI-CUADRADO — TABLA DE CONTINGENCIA (2026-09-20) ═══
 // testChiCuadradoUniforme (arriba) responde una pregunta de UNA sola
 // dimensión: "¿las fallas se reparten parejo entre estas categorías, o hay
@@ -6477,7 +6518,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

@@ -2722,13 +2722,20 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>hhPlanEstimator</code>). Tabla nueva en <code>store.js</code>: <code>comprasDetalle</code> (solo
   lectura). Botón "📦 Compras — Proveedores" en Costos &amp; Stock (<code>verComprasProveedores</code>,
   <code>cos.js</code>).</p>
-  <p><b>Pendiente, señalado al usuario, no construido esta pasada</b>: el desglose "tiempo de creación de la
-  OC → tiempo hasta que llega al proveedor". Los datos importados no traen esa fecha intermedia — solo
-  <code>fecha</code> (Pedido) y <code>fechaEstado</code> (un único snapshot del estado actual, no un
-  historial de transiciones). No se inventó una estimación.</p>
-  <p>19 tests nuevos (<code>tiempoRespuestaCompras.test.js</code>). Verificado con esbuild (logic.js, cos.js,
-  sin errores), <code>npx vite build</code> limpio, suite completa 1111/1111 verde, y contra los datos reales
-  ya importados en Supabase (KOMATSU CHILE S.A. 1.590 pedidos cerrados, Cummins 700, Perkins 608).</p>
+  <p><b>Tiempo interno de aprobación de OC</b> — el usuario aclaró: "en la misma fecha cuando se aprueba la
+  OC se envía automático a proveedor". Por eso <code>fechaEstado</code> de un pedido HOY en "OC Firmada" ES
+  la fecha real de envío — la resta contra <code>fecha</code> (Pedido) da el tiempo INTERNO real, la parte
+  que la empresa controla. <code>tiempoAprobacionOC(comprasDetalle)</code> filtra "OC Firmada" con
+  fecha/fechaEstado válidos (fechaEstado ≥ fecha) y agrupa por <code>comprador</code> (bien poblado, a
+  diferencia de Clasificación) — <code>nPedidos</code>, <code>diasPromedio</code>, <code>diasMediana</code>,
+  ordenado de mayor a menor. <b>Limitación real</b>: solo reconstruible para pedidos que HOY siguen en "OC
+  Firmada" — uno ya recibido perdió esa fecha intermedia al cambiar de estado (snapshot único, no historial
+  de transiciones). Tercera tabla en el mismo modal de <code>verComprasProveedores</code>. Verificado con
+  datos reales: Nicolás Walker/Guillermo Tapia ~23-27 días promedio vs. Francisco Contreras ~10.5 días —
+  hallazgo real y accionable.</p>
+  <p>38 tests nuevos en total (<code>tiempoRespuestaCompras.test.js</code>). Verificado con esbuild
+  (logic.js, cos.js, sin errores), <code>npx vite build</code> limpio, suite completa 1120/1120 verde, y
+  contra los datos reales ya importados en Supabase.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

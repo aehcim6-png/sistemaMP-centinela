@@ -3,6 +3,7 @@ import {
   _parsearTiempoRespuestaDias,
   tiempoRespuestaPorProveedor,
   pedidosPotencialmenteTrabados,
+  tiempoAprobacionOC,
 } from '../logic.js';
 
 describe('_parsearTiempoRespuestaDias', () => {
@@ -157,6 +158,72 @@ describe('pedidosPotencialmenteTrabados', () => {
     ];
     const copia = c.map((x) => ({ ...x }));
     pedidosPotencialmenteTrabados(c);
+    expect(c).toEqual(copia);
+  });
+});
+
+describe('tiempoAprobacionOC', () => {
+  it('array vacío sin datos', () => {
+    expect(tiempoAprobacionOC([])).toEqual([]);
+    expect(tiempoAprobacionOC(undefined)).toEqual([]);
+  });
+
+  it('ignora pedidos que no están en estado OC Firmada', () => {
+    const c = [
+      { estado: 'Recepcion Bodega', comprador: 'Ana', fecha: '2026-01-01', fechaEstado: '2026-01-05' },
+      { estado: 'OC por Firmar', comprador: 'Ana', fecha: '2026-01-01', fechaEstado: '2026-01-05' },
+    ];
+    expect(tiempoAprobacionOC(c)).toEqual([]);
+  });
+
+  it('ignora pedidos sin fecha o sin fechaEstado', () => {
+    const c = [
+      { estado: 'OC Firmada', comprador: 'Ana', fechaEstado: '2026-01-05' },
+      { estado: 'OC Firmada', comprador: 'Ana', fecha: '2026-01-01' },
+    ];
+    expect(tiempoAprobacionOC(c)).toEqual([]);
+  });
+
+  it('ignora fechaEstado anterior a fecha (dato inconsistente, nunca se inventa)', () => {
+    const c = [{ estado: 'OC Firmada', comprador: 'Ana', fecha: '2026-01-10', fechaEstado: '2026-01-05' }];
+    expect(tiempoAprobacionOC(c)).toEqual([]);
+  });
+
+  it('calcula días entre fecha y fechaEstado, agrupado por comprador', () => {
+    const c = [
+      { estado: 'OC Firmada', comprador: 'Ana', fecha: '2026-01-01', fechaEstado: '2026-01-06' },
+      { estado: 'OC Firmada', comprador: 'Ana', fecha: '2026-01-01', fechaEstado: '2026-01-11' },
+    ];
+    const r = tiempoAprobacionOC(c);
+    expect(r).toHaveLength(1);
+    expect(r[0].comprador).toBe('Ana');
+    expect(r[0].nPedidos).toBe(2);
+    expect(r[0].diasPromedio).toBe(7.5);
+    expect(r[0].diasMediana).toBe(7.5);
+  });
+
+  it('usa "Sin asignar" cuando falta el comprador', () => {
+    const c = [{ estado: 'OC Firmada', fecha: '2026-01-01', fechaEstado: '2026-01-03' }];
+    expect(tiempoAprobacionOC(c)[0].comprador).toBe('Sin asignar');
+  });
+
+  it('acepta 0 días (aprobación el mismo día del pedido)', () => {
+    const c = [{ estado: 'OC Firmada', comprador: 'Ana', fecha: '2026-01-01', fechaEstado: '2026-01-01' }];
+    expect(tiempoAprobacionOC(c)[0].diasPromedio).toBe(0);
+  });
+
+  it('ordena de mayor a menor diasPromedio', () => {
+    const c = [
+      { estado: 'OC Firmada', comprador: 'Rapido', fecha: '2026-01-01', fechaEstado: '2026-01-02' },
+      { estado: 'OC Firmada', comprador: 'Lento', fecha: '2026-01-01', fechaEstado: '2026-01-20' },
+    ];
+    expect(tiempoAprobacionOC(c).map((x) => x.comprador)).toEqual(['Lento', 'Rapido']);
+  });
+
+  it('no muta el arreglo original (pura)', () => {
+    const c = [{ estado: 'OC Firmada', comprador: 'Ana', fecha: '2026-01-01', fechaEstado: '2026-01-03' }];
+    const copia = c.map((x) => ({ ...x }));
+    tiempoAprobacionOC(c);
     expect(c).toEqual(copia);
   });
 });
