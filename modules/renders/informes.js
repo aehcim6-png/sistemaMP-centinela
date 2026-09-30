@@ -278,6 +278,40 @@ function generarPDFInforme(inf,dataUrls){
   doc.save('Informe_'+inf.sigla+'_'+inf.fecha+'.pdf');
 }
 
+// ═══ TRAZABILIDAD AVISO → ORDEN (2026-09-30) ═══ — pedido real del usuario a
+// partir de un diagrama de terminología SAP (Aviso de Mantenimiento = el
+// reporte de un problema; Orden de Mantenimiento = el trabajo real). Acá el
+// Aviso es cada Informe de Falla/Cambio de Componente y la Orden es el
+// correctivo real (ot + otHist). Usa trazabilidadAvisoOrden/
+// resumenTrazabilidadAvisoOrden (logic.js) — el cruce es por sigla + fecha
+// dentro de una ventana de días (no hay ningún campo que los vincule hoy),
+// y usa SOLO ot/otHist reales como "Orden" (nunca _informesFallaComoOt, el
+// puente que el resto del sistema usa para MTBF — acá compararía cada
+// Aviso contra sí mismo y nunca detectaría nada).
+export function verTrazabilidadAvisoOrden(){
+  var informesFalla=S.g('informesFalla')||[];
+  var otReal=(S.g('ot')||[]).concat(typeof _otHistComoOt==='function'?_otHistComoOt(S.g('otHist')||[]):[]);
+  var trazas=typeof trazabilidadAvisoOrden==='function'?trazabilidadAvisoOrden(informesFalla,otReal):[];
+  var resumen=typeof resumenTrazabilidadAvisoOrden==='function'?resumenTrazabilidadAvisoOrden(trazas):{total:0,vinculados:0,sinVincular:0,pctSinVincular:null,listaSinVincular:[]};
+  var col=resumen.pctSinVincular>=30?'var(--danger)':resumen.pctSinVincular>=10?'var(--warn)':'var(--ok)';
+  sm(`<div style="max-width:700px">
+    <h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="14" cy="14" r="3"/><path d="M8.2 7.8 L11.8 12.2" fill="none"/></svg> Trazabilidad Aviso → Orden</h3>
+    <p style="font-size:12px;color:var(--tx3)">Terminología SAP: el <b>Aviso</b> es el reporte de que algo pasó (acá, cada Informe de Falla Catastrófica / Cambio de Componente Mayor); la <b>Orden</b> es el trabajo real de taller para resolverlo (un Correctivo/OT). Hoy no hay ningún campo que los vincule — esto busca, para cada Aviso, si existe una OT del mismo equipo dentro de ±3 días. Un Aviso sin Orden es un reporte que nunca se tradujo en trabajo registrado.</p>
+    ${resumen.total?`<div class="cards" style="margin-top:10px">
+      <div class="card"><div class="card-t">Avisos totales</div><div class="card-v">${resumen.total}</div></div>
+      <div class="card"><div class="card-t" style="color:var(--ok)">Con Orden vinculada</div><div class="card-v" style="color:var(--ok)">${resumen.vinculados}</div></div>
+      <div class="card"><div class="card-t" style="color:${col}">Sin Orden vinculada</div><div class="card-v" style="color:${col}">${resumen.sinVincular}</div><div class="card-s">${resumen.pctSinVincular}% de los avisos</div></div>
+    </div>`:'<p style="font-size:11px;color:var(--w)">Todavía no hay Informes de Falla registrados — no hay nada que cruzar.</p>'}
+    ${resumen.listaSinVincular.length?`<div style="overflow-x:auto;margin-top:12px"><table style="width:100%;font-size:11px">
+      <tr style="background:var(--bg3)"><th style="padding:4px;text-align:left">Equipo</th><th style="text-align:left">Fecha</th><th style="text-align:left">Tipo</th><th style="text-align:left">Descripción</th><th style="text-align:right">Costo Est.</th></tr>
+      ${resumen.listaSinVincular.map(function(t){
+        return `<tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px;color:var(--ac)">${escapeHtml(t.sigla)}</td><td>${fd(t.fecha)}</td><td>${escapeHtml(t.tipoEvento||'—')}</td><td style="max-width:220px">${escapeHtml(t.descripcion||'—')}</td><td style="text-align:right">$${fn(Math.round(t.costoEstimado||0))}</td></tr>`;
+      }).join('')}
+    </table></div>`:(resumen.total?'<p style="color:var(--ok);text-align:center;padding:16px">Todos los Avisos tienen una Orden real vinculada dentro de la ventana de ±3 días.</p>':'')}
+    <button class="btn btn-o" style="margin-top:8px" onclick="cm()">Cerrar</button>
+  </div>`);
+}
+
 export function renderInformes(){
   var lista=(S.g('informesFalla')||[]).slice().sort(function(a,b){return (b.fechaCreacion||'').localeCompare(a.fechaCreacion||'');});
   var costoTotal=lista.reduce(function(s,i){return s+(i.costoEstimado||0);},0);
@@ -285,7 +319,7 @@ export function renderInformes(){
   $('s-informes').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla y Cambio de Componente</div>'+
     '<div class="sec-s">'+lista.length+' informe(s) · Costo total estimado: $'+fn(Math.round(costoTotal))+'</div></div>'+
-    '<button class="btn" onclick="nuevoInforme(\'\',null)">+ Nuevo Informe</button></div>'+
+    '<button class="btn" onclick="nuevoInforme(\'\',null)">+ Nuevo Informe</button> <button class="btn btn-o" onclick="verTrazabilidadAvisoOrden()" title="Qué Informes de Falla nunca generaron una OT real de taller"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="14" cy="14" r="3"/><path d="M8.2 7.8 L11.8 12.2" fill="none"/></svg> Trazabilidad Aviso → Orden</button></div>'+
     _pagHTML('informes',pg)+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Fecha</th><th>Tipo</th><th>Componente</th><th>Costo Est.</th><th>Fotos</th><th>Generado por</th><th></th></tr>'+
@@ -326,4 +360,5 @@ window.guardarInforme = guardarInforme;
 window.regenerarPDF = regenerarPDF;
 window.renderInformes = renderInformes;
 window.delInforme = delInforme;
+window.verTrazabilidadAvisoOrden = verTrazabilidadAvisoOrden;
 renders.informes = renderInformes;

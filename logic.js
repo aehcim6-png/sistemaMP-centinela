@@ -5480,6 +5480,84 @@ function analisisMTTRPorCategoria(correctivos){
   }).sort(function(a,b){return b.horasTotales-a.horasTotales;});
 }
 
+// ═══ CAPEX vs OPEX (2026-09-30) ═══ — a partir de un árbol de costos CAPEX/
+// OPEX visto por el usuario. La clasificación contable de un gasto (si se
+// capitaliza o se lleva a resultados) NO se puede inferir del texto libre
+// de un correctivo — es un criterio de la empresa, no un dato técnico. Por
+// eso 'clasificacionCosto' es un campo manual (mismo patrón que
+// 'categoriaMTTR'/'tipoCausa'): se elige al cargar/editar la OT, nunca se
+// asume. Sin clasificación cargada, el correctivo simplemente no entra al
+// análisis — nunca se reparte a ciegas entre CAPEX/OPEX.
+var _CLASIFICACIONES_COSTO=['CAPEX','OPEX'];
+function analisisCapexOpex(correctivos){
+  var porClase={};
+  (correctivos||[]).forEach(function(c){
+    if(!c||_CLASIFICACIONES_COSTO.indexOf(c.clasificacionCosto)<0)return;
+    if(!(c.costo>0))return;
+    (porClase[c.clasificacionCosto]=porClase[c.clasificacionCosto]||[]).push(c.costo);
+  });
+  var totalGeneral=Object.keys(porClase).reduce(function(s,k){return s+porClase[k].reduce(function(a,b){return a+b;},0);},0);
+  return Object.keys(porClase).map(function(clase){
+    var costos=porClase[clase];
+    var total=costos.reduce(function(a,b){return a+b;},0);
+    return{
+      clasificacion:clase,
+      nEventos:costos.length,
+      costoTotal:Math.round(total),
+      costoPromedio:Math.round(total/costos.length),
+      pctDelTotal:totalGeneral?Math.round((total/totalGeneral)*1000)/10:0
+    };
+  }).sort(function(a,b){return b.costoTotal-a.costoTotal;});
+}
+
+// ═══ TRAZABILIDAD AVISO → ORDEN (2026-09-30) ═══ — a partir de un diagrama
+// de terminología SAP (Aviso de Mantenimiento = el reporte de un problema;
+// Orden de Mantenimiento = el trabajo real para resolverlo). En SistemaMP,
+// 'informesFalla' (Informe de Falla Catastrófica / Cambio Componente Mayor)
+// es el Aviso — el reporte de que algo pasó, hecho por quien está al lado
+// del equipo. 'ot'/'otHist' (Correctivos) es la Orden — el registro real de
+// la intervención de taller. HOY no existe ningún campo que los vincule:
+// esta función busca, para cada Aviso, si hay una Orden real (mismo sigla,
+// fecha dentro de 'ventanaDias') — NO usa _informesFallaComoOt (el puente
+// que el resto del sistema usa para que un Aviso cuente como falla real en
+// MTBF/Weibull/Pareto), porque acá la pregunta es la opuesta: si ese puente
+// fuera la única "Orden" encontrada, todo Aviso se auto-vincularía consigo
+// mismo y el análisis nunca detectaría nada. 'otReal' debe ser SOLO ot +
+// _otHistComoOt(otHist), la Orden de verdad.
+function trazabilidadAvisoOrden(informesFalla,otReal,ventanaDias){
+  ventanaDias=ventanaDias>0?ventanaDias:3;
+  var ventanaMs=ventanaDias*86400000;
+  var ordenes=(otReal||[]).filter(function(o){return o&&o.sigla&&o.fecha;});
+  return (informesFalla||[]).filter(function(i){return i&&i.sigla&&i.fecha;}).map(function(i){
+    var tAviso=new Date(i.fecha).getTime();
+    var vinculada=ordenes.some(function(o){
+      if(o.sigla!==i.sigla)return false;
+      var tOrden=new Date(o.fecha).getTime();
+      return Math.abs(tOrden-tAviso)<=ventanaMs;
+    });
+    return{
+      id:i.id,sigla:i.sigla,fecha:i.fecha,tipoEvento:i.tipoEvento,
+      descripcion:i.descripcion,costoEstimado:i.costoEstimado||0,
+      vinculada:vinculada
+    };
+  });
+}
+
+// Resumen agregado de trazabilidadAvisoOrden — cuántos Avisos quedaron sin
+// ninguna Orden real detrás (reportados, pero nunca se cargó el trabajo que
+// los resolvió). listaSinVincular ordenada por fecha más reciente primero.
+function resumenTrazabilidadAvisoOrden(trazabilidad){
+  var lista=trazabilidad||[];
+  var sinVincular=lista.filter(function(t){return !t.vinculada;});
+  return{
+    total:lista.length,
+    vinculados:lista.length-sinVincular.length,
+    sinVincular:sinVincular.length,
+    pctSinVincular:lista.length?Math.round((sinVincular.length/lista.length)*1000)/10:null,
+    listaSinVincular:sinVincular.slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');})
+  };
+}
+
 // ═══ TEST DE INDEPENDENCIA CHI-CUADRADO — TABLA DE CONTINGENCIA (2026-09-20) ═══
 // testChiCuadradoUniforme (arriba) responde una pregunta de UNA sola
 // dimensión: "¿las fallas se reparten parejo entre estas categorías, o hay
@@ -6296,7 +6374,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

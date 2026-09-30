@@ -2679,6 +2679,32 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Playwright en este sandbox (carrera de fondo del mock) — no se repitió el intento porque el patrón de falla ya
   está confirmado.</p>
 
+  <h3>83. CAPEX vs OPEX y Trazabilidad Aviso → Orden (2026-09-30)</h3>
+  <p>Dos pedidos del usuario a partir de dos diagramas: un árbol de costos CAPEX/OPEX y un diagrama de
+  terminología SAP ("Aviso de Mantenimiento" vs "Orden de Mantenimiento").</p>
+  <p><b>CAPEX vs OPEX</b> — mismo patrón que <code>categoriaMTTR</code>/<code>tipoCausa</code>: la clasificación
+  contable es un criterio de la empresa, no algo inferible del texto libre, así que <code>clasificacionCosto</code>
+  (<code>CAPEX</code>/<code>OPEX</code>) es un campo manual en <code>correctivos</code> (migración
+  <code>agregar_clasificacion_costo_correctivos</code>). <code>analisisCapexOpex(correctivos)</code> agrupa por
+  clasificación (solo correctivos con <code>costo &gt; 0</code>) y devuelve <code>nEventos</code>,
+  <code>costoTotal</code>, <code>costoPromedio</code> y <code>pctDelTotal</code>, ordenado de mayor a menor costo.
+  Botón "CAPEX vs OPEX" en Correctivos (<code>verAnalisisCapexOpex</code>), junto a "MTTR por Categoría".</p>
+  <p><b>Trazabilidad Aviso → Orden</b> — el <b>Aviso</b> es el reporte de que algo pasó (<code>informesFalla</code>
+  — Informe de Falla Catastrófica/Cambio de Componente Mayor); la <b>Orden</b> es el trabajo real de taller
+  (<code>ot</code>/<code>otHist</code> — Correctivos). Auditoría real: hoy no existe ningún campo que los vincule.
+  <code>trazabilidadAvisoOrden(informesFalla, otReal, ventanaDias=3)</code> busca, para cada Aviso, una Orden real
+  del mismo <code>sigla</code> con fecha dentro de ±<code>ventanaDias</code> días — <code>otReal</code> es
+  <code>ot.concat(_otHistComoOt(otHist))</code>, <b>nunca</b> incluye <code>_informesFallaComoOt</code> (el puente
+  que el resto del sistema usa para que un Aviso cuente como falla real en MTBF/Weibull/Pareto): si ese puente
+  contara como Orden, todo Aviso se auto-vincularía consigo mismo y el análisis nunca detectaría nada.
+  <code>resumenTrazabilidadAvisoOrden</code> agrega total/vinculados/sinVincular/% y la lista de Avisos sin Orden,
+  ordenada por fecha más reciente. Botón "Trazabilidad Aviso → Orden" en Informes de Falla
+  (<code>verTrazabilidadAvisoOrden</code>), con tarjetas de resumen y semáforo (rojo ≥30% sin vincular, amarillo
+  ≥10%) más el detalle de cada Aviso huérfano.</p>
+  <p>22 tests nuevos (<code>analisisCapexOpex.test.js</code>, <code>trazabilidadAvisoOrden.test.js</code>).
+  Verificado con esbuild (logic.js, ot.js, informes.js, sin errores), <code>npx vite build</code> limpio y suite
+  completa 1089/1089 verde.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

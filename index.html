@@ -348,7 +348,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-09-27"></script>
+<script src="logic.js?v=2026-09-30"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -412,7 +412,7 @@ const _LAZY_VERS={
   gantt:'2026-08-31',
   hist:'2026-08-31',
   histcomp:'2026-09-20',
-  informes:'2026-08-30b',
+  informes:'2026-09-30',
   insp:'2026-08-30',
   kpi:'2026-08-31b',
   log:'2026-08-30',
@@ -451,7 +451,7 @@ const _LAZY_VERS={
   resumenejec:'2026-08-31',
   reg:'2026-08-30b',
   neu:'2026-09-20',
-  ot:'2026-09-27',
+  ot:'2026-09-30',
 };
 const _LAZY_EXPORTS={
   al:['renderAl','editAlRep','saveAlRep'],
@@ -467,7 +467,7 @@ const _LAZY_EXPORTS={
   gantt:['renderGantt','edGantt'],
   hist:['renderHist','importHorom','processImportHorom','edHist','delHist','addHist','saveHist'],
   histcomp:['renderHistComp','edHistComp','delHistComp','addHistComp','saveHistComp'],
-  informes:['_iniciarInformePorVoz','nuevoInforme','_infEqChange','_infFotosChange','guardarInforme','regenerarPDF','renderInformes','delInforme'],
+  informes:['_iniciarInformePorVoz','nuevoInforme','_infEqChange','_infFotosChange','guardarInforme','regenerarPDF','renderInformes','delInforme','verTrazabilidadAvisoOrden'],
   insp:['renderInsp','edInsp','delInsp','addInsp','saveInsp'],
   kpi:['_excelStyles','genExcelSheet','_dlExcel','genExcel','printReport','_getDispData','_getMTBFData','_getHHData','_getCumplData','_getCostosData','_getBacklogData','_getCompData','_getRatioData','_getEjecutivoData','rptTodos','rptDisp','rptMTBF','rptHH','rptCumpl','rptCostos','rptRatio','rptBacklog','rptComp','rptEjecutivo','renderKpi'],
   log:['verLogCambios','renderLog'],
@@ -497,7 +497,7 @@ const _LAZY_EXPORTS={
   resumenejec:['renderResumenEjec'],
   reg:['renderReg','addReg','editarReg','calcDurEdit','saveEditReg','rAutoHorom','rMostrarConsumos','calcDurReg','saveReg','_activarLeerPauta','_leerPautaFotoSeleccionada','_matchEquipoPorSiglaOCR','_prellenarDesdeOCR','_activarLeerCorrectivo','_leerCorrectivoFotoSeleccionada','_prellenarDesdeOCRCorrectivo','_iniciarRegPorVoz','importRegCSV','processImportReg'],
   neu:['renderNeu','verNeuLista','_iniciarNeuPorVoz','_continuarMedicionPorVoz','_iniciarMedicionNeuPorVoz','addNeu','saveNeu','cambiarNeu','saveCambio','instalarDesdeExistencias','confirmarInstalarExistencias','verSensores','verHistorialSensor','desmontarSensor','instalarSensor','confirmarInstalarSensor','addMedicionNeu','saveMedicionNeu','_activarLeerChequeoNeu','_leerChequeoNeuFotoSeleccionada','_revisarChequeoNeuOCR','_guardarChequeoNeuOCR','neuSort','histPosicion','verHistorialNeu','verDetalleNeu','resumenFlotaNeu'],
-  ot:['renderOt','analisisDocumentacion','analisisReingresos','verCausasLatentesRepetidas','verAnalisisMTTRPorCategoria','addOT','addOTRapido','saveOTRapido','_activarLeerCorrectivoOT','_leerCorrectivoOTFotoSeleccionada','_prellenarDesdeOCRCorrectivoOT','_iniciarOTPorVoz','calcDurOT','saveOT','gestionarFotosOT','_otFotosSeleccionadas','quitarFotoOT','edOT'],
+  ot:['renderOt','analisisDocumentacion','analisisReingresos','verCausasLatentesRepetidas','verAnalisisMTTRPorCategoria','verAnalisisCapexOpex','addOT','addOTRapido','saveOTRapido','_activarLeerCorrectivoOT','_leerCorrectivoOTFotoSeleccionada','_prellenarDesdeOCRCorrectivoOT','_iniciarOTPorVoz','calcDurOT','saveOT','gestionarFotosOT','_otFotosSeleccionadas','quitarFotoOT','edOT'],
 };
 // Grupos que SÍ se llaman entre sí en tiempo de ejecución sin typeof-guard
 // (ver comentario arriba de _LAZY_VERS): pred.js usa _AUDIT_MESES de

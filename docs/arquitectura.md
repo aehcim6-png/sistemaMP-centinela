@@ -5020,6 +5020,73 @@ este sandbox (carrera de fondo del mock, no relacionada con este código) —
 no se repitió el intento porque el patrón de falla ya está confirmado y
 documentado.
 
+### 83. CAPEX vs OPEX y Trazabilidad Aviso → Orden (2026-09-30)
+
+Dos pedidos del usuario a partir de dos diagramas distintos compartidos en
+la misma tanda: un árbol de costos CAPEX/OPEX y un diagrama de
+terminología SAP ("Aviso de Mantenimiento" vs "Orden de Mantenimiento").
+
+**CAPEX vs OPEX** — mismo patrón que `categoriaMTTR`/`tipoCausa`: la
+clasificación contable de un gasto (si se capitaliza o se lleva a
+resultados) es un criterio de la empresa, no algo que se pueda inferir del
+texto libre de un correctivo, así que `clasificacionCosto` es un campo
+manual (`CAPEX`/`OPEX`) que se elige al cargar/editar la OT — sin
+clasificación cargada, el correctivo simplemente no entra al análisis
+(nunca se reparte a ciegas entre las dos categorías).
+
+- **Campo nuevo**: `clasificacionCosto` en `correctivos` (migración
+  `agregar_clasificacion_costo_correctivos`, columna `text` nullable, sin
+  RLS nuevo — misma tabla). Select "CAPEX/OPEX" en la tabla de Correctivos
+  (junto a "Costo") y en el formulario "Nueva OT".
+- **Cálculo**: `analisisCapexOpex(correctivos)` (logic.js) agrupa por
+  `clasificacionCosto` (solo `CAPEX`/`OPEX` válidos, y solo correctivos con
+  `costo > 0`) y devuelve `nEventos`, `costoTotal`, `costoPromedio` y
+  `pctDelTotal` (redondeado a 1 decimal), ordenado de mayor a menor
+  `costoTotal`.
+- **UI**: botón "CAPEX vs OPEX" en Correctivos, junto a "MTTR por
+  Categoría" (`verAnalisisCapexOpex`), con una barra horizontal por
+  clasificación (ancho proporcional a la de mayor costo).
+
+**Trazabilidad Aviso → Orden** — terminología SAP: el **Aviso** es el
+reporte de que algo pasó; la **Orden** es el trabajo real de taller para
+resolverlo. En SistemaMP, `informesFalla` (Informe de Falla Catastrófica /
+Cambio de Componente Mayor — ver sección de Componentes) es el Aviso, y
+`ot`/`otHist` (Correctivos) es la Orden. Auditoría real: **hoy no existe
+ningún campo que los vincule** — un Informe de Falla se guarda en su
+propia tabla y nada obliga a que exista después una OT real documentando
+el trabajo. Esto es distinto (y no debe confundirse) con
+`_informesFallaComoOt` (sección de Falla Catastrófica invisible en MTBF,
+2026-08): ese puente hace que un Aviso cuente COMO SI fuera una OT para
+fines estadísticos (MTBF/Weibull/Pareto) — es una decisión ya tomada para
+que la falla no desaparezca de esas curvas, pero no crea ninguna OT real
+ni prueba que el trabajo se haya hecho.
+
+- **Cálculo**: `trazabilidadAvisoOrden(informesFalla, otReal, ventanaDias=3)`
+  (logic.js) — para cada Aviso con sigla+fecha, busca si existe una Orden
+  real (`otReal` = `ot.concat(_otHistComoOt(otHist))`, **nunca**
+  `_informesFallaComoOt` incluido, porque si el propio puente contara como
+  Orden, todo Aviso se auto-vincularía consigo mismo y el análisis nunca
+  detectaría nada) del mismo `sigla` con fecha dentro de `±ventanaDias`
+  días (ventana simétrica, default 3 — decisión del usuario). Devuelve
+  `vinculada: true/false` por cada Aviso.
+  `resumenTrazabilidadAvisoOrden(trazabilidad)` agrega: `total`,
+  `vinculados`, `sinVincular`, `pctSinVincular` (null sin datos) y
+  `listaSinVincular` (ordenada por fecha más reciente primero).
+- **UI**: botón "Trazabilidad Aviso → Orden" en Informes de Falla
+  (`verTrazabilidadAvisoOrden`, `informes.js`) — tarjetas con el total de
+  Avisos, vinculados y sin vincular (% con semáforo: rojo ≥30%, amarillo
+  ≥10%), y una tabla con el detalle de cada Aviso sin Orden real detrás
+  (equipo, fecha, tipo, descripción, costo estimado).
+
+22 tests nuevos (`analisisCapexOpex.test.js`, `trazabilidadAvisoOrden.test.js`):
+clasificación/costo inválidos o ausentes se descartan, suma/promedio/%
+del total, orden por costoTotal, redondeo a enteros, pureza (CAPEX/OPEX);
+vinculación dentro/fuera de ventana, ventana simétrica, distinto sigla no
+vincula aunque coincida la fecha, `ventanaDias` explícito, resumen agrega
+y ordena correctamente, pureza (Aviso→Orden). Verificado con `npx esbuild`
+(logic.js, ot.js, informes.js, sin errores), `npx vite build` limpio y
+suite completa 1089/1089 verde.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
