@@ -2795,9 +2795,17 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Con esto se completó la migración planeada (pasos 1-4)</b>. Verificando el paso 4 apareció un
   tercer caso del mismo patrón: "Filtro Aire Secundari6001", 8 líneas (10-feb-2025, mismo proveedor),
   precioUnit=$58.878.611 — comparables cercanos (28-ene: $90.994; 10-mar: $61.320) confirman que el precio
-  real ronda esos valores. Pendiente de decisión con el usuario: ya son 3 casos del mismo patrón
-  encontrados por verificación manual — queda planteado hacer un barrido único sobre las ~24.000 filas
-  originales en vez de seguir encontrando casos de a uno.</p>
+  real ronda esos valores.</p>
+  <p><b>Barrido sistemático (2026-09-30)</b>: ya iban 3 casos del mismo patrón encontrados a mano, así que
+  se corrió un barrido único sobre toda <code>compras_detalle</code>: por cada ítem con ≥5 líneas
+  comparables, mediana de <code>precioUnit</code> y flag de cualquier línea que la supere 50x (misma regla
+  de <code>ordenesSinOutliers</code>). Apareció que "Filtro Aire Secundari6001" en realidad eran 2 variantes
+  corruptas de la misma OC (692902): la ya encontrada (8 líneas, precio real $86.534) y otra sin la "i" (8
+  líneas más, precio real $16.210 — llegó a figurar 1.312 veces por encima de lo normal). Las 16 líneas se
+  corrigieron (precioUnit + costo recalculado), con aprobación explícita del usuario. El barrido encontró 2
+  casos más sin impacto real (un neumático y un filtro de aceite donde el <code>costo</code> ya es correcto,
+  solo el precio unitario mostrado tiene dígitos de más) — se dejaron sin tocar. Repitiendo el barrido tras
+  corregir: 0 líneas superan el umbral salvo esos 2 casos cosméticos ya identificados como inofensivos.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

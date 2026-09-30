@@ -5342,13 +5342,34 @@ entre varios equipos el mismo día): "Filtro Aire Secundari6001", 8 líneas
 10-feb-2025, mismo proveedor (Distrib. Perkins), precioUnit=$58.878.611
 — hay comparables reales cercanos en el tiempo (28-ene-2025: $90.994;
 10-mar-2025: $61.320) que confirman que el precio real ronda esos
-valores, no $58 millones. **Pendiente de decisión con el usuario**: ya
-son 3 casos del mismo patrón encontrados por verificación manual caso a
-caso durante esta migración (no por un barrido sistemático) — queda
-planteado hacer un barrido único sobre las ~24.000 filas originales
-(comparar cada línea contra la mediana de su mismo ítem, señal ya
-existente en `ordenesSinOutliers`/`_concentracionMaximaOC`) en vez de
-seguir encontrando casos de a uno.
+valores, no $58 millones.
+
+**Barrido sistemático (2026-09-30)**: ya iban 3 casos del mismo patrón
+encontrados por verificación manual caso a caso, así que en vez de seguir
+encontrándolos de a uno se corrió un barrido único sobre toda
+`compras_detalle`: para cada ítem con ≥5 líneas comparables, mediana de
+`precioUnit` y flag de cualquier línea que la supere 50x (misma regla ya
+validada en `ordenesSinOutliers`). Apareció que el caso de "Filtro Aire
+Secundari6001" en realidad eran **2 variantes corruptas de la misma OC**
+(692902, 10-feb-2025): la ya encontrada ("Filtro Aire Secundari6001", 8
+líneas, precio real $86.534 según sus 108 comparables) y otra que no se
+había visto ("Filtro Aire Secundar 6001", sin la "i", otras 8 líneas,
+precio real $16.210 según sus 122 comparables — llegó a figurar 1.312
+veces por encima de lo normal). Las 16 líneas se corrigieron en
+`compras_detalle` (precioUnit + costo recalculado = cant × mediana real
+del ítem), con aprobación explícita del usuario.
+
+El barrido encontró 2 casos más, mismo tipo de corrupción de dígitos en
+`precioUnit`, pero **sin impacto real**: un neumático (CN-5131) y un
+filtro de aceite (CN-9506) donde el `costo` de la línea ya es correcto
+(costo ÷ cantidad da el precio normal del ítem) — solo el precio unitario
+mostrado quedó con dígitos de más, no afecta ningún cálculo de gasto. Se
+dejaron sin tocar.
+
+Repitiendo el barrido después de corregir: **0 líneas** superan el
+umbral salvo esos 2 casos cosméticos ya identificados como inofensivos.
+
+## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
   navegador y Supabase solo se justifica si aparece una razón concreta (una
