@@ -5322,10 +5322,33 @@ contra cualquier coincidencia numérica de otro). Suite completa
 limpios. Verificado en Supabase tras aplicar las correcciones: los 5
 equipos (4 de la manguera + CA-10505) dan valores sanos.
 
-Paso 4 (`plan.js`) queda para después, con su propia verificación antes
-de aplicarse.
+**Paso 4 — Histórico de Consumo Real** (`planHistorico`, plan.js): mismo
+reemplazo (`ocHist` → `compras_detalle`, sin concatenar — esta vista
+también suma costo, esta vez por ítem/material en vez de por sigla). Los
+2 problemas de datos ya corregidos en el paso 3 (manguera hidráulica,
+líneas de compra del propio activo) no reaparecen acá porque la
+corrección se aplicó directamente en la tabla `compras_detalle`, no en
+el punto de consumo. Verificado con un ítem real: "Filtro Aceite Motor
+60021" — 160 líneas/$24.876.907 en `ocHist` vs. 177 líneas/$27.763.892 en
+`compras_detalle` (11% más líneas, aumento proporcional del gasto, sin
+distorsión). Sin tests nuevos (mismo motivo que los pasos anteriores).
+Suite 1122/1122 verde, `npx esbuild` (plan.js)/`npx vite build` limpios.
 
-## Lo que decidimos NO hacer (y por qué)
+**Con esto se completó la migración planeada (pasos 1-4)**. Al verificar
+el paso 4 contra los datos reales apareció un **tercer caso** del mismo
+patrón (cantidad/precio mal digitado en un lote de compra compartido
+entre varios equipos el mismo día): "Filtro Aire Secundari6001", 8 líneas
+(CF-9510, CN-4656, CN-6113, CN-9500, CN-9501, CN-9503, CN-9506, CN-9507),
+10-feb-2025, mismo proveedor (Distrib. Perkins), precioUnit=$58.878.611
+— hay comparables reales cercanos en el tiempo (28-ene-2025: $90.994;
+10-mar-2025: $61.320) que confirman que el precio real ronda esos
+valores, no $58 millones. **Pendiente de decisión con el usuario**: ya
+son 3 casos del mismo patrón encontrados por verificación manual caso a
+caso durante esta migración (no por un barrido sistemático) — queda
+planteado hacer un barrido único sobre las ~24.000 filas originales
+(comparar cada línea contra la mediana de su mismo ítem, señal ya
+existente en `ordenesSinOutliers`/`_concentracionMaximaOC`) en vez de
+seguir encontrando casos de a uno.
 
 - **No backend propio**: agregar un servidor Node/Express entre el
   navegador y Supabase solo se justifica si aparece una razón concreta (una

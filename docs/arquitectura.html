@@ -2788,7 +2788,16 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   261,3% a ~28,5% (alto pero plausible con solo 113 días de historial).</p>
   <p>2 tests nuevos (<code>costoRelativoMantenimiento.test.js</code>). Suite completa 1122/1122 verde,
   esbuild/vite build limpios. Verificado en Supabase tras aplicar las correcciones.</p>
-  <p>Paso 4 (<code>plan.js</code>) queda para después, con su propia verificación antes de aplicarse.</p>
+  <p><b>Paso 4 — Histórico de Consumo Real</b> (<code>planHistorico</code>, plan.js): mismo reemplazo (suma
+  costo por ítem/material en vez de por sigla). Verificado con un ítem real: "Filtro Aceite Motor 60021" —
+  160 líneas/$24.876.907 en <code>ocHist</code> vs. 177 líneas/$27.763.892 en <code>compras_detalle</code>
+  (aumento proporcional, sin distorsión). Suite 1122/1122 verde, esbuild/vite build limpios.</p>
+  <p><b>Con esto se completó la migración planeada (pasos 1-4)</b>. Verificando el paso 4 apareció un
+  tercer caso del mismo patrón: "Filtro Aire Secundari6001", 8 líneas (10-feb-2025, mismo proveedor),
+  precioUnit=$58.878.611 — comparables cercanos (28-ene: $90.994; 10-mar: $61.320) confirman que el precio
+  real ronda esos valores. Pendiente de decisión con el usuario: ya son 3 casos del mismo patrón
+  encontrados por verificación manual — queda planteado hacer un barrido único sobre las ~24.000 filas
+  originales en vez de seguir encontrando casos de a uno.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

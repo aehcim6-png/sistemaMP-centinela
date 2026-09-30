@@ -309,12 +309,19 @@ export function planMesCal(){
 export function planHistorico(){
   var fn2=v=>fn(Math.round(v||0));
   var PR=computePred();
-  var ordenesCrudo=S.g('ocHist')||[];
+  // comprasDetalle (2026-09-30, paso 4 de la migración, ver arquitectura.md
+  // sección 85): mismo reemplazo que en cos.js/pred.js (pasos 2-3) — esta
+  // vista SUMA costo por ítem/material, así que se reemplaza 'ocHist', no se
+  // concatena (concatenar duplicaría el ~98,4% de solape). Los 2 problemas
+  // reales de datos ya encontrados y corregidos en los pasos previos
+  // (manguera hidráulica mal digitada, líneas de compra del propio activo)
+  // ya están arreglados en la base — no vuelven a aparecer acá.
+  var ordenesCrudo=S.g('comprasDetalle')||[];
   var mov=S.g('mov')||[];
   var lub=S.g('lub')||[];
   var stk=S.g('stk')||[];
   var eq=S.g('eq')||[];
-  var usaOC=ordenesCrudo.length>0; // ocHist es la fuente real (siempre cargada desde Supabase); si por algo no llegó, cae a mov
+  var usaOC=ordenesCrudo.length>0; // compras_detalle es la fuente real (siempre cargada desde Supabase); si por algo no llegó, cae a mov
   // Separa líneas con precio unitario muy fuera de lo normal para su propio
   // ítem (ver ordenesSinOutliers en logic.js) — no se borran, solo no entran
   // al cálculo mientras se confirma el valor real con el proveedor.
