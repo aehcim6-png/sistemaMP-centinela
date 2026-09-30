@@ -2807,6 +2807,26 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   solo el precio unitario mostrado tiene dígitos de más) — se dejaron sin tocar. Repitiendo el barrido tras
   corregir: 0 líneas superan el umbral salvo esos 2 casos cosméticos ya identificados como inofensivos.</p>
 
+  <h3>86. Intervalo de Inspección — P-F Real (2026-09-30)</h3>
+  <p>A partir de un diagrama sobre la curva P-F (RCM): el intervalo P-F es el tiempo entre que una falla se
+  vuelve detectable (Potencial) y el momento en que el equipo deja de cumplir (Funcional). Criterio técnico
+  clásico: inspeccionar con un intervalo ≤ mitad del P-F. La literatura usa un P-F de tabla por modo de
+  falla — acá se mide el P-F <b>real</b>: 'P' es la fecha de alerta CUSUM de aceite
+  (<code>cusumAceitePorComponente</code>, sección 77), 'F' es la fecha del primer correctivo real de ese
+  componente después de esa alerta. <code>intervalosPF(gruposCusum, otConHist, ventanaMaxDias=365)</code>
+  agrupa por tipo de componente (no por equipo) y devuelve <code>nEventos</code>, <code>pfPromedio</code>,
+  <code>pfMediana</code> e <code>intervaloInspeccionRecomendado</code> (mediana/2). Sin al menos 1 caso real
+  con ambos extremos, ese componente no tiene P-F medible — nunca se asume un valor de tabla.</p>
+  <p><b>Bug real encontrado y corregido</b>: <code>analisis_aceite.componente</code> se guarda en
+  MAYÚSCULAS sin tilde ("TRANSMISION"), <code>correctivos.componente</code> como lo elige la persona
+  ("Transmisión") — sin normalizar, nunca hubieran cruzado. <code>_normalizarComponente(s)</code> resuelve
+  esto. <b>Nota no corregida esta vez</b>: <code>rulHibridoPorComponente</code> (sección 78) cruza estas
+  mismas fuentes de la misma forma — probablemente tiene el mismo problema silencioso (el ajuste de RUL por
+  aceite puede no estar disparando nunca en la práctica). Señalado, no corregido — requiere su propia
+  verificación antes de tocar una función ya en producción.</p>
+  <p>Nueva sub-vista "🔍 Intervalo de Inspección (P-F)" en Predictivo. 15 tests nuevos
+  (<code>intervalosPF.test.js</code>). Suite completa 1135/1135 verde, esbuild/vite build limpios.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

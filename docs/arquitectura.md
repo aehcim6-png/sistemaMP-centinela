@@ -5369,6 +5369,66 @@ dejaron sin tocar.
 Repitiendo el barrido después de corregir: **0 líneas** superan el
 umbral salvo esos 2 casos cosméticos ya identificados como inofensivos.
 
+### 86. Intervalo de Inspección — P-F Real (2026-09-30)
+
+Pedido real del usuario a partir de un diagrama de "Intervalo de
+Inspección" (RCM — curva P-F): el intervalo P-F es el tiempo entre que
+una falla se vuelve **detectable** (Potencial) y el momento en que el
+equipo **deja de cumplir** (Funcional). El criterio técnico clásico dice:
+inspeccionar con un intervalo ≤ mitad del P-F, para tener al menos 2
+oportunidades de detectarla antes de que se vuelva funcional. La
+literatura usa un P-F de **tabla** por modo de falla (genérico, no de
+esta flota) — acá se mide el P-F **real**, sin ningún valor de tabla:
+
+- **'P' (falla Potencial)**: la fecha de alerta CUSUM de aceite
+  (`cusumAceitePorComponente`, ya existente desde la sección 77 — el
+  primer indicio real de aceleración de desgaste).
+- **'F' (falla Funcional)**: la fecha del primer correctivo real de ESE
+  componente en ESE equipo ocurrido después de esa alerta.
+
+`intervalosPF(gruposCusum, otConHist, ventanaMaxDias=365)` (logic.js) —
+para cada grupo sigla+componente con al menos un metal con
+`detectado=true`, busca el correctivo más próximo posterior a
+`fechaAlerta` (dentro de la ventana, para no emparejar con una falla
+demasiado lejana y probablemente no relacionada), calcula
+`_diasEntreISO(fechaAlerta, fechaCorrectivo)` y agrupa por **tipo de
+componente** (no por equipo — muy pocos eventos por equipo; el P-F es
+una propiedad del modo de falla). Devuelve `nEventos`, `pfPromedio`,
+`pfMediana` e `intervaloInspeccionRecomendado` (mediana/2), ordenado de
+menor a mayor intervalo recomendado (los componentes que exigen
+inspección más frecuente primero). Sin al menos 1 caso real con ambos
+extremos, ese componente simplemente no tiene P-F medible — nunca se
+asume un valor de tabla.
+
+**Bug real encontrado y corregido antes de verificar con datos reales**:
+`analisis_aceite.componente` se guarda en MAYÚSCULAS y sin tilde
+("TRANSMISION"), mientras que `correctivos.componente` se guarda como lo
+elige la persona en el selector de la UI ("Transmisión") — una
+comparación exacta de string nunca hubiera cruzado ninguno de los dos,
+aun siendo el mismo componente real. `_normalizarComponente(s)` (mayúsculas
++ sin tildes/ñ) resuelve esto antes de comparar. **Nota para más
+adelante, no corregida esta vez**: `rulHibridoPorComponente` (sección 78)
+cruza estas mismas dos fuentes de la misma forma (`e.componente===g.componente`
+implícito en la clave `sigla+'|'+componente`) — muy probablemente tiene
+el mismo problema silencioso (el ajuste de RUL por aceleración de aceite
+puede no estar disparando nunca en la práctica). Señalado, no corregido
+en esta pasada — es una función ya en producción, requiere su propia
+verificación antes de tocarla.
+
+**UI**: nueva sub-vista "🔍 Intervalo de Inspección (P-F)" en Predictivo
+(pred.js), junto a RUL — misma fuente de datos (`aceite` + correctivos
+con componente resuelto).
+
+15 tests nuevos (`intervalosPF.test.js`, incluye `_normalizarComponente`):
+ignora grupos sin metal detectado o sin `fechaAlerta`, nunca inventa un
+P-F sin correctivo posterior real, ignora correctivos de otro componente
+u otro equipo, calcula P-F y recomienda la mitad, toma el correctivo MÁS
+CERCANO (no cualquiera), descarta P-F fuera de la ventana máxima, agrupa
+por componente entre equipos y promedia, separa componentes y ordena,
+cruza formatos de componente distintos (mayúsculas/tildes) gracias a la
+normalización, pureza. Suite completa 1135/1135 verde, `npx esbuild`
+(logic.js, pred.js)/`npx vite build` limpios.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

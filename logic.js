@@ -3524,6 +3524,65 @@ function rulHibridoPorComponente(eventos,eq,ace){
   return resultado.sort(function(a,b){return(a.b10Ajustado!=null?a.b10Ajustado:a.b10)-(b.b10Ajustado!=null?b.b10Ajustado:b.b10);});
 }
 
+// ═══ INTERVALO P-F REAL Y RECOMENDACIÓN DE INSPECCIÓN (2026-09-30) ═══ —
+// a partir de un diagrama sobre la curva P-F (RCM): el intervalo P-F es el
+// tiempo entre que una falla se vuelve DETECTABLE ("Potencial") y el
+// momento en que el equipo deja de cumplir ("Funcional"). El criterio
+// técnico clásico dice: inspeccionar con un intervalo ≤ mitad del P-F, para
+// tener al menos 2 oportunidades de detectarla antes de que se vuelva
+// funcional — pero la literatura usa un P-F de TABLA por modo de falla
+// (genérico, no de esta flota). Acá se mide el P-F REAL: 'P' es la fecha de
+// alerta CUSUM de aceite (cusumAceitePorComponente, ya existente — el
+// primer indicio real de aceleración de desgaste) y 'F' es la fecha del
+// primer correctivo real de ESE componente en ESE equipo ocurrido después
+// de esa alerta — nunca un valor de tabla. Se agrupa por tipo de
+// componente (no por equipo — muy pocos eventos por equipo) porque el P-F
+// es una propiedad del modo de falla, no del equipo puntual. Sin al menos
+// 1 caso real con ambos extremos (alerta + correctivo posterior dentro de
+// 'ventanaMaxDias'), ese componente simplemente no tiene P-F medible.
+//
+// _normalizarComponente: 'analisis_aceite' guarda el componente en
+// mayúsculas y sin tilde ("TRANSMISION"), mientras que 'correctivos' lo
+// guarda como lo eligió la persona en el selector ("Transmisión") — sin
+// normalizar, una comparación exacta nunca cruza ninguno de los dos, aun
+// siendo el mismo componente real.
+function _normalizarComponente(s){
+  return String(s||'').trim().toUpperCase()
+    .replace(/Á/g,'A').replace(/É/g,'E').replace(/Í/g,'I').replace(/Ó/g,'O').replace(/Ú/g,'U').replace(/Ñ/g,'N');
+}
+function intervalosPF(gruposCusum,otConHist,ventanaMaxDias){
+  ventanaMaxDias=ventanaMaxDias>0?ventanaMaxDias:365;
+  var porComponente={};
+  (gruposCusum||[]).forEach(function(g){
+    if(!g||!g.sigla||!g.componente)return;
+    var compNorm=_normalizarComponente(g.componente);
+    var correctivosEquipo=(otConHist||[]).filter(function(o){return o&&o.sigla===g.sigla&&o.fecha&&_normalizarComponente(o.componente)===compNorm;});
+    Object.keys(g.porMetal||{}).forEach(function(met){
+      var r=g.porMetal[met];
+      if(!r||!r.detectado||!r.fechaAlerta)return;
+      var siguiente=correctivosEquipo
+        .filter(function(o){return o.fecha>=r.fechaAlerta;})
+        .sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;})[0];
+      if(!siguiente)return;
+      var dias=_diasEntreISO(r.fechaAlerta,siguiente.fecha);
+      if(dias<=0||dias>ventanaMaxDias)return;
+      (porComponente[g.componente]=porComponente[g.componente]||[]).push(dias);
+    });
+  });
+  return Object.keys(porComponente).map(function(comp){
+    var dias=porComponente[comp];
+    var mediana=medianaPositiva(dias);
+    var total=dias.reduce(function(a,b){return a+b;},0);
+    return{
+      componente:comp,
+      nEventos:dias.length,
+      pfPromedio:Math.round(total/dias.length),
+      pfMediana:Math.round(mediana),
+      intervaloInspeccionRecomendado:Math.round(mediana/2)
+    };
+  }).sort(function(a,b){return a.intervaloInspeccionRecomendado-b.intervaloInspeccionRecomendado;});
+}
+
 // ═══ MANTENIMIENTO OPORTUNISTA MULTI-COMPONENTE (2026-09-17) ═══ Tercer
 // ítem del tercer lote. Idea real de mantenimiento oportunista (estándar de
 // la industria — "group maintenance under opportunities"): si un equipo va
@@ -6524,7 +6583,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

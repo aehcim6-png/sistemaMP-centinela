@@ -1565,6 +1565,40 @@ export function renderPred(){
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin instancias equipo+componente con Weibull y horómetro suficientes todavía</p></div>');
   }
 
+  // ═══ INTERVALO DE INSPECCIÓN — P-F REAL (2026-09-30) ═══ — a partir de un
+  // diagrama sobre la curva P-F (RCM). Reusa cusumAceitePorComponente (misma
+  // fuente que RUL híbrido, arriba): 'P' es la fecha de alerta CUSUM de
+  // aceite, 'F' es el primer correctivo real de ESE componente después de
+  // esa alerta — nunca un valor de tabla de la literatura. Ver
+  // intervalosPF, logic.js.
+  if(fVista==='pf'){
+    var otConHistPF=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]))
+      .map(function(o){
+        var comp=(o.componente&&o.componente.trim())||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma):'');
+        return{sigla:o.sigla,componente:comp||'',fecha:o.fecha};
+      });
+    var aceitePF=S.g('aceite')||[];
+    if(aceitePF.length&&typeof window._aceiteResolverSiglas==='function')window._aceiteResolverSiglas(aceitePF);
+    var gruposCusumPF=typeof cusumAceitePorComponente==='function'?cusumAceitePorComponente(aceitePF):[];
+    var pfLista=typeof intervalosPF==='function'?intervalosPF(gruposCusumPF,otConHistPF):[];
+    content=
+      '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Intervalo de Inspección — P-F Real</div><div style="font-size:11px;color:var(--tx3)">Cada cuánto conviene inspeccionar cada tipo de componente, medido con datos reales de la propia flota</div></div>'+
+      '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
+      '<div style="font-size:12px;line-height:1.6">El intervalo P-F (RCM) es el tiempo entre que una falla se vuelve <b>detectable</b> (Potencial) y el momento en que el equipo <b>deja de cumplir</b> (Funcional). La literatura usa valores de tabla por modo de falla — acá se mide el P-F <b>real de esta flota</b>: "P" es la fecha en que el CUSUM de aceite detectó una aceleración real de desgaste, "F" es la fecha del primer correctivo real de ese componente después de esa alerta. Criterio técnico clásico: inspeccionar con un intervalo ≤ mitad del P-F, para tener al menos 2 oportunidades de detectarla antes de que se vuelva funcional. Sin al menos 1 caso real con ambos extremos, ese componente no aparece acá — nunca se asume un P-F de tabla.</div></div>'+
+      (pfLista.length?
+      '<div class="tbl-wrap"><table><tr><th style="text-align:left">Componente</th><th>Casos reales</th><th>P-F promedio</th><th>P-F mediana</th><th>Intervalo de inspección recomendado</th></tr>'+
+      pfLista.map(function(r){
+        return'<tr>'+
+          '<td style="font-weight:600">'+escapeHtml(r.componente)+'</td>'+
+          '<td style="text-align:center">'+r.nEventos+'</td>'+
+          '<td style="text-align:center">'+r.pfPromedio+' días</td>'+
+          '<td style="text-align:center">'+r.pfMediana+' días</td>'+
+          '<td style="text-align:center;font-weight:700;color:var(--ac)">cada '+r.intervaloInspeccionRecomendado+' días</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Todavía no hay ningún caso real con alerta CUSUM de aceite seguida de un correctivo del mismo componente — sin eso, no hay P-F medible.</p></div>');
+  }
+
   // ═══ MATRIZ DE CRITICIDAD DE REPUESTOS AVANZADA (2026-09-16) ═══
   // Tercer ítem del segundo lote de algoritmos "nivel siguiente". riesgoQuiebre
   // (arriba, alimenta la Matriz de Riesgo general) ya usa stockEstado — un
@@ -1964,6 +1998,7 @@ $('s-pred').innerHTML=
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
+    '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
     '<option value="abcxyz"'+(fVista==='abcxyz'?' selected':'')+'>🗂 ABC-XYZ de Repuestos</option>'+
     '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
