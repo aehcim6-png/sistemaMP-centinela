@@ -10,7 +10,17 @@ export function renderCos() {
   var eq = S.g('eq') || [];
   var stk = S.g('stk') || [];
   var lub = S.g('lub') || [];
-  var ocHist = S.g('ocHist') || [];
+  // comprasDetalle (2026-09-30, paso 2 de la migración acordada con el usuario,
+  // ver arquitectura.md sección 85): reemplaza a 'ocHist' acá — a diferencia del
+  // paso 1 (costoSugeridoPorCruce), esta función SUMA costo por sigla, así que
+  // concatenar ambas fuentes duplicaría el ~98,4% que ya está en las dos
+  // (inflaría el gasto real al doble). Además se encontró un caso real donde
+  // 'ocHist' atribuye mal el equipo de una línea de OC: pedido 14515/OC 767168
+  // (Filtro Petróleo, Comprador Guillermo Tapia) — el despacho.xlsx real tiene
+  // 6 líneas para CN-6113/CN-9500(x2)/CN-9501/CN-9502/CN-9503, NINGUNA para
+  // CN-4656, pero 'ocHist' sí le atribuye una línea a CN-4656. 'compras_detalle'
+  // es el re-import verificado directo del Excel, más confiable en este punto.
+  var ocHist = S.g('comprasDetalle') || [];
   var hh = S.g('hh') || 25000;
   var fVista = $('fCosVista')?.value || 'costos';
 

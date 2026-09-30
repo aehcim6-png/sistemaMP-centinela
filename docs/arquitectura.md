@@ -5182,7 +5182,7 @@ limpio y suite completa 1120/1120 verde. Verificado también contra los
 datos reales ya importados en Supabase (KOMATSU CHILE S.A. con 1.590
 pedidos cerrados, Cummins 700, Perkins 608).
 
-### 85. Migración incremental de `ocHist` a `compras_detalle` — paso 1: costoSugeridoPorCruce (2026-09-30)
+### 85. Migración incremental de `ocHist` a `compras_detalle` — pasos 1-2 (2026-09-30)
 
 El usuario preguntó si `compras_detalle` (más completo, ver sección 84)
 también sirve para lo que hoy usa `ocHist`/`ordenes_compra_historico` (un
@@ -5224,9 +5224,45 @@ nombres. Suite completa 1120/1120 verde (sin tests nuevos — no hay lógica
 nueva que probar, solo qué array se le pasa a una función ya testeada).
 `npx esbuild`/`npx vite build` limpios.
 
-Pasos 2 (`costoRelativoMantenimiento`) y 3-4 (Matriz de Criticidad de
-Repuestos/ABC-XYZ, plan.js) quedan para después, cada uno con su propia
-verificación antes de aplicarse.
+**Paso 2 — `costoRelativoMantenimiento`** (cos.js, sub-vista "relativo" de
+Costos & Stock): a diferencia del paso 1, esta función SUMA costo por
+sigla — concatenar ambas fuentes duplicaría el ~98,4% de solape y
+**inflaría el gasto real al doble**. Acá se REEMPLAZA `ocHist` por
+`compras_detalle` (`var ocHist = S.g('comprasDetalle') || [];` en la
+única línea donde se arma el array, cos.js línea ~13), no se concatena.
+
+Antes de aplicar el cambio se encontró, además, un caso real de
+**atribución incorrecta de equipo en `ocHist`**: pedido 14515/OC 767168
+("Filtro Petróleo 600319454", Comprador Guillermo Tapia) — el
+`despacho.xlsx` real tiene 6 líneas para CN-6113/CN-9500(x2)/CN-9501/
+CN-9502/CN-9503, **ninguna para CN-4656**, pero `ocHist` sí le atribuye
+una línea a CN-4656. `compras_detalle` (re-import directo y verificado
+del Excel) no tiene ese error — es más confiable en este punto, no solo
+más completo.
+
+Verificado con 5 equipos reales con `valorCompra` cargado (recalculando
+a mano `gastoTotal`/`diasHistorial`/`pct` con ambas fuentes):
+
+| Equipo | % antes (ocHist) | % después (compras_detalle) |
+|---|---|---|
+| BD-9509 | 6,6% | 7,2% |
+| BD-9533 | 5,8% | 6,8% |
+| BS-5752 | 5,7% | 8,6% |
+| CA-5979 | 36,5% | 26,8% |
+| CF-8769 | 7,7% | 8,3% |
+
+Cambios explicables en los 5 casos: la mayoría sube levemente por más
+historial real capturado; CA-5979 baja porque pasó de 244 días de
+historial (apenas sobre el mínimo de 90 que exige la función) a 419 —
+una ventana más larga y más confiable, exactamente lo que la propia
+función busca. Ningún salto es ruido ni un cambio de umbral de color
+alarmante. Sin tests nuevos (mismo motivo que el paso 1 — no hay lógica
+nueva, solo qué array se pasa). Suite 1120/1120 verde, `npx esbuild`/
+`npx vite build` limpios.
+
+Pasos 3-4 (Matriz de Criticidad de Repuestos/ABC-XYZ en pred.js, y
+plan.js) quedan para después, cada uno con su propia verificación antes
+de aplicarse.
 
 ## Lo que decidimos NO hacer (y por qué)
 

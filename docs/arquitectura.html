@@ -2737,7 +2737,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (logic.js, cos.js, sin errores), <code>npx vite build</code> limpio, suite completa 1120/1120 verde, y
   contra los datos reales ya importados en Supabase.</p>
 
-  <h3>85. Migración incremental de ocHist a compras_detalle — paso 1: costoSugeridoPorCruce (2026-09-30)</h3>
+  <h3>85. Migración incremental de ocHist a compras_detalle — pasos 1-2 (2026-09-30)</h3>
   <p>El usuario preguntó si <code>compras_detalle</code> también sirve para lo que hoy usa
   <code>ocHist</code>/<code>ordenes_compra_historico</code> (subconjunto curado, 6.848 filas, 2022-06-23 a
   2026-09-05, vs. 8.628 filas de <code>compras_detalle</code>, 2021-01-12 a 2026-09-25, misma flota de 34
@@ -2755,9 +2755,19 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   inofensiva (la función ya ordena por score). Verificado con un correctivo real (CF-9511, 2026-07-21): con
   solo <code>ocHist</code>, 3 candidatos en la ventana de ±15 días; con <code>compras_detalle</code> sumado,
   25 — la cobertura se multiplica por 8 en este caso. Sin cambios en la función pura (ya era agnóstica a la
-  fuente). Suite 1120/1120 verde (sin tests nuevos: no hay lógica nueva, solo qué array se le pasa). Pasos 2
-  (costoRelativoMantenimiento) y 3-4 (Matriz de Criticidad de Repuestos/ABC-XYZ, plan.js) quedan pendientes,
-  cada uno con su propia verificación antes de aplicarse.</p>
+  fuente). Suite 1120/1120 verde (sin tests nuevos: no hay lógica nueva, solo qué array se le pasa).</p>
+  <p><b>Paso 2 — costoRelativoMantenimiento</b> (cos.js): a diferencia del paso 1, esta función SUMA costo por
+  sigla — concatenar duplicaría el ~98,4% de solape e infla el gasto al doble. Acá se REEMPLAZA
+  <code>ocHist</code> por <code>compras_detalle</code>, no se concatena. Se encontró además un caso real de
+  atribución incorrecta en <code>ocHist</code>: pedido 14515/OC 767168 ("Filtro Petróleo 600319454") — el
+  Excel real tiene 6 líneas para CN-6113/CN-9500(x2)/CN-9501/CN-9502/CN-9503, ninguna para CN-4656, pero
+  <code>ocHist</code> sí le atribuye una línea a CN-4656. <code>compras_detalle</code> es más confiable, no
+  solo más completo. Verificado con 5 equipos reales: BD-9509 6,6%→7,2%, BD-9533 5,8%→6,8%, BS-5752
+  5,7%→8,6%, CA-5979 36,5%→26,8% (bajó porque pasó de 244 a 419 días de historial — ventana más confiable),
+  CF-8769 7,7%→8,3%. Cambios todos explicables, ningún salto es ruido. Suite 1120/1120 verde, esbuild/vite
+  build limpios.</p>
+  <p>Pasos 3-4 (Matriz de Criticidad de Repuestos/ABC-XYZ en pred.js, y plan.js) quedan pendientes, cada uno
+  con su propia verificación antes de aplicarse.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
