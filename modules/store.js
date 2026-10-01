@@ -194,7 +194,9 @@ const TABLA_REAL={
   // 5 fórmulas distintas. 'fuente' documenta de dónde salió cada valor
   // (ficha técnica real vs. medido en terreno) para que nunca se confunda
   // un dato real con uno inventado.
-  rendModelos:{tabla:'rendimiento_modelos',clave:'modelo',claveDb:'modelo',cols:['modelo','tipo','parametros','fuente']}
+  rendModelos:{tabla:'rendimiento_modelos',clave:'modelo',claveDb:'modelo',cols:['modelo','tipo','parametros','fuente']},
+  prodTurno:{tabla:'produccion_turno',clave:'id',claveDb:'id',cols:['id','fecha','turno','supervisor','contrato','franjaDescarga','moduloDescarga','distanciaModulos','observacionesDistancia','totalToneladas','rendimientoTransporteTonHr','totalVueltas','observaciones','registradoPor','fuente']},
+  prodTurnoEq:{tabla:'produccion_turno_equipos',clave:'id',claveDb:'id',cols:['id','turnoId','sigla','siglaOCR','categoria','equipoNombreOCR','horometroInicial','horometroFinal','totalHoras','estadoTexto','vueltas','rendimientoVueltasHr','tiempoCicloMin','operador','tonVuelta','tonHr','totalTon','postura','areaTrabajo','tonAsociadoPerdida']}
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={
@@ -749,7 +751,7 @@ window.addEventListener('storage',function(e){
 // — Supabase siempre tiene el historial completo real; esto es solo el respaldo
 // offline del navegador, así que perder las filas más viejas ahí no pierde nada.
 const _CATEGORIAS_CRECIENTES={hist:'fecha',ot:'fecha',reg:'fechaEntrada',mov:'fecha',
-  neuMed:'fecha',aceite:'fecha',insp:'fecha',informesFalla:'fecha',progDia:'fecha'};
+  neuMed:'fecha',aceite:'fecha',insp:'fecha',informesFalla:'fecha',progDia:'fecha',prodTurno:'fecha'};
 const _TOPE_FILAS_LOCAL=1200;
 function _recorteParaLocal(k,v){
   var campo=_CATEGORIAS_CRECIENTES[k];

@@ -452,6 +452,7 @@ const _LAZY_VERS={
   reg:'2026-08-30b',
   neu:'2026-09-20',
   ot:'2026-09-30',
+  prod:'2026-09-30',
 };
 const _LAZY_EXPORTS={
   al:['renderAl','editAlRep','saveAlRep'],
@@ -498,6 +499,7 @@ const _LAZY_EXPORTS={
   reg:['renderReg','addReg','editarReg','calcDurEdit','saveEditReg','rAutoHorom','rMostrarConsumos','calcDurReg','saveReg','_activarLeerPauta','_leerPautaFotoSeleccionada','_matchEquipoPorSiglaOCR','_prellenarDesdeOCR','_activarLeerCorrectivo','_leerCorrectivoFotoSeleccionada','_prellenarDesdeOCRCorrectivo','_iniciarRegPorVoz','importRegCSV','processImportReg'],
   neu:['renderNeu','verNeuLista','_iniciarNeuPorVoz','_continuarMedicionPorVoz','_iniciarMedicionNeuPorVoz','addNeu','saveNeu','cambiarNeu','saveCambio','instalarDesdeExistencias','confirmarInstalarExistencias','verSensores','verHistorialSensor','desmontarSensor','instalarSensor','confirmarInstalarSensor','addMedicionNeu','saveMedicionNeu','_activarLeerChequeoNeu','_leerChequeoNeuFotoSeleccionada','_revisarChequeoNeuOCR','_guardarChequeoNeuOCR','neuSort','histPosicion','verHistorialNeu','verDetalleNeu','resumenFlotaNeu'],
   ot:['renderOt','analisisDocumentacion','analisisReingresos','verCausasLatentesRepetidas','verAnalisisMTTRPorCategoria','verAnalisisCapexOpex','addOT','addOTRapido','saveOTRapido','_activarLeerCorrectivoOT','_leerCorrectivoOTFotoSeleccionada','_prellenarDesdeOCRCorrectivoOT','_iniciarOTPorVoz','calcDurOT','saveOT','gestionarFotosOT','_otFotosSeleccionadas','quitarFotoOT','edOT'],
+  prod:['renderProd','_activarLeerReporteProduccion','_leerReporteProduccionFotoSeleccionada','_revisarReporteProduccionOCR','_guardarReporteProduccionOCR'],
 };
 // Grupos que SÍ se llaman entre sí en tiempo de ejecución sin typeof-guard
 // (ver comentario arriba de _LAZY_VERS): pred.js usa _AUDIT_MESES de
@@ -511,9 +513,14 @@ const _LAZY_CLUSTERS={
   pred:['audit','pred'],
   metas:['metas','resumenejec'],
   resumenejec:['metas','resumenejec'],
-  reg:['reg','neu','ot'],
-  neu:['reg','neu','ot'],
-  ot:['reg','neu','ot'],
+  reg:['reg','neu','ot','prod'],
+  neu:['reg','neu','ot','prod'],
+  ot:['reg','neu','ot','prod'],
+  // prod.js usa _matchEquipoPorSiglaOCR() de reg.js igual que ot.js/neu.js —
+  // mismo motivo que el cluster comp/estadistica de abajo: un typeof-guard
+  // solo no alcanza porque el stub lazy TAMBIÉN es una función (pasa el
+  // typeof) pero devuelve una Promise en vez del resultado real.
+  prod:['reg','neu','ot','prod'],
   // comp.js llama _estFallasCombinadas()/_estMtbfPorComponente() de
   // estadistica.js con un typeof-guard — pero ese guard por sí solo NO
   // alcanza con el mecanismo de stubs de abajo: el stub instalado por
@@ -762,6 +769,7 @@ const TABS=[
   {id:'stk2',l:'Stock & Insumos',i:ICONS.box},
   {id:'hist',l:'Horómetros',i:ICONS.trend},
   {id:'disp',l:'Disponibilidad',i:ICONS.gauge},
+  {id:'prod',l:'Producción',i:ICONS.tractor},
   {id:'ace',l:'Análisis Aceite',i:ICONS.flask},
   {id:'venc',l:'Vencimientos',i:ICONS.calDot},
   {id:'comp2',l:'Componentes',i:ICONS.bolt},

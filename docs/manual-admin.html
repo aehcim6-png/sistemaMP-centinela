@@ -206,19 +206,22 @@
   90 días con un cron diario.</p>
 
   <h2>4. Base de datos (Supabase)</h2>
-  <p><b>44 tablas reales</b> (incluye <code>historial_componentes</code> e
+  <p><b>46 tablas reales</b> (incluye <code>historial_componentes</code> e
   <code>historial_neumaticos</code>, agregadas en agosto 2026,
   <code>correctivos_historico</code>, agosto 2026, planillas Excel 2022-2025 previas a este
   sistema, alimenta Probabilidad de Falla en Predictivo, <code>compromisos</code>
-  (2026-08-31, loop de responsabilidad de Metas & KPIs), y las 2 más recientes:
-  <code>compras_detalle</code> (2026-09-27, 8.628 líneas reales de pedidos de compra
-  2021-2026, importadas de despacho.xlsx + OC.xlsx — alimenta Tiempo de Respuesta por
-  Proveedor, Pedidos Potencialmente Trabados y Tiempo de Aprobación de OC, y reemplazó a
+  (2026-08-31, loop de responsabilidad de Metas & KPIs), <code>compras_detalle</code>
+  (2026-09-27, 8.628 líneas reales de pedidos de compra 2021-2026, importadas de
+  despacho.xlsx + OC.xlsx — alimenta Tiempo de Respuesta por Proveedor, Pedidos
+  Potencialmente Trabados y Tiempo de Aprobación de OC, y reemplazó a
   <code>ordenes_compra_historico</code> en varios cálculos de costo real; ver
-  <a href="arquitectura.html">Arquitectura</a>, secciones 84-85) y
-  <code>rendimiento_modelos</code> (2026-09-30, rendimiento teórico por modelo de equipo
-  para Producción Perdida por Detención; ver Arquitectura, sección 86)) + 7 "singleton" de
-  configuración (51 tablas en total). El mapeo vive en
+  <a href="arquitectura.html">Arquitectura</a>, secciones 84-85), <code>rendimiento_modelos</code>
+  (2026-09-30, rendimiento teórico por modelo de equipo para Producción Perdida por
+  Detención; ver Arquitectura, sección 86), y las 2 más recientes:
+  <code>produccion_turno</code> + <code>produccion_turno_equipos</code> (2026-09-30,
+  cabecera + líneas de los Reportes de Turno de Producción leídos por foto — alimenta
+  Rendimiento real por equipo en la nueva pestaña Producción; ver Arquitectura, sección
+  88)) + 7 "singleton" de configuración (53 tablas en total). El mapeo vive en
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.</p>
   <p><b>El schema está versionado como código</b> en <code>supabase/migrations/*.sql</code>.
   Cualquier cambio de estructura debe ser un archivo de migración nuevo, nunca una edición manual
@@ -522,19 +525,33 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   técnico de cada una. Como admin, no hay nada que activar — simplemente avisar al equipo de
   terreno que estos 3 selectores existen, si se quiere que esos análisis empiecen a tener datos.</p>
 
+  <h2>8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</h2>
+  <p>Nueva pestaña top-level (no sub-pestaña), con su propia Edge Function de lectura por foto
+  (<code>leer-reporte-produccion</code>, cuarta del mismo tipo que las de Pauta PM/Informe
+  Correctivo/Chequeo de Neumáticos — requiere <code>GEMINI_API_KEY</code> configurada, ya
+  compartida con las otras tres). Por ahora procesa solo 2 de las 5 secciones del papel real de
+  Besalco (Producción CAEX y Pérdida por Indisponibilidad) — las que alimentan Rendimiento real
+  por equipo; Carguío, Apoyo y Pérdida por Petróleo quedan para una vuelta futura.</p>
+  <p>Como admin, no hay nada que configurar más allá de que <code>GEMINI_API_KEY</code> ya esté en
+  los secretos del proyecto (lo está, la comparten las otras 3 funciones de lectura). El % de
+  OEE todavía no se muestra en ningún lado del sistema — falta que alguien defina una meta de
+  Rendimiento por tipo de equipo (no se inventa un valor nominal sin ese dato real). Ver
+  <a href="arquitectura.html">Arquitectura</a>, sección 88.</p>
+
   <h2>9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (45, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (46, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+supabase/functions/      — 14 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
                             vigilar-salud-sistema, registrar-intento-acceso,
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
+                            leer-reporte-produccion,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 1136 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 1153 casos)
 docs/                    — esta documentación</pre>
 
   <h2>10. Si algo se rompe — por dónde empezar</h2>

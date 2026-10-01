@@ -2846,6 +2846,59 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ahora cruza (antes del fix, fallaba con <code>ajustadoPorAceite: false</code>). Suite completa 1136/1136
   verde, esbuild/vite build limpios.</p>
 
+  <h3>88. Ingesta de Reportes de Turno (Producción) por OCR — v1: Rendimiento real CAEX (2026-09-30)</h3>
+  <p>Retoma un plan diseñado el 17-09 (quedó fuera de alcance mientras se priorizaba el port a
+  sistema-mp2) para resolver lo que la sección 42 dejó explícitamente sin implementar por falta de
+  dato real de Rendimiento ("sin CAE/OEE inventado"). El usuario compartió reportes reales de
+  Besalco (planilla por turno) que sí traen ese dato.</p>
+  <p><b>Alcance v1, acotado a propósito</b>: de las 5 secciones del papel, solo se ingieren
+  <b>Producción CAEX</b> y <b>Pérdida por Indisponibilidad</b> — las 2 que alimentan Rendimiento/OEE.
+  Carguío, Apoyo y Pérdida por Petróleo quedan para una vuelta futura; el esquema de
+  <code>produccion_turno_equipos</code> ya las contempla en su columna <code>categoria</code>, así
+  que esa vuelta futura no exige otra migración.</p>
+  <p><b>Esquema</b> (<code>20260930210000_crear_tablas_produccion_turno.sql</code>): cabecera
+  (<code>produccion_turno</code>) + líneas por equipo (<code>produccion_turno_equipos</code>,
+  <code>turnoId</code> + <code>categoria</code> discriminadora), mismo criterio de tabla plana que
+  <code>correctivos</code>/<code>registros_pm</code>. RLS con el patrón de 4 políticas de
+  <code>compras_detalle</code> (sección 84): select=<code>es_usuario_activo</code>,
+  insert/update/delete=<code>es_editor_activo</code>.</p>
+  <p><b>Corrección de paso encontrada</b>: <code>compras_detalle</code> y
+  <code>rendimiento_modelos</code> habían quedado afuera de la lista manual <code>TABLAS</code> de
+  <code>backup-diario</code> — el mismo error de la auditoría 2026-09-07 documentada ahí mismo,
+  repetido sin que nadie lo notara. Corregido de paso junto con sumar las 2 tablas nuevas.</p>
+  <p><b>Edge Function <code>leer-reporte-produccion</code></b> — cuarta hermana de
+  <code>leer-pauta-pm</code>/<code>leer-informe-correctivo</code>/<code>leer-chequeo-neumaticos</code>,
+  mismo patrón (Gemini, <code>responseSchema</code> estricto, <code>temperature:0</code>,
+  <code>verify_jwt=true</code>, nunca escribe directo a producción). <code>equipoNombre</code> (apodo
+  operacional, ej. "CAEX-85") nunca se confunde con <code>eq.tipo</code> real del sistema. Celdas con
+  "fuera de servicio"/"stand by" dejan <code>totalHoras:null</code> y capturan el texto en
+  <code>estadoTexto</code> — nunca se inventa una cifra.</p>
+  <p><b>UI</b>: pestaña top-level nueva "Producción" (<code>modules/renders/prod.js</code>), agrupada
+  en el cluster lazy <code>reg</code>/<code>neu</code>/<code>ot</code> (no un guard <code>typeof</code>
+  simple) porque usa <code>_matchEquipoPorSiglaOCR</code> de <code>reg.js</code> — el mismo bug real
+  que ya documenta <code>_LAZY_CLUSTERS</code> (un guard <code>typeof</code> solo no alcanza: el stub
+  lazy también es función, pero devuelve una Promise). Revisión con checkbox + selector manual de
+  equipo por fila, nunca autoguarda.</p>
+  <p><b><code>logic.js</code></b> — 2 funciones nuevas, deliberadamente separadas de
+  <code>equiposConSaludFlota</code> (Rendimiento es eficiencia operativa, no salud/confiabilidad):
+  <code>rendimientoRealEquipoMes</code> (mínimo 3 turnos reales, promedio PONDERADO por horas —
+  vueltas totales/horas totales, no el promedio simple de tasas por turno) y
+  <code>tonPerdidaIndisponibilidadMes</code> (suma, sin mínimo de muestra — un turno real ya es
+  válido).</p>
+  <p><b>Sobre el % de OEE — pendiente, explícito</b>: exige una meta/nominal por tipo de equipo que
+  no viene de los reportes de turno — inventarla sería el mismo error que la sección 42 ya rechazó.
+  v1 se detiene en Rendimiento real absoluto; una v1.5 futura agregaría un singleton
+  <code>metaRendimiento</code> editable (mismo patrón que <code>dispMeta</code>) para recién ahí
+  calcular el %.</p>
+  <p>11 tests nuevos (<code>rendimientoRealEquipoMes.test.js</code>,
+  <code>tonPerdidaIndisponibilidadMes.test.js</code>, verificados a mano: 20+15+18 vueltas /
+  10+8+9 horas = 1.96 vueltas/hr): mínimo de muestra, promedio ponderado, turno "fuera de
+  servicio" excluido sin tratarse como 0, sin mezclar mes/sigla/categoría, suma de pérdida sin
+  mínimo, nunca lanza con arreglos vacíos. <b>Nota de honestidad</b>: las 2 fotos reales del 17-09
+  no sobrevivieron al cambio de contenedor — el pipeline completo quedó construido y verificado con
+  casos a mano, pero la prueba end-to-end con esas fotos específicas queda pendiente de que el
+  usuario las vuelva a subir. Suite completa 1153/1153 verde, esbuild/vite build limpios.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

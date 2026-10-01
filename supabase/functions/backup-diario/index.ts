@@ -49,6 +49,11 @@ import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
 // 2026-09-14: sumada 'salud_crons' (tabla nueva del detector de salud) el
 // mismo día en que se creó — para no repetir el error de la auditoría de
 // arriba con esta.
+// 2026-09-30: sumadas 'compras_detalle' y 'rendimiento_modelos' (habían
+// quedado afuera desde que se crearon antes en la misma sesión — mismo
+// error de la auditoría, detectado recién ahora) y 'produccion_turno'/
+// 'produccion_turno_equipos' (tablas nuevas, sumadas el mismo día en que
+// se crearon).
 export const TABLAS = [
   'kv', 'user_roles', 'equipos', 'registros_pm', 'correctivos', 'movimientos_stock',
   'historial_horometros', 'neumaticos', 'neumaticos_mediciones', 'pautas',
@@ -62,7 +67,8 @@ export const TABLAS = [
   'movimientos_stock_backup_lub', 'stock_filtros_backup_csv', 'papelera',
   'historial_componentes', 'historial_neumaticos', 'salud_flota_historico',
   'correctivos_historico', 'gestion_compras', 'compromisos', 'uso_pestanas',
-  'salud_crons'
+  'salud_crons', 'compras_detalle', 'rendimiento_modelos',
+  'produccion_turno', 'produccion_turno_equipos'
 ];
 
 // PostgREST impone un tope de filas por request (~1000 en este proyecto,

@@ -3044,6 +3044,57 @@ function produccionPerdidaPorDetencion(equipos, rendModelos, downMap){
   return out.sort(function(a,b){return b.m3Perdidos-a.m3Perdidos;});
 }
 
+// ═══ RENDIMIENTO REAL / PÉRDIDA POR INDISPONIBILIDAD (2026-09-30) ═══ —
+// v1 del plan de ingesta de Reportes de Turno (produccion_turno/
+// produccion_turno_equipos, ver migración 20260930210000). Separadas a
+// propósito de equiposConSaludFlota: esa función combina 4 dimensiones de
+// SALUD/confiabilidad (Componentes, Neumáticos, Aceite, Confiabilidad) —
+// Rendimiento es una pregunta de EFICIENCIA OPERATIVA, no de salud, y la
+// mayoría de los equipos de la flota no van a tener reportes de turno
+// cargados (solo los que aparecen en el papel de Producción) — mezclarlo
+// ahí ensuciaría con null una función que hoy tiene alta cobertura real.
+//
+// rendimientoRealEquipoMes: exige mínimo 3 turnos reales con vueltas Y
+// totalHoras>0 ese mes (mismo espíritu que mtbfReal exige ≥2 fallas,
+// ajusteWeibull ≥5 — un mínimo de muestra real, nunca arbitrario a cero).
+// El "valor" es vueltas totales / horas totales del mes (promedio
+// ponderado por horas reales de cada turno), no el promedio simple de los
+// rendimientoVueltasHr de cada turno — un turno de 10h y uno de 2h no
+// deben pesar igual en el promedio.
+function rendimientoRealEquipoMes(sigla, mes, prodTurnoEq, prodTurno){
+  var fechaPorTurnoId={};
+  (prodTurno||[]).forEach(function(t){if(t&&t.id)fechaPorTurnoId[t.id]=t.fecha;});
+  var filas=(prodTurnoEq||[]).filter(function(e){
+    if(!e||e.categoria!=='CAEX'||e.sigla!==sigla)return false;
+    if(!(e.vueltas>0)||!(e.totalHoras>0))return false;
+    var fecha=fechaPorTurnoId[e.turnoId];
+    return !!fecha&&fecha.slice(0,7)===mes;
+  });
+  if(filas.length<3)return null;
+  var totalVueltas=0,totalHoras=0;
+  filas.forEach(function(f){totalVueltas+=f.vueltas;totalHoras+=f.totalHoras;});
+  return{valor:Math.round((totalVueltas/totalHoras)*100)/100,n:filas.length,unidad:'vueltas/hr'};
+}
+
+// Tonelaje real perdido por Indisponibilidad de UN equipo en UN mes —
+// cruza directo con lo que ya calcula dispDownMap/dispEquipoMes (disp.js),
+// mismo mes, misma sigla. Es una SUMA de lo que el supervisor de terreno ya
+// calculó en el papel, no una tasa — un solo turno real ya es un dato
+// válido para reportar, no exige mínimo de muestra como el rendimiento.
+function tonPerdidaIndisponibilidadMes(sigla, mes, prodTurnoEq, prodTurno){
+  var fechaPorTurnoId={};
+  (prodTurno||[]).forEach(function(t){if(t&&t.id)fechaPorTurnoId[t.id]=t.fecha;});
+  var filas=(prodTurnoEq||[]).filter(function(e){
+    if(!e||e.categoria!=='PerdidaIndisponibilidad'||e.sigla!==sigla)return false;
+    var fecha=fechaPorTurnoId[e.turnoId];
+    return !!fecha&&fecha.slice(0,7)===mes;
+  });
+  if(!filas.length)return null;
+  var totalTon=0,totalHoras=0;
+  filas.forEach(function(f){totalTon+=f.tonAsociadoPerdida||0;totalHoras+=f.totalHoras||0;});
+  return{totalTon:Math.round(totalTon*10)/10,totalHoras:Math.round(totalHoras*10)/10};
+}
+
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
@@ -6599,7 +6650,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

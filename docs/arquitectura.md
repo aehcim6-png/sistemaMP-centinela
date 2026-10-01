@@ -5470,6 +5470,124 @@ con tilde) — antes del fix, este mismo test fallaba con
 `ajustadoPorAceite: false`. Suite completa 1136/1136 verde, `npx esbuild`
 (logic.js)/`npx vite build` limpios.
 
+### 88. Ingesta de Reportes de Turno (Producción) por OCR — v1: Rendimiento real CAEX (2026-09-30)
+
+Retoma un plan diseñado el 17-09 (quedó explícitamente fuera de alcance de
+la sesión del 30-09 mientras se priorizaba el port completo a sistema-mp2)
+para resolver algo que la sección 42 (Señal Unificada de Reemplazo) dejó
+**explícitamente sin implementar** por falta de dato real de Rendimiento:
+el comentario de esa sección dice literalmente "sin CAE/OEE inventado". El
+usuario compartió reportes reales de Besalco ("PRODUCCIÓN TURNO DÍA/NOCHE",
+planilla Excel impresa/exportada por turno) que sí traen ese dato.
+
+**Alcance de v1, acotado a propósito** (identificado como tal en el plan
+original, no decidido en silencio): de las 5 secciones reales del papel
+(Producción CAEX, Equipos de Carguío, Equipos de Apoyo, Pérdida por
+Petróleo, Pérdida por Indisponibilidad), esta pasada solo ingiere **CAEX**
+y **Pérdida por Indisponibilidad** — las 2 que alimentan directo
+Rendimiento/OEE. Carguío, Apoyo y Pérdida por Petróleo quedan para una
+vuelta futura; el esquema de `produccion_turno_equipos` ya las contempla
+(columna `categoria` con las 5 categorías en su `check`), así que esa
+vuelta futura no va a exigir otra migración.
+
+**Esquema** (`supabase/migrations/20260930210000_crear_tablas_produccion_turno.sql`)
+— cabecera + líneas con columna discriminadora `categoria`, mismo criterio
+de normalización plana que ya usa `correctivos`/`registros_pm` (una tabla
+ancha con columnas nulables según el tipo de fila, no 5 tablas casi vacías
+mientras solo 2 categorías tienen ingesta real):
+
+- `produccion_turno` — una fila por turno (fecha+turno+supervisor+contrato
+  +franja/módulo de descarga+totales+observaciones).
+- `produccion_turno_equipos` — líneas por equipo, `turnoId` referencia a la
+  cabecera, `categoria` discrimina CAEX/Carguio/Apoyo/PerdidaPetroleo/
+  PerdidaIndisponibilidad. Sin `unique(fecha,turno)` a nivel DB (mismo
+  criterio que el resto del repo: advertir duplicados en la UI, no
+  bloquear — deja margen para cargas retroactivas/correcciones).
+
+RLS con el patrón de 4 políticas ya establecido en la tabla más reciente
+antes de esta (`compras_detalle`, sección 84): `operacional_select` exige
+`privado.es_usuario_activo()`, `operacional_insert/update/delete` exigen
+`privado.es_editor_activo()`.
+
+**Corrección de paso encontrada al revisar `backup-diario`**: `compras_detalle`
+y `rendimiento_modelos` (creadas antes en esta misma sesión) habían quedado
+afuera de la lista manual `TABLAS` de esa Edge Function — el mismo error
+de la auditoría 2026-09-07 documentada ahí mismo, repetido sin que nadie lo
+notara hasta ahora. Se corrigió de paso, junto con sumar las 2 tablas
+nuevas de esta sección.
+
+**Edge Function `leer-reporte-produccion`** — cuarta hermana de
+`leer-pauta-pm`/`leer-informe-correctivo`/`leer-chequeo-neumaticos`, mismo
+patrón exacto (Gemini `gemini-3.6-flash`, `responseSchema` estricto,
+`temperature:0`, `verify_jwt=true`, nunca escribe directo a producción). El
+esquema de respuesta distingue `equipoNombre` (el apodo operacional de la
+columna "Equipo" del papel, ej. "CAEX-85") de `sigla` (la sigla real del
+sistema) — el primero NUNCA se confunde con `eq.tipo`, que ya usa
+'Camion'/'Camion Aljibe'. Cuando una celda de horas dice "fuera de
+servicio"/"stand by" en vez de un número, `totalHoras` queda `null` y
+`estadoTexto` captura el texto tal cual — nunca se inventa una cifra.
+
+**UI**: pestaña top-level nueva "Producción" (`modules/renders/prod.js`),
+no sub-pestaña — mismo criterio que justificó Torre de Control en su
+momento (dominio de datos genuinamente nuevo, con tabla y flujo de carga
+propios). Se agrupó en el cluster lazy `reg`/`neu`/`ot` (en vez de un
+guard `typeof` simple) porque usa `_matchEquipoPorSiglaOCR` de `reg.js`
+igual que esos tres — el propio comentario de `_LAZY_CLUSTERS` documenta
+un bug real (`comp`/`estadistica`) donde un guard `typeof` solo NO alcanza:
+el stub lazy también es una función (pasa el `typeof`) pero devuelve una
+Promise en vez del resultado real. Revisión de filas con checkbox +
+selector manual de equipo por fila (autoseleccionado solo si hay
+exactamente 1 candidato por `_matchEquipoPorSiglaOCR`), mismo principio
+que `_revisarChequeoNeuOCR` — nunca autoguarda, la persona confirma.
+
+**`logic.js`** — 2 funciones nuevas, deliberadamente separadas de
+`equiposConSaludFlota` (esa función combina 4 dimensiones de
+SALUD/confiabilidad; Rendimiento es una pregunta de eficiencia operativa
+distinta, y la mayoría de la flota no va a tener reportes de turno
+cargados — mezclarlo ahí ensuciaría con `null` una función de alta
+cobertura real):
+
+- `rendimientoRealEquipoMes(sigla, mes, prodTurnoEq, prodTurno)` — exige
+  mínimo 3 turnos reales con `vueltas` y `totalHoras>0` ese mes (mismo
+  espíritu que `mtbfReal` exige ≥2 fallas). El valor es vueltas totales /
+  horas totales del mes (promedio ponderado por horas reales de cada
+  turno), no el promedio simple de las tasas por turno — un turno de 10h y
+  uno de 2h no deben pesar igual.
+- `tonPerdidaIndisponibilidadMes(sigla, mes, prodTurnoEq, prodTurno)` —
+  suma de `tonAsociadoPerdida`/horas de ese equipo/mes. Es una suma, no una
+  tasa — un solo turno real ya es un dato válido, no exige mínimo de
+  muestra.
+
+**Sobre el % de OEE — pendiente, explícito, no resuelto en silencio**:
+convertir Rendimiento real (vueltas/hr) en un factor Rendimiento%
+exige una meta/nominal por tipo de equipo, dato que no viene de los
+reportes de turno ni de ningún archivo ya compartido. Inventar ese nominal
+sería el mismo error que la sección 42 ya rechazó explícitamente para el
+CAE/OEE. v1 se detiene en Rendimiento real absoluto (vueltas/hr, ton
+perdidas) — una v1.5 futura agregaría un singleton `metaRendimiento`
+editable por admin (mismo patrón que `dispMeta`/`meta_disponibilidad`,
+vacío por defecto) para recién ahí calcular el % y el OEE de 2 factores
+(Disponibilidad × Rendimiento%; Calidad no aplica en este proceso, mismo
+criterio ya documentado en la sección 42).
+
+**Tests nuevos** (`rendimientoRealEquipoMes.test.js`,
+`tonPerdidaIndisponibilidadMes.test.js`, 11 casos, verificados a mano antes
+de escribirse): mínimo de muestra no alcanzado → `null`; promedio
+ponderado correcto (caso calculado a mano: 20+15+18 vueltas / 10+8+9 horas
+= 1.96 vueltas/hr); un turno "fuera de servicio" (`totalHoras:null`) se
+excluye del promedio, nunca se trata como 0; no mezcla otro mes, otra
+sigla, ni otra categoría; suma de pérdida por indisponibilidad correcta,
+sin mínimo de muestra; nunca lanza con arreglos vacíos.
+
+**Nota de honestidad sobre el end-to-end real**: las 2 fotos reales que el
+usuario compartió el 17-09 no sobrevivieron al cambio de contenedor de esta
+sesión — se construyó todo el pipeline (esquema, Edge Function, UI,
+funciones de cálculo con tests verificados a mano) pero la prueba real con
+esas fotos específicas queda pendiente de que el usuario las vuelva a
+subir en la app ya desplegada. Suite completa 1153/1153 verde, `npx
+esbuild` (logic.js/store.js/prod.js/Edge Function)/`npx vite build`
+limpios.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
