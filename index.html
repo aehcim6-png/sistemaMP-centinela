@@ -403,7 +403,7 @@ const _LAZY_VERS={
   avance:'2026-08-31',
   ayuda:'2026-09-02',
   cad:'2026-08-30b',
-  cfg:'2026-09-02b',
+  cfg:'2026-10-01',
   comp2:'2026-08-30',
   cos:'2026-09-30',
   destrabe:'2026-08-30',
@@ -459,7 +459,7 @@ const _LAZY_EXPORTS={
   avance:['renderAvance'],
   ayuda:['renderAyuda'],
   cad:['renderCad','addCad','saveCad','addMedicionCad','saveMedicionCad','verHistorialCad','delCad'],
-  cfg:['verCodigosQR','_descargarQR','renderCfg','ejecutarVerificacionIntegridad','resetAll','descargarPlantillaLimpia','resetEmpresa','processResetEmpresa','cloudProbar','guardarNeuParams','guardarAlertaEmails','guardarAlertaWhatsApp','guardarRemitentesPermitidos','exportarMovCSV','cloudGuardarCfg','exportAllJSON','importAllJSON','_mfaEstado','activarMFA','_confirmarActivarMFA','_cancelarActivarMFA','desactivarMFA','nombrarEquipo','verAccesos','crearUsuarioUI','cargarPendientesUI','activarUsuarioUI','cargarActivosUI','desactivarMfaUsuarioUI','desactivarUsuarioUI'],
+  cfg:['verCodigosQR','_descargarQR','renderCfg','ejecutarVerificacionIntegridad','resetAll','descargarPlantillaLimpia','resetEmpresa','processResetEmpresa','cloudProbar','guardarNeuParams','guardarAlertaEmails','guardarAlertaWhatsApp','guardarRemitentesPermitidos','exportarMovCSV','cloudGuardarCfg','exportAllJSON','importAllJSON','_mfaEstado','activarMFA','_confirmarActivarMFA','_cancelarActivarMFA','desactivarMFA','nombrarEquipo','verAccesos','crearUsuarioUI','cargarPendientesUI','activarUsuarioUI','cargarActivosUI','desactivarMfaUsuarioUI','cambiarPerfilUsuarioUI','desactivarUsuarioUI'],
   comp2:['renderComp2','comp2Sub'],
   cos:['renderCos','verComprasProveedores'],
   destrabe:['renderDestrabe','edDestrabe','addDestrabe','delDestrabe','abrirVincularOC','confirmarVincularOC'],
@@ -757,6 +757,22 @@ const ICONS={
 };
 
 // ============ NAV ============
+// 'perfil' (user_roles.perfil, 2026-10-01) restringe qué PESTAÑAS ve un
+// usuario — independiente de 'role' (que sigue controlando si PUEDE
+// escribir: admin/operador/lector). null = sin restricción, ve todo. Un
+// admin SIEMPRE ve todo aunque tuviera un perfil cargado por error — esto
+// es una restricción de negocio para personal operativo, nunca debe poder
+// dejar a un admin fuera de Configuración/el resto del sistema.
+const PERFILES_PESTANAS={
+  horometro:['hist'],
+  comprador:['stk2'],
+  planificador:['plani','ot','pau','reg'],
+};
+function _tabsPermitidas(){
+  if(window._userRole==='admin'||!window._userPerfil||!PERFILES_PESTANAS[window._userPerfil])return TABS;
+  var permitidas=PERFILES_PESTANAS[window._userPerfil];
+  return TABS.filter(function(t){return permitidas.includes(t.id);});
+}
 const TABS=[
   {id:'dash',l:'Dashboard',i:ICONS.dash},
   {id:'torre',l:'Torre de Control',i:ICONS.faro},
@@ -791,24 +807,37 @@ const TABS=[
 const TABS_EXTRA=['al','insp','ayuda','cfg'];
 let currentTab='dash';
 function initNav(){
-  // Barra principal con 16 pestañas
-  $('nav').innerHTML=TABS.map(t=>`<button class="${t.id==='dash'?'on':''}" onclick="go('${t.id}')">${t.i} ${t.l}</button>`).join('')
+  // Barra principal — filtrada por 'perfil' si el usuario tiene uno asignado
+  // (ver PERFILES_PESTANAS más arriba; admin siempre ve las 16 completas).
+  const tabsNav=_tabsPermitidas();
+  $('nav').innerHTML=tabsNav.map(t=>`<button class="${t.id===currentTab?'on':''}" onclick="go('${t.id}')">${t.i} ${t.l}</button>`).join('')
     + '<div style="margin-left:auto;display:flex;gap:4px">'
     + '<button class="" title="Manual de Usuario" onclick="go(\'ayuda\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.book+'</button>'
     + '<button class="" title="Configuración" onclick="go(\'cfg\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.sliders+'</button>'
     + '</div>';
   // Crear secciones para las 16 pestañas + las extra (atajos de contexto y fijas)
+  // — SIEMPRE las 16 completas, aunque el nav muestre menos: go() bloquea la
+  // navegación a una pestaña no permitida, así que un <div> de más acá nunca
+  // se llega a ver.
   const allIds=[...TABS.map(t=>t.id),...TABS_EXTRA];
-  $('main').innerHTML=allIds.map(id=>`<div class="sec${id==='dash'?' on':''}" id="s-${id}"></div>`).join('');
+  $('main').innerHTML=allIds.map(id=>`<div class="sec${id===currentTab?' on':''}" id="s-${id}"></div>`).join('');
 }
 async function go(id){
   if(id==='cfg' && window._userRole && window._userRole!=='admin'){toast('⛔ Solo un administrador puede entrar a Configuración');return;}
+  // Bloqueo por perfil (restricción de pestañas, 2026-10-01) — solo aplica a
+  // pestañas reales del nav (TABS); TABS_EXTRA ('al'/'insp'/'ayuda'/'cfg')
+  // se alcanzan por botones contextuales dentro de una pestaña ya permitida,
+  // nunca necesitan este chequeo.
+  if(window._userRole!=='admin' && window._userPerfil && PERFILES_PESTANAS[window._userPerfil] && TABS.some(t=>t.id===id) && !PERFILES_PESTANAS[window._userPerfil].includes(id)){
+    toast('⛔ No tienes acceso a esa pestaña');return;
+  }
   if(typeof _logUsoPestana==='function')_logUsoPestana(id);
   currentTab=id;
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nav button:not([title])').forEach(b=>b.classList.remove('on'));
   const sec=$('s-'+id);if(sec)sec.classList.add('on');
-  [...$('nav').querySelectorAll('button:not([title])')].forEach((b,i)=>{if(i<TABS.length&&TABS[i].id===id)b.classList.add('on')});
+  const tabsNav=_tabsPermitidas();
+  [...$('nav').querySelectorAll('button:not([title])')].forEach((b,i)=>{if(i<tabsNav.length&&tabsNav[i].id===id)b.classList.add('on')});
   // Carga perezosa (code-splitting, 2026-09-10, ver _LAZY_VERS/_LAZY_EXPORTS
   // más arriba): si 'id' es una de las 32 pestañas sin dependencias cruzadas
   // conocidas, su módulo puede no estar cargado todavía.
@@ -3845,7 +3874,22 @@ var _esRecuperacionClave=false;
   history.replaceState(null,'',location.pathname+location.search);
 })();
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
-function _arrancar(){S.init();initNav();C.recalcAll();renders.dash();_jumpToEquipoQR();_purgarPapeleraVieja();}
+function _arrancar(){
+  S.init();
+  // Si ya se conoce un perfil restringido en este punto (sesión restaurada,
+  // donde el rol/perfil se resuelve ANTES de llamar acá — distinto del login
+  // manual, que todavía no sabe quién entra cuando corre esto la primera
+  // vez) y 'dash' no está en su lista, arranca directo en su primera
+  // pestaña permitida en vez de Dashboard.
+  if(window._userRole!=='admin' && window._userPerfil && PERFILES_PESTANAS[window._userPerfil]){
+    var _tp=_tabsPermitidas();
+    if(_tp.length && !_tp.some(function(t){return t.id===currentTab;}))currentTab=_tp[0].id;
+  }
+  initNav();
+  C.recalcAll();
+  if(currentTab==='dash')renders.dash();else go(currentTab);
+  _jumpToEquipoQR();_purgarPapeleraVieja();
+}
 function _jumpToEquipoQR(){
   var params=new URLSearchParams(location.search);
   var sigla=params.get('eq');
@@ -4066,7 +4110,7 @@ document.addEventListener('visibilitychange', function(){
 });
 
 async function _sbGetRole(userId, accessToken){
-  const r = await fetch(_SB_DEFAULT_URL+'/rest/v1/user_roles?select=role,nombre&user_id=eq.'+userId,{
+  const r = await fetch(_SB_DEFAULT_URL+'/rest/v1/user_roles?select=role,nombre,perfil&user_id=eq.'+userId,{
     headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+accessToken}
   });
   if(!r.ok) return null;
@@ -4099,12 +4143,12 @@ async function _sbGetRoleConReintento(userId, accessToken){
 // 'operador' como piso de seguridad — nunca se asume admin sin confirmarlo.
 function _resolverRolConCache(rol, email){
   if(rol){
-    try{localStorage.setItem('smp_rol_cache', JSON.stringify({role:rol.role, nombre:rol.nombre}));}catch(e){}
-    return {role:rol.role, nombre:rol.nombre||email};
+    try{localStorage.setItem('smp_rol_cache', JSON.stringify({role:rol.role, nombre:rol.nombre, perfil:rol.perfil}));}catch(e){}
+    return {role:rol.role, nombre:rol.nombre||email, perfil:rol.perfil||null};
   }
   var cache=null;
   try{cache=JSON.parse(localStorage.getItem('smp_rol_cache')||'null');}catch(e){}
-  return {role:(cache&&cache.role)||'operador', nombre:(cache&&cache.nombre)||email};
+  return {role:(cache&&cache.role)||'operador', nombre:(cache&&cache.nombre)||email, perfil:(cache&&cache.perfil)||null};
 }
 
 // Marca de agua de camión minero (CAEX) en el login — mismo mecanismo que ya
@@ -4444,6 +4488,17 @@ async function _completarLogin(email,data){
   _currentRole = _rolResuelto.role;
   window._userName = _rolResuelto.nombre;
   window._userRole = _currentRole;
+  window._userPerfil = _rolResuelto.perfil;
+  // Si el perfil restringe las pestañas y 'dash' (la que initNav() dibujó
+  // al arrancar, antes de saber quién entraba) no está permitida, hay que
+  // redirigir a la primera pestaña que sí lo esté — reconstruye el nav
+  // (initNav() se corrió "a ciegas" sin perfil) y ajusta currentTab para que
+  // _refrescarDatosPostLogin() (más abajo) renderice la pestaña correcta.
+  if(window._userRole!=='admin' && window._userPerfil && PERFILES_PESTANAS[window._userPerfil]){
+    var _tp=_tabsPermitidas();
+    if(_tp.length && !_tp.some(function(t){return t.id===currentTab;}))currentTab=_tp[0].id;
+    initNav();
+  }
   if(window.Sentry)Sentry.setUser({email:email,username:window._userName});
   if(_currentUser?.user_metadata?.must_change_password){
     _mostrarCambioClaveOverlay('primer_ingreso');

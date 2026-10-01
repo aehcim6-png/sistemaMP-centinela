@@ -99,6 +99,30 @@
     vez de asumir <code>'operador'</code> a ciegas (ver <a href="arquitectura.html">Arquitectura</a>,
     sección 5, para el detalle técnico).
   </div>
+  <h3>Perfil — qué pestañas ve cada cuenta (2026-10-01)</h3>
+  <p>Además del rol, cada cuenta puede tener un <b>perfil</b> (columna
+  <code>user_roles.perfil</code>) que restringe qué pestañas ve — independiente de si puede
+  escribir o no. Se elige al crear el usuario (Configuración → Crear Usuario → campo "Perfil") o
+  se cambia después desde la lista de usuarios activos (selector junto a cada nombre). 3 perfiles
+  reales hoy:</p>
+  <ul>
+    <li><b>Horómetro</b> — ve solo <b>Horómetros</b>.</li>
+    <li><b>Comprador</b> — ve solo <b>Stock &amp; Insumos</b> (ahí viven Órdenes de Compra, recepción y
+    stock).</li>
+    <li><b>Planificador</b> — ve <b>Planificación, Correctivos, Pautas y Registro PM</b> (todo lo
+    que toca programar/ejecutar mantención).</li>
+  </ul>
+  <p><b>Importante — esto NO reemplaza el rol</b>: si alguien tiene perfil "Comprador" pero rol
+  "Lector", va a ver solo Stock & Insumos pero no va a poder guardar nada ahí (el rol sigue
+  mandando sobre si puede escribir). Para que un comprador real pueda cargar OC, necesita rol
+  <code>operador</code> (o <code>admin</code>) + perfil <code>comprador</code>. Sin perfil
+  asignado (el valor por defecto), la cuenta ve las 16 pestañas completas, igual que siempre — un
+  admin SIEMPRE ve todo, aunque por error tuviera un perfil cargado.</p>
+  <p><b>Alcance real, no inflado</b>: esto es una restricción de interfaz (esconde el menú y
+  bloquea la navegación en el navegador), no una restricción dura a nivel de base de datos. Para
+  el tamaño de equipo de Besalco alcanza; si alguien muy técnico llamara a la API de Supabase
+  directo podría seguir tocando otras tablas, con el mismo nivel de acceso que ya tiene su rol
+  hoy. Ver <a href="arquitectura.html">Arquitectura</a>, sección 89.</p>
   <h3>Verificación en dos pasos (MFA)</h3>
   <p>Cualquier usuario puede activarla desde Configuración. No es obligatoria por ahora, pero
   conviene activarla al menos en las cuentas admin.</p>

@@ -5588,6 +5588,80 @@ subir en la app ya desplegada. Suite completa 1153/1153 verde, `npx
 esbuild` (logic.js/store.js/prod.js/Edge Function)/`npx vite build`
 limpios.
 
+### 89. Perfiles de acceso por pestaña — Horómetro / Comprador / Planificador (2026-10-01)
+
+Pedido real del usuario tras explicar cómo lo resuelven otros sistemas:
+que una persona puntual (ej. "el comprador") solo vea las pestañas que le
+corresponden, en vez de las 16 completas. Esto es **independiente** de
+`role` (admin/operador/lector — sigue controlando si la cuenta PUEDE
+escribir): `perfil` solo restringe qué pestañas se le muestran a esa
+cuenta. Alcance decidido explícitamente con el usuario antes de construir
+(ver AskUserQuestion de esta misma sesión): **solo a nivel de interfaz**
+(oculta el menú y bloquea la navegación en el cliente) — no se reforzó a
+nivel de RLS. Para el tamaño de equipo real de Besalco esto alcanza; si
+más adelante hiciera falta un límite duro a nivel de base de datos (alguien
+llamando a la API directo para esquivar la UI), habría que mapear cada
+pestaña a sus tablas reales y tocar las políticas RLS de cada una —
+deliberadamente fuera de esta pasada.
+
+**Esquema**: `alter table public.user_roles add column if not exists
+perfil text;` (`20261001140000_agregar_perfil_user_roles.sql`). Sin CHECK
+— mismo criterio que `role`: el único gate de valores válidos vive en la
+Edge Function (`perfilValido()`). `null` = sin restricción, ve todo
+(comportamiento de siempre; así quedan admin y cualquier cuenta vieja sin
+perfil asignado).
+
+**3 perfiles reales, mapeados a los IDs reales de `TABS`** (verificado
+contra el array real de `index.html`, no asumido):
+```js
+const PERFILES_PESTANAS={
+  horometro:['hist'],                    // Horómetros
+  comprador:['stk2'],                    // Stock & Insumos (ahí viven OC/recepción/stock)
+  planificador:['plani','ot','pau','reg'], // Planificación, Correctivos, Pautas, Registro PM
+};
+```
+
+**`crear-operador`** (Edge Function): `perfilValido()` nueva, análoga a
+`rolValido()`. `action:'crear'` acepta `perfil` opcional. Nueva acción
+`action:'editar_perfil'` ({userId, perfil}) — primera vez que esta función
+permite editar algo de un usuario YA activo (antes solo existía
+crear/activar/desactivar, nunca un update de un campo puntual).
+`listar_pendientes`/`listar_activos` ahora devuelven también `perfil`.
+
+**Cliente** (`index.html`): `_tabsPermitidas()` filtra `TABS` contra
+`PERFILES_PESTANAS[window._userPerfil]` — un admin SIEMPRE ve las 16
+completas aunque tuviera un perfil cargado por error (piso de seguridad
+explícito, nunca debe poder dejar a un admin fuera de Configuración).
+`go(id)` bloquea con toast la navegación directa (ej. tipeando en la URL o
+un atajo de voz) a una pestaña fuera de la lista permitida — solo aplica a
+`TABS`, nunca a `TABS_EXTRA` (`al`/`insp`/`ayuda`/`cfg`, que se alcanzan
+por botones contextuales dentro de una pestaña ya permitida).
+`window._userPerfil` se carga en `_sbGetRole`/`_resolverRolConCache`
+(mismo patrón ya usado para `_userRole`, con el mismo cache en
+`localStorage['smp_rol_cache']` como piso de seguridad ante un blip de
+red). `_arrancar()` y el call site de login manual redirigen a la primera
+pestaña permitida en vez de Dashboard cuando el perfil restringe — 'dash'
+no está en ninguno de los 3 perfiles reales.
+
+**`cfg.js`** (Configuración → Crear Usuario): selector `<select
+id="nuPerfil">` opcional al alta. `cargarActivosUI()` ahora muestra el
+perfil de cada usuario activo junto a su rol, con un `<select>` inline
+(`cambiarPerfilUsuarioUI`) para cambiarlo sin tener que recrear la cuenta
+— aplica al próximo login de esa persona, no requiere reactivarla.
+
+**Tests Deno nuevos** (`perfilValido`, mismo archivo que `rolValido`):
+acepta los 3 perfiles reales, acepta `null`/`undefined` (sin restricción),
+rechaza cualquier otro valor.
+
+**Nota de honestidad sobre el end-to-end real**: se verificó la lógica
+pura (mapeo perfil→pestañas contra los IDs reales de `TABS`, sintaxis del
+script principal completo) y el flujo de código se repasó línea a línea,
+pero no se probó en vivo con una cuenta real restringida (hubiera exigido
+crear una cuenta real en el proyecto de producción de Besalco) — queda
+pendiente de que el usuario pruebe el flujo real: crear un usuario con
+perfil "Comprador", activarlo, y confirmar que al entrar solo ve Stock &
+Insumos.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -2899,6 +2899,39 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   casos a mano, pero la prueba end-to-end con esas fotos específicas queda pendiente de que el
   usuario las vuelva a subir. Suite completa 1153/1153 verde, esbuild/vite build limpios.</p>
 
+  <h3>89. Perfiles de acceso por pestaña — Horómetro / Comprador / Planificador (2026-10-01)</h3>
+  <p>Pedido real del usuario: que una persona puntual (ej. "el comprador") solo vea las pestañas
+  que le corresponden. Independiente de <code>role</code> (admin/operador/lector, sigue
+  controlando si PUEDE escribir): <code>perfil</code> solo restringe qué pestañas se muestran.
+  <b>Alcance decidido explícitamente</b> antes de construir: solo a nivel de interfaz (oculta el
+  menú y bloquea la navegación en el cliente), sin reforzar RLS — alcanza para el tamaño de
+  equipo real de Besalco; un límite duro a nivel de base de datos exigiría mapear cada pestaña a
+  sus tablas y tocar cada política RLS, deliberadamente fuera de esta pasada.</p>
+  <p><b>Esquema</b>: <code>user_roles.perfil text</code>, sin CHECK (mismo criterio que
+  <code>role</code> — el gate real vive en <code>perfilValido()</code>, Edge Function). <b>3
+  perfiles</b>, mapeados a los IDs reales de <code>TABS</code>: <code>horometro→['hist']</code>,
+  <code>comprador→['stk2']</code> (ahí viven OC/recepción/stock),
+  <code>planificador→['plani','ot','pau','reg']</code>.</p>
+  <p><b><code>crear-operador</code></b>: <code>perfilValido()</code> nueva. Nueva acción
+  <code>editar_perfil</code> — primera vez que esta función permite editar algo de un usuario ya
+  activo. <code>listar_pendientes</code>/<code>listar_activos</code> devuelven también
+  <code>perfil</code>.</p>
+  <p><b>Cliente</b>: <code>_tabsPermitidas()</code> filtra <code>TABS</code> — un admin SIEMPRE
+  ve las 16 completas aunque tuviera un perfil cargado por error. <code>go(id)</code> bloquea con
+  toast la navegación directa a una pestaña no permitida (solo <code>TABS</code>, nunca
+  <code>TABS_EXTRA</code>). <code>window._userPerfil</code> se carga en
+  <code>_sbGetRole</code>/<code>_resolverRolConCache</code> (mismo patrón y caché que
+  <code>_userRole</code>). <code>_arrancar()</code> y el login manual redirigen a la primera
+  pestaña permitida en vez de Dashboard cuando el perfil restringe.</p>
+  <p><b>Configuración → Crear Usuario</b>: selector de perfil opcional al alta.
+  <code>cargarActivosUI()</code> muestra el perfil de cada usuario activo con un selector inline
+  para cambiarlo sin recrear la cuenta.</p>
+  <p>Tests Deno nuevos (<code>perfilValido</code>): acepta los 3 perfiles reales, acepta
+  null/undefined (sin restricción), rechaza cualquier otro valor. <b>Nota de honestidad</b>: se
+  verificó la lógica pura y la sintaxis completa del script, pero no se probó en vivo con una
+  cuenta real restringida (exigiría crear una cuenta real en producción) — queda pendiente de que
+  el usuario pruebe el flujo real.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

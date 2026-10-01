@@ -54,6 +54,14 @@ export function rolValido(rol: unknown): boolean {
   return rol === "admin" || rol === "operador" || rol === "lector";
 }
 
+// 'perfil' restringe qué PESTAÑAS ve un usuario (independiente de 'role',
+// que controla si PUEDE escribir) — ver PERFILES_PESTANAS en index.html.
+// null/undefined = sin restricción, ve todo (comportamiento normal, el que
+// deben tener admin y cualquier cuenta sin perfil de negocio asignado).
+export function perfilValido(perfil: unknown): boolean {
+  return perfil == null || perfil === "horometro" || perfil === "comprador" || perfil === "planificador";
+}
+
 if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -87,9 +95,10 @@ Deno.serve(async (req: Request) => {
 
     // ---------- CREAR (queda bloqueado, activo=false) ----------
     if (action === "crear") {
-      const { nombre, email, rol } = body;
+      const { nombre, email, rol, perfil } = body;
       if (!nombre || !email || !rol) return json({ error: "Faltan datos (nombre, email, rol)." }, 400);
       if (!rolValido(rol)) return json({ error: "Rol inválido." }, 400);
+      if (!perfilValido(perfil)) return json({ error: "Perfil inválido." }, 400);
 
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,
@@ -110,6 +119,7 @@ Deno.serve(async (req: Request) => {
         role: rol,
         nombre,
         activo: false,
+        perfil: perfil || null,
       });
       if (roleErr) return json({ error: "Usuario creado pero falló asignar el rol: " + roleErr.message }, 500);
 
@@ -120,11 +130,11 @@ Deno.serve(async (req: Request) => {
     if (action === "listar_pendientes") {
       const { data: rolesRows, error: rolesErr } = await admin
         .from("user_roles")
-        .select("user_id, role, nombre")
+        .select("user_id, role, nombre, perfil")
         .eq("activo", false);
       if (rolesErr) return json({ error: "No se pudo consultar pendientes: " + rolesErr.message }, 500);
 
-      const pendientes = (rolesRows || []).map((r) => ({ userId: r.user_id, nombre: r.nombre, rol: r.role }));
+      const pendientes = (rolesRows || []).map((r) => ({ userId: r.user_id, nombre: r.nombre, rol: r.role, perfil: r.perfil }));
       return json({ ok: true, pendientes });
     }
 
@@ -132,7 +142,7 @@ Deno.serve(async (req: Request) => {
     if (action === "listar_activos") {
       const { data: rolesRows, error: rolesErr } = await admin
         .from("user_roles")
-        .select("user_id, role, nombre")
+        .select("user_id, role, nombre, perfil")
         .eq("activo", true);
       if (rolesErr) return json({ error: "No se pudo consultar activos: " + rolesErr.message }, 500);
 
@@ -144,7 +154,7 @@ Deno.serve(async (req: Request) => {
         const mfaActivo = ((ud?.user?.factors) || []).some(
           (f: { factor_type: string; status: string }) => f.factor_type === "totp" && f.status === "verified"
         );
-        return { userId: r.user_id, nombre: r.nombre, rol: r.role, mfaActivo };
+        return { userId: r.user_id, nombre: r.nombre, rol: r.role, perfil: r.perfil, mfaActivo };
       }));
       return json({ ok: true, activos });
     }
@@ -219,6 +229,18 @@ Deno.serve(async (req: Request) => {
 
       const { error: activoErr } = await admin.from("user_roles").update({ activo: false }).eq("user_id", userId);
       if (activoErr) return json({ error: "Se bloqueó el login pero no se pudo marcar inactivo: " + activoErr.message }, 500);
+
+      return json({ ok: true });
+    }
+
+    // ---------- EDITAR PERFIL (restricción de pestañas) ----------
+    if (action === "editar_perfil") {
+      const { userId, perfil } = body;
+      if (!userId) return json({ error: "Falta userId." }, 400);
+      if (!perfilValido(perfil)) return json({ error: "Perfil inválido." }, 400);
+
+      const { error: perfilErr } = await admin.from("user_roles").update({ perfil: perfil || null }).eq("user_id", userId);
+      if (perfilErr) return json({ error: "No se pudo actualizar el perfil: " + perfilErr.message }, 500);
 
       return json({ ok: true });
     }

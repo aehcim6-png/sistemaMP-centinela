@@ -356,6 +356,9 @@ export function renderCfg(){
       '<input id="nuEmail" type="email" placeholder="correo@ejemplo.com" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Rol</label><br>'+
       '<select id="nuRol" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"><option value="operador">Operador</option><option value="admin">Admin</option><option value="lector">Lector (solo lectura)</option></select></div>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Perfil (qué pestañas ve) — opcional</label><br>'+
+      '<select id="nuPerfil" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"><option value="">Sin restricción (ve todo)</option><option value="horometro">Horómetro (solo Horómetros)</option><option value="comprador">Comprador (solo Stock & Insumos)</option><option value="planificador">Planificador (Planificación, Correctivos, Pautas, Registro PM)</option></select>'+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Solo limita qué pestañas VE — si pusiste Rol "Lector" igual no va a poder guardar nada, aunque vea la pestaña.</div></div>'+
       '<button class="btn" style="width:100%" onclick="crearUsuarioUI()">➕ Crear usuario (queda bloqueado)</button>'+
       '<div id="nuResultado" style="margin-top:10px;font-size:12px"></div>'+
       '<div style="font-size:10px;color:var(--tx3);margin-top:8px">La cuenta queda creada pero bloqueada — no puede iniciar sesión hasta que tú la actives abajo.</div>'+
@@ -924,17 +927,19 @@ export async function crearUsuarioUI(){
   var nombre=(document.getElementById('nuNombre')?.value||'').trim();
   var email=(document.getElementById('nuEmail')?.value||'').trim();
   var rol=document.getElementById('nuRol')?.value||'operador';
+  var perfil=document.getElementById('nuPerfil')?.value||'';
   var out=document.getElementById('nuResultado');
   if(!out)return;
   if(!nombre||!email){out.innerHTML='<span style="color:var(--danger)">Completa nombre y email.</span>';return;}
   out.innerHTML='Creando...';
   try{
-    var res=await _accionUsuarios({action:'crear',nombre:nombre,email:email,rol:rol});
+    var res=await _accionUsuarios({action:'crear',nombre:nombre,email:email,rol:rol,perfil:perfil||null});
     if(res.error){out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px">'+
       '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Cuenta de '+escapeHtml(nombre)+' creada y bloqueada. Aparece abajo en "Pendientes de activar" — la activas cuando tú digas.</div>';
     document.getElementById('nuNombre').value='';
     document.getElementById('nuEmail').value='';
+    if(document.getElementById('nuPerfil'))document.getElementById('nuPerfil').value='';
     cargarPendientesUI();
   }catch(e){out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
@@ -979,13 +984,20 @@ export async function cargarActivosUI(){
     if(res.error){cont.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     var act=res.activos||[];
     if(!act.length){cont.innerHTML='<span style="color:var(--tx3)">No hay usuarios activos.</span>';return;}
+    var PERFIL_LABEL={horometro:'Horómetro',comprador:'Comprador',planificador:'Planificador'};
     cont.innerHTML=act.map(function(u){
       var esYo=u.userId===_currentUser?.id;
       var botonMfa=u.mfaActivo?'<button class="btn-o btn-s" style="margin-right:6px" onclick="desactivarMfaUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')" title="Usar si perdió el teléfono/app autenticadora y quedó sin poder entrar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Quitar 2FA</button>':'';
+      var perfilSel=esYo?'':'<select onchange="cambiarPerfilUsuarioUI(\''+u.userId+'\',this.value)" style="margin-right:6px;font-size:10px;padding:3px;background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
+        '<option value=""'+(!u.perfil?' selected':'')+'>Sin restricción</option>'+
+        '<option value="horometro"'+(u.perfil==='horometro'?' selected':'')+'>Horómetro</option>'+
+        '<option value="comprador"'+(u.perfil==='comprador'?' selected':'')+'>Comprador</option>'+
+        '<option value="planificador"'+(u.perfil==='planificador'?' selected':'')+'>Planificador</option>'+
+        '</select>';
       return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
-        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+')</span>'+(u.mfaActivo?' <span style="color:var(--ac);font-size:10px" title="Tiene verificación en dos pasos activada">🔐</span>':'')+'</span>'+
+        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+(u.perfil?' · '+(PERFIL_LABEL[u.perfil]||u.perfil):'')+')</span>'+(u.mfaActivo?' <span style="color:var(--ac);font-size:10px" title="Tiene verificación en dos pasos activada">🔐</span>':'')+'</span>'+
         (esYo?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
-        '<span>'+botonMfa+'<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Desactivar</button></span>')+
+        '<span>'+perfilSel+botonMfa+'<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Desactivar</button></span>')+
         '</div>';
     }).join('');
   }catch(e){cont.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
@@ -999,6 +1011,17 @@ export async function desactivarMfaUsuarioUI(userId,nombre){
     var res=await _accionUsuarios({action:'desactivar_mfa',userId:userId,nombre:nombre});
     if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';return;}
     if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Verificación en dos pasos de '+escapeHtml(nombre)+' desactivada. Ya puede entrar solo con su clave.</div>';
+    cargarActivosUI();
+  }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
+};
+
+export async function cambiarPerfilUsuarioUI(userId,perfil){
+  var out=document.getElementById('nuResultado');
+  if(out)out.innerHTML='Actualizando perfil...';
+  try{
+    var res=await _accionUsuarios({action:'editar_perfil',userId:userId,perfil:perfil||null});
+    if(res.error){if(out)out.innerHTML='<span style="color:var(--danger)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/></svg> '+escapeHtml(res.error)+'</span>';cargarActivosUI();return;}
+    if(out)out.innerHTML='<div style="background:var(--bg3);border:1px solid var(--ac);border-radius:6px;padding:10px;margin-top:6px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Perfil actualizado — la persona lo ve la próxima vez que inicie sesión.</div>';
     cargarActivosUI();
   }catch(e){if(out)out.innerHTML='<span style="color:var(--danger)">Error de conexión.</span>';}
 };
@@ -1045,5 +1068,6 @@ window.cargarPendientesUI = cargarPendientesUI;
 window.activarUsuarioUI = activarUsuarioUI;
 window.cargarActivosUI = cargarActivosUI;
 window.desactivarMfaUsuarioUI = desactivarMfaUsuarioUI;
+window.cambiarPerfilUsuarioUI = cambiarPerfilUsuarioUI;
 window.desactivarUsuarioUI = desactivarUsuarioUI;
 renders.cfg = renderCfg;

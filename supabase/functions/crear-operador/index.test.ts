@@ -3,7 +3,7 @@
 // (import.meta.main evita levantar un servidor real al importar el
 // archivo).
 import { assertEquals } from "jsr:@std/assert@1";
-import { randomPassword, rolValido } from "./index.ts";
+import { perfilValido, randomPassword, rolValido } from "./index.ts";
 
 // ---- rolValido ----
 
@@ -19,6 +19,25 @@ Deno.test("rolValido: rechaza cualquier otro valor", () => {
   assertEquals(rolValido(null), false);
   assertEquals(rolValido(undefined), false);
   assertEquals(rolValido(123), false);
+});
+
+// ---- perfilValido ----
+
+Deno.test("perfilValido: acepta los 3 perfiles reales", () => {
+  assertEquals(perfilValido("horometro"), true);
+  assertEquals(perfilValido("comprador"), true);
+  assertEquals(perfilValido("planificador"), true);
+});
+
+Deno.test("perfilValido: null/undefined es válido (sin restricción, ve todo)", () => {
+  assertEquals(perfilValido(null), true);
+  assertEquals(perfilValido(undefined), true);
+});
+
+Deno.test("perfilValido: rechaza cualquier otro valor", () => {
+  assertEquals(perfilValido("admin"), false);
+  assertEquals(perfilValido(""), false);
+  assertEquals(perfilValido(123), false);
 });
 
 // ---- randomPassword ----
