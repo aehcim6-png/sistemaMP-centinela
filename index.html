@@ -1668,14 +1668,14 @@ function _rotacionObsolescenciaHTML(titulo,items,mov,tipo,matchFn,labelFn,stockF
     '<div class="chart-t">🔄 Rotación y Obsolescencia — '+titulo+'</div>'+
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Rotación anual = valor consumido (anualizado sobre '+mesesHistorial+' mes(es) real(es) de historial) ÷ valor del inventario actual (no hay snapshot histórico de inventario promedio, se usa el stock vigente como aproximación). Obsolescencia = ítems con stock que no registran consumo hace más de 12 meses, o nunca.</div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px">'+
-    '<div class="card"><div class="card-t">Rotación Anual</div><div class="card-v">'+(rot?rot.rotacionAnual+'x':'—')+'</div><div class="card-s">'+(rot?'$'+fmt(rot.valorConsumidoAnualizado)+' / $'+fmt(rot.valorInventario):'Sin historial suficiente')+'</div></div>'+
+    '<div class="card"><div class="card-t">Rotación Anual</div><div class="card-v">'+(rot?rot.rotacionAnual+'x':'—')+'</div><div class="card-s">'+(rot?'$'+fn(rot.valorConsumidoAnualizado)+' / $'+fn(rot.valorInventario):'Sin historial suficiente')+'</div></div>'+
     '<div class="card"><div class="card-t">% Ítems Obsoletos</div><div class="card-v" style="color:'+(obs&&obs.porcentajeItems>0?'var(--w)':'var(--ok)')+'">'+(obs?obs.porcentajeItems+'%':'—')+'</div><div class="card-s">'+(obs?obs.nObsoletos+' de '+obs.nTotal+' ítems':'')+'</div></div>'+
-    '<div class="card"><div class="card-t">% Valor Obsoleto</div><div class="card-v" style="color:'+(obs&&obs.porcentajeValor>0?'var(--danger)':'var(--ok)')+'">'+(obs&&obs.porcentajeValor!=null?obs.porcentajeValor+'%':'—')+'</div><div class="card-s">'+(obs?'$'+fmt(obs.valorObsoleto)+' inmovilizados':'')+'</div></div>'+
+    '<div class="card"><div class="card-t">% Valor Obsoleto</div><div class="card-v" style="color:'+(obs&&obs.porcentajeValor>0?'var(--danger)':'var(--ok)')+'">'+(obs&&obs.porcentajeValor!=null?obs.porcentajeValor+'%':'—')+'</div><div class="card-s">'+(obs?'$'+fn(obs.valorObsoleto)+' inmovilizados':'')+'</div></div>'+
     '</div>'+
     (obsoletos.length?
       '<div class="tbl-wrap"><table><tr><th>Ítem</th><th>Stock</th><th>Valor</th><th>Sin movimiento</th></tr>'+
       obsoletos.map(function(d){
-        return '<tr><td style="font-size:11px">'+escapeHtml(d.clave)+'</td><td style="text-align:center">'+d.stockActual+'</td><td style="text-align:center">$'+fmt(d.valor)+'</td><td style="text-align:center;color:var(--w)">'+(d.diasSinMovimiento!=null?Math.round(d.diasSinMovimiento/30)+' meses':'Nunca')+'</td></tr>';
+        return '<tr><td style="font-size:11px">'+escapeHtml(d.clave)+'</td><td style="text-align:center">'+d.stockActual+'</td><td style="text-align:center">$'+fn(d.valor)+'</td><td style="text-align:center;color:var(--w)">'+(d.diasSinMovimiento!=null?Math.round(d.diasSinMovimiento/30)+' meses':'Nunca')+'</td></tr>';
       }).join('')+'</table></div>'
       :'')+
     '</div>';
