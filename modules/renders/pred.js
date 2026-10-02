@@ -593,6 +593,67 @@ function diagnosticoFlota(sigla,mes){
   return lista;
 }
 
+// Embebe un string como literal JS de comillas simples dentro de un atributo
+// HTML de comillas dobles (onchange="...") — escapa backslash y comilla
+// simple. Mismo criterio que ya usa progdia.js (window._progDiaTurno=...)
+// para texto libre dentro de un atributo inline.
+function _jsq(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"'";}
+
+// Checklist FMEA con NPR real (2026-10-02) — extiende _CAUSAS_TIPICAS_FMEA
+// (solo informativo) para que un técnico califique Severidad/Ocurrencia/
+// Detección (1-10) de cada causa EN ESTE equipo/componente real y priorice
+// cuál atacar primero por NPR (calcularNPR, logic.js). Las calificaciones
+// se guardan en la tabla fmea_npr, una fila por (componente,causa) —
+// compartidas entre todos los equipos con ese mismo tipo de componente, ya
+// que el checklist en sí también lo es (es la causa típica DEL COMPONENTE,
+// no de un equipo en particular).
+function _fmeaChecklistHTML(componente,causas){
+  if(!causas)return' Sin checklist FMEA cargado todavía para "'+escapeHtml(componente)+'" — requiere revisión manual de un técnico.';
+  var filas=S.g('fmeaNpr')||[];
+  var items=causas.map(function(causa){
+    var row=filas.find(function(r){return r.componente===componente&&r.causa===causa;});
+    var npr=row?calcularNPR(row.severidad,row.ocurrencia,row.deteccion):null;
+    return{causa:causa,row:row,npr:npr};
+  });
+  items.sort(function(a,b){
+    if(a.npr==null&&b.npr==null)return 0;
+    if(a.npr==null)return 1;
+    if(b.npr==null)return-1;
+    return b.npr-a.npr;
+  });
+  return' Esto NO es un diagnóstico, es el checklist estándar de la industria (FMEA) para descartar en terreno — calificá Severidad/Ocurrencia/Detección (1-10) de cada causa para priorizar cuál atacar primero (NPR = S×O×D):'+
+    '<div class="tbl-wrap" style="margin-top:6px"><table style="font-size:11px"><tr><th style="text-align:left">Causa</th><th title="Severidad: qué tan grave es si ocurre">S</th><th title="Ocurrencia: qué tan seguido pasa">O</th><th title="Detección: qué tan difícil es detectarla a tiempo (10=casi imposible)">D</th><th>NPR</th></tr>'+
+    items.map(function(it){
+      var prio=prioridadNPR(it.npr);
+      var col=prio==='critica'?'var(--danger)':prio==='alta'?'var(--w)':prio==='media'?'var(--ac)':'var(--tx3)';
+      var inputs=['severidad','ocurrencia','deteccion'].map(function(campo){
+        var val=it.row?it.row[campo]:null;
+        return'<td style="text-align:center"><input type="number" min="1" max="10" value="'+(val||'')+'" style="width:36px;padding:2px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;font-size:11px" onchange="_guardarFmeaNpr('+_jsq(componente)+','+_jsq(it.causa)+',\''+campo+'\',parseInt(this.value)||null)"></td>';
+      }).join('');
+      return'<tr><td style="padding:3px 4px">'+escapeHtml(it.causa)+'</td>'+inputs+
+        '<td style="text-align:center;font-weight:700;color:'+col+'">'+(it.npr!=null?it.npr:'—')+'</td></tr>';
+    }).join('')+
+    '</table></div>';
+}
+
+// Guarda (crea o actualiza) la calificación S/O/D de UNA causa de UN
+// componente — upsert por clave compuesta (componente,causa), ya que
+// fmea_npr no se edita por índice de array visible (edI) como las tablas
+// CRUD comunes: el checklist se arma a partir de _CAUSAS_TIPICAS_FMEA, no
+// de las filas ya guardadas, así que la fila puede no existir todavía.
+export function _guardarFmeaNpr(componente,causa,campo,valor){
+  var filas=S.g('fmeaNpr')||[];
+  var row=filas.find(function(r){return r.componente===componente&&r.causa===causa;});
+  if(!row){
+    row={_id:_uuidV4(),componente:componente,causa:causa,severidad:null,ocurrencia:null,deteccion:null,usuario:window._userName||window._userEmail||''};
+    filas.push(row);
+  }
+  row[campo]=valor;
+  row.usuario=window._userName||window._userEmail||row.usuario||'';
+  S.s('fmeaNpr',filas);
+  refreshAll();
+}
+
 export function renderPred(){
   var P=computePred();
   var R=P.resumen;
@@ -1015,8 +1076,7 @@ export function renderPred(){
             (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
             (c.requiereRCA?'<div style="font-size:11px;background:rgba(99,102,241,.08);border-radius:6px;padding:6px 8px;margin:6px 0;color:var(--tx2)">'+
               '<b style="color:#818cf8">🔬 Amerita Análisis de Causa Raíz</b> ('+c.total+' fallas — igual que activaría un CMMS real ante ≥3 correctivos del mismo tipo).'+
-              (c.causasFMEA?' Esto NO es un diagnóstico, es el checklist estándar de la industria (FMEA) para descartar en terreno:<ul style="margin:4px 0 0 16px;padding:0">'+c.causasFMEA.map(function(h){return'<li>'+escapeHtml(h)+'</li>';}).join('')+'</ul>'
-                :' Sin checklist FMEA cargado todavía para "'+escapeHtml(c.componente)+'" — requiere revisión manual de un técnico.')+
+              _fmeaChecklistHTML(c.componente,c.causasFMEA)+
               '</div>':'')+
             '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+fn(Math.round(c.costoTotal))+' acumulado':'')+'</div>'+
             '</div>';
@@ -2021,4 +2081,5 @@ $('s-pred').innerHTML=
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderPred = renderPred;
+window._guardarFmeaNpr = _guardarFmeaNpr;
 renders.pred = renderPred;

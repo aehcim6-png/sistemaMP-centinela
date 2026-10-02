@@ -20,12 +20,28 @@
 export function renderProd(){
   var turnos=S.g('prodTurno')||[];
   var turnosEq=S.g('prodTurnoEq')||[];
+  var eq=S.g('eq')||[];
   var fMes=$('fProdMes')?.value||'';
   var filtrados=turnos.filter(function(t){return !fMes||(t.fecha||'').slice(0,7)===fMes;});
   filtrados.sort(function(a,b){
     var c=(b.fecha||'').localeCompare(a.fecha||'');
     return c!==0?c:(b.turno||'').localeCompare(a.turno||'');
   });
+
+  // Costo de Downtime por equipo (2026-10-02): toneladas perdidas por
+  // indisponibilidad (tonPerdidaIndisponibilidadMes) × margen/tonelada
+  // (cfg.margenPorTon, Configuración > Tarifas y Metas). Solo se arma para
+  // un mes concreto seleccionado (fMes) — sin mes, no hay "el mes" al que
+  // cruzar la pérdida de cada equipo, así que se omite la sección entera
+  // en vez de mezclar meses.
+  var margenPorTon=(S.g('cfg')||{}).margenPorTon||0;
+  var filasDowntime=fMes?eq.map(function(e){
+    var ton=tonPerdidaIndisponibilidadMes(e.sigla,fMes,turnosEq,turnos);
+    if(!ton)return null;
+    var costo=costoDowntimeMes(ton.totalTon,margenPorTon);
+    return {sigla:e.sigla,modelo:e.modelo,totalTon:ton.totalTon,totalHoras:ton.totalHoras,costo:costo};
+  }).filter(function(f){return f;}):[];
+  filasDowntime.sort(function(a,b){return b.totalTon-a.totalTon;});
 
   var filas=filtrados.map(function(t){
     var eqDelTurno=turnosEq.filter(function(e){return e.turnoId===t.id;});
@@ -56,7 +72,38 @@ export function renderProd(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Fecha</th><th>Turno</th><th>Supervisor</th><th>Equipos CAEX</th><th>Filas Indisp.</th><th>Ton. Totales</th><th>Rend. Transporte [Ton/hr]</th></tr>'+
     (filas||'<tr><td colspan="7" style="font-size:12px;color:var(--tx3)">Sin reportes de turno cargados todavía.</td></tr>')+
-    '</table></div>';
+    '</table></div>'+
+    _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon);
+}
+
+// Costo de Downtime por equipo (2026-10-02): toneladas perdidas por
+// indisponibilidad × margen/tonelada — ver costoDowntimeMes (logic.js).
+// Sin mes seleccionado, no se muestra nada (filasDowntime llega []).
+function _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon){
+  if(!fMes)return '';
+  var totalTon=0,totalCosto=0,conCosto=0;
+  filasDowntime.forEach(function(f){totalTon+=f.totalTon;if(f.costo!=null){totalCosto+=f.costo;conCosto++;}});
+  return '<div class="chart-box" style="margin-top:16px">'+
+    '<div class="chart-t">💸 Costo de Downtime por Equipo — '+escapeHtml(fMes)+'</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Toneladas perdidas por indisponibilidad (reportadas en el Reporte de Turno) × Margen por Tonelada (Configuración &gt; Tarifas y Metas).'+
+    (margenPorTon?'':' <b style="color:var(--w)">Sin margen configurado — solo se muestran las toneladas, el costo queda sin calcular (nunca se inventa un valor de tonelada).</b>')+
+    '</div>'+
+    (filasDowntime.length?
+      '<div class="cards" style="margin-bottom:10px">'+
+      '<div class="card"><div class="card-t">Ton. Perdidas Total</div><div class="card-v" style="color:var(--danger)">'+fn(Math.round(totalTon))+'</div></div>'+
+      '<div class="card"><div class="card-t">Costo Downtime Total</div><div class="card-v" style="color:'+(conCosto?'var(--danger)':'var(--tx3)')+'">'+(conCosto?'$'+fn(Math.round(totalCosto)):'—')+'</div></div>'+
+      '</div>'+
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Ton. Perdidas</th><th>Horas Indisp.</th><th>Costo Downtime</th></tr>'+
+      filasDowntime.map(function(f){
+        return '<tr><td class="mono" style="color:var(--ac)">'+f.sigla+'</td>'+
+          '<td style="font-size:11px">'+escapeHtml(f.modelo||'')+'</td>'+
+          '<td style="text-align:center;font-weight:600;color:var(--danger)">'+fn(f.totalTon)+'</td>'+
+          '<td style="text-align:center">'+f.totalHoras+'h</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+(f.costo!=null?'var(--danger)':'var(--tx3)')+'">'+(f.costo!=null?'$'+fn(f.costo):'—')+'</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div style="font-size:12px;color:var(--tx3)">Sin Pérdida por Indisponibilidad reportada ese mes.</div>')+
+    '</div>';
 }
 
 export function _activarLeerReporteProduccion(){

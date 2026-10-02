@@ -5662,6 +5662,99 @@ pendiente de que el usuario pruebe el flujo real: crear un usuario con
 perfil "Comprador", activarlo, y confirmar que al entrar solo ve Stock &
 Insumos.
 
+### 90. % Correctivo Reactivo por horas (2026-10-02)
+
+`ratioPreventivo` (logic.js) ya existía pero cuenta INTERVENCIONES (cuántos
+PM vs. cuántos correctivos), no horas — un mes con pocas OT correctivas
+pero muy largas sigue siendo mayormente reactivo en tiempo real aunque el
+preventivo gane en cantidad. `porcentajeCorrectivoReactivo(horasCorrectivas,
+horasPreventivas)` mide eso: horas correctivas = suma de `o.duracion` ("Xh")
+parseado de las fallas reales (mismo parseo que `C.mttrReal`), horas
+preventivas = suma de `r.duracionH` en `reg`. null sin inventar si no hubo
+ninguna hora registrada de ningún tipo. Card nueva en Costos & Stock →
+MTBF/MTTR ("% Correctivo Reactivo"), con umbral visual <20% ideal (criterio
+de industria citado en el resumen de fórmulas que originó esta tanda, no
+una norma propia del sistema).
+
+### 91. Matriz Jack-Knife — MTBF vs MTTR por equipo (2026-10-02)
+
+Cruza confiabilidad (MTBF) y mantenibilidad (MTTR) de cada equipo contra la
+MEDIANA de la propia flota (no el promedio — un solo MTTR altísimo lo
+distorsiona) para ubicarlo en 1 de 4 cuadrantes: **mundial** (MTBF alto +
+MTTR bajo), **crónico** (MTBF bajo + MTTR bajo — falla seguido pero se
+arregla rápido), **agudo** (MTBF alto + MTTR alto — falla poco pero cuando
+falla tarda mucho), **complejo** (MTBF bajo + MTTR alto — el peor caso,
+prioridad máxima). `matrizJackKnife(equipos)` (logic.js) exige ≥3 equipos
+con ambos datos válidos (con 1-2 la mediana es degenerada); empates exactos
+en la mediana cuentan como "alto" en ambos ejes. Renderizado en Costos &
+Stock → MTBF/MTTR, arriba de la tabla de equipos existente: 4 cards de
+resumen + tabla ordenada con el cuadrante "complejo" primero.
+
+### 92. Costo de Downtime real (2026-10-02)
+
+Toneladas perdidas por indisponibilidad (`tonPerdidaIndisponibilidadMes`,
+ya existía desde la tanda de Producción/OCR pero sin ningún consumidor en
+la UI hasta ahora) × margen por tonelada. El margen NO existía en ningún
+lado del sistema (investigado antes de construir, no asumido) — se agregó
+`cfg.margenPorTon` (campo opcional nuevo en Configuración → Tarifas y
+Metas, junto a Presupuesto Mensual; columna `"margenPorTon"` agregada a
+`configuracion` vía `20261002050000_agregar_margen_por_ton.sql`).
+`costoDowntimeMes(toneladasPerdidas,margenPorTon)` devuelve `$0` real si
+`toneladasPerdidas=0` (dato real de cero pérdida) pero `null` si falta el
+margen configurado o no hay dato de toneladas — nunca inventa un valor de
+tonelada. Nueva sección "💸 Costo de Downtime por Equipo" en la pestaña
+Producción, por mes seleccionado, con aviso explícito cuando falta
+`margenPorTon` (muestra solo las toneladas, sin costo).
+
+### 93. Rotación y % Obsolescencia de Stock (2026-10-02)
+
+Acotado a **Filtros y Lubricantes** a propósito — son los únicos dos tipos
+de `movimientos_stock` con fecha real de consumo (investigado antes de
+construir): 'Repuestos' (tabla `repuestos`) solo tiene `ultCompra` (fecha
+de COMPRA, no de consumo) y un stock vivo sin historial de salidas, así que
+no hay con qué calcular esto para esa categoría sin inventar un dato que el
+sistema no registra. `rotacionInventarioMRO(items,mesesHistorial)` = valor
+consumido (anualizado sobre los meses reales de historial disponible) ÷
+valor del inventario ACTUAL (no hay snapshot histórico de inventario
+promedio — aproximación documentada, mismo criterio que usan la mayoría de
+los CMMS sin ese historial). `obsolescenciaStockMRO(items,hoyISO,
+mesesUmbral)` = % de ítems (y % de VALOR, más relevante financieramente)
+con stock pero sin consumo hace más de 12 meses, o nunca. Nueva sección
+"🔄 Rotación y Obsolescencia" dentro de los modales "📊 Resumen" ya
+existentes de Stock Filtros y Lubricantes (`resumenFlotaStk`/
+`resumenFlotaLub`, index.html), con el top 10 de ítems obsoletos por valor.
+
+### 94. FMEA real con NPR — Severidad × Ocurrencia × Detección (2026-10-02)
+
+El checklist `_CAUSAS_TIPICAS_FMEA` (pred.js, Fallas Repetitivas → flota)
+ya listaba las causas típicas por tipo de componente, pero era solo
+informativo — no priorizaba cuál causa atacar primero. `calcularNPR
+(severidad,ocurrencia,deteccion)` = S×O×D (cada una 1-10, rango resultante
+1-1000); null si falta alguna calificación o está fuera de rango — nunca
+se inventa un NPR a medio calificar. `prioridadNPR(npr)` banda el
+resultado en 4 niveles (crítica/alta/media/baja) — documentado
+explícitamente como agrupación relativa propia, NO un umbral certificado
+de ninguna norma (NPR no tiene un corte estándar universal).
+
+**Esquema**: tabla nueva `fmea_npr` (`componente`, `causa`, `severidad`,
+`ocurrencia`, `deteccion`, `usuario`, único por `(componente,causa)` —
+`20261002060000_crear_tabla_fmea_npr.sql`, mismas políticas RLS
+`operacional_*` que el resto de las tablas operativas). Sumada a
+`backup-diario` (`TABLAS`, ahora 55 tablas reales reales — el assert de
+este test estaba desactualizado en 50 desde antes de esta tanda, corregido
+de paso) y a `TABLA_REAL` (`store.js`, clave `fmeaNpr`).
+
+**UI** (`pred.js`, checklist FMEA dentro de "Amerita Análisis de Causa
+Raíz"): cada causa típica del componente muestra 3 inputs numéricos (S/O/D,
+1-10) y el NPR calculado en vivo, ordenadas por NPR descendente (las ya
+calificadas primero). La calificación es por `(componente,causa)`, NO por
+equipo — el checklist en sí tampoco es por equipo (es "la causa típica DE
+ESE TIPO de componente"), así que calificar una causa la deja calificada
+para cualquier equipo que la muestre. `_guardarFmeaNpr` hace upsert por
+clave compuesta (no hay índice de array fijo como en las tablas CRUD
+comunes, porque la fila puede no existir todavía la primera vez que se
+califica).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

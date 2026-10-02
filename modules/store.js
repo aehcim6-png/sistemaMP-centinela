@@ -107,6 +107,7 @@ const TABLA_REAL={
   lub:{tabla:'lubricantes',clave:'_id',claveDb:'id',cols:['nombre','unidad','stock','consumoMes','proyMes','precio']},
   repuestos:{tabla:'repuestos',clave:'_id',claveDb:'id',cols:['componente','nParte','equipo','stockActual','stockMinimo','leadTime','precioUnit','proveedor']},
   prg:{tabla:'programa',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','hrsDia','horomActual','meses']},
+  fmeaNpr:{tabla:'fmea_npr',clave:'_id',claveDb:'id',cols:['componente','causa','severidad','ocurrencia','deteccion','usuario']},
   compMayores:{tabla:'componentes_mayores',clave:'_id',claveDb:'id',cols:['sigla','tipo','modelo','comp','horomComp','vidaUtil','costoRef','fechaInst','estado','obs','esOriginal','riesgoNivel','riesgoTip']},
   insp:{tabla:'inspecciones',clave:'_id',claveDb:'id',cols:['equipo','fecha','horometro','visual','niveles','fugas','luces','frenos','neumaticos','obs','inspector']},
   aceite:{tabla:'analisis_aceite',clave:'_id',claveDb:'id',cols:['sigla','equipo','fecha','nMuestra','hrsComp','hrsLub','lubricante','componente','descriptor','hierro','cobre','plomo','aluminio','silicio','cromo','sodio','visc40','visc100','pq','tbn','tan','isoCode','espEst1','espEst2','espEst3','demulsibilidad','estado','comentario']},
@@ -200,7 +201,7 @@ const TABLA_REAL={
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={
-  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual','alertaWhatsApp','whatsappRemitentesPermitidos','correoRemitentesPermitidos']},
+  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual','margenPorTon','alertaWhatsApp','whatsappRemitentesPermitidos','correoRemitentesPermitidos']},
   hh:{tabla:'tarifa_hh',modo:'valor'},
   dispMeta:{tabla:'meta_disponibilidad',modo:'valor'},
   metas:{tabla:'metas',modo:'datos'},

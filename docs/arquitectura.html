@@ -2932,6 +2932,50 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   cuenta real restringida (exigiría crear una cuenta real en producción) — queda pendiente de que
   el usuario pruebe el flujo real.</p>
 
+  <h3>90. % Correctivo Reactivo por horas (2026-10-02)</h3>
+  <p><code>ratioPreventivo</code> cuenta INTERVENCIONES, no horas — un mes con pocas OT
+  correctivas pero muy largas sigue siendo mayormente reactivo en tiempo aunque el preventivo
+  gane en cantidad. <code>porcentajeCorrectivoReactivo(horasCorrectivas,horasPreventivas)</code>
+  mide eso: horas correctivas = suma de <code>o.duracion</code> parseado de fallas reales (mismo
+  parseo que <code>C.mttrReal</code>), preventivas = suma de <code>r.duracionH</code> en
+  <code>reg</code>. null sin inventar si no hubo ninguna hora registrada. Card nueva en Costos &amp;
+  Stock → MTBF/MTTR.</p>
+
+  <h3>91. Matriz Jack-Knife — MTBF vs MTTR por equipo (2026-10-02)</h3>
+  <p>Cruza MTBF y MTTR de cada equipo contra la MEDIANA de la flota (no el promedio) en 4
+  cuadrantes: <b>mundial</b> (MTBF alto + MTTR bajo), <b>crónico</b> (MTBF bajo + MTTR bajo),
+  <b>agudo</b> (MTBF alto + MTTR alto), <b>complejo</b> (MTBF bajo + MTTR alto — peor caso).
+  <code>matrizJackKnife(equipos)</code> exige ≥3 equipos con ambos datos (con 1-2 la mediana es
+  degenerada). Renderizado en Costos &amp; Stock → MTBF/MTTR, arriba de la tabla de equipos.</p>
+
+  <h3>92. Costo de Downtime real (2026-10-02)</h3>
+  <p>Toneladas perdidas por indisponibilidad (<code>tonPerdidaIndisponibilidadMes</code>, ya
+  existía sin ningún consumidor en la UI) × margen por tonelada — campo nuevo
+  <code>cfg.margenPorTon</code> (investigado antes de construir: no existía en ningún lado del
+  sistema), opcional en Configuración → Tarifas y Metas. <code>costoDowntimeMes</code> devuelve
+  $0 real si las toneladas son 0, pero null si falta el margen o el dato de toneladas — nunca
+  inventa un valor de tonelada. Nueva sección en Producción, con aviso cuando falta el margen.</p>
+
+  <h3>93. Rotación y % Obsolescencia de Stock (2026-10-02)</h3>
+  <p>Acotado a <b>Filtros y Lubricantes</b> a propósito — únicos tipos de
+  <code>movimientos_stock</code> con fecha real de consumo (Repuestos solo tiene fecha de
+  última COMPRA, sin historial de salidas). <code>rotacionInventarioMRO</code> = valor
+  consumido anualizado ÷ valor de inventario actual (sin snapshot histórico, aproximación
+  documentada). <code>obsolescenciaStockMRO</code> = % de ítems/valor sin consumo hace &gt;12
+  meses o nunca. Nueva sección dentro de los modales "📊 Resumen" de Stock Filtros y
+  Lubricantes.</p>
+
+  <h3>94. FMEA real con NPR — Severidad × Ocurrencia × Detección (2026-10-02)</h3>
+  <p>El checklist <code>_CAUSAS_TIPICAS_FMEA</code> era solo informativo. <code>calcularNPR
+  (severidad,ocurrencia,deteccion)</code> = S×O×D (1-10 cada una); null si falta alguna
+  calificación. <code>prioridadNPR</code> banda el resultado en 4 niveles — documentado como
+  agrupación relativa propia, NO un umbral certificado de ninguna norma. Tabla nueva
+  <code>fmea_npr</code> (único por componente+causa, políticas RLS <code>operacional_*</code>
+  estándar), sumada a <code>backup-diario</code> (ahora 55 tablas reales — el assert de ese
+  test estaba desactualizado en 50 desde antes de esta tanda) y a <code>TABLA_REAL</code>. UI en
+  Predictivo → Fallas Repetitivas: 3 inputs S/O/D por causa + NPR en vivo, ordenadas por NPR
+  descendente.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

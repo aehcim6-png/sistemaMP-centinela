@@ -217,6 +217,36 @@ export function renderCos() {
       }).join('') +
       '</table></div></div>';
   }
+  // Matriz Jack-Knife (2026-10-02): cuadrantes MTBF vs MTTR por equipo, ver
+  // matrizJackKnife (logic.js) — null si hay menos de 3 equipos con ambos
+  // datos válidos, en cuyo caso no se muestra nada (sin inventar una matriz
+  // con datos insuficientes).
+  var _JK_INFO = {
+    mundial: { t: '🏆 Clase Mundial', d: 'Falla poco y se arregla rápido', c: 'var(--ok)' },
+    cronico: { t: '🔁 Crónico', d: 'Falla seguido, pero se arregla rápido', c: 'var(--w)' },
+    agudo: { t: '⏱️ Agudo', d: 'Falla poco, pero cuando falla tarda mucho', c: 'var(--w)' },
+    complejo: { t: '🔴 Complejo', d: 'Falla seguido Y tarda mucho — prioridad máxima', c: 'var(--danger)' }
+  };
+  function _cosJackKnifeHTML(jk) {
+    if (!jk) return '';
+    var orden = { complejo: 0, agudo: 1, cronico: 2, mundial: 3 };
+    var puntos = jk.puntos.slice().sort(function (a, b) { return orden[a.cuadrante] - orden[b.cuadrante]; });
+    return '<div class="chart-box" style="margin-bottom:12px">' +
+      '<div class="chart-t">🗺️ Matriz Jack-Knife — MTBF vs MTTR por equipo</div>' +
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Cruza confiabilidad (MTBF) y mantenibilidad (MTTR) de cada equipo contra la MEDIANA de la propia flota (MTBF ' + fn(jk.medianaMtbf) + 'h · MTTR ' + jk.medianaMttr + 'h) para separar "falla seguido" de "tarda mucho en arreglarse" — son problemas distintos con soluciones distintas.</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:10px">' +
+      Object.keys(_JK_INFO).map(function (k) {
+        var info = _JK_INFO[k];
+        return '<div class="card" style="border-left:3px solid ' + info.c + '"><div class="card-t">' + info.t + '</div><div class="card-v" style="color:' + info.c + '">' + jk.resumen[k] + '</div><div class="card-s">' + info.d + '</div></div>';
+      }).join('') +
+      '</div>' +
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>MTBF (hrs)</th><th>MTTR (hrs)</th><th>Cuadrante</th></tr>' +
+      puntos.map(function (p) {
+        var info = _JK_INFO[p.cuadrante];
+        return '<tr><td class="mono" style="color:var(--ac)">' + p.sigla + '</td><td style="text-align:center">' + fn(p.mtbf) + '</td><td style="text-align:center">' + p.mttr + '</td><td style="text-align:center;color:' + info.c + ';font-weight:600">' + info.t + '</td></tr>';
+      }).join('') +
+      '</table></div></div>';
+  }
 
   var content = '';
 
@@ -280,6 +310,14 @@ export function renderCos() {
       return a[1].mtbf - b[1].mtbf;
     });
     var conMtbf = mtbfList.filter(function (m) { return m[1].mtbf != null; });
+    // % Correctivo Reactivo por HORAS (2026-10-02) — a diferencia de
+    // ratioPreventivo (cuenta intervenciones), mide el tiempo real: horas de
+    // reparación correctiva ya sumadas arriba en horasReparacionFlota (mismo
+    // parseo "Xh" de o.duracion que usa MTTR) vs. hhRealTotal (horas reales de
+    // PM en 'reg', ya calculado para la pestaña HH). null sin inventar si no
+    // hubo ninguna hora registrada de ningún tipo.
+    var horasCorrectivasFlota = horasReparacionFlota.reduce(function (s, h) { return s + h; }, 0);
+    var pctCorrectivoReactivo = porcentajeCorrectivoReactivo(horasCorrectivasFlota, hhRealTotal);
     content =
       '<div class="cards">' +
       '<div class="card"><div class="card-t">MTBF Promedio Flota</div><div class="card-v">' + (conMtbf.length ? Math.round(conMtbf.reduce(function (s, m) { return s + m[1].mtbf; }, 0) / conMtbf.length) + 'h' : '—') + '</div><div class="card-s">' + (conMtbf.length ? 'Tiempo medio entre fallas · ' + conMtbf.length + ' equipos con ≥2 fallas' : 'Ningún equipo con ≥2 fallas registradas') + '</div></div>' +
@@ -291,6 +329,7 @@ export function renderCos() {
         var prom = conSla.length ? Math.round(conSla.reduce(function (s, m) { return s + m[1].sla; }, 0) / conSla.length) : null;
         return '<div class="card"><div class="card-t">SLA 1ra Respuesta</div><div class="card-v" style="color:' + (prom == null ? 'var(--tx3)' : prom <= 4 ? 'var(--ok)' : prom <= 24 ? 'var(--w)' : 'var(--danger)') + '">' + (prom == null ? '—' : prom + 'h') + '</div><div class="card-s">' + (totalConSla ? totalConSla + ' correctivo(s) con dato' : 'Se captura desde ahora en adelante') + '</div></div>';
       })() +
+      '<div class="card"><div class="card-t">% Correctivo Reactivo</div><div class="card-v" style="color:' + (pctCorrectivoReactivo == null ? 'var(--tx3)' : pctCorrectivoReactivo <= 20 ? 'var(--ok)' : pctCorrectivoReactivo <= 40 ? 'var(--w)' : 'var(--danger)') + '">' + (pctCorrectivoReactivo == null ? '—' : pctCorrectivoReactivo + '%') + '</div><div class="card-s">' + (pctCorrectivoReactivo == null ? 'Sin horas registradas' : 'Por horas · ' + Math.round(horasCorrectivasFlota) + 'h correctivas de ' + Math.round(horasCorrectivasFlota + hhRealTotal) + 'h totales · ideal &lt;20%') + '</div></div>' +
       '</div>' +
 
       '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:12px;font-size:12px">' +
@@ -307,6 +346,8 @@ export function renderCos() {
         '<div class="card"><div class="card-t">P90</div><div class="card-v" style="color:var(--w)">' + mttrLogNormal.p90 + 'h</div><div class="card-s">9 de cada 10 reparaciones terminan antes</div></div>' +
         '<div class="card"><div class="card-t">Muestra</div><div class="card-v">' + mttrLogNormal.n + '</div><div class="card-s">reparaciones con duración real</div></div>' +
         '</div></div>' : '') +
+
+      _cosJackKnifeHTML(matrizJackKnife(mtbfList.map(function (m) { return { sigla: m[0], mtbf: m[1].mtbf, mttr: m[1].mttr }; }))) +
 
       '<div class="tbl-wrap"><table>' +
       '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Fallas</th><th>MTBF (hrs)</th><th>Confiabilidad</th><th>Reparaciones</th><th>MTTR (hrs)</th><th>Mantenibilidad</th><th>SLA 1ra Resp. (hrs)</th></tr>' +

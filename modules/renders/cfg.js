@@ -343,8 +343,11 @@ export function renderCfg(){
       '<input type="number" value="'+(S.g('hh')||25000)+'" onchange="S.s(\'hh\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Meta Disponibilidad (%)</label><br>'+
       '<input type="number" value="'+(S.g('dispMeta')||85)+'" onchange="S.s(\'dispMeta\',parseInt(this.value));refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
-      '<div><label style="font-size:11px;color:var(--tx3)">Presupuesto Mensual ($)</label><br>'+
+      '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Presupuesto Mensual ($)</label><br>'+
       '<input type="number" value="'+((S.g('cfg')||{}).presupuestoMensual||'')+'" placeholder="Ej: 25000000" onchange="var c=S.g(\'cfg\')||{};c.presupuestoMensual=parseInt(this.value)||0;S.s(\'cfg\',c);refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
+      '<div><label style="font-size:11px;color:var(--tx3)">Margen por Tonelada ($/ton) — opcional</label><br>'+
+      '<input type="number" value="'+((S.g('cfg')||{}).margenPorTon||'')+'" placeholder="Ej: 15000" onchange="var c=S.g(\'cfg\')||{};c.margenPorTon=parseInt(this.value)||0;S.s(\'cfg\',c);refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Sin este dato, Producción no calcula el Costo de Downtime (toneladas perdidas × margen) — solo muestra las toneladas.</div></div>'+
       '</div>'+
 
       // CREAR USUARIO (solo admin real via Supabase Auth)

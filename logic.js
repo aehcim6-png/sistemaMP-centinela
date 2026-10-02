@@ -551,6 +551,19 @@ function ratioPreventivo(prevCount,corrCount){
   return total?Math.round(prevCount/total*100):null;
 }
 
+// % Correctivo Reactivo (por HORAS, no por cantidad de intervenciones) — a
+// diferencia de ratioPreventivo (que cuenta intervenciones), este mide el
+// tiempo real dedicado a cada tipo: un mes con pocas OT correctivas pero muy
+// largas sigue siendo mayormente reactivo en horas aunque el preventivo gane
+// en cantidad. horasCorrectivas = suma de las duraciones "Xh" de o.duracion
+// en las fallas reales (mismo parseo que C.mttrReal); horasPreventivas = suma
+// de r.duracionH en 'reg'. null si no hubo ninguna hora registrada de ningún
+// tipo — mismo criterio de ratioPreventivo, nunca se inventa 0%/100%.
+function porcentajeCorrectivoReactivo(horasCorrectivas,horasPreventivas){
+  var total=(horasCorrectivas||0)+(horasPreventivas||0);
+  return total?Math.round(horasCorrectivas/total*100):null;
+}
+
 // Cuántos equipos todavía no tienen 'criticidad' clasificada (dropdown Crítico/
 // Esencial/General de Ficha Técnica, equipos.criticidad — solo-admin). Auditoría
 // 2026-08-27 (ver comentario en pred.js, vista "dotacion"): en la base real de
@@ -3095,6 +3108,19 @@ function tonPerdidaIndisponibilidadMes(sigla, mes, prodTurnoEq, prodTurno){
   return{totalTon:Math.round(totalTon*10)/10,totalHoras:Math.round(totalHoras*10)/10};
 }
 
+// Costo financiero real del tiempo parado = toneladas perdidas por
+// indisponibilidad (tonPerdidaIndisponibilidadMes, arriba) × margen por
+// tonelada (cfg.margenPorTon, campo opcional en Configuración > Tarifas y
+// Metas — ninguna empresa lo trae cargado por defecto). Sin ese margen
+// configurado, null: nunca se inventa un costo de downtime con un valor de
+// tonelada supuesto, mismo criterio que ya usa desviacionPresupuesto (cos.js)
+// sin presupuestoMensual. toneladasPerdidas=0 SÍ devuelve $0 (dato real de
+// que ese mes no hubo pérdida), distinto de null (sin dato de ningún tipo).
+function costoDowntimeMes(toneladasPerdidas,margenPorTon){
+  if(toneladasPerdidas==null||!(margenPorTon>0))return null;
+  return Math.round(toneladasPerdidas*margenPorTon);
+}
+
 function vencCalcProximo(ultimaFecha, periodicidadMeses){
   if(!ultimaFecha||!periodicidadMeses)return null;
   var d=new Date(ultimaFecha+'T00:00:00');
@@ -4428,6 +4454,92 @@ function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio){
   }).filter(Boolean);
 }
 
+// ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
+// Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
+// movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
+// 'Repuestos' (tabla 'repuestos') solo tiene fecha de ÚLTIMA COMPRA
+// (ultCompra) y un stock vivo sin historial de salidas, así que no hay con
+// qué calcular rotación/obsolescencia real para esa categoría sin inventar
+// un dato que el sistema no tiene. Items recibidos ya normalizados por quien
+// llama: [{clave,stockActual,precioUnit,consumoPeriodo,ultimoConsumoISO}].
+
+// Rotación anual = valor consumido (anualizado) ÷ valor del inventario
+// actual. No hay snapshot histórico de inventario PROMEDIO (solo el stock
+// vigente), así que se usa el valor actual como aproximación — mismo
+// criterio que usan la mayoría de los CMMS cuando no llevan ese historial;
+// queda documentado acá, no se finge que es un promedio real. mesesHistorial
+// = ventana real cubierta por los movimientos de 'consumoPeriodo' (si el
+// historial real son 3 meses, se anualiza ×12/3, no se usa tal cual).
+function rotacionInventarioMRO(items,mesesHistorial){
+  if(!mesesHistorial||mesesHistorial<=0)return null;
+  var valorInventario=0,valorConsumidoAnualizado=0;
+  (items||[]).forEach(function(it){
+    var valor=(it.stockActual||0)*(it.precioUnit||0);
+    valorInventario+=valor;
+    valorConsumidoAnualizado+=(it.consumoPeriodo||0)*(it.precioUnit||0)*(12/mesesHistorial);
+  });
+  if(!valorInventario)return null;
+  return{rotacionAnual:Math.round(valorConsumidoAnualizado/valorInventario*100)/100,
+    valorInventario:Math.round(valorInventario),valorConsumidoAnualizado:Math.round(valorConsumidoAnualizado)};
+}
+
+// % de ítems (y % de VALOR, más relevante financieramente) con stock >0 pero
+// SIN consumo real en los últimos 'mesesUmbral' (12 por defecto) — usa la
+// fecha de ÚLTIMO CONSUMO (movimientos_stock), no la fecha de compra. Un
+// ítem con stock >0 que JAMÁS registró un consumo (ultimoConsumoISO null)
+// cuenta como obsoleto igual (peor caso: nunca se movió). Ítems sin stock no
+// entran al cálculo — "obsoleto" describe capital inmovilizado sin uso, no
+// aplica a algo que ya no se tiene.
+function obsolescenciaStockMRO(items,hoyISO,mesesUmbral){
+  var umbralDias=(mesesUmbral||12)*30;
+  var conStock=(items||[]).filter(function(it){return it&&(it.stockActual||0)>0;});
+  if(!conStock.length)return null;
+  var valorTotal=0,valorObsoleto=0,nObsoletos=0;
+  var detalle=conStock.map(function(it){
+    var valor=(it.stockActual||0)*(it.precioUnit||0);
+    valorTotal+=valor;
+    var dias=it.ultimoConsumoISO?_diasEntreISO(it.ultimoConsumoISO,hoyISO):null;
+    var obsoleto=dias==null||dias>umbralDias;
+    if(obsoleto){valorObsoleto+=valor;nObsoletos++;}
+    return{clave:it.clave,stockActual:it.stockActual,valor:Math.round(valor),diasSinMovimiento:dias,obsoleto:obsoleto};
+  });
+  return{
+    porcentajeItems:Math.round(nObsoletos/conStock.length*100),
+    porcentajeValor:valorTotal?Math.round(valorObsoleto/valorTotal*100):null,
+    nObsoletos:nObsoletos,nTotal:conStock.length,
+    valorObsoleto:Math.round(valorObsoleto),valorTotal:Math.round(valorTotal),
+    detalle:detalle
+  };
+}
+
+// ═══ FMEA — NPR REAL (Severidad × Ocurrencia × Detección, 2026-10-02) ═══
+// El checklist _CAUSAS_TIPICAS_FMEA (pred.js) ya lista las causas típicas de
+// cada tipo de componente, pero es solo informativo — no prioriza cuál causa
+// atacar primero. NPR formaliza esa priorización: 3 escalas de 1 a 10 que
+// califica un técnico en terreno para CADA causa de un componente real
+// (Severidad = qué tan grave es si ocurre, Ocurrencia = qué tan seguido
+// pasa, Detección = qué tan fácil es detectarla ANTES de que falle — 10 =
+// casi imposible de detectar a tiempo). Rango resultante 1-1000. null si
+// falta alguna de las 3 calificaciones o está fuera de 1-10 — nunca se
+// inventa un NPR con datos a medio calificar.
+function calcularNPR(severidad,ocurrencia,deteccion){
+  var vals=[severidad,ocurrencia,deteccion];
+  if(vals.some(function(v){return v==null||!Number.isFinite(v)||v<1||v>10;}))return null;
+  return severidad*ocurrencia*deteccion;
+}
+
+// Banda de prioridad simple sobre el NPR (rango real 1-1000) — NO es un
+// umbral certificado de ninguna norma (NPR no tiene un corte estándar
+// universal, varía mucho por industria/empresa), es una agrupación relativa
+// documentada acá mismo para ordenar visualmente qué causa atacar primero.
+function prioridadNPR(npr){
+  if(npr==null)return null;
+  if(npr>=200)return'critica';
+  if(npr>=100)return'alta';
+  if(npr>=50)return'media';
+  return'baja';
+}
+
 // ═══ MTTR CON DISTRIBUCIÓN LOG-NORMAL (2026-09-13) ═══
 // Origen real: mismo repaso de distribuciones estadísticas de confiabilidad
 // que llevó a Poisson para stock (sección anterior). El MTTR que ya muestra
@@ -4686,6 +4798,40 @@ function matrizCriticidadDinamica(compMayores,crowPorComponente){
   });
   items.sort(function(a,b){return b.pxiDinamico-a.pxiDinamico;});
   return items;
+}
+
+// ═══ MATRIZ JACK-KNIFE (MTBF vs MTTR, 2026-10-02) ═══
+// Cruza confiabilidad (MTBF) y mantenibilidad (MTTR) por equipo para ubicar a
+// cada uno en 1 de 4 cuadrantes — identifica de un vistazo si el problema de
+// un equipo es que falla seguido, que tarda mucho en repararse, o ambas cosas
+// a la vez. La línea divisoria de cada eje es la MEDIANA de la flota (no el
+// promedio: un solo equipo con un MTTR altísimo lo distorsiona, mismo motivo
+// por el que medianaPositiva ya se usa en el resto del sistema), así que los
+// cuadrantes son siempre relativos a la propia flota, no a un umbral fijo de
+// libro. Recibe [{sigla,mtbf,mttr}] ya filtrados por quien llama a los que
+// tienen AMBOS datos válidos (MTBF de ≥2 fallas vía C.mtbfReal, MTTR de
+// reparaciones con duración vía C.mttrReal) — null con menos de 3 equipos con
+// ambos datos (con 1-2 la mediana es un valor degenerado que no separa nada
+// de verdad, igual de estricto que el resto de los métodos de la flota).
+// Empates exactos en la mediana cuentan como "alto" en ambos ejes (criterio
+// simple y documentado, no afecta el caso típico de flotas con >3 equipos).
+//  - mundial: MTBF alto (falla poco) + MTTR bajo (se arregla rápido) — mejor caso
+//  - cronico: MTBF bajo (falla seguido) + MTTR bajo (pero rápido de arreglar)
+//  - agudo:   MTBF alto (falla poco) + MTTR alto (cuando falla, tarda mucho)
+//  - complejo: MTBF bajo + MTTR alto — el peor cuadrante, prioridad máxima
+function matrizJackKnife(equipos){
+  var datos=(equipos||[]).filter(function(e){return e&&e.mtbf>0&&e.mttr>0;});
+  if(datos.length<3)return null;
+  var medianaMtbf=medianaPositiva(datos.map(function(e){return e.mtbf;}));
+  var medianaMttr=medianaPositiva(datos.map(function(e){return e.mttr;}));
+  var puntos=datos.map(function(e){
+    var mtbfAlto=e.mtbf>=medianaMtbf, mttrAlto=e.mttr>=medianaMttr;
+    var cuadrante=mtbfAlto?(mttrAlto?'agudo':'mundial'):(mttrAlto?'complejo':'cronico');
+    return {sigla:e.sigla,mtbf:e.mtbf,mttr:e.mttr,cuadrante:cuadrante};
+  });
+  var resumen={mundial:0,cronico:0,agudo:0,complejo:0};
+  puntos.forEach(function(p){resumen[p.cuadrante]++;});
+  return {medianaMtbf:medianaMtbf,medianaMttr:medianaMttr,puntos:puntos,resumen:resumen};
 }
 
 // ═══ ESTIMACIÓN DE HORÓMETRO/KM EN UNA FECHA PASADA ═══
@@ -6601,6 +6747,7 @@ if (typeof window !== 'undefined') {
   window._informesFallaComoOt = _informesFallaComoOt;
   window.contarFallasMes = contarFallasMes;
   window.ratioPreventivo = ratioPreventivo;
+  window.porcentajeCorrectivoReactivo = porcentajeCorrectivoReactivo;
   window.equiposSinCriticidad = equiposSinCriticidad;
   window.fechaAyer = fechaAyer;
   window.fechaMismoDiaAnioPasado = fechaMismoDiaAnioPasado;
@@ -6635,6 +6782,7 @@ if (typeof window !== 'undefined') {
   window.nivelRiesgoPxI = nivelRiesgoPxI;
   window.criticidadDinamicaComponente = criticidadDinamicaComponente;
   window.matrizCriticidadDinamica = matrizCriticidadDinamica;
+  window.matrizJackKnife = matrizJackKnife;
   window.dispIntrinsecaEquipoMes = dispIntrinsecaEquipoMes;
   window.tasaFallaPorUbicacion = tasaFallaPorUbicacion;
   window.edadVirtualEquipo = edadVirtualEquipo;
@@ -6650,14 +6798,14 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
-    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo,
+    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
-    umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica
+    umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica, matrizJackKnife
   };
 }

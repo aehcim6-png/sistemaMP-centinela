@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF, probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF, probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -171,6 +171,21 @@ describe('contarFallasMes / ratioPreventivo — fuente única de "Ratio Preventi
   });
   it('ratioPreventivo devuelve null sin inventar 100%/0% cuando no hubo ninguna intervención', () => {
     expect(ratioPreventivo(0, 0)).toBe(null);
+  });
+});
+
+describe('porcentajeCorrectivoReactivo — % Correctivo Reactivo por HORAS (no por cantidad de intervenciones, a diferencia de ratioPreventivo)', () => {
+  it('mide horas, no cantidad: pocas OT correctivas pero largas pesan más que muchas PM cortas', () => {
+    expect(porcentajeCorrectivoReactivo(80, 20)).toBe(80); // 80h correctivas, 20h preventivas
+    expect(porcentajeCorrectivoReactivo(20, 80)).toBe(20);
+  });
+  it('100%/0% en los extremos reales (un solo tipo de intervención en el período)', () => {
+    expect(porcentajeCorrectivoReactivo(40, 0)).toBe(100);
+    expect(porcentajeCorrectivoReactivo(0, 40)).toBe(0);
+  });
+  it('devuelve null sin inventar 0%/100% cuando no hubo ninguna hora registrada', () => {
+    expect(porcentajeCorrectivoReactivo(0, 0)).toBe(null);
+    expect(porcentajeCorrectivoReactivo(undefined, undefined)).toBe(null);
   });
 });
 
