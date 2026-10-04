@@ -3089,6 +3089,53 @@ function rendimientoRealEquipoMes(sigla, mes, prodTurnoEq, prodTurno){
   return{valor:Math.round((totalVueltas/totalHoras)*100)/100,n:filas.length,unidad:'vueltas/hr'};
 }
 
+// Rendimiento teórico por Tiempo de Ciclo REAL (2026-10-05) — tiempoCicloMin
+// se captura por turno+equipo en produccion_turno_equipos (OCR del reporte)
+// desde que existe este módulo, pero hasta ahora quedaba guardado sin que
+// ningún cálculo lo usara. A diferencia de rendimientoTeoricoCargadorFrontal
+// (parámetros FIJOS de catálogo Q/LF/E/Cm, cargados una vez por modelo), esto
+// usa la MEDIANA del tiempo de ciclo real medido turno a turno ese mes — más
+// representativo de las condiciones reales (distancia, pendiente, tránsito)
+// que un parámetro de catálogo, y sirve para CUALQUIER equipo que reporte
+// ciclo (CAEX o Carguío/cargador frontal), no solo cargadores con los 4
+// parámetros cargados. Mediana y no promedio: mismo criterio que el resto
+// del sistema — un ciclo atípico (ej. una espera larga) no debe mover el
+// número representativo del mes. Exige ≥3 turnos con tiempoCicloMin>0 ese
+// mes — mismo mínimo de muestra que rendimientoRealEquipoMes, nunca se
+// inventa un rendimiento con 1-2 datos. tonHrTeorico solo se calcula si hay
+// tonVuelta cargado (también mediana) — null si no, no se inventa un
+// tonelaje por vuelta.
+function rendimientoPorCicloEquipoMes(sigla, mes, prodTurnoEq, prodTurno){
+  var fechaPorTurnoId={};
+  (prodTurno||[]).forEach(function(t){if(t&&t.id)fechaPorTurnoId[t.id]=t.fecha;});
+  var filas=(prodTurnoEq||[]).filter(function(e){
+    if(!e||e.sigla!==sigla)return false;
+    if(!(e.tiempoCicloMin>0))return false;
+    var fecha=fechaPorTurnoId[e.turnoId];
+    return !!fecha&&fecha.slice(0,7)===mes;
+  });
+  if(filas.length<3)return null;
+  var cicloMedianoMin=medianaPositiva(filas.map(function(f){return f.tiempoCicloMin;}));
+  var vueltasHrTeorico=Math.round((60/cicloMedianoMin)*100)/100;
+  var tonVueltas=filas.map(function(f){return f.tonVuelta;}).filter(function(v){return v>0;});
+  var tonVueltaMediano=tonVueltas.length?medianaPositiva(tonVueltas):null;
+  var tonHrTeorico=tonVueltaMediano?Math.round(vueltasHrTeorico*tonVueltaMediano*100)/100:null;
+  return{cicloMedianoMin:cicloMedianoMin,vueltasHrTeorico:vueltasHrTeorico,tonHrTeorico:tonHrTeorico,n:filas.length};
+}
+
+// Brecha entre lo que el tiempo de ciclo real permitiría sin pausas
+// (rendimientoPorCicloEquipoMes.vueltasHrTeorico) y lo que de verdad se
+// logró ese mes (rendimientoRealEquipoMes.valor, vueltas reales/hora real)
+// — positiva = se pierde producción en esperas/colas que no quedan
+// registradas como horas de detención formal (el equipo "anda" pero no
+// rinde). Puede dar negativa (el real superó la mediana teórica) si una
+// parte del mes tuvo ciclos más cortos que la mediana — es un dato real,
+// no un error. null si falta cualquiera de los dos cálculos de origen.
+function brechaRendimientoCiclo(real,teorico){
+  if(!real||!teorico||!(teorico.vueltasHrTeorico>0))return null;
+  return Math.round((1-real.valor/teorico.vueltasHrTeorico)*100);
+}
+
 // Tonelaje real perdido por Indisponibilidad de UN equipo en UN mes —
 // cruza directo con lo que ya calcula dispDownMap/dispEquipoMes (disp.js),
 // mismo mes, misma sigla. Es una SUMA de lo que el supervisor de terreno ya
@@ -6798,7 +6845,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

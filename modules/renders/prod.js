@@ -43,6 +43,22 @@ export function renderProd(){
   }).filter(function(f){return f;}):[];
   filasDowntime.sort(function(a,b){return b.totalTon-a.totalTon;});
 
+  // Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05): tiempoCicloMin
+  // se capturaba por turno desde que existe este módulo pero no alimentaba
+  // ningún cálculo — ver rendimientoPorCicloEquipoMes/brechaRendimientoCiclo
+  // (logic.js). Sirve para CUALQUIER equipo con ciclo reportado (CAEX o
+  // Carguío), no solo Cargador Frontal con los 4 parámetros de catálogo
+  // cargados. La brecha solo se calcula cuando además hay rendimiento REAL
+  // de vueltas/hr ese mes (hoy, solo CAEX vía rendimientoRealEquipoMes).
+  var filasCiclo=fMes?eq.map(function(e){
+    var teorico=rendimientoPorCicloEquipoMes(e.sigla,fMes,turnosEq,turnos);
+    if(!teorico)return null;
+    var real=rendimientoRealEquipoMes(e.sigla,fMes,turnosEq,turnos);
+    var brecha=real?brechaRendimientoCiclo(real,teorico):null;
+    return {sigla:e.sigla,modelo:e.modelo,teorico:teorico,real:real,brecha:brecha};
+  }).filter(function(f){return f;}):[];
+  filasCiclo.sort(function(a,b){return(b.brecha??-999)-(a.brecha??-999);});
+
   var filas=filtrados.map(function(t){
     var eqDelTurno=turnosEq.filter(function(e){return e.turnoId===t.id;});
     var nCaex=eqDelTurno.filter(function(e){return e.categoria==='CAEX';}).length;
@@ -73,7 +89,8 @@ export function renderProd(){
     '<tr><th>Fecha</th><th>Turno</th><th>Supervisor</th><th>Equipos CAEX</th><th>Filas Indisp.</th><th>Ton. Totales</th><th>Rend. Transporte [Ton/hr]</th></tr>'+
     (filas||'<tr><td colspan="7" style="font-size:12px;color:var(--tx3)">Sin reportes de turno cargados todavía.</td></tr>')+
     '</table></div>'+
-    _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon);
+    _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon)+
+    _prodRendimientoCicloHTML(filasCiclo,fMes);
 }
 
 // Costo de Downtime por equipo (2026-10-02): toneladas perdidas por
@@ -103,6 +120,32 @@ function _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon){
       }).join('')+
       '</table></div>'
       :'<div style="font-size:12px;color:var(--tx3)">Sin Pérdida por Indisponibilidad reportada ese mes.</div>')+
+    '</div>';
+}
+
+// Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05) — ver
+// rendimientoPorCicloEquipoMes/brechaRendimientoCiclo (logic.js). Sin mes
+// seleccionado, no se muestra nada (filasCiclo llega []).
+function _prodRendimientoCicloHTML(filasCiclo,fMes){
+  if(!fMes)return '';
+  return '<div class="chart-box" style="margin-top:16px">'+
+    '<div class="chart-t">🔁 Rendimiento Teórico por Tiempo de Ciclo — '+escapeHtml(fMes)+'</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Vueltas/hr que darías si se repitiera sin pausas la MEDIANA del tiempo de ciclo real medido ese mes (no un parámetro fijo de catálogo) — sirve para CAEX y Carguío por igual. La "Brecha" solo aparece cuando además hay rendimiento real de vueltas/hr ese mes (hoy, solo CAEX): positiva = se pierde producción en esperas/colas que no quedan como horas de detención formal; negativa = el real superó la mediana teórica (dato válido, no un error).</div>'+
+    (filasCiclo.length?
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Ciclo mediano</th><th>Vueltas/hr teórico</th><th>Ton/hr teórico</th><th>Vueltas/hr real</th><th>Brecha</th></tr>'+
+      filasCiclo.map(function(f){
+        var b=f.brecha;
+        var colB=b==null?'var(--tx3)':b>15?'var(--danger)':b>0?'var(--w)':'var(--ok)';
+        return '<tr><td class="mono" style="color:var(--ac)">'+f.sigla+'</td>'+
+          '<td style="font-size:11px">'+escapeHtml(f.modelo||'')+'</td>'+
+          '<td style="text-align:center">'+f.teorico.cicloMedianoMin+' min</td>'+
+          '<td style="text-align:center;font-weight:700">'+f.teorico.vueltasHrTeorico+'</td>'+
+          '<td style="text-align:center">'+(f.teorico.tonHrTeorico!=null?f.teorico.tonHrTeorico:'—')+'</td>'+
+          '<td style="text-align:center">'+(f.real?f.real.valor:'—')+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+colB+'">'+(b!=null?b+'%':'—')+'</td></tr>';
+      }).join('')+
+      '</table></div>'
+      :'<div style="font-size:12px;color:var(--tx3)">Ningún equipo con ≥3 turnos con tiempo de ciclo registrado ese mes.</div>')+
     '</div>';
 }
 

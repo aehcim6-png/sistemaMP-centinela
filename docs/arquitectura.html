@@ -2976,6 +2976,23 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Predictivo → Fallas Repetitivas: 3 inputs S/O/D por causa + NPR en vivo, ordenadas por NPR
   descendente.</p>
 
+  <h3>95. Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05)</h3>
+  <p>CAEX se mide con datos reales (<code>rendimientoRealEquipoMes</code>), Cargador Frontal con
+  una fórmula teórica de parámetros FIJOS de catálogo (<code>rendimientoTeoricoCargadorFrontal</code>,
+  Q×LF×E×60/Cm) — dos mundos que nunca se cruzan. <code>tiempoCicloMin</code> se capturaba por
+  turno desde el OCR del reporte sin alimentar ningún cálculo.</p>
+  <p><b><code>rendimientoPorCicloEquipoMes</code></b>: rendimiento teórico a partir de la MEDIANA
+  del tiempo de ciclo REAL medido ese mes (no un parámetro de catálogo) — sirve para cualquier
+  equipo con ciclo reportado (CAEX o Carguío), no solo cargadores con los 4 parámetros cargados.
+  Exige ≥3 turnos con ciclo ese mes. <code>vueltasHrTeorico = 60/cicloMedianoMin</code>;
+  <code>tonHrTeorico</code> solo si hay <code>tonVuelta</code> cargado.</p>
+  <p><b><code>brechaRendimientoCiclo</code></b>: compara el teórico por ciclo contra el real
+  (<code>rendimientoRealEquipoMes</code>, hoy solo CAEX). Positiva = producción perdida en esperas
+  no registradas como detención formal; negativa = el real superó la mediana (dato válido).</p>
+  <p>UI en Producción: nueva sección "Rendimiento Teórico por Tiempo de Ciclo", tabla por equipo
+  con ciclo mediano, vueltas/ton por hora teóricos, real, y brecha coloreada — ordenada por brecha
+  descendente.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

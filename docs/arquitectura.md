@@ -5755,6 +5755,47 @@ clave compuesta (no hay índice de array fijo como en las tablas CRUD
 comunes, porque la fila puede no existir todavía la primera vez que se
 califica).
 
+### 95. Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05)
+
+Pedido real del usuario tras repasar cómo se mide el rendimiento de la
+maquinaria hoy: CAEX se mide con **datos reales** (`rendimientoRealEquipoMes`
+— vueltas/hora real, promedio ponderado por horas), y Cargador Frontal se
+mide con una **fórmula teórica de parámetros fijos de catálogo**
+(`rendimientoTeoricoCargadorFrontal`, Q×LF×E×60/Cm) — dos mundos que nunca
+se cruzan, y un dato real capturado hace tiempo que no alimentaba ningún
+cálculo: `tiempoCicloMin`, el tiempo de ciclo que la Edge Function OCR
+(`leer-reporte-produccion`) ya extrae de la foto del reporte y guarda en
+`produccion_turno_equipos`, turno a turno, desde que existe este módulo
+(2026-09-30) — sin ningún consumidor hasta ahora.
+
+**`rendimientoPorCicloEquipoMes(sigla,mes,prodTurnoEq,prodTurno)`**
+(logic.js): calcula un rendimiento teórico, pero a diferencia del de
+Cargador Frontal, a partir del tiempo de ciclo REAL medido ese mes (no un
+parámetro de catálogo) — así que sirve para **cualquier equipo que reporte
+ciclo** (CAEX o Carguío), no solo cargadores con los 4 parámetros cargados.
+Usa la MEDIANA del `tiempoCicloMin` del mes (mismo criterio que el resto
+del sistema: un ciclo atípico, ej. una espera larga, no debe mover el
+número representativo), exige ≥3 turnos con ciclo registrado ese mes —
+mismo mínimo de muestra que `rendimientoRealEquipoMes`, nunca se inventa
+con 1-2 datos. `vueltasHrTeorico = 60/cicloMedianoMin`. `tonHrTeorico` solo
+se calcula si hay `tonVuelta` cargado (también mediana) — null si no, nunca
+se inventa un tonelaje por vuelta.
+
+**`brechaRendimientoCiclo(real,teorico)`**: compara lo que el ciclo real
+permitiría sin pausas contra lo que de verdad se logró ese mes
+(`rendimientoRealEquipoMes.valor`, hoy solo existe para CAEX). Positiva =
+se pierde producción en esperas/colas que no quedan registradas como horas
+de detención formal (el equipo "anda" pero no rinde). Puede dar negativa
+(el real superó la mediana teórica en una parte del mes) — es un dato
+real, no un error. null si falta cualquiera de los dos cálculos de origen.
+
+**UI** (`modules/renders/prod.js`): nueva sección "🔁 Rendimiento Teórico
+por Tiempo de Ciclo" en Producción, por mes seleccionado — tabla por
+equipo con ciclo mediano, vueltas/hr y ton/hr teóricos, vueltas/hr real (si
+hay), y la brecha coloreada (rojo &gt;15%, ámbar 0-15%, verde si negativa).
+Ordenada por brecha descendente — el equipo que más producción pierde en
+esperas no registradas aparece primero.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
