@@ -562,6 +562,28 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Rendimiento por tipo de equipo (no se inventa un valor nominal sin ese dato real). Ver
   <a href="arquitectura.html">Arquitectura</a>, sección 88.</p>
 
+  <h2>8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</h2>
+  <p>% Correctivo Reactivo por horas, Matriz Jack-Knife (MTBF vs MTTR), Costo de Downtime real,
+  Rotación/Obsolescencia de Stock MRO y FMEA con NPR — las 5 en Costos &amp; Stock, Producción o
+  Predictivo según corresponda. La única que requiere algo del admin es <b>Costo de Downtime
+  real</b>: necesita <code>cfg.margenPorTon</code> (Configuración → Tarifas y Metas, campo
+  opcional nuevo "Margen por Tonelada") — sin ese dato, el sistema muestra las toneladas perdidas
+  pero no calcula el costo (nunca inventa un valor de tonelada). Las otras 4 no requieren
+  configuración — empiezan a mostrar datos apenas hay suficiente historial cargado. Ver
+  <a href="arquitectura.html">Arquitectura</a>, secciones 90-94, para el detalle técnico de cada
+  una.</p>
+
+  <h2>8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</h2>
+  <p>Dentro de Producción: a partir de <code>tiempoCicloMin</code> (ya capturado por OCR por
+  turno, sin consumidor hasta ahora) el sistema calcula un rendimiento teórico por equipo —
+  MEDIANA del ciclo real medido ese mes, no un parámetro de catálogo — que sirve para CAEX y
+  Carguío por igual, a diferencia del Rendimiento Teórico de Cargador Frontal (fórmula de
+  parámetros fijos). La columna "Consistencia (CV)" marca qué tan parejos fueron esos ciclos
+  (Estable/Variable/Errático); la "Brecha" compara ese teórico contra el rendimiento real medido
+  (hoy solo existe para CAEX). Nada que configurar — no depende de ningún dato nuevo, solo de que
+  haya ≥3 turnos con tiempo de ciclo registrado ese mes. Ver <a href="arquitectura.html">Arquitectura</a>,
+  secciones 95-96.</p>
+
   <h2>9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
