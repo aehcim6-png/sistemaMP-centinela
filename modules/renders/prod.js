@@ -124,21 +124,26 @@ function _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon){
 }
 
 // Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05) — ver
-// rendimientoPorCicloEquipoMes/brechaRendimientoCiclo (logic.js). Sin mes
-// seleccionado, no se muestra nada (filasCiclo llega []).
+// rendimientoPorCicloEquipoMes/brechaRendimientoCiclo/coeficienteVariacion/
+// interpretacionCV (logic.js). Sin mes seleccionado, no se muestra nada
+// (filasCiclo llega []).
 function _prodRendimientoCicloHTML(filasCiclo,fMes){
   if(!fMes)return '';
   return '<div class="chart-box" style="margin-top:16px">'+
     '<div class="chart-t">🔁 Rendimiento Teórico por Tiempo de Ciclo — '+escapeHtml(fMes)+'</div>'+
-    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Vueltas/hr que darías si se repitiera sin pausas la MEDIANA del tiempo de ciclo real medido ese mes (no un parámetro fijo de catálogo) — sirve para CAEX y Carguío por igual. La "Brecha" solo aparece cuando además hay rendimiento real de vueltas/hr ese mes (hoy, solo CAEX): positiva = se pierde producción en esperas/colas que no quedan como horas de detención formal; negativa = el real superó la mediana teórica (dato válido, no un error).</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Vueltas/hr que darías si se repitiera sin pausas la MEDIANA del tiempo de ciclo real medido ese mes (no un parámetro fijo de catálogo) — sirve para CAEX y Carguío por igual. "Consistencia (CV)" es el Coeficiente de Variación del ciclo (σ/x̄) — dos equipos pueden tener el mismo ciclo mediano pero uno con ciclos parejos (CV bajo, "Estable") y otro muy errático (CV alto, señal de tránsito irregular, esperas intermitentes u otra causa operativa); bandas de lectura rápida, no un umbral de norma certificada. La "Brecha" solo aparece cuando además hay rendimiento real de vueltas/hr ese mes (hoy, solo CAEX): positiva = se pierde producción en esperas/colas que no quedan como horas de detención formal; negativa = el real superó la mediana teórica (dato válido, no un error).</div>'+
     (filasCiclo.length?
-      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Ciclo mediano</th><th>Vueltas/hr teórico</th><th>Ton/hr teórico</th><th>Vueltas/hr real</th><th>Brecha</th></tr>'+
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Ciclo mediano</th><th>Consistencia (CV)</th><th>Vueltas/hr teórico</th><th>Ton/hr teórico</th><th>Vueltas/hr real</th><th>Brecha</th></tr>'+
       filasCiclo.map(function(f){
         var b=f.brecha;
         var colB=b==null?'var(--tx3)':b>15?'var(--danger)':b>0?'var(--w)':'var(--ok)';
+        var cv=f.teorico.cvPct;
+        var lecturaCV=interpretacionCV(cv);
+        var colCV=lecturaCV==='Errático'?'var(--danger)':lecturaCV==='Variable'?'var(--w)':lecturaCV==='Estable'?'var(--ok)':'var(--tx3)';
         return '<tr><td class="mono" style="color:var(--ac)">'+f.sigla+'</td>'+
           '<td style="font-size:11px">'+escapeHtml(f.modelo||'')+'</td>'+
           '<td style="text-align:center">'+f.teorico.cicloMedianoMin+' min</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+colCV+'">'+(cv!=null?cv+'% ('+lecturaCV+')':'—')+'</td>'+
           '<td style="text-align:center;font-weight:700">'+f.teorico.vueltasHrTeorico+'</td>'+
           '<td style="text-align:center">'+(f.teorico.tonHrTeorico!=null?f.teorico.tonHrTeorico:'—')+'</td>'+
           '<td style="text-align:center">'+(f.real?f.real.valor:'—')+'</td>'+

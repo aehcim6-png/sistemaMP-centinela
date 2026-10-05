@@ -5796,6 +5796,39 @@ hay), y la brecha coloreada (rojo &gt;15%, ámbar 0-15%, verde si negativa).
 Ordenada por brecha descendente — el equipo que más producción pierde en
 esperas no registradas aparece primero.
 
+### 96. Coeficiente de Variación del tiempo de ciclo (2026-10-05)
+
+El usuario pidió revisar una serie de infografías/posts guardados para ver
+si alguno daba una idea concreta para el sistema. La mayoría era contenido
+genérico (formatos de storytelling, roadmap de Data Science, preguntas de
+entrevista) sin aplicación real — pero una ("Medidas de Dispersión
+Estadística": varianza, desviación estándar, coeficiente de variación) sí
+señaló un hueco real: el sistema ya usa varianza internamente (prueba de
+Levene, Kaplan-Meier/Greenwood, CUSUM de aceite) pero nunca la expone como
+métrica de CONSISTENCIA de un dato — y el `cicloMedianoMin` de la sección
+95 es justo un caso donde dos equipos pueden tener la misma mediana pero
+uno con ciclos parejos y otro muy errático, sin que el número lo muestre.
+
+**`coeficienteVariacion(valores)`** (logic.js): CV = σ/x̄ en %, con
+desviación estándar MUESTRAL (n-1, no poblacional) — la muestra mínima es
+chica (3 turnos), y con n-1 no se subestima la dispersión real. null si hay
+menos de 2 valores o si la media da 0 (nunca divide por cero).
+
+**`interpretacionCV(cvPct)`**: banda el resultado en 3 niveles para lectura
+rápida — Estable (≤15%), Variable (16-30%), Errático (&gt;30%). Mismo
+criterio que `prioridadNPR`: agrupación relativa propia para dar contexto
+de un vistazo, explícitamente no un umbral de norma certificada.
+
+**Integración**: `rendimientoPorCicloEquipoMes` (sección 95) ahora también
+devuelve `cvPct`, calculado sobre el mismo arreglo de `tiempoCicloMin` que
+ya filtra (mismo mes, misma sigla, ≥3 turnos) — sin pasada extra de datos
+ni duplicar el mínimo de muestra.
+
+**UI** (`modules/renders/prod.js`): nueva columna "Consistencia (CV)" en
+la tabla de Rendimiento Teórico por Tiempo de Ciclo, con el % y la
+etiqueta (Estable/Variable/Errático) coloreada igual que el resto del
+sistema (verde/ámbar/rojo).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

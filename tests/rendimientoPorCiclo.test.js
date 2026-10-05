@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rendimientoPorCicloEquipoMes, brechaRendimientoCiclo } from '../logic.js';
+import { rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV } from '../logic.js';
 
 function turno(id, fecha) {
   return { id, fecha };
@@ -28,6 +28,7 @@ describe('rendimientoPorCicloEquipoMes — rendimiento teórico a partir del tie
     expect(r.vueltasHrTeorico).toBe(3);
     expect(r.n).toBe(3);
     expect(r.tonHrTeorico).toBeNull(); // sin tonVuelta cargado
+    expect(r.cvPct).toBe(25); // ciclos 15,20,25: desv.estándar muestral 5, media 20 -> 25%
   });
 
   it('calcula tonHrTeorico cuando hay tonVuelta cargado (mediana también)', () => {
@@ -41,6 +42,7 @@ describe('rendimientoPorCicloEquipoMes — rendimiento teórico a partir del tie
     const r = rendimientoPorCicloEquipoMes('CN-9500', '2026-10', prodTurnoEq, prodTurno);
     expect(r.vueltasHrTeorico).toBe(3);
     expect(r.tonHrTeorico).toBe(90);
+    expect(r.cvPct).toBe(0); // ciclo constante (20,20,20) -> sin dispersión
   });
 
   it('no mezcla equipos ni meses distintos, y descarta ciclos <= 0', () => {
@@ -86,5 +88,40 @@ describe('brechaRendimientoCiclo — gap entre lo que el ciclo real permitiría 
     expect(brechaRendimientoCiclo(null, teorico)).toBeNull();
     expect(brechaRendimientoCiclo(real, null)).toBeNull();
     expect(brechaRendimientoCiclo(real, { cicloMedianoMin: 20, vueltasHrTeorico: 0, n: 5 })).toBeNull();
+  });
+});
+
+describe('coeficienteVariacion — σ/x̄ en %, medida de dispersión (no de nivel)', () => {
+  it('con menos de 2 valores devuelve null — no se puede medir dispersión con 1 dato', () => {
+    expect(coeficienteVariacion([20])).toBeNull();
+    expect(coeficienteVariacion([])).toBeNull();
+    expect(coeficienteVariacion(undefined)).toBeNull();
+  });
+
+  it('con valores idénticos el CV es 0 (sin dispersión)', () => {
+    expect(coeficienteVariacion([20, 20, 20])).toBe(0);
+  });
+
+  it('calcula el CV con desviación estándar MUESTRAL (n-1)', () => {
+    // media 20, desv. estándar muestral 5 (ver cálculo a mano arriba) -> 25%
+    expect(coeficienteVariacion([15, 20, 25])).toBe(25);
+  });
+
+  it('null si la media da 0 — nunca divide por cero', () => {
+    expect(coeficienteVariacion([0, 0])).toBeNull();
+  });
+});
+
+describe('interpretacionCV — banda de lectura rápida, no un umbral de norma certificada', () => {
+  it('null si no hay CV calculado', () => {
+    expect(interpretacionCV(null)).toBeNull();
+  });
+
+  it('Estable hasta 15%, Variable hasta 30%, Errático por encima', () => {
+    expect(interpretacionCV(0)).toBe('Estable');
+    expect(interpretacionCV(15)).toBe('Estable');
+    expect(interpretacionCV(16)).toBe('Variable');
+    expect(interpretacionCV(30)).toBe('Variable');
+    expect(interpretacionCV(31)).toBe('Errático');
   });
 });

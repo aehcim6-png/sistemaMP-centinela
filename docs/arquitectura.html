@@ -2993,6 +2993,22 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con ciclo mediano, vueltas/ton por hora teóricos, real, y brecha coloreada — ordenada por brecha
   descendente.</p>
 
+  <h3>96. Coeficiente de Variación del tiempo de ciclo (2026-10-05)</h3>
+  <p>De una revisión de infografías guardadas por el usuario, una sobre medidas de dispersión
+  estadística señaló un hueco real: el sistema usa varianza internamente (Levene, Kaplan-Meier/
+  Greenwood, CUSUM de aceite) pero nunca la expone como métrica de consistencia — dos equipos
+  pueden tener el mismo <code>cicloMedianoMin</code> (sección 95) pero uno con ciclos parejos y
+  otro muy errático, sin que el número lo muestre.</p>
+  <p><b><code>coeficienteVariacion(valores)</code></b>: CV = σ/x̄ en %, con desviación estándar
+  MUESTRAL (n-1, no poblacional — la muestra mínima es chica). null con menos de 2 valores o media
+  0. <b><code>interpretacionCV(cvPct)</code></b> banda el resultado en Estable (≤15%), Variable
+  (16-30%), Errático (&gt;30%) — mismo criterio que <code>prioridadNPR</code>: agrupación relativa
+  propia, no un umbral de norma certificada.</p>
+  <p><code>rendimientoPorCicloEquipoMes</code> ahora también devuelve <code>cvPct</code>, sobre el
+  mismo arreglo de <code>tiempoCicloMin</code> ya filtrado — sin pasada extra de datos. UI: nueva
+  columna "Consistencia (CV)" en la tabla de Rendimiento Teórico por Tiempo de Ciclo, coloreada
+  igual que el resto del sistema.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

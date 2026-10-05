@@ -3115,12 +3115,44 @@ function rendimientoPorCicloEquipoMes(sigla, mes, prodTurnoEq, prodTurno){
     return !!fecha&&fecha.slice(0,7)===mes;
   });
   if(filas.length<3)return null;
-  var cicloMedianoMin=medianaPositiva(filas.map(function(f){return f.tiempoCicloMin;}));
+  var ciclos=filas.map(function(f){return f.tiempoCicloMin;});
+  var cicloMedianoMin=medianaPositiva(ciclos);
   var vueltasHrTeorico=Math.round((60/cicloMedianoMin)*100)/100;
   var tonVueltas=filas.map(function(f){return f.tonVuelta;}).filter(function(v){return v>0;});
   var tonVueltaMediano=tonVueltas.length?medianaPositiva(tonVueltas):null;
   var tonHrTeorico=tonVueltaMediano?Math.round(vueltasHrTeorico*tonVueltaMediano*100)/100:null;
-  return{cicloMedianoMin:cicloMedianoMin,vueltasHrTeorico:vueltasHrTeorico,tonHrTeorico:tonHrTeorico,n:filas.length};
+  return{cicloMedianoMin:cicloMedianoMin,vueltasHrTeorico:vueltasHrTeorico,tonHrTeorico:tonHrTeorico,n:filas.length,cvPct:coeficienteVariacion(ciclos)};
+}
+
+// Coeficiente de Variación del tiempo de ciclo (2026-10-05) — σ/x̄ en %,
+// medida de DISPERSIÓN (qué tan erráticos son los ciclos ese mes), no de
+// nivel (eso ya lo da cicloMedianoMin arriba). Dos equipos pueden tener el
+// mismo ciclo mediano y rendimientos teóricos iguales, pero uno con ciclos
+// consistentes (CV bajo, proceso estable) y otro con ciclos muy dispersos
+// (CV alto — señal de algo operativo: tránsito irregular, esperas
+// intermitentes, operador distinto por turno) que el promedio/mediana solos
+// no muestran. Desviación estándar MUESTRAL (n-1, no poblacional) porque la
+// muestra mínima es chica (3 turnos) — con n-1 no se subestima la dispersión
+// real. null si la media da 0 (no debería pasar con tiempoCicloMin>0, pero
+// nunca se divide por cero).
+function coeficienteVariacion(valores){
+  if(!valores||valores.length<2)return null;
+  var media=valores.reduce(function(s,v){return s+v;},0)/valores.length;
+  if(!(media>0))return null;
+  var sumaCuadrados=valores.reduce(function(s,v){return s+Math.pow(v-media,2);},0);
+  var desviacionEstandar=Math.sqrt(sumaCuadrados/(valores.length-1));
+  return Math.round((desviacionEstandar/media)*10000)/100;
+}
+
+// Banda el Coeficiente de Variación del ciclo en 3 niveles de lectura
+// rápida para la UI — igual que prioridadNPR: agrupación relativa propia
+// para dar contexto de un vistazo, no un umbral de norma certificada. null
+// si cvPct es null (no hay suficiente muestra).
+function interpretacionCV(cvPct){
+  if(cvPct==null)return null;
+  if(cvPct<=15)return 'Estable';
+  if(cvPct<=30)return 'Variable';
+  return 'Errático';
 }
 
 // Brecha entre lo que el tiempo de ciclo real permitiría sin pausas
@@ -6845,7 +6877,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
