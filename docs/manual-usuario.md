@@ -2,7 +2,7 @@
 
 > **Esta es una copia portable, para leer sin abrir el sistema.** La versión
 > completa y siempre actualizada vive DENTRO del sistema, en la pestaña
-> **❓ Ayuda** (31 secciones con capturas de pantalla conceptuales, índice
+> **❓ Ayuda** (33 secciones con capturas de pantalla conceptuales, índice
 > navegable, y las novedades de cada actualización). Este archivo es un
 > resumen para imprimir, mandar por correo, o leer en el celular sin
 > necesitar conexión.
@@ -328,4 +328,4 @@ guardada y se recuerda la próxima vez que entras.
 
 Para el detalle completo de cada función (con capturas conceptuales y
 ejemplos paso a paso), abre el sistema y ve a la pestaña **❓ Ayuda** — ahí
-vive la versión completa de 31 secciones, siempre al día.
+vive la versión completa de 33 secciones, siempre al día.
