@@ -401,7 +401,7 @@ td.calc{color:var(--tx3);font-style:italic}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-08-31',
-  ayuda:'2026-09-02',
+  ayuda:'2026-10-05',
   cad:'2026-08-30b',
   cfg:'2026-10-02',
   comp2:'2026-08-30',
@@ -3224,8 +3224,8 @@ window.exportTabla=function(tabId,nombre){
   toast('📥 '+nombre+' exportado a CSV');
 };
 
-window.imprimirTab=function(tabId,nombre){
-  var section=document.getElementById('s-'+tabId);
+window.imprimirTab=function(tabId,nombre,elId){
+  var section=document.getElementById(elId||('s-'+tabId));
   if(!section)return;
   var win=window.open('','','width=1200,height=800');
   win.document.write('<html><head><title>'+(nombre||'Informe SistemaMP')+'</title>'+

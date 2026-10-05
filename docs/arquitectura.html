@@ -3009,6 +3009,27 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   columna "Consistencia (CV)" en la tabla de Rendimiento Teórico por Tiempo de Ciclo, coloreada
   igual que el resto del sistema.</p>
 
+  <h3>97. Guía de Capacitación por Rol — dentro de Ayuda, descargable (2026-10-05)</h3>
+  <p>El manual completo (<code>manual-usuario.md</code>/<code>manual-admin.html</code>) es
+  referencia, no material para ENSEÑAR el sistema a un equipo. Se probó primero como documento
+  vivo externo, pero el usuario pidió que viva <b>dentro del programa</b> y sea
+  <b>descargable</b>.</p>
+  <p><code>modules/renders/ayuda.js</code>: nueva sección 33 (<code>id="m33"</code>) en la
+  pestaña Ayuda, mismo patrón de tarjeta que las otras 32. Cubre 5 roles reales (mapeados a los
+  roles/perfiles que ya existen): Operador de Terreno, Planificador, Comprador, Supervisor/Jefe
+  de Mantenimiento, Administrador — tareas paso a paso, ejemplo de flujo real, preguntas
+  frecuentes por rol.</p>
+  <p><code>imprimirTab(tabId,nombre,elId)</code> (index.html) ganó un 3er parámetro opcional
+  <code>elId</code> — con él clona ESE elemento en vez de toda la pestaña; sin él, retrocompatible
+  con las 3 llamadas existentes. El botón nuevo llama
+  <code>imprimirTab('ayuda','Guía de Capacitación por Rol','m33')</code> — mismo flujo de
+  impresión/"Guardar como PDF" ya existente, pero acotado a esa tarjeta.</p>
+  <p>Verificado con un arnés mínimo servido localmente y abierto con Playwright/Chromium real
+  (no se puede loguear a la app real sin credenciales Supabase/MFA desde este entorno):
+  <code>renderAyuda()</code> corre sin error, <code>#m33</code> y su link de índice existen, el
+  botón dispara <code>imprimirTab</code> con el 3er parámetro, y el HTML capturado contiene las 5
+  secciones de rol y ninguna otra del manual.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

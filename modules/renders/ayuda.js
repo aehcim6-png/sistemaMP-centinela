@@ -231,6 +231,7 @@ export function renderAyuda(){
     '<a href="#m30" style="color:var(--ac);text-decoration:none;padding:2px 0">30. Programación Diaria</a>'+
     '<a href="#m31" style="color:var(--ac);text-decoration:none;padding:2px 0">31. Verificación en Dos Pasos</a>'+
     '<a href="#m32" style="color:var(--ac);text-decoration:none;padding:2px 0">32. Glosario de Términos</a>'+
+    '<a href="#m33" style="color:var(--ac);text-decoration:none;padding:2px 0">33. 🎓 Guía de Capacitación por Rol</a>'+
     '</div></div>'+
 
     // 1. QUÉ ES
@@ -808,7 +809,81 @@ export function renderAyuda(){
     '<b style="color:var(--ac)">Otros</b><br>'+
     '<b>Criticidad</b> — qué tan grave es que un equipo específico falle: Crítico (detiene toda la operación), Esencial (afecta la producción pero hay cómo seguir), General (tiene respaldo/reemplazo). Se define en la Ficha Técnica de cada equipo.<br>'+
     '<b>Score de Salud</b> — un número de 0 a 100% que resume en un solo dato el estado de un equipo, combinando sus componentes mayores, neumáticos, análisis de aceite y confiabilidad — se ve en el Dashboard (Mapa de Salud) y en la ficha de cada equipo en Buscar.<br>'+
-    '<b>KPI</b> — "Key Performance Indicator" (Indicador Clave de Desempeño): cualquiera de los números que el sistema hace seguimiento mes a mes contra una meta (ej. Disponibilidad, Cumplimiento PM).</div></div>';
+    '<b>KPI</b> — "Key Performance Indicator" (Indicador Clave de Desempeño): cualquiera de los números que el sistema hace seguimiento mes a mes contra una meta (ej. Disponibilidad, Cumplimiento PM).</div></div>'+
+
+    // 33. GUÍA DE CAPACITACIÓN POR ROL (2026-10-05, pedido del usuario: un
+    // documento didáctico para ENSEÑAR el sistema, distinto de este manual
+    // de referencia — responde "en qué orden aprendo esto" en vez de "qué
+    // hace cada botón". Vive dentro del programa (esta pestaña) y es
+    // descargable con su propio botón, reusando imprimirTab() con el 3er
+    // parámetro (elId) que apunta solo a esta tarjeta, no a toda la pestaña
+    // Ayuda — así se puede entregar por separado sin el manual completo.
+    '<div class="card" style="margin-bottom:12px" id="m33">'+
+    '<div class="sec-h" style="margin-bottom:10px"><div><div class="card-t" style="font-size:16px">33. 🎓 Guía de Capacitación por Rol</div>'+
+    '<div class="sec-s">En qué orden aprender el sistema, según lo que a vos te toca hacer</div></div>'+
+    '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Guía de Capacitación por Rol\',\'m33\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Descargar Guía</button></div>'+
+
+    '<p style="font-size:12px;color:var(--tx3);margin:0 0 12px">Este manual (secciones 1-32) es la referencia para buscar un detalle puntual. Esta guía es distinta: enseña en qué orden aprender cada parte, con ejemplos y pasos concretos, según tu rol. El botón de arriba descarga/imprime SOLO esta guía, sin el resto del manual.</p>'+
+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;margin-bottom:12px">'+
+    '<b>Rol vs. Perfil — dos cosas distintas</b><br>'+
+    '<b>Rol</b> (Operador / Admin) decide qué podés HACER. <b>Perfil</b> (Horómetro / Comprador / Planificador / sin perfil) decide qué PESTAÑAS ves — es opcional, y un Admin siempre ve todo aunque tenga un perfil cargado por error.</div>'+
+
+    '<div class="tbl-wrap"><table style="font-size:12px;margin-bottom:14px"><tr><th>Si tu trabajo es...</th><th>Leé la sección</th></tr>'+
+    '<tr><td>Registrar PM, correctivos, inspecciones en terreno</td><td><b>Operador de Terreno</b></td></tr>'+
+    '<tr><td>Armar el plan semanal, asignar técnicos, pautas</td><td><b>Planificador</b></td></tr>'+
+    '<tr><td>Stock, órdenes de compra, proveedores</td><td><b>Comprador</b></td></tr>'+
+    '<tr><td>Decidir qué intervenir, revisar costos y confiabilidad</td><td><b>Supervisor / Jefe de Mantenimiento</b></td></tr>'+
+    '<tr><td>Crear usuarios, seguridad, respaldo</td><td><b>Administrador</b></td></tr></table></div>'+
+
+    '<div style="font-size:13px;line-height:1.8">'+
+
+    '<b style="color:var(--ac);font-size:14px">👷 Operador de Terreno</b><br>'+
+    'Tu día tipo: llegás, revisás qué equipo te toca, registrás lo que hiciste o encontraste, y seguís. El sistema calcula el resto.<br>'+
+    '<b>1. Registro PM</b> — elegí el equipo, cargá el <b>horómetro real</b> que marca en ese momento (no el que "debería" tener), marcá las actividades ejecutadas y guardá. Todo depende de que este número sea real.<br>'+
+    '<b>2. Correctivos</b> — desde el celular en terreno usá <b>⚡ Registro Rápido</b> (equipo, qué pasó, urgencia); completá Causa Raíz, Tipo de Causa y Categoría MTTR después, con más tiempo. Si el equipo ya falló 3+ veces por lo mismo, el sistema avisa solo.<br>'+
+    '<b>3. Inspección Diaria y Neumáticos</b> — cargá remanente/cambios con fecha real; el sistema proyecta solo cuánto vas a necesitar comprar.<br>'+
+    '<b>4. Análisis de Aceite</b> — cargá la muestra apenas llega; el sistema compara contra el historial real del componente.<br>'+
+    '<b>Errores comunes:</b> horómetro "a ojo" sin leerlo del equipo; cerrar una OT sin costo sin revisar la sugerencia ("💡 usar"); saltarse Tipo de Causa/Categoría MTTR por ser opcionales.<br>'+
+    '<b>¿Qué hago si el sistema avisa que alguien más editó lo mismo?</b> No perdiste tu trabajo — te muestra el dato fresco y pide reintentar.<br><br>'+
+
+    '<b style="color:var(--ac);font-size:14px">📅 Planificador</b><br>'+
+    'Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos, Pautas, Registro PM.<br>'+
+    '<b>1. Plan Semanal</b> — asigná técnicos a los PM y correctivos de la semana (el sistema ya sabe qué PM tocan por horómetro) y cerrá la semana al terminar, para que quede como histórico real.<br>'+
+    '<b>2. Programa Anual y Gantt</b> — la foto grande del año y la vista visual de qué se superpone.<br>'+
+    '<b>3. Planificador de Materiales</b> — antes de programar un PM grande, confirmá que el repuesto ya esté en stock o con OC en camino.<br>'+
+    '<b>4. Destrabe</b> — revisalo junto con el cierre semanal: un trabajo trabado mucho tiempo es plata parada.<br>'+
+    '<b>Ejemplo de semana:</b> lunes revisás Destrabe → armás el Plan Semanal → chequeás Planificador de Materiales. Viernes cerrás la semana.<br><br>'+
+
+    '<b style="color:var(--ac);font-size:14px">🛒 Comprador</b><br>'+
+    'Con este perfil ves una sola pestaña: Stock &amp; Insumos.<br>'+
+    '<b>1. El semáforo de stock</b> — lo rojo necesita pedido ya; el botón 📈 Tendencia y Proyección de Compra te dice, con consumo real, en qué fecha conviene pedir.<br>'+
+    '<b>2. Generar una OC</b> — cargá cantidad y proveedor; el estado avanza Pedido → OC por Firmar/Firmada → Recibida, y el stock se actualiza solo al recibirla.<br>'+
+    '<b>3. Compras — Proveedores</b> — tiempo de respuesta real por proveedor y gasto acumulado, útil para negociar o priorizar.<br>'+
+    '<b>4. Pedidos Potencialmente Trabados</b> — pedidos abiertos que ya llevan más días que lo normal para ESE proveedor; revisalo semanalmente.<br>'+
+    '<b>5. Tiempo Interno de Aprobación de OC</b> — mide solo la parte que depende de la empresa, separada del proveedor.<br>'+
+    '<b>¿Por qué un ítem con stock aparece como "pedir ya"?</b> Porque la proyección mira cuánto se consume Y cuánto tarda en llegar — avisa antes de que sea tarde, no cuando ya faltó.<br><br>'+
+
+    '<b style="color:var(--ac);font-size:14px">📊 Supervisor / Jefe de Mantenimiento</b><br>'+
+    'No necesitás entender cada fórmula — solo qué PREGUNTA responde cada pantalla.<br>'+
+    '<b>Dashboard</b>: tu vistazo diario — empezá por la tarjeta 🔴 Riesgo Alto.<br>'+
+    '<b>Predictivo</b> (según tu pregunta): Matriz de Riesgo = "¿qué es lo más urgente de toda la flota?" (arrancá siempre acá); RUL = "¿cuántas horas le quedan a este componente?"; Señal Unificada de Reemplazo = "¿este equipo ya amerita evaluar reemplazo?"; Intervalo P-F = "¿cada cuánto inspeccionar?"; Kijima = "¿las reparaciones restauran o solo tapan el síntoma?"; Mantenimiento Oportunista = "¿conviene adelantar otro cambio ya que va a parar?".<br>'+
+    '<b>Disponibilidad</b>: Producción Perdida por Detención traduce horas paradas en m³/toneladas no entregadas; el Simulador What-If te deja probar escenarios antes de gastar en un proyecto.<br>'+
+    '<b>Costos &amp; Stock (MTBF/MTTR)</b>: Matriz Jack-Knife (equipos crónicos/complejos) y % Correctivo Reactivo (si viene alto, el preventivo no está alcanzando).<br>'+
+    '<b>Producción</b>: Costo de Downtime real y Rendimiento por Tiempo de Ciclo con su columna Consistencia (CV) — un CV alto es señal operativa, no mecánica.<br>'+
+    '<b>Metas &amp; KPIs → Resumen Ejecutivo</b>: para reportar lo que ya decidiste, no para decidir.<br>'+
+    '<b>Flujo semanal de ejemplo:</b> lunes Dashboard → Matriz de Riesgo → para lo urgente, RUL o Señal Unificada según corresponda → coordinás con el Planificador. Fin de mes: Costos &amp; Stock + Metas &amp; KPIs.<br>'+
+    '<b>¿Qué hago si un número me parece raro?</b> Los números con poca muestra llevan un aviso ⚠️ — no es un error, es que ese número puntual todavía no es confiable.<br><br>'+
+
+    '<b style="color:var(--ac);font-size:14px">🔐 Administrador</b><br>'+
+    '<b>1. Usuarios</b> — Configuración → Crear Usuario del Sistema: asigná rol (Operador/Admin) y, si corresponde, perfil. Podés editar el perfil de una cuenta activa después, sin recrearla.<br>'+
+    '<b>2. Seguridad</b> — MFA (recomendado para todos, obligatorio en la práctica para Admin), rotación de contraseñas, bloqueo tras 5 intentos fallidos, alerta de dispositivo nuevo.<br>'+
+    '<b>3. Respaldo</b> — backup diario automático + detector de salud que avisa solo si algo falla; existe un procedimiento documentado de restauración completa si alguna vez hace falta.<br>'+
+    '<b>4. Si algo se rompe</b> — la sección "Si algo se rompe" del manual-admin es tu primera parada, antes de tocar Supabase directo.<br>'+
+    '<b>Checklist rápido:</b> rol/perfil correcto en cuentas nuevas · MFA activo en Admin · revisar mensualmente cuentas de gente que ya no trabaja acá · confirmar que llegó el correo del backup diario.<br>'+
+    '<b>¿Qué pasa si asigno un perfil por error a un Admin?</b> Nada grave — un Admin SIEMPRE ve las pestañas completas, tenga perfil cargado o no.'+
+
+    '</div></div>';
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).

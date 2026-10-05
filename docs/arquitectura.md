@@ -5829,7 +5829,44 @@ la tabla de Rendimiento Teórico por Tiempo de Ciclo, con el % y la
 etiqueta (Estable/Variable/Errático) coloreada igual que el resto del
 sistema (verde/ámbar/rojo).
 
-## Lo que decidimos NO hacer (y por qué)
+### 97. Guía de Capacitación por Rol — dentro de Ayuda, descargable (2026-10-05)
+
+El usuario pidió revisar si `manual-usuario.md`/`manual-admin.html` (la
+referencia completa) eran didácticos para ENSEÑAR el sistema a un equipo —
+no lo eran: están pensados para buscar un detalle puntual, no para decidir
+en qué orden aprender. Se armó primero una versión como documento vivo
+(Claude Docs) para validar el contenido, pero el usuario pidió que viva
+**dentro del programa** y sea **descargable** — no un link externo.
+
+**`modules/renders/ayuda.js`**: nueva sección 33 (`id="m33"`) dentro de la
+pestaña Ayuda, después del Glosario — mismo patrón de tarjeta `<div
+class="card" id="mN">` que las otras 32 secciones, con su entrada en el
+ÍNDICE de arriba. Cubre 5 roles reales del sistema (mapeados 1:1 a los
+roles/perfiles que ya existen, ninguno inventado): Operador de Terreno,
+Planificador, Comprador, Supervisor/Jefe de Mantenimiento, Administrador —
+cada uno con tareas paso a paso, un ejemplo de flujo real y preguntas
+frecuentes, en vez de la descripción plana de "qué hace cada botón" que ya
+tiene el resto del manual.
+
+**Descargable sin el resto del manual**: `imprimirTab(tabId,nombre,elId)`
+(index.html) ganó un 3er parámetro opcional `elId` — si se pasa, clona
+ESE elemento en vez de `'s-'+tabId'` (toda la pestaña). Retrocompatible:
+las 3 llamadas existentes (`resumenejec.js`, `ayuda.js` para "Imprimir
+Manual", `cfg.js`, `ace.js`) no pasan ese 3er argumento y siguen imprimiendo
+la pestaña completa como siempre. El botón nuevo dentro de la sección 33
+llama `imprimirTab('ayuda','Guía de Capacitación por Rol','m33')` — abre el
+mismo flujo de impresión ya existente (ventana nueva, `window.print()`, de
+ahí "Guardar como PDF" desde el diálogo del navegador) pero solo con el
+contenido de esa tarjeta.
+
+**Verificación real**: dado que requiere login real (Supabase/MFA) para
+probarlo dentro de la app corriendo, se armó un arnés mínimo (`S`/`$`/
+`renders` stubeados) servido localmente y abierto con Playwright/Chromium
+real — confirmó que `renderAyuda()` corre sin error, que `#m33` y su link
+de índice existen, que el botón de descarga dispara `imprimirTab` con el
+3er parámetro, y que el HTML capturado contiene las 5 secciones de rol y
+NINGUNA del resto del manual (ej. no incluye el Glosario). El arnés era un
+archivo temporal fuera del repo real, borrado al terminar.
 
 - **No backend propio**: agregar un servidor Node/Express entre el
   navegador y Supabase solo se justifica si aparece una razón concreta (una
