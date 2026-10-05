@@ -809,7 +809,8 @@ export function renderAyuda(){
     '<b style="color:var(--ac)">Otros</b><br>'+
     '<b>Criticidad</b> — qué tan grave es que un equipo específico falle: Crítico (detiene toda la operación), Esencial (afecta la producción pero hay cómo seguir), General (tiene respaldo/reemplazo). Se define en la Ficha Técnica de cada equipo.<br>'+
     '<b>Score de Salud</b> — un número de 0 a 100% que resume en un solo dato el estado de un equipo, combinando sus componentes mayores, neumáticos, análisis de aceite y confiabilidad — se ve en el Dashboard (Mapa de Salud) y en la ficha de cada equipo en Buscar.<br>'+
-    '<b>KPI</b> — "Key Performance Indicator" (Indicador Clave de Desempeño): cualquiera de los números que el sistema hace seguimiento mes a mes contra una meta (ej. Disponibilidad, Cumplimiento PM).</div></div>'+
+    '<b>KPI</b> — "Key Performance Indicator" (Indicador Clave de Desempeño): cualquiera de los números que el sistema hace seguimiento mes a mes contra una meta (ej. Disponibilidad, Cumplimiento PM).<br>'+
+    '<b>R² (ajuste de la proyección)</b> — aparece en Neumáticos, junto a la fecha de cambio proyectada (ej. "R²=0.64"). Mide qué porcentaje del desgaste realmente medido explica la recta que usa el sistema para proyectar: R²=0.64 significa que la recta explica el 64% del comportamiento real, y el 36% restante es dispersión que no logra explicar. Va de 0 a 1: cerca de 1 = la proyección sigue muy bien las mediciones y la fecha es confiable; bajo 0.5 = las mediciones son pocas o muy dispersas — el sistema lo marca con "⚠️ ajuste débil" y conviene tomar esa fecha con cautela hasta tener más mediciones.</div></div>'+
 
     // 33. GUÍA DE CAPACITACIÓN POR ROL (2026-10-05, pedido del usuario: un
     // documento didáctico para ENSEÑAR el sistema, distinto de este manual
