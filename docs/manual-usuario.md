@@ -127,6 +127,125 @@ Correctivos — el sistema responde confirmando o avisando si no lo entendió.
 Si el mensaje es ambiguo, igual se guarda pero marcado para que un admin lo
 revise, nunca se pierde en silencio.
 
+## 8. Guía de Capacitación por Rol
+
+> La versión completa de esta guía (con el mismo contenido) vive **dentro
+> del sistema**, en ❓ Ayuda → sección 33 — con su propio botón para
+> descargarla/imprimirla sola, sin el resto del manual.
+
+Las secciones anteriores son referencia: sirven para buscar un detalle
+puntual. Esta es distinta — enseña en qué orden aprender el sistema según
+lo que a vos te toca hacer, con pasos concretos y ejemplos.
+
+**Rol vs. Perfil**: el **rol** (Operador/Admin) decide qué podés hacer; el
+**perfil** (Horómetro/Comprador/Planificador/sin perfil) decide qué
+pestañas ves. Es opcional — sin perfil asignado, ves todas las pestañas; un
+Admin siempre ve todo, tenga perfil cargado o no.
+
+| Si tu trabajo es... | Leé la sección |
+|---|---|
+| Registrar PM, correctivos, inspecciones en terreno | Operador de Terreno |
+| Armar el plan semanal, asignar técnicos, pautas | Planificador |
+| Stock, órdenes de compra, proveedores | Comprador |
+| Decidir qué intervenir, revisar costos y confiabilidad | Supervisor / Jefe de Mantenimiento |
+| Crear usuarios, seguridad, respaldo | Administrador |
+
+### Operador de Terreno
+
+Tu día tipo: llegás, revisás qué equipo te toca, registrás lo que hiciste o
+encontraste, y seguís. El sistema calcula el resto.
+
+1. **Registro PM** — elegí el equipo, cargá el horómetro real que marca en
+   ese momento (no el que "debería" tener), marcá las actividades
+   ejecutadas y guardá. Todo depende de que este número sea real.
+2. **Correctivos** — desde el celular en terreno usá ⚡ Registro Rápido
+   (equipo, qué pasó, urgencia); completá Causa Raíz, Tipo de Causa y
+   Categoría MTTR después. Si el equipo ya falló 3+ veces por lo mismo, el
+   sistema avisa solo.
+3. **Inspección Diaria y Neumáticos** — cargá remanente/cambios con fecha
+   real; el sistema proyecta solo cuánto vas a necesitar comprar.
+4. **Análisis de Aceite** — cargá la muestra apenas llega; el sistema
+   compara contra el historial real del componente.
+
+**Errores comunes**: horómetro "a ojo" sin leerlo del equipo; cerrar una OT
+sin costo sin revisar la sugerencia ("💡 usar"); saltarse Tipo de
+Causa/Categoría MTTR por ser opcionales.
+
+### Planificador
+
+Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos,
+Pautas, Registro PM.
+
+1. **Plan Semanal** — asigná técnicos a los PM y correctivos de la semana
+   y cerrá la semana al terminar, para que quede como histórico real.
+2. **Programa Anual y Gantt** — la foto grande del año y la vista visual
+   de qué se superpone.
+3. **Planificador de Materiales** — antes de programar un PM grande,
+   confirmá que el repuesto ya esté en stock o con OC en camino.
+4. **Destrabe** — revisalo junto con el cierre semanal: un trabajo trabado
+   mucho tiempo es plata parada.
+
+**Ejemplo de semana**: lunes revisás Destrabe → armás el Plan Semanal →
+chequeás Planificador de Materiales. Viernes cerrás la semana.
+
+### Comprador
+
+Con este perfil ves una sola pestaña: Stock & Insumos.
+
+1. **El semáforo de stock** — lo rojo necesita pedido ya; el botón 📈
+   Tendencia y Proyección de Compra te dice, con consumo real, en qué
+   fecha conviene pedir.
+2. **Generar una OC** — cargá cantidad y proveedor; el estado avanza
+   Pedido → OC por Firmar/Firmada → Recibida, y el stock se actualiza solo.
+3. **Compras — Proveedores** — tiempo de respuesta real por proveedor y
+   gasto acumulado.
+4. **Pedidos Potencialmente Trabados** — pedidos abiertos que ya llevan
+   más días que lo normal para ESE proveedor.
+5. **Tiempo Interno de Aprobación de OC** — mide solo la parte que
+   depende de la empresa, separada del proveedor.
+
+### Supervisor / Jefe de Mantenimiento
+
+No necesitás entender cada fórmula — solo qué pregunta responde cada
+pantalla.
+
+- **Dashboard**: tu vistazo diario — empezá por la tarjeta 🔴 Riesgo Alto.
+- **Predictivo**: Matriz de Riesgo = "¿qué es lo más urgente de toda la
+  flota?" (arrancá siempre acá); RUL = "¿cuántas horas le quedan a este
+  componente?"; Señal Unificada de Reemplazo = "¿este equipo ya amerita
+  evaluar reemplazo?"; Intervalo P-F = "¿cada cuánto inspeccionar?";
+  Kijima = "¿las reparaciones restauran o solo tapan el síntoma?";
+  Mantenimiento Oportunista = "¿conviene adelantar otro cambio ya que va a
+  parar?".
+- **Disponibilidad**: Producción Perdida por Detención traduce horas
+  paradas en m³/toneladas no entregadas; el Simulador What-If te deja
+  probar escenarios antes de gastar en un proyecto.
+- **Costos & Stock (MTBF/MTTR)**: Matriz Jack-Knife (equipos
+  crónicos/complejos) y % Correctivo Reactivo.
+- **Producción**: Costo de Downtime real y Rendimiento por Tiempo de
+  Ciclo con su columna Consistencia (CV).
+- **Metas & KPIs → Resumen Ejecutivo**: para reportar lo que ya
+  decidiste, no para decidir.
+
+**Flujo semanal de ejemplo**: lunes Dashboard → Matriz de Riesgo → para lo
+urgente, RUL o Señal Unificada según corresponda → coordinás con el
+Planificador. Fin de mes: Costos & Stock + Metas & KPIs.
+
+### Administrador
+
+1. **Usuarios** — Configuración → Crear Usuario del Sistema: asigná rol
+   (Operador/Admin) y, si corresponde, perfil.
+2. **Seguridad** — MFA, rotación de contraseñas, bloqueo tras 5 intentos
+   fallidos, alerta de dispositivo nuevo.
+3. **Respaldo** — backup diario automático + detector de salud que avisa
+   solo si algo falla.
+4. **Si algo se rompe** — la sección correspondiente de manual-admin.html
+   es tu primera parada, antes de tocar Supabase directo.
+
+**Checklist rápido**: rol/perfil correcto en cuentas nuevas · MFA activo
+en Admin · revisar mensualmente cuentas de gente que ya no trabaja acá ·
+confirmar que llegó el correo del backup diario.
+
 **¿Qué pasa si me quedo inactivo mucho rato con la sesión abierta?**
 A los 55 minutos sin usar el mouse/teclado aparece un aviso en pantalla
 ("¿Sigues ahí?") con cuenta regresiva. Si no haces nada, a la hora completa
