@@ -1263,12 +1263,14 @@ export function resumenFlotaNeu(){
         </tr>`;
         const interp=typeof interpretacionFormaWeibull==='function'?interpretacionFormaWeibull(g.ajuste.beta):'';
         const ic=g.ajuste.ic90;
+        const aj=typeof interpretacionAjusteWeibull==='function'?interpretacionAjusteWeibull(g.ajuste.r2):null;
+        const ajusteHtml=aj?`<div style="font-size:9px;margin-top:2px;color:${aj.nivel==='debil'?'var(--warn)':'var(--tx3)'}">${aj.nivel==='debil'?'⚠️ ':''}Ajuste de la recta R²=${g.ajuste.r2}: ${escapeHtml(aj.texto)}</div>`:'';
         return`<tr style="border-bottom:1px solid var(--bd)">
           <td style="padding:6px;font-weight:600">${escapeHtml(g.grupo)}</td>
           <td style="text-align:center">${g.n}</td>
           <td style="text-align:center;font-weight:700">${g.ajuste.beta}${ic?`<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ${ic.betaMin}–${ic.betaMax}</div>`:''}</td>
           <td style="text-align:center">${fn2(g.ajuste.eta)}h${ic?`<div style="font-size:9px;color:var(--tx3)">IC90 ${fn2(ic.etaMin)}–${fn2(ic.etaMax)}h</div>`:''}</td>
-          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp||'')}</td>
+          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp||'')}${ajusteHtml}</td>
         </tr>`;
       }).join('')}
     </table></div>

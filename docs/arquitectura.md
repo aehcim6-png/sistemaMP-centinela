@@ -5868,6 +5868,53 @@ de índice existen, que el botón de descarga dispara `imprimirTab` con el
 NINGUNA del resto del manual (ej. no incluye el Glosario). El arnés era un
 archivo temporal fuera del repo real, borrado al terminar.
 
+### 98. Weibull: qué hacer según β y ¿los puntos siguen la recta? (2026-10-06)
+
+De un flujo "Cómo usar Weibull" (Predictiva21) que el usuario compartió, se
+comparó paso a paso contra lo que ya hacíamos. Ya estaban: mínimo de 5
+intervalos, separar fallas de suspensiones (Weibull con censura) y estimar
+β/η. Faltaban dos cosas, ambas con datos que el sistema ya tiene:
+
+**1. Qué hacer según β** (`interpretacionFormaWeibull`, logic.js): antes solo
+decía QUÉ es cada régimen. Ahora suma la acción — β&lt;0.9: revisar montaje,
+arranque y calidad del repuesto, y reemplazar por edad EMPEORA el problema;
+β≈1: la edad no predice la falla, reemplazar por edad no cambia nada y
+conviene monitoreo por condición; β&gt;1.1: evaluar el reemplazo preventivo
+por edad. Los cortes (0.9 / 1.1) no cambiaron. El texto se muestra en las 6
+pantallas que ya usaban la función (Torre de Control, Neumáticos,
+Componentes, Estadística), sin tocar cada una.
+
+**2. ¿Los puntos siguen la recta?** (`r2` en `_ajusteWeibullDeMuestra` +
+`interpretacionAjusteWeibull`): la regresión de rangos medianos ya tenía los
+puntos del gráfico de probabilidad pero nunca evaluaba el ajuste; ahora
+devuelve `r2` (reusa `r2RegresionLineal`, sin repetir el cálculo). Bandas
+0.9 / 0.8 (criterio práctico, no un umbral de norma, igual que
+`prioridadNPR`): bueno / aceptable / débil. Con R² débil, el texto avisa de
+posible mezcla de modos de falla o valor atípico: separar por componente/modo
+y reajustar. UI: línea "Ajuste de la recta R²=…" en las tablas por regresión
+(Estadística → Por Componente, Historial de Componentes, Neumáticos por
+posición) y en Torre de Control, con ⚠️ y color de aviso solo en el nivel débil.
+Torre además aclara siempre que su Weibull es por EQUIPO y mezcla todos los
+modos de falla.
+
+**Límites, a propósito**: (a) solo aplica a ajustes por regresión (equipo y
+vidas); los de máxima verosimilitud con censura no tienen una recta que
+evaluar y no muestran R². (b) Detecta mezclas MARCADAS (probado: dos modos
+muy separados dan R²≈0.73–0.77), no sutiles (dos grupos de vida cercanos
+dieron ≈0.81, "aceptable"). (c) No se adoptó "con menos de 5 datos usar
+datos de referencia" del flujo: contradice no inventar un número — el
+sistema sigue sin ajustar. (d) No se calcula una "vida óptima de reemplazo
+por costos" (β&gt;1): requiere costo preventivo y de falla por componente, y
+la carga de costos de las OT todavía está incompleta.
+
+También se agregó al Glosario (Ayuda, sección 32) la entrada "Weibull (β y
+η)". Tests: +10 (1206 en total), incluyendo que dos modos mezclados dan R²
+menor que una muestra limpia. Verificado en un navegador real renderizando
+la función real de Estadística con una bomba de dos modos mezclados (⚠️
+R²=0.73) y un rodamiento limpio (R²=0.992).
+
+## Lo que decidimos NO hacer (y por qué)
+
 - **No backend propio**: agregar un servidor Node/Express entre el
   navegador y Supabase solo se justifica si aparece una razón concreta (una
   regla de negocio que RLS no pueda expresar, un secreto que ni RLS proteja,

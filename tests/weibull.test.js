@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull } from '../logic.js';
+import { ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, confiabilidadWeibull, interpretacionFormaWeibull, interpretacionAjusteWeibull } from '../logic.js';
 
 describe('ajusteWeibull', () => {
   it('null con menos de 5 intervalos (4 intervalos = 5 fallas, bajo el mínimo)', () => {
@@ -24,7 +24,7 @@ describe('ajusteWeibull', () => {
 
   it('devuelve beta/eta/n con datos suficientes (7 fallas, forma de desgaste)', () => {
     const r = ajusteWeibull([1000, 1800, 2500, 3100, 3600, 4000, 4300]);
-    expect(r).toEqual({ beta: 2.9, eta: 620, n: 6, ic90: { betaMin: 2.7, betaMax: 3.09, etaMin: 604, etaMax: 636 } });
+    expect(r).toEqual({ beta: 2.9, eta: 620, n: 6, r2: 0.996, ic90: { betaMin: 2.7, betaMax: 3.09, etaMin: 604, etaMax: 636 } });
   });
 
   it('es insensible al orden de entrada (no depende de que vengan ya ordenadas)', () => {
@@ -115,7 +115,7 @@ describe('confiabilidadWeibull', () => {
 describe('ajusteWeibullVidas', () => {
   it('ajusta directamente sobre vidas completas (no calcula intervalos, a diferencia de ajusteWeibull)', () => {
     const r = ajusteWeibullVidas([2200, 2450, 2600, 2750, 2900, 3100, 3300]);
-    expect(r).toEqual({ beta: 7.71, eta: 2921, n: 7, ic90: { betaMin: 7.1, betaMax: 8.31, etaMin: 2888, etaMax: 2954 } });
+    expect(r).toEqual({ beta: 7.71, eta: 2921, n: 7, r2: 0.992, ic90: { betaMin: 7.1, betaMax: 8.31, etaMin: 2888, etaMax: 2954 } });
   });
 
   it('null con menos de 5 vidas', () => {
@@ -146,7 +146,7 @@ describe('analisisVidaUtilPorGrupo', () => {
     const r = analisisVidaUtilPorGrupo(items);
     expect(r).toEqual([
       { grupo: 'Bridgestone 24.00R35', n: 3, ajuste: null },
-      { grupo: 'Michelin 24.00R35', n: 7, ajuste: { beta: 7.71, eta: 2921, n: 7, ic90: { betaMin: 7.1, betaMax: 8.31, etaMin: 2888, etaMax: 2954 } } },
+      { grupo: 'Michelin 24.00R35', n: 7, ajuste: { beta: 7.71, eta: 2921, n: 7, r2: 0.992, ic90: { betaMin: 7.1, betaMax: 8.31, etaMin: 2888, etaMax: 2954 } } },
     ]);
   });
 
@@ -237,5 +237,73 @@ describe('interpretacionFormaWeibull', () => {
 
   it('desgaste cuando beta > 1.1', () => {
     expect(interpretacionFormaWeibull(2.9)).toMatch(/desgaste/i);
+  });
+});
+
+describe('interpretacionFormaWeibull — suma QUÉ HACER según el régimen de β (flujo "Cómo usar Weibull")', () => {
+  it('β<1: revisar montaje/arranque/repuesto, y avisa que reemplazar por edad empeora el problema', () => {
+    const t = interpretacionFormaWeibull(0.5);
+    expect(t).toMatch(/montaje/i);
+    expect(t).toMatch(/empeora/i);
+  });
+
+  it('β≈1: reemplazar por edad no cambia nada, conviene monitoreo por condición', () => {
+    const t = interpretacionFormaWeibull(1.0);
+    expect(t).toMatch(/no cambia nada/i);
+    expect(t).toMatch(/condición/i);
+  });
+
+  it('β>1: evaluar reemplazo preventivo por edad', () => {
+    expect(interpretacionFormaWeibull(2.9)).toMatch(/evaluar el reemplazo preventivo por edad/i);
+  });
+
+  it('los límites 0.9 y 1.1 siguen siendo los mismos (0.9 y 1.1 caen en "aleatorias")', () => {
+    expect(interpretacionFormaWeibull(0.89)).toMatch(/tempranas/i);
+    expect(interpretacionFormaWeibull(0.9)).toMatch(/aleatorias/i);
+    expect(interpretacionFormaWeibull(1.1)).toMatch(/aleatorias/i);
+    expect(interpretacionFormaWeibull(1.11)).toMatch(/desgaste/i);
+  });
+});
+
+describe('ajusteWeibull — r2: ¿los puntos siguen la recta de probabilidad?', () => {
+  it('datos que siguen bien un Weibull dan r2 alto (cerca de 1)', () => {
+    const r = ajusteWeibullVidas([2200, 2450, 2600, 2750, 2900, 3100, 3300]);
+    expect(r.r2).toBeGreaterThanOrEqual(0.9);
+    expect(r.r2).toBeLessThanOrEqual(1);
+  });
+
+  it('dos modos mezclados (muchas fallas tempranas + otras por desgaste) dan r2 claramente menor', () => {
+    const mezcla = ajusteWeibullVidas([50, 60, 70, 80, 90, 3000, 3200, 3300, 3400, 3500]);
+    const limpio = ajusteWeibullVidas([2200, 2450, 2600, 2750, 2900, 3100, 3300]);
+    expect(mezcla.r2).toBeLessThan(limpio.r2);
+    expect(mezcla.r2).toBeLessThan(0.9);
+  });
+
+  it('r2 sale del mismo ajuste: no cambia beta/eta ni el mínimo de 5 datos', () => {
+    expect(ajusteWeibullVidas([100, 200, 300, 400])).toBeNull();
+    const r = ajusteWeibullVidas([2200, 2450, 2600, 2750, 2900, 3100, 3300]);
+    expect(r.beta).toBe(7.71);
+    expect(r.eta).toBe(2921);
+  });
+});
+
+describe('interpretacionAjusteWeibull — bandas de lectura rápida (no un umbral de norma)', () => {
+  it('null sin r2', () => {
+    expect(interpretacionAjusteWeibull(null)).toBeNull();
+    expect(interpretacionAjusteWeibull(undefined)).toBeNull();
+  });
+
+  it('≥0.9 bueno, 0.8–0.9 aceptable, <0.8 débil', () => {
+    expect(interpretacionAjusteWeibull(0.97).nivel).toBe('bueno');
+    expect(interpretacionAjusteWeibull(0.9).nivel).toBe('bueno');
+    expect(interpretacionAjusteWeibull(0.85).nivel).toBe('aceptable');
+    expect(interpretacionAjusteWeibull(0.8).nivel).toBe('aceptable');
+    expect(interpretacionAjusteWeibull(0.79).nivel).toBe('debil');
+  });
+
+  it('el nivel débil habla de mezcla de modos y de separar y reajustar', () => {
+    const t = interpretacionAjusteWeibull(0.5).texto;
+    expect(t).toMatch(/mezcla de modos/i);
+    expect(t).toMatch(/separar/i);
   });
 });

@@ -1422,6 +1422,12 @@ function _ajusteWeibullDeMuestra(muestra){
   var eta=Math.exp(-intercepto/beta);
   if(!isFinite(beta)||!isFinite(eta)||beta<=0||eta<=0)return null;
   var r={beta:Math.round(beta*100)/100,eta:Math.round(eta),n:n};
+  // R² de la recta de probabilidad Weibull (2026-10-06) — responde "¿los
+  // puntos siguen la recta?": con modos de falla mezclados los puntos se
+  // curvan y R² baja. Se evalúa con los MISMOS puntos de la regresión de
+  // arriba (no repite el ajuste). Ver interpretacionAjusteWeibull.
+  var reg=r2RegresionLineal(xs.map(function(x,i){return{x:x,y:ys[i]};}));
+  if(reg)r.r2=reg.r2;
   var ic90=_intervaloConfianzaWeibull(xs,ys,sumX,sumXX,n,beta,intercepto);
   if(ic90)r.ic90=ic90;
   return r;
@@ -2861,12 +2867,41 @@ function confiabilidadSistemaEquipo(componentes,ajustesPorTipo,horomActualEquipo
 }
 
 // Interpretación en palabras de β (2026-09-11, mismo pedido) — para que el
-// número no quede suelto sin explicación de qué significa.
+// número no quede suelto sin explicación de qué significa. 2026-10-06: cada
+// régimen suma además QUÉ HACER (flujo "Cómo usar Weibull" de Predictiva21):
+// con β<1 reemplazar por edad empeora el problema (se cambian piezas que
+// todavía estaban en su mejor momento y cada instalación nueva reabre el
+// riesgo de falla temprana); con β≈1 la edad no predice la falla, así que
+// reemplazar por edad no cambia nada y lo útil es monitorear por condición;
+// con β>1 sí vale evaluar el reemplazo preventivo por edad. No se calcula
+// una "vida óptima por costos" (haría falta costo preventivo y de falla por
+// componente, que hoy no están completos) — solo se orienta la decisión.
 function interpretacionFormaWeibull(beta){
   if(beta==null)return null;
-  if(beta<0.9)return 'Fallas tempranas — la tasa de falla BAJA con el uso (posible problema de instalación/rodaje)';
-  if(beta<=1.1)return 'Fallas aleatorias — tasa de falla estable, no depende de la edad del componente';
-  return 'Desgaste — la tasa de falla SUBE con el uso (esperable, priorizar reemplazo preventivo)';
+  if(beta<0.9)return 'Fallas tempranas — la tasa de falla BAJA con el uso (posible problema de instalación/rodaje). Revisar montaje, arranque y calidad del repuesto; reemplazar por edad empeora el problema';
+  if(beta<=1.1)return 'Fallas aleatorias — tasa de falla estable, no depende de la edad del componente. Reemplazar por edad no cambia nada: conviene monitoreo por condición';
+  return 'Desgaste — la tasa de falla SUBE con el uso (esperable). Evaluar el reemplazo preventivo por edad';
+}
+
+// Bondad de ajuste de la recta de probabilidad Weibull (2026-10-06) — paso
+// "¿los puntos siguen la recta?" del flujo "Cómo usar Weibull": si los
+// intervalos reales NO se alinean, lo más común es que haya MODOS DE FALLA
+// DISTINTOS mezclados en el mismo análisis (cada modo tiene su propio β, y
+// juntos curvan la recta) — o un valor atípico (un intervalo muy distinto
+// del resto). Entonces el β/η ajustado describe un promedio que no
+// representa a ninguno de los modos. r2 viene de _ajusteWeibullDeMuestra
+// (solo ajustes por regresión de rangos medianos; los de máxima
+// verosimilitud con censura no tienen recta que evaluar). Bandas 0.9 / 0.8:
+// criterio práctico para dar contexto de un vistazo, igual que prioridadNPR
+// — NO un umbral de norma certificada. LÍMITE: detecta mezclas marcadas
+// (probado: dos modos muy separados dan R²≈0.73-0.77), no mezclas sutiles
+// (dos grupos de vida cercanos pueden dar ≈0.81, "aceptable"). null si no
+// hay r2.
+function interpretacionAjusteWeibull(r2){
+  if(r2==null)return null;
+  if(r2>=0.9)return{nivel:'bueno',texto:'los puntos siguen bien la recta'};
+  if(r2>=0.8)return{nivel:'aceptable',texto:'los puntos siguen la recta con algo de dispersión'};
+  return{nivel:'debil',texto:'los puntos NO siguen bien la recta — posible mezcla de modos de falla distintos o valores atípicos: separar por componente/modo y volver a ajustar'};
 }
 
 // ═══ DISPONIBILIDAD — fuente ÚNICA compartida por Disponibilidad, KPI y Metas ═══
@@ -6880,7 +6915,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

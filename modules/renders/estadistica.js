@@ -199,12 +199,14 @@ function _estWeibullPorComponente(eventos) {
       var interp = typeof interpretacionFormaWeibull === 'function' ? interpretacionFormaWeibull(g.ajuste.beta) : '';
       var ic = g.ajuste.ic90;
       var icAmplio = ic && ic.betaMin < 0.9 && ic.betaMax > 1.1;
+      var aj = (typeof interpretacionAjusteWeibull === 'function') ? interpretacionAjusteWeibull(g.ajuste.r2) : null;
+      var ajusteHtml = aj ? '<div style="font-size:9px;margin-top:2px;color:' + (aj.nivel === 'debil' ? 'var(--warn)' : 'var(--tx3)') + '">' + (aj.nivel === 'debil' ? '⚠️ ' : '') + 'Ajuste de la recta R²=' + g.ajuste.r2 + ': ' + escapeHtml(aj.texto) + '</div>' : '';
       return '<tr>' +
         '<td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
         '<td style="text-align:center">' + g.n + '</td>' +
         '<td style="text-align:center;font-weight:700">' + g.ajuste.beta + (ic ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ' + ic.betaMin + '–' + ic.betaMax + '</div>' : '') + '</td>' +
         '<td style="text-align:center">' + fn(g.ajuste.eta) + 'h' + (ic ? '<div style="font-size:9px;color:var(--tx3)">IC90 ' + fn(ic.etaMin) + '–' + fn(ic.etaMax) + 'h</div>' : '') + '</td>' +
-        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + escapeHtml(interp || '') + (icAmplio ? ' <span style="color:var(--warn)">— rango amplio, todavía no hay certeza sobre la forma real</span>' : '') + '</td></tr>';
+        '<td style="font-size:10px;color:var(--tx2);white-space:normal">' + escapeHtml(interp || '') + (icAmplio ? ' <span style="color:var(--warn)">— rango amplio, todavía no hay certeza sobre la forma real</span>' : '') + ajusteHtml + '</td></tr>';
     }).join('') +
     '</table></div></div>';
 }

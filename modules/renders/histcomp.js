@@ -144,12 +144,14 @@ export function renderHistComp() {
         </tr>`;
         var interp = typeof interpretacionFormaWeibull === 'function' ? interpretacionFormaWeibull(g.ajuste.beta) : '';
         var ic = g.ajuste.ic90;
+        var aj = typeof interpretacionAjusteWeibull === 'function' ? interpretacionAjusteWeibull(g.ajuste.r2) : null;
+        var ajusteHtml = aj ? `<div style="font-size:9px;margin-top:2px;color:${aj.nivel === 'debil' ? 'var(--warn)' : 'var(--tx3)'}">${aj.nivel === 'debil' ? '⚠️ ' : ''}Ajuste de la recta R²=${g.ajuste.r2}: ${escapeHtml(aj.texto)}</div>` : '';
         return `<tr>
           <td style="font-weight:600">${escapeHtml(g.grupo)}</td>
           <td class="mono">${g.n}</td>
           <td class="mono" style="font-weight:700">${g.ajuste.beta}${ic ? `<div style="font-size:9px;font-weight:400;color:var(--tx3)">IC90 ${ic.betaMin}–${ic.betaMax}</div>` : ''}</td>
           <td class="mono">${fn(g.ajuste.eta)}h${ic ? `<div style="font-size:9px;color:var(--tx3)">IC90 ${fn(ic.etaMin)}–${fn(ic.etaMax)}h</div>` : ''}</td>
-          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp || '')}</td>
+          <td style="font-size:10px;color:var(--tx2);white-space:normal">${escapeHtml(interp || '')}${ajusteHtml}</td>
         </tr>`;
       }).join('')}
     </table></div>

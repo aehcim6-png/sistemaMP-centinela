@@ -237,6 +237,13 @@ window._torreAbrirDrawer=function(sigla){
       // intervalos (mínimo 5-6) el β puntual puede estar lejos de la forma
       // real; se muestra el rango en vez de aparentar una certeza que no hay.
       (r.weibull.ic90?'<div style="font-size:10px;color:var(--tx3);margin-top:2px">IC 90%: β entre '+r.weibull.ic90.betaMin+' y '+r.weibull.ic90.betaMax+(r.weibull.ic90.betaMin<0.9&&r.weibull.ic90.betaMax>1.1?' <span style="color:var(--warn)">— rango amplio, todavía no hay certeza sobre la forma real</span>':'')+'</div>':'')+
+      // Ajuste de la recta de probabilidad (2026-10-06): ¿los puntos siguen
+      // la recta? Con R² bajo, β/η describe un promedio de modos mezclados.
+      // Y como este Weibull es por EQUIPO (todas sus fallas juntas), siempre
+      // se aclara que mezcla modos de falla — el análisis fino es por componente.
+      (function(){var aj=(typeof interpretacionAjusteWeibull==='function')?interpretacionAjusteWeibull(r.weibull.r2):null;
+        return aj?'<div style="font-size:10px;margin-top:2px;color:'+(aj.nivel==='debil'?'var(--warn)':'var(--tx3)')+'">'+(aj.nivel==='debil'?'⚠️ ':'')+'Ajuste de la recta R²='+r.weibull.r2+': '+escapeHtml(aj.texto)+'</div>':'';})()+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:2px">Este ajuste es por EQUIPO y mezcla todos sus modos de falla — para verlos por separado: Estadística → Por Componente.</div>'+
       (rWeibull!=null?'<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Confiabilidad a 30 días — exponencial (de siempre): <b style="color:var(--tx2)">'+(r.score.detalle||[]).reduce(function(v,d){return d.nombre==='Confiabilidad'?d.valor:v;},null)+'%</b> · Weibull (forma real): <b style="color:var(--tx2)">'+rWeibull+'%</b></div>':'')+
       '</div>';
   }else{

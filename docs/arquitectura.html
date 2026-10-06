@@ -3030,6 +3030,27 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   botón dispara <code>imprimirTab</code> con el 3er parámetro, y el HTML capturado contiene las 5
   secciones de rol y ninguna otra del manual.</p>
 
+  <h3>98. Weibull: qué hacer según β y ¿los puntos siguen la recta? (2026-10-06)</h3>
+  <p>De un flujo "Cómo usar Weibull" (Predictiva21) se comparó paso a paso contra lo que ya
+  hacíamos (ya estaban: mínimo de 5 intervalos, fallas vs suspensiones, estimar β/η). Faltaban dos
+  cosas:</p>
+  <p><b>1. Qué hacer según β</b> (<code>interpretacionFormaWeibull</code>): antes solo decía qué es
+  cada régimen; ahora suma la acción — β&lt;0.9: revisar montaje/arranque/repuesto, y reemplazar
+  por edad empeora el problema; β≈1: reemplazar por edad no cambia nada, conviene monitoreo por
+  condición; β&gt;1.1: evaluar el reemplazo preventivo por edad. Cortes sin cambios (0.9 / 1.1);
+  se actualizan solas las 6 pantallas que usan la función.</p>
+  <p><b>2. ¿Los puntos siguen la recta?</b> (<code>r2</code> en <code>_ajusteWeibullDeMuestra</code>
+  + <code>interpretacionAjusteWeibull</code>): la regresión ya tenía los puntos pero nunca evaluaba
+  el ajuste; ahora devuelve <code>r2</code> (reusa <code>r2RegresionLineal</code>). Bandas 0.9 / 0.8,
+  criterio práctico y no umbral de norma. Con R² débil avisa de posible mezcla de modos de falla o
+  valor atípico: separar y reajustar. Línea "Ajuste de la recta R²=…" en las tablas por regresión y
+  en Torre de Control (que además aclara que su Weibull es por EQUIPO y mezcla modos).</p>
+  <p><b>Límites, a propósito</b>: solo ajustes por regresión (los de máxima verosimilitud con
+  censura no tienen recta); detecta mezclas marcadas (R²≈0.73–0.77), no sutiles (≈0.81);
+  no se adoptó "con menos de 5 datos usar datos de referencia" (contradice no inventar); no se
+  calcula una vida óptima de reemplazo por costos (faltan costos por componente). Glosario con la
+  entrada "Weibull (β y η)". Tests: 1206 en total, build limpio.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
