@@ -5913,6 +5913,21 @@ menor que una muestra limpia. Verificado en un navegador real renderizando
 la función real de Estadística con una bomba de dos modos mezclados (⚠️
 R²=0.73) y un rodamiento limpio (R²=0.992).
 
+### 99. Glosario: mediana vs. promedio, Pareto 80/20, chi-cuadrado y p-valor (2026-10-06)
+
+De 18 infografías de estadística básica se comparó cada concepto contra lo que el sistema ya
+hace. Casi todo ya estaba calculado (mediana en MTTR y tiempo de ciclo, Pareto de componentes
+y modos de falla, chi-cuadrado en Patrones Ocultos, Levene/ANOVA/Kruskal-Wallis/Log-Rank,
+Weibull, Poisson, regresión con R²). Lo que faltaba era explicarlo en lenguaje simple a quien
+usa el sistema, así que solo se agregaron 3 entradas al Glosario de Ayuda (sección 32):
+"Mediana vs. promedio", "Pareto 80/20" y "Chi-cuadrado (χ²) y p-valor".
+
+No se agregó ninguna estadística nueva a propósito: accuracy/precision/recall (clasificadores
+de machine learning), coeficiente phi, Z-test y probabilidad de la moneda no tienen un caso de
+uso real en mantenimiento, y para comparar grupos ya usamos pruebas más adecuadas a datos de
+falla (Mann-Whitney, Kruskal-Wallis, Log-Rank). Solo texto de Ayuda: sin cambios de lógica ni
+de tests.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -3051,6 +3051,17 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   calcula una vida óptima de reemplazo por costos (faltan costos por componente). Glosario con la
   entrada "Weibull (β y η)". Tests: 1206 en total, build limpio.</p>
 
+  <h3>99. Glosario: mediana vs. promedio, Pareto 80/20, chi-cuadrado y p-valor (2026-10-06)</h3>
+  <p>De 18 infografías de estadística básica se comparó cada concepto contra lo que el sistema ya
+  hace. Casi todo ya estaba calculado (mediana en MTTR y tiempo de ciclo, Pareto de componentes y
+  modos de falla, chi-cuadrado en Patrones Ocultos, Levene/ANOVA/Kruskal-Wallis/Log-Rank, Weibull,
+  Poisson, regresión con R²). Lo que faltaba era explicarlo en lenguaje simple, así que solo se
+  agregaron 3 entradas al Glosario de Ayuda (sección 32): "Mediana vs. promedio", "Pareto 80/20" y
+  "Chi-cuadrado (χ²) y p-valor".</p>
+  <p>No se agregó ninguna estadística nueva a propósito: accuracy/precision/recall, coeficiente phi,
+  Z-test y probabilidad de la moneda no tienen un caso de uso real en mantenimiento. Solo texto de
+  Ayuda: sin cambios de lógica ni de tests.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
