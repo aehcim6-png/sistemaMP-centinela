@@ -5928,6 +5928,16 @@ uso real en mantenimiento, y para comparar grupos ya usamos pruebas más adecuad
 falla (Mann-Whitney, Kruskal-Wallis, Log-Rank). Solo texto de Ayuda: sin cambios de lógica ni
 de tests.
 
+### 100. Glosario: Basado en condición vs. Predictivo (2026-10-07)
+
+De una infografía de Predyc ("Predictivo y basado en condición: ¿son lo mismo?") se comparó
+cada fila contra el sistema. Ya estaban los dos lados: condición (semáforos de Análisis de
+Aceite contra el umbral, límite de retiro de Neumáticos, PM vencidas) y predictivo (fecha
+proyectada de cambio de neumáticos, CUSUM de aceite, RUL híbrido, intervalo P-F), con las
+salvaguardas de la fila "dónde falla" (R² con aviso de ajuste débil y detección de errores de
+digitación en aceite). Solo se agregó la entrada "Basado en condición vs. Predictivo" al
+Glosario de Ayuda (sección 32). Solo texto: sin cambios de lógica ni de tests.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
