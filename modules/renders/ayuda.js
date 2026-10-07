@@ -851,7 +851,8 @@ export function renderAyuda(){
     '<b>3. Inspección Diaria y Neumáticos</b> — cargá remanente/cambios con fecha real; el sistema proyecta solo cuánto vas a necesitar comprar.<br>'+
     '<b>4. Análisis de Aceite</b> — cargá la muestra apenas llega; el sistema compara contra el historial real del componente.<br>'+
     '<b>Errores comunes:</b> horómetro "a ojo" sin leerlo del equipo; cerrar una OT sin costo sin revisar la sugerencia ("💡 usar"); saltarse Tipo de Causa/Categoría MTTR por ser opcionales.<br>'+
-    '<b>¿Qué hago si el sistema avisa que alguien más editó lo mismo?</b> No perdiste tu trabajo — te muestra el dato fresco y pide reintentar.<br><br>'+
+    '<b>¿Qué hago si el sistema avisa que alguien más editó lo mismo?</b> No perdiste tu trabajo — te muestra el dato fresco y pide reintentar.<br>'+
+    '<b>🕐 Horizonte:</b> <i>hoy</i> — registrar con el horómetro real y dejar el correctivo guardado antes de irte; <i>esta semana</i> — completar Causa Raíz, Tipo de Causa y Categoría MTTR de lo que registraste; <i>largo plazo</i> — todo lo que cargás hoy es la materia prima de las proyecciones: con más meses de datos reales, las fechas y alertas del sistema se vuelven más confiables.<br><br>'+
 
     '<b style="color:var(--ac);font-size:14px">📅 Planificador</b><br>'+
     'Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos, Pautas, Registro PM.<br>'+
@@ -859,7 +860,8 @@ export function renderAyuda(){
     '<b>2. Programa Anual y Gantt</b> — la foto grande del año y la vista visual de qué se superpone.<br>'+
     '<b>3. Planificador de Materiales</b> — antes de programar un PM grande, confirmá que el repuesto ya esté en stock o con OC en camino.<br>'+
     '<b>4. Destrabe</b> — revisalo junto con el cierre semanal: un trabajo trabado mucho tiempo es plata parada.<br>'+
-    '<b>Ejemplo de semana:</b> lunes revisás Destrabe → armás el Plan Semanal → chequeás Planificador de Materiales. Viernes cerrás la semana.<br><br>'+
+    '<b>Ejemplo de semana:</b> lunes revisás Destrabe → armás el Plan Semanal → chequeás Planificador de Materiales. Viernes cerrás la semana.<br>'+
+    '<b>🕐 Horizonte:</b> <i>esta semana</i> — Destrabe, Plan Semanal y Planificador de Materiales; <i>este mes</i> — repasar el histórico de semanas cerradas; <i>este año</i> — Programa Anual y Gantt para ver qué se superpone y mover trabajos antes de que choquen.<br><br>'+
 
     '<b style="color:var(--ac);font-size:14px">🛒 Comprador</b><br>'+
     'Con este perfil ves una sola pestaña: Stock &amp; Insumos.<br>'+
@@ -868,7 +870,8 @@ export function renderAyuda(){
     '<b>3. Compras — Proveedores</b> — tiempo de respuesta real por proveedor y gasto acumulado, útil para negociar o priorizar.<br>'+
     '<b>4. Pedidos Potencialmente Trabados</b> — pedidos abiertos que ya llevan más días que lo normal para ESE proveedor; revisalo semanalmente.<br>'+
     '<b>5. Tiempo Interno de Aprobación de OC</b> — mide solo la parte que depende de la empresa, separada del proveedor.<br>'+
-    '<b>¿Por qué un ítem con stock aparece como "pedir ya"?</b> Porque la proyección mira cuánto se consume Y cuánto tarda en llegar — avisa antes de que sea tarde, no cuando ya faltó.<br><br>'+
+    '<b>¿Por qué un ítem con stock aparece como "pedir ya"?</b> Porque la proyección mira cuánto se consume Y cuánto tarda en llegar — avisa antes de que sea tarde, no cuando ya faltó.<br>'+
+    '<b>🕐 Horizonte:</b> <i>esta semana</i> — semáforo de stock y Pedidos Potencialmente Trabados; <i>este mes</i> — Compras — Proveedores (tiempos de respuesta y gasto acumulado) para priorizar o negociar; <i>hasta fin de año</i> — Tendencia y Proyección de Compra con consumo real y, en Neumáticos, cuántos vas a necesitar hasta fin de año.<br><br>'+
 
     '<b style="color:var(--ac);font-size:14px">📊 Supervisor / Jefe de Mantenimiento</b><br>'+
     'No necesitás entender cada fórmula — solo qué PREGUNTA responde cada pantalla.<br>'+
@@ -879,7 +882,8 @@ export function renderAyuda(){
     '<b>Producción</b>: Costo de Downtime real y Rendimiento por Tiempo de Ciclo con su columna Consistencia (CV) — un CV alto es señal operativa, no mecánica.<br>'+
     '<b>Metas &amp; KPIs → Resumen Ejecutivo</b>: para reportar lo que ya decidiste, no para decidir.<br>'+
     '<b>Flujo semanal de ejemplo:</b> lunes Dashboard → Matriz de Riesgo → para lo urgente, RUL o Señal Unificada según corresponda → coordinás con el Planificador. Fin de mes: Costos &amp; Stock + Metas &amp; KPIs.<br>'+
-    '<b>¿Qué hago si un número me parece raro?</b> Los números con poca muestra llevan un aviso ⚠️ — no es un error, es que ese número puntual todavía no es confiable.<br><br>'+
+    '<b>¿Qué hago si un número me parece raro?</b> Los números con poca muestra llevan un aviso ⚠️ — no es un error, es que ese número puntual todavía no es confiable.<br>'+
+    '<b>🕐 Horizonte:</b> <i>hoy</i> — Dashboard, tarjeta 🔴 Riesgo Alto; <i>esta semana</i> — Matriz de Riesgo y, para lo urgente, RUL o Señal Unificada; <i>este mes</i> — Costos &amp; Stock y Metas &amp; KPIs; <i>este año</i> — las decisiones grandes: Señal Unificada de Reemplazo y Simulador What-If para probar escenarios antes de gastar, y Presupuesto vs Real para ver si el año va dentro de lo presupuestado.<br><br>'+
 
     '<b style="color:var(--ac);font-size:14px">🔐 Administrador</b><br>'+
     '<b>1. Usuarios</b> — Configuración → Crear Usuario del Sistema: asigná rol (Operador/Admin) y, si corresponde, perfil. Podés editar el perfil de una cuenta activa después, sin recrearla.<br>'+
@@ -887,7 +891,8 @@ export function renderAyuda(){
     '<b>3. Respaldo</b> — backup diario automático + detector de salud que avisa solo si algo falla; existe un procedimiento documentado de restauración completa si alguna vez hace falta.<br>'+
     '<b>4. Si algo se rompe</b> — la sección "Si algo se rompe" del manual-admin es tu primera parada, antes de tocar Supabase directo.<br>'+
     '<b>Checklist rápido:</b> rol/perfil correcto en cuentas nuevas · MFA activo en Admin · revisar mensualmente cuentas de gente que ya no trabaja acá · confirmar que llegó el correo del backup diario.<br>'+
-    '<b>¿Qué pasa si asigno un perfil por error a un Admin?</b> Nada grave — un Admin SIEMPRE ve las pestañas completas, tenga perfil cargado o no.'+
+    '<b>¿Qué pasa si asigno un perfil por error a un Admin?</b> Nada grave — un Admin SIEMPRE ve las pestañas completas, tenga perfil cargado o no.<br>'+
+    '<b>🕐 Horizonte:</b> <i>cada día</i> — confirmar que llegó el correo del backup diario; <i>cada mes</i> — revisar cuentas de gente que ya no trabaja acá; <i>cada año</i> — se recomienda ensayar una vez el procedimiento documentado de restauración, para saber que funciona antes de necesitarlo.'+
 
     '</div></div>';
 }

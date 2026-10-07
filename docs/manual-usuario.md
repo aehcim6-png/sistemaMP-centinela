@@ -171,6 +171,12 @@ encontraste, y seguís. El sistema calcula el resto.
 sin costo sin revisar la sugerencia ("💡 usar"); saltarse Tipo de
 Causa/Categoría MTTR por ser opcionales.
 
+**Horizonte**: hoy — registrar con el horómetro real y dejar el correctivo guardado antes
+de irte; esta semana — completar Causa Raíz, Tipo de Causa y Categoría MTTR
+de lo que registraste; largo plazo — todo lo que cargás hoy es la materia
+prima de las proyecciones: con más meses de datos reales, las fechas y
+alertas del sistema se vuelven más confiables.
+
 ### Planificador
 
 Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos,
@@ -188,6 +194,10 @@ Pautas, Registro PM.
 **Ejemplo de semana**: lunes revisás Destrabe → armás el Plan Semanal →
 chequeás Planificador de Materiales. Viernes cerrás la semana.
 
+**Horizonte**: esta semana — Destrabe, Plan Semanal y Planificador de Materiales; este mes
+— repasar el histórico de semanas cerradas; este año — Programa Anual y
+Gantt para ver qué se superpone y mover trabajos antes de que choquen.
+
 ### Comprador
 
 Con este perfil ves una sola pestaña: Stock & Insumos.
@@ -203,6 +213,11 @@ Con este perfil ves una sola pestaña: Stock & Insumos.
    más días que lo normal para ESE proveedor.
 5. **Tiempo Interno de Aprobación de OC** — mide solo la parte que
    depende de la empresa, separada del proveedor.
+
+**Horizonte**: esta semana — semáforo de stock y Pedidos Potencialmente Trabados; este mes
+— Compras — Proveedores (tiempos de respuesta y gasto acumulado) para
+priorizar o negociar; hasta fin de año — Tendencia y Proyección de Compra
+con consumo real y, en Neumáticos, cuántos vas a necesitar hasta fin de año.
 
 ### Supervisor / Jefe de Mantenimiento
 
@@ -231,6 +246,12 @@ pantalla.
 urgente, RUL o Señal Unificada según corresponda → coordinás con el
 Planificador. Fin de mes: Costos & Stock + Metas & KPIs.
 
+**Horizonte**: hoy — Dashboard, tarjeta 🔴 Riesgo Alto; esta semana — Matriz de Riesgo y,
+para lo urgente, RUL o Señal Unificada; este mes — Costos & Stock y Metas &
+KPIs; este año — las decisiones grandes: Señal Unificada de Reemplazo y
+Simulador What-If para probar escenarios antes de gastar, y Presupuesto vs
+Real para ver si el año va dentro de lo presupuestado.
+
 ### Administrador
 
 1. **Usuarios** — Configuración → Crear Usuario del Sistema: asigná rol
@@ -245,6 +266,11 @@ Planificador. Fin de mes: Costos & Stock + Metas & KPIs.
 **Checklist rápido**: rol/perfil correcto en cuentas nuevas · MFA activo
 en Admin · revisar mensualmente cuentas de gente que ya no trabaja acá ·
 confirmar que llegó el correo del backup diario.
+
+**Horizonte**: cada día — confirmar que llegó el correo del backup diario; cada mes —
+revisar cuentas de gente que ya no trabaja acá; cada año — se recomienda
+ensayar una vez el procedimiento documentado de restauración, para saber que
+funciona antes de necesitarlo.
 
 **¿Qué pasa si me quedo inactivo mucho rato con la sesión abierta?**
 A los 55 minutos sin usar el mouse/teclado aparece un aviso en pantalla

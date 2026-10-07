@@ -5938,6 +5938,16 @@ salvaguardas de la fila "dónde falla" (R² con aviso de ajuste débil y detecci
 digitación en aceite). Solo se agregó la entrada "Basado en condición vs. Predictivo" al
 Glosario de Ayuda (sección 32). Solo texto: sin cambios de lógica ni de tests.
 
+### 101. Guía de Capacitación: línea de horizonte por rol (2026-10-07)
+
+A la Guía de Capacitación por Rol (Ayuda §33 y manual-usuario §8) se le agregó, a cada rol,
+una línea "Horizonte" que ordena sus pantallas por plazo: hoy, esta semana, este mes y
+este año (idea tomada de un esquema de roles por horizonte de Predyc). Todas las pantallas
+citadas ya existían; no se agregó lógica ni tests. Ejemplo: el Comprador ve el semáforo y los
+pedidos trabados esta semana, el desempeño de proveedores en el mes, y la proyección de compra
+hasta fin de año. Para el Administrador el horizonte anual es una recomendación (ensayar la
+restauración documentada), no una función del sistema.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
