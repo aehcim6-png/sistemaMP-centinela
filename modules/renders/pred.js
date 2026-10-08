@@ -156,19 +156,19 @@ function generarDiagnostico(sigla){
   if(!queViene.length)queViene.push('Sin riesgos proyectados a corto plazo');
   // Mejora 2: predicción de causa raíz basada en histórico
   var predCausa=predecirCausa(sigla,null);
-  if(predCausa)queViene.push('🔍 '+predCausa.texto);
-  d.secciones.push({titulo:'🔮 ¿Qué va a pasar?',items:queViene,color:'var(--info)'});
+  if(predCausa)queViene.push(''+ICONS.search+' '+predCausa.texto);
+  d.secciones.push({titulo:''+ICONS.crystal+' ¿Qué va a pasar?',items:queViene,color:'var(--info)'});
 
   // 4. ¿QUÉ DEBO HACER?
   var hacer=[];
-  if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))hacer.push('🔧 Programar '+e.tipoPM+' INMEDIATO');
-  else if(e.diasParaPM<=7)hacer.push('🔧 Programar '+e.tipoPM+' esta semana');
-  if(aceAlertas.length)hacer.push('🔧 Intervenir '+aceAlertas[0].descriptor+' — cambio de aceite/inspección interna');
-  if(otPend.length)hacer.push('📋 Resolver '+otPend.length+' OT pendiente(s)');
-  if(noks.length)hacer.push('👁️ Re-inspeccionar: '+[...new Set(noks)].join(', '));
-  Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push('🔄 Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
+  if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))hacer.push(''+ICONS.wrench+' Programar '+e.tipoPM+' INMEDIATO');
+  else if(e.diasParaPM<=7)hacer.push(''+ICONS.wrench+' Programar '+e.tipoPM+' esta semana');
+  if(aceAlertas.length)hacer.push(''+ICONS.wrench+' Intervenir '+aceAlertas[0].descriptor+' — cambio de aceite/inspección interna');
+  if(otPend.length)hacer.push(''+ICONS.doc+' Resolver '+otPend.length+' OT pendiente(s)');
+  if(noks.length)hacer.push(''+ICONS.eye+' Re-inspeccionar: '+[...new Set(noks)].join(', '));
+  Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push(''+ICONS.refresh+' Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
   if(!hacer.length)hacer.push('✅ Mantener plan de mantención vigente');
-  d.secciones.push({titulo:'🔧 ¿Qué debo hacer?',items:hacer,color:'var(--ac)'});
+  d.secciones.push({titulo:''+ICONS.wrench+' ¿Qué debo hacer?',items:hacer,color:'var(--ac)'});
 
   // 5. ¿QUÉ PASA SI NO LO HAGO?
   var impacto=[];
@@ -177,7 +177,7 @@ function generarDiagnostico(sigla){
   if(otPend.length>2)impacto.push('Acumulación de backlog — riesgo operacional');
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)impacto.push('Falla repetitiva en '+cf[0]+' puede escalar a daño mayor');});
   if(!impacto.length)impacto.push('Riesgo bajo si se mantiene plan actual');
-  d.secciones.push({titulo:'💰 ¿Qué pasa si no lo hago?',items:impacto,color:'var(--danger)'});
+  d.secciones.push({titulo:''+ICONS.money+' ¿Qué pasa si no lo hago?',items:impacto,color:'var(--danger)'});
 
   // 6. ¿TENGO CÓMO HACERLO?
   var recursos=[];
@@ -188,8 +188,8 @@ function generarDiagnostico(sigla){
   var stockBajo=repEq.filter(function(r){return r.estado&&r.estado.includes('🟡');});
   if(stockBajo.length)recursos.push('🟡 '+stockBajo.length+' repuesto(s) con stock bajo — planificar reposición');
   if(!sinStock.length&&!stockBajo.length)recursos.push('✅ Stock disponible para intervención');
-  recursos.push('👷 Verificar disponibilidad de técnicos para intervención');
-  d.secciones.push({titulo:'📦 ¿Tengo cómo hacerlo?',items:recursos,color:'var(--info)'});
+  recursos.push(''+ICONS.worker+' Verificar disponibilidad de técnicos para intervención');
+  d.secciones.push({titulo:''+ICONS.box+' ¿Tengo cómo hacerlo?',items:recursos,color:'var(--info)'});
 
   // 7. ¿A DÓNDE VAMOS?
   var vision=[];
@@ -200,15 +200,15 @@ function generarDiagnostico(sigla){
       var prev3=trend.slice(-6,-3).reduce(function(s,t){return s+t.c;},0);
       if(prev3>0){
         var cambio=Math.round((last3/prev3-1)*100);
-        vision.push('Tendencia de costos: '+(cambio>0?'📈 +':'📉 ')+cambio+'% vs trimestre anterior');
+        vision.push('Tendencia de costos: '+(cambio>0?''+ICONS.trend+' +':''+ICONS.trendDown+' ')+cambio+'% vs trimestre anterior');
       }
     }
   }
   var eqUrgentes=eq.filter(function(x){return (x.estado||'').includes('URGENTE')||(x.estado||'').includes('VENCIDA');}).length;
   if(eqUrgentes>3)vision.push('⚠️ '+eqUrgentes+' equipos urgentes en la flota — carga alta');
   var pm2sem=eq.filter(function(x){return x.diasParaPM<=14;}).length;
-  vision.push('📅 '+pm2sem+' intervenciones proyectadas próximas 2 semanas');
-  d.secciones.push({titulo:'🚀 ¿A dónde vamos?',items:vision,color:'var(--ok)'});
+  vision.push(''+ICONS.cal+' '+pm2sem+' intervenciones proyectadas próximas 2 semanas');
+  d.secciones.push({titulo:''+ICONS.rocket+' ¿A dónde vamos?',items:vision,color:'var(--ok)'});
 
   // Build interpretation text
   var interp=quePasa.filter(function(q){return !q.includes('normal');}).join('. ');
@@ -239,14 +239,14 @@ function _cruceSistemas(sigla,categoria){
     var aceite=S.g('aceite')||[];
     var aceEq=aceite.filter(function(m){return m.equipo===sigla||(m._sigla||'').indexOf(sigla)>=0;});
     var aceAlerta=aceEq.filter(function(m){return m.estado==='ALERTA';});
-    if(aceAlerta.length)obs.push('🛢️ Hay muestra(s) de aceite en ALERTA en este equipo — la falla repetida en '+categoria+' puede ser desgaste interno progresivo (ej. metales en suspensión), no solo la reparación puntual que se hace cada vez.');
+    if(aceAlerta.length)obs.push(''+ICONS.barrel+' Hay muestra(s) de aceite en ALERTA en este equipo — la falla repetida en '+categoria+' puede ser desgaste interno progresivo (ej. metales en suspensión), no solo la reparación puntual que se hace cada vez.');
   }
 
   // Neumáticos/dirección/suspensión: desgaste disparejo sugiere geometría, no solo la pieza
   if(categoria==='Cilindro de Dirección'||categoria==='Neumáticos'||categoria==='Suspensión'){
     var neu=(S.g('neu')||[]).filter(function(n){return n.sigla===sigla||n.equipo===sigla;});
     var conDesgaste=neu.filter(function(n){var p=neuPct(n);return p!=null&&p<30;});
-    if(neu.length>=2&&conDesgaste.length>=2)obs.push('🛞 Varios neumáticos con desgaste avanzado en este mismo equipo — revisar geometría/alineación de dirección además de la pieza puntual.');
+    if(neu.length>=2&&conDesgaste.length>=2)obs.push(''+ICONS.tire+' Varios neumáticos con desgaste avanzado en este mismo equipo — revisar geometría/alineación de dirección además de la pieza puntual.');
   }
 
   // Batería + Motor de Partida + Alternador repitiéndose juntos = sistema de carga, no la batería sola
@@ -259,11 +259,11 @@ function _cruceSistemas(sigla,categoria){
     var cats={};
     otEq.forEach(function(o){var c=(o.componente||'').trim()||_componenteDeSintoma(o.sintoma);if(c)cats[c]=(cats[c]||0)+1;});
     var relacionados=['Batería','Motor de Partida','Alternador'].filter(function(c){return c!==categoria&&cats[c]>0;});
-    if(relacionados.length)obs.push('⚡ Este equipo también tuvo fallas en '+relacionados.join(' y ')+' — junto con '+categoria+', apunta al sistema de carga completo (alternador/correa/regulador), no solo a cambiar la pieza aislada cada vez.');
+    if(relacionados.length)obs.push(''+ICONS.bolt+' Este equipo también tuvo fallas en '+relacionados.join(' y ')+' — junto con '+categoria+', apunta al sistema de carga completo (alternador/correa/regulador), no solo a cambiar la pieza aislada cada vez.');
   }
 
   // PM vencida en el mismo equipo donde se repite la falla
-  if(e&&((e.estado||'').includes('URGENTE')||(e.estado||'').includes('VENCIDA')))obs.push('📅 Este equipo además tiene PM vencida — operar fuera de la mantención programada puede estar acelerando el desgaste que origina la falla.');
+  if(e&&((e.estado||'').includes('URGENTE')||(e.estado||'').includes('VENCIDA')))obs.push(''+ICONS.cal+' Este equipo además tiene PM vencida — operar fuera de la mantención programada puede estar acelerando el desgaste que origina la falla.');
 
   return obs;
 }
@@ -845,13 +845,13 @@ export function renderPred(){
       // ── ZONA 1: NECESITA ATENCIÓN (accionable) ──
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--ac);box-shadow:0 0 0 4px color-mix(in srgb,var(--ac) 22%,transparent)"></span>Necesita atención</div><div style="font-size:11px;color:var(--tx3)">sale de datos reales — fallas, inspecciones, aceite y stock</div></div>'+
       '<div class="cards">'+
-      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔁 Componentes reincidentes</div><div class="card-v" style="color:var(--danger)">'+reinc.length+'</div><div class="card-s">'+(reincEmpeora?reincEmpeora+' empeorando':'fallan repetido')+'</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">'+ICONS.refresh+' Componentes reincidentes</div><div class="card-v" style="color:var(--danger)">'+reinc.length+'</div><div class="card-s">'+(reincEmpeora?reincEmpeora+' empeorando':'fallan repetido')+'</div></div>'+
       '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🚦 Equipos en alerta cruzada</div><div class="card-v" style="color:var(--danger)">'+eqCrit+'</div><div class="card-s">'+eqVigilar+' a vigilar</div></div>'+
       '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Riesgo de quiebre</div><div class="card-v" style="color:var(--w)">'+quiebresCrit+'</div><div class="card-s">quiebran antes del lead time</div></div>'+
       '<div class="card" style="border-left:3px solid var(--ac)"><div class="card-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Carga próximas 2 sem.</div><div class="card-v" style="color:var(--ac)">'+carga.pm.length+'</div><div class="card-s">PM · '+carga.otPend+' OT pendientes</div></div>'+
       '</div>'+
       // Reincidencia de fallas (resumen — detalle completo en la solapa "Flota")
-      '<div class="chart-box" style="margin:16px 0;border-left:3px solid var(--danger)"><div class="chart-t">🔁 Reincidencia de fallas <span style="font-size:11px;color:var(--tx3);font-weight:400">— componentes que vuelven al taller</span></div>'+
+      '<div class="chart-box" style="margin:16px 0;border-left:3px solid var(--danger)"><div class="chart-t">'+ICONS.refresh+' Reincidencia de fallas <span style="font-size:11px;color:var(--tx3);font-weight:400">— componentes que vuelven al taller</span></div>'+
       (reinc.length?
         '<div class="tbl-wrap"><table><tr><th>Componente</th><th>Dónde se repite</th><th>Veces</th><th>Tendencia</th><th>Lectura accionable</th></tr>'+
         reinc.slice(0,6).map(function(c){
@@ -869,11 +869,11 @@ export function renderPred(){
       '</div>'+
 
       // RECOMENDACIONES AUTOMÁTICAS
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🧠 Recomendaciones del Sistema</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">'+ICONS.bulb+' Recomendaciones del Sistema</div>'+
       '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">'+
       (carga.pm.length?carga.pm.slice(0,5).map(function(p){
         return'<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:var(--bg3);border-radius:4px;font-size:12px">'+
-          '<span style="color:var(--danger);font-weight:700">➡️</span>'+
+          '<span style="color:var(--danger);font-weight:700">'+ICONS.arrow+'</span>'+
           '<span><b>'+escapeHtml(p.sigla)+'</b> — '+escapeHtml(p.tipo)+' en <b>'+p.dias+' días</b></span>'+
           '<span style="margin-left:auto;color:var(--w);font-size:11px">Programar intervención</span></div>';
       }).join(''):'<div style="font-size:12px;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sin PM urgentes próximas 2 semanas</div>')+
@@ -1057,7 +1057,7 @@ export function renderPred(){
   } else if(fVista==='flota'){
     var df=diagnosticoFlota(fEq,fMesCompleto);
     content=
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏭 Componentes con fallas repetitivas — toda la flota</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">'+ICONS.building+' Componentes con fallas repetitivas — toda la flota</div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Agrupa TODOS los correctivos por componente, sin importar el equipo. Ordenado por severidad: primero lo que se repite en el mismo equipo o en varios equipos a la vez.</div>'+
       (df.length?
         df.map(function(c){
@@ -1075,7 +1075,7 @@ export function renderPred(){
             (c.cubiertoPorPM===false?'<div style="font-size:11px;color:var(--w);margin-bottom:4px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Este componente NO aparece en ninguna pauta de mantención preventiva de estos equipos — siempre se detecta por correctivo, nunca por revisión programada.</div>':'')+
             (c.cruce&&c.cruce.length?c.cruce.map(function(o){return'<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">'+escapeHtml(o)+'</div>';}).join(''):'')+
             (c.requiereRCA?'<div style="font-size:11px;background:rgba(99,102,241,.08);border-radius:6px;padding:6px 8px;margin:6px 0;color:var(--tx2)">'+
-              '<b style="color:#818cf8">🔬 Amerita Análisis de Causa Raíz</b> ('+c.total+' fallas — igual que activaría un CMMS real ante ≥3 correctivos del mismo tipo).'+
+              '<b style="color:#818cf8">'+ICONS.microscope+' Amerita Análisis de Causa Raíz</b> ('+c.total+' fallas — igual que activaría un CMMS real ante ≥3 correctivos del mismo tipo).'+
               _fmeaChecklistHTML(c.componente,c.causasFMEA)+
               '</div>':'')+
             '<div style="font-size:10px;color:var(--tx3)">Equipo más repetido: <b class="mono" style="color:var(--ac)">'+escapeHtml(c.equipoMasRepetido||'—')+'</b> ('+(c.vecesEnEsePeor||0)+' veces) · '+c.pctAtendido+'% con solución registrada'+(c.pendientes?' · <span style="color:var(--danger)">'+c.pendientes+' aún pendiente(s)</span>':'')+(c.costoTotal?' · $'+fn(Math.round(c.costoTotal))+' acumulado':'')+'</div>'+
@@ -1119,7 +1119,7 @@ export function renderPred(){
     });
     var probs=probabilidadFallaDesdeEventos(eventosProb).filter(function(p){return !fEq||p.sigla===fEq;}).slice(0,40);
     content=
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🎲 Probabilidad de falla en los próximos 30 días</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">'+ICONS.dice+' Probabilidad de falla en los próximos 30 días</div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta): usa el intervalo promedio real entre fallas pasadas del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ fallas registradas; con menos, el número no sería confiable.</div>'+
       (probs.length?
         probs.map(function(p){
@@ -1333,7 +1333,7 @@ export function renderPred(){
 
     content=
       '<div style="padding:10px;background:var(--bg3);border-radius:6px;margin-bottom:12px;font-size:12px">'+
-      '📋 Cruza la dotación real cargada en <b>Programación Diaria</b> con la carga de trabajo real del taller (Backlog, HH, Disponibilidad, MTBF) — es una lectura descriptiva, no reemplaza una decisión de RR.HH.'+
+      ''+ICONS.doc+' Cruza la dotación real cargada en <b>Programación Diaria</b> con la carga de trabajo real del taller (Backlog, HH, Disponibilidad, MTBF) — es una lectura descriptiva, no reemplaza una decisión de RR.HH.'+
       (fechaUlt?'':' <b style="color:var(--w)">Aún no hay ninguna Programación Diaria cargada — importa un Excel en esa pestaña primero.</b>')+
       '</div>'+
       (fechaUlt?(

@@ -480,7 +480,7 @@ export function addSemItem(){
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="semEq">'+
     eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
     '<div class="fg"><label>Tipo PM</label><select id="semTipoPM"><option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option></select></div></div>'+
-    '<br><button class="btn" onclick="saveNuevoSemItem()">💾 Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+    '<br><button class="btn" onclick="saveNuevoSemItem()">'+ICONS.saveIco+' Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 }
 export function saveNuevoSemItem(){
   var sigla=$('semEq').value;

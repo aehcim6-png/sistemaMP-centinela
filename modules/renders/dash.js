@@ -73,7 +73,7 @@ export function copiarResumenTurno(){
   var l=[];
   l.push('*RESUMEN TURNO '+d.turno.toUpperCase()+' — '+fechaFmt+'*');
   l.push('');
-  if(d.dispFlota!=null)l.push('📊 Disponibilidad flota: *'+d.dispFlota+'%*'+(d.dispFlota>=d.meta?' ✅':' ⚠️ bajo meta '+d.meta+'%'));
+  if(d.dispFlota!=null)l.push(''+ICONS.barChart+' Disponibilidad flota: *'+d.dispFlota+'%*'+(d.dispFlota>=d.meta?' ✅':' ⚠️ bajo meta '+d.meta+'%'));
   l.push('🟡 Próximas: '+d.proxCount+'  🔴 Urgentes: '+d.urg.length);
   if(d.urg.length){
     l.push('');
@@ -527,7 +527,7 @@ export function renderDash(){
     // pestañas que está justo encima.
     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;font-size:10px">'+
     '<span style="color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">Mostrar:</span>'+
-    [['salud','🩺 Salud de Flota'],['disp','📊 Disponibilidad'],['graficos','📈 Gráficos'],['urgentes','🔴 Equipos Urgentes'],['costos','💰 Costos y Stock']].map(function(b){
+    [['salud',''+ICONS.stetho+' Salud de Flota'],['disp',''+ICONS.barChart+' Disponibilidad'],['graficos',''+ICONS.trend+' Gráficos'],['urgentes','🔴 Equipos Urgentes'],['costos',''+ICONS.money+' Costos y Stock']].map(function(b){
       var on=dashBloques[b[0]]!==false;
       return '<button style="font-size:10px;padding:2px 7px;border-radius:5px;background:none;cursor:pointer;border:1px solid var(--bd);color:'+(on?'var(--tx2)':'var(--tx3)')+';'+(on?'':'opacity:.55')+'" onclick="dashToggleBloque(\''+b[0]+'\')" title="Mostrar/ocultar esta sección del tablero">'+b[1]+'</button>';
     }).join('')+
@@ -885,7 +885,7 @@ export function renderDash(){
     // SÍ importa que "Crítica" pese más a la vista que "Salud buena", así que
     // usan fondo de color lleno (no solo un número de color sobre gris) para
     // que el ojo capte la proporción sin tener que leer los números.
-    mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">🗺️ Mapa de Salud de la Flota'+badgeEnVivo+'</div>'+
+    mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">'+ICONS.map+' Mapa de Salud de la Flota'+badgeEnVivo+'</div>'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px">'+
       '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--danger) 16%,var(--bg3));border:1px solid color-mix(in srgb,var(--danger) 40%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--danger)">'+cCritMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🔴 Crítica</div><div style="font-size:9px;color:var(--tx3)">&lt;55% · requieren atención</div></div>'+
       '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--ac) 14%,var(--bg3));border:1px solid color-mix(in srgb,var(--ac) 35%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--ac)">'+cWarnMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🟡 Advertencia</div><div style="font-size:9px;color:var(--tx3)">55-79% · a revisar</div></div>'+
@@ -904,7 +904,7 @@ export function renderDash(){
         return '<div style="aspect-ratio:1;border-radius:3px;background:'+col+';cursor:pointer" onmouseenter="vizTip(event,\''+tip+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)"></div>';
       }).join('')+
       '</div>'+
-      '<button class="btn-s btn-o" style="width:100%;margin-top:14px" onclick="go(\'torre\')">🎛️ Ver Torre de Control — detalle por equipo →</button>'+
+      '<button class="btn-s btn-o" style="width:100%;margin-top:14px" onclick="go(\'torre\')">'+ICONS.sliders+' Ver Torre de Control — detalle por equipo →</button>'+
       '</div>';
   }
   var equiposConSalud=equiposConSaludTodos
@@ -913,7 +913,7 @@ export function renderDash(){
     .slice(0,10);
   var saludBajaBlock='';
   if(equiposConSalud.length){
-    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">🩺 Equipos con Salud Baja'+badgeEnVivo+' <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
+    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">'+ICONS.stetho+' Equipos con Salud Baja'+badgeEnVivo+' <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
     saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
     equiposConSalud.forEach(function(r){
       var col=r.score.valor>=55?'var(--ac)':'var(--danger)';
@@ -965,9 +965,9 @@ export function renderDash(){
       contenido+
       '</div>';
   }
-  var sec1=_dashSeccion(1,'⚡ Equipos que Requieren Atención Ahora','Prioriza estas intervenciones para evitar fallas y downtime.',htmlUrgentes+wrapProx);
-  var sec2=_dashSeccion(2,'🩺 Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
-  var sec3=_dashSeccion(3,'📈 Tendencias y Análisis','Datos que impulsan decisiones predictivas y mejora continua.',htmlGraficos+wrapTrend);
+  var sec1=_dashSeccion(1,ICONS.bolt+' Equipos que Requieren Atención Ahora','Prioriza estas intervenciones para evitar fallas y downtime.',htmlUrgentes+wrapProx);
+  var sec2=_dashSeccion(2,ICONS.stetho+' Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
+  var sec3=_dashSeccion(3,ICONS.trend+' Tendencias y Análisis','Datos que impulsan decisiones predictivas y mejora continua.',htmlGraficos+wrapTrend);
   dashEl.innerHTML=htmlChrome+sec1+sec2+sec3;
   if(typeof _animGauges==='function')_animGauges('s-dash');
 

@@ -256,7 +256,7 @@ export function renderPlan(){
   const compFC=(typeof proyeccionCostoComponentesMayores==='function')?proyeccionCostoComponentesMayores(6):{porMes:{},labels:{},vencido:0};
   const mesesFC=Object.keys(pmPorMesFC).sort();
   let totalFC=compFC.vencido||0;
-  const flujoHtml=`<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">💰 Flujo de Caja de Mantención — Próximos 6 Meses</div>
+  const flujoHtml=`<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">${ICONS.money} Flujo de Caja de Mantención — Próximos 6 Meses</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Combina lo programado (PM: filtros/aceite/grasa según la pauta de cada equipo) con lo proyectado por desgaste (Componentes Mayores: motor, transmisión, etc. — mismo criterio que su Calendario de Reemplazos).</div>
     <div class="tbl-wrap"><table style="font-size:11px"><tr><th>Mes</th><th>Materiales PM</th><th>Componentes Mayores</th><th>Total</th></tr>
     ${mesesFC.map(k=>{
@@ -269,7 +269,7 @@ export function renderPlan(){
     </table></div></div>`;
 
   $('s-plan').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">🗓️ Planificador de Materiales y Costos</div>
+    <div class="sec-h"><div><div class="sec-t">${ICONS.cal} Planificador de Materiales y Costos</div>
       <div class="sec-s">Proyección de filtros, aceite, lubricantes y costo · ${pmsEnPeriodo.length} PM en ${periodo==='calendario'?['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][(window._planMesCal||(hoy.getMonth()+1))-1]+' '+(window._planAnioCal||hoy.getFullYear()):periodo}</div></div>
       <button class="btn btn-o" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Histórico consumido</button>
       <button class="btn" style="background:var(--warn,var(--warn));color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button>

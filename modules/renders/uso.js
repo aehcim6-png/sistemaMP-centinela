@@ -50,13 +50,13 @@ function _pintarUso(el, filas) {
 
   if (!filasTabla.length) {
     el.innerHTML =
-      '<div class="sec-h"><div><div class="sec-t">📊 Uso del sistema</div>' +
+      '<div class="sec-h"><div><div class="sec-t">'+ICONS.trend+' Uso del sistema</div>' +
       '<div class="sec-s">Aperturas de pestañas y sub-pestañas — últimos 90 días</div></div></div>' +
       '<p style="font-size:12px;color:var(--tx3);padding:12px 0">Todavía no hay datos suficientes (esto empezó a registrarse el 2026-08-17). Vuelve en unos días.</p>';
     return;
   }
   el.innerHTML =
-    '<div class="sec-h"><div><div class="sec-t">📊 Uso del sistema</div>' +
+    '<div class="sec-h"><div><div class="sec-t">'+ICONS.trend+' Uso del sistema</div>' +
     '<div class="sec-s">Aperturas de pestañas y sub-pestañas — últimos 90 días</div></div></div>' +
     '<p style="font-size:11px;color:var(--tx3);margin:0 0 10px">Un clic en una pestaña o sub-pestaña cuenta una vez, sin importar cuánto tiempo se quedó abierta. Registrado desde el 2026-08-17 — mientras más días pasen, más confiable es la columna de 30/90 días.</p>' +
     '<div class="tbl-wrap"><table style="font-size:12px">' +

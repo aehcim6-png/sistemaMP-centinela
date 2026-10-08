@@ -28,8 +28,8 @@ export function renderDestrabe() {
         ? (ocLigada
           ? (ocLigada.estado === 'Recibida'
             ? '<span style="font-size:10px;color:var(--ok)">✅ Recibida' + (ocLigada.fechaEntrega ? ' ' + ocLigada.fechaEntrega : '') + '</span>'
-            : '<span style="font-size:10px;color:var(--w)">🛒 Pendiente</span>')
-          : '<span style="font-size:10px;color:var(--tx3)">🛒 vinculada</span>')
+            : '<span style="font-size:10px;color:var(--w)">'+ICONS.cart+' Pendiente</span>')
+          : '<span style="font-size:10px;color:var(--tx3)">'+ICONS.cart+' vinculada</span>')
         : '<button class="btn-s" style="font-size:9px" onclick="abrirVincularOC(' + i + ')">Vincular OC</button>';
       return '<tr>' +
         '<td><select onchange="edDestrabe(' + i + ',\'equipo\',this.value)" style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;max-width:100px"><option value=""' + (it.equipo ? '' : ' selected') + '>Seleccionar...</option>' +

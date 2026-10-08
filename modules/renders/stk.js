@@ -73,7 +73,7 @@ export function renderStk() {
         '<td style="text-align:center" title="' + escapeHtml(se.motivo) + '">' + _mesesGauge(meses, se.nivel) + '</td>' +
         '<td><span style="font-size:10px">' + est + '</span></td>' +
         '<td><input type="number" value="' + (s.precioUnit || 0) + '" onchange="edI(\'stk\',' + i + ',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;' + is + (s.precioUnit ? '' : ';color:var(--tx3);border-style:dashed') + '" title="' + (s.precioUnit ? '' : 'Sin precio cargado (no confirmado que valga $0)') + '"></td>' +
-        '<td><button class="btn-s" onclick="verTendenciaStk(' + i + ')" title="Tendencia y proyección de compra">📈</button></td>' +
+        '<td><button class="btn-s" onclick="verTendenciaStk(' + i + ')" title="Tendencia y proyección de compra">'+ICONS.trend+'</button></td>' +
         '<td><button class="btn-s btn-d" onclick="delRow(\'stk\',' + i + ',\'stk\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('') +
     '</table></div>' +

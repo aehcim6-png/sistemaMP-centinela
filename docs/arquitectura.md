@@ -5965,6 +5965,19 @@ que se veía arriba a la derecha es una marca de agua de engranaje intencional (
 se oculta solo en celular, porque quedaba detrás de los números. Escritorio no cambia, salvo el
 icono de la insignia de usuario. Sin cambios de lógica; tests sin cambios.
 
+### 103. Iconos de línea en vez de emoji decorativos (2026-10-08)
+
+mp2 ya había migrado los emoji decorativos de títulos, chips y botones a iconos de línea
+(`ICONS.*`); centinela seguía con emoji. Se llevó la misma migración a centinela tomando a mp2
+como referencia exacta, línea por línea: 150 reemplazos en 22 módulos, más 5 títulos de
+sección hechos a mano (Dashboard 1-3, cámara de Correctivos, tendencia de costos), y se copiaron
+los 37 iconos que faltaban en `ICONS`. Se subió la versión de caché de los 23 módulos tocados.
+
+**Lo que NO se migró, a propósito:** los emoji que llevan significado de estado — ⚠️ ✅ ✓ ✕ ⭐ ★
+🚨 🚦 y los semáforos 🔴🟡🟢 — porque un icono de línea gris pierde el color de alerta. Tampoco
+los emoji dentro de textos de mensajes (WhatsApp/toasts) ni de atributos `title`. Verificado en un
+navegador real: las 22 pestañas cargan sin errores ni texto crudo de icono. Sin cambios de lógica.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

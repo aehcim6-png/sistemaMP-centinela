@@ -341,7 +341,7 @@ export function renderComp(){
   ordenBuckets.push('Después');
   var bucketsConDato=ordenBuckets.filter(function(k){return calendario[k];});
   var calendarioHtml=!bucketsConDato.length?'':(
-    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">📅 Calendario de Reemplazos'+(fEquipo?' — '+escapeHtml(fEquipo):' — toda la flota')+'</div>'+
+    '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">'+ICONS.cal+' Calendario de Reemplazos'+(fEquipo?' — '+escapeHtml(fEquipo):' — toda la flota')+'</div>'+
     '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Período</th><th>Piezas</th><th>Cantidad</th><th>Costo estimado</th><th title="Componentes cuyo equipo lleva un ritmo real de uso bastante más alto que el nominal — al ritmo real se vencerían antes de lo que muestra este período">⚠️ Ritmo acelerado</th></tr>'+
     bucketsConDato.map(function(k){
       var b=calendario[k];

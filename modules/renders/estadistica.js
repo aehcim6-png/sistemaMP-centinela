@@ -89,7 +89,7 @@ function _estTablaEquipo(eq, eventos) {
   // quedaría inflado, como si esos 25 fueran el 100% de las fallas.
   var lista = paretoAcumulado(todos).slice(0, 25);
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">🏗 Equipos con más fallas (Bad Actors) — Pareto</div>' +
+    '<div class="chart-t">'+ICONS.building+' Equipos con más fallas (Bad Actors) — Pareto</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales (esFallaMTBF) + historial 2022-2025 cargado desde Excel. MTBF = intervalo real entre fallas sucesivas de horómetro, solo con 2+ fallas con horómetro registrado. MTBF estabilizado (Bayes) = tasa de falla combinando el dato propio del equipo con el de toda la flota (Bayes Empírico Gamma-Poisson) — aparece incluso con 1 sola falla, donde el MTBF crudo no existe (necesita 2+).' + (bayes && bayes.fullShrink ? ' Con el historial actual, no hay heterogeneidad real detectable entre equipos — todos comparten la misma tasa de flota.' : '') + ' Los equipos marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas de toda la flota — ahí es donde más rinde enfocar inspecciones o reemplazo. % y acumulado se calculan sobre TODA la flota, aunque la tabla solo muestre los primeros 25.</div>' +
     '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Modelo</th><th>Fallas</th><th>% del total</th><th>Barra</th><th>Acumulado</th><th>MTBF (h)</th><th>MTBF estabilizado (Bayes)</th></tr>' +
     (lista.length ? lista.map(function (r) {
@@ -154,7 +154,7 @@ function _estTablaComponente(eventos, ace, eq) {
     return { comp: c, fallas: d.fallas, nEquipos: Object.keys(d.equipos).length, mtbf: mtbfPorComp[c] != null ? mtbfPorComp[c] : null };
   }));
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">🔧 Componentes que más fallan — toda la flota (Pareto)</div>' +
+    '<div class="chart-t">'+ICONS.gear+' Componentes que más fallan — toda la flota (Pareto)</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales + historial 2022-2025. Componente resuelto por texto libre del síntoma cuando el campo estructurado viene vacío (casi siempre). MTBF típico = promedio del intervalo real entre fallas sucesivas (horómetro), promediado entre todos los equipos con 2+ fallas de ese componente — igual de exigente que el MTBF de flota, solo que por tipo de componente. Los componentes marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas — ahí es donde más rinde revisar la pauta de PM o el proveedor del repuesto.</div>' +
     '<div class="tbl-wrap"><table><tr><th>Componente</th><th>Fallas</th><th>% del total</th><th>Barra</th><th>Acumulado</th><th>Equipos afectados</th><th>MTBF típico (h)</th></tr>' +
     (lista.length ? lista.map(function (r) {
@@ -191,7 +191,7 @@ function _estWeibullPorComponente(eventos) {
   var lista = (typeof analisisVidaUtilCorrectivosPorComponente === 'function') ? analisisVidaUtilCorrectivosPorComponente(eventos) : [];
   if (!lista.length) return '';
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">📐 Forma real de falla por componente — toda la flota (Weibull)</div>' +
+    '<div class="chart-t">'+ICONS.ruler+' Forma real de falla por componente — toda la flota (Weibull)</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Intervalos reales entre fallas sucesivas del mismo componente, calculados equipo por equipo y luego juntados entre todos los equipos con ese componente (no se mezclan horómetros de equipos distintos). β cerca de 1 = fallas parejas/aleatorias en el tiempo. β&lt;1 = fallas más tempranas (revisar calidad/instalación). β&gt;1 = desgaste homogéneo (esperable, priorizar reemplazo preventivo antes de la falla) — η es la vida característica de ese componente según el ajuste real. IC90 = intervalo de confianza 90%: con pocos intervalos pooled, el β puntual puede estar lejos de la forma real.</div>' +
     '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:22%">Componente</th><th style="width:15%">N° intervalos</th><th style="width:13%">β (forma)</th><th style="width:18%">η (vida caract.)</th><th style="text-align:left">Interpretación</th></tr>' +
     lista.map(function (g) {
@@ -434,7 +434,7 @@ function _estTablaModelo(eq, eventos) {
   }).filter(function (r) { return r.nEquipos >= 2; }) // 1 solo equipo no es "comparar modelos", es comparar ese equipo
     .sort(function (a, b) { return b.fallasPorEquipo - a.fallasPorEquipo; });
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">🚜 Comparativa por Modelo de Equipo</div>' +
+    '<div class="chart-t">'+ICONS.tractor+' Comparativa por Modelo de Equipo</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Fallas por equipo PROMEDIO de cada modelo (no el total, que favorecería a los modelos con más unidades) — combina correctivos actuales + historial. Solo modelos con 2+ equipos, para que sea una comparación real entre modelos y no solo entre 2 equipos individuales.</div>' +
     '<div class="tbl-wrap"><table><tr><th>Modelo</th><th>Equipos</th><th>Fallas totales</th><th>Fallas / equipo</th></tr>' +
     (lista.length ? lista.map(function (r) {
@@ -468,7 +468,7 @@ function _estTablaModoFalla(eventos) {
   var lista = paretoAcumulado(Object.keys(porModo).map(function (m) { return { modo: m, fallas: porModo[m] }; }));
   var sinClasificar = porModo['Sin clasificar'] || 0;
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">📊 Pareto de Modos de Falla — toda la flota</div>' +
+    '<div class="chart-t">'+ICONS.trend+' Pareto de Modos de Falla — toda la flota</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Combina correctivos actuales + historial 2022-2025 (el historial no trae modo de falla clasificado, cae en "Sin clasificar"). Los modos marcados ⭐ son los "pocos vitales" de Pareto: juntos explican el 80% de las fallas — ahí es donde más rinde enfocar un plan de confiabilidad.' +
     (sinClasificar ? ' ' + sinClasificar + ' de ' + total + ' fallas (' + Math.round(sinClasificar / total * 100) + '%) todavía no tienen modo de falla clasificado — clasifícalas en Correctivos (columna "Cód.Falla") para que este análisis sea más completo.' : '') +
     '</div>' +
@@ -576,7 +576,7 @@ function _estTablaTecnico(ot) {
   // difiere (levenePruebaVarianzas, logic.js).
   var leveneMttr = (typeof levenePruebaVarianzas === 'function') ? levenePruebaVarianzas(porTecDuracion, 5) : null;
   return '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
-    '<div class="chart-t">👷 Comparativa por Técnico</div>' +
+    '<div class="chart-t">'+ICONS.worker+' Comparativa por Técnico</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Solo correctivos actuales (el historial de Excel no trae quién hizo el trabajo). % documentado = OT cerradas con "Solución" registrada. % reingreso = mismo equipo+componente vuelve a fallar dentro de 7 días (excluye consumibles de desgaste esperado). Solo técnicos con 15+ OT — con menos, el % no significa nada. El IC95% (Wilson) debajo de cada % muestra el rango real dado el tamaño de muestra — con pocas OT, dos técnicos que parecen distintos pueden no serlo.</div>' +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>OT cerradas</th><th>% documentado</th><th>% reingreso ≤7d</th></tr>' +
     (lista.length ? lista.map(function (t) {

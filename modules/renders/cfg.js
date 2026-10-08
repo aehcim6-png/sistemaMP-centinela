@@ -56,7 +56,7 @@ export function verCodigosQR(){
   if(typeof QRCode==='undefined')return toast('❌ No se pudo cargar el generador de QR (revisa conexión a internet)');
   var baseUrl=location.origin+location.pathname;
   sm('<div style="max-width:720px">'+
-    '<h3>🔲 Códigos QR por Equipo</h3>'+
+    '<h3>'+ICONS.qr+' Códigos QR por Equipo</h3>'+
     '<p style="font-size:11px;color:var(--tx3);margin-bottom:12px">Escanéalo con el celular y abre directo la ficha de ese equipo, sin buscarlo a mano. Descárgalos e imprímelos para pegar en cada máquina.</p>'+
     '<div id="qrGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;max-height:60vh;overflow-y:auto;padding:4px">'+
     eq.map(function(e){
@@ -121,11 +121,11 @@ export function renderCfg(){
       var intVal=altaCount?altaCount+' alta(s)':hallazgos.length?hallazgos.length+' media':'Sin hallazgos';
       var uso=_medirUsoLocal();
       return '<div class="cards" style="margin-bottom:16px">'+
-        '<div class="card" style="border-left:4px solid '+intCol+'"><div class="card-t">🔍 Integridad</div><div class="card-v" style="font-size:16px;color:'+intCol+'">'+intVal+'</div><div class="card-s">'+hallazgos.length+' hallazgo(s) en total</div></div>'+
-        '<div class="card" style="border-left:4px solid '+(papelera?'var(--ac)':'var(--ok)')+'"><div class="card-t">🗑️ Papelera</div><div class="card-v">'+papelera+'</div><div class="card-s">elemento(s), 30 días</div></div>'+
-        '<div class="card" style="border-left:4px solid '+uso.col+'"><div class="card-t">💾 Datos locales</div><div class="card-v" style="font-size:16px;color:'+uso.col+'">'+uso.pct.toFixed(1)+'%</div><div class="card-s">'+(uso.totalBytes/1048576).toFixed(2)+' MB de 5 MB</div></div>'+
-        '<div class="card" style="border-left:4px solid '+(window._clStatusColor||'var(--tx3)')+'"><div class="card-t">☁️ Sync nube</div><div class="card-v" style="font-size:13px">'+(window._clStatusTxt||'⚪ Sin configurar')+'</div><div class="card-s">Supabase</div></div>'+
-        '<div class="card" style="border-left:4px solid '+(window._asStatusColor||'var(--tx3)')+'"><div class="card-t">📂 Backup local</div><div class="card-v" style="font-size:13px">'+(window._asStatusTxt||'⚪ Sin carpeta conectada')+'</div><div class="card-s">Carpeta autoguardado</div></div>'+
+        '<div class="card" style="border-left:4px solid '+intCol+'"><div class="card-t">'+ICONS.search+' Integridad</div><div class="card-v" style="font-size:16px;color:'+intCol+'">'+intVal+'</div><div class="card-s">'+hallazgos.length+' hallazgo(s) en total</div></div>'+
+        '<div class="card" style="border-left:4px solid '+(papelera?'var(--ac)':'var(--ok)')+'"><div class="card-t">'+ICONS.trash+' Papelera</div><div class="card-v">'+papelera+'</div><div class="card-s">elemento(s), 30 días</div></div>'+
+        '<div class="card" style="border-left:4px solid '+uso.col+'"><div class="card-t">'+ICONS.saveIco+' Datos locales</div><div class="card-v" style="font-size:16px;color:'+uso.col+'">'+uso.pct.toFixed(1)+'%</div><div class="card-s">'+(uso.totalBytes/1048576).toFixed(2)+' MB de 5 MB</div></div>'+
+        '<div class="card" style="border-left:4px solid '+(window._clStatusColor||'var(--tx3)')+'"><div class="card-t">'+ICONS.cloud+' Sync nube</div><div class="card-v" style="font-size:13px">'+(window._clStatusTxt||'⚪ Sin configurar')+'</div><div class="card-s">Supabase</div></div>'+
+        '<div class="card" style="border-left:4px solid '+(window._asStatusColor||'var(--tx3)')+'"><div class="card-t">'+ICONS.folder+' Backup local</div><div class="card-v" style="font-size:13px">'+(window._asStatusTxt||'⚪ Sin carpeta conectada')+'</div><div class="card-s">Carpeta autoguardado</div></div>'+
       '</div>';
     })()+
 
@@ -145,22 +145,22 @@ export function renderCfg(){
 
     // USO DEL SISTEMA (telemetría — qué pestañas se abren de verdad)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
-    '<b style="font-size:14px">📊 Uso del sistema</b>'+
+    '<b style="font-size:14px">'+ICONS.trend+' Uso del sistema</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Cuántas veces se abrió cada pestaña/sub-pestaña en los últimos 7/30/90 días — para saber qué se usa de verdad antes de seguir agregando funciones nuevas. Registrado desde el 2026-08-17.</p>'+
     '<button class="btn btn-o" onclick="verUsoPestanas()">Ver uso del sistema</button>'+
     '</div>'+
 
     // VERIFICADOR DE INTEGRIDAD (control de gestión — datos físicamente imposibles)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #14b8a6">'+
-    '<b style="font-size:14px">🔍 Verificador de Integridad</b>'+
+    '<b style="font-size:14px">'+ICONS.search+' Verificador de Integridad</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Revisa los datos ya guardados buscando cosas físicamente imposibles — horómetros que retroceden, stock o precios negativos, fechas invertidas, siglas duplicadas, estados desincronizados con su propio horómetro. No es un juicio de negocio ("esto me parece raro"), solo detecta errores de dato objetivos.</p>'+
-    '<button class="btn" onclick="ejecutarVerificacionIntegridad()">🔍 Ejecutar verificación</button>'+
+    '<button class="btn" onclick="ejecutarVerificacionIntegridad()">'+ICONS.search+' Ejecutar verificación</button>'+
     '<div id="integridadResultado" style="margin-top:12px"></div>'+
     '</div>'+
 
     // PAPELERA (soft-delete con recuperación)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
-    '<b style="font-size:14px">🗑️ Papelera</b>'+
+    '<b style="font-size:14px">'+ICONS.trash+' Papelera</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Todo lo que se elimina en el sistema queda acá 30 días antes de borrarse para siempre — se puede recuperar en cualquier momento.</p>'+
     '<button class="btn btn-o" onclick="verPapelera()">Ver papelera</button>'+
     '</div>'+
@@ -179,7 +179,7 @@ export function renderCfg(){
             ? '🟡 Vence pronto — llevas '+dias+' días con la misma contraseña, se renueva a los '+DIAS_VENCE_CLAVE+'.'
             : '🟢 Al día — la cambiaste hace '+dias+' día'+(dias===1?'':'s')+'.';
       return '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--danger)">'+
-      '<b style="font-size:14px">🔑 Mi contraseña</b>'+
+      '<b style="font-size:14px">'+ICONS.lock+' Mi contraseña</b>'+
       '<p style="font-size:11px;color:var(--tx3);margin:8px 0">'+estado+'</p>'+
       '<button class="btn btn-o" onclick="_mostrarCambioClaveOverlay(\'voluntario\')">Cambiar mi contraseña</button>'+
       '</div>';
@@ -194,10 +194,10 @@ export function renderCfg(){
 
     // AUTOGUARDADO EN LÍNEA (siempre visible)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--ac)">'+
-    '<b style="font-size:14px">☁️ Respaldo automático (en línea)</b>'+
+    '<b style="font-size:14px">'+ICONS.cloud+' Respaldo automático (en línea)</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Los datos viven en este navegador. Conecta una carpeta y el sistema guardará <b>SistemaMP_Datos.json</b> automáticamente a los 5 segundos de cada cambio. Si eliges una carpeta de <b>OneDrive</b> o <b>Google Drive escritorio</b>, el respaldo sube a la nube solo. Requiere Chrome o Edge.</p>'+
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-    '<button class="btn" onclick="conectarCarpeta()">📂 Conectar carpeta</button>'+
+    '<button class="btn" onclick="conectarCarpeta()">'+ICONS.folder+' Conectar carpeta</button>'+
     '<button class="btn btn-o" onclick="desconectarCarpeta()">Desconectar</button>'+
     '<button class="btn btn-o" onclick="exportAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Backup manual</button>'+
     '<button class="btn btn-o" onclick="importAllJSON()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Restaurar backup</button>'+
@@ -223,7 +223,7 @@ export function renderCfg(){
     // edita acá. Si queda vacío, alerta-pm sigue usando esa env var de respaldo.
     (window._userRole==='admin'?(function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid var(--ac)">'+
-    '<b style="font-size:14px">📧 Alertas por Correo</b>'+
+    '<b style="font-size:14px">'+ICONS.mail+' Alertas por Correo</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Correos que reciben el resumen diario automático (PM urgente, stock crítico, vencimientos y backlog pendiente). Separar varios con coma.</p>'+
     '<input id="cfgAlertaEmails" type="text" value="'+escapeHtml(c.alertaEmails||'')+'" placeholder="correo1@empresa.com, correo2@empresa.com" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
     '<button class="btn" onclick="guardarAlertaEmails()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar destinatarios</button>'+
@@ -238,7 +238,7 @@ export function renderCfg(){
     // igual (no es un canal obligatorio, es adicional).
     (window._userRole==='admin'?(function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #25D366">'+
-    '<b style="font-size:14px">💬 Alertas por WhatsApp</b>'+
+    '<b style="font-size:14px">'+ICONS.chat+' Alertas por WhatsApp</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Números que reciben un resumen corto del mismo aviso diario (cuántos equipos con PM urgente, ítems de stock crítico, etc. — sin el detalle completo, para eso está el correo). Formato internacional con "+", separar varios con coma. Necesita Twilio configurado en Supabase (Account SID/Auth Token/número WhatsApp) — si no está, este campo no hace nada todavía.</p>'+
     '<input id="cfgAlertaWhatsApp" type="text" value="'+escapeHtml(c.alertaWhatsApp||'')+'" placeholder="+56912345678, +56987654321" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
     '<button class="btn" onclick="guardarAlertaWhatsApp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar destinatarios</button>'+
@@ -257,7 +257,7 @@ export function renderCfg(){
     // en silencio ni se inventa un equipo/componente.
     (window._userRole==='admin'?(function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #06b6d4">'+
-    '<b style="font-size:14px">📥 Reporte de Fallas por WhatsApp/Correo</b>'+
+    '<b style="font-size:14px">'+ICONS.download+' Reporte de Fallas por WhatsApp/Correo</b>'+
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Quiénes pueden reportar una falla escribiéndole al número de WhatsApp o al correo del sistema (se suma directo a correctivos_historico). Sin al menos un remitente cargado acá, ese canal no acepta nada — evita que un mensaje de un número/correo desconocido termine como dato real de la flota. Formato internacional "+" para WhatsApp, separar varios con coma.</p>'+
     '<label style="font-size:10px;color:var(--tx3)">Números de WhatsApp autorizados</label>'+
     '<input id="cfgWhatsappRemitentes" type="text" value="'+escapeHtml(c.whatsappRemitentesPermitidos||'')+'" placeholder="+56912345678, +56987654321" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:12px;box-sizing:border-box;margin-bottom:8px">'+
@@ -268,7 +268,7 @@ export function renderCfg(){
     (function(){const c=S.g('cfg')||{};return ''+
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #3ecf8e">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="8"/><ellipse cx="10" cy="10" rx="3.5" ry="8"/><line x1="2" y1="10" x2="18" y2="10"/></svg> Sincronización en la nube (Supabase)</b>'+
-    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Backend real: tus datos viven en una base Postgres gratuita y se sincronizan desde cualquier PC con internet. Sube automático 8s después de cada cambio; al abrir, ofrece bajar si la nube tiene datos más nuevos. <b>Guía de instalación (5 min) en la pestaña ❓ Ayuda.</b></p>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Backend real: tus datos viven en una base Postgres gratuita y se sincronizan desde cualquier PC con internet. Sube automático 8s después de cada cambio; al abrir, ofrece bajar si la nube tiene datos más nuevos. <b>Guía de instalación (5 min) en la pestaña '+ICONS.question+' Ayuda.</b></p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'+
     '<div><label style="font-size:10px;color:var(--tx3)">URL del proyecto</label><input id="sbUrl" value="'+(c.sbUrl||'')+'" placeholder="https://xxxx.supabase.co" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px"></div>'+
     '<div><label style="font-size:10px;color:var(--tx3)">Clave anon (public)</label><input id="sbKey" type="password" value="'+(c.sbKey||'')+'" placeholder="sb_publishable_..." style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-size:11px"></div>'+
@@ -288,7 +288,7 @@ export function renderCfg(){
       var totalBytes=uso.totalBytes,pct=uso.pct,col=uso.col;
       return ''+
       '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid '+col+'">'+
-      '<b style="font-size:14px">🗄️ Mantenimiento de datos</b>'+
+      '<b style="font-size:14px">'+ICONS.box+' Mantenimiento de datos</b>'+
       '<p style="font-size:11px;color:var(--tx3);margin:8px 0">El navegador solo guarda localmente las últimas '+_TOPE_FILAS_LOCAL+' filas de las categorías que más crecen (historial de horómetros, correctivos, registros PM, movimientos de stock, mediciones de neumáticos, análisis de aceite, inspecciones, informes de falla) — es automático, no requiere ninguna acción tuya. <b>El historial completo real siempre está en Supabase, nunca se borra</b>: esto solo limita cuánto se guarda como respaldo offline en este navegador.</p>'+
       '<div style="margin:10px 0"><div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Uso local: <b style="color:'+col+'">'+pct.toFixed(1)+'%</b> ('+(totalBytes/1048576).toFixed(2)+' MB de 5 MB)</div>'+
       '<div style="width:100%;background:color-mix(in srgb,'+col+' 18%,var(--bg4));height:14px;border-radius:7px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+';transition:width .3s"></div></div></div>'+
@@ -303,12 +303,12 @@ export function renderCfg(){
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">'+
 
       // TEMAS Y APARIENCIA
-      '<div class="card"><b style="font-size:14px">🎨 Tema y Apariencia</b><br><br>'+
+      '<div class="card"><b style="font-size:14px">'+ICONS.palette+' Tema y Apariencia</b><br><br>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
-      '<button class="btn" onclick="applyTheme(\'dark\');toast(\'🌙 Tema oscuro aplicado\')" style="background:#1a1a2e;color:#fff">🌙 Oscuro</button>'+
-      '<button class="btn" onclick="applyTheme(\'light\');toast(\'☀️ Tema claro aplicado\')" style="background:#f8f9fa;color:#333">☀️ Claro</button>'+
-      '<button class="btn" onclick="applyTheme(\'blue\');toast(\'💎 Tema azul aplicado\')" style="background:#0a1628;color:#64b5f6">💎 Azul Minero</button>'+
-      '<button class="btn" onclick="applyTheme(\'ejecutiva\');toast(\'👔 Tema Ejecutivo aplicado\')" style="background:#F8FAFC;color:#0D1B2A;border:1px solid #D1D5DB">👔 Ejecutivo</button></div>'+
+      '<button class="btn" onclick="applyTheme(\'dark\');toast(\'🌙 Tema oscuro aplicado\')" style="background:#1a1a2e;color:#fff">'+ICONS.moon+' Oscuro</button>'+
+      '<button class="btn" onclick="applyTheme(\'light\');toast(\'☀️ Tema claro aplicado\')" style="background:#f8f9fa;color:#333">'+ICONS.sun+' Claro</button>'+
+      '<button class="btn" onclick="applyTheme(\'blue\');toast(\'💎 Tema azul aplicado\')" style="background:#0a1628;color:#64b5f6">'+ICONS.diamond+' Azul Minero</button>'+
+      '<button class="btn" onclick="applyTheme(\'ejecutiva\');toast(\'👔 Tema Ejecutivo aplicado\')" style="background:#F8FAFC;color:#0D1B2A;border:1px solid #D1D5DB">'+ICONS.tie+' Ejecutivo</button></div>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Tamaño de letra</label><br>'+
       '<select onchange="document.documentElement.style.fontSize=this.value;var c=S.g(\'cfg\')||{};c.fontSize=this.value;S.s(\'cfg\',c)" style="padding:4px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
       '<option value="13px">Normal</option><option value="12px">Pequeña</option><option value="14px">Grande</option><option value="15px">Extra Grande</option></select></div>'+
@@ -352,7 +352,7 @@ export function renderCfg(){
 
       // CREAR USUARIO (solo admin real via Supabase Auth)
       (window._userRole==='admin'?
-      '<div class="card"><b style="font-size:14px">👤 Crear Usuario del Sistema</b><br><br>'+
+      '<div class="card"><b style="font-size:14px">'+ICONS.worker+' Crear Usuario del Sistema</b><br><br>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Nombre</label><br>'+
       '<input id="nuNombre" placeholder="Héctor Ortiz" style="padding:6px;width:100%;box-sizing:border-box;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></div>'+
       '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--tx3)">Email</label><br>'+
@@ -376,29 +376,29 @@ export function renderCfg(){
 
       // DOCUMENTACIÓN (solo admin)
       (window._userRole==='admin'?
-      '<div class="card"><b style="font-size:14px">📐 Documentación del Sistema</b><br><br>'+
+      '<div class="card"><b style="font-size:14px">'+ICONS.ruler+' Documentación del Sistema</b><br><br>'+
       '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Plano de conexión, explicación de la arquitectura, y los manuales de usuario y administrador — versionados junto al código en la carpeta docs/.</p>'+
       '<div style="display:flex;flex-direction:column;gap:6px">'+
-      '<button class="btn btn-o" onclick="window.open(\'docs/plano-sistema.html\',\'_blank\')">📐 Ver plano del sistema</button>'+
-      '<button class="btn btn-o" onclick="window.open(\'docs/arquitectura.html\',\'_blank\')">🏗️ Ver arquitectura</button>'+
-      '<button class="btn btn-o" onclick="window.open(\'docs/manual-usuario.html\',\'_blank\')">📖 Ver manual de usuario</button>'+
-      '<button class="btn btn-o" onclick="window.open(\'docs/manual-admin.html\',\'_blank\')">🔧 Ver manual de administrador</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/plano-sistema.html\',\'_blank\')">'+ICONS.ruler+' Ver plano del sistema</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/arquitectura.html\',\'_blank\')">'+ICONS.building+' Ver arquitectura</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/manual-usuario.html\',\'_blank\')">'+ICONS.book+' Ver manual de usuario</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/manual-admin.html\',\'_blank\')">'+ICONS.gear+' Ver manual de administrador</button>'+
       '</div></div>'
       :'')+
 
       // MONITOREO DE ERRORES (Sentry) — solo admin
       (window._userRole==='admin'?
       '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
-      '<b style="font-size:14px">🐞 Monitoreo de errores</b>'+
+      '<b style="font-size:14px">'+ICONS.bug+' Monitoreo de errores</b>'+
       '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Cada error real que le pase a un usuario (no solo a vos probando) queda registrado en Sentry, con el nombre de quién lo vio y qué estaba haciendo. Este botón manda un error de prueba para confirmar que la conexión funciona — deberías verlo en sentry.io en menos de un minuto.</p>'+
       '<button class="btn btn-o" onclick="if(window.Sentry){Sentry.captureException(new Error(\'Prueba manual desde Configuración — \'+new Date().toLocaleString()));toast(\'🐞 Error de prueba enviado a Sentry\');}else{toast(\'⚠️ Sentry no está cargado en esta página\');}">Enviar error de prueba</button>'+
       '</div>'
       :'')+
 
       // INFO SISTEMA
-      '<div class="card"><b style="font-size:14px">🔲 Códigos QR por Equipo</b><br><br>'+
+      '<div class="card"><b style="font-size:14px">'+ICONS.qr+' Códigos QR por Equipo</b><br><br>'+
       '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Genera un QR único por equipo. Al escanearlo abre directo su ficha en Equipos — sin buscarlo a mano. Descárgalos para imprimir y pegar en cada máquina.</p>'+
-      '<button class="btn" onclick="verCodigosQR()">🔲 Ver / Descargar QR</button>'+
+      '<button class="btn" onclick="verCodigosQR()">'+ICONS.qr+' Ver / Descargar QR</button>'+
       '</div>'+
 
       '<div class="card"><b style="font-size:14px">ℹ️ Info del Sistema</b><br><br>'+
@@ -892,10 +892,10 @@ export function verAccesos(){
     const bloqueado=c.accion==='Login bloqueado';
     const nuevo=!bloqueado&&primeraAparicion.has(c);
     const marcaNuevo=nuevo?'<span title="Dispositivo nunca antes visto para esta cuenta" style="color:var(--ac);font-weight:600">🆕 </span>':'';
-    return `<tr>${bloqueado?'<td style="padding:4px;font-size:11px;color:var(--danger)">🚫 '+fechaStr+'</td>':'<td style="padding:4px;font-size:11px">'+marcaNuevo+fechaStr+'</td>'}<td style="font-size:11px;color:${bloqueado?'var(--danger)':'inherit'}">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
+    return `<tr>${bloqueado?'<td style="padding:4px;font-size:11px;color:var(--danger)">'+ICONS.noEntry+' '+fechaStr+'</td>':'<td style="padding:4px;font-size:11px">'+marcaNuevo+fechaStr+'</td>'}<td style="font-size:11px;color:${bloqueado?'var(--danger)':'inherit'}">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;
   }).join('');
   sm(`<div style="max-width:700px"><h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 10 A9 5 0 0 1 18 10 A9 5 0 0 1 2 10 Z" fill="none"/><circle cx="10" cy="10" r="2.3"/></svg> Accesos recientes</h3>
-    <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">Este computador se identifica como: <b style="color:var(--tx)">💻 ${escapeHtml(_getDeviceLabel())}</b> — <a href="javascript:void(0)" onclick="nombrarEquipo()" style="color:var(--ac)">cambiar nombre</a></p>
+    <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">Este computador se identifica como: <b style="color:var(--tx)">${ICONS.laptop} ${escapeHtml(_getDeviceLabel())}</b> — <a href="javascript:void(0)" onclick="nombrarEquipo()" style="color:var(--ac)">cambiar nombre</a></p>
     <p style="font-size:11px;color:var(--tx3);margin-bottom:8px">🆕 = dispositivo que nunca había iniciado sesión antes en esa cuenta.</p>
     <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%">
     <tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Fecha/hora</th><th style="text-align:left">Usuario</th><th style="text-align:left">Detalle</th></tr>
@@ -998,7 +998,7 @@ export async function cargarActivosUI(){
         '<option value="planificador"'+(u.perfil==='planificador'?' selected':'')+'>Planificador</option>'+
         '</select>';
       return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'+
-        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+(u.perfil?' · '+(PERFIL_LABEL[u.perfil]||u.perfil):'')+')</span>'+(u.mfaActivo?' <span style="color:var(--ac);font-size:10px" title="Tiene verificación en dos pasos activada">🔐</span>':'')+'</span>'+
+        '<span>'+escapeHtml(u.nombre)+' <span style="color:var(--tx3);font-size:10px">('+escapeHtml(u.rol)+(u.perfil?' · '+(PERFIL_LABEL[u.perfil]||u.perfil):'')+')</span>'+(u.mfaActivo?' <span style="color:var(--ac);font-size:10px" title="Tiene verificación en dos pasos activada">'+ICONS.lock+'</span>':'')+'</span>'+
         (esYo?'<span style="color:var(--tx3);font-size:10px">(tú)</span>':
         '<span>'+perfilSel+botonMfa+'<button class="btn-o btn-s" style="color:var(--danger);border-color:var(--danger)" onclick="desactivarUsuarioUI(\''+u.userId+'\',\''+escapeHtml(u.nombre)+'\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0 V9" fill="none"/></svg> Desactivar</button></span>')+
         '</div>';

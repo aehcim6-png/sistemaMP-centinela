@@ -122,7 +122,7 @@ export function renderNeu(){
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">📷 Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">${ICONS.camera} Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -181,7 +181,7 @@ export function renderNeu(){
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
-            <button class="btn-s" style="background:rgba(245,158,11,.15);color:var(--ac)" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">📍</button>
+            <button class="btn-s" style="background:rgba(245,158,11,.15);color:var(--ac)" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">${ICONS.pin}</button>
             <button class="btn-s" style="background:var(--bg3)" onclick="verHistorialNeu(${i})" title="Historial de este neumático (equipos/posiciones por los que pasó)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg></button>
           </td>
         </tr>`;
@@ -200,7 +200,7 @@ export function verNeuLista(modo){
     .map(n=>({n,proy:neuProyeccion(n),ec:neuEstadoCalc(n)}))
     .sort((a,b)=>((a.proy?a.proy.diasRestantes:0)-(b.proy?b.proy.diasRestantes:0)));
   const titulo=esCambiar?'🔴 Neumáticos para cambiar YA':'🟡 Neumáticos próximos (≤30 días)';
-  if(!lista.length){sm(`<h3>${titulo}</h3><p style="color:var(--tx3)">No hay neumáticos en esta condición ahora mismo. 👍</p><button class="btn btn-o" onclick="cm()">Cerrar</button>`);return;}
+  if(!lista.length){sm(`<h3>${titulo}</h3><p style="color:var(--tx3)">No hay neumáticos en esta condición ahora mismo. ${ICONS.thumbsup}</p><button class="btn btn-o" onclick="cm()">Cerrar</button>`);return;}
   const filas=lista.map(({n,proy,ec})=>{
     const dias=proy?(proy.diasRestantes<=0?'ahora':'≈'+proy.diasRestantes+'d'):'—';
     const idx=neu.indexOf(n);
@@ -806,7 +806,7 @@ export function _revisarChequeoNeuOCR(datos){
       </table></div>
     </div>`;
   }).join('');
-  sm(`<div style="max-width:720px"><h3>📷 Chequeo de neumáticos leído</h3>
+  sm(`<div style="max-width:720px"><h3>${ICONS.camera} Chequeo de neumáticos leído</h3>
     <p style="color:var(--tx2);font-size:13px;margin-bottom:12px">Revisa los valores antes de guardar — desmarca las filas que no correspondan. Las filas en amarillo tienen letra dudosa.</p>
     ${bloques||'<p>No se detectó ningún panel en la foto.</p>'}
     <button class="btn" onclick="_guardarChequeoNeuOCR()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar mediciones seleccionadas</button> <button class="btn btn-o" onclick="cm()">Cancelar</button></div>`);
@@ -915,7 +915,7 @@ export function histPosicion(sigla,posNum,numPos){
   });
 
   sm(`<div style="max-width:600px">
-    <h3>📍 Historial Posición ${escapeHtml(posNum)} — ${escapeHtml(sigla)}</h3>
+    <h3>${ICONS.pin} Historial Posición ${escapeHtml(posNum)} — ${escapeHtml(sigla)}</h3>
     <p style="font-size:12px;color:var(--tx3)">${meds.length} mediciones · ${series.length} neumático(s) han pasado por esta posición</p>
     ${svg||'<p style="color:var(--tx3);text-align:center;padding:20px">Sin mediciones en esta posición</p>'}
     <div style="background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:12px">
@@ -1342,7 +1342,7 @@ export function resumenFlotaNeu(){
         <td style="text-align:center">$${fn2(d.costo)}</td>
       </tr>`;}).join('')}
     </table></div>
-    <p style="font-size:10px;color:var(--tx3);margin:-10px 0 16px">Cada fecha sale de la proyección real de ESE neumático (regresión sobre sus mediciones, ver botón 🔍 en cada fila) — acá solo se agrupan por período, no se re-estima nada.</p>`:`<p style="font-size:11px;color:var(--tx3);margin-bottom:16px">Ningún neumático operativo tiene mediciones suficientes para proyectar todavía.</p>`}
+    <p style="font-size:10px;color:var(--tx3);margin:-10px 0 16px">Cada fecha sale de la proyección real de ESE neumático (regresión sobre sus mediciones, ver botón ${ICONS.search} en cada fila) — acá solo se agrupan por período, no se re-estima nada.</p>`:`<p style="font-size:11px;color:var(--tx3);margin-bottom:16px">Ningún neumático operativo tiene mediciones suficientes para proyectar todavía.</p>`}
     <b style="font-size:13px">Por estado:</b>
     <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;font-size:11px">
       <tr style="background:var(--bg3)"><th style="padding:6px;text-align:left">Estado</th><th>Cant.</th><th>Rem. prom</th><th>Hrs prom</th><th>Rend. prom</th><th>Costo total</th></tr>

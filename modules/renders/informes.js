@@ -330,7 +330,7 @@ export function renderInformes(){
         '<td>'+(i.tipoEvento==='Falla Catastrófica'?'🔴 Falla Catastrófica':'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Cambio Componente')+'</td>'+
         '<td>'+escapeHtml(i.componente||'—')+'</td>'+
         '<td class="mono">$'+fn(Math.round(i.costoEstimado||0))+'</td>'+
-        '<td>'+(i.fotos?i.fotos.length:0)+' 📷</td>'+
+        '<td>'+(i.fotos?i.fotos.length:0)+' '+ICONS.camera+'</td>'+
         '<td style="font-size:11px">'+escapeHtml(i.generadoPor||'—')+'</td>'+
         '<td><button class="btn-x" onclick="regenerarPDF(\''+i.id+'\')" title="Descargar PDF"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button> <button class="btn-x" onclick="delInforme(\''+i.id+'\')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+

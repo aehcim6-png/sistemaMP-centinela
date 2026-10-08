@@ -3084,6 +3084,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (130 px en mp2). La marca de agua de engranaje se oculta solo en celular. Escritorio no cambia,
   salvo el icono de la insignia de usuario. Sin cambios de lógica.</p>
 
+  <h3>103. Iconos de línea en vez de emoji decorativos (2026-10-08)</h3>
+  <p>mp2 ya había migrado los emoji decorativos de títulos, chips y botones a iconos de línea;
+  centinela se alineó con esa migración (150 reemplazos en 22 módulos, 5 títulos a mano y 37
+  iconos nuevos en <code>ICONS</code>), con subida de versión de caché de los 23 módulos tocados.
+  No se migraron los emoji de estado (⚠️ ✅ ✓ ✕ ⭐ ★ 🚨 🚦, semáforos), ni los de mensajes y
+  atributos <code>title</code>. Sin cambios de lógica.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

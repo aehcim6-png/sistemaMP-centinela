@@ -92,7 +92,7 @@ export function renderResumenEjec() {
     '<div class="tbl-wrap" style="margin-top:6px"><table style="font-size:11px">' +
     '<tr><th>Indicador</th><th style="text-align:center">Real</th><th style="text-align:center">Meta</th></tr>' + filasHtml + '</table></div>' +
     tendenciaHtml +
-    '<b style="font-size:12px">📝 Compromisos pendientes / vencidos</b>' +
+    '<b style="font-size:12px">'+ICONS.pencil+' Compromisos pendientes / vencidos</b>' +
     compromisosHtml;
 }
 

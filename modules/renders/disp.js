@@ -125,7 +125,7 @@ export function renderDisp(){
       var c=e.pct>=meta?'var(--ok)':e.pct>=70?'var(--w)':'var(--danger)';
       // Etiqueta de respaldo del dato
       var datos;
-      if(e.manual)datos='<span class="badge b-b" title="Valor cargado a mano (override o import)">✍ manual</span>';
+      if(e.manual)datos='<span class="badge b-b" title="Valor cargado a mano (override o import)">'+ICONS.pencil+' manual</span>';
       else if(e.diasReg>0)datos='<span style="font-size:10px;color:var(--tx3)" title="Días del mes con al menos una detención registrada"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> '+e.diasReg+' día'+(e.diasReg===1?'':'s')+' c/registro</span>';
       else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real."><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> sin registros</span>';
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+

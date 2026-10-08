@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // TORRE DE CONTROL — tablero visual de Score de Salud de toda la flota
 // (2026-09-02, pedido del usuario). Nace como consolidación del antiguo
-// "🗺️ Mapa de Salud de la Flota" del Dashboard: el usuario confirmó que
+// ""+ICONS.map+" Mapa de Salud de la Flota" del Dashboard: el usuario confirmó que
 // ambos "cumplen las mismas funciones", así que el Dashboard se redujo a un
 // resumen de conteos (ver dash.js) y el tablero completo, agrupado por tipo
 // de equipo con siluetas SVG y detalle por equipo, vive solo acá. Ambas

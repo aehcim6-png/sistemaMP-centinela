@@ -111,7 +111,7 @@ export function renderRep() {
   $('s-rep').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Control de Repuestos</div>' +
     '<div class="sec-s">' + rep.length + ' componentes · Conectado con Predictivo</div></div>' +
-    '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="resumenFlotaRep()">📊 Resumen</button> <button class="btn btn-o" onclick="syncRepStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sync Stock</button> <button class="btn btn-o" onclick="verOrdenesCompra()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Órdenes de Compra</button> <button class="btn btn-o" onclick="importRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos CSV</button></div></div>' +
+    '<div><button class="btn" onclick="addRep()">+ Nuevo</button> <button class="btn btn-o" onclick="resumenFlotaRep()">'+ICONS.trend+' Resumen</button> <button class="btn btn-o" onclick="syncRepStock()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Sync Stock</button> <button class="btn btn-o" onclick="verOrdenesCompra()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Órdenes de Compra</button> <button class="btn btn-o" onclick="importRepCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Pedidos CSV</button></div></div>' +
 
     // Proyección de Elementos de Desgaste, por PIEZA — real, desde el
     // historial de Correctivos, no un supuesto de vida útil teórica. El
@@ -192,7 +192,7 @@ export function renderRep() {
         '<td><input type="number" value="' + (r.precioUnit || 0) + '" onchange="edRep(' + i + ',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;' + is + '"></td>' +
         '<td><input value="' + escapeHtml(r.proveedor || '') + '" onchange="edRep(' + i + ',\'proveedor\',this.value)" style="width:90px;background:transparent;border:none;color:var(--tx);font-size:10px" placeholder="Proveedor..."></td>' +
         '<td>' + accion + '</td>' +
-        '<td><button class="btn-s" onclick="verTendenciaRep(' + i + ')" title="Tendencia y proyección de compra">📈</button></td>' +
+        '<td><button class="btn-s" onclick="verTendenciaRep(' + i + ')" title="Tendencia y proyección de compra">'+ICONS.trend+'</button></td>' +
         '<td><button class="btn-s btn-d" onclick="delRep(' + i + ')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('') +
     '</table></div>' +
@@ -299,7 +299,7 @@ export function verOrdenesCompra() {
       var i = oc.indexOf(o);
       var estadoHtml = o.estado === 'Recibida'
         ? '<span style="font-size:11px;color:var(--ok)">✅ Recibida' + (o.fechaEntrega ? ' ' + o.fechaEntrega : '') + '</span>'
-        : '<span style="font-size:11px;color:var(--w)">🛒 Pendiente</span>';
+        : '<span style="font-size:11px;color:var(--w)">'+ICONS.cart+' Pendiente</span>';
       var accionHtml = o.estado === 'Recibida' ? '' : '<button class="btn-s" onclick="recibirOC(' + i + ')">Marcar Recibida</button>';
       return '<tr>' +
         '<td class="mono" style="font-size:10px">' + (o.fecha || '') + '</td>' +

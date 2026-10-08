@@ -255,7 +255,7 @@ export function renderBuscar(){
     }).sort(function(a,b){return b.fallas-a.fallas||b.costo-a.costo});
 
     content=
-    '<div class="chart-box"><div class="chart-t">🏆 Ranking de Equipos — Más Problemáticos'+(hayFiltroFecha?' <span style="font-weight:400;color:var(--tx3);font-size:12px">('+(fAnio||((fDesde||'…')+' → '+(fHasta||'…')))+')</span>':'')+'</div>'+
+    '<div class="chart-box"><div class="chart-t">'+ICONS.trophy+' Ranking de Equipos — Más Problemáticos'+(hayFiltroFecha?' <span style="font-weight:400;color:var(--tx3);font-size:12px">('+(fAnio||((fDesde||'…')+' → '+(fHasta||'…')))+')</span>':'')+'</div>'+
     '<div class="tbl-wrap"><table><tr><th>#</th><th>Equipo</th><th>Tipo</th><th>Fallas</th><th>HH Consumidas</th><th>Costo MO</th><th>MTBF</th><th>Acción</th></tr>'+
     ranking.map(function(r,i){
       var mtbf=r.mtbf;

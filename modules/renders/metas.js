@@ -232,7 +232,7 @@ export function renderMetas() {
   var compromisosHtml = compromisos.length ?
     '<div style="margin-top:16px">' +
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
-    '<b style="font-size:12px">📝 Compromisos</b>' +
+    '<b style="font-size:12px">'+ICONS.pencil+' Compromisos</b>' +
     (pctCumplidos != null ? '<span style="font-size:11px;color:var(--tx3)">' + pctCumplidos + '% cumplidos a tiempo (' + resueltos.length + ' resuelto(s))</span>' : '') +
     '</div>' +
     '<div class="tbl-wrap"><table style="font-size:11px">' +
@@ -380,7 +380,7 @@ export function verCadenaCausas(indId, mes) {
   }
 
   sm('<div style="max-width:680px">' +
-    '<h3>🔗 Cadena de Causas — ' + escapeHtml(ind.name) + ' · ' + mes + '</h3>' +
+    '<h3>'+ICONS.link+' Cadena de Causas — ' + escapeHtml(ind.name) + ' · ' + mes + '</h3>' +
     '<p style="font-size:11px;color:var(--tx3);margin:4px 0 0">' +
     (mesAnt ? 'Cada caja compara ' + mesAnt + ' → ' + mes + '.' : 'Sin mes anterior disponible para comparar (es el primer mes del año).') +
     ' No afirma que sea la única explicación — solo muestra la causa conocida (por fórmula u operación) y cómo se movió.</p>' +
@@ -408,7 +408,7 @@ export function abrirFormCompromiso(indId, mes) {
   var per = _tecnicosDisponibles();
   var fechaSugerida = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
   sm('<div style="max-width:480px">' +
-    '<h3>📝 Registrar compromiso — ' + escapeHtml(ind.name) + ' · ' + mes + '</h3>' +
+    '<h3>'+ICONS.pencil+' Registrar compromiso — ' + escapeHtml(ind.name) + ' · ' + mes + '</h3>' +
     '<p style="font-size:11px;color:var(--tx3)">Línea base: <b>' + (valorBase == null ? '—' : valorBase) + '</b>. Se marca cumplido solo cuando el indicador mejore respecto a este número — no hace falta que llegue a meta.</p>' +
     '<div class="form-row"><div class="fg" style="flex:1;width:100%"><label>Acción</label><textarea id="cpAccion" rows="2" style="width:100%" placeholder="Ej: reforzar dotación de mecánicos turno noche"></textarea></div></div>' +
     '<div class="form-row"><div class="fg"><label>Responsable</label><select id="cpResp"><option value="">Sin asignar</option>' + per.map(function (p) { return '<option>' + escapeHtml(p) + '</option>'; }).join('') + '</select></div>' +

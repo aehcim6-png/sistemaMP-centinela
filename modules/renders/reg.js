@@ -79,9 +79,9 @@ export function addReg(){
   const hora=new Date().toTimeString().slice(0,5);
   sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registrar Mantención</h3>
     <div style="margin-bottom:10px">
-      <button type="button" class="btn btn-o" onclick="_activarLeerPauta()">📷 Leer pauta PM (foto)</button>
+      <button type="button" class="btn btn-o" onclick="_activarLeerPauta()">${ICONS.camera} Leer pauta PM (foto)</button>
       <input type="file" id="rPautaFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerPautaFotoSeleccionada(this)">
-      <button type="button" class="btn btn-o" onclick="_activarLeerCorrectivo()">📷 Leer informe correctivo (foto)</button>
+      <button type="button" class="btn btn-o" onclick="_activarLeerCorrectivo()">${ICONS.camera} Leer informe correctivo (foto)</button>
       <input type="file" id="rCorrectivoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerCorrectivoFotoSeleccionada(this)">
       <span id="rPautaEstado" style="font-size:11px;color:var(--tx3);margin-left:8px"></span>
       <div style="font-size:11px;color:var(--tx3);margin-top:3px">Prellena el formulario desde la foto (usa la que corresponda al papel que tienes) — revisa lo marcado en amarillo antes de guardar, no se guarda solo.</div>
