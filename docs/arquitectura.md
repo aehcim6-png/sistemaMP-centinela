@@ -5948,6 +5948,23 @@ pedidos trabados esta semana, el desempeño de proveedores en el mes, y la proye
 hasta fin de año. Para el Administrador el horizonte anual es una recomendación (ensayar la
 restauración documentada), no una función del sistema.
 
+### 102. Cabecera compacta en celular (2026-10-08)
+
+Auditoría visual con capturas de la app real (celular 390×844 y escritorio, temas oscuro y
+claro): la cabecera es `position:sticky`, y en celular ocupaba unos 225 px (27% de la pantalla)
+todo el tiempo mientras se hacía scroll. Se diseñó una propuesta en un lienzo de diseño, se
+revisó con el usuario y se aplicó solo con CSS a ≤480 px: una fila de marca + acciones (iconos
+de 44 px: CSV, Imprimir, Voz y usuario siguen todos accesibles), y los indicadores en vivo en
+una tira con scroll horizontal. Medido en un navegador real: la cabecera pasa de ~225 px a
+114 px en centinela (130 px en mp2) y las pestañas a 45 px de alto (zona de toque).
+
+Cambios de marcado: el logo agrupa marca y subtítulo en `.logo-t` (se apilan en celular); los
+botones de exportación llevan `aria-label`; la insignia de usuario es un `<button>` real con
+icono de línea (antes un `<span>` con emoji) y su nombre se escribe con `textContent`. El "sol"
+que se veía arriba a la derecha es una marca de agua de engranaje intencional (`.header::before`):
+se oculta solo en celular, porque quedaba detrás de los números. Escritorio no cambia, salvo el
+icono de la insignia de usuario. Sin cambios de lógica; tests sin cambios.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

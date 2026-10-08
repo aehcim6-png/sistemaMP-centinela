@@ -86,6 +86,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .logo{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ac);letter-spacing:1px;display:flex;align-items:center;gap:8px}
 .logo span{color:var(--tx2);font-weight:400;font-size:12px}
 .logo img{width:26px;height:26px;border-radius:50%;flex-shrink:0}
+.logo-t span{margin-left:8px}
 /* Reporte real de un usuario: no entendía por qué estos números no cambiaban
    al cambiar el período del Dashboard — son el estado EN VIVO de toda la
    flota, ahora mismo, siempre igual sin importar la pestaña o el período que
@@ -317,6 +318,29 @@ td.calc{color:var(--tx3);font-style:italic}
   .btn-s,.btn-x{padding:8px 10px;font-size:12px;min-height:36px;min-width:36px}
   .toolbar select,.toolbar input{padding:9px 10px;font-size:13px;min-height:40px}
   .mic-btn{padding:9px 8px;min-height:36px}
+  /* Cabecera compacta en celular (2026-10-08, propuesta revisada en un lienzo de
+     diseño con el usuario): la cabecera es position:sticky, así que en un celular
+     de 844px de alto tapaba ~225px (27%) de la pantalla TODO el tiempo mientras se
+     hacía scroll. Ahora: una fila de marca + acciones (iconos de 44px, sin quitar
+     ninguna: CSV/Imprimir/Voz/usuario siguen ahí), y los indicadores en vivo en una
+     sola tira con scroll horizontal. Solo CSS a ≤480px — escritorio no cambia.
+     La marca de agua de engranaje (.header::before) se oculta acá: con la cabecera
+     compacta quedaba justo detrás de los números. */
+  .header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"logo right" "stats stats";align-items:center;gap:0 4px;padding:0 4px 0 12px}
+  .header::before{display:none}
+  .logo{grid-area:logo;font-size:16px;min-height:48px}
+  .logo-t{display:flex;flex-direction:column;line-height:1.15}
+  .logo-t span{margin-left:0;font-size:9px;letter-spacing:.08em}
+  #headerRight{grid-area:right;gap:0!important}
+  #exportBar{background:none!important;border:none!important;padding:0!important;gap:0!important}
+  #exportBar button,#_userBadge{width:44px;height:44px;padding:0!important;font-size:0!important;display:inline-flex;align-items:center;justify-content:center;border-radius:50%!important;background:transparent!important;border:none!important;box-shadow:none!important}
+  #exportBar button svg,#_userBadge svg{width:20px;height:20px}
+  #exportBar button,#_userBadge{color:var(--tx2)!important} /* sin la pastilla oscura, el gris fijo no se leía en tema claro */
+  .hstats-wrap{grid-area:stats;border-top:1px solid var(--bd);padding:2px 0 4px;min-width:0}
+  .hstats{flex-wrap:nowrap;overflow-x:auto;gap:0;scrollbar-width:none}
+  .hstats::-webkit-scrollbar{display:none}
+  .hs{flex:0 0 auto;min-width:72px;padding:4px 10px}
+  .nav button{min-height:44px;font-size:11px;padding:0 10px}
 }
 /* Elementos marcados para no salir al imprimir (Ctrl+P) ni al exportar con
    imprimirTab() — se ven normal en pantalla, el dato real no se toca. */
@@ -334,7 +358,7 @@ td.calc{color:var(--tx3);font-style:italic}
 </head>
 <body>
 <div class="header">
-  <div class="logo"><img src="/icons/icon-192.png" alt="" aria-hidden="true">SistemaMP <span>CENTINELA v10</span></div>
+  <div class="logo"><img src="/icons/icon-192.png" alt="" aria-hidden="true"><div class="logo-t">SistemaMP<span>CENTINELA v10</span></div></div>
   <div class="hstats-wrap">
     <div class="hstats-caption" title="Estado actual de toda la flota, siempre en vivo — no cambia según la pestaña ni el período que estés mirando">🔴 Flota en vivo — no cambia con la pestaña</div>
     <div class="hstats" id="hs"></div>
@@ -3900,9 +3924,9 @@ document.addEventListener('DOMContentLoaded',function(){
   bar.id='exportBar';
   bar.style.cssText='display:flex;gap:6px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 6px';
   var btnCss='padding:4px 12px;border-radius:16px;border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:11px';
-  bar.innerHTML='<button onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
-    '<button onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>'+
-    '<button id="voiceCmdBtn" onclick="_comandoDeVoz(this)" style="'+btnCss+'" title="Comando de voz — di el nombre de una pestaña, \'nueva OT\', \'urgentes\'...">'+ICONS.mic+' Voz</button>';
+  bar.innerHTML='<button type="button" aria-label="Exportar a CSV" onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
+    '<button type="button" aria-label="Imprimir" onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>'+
+    '<button type="button" aria-label="Comando de voz" id="voiceCmdBtn" onclick="_comandoDeVoz(this)" style="'+btnCss+'" title="Comando de voz — di el nombre de una pestaña, \'nueva OT\', \'urgentes\'...">'+ICONS.mic+' Voz</button>';
   right.appendChild(bar);
   var header=document.querySelector('.header');
   (header||document.body).appendChild(right);
@@ -4803,12 +4827,16 @@ function _aplicarRolUI(){
 
 function _agregarUserBadge(){
   var old=document.getElementById('_userBadge');if(old)old.remove();
-  var badge=document.createElement('span');
+  var badge=document.createElement('button');
+  badge.type='button';
   badge.id='_userBadge';
   // Vive en el header, junto a CSV/Imprimir/Voz (#headerRight) — antes flotaba
   // fijo abajo a la derecha (position:fixed) y tapaba filas de tablas largas.
-  badge.style.cssText='background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 12px;font-size:11px;color:#94a3b8;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)';
-  badge.textContent='👤 '+(window._userName||'')+(window._userRole?' ('+window._userRole+')':'');
+  badge.style.cssText='background:#1e293b;border:1px solid #334155;border-radius:20px;padding:4px 12px;font-size:11px;color:#94a3b8;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3);font-family:inherit;display:inline-flex;align-items:center;gap:6px';
+  var _ubTxt=(window._userName||'')+(window._userRole?' ('+window._userRole+')':'');
+  badge.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span></span>';
+  badge.lastChild.textContent=_ubTxt; // textContent: el nombre viene de la base, nunca como HTML
+  badge.setAttribute('aria-label',_ubTxt+' — cerrar sesión');
   badge.title='Cerrar sesión';
   badge.onclick=function(){if(confirm('¿Cerrar sesión?'))_logout();};
   var right=document.getElementById('headerRight')||document.querySelector('.header')||document.body;

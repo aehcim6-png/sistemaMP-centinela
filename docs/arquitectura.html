@@ -3076,6 +3076,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   horizonte anual es una recomendación (ensayar la restauración documentada), no una función del
   sistema.</p>
 
+  <h3>102. Cabecera compacta en celular (2026-10-08)</h3>
+  <p>La cabecera es <code>position:sticky</code> y en celular ocupaba ~225 px (27% de la pantalla)
+  todo el tiempo. Se aplicó, solo con CSS a ≤480 px, una versión compacta: una fila de marca y
+  acciones (iconos de 44 px; CSV, Imprimir, Voz y usuario siguen accesibles) y los indicadores en
+  vivo en una tira con scroll horizontal. Medido en un navegador real: ~225 px → 114 px en centinela
+  (130 px en mp2). La marca de agua de engranaje se oculta solo en celular. Escritorio no cambia,
+  salvo el icono de la insignia de usuario. Sin cambios de lógica.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
