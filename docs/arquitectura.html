@@ -3091,6 +3091,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   No se migraron los emoji de estado (⚠️ ✅ ✓ ✕ ⭐ ★ 🚨 🚦, semáforos), ni los de mensajes y
   atributos <code>title</code>. Sin cambios de lógica.</p>
 
+  <h3>104. Guía de Capacitación con acceso destacado en Ayuda (2026-10-08)</h3>
+  <p>Tarjeta destacada bajo el título de Ayuda con "Ir a la Guía" y "Descargar Guía" (antes había que
+  bajar 33 secciones). Las 9 tarjetas de "Novedades" (que ocupaban toda la parte de arriba) quedan plegadas en un <details> — el mismo criterio que mp2 ya tenía desde 2026-09-07; contenido intacto, y como en mp2 "Imprimir Manual" las deja fuera de la copia impresa.  Se corrigió además que los enlaces internos (<code>#m32</code>,
+  <code>#m33</code>) dejaban el título tapado por la cabecera sticky (<code>scroll-margin-top</code>).
+  Sin cambios de lógica.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

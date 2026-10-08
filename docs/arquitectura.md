@@ -5978,6 +5978,19 @@ los 37 iconos que faltaban en `ICONS`. Se subió la versión de caché de los 23
 los emoji dentro de textos de mensajes (WhatsApp/toasts) ni de atributos `title`. Verificado en un
 navegador real: las 22 pestañas cargan sin errores ni texto crudo de icono. Sin cambios de lógica.
 
+### 104. Guía de Capacitación con acceso destacado en Ayuda (2026-10-08)
+
+Quien entra por primera vez debía bajar 33 secciones para encontrar la Guía de Capacitación por Rol
+(sección 33). Ahora hay una tarjeta destacada justo debajo del título de Ayuda con "Ir a la Guía" y
+"Descargar Guía". Las 9 tarjetas de "Novedades" (que ocupaban toda la parte de arriba) quedan plegadas en un
+`<details>` — el mismo criterio que mp2 ya tenía desde 2026-09-07; contenido intacto, y como en mp2
+"Imprimir Manual" las deja fuera de la copia impresa. 
+
+Corrección incluida: los enlaces internos de Ayuda (`#m32` Glosario, `#m33` Guía) dejaban el título
+de la sección tapado por la cabecera sticky; se agregó `scroll-margin-top:130px` a `#s-ayuda [id^="m"]`.
+Verificado en un navegador real (celular y escritorio): el título queda visible tras el salto. Sin
+cambios de lógica.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -14,6 +14,18 @@ export function renderAyuda(){
     '<div style="display:flex;gap:8px"><a href="#m32" class="btn btn-o" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+ICONS.book+' Glosario de Términos</a>'+
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div></div>'+
 
+    // Acceso destacado a la Guía de Capacitación (2026-10-08, pedido del usuario):
+    // quien entra por primera vez no debe tener que bajar 33 secciones para encontrarla.
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.08)">'+
+    '<b style="font-size:15px">'+ICONS.book+' ¿Primera vez en el sistema? Empezá por la Guía de Capacitación por Rol</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:8px 0 10px">Enseña en qué orden aprender el sistema según lo que te toca hacer — Operador de Terreno, Planificador, Comprador, Supervisor o Administrador — con ejemplos y pasos concretos. Este manual (secciones 1-32) sirve para buscar un detalle puntual.</p>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><a href="#m33" class="btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+ICONS.book+' Ir a la Guía</a>'+
+    '<button class="btn btn-o" onclick="imprimirTab(\'ayuda\',\'Guía de Capacitación por Rol\',\'m33\')">'+ICONS.printer+' Descargar Guía</button></div>'+
+    '</div>'+
+
+    // Novedades plegadas (2026-10-08): eran 9 tarjetas largas antes de todo lo demás —
+    // mismo criterio que ya tenía mp2 desde 2026-09-07. Contenido intacto.
+    '<details style="margin-bottom:16px"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0;display:flex;align-items:center;gap:6px">'+ICONS.doc+' Historial de novedades y correcciones (clic para ver)</summary>'+
     // NOVEDADES DE ESTA VERSIÓN (2026-09-14)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (14 de septiembre 2026)</b>'+
@@ -163,6 +175,8 @@ export function renderAyuda(){
     '<li><b>Editar el horómetro en Equipos ahora también alimenta el historial:</b> antes, cambiar el horómetro directo en la tabla de Equipos no dejaba ningún rastro en el historial de lecturas — con el tiempo, el ritmo real usado para proyectar el próximo PM quedaba calculado con datos de semanas o meses atrás, aunque el equipo ya llevara mucho más uso real. Se corrigió para todos los equipos afectados y ahora cada edición de horómetro queda registrada.</li>'+
     '</ul>'+
     '</div>'+
+
+    '</details>'+
 
     // GUÍA DE TRASPASO (para quien tome el sistema)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(99,102,241,.05)">'+

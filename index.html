@@ -113,6 +113,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 
 .main{padding:16px;max-width:1440px;margin:0 auto}
 .sec{display:none}.sec.on{display:block}
+/* Anclas internas de la Ayuda (#m32 Glosario, #m33 Guía): la cabecera es sticky (83px escritorio / 114px celular) y tapaba el título de la sección al saltar a ella. */
+#s-ayuda [id^="m"]{scroll-margin-top:130px}
 
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
 .card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-sm);transition:box-shadow .2s,border-color .2s}
@@ -425,7 +427,7 @@ td.calc{color:var(--tx3);font-style:italic}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-08-31',
-  ayuda:'2026-10-08',
+  ayuda:'2026-10-08b',
   cad:'2026-08-30b',
   cfg:'2026-10-08',
   comp2:'2026-08-30',
