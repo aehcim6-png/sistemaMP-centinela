@@ -5004,7 +5004,37 @@ async function _sbUpdatePassword(newPassword){
     // más abajo) para saber hace cuánto que esta contraseña está en uso.
     body:JSON.stringify({password:newPassword,data:{must_change_password:false,passwordChangedAt:new Date().toISOString()}})
   });
-  return r.json();
+  // Bug real (2026-10-08, reporte del usuario): "cambio la contraseña, entro,
+  // recargo la página y vuelve a pedir cambiarla". GoTrue rechaza el cambio
+  // (misma contraseña, clave débil, reautenticación...) con HTTP 422 y un cuerpo
+  // {code, error_code, msg} — SIN `error` ni `error_description` — y el chequeo
+  // viejo (res.error||res.error_description) lo daba por exitoso: cerraba el
+  // aviso, decía "Contraseña actualizada" y el servidor seguía con
+  // must_change_password:true. Ahora el éxito solo es una respuesta HTTP ok que
+  // devuelve el usuario (con id); cualquier otra cosa es error, con su código.
+  var body=null;
+  try{body=await r.json();}catch(e){body=null;}
+  if(!r.ok||!body||!body.id){
+    var cod=(body&&(body.error_code||body.error))||('http_'+r.status);
+    return {error:cod,error_code:cod,error_description:(body&&(body.msg||body.message||body.error_description))||('Error HTTP '+r.status),weak_reasons:(body&&body.weak_password&&body.weak_password.reasons)||null};
+  }
+  return body;
+}
+
+// Mensaje claro en español para cada rechazo conocido del cambio de clave.
+function _msgErrorCambioClave(res){
+  var c=res.error_code||res.error||'';
+  if(c==='same_password')return 'La nueva contraseña debe ser distinta de la actual.';
+  if(c==='weak_password'){
+    var r=res.weak_reasons||[],t=[];
+    if(r.indexOf('length')>=0)t.push('más larga');
+    if(r.indexOf('characters')>=0)t.push('con mayúsculas, minúsculas, números y símbolos');
+    if(r.indexOf('pwned')>=0)t.push('que no haya aparecido en filtraciones conocidas');
+    return 'Contraseña demasiado débil'+(t.length?': usa una '+t.join(', '):': prueba con una más larga y variada')+'.';
+  }
+  if(c==='reauthentication_needed'||c==='insufficient_aal'||c==='session_not_found'||c==='http_401'||c==='http_403')
+    return 'Por seguridad hay que volver a iniciar sesión antes de cambiar la contraseña. Cierra sesión, entra de nuevo y repite el cambio.';
+  return 'No se pudo cambiar la contraseña ('+(res.error_description||c)+'). No se guardó nada; intenta de nuevo.';
 }
 
 // ============ VENCIMIENTO DE CONTRASEÑA (rotación periódica, 2026-09-02) ============
@@ -5055,7 +5085,7 @@ async function _doChangePassword(){
   try{
     var res=await _sbUpdatePassword(p1);
     if(res.error||res.error_description){
-      err.textContent='Error: '+(res.error_description||res.error);err.style.display='block';
+      err.textContent=_msgErrorCambioClave(res);err.style.display='block';
       document.getElementById('cc_btn').disabled=false;document.getElementById('cc_loading').style.display='none';
       return;
     }

@@ -51,7 +51,16 @@ async function mockSupabase(page, opts = {}) {
     // _mfaVerify acepta en este mock.
     mfaFactorId = null,
     mfaCodigoValido = '123456',
+    // 'same_password' | 'weak_password' | 'reauthentication_needed': el PUT de
+    // cambio de clave responde 422 con el formato REAL de GoTrue ({code,
+    // error_code, msg}) — NO trae `error` ni `error_description`.
+    passwordChangeError = null,
   } = opts;
+
+  // Estado del usuario en el "servidor": el cambio de clave exitoso lo
+  // modifica, y un GET posterior (recarga de página) lo ve — así se prueba
+  // que la marca must_change_password realmente se apaga.
+  const userMeta = mustChangePassword ? { must_change_password: true } : {};
 
   await mockTurnstile(page);
 
@@ -78,7 +87,7 @@ async function mockSupabase(page, opts = {}) {
             id: userId,
             email,
             factors: mfaFactorId ? [{ id: mfaFactorId, factor_type: 'totp', status: 'verified' }] : [],
-            user_metadata: mustChangePassword ? { must_change_password: true } : {},
+            user_metadata: { ...userMeta },
           },
         }),
       });
@@ -118,10 +127,26 @@ async function mockSupabase(page, opts = {}) {
     }
 
     if (path === '/auth/v1/user') {
+      if (method === 'PUT') {
+        if (passwordChangeError) {
+          const msgs = {
+            same_password: 'New password should be different from the old password.',
+            weak_password: 'Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789.',
+            reauthentication_needed: 'Password update requires reauthentication',
+          };
+          return route.fulfill({
+            status: 422,
+            contentType: 'application/json',
+            body: JSON.stringify({ code: 422, error_code: passwordChangeError, msg: msgs[passwordChangeError] || 'error' }),
+          });
+        }
+        const body = JSON.parse(route.request().postData() || '{}');
+        Object.assign(userMeta, body.data || {});
+      }
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ id: userId, email, factors: [], user_metadata: {} }),
+        body: JSON.stringify({ id: userId, email, factors: [], user_metadata: { ...userMeta } }),
       });
     }
 

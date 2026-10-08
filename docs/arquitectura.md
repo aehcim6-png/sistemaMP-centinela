@@ -5991,6 +5991,27 @@ de la sección tapado por la cabecera sticky; se agregó `scroll-margin-top:130p
 Verificado en un navegador real (celular y escritorio): el título queda visible tras el salto. Sin
 cambios de lógica.
 
+### 105. Cambio de contraseña que no se guardaba y volvía a pedirse (2026-10-08)
+
+Reporte: tras cambiar la contraseña que el sistema exige, entrar y recargar la página, volvía a pedirse el
+cambio. Causa: GoTrue rechaza un cambio de clave (misma contraseña, clave débil, reautenticación) con HTTP
+422 y un cuerpo `{code, error_code, msg}` — sin `error` ni `error_description` — y `_doChangePassword` lo
+daba por exitoso (`res.error||res.error_description`): cerraba el aviso, decía "Contraseña actualizada" y
+el servidor seguía con `must_change_password:true`. Evidencia: la cuenta afectada no tenía
+`passwordChangedAt` guardado nunca, y los registros de autenticación mostraban inicios de sesión y consultas
+de sesión pero ningún cambio de clave aceptado.
+
+Corrección: `_sbUpdatePassword` solo da por bueno un HTTP ok que devuelve el usuario (con `id`); cualquier
+otra respuesta es error con su `error_code`, y `_msgErrorCambioClave` explica en español el motivo (misma
+contraseña, débil, requiere volver a iniciar sesión, otro). El aviso ya no se cierra si no se guardó.
+Pruebas E2E nuevas (`tests/e2e/cambio-clave.spec.js`): cambio exitoso + recarga sin volver a pedirlo, y
+rechazo por misma contraseña / contraseña débil. El ayudante de mocks ahora guarda el estado del usuario
+y responde con el formato real de error de GoTrue. Reproducido primero (las 2 pruebas de rechazo fallaban
+con el código viejo), luego corregido.
+
+Ojo: si una contraseña está **vencida** (90 días) el sistema exige una clave **distinta** — no se puede
+renovar reutilizando la misma.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

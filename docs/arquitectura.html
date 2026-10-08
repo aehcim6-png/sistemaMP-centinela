@@ -3097,6 +3097,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>#m33</code>) dejaban el título tapado por la cabecera sticky (<code>scroll-margin-top</code>).
   Sin cambios de lógica.</p>
 
+  <h3>105. Cambio de contraseña que no se guardaba y volvía a pedirse (2026-10-08)</h3>
+  <p>GoTrue rechaza un cambio de clave (misma contraseña, clave débil, reautenticación) con HTTP 422 y un
+  cuerpo <code>{code, error_code, msg}</code>; el cliente solo miraba <code>error</code>/<code>error_description</code>
+  y lo daba por exitoso, por eso al recargar volvía a pedir el cambio. Ahora solo es éxito un HTTP ok con el
+  usuario, y los rechazos se explican en español. Pruebas E2E nuevas (cambio + recarga, misma contraseña,
+  contraseña débil). Una clave vencida exige una <b>distinta</b>.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
