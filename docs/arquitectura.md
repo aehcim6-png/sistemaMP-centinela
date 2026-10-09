@@ -6012,6 +6012,34 @@ con el código viejo), luego corregido.
 Ojo: si una contraseña está **vencida** (90 días) el sistema exige una clave **distinta** — no se puede
 renovar reutilizando la misma.
 
+### 106. Reglas del dominio que NO hay que volver a deducir: tipo de PM y pautas acumulativas (2026-10-09)
+
+Estas reglas ya estaban en el código (`logic.js` y `getPautasConsumo` en `index.html`) pero no escritas en
+ningún documento; en una sesión de análisis se dedujeron mal por eso. Quedan acá, verificadas contra el código.
+
+**1. El tipo de PM lo define el horómetro del hito, no una lista fija.** Hay un hito cada `frecPM` horas
+(250 por defecto; las camionetas y buses por kilómetros usan 10.000). `C.tipoPM(h)`: múltiplo de 8×frecPM =
+**PM4** (2.000 h); múltiplo de 4× = **PM3** (1.000 h); múltiplo de 2× = **PM2** (500 h); cualquier otro hito =
+**PM1**. Por eso **1.250 h es PM1** (no es múltiplo de 500). Secuencia real, verificada con el código:
+250 PM1 · 500 PM2 · 750 PM1 · 1.000 PM3 · 1.250 PM1 · 1.500 PM2 · 1.750 PM1 · 2.000 PM4 · 2.250 PM1 ·
+2.500 PM2 · 2.750 PM1 · 3.000 PM3 · 3.500 PM2 · 4.000 PM4.
+
+**2. Las pautas son acumulativas.** Un PM hace las actividades de su propio nivel **y** las de los niveles
+menores: PM1 = lista de 250 h; PM2 = 250 + 500; PM3 = 250 + 500 + 1.000; PM4 = todas. (Jerarquía `pmH` en
+`getPautasConsumo`; los PM5–PM9 que quedaron de importaciones viejas se tratan como PM4.) En la tabla
+`pautas` cada fila trae solo las actividades **propias** de su nivel; el PM completo se arma sumando niveles.
+
+**3. Equipos que comparten pauta.** El mapa `GRUPO_PAUTAS` (index.html) indica qué equipos usan la pauta de
+otro (por ejemplo varios CN usan la del CN-9507). Cualquier cruce equipo↔pauta debe pasar por ese mapa.
+
+**4. Cerrar un PM cubre su hito.** La grilla de hitos es fija (múltiplos de `frecPM` desde cero): un PM
+hecho antes o después no corre el calendario. Un PM anticipado cubre su propio hito (ejemplo real: un PM4
+a 1.977 h cubre el hito de 2.000 h y no se vuelve a pedir a las 23 h) — ver `C.proxPM`.
+
+**5. Qué NO se guarda.** El registro del PM no guarda un checklist de qué actividades se ejecutaron: la pauta
+dice lo que **debería** hacerse. La única evidencia de lo ejecutado son los repuestos descontados en
+`movimientos_stock` (con equipo, fecha y tipo de PM).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -3104,6 +3104,16 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   usuario, y los rechazos se explican en español. Pruebas E2E nuevas (cambio + recarga, misma contraseña,
   contraseña débil). Una clave vencida exige una <b>distinta</b>.</p>
 
+  <h3>106. Reglas del dominio que NO hay que volver a deducir: tipo de PM y pautas acumulativas (2026-10-09)</h3>
+  <p>Reglas que estaban solo en el código, verificadas contra él. <b>Tipo de PM</b>: hay un hito cada <code>frecPM</code>
+  horas (250 por defecto); múltiplo de 2.000 = PM4, de 1.000 = PM3, de 500 = PM2, cualquier otro = PM1 (por eso
+  <b>1.250 h es PM1</b>). <b>Pautas acumulativas</b>: PM2 = actividades de 250 + 500 h; PM3 = 250 + 500 + 1.000;
+  PM4 = todas (<code>pmH</code> en <code>getPautasConsumo</code>); cada fila de <code>pautas</code> trae solo las
+  actividades propias de su nivel. <b>Equipos que comparten pauta</b>: mapa <code>GRUPO_PAUTAS</code>.
+  <b>Cerrar un PM cubre su hito</b>: la grilla es fija y un PM anticipado cubre su propio hito (<code>C.proxPM</code>).
+  <b>No se guarda</b> un checklist de actividades ejecutadas; la única evidencia son los repuestos descontados en
+  <code>movimientos_stock</code>.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
