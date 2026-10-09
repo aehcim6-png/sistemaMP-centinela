@@ -6093,6 +6093,36 @@ esperadas) contra ×1,18–1,20 en mañana y tarde y ×0,98 de noche; madrugada 
 que roza 1,0 — pista, no concluyente. Esta vista lo recalcula en vivo con `esFallaMTBF` (incluye algunos tipos
 más que el análisis SQL, que usó solo `tipo='Correctivo'`), así que las cifras pueden diferir un poco.
 
+### 109. Calidad de datos de Correctivos: texto mal codificado, Sistema y Tipo de Causa visibles — paso 3 (2026-10-09)
+
+Cierra el plan de Calidad de Ejecución: el panel necesita que los correctivos tengan **Sistema** y **Tipo de Causa**.
+
+**Texto mal codificado ("DÃ­a", "ElÃ©ctrico").** UTF-8 leído como Latin-1, de una carga antigua. En la base de centinela
+afectaba solo tres columnas de `correctivos`: `turno` (412 filas de "Día"), `sistema` (223 filas, 16 variantes) y `tipo` (25 filas,
+4 variantes); `sintoma`, `causaRaiz`, `solucion`, `componente`, `tecnico`, `estadoOT` y `registros_pm.obs` estaban limpias. Se
+corrigió con la migración `reparar_codificacion_correctivos` (`convert_from(convert_to(t,'LATIN1'),'UTF8')`, solo en filas que
+contienen "Ã" y cuyo resultado queda limpio): 0 filas con el problema después, y los totales por turno no cambiaron (Día 412,
+Noche 435, vacío 396; 1.243 en total). Es determinista y reversible; el respaldo del 8-oct (55 tablas) conserva los originales. Se
+respetaron errores de tipeo que ya venían de origen ("Transmisón", "Díaria"): la conversión no reescribe texto. Efecto visible:
+el chi-cuadrado por turno de Patrones Ocultos ya no puede partir "Día" en dos grupos. Como red de seguridad se agregó
+`repararMojibake` (`logic.js`), usada al agrupar turnos, para que una importación futura mal codificada no repita el problema.
+
+**Sistema vacío (~23%).** Causa: cuatro caminos rápidos crean la OT con `sistema:''` (Registro Rápido, correctivo desde un PM,
+fuera de servicio y el correctivo del registro de PM) y la tabla de Correctivos **no tenía dónde completarlo después**. Ahora la
+tabla tiene una columna **Sistema** editable (la lista oficial del formulario completo; un valor antiguo fuera de la lista se
+conserva y se muestra). No se fusionaron las etiquetas antiguas ("Neumatico", "Equipo de trabajo", "Revision diaria"): es una
+decisión de significado, no de ortografía, y hay lógica que filtra por "Ruedas y neumáticos".
+
+**Tipo de Causa visible.** El campo existía (Física/Humana/Latente) pero estaba vacío en los 1.243 correctivos. Se mantiene a
+propósito como elección humana — **nunca se infiere del texto libre** (decisión de §causas latentes). Se hizo imposible de
+ignorar sin obligarlo: tarjeta **Sin Tipo de Causa** (con el % y cuántas OT no tienen Sistema), filtro **Clasificación pendiente**
+(solo OT reales cerradas, las más recientes primero) y un aviso no bloqueante al cerrar una OT sin Tipo de Causa (mismo criterio
+que el aviso de costo). El panel de Calidad de Ejecución informa cuántas OT tienen Tipo de Causa. Funciones puras
+`clasificacionPendienteOT` y `resumenClasificacionOT`; 11 pruebas en `tests/clasificacionOT.test.js`.
+
+**Qué NO se hizo:** no se rellenó ningún Tipo de Causa ni Sistema vacío por inferencia (habría que clasificar a mano o con
+criterio de quien conoce el caso).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

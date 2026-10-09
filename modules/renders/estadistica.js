@@ -736,13 +736,16 @@ function _estCalidadEjecucionHTML(ot) {
   var sinSistema = fallasReales.filter(function (o) { return !sistemasDeTexto(o.sistema).length; }).length;
   var pctSin = fallasReales.length ? Math.round(sinSistema / fallasReales.length * 100) : 0;
   var t = r.total, sen = _CE_SENAL[t.senal];
+  var cls = (typeof resumenClasificacionOT === 'function') ? resumenClasificacionOT(ot) : null;
   var resumen = '<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">Resumen</div>' +
     '<div style="font-size:12px;color:var(--tx2);line-height:1.7;padding:4px 0">' +
     '<b>' + r.nPM + '</b> PM evaluados (hasta el ' + escapeHtml(r.corteFecha) + ': los PM más recientes se excluyen porque su ventana de ' + r.horizonteDias + ' días todavía no está completa)' +
     (r.nPMSinPauta ? ' · <b>' + r.nPMSinPauta + '</b> sin pauta cargada, no evaluados' : '') + '.<br>' +
     'En los ' + r.horizonteDias + ' días siguientes, el mismo sistema falló <b>' + t.obs + '</b> veces; lo normal para esos equipos y sistemas habría sido <b>' + _ceNum(t.esp) + '</b>. ' +
     'Razón <b>' + (t.razon != null ? '×' + _ceNum(t.razon) : '—') + '</b>' + (t.ic95 ? ' (rango 95%: ' + _ceNum(t.ic95[0]) + ' – ' + _ceNum(t.ic95[1]) + ')' : '') +
-    ' — <span style="color:' + sen[1] + ';font-weight:600">' + sen[0] + '</span>.</div></div>';
+    ' — <span style="color:' + sen[1] + ';font-weight:600">' + sen[0] + '</span>.' +
+    (cls && cls.cerradas ? '<br><span style="color:var(--tx3)">Tipo de Causa clasificado: <b>' + (cls.cerradas - cls.sinTipoCausa) + '</b> de ' + cls.cerradas + ' OT cerradas' + (cls.sinTipoCausa === cls.cerradas ? ' — todavía ninguna, así que no se pueden separar las fallas de origen humano de las físicas.' : '.') + '</span>' : '') +
+    '</div></div>';
   var avisoPauta = '';
   var hayMarcados = r.porPautaCompleta.some(function (g) { return g.clave !== 'sin_dato'; });
   if (!hayMarcados) avisoPauta = 'Todavía ningún PM tiene marcado si quedó completo según pauta (campo nuevo en Registro PM): esta tabla se irá llenando con los PM nuevos.';

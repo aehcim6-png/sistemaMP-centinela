@@ -3129,6 +3129,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   tipo de PM y "PM completo según pauta". Rango de confianza 95% desde 10 fallas observadas; con menos, "Pocos
   casos". <b>No prueba mala ejecución</b> (el PM también destapa fallas) y no hay ranking de personas.</p>
 
+  <h3>109. Calidad de datos de Correctivos: texto mal codificado, Sistema y Tipo de Causa visibles — paso 3 (2026-10-09)</h3>
+  <p>Texto mal codificado reparado en la base (centinela: <code>turno</code> 412 filas, <code>sistema</code> 223, <code>tipo</code> 25;
+  migración reversible, 0 filas afectadas después, totales sin cambio) y red de seguridad <code>repararMojibake</code> al agrupar
+  turnos. El Sistema vacío (~23%) venía de cuatro caminos rápidos y de que la tabla no permitía completarlo: ahora hay una columna
+  <b>Sistema</b> editable. El Tipo de Causa sigue siendo elección humana (nunca se infiere) pero ahora es visible: tarjeta
+  <b>Sin Tipo de Causa</b>, filtro <b>Clasificación pendiente</b> y aviso no bloqueante al cerrar. 11 pruebas nuevas.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

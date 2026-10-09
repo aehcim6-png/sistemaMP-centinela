@@ -5783,7 +5783,7 @@ function patronesOcultosFalla(ot){
   var porTurno={};
   reales.forEach(function(o){
     if(!o.turno)return;
-    var t=String(o.turno).trim();
+    var t=repararMojibake(String(o.turno)).trim();
     if(!t)return;
     porTurno[t]=(porTurno[t]||0)+1;
   });
@@ -7105,6 +7105,48 @@ function calidadEjecucionPM(registros,correctivos,pautas,opts){
   };
 }
 
+// ═══ CLASIFICACIÓN PENDIENTE DE OT (2026-10-09, paso 3 de Calidad de Ejecución) ═══
+// Dos datos que casi ninguna OT tiene y que el análisis de calidad necesita: el Tipo de Causa
+// (Física/Humana/Latente — vacío en el 100% de los correctivos reales) y el Sistema (vacío en
+// ~23%: los caminos rápidos —Registro Rápido, correctivo desde un PM, fuera de servicio— crean
+// la OT con sistema '' y la tabla no tenía dónde completarlo después). Mismo universo que la
+// tarjeta "Cerradas sin solución": correctivos y fallas operacionales cerradas.
+function _otEnUniversoClasificacion(o){
+  return !!o&&(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional');
+}
+function clasificacionPendienteOT(o){
+  if(!_otEnUniversoClasificacion(o))return{enUniverso:false,sinSistema:false,sinTipoCausa:false};
+  return{enUniverso:true,sinSistema:!String(o.sistema||'').trim(),sinTipoCausa:!String(o.tipoCausa||'').trim()};
+}
+function resumenClasificacionOT(ot){
+  var r={cerradas:0,sinSistema:0,sinTipoCausa:0,pendientes:0};
+  (ot||[]).forEach(function(o){
+    var c=clasificacionPendienteOT(o);
+    if(!c.enUniverso)return;
+    r.cerradas++;
+    if(c.sinSistema)r.sinSistema++;
+    if(c.sinTipoCausa)r.sinTipoCausa++;
+    if(c.sinSistema||c.sinTipoCausa)r.pendientes++;
+  });
+  r.pctSinSistema=r.cerradas?Math.round(r.sinSistema/r.cerradas*100):0;
+  r.pctSinTipoCausa=r.cerradas?Math.round(r.sinTipoCausa/r.cerradas*100):0;
+  return r;
+}
+// Texto guardado con la codificación equivocada ("DÃ­a" en vez de "Día", "ElÃ©ctrico"): UTF-8
+// leído como Latin-1. Se corrigió en la base (migración reparar_codificacion_correctivos); esto
+// es la red de seguridad para que una futura importación mal codificada no parta un grupo en
+// dos (ej. el chi-cuadrado por turno contaba "Día" y "DÃ­a" como turnos distintos).
+function repararMojibake(txt){
+  var t=String(txt==null?'':txt);
+  if(!/[ÂÃ][\u0080-¿]/.test(t))return t;
+  try{
+    var bytes=[];
+    for(var i=0;i<t.length;i++){var c=t.charCodeAt(i);if(c>255)return t;bytes.push(c);}
+    var dec=new TextDecoder('utf-8',{fatal:true}).decode(new Uint8Array(bytes));
+    return /Ã/.test(dec)?t:dec;
+  }catch(e){return t;}
+}
+
 // ═══ ¿PM COMPLETO SEGÚN PAUTA? (2026-10-09) ═══
 // Propuesta de "Calidad de Ejecución": la pauta dice lo que DEBERÍA hacerse en un PM,
 // pero el registro nunca guardó si se hizo todo (ni qué faltó, ej. un filtro secundario
@@ -7124,6 +7166,7 @@ function estadoPMCompleto(r){
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    clasificacionPendienteOT, resumenClasificacionOT, repararMojibake,
     sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
     C, fd, fn, escapeHtml, csvCeldaSegura,
     _tokensMaterial, _scoreMaterial, precioMaterial,

@@ -152,6 +152,7 @@ export function renderOt(){
     '</div>':'';
   const fEq=$('fOtEq')?.value||'',fTipo=$('fOtTipo')?.value||'',fEst=$('fOtEst')?.value||'',fTexto=($('fOtTexto')?.value||'').trim().toLowerCase();
   const fSoloSinCosto=$('fOtSoloSinCosto')?.checked||false;
+  const fSoloSinClasif=$('fOtSoloSinClasif')?.checked||false;
   // Incluir correctivos que vienen de Registro PM
   const regCorr=reg.filter(r=>r.tipoPM==='Correctivo'||r.estatusEq==='Fuera de Servicio');
   const todos=[...ot,...regCorr.map(r=>({sigla:r.equipo,fecha:r.fechaEntrada,tipo:'Correctivo (desde PM)',
@@ -198,6 +199,19 @@ export function renderOt(){
         return ra-rb;
       });
   }
+  // Vista "Clasificación pendiente" (2026-10-09, paso 3 de Calidad de Ejecución): OT reales cerradas a las
+  // que todavía les falta el Tipo de Causa (Física/Humana/Latente) o el Sistema. Solo OT reales — las que
+  // vienen de Registro PM o del historial no tienen esos campos editables. Más recientes primero: es lo
+  // que todavía se recuerda y se puede clasificar con criterio. Si la vista de costos también está
+  // activa, conserva su orden (Pareto) y solo se filtra.
+  if(fSoloSinClasif){
+    fil=fil.filter(function(o){
+      if(o.fromReg||o.fromHist)return false;
+      var cp=typeof clasificacionPendienteOT==='function'?clasificacionPendienteOT(o):{sinSistema:false,sinTipoCausa:false};
+      return cp.sinSistema||cp.sinTipoCausa;
+    });
+    if(!fSoloSinCosto)fil.sort(function(a,b){return String(b.fechaEntrada||b.fecha||'').localeCompare(String(a.fechaEntrada||a.fecha||''));});
+  }
   const pg=_pagSlice('ot',fil);
   const tc=ot.reduce((s,o)=>s+(o.costo||0),0);
   const inmed=fil.filter(o=>o.criticidad==='Reparación Inmediata').length;
@@ -217,6 +231,7 @@ export function renderOt(){
   }).length;
   var cerradasTotalEvidencia=ot.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional');}).length;
   var pctSinSolucion=cerradasTotalEvidencia?Math.round(cerradasSinSolucion/cerradasTotalEvidencia*100):0;
+  var cls=typeof resumenClasificacionOT==='function'?resumenClasificacionOT(ot):{cerradas:0,sinSistema:0,sinTipoCausa:0,pendientes:0,pctSinTipoCausa:0,pctSinSistema:0};
   $('s-ot').innerHTML=`
     <div class="sec-h"><div>
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
@@ -235,6 +250,7 @@ export function renderOt(){
            representan una mantención ya ejecutada y registrada, no una OT abierta. -->
       <div class="card"><div class="card-t">Costo acumulado</div><div class="card-v" style="color:var(--ac)">$${fn(tc)}</div></div>
       <div class="card" title="OT cerradas sin ningún texto registrado en 'Solución' — no queda constancia de qué se hizo"><div class="card-t" style="color:${pctSinSolucion>=40?'var(--danger)':pctSinSolucion>=15?'var(--warn)':'var(--tx3)'}">Cerradas sin solución</div><div class="card-v" style="color:${pctSinSolucion>=40?'var(--danger)':pctSinSolucion>=15?'var(--warn)':'var(--tx)'}">${cerradasSinSolucion}</div><div class="card-s">${pctSinSolucion}% de las cerradas</div></div>
+      <div class="card" title="OT cerradas sin Tipo de Causa (Física, Humana o Latente) o sin Sistema. Sin eso no se puede separar un error humano de una falla física, ni saber qué sistema se volvió a fallar. Usá el filtro 'Clasificación pendiente' para completarlas."><div class="card-t" style="color:${cls.pctSinTipoCausa>=60?'var(--danger)':cls.pctSinTipoCausa>=25?'var(--warn)':'var(--tx3)'}">Sin Tipo de Causa</div><div class="card-v" style="color:${cls.pctSinTipoCausa>=60?'var(--danger)':cls.pctSinTipoCausa>=25?'var(--warn)':'var(--tx)'}">${cls.sinTipoCausa}</div><div class="card-s">de ${cls.cerradas} cerradas (${cls.pctSinTipoCausa}%) · ${cls.sinSistema} sin Sistema</div></div>
     </div>
     <div class="toolbar">
       <select id="fOtEq" onchange="window._pag.ot=1;renders.ot()"><option value="">Todos equipos</option>${eq.map(e=>`<option${e.sigla===fEq?' selected':''}>${escapeHtml(e.sigla)}</option>`).join('')}</select>
@@ -243,6 +259,9 @@ export function renderOt(){
       <input type="text" id="fOtTexto" value="${escapeHtml(fTexto)}" placeholder="🔍 Buscar por componente/síntoma/solución (ej: alternador, turbo, asiento)..." oninput="window._pag.ot=1;renders.ot()" style="min-width:280px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:5px 8px">
       <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2);white-space:nowrap;cursor:pointer" title="Filtra a las OT reales que todavía no tienen costo cargado, ordenadas por el componente que más aporta a la muestra (Pareto real) — pensado para cargar costo a mano, empezando por donde más rinde.">
         <input type="checkbox" id="fOtSoloSinCosto" ${fSoloSinCosto?'checked':''} onchange="window._pag.ot=1;renders.ot()"> 💰 Carga de costos pendiente
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2);white-space:nowrap;cursor:pointer" title="Filtra a las OT reales cerradas que todavía no tienen Tipo de Causa o Sistema, las más recientes primero — se completan desde la tabla (columnas Tipo Causa y Sistema).">
+        <input type="checkbox" id="fOtSoloSinClasif" ${fSoloSinClasif?'checked':''} onchange="window._pag.ot=1;renders.ot()"> Clasificación pendiente
       </label>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
@@ -253,7 +272,7 @@ export function renderOt(){
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
     ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
-      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Categoría MTTR <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>CAPEX/OPEX <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
+      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Categoría MTTR <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Sistema</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>CAPEX/OPEX <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
       ${pg.items.map((o)=>{
         const i=ot.indexOf(o);
         const idx=fil.indexOf(o);
@@ -274,6 +293,7 @@ export function renderOt(){
         otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.causaRaiz||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'causaRaiz\',this.value)"')+' style="'+es+';color:var(--w)" placeholder="Causa..."></td>';
         otRow+='<td><select '+(readOnly?'disabled':'onchange="edOT('+i+',\'tipoCausa\',this.value)"')+' style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px"><option value=""'+(!o.tipoCausa?' selected':'')+'>—</option><option'+(o.tipoCausa==='Física'?' selected':'')+' title="Qué se rompió">Física</option><option'+(o.tipoCausa==='Humana'?' selected':'')+' title="Qué se hizo o dejó de hacer">Humana</option><option'+(o.tipoCausa==='Latente'?' selected':'')+' title="Qué lo permitió: sistema/procedimiento">Latente</option></select></td>';
         otRow+='<td><select '+(readOnly?'disabled':'onchange="edOT('+i+',\'categoriaMTTR\',this.value)"')+' style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px"><option value=""'+(!o.categoriaMTTR?' selected':'')+'>—</option>'+_CATEGORIAS_MTTR.map(function(cat){return'<option'+(o.categoriaMTTR===cat?' selected':'')+'>'+cat+'</option>';}).join('')+'</select></td>';
+        otRow+='<td><select '+(readOnly?'disabled':'onchange="edOT('+i+',\'sistema\',this.value)"')+' style="font-size:10px;max-width:110px;background:var(--bg3);color:var(--tx);border:1px solid '+(!readOnly&&!o.sistema&&typeof clasificacionPendienteOT==='function'&&clasificacionPendienteOT(o).sinSistema?'var(--w)':'var(--bd)')+';border-radius:3px"><option value=""'+(!o.sistema?' selected':'')+'>—</option>'+(o.sistema&&_SISTEMAS_OT.indexOf(o.sistema)<0?'<option selected>'+escapeHtml(o.sistema)+'</option>':'')+_SISTEMAS_OT.map(function(x){return'<option'+(o.sistema===x?' selected':'')+'>'+x+'</option>';}).join('')+'</select></td>';
         otRow+='<td style="max-width:90px"><input value="'+escapeHtml(o.componente||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'componente\',this.value)"')+' style="'+es+'" placeholder="Componente..."></td>';
         otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.solucion||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'solucion\',this.value)"')+' style="'+es+';color:var(--ok)" placeholder="Solución..."></td>';
         if(fromReg){otRow+='<td><span style="font-size:10px">PM</span></td>';}
@@ -891,6 +911,8 @@ export function quitarFotoOT(fi){
   renders.ot();
 };
 
+// Lista oficial de sistemas (la misma del formulario completo de OT) para completar el campo desde la tabla.
+const _SISTEMAS_OT=['Motor diésel','Hidráulico','Transmisión','Eléctrico','Frenos','Ruedas y neumáticos','Dirección','Estructura','Cabina','Climatización'];
 export function edOT(i,key,val){
   var ot=S.g('ot')||[];
   // SLA de primera respuesta: se marca UNA sola vez, apenas la OT deja de
@@ -915,7 +937,13 @@ export function edOT(i,key,val){
       :'Esta OT se va a cerrar SIN costo registrado.\n\n¿Cerrar igual sin costo? (si es una reparación con costo real conocido, cancelá y completá el campo Costo antes de cerrar)';
     if(!confirm(_msg))return;
   }
-  if(_edCampo('ot',ot,i,key,val)){refreshAll();toast('✅ Guardado');}
+  if(_edCampo('ot',ot,i,key,val)){
+    refreshAll();
+    // Aviso suave (no bloquea) al CERRAR sin Tipo de Causa: es opcional a propósito (hay que poder cerrar
+    // rápido), pero está vacío en el 100% de los correctivos reales — mismo criterio que el aviso de costo.
+    var _cp=(key==='estadoOT'&&val==='Cerrada'&&typeof clasificacionPendienteOT==='function')?clasificacionPendienteOT(ot[i]):null;
+    toast('✅ Guardado'+(_cp&&_cp.sinTipoCausa?' — falta clasificar el Tipo de Causa (Física, Humana o Latente)':''));
+  }
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
