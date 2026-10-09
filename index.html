@@ -374,13 +374,13 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-06"></script>
+<script src="logic.js?v=2026-10-09"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
      entre scripts planos no importa (nada se ejecuta hasta que la página
      termina de cargar). -->
-<script src="modules/store.js?v=2026-10-02"></script>
+<script src="modules/store.js?v=2026-10-09"></script>
 <!-- modules/renders/*.js: pestañas extraídas del monolito (Fase 2 de
      modularización). Todas son módulos ES reales (Fase 3, 2026-08-30,
      completada en la undécima tanda) — cada uno se autoregistra en
@@ -427,7 +427,7 @@ td.calc{color:var(--tx3);font-style:italic}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-08-31',
-  ayuda:'2026-10-08b',
+  ayuda:'2026-10-09',
   cad:'2026-08-30b',
   cfg:'2026-10-08',
   comp2:'2026-08-30',
@@ -475,7 +475,7 @@ const _LAZY_VERS={
   pred:'2026-10-08',
   metas:'2026-10-08',
   resumenejec:'2026-10-08',
-  reg:'2026-10-08',
+  reg:'2026-10-09',
   neu:'2026-10-08',
   ot:'2026-10-08',
   prod:'2026-10-05b',

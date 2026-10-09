@@ -6905,8 +6905,26 @@ if (typeof window !== 'undefined') {
   window.costoSugeridoPorCruce = costoSugeridoPorCruce;
   window.senalUnificadaReemplazo = senalUnificadaReemplazo;
 }
+// ═══ ¿PM COMPLETO SEGÚN PAUTA? (2026-10-09) ═══
+// Propuesta de "Calidad de Ejecución": la pauta dice lo que DEBERÍA hacerse en un PM,
+// pero el registro nunca guardó si se hizo todo (ni qué faltó, ej. un filtro secundario
+// por quiebre de stock). Dos campos opcionales en registros_pm: pmCompleto (true/false/
+// null) y queFalto (texto). null = registro anterior a este campo → "sin dato", NUNCA se
+// cuenta como completo ni como incompleto: contarlo como completo inflaría la calidad.
+function validarPMCompleto(completo,queFalto){
+  if(completo===false&&!String(queFalto||'').trim())return 'Indica qué faltó de la pauta (o marca "Sí" si se hizo todo)';
+  return null;
+}
+function estadoPMCompleto(r){
+  var c=r?r.pmCompleto:null;
+  if(c===true)return{estado:'completo',faltante:''};
+  if(c===false)return{estado:'incompleto',faltante:String(r.queFalto||'').trim()};
+  return{estado:'sin_dato',faltante:''};
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    validarPMCompleto, estadoPMCompleto,
     C, fd, fn, escapeHtml, csvCeldaSegura,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,

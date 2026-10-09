@@ -3114,6 +3114,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <b>No se guarda</b> un checklist de actividades ejecutadas; la única evidencia son los repuestos descontados en
   <code>movimientos_stock</code>.</p>
 
+  <h3>107. ¿PM completo según pauta? — primer paso de Calidad de Ejecución (2026-10-09)</h3>
+  <p>Dos campos opcionales en Registro PM: <code>pmCompleto</code> (sí/no) y <code>queFalto</code> (texto,
+  obligatorio si se marca "No"). Por defecto "Sí"; los registros anteriores quedan "sin dato" (null, nunca
+  contado como completo ni incompleto). Columna <b>Pauta</b> en la tabla. Migración aditiva aplicada en ambas
+  bases; pruebas en <code>tests/pmCompleto.test.js</code>. Todavía no calcula nada con el dato: el panel de
+  Calidad de Ejecución será descriptivo hasta que haya historial.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

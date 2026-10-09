@@ -43,7 +43,7 @@ export function renderReg(){
         ${_sTh('tbl-reg',5,'F. Salida','date')}${_sTh('tbl-reg',6,'H. Salida','str')}
         ${_sTh('tbl-reg',7,'Duración','str')}${_sTh('tbl-reg',8,'Horóm.','num')}
         ${_sTh('tbl-reg',9,'Estatus','str')}${_sTh('tbl-reg',10,'Técnico','str')}${_sTh('tbl-reg',11,'Observaciones','str')}
-        ${_sTh('tbl-reg',12,'Estado Ejec.','str')}<th><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></th>
+        ${_sTh('tbl-reg',12,'Estado Ejec.','str')}${_sTh('tbl-reg',13,'Pauta','str')}<th><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></th>
       </tr>
       ${pg.items.map((r,_)=>{
         const i=reg.indexOf(r);
@@ -63,6 +63,7 @@ export function renderReg(){
           ${edCell(r.tecnico||'','tecnico',i,'reg','select',_tecnicosDisponibles().concat(['']))}
           ${edCell(r.obs||'','obs',i,'reg')}
           <td><span class="badge ${r.estado?.includes('ANTICIPADA')?'b-g':r.estado?.includes('ATRASADA')?'b-r':'b-y'}">${r.estado||'—'}</span></td>
+          <td>${(function(){var p=estadoPMCompleto(r);return p.estado==='completo'?'<span class="badge b-g" title="Se hizo todo lo de la pauta">Completa</span>':p.estado==='incompleto'?'<span class="badge b-r" title="'+escapeHtml('Faltó: '+(p.faltante||'—'))+'">Incompleta</span>':'<span style="color:var(--tx3)" title="Registro anterior a este campo">—</span>';})()}</td>
           <td style="display:flex;gap:3px">
             <button class="btn-s" onclick="editarReg(${i})" title="Editar completo" style="background:rgba(59,130,246,.15);color:var(--info)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></button>
             <button class="btn-s btn-d" onclick="delRow('reg',${i},'reg')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button>
@@ -142,6 +143,10 @@ export function addReg(){
     <div class="fg"><label>LOTO Aplicado</label><select id="regLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     <div class="fg"><label>Costo ($)</label><input type="number" id="rCosto" placeholder="0" title="Opcional — repuestos + mano de obra de este PM. Permite comparar a futuro el costo preventivo real contra el de un correctivo."></div>
     </div>
+    <div class="form-row">
+    <div class="fg"><label>PM completo según pauta</label><select id="rPMCompleto" onchange="_toggleQueFalto('r')"><option value="si">Sí — se hizo todo lo de la pauta</option><option value="no">No — faltó algo</option></select></div>
+    <div class="fg" id="rQueFaltoW" style="flex:2;display:none"><label>¿Qué faltó? *</label><input id="rQueFalto" style="width:100%" placeholder="Ej: filtro secundario sin cambiar — sin stock"></div>
+    </div>
     <br><button class="btn" onclick="saveReg()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Registrar</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>
     <button type="button" class="btn btn-o" onclick="_iniciarRegPorVoz()">${ICONS.mic} Completar por voz</button>`);
@@ -195,6 +200,12 @@ export function editarReg(i){
       </div>
       <div class="fg"><label>Costo ($)</label><input type="number" id="eCosto" value="${r.costo||''}" placeholder="0"></div>
     </div>
+    <div class="form-row">
+      <div class="fg"><label>PM completo según pauta</label>
+        <select id="ePMCompleto" onchange="_toggleQueFalto('e')">${r.pmCompleto==null?'<option value="" selected>Sin indicar (registro anterior)</option>':''}<option value="si"${r.pmCompleto===true?' selected':''}>Sí — se hizo todo lo de la pauta</option><option value="no"${r.pmCompleto===false?' selected':''}>No — faltó algo</option></select>
+      </div>
+      <div class="fg" id="eQueFaltoW" style="flex:2;display:${r.pmCompleto===false?'':'none'}"><label>¿Qué faltó? *</label><input id="eQueFalto" value="${escapeHtml(r.queFalto||'')}" style="width:100%" placeholder="Ej: filtro secundario sin cambiar — sin stock"></div>
+    </div>
     <button class="btn" onclick="saveEditReg(${i})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar cambios</button>
     <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
 }
@@ -208,6 +219,10 @@ export function saveEditReg(i){
   if(!reg[i])return;
   const fEnt=$('eFecEnt').value,hEnt=$('eHoraEnt').value;
   const fSal=$('eFecSal').value,hSal=$('eHoraSal').value;
+  const pmCompletoSelE=$('ePMCompleto')?.value||'';
+  const queFaltoTxtE=($('eQueFalto')?.value||'').trim();
+  const errPME=validarPMCompleto(pmCompletoSelE==='si'?true:pmCompletoSelE==='no'?false:null,queFaltoTxtE);
+  if(errPME)return toast('⚠️ '+errPME);
   // Mismas validaciones que al crear un registro (saveReg) — antes no existían acá,
   // así que editar aceptaba cualquier combinación de fechas sin avisar.
   if(!fEnt)return toast('⚠️ Ingresa fecha de entrada');
@@ -252,6 +267,8 @@ export function saveEditReg(i){
     obs:$('eObs').value,
     repuestos:$('eRep').value,
     costo:parseFloat($('eCosto')?.value)||0,
+    pmCompleto:pmCompletoSelE==='si'?true:pmCompletoSelE==='no'?false:null,
+    queFalto:pmCompletoSelE==='no'?queFaltoTxtE:'',
   };
   S.s('reg',reg);
   // Actualizar horómetro del equipo si corresponde. Guardar 'reg' ANTES de
@@ -315,6 +332,10 @@ export function saveReg(){
   if(fEnt&&fSal&&fechaEsAnterior(fSal,fEnt))return toast('⚠️ Fecha de salida no puede ser anterior a entrada');
   const dReg=duracionHM(fEnt,hEnt,fSal,hSal);
   if(dReg&&dReg.ms<0)return toast('⚠️ Hora de salida es anterior a entrada — revisa fechas/horas');
+  const pmCompletoSel=$('rPMCompleto')?.value||'';
+  const queFaltoTxt=($('rQueFalto')?.value||'').trim();
+  const errPM=validarPMCompleto(pmCompletoSel==='si'?true:pmCompletoSel==='no'?false:null,queFaltoTxt);
+  if(errPM)return toast('⚠️ '+errPM);
   // Bug real: registrar un PM con FECHA ANTERIOR (ingresado con retraso, ej. "esto
   // pasó hace 2 meses") y su horómetro de esa fecha hacía retroceder el horómetro
   // ACTUAL del equipo al valor viejo, aunque desde entonces ya se hubiera avanzado
@@ -355,6 +376,8 @@ export function saveReg(){
     ast:$('regAST')?.value||'',
     loto:$('regLOTO')?.value||'',
     costo:parseFloat($('rCosto')?.value)||0,
+    pmCompleto:pmCompletoSel==='si'?true:pmCompletoSel==='no'?false:null,
+    queFalto:pmCompletoSel==='no'?queFaltoTxt:'',
     proxTipo:C.tipoPM(C.proxPM(hr,e?.frecPM||250),e?.frecPM||250),
     horomProx:C.proxPM(hr,e?.frecPM||250),
   });
@@ -727,6 +750,7 @@ window.saveEditReg = saveEditReg;
 window.rAutoHorom = rAutoHorom;
 window.rMostrarConsumos = rMostrarConsumos;
 window.calcDurReg = calcDurReg;
+window._toggleQueFalto = function(p){var sel=$(p+'PMCompleto'),w=$(p+'QueFaltoW');if(sel&&w)w.style.display=sel.value==='no'?'':'none';};
 window.saveReg = saveReg;
 window._activarLeerPauta = _activarLeerPauta;
 window._leerPautaFotoSeleccionada = _leerPautaFotoSeleccionada;

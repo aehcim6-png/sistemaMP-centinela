@@ -860,7 +860,7 @@ export function renderAyuda(){
 
     '<b style="color:var(--ac);font-size:14px">👷 Operador de Terreno</b><br>'+
     'Tu día tipo: llegás, revisás qué equipo te toca, registrás lo que hiciste o encontraste, y seguís. El sistema calcula el resto.<br>'+
-    '<b>1. Registro PM</b> — elegí el equipo, cargá el <b>horómetro real</b> que marca en ese momento (no el que "debería" tener), marcá las actividades ejecutadas y guardá. Todo depende de que este número sea real.<br>'+
+    '<b>1. Registro PM</b> — elegí el equipo, cargá el <b>horómetro real</b> que marca en ese momento (no el que "debería" tener), marcá las actividades ejecutadas y guardá. Todo depende de que este número sea real. Indicá también si el PM quedó <b>completo según pauta</b>: si faltó algo (ej. un filtro sin cambiar por falta de stock) marcá "No" y anotá qué faltó — así, con el tiempo, se puede ver si los PM hechos a medias terminan en falla.<br>'+
     '<b>2. Correctivos</b> — desde el celular en terreno usá <b>⚡ Registro Rápido</b> (equipo, qué pasó, urgencia); completá Causa Raíz, Tipo de Causa y Categoría MTTR después, con más tiempo. Si el equipo ya falló 3+ veces por lo mismo, el sistema avisa solo.<br>'+
     '<b>3. Inspección Diaria y Neumáticos</b> — cargá remanente/cambios con fecha real; el sistema proyecta solo cuánto vas a necesitar comprar.<br>'+
     '<b>4. Análisis de Aceite</b> — cargá la muestra apenas llega; el sistema compara contra el historial real del componente.<br>'+

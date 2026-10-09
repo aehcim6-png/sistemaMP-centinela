@@ -6040,6 +6040,26 @@ a 1.977 h cubre el hito de 2.000 h y no se vuelve a pedir a las 23 h) — ver `C
 dice lo que **debería** hacerse. La única evidencia de lo ejecutado son los repuestos descontados en
 `movimientos_stock` (con equipo, fecha y tipo de PM).
 
+### 107. ¿PM completo según pauta? — primer paso de Calidad de Ejecución (2026-10-09)
+
+La pauta dice lo que **debería** hacerse en un PM, pero el registro nunca guardó si se hizo todo ni qué faltó
+(por ejemplo un filtro secundario sin cambiar por quiebre de stock). Registro PM suma dos campos opcionales:
+`pmCompleto` (booleano: sí / no) y `queFalto` (texto, **obligatorio si se marca "No"**). En el formulario de
+alta el valor por defecto es "Sí" (la excepción es lo que se anota); en la edición, un registro anterior
+muestra "Sin indicar". La tabla tiene una columna **Pauta**: Completa / Incompleta (el texto de lo que faltó
+queda en el tooltip) / "—" para registros anteriores.
+
+Regla de diseño: **null es "sin dato"**, nunca completo ni incompleto (`estadoPMCompleto` en `logic.js`):
+contar los registros viejos como completos inflaría la calidad con datos que nadie confirmó. Migración
+`20261009120000_agregar_pm_completo_a_registros_pm.sql` (aditiva, columnas nulas; aplicada en ambas bases).
+Pruebas: `tests/pmCompleto.test.js` (9). Verificado en un navegador real: la columna, el campo condicional,
+el bloqueo con "No" sin explicar, y que lo enviado a la base lleva `pmCompleto` y `queFalto`.
+
+**Qué NO hace todavía:** no calcula nada con este dato. Con ~283 PM al año, aunque el 10–15% quedara
+incompleto, harían falta meses para sacar conclusiones; el siguiente paso (panel de Calidad de Ejecución)
+será solo descriptivo hasta que haya historial. El campo también se agregó a la Guía del Operador y al
+manual de usuario.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
