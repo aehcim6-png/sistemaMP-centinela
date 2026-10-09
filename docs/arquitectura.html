@@ -3121,6 +3121,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   bases; pruebas en <code>tests/pmCompleto.test.js</code>. Todavía no calcula nada con el dato: el panel de
   Calidad de Ejecución será descriptivo hasta que haya historial.</p>
 
+  <h3>108. Calidad de Ejecución: re-trabajo del mismo sistema tras un PM — paso 2 (2026-10-09)</h3>
+  <p>Vista descriptiva en Estadística: después de un PM, ¿vuelve a fallar el mismo sistema que cubría su pauta
+  (acumulativa, con <code>GRUPO_PAUTAS</code>) más de lo normal para ese equipo? Cálculo puro en
+  <code>calidadEjecucionPM</code> (24 pruebas). Cuenta fallas de 1 a 7 días después de la salida del PM, contra la
+  línea base propia de cada equipo y sistema, excluyendo los PM con ventana incompleta. Cortes: franja horaria,
+  tipo de PM y "PM completo según pauta". Rango de confianza 95% desde 10 fallas observadas; con menos, "Pocos
+  casos". <b>No prueba mala ejecución</b> (el PM también destapa fallas) y no hay ranking de personas.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -6060,6 +6060,39 @@ incompleto, harían falta meses para sacar conclusiones; el siguiente paso (pane
 será solo descriptivo hasta que haya historial. El campo también se agregó a la Guía del Operador y al
 manual de usuario.
 
+### 108. Calidad de Ejecución: re-trabajo del mismo sistema tras un PM — paso 2 (2026-10-09)
+
+Vista nueva **Calidad de Ejecución (PM)** en Estadística. Responde: después de un PM, ¿vuelve a fallar el
+**mismo sistema** que ese PM cubría (según su pauta), **más de lo normal para ese equipo**? Es descriptiva:
+no corrige ninguna curva de vida ni evalúa personas. Cálculo puro en `calidadEjecucionPM` (`logic.js`), con
+24 pruebas (`tests/calidadEjecucionPM.test.js`), varias calculadas a mano.
+
+Método (el mismo que se validó antes con SQL sobre los datos reales): (1) **sistema cubierto** = aparece, por
+palabras clave, en las actividades de la pauta **acumulativa** del equipo y tipo de PM (reglas del dominio de
+§106 / §65: PM2 incluye PM1, `GRUPO_PAUTAS` para equipos que comparten pauta); (2) **evento** = falla real
+(`esFallaMTBF`) del mismo equipo y sistema entre 1 y 7 días **después** de la salida del PM (el mismo día es
+la misma visita); (3) **esperado** = línea base propia de ese equipo y sistema (fracción de días con una falla
+en los 7 días siguientes, por unión de intervalos), para que un equipo que falla mucho no se confunda con un
+PM mal hecho; (4) **censura**: los PM de los últimos 7 días antes de la última falla cargada se excluyen,
+porque su ventana está incompleta.
+
+Cortes: franja horaria de entrada (00-06 / 06-12 / 12-18 / 18-24), tipo de PM, y "PM completo según pauta"
+(paso 1, §107 / §66). Cada grupo muestra razón observado/esperado y, **desde 10 fallas observadas**, un rango
+de confianza **95%** (aproximación log-normal de un conteo de Poisson); con menos, "Pocos casos" sin lectura.
+Se usa 95% y no el 90% del resto del sistema a propósito: se comparan muchos grupos a la vez y con 90% saldrían
+"señales" por casualidad. Cada grupo también se compara contra todos los demás de su dimensión.
+
+**Lo que NO dice:** que un sistema falle más tras un PM no prueba mala ejecución — el PM también puede destapar
+fallas que se corrigen en los días siguientes. Los sistemas (motor, hidráulico, frenos, neumáticos, eléctrico,
+transmisión) se reconocen por palabras clave, es aproximado, y las fallas sin un sistema reconocible no entran
+(la vista informa qué porcentaje es). No hay ranking de técnicos ni cuadrillas: con tan pocos PM por persona
+sería inventar diferencias (la vista "Por Técnico" ya mide reingresos con Wilson y mínimo de 15 casos).
+
+Referencia con los datos reales de centinela (corte 14-jul-2026): madrugada ×1,70 (32 observadas contra 18,8
+esperadas) contra ×1,18–1,20 en mañana y tarde y ×0,98 de noche; madrugada contra el resto ×1,5 con rango 95%
+que roza 1,0 — pista, no concluyente. Esta vista lo recalcula en vivo con `esFallaMTBF` (incluye algunos tipos
+más que el análisis SQL, que usó solo `tipo='Correctivo'`), así que las cifras pueden diferir un poco.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -683,6 +683,84 @@ function _estAnovaMttrHTML(anova) {
     '</div>';
 }
 
+// ═══ CALIDAD DE EJECUCIÓN (2026-10-09) ═══
+// ¿Después de un PM, vuelve a fallar el mismo sistema que ese PM cubría, más de lo normal
+// para ese equipo? Descriptivo: no evalúa personas ni corrige ninguna curva. El cálculo y
+// sus reglas (pautas acumulativas, mapa de equipos, censura, línea base) están en
+// calidadEjecucionPM (logic.js).
+var _CE_FRANJA = { '00-06': 'Madrugada (00 a 06 h)', '06-12': 'Mañana (06 a 12 h)', '12-18': 'Tarde (12 a 18 h)', '18-24': 'Noche (18 a 24 h)', 'sin_hora': 'Sin hora registrada' };
+var _CE_PAUTA = { completo: 'Marcado completo', incompleto: 'Marcado incompleto', sin_dato: 'Sin dato (registro anterior o sin indicar)' };
+var _CE_SENAL = {
+  sobre: ['Sobre lo esperado', 'var(--danger)'],
+  bajo: ['Bajo lo esperado', 'var(--ok)'],
+  no_concluyente: ['No concluyente', 'var(--tx3)'],
+  insuficiente: ['Pocos casos', 'var(--tx3)']
+};
+function _ceNum(n) { return n == null ? '—' : String(n).replace('.', ','); }
+function _ceFilas(grupos, etiquetas) {
+  if (!grupos.length) return '<tr><td colspan="8" style="text-align:center;color:var(--tx3);padding:14px">Todavía no hay PM en este grupo.</td></tr>';
+  return grupos.map(function (g) {
+    var sen = _CE_SENAL[g.senal];
+    var rel = g.vsResto && g.vsResto.razon != null
+      ? '×' + _ceNum(g.vsResto.razon) + ' <span style="color:var(--tx3);font-size:10px">(' + _ceNum(g.vsResto.ic95[0]) + '–' + _ceNum(g.vsResto.ic95[1]) + ')</span> <span style="color:' + _CE_SENAL[g.vsResto.senal][1] + ';font-size:10px">' + _CE_SENAL[g.vsResto.senal][0] + '</span>'
+      : '<span style="color:var(--tx3)">—</span>';
+    return '<tr><td><b>' + escapeHtml(etiquetas[g.clave] || g.clave) + '</b></td>' +
+      '<td class="mono">' + g.nPM + '</td>' +
+      '<td class="mono">' + (g.razon != null ? '×' + _ceNum(g.razon) : '—') + '</td>' +
+      '<td><span style="color:' + sen[1] + ';font-weight:600;font-size:11px">' + sen[0] + '</span></td>' +
+      '<td class="mono">' + g.obs + '</td>' +
+      '<td class="mono">' + _ceNum(g.esp) + '</td>' +
+      '<td class="mono" style="font-size:11px">' + (g.ic95 ? _ceNum(g.ic95[0]) + ' – ' + _ceNum(g.ic95[1]) : '<span style="color:var(--tx3)">—</span>') + '</td>' +
+      '<td style="font-size:11px">' + rel + '</td></tr>';
+  }).join('');
+}
+function _ceTabla(titulo, grupos, etiquetas, nota) {
+  return '<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">' + titulo + '</div>' +
+    (nota ? '<div style="font-size:11px;color:var(--tx3);padding:2px 0 8px">' + nota + '</div>' : '') +
+    '<div class="tbl-wrap"><table><tr><th>Grupo</th><th title="PM evaluados">PM</th><th title="Fallas observadas ÷ esperadas">Razón</th><th>Lectura</th><th title="Fallas del mismo sistema en los 7 días siguientes">Observadas</th><th title="Fallas que serían normales para esos equipos y sistemas">Esperadas</th><th>Rango 95%</th><th>Contra el resto (rango 95%)</th></tr>' +
+    _ceFilas(grupos, etiquetas) + '</table></div></div>';
+}
+function _estCalidadEjecucionHTML(ot) {
+  var reg = S.g('reg') || [];
+  var pau = S.g('pau') || (typeof INIT !== 'undefined' && INIT.pautas) || [];
+  var grupo = (typeof GRUPO_PAUTAS !== 'undefined') ? GRUPO_PAUTAS : {};
+  var r = (typeof calidadEjecucionPM === 'function') ? calidadEjecucionPM(reg, ot, pau, { horizonteDias: 7, grupoPautas: grupo }) : { sinDatos: true };
+  var intro = '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px">' +
+    '<div class="chart-t">' + ICONS.target + ' Calidad de Ejecución del Mantenimiento Preventivo</div>' +
+    '<div style="font-size:12px;color:var(--tx2);padding:6px 0 4px;line-height:1.6"><b>La pregunta:</b> después de un PM, ¿vuelve a fallar el <b>mismo sistema</b> que ese PM cubría (según su pauta), <b>más de lo normal para ese equipo</b>? ' +
+    'Es solo descriptivo: no evalúa personas ni cambia ningún cálculo de vida útil.</div></div>';
+  if (r.sinDatos) {
+    return intro + '<div class="chart-box"><div style="padding:14px;color:var(--tx3);font-size:12px">Todavía no hay datos suficientes: se necesitan registros de PM y correctivos reales con fecha.</div></div>';
+  }
+  var fallasReales = (ot || []).filter(esFallaMTBF);
+  var sinSistema = fallasReales.filter(function (o) { return !sistemasDeTexto(o.sistema).length; }).length;
+  var pctSin = fallasReales.length ? Math.round(sinSistema / fallasReales.length * 100) : 0;
+  var t = r.total, sen = _CE_SENAL[t.senal];
+  var resumen = '<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">Resumen</div>' +
+    '<div style="font-size:12px;color:var(--tx2);line-height:1.7;padding:4px 0">' +
+    '<b>' + r.nPM + '</b> PM evaluados (hasta el ' + escapeHtml(r.corteFecha) + ': los PM más recientes se excluyen porque su ventana de ' + r.horizonteDias + ' días todavía no está completa)' +
+    (r.nPMSinPauta ? ' · <b>' + r.nPMSinPauta + '</b> sin pauta cargada, no evaluados' : '') + '.<br>' +
+    'En los ' + r.horizonteDias + ' días siguientes, el mismo sistema falló <b>' + t.obs + '</b> veces; lo normal para esos equipos y sistemas habría sido <b>' + _ceNum(t.esp) + '</b>. ' +
+    'Razón <b>' + (t.razon != null ? '×' + _ceNum(t.razon) : '—') + '</b>' + (t.ic95 ? ' (rango 95%: ' + _ceNum(t.ic95[0]) + ' – ' + _ceNum(t.ic95[1]) + ')' : '') +
+    ' — <span style="color:' + sen[1] + ';font-weight:600">' + sen[0] + '</span>.</div></div>';
+  var avisoPauta = '';
+  var hayMarcados = r.porPautaCompleta.some(function (g) { return g.clave !== 'sin_dato'; });
+  if (!hayMarcados) avisoPauta = 'Todavía ningún PM tiene marcado si quedó completo según pauta (campo nuevo en Registro PM): esta tabla se irá llenando con los PM nuevos.';
+  var comoLeer = '<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">' + ICONS.bulb + ' Cómo leerlo (y qué NO dice)</div>' +
+    '<ul style="font-size:11px;color:var(--tx2);line-height:1.8;margin:4px 0 4px 18px">' +
+    '<li><b>Razón</b> = fallas observadas ÷ esperadas. ×1,0 es "igual a lo normal"; ×1,5 es "50% más fallas de lo normal". Lo esperado sale de la propia historia de cada equipo y sistema, así un equipo que falla mucho no se confunde con un PM mal hecho.</li>' +
+    '<li><b>Pocos casos:</b> con menos de 10 fallas observadas en un grupo no se calcula rango ni lectura — sería ruido con apariencia de dato. <b>Rango 95%:</b> si todo el rango queda sobre ×1,0 recién se lee "sobre lo esperado"; es más exigente que el 90% del resto del sistema porque acá se comparan muchos grupos a la vez.</li>' +
+    '<li><b>Que un sistema falle más después de un PM no prueba mala ejecución:</b> el PM también puede destapar fallas que se corrigen en los días siguientes. Esta vista sirve para encontrar dónde mirar, no para sacar conclusiones.</li>' +
+    '<li>Se cuentan las fallas de 1 a 7 días <b>después</b> de la salida del PM (el mismo día es la misma visita). Los sistemas (motor, hidráulico, frenos, neumáticos, eléctrico, transmisión) se reconocen por <b>palabras clave</b> en el texto de la pauta y del campo "sistema" — es aproximado. ' +
+    (sinSistema ? '<b>' + pctSin + '%</b> de las fallas (' + sinSistema + ' de ' + fallasReales.length + ') no tiene un sistema reconocible y no entra al análisis.' : '') + '</li>' +
+    '<li>No hay ranking de técnicos ni de cuadrillas: con tan pocos PM por persona, ordenar gente sería inventar diferencias.</li></ul></div>';
+  return intro + resumen +
+    _ceTabla('Por franja horaria de entrada del PM', r.porFranja, _CE_FRANJA, 'La hora de entrada es el dato más completo; "contra el resto" compara cada franja con todas las demás juntas.') +
+    _ceTabla('Por tipo de PM', r.porTipoPM, { PM1: 'PM1', PM2: 'PM2', PM3: 'PM3', PM4: 'PM4 (y mayores)' }, 'El tipo lo define el horómetro del hito (ver reglas del dominio en arquitectura.md).') +
+    _ceTabla('Por "PM completo según pauta"', r.porPautaCompleta, _CE_PAUTA, avisoPauta) +
+    comoLeer;
+}
+
 export function renderEstadistica() {
   if (!$('s-estadistica')) return;
   var vista = window._estadisticaVista || 'equipo';
@@ -700,6 +778,7 @@ export function renderEstadistica() {
   else if (vista === 'modo') content = _estTablaModoFalla(eventos);
   else if (vista === 'modelo') content = _estTablaModelo(eq, eventos);
   else if (vista === 'tecnico') content = _estTablaTecnico(ot);
+  else if (vista === 'calidad') content = _estCalidadEjecucionHTML(ot);
 
   $('s-estadistica').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="3" height="5"/><rect x="8.5" y="8" width="3" height="9"/><rect x="14" y="4" width="3" height="13"/></svg> Estadística</div>' +
@@ -710,6 +789,7 @@ export function renderEstadistica() {
     '<option value="modo"' + (vista === 'modo' ? ' selected' : '') + '>📊 Pareto de Modo de Falla</option>' +
     '<option value="modelo"' + (vista === 'modelo' ? ' selected' : '') + '>🚜 Por Modelo</option>' +
     '<option value="tecnico"' + (vista === 'tecnico' ? ' selected' : '') + '>👷 Por Técnico</option>' +
+    '<option value="calidad"' + (vista === 'calidad' ? ' selected' : '') + '>Calidad de Ejecución (PM)</option>' +
     '</select>' +
     content;
 }

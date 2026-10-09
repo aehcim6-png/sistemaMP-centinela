@@ -6905,6 +6905,206 @@ if (typeof window !== 'undefined') {
   window.costoSugeridoPorCruce = costoSugeridoPorCruce;
   window.senalUnificadaReemplazo = senalUnificadaReemplazo;
 }
+// ═══ CALIDAD DE EJECUCIÓN: RE-TRABAJO DEL MISMO SISTEMA TRAS UN PM (2026-10-09) ═══
+// Pregunta: después de un PM, ¿falla DE NUEVO el mismo sistema que ese PM cubría, más de
+// lo normal para ESE equipo? Es DESCRIPTIVO: no corrige ninguna curva ni evalúa personas.
+// Reglas del dominio (ver arquitectura.md, "Reglas del dominio que no hay que volver a
+// deducir"): las pautas son ACUMULATIVAS (un PM2 hace lo de PM1 + PM2...) y varios
+// equipos comparten pauta (GRUPO_PAUTAS, que llega por parámetro: vive en index.html).
+// Método (el mismo que se validó contra los datos reales con SQL):
+//  - "Cubierto": el sistema aparece (por palabras clave) en las actividades de la pauta
+//    acumulada de ese equipo y tipo de PM.
+//  - Evento: una falla real (esFallaMTBF) del MISMO equipo y MISMO sistema entre 1 y H
+//    días DESPUÉS de la salida del PM — el mismo día no cuenta (es la misma visita).
+//  - Esperado: la fracción de días de ese equipo y sistema que normalmente tienen una
+//    falla en los H días siguientes (su propia línea base), así un equipo que falla
+//    mucho no se confunde con un PM mal hecho.
+//  - Los PM de los últimos H días antes de la última falla cargada se excluyen: su
+//    ventana todavía no está completa y subestimarían el re-trabajo (censura).
+// LÍMITE a la hora de interpretar: que un sistema falle más tras un PM no prueba mala
+// ejecución — el PM también puede destapar fallas que se corrigen en los días siguientes.
+var PM_ACUMULADOS={PM1:['PM1'],PM2:['PM1','PM2'],PM3:['PM1','PM2','PM3'],PM4:['PM1','PM2','PM3','PM4'],
+  PM5:['PM1','PM2','PM3','PM4'],PM6:['PM1','PM2','PM3','PM4'],PM7:['PM1','PM2','PM3','PM4'],
+  PM8:['PM1','PM2','PM3','PM4'],PM9:['PM1','PM2','PM3','PM4']};
+var SISTEMAS_PM=[
+  {id:'motor',nombre:'Motor',re:/motor|combustible|refriger|ventilador|radiador|turbo|aire/},
+  {id:'hidraulico',nombre:'Hidráulico',re:/hidr/},
+  {id:'frenos',nombre:'Frenos',re:/freno|zapata|tambor|chicharra/},
+  {id:'neumatico',nombre:'Neumáticos',re:/neum|rueda|llanta/},
+  {id:'electrico',nombre:'Eléctrico',re:/bater|alternador|luces|ctrico|bornes|cable/},
+  {id:'transmision',nombre:'Transmisión',re:/transmis|diferencial|\bejes?\b|cardan|mando final/}
+];
+function _normTextoSistema(t){
+  return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+// Texto libre (actividad de pauta o campo "sistema" de un correctivo) → ids de sistema.
+// Aproximado por palabras clave; tolera texto mal codificado ("ElÃ©ctrico") porque las
+// palabras clave evitan las letras con tilde.
+function sistemasDeTexto(txt){
+  var t=_normTextoSistema(txt);
+  if(!t.trim())return [];
+  return SISTEMAS_PM.filter(function(s){return s.re.test(t);}).map(function(s){return s.id;});
+}
+// Sistemas que cubre un PM de ese tipo para ese equipo, con la pauta acumulativa.
+// hayPauta=false → el equipo no tiene ninguna fila de pauta (no se puede evaluar).
+function sistemasCubiertosPorPM(pautas,sigla,tipoPM,grupoPautas){
+  var grupo=grupoPautas||{};
+  var ref=grupo[sigla]||sigla;
+  var tipo=String(tipoPM||'').toUpperCase().trim();
+  var lista=PM_ACUMULADOS[tipo]||[tipo];
+  var set={},hay=false;
+  (pautas||[]).forEach(function(p){
+    var pref=grupo[p.sigla]||p.sigla;
+    if(pref!==ref&&p.sigla!==ref)return;
+    hay=true;
+    if(lista.indexOf(p.pm)<0)return;
+    sistemasDeTexto((p.act||'')+' '+(p.rep||'')).forEach(function(id){set[id]=1;});
+  });
+  return{sistemas:Object.keys(set),hayPauta:hay};
+}
+function _diaNumCE(f){
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(f||''));
+  if(!m)return null;
+  var d=Date.UTC(+m[1],+m[2]-1,+m[3]);
+  return isNaN(d)?null:Math.round(d/86400000);
+}
+function _diaAFechaCE(n){return new Date(n*86400000).toISOString().slice(0,10);}
+function _franjaHoraCE(hora){
+  var m=/^(\d{1,2}):/.exec(String(hora||''));
+  if(!m)return 'sin_hora';
+  var h=+m[1];
+  return h<6?'00-06':h<12?'06-12':h<18?'12-18':'18-24';
+}
+// Razón observado/esperado con rango de confianza 95% (más exigente que el 90% del resto del sistema: acá se comparan muchos grupos a la vez y con 90% saldrían señales por casualidad) (aproximación log-normal de un
+// conteo de Poisson). Con menos de 10 eventos observados NO se calcula rango ni se
+// emite lectura: sería ruido con apariencia de dato.
+function _lecturaRazonCE(obs,esp,z){
+  var out={obs:obs,esp:Math.round(esp*10)/10,razon:null,ic95:null,senal:'insuficiente'};
+  if(!(esp>0))return out;
+  out.razon=Math.round(obs/esp*100)/100;
+  if(obs<10)return out;
+  var f=Math.exp((z||1.96)/Math.sqrt(obs));
+  var r=obs/esp;
+  out.ic95=[Math.round(r/f*100)/100,Math.round(r*f*100)/100];
+  out.senal=out.ic95[0]>1?'sobre':out.ic95[1]<1?'bajo':'no_concluyente';
+  return out;
+}
+// Un grupo contra "todo lo demás" de su misma dimensión (ej. madrugada vs el resto del día).
+function _relativoCE(g,resto){
+  var o={razon:null,ic95:null,senal:'insuficiente'};
+  if(!(g.esp>0)||!(resto.esp>0)||g.obs<10||resto.obs<10)return o;
+  var r=(g.obs/g.esp)/(resto.obs/resto.esp);
+  var f=Math.exp(1.96*Math.sqrt(1/g.obs+1/resto.obs));
+  o.razon=Math.round(r*100)/100;
+  o.ic95=[Math.round(r/f*100)/100,Math.round(r*f*100)/100];
+  o.senal=o.ic95[0]>1?'sobre':o.ic95[1]<1?'bajo':'no_concluyente';
+  return o;
+}
+// Cuántos días de [d0,dEnd] tienen al menos una falla en los H días siguientes: unión de
+// los intervalos [f-H, f-1] recortada al período (así no se recorre día por día).
+function _fraccionDiasConFallaCE(fechas,d0,dEnd,H){
+  var total=dEnd-d0+1;
+  if(total<=0||!fechas||!fechas.length)return 0;
+  var iv=fechas.map(function(f){return[Math.max(f-H,d0),Math.min(f-1,dEnd)];})
+    .filter(function(x){return x[0]<=x[1];}).sort(function(a,b){return a[0]-b[0];});
+  var cubiertos=0,ini=null,fin=null;
+  iv.forEach(function(x){
+    if(ini===null){ini=x[0];fin=x[1];}
+    else if(x[0]<=fin+1){if(x[1]>fin)fin=x[1];}
+    else{cubiertos+=fin-ini+1;ini=x[0];fin=x[1];}
+  });
+  if(ini!==null)cubiertos+=fin-ini+1;
+  return cubiertos/total;
+}
+function calidadEjecucionPM(registros,correctivos,pautas,opts){
+  opts=opts||{};
+  var H=opts.horizonteDias||7;
+  var grupo=opts.grupoPautas||{};
+  // 1) Fallas reales por equipo+sistema, y la última falla cargada (para la censura).
+  var fallas={},maxDia=null;
+  (correctivos||[]).forEach(function(o){
+    if(!esFallaMTBF(o))return;
+    var d=_diaNumCE(o.fechaEntrada||o.fecha);
+    if(d==null)return;
+    if(maxDia===null||d>maxDia)maxDia=d;
+    sistemasDeTexto(o.sistema).forEach(function(id){
+      var k=o.sigla+'|'+id;
+      (fallas[k]=fallas[k]||[]).push(d);
+    });
+  });
+  var pms=[];
+  (registros||[]).forEach(function(r){
+    var tipo=String(r.tipoPM||'').toUpperCase().trim();
+    if(!/^PM[1-9]$/.test(tipo))return;
+    var dEnt=_diaNumCE(r.fechaEntrada);
+    if(dEnt==null)return;
+    var dPM=_diaNumCE(r.fechaSalida);
+    pms.push({r:r,tipo:tipo,dEnt:dEnt,dPM:dPM==null?dEnt:dPM});
+  });
+  if(maxDia===null||!pms.length)return{sinDatos:true};
+  var corte=maxDia-H;
+  var d0=pms.reduce(function(m,p){return Math.min(m,p.dEnt);},Infinity);
+  var baseCache={};
+  function base(sigla,id){
+    var k=sigla+'|'+id;
+    if(!(k in baseCache))baseCache[k]=_fraccionDiasConFallaCE(fallas[k],d0,corte,H);
+    return baseCache[k];
+  }
+  function hayFalla(sigla,id,desde,hasta){
+    var arr=fallas[sigla+'|'+id];
+    if(!arr)return false;
+    for(var i=0;i<arr.length;i++)if(arr[i]>=desde&&arr[i]<=hasta)return true;
+    return false;
+  }
+  var dims={franja:{},tipo:{},pauta:{}};
+  var total={pm:{},obs:0,esp:0};
+  function acum(dim,clave,pmId,obs,esp){
+    var g=dims[dim][clave]=dims[dim][clave]||{pm:{},obs:0,esp:0};
+    g.pm[pmId]=1;g.obs+=obs;g.esp+=esp;
+  }
+  var nPM=0,sinPauta=0,idx=0;
+  pms.forEach(function(p){
+    if(p.dEnt>corte)return;           // ventana incompleta (censura)
+    nPM++;
+    var cov=sistemasCubiertosPorPM(pautas,p.r.equipo,p.tipo,grupo);
+    if(!cov.hayPauta){sinPauta++;return;}
+    if(!cov.sistemas.length)return;
+    var id=idx++;
+    var franja=_franjaHoraCE(p.r.horaEntrada);
+    var tipoGrupo='PM'+Math.min(+p.tipo.slice(2),4);
+    var pautaGrupo=estadoPMCompleto(p.r).estado;
+    cov.sistemas.forEach(function(s){
+      var obs=hayFalla(p.r.equipo,s,p.dPM+1,p.dPM+H)?1:0;
+      var esp=base(p.r.equipo,s);
+      total.pm[id]=1;total.obs+=obs;total.esp+=esp;
+      acum('franja',franja,id,obs,esp);
+      acum('tipo',tipoGrupo,id,obs,esp);
+      acum('pauta',pautaGrupo,id,obs,esp);
+    });
+  });
+  function armar(dim,orden){
+    var claves=orden.filter(function(k){return dims[dim][k];});
+    return claves.map(function(k){
+      var g=dims[dim][k];
+      var resto={obs:0,esp:0};
+      claves.forEach(function(k2){if(k2!==k){resto.obs+=dims[dim][k2].obs;resto.esp+=dims[dim][k2].esp;}});
+      var l=_lecturaRazonCE(g.obs,g.esp);
+      l.clave=k;l.nPM=Object.keys(g.pm).length;
+      l.vsResto=_relativoCE(g,resto);
+      return l;
+    });
+  }
+  var tl=_lecturaRazonCE(total.obs,total.esp);
+  tl.nPM=Object.keys(total.pm).length;
+  return{
+    sinDatos:false,horizonteDias:H,corteFecha:_diaAFechaCE(corte),
+    nPM:nPM,nPMSinPauta:sinPauta,total:tl,
+    porFranja:armar('franja',['00-06','06-12','12-18','18-24','sin_hora']),
+    porTipoPM:armar('tipo',['PM1','PM2','PM3','PM4']),
+    porPautaCompleta:armar('pauta',['completo','incompleto','sin_dato'])
+  };
+}
+
 // ═══ ¿PM COMPLETO SEGÚN PAUTA? (2026-10-09) ═══
 // Propuesta de "Calidad de Ejecución": la pauta dice lo que DEBERÍA hacerse en un PM,
 // pero el registro nunca guardó si se hizo todo (ni qué faltó, ej. un filtro secundario
@@ -6924,7 +7124,7 @@ function estadoPMCompleto(r){
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    validarPMCompleto, estadoPMCompleto,
+    sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
     C, fd, fn, escapeHtml, csvCeldaSegura,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
