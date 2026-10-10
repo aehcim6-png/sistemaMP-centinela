@@ -103,6 +103,23 @@ compras). "Datos" dice si hoy alcanzan.
 Fuera de alcance con estos datos (y por qué): aprendizaje automático predictivo (pocos eventos y causa raíz vacía), análisis de
 vibraciones (no hay señales), Arrhenius/temperatura (no hay mediciones).
 
+### 2.1 Matrices que faltan
+
+Hoy tenemos 8 (sección 1.7). Revisé el código y no hay ninguna de estas:
+
+| # | Matriz que falta | Qué decide | Datos hoy | Utilidad |
+|---|---|---|---|---|
+| M1 | **Estrategia de mantenimiento (RCM)** por componente: forma β del Weibull × costo de falla vs. cambio × ¿se puede detectar antes (P-F)? | ¿cambio por edad, por condición, dejo correr hasta la falla, o hay que rediseñar? Hoy el programa avisa pero no recomienda la estrategia | **Sí** (β, intervalo P-F, precios, detención) | **Alta** — va junto con el reemplazo óptimo |
+| M2 | **Criticidad de equipos multicriterio**: frecuencia de falla × consecuencia (producción, seguridad, ambiente, costo, tiempo de reparación) | qué equipos reciben la atención primero. Hoy la criticidad es una etiqueta manual de 3 niveles (Crítico/Esencial/General) | Producción y costo sí; **seguridad y ambiente no** (hay que definir criterios) | Alta |
+| M3 | **Costo × disponibilidad por equipo** (mantener / reparar a fondo / renovar) | complementa el costo total de propiedad | Sí | Media |
+| M4 | **Repuestos ABC × VED** (vital / esencial / deseable según cuánto para el equipo) | cuánto stock de seguridad justifica cada repuesto, más allá de su costo (hoy ABC-XYZ) | Sí, derivando el VED de la criticidad | Media |
+| M5 | **Proveedores (Kraljic)**: gasto × riesgo de suministro (variabilidad del tiempo de entrega, proveedor único como Komatsu) | qué proveedores son estratégicos, cuáles tienen cuello de botella | Sí (compras + tiempos de entrega con Gamma) | Media |
+| M6 | **Prioridad de OT** (urgencia × impacto) para el backlog | en qué orden atender el trabajo pendiente. Hoy se ordena por días | Sí | Media |
+| M7 | **Markov de disponibilidad** (estados: operativo / en PM / en falla / esperando repuesto) | disponibilidad de largo plazo y dónde se pierde. Hoy el Markov es solo de salud | Parcial (registros de detención) | Media |
+| M8 | **Riesgo inherente vs. residual** (antes y después de ejecutar el PM o el cambio) | cuánto riesgo baja realmente el plan | Sí, con Weibull + TBO | Baja-media |
+| M9 | **Cobertura de PM** en forma de matriz (sistema × pauta × fallas posteriores) | qué sistemas no cubre la pauta. Hoy está dentro de Calidad de Ejecución, sin vista matricial | Sí | Baja |
+| M10 | Competencias del personal | No se recomienda como ranking de personas (decisión ya tomada: solo análisis descriptivo, sin individuos). Sí como cobertura de certificaciones, que ya existe en Vencimientos | — | No aplica |
+
 ---
 
 ## 3. Preguntas que el programa todavía NO sabe responder
@@ -136,7 +153,8 @@ vibraciones (no hay señales), Arrhenius/temperatura (no hay mediciones).
 
 ## 5. Orden recomendado
 
-1. **#1 Reemplazo óptimo por costo** — cierra el ciclo TBO + precios + Weibull + costo de falla, y responde la pregunta que más plata mueve.
+1. **#1 Reemplazo óptimo por costo + M1 Matriz de estrategia (RCM)** — van juntos: el algoritmo da los números (cada cuántas horas conviene cambiar) y la matriz
+   los presenta como decisión por componente. Cierra el ciclo TBO + precios + Weibull + costo de falla, y responde la pregunta que más plata mueve.
 2. **#4 Bondad de ajuste** — barato, y da respaldo a todo lo demás (incluidos Weibull y Gamma).
 3. **#3 Optimización con presupuesto** — usa lo que ya construimos.
 4. Capturar mejor los datos de la sección 4: sin Tipo de Causa ni Sistema, no hay Pareto de causa raíz que valga.
