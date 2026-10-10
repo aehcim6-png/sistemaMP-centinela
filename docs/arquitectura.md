@@ -6146,8 +6146,8 @@ TBO; el resto es desgaste, rodado y servicios. **Original = proveedor Komatsu Ch
 
 **Ojo con duplicados.** `ordenes_compra_historico` y `compras_detalle` contienen casi las mismas líneas (clave pedido+sigla+detalle+
 costo): sumar las dos duplica el gasto. `tboUnirCompras` las une sin duplicar (gana el histórico, que trae `tipo`) y de
-`compras_detalle` solo toma OC firmadas o recibidas. (Código previo que concatena ambas — p. ej. el cruce de costo sugerido en
-Correctivos — queda como estaba: pendiente de revisar.)
+`compras_detalle` solo toma OC firmadas o recibidas. (El cruce de costo sugerido de Correctivos las concatena a propósito, con 98,4% de cobertura, y solo propone con botón "usar": puede
+mostrar la misma compra dos veces, pero no suma costos.)
 
 **Vida real por origen.** Duración = horómetro entre un cambio y el siguiente del mismo componente en el mismo equipo (historial
 con ~330 cambios de 40 tipos). El **Origen** (nuevo campo en el alta del Historial y columna editable; la columna ya existía en la
