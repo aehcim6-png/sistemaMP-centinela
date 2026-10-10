@@ -3168,6 +3168,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Bondad de ajuste:</b> Weibull, log-normal, Gamma y exponencial por máxima verosimilitud, comparados con AICc, Kolmogorov-Smirnov y error
   en los percentiles 90/99; p-valor por bootstrap paramétrico. Con los plazos reales, la Gamma MLE da el mejor percentil 90 aunque la log-normal gane por AICc.</p>
 
+  <p><b>Presupuesto limitado:</b> mochila 0/1 exacta (programación dinámica, costos redondeados hacia arriba) sobre los repuestos por pedir;
+  beneficio = probabilidad de falla en el horizonte × consecuencia (horas extra detenido × costo/hora, o el precio si no se ingresó). Se compara contra comprar
+  por urgencia y se muestra la frontera presupuesto→riesgo evitado.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

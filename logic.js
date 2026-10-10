@@ -7947,10 +7947,70 @@ function compararModelosVida(xs,opts){
   return{n:n,modelos:filas,mejor:filas[0].modelo,emp:{p90:e90,p99:e99,media:v.reduce(function(s,x){return s+x;},0)/n}};
 }
 
+
+// ── Optimización con presupuesto limitado (qué cambios comprar primero) ──
+// Problema de la mochila 0/1: de los repuestos por comprar, elegir los que maximizan la pérdida esperada evitada sin pasarse del presupuesto.
+// Resolución exacta por programación dinámica sobre costos discretizados (los costos se redondean HACIA ARRIBA a la unidad `paso`, así que el
+// resultado nunca excede el presupuesto; con 10.000 unidades el error de redondeo es <0,01% del total por ítem). Se compara con la regla simple
+// "por urgencia" (comprar en el orden del plan hasta que se acabe la plata) y con el orden voraz por beneficio/costo.
+// cands: [{costo>0, beneficio>=0, ...}]. Devuelve índices elegidos (sobre `cands`), totales y la frontera presupuesto→beneficio.
+function tboMochila(cands,presupuesto,opts){
+  var o=opts||{},items=(cands||[]).map(function(c,i){return{i:i,costo:c.costo,ben:c.beneficio};}).filter(function(x){return x.costo>0&&x.ben>=0;});
+  var total=items.reduce(function(s,x){return s+x.costo;},0),cap=Math.max(presupuesto||0,0);
+  var paso=o.paso>0?o.paso:Math.max(total,1)/(o.celdas||10000);
+  var W=Math.floor(total/paso+1e-9),Wcap=Math.min(Math.floor(cap/paso+1e-9),W),n=items.length;
+  var w=items.map(function(x){return Math.ceil(x.costo/paso-1e-9);});
+  // dp[j] = mejor beneficio con capacidad ≤ j. keep[k][j]=1 si el ítem k entra en la solución óptima de capacidad j tras procesar k ítems.
+  var dp=new Float64Array(W+1),keep=[];
+  for(var k=0;k<n;k++){
+    var row=new Uint8Array(W+1);
+    for(var j=W;j>=w[k];j--){var v=dp[j-w[k]]+items[k].ben;if(v>dp[j]+1e-12){dp[j]=v;row[j]=1;}}
+    keep.push(row);
+  }
+  var elegidos=[],j2=Wcap;
+  for(var k2=n-1;k2>=0;k2--){if(keep[k2][j2]){elegidos.push(items[k2].i);j2-=w[k2];}}
+  elegidos.reverse();
+  var suma=function(idx,campo){return idx.reduce(function(s,i){return s+cands[i][campo];},0);};
+  // Voraz por beneficio/costo (referencia) y regla "por urgencia" (en el orden dado, sin saltarse: compra mientras alcance).
+  var porRatio=items.slice().sort(function(a,b){return b.ben/b.costo-a.ben/a.costo;}),gasto=0,voraz=[];
+  porRatio.forEach(function(x){if(gasto+x.costo<=cap+1e-9){voraz.push(x.i);gasto+=x.costo;}});
+  var g2=0,urg=[];
+  items.forEach(function(x){if(g2+x.costo<=cap+1e-9){urg.push(x.i);g2+=x.costo;}});
+  // Frontera: mejor beneficio alcanzable con cada presupuesto hasta comprarlo todo (10 puntos). dp[j] ya es "≤ j".
+  var frontera=[];
+  for(var q=1;q<10;q++){var jj=Math.floor(W*q/10);frontera.push({presupuesto:Math.round(jj*paso),beneficio:dp[jj]});}
+  frontera.push({presupuesto:Math.round(total),beneficio:items.reduce(function(s2,x){return s2+x.ben;},0)});
+  // El redondeo hacia arriba puede dejar al DP apenas bajo una solución voraz (que usa costos exactos): se queda con la mejor solución factible.
+  var mejor=elegidos;
+  if(suma(voraz,'beneficio')>suma(mejor,'beneficio'))mejor=voraz.slice().sort(function(a,b){return a-b;});
+  if(cap>=total)mejor=items.map(function(x){return x.i;});
+  return{elegidos:mejor,costo:suma(mejor,'costo'),beneficio:suma(mejor,'beneficio'),
+    voraz:{elegidos:voraz,costo:suma(voraz,'costo'),beneficio:suma(voraz,'beneficio')},
+    urgencia:{elegidos:urg,costo:suma(urg,'costo'),beneficio:suma(urg,'beneficio')},
+    frontera:frontera,paso:paso,totalCosto:total,totalBeneficio:suma(items.map(function(x){return x.i;}),'beneficio')};
+}
+// Candidatos para la mochila desde las filas del plan de compra. Beneficio = probabilidad de que falle dentro del horizonte (Weibull
+// condicional, `tboRiesgoHorizonte`) × consecuencia de una falla no programada. Consecuencia = (Cf−Cp) del modelo de reemplazo óptimo
+// cuando el usuario ingresó el costo de hora detenida (horas extra de parada × costo/hora); si no, el precio del repuesto (mismo proxy de
+// impacto de la Matriz de Riesgo). Solo entran filas con dato real de último cambio (los teóricos no tienen riesgo medido), con precio y que
+// hay que comprar (pedir_ya / planificar). Las filas sin precio se devuelven aparte: no se pueden priorizar.
+function tboCandidatosPresupuesto(filasPlan,ctx){
+  var c=ctx||{},H=c.horizonte>0?c.horizonte:500,cd=c.costoHoraDet||0,dh=Math.max((c.horasFalla||0)-(c.horasProg||0),0);
+  var usaDet=cd>0&&dh>0,cands=[],sinPrecio=[],sinRiesgo=0;
+  (filasPlan||[]).forEach(function(f){
+    if(f.decision!=='pedir_ya'&&f.decision!=='planificar')return;
+    if(!f.conDato){sinRiesgo++;return;}
+    if(!(f.costoEst>0)){sinPrecio.push(f);return;}
+    var p=tboRiesgoHorizonte(f.desdeH,f.tbo,H),cons=usaDet?dh*cd:f.costoEst;
+    cands.push({fila:f,costo:f.costoEst,pFalla:p,consecuencia:cons,beneficio:p*cons});
+  });
+  return{cands:cands,sinPrecio:sinPrecio,sinRiesgo:sinRiesgo,usaDet:usaDet,horizonte:H};
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     tboTiemposEntrega, _digamma, _trigamma, _normCDF, ajusteExponencialMLE, ajusteLogNormalMLE, ajusteGammaMLE, ajusteWeibullMLE, TBO_MODELOS_VIDA, _rngSemilla, compararModelosVida,
-    tboIntegralR, tboMTTFWeibull, tboCostoPoliticaEdad, tboReemplazoOptimo, tboClaseForma, tboClaseConsecuencia, TBO_RCM_MATRIZ, tboEstrategiaRCM, tboParametrosVida, tboPoliticaOptimaFilas,
+    tboIntegralR, tboMTTFWeibull, tboCostoPoliticaEdad, tboReemplazoOptimo, tboClaseForma, tboClaseConsecuencia, TBO_RCM_MATRIZ, tboEstrategiaRCM, tboParametrosVida, tboPoliticaOptimaFilas, tboMochila, tboCandidatosPresupuesto,
     tboProbLlegaAntes, tboComparaOrigen, _betaIncompletaRegularizada, _gammaIncRegularizada, gammaCDF, gammaCuantil, ajusteGammaMomentos, betaCuantil, betaPDF, betaBernoulliPosterior, probabilidadMayorBeta,
     tboCantidadItem, tboLeadTimeFn, tboStockFn, tboPedidosAbiertosFn, tboDecisionCompra, tboPlanCompras,
     TBO_APLICACION, TBO_GUIA_APLICACION, TBO_BETA, tboRiesgoWeibull, tboRiesgoHorizonte, tboProbNivel, tboMatrizRiesgo, tboCostoPorHora,

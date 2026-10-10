@@ -12,7 +12,7 @@ function _tboTasa() {
   try { var v = parseFloat(localStorage.getItem(_TBO_TASA_KEY)); if (v > 0) return v; } catch (e) { /* sin storage: usa el default */ }
   return 910; // mismo valor referencial que ya usa importarRepuestosKomatsu (no es un tipo de cambio oficial)
 }
-var _TBO_OPT_KEYS = { costoDet: 'tboCostoDet', horasFalla: 'tboHorasFalla', horasProg: 'tboHorasProg', hhCambio: 'tboHHCambio' };
+var _TBO_OPT_KEYS = { costoDet: 'tboCostoDet', horasFalla: 'tboHorasFalla', horasProg: 'tboHorasProg', hhCambio: 'tboHHCambio', presupuesto: 'tboPresupuesto', horizonte: 'tboHorizonte' };
 function _tboParamOpt(k, def) {
   try { var v = parseFloat(localStorage.getItem(_TBO_OPT_KEYS[k])); if (v >= 0) return v; } catch (e) { /* sin storage: default */ }
   return def;
@@ -164,6 +164,16 @@ export function renderTbo() {
     '</table></div>' +
     '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Para que "Faltan" sea real y no teórico, registrá cada cambio en Componentes → Historial de Componentes (con horómetro y <b>origen</b>: original o alternativo).</p>';
 
+  // Parámetros de costo compartidos por el plan con presupuesto y el reemplazo óptimo
+  var mttrFlota = (typeof duracionesReparacionFlotaHoras === 'function') ? medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot') || [])) : null;
+  var pOpt = {
+    tarifaHH: S.g('hh') || 25000,
+    hhCambio: _tboParamOpt('hhCambio', 16),
+    horasProg: _tboParamOpt('horasProg', 8),
+    horasFalla: _tboParamOpt('horasFalla', mttrFlota ? Math.round(mttrFlota) : 24),
+    costoHoraDet: _tboParamOpt('costoDet', 0)
+  };
+
   // ── Plan de compra: TBO × Stock × Compras ──
   var incTeo = $('tboTeorico') ? $('tboTeorico').checked : false;
   var plan = tboPlanCompras(estado, { hoy: new Date(), equipos: eqs, compras: compras, comprasDetalle: S.g('comprasDetalle') || [], stk: S.g('stk') || [], repuestos: S.g('repuestos') || [], ordenes: S.g('ordenes') || [], tasa: tasa }, { incluirTeorico: incTeo });
@@ -195,6 +205,38 @@ export function renderTbo() {
     }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--tx3);padding:14px">Ningún cambio con repuesto por pedir en el horizonte (tiempo de entrega + 7 días de colchón + 90 días).</td></tr>') +
     '</table></div>' +
     '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Regla: <b>Pedir ya</b> = sin stock ni pedido abierto y el cambio llega antes que el <b>percentil 90</b> del tiempo de entrega (es decir, pidiendo hoy hay menos de 90% de probabilidad de tenerlo a tiempo); <b>Planificar</b> = hasta 45 días más; se muestra lo que cambia dentro de ese plazo + 90 días. El tiempo de entrega sale de los pedidos reales ya recibidos de ese tipo de repuesto y se ajusta con una distribución <b>Gamma</b> (≥5 pedidos; con menos se usa la de todos los pedidos; sin historial, mediana + 7 días con un default de 34). El stock se cruza por N° de parte (listado Sugerido) o por descripción. "Crear OC" deja una orden Pendiente en Compras; no se compra nada solo.</p>';
+
+  // ── Presupuesto limitado: qué comprar primero ──
+  var presTot = plan.filas.reduce(function (a, f) { return a + (((f.decision === 'pedir_ya' || f.decision === 'planificar') && f.conDato && f.costoEst) ? f.costoEst : 0); }, 0);
+  var presGuard = _tboParamOpt('presupuesto', 0), presUsa = presGuard > 0 ? presGuard : Math.round(presTot / 2 / 100000) * 100000;
+  var horizPres = _tboParamOpt('horizonte', 500);
+  var cand = tboCandidatosPresupuesto(plan.filas, { horizonte: horizPres, costoHoraDet: pOpt.costoHoraDet, horasFalla: pOpt.horasFalla, horasProg: pOpt.horasProg });
+  var moc = cand.cands.length ? tboMochila(cand.cands, presUsa) : null;
+  h += '<div class="card-t" style="margin:18px 0 6px">Con plata limitada: ¿qué compramos primero?</div>' +
+    '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">De los repuestos que hay que pedir (con último cambio conocido y precio), elige la combinación que <b>más pérdida esperada evita</b> sin pasarse del presupuesto (problema de la mochila, resuelto de forma exacta). La pérdida esperada de cada uno = <b>probabilidad de que falle en las próximas ' + fn(horizPres) + ' h</b> (Weibull condicional a lo que ya lleva) × <b>' + (cand.usaDet ? 'costo de la falla no programada (' + fn(pOpt.horasFalla - pOpt.horasProg) + ' h extra de camión detenido × ' + _tboPeso(pOpt.costoHoraDet) + '/h)' : 'precio del repuesto (como no ingresaste el costo de hora detenida, el precio hace de consecuencia: se prioriza por probabilidad; ingresalo en "Reemplazo óptimo" para ponderar por detención)') + '</b>. ' +
+    '<div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap"><label style="color:var(--tx3)" title="Plata disponible para estos repuestos (CLP). Vacío: se usa la mitad de lo que cuesta todo.">Presupuesto $ <input id="tboPres" type="number" min="0" step="100000" value="' + presUsa + '" style="width:120px" onchange="tboCambiarParamOpt(\'presupuesto\',this.value)"></label>' +
+    '<label style="color:var(--tx3)" title="Ventana de horas de operación en la que se mide la probabilidad de falla.">Horizonte (h) <input id="tboHoriz" type="number" min="1" step="50" value="' + horizPres + '" style="width:80px" onchange="tboCambiarParamOpt(\'horizonte\',this.value)"></label></div></div>';
+  if (!moc) {
+    h += '<div class="card" style="color:var(--tx3);font-size:12px">No hay repuestos por pedir con último cambio conocido y precio para priorizar' + (cand.sinPrecio.length ? ' (' + fn(cand.sinPrecio.length) + ' sin precio)' : '') + '.</div>';
+  } else {
+    var sel = {}; moc.elegidos.forEach(function (i) { sel[i] = true; });
+    var evit = moc.totalBeneficio > 0 ? moc.beneficio / moc.totalBeneficio : 0, evUrg = moc.totalBeneficio > 0 ? moc.urgencia.beneficio / moc.totalBeneficio : 0;
+    h += '<div class="cards">' +
+      '<div class="card"><div class="card-t">Comprar</div><div class="card-v">' + fn(moc.elegidos.length) + ' de ' + fn(cand.cands.length) + '</div><div class="card-s">' + _tboPeso(moc.costo) + ' de ' + _tboPeso(presUsa) + ' disponibles</div></div>' +
+      '<div class="card"><div class="card-t">Pérdida esperada evitada</div><div class="card-v" style="color:var(--ok)">' + Math.round(evit * 100) + '%</div><div class="card-s">de ' + _tboMM(moc.totalBeneficio) + ' en juego si no se compra nada</div></div>' +
+      '<div class="card"><div class="card-t">Comprando por urgencia</div><div class="card-v">' + Math.round(evUrg * 100) + '%</div><div class="card-s">' + (moc.beneficio > moc.urgencia.beneficio + 1e-6 ? 'elegir así evita ' + fn(Math.round((evit - evUrg) * 100)) + ' pts más' : 'igual que la selección óptima') + '</div></div>' +
+      '<div class="card"><div class="card-t">Sin precio</div><div class="card-v">' + fn(cand.sinPrecio.length) + '</div><div class="card-s">no se pueden priorizar' + (cand.sinRiesgo ? ' · ' + fn(cand.sinRiesgo) + ' teóricos sin riesgo medido' : '') + '</div></div></div>' +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th></th><th>Equipo</th><th>Ítem</th><th style="text-align:right" title="Probabilidad de que falle dentro del horizonte dado lo que ya lleva trabajado.">P(falla)</th><th style="text-align:right">Costo</th><th style="text-align:right" title="P(falla) × consecuencia.">Pérdida esperada</th><th style="text-align:right" title="Pérdida esperada evitada por cada $ gastado.">Evita por $</th></tr>' +
+      cand.cands.map(function (c, i) { return { c: c, i: i }; }).sort(function (a, b) { return (sel[b.i] ? 1 : 0) - (sel[a.i] ? 1 : 0) || b.c.beneficio / b.c.costo - a.c.beneficio / a.c.costo; }).map(function (r) {
+        var c = r.c, ok = !!sel[r.i];
+        return '<tr style="' + (ok ? '' : 'opacity:.55') + '"><td>' + (ok ? '✅' : '—') + '</td><td class="mono" style="color:var(--ac)">' + escapeHtml(c.fila.sigla) + '</td><td style="font-size:10px">' + escapeHtml(c.fila.item) + (c.fila.cant > 1 ? ' <span style="color:var(--tx3)">× ' + c.fila.cant + '</span>' : '') + '</td>' +
+          '<td class="mono" style="text-align:right">' + (c.pFalla < 0.01 ? '&lt;1' : Math.round(c.pFalla * 100)) + '%</td><td class="mono" style="text-align:right">' + _tboPeso(c.costo) + '</td><td class="mono" style="text-align:right">' + _tboPeso(c.beneficio) + '</td><td class="mono" style="text-align:right">' + (Math.round(c.beneficio / c.costo * 1000) / 10 + '').replace('.', ',') + '%</td></tr>';
+      }).join('') + '</table></div>' +
+      '<div style="font-weight:600;font-size:12px;margin:10px 0 4px">¿Cuánto rinde cada peso extra? (frontera del presupuesto)</div>' +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:right">Presupuesto</th><th style="text-align:right">Pérdida esperada evitada</th><th style="text-align:right">% del total</th></tr>' +
+      moc.frontera.map(function (f) { return '<tr><td class="mono" style="text-align:right">' + _tboPeso(f.presupuesto) + '</td><td class="mono" style="text-align:right">' + _tboMM(f.beneficio) + '</td><td class="mono" style="text-align:right">' + (moc.totalBeneficio > 0 ? Math.round(f.beneficio / moc.totalBeneficio * 100) : 0) + '%</td></tr>'; }).join('') + '</table></div>' +
+      '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Los costos se redondean hacia arriba para nunca pasarse del presupuesto. La probabilidad de falla viene del Weibull del fabricante (β=3, TBO = B5) salvo que el Historial tenga datos propios; es una guía de prioridad, no un cálculo de ahorro garantizado.</p>';
+  }
 
   // ── Matriz de riesgo (probabilidad Weibull × impacto por precio) ──
   var precioCLP = function (x) { var p = precioDe(x); return p.original.mediana || p.mediana || p.clpRef || null; };
@@ -240,14 +282,6 @@ export function renderTbo() {
       : '<div class="card" style="color:var(--tx3);font-size:12px">Todavía no hay cambios suficientes en el Historial de Componentes para medir duraciones.</div>');
 
   // ── Reemplazo óptimo por costo + matriz de estrategia (RCM) ──
-  var mttrFlota = (typeof duracionesReparacionFlotaHoras === 'function') ? medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot') || [])) : null;
-  var pOpt = {
-    tarifaHH: S.g('hh') || 25000,
-    hhCambio: _tboParamOpt('hhCambio', 16),
-    horasProg: _tboParamOpt('horasProg', 8),
-    horasFalla: _tboParamOpt('horasFalla', mttrFlota ? Math.round(mttrFlota) : 24),
-    costoHoraDet: _tboParamOpt('costoDet', 0)
-  };
   var pol = tboPoliticaOptimaFilas(vida.filter(function (v) { return v.origen !== 'sin dato' || v.precio; }), pOpt);
   var polCon = pol.filter(function (r) { return r.param && r.precio; });
   var _inp = function (id, k, val, label, ttl) { return '<label style="font-size:11px;color:var(--tx3)" title="' + ttl + '">' + label + ' <input id="' + id + '" type="number" min="0" step="any" value="' + val + '" style="width:90px" onchange="tboCambiarParamOpt(\'' + k + '\',this.value)"></label>'; };

@@ -873,6 +873,78 @@ describe('Bondad de ajuste y comparación de modelos (Weibull, log-normal, Gamma
       expect(a.modelos.find(m => m.modelo === 'weibull').pBoot).toBeGreaterThan(0.05);
     });
   });
+  describe('optimización con presupuesto limitado (mochila)', () => {
+    const rng = (() => { let a = 12345; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; })();
+    const fuerzaBruta = (c, B) => { let mejor = 0; for (let m = 0; m < (1 << c.length); m++) { let k = 0, b = 0; for (let i = 0; i < c.length; i++) if (m >> i & 1) { k += c[i].costo; b += c[i].beneficio; } if (k <= B && b > mejor) mejor = b; } return mejor; };
+    it('el óptimo coincide con la fuerza bruta en 60 casos aleatorios (costos enteros: sin error de redondeo)', () => {
+      for (let t = 0; t < 60; t++) {
+        const n = 4 + Math.floor(rng() * 9);
+        const c = Array.from({ length: n }, () => ({ costo: 1 + Math.floor(rng() * 50), beneficio: Math.round(rng() * 1000) / 10 }));
+        const total = c.reduce((s, x) => s + x.costo, 0), B = Math.floor(total * (0.2 + rng() * 0.6));
+        const r = L.tboMochila(c, B, { paso: 1 });
+        expect(r.costo).toBeLessThanOrEqual(B);
+        expect(r.beneficio).toBeCloseTo(fuerzaBruta(c, B), 8);
+      }
+    });
+    it('nunca se pasa del presupuesto con costos reales y discretización gruesa, y no es peor que el voraz ni que la regla por urgencia', () => {
+      for (let t = 0; t < 40; t++) {
+        const n = 10 + Math.floor(rng() * 40);
+        const c = Array.from({ length: n }, () => ({ costo: 100000 + Math.round(rng() * 9000000), beneficio: rng() * 5e6 }));
+        const total = c.reduce((s, x) => s + x.costo, 0), B = total * (0.1 + rng() * 0.7);
+        const r = L.tboMochila(c, B);
+        expect(r.costo).toBeLessThanOrEqual(B + 1e-6);
+        expect(r.voraz.costo).toBeLessThanOrEqual(B + 1e-6);
+        expect(r.beneficio).toBeGreaterThanOrEqual(r.voraz.beneficio - 1e-6);
+        expect(r.beneficio).toBeGreaterThanOrEqual(r.urgencia.beneficio - 1e-6);
+      }
+    });
+    it('presupuesto 0 no elige nada y presupuesto ≥ total elige todo; la frontera no decrece', () => {
+      const c = [{ costo: 10, beneficio: 5 }, { costo: 20, beneficio: 1 }, { costo: 5, beneficio: 9 }];
+      expect(L.tboMochila(c, 0).elegidos).toEqual([]);
+      const todo = L.tboMochila(c, 1000);
+      expect(todo.elegidos).toEqual([0, 1, 2]);
+      expect(todo.beneficio).toBeCloseTo(15, 10);
+      const f = todo.frontera.map(x => x.beneficio);
+      for (let i = 1; i < f.length; i++) expect(f[i]).toBeGreaterThanOrEqual(f[i - 1]);
+      expect(f[f.length - 1]).toBeCloseTo(15, 10);
+    });
+    it('ejemplo clásico donde el voraz falla: el óptimo lo supera', () => {
+      const c = [{ costo: 10, beneficio: 60 }, { costo: 20, beneficio: 100 }, { costo: 30, beneficio: 120 }];
+      const r = L.tboMochila(c, 50, { paso: 1 });
+      expect(r.beneficio).toBe(220);
+      expect(r.voraz.beneficio).toBe(160);
+      expect(r.elegidos).toEqual([1, 2]);
+    });
+    it('ignora costos no positivos y devuelve índices sobre la lista original', () => {
+      const c = [{ costo: 0, beneficio: 99 }, { costo: 10, beneficio: 5 }];
+      expect(L.tboMochila(c, 100).elegidos).toEqual([1]);
+    });
+  });
+  describe('candidatos para el presupuesto', () => {
+    const fila = (o) => Object.assign({ decision: 'pedir_ya', conDato: true, costoEst: 1000000, desdeH: 14000, tbo: 16000 }, o);
+    it('solo entran filas por comprar, con dato real y precio; el resto se informa aparte', () => {
+      const r = L.tboCandidatosPresupuesto([fila({}), fila({ decision: 'cubierto' }), fila({ conDato: false }), fila({ costoEst: null })], {});
+      expect(r.cands).toHaveLength(1);
+      expect(r.sinPrecio).toHaveLength(1);
+      expect(r.sinRiesgo).toBe(1);
+    });
+    it('beneficio = P(falla en el horizonte) × precio sin costo de hora detenida', () => {
+      const r = L.tboCandidatosPresupuesto([fila({})], { horizonte: 500 });
+      const p = L.tboRiesgoHorizonte(14000, 16000, 500);
+      expect(r.cands[0].pFalla).toBeCloseTo(p, 12);
+      expect(r.cands[0].beneficio).toBeCloseTo(p * 1000000, 6);
+      expect(r.usaDet).toBe(false);
+    });
+    it('con costo de hora detenida la consecuencia es (horas de falla − horas programadas) × costo/hora', () => {
+      const r = L.tboCandidatosPresupuesto([fila({})], { horizonte: 500, costoHoraDet: 400000, horasFalla: 48, horasProg: 8 });
+      expect(r.usaDet).toBe(true);
+      expect(r.cands[0].consecuencia).toBe(40 * 400000);
+    });
+    it('un componente más gastado tiene más beneficio que uno nuevo con el mismo precio', () => {
+      const r = L.tboCandidatosPresupuesto([fila({ desdeH: 15500 }), fila({ desdeH: 2000 })], { horizonte: 500 });
+      expect(r.cands[0].beneficio).toBeGreaterThan(r.cands[1].beneficio * 10);
+    });
+  });
   describe('tiempos de entrega reales', () => {
     it('solo cuenta pedidos recibidos con tiempo > 0', () => {
       const cd = [{ estado: 'Recepcion Bodega', tiempoRespuesta: '2 dias 12h 0m' }, { estado: 'OC Firmada', tiempoRespuesta: '9 dias' }, { estado: 'Recepcion Bodega', tiempoRespuesta: null }, { estado: 'Recepcion Bodega', tiempoRespuesta: '10 dias 0h 0m' }];

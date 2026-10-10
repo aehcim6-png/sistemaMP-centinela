@@ -89,7 +89,7 @@ compras). "Datos" dice si hoy alcanzan.
 |---|---|---|---|---|
 | 1 ✅ | **Reemplazo óptimo por costo** (hecho 2026-10-10) (política de reemplazo por edad; vida económica) | ¿cada cuántas horas conviene cambiar este componente, y conviene el alternativo? Minimiza costo por hora: `C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫₀ᵀ R(t)dt` con Weibull + costo de cambio programado vs. costo de falla | **Sí**: Weibull, precios y costo de detención ya existen | medio |
 | 2 | **Costo total de propiedad (LCC) por equipo** y vida económica del equipo | ¿cuándo conviene renovar o dar de baja un equipo? | Parcial (valor de compra, gasto, detención) | medio |
-| 3 | **Optimización con presupuesto limitado** (qué cambios hacer primero) | con $X, ¿qué compro para bajar más riesgo? | **Sí** (riesgo TBO + precio) | medio |
+| 3 ✅ | **Optimización con presupuesto limitado** (qué cambios hacer primero) | con $X, ¿qué compro para bajar más riesgo? | **Sí** (riesgo TBO + precio) | medio |
 | 4 ✅ | **Pruebas de bondad de ajuste y comparación de modelos** (Kolmogorov-Smirnov/Anderson-Darling, AIC entre Weibull, log-normal y Gamma) | ¿estamos usando la distribución correcta? Hoy se muestra solo R² del papel Weibull | **Sí** | bajo |
 | 5 | **Pronóstico de demanda de repuestos con tendencia/estacionalidad** (suavizamiento exponencial/Holt) | ¿cuánto repuesto necesito el próximo año? Hoy se asume demanda estable | Parcial (3–4 años de compras) | bajo-medio |
 | 6 | **Cantidad económica de pedido (EOQ) y política (s,S)** | ¿cuánto pedir, no solo cuándo? Hoy hay punto de reorden pero no lote | Sí | bajo |

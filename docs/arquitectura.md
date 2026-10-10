@@ -6232,6 +6232,17 @@ todos los modelos simples (los plazos tienen "picos" en 15, 20, 62 días), y el 
 pasó de Gamma por momentos a **Gamma por máxima verosimilitud**. Limitación: la vida de componentes casi nunca llega a 8 cambios por origen.
 Pruebas incluidas en `tboKomatsu.test.js`.
 
+**Optimización con presupuesto limitado.** `tboMochila` resuelve el problema de la mochila 0/1 de forma exacta (programación dinámica sobre
+costos discretizados a 10.000 unidades, redondeados hacia arriba para no pasarse nunca del presupuesto; se queda con la mejor solución
+factible entre el DP y el orden voraz por beneficio/costo). `tboCandidatosPresupuesto` arma los candidatos: repuestos por pedir (pedir ya o
+planificar) con último cambio real y precio; beneficio = P(falla en el horizonte) × consecuencia, con P de `tboRiesgoHorizonte` (Weibull
+condicional a las horas que ya lleva) y consecuencia = horas extra de detención por falla × costo de hora detenida si el usuario lo
+ingresó, o el precio del repuesto como proxy (misma idea que el impacto de la Matriz de Riesgo; en ese caso se prioriza por probabilidad).
+La pantalla compara contra la regla "comprar por urgencia hasta que se acabe la plata" y muestra la frontera presupuesto→pérdida evitada.
+Verificado contra fuerza bruta en 60 casos aleatorios y en el contraejemplo clásico donde el voraz falla (60/100/120 con capacidad 50:
+voraz 160, óptimo 220). Limitaciones: los ítems son independientes (no hay descuento por comprar juntos ni por equipo), y los teóricos
+(sin cambio medido) y los sin precio no se priorizan. 9 pruebas más.
+
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
 
