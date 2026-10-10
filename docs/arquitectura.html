@@ -3151,6 +3151,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Riesgo</b> Probabilidad × Impacto que reutiliza la de Predictivo, y el <b>costo por hora</b> (precio ÷ duración real) para comparar original
   con alternativo.</p>
 
+  <p><b>Cruce con Stock y Compras:</b> cada cambio próximo se cruza con el <b>tiempo de entrega real</b> del repuesto (pedidos ya
+  recibidos), el <b>stock</b> (Stock + Repuestos Críticos, sin sumarlos), los <b>pedidos abiertos</b> y el precio. Resultado: cubierto /
+  en camino / <b>pedir ya</b> / planificar, con "pedir antes del" y presupuesto; botón <b>Crear OC</b> (deja una orden Pendiente, no
+  compra solo).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -424,3 +424,125 @@ describe('tboCostoPorHora — original vs alternativo', () => {
     expect(r.find(x => x.comp === 'Asiento')).toMatchObject({ precio: null, costoHora: null });
   });
 });
+
+describe('TBO × Stock × Compras', () => {
+  const hoy = new Date('2026-10-10T12:00:00Z');
+  it('cantidad por cambio: la del listado Sugerido (6 inyectores, 2 motores de partida) o 1', () => {
+    expect(L.tboCantidadItem('FUEL INJECTOR')).toBe(6);
+    expect(L.tboCantidadItem('STARTING MOTOR')).toBe(2);
+    expect(L.tboCantidadItem('ALTERNATOR')).toBe(1);
+    expect(L.tboCantidadItem('MAIN FRAME & HITCH FRAME')).toBe(1);
+  });
+
+  describe('tiempo de entrega', () => {
+    const rec = (det, t) => ({ estado: 'Recepcion Bodega', detalle: det, tiempoRespuesta: t });
+    const cd = [rec('Turbo Hd785', '10 dias 0h 0m'), rec('Turbo Hd785 rg', '20 dias 0h 0m'), rec('Turbo repar', '30 dias 2h 0m'), rec('Correa Caucho', '2 dias 0h 0m'),
+      { estado: 'OC Firmada', detalle: 'Turbo X', tiempoRespuesta: '99 dias' }, rec('Sin dato', null)];
+    it('usa la mediana de los pedidos recibidos de ese repuesto (≥3); ignora los abiertos', () => {
+      const f = L.tboLeadTimeFn(cd);
+      expect(f('TURBOCHARGER (L)')).toMatchObject({ dias: 20, n: 3 });
+      expect(f('TURBOCHARGER (L)').fuente).toContain('3 pedidos de este repuesto');
+    });
+    it('con menos de 3 pedidos usa la mediana de todos los recibidos; sin historial, 34 días', () => {
+      const f = L.tboLeadTimeFn(cd);
+      expect(f('V-BELT')).toMatchObject({ n: 4 });
+      expect(f('V-BELT').fuente).toContain('todos los pedidos');
+      expect(L.tboLeadTimeFn([])('ALTERNATOR')).toEqual({ dias: 34, n: 0, fuente: 'sin historial: 34 días por defecto' });
+    });
+  });
+
+  describe('stock', () => {
+    const stk = [
+      { nParte: '600-861-9122', descripcion: 'Alternador', equipoModelo: 'HD785-7', stockBodega: 2, pendiente: 1 },
+      { nParte: '600-861-9122', descripcion: 'Alternador', equipoModelo: 'WA900', stockBodega: 5 },
+      { nParte: '6505-67-5040', descripcion: 'Turbo LH', equipoModelo: 'CN-9500', stockBodega: 1 },
+    ];
+    const rep = [{ nParte: '600-861-9122', componente: 'Alternador', equipo: 'HD785-7', stockActual: 3 }];
+    const f = L.tboStockFn(stk, rep);
+    it('cruza por N° de parte (sin importar guiones) y solo cuenta lo que sirve al equipo (su sigla, su modelo o sin equipo)', () => {
+      expect(f('ALTERNATOR', 'CN-9500', 'Komatsu HD785-7')).toMatchObject({ enStock: 2, pendiente: 1, porPN: true });
+      expect(f('TURBOCHARGER (L)', 'CN-9500', 'Komatsu HD785-7').enStock).toBe(1);
+      expect(f('TURBOCHARGER (L)', 'CN-9501', 'Komatsu HD785-7').enStock).toBe(0); // el turbo está asignado a CN-9500
+    });
+    it('Stock y Repuestos Críticos no se suman (pueden ser el mismo repuesto): toma el mayor', () => {
+      const r = f('ALTERNATOR', 'CN-9500', 'Komatsu HD785-7');
+      expect(r).toMatchObject({ enStock: 2, enCriticos: 3, unidades: 3 });
+    });
+    it('un ítem sin forma de reconocerlo no inventa stock', () => {
+      expect(f('MAIN FRAME & HITCH FRAME', 'CN-9500', 'Komatsu HD785-7').unidades).toBe(0);
+    });
+  });
+
+  describe('pedidos abiertos', () => {
+    const cd = [
+      { estado: 'OC Firmada', detalle: 'Alternador 24v', sigla: 'CN-9501', fecha: '2026-09-20', proveedor: 'KOMATSU' },
+      { estado: 'Recepcion Bodega', detalle: 'Alternador 24v', sigla: 'CN-9500', fecha: '2026-01-01', proveedor: 'KOMATSU' },
+      { estado: 'OC por Firmar', detalle: 'Alternador wa900', sigla: 'CF-1', fecha: '2026-10-01', proveedor: 'X' },
+    ];
+    const f = L.tboPedidosAbiertosFn(cd, [{ estado: 'Pendiente', componente: 'Alternador', equipo: 'CN-9500', fecha: '2026-10-05', proveedor: 'Y' }, { estado: 'Recibida', componente: 'Alternador', equipo: 'CN-9500' }], hoy);
+    it('toma OC por firmar/firmadas y las OC creadas en la app (Pendiente) de ese equipo o de su clase; ignora recibidas y de otras clases', () => {
+      const r = f('ALTERNATOR', 'CN-9500', ['CN-9500', 'CN-9501']);
+      expect(r).toHaveLength(2);
+      expect(r.map(p => p.origen).sort()).toEqual(['compras', 'ordenes']);
+      expect(r.find(p => p.origen === 'compras')).toMatchObject({ dias: 21, estado: 'OC Firmada' }) // 20,5 días redondeados;
+    });
+    it('un ítem sin forma de reconocerlo → sin pedidos', () => {
+      expect(f('MAIN FRAME & HITCH FRAME', 'CN-9500', ['CN-9500'])).toEqual([]);
+    });
+  });
+
+  describe('tboDecisionCompra', () => {
+    it('hay stock → cubierto; hay pedido → en camino', () => {
+      expect(L.tboDecisionCompra({ dias: 5, lead: 30, stock: 1, pedidos: 0, fechaProx: '2026-10-15' }).decision).toBe('cubierto');
+      expect(L.tboDecisionCompra({ dias: 5, lead: 30, stock: 0, pedidos: 1, fechaProx: '2026-10-15' }).decision).toBe('en_camino');
+    });
+    it('sin stock ni pedido: pedir ya si el cambio llega antes de lead+7; planificar hasta 45 días más; después no urgente', () => {
+      expect(L.tboDecisionCompra({ dias: 30, lead: 30, stock: 0, pedidos: 0, fechaProx: '2026-11-09' }).decision).toBe('pedir_ya');
+      expect(L.tboDecisionCompra({ dias: 37, lead: 30, stock: 0, pedidos: 0, fechaProx: '2026-11-16' }).decision).toBe('pedir_ya');
+      expect(L.tboDecisionCompra({ dias: 60, lead: 30, stock: 0, pedidos: 0, fechaProx: '2026-12-09' }).decision).toBe('planificar');
+      expect(L.tboDecisionCompra({ dias: 200, lead: 30, stock: 0, pedidos: 0, fechaProx: '2027-04-29' }).decision).toBe('no_urgente');
+    });
+    it('"pedir antes del" = fecha del cambio − (lead + 7 días de colchón)', () => {
+      const r = L.tboDecisionCompra({ dias: 60, lead: 30, stock: 0, pedidos: 0, fechaProx: '2026-12-09' });
+      expect(r.pedirAntesDe).toBe('2026-11-02');
+      expect(r.diasParaPedir).toBe(23);
+    });
+  });
+
+  describe('tboPlanCompras', () => {
+    const eq = [{ sigla: 'CN-1', modelo: 'Komatsu HD785-7', horomActual: 12534, hrsDia: 20 }];
+    const hist = [{ sigla: 'CN-1', comp: 'Alternador', horomInstalacion: 4000, fechaInst: '2025-01-01' }]; // 8.534 h desde, TBO 8.000 → vencido
+    const est = L.tboEstadoFlota(eq, hist, [], hoy);
+    const ctx = (extra) => Object.assign({ hoy, equipos: eq, compras: [], comprasDetalle: [], stk: [], repuestos: [], ordenes: [], tasa: 910 }, extra);
+    it('un cambio vencido sin stock ni pedido es "pedir ya", con costo = lista USD × tasa', () => {
+      const r = L.tboPlanCompras(est, ctx());
+      const a = r.filas.find(f => f.item === 'ALTERNATOR');
+      expect(a).toMatchObject({ decision: 'pedir_ya', cant: 1, precio: Math.round(2192.14 * 910), lead: { dias: 34 } });
+      expect(r.totales.pedir_ya).toBe(1);
+      expect(r.totales.presupuestoPedirYa).toBe(Math.round(2192.14 * 910));
+    });
+    it('con stock queda cubierto y no suma al presupuesto', () => {
+      const r = L.tboPlanCompras(est, ctx({ stk: [{ nParte: '600-861-9122', descripcion: 'Alternador', equipoModelo: 'HD785-7', stockBodega: 1 }] }));
+      expect(r.filas.find(f => f.item === 'ALTERNATOR').decision).toBe('cubierto');
+      expect(r.totales.presupuestoPedirYa).toBe(0);
+    });
+    it('con un pedido abierto queda en camino', () => {
+      const r = L.tboPlanCompras(est, ctx({ comprasDetalle: [{ estado: 'OC Firmada', detalle: 'Alternador', sigla: 'CN-1', fecha: '2026-10-01', proveedor: 'K' }] }));
+      expect(r.filas.find(f => f.item === 'ALTERNATOR')).toMatchObject({ decision: 'en_camino' });
+    });
+    it('el plan teórico (sin cambio registrado) no entra salvo que se pida; se cuentan los omitidos', () => {
+      const sinDato = L.tboEstadoFlota(eq, [], [], hoy);
+      const a = L.tboPlanCompras(sinDato, ctx());
+      expect(a.filas).toEqual([]);
+      expect(a.omitidosTeoricos).toBeGreaterThan(0);
+      const b = L.tboPlanCompras(sinDato, ctx(), { incluirTeorico: true });
+      expect(b.filas.length).toBeGreaterThan(0);
+    });
+    it('ordena primero lo que hay que pedir ya', () => {
+      const hist2 = hist.concat([{ sigla: 'CN-1', comp: 'Turbo', horomInstalacion: 6000, fechaInst: '2025-01-01' }]); // turbos: 6.534 h desde → faltan 1.466 h = 73 días
+      const r = L.tboPlanCompras(L.tboEstadoFlota(eq, hist2, [], hoy), ctx({ stk: [{ nParte: '600-861-9122', descripcion: 'Alternador', equipoModelo: 'HD785-7', stockBodega: 1 }] }));
+      const orden = r.filas.map(f => f.decision);
+      expect(orden.indexOf('pedir_ya')).toBeLessThan(orden.indexOf('cubierto') === -1 ? 99 : orden.indexOf('cubierto'));
+    });
+  });
+});

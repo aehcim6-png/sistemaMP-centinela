@@ -6126,7 +6126,7 @@ criterio de quien conoce el caso).
 ### 110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)
 
 Pestaña **Componentes → TBO Komatsu** (módulo lazy `modules/renders/tbo.js`; toda la lógica pura en `logic.js`, funciones `tbo*`,
-55 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
+71 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
 `docs/referencias/`. Se usaron TODAS sus hojas: Camiones/Cargadores/Bulldozers (58/71/57 ítems, TBO de aplicación 'Normal'),
 'Sugerido' (27 repuestos HD785-7 con N° de parte y precio en USD; la suma cantidad×unitario da USD 173.030,5, igual que el Excel)
 y las ocultas 'Application Guide' y 'Weibull' (guardadas en el original; no alimentan cálculos).
@@ -6178,6 +6178,18 @@ cambio conocido (los teóricos quedan dentro del TBO por construcción) y sin pr
 (`tboCostoPorHora`) = precio típico ÷ duración mediana real, por origen, más el costo por hora a la vida del TBO: así se ve si un repuesto
 alternativo, aunque más barato, sale más caro por hora de uso. Una instalación de Componentes Mayores cuenta como cambio real solo si
 tiene fecha de instalación (criterio de `compEstado`); las filas por defecto sin fecha no cuentan.
+
+**Cruce con Stock y Compras (plan de compra).** `tboPlanCompras` cruza cada cambio próximo con: (a) el **tiempo de entrega real**
+del repuesto = mediana de `tiempoRespuesta` de los pedidos ya recibidos de ese tipo en `compras_detalle` (≥3; si no, la mediana de todos;
+sin historial, 34 días como `stockEstado`); (b) el **stock** de `stock_filtros` y `repuestos` (por N° de parte del listado Sugerido o,
+si no, por descripción; solo lo que sirve a ese equipo; entre las dos fuentes se toma el **mayor**, no la suma, porque pueden ser el
+mismo repuesto); (c) los **pedidos abiertos** ('OC por Firmar'/'OC Firmada' y las OC Pendientes creadas en la app); y (d) el precio y la
+cantidad por cambio (6 inyectores, 2 motores de partida… del Sugerido). Decisión: hay stock → cubierto; hay pedido → en camino; si
+no, **pedir ya** cuando faltan menos de `entrega + 7 días` y **planificar** hasta 45 días más; "pedir antes del" = fecha del cambio −
+(entrega + 7). Se muestra lo que cambia dentro de `entrega + 7 + 90` días. Por defecto solo entran cambios con último cambio **registrado**
+(el plan teórico es opcional con un check, y se cuentan los que quedan afuera). El botón **Crear OC** (`crearOCDesdeTBO`, nombre que el
+rol lector oculta) deja una orden **Pendiente** en la misma tabla `ordenes` que usa Repuestos → Comprar, con la observación del TBO;
+no compra nada solo. 16 pruebas (`tests/tboKomatsu.test.js`).
 
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.

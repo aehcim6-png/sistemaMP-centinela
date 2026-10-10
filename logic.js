@@ -7512,8 +7512,115 @@ function tboCostoPorHora(vida,compras,equipos,tasa){
   });
 }
 
+
+// ── TBO × Stock × Compras: ¿alcanzamos a comprar antes del cambio? ──
+// Regex en español (sobre la descripción de la compra/stock) del ítem del plan, o null si no hay forma confiable de reconocerlo.
+function _tboRxItem(item){
+  for(var j=0;j<TBO_PRECIO_RX.length;j++){if(TBO_PRECIO_RX[j][0].test(item))return new RegExp(TBO_PRECIO_RX[j][1].source,'i');}
+  return null;
+}
+function _tboPNItem(item){for(var i=0;i<TBO_SUG_PN.length;i++){if(TBO_SUG_PN[i][0].test(item))return TBO_SUG_PN[i][1];}return null;}
+// Cantidad de unidades por cambio: la del listado Sugerido (ej. 6 inyectores por equipo) o 1.
+function tboCantidadItem(item){var pn=_tboPNItem(item);if(!pn)return 1;var s=TBO_SUGERIDO.filter(function(x){return x[0]===pn;})[0];return s?s[3]:1;}
+// Tiempo de entrega (días) de un repuesto: mediana de lo que tardaron los pedidos YA RECIBIDOS de ese tipo (tiempoRespuesta de
+// compras_detalle); con menos de 3 pedidos usa la mediana de todos los pedidos recibidos; sin datos, 34 días (el default de
+// stockEstado). Se arma una vez (pedidos recibidos con sus días) y devuelve una función ítem→{dias,n,fuente}.
+function tboLeadTimeFn(comprasDetalle){
+  var cerrados=[],todos=[];
+  (comprasDetalle||[]).forEach(function(c){
+    if(!c||c.estado!=='Recepcion Bodega')return;
+    var d=_parsearTiempoRespuestaDias(c.tiempoRespuesta);if(d==null||!(d>0))return;
+    cerrados.push({det:String(c.detalle||''),d:d});todos.push(d);
+  });
+  var global=medianaPositiva(todos),cache={};
+  return function(item){
+    if(cache[item])return cache[item];
+    var rx=_tboRxItem(item),r;
+    var ds=rx?cerrados.filter(function(c){return rx.test(c.det);}).map(function(c){return c.d;}):[];
+    if(ds.length>=3)r={dias:Math.round(medianaPositiva(ds)),n:ds.length,fuente:'mediana de '+ds.length+' pedidos de este repuesto'};
+    else if(global!=null)r={dias:Math.round(global),n:todos.length,fuente:'mediana de todos los pedidos ('+todos.length+')'};
+    else r={dias:34,n:0,fuente:'sin historial: 34 días por defecto'};
+    return(cache[item]=r);
+  };
+}
+// Stock disponible de un ítem para un equipo: busca por N° de parte del listado Sugerido y, si no, por la descripción, en
+// Stock (stock_filtros) y Repuestos Críticos. Cuenta lo que sirve a ese equipo (su sigla, su modelo o sin equipo). Devuelve el
+// MAYOR de las dos fuentes (pueden ser el mismo repuesto cargado en ambas: no se suman para no dar por cubierto de más).
+function tboStockFn(stk,repuestos){
+  var S1=(stk||[]).map(function(s){return{pn:tboNormalizarPN(s.nParte),txt:String(s.descripcion||''),eq:String(s.equipoModelo||''),u:(Number(s.stockBodega)||0),pend:(Number(s.pendiente)||0)};});
+  var R1=(repuestos||[]).map(function(r){return{pn:tboNormalizarPN(r.nParte),txt:String(r.componente||''),eq:String(r.equipo||''),u:(Number(r.stockActual)||0),pend:0};});
+  return function(item,sigla,modelo){
+    var pn=_tboPNItem(item),rx=_tboRxItem(item),pnN=pn?tboNormalizarPN(pn):null;
+    var mod=String(modelo||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    function sirve(eq){var e=String(eq||'').toUpperCase();if(!e.trim())return true;if(e.indexOf(String(sigla||'').toUpperCase())>=0)return true;var m=e.replace(/[^A-Z0-9]/g,'');return mod&&(m.indexOf(mod)>=0||mod.indexOf(m)>=0&&m.length>=4);}
+    function suma(L){var u=0,pe=0,n=0;L.forEach(function(x){
+      var calza=(pnN&&x.pn&&x.pn.indexOf(pnN)>=0)||(!pnN&&rx&&rx.test(x.txt))||(pnN&&!x.pn&&rx&&rx.test(x.txt));
+      if(calza&&sirve(x.eq)){u+=x.u;pe+=x.pend;n++;}});return{u:u,pend:pe,n:n};}
+    var a=suma(S1),b=suma(R1);
+    return{unidades:Math.max(a.u,b.u),pendiente:a.pend,enStock:a.u,enCriticos:b.u,filas:a.n+b.n,porPN:!!pnN};
+  };
+}
+// Pedidos todavía abiertos ('OC por Firmar' / 'OC Firmada' en compras_detalle; 'Pendiente' en las OC creadas en la app) de ese ítem para
+// ese equipo o para equipos de su misma clase. Devuelve función (ítem,sigla,siglasClase)→[{fecha,proveedor,estado,dias,sigla}].
+function tboPedidosAbiertosFn(comprasDetalle,ordenes,hoy){
+  var base=hoy instanceof Date?hoy:new Date(hoy||Date.now());
+  var ab=(comprasDetalle||[]).filter(function(c){return c&&(c.estado==='OC por Firmar'||c.estado==='OC Firmada');}).map(function(c){
+    var t=Date.parse(c.fecha);return{det:String(c.detalle||''),sigla:c.sigla,fecha:c.fecha,proveedor:c.proveedor,estado:c.estado,dias:isNaN(t)?null:Math.max(0,Math.round((base.getTime()-t)/86400000)),origen:'compras'};});
+  var op=(ordenes||[]).filter(function(o){return o&&o.estado==='Pendiente';}).map(function(o){
+    var t=Date.parse(o.fecha);return{det:String(o.componente||''),sigla:o.equipo,fecha:o.fecha,proveedor:o.proveedor,estado:'OC creada (Pendiente)',dias:isNaN(t)?null:Math.max(0,Math.round((base.getTime()-t)/86400000)),origen:'ordenes'};});
+  var todos=ab.concat(op);
+  return function(item,sigla,siglasClase){
+    var rx=_tboRxItem(item);if(!rx)return[];
+    var set={};(siglasClase||[]).forEach(function(s){set[s]=1;});set[sigla]=1;
+    return todos.filter(function(p){return rx.test(p.det)&&(!p.sigla||set[p.sigla]);});
+  };
+}
+// Decisión de compra: dias = días hasta el cambio (≤0 = ya); lead = días que tarda en llegar; margen = colchón (7 d).
+//  cubierto (hay stock) · en_camino (hay pedido abierto) · pedir_ya (dias ≤ lead+margen) · planificar (hasta 45 d más) · no_urgente.
+// pedirAntesDe = fecha del cambio − (lead+margen).
+function tboDecisionCompra(o){
+  var dias=o.dias,lead=o.lead,mg=o.margen==null?7:o.margen,tope=lead+mg,r;
+  if((o.stock||0)>0)r='cubierto';
+  else if(o.pedidos&&o.pedidos>0)r='en_camino';
+  else if(dias<=tope)r='pedir_ya';
+  else if(dias<=tope+45)r='planificar';
+  else r='no_urgente';
+  var base=o.fechaProx?new Date(o.fechaProx+'T12:00:00Z'):null;
+  var pedir=base?new Date(base.getTime()-tope*86400000).toISOString().slice(0,10):null;
+  return{decision:r,pedirAntesDe:pedir,diasParaPedir:dias-tope};
+}
+// Plan de compras del TBO: por cada cambio próximo de `estado` (tboEstadoFlota), cruza tiempo de entrega, stock, pedidos abiertos y
+// precio. opts: {horizonteExtra:90 (días más allá de lead+margen), incluirTeorico:false, tasa}. Devuelve filas ordenadas por urgencia
+// y totales (presupuesto de lo que hay que pedir ya / planificar).
+function tboPlanCompras(estado,ctx,opts){
+  var o=opts||{},ex=o.horizonteExtra==null?90:o.horizonteExtra;
+  var leadF=tboLeadTimeFn(ctx.comprasDetalle),stockF=tboStockFn(ctx.stk,ctx.repuestos),pedF=tboPedidosAbiertosFn(ctx.comprasDetalle,ctx.ordenes,ctx.hoy);
+  var compras=ctx.compras||[],eqs=ctx.equipos||[],cachePrecio={},sigClase={};
+  eqs.forEach(function(e){var c=tboClaseModelo(e&&e.modelo);if(c)(sigClase[c.clase]=sigClase[c.clase]||[]).push(e.sigla);});
+  var modeloDe={};eqs.forEach(function(e){modeloDe[e.sigla]=e.modelo;});
+  var filas=[],omitidosTeoricos=0;
+  (estado||[]).forEach(function(x){
+    var lead=leadF(x.item);
+    if(x.dias>lead.dias+7+ex)return;
+    if(!x.conDato&&!o.incluirTeorico){omitidosTeoricos++;return;}
+    var k=x.item+'|'+x.clase;
+    var pr=cachePrecio[k]||(cachePrecio[k]=tboPrecioItem(x.item,x.clase,compras,sigClase[x.clase]||[],o.tasa!=null?o.tasa:ctx.tasa));
+    var precio=pr.original.mediana||pr.mediana||pr.clpRef||null,cant=tboCantidadItem(x.item);
+    var st=stockF(x.item,x.sigla,modeloDe[x.sigla]),pd=pedF(x.item,x.sigla,sigClase[x.clase]||[]);
+    var dec=tboDecisionCompra({dias:Math.max(x.dias,0),lead:lead.dias,stock:st.unidades,pedidos:pd.length,fechaProx:x.fechaProx});
+    filas.push(Object.assign({},x,{lead:lead,stock:st,pedidos:pd,cant:cant,precio:precio,costoEst:precio?precio*cant:null,pn:_tboPNItem(x.item)},dec));
+  });
+  var orden={pedir_ya:0,planificar:1,en_camino:2,cubierto:3,no_urgente:4};
+  filas.sort(function(a,b){return orden[a.decision]-orden[b.decision]||a.diasParaPedir-b.diasParaPedir;});
+  var t={pedir_ya:0,planificar:0,en_camino:0,cubierto:0,no_urgente:0,presupuestoPedirYa:0,presupuestoPlanificar:0,sinPrecio:0};
+  filas.forEach(function(f){t[f.decision]++;
+    if(f.decision==='pedir_ya'||f.decision==='planificar'){if(f.costoEst){t[f.decision==='pedir_ya'?'presupuestoPedirYa':'presupuestoPlanificar']+=f.costoEst;}else t.sinPrecio++;}});
+  return{filas:filas,totales:t,omitidosTeoricos:omitidosTeoricos};
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    tboCantidadItem, tboLeadTimeFn, tboStockFn, tboPedidosAbiertosFn, tboDecisionCompra, tboPlanCompras,
     TBO_APLICACION, TBO_GUIA_APLICACION, TBO_BETA, tboRiesgoWeibull, tboRiesgoHorizonte, tboProbNivel, tboMatrizRiesgo, tboCostoPorHora,
     TBO_COMP_MAP, tboCompMap, tboClasificarOrigen, tboOrigenPorCompra, tboUltimoCambioFn, tboEstadoFlota, tboResumenAlertas, tboVidaPorOrigen, TBO_PRECIO_RX, tboPrecioItem,
     TBO_FAMILIAS, TBO_FUERA, TBO_ITEMS, TBO_REGLAS_COMPRA, TBO_SUGERIDO, tboNormalizarPN, tboClaseModelo, tboFamiliaDeCompra, tboUnirCompras, tboCruzarCompras, tboFamiliaDeClase, tboPlanEquipo, tboCruzarSugerido,

@@ -26,6 +26,7 @@ function _tboPeso(n) { return '$' + fn(Math.round(n || 0)); }
 function _tboMM(n) { var t = Math.round((n || 0) / 1e5); return '$' + fn(Math.floor(t / 10)) + ',' + (t % 10) + ' M'; }
 function _tboHoras(f) { return f ? (f.min === f.max ? fn(f.min) + ' h' : fn(f.min) + '–' + fn(f.max) + ' h') : '—'; }
 
+var _tboPlanFilas = []; // filas del plan de compras mostrado (el botón "Crear OC" usa su índice)
 var _TBO_NIVEL = {
   vencido: ['🔴 Vencido', 'var(--danger)'],
   planificar: ['🟡 Planificar', 'var(--w)'],
@@ -157,6 +158,37 @@ export function renderTbo() {
     '</table></div>' +
     '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Para que "Faltan" sea real y no teórico, registrá cada cambio en Componentes → Historial de Componentes (con horómetro y <b>origen</b>: original o alternativo).</p>';
 
+  // ── Plan de compra: TBO × Stock × Compras ──
+  var incTeo = $('tboTeorico') ? $('tboTeorico').checked : false;
+  var plan = tboPlanCompras(estado, { hoy: new Date(), equipos: eqs, compras: compras, comprasDetalle: S.g('comprasDetalle') || [], stk: S.g('stk') || [], repuestos: S.g('repuestos') || [], ordenes: S.g('ordenes') || [], tasa: tasa }, { incluirTeorico: incTeo });
+  _tboPlanFilas = plan.filas.slice(0, 120);
+  var pt = plan.totales;
+  var _DEC = { pedir_ya: ['🔴 Pedir ya', 'var(--danger)'], planificar: ['🟡 Planificar pedido', 'var(--w)'], en_camino: ['📦 En camino', 'var(--ac)'], cubierto: ['✅ Hay stock', 'var(--ok)'], no_urgente: ['⚪ No urgente', 'var(--tx3)'] };
+  h += '<div class="card-t" style="margin:18px 0 6px">Plan de compra — ¿alcanzamos a tener el repuesto antes del cambio?' + (eqSel ? ' · ' + escapeHtml(eqSel.sigla) : '') + '</div>' +
+    '<div class="cards">' +
+    '<div class="card"><div class="card-t">🔴 Pedir ya</div><div class="card-v" style="color:' + (pt.pedir_ya ? 'var(--danger)' : 'var(--ok)') + '">' + fn(pt.pedir_ya) + '</div><div class="card-s">' + (pt.presupuestoPedirYa ? _tboMM(pt.presupuestoPedirYa) + ' estimados' : 'el cambio llega antes que el repuesto') + '</div></div>' +
+    '<div class="card"><div class="card-t">🟡 Planificar</div><div class="card-v" style="color:' + (pt.planificar ? 'var(--w)' : 'var(--ok)') + '">' + fn(pt.planificar) + '</div><div class="card-s">' + (pt.presupuestoPlanificar ? _tboMM(pt.presupuestoPlanificar) + ' · ' : '') + 'pedir en las próximas semanas</div></div>' +
+    '<div class="card"><div class="card-t">✅ Cubiertos</div><div class="card-v">' + fn(pt.cubierto + pt.en_camino) + '</div><div class="card-s">' + fn(pt.cubierto) + ' con stock · ' + fn(pt.en_camino) + ' con pedido en curso</div></div>' +
+    '<div class="card"><div class="card-t">Sin precio</div><div class="card-v">' + fn(pt.sinPrecio) + '</div><div class="card-s">de los que hay que pedir: no hay precio de referencia</div></div>' +
+    '</div>' +
+    '<label style="font-size:11px;color:var(--tx3);display:block;margin:4px 0 6px"><input id="tboTeorico" type="checkbox" ' + (incTeo ? 'checked ' : '') + 'onchange="renders.tbo()"> Incluir el plan teórico (' + fn(plan.omitidosTeoricos) + ' ítems sin cambio registrado que ' + (incTeo ? 'ya se incluyen' : 'quedan afuera') + ')</label>' +
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Ítem</th><th style="text-align:right">Cambio en</th><th style="text-align:right" title="Días que tarda en llegar este repuesto: mediana de los pedidos ya recibidos (tiempo de respuesta real de compras)">Tarda en llegar</th><th>Pedir antes del</th><th style="text-align:right" title="Stock en bodega y repuestos críticos que sirven a este equipo (por N° de parte o por descripción). No se suman las dos fuentes.">Stock</th><th>Pedido abierto</th><th>Qué hacer</th><th style="text-align:right" title="Precio típico × cantidad por cambio">Costo est.</th><th></th></tr>' +
+    (_tboPlanFilas.map(function (f, i) {
+      var dc = _DEC[f.decision];
+      var ped = f.pedidos.length ? f.pedidos.slice(0, 2).map(function (p) { return escapeHtml(p.estado) + (p.dias != null ? ' · ' + p.dias + ' d' : '') + '<br><span style="color:var(--tx3)">' + escapeHtml(String(p.proveedor || '').slice(0, 18)) + '</span>'; }).join('<br>') : '<span style="color:var(--tx3)">—</span>';
+      var stTxt = f.stock.unidades ? '<b>' + fn(f.stock.unidades) + '</b>' + (f.stock.pendiente ? ' <span style="color:var(--tx3)">(+' + fn(f.stock.pendiente) + ' pend.)</span>' : '') : '<span style="color:var(--tx3)">0' + (f.stock.filas ? '' : ' (sin registro)') + '</span>';
+      var puede = (f.decision === 'pedir_ya' || f.decision === 'planificar') ? '<button class="btn-s" style="font-size:10px" onclick="crearOCDesdeTBO(' + i + ')" title="Crea una orden de compra Pendiente en Compras con este repuesto">🛒 Crear OC</button>' : '';
+      return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(f.sigla) + '</td><td style="font-size:10px">' + escapeHtml(f.item) + (f.cant > 1 ? ' <span style="color:var(--tx3)">× ' + f.cant + '</span>' : '') + '</td>' +
+        '<td class="mono" style="text-align:right">' + (f.dias <= 0 ? 'ya' : fn(f.dias) + ' d') + '<div style="font-size:9px;color:var(--tx3)">' + escapeHtml(f.fechaProx) + '</div></td>' +
+        '<td class="mono" style="text-align:right" title="' + escapeHtml(f.lead.fuente) + '">' + fn(f.lead.dias) + ' d</td>' +
+        '<td class="mono" style="color:' + (f.diasParaPedir <= 0 ? 'var(--danger)' : 'inherit') + '">' + (f.diasParaPedir <= 0 ? 'ya (' + fn(-f.diasParaPedir) + ' d tarde)' : escapeHtml(f.pedirAntesDe || '—')) + '</td>' +
+        '<td class="mono" style="text-align:right">' + stTxt + '</td><td style="font-size:10px;line-height:1.4">' + ped + '</td>' +
+        '<td style="color:' + dc[1] + ';font-weight:700;white-space:nowrap;font-size:10px">' + dc[0] + '</td>' +
+        '<td class="mono" style="text-align:right">' + (f.costoEst ? _tboPeso(f.costoEst) : '<span style="color:var(--tx3)">sin precio</span>') + '</td><td>' + puede + '</td></tr>';
+    }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--tx3);padding:14px">Ningún cambio con repuesto por pedir en el horizonte (tiempo de entrega + 7 días de colchón + 90 días).</td></tr>') +
+    '</table></div>' +
+    '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Regla: se muestra lo que cambia dentro de (tiempo de entrega + 7 días + 90 días). <b>Pedir ya</b> = sin stock ni pedido abierto y el cambio llega antes de entrega + 7 días; <b>Planificar</b> = hasta 45 días más. El tiempo de entrega sale de los pedidos reales ya recibidos de ese tipo de repuesto (≥3; si no, la mediana de todos; sin historial, 34 días). El stock se cruza por N° de parte (listado Sugerido) o por descripción. "Crear OC" deja una orden Pendiente en Compras; no se compra nada solo.</p>';
+
   // ── Matriz de riesgo (probabilidad Weibull × impacto por precio) ──
   var precioCLP = function (x) { var p = precioDe(x); return p.original.mediana || p.mediana || p.clpRef || null; };
   var mx = tboMatrizRiesgo(estado, precioCLP);
@@ -236,6 +268,36 @@ export function renderTbo() {
   el.innerHTML = h;
 }
 
+// Crear una OC Pendiente (la misma tabla 'ordenes' que usa Repuestos → Comprar) desde una fila del plan de compra.
+export function crearOCDesdeTBO(i) {
+  var f = _tboPlanFilas[i]; if (!f) return;
+  var nombre = {}; TBO_FAMILIAS.forEach(function (x) { nombre[x[0]] = x[1]; });
+  var prov = f.precio ? 'KOMATSU CHILE S.A.' : ''; // el precio de referencia es el del original (editable)
+  sm('<h3>🛒 Crear orden de compra desde el TBO</h3>' +
+    '<div class="card" style="margin-bottom:12px;border-left:3px solid var(--ac)"><b>' + escapeHtml(nombre[f.fam] || f.fam) + '</b> — ' + escapeHtml(f.item) + (f.pn ? ' (' + escapeHtml(f.pn) + ')' : '') + '<br>' +
+    'Equipo: ' + escapeHtml(f.sigla) + ' · cambio estimado ' + escapeHtml(f.fechaProx) + ' · tarda en llegar ~' + fn(f.lead.dias) + ' d<br>' +
+    'Stock: <b>' + fn(f.stock.unidades) + '</b> · Pedidos abiertos: <b>' + f.pedidos.length + '</b></div>' +
+    '<div class="form-row"><div class="fg"><label>Cantidad a pedir</label><input type="number" id="tboOcCant" value="' + f.cant + '" min="1"></div>' +
+    '<div class="fg"><label>Costo estimado ($)</label><input type="number" id="tboOcCosto" value="' + (f.costoEst || 0) + '"></div></div>' +
+    '<div class="form-row"><div class="fg"><label>Proveedor</label><input id="tboOcProv" value="' + escapeHtml(prov) + '" placeholder="Komatsu Chile / alternativo…"></div>' +
+    '<div class="fg"><label>Fecha pedido</label><input type="date" id="tboOcFecha" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>' +
+    '<div class="form-row"><div class="fg" style="flex:1"><label>Observaciones</label><input id="tboOcObs" style="width:100%" value="' + escapeHtml(f.dias <= 0 ? 'TBO Komatsu: cambio ya vencido' : 'TBO Komatsu: cambio estimado ' + f.fechaProx + (f.pedirAntesDe ? ' (pedir antes del ' + f.pedirAntesDe + ')' : '')) + '"></div></div>' +
+    '<button class="btn" onclick="confirmarOCDesdeTBO(' + i + ')">✔ Crear OC (Pendiente)</button>');
+}
+export function confirmarOCDesdeTBO(i) {
+  var f = _tboPlanFilas[i]; if (!f) return;
+  var nombre = {}; TBO_FAMILIAS.forEach(function (x) { nombre[x[0]] = x[1]; });
+  var cant = parseInt($('tboOcCant').value) || 1;
+  var oc = S.g('ordenes') || [];
+  oc.push({
+    fecha: $('tboOcFecha').value, componente: (nombre[f.fam] || f.fam) + ' — ' + f.item, nParte: f.pn || '', equipo: f.sigla,
+    cantidad: cant, costoEstimado: parseInt($('tboOcCosto').value) || 0, proveedor: $('tboOcProv').value, obs: $('tboOcObs').value,
+    estado: 'Pendiente', fechaEntrega: ''
+  });
+  S.s('ordenes', oc); cm(); renders.tbo();
+  toast('🛒 OC creada (Pendiente) — ' + f.item + ' x' + cant);
+}
+
 // "Alternativo vs original": por componente que tiene las dos, cuánto cuesta cada hora de uso con cada uno.
 function _tboResumenCostoHora(filas) {
   var por = {};
@@ -264,4 +326,6 @@ export function tboCambiarTasa(v) {
 window.renderTbo = renderTbo;
 window.tboCambiarTasa = tboCambiarTasa;
 window.tboCambiarAplic = tboCambiarAplic;
+window.crearOCDesdeTBO = crearOCDesdeTBO;
+window.confirmarOCDesdeTBO = confirmarOCDesdeTBO;
 renders.tbo = renderTbo;
