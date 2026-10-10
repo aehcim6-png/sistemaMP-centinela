@@ -6262,6 +6262,22 @@ el "ahorro vs pedir de a uno" depende de K. Supuestos del modelo: demanda establ
 vencimiento; para repuestos de consumo a saltos, la política (s,S) óptima exacta puede diferir levemente. 10 pruebas más
 (`tests/loteEconomicoPedido.test.js`).
 
+**Pronóstico de demanda con tendencia y estacionalidad.** `pronosticarSerie` compite siete modelos sobre una serie mensual: promedio total,
+promedio de 12 meses, suavizamiento exponencial simple, tendencia amortiguada (Holt), estacional aditivo, Holt-Winters amortiguado y
+Croston-SBA (demanda intermitente, solo si ≥30% de los meses son cero). Los parámetros (α, β, γ, φ) salen de una grilla minimizando el error
+de 1 paso en el entrenamiento. La elección es por **backtest de origen móvil** (se pronostica 6 meses hacia adelante desde cada fecha pasada
+y se compara con lo real; MAE): un modelo con tendencia o estacionalidad solo reemplaza al promedio si lo supera por ≥5% (`PRON_MEJORA_MIN`);
+si no, se queda con el promedio y lo dice. Los modelos estacionales exigen ≥24 meses de entrenamiento. El rango de 80% usa el error RMSE del
+backtest por paso (para pasos mayores crece como √h) y supone errores independientes entre meses, así que el rango del total puede ser
+optimista. `pronRecortarAtipicos` recorta a mediana + k·1,4826·MAD (k=3,5) para que una compra única enorme no domine; informa cuántas y
+cuánto. `mesesFinalesIncompletos` quita del final los meses con <40% de las líneas normales (carga atrasada, no menor gasto) y
+`saltar` corre el pronóstico para que los 12 meses mostrados partan después de hoy. **Se aplica al gasto en repuestos en pesos** (compras
+unificadas, total y por familia) en la pestaña TBO. **No se aplicó a cantidades por N° de parte** porque `movimientos_stock` tiene solo 12
+meses en centinela y 0 en mp2: no alcanza para estacionalidad; el motor lo usará solo cuando haya ≥24 meses. **Hallazgo con datos reales**
+(48 meses de compras): el promedio histórico gana el backtest —ni la tendencia ni el estacional lo superan—, por lo que la serie de gasto
+es demasiado irregular para pronosticar estructura. Pruebas de reproducción exacta de un patrón estacional, de tendencia, de ruido puro,
+intermitente y de recorte (`tests/pronosticoDemanda.test.js`, 16).
+
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
 

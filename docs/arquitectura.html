@@ -3175,6 +3175,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Lote económico (EOQ) y política (s,S):</b> Q = √(2·D·K/h) con el entero de menor costo anual, tope a 12 meses de consumo, y reposición hasta S = s + Q
   cuando el stock baja del punto de reorden. El costo por pedido y la tasa de mantener los ingresa el usuario (supuestos, no medidos).</p>
 
+  <p><b>Pronóstico de demanda:</b> siete modelos (promedio, suavizamiento exponencial, tendencia amortiguada, estacional, Holt-Winters, Croston) compiten por
+  backtest de origen móvil; un modelo con tendencia o estacionalidad solo gana si supera al promedio por ≥5%. Se aplica al gasto mensual en repuestos
+  (pestaña TBO). Con los datos reales gana el promedio: el gasto es demasiado irregular para pronosticar estructura.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

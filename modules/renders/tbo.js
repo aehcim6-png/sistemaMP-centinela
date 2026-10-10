@@ -387,6 +387,63 @@ export function renderTbo() {
     h += '<div class="card" style="margin-top:14px;font-size:12px;color:var(--tx3)">' + escapeHtml(eqSel.sigla) + ' (' + escapeHtml(eqSel.modelo || '') + ') no tiene plan TBO en el Excel de Komatsu (solo trae HD785-7, WA900-8R, D375A-6R y D65EX-16).</div>';
   }
 
+  // ── Pronóstico de gasto en repuestos: próximos 12 meses ──
+  var proIncl = $('tboProIncompletos') ? $('tboProIncompletos').checked : true, proRec = $('tboProRecortar') ? $('tboProRecortar').checked : true;
+  var sigPro = {}; eqs.forEach(function (e) { if (e && e.sigla && (!eqSel || e.sigla === eqSel.sigla)) sigPro[e.sigla] = 1; });
+  var comprasPro = compras.filter(function (o) { return sigPro[o.sigla] && o.fecha; });
+  var sm = serieMensualDe(comprasPro.map(function (o) { return { fecha: o.fecha, valor: Number(o.costo) || 0 }; }));
+  var quitaPro = proIncl ? mesesFinalesIncompletos(sm.lineas) : 0, nPro = sm.serie.length - quitaPro;
+  var hoyD = new Date(), hoyMes = hoyD.getFullYear() + '-' + ('0' + (hoyD.getMonth() + 1)).slice(-2);
+  // meses entre el último mes usado y el mes actual: el pronóstico que interesa parte DESPUÉS de hoy
+  var saltarPro = nPro >= 1 ? Math.max(0, _contarMesesEntre(sm.meses[nPro - 1], hoyMes) - 1) : 0;
+  var mesesPro = nPro >= 1 ? mesesSiguientes(sm.meses[nPro - 1], saltarPro + 12).slice(saltarPro) : [];
+  var proTotal = nPro >= 12 ? pronosticarSerie(sm.serie.slice(0, nPro), { recortar: proRec, saltar: saltarPro }) : null;
+  var _nomMes = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  var _lblMes = function (m) { var p = m.split('-'); return _nomMes[+p[1] - 1] + ' ' + p[0].slice(2); };
+  h += '<div class="card-t" style="margin:18px 0 6px">¿Cuánto vamos a gastar en repuestos los próximos 12 meses?' + (eqSel ? ' · ' + escapeHtml(eqSel.sigla) : '') + '</div>' +
+    '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">En vez de suponer que hay tendencia o estacionalidad, el programa <b>prueba varios modelos</b> (promedio, suavizamiento exponencial, tendencia amortiguada, estacional, Holt-Winters, Croston) <b>pronosticando hacia adelante desde cada fecha pasada y comparando con lo que de verdad pasó</b> (backtest). Se queda con el de menor error, y un modelo con tendencia o estacionalidad solo reemplaza al promedio si lo supera por al menos 5%. Con gasto ruidoso es normal que gane el promedio: eso también es una respuesta. Intervalo de 80% de confianza.' +
+    '<div style="margin-top:6px;display:flex;gap:16px;flex-wrap:wrap"><label style="color:var(--tx3)" title="Los meses finales con muy pocas líneas (menos de 40% de lo normal) suelen ser carga atrasada, no menor gasto real.">' +
+    '<input id="tboProIncompletos" type="checkbox" ' + (proIncl ? 'checked ' : '') + 'onchange="renders.tbo()"> Excluir meses finales con carga incompleta' + (proIncl && quitaPro ? ' (' + fn(quitaPro) + ': ' + sm.meses.slice(nPro).map(_lblMes).join(', ') + ')' : '') + '</label>' +
+    '<label style="color:var(--tx3)" title="Recorta las compras únicas enormes a mediana + 3,5×MAD para que una sola no domine el pronóstico."><input id="tboProRecortar" type="checkbox" ' + (proRec ? 'checked ' : '') + 'onchange="renders.tbo()"> Recortar compras únicas gigantes</label></div></div>';
+  if (!proTotal) {
+    h += '<div class="card" style="color:var(--tx3);font-size:12px">Hace falta al menos 12 meses de compras con fecha para pronosticar' + (sm.serie.length ? ' (hay ' + fn(nPro) + (quitaPro ? ' tras excluir los incompletos' : '') + ').' : '.') + '</div>';
+  } else {
+    var pp = proTotal, z80 = 1.2816, cambioTxt = pp.cambioVsBase == null ? '' : 'el pronóstico es ' + (pp.cambioVsBase >= 0 ? '+' : '−') + Math.round(Math.abs(pp.cambioVsBase) * 100) + '%';
+    h += '<div class="cards">' +
+      '<div class="card"><div class="card-t">Próximos 12 meses</div><div class="card-v" style="color:var(--ac)">' + _tboMM(pp.total) + '</div><div class="card-s">entre ' + _tboMM(pp.totalLo) + ' y ' + _tboMM(pp.totalHi) + ' (80%)</div></div>' +
+      '<div class="card"><div class="card-t">Últimos 12 meses completos</div><div class="card-v">' + _tboMM(pp.base12) + '</div><div class="card-s">hasta ' + _lblMes(sm.meses[nPro - 1]) + (cambioTxt ? ' · ' + cambioTxt : '') + '</div></div>' +
+      '<div class="card"><div class="card-t">Modelo elegido</div><div class="card-v" style="font-size:15px">' + escapeHtml(pp.nombre) + '</div><div class="card-s">' + fn(pp.n) + ' meses de historial · ' + (pp.hayBacktest ? 'validado con backtest' : 'sin validar') + '</div></div>' +
+      '<div class="card"><div class="card-t">Compras únicas recortadas</div><div class="card-v">' + fn(pp.recorte.n) + '</div><div class="card-s">' + (pp.recorte.n ? _tboMM(pp.recorte.montoRecortado) + ' fuera del modelo (no es gasto recurrente)' : 'ninguna') + '</div></div></div>' +
+      (pp.nota ? '<div class="card" style="font-size:12px;margin-bottom:8px">' + escapeHtml(pp.nota) + '</div>' : '') +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Mes</th>' + mesesPro.map(function (m) { return '<th style="text-align:right">' + _lblMes(m) + '</th>'; }).join('') + '</tr>' +
+      '<tr><td>Pronóstico</td>' + pp.pronostico.map(function (v) { return '<td class="mono" style="text-align:right">' + _tboMM(v) + '</td>'; }).join('') + '</tr>' +
+      '<tr><td style="color:var(--tx3)">Rango 80%</td>' + pp.pronostico.map(function (v, i) { return '<td class="mono" style="text-align:right;font-size:10px;color:var(--tx3)">' + _tboMM(Math.max(0, v - z80 * pp.sdPaso[i])) + '–' + _tboMM(v + z80 * pp.sdPaso[i]) + '</td>'; }).join('') + '</tr></table></div>' +
+      (pp.hayBacktest ? '<div style="font-weight:600;font-size:12px;margin:10px 0 4px">¿Qué modelo predice mejor? (error absoluto medio por mes en el backtest)</div>' +
+        '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Modelo</th><th style="text-align:right">Error medio por mes</th><th style="text-align:right" title="Cuánto menos error comete que el promedio simple. Negativo = peor que el promedio.">Mejora vs promedio</th></tr>' +
+        pp.ranking.map(function (r) { return '<tr' + (r.modelo === pp.modelo ? ' style="background:rgba(245,158,11,.08)"' : '') + '><td>' + escapeHtml(r.nombre) + (r.modelo === pp.modelo ? ' <span style="font-size:9px;color:var(--ac)">elegido</span>' : '') + '</td><td class="mono" style="text-align:right">' + _tboMM(r.mae) + '</td><td class="mono" style="text-align:right;color:' + (r.mejoraVsMedia > 0.05 ? 'var(--ok)' : r.mejoraVsMedia < 0 ? 'var(--danger)' : 'inherit') + '">' + (r.mejoraVsMedia >= 0 ? '+' : '−') + Math.round(Math.abs(r.mejoraVsMedia) * 100) + '%</td></tr>'; }).join('') + '</table></div>' : '') +
+      (pp.estacional ? '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Hay un patrón estacional: los meses más caros del año suelen ser ' + pp.pronostico.map(function (v, i) { return { v: v, m: mesesPro[i] }; }).sort(function (a, b) { return b.v - a.v; }).slice(0, 3).map(function (x) { return _lblMes(x.m).split(' ')[0]; }).join(', ') + '.</p>' : '');
+    // Por familia (las de mayor gasto): cada una compite sus propios modelos
+    var famPro = [], famIds = {}; TBO_FAMILIAS.concat(TBO_FUERA).forEach(function (f) { famIds[f[0]] = f[1]; });
+    var porFam = {}; comprasPro.forEach(function (o) { var f = tboFamiliaDeCompra(o.detalle, o.tipo).id; (porFam[f] = porFam[f] || []).push({ fecha: o.fecha, valor: Number(o.costo) || 0 }); });
+    Object.keys(porFam).forEach(function (id) {
+      var tot = porFam[id].reduce(function (a, x) { return a + x.valor; }, 0);
+      var ms = serieMensualDe(porFam[id]);
+      // misma ventana que el total, para que las familias sumen comparablemente
+      var ini = sm.meses[0], fin = sm.meses[nPro - 1], serie = [];
+      sm.meses.slice(0, nPro).forEach(function (m) { var i = ms.meses.indexOf(m); serie.push(i >= 0 ? ms.serie[i] : 0); });
+      if (serie.filter(function (v) { return v > 0; }).length < 8) return;
+      var r = pronosticarSerie(serie, { recortar: proRec, saltar: saltarPro });
+      if (r) famPro.push({ id: id, nombre: famIds[id] || id, gasto: tot, r: r });
+    });
+    famPro.sort(function (a, b) { return b.r.total - a.r.total; });
+    if (famPro.length) {
+      h += '<div style="font-weight:600;font-size:12px;margin:12px 0 4px">Por familia de repuesto (solo las que tienen compras en al menos 8 meses)</div>' +
+        '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Familia</th><th style="text-align:right">Próx. 12 meses</th><th style="text-align:right">Rango 80%</th><th style="text-align:right">Últimos 12 meses</th><th>Modelo</th></tr>' +
+        famPro.slice(0, 12).map(function (f) { return '<tr><td>' + escapeHtml(f.nombre) + '</td><td class="mono" style="text-align:right;color:var(--ac)">' + _tboMM(f.r.total) + '</td><td class="mono" style="text-align:right;font-size:10px;color:var(--tx3)">' + _tboMM(f.r.totalLo) + '–' + _tboMM(f.r.totalHi) + '</td><td class="mono" style="text-align:right">' + _tboMM(f.r.base12) + '</td><td style="font-size:10px">' + escapeHtml(f.r.nombre) + '</td></tr>'; }).join('') + '</table></div>';
+    }
+    h += '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Es gasto en pesos de las compras registradas de la flota (no cantidades de piezas): no distingue cambios de precio ni de dólar, y las familias no suman exactamente el total porque cada una elige su modelo. Si el gasto del último año subió por compras excepcionales, el promedio histórico lo subestima; revisá el cuadro de modelos antes de usarlo como presupuesto.</p>';
+  }
+
   // ── Listado Sugerido ──
   var sug = tboCruzarSugerido(compras, tasa);
   h += '<div class="card-t" style="margin:18px 0 6px">Repuestos del listado "Sugerido" de Komatsu (HD785-7, precios Besalco en USD) vs lo pagado</div>' +

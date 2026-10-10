@@ -4607,6 +4607,185 @@ function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio){
   }).filter(Boolean);
 }
 
+
+// ═══ PRONÓSTICO DE DEMANDA CON TENDENCIA Y ESTACIONALIDAD (2026-10-10) ═══
+// Responde "¿cuánto voy a necesitar el próximo año?". En vez de ASUMIR que hay tendencia o estacionalidad, compite un conjunto de
+// modelos de suavizamiento exponencial contra el promedio simple con un backtest de origen móvil (se pronostica hacia adelante desde
+// cada fecha pasada y se compara con lo que realmente pasó) y se queda con el de menor error absoluto medio (MAE). Un modelo más
+// complejo solo gana si supera al promedio por al menos MEJORA_MIN: con series ruidosas lo habitual es que el promedio no se supere,
+// y el programa lo dice en vez de dibujar una tendencia que no existe.
+// Modelos (Hyndman & Athanasopoulos, "Forecasting: Principles and Practice"; Croston 1972; Syntetos & Boylan 2005):
+//   media    promedio de todo el historial           media12  promedio de los últimos 12 meses
+//   ses      suavizamiento exponencial simple (nivel)          holt   nivel + tendencia amortiguada (φ<1: la tendencia se apaga)
+//   estacional  nivel + índice estacional aditivo (12 meses)   hw     nivel + tendencia amortiguada + estacional (Holt-Winters)
+//   croston  demanda intermitente (muchos meses en cero): suaviza por separado el tamaño y el intervalo entre demandas (corrección SBA)
+// Los parámetros (α, β, γ, φ) se eligen por grilla minimizando el error de 1 paso dentro de los datos de entrenamiento.
+// Los modelos estacionales exigen ≥ 24 meses de historia. Los valores atípicos (compras únicas enormes) se pueden recortar a
+// mediana + k·MAD para que una sola compra no domine el pronóstico (se informa cuántos y cuánto).
+var PRON_MEJORA_MIN=0.05;
+function _pronMediana(a){
+  var v=a.slice().sort(function(x,y){return x-y;}),n=v.length;
+  return !n?0:n%2?v[(n-1)/2]:(v[n/2-1]+v[n/2])/2;
+}
+function _pronMedia(a){return a.length?a.reduce(function(s,x){return s+x;},0)/a.length:0;}
+// Recorta valores por encima de mediana + k·1,4826·MAD. Si el MAD es 0 (serie casi toda en cero) no recorta.
+function pronRecortarAtipicos(serie,k){
+  var kk=k>0?k:3.5,med=_pronMediana(serie),mad=_pronMediana(serie.map(function(x){return Math.abs(x-med);}))*1.4826;
+  if(!(mad>0))return{serie:serie.slice(),n:0,umbral:null,montoRecortado:0};
+  var u=med+kk*mad,n=0,m=0;
+  var s=serie.map(function(x){if(x>u){n++;m+=x-u;return u;}return x;});
+  return{serie:s,n:n,umbral:u,montoRecortado:m};
+}
+// Cada modelo recibe (entrenamiento, h) y devuelve h pronósticos (≥0). Los parámetros se afinan con el propio entrenamiento.
+function _pronSES(y,a){var l=y[0];for(var t=1;t<y.length;t++)l=a*y[t]+(1-a)*l;return l;}
+function _pronSSE_SES(y,a){var l=y[0],e=0;for(var t=1;t<y.length;t++){var d=y[t]-l;e+=d*d;l=a*y[t]+(1-a)*l;}return e;}
+function _pronModeloSES(y,h){
+  var mejor=null,ba=0.3;
+  [0.05,0.1,0.2,0.3,0.4,0.5,0.7,0.9].forEach(function(a){var e=_pronSSE_SES(y,a);if(mejor===null||e<mejor){mejor=e;ba=a;}});
+  var l=_pronSES(y,ba);return{f:Array.apply(null,Array(h)).map(function(){return Math.max(0,l);}),par:{alfa:ba}};
+}
+// Holt amortiguado: l_t=α·y+(1-α)(l+φb), b_t=β(l_t-l_{t-1})+(1-β)φb; pronóstico h pasos = l+Σφ^i·b
+function _pronHoltPaso(y,a,b,phi){
+  var l=y[0],tr=y.length>1?(y[Math.min(y.length-1,3)]-y[0])/Math.min(y.length-1,3):0,e=0;
+  for(var t=1;t<y.length;t++){
+    var pred=l+phi*tr,d=y[t]-pred;e+=d*d;
+    var ln=a*y[t]+(1-a)*(l+phi*tr);tr=b*(ln-l)+(1-b)*phi*tr;l=ln;
+  }
+  return{e:e,l:l,b:tr};
+}
+function _pronModeloHolt(y,h){
+  var mejor=null,bp=null;
+  [0.1,0.3,0.5,0.7].forEach(function(a){[0.05,0.1,0.2,0.3].forEach(function(b){[0.8,0.9,0.98].forEach(function(phi){
+    var r=_pronHoltPaso(y,a,b,phi);if(mejor===null||r.e<mejor){mejor=r.e;bp={a:a,b:b,phi:phi,l:r.l,tr:r.b};}
+  });});});
+  var f=[],acum=0,pot=1;
+  for(var i=1;i<=h;i++){pot*=bp.phi;acum+=pot;f.push(Math.max(0,bp.l+acum*bp.tr));}
+  return{f:f,par:{alfa:bp.a,beta:bp.b,phi:bp.phi}};
+}
+// Holt-Winters aditivo, período m. conTend=false → solo nivel + estacional. Inicialización: nivel = media de la 1ª temporada,
+// tendencia = diferencia de medias entre la 1ª y 2ª temporada ÷ m, índices = desvío de la 1ª temporada respecto de su media.
+function _pronHWPaso(y,m,a,b,g,phi,conTend){
+  var n=y.length,m1=_pronMedia(y.slice(0,m)),m2=_pronMedia(y.slice(m,2*m));
+  var l=m1,tr=conTend?(m2-m1)/m:0,s=[];
+  for(var i=0;i<m;i++)s.push(y[i]-m1);
+  var e=0;
+  for(var t=m;t<n;t++){
+    var pred=l+phi*tr+s[t%m],d=y[t]-pred;e+=d*d;
+    var ln=a*(y[t]-s[t%m])+(1-a)*(l+phi*tr);
+    tr=conTend?b*(ln-l)+(1-b)*phi*tr:0;
+    s[t%m]=g*(y[t]-ln)+(1-g)*s[t%m];l=ln;
+  }
+  return{e:e,l:l,b:tr,s:s,n:n};
+}
+function _pronModeloHW(y,h,m,conTend){
+  if(y.length<2*m)return null;
+  var mejor=null,bp=null;
+  [0.1,0.3,0.5].forEach(function(a){(conTend?[0.05,0.15]:[0]).forEach(function(b){[0.1,0.3,0.5].forEach(function(g){
+    (conTend?[0.9,0.98]:[1]).forEach(function(phi){var r=_pronHWPaso(y,m,a,b,g,phi,conTend);if(mejor===null||r.e<mejor){mejor=r.e;bp={a:a,b:b,g:g,phi:phi,r:r};}});
+  });});});
+  var r=bp.r,f=[],acum=0,pot=1;
+  for(var i=1;i<=h;i++){pot*=bp.phi;acum+=pot;f.push(Math.max(0,r.l+(conTend?acum*r.b:0)+r.s[(r.n+i-1)%m]));}
+  return{f:f,par:{alfa:bp.a,beta:bp.b,gamma:bp.g,phi:bp.phi},estacional:r.s.slice(),indiceDesde:r.n%m};
+}
+// Croston con corrección de Syntetos-Boylan: z = tamaño medio suavizado de las demandas ≠ 0, p = intervalo medio suavizado entre ellas;
+// pronóstico = (1-α/2)·z/p por período. Pide al menos 2 demandas distintas de cero.
+function _pronModeloCroston(y,h){
+  var a=0.15,z=null,p=null,q=1,nz=0;
+  for(var t=0;t<y.length;t++){
+    if(y[t]>0){nz++;if(z===null){z=y[t];p=q;}else{z=a*y[t]+(1-a)*z;p=a*q+(1-a)*p;}q=1;}else q++;
+  }
+  var v=(nz>=2&&p>0)?(1-a/2)*z/p:(nz===1?z/y.length:0);
+  return{f:Array.apply(null,Array(h)).map(function(){return Math.max(0,v);}),par:{alfa:a}};
+}
+var PRON_MODELOS={
+  media:{nombre:'Promedio de todo el historial',f:function(y,h){var m=_pronMedia(y);return{f:Array.apply(null,Array(h)).map(function(){return m;}),par:{}};}},
+  media12:{nombre:'Promedio de los últimos 12 meses',f:function(y,h){var m=_pronMedia(y.slice(-12));return{f:Array.apply(null,Array(h)).map(function(){return m;}),par:{}};}},
+  ses:{nombre:'Suavizamiento exponencial simple',f:_pronModeloSES},
+  holt:{nombre:'Tendencia amortiguada (Holt)',f:_pronModeloHolt},
+  estacional:{nombre:'Estacional (nivel + mes del año)',f:function(y,h){return _pronModeloHW(y,h,12,false);},minN:24},
+  hw:{nombre:'Tendencia + estacional (Holt-Winters)',f:function(y,h){return _pronModeloHW(y,h,12,true);},minN:24},
+  croston:{nombre:'Demanda intermitente (Croston-SBA)',f:_pronModeloCroston}
+};
+// Pronostica los próximos `h` períodos de `serie` (mensual) eligiendo el modelo por backtest de origen móvil.
+// opts: {h:12, hBack:6, recortar:true, k:3.5, saltar:0}. `saltar` = períodos que hay entre el último dato y el primero que interesa
+// (ej. se descartaron meses incompletos): se pronostica h+saltar y se devuelven solo los h últimos. Devuelve null si hay menos de 12 datos.
+function pronosticarSerie(serie,opts){
+  var o=opts||{},h=o.h>0?o.h:12,hB=o.hBack>0?o.hBack:6,sk=o.saltar>0?Math.floor(o.saltar):0;
+  var y0=(serie||[]).map(function(x){return Number(x)>0?Number(x):0;});
+  if(y0.length<12)return null;
+  var rec=o.recortar===false?{serie:y0.slice(),n:0,umbral:null,montoRecortado:0}:pronRecortarAtipicos(y0,o.k);
+  var y=rec.serie,n=y.length;
+  var T0=n>=36?24:Math.max(12,Math.ceil(n/2)),hasBack=(n-T0)>=hB;
+  var ceros=y.filter(function(x){return x===0;}).length/n;
+  var cand=Object.keys(PRON_MODELOS).filter(function(k){
+    var d=PRON_MODELOS[k];
+    if(d.minN&&!(hasBack&&T0>=d.minN))return false;
+    if(k==='croston'&&ceros<0.3)return false;
+    return true;
+  });
+  var rank=[],errPaso={};
+  cand.forEach(function(k){
+    var sumAbs=0,cnt=0,pasoSq=[],pasoN=[];
+    for(var i=0;i<hB;i++){pasoSq.push(0);pasoN.push(0);}
+    if(hasBack){
+      for(var origen=T0;origen+hB<=n;origen++){
+        var r=PRON_MODELOS[k].f(y.slice(0,origen),hB);if(!r)continue;
+        for(var j=0;j<hB;j++){var e=y[origen+j]-r.f[j];sumAbs+=Math.abs(e);cnt++;pasoSq[j]+=e*e;pasoN[j]++;}
+      }
+    }
+    if(cnt){rank.push({modelo:k,nombre:PRON_MODELOS[k].nombre,mae:sumAbs/cnt});
+      errPaso[k]=pasoSq.map(function(s,j){return pasoN[j]?Math.sqrt(s/pasoN[j]):0;});}
+  });
+  rank.sort(function(a,b){return a.mae-b.mae;});
+  var maeMedia=(rank.filter(function(r){return r.modelo==='media';})[0]||{}).mae;
+  rank.forEach(function(r){r.mejoraVsMedia=maeMedia>0?1-r.mae/maeMedia:0;});
+  var elegido='media',nota=null;
+  if(!hasBack){nota='Historia corta ('+n+' meses): no alcanza para validar modelos; se usa el promedio.';}
+  else{
+    var top=rank[0];
+    if(top&&top.modelo!=='media'&&top.mejoraVsMedia>=PRON_MEJORA_MIN)elegido=top.modelo;
+    else if(top&&top.modelo==='media')nota='El promedio simple es el que mejor predice en el backtest: no hay tendencia ni estacionalidad que aprovechar.';
+    else if(top)nota='Ningún modelo con tendencia o estacionalidad supera con claridad (≥'+Math.round(PRON_MEJORA_MIN*100)+'%) al promedio: la serie es demasiado irregular; se usa el promedio.';
+  }
+  var fit=PRON_MODELOS[elegido].f(y,h+sk);
+  var sd=errPaso[elegido]||errPaso.media||[0],sdh=[];
+  for(var i2=sk;i2<h+sk;i2++)sdh.push(i2<sd.length?sd[i2]:sd[sd.length-1]*Math.sqrt((i2+1)/sd.length));
+  fit.f=fit.f.slice(sk);
+  var total=fit.f.reduce(function(s,x){return s+x;},0),sdTot=Math.sqrt(sdh.reduce(function(s,x){return s+x*x;},0)),z=1.2816;
+  var base12=_pronMedia(y0.slice(-12))*12;
+  return{n:n,modelo:elegido,nombre:PRON_MODELOS[elegido].nombre,par:fit.par,pronostico:fit.f,total:total,totalLo:Math.max(0,total-z*sdTot),totalHi:total+z*sdTot,
+    sdPaso:sdh,base12:base12,cambioVsBase:base12>0?total/base12-1:null,ranking:rank,nota:nota,recorte:rec,
+    estacional:fit.estacional?{indices:fit.estacional,desde:fit.indiceDesde}:null,hayBacktest:hasBack,origenInicial:T0};
+}
+// Suma de `valor` por mes (YYYY-MM) entre el primer y el último mes con dato, rellenando con 0 los meses sin movimiento.
+// items: [{fecha:'YYYY-MM-DD', valor}]. Devuelve {meses:[YYYY-MM...], serie:[...], lineas:[nº de líneas por mes]}.
+function serieMensualDe(items){
+  var g={},c={};
+  (items||[]).forEach(function(it){
+    var m=String(it&&it.fecha||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(m))return;
+    var v=Number(it.valor)||0;g[m]=(g[m]||0)+v;c[m]=(c[m]||0)+1;
+  });
+  var ks=Object.keys(g).sort();if(!ks.length)return{meses:[],serie:[],lineas:[]};
+  var meses=_mesesEntreLista(ks[0],ks[ks.length-1]);
+  return{meses:meses,serie:meses.map(function(m){return g[m]||0;}),lineas:meses.map(function(m){return c[m]||0;})};
+}
+// Los últimos meses de una carga atrasada traen pocas líneas y bajarían el pronóstico sin que el gasto real haya bajado. Quita del final
+// los meses cuyo nº de líneas sea < `umbral` (40%) de la mediana de las líneas de los 12 meses previos. Devuelve cuántos quitó.
+function mesesFinalesIncompletos(lineas,umbral){
+  var u=umbral>0?umbral:0.4,n=lineas.length,quita=0;
+  while(n-quita>13){
+    var i=n-quita-1,prev=lineas.slice(Math.max(0,i-12),i),med=_pronMediana(prev);
+    if(med>0&&lineas[i]<u*med)quita++;else break;
+  }
+  return quita;
+}
+// Meses siguientes a 'YYYY-MM' (n meses).
+function mesesSiguientes(mes,n){
+  var p=String(mes).split('-').map(Number),y=p[0],m=p[1],out=[];
+  for(var i=0;i<n;i++){m++;if(m>12){m=1;y++;}out.push(y+'-'+(m<10?'0'+m:m));}
+  return out;
+}
+
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
 // Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
 // movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
@@ -8062,7 +8241,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
