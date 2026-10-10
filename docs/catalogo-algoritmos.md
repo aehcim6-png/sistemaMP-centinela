@@ -87,7 +87,7 @@ compras). "Datos" dice si hoy alcanzan.
 
 | # | Qué falta | Pregunta que contestaría | Datos hoy | Esfuerzo |
 |---|---|---|---|---|
-| 1 | **Reemplazo óptimo por costo** (política de reemplazo por edad; vida económica) | ¿cada cuántas horas conviene cambiar este componente, y conviene el alternativo? Minimiza costo por hora: `C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫₀ᵀ R(t)dt` con Weibull + costo de cambio programado vs. costo de falla | **Sí**: Weibull, precios y costo de detención ya existen | medio |
+| 1 ✅ | **Reemplazo óptimo por costo** (hecho 2026-10-10) (política de reemplazo por edad; vida económica) | ¿cada cuántas horas conviene cambiar este componente, y conviene el alternativo? Minimiza costo por hora: `C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫₀ᵀ R(t)dt` con Weibull + costo de cambio programado vs. costo de falla | **Sí**: Weibull, precios y costo de detención ya existen | medio |
 | 2 | **Costo total de propiedad (LCC) por equipo** y vida económica del equipo | ¿cuándo conviene renovar o dar de baja un equipo? | Parcial (valor de compra, gasto, detención) | medio |
 | 3 | **Optimización con presupuesto limitado** (qué cambios hacer primero) | con $X, ¿qué compro para bajar más riesgo? | **Sí** (riesgo TBO + precio) | medio |
 | 4 | **Pruebas de bondad de ajuste y comparación de modelos** (Kolmogorov-Smirnov/Anderson-Darling, AIC entre Weibull, log-normal y Gamma) | ¿estamos usando la distribución correcta? Hoy se muestra solo R² del papel Weibull | **Sí** | bajo |
@@ -109,7 +109,7 @@ Hoy tenemos 8 (sección 1.7). Revisé el código y no hay ninguna de estas:
 
 | # | Matriz que falta | Qué decide | Datos hoy | Utilidad |
 |---|---|---|---|---|
-| M1 | **Estrategia de mantenimiento (RCM)** por componente: forma β del Weibull × costo de falla vs. cambio × ¿se puede detectar antes (P-F)? | ¿cambio por edad, por condición, dejo correr hasta la falla, o hay que rediseñar? Hoy el programa avisa pero no recomienda la estrategia | **Sí** (β, intervalo P-F, precios, detención) | **Alta** — va junto con el reemplazo óptimo |
+| M1 ✅ | **Estrategia de mantenimiento (RCM)** (hecha 2026-10-10) por componente: forma β del Weibull × costo de falla vs. cambio × ¿se puede detectar antes (P-F)? | ¿cambio por edad, por condición, dejo correr hasta la falla, o hay que rediseñar? Hoy el programa avisa pero no recomienda la estrategia | **Sí** (β, intervalo P-F, precios, detención) | **Alta** — va junto con el reemplazo óptimo |
 | M2 | **Criticidad de equipos multicriterio**: frecuencia de falla × consecuencia (producción, seguridad, ambiente, costo, tiempo de reparación) | qué equipos reciben la atención primero. Hoy la criticidad es una etiqueta manual de 3 niveles (Crítico/Esencial/General) | Producción y costo sí; **seguridad y ambiente no** (hay que definir criterios) | Alta |
 | M3 | **Costo × disponibilidad por equipo** (mantener / reparar a fondo / renovar) | complementa el costo total de propiedad | Sí | Media |
 | M4 | **Repuestos ABC × VED** (vital / esencial / deseable según cuánto para el equipo) | cuánto stock de seguridad justifica cada repuesto, más allá de su costo (hoy ABC-XYZ) | Sí, derivando el VED de la criticidad | Media |

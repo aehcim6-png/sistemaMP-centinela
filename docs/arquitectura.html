@@ -3160,6 +3160,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   sin 0%/100% falsos con pocos casos) y se compara original vs alternativo con P(θ_orig &gt; θ_alt); el tiempo de entrega de los repuestos se
   ajusta con una <b>Gamma</b> para dar la probabilidad de llegar a tiempo y el percentil 90 que define "pedir ya".</p>
 
+  <p><b>Reemplazo óptimo por costo y matriz de estrategia (RCM):</b> política de reemplazo por edad con costo por hora
+  <code>C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫R(t)dt</code>; el T* se verificó contra su condición de primer orden. Depende del costo de una hora
+  detenida (lo ingresa el usuario; sin él no hay óptimo y la pantalla lo avisa, con tabla de sensibilidad). β y η por origen, sin mezclar
+  orígenes. Matriz 3×3 forma de la falla × consecuencia → investigar / dejar correr / por condición / cambio por edad.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

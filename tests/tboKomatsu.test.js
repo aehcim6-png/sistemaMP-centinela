@@ -675,3 +675,121 @@ describe('Beta, Bernoulli y Gamma', () => {
     });
   });
 });
+
+describe('Reemplazo óptimo por costo (política de reemplazo por edad) y matriz de estrategia RCM', () => {
+  const R = (t, b, e) => Math.exp(-Math.pow(t / e, b));
+  describe('piezas numéricas, contra fórmulas cerradas', () => {
+    it('∫₀ᵀ R(t)dt: β=1 es η(1−e^(−T/η)); β=2 en T→∞ tiende a η·√π/2', () => {
+      expect(L.tboIntegralR(500, 1, 1000)).toBeCloseTo(1000 * (1 - Math.exp(-0.5)), 6);
+      expect(L.tboIntegralR(10000, 2, 1000)).toBeCloseTo(1000 * Math.sqrt(Math.PI) / 2, 4);
+      expect(L.tboIntegralR(0, 2, 1000)).toBe(0);
+    });
+    it('MTTF Weibull = η·Γ(1+1/β): β=1 → η; β=2 → η√π/2', () => {
+      expect(L.tboMTTFWeibull(1, 1000)).toBeCloseTo(1000, 6);
+      expect(L.tboMTTFWeibull(2, 1000)).toBeCloseTo(886.2269, 3);
+    });
+    it('costo por hora con β=1 (cerrada): [Cp·e^(−T/η) + Cf·(1−e^(−T/η))] / (η(1−e^(−T/η)))', () => {
+      const T = 700, e = 1000, Cp = 500, Cf = 4000, q = Math.exp(-T / e);
+      expect(L.tboCostoPoliticaEdad(T, 1, e, Cp, Cf)).toBeCloseTo((Cp * q + Cf * (1 - q)) / (e * (1 - q)), 6);
+    });
+  });
+
+  describe('tboReemplazoOptimo', () => {
+    const beta = 3, eta = 1000, Cp = 1000, Cf = 10000;
+    const o = L.tboReemplazoOptimo(beta, eta, Cp, Cf);
+    it('encuentra un T* interior que mejora a dejar correr hasta la falla', () => {
+      expect(o.existe).toBe(true);
+      expect(o.T).toBeGreaterThan(0);
+      expect(o.T).toBeLessThan(eta);
+      expect(o.costoHora).toBeLessThan(o.costoHoraRTF);
+      expect(o.costoHoraRTF).toBeCloseTo(Cf / L.tboMTTFWeibull(beta, eta), 8);
+      expect(o.ahorroVsRTF).toBeCloseTo(1 - o.costoHora / o.costoHoraRTF, 10);
+    });
+    it('cumple la condición de primer orden h(T)·∫R − F(T) = Cp/(Cf−Cp) (verificación independiente del optimizador)', () => {
+      const T = o.T, I = L.tboIntegralR(T, beta, eta), F = 1 - R(T, beta, eta), h = beta / eta * Math.pow(T / eta, beta - 1);
+      expect(h * I - F).toBeCloseTo(Cp / (Cf - Cp), 4);
+    });
+    it('ningún otro T de una grilla fina tiene menor costo por hora', () => {
+      for (let t = 20; t <= 4000; t += 20) expect(L.tboCostoPoliticaEdad(t, beta, eta, Cp, Cf)).toBeGreaterThanOrEqual(o.costoHora - 1e-9);
+    });
+    it('cuanto más cara es la falla frente al cambio, antes conviene cambiar (T* baja)', () => {
+      const t5 = L.tboReemplazoOptimo(beta, eta, 1000, 5000).T, t20 = L.tboReemplazoOptimo(beta, eta, 1000, 20000).T;
+      expect(t20).toBeLessThan(t5);
+    });
+    it('β ≤ 1 (azar o fallas tempranas): no existe óptimo por edad', () => {
+      const r = L.tboReemplazoOptimo(1, 1000, 1000, 10000);
+      expect(r.existe).toBe(false);
+      expect(r.motivo).toContain('β≤1');
+      expect(L.tboReemplazoOptimo(0.7, 1000, 1000, 10000).existe).toBe(false);
+    });
+    it('si fallar no cuesta más que cambiar (Cf ≤ Cp), no conviene cambiar antes', () => {
+      expect(L.tboReemplazoOptimo(3, 1000, 1000, 1000).existe).toBe(false);
+      expect(L.tboReemplazoOptimo(3, 1000, 1000, 800).existe).toBe(false);
+    });
+  });
+
+  describe('matriz de estrategia (forma × consecuencia)', () => {
+    it('clasifica la forma y la consecuencia', () => {
+      expect(L.tboClaseForma(0.6)).toBe('temprana');
+      expect(L.tboClaseForma(1.0)).toBe('azar');
+      expect(L.tboClaseForma(3)).toBe('desgaste');
+      expect(L.tboClaseConsecuencia(1.5)).toBe('bajo');
+      expect(L.tboClaseConsecuencia(3)).toBe('medio');
+      expect(L.tboClaseConsecuencia(8)).toBe('alto');
+    });
+    it('desgaste + consecuencia alta → cambio por edad a T*; azar + alta → por condición; temprana → investigar; azar + baja → dejar fallar', () => {
+      expect(L.tboEstrategiaRCM(3, 8)).toMatchObject({ celda: 'desgaste|alto', estrategia: 'Cambio por edad a T*' });
+      expect(L.tboEstrategiaRCM(1, 8).estrategia).toBe('Por condición');
+      expect(L.tboEstrategiaRCM(0.6, 3).estrategia).toBe('Investigar la causa');
+      expect(L.tboEstrategiaRCM(1, 1.2).estrategia).toBe('Dejar correr hasta la falla');
+    });
+    it('las 9 celdas de la matriz están definidas', () => {
+      L.TBO_RCM_MATRIZ.filas.forEach(f => L.TBO_RCM_MATRIZ.columnas.forEach(c => expect(L.TBO_RCM_MATRIZ.celdas[f[0] + '|' + c[0]]).toHaveLength(2)));
+    });
+  });
+
+  describe('parámetros de vida por grupo componente+origen', () => {
+    it('con ≥5 cambios ajusta Weibull', () => {
+      const p = L.tboParametrosVida({ vals: [4000, 5200, 6100, 6900, 7800, 9000], origen: 'original' });
+      expect(p.fuente).toContain('Weibull ajustado con 6 cambios');
+      expect(p.beta).toBeGreaterThan(1);
+    });
+    it('con 1–4 cambios: β=3 y η que reproduce la mediana observada', () => {
+      const p = L.tboParametrosVida({ vals: [1000, 2000, 3000], origen: 'alternativo' });
+      expect(p.beta).toBe(3);
+      expect(1 - Math.exp(-Math.pow(2000 / p.eta, 3))).toBeCloseTo(0.5, 8); // la mediana (2.000 h) queda en F=50%
+    });
+    it('el original sin datos usa el modelo del fabricante (TBO = 5%); el alternativo sin datos no se estima', () => {
+      const p = L.tboParametrosVida({ vals: [], origen: 'original', tbo: { min: 8000, max: 8000 } });
+      expect(1 - Math.exp(-Math.pow(8000 / p.eta, 3))).toBeCloseTo(0.05, 8);
+      expect(L.tboParametrosVida({ vals: [], origen: 'alternativo', tbo: { min: 8000, max: 8000 } })).toBeNull();
+    });
+  });
+
+  describe('tboPoliticaOptimaFilas', () => {
+    const filas = [
+      { comp: 'Turbo', origen: 'original', vals: [3651, 4368, 5000], mediana: 4368, precio: 8100000, tbo: { min: 8000, max: 8000 } },
+      { comp: 'Turbo', origen: 'alternativo', vals: [1626, 800], mediana: 1213, precio: 2325000, tbo: { min: 8000, max: 8000 } },
+      { comp: 'Asiento', origen: 'sin dato', vals: [600], mediana: 600, precio: null, tbo: null },
+    ];
+    const ctx = { tarifaHH: 25000, hhCambio: 16, horasProg: 8, horasFalla: 24, costoHoraDet: 500000 };
+    const r = L.tboPoliticaOptimaFilas(filas, ctx);
+    it('Cp = repuesto + HH + parada programada; Cf = repuesto + HH + parada por falla', () => {
+      expect(r[0].Cp).toBe(8100000 + 16 * 25000 + 8 * 500000);
+      expect(r[0].Cf).toBe(8100000 + 16 * 25000 + 24 * 500000);
+      expect(r[0].ratio).toBeCloseTo(r[0].Cf / r[0].Cp, 10);
+    });
+    it('con costo de detención, fallar cuesta más que cambiar y existe un T* menor al TBO; el ahorro vs TBO es no negativo', () => {
+      expect(r[0].opt.existe).toBe(true);
+      expect(r[0].opt.T).toBeLessThan(8000);
+      expect(r[0].ahorroVsTBO).toBeGreaterThanOrEqual(0);
+      expect(r[0].estrategia.celda).toMatch(/^desgaste\|/);
+    });
+    it('sin precio no se calcula nada; sin costo de detención no hay óptimo (fallar y cambiar cuestan lo mismo)', () => {
+      expect(r[2].opt).toBeNull();
+      const sinDet = L.tboPoliticaOptimaFilas(filas, Object.assign({}, ctx, { costoHoraDet: 0 }));
+      expect(sinDet[0].opt.existe).toBe(false);
+      expect(sinDet[0].Cf).toBe(sinDet[0].Cp);
+    });
+  });
+});

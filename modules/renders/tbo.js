@@ -12,6 +12,11 @@ function _tboTasa() {
   try { var v = parseFloat(localStorage.getItem(_TBO_TASA_KEY)); if (v > 0) return v; } catch (e) { /* sin storage: usa el default */ }
   return 910; // mismo valor referencial que ya usa importarRepuestosKomatsu (no es un tipo de cambio oficial)
 }
+var _TBO_OPT_KEYS = { costoDet: 'tboCostoDet', horasFalla: 'tboHorasFalla', horasProg: 'tboHorasProg', hhCambio: 'tboHHCambio' };
+function _tboParamOpt(k, def) {
+  try { var v = parseFloat(localStorage.getItem(_TBO_OPT_KEYS[k])); if (v >= 0) return v; } catch (e) { /* sin storage: default */ }
+  return def;
+}
 var _TBO_APLIC_KEY = 'tboAplic';
 function _tboAplic() {
   try { var v = localStorage.getItem(_TBO_APLIC_KEY); if (TBO_APLICACION[v]) return v; } catch (e) { /* sin storage: normal */ }
@@ -233,6 +238,66 @@ export function renderTbo() {
       '</table></div>' + _tboResumenCostoHora(vidaTBO) + _tboResumenBeta(vidaTBO) + '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Duración = horas de horómetro entre un cambio y el siguiente del mismo componente en el mismo equipo (el último cambio de cada equipo sigue en uso y no cuenta). Con pocos cambios por origen, tomalo como indicio y no como conclusión.</p>'
       : '<div class="card" style="color:var(--tx3);font-size:12px">Todavía no hay cambios suficientes en el Historial de Componentes para medir duraciones.</div>');
 
+  // ── Reemplazo óptimo por costo + matriz de estrategia (RCM) ──
+  var mttrFlota = (typeof duracionesReparacionFlotaHoras === 'function') ? medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot') || [])) : null;
+  var pOpt = {
+    tarifaHH: S.g('hh') || 25000,
+    hhCambio: _tboParamOpt('hhCambio', 16),
+    horasProg: _tboParamOpt('horasProg', 8),
+    horasFalla: _tboParamOpt('horasFalla', mttrFlota ? Math.round(mttrFlota) : 24),
+    costoHoraDet: _tboParamOpt('costoDet', 0)
+  };
+  var pol = tboPoliticaOptimaFilas(vida.filter(function (v) { return v.origen !== 'sin dato' || v.precio; }), pOpt);
+  var polCon = pol.filter(function (r) { return r.param && r.precio; });
+  var _inp = function (id, k, val, label, ttl) { return '<label style="font-size:11px;color:var(--tx3)" title="' + ttl + '">' + label + ' <input id="' + id + '" type="number" min="0" step="any" value="' + val + '" style="width:90px" onchange="tboCambiarParamOpt(\'' + k + '\',this.value)"></label>'; };
+  h += '<div class="card-t" style="margin:18px 0 6px">¿Cada cuántas horas conviene cambiar? — reemplazo óptimo por costo y estrategia por componente</div>' +
+    '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">Un componente se cambia a la edad <b>T</b> (cambio programado, cuesta <b>Cp</b>) o falla antes (cuesta <b>Cf</b>, con la máquina detenida sin aviso). El costo por hora esperado es <b>C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫R(t)dt</b> con la vida Weibull del componente; la edad óptima <b>T*</b> es la que lo minimiza. Solo existe si el componente se desgasta (β&gt;1) y fallar cuesta más que cambiar. <b>El resultado depende del costo de una hora detenida</b>: sin él, fallar y cambiar cuestan lo mismo y el modelo no recomienda cambiar antes.</div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
+    _inp('tboCostoDet', 'costoDet', pOpt.costoHoraDet, 'Costo de 1 hora detenida ($/h)', 'Lo que pierde la operación por cada hora que el equipo está detenido. Ej. toneladas por hora × margen por tonelada. Sin este dato el modelo no puede recomendar cambiar antes.') +
+    _inp('tboHorasFalla', 'horasFalla', pOpt.horasFalla, 'Horas detenido por falla', 'Por defecto, la mediana de duración de los correctivos de la flota (si hay dato)') +
+    _inp('tboHorasProg', 'horasProg', pOpt.horasProg, 'Horas detenido por cambio programado', 'Supuesto editable: un cambio planificado tarda menos que una falla') +
+    _inp('tboHHCambio', 'hhCambio', pOpt.hhCambio, 'HH por cambio', 'Horas-hombre de mano de obra por cambio (supuesto editable). La tarifa por HH sale de Configuración: $' + fn(pOpt.tarifaHH)) +
+    '</div>' +
+    (pOpt.costoHoraDet > 0 ? '' : '<div class="card" style="margin-bottom:8px;border-left:3px solid var(--w);font-size:11px;color:var(--tx2)">⚠️ Sin costo de hora detenida: Cf = Cp, así que no hay edad óptima. Ingresá el costo para ver la recomendación.</div>') +
+    (polCon.length ? '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Componente</th><th>Origen</th><th title="Forma y vida característica de la Weibull usada (la fuente está al pasar el mouse)">β / η</th><th style="text-align:right" title="Costo de un cambio programado: repuesto + mano de obra + parada programada">Cp</th><th style="text-align:right" title="Costo de una falla: repuesto + mano de obra + parada por falla. Entre paréntesis, cuántas veces más cuesta que un cambio programado">Cf (× Cp)</th><th style="text-align:right">Cambiar cada (T*)</th><th style="text-align:right">TBO fábrica</th><th style="text-align:right">Costo/h en T*</th><th style="text-align:right">Costo/h al TBO</th><th style="text-align:right">Costo/h dejando fallar</th><th>Qué hacer</th></tr>' +
+      polCon.map(function (r) {
+        var o = r.opt, tboRef = r.tbo && r.tbo.min === r.tbo.max ? r.tbo.min : null;
+        var estr = r.estrategia ? '<b>' + escapeHtml(r.estrategia.estrategia) + '</b><div style="font-size:9px;color:var(--tx3);white-space:normal">' + escapeHtml(r.estrategia.detalle) + '</div>' : '—';
+        return '<tr><td style="font-weight:600">' + escapeHtml(r.comp) + '</td><td>' + escapeHtml(_TBO_ORIGEN[r.origen] || r.origen) + '</td>' +
+          '<td class="mono" style="font-size:10px" title="' + escapeHtml(r.param.fuente) + '">' + (Math.round(r.param.beta * 100) / 100 + '').replace('.', ',') + ' / ' + fn(Math.round(r.param.eta)) + ' h</td>' +
+          '<td class="mono" style="text-align:right">' + _tboPeso(r.Cp) + '</td><td class="mono" style="text-align:right">' + _tboPeso(r.Cf) + ' <span style="color:var(--tx3)">(' + (Math.round(r.ratio * 10) / 10 + '').replace('.', ',') + '×)</span></td>' +
+          '<td class="mono" style="text-align:right;font-weight:700;color:' + (o.existe ? 'var(--ac)' : 'var(--tx3)') + '" title="' + escapeHtml(o.existe ? '' : o.motivo) + '">' + (o.existe ? fn(Math.round(o.T / 10) * 10) + ' h' : 'sin óptimo') + '</td>' +
+          '<td class="mono" style="text-align:right">' + (tboRef ? fn(tboRef) + ' h' : '—') + '</td>' +
+          '<td class="mono" style="text-align:right">' + (o.existe ? _tboPeso(o.costoHora) + '/h' : '—') + '</td>' +
+          '<td class="mono" style="text-align:right">' + (r.costoHoraTBOPol ? _tboPeso(r.costoHoraTBOPol) + '/h' + (r.ahorroVsTBO > 0.005 ? '<div style="font-size:9px;color:var(--ok)">T* ahorra ' + Math.round(r.ahorroVsTBO * 100) + '%</div>' : '') : '—') + '</td>' +
+          '<td class="mono" style="text-align:right">' + _tboPeso(o.costoHoraRTF) + '/h</td><td style="font-size:10px">' + estr + '</td></tr>';
+      }).join('') + '</table></div>' +
+      '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">β y η: con 5 o más cambios medidos se ajusta una Weibull; con menos, β=3 (el supuesto de desgaste de Komatsu) y η según los cambios medidos; el original sin datos usa el modelo del TBO. Nunca se mezclan origen original y alternativo para estimar β. Con pocos cambios por origen, T* es una referencia para decidir, no una cifra exacta: mirá cuánto cambia al mover el costo de hora detenida.</p>'
+      : '<div class="card" style="color:var(--tx3);font-size:12px">Falta precio o cambios medidos de los componentes para calcular el costo. Registrá los cambios en el Historial de Componentes y cargá compras con el repuesto.</div>');
+  if (polCon.length) {
+    h += '<div class="card-t" style="margin:14px 0 6px">Matriz de estrategia (RCM) — forma de la falla × cuánto más cuesta fallar que cambiar</div>' +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Forma de la falla ↓ / Consecuencia →</th>' + TBO_RCM_MATRIZ.columnas.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') + '</tr>' +
+      TBO_RCM_MATRIZ.filas.map(function (f) {
+        return '<tr><td style="font-weight:600;white-space:nowrap">' + f[1] + '</td>' + TBO_RCM_MATRIZ.columnas.map(function (c) {
+          var k = f[0] + '|' + c[0], cel = TBO_RCM_MATRIZ.celdas[k];
+          var items = polCon.filter(function (r) { return r.estrategia && r.estrategia.celda === k; });
+          return '<td style="vertical-align:top;white-space:normal;min-width:150px;' + (items.length ? 'background:rgba(245,158,11,.08)' : '') + '"><div style="font-weight:700;font-size:10px">' + escapeHtml(cel[0]) + '</div>' +
+            (items.length ? items.map(function (r) { return '<div style="font-size:10px;color:var(--ac)">• ' + escapeHtml(r.comp) + ' (' + (r.origen === 'original' ? 'orig.' : r.origen === 'alternativo' ? 'alt.' : 's/d') + ')</div>'; }).join('') : '<div style="font-size:9px;color:var(--tx3)">—</div>') + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</table></div>' +
+      '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Forma: β&lt;0,9 fallas tempranas (instalación o calidad), β≈1 al azar, β≥1,2 por desgaste. Consecuencia: Cf/Cp &lt;2 baja, 2–5 media, &gt;5 alta. Es la lógica clásica de selección de estrategia (RCM): el cambio por edad solo paga cuando hay desgaste y la falla sale cara; con fallas al azar conviene vigilar por condición.</p>';
+    // Sensibilidad al costo de hora detenida del primer componente con parámetros
+    var ref = polCon[0];
+    var valores = [100000, 250000, 500000, 1000000, 2000000, 5000000];
+    h += '<div class="card-t" style="margin:14px 0 6px">¿Cuánto cambia con el costo de la hora detenida? — ' + escapeHtml(ref.comp) + ' (' + escapeHtml(_TBO_ORIGEN[ref.origen] || ref.origen) + ')</div>' +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:right">Costo de 1 hora detenida</th><th style="text-align:right">Cf/Cp</th><th style="text-align:right">Cambiar cada (T*)</th><th style="text-align:right">Costo/h en T*</th><th style="text-align:right">Costo/h dejando fallar</th><th>Qué hacer</th></tr>' +
+      valores.map(function (cd) {
+        var rr = tboPoliticaOptimaFilas([ref], Object.assign({}, pOpt, { costoHoraDet: cd }))[0];
+        return '<tr><td class="mono" style="text-align:right">' + _tboPeso(cd) + '/h</td><td class="mono" style="text-align:right">' + (Math.round(rr.ratio * 10) / 10 + '').replace('.', ',') + '×</td>' +
+          '<td class="mono" style="text-align:right;font-weight:700">' + (rr.opt.existe ? fn(Math.round(rr.opt.T / 10) * 10) + ' h' : 'sin óptimo') + '</td><td class="mono" style="text-align:right">' + (rr.opt.existe ? _tboPeso(rr.opt.costoHora) + '/h' : '—') + '</td><td class="mono" style="text-align:right">' + _tboPeso(rr.opt.costoHoraRTF) + '/h</td><td style="font-size:10px">' + escapeHtml(rr.estrategia.estrategia) + '</td></tr>';
+      }).join('') + '</table></div>';
+  }
+
   if (sinCompras) h += '<div class="card" style="color:var(--tx3);font-size:12px;margin-top:12px">No hay compras cargadas para ' + (eqSel ? escapeHtml(eqSel.sigla) : 'la flota') + '.</div>';
 
   // ── Gasto por familia ──
@@ -323,6 +388,13 @@ function _tboResumenBeta(filas) {
   }).join('<br>') + '<div style="font-size:10px;color:var(--tx3);margin-top:4px">Método: cada cambio medido es un ensayo Bernoulli (¿duró al menos el TBO?); cada origen se resume con una distribución Beta y se compara cuál tiene mayor probabilidad de éxito. 50% = no hay diferencia detectable. Con 3–4 cambios por origen una diferencia grande puede ser casualidad: mirá los intervalos de la tabla.</div></div>';
 }
 
+export function tboCambiarParamOpt(k, v) {
+  var n = parseFloat(v);
+  if (!(n >= 0)) { toast('Ingresá un número mayor o igual a 0'); return; }
+  try { localStorage.setItem(_TBO_OPT_KEYS[k], String(n)); } catch (e) { /* sin storage: queda solo en esta vista */ }
+  renders.tbo();
+}
+
 export function tboCambiarAplic(v) {
   if (!TBO_APLICACION[v]) return;
   try { localStorage.setItem(_TBO_APLIC_KEY, v); } catch (e) { /* sin storage: queda solo en esta vista */ }
@@ -340,6 +412,7 @@ export function tboCambiarTasa(v) {
 window.renderTbo = renderTbo;
 window.tboCambiarTasa = tboCambiarTasa;
 window.tboCambiarAplic = tboCambiarAplic;
+window.tboCambiarParamOpt = tboCambiarParamOpt;
 window.crearOCDesdeTBO = crearOCDesdeTBO;
 window.confirmarOCDesdeTBO = confirmarOCDesdeTBO;
 renders.tbo = renderTbo;

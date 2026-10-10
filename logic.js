@@ -7711,8 +7711,102 @@ function probabilidadMayorBeta(a1,b1,a2,b2){
   return s*h/3;
 }
 
+
+// ── Reemplazo óptimo por costo (política de reemplazo por edad) y matriz de estrategia (RCM) ──
+// Modelo clásico: un componente con vida Weibull(β,η) se cambia de forma programada al llegar a la edad T (cuesta Cp) o, si falla antes,
+// de forma no programada (cuesta Cf). Costo por hora esperado: C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫₀ᵀ R(t)dt, con R(t)=exp(−(t/η)^β).
+// Si cambiar antes de la falla cuesta menos que dejarla ocurrir (Cf>Cp) y el componente se desgasta (β>1), existe un T* que minimiza C(T).
+function _weibullR(t,beta,eta){return t<=0?1:Math.exp(-Math.pow(t/eta,beta));}
+// ∫₀ᵀ R(t)dt por Simpson con n subintervalos (par).
+function tboIntegralR(T,beta,eta,n){
+  var N=n||800;if(N%2)N++;
+  if(!(T>0))return 0;
+  var h=T/N,s=_weibullR(0,beta,eta)+_weibullR(T,beta,eta);
+  for(var i=1;i<N;i++)s+=(i%2?4:2)*_weibullR(i*h,beta,eta);
+  return s*h/3;
+}
+function tboMTTFWeibull(beta,eta){return eta*Math.exp(_logGamma(1+1/beta));}
+function tboCostoPoliticaEdad(T,beta,eta,Cp,Cf){
+  var I=tboIntegralR(T,beta,eta);if(!(I>0))return null;
+  var R=_weibullR(T,beta,eta);
+  return (Cp*R+Cf*(1-R))/I;
+}
+// Edad óptima de cambio T* y su costo por hora, comparado con "dejar correr hasta la falla" (T→∞: Cf/MTTF). existe=false si no hay
+// óptimo interior (β≤1, o Cf≤Cp, o el mínimo no mejora a dejar fallar).
+function tboReemplazoOptimo(beta,eta,Cp,Cf){
+  var mttf=tboMTTFWeibull(beta,eta),crtf=Cf/mttf;
+  var r={existe:false,T:null,costoHora:null,costoHoraRTF:crtf,mttf:mttf,motivo:''};
+  if(!(beta>1)){r.motivo='la forma β≤1 indica fallas al azar o tempranas: no hay desgaste que justifique cambiar por edad';return r;}
+  if(!(Cf>Cp)){r.motivo='una falla no cuesta más que un cambio programado: no conviene cambiar antes';return r;}
+  var lo=0.02*eta,hi=4*eta,N=800,mejorT=null,mejorC=Infinity,i,T,c;
+  for(i=0;i<=N;i++){T=lo+(hi-lo)*i/N;c=tboCostoPoliticaEdad(T,beta,eta,Cp,Cf);if(c!=null&&c<mejorC){mejorC=c;mejorT=T;}}
+  if(mejorT==null){r.motivo='no se pudo calcular';return r;}
+  // refinamiento por sección áurea alrededor del mínimo de la grilla
+  var a=Math.max(lo,mejorT-(hi-lo)/N),b=Math.min(hi,mejorT+(hi-lo)/N),g=(Math.sqrt(5)-1)/2;
+  var x1=b-g*(b-a),x2=a+g*(b-a),f1=tboCostoPoliticaEdad(x1,beta,eta,Cp,Cf),f2=tboCostoPoliticaEdad(x2,beta,eta,Cp,Cf);
+  for(i=0;i<80;i++){
+    if(f1<f2){b=x2;x2=x1;f2=f1;x1=b-g*(b-a);f1=tboCostoPoliticaEdad(x1,beta,eta,Cp,Cf);}
+    else{a=x1;x1=x2;f1=f2;x2=a+g*(b-a);f2=tboCostoPoliticaEdad(x2,beta,eta,Cp,Cf);}
+  }
+  mejorT=(a+b)/2;mejorC=tboCostoPoliticaEdad(mejorT,beta,eta,Cp,Cf);
+  if(mejorT>=hi*0.99||!(mejorC<crtf*(1-1e-6))){r.motivo='el costo por hora casi no mejora cambiando antes: conviene dejar correr hasta la falla';return r;}
+  r.existe=true;r.T=mejorT;r.costoHora=mejorC;r.ahorroVsRTF=1-mejorC/crtf;
+  return r;
+}
+// Matriz de estrategia de mantenimiento (RCM): forma de la falla (β) × consecuencia (cuánto más cuesta fallar que cambiar, Cf/Cp).
+function tboClaseForma(beta){return beta<0.9?'temprana':beta<1.2?'azar':'desgaste';}
+function tboClaseConsecuencia(ratio){return ratio<2?'bajo':ratio<5?'medio':'alto';}
+const TBO_RCM_MATRIZ={
+  filas:[['temprana','Fallas tempranas (β<0,9)'],['azar','Al azar (β≈1)'],['desgaste','Por desgaste (β≥1,2)']],
+  columnas:[['bajo','Consecuencia baja (Cf/Cp<2)'],['medio','Media (2–5)'],['alto','Alta (>5)']],
+  celdas:{
+    'temprana|bajo':['Investigar la causa','Revisar instalación y calidad del repuesto: cambiar por edad no ayuda'],
+    'temprana|medio':['Investigar la causa','Revisar instalación y calidad del repuesto: cambiar por edad no ayuda'],
+    'temprana|alto':['Investigar + vigilar','Investigar la causa y vigilar por condición; cambiar por edad no ayuda'],
+    'azar|bajo':['Dejar correr hasta la falla','Tener el repuesto disponible; cambio oportunista en una parada'],
+    'azar|medio':['Por condición','Inspección o aceite; si no se puede detectar, dejar fallar con repuesto en stock'],
+    'azar|alto':['Por condición','Inspección periódica: cambiar por edad no mejora el costo'],
+    'desgaste|bajo':['Dejar correr / oportunista','Cambiar al aprovechar una parada; no justifica parar por esto'],
+    'desgaste|medio':['Cambio por edad (con holgura)','Cambiar cerca de T*, o por condición si se puede detectar'],
+    'desgaste|alto':['Cambio por edad a T*','Conviene claramente cambiar a la edad óptima']
+  }
+};
+function tboEstrategiaRCM(beta,ratio){
+  var f=tboClaseForma(beta),c=tboClaseConsecuencia(ratio),cel=TBO_RCM_MATRIZ.celdas[f+'|'+c];
+  return{forma:f,consecuencia:c,celda:f+'|'+c,estrategia:cel[0],detalle:cel[1]};
+}
+// Parámetros de vida (β, η) de un grupo componente+origen para el modelo. Con ≥5 cambios medidos se ajusta Weibull; con 1–4 se usa
+// β=3 (el supuesto de desgaste del fabricante) y η tal que la mediana observada coincida; el original sin datos usa el modelo del TBO
+// (β=3, TBO = B5); el alternativo sin datos no se estima. Nunca se mezclan orígenes para estimar β (mezclar sesga β hacia abajo).
+function tboParametrosVida(fila){
+  var v=(fila&&fila.vals)||[];
+  if(v.length>=5){var aj=ajusteWeibullVidas(v);if(aj&&aj.beta>0&&aj.eta>0)return{beta:aj.beta,eta:aj.eta,fuente:'Weibull ajustado con '+v.length+' cambios'};}
+  if(v.length>=1){var s=v.slice().sort(function(a,b){return a-b;}),n=s.length,med=n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2;
+    return{beta:TBO_BETA,eta:med/Math.pow(Math.LN2,1/TBO_BETA),fuente:'β=3 supuesto del fabricante; η con '+n+' cambio'+(n>1?'s':'')+' medido'+(n>1?'s':'')};}
+  if(fila&&fila.origen==='original'&&fila.tbo&&fila.tbo.min===fila.tbo.max)
+    return{beta:TBO_BETA,eta:fila.tbo.min/Math.pow(-Math.log(0.95),1/TBO_BETA),fuente:'modelo del fabricante (TBO = 5% de fallas)'};
+  return null;
+}
+// Política óptima para cada fila componente+origen de tboCostoPorHora (necesita precio). ctx: {tarifaHH, hhCambio, horasProg, horasFalla,
+// costoHoraDet}. Cp = repuesto + mano de obra + parada programada; Cf = repuesto + mano de obra + parada por falla.
+function tboPoliticaOptimaFilas(filas,ctx){
+  var c=ctx||{},th=c.tarifaHH||0,hh=c.hhCambio||0,hp=c.horasProg||0,hf=c.horasFalla||0,cd=c.costoHoraDet||0;
+  return (filas||[]).map(function(f){
+    var base=Object.assign({},f,{param:null,Cp:null,Cf:null,ratio:null,opt:null,estrategia:null,costoHoraTBOPol:null});
+    if(!f.precio)return base;
+    var p=tboParametrosVida(f);if(!p)return base;
+    var Cp=f.precio+hh*th+hp*cd,Cf=f.precio+hh*th+hf*cd,ratio=Cp>0?Cf/Cp:null;
+    var opt=tboReemplazoOptimo(p.beta,p.eta,Cp,Cf);
+    var tboRef=f.tbo&&f.tbo.min===f.tbo.max?f.tbo.min:null;
+    return Object.assign(base,{param:p,Cp:Cp,Cf:Cf,ratio:ratio,opt:opt,estrategia:ratio?tboEstrategiaRCM(p.beta,ratio):null,
+      costoHoraTBOPol:tboRef?tboCostoPoliticaEdad(tboRef,p.beta,p.eta,Cp,Cf):null,
+      ahorroVsTBO:(opt.existe&&tboRef)?1-opt.costoHora/tboCostoPoliticaEdad(tboRef,p.beta,p.eta,Cp,Cf):null});
+  });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    tboIntegralR, tboMTTFWeibull, tboCostoPoliticaEdad, tboReemplazoOptimo, tboClaseForma, tboClaseConsecuencia, TBO_RCM_MATRIZ, tboEstrategiaRCM, tboParametrosVida, tboPoliticaOptimaFilas,
     tboProbLlegaAntes, tboComparaOrigen, _betaIncompletaRegularizada, _gammaIncRegularizada, gammaCDF, gammaCuantil, ajusteGammaMomentos, betaCuantil, betaPDF, betaBernoulliPosterior, probabilidadMayorBeta,
     tboCantidadItem, tboLeadTimeFn, tboStockFn, tboPedidosAbiertosFn, tboDecisionCompra, tboPlanCompras,
     TBO_APLICACION, TBO_GUIA_APLICACION, TBO_BETA, tboRiesgoWeibull, tboRiesgoHorizonte, tboProbNivel, tboMatrizRiesgo, tboCostoPorHora,

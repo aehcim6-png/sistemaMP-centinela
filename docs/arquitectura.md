@@ -6126,7 +6126,7 @@ criterio de quien conoce el caso).
 ### 110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)
 
 Pestaña **Componentes → TBO Komatsu** (módulo lazy `modules/renders/tbo.js`; toda la lógica pura en `logic.js`, funciones `tbo*`,
-87 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
+105 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
 `docs/referencias/`. Se usaron TODAS sus hojas: Camiones/Cargadores/Bulldozers (58/71/57 ítems, TBO de aplicación 'Normal'),
 'Sugerido' (27 repuestos HD785-7 con N° de parte y precio en USD; la suma cantidad×unitario da USD 173.030,5, igual que el Excel)
 y las ocultas 'Application Guide' y 'Weibull' (guardadas en el original; no alimentan cálculos).
@@ -6203,6 +6203,23 @@ entran: Weibull con censura ya los trata en Historial de Componentes). El umbral
 del repuesto; si no, con todos los pedidos) y de ahí salen la **probabilidad de que el repuesto llegue antes del cambio** (CDF) y el
 **percentil 90** que reemplaza el colchón fijo de 7 días: "pedir ya" cuando faltan menos días que el p90. Sin ajuste posible se mantiene
 mediana + 7 días. Los ajustes son descriptivos sobre pocos datos: la pantalla muestra siempre cuántos casos hay. 16 pruebas más.
+
+**Reemplazo óptimo por costo y matriz de estrategia RCM.** `tboReemplazoOptimo`: política de reemplazo por edad — un componente Weibull(β,η)
+se cambia a la edad T (cuesta Cp) o falla antes (cuesta Cf); costo por hora `C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫₀ᵀ R(t)dt`, integrado por
+Simpson, mínimo por grilla + sección áurea. El T* se verificó contra la condición de primer orden `h(T)·∫R − F(T) = Cp/(Cf−Cp)` (da
+0,111111 = 0,111111) y contra una grilla fina; MTTF = η·Γ(1+1/β) contra la forma cerrada. No hay óptimo si β≤1 (azar o fallas tempranas), si
+Cf≤Cp o si el costo casi no mejora a dejar fallar (se dice por qué). **Costos**: Cp = repuesto + HH×tarifa (Configuración) + parada
+programada × costo de hora detenida; Cf = repuesto + HH×tarifa + parada por falla × costo de hora detenida. El precio sale de las compras
+(original = lo pagado a Komatsu; alternativo = lo pagado a otros). **El costo de hora detenida lo ingresa el usuario** (no existe un dato
+único en el programa: toneladas/hora × margen varía por equipo); sin él Cf=Cp y el modelo no recomienda cambiar antes — la pantalla lo
+avisa y muestra una tabla de sensibilidad al costo. Horas de parada por falla: mediana de los correctivos de la flota si hay dato; parada
+programada (8 h) y HH por cambio (16) son supuestos editables. **β y η** (`tboParametrosVida`): con ≥5 cambios medidos se ajusta Weibull;
+con 1–4, β=3 (supuesto de desgaste del fabricante) y η tal que la mediana observada coincida; el original sin datos usa el modelo del TBO;
+el alternativo sin datos no se estima. **Nunca se mezclan orígenes para estimar β** (mezclar poblaciones sesga β hacia abajo y aparenta
+"fallas tempranas"). **Matriz de estrategia** (`tboEstrategiaRCM`, 3×3): forma (β<0,9 temprana, ≈1 azar, ≥1,2 desgaste) × consecuencia
+(Cf/Cp <2 baja, 2–5 media, >5 alta) → investigar la causa / dejar correr / por condición / cambio por edad a T*; es la selección clásica de
+estrategia (Moubray, Jardine). Limitación: no usa el intervalo P-F del aceite para marcar "por condición viable" (queda como mejora).
+18 pruebas más.
 
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
