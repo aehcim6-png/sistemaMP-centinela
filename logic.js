@@ -7164,8 +7164,287 @@ function estadoPMCompleto(r){
   return{estado:'sin_dato',faltante:''};
 }
 
+// ═══ TBO KOMATSU (TBO_Besalco_Mineria_jun_24.xlsm) ═══
+// Plan de cambio por horas del fabricante (TBO = Time Between Overhaul) para los modelos
+// Komatsu de Besalco Centinela, cruzado contra las compras reales. DATOS: hojas Camiones/Cargadores/
+// Bulldozers (TBO de aplicación 'Normal') y 'Sugerido' (27 repuestos HD785-7, precios en USD).
+// IMPORTANTE: los 'N° de cambios' del Excel son TEÓRICOS (horómetro ÷ TBO), no hay historial real de
+// cambios en ese archivo — acá se recalculan con el horómetro vivo de cada equipo.
+const TBO_FAMILIAS=[["correas", "Correas (V-BELT)"], ["alternador", "Alternador"], ["partida", "Motor de partida"], ["turbo", "Turbo"], ["inyeccion", "Inyectores / bomba de inyección"], ["combustible", "Bomba y estanque de combustible"], ["agua", "Bomba de agua"], ["aire", "Aire acondicionado / compresor"], ["cilindros", "Cilindros hidráulicos"], ["valvulas", "Válvulas / acumuladores / mandos"], ["mangueras", "Mangueras y cañerías"], ["enfriamiento", "Radiador / enfriamiento"], ["bombas", "Bombas hidráulicas"], ["frenos", "Frenos"], ["tren", "Tren de fuerza (transmisión, diferencial, mandos finales)"], ["motor", "Motor (partes) y amortiguador"], ["suspension", "Suspensión y dirección"], ["cabina", "Cabina y asiento"], ["electrico", "Sistema eléctrico / electrónico"], ["estructura", "Estructura (tolva, bastidor, pasadores)"], ["engrase", "Sistema de engrase"], ["aro", "Aros y llantas"]];
+const TBO_FUERA=[["rodado", "Tren de rodado (cadenas, zapatas, rodillos)"], ["desgaste", "Desgaste de balde / hoja (dientes, planchas)"], ["lubricantes", "Filtros, aceites y lubricantes"], ["menores", "Sellos, rodamientos y fijaciones (pernos, tuercas)"], ["servicios", "Servicios (montaje, desmontaje, reparación)"], ["otros", "Otros (sin clasificar)"]];
+// [familia, ítem (inglés, como en el Excel), TBO de aplicación en horas] por clase de equipo
+const TBO_ITEMS={"camion":[["correas","V-BELT",2000],["alternador","ALTERNATOR",8000],["inyeccion","FUEL INJECTOR",8000],["inyeccion","FUEL PIPING CLAMP & CAP",8000],["mangueras","SAFETY RELATED HOSES- 30%",8000],["partida","STARTING MOTOR",8000],["turbo","TURBOCHARGER (L)",8000],["turbo","TURBOCHARGER (R)",8000],["agua","WATER PUMP",8000],["aire","AIR CONDITIONING SYSTEM",8000],["mangueras","SAFETY RELATED HOSES- 100%",12000],["mangueras","ACCUMULATOR PIPING",12000],["mangueras","AUTO SUSPENSION PIPING",12000],["mangueras","BRAKE COOLING OIL LINE",12000],["mangueras","BRAKE PIPING",12000],["mangueras","BRAKE PIPING (ABS)",12000],["mangueras","HYD TANK & VALVE & PIPING",12000],["bombas","PUMP ASSY- BRAKE COOLING FRONT",12000],["bombas","PUMP ASSY- BRAKE COOLING REAR",12000],["bombas","PUMP- STEERING",12000],["cabina","CABIN & INTERNAL",16000],["valvulas","CONTROL-PEDAL,LINKAGE",16000],["enfriamiento","COOLING SYS-RADIATOR, ETC",16000],["enfriamiento","COOLING SYSTEM",16000],["mangueras","COOLING SYSTEM PIPING",16000],["motor","DAMPER",16000],["estructura","DUMP BODY",16000],["electrico","ELECTRICAL SYSTEM",16000],["combustible","FUEL PUMP ASSY (L-R)",16000],["motor","ENGINE ASSY",16000],["motor","ENGINE RELATED PARTS",16000],["tren","FINAL DRIVE ASSY-REAR",16000],["frenos","FRONT AXLE BRAKE (L)",16000],["frenos","FRONT AXLE BRAKE (R)",16000],["tren","FRONT DRIVE SHAFT",16000],["suspension","FRONT SUSPENSION ASSY (L)",16000],["suspension","FRONT SUSPENSION ASSY (R)",16000],["combustible","FUEL TANK & RELATED PARTS",16000],["cilindros","HOIST CYLINDER",16000],["bombas","HYD PUMP- EMERGENCY S/T",16000],["bombas","HYD PUMP-T/C & T/M",16000],["estructura","MAIN FRAME & HITCH FRAME",16000],["bombas","PUMP ASSY-BRAKE COOLING",16000],["mangueras","RADIATOR PIPING",16000],["tren","REAR AXLE HOUSING",16000],["tren","REAR DIFFERENTIAL",16000],["tren","REAR DRIVE SHAFT",16000],["frenos","REAR FINAL BRAKE",16000],["frenos","REAR FINAL BRAKE (ABS)",16000],["aro","RIM- FRONT",16000],["aro","RIM- REAR",16000],["suspension","STEERING COLUMN",16000],["cilindros","STEERING CYLINDER",16000],["suspension","SUSPENSION ASSY-REAR",16000],["tren","TORQUE CONVERTER",16000],["tren","TRANSMISSION ASSY",16000],["valvulas","WHEEL RIMS- FRONT LARGE VALVE",16000],["valvulas","WHEEL RIMS- REAR LARGE VALVE",16000]],"cargador":[["correas","V-BELT",2000],["alternador","ALTERNATOR-75A",8000],["inyeccion","FUEL INJECTOR",8000],["inyeccion","FUEL PIPING CLAMP & CAP",8000],["mangueras","RADIATOR PIPING",8000],["mangueras","SAFETY RELATED HOSES 30%",8000],["partida","STARTING MOTOR-11KW",8000],["turbo","TURBOCHARGER",8000],["agua","WATER PUMP",8000],["aire","AIR CONDITIONING SYSTEM",8000],["tren","AXLE FINAL DRIVE-REAR",16000],["bombas","BRAKE COOLING PUMP",16000],["tren","DIFFERENTIAL-FRONT",16000],["tren","DIFFERENTIAL-REAR",16000],["tren","DRIVE SHAFT",16000],["tren","FINAL DRIVE ASSY-FRONT",16000],["bombas","HYD COOLING PUMP",16000],["tren","REAR AXLE SUPPORT",16000],["estructura","SAFETY CRITICAL PARTS- NO4",16000],["enfriamiento","FAN MOTOR",16000],["frenos","TRANSFER & PARKING BREAKE",16000],["enfriamiento","FAN PUMP",16000],["valvulas","ACCUMULATOR- BRAKE",16000],["estructura","BOOM- BELLCRANK",16000],["valvulas","BRAKE CONTROL",16000],["frenos","BRAKE COOLING SYSTEM",16000],["cilindros","BUCKET CYLINDER",16000],["enfriamiento","COOLING SYSTEM",16000],["electrico","ELECTRICAL SYSTEM",16000],["frenos","EMERGENCY P BRAKE- COOLING",16000],["frenos","EMERGENCY PARKING BRAKE",16000],["suspension","EMERGENCY STEERING",16000],["motor","ENGINE ASSY",16000],["motor","ENGINE RELATED PARTS",16000],["tren","TORQUE CONVERTER",16000],["tren","TRANSMISSION ASSY",16000],["estructura","FRAME-FRONT-REAR",16000],["inyeccion","FUEL INJECTION PUMP",16000],["combustible","FUEL TANK & PIPING",16000],["estructura","HINGE PIN",16000],["mangueras","HOSE & PIPES-COOLING",16000],["mangueras","HOSE & PIPES-EMER. STG",16000],["mangueras","HOSE & PIPES-PUMP DRAIN",16000],["mangueras","HOSE & PIPES-PUMP SUCTION",16000],["mangueras","HOSE & PIPES-STEERING",16000],["valvulas","HYD CONTROL VALVE- 3SPOOL",16000],["mangueras","HYD TANK & PIPING",16000],["valvulas","JOY STICK- STEERING SYSTEM",16000],["cilindros","LIFT CYLINDER (L)",16000],["cilindros","LIFT CYLINDER (R)",16000],["valvulas","MAIN VALVE- 2SPOOL",16000],["mangueras","PIPING- ACCUMULATOR",16000],["cilindros","PIPING- BUCKET CYLINDER",16000],["mangueras","PIPING- DELIVERY (3SPOOL)",16000],["mangueras","PIPING- DELIVERY (COOLING)",16000],["cilindros","PIPING- LIFT CYLINDER",16000],["mangueras","PIPING- PPC LINE (3SPOOL)",16000],["mangueras","PIPING- RETURN",16000],["mangueras","PIPING-FAN DRIVE",16000],["mangueras","PIPING-PPC LINE",16000],["bombas","PPC PUMP",16000],["bombas","PPC PUMP- BRAKE COOLING",16000],["bombas","PUMP-EMERGENCY STEERING",16000],["bombas","PUMP-LOADER",16000],["bombas","PUMP-STEERING",16000],["enfriamiento","RADIATOR",16000],["engrase","REMOTE GREASE SYSTEM",16000],["valvulas","S/T & T/M CONTROL",16000],["cilindros","STEERING CYLINDERS (L)",16000],["cilindros","STEERING CYLINDERS (R)",16000],["aro","WHEEL RIM",16000]],"bulldozer":[["correas","V-BELT",2000],["alternador","ALTERNATOR-75A",8000],["inyeccion","FUEL PIPING CLAMP & CAP",8000],["partida","STARTING MOTOR-11KW",8000],["turbo","TURBOCHARGER",8000],["agua","WATER PUMP",8000],["inyeccion","FUEL INJECTOR",8000],["aire","AIR CONDITIONING SYSTEM",8000],["mangueras","SAFETY RELATED HOSES- 30%",8000],["cilindros","BLADE LIFT CYLINDER",16000],["cilindros","BLADE TILT CYLINDER",16000],["cilindros","RIPPER LIFT CYLINDER",16000],["cilindros","RIPPER PIN PULLER CYLINDER",16000],["cilindros","RIPPER TILT CYLINDER",16000],["valvulas","CONTROL VALVE",16000],["cilindros","CYLINDER YOKE",16000],["electrico","ELECTRICAL SYSTEM",16000],["suspension","EQUALIZER BAR",16000],["enfriamiento","FAN MOTOR",16000],["enfriamiento","FAN PUMP",16000],["inyeccion","FUEL INJECTION PUMP",16000],["mangueras","SAFETY RELATED HOSES- 100%",16000],["enfriamiento","COOLING SYSTEM",16000],["mangueras","COOLING SYSTEM PIPING",16000],["combustible","FUEL TANK PIPING",16000],["enfriamiento","RADIATOR",16000],["mangueras","RADIATOR PIPING",16000],["bombas","HSS PUMP ASSY",16000],["bombas","HST MOTOR",16000],["mangueras","HYD PIPING- BLADE TILT (DUAL)",16000],["mangueras","HYD PIPING- FAN DRIVE",16000],["mangueras","HYD PIPING-BLADE LIFT",16000],["mangueras","HYD PIPING-BLADE TILT",16000],["mangueras","HYD PIPING-DELIVERY",16000],["mangueras","HYD PIPING-DRAIN",16000],["mangueras","HYD PIPING-PIN PULLER GR",16000],["mangueras","HYD PIPING-PIN PULLER MR",16000],["mangueras","HYD PIPING-RIPPER",16000],["mangueras","HYD PIPING-SUCTION",16000],["estructura","HYDRAULIC TANK",16000],["estructura","MAIN FRAME",16000],["cabina","OPERATOR CAB",16000],["estructura","PIVOT SHAFT",16000],["mangueras","POWER LINE PIPING",16000],["mangueras","POWER LINE PIPING-CONCENTRRATED",16000],["bombas","PUMP ASSY-POWER LINE",16000],["bombas","PUMP ASSY-SCAVENGING",16000],["motor","DAMPER",16000],["motor","ENGINE",16000],["motor","ENGINE MOUNT",16000],["tren","FINAL DRIVE (L)",16000],["tren","FINAL DRIVE (R)",16000],["tren","POWER TAKE OFF",16000],["suspension","STEERING SYSTEM",16000],["tren","TORQUE CONVERTER",16000],["tren","TRANSMISSION",16000],["tren","UNIVERSAL JOINT",16000]]};
+// Reglas de clasificación de una línea de compra (orden = prioridad, gana la primera que calce)
+const TBO_REGLAS_COMPRA=[["rodado", "cadena|zapata|rodillo|rueda gu|sprocket|idle?a?r|eslab[oó]n|tensora|rueda motriz"], ["desgaste", "entrediente|diente|segmento|cuchilla|cant[oó]n|half arrow|labio|plancha|perno cuch|u[ñn]a "], ["lubricantes", "filtro|delvac|litros?($|[^a-z])|grasa|lubric|refrigerante|coolant"], ["correas", "correa"], ["alternador", "alternador"], ["partida", "motor.{0,6}partida|motor de arranque|starter"], ["turbo", "turbo"], ["inyeccion", "inyector|bomba.{0,6}inyec"], ["combustible", "bomba.{0,6}combust|(estanque|tanque).{0,6}combust"], ["agua", "bomba.{0,6}agua"], ["aire", "compresor|condensador|evaporador|blower|secador|a/c|aire acond"], ["cilindros", "cilindro|v[aá]stago|vastago"], ["valvulas", "v[aá]lvula|valve|orbitrol|acumulador|joystick"], ["mangueras", "flexible|manguera|hose|ca[ñn]er[ií]a|tuber[ií]a|acople|racor"], ["enfriamiento", "radiador|aftercooler|intercooler|oil cooler|enfriador|termostato|ventilador"], ["bombas", "bomba"], ["frenos", "freno|brake"], ["tren", "transmis|convertidor|diferencial|mando final|reductor|corona|pe[ñn][oó]n|card[aá]n|cruceta|junta universal"], ["motor", "culata|pist[oó]n|camisa|cigue[ñn]al|empaquet|cojinete|biela de motor|polea|tensor|motor diesel|damper|amortiguador de"], ["suspension", "suspensi|amortigu|barra estab|r[oó]tula|terminal de direcc|direcci[oó]n"], ["cabina", "cabina|asiento|puerta|vidrio|parabrisas|espejo"], ["electrico", "bater[ií]a|sensor|arn[eé]s|rel[eé]|fusible|foco|alarma|radio|antena|gps|c[aá]mara|interruptor|cable"], ["estructura", "tolva|balde|bastidor|chasis|pasador|buje|bocina|bisagra"], ["engrase", "engrase|grasera"], ["aro", "(^|[^a-z])aros?($|[^a-z])|llanta|(^|[^a-z])rim($|[^a-z])"], ["menores", "rodamiento|sello|perno|tuerca|golilla|codo|guia bronce|retenedor|o-?ring|abrazadera|punta ripper|protecci[oó]n|seat belt"], ["lubricantes", "aceite"], ["servicios", "servicio|montaje|desmontaje|reparaci|perforaci|traslado|instalaci"]];
+// [N° de parte, descripción, grupo, cantidad por equipo, precio unitario neto USD] — hoja 'Sugerido' (HD785-7)
+const TBO_SUGERIDO=[["04120-21951", "Correa Alternador", "Motor", 2, 57.4], ["6215-61-3690", "Correas ventilador", "Motor", 2, 402.31], ["04121-21748", "Correa A/C", "AC", 2, 84.32], ["56E-07-21133", "Condensador", "AC", 1, 1084.96], ["423-S62-4330", "Compresor AC", "AC", 1, 787.2], ["707-00-0G704", "Cilindro dirección", "Cilindro", 2, 8672.37], ["721-32-10C50", "Acumuladores freno", "Hidráulico", 3, 5508.26], ["709-91-12600", "Válvula levante", "Hidráulico", 1, 5482.02], ["721-32-10C40", "Acumuladores freno", "Hidráulico", 4, 5690.56], ["702-21-01502", "Válvula dirección", "Hidráulico", 1, 6048.41], ["561-40-84301", "Orbitrol", "Hidráulico", 1, 7731.19], ["AN51532-41240", "Termostato", "Motor", 5, 101.52], ["6245-11-3100", "Inyectores", "Motor", 6, 848.66], ["6240-61-1106", "Bomba de agua", "Motor", 1, 1675.34], ["6240-51-1100", "Bomba de aceite", "Motor", 1, 1424.49], ["600-861-9122", "Alternador", "Motor", 1, 2192.14], ["6219-51-1000", "Bomba de aceite", "Motor", 1, 2040.93], ["600-813-9911", "Motor de partida", "Motor", 2, 3667.43], ["6505-67-5040", "Turbo LH", "Motor", 1, 8002.71], ["6505-67-5030", "Turbo RH", "Motor", 1, 8002.71], ["6219-71-1101", "Bomba combustible LH", "Motor", 1, 6944.37], ["6219-71-1201", "Bomba combustible RH", "Motor", 1, 6944.37], ["561-03-81280", "Oil cooler (dirección y levante)", "Radiador", 1, 1715.89], ["561-03-81654", "Radiador core", "Radiador", 1, 4869.55], ["561-03-81634", "Radiador core", "Radiador", 2, 6028.47], ["561-03-81644", "Radiador core", "Radiador", 1, 6010.18], ["561-03-81660", "Aftercooler", "Radiador", 2, 9681.43]];
+var _TBO_RX=null;
+function _tboRegex(){
+  if(!_TBO_RX)_TBO_RX=TBO_REGLAS_COMPRA.map(function(r){return{id:r[0],rx:new RegExp(r[1],'i')};});
+  return _TBO_RX;
+}
+// Normaliza un N° de parte para compararlo: sin guiones/espacios/puntos, en mayúsculas.
+function tboNormalizarPN(s){return String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,'');}
+// Clase de equipo del plan TBO según el modelo. exacto=false cuando el modelo del Excel es el más cercano
+// pero no idéntico (ej. D65EX-18E0 de la flota vs D65EX-16 del Excel). null = sin plan TBO (ej. Doosan, Ford, GD-705).
+function tboClaseModelo(modelo){
+  var m=String(modelo||'').toUpperCase();
+  if(/HD[- ]?785/.test(m))return{clase:'camion',modeloExcel:'HD785-7',exacto:true};
+  if(/WA ?900/.test(m))return{clase:'cargador',modeloExcel:'WA900-8R',exacto:true};
+  if(/D ?375A/.test(m))return{clase:'bulldozer',modeloExcel:'D375A-6R',exacto:true};
+  if(/D ?65EX/.test(m))return{clase:'bulldozer',modeloExcel:'D65EX-16',exacto:/D ?65EX-?16(?![0-9A-Z])/.test(m)};
+  return null;
+}
+// Familia de una línea de compra. enTBO=false → gasto que el plan del fabricante no cubre (desgaste, rodado,
+// lubricantes, fijaciones, servicios…). Primera regla que calce gana; sin calce: 'servicios' si el tipo es
+// Servicio, si no 'otros'.
+function tboFamiliaDeCompra(detalle,tipo){
+  var t=String(detalle==null?'':detalle),rs=_tboRegex();
+  for(var i=0;i<rs.length;i++){if(rs[i].rx.test(t)){var id=rs[i].id;return{id:id,enTBO:!TBO_FUERA.some(function(f){return f[0]===id;})};}}
+  return{id:String(tipo||'')==='Servicio'?'servicios':'otros',enTBO:false};
+}
+function _tboProvOriginal(p){return /^\s*komatsu/i.test(String(p||''));}
+// Une ordenes_compra_historico (tiene 'tipo') con compras_detalle (no lo tiene) SIN duplicar: casi todo el
+// histórico está en las dos tablas (clave pedido+sigla+detalle+costo, gana el histórico). De compras_detalle
+// solo cuentan las OC ya firmadas o recibidas (las 'por firmar' todavía no son gasto). Filtra costo>0 y, si
+// hay tipo, solo Repuesto/Servicio.
+function tboUnirCompras(ocHist,comprasDetalle){
+  var vistas={},out=[];
+  function k(o){return [o.pedido,o.sigla,o.detalle,Number(o.costo)||0].join('|');}
+  (ocHist||[]).forEach(function(o){if(!o)return;vistas[k(o)]=1;out.push(o);});
+  (comprasDetalle||[]).forEach(function(o){
+    if(!o||vistas[k(o)])return;
+    var st=String(o.estado||'');
+    if(st!=='OC Firmada'&&st!=='Recepcion Bodega')return;
+    out.push(o);
+  });
+  return out.filter(function(o){
+    if(!((Number(o.costo)||0)>0))return false;
+    return !o.tipo||o.tipo==='Repuesto'||o.tipo==='Servicio';
+  });
+}
+// Cruza compras con el plan TBO. equipos: [{sigla,modelo,...}]; solo cuenta compras de esas siglas (y de
+// 'siglas' si se pasa, para filtrar por equipo). Devuelve gasto por familia (total / original Komatsu / otros
+// proveedores / por equipo) y el total fuera del plan.
+function tboCruzarCompras(compras,equipos,siglas){
+  var sigSet={};(equipos||[]).forEach(function(e){if(e&&e.sigla&&(!siglas||siglas.indexOf(e.sigla)>=0))sigSet[e.sigla]=1;});
+  var fam={},tot={lineas:0,gasto:0,gastoTBO:0,gastoOriginal:0};
+  (compras||[]).forEach(function(o){
+    if(!o||!sigSet[o.sigla])return;
+    var costo=Number(o.costo)||0;if(!(costo>0))return;
+    var f=tboFamiliaDeCompra(o.detalle,o.tipo),orig=_tboProvOriginal(o.proveedor);
+    var r=fam[f.id]||(fam[f.id]={id:f.id,enTBO:f.enTBO,lineas:0,gasto:0,gastoOriginal:0,gastoOtros:0,porEquipo:{},proveedores:{}});
+    r.lineas++;r.gasto+=costo;if(orig)r.gastoOriginal+=costo;else r.gastoOtros+=costo;
+    r.porEquipo[o.sigla]=(r.porEquipo[o.sigla]||0)+costo;
+    var pv=String(o.proveedor||'(sin proveedor)').trim();r.proveedores[pv]=(r.proveedores[pv]||0)+costo;
+    tot.lineas++;tot.gasto+=costo;if(f.enTBO)tot.gastoTBO+=costo;if(orig)tot.gastoOriginal+=costo;
+  });
+  return{familias:fam,totales:tot};
+}
+// TBO de referencia (horas) de una familia para una clase de equipo: {min,max,items:[[item,tbo],..]} o null.
+function tboFamiliaDeClase(clase,famId){
+  var its=(TBO_ITEMS[clase]||[]).filter(function(r){return r[0]===famId;});
+  if(!its.length)return null;
+  var ts=its.map(function(r){return r[2];});
+  return{min:Math.min.apply(null,ts),max:Math.max.apply(null,ts),items:its.map(function(r){return[r[1],r[2]];})};
+}
+// Plan TBO de un equipo con su horómetro vivo: por ítem, cuántos cambios "debería" llevar (piso(h/TBO)),
+// horómetro y horas hasta el próximo, y fecha estimada (con hrsDia del equipo; sin dato, 10 h/día = 300 h/mes
+// como el Excel). TEÓRICO: no sabe si el cambio se hizo.
+function tboPlanEquipo(eq,hoy){
+  var cl=tboClaseModelo(eq&&eq.modelo);if(!cl)return null;
+  var h=Number(eq.horomActual)||0,hd=Number(eq.hrsDia)>0?Number(eq.hrsDia):10;
+  var base=hoy instanceof Date?hoy:new Date(hoy||Date.now());
+  var items=(TBO_ITEMS[cl.clase]||[]).map(function(r){
+    var tbo=r[2],n=Math.floor(h/tbo),prox=(n+1)*tbo,rest=prox-h;
+    var f=new Date(base.getTime()+Math.round(rest/hd)*86400000);
+    return{fam:r[0],item:r[1],tbo:tbo,cambiosTeoricos:n,proximoH:prox,restantesH:rest,fechaProx:f.toISOString().slice(0,10)};
+  });
+  return{clase:cl.clase,modeloExcel:cl.modeloExcel,exacto:cl.exacto,horometro:h,hrsDia:hd,items:items};
+}
+// Precios del listado "Sugerido" (USD) frente a lo realmente pagado: por N° de parte, última compra (por
+// N° completo, o por los primeros 9 caracteres cuando el texto del pedido viene cortado a ~25) y cuántas hay.
+function tboCruzarSugerido(compras,tasa){
+  var rate=Number(tasa)>0?Number(tasa):0;
+  var norm=(compras||[]).map(function(o){return{d:tboNormalizarPN(o.detalle),o:o};});
+  return TBO_SUGERIDO.map(function(s){
+    var pn=tboNormalizarPN(s[0]),pre=pn.slice(0,9),ex=[],pa=[];
+    norm.forEach(function(x){
+      if(x.d.indexOf(pn)>=0)ex.push(x.o);else if(pre.length>=9&&x.d.indexOf(pre)>=0)pa.push(x.o);
+    });
+    var usa=ex.length?ex:pa,exacto=ex.length>0;
+    usa=usa.slice().sort(function(a,b){return String(a.fecha||'')<String(b.fecha||'')?-1:1;});
+    var ult=usa.length?usa[usa.length-1]:null;
+    var pus=usa.map(function(o){return Number(o.precioUnit)||((Number(o.costo)||0)/(Number(o.cant)||1));}).filter(function(v){return v>1;}).sort(function(a,b){return a-b;});
+    return{pn:s[0],desc:s[1],grupo:s[2],cant:s[3],usd:s[4],clpRef:rate?Math.round(s[4]*rate):null,
+      nCompras:usa.length,exacto:exacto,ultFecha:ult?ult.fecha:null,ultPrecio:ult?(Number(ult.precioUnit)||null):null,ultProveedor:ult?ult.proveedor:null,
+      medianaClp:pus.length?pus[Math.floor(pus.length/2)]:null};
+  });
+}
+
+
+// ── TBO: cambios reales, tiempo que falta, vida por origen y precios por ítem ──
+// Nombre de componente del Historial/Componentes Mayores → [ítem del TBO (regex, en inglés), familia de compra].
+// Solo los que se corresponden 1 a 1 (un "Alternador" del historial ES el ítem ALTERNATOR del plan).
+const TBO_COMP_MAP=[
+  [/^turbo/i,/^TURBOCHARGER/,'turbo'],[/^alternador/i,/^ALTERNATOR/,'alternador'],[/motor de partida/i,/^STARTING MOTOR/,'partida'],
+  [/bomba de combustible/i,/^FUEL (INJECTION )?PUMP/,'combustible'],[/aire acondicionado/i,/^AIR CONDITIONING/,'aire'],
+  [/^correas?/i,/^V-BELT/,'correas'],[/cilindro de direcci/i,/STEERING CYLINDER/,'cilindros'],
+  [/diferencial/i,/DIFFERENTIAL/,'tren'],[/transmisi/i,/^TRANSMISSION/,'tren'],[/convertidor/i,/TORQUE CONVERTER/,'tren'],
+  [/mandos? finales?/i,/FINAL DRIVE/,'tren'],[/^motor$/i,/^ENGINE( ASSY)?$/,'motor'],[/suspensi[oó]n/i,/SUSPENSION ASSY/,'suspension'],
+  [/^radiador/i,/^RADIATOR$/,'enfriamiento'],[/^tolva$/i,/^DUMP BODY/,'estructura'],[/engrase/i,/GREASE/,'engrase']
+];
+function tboCompMap(comp){var c=String(comp||'');for(var i=0;i<TBO_COMP_MAP.length;i++){if(TBO_COMP_MAP[i][0].test(c))return TBO_COMP_MAP[i];}return null;}
+// Origen del repuesto: 'original' (Komatsu / nuevo de fábrica), 'alternativo' (alternativo, reparado, reacondicionado,
+// usado, o un taller/proveedor distinto de Komatsu) o '' (sin dato).
+function tboClasificarOrigen(o){
+  var t=String(o==null?'':o).trim();if(!t)return'';
+  if(/komatsu|original/i.test(t))return'original';
+  return'alternativo';
+}
+// Origen inferido por la compra: proveedor Komatsu = original, otro = alternativo. Busca la compra de esa familia
+// del MISMO equipo más cercana a la fecha del cambio (45 días antes a 15 después).
+function tboOrigenPorCompra(sigla,fechaInst,famCompra,compras){
+  if(!sigla||!fechaInst||!famCompra)return'';
+  var t=Date.parse(fechaInst);if(isNaN(t))return'';
+  var mejor=null,dm=Infinity;
+  (compras||[]).forEach(function(o){
+    if(!o||o.sigla!==sigla)return;
+    var tf=Date.parse(o.fecha);if(isNaN(tf))return;
+    var d=(tf-t)/86400000;if(d<-45||d>15)return;
+    if(tboFamiliaDeCompra(o.detalle,o.tipo).id!==famCompra)return;
+    if(Math.abs(d)<dm){dm=Math.abs(d);mejor=o;}
+  });
+  return mejor?(_tboProvOriginal(mejor.proveedor)?'original':'alternativo'):'';
+}
+// Último cambio conocido de cada ítem del plan para un equipo, desde el Historial de Componentes (eventos reales con
+// horómetro) y Componentes Mayores (instalación actual / "original de fábrica"). Devuelve función item→{horom,fecha,
+// origen,fuente} o null si no hay dato.
+function tboUltimoCambioFn(sigla,horomActual,compHist,compMayores){
+  var evs=[];
+  (compHist||[]).forEach(function(r){
+    if(!r||r.sigla!==sigla)return;var m=tboCompMap(r.comp);if(!m)return;
+    var h=parseFloat(r.horomInstalacion);if(isNaN(h)||h>horomActual)return;
+    evs.push({rx:m[1],horom:h,fecha:r.fechaInst||null,origen:tboClasificarOrigen(r.origen),fuente:'cambio registrado'});
+  });
+  (compMayores||[]).forEach(function(c){
+    if(!c||c.sigla!==sigla)return;var m=tboCompMap(c.comp);if(!m)return;
+    if(c.esOriginal)evs.push({rx:m[1],horom:0,fecha:null,origen:'original',fuente:'original de fábrica'});
+    else{var h=parseFloat(c.horomComp);if(!isNaN(h)&&h<=horomActual)evs.push({rx:m[1],horom:h,fecha:c.fechaInst||null,origen:'',fuente:'cambio registrado'});}
+  });
+  return function(item){
+    var best=null;
+    evs.forEach(function(e){if(e.rx.test(item)&&(!best||e.horom>best.horom))best=e;});
+    return best;
+  };
+}
+// Estado de TODOS los ítems del plan de TODOS los equipos con plan TBO. Con último cambio conocido:
+// desde = horómetro − horómetro del cambio; faltan = TBO − desde (puede ser negativo = vencido). Sin dato: se usa el
+// plan teórico del Excel (próximo múltiplo del TBO) y nunca se declara "vencido" (no sabemos si se hizo).
+// nivel: vencido / planificar (<1.000 h; teórico: <500) / monitorear (<2.000; teórico: <1.000) / ok.
+function tboEstadoFlota(equipos,compHist,compMayores,hoy){
+  var out=[];
+  (equipos||[]).forEach(function(e){
+    var plan=tboPlanEquipo(e,hoy);if(!plan)return;
+    var ult=tboUltimoCambioFn(e.sigla,plan.horometro,compHist,compMayores);
+    var hd=Number(e.hrsDia)>0?Number(e.hrsDia):12;
+    var base=hoy instanceof Date?hoy:new Date(hoy||Date.now());
+    plan.items.forEach(function(it){
+      var u=ult(it.item),conDato=!!u,rest,desde,fuente,origen='',fecha=null,refH=null;
+      if(conDato){refH=u.horom;desde=plan.horometro-u.horom;rest=it.tbo-desde;fuente=u.fuente;origen=u.origen;fecha=u.fecha;}
+      else{desde=plan.horometro-(it.proximoH-it.tbo);rest=it.restantesH;fuente='plan teórico';}
+      var nivel=conDato?(rest<=0?'vencido':rest<1000?'planificar':rest<2000?'monitorear':'ok'):(rest<500?'planificar':rest<1000?'monitorear':'ok');
+      var dias=Math.round(rest/hd);
+      out.push({sigla:e.sigla,modelo:e.modelo,clase:plan.clase,fam:it.fam,item:it.item,tbo:it.tbo,horometro:plan.horometro,refH:refH,desdeH:Math.max(desde,0),
+        restantesH:rest,dias:dias,fechaProx:new Date(base.getTime()+dias*86400000).toISOString().slice(0,10),fuente:fuente,conDato:conDato,origenUlt:origen,fechaUlt:fecha,nivel:nivel});
+    });
+  });
+  return out;
+}
+function tboResumenAlertas(estado){
+  var r={vencidos:0,planificar:0,monitorear:0,total:(estado||[]).length,conDato:0};
+  (estado||[]).forEach(function(x){if(x.conDato)r.conDato++;if(x.nivel==='vencido')r.vencidos++;else if(x.nivel==='planificar')r.planificar++;else if(x.nivel==='monitorear')r.monitorear++;});
+  return r;
+}
+// Cuánto duró cada instalación REAL (horas de horómetro hasta el siguiente cambio del mismo componente en el mismo
+// equipo), agrupado por componente y origen (original / alternativo / sin dato), comparado con el TBO de Komatsu.
+// El origen sale del campo 'origen' del historial; si está vacío se infiere por la compra del mismo equipo (proveedor).
+function tboVidaPorOrigen(compHist,compras){
+  var porClave={};
+  (compHist||[]).forEach(function(r){
+    if(!r||!r.sigla||!r.comp)return;var h=parseFloat(r.horomInstalacion);if(isNaN(h))return;
+    (porClave[r.sigla+'|'+r.comp]=porClave[r.sigla+'|'+r.comp]||[]).push({r:r,h:h});
+  });
+  var grupos={};
+  Object.keys(porClave).forEach(function(k){
+    var arr=porClave[k].sort(function(a,b){return a.h-b.h;});
+    for(var i=0;i<arr.length-1;i++){
+      var dur=arr[i+1].h-arr[i].h;if(!(dur>0))continue;
+      var ev=arr[i].r,m=tboCompMap(ev.comp),origen=tboClasificarOrigen(ev.origen),inferido=false;
+      if(!origen&&m){origen=tboOrigenPorCompra(ev.sigla,ev.fechaInst,m[2],compras);inferido=!!origen;}
+      var g=(grupos[ev.comp+'|'+(origen||'sin dato')]=grupos[ev.comp+'|'+(origen||'sin dato')]||{comp:ev.comp,origen:origen||'sin dato',vals:[],inferidos:0});
+      g.vals.push(dur);if(inferido)g.inferidos++;
+    }
+  });
+  return Object.keys(grupos).map(function(k){
+    var g=grupos[k],v=g.vals.slice().sort(function(a,b){return a-b;}),n=v.length;
+    var med=n%2?v[(n-1)/2]:(v[n/2-1]+v[n/2])/2,m=tboCompMap(g.comp),tbos=[];
+    if(m){['camion','cargador','bulldozer'].forEach(function(c){(TBO_ITEMS[c]||[]).forEach(function(it){if(m[1].test(it[1])&&tbos.indexOf(it[2])<0)tbos.push(it[2]);});});}
+    var tbo=tbos.length?{min:Math.min.apply(null,tbos),max:Math.max.apply(null,tbos)}:null;
+    return{comp:g.comp,origen:g.origen,n:n,mediana:Math.round(med),promedio:Math.round(v.reduce(function(s,x){return s+x;},0)/n),min:v[0],max:v[n-1],inferidos:g.inferidos,
+      tbo:tbo,pctTBO:tbo&&tbo.min===tbo.max?Math.round(100*med/tbo.min):null};
+  }).sort(function(a,b){return a.comp<b.comp?-1:a.comp>b.comp?1:(a.origen<b.origen?-1:1);});
+}
+// Qué buscar en las compras para ponerle precio a cada ítem del plan (regex del ítem en inglés → regex de la descripción).
+const TBO_PRECIO_RX=[
+  [/^V-BELT/,/correa/],[/^ALTERNATOR/,/alternador/],[/^STARTING MOTOR/,/motor.{0,6}partida|motor de arranque/],[/^TURBOCHARGER/,/turbo/],
+  [/FUEL INJECTOR/,/inyector/],[/FUEL (INJECTION )?PUMP/,/bomba.{0,6}(combust|inyec)/],[/^WATER PUMP/,/bomba.{0,6}agua/],
+  [/^AIR CONDITIONING/,/compresor|condensador|evaporador|blower/],[/^RADIATOR$|COOLING SYS-RADIATOR|^COOLING SYSTEM$/,/radiador|aftercooler/],
+  [/STEERING CYLINDER/,/cilindro.{0,10}direcc/],[/LIFT CYLINDER|HOIST CYLINDER/,/cilindro.{0,10}(levante|elevac|izaje|volteo)/],
+  [/BUCKET CYLINDER|TILT CYLINDER/,/cilindro.{0,10}(balde|volteo|inclin)/],[/TORQUE CONVERTER/,/convertidor/],[/^TRANSMISSION/,/transmisi/],
+  [/DIFFERENTIAL/,/diferencial/],[/FINAL DRIVE/,/mando final/],[/^ENGINE ASSY$|^ENGINE$/,/motor diesel|motor complet|ensamble motor/],
+  [/^DUMP BODY/,/tolva/],[/WHEEL RIM|^RIM-/,/(^|[^a-z])aros?($|[^a-z])|llanta/],[/ACCUMULATOR- BRAKE/,/acumulador/],
+  [/CONTROL VALVE|MAIN VALVE/,/v[aá]lvula/],[/JOY ?STICK/,/joystick/],[/FAN MOTOR/,/motor.{0,6}ventilador/],
+  [/SUSPENSION ASSY/,/suspensi/],[/EQUALIZER BAR/,/barra.{0,6}(equalizadora|ecualizadora)/],[/HINGE PIN|PIVOT SHAFT/,/pasador/],
+  [/^DAMPER/,/damper|amortiguador de/],[/PUMP-STEERING|PUMP- STEERING/,/bomba.{0,10}direcc/],
+  [/HYD PUMP|PUMP-LOADER|PPC PUMP|BRAKE COOLING PUMP|PUMP ASSY/,/bomba.{0,10}(hidr|freno|levante|ventilador|pilot)/],
+  [/SAFETY RELATED HOSES/,/flexible|manguera/]
+];
+// Listado "Sugerido" (USD): ítem del plan (camión HD785-7) → N° de parte del repuesto principal.
+const TBO_SUG_PN=[[/^V-BELT/,'6215-61-3690'],[/^ALTERNATOR/,'600-861-9122'],[/^STARTING MOTOR/,'600-813-9911'],[/^TURBOCHARGER \(L\)/,'6505-67-5040'],
+  [/^TURBOCHARGER \(R\)/,'6505-67-5030'],[/FUEL INJECTOR/,'6245-11-3100'],[/^WATER PUMP/,'6240-61-1106'],[/^AIR CONDITIONING/,'423-S62-4330'],
+  [/^FUEL PUMP ASSY/,'6219-71-1101'],[/STEERING CYLINDER/,'707-00-0G704'],[/COOLING SYS-RADIATOR/,'561-03-81654']];
+// Precio por ítem: (a) listado Sugerido en USD (solo camión HD785-7), (b) lo realmente pagado por repuestos de ese tipo en
+// los equipos de la misma clase, separado en original (Komatsu) y otros proveedores (alternativos/reparados). Un ítem sin
+// regla o sin compras queda con n=0 — se muestra igual, "sin precio".
+function tboPrecioItem(item,clase,compras,siglasClase,tasa){
+  var out={usd:null,usdPN:null,clpRef:null,n:0,mediana:null,ultimo:null,fechaUlt:null,original:{n:0,mediana:null},otros:{n:0,mediana:null}};
+  if(clase==='camion'){
+    for(var i=0;i<TBO_SUG_PN.length;i++){if(TBO_SUG_PN[i][0].test(item)){
+      var s=TBO_SUGERIDO.filter(function(x){return x[0]===TBO_SUG_PN[i][1];})[0];
+      if(s){out.usd=s[4];out.usdPN=s[0];out.clpRef=Number(tasa)>0?Math.round(s[4]*Number(tasa)):null;}break;}}
+  }
+  var rx=null;for(var j=0;j<TBO_PRECIO_RX.length;j++){if(TBO_PRECIO_RX[j][0].test(item)){rx=new RegExp(TBO_PRECIO_RX[j][1].source,'i');break;}}
+  if(!rx)return out;
+  var sig={};(siglasClase||[]).forEach(function(s){sig[s]=1;});
+  var pus=[],po=[],pt=[],ult=null;
+  (compras||[]).forEach(function(o){
+    if(!o||!sig[o.sigla]||o.tipo==='Servicio'||!rx.test(String(o.detalle||'')))return;
+    if(tboFamiliaDeCompra(o.detalle,o.tipo).enTBO===false)return;
+    var pu=Number(o.precioUnit)||((Number(o.costo)||0)/(Number(o.cant)||1));if(!(pu>1000))return;
+    pus.push(pu);(_tboProvOriginal(o.proveedor)?po:pt).push(pu);
+    if(!ult||String(o.fecha||'')>String(ult.fecha||''))ult={fecha:o.fecha,pu:pu};
+  });
+  function med(a){if(!a.length)return null;a=a.slice().sort(function(x,y){return x-y;});var n=a.length;return Math.round(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2);}
+  out.n=pus.length;out.mediana=med(pus);out.original={n:po.length,mediana:med(po)};out.otros={n:pt.length,mediana:med(pt)};
+  if(ult){out.ultimo=Math.round(ult.pu);out.fechaUlt=ult.fecha;}
+  return out;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    TBO_COMP_MAP, tboCompMap, tboClasificarOrigen, tboOrigenPorCompra, tboUltimoCambioFn, tboEstadoFlota, tboResumenAlertas, tboVidaPorOrigen, TBO_PRECIO_RX, tboPrecioItem,
+    TBO_FAMILIAS, TBO_FUERA, TBO_ITEMS, TBO_REGLAS_COMPRA, TBO_SUGERIDO, tboNormalizarPN, tboClaseModelo, tboFamiliaDeCompra, tboUnirCompras, tboCruzarCompras, tboFamiliaDeClase, tboPlanEquipo, tboCruzarSugerido,
     clasificacionPendienteOT, resumenClasificacionOT, repararMojibake,
     sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
     C, fd, fn, escapeHtml, csvCeldaSegura,

@@ -6123,6 +6123,49 @@ que el aviso de costo). El panel de Calidad de Ejecución informa cuántas OT ti
 **Qué NO se hizo:** no se rellenó ningún Tipo de Causa ni Sistema vacío por inferencia (habría que clasificar a mano o con
 criterio de quien conoce el caso).
 
+### 110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)
+
+Pestaña **Componentes → TBO Komatsu** (módulo lazy `modules/renders/tbo.js`; toda la lógica pura en `logic.js`, funciones `tbo*`,
+41 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
+`docs/referencias/`. Se usaron TODAS sus hojas: Camiones/Cargadores/Bulldozers (58/71/57 ítems, TBO de aplicación 'Normal'),
+'Sugerido' (27 repuestos HD785-7 con N° de parte y precio en USD; la suma cantidad×unitario da USD 173.030,5, igual que el Excel)
+y las ocultas 'Application Guide' y 'Weibull' (guardadas en el original; no alimentan cálculos).
+
+**Hallazgo clave sobre el Excel.** Sus columnas "N° de cambios", "horas desde el cambio anterior" y "horas que quedan" son
+**teóricas**: `piso(horómetro ÷ TBO)` y `horómetro − múltiplo`. La única columna donde se anota el horómetro del último cambio real
+viene vacía en las 12 máquinas. Por eso: con un cambio registrado (Historial de Componentes, o Componentes Mayores con
+"original") el tiempo que falta es `TBO − (horómetro − horómetro del cambio)` y puede ser negativo (**vencido**); sin ese dato se usa
+el plan teórico (próximo múltiplo) y **nunca** se marca vencido. Umbrales como `compEstado`: <1.000 h planificar, <2.000 monitorear
+(teórico: <500 y <1.000). Días = horas ÷ `hrsDia` del equipo (sin dato, 12 como `compEstado`).
+
+**Cruce con las compras.** Los pedidos NO traen N° de parte y `detalle` viene cortado a ~25 caracteres, así que el cruce es por
+descripción: 28 reglas ordenadas (primera que calce gana; filtros/lubricantes y desgaste antes que los componentes, para que "filtro de
+aire" no sea aire acondicionado) agrupan cada línea en 22 familias del plan o en 6 conceptos **fuera del plan** (rodado, desgaste de
+balde, filtros/lubricantes, sellos/rodamientos/fijaciones, servicios, otros). Con los 35 equipos, ~21% del gasto cae dentro del plan
+TBO; el resto es desgaste, rodado y servicios. **Original = proveedor Komatsu Chile**; es una aproximación.
+
+**Ojo con duplicados.** `ordenes_compra_historico` y `compras_detalle` contienen casi las mismas líneas (clave pedido+sigla+detalle+
+costo): sumar las dos duplica el gasto. `tboUnirCompras` las une sin duplicar (gana el histórico, que trae `tipo`) y de
+`compras_detalle` solo toma OC firmadas o recibidas. (Código previo que concatena ambas — p. ej. el cruce de costo sugerido en
+Correctivos — queda como estaba: pendiente de revisar.)
+
+**Vida real por origen.** Duración = horómetro entre un cambio y el siguiente del mismo componente en el mismo equipo (historial
+con ~330 cambios de 40 tipos). El **Origen** (nuevo campo en el alta del Historial y columna editable; la columna ya existía en la
+base) solo estaba cargado en turbos; si está vacío se infiere por la compra del mismo equipo en la ventana −45/+15 días
+(`tboOrigenPorCompra`) y se marca como "inferido". Se compara con el TBO (% del TBO). Con pocos cambios por origen es indicio, no
+conclusión.
+
+**Precios.** Por ítem: lista Komatsu en USD (solo camión HD785-7, 11 ítems con N° de parte) valorizada con una tasa USD→CLP
+**referencial editable** (por defecto 910, la misma que ya usaba `importarRepuestosKomatsu`; se guarda en el navegador de cada
+usuario, no es dato compartido) y lo pagado por ~30 tipos de ítem en los equipos de la misma clase (mediana original vs otros).
+Los ítems sin regla o sin compras se muestran igual como "sin precio".
+
+**Aviso.** Tarjeta "⏱ Cambios TBO" en el Dashboard (vencidos + por cumplir) que lleva a la pestaña. No se agregó correo/push:
+queda pendiente decidir si el resumen semanal debe incluirlo.
+
+**Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
+aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

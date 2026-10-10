@@ -3136,6 +3136,15 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <b>Sistema</b> editable. El Tipo de Causa sigue siendo elección humana (nunca se infiere) pero ahora es visible: tarjeta
   <b>Sin Tipo de Causa</b>, filtro <b>Clasificación pendiente</b> y aviso no bloqueante al cerrar. 11 pruebas nuevas.</p>
 
+  <h3>110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)</h3>
+  <p>Nueva sub-pestaña <b>Componentes → TBO Komatsu</b> con todo el Excel de Komatsu (jun-2024). Sus "cambios que debería llevar"
+  son <b>teóricos</b> (horómetro ÷ TBO): con un cambio registrado el tiempo que falta se cuenta desde ese cambio (y puede quedar
+  vencido); sin él se usa el plan teórico y nunca se marca vencido. Cruza el plan con las compras reales por descripción (los pedidos
+  no traen N° de parte), separa <b>original (Komatsu) de alternativo</b>, mide cuánto dura cada cambio por origen contra el TBO y
+  pone precio por ítem (lista USD + lo pagado). <b>Ojo:</b> <code>ordenes_compra_historico</code> y <code>compras_detalle</code> se
+  repiten casi por completo, sumarlas duplica el gasto (<code>tboUnirCompras</code> las une sin duplicar). El Historial de
+  Componentes ahora guarda el <b>Origen</b> de cada cambio. Tarjeta "Cambios TBO" en el Dashboard.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

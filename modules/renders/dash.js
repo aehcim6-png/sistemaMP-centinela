@@ -346,6 +346,10 @@ export function renderDash(){
   // comentario) y que lee resumen-semanal. Solo lectura del dato ya
   // calculado y guardado — no se recalcula el Índice de Riesgo acá.
   var compRiesgoAlto=compMayoresDash.filter(function(c){return c&&c.riesgoNivel==='🔴 Alto';}).length;
+  // TBO Komatsu (2026-10): cambios vencidos / por cumplir según el plan del fabricante y los cambios registrados.
+  // Misma fuente que la pestaña Componentes → TBO Komatsu (tboEstadoFlota, logic.js); si algo falla no rompe el Dashboard.
+  var tboAl={vencidos:0,planificar:0,conDato:0};
+  try{if(typeof tboEstadoFlota==='function')tboAl=tboResumenAlertas(tboEstadoFlota(eq,S.g('compHist')||[],compMayoresDash,new Date()));}catch(e){}
   var otPend=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   // Utilización de dotación según la última fecha cargada en Programación Diaria
   // (no "hoy" — se puede importar con 1-2 días de desfase, así que se usa la
@@ -740,6 +744,12 @@ export function renderDash(){
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">🔴 Riesgo Alto'+badgeEnVivo+'</div>'+
     '<div style="font-size:28px;font-weight:800;color:'+(compRiesgoAlto?'var(--danger)':'var(--ok)')+'">'+compRiesgoAlto+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Componentes · clic para ver</div></div>'+
+
+    // Plan TBO de Komatsu: cuántos cambios están vencidos o a menos de 1.000 h (lleva a Componentes → TBO Komatsu).
+    '<div style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center;cursor:pointer" onclick="go(\'comp2\');comp2Sub(\'tbo\')" title="Cambios de componentes según el TBO de Komatsu: vencidos y a menos de 1.000 h — clic para ver cuánto falta de cada uno">'+
+    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">⏱ Cambios TBO'+badgeEnVivo+'</div>'+
+    '<div style="font-size:28px;font-weight:800;color:'+(tboAl.vencidos?'var(--danger)':tboAl.planificar?'var(--w)':'var(--ok)')+'">'+(tboAl.vencidos+tboAl.planificar)+'</div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+tboAl.vencidos+' vencidos · '+tboAl.planificar+' por cumplir</div></div>'+
 
     '</div></div></div>';
 

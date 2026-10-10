@@ -7,6 +7,16 @@
 // se perdía cada vez que se actualizaba compMayores al cambio más nuevo.
 // Módulo ES real (Fase 3, 2026-08-30, tercera tanda: Componentes/Costos) —
 // ver nota de migración en mov.js (primera tanda, mismo patrón).
+// Origen del repuesto instalado (2026-10): "original" (Komatsu) o alternativo/reparado/reacondicionado. Alimenta
+// TBO Komatsu → "Cuánto dura lo que cambiamos — original vs alternativo". El campo guarda texto libre: si una fila
+// vieja trae otro valor (ej. 'TURBODAL', 'NIITSU Turbo Industries') se conserva como opción extra, no se pierde.
+var _ORIGENES_HC = ['Original (Komatsu)', 'Alternativo', 'Reparado', 'Reacondicionado'];
+function _origenOpts(actual) {
+  var v = String(actual == null ? '' : actual);
+  var lista = _ORIGENES_HC.slice();
+  if (v && lista.indexOf(v) < 0) lista.push(v);
+  return '<option value="">— sin dato —</option>' + lista.map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('');
+}
 export function renderHistComp() {
   var h = S.g('compHist') || [];
   var fComp = $('fHistComp') ? $('fHistComp').value : '';
@@ -192,7 +202,7 @@ export function renderHistComp() {
       <select id="fHistComp" onchange="renders.histcomp()"><option value="">Todos los componentes</option>${comps.map(function (c) { return '<option' + (c === fComp ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('')}</select>
     </div>
     <div class="tbl-wrap"><table>
-      <tr><th>Equipo</th><th>Componente</th><th>Fecha Inst.</th><th>Horómetro</th><th>Duró (h)</th><th>Fuente</th><th>Obs</th><th></th></tr>
+      <tr><th>Equipo</th><th>Componente</th><th>Fecha Inst.</th><th>Horómetro</th><th>Duró (h)</th><th title="Original (Komatsu) o alternativo/reparado — alimenta TBO Komatsu">Origen</th><th>Fuente</th><th>Obs</th><th></th></tr>
       ${filFilas.map(function (f) {
         var r = f.ref;
         return `<tr>
@@ -201,6 +211,7 @@ export function renderHistComp() {
           <td>${escapeHtml(r.fechaInst || '')}</td>
           <td class="mono">${r.horomInstalacion != null ? r.horomInstalacion : '—'}</td>
           <td class="mono" style="font-weight:700">${f.horasVida != null ? fn(f.horasVida) : (f.esActual ? '<span style="color:var(--tx3);font-size:10px">en uso</span>' : '—')}</td>
+          <td><select style="font-size:10px;max-width:130px" onchange="edHistComp(${f.idx},'origen',this.value)">${_origenOpts(r.origen)}</select></td>
           <td style="font-size:10px;color:var(--tx2)">${escapeHtml(r.fuente || '')}</td>
           <td class="ed" contenteditable onblur="edHistComp(${f.idx},'obs',this.innerText.trim())" style="font-size:10px;max-width:200px">${escapeHtml(r.obs || '')}</td>
           <td><button class="btn-x" onclick="delHistComp(${f.idx})" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>
@@ -237,7 +248,8 @@ export function addHistComp() {
     '<datalist id="hcCompList">' + comps.map(function (c) { return '<option value="' + escapeHtml(c) + '">'; }).join('') + '</datalist></div></div>' +
     '<div class="form-row"><div class="fg"><label>Fecha instalación</label><input type="date" id="hcFecha" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
     '<div class="fg"><label>Horómetro</label><input type="number" id="hcHorom"></div></div>' +
-    '<div class="form-row"><div class="fg"><label>Obs</label><input id="hcObs" placeholder="Detalle del cambio"></div></div>' +
+    '<div class="form-row"><div class="fg"><label>Origen del repuesto</label><select id="hcOrigen">' + _origenOpts('') + '</select></div>' +
+    '<div class="fg"><label>Obs</label><input id="hcObs" placeholder="Detalle del cambio"></div></div>' +
     '<br><button class="btn" onclick="saveHistComp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 }
 export function saveHistComp() {
@@ -250,7 +262,8 @@ export function saveHistComp() {
     id: _uuidV4(), sigla: sigla, comp: comp,
     fechaInst: $('hcFecha').value || null,
     horomInstalacion: parseFloat($('hcHorom').value) || null,
-    fuente: 'Registro manual', obs: ($('hcObs').value || '').trim()
+    fuente: 'Registro manual', obs: ($('hcObs').value || '').trim(),
+    origen: ($('hcOrigen') ? $('hcOrigen').value : '') || null
   });
   S.s('compHist', d); cm(); renders.histcomp(); toast('✅ Evento agregado');
 }

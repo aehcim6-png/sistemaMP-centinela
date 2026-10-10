@@ -1,6 +1,6 @@
-// Pestaña Componentes (contenedor con 7 sub-pestañas: Componentes Mayores /
+// Pestaña Componentes (contenedor con 8 sub-pestañas: Componentes Mayores /
 // Predictivo / Destrabe / Informes de Falla / Tren de Rodaje / Historial de
-// Componentes / Estadística) — extraída a su propio archivo (Fase 2 de
+// Componentes / Estadística / TBO Komatsu) — extraída a su propio archivo (Fase 2 de
 // modularización). Módulo ES real (Fase 3, 2026-08-30, tercera tanda:
 // Componentes/Costos) — ver nota de migración en mov.js (primera tanda,
 // mismo patrón). Solo despacha a renders.comp/pred/destrabe/informes/cad
@@ -18,6 +18,7 @@ export async function renderComp2() {
       <button class="btn ${sub === 'cad' ? '' : 'btn-o'}" onclick="comp2Sub('cad')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Tren de Rodaje</button>
       <button class="btn ${sub === 'histcomp' ? '' : 'btn-o'}" onclick="comp2Sub('histcomp')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.5 V10 l3 2" fill="none"/><circle cx="10" cy="10" r="7.5"/></svg> Historial de Componentes</button>
       <button class="btn ${sub === 'estadistica' ? '' : 'btn-o'}" onclick="comp2Sub('estadistica')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="3" height="5"/><rect x="8.5" y="8" width="3" height="9"/><rect x="14" y="4" width="3" height="13"/></svg> Estadística</button>
+      <button class="btn ${sub === 'tbo' ? '' : 'btn-o'}" onclick="comp2Sub('tbo')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5 V10 l3 2"/><path d="M3 10 h2 M15 10 h2" /></svg> TBO Komatsu</button>
     </div>
     <div id="s-comp" class="${sub === 'comp' ? '' : 'hidden'}"></div>
     <div id="s-pred" class="${sub === 'pred' ? '' : 'hidden'}"></div>
@@ -26,6 +27,7 @@ export async function renderComp2() {
     <div id="s-cad" class="${sub === 'cad' ? '' : 'hidden'}"></div>
     <div id="s-histcomp" class="${sub === 'histcomp' ? '' : 'hidden'}"></div>
     <div id="s-estadistica" class="${sub === 'estadistica' ? '' : 'hidden'}"></div>
+    <div id="s-tbo" class="${sub === 'tbo' ? '' : 'hidden'}"></div>
   `;
   // Carga perezosa (2026-09-10) — solo destrabe/informes/cad/histcomp son de
   // las 32 sin dependencias cruzadas; comp/pred/estadistica siguen estáticas
@@ -38,6 +40,7 @@ export async function renderComp2() {
   else if (sub === 'cad') renders.cad();
   else if (sub === 'histcomp') renders.histcomp();
   else if (sub === 'estadistica') renders.estadistica();
+  else if (sub === 'tbo') renders.tbo();
   setTimeout(() => aplicarOrdenUniversal('s-comp2'), 60);
 }
 export function comp2Sub(s) { window._comp2Sub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('comp2.' + s); renders.comp2(); }
