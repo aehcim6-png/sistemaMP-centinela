@@ -447,7 +447,7 @@ describe('TBO × Stock × Compras', () => {
       const f = L.tboLeadTimeFn(cd);
       expect(f('V-BELT')).toMatchObject({ n: 4 });
       expect(f('V-BELT').fuente).toContain('todos los pedidos');
-      expect(L.tboLeadTimeFn([])('ALTERNATOR')).toEqual({ dias: 34, n: 0, fuente: 'sin historial: 34 días por defecto' });
+      expect(L.tboLeadTimeFn([])('ALTERNATOR')).toEqual({ dias: 34, n: 0, fuente: 'sin historial: 34 días por defecto', gamma: null, p90: null });
     });
   });
 
@@ -543,6 +543,135 @@ describe('TBO × Stock × Compras', () => {
       const r = L.tboPlanCompras(L.tboEstadoFlota(eq, hist2, [], hoy), ctx({ stk: [{ nParte: '600-861-9122', descripcion: 'Alternador', equipoModelo: 'HD785-7', stockBodega: 1 }] }));
       const orden = r.filas.map(f => f.decision);
       expect(orden.indexOf('pedir_ya')).toBeLessThan(orden.indexOf('cubierto') === -1 ? 99 : orden.indexOf('cubierto'));
+    });
+  });
+});
+
+describe('Beta, Bernoulli y Gamma', () => {
+  describe('Gamma: CDF (gamma incompleta regularizada) y cuantil — contra fórmulas cerradas', () => {
+    it('P(1,x) = 1 − e^−x; P(2,x) = 1 − (1+x)e^−x; P(1/2,x) = erf(√x)', () => {
+      expect(L._gammaIncRegularizada(1, 2)).toBeCloseTo(1 - Math.exp(-2), 10);
+      expect(L._gammaIncRegularizada(2, 2)).toBeCloseTo(1 - 3 * Math.exp(-2), 10);
+      expect(L._gammaIncRegularizada(0.5, 1)).toBeCloseTo(0.8427007929, 8);
+      expect(L._gammaIncRegularizada(5, 12)).toBeCloseTo(0.9923996, 6);
+      expect(L._gammaIncRegularizada(3, 0)).toBe(0);
+    });
+    it('rama de fracción continua (x grande) también cuadra: P(1,10)', () => {
+      expect(L._gammaIncRegularizada(1, 10)).toBeCloseTo(1 - Math.exp(-10), 10);
+    });
+    it('gammaCDF usa la escala; el cuantil invierte la CDF; con k=1 (exponencial) q90 = θ·ln10', () => {
+      expect(L.gammaCDF(20, 2, 10)).toBeCloseTo(L._gammaIncRegularizada(2, 2), 12);
+      expect(L.gammaCuantil(0.9, 1, 5)).toBeCloseTo(5 * Math.log(10), 5);
+      const q = L.gammaCuantil(0.75, 3.6, 8.33);
+      expect(L.gammaCDF(q, 3.6, 8.33)).toBeCloseTo(0.75, 8);
+      expect(L.gammaCuantil(0, 2, 2)).toBeNull();
+    });
+    it('ajuste por momentos: k = media²/var, θ = var/media; pide ≥5 datos positivos y varianza > 0', () => {
+      const f = L.ajusteGammaMomentos([10, 20, 30, 40, 50]);
+      expect(f.k).toBeCloseTo(3.6, 10);
+      expect(f.theta).toBeCloseTo(250 / 30, 10);
+      expect(f.k * f.theta).toBeCloseTo(30, 10); // media = k·θ
+      expect(L.ajusteGammaMomentos([1, 2, 3, 4])).toBeNull();
+      expect(L.ajusteGammaMomentos([5, 5, 5, 5, 5])).toBeNull();
+      expect(L.ajusteGammaMomentos([0, -1, 5, 6, 7, 8])).toBeNull(); // los no positivos se descartan → quedan 4
+    });
+  });
+
+  describe('Beta–Bernoulli', () => {
+    it('Beta(1,1): el cuantil de p es p; intervalo 90% = [0,05; 0,95]', () => {
+      expect(L.betaCuantil(0.3, 1, 1)).toBeCloseTo(0.3, 8);
+      const b = L.betaBernoulliPosterior(0, 0);
+      expect(b).toMatchObject({ a: 1, b: 1, media: 0.5 });
+      expect(b.ic90[0]).toBeCloseTo(0.05, 8);
+      expect(b.ic90[1]).toBeCloseTo(0.95, 8);
+    });
+    it('posterior: 8 éxitos de 10 con prior uniforme → Beta(9,3), media 0,75, y el IC contiene la media', () => {
+      const b = L.betaBernoulliPosterior(8, 10);
+      expect(b).toMatchObject({ a: 9, b: 3, media: 0.75, exitos: 8, n: 10 });
+      expect(b.ic90[0]).toBeLessThan(0.75);
+      expect(b.ic90[1]).toBeGreaterThan(0.75);
+      expect(L._betaIncompletaRegularizada(b.ic90[0], 9, 3)).toBeCloseTo(0.05, 6);
+      expect(L._betaIncompletaRegularizada(b.ic90[1], 9, 3)).toBeCloseTo(0.95, 6);
+    });
+    it('con 2 casos el intervalo es muy ancho: 2 de 2 NO es 100%', () => {
+      const b = L.betaBernoulliPosterior(2, 2);
+      expect(b.media).toBeCloseTo(0.75, 10);
+      expect(b.ic90[0]).toBeLessThan(0.55);
+    });
+    it('P(X1 > X2): contra Uniforme da la media de X1 (Beta(2,1) → 2/3); simétrico → 1/2; muy distintos → casi 1', () => {
+      expect(L.probabilidadMayorBeta(2, 1, 1, 1)).toBeCloseTo(2 / 3, 6);
+      expect(L.probabilidadMayorBeta(3, 3, 3, 3)).toBeCloseTo(0.5, 6);
+      expect(L.probabilidadMayorBeta(9, 3, 3, 9)).toBeGreaterThan(0.99);
+      expect(L.probabilidadMayorBeta(9, 3, 3, 9) + L.probabilidadMayorBeta(3, 9, 9, 3)).toBeCloseTo(1, 6);
+    });
+  });
+
+  describe('vida por origen: ¿llega al TBO? (Bernoulli) y comparación original vs alternativo', () => {
+    // original: 4 cambios, 3 llegan a 8.000 h; alternativo: 4 cambios, 0 llegan
+    const mk = (sigla, h0, dur, origen) => [{ sigla, comp: 'Turbo', fechaInst: '2023-01-01', horomInstalacion: h0, origen }, { sigla, comp: 'Turbo', fechaInst: '2024-01-01', horomInstalacion: h0 + dur, origen: 'x' }];
+    const hist = [].concat(mk('A', 1000, 9000, 'Komatsu'), mk('B', 1000, 8500, 'Komatsu'), mk('C', 1000, 8000, 'Komatsu'), mk('D', 1000, 5000, 'Komatsu'),
+      mk('E', 1000, 2000, 'Turbodal'), mk('F', 1000, 1500, 'Turbodal'), mk('G', 1000, 3000, 'Turbodal'), mk('H', 1000, 1000, 'Turbodal'));
+    const rows = L.tboVidaPorOrigen(hist, []);
+    it('cada fila trae el posterior Beta del éxito "duró ≥ TBO"', () => {
+      const o = rows.find(r => r.origen === 'original'), a = rows.find(r => r.origen === 'alternativo');
+      expect(o.bern).toMatchObject({ exitos: 3, n: 4, a: 4, b: 2 });
+      expect(a.bern).toMatchObject({ exitos: 0, n: 4, a: 1, b: 5 });
+      expect(o.bern.media).toBeCloseTo(4 / 6, 10);
+    });
+    it('sin TBO único no hay Bernoulli', () => {
+      const sinTbo = L.tboVidaPorOrigen([{ sigla: 'A', comp: 'Asiento', horomInstalacion: 100 }, { sigla: 'A', comp: 'Asiento', horomInstalacion: 700 }], []);
+      expect(sinTbo[0].bern).toBeNull();
+    });
+    it('probabilidad de que el original sea mejor que el alternativo', () => {
+      const c = L.tboComparaOrigen(rows);
+      expect(c).toHaveLength(1);
+      expect(c[0]).toMatchObject({ comp: 'Turbo', nOriginal: 4, nAlternativo: 4 });
+      expect(c[0].pOriginalMejor).toBeGreaterThan(0.9);
+      expect(c[0].pOriginalMejor).toBeCloseTo(L.probabilidadMayorBeta(4, 2, 1, 5), 10);
+    });
+    it('si falta uno de los dos orígenes no compara', () => {
+      expect(L.tboComparaOrigen(rows.filter(r => r.origen === 'original'))).toEqual([]);
+    });
+  });
+
+  describe('tiempo de entrega con Gamma → probabilidad de llegar a tiempo y percentil 90', () => {
+    const rec = (det, d) => ({ estado: 'Recepcion Bodega', detalle: det, tiempoRespuesta: d + ' dias 0h 0m' });
+    const cd = [10, 14, 18, 25, 40, 60].map(d => rec('Turbo Hd785', d));
+    const f = L.tboLeadTimeFn(cd);
+    it('con ≥5 pedidos del repuesto ajusta una Gamma; el p90 queda sobre la mediana', () => {
+      const r = f('TURBOCHARGER (L)');
+      expect(r.gamma).not.toBeNull();
+      expect(r.gamma.n).toBe(6);
+      expect(r.p90).toBeGreaterThan(r.dias);
+      expect(L.gammaCDF(r.p90, r.gamma.k, r.gamma.theta)).toBeGreaterThanOrEqual(0.9 - 1e-6);
+    });
+    it('la probabilidad de llegar a tiempo crece con los días disponibles', () => {
+      const r = f('TURBOCHARGER (L)');
+      const p10 = L.tboProbLlegaAntes(r, 10), p30 = L.tboProbLlegaAntes(r, 30), p90 = L.tboProbLlegaAntes(r, 90);
+      expect(p10).toBeLessThan(p30);
+      expect(p30).toBeLessThan(p90);
+      expect(p90).toBeGreaterThan(0.95);
+      expect(L.tboProbLlegaAntes({ gamma: null }, 30)).toBeNull();
+    });
+    it('el plan de compra pide cuando falta menos que el p90, no que mediana+7', () => {
+      const cdd = cd.concat([{ estado: 'Recepcion Bodega', detalle: 'Alternador', tiempoRespuesta: '5 dias 0h 0m' }]);
+      const sinP90 = L.tboDecisionCompra({ dias: 40, lead: 18, stock: 0, pedidos: 0, fechaProx: '2026-11-19' }); // tope 25
+      const conP90 = L.tboDecisionCompra({ dias: 40, lead: 18, leadP90: 50, stock: 0, pedidos: 0, fechaProx: '2026-11-19' });
+      expect(sinP90.decision).toBe('planificar');
+      expect(sinP90.criterio).toBe('mediana+margen');
+      expect(conP90).toMatchObject({ decision: 'pedir_ya', criterio: 'p90', tope: 50 });
+      expect(conP90.pedirAntesDe).toBe('2026-09-30');
+      expect(cdd.length).toBe(7);
+    });
+    it('el plan de compra trae la probabilidad de que el repuesto llegue antes del cambio', () => {
+      const eq = [{ sigla: 'CN-1', modelo: 'Komatsu HD785-7', horomActual: 12534, hrsDia: 20 }];
+      const hist = [{ sigla: 'CN-1', comp: 'Turbo', horomInstalacion: 4300, fechaInst: '2025-01-01' }]; // 8.234 h desde → vencido
+      const hoy = new Date('2026-10-10T12:00:00Z');
+      const r = L.tboPlanCompras(L.tboEstadoFlota(eq, hist, [], hoy), { hoy, equipos: eq, compras: [], comprasDetalle: cd, stk: [], repuestos: [], ordenes: [], tasa: 910 });
+      const t = r.filas.find(x => /TURBOCHARGER/.test(x.item));
+      expect(t.decision).toBe('pedir_ya');
+      expect(t.probATiempo).toBeLessThan(0.1); // el cambio es ya: casi seguro no alcanza
+      expect(t.criterio).toBe('p90');
     });
   });
 });

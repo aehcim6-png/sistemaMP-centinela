@@ -6126,7 +6126,7 @@ criterio de quien conoce el caso).
 ### 110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)
 
 Pestaña **Componentes → TBO Komatsu** (módulo lazy `modules/renders/tbo.js`; toda la lógica pura en `logic.js`, funciones `tbo*`,
-71 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
+87 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
 `docs/referencias/`. Se usaron TODAS sus hojas: Camiones/Cargadores/Bulldozers (58/71/57 ítems, TBO de aplicación 'Normal'),
 'Sugerido' (27 repuestos HD785-7 con N° de parte y precio en USD; la suma cantidad×unitario da USD 173.030,5, igual que el Excel)
 y las ocultas 'Application Guide' y 'Weibull' (guardadas en el original; no alimentan cálculos).
@@ -6190,6 +6190,19 @@ no, **pedir ya** cuando faltan menos de `entrega + 7 días` y **planificar** has
 (el plan teórico es opcional con un check, y se cuentan los que quedan afuera). El botón **Crear OC** (`crearOCDesdeTBO`, nombre que el
 rol lector oculta) deja una orden **Pendiente** en la misma tabla `ordenes` que usa Repuestos → Comprar, con la observación del TBO;
 no compra nada solo. 16 pruebas (`tests/tboKomatsu.test.js`).
+
+**Beta, Bernoulli y Gamma.** Tres distribuciones aplicadas donde calzan (las funciones numéricas `_gammaIncRegularizada`, `gammaCDF`,
+`gammaCuantil`, `ajusteGammaMomentos`, `betaCuantil`, `betaPDF`, `betaBernoulliPosterior`, `probabilidadMayorBeta`; la CDF Beta reutiliza
+`_betaIncompletaRegularizada` que ya existía y la gamma incompleta se verificó contra fórmulas cerradas: P(1,x)=1−e^−x, P(2,x)=1−(1+x)e^−x,
+P(½,x)=erf(√x)). (1) **Beta–Bernoulli — ¿llega al TBO?**: cada cambio medido es un ensayo Bernoulli (éxito = duró ≥ el TBO); con prior
+uniforme Beta(1,1) el posterior es Beta(1+éxitos, 1+fracasos): media, intervalo creíble 90% y, a diferencia de la proporción cruda, no da
+0% ni 100% con 2–3 casos. Se compara original vs alternativo con `tboComparaOrigen` = P(θ_original > θ_alternativo) por integración (Simpson,
+verificada: contra una Uniforme da la media, Beta(2,1)→2/3). Solo cuentan los cambios ya cerrados (los componentes todavía instalados no
+entran: Weibull con censura ya los trata en Historial de Componentes). El umbral es el TBO de fábrica (no el ajustado por aplicación).
+(2) **Gamma — tiempo de entrega**: los tiempos de entrega son positivos y asimétricos; se ajusta una Gamma por momentos (≥5 pedidos recibidos
+del repuesto; si no, con todos los pedidos) y de ahí salen la **probabilidad de que el repuesto llegue antes del cambio** (CDF) y el
+**percentil 90** que reemplaza el colchón fijo de 7 días: "pedir ya" cuando faltan menos días que el p90. Sin ajuste posible se mantiene
+mediana + 7 días. Los ajustes son descriptivos sobre pocos datos: la pantalla muestra siempre cuántos casos hay. 16 pruebas más.
 
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.

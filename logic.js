@@ -7405,9 +7405,23 @@ function tboVidaPorOrigen(compHist,compras){
     var med=n%2?v[(n-1)/2]:(v[n/2-1]+v[n/2])/2,m=tboCompMap(g.comp),tbos=[];
     if(m){['camion','cargador','bulldozer'].forEach(function(c){(TBO_ITEMS[c]||[]).forEach(function(it){if(m[1].test(it[1])&&tbos.indexOf(it[2])<0)tbos.push(it[2]);});});}
     var tbo=tbos.length?{min:Math.min.apply(null,tbos),max:Math.max.apply(null,tbos)}:null;
-    return{comp:g.comp,origen:g.origen,n:n,mediana:Math.round(med),promedio:Math.round(v.reduce(function(s,x){return s+x;},0)/n),min:v[0],max:v[n-1],inferidos:g.inferidos,
-      tbo:tbo,pctTBO:tbo&&tbo.min===tbo.max?Math.round(100*med/tbo.min):null};
+    // Beta–Bernoulli: cada cambio medido es un ensayo (éxito = duró al menos el TBO); solo con un TBO único para ese componente.
+    var bern=tbo&&tbo.min===tbo.max?betaBernoulliPosterior(v.filter(function(x){return x>=tbo.min;}).length,n):null;
+    return{comp:g.comp,origen:g.origen,n:n,mediana:Math.round(med),promedio:Math.round(v.reduce(function(s,x){return s+x;},0)/n),min:v[0],max:v[n-1],inferidos:g.inferidos,vals:v,
+      tbo:tbo,pctTBO:tbo&&tbo.min===tbo.max?Math.round(100*med/tbo.min):null,bern:bern};
   }).sort(function(a,b){return a.comp<b.comp?-1:a.comp>b.comp?1:(a.origen<b.origen?-1:1);});
+}
+// Para cada componente con cambios de los dos orígenes y TBO: probabilidad de que el ORIGINAL llegue al TBO con más probabilidad que el
+// alternativo, comparando los dos posteriores Beta (P(θ_original > θ_alternativo)). Con pocos cambios por origen es un indicio: los
+// intervalos creíbles de cada fila muestran cuánta incertidumbre queda.
+function tboComparaOrigen(filas){
+  var por={};
+  (filas||[]).forEach(function(v){if(v.bern&&(v.origen==='original'||v.origen==='alternativo'))(por[v.comp]=por[v.comp]||{})[v.origen]=v;});
+  return Object.keys(por).filter(function(c){return por[c].original&&por[c].alternativo;}).map(function(c){
+    var o=por[c].original,a=por[c].alternativo;
+    return{comp:c,pOriginalMejor:probabilidadMayorBeta(o.bern.a,o.bern.b,a.bern.a,a.bern.b),nOriginal:o.n,nAlternativo:a.n,
+      mediaOriginal:o.bern.media,mediaAlternativo:a.bern.media};
+  });
 }
 // Qué buscar en las compras para ponerle precio a cada ítem del plan (regex del ítem en inglés → regex de la descripción).
 const TBO_PRECIO_RX=[
@@ -7540,8 +7554,18 @@ function tboLeadTimeFn(comprasDetalle){
     if(ds.length>=3)r={dias:Math.round(medianaPositiva(ds)),n:ds.length,fuente:'mediana de '+ds.length+' pedidos de este repuesto'};
     else if(global!=null)r={dias:Math.round(global),n:todos.length,fuente:'mediana de todos los pedidos ('+todos.length+')'};
     else r={dias:34,n:0,fuente:'sin historial: 34 días por defecto'};
+    // Los tiempos de entrega son positivos y asimétricos (casi siempre cortos, a veces muy largos): se ajustan con una Gamma (momentos) —
+    // de este repuesto si hay ≥5 pedidos, si no de todos— para tener la probabilidad de llegar a tiempo y el percentil 90.
+    var fit=ajusteGammaMomentos(ds.length>=5?ds:todos);
+    r.gamma=fit?{k:fit.k,theta:fit.theta,n:fit.n}:null;
+    r.p90=fit?Math.ceil(gammaCuantil(0.9,fit.k,fit.theta)):null;
     return(cache[item]=r);
   };
+}
+// Probabilidad de que el repuesto llegue en `dias` días o menos (CDF de la Gamma ajustada al tiempo de entrega); null si no hay ajuste.
+function tboProbLlegaAntes(lead,dias){
+  if(!lead||!lead.gamma)return null;
+  return gammaCDF(Math.max(dias,0),lead.gamma.k,lead.gamma.theta);
 }
 // Stock disponible de un ítem para un equipo: busca por N° de parte del listado Sugerido y, si no, por la descripción, en
 // Stock (stock_filtros) y Repuestos Críticos. Cuenta lo que sirve a ese equipo (su sigla, su modelo o sin equipo). Devuelve el
@@ -7579,7 +7603,9 @@ function tboPedidosAbiertosFn(comprasDetalle,ordenes,hoy){
 //  cubierto (hay stock) · en_camino (hay pedido abierto) · pedir_ya (dias ≤ lead+margen) · planificar (hasta 45 d más) · no_urgente.
 // pedirAntesDe = fecha del cambio − (lead+margen).
 function tboDecisionCompra(o){
-  var dias=o.dias,lead=o.lead,mg=o.margen==null?7:o.margen,tope=lead+mg,r;
+  // Con ajuste Gamma el colchón es estadístico: se pide cuando la probabilidad de llegar a tiempo baja del 90% (percentil 90 del tiempo de
+  // entrega, leadP90). Sin ajuste (pocos datos) se usa la mediana + 7 días.
+  var dias=o.dias,lead=o.lead,mg=o.margen==null?7:o.margen,tope=o.leadP90>0?o.leadP90:lead+mg,r;
   if((o.stock||0)>0)r='cubierto';
   else if(o.pedidos&&o.pedidos>0)r='en_camino';
   else if(dias<=tope)r='pedir_ya';
@@ -7587,7 +7613,7 @@ function tboDecisionCompra(o){
   else r='no_urgente';
   var base=o.fechaProx?new Date(o.fechaProx+'T12:00:00Z'):null;
   var pedir=base?new Date(base.getTime()-tope*86400000).toISOString().slice(0,10):null;
-  return{decision:r,pedirAntesDe:pedir,diasParaPedir:dias-tope};
+  return{decision:r,pedirAntesDe:pedir,diasParaPedir:dias-tope,tope:tope,criterio:o.leadP90>0?'p90':'mediana+margen'};
 }
 // Plan de compras del TBO: por cada cambio próximo de `estado` (tboEstadoFlota), cruza tiempo de entrega, stock, pedidos abiertos y
 // precio. opts: {horizonteExtra:90 (días más allá de lead+margen), incluirTeorico:false, tasa}. Devuelve filas ordenadas por urgencia
@@ -7601,14 +7627,14 @@ function tboPlanCompras(estado,ctx,opts){
   var filas=[],omitidosTeoricos=0;
   (estado||[]).forEach(function(x){
     var lead=leadF(x.item);
-    if(x.dias>lead.dias+7+ex)return;
+    if(x.dias>(lead.p90>0?lead.p90:lead.dias+7)+ex)return;
     if(!x.conDato&&!o.incluirTeorico){omitidosTeoricos++;return;}
     var k=x.item+'|'+x.clase;
     var pr=cachePrecio[k]||(cachePrecio[k]=tboPrecioItem(x.item,x.clase,compras,sigClase[x.clase]||[],o.tasa!=null?o.tasa:ctx.tasa));
     var precio=pr.original.mediana||pr.mediana||pr.clpRef||null,cant=tboCantidadItem(x.item);
     var st=stockF(x.item,x.sigla,modeloDe[x.sigla]),pd=pedF(x.item,x.sigla,sigClase[x.clase]||[]);
-    var dec=tboDecisionCompra({dias:Math.max(x.dias,0),lead:lead.dias,stock:st.unidades,pedidos:pd.length,fechaProx:x.fechaProx});
-    filas.push(Object.assign({},x,{lead:lead,stock:st,pedidos:pd,cant:cant,precio:precio,costoEst:precio?precio*cant:null,pn:_tboPNItem(x.item)},dec));
+    var dec=tboDecisionCompra({dias:Math.max(x.dias,0),lead:lead.dias,leadP90:lead.p90,stock:st.unidades,pedidos:pd.length,fechaProx:x.fechaProx});
+    filas.push(Object.assign({},x,{probATiempo:tboProbLlegaAntes(lead,Math.max(x.dias,0)),lead:lead,stock:st,pedidos:pd,cant:cant,precio:precio,costoEst:precio?precio*cant:null,pn:_tboPNItem(x.item)},dec));
   });
   var orden={pedir_ya:0,planificar:1,en_camino:2,cubierto:3,no_urgente:4};
   filas.sort(function(a,b){return orden[a.decision]-orden[b.decision]||a.diasParaPedir-b.diasParaPedir;});
@@ -7618,8 +7644,76 @@ function tboPlanCompras(estado,ctx,opts){
   return{filas:filas,totales:t,omitidosTeoricos:omitidosTeoricos};
 }
 
+
+// ── Distribuciones Beta / Bernoulli / Gamma aplicadas al TBO ──
+// Gamma incompleta regularizada P(a,x) (Numerical Recipes: serie si x<a+1, fracción continua de Lentz si no). Es la CDF de una Gamma(a,1).
+function _gammaIncRegularizada(a,x){
+  if(!(a>0)||x<0)return null;
+  if(x===0)return 0;
+  var gln=_logGamma(a),EPS=3e-12,FPMIN=1e-300;
+  if(x<a+1){
+    var ap=a,sum=1/a,del=sum;
+    for(var n=0;n<500;n++){ap+=1;del*=x/ap;sum+=del;if(Math.abs(del)<Math.abs(sum)*EPS)break;}
+    return sum*Math.exp(-x+a*Math.log(x)-gln);
+  }
+  var b=x+1-a,c=1/FPMIN,d=1/b,h=d;
+  for(var i=1;i<=500;i++){
+    var an=-i*(i-a);b+=2;d=an*d+b;if(Math.abs(d)<FPMIN)d=FPMIN;c=b+an/c;if(Math.abs(c)<FPMIN)c=FPMIN;d=1/d;
+    var dl=d*c;h*=dl;if(Math.abs(dl-1)<EPS)break;
+  }
+  return 1-Math.exp(-x+a*Math.log(x)-gln)*h;
+}
+// CDF de Gamma(forma k, escala theta) en x.
+function gammaCDF(x,k,theta){return x<=0?0:_gammaIncRegularizada(k,x/theta);}
+// Cuantil p de Gamma(k,theta) por bisección sobre la CDF (monótona).
+function gammaCuantil(p,k,theta){
+  if(!(p>0&&p<1))return null;
+  var lo=0,hi=Math.max(k*theta*2,theta);
+  while(gammaCDF(hi,k,theta)<p&&hi<1e12)hi*=2;
+  for(var i=0;i<200;i++){var m=(lo+hi)/2;if(gammaCDF(m,k,theta)<p)lo=m;else hi=m;if(hi-lo<1e-9*Math.max(1,hi))break;}
+  return (lo+hi)/2;
+}
+// Ajuste Gamma por método de momentos: forma k = media²/varianza, escala θ = varianza/media (varianza muestral). Pide ≥5 datos > 0 y
+// varianza > 0; si no, null. Sirve para valores positivos y asimétricos (tiempos de entrega, costos).
+function ajusteGammaMomentos(xs){
+  var v=(xs||[]).filter(function(x){return typeof x==='number'&&isFinite(x)&&x>0;});
+  if(v.length<5)return null;
+  var n=v.length,m=v.reduce(function(s,x){return s+x;},0)/n;
+  var va=v.reduce(function(s,x){return s+(x-m)*(x-m);},0)/(n-1);
+  if(!(va>0))return null;
+  return{k:m*m/va,theta:va/m,media:m,n:n};
+}
+function betaCuantil(p,a,b){
+  if(!(p>0&&p<1))return null;
+  var lo=0,hi=1;
+  for(var i=0;i<100;i++){var m=(lo+hi)/2;if(_betaIncompletaRegularizada(m,a,b)<p)lo=m;else hi=m;if(hi-lo<1e-10)break;}
+  return (lo+hi)/2;
+}
+function betaPDF(x,a,b){
+  if(x<=0||x>=1)return 0;
+  return Math.exp(_logGamma(a+b)-_logGamma(a)-_logGamma(b)+(a-1)*Math.log(x)+(b-1)*Math.log(1-x));
+}
+// Beta–Bernoulli: cada cambio es un ensayo Bernoulli (éxito = el componente llegó a su TBO). Con prior Beta(a0,b0) (por defecto
+// uniforme, 1 y 1) y `exitos` de `n` ensayos, la probabilidad real de éxito θ tiene posterior Beta(a0+exitos, b0+n−exitos). Funciona con
+// muestras chicas (donde la proporción cruda 2/3 engaña) y da un intervalo creíble del 90%.
+function betaBernoulliPosterior(exitos,n,a0,b0){
+  var A=(a0==null?1:a0)+exitos,B=(b0==null?1:b0)+(n-exitos);
+  return{a:A,b:B,media:A/(A+B),ic90:[betaCuantil(0.05,A,B),betaCuantil(0.95,A,B)],exitos:exitos,n:n};
+}
+// P(X1 > X2) para X1~Beta(a1,b1), X2~Beta(a2,b2): ∫ pdf2(x)·(1−CDF1(x)) dx por regla de Simpson (2000 intervalos).
+function probabilidadMayorBeta(a1,b1,a2,b2){
+  var N=2000,h=1/N,s=0;
+  for(var i=0;i<=N;i++){
+    var x=i*h,xe=Math.min(Math.max(x,1e-12),1-1e-12);
+    var f=betaPDF(xe,a2,b2)*(1-_betaIncompletaRegularizada(xe,a1,b1));
+    s+=(i===0||i===N?1:i%2?4:2)*f;
+  }
+  return s*h/3;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    tboProbLlegaAntes, tboComparaOrigen, _betaIncompletaRegularizada, _gammaIncRegularizada, gammaCDF, gammaCuantil, ajusteGammaMomentos, betaCuantil, betaPDF, betaBernoulliPosterior, probabilidadMayorBeta,
     tboCantidadItem, tboLeadTimeFn, tboStockFn, tboPedidosAbiertosFn, tboDecisionCompra, tboPlanCompras,
     TBO_APLICACION, TBO_GUIA_APLICACION, TBO_BETA, tboRiesgoWeibull, tboRiesgoHorizonte, tboProbNivel, tboMatrizRiesgo, tboCostoPorHora,
     TBO_COMP_MAP, tboCompMap, tboClasificarOrigen, tboOrigenPorCompra, tboUltimoCambioFn, tboEstadoFlota, tboResumenAlertas, tboVidaPorOrigen, TBO_PRECIO_RX, tboPrecioItem,

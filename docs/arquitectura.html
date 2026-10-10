@@ -3156,6 +3156,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   en camino / <b>pedir ya</b> / planificar, con "pedir antes del" y presupuesto; botón <b>Crear OC</b> (deja una orden Pendiente, no
   compra solo).</p>
 
+  <p><b>Beta, Bernoulli y Gamma:</b> la probabilidad de que un cambio llegue a su TBO se estima con <b>Beta–Bernoulli</b> (intervalo creíble 90%,
+  sin 0%/100% falsos con pocos casos) y se compara original vs alternativo con P(θ_orig &gt; θ_alt); el tiempo de entrega de los repuestos se
+  ajusta con una <b>Gamma</b> para dar la probabilidad de llegar a tiempo y el percentil 90 que define "pedir ya".</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
