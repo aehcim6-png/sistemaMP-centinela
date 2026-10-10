@@ -3172,6 +3172,9 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   beneficio = probabilidad de falla en el horizonte × consecuencia (horas extra detenido × costo/hora, o el precio si no se ingresó). Se compara contra comprar
   por urgencia y se muestra la frontera presupuesto→riesgo evitado.</p>
 
+  <p><b>Lote económico (EOQ) y política (s,S):</b> Q = √(2·D·K/h) con el entero de menor costo anual, tope a 12 meses de consumo, y reposición hasta S = s + Q
+  cuando el stock baja del punto de reorden. El costo por pedido y la tasa de mantener los ingresa el usuario (supuestos, no medidos).</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

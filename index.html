@@ -374,7 +374,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-10g"></script>
+<script src="logic.js?v=2026-10-10h"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -473,7 +473,7 @@ const _LAZY_VERS={
   estadistica:'2026-10-09b',
   tbo:'2026-10-10g',
   audit:'2026-08-30b',
-  pred:'2026-10-08',
+  pred:'2026-10-10h',
   metas:'2026-10-08',
   resumenejec:'2026-10-08',
   reg:'2026-10-09',
@@ -521,7 +521,7 @@ const _LAZY_EXPORTS={
   estadistica:['renderEstadistica','_estFallasCombinadas','_estMtbfPorComponente'],
   tbo:['renderTbo','tboCambiarTasa','tboCambiarAplic','crearOCDesdeTBO','confirmarOCDesdeTBO','tboCambiarParamOpt','tboCalcularPBoot'],
   audit:['renderAudit'],
-  pred:['renderPred','_guardarFmeaNpr'],
+  pred:['renderPred','_guardarFmeaNpr','predCambiarEOQ'],
   metas:['renderMetas','verCadenaCausas','abrirFormCompromiso','guardarCompromiso','delCompromiso'],
   resumenejec:['renderResumenEjec'],
   reg:['renderReg','addReg','editarReg','calcDurEdit','saveEditReg','rAutoHorom','rMostrarConsumos','calcDurReg','saveReg','_activarLeerPauta','_leerPautaFotoSeleccionada','_matchEquipoPorSiglaOCR','_prellenarDesdeOCR','_activarLeerCorrectivo','_leerCorrectivoFotoSeleccionada','_prellenarDesdeOCRCorrectivo','_iniciarRegPorVoz','importRegCSV','processImportReg'],

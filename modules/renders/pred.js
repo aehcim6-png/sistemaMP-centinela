@@ -641,6 +641,21 @@ function _fmeaChecklistHTML(componente,causas){
 // fmea_npr no se edita por índice de array visible (edI) como las tablas
 // CRUD comunes: el checklist se arma a partir de _CAUSAS_TIPICAS_FMEA, no
 // de las filas ya guardadas, así que la fila puede no existir todavía.
+// Supuestos del lote económico (EOQ) de ABC-XYZ: el programa no mide el costo de emitir un pedido ni la tasa de mantener inventario,
+// los ingresa el usuario. Se guardan en este navegador (localStorage); sin él quedan los defaults.
+var _EOQ_KEYS={costoPedido:'predEoqCostoPedido',tasaMantencion:'predEoqTasa'};
+function _eoqParam(k,def){
+  try{var v=parseFloat(localStorage.getItem(_EOQ_KEYS[k]));if(v>0)return v;}catch(e){/* sin storage: default */}
+  return def;
+}
+export function predCambiarEOQ(k,v){
+  var n=parseFloat(v);
+  if(!_EOQ_KEYS[k])return;
+  if(!(n>0)){toast('Ingresá un número mayor a 0');return;}
+  try{localStorage.setItem(_EOQ_KEYS[k],String(k==='tasaMantencion'?n/100:n));}catch(e){/* sin storage: queda solo en esta vista */}
+  renders.pred();
+}
+
 export function _guardarFmeaNpr(componente,causa,campo,valor){
   var filas=S.g('fmeaNpr')||[];
   var row=filas.find(function(r){return r.componente===componente&&r.causa===causa;});
@@ -1732,16 +1747,31 @@ export function renderPred(){
     // accionable — "a cuántas unidades pedir de nuevo".
     var reordenPorNParteABC={};
     (typeof puntosReordenRepuestos==='function'?puntosReordenRepuestos(abcxyzLista,stk,0.95):[]).forEach(function(r){reordenPorNParteABC[r.nParte]=r;});
+    // Lote económico (EOQ) y política (s,S) — 2026-10-10: cuánto pedir cuando toca (el Reorden dice cuándo).
+    var eoqCostoPedido=_eoqParam('costoPedido',100000),eoqTasa=_eoqParam('tasaMantencion',0.2);
+    var polPorNParteABC={},polLista=typeof politicasReposicionRepuestos==='function'?politicasReposicionRepuestos(abcxyzLista,stk,{costoPedido:eoqCostoPedido,tasaMantencion:eoqTasa},0.95):[];
+    polLista.forEach(function(r){polPorNParteABC[r.nParte]=r;});
+    var polPedirAhora=polLista.filter(function(r){return r.pedirAhora>0;}),polValorAhora=polPedirAhora.reduce(function(a,r){return a+r.valorPedido;},0);
+    var polAhorro=polLista.reduce(function(a,r){return a+r.ahorroVsUnoAUno;},0);
     var colorABC={A:'var(--danger)',B:'var(--w)',C:'var(--tx3)'};
     var colorXYZ={X:'var(--ok)',Y:'var(--w)',Z:'var(--danger)'};
     content=
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>ABC-XYZ de Repuestos</div><div style="font-size:11px;color:var(--tx3)">ABC: Pareto de valor de consumo anualizado (80/15/5) · XYZ: variabilidad de la demanda mensual (coeficiente de variación)</div></div>'+
       '<div class="card" style="margin-bottom:16px;background:var(--bg3);padding:14px;border-radius:8px">'+
       '<div style="font-size:12px;line-height:1.6"><b>A/B/C</b> = qué tan grande es el gasto anual en este repuesto (A = los pocos que concentran ~80% del gasto, C = el resto). <b>X/Y/Z</b> = qué tan predecible es su consumo mes a mes (X = estable, Z = errático — un CV alto no penaliza, solo avisa que un promedio simple no alcanza para planificar ese repuesto). AX = alto valor y predecible (vale la pena un control estricto, punto de pedido fijo). AZ/BZ = alto valor pero errático (vigilar de cerca, no confiar en el promedio). CZ = bajo valor y errático (no vale la pena invertir esfuerzo ahí, solo un colchón de stock). Requiere al menos 3 meses de historial y precio unitario real — sin eso, el repuesto no aparece acá (nunca se inventa un precio). <b>Punto de Reorden</b> (columna nueva) = a qué stock pedir de nuevo para no quebrar antes de que llegue la reposición, con 95% de nivel de servicio — un repuesto errático (Z) pide antes que uno predecible (X) con el mismo consumo promedio, porque necesita más colchón para su propia variabilidad.</div></div>'+
+      (polLista.length?
+      '<div class="card" style="margin-bottom:12px;padding:12px 14px"><div style="font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">¿Cuánto pedir? Lote económico (EOQ) y política (s,S)</div>'+
+        '<div style="font-size:12px;line-height:1.6;color:var(--tx2)">El <b>Reorden</b> dice <i>cuándo</i> pedir (stock bajo <b>s</b>). Acá se calcula <i>cuánto</i>: el lote <b>Q</b> que minimiza el costo anual de hacer pedidos + guardar stock, <code>Q = √(2·D·K / h)</code>, con D = consumo anual, K = costo de emitir un pedido y h = tasa × precio. Se repone hasta <b>S = s + Q</b>. Pedir el doble o la mitad del lote óptimo cuesta solo 25% más: lo importante no es el decimal, es no pedir de a uno lo que se consume rápido ni un año completo de lo que se consume lento.</div>'+
+        '<div style="margin-top:8px;display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--tx3)">'+
+        '<label title="Lo que cuesta emitir y recibir un pedido (horas administrativas, flete, recepción). No lo mide el programa: es un supuesto tuyo.">Costo por pedido $ <input id="eoqK" type="number" min="1" step="10000" value="'+eoqCostoPedido+'" style="width:100px" onchange="predCambiarEOQ(\'costoPedido\',this.value)"></label>'+
+        '<label title="Costo anual de tener plata parada en bodega (capital, seguro, merma) como % del precio. Lo habitual es 15–25%.">Costo de mantener % al año <input id="eoqI" type="number" min="1" step="1" value="'+Math.round(eoqTasa*100)+'" style="width:60px" onchange="predCambiarEOQ(\'tasaMantencion\',this.value)"></label></div>'+
+        '<div class="cards" style="margin-top:10px"><div class="card"><div class="card-t">Para reponer ahora</div><div class="card-v" style="color:'+(polPedirAhora.length?'var(--danger)':'var(--ok)')+'">'+fn(polPedirAhora.length)+'</div><div class="card-s">repuestos bajo su punto de reorden · $'+fn(Math.round(polValorAhora))+'</div></div>'+
+        '<div class="card"><div class="card-t">Ahorro vs pedir de a uno</div><div class="card-v">$'+fn(Math.round(polAhorro))+'</div><div class="card-s">al año, sumando los '+fn(polLista.length)+' repuestos con precio, con el costo por pedido que ingresaste (es una estimación, no un ahorro medido)</div></div></div></div>'
+      :'')+
       (abcxyzLista.length?
-      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:21%">Repuesto</th><th style="width:10%">Clase</th><th style="width:14%">Valor Anual.</th><th style="width:11%">Consumo/mes</th><th style="width:8%">CV</th><th style="width:14%">Reorden</th><th style="text-align:left">Detalle</th></tr>'+
+      '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:21%">Repuesto</th><th style="width:10%">Clase</th><th style="width:14%">Valor Anual.</th><th style="width:11%">Consumo/mes</th><th style="width:8%">CV</th><th style="width:14%" title="Stock actual (bodega + pendiente) / punto de reorden s">Reorden</th><th style="width:16%" title="Lote económico Q, nivel de reposición S = s + Q y cuántas unidades pedir hoy.">Lote (Q) · S</th><th style="text-align:left">Detalle</th></tr>'+
       abcxyzLista.map(function(it){
-        var ro=reordenPorNParteABC[it.nParte];
+        var ro=reordenPorNParteABC[it.nParte],po=polPorNParteABC[it.nParte];
         return'<tr>'+
           '<td style="font-weight:600" title="'+escapeHtml(it.nParte)+'">'+escapeHtml(descPorNParteABC[it.nParte]||it.nParte)+'</td>'+
           '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span></td>'+
@@ -1749,6 +1779,7 @@ export function renderPred(){
           '<td style="text-align:center">'+it.consumoMensualProm+'</td>'+
           '<td style="text-align:center">'+(it.cv!=null?it.cv:'—')+'</td>'+
           '<td style="text-align:center;font-size:10.5px">'+(ro?'<b style="color:'+(ro.bajoReorden?'var(--danger)':'var(--tx2)')+'">'+fn(ro.stockActual)+' / '+fn(ro.rop)+'</b>'+(ro.bajoReorden?' 🔴':''):'—')+'</td>'+
+          '<td style="text-align:center;font-size:10.5px" title="'+(po?'Pedidos al año: '+(Math.round(po.pedidosAnio*10)/10+'').replace('.',',')+' · uno cada '+fn(Math.round(po.cicloDias))+' días · costo anual $'+fn(Math.round(po.costoAnual))+(po.topado?' · lote topado a 12 meses de consumo':''):'')+'">'+(po?'<b>'+fn(po.q)+'</b> · '+fn(po.S)+(po.pedirAhora>0?'<div style="color:var(--danger);font-weight:700">pedir '+fn(po.pedirAhora)+'</div>':''):'—')+'</td>'+
           '<td style="font-size:10px;color:var(--tx2)">'+it.nMeses+' meses de historial · '+Math.round(it.pctAcumulado*100)+'% acumulado del gasto</td></tr>';
       }).join('')+
       '</table></div>'
@@ -2082,4 +2113,5 @@ $('s-pred').innerHTML=
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderPred = renderPred;
 window._guardarFmeaNpr = _guardarFmeaNpr;
+window.predCambiarEOQ = predCambiarEOQ;
 renders.pred = renderPred;

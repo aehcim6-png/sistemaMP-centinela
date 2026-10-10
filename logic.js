@@ -4568,6 +4568,45 @@ function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio){
   }).filter(Boolean);
 }
 
+// ═══ LOTE ECONÓMICO DE PEDIDO (EOQ) Y POLÍTICA (s,S) (2026-10-10) ═══
+// El Punto de Reorden (arriba) dice CUÁNDO pedir (stock ≤ s). Esto dice CUÁNTO. Modelo de Harris/Wilson: la demanda anual D se
+// reparte en pedidos de tamaño Q; cada pedido cuesta K (administrar, transportar) y mantener una unidad en bodega cuesta h = i·precio
+// al año (capital inmovilizado, seguro, merma). Costo anual relevante TRC(Q) = (D/Q)·K + (Q/2)·h, mínimo en Q* = √(2·D·K / h).
+// Como el costo es muy plano cerca del óptimo, el entero más cercano se elige comparando TRC (no redondeando a ojo), y el lote se
+// topa a `maxMeses` de demanda (no tiene sentido pedir más de un año de un repuesto). La razón TRC(k·Q*)/TRC* = (k+1/k)/2 muestra
+// cuánto cuesta equivocarse de lote. K e i son SUPUESTOS del usuario (el programa no los mide).
+// Política (s,S): s = punto de reorden; S = s + Q es el nivel al que se repone. Con stock (bodega + pendiente) por debajo de s (mismo criterio que "bajo reorden") se pide S − stock.
+// Supuestos: demanda estable en el año, un solo proveedor, sin descuentos por volumen ni vencimiento; si el repuesto se consume de a
+// 1 y el pedido es caro, la política (s,S) real óptima puede diferir levemente (Silver/Pyke/Peterson, cap. 7).
+function loteEconomicoPedido(demandaAnual,precioUnit,costoPedido,tasaMantencion,opts){
+  var o=opts||{},D=demandaAnual,p=precioUnit,K=costoPedido,i=tasaMantencion;
+  if(!(D>0)||!(p>0)||!(K>0)||!(i>0))return null;
+  var h=i*p,trc=function(q){return D/q*K+q/2*h;};
+  var qCont=Math.sqrt(2*D*K/h),tope=Math.max(1,Math.floor(D*((o.maxMeses>0?o.maxMeses:12)/12)));
+  var a=Math.max(1,Math.floor(qCont)),b=Math.max(1,Math.ceil(qCont)),q=trc(a)<=trc(b)?a:b,topado=false;
+  if(q>tope){q=tope;topado=true;}
+  var costo=trc(q),pedidos=D/q;
+  return{qOptimo:qCont,q:q,topado:topado,costoAnual:costo,costoPedidos:pedidos*K,costoMantencion:q/2*h,pedidosAnio:pedidos,cicloDias:365/pedidos,
+    costoUnoAUno:trc(1),ahorroVsUnoAUno:trc(1)-costo,costoMinimo:trc(qCont),sobrecostoVsOptimo:costo/trc(qCont)-1,h:h};
+}
+// Razón de costo al equivocarse de lote por un factor k (k=2 → pedir el doble o la mitad): (k+1/k)/2.
+function eoqRazonCosto(k){return k>0?(k+1/k)/2:null;}
+// Aplica EOQ + (s,S) a la lista de ABC-XYZ y puntos de reorden. cfg: {costoPedido, tasaMantencion, maxMeses}. precio de stk.precioUnit.
+function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio){
+  var c=cfg||{},precio={};
+  (stk||[]).forEach(function(s){if(s&&s.nParte&&s.precioUnit>0)precio[s.nParte]=s.precioUnit;});
+  var rop={};
+  puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio).forEach(function(r){rop[r.nParte]=r;});
+  return(itemsABCXYZ||[]).map(function(it){
+    var r=rop[it.nParte],p=precio[it.nParte];if(!r||!p)return null;
+    var l=loteEconomicoPedido(it.consumoMensualProm*12,p,c.costoPedido,c.tasaMantencion,{maxMeses:c.maxMeses});
+    if(!l)return null;
+    var s=r.rop,S=s+l.q,pedir=r.bajoReorden?S-r.stockActual:0;
+    return Object.assign({nParte:it.nParte,claseABC:it.claseABC,claseXYZ:it.claseXYZ,consumoMensualProm:it.consumoMensualProm,precioUnit:p,stockActual:r.stockActual,
+      s:s,S:S,pedirAhora:pedir,valorPedido:pedir*p},l);
+  }).filter(Boolean);
+}
+
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
 // Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
 // movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
@@ -8023,7 +8062,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

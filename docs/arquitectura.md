@@ -6251,6 +6251,17 @@ voraz 160, óptimo 220). Limitaciones: los ítems son independientes (no hay des
 Tipo de Causa y Sistema ya se capturaban desde el paso 3 de Calidad de Ejecución (aviso suave al cerrar, no obligatorio a propósito: hay
 que poder cerrar rápido); lo que falta es historia, no captura.
 
+**Lote económico de pedido (EOQ) y política (s,S).** `loteEconomicoPedido`: Q* = √(2·D·K/h) con D = consumo anual (de ABC-XYZ), K = costo de
+emitir un pedido y h = tasa de mantener × precio; costo anual TRC(Q) = D/Q·K + Q/2·h. Se elige el entero (piso o techo del óptimo continuo) de
+menor TRC —verificado contra búsqueda exhaustiva— y se topa a 12 meses de consumo. En el óptimo el costo de pedidos iguala al de mantención
+(condición de primer orden, probada) y equivocarse de lote por un factor k cuesta (k+1/k)/2 (2× o ½× = +25%, `eoqRazonCosto`).
+`politicasReposicionRepuestos` une esto con el punto de reorden s ya existente: S = s + Q y, si el stock (bodega + pendiente) está bajo s
+(mismo criterio de "bajo reorden"), se pide S − stock. Se muestra en Predictivo → ABC-XYZ (columna "Lote (Q) · S" y resumen). **K (costo por
+pedido, default $100.000) y la tasa de mantener (default 20%) son supuestos del usuario**, guardados en el navegador: el programa no los mide, y
+el "ahorro vs pedir de a uno" depende de K. Supuestos del modelo: demanda estable en el año, un proveedor, sin descuentos por volumen ni
+vencimiento; para repuestos de consumo a saltos, la política (s,S) óptima exacta puede diferir levemente. 10 pruebas más
+(`tests/loteEconomicoPedido.test.js`).
+
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
 
