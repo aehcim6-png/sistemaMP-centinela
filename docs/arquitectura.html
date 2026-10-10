@@ -3145,6 +3145,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   repiten casi por completo, sumarlas duplica el gasto (<code>tboUnirCompras</code> las une sin duplicar). El Historial de
   Componentes ahora guarda el <b>Origen</b> de cada cambio. Tarjeta "Cambios TBO" en el Dashboard.</p>
 
+  <p><b>Fórmulas, algoritmos y matriz del Excel:</b> se leyeron las 3 macros VBA y la tabla Weibull oculta. Se usó el <b>tipo de aplicación</b>
+  (TBO × 120% / 100% / 80%, selector global), las cuentas de cambios teóricos y fecha, el <b>riesgo Weibull</b> (β=3, el TBO es el B5,
+  verificado contra la tabla; fórmula continua <code>1−0,95^((t/TBO)^3)</code> más probabilidad en las próximas 500 h), una <b>Matriz de
+  Riesgo</b> Probabilidad × Impacto que reutiliza la de Predictivo, y el <b>costo por hora</b> (precio ÷ duración real) para comparar original
+  con alternativo.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

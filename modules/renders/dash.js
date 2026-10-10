@@ -349,7 +349,8 @@ export function renderDash(){
   // TBO Komatsu (2026-10): cambios vencidos / por cumplir según el plan del fabricante y los cambios registrados.
   // Misma fuente que la pestaña Componentes → TBO Komatsu (tboEstadoFlota, logic.js); si algo falla no rompe el Dashboard.
   var tboAl={vencidos:0,planificar:0,conDato:0};
-  try{if(typeof tboEstadoFlota==='function')tboAl=tboResumenAlertas(tboEstadoFlota(eq,S.g('compHist')||[],compMayoresDash,new Date()));}catch(e){}
+  try{var _tboAp='normal';try{_tboAp=localStorage.getItem('tboAplic')||'normal';}catch(e2){}
+    if(typeof tboEstadoFlota==='function')tboAl=tboResumenAlertas(tboEstadoFlota(eq,S.g('compHist')||[],compMayoresDash,new Date(),_tboAp));}catch(e){}
   var otPend=ot.filter(function(o){return o.estadoOT==='Pendiente'}).length;
   // Utilización de dotación según la última fecha cargada en Programación Diaria
   // (no "hoy" — se puede importar con 1-2 días de desfase, así que se usa la

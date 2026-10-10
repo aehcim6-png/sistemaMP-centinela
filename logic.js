@@ -7178,6 +7178,19 @@ const TBO_ITEMS={"camion":[["correas","V-BELT",2000],["alternador","ALTERNATOR",
 const TBO_REGLAS_COMPRA=[["rodado", "cadena|zapata|rodillo|rueda gu|sprocket|idle?a?r|eslab[oó]n|tensora|rueda motriz"], ["desgaste", "entrediente|diente|segmento|cuchilla|cant[oó]n|half arrow|labio|plancha|perno cuch|u[ñn]a "], ["lubricantes", "filtro|delvac|litros?($|[^a-z])|grasa|lubric|refrigerante|coolant"], ["correas", "correa"], ["alternador", "alternador"], ["partida", "motor.{0,6}partida|motor de arranque|starter"], ["turbo", "turbo"], ["inyeccion", "inyector|bomba.{0,6}inyec"], ["combustible", "bomba.{0,6}combust|(estanque|tanque).{0,6}combust"], ["agua", "bomba.{0,6}agua"], ["aire", "compresor|condensador|evaporador|blower|secador|a/c|aire acond"], ["cilindros", "cilindro|v[aá]stago|vastago"], ["valvulas", "v[aá]lvula|valve|orbitrol|acumulador|joystick"], ["mangueras", "flexible|manguera|hose|ca[ñn]er[ií]a|tuber[ií]a|acople|racor"], ["enfriamiento", "radiador|aftercooler|intercooler|oil cooler|enfriador|termostato|ventilador"], ["bombas", "bomba"], ["frenos", "freno|brake"], ["tren", "transmis|convertidor|diferencial|mando final|reductor|corona|pe[ñn][oó]n|card[aá]n|cruceta|junta universal"], ["motor", "culata|pist[oó]n|camisa|cigue[ñn]al|empaquet|cojinete|biela de motor|polea|tensor|motor diesel|damper|amortiguador de"], ["suspension", "suspensi|amortigu|barra estab|r[oó]tula|terminal de direcc|direcci[oó]n"], ["cabina", "cabina|asiento|puerta|vidrio|parabrisas|espejo"], ["electrico", "bater[ií]a|sensor|arn[eé]s|rel[eé]|fusible|foco|alarma|radio|antena|gps|c[aá]mara|interruptor|cable"], ["estructura", "tolva|balde|bastidor|chasis|pasador|buje|bocina|bisagra"], ["engrase", "engrase|grasera"], ["aro", "(^|[^a-z])aros?($|[^a-z])|llanta|(^|[^a-z])rim($|[^a-z])"], ["menores", "rodamiento|sello|perno|tuerca|golilla|codo|guia bronce|retenedor|o-?ring|abrazadera|punta ripper|protecci[oó]n|seat belt"], ["lubricantes", "aceite"], ["servicios", "servicio|montaje|desmontaje|reparaci|perforaci|traslado|instalaci"]];
 // [N° de parte, descripción, grupo, cantidad por equipo, precio unitario neto USD] — hoja 'Sugerido' (HD785-7)
 const TBO_SUGERIDO=[["04120-21951", "Correa Alternador", "Motor", 2, 57.4], ["6215-61-3690", "Correas ventilador", "Motor", 2, 402.31], ["04121-21748", "Correa A/C", "AC", 2, 84.32], ["56E-07-21133", "Condensador", "AC", 1, 1084.96], ["423-S62-4330", "Compresor AC", "AC", 1, 787.2], ["707-00-0G704", "Cilindro dirección", "Cilindro", 2, 8672.37], ["721-32-10C50", "Acumuladores freno", "Hidráulico", 3, 5508.26], ["709-91-12600", "Válvula levante", "Hidráulico", 1, 5482.02], ["721-32-10C40", "Acumuladores freno", "Hidráulico", 4, 5690.56], ["702-21-01502", "Válvula dirección", "Hidráulico", 1, 6048.41], ["561-40-84301", "Orbitrol", "Hidráulico", 1, 7731.19], ["AN51532-41240", "Termostato", "Motor", 5, 101.52], ["6245-11-3100", "Inyectores", "Motor", 6, 848.66], ["6240-61-1106", "Bomba de agua", "Motor", 1, 1675.34], ["6240-51-1100", "Bomba de aceite", "Motor", 1, 1424.49], ["600-861-9122", "Alternador", "Motor", 1, 2192.14], ["6219-51-1000", "Bomba de aceite", "Motor", 1, 2040.93], ["600-813-9911", "Motor de partida", "Motor", 2, 3667.43], ["6505-67-5040", "Turbo LH", "Motor", 1, 8002.71], ["6505-67-5030", "Turbo RH", "Motor", 1, 8002.71], ["6219-71-1101", "Bomba combustible LH", "Motor", 1, 6944.37], ["6219-71-1201", "Bomba combustible RH", "Motor", 1, 6944.37], ["561-03-81280", "Oil cooler (dirección y levante)", "Radiador", 1, 1715.89], ["561-03-81654", "Radiador core", "Radiador", 1, 4869.55], ["561-03-81634", "Radiador core", "Radiador", 2, 6028.47], ["561-03-81644", "Radiador core", "Radiador", 1, 6010.18], ["561-03-81660", "Aftercooler", "Radiador", 2, 9681.43]];
+// Tipo de aplicación (macro Calculadora() del Excel): TBO de aplicación = TBO de fábrica × 120% (ligera) / 100% (normal) /
+// 80% (severa). El Excel de Komatsu viene calculado en 'Normal'.
+const TBO_APLICACION={ligera:1.2,normal:1,severa:0.8};
+// Guía de aplicación (hoja oculta 'Application Guide'): cuándo un trabajo es ligero / normal / severo, por tipo de máquina.
+const TBO_GUIA_APLICACION={
+  bulldozer:['BULLDOZER',['Máquina en movimiento sin carga. Granos, semillas, tierra ligera.','Materiales normales. Limpieza de terrenos.','Desgarrar o romper. Materiales pesados, rocas duras. Demolición.']],
+  cargador:['CARGADOR FRONTAL (WHEEL LOADER)',['Máquina en movimiento sin carga. Movimiento de material ligero.','Trabajo en caminos. Carga de camiones. Stockpiling de material.','Excavación de bancos. Carga constante. Carga y movimiento. Demolición.']],
+  camion:['CAMIÓN RÍGIDO (RIGID DUMP TRUCK)',['Tiempo de carga y espera mayor al tiempo de transporte. Terrenos con baja resistencia a la rodadura y/o poca pendiente (<4%).','Tiempo de carga y espera similar al de transporte. Resistencia normal a la rodadura y pendientes de 4% a 10%.','Tiempos de traslado largos (mayores al de carga y espera). Terrenos con poca mantención. Pendientes superiores al 10%.']]
+};
+// Riesgo Weibull de la hoja oculta 'Weibull' (macro Calculadora2): la tabla es una Weibull con β=3 cuyo B5 (5% de fallas) es
+// justo el TBO — verificado contra las 18×600 celdas (redondeadas a 500 h): B50/B5 = (ln0.5/ln0.95)^(1/3) = 2,38. Acá se usa la
+// fórmula continua en vez de buscar la fila más cercana de la tabla.
+const TBO_BETA=3;
 var _TBO_RX=null;
 function _tboRegex(){
   if(!_TBO_RX)_TBO_RX=TBO_REGLAS_COMPRA.map(function(r){return{id:r[0],rx:new RegExp(r[1],'i')};});
@@ -7251,16 +7264,17 @@ function tboFamiliaDeClase(clase,famId){
 // Plan TBO de un equipo con su horómetro vivo: por ítem, cuántos cambios "debería" llevar (piso(h/TBO)),
 // horómetro y horas hasta el próximo, y fecha estimada (con hrsDia del equipo; sin dato, 10 h/día = 300 h/mes
 // como el Excel). TEÓRICO: no sabe si el cambio se hizo.
-function tboPlanEquipo(eq,hoy){
+function tboPlanEquipo(eq,hoy,aplic){
   var cl=tboClaseModelo(eq&&eq.modelo);if(!cl)return null;
   var h=Number(eq.horomActual)||0,hd=Number(eq.hrsDia)>0?Number(eq.hrsDia):10;
   var base=hoy instanceof Date?hoy:new Date(hoy||Date.now());
+  var fa=TBO_APLICACION[aplic]||1;
   var items=(TBO_ITEMS[cl.clase]||[]).map(function(r){
-    var tbo=r[2],n=Math.floor(h/tbo),prox=(n+1)*tbo,rest=prox-h;
+    var tbo=Math.round(r[2]*fa),n=Math.floor(h/tbo),prox=(n+1)*tbo,rest=prox-h;
     var f=new Date(base.getTime()+Math.round(rest/hd)*86400000);
-    return{fam:r[0],item:r[1],tbo:tbo,cambiosTeoricos:n,proximoH:prox,restantesH:rest,fechaProx:f.toISOString().slice(0,10)};
+    return{fam:r[0],item:r[1],tbo:tbo,tboFab:r[2],cambiosTeoricos:n,proximoH:prox,restantesH:rest,fechaProx:f.toISOString().slice(0,10)};
   });
-  return{clase:cl.clase,modeloExcel:cl.modeloExcel,exacto:cl.exacto,horometro:h,hrsDia:hd,items:items};
+  return{clase:cl.clase,modeloExcel:cl.modeloExcel,exacto:cl.exacto,horometro:h,hrsDia:hd,aplicacion:TBO_APLICACION[aplic]?aplic:'normal',factor:fa,items:items};
 }
 // Precios del listado "Sugerido" (USD) frente a lo realmente pagado: por N° de parte, última compra (por
 // N° completo, o por los primeros 9 caracteres cuando el texto del pedido viene cortado a ~25) y cuántas hay.
@@ -7330,7 +7344,7 @@ function tboUltimoCambioFn(sigla,horomActual,compHist,compMayores){
   (compMayores||[]).forEach(function(c){
     if(!c||c.sigla!==sigla)return;var m=tboCompMap(c.comp);if(!m)return;
     if(c.esOriginal)evs.push({rx:m[1],horom:0,fecha:null,origen:'original',fuente:'original de fábrica'});
-    else{var h=parseFloat(c.horomComp);if(!isNaN(h)&&h<=horomActual)evs.push({rx:m[1],horom:h,fecha:c.fechaInst||null,origen:'',fuente:'cambio registrado'});}
+    else if(c.fechaInst){var h=parseFloat(c.horomComp);if(!isNaN(h)&&h<=horomActual)evs.push({rx:m[1],horom:h,fecha:c.fechaInst,origen:'',fuente:'cambio registrado'});} // sin fecha de instalación no es un cambio real (mismo criterio que compEstado)
   });
   return function(item){
     var best=null;
@@ -7342,10 +7356,10 @@ function tboUltimoCambioFn(sigla,horomActual,compHist,compMayores){
 // desde = horómetro − horómetro del cambio; faltan = TBO − desde (puede ser negativo = vencido). Sin dato: se usa el
 // plan teórico del Excel (próximo múltiplo del TBO) y nunca se declara "vencido" (no sabemos si se hizo).
 // nivel: vencido / planificar (<1.000 h; teórico: <500) / monitorear (<2.000; teórico: <1.000) / ok.
-function tboEstadoFlota(equipos,compHist,compMayores,hoy){
+function tboEstadoFlota(equipos,compHist,compMayores,hoy,aplic){
   var out=[];
   (equipos||[]).forEach(function(e){
-    var plan=tboPlanEquipo(e,hoy);if(!plan)return;
+    var plan=tboPlanEquipo(e,hoy,aplic);if(!plan)return;
     var ult=tboUltimoCambioFn(e.sigla,plan.horometro,compHist,compMayores);
     var hd=Number(e.hrsDia)>0?Number(e.hrsDia):12;
     var base=hoy instanceof Date?hoy:new Date(hoy||Date.now());
@@ -7354,8 +7368,8 @@ function tboEstadoFlota(equipos,compHist,compMayores,hoy){
       if(conDato){refH=u.horom;desde=plan.horometro-u.horom;rest=it.tbo-desde;fuente=u.fuente;origen=u.origen;fecha=u.fecha;}
       else{desde=plan.horometro-(it.proximoH-it.tbo);rest=it.restantesH;fuente='plan teórico';}
       var nivel=conDato?(rest<=0?'vencido':rest<1000?'planificar':rest<2000?'monitorear':'ok'):(rest<500?'planificar':rest<1000?'monitorear':'ok');
-      var dias=Math.round(rest/hd);
-      out.push({sigla:e.sigla,modelo:e.modelo,clase:plan.clase,fam:it.fam,item:it.item,tbo:it.tbo,horometro:plan.horometro,refH:refH,desdeH:Math.max(desde,0),
+      var dias=Math.round(rest/hd),desdeC=Math.max(desde,0),riesgo=tboRiesgoWeibull(desdeC,it.tbo);
+      out.push({sigla:e.sigla,modelo:e.modelo,clase:plan.clase,fam:it.fam,item:it.item,tbo:it.tbo,tboFab:it.tboFab,riesgo:riesgo,riesgo500:tboRiesgoHorizonte(desdeC,it.tbo,500),prob:tboProbNivel(riesgo),horometro:plan.horometro,refH:refH,desdeH:Math.max(desde,0),
         restantesH:rest,dias:dias,fechaProx:new Date(base.getTime()+dias*86400000).toISOString().slice(0,10),fuente:fuente,conDato:conDato,origenUlt:origen,fechaUlt:fecha,nivel:nivel});
     });
   });
@@ -7441,8 +7455,66 @@ function tboPrecioItem(item,clase,compras,siglasClase,tasa){
   return out;
 }
 
+
+// Probabilidad acumulada de falla de un componente con t horas desde su último cambio (o desde cero si es original):
+// F(t)=1−0,95^((t/TBO)^β). Con t=TBO da 5% (el TBO es el B5 de la tabla Weibull del Excel). Es el "riesgo actual" de la
+// macro; el Excel muestra 5% fijo mientras no se cumple el TBO — acá se muestra el valor real (menor a 5%).
+function tboRiesgoWeibull(t,tbo,beta){
+  if(!(tbo>0)||!(t>0))return 0;
+  return 1-Math.pow(0.95,Math.pow(t/tbo,beta||TBO_BETA));
+}
+// Probabilidad de que falle dentro de las próximas h horas dado que ya lleva t sin fallar: 1−S(t+h)/S(t).
+function tboRiesgoHorizonte(t,tbo,h,beta){
+  if(!(tbo>0)||!(h>0))return 0;
+  var b=beta||TBO_BETA,t0=Math.max(t||0,0);
+  return 1-Math.pow(0.95,Math.pow((t0+h)/tbo,b)-Math.pow(t0/tbo,b));
+}
+// Probabilidad 1–5 para la Matriz de Riesgo (misma escala que probabilidadComponente): cortes a los B5/B10/B20/B35 de la tabla.
+function tboProbNivel(riesgo){
+  var r=riesgo||0;
+  return r<=0.05+1e-9?1:r<0.10?2:r<0.20?3:r<0.35?4:5;
+}
+// Matriz de Riesgo (Probabilidad × Impacto) de los cambios con último cambio conocido (los teóricos no entran: por
+// construcción están dentro del TBO). Probabilidad = tboProbNivel del riesgo Weibull; Impacto = quintil del precio del
+// componente (mismas umbralesImpacto/impactoDeValor/nivelRiesgoPxI de la Matriz de Riesgo de Predictivo). precioFn(x)→CLP o null
+// (sin precio → impacto neutro 3).
+function tboMatrizRiesgo(estado,precioFn){
+  var items=(estado||[]).filter(function(x){return x.conDato;}).map(function(x){return{x:x,valor:precioFn?precioFn(x):null};});
+  var umbrales=umbralesImpacto(items.map(function(i){return i.valor;}).filter(function(v){return v>0;}));
+  var celdas={};
+  var out=items.map(function(i){
+    var imp=impactoDeValor(i.valor,umbrales),pr=i.x.prob,niv=nivelRiesgoPxI(pr,imp);
+    var k=pr+'|'+imp;celdas[k]=(celdas[k]||0)+1;
+    return Object.assign({},i.x,{valor:i.valor,impacto:imp,pxi:niv.pxi,nivelPxI:niv.nivel,colorPxI:niv.color});
+  }).sort(function(a,b){return b.pxi-a.pxi||b.riesgo-a.riesgo;});
+  return{items:out,celdas:celdas,umbrales:umbrales,conPrecio:items.filter(function(i){return i.valor>0;}).length};
+}
+// Costo por hora de operación de cada componente: precio típico ÷ horas que duró (mediana real), por origen. Compara el costo
+// por hora del repuesto original contra el alternativo/reparado; con TBO, también cuánto sería a la vida del fabricante.
+// precio: original → mediana pagada a Komatsu (si no hay, lista USD×tasa); alternativo → mediana pagada a otros; sin dato → mediana.
+function tboCostoPorHora(vida,compras,equipos,tasa){
+  var sigPorClase={camion:[],cargador:[],bulldozer:[]};
+  (equipos||[]).forEach(function(e){var c=tboClaseModelo(e&&e.modelo);if(c)sigPorClase[c.clase].push(e.sigla);});
+  return (vida||[]).map(function(v){
+    var m=tboCompMap(v.comp),precio=null,fuente='',item=null,clase=null,p=null;
+    if(m){
+      ['camion','cargador','bulldozer'].forEach(function(c){if(item)return;var it=(TBO_ITEMS[c]||[]).filter(function(r){return m[1].test(r[1]);})[0];if(it){item=it[1];clase=c;}});
+      if(item){
+        p=tboPrecioItem(item,clase,compras,sigPorClase[clase],tasa);
+        if(v.origen==='original'){precio=p.original.mediana;fuente=precio?'pagado a Komatsu':'';if(!precio&&p.clpRef){precio=p.clpRef;fuente='lista Komatsu (USD)';}}
+        else if(v.origen==='alternativo'){precio=p.otros.mediana;fuente=precio?'pagado a otros':'';}
+        else{precio=p.mediana;fuente=precio?'pagado (todos)':'';}
+      }
+    }
+    var tboRef=v.tbo&&v.tbo.min===v.tbo.max?v.tbo.min:null;
+    return Object.assign({},v,{item:item,precio:precio,fuentePrecio:fuente,costoHora:precio&&v.mediana>0?Math.round(precio/v.mediana):null,
+      costoHoraTBO:precio&&tboRef?Math.round(precio/tboRef):null});
+  });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    TBO_APLICACION, TBO_GUIA_APLICACION, TBO_BETA, tboRiesgoWeibull, tboRiesgoHorizonte, tboProbNivel, tboMatrizRiesgo, tboCostoPorHora,
     TBO_COMP_MAP, tboCompMap, tboClasificarOrigen, tboOrigenPorCompra, tboUltimoCambioFn, tboEstadoFlota, tboResumenAlertas, tboVidaPorOrigen, TBO_PRECIO_RX, tboPrecioItem,
     TBO_FAMILIAS, TBO_FUERA, TBO_ITEMS, TBO_REGLAS_COMPRA, TBO_SUGERIDO, tboNormalizarPN, tboClaseModelo, tboFamiliaDeCompra, tboUnirCompras, tboCruzarCompras, tboFamiliaDeClase, tboPlanEquipo, tboCruzarSugerido,
     clasificacionPendienteOT, resumenClasificacionOT, repararMojibake,

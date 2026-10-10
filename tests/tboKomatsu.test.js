@@ -220,6 +220,12 @@ describe('tboEstadoFlota — cuánto falta para cada cambio', () => {
     const t = L.tboEstadoFlota(eq, [], cm, hoy).find(x => x.item === 'TRANSMISSION ASSY');
     expect(t).toMatchObject({ fuente: 'original de fábrica', desdeH: 12534, origenUlt: 'original', restantesH: 3466 });
   });
+  it('una instalación de Componentes Mayores cuenta solo si trae fecha (como compEstado); sin fecha es una fila vacía', () => {
+    const sinFecha = [{ sigla: 'CN-1', comp: 'Alternador', horomComp: 12534 }];
+    expect(L.tboEstadoFlota(eq, [], sinFecha, hoy).find(x => x.item === 'ALTERNATOR').conDato).toBe(false);
+    const conFecha = [{ sigla: 'CN-1', comp: 'Alternador', horomComp: 9000, fechaInst: '2025-01-01' }];
+    expect(L.tboEstadoFlota(eq, [], conFecha, hoy).find(x => x.item === 'ALTERNATOR')).toMatchObject({ conDato: true, desdeH: 3534 });
+  });
   it('ignora cambios con horómetro mayor al actual (dato mal cargado)', () => {
     const hist = [{ sigla: 'CN-1', comp: 'Alternador', horomInstalacion: 99999 }];
     expect(L.tboEstadoFlota(eq, hist, [], hoy).find(x => x.item === 'ALTERNATOR').conDato).toBe(false);
@@ -296,5 +302,125 @@ describe('tboPrecioItem', () => {
   });
   it('un ítem sin regla de precio ni compras se devuelve igual, sin precio', () => {
     expect(L.tboPrecioItem('MAIN FRAME & HITCH FRAME', 'camion', compras, ['CN-1'], 910)).toMatchObject({ n: 0, usd: null, mediana: null });
+  });
+});
+
+describe('Excel: tipo de aplicación (macro Calculadora) y riesgo Weibull (macro Calculadora2)', () => {
+  const hoy = new Date('2026-10-10T12:00:00Z');
+  const eq = { sigla: 'CN-1', modelo: 'Komatsu HD785-7', horomActual: 12534, hrsDia: 20 };
+  it('factores de aplicación = los de la macro: ligera 120%, normal 100%, severa 80%', () => {
+    expect(L.TBO_APLICACION).toEqual({ ligera: 1.2, normal: 1, severa: 0.8 });
+  });
+  it('aplicación severa acorta el TBO (correas 2.000 → 1.600 h) y ligera lo alarga (→ 2.400 h)', () => {
+    const sev = L.tboPlanEquipo(eq, hoy, 'severa');
+    expect(sev).toMatchObject({ aplicacion: 'severa', factor: 0.8 });
+    expect(sev.items.find(i => i.item === 'V-BELT')).toMatchObject({ tbo: 1600, tboFab: 2000, cambiosTeoricos: 7, proximoH: 12800, restantesH: 266 });
+    const lig = L.tboPlanEquipo(eq, hoy, 'ligera');
+    expect(lig.items.find(i => i.item === 'V-BELT')).toMatchObject({ tbo: 2400, cambiosTeoricos: 5, proximoH: 14400, restantesH: 1866 });
+    expect(L.tboPlanEquipo(eq, hoy).aplicacion).toBe('normal');
+    expect(L.tboPlanEquipo(eq, hoy, 'inventada').factor).toBe(1);
+  });
+  it('el estado de flota respeta la aplicación', () => {
+    const e = L.tboEstadoFlota([eq], [], [], hoy, 'severa').find(x => x.item === 'V-BELT');
+    expect(e).toMatchObject({ tbo: 1600, tboFab: 2000, restantesH: 266 });
+  });
+});
+
+describe('tboRiesgoWeibull — reproduce la tabla Weibull oculta del Excel', () => {
+  it('con t = TBO el riesgo es 5% (el TBO es el B5) y con t=0 es 0', () => {
+    expect(L.tboRiesgoWeibull(8000, 8000)).toBeCloseTo(0.05, 10);
+    expect(L.tboRiesgoWeibull(0, 8000)).toBe(0);
+    expect(L.tboRiesgoWeibull(4000, 8000)).toBeLessThan(0.01);
+  });
+  it('coincide (±250 h, el redondeo de la tabla a 500 h) con celdas reales de la hoja Weibull', () => {
+    // [TBO, Bx (probabilidad), horas en la tabla del Excel]
+    const tabla = [[16000, 0.20, 26000], [16000, 0.50, 38000], [8000, 0.30, 15500], [8000, 0.50, 19000], [12000, 0.25, 21500], [12000, 0.10, 15500], [16000, 0.35, 32500], [8000, 0.15, 11500]];
+    tabla.forEach(([tbo, p, horas]) => {
+      // horas donde el riesgo vale p: invertimos la fórmula y comparamos con la tabla
+      const t = tbo * Math.pow(Math.log(1 - p) / Math.log(0.95), 1 / 3);
+      expect(Math.abs(t - horas)).toBeLessThanOrEqual(250);
+      expect(L.tboRiesgoWeibull(t, tbo)).toBeCloseTo(p, 8);
+    });
+  });
+  it('riesgo condicional en el horizonte: crece con las horas y es 0 con horizonte 0', () => {
+    expect(L.tboRiesgoHorizonte(8000, 8000, 0)).toBe(0);
+    const a = L.tboRiesgoHorizonte(4000, 8000, 500), b = L.tboRiesgoHorizonte(12000, 8000, 500);
+    expect(a).toBeGreaterThan(0);
+    expect(b).toBeGreaterThan(a);
+    // 1 − S(t+h)/S(t): con t=0 coincide con el riesgo acumulado a h horas
+    expect(L.tboRiesgoHorizonte(0, 8000, 8000)).toBeCloseTo(0.05, 10);
+  });
+  it('probabilidad 1–5 para la matriz (cortes en B5/B10/B20/B35)', () => {
+    expect(L.tboProbNivel(0.02)).toBe(1);
+    expect(L.tboProbNivel(0.05)).toBe(1);
+    expect(L.tboProbNivel(0.07)).toBe(2);
+    expect(L.tboProbNivel(0.15)).toBe(3);
+    expect(L.tboProbNivel(0.30)).toBe(4);
+    expect(L.tboProbNivel(0.60)).toBe(5);
+  });
+  it('el estado de flota trae riesgo y probabilidad: alternador con 11.534 h desde el cambio (TBO 8.000) ≈ 14% → nivel 3', () => {
+    const hist = [{ sigla: 'CN-1', comp: 'Alternador', horomInstalacion: 1000 }];
+    const a = L.tboEstadoFlota([{ sigla: 'CN-1', modelo: 'Komatsu HD785-7', horomActual: 12534, hrsDia: 20 }], hist, [], new Date('2026-10-10T12:00:00Z')).find(x => x.item === 'ALTERNATOR');
+    expect(a.riesgo).toBeCloseTo(0.1424, 3);
+    expect(a.prob).toBe(3);
+    expect(a.riesgo500).toBeGreaterThan(0);
+  });
+});
+
+describe('tboMatrizRiesgo', () => {
+  const hoy = new Date('2026-10-10T12:00:00Z');
+  const eqs = [{ sigla: 'CN-1', modelo: 'Komatsu HD785-7', horomActual: 30000, hrsDia: 20 }];
+  const hist = [
+    { sigla: 'CN-1', comp: 'Alternador', horomInstalacion: 1000 },   // 29.000 h desde, TBO 8.000 → riesgo altísimo
+    { sigla: 'CN-1', comp: 'Turbo', horomInstalacion: 25000 },       // 5.000 h desde, TBO 8.000 → dentro del TBO
+  ];
+  const est = L.tboEstadoFlota(eqs, hist, [], hoy);
+  it('solo entran los cambios con último cambio conocido; sin precio el impacto es neutro (3)', () => {
+    const m = L.tboMatrizRiesgo(est, () => null);
+    expect(m.items).toHaveLength(3); // alternador + 2 turbos (izq/der)
+    m.items.forEach(i => expect(i.impacto).toBe(3));
+    expect(m.items[0].item).toBe('ALTERNATOR');
+    expect(m.items[0]).toMatchObject({ prob: 5, pxi: 15, nivelPxI: 'Alto' });
+    expect(m.conPrecio).toBe(0);
+  });
+  it('con ≥5 precios usa quintiles para el impacto y suma PxI', () => {
+    const precios = { ALTERNATOR: 2000000 };
+    const muchos = est.concat([1, 2, 3, 4, 5].map(k => Object.assign({}, est[0], { item: 'X' + k, conDato: true, prob: 1, riesgo: 0.01 })));
+    const valores = { ALTERNATOR: 9000000, X1: 100, X2: 200, X3: 300, X4: 400, X5: 500 };
+    const m = L.tboMatrizRiesgo(muchos, x => valores[x.item] || null);
+    const alt = m.items.find(i => i.item === 'ALTERNATOR');
+    expect(alt.impacto).toBe(5);
+    expect(alt.pxi).toBe(25);
+    expect(alt.nivelPxI).toBe('Extremo');
+    expect(precios.ALTERNATOR).toBeGreaterThan(0);
+    expect(Object.keys(m.celdas).length).toBeGreaterThan(1);
+  });
+  it('los ítems teóricos (sin cambio registrado) no entran', () => {
+    expect(L.tboMatrizRiesgo(L.tboEstadoFlota(eqs, [], [], hoy), () => null).items).toEqual([]);
+  });
+});
+
+describe('tboCostoPorHora — original vs alternativo', () => {
+  const eqs = [{ sigla: 'CN-1', modelo: 'Komatsu HD785-7' }, { sigla: 'CN-2', modelo: 'Komatsu HD785-7' }];
+  const compras = [
+    { sigla: 'CN-1', detalle: 'Turbo Hd785', precioUnit: 8000000, costo: 8000000, cant: 1, fecha: '2024-01-01', proveedor: 'KOMATSU CHILE S.A.', tipo: 'Repuesto' },
+    { sigla: 'CN-2', detalle: 'Turbo Hd785 rep', precioUnit: 2400000, costo: 2400000, cant: 1, fecha: '2025-01-01', proveedor: 'TURBODAL S.A', tipo: 'Repuesto' },
+  ];
+  const vida = [
+    { comp: 'Turbo', origen: 'original', mediana: 4000, tbo: { min: 8000, max: 8000 }, pctTBO: 50 },
+    { comp: 'Turbo', origen: 'alternativo', mediana: 1000, tbo: { min: 8000, max: 8000 }, pctTBO: 13 },
+    { comp: 'Asiento', origen: 'sin dato', mediana: 600, tbo: null, pctTBO: null },
+  ];
+  it('costo por hora = precio ÷ duración real; el alternativo barato pero de poca vida sale más caro por hora', () => {
+    const r = L.tboCostoPorHora(vida, compras, eqs, 910);
+    const o = r.find(x => x.origen === 'original'), a = r.find(x => x.origen === 'alternativo');
+    expect(o).toMatchObject({ precio: 8000000, costoHora: 2000, costoHoraTBO: 1000, fuentePrecio: 'pagado a Komatsu' });
+    expect(a).toMatchObject({ precio: 2400000, costoHora: 2400 });
+    expect(a.costoHora).toBeGreaterThan(o.costoHora);
+  });
+  it('sin compras al original usa la lista Komatsu en USD valorizada con la tasa; componentes sin ítem en el plan quedan sin precio', () => {
+    const r = L.tboCostoPorHora(vida, [], eqs, 910);
+    expect(r.find(x => x.origen === 'original')).toMatchObject({ precio: Math.round(8002.71 * 910), fuentePrecio: 'lista Komatsu (USD)' });
+    expect(r.find(x => x.comp === 'Asiento')).toMatchObject({ precio: null, costoHora: null });
   });
 });

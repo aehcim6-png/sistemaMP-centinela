@@ -6126,7 +6126,7 @@ criterio de quien conoce el caso).
 ### 110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)
 
 Pestaña **Componentes → TBO Komatsu** (módulo lazy `modules/renders/tbo.js`; toda la lógica pura en `logic.js`, funciones `tbo*`,
-41 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
+55 pruebas en `tests/tboKomatsu.test.js`). Fuente: `TBO_Besalco_Mineria_jun_24.xlsm` (Komatsu, jun-2024), original guardado en
 `docs/referencias/`. Se usaron TODAS sus hojas: Camiones/Cargadores/Bulldozers (58/71/57 ítems, TBO de aplicación 'Normal'),
 'Sugerido' (27 repuestos HD785-7 con N° de parte y precio en USD; la suma cantidad×unitario da USD 173.030,5, igual que el Excel)
 y las ocultas 'Application Guide' y 'Weibull' (guardadas en el original; no alimentan cálculos).
@@ -6162,6 +6162,22 @@ Los ítems sin regla o sin compras se muestran igual como "sin precio".
 
 **Aviso.** Tarjeta "⏱ Cambios TBO" en el Dashboard (vencidos + por cumplir) que lleva a la pestaña. No se agregó correo/push:
 queda pendiente decidir si el resumen semanal debe incluirlo.
+
+**Fórmulas, algoritmos y matriz del Excel.** El .xlsm trae 3 macros VBA (se leyeron con olevba) y una tabla Weibull oculta; se usaron:
+(1) **Tipo de aplicación** (`Calculadora`): TBO de aplicación = TBO de fábrica × 120% ligera / 100% normal / 80% severa — selector global
+en la pestaña (guardado por navegador; el Excel viene en 'Normal') con la guía 'Application Guide' como ayuda; el Dashboard lo respeta.
+(2) **Cambios teóricos / horas que quedan / fecha** (`Calculadora`): `piso(horómetro ÷ TBO)`, `TBO − resto`, fecha = hoy + horas/uso (el
+Excel usa 300 h/mes; acá `hrsDia` de cada equipo). (3) **Riesgo actual** (`Calculadora2` + hoja Weibull): la tabla de 18×600 celdas es una
+Weibull con **β=3 y el TBO como B5** (verificado contra celdas reales: B50/B5 = (ln0,5/ln0,95)^(1/3) = 2,38; la tabla va redondeada a
+500 h). La macro busca la fila más cercana; acá se usa la fórmula continua `F(t)=1−0,95^((t/TBO)^3)` (`tboRiesgoWeibull`, probada contra 8
+celdas de la tabla con tolerancia ±250 h) y además la probabilidad condicional en las próximas 500 h (`tboRiesgoHorizonte`). El Excel
+muestra 5% fijo antes del TBO; acá se muestra el valor real (<5%). (4) **Matriz de Riesgo** (`tboMatrizRiesgo`): Probabilidad 1–5 por
+cortes en B5/B10/B20/B35 del riesgo Weibull × Impacto 1–5 por quintil del precio, reutilizando `umbralesImpacto`/`impactoDeValor`/
+`nivelRiesgoPxI` de la Matriz de Riesgo de Predictivo (mismas bandas Bajo/Moderado/Alto/Extremo); solo entran los cambios con último
+cambio conocido (los teóricos quedan dentro del TBO por construcción) y sin precio el impacto es neutro (3). (5) **Costo por hora**
+(`tboCostoPorHora`) = precio típico ÷ duración mediana real, por origen, más el costo por hora a la vida del TBO: así se ve si un repuesto
+alternativo, aunque más barato, sale más caro por hora de uso. Una instalación de Componentes Mayores cuenta como cambio real solo si
+tiene fecha de instalación (criterio de `compEstado`); las filas por defecto sin fecha no cuentan.
 
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
