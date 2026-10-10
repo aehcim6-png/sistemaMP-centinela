@@ -135,3 +135,20 @@ describe('S.g/S.s — contrato de copia superficial', () => {
     expect(S.g('ot')[0].estadoOT).toBe('Cerrada');
   });
 });
+
+describe('registros_pm — columnas del formulario de Registro PM', () => {
+  const fs = require('fs'), path = require('path');
+  const dir = path.join(__dirname, '..', 'supabase', 'migrations');
+  const sql = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+
+  it('el contexto de ejecución (turno, operador, ubicación, AST, LOTO, repuestos) se persiste', () => {
+    ['turno', 'operador', 'ubicacion', 'ast', 'loto', 'repuestos'].forEach(function (c) {
+      expect(TABLA_REAL.reg.cols).toContain(c);
+    });
+  });
+  it('cada columna mapeada tiene una migración que la crea (si no, el guardado falla en la base)', () => {
+    TABLA_REAL.reg.cols.forEach(function (c) {
+      expect(sql, 'sin migración para registros_pm."' + c + '"').toMatch(new RegExp('"' + c + '"|\\b' + c + '\\b'));
+    });
+  });
+});

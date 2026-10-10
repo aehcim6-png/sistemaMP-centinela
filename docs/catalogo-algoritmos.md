@@ -139,7 +139,7 @@ Hoy tenemos 8 (sección 1.7). Revisé el código y no hay ninguna de estas:
 ## 4. Observaciones sobre los datos (lo que frena a los algoritmos)
 
 - **Tipo de Causa** vacío en el 100% de los correctivos y **Sistema** vacío en ~23%: limita Pareto por causa, Calidad de Ejecución y RCM.
-- **PM**: el formulario captura turno, operador, ubicación, AST y LOTO pero no se guardan en `registros_pm`.
+- **PM** ✅ (2026-10-10): turno, operador, ubicación, AST, LOTO y repuestos usados ahora se guardan en `registros_pm`; los PM anteriores quedan sin esos datos.
 - **Compras**: los pedidos no traen N° de parte y el texto viene cortado a ~25 caracteres; el cruce por descripción es aproximado.
 - **Origen del repuesto** (original/alternativo) solo está cargado en los turbos; el resto se infiere por el proveedor.
 - **Componentes Mayores**: solo 64 de 643 filas tienen instalación real (fecha + horómetro); el resto son filas por defecto.

@@ -6243,6 +6243,14 @@ Verificado contra fuerza bruta en 60 casos aleatorios y en el contraejemplo clá
 voraz 160, óptimo 220). Limitaciones: los ítems son independientes (no hay descuento por comprar juntos ni por equipo), y los teóricos
 (sin cambio medido) y los sin precio no se priorizan. 9 pruebas más.
 
+**Contexto del PM ahora se guarda.** El formulario de Registro PM capturaba turno, operador, ubicación, AST, LOTO y repuestos usados, pero
+`registros_pm` no tenía esas columnas y se perdían al recargar. Migración aditiva `20261010120000_agregar_contexto_a_registros_pm.sql`
+(columnas de texto nulas; null = registro anterior), aplicada en ambas bases, y las seis columnas se agregaron al mapeo `reg` de
+`modules/store.js`. Prueba nueva: cada columna mapeada de `registros_pm` debe tener una migración que la cree (así un mapeo sin columna
+—que haría fallar el guardado en la base— no pasa los tests). Verificado en un navegador real: lo enviado a la base lleva los seis campos.
+Tipo de Causa y Sistema ya se capturaban desde el paso 3 de Calidad de Ejecución (aviso suave al cerrar, no obligatorio a propósito: hay
+que poder cerrar rápido); lo que falta es historia, no captura.
+
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
 
