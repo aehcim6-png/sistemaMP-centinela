@@ -6281,6 +6281,21 @@ intermitente y de recorte (`tests/pronosticoDemanda.test.js`, 16).
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
 
+### 111. Guardados automáticos con la sesión vencida (2026-10-10)
+
+**Síntoma (Sentry, 2026-10-08, celular Android).** Cinco errores "Guardado fallido en Supabase" casi simultáneos: `metas`, `meta_disponibilidad`,
+`disponibilidad_calculada`, `avance_data` y `salud_flota_historico`, todos con 401 / `42501 new row violates row-level security policy`.
+**Causa (verificada en los logs de la API de Supabase).** La app retomó con el token de acceso vencido y los cinco guardados automáticos
+(datos derivados que se recalculan al pintar el tablero) salieron en el mismo milisegundo; el 401 disparó la renovación de sesión, que
+terminó bien ~5 s después (`POST /auth/v1/token` 200), pero ningún guardado se reintentó. Datos derivados: no se perdió información del
+usuario, pero sí hubo 5 avisos y 5 eventos de error por algo que se arregla solo.
+**Corrección.** `_fetchSb` (modules/store.js) envuelve los guardados (upsert de tablas, DELETE, vencimientos, singletons, kv): si el token
+vence en menos de 30 s renueva la sesión ANTES de enviar y manda el token nuevo; si aun así llega un 401, renueva una vez y reintenta una
+vez (los upsert `merge-duplicates` y los DELETE son idempotentes). Sin token de usuario no intenta renovar, y si la renovación falla
+devuelve el 401 original para que el aviso y el cierre de sesión existentes sigan funcionando. 11 pruebas (`tests/fetchSbSesion.test.js`)
+y verificado en un navegador real: con el token vencido instalado, el guardado renueva primero y sale con el token nuevo, sin avisos.
+Las lecturas no se tocaron (las tablas son legibles con la clave anónima, por eso solo fallaron los POST).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

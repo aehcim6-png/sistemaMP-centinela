@@ -71,6 +71,36 @@ function _sbHeaders(){
   return{'apikey':c.key,'Authorization':'Bearer '+(userToken||c.key),'Content-Type':'application/json'};
 }
 
+// Escrituras a Supabase con sesión vigente (2026-10-10, caso real de Sentry 2026-10-08: un celular Android retomó la app con el token
+// de acceso vencido y 5 guardados automáticos —metas, meta_disponibilidad, disponibilidad_calculada, avance_data, salud_flota_historico—
+// salieron en el mismo milisegundo con 401 / "violates row-level security"; la sesión se renovó ~5 s DESPUÉS y nada reintentó, así que
+// quedaron 5 avisos y 5 eventos de error por algo que se arregla solo). Acá se renueva ANTES de enviar si el token vence en <30 s, y si
+// igual llega un 401 se renueva una vez y se reintenta una vez. Los upsert (merge-duplicates) y DELETE son idempotentes, así que repetir
+// es seguro. Sin token de usuario (clave anónima) no se intenta renovar nada.
+function _tokenPorVencer(){
+  const t=localStorage.getItem('smp_access_token');
+  if(!t)return false;
+  try{
+    const p=JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    return !!p.exp&&p.exp*1000<Date.now()+30000;
+  }catch(e){return false;}
+}
+function _conTokenActual(init){
+  const t=localStorage.getItem('smp_access_token');
+  if(!t)return init;
+  return Object.assign({},init,{headers:Object.assign({},init.headers,{'Authorization':'Bearer '+t})});
+}
+async function _fetchSb(url,init){
+  const puedeRenovar=typeof _sbAuthRefresh==='function';
+  if(puedeRenovar&&_tokenPorVencer()){try{await _sbAuthRefresh();}catch(e){}}
+  let res=await fetch(url,_conTokenActual(init));
+  if(res.status===401&&puedeRenovar&&localStorage.getItem('smp_access_token')){
+    let ok=false;try{ok=await _sbAuthRefresh();}catch(e){}
+    if(ok)res=await fetch(url,_conTokenActual(init));
+  }
+  return res;
+}
+
 // Telemetría de uso (agosto 2026) — un POST directo a PostgREST por cada
 // pestaña/sub-pestaña que alguien realmente abre (llamado desde go() y
 // comp2Sub/mkpiSub/planiSub/stk2Sub, no en cada carga de página). A
@@ -534,7 +564,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
     filas.push(fila);
   }
   if(filas.length){
-    await fetch(`${c.url}/rest/v1/${cfg.tabla}?on_conflict=${cfg.claveDb}`,{
+    await _fetchSb(`${c.url}/rest/v1/${cfg.tabla}?on_conflict=${cfg.claveDb}`,{
       method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify(filas)
     }).then(async function(res){
       if(!res.ok)_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));
@@ -542,7 +572,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
   }
   for(const idViejo of idsAnteriores){
     if(!idsNuevos.has(idViejo)){
-      await fetch(`${c.url}/rest/v1/${cfg.tabla}?${cfg.claveDb}=eq.${encodeURIComponent(idViejo)}`,{method:'DELETE',headers:_sbHeaders()})
+      await _fetchSb(`${c.url}/rest/v1/${cfg.tabla}?${cfg.claveDb}=eq.${encodeURIComponent(idViejo)}`,{method:'DELETE',headers:_sbHeaders()})
         .then(async function(res){if(!res.ok)_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));})
         .catch(function(){_avisarErrorGuardado(cfg.tabla,'')});
     }
@@ -636,7 +666,7 @@ async function _syncVencimientosInner(obj,objAnterior){
     }
   }
   if(!filas.length)return;
-  await fetch(`${c.url}/rest/v1/vencimientos?on_conflict=sigla,vencTipo`,{
+  await _fetchSb(`${c.url}/rest/v1/vencimientos?on_conflict=sigla,vencTipo`,{
     method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify(filas)
   }).then(async function(res){
     if(!res.ok)_avisarErrorGuardado('vencimientos',await res.text().catch(function(){return''}));
@@ -684,7 +714,7 @@ async function _syncSingletonInner(cfgS,v,catKey){
   if(cfgS.modo==='objeto'){body={id:true};cfgS.cols.forEach(function(col){var cv=v&&v[col];body[col]=(cv===''?null:cv)??null;});}
   else if(cfgS.modo==='valor')body={id:true,valor:v};
   else body={id:true,datos:v};
-  await fetch(`${c.url}/rest/v1/${cfgS.tabla}?on_conflict=id`,{
+  await _fetchSb(`${c.url}/rest/v1/${cfgS.tabla}?on_conflict=id`,{
     method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),body:JSON.stringify([body])
   }).then(async function(res){
     if(!res.ok){_avisarErrorGuardado(cfgS.tabla,await res.text().catch(function(){return''}));return;}
@@ -707,7 +737,7 @@ function _sbWrite(k,v){
   if(!_sbOk())return;
   const c=_sbCfg();
   const now=new Date().toISOString();
-  fetch(`${c.url}/rest/v1/kv?on_conflict=key`,{
+  _fetchSb(`${c.url}/rest/v1/kv?on_conflict=key`,{
     method:'POST',
     headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
     body:JSON.stringify([{key:k,value:v,updated_at:now}])
@@ -1095,5 +1125,5 @@ if(typeof module!=='undefined'&&module.exports){
   module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache,
     _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL,_recalcEq,_horomUltimoPM,_ritmoRealEq,
     _resetearDatosEmpresa,_refetchTablaReal,_syncChain,
-    _avisarErrorGuardado,_erroresGuardadoDesde,_erroresGuardadoRecientes};
+    _avisarErrorGuardado,_erroresGuardadoDesde,_erroresGuardadoRecientes,_fetchSb,_tokenPorVencer};
 }
