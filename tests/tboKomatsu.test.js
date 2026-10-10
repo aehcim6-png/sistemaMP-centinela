@@ -793,3 +793,90 @@ describe('Reemplazo óptimo por costo (política de reemplazo por edad) y matriz
     });
   });
 });
+
+describe('Bondad de ajuste y comparación de modelos (Weibull, log-normal, Gamma, exponencial)', () => {
+  // Muestras "casi perfectas": se generan con la función de cuantiles del modelo en (i−0,5)/n, así que el ajuste debe recuperar los parámetros
+  const mk = (cuantil, n) => Array.from({ length: n }, (_, i) => cuantil((i + 0.5) / n));
+  describe('funciones especiales, contra valores conocidos', () => {
+    it('digamma y trigamma: ψ(1)=−γ, ψ(½)=−γ−2ln2, ψ′(1)=π²/6, ψ′(½)=π²/2', () => {
+      expect(L._digamma(1)).toBeCloseTo(-0.5772156649, 9);
+      expect(L._digamma(0.5)).toBeCloseTo(-1.9635100260, 9);
+      expect(L._trigamma(1)).toBeCloseTo(Math.PI * Math.PI / 6, 9);
+      expect(L._trigamma(0.5)).toBeCloseTo(Math.PI * Math.PI / 2, 9);
+    });
+    it('Φ(z) normal estándar', () => {
+      expect(L._normCDF(1.96)).toBeCloseTo(0.9750021, 6);
+      expect(L._normCDF(-1)).toBeCloseTo(0.1586553, 6);
+      expect(L._normCDF(0)).toBeCloseTo(0.5, 12);
+    });
+  });
+  describe('ajuste por máxima verosimilitud: recupera los parámetros', () => {
+    it('Weibull (β=2, η=100)', () => {
+      const f = L.ajusteWeibullMLE(mk(p => 100 * Math.pow(-Math.log(1 - p), 1 / 2), 500));
+      expect(f.beta).toBeCloseTo(2, 1);
+      expect(f.eta).toBeCloseTo(100, 0);
+    });
+    it('Gamma (k=2, θ=10) — incluye el caso k<1', () => {
+      const f = L.ajusteGammaMLE(mk(p => L.gammaCuantil(p, 2, 10), 500));
+      expect(f.k).toBeCloseTo(2, 1);
+      expect(f.k * f.theta).toBeCloseTo(20, 1);
+      const g = L.ajusteGammaMLE(mk(p => L.gammaCuantil(p, 0.7, 30), 500));
+      expect(g.k).toBeCloseTo(0.7, 1);
+    });
+    it('log-normal (μ=3, σ=0,8) y exponencial (media 25)', () => {
+      const f = L.ajusteLogNormalMLE(mk(p => Math.exp(3 + 0.8 * 1.0 * ((q) => { let lo = -8, hi = 8; for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; L._normCDF(m) < q ? lo = m : hi = m; } return (lo + hi) / 2; })(p)), 500));
+      expect(f.mu).toBeCloseTo(3, 1);
+      expect(f.sigma).toBeCloseTo(0.8, 1);
+      expect(L.ajusteExponencialMLE(mk(p => -25 * Math.log(1 - p), 500)).theta).toBeCloseTo(25, 0);
+    });
+    it('piden ≥5 datos positivos', () => {
+      expect(L.ajusteGammaMLE([1, 2, 3, 4])).toBeNull();
+      expect(L.ajusteWeibullMLE([1, 2, 3])).toBeNull();
+      expect(L.ajusteLogNormalMLE([5, 5, 5, 5, 5])).toBeNull(); // varianza 0
+    });
+  });
+  describe('compararModelosVida', () => {
+    it('con menos de 8 datos no compara', () => {
+      expect(L.compararModelosVida([1, 2, 3, 4, 5, 6, 7])).toBeNull();
+    });
+    it('elige el modelo verdadero: muestra Weibull β=3 → Weibull; muestra log-normal → log-normal; exponencial → exponencial (o empate técnico)', () => {
+      const w = L.compararModelosVida(mk(p => 100 * Math.pow(-Math.log(1 - p), 1 / 3), 300));
+      expect(w.mejor).toBe('weibull');
+      const ln = L.compararModelosVida(mk(p => { let lo = -8, hi = 8; for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; L._normCDF(m) < p ? lo = m : hi = m; } return Math.exp(2.5 + 1.0 * (lo + hi) / 2); }, 300));
+      expect(ln.mejor).toBe('lognormal');
+      const ex = L.compararModelosVida(mk(p => -20 * Math.log(1 - p), 300));
+      const dEx = ex.modelos.find(m => m.modelo === 'exponencial').dAICc;
+      expect(dEx).toBeLessThan(2);
+    });
+    it('ΔAICc: el mejor vale 0, los demás ≥ 0 y vienen ordenados; AICc = AIC + 2k(k+1)/(n−k−1)', () => {
+      const r = L.compararModelosVida(mk(p => 100 * Math.pow(-Math.log(1 - p), 1 / 3), 100));
+      expect(r.modelos[0].dAICc).toBe(0);
+      for (let i = 1; i < r.modelos.length; i++) expect(r.modelos[i].dAICc).toBeGreaterThanOrEqual(r.modelos[i - 1].dAICc);
+      const w = r.modelos.find(m => m.modelo === 'weibull');
+      expect(w.aicc).toBeCloseTo(w.aic + 2 * 2 * 3 / (100 - 2 - 1), 8);
+      const e = r.modelos.find(m => m.modelo === 'exponencial');
+      expect(e.aicc).toBeCloseTo(e.aic + 2 * 1 * 2 / (100 - 1 - 1), 8);
+    });
+    it('el error del percentil 90 del modelo verdadero es pequeño', () => {
+      const r = L.compararModelosVida(mk(p => 100 * Math.pow(-Math.log(1 - p), 1 / 3), 400));
+      expect(Math.abs(r.modelos.find(m => m.modelo === 'weibull').errP90)).toBeLessThan(0.03);
+    });
+    it('KS: la distancia de la muestra "perfecta" al modelo verdadero es chica (≈ 1/2n)', () => {
+      const r = L.compararModelosVida(mk(p => 100 * Math.pow(-Math.log(1 - p), 1 / 3), 200));
+      expect(r.modelos.find(m => m.modelo === 'weibull').D).toBeLessThan(0.01);
+    });
+    it('bootstrap paramétrico: es reproducible con la misma semilla; un modelo equivocado se rechaza y el correcto no', () => {
+      const wb = mk(p => 100 * Math.pow(-Math.log(1 - p), 1 / 3), 80); // desgaste claro (β=3): la exponencial es un mal modelo
+      const a = L.compararModelosVida(wb, { B: 100, semilla: 3 }), b = L.compararModelosVida(wb, { B: 100, semilla: 3 });
+      expect(a.modelos.map(m => m.pBoot)).toEqual(b.modelos.map(m => m.pBoot));
+      expect(a.modelos.find(m => m.modelo === 'exponencial').pBoot).toBeLessThan(0.05);
+      expect(a.modelos.find(m => m.modelo === 'weibull').pBoot).toBeGreaterThan(0.05);
+    });
+  });
+  describe('tiempos de entrega reales', () => {
+    it('solo cuenta pedidos recibidos con tiempo > 0', () => {
+      const cd = [{ estado: 'Recepcion Bodega', tiempoRespuesta: '2 dias 12h 0m' }, { estado: 'OC Firmada', tiempoRespuesta: '9 dias' }, { estado: 'Recepcion Bodega', tiempoRespuesta: null }, { estado: 'Recepcion Bodega', tiempoRespuesta: '10 dias 0h 0m' }];
+      expect(L.tboTiemposEntrega(cd)).toEqual([2.5, 10]);
+    });
+  });
+});

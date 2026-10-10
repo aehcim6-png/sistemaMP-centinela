@@ -17,6 +17,7 @@ function _tboParamOpt(k, def) {
   try { var v = parseFloat(localStorage.getItem(_TBO_OPT_KEYS[k])); if (v >= 0) return v; } catch (e) { /* sin storage: default */ }
   return def;
 }
+var _tboPBoot = {}; // p-valores de bootstrap ya calculados por muestra (se piden con un botón: tardan unos segundos)
 var _TBO_APLIC_KEY = 'tboAplic';
 function _tboAplic() {
   try { var v = localStorage.getItem(_TBO_APLIC_KEY); if (TBO_APLICACION[v]) return v; } catch (e) { /* sin storage: normal */ }
@@ -298,6 +299,42 @@ export function renderTbo() {
       }).join('') + '</table></div>';
   }
 
+  // ── Bondad de ajuste: ¿estamos usando la distribución correcta? ──
+  var _NOM_MOD = { weibull: 'Weibull', lognormal: 'Log-normal', gamma: 'Gamma', exponencial: 'Exponencial' };
+  var _parStr = function (m, p) { var r = function (x) { return (Math.round(x * 100) / 100 + '').replace('.', ','); }; return m === 'weibull' ? 'β ' + r(p.beta) + ' · η ' + r(p.eta) : m === 'lognormal' ? 'μ ' + r(p.mu) + ' · σ ' + r(p.sigma) : m === 'gamma' ? 'k ' + r(p.k) + ' · θ ' + r(p.theta) : 'media ' + r(p.theta); };
+  var _pct = function (x) { return (x >= 0 ? '+' : '−') + (Math.round(Math.abs(x) * 1000) / 10 + '').replace('.', ',') + '%'; };
+  var entregas = tboTiemposEntrega(S.g('comprasDetalle') || []);
+  var gofE = compararModelosVida(entregas);
+  if (gofE && _tboPBoot.entrega) gofE.modelos.forEach(function (m) { var q = _tboPBoot.entrega.p.modelos.find(function (x) { return x.modelo === m.modelo; }); m.pBoot = q ? q.pBoot : null; });
+  var tablaGof = function (g, usado, clave) {
+    return '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Modelo</th><th>Parámetros</th><th style="text-align:right" title="Diferencia de AICc contra el mejor modelo (menor es mejor). Más de 10 = el modelo es claramente peor.">ΔAICc</th><th style="text-align:right" title="Distancia máxima entre la curva acumulada observada y la del modelo (Kolmogorov-Smirnov). Menor = más parecido.">KS D</th><th style="text-align:right" title="Percentil 90 del modelo; entre paréntesis, error contra el percentil 90 observado. Es el valor que usa el plan de compra.">Percentil 90</th><th style="text-align:right">Percentil 99</th><th style="text-align:right" title="p-valor por bootstrap paramétrico: probabilidad de ver una distancia así o mayor si el modelo fuera cierto. Menor a 0,05 = el modelo se rechaza.">p-valor</th></tr>' +
+      g.modelos.map(function (m) {
+        var esMejor = m.dAICc === 0, pb = m.pBoot;
+        return '<tr' + (m.modelo === usado ? ' style="background:rgba(245,158,11,.08)"' : '') + '><td style="font-weight:600">' + _NOM_MOD[m.modelo] + (esMejor ? ' <span style="font-size:9px;color:var(--ok)">mejor AICc</span>' : '') + (m.modelo === usado ? ' <span style="font-size:9px;color:var(--ac)">en uso</span>' : '') + '</td>' +
+          '<td class="mono" style="font-size:10px">' + _parStr(m.modelo, m.par) + '</td><td class="mono" style="text-align:right;' + (m.dAICc > 10 ? 'color:var(--danger)' : '') + '">' + (Math.round(m.dAICc * 10) / 10 + '').replace('.', ',') + '</td>' +
+          '<td class="mono" style="text-align:right">' + (Math.round(m.D * 1000) / 1000 + '').replace('.', ',') + '</td>' +
+          '<td class="mono" style="text-align:right">' + fn(Math.round(m.p90)) + ' <span style="font-size:10px;color:' + (Math.abs(m.errP90) <= 0.05 ? 'var(--ok)' : Math.abs(m.errP90) <= 0.15 ? 'var(--w)' : 'var(--danger)') + '">(' + _pct(m.errP90) + ')</span></td>' +
+          '<td class="mono" style="text-align:right">' + fn(Math.round(m.p99)) + ' <span style="font-size:10px;color:var(--tx3)">(' + _pct(m.errP99) + ')</span></td>' +
+          '<td class="mono" style="text-align:right">' + (pb == null ? '<span style="color:var(--tx3)">—</span>' : '<span style="color:' + (pb < 0.05 ? 'var(--danger)' : 'var(--ok)') + '">' + (pb < 0.0105 ? '&lt;0,01' : (Math.round(pb * 100) / 100 + '').replace('.', ',')) + '</span>') + '</td></tr>';
+      }).join('') + '</table></div>';
+  };
+  h += '<div class="card-t" style="margin:18px 0 6px">¿Estamos usando la distribución correcta? — bondad de ajuste</div>' +
+    '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">Cada modelo se ajusta por máxima verosimilitud y se compara con <b>AICc</b> (premia el ajuste y castiga la complejidad; menor es mejor), la distancia de <b>Kolmogorov-Smirnov</b> y el <b>error en los percentiles</b> que usan las decisiones. El p-valor se calcula por <b>bootstrap paramétrico</b> (la prueba KS clásica no vale cuando los parámetros salen de los mismos datos). Con miles de datos casi cualquier modelo simple se rechaza: lo que importa es qué tan lejos queda el percentil que se usa.</div>';
+  if (gofE) {
+    var mejorE = gofE.modelos[0], gam = gofE.modelos.find(function (m) { return m.modelo === 'gamma'; });
+    h += '<div style="font-weight:600;font-size:12px;margin:6px 0">Tiempo de entrega de los repuestos (' + fn(gofE.n) + ' pedidos recibidos) — modelo en uso para "Pedir ya": Gamma</div>' + tablaGof(gofE, 'gamma') +
+      '<div style="display:flex;gap:10px;align-items:center;margin:6px 0;flex-wrap:wrap"><button class="btn-s" style="font-size:10px" onclick="tboCalcularPBoot()" title="Simula 100 muestras de cada modelo y reajusta; tarda unos segundos">Calcular p-valor (bootstrap)</button><span style="font-size:10px;color:var(--tx3)">' + (_tboPBoot.entrega ? 'Calculado con ' + fn(_tboPBoot.entrega.n) + ' pedidos (muestra uniforme) y 100 simulaciones.' : 'Tarda unos segundos.') + '</span></div>' +
+      '<p style="font-size:11px;color:var(--tx2);margin:4px 0 0">' + (mejorE.modelo === 'gamma' ? 'La Gamma es el mejor ajuste por AICc.' : 'Por AICc el mejor ajuste es <b>' + _NOM_MOD[mejorE.modelo] + '</b>; la Gamma queda a ' + (Math.round(gam.dAICc * 10) / 10 + '').replace('.', ',') + ' de AICc.') +
+      ' Para el percentil 90 —el que define cuándo pedir— la Gamma yerra ' + _pct(gam.errP90) + (mejorE.modelo !== 'gamma' ? ' y la ' + _NOM_MOD[mejorE.modelo] + ' ' + _pct(mejorE.errP90) : '') + '; en el percentil 99 ' + (gam.errP99 < 0 ? 'la Gamma subestima las demoras muy largas' : 'la Gamma las sobreestima') + ' (' + _pct(gam.errP99) + '). Los tiempos de entrega reales tienen "picos" en plazos fijos (15, 20, 62 días…), por eso ningún modelo liso los ajusta perfecto.</p>';
+  } else h += '<div class="card" style="color:var(--tx3);font-size:12px">Hacen falta al menos 8 pedidos recibidos con tiempo de respuesta para probar la distribución de entregas.</div>';
+  var gruposVida = vida.filter(function (v) { return v.vals && v.vals.length >= 8; });
+  h += '<div style="font-weight:600;font-size:12px;margin:12px 0 6px">Vida de los componentes (horas entre cambios), por componente y origen</div>';
+  if (gruposVida.length) {
+    gruposVida.forEach(function (v) { var g = compararModelosVida(v.vals); if (g) h += '<div style="font-size:11px;margin:6px 0 2px"><b>' + escapeHtml(v.comp) + '</b> · ' + escapeHtml(_TBO_ORIGEN[v.origen] || v.origen) + ' · ' + fn(v.n) + ' cambios</div>' + tablaGof(g, 'weibull'); });
+  } else {
+    h += '<div class="card" style="color:var(--tx3);font-size:12px">Ningún componente tiene todavía 8 o más cambios medidos del mismo origen, que es el mínimo para probar la forma de la distribución. Hoy el programa <b>supone Weibull</b> (β=3 del fabricante cuando hay pocos datos); esta tabla aparece sola cuando haya muestra. ' + fn(vida.filter(function (v) { return v.vals && v.vals.length >= 3; }).length) + ' grupos tienen 3 o más.</div>';
+  }
+
   if (sinCompras) h += '<div class="card" style="color:var(--tx3);font-size:12px;margin-top:12px">No hay compras cargadas para ' + (eqSel ? escapeHtml(eqSel.sigla) : 'la flota') + '.</div>';
 
   // ── Gasto por familia ──
@@ -388,6 +425,18 @@ function _tboResumenBeta(filas) {
   }).join('<br>') + '<div style="font-size:10px;color:var(--tx3);margin-top:4px">Método: cada cambio medido es un ensayo Bernoulli (¿duró al menos el TBO?); cada origen se resume con una distribución Beta y se compara cuál tiene mayor probabilidad de éxito. 50% = no hay diferencia detectable. Con 3–4 cambios por origen una diferencia grande puede ser casualidad: mirá los intervalos de la tabla.</div></div>';
 }
 
+// Bootstrap paramétrico de la distribución de entregas (lento: se pide con el botón). Usa una muestra uniforme de hasta 1.000 pedidos.
+export function tboCalcularPBoot() {
+  toast('Calculando… puede tardar unos segundos');
+  setTimeout(function () {
+    var xs = tboTiemposEntrega(S.g('comprasDetalle') || []);
+    var paso = Math.max(1, Math.floor(xs.length / 1000)), mu = xs.filter(function (_, i) { return i % paso === 0; });
+    var g = compararModelosVida(mu, { B: 100, semilla: 7 });
+    _tboPBoot.entrega = g ? { n: mu.length, p: g } : null;
+    renders.tbo();
+  }, 50);
+}
+
 export function tboCambiarParamOpt(k, v) {
   var n = parseFloat(v);
   if (!(n >= 0)) { toast('Ingresá un número mayor o igual a 0'); return; }
@@ -413,6 +462,7 @@ window.renderTbo = renderTbo;
 window.tboCambiarTasa = tboCambiarTasa;
 window.tboCambiarAplic = tboCambiarAplic;
 window.tboCambiarParamOpt = tboCambiarParamOpt;
+window.tboCalcularPBoot = tboCalcularPBoot;
 window.crearOCDesdeTBO = crearOCDesdeTBO;
 window.confirmarOCDesdeTBO = confirmarOCDesdeTBO;
 renders.tbo = renderTbo;

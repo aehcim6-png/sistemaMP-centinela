@@ -3165,6 +3165,9 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   detenida (lo ingresa el usuario; sin él no hay óptimo y la pantalla lo avisa, con tabla de sensibilidad). β y η por origen, sin mezclar
   orígenes. Matriz 3×3 forma de la falla × consecuencia → investigar / dejar correr / por condición / cambio por edad.</p>
 
+  <p><b>Bondad de ajuste:</b> Weibull, log-normal, Gamma y exponencial por máxima verosimilitud, comparados con AICc, Kolmogorov-Smirnov y error
+  en los percentiles 90/99; p-valor por bootstrap paramétrico. Con los plazos reales, la Gamma MLE da el mejor percentil 90 aunque la log-normal gane por AICc.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

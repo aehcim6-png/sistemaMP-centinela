@@ -6221,6 +6221,17 @@ el alternativo sin datos no se estima. **Nunca se mezclan orígenes para estimar
 estrategia (Moubray, Jardine). Limitación: no usa el intervalo P-F del aceite para marcar "por condición viable" (queda como mejora).
 18 pruebas más.
 
+**Bondad de ajuste y comparación de modelos.** `compararModelosVida`: ajusta por máxima verosimilitud Weibull (bisección), log-normal,
+Gamma (Newton con digamma/trigamma) y exponencial; compara con AICc/BIC, distancia de Kolmogorov-Smirnov y error en los percentiles 90 y 99
+(los que usan las decisiones). El p-valor es por **bootstrap paramétrico** (la KS clásica no vale con parámetros estimados de los mismos
+datos), con generador sembrado (mulberry32) para que sea reproducible y muestra uniforme si hay miles de datos; se calcula con un botón.
+Funciones especiales (gamma incompleta, digamma) verificadas contra valores conocidos y la recuperación de parámetros simulados. Se aplica
+al tiempo de entrega (siempre) y a la vida de cada componente por origen (solo con ≥8 cambios medidos). **Hallazgo con datos reales**
+(7.897 plazos): la log-normal gana por AICc pero la Gamma MLE da el mejor percentil 90 (+0,3%); con miles de datos el bootstrap rechaza
+todos los modelos simples (los plazos tienen "picos" en 15, 20, 62 días), y el p99 queda sub o sobre estimado. Por eso el plazo "Pedir ya"
+pasó de Gamma por momentos a **Gamma por máxima verosimilitud**. Limitación: la vida de componentes casi nunca llega a 8 cambios por origen.
+Pruebas incluidas en `tboKomatsu.test.js`.
+
 **Cobertura.** Plan TBO para HD785-7, WA900-8R, D375A-6R y D65EX (el D65EX-18E0 de la flota usa el plan del D65EX-16, marcado
 aproximado). Doosan, Ford, Toyota, GD-705, etc. no tienen plan en el Excel.
 
