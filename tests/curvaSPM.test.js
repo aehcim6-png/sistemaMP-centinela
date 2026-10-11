@@ -112,3 +112,51 @@ describe('el pronóstico de disponibilidad usa las duraciones estándar de PM', 
     expect(largo.equipos[0].pmHoras).toBeGreaterThan(corto.equipos[0].pmHoras);
   });
 });
+
+describe('períodos: semana, mes, semestre y año', () => {
+  it('periodoRango entrega el período que contiene la fecha (semana de lunes a domingo, semestre ene–jun / jul–dic)', () => {
+    expect(L.periodoRango('semana', '2026-05-20')).toMatchObject({ desde: '2026-05-18', hasta: '2026-05-24' });
+    expect(L.periodoRango('semana', '2026-05-24')).toMatchObject({ desde: '2026-05-18', hasta: '2026-05-24' });
+    expect(L.periodoRango('semana', '2026-05-25')).toMatchObject({ desde: '2026-05-25', hasta: '2026-05-31' });
+    expect(L.periodoRango('mes', '2026-02-10')).toMatchObject({ desde: '2026-02-01', hasta: '2026-02-28' });
+    expect(L.periodoRango('semestre', '2026-05-20')).toMatchObject({ desde: '2026-01-01', hasta: '2026-06-30' });
+    expect(L.periodoRango('semestre', '2026-07-01')).toMatchObject({ desde: '2026-07-01', hasta: '2026-12-31' });
+    expect(L.periodoRango('anio', '2026-09-09')).toMatchObject({ desde: '2026-01-01', hasta: '2026-12-31' });
+  });
+  it('semana: 7 días, con las fechas de cada día y el hito en su día', () => {
+    const reg = [{ equipo: 'A', tipoPM: 'PM2', fechaEntrada: '2026-05-07' }, { equipo: 'A', tipoPM: 'PM1', fechaEntrada: '2026-05-20' }];
+    const c = L.curvaSPM([A], { reg, hist, hoy: '2026-06-05' }, { periodo: 'semana', ref: '2026-05-06' });
+    expect(c.periodo).toBe('semana'); expect(c.desde).toBe('2026-05-04'); expect(c.hasta).toBe('2026-05-10'); expect(c.dias).toBe(7);
+    expect(c.serie).toHaveLength(8); expect(c.serie[2].fecha).toBe('2026-05-05');
+    expect(c.serie[1].planH).toBe(0); expect(c.serie[2].planH).toBe(5);       // el hito de 500 h (PM2) cae el 5-may
+    expect(c.serie[4].realH).toBe(5);                                          // PM2 registrado el 7-may
+    expect(c.totales).toMatchObject({ planH: 5, realH: 5 });                   // el PM1 del 20-may queda fuera de la semana
+    expect(c.cumplimiento).toBe(1);
+  });
+  it('semestre y año: el plan acumula los hitos de todo el período y la serie tiene un punto por día', () => {
+    const h = lecturas('A', '2025-12-31', 0, 10, 365);                          // 10 h/día todo 2026
+    const s1 = L.curvaSPM([A], { reg: [], hist: h, hoy: '2026-12-31' }, { periodo: 'semestre', ref: '2026-03-01' });
+    expect(s1.dias).toBe(181); expect(s1.serie).toHaveLength(182);
+    expect(s1.totales.planN).toBe(7); expect(s1.totales.planH).toBe(3 + 5 + 3 + 8 + 3 + 5 + 3);   // 250…1750 h: PM1 PM2 PM1 PM3 PM1 PM2 PM1
+    const s2 = L.curvaSPM([A], { reg: [], hist: h, hoy: '2026-12-31' }, { periodo: 'semestre', ref: '2026-09-01' });
+    expect(s2.totales.planH).toBe(12 + 3 + 5 + 3 + 8 + 3 + 5);                                    // 2000 h es PM4
+    const an = L.curvaSPM([A], { reg: [], hist: h, hoy: '2026-12-31' }, { periodo: 'anio', ref: '2026-06-01' });
+    expect(an.dias).toBe(365); expect(an.totales.planN).toBe(14); expect(an.totales.planH).toBe(s1.totales.planH + s2.totales.planH);
+  });
+  it('un período en curso se proyecta con el cumplimiento a la fecha y uno futuro no tiene nada real', () => {
+    const h = lecturas('A', '2025-12-31', 0, 10, 150);                            // hasta el 30-may
+    const reg = [{ equipo: 'A', tipoPM: 'PM1', fechaEntrada: '2026-01-26' }];
+    const c = L.curvaSPM([Object.assign({}, A, { horomActual: 1500 })], { reg, hist: h, hoy: '2026-05-30' }, { periodo: 'semestre', ref: '2026-02-01' });
+    expect(c.diaCorte).toBe(150); expect(c.serie[151].realH).toBeNull();
+    expect(c.proyeccionCierreH).toBeGreaterThanOrEqual(c.totales.realH);
+    const fut = L.curvaSPM([Object.assign({}, A, { horomActual: 1500 })], { reg: [], hist: h, hoy: '2026-05-30' }, { periodo: 'anio', ref: '2027-03-01' });
+    expect(fut.diaCorte).toBe(0); expect(fut.totales.planN).toBeGreaterThan(0);
+  });
+  it('cumplimientoProgramaPeriodos resume cualquier lista de períodos (aquí semanas) y omite los futuros o sin plan', () => {
+    const reg = [{ equipo: 'A', tipoPM: 'PM2', fechaEntrada: '2026-05-07' }];
+    const semanas = ['2026-04-27', '2026-05-04', '2026-05-11', '2026-06-08'].map((f) => Object.assign(L.periodoRango('semana', f), { etiqueta: 'sem ' + f }));
+    const r = L.cumplimientoProgramaPeriodos([A], { reg, hist, hoy: '2026-06-05' }, semanas);
+    expect(r.map((x) => x.etiqueta)).toEqual(['sem 2026-05-04']);               // 27-abr sin lecturas antes; 11-may sin hitos; 8-jun es futuro
+    expect(r[0]).toMatchObject({ planH: 5, realH: 5, cumplimiento: 1 });
+  });
+});

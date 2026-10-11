@@ -5362,12 +5362,21 @@ var PM_EQUIVALENCIA={PM5:'PM1',PM6:'PM2',PM7:'PM1',PM8:'PM4',PM9:'PM1'};
 function pmTipoEfectivo(t){var k=String(t==null?'':t).toUpperCase().trim();if(PM_DURACION_ESTANDAR_H[k])return k;if(PM_EQUIVALENCIA[k])return PM_EQUIVALENCIA[k];return null;}
 function pmDuracionesEstandar(cfgDur){var o={};Object.keys(PM_DURACION_ESTANDAR_H).forEach(function(k){var v=Number(cfgDur&&cfgDur[k]);o[k]=v>0?v:PM_DURACION_ESTANDAR_H[k];});return o;}
 function _fechaMas(iso,n){return new Date(new Date(iso+'T12:00:00').getTime()+n*86400000).toISOString().slice(0,10);}
-// d: {reg, hist, hoy (ISO)} · o: {mes 'YYYY-MM', duraciones ({PM1..PM4}: horas)}
+// Rango [desde,hasta] (ISO, inclusivo) del período que contiene la fecha `ref`: 'semana' (lunes a domingo), 'mes', 'semestre' (ene–jun / jul–dic) o 'anio'.
+function periodoRango(tipo,ref){
+  var f=_tcoIso(ref),y=parseInt(f.slice(0,4),10),m=parseInt(f.slice(5,7),10);
+  var fin=function(yy,mm){return yy+'-'+('0'+mm).slice(-2)+'-'+('0'+new Date(yy,mm,0).getDate()).slice(-2);};
+  if(tipo==='semana'){var dow=(new Date(f+'T12:00:00').getDay()+6)%7,lunes=_fechaMas(f,-dow);return{tipo:tipo,desde:lunes,hasta:_fechaMas(lunes,6)};}
+  if(tipo==='semestre'){var s1=m<=6;return{tipo:tipo,desde:y+(s1?'-01-01':'-07-01'),hasta:s1?y+'-06-30':y+'-12-31'};}
+  if(tipo==='anio')return{tipo:tipo,desde:y+'-01-01',hasta:y+'-12-31'};
+  return{tipo:'mes',desde:f.slice(0,7)+'-01',hasta:fin(y,m)};
+}
+// d: {reg, hist, hoy (ISO)} · o: {periodo: 'semana'|'mes'|'semestre'|'anio' + ref (fecha ISO dentro del período), o bien desde/hasta, o bien mes 'YYYY-MM'; duraciones ({PM1..PM4}: horas)}
 function curvaSPM(equipos,d,o){
-  var op=o||{},dur=pmDuracionesEstandar(op.duraciones),hoy=_tcoIso(d.hoy),mes=op.mes||hoy.slice(0,7);
-  var yy=parseInt(mes.slice(0,4),10),mm=parseInt(mes.slice(5,7),10),dias=new Date(yy,mm,0).getDate();
-  var inicio=mes+'-01',fin=mes+'-'+('0'+dias).slice(-2),previo=_fechaMas(inicio,-1);
-  var diaCorte=hoy<inicio?0:hoy>fin?dias:parseInt(hoy.slice(8,10),10);
+  var op=o||{},dur=pmDuracionesEstandar(op.duraciones),hoy=_tcoIso(d.hoy);
+  var rg=op.desde&&op.hasta?{tipo:op.periodo||'mes',desde:op.desde,hasta:op.hasta}:op.periodo?periodoRango(op.periodo,op.ref||hoy):periodoRango('mes',(op.mes||hoy.slice(0,7))+'-01');
+  var inicio=rg.desde,fin=rg.hasta,previo=_fechaMas(inicio,-1),dias=_tcoDias(previo,fin),mes=inicio.slice(0,7);
+  var diaCorte=hoy<inicio?0:hoy>fin?dias:_tcoDias(previo,hoy);
   var activos=(equipos||[]).filter(function(e){return e&&e.sigla&&e.unidad!=='km';});
   var plan=[],sinBase=[],estimados=[],sinRitmo=[],anomalos=[];
   var tDia=function(f){return _tcoDias(previo,f);};   // día 0 = víspera del mes
@@ -5404,13 +5413,13 @@ function curvaSPM(equipos,d,o){
     if(!r||!siglas[r.equipo])return;
     var f=String(r.fechaEntrada||r.fechaEjec||'').slice(0,10);if(f<inicio||f>fin||f>hoy)return;
     var tipo=pmTipoEfectivo(r.tipoPM);if(!tipo){sinTipo++;return;}
-    real.push({sigla:r.equipo,dia:parseInt(f.slice(8,10),10),tipo:tipo,horas:dur[tipo],tipoOriginal:String(r.tipoPM||'').toUpperCase()});
+    real.push({sigla:r.equipo,dia:_tcoDias(previo,f),tipo:tipo,horas:dur[tipo],tipoOriginal:String(r.tipoPM||'').toUpperCase()});
   });
   var serie=[],pH=0,pN=0,rH=0,rN=0;
   for(var dd=0;dd<=dias;dd++){
     plan.forEach(function(x){if(x.dia===dd){pH+=x.horas;pN++;}});
     real.forEach(function(x){if(x.dia===dd){rH+=x.horas;rN++;}});
-    serie.push({dia:dd,planH:pH,planN:pN,realH:dd<=diaCorte?rH:null,realN:dd<=diaCorte?rN:null});
+    serie.push({dia:dd,fecha:_fechaMas(previo,dd),planH:pH,planN:pN,realH:dd<=diaCorte?rH:null,realN:dd<=diaCorte?rN:null});
   }
   var planTotalH=pH,planTotalN=pN,planCorteH=serie[diaCorte].planH,planCorteN=serie[diaCorte].planN,realCorteH=diaCorte>0?serie[diaCorte].realH:0,realCorteN=diaCorte>0?serie[diaCorte].realN:0;
   var cumpl=planCorteH>0?realCorteH/planCorteH:null;
@@ -5422,23 +5431,27 @@ function curvaSPM(equipos,d,o){
   var tipos={};Object.keys(dur).forEach(function(t){tipos[t]={plan:0,planCorte:0,real:0,horas:dur[t]};});
   plan.forEach(function(x){tipos[x.tipo].plan++;if(x.dia<=diaCorte)tipos[x.tipo].planCorte++;});real.forEach(function(x){tipos[x.tipo].real++;});
   var proyH=diaCorte>=dias?realCorteH:(cumpl!=null?realCorteH+Math.max(0,planTotalH-planCorteH)*Math.min(cumpl,1.5):null);
-  return{mes:mes,dias:dias,diaCorte:diaCorte,hoy:hoy,duraciones:dur,serie:serie,
+  return{mes:mes,periodo:rg.tipo,desde:inicio,hasta:fin,dias:dias,diaCorte:diaCorte,hoy:hoy,duraciones:dur,serie:serie,
     totales:{planH:planTotalH,planN:planTotalN,planCorteH:planCorteH,planCorteN:planCorteN,realH:realCorteH,realN:realCorteN},
     cumplimiento:cumpl,cumplimientoN:planCorteN>0?realCorteN/planCorteN:null,brechaH:planCorteH-realCorteH,
     proyeccionCierreH:proyH,proyeccionCierrePct:(proyH!=null&&planTotalH>0)?proyH/planTotalH:null,
     equipos:equiposRes,tipos:tipos,conBase:activos.length-sinBase.length-sinRitmo.length-anomalos.length,elegibles:activos.length,sinBase:sinBase,estimados:estimados,anomalos:anomalos,sinRitmo:sinRitmo,sinTipo:sinTipo,
     realTiposAntiguos:real.filter(function(x){return x.tipoOriginal!==x.tipo;}).length};
 }
-// Cumplimiento del programa mes a mes (solo meses con base en ≥50 % de los equipos elegibles): [{mes, planH, realH, cumplimiento, planN, realN, parcial}]
-function cumplimientoProgramaMeses(equipos,d,meses,o){
+// Cumplimiento del programa por períodos [{desde,hasta,periodo,etiqueta}] (solo períodos con base en ≥50 % de los equipos y con plan a la fecha): [{etiqueta, desde, hasta, planH, realH, cumplimiento, planN, realN, parcial}]
+function cumplimientoProgramaPeriodos(equipos,d,periodos,o){
   var hoy=_tcoIso(d.hoy),out=[];
-  (meses||[]).forEach(function(m){
-    if(m+'-01'>hoy)return;
-    var c=curvaSPM(equipos,d,Object.assign({},o,{mes:m}));
+  (periodos||[]).forEach(function(pr){
+    if(pr.desde>hoy)return;
+    var c=curvaSPM(equipos,d,Object.assign({},o,{desde:pr.desde,hasta:pr.hasta,periodo:pr.periodo}));
     if(!c.elegibles||c.conBase<0.5*c.elegibles||!(c.totales.planCorteH>0))return;
-    out.push({mes:m,planH:c.totales.planCorteH,realH:c.totales.realH,planN:c.totales.planCorteN,realN:c.totales.realN,cumplimiento:c.cumplimiento,parcial:c.diaCorte<c.dias,conBase:c.conBase,elegibles:c.elegibles});
+    out.push({etiqueta:pr.etiqueta||pr.desde,desde:pr.desde,hasta:pr.hasta,mes:pr.desde.slice(0,7),planH:c.totales.planCorteH,realH:c.totales.realH,planN:c.totales.planCorteN,realN:c.totales.realN,cumplimiento:c.cumplimiento,parcial:c.diaCorte<c.dias,conBase:c.conBase,elegibles:c.elegibles});
   });
   return out;
+}
+// Mes a mes: meses = ['YYYY-MM', …]
+function cumplimientoProgramaMeses(equipos,d,meses,o){
+  return cumplimientoProgramaPeriodos(equipos,d,(meses||[]).map(function(m){var r=periodoRango('mes',m+'-01');return{desde:r.desde,hasta:r.hasta,periodo:'mes',etiqueta:m};}),o);
 }
 
 // ═══ PRONÓSTICO DE DISPONIBILIDAD POR EQUIPO (2026-10-11) ═══
@@ -9089,7 +9102,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, curvaSPM, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, curvaSPM, periodoRango, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
