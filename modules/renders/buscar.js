@@ -89,6 +89,39 @@ function _buscarFichasHTML(sigla){
   return '<div class="chart-box" style="margin-bottom:12px;overflow-x:auto">'+titulo+cab+'<div style="min-width:520px">'+encabezado+items+'</div>'+nota+'</div>';
 }
 
+
+// ═══ COSTO TOTAL DE PROPIEDAD EN EL BUSCADOR (2026-10-11) ═══ Capital + mantención + detención por hora de operación del equipo elegido (tcoFlota, logic.js).
+function _buscarTcoHTML(sigla) {
+  var t = (typeof tcoFlotaAuto === 'function') ? tcoFlotaAuto() : null;
+  if (!t) return '';
+  var r = t.res.equipos.filter(function (x) { return x.sigla === sigla; })[0];
+  var titulo = '<div class="chart-t">Costo total de propiedad — por hora de operación</div>';
+  if (!r) return '<div class="chart-box" style="margin-bottom:12px">' + titulo + '<div style="font-size:12px;color:var(--tx3)">Este equipo no tiene todavía al menos 90 días de compras registradas con horas de operación, que es lo mínimo para calcular su costo por hora.</div></div>';
+  var pH = function (n) { return '$' + fn(Math.round(n)); };
+  var tarj = function (t1, v, sub, col) { return '<div class="card" style="margin:0"><div class="card-t">' + t1 + '</div><div class="card-v" style="font-size:20px;' + (col ? 'color:' + col : '') + '">' + v + '</div><div class="card-s">' + sub + '</div></div>'; };
+  var cap = r.capital;
+  var filaAnio = r.porAnio.filter(function (a) { return a.variablePorHora != null; }).map(function (a) {
+    return '<tr><td class="mono">' + a.anio + '</td><td class="mono" style="text-align:right">' + fn(Math.round(a.horas)) + ' h</td><td class="mono" style="text-align:right">' + pH(a.mat) + '</td><td class="mono" style="text-align:right">' + fn(Math.round(a.horasDet)) + ' h</td><td class="mono" style="text-align:right;font-weight:700">' + pH(a.variablePorHora) + '/h</td></tr>';
+  }).join('');
+  var vsMod = r.indiceVsModelo != null ? '<span>' + (Math.round(r.indiceVsModelo * 100) / 100 + '').replace('.', ',') + '× la mediana de su modelo (' + fn(r.modeloN) + ' unidades)</span>' : '<span style="color:var(--tx3)">sin comparación (menos de 3 unidades del modelo con datos)</span>';
+  var ren = r.razonVariableCapitalNuevo != null ? (r.razonVariableCapitalNuevo < 1
+    ? '<b style="color:var(--ok)">Renovar no conviene por ahora:</b> el costo variable por hora (' + pH(r.variablePorHora) + ') es menor que el capital por hora de una unidad nueva (' + pH(r.capitalNuevoPorHora) + ', ' + escapeHtml(r.refNuevo) + '), aun si la nueva no gastara nada en mantención.'
+    : '<b style="color:var(--w)">Podría convenir evaluar la renovación:</b> el costo variable por hora (' + pH(r.variablePorHora) + ') ya supera el capital por hora de una unidad nueva (' + pH(r.capitalNuevoPorHora) + ', ' + escapeHtml(r.refNuevo) + '). Depende de cuánto costaría mantener la nueva.') : '';
+  return '<div class="chart-box" style="margin-bottom:12px">' + titulo +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0">' +
+    tarj('TCO por hora', r.tcoPorHora != null ? pH(r.tcoPorHora) : '—', r.tcoPorHora != null ? 'capital + mantención + detención' : 'falta el capital (ver nota)', 'var(--ac)') +
+    tarj('Capital', cap ? pH(r.capitalPorHora) + '/h' : '—', cap ? escapeHtml(cap.fuente) : 'sin amortización ni valor de compra') +
+    tarj('Mantención', pH(r.matPorHora) + '/h', 'repuestos y servicios · ' + pH(r.matAnual) + ' al año') +
+    tarj('Detención por falla', pH(r.detPorHora) + '/h', fn(Math.round(r.horasDet)) + ' h × ' + pH(t.aj.costoHoraDet) + '/h') +
+    tarj('Costo anual', r.tcoAnual != null ? _buscarMM(r.tcoAnual) : _buscarMM(r.matAnual + r.detAnual), r.tcoAnual != null ? 'con capital' : 'sin capital') + '</div>' +
+    '<div style="font-size:12px;margin-bottom:6px">Costo variable (mantención + detención): <b>' + pH(r.variablePorHora) + '/h</b> · ' + vsMod + '</div>' +
+    (ren ? '<div style="font-size:12px;margin-bottom:8px">' + ren + '</div>' : '') +
+    (filaAnio ? '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Año</th><th style="text-align:right">Horas operadas</th><th style="text-align:right">Repuestos y servicios</th><th style="text-align:right">Detenido por falla</th><th style="text-align:right">Costo variable por hora</th></tr>' + filaAnio + '</table></div>' : '') +
+    '<p style="font-size:10px;color:var(--tx3);margin:6px 0 0">Ventana: ' + escapeHtml(r.desde) + ' a ' + escapeHtml(r.hasta) + ' (' + fn(Math.round(r.anios * 10) / 10) + ' años, ' + fn(Math.round(r.horas)) + ' h por ' + escapeHtml(r.fuenteHoras) + '). No incluye mano de obra propia (el costo de los correctivos no se registra).' +
+    (t.res.mesesQuitados.length ? ' Se excluyeron los últimos meses con carga de compras incompleta (' + t.res.mesesQuitados.join(', ') + ').' : '') +
+    (cap ? '' : ' Para ver el TCO completo carga la amortización del equipo en Equipos → Ficha técnica, o importa el listado Horas a Amortizar.') + '</p></div>';
+}
+
 export function renderBuscar(){
   var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=S.g('ot')||[];
   // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
@@ -249,6 +282,7 @@ export function renderBuscar(){
 
     // Componentes: ficha por componente (riesgo, costo, abastecimiento y decisión) — misma fuente que la pestaña TBO
     _buscarFichasHTML(fEq)+
+    _buscarTcoHTML(fEq)+
 
     // Registros PM
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registros PM ('+regF.length+')</div>'+

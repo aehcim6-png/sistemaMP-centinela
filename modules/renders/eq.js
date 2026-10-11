@@ -24,7 +24,7 @@ export function renderEq(){
   const tipos=[...new Set(eq.map(e=>e.tipo))];
   $('s-eq').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Control PM Dinámico — Equipos</div><div class="sec-s">${eq.length} equipos · Click en celda azul para editar</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,var(--info))" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><button class="btn btn-o" onclick="exportCSV('eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="go('al')" title="Alerta de overhaul (8× frecPM) — con el umbral pensado para esa escala (horas restantes vs. frecPM), no el genérico de PM regular (días)">🔴 PM4 Urgentes (Alertas PM4)</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,var(--info))" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><input type="file" id="amortFile" accept=".xlsx,.xlsm" style="display:none" onchange="importarHorasAmortizar(event)"><button class="btn btn-o" onclick="document.getElementById('amortFile').click()" title="Carga la amortización por hora y la vida contable de cada equipo desde el listado Horas a Amortizar (Excel)">⬆️ Importar Horas a Amortizar</button><button class="btn btn-o" onclick="exportCSV('eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="go('al')" title="Alerta de overhaul (8× frecPM) — con el umbral pensado para esa escala (horas restantes vs. frecPM), no el genérico de PM regular (días)">🔴 PM4 Urgentes (Alertas PM4)</button></div>
     </div>
     <div class="help-tip">🔵 Celdas editables = click y escriba · ⚫ Celdas grises = se calculan solas · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg> = eliminar fila</div>
     <div class="toolbar">
@@ -116,6 +116,30 @@ export function saveNewEq(){
   _recalcEq(n);eq.push(n);S.s('eq',eq);cm();refreshAll();toast('✅ Equipo '+s+' agregado');
 }
 
+// Importa la amortización por hora (Valor_Hora) y la vida contable (Saldo_Horas_Real) desde el listado "Horas a Amortizar" (.xlsx, hoja HorasaAmortizar). Pide confirmación
+// mostrando qué cambia; solo toca los equipos que ya existen en el programa (las demás filas del listado son de otras faenas).
+export function importarHorasAmortizar(ev){
+  var file=ev.target.files&&ev.target.files[0];ev.target.value='';
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var filas;
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var hoja=wb.Sheets['HorasaAmortizar']||wb.Sheets[wb.SheetNames[0]];
+      filas=XLSX.utils.sheet_to_json(hoja,{defval:''});
+    }catch(err){toast('❌ No se pudo leer el archivo: '+err.message);return;}
+    var eq=S.g('eq')||[],r=parsearHorasAmortizar(filas,eq);
+    if(!r.actualizar.length)return toast('⚠️ No se encontró ningún equipo del programa con Valor_Hora en el archivo (revisa que sea el listado Horas a Amortizar, hoja HorasaAmortizar)');
+    var ej=r.actualizar.slice(0,8).map(function(a){return a.sigla+': $'+fn(a.valorHoraAmort)+'/h'+(a.vidaContableH?' · vida '+fn(a.vidaContableH)+' h':'');}).join('\n');
+    if(!confirm('Se actualizará la amortización por hora de '+r.actualizar.length+' equipos:\n\n'+ej+(r.actualizar.length>8?'\n… y '+(r.actualizar.length-8)+' más':'')+
+      (r.sinValor.length?'\n\nSin Valor_Hora (no se tocan): '+r.sinValor.join(', '):'')+'\n\nLos equipos del programa que no aparecen en el archivo quedan igual. ¿Continuar?'))return;
+    r.actualizar.forEach(function(a){var x=eq.find(function(q){return q.sigla===a.sigla;});if(x){x.valorHoraAmort=a.valorHoraAmort;if(a.vidaContableH)x.vidaContableH=a.vidaContableH;}});
+    S.s('eq',eq);refreshAll();
+    toast('✅ Amortización cargada en '+r.actualizar.length+' equipos'+(r.repetidas.length?' · repetidas en el archivo: '+r.repetidas.join(', '):''));
+  };
+  reader.readAsArrayBuffer(file);
+}
 export function importarEquiposNuevos(){
   var eq=S.g('eq')||[];
   var hoy=new Date().toISOString().slice(0,10);
@@ -168,6 +192,8 @@ export function editFicha(sigla){
     '<div class="fg"><label>VIN / Chasis</label><input id="ftVIN" value="'+escapeHtml(e.vin||'')+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Proveedor</label><input id="ftProv" value="'+escapeHtml(e.proveedor||'')+'"></div>'+
     '<div class="fg"><label>Valor Compra ($)</label><input type="number" id="ftValor" value="'+(e.valorCompra||0)+'"></div>'+
+    '<div class="fg"><label title="Amortización contable por hora de operación (listado Horas a Amortizar, columna Valor_Hora). Es el costo de capital por hora del costo total de propiedad.">Amortización ($/h)</label><input type="number" id="ftAmort" value="'+(e.valorHoraAmort||'')+'" placeholder="—"></div>'+
+    '<div class="fg"><label title="Horas en que se amortiza el equipo (Saldo_Horas_Real). Vacío = referencia por clase: camión 26.000, cargador 18.000, bulldozer 17.000.">Vida contable (h)</label><input type="number" id="ftVidaCont" value="'+(e.vidaContableH||'')+'" placeholder="—"></div>'+
     '<div class="fg"><label>Fecha Compra</label><input type="date" id="ftFechaCompra" value="'+(e.fechaCompra||'')+'"></div>'+
     '<div class="fg"><label title="Puesta en marcha en faena (horómetro ~0). Ancla para estimar la antigüedad de componentes.">Inicio Operacional</label><input type="date" id="ftInicioOper" value="'+(e.inicioOper||'')+'"></div></div>'+
     '<div class="form-row"><div class="fg"><label>Garantía Hasta (hrs)</label><input type="number" id="ftGarantia" value="'+(e.garantiaHasta||0)+'"></div>'+
@@ -262,6 +288,8 @@ export function saveFicha(sigla){
   eq[idx].vin=$('ftVIN').value||'';
   eq[idx].proveedor=$('ftProv').value||'';
   eq[idx].valorCompra=parseFloat($('ftValor').value)||0;
+  eq[idx].valorHoraAmort=parseFloat($('ftAmort')?.value)>0?parseFloat($('ftAmort').value):null;
+  eq[idx].vidaContableH=parseFloat($('ftVidaCont')?.value)>0?parseFloat($('ftVidaCont').value):null;
   eq[idx].fechaCompra=$('ftFechaCompra').value||'';
   eq[idx].inicioOper=$('ftInicioOper').value||null;
   eq[idx].garantiaHasta=parseFloat($('ftGarantia').value)||0;
@@ -291,6 +319,7 @@ window.renderEq = renderEq;
 window.addEquipo = addEquipo;
 window.saveNewEq = saveNewEq;
 window.importarEquiposNuevos = importarEquiposNuevos;
+window.importarHorasAmortizar = importarHorasAmortizar;
 window.editFicha = editFicha;
 window.saveFicha = saveFicha;
 renders.eq = renderEq;

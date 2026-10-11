@@ -158,7 +158,7 @@ const TABLA_REAL={
   // el registro normal de un PM, que hace cualquier operador.
   mapaRep:{tabla:'mapeo_repuestos',clave:'_id',claveDb:'id',cols:['pautaId','tipo','refId']},
   // Clave natural: el propio campo ya identifica la fila, tanto en JS como en la tabla.
-  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','fechaCompra','garantiaHasta','contrato','unidad','criticidad','inicioOper','pmPendienteManual']},
+  eq:{tabla:'equipos',clave:'sigla',claveDb:'sigla',cols:['sigla','tipo','modelo','frecPM','hrsDia','horomActual','fechaHorom','estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM','numSerie','anioFab','vin','proveedor','valorCompra','valorHoraAmort','vidaContableH','fechaCompra','garantiaHasta','contrato','unidad','criticidad','inicioOper','pmPendienteManual']},
   // historial (2026-08-21, a pedido del usuario: "no puedo ver el historial
   // del... neumático, de cuándo fue instalado o en qué equipo, o filtrar") —
   // mismo patrón que 'sen' (sensores): lista de eventos {fecha,accion,sigla,

@@ -2,6 +2,7 @@
 // extraída a su propio archivo (Fase 2 de modularización). Módulo ES real
 // (Fase 3, 2026-08-30, tercera tanda: Componentes/Costos) — ver nota de
 // migración en mov.js (primera tanda, mismo patrón).
+function _tcoMM(n) { var t = Math.round((n || 0) / 1e5); return '$' + fn(Math.floor(t / 10)) + ',' + (t % 10) + ' M'; }
 export function renderCos() {
   if (!$("s-cos")) return;
   var reg = S.g('reg') || [];
@@ -384,6 +385,36 @@ export function renderCos() {
           '<td style="text-align:center;font-weight:700;color:' + slaCol + '">' + (m[1].sla == null ? '—' : m[1].sla) + '</td></tr>';
       }).join('') +
       '</table></div>';
+  } else if (fVista === 'tco') {
+    // ═══ COSTO TOTAL DE PROPIEDAD POR EQUIPO (2026-10-11) ═══ capital + mantención + detención por hora de operación, comparado contra el modelo.
+    // Ver tcoFlota (logic.js) para qué incluye (y qué no: mano de obra propia) y cómo se mide la ventana.
+    var tcoD = (typeof tcoFlotaAuto === 'function') ? tcoFlotaAuto() : null;
+    var tcoR = tcoD ? tcoD.res.equipos : [];
+    var pHc = function (n) { return '$' + fn(Math.round(n)); };
+    var sinCap = tcoR.filter(function (r) { return r.tcoPorHora == null; }).length;
+    var totAnual = tcoR.reduce(function (a, r) { return a + (r.tcoAnual != null ? r.tcoAnual : r.matAnual + r.detAnual); }, 0);
+    content =
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏗️ Costo Total de Propiedad por equipo</div>' +
+      '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:6px 0 10px">Cuánto cuesta <b>tener</b> cada equipo por hora de operación: <b>capital</b> (amortización contable por hora, o valor de compra ÷ vida contable), <b>mantención</b> (repuestos y servicios de las órdenes de compra) y <b>detención</b> por falla (horas detenidas × el costo de hora detenida de Configuración' + (tcoD ? ', hoy ' + pHc(tcoD.aj.costoHoraDet) + '/h' : '') + '). Se mide en la misma ventana para cada equipo y se compara con la mediana de su modelo. <b>No incluye mano de obra propia</b> (el costo de los correctivos no se registra). El indicador "Variable ÷ capital nuevo" dice si renovar podría convenir: bajo 1 significa que, aunque un equipo nuevo no gastara nada en mantención, no compensaría su capital.</div>' +
+      (tcoR.length ?
+        '<div class="cards" style="margin-bottom:10px"><div class="card"><div class="card-t">Equipos con datos</div><div class="card-v">' + fn(tcoR.length) + '</div><div class="card-s">con al menos 90 días de compras y horas de operación</div></div>' +
+        '<div class="card"><div class="card-t">Costo anual de propiedad</div><div class="card-v" style="color:var(--ac)">' + _tcoMM(totAnual) + '</div><div class="card-s">suma de los equipos' + (sinCap ? ' (' + fn(sinCap) + ' sin capital cargado)' : '') + '</div></div>' +
+        '<div class="card"><div class="card-t">Ventana de datos</div><div class="card-v" style="font-size:15px">hasta ' + escapeHtml(tcoD.res.hasta) + '</div><div class="card-s">' + (tcoD.res.mesesQuitados.length ? 'sin ' + tcoD.res.mesesQuitados.length + ' meses finales con carga incompleta' : 'todos los meses') + '</div></div></div>' +
+        '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Modelo</th><th style="text-align:right">Horas (ventana)</th><th style="text-align:right">Capital/h</th><th style="text-align:right">Mantención/h</th><th style="text-align:right">Detención/h</th><th style="text-align:right">TCO/h</th><th style="text-align:right" title="Costo variable (mantención + detención) por hora ÷ la mediana de su modelo">vs modelo</th><th style="text-align:right" title="Costo variable por hora ÷ capital por hora de una unidad nueva del mismo modelo. Menor a 1: renovar no conviene.">Variable ÷ capital nuevo</th></tr>' +
+        tcoR.map(function (r) {
+          var iv = r.indiceVsModelo, ic = iv == null ? 'inherit' : iv >= 1.5 ? 'var(--danger)' : iv >= 1.15 ? 'var(--w)' : iv <= 0.85 ? 'var(--ok)' : 'inherit';
+          var rz = r.razonVariableCapitalNuevo, rc = rz == null ? 'inherit' : rz >= 1 ? 'var(--danger)' : rz >= 0.7 ? 'var(--w)' : 'var(--ok)';
+          return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(r.sigla) + '</td><td style="font-size:10px">' + escapeHtml(r.modelo || '') + '</td>' +
+            '<td class="mono" style="text-align:right" title="' + escapeHtml(r.fuenteHoras) + '">' + fn(Math.round(r.horas)) + '</td>' +
+            '<td class="mono" style="text-align:right">' + (r.capitalPorHora != null ? pHc(r.capitalPorHora) : '<span style="color:var(--tx3)">—</span>') + '</td>' +
+            '<td class="mono" style="text-align:right">' + pHc(r.matPorHora) + '</td><td class="mono" style="text-align:right">' + pHc(r.detPorHora) + '</td>' +
+            '<td class="mono" style="text-align:right;font-weight:700">' + (r.tcoPorHora != null ? pHc(r.tcoPorHora) : '<span style="color:var(--tx3)">sin capital</span>') + '</td>' +
+            '<td class="mono" style="text-align:right;color:' + ic + '">' + (iv == null ? '—' : (Math.round(iv * 100) / 100 + '').replace('.', ',') + '×') + '</td>' +
+            '<td class="mono" style="text-align:right;color:' + rc + ';font-weight:600">' + (rz == null ? '—' : (Math.round(rz * 100) / 100 + '').replace('.', ',')) + '</td></tr>';
+        }).join('') + '</table></div>' +
+        '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Ordenado por costo total por hora (sin capital: por costo variable). Las horas salen del historial de horómetros; si falta, de las horas/día declaradas. Para el detalle de un equipo (evolución por año) abre el Buscador Maestro. Para cargar el capital: Equipos → Importar Horas a Amortizar.</div>'
+        : '<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo tiene todavía ≥90 días de compras registradas con horas de operación.</div>') +
+      '</div>';
   } else if (fVista === 'relativo') {
     // ═══ COSTO RELATIVO DE MANTENIMIENTO — indicador EN 15341 A&S1 (2026-09-16,
     // origen: revisión de contenido de Predictiva21 + carga real de Órdenes de
@@ -425,6 +456,7 @@ export function renderCos() {
     '<option value="costos"' + (fVista === 'costos' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos por Mes</option>' +
     '<option value="hh"' + (fVista === 'hh' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> HH por Técnico / Equipo</option>' +
     '<option value="mtbf"' + (fVista === 'mtbf' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option>' +
+    '<option value="tco"' + (fVista === 'tco' ? ' selected' : '') + '>🏗️ Costo Total de Propiedad</option>' +
     '<option value="relativo"' + (fVista === 'relativo' ? ' selected' : '') + '>💰 Costo Relativo de Mantenimiento</option></select> ' +
     '<button class="btn btn-o" onclick="verComprasProveedores()" title="Tiempo de respuesta real por proveedor y pedidos de compra que ya llevan más tiempo abierto de lo normal">📦 Compras — Proveedores</button></div>' +
     content;

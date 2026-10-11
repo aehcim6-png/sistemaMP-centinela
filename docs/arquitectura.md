@@ -6384,6 +6384,26 @@ programadas en 150 días ÷ 5): si supera al consumo histórico, el punto de reo
 queda el histórico. Cada fila informa `usaPlan`, `consumoHist` y `planMensual`; la tabla marca "plan PM (hist. X)" y una tarjeta cuenta los repuestos donde el plan supera al
 histórico. Limitación: el plan solo incluye consumo calendarizado (no fallas), por eso solo puede subir la demanda, nunca bajarla. 7 pruebas nuevas.
 
+### 117. Costo total de propiedad (TCO) por equipo (2026-10-11)
+
+**Qué responde.** Cuánto cuesta *tener* cada equipo por hora de operación y si ya conviene evaluar su renovación. `tcoEquipo` suma, en una misma ventana de datos (desde la primera compra
+registrada hasta el último mes completo): **capital** (amortización contable por hora `valorHoraAmort`, del listado "Horas a Amortizar"; si no está, valor de compra ÷ vida contable en
+horas del equipo o de referencia por clase: camión 26.000, cargador 18.000, bulldozer 17.000 — esos valores salen de `Saldo_Horas_Real` del mismo listado), **mantención** (repuestos y
+servicios de las órdenes de compra unificadas, sin la línea igual al valor de compra) y **detención** por falla (horas de `dispDownMap` sin PM × costo de hora detenida de Configuración).
+No incluye mano de obra propia: el costo de los correctivos no se registra (mismo límite que `costoRelativoMantenimiento`). Las horas de la ventana salen del historial de horómetros; sin
+él, de las horas/día declaradas (se avisa). `tcoFlota` calcula una vez lo común a todos (compras, mapa de detenciones y el fin de ventana, que retrocede si los últimos meses de compras
+vienen con carga incompleta — misma regla que el pronóstico), compara cada equipo con la mediana de su modelo (≥3 unidades) y con el capital por hora de la unidad más nueva del mismo
+modelo. **Indicador de renovación = una cota, no un veredicto:** si el costo variable por hora (mantención + detención) es menor que el capital por hora de una unidad nueva, renovar
+no conviene aunque la nueva no gastara nada en mantención; sobre ese umbral podría convenir y depende de cuánto costaría mantener la nueva (no hay datos para estimarlo con rigor).
+**Datos y permisos.** Columnas nuevas `equipos.valorHoraAmort` y `equipos.vidaContableH` (migraciones `20261011125900` y `20261011130000`, aplicadas en ambas bases); la segunda las
+**agrega al trigger de datos maestros** (`privado.proteger_columnas_admin`, definición idéntica a la vigente más las dos columnas), así que solo un administrador puede modificarlas —
+la lección de la auditoría 2026-08-06, cuando criticidad/inicioOper quedaron fuera de la lista. Se cargan en Equipos → Ficha técnica o con **Importar Horas a Amortizar** (lee la hoja
+`HorasaAmortizar` del Excel, `parsearHorasAmortizar` es pura y se prueba; pide confirmación y solo toca los equipos que existen). **Pantallas:** Costos → "Costo Total de Propiedad"
+(tabla de flota con TCO por hora, vs modelo y variable ÷ capital nuevo) y una sección en el Buscador Maestro con el detalle del equipo y su evolución por año. 21 pruebas
+(`tests/costoTotalPropiedad.test.js`). Verificado en navegador con datos de prueba (incluida la importación del Excel). **Limitaciones:** ventana de compras desde 2022-06; la amortización
+contable no es el valor económico del equipo ni considera su reventa; en el listado de agosto 2026 el valor por hora de los camiones más nuevos (~$57.000) implica un valor mayor que el
+`valorCompra` cargado en el programa (~1,4×) — conviene revisar cuál refleja mejor el costo real; no cubre equipos que no están en el listado.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
