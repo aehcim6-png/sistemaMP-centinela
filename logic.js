@@ -4592,8 +4592,17 @@ function loteEconomicoPedido(demandaAnual,precioUnit,costoPedido,tasaMantencion,
 // Razón de costo al equivocarse de lote por un factor k (k=2 → pedir el doble o la mitad): (k+1/k)/2.
 function eoqRazonCosto(k){return k>0?(k+1/k)/2:null;}
 // Aplica EOQ + (s,S) a la lista de ABC-XYZ y puntos de reorden. cfg: {costoPedido, tasaMantencion, maxMeses}. precio de stk.precioUnit.
-function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio){
+// `planPorNParte` (opcional): {nParte: demandaMensualPlanificada} del programa de PM (planReposicionAuto). Si el plan supera al consumo histórico se usa el plan para el
+// punto de reorden y el lote (el histórico puede estar subestimando lo que ya está calendarizado); si no, queda el histórico. Cada fila dice cuál se usó.
+function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio,planPorNParte){
   var c=cfg||{},precio={};
+  if(planPorNParte){
+    itemsABCXYZ=(itemsABCXYZ||[]).map(function(it){
+      var pl=planPorNParte[it.nParte];
+      if(pl>it.consumoMensualProm)return Object.assign({},it,{consumoMensualProm:Math.round(pl*100)/100,_consumoHist:it.consumoMensualProm,_usaPlan:true});
+      return Object.assign({},it,{_consumoHist:it.consumoMensualProm,_usaPlan:false});
+    });
+  }
   (stk||[]).forEach(function(s){if(s&&s.nParte&&s.precioUnit>0)precio[s.nParte]=s.precioUnit;});
   var rop={};
   puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio).forEach(function(r){rop[r.nParte]=r;});
@@ -4602,7 +4611,8 @@ function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio){
     var l=loteEconomicoPedido(it.consumoMensualProm*12,p,c.costoPedido,c.tasaMantencion,{maxMeses:c.maxMeses});
     if(!l)return null;
     var s=r.rop,S=s+l.q,pedir=r.bajoReorden?S-r.stockActual:0;
-    return Object.assign({nParte:it.nParte,claseABC:it.claseABC,claseXYZ:it.claseXYZ,consumoMensualProm:it.consumoMensualProm,precioUnit:p,stockActual:r.stockActual,
+    return Object.assign({nParte:it.nParte,claseABC:it.claseABC,claseXYZ:it.claseXYZ,consumoMensualProm:it.consumoMensualProm,consumoHist:it._consumoHist!=null?it._consumoHist:it.consumoMensualProm,usaPlan:!!it._usaPlan,
+      planMensual:planPorNParte&&planPorNParte[it.nParte]!=null?planPorNParte[it.nParte]:null,precioUnit:p,stockActual:r.stockActual,
       s:s,S:S,pedirAhora:pedir,valorPedido:pedir*p},l);
   }).filter(Boolean);
 }
@@ -4795,12 +4805,15 @@ function mesesSiguientes(mes,n){
 // usuario escribe otro valor en pesos (pestaña TBO → Reemplazo óptimo) ese valor manda sobre el predeterminado.
 var TBO_COSTO_HORA_DET_USD=135;
 // Supuestos de costo compartidos por la pestaña TBO y la ficha. `lee(clave)` devuelve el texto guardado (localStorage.getItem) o null.
-function tboAjustesCosto(lee,mttrFlotaHoras,tarifaHH){
+// `usdCfg` = Configuración → costo de hora detenida (US$/h, `cfg.costoHoraDetUSD`): es la fuente principal y la edita el usuario cuando quiera. Si no hay, vale un valor en
+// pesos guardado antes en este navegador (`tboCostoDet`) y, si tampoco, el predeterminado de US$135/h.
+function tboAjustesCosto(lee,mttrFlotaHoras,tarifaHH,usdCfg){
   var num=function(k){var v=parseFloat(lee(k));return v>=0?v:null;};
   var tasa=num('tboTasaUSD');if(!(tasa>0))tasa=910;
   var cd=num('tboCostoDet'),hh=num('tboHHCambio'),hp=num('tboHorasProg'),hf=num('tboHorasFalla'),ap=lee('tboAplic');
   return{tasa:tasa,aplic:(TBO_APLICACION[ap]?ap:'normal'),tarifaHH:tarifaHH>0?tarifaHH:25000,
-    costoHoraDet:cd!=null?cd:Math.round(TBO_COSTO_HORA_DET_USD*tasa),costoDetPorDefecto:cd==null,
+    costoHoraDet:usdCfg>0?Math.round(usdCfg*tasa):cd!=null?cd:Math.round(TBO_COSTO_HORA_DET_USD*tasa),costoDetPorDefecto:!(usdCfg>0)&&cd==null,
+    costoHoraDetUSD:usdCfg>0?usdCfg:(cd!=null&&tasa>0?Math.round(cd/tasa*100)/100:TBO_COSTO_HORA_DET_USD),costoDetOrigen:usdCfg>0?'configuracion':cd!=null?'local':'predeterminado',
     hhCambio:hh!=null?hh:16,horasProg:hp!=null?hp:8,horasFalla:hf!=null?hf:(mttrFlotaHoras>0?Math.round(mttrFlotaHoras):24)};
 }
 // Decisión sobre un componente, con su motivo. Combina tres señales para no contradecirse dentro de la misma ficha: la probabilidad de falla en el horizonte
@@ -4894,7 +4907,7 @@ function tboSaludFlotaAuto(){
     var eqs=S.g('eq')||[],compHist=S.g('compHist')||[],compMay=S.g('compMayores')||[],oc=S.g('ocHist')||[],cd=S.g('comprasDetalle')||[],stk=S.g('stk')||[];
     var horoms=eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0);
     var mttr=(typeof duracionesReparacionFlotaHoras==='function'&&typeof medianaPositiva==='function')?medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot')||[])):null;
-    var aj=tboAjustesCosto(lee,mttr,S.g('hh'));
+    var aj=tboAjustesCosto(lee,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD);
     var clave=[eqs.length,horoms,compHist.length,compMay.length,oc.length,cd.length,stk.length,aj.tasa,aj.aplic,aj.costoHoraDet,aj.horasFalla,aj.hhCambio,aj.horasProg,aj.tarifaHH].join('|');
     var ahora=Date.now();
     if(_tboSaludCache.clave===clave&&ahora-_tboSaludCache.ts<5000)return _tboSaludCache.val;
@@ -5155,6 +5168,21 @@ function planReposicionPM(demanda,stk,lub,opts){
   });
   var rango={pedir_ya:0,planificar:1,cubierto:2};
   out.sort(function(a,b){return rango[a.estado]-rango[b.estado]||(a.pedirAntesDias==null?9999:a.pedirAntesDias)-(b.pedirAntesDias==null?9999:b.pedirAntesDias)||b.faltante-a.faltante;});
+  return out;
+}
+
+// Plan de reposición por PM leyendo el store (lo usan Stock Filtros y ABC-XYZ). null si faltan getPautasConsumo o el store. Devuelve {plan, dem}.
+function planReposicionAuto(cobertura){
+  try{
+    if(typeof S==='undefined'||typeof getPautasConsumo!=='function')return null;
+    var stk=S.g('stk')||[],lub=S.g('lub')||[],dem=demandaPlanificadaPM(S.g('eq')||[],getPautasConsumo,stk,lub,S.g('mapaRep')||[],new Date(),150);
+    return{dem:dem,plan:planReposicionPM(dem,stk,lub,{cobertura:cobertura>=0?cobertura:30})};
+  }catch(e){return null;}
+}
+// {nParte: unidades/mes} con lo calendarizado en los próximos 150 días (5 meses) — solo filtros (los lubricantes no se manejan por N° de parte).
+function demandaMensualPlanPorNParte(plan){
+  var out={};
+  (plan||[]).forEach(function(r){if(r.tipo==='filtro'&&r.nParte&&r.total>0)out[r.nParte]=r.total/5;});
   return out;
 }
 
@@ -8628,7 +8656,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

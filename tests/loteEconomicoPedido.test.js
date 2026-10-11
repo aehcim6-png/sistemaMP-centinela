@@ -86,3 +86,37 @@ describe('politicasReposicionRepuestos (s,S)', () => {
     expect(politicasReposicionRepuestos(items, stk, { costoPedido: 0, tasaMantencion: 0.2 }, 0.95)).toEqual([]);
   });
 });
+
+describe('politicasReposicionRepuestos con el plan de PM', () => {
+  const items = [{ nParte: 'A', claseABC: 'A', claseXYZ: 'X', consumoMensualProm: 10, cv: 0.1 }, { nParte: 'B', claseABC: 'B', claseXYZ: 'X', consumoMensualProm: 10, cv: 0.1 }];
+  const stk = [{ nParte: 'A', stockBodega: 20, precioUnit: 30, leadTime: 34 }, { nParte: 'B', stockBodega: 20, precioUnit: 30, leadTime: 34 }];
+  const cfg = { costoPedido: 100, tasaMantencion: 0.2 };
+  it('sin plan queda igual que antes y marca que usa el histórico', () => {
+    const r = politicasReposicionRepuestos(items, stk, cfg, 0.95);
+    expect(r.find(x => x.nParte === 'A')).toMatchObject({ s: 14, q: 63, usaPlan: false, consumoHist: 10, planMensual: null });
+    expect(politicasReposicionRepuestos(items, stk, cfg, 0.95, null)).toEqual(r);
+  });
+  it('si el plan supera al histórico, el reorden y el lote usan el plan; si no, el histórico', () => {
+    const r = politicasReposicionRepuestos(items, stk, cfg, 0.95, { A: 20, B: 4 });
+    const a = r.find(x => x.nParte === 'A'), b = r.find(x => x.nParte === 'B');
+    expect(a.usaPlan).toBe(true); expect(a.consumoMensualProm).toBe(20); expect(a.consumoHist).toBe(10); expect(a.planMensual).toBe(20);
+    expect(a.s).toBeGreaterThan(14);                    // más demanda en el plazo de entrega: reorden más alto
+    expect(a.q).toBeGreaterThan(63);                    // y lote mayor (Q* crece con √D)
+    expect(a.q).toBe(89);                               // √(2·240·100/6) = 89,4
+    expect(b.usaPlan).toBe(false); expect(b.s).toBe(14); expect(b.planMensual).toBe(4);
+  });
+  it('un ítem sin plan calendarizado no se toca aunque haya plan para otros', () => {
+    const r = politicasReposicionRepuestos(items, stk, cfg, 0.95, { A: 20 });
+    expect(r.find(x => x.nParte === 'B')).toMatchObject({ usaPlan: false, planMensual: null, s: 14 });
+  });
+});
+
+describe('demandaMensualPlanPorNParte', () => {
+  const { demandaMensualPlanPorNParte } = require('../logic.js');
+  it('el total de 150 días dividido en 5 meses, solo filtros con N° de parte y demanda', () => {
+    const r = demandaMensualPlanPorNParte([
+      { tipo: 'filtro', nParte: 'X1', total: 25 }, { tipo: 'filtro', nParte: '', total: 10 }, { tipo: 'lubricante', nParte: '', total: 100 }, { tipo: 'filtro', nParte: 'X2', total: 0 }]);
+    expect(r).toEqual({ X1: 5 });
+  });
+  it('sin plan → vacío', () => { expect(demandaMensualPlanPorNParte(null)).toEqual({}); });
+});

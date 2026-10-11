@@ -348,6 +348,9 @@ export function renderCfg(){
       '<div><label style="font-size:11px;color:var(--tx3)">Margen por Tonelada ($/ton) — opcional</label><br>'+
       '<input type="number" value="'+((S.g('cfg')||{}).margenPorTon||'')+'" placeholder="Ej: 15000" onchange="var c=S.g(\'cfg\')||{};c.margenPorTon=parseInt(this.value)||0;S.s(\'cfg\',c);refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
       '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Sin este dato, Producción no calcula el Costo de Downtime (toneladas perdidas × margen) — solo muestra las toneladas.</div></div>'+
+      '<div style="margin-top:8px"><label style="font-size:11px;color:var(--tx3)">Costo de una hora detenida (US$/hora)</label><br>'+
+      '<input type="number" min="0" step="any" value="'+((S.g('cfg')||{}).costoHoraDetUSD||'')+'" placeholder="Predeterminado: '+TBO_COSTO_HORA_DET_USD+'" onchange="var c=S.g(\'cfg\')||{};var n=parseFloat(this.value);c.costoHoraDetUSD=n>0?n:null;S.s(\'cfg\',c);refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Lo que pierde la operación por cada hora que un equipo está detenido. Lo usan la ficha de componente del Buscador, el Score de Salud, el reemplazo óptimo y el presupuesto de TBO. Vacío = US$'+TBO_COSTO_HORA_DET_USD+' por hora. Puedes cambiarlo cuando quieras; se convierte a pesos con la tasa USD→CLP de la pestaña TBO.</div></div>'+
       '</div>'+
 
       // CREAR USUARIO (solo admin real via Supabase Auth)

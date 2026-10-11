@@ -6370,6 +6370,20 @@ hito y al ritmo declarado; no incluye consumos no planificados (fallas), por eso
 (`tests/reposicionPM.test.js`). Verificado en navegador con equipos, pautas y stock de prueba. **Pendiente:** enlazar el componente del plan TBO con repuestos cuando se
 gestione su stock, y usar esta demanda programada en el lote económico y el punto de reorden de ABC-XYZ.
 
+### 116. Costo de hora detenida editable en Configuración y plan de PM en el reorden de ABC-XYZ (2026-10-11)
+
+**Costo de hora detenida.** Era un valor fijo (US$135/h, dato del usuario) con un campo en pesos escondido en la pestaña TBO y guardado solo en el navegador. Ahora se edita cuando
+el usuario quiera en **Configuración → Tarifas y Metas** ("Costo de una hora detenida, US$/hora") y se guarda en la base: columna nueva `configuracion.costoHoraDetUSD`
+(migración aditiva y nullable `20261011120000_agregar_costo_hora_detenida_usd.sql`, aplicada en ambas bases; el mapeo `cfg` de `store.js` la incluye). Se convierte a pesos con la
+tasa USD→CLP de TBO. `tboAjustesCosto` ahora recibe ese valor como 4º argumento y fija la **precedencia**: Configuración > valor en pesos guardado antes en el navegador (`tboCostoDet`,
+heredado) > predeterminado US$135; devuelve además `costoHoraDetUSD` y `costoDetOrigen`. El campo de TBO → Reemplazo óptimo ahora está en dólares, escribe en Configuración
+(compartido por todos los usuarios y dispositivos), muestra su equivalente en pesos y borra el valor local; 0 o vacío vuelve al predeterminado. El Buscador, la Torre/Score de
+Salud, el presupuesto y el reemplazo óptimo leen el mismo valor, y el caché de `tboSaludFlotaAuto` se invalida al cambiarlo. **Plan de PM en ABC-XYZ.**
+`politicasReposicionRepuestos` recibe opcionalmente la demanda mensual calendarizada por N° de parte (`planReposicionAuto` + `demandaMensualPlanPorNParte`: unidades
+programadas en 150 días ÷ 5): si supera al consumo histórico, el punto de reorden y el lote económico usan el plan (el histórico puede estar subestimando lo ya calendarizado); si no,
+queda el histórico. Cada fila informa `usaPlan`, `consumoHist` y `planMensual`; la tabla marca "plan PM (hist. X)" y una tarjeta cuenta los repuestos donde el plan supera al
+histórico. Limitación: el plan solo incluye consumo calendarizado (no fallas), por eso solo puede subir la demanda, nunca bajarla. 7 pruebas nuevas.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

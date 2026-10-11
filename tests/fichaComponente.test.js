@@ -23,6 +23,17 @@ describe('tboAjustesCosto', () => {
     const a = L.tboAjustesCosto(k => (k === 'tboCostoDet' ? '90000' : null), 0, 0);
     expect(a.costoHoraDet).toBe(90000); expect(a.costoDetPorDefecto).toBe(false);
   });
+  it('Configuración (US$/h) es la fuente principal: manda sobre el valor local y el predeterminado, y se convierte con la tasa', () => {
+    const a = L.tboAjustesCosto(k => (k === 'tboCostoDet' ? '90000' : null), 0, 0, 200);
+    expect(a).toMatchObject({ costoHoraDet: 200 * 910, costoHoraDetUSD: 200, costoDetPorDefecto: false, costoDetOrigen: 'configuracion' });
+    expect(L.tboAjustesCosto(k => (k === 'tboTasaUSD' ? '1000' : null), 0, 0, 150).costoHoraDet).toBe(150000);
+  });
+  it('sin valor en Configuración: el valor local en pesos (si existe) y si no US$135; siempre informa el origen y el equivalente en dólares', () => {
+    expect(L.tboAjustesCosto(() => null, 0, 0)).toMatchObject({ costoHoraDetUSD: 135, costoDetOrigen: 'predeterminado', costoDetPorDefecto: true });
+    expect(L.tboAjustesCosto(k => (k === 'tboCostoDet' ? '91000' : null), 0, 0)).toMatchObject({ costoHoraDet: 91000, costoHoraDetUSD: 100, costoDetOrigen: 'local' });
+    expect(L.tboAjustesCosto(() => null, 0, 0, 0).costoDetOrigen).toBe('predeterminado');   // 0 o vacío en Configuración = predeterminado
+    expect(L.tboAjustesCosto(() => null, 0, 0, null).costoHoraDet).toBe(122850);
+  });
   it('horas de falla por defecto = mediana de reparaciones de la flota; tarifa HH y aplicación inválida se corrigen', () => {
     const a = L.tboAjustesCosto(k => (k === 'tboAplic' ? 'rara' : null), 37.4, 30000);
     expect(a.horasFalla).toBe(37); expect(a.tarifaHH).toBe(30000); expect(a.aplic).toBe('normal');

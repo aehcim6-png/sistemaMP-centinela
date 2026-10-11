@@ -18,7 +18,7 @@ function _buscarFichasHTML(sigla){
   var ids;try{ids=function(k){return localStorage.getItem(k);};ids('x');}catch(e){ids=function(){return null;};}
   var ot=S.g('ot')||[];
   var mttr=(typeof duracionesReparacionFlotaHoras==='function')?medianaPositiva(duracionesReparacionFlotaHoras(ot)):null;
-  var aj=tboAjustesCosto(ids,mttr,S.g('hh'));
+  var aj=tboAjustesCosto(ids,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD);
   var incTeo=$('fBuscarTeo')?$('fBuscarTeo').checked:false;
   var r=tboFichasEquipo(sigla,{equipos:S.g('eq')||[],compHist:S.g('compHist')||[],compMayores:S.g('compMayores')||[],compras:tboUnirCompras(S.g('ocHist')||[],S.g('comprasDetalle')||[]),
     comprasDetalle:S.g('comprasDetalle')||[],stk:S.g('stk')||[],repuestos:S.g('repuestos')||[],ordenes:S.g('ordenes')||[],hoy:new Date()},
@@ -35,7 +35,7 @@ function _buscarFichasHTML(sigla){
     (res.perdidaEsperada>0?'<span>Pérdida esperada en 500 h: <b>'+_buscarMonto(res.perdidaEsperada)+'</b></span>':'')+
     '<label style="color:var(--tx3);font-size:11px"><input id="fBuscarTeo" type="checkbox" '+(incTeo?'checked ':'')+'onchange="renders.buscar()"> Incluir plan teórico ('+fn(r.omitidosTeoricos)+' sin cambio registrado)</label></div>';
   var nota='<p style="font-size:10px;color:var(--tx3);margin:8px 0 0">Riesgo = probabilidad de que falle en las próximas 500 h dado lo que ya lleva (Weibull del fabricante, TBO = 5% de fallas). Costo de una hora detenida: '+_buscarPeso(aj.costoHoraDet)+
-    (aj.costoDetPorDefecto?' (US$135 por hora × tasa '+fn(aj.tasa)+'; se cambia en TBO → Reemplazo óptimo)':' (valor ingresado en TBO → Reemplazo óptimo)')+
+    ' (US$'+fn(aj.costoHoraDetUSD)+' por hora × tasa '+fn(aj.tasa)+(aj.costoDetPorDefecto?', valor predeterminado':'')+'; se cambia en Configuración → Tarifas y Metas)'+
     '. Los mismos números están en la pestaña TBO.</p>';
   if(!r.fichas.length){
     return '<div class="chart-box" style="margin-bottom:12px">'+titulo+cab+'<div style="font-size:12px;color:var(--tx3)">Ningún componente de este equipo tiene un cambio registrado. Registra los cambios en Componentes → Historial de Componentes para ver su riesgo real.</div>'+nota+'</div>';

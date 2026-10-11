@@ -1749,8 +1749,12 @@ export function renderPred(){
     (typeof puntosReordenRepuestos==='function'?puntosReordenRepuestos(abcxyzLista,stk,0.95):[]).forEach(function(r){reordenPorNParteABC[r.nParte]=r;});
     // Lote económico (EOQ) y política (s,S) — 2026-10-10: cuánto pedir cuando toca (el Reorden dice cuándo).
     var eoqCostoPedido=_eoqParam('costoPedido',100000),eoqTasa=_eoqParam('tasaMantencion',0.2);
-    var polPorNParteABC={},polLista=typeof politicasReposicionRepuestos==='function'?politicasReposicionRepuestos(abcxyzLista,stk,{costoPedido:eoqCostoPedido,tasaMantencion:eoqTasa},0.95):[];
-    polLista.forEach(function(r){polPorNParteABC[r.nParte]=r;});
+    // Demanda programada por el calendario de PM (2026-10-11): si lo calendarizado supera al consumo histórico, el reorden y el lote usan el plan.
+    var planAutoABC=typeof planReposicionAuto==='function'?planReposicionAuto(30):null;
+    var planMesABC=planAutoABC&&typeof demandaMensualPlanPorNParte==='function'?demandaMensualPlanPorNParte(planAutoABC.plan):null;
+    var polPorNParteABC={},polLista=typeof politicasReposicionRepuestos==='function'?politicasReposicionRepuestos(abcxyzLista,stk,{costoPedido:eoqCostoPedido,tasaMantencion:eoqTasa},0.95,planMesABC):[];
+    polLista.forEach(function(r){polPorNParteABC[r.nParte]=r;reordenPorNParteABC[r.nParte]={nParte:r.nParte,stockActual:r.stockActual,rop:r.s,bajoReorden:r.pedirAhora>0};});
+    var nUsaPlanABC=polLista.filter(function(r){return r.usaPlan;}).length;
     var polPedirAhora=polLista.filter(function(r){return r.pedirAhora>0;}),polValorAhora=polPedirAhora.reduce(function(a,r){return a+r.valorPedido;},0);
     var polAhorro=polLista.reduce(function(a,r){return a+r.ahorroVsUnoAUno;},0);
     var colorABC={A:'var(--danger)',B:'var(--w)',C:'var(--tx3)'};
@@ -1766,6 +1770,7 @@ export function renderPred(){
         '<label title="Lo que cuesta emitir y recibir un pedido (horas administrativas, flete, recepción). No lo mide el programa: es un supuesto tuyo.">Costo por pedido $ <input id="eoqK" type="number" min="1" step="10000" value="'+eoqCostoPedido+'" style="width:100px" onchange="predCambiarEOQ(\'costoPedido\',this.value)"></label>'+
         '<label title="Costo anual de tener plata parada en bodega (capital, seguro, merma) como % del precio. Lo habitual es 15–25%.">Costo de mantener % al año <input id="eoqI" type="number" min="1" step="1" value="'+Math.round(eoqTasa*100)+'" style="width:60px" onchange="predCambiarEOQ(\'tasaMantencion\',this.value)"></label></div>'+
         '<div class="cards" style="margin-top:10px"><div class="card"><div class="card-t">Para reponer ahora</div><div class="card-v" style="color:'+(polPedirAhora.length?'var(--danger)':'var(--ok)')+'">'+fn(polPedirAhora.length)+'</div><div class="card-s">repuestos bajo su punto de reorden · $'+fn(Math.round(polValorAhora))+'</div></div>'+
+        '<div class="card"><div class="card-t">Reorden con el plan de PM</div><div class="card-v">'+fn(nUsaPlanABC)+'</div><div class="card-s">repuestos donde el calendario de PM supera al histórico</div></div>'+
         '<div class="card"><div class="card-t">Ahorro vs pedir de a uno</div><div class="card-v">$'+fn(Math.round(polAhorro))+'</div><div class="card-s">al año, sumando los '+fn(polLista.length)+' repuestos con precio, con el costo por pedido que ingresaste (es una estimación, no un ahorro medido)</div></div></div></div>'
       :'')+
       (abcxyzLista.length?
@@ -1776,7 +1781,7 @@ export function renderPred(){
           '<td style="font-weight:600" title="'+escapeHtml(it.nParte)+'">'+escapeHtml(descPorNParteABC[it.nParte]||it.nParte)+'</td>'+
           '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span></td>'+
           '<td style="text-align:center">$'+fn(it.valorAnualizado)+'</td>'+
-          '<td style="text-align:center">'+it.consumoMensualProm+'</td>'+
+          '<td style="text-align:center">'+(function(){var po=polPorNParteABC[it.nParte];return po&&po.usaPlan?'<b title="El programa de PM calendariza más consumo que el histórico ('+po.consumoHist+'/mes): el reorden y el lote usan el plan">'+po.consumoMensualProm+'</b><div style="font-size:9px;color:var(--w)">plan PM (hist. '+po.consumoHist+')</div>':it.consumoMensualProm;})()+'</td>'+
           '<td style="text-align:center">'+(it.cv!=null?it.cv:'—')+'</td>'+
           '<td style="text-align:center;font-size:10.5px">'+(ro?'<b style="color:'+(ro.bajoReorden?'var(--danger)':'var(--tx2)')+'">'+fn(ro.stockActual)+' / '+fn(ro.rop)+'</b>'+(ro.bajoReorden?' 🔴':''):'—')+'</td>'+
           '<td style="text-align:center;font-size:10.5px" title="'+(po?'Pedidos al año: '+(Math.round(po.pedidosAnio*10)/10+'').replace('.',',')+' · uno cada '+fn(Math.round(po.cicloDias))+' días · costo anual $'+fn(Math.round(po.costoAnual))+(po.topado?' · lote topado a 12 meses de consumo':''):'')+'">'+(po?'<b>'+fn(po.q)+'</b> · '+fn(po.S)+(po.pedirAhora>0?'<div style="color:var(--danger);font-weight:700">pedir '+fn(po.pedirAhora)+'</div>':''):'—')+'</td>'+
