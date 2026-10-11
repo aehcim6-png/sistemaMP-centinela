@@ -3,6 +3,82 @@
 // — Dashboard/Alertas/Aceite/Buscador) — ver nota de migración en mov.js
 // (primera tanda, mismo patrón). Solo lectura (ficha por equipo + ranking
 // de problemáticos); compEstado vive en logic.js.
+// ═══ FICHA DE COMPONENTE EN EL BUSCADOR (2026-10-11) ═══
+// Una ficha por componente del equipo elegido, con riesgo, costo, abastecimiento y decisión. Todo sale de tboFichasEquipo (logic.js), que usa las mismas
+// funciones que la pestaña TBO, así que ambas pantallas dicen lo mismo. Supuestos de costo: tboAjustesCosto (costo de hora detenida US$135/h por defecto).
+var _BUSCAR_DEC={cambiar_ya:['Cambiar ya','var(--danger)'],planificar:['Planificar','var(--w)'],vigilar:['Vigilar','var(--ac)'],al_dia:['Al día','var(--ok)']};
+var _BUSCAR_COMPRA={pedir_ya:'Pedir ya',planificar:'Planificar pedido',en_camino:'En camino',cubierto:'Hay stock',no_urgente:'No urgente'};
+var _BUSCAR_ORIGEN={original:'original',alternativo:'alternativo / reparado'};
+function _buscarMM(n){var t=Math.round((n||0)/1e5);return '$'+fn(Math.floor(t/10))+','+(t%10)+' M';}
+function _buscarPeso(n){return '$'+fn(Math.round(n||0));}
+// Montos chicos en pesos y grandes en millones, para que una pérdida esperada de $22.000 no se vea como "$0,0 M".
+function _buscarMonto(n){return Math.abs(n||0)<1e6?_buscarPeso(n):_buscarMM(n);}
+function _buscarFichasHTML(sigla){
+  if(typeof tboFichasEquipo!=='function')return '';
+  var ids;try{ids=function(k){return localStorage.getItem(k);};ids('x');}catch(e){ids=function(){return null;};}
+  var ot=S.g('ot')||[];
+  var mttr=(typeof duracionesReparacionFlotaHoras==='function')?medianaPositiva(duracionesReparacionFlotaHoras(ot)):null;
+  var aj=tboAjustesCosto(ids,mttr,S.g('hh'));
+  var incTeo=$('fBuscarTeo')?$('fBuscarTeo').checked:false;
+  var r=tboFichasEquipo(sigla,{equipos:S.g('eq')||[],compHist:S.g('compHist')||[],compMayores:S.g('compMayores')||[],compras:tboUnirCompras(S.g('ocHist')||[],S.g('comprasDetalle')||[]),
+    comprasDetalle:S.g('comprasDetalle')||[],stk:S.g('stk')||[],repuestos:S.g('repuestos')||[],ordenes:S.g('ordenes')||[],hoy:new Date()},
+    Object.assign({},aj,{horizonte:500,incluirTeorico:incTeo}));
+  var titulo='<div class="chart-t">Componentes — riesgo, costo y decisión</div>';
+  if(!r){
+    return '<div class="chart-box" style="margin-bottom:12px">'+titulo+'<div style="font-size:12px;color:var(--tx3)">Este modelo de equipo no tiene plan de componentes del fabricante (el Excel de Komatsu solo trae HD785-7, WA900-8R, D375A-6R y D65EX).</div></div>';
+  }
+  var res=r.resumen;
+  var cab='<div style="display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;margin-bottom:10px;font-size:12px">'+
+    '<span><b>'+fn(res.conDato)+'</b> con cambio registrado</span>'+
+    '<span style="color:'+(res.enRiesgo?'var(--danger)':'var(--ok)')+'"><b>'+fn(res.enRiesgo)+'</b> en riesgo ('+fn(res.cambiarYa)+' para cambiar ya)</span>'+
+    (res.perdidaEsperada>0?'<span>Pérdida esperada en 500 h: <b>'+_buscarMonto(res.perdidaEsperada)+'</b></span>':'')+
+    '<label style="color:var(--tx3);font-size:11px"><input id="fBuscarTeo" type="checkbox" '+(incTeo?'checked ':'')+'onchange="renders.buscar()"> Incluir plan teórico ('+fn(r.omitidosTeoricos)+' sin cambio registrado)</label></div>';
+  var nota='<p style="font-size:10px;color:var(--tx3);margin:8px 0 0">Riesgo = probabilidad de que falle en las próximas 500 h dado lo que ya lleva (Weibull del fabricante, TBO = 5% de fallas). Costo de una hora detenida: '+_buscarPeso(aj.costoHoraDet)+
+    (aj.costoDetPorDefecto?' (US$135 por hora × tasa '+fn(aj.tasa)+'; se cambia en TBO → Reemplazo óptimo)':' (valor ingresado en TBO → Reemplazo óptimo)')+
+    '. Los mismos números están en la pestaña TBO.</p>';
+  if(!r.fichas.length){
+    return '<div class="chart-box" style="margin-bottom:12px">'+titulo+cab+'<div style="font-size:12px;color:var(--tx3)">Ningún componente de este equipo tiene un cambio registrado. Registra los cambios en Componentes → Historial de Componentes para ver su riesgo real.</div>'+nota+'</div>';
+  }
+  var kv=function(k,v){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11px"><span style="color:var(--tx3)">'+k+'</span><span class="mono" style="text-align:right">'+v+'</span></div>';};
+  var blq=function(t,fuente,num,sub,lineas){
+    return '<div style="background:var(--bg4);border-radius:8px;padding:10px 12px;min-width:0"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3)">'+t+'</span><span style="font-size:9px;color:var(--ac)">'+fuente+'</span></div>'+
+      '<div class="mono" style="font-size:19px;font-weight:700;margin:4px 0 0">'+num+'</div><div style="font-size:10px;color:var(--tx3);margin-bottom:6px">'+sub+'</div>'+lineas.join('')+'</div>';
+  };
+  var items=r.fichas.map(function(f){
+    var d=_BUSCAR_DEC[f.decision];
+    var origen=f.origenUlt?(_BUSCAR_ORIGEN[f.origenUlt]||f.origenUlt):'origen sin registrar';
+    var vidaTxt=f.vida?fn(f.vida.mediana)+' h':'sin medición';
+    var opt=f.opt;
+    var polNum=opt&&opt.existe?fn(Math.round(opt.T))+' h':'—';
+    var polSub=opt&&opt.existe?'cambiar cada (T*) · ahorra '+Math.round(opt.ahorroVsRTF*100)+'% vs dejar fallar':(opt?escapeHtml(opt.motivo||'sin óptimo'):'falta precio para calcular');
+    var abast=f.stock&&f.stock.unidades?fn(f.stock.unidades)+' en bodega':'0 en bodega';
+    var cuerpo='<div style="font-size:12px;padding:8px 0 2px"><b style="color:'+d[1]+'">'+d[0]+':</b> '+escapeHtml(f.motivoDecision)+'</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;padding:6px 0 4px">'+
+      blq('Vida','Historial de componentes',vidaTxt,f.vida?(fn(f.vida.n)+' cambios medidos · '+escapeHtml(f.vida.origen)):'sin cambios previos medidos',[
+        kv('TBO fabricante',fn(f.tboFab)+' h'),kv('TBO aplicado',fn(f.tbo)+' h'),kv('Forma (β)',(Math.round(f.parametros.beta*10)/10+'').replace('.',',')),kv('Modelo',escapeHtml(f.parametros.fuente))])+
+      blq('Riesgo','Weibull',(f.pFalla<0.01?'<1':Math.round(f.pFalla*100))+'%','falla en las próximas '+f.horizonte+' h',[
+        kv('Horas desde el cambio',fn(f.desdeH)+' h'),kv('Faltan para el TBO',f.restantesH>0?fn(f.restantesH)+' h ('+fn(f.dias)+' d)':'vencido'),kv('Riesgo acumulado',Math.round(f.riesgo*100)+'%'),
+        f.criticidad!=null?kv('Criticidad del equipo',f.criticidad+' de 5'):''])+
+      blq('Costo','Compras · Configuración',f.costoRep?_buscarMM(f.costoRep):'sin precio',f.costoRep?'repuesto'+(f.cant>1?' × '+f.cant:''):'sin compras ni lista de referencia',[
+        f.precios.original?kv('Original (Komatsu)',_buscarPeso(f.precios.original)):'',f.precios.otros?kv('Otros proveedores',_buscarPeso(f.precios.otros)):'',
+        f.Cf!=null?kv('Costo de falla (Cf)',_buscarMM(f.Cf)):'',f.ratio!=null?kv('Cf / Cp',(Math.round(f.ratio*10)/10+'').replace('.',',')+'×'):''])+
+      blq('Abastecimiento','Stock · Plazos',abast,_BUSCAR_COMPRA[f.decisionCompra]||'',[
+        kv('Pedidos abiertos',fn((f.pedidos||[]).length)),kv('Plazo típico / p90',fn(f.lead.dias)+' d'+(f.lead.p90?' / '+fn(f.lead.p90)+' d':'')),
+        f.probATiempo!=null?kv('Llega a tiempo',Math.round(f.probATiempo*100)+'%'):'',f.diasParaPedir!=null&&(f.decisionCompra==='pedir_ya'||f.decisionCompra==='planificar')?kv('Pedir antes de',f.diasParaPedir<=0?'ya':escapeHtml(f.pedirAntesDe||'—')):''])+
+      blq('Política','Reemplazo óptimo',polNum,polSub,[f.estrategia?kv('Estrategia',escapeHtml(f.estrategia.estrategia)):'',f.estrategia?'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(f.estrategia.detalle)+'</div>':''])+
+      blq('Pérdida esperada','Riesgo × consecuencia',f.perdidaEsperada!=null?_buscarMonto(f.perdidaEsperada):'—',f.usaDetencion?((f.horizonte)+' h · '+_buscarMonto(f.consecuencia)+' si falla sin aviso'):'usa el precio como consecuencia',[])+
+      '</div>';
+    return '<details style="border-bottom:1px solid var(--bd)"><summary style="display:grid;grid-template-columns:minmax(150px,2fr) repeat(3,minmax(70px,1fr)) minmax(90px,1fr);gap:8px;align-items:center;padding:8px 2px;cursor:pointer;font-size:12px;list-style:none">'+
+      '<span><b>'+escapeHtml(f.item)+'</b><div style="font-size:10px;color:var(--tx3)">'+(f.fechaUlt?escapeHtml(f.fechaUlt)+' · ':'')+escapeHtml(origen)+'</div></span>'+
+      '<span class="mono" style="text-align:right;color:'+(f.pFalla>=0.15?'var(--danger)':f.pFalla>=0.05?'var(--w)':'inherit')+'" title="Probabilidad de falla en 500 h">'+(f.pFalla<0.01?'<1':Math.round(f.pFalla*100))+'%</span>'+
+      '<span class="mono" style="text-align:right">'+(f.costoRep?_buscarMM(f.costoRep):'—')+'</span>'+
+      '<span class="mono" style="text-align:right">'+fn(f.lead.dias)+' d</span>'+
+      '<span style="text-align:right;font-weight:700;color:'+d[1]+'" title="'+escapeHtml(f.motivoDecision)+'">'+d[0]+'</span></summary>'+cuerpo+'</details>';
+  }).join('');
+  var encabezado='<div style="display:grid;grid-template-columns:minmax(150px,2fr) repeat(3,minmax(70px,1fr)) minmax(90px,1fr);gap:8px;padding:4px 2px;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);border-bottom:1px solid var(--bd)"><span>Componente</span><span style="text-align:right">Riesgo 500 h</span><span style="text-align:right">Costo</span><span style="text-align:right">Plazo</span><span style="text-align:right">Decisión</span></div>';
+  return '<div class="chart-box" style="margin-bottom:12px;overflow-x:auto">'+titulo+cab+'<div style="min-width:520px">'+encabezado+items+'</div>'+nota+'</div>';
+}
+
 export function renderBuscar(){
   var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=S.g('ot')||[];
   // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
@@ -122,7 +198,7 @@ export function renderBuscar(){
     content=
     // Ficha del equipo
     '<div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:16px">'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px">'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px">'+
     '<div><div style="font-size:10px;color:var(--tx3)">EQUIPO</div><div style="font-size:24px;font-weight:800;color:var(--ac)">'+escapeHtml(fEq)+'</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">TIPO</div><div style="font-size:14px;font-weight:600">'+(eqObj?escapeHtml(eqObj.tipo):'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj?escapeHtml(eqObj.modelo):'')+'</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">HORÓMETRO</div><div style="font-size:20px;font-weight:700">'+(eqObj?eqObj.horomActual:0)+'h</div></div>'+
@@ -151,7 +227,7 @@ export function renderBuscar(){
     '</div></div>'+
 
     // KPIs del período
-    '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin-bottom:16px">'+
     '<div class="card" style="margin:0"><div class="card-t">PMs Ejecutados</div><div class="card-v">'+regF.length+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">Correctivos</div><div class="card-v" style="color:var(--danger)">'+fallasEq+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">MTBF</div><div class="card-v" style="color:'+(mtbfEq==null?'var(--tx3)':mtbfEq>2000?'var(--ok)':'var(--w)')+'">'+(mtbfEq==null?'—':mtbfEq+'h')+'</div></div>'+
@@ -159,6 +235,9 @@ export function renderBuscar(){
     '<div class="card" style="margin:0"><div class="card-t">Costo MO</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(costoEq))+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">Costo Materiales</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(costoMatEq))+'</div></div>'+
     '</div>'+
+
+    // Componentes: ficha por componente (riesgo, costo, abastecimiento y decisión) — misma fuente que la pestaña TBO
+    _buscarFichasHTML(fEq)+
 
     // Registros PM
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registros PM ('+regF.length+')</div>'+

@@ -166,13 +166,8 @@ export function renderTbo() {
 
   // Parámetros de costo compartidos por el plan con presupuesto y el reemplazo óptimo
   var mttrFlota = (typeof duracionesReparacionFlotaHoras === 'function') ? medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot') || [])) : null;
-  var pOpt = {
-    tarifaHH: S.g('hh') || 25000,
-    hhCambio: _tboParamOpt('hhCambio', 16),
-    horasProg: _tboParamOpt('horasProg', 8),
-    horasFalla: _tboParamOpt('horasFalla', mttrFlota ? Math.round(mttrFlota) : 24),
-    costoHoraDet: _tboParamOpt('costoDet', 0)
-  };
+  // Mismos supuestos que la ficha del Buscador Maestro (tboAjustesCosto, logic.js): costo de hora detenida US$135/h × tasa si el usuario no escribió otro.
+  var pOpt = tboAjustesCosto(function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, mttrFlota, S.g('hh'));
 
   // ── Plan de compra: TBO × Stock × Compras ──
   var incTeo = $('tboTeorico') ? $('tboTeorico').checked : false;
@@ -288,7 +283,7 @@ export function renderTbo() {
   h += '<div class="card-t" style="margin:18px 0 6px">¿Cada cuántas horas conviene cambiar? — reemplazo óptimo por costo y estrategia por componente</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">Un componente se cambia a la edad <b>T</b> (cambio programado, cuesta <b>Cp</b>) o falla antes (cuesta <b>Cf</b>, con la máquina detenida sin aviso). El costo por hora esperado es <b>C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫R(t)dt</b> con la vida Weibull del componente; la edad óptima <b>T*</b> es la que lo minimiza. Solo existe si el componente se desgasta (β&gt;1) y fallar cuesta más que cambiar. <b>El resultado depende del costo de una hora detenida</b>: sin él, fallar y cambiar cuestan lo mismo y el modelo no recomienda cambiar antes.</div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
-    _inp('tboCostoDet', 'costoDet', pOpt.costoHoraDet, 'Costo de 1 hora detenida ($/h)', 'Lo que pierde la operación por cada hora que el equipo está detenido. Ej. toneladas por hora × margen por tonelada. Sin este dato el modelo no puede recomendar cambiar antes.') +
+    _inp('tboCostoDet', 'costoDet', pOpt.costoHoraDet, 'Costo de 1 hora detenida ($/h)', 'Lo que pierde la operación por cada hora que el equipo está detenido. Por defecto US$135 por hora × la tasa USD→CLP de arriba; escribe otro valor en pesos para reemplazarlo. Sin este dato el modelo no puede recomendar cambiar antes.') +
     _inp('tboHorasFalla', 'horasFalla', pOpt.horasFalla, 'Horas detenido por falla', 'Por defecto, la mediana de duración de los correctivos de la flota (si hay dato)') +
     _inp('tboHorasProg', 'horasProg', pOpt.horasProg, 'Horas detenido por cambio programado', 'Supuesto editable: un cambio planificado tarda menos que una falla') +
     _inp('tboHHCambio', 'hhCambio', pOpt.hhCambio, 'HH por cambio', 'Horas-hombre de mano de obra por cambio (supuesto editable). La tarifa por HH sale de Configuración: $' + fn(pOpt.tarifaHH)) +

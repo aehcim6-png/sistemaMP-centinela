@@ -6296,6 +6296,27 @@ devuelve el 401 original para que el aviso y el cierre de sesión existentes sig
 y verificado en un navegador real: con el token vencido instalado, el guardado renueva primero y sale con el token nuevo, sin avisos.
 Las lecturas no se tocaron (las tablas son legibles con la clave anónima, por eso solo fallaron los POST).
 
+### 112. Ficha de componente en el Buscador Maestro (2026-10-11)
+
+**Problema.** TBO, Predictivo, la reposición y los costos calculaban cada uno por su lado el riesgo, el costo y la decisión de un mismo componente, y la
+Torre de Control y el Buscador Maestro no consideraban el riesgo de componentes de TBO (se verificó en el código: ni `tbo.js` usa criticidad/MTBF ni
+`pred.js` usa funciones `tbo*`). **Etapa 1 de 5.** `tboFichasEquipo` (logic.js) arma, para un equipo, una ficha por componente con cambio registrado:
+vida (medida por origen o modelo del fabricante), riesgo de falla en 500 h (`tboRiesgoHorizonte`), costo (precio original/otros, Cp y Cf), abastecimiento
+(stock, pedidos, plazo, probabilidad de llegar a tiempo), política óptima (T*, estrategia RCM) y pérdida esperada = P(falla) × consecuencia. Reutiliza las
+mismas funciones de la pestaña TBO (`tboEstadoFlota`, `tboPlanCompras`, `tboVidaPorOrigen`, `tboReemplazoOptimo`), así que ambas pantallas coinciden (hay
+prueba). **Decisión coherente.** `tboDecisionFicha` combina probabilidad (≥35% cambiar ya, ≥15% planificar, ≥5% vigilar), plan del fabricante (vencido por TBO)
+y política económica: un ítem vencido cuya estrategia RCM es "dejar correr / por condición" pasa a "planificar" (próxima parada) y lo explica; antes de
+esta regla la misma ficha decía "cambiar ya" y "dejar correr" a la vez (detectado en la verificación en navegador). Como el TBO es el B5 del modelo, un
+componente recién vencido tiene solo ~5–15% de falla acumulada: la decisión sale más de la economía que del calendario. **Costo de hora detenida:**
+US$135/h para todos los equipos (dato del usuario, 2026-10-11) × tasa USD→CLP del programa; `tboAjustesCosto` concentra los supuestos (tasa, aplicación,
+HH, horas de parada, costo de hora detenida) y los comparten la pestaña TBO y la ficha; un valor en pesos escrito en TBO → Reemplazo óptimo manda sobre el
+predeterminado. Se guarda en el navegador (como los demás supuestos de TBO). **UI:** sección "Componentes" en el Buscador Maestro (lista por decisión y
+riesgo; cada fila abre su ficha con vida, riesgo, costo, abastecimiento, política y pérdida esperada). De paso se corrigió el desborde horizontal en celular
+de las tarjetas de KPI del Buscador (grillas fijas de 5 y 6 columnas). **Pendiente (etapas 2–5):** costo de hora detenida por modelo, Score de Salud de la Torre
+con el riesgo de componentes, reposición con el plan de mantención, y calibración del modelo contra fallas reales. Limitaciones: la ficha solo cubre
+HD785-7, WA900-8R, D375A-6R y D65EX (modelos con plan del fabricante); el riesgo sigue siendo el del fabricante (β=3) hasta que la calibración diga si sirve
+para esta flota. 16 pruebas (`tests/fichaComponente.test.js`).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
