@@ -36,6 +36,15 @@ describe('tboAjustesCosto', () => {
     expect(L.tboAjustesCosto(() => null, 0, 0, null, null, 0).tasa).toBe(910);
     expect(L.tboAjustesCosto(() => null, 0, 0, null, null, 'abc').tasa).toBe(910);
   });
+  it('reemplazo óptimo por modelo: con el costo propio del modelo la edad óptima T* baja y Cf/Cp sube (misma vida, más caro fallar)', () => {
+    const aj = L.tboAjustesCosto(() => null, 0, 25000, null, { komatsuhd7857: 300 });
+    const fila = { comp: 'Turbo', origen: 'original', precio: 9000000, vals: [3000, 3500, 3800, 4000, 4200, 4500], tbo: { min: 8000, max: 8000 } };
+    const ctx = { tarifaHH: 25000, hhCambio: 16, horasProg: 8, horasFalla: 24 };
+    const general = L.tboPoliticaOptimaFilas([fila], Object.assign({}, ctx, { costoHoraDet: L.costoHoraDetDe('Komatsu WA900-8R', aj) }))[0];
+    const propio = L.tboPoliticaOptimaFilas([fila], Object.assign({}, ctx, { costoHoraDet: L.costoHoraDetDe('Komatsu HD785-7', aj) }))[0];
+    expect(propio.ratio).toBeGreaterThan(general.ratio);
+    expect(propio.opt.T).toBeLessThanOrEqual(general.opt.T);
+  });
   it('sin valor en Configuración: el valor local en pesos (si existe) y si no US$135; siempre informa el origen y el equivalente en dólares', () => {
     expect(L.tboAjustesCosto(() => null, 0, 0)).toMatchObject({ costoHoraDetUSD: 135, costoDetOrigen: 'predeterminado', costoDetPorDefecto: true });
     expect(L.tboAjustesCosto(k => (k === 'tboCostoDet' ? '91000' : null), 0, 0)).toMatchObject({ costoHoraDet: 91000, costoHoraDetUSD: 100, costoDetOrigen: 'local' });
