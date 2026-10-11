@@ -64,7 +64,90 @@ export function renderAvance() {
     '<td></td><td style="text-align:center">' + pctEsperado + '%</td>' +
     '<td style="text-align:center;color:' + (totalPct === null ? 'var(--tx3)' : totalPct >= pctEsperado ? 'var(--ok)' : 'var(--danger)') + '">' + (totalPct === null ? '—' : (totalPct - pctEsperado >= 0 ? '+' : '') + (totalPct - pctEsperado) + '%') + '</td>' +
     '<td>' + (totalPct === null ? '⚪ SIN PLAN' : totalPct >= pctEsperado ? '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> EN PLAN' : '🔴 ATRASADO') + '</td></tr>' +
-    '</table></div>';
+    '</table></div>' +
+    _avanceCurvaSHTML(fMes, eq, reg, meses);
+}
+
+// ═══ CURVA S DE PM Y CUMPLIMIENTO DEL PROGRAMA (2026-10-11) ═══ — ver curvaSPM / cumplimientoProgramaMeses (logic.js): plan = hitos de horómetro del mes, ponderado por las
+// horas estándar de cada PM (Configuración); real = registros de PM del mes. Acumulado día a día.
+function _avanceCurvaSVG(c) {
+  var W = 680, H = 270, pl = 46, pr = 14, pt = 14, pb = 34, iw = W - pl - pr, ih = H - pt - pb;
+  var maxY = Math.max(1, c.totales.planH, c.serie[c.diaCorte] && c.serie[c.diaCorte].realH || 0, c.proyeccionCierreH || 0);
+  var paso = maxY <= 20 ? 5 : maxY <= 60 ? 10 : maxY <= 150 ? 25 : maxY <= 400 ? 50 : 100;
+  var topY = Math.ceil(maxY / paso) * paso;
+  var X = function (d) { return pl + d / c.dias * iw; }, Y = function (v) { return pt + ih - v / topY * ih; };
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Curva S de PM: horas planificadas y ejecutadas acumuladas por día" style="display:block;max-width:820px">';
+  for (var g = 0; g <= topY; g += paso) svg += '<line x1="' + pl + '" y1="' + Y(g) + '" x2="' + (W - pr) + '" y2="' + Y(g) + '" stroke="var(--bd)" stroke-width="1" opacity=".6"/><text x="' + (pl - 6) + '" y="' + (Y(g) + 3) + '" text-anchor="end" font-size="10" fill="var(--tx3)">' + g + '</text>';
+  var paso7 = c.dias > 20 ? 5 : 2;
+  for (var d = 0; d <= c.dias; d += paso7) svg += '<text x="' + X(d) + '" y="' + (H - pb + 14) + '" text-anchor="middle" font-size="10" fill="var(--tx3)">' + d + '</text>';
+  svg += '<text x="' + (pl + iw / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-size="10" fill="var(--tx3)">día del mes</text><text x="10" y="' + (pt + ih / 2) + '" font-size="10" fill="var(--tx3)" transform="rotate(-90 10 ' + (pt + ih / 2) + ')" text-anchor="middle">horas de PM acumuladas</text>';
+  var linea = function (serie, key, hasta) { var pts = []; for (var i = 0; i <= hasta; i++) if (serie[i][key] != null) pts.push(X(i).toFixed(1) + ',' + Y(serie[i][key]).toFixed(1)); return pts.join(' '); };
+  svg += '<polyline points="' + linea(c.serie, 'planH', c.dias) + '" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-dasharray="6 4" stroke-linejoin="round"/>';
+  if (c.diaCorte > 0) {
+    svg += '<polyline points="' + linea(c.serie, 'realH', c.diaCorte) + '" fill="none" stroke="var(--ac)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    var r = c.serie[c.diaCorte].realH;
+    svg += '<circle cx="' + X(c.diaCorte) + '" cy="' + Y(r) + '" r="4.5" fill="var(--ac)" stroke="var(--bg2)" stroke-width="2"/>';
+    if (c.diaCorte < c.dias) {
+      svg += '<line x1="' + X(c.diaCorte) + '" y1="' + pt + '" x2="' + X(c.diaCorte) + '" y2="' + (pt + ih) + '" stroke="var(--tx3)" stroke-width="1" stroke-dasharray="2 3"/><text x="' + (X(c.diaCorte) + 4) + '" y="' + (pt + 10) + '" font-size="10" fill="var(--tx3)">hoy</text>';
+      if (c.proyeccionCierreH != null) svg += '<line x1="' + X(c.diaCorte) + '" y1="' + Y(r) + '" x2="' + X(c.dias) + '" y2="' + Y(c.proyeccionCierreH) + '" stroke="var(--ac)" stroke-width="2" stroke-dasharray="2 4" opacity=".7"/><circle cx="' + X(c.dias) + '" cy="' + Y(c.proyeccionCierreH) + '" r="3.5" fill="var(--bg2)" stroke="var(--ac)" stroke-width="2"/>';
+    }
+  }
+  // zonas de hover por día (el navegador muestra el <title>)
+  for (var k = 1; k <= c.dias; k++) {
+    var sp = c.serie[k], w = iw / c.dias;
+    svg += '<rect x="' + (X(k) - w / 2) + '" y="' + pt + '" width="' + w + '" height="' + ih + '" fill="transparent"><title>' + 'Día ' + k + ' · plan ' + sp.planH + ' h (' + sp.planN + ' PM)' + (sp.realH != null ? ' · real ' + sp.realH + ' h (' + sp.realN + ' PM)' : '') + '</title></rect>';
+  }
+  return svg + '</svg>';
+}
+function _avanceCurvaSHTML(fMes, eq, reg, meses) {
+  try {
+    if (typeof curvaSPM !== 'function') return '';
+    var cfg = S.g('cfg') || {}, hist = S.g('hist') || [];
+    var hoy = new Date().toISOString().slice(0, 10);
+    var d = { reg: reg, hist: hist, hoy: hoy }, o = { mes: fMes, duraciones: cfg.duracionPMHoras };
+    var c = curvaSPM(eq, d, o);
+    var pf = function (x) { return x == null ? '—' : Math.round(x * 100) + '%'; };
+    var h1 = function (x) { return (Math.round(x * 10) / 10 + '').replace('.', ','); };
+    var col = c.cumplimiento == null ? 'var(--tx3)' : c.cumplimiento >= 0.95 ? 'var(--ok)' : c.cumplimiento >= 0.8 ? 'var(--w)' : 'var(--danger)';
+    var dur = c.duraciones;
+    var cab = '<div class="chart-box" style="margin-top:18px;border-left:3px solid var(--ac)"><div class="chart-t">Curva S de PM — plan vs real acumulado (horas) · ' + escapeHtml(fMes) + '</div>' +
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px;line-height:1.5">El <b>plan</b> son los PM que cada equipo debe alcanzar en el mes según su horómetro y su frecuencia, con el tipo que corresponde a cada hito. Cada PM pesa sus <b>horas estándar</b> (PM1 ' + dur.PM1 + ' h · PM2 ' + dur.PM2 + ' h · PM3 ' + dur.PM3 + ' h · PM4 ' + dur.PM4 + ' h; se cambian en Configuración), así un PM4 pesa lo que cuatro PM1. Lo <b>real</b> son los PM registrados. No incluye PM vencidos de meses anteriores: si se hacen tarde cuentan como ejecutados cuando se hacen.</div>';
+    if (!c.totales.planH && !c.totales.realH) {
+      return cab + '<div style="font-size:12px;color:var(--tx3);padding:4px 0">Sin PM planificados ni ejecutados para este mes con los datos disponibles' + (c.sinBase.length ? ' (' + c.sinBase.length + ' equipo(s) sin lectura de horómetro al inicio del mes)' : '') + '.</div></div>';
+    }
+    var tarj = function (t, v, sub, colr) { return '<div class="card"><div class="card-t">' + t + '</div><div class="card-v" style="' + (colr ? 'color:' + colr : '') + '">' + v + '</div><div class="card-s">' + sub + '</div></div>'; };
+    var enCurso = c.diaCorte > 0 && c.diaCorte < c.dias;
+    var tarjetas = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-bottom:10px">' +
+      tarj('Cumplimiento ' + (enCurso ? 'a la fecha' : 'del mes'), pf(c.cumplimiento), h1(c.totales.realH) + ' h ejecutadas de ' + h1(c.totales.planCorteH) + ' h' + (enCurso ? ' que tocaban a hoy' : ''), col) +
+      tarj('Por cantidad de PM', pf(c.cumplimientoN), fn(c.totales.realN) + ' ejecutados de ' + fn(c.totales.planCorteN) + ' que tocaban') +
+      tarj('Brecha', (c.brechaH > 0 ? '−' : '+') + h1(Math.abs(c.brechaH)) + ' h', c.brechaH > 0 ? 'faltan por ejecutar respecto del plan a la fecha' : 'adelanto sobre el plan a la fecha', c.brechaH > 0 ? 'var(--w)' : 'var(--ok)') +
+      (enCurso ? tarj('Cierre proyectado', pf(c.proyeccionCierrePct), 'de ' + h1(c.totales.planH) + ' h del mes, si se mantiene el ritmo', c.proyeccionCierrePct != null && c.proyeccionCierrePct < 0.9 ? 'var(--w)' : 'var(--ok)') : tarj('Plan del mes', h1(c.totales.planH) + ' h', fn(c.totales.planN) + ' PM')) + '</div>';
+    var leyenda = '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--tx2);margin:2px 0 6px"><span><svg width="26" height="8" style="vertical-align:middle"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--tx3)" stroke-width="2" stroke-dasharray="6 4"/></svg> Plan acumulado</span><span><svg width="26" height="8" style="vertical-align:middle"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--ac)" stroke-width="2.5"/></svg> Real acumulado</span>' + (enCurso ? '<span><svg width="26" height="8" style="vertical-align:middle"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--ac)" stroke-width="2" stroke-dasharray="2 4"/></svg> Proyección al cierre</span>' : '') + '</div>';
+    var avisos = '';
+    if (c.sinBase.length) avisos += '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Sin lectura de horómetro al inicio del mes (no entran al plan): ' + c.sinBase.map(escapeHtml).join(', ') + '.</div>';
+    if (c.anomalos.length) avisos += '<div style="font-size:10px;color:var(--w);margin-top:4px">Horómetro con más horas que las posibles en el mes (lectura dudosa, no entran al plan): ' + c.anomalos.map(escapeHtml).join(', ') + '.</div>';
+    if (c.estimados.length) avisos += '<div style="font-size:10px;color:var(--tx3);margin-top:4px">Plan anclado a la primera lectura del mes (no había una anterior): ' + c.estimados.map(escapeHtml).join(', ') + '.</div>';
+    if (c.sinTipo) avisos += '<div style="font-size:10px;color:var(--tx3);margin-top:4px">' + fn(c.sinTipo) + ' registro(s) con tipo de PM desconocido no suman horas.</div>';
+    if (c.realTiposAntiguos) avisos += '<div style="font-size:10px;color:var(--tx3);margin-top:4px">' + fn(c.realTiposAntiguos) + ' registro(s) con tipo antiguo (PM5–PM9) se contaron como su PM equivalente.</div>';
+    var filasEq = c.equipos.filter(function (x) { return x.planN || x.realN; }).slice(0, 10).map(function (x) {
+      var cc = x.cumplimiento == null ? 'var(--tx3)' : x.cumplimiento >= 0.95 ? 'var(--ok)' : x.cumplimiento >= 0.8 ? 'var(--w)' : 'var(--danger)';
+      return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(x.sigla) + '</td><td class="mono" style="text-align:right">' + fn(x.planCorteN) + ' / ' + fn(x.realN) + '</td><td class="mono" style="text-align:right">' + h1(x.planCorteH) + ' / ' + h1(x.realH) + '</td><td class="mono" style="text-align:right;color:' + cc + ';font-weight:700">' + pf(x.cumplimiento) + '</td><td class="mono" style="text-align:right">' + (x.atrasoH > 0 ? '−' + h1(x.atrasoH) + ' h' : '—') + '</td></tr>';
+    }).join('');
+    var tipos = ['PM1', 'PM2', 'PM3', 'PM4'].map(function (t) { var x = c.tipos[t]; return '<tr><td style="font-weight:600">' + t + ' <span style="color:var(--tx3)">(' + x.horas + ' h)</span></td><td class="mono" style="text-align:right">' + fn(x.planCorte) + '</td><td class="mono" style="text-align:right">' + fn(x.real) + '</td><td class="mono" style="text-align:right">' + h1(x.planCorte * x.horas) + ' / ' + h1(x.real * x.horas) + '</td></tr>'; }).join('');
+    var mesesLista = (meses || []).filter(function (m) { return m <= hoy.slice(0, 7); }).slice(-8);
+    var hist8 = cumplimientoProgramaMeses(eq, d, mesesLista, { duraciones: cfg.duracionPMHoras });
+    var histHTML = hist8.length ? '<div style="font-weight:700;font-size:12px;margin:14px 0 4px">Cumplimiento del programa mes a mes</div><div class="tbl-wrap"><table style="font-size:11px"><tr><th>Mes</th><th style="text-align:right">Horas plan / real</th><th style="text-align:right">PM plan / real</th><th style="text-align:right">Cumplimiento (horas)</th><th style="width:34%"></th></tr>' +
+      hist8.map(function (m) {
+        var cc = m.cumplimiento >= 0.95 ? 'var(--ok)' : m.cumplimiento >= 0.8 ? 'var(--w)' : 'var(--danger)', w = Math.min(100, Math.round(m.cumplimiento * 100));
+        return '<tr><td class="mono">' + escapeHtml(m.mes) + (m.parcial ? ' <span style="color:var(--tx3)">(en curso)</span>' : '') + '</td><td class="mono" style="text-align:right">' + h1(m.planH) + ' / ' + h1(m.realH) + '</td><td class="mono" style="text-align:right">' + fn(m.planN) + ' / ' + fn(m.realN) + '</td><td class="mono" style="text-align:right;color:' + cc + ';font-weight:700">' + pf(m.cumplimiento) + '</td><td><div style="background:var(--bg4);border-radius:4px;height:10px"><div style="background:' + cc + ';height:100%;width:' + w + '%;border-radius:4px"></div></div></td></tr>';
+      }).join('') + '</table></div><div style="font-size:10px;color:var(--tx3);margin-top:4px">Más de 100 % significa más PM hechos que hitos alcanzados en el mes (PM atrasados que se pusieron al día o anticipados). Solo se muestran meses con lectura de horómetro en al menos la mitad de los equipos.</div>' : '';
+    var diaria = '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:11px;color:var(--tx2)">Ver tabla diaria</summary><div class="tbl-wrap"><table style="font-size:10px"><tr><th>Día</th><th style="text-align:right">Plan (h)</th><th style="text-align:right">Real (h)</th><th style="text-align:right">Plan (PM)</th><th style="text-align:right">Real (PM)</th></tr>' +
+      c.serie.slice(1).map(function (x) { return '<tr><td class="mono">' + x.dia + '</td><td class="mono" style="text-align:right">' + x.planH + '</td><td class="mono" style="text-align:right">' + (x.realH == null ? '—' : x.realH) + '</td><td class="mono" style="text-align:right">' + x.planN + '</td><td class="mono" style="text-align:right">' + (x.realN == null ? '—' : x.realN) + '</td></tr>'; }).join('') + '</table></div></details>';
+    return cab + tarjetas + leyenda + _avanceCurvaSVG(c) + avisos +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:12px"><div><div style="font-weight:700;font-size:12px;margin-bottom:4px">Equipos con más atraso</div><div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th style="text-align:right">PM plan / real</th><th style="text-align:right">Horas plan / real</th><th style="text-align:right">Cumpl.</th><th style="text-align:right">Atraso</th></tr>' + (filasEq || '<tr><td colspan="5" style="color:var(--tx3)">Sin datos</td></tr>') + '</table></div></div>' +
+      '<div><div style="font-weight:700;font-size:12px;margin-bottom:4px">Por tipo de PM</div><div class="tbl-wrap"><table style="font-size:11px"><tr><th>Tipo</th><th style="text-align:right">Plan</th><th style="text-align:right">Real</th><th style="text-align:right">Horas plan / real</th></tr>' + tipos + '</table></div></div></div>' +
+      histHTML + diaria + '</div>';
+  } catch (e) { return ''; }
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).

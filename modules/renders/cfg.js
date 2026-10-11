@@ -348,6 +348,12 @@ export function renderCfg(){
       '<div><label style="font-size:11px;color:var(--tx3)">Margen por Tonelada ($/ton) — opcional</label><br>'+
       '<input type="number" value="'+((S.g('cfg')||{}).margenPorTon||'')+'" placeholder="Ej: 15000" onchange="var c=S.g(\'cfg\')||{};c.margenPorTon=parseInt(this.value)||0;S.s(\'cfg\',c);refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
       '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Sin este dato, Producción no calcula el Costo de Downtime (toneladas perdidas × margen) — solo muestra las toneladas.</div></div>'+
+      (function(){
+        var dpm=pmDuracionesEstandar((S.g('cfg')||{}).duracionPMHoras);
+        return '<div style="margin-top:8px"><label style="font-size:11px;color:var(--tx3)">Duración estándar de cada PM (horas de detención del equipo)</label>'+
+          '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">'+['PM1','PM2','PM3','PM4'].map(function(t){return '<label style="font-size:11px;display:flex;align-items:center;gap:6px;background:var(--bg3);border-radius:6px;padding:4px 8px">'+t+' <input type="number" min="0" step="any" value="'+dpm[t]+'" onchange="cfgCambiarDuracionPM(\''+t+'\',this.value)" style="width:64px;padding:4px;background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></label>';}).join('')+'</div>'+
+          '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Pesan la Curva S de PM (Avance) y las horas de PM del pronóstico de disponibilidad. Estándar: PM1 3 h, PM2 5 h, PM3 8 h, PM4 12 h. Los tipos antiguos cuentan como su equivalente: PM5, PM7 y PM9 = PM1; PM6 = PM2; PM8 = PM4.</div></div>';
+      })()+
       '<div style="margin-top:8px"><label style="font-size:11px;color:var(--tx3)">Tasa USD → CLP (pesos por dólar)</label><br>'+
       '<input type="number" min="1" step="any" value="'+((S.g('cfg')||{}).tasaUSD||'')+'" placeholder="Predeterminado: 910" onchange="cfgCambiarTasaUSD(this.value)" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
       '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Referencial (no es un tipo de cambio oficial). Convierte a pesos los valores en dólares (costo de hora detenida) y valoriza los listados de TBO. Es la misma para todos los usuarios. Vacío = 910.</div></div>'+
@@ -699,6 +705,15 @@ export function cfgCambiarCostoDetModelo(clave,v){
   var n=parseFloat(v),c=S.g('cfg')||{},m=Object.assign({},c.costoHoraDetModelos||{});
   if(n>0)m[clave]=n;else delete m[clave];
   c.costoHoraDetModelos=Object.keys(m).length?m:null;
+  S.s('cfg',c);
+  refreshAll();
+}
+// Duración estándar de cada PM en horas (cfg.duracionPMHoras = {PM1..PM4}). Un valor vacío o 0 vuelve al estándar de ese tipo.
+export function cfgCambiarDuracionPM(tipo,v){
+  if(['PM1','PM2','PM3','PM4'].indexOf(tipo)<0)return;
+  var n=parseFloat(v),c=S.g('cfg')||{},m=Object.assign({},c.duracionPMHoras||{});
+  if(n>0)m[tipo]=n;else delete m[tipo];
+  c.duracionPMHoras=Object.keys(m).length?m:null;
   S.s('cfg',c);
   refreshAll();
 }
@@ -1087,6 +1102,7 @@ window.cloudProbar = cloudProbar;
 window.guardarNeuParams = guardarNeuParams;
 window.cfgCambiarCostoDetModelo = cfgCambiarCostoDetModelo;
 window.cfgCambiarTasaUSD = cfgCambiarTasaUSD;
+window.cfgCambiarDuracionPM = cfgCambiarDuracionPM;
 window.guardarAlertaEmails = guardarAlertaEmails;
 window.guardarAlertaWhatsApp = guardarAlertaWhatsApp;
 window.guardarRemitentesPermitidos = guardarRemitentesPermitidos;
