@@ -21,6 +21,23 @@ function flota(seed, opts) {
   return { eq, ot, reg, hoy: o.hoy };
 }
 
+// Flota HD785-7 sintética con turbos que SÍ se desgastan (Weibull β=3, η=3.000 h); un camión con turbos muy pasados de vida y otro con turbos recién cambiados.
+function conTurbos(seed) {
+  const f = flota(seed); f.eq.forEach((e) => { e.modelo = 'Komatsu HD785-7'; });
+  const rng = mkRng(seed + 1000), compHist = [];
+  const edad = (i) => (i === 0 ? 6000 : i === 1 ? 50 : 1500);
+  f.eq.forEach((e, i) => {
+    let h = 500;
+    for (let k = 0; k < 6; k++) {
+      compHist.push({ sigla: e.sigla, comp: 'Turbo', fechaInst: iso(new Date('2022-01-01T12:00:00').getTime() + (i * 6 + k) * 86400000 * 30), horomInstalacion: Math.round(h), origen: 'TURBODAL' });
+      h += 3000 * Math.pow(-Math.log(1 - rng()), 1 / 3);
+    }
+    compHist[compHist.length - 1].horomInstalacion = Math.round(h);
+    e.horomActual = Math.round(h + edad(i)); e.horomProxPM = e.horomActual + 100;
+  });
+  return Object.assign(f, { compHist });
+}
+
 describe('pronosticoDisponibilidadEquipos', () => {
   it('sin historial suficiente devuelve null (no inventa un pronóstico)', () => {
     expect(L.pronosticoDisponibilidadEquipos([], { reg: [], ot: [], hoy: '2026-10-01' })).toBeNull();
@@ -94,6 +111,45 @@ describe('pronosticoDisponibilidadEquipos', () => {
   });
 });
 
+
+describe('pronóstico con la edad de los componentes', () => {
+  it('con componentes que se desgastan: el camión con turbos pasados de vida suma fallas, el de turbos nuevos resta, y la flota baja', () => {
+    const f = conTurbos(3);
+    const d = { reg: f.reg, ot: f.ot, hoy: f.hoy, compHist: f.compHist, compras: [] };
+    const con = L.pronosticoDisponibilidadEquipos(f.eq, d, { nSim: 800, rng: mkRng(2) });
+    const g = con.componentes.gruposModelados[0];
+    expect(g.fam).toBe('turbo'); expect(g.beta).toBeGreaterThan(2); expect(g.beta).toBeLessThan(4.2);
+    const viejo = con.equipos.find((e) => e.sigla === 'CN-0'), nuevo = con.equipos.find((e) => e.sigla === 'CN-1');
+    expect(viejo.ajusteComponentes).toBeGreaterThan(0.5); expect(nuevo.ajusteComponentes).toBeLessThan(0);
+    expect(viejo.componentes[0].desdeH).toBeGreaterThan(5000);
+    expect(viejo.fallasEsperadas).toBeGreaterThan(nuevo.fallasEsperadas);
+    // el ajuste redistribuye el riesgo entre equipos (unos suben, otros bajan): el total de la flota casi no se mueve
+    expect(con.componentes.equiposAjustados).toBe(10);
+    expect(Math.abs(con.componentes.fallasExtra)).toBeLessThan(0.5);
+    expect(Math.abs(con.flota.p50 - con.componentes.sinAjuste.p50)).toBeLessThan(1);
+  });
+  it('el ajuste está acotado: no suma más de 3 fallas por equipo ni quita más de la mitad de su tasa base', () => {
+    const f = conTurbos(4);
+    const r = L.pronosticoDisponibilidadEquipos(f.eq, { reg: f.reg, ot: f.ot, hoy: f.hoy, compHist: f.compHist, compras: [] }, { nSim: 300, rng: mkRng(3) });
+    r.equipos.forEach((e) => { expect(e.ajusteComponentes).toBeLessThanOrEqual(3.0001); });
+    const nuevo = r.equipos.find((e) => e.sigla === 'CN-1');
+    expect(nuevo.fallasEsperadas).toBeGreaterThanOrEqual(0.5 * nuevo.fallasHist / 540 * 30 - 0.15);
+  });
+  it('sin historial de componentes, o con componentes:false, el pronóstico no cambia (no hay ajuste)', () => {
+    const f = conTurbos(5);
+    const base = L.pronosticoDisponibilidadEquipos(f.eq, { reg: f.reg, ot: f.ot, hoy: f.hoy }, { nSim: 400, rng: mkRng(9) });
+    const apagado = L.pronosticoDisponibilidadEquipos(f.eq, { reg: f.reg, ot: f.ot, hoy: f.hoy, compHist: f.compHist, compras: [] }, { nSim: 400, rng: mkRng(9), componentes: false });
+    expect(base.componentes.gruposModelados).toEqual([]); expect(base.componentes.equiposAjustados).toBe(0);
+    expect(apagado.flota.p50).toBe(base.flota.p50);
+  });
+  it('un componente con menos de 5 vidas completas medidas no se modela (el TBO del fabricante es una política, no una tasa de falla)', () => {
+    const f = conTurbos(6);
+    const pocas = f.compHist.filter((r) => r.sigla === 'CN-0').slice(0, 4);   // 3 vidas completas + 1 en curso
+    const r = L.pronosticoDisponibilidadEquipos(f.eq, { reg: f.reg, ot: f.ot, hoy: f.hoy, compHist: pocas, compras: [] }, { nSim: 300, rng: mkRng(4) });
+    expect(r.componentes.gruposModelados).toEqual([]);
+  });
+});
+
 describe('backtestPronosticoDisponibilidad', () => {
   it('repite el pronóstico desde meses pasados y compara con lo ocurrido: en datos sintéticos el rango acierta la mayoría de las veces', () => {
     const f = flota(81);
@@ -102,6 +158,16 @@ describe('backtestPronosticoDisponibilidad', () => {
     expect(b.cobertura).toBeGreaterThanOrEqual(60);
     expect(b.errorMedioAbs).toBeLessThan(2.5);
     b.origenes.forEach((x) => { expect(x.fin <= f.hoy).toBe(true); expect(x.p10).toBeLessThanOrEqual(x.p90); });
+  });
+  it('con historial de componentes y de horómetros reconstruye el estado al origen y compara con y sin el ajuste por edad', () => {
+    const f = conTurbos(7);
+    const hist = f.eq.map((e) => ({ sigla: e.sigla, fecha: '2025-01-01', horom: e.horomActual - 2000 }));
+    const b = L.backtestPronosticoDisponibilidad(f.eq, { reg: f.reg, ot: f.ot, hoy: f.hoy, compHist: f.compHist, hist, compras: [] }, { origenes: 3, nSim: 300, rng: mkRng(11) });
+    expect(b.componentes).toBe(true);
+    expect(b.sinComponentes.errorMedioAbs).toBeGreaterThanOrEqual(0);
+    b.origenes.forEach((x) => { expect(typeof x.ajusteComp).toBe('number'); expect(x.sinComp.p10).toBeLessThanOrEqual(x.sinComp.p90); });
+    const sin = L.backtestPronosticoDisponibilidad(f.eq, { reg: f.reg, ot: f.ot, hoy: f.hoy }, { origenes: 2, nSim: 200, rng: mkRng(11) });
+    expect(sin.componentes).toBe(false);
   });
   it('no usa lo que pasó después del origen: una caída masiva posterior no cambia el pronóstico de esa fecha', () => {
     const f = flota(91);

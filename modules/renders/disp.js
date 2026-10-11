@@ -347,14 +347,17 @@ export function renderDisp(){
   // equipo con su historial + equipos que hoy siguen fuera de servicio, con rango, probabilidad de cumplir la meta y un backtest contra los meses pasados.
   var pronosticoHTML=(function(){
     var hz=parseInt($('fDispPronH')?.value)||30;
-    var clave=[hz,meta,eq.length,reg.length,otMC.length,new Date().toISOString().slice(0,10)].join('|');
+    var compHist=S.g('compHist')||[],histH=S.g('hist')||[];
+    var clave=[hz,meta,eq.length,reg.length,otMC.length,compHist.length,histH.length,new Date().toISOString().slice(0,10)].join('|');
     var c=window._dispPronCache;
     var pr,bt;
     if(c&&c.clave===clave){pr=c.pr;bt=c.bt;}
     else{
       try{
-        pr=pronosticoDisponibilidadEquipos(eq,{reg:reg,ot:otMC,hoy:new Date().toISOString().slice(0,10)},{horizonteDias:hz,meta:meta,nSim:2000});
-        bt=pr?backtestPronosticoDisponibilidad(eq,{reg:reg,ot:otMC,hoy:pr.datosHasta},{horizonteDias:hz,meta:meta,nSim:800,origenes:Math.max(3,Math.round(240/hz))}):null;
+        var comprasU=(typeof tboUnirCompras==='function')?tboUnirCompras(S.g('ocHist')||[],S.g('comprasDetalle')||[]):[];
+        var dBase={reg:reg,ot:otMC,compHist:compHist,compMayores:S.g('compMayores')||[],compras:comprasU};
+        pr=pronosticoDisponibilidadEquipos(eq,Object.assign({hoy:new Date().toISOString().slice(0,10)},dBase),{horizonteDias:hz,meta:meta,nSim:2000});
+        bt=pr?backtestPronosticoDisponibilidad(eq,Object.assign({hoy:pr.datosHasta,hist:histH},dBase),{horizonteDias:hz,meta:meta,nSim:800,origenes:Math.max(3,Math.round(240/hz))}):null;
       }catch(e){pr=null;bt=null;}
       window._dispPronCache={clave:clave,pr:pr,bt:bt};
     }
@@ -374,14 +377,21 @@ export function renderDisp(){
       '<div class="card"><div class="card-t">Probabilidad de cumplir la meta</div><div class="card-v" style="color:'+col+'">'+f.probMeta+'%</div><div class="card-s">meta '+meta+'%</div></div>'+
       '<div class="card"><div class="card-t">Solo por fallas (sin PM)</div><div class="card-v">'+f.intrinseca.p50+'%</div><div class="card-s">rango '+f.intrinseca.p10+'% – '+f.intrinseca.p90+'%</div></div>'+
       '<div class="card"><div class="card-t">Historia usada</div><div class="card-v" style="font-size:16px">'+fn(pr.diasHistoria)+' días</div><div class="card-s">'+fn(pr.eventosHist)+' detenciones por falla · '+fn(pr.nEquipos)+' equipos</div></div></div>';
-    var btHTML=bt?'<div style="font-size:11px;color:var(--tx2);margin-bottom:8px;line-height:1.5"><b>¿Acierta?</b> Repetido desde '+fn(bt.origenes.length)+' fechas pasadas, usando solo lo que se sabía entonces: lo real cayó dentro del rango el <b>'+bt.cobertura+'%</b> de las veces (lo esperable ~80%), con un error medio de ±'+bt.errorMedioAbs+' puntos'+(Math.abs(bt.sesgo)>=1?' y un sesgo de '+(bt.sesgo>0?'+':'')+bt.sesgo+' (el pronóstico '+(bt.sesgo>0?'fue optimista':'fue pesimista')+')':'')+'. '+(bt.origenes.length<5?'Son pocas fechas: es evidencia anecdótica. ':'')+'El PM se tomó como el realmente hecho.</div>':'<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Sin historia suficiente para el backtest todavía.</div>';
+    var cp=pr.componentes,compHTML='';
+    if(cp.gruposModelados.length){
+      var gm=cp.gruposModelados.map(function(g){return escapeHtml(g.fam)+' ('+(g.origen==='sin dato'?'origen sin registrar':escapeHtml(g.origen))+(g.mezclaOrigenes?', orígenes mezclados':'')+'): forma β '+(Math.round(g.beta*100)/100+'').replace('.',',')+' con '+fn(g.completas)+' vidas completas';}).join(' · ');
+      var sinDesgaste=cp.gruposModelados.every(function(g){return g.beta<1.1;});
+      compHTML='<div style="font-size:11px;color:var(--tx2);margin-bottom:8px;line-height:1.5"><b>Edad de los componentes.</b> Se corrige la tasa de fallas de cada equipo según la edad de sus componentes con vida medida en la flota: '+gm+'. Efecto sobre la flota: <b>'+(f.p50-cp.sinAjuste.p50>=0?'+':'')+(Math.round((f.p50-cp.sinAjuste.p50)*10)/10+'').replace('.',',')+' puntos</b> (redistribuye riesgo entre equipos; '+fn(cp.equiposAjustados)+' equipos ajustados). '+
+        (sinDesgaste?'<b style="color:var(--w)">β cercano o menor a 1: el riesgo no sube con la edad</b> — estos componentes fallan al azar o al inicio de su vida, así que la edad no ayuda a anticipar la falla (y cambiarlos por TBO no la evita).':'')+'</div>';
+    }
+    var btHTML=bt?'<div style="font-size:11px;color:var(--tx2);margin-bottom:8px;line-height:1.5"><b>¿Acierta?</b> Repetido desde '+fn(bt.origenes.length)+' fechas pasadas, usando solo lo que se sabía entonces: lo real cayó dentro del rango el <b>'+bt.cobertura+'%</b> de las veces (lo esperable ~80%), con un error medio de ±'+bt.errorMedioAbs+' puntos'+(Math.abs(bt.sesgo)>=1?' y un sesgo de '+(bt.sesgo>0?'+':'')+bt.sesgo+' (el pronóstico '+(bt.sesgo>0?'fue optimista':'fue pesimista')+')':'')+'. '+(bt.origenes.length<5?'Son pocas fechas: es evidencia anecdótica. ':'')+'El PM se tomó como el realmente hecho.'+(bt.componentes?' Con el ajuste por edad de componentes el error medio fue ±'+bt.errorMedioAbs+' puntos; sin él, ±'+bt.sinComponentes.errorMedioAbs+'.':'')+'</div>':'<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Sin historia suficiente para el backtest todavía.</div>';
     var filas=pr.equipos.slice(0,8).map(function(x){
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(x.sigla)+(x.prolongado?' <span title="Fuera de servicio sin fecha de término desde hace mucho" style="color:var(--w)">⚠</span>':x.enCurso?' <span title="Fuera de servicio ahora" style="color:var(--danger)">●</span>':'')+'</td><td style="font-size:10px">'+escapeHtml(x.modelo)+'</td>'+
-        '<td class="mono" style="text-align:right">'+fn(x.fallasHist)+'</td><td class="mono" style="text-align:right">'+(Math.round(x.fallasEsperadas*10)/10+'').replace('.',',')+'</td><td class="mono" style="text-align:right">'+fn(x.pmProgramados)+'</td>'+
+        '<td class="mono" style="text-align:right">'+fn(x.fallasHist)+'</td><td class="mono" style="text-align:right">'+(Math.round(x.fallasEsperadas*10)/10+'').replace('.',',')+'</td><td class="mono" style="text-align:right;color:'+(x.ajusteComponentes>0.05?'var(--w)':x.ajusteComponentes<-0.05?'var(--ok)':'var(--tx3)')+'" title="'+escapeHtml(x.componentes.map(function(c){return c.item+': '+fn(c.desdeH)+' h desde el último cambio';}).join(' · '))+'">'+(x.componentes.length?((x.ajusteComponentes>0?'+':'')+(Math.round(x.ajusteComponentes*100)/100+'').replace('.',',')):'—')+'</td><td class="mono" style="text-align:right">'+fn(x.pmProgramados)+'</td>'+
         '<td class="mono" style="text-align:right;font-weight:700;color:'+(x.dispP50>=meta?'var(--ok)':x.dispP50>=meta-10?'var(--w)':'var(--danger)')+'">'+x.dispP50+'%</td><td class="mono" style="text-align:right;color:var(--tx3)">'+x.dispP10+'%</td><td class="mono" style="text-align:right">'+(Math.round(x.perdidaPuntosFlota*10)/10+'').replace('.',',')+'</td></tr>';}).join('');
-    return cab+avisos+tarjetas+btHTML+
-      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Modelo</th><th style="text-align:right" title="Detenciones por falla registradas en la ventana de historia">Fallas hist.</th><th style="text-align:right" title="Fallas esperadas en el horizonte">Fallas esperadas</th><th style="text-align:right">PM en el período</th><th style="text-align:right">Disp. esperada</th><th style="text-align:right">Pesimista (P10)</th><th style="text-align:right" title="Cuántos puntos de la disponibilidad de la flota resta este equipo">Puntos que resta</th></tr>'+filas+'</table></div>'+
-      '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Se muestran los 8 que más restan. Supuestos: las fallas llegan al azar (no se usa la edad de los componentes); una falla de varios días seguidos cuenta como un solo evento; las duraciones salen de las reparaciones cerradas del propio equipo (o de la flota si tiene menos de 4); el PM dura lo que duraron los suyos.</div></div>';
+    return cab+avisos+tarjetas+compHTML+btHTML+
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Modelo</th><th style="text-align:right" title="Detenciones por falla registradas en la ventana de historia">Fallas hist.</th><th style="text-align:right" title="Fallas esperadas en el horizonte">Fallas esperadas</th><th style="text-align:right" title="Fallas que suma (o resta) la edad de sus componentes con vida medida">Ajuste por edad</th><th style="text-align:right">PM en el período</th><th style="text-align:right">Disp. esperada</th><th style="text-align:right">Pesimista (P10)</th><th style="text-align:right" title="Cuántos puntos de la disponibilidad de la flota resta este equipo">Puntos que resta</th></tr>'+filas+'</table></div>'+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Se muestran los 8 que más restan. Supuestos: las fallas llegan al azar, salvo el ajuste por edad de los componentes con vida medida; una falla de varios días seguidos cuenta como un solo evento; las duraciones salen de las reparaciones cerradas del propio equipo (o de la flota si tiene menos de 4); el PM dura lo que duraron los suyos.</div></div>';
   })();
 
   // ═══ SIMULADOR WHAT-IF DE POLÍTICAS DE MANTENIMIENTO (2026-09-17) ═══

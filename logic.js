@@ -5383,7 +5383,38 @@ function _dispEventosFalla(mapaSigla,desde,hasta,hrsDia){
   if(cur)ev.push(cur);
   return ev;
 }
-// equipos: lista de equipos · d: {reg, ot, hoy (ISO)} · o: {horizonteDias=30, meta=85, nSim=2000, ventanaDias=365, rng, pmReal ({sigla:horas}, solo backtest)}
+// Riesgo de componentes por equipo en el horizonte (2026-10-11). La tasa de fallas de cada equipo sale de su historial y NO sabe la edad de sus componentes: un camión con turbos nuevos y otro con
+// turbos pasados de vida figuran igual. Acá se corrige solo ese desvío: para cada componente con cambio registrado y VIDA MEDIDA en la flota (≥5 vidas completas del mismo componente y origen, con la
+// Weibull ajustada por máxima verosimilitud incluyendo los componentes que siguen funcionando), se calcula cuántas fallas se esperan en el horizonte dada su edad (aumento del riesgo acumulado de la
+// Weibull entre t y t+H) y se resta lo que se espera en promedio para un componente de edad cualquiera (H/MTTF), que es lo que el historial del equipo ya contiene. La diferencia (puede ser negativa si
+// el componente es nuevo) se suma a las fallas esperadas del equipo: nunca baja de la mitad de la tasa base ni sube más de 3 fallas por equipo. Sin ≥5 vidas medidas no se ajusta (el TBO del fabricante
+// es una política de cambio, no una tasa de falla). Devuelve {sigla:{exceso, comps:[{item,desdeH,beta,eta,mu,prom,exceso,grupo}]}} y el resumen de qué grupos se pudieron modelar.
+function _dispRiesgoComponentes(equipos,d,H,hoyDate,aplic){
+  var out={},grupos={},usados={};
+  if(!(d.compHist&&d.compHist.length))return{porEquipo:out,grupos:grupos};
+  var estado=tboEstadoFlota(equipos,d.compHist,d.compMayores||[],hoyDate,aplic||'normal');
+  var vidas=tboVidasObservadas(d.compHist,equipos,d.compras||[],aplic||'normal',hoyDate).vidas;
+  var ajusta=function(fam,origen){
+    var k=fam+'|'+origen;if(usados[k]!==undefined)return usados[k];
+    var sub=vidas.filter(function(v){return v.fam===fam&&v.origen===origen;}),mezcla=false;
+    var f=ajusteWeibullCensurado(sub.map(function(v){return{tiempo:v.L,censurado:v.censurado};}));
+    if(!f){sub=vidas.filter(function(v){return v.fam===fam;});mezcla=true;f=ajusteWeibullCensurado(sub.map(function(v){return{tiempo:v.L,censurado:v.censurado};}));}
+    usados[k]=f?{beta:f.beta,eta:f.eta,n:f.n,nFallas:f.nFallas,mezcla:mezcla,mttf:tboMTTFWeibull(f.beta,f.eta)}:null;
+    if(f)grupos[k]={fam:fam,origen:origen,beta:f.beta,eta:f.eta,vidas:f.n,completas:f.nFallas,mezclaOrigenes:mezcla};
+    return usados[k];
+  };
+  var hd={};(equipos||[]).forEach(function(e){hd[e.sigla]=e.hrsDia>0?Number(e.hrsDia):12;});
+  estado.forEach(function(it){
+    if(!it.conDato||!it.fam)return;
+    var par=ajusta(it.fam,it.origenUlt||'sin dato');if(!par)return;
+    var Hh=H*hd[it.sigla],t=Math.max(0,it.desdeH),mu=Math.pow((t+Hh)/par.eta,par.beta)-Math.pow(t/par.eta,par.beta),prom=Hh/par.mttf;
+    var o=out[it.sigla]||(out[it.sigla]={exceso:0,comps:[]});
+    o.exceso+=mu-prom;o.comps.push({item:it.item,desdeH:Math.round(t),beta:par.beta,eta:par.eta,mu:Math.round(mu*1000)/1000,prom:Math.round(prom*1000)/1000,exceso:Math.round((mu-prom)*1000)/1000,mezcla:par.mezcla});
+  });
+  Object.keys(out).forEach(function(k){out[k].exceso=Math.min(3,out[k].exceso);out[k].comps.sort(function(a,b){return b.exceso-a.exceso;});});
+  return{porEquipo:out,grupos:grupos};
+}
+// equipos: lista de equipos · d: {reg, ot, hoy (ISO), compHist, compMayores, compras (opcionales: activan el ajuste por edad de componentes)} · o: {horizonteDias=30, meta=85, nSim=2000, ventanaDias=365, rng, pmReal ({sigla:horas}, solo backtest), componentes (false = sin ajuste por edad)}
 // Devuelve null si no hay historial para estimar (menos de 5 eventos de falla o menos de 60 días de datos).
 // Dos cuidados con los datos: (1) si el último registro es más viejo que 14 días, la historia se corta ahí (no se cuentan como "sin fallas" los días sin carga); (2) un "Fuera de Servicio" sin fecha de
 // término es un evento ABIERTO: no entra a las duraciones (todavía no terminó) y, si lleva más días que el 90 % de las detenciones cerradas, se asume que sigue fuera todo el horizonte (así lo cuenta
@@ -5417,6 +5448,7 @@ function pronosticoDisponibilidadEquipos(equipos,d,o){
   var pmDefecto=medianaPositiva(pmDur)||4;
   var medPool=medianaPositiva(pool)||0;
   var fechaHoy=new Date(hoyReal+'T12:00:00'),prolongados=[];
+  var rc=(op.componentes!==false)?_dispRiesgoComponentes(activos,d,H,fechaHoy,op.aplic):{porEquipo:{},grupos:{}};
   var eq=info.map(function(x){
     var pms=pmProgramadosEquipo(x.e,fechaHoy,H),pmH=op.pmReal&&op.pmReal[x.e.sigla]!=null?op.pmReal[x.e.sigla]:pms.length*(medianaPositiva(Object.keys(downPM[x.e.sigla]||{}).filter(function(dd){return dd>=desde&&dd<=hoy;}).map(function(dd){return downPM[x.e.sigla][dd];}))||pmDefecto);
     var cerE=x.ev.filter(function(v){return !v.abierto&&v.h>0;}).map(function(v){return v.h;});
@@ -5424,26 +5456,34 @@ function pronosticoDisponibilidadEquipos(equipos,d,o){
     var trans=enCurso[x.e.sigla]?_tcoDias(enCurso[x.e.sigla],hoyReal):null,prolong=trans!=null&&trans>umbralDias;
     var resta=trans==null?0:prolong?x.h*H:Math.max(0,(medianaPositiva(cerE)||medPool)-trans*x.h);
     if(prolong)prolongados.push({sigla:x.e.sigla,desde:enCurso[x.e.sigla],dias:trans});
-    return{sigla:x.e.sigla,modelo:x.e.modelo||'',h:x.h,n:x.ev.length,shape:prior.a+x.ev.length,rate:prior.b+T,pm:pms.length,pmH:Math.min(pmH,x.h*H),dur:propia,durPropia:cerE.length>=4,resta:Math.min(resta,x.h*H),prolong:prolong,enCurso:enCurso[x.e.sigla]!=null,cap:x.h*H,sumO:[],sumI:[],fallas:0};
+    return{sigla:x.e.sigla,modelo:x.e.modelo||'',h:x.h,n:x.ev.length,shape:prior.a+x.ev.length,rate:prior.b+T,pm:pms.length,pmH:Math.min(pmH,x.h*H),dur:propia,durPropia:cerE.length>=4,resta:Math.min(resta,x.h*H),prolong:prolong,enCurso:enCurso[x.e.sigla]!=null,cap:x.h*H,sumO:[],sumI:[],sumO0:[],fallas:0,fallas0:0,exceso:(rc.porEquipo[x.e.sigla]||{}).exceso||0,comps:(rc.porEquipo[x.e.sigla]||{}).comps||[]};
   });
-  var flO=[],flI=[],flS=[];
+  // el ajuste por edad nunca quita más de la mitad de la tasa base de ese equipo
+  eq.forEach(function(q){var base=q.shape/q.rate*H;if(q.exceso<-0.5*base)q.exceso=-0.5*base;});
+  var flO=[],flI=[],flS=[],flO0=[];
   for(var s=0;s<nSim;s++){
-    var sO=0,sI=0,sS=0;
+    var sO=0,sI=0,sS=0,sO0=0;
     eq.forEach(function(q){
-      var lam=_rngGamma(q.shape,rng)/q.rate,k=_rngPoisson(lam*H,rng),perd=q.resta;
-      for(var j=0;j<k;j++)perd+=q.dur[Math.floor(rng()*q.dur.length)];
-      var pI=Math.min(perd,q.cap),pO=Math.min(perd+q.pmH,q.cap);
-      q.fallas+=k;q.sumO.push(1-pO/q.cap);q.sumI.push(1-pI/q.cap);sO+=1-pO/q.cap;sI+=1-pI/q.cap;
+      var lam=_rngGamma(q.shape,rng)/q.rate,k0=_rngPoisson(lam*H,rng),durs=[];
+      for(var j=0;j<k0;j++)durs.push(q.dur[Math.floor(rng()*q.dur.length)]);
+      var perd0=q.resta;durs.forEach(function(v){perd0+=v;});
+      var k=k0,perd=perd0;
+      if(q.exceso>0){var ex=_rngPoisson(q.exceso,rng);for(var e2=0;e2<ex;e2++)perd+=q.dur[Math.floor(rng()*q.dur.length)];k=k0+ex;}
+      else if(q.exceso<0&&k0>0){var pq=-q.exceso/(lam*H>0?lam*H:1),quita=0;perd=q.resta;for(var j2=0;j2<k0;j2++){if(rng()<pq)quita++;else perd+=durs[j2];}k=k0-quita;}
+      var pI=Math.min(perd,q.cap),pO=Math.min(perd+q.pmH,q.cap),pO0=Math.min(perd0+q.pmH,q.cap);
+      q.fallas+=k;q.fallas0+=k0;q.sumO.push(1-pO/q.cap);q.sumI.push(1-pI/q.cap);q.sumO0.push(1-pO0/q.cap);sO+=1-pO/q.cap;sI+=1-pI/q.cap;sO0+=1-pO0/q.cap;
       sS+=q.prolong?1-Math.min(perd-q.resta+q.pmH,q.cap)/q.cap:1-pO/q.cap;
     });
-    flO.push(sO/eq.length);flI.push(sI/eq.length);flS.push(sS/eq.length);
+    flO.push(sO/eq.length);flI.push(sI/eq.length);flS.push(sS/eq.length);flO0.push(sO0/eq.length);
   }
-  var ordO=flO.slice().sort(function(a,b){return a-b;}),ordI=flI.slice().sort(function(a,b){return a-b;}),ordS=flS.slice().sort(function(a,b){return a-b;});
+  var ordO=flO.slice().sort(function(a,b){return a-b;}),ordI=flI.slice().sort(function(a,b){return a-b;}),ordS=flS.slice().sort(function(a,b){return a-b;}),ordO0=flO0.slice().sort(function(a,b){return a-b;});
   var r1=function(x){return Math.round(x*1000)/10;};
   var salida=eq.map(function(q){var ord=q.sumO.slice().sort(function(a,b){return a-b;}),med=q.sumO.reduce(function(a,b){return a+b;},0)/q.sumO.length;
-    return{sigla:q.sigla,modelo:q.modelo,fallasHist:q.n,fallasEsperadas:Math.round(q.fallas/nSim*100)/100,pmProgramados:q.pm,pmHoras:Math.round(q.pmH*10)/10,enCurso:q.enCurso,prolongado:q.prolong,durPropia:q.durPropia,
+    return{sigla:q.sigla,modelo:q.modelo,fallasHist:q.n,fallasEsperadas:Math.round(q.fallas/nSim*100)/100,pmProgramados:q.pm,pmHoras:Math.round(q.pmH*10)/10,enCurso:q.enCurso,prolongado:q.prolong,durPropia:q.durPropia,ajusteComponentes:Math.round(q.exceso*1000)/1000,componentes:q.comps.slice(0,3),
       dispP10:r1(_dispPct(ord,0.10)),dispP50:r1(_dispPct(ord,0.50)),dispMedia:r1(med),perdidaPuntosFlota:Math.round((1-med)/eq.length*1000)/10};}).sort(function(a,b){return b.perdidaPuntosFlota-a.perdidaPuntosFlota;});
   return{horizonteDias:H,nSim:nSim,meta:meta,nEquipos:eq.length,desde:desde,datosHasta:datosHasta,diasSinCarga:_tcoDias(datosHasta,hoyReal),diasHistoria:T,eventosHist:nEv,prior:prior.fuente,prolongados:prolongados,
+    componentes:{gruposModelados:Object.keys(rc.grupos).map(function(k){return rc.grupos[k];}),equiposAjustados:eq.filter(function(q){return q.comps.length;}).length,
+      sinAjuste:{p10:r1(_dispPct(ordO0,0.10)),p50:r1(_dispPct(ordO0,0.50)),p90:r1(_dispPct(ordO0,0.90))},fallasExtra:Math.round(eq.reduce(function(a,q){return a+(q.fallas-q.fallas0)/nSim;},0)*100)/100},
     flota:{p10:r1(_dispPct(ordO,0.10)),p50:r1(_dispPct(ordO,0.50)),p90:r1(_dispPct(ordO,0.90)),probMeta:Math.round(flO.filter(function(v){return v*100>=meta;}).length/nSim*1000)/10,
       intrinseca:{p10:r1(_dispPct(ordI,0.10)),p50:r1(_dispPct(ordI,0.50)),p90:r1(_dispPct(ordI,0.90))},
       sinProlongados:prolongados.length?{p10:r1(_dispPct(ordS,0.10)),p50:r1(_dispPct(ordS,0.50)),p90:r1(_dispPct(ordS,0.90)),probMeta:Math.round(flS.filter(function(v){return v*100>=meta;}).length/nSim*1000)/10}:null},
@@ -5469,13 +5509,22 @@ function backtestPronosticoDisponibilidad(equipos,d,o){
         var f=Math.min((downFull[e.sigla]&&downFull[e.sigla][dd])||0,h),t=Math.min((downFullPM[e.sigla]&&downFullPM[e.sigla][dd])||0,h);perd+=Math.min(t+f,h);pm+=Math.max(0,Math.min(t,h));}
       pmReal[e.sigla]=pm;real+=1-perd/(h*H);n++;
     });
-    var p=pronosticoDisponibilidadEquipos(activos,{reg:regC,ot:otC,hoy:origen},{horizonteDias:H,meta:op.meta,nSim:op.nSim||1000,rng:op.rng,pmReal:pmReal});
+    // componentes: con d.compHist y d.hist se reconstruye el estado al origen (cambios ya hechos y horómetro de ese día); sin ellos el ajuste por edad queda desactivado
+    var conComp=!!(d.compHist&&d.hist),eqO=activos,dO={reg:regC,ot:otC,hoy:origen};
+    if(conComp){
+      eqO=activos.map(function(e){var hh=C.horomHistorico(d.hist,e.sigla,origen);return hh!=null?Object.assign({},e,{horomActual:hh}):e;});
+      dO.compHist=(d.compHist||[]).filter(function(r){return r&&(r.fechaInst||'')&&r.fechaInst<=origen;});dO.compMayores=d.compMayores||[];dO.compras=d.compras||[];
+    }
+    var p=pronosticoDisponibilidadEquipos(eqO,dO,{horizonteDias:H,meta:op.meta,nSim:op.nSim||1000,rng:op.rng,pmReal:pmReal,componentes:conComp});
     if(!p)continue;
-    var r=Math.round(real/n*1000)/10;
-    out.push({origen:origen,fin:fin,p10:p.flota.p10,p50:p.flota.p50,p90:p.flota.p90,real:r,dentro:r>=p.flota.p10&&r<=p.flota.p90,error:Math.round((p.flota.p50-r)*10)/10});
+    var r=Math.round(real/n*1000)/10,sin=conComp?p.componentes.sinAjuste:p.flota;
+    out.push({origen:origen,fin:fin,p10:p.flota.p10,p50:p.flota.p50,p90:p.flota.p90,real:r,dentro:r>=p.flota.p10&&r<=p.flota.p90,error:Math.round((p.flota.p50-r)*10)/10,
+      sinComp:{p10:sin.p10,p50:sin.p50,p90:sin.p90,dentro:r>=sin.p10&&r<=sin.p90,error:Math.round((sin.p50-r)*10)/10},ajusteComp:Math.round((p.flota.p50-sin.p50)*10)/10});
   }
   if(!out.length)return null;
-  return{horizonteDias:H,origenes:out,cobertura:Math.round(out.filter(function(x){return x.dentro;}).length/out.length*1000)/10,errorMedioAbs:Math.round(out.reduce(function(a,x){return a+Math.abs(x.error);},0)/out.length*10)/10,sesgo:Math.round(out.reduce(function(a,x){return a+x.error;},0)/out.length*10)/10};
+  var cob=function(f){return Math.round(out.filter(f).length/out.length*1000)/10;},eab=function(f){return Math.round(out.reduce(function(a,x){return a+Math.abs(f(x));},0)/out.length*10)/10;};
+  return{horizonteDias:H,origenes:out,cobertura:cob(function(x){return x.dentro;}),errorMedioAbs:eab(function(x){return x.error;}),sesgo:Math.round(out.reduce(function(a,x){return a+x.error;},0)/out.length*10)/10,
+    componentes:!!(d.compHist&&d.hist),sinComponentes:{cobertura:cob(function(x){return x.sinComp.dentro;}),errorMedioAbs:eab(function(x){return x.sinComp.error;})}};
 }
 
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
