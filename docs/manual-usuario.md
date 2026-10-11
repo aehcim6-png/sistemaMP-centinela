@@ -356,6 +356,8 @@ guardada y se recuerda la próxima vez que entras.
 
 ---
 
+En **Componentes → Estadística → Mapa de equipos (PCA)** eliges un tipo de equipo (camión, cargador…) y ves cada equipo comparado con sus pares en fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso y horómetro: en rojo lo que se aleja mucho del grupo. Los equipos con datos poco confiables (por ejemplo un horómetro con una lectura mala) quedan fuera y se indica el motivo. Con 8 o más equipos completos aparece además el gráfico de ejes principales. Úsalo como guía de dónde mirar, no como diagnóstico.
+
 Para el detalle completo de cada función (con capturas conceptuales y
 ejemplos paso a paso), abre el sistema y ve a la pestaña **❓ Ayuda** — ahí
 vive la versión completa de 33 secciones, siempre al día.

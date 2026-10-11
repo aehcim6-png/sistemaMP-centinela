@@ -5351,6 +5351,108 @@ function tcoFlotaAuto(){
   }catch(e){return null;}
 }
 
+// ═══ ANÁLISIS DE COMPONENTES PRINCIPALES (PCA) DE LA FLOTA (2026-10-11) ═══
+// PCA resume varios indicadores correlacionados de cada equipo (fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso diario, horómetro) en 2 o 3 ejes y permite ver qué
+// equipos se alejan del grupo. Pasos: estandarizar cada variable (media 0, desviación 1: así ninguna manda por su unidad), matriz de correlación, valores y vectores propios (Jacobi), puntajes = datos
+// estandarizados × vectores. IMPORTANTE para no engañarse: con pocos equipos los ejes son inestables (se mide con "dejar uno afuera"), si se mezclan tipos de equipo el primer eje solo separa los tipos, y un
+// equipo "atípico" muchas veces es un dato malo (por eso se descartan antes los horómetros imposibles). Solo con filas completas; se pide n ≥ 8 y al menos 3 variables con variación.
+function _eigenSimetrica(A){
+  var n=A.length,a=A.map(function(r){return r.slice();}),V=[];
+  for(var i=0;i<n;i++){V.push([]);for(var j=0;j<n;j++)V[i].push(i===j?1:0);}
+  for(var sw=0;sw<100;sw++){
+    var p=0,q=1,mx=0;
+    for(i=0;i<n;i++)for(j=i+1;j<n;j++)if(Math.abs(a[i][j])>mx){mx=Math.abs(a[i][j]);p=i;q=j;}
+    if(mx<1e-13)break;
+    var th=(a[q][q]-a[p][p])/(2*a[p][q]),t=(th>=0?1:-1)/(Math.abs(th)+Math.sqrt(th*th+1)),c=1/Math.sqrt(t*t+1),s=t*c;
+    for(var k=0;k<n;k++){var akp=a[k][p],akq=a[k][q];a[k][p]=c*akp-s*akq;a[k][q]=s*akp+c*akq;}
+    for(k=0;k<n;k++){var apk=a[p][k],aqk=a[q][k];a[p][k]=c*apk-s*aqk;a[q][k]=s*apk+c*aqk;}
+    for(k=0;k<n;k++){var vkp=V[k][p],vkq=V[k][q];V[k][p]=c*vkp-s*vkq;V[k][q]=s*vkp+c*vkq;}
+  }
+  var vals=a.map(function(r,i){return r[i];}),ord=vals.map(function(v,i){return i;}).sort(function(x,y){return vals[y]-vals[x];});
+  return{valores:ord.map(function(i){return Math.max(0,vals[i]);}),vectores:ord.map(function(i){return V.map(function(r){return r[i];});})};   // vectores[k] = k-ésimo vector propio
+}
+var _PCA_CHI2_95={1:3.841,2:5.991,3:7.815,4:9.488,5:11.07};
+// X: filas (equipos) × columnas (variables), con null donde falta el dato · nombres: de las variables · o: {minFilas (8), minVars (3)}
+function pcaAnalisis(X,nombres,o){
+  var op=o||{},minF=op.minFilas>0?op.minFilas:8,minV=op.minVars>0?op.minVars:3;
+  var idx=[],excl=[];
+  (X||[]).forEach(function(r,i){if(r&&r.length&&r.every(function(v){return typeof v==='number'&&isFinite(v);}))idx.push(i);else excl.push(i);});
+  var p0=(nombres||[]).length,n=idx.length;
+  if(n<minF||p0<minV)return{ok:false,motivo:n<minF?'hay '+n+' equipos con todos los datos y se necesitan al menos '+minF:'se necesitan al menos '+minV+' variables',filas:idx,excluidas:excl};
+  var media=[],sd=[],constantes=[],cols=[];
+  for(var j=0;j<p0;j++){
+    var m=0;idx.forEach(function(i){m+=X[i][j];});m/=n;
+    var v=0;idx.forEach(function(i){v+=(X[i][j]-m)*(X[i][j]-m);});v=Math.sqrt(v/(n-1));
+    if(v>1e-12){cols.push(j);media.push(m);sd.push(v);}else constantes.push(nombres[j]);
+  }
+  var p=cols.length;
+  if(p<minV)return{ok:false,motivo:'solo '+p+' variables con variación (se necesitan '+minV+')',filas:idx,excluidas:excl,constantes:constantes};
+  var Z=idx.map(function(i){return cols.map(function(j,k){return(X[i][j]-media[k])/sd[k];});});
+  var R=[];for(var a=0;a<p;a++){R.push([]);for(var b=0;b<p;b++){var s=0;for(var r=0;r<n;r++)s+=Z[r][a]*Z[r][b];R[a].push(s/(n-1));}}
+  var E=_eigenSimetrica(R);
+  // signo determinista: la suma de las cargas de cada componente es positiva
+  E.vectores.forEach(function(vec){var sm=vec.reduce(function(x,y){return x+y;},0);if(sm<0)for(var k=0;k<vec.length;k++)vec[k]=-vec[k];});
+  var tot=E.valores.reduce(function(x,y){return x+y;},0),acum=0;
+  var varianza=E.valores.map(function(l){acum+=l/tot;return{valor:l,pct:l/tot,acumulado:acum};});
+  var nombresV=cols.map(function(j){return nombres[j];});
+  var cargas=E.vectores.map(function(vec,k){return vec.map(function(x){return x*Math.sqrt(E.valores[k]);});});   // cargas[k][j] = correlación de la variable j con el componente k
+  var puntajes=Z.map(function(z){return E.vectores.map(function(vec){var s=0;for(var k=0;k<p;k++)s+=z[k]*vec[k];return s;});});
+  var nRet=Math.max(1,Math.min(5,E.valores.filter(function(l){return l>1;}).length));      // criterio de Kaiser (autovalor > 1), máximo 5
+  var chi=_PCA_CHI2_95[Math.min(nRet,5)];
+  var t2=puntajes.map(function(sc){var t=0;for(var k=0;k<nRet;k++)t+=sc[k]*sc[k]/Math.max(E.valores[k],1e-12);return t;});
+  // estabilidad: ¿el primer eje cambia si se deja un equipo afuera? (coseno mínimo entre el PC1 completo y el de cada subconjunto)
+  var cosMin=1,peor=-1;
+  for(var d=0;d<n;d++){
+    var Zs=Z.filter(function(_,i){return i!==d;}),ms=[],ss=[];
+    for(var jj=0;jj<p;jj++){var mm=0;Zs.forEach(function(z){mm+=z[jj];});mm/=n-1;var vv=0;Zs.forEach(function(z){vv+=(z[jj]-mm)*(z[jj]-mm);});ms.push(mm);ss.push(Math.sqrt(vv/(n-2))||1);}
+    var Rs=[];for(var a2=0;a2<p;a2++){Rs.push([]);for(var b2=0;b2<p;b2++){var s2=0;Zs.forEach(function(z){s2+=(z[a2]-ms[a2])*(z[b2]-ms[b2]);});Rs[a2].push(s2/(n-2)/(ss[a2]*ss[b2]));}}
+    var v1=_eigenSimetrica(Rs).vectores[0],dot=0;for(var k2=0;k2<p;k2++)dot+=v1[k2]*E.vectores[0][k2];
+    if(Math.abs(dot)<cosMin){cosMin=Math.abs(dot);peor=idx[d];}
+  }
+  // qué variable explica más el alejamiento de cada equipo (mayor |z|)
+  var porFila=idx.map(function(i,r){var mj=0;for(var k=1;k<p;k++)if(Math.abs(Z[r][k])>Math.abs(Z[r][mj]))mj=k;return{fila:i,puntajes:puntajes[r],t2:t2[r],lejos:t2[r]>chi,variableMayor:nombresV[mj],zMayor:Z[r][mj],z:Z[r]};});
+  return{ok:true,n:n,p:p,filas:idx,excluidas:excl,constantes:constantes,variables:nombresV,media:media,sd:sd,varianza:varianza,cargas:cargas,vectores:E.vectores,nRetenidos:nRet,umbralT2:chi,
+    equipos:porFila,estabilidadPC1:{cosenoMinimo:cosMin,equipoQueMasLoMueve:peor,estable:cosMin>=0.95}};
+}
+// Variables por equipo para el PCA. d: {equipos, eventos [{sigla,fecha,durH|null}], hist, reportab, hoy} · o: {desde, hasta}. Devuelve {filas:[{sigla,tipo,modelo,vars:{...}|null,motivo}], variables:[...]}.
+// Un equipo queda fuera (con el motivo) si el horómetro es imposible (más de 24 h/día de uso), si hay menos de 60 días o 200 h de lectura, o si le faltan datos.
+function pcaVariablesEquipos(d,o){
+  var op=o||{},hoy=_tcoIso(d.hoy),hasta=op.hasta||hoy,desde=op.desde||_fechaMas(hasta,-365),out=[];
+  var nombres=['Fallas por 1.000 h','Horas por reparación','% días fuera de servicio','Uso (h/día)','Horómetro (h)'];
+  (d.equipos||[]).forEach(function(e){
+    if(!e||!e.sigla||e.unidad==='km')return;
+    var lec=C.lecturasValidas(d.hist||[],e.sigla).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;});
+    var val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
+    var fila={sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||'',vars:null,motivo:''};
+    if(lec.length<2){fila.motivo='sin lecturas de horómetro en el período';out.push(fila);return;}
+    var a=lec[0],b=lec[lec.length-1],dias=_tcoDias(a.fecha,b.fecha),horas=val(b)-val(a);
+    if(dias<60){fila.motivo='menos de 60 días de lecturas';out.push(fila);return;}
+    var uso=horas/dias;
+    if(uso>24||horas<0){fila.motivo='horómetro dudoso ('+Math.round(uso)+' h/día: una lectura mala en el historial)';out.push(fila);return;}
+    if(horas<200){fila.motivo='menos de 200 h de uso en el período';out.push(fila);return;}
+    var ev=(d.eventos||[]).filter(function(x){return x.sigla===e.sigla&&x.fecha>=a.fecha&&x.fecha<=b.fecha;});
+    var dur=ev.map(function(x){return x.durH;}).filter(function(x){return typeof x==='number'&&x>=0;});
+    var rep=(d.reportab||[]).filter(function(r){return r.sigla===e.sigla&&r.fecha>=desde&&r.fecha<=hasta;});
+    if(dur.length<3){fila.motivo='menos de 3 reparaciones con duración registrada';out.push(fila);return;}
+    if(rep.length<10){fila.motivo='menos de 10 días con reporte del cliente';out.push(fila);return;}
+    fila.vars={fallas1000:ev.length/horas*1000,mttr:dur.reduce(function(x,y){return x+y;},0)/dur.length,fsPct:rep.filter(function(r){return r.estatus==='FS';}).length/rep.length*100,uso:uso,horom:Number(e.horomActual)||val(b)};
+    out.push(fila);
+  });
+  return{filas:out,variables:nombres,claves:['fallas1000','mttr','fsPct','uso','horom']};
+}
+// Comparación con pares: z robusto (mediana y MAD; si MAD=0, desviación media absoluta) de cada variable dentro del grupo; |z| ≥ 2,5 = fuera de lo normal del grupo. Requiere ≥ 4 equipos con la variable.
+function paresZRobusto(valores,claves){
+  var med=function(a){var v=a.slice().sort(function(x,y){return x-y;}),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;};
+  var out={};claves.forEach(function(k){
+    var xs=valores.map(function(v){return v[k];}).filter(function(x){return typeof x==='number'&&isFinite(x);});
+    if(xs.length<4){out[k]=null;return;}
+    var m=med(xs),dev=xs.map(function(x){return Math.abs(x-m);}),mad=med(dev)*1.4826;
+    if(!(mad>1e-12))mad=dev.reduce(function(a,b){return a+b;},0)/dev.length*1.2533;   // si más de la mitad coincide con la mediana (MAD=0), se usa la desviación media absoluta para no esconder al que se aleja
+    out[k]={mediana:m,mad:mad,z:function(x){return mad>1e-12?(x-m)/mad:0;}};
+  });
+  return out;
+}
+
 // ═══ REPORTABILIDAD DIARIA DEL CLIENTE (2026-10-11) ═══
 // El cliente (Centinela) pide cada día un reporte con el estatus de TODOS los equipos de la faena: OP (operativo) o FS (fuera de servicio) con detalle, fecha de detención, fecha de proyección de
 // reparación, OC y observación. Es la fuente contractual de la disponibilidad. Se guarda una fila por equipo y día en `reportabilidad_diaria` (clave natural fecha+sigla): cargar de nuevo un día lo
@@ -9285,7 +9387,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

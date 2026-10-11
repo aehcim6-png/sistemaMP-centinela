@@ -6479,6 +6479,17 @@ diaria va de 71 % a 88 %. Incluye a CN-6113, CN-9506 y CN-4656 (hoy fuera de la 
 cliente (hay errores en origen: una fecha de detención posterior al día de la hoja, ubicaciones escritas distinto); no reemplaza el cálculo interno de disponibilidad, lo complementa. **Arreglo asociado:** se definió `--w` como alias de `--warn` en `:root`: varios módulos usaban
 `var(--w)` (el amarillo de advertencia) y la variable no existía, así que ese color no se veía (barras SVG negras, textos sin color).
 
+### 123. Mapa de equipos (PCA) en Estadística (2026-10-11)
+
+**Qué es y para qué.** Componentes → Estadística → "Mapa de equipos (PCA)" compara cada equipo con los de **su mismo tipo** en cinco indicadores a la vez (fallas por 1.000 h, horas por reparación, % de días fuera de servicio según el reporte del cliente, uso h/día y
+horómetro) sobre los últimos 12 meses. El cálculo está en logic.js: `pcaVariablesEquipos` arma los indicadores, `paresZRobusto` compara con los pares, `pcaAnalisis` hace el PCA (matriz de correlación de variables estandarizadas, valores y vectores propios por Jacobi
+`_eigenSimetrica`, criterio de Kaiser con máximo 5 ejes, atípicos por T² al 95 %, estabilidad del primer eje dejando un equipo afuera). 17 pruebas en `tests/pca.test.js`.
+**Qué se encontró con los datos reales antes de construirlo.** Mezclando tipos, el eje 1 solo separa el tipo de equipo (camión / torre / cargador): no informa nada nuevo. Hay pocos equipos por tipo (camiones ~14, cargadores ~5, bulldozers ~7, torres ~8) y los horómetros
+tienen lecturas malas en el historial (TI-5146, CN-9502, MC-4922 daban uso imposible de más de 24 h/día). Por eso: (1) el grupo por defecto es un tipo, (2) un equipo con horómetro dudoso, menos de 60 días o 200 h de lectura, menos de 3 reparaciones con duración registrada o
+menos de 10 días de reporte del cliente **se excluye y se muestra el motivo** (nunca se rellena), (3) los ejes (PCA) solo se calculan con 8 o más equipos completos y se avisa si el eje 1 no es estable, (4) la lectura principal es la **comparación con pares**: z robusto
+(mediana y MAD; si más de la mitad coincide con la mediana y el MAD sale 0, se usa la desviación media absoluta para no esconder al que se aleja), marcado en rojo desde 2,5 y exige 4 equipos.
+**Límites.** La duración de reparación solo existe en los correctivos actuales (`duracion`), no en el historial 2022-2025, así que el MTTR depende de pocas órdenes por equipo; "se aleja" es dónde mirar primero, no un diagnóstico; no reemplaza el análisis por componente ni el TBO.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
