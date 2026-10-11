@@ -844,7 +844,7 @@ export function renderDash(){
   // (logic.js, 2026-09-02) es la fuente única — la misma que usa la pestaña
   // "Torre de Control" (torre.js) para su tablero visual completo; antes este
   // cálculo vivía inline acá y arriesgaba divergir si se duplicaba.
-  var equiposConSaludTodos=equiposConSaludFlota(eq,compMayoresDash,neu,aceiteDash,otConHist);
+  var equiposConSaludTodos=equiposConSaludFlota(eq,compMayoresDash,neu,aceiteDash,otConHist,typeof tboSaludFlotaAuto==='function'?tboSaludFlotaAuto():null);
   // Tendencia por equipo (mismo mecanismo que la Tendencia del Índice de Salud
   // de Flota de arriba: un snapshot diario, guardado por sigla en vez de uno
   // solo global) — se registra el de TODOS los equipos con score, no solo los
@@ -867,14 +867,15 @@ export function renderDash(){
   equiposConSaludTodos.forEach(function(r){
     if(r.score.valor==null||typeof _avisarSaludEquipo!=='function')return;
     var histSigla=histEquipoPrevio[r.sigla]||{};
-    var fechasAntes=Object.keys(histSigla).filter(function(f){return f<_hoyISO;}).sort();
-    var valorAyer=fechasAntes.length?histSigla[fechasAntes[fechasAntes.length-1]]:null;
+    // Solo snapshots calculados con la fórmula actual del Score (SALUD_EQUIPO_METODO_DESDE): comparar contra un valor de otra fórmula inventaría un cruce
+    // o una caída que no existen y mandaría un aviso real por correo y WhatsApp.
+    var valorAyer=valorPrevioSalud(histSigla,_hoyISO,SALUD_EQUIPO_METODO_DESDE);
     var cruzoHoy=valorAyer!=null&&valorAyer>=70&&r.score.valor<70;
     // Causa principal (motivoPrincipalSalud, logic.js) — para que el aviso
     // diga "por qué" (ej. "por Componentes") y no solo el número.
     var causa=(typeof motivoPrincipalSalud==='function')?motivoPrincipalSalud(r.score.detalle):null;
     if(cruzoHoy){_avisarSaludEquipo(r.sigla,r.score.valor,'cruce',null,causa);return;}
-    var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
+    var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO,SALUD_EQUIPO_METODO_DESDE);
     if(tend&&tend.delta!=null&&tend.delta<=-15)_avisarSaludEquipo(r.sigla,r.score.valor,'caida',tend.delta,causa);
   });
   // ═══ MAPA DE SALUD DE LA FLOTA ═══ — resumen compacto (conteos), no más el
@@ -911,7 +912,7 @@ export function renderDash(){
       equiposConSaludTodos.map(function(r){
         var v=r.score.valor;
         var col=v==null?'var(--bd)':v>=80?'var(--ok)':v>=55?'var(--ac)':'var(--danger)';
-        var tip=escapeHtml(r.sigla)+': '+(v==null?'sin dato':v+'%'+(r.score.n<4?' (solo '+r.score.n+' de 4 señales)':''));
+        var tip=escapeHtml(r.sigla)+': '+(v==null?'sin dato':v+'%'+(r.score.n<r.score.total?' (solo '+r.score.n+' de '+r.score.total+' señales)':''));
         return '<div style="aspect-ratio:1;border-radius:3px;background:'+col+';cursor:pointer" onmouseenter="vizTip(event,\''+tip+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)"></div>';
       }).join('')+
       '</div>'+
@@ -929,7 +930,7 @@ export function renderDash(){
     equiposConSalud.forEach(function(r){
       var col=r.score.valor>=55?'var(--ac)':'var(--danger)';
       var d={};r.score.detalle.forEach(function(c){d[c.nombre]=c.valor;});
-      var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO);
+      var tend=tendenciaSaludSemanal(histEquipoNuevo[r.sigla]||{},_hoyISO,SALUD_EQUIPO_METODO_DESDE);
       var tendHtml=(tend&&tend.delta!=null)?
         '<span style="color:'+(tend.delta>0?'var(--ok)':tend.delta<0?'var(--danger)':'var(--tx3)')+';font-weight:600">'+(tend.delta>0?'▲':tend.delta<0?'▼':'→')+' '+Math.abs(tend.delta)+' pts</span>'
         :'<span style="color:var(--tx3);font-size:10px">sin dato 7d</span>';

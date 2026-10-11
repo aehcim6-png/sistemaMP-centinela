@@ -2000,7 +2000,7 @@ export function renderPred(){
     var otConHistRepl=ot.concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
 
     var saludRepl={};
-    equiposConSaludFlota(eq,compMayoresRepl,neuRepl,aceiteRepl,otConHistRepl).forEach(function(s){saludRepl[s.sigla]=s;});
+    equiposConSaludFlota(eq,compMayoresRepl,neuRepl,aceiteRepl,otConHistRepl,typeof tboSaludFlotaAuto==='function'?tboSaludFlotaAuto():null).forEach(function(s){saludRepl[s.sigla]=s;});
 
     var crmRepl={};
     costoRelativoMantenimientoFlota(ocHistRepl,eq).forEach(function(r){crmRepl[r.sigla]=r;});

@@ -6317,6 +6317,23 @@ con el riesgo de componentes, reposición con el plan de mantención, y calibrac
 HD785-7, WA900-8R, D375A-6R y D65EX (modelos con plan del fabricante); el riesgo sigue siendo el del fabricante (β=3) hasta que la calibración diga si sirve
 para esta flota. 16 pruebas (`tests/fichaComponente.test.js`).
 
+### 113. Score de Salud del equipo con el riesgo de componentes — Torre de Control, Buscador y Dashboard (2026-10-11)
+
+**Etapa 3 de la ficha de componente.** El Score de Salud de un equipo (`scoreSaludEquipo`) era el promedio de 4 señales (Componentes Mayores, neumáticos,
+aceite y confiabilidad) y no consideraba el riesgo de los componentes de TBO. Ahora, si el equipo tiene plan TBO y al menos un componente con cambio
+registrado, entra una 5ª señal **"Riesgo TBO"** = % de esos componentes que NO están en riesgo (`tboPctSano`: en riesgo = decisión "cambiar ya" o riesgo ≥15% en
+500 h, el mismo criterio del contador "en riesgo" de la ficha). Sin plan o sin datos el Score se calcula exactamente como antes. `scoreSaludEquipo` devuelve
+ahora `total` (4 o 5) y los textos "N de 4 señales" pasaron a "N de total". `tboFichasFlota` arma las fichas de todos los equipos en una pasada compartiendo lo que
+no depende del equipo (vida por origen, plazos, stock, pedidos abiertos) y `tboSaludFlotaAuto` lee el store y recuerda el resultado 5 s, porque el Dashboard,
+la Torre y el Buscador lo piden en la misma pasada; `equiposConSaludFlota` recibe el mapa como 6º argumento opcional (sin él, igual que antes). Resultado: la
+Torre, el Buscador, el Dashboard y el ranking de reemplazo usan el mismo Score, la tarjeta de la Torre muestra "⚠ N comp. en riesgo" y el cajón explica la causa y qué revisar.
+**Riesgo de avisos falsos y su control.** Cambiar la fórmula movería los Scores guardados día a día (`saludEquipoHist`) y el Dashboard manda avisos reales por correo y
+WhatsApp cuando un equipo "cruza a Salud Baja" (ayer ≥70, hoy <70) o "cae ≥15 pts en la semana". Sin protección, el primer día se habrían comparado dos fórmulas
+distintas. `SALUD_EQUIPO_METODO_DESDE` (2026-10-12) hace que la tendencia (`tendenciaSaludSemanal`, 3er argumento) y el "valor de ayer" (`valorPrevioSalud`) ignoren los
+snapshots de equipo anteriores a esa fecha: el primer aviso de cruce posible es el 13 de octubre y la primera tendencia de 7 días ~el 19. La tendencia del Índice de Salud
+de la FLOTA (otra fórmula) no cambia. Limitaciones: los snapshots viejos siguen en la matriz de Markov de la Torre (unas pocas transiciones entre fórmulas); el criterio de
+riesgo usa el modelo del fabricante hasta la etapa de calibración. 17 pruebas (`tests/saludEquipoTbo.test.js`). Verificado en navegador (Torre, cajón, Buscador y Dashboard).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

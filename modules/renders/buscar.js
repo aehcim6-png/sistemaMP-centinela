@@ -181,14 +181,15 @@ export function renderBuscar(){
     var aceitePct=aceUltimas.length?Math.round(aceUltimas.filter(function(m){return m.estado==='NORMAL';}).length/aceUltimas.length*1000)/10:null;
     var horasPeriodoEq=eqObj?(eqObj.hrsDia||12)*30:null;
     var confiabilidadPct=confiabilidadReal(mtbfEq,horasPeriodoEq);
-    var scoreEq=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
+    var tboEq=(typeof tboSaludFlotaAuto==='function'?tboSaludFlotaAuto():{})[fEq]||null;
+    var scoreEq=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct,tboPct:tboEq?tboEq.pct:null});
     var scoreCol=scoreEq.valor==null?'var(--bd)':scoreEq.valor>=80?'var(--ok)':scoreEq.valor>=55?'var(--ac)':'var(--danger)';
     // Tendencia — el Dashboard es quien guarda el snapshot diario por equipo
     // (saludEquipoHist) cada vez que se abre; acá solo se lee, con el mismo
     // registrarSnapshotSalud/tendenciaSaludSemanal que ya usa la Tendencia del
     // Índice de Salud de Flota, un historial por sigla en vez de uno global.
     var _hoyISOBuscar=new Date().toISOString().slice(0,10);
-    var tendenciaEq=scoreEq.valor!=null?tendenciaSaludSemanal((S.g('saludEquipoHist')||{})[fEq]||{},_hoyISOBuscar):null;
+    var tendenciaEq=scoreEq.valor!=null?tendenciaSaludSemanal((S.g('saludEquipoHist')||{})[fEq]||{},_hoyISOBuscar,SALUD_EQUIPO_METODO_DESDE):null;
     // Motivo principal — "por qué" en vez de solo el número, la señal más
     // afectada de las 4 (motivoPrincipalSalud, logic.js). Solo se muestra si
     // el score amerita explicación (bajo 80) — para un equipo sano no hay
@@ -211,7 +212,7 @@ export function renderBuscar(){
     '<div style="text-align:center;min-width:120px">'+
     '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--tx3)">Score de Salud</div>'+
     '<div style="font-size:38px;font-weight:900;color:'+scoreCol+';line-height:1;margin:2px 0">'+(scoreEq.valor==null?'—':scoreEq.valor)+(scoreEq.valor==null?'':'<span style="font-size:16px">%</span>')+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(scoreEq.n?scoreEq.n+' de 4 señales con dato':'sin datos suficientes')+'</div>'+
+    '<div style="font-size:9px;color:var(--tx3)">'+(scoreEq.n?scoreEq.n+' de '+scoreEq.total+' señales con dato':'sin datos suficientes')+'</div>'+
     (tendenciaEq&&tendenciaEq.delta!=null?
       '<div style="font-size:11px;font-weight:600;margin-top:2px;color:'+(tendenciaEq.delta>0?'var(--ok)':tendenciaEq.delta<0?'var(--danger)':'var(--tx3)')+'">'+(tendenciaEq.delta>0?'▲':tendenciaEq.delta<0?'▼':'→')+' '+Math.abs(tendenciaEq.delta)+' pts vs hace 7 días</div>'
       :(scoreEq.valor!=null?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">Sin dato de hace 7 días aún</div>':''))+

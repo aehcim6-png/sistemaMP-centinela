@@ -88,7 +88,7 @@ export function renderTorre(){
   var ot=S.g('ot')||[];
   var otHist=S.g('otHist')||[];
   var otConHist=ot.concat(typeof _otHistComoOt==='function'?_otHistComoOt(otHist):[],typeof _informesFallaComoOt==='function'?_informesFallaComoOt(S.g('informesFalla')||[]):[]);
-  var equipos=equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist);
+  var equipos=equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist,typeof tboSaludFlotaAuto==='function'?tboSaludFlotaAuto():null);
   var histSalud=S.g('saludEquipoHist')||{};
   var hoyISO=new Date().toISOString().slice(0,10);
 
@@ -141,10 +141,11 @@ export function renderTorre(){
         lista.map(function(r,i){
           var v=r.score.valor;
           var st=_torreStatus(v);
-          return '<div class="torre-tile" data-st="'+st+'" title="'+escapeHtml(r.sigla)+' — '+(v==null?'sin datos suficientes':'Score '+v+'%'+(r.score.n<4?' (solo '+r.score.n+' de 4 señales — menos confiable)':''))+'" onclick="_torreAbrirDrawer(\''+escapeHtml(r.sigla)+'\')">'+
+          return '<div class="torre-tile" data-st="'+st+'" title="'+escapeHtml(r.sigla)+' — '+(v==null?'sin datos suficientes':'Score '+v+'%'+(r.score.n<r.score.total?' (solo '+r.score.n+' de '+r.score.total+' señales — menos confiable)':'')+(r.tbo&&r.tbo.enRiesgo?' · '+r.tbo.enRiesgo+' componente'+(r.tbo.enRiesgo>1?'s':'')+' en riesgo':''))+'" onclick="_torreAbrirDrawer(\''+escapeHtml(r.sigla)+'\')">'+
             '<div class="ti-icon">'+_torreIconSvg(r.tipo)+'</div>'+
             '<div class="ti-sigla">'+escapeHtml(r.sigla)+'</div>'+
             '<div class="ti-score">'+(v==null?'sin datos':v+'%')+'</div>'+
+            (r.tbo&&r.tbo.enRiesgo?'<div style="font-size:10px;color:var(--danger);font-weight:600;margin-top:2px">⚠ '+r.tbo.enRiesgo+' comp. en riesgo</div>':'')+
             '</div>';
         }).join('')+
         '</div></div>';
@@ -208,8 +209,8 @@ window._torreAbrirDrawer=function(sigla){
   var nEl=document.getElementById('torreDScoreN');
   if(nEl){
     if(v==null){nEl.textContent='';}
-    else if(r.score.n<4){nEl.innerHTML='⚠️ calculado con solo '+r.score.n+' de 4 señales — menos confiable';nEl.style.color='var(--w)';}
-    else{nEl.textContent=r.score.n+' de 4 señales con dato';nEl.style.color='var(--tx3)';}
+    else if(r.score.n<r.score.total){nEl.innerHTML='⚠️ calculado con solo '+r.score.n+' de '+r.score.total+' señales — menos confiable';nEl.style.color='var(--w)';}
+    else{nEl.textContent=r.score.n+' de '+r.score.total+' señales con dato'+(r.tbo&&r.tbo.enRiesgo?' · '+r.tbo.enRiesgo+' componente'+(r.tbo.enRiesgo>1?'s':'')+' en riesgo':'');nEl.style.color='var(--tx3)';}
   }
   var dimsHtml='';
   (r.score.detalle||[]).forEach(function(d){
@@ -299,7 +300,7 @@ window._torreAbrirDrawer=function(sigla){
   // en vez de dejarlo implícito.
   var _ahoraTorre=new Date();
   document.getElementById('torreDCalculado').innerHTML='● Calculado ahora · '+_ahoraTorre.toISOString().slice(0,10)+' '+String(_ahoraTorre.getHours()).padStart(2,'0')+':'+String(_ahoraTorre.getMinutes()).padStart(2,'0');
-  var tend=(typeof tendenciaSaludSemanal==='function')?tendenciaSaludSemanal((window._torreHistSalud||{})[r.sigla]||{},window._torreHoyISO):null;
+  var tend=(typeof tendenciaSaludSemanal==='function')?tendenciaSaludSemanal((window._torreHistSalud||{})[r.sigla]||{},window._torreHoyISO,SALUD_EQUIPO_METODO_DESDE):null;
   var tendEl=document.getElementById('torreDTend');
   if(tend&&tend.delta!=null){
     var col=tend.delta>0?'var(--ok)':tend.delta<0?'var(--danger)':'var(--tx3)';

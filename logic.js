@@ -4827,9 +4827,9 @@ function tboFichasEquipo(sigla,d,o){
   var eq=(d.equipos||[]).filter(function(e){return e&&e.sigla===sigla;})[0];
   if(!eq||!tboClaseModelo(eq.modelo))return null;
   var hoy=d.hoy||new Date(),estado=tboEstadoFlota([eq],d.compHist||[],d.compMayores||[],hoy,op.aplic||'normal');
-  var plan=tboPlanCompras(estado,{hoy:hoy,equipos:d.equipos,compras:d.compras||[],comprasDetalle:d.comprasDetalle||[],stk:d.stk||[],repuestos:d.repuestos||[],ordenes:d.ordenes||[],tasa:op.tasa},
-    {incluirTeorico:!!op.incluirTeorico,horizonteExtra:1e9,tasa:op.tasa});
-  var vida=tboVidaPorOrigen(d.compHist||[],d.compras||[]);
+  var plan=tboPlanCompras(estado,{hoy:hoy,equipos:d.equipos,compras:d.compras||[],comprasDetalle:d.comprasDetalle||[],stk:d.stk||[],repuestos:d.repuestos||[],ordenes:d.ordenes||[],tasa:op.tasa,
+    leadF:d.leadF,stockF:d.stockF,pedF:d.pedF},{incluirTeorico:!!op.incluirTeorico,horizonteExtra:1e9,tasa:op.tasa});
+  var vida=d.vida||tboVidaPorOrigen(d.compHist||[],d.compras||[]);
   var cd=op.costoHoraDet||0,th=op.tarifaHH||0,hh=op.hhCambio||0,hp=op.horasProg||0,hf=op.horasFalla||0;
   var usaDet=cd>0&&hf>hp,crit=typeof criticidadEquipoABanda==='function'?criticidadEquipoABanda(eq.criticidad):null;
   var fichas=plan.filas.map(function(f){
@@ -4858,8 +4858,51 @@ function tboFichasEquipo(sigla,d,o){
   fichas.sort(function(a,b){return rango[a.decision]-rango[b.decision]||b.pFalla-a.pFalla||(a.restantesH-b.restantesH);});
   var conDato=fichas.filter(function(x){return x.conDato;});
   return{sigla:sigla,modelo:eq.modelo,clase:tboClaseModelo(eq.modelo).clase,horometro:eq.horomActual,fichas:fichas,omitidosTeoricos:plan.omitidosTeoricos,
-    resumen:{conDato:conDato.length,enRiesgo:conDato.filter(function(x){return x.decision==='cambiar_ya'||x.decision==='planificar';}).length,
+    resumen:{conDato:conDato.length,enRiesgo:conDato.filter(function(x){return x.decision==='cambiar_ya'||x.pFalla>=0.15;}).length, // mismo criterio que tboPctSano (Score de Salud)
+      
       cambiarYa:conDato.filter(function(x){return x.decision==='cambiar_ya';}).length,perdidaEsperada:conDato.reduce(function(s,x){return s+(x.perdidaEsperada||0);},0)}};
+}
+
+// % de componentes con cambio registrado que NO están en riesgo (decisión distinta de "cambiar ya" y riesgo < 15% en el horizonte); null si no hay ninguno.
+function tboPctSano(res){
+  if(!res||!res.resumen||!res.resumen.conDato)return null;
+  var con=res.fichas.filter(function(f){return f.conDato;});
+  var sanos=con.filter(function(f){return!(f.decision==='cambiar_ya'||f.pFalla>=0.15);}).length;
+  return Math.round(sanos/con.length*1000)/10;
+}
+// Fichas de TODOS los equipos con plan TBO en una pasada, compartiendo lo que no depende del equipo (vida por origen, plazos, stock, pedidos abiertos).
+// Devuelve {sigla: {pct, conDato, enRiesgo, cambiarYa, perdidaEsperada}} (el insumo del Score de Salud del equipo).
+function tboFichasFlota(d,o,siglas){
+  var out={},compras=d.compras||[];
+  var comun=Object.assign({},d,{vida:tboVidaPorOrigen(d.compHist||[],compras),leadF:tboLeadTimeFn(d.comprasDetalle||[]),stockF:tboStockFn(d.stk||[],d.repuestos||[]),
+    pedF:tboPedidosAbiertosFn(d.comprasDetalle||[],d.ordenes||[],d.hoy||new Date())});
+  (d.equipos||[]).forEach(function(e){
+    if(!e||!e.sigla||(siglas&&siglas.indexOf(e.sigla)<0))return;
+    var r=tboFichasEquipo(e.sigla,comun,o);if(!r)return;
+    var pct=tboPctSano(r);
+    out[e.sigla]={pct:pct,conDato:r.resumen.conDato,enRiesgo:r.resumen.enRiesgo,cambiarYa:r.resumen.cambiarYa,perdidaEsperada:r.resumen.perdidaEsperada};
+  });
+  return out;
+}
+// Versión para las pantallas: lee los datos del store y los supuestos guardados, y recuerda el resultado unos segundos (el Dashboard, la Torre y el Buscador
+// lo piden en la misma pasada). Devuelve {} si no hay store o algo falla: el Score se calcula entonces como antes, sin esta señal.
+var _tboSaludCache={clave:null,ts:0,val:{}};
+function tboSaludFlotaAuto(){
+  try{
+    if(typeof S==='undefined'||typeof tboUnirCompras!=='function')return{};
+    var lee=function(k){try{return localStorage.getItem(k);}catch(e){return null;}};
+    var eqs=S.g('eq')||[],compHist=S.g('compHist')||[],compMay=S.g('compMayores')||[],oc=S.g('ocHist')||[],cd=S.g('comprasDetalle')||[],stk=S.g('stk')||[];
+    var horoms=eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0);
+    var mttr=(typeof duracionesReparacionFlotaHoras==='function'&&typeof medianaPositiva==='function')?medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot')||[])):null;
+    var aj=tboAjustesCosto(lee,mttr,S.g('hh'));
+    var clave=[eqs.length,horoms,compHist.length,compMay.length,oc.length,cd.length,stk.length,aj.tasa,aj.aplic,aj.costoHoraDet,aj.horasFalla,aj.hhCambio,aj.horasProg,aj.tarifaHH].join('|');
+    var ahora=Date.now();
+    if(_tboSaludCache.clave===clave&&ahora-_tboSaludCache.ts<5000)return _tboSaludCache.val;
+    var val=tboFichasFlota({equipos:eqs,compHist:compHist,compMayores:compMay,compras:tboUnirCompras(oc,cd),comprasDetalle:cd,stk:stk,repuestos:S.g('repuestos')||[],ordenes:S.g('ordenes')||[],hoy:new Date()},
+      Object.assign({},aj,{horizonte:500}));
+    _tboSaludCache={clave:clave,ts:ahora,val:val};
+    return val;
+  }catch(e){return{};}
 }
 
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
@@ -5571,11 +5614,14 @@ function scoreSaludEquipo(m){
     {nombre:'Aceite',valor:(typeof d.aceitePct==='number'&&isFinite(d.aceitePct))?d.aceitePct:null},
     {nombre:'Confiabilidad',valor:(typeof d.confiabilidadPct==='number'&&isFinite(d.confiabilidadPct))?d.confiabilidadPct:null}
   ];
+  // 5ª señal (2026-10-11, etapa 3 de la ficha de componente): % de los componentes con cambio registrado que NO están en riesgo según la ficha
+  // (tboPctSano). Solo entra cuando el equipo tiene plan TBO y al menos un componente con dato; si no, el Score se calcula exactamente como antes.
+  if(typeof d.tboPct==='number'&&isFinite(d.tboPct))dimensiones.push({nombre:'Riesgo TBO',valor:d.tboPct});
   var usadas=dimensiones.filter(function(c){return c.valor!=null;});
-  if(!usadas.length)return {valor:null,n:0,detalle:dimensiones};
+  if(!usadas.length)return {valor:null,n:0,total:dimensiones.length,detalle:dimensiones};
   var suma=usadas.reduce(function(s,c){return s+c.valor;},0);
   var valor=Math.round((suma/usadas.length)*10)/10;
-  return {valor:valor,n:usadas.length,detalle:dimensiones};
+  return {valor:valor,n:usadas.length,total:dimensiones.length,detalle:dimensiones};
 }
 
 // equiposConSaludFlota (2026-09-02): Score de Salud de TODA la flota de una vez,
@@ -5587,7 +5633,7 @@ function scoreSaludEquipo(m){
 // arreglos ya cargados por quien llama (eq, compMayores, neu, aceite con _sigla ya
 // resuelto, otConHist con el historial de WhatsApp incluido) y arma los índices por
 // sigla acá adentro — el llamador no necesita saber cómo, solo pasar los datos.
-function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
+function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist,tboPorSigla){
   var compPorSigla={};
   (compMayores||[]).forEach(function(c){if(c&&c.sigla)(compPorSigla[c.sigla]=compPorSigla[c.sigla]||[]).push(c);});
   var neuOpPorSigla={};
@@ -5616,7 +5662,8 @@ function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
     var aceitePct=aceUlt.length?Math.round(aceUlt.filter(function(m){return m.estado==='NORMAL';}).length/aceUlt.length*1000)/10:null;
     var mtbfE=C.mtbfReal(otFallasPorSigla[e.sigla]||[]);
     var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
-    var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct});
+    var tboE=(tboPorSigla&&tboPorSigla[e.sigla])||null;
+    var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct,tboPct:tboE?tboE.pct:null});
     // weibull (2026-09-11, pedido del usuario: el Score de Salud/Confiabilidad
     // de arriba asume tasa de falla constante — acá se ajusta la forma REAL de
     // falla de este equipo específico con sus propios intervalos entre fallas,
@@ -5640,7 +5687,7 @@ function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist){
     // horomActual/hrsDia (2026-09-11, pedido del usuario: más contexto en el
     // drawer de Torre de Control) — campos aditivos, ningún llamador existente
     // se rompe por no usarlos.
-    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,horomActual:e.horomActual,unidad:e.unidad,hrsDia:e.hrsDia,weibull:weibull,edadVirtual:edadVirtual,kijima:kijima};
+    return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,score:score,tbo:tboE,horomActual:e.horomActual,unidad:e.unidad,hrsDia:e.hrsDia,weibull:weibull,edadVirtual:edadVirtual,kijima:kijima};
   });
 }
 
@@ -5677,7 +5724,8 @@ var RECOMENDACION_DIMENSION_SALUD={
   'Componentes':'Revisar los componentes mayores con menos vida útil restante — ficha del equipo → Componentes.',
   'Neumáticos':'Revisar los neumáticos marcados para cambio — ficha del equipo → Neumáticos.',
   'Aceite':'Revisar los últimos análisis de aceite fuera de NORMAL — ficha del equipo → Análisis Aceite.',
-  'Confiabilidad':'Equipo con historial de fallas frecuente (MTBF bajo) — evaluar una intervención preventiva antes de la próxima falla.'
+  'Confiabilidad':'Equipo con historial de fallas frecuente (MTBF bajo) — evaluar una intervención preventiva antes de la próxima falla.',
+  'Riesgo TBO':'Hay componentes con riesgo alto de falla según el plan del fabricante — ficha del equipo en Buscar → Componentes (decisión, costo y plazo del repuesto).'
 };
 function recomendacionDimensionSalud(nombre){
   return RECOMENDACION_DIMENSION_SALUD[nombre]||null;
@@ -5742,8 +5790,17 @@ function registrarSnapshotSalud(historico,valorHoy,hoyISO){
 // sistema no se abre a diario, así que exigir EXACTAMENTE 7 días descartaría casi
 // siempre un dato real disponible). Fuera de esa ventana, o sin dato de hoy, no hay
 // tendencia confiable que mostrar — null, no un número inventado.
-function tendenciaSaludSemanal(historico,hoyISO){
+// `desdeISO` (opcional): ignora los snapshots anteriores a esa fecha. Se usa cuando cambia la fórmula del Score de un EQUIPO (SALUD_EQUIPO_METODO_DESDE):
+// comparar el valor nuevo contra uno calculado con otra fórmula inventaría una caída o un cruce que no existen (y dispararía avisos reales por correo y
+// WhatsApp). Hasta que haya un snapshot de la fórmula nueva en la ventana, no hay tendencia.
+var SALUD_EQUIPO_METODO_DESDE='2026-10-12';
+function valorPrevioSalud(historico,hoyISO,desdeISO){
+  var fechas=Object.keys(historico||{}).filter(function(f){return f<hoyISO&&(!desdeISO||f>=desdeISO);}).sort();
+  return fechas.length?historico[fechas[fechas.length-1]]:null;
+}
+function tendenciaSaludSemanal(historico,hoyISO,desdeISO){
   var h=historico||{};
+  if(desdeISO){h=Object.keys(h).reduce(function(o,f){if(f>=desdeISO)o[f]=h[f];return o;},{});}
   var actual=h[hoyISO];
   if(actual==null)return null;
   var objetivo=new Date(hoyISO+'T00:00:00');objetivo.setDate(objetivo.getDate()-7);
@@ -7923,7 +7980,8 @@ function tboDecisionCompra(o){
 // y totales (presupuesto de lo que hay que pedir ya / planificar).
 function tboPlanCompras(estado,ctx,opts){
   var o=opts||{},ex=o.horizonteExtra==null?90:o.horizonteExtra;
-  var leadF=tboLeadTimeFn(ctx.comprasDetalle),stockF=tboStockFn(ctx.stk,ctx.repuestos),pedF=tboPedidosAbiertosFn(ctx.comprasDetalle,ctx.ordenes,ctx.hoy);
+  // leadF/stockF/pedF opcionales: quien arma varios equipos seguidos (tboFichasFlota) los calcula una sola vez.
+  var leadF=ctx.leadF||tboLeadTimeFn(ctx.comprasDetalle),stockF=ctx.stockF||tboStockFn(ctx.stk,ctx.repuestos),pedF=ctx.pedF||tboPedidosAbiertosFn(ctx.comprasDetalle,ctx.ordenes,ctx.hoy);
   var compras=ctx.compras||[],eqs=ctx.equipos||[],cachePrecio={},sigClase={};
   eqs.forEach(function(e){var c=tboClaseModelo(e&&e.modelo);if(c)(sigClase[c.clase]=sigClase[c.clase]||[]).push(e.sigla);});
   var modeloDe={};eqs.forEach(function(e){modeloDe[e.sigla]=e.modelo;});
@@ -8317,7 +8375,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
