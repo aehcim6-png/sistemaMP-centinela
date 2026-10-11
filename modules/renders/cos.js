@@ -393,6 +393,22 @@ export function renderCos() {
     var pHc = function (n) { return '$' + fn(Math.round(n)); };
     var sinCap = tcoR.filter(function (r) { return r.tcoPorHora == null; }).length;
     var totAnual = tcoR.reduce(function (a, r) { return a + (r.tcoAnual != null ? r.tcoAnual : r.matAnual + r.detAnual); }, 0);
+    // Conciliación: valor contable implícito (Valor_Hora × vida) contra el valor de compra cargado — ver tcoConciliarValor (logic.js).
+    var conc = (typeof tcoConciliarValor === 'function') ? tcoConciliarValor(S.g('eq') || []) : { filas: [], revisar: 0, sinValorCompra: [], umbral: 0.15 };
+    var concHTML = conc.filas.length ?
+      '<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)"><div style="font-weight:700;font-size:12px;margin-bottom:4px">Conciliación del valor contable</div>' +
+      '<div style="font-size:11px;color:var(--tx2);line-height:1.55;margin-bottom:6px">Amortización por hora × vida contable = valor que la contabilidad reparte en horas. Debería parecerse al valor de compra cargado en Equipos. ' +
+      (conc.revisar ? '<b style="color:var(--w)">' + fn(conc.revisar) + ' de ' + fn(conc.filas.length) + ' equipos difieren más de ' + Math.round(conc.umbral * 100) + '%</b>: o el valor de compra del programa está desactualizado, o la contabilidad incluye otros conceptos (neumáticos, tolva, flete, instalación). ' +
+        'El capital por hora del TCO usa la <b>amortización contable</b> (es lo que la operación efectivamente paga por hora); con el valor de compra daría el valor de la última columna.' : '<b style="color:var(--ok)">Los valores concuerdan.</b>') + '</div>' +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Modelo</th><th style="text-align:right">Valor/h × vida</th><th style="text-align:right">Valor de compra</th><th style="text-align:right">Diferencia</th><th style="text-align:right">Capital/h contable</th><th style="text-align:right">Capital/h con valor de compra</th></tr>' +
+      conc.filas.map(function (f) {
+        var col = f.nivel === 'revisar' ? 'var(--w)' : 'inherit';
+        return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(f.sigla) + '</td><td style="font-size:10px">' + escapeHtml(f.modelo) + '</td>' +
+          '<td class="mono" style="text-align:right" title="' + escapeHtml(pHc(f.valorHora) + '/h × ' + fn(f.vidaH) + ' h (' + f.vidaFuente + ')') + '">' + _tcoMM(f.valorImplicito) + '</td><td class="mono" style="text-align:right">' + _tcoMM(f.valorCompra) + '</td>' +
+          '<td class="mono" style="text-align:right;font-weight:700;color:' + col + '">' + (f.difPct >= 0 ? '+' : '−') + (Math.round(Math.abs(f.difPct) * 1000) / 10 + '').replace('.', ',') + '%</td>' +
+          '<td class="mono" style="text-align:right">' + pHc(f.capitalContable) + '</td><td class="mono" style="text-align:right">' + pHc(f.capitalCompra) + '</td></tr>';
+      }).join('') + '</table></div>' +
+      (conc.sinValorCompra.length ? '<div style="font-size:10px;color:var(--tx3);margin-top:4px">Sin valor de compra cargado (no se comparan): ' + conc.sinValorCompra.map(escapeHtml).join(', ') + '</div>' : '') + '</div>' : '';
     content =
       '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏗️ Costo Total de Propiedad por equipo</div>' +
       '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:6px 0 10px">Cuánto cuesta <b>tener</b> cada equipo por hora de operación: <b>capital</b> (amortización contable por hora, o valor de compra ÷ vida contable), <b>mantención</b> (repuestos y servicios de las órdenes de compra) y <b>detención</b> por falla (horas detenidas × el costo de hora detenida de Configuración' + (tcoD ? ', hoy ' + pHc(tcoD.aj.costoHoraDet) + '/h' + (Object.keys(tcoD.aj.porModelo || {}).length ? ' y valor propio en ' + fn(Object.keys(tcoD.aj.porModelo).length) + ' modelo(s)' : '') : '') + '). Se mide en la misma ventana para cada equipo y se compara con la mediana de su modelo. <b>No incluye mano de obra propia</b> (el costo de los correctivos no se registra). El indicador "Variable ÷ capital nuevo" dice si renovar podría convenir: bajo 1 significa que, aunque un equipo nuevo no gastara nada en mantención, no compensaría su capital.</div>' +
@@ -414,7 +430,7 @@ export function renderCos() {
         }).join('') + '</table></div>' +
         '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Ordenado por costo total por hora (sin capital: por costo variable). Las horas salen del historial de horómetros; si falta, de las horas/día declaradas. Para el detalle de un equipo (evolución por año) abre el Buscador Maestro. Para cargar el capital: Equipos → Importar Horas a Amortizar.</div>'
         : '<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo tiene todavía ≥90 días de compras registradas con horas de operación.</div>') +
-      '</div>';
+      concHTML + '</div>';
   } else if (fVista === 'relativo') {
     // ═══ COSTO RELATIVO DE MANTENIMIENTO — indicador EN 15341 A&S1 (2026-09-16,
     // origen: revisión de contenido de Predictiva21 + carga real de Órdenes de

@@ -156,3 +156,34 @@ describe('TCO con costo de hora detenida por modelo', () => {
     expect(f.equipos[0].det).toBe(4000000);
   });
 });
+
+describe('tcoConciliarValor — valor contable contra valor de compra', () => {
+  // cifras reales del listado de agosto 2026: camiones 2021 concuerdan (~3 %), los nuevos difieren ~45 %
+  const antiguo = { sigla: 'CN-9500', modelo: 'Komatsu HD785-7', valorCompra: 783090000, valorHoraAmort: 31000 };
+  const nuevo = { sigla: 'CN-10155', modelo: 'Komatsu HD785-7', valorCompra: 1034440000, valorHoraAmort: 57531 };
+  it('compara valor/h × vida (referencia de la clase si no hay vida propia) contra el valor de compra', () => {
+    const r = L.tcoConciliarValor([antiguo, nuevo]);
+    expect(r.filas.map((f) => f.sigla)).toEqual(['CN-10155', 'CN-9500']);          // mayor diferencia primero
+    expect(r.filas[0].valorImplicito).toBe(1495806000);
+    expect(r.filas[0].difPct).toBeCloseTo(0.446, 3);
+    expect(r.filas[0].nivel).toBe('revisar');
+    expect(r.filas[1].difPct).toBeCloseTo(0.029, 3);
+    expect(r.filas[1].nivel).toBe('ok');
+    expect(r.revisar).toBe(1);
+  });
+  it('informa el capital por hora con cada fuente para ver cuánto cambia el TCO', () => {
+    const f = L.tcoConciliarValor([nuevo]).filas[0];
+    expect(f.capitalContable).toBe(57531);
+    expect(f.capitalCompra).toBeCloseTo(1034440000 / 26000, 5);
+  });
+  it('usa la vida del propio equipo cuando existe y respeta el umbral pedido', () => {
+    const e = Object.assign({}, nuevo, { vidaContableH: 30000 });
+    expect(L.tcoConciliarValor([e]).filas[0].valorImplicito).toBe(1725930000);
+    expect(L.tcoConciliarValor([antiguo], 0.02).filas[0].nivel).toBe('revisar');
+  });
+  it('ignora lo que no se puede comparar: sin amortización, sin vida; y avisa los que no tienen valor de compra', () => {
+    const r = L.tcoConciliarValor([{ sigla: 'X', modelo: 'Komatsu HD785-7', valorCompra: 1e9 }, { sigla: 'Y', modelo: 'Generador', valorHoraAmort: 5000, valorCompra: 1e8 },
+      { sigla: 'Z', modelo: 'Komatsu HD785-7', valorHoraAmort: 31000 }, null]);
+    expect(r.filas).toEqual([]); expect(r.sinValorCompra).toEqual(['Z']); expect(r.revisar).toBe(0);
+  });
+});

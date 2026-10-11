@@ -132,7 +132,10 @@ export function importarHorasAmortizar(ev){
     var eq=S.g('eq')||[],r=parsearHorasAmortizar(filas,eq);
     if(!r.actualizar.length)return toast('⚠️ No se encontró ningún equipo del programa con Valor_Hora en el archivo (revisa que sea el listado Horas a Amortizar, hoja HorasaAmortizar)');
     var ej=r.actualizar.slice(0,8).map(function(a){return a.sigla+': $'+fn(a.valorHoraAmort)+'/h'+(a.vidaContableH?' · vida '+fn(a.vidaContableH)+' h':'');}).join('\n');
+    var conc=tcoConciliarValor(eq.map(function(e){var a=r.actualizar.find(function(q){return q.sigla===e.sigla;});return a?Object.assign({},e,{valorHoraAmort:a.valorHoraAmort,vidaContableH:a.vidaContableH||e.vidaContableH}):Object.assign({},e,{valorHoraAmort:null});}));
+    var dif=conc.filas.filter(function(f){return f.nivel==='revisar';}).slice(0,6).map(function(f){return f.sigla+' ('+(f.difPct>=0?'+':'−')+Math.round(Math.abs(f.difPct)*100)+'%)';}).join(', ');
     if(!confirm('Se actualizará la amortización por hora de '+r.actualizar.length+' equipos:\n\n'+ej+(r.actualizar.length>8?'\n… y '+(r.actualizar.length-8)+' más':'')+
+      (conc.revisar?'\n\n⚠️ En '+conc.revisar+' equipos el valor contable (Valor_Hora × vida) difiere más de '+Math.round(conc.umbral*100)+'% del valor de compra cargado: '+dif+(conc.revisar>6?', …':'')+'. Se puede revisar en Costos → Costo Total de Propiedad.':'')+
       (r.sinValor.length?'\n\nSin Valor_Hora (no se tocan): '+r.sinValor.join(', '):'')+'\n\nLos equipos del programa que no aparecen en el archivo quedan igual. ¿Continuar?'))return;
     r.actualizar.forEach(function(a){var x=eq.find(function(q){return q.sigla===a.sigla;});if(x){x.valorHoraAmort=a.valorHoraAmort;if(a.vidaContableH)x.vidaContableH=a.vidaContableH;}});
     S.s('eq',eq);refreshAll();

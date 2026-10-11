@@ -100,6 +100,8 @@ function _buscarTcoHTML(sigla) {
   var pH = function (n) { return '$' + fn(Math.round(n)); };
   var tarj = function (t1, v, sub, col) { return '<div class="card" style="margin:0"><div class="card-t">' + t1 + '</div><div class="card-v" style="font-size:20px;' + (col ? 'color:' + col : '') + '">' + v + '</div><div class="card-s">' + sub + '</div></div>'; };
   var cap = r.capital;
+  var concF = (typeof tcoConciliarValor === 'function') ? tcoConciliarValor((S.g('eq') || []).filter(function (e) { return e.sigla === sigla; })).filas[0] : null;
+  var avisoConc = concF && concF.nivel === 'revisar' ? ' · <span style="color:var(--w)" title="Valor/h × vida contable = ' + escapeHtml(_buscarMM(concF.valorImplicito)) + ' contra un valor de compra cargado de ' + escapeHtml(_buscarMM(concF.valorCompra)) + '. Con el valor de compra el capital sería ' + escapeHtml(pH(concF.capitalCompra)) + '/h.">⚠ el valor contable difiere ' + (concF.difPct >= 0 ? '+' : '−') + Math.round(Math.abs(concF.difPct) * 100) + '% del valor de compra</span>' : '';
   var filaAnio = r.porAnio.filter(function (a) { return a.variablePorHora != null; }).map(function (a) {
     return '<tr><td class="mono">' + a.anio + '</td><td class="mono" style="text-align:right">' + fn(Math.round(a.horas)) + ' h</td><td class="mono" style="text-align:right">' + pH(a.mat) + '</td><td class="mono" style="text-align:right">' + fn(Math.round(a.horasDet)) + ' h</td><td class="mono" style="text-align:right;font-weight:700">' + pH(a.variablePorHora) + '/h</td></tr>';
   }).join('');
@@ -110,7 +112,7 @@ function _buscarTcoHTML(sigla) {
   return '<div class="chart-box" style="margin-bottom:12px">' + titulo +
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0">' +
     tarj('TCO por hora', r.tcoPorHora != null ? pH(r.tcoPorHora) : '—', r.tcoPorHora != null ? 'capital + mantención + detención' : 'falta el capital (ver nota)', 'var(--ac)') +
-    tarj('Capital', cap ? pH(r.capitalPorHora) + '/h' : '—', cap ? escapeHtml(cap.fuente) : 'sin amortización ni valor de compra') +
+    tarj('Capital', cap ? pH(r.capitalPorHora) + '/h' : '—', cap ? escapeHtml(cap.fuente) + avisoConc : 'sin amortización ni valor de compra') +
     tarj('Mantención', pH(r.matPorHora) + '/h', 'repuestos y servicios · ' + pH(r.matAnual) + ' al año') +
     tarj('Detención por falla', pH(r.detPorHora) + '/h', fn(Math.round(r.horasDet)) + ' h × ' + pH(r.costoHoraDet) + '/h' + (r.costoDetPropio ? ' (propio del modelo)' : '')) +
     tarj('Costo anual', r.tcoAnual != null ? _buscarMM(r.tcoAnual) : _buscarMM(r.matAnual + r.detAnual), r.tcoAnual != null ? 'con capital' : 'sin capital') + '</div>' +
