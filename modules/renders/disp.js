@@ -343,6 +343,47 @@ export function renderDisp(){
       '<div style="font-size:12px;color:var(--tx3);padding:4px 0">Historial insuficiente todavía ('+_mcIv.length+' intervalos entre fallas, '+_mcDu.length+' duraciones de reparación reales — se necesitan al menos 8 y 5 respectivamente).</div>')+
     '</div>';
 
+  // ═══ PRONÓSTICO DE DISPONIBILIDAD POR EQUIPO (2026-10-11) ═══ — ver pronosticoDisponibilidadEquipos / backtestPronosticoDisponibilidad (logic.js): PM calendarizado + fallas de CADA
+  // equipo con su historial + equipos que hoy siguen fuera de servicio, con rango, probabilidad de cumplir la meta y un backtest contra los meses pasados.
+  var pronosticoHTML=(function(){
+    var hz=parseInt($('fDispPronH')?.value)||30;
+    var clave=[hz,meta,eq.length,reg.length,otMC.length,new Date().toISOString().slice(0,10)].join('|');
+    var c=window._dispPronCache;
+    var pr,bt;
+    if(c&&c.clave===clave){pr=c.pr;bt=c.bt;}
+    else{
+      try{
+        pr=pronosticoDisponibilidadEquipos(eq,{reg:reg,ot:otMC,hoy:new Date().toISOString().slice(0,10)},{horizonteDias:hz,meta:meta,nSim:2000});
+        bt=pr?backtestPronosticoDisponibilidad(eq,{reg:reg,ot:otMC,hoy:pr.datosHasta},{horizonteDias:hz,meta:meta,nSim:800,origenes:Math.max(3,Math.round(240/hz))}):null;
+      }catch(e){pr=null;bt=null;}
+      window._dispPronCache={clave:clave,pr:pr,bt:bt};
+    }
+    var sel='<select id="fDispPronH" onchange="renders.disp()" style="margin-left:8px">'+[30,60,90].map(function(h){return'<option value="'+h+'"'+(h===hz?' selected':'')+'>próximos '+h+' días</option>';}).join('')+'</select>';
+    var cab='<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:14px"><div class="chart-t">🔮 Pronóstico de disponibilidad por equipo'+sel+'</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Suma lo que ya se sabe: los <b>PM calendarizados</b> de cada equipo, sus <b>fallas esperadas</b> según su propio historial (los equipos con poca historia se acercan al promedio de la flota) y los equipos que <b>hoy siguen fuera de servicio</b>. Se simula 2.000 veces. Las fallas son las registradas: lo que no se carga no existe para el modelo.</div>';
+    if(!pr)return cab+'<div style="font-size:12px;color:var(--tx3);padding:4px 0">Historial insuficiente todavía (se necesitan al menos 60 días de datos y 5 detenciones por falla registradas).</div></div>';
+    var f=pr.flota,col=f.p50>=meta?'var(--ok)':f.p50>=meta-10?'var(--w)':'var(--danger)';
+    var avisos='';
+    if(pr.diasSinCarga>14)avisos+='<div style="font-size:11px;color:var(--w);margin-bottom:6px">⚠ El último registro de fallas/PM es del '+escapeHtml(pr.datosHasta)+' (hace '+fn(pr.diasSinCarga)+' días): la historia se corta ahí para no contar como "sin fallas" los días sin carga.</div>';
+    if(pr.prolongados.length){
+      avisos+='<div style="font-size:11px;color:var(--w);margin-bottom:6px;line-height:1.5">⚠ <b>'+fn(pr.prolongados.length)+' equipo(s) llevan más tiempo "Fuera de Servicio" sin fecha de término que lo habitual</b> ('+pr.prolongados.map(function(x){return escapeHtml(x.sigla)+' desde '+escapeHtml(x.desde)+' ('+fn(x.dias)+' d)';}).join(', ')+'). El programa los cuenta como detenidos todos los días, y el pronóstico supone que siguen así. '+
+        '<b>Si esos registros están olvidados o el equipo ya volvió a operar, ciérralos</b> (Disponibilidad → salidas de servicio en curso): la disponibilidad pronosticada subiría a <b>'+f.sinProlongados.p50+'%</b> (rango '+f.sinProlongados.p10+'–'+f.sinProlongados.p90+'%).</div>';
+    }
+    var tarjetas='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-bottom:10px">'+
+      '<div class="card"><div class="card-t">Disponibilidad esperada</div><div class="card-v" style="color:'+col+'">'+f.p50+'%</div><div class="card-s">rango P10–P90: '+f.p10+'% – '+f.p90+'%</div></div>'+
+      '<div class="card"><div class="card-t">Probabilidad de cumplir la meta</div><div class="card-v" style="color:'+col+'">'+f.probMeta+'%</div><div class="card-s">meta '+meta+'%</div></div>'+
+      '<div class="card"><div class="card-t">Solo por fallas (sin PM)</div><div class="card-v">'+f.intrinseca.p50+'%</div><div class="card-s">rango '+f.intrinseca.p10+'% – '+f.intrinseca.p90+'%</div></div>'+
+      '<div class="card"><div class="card-t">Historia usada</div><div class="card-v" style="font-size:16px">'+fn(pr.diasHistoria)+' días</div><div class="card-s">'+fn(pr.eventosHist)+' detenciones por falla · '+fn(pr.nEquipos)+' equipos</div></div></div>';
+    var btHTML=bt?'<div style="font-size:11px;color:var(--tx2);margin-bottom:8px;line-height:1.5"><b>¿Acierta?</b> Repetido desde '+fn(bt.origenes.length)+' fechas pasadas, usando solo lo que se sabía entonces: lo real cayó dentro del rango el <b>'+bt.cobertura+'%</b> de las veces (lo esperable ~80%), con un error medio de ±'+bt.errorMedioAbs+' puntos'+(Math.abs(bt.sesgo)>=1?' y un sesgo de '+(bt.sesgo>0?'+':'')+bt.sesgo+' (el pronóstico '+(bt.sesgo>0?'fue optimista':'fue pesimista')+')':'')+'. '+(bt.origenes.length<5?'Son pocas fechas: es evidencia anecdótica. ':'')+'El PM se tomó como el realmente hecho.</div>':'<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Sin historia suficiente para el backtest todavía.</div>';
+    var filas=pr.equipos.slice(0,8).map(function(x){
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(x.sigla)+(x.prolongado?' <span title="Fuera de servicio sin fecha de término desde hace mucho" style="color:var(--w)">⚠</span>':x.enCurso?' <span title="Fuera de servicio ahora" style="color:var(--danger)">●</span>':'')+'</td><td style="font-size:10px">'+escapeHtml(x.modelo)+'</td>'+
+        '<td class="mono" style="text-align:right">'+fn(x.fallasHist)+'</td><td class="mono" style="text-align:right">'+(Math.round(x.fallasEsperadas*10)/10+'').replace('.',',')+'</td><td class="mono" style="text-align:right">'+fn(x.pmProgramados)+'</td>'+
+        '<td class="mono" style="text-align:right;font-weight:700;color:'+(x.dispP50>=meta?'var(--ok)':x.dispP50>=meta-10?'var(--w)':'var(--danger)')+'">'+x.dispP50+'%</td><td class="mono" style="text-align:right;color:var(--tx3)">'+x.dispP10+'%</td><td class="mono" style="text-align:right">'+(Math.round(x.perdidaPuntosFlota*10)/10+'').replace('.',',')+'</td></tr>';}).join('');
+    return cab+avisos+tarjetas+btHTML+
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Modelo</th><th style="text-align:right" title="Detenciones por falla registradas en la ventana de historia">Fallas hist.</th><th style="text-align:right" title="Fallas esperadas en el horizonte">Fallas esperadas</th><th style="text-align:right">PM en el período</th><th style="text-align:right">Disp. esperada</th><th style="text-align:right">Pesimista (P10)</th><th style="text-align:right" title="Cuántos puntos de la disponibilidad de la flota resta este equipo">Puntos que resta</th></tr>'+filas+'</table></div>'+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Se muestran los 8 que más restan. Supuestos: las fallas llegan al azar (no se usa la edad de los componentes); una falla de varios días seguidos cuenta como un solo evento; las duraciones salen de las reparaciones cerradas del propio equipo (o de la flota si tiene menos de 4); el PM dura lo que duraron los suyos.</div></div>';
+  })();
+
   // ═══ SIMULADOR WHAT-IF DE POLÍTICAS DE MANTENIMIENTO (2026-09-17) ═══
   // Cuarto ítem del tercer lote "más ambicioso". Mismo Monte Carlo de
   // arriba (misma muestra real _mcIv/_mcDu/_mcHorasFlota, nada nuevo que
@@ -390,6 +431,7 @@ export function renderDisp(){
     fsEnCursoHTML+
     prodPerdidaHTML+
     monteCarloHTML+
+    pronosticoHTML+
     whatIfHTML+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Anual</option></select>'+

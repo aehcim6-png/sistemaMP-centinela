@@ -5351,6 +5351,133 @@ function tcoFlotaAuto(){
   }catch(e){return null;}
 }
 
+// ═══ PRONÓSTICO DE DISPONIBILIDAD POR EQUIPO (2026-10-11) ═══
+// La proyección Monte Carlo de la pestaña Disponibilidad mezcla toda la flota en una sola bolsa de fallas. Esta mira equipo por equipo y suma lo que sí se sabe: (1) los PM calendarizados
+// (pmProgramadosEquipo × la duración real de sus PM), (2) las fallas esperadas de CADA equipo con su propio historial (tasa Gamma-Poisson estabilizada con bayesEmpiricoGammaPoisson, por lo
+// que un equipo con poca historia se acerca al promedio de la flota) y (3) los equipos que hoy están fuera de servicio (lo que les falta). Se simula 2.000 veces y se entrega el rango
+// P10–P90, la probabilidad de cumplir la meta y qué equipos más restan. El backtest (backtestPronosticoDisponibilidad) repite el pronóstico desde meses pasados y dice si el rango acertó.
+// Límites: las fallas son las registradas (lo no registrado no existe para el modelo); los intervalos entre fallas se tratan como aleatorios, sin la edad de los componentes; una falla de varios
+// días seguidos cuenta como un solo evento. `disponibilidad` = horas operables no perdidas ÷ horas operables (hrsDia × días), igual que dispEquipoMes.
+function _rngNormal(rng){var u=0;while(u===0)u=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*rng());}
+function _rngGamma(shape,rng){
+  if(shape<1){var u0=rng();while(u0===0)u0=rng();return _rngGamma(shape+1,rng)*Math.pow(u0,1/shape);}
+  var d=shape-1/3,c=1/Math.sqrt(9*d);
+  for(;;){var x,v;do{x=_rngNormal(rng);v=1+c*x;}while(v<=0);v=v*v*v;var u=rng();
+    if(u<1-0.0331*x*x*x*x)return d*v;if(Math.log(u)<0.5*x*x+d*(1-v+Math.log(v)))return d*v;}
+}
+function _rngPoisson(mu,rng){
+  if(!(mu>0))return 0;
+  if(mu<30){var L=Math.exp(-mu),k=0,p=1;do{k++;p*=rng();}while(p>L);return k-1;}
+  return Math.max(0,Math.round(mu+Math.sqrt(mu)*_rngNormal(rng)));
+}
+function _dispPct(arr,p){var i=Math.min(arr.length-1,Math.max(0,Math.floor(p*(arr.length-1))));return arr[i];}
+// Eventos de falla de un equipo en [desde,hasta]: días consecutivos con detención = un evento. Cada evento: {h: horas operables perdidas (tope hrsDia por día), d: días, fin: último día}.
+function _dispEventosFalla(mapaSigla,desde,hasta,hrsDia){
+  var dias=Object.keys(mapaSigla||{}).filter(function(d){return d>=desde&&d<=hasta&&mapaSigla[d]>0;}).sort();
+  var ev=[],prev=null,cur=null;
+  dias.forEach(function(d){
+    var h=Math.min(mapaSigla[d],hrsDia);
+    if(prev!==null&&_tcoDias(prev,d)===1){cur.h+=h;cur.d++;cur.fin=d;}else{if(cur)ev.push(cur);cur={h:h,d:1,fin:d};}
+    prev=d;
+  });
+  if(cur)ev.push(cur);
+  return ev;
+}
+// equipos: lista de equipos · d: {reg, ot, hoy (ISO)} · o: {horizonteDias=30, meta=85, nSim=2000, ventanaDias=365, rng, pmReal ({sigla:horas}, solo backtest)}
+// Devuelve null si no hay historial para estimar (menos de 5 eventos de falla o menos de 60 días de datos).
+// Dos cuidados con los datos: (1) si el último registro es más viejo que 14 días, la historia se corta ahí (no se cuentan como "sin fallas" los días sin carga); (2) un "Fuera de Servicio" sin fecha de
+// término es un evento ABIERTO: no entra a las duraciones (todavía no terminó) y, si lleva más días que el 90 % de las detenciones cerradas, se asume que sigue fuera todo el horizonte (así lo cuenta
+// la Disponibilidad del programa) y se lista en `prolongados`, junto con la cifra que saldría si esos registros se cierran (`flota.sinProlongados`).
+function pronosticoDisponibilidadEquipos(equipos,d,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,meta=op.meta>0?op.meta:85,nSim=op.nSim>0?Math.round(op.nSim):2000,rng=op.rng||Math.random;
+  var hoyReal=_tcoIso(d.hoy),hoy=hoyReal,ventana=op.ventanaDias>0?op.ventanaDias:365;
+  var activos=(equipos||[]).filter(function(e){return e&&e.sigla&&e.unidad!=='km';});
+  if(!activos.length)return null;
+  var downF=dispDownMap(d.reg||[],d.ot||[],hoyReal,{incluirPM:false}),downPM=dispDownMap(d.reg||[],[],hoyReal,{incluirPM:true}); // downPM = solo PM (sin ot)
+  var fechas=[];Object.keys(downF).forEach(function(s){fechas=fechas.concat(Object.keys(downF[s]));});(d.reg||[]).forEach(function(r){var f=r.fechaEntrada||r.fechaEjec;if(f)fechas.push(f);});
+  fechas=fechas.filter(function(f){return f&&f<=hoyReal;}).sort();
+  if(!fechas.length)return null;
+  var datosHasta=fechas[fechas.length-1];
+  if(_tcoDias(datosHasta,hoyReal)>14)hoy=datosHasta;       // sin carga reciente: la historia termina en el último registro
+  var desdeVentana=new Date(new Date(hoy+'T00:00:00').getTime()-ventana*86400000).toISOString().slice(0,10);
+  var desde=fechas[0]>desdeVentana?fechas[0]:desdeVentana,T=_tcoDias(desde,hoy)+1;
+  if(T<60)return null;
+  var hd=function(e){return e.hrsDia>0?Number(e.hrsDia):12;};
+  // equipos fuera de servicio sin fecha de término (eventos abiertos)
+  var enCurso={};(d.ot||[]).forEach(function(r){if(r&&r.sigla&&(r.estatusEq==='Fuera de Servicio'||r.estadoEq==='Fuera de Servicio')&&r.fechaEntrada&&!r.fechaSalida&&r.fechaEntrada<=hoyReal){if(!enCurso[r.sigla]||r.fechaEntrada<enCurso[r.sigla])enCurso[r.sigla]=r.fechaEntrada;}});
+  var info=activos.map(function(e){var h=hd(e),ev=_dispEventosFalla(downF[e.sigla],desde,hoy,h);ev.forEach(function(x){x.abierto=!!(enCurso[e.sigla]&&x.fin>=enCurso[e.sigla]);});return{e:e,h:h,ev:ev};});
+  var cerr=[],cerrDias=[];info.forEach(function(x){x.ev.forEach(function(v){if(!v.abierto){cerr.push(v.h);cerrDias.push(v.d);}});});
+  var pool=cerr.filter(function(v){return v>0;});
+  if(pool.length<5)return null;
+  var cd=cerrDias.slice().sort(function(a,b){return a-b;}),umbralDias=Math.max(2,cd.length?cd[Math.min(cd.length-1,Math.floor(0.9*(cd.length-1)))]:2);
+  var bayes=bayesEmpiricoGammaPoisson(info.map(function(x){return{id:x.e.sigla,n:x.ev.length,exposicion:T};}));
+  var nEv=0;info.forEach(function(x){nEv+=x.ev.length;});
+  var mu=nEv/(T*info.length),prior=(bayes&&bayes.alpha>0&&bayes.beta>0)?{a:bayes.alpha,b:bayes.beta,fuente:'estabilizada con la flota (Gamma-Poisson)'}:{a:Math.max(mu,1e-9)*T,b:T,fuente:'prior débil (menos de 5 equipos con historia o sin variación entre ellos)'};
+  var pmDur=[];Object.keys(downPM).forEach(function(s){Object.keys(downPM[s]).forEach(function(dd){if(dd>=desde&&dd<=hoy&&downPM[s][dd]>0)pmDur.push(downPM[s][dd]);});});
+  var pmDefecto=medianaPositiva(pmDur)||4;
+  var medPool=medianaPositiva(pool)||0;
+  var fechaHoy=new Date(hoyReal+'T12:00:00'),prolongados=[];
+  var eq=info.map(function(x){
+    var pms=pmProgramadosEquipo(x.e,fechaHoy,H),pmH=op.pmReal&&op.pmReal[x.e.sigla]!=null?op.pmReal[x.e.sigla]:pms.length*(medianaPositiva(Object.keys(downPM[x.e.sigla]||{}).filter(function(dd){return dd>=desde&&dd<=hoy;}).map(function(dd){return downPM[x.e.sigla][dd];}))||pmDefecto);
+    var cerE=x.ev.filter(function(v){return !v.abierto&&v.h>0;}).map(function(v){return v.h;});
+    var propia=cerE.length>=4?cerE:pool;
+    var trans=enCurso[x.e.sigla]?_tcoDias(enCurso[x.e.sigla],hoyReal):null,prolong=trans!=null&&trans>umbralDias;
+    var resta=trans==null?0:prolong?x.h*H:Math.max(0,(medianaPositiva(cerE)||medPool)-trans*x.h);
+    if(prolong)prolongados.push({sigla:x.e.sigla,desde:enCurso[x.e.sigla],dias:trans});
+    return{sigla:x.e.sigla,modelo:x.e.modelo||'',h:x.h,n:x.ev.length,shape:prior.a+x.ev.length,rate:prior.b+T,pm:pms.length,pmH:Math.min(pmH,x.h*H),dur:propia,durPropia:cerE.length>=4,resta:Math.min(resta,x.h*H),prolong:prolong,enCurso:enCurso[x.e.sigla]!=null,cap:x.h*H,sumO:[],sumI:[],fallas:0};
+  });
+  var flO=[],flI=[],flS=[];
+  for(var s=0;s<nSim;s++){
+    var sO=0,sI=0,sS=0;
+    eq.forEach(function(q){
+      var lam=_rngGamma(q.shape,rng)/q.rate,k=_rngPoisson(lam*H,rng),perd=q.resta;
+      for(var j=0;j<k;j++)perd+=q.dur[Math.floor(rng()*q.dur.length)];
+      var pI=Math.min(perd,q.cap),pO=Math.min(perd+q.pmH,q.cap);
+      q.fallas+=k;q.sumO.push(1-pO/q.cap);q.sumI.push(1-pI/q.cap);sO+=1-pO/q.cap;sI+=1-pI/q.cap;
+      sS+=q.prolong?1-Math.min(perd-q.resta+q.pmH,q.cap)/q.cap:1-pO/q.cap;
+    });
+    flO.push(sO/eq.length);flI.push(sI/eq.length);flS.push(sS/eq.length);
+  }
+  var ordO=flO.slice().sort(function(a,b){return a-b;}),ordI=flI.slice().sort(function(a,b){return a-b;}),ordS=flS.slice().sort(function(a,b){return a-b;});
+  var r1=function(x){return Math.round(x*1000)/10;};
+  var salida=eq.map(function(q){var ord=q.sumO.slice().sort(function(a,b){return a-b;}),med=q.sumO.reduce(function(a,b){return a+b;},0)/q.sumO.length;
+    return{sigla:q.sigla,modelo:q.modelo,fallasHist:q.n,fallasEsperadas:Math.round(q.fallas/nSim*100)/100,pmProgramados:q.pm,pmHoras:Math.round(q.pmH*10)/10,enCurso:q.enCurso,prolongado:q.prolong,durPropia:q.durPropia,
+      dispP10:r1(_dispPct(ord,0.10)),dispP50:r1(_dispPct(ord,0.50)),dispMedia:r1(med),perdidaPuntosFlota:Math.round((1-med)/eq.length*1000)/10};}).sort(function(a,b){return b.perdidaPuntosFlota-a.perdidaPuntosFlota;});
+  return{horizonteDias:H,nSim:nSim,meta:meta,nEquipos:eq.length,desde:desde,datosHasta:datosHasta,diasSinCarga:_tcoDias(datosHasta,hoyReal),diasHistoria:T,eventosHist:nEv,prior:prior.fuente,prolongados:prolongados,
+    flota:{p10:r1(_dispPct(ordO,0.10)),p50:r1(_dispPct(ordO,0.50)),p90:r1(_dispPct(ordO,0.90)),probMeta:Math.round(flO.filter(function(v){return v*100>=meta;}).length/nSim*1000)/10,
+      intrinseca:{p10:r1(_dispPct(ordI,0.10)),p50:r1(_dispPct(ordI,0.50)),p90:r1(_dispPct(ordI,0.90))},
+      sinProlongados:prolongados.length?{p10:r1(_dispPct(ordS,0.10)),p50:r1(_dispPct(ordS,0.50)),p90:r1(_dispPct(ordS,0.90)),probMeta:Math.round(flS.filter(function(v){return v*100>=meta;}).length/nSim*1000)/10}:null},
+    equipos:salida};
+}
+// Repite el pronóstico desde `k` fechas de origen pasadas (una cada `horizonteDias`) usando SOLO lo que se sabía entonces y compara con la disponibilidad realmente ocurrida.
+// El PM se toma como el realmente hecho (se asume que el plan se cumple): lo que se evalúa es el pronóstico de fallas. Pocos orígenes = evidencia anecdótica: `cobertura` es el % de veces
+// que lo real cayó dentro del rango P10–P90 (se esperaría ~80 %).
+function backtestPronosticoDisponibilidad(equipos,d,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,K=op.origenes>0?Math.round(op.origenes):6,hoy=_tcoIso(d.hoy);
+  var activos=(equipos||[]).filter(function(e){return e&&e.sigla&&e.unidad!=='km';});
+  var downFull=dispDownMap(d.reg||[],d.ot||[],hoy,{incluirPM:false}),downFullPM=dispDownMap(d.reg||[],[],hoy,{incluirPM:true});
+  var out=[];
+  for(var k=K;k>=1;k--){
+    var origen=new Date(new Date(hoy+'T12:00:00').getTime()-k*H*86400000).toISOString().slice(0,10),fin=new Date(new Date(origen+'T12:00:00').getTime()+H*86400000).toISOString().slice(0,10);
+    if(fin>hoy)continue;
+    var regC=(d.reg||[]).filter(function(r){var f=r.fechaEntrada||r.fechaEjec||'';return f&&f<=origen;});
+    var otC=(d.ot||[]).filter(function(r){var f=r.fechaEntrada||r.fecha||'';return f&&f<=origen;}).map(function(r){return(r.fechaSalida&&r.fechaSalida>origen)?Object.assign({},r,{fechaSalida:''}):r;});
+    var pmReal={},real=0,n=0;
+    activos.forEach(function(e){
+      var h=e.hrsDia>0?Number(e.hrsDia):12,perd=0,pm=0;
+      for(var i=1;i<=H;i++){var dd=new Date(new Date(origen+'T12:00:00').getTime()+i*86400000).toISOString().slice(0,10);
+        var f=Math.min((downFull[e.sigla]&&downFull[e.sigla][dd])||0,h),t=Math.min((downFullPM[e.sigla]&&downFullPM[e.sigla][dd])||0,h);perd+=Math.min(t+f,h);pm+=Math.max(0,Math.min(t,h));}
+      pmReal[e.sigla]=pm;real+=1-perd/(h*H);n++;
+    });
+    var p=pronosticoDisponibilidadEquipos(activos,{reg:regC,ot:otC,hoy:origen},{horizonteDias:H,meta:op.meta,nSim:op.nSim||1000,rng:op.rng,pmReal:pmReal});
+    if(!p)continue;
+    var r=Math.round(real/n*1000)/10;
+    out.push({origen:origen,fin:fin,p10:p.flota.p10,p50:p.flota.p50,p90:p.flota.p90,real:r,dentro:r>=p.flota.p10&&r<=p.flota.p90,error:Math.round((p.flota.p50-r)*10)/10});
+  }
+  if(!out.length)return null;
+  return{horizonteDias:H,origenes:out,cobertura:Math.round(out.filter(function(x){return x.dentro;}).length/out.length*1000)/10,errorMedioAbs:Math.round(out.reduce(function(a,x){return a+Math.abs(x.error);},0)/out.length*10)/10,sesgo:Math.round(out.reduce(function(a,x){return a+x.error;},0)/out.length*10)/10};
+}
+
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
 // Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
 // movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
@@ -8824,7 +8951,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

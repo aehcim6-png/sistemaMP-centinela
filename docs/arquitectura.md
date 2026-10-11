@@ -6427,6 +6427,22 @@ unas horas (5.716 y 5.718 h) aparecían vidas de 1 y 2 h. Regla nueva `TBO_VIDA_
 (`tboVidasObservadas` y `tboVidaPorOrigen`). Consecuencia práctica: el riesgo TBO del Turbo (Weibull con TBO=B5) es optimista; la ficha ya usa la Weibull ajustada con ≥5 cambios medidos, pero el Score
 de Salud y los semáforos por TBO no. No se cambió esa lógica: primero se decide con el equipo si la política es cambiar por TBO o dejar correr.
 
+### 120. Pronóstico de disponibilidad por equipo (2026-10-11)
+
+**Qué responde.** ¿Cumplo la meta de disponibilidad en los próximos 30/60/90 días, y qué equipos la hunden? La proyección Monte Carlo existente de la pestaña Disponibilidad remuestrea intervalos de TODA la flota
+juntos; `pronosticoDisponibilidadEquipos` (logic.js) va equipo por equipo y suma: (1) los **PM calendarizados** (`pmProgramadosEquipo` × la duración real de sus PM), (2) las **fallas esperadas** de cada equipo
+(tasa Gamma-Poisson estabilizada con `bayesEmpiricoGammaPoisson`; la incertidumbre de la tasa se muestrea en cada simulación, así que el rango incluye 'no sé cuánto falla'), con duraciones remuestreadas de sus
+reparaciones cerradas (o las de la flota si tiene menos de 4), y (3) los **equipos fuera de servicio hoy**. 2.000 simulaciones → P10/P50/P90, probabilidad de cumplir la meta, disponibilidad intrínseca (sin PM) y
+qué equipos restan más puntos. `backtestPronosticoDisponibilidad` repite el pronóstico desde fechas pasadas con solo lo que se sabía entonces (los fuera de servicio posteriores al origen se tratan como abiertos)
+y mide cuántas veces lo real cayó en P10–P90, el error medio y el sesgo. Pantalla: Disponibilidad → "Pronóstico de disponibilidad por equipo". 10 pruebas (`tests/pronosticoDisponibilidad.test.js`).
+**Dos cuidados con los datos, aprendidos con los datos reales.** (a) Un "Fuera de Servicio" sin fecha de término es un evento *abierto*: no se mide como duración (todavía no terminó) y, si lleva más días que el
+90 % de las detenciones cerradas, se asume que sigue fuera todo el horizonte —así lo cuenta la Disponibilidad del programa— y se avisa con la cifra que saldría si el registro se cierra. En producción hay 6 registros
+abiertos (MN-5926 desde 2025-12-04, CN-6113 desde 2025-12-26, CN-9502 desde 2026-04-30, CN-5133 desde 2026-06-14, CF-8769 y BD-9533 desde julio): con ellos el pronóstico sale ≈76 %, sin ellos ≈95 %; la primera
+versión del modelo, que los trataba como una falla más, tuvo cobertura 12,5 % y +10 puntos de sesgo en el backtest; con este tratamiento 75 % de cobertura y ±1,4 puntos de error medio (8 orígenes mensuales,
+sin PM porque no se cargó el detalle de registros PM en esa prueba). (b) Si el último registro tiene más de 14 días, la historia se corta ahí: en producción lo último cargado es de agosto, y contar septiembre-octubre
+como "sin fallas" subestimaría la tasa. **Límites:** las fallas se tratan como aleatorias (no usa la edad de los componentes ni el riesgo TBO — es el siguiente paso natural); solo cuenta lo registrado; una falla de
+varios días seguidos es un solo evento; con pocas fechas de backtest la cobertura es anecdótica.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
