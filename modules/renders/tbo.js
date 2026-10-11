@@ -79,6 +79,33 @@ function _tboFilasFamilia(res, defs, equipoSel, clase, cantEq) {
   return filas;
 }
 
+
+// Gráfico de calibración: riesgo predicho (x) contra frecuencia observada (y) por tramos, con intervalo de Wilson; la diagonal es el modelo perfecto.
+function _tboCalibSVG(bins) {
+  var pts = bins.filter(function (b) { return b.n >= 10; });
+  if (!pts.length) return '';
+  var mx = 0.05; pts.forEach(function (b) { mx = Math.max(mx, b.pred, b.obs, b.ic ? b.ic[1] : 0); });
+  var niceMax = mx <= 0.1 ? 0.1 : mx <= 0.25 ? 0.25 : mx <= 0.5 ? 0.5 : 1;
+  var X = function (v) { return 46 + (v / niceMax) * 290; }, Y = function (v) { return 205 - (v / niceMax) * 185; };
+  var tick = function (v) { return Math.round(v * 100) + '%'; };
+  var s = '<svg viewBox="0 0 360 245" width="100%" style="max-width:420px" role="img" aria-label="Calibración: riesgo calculado contra fallas observadas">' +
+    '<g stroke="var(--bd)" stroke-width="1"><line x1="46" y1="20" x2="46" y2="205"/><line x1="46" y1="205" x2="336" y2="205"/></g>' +
+    '<line x1="' + X(0) + '" y1="' + Y(0) + '" x2="' + X(niceMax) + '" y2="' + Y(niceMax) + '" stroke="var(--tx3)" stroke-width="1.4" stroke-dasharray="6 5"/>';
+  [0, 0.5, 1].forEach(function (f) {
+    var v = niceMax * f;
+    s += '<text x="40" y="' + (Y(v) + 3) + '" text-anchor="end" font-size="10" fill="var(--tx3)">' + tick(v) + '</text><text x="' + X(v) + '" y="220" text-anchor="middle" font-size="10" fill="var(--tx3)">' + tick(v) + '</text>';
+  });
+  s += '<text x="191" y="238" text-anchor="middle" font-size="10" fill="var(--tx3)">Riesgo calculado por el modelo</text><text x="12" y="112" transform="rotate(-90 12 112)" text-anchor="middle" font-size="10" fill="var(--tx3)">Ocurrió de verdad</text>';
+  pts.forEach(function (b) {
+    if (b.ic) s += '<line x1="' + X(b.pred) + '" y1="' + Y(b.ic[0]) + '" x2="' + X(b.pred) + '" y2="' + Y(b.ic[1]) + '" stroke="var(--ac)" stroke-width="1.5"/>';
+    s += '<circle cx="' + X(b.pred) + '" cy="' + Y(b.obs) + '" r="5" fill="var(--ac)" stroke="var(--bg2)" stroke-width="2"/>';
+  });
+  return s + '</svg>';
+}
+var _CALIB_COLOR = { compatible: 'var(--ok)', subestima: 'var(--danger)', sobreestima: 'var(--w)', sin_datos: 'var(--tx3)' };
+var _CALIB_TITULO = { compatible: 'Compatible', subestima: 'Falla antes de lo esperado', sobreestima: 'Dura más de lo esperado', sin_datos: 'Sin datos suficientes' };
+function _tboOE(r) { return r.OE == null ? '—' : (Math.round(r.OE * 100) / 100 + '').replace('.', ',') + (r.OEic ? ' <span style="font-size:10px;color:var(--tx3)">(' + (Math.round(r.OEic[0] * 100) / 100 + '').replace('.', ',') + '–' + (Math.round(r.OEic[1] * 100) / 100 + '').replace('.', ',') + ')</span>' : ''); }
+
 export function renderTbo() {
   var el = $('s-tbo'); if (!el) return;
   var eqs = S.g('eq') || [];
@@ -347,6 +374,38 @@ export function renderTbo() {
           '<td class="mono" style="text-align:right">' + (pb == null ? '<span style="color:var(--tx3)">—</span>' : '<span style="color:' + (pb < 0.05 ? 'var(--danger)' : 'var(--ok)') + '">' + (pb < 0.0105 ? '&lt;0,01' : (Math.round(pb * 100) / 100 + '').replace('.', ',')) + '</span>') + '</td></tr>';
       }).join('') + '</table></div>';
   };
+  // ── Calibración del modelo del fabricante contra la flota ──
+  var cal = tboCalibracionFlota({ compHist: compHist, equipos: eqs, compras: compras, hoy: new Date() }, { aplic: aplic });
+  var calT = cal.todos, filaCal = function (nombre, r) {
+    return '<tr><td>' + escapeHtml(nombre) + '</td><td class="mono" style="text-align:right">' + fn(r.nTramos) + (r.nCensurados ? ' <span style="font-size:10px;color:var(--tx3)">(' + fn(r.nCensurados) + ' abiertos)</span>' : '') + '</td>' +
+      '<td class="mono" style="text-align:right">' + (r.observado == null ? '—' : fn(Math.round(r.observado))) + ' / ' + (r.esperado == null ? '—' : fn(Math.round(r.esperado))) + '</td><td class="mono" style="text-align:right">' + _tboOE(r) + '</td>' +
+      '<td style="color:' + _CALIB_COLOR[r.veredicto.codigo] + ';font-weight:600;font-size:11px">' + _CALIB_TITULO[r.veredicto.codigo] + '</td></tr>';
+  };
+  h += '<div class="card-t" style="margin:18px 0 6px">¿El modelo del fabricante acierta en nuestra flota? — calibración</div>' +
+    '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">El riesgo que muestran el Buscador, la Torre y esta pestaña viene de una curva del fabricante (Weibull con β=3 y el TBO como 5% de fallas). Es una <b>hipótesis</b>; acá se contrasta con lo que pasó de verdad. Cada tramo entre dos cambios registrados de un componente es una vida observada, y el tramo desde el último cambio hasta hoy es una vida todavía abierta. Cada 500 h de vida, el modelo predice la probabilidad de que el componente se cambie o falle en las siguientes 500 h, y se mira si ocurrió. <b>O/E</b> = ocurrió ÷ esperado: 1 significa que el modelo acierta; más de 1, que los componentes fallan antes; menos de 1, que duran más. El intervalo se calcula por bootstrap sobre los tramos. <b>Ojo:</b> el Historial de Componentes no dice si el cambio fue por falla o preventivo, así que se mide el "tiempo hasta el cambio".</div>';
+  if (calT.veredicto.codigo === 'sin_datos') {
+    h += '<div class="card" style="color:var(--tx3);font-size:12px">' + escapeHtml(calT.veredicto.texto) + ' Registra los cambios en Componentes → Historial de Componentes, con el horómetro, y esta sección se completa sola.</div>';
+  } else {
+    h += '<div class="cards">' +
+      '<div class="card"><div class="card-t">Veredicto</div><div class="card-v" style="font-size:15px;color:' + _CALIB_COLOR[calT.veredicto.codigo] + '">' + _CALIB_TITULO[calT.veredicto.codigo] + '</div><div class="card-s">' + fn(calT.nTramos) + ' tramos de vida · ' + fn(calT.nFilas) + ' puntos de control</div></div>' +
+      '<div class="card"><div class="card-t">Ocurrió ÷ esperado (O/E)</div><div class="card-v">' + _tboOE(calT) + '</div><div class="card-s">1 = el modelo acierta</div></div>' +
+      '<div class="card"><div class="card-t">Mejor que una tasa constante</div><div class="card-v" style="color:' + (calT.skill > 0 ? 'var(--ok)' : 'var(--danger)') + '">' + (calT.skill == null ? '—' : (calT.skill >= 0 ? '+' : '−') + Math.round(Math.abs(calT.skill) * 100) + '%') + '</div><div class="card-s">puntaje de Brier; negativo = no distingue mejor que el promedio</div></div>' +
+      '<div class="card"><div class="card-t">Cambiados antes del TBO</div><div class="card-v">' + (calT.antesTBO ? Math.round(calT.antesTBO.frac * 100) + '%' : '—') + '</div><div class="card-s">el modelo espera 5%' + (calT.antesTBO && calT.antesTBO.ic ? ' · observado entre ' + Math.round(calT.antesTBO.ic[0] * 100) + '% y ' + Math.round(calT.antesTBO.ic[1] * 100) + '%' : '') + '</div></div></div>' +
+      '<div class="card" style="font-size:12px;margin-bottom:8px">' + escapeHtml(calT.veredicto.texto) +
+      (calT.mejorFlotaQueFabricante != null ? ' Un modelo ajustado con el resto de la flota (dejando un equipo afuera cada vez) <b>' + (calT.mejorFlotaQueFabricante ? 'predice mejor' : 'no predice mejor') + '</b> que el del fabricante.' : '') +
+      (calT.medianaVidaTBO != null ? ' Vida mediana observada: <b>' + (Math.round(calT.medianaVidaTBO * 100) / 100 + '').replace('.', ',') + ' × TBO</b> (el modelo espera ' + (Math.round(calT.medianaModelo * 100) / 100 + '').replace('.', ',') + ' × TBO).' : '') + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;align-items:start"><div>' + _tboCalibSVG(calT.bins) +
+      '<p style="font-size:10px;color:var(--tx3);margin:2px 0 0">Cada punto agrupa los controles con riesgo parecido (solo tramos con 10 o más). La línea vertical es la incertidumbre; la diagonal es el modelo perfecto. Los controles de un mismo componente se parecen entre sí, por eso el intervalo real es más ancho que el de la barra.</p></div>' +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Riesgo calculado</th><th style="text-align:right">Controles</th><th style="text-align:right">Esperado</th><th style="text-align:right">Ocurrió</th></tr>' +
+      calT.bins.map(function (b) { return '<tr' + (b.n ? '' : ' style="opacity:.45"') + '><td>' + Math.round(b.lo * 100) + '% a ' + Math.round(b.hi * 100) + '%</td><td class="mono" style="text-align:right">' + fn(b.n) + '</td><td class="mono" style="text-align:right">' + (b.n ? (Math.round(b.pred * 1000) / 10 + '').replace('.', ',') + '%' : '—') + '</td><td class="mono" style="text-align:right">' + (b.n ? (Math.round(b.obs * 1000) / 10 + '').replace('.', ',') + '%' : '—') + '</td></tr>'; }).join('') +
+      '</table></div></div>' +
+      '<div style="font-weight:600;font-size:12px;margin:12px 0 4px">Por origen y por componente</div>' +
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Grupo</th><th style="text-align:right">Tramos</th><th style="text-align:right" title="Eventos que ocurrieron / eventos que el modelo esperaba">Ocurrió / esperado</th><th style="text-align:right">O/E (intervalo)</th><th>Veredicto</th></tr>' +
+      filaCal('Toda la flota', calT) + cal.porOrigen.map(function (g) { return filaCal(g.nombre, g.r); }).join('') +
+      cal.porComponente.map(function (g) { return filaCal('Componente: ' + g.comps.join(', '), g.r); }).join('') + '</table></div>';
+  }
+  h += '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">' + fn(cal.nVidas) + ' tramos usados' + (cal.omitidos ? ' · ' + fn(cal.omitidos) + ' componentes omitidos por tener varios TBO distintos en el plan' : '') + '. Solo cuentan componentes de equipos con plan del fabricante. Para que el original y el alternativo se evalúen por separado, registra el origen en cada cambio. Con pocos tramos el veredicto "compatible" significa "sin evidencia en contra", no "confirmado".</p>';
+
   h += '<div class="card-t" style="margin:18px 0 6px">¿Estamos usando la distribución correcta? — bondad de ajuste</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">Cada modelo se ajusta por máxima verosimilitud y se compara con <b>AICc</b> (premia el ajuste y castiga la complejidad; menor es mejor), la distancia de <b>Kolmogorov-Smirnov</b> y el <b>error en los percentiles</b> que usan las decisiones. El p-valor se calcula por <b>bootstrap paramétrico</b> (la prueba KS clásica no vale cuando los parámetros salen de los mismos datos). Con miles de datos casi cualquier modelo simple se rechaza: lo que importa es qué tan lejos queda el percentil que se usa.</div>';
   if (gofE) {

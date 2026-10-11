@@ -6334,6 +6334,25 @@ snapshots de equipo anteriores a esa fecha: el primer aviso de cruce posible es 
 de la FLOTA (otra fórmula) no cambia. Limitaciones: los snapshots viejos siguen en la matriz de Markov de la Torre (unas pocas transiciones entre fórmulas); el criterio de
 riesgo usa el modelo del fabricante hasta la etapa de calibración. 17 pruebas (`tests/saludEquipoTbo.test.js`). Verificado en navegador (Torre, cajón, Buscador y Dashboard).
 
+### 114. Calibración del modelo de riesgo del fabricante contra la flota (2026-10-11)
+
+**Etapa 5 de la ficha de componente.** El riesgo de falla que usan TBO, el Buscador y (desde la etapa 3) la Torre de Control es una hipótesis: Weibull con β=3 y el
+TBO como B5. Nunca se había contrastado con lo que pasa en la flota. `tboVidasObservadas` convierte el Historial de Componentes en tramos de vida (entre dos cambios
+registrados; el tramo abierto desde el último cambio hasta el horómetro actual es una observación **censurada**), con el TBO del plan para el equipo (y su aplicación) y
+el origen (registrado, o inferido por la compra). `tboCalibrarGrupo` hace el contraste: cada 500 h de vida el modelo predice P(cambio en las próximas 500 h | edad) y se
+anota si ocurrió; los puntos cuya ventana aún está abierta se descartan, así que los tramos abiertos aportan solo sobrevivencias confirmadas. Resultados: **O/E**
+(ocurrió ÷ esperado) con intervalo por **bootstrap sobre tramos** (las filas de un mismo componente no son independientes), tramos de riesgo con intervalo de Wilson,
+puntaje de Brier contra una tasa constante, prueba de Kolmogorov de la uniformidad de F(vida), fracción cambiada antes del TBO (esperado 5%) y comparación contra un
+modelo Weibull censurado ajustado con el resto de la flota **dejando un equipo afuera cada vez**. Veredicto: *compatible* (el 1 cae dentro del intervalo), *falla antes*
+(intervalo sobre 1), *dura más* (bajo 1) o *sin datos* (<8 tramos). `tboCalibracionFlota` lo calcula para toda la flota, por origen y por componente. Se muestra en
+TBO ("¿El modelo del fabricante acierta en nuestra flota?", con gráfico de calibración) y en cada ficha del Buscador. **Verificación:** con vidas simuladas de una Weibull
+con el TBO como B5 el motor dice "compatible" (O/E≈0,94, intervalo 0,74–1,24, uniformidad no rechazada) y el modelo ajustado con la flota no mejora; con vidas 1/3 más
+cortas detecta "falla antes" (O/E≈23, p<0,001, y el modelo de la flota gana); con vidas 2,5 veces más largas detecta "dura más". **Limitaciones:** (1) el historial no dice si
+un cambio fue por falla o preventivo, así que se mide el "tiempo hasta el cambio" (si el taller cambia por calendario antes de que falle, el modelo parecerá optimista); (2)
+cada componente tiene pocos tramos y "compatible" significa "sin evidencia en contra", no "confirmado"; (3) solo cuentan equipos con plan TBO y componentes con un único TBO en
+el plan; (4) no se pudo correr sobre los datos reales de producción desde esta sesión (la consulta fue denegada): el resultado real se verá en la pantalla. 15 pruebas
+(`tests/calibracionModelo.test.js`).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

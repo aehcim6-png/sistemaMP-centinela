@@ -27,6 +27,7 @@ function _buscarFichasHTML(sigla){
   if(!r){
     return '<div class="chart-box" style="margin-bottom:12px">'+titulo+'<div style="font-size:12px;color:var(--tx3)">Este modelo de equipo no tiene plan de componentes del fabricante (el Excel de Komatsu solo trae HD785-7, WA900-8R, D375A-6R y D65EX).</div></div>';
   }
+  var cal=(typeof tboCalibracionAuto==='function')?tboCalibracionAuto():null;
   var res=r.resumen;
   var cab='<div style="display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;margin-bottom:10px;font-size:12px">'+
     '<span><b>'+fn(res.conDato)+'</b> con cambio registrado</span>'+
@@ -66,6 +67,15 @@ function _buscarFichasHTML(sigla){
         kv('Pedidos abiertos',fn((f.pedidos||[]).length)),kv('Plazo típico / p90',fn(f.lead.dias)+' d'+(f.lead.p90?' / '+fn(f.lead.p90)+' d':'')),
         f.probATiempo!=null?kv('Llega a tiempo',Math.round(f.probATiempo*100)+'%'):'',f.diasParaPedir!=null&&(f.decisionCompra==='pedir_ya'||f.decisionCompra==='planificar')?kv('Pedir antes de',f.diasParaPedir<=0?'ya':escapeHtml(f.pedirAntesDe||'—')):''])+
       blq('Política','Reemplazo óptimo',polNum,polSub,[f.estrategia?kv('Estrategia',escapeHtml(f.estrategia.estrategia)):'',f.estrategia?'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(f.estrategia.detalle)+'</div>':''])+
+      (function(){
+        if(!cal)return '';
+        var g=cal.porComponente.filter(function(x){return x.fam===f.fam;})[0],propio=!!g,rr=g?g.r:cal.todos;
+        var tit={compatible:'Compatible',subestima:'Falla antes',sobreestima:'Dura más',sin_datos:'Sin datos'}[rr.veredicto.codigo];
+        var col={compatible:'var(--ok)',subestima:'var(--danger)',sobreestima:'var(--w)',sin_datos:'var(--tx3)'}[rr.veredicto.codigo];
+        var oe=rr.OE==null?'—':(Math.round(rr.OE*100)/100+'').replace('.',',');
+        return blq('¿El modelo acierta?','Calibración','<span style="color:'+col+'">'+tit+'</span>',propio?'este componente en la flota':'toda la flota (este componente tiene pocos cambios)',[
+          kv('Tramos observados',fn(rr.nTramos)),kv('Ocurrió ÷ esperado',oe),'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(rr.veredicto.texto)+'</div>']);
+      })()+
       blq('Pérdida esperada','Riesgo × consecuencia',f.perdidaEsperada!=null?_buscarMonto(f.perdidaEsperada):'—',f.usaDetencion?((f.horizonte)+' h · '+_buscarMonto(f.consecuencia)+' si falla sin aviso'):'usa el precio como consecuencia',[])+
       '</div>';
     return '<details style="border-bottom:1px solid var(--bd)"><summary style="display:grid;grid-template-columns:minmax(150px,2fr) repeat(3,minmax(70px,1fr)) minmax(90px,1fr);gap:8px;align-items:center;padding:8px 2px;cursor:pointer;font-size:12px;list-style:none">'+

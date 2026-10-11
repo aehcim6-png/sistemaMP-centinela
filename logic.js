@@ -4905,6 +4905,153 @@ function tboSaludFlotaAuto(){
   }catch(e){return{};}
 }
 
+
+// ═══ CALIBRACIÓN DEL MODELO DE RIESGO (2026-10-11) ═══
+// El riesgo que muestran el Buscador, la Torre y TBO viene de una Weibull del fabricante (β=3, TBO = 5% de fallas). Es una HIPÓTESIS. Esto la contrasta con lo que
+// pasó de verdad en la flota: cada tramo entre dos cambios registrados de un componente es una vida observada, y el tramo abierto desde el último cambio hasta hoy
+// es una observación censurada (sigue vivo). Limitación de los datos: el Historial de Componentes no dice si el cambio fue por falla o preventivo, así que lo que
+// se contrasta es el "tiempo hasta el cambio", que es justo lo que el riesgo del programa quiere anticipar.
+// Método (puntos de control): para cada componente se recorre su vida cada 500 h; en cada punto el modelo predice p = P(cambio en las próximas H h | edad), y se anota
+// si el cambio ocurrió en esa ventana (y=1) o no (y=0; los puntos cuya ventana aún no termina en un tramo abierto se descartan). Se compara lo predicho con lo observado
+// por tramos de riesgo, la razón observado/esperado (O/E) con intervalo por bootstrap por componente (las filas de un mismo componente no son independientes), el
+// puntaje de Brier contra una tasa constante y contra un modelo ajustado con el resto de la flota (dejando un equipo afuera), y una prueba de uniformidad de F(vida).
+function tboVidasObservadas(compHist,equipos,compras,aplic,hoy){
+  var fa=TBO_APLICACION[aplic]||1,eqPor={};(equipos||[]).forEach(function(e){if(e&&e.sigla)eqPor[e.sigla]=e;});
+  var grupos={},out=[],omitidos=0;
+  (compHist||[]).forEach(function(r){
+    if(!r||!r.sigla||!r.comp)return;var h=parseFloat(r.horomInstalacion);if(isNaN(h))return;
+    (grupos[r.sigla+'|'+r.comp]=grupos[r.sigla+'|'+r.comp]||[]).push({r:r,h:h});
+  });
+  Object.keys(grupos).forEach(function(k){
+    var arr=grupos[k].sort(function(a,b){return a.h-b.h;}),sigla=arr[0].r.sigla,comp=arr[0].r.comp,e=eqPor[sigla],m=tboCompMap(comp),cl=e?tboClaseModelo(e.modelo):null;
+    if(!e||!m||!cl)return;
+    var tbos=[];(TBO_ITEMS[cl.clase]||[]).forEach(function(it){if(m[1].test(it[1])){var t=Math.round(it[2]*fa);if(tbos.indexOf(t)<0)tbos.push(t);}});
+    if(tbos.length!==1){if(tbos.length>1)omitidos++;return;}
+    var tbo=tbos[0];
+    for(var i=0;i<arr.length;i++){
+      var ev=arr[i].r,origen=tboClasificarOrigen(ev.origen);if(!origen)origen=tboOrigenPorCompra(sigla,ev.fechaInst,m[2],compras)||'';
+      var fin=i<arr.length-1?arr[i+1].h:Number(e.horomActual)||0,L=fin-arr[i].h,cens=i===arr.length-1;
+      if(!(L>0))continue;
+      out.push({sigla:sigla,comp:comp,fam:m[2],tbo:tbo,origen:origen||'sin dato',L:L,censurado:cens});
+    }
+  });
+  return{vidas:out,omitidos:omitidos};
+}
+// Probabilidad de que el componente falle/cambie en (t, t+H] dado que llegó a t, modelo Weibull(β, η) o del fabricante si no se pasan.
+function _calibP(t,H,tbo,beta,eta){
+  if(beta&&eta){var s0=Math.exp(-Math.pow(t/eta,beta)),s1=Math.exp(-Math.pow((t+H)/eta,beta));return s0>0?1-s1/s0:1;}
+  return tboRiesgoHorizonte(t,tbo,H);
+}
+function _calibFilas(vidas,H,paso,modeloFn){
+  var filas=[];
+  vidas.forEach(function(v,idx){
+    for(var t=0;t<v.L;t+=paso){
+      var completo=!v.censurado;
+      if(!completo&&t+H>v.L)break;                       // ventana todavía abierta: no se sabe qué pasó
+      filas.push({i:idx,sigla:v.sigla,p:modeloFn?modeloFn(v,t):_calibP(t,H,v.tbo),y:(completo&&v.L<=t+H)?1:0});
+    }
+  });
+  return filas;
+}
+// Intervalo de Wilson al 95% como fracciones [lo, hi] (wilsonIC95 devuelve porcentajes en un objeto).
+function _wilsonFrac(x,n){
+  if(!(n>0))return null;var z=1.96,p=x/n,den=1+z*z/n,c=(p+z*z/(2*n))/den,m=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/den;
+  return[Math.max(0,c-m),Math.min(1,c+m)];
+}
+function _ksUniformeP(d,n){
+  if(!(n>0))return null;var l=(Math.sqrt(n)+0.12+0.11/Math.sqrt(n))*d,s=0;
+  if(l<0.27)return 1;
+  for(var k=1;k<=100;k++){var tm=2*(k%2?1:-1)*Math.exp(-2*k*k*l*l);s+=tm;if(Math.abs(tm)<1e-12)break;}
+  return Math.min(1,Math.max(0,s));
+}
+// Calibra un conjunto de vidas. opts: {H:500, paso:500, B:400, semilla:7, minTramos:8, loo:true}
+function tboCalibrarGrupo(vidas,opts){
+  var o=opts||{},H=o.H>0?o.H:500,paso=o.paso>0?o.paso:500,B=o.B>0?o.B:400,minT=o.minTramos>0?o.minTramos:8;
+  var nComp=vidas.filter(function(v){return!v.censurado;}).length,nCens=vidas.length-nComp;
+  var r={nTramos:vidas.length,nCompletos:nComp,nCensurados:nCens,veredicto:null};
+  var filas=_calibFilas(vidas,H,paso);r.nFilas=filas.length;
+  if(vidas.length<minT||!filas.length){r.veredicto={codigo:'sin_datos',texto:'Pocos tramos de vida observados ('+vidas.length+'; hacen falta al menos '+minT+') para contrastar el modelo.'};return r;}
+  var sumY=0,sumP=0,brier=0;filas.forEach(function(f){sumY+=f.y;sumP+=f.p;brier+=(f.p-f.y)*(f.p-f.y);});
+  var n=filas.length,pm=sumY/n,brierClim=filas.reduce(function(s,f){return s+(pm-f.y)*(pm-f.y);},0)/n;
+  r.esperado=sumP;r.observado=sumY;r.OE=sumP>0?sumY/sumP:null;r.brier=brier/n;r.brierClim=brierClim;r.skill=brierClim>0?1-(brier/n)/brierClim:null;
+  // O/E con bootstrap por tramo (cada tramo de vida es una unidad)
+  var por={};filas.forEach(function(f){var a=por[f.i]||(por[f.i]={y:0,p:0});a.y+=f.y;a.p+=f.p;});
+  var ids=Object.keys(por),rng=_rngSemilla(o.semilla==null?7:o.semilla),oes=[];
+  for(var b=0;b<B;b++){var sy=0,sp=0;for(var j=0;j<ids.length;j++){var q=por[ids[Math.floor(rng()*ids.length)]];sy+=q.y;sp+=q.p;}if(sp>0)oes.push(sy/sp);}
+  oes.sort(function(a,b){return a-b;});
+  r.OEic=oes.length>20?[oes[Math.floor(oes.length*0.025)],oes[Math.floor(oes.length*0.975)]]:null;
+  // Tramos de riesgo predicho
+  var cortes=[0,0.02,0.05,0.10,0.20,1.0001];
+  r.bins=[];
+  for(var c=0;c<cortes.length-1;c++){
+    var fb=filas.filter(function(f){return f.p>=cortes[c]&&f.p<cortes[c+1];});
+    if(!fb.length){r.bins.push({lo:cortes[c],hi:Math.min(cortes[c+1],1),n:0});continue;}
+    var by=fb.reduce(function(s,f){return s+f.y;},0),bp=fb.reduce(function(s,f){return s+f.p;},0)/fb.length;
+    r.bins.push({lo:cortes[c],hi:Math.min(cortes[c+1],1),n:fb.length,tramos:Object.keys(fb.reduce(function(a,f){a[f.i]=1;return a;},{})).length,pred:bp,obs:by/fb.length,ic:_wilsonFrac(by,fb.length)});
+  }
+  // Uniformidad de F(vida) en los tramos completos (si el modelo es correcto, U=F(L) ~ Uniforme(0,1)); fracción que no llega al TBO (esperado 5%)
+  var us=vidas.filter(function(v){return!v.censurado;}).map(function(v){return 1-Math.pow(0.95,Math.pow(v.L/v.tbo,TBO_BETA));}).sort(function(a,b){return a-b;});
+  if(us.length>=5){
+    var d=0;us.forEach(function(u,i){d=Math.max(d,(i+1)/us.length-u,u-i/us.length);});
+    r.ks={D:d,p:_ksUniformeP(d,us.length),n:us.length};
+    var antes=vidas.filter(function(v){return!v.censurado&&v.L<v.tbo;}).length;
+    r.antesTBO={x:antes,n:us.length,frac:antes/us.length,ic:_wilsonFrac(antes,us.length),esperado:0.05};
+    var xs=vidas.filter(function(v){return!v.censurado;}).map(function(v){return v.L/v.tbo;}).sort(function(a,b){return a-b;}),nx=xs.length;
+    r.medianaVidaTBO=nx%2?xs[(nx-1)/2]:(xs[nx/2-1]+xs[nx/2])/2;r.medianaModelo=Math.pow(Math.log(0.5)/Math.log(0.95),1/TBO_BETA);
+  }
+  // Modelo ajustado con el resto de la flota (se deja un equipo afuera cada vez): ¿predice mejor que el del fabricante?
+  if(o.loo!==false){
+    var sig=Object.keys(vidas.reduce(function(a,v){a[v.sigla]=1;return a;},{})),brierLoo=0,nLoo=0,ok=sig.length>=2;
+    for(var s=0;s<sig.length&&ok;s++){
+      var resto=vidas.filter(function(v){return v.sigla!==sig[s];}).map(function(v){return{tiempo:v.L/v.tbo,censurado:v.censurado};});
+      var aj=ajusteWeibullCensurado(resto);
+      if(!aj){ok=false;break;}
+      var fo=_calibFilas(vidas.filter(function(v){return v.sigla===sig[s];}),H,paso,function(v,t){return _calibP(t/v.tbo,H/v.tbo,1,aj.beta,aj.eta);});
+      fo.forEach(function(f){brierLoo+=(f.p-f.y)*(f.p-f.y);nLoo++;});
+    }
+    if(ok&&nLoo){var bl=brierLoo/nLoo;r.brierFlota=bl;
+      // misma base de filas: el Brier del fabricante sobre las mismas filas que el de la flota (las filas son las mismas por construcción)
+      r.mejorFlotaQueFabricante=bl<r.brier;}
+  }
+  var lo=r.OEic?r.OEic[0]:null,hi=r.OEic?r.OEic[1]:null,oe=r.OE;
+  var cod,txt;
+  if(lo!=null&&lo>1){cod='subestima';txt='Los componentes se cambian o fallan ANTES de lo que el modelo del fabricante espera (ocurre '+(Math.round(oe*10)/10+'').replace('.',',')+' veces lo esperado).';}
+  else if(hi!=null&&hi<1){cod='sobreestima';txt='Los componentes duran MÁS de lo que el modelo del fabricante espera (ocurre '+(Math.round(oe*100)/100+'').replace('.',',')+' veces lo esperado): el modelo es más pesimista que la flota.';}
+  else{cod='compatible';txt='No hay evidencia de que el modelo del fabricante falle en esta flota'+(r.skill!=null&&r.skill<=0?', pero tampoco predice mejor que una tasa constante':'')+'. Con tan pocos tramos la prueba tiene poca potencia.';}
+  r.veredicto={codigo:cod,texto:txt};
+  return r;
+}
+// Calibración de toda la flota: todos los componentes juntos, por origen y por componente (los que tengan tramos suficientes).
+function tboCalibracionFlota(d,o){
+  var op=o||{},v=tboVidasObservadas(d.compHist||[],d.equipos||[],d.compras||[],op.aplic||'normal',d.hoy),vidas=v.vidas;
+  var nombre={original:'Original (Komatsu)',alternativo:'Alternativo / reparado','sin dato':'Origen sin registrar'};
+  var out={omitidos:v.omitidos,nVidas:vidas.length,todos:tboCalibrarGrupo(vidas,op),porOrigen:[],porComponente:[]};
+  ['original','alternativo','sin dato'].forEach(function(og){
+    var sub=vidas.filter(function(x){return x.origen===og;});
+    if(sub.length)out.porOrigen.push({clave:og,nombre:nombre[og],r:tboCalibrarGrupo(sub,op)});
+  });
+  var porComp={};vidas.forEach(function(x){(porComp[x.fam]=porComp[x.fam]||[]).push(x);});
+  Object.keys(porComp).forEach(function(f){if(porComp[f].length>=(op.minTramos||8))out.porComponente.push({fam:f,comps:Object.keys(porComp[f].reduce(function(a,x){a[x.comp]=1;return a;},{})),r:tboCalibrarGrupo(porComp[f],op)});});
+  out.porComponente.sort(function(a,b){return b.r.nTramos-a.r.nTramos;});
+  return out;
+}
+
+// Versión para las pantallas: lee el store y recuerda el resultado 5 s (el Buscador la pide por cada ficha que se abre).
+var _tboCalibCache={clave:null,ts:0,val:null};
+function tboCalibracionAuto(){
+  try{
+    if(typeof S==='undefined'||typeof tboUnirCompras!=='function')return null;
+    var eqs=S.g('eq')||[],ch=S.g('compHist')||[],oc=S.g('ocHist')||[],cd=S.g('comprasDetalle')||[];
+    var ap=null;try{ap=localStorage.getItem('tboAplic');}catch(e){}
+    ap=TBO_APLICACION[ap]?ap:'normal';
+    var clave=[eqs.length,eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0),ch.length,oc.length,cd.length,ap].join('|'),ahora=Date.now();
+    if(_tboCalibCache.clave===clave&&ahora-_tboCalibCache.ts<5000)return _tboCalibCache.val;
+    var val=tboCalibracionFlota({compHist:ch,equipos:eqs,compras:tboUnirCompras(oc,cd),hoy:new Date()},{aplic:ap});
+    _tboCalibCache={clave:clave,ts:ahora,val:val};
+    return val;
+  }catch(e){return null;}
+}
+
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
 // Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
 // movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
@@ -8375,7 +8522,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
