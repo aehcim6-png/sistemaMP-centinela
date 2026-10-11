@@ -6412,7 +6412,7 @@ migración `20261011140000`, aplicada en ambas bases). La clave es `_normalizarM
 mapa como 5.º parámetro y devuelve `porModelo` (CLP/h) y `porModeloUSD`, convertidos con la misma tasa USD→CLP. Lo usan la ficha de componente (pérdida esperada), el TCO
 (`tcoEquipo`, que devuelve `costoHoraDet` y `costoDetPropio`), el score de salud (`tboSaludFlotaAuto`) y el presupuesto limitado (`tboCandidatosPresupuesto` con `ctx.costoHoraDetDe` por
 candidato). Las cachés incluyen el mapa en su clave. **Pantalla:** Configuración → tabla con los modelos de la flota (con cuántos equipos tiene cada uno); vacío = usa el general.
-**Limitación:** la tabla de "Reemplazo óptimo" por componente del módulo TBO sigue usando el costo general. Pruebas en `tests/fichaComponente.test.js`, `tests/costoTotalPropiedad.test.js` y
+**Tasa USD→CLP compartida.** La tasa (referencial, 910 por defecto) pasó del `localStorage` de cada navegador a `configuracion.tasaUSD` (migración `20261011150000`, aplicada en ambas bases): se edita en Configuración o en la pestaña TBO y vale para todos los usuarios. Precedencia en `tboAjustesCosto` (6.º parámetro `tasaCfg`): Configuración > valor local antiguo `tboTasaUSD` > 910; al guardar se borra el valor local para que no quede uno viejo oculto. **Limitación:** la tabla de "Reemplazo óptimo" por componente del módulo TBO sigue usando el costo general. Pruebas en `tests/fichaComponente.test.js`, `tests/costoTotalPropiedad.test.js` y
 `tests/presupuestoLimitado.test.js`.
 
 ## Lo que decidimos NO hacer (y por qué)

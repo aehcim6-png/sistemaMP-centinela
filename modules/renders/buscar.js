@@ -18,7 +18,7 @@ function _buscarFichasHTML(sigla){
   var ids;try{ids=function(k){return localStorage.getItem(k);};ids('x');}catch(e){ids=function(){return null;};}
   var ot=S.g('ot')||[];
   var mttr=(typeof duracionesReparacionFlotaHoras==='function')?medianaPositiva(duracionesReparacionFlotaHoras(ot)):null;
-  var aj=tboAjustesCosto(ids,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos);
+  var aj=tboAjustesCosto(ids,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos,(S.g('cfg')||{}).tasaUSD);
   var incTeo=$('fBuscarTeo')?$('fBuscarTeo').checked:false;
   var r=tboFichasEquipo(sigla,{equipos:S.g('eq')||[],compHist:S.g('compHist')||[],compMayores:S.g('compMayores')||[],compras:tboUnirCompras(S.g('ocHist')||[],S.g('comprasDetalle')||[]),
     comprasDetalle:S.g('comprasDetalle')||[],stk:S.g('stk')||[],repuestos:S.g('repuestos')||[],ordenes:S.g('ordenes')||[],hoy:new Date()},

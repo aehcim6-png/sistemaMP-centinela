@@ -4807,10 +4807,11 @@ var TBO_COSTO_HORA_DET_USD=135;
 // Supuestos de costo compartidos por la pestaña TBO y la ficha. `lee(clave)` devuelve el texto guardado (localStorage.getItem) o null.
 // `usdCfg` = Configuración → costo de hora detenida (US$/h, `cfg.costoHoraDetUSD`): es la fuente principal y la edita el usuario cuando quiera. Si no hay, vale un valor en
 // pesos guardado antes en este navegador (`tboCostoDet`) y, si tampoco, el predeterminado de US$135/h.
+// `tasaCfg` = Configuración → tasa USD→CLP (`cfg.tasaUSD`, la misma para todos los usuarios); si no hay, la que se guardó antes en este navegador (`tboTasaUSD`) y, si tampoco, 910.
 // `modelosCfg` = Configuración → costo de hora detenida por modelo ({modeloNormalizado: US$/h}, `cfg.costoHoraDetModelos`): cada modelo con valor propio lo usa en vez del general.
-function tboAjustesCosto(lee,mttrFlotaHoras,tarifaHH,usdCfg,modelosCfg){
+function tboAjustesCosto(lee,mttrFlotaHoras,tarifaHH,usdCfg,modelosCfg,tasaCfg){
   var num=function(k){var v=parseFloat(lee(k));return v>=0?v:null;};
-  var tasa=num('tboTasaUSD');if(!(tasa>0))tasa=910;
+  var tasa=tasaCfg>0?Number(tasaCfg):num('tboTasaUSD');if(!(tasa>0))tasa=910;
   var cd=num('tboCostoDet'),hh=num('tboHHCambio'),hp=num('tboHorasProg'),hf=num('tboHorasFalla'),ap=lee('tboAplic');
   var porModelo={},porModeloUSD={};
   Object.keys(modelosCfg||{}).forEach(function(k){var v=Number(modelosCfg[k]);if(v>0){porModelo[k]=Math.round(v*tasa);porModeloUSD[k]=v;}});
@@ -4917,7 +4918,7 @@ function tboSaludFlotaAuto(){
     var eqs=S.g('eq')||[],compHist=S.g('compHist')||[],compMay=S.g('compMayores')||[],oc=S.g('ocHist')||[],cd=S.g('comprasDetalle')||[],stk=S.g('stk')||[];
     var horoms=eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0);
     var mttr=(typeof duracionesReparacionFlotaHoras==='function'&&typeof medianaPositiva==='function')?medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot')||[])):null;
-    var aj=tboAjustesCosto(lee,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos);
+    var aj=tboAjustesCosto(lee,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos,(S.g('cfg')||{}).tasaUSD);
     var clave=[JSON.stringify(aj.porModelo),eqs.length,horoms,compHist.length,compMay.length,oc.length,cd.length,stk.length,aj.tasa,aj.aplic,aj.costoHoraDet,aj.horasFalla,aj.hhCambio,aj.horasProg,aj.tarifaHH].join('|');
     var ahora=Date.now();
     if(_tboSaludCache.clave===clave&&ahora-_tboSaludCache.ts<5000)return _tboSaludCache.val;
@@ -5318,7 +5319,7 @@ function tcoFlotaAuto(){
     var eqs=S.g('eq')||[],oc=S.g('ocHist')||[],cd=S.g('comprasDetalle')||[],hist=S.g('hist')||[],reg=S.g('reg')||[],ot=S.g('ot')||[];
     var otAll=ot.concat(typeof _otHistComoOt==='function'?_otHistComoOt(S.g('otHist')||[]):[]);
     var mttr=(typeof duracionesReparacionFlotaHoras==='function'&&typeof medianaPositiva==='function')?medianaPositiva(duracionesReparacionFlotaHoras(ot)):null;
-    var aj=tboAjustesCosto(lee,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos);
+    var aj=tboAjustesCosto(lee,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos,(S.g('cfg')||{}).tasaUSD);
     var amort=eqs.reduce(function(a,e){return a+(Number(e&&e.valorHoraAmort)||0)+(Number(e&&e.vidaContableH)||0)+(Number(e&&e.valorCompra)||0);},0);
     var clave=[JSON.stringify(aj.porModelo),eqs.length,eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0),amort,oc.length,cd.length,hist.length,reg.length,otAll.length,aj.costoHoraDet].join('|'),ahora=Date.now();
     if(_tcoCache.clave===clave&&ahora-_tcoCache.ts<5000)return _tcoCache.val;

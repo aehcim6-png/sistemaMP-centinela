@@ -9,7 +9,8 @@
 // vive en logic.js (tbo*) y está cubierta por tests/tboKomatsu.test.js. Módulo ES lazy (ver _LAZY_VERS).
 const _TBO_TASA_KEY = 'tboTasaUSD';
 function _tboTasa() {
-  try { var v = parseFloat(localStorage.getItem(_TBO_TASA_KEY)); if (v > 0) return v; } catch (e) { /* sin storage: usa el default */ }
+  var t = Number((S.g('cfg') || {}).tasaUSD); if (t > 0) return t; // Configuración: igual para todos los usuarios
+  try { var v = parseFloat(localStorage.getItem(_TBO_TASA_KEY)); if (v > 0) return v; } catch (e) { /* sin storage: usa el default */ } // valor guardado antes en este navegador
   return 910; // mismo valor referencial que ya usa importarRepuestosKomatsu (no es un tipo de cambio oficial)
 }
 var _TBO_OPT_KEYS = { costoDet: 'tboCostoDet', horasFalla: 'tboHorasFalla', horasProg: 'tboHorasProg', hhCambio: 'tboHHCambio', presupuesto: 'tboPresupuesto', horizonte: 'tboHorizonte' };
@@ -148,7 +149,7 @@ export function renderTbo() {
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">' +
     '<select id="tboEq" onchange="renders.tbo()" style="max-width:340px">' + opts + '</select>' +
     '<label style="font-size:11px;color:var(--tx3)">USD→CLP <input id="tboTasa" type="number" min="1" step="1" value="' + tasa + '" style="width:80px" onchange="tboCambiarTasa(this.value)"></label>' +
-    '<span style="font-size:10px;color:var(--tx3)">Referencial (no oficial), solo para valorizar el listado "Sugerido" en pesos.</span>' +
+    '<span style="font-size:10px;color:var(--tx3)">Referencial (no oficial); se guarda en Configuración y vale para todos los usuarios. Valoriza el listado "Sugerido" y el costo de hora detenida en pesos.</span>' +
     '<label style="font-size:11px;color:var(--tx3)" title="El TBO de aplicación = TBO de fábrica × 120% (ligera) / 100% (normal) / 80% (severa), igual que la macro del Excel de Komatsu">Aplicación <select id="tboAplic" onchange="tboCambiarAplic(this.value)">' +
     ['ligera', 'normal', 'severa'].map(function (k) { return '<option value="' + k + '"' + (k === aplic ? ' selected' : '') + '>' + _TBO_APLIC_TXT[k] + '</option>'; }).join('') + '</select></label></div>' +
     '<details style="margin-bottom:12px;font-size:11px;color:var(--tx2)"><summary style="cursor:pointer;color:var(--ac)">¿Cuándo un trabajo es ligero, normal o severo? (guía del Excel de Komatsu)</summary>' +
@@ -194,7 +195,7 @@ export function renderTbo() {
   // Parámetros de costo compartidos por el plan con presupuesto y el reemplazo óptimo
   var mttrFlota = (typeof duracionesReparacionFlotaHoras === 'function') ? medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot') || [])) : null;
   // Mismos supuestos que la ficha del Buscador Maestro (tboAjustesCosto, logic.js): costo de hora detenida US$135/h × tasa si el usuario no escribió otro.
-  var pOpt = tboAjustesCosto(function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, mttrFlota, S.g('hh'), (S.g('cfg') || {}).costoHoraDetUSD, (S.g('cfg') || {}).costoHoraDetModelos);
+  var pOpt = tboAjustesCosto(function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, mttrFlota, S.g('hh'), (S.g('cfg') || {}).costoHoraDetUSD, (S.g('cfg') || {}).costoHoraDetModelos, (S.g('cfg') || {}).tasaUSD);
 
   // ── Plan de compra: TBO × Stock × Compras ──
   var incTeo = $('tboTeorico') ? $('tboTeorico').checked : false;
@@ -612,7 +613,10 @@ export function tboCambiarAplic(v) {
 export function tboCambiarTasa(v) {
   var n = parseFloat(v);
   if (!(n > 0)) { toast('Ingresá una tasa mayor a 0'); return; }
-  try { localStorage.setItem(_TBO_TASA_KEY, String(n)); } catch (e) { /* sin storage: queda solo en esta vista */ }
+  var c = S.g('cfg') || {};
+  c.tasaUSD = n;
+  S.s('cfg', c);
+  try { localStorage.removeItem(_TBO_TASA_KEY); } catch (e) { /* sin storage */ }
   renders.tbo();
 }
 

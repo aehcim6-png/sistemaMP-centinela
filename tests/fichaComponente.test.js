@@ -28,6 +28,14 @@ describe('tboAjustesCosto', () => {
     expect(a).toMatchObject({ costoHoraDet: 200 * 910, costoHoraDetUSD: 200, costoDetPorDefecto: false, costoDetOrigen: 'configuracion' });
     expect(L.tboAjustesCosto(k => (k === 'tboTasaUSD' ? '1000' : null), 0, 0, 150).costoHoraDet).toBe(150000);
   });
+  it('la tasa USD→CLP de Configuración manda sobre la guardada en el navegador; sin ella vale la local y, si tampoco, 910', () => {
+    const local = k => (k === 'tboTasaUSD' ? '1000' : null);
+    expect(L.tboAjustesCosto(local, 0, 0, null, null, 950)).toMatchObject({ tasa: 950, costoHoraDet: Math.round(135 * 950) });
+    expect(L.tboAjustesCosto(local, 0, 0, 100, { x: 10 }, 950)).toMatchObject({ tasa: 950, costoHoraDet: 95000, porModelo: { x: 9500 } });
+    expect(L.tboAjustesCosto(local, 0, 0, null, null, null).tasa).toBe(1000);
+    expect(L.tboAjustesCosto(() => null, 0, 0, null, null, 0).tasa).toBe(910);
+    expect(L.tboAjustesCosto(() => null, 0, 0, null, null, 'abc').tasa).toBe(910);
+  });
   it('sin valor en Configuración: el valor local en pesos (si existe) y si no US$135; siempre informa el origen y el equivalente en dólares', () => {
     expect(L.tboAjustesCosto(() => null, 0, 0)).toMatchObject({ costoHoraDetUSD: 135, costoDetOrigen: 'predeterminado', costoDetPorDefecto: true });
     expect(L.tboAjustesCosto(k => (k === 'tboCostoDet' ? '91000' : null), 0, 0)).toMatchObject({ costoHoraDet: 91000, costoHoraDetUSD: 100, costoDetOrigen: 'local' });
