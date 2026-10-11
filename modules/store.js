@@ -177,6 +177,8 @@ const TABLA_REAL={
   // la app llama S.s('otHist', ...) — alimenta el cálculo de probabilidad de falla en
   // Predictivo (probabilidadFallaDesdeEventos, logic.js) con más muestra histórica.
   otHist:{tabla:'correctivos_historico',clave:'id',claveDb:'id',cols:['id','sigla','siglaOriginal','fecha','horometro','sistema','descripcion','tipoInt','fuente','observacion','estadoOT','responsable']},
+  // Reportabilidad diaria del cliente (2026-10-11): estatus OP/FS de cada equipo por día. Clave natural fecha+sigla (índice único); ver reportabilidadFusionar (logic.js).
+  reportab:{tabla:'reportabilidad_diaria',clave:'_id',claveDb:'id',cols:['fecha','sigla','siglaCliente','estatus','ubicacion','detalle','fechaDetencion','proyeccion','ordenCompra','observacion','mantenedor','fuente']},
   progDia:{tabla:'programacion_diaria',clave:'_id',claveDb:'id',cols:['fecha','turno','orden','nombre','cargo','responsable','bloques']},
   // Sensor de neumático como entidad propia (2026-07) — antes 'numSensor' era solo
   // un campo de texto dentro de 'neu', sin vida propia: si el sensor físico se
@@ -782,7 +784,7 @@ window.addEventListener('storage',function(e){
 // — Supabase siempre tiene el historial completo real; esto es solo el respaldo
 // offline del navegador, así que perder las filas más viejas ahí no pierde nada.
 const _CATEGORIAS_CRECIENTES={hist:'fecha',ot:'fecha',reg:'fechaEntrada',mov:'fecha',
-  neuMed:'fecha',aceite:'fecha',insp:'fecha',informesFalla:'fecha',progDia:'fecha',prodTurno:'fecha'};
+  neuMed:'fecha',aceite:'fecha',insp:'fecha',informesFalla:'fecha',progDia:'fecha',prodTurno:'fecha',reportab:'fecha'};
 const _TOPE_FILAS_LOCAL=1200;
 function _recorteParaLocal(k,v){
   var campo=_CATEGORIAS_CRECIENTES[k];

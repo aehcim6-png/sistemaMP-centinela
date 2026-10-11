@@ -5351,6 +5351,174 @@ function tcoFlotaAuto(){
   }catch(e){return null;}
 }
 
+// ═══ REPORTABILIDAD DIARIA DEL CLIENTE (2026-10-11) ═══
+// El cliente (Centinela) pide cada día un reporte con el estatus de TODOS los equipos de la faena: OP (operativo) o FS (fuera de servicio) con detalle, fecha de detención, fecha de proyección de
+// reparación, OC y observación. Es la fuente contractual de la disponibilidad. Se guarda una fila por equipo y día en `reportabilidad_diaria` (clave natural fecha+sigla): cargar de nuevo un día lo
+// ACTUALIZA, no lo duplica, y se puede cargar cualquier fecha en cualquier orden (datos antiguos que aparezcan después). Hay dos formatos de Excel: (a) un archivo por día, columnas "Equipo, Marca - Modelo,
+// Estatus (OP/FS), Ubicación, Detalle, Detencion, Dias F/S, Proyeccion, Orden de Compra, Observacion, Mantenedor" con la sigla del programa; y (b) un libro con una hoja por día (nombre dd-mm), columnas "Sigla,
+// [Sigla CEN], Marca - Modelo, Estatus (1=FS, 2=OP), Ubicación, Detalle, Fecha Detencion, Dias F/S, Fecha Proyección, Orden de Compra, Observación" con la sigla del cliente (CE-85) y, desde octubre, la del programa.
+// Las funciones son puras: reciben las hojas ya leídas como arreglos de filas (el lector de Excel está en la pantalla). Fechas: Date, número serial de Excel o texto dd-mm-aaaa / aaaa-mm-dd.
+var REPORTAB_MAPA_SIGLAS={'CE-85':'CN-9503','CE-86':'CN-9501','CE-87':'CN-9500','CE-88':'CN-9502','CE-89':'CN-9507','CE-155':'CN-10155','CE-159':'CN-10159','CE-160':'CN-10160','CF-769':'CF-8769','CF-510':'CF-9510',
+  'CF-162':'CF-10162','BD-533':'BD-9533','BD-509':'BD-9509','BD-139':'BD-10139','MN-12':'MN-6112','MN-26':'MN-5926'};
+function _repNorm(s){return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+function _repFechaISO(v){
+  if(v==null||v==='')return null;
+  if(v instanceof Date){if(isNaN(v))return null;return v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2)+'-'+('0'+v.getDate()).slice(-2);}
+  if(typeof v==='number'){if(!(v>20000&&v<80000))return null;return new Date(Math.round((v-25569)*86400000)).toISOString().slice(0,10);}
+  var s=String(v).trim(),m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+  if((m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/))){var y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);}
+  return null;
+}
+function _repEstatus(v){var s=String(v==null?'':v).trim().toUpperCase().replace(/[\/\.\s]/g,'');return(s==='FS'||s==='1')?'FS':(s==='OP'||s==='2')?'OP':'';}
+// Fecha que dice el nombre (hoja "26-08", archivo "24-07-2026_Reportabilidad…"): {iso, conAnio}. `anio` completa los nombres sin año.
+function reportabilidadFechaDeNombre(nombre,anio){
+  var m=String(nombre||'').match(/(?:^|[^0-9])(\d{1,2})[-\/.](\d{1,2})(?:[-\/.](\d{4}|\d{2}))?(?![0-9])/);
+  if(!m)return null;
+  var d=parseInt(m[1],10),mo=parseInt(m[2],10);if(!(d>=1&&d<=31&&mo>=1&&mo<=12))return null;
+  var y=m[3]?(m[3].length===2?2000+parseInt(m[3],10):parseInt(m[3],10)):anio;if(!y)return null;
+  return{iso:y+'-'+('0'+mo).slice(-2)+'-'+('0'+d).slice(-2),conAnio:!!m[3]};
+}
+// Una hoja: {nombre, filas: arreglo de filas (arreglo de celdas)} · ctx: {anio, archivo, mapa}. Devuelve {formato, fecha, fechaCabecera, filas, avisos, sinEstatus} o null si no parece una hoja de reportabilidad.
+function reportabilidadParsearHoja(hoja,ctx){
+  var c=ctx||{},filas=hoja.filas||[],hi=-1,cols={};
+  for(var i=0;i<Math.min(filas.length,10)&&hi<0;i++){
+    var nr=(filas[i]||[]).map(_repNorm);
+    if(nr.indexOf('sigla')>=0||nr.indexOf('equipo')>=0){hi=i;nr.forEach(function(x,j){if(x&&cols[x]===undefined)cols[x]=j;});}
+  }
+  if(hi<0)return null;
+  var col=function(){for(var k=0;k<arguments.length;k++)if(cols[arguments[k]]!==undefined)return cols[arguments[k]];return -1;};
+  var cSig=col('sigla','equipo'),cCen=col('sigla cen'),cMod=col('marca modelo'),cEst=col('estatus'),cUb=col('ubicacion'),cDet=col('detalle'),cFd=col('fecha detencion','detencion'),cPr=col('fecha proyeccion','proyeccion'),
+    cOc=col('orden de compra'),cOb=col('observacion'),cMa=col('mantenedor');
+  if(cSig<0||cEst<0)return null;
+  var cabecera=null;for(var h=0;h<hi+1&&!cabecera;h++)(filas[h]||[]).forEach(function(x){if(!cabecera){var f=_repFechaISO(x);if(f&&/^20\d\d-/.test(f)&&(x instanceof Date||typeof x==='number'))cabecera=f;}});
+  var anio=(cabecera?parseInt(cabecera.slice(0,4),10):null)||c.anio||null;
+  var fn=reportabilidadFechaDeNombre(hoja.nombre,anio),fa=reportabilidadFechaDeNombre(c.archivo,anio);
+  // el nombre manda (la celda de fecha del encabezado suele quedar sin actualizar al copiar la hoja); si la hoja no trae fecha en el nombre se usa la del archivo
+  var fecha=(fn&&fn.iso)||(fa&&fa.iso)||cabecera;
+  var avisos=[];
+  if(!fecha)return{formato:cCen>=0?'libro':'diario',fecha:null,fechaCabecera:cabecera,filas:[],avisos:['no se pudo determinar la fecha de la hoja'],sinEstatus:0};
+  if(cabecera&&cabecera!==fecha)avisos.push('la fecha de la cabecera ('+cabecera+') no coincide con la del nombre ('+fecha+'): se usó la del nombre');
+  var mapa=c.mapa||{},out=[],sinEstatus=0,g=function(r,j){return j>=0?r[j]:null;};
+  filas.slice(hi+1).forEach(function(r){
+    if(!r)return;var sg=String(g(r,cSig)==null?'':g(r,cSig)).trim();
+    if(!sg||/^total/i.test(sg)||/^\d+$/.test(sg))return;
+    var est=_repEstatus(g(r,cEst));if(!est){sinEstatus++;return;}
+    var cen=String(g(r,cCen)==null?'':g(r,cCen)).trim();
+    var sigla=cen||mapa[sg]||REPORTAB_MAPA_SIGLAS[sg]||sg;
+    var tx=function(j){var v=g(r,j);return v==null?'':String(v).replace(/\s+/g,' ').trim();};
+    out.push({fecha:fecha,sigla:sigla,siglaCliente:sg!==sigla?sg:'',estatus:est,ubicacion:tx(cUb),detalle:est==='FS'?tx(cDet):'',fechaDetencion:est==='FS'?_repFechaISO(g(r,cFd)):null,
+      proyeccion:est==='FS'?_repFechaISO(g(r,cPr)):null,ordenCompra:tx(cOc),observacion:tx(cOb),mantenedor:tx(cMa),modelo:tx(cMod)});
+  });
+  return{formato:cCen>=0||cols['fecha detencion']!==undefined?'libro':'diario',fecha:fecha,fechaCabecera:cabecera,filas:out,avisos:avisos,sinEstatus:sinEstatus};
+}
+// Varias hojas (de uno o más archivos): [{nombre, archivo, filas}] · o: {anio, siglasPrograma:[], siglasRetiradas:[], excluir:[]}.
+// Une todo en filas únicas por fecha+sigla. Si dos hojas traen el mismo día gana la que tiene más equipos (el libro del cliente sobre un archivo parcial) y se informa el conflicto.
+// Una hoja con la misma información que otra de otro día y con la fecha de cabecera distinta a la de su nombre es probablemente una copia sin actualizar: se descarta (`posibleCopia`).
+function reportabilidadArmarLote(hojas,o){
+  var op=o||{},mapa={},parsed=[],ignoradas=[],duplicadas=0;
+  // aprender cruces sigla-cliente → sigla-programa de las hojas que traen ambas columnas
+  (hojas||[]).forEach(function(h){
+    var fl=h.filas||[];for(var i=0;i<Math.min(fl.length,10);i++){var nr=(fl[i]||[]).map(_repNorm),a=nr.indexOf('sigla'),b=nr.indexOf('sigla cen');
+      if(a>=0&&b>=0){fl.slice(i+1).forEach(function(r){if(r&&r[a]&&r[b]){var k=String(r[a]).trim(),v=String(r[b]).trim();if(k&&v&&k!==v)mapa[k]=v;}});break;}}
+  });
+  (hojas||[]).forEach(function(h){
+    var p=reportabilidadParsearHoja(h,{anio:op.anio,archivo:h.archivo,mapa:mapa});
+    if(!p){ignoradas.push(h.nombre);return;}
+    p.nombre=h.nombre;p.archivo=h.archivo||'';parsed.push(p);
+  });
+  var firma=function(p){return p.filas.map(function(x){return x.sigla+':'+x.estatus+':'+(x.fechaDetencion||'')+':'+x.detalle;}).sort().join('|');};
+  parsed.forEach(function(p){
+    p.posibleCopia=false;
+    if(!p.fecha||!p.filas.length)return;
+    var f=firma(p);
+    parsed.forEach(function(q){if(q!==p&&q.fecha&&q.fecha!==p.fecha&&firma(q)===f&&p.fechaCabecera&&p.fechaCabecera!==p.fecha&&p.fechaCabecera===q.fecha)p.posibleCopia=true;});
+  });
+  var porDia={},conflictos=[];
+  parsed.filter(function(p){return p.fecha&&!p.posibleCopia;}).forEach(function(p){(porDia[p.fecha]=porDia[p.fecha]||[]).push(p);});
+  var finales={},hojasInfo=[];
+  Object.keys(porDia).sort().forEach(function(f){
+    var lst=porDia[f].slice().sort(function(a,b){return b.filas.length-a.filas.length;}),ganadora=lst[0];
+    lst.slice(1).forEach(function(q){
+      var dif=0,mg={};ganadora.filas.forEach(function(x){mg[x.sigla]=x.estatus+'|'+(x.fechaDetencion||'')+'|'+x.detalle;});q.filas.forEach(function(x){if(mg[x.sigla]!==undefined&&mg[x.sigla]!==x.estatus+'|'+(x.fechaDetencion||'')+'|'+x.detalle)dif++;});
+      if(dif>0)conflictos.push({fecha:f,usada:ganadora.archivo+' / '+ganadora.nombre,descartada:q.archivo+' / '+q.nombre,equiposConEstatusDistinto:dif});else duplicadas++;
+      q.descartada=true;
+    });
+    ganadora.filas.forEach(function(x){finales[f+'|'+x.sigla]=x;});
+  });
+  var prog=op.siglasPrograma||null,ret=op.siglasRetiradas||[],excl=op.excluir||[],desconocidas={},filas=[];
+  Object.keys(finales).sort().forEach(function(k){
+    var x=finales[k];
+    if(excl.indexOf(x.sigla)>=0)return;
+    if(prog&&prog.indexOf(x.sigla)<0&&ret.indexOf(x.sigla)<0){desconocidas[x.sigla]=(desconocidas[x.sigla]||0)+1;return;}
+    filas.push(x);
+  });
+  parsed.forEach(function(p){hojasInfo.push({nombre:p.nombre,archivo:p.archivo,formato:p.formato,fecha:p.fecha,equipos:p.filas.length,fs:p.filas.filter(function(x){return x.estatus==='FS';}).length,
+    sinEstatus:p.sinEstatus,avisos:p.avisos,posibleCopia:!!p.posibleCopia,descartada:!!p.descartada});});
+  return{filas:filas,hojas:hojasInfo,conflictos:conflictos,duplicadasIdenticas:duplicadas,desconocidas:desconocidas,ignoradas:ignoradas};
+}
+// Compara las filas nuevas con las ya guardadas (clave fecha+sigla, ids = existentes[i]._id): {insertar, actualizar:[{_id, fila}], iguales}. Cargar de nuevo lo mismo no cambia nada.
+function reportabilidadFusionar(existentes,nuevas){
+  var ix={};(existentes||[]).forEach(function(e){ix[e.fecha+'|'+e.sigla]=e;});
+  var campos=['siglaCliente','estatus','ubicacion','detalle','fechaDetencion','proyeccion','ordenCompra','observacion','mantenedor'];
+  var ins=[],act=[],ig=0;
+  (nuevas||[]).forEach(function(n){
+    var e=ix[n.fecha+'|'+n.sigla];
+    if(!e){ins.push(n);return;}
+    var distinto=campos.some(function(k){return String(e[k]==null?'':e[k])!==String(n[k]==null?'':n[k]);});
+    if(distinto)act.push({_id:e._id,fila:n});else ig++;
+  });
+  return{insertar:ins,actualizar:act,iguales:ig};
+}
+// Disponibilidad por día en [desde,hasta] (ISO) a partir de las filas guardadas. o: {excluir:[siglas], hoy}. Disponibilidad del día = OP ÷ (OP+FS) de los equipos reportados ese día.
+function reportabilidadDisponibilidad(filas,desde,hasta,o){
+  var op=o||{},excl=op.excluir||[],por={};
+  (filas||[]).forEach(function(r){
+    if(!r||r.fecha<desde||r.fecha>hasta||excl.indexOf(r.sigla)>=0)return;
+    var d=por[r.fecha]||(por[r.fecha]={fecha:r.fecha,op:0,fs:0,fsSiglas:[]});
+    if(r.estatus==='FS'){d.fs++;d.fsSiglas.push(r.sigla);}else if(r.estatus==='OP')d.op++;
+  });
+  var dias=Object.keys(por).sort().map(function(f){var d=por[f],t=d.op+d.fs;d.total=t;d.disp=t>0?d.op/t:null;d.fsSiglas.sort();return d;});
+  var conDato=dias.filter(function(d){return d.disp!=null;});
+  var prom=conDato.length?conDato.reduce(function(a,d){return a+d.disp;},0)/conDato.length:null;
+  var hoy=op.hoy||hasta,fin=hasta<hoy?hasta:hoy,nDias=desde>fin?0:Math.round((new Date(fin+'T12:00:00')-new Date(desde+'T12:00:00'))/86400000)+1;
+  var fsDias={};dias.forEach(function(d){d.fsSiglas.forEach(function(s){fsDias[s]=(fsDias[s]||0)+1;});});
+  var ranking=Object.keys(fsDias).map(function(s){return{sigla:s,dias:fsDias[s]};}).sort(function(a,b){return b.dias-a.dias||a.sigla.localeCompare(b.sigla);});
+  return{dias:dias,diasConDato:conDato.length,diasPeriodo:nDias,cobertura:nDias>0?conDato.length/nDias:null,promedio:prom,
+    minimo:conDato.length?conDato.reduce(function(a,d){return d.disp<a.disp?d:a;}):null,maximo:conDato.length?conDato.reduce(function(a,d){return d.disp>a.disp?d:a;}):null,ranking:ranking};
+}
+// Episodios de FS por equipo: filas consecutivas FS con la misma fecha de detención. Para cada uno: primera y última vez visto, detalle, proyecciones en orden (cada cambio es una reprogramación),
+// si terminó (hay un OP posterior del equipo; la fecha de término real está entre la última vez FS y ese primer OP) y si cumplió su última proyección. `hoy` = último día con datos.
+function reportabilidadEpisodios(filas){
+  var por={},ultimoDato='';
+  (filas||[]).forEach(function(r){if(!r)return;(por[r.sigla]=por[r.sigla]||[]).push(r);if(r.fecha>ultimoDato)ultimoDato=r.fecha;});
+  var out=[];
+  Object.keys(por).forEach(function(s){
+    var l=por[s].slice().sort(function(a,b){return a.fecha<b.fecha?-1:1;}),cur=null;
+    l.forEach(function(r,i){
+      if(r.estatus==='FS'){
+        if(cur&&cur.fechaDetencion===(r.fechaDetencion||null)&&r.fechaDetencion){cur.ultimaVez=r.fecha;cur.diasVistos++;if(r.detalle)cur.detalle=r.detalle;if(r.observacion)cur.observacion=r.observacion;if(r.ordenCompra)cur.ordenCompra=r.ordenCompra;
+          if(r.proyeccion&&cur.proyecciones[cur.proyecciones.length-1]!==r.proyeccion)cur.proyecciones.push(r.proyeccion);}
+        else{cur={sigla:s,fechaDetencion:r.fechaDetencion||null,primeraVez:r.fecha,ultimaVez:r.fecha,diasVistos:1,detalle:r.detalle||'',observacion:r.observacion||'',ordenCompra:r.ordenCompra||'',proyecciones:r.proyeccion?[r.proyeccion]:[],_i:i};out.push(cur);}
+      }else cur=null;
+    });
+  });
+  out.forEach(function(e){
+    var l=por[e.sigla].slice().sort(function(a,b){return a.fecha<b.fecha?-1:1;});
+    var op=l.filter(function(r){return r.estatus==='OP'&&r.fecha>e.ultimaVez;})[0];
+    e.cerrado=!!op;e.primerOP=op?op.fecha:null;e.reprogramaciones=Math.max(0,e.proyecciones.length-1);
+    e.proyeccionFinal=e.proyecciones.length?e.proyecciones[e.proyecciones.length-1]:null;
+    if(e.proyeccionFinal){
+      if(e.cerrado)e.cumplioProyeccion=e.primerOP<=e.proyeccionFinal||e.ultimaVez<=e.proyeccionFinal&&e.primerOP<=addDiasISO_(e.proyeccionFinal,2);
+      else e.cumplioProyeccion=e.proyeccionFinal>=ultimoDato?null:false;      // abierto: null = aún dentro de plazo; false = proyección vencida
+      e.diasVencida=(!e.cerrado&&e.proyeccionFinal<ultimoDato)?Math.round((new Date(ultimoDato+'T12:00:00')-new Date(e.proyeccionFinal+'T12:00:00'))/86400000):0;
+    }else{e.cumplioProyeccion=null;e.diasVencida=0;}
+    delete e._i;
+  });
+  return out.sort(function(a,b){return a.primeraVez<b.primeraVez?1:a.primeraVez>b.primeraVez?-1:a.sigla.localeCompare(b.sigla);});
+}
+function addDiasISO_(iso,n){return new Date(new Date(iso+'T12:00:00').getTime()+n*86400000).toISOString().slice(0,10);}
+
 // ═══ CURVA S DE PM Y CUMPLIMIENTO DEL PROGRAMA (2026-10-11) ═══
 // Compara, día a día y de forma ACUMULADA, el trabajo de PM planificado contra el ejecutado, ponderado por HORAS: un PM4 pesa 12 h y un PM1 3 h (duraciones estándar del usuario, editables en
 // Configuración → cfg.duracionPMHoras), no "1 PM = 1". El plan sale del propio calendario de PM: los hitos de horómetro (múltiplos de la frecuencia de cada equipo, con el tipo que corresponde a
@@ -5370,6 +5538,21 @@ function periodoRango(tipo,ref){
   if(tipo==='semestre'){var s1=m<=6;return{tipo:tipo,desde:y+(s1?'-01-01':'-07-01'),hasta:s1?y+'-06-30':y+'-12-31'};}
   if(tipo==='anio')return{tipo:tipo,desde:y+'-01-01',hasta:y+'-12-31'};
   return{tipo:'mes',desde:f.slice(0,7)+'-01',hasta:fin(y,m)};
+}
+var _PER_MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function periodoEtiqueta(tipo,desde,hasta){
+  var f=function(iso){return parseInt(iso.slice(8,10),10)+'-'+_PER_MESES[parseInt(iso.slice(5,7),10)-1];};
+  if(tipo==='semana')return'Semana del '+f(desde)+' al '+f(hasta)+' de '+hasta.slice(0,4);
+  if(tipo==='semestre')return(desde.slice(5,7)==='01'?'1.er':'2.º')+' semestre '+desde.slice(0,4);
+  if(tipo==='anio')return'Año '+desde.slice(0,4);
+  return _PER_MESES[parseInt(desde.slice(5,7),10)-1]+' '+desde.slice(0,4);
+}
+// Períodos elegibles de cada tipo para un selector: el siguiente, el actual y los anteriores ([{v: fecha de inicio, label}]).
+function periodoOpciones(tipo,hoy){
+  var cant=tipo==='semana'?26:tipo==='mes'?24:tipo==='semestre'?6:4,out=[],cur=periodoRango(tipo,hoy),sig=periodoRango(tipo,_fechaMas(cur.hasta,1));
+  out.push({v:sig.desde,label:periodoEtiqueta(tipo,sig.desde,sig.hasta)+' (próximo)'});
+  for(var i=0;i<cant;i++){out.push({v:cur.desde,label:periodoEtiqueta(tipo,cur.desde,cur.hasta)+(i===0?' (actual)':'')});cur=periodoRango(tipo,_fechaMas(cur.desde,-1));}
+  return out;
 }
 // d: {reg, hist, hoy (ISO)} · o: {periodo: 'semana'|'mes'|'semestre'|'anio' + ref (fecha ISO dentro del período), o bien desde/hasta, o bien mes 'YYYY-MM'; duraciones ({PM1..PM4}: horas)}
 function curvaSPM(equipos,d,o){
@@ -9102,7 +9285,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, curvaSPM, periodoRango, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

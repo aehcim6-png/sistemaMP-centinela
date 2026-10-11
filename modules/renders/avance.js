@@ -108,24 +108,8 @@ function _avanceCurvaSVG(c) {
 }
 var _MESES_L = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 function _curvaFmt(iso) { return parseInt(iso.slice(8, 10), 10) + '-' + _MESES_L[parseInt(iso.slice(5, 7), 10) - 1]; }
-function _curvaEtiqueta(tipo, desde, hasta) {
-  if (tipo === 'semana') return 'Semana del ' + _curvaFmt(desde) + ' al ' + _curvaFmt(hasta) + ' de ' + hasta.slice(0, 4);
-  if (tipo === 'semestre') return (desde.slice(5, 7) === '01' ? '1.er' : '2.º') + ' semestre ' + desde.slice(0, 4);
-  if (tipo === 'anio') return 'Año ' + desde.slice(0, 4);
-  return _MESES_L[parseInt(desde.slice(5, 7), 10) - 1] + ' ' + desde.slice(0, 4);
-}
+var _curvaEtiqueta = periodoEtiqueta, _curvaOpciones = periodoOpciones;   // logic.js (el selector de Disponibilidad usa los mismos)
 function _sumarDias(iso, n) { return new Date(new Date(iso + 'T12:00:00').getTime() + n * 86400000).toISOString().slice(0, 10); }
-// Períodos elegibles de cada tipo: el siguiente (para ver el plan por delante), el actual y los anteriores. Valor = fecha de inicio.
-function _curvaOpciones(tipo, hoy) {
-  var cant = tipo === 'semana' ? 26 : tipo === 'mes' ? 24 : tipo === 'semestre' ? 6 : 4, out = [], cur = periodoRango(tipo, hoy);
-  var sig = periodoRango(tipo, _sumarDias(cur.hasta, 1));
-  out.push({ v: sig.desde, label: _curvaEtiqueta(tipo, sig.desde, sig.hasta) + ' (próximo)' });
-  for (var i = 0; i < cant; i++) {
-    out.push({ v: cur.desde, label: _curvaEtiqueta(tipo, cur.desde, cur.hasta) + (i === 0 ? ' (actual)' : '') });
-    cur = periodoRango(tipo, _sumarDias(cur.desde, -1));
-  }
-  return out;
-}
 function _avanceCurvaSHTML(fMes, eq, reg, meses) {
   try {
     if (typeof curvaSPM !== 'function') return '';

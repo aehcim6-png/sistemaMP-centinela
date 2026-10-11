@@ -439,6 +439,7 @@ export function renderDisp(){
     '<div class="sec-s" title="Disponibilidad = (horas disponibles del día − horas caídas) / horas disponibles, promediado por período. Cuando un registro no tiene duración registrada se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — estimación, no dato medido.">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable · <span style="text-decoration:underline dotted">sin duración registrada = 4h/8h asumidas</span></div></div>'+
     '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
+    dispReportabHTML(eq)+
     prodPerdidaHTML+
     monteCarloHTML+
     pronosticoHTML+
@@ -454,6 +455,137 @@ export function renderDisp(){
     content;
   if(typeof _animGauges==='function')_animGauges('s-disp');
 }
+
+
+// ═══ REPORTABILIDAD DIARIA DEL CLIENTE (2026-10-11) ═══ — ver reportabilidad* (logic.js). Una fila por equipo y día (OP/FS) en reportabilidad_diaria; se puede cargar cualquier fecha
+// en cualquier orden y cargar un día de nuevo lo actualiza (no duplica). Importa los dos formatos de Excel del cliente (un archivo por día, o un libro con una hoja por día).
+function _repTxt(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+export function dispReportabHTML(eq) {
+  var filas = S.g('reportab') || [], meta = S.g('dispMeta') || 85, hoy = new Date().toISOString().slice(0, 10);
+  var tipo = $('fRepTipo') ? $('fRepTipo').value : 'mes';
+  var opts = periodoOpciones(tipo, hoy), ref = $('fRepRef') ? $('fRepRef').value : '';
+  if (window._repTipoPrev !== tipo || !opts.some(function (x) { return x.v === ref; })) ref = periodoRango(tipo, hoy).desde;
+  window._repTipoPrev = tipo;
+  var rg = periodoRango(tipo, ref), etq = periodoEtiqueta(tipo, rg.desde, rg.hasta);
+  var fechasCargadas = Array.from(new Set(filas.map(function (r) { return r.fecha; }))).sort();
+  var cab = '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:14px"><div class="chart-t">📋 Reportabilidad diaria del cliente — disponibilidad contractual · ' + escapeHtml(etq) + '</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 8px;line-height:1.5">Estatus OP / FS de cada equipo por día, tal como lo reporta el cliente (Excel de reportabilidad). Disponibilidad del día = equipos operativos ÷ equipos reportados. ' +
+    (fechasCargadas.length ? 'Cargados <b>' + fn(fechasCargadas.length) + '</b> días, del ' + escapeHtml(fechasCargadas[0]) + ' al ' + escapeHtml(fechasCargadas[fechasCargadas.length - 1]) + '. ' : '') +
+    'Puedes cargar archivos de cualquier fecha cuando los encuentres: un día que ya está cargado se actualiza, no se duplica.</div>' +
+    '<div class="toolbar" style="margin:0 0 10px;gap:8px;flex-wrap:wrap">' + (window._userRole === 'lector' ? '' : '<label class="btn" style="cursor:pointer">⬆️ Importar reportabilidad (Excel)<input type="file" accept=".xlsx,.xls" multiple style="display:none" onchange="importarReportabilidad(event)"></label>') +
+    (fechasCargadas.length ? '<select id="fRepDiaExp" title="Día a exportar">' + fechasCargadas.slice().reverse().map(function (f) { return '<option>' + f + '</option>'; }).join('') + '</select><button class="btn btn-o" onclick="exportarReportabilidadDia()">⬇️ Exportar ese día (Excel)</button>' : '') +
+    '<select id="fRepTipo" onchange="renders.disp()">' + [['semana', 'Semana'], ['mes', 'Mes'], ['semestre', 'Semestre'], ['anio', 'Año']].map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === tipo ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select>' +
+    '<select id="fRepRef" onchange="renders.disp()">' + opts.map(function (x) { return '<option value="' + x.v + '"' + (x.v === ref ? ' selected' : '') + '>' + escapeHtml(x.label) + '</option>'; }).join('') + '</select></div>';
+  if (!filas.length) return cab + '<div style="font-size:12px;color:var(--tx3);padding:4px 0">Todavía no hay reportabilidad cargada. Usa "Importar reportabilidad" con los Excel del cliente.</div></div>';
+  var r = reportabilidadDisponibilidad(filas, rg.desde, rg.hasta, { hoy: hoy });
+  if (!r.dias.length) return cab + '<div style="font-size:12px;color:var(--tx3);padding:4px 0">No hay días cargados dentro de este período. ' + (hoy > rg.hasta ? 'Si tienes reportes de esas fechas, impórtalos con el botón de arriba.' : '') + '</div></div>';
+  var pf = function (x) { return x == null ? '—' : (Math.round(x * 1000) / 10 + '').replace('.', ',') + '%'; };
+  var col = function (x) { return x == null ? 'var(--tx3)' : x * 100 >= meta ? 'var(--ok)' : x * 100 >= meta - 10 ? 'var(--w)' : 'var(--danger)'; };
+  var tarj = function (t, v, s, c) { return '<div class="card"><div class="card-t">' + t + '</div><div class="card-v" style="' + (c ? 'color:' + c : '') + '">' + v + '</div><div class="card-s">' + s + '</div></div>'; };
+  var tarjetas = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-bottom:10px">' +
+    tarj('Disponibilidad promedio', pf(r.promedio), 'promedio de los días con reporte · meta ' + meta + '%', col(r.promedio)) +
+    tarj('Días con reporte', fn(r.diasConDato) + ' de ' + fn(r.diasPeriodo), r.diasPeriodo && r.diasConDato < r.diasPeriodo ? 'faltan ' + fn(r.diasPeriodo - r.diasConDato) + ' días (puedes cargarlos después)' : 'período completo', r.cobertura != null && r.cobertura < 0.8 ? 'var(--w)' : '') +
+    tarj('Mejor día', r.maximo ? pf(r.maximo.disp) : '—', r.maximo ? escapeHtml(r.maximo.fecha) : '', 'var(--ok)') +
+    tarj('Peor día', r.minimo ? pf(r.minimo.disp) : '—', r.minimo ? escapeHtml(r.minimo.fecha) + ' · ' + fn(r.minimo.fs) + ' FS' : '', col(r.minimo && r.minimo.disp)) + '</div>';
+  // gráfico: una barra por día con reporte, ubicada en su fecha; línea de meta
+  var W = 680, H = 230, pl = 40, pr = 10, pt = 12, pb = 34, iw = W - pl - pr, ih = H - pt - pb, n = Math.max(1, r.diasPeriodo || r.dias.length);
+  var X = function (f) { return pl + ((new Date(f + 'T12:00:00') - new Date(rg.desde + 'T12:00:00')) / 86400000 + 0.5) / n * iw; }, Y = function (v) { return pt + ih - v * ih; };
+  var bw = Math.max(2, Math.min(18, iw / n * 0.7));
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Disponibilidad diaria según la reportabilidad del cliente" style="display:block;max-width:820px">';
+  [0, 0.25, 0.5, 0.75, 1].forEach(function (g) { svg += '<line x1="' + pl + '" y1="' + Y(g) + '" x2="' + (W - pr) + '" y2="' + Y(g) + '" stroke="var(--bd)" opacity=".6"/><text x="' + (pl - 6) + '" y="' + (Y(g) + 3) + '" text-anchor="end" font-size="10" fill="var(--tx3)">' + Math.round(g * 100) + '</text>'; });
+  r.dias.forEach(function (d) { svg += '<rect x="' + (X(d.fecha) - bw / 2) + '" y="' + Y(d.disp) + '" width="' + bw + '" height="' + (ih * d.disp) + '" rx="2" fill="' + col(d.disp) + '"><title>' + d.fecha + ' · ' + pf(d.disp) + ' · ' + d.op + ' OP / ' + d.fs + ' FS' + (d.fsSiglas.length ? ' (' + d.fsSiglas.join(', ') + ')' : '') + '</title></rect>'; });
+  svg += '<line x1="' + pl + '" y1="' + Y(meta / 100) + '" x2="' + (W - pr) + '" y2="' + Y(meta / 100) + '" stroke="var(--tx2)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="' + (W - pr) + '" y="' + (Y(meta / 100) - 4) + '" text-anchor="end" font-size="10" fill="var(--tx2)">meta ' + meta + '%</text>';
+  var MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'], paso = tipo === 'semana' ? 1 : tipo === 'mes' ? 5 : 0;
+  for (var i = 0; i < n; i++) {
+    var f = new Date(new Date(rg.desde + 'T12:00:00').getTime() + i * 86400000).toISOString().slice(0, 10), dn = parseInt(f.slice(8, 10), 10), lab = null;
+    if (paso) { if (tipo === 'semana' || dn === 1 || dn % paso === 0) lab = '' + dn; } else if (dn === 1) lab = MES[parseInt(f.slice(5, 7), 10) - 1];
+    if (lab) svg += '<text x="' + X(f) + '" y="' + (H - pb + 14) + '" text-anchor="middle" font-size="10" fill="var(--tx3)">' + lab + '</text>';
+  }
+  svg += '</svg>';
+  var eps = reportabilidadEpisodios(filas).filter(function (e) { return e.ultimaVez >= rg.desde && e.primeraVez <= rg.hasta; });
+  var rank = r.ranking.slice(0, 10).map(function (x) { return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(x.sigla) + '</td><td class="mono" style="text-align:right">' + fn(x.dias) + ' de ' + fn(r.diasConDato) + '</td><td class="mono" style="text-align:right">' + Math.round(x.dias / r.diasConDato * 100) + '%</td></tr>'; }).join('');
+  var filasEp = eps.slice(0, 20).map(function (e) {
+    var est = e.cerrado ? '<span style="color:var(--ok)">cerrado</span>' : (e.diasVencida > 0 ? '<span style="color:var(--danger)">abierto · proyección vencida hace ' + fn(e.diasVencida) + ' d</span>' : '<span style="color:var(--w)">abierto</span>');
+    return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(e.sigla) + '</td><td style="font-size:10px;white-space:nowrap">' + escapeHtml(e.fechaDetencion || e.primeraVez) + '</td><td style="font-size:10px">' + escapeHtml(e.detalle || '—') + '</td>' +
+      '<td class="mono" style="text-align:right">' + fn(e.diasVistos) + '</td><td class="mono" style="text-align:right;font-size:10px">' + escapeHtml(e.proyeccionFinal || '—') + (e.reprogramaciones ? ' <span style="color:var(--w)" title="Veces que cambió la fecha de proyección">(' + e.reprogramaciones + ' reprog.)</span>' : '') + '</td><td style="font-size:10px">' + est + '</td>' +
+      '<td style="font-size:10px;max-width:360px;white-space:normal;color:var(--tx2)" title="' + escapeHtml(e.observacion) + '">' + escapeHtml(_repTxt(e.observacion, 140)) + '</td></tr>';
+  }).join('');
+  var diaria = '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:11px;color:var(--tx2)">Ver tabla diaria</summary><div class="tbl-wrap"><table style="font-size:10px"><tr><th>Día</th><th style="text-align:right">OP</th><th style="text-align:right">FS</th><th style="text-align:right">Disponibilidad</th><th>Equipos FS</th></tr>' +
+    r.dias.map(function (d) { return '<tr><td class="mono">' + d.fecha + '</td><td class="mono" style="text-align:right">' + d.op + '</td><td class="mono" style="text-align:right">' + d.fs + '</td><td class="mono" style="text-align:right;color:' + col(d.disp) + ';font-weight:700">' + pf(d.disp) + '</td><td style="font-size:10px">' + escapeHtml(d.fsSiglas.join(', ')) + '</td></tr>'; }).join('') + '</table></div></details>';
+  return cab + tarjetas + svg +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:12px"><div><div style="font-weight:700;font-size:12px;margin-bottom:4px">Equipos con más días fuera de servicio</div><div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th style="text-align:right">Días FS</th><th style="text-align:right">%</th></tr>' + (rank || '<tr><td colspan="3" style="color:var(--tx3)">Sin fuera de servicio en el período</td></tr>') + '</table></div></div></div>' +
+    '<div style="font-weight:700;font-size:12px;margin:12px 0 4px">Fuera de servicio del período — detalle y seguimiento de la proyección</div><div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Desde</th><th>Detalle</th><th style="text-align:right">Días vistos</th><th style="text-align:right">Proyección final</th><th>Estado</th><th>Observación</th></tr>' + (filasEp || '<tr><td colspan="7" style="color:var(--tx3)">Sin episodios en el período</td></tr>') + '</table></div>' +
+    '<div style="font-size:10px;color:var(--tx3);margin-top:4px">"Días vistos" son los días con reporte cargado (puede haber huecos). Una proyección cuenta como cumplida si el equipo figura operativo a más tardar 2 días después de la fecha proyectada. Los registros son los del cliente: el programa no los corrige.</div>' + diaria + '</div>';
+}
+
+// Lee uno o más archivos (.xlsx de cualquiera de los dos formatos), arma el lote y muestra qué se va a cargar antes de escribir nada.
+export function importarReportabilidad(ev) {
+  var files = Array.prototype.slice.call(ev.target.files || []); ev.target.value = '';
+  if (!files.length) return;
+  var hojas = [], pend = files.length;
+  files.forEach(function (file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        wb.SheetNames.forEach(function (nombre) {
+          var filas = XLSX.utils.sheet_to_json(wb.Sheets[nombre], { header: 1, raw: true, defval: null });
+          hojas.push({ nombre: nombre, archivo: file.name, filas: filas });
+        });
+      } catch (err) { toast('❌ No se pudo leer ' + file.name + ': ' + err.message); }
+      if (--pend === 0) _repPrevisualizar(hojas);
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+function _repPrevisualizar(hojas) {
+  var eq = S.g('eq') || [], exist = S.g('reportab') || [];
+  var retiradas = (S.g('papelera') || []).filter(function (p) { return p.categoria === 'eq' && p.fila; }).map(function (p) { return p.fila.sigla; });
+  exist.forEach(function (r) { if (retiradas.indexOf(r.sigla) < 0 && !eq.some(function (e) { return e.sigla === r.sigla; })) retiradas.push(r.sigla); });   // lo ya cargado de equipos que hoy no están
+  var lote = reportabilidadArmarLote(hojas, { anio: new Date().getFullYear(), siglasPrograma: eq.map(function (e) { return e.sigla; }), siglasRetiradas: retiradas });
+  var fus = reportabilidadFusionar(exist, lote.filas);
+  window._reportabLote = { fus: fus, filas: lote.filas };
+  var dias = Array.from(new Set(lote.filas.map(function (x) { return x.fecha; }))).sort();
+  var h = '<h3>Importar reportabilidad diaria</h3>';
+  if (!lote.filas.length) { sm(h + '<div style="font-size:12px;color:var(--tx3)">No encontré hojas de reportabilidad en los archivos (se espera una tabla con columnas Sigla/Equipo y Estatus).</div><div style="margin-top:12px"><button class="btn btn-o" onclick="cm()">Cerrar</button></div>'); return; }
+  h += '<div style="font-size:12px;line-height:1.6;margin-bottom:8px">' + fn(dias.length) + ' día(s): ' + escapeHtml(dias[0]) + (dias.length > 1 ? ' → ' + escapeHtml(dias[dias.length - 1]) : '') + ' · ' + fn(lote.filas.length) + ' filas.<br>' +
+    '<b style="color:var(--ok)">' + fn(fus.insertar.length) + ' nuevas</b> · <b style="color:var(--w)">' + fn(fus.actualizar.length) + ' actualizan lo ya cargado</b> · ' + fn(fus.iguales) + ' sin cambios.</div>';
+  var av = [];
+  lote.hojas.filter(function (x) { return x.posibleCopia; }).forEach(function (x) { av.push('⚠ ' + escapeHtml(x.archivo + ' / ' + x.nombre) + ' (' + escapeHtml(x.fecha) + '): parece una copia sin actualizar de otro día (misma información, fecha de cabecera de otro día). Se omitió.'); });
+  lote.conflictos.forEach(function (c) { av.push('⚠ ' + escapeHtml(c.fecha) + ': dos archivos traen ese día y difieren en ' + c.equiposConEstatusDistinto + ' equipo(s); se usó ' + escapeHtml(c.usada) + '.'); });
+  if (lote.duplicadasIdenticas) av.push('ℹ ' + fn(lote.duplicadasIdenticas) + ' hoja(s) repetida(s) idéntica(s) se ignoraron.');
+  var desc = Object.keys(lote.desconocidas); if (desc.length) av.push('ℹ Equipos que no están en el programa (no se cargan): ' + desc.map(function (s) { return escapeHtml(s) + ' (' + lote.desconocidas[s] + ')'; }).join(', ') + '.');
+  if (lote.ignoradas.length) av.push('ℹ Hojas ignoradas (sin tabla de reportabilidad): ' + lote.ignoradas.map(escapeHtml).join(', ') + '.');
+  lote.hojas.forEach(function (x) { x.avisos.forEach(function (a) { if (av.length < 14) av.push('· ' + escapeHtml(x.nombre) + ': ' + escapeHtml(a)); }); });
+  h += '<div style="font-size:11px;color:var(--tx2);line-height:1.5;max-height:200px;overflow:auto">' + av.slice(0, 14).map(function (a) { return '<div>' + a + '</div>'; }).join('') + '</div>' +
+    '<div style="margin-top:12px;display:flex;gap:8px"><button class="btn" onclick="confirmarImportReportabilidad()"' + (fus.insertar.length + fus.actualizar.length ? '' : ' disabled') + '>✅ Cargar</button><button class="btn btn-o" onclick="cm()">Cancelar</button></div>';
+  sm(h);
+}
+export function confirmarImportReportabilidad() {
+  var l = window._reportabLote; if (!l) return;
+  var exist = (S.g('reportab') || []).slice();
+  l.fus.actualizar.forEach(function (a) { var x = exist.find(function (e) { return e._id === a._id; }); if (x) Object.assign(x, { siglaCliente: a.fila.siglaCliente, estatus: a.fila.estatus, ubicacion: a.fila.ubicacion, detalle: a.fila.detalle, fechaDetencion: a.fila.fechaDetencion, proyeccion: a.fila.proyeccion, ordenCompra: a.fila.ordenCompra, observacion: a.fila.observacion, mantenedor: a.fila.mantenedor, fuente: 'importado ' + new Date().toISOString().slice(0, 10) }); });
+  l.fus.insertar.forEach(function (n) { exist.push({ _id: _uuidV4(), fecha: n.fecha, sigla: n.sigla, siglaCliente: n.siglaCliente, estatus: n.estatus, ubicacion: n.ubicacion, detalle: n.detalle, fechaDetencion: n.fechaDetencion, proyeccion: n.proyeccion, ordenCompra: n.ordenCompra, observacion: n.observacion, mantenedor: n.mantenedor, fuente: 'importado ' + new Date().toISOString().slice(0, 10) }); });
+  S.s('reportab', exist);
+  window._reportabLote = null; cm(); refreshAll();
+  toast('✅ Reportabilidad cargada: ' + l.fus.insertar.length + ' nuevas, ' + l.fus.actualizar.length + ' actualizadas');
+}
+// Exporta un día en el formato del libro del cliente (Sigla, Sigla CEN, Marca - Modelo, Estatus 1=FS 2=OP, …).
+export function exportarReportabilidadDia() {
+  var f = $('fRepDiaExp') ? $('fRepDiaExp').value : ''; if (!f) return toast('Elige un día');
+  var eq = S.g('eq') || [], filas = (S.g('reportab') || []).filter(function (r) { return r.fecha === f; }).sort(function (a, b) { return a.sigla < b.sigla ? -1 : 1; });
+  var dif = function (a, b) { return Math.round((new Date(a + 'T12:00:00') - new Date(b + 'T12:00:00')) / 86400000); };
+  var aoa = [['', 'REPORTABILIDAD DIARIA FAENA', '', '', '', '', '', '', '', '', f], ['', 'Sigla', 'Sigla CEN', 'Marca -  Modelo', 'Estatus', 'Ubicación', 'Detalle', 'Fecha Detencion', 'Dias F/S', 'Fecha Proyección', 'Orden de Compra', 'Observación']];
+  filas.forEach(function (r, i) {
+    var e = eq.find(function (x) { return x.sigla === r.sigla; });
+    aoa.push([i + 1, r.siglaCliente || r.sigla, r.sigla, e ? e.modelo : '', r.estatus === 'FS' ? 1 : 2, r.ubicacion || '', r.detalle || '', r.fechaDetencion || '', r.estatus === 'FS' && r.fechaDetencion ? dif(f, r.fechaDetencion) : '', r.proyeccion || '', r.ordenCompra || '', r.observacion || '']);
+  });
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), f.slice(8, 10) + '-' + f.slice(5, 7));
+  XLSX.writeFile(wb, 'Reportabilidad_diaria_' + f + '.xlsx');
+}
+window.importarReportabilidad = importarReportabilidad;
+window.confirmarImportReportabilidad = confirmarImportReportabilidad;
+window.exportarReportabilidadDia = exportarReportabilidadDia;
 
 // ═══ CONFIGURAR RENDIMIENTO POR MODELO (2026-09-25) ═══ — cada tipo de
 // equipo usa una fórmula de rendimiento distinta (ver logic.js), así que

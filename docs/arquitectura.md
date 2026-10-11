@@ -6459,6 +6459,26 @@ horas/día inventó 14 PM para un camión detenido); si el horómetro muestra m�
 no el tiempo real de cada tarea; el historial de horómetros arranca en dic-2025, así que no hay meses anteriores. **Pronóstico de disponibilidad:** ahora usa estas mismas horas estándar para los PM del horizonte (antes la
 mediana registrada o 4 h); lo registrado es 25–40 % menor (medianas 1,8/3,3/5,2/9,2 h), así que el pronóstico es algo más pesimista. 14 pruebas en `tests/curvaSPM.test.js`.
 
+### 122. Reportabilidad diaria del cliente (2026-10-11)
+
+**Qué es.** El cliente (Centinela) exige cada día un reporte con el estatus de todos los equipos de la faena: OP o FS, con detalle de la falla, fecha de detención, fecha de proyección de la reparación, OC y observación. Es la
+fuente contractual de la disponibilidad. Se guarda en la tabla nueva `reportabilidad_diaria` (migración `20261011170000`, aplicada en ambas bases; RLS: leen usuarios activos, escriben admin/operador): **una fila por equipo y día**
+con índice único `(fecha, sigla)`. En el programa es la categoría `reportab` (`TABLA_REAL`, recorte local por `fecha`).
+**Cargar datos antiguos después.** La clave natural fecha+sigla hace que cargar un día de nuevo lo **actualice** (misma fila, mismo id) y no lo duplique, y que se pueda cargar cualquier fecha en cualquier orden:
+`reportabilidadFusionar` clasifica lo del lote en nuevo / cambiado / igual y nunca borra. El importador muestra esa cuenta antes de escribir.
+**Lectura (`reportabilidadParsearHoja`, `reportabilidadArmarLote`, logic.js).** Entiende los dos formatos de Excel que mandó el cliente: (A) un archivo por día con la sigla del programa y estatus OP/FS, y (B) un libro con una hoja por día
+(nombre dd-mm), sigla del cliente (CE-85) y estatus 1=FS / 2=OP; desde octubre el libro trae además "Sigla CEN". El cruce sigla-cliente → sigla-programa sale de esa columna cuando existe, de las hojas del mismo lote o de
+`REPORTAB_MAPA_SIGLAS`. Fechas: serial de Excel, `Date` o texto. **La fecha del día la da el nombre** (hoja o archivo), no la celda de la cabecera, que en los libros reales quedó sin actualizar (hojas de agosto con 2026-10-05).
+El armado descarta repetidos idénticos, resuelve dos documentos del mismo día quedándose con el más completo y avisando las diferencias, y omite una hoja que es copia de otro día (misma información y cabecera de otra fecha: el archivo del 27-08 era
+copia del 26-08). Solo se cargan equipos del programa o retirados con historia; el resto se informa (MN-92, que el usuario pidió no incluir, no se carga).
+**Pantalla.** Disponibilidad → bloque "Reportabilidad diaria del cliente": importar uno o varios Excel (con vista previa), exportar un día en el formato del libro del cliente, filtro semana / mes / semestre / año, disponibilidad promedio del período
+(promedio de los días con reporte; disponibilidad del día = OP ÷ reportados), cobertura (días con reporte de los del período), mejor y peor día, gráfico diario con la meta, ranking de días FS por equipo y los episodios FS con seguimiento de la proyección
+(`reportabilidadEpisodios`: reprogramaciones, cerrado o abierto, proyección vencida; una proyección cuenta cumplida si el equipo figura OP a más tardar 2 días después). 12 pruebas en `tests/reportabilidad.test.js`.
+**Carga inicial (2026-10-11).** 638 filas, 20 días distintos entre el 17-07 y el 05-10 (8 archivos diarios + el libro de 14 hojas; el 27-08 se omitió por ser copia y el libro más antiguo estaba contenido en el nuevo), de 34 equipos; la disponibilidad
+diaria va de 71 % a 88 %. Incluye a CN-6113, CN-9506 y CN-4656 (hoy fuera de la flota activa) porque aparecían en los reportes de esas fechas. **Límites:** los días sin reporte quedan sin dato (hay huecos, p. ej. 9 a 30 de septiembre); el programa no corrige los datos del
+cliente (hay errores en origen: una fecha de detención posterior al día de la hoja, ubicaciones escritas distinto); no reemplaza el cálculo interno de disponibilidad, lo complementa. **Arreglo asociado:** se definió `--w` como alias de `--warn` en `:root`: varios módulos usaban
+`var(--w)` (el amarillo de advertencia) y la variable no existía, así que ese color no se veía (barras SVG negras, textos sin color).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
