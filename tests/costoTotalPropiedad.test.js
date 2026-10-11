@@ -139,3 +139,20 @@ describe('parsearHorasAmortizar (listado Horas a Amortizar)', () => {
     expect(L.parsearHorasAmortizar(null, null)).toEqual({ actualizar: [], sinEquipo: [], sinValor: [], repetidas: [] });
   });
 });
+
+describe('TCO con costo de hora detenida por modelo', () => {
+  const cp = [{ sigla: 'A', fecha: '2023-01-10', costo: 10e6 }, { sigla: 'A', fecha: '2025-06-10', costo: 10e6 }];
+  const h = [{ sigla: 'A', fecha: '2023-01-01', horom: 10000 }, { sigla: 'A', fecha: '2025-12-31', horom: 20000 }];
+  const dd = { compras: cp, hist: h, downMap: { A: { '2024-03-01': 10 } }, hoy };
+  it('el equipo usa el valor de su modelo y lo informa; otro modelo usa el general', () => {
+    const o = { costoHoraDet: 100000, costoHoraDetPorModelo: { komatsuhd7857: 400000 } };
+    const a = L.tcoEquipo(base, dd, o);
+    expect(a.costoHoraDet).toBe(400000); expect(a.costoDetPropio).toBe(true); expect(a.det).toBe(10 * 400000);
+    const b = L.tcoEquipo(Object.assign({}, base, { modelo: 'Komatsu WA900-8R' }), dd, o);
+    expect(b.costoHoraDet).toBe(100000); expect(b.costoDetPropio).toBe(false); expect(b.det).toBe(10 * 100000);
+  });
+  it('tcoFlota pasa el mapa a cada equipo', () => {
+    const f = L.tcoFlota([base], { compras: cp, hist: h, downMap: { A: { '2024-03-01': 10 } }, hoy }, { costoHoraDet: 100000, costoHoraDetPorModelo: { komatsuhd7857: 400000 } });
+    expect(f.equipos[0].det).toBe(4000000);
+  });
+});

@@ -140,3 +140,40 @@ describe('tboFichasEquipo', () => {
     expect(sin.parametros.fuente).toMatch(/fabricante/);
   });
 });
+
+describe('costo de hora detenida por modelo', () => {
+  it('tboAjustesCosto convierte el valor de cada modelo con la tasa, ignora vacíos y no toca el general', () => {
+    const a = L.tboAjustesCosto(() => null, 0, 0, null, { komatsuhd7857: 200, komatsuwa9008r: 0, otro: null, malo: 'x' });
+    expect(a.porModelo).toEqual({ komatsuhd7857: 200 * 910 });
+    expect(a.porModeloUSD).toEqual({ komatsuhd7857: 200 });
+    expect(a.costoHoraDet).toBe(135 * 910);
+    expect(L.tboAjustesCosto(() => null, 0, 0, null, null).porModelo).toEqual({});
+    expect(L.tboAjustesCosto(k => (k === 'tboTasaUSD' ? '1000' : null), 0, 0, null, { x: 50 }).porModelo).toEqual({ x: 50000 });
+  });
+  it('costoHoraDetDe: el propio del modelo si existe (HD785-7 = HD-785-7) y si no el general', () => {
+    const aj = L.tboAjustesCosto(() => null, 0, 0, 100, { komatsuhd7857: 200 });
+    expect(L.costoHoraDetDe('Komatsu HD785-7', aj)).toBe(200 * 910);
+    expect(L.costoHoraDetDe('Komatsu HD-785-7', aj)).toBe(200 * 910);
+    expect(L.costoHoraDetDe('Komatsu WA900-8R', aj)).toBe(100 * 910);
+    expect(L.costoHoraDetPropio('Komatsu HD785-7', aj)).toBe(true);
+    expect(L.costoHoraDetPropio('Komatsu WA900-8R', aj)).toBe(false);
+    expect(L.costoHoraDetDe('x', null)).toBe(0);
+  });
+  it('la ficha usa el costo del modelo del equipo: dos modelos con el mismo componente vencido tienen consecuencias distintas', () => {
+    const eqs = [{ sigla: 'CN-1', modelo: 'Komatsu HD785-7', horomActual: 12534, hrsDia: 20 }, { sigla: 'CF-1', modelo: 'Komatsu WA900-8R', horomActual: 12534, hrsDia: 20 }];
+    const h2 = [{ sigla: 'CN-1', comp: 'Alternador', horomInstalacion: 4000, fechaInst: '2025-01-01' }, { sigla: 'CF-1', comp: 'Alternador', horomInstalacion: 4000, fechaInst: '2025-01-01' }];
+    const dd = { equipos: eqs, compHist: h2, compMayores: [], compras: [], comprasDetalle: [], stk: [], repuestos: [], ordenes: [], hoy };
+    const o = ajustes({ costoHoraDet: 100000, costoHoraDetPorModelo: { komatsuhd7857: 300000 } });
+    const camion = L.tboFichasEquipo('CN-1', dd, o).fichas.find(f => f.item === 'ALTERNATOR');
+    const carg = L.tboFichasEquipo('CF-1', dd, o).fichas.find(f => f.item.startsWith('ALTERNATOR'));
+    expect(camion.consecuencia).toBe((24 - 8) * 300000);
+    expect(carg.consecuencia).toBe((24 - 8) * 100000);
+  });
+  it('tboFichasFlota aplica el valor de cada modelo con el mismo mapa', () => {
+    const eqs = [{ sigla: 'CN-1', modelo: 'Komatsu HD785-7', horomActual: 12534, hrsDia: 20 }];
+    const h2 = [{ sigla: 'CN-1', comp: 'Alternador', horomInstalacion: 4000, fechaInst: '2025-01-01' }];
+    const dd = { equipos: eqs, compHist: h2, compMayores: [], compras: [], comprasDetalle: [], stk: [], repuestos: [], ordenes: [], hoy };
+    const barata = L.tboFichasFlota(dd, ajustes({ costoHoraDet: 10000 }))['CN-1'], cara = L.tboFichasFlota(dd, ajustes({ costoHoraDet: 10000, porModelo: { komatsuhd7857: 5000000 } }))['CN-1'];
+    expect(cara.perdidaEsperada).toBeGreaterThan(barata.perdidaEsperada);
+  });
+});

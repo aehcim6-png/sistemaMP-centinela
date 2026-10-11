@@ -6404,6 +6404,17 @@ la lección de la auditoría 2026-08-06, cuando criticidad/inicioOper quedaron f
 contable no es el valor económico del equipo ni considera su reventa; en el listado de agosto 2026 el valor por hora de los camiones más nuevos (~$57.000) implica un valor mayor que el
 `valorCompra` cargado en el programa (~1,4×) — conviene revisar cuál refleja mejor el costo real; no cubre equipos que no están en el listado.
 
+### 118. Costo de hora detenida por modelo (2026-10-11)
+
+**Qué cambia.** El costo de una hora detenida (US$135 general) ahora puede definirse **por modelo** de equipo en Configuración (`configuracion.costoHoraDetModelos`, jsonb `{clave: US$/h}`,
+migración `20261011140000`, aplicada en ambas bases). La clave es `_normalizarModelo` (minúsculas, solo alfanuméricos), así "Komatsu HD785-7" y "komatsu hd785 7" son el mismo modelo.
+**Precedencia:** valor del modelo > costo general (Configuración US$/h > local `tboCostoDet` > 135 por defecto). `costoHoraDetDe(modelo, aj)` resuelve el valor y `tboAjustesCosto` recibe el
+mapa como 5.º parámetro y devuelve `porModelo` (CLP/h) y `porModeloUSD`, convertidos con la misma tasa USD→CLP. Lo usan la ficha de componente (pérdida esperada), el TCO
+(`tcoEquipo`, que devuelve `costoHoraDet` y `costoDetPropio`), el score de salud (`tboSaludFlotaAuto`) y el presupuesto limitado (`tboCandidatosPresupuesto` con `ctx.costoHoraDetDe` por
+candidato). Las cachés incluyen el mapa en su clave. **Pantalla:** Configuración → tabla con los modelos de la flota (con cuántos equipos tiene cada uno); vacío = usa el general.
+**Limitación:** la tabla de "Reemplazo óptimo" por componente del módulo TBO sigue usando el costo general. Pruebas en `tests/fichaComponente.test.js`, `tests/costoTotalPropiedad.test.js` y
+`tests/presupuestoLimitado.test.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

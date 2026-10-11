@@ -194,7 +194,7 @@ export function renderTbo() {
   // Parámetros de costo compartidos por el plan con presupuesto y el reemplazo óptimo
   var mttrFlota = (typeof duracionesReparacionFlotaHoras === 'function') ? medianaPositiva(duracionesReparacionFlotaHoras(S.g('ot') || [])) : null;
   // Mismos supuestos que la ficha del Buscador Maestro (tboAjustesCosto, logic.js): costo de hora detenida US$135/h × tasa si el usuario no escribió otro.
-  var pOpt = tboAjustesCosto(function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, mttrFlota, S.g('hh'), (S.g('cfg') || {}).costoHoraDetUSD);
+  var pOpt = tboAjustesCosto(function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, mttrFlota, S.g('hh'), (S.g('cfg') || {}).costoHoraDetUSD, (S.g('cfg') || {}).costoHoraDetModelos);
 
   // ── Plan de compra: TBO × Stock × Compras ──
   var incTeo = $('tboTeorico') ? $('tboTeorico').checked : false;
@@ -232,7 +232,8 @@ export function renderTbo() {
   var presTot = plan.filas.reduce(function (a, f) { return a + (((f.decision === 'pedir_ya' || f.decision === 'planificar') && f.conDato && f.costoEst) ? f.costoEst : 0); }, 0);
   var presGuard = _tboParamOpt('presupuesto', 0), presUsa = presGuard > 0 ? presGuard : Math.round(presTot / 2 / 100000) * 100000;
   var horizPres = _tboParamOpt('horizonte', 500);
-  var cand = tboCandidatosPresupuesto(plan.filas, { horizonte: horizPres, costoHoraDet: pOpt.costoHoraDet, horasFalla: pOpt.horasFalla, horasProg: pOpt.horasProg });
+  var modeloPorSigla = {}; eqs.forEach(function (e) { modeloPorSigla[e.sigla] = e.modelo; });
+  var cand = tboCandidatosPresupuesto(plan.filas, { horizonte: horizPres, costoHoraDet: pOpt.costoHoraDet, costoHoraDetDe: function (f) { return costoHoraDetDe(modeloPorSigla[f.sigla], pOpt); }, horasFalla: pOpt.horasFalla, horasProg: pOpt.horasProg });
   var moc = cand.cands.length ? tboMochila(cand.cands, presUsa) : null;
   h += '<div class="card-t" style="margin:18px 0 6px">Con plata limitada: ¿qué compramos primero?</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">De los repuestos que hay que pedir (con último cambio conocido y precio), elige la combinación que <b>más pérdida esperada evita</b> sin pasarse del presupuesto (problema de la mochila, resuelto de forma exacta). La pérdida esperada de cada uno = <b>probabilidad de que falle en las próximas ' + fn(horizPres) + ' h</b> (Weibull condicional a lo que ya lleva) × <b>' + (cand.usaDet ? 'costo de la falla no programada (' + fn(pOpt.horasFalla - pOpt.horasProg) + ' h extra de camión detenido × ' + _tboPeso(pOpt.costoHoraDet) + '/h)' : 'precio del repuesto (como no ingresaste el costo de hora detenida, el precio hace de consecuencia: se prioriza por probabilidad; ingresalo en "Reemplazo óptimo" para ponderar por detención)') + '</b>. ' +
@@ -311,7 +312,7 @@ export function renderTbo() {
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">Un componente se cambia a la edad <b>T</b> (cambio programado, cuesta <b>Cp</b>) o falla antes (cuesta <b>Cf</b>, con la máquina detenida sin aviso). El costo por hora esperado es <b>C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫R(t)dt</b> con la vida Weibull del componente; la edad óptima <b>T*</b> es la que lo minimiza. Solo existe si el componente se desgasta (β&gt;1) y fallar cuesta más que cambiar. <b>El resultado depende del costo de una hora detenida</b>: sin él, fallar y cambiar cuestan lo mismo y el modelo no recomienda cambiar antes.</div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
     '<label style="font-size:11px;color:var(--tx3)" title="Lo que pierde la operación por cada hora que el equipo está detenido. Se guarda en Configuración → Tarifas y Metas y lo usan la ficha del Buscador, el Score de Salud, el reemplazo óptimo y el presupuesto. Puedes cambiarlo cuando quieras.">Costo de 1 hora detenida (US$/h) <input id="tboCostoDet" type="number" min="0" step="any" value="' + pOpt.costoHoraDetUSD + '" style="width:80px" onchange="tboCambiarCostoDetUSD(this.value)"></label>' +
-    '<span style="font-size:11px;color:var(--tx3);align-self:end">= ' + _tboPeso(pOpt.costoHoraDet) + '/h con la tasa ' + fn(pOpt.tasa) + (pOpt.costoDetPorDefecto ? ' · valor predeterminado' : '') + '</span>' +
+    '<span style="font-size:11px;color:var(--tx3);align-self:end">= ' + _tboPeso(pOpt.costoHoraDet) + '/h con la tasa ' + fn(pOpt.tasa) + (pOpt.costoDetPorDefecto ? ' · valor predeterminado' : '') + (Object.keys(pOpt.porModelo).length ? ' · ' + fn(Object.keys(pOpt.porModelo).length) + ' modelo(s) con valor propio en Configuración (lo usan la ficha, el Score, el presupuesto y el costo total; este cuadro por componente usa el general)' : '') + '</span>' +
     _inp('tboHorasFalla', 'horasFalla', pOpt.horasFalla, 'Horas detenido por falla', 'Por defecto, la mediana de duración de los correctivos de la flota (si hay dato)') +
     _inp('tboHorasProg', 'horasProg', pOpt.horasProg, 'Horas detenido por cambio programado', 'Supuesto editable: un cambio planificado tarda menos que una falla') +
     _inp('tboHHCambio', 'hhCambio', pOpt.hhCambio, 'HH por cambio', 'Horas-hombre de mano de obra por cambio (supuesto editable). La tarifa por HH sale de Configuración: $' + fn(pOpt.tarifaHH)) +

@@ -18,7 +18,7 @@ function _buscarFichasHTML(sigla){
   var ids;try{ids=function(k){return localStorage.getItem(k);};ids('x');}catch(e){ids=function(){return null;};}
   var ot=S.g('ot')||[];
   var mttr=(typeof duracionesReparacionFlotaHoras==='function')?medianaPositiva(duracionesReparacionFlotaHoras(ot)):null;
-  var aj=tboAjustesCosto(ids,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD);
+  var aj=tboAjustesCosto(ids,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos);
   var incTeo=$('fBuscarTeo')?$('fBuscarTeo').checked:false;
   var r=tboFichasEquipo(sigla,{equipos:S.g('eq')||[],compHist:S.g('compHist')||[],compMayores:S.g('compMayores')||[],compras:tboUnirCompras(S.g('ocHist')||[],S.g('comprasDetalle')||[]),
     comprasDetalle:S.g('comprasDetalle')||[],stk:S.g('stk')||[],repuestos:S.g('repuestos')||[],ordenes:S.g('ordenes')||[],hoy:new Date()},
@@ -34,8 +34,8 @@ function _buscarFichasHTML(sigla){
     '<span style="color:'+(res.enRiesgo?'var(--danger)':'var(--ok)')+'"><b>'+fn(res.enRiesgo)+'</b> en riesgo ('+fn(res.cambiarYa)+' para cambiar ya)</span>'+
     (res.perdidaEsperada>0?'<span>Pérdida esperada en 500 h: <b>'+_buscarMonto(res.perdidaEsperada)+'</b></span>':'')+
     '<label style="color:var(--tx3);font-size:11px"><input id="fBuscarTeo" type="checkbox" '+(incTeo?'checked ':'')+'onchange="renders.buscar()"> Incluir plan teórico ('+fn(r.omitidosTeoricos)+' sin cambio registrado)</label></div>';
-  var nota='<p style="font-size:10px;color:var(--tx3);margin:8px 0 0">Riesgo = probabilidad de que falle en las próximas 500 h dado lo que ya lleva (Weibull del fabricante, TBO = 5% de fallas). Costo de una hora detenida: '+_buscarPeso(aj.costoHoraDet)+
-    ' (US$'+fn(aj.costoHoraDetUSD)+' por hora × tasa '+fn(aj.tasa)+(aj.costoDetPorDefecto?', valor predeterminado':'')+'; se cambia en Configuración → Tarifas y Metas)'+
+  var nota='<p style="font-size:10px;color:var(--tx3);margin:8px 0 0">Riesgo = probabilidad de que falle en las próximas 500 h dado lo que ya lleva (Weibull del fabricante, TBO = 5% de fallas). Costo de una hora detenida: '+_buscarPeso(costoHoraDetDe(r.modelo,aj))+
+    (costoHoraDetPropio(r.modelo,aj)?' (valor propio del modelo '+escapeHtml(r.modelo)+', US$'+fn(Math.round(costoHoraDetDe(r.modelo,aj)/aj.tasa*100)/100)+' por hora':' (US$'+fn(aj.costoHoraDetUSD)+' por hora, valor general')+' × tasa '+fn(aj.tasa)+(aj.costoDetPorDefecto&&!costoHoraDetPropio(r.modelo,aj)?', predeterminado':'')+'; se cambia en Configuración → Tarifas y Metas)'+
     '. Los mismos números están en la pestaña TBO.</p>';
   if(!r.fichas.length){
     return '<div class="chart-box" style="margin-bottom:12px">'+titulo+cab+'<div style="font-size:12px;color:var(--tx3)">Ningún componente de este equipo tiene un cambio registrado. Registra los cambios en Componentes → Historial de Componentes para ver su riesgo real.</div>'+nota+'</div>';
@@ -112,7 +112,7 @@ function _buscarTcoHTML(sigla) {
     tarj('TCO por hora', r.tcoPorHora != null ? pH(r.tcoPorHora) : '—', r.tcoPorHora != null ? 'capital + mantención + detención' : 'falta el capital (ver nota)', 'var(--ac)') +
     tarj('Capital', cap ? pH(r.capitalPorHora) + '/h' : '—', cap ? escapeHtml(cap.fuente) : 'sin amortización ni valor de compra') +
     tarj('Mantención', pH(r.matPorHora) + '/h', 'repuestos y servicios · ' + pH(r.matAnual) + ' al año') +
-    tarj('Detención por falla', pH(r.detPorHora) + '/h', fn(Math.round(r.horasDet)) + ' h × ' + pH(t.aj.costoHoraDet) + '/h') +
+    tarj('Detención por falla', pH(r.detPorHora) + '/h', fn(Math.round(r.horasDet)) + ' h × ' + pH(r.costoHoraDet) + '/h' + (r.costoDetPropio ? ' (propio del modelo)' : '')) +
     tarj('Costo anual', r.tcoAnual != null ? _buscarMM(r.tcoAnual) : _buscarMM(r.matAnual + r.detAnual), r.tcoAnual != null ? 'con capital' : 'sin capital') + '</div>' +
     '<div style="font-size:12px;margin-bottom:6px">Costo variable (mantención + detención): <b>' + pH(r.variablePorHora) + '/h</b> · ' + vsMod + '</div>' +
     (ren ? '<div style="font-size:12px;margin-bottom:8px">' + ren + '</div>' : '') +

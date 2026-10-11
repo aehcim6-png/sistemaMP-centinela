@@ -374,7 +374,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-11f"></script>
+<script src="logic.js?v=2026-10-11g"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -429,9 +429,9 @@ const _LAZY_VERS={
   avance:'2026-08-31',
   ayuda:'2026-10-10b',
   cad:'2026-08-30b',
-  cfg:'2026-10-11f',
+  cfg:'2026-10-11g',
   comp2:'2026-10-10',
-  cos:'2026-10-11f',
+  cos:'2026-10-11g',
   destrabe:'2026-10-08',
   disp:'2026-10-08',
   eq:'2026-10-11f',
@@ -468,10 +468,10 @@ const _LAZY_VERS={
   // Dashboard quedaría vacío toda la sesión — se deja eager junto a dash
   // para que SIEMPRE esté disponible cuando cualquiera de esos lo pida.
   torre:'2026-10-11b',
-  buscar:'2026-10-11f',
+  buscar:'2026-10-11g',
   comp:'2026-10-08',
   estadistica:'2026-10-09b',
-  tbo:'2026-10-11e',
+  tbo:'2026-10-11g',
   audit:'2026-08-30b',
   pred:'2026-10-11e',
   metas:'2026-10-08',
@@ -486,7 +486,7 @@ const _LAZY_EXPORTS={
   avance:['renderAvance'],
   ayuda:['renderAyuda'],
   cad:['renderCad','addCad','saveCad','addMedicionCad','saveMedicionCad','verHistorialCad','delCad'],
-  cfg:['verCodigosQR','_descargarQR','renderCfg','ejecutarVerificacionIntegridad','resetAll','descargarPlantillaLimpia','resetEmpresa','processResetEmpresa','cloudProbar','guardarNeuParams','guardarAlertaEmails','guardarAlertaWhatsApp','guardarRemitentesPermitidos','exportarMovCSV','cloudGuardarCfg','exportAllJSON','importAllJSON','_mfaEstado','activarMFA','_confirmarActivarMFA','_cancelarActivarMFA','desactivarMFA','nombrarEquipo','verAccesos','crearUsuarioUI','cargarPendientesUI','activarUsuarioUI','cargarActivosUI','desactivarMfaUsuarioUI','cambiarPerfilUsuarioUI','desactivarUsuarioUI'],
+  cfg:['verCodigosQR','_descargarQR','renderCfg','ejecutarVerificacionIntegridad','resetAll','descargarPlantillaLimpia','resetEmpresa','processResetEmpresa','cloudProbar','guardarNeuParams','cfgCambiarCostoDetModelo','guardarAlertaEmails','guardarAlertaWhatsApp','guardarRemitentesPermitidos','exportarMovCSV','cloudGuardarCfg','exportAllJSON','importAllJSON','_mfaEstado','activarMFA','_confirmarActivarMFA','_cancelarActivarMFA','desactivarMFA','nombrarEquipo','verAccesos','crearUsuarioUI','cargarPendientesUI','activarUsuarioUI','cargarActivosUI','desactivarMfaUsuarioUI','cambiarPerfilUsuarioUI','desactivarUsuarioUI'],
   comp2:['renderComp2','comp2Sub'],
   cos:['renderCos','verComprasProveedores'],
   destrabe:['renderDestrabe','edDestrabe','addDestrabe','delDestrabe','abrirVincularOC','confirmarVincularOC'],

@@ -351,6 +351,17 @@ export function renderCfg(){
       '<div style="margin-top:8px"><label style="font-size:11px;color:var(--tx3)">Costo de una hora detenida (US$/hora)</label><br>'+
       '<input type="number" min="0" step="any" value="'+((S.g('cfg')||{}).costoHoraDetUSD||'')+'" placeholder="Predeterminado: '+TBO_COSTO_HORA_DET_USD+'" onchange="var c=S.g(\'cfg\')||{};var n=parseFloat(this.value);c.costoHoraDetUSD=n>0?n:null;S.s(\'cfg\',c);refreshAll()" style="padding:6px;width:150px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px">'+
       '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Lo que pierde la operación por cada hora que un equipo está detenido. Lo usan la ficha de componente del Buscador, el Score de Salud, el reemplazo óptimo y el presupuesto de TBO. Vacío = US$'+TBO_COSTO_HORA_DET_USD+' por hora. Puedes cambiarlo cuando quieras; se convierte a pesos con la tasa USD→CLP de la pestaña TBO.</div></div>'+
+      (function(){
+        var eqsC=S.g('eq')||[],vistos={},filas=[],pm=(S.g('cfg')||{}).costoHoraDetModelos||{};
+        eqsC.forEach(function(e){if(!e||!e.modelo)return;var k=_normalizarModelo(e.modelo);if(!vistos[k]){vistos[k]={clave:k,nombre:e.modelo,n:0};filas.push(vistos[k]);}vistos[k].n++;});
+        if(!filas.length)return '';
+        filas.sort(function(a,b){return a.nombre<b.nombre?-1:1;});
+        return '<div style="margin-top:8px"><label style="font-size:11px;color:var(--tx3)">Costo de hora detenida por modelo (US$/hora) — opcional</label>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;margin-top:4px">'+
+          filas.map(function(f){return '<label style="font-size:11px;display:flex;align-items:center;gap:6px;justify-content:space-between;background:var(--bg3);border-radius:6px;padding:4px 8px"><span title="'+escapeHtml(f.nombre)+'">'+escapeHtml(f.nombre)+' <span style="color:var(--tx3)">('+f.n+')</span></span>'+
+            '<input type="number" min="0" step="any" value="'+(pm[f.clave]||'')+'" placeholder="general" onchange="cfgCambiarCostoDetModelo(\''+f.clave+'\',this.value)" style="width:78px;padding:4px;background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:4px"></label>';}).join('')+'</div>'+
+          '<div style="font-size:10px;color:var(--tx3);margin-top:3px">Si un modelo tiene valor propio, la ficha de componente, el Score de Salud, el presupuesto y el costo total de propiedad de sus equipos lo usan en vez del general. Vacío = usa el general.</div></div>';
+      })()+
       '</div>'+
 
       // CREAR USUARIO (solo admin real via Supabase Auth)
@@ -680,6 +691,14 @@ export async function cloudProbar(){
   }catch(e){toast('❌ No se pudo conectar: '+e.message);}
 };
 
+// Costo de hora detenida propio de un modelo (US$/h): se guarda en Configuración como {modeloNormalizado: valor}; vacío o 0 lo quita y el modelo vuelve a usar el general.
+export function cfgCambiarCostoDetModelo(clave,v){
+  var n=parseFloat(v),c=S.g('cfg')||{},m=Object.assign({},c.costoHoraDetModelos||{});
+  if(n>0)m[clave]=n;else delete m[clave];
+  c.costoHoraDetModelos=Object.keys(m).length?m:null;
+  S.s('cfg',c);
+  refreshAll();
+}
 export function guardarNeuParams(){
   const c=S.g('cfg')||{};
   c.neuTargetHrs=parseInt($('neuTarget').value)||9000;
@@ -1055,6 +1074,7 @@ window.resetEmpresa = resetEmpresa;
 window.processResetEmpresa = processResetEmpresa;
 window.cloudProbar = cloudProbar;
 window.guardarNeuParams = guardarNeuParams;
+window.cfgCambiarCostoDetModelo = cfgCambiarCostoDetModelo;
 window.guardarAlertaEmails = guardarAlertaEmails;
 window.guardarAlertaWhatsApp = guardarAlertaWhatsApp;
 window.guardarRemitentesPermitidos = guardarRemitentesPermitidos;
