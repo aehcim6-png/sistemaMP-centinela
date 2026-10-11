@@ -374,7 +374,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-11c"></script>
+<script src="logic.js?v=2026-10-11d"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -453,7 +453,7 @@ const _LAZY_VERS={
   progdia:'2026-08-30',
   rep:'2026-10-08',
   sem:'2026-10-08',
-  stk:'2026-10-08',
+  stk:'2026-10-11d',
   stk2:'2026-08-30',
   uso:'2026-10-08',
   venc:'2026-09-02',
@@ -510,7 +510,7 @@ const _LAZY_EXPORTS={
   progdia:['importProgDiaXLSX','edProgDia','delProgDia','edProgDiaBloque','renderProgdia'],
   rep:['renderRep','edRep','delRep','addRep','saveRep','crearOC','confirmarOC','verOrdenesCompra','recibirOC','syncRepStock','importRepCSV','processRepCSV','edPrecioDesgaste'],
   sem:['renderSem','edSem','addSemItem','saveNuevoSemItem','delSem','navSem','edSemReal','cerrarSemana','reabrirSemana','importSemCSV'],
-  stk:['renderStk','addStock','saveStock'],
+  stk:['renderStk','addStock','saveStock','stkCambiarCobertura'],
   stk2:['renderStk2','stk2Sub'],
   uso:['verUsoPestanas','renderUso'],
   venc:['renderVenc','_vencAbrirSelector','_vencFotoSeleccionada','edVenc','exportVencCSV'],

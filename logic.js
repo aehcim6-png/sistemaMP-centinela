@@ -5052,6 +5052,112 @@ function tboCalibracionAuto(){
   }catch(e){return null;}
 }
 
+
+// ═══ REPOSICIÓN ALIMENTADA POR EL PROGRAMA DE PM (2026-10-11) ═══
+// stockEstado/punto de reorden miran el consumo PASADO (o un "consumo/mes" tipeado a mano). Pero buena parte de lo que se consume no es azar: cada PM tiene una pauta
+// con los filtros y lubricantes que gasta, y el próximo PM de cada equipo ya está calendarizado por horómetro. Con eso la demanda de los próximos meses se puede calcular
+// (no estimar): se recorren los PM que vienen de cada equipo hasta el horizonte, se suman las pautas de cada PM por repuesto y se compara con el stock + lo pendiente.
+// Supuestos: el ritmo diario es el declarado del equipo (hrsDia); el PM se hace en su hito; el consumo no planificado (fallas) no está acá, por eso se muestra junto al
+// histórico. Todo es puro: la pauta de cada PM la entrega quien llama (getPautasConsumo, index.html).
+// PM calendarizados de un equipo hasta `horizonteDias`: [{pm, horom, dias, fecha}].
+function pmProgramadosEquipo(e,hoy,horizonteDias){
+  var out=[];
+  if(!e||!e.sigla)return out;
+  var frec=Number(e.frecPM)>0?Number(e.frecPM):250,ritmo=Number(e.hrsDia)>0?Number(e.hrsDia):0,h0=Number(e.horomActual)||0;
+  if(!(ritmo>0))return out;
+  var base=hoy instanceof Date?hoy:new Date(hoy||Date.now());
+  var p=Number(e.horomProxPM)>h0?Number(e.horomProxPM):C.proxPM(h0,frec);
+  for(var i=0;i<80;i++,p+=frec){
+    var dias=(p-h0)/ritmo;if(dias>horizonteDias)break;
+    out.push({pm:C.tipoPM(p,frec),horom:p,dias:Math.max(0,Math.round(dias)),fecha:new Date(base.getTime()+Math.max(0,Math.round(dias))*86400000).toISOString().slice(0,10)});
+  }
+  return out;
+}
+// Mismo criterio de vinculación que descontarStock (index.html) para saber a qué ítem de Stock o Lubricantes corresponde una línea de pauta: primero el caché
+// de mapaRep, luego N° de parte (principal o alternativo) y por último palabras de la descripción; para lubricantes, puntaje por palabras y números.
+// Devuelve {tipo:'filtro'|'lubricante', idx} o null. No modifica nada.
+function pautaResolverStock(c,stk,lub,mapaRep){
+  var rep=String((c&&(c.rep||c.repuesto||c.nombre))||'').trim();if(!rep)return null;
+  var repLow=rep.toLowerCase();
+  var cache=c._id?(mapaRep||[]).filter(function(m){return m.pautaId===c._id;})[0]:null;
+  if(cache){
+    if(cache.tipo==='filtro'){var f0=(stk||[]).findIndex(function(s){return s._id===cache.refId;});if(f0>=0)return{tipo:'filtro',idx:f0};}
+    else if(cache.tipo==='lubricante'){var l0=(lub||[]).findIndex(function(l){return l._id===cache.refId;});if(l0>=0)return{tipo:'lubricante',idx:l0};}
+  }
+  var partNums=repLow.match(/[a-z]?\d{2,}[-\d]+[a-z]*/gi)||[],fi=-1;
+  if(partNums.length>0){
+    fi=(stk||[]).findIndex(function(s){
+      var np=(s.nParte||'').toLowerCase(),ca=(s.codAlt||'').toLowerCase();
+      return partNums.some(function(pn){var p=pn.toLowerCase();if(p.length<4)return false;
+        return(np&&(np.indexOf(p)>=0||p.indexOf(np)>=0))||(ca&&(ca.indexOf(p)>=0||(p.length>=5&&p.indexOf(ca)>=0&&ca.length>=5)));});
+    });
+  }
+  if(fi<0){
+    fi=(stk||[]).findIndex(function(s){
+      var desc=(s.descripcion||'').toLowerCase(),words=repLow.split(/\s+/).filter(function(w){return w.length>4;});
+      return words.length>0&&words.filter(function(w){return desc.indexOf(w)>=0;}).length>=Math.min(2,words.length);
+    });
+  }
+  if(fi>=0)return{tipo:'filtro',idx:fi};
+  var li=-1,best=0;
+  (lub||[]).forEach(function(l,idx){
+    var ln=(l.nombre||'').toLowerCase().replace(/[-_%]/g,' ');if(ln.length<4)return;
+    var rn=repLow.replace(/[-_%]/g,' '),rt=rn.split(/\s+/).filter(function(w){return w.length>1;}),lt=ln.split(/\s+/).filter(function(w){return w.length>1;}),score=0;
+    rt.forEach(function(r){if(lt.some(function(x){return x===r||x.indexOf(r)>=0||r.indexOf(x)>=0;}))score++;});
+    var nums=rn.match(/\d+\w*/g)||[],lnums=ln.match(/\d+\w*/g)||[];
+    nums.forEach(function(n){var nc=n.replace(/w$/i,'');if(lnums.some(function(x){return x.replace(/w$/i,'')===nc;}))score+=2;});
+    var numMatch=nums.filter(function(n){var nc=n.replace(/w$/i,'');return lnums.some(function(x){return x.replace(/w$/i,'')===nc;});}).length;
+    if(score>=3&&numMatch>=1&&score>best){best=score;li=idx;}
+    if(li<0){var rnc=rn.replace(/\s+/g,''),lnc=ln.replace(/\s+/g,'');if(lnc.length>8&&rnc.indexOf(lnc)>=0){li=idx;best=99;}}
+  });
+  return li>=0?{tipo:'lubricante',idx:li}:null;
+}
+// Demanda planificada por ítem de Stock/Lubricantes según los PM calendarizados de la flota.
+// consumosFn(sigla, tipoPM) → líneas de pauta [{rep, can, _id}]. Devuelve {items:{'filtro:3':{tipo,idx,eventos:[{dias,cant,sigla,pm}]}}, sinStock:{rep:veces}, pmContados, sinRitmo:[siglas]}.
+function demandaPlanificadaPM(equipos,consumosFn,stk,lub,mapaRep,hoy,horizonteDias){
+  var items={},sinStock={},pmN=0,sinRitmo=[],cacheRes={};
+  (equipos||[]).forEach(function(e){
+    if(!e||!e.sigla)return;
+    var pms=pmProgramadosEquipo(e,hoy,horizonteDias);
+    if(!pms.length){if(!(Number(e.hrsDia)>0))sinRitmo.push(e.sigla);return;}
+    pms.forEach(function(pm){
+      pmN++;
+      (consumosFn(e.sigla,pm.pm)||[]).forEach(function(c){
+        var cant=Number(c.can||c.cant)||0;if(cant<=0)return;
+        var k=(c._id||'')+'|'+(c.rep||c.repuesto||c.nombre||''),r=cacheRes[k]!==undefined?cacheRes[k]:(cacheRes[k]=pautaResolverStock(c,stk,lub,mapaRep));
+        if(!r){var nm=String(c.rep||c.repuesto||c.nombre||'').trim();if(nm)sinStock[nm]=(sinStock[nm]||0)+1;return;}
+        var key=r.tipo+':'+r.idx,it=items[key]||(items[key]={tipo:r.tipo,idx:r.idx,eventos:[]});
+        it.eventos.push({dias:pm.dias,cant:cant,sigla:e.sigla,pm:pm.pm});
+      });
+    });
+  });
+  return{items:items,sinStock:sinStock,pmContados:pmN,sinRitmo:sinRitmo};
+}
+// Plan de reposición: cruza la demanda planificada con el stock (+ pendiente) y el plazo de entrega de cada ítem.
+// opts: {cobertura:30 días a cubrir después de que llegue el pedido, horizonte:120}. Estados: 'pedir_ya' (el quiebre llega antes que el pedido), 'planificar' (el quiebre
+// está a menos de 30 días de poder pedirse tarde), 'cubierto' (alcanza todo el horizonte) y 'sin_plan' (ningún PM lo consume).
+function planReposicionPM(demanda,stk,lub,opts){
+  var o=opts||{},cob=o.cobertura>=0?o.cobertura:30,out=[];
+  Object.keys(demanda.items||{}).forEach(function(k){
+    var d=demanda.items[k],row=d.tipo==='filtro'?(stk||[])[d.idx]:(lub||[])[d.idx];if(!row)return;
+    var pos=d.tipo==='filtro'?(Number(row.stockBodega)||0)+(Number(row.pendiente)||0):(Number(row.stock)||0);
+    var lead=Number(row.leadTime)>0?Number(row.leadTime):34,ev=d.eventos.slice().sort(function(a,b){return a.dias-b.dias;});
+    var acum=0,quiebre=null;
+    for(var i=0;i<ev.length;i++){acum+=ev[i].cant;if(quiebre==null&&acum>pos){quiebre=ev[i].dias;}}
+    var suma=function(h){return ev.filter(function(x){return x.dias<=h;}).reduce(function(s,x){return s+x.cant;},0);};
+    var necesidad=suma(lead+cob),faltante=Math.max(0,necesidad-pos),holgura=quiebre==null?null:quiebre-lead;
+    var estado=quiebre==null?'cubierto':holgura<=0?'pedir_ya':holgura<=30?'planificar':'cubierto';
+    var hist=Number(row.consumoMes)||Number(row.proyMes)||0,plan30=suma(30);
+    out.push({tipo:d.tipo,idx:d.idx,nombre:d.tipo==='filtro'?(row.descripcion||''):(row.nombre||''),nParte:d.tipo==='filtro'?(row.nParte||''):'',equipoModelo:row.equipoModelo||'',
+      posicion:pos,stockBodega:d.tipo==='filtro'?(Number(row.stockBodega)||0):pos,pendiente:d.tipo==='filtro'?(Number(row.pendiente)||0):0,lead:lead,leadPropio:Number(row.leadTime)>0,
+      necesidad:necesidad,faltante:faltante,pedir:Math.max(0,Math.ceil(faltante-1e-9)),quiebreDias:quiebre,pedirAntesDias:holgura,estado:estado,
+      plan30:plan30,plan90:suma(90),historicoMes:hist,razonPlanHist:hist>0?plan30/hist:null,total:acum,eventos:ev});
+  });
+  var rango={pedir_ya:0,planificar:1,cubierto:2};
+  out.sort(function(a,b){return rango[a.estado]-rango[b.estado]||(a.pedirAntesDias==null?9999:a.pedirAntesDias)-(b.pedirAntesDias==null?9999:b.pedirAntesDias)||b.faltante-a.faltante;});
+  return out;
+}
+
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
 // Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
 // movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
@@ -8522,7 +8628,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

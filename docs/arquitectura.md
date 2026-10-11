@@ -6353,6 +6353,23 @@ cada componente tiene pocos tramos y "compatible" significa "sin evidencia en co
 el plan; (4) no se pudo correr sobre los datos reales de producción desde esta sesión (la consulta fue denegada): el resultado real se verá en la pantalla. 15 pruebas
 (`tests/calibracionModelo.test.js`).
 
+### 115. Reposición alimentada por el programa de PM (2026-10-11)
+
+**Etapa 4 de la ficha de componente — con un ajuste de alcance.** La idea original era alimentar el punto de reorden con el plan TBO, pero Stock Filtros y Lubricantes (y la tabla
+`repuestos`, auto-generada desde los filtros) no contienen los componentes del plan TBO (turbos, alternadores…): el plan TBO cubre componentes y el stock gestionado son
+filtros y lubricantes. La demanda **programada** real de esos ítems viene del **programa de PM**: el próximo PM de cada equipo está calendarizado por horómetro y cada PM
+tiene una pauta con lo que gasta. `stockEstado` y el punto de reorden miraban solo el consumo pasado o un "consumo/mes" tipeado a mano. Ahora:
+`pmProgramadosEquipo` recorre los PM de cada equipo hasta el horizonte (grilla `C.proxPM`/`C.tipoPM`, ritmo = `hrsDia` declarado), `pautaResolverStock` vincula cada línea de
+pauta con su ítem de Stock o Lubricantes **con el mismo criterio de `descontarStock`** (caché `mapaRep`, N° de parte principal o alternativo, palabras de la descripción y,
+para lubricantes, puntaje por palabras y números; se replicó en vez de refactorizar `descontarStock` porque ese descuento no tiene pruebas y es código crítico; una línea de
+lubricante que comparte 2 palabras con la descripción de un filtro se vincula al filtro, igual que en el descuento real), `demandaPlanificadaPM` suma por ítem y
+`planReposicionPM` cruza con stock + pendiente y plazo de entrega: *quiebre* = día en que la demanda acumulada supera la posición; *pedir antes de* = quiebre − plazo;
+estados *pedir ya* (≤0), *planificar* (≤30 d) y *cubierto*; *pedir* = demanda hasta (plazo + cobertura de 30/60/90 d) − posición. Se muestra en Stock & Insumos → Stock
+Filtros (cards, tabla con comparación contra el consumo/mes histórico, líneas de pauta sin ítem vinculado y equipos sin ritmo diario). Supuestos: el PM se hace en su
+hito y al ritmo declarado; no incluye consumos no planificados (fallas), por eso se compara con el histórico; los lubricantes no tienen "pendiente". 22 pruebas
+(`tests/reposicionPM.test.js`). Verificado en navegador con equipos, pautas y stock de prueba. **Pendiente:** enlazar el componente del plan TBO con repuestos cuando se
+gestione su stock, y usar esta demanda programada en el lote económico y el punto de reorden de ABC-XYZ.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
