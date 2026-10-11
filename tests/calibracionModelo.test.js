@@ -85,6 +85,13 @@ describe('tboVidasObservadas', () => {
     expect(r.vidas.map(v => [v.L, v.censurado])).toEqual([[5000, false], [3000, false], [2000, true]]);
     expect(r.vidas.every(v => v.tbo === 8000)).toBe(true);
   });
+  it('dos registros del mismo cambio a menos de 24 h de horómetro no forman una vida (hallazgo con el historial real: vidas de 1 y 2 h)', () => {
+    const r = L.tboVidasObservadas([ev('CN-1', 'Turbo', 5716), ev('CN-1', 'Turbo', 5718), ev('CN-1', 'Turbo', 9000)], eq, [], 'normal', hoy);
+    expect(r.vidas.map(v => [v.L, v.censurado])).toEqual([[3282, false], [3000, true]]);
+    expect(L.tboVidaPorOrigen([ev('CN-1', 'Turbo', 5716), ev('CN-1', 'Turbo', 5718), ev('CN-1', 'Turbo', 9000)], []).reduce((a, g) => a + g.n, 0)).toBe(1);
+    // justo en el límite sí cuenta como cambio distinto
+    expect(L.tboVidasObservadas([ev('CN-1', 'Turbo', 5000), ev('CN-1', 'Turbo', 5024), ev('CN-1', 'Turbo', 9000)], eq, [], 'normal', hoy).vidas.map(v => v.L)).toEqual([24, 3976, 3000]);
+  });
   it('aplica el factor de aplicación al TBO', () => {
     expect(L.tboVidasObservadas([ev('CN-1', 'Alternador', 2000), ev('CN-1', 'Alternador', 7000)], eq, [], 'severa', hoy).vidas[0].tbo).toBe(6400);
   });

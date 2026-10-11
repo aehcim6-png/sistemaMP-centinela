@@ -4939,6 +4939,9 @@ function tboSaludFlotaAuto(){
 // si el cambio ocurrió en esa ventana (y=1) o no (y=0; los puntos cuya ventana aún no termina en un tramo abierto se descartan). Se compara lo predicho con lo observado
 // por tramos de riesgo, la razón observado/esperado (O/E) con intervalo por bootstrap por componente (las filas de un mismo componente no son independientes), el
 // puntaje de Brier contra una tasa constante y contra un modelo ajustado con el resto de la flota (dejando un equipo afuera), y una prueba de uniformidad de F(vida).
+// Dos cambios del mismo componente en el mismo equipo con menos de 24 h de horómetro entre sí se toman como UN solo cambio registrado dos veces (ej.: los dos turbos de un camión
+// anotados con 2 h de diferencia, o el mismo cambio cargado desde dos fuentes): no es una vida de 2 horas. Hallazgo con el historial real (2026-10-11): sin esta regla aparecían vidas de 1 y 2 h.
+var TBO_VIDA_MIN_H=24;
 function tboVidasObservadas(compHist,equipos,compras,aplic,hoy){
   var fa=TBO_APLICACION[aplic]||1,eqPor={};(equipos||[]).forEach(function(e){if(e&&e.sigla)eqPor[e.sigla]=e;});
   var grupos={},out=[],omitidos=0;
@@ -4955,7 +4958,7 @@ function tboVidasObservadas(compHist,equipos,compras,aplic,hoy){
     for(var i=0;i<arr.length;i++){
       var ev=arr[i].r,origen=tboClasificarOrigen(ev.origen);if(!origen)origen=tboOrigenPorCompra(sigla,ev.fechaInst,m[2],compras)||'';
       var fin=i<arr.length-1?arr[i+1].h:Number(e.horomActual)||0,L=fin-arr[i].h,cens=i===arr.length-1;
-      if(!(L>0))continue;
+      if(!(L>=TBO_VIDA_MIN_H))continue;
       out.push({sigla:sigla,comp:comp,fam:m[2],tbo:tbo,origen:origen||'sin dato',L:L,censurado:cens});
     }
   });
@@ -8187,7 +8190,7 @@ function tboVidaPorOrigen(compHist,compras){
   Object.keys(porClave).forEach(function(k){
     var arr=porClave[k].sort(function(a,b){return a.h-b.h;});
     for(var i=0;i<arr.length-1;i++){
-      var dur=arr[i+1].h-arr[i].h;if(!(dur>0))continue;
+      var dur=arr[i+1].h-arr[i].h;if(!(dur>=TBO_VIDA_MIN_H))continue;
       var ev=arr[i].r,m=tboCompMap(ev.comp),origen=tboClasificarOrigen(ev.origen),inferido=false;
       if(!origen&&m){origen=tboOrigenPorCompra(ev.sigla,ev.fechaInst,m[2],compras);inferido=!!origen;}
       var g=(grupos[ev.comp+'|'+(origen||'sin dato')]=grupos[ev.comp+'|'+(origen||'sin dato')]||{comp:ev.comp,origen:origen||'sin dato',vals:[],inferidos:0});

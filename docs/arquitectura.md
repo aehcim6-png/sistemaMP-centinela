@@ -6416,6 +6416,17 @@ candidato). Las cachés incluyen el mapa en su clave. **Pantalla:** Configuraci�
 **Tasa USD→CLP compartida.** La tasa (referencial, 910 por defecto) pasó del `localStorage` de cada navegador a `configuracion.tasaUSD` (migración `20261011150000`, aplicada en ambas bases): se edita en Configuración o en la pestaña TBO y vale para todos los usuarios. Precedencia en `tboAjustesCosto` (6.º parámetro `tasaCfg`): Configuración > valor local antiguo `tboTasaUSD` > 910; al guardar se borra el valor local para que no quede uno viejo oculto. **Reemplazo óptimo por modelo.** La pestaña TBO tiene el selector "Calcular para" (toda la flota / un modelo). Con un modelo se recalculan, solo con los cambios de sus equipos, la vida (Weibull o β=3 según cuántos haya), `Cp`, `Cf`, `T*`, la matriz RCM y la sensibilidad, usando `costoHoraDetDe(modelo)` (el costo propio si existe, el general si no). El precio del repuesto sigue saliendo de las compras de la clase de equipo (camión/cargador/bulldozer). Con pocos equipos del modelo hay pocos cambios medidos y la tabla puede quedar vacía o apoyarse en β=3: la fuente de β/η se ve al pasar el mouse. Prueba en `tests/fichaComponente.test.js`. Pruebas en `tests/fichaComponente.test.js`, `tests/costoTotalPropiedad.test.js` y
 `tests/presupuestoLimitado.test.js`.
 
+### 119. Calibración con el historial real de Turbos (2026-10-11)
+
+Primera corrida de `tboCalibracionFlota` con datos de producción (54 registros de Turbo de 7 camiones HD785-7, desde 2021). **Resultado:** de las 22 vidas completas, las 22 terminaron antes del TBO
+de 8.000 h (mediana ≈1.750 h; el modelo del fabricante esperaba ~5 %); ocurren ≈41 veces los cambios que el modelo espera (IC 90 %: 18–158). Veredicto: **el modelo del fabricante subestima el riesgo del Turbo en esta flota**.
+Con origen registrado: alternativo/reparado (11 vidas completas, mediana 1.390 h) y sin registrar (9, 1.910 h); original solo 2 vidas (881 y 4.368 h), insuficiente para concluir sobre original.
+**Qué no se puede afirmar:** el historial anota cambios, no fallas; si los turbos reparados rotan entre camiones o se cambian preventivamente, la "vida" es menor que la vida física. Solo el Turbo tiene
+suficientes ciclos (los demás componentes con plan TBO tienen 1–3 por camión). **Hallazgo de calidad de datos:** los HD785-7 llevan dos turbos y se anotan como dos filas casi iguales; cuando difieren
+unas horas (5.716 y 5.718 h) aparecían vidas de 1 y 2 h. Regla nueva `TBO_VIDA_MIN_H = 24`: dos cambios del mismo componente en el mismo equipo con menos de 24 h entre sí son un solo cambio
+(`tboVidasObservadas` y `tboVidaPorOrigen`). Consecuencia práctica: el riesgo TBO del Turbo (Weibull con TBO=B5) es optimista; la ficha ya usa la Weibull ajustada con ≥5 cambios medidos, pero el Score
+de Salud y los semáforos por TBO no. No se cambió esa lógica: primero se decide con el equipo si la política es cambiar por TBO o dejar correr.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
