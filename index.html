@@ -377,7 +377,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-11s"></script>
+<script src="logic.js?v=2026-10-12a"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -480,7 +480,7 @@ const _LAZY_VERS={
   metas:'2026-10-08',
   resumenejec:'2026-10-08',
   reg:'2026-10-09',
-  neu:'2026-10-08',
+  neu:'2026-10-12a',
   ot:'2026-10-09',
   prod:'2026-10-05b',
 };
@@ -528,7 +528,7 @@ const _LAZY_EXPORTS={
   metas:['renderMetas','verCadenaCausas','abrirFormCompromiso','guardarCompromiso','delCompromiso'],
   resumenejec:['renderResumenEjec'],
   reg:['renderReg','addReg','editarReg','calcDurEdit','saveEditReg','rAutoHorom','rMostrarConsumos','calcDurReg','saveReg','_activarLeerPauta','_leerPautaFotoSeleccionada','_matchEquipoPorSiglaOCR','_prellenarDesdeOCR','_activarLeerCorrectivo','_leerCorrectivoFotoSeleccionada','_prellenarDesdeOCRCorrectivo','_iniciarRegPorVoz','importRegCSV','processImportReg'],
-  neu:['renderNeu','verNeuLista','_iniciarNeuPorVoz','_continuarMedicionPorVoz','_iniciarMedicionNeuPorVoz','addNeu','saveNeu','cambiarNeu','saveCambio','instalarDesdeExistencias','confirmarInstalarExistencias','verSensores','verHistorialSensor','desmontarSensor','instalarSensor','confirmarInstalarSensor','addMedicionNeu','saveMedicionNeu','_activarLeerChequeoNeu','_leerChequeoNeuFotoSeleccionada','_revisarChequeoNeuOCR','_guardarChequeoNeuOCR','neuSort','histPosicion','verHistorialNeu','verDetalleNeu','resumenFlotaNeu'],
+  neu:['renderNeu','verNeuLista','_iniciarNeuPorVoz','_continuarMedicionPorVoz','_iniciarMedicionNeuPorVoz','addNeu','saveNeu','cambiarNeu','saveCambio','instalarDesdeExistencias','confirmarInstalarExistencias','verSensores','verHistorialSensor','desmontarSensor','instalarSensor','confirmarInstalarSensor','addMedicionNeu','saveMedicionNeu','_activarLeerChequeoNeu','_leerChequeoNeuFotoSeleccionada','_revisarChequeoNeuOCR','_guardarChequeoNeuOCR','neuSort','histPosicion','verHistorialNeu','verDetalleNeu','resumenFlotaNeu','programaCambiosNeu'],
   ot:['renderOt','analisisDocumentacion','analisisReingresos','verCausasLatentesRepetidas','verAnalisisMTTRPorCategoria','verAnalisisCapexOpex','addOT','addOTRapido','saveOTRapido','_activarLeerCorrectivoOT','_leerCorrectivoOTFotoSeleccionada','_prellenarDesdeOCRCorrectivoOT','_iniciarOTPorVoz','calcDurOT','saveOT','gestionarFotosOT','_otFotosSeleccionadas','quitarFotoOT','edOT'],
   prod:['renderProd','_activarLeerReporteProduccion','_leerReporteProduccionFotoSeleccionada','_revisarReporteProduccionOCR','_guardarReporteProduccionOCR'],
 };

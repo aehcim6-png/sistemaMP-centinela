@@ -5351,6 +5351,64 @@ function tcoFlotaAuto(){
   }catch(e){return null;}
 }
 
+// ═══ PROGRAMA DE CAMBIO DE NEUMÁTICOS PROYECTADO (2026-10-12) ═══
+// No existía un programa de cambios por semana / mes / semestre / año ni una curva S. La fecha de cambio de cada neumático ya la calcula neuProyeccion (regresión de desgaste sobre sus mediciones, o límite de
+// horas en delanteros); acá solo se AGRUPA por período, sin re-estimar nada. Punto delicado: esa proyección cuenta los días "desde ahora", pero las horas que le quedan son las de la ÚLTIMA MEDICIÓN; si
+// la medición tiene 2 meses, la fecha real de cambio es 2 meses antes. Por eso la fecha se ancla en la fecha de la última medición (base) y los que ya pasaron su fecha se informan aparte como "vencidos".
+// items: [{sigla, posicion, serie, base (ISO de la última medición, o null), dias (días restantes contados desde esa base), precio, motivo, confianza}] · reales: fechas ISO de cambios ya hechos
+// o: {hoy, periodo: 'semana'|'mes'|'semestre'|'anio', ref (fecha dentro del período)}.
+// Curva S = avance real (cambios hechos en el período, hasta hoy) + proyección (vencidos a cambiar ya + los que vencen de hoy a fin del período). No hay un plan congelado contra el cual medir cumplimiento: la
+// proyección se recalcula con cada medición y un neumático ya cambiado sale del programa; por eso la curva muestra avance + lo que falta, no un porcentaje de cumplimiento.
+function neuProgramaCambios(items,reales,o){
+  var op=o||{},hoy=_tcoIso(op.hoy),tipo=op.periodo||'mes',rg=periodoRango(tipo,op.ref||hoy),desde=rg.desde,hasta=rg.hasta;
+  var enr=(items||[]).filter(function(it){return it&&isFinite(it.dias);}).map(function(it){
+    var base=it.base||hoy,dias=Math.max(0,Math.round(it.dias)),f=_fechaMas(base,dias),edad=it.base?Math.max(0,_tcoDias(it.base,hoy)):null;
+    return{sigla:it.sigla,posicion:it.posicion,serie:it.serie,base:it.base||null,precio:Number(it.precio)||0,motivo:it.motivo||'',confianza:it.confianza||'',fechaCambio:f,vencido:f<hoy,diasMedicion:edad,medicionVieja:edad!=null&&edad>45};
+  });
+  var incluyeHoy=hoy>=desde&&hoy<=hasta,futuro=desde>hoy;
+  var vencidos=enr.filter(function(x){return x.vencido;}).sort(function(a,b){return a.fechaCambio<b.fechaCambio?-1:1;});
+  var arrastre=futuro?enr.filter(function(x){return x.fechaCambio<desde;}).length:0;
+  var ini=incluyeHoy?hoy:desde,pend=hasta<hoy?[]:enr.filter(function(x){return x.fechaCambio>=ini&&x.fechaCambio<=hasta;}).sort(function(a,b){return a.fechaCambio<b.fechaCambio?-1:a.fechaCambio>b.fechaCambio?1:a.sigla<b.sigla?-1:1;});
+  var rr=(reales||[]).filter(function(f){return f&&f>=desde&&f<=hasta&&f<=hoy;});
+  var suma=function(a){return a.reduce(function(t,x){return t+x.precio;},0);};
+  // sub-períodos (la tabla): semana→días, mes→semanas, semestre/año→meses
+  var subs=[],corto=function(iso){return parseInt(iso.slice(8,10),10)+'-'+_PER_MESES[parseInt(iso.slice(5,7),10)-1];};
+  var cur=desde;
+  while(cur<=hasta){
+    var sd,sh,et;
+    if(tipo==='semana'){sd=cur;sh=cur;et=corto(cur);}
+    else if(tipo==='mes'){var w=periodoRango('semana',cur);sd=w.desde<desde?desde:w.desde;sh=w.hasta>hasta?hasta:w.hasta;et=corto(sd)+' al '+corto(sh);}
+    else{var m=periodoRango('mes',cur);sd=m.desde;sh=m.hasta;et=periodoEtiqueta('mes',m.desde,m.hasta);}
+    var delPer=pend.filter(function(x){return x.fechaCambio>=sd&&x.fechaCambio<=sh;});
+    subs.push({desde:sd,hasta:sh,etiqueta:et,proyectados:delPer.length,costo:suma(delPer),reales:sd<=hoy?rr.filter(function(f){return f>=sd&&f<=sh;}).length:null,actual:hoy>=sd&&hoy<=sh,items:delPer});
+    cur=_fechaMas(sh,1);
+  }
+  // curva S diaria
+  var n=_tcoDias(desde,hasta)+1,dias=[],realAc=null,vcnt=incluyeHoy?vencidos.length:0,i;
+  for(i=0;i<n;i++){
+    var f=_fechaMas(desde,i),r=f<=hoy?rr.filter(function(x){return x<=f;}).length:null;
+    var py=null;
+    if(f>=ini&&hasta>=hoy||futuro){var base0=incluyeHoy?rr.length+vcnt:0;py=base0+pend.filter(function(x){return x.fechaCambio<=f;}).length;}
+    dias.push({fecha:f,real:r,proyeccion:py});
+  }
+  var totalProy=(incluyeHoy?rr.length+vcnt:futuro?0:rr.length)+pend.length;
+  return{rango:{tipo:tipo,desde:desde,hasta:hasta,etiqueta:periodoEtiqueta(tipo,desde,hasta)},incluyeHoy:incluyeHoy,futuro:futuro,
+    totales:{reales:rr.length,vencidos:vencidos.length,pendientes:pend.length,proyectadoTotal:totalProy,costoPendiente:suma(pend),costoVencidos:suma(vencidos),arrastre:arrastre},
+    subperiodos:subs,vencidos:vencidos,pendientes:pend,curva:dias};
+}
+// Cambios ya hechos, de neuHist [{sigla,posicion,fecha}] (historial de neumáticos: cada fila es un retiro/cambio en un equipo y posición). La posición viene escrita de muchas formas ("1", "Posicion 1", "Posición 1", "Pos. 1"):
+// se compara por su número. Cargas repetidas del mismo equipo + posición + fecha cuentan una vez; las filas sin posición no se pueden deduplicar y cuentan cada una.
+function neuCambiosRealizados(neuHist){
+  var vistos={},out=[];
+  (neuHist||[]).forEach(function(r){
+    if(!r||!r.sigla||!r.fecha)return;
+    var f=String(r.fecha).slice(0,10),m=String(r.posicion==null?'':r.posicion).match(/(\d+)/);
+    if(m){var k=r.sigla+'|'+parseInt(m[1],10)+'|'+f;if(vistos[k])return;vistos[k]=1;}
+    out.push(f);
+  });
+  return out.sort();
+}
+
 // ═══ ANÁLISIS DE COMPONENTES PRINCIPALES (PCA) DE LA FLOTA (2026-10-11) ═══
 // PCA resume varios indicadores correlacionados de cada equipo (fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso diario, horómetro) en 2 o 3 ejes y permite ver qué
 // equipos se alejan del grupo. Pasos: estandarizar cada variable (media 0, desviación 1: así ninguna manda por su unidad), matriz de correlación, valores y vectores propios (Jacobi), puntajes = datos
@@ -9387,7 +9445,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

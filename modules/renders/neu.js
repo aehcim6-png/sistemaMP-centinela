@@ -122,7 +122,7 @@ export function renderNeu(){
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">${ICONS.camera} Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="programaCambiosNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2.5" x2="7" y2="5.5"/><line x1="13" y1="2.5" x2="13" y2="5.5"/></svg> Programa de cambios</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">${ICONS.camera} Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -1359,6 +1359,81 @@ export function resumenFlotaNeu(){
   </div>`);
 }
 
+// ── PROGRAMA DE CAMBIO DE NEUMÁTICOS PROYECTADO (2026-10-12) ─────────────────────────────────────────────
+// Antes solo había el resumen mes/semestre/año dentro de "Resumen flota", sin semana, sin neumáticos vencidos y sin curva S. Acá se agrupan por período
+// las fechas que ya calcula neuProyeccion (logic.js: neuProgramaCambios) ancladas en la última medición de cada neumático. Ver el comentario de neuProgramaCambios.
+function _neuProgramaDatos(){
+  const neu=(S.g('neu')||[]).filter(n=>!n.estado||n.estado==='Operativo');
+  const meds=_neuMedPorSerie(),eqs=_eqPorSigla();
+  const items=[];let estimados=0,ultimaGlobal='';
+  neu.forEach(n=>{
+    const p=neuProyeccion(n,meds,eqs);
+    if(!p)return;
+    const ms=meds[n.serie]||[];
+    const ult=ms.length?ms[ms.length-1].fecha:(n.ultimaMedicion||null);
+    if(ult&&ult>ultimaGlobal)ultimaGlobal=ult;
+    if(p.confianza==='Estimado'){estimados++;return;}   // sin mediciones: la fecha sería inventada, no entra al programa
+    items.push({sigla:n.sigla,posicion:n.posicion,serie:n.serie,base:ult,dias:p.diasRestantes,precio:(neuPrecio(n)||{}).precio||0,motivo:p.motivoCambio,confianza:p.confianza});
+  });
+  return{items,estimados,total:neu.length,ultimaGlobal};
+}
+function _neuProgCurvaSVG(r){
+  const W=620,H=250,mL=38,mR=14,mT=14,mB=30,n=r.curva.length;
+  const maxY=Math.max(1,...r.curva.map(d=>Math.max(d.real||0,d.proyeccion||0)));
+  const X=i=>mL+(n>1?i/(n-1):0)*(W-mL-mR),Y=v=>H-mB-v/maxY*(H-mT-mB);
+  const linea=(clave,color,dash)=>{
+    const pts=r.curva.map((d,i)=>d[clave]==null?null:X(i).toFixed(1)+','+Y(d[clave]).toFixed(1)).filter(Boolean);
+    return pts.length>1?'<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2.2"'+(dash?' stroke-dasharray="6 4"':'')+'/>':'';
+  };
+  let ejes='';
+  for(let k=0;k<=4;k++){const v=maxY*k/4;ejes+='<line x1="'+mL+'" y1="'+Y(v).toFixed(1)+'" x2="'+(W-mR)+'" y2="'+Y(v).toFixed(1)+'" stroke="var(--border)" stroke-opacity=".5"/><text x="'+(mL-5)+'" y="'+(Y(v)+3).toFixed(1)+'" text-anchor="end" font-size="9" fill="var(--tx3)">'+Math.round(v*10)/10+'</text>';}
+  const marcas=[0,Math.floor((n-1)/2),n-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>'<text x="'+X(i).toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" font-size="9" fill="var(--tx3)">'+r.curva[i].fecha.slice(8,10)+'-'+r.curva[i].fecha.slice(5,7)+'</text>').join('');
+  const hoyI=r.curva.findIndex(d=>d.real!=null&&d.proyeccion!=null);
+  const hoyL=hoyI>=0?'<line x1="'+X(hoyI).toFixed(1)+'" y1="'+mT+'" x2="'+X(hoyI).toFixed(1)+'" y2="'+(H-mB)+'" stroke="var(--tx3)" stroke-dasharray="3 3"/><text x="'+(X(hoyI)+4).toFixed(1)+'" y="'+(mT+8)+'" font-size="9" fill="var(--tx3)">hoy</text>':'';
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px;height:auto;display:block">'+ejes+hoyL+linea('proyeccion','var(--warn)',true)+linea('real','var(--ok)',false)+marcas+'</svg>';
+}
+export function programaCambiosNeu(){
+  const fn2=v=>fn(Number(v)||0);
+  const hoy=new Date().toISOString().slice(0,10);
+  const tipo=window._neuProgTipo||'mes';
+  const actual=periodoRango(tipo,hoy);
+  let ref=window._neuProgRef;
+  if(!ref||ref<actual.desde)ref=actual.desde;
+  const d=_neuProgramaDatos();
+  const reales=neuCambiosRealizados(S.g('neuHist')||[]);
+  const r=neuProgramaCambios(d.items,reales,{hoy,periodo:tipo,ref});
+  const t=r.totales;
+  const opciones=periodoOpciones(tipo,hoy).filter(o=>o.v>=actual.desde).reverse();
+  const sel=opciones.map(o=>'<option value="'+o.v+'"'+(o.v===r.rango.desde?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+  const viejas=d.items.filter(x=>x.base&&_neuDiasEntre(x.base,hoy)>45).length;
+  const diasUlt=d.ultimaGlobal?_neuDiasEntre(d.ultimaGlobal,hoy):null;
+  const kpi=(tit,val,col,sub)=>'<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--tx3)">'+tit+'</div><b style="font-size:20px;color:'+col+'">'+val+'</b>'+(sub?'<div style="font-size:9px;color:var(--tx3)">'+sub+'</div>':'')+'</div>';
+  const fila=x=>'<tr style="border-bottom:1px solid var(--bd)'+(x.vencido?';background:rgba(239,68,68,.05)':'')+'"><td style="padding:5px;font-weight:600">'+escapeHtml(x.sigla||'')+'</td><td>'+escapeHtml(x.posicion||'')+'</td><td style="text-align:center">'+escapeHtml(x.fechaCambio)+'</td><td style="font-size:10px">'+escapeHtml(x.motivo)+'</td><td style="font-size:10px">'+escapeHtml(x.confianza)+'</td><td style="text-align:center;'+(x.medicionVieja?'color:var(--warn);font-weight:600':'')+'">'+(x.diasMedicion==null?'—':'hace '+x.diasMedicion+' d')+'</td><td style="text-align:right">$'+fn2(x.precio)+'</td></tr>';
+  const cab='<tr style="background:var(--bg3)"><th style="padding:5px;text-align:left">Equipo</th><th>Pos.</th><th>Fecha de cambio</th><th>Criterio</th><th>Confianza</th><th>Última medición</th><th>Costo</th></tr>';
+  const tipos=[['semana','Semana'],['mes','Mes'],['semestre','Semestre'],['anio','Año']];
+  sm('<div style="max-width:900px"><h3 style="margin:0 0 6px">Programa de cambio de neumáticos (proyectado)</h3>'+
+    '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Cada fecha sale de la proyección de desgaste de ese neumático (sus mediciones de remanente, o el límite de horas en delanteros), contada desde su <b>última medición</b>. Solo cuentan los neumáticos montados con al menos una medición.</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'+tipos.map(a=>'<button class="btn '+(tipo===a[0]?'':'btn-o')+'" style="font-size:11px;padding:4px 10px" onclick="window._neuProgTipo=\''+a[0]+'\';window._neuProgRef=null;programaCambiosNeu()">'+a[1]+'</button>').join('')+
+    '<select id="fNeuProgRef" onchange="window._neuProgRef=this.value;programaCambiosNeu()" style="font-size:12px">'+sel+'</select></div>'+
+    (diasUlt!=null&&diasUlt>30?'<div style="padding:8px 10px;margin-bottom:10px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)">⚠ La última medición de remanente del sistema es de hace <b>'+diasUlt+' días</b> ('+escapeHtml(d.ultimaGlobal)+'). '+viejas+' neumático(s) tienen una medición de más de 45 días: su fecha se calcula desde esa medición y por eso varios figuran vencidos. Mide de nuevo para afinar el programa.</div>':'')+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px">'+
+      (r.incluyeHoy?kpi('Vencidos (cambiar ya)',t.vencidos,t.vencidos?'var(--danger)':'var(--ok)','$'+fn2(t.costoVencidos)):kpi('Vencidos antes del período',t.arrastre,t.arrastre?'var(--danger)':'var(--ok)','arrastre'))+
+      kpi(r.futuro?'Se cambian en el período':'Pendientes hasta fin del período',t.pendientes,'var(--ac)','$'+fn2(t.costoPendiente))+
+      (r.futuro?'':kpi('Ya cambiados en el período',t.reales,'var(--ok)','según historial'))+
+      kpi('Total del período',t.proyectadoTotal,'var(--tx)',r.futuro?'sin los vencidos':'hechos + vencidos + pendientes')+'</div>'+
+    '<b style="font-size:13px">Curva S del período — '+escapeHtml(r.rango.etiqueta)+'</b>'+
+    '<div style="margin:6px 0 4px">'+_neuProgCurvaSVG(r)+'</div>'+
+    '<div style="font-size:10px;color:var(--tx3);margin-bottom:12px"><span style="color:var(--ok)">━</span> cambios ya hechos (acumulado) · <span style="color:var(--warn)">╍</span> proyección (parte del nivel real de hoy, suma los vencidos y los que vencen hasta fin del período). No hay un plan congelado contra el cual medir cumplimiento: la proyección se recalcula con cada medición y un neumático ya cambiado sale del programa, por eso la curva muestra avance + lo que falta, no un % de cumplimiento.</div>'+
+    '<div class="tbl-wrap" style="margin-bottom:12px"><table style="width:100%;font-size:11px"><tr style="background:var(--bg3)"><th style="padding:5px;text-align:left">'+(tipo==='semana'?'Día':tipo==='mes'?'Semana':'Mes')+'</th><th>Por cambiar</th><th>Costo estimado</th><th>Ya cambiados</th></tr>'+
+    r.subperiodos.map(sp=>'<tr style="border-bottom:1px solid var(--bd)'+(sp.actual?';background:rgba(99,102,241,.08)':'')+'"><td style="padding:5px"><b>'+escapeHtml(sp.etiqueta)+'</b>'+(sp.actual?' <span style="font-size:9px;color:var(--tx3)">(hoy)</span>':'')+'</td><td style="text-align:center;font-weight:600">'+sp.proyectados+'</td><td style="text-align:center">$'+fn2(sp.costo)+'</td><td style="text-align:center">'+(sp.reales==null?'—':sp.reales)+'</td></tr>').join('')+'</table></div>'+
+    (r.incluyeHoy&&r.vencidos.length?'<b style="font-size:13px;color:var(--danger)">Vencidos — cambiar ya ('+r.vencidos.length+')</b><div class="tbl-wrap" style="max-height:220px;overflow:auto;margin:6px 0 12px"><table style="width:100%;font-size:11px">'+cab+r.vencidos.map(fila).join('')+'</table></div>':'')+
+    '<b style="font-size:13px">Neumáticos que se cambian en el período ('+t.pendientes+')</b>'+
+    (r.pendientes.length?'<div class="tbl-wrap" style="max-height:260px;overflow:auto;margin:6px 0 12px"><table style="width:100%;font-size:11px">'+cab+r.pendientes.map(fila).join('')+'</table></div>':'<div style="padding:12px;color:var(--tx3);font-size:12px">Ninguno proyectado para este período.</div>')+
+    '<div style="font-size:10px;color:var(--tx3)">'+d.items.length+' de '+d.total+' neumáticos montados entran al programa'+(d.estimados?' · '+d.estimados+' no tienen mediciones y quedan fuera (su fecha sería un supuesto)':'')+'. Los cambios ya hechos salen del historial de neumáticos (un cambio por equipo, posición y fecha).</div>'+
+    '<button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>');
+}
+function _neuDiasEntre(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
+
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderNeu = renderNeu;
 window.verNeuLista = verNeuLista;
@@ -1387,4 +1462,5 @@ window.histPosicion = histPosicion;
 window.verHistorialNeu = verHistorialNeu;
 window.verDetalleNeu = verDetalleNeu;
 window.resumenFlotaNeu = resumenFlotaNeu;
+window.programaCambiosNeu = programaCambiosNeu;
 renders.neu = renderNeu;

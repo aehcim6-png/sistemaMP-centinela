@@ -6490,6 +6490,20 @@ menos de 10 días de reporte del cliente **se excluye y se muestra el motivo** (
 (mediana y MAD; si más de la mitad coincide con la mediana y el MAD sale 0, se usa la desviación media absoluta para no esconder al que se aleja), marcado en rojo desde 2,5 y exige 4 equipos.
 **Límites.** La duración de reparación solo existe en los correctivos actuales (`duracion`), no en el historial 2022-2025, así que el MTTR depende de pocas órdenes por equipo; "se aleja" es dónde mirar primero, no un diagnóstico; no reemplaza el análisis por componente ni el TBO.
 
+### 124. Programa de cambio de neumáticos proyectado, con curva S (2026-10-12)
+
+**Qué faltaba.** Existía la proyección de reemplazos por mes/semestre/año escondida dentro de "Resumen flota", sin semana, sin separar los neumáticos que ya pasaron su fecha y sin curva S. Ahora Neumáticos → "Programa de cambios" (`programaCambiosNeu`, neu.js)
+muestra el programa por **semana / mes / semestre / año** con selector del período (actual o próximos): tabla por sub-período (semana→días, mes→semanas, semestre y año→meses) con cantidad y costo estimado, lista de neumáticos con fecha, criterio, confianza y antigüedad de su última medición, y la curva S.
+**Cálculo (`neuProgramaCambios` y `neuCambiosRealizados`, logic.js; 9 pruebas en `tests/neuPrograma.test.js`).** No se re-estima nada: la fecha de cada neumático sale de `neuProyeccion` (regresión de desgaste o límite de horas del delantero). Corrección de fondo: esa función cuenta los días restantes "desde ahora", pero
+las horas que le quedan son las de la **última medición**; con mediciones viejas la fecha real es anterior. Por eso la fecha se ancla en la fecha de la última medición, y los neumáticos cuya fecha ya pasó se muestran aparte como **vencidos (cambiar ya)**, no repartidos en el período. Los que no tienen ninguna medición
+(confianza "Estimado", fecha basada en una vida útil supuesta) quedan fuera del programa y se informa cuántos son.
+**Curva S.** Avance real (cambios ya hechos en el período, acumulado hasta hoy) + proyección (parte del nivel real de hoy, suma los vencidos y los que vencen de hoy a fin del período). En un período futuro parte en 0. **No hay % de cumplimiento a propósito:** no existe un plan congelado contra el cual medir; la proyección se recalcula con cada
+medición y un neumático cambiado sale del programa, así que comparar contra ella sería circular. Si se quiere medir cumplimiento hay que guardar cada mes una foto del programa (pendiente, requiere tabla nueva).
+**Cambios hechos.** Salen de `historial_neumaticos` (una fila por retiro/cambio). La posición viene escrita de muchas formas ("1", "Posicion 1", "Posición 1", "Pos. 1"): se compara por número, y la misma posición del mismo equipo en la misma fecha cuenta una vez (hay cargas repetidas). Las filas sin posición no se pueden
+deduplicar y cuentan cada una.
+**Con datos reales (2026-10-12).** 124 neumáticos operativos, la última medición de remanente del sistema es del 2026-08-01 (hace 71 días) y 74 neumáticos tienen una medición de más de 45 días, por eso la proyección marca 24 vencidos de inmediato; el programa avisa de esto con una barra en la parte superior. La calidad del programa
+depende de medir con regularidad.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

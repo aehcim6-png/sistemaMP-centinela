@@ -358,6 +358,8 @@ guardada y se recuerda la próxima vez que entras.
 
 En **Componentes → Estadística → Mapa de equipos (PCA)** eliges un tipo de equipo (camión, cargador…) y ves cada equipo comparado con sus pares en fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso y horómetro: en rojo lo que se aleja mucho del grupo. Los equipos con datos poco confiables (por ejemplo un horómetro con una lectura mala) quedan fuera y se indica el motivo. Con 8 o más equipos completos aparece además el gráfico de ejes principales. Úsalo como guía de dónde mirar, no como diagnóstico.
 
+En **Neumáticos → Programa de cambios** ves cuántos neumáticos hay que cambiar por **semana, mes, semestre o año** (elige el período arriba), con el costo estimado, la lista con la fecha de cambio de cada uno y una curva S: lo ya cambiado en el período y lo que falta según el desgaste medido. Los neumáticos cuya fecha ya pasó salen aparte como **vencidos (cambiar ya)**. La fecha se cuenta desde la última medición de cada neumático: si hace mucho que no se mide, el programa te lo avisa; mide de nuevo para que sea más exacto.
+
 Para el detalle completo de cada función (con capturas conceptuales y
 ejemplos paso a paso), abre el sistema y ve a la pestaña **❓ Ayuda** — ahí
 vive la versión completa de 33 secciones, siempre al día.
