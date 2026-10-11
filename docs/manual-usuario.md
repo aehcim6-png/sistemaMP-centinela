@@ -360,6 +360,8 @@ En **Componentes → Estadística → Mapa de equipos (PCA)** eliges un tipo de 
 
 En **Neumáticos → Programa de cambios** ves cuántos neumáticos hay que cambiar por **semana, mes, semestre o año** (elige el período arriba), con el costo estimado, la lista con la fecha de cambio de cada uno y una curva S: lo ya cambiado en el período y lo que falta según el desgaste medido. Los neumáticos cuya fecha ya pasó salen aparte como **vencidos (cambiar ya)**. La fecha se cuenta desde la última medición de cada neumático: si hace mucho que no se mide, el programa te lo avisa; mide de nuevo para que sea más exacto.
 
+La **curva S de PM** (horas de PM planificadas y ejecutadas acumuladas, con cumplimiento del programa) está en **Planificación y Agenda → Planificador**; elige semana, mes, semestre o año arriba de la curva.
+
 Para el detalle completo de cada función (con capturas conceptuales y
 ejemplos paso a paso), abre el sistema y ve a la pestaña **❓ Ayuda** — ahí
 vive la versión completa de 33 secciones, siempre al día.

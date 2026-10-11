@@ -6504,6 +6504,12 @@ deduplicar y cuentan cada una.
 **Con datos reales (2026-10-12).** 124 neumáticos operativos, la última medición de remanente del sistema es del 2026-08-01 (hace 71 días) y 74 neumáticos tienen una medición de más de 45 días, por eso la proyección marca 24 vencidos de inmediato; el programa avisa de esto con una barra en la parte superior. La calidad del programa
 depende de medir con regularidad.
 
+### 125. La curva S de PM se mueve al Planificador (2026-10-12)
+
+El usuario indicó que la curva S del programa de mantención debía estar en el Planificador, no en Metas & KPIs → Avance del Mes. Ahora se muestra en **Planificación y Agenda → Planificador** (arriba, antes del flujo de caja) con el mismo contenido (filtro semana / mes / semestre / año, tarjetas de cumplimiento,
+gráfico plan vs real, equipos con más atraso, por tipo de PM y cumplimiento período a período). Avance del Mes conserva su tabla y en lugar de la curva muestra un aviso con un botón que abre el Planificador. Implementación: `avance.js` expone `window._avanceCurvaSBloque(rerender)` (el cálculo sigue en `curvaSPM`, logic.js);
+`plan.js` pone un contenedor `#planCurvaS` y `planCurvaRefrescar()` carga `avance.js` si hace falta y repinta solo ese bloque cuando cambia el selector de período (no todo el Planificador). La curva ya no está en las dos pantallas a la vez, así que no hay ids de selector repetidos.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
