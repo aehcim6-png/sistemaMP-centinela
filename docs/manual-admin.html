@@ -234,7 +234,7 @@
   <code>historial_neumaticos</code>, agregadas en agosto 2026,
   <code>correctivos_historico</code>, agosto 2026, planillas Excel 2022-2025 previas a este
   sistema, alimenta Probabilidad de Falla en Predictivo, <code>compromisos</code>
-  (2026-08-31, loop de responsabilidad de Metas & KPIs), <code>compras_detalle</code>
+  (2026-08-31, loop de responsabilidad de Metas & KPIs), <code>reportabilidad_diaria</code> (2026-10-11, reporte diario del cliente: una fila por equipo y día; lee cualquier usuario activo, escribe admin u operador; incluida en el respaldo diario), <code>compras_detalle</code>
   (2026-09-27, 8.628 líneas reales de pedidos de compra 2021-2026, importadas de
   despacho.xlsx + OC.xlsx — alimenta Tiempo de Respuesta por Proveedor, Pedidos
   Potencialmente Trabados y Tiempo de Aprobación de OC, y reemplazó a
@@ -447,7 +447,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <h2>8. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
-    <li><code>modules/renders/*.js</code> (45 archivos, módulos ES reales desde la Fase 3,
+    <li><code>modules/renders/*.js</code> (47 archivos, módulos ES reales desde la Fase 3,
     2026-08-30): Vite bundlea y minifica de verdad solo el par eager que <code>index.html</code>
     importa de forma estática (<code>dash.js</code>/<code>ace.js</code>); los otros 43 (carga
     perezosa) no entran a ese grafo — se copian tal cual, sin bundlear, a

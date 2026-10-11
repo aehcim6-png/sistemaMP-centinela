@@ -1,8 +1,8 @@
 # Catálogo de algoritmos, matrices y fórmulas de SistemaMP
 
-Qué cálculos usa el programa, qué pregunta responde cada uno, y qué falta. Se armó leyendo el código (`logic.js`, 269 funciones,
-idénticas en centinela y mp2; 105 archivos de prueba) y las reglas que viven en `index.html` (grilla de PM, pautas acumulativas).
-Fecha: 2026-10-10. Las dos apps comparten todo esto.
+Qué cálculos usa el programa, qué pregunta responde cada uno, y qué falta. Se armó leyendo el código (`logic.js`, más de 330 funciones exportadas,
+idénticas en centinela y mp2; 119 archivos de prueba, 1.606 casos) y las reglas que viven en `index.html` (grilla de PM, pautas acumulativas).
+Fecha: 2026-10-10; se agregó la sección 1.9 el 2026-10-12. Las dos apps comparten todo esto.
 
 **Regla de la casa:** ningún cálculo inventa un dato que falta. Si no hay muestra suficiente, devuelve "sin dato" o "pocos casos".
 
@@ -77,6 +77,20 @@ Estado de stock vs. tiempo de entrega, demanda **Poisson**, nivel de servicio (z
 
 Interpolación de horómetro en una fecha, validación de saltos de horómetro, cruce de materiales por palabras (con tolerancia a texto
 cortado), clasificación componente/sistema desde el síntoma, reparación de texto mal codificado, detección de conflictos de edición.
+
+### 1.9 Agregados el 11 y 12 de octubre
+
+| Cálculo | Qué responde | Método |
+|---|---|---|
+| **Calibración del modelo del fabricante** (`tboVidasObservadas`, `tboCalibrarGrupo`, `tboCalibracionFlota`) | ¿el riesgo de falla del TBO coincide con lo que pasó en la flota? | ocurrido ÷ esperado cada 500 h con bootstrap por tramos, Brier, Kolmogorov, vidas censuradas, comparación dejando un equipo afuera |
+| **Ficha de componente** (`tboFichasEquipo`, `tboDecisionFicha`) | riesgo, costo, abastecimiento y decisión de cada componente en una sola vista | pérdida esperada = P(falla en 500 h) × consecuencia; decisión por umbrales de probabilidad, plan del fabricante y política RCM |
+| **Reposición según PM** (`pmProgramadosEquipo`, `planReposicionPM`) | ¿alcanza el stock de filtros y lubricantes para los PM ya calendarizados? | demanda programada por horómetro y pauta, cruzada con stock, pendiente y plazo |
+| **Costo total de propiedad** (`tcoEquipo`, `tcoFlota`) | costo por hora de tener cada equipo y cota de renovación | capital + mantención + detención ÷ horas de la ventana; comparación con la mediana del modelo |
+| **Pronóstico de disponibilidad por equipo** (`pronosticoDisponibilidadEquipos`, `backtestPronosticoDisponibilidad`) | ¿se cumple la meta en 30/60/90 días y qué equipos la hunden? | PM calendarizados + fallas esperadas (Gamma-Poisson empírico, incertidumbre muestreada) + fuera de servicio hoy; Monte Carlo y backtest |
+| **Curva S de PM** (`curvaSPM`, `cumplimientoProgramaPeriodos`) | plan vs real acumulado ponderado por horas, cumplimiento y proyección de cierre | hitos de horómetro × duración estándar de cada PM; períodos semana/mes/semestre/año |
+| **Reportabilidad diaria** (`reportabilidadArmarLote`, `reportabilidadFusionar`, `reportabilidadDisponibilidad`, `reportabilidadEpisodios`) | disponibilidad contractual y seguimiento de proyecciones de reparación | lectura de los dos formatos de Excel, fusión idempotente por (fecha, equipo) |
+| **PCA y comparación con pares** (`pcaAnalisis`, `pcaVariablesEquipos`, `paresZRobusto`) | ¿qué equipos se alejan de sus pares en varios indicadores a la vez? | componentes principales (Jacobi) sobre variables estandarizadas, T² al 95 %, estabilidad dejando uno afuera; z robusto con mediana y MAD |
+| **Programa de cambio de neumáticos** (`neuProgramaCambios`, `neuCambiosRealizados`) | cuántos neumáticos cambiar por semana/mes/semestre/año y cuáles ya vencieron | fecha de la proyección de desgaste anclada en la última medición; curva S de avance + proyección |
 
 ---
 

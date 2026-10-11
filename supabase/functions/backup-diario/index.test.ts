@@ -31,12 +31,13 @@ Deno.test("TABLAS: incluye las tablas que la auditoría 2026-09-07 encontró fal
   for (const t of criticas) assert(TABLAS.includes(t), `falta ${t} en TABLAS`);
 });
 
-Deno.test("TABLAS: tamaño esperado (55) — cambiar a propósito si se agrega una tabla real nueva", () => {
+Deno.test("TABLAS: tamaño esperado (56) — cambiar a propósito si se agrega una tabla real nueva", () => {
   // Nota 2026-10-02: este assert estaba desactualizado en 50 desde antes de
   // esta sesión (quedaron sin reflejar aquí 'compras_detalle',
   // 'rendimiento_modelos', 'produccion_turno'/'produccion_turno_equipos' —
   // el conteo real era 54 antes de sumar 'fmea_npr' en este cambio).
-  assertEquals(TABLAS.length, 55);
+  // Nota 2026-10-12: 56 al sumar 'reportabilidad_diaria' (reporte diario del cliente, cargado en producción desde 2026-10-11).
+  assertEquals(TABLAS.length, 56);
 });
 
 // ---- traerTodasLasFilas ----

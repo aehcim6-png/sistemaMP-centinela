@@ -255,7 +255,7 @@ para no crecer sin límite y comerse cuota del plan gratis.
   `historial_neumaticos`, agregadas en agosto 2026, `correctivos_historico`
   (agosto 2026, planillas Excel 2022-2025 previas a este sistema, alimenta
   Probabilidad de Falla en Predictivo), y `compromisos` (2026-08-31, loop de
-  responsabilidad de Metas & KPIs)) + 7 tablas "singleton" de
+  responsabilidad de Metas & KPIs) y `reportabilidad_diaria` (2026-10-11, reporte diario del cliente: una fila por equipo y día; lee cualquier usuario activo, escribe admin u operador; incluida en el respaldo diario)) + 7 tablas "singleton" de
   configuración (49 tablas en total). El mapeo completo vive en
   `TABLA_REAL`/`TABLA_SINGLETON` dentro de `modules/store.js`.
 - **El schema está versionado como código** en `supabase/migrations/*.sql`.
@@ -512,7 +512,7 @@ técnico completo.
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
   y un despliegue automático a `sistema-mp-centinela.vercel.app`.
-- `modules/renders/*.js` (45 archivos, módulos ES reales desde la migración
+- `modules/renders/*.js` (47 archivos, módulos ES reales desde la migración
   de Fase 3, 2026-08-30): Vite bundlea y minifica de verdad solo el par
   que `index.html` importa de forma estática (`dash.js`/`ace.js`, eager);
   los otros 43 (carga perezosa, `dynamic import()`) no entran a ese grafo
@@ -547,7 +547,7 @@ supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resum
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 737 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 1.606 casos)
 docs/                    — esta carpeta
 ```
 

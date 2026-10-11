@@ -60,10 +60,10 @@
   JS). Se decidió así a propósito: es más fácil de mantener por una sola persona sesión a sesión
   que introducir un framework nuevo a mitad de camino.</p>
   <ul>
-    <li><b>index.html</b> (~3.300 líneas) — el esqueleto: la barra de navegación, el login, el
+    <li><b>index.html</b> (~5.200 líneas) — el esqueleto: la barra de navegación, el login, el
     arranque de la aplicación, y la infraestructura compartida entre pestañas que no encajaba en
     un módulo propio (autoguardado a carpeta local, auditoría, MFA, gestión de usuarios).</li>
-    <li><b>modules/renders/*.js</b> (45 archivos) — un archivo por pestaña o sub-pestaña del
+    <li><b>modules/renders/*.js</b> (47 archivos) — un archivo por pestaña o sub-pestaña del
     sistema. Cada uno exporta su función de dibujo (<code>export function render&lt;Tab&gt;()</code>)
     y también la deja en <code>window.render&lt;Tab&gt;</code> — el puente hace falta porque el
     HTML generado usa <code>onclick="..."</code> con nombres de función simples, que no ven
@@ -72,7 +72,7 @@
     build + Playwright) antes de fusionar, en vez de todos a la vez — el riesgo que antes hacía
     preferible mantenerlos como scripts planos. <code>logic.js</code> y
     <code>modules/store.js</code> siguen siendo scripts planos a propósito (ver sección 2).
-    <b>Carga perezosa (code-splitting, 2026-09-10)</b>: 43 de los 45 se cargan con
+    <b>Carga perezosa (code-splitting, 2026-09-10)</b>: 45 de los 47 se cargan con
     <code>dynamic import()</code> recién al visitar esa pestaña, no todos al arrancar — bajó el
     bundle inicial de ~900kB a ~70kB. <code>index.html</code> define <code>_LAZY_VERS</code> (qué
     archivo/versión carga cada uno), <code>_LAZY_EXPORTS</code> (sus funciones públicas) y
@@ -89,7 +89,7 @@
     <li><b>modules/store.js</b> — el motor de sincronización (ver sección 3).</li>
     <li><b>logic.js</b> — funciones de cálculo puras: fechas de próxima mantención,
     disponibilidad, similitud de materiales, etc. Junto con <code>store.js</code>, son los
-    archivos con pruebas automatizadas (737 casos, corren con Vitest).</li>
+    archivos con pruebas automatizadas (1.606 casos, corren con Vitest).</li>
     <li><b>tests/e2e/</b> (2026-09-10) — pruebas de extremo a extremo con Playwright Test, que sí
     arrancan un navegador real (Chromium) contra un servidor Vite local, a diferencia de Vitest
     (que corre sin DOM). Cubren los flujos que antes solo se probaban a mano cada vez: login
@@ -3178,6 +3178,56 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Pronóstico de demanda:</b> siete modelos (promedio, suavizamiento exponencial, tendencia amortiguada, estacional, Holt-Winters, Croston) compiten por
   backtest de origen móvil; un modelo con tendencia o estacionalidad solo gana si supera al promedio por ≥5%. Se aplica al gasto mensual en repuestos
   (pestaña TBO). Con los datos reales gana el promedio: el gasto es demasiado irregular para pronosticar estructura.</p>
+
+  <h3>111. Guardados automáticos con la sesión vencida (2026-10-10)</h3>
+  <p>Al retomar el celular con la sesión vencida, cinco guardados automáticos (metas, disponibilidad, avance, salud) salían juntos y fallaban con 401; la sesión se renovaba segundos después, pero nadie los reintentaba. Ahora cada guardado renueva la sesión <b>antes</b> de enviarse si le quedan menos de 30 s y, si aun así recibe un 401, renueva y reintenta <b>una vez</b> (los guardados son idempotentes). Sin token no intenta renovar, y si la renovación falla se mantiene el aviso y el cierre de sesión de siempre. 11 pruebas.</p>
+
+  <h3>112. Ficha de componente en el Buscador Maestro (2026-10-11)</h3>
+  <p>Una sola <b>ficha por componente</b> con cambio registrado: vida (medida por origen o plan del fabricante), riesgo de falla en 500 h, costo, abastecimiento (stock, pedidos abiertos, plazo y probabilidad de llegar a tiempo), política óptima y <b>pérdida esperada</b> = probabilidad de falla × consecuencia. Usa las mismas funciones que la pestaña TBO, así ambas pantallas coinciden.</p>
+
+  <p>La decisión combina la probabilidad (≥35 % cambiar ya, ≥15 % planificar, ≥5 % vigilar), el plan del fabricante y la política económica; un ítem vencido cuya estrategia es "dejar correr" pasa a "planificar" y lo explica, para no decir "cambiar ya" y "dejar correr" a la vez.</p>
+
+  <h3>113. Score de Salud del equipo con el riesgo de componentes (2026-10-11)</h3>
+  <p>El Score de Salud suma una 5.ª señal, <b>Riesgo TBO</b> (% de los componentes del equipo que no están en riesgo). Sin plan TBO o sin datos, el Score se calcula exactamente como antes. La Torre de Control, el Buscador, el Dashboard y el ranking de reemplazo usan el mismo Score, y la tarjeta de la Torre muestra "⚠ N comp. en riesgo" con la causa y qué revisar. Cómo se evita que el cambio de fórmula genere avisos falsos: ver arquitectura.md.</p>
+
+  <h3>114. Calibración del modelo de riesgo del fabricante contra la flota (2026-10-11)</h3>
+  <p>El riesgo de falla que usa TBO (Weibull con β=3 y el TBO como B5) es una hipótesis del fabricante; ahora se contrasta con la flota. Se arman las vidas entre cambios registrados (el tramo abierto cuenta como observación censurada) y cada 500 h se compara lo que el modelo predijo con lo que pasó: razón ocurrido/esperado con intervalo (bootstrap por tramos), puntaje de Brier, prueba de Kolmogorov, fracción cambiada antes del TBO (se espera 5 %) y comparación con un Weibull ajustado dejando un equipo afuera cada vez. Veredicto: <i>compatible</i>, <i>falla antes</i>, <i>dura más</i> o <i>sin datos</i> (menos de 8 tramos).</p>
+
+  <h3>115. Reposición alimentada por el programa de PM (2026-10-11)</h3>
+  <p>El stock gestionado son filtros y lubricantes, no los componentes del plan TBO; su demanda <b>programada</b> sale del programa de PM: el próximo PM de cada equipo (por horómetro) y la pauta de lo que gasta. Cada línea de pauta se vincula con su ítem de Stock o Lubricantes con el mismo criterio con que el sistema descuenta stock, y se cruza con stock + pedidos pendientes y plazo de entrega para indicar si alcanza hasta el PM y cuándo conviene pedir.</p>
+
+  <h3>116. Costo de hora detenida editable y plan de PM en ABC-XYZ (2026-10-11)</h3>
+  <p>El costo de una hora detenida (antes fijo en US$135) se edita en <b>Configuración → Tarifas y Metas</b>, se guarda en la base y es el mismo para todos los usuarios (Configuración &gt; valor local antiguo &gt; US$135). Lo usan el Buscador, la Torre y el Score, el presupuesto y el reemplazo óptimo. Además, el plan de PM calendarizado alimenta el punto de reorden del análisis ABC-XYZ (demanda programada por N.º de parte).</p>
+
+  <h3>117. Costo total de propiedad (TCO) por equipo (2026-10-11)</h3>
+  <p>Cuánto cuesta <i>tener</i> cada equipo por hora de operación: <b>capital</b> (amortización contable por hora, o valor de compra ÷ vida contable; referencia por clase: camión 26.000 h, cargador 18.000, bulldozer 17.000), <b>mantención</b> (repuestos y servicios de las órdenes de compra sin duplicar) y <b>detención</b> por falla (horas sin PM × costo de hora detenida). No incluye mano de obra propia (su costo no se registra). Se compara con la mediana de su modelo (3 o más unidades). El indicador de renovación es una cota, no un veredicto.</p>
+
+  <h3>118. Costo de hora detenida por modelo y tasa USD compartida (2026-10-11)</h3>
+  <p>El costo de hora detenida puede definirse <b>por modelo</b> en Configuración (la clave ignora mayúsculas y símbolos: "Komatsu HD785-7" = "komatsu hd785 7"); el valor del modelo manda sobre el general. La tasa USD→CLP (referencial, 910 por defecto) pasó del navegador de cada uno a Configuración, así que vale para todos. Lo usan la ficha de componente, el TCO, el Score de Salud y el presupuesto limitado.</p>
+
+  <h3>119. Calibración con el historial real de Turbos (2026-10-11)</h3>
+  <p>Primera corrida con datos reales (54 registros de Turbo de 7 camiones HD785-7): las 22 vidas completas terminaron antes del TBO de 8.000 h (mediana ≈1.750 h), unas 41 veces los cambios que el modelo espera (IC 90 %: 18–158). <b>El modelo del fabricante subestima el riesgo del Turbo en esta flota.</b> Límite: el historial anota cambios, no fallas. Regla nueva: dos cambios del mismo componente y equipo con menos de 24 h entre sí cuentan como uno (los HD785-7 llevan dos turbos anotados como filas casi iguales).</p>
+
+  <h3>120. Pronóstico de disponibilidad por equipo (2026-10-11)</h3>
+  <p>Disponibilidad → <b>Pronóstico de disponibilidad por equipo</b>: ¿se cumple la meta en 30/60/90 días y qué equipos la hunden? Equipo por equipo suma los PM calendarizados (con su duración real), las fallas esperadas (tasa Gamma-Poisson estabilizada, con su incertidumbre) y los equipos fuera de servicio hoy; 2.000 simulaciones dan P10/P50/P90 y la probabilidad de cumplir la meta. Un <b>backtest</b> repite el pronóstico desde fechas pasadas y mide cuántas veces lo real cayó dentro del rango. Cuidados aprendidos con datos reales: un "Fuera de Servicio" sin término es un evento abierto (no se mide como duración) y se corta la historia si el último dato tiene más de 14 días.</p>
+
+  <h3>121. Curva S de PM y cumplimiento del programa (2026-10-11)</h3>
+  <p>Plan vs real <b>acumulado día a día, ponderado por horas</b>: PM1 3 h, PM2 5 h, PM3 8 h, PM4 12 h (editables en Configuración); PM5, PM7 y PM9 cuentan como PM1, PM6 como PM2 y PM8 como PM4. Con filtro de semana, mes, semestre o año. El plan son los hitos de horómetro que cada equipo cruza en el período; lo real, los registros de PM. Muestra cumplimiento a la fecha, brecha en horas, proyección de cierre, atraso por equipo y por tipo, y el cumplimiento período a período. Hoy se ve en <b>Planificación y Agenda → Planificador</b> (ver más abajo).</p>
+
+  <h3>122. Reportabilidad diaria del cliente (2026-10-11)</h3>
+  <p>El cliente pide cada día el estatus de todos los equipos (OP o FS, con detalle, detención y proyección de reparación): es la fuente contractual de la disponibilidad. Tabla nueva <code>reportabilidad_diaria</code>, una fila por equipo y día. Disponibilidad → <b>Reportabilidad diaria del cliente</b>: importar el Excel diario o el libro con una hoja por día (con vista previa), <b>exportar</b> un día en el formato del cliente, ver la disponibilidad por semana/mes/semestre/año y seguir las proyecciones de reparación. Cargar de nuevo un día lo <b>actualiza</b>, no lo duplica, y se pueden cargar fechas antiguas después. Carga inicial: 638 filas de 20 días.</p>
+
+  <h3>123. Mapa de equipos (PCA) en Estadística (2026-10-11)</h3>
+  <p>Componentes → Estadística → <b>Mapa de equipos (PCA)</b>: compara cada equipo con los de <b>su mismo tipo</b> en fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso y horómetro (últimos 12 meses); en rojo lo que se aleja más de 2,5 desviaciones robustas. Un equipo con datos dudosos (horómetro imposible, pocas reparaciones o pocos reportes) se excluye <b>y se dice por qué</b>. El gráfico de ejes principales solo aparece con 8 o más equipos completos y avisa si el eje no es estable. Con los datos reales, mezclar tipos solo separa camiones de torres: el valor práctico es comparar con pares y detectar datos malos.</p>
+
+  <h3>124. Programa de cambio de neumáticos proyectado, con curva S (2026-10-12)</h3>
+  <p>Neumáticos → <b>Programa de cambios</b>: cuántos neumáticos hay que cambiar por semana, mes, semestre o año, con costo estimado, lista con la fecha de cada uno y <b>curva S</b> (lo ya cambiado + lo que falta). La fecha de cada neumático se cuenta desde su <b>última medición</b>; los que ya pasaron su fecha salen aparte como <b>vencidos (cambiar ya)</b>, y los que no tienen mediciones quedan fuera. No hay % de cumplimiento a propósito: no existe un plan congelado contra el cual medir. Con los datos reales la última medición era de hace 71 días, así que el programa lo advierte.</p>
+
+  <h3>125. La curva S de PM se mueve al Planificador (2026-10-12)</h3>
+  <p>La curva S de PM pasó de Metas &amp; KPIs → Avance del Mes a <b>Planificación y Agenda → Planificador</b> (arriba, antes del flujo de caja), con el mismo contenido. Avance del Mes conserva su tabla y un botón que abre el Planificador.</p>
+
+  <h3>126. Cómo se mantienen los documentos al día (2026-10-12)</h3>
+  <p><code>arquitectura.md</code> es el detalle técnico completo (una sección por cambio); <code>arquitectura.html</code> es su <b>resumen para leer</b>, escrito a mano, con una sección por cambio: al agregar una sección al <code>.md</code> hay que agregar su resumen aquí. <code>manual-usuario.html</code>, en cambio, se genera desde <code>manual-usuario.md</code> con <code>python3 scripts/manual_md_a_html.py</code> (no se edita a mano). El plano usa cifras fijas (módulos, tablas, funciones): se revisan cuando cambian. El cambio de un cálculo o de una pantalla se documenta en el mismo commit.</p>
 
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

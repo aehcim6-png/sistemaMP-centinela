@@ -26,6 +26,23 @@ export function renderAyuda(){
     // Novedades plegadas (2026-10-08): eran 9 tarjetas largas antes de todo lo demás —
     // mismo criterio que ya tenía mp2 desde 2026-09-07. Contenido intacto.
     '<details style="margin-bottom:16px"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0;display:flex;align-items:center;gap:6px">'+ICONS.doc+' Historial de novedades y correcciones (clic para ver)</summary>'+
+    // NOVEDADES DE ESTA VERSIÓN (2026-10-12)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Novedades recientes (12 de octubre 2026)</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:10px 0">Desde el 14 de septiembre se agregaron estas funciones. El detalle de cada una está en el Manual de Usuario (sección 6, mapa de pestañas) y en la Arquitectura.</p>'+
+    '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Programa de cambios de neumáticos</b> (Neumáticos): cuántos hay que cambiar por semana, mes, semestre o año, con costo, lista por neumático, curva S y los vencidos aparte. La fecha se cuenta desde la última medición: si hace mucho que no se mide, avisa.</li>'+
+    '<li><b>Curva S de PM</b> (Planificación y Agenda → Planificador): horas de PM planificadas vs ejecutadas, acumuladas día a día, con cumplimiento del programa; filtro de semana, mes, semestre o año.</li>'+
+    '<li><b>Reportabilidad diaria del cliente</b> (Disponibilidad): importar el Excel diario o el libro por hojas, exportar un día en el formato del cliente y ver la disponibilidad contractual. Cargar de nuevo un día lo actualiza; se pueden cargar fechas antiguas después.</li>'+
+    '<li><b>Pronóstico de disponibilidad por equipo</b> (Disponibilidad): probabilidad de cumplir la meta a 30, 60 y 90 días y qué equipos la hunden.</li>'+
+    '<li><b>Mapa de equipos (PCA)</b> (Componentes → Estadística): compara cada equipo con los de su mismo tipo; los equipos con datos dudosos quedan fuera y se indica por qué.</li>'+
+    '<li><b>TBO Komatsu, ficha de componente y Score de Salud:</b> plan del fabricante vs cambios reales, ficha por componente en el Buscador (riesgo, costo, abastecimiento, decisión), Score de Salud con una 5.ª señal de riesgo de componentes y calibración del modelo del fabricante contra la flota. En los turbos de los HD785-7 el modelo del fabricante subestima el riesgo.</li>'+
+    '<li><b>Costos:</b> costo total de propiedad por equipo, costo de hora detenida (general y por modelo), tasa USD→CLP y duración de cada PM, todos editables en Configuración y compartidos por todos los usuarios.</li>'+
+    '<li><b>Reposición según el programa de PM</b> (Stock Filtros): compara lo que gastarán los PM ya programados contra el stock y el plazo de entrega.</li>'+
+    '<li><b>Guardados con la sesión vencida:</b> el sistema renueva la sesión antes de guardar y reintenta una vez, en vez de mostrar errores de guardado sueltos.</li>'+
+    '</ul>'+
+    '</div>'+
+
     // NOVEDADES DE ESTA VERSIÓN (2026-09-14)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades y correcciones recientes (14 de septiembre 2026)</b>'+

@@ -20,11 +20,11 @@ copia archivos, no transforma el código JS). Se decidió así a propósito: es
 más fácil de mantener por una sola persona sesión a sesión que introducir un
 framework nuevo a mitad de camino.
 
-- **`index.html`** (~3.300 líneas) — el esqueleto: la barra de navegación, el
+- **`index.html`** (~5.200 líneas) — el esqueleto: la barra de navegación, el
   login, el arranque de la aplicación, y la infraestructura compartida entre
   pestañas que no encajaba en un módulo propio (autoguardado a carpeta local,
   auditoría, MFA, gestión de usuarios).
-- **`modules/renders/*.js`** (45 archivos) — un archivo por pestaña o
+- **`modules/renders/*.js`** (47 archivos) — un archivo por pestaña o
   sub-pestaña del sistema. Cada uno exporta su función de dibujo
   (`export function render<Tab>()`) y también la deja en
   `window.render<Tab>` — el puente hace falta porque el HTML generado usa
@@ -35,7 +35,7 @@ framework nuevo a mitad de camino.
   la vez — el riesgo que antes hacía preferible mantenerlos como scripts
   planos. `logic.js` y `modules/store.js` siguen siendo scripts planos a
   propósito (ver sección 2).
-  **Carga perezosa (code-splitting, 2026-09-10)**: 43 de los 45 se cargan
+  **Carga perezosa (code-splitting, 2026-09-10)**: 45 de los 47 se cargan
   con `dynamic import()` recién al visitar esa pestaña, no todos al
   arrancar — bajó el bundle inicial de ~900kB a ~70kB. `index.html` define
   `_LAZY_VERS` (qué archivo/versión carga cada uno), `_LAZY_EXPORTS` (sus
@@ -54,7 +54,7 @@ framework nuevo a mitad de camino.
 - **`logic.js`** — funciones de cálculo puras (sin acceso a pantalla ni a la
   base de datos): fechas de próxima mantención, disponibilidad, similitud de
   materiales, etc. Junto con `store.js`, son los archivos con pruebas
-  automatizadas (`tests/*.test.js`, 737 casos, corren con Vitest).
+  automatizadas (`tests/*.test.js`, 1.606 casos, corren con Vitest).
 - **`tests/e2e/`** (2026-09-10) — pruebas de extremo a extremo con Playwright
   Test, que sí arrancan un navegador real (Chromium) contra un servidor Vite
   local, a diferencia de Vitest (que corre sin DOM). Cubren los flujos que
@@ -6445,7 +6445,7 @@ varios días seguidos es un solo evento; con pocas fechas de backtest la cobertu
 
 ### 121. Curva S de PM y cumplimiento del programa (2026-10-11)
 
-**Qué es.** Plan vs real **acumulado día a día, ponderado por horas**, en la pestaña Metas & KPIs → Avance del Mes (debajo de la tabla existente). Duraciones estándar del usuario: **PM1 3 h, PM2 5 h, PM3 8 h, PM4 12 h**
+**Qué es.** Plan vs real **acumulado día a día, ponderado por horas**, en la pestaña Metas & KPIs → Avance del Mes (debajo de la tabla existente) — **movida después al Planificador, ver la sección 125**. Duraciones estándar del usuario: **PM1 3 h, PM2 5 h, PM3 8 h, PM4 12 h**
 (`PM_DURACION_ESTANDAR_H`, editables en Configuración → `configuracion.duracionPMHoras`, migración `20261011160000`, aplicada en ambas bases). Los tipos antiguos se cuentan como su PM equivalente
 (`PM_EQUIVALENCIA`): PM5, PM7 y PM9 = PM1; PM6 = PM2; PM8 = PM4 (PM5/PM9 dichos por el usuario; PM6/PM7/PM8 deducidos de la grilla de 250 h y confirmados con "Dale").
 **Cómo se calcula** (`curvaSPM`, `cumplimientoProgramaMeses`, logic.js). El **plan** son los hitos de horómetro (múltiplos de `frecPM`, con el tipo de `C.tipoPM`) que cada equipo cruza en el mes: el horómetro de la
@@ -6509,6 +6509,10 @@ depende de medir con regularidad.
 El usuario indicó que la curva S del programa de mantención debía estar en el Planificador, no en Metas & KPIs → Avance del Mes. Ahora se muestra en **Planificación y Agenda → Planificador** (arriba, antes del flujo de caja) con el mismo contenido (filtro semana / mes / semestre / año, tarjetas de cumplimiento,
 gráfico plan vs real, equipos con más atraso, por tipo de PM y cumplimiento período a período). Avance del Mes conserva su tabla y en lugar de la curva muestra un aviso con un botón que abre el Planificador. Implementación: `avance.js` expone `window._avanceCurvaSBloque(rerender)` (el cálculo sigue en `curvaSPM`, logic.js);
 `plan.js` pone un contenedor `#planCurvaS` y `planCurvaRefrescar()` carga `avance.js` si hace falta y repinta solo ese bloque cuando cambia el selector de período (no todo el Planificador). La curva ya no está en las dos pantallas a la vez, así que no hay ids de selector repetidos.
+
+### 126. Cómo se mantienen los documentos al día (2026-10-12)
+
+`arquitectura.md` es el detalle técnico completo (una sección por cambio); `arquitectura.html` es su **resumen para leer**, escrito a mano, con una sección por cambio: al agregar una sección al `.md` hay que agregar su resumen aquí. `manual-usuario.html`, en cambio, se genera desde `manual-usuario.md` con `python3 scripts/manual_md_a_html.py` (no se edita a mano). El plano usa cifras fijas (módulos, tablas, funciones): se revisan cuando cambian. El cambio de un cálculo o de una pantalla se documenta en el mismo commit.
 
 ## Lo que decidimos NO hacer (y por qué)
 
