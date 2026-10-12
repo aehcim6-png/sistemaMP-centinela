@@ -92,6 +92,27 @@ cortado), clasificación componente/sistema desde el síntoma, reparación de te
 | **PCA y comparación con pares** (`pcaAnalisis`, `pcaVariablesEquipos`, `paresZRobusto`) | ¿qué equipos se alejan de sus pares en varios indicadores a la vez? | componentes principales (Jacobi) sobre variables estandarizadas, T² al 95 %, estabilidad dejando uno afuera; z robusto con mediana y MAD |
 | **Programa de cambio de neumáticos** (`neuProgramaCambios`, `neuCambiosRealizados`) | cuántos neumáticos cambiar por semana/mes/semestre/año y cuáles ya vencieron | fecha de la proyección de desgaste anclada en la última medición; curva S de avance + proyección |
 
+### 1.10 Distribuciones de probabilidad que usa el sistema
+
+Para qué sirve cada distribución clásica y dónde está en el programa. Los cuatro modelos de vida (Weibull, log-normal, gamma y exponencial) se pueden comparar entre sí con `compararModelosVida`
+(máxima verosimilitud, AICc y Kolmogorov-Smirnov), para no asumir Weibull sin mirar si ajusta.
+
+| Distribución | Para qué se usa | Dónde |
+|---|---|---|
+| **Weibull** | vida de componentes y neumáticos; forma (desgaste, azar o falla temprana), vida restante, riesgo del plan TBO, reemplazo óptimo | `ajusteWeibull`, `ajusteWeibullCensurado`, `rulWeibull`, `tboRiesgoWeibull`, `tboReemplazoOptimo` |
+| **Exponencial** | falla por azar (tasa constante); es el caso Weibull con β=1; uno de los 4 modelos de vida comparables | `ajusteExponencialMLE`, `compararModelosVida` |
+| **Log-normal** | tiempos de reparación (MTTR), que son asimétricos y no bajan de cero | `analisisMTTRLogNormal`, `ajusteLogNormalMLE` |
+| **Gamma** | plazos de entrega de repuestos; tasa de fallas por equipo y demanda (con Poisson) | `ajusteGammaMomentos`, `ajusteGammaMLE`, `gammaCDF`, `gammaCuantil`, `bayesEmpiricoGammaPoisson` |
+| **Poisson** | conteo de fallas y de consumo de repuestos en un período | `_poissonPMF`, `pronosticoDisponibilidadEquipos`, `analisisDemandaRepuestos` |
+| **Beta** | una probabilidad con pocos datos (¿un cambio llega al TBO?, ¿cuál repuesto dura más?) | `betaBernoulliPosterior`, `betaCuantil`, `probabilidadMayorBeta` |
+| **Normal** | gráficos de control, intervalos, z de comparación entre pares, simulaciones | `cartaControlIMR`, `cartaControlEWMA`, `_normCDF`, `paresZRobusto` |
+| **Uniforme** | prueba de que el modelo calibra bien (si el modelo es bueno, F(vida) se reparte parejo entre 0 y 1) | `_ksUniformeP`, `tboCalibrarGrupo` |
+| **Chi-cuadrado** | intervalo del MTBF, independencia componente × ubicación, uniformidad de las fallas | `intervaloConfianzaMTBF`, `testIndependenciaChi2`, `testChiCuadradoUniforme` |
+| **t de Student** | intervalos de confianza al 90 % de los ajustes | `_tCritico90` |
+| **F de Snedecor** | ¿difiere el MTTR entre técnicos? (ANOVA) | `anovaUnFactor`, `_pValorF` |
+
+Nota de uso: ninguna distribución se elige "porque sí". Con menos de 5 a 8 datos el sistema no ajusta (devuelve "pocos casos") y, cuando hay datos, la forma real se verifica con la bondad de ajuste.
+
 ---
 
 ## 2. Lo que nos falta, por orden de utilidad
