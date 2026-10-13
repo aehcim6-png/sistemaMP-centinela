@@ -228,25 +228,74 @@ export function renderCos() {
     agudo: { t: '⏱️ Agudo', d: 'Falla poco, pero cuando falla tarda mucho', c: 'var(--w)' },
     complejo: { t: '🔴 Complejo', d: 'Falla seguido Y tarda mucho — prioridad máxima', c: 'var(--danger)' }
   };
+  // Gráfico Jack-Knife (2026-10-13): MTBF (eje X, escala logarítmica e invertida: a la derecha los que fallan más seguido) contra MTTR (eje Y, logarítmico), con las medianas de la flota como
+  // líneas de corte (las mismas que clasifican a cada equipo) y líneas diagonales de igual pérdida: horas perdidas al año = (horas de operación al año ÷ MTBF) × MTTR, dibujadas con el ritmo
+  // anual mediano de la flota; dos equipos sobre la misma diagonal pierden las mismas horas aunque uno falle poco y tarde mucho y el otro al revés.
+  function _cosJackKnifeSVG(jk) {
+    var W = 640, H = 380, mL = 52, mR = 16, mT = 14, mB = 44, pts = jk.puntos;
+    var lx = function (v) { return Math.log10(v); };
+    var xs = pts.map(function (p) { return p.mtbf; }), ys = pts.map(function (p) { return p.mttr; });
+    var xmin = Math.min.apply(null, xs.concat(jk.medianaMtbf)) / 1.4, xmax = Math.max.apply(null, xs.concat(jk.medianaMtbf)) * 1.4;
+    var ymin = Math.min.apply(null, ys.concat(jk.medianaMttr)) / 1.5, ymax = Math.max.apply(null, ys.concat(jk.medianaMttr)) * 1.5;
+    var X = function (v) { return mL + (lx(xmax) - lx(v)) / (lx(xmax) - lx(xmin)) * (W - mL - mR); };   // invertido
+    var Y = function (v) { return H - mB - (lx(v) - lx(ymin)) / (lx(ymax) - lx(ymin)) * (H - mT - mB); };
+    var xc = X(jk.medianaMtbf), yc = Y(jk.medianaMttr), x0 = mL, x1 = W - mR, y0 = mT, y1 = H - mB;
+    var fondo = function (x, y, w, h, c) { return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + Math.max(0, w).toFixed(1) + '" height="' + Math.max(0, h).toFixed(1) + '" fill="' + c + '" fill-opacity=".07"/>'; };
+    var svg = fondo(xc, y0, x1 - xc, yc - y0, 'var(--danger)') + fondo(x0, y0, xc - x0, yc - y0, 'var(--w)') + fondo(xc, yc, x1 - xc, y1 - yc, 'var(--w)') + fondo(x0, yc, xc - x0, y1 - yc, 'var(--ok)');
+    // rejilla y etiquetas de ejes (potencias de 10 y 1-2-5)
+    var marcas = function (a, b) { var out = [], d = Math.floor(Math.log10(a)); for (var e = d; e <= Math.ceil(Math.log10(b)); e++) [1, 2, 5].forEach(function (m) { var v = m * Math.pow(10, e); if (v >= a && v <= b) out.push(v); }); return out; };
+    var nf = function (v) { return v >= 1000 ? (Math.round(v / 100) / 10 + '').replace('.', ',') + ' mil' : (v < 1 ? (v + '').replace('.', ',') : v + ''); };
+    marcas(xmin, xmax).forEach(function (v) { svg += '<line x1="' + X(v).toFixed(1) + '" y1="' + y0 + '" x2="' + X(v).toFixed(1) + '" y2="' + y1 + '" stroke="var(--border)" stroke-opacity=".4"/><text x="' + X(v).toFixed(1) + '" y="' + (y1 + 14) + '" text-anchor="middle" font-size="9" fill="var(--tx3)">' + nf(v) + '</text>'; });
+    marcas(ymin, ymax).forEach(function (v) { svg += '<line x1="' + x0 + '" y1="' + Y(v).toFixed(1) + '" x2="' + x1 + '" y2="' + Y(v).toFixed(1) + '" stroke="var(--border)" stroke-opacity=".4"/><text x="' + (x0 - 5) + '" y="' + (Y(v) + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--tx3)">' + nf(v) + '</text>'; });
+    svg += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x1 - x0) + '" height="' + (y1 - y0) + '" fill="none" stroke="var(--border)"/>';
+    // diagonales de igual pérdida (horas/año) con el ritmo mediano de la flota
+    if (jk.hrsAnioRef) {
+      [25, 50, 100, 200, 500, 1000].forEach(function (L) {
+        var f = function (m) { return L * m / jk.hrsAnioRef; };   // MTTR = L·MTBF/H
+        var a = xmin, b = xmax, ya = f(a), yb = f(b);
+        if (ya > ymax) { a = ymax * jk.hrsAnioRef / L; ya = ymax; } if (ya < ymin) { a = ymin * jk.hrsAnioRef / L; ya = ymin; }
+        if (yb > ymax) { b = ymax * jk.hrsAnioRef / L; yb = ymax; } if (yb < ymin) { b = ymin * jk.hrsAnioRef / L; yb = ymin; }
+        if (!(a < b)) return;
+        svg += '<line x1="' + X(a).toFixed(1) + '" y1="' + Y(ya).toFixed(1) + '" x2="' + X(b).toFixed(1) + '" y2="' + Y(yb).toFixed(1) + '" stroke="var(--tx3)" stroke-dasharray="4 4" stroke-opacity=".7"/>' +
+          '<text x="' + (X(a) - 3).toFixed(1) + '" y="' + (Y(ya) - 3).toFixed(1) + '" text-anchor="end" font-size="8" fill="var(--tx3)">' + L + ' h/año</text>';
+      });
+    }
+    svg += '<line x1="' + xc.toFixed(1) + '" y1="' + y0 + '" x2="' + xc.toFixed(1) + '" y2="' + y1 + '" stroke="var(--tx2)" stroke-width="1.5"/><line x1="' + x0 + '" y1="' + yc.toFixed(1) + '" x2="' + x1 + '" y2="' + yc.toFixed(1) + '" stroke="var(--tx2)" stroke-width="1.5"/>';
+    // nombres de cuadrante
+    var cuad = function (txt, x, y, c, anc) { return '<text x="' + x + '" y="' + y + '" font-size="11" font-weight="700" fill="' + c + '" text-anchor="' + anc + '">' + txt + '</text>'; };
+    svg += cuad('AGUDOS', x0 + 6, y0 + 14, 'var(--w)', 'start') + cuad('COMPLEJOS (agudos-crónicos)', x1 - 6, y0 + 14, 'var(--danger)', 'end') + cuad('CLASE MUNDIAL', x0 + 6, y1 - 6, 'var(--ok)', 'start') + cuad('CRÓNICOS', x1 - 6, y1 - 6, 'var(--w)', 'end');
+    pts.forEach(function (p) {
+      var c = _JK_INFO[p.cuadrante].c, r = 5;
+      svg += '<circle cx="' + X(p.mtbf).toFixed(1) + '" cy="' + Y(p.mttr).toFixed(1) + '" r="' + r + '" fill="' + c + '" fill-opacity=".85"><title>' + escapeHtml(p.sigla) + ' — MTBF ' + fn(p.mtbf) + ' h · MTTR ' + p.mttr + ' h' + (p.horasPerdidasAnio != null ? ' · ≈' + Math.round(p.horasPerdidasAnio) + ' h perdidas al año' : '') + '</title></circle>' +
+        '<text x="' + (X(p.mtbf) + 7).toFixed(1) + '" y="' + (Y(p.mttr) + 3).toFixed(1) + '" font-size="9" fill="var(--tx2)">' + escapeHtml(p.sigla) + '</text>';
+    });
+    svg += '<text x="' + ((x0 + x1) / 2) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="10" fill="var(--tx3)">MTBF (horas entre fallas, escala logarítmica) — a la derecha fallan más seguido</text>' +
+      '<text x="12" y="' + ((y0 + y1) / 2) + '" text-anchor="middle" font-size="10" fill="var(--tx3)" transform="rotate(-90 12 ' + ((y0 + y1) / 2) + ')">MTTR (horas por falla, logarítmica)</text>';
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;height:auto;display:block;margin:0 auto" role="img" aria-label="Matriz Jack-Knife: MTBF contra MTTR por equipo">' + svg + '</svg>';
+  }
   function _cosJackKnifeHTML(jk) {
     if (!jk) return '';
     var orden = { complejo: 0, agudo: 1, cronico: 2, mundial: 3 };
-    var puntos = jk.puntos.slice().sort(function (a, b) { return orden[a.cuadrante] - orden[b.cuadrante]; });
+    var puntos = jk.puntos.slice().sort(function (a, b) { return orden[a.cuadrante] - orden[b.cuadrante] || (b.horasPerdidasAnio || 0) - (a.horasPerdidasAnio || 0); });
+    var hp = function (v) { return v == null ? '—' : fn(Math.round(v)); };
     return '<div class="chart-box" style="margin-bottom:12px">' +
       '<div class="chart-t">🗺️ Matriz Jack-Knife — MTBF vs MTTR por equipo</div>' +
-      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Cruza confiabilidad (MTBF) y mantenibilidad (MTTR) de cada equipo contra la MEDIANA de la propia flota (MTBF ' + fn(jk.medianaMtbf) + 'h · MTTR ' + jk.medianaMttr + 'h) para separar "falla seguido" de "tarda mucho en arreglarse" — son problemas distintos con soluciones distintas.</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:10px">' +
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Cruza confiabilidad (MTBF) y mantenibilidad (MTTR) de cada equipo contra la MEDIANA de la propia flota (MTBF ' + fn(jk.medianaMtbf) + 'h · MTTR ' + jk.medianaMttr + 'h) para separar "falla seguido" de "tarda mucho en arreglarse" — son problemas distintos con soluciones distintas. Las líneas punteadas unen puntos que pierden las mismas horas al año' + (jk.hrsAnioRef ? ' (calculadas con ' + fn(Math.round(jk.hrsAnioRef)) + ' h de operación al año, la mediana de la flota)' : '') + ': dos equipos sobre la misma línea cuestan lo mismo, aunque uno falle poco y tarde mucho y el otro al revés.</div>' +
+      _cosJackKnifeSVG(jk) +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:12px 0 10px">' +
       Object.keys(_JK_INFO).map(function (k) {
         var info = _JK_INFO[k];
-        return '<div class="card" style="border-left:3px solid ' + info.c + '"><div class="card-t">' + info.t + '</div><div class="card-v" style="color:' + info.c + '">' + jk.resumen[k] + '</div><div class="card-s">' + info.d + '</div></div>';
+        return '<div class="card" style="border-left:3px solid ' + info.c + '"><div class="card-t">' + info.t + '</div><div class="card-v" style="color:' + info.c + '">' + jk.resumen[k] + '</div><div class="card-s">' + info.d + (jk.nConHoras ? ' · ≈' + hp(jk.horasPerdidasPorCuadrante[k]) + ' h perdidas/año' : '') + '</div><div class="card-s" style="margin-top:4px;font-style:italic">' + escapeHtml(jk.acciones[k]) + '</div></div>';
       }).join('') +
       '</div>' +
-      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>MTBF (hrs)</th><th>MTTR (hrs)</th><th>Cuadrante</th></tr>' +
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>MTBF (hrs)</th><th>MTTR (hrs)</th><th>Fallas/año (est.)</th><th>Horas perdidas/año (est.)</th><th>Cuadrante</th></tr>' +
       puntos.map(function (p) {
         var info = _JK_INFO[p.cuadrante];
-        return '<tr><td class="mono" style="color:var(--ac)">' + p.sigla + '</td><td style="text-align:center">' + fn(p.mtbf) + '</td><td style="text-align:center">' + p.mttr + '</td><td style="text-align:center;color:' + info.c + ';font-weight:600">' + info.t + '</td></tr>';
+        return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(p.sigla) + '</td><td style="text-align:center">' + fn(p.mtbf) + '</td><td style="text-align:center">' + p.mttr + '</td><td style="text-align:center">' + (p.fallasAnio == null ? '—' : (Math.round(p.fallasAnio * 10) / 10 + '').replace('.', ',')) + '</td><td style="text-align:center;font-weight:600">' + hp(p.horasPerdidasAnio) + '</td><td style="text-align:center;color:' + info.c + ';font-weight:700">' + info.t + '</td></tr>';
       }).join('') +
-      '</table></div></div>';
+      '</table></div>' +
+      '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Fallas por año y horas perdidas son estimaciones: horas de operación al año del equipo (horas/día declaradas × 365) ÷ MTBF, por el MTTR. Un equipo sin horas/día válidas aparece con "—". Los cuadrantes se calculan con MTBF y MTTR reales, sin usar esa estimación.</div>' +
+      '</div>';
   }
 
   var content = '';
@@ -348,7 +397,7 @@ export function renderCos() {
         '<div class="card"><div class="card-t">Muestra</div><div class="card-v">' + mttrLogNormal.n + '</div><div class="card-s">reparaciones con duración real</div></div>' +
         '</div></div>' : '') +
 
-      _cosJackKnifeHTML(matrizJackKnife(mtbfList.map(function (m) { return { sigla: m[0], mtbf: m[1].mtbf, mttr: m[1].mttr }; }))) +
+      _cosJackKnifeHTML(matrizJackKnife(mtbfList.map(function (m) { var e = (S.g('eq') || []).find(function (x) { return x.sigla === m[0]; }), hd = e ? Number(e.hrsDia) : 0; return { sigla: m[0], mtbf: m[1].mtbf, mttr: m[1].mttr, hrsAnio: hd >= 1 && hd <= 24 ? hd * 365 : null }; }))) +
 
       '<div class="tbl-wrap"><table>' +
       '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Fallas</th><th>MTBF (hrs)</th><th>Confiabilidad</th><th>Reparaciones</th><th>MTTR (hrs)</th><th>Mantenibilidad</th><th>SLA 1ra Resp. (hrs)</th></tr>' +

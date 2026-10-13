@@ -51,3 +51,42 @@ describe('matrizJackKnife — cruza MTBF (confiabilidad) vs MTTR (mantenibilidad
     expect(r.puntos.find(p => p.sigla === 'C')).toBeUndefined();
   });
 });
+
+describe('matrizJackKnife — horas perdidas por año y qué hacer en cada cuadrante', () => {
+  const base = [
+    { sigla: 'A', mtbf: 100, mttr: 4, hrsAnio: 5000 },
+    { sigla: 'B', mtbf: 200, mttr: 2, hrsAnio: 5000 },
+    { sigla: 'C', mtbf: 300, mttr: 8, hrsAnio: 4000 },
+    { sigla: 'D', mtbf: 50, mttr: 10 },                    // sin horas de operación: no se inventan fallas/año
+  ];
+  it('estima fallas por año = horas de operación ÷ MTBF y horas perdidas = fallas × MTTR', () => {
+    const r = require('../logic.js').matrizJackKnife(base);
+    const A = r.puntos.find(p => p.sigla === 'A');
+    expect(A.fallasAnio).toBeCloseTo(50, 6);
+    expect(A.horasPerdidasAnio).toBeCloseTo(200, 6);
+    const C = r.puntos.find(p => p.sigla === 'C');
+    expect(C.horasPerdidasAnio).toBeCloseTo(4000 / 300 * 8, 6);
+  });
+  it('sin horas de operación el equipo queda en null y no suma al total', () => {
+    const r = require('../logic.js').matrizJackKnife(base);
+    const D = r.puntos.find(p => p.sigla === 'D');
+    expect(D.fallasAnio).toBeNull();
+    expect(D.horasPerdidasAnio).toBeNull();
+    expect(r.nConHoras).toBe(3);
+    expect(r.horasPerdidasAnio).toBeCloseTo(200 + 50 + 4000 / 300 * 8, 6);
+  });
+  it('la clasificación en cuadrantes no depende de las horas de operación', () => {
+    const L = require('../logic.js');
+    const con = L.matrizJackKnife(base), sin = L.matrizJackKnife(base.map(e => ({ sigla: e.sigla, mtbf: e.mtbf, mttr: e.mttr })));
+    expect(con.puntos.map(p => p.cuadrante)).toEqual(sin.puntos.map(p => p.cuadrante));
+    expect(sin.hrsAnioRef).toBeNull();
+    expect(sin.horasPerdidasAnio).toBe(0);
+  });
+  it('trae una recomendación para cada cuadrante y las pérdidas por cuadrante suman el total', () => {
+    const r = require('../logic.js').matrizJackKnife(base);
+    ['complejo', 'agudo', 'cronico', 'mundial'].forEach(k => expect(r.acciones[k].length).toBeGreaterThan(20));
+    const suma = Object.values(r.horasPerdidasPorCuadrante).reduce((a, b) => a + b, 0);
+    expect(suma).toBeCloseTo(r.horasPerdidasAnio, 6);
+    expect(r.hrsAnioRef).toBe(5000);                        // mediana de [5000, 5000, 4000]
+  });
+});

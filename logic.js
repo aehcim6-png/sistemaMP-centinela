@@ -6356,6 +6356,15 @@ function matrizCriticidadDinamica(compMayores,crowPorComponente){
 //  - cronico: MTBF bajo (falla seguido) + MTTR bajo (pero rápido de arreglar)
 //  - agudo:   MTBF alto (falla poco) + MTTR alto (cuando falla, tarda mucho)
 //  - complejo: MTBF bajo + MTTR alto — el peor cuadrante, prioridad máxima
+// Qué hacer en cada cuadrante (misma lectura del diagrama Jack-Knife clásico): la solución depende de dónde cae el equipo.
+var JK_ACCIONES={
+  complejo:'Prioridad uno: falla seguido Y tarda mucho; aquí se va la disponibilidad. Atacar causa raíz y mantenibilidad a la vez.',
+  agudo:'Falla poco pero para mucho: atacar por mantenibilidad (repuesto en bodega, acceso, procedimiento, herramienta) antes que por confiabilidad.',
+  cronico:'Falla seguido pero se arregla rápido: análisis de causa raíz o rediseño; arreglarlo más rápido no soluciona el problema.',
+  mundial:'Aceptable: déjalo en el plan; gastar más análisis aquí es gastar de más.'
+};
+// equipos: [{sigla, mtbf, mttr, hrsAnio (opcional: horas de operación por año del equipo)}]. Con hrsAnio se estima, por equipo, fallas por año = hrsAnio ÷ MTBF y horas perdidas por año = fallas × MTTR
+// (el gráfico de Costos usa esas horas para dibujar las líneas de igual pérdida). Sin hrsAnio, esos dos datos quedan en null: no se inventan.
 function matrizJackKnife(equipos){
   var datos=(equipos||[]).filter(function(e){return e&&e.mtbf>0&&e.mttr>0;});
   if(datos.length<3)return null;
@@ -6364,11 +6373,19 @@ function matrizJackKnife(equipos){
   var puntos=datos.map(function(e){
     var mtbfAlto=e.mtbf>=medianaMtbf, mttrAlto=e.mttr>=medianaMttr;
     var cuadrante=mtbfAlto?(mttrAlto?'agudo':'mundial'):(mttrAlto?'complejo':'cronico');
-    return {sigla:e.sigla,mtbf:e.mtbf,mttr:e.mttr,cuadrante:cuadrante};
+    var h=e.hrsAnio>0?e.hrsAnio:null,fa=h?h/e.mtbf:null;
+    return {sigla:e.sigla,mtbf:e.mtbf,mttr:e.mttr,cuadrante:cuadrante,hrsAnio:h,fallasAnio:fa,horasPerdidasAnio:fa!=null?fa*e.mttr:null};
   });
   var resumen={mundial:0,cronico:0,agudo:0,complejo:0};
   puntos.forEach(function(p){resumen[p.cuadrante]++;});
-  return {medianaMtbf:medianaMtbf,medianaMttr:medianaMttr,puntos:puntos,resumen:resumen};
+  var conHoras=puntos.filter(function(p){return p.horasPerdidasAnio!=null;});
+  var perdidasPorCuadrante={mundial:0,cronico:0,agudo:0,complejo:0};
+  conHoras.forEach(function(p){perdidasPorCuadrante[p.cuadrante]+=p.horasPerdidasAnio;});
+  return {medianaMtbf:medianaMtbf,medianaMttr:medianaMttr,puntos:puntos,resumen:resumen,acciones:JK_ACCIONES,
+    hrsAnioRef:conHoras.length?medianaPositiva(conHoras.map(function(p){return p.hrsAnio;})):null,
+    horasPerdidasAnio:conHoras.reduce(function(t,p){return t+p.horasPerdidasAnio;},0),
+    horasPerdidasPorCuadrante:perdidasPorCuadrante,
+    nConHoras:conHoras.length};
 }
 
 // ═══ ESTIMACIÓN DE HORÓMETRO/KM EN UNA FECHA PASADA ═══
@@ -9472,6 +9489,6 @@ if (typeof module !== 'undefined' && module.exports) {
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
-    umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica, matrizJackKnife
+    umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica, matrizJackKnife, JK_ACCIONES
   };
 }
