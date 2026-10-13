@@ -3,6 +3,40 @@
 // (Fase 3, 2026-08-30, tercera tanda: Componentes/Costos) — ver nota de
 // migración en mov.js (primera tanda, mismo patrón).
 function _tcoMM(n) { var t = Math.round((n || 0) / 1e5); return '$' + fn(Math.floor(t / 10)) + ',' + (t % 10) + ' M'; }
+// ═══ DIAGRAMA SANKEY (2026-10-13) ═══ dibuja el resultado de sankeyLayout (logic.js): nodos como barras y cintas curvas cuyo ancho es proporcional a la cantidad. Cada cinta toma el color de la rama de la
+// primera columna de la que viene (la de mayor flujo si un nodo recibe de varias).
+var _SK_PALETA = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b', '#84cc16'];
+function _cosSankeySVG(links, columnas, fmt, ariaLabel) {
+  var lay = sankeyLayout(links, columnas, { ancho: 520, alto: 420, anchoNodo: 12, separacion: 7 });
+  if (!lay.nodos.length) return '';
+  var mL = 215, mR = 175, W = lay.ancho + mL + mR, H = lay.alto + 8;
+  var color = {}, k0 = 0;
+  lay.nodos.filter(function (n) { return n.col === 0; }).forEach(function (n) { color[n.id] = _SK_PALETA[k0++ % _SK_PALETA.length]; });
+  for (var c = 1; c < lay.columnas; c++) {
+    lay.nodos.filter(function (n) { return n.col === c; }).forEach(function (n) {
+      var mejor = null;
+      lay.cintas.forEach(function (r) { if (r.destino === n.id && color[r.origen] && (!mejor || r.valor > mejor.valor)) mejor = r; });
+      color[n.id] = mejor ? color[mejor.origen] : '#94a3b8';
+    });
+  }
+  var rec = function (t) { t = String(t); return t.length > 24 ? t.slice(0, 23) + '…' : t; };
+  var svg = '<g transform="translate(' + mL + ',4)">';
+  lay.cintas.forEach(function (r) {
+    var xm = (r.x0 + r.x1) / 2, w = Math.max(r.w, 0.6);
+    svg += '<path d="M' + r.x0.toFixed(1) + ',' + (r.y0 + w / 2).toFixed(1) + ' C' + xm.toFixed(1) + ',' + (r.y0 + w / 2).toFixed(1) + ' ' + xm.toFixed(1) + ',' + (r.y1 + w / 2).toFixed(1) + ' ' + r.x1.toFixed(1) + ',' + (r.y1 + w / 2).toFixed(1) +
+      '" fill="none" stroke="' + color[r.origen] + '" stroke-opacity=".38" stroke-width="' + w.toFixed(1) + '"><title>' + escapeHtml(r.origen + ' → ' + r.destino + ': ' + fmt(r.valor)) + '</title></path>';
+  });
+  lay.nodos.forEach(function (n) {
+    var ult = n.col === lay.columnas - 1, prim = n.col === 0;
+    svg += '<rect x="' + n.x.toFixed(1) + '" y="' + n.y.toFixed(1) + '" width="' + lay.anchoNodo + '" height="' + Math.max(n.h, 1).toFixed(1) + '" fill="' + color[n.id] + '"><title>' + escapeHtml(n.id + ': ' + fmt(n.valor)) + '</title></rect>';
+    if (n.h >= 9) {
+      var tx = prim ? n.x - 5 : n.x + lay.anchoNodo + 5, anc = prim ? 'end' : 'start';
+      svg += '<text x="' + tx.toFixed(1) + '" y="' + (n.y + n.h / 2 + 3).toFixed(1) + '" font-size="10" text-anchor="' + anc + '" fill="var(--tx)" stroke="var(--bg2, var(--bg))" stroke-width="3" paint-order="stroke">' + escapeHtml(rec(n.id)) + ' <tspan fill="var(--tx3)">' + escapeHtml(fmt(n.valor)) + '</tspan></text>';
+    }
+  });
+  svg += '</g>';
+  return '<div style="overflow-x:auto"><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:720px;max-width:' + W + 'px;height:auto;display:block;margin:0 auto" role="img" aria-label="' + escapeHtml(ariaLabel) + '">' + svg + '</svg></div>';
+}
 export function renderCos() {
   if (!$("s-cos")) return;
   var reg = S.g('reg') || [];
@@ -480,6 +514,36 @@ export function renderCos() {
         '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Ordenado por costo total por hora (sin capital: por costo variable). Las horas salen del historial de horómetros; si falta, de las horas/día declaradas. Para el detalle de un equipo (evolución por año) abre el Buscador Maestro. Para cargar el capital: Equipos → Importar Horas a Amortizar.</div>'
         : '<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo tiene todavía ≥90 días de compras registradas con horas de operación.</div>') +
       concHTML + '</div>';
+  } else if (fVista === 'sankey') {
+    // ═══ FLUJO DE HORAS Y COSTO — DIAGRAMAS SANKEY (2026-10-13) ═══ ver sankeyCostoTCO / sankeyHorasReparacion / sankeyLayout (logic.js) para qué cuenta cada uno.
+    var skT = (typeof tcoFlotaAuto === 'function') ? tcoFlotaAuto() : null;
+    var skCosto = skT ? sankeyCostoTCO(skT.res.equipos, { topEquipos: 10 }) : null;
+    var skHoy = new Date(), skHasta = skHoy.toISOString().slice(0, 10), skDesde = new Date(skHoy.getTime() - 365 * 864e5).toISOString().slice(0, 10);
+    var skEventos = otConHistCos.filter(esFallaMTBF).map(function (o) {
+      var m = o.duracion ? String(o.duracion).match(/(\d+)h/) : null;
+      return { sigla: o.sigla, fecha: String(o.fecha || '').slice(0, 10), durH: m ? parseInt(m[1], 10) : 0, componente: (o.componente && o.componente.trim()) || _componenteDeSintoma(o.sintoma) };
+    });
+    var skHoras = sankeyHorasReparacion(skEventos, eq, { desde: skDesde, hasta: skHasta, topEquipos: 10, topComponentes: 8 });
+    var skFmtH = function (v) { return fn(Math.round(v)) + ' h'; };
+    var skSinComp = (skHoras.links.filter(function (l) { return l.destino === 'Sin componente registrado'; }).reduce(function (a, l) { return a + l.valor; }, 0));
+    content =
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🔀 Costo anual de propiedad — de dónde viene la plata</div>' +
+      '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:6px 0 10px">Cada franja es dinero por año: a la izquierda el <b>concepto</b> (capital, mantención, detención por falla), al centro el <b>tipo de equipo</b>, a la derecha los <b>' + (skCosto && skCosto.meta.otros ? '10 equipos' : 'equipos') + ' de mayor costo</b>. El ancho es proporcional al monto. Es el mismo costo anualizado de la tabla de Costo Total de Propiedad; <b>no incluye mano de obra propia</b>.</div>' +
+      (skCosto && skCosto.links.length ?
+        '<div class="cards" style="margin-bottom:10px"><div class="card"><div class="card-t">Costo anual total</div><div class="card-v" style="color:var(--ac)">' + _tcoMM(skCosto.meta.total) + '</div><div class="card-s">' + fn(skCosto.meta.equipos) + ' equipos con datos</div></div>' +
+        (skCosto.meta.sinCapital ? '<div class="card"><div class="card-t">Sin capital cargado</div><div class="card-v" style="color:var(--w)">' + fn(skCosto.meta.sinCapital) + '</div><div class="card-s">solo muestran mantención y detención</div></div>' : '') + '</div>' +
+        _cosSankeySVG(skCosto.links, skCosto.columnas, _tcoMM, 'Diagrama Sankey del costo anual de propiedad: concepto, tipo de equipo y equipo')
+        : '<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo tiene todavía ≥90 días de compras registradas con horas de operación.</div>') +
+      '</div>' +
+      '<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px"><div class="chart-t">🔀 Horas de reparación — dónde se va el tiempo (últimos 12 meses)</div>' +
+      '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:6px 0 10px">Horas de reparación de fallas (correctivos y fallas operacionales) desde ' + escapeHtml(skDesde) + ': <b>tipo de equipo</b> → <b>equipo</b> → <b>componente</b>. Solo cuentan las reparaciones con duración registrada; las demás no se inventan.</div>' +
+      (skHoras.links.length ?
+        '<div class="cards" style="margin-bottom:10px"><div class="card"><div class="card-t">Horas de reparación</div><div class="card-v" style="color:var(--w)">' + fn(Math.round(skHoras.meta.total)) + ' h</div><div class="card-s">' + fn(skHoras.meta.reparaciones) + ' reparaciones con duración</div></div>' +
+        '<div class="card"><div class="card-t">Sin duración registrada</div><div class="card-v">' + fn(skHoras.meta.sinDuracion) + '</div><div class="card-s">fallas del período que no entran al diagrama</div></div>' +
+        (skSinComp > 0 ? '<div class="card"><div class="card-t">Sin componente registrado</div><div class="card-v" style="color:var(--w)">' + Math.round(skSinComp / skHoras.meta.total * 100) + '%</div><div class="card-s">de las horas: falta anotar el componente en la OT</div></div>' : '') + '</div>' +
+        _cosSankeySVG(skHoras.links, skHoras.columnas, skFmtH, 'Diagrama Sankey de horas de reparación: tipo de equipo, equipo y componente')
+        : '<div style="padding:20px;text-align:center;color:var(--tx3)">No hay reparaciones con duración registrada en los últimos 12 meses.</div>') +
+      '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Los equipos o componentes fuera del top se agrupan en "Otros". Pasá el mouse sobre una barra o cinta para ver el valor exacto.</div></div>';
   } else if (fVista === 'relativo') {
     // ═══ COSTO RELATIVO DE MANTENIMIENTO — indicador EN 15341 A&S1 (2026-09-16,
     // origen: revisión de contenido de Predictiva21 + carga real de Órdenes de
@@ -522,6 +586,7 @@ export function renderCos() {
     '<option value="hh"' + (fVista === 'hh' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> HH por Técnico / Equipo</option>' +
     '<option value="mtbf"' + (fVista === 'mtbf' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option>' +
     '<option value="tco"' + (fVista === 'tco' ? ' selected' : '') + '>🏗️ Costo Total de Propiedad</option>' +
+    '<option value="sankey"' + (fVista === 'sankey' ? ' selected' : '') + '>🔀 Flujo de horas y costo</option>' +
     '<option value="relativo"' + (fVista === 'relativo' ? ' selected' : '') + '>💰 Costo Relativo de Mantenimiento</option></select> ' +
     '<button class="btn btn-o" onclick="verComprasProveedores()" title="Tiempo de respuesta real por proveedor y pedidos de compra que ya llevan más tiempo abierto de lo normal">📦 Compras — Proveedores</button></div>' +
     content;

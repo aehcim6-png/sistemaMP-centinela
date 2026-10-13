@@ -5351,6 +5351,98 @@ function tcoFlotaAuto(){
   }catch(e){return null;}
 }
 
+// ═══ DIAGRAMAS DE SANKEY: DE DÓNDE VIENEN LAS HORAS Y EL COSTO (2026-10-13) ═══
+// Un Sankey dibuja flujos con un ancho proporcional a la cantidad: sirve para ver de un vistazo cómo se reparte el total (horas de reparación o costo anual) entre ramas sucesivas. Aquí hay dos:
+//  - costo anual (TCO): Concepto (capital, mantención, detención) → Tipo de equipo → Equipo. Usa el costo ANUALIZADO de cada equipo de tcoFlota (cada uno con su propia ventana de compras), sin mano de obra propia.
+//  - horas de reparación registradas en los últimos 12 meses: Tipo de equipo → Equipo → Componente. Solo cuentan las reparaciones con duración registrada (sin duración no se inventa).
+// Una rama pequeña no se dibuja sola: los equipos o componentes que quedan fuera del top se agrupan en "Otros". Funciones puras: calculan el flujo y la posición de cada nodo y cada cinta; el dibujo está en la pantalla.
+function _sankeyTopN(mapa,n,etiquetaOtros){
+  var ks=Object.keys(mapa).sort(function(a,b){return mapa[b]-mapa[a]||(a<b?-1:1);}),dest={},otros=0;
+  ks.forEach(function(k,i){if(i<n)dest[k]=k;else{dest[k]=etiquetaOtros;otros++;}});
+  return{dest:dest,otros:otros};
+}
+// res: tcoFlota().equipos · o: {topEquipos (10)} → {links:[{origen,destino,valor}], columnas:{id:0|1|2}, meta}
+function sankeyCostoTCO(res,o){
+  var op=o||{},top=op.topEquipos>0?op.topEquipos:10,filas=[],sinCapital=0;
+  (res||[]).forEach(function(r){
+    var cap=r.capitalAnual>0?r.capitalAnual:0,mat=r.matAnual>0?r.matAnual:0,det=r.detAnual>0?r.detAnual:0,tot=cap+mat+det;
+    if(!(tot>0))return;
+    if(!(r.capitalAnual>0))sinCapital++;
+    filas.push({sigla:r.sigla,tipo:r.tipo||'Sin tipo',cap:cap,mat:mat,det:det,tot:tot});
+  });
+  var porEq={};filas.forEach(function(f){porEq[f.sigla]=f.tot;});
+  var tn=_sankeyTopN(porEq,top,'Otros equipos'),conc={Capital:'Capital (amortización)',Mantencion:'Mantención (repuestos y servicios)',Detencion:'Detención por falla'};
+  var acc={};
+  var add=function(a,b,v){if(!(v>0))return;var k=a+'\u0001'+b;acc[k]=(acc[k]||0)+v;};
+  var columnas={};
+  filas.forEach(function(f){
+    var eqn=tn.dest[f.sigla];
+    add(conc.Capital,f.tipo,f.cap);add(conc.Mantencion,f.tipo,f.mat);add(conc.Detencion,f.tipo,f.det);
+    add(f.tipo,eqn,f.tot);
+    columnas[conc.Capital]=0;columnas[conc.Mantencion]=0;columnas[conc.Detencion]=0;columnas[f.tipo]=1;columnas[eqn]=2;
+  });
+  var links=Object.keys(acc).map(function(k){var p=k.split('\u0001');return{origen:p[0],destino:p[1],valor:acc[k]};});
+  return{links:links,columnas:columnas,meta:{total:filas.reduce(function(a,f){return a+f.tot;},0),equipos:filas.length,sinCapital:sinCapital,otros:tn.otros}};
+}
+// eventos: [{sigla, fecha, durH, componente}] · equipos: [{sigla,tipo}] · o: {desde,hasta,topEquipos (10),topComponentes (8)}
+function sankeyHorasReparacion(eventos,equipos,o){
+  var op=o||{},top=op.topEquipos>0?op.topEquipos:10,topC=op.topComponentes>0?op.topComponentes:8,tipoDe={};
+  (equipos||[]).forEach(function(e){if(e&&e.sigla)tipoDe[e.sigla]=e.tipo||'Sin tipo';});
+  var ev=(eventos||[]).filter(function(x){return x&&x.sigla&&typeof x.durH==='number'&&x.durH>0&&(!op.desde||x.fecha>=op.desde)&&(!op.hasta||x.fecha<=op.hasta);});
+  var sinDur=(eventos||[]).filter(function(x){return x&&x.sigla&&!(typeof x.durH==='number'&&x.durH>0)&&(!op.desde||x.fecha>=op.desde)&&(!op.hasta||x.fecha<=op.hasta);}).length;
+  var porEq={},porComp={};
+  ev.forEach(function(x){porEq[x.sigla]=(porEq[x.sigla]||0)+x.durH;var c=(x.componente||'').trim()||'Sin componente registrado';porComp[c]=(porComp[c]||0)+x.durH;});
+  var te=_sankeyTopN(porEq,top,'Otros equipos'),tc=_sankeyTopN(porComp,topC,'Otros componentes');
+  // "Sin componente registrado" nunca se esconde dentro de "Otros": es un dato de calidad que se quiere ver
+  if(porComp['Sin componente registrado']!=null)tc.dest['Sin componente registrado']='Sin componente registrado';
+  var acc={},columnas={},add=function(a,b,v){var k=a+'\u0001'+b;acc[k]=(acc[k]||0)+v;};
+  ev.forEach(function(x){
+    var tipo=tipoDe[x.sigla]||'Sin tipo',eqn=te.dest[x.sigla],c=(x.componente||'').trim()||'Sin componente registrado',cn=tc.dest[c];
+    add(tipo,eqn,x.durH);add(eqn,cn,x.durH);columnas[tipo]=0;columnas[eqn]=1;columnas[cn]=2;
+  });
+  var links=Object.keys(acc).map(function(k){var p=k.split('\u0001');return{origen:p[0],destino:p[1],valor:acc[k]};});
+  return{links:links,columnas:columnas,meta:{total:ev.reduce(function(a,x){return a+x.durH;},0),reparaciones:ev.length,sinDuracion:sinDur,otrosEquipos:te.otros,otrosComponentes:tc.otros}};
+}
+// Posiciones del diagrama. links: [{origen,destino,valor}] · columnas: {nodo: 0..k} · o: {ancho, alto, anchoNodo, separacion}
+// Cada nodo mide lo que fluye por él (el mayor entre lo que entra y lo que sale); todas las columnas usan la misma escala vertical, así que un mismo ancho es la misma cantidad en todo el diagrama.
+// Dentro de cada columna los nodos se ordenan por el promedio de la posición de sus orígenes (para cruzar menos cintas); las cintas se apilan en cada nodo por el orden del nodo del otro extremo.
+function sankeyLayout(links,columnas,o){
+  var op=o||{},W=op.ancho||640,H=op.alto||360,nw=op.anchoNodo||14,sep=op.separacion||8;
+  var lk=(links||[]).filter(function(l){return l&&l.valor>0&&columnas[l.origen]!=null&&columnas[l.destino]!=null;});
+  if(!lk.length)return{nodos:[],cintas:[],ky:0,ancho:W,alto:H};
+  var nodos={};
+  var nodo=function(id){return nodos[id]||(nodos[id]={id:id,col:columnas[id],entra:0,sale:0,valor:0,y:0,h:0,x:0,orden:0});};
+  lk.forEach(function(l){nodo(l.origen).sale+=l.valor;nodo(l.destino).entra+=l.valor;});
+  var lista=Object.keys(nodos).map(function(k){var n=nodos[k];n.valor=Math.max(n.entra,n.sale);return n;});
+  var nCol=Math.max.apply(null,lista.map(function(n){return n.col;}))+1,cols=[];
+  for(var c=0;c<nCol;c++)cols.push(lista.filter(function(n){return n.col===c;}).sort(function(a,b){return b.valor-a.valor||(a.id<b.id?-1:1);}));
+  var ky=Infinity;
+  cols.forEach(function(g){if(!g.length)return;var tot=g.reduce(function(a,n){return a+n.valor;},0);ky=Math.min(ky,(H-(g.length-1)*sep)/tot);});
+  if(!isFinite(ky)||ky<=0)ky=0;
+  var xDe=function(c){return nCol===1?0:c*(W-nw)/(nCol-1);};
+  // orden por baricentro de los orígenes (2 pasadas), luego posición vertical
+  var pos=function(){cols.forEach(function(g){var y=0;g.forEach(function(n){n.y=y;n.h=n.valor*ky;y+=n.h+sep;});var usado=y-sep,off=Math.max(0,(H-usado)/2);g.forEach(function(n){n.y+=off;});});};
+  pos();
+  for(var it=0;it<2;it++){
+    for(var c2=1;c2<nCol;c2++){
+      cols[c2].forEach(function(n){
+        var ps=lk.filter(function(l){return l.destino===n.id;}),sw=ps.reduce(function(a,l){return a+l.valor;},0);
+        n.bari=sw>0?ps.reduce(function(a,l){return a+(nodos[l.origen].y+nodos[l.origen].h/2)*l.valor;},0)/sw:n.y;
+      });
+      cols[c2].sort(function(a,b){return a.bari-b.bari||b.valor-a.valor;});
+    }
+    pos();
+  }
+  lista.forEach(function(n){n.x=xDe(n.col);});
+  var salida={},entrada={};lista.forEach(function(n){salida[n.id]=0;entrada[n.id]=0;});
+  var ordSal=function(id){return lk.filter(function(l){return l.origen===id;}).sort(function(a,b){return nodos[a.destino].y-nodos[b.destino].y;});};
+  var ordEnt=function(id){return lk.filter(function(l){return l.destino===id;}).sort(function(a,b){return nodos[a.origen].y-nodos[b.origen].y;});};
+  var y0={},y1={};
+  lista.forEach(function(n){var a=n.y;ordSal(n.id).forEach(function(l){y0[l.origen+'\u0001'+l.destino]=a;a+=l.valor*ky;});var b=n.y;ordEnt(n.id).forEach(function(l){y1[l.origen+'\u0001'+l.destino]=b;b+=l.valor*ky;});});
+  var cintas=lk.map(function(l){var k=l.origen+'\u0001'+l.destino;return{origen:l.origen,destino:l.destino,valor:l.valor,w:l.valor*ky,x0:nodos[l.origen].x+nw,x1:nodos[l.destino].x,y0:y0[k],y1:y1[k]};});
+  return{nodos:lista.sort(function(a,b){return a.col-b.col||a.y-b.y;}),cintas:cintas,ky:ky,ancho:W,alto:H,anchoNodo:nw,columnas:nCol};
+}
+
 // ═══ M4 (ABC × VED) Y M6 (PRIORIDAD DE OT) QUE USAN LA CRITICIDAD DE EQUIPOS (2026-10-13) ═══
 // Banda 1-5 de un equipo para decisiones de otros módulos: el PEOR CASO entre el nivel calculado (M2: Alta 5, Media 3, Baja 1) y la etiqueta manual (Crítico 5, Esencial 3, General 1), igual que ya hace la criticidad de
 // repuestos ("nunca se minimiza una señal real con la otra"): la etiqueta puede contener juicio que los datos no miden (seguridad, rol en la producción). Devuelve {banda, fuente: 'calculada'|'manual'|'ambas'} o null sin ninguna de las dos.
@@ -9606,7 +9698,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
