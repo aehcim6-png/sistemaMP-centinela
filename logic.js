@@ -5367,10 +5367,13 @@ function _normTxt(s){return String(s==null?'':s).toLowerCase().normalize('NFD').
 function equiposDeRepuesto(equipoModelo,equipos){
   var palabras=String(equipoModelo||'').split(/[\/,;\s]+/).map(_normTxt).filter(function(w){return w.length>=3&&!_VED_PALABRAS_GENERICAS[w];});
   if(!palabras.length)return[];
-  return(equipos||[]).filter(function(e){
-    if(!e||!e.sigla)return false;
-    var mod=_normTxt(e.modelo),sig=_normTxt(e.sigla),tipoW=String(e.tipo||'').split(/\s+/).map(_normTxt);
-    return palabras.some(function(w){return w===sig||(mod&&mod.indexOf(w)>=0)||tipoW.indexOf(w)>=0;});
+  var lista=(equipos||[]).filter(function(e){return e&&e.sigla;});
+  // Si el texto nombra una sigla concreta ("BD-10139 Bulldozer"), manda esa: no se extiende a todos los equipos del mismo tipo.
+  var porSigla=lista.filter(function(e){return palabras.indexOf(_normTxt(e.sigla))>=0;});
+  if(porSigla.length)return porSigla.map(function(e){return e.sigla;});
+  return lista.filter(function(e){
+    var mod=_normTxt(e.modelo),tipoW=String(e.tipo||'').split(/\s+/).map(_normTxt);
+    return palabras.some(function(w){return(mod&&mod.indexOf(w)>=0)||tipoW.indexOf(w)>=0;});
   }).map(function(e){return e.sigla;});
 }
 // ABC × VED: ABC (gasto anual, de ABC-XYZ) cruzado con VED = Vital / Esencial / Deseable, según la criticidad del equipo MÁS crítico que usa el repuesto (banda 5 = Vital, 3-4 = Esencial, 1-2 = Deseable).

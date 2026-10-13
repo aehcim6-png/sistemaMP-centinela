@@ -28,6 +28,7 @@ describe('equiposDeRepuesto — el texto libre "equipoModelo" se busca en modelo
   it('reconoce modelos con barras, siglas, tipos y marcas del equipo', () => {
     expect(L.equiposDeRepuesto('HD785-7/WA900/D375', equipos).sort()).toEqual(['CF-9510', 'CN-9500']);
     expect(L.equiposDeRepuesto('BD-10139 Bulldozer', equipos)).toEqual(['BD-10139']);
+    expect(L.equiposDeRepuesto('BD-10139 Bulldozer', equipos.concat([{ sigla: 'BD-9509', modelo: 'Komatsu D375A-6R', tipo: 'Bulldozer' }]))).toEqual(['BD-10139']);   // la sigla manda sobre el tipo
     expect(L.equiposDeRepuesto('Cargador Frontal', equipos)).toEqual(['CF-9510']);   // no confunde con "Minicargador"
     expect(L.equiposDeRepuesto('AROCS', equipos)).toEqual(['CN-5133']);
     expect(L.equiposDeRepuesto('DOOSAN', equipos)).toEqual(['TI-5141']);
