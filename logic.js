@@ -5355,7 +5355,7 @@ function tcoFlotaAuto(){
 // Hasta hoy la criticidad de un equipo era una etiqueta manual de 3 niveles (Crítico / Esencial / General). Esta matriz la calcula con datos y la compara con esa etiqueta, sin reemplazarla: Criticidad = Frecuencia × Consecuencia, cada una
 // en una escala de 1 a 5, 5×5 como la matriz de riesgo. Escalas RELATIVAS a la propia flota (percentil, igual que las medianas del Jack-Knife), no umbrales fijos.
 //  - Frecuencia: fallas por 1.000 h de operación en los últimos 12 meses (horas del horómetro; si no hay lecturas suficientes, las horas/día declaradas). Cero fallas = 1.
-//  - Consecuencia: promedio ponderado de hasta tres criterios con su puntaje 1-5: duración de la reparación (MTTR, 35 %), valor de la hora detenida del modelo (Configuración, 35 %) e importancia operacional (la etiqueta manual, 30 %).
+//  - Consecuencia: promedio ponderado de hasta tres criterios con su puntaje 1-5: duración típica de la reparación (mediana de sus reparaciones, 35 %), valor de la hora detenida del modelo (Configuración, 35 %) e importancia operacional (la etiqueta manual, 30 %).
 //    Un criterio sin variación en la flota (por ejemplo todos los modelos con el mismo costo de hora detenida) no discrimina y se excluye, y los pesos se reparten entre los que quedan. Hacen falta al menos 2 criterios por equipo.
 //  - Nivel: Frecuencia × Consecuencia ≥ 15 = Alta, 8 a 14 = Media, menos de 8 = Baja.
 // Lo que NO mide: seguridad y ambiente (no hay datos registrados) ni producción por tipo de equipo (solo el costo de hora detenida del modelo la representa). Un equipo sin horas de operación confiables o sin criterios suficientes se excluye con su motivo.
@@ -5363,6 +5363,7 @@ function tcoFlotaAuto(){
 var CRIT_PESOS={mttr:0.35,costoHora:0.35,importancia:0.30};
 var CRIT_IMPORTANCIA={'Crítico':3,'Critico':3,'Esencial':2,'General':1};
 var CRIT_NIVEL_MANUAL={'Crítico':'Alta','Critico':'Alta','Esencial':'Media','General':'Baja'};
+function _critMediana(a){var v=a.slice().sort(function(x,y){return x-y;}),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;}   // mediana: un registro viejo sin cerrar (por ejemplo 300 h) no debe definir la consecuencia de un equipo
 function _critPuntaje(valor,todos){var n=todos.length,m=0;for(var i=0;i<n;i++)if(todos[i]<valor)m++;return Math.min(5,1+Math.floor(5*m/n));}
 function criticidadEquiposMulticriterio(equipos,d,o){
   var op=o||{},hoy=_tcoIso(d.hoy),hasta=op.hasta||hoy,desde=op.desde||_fechaMas(hasta,-365),dias=Math.max(1,_tcoDias(desde,hasta)),base=[],excl=[];
@@ -5377,7 +5378,7 @@ function criticidadEquiposMulticriterio(equipos,d,o){
     var dur=ev.map(function(x){return x.durH;}).filter(function(x){return typeof x==='number'&&x>=0;});
     var ch=typeof d.costoHoraDe==='function'?Number(d.costoHoraDe(e.modelo))||null:null;
     base.push({sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||'',fallas:ev.length,horas:Math.round(horas),horasOrigen:origen,fallas1000:ev.length/horas*1000,
-      mttr:dur.length?dur.reduce(function(x,y){return x+y;},0)/dur.length:null,nDur:dur.length,costoHora:ch,importancia:CRIT_IMPORTANCIA[e.criticidad]||null,criticidadManual:e.criticidad||null});
+      mttr:dur.length?_critMediana(dur):null,nDur:dur.length,costoHora:ch,importancia:CRIT_IMPORTANCIA[e.criticidad]||null,criticidadManual:e.criticidad||null});
   });
   if(base.length<5)return{ok:false,motivo:'hay '+base.length+' equipos con datos y se necesitan al menos 5 para que la escala relativa tenga sentido',filas:[],excluidos:excl};
   var claves=['mttr','costoHora','importancia'],usados=[],sinVar=[],pk={};

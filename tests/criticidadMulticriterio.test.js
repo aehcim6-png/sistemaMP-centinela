@@ -47,6 +47,13 @@ describe('criticidadEquiposMulticriterio', () => {
     expect(f.fallas1000).toBeCloseTo(4 / f.horas * 1000, 6);
     expect(f.horas).toBeGreaterThan(5000);          // ≈16 h/día × 365
   });
+  it('la duración de la reparación es la mediana: un registro sin cerrar no distorsiona al equipo', () => {
+    const { equipos, eventos, hist } = mk();
+    eventos.push({ sigla: 'EQ-3', fecha: '2026-05-05', durH: 400 });   // EQ-3 tiene 3 reparaciones de 8 h; una cuarta de 400 h (sin cerrar)
+    const f = L.criticidadEquiposMulticriterio(equipos, { eventos, hist, hoy, costoHoraDe }).filas.find((x) => x.sigla === 'EQ-3');
+    expect(f.mttr).toBe(8);
+    expect(f.nDur).toBe(4);
+  });
   it('un criterio sin variación (mismo costo de hora detenida en todos) se excluye y los pesos se reparten', () => {
     const { equipos, eventos, hist } = mk();
     const r = L.criticidadEquiposMulticriterio(equipos, { eventos, hist, hoy, costoHoraDe: () => 135 });

@@ -2124,7 +2124,7 @@ $('s-pred').innerHTML=
 // ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO — M2 (2026-10-13) ═══
 // Frecuencia × Consecuencia (1-5 cada una, relativas a la flota), comparada con la etiqueta manual Crítico/Esencial/General. El cálculo y sus reglas están en criticidadEquiposMulticriterio (logic.js).
 var _CRIT_COL = { Alta: 'var(--danger)', Media: 'var(--warn)', Baja: 'var(--ok)' };
-var _CRIT_CRITERIO = { mttr: 'duración de la reparación (MTTR)', costoHora: 'valor de la hora detenida del modelo', importancia: 'importancia operacional (la etiqueta manual)' };
+var _CRIT_CRITERIO = { mttr: 'duración típica de la reparación (mediana)', costoHora: 'valor de la hora detenida del modelo', importancia: 'importancia operacional (la etiqueta manual)' };
 function _predCriticidadHTML(eq, ot) {
   if (typeof criticidadEquiposMulticriterio !== 'function') return '';
   var hoy = new Date();
@@ -2156,7 +2156,7 @@ function _predCriticidadHTML(eq, ot) {
   html += '<div style="font-weight:700;font-size:12px;margin:6px 0 4px">Grilla Frecuencia × Consecuencia</div><div class="tbl-wrap"><table style="border-collapse:collapse;margin:0 auto"><tbody>' + celdas +
     '<tr><td></td>' + [1, 2, 3, 4, 5].map(function (k) { return '<td style="text-align:center;font-size:10px;color:var(--tx3);font-weight:700">' + k + '</td>'; }).join('') + '</tr></tbody></table></div>' +
     '<div style="font-size:10px;color:var(--tx3);text-align:center;margin:2px 0 12px">Filas: frecuencia de falla (1 = baja, 5 = alta) · Columnas: consecuencia de una falla (1 = leve, 5 = grave)</div>';
-  html += '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Fallas</th><th>Fallas/1.000 h</th><th>MTTR (h)</th><th>Hora detenida</th><th>Frec.</th><th>Consec.</th><th>Puntaje</th><th>Nivel calculado</th><th>Etiqueta manual</th><th>Comparación</th></tr>' +
+  html += '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Fallas</th><th>Fallas/1.000 h</th><th>Reparación típica (h)</th><th>Hora detenida</th><th>Frec.</th><th>Consec.</th><th>Puntaje</th><th>Nivel calculado</th><th>Etiqueta manual</th><th>Comparación</th></tr>' +
     r.filas.map(function (x) {
       var cmp = x.comparacion === 'coincide' ? '<span style="color:var(--ok)">coincide</span>' : x.comparacion === 'mas_alta' ? '<span style="color:var(--danger);font-weight:700">calculada más alta</span>' : x.comparacion === 'mas_baja' ? '<span style="color:var(--warn);font-weight:700">calculada más baja</span>' : '<span style="color:var(--tx3)">sin etiqueta</span>';
       var tit = 'Puntajes 1-5 → ' + Object.keys(x.puntajes).map(function (k) { return _CRIT_CRITERIO[k] + ': ' + x.puntajes[k]; }).join(' · ') + ' · horas de operación: ' + x.horas + ' (' + x.horasOrigen + ')';
