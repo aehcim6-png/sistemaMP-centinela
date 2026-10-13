@@ -4,6 +4,8 @@ Qué cálculos usa el programa, qué pregunta responde cada uno, y qué falta. S
 idénticas en centinela y mp2; 119 archivos de prueba, 1.606 casos) y las reglas que viven en `index.html` (grilla de PM, pautas acumulativas).
 Fecha: 2026-10-10; se agregó la sección 1.9 el 2026-10-12. Las dos apps comparten todo esto.
 
+**Para el detalle de cada cálculo** (de dónde viene el método, con fuente y nivel de respaldo, cómo lo calcula el programa, ejemplo real y límites) ver `docs/inventario-algoritmos.md`: 121 fichas, con prueba automática de cobertura.
+
 **Regla de la casa:** ningún cálculo inventa un dato que falta. Si no hay muestra suficiente, devuelve "sin dato" o "pocos casos".
 
 ---

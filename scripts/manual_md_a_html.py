@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Genera docs/manual-usuario.html a partir de docs/manual-usuario.md (misma plantilla visual que ya tiene el HTML).
-Uso: python3 scripts/manual_md_a_html.py [carpeta_repo]
-Soporta lo que usa el manual: títulos, citas (cuadro destacado), tablas, listas con y sin número, párrafos, negrita, cursiva y código."""
+Uso: python3 scripts/manual_md_a_html.py [carpeta_repo] [docs/otro.md docs/otro.html "Título"]
+Con los tres argumentos finales genera otro documento con la misma plantilla (por ejemplo el inventario de algoritmos).
+Soporta lo que usa el manual: títulos, citas (cuadro destacado), tablas, listas con y sin número, párrafos, negrita, cursiva, código y enlaces [texto](https://…)."""
 import html, re, sys
 
 def inline(t):
     t = html.escape(t, quote=False)
     t = re.sub(r'`([^`]+)`', r'<code>\1</code>', t)
+    t = re.sub(r'\[([^\]]+)\]\((https?://[^)\s]+)\)', r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>', t)
     t = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', t)
     t = re.sub(r'(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])', r'<i>\1</i>', t)
     return t
@@ -67,16 +69,23 @@ def convertir(md):
     parrafo(buf)
     return '\n'.join(out)
 
-def main(repo):
-    md = open(repo + '/docs/manual-usuario.md', encoding='utf-8').read()
-    viejo = open(repo + '/docs/manual-usuario.html', encoding='utf-8').read()
+def main(repo, md_rel='docs/manual-usuario.md', html_rel='docs/manual-usuario.html', titulo='Manual de Usuario'):
+    md = open(repo + '/' + md_rel, encoding='utf-8').read()
+    plantilla = open(repo + '/docs/manual-usuario.html', encoding='utf-8').read()
+    viejo = plantilla if html_rel == 'docs/manual-usuario.html' else open(repo + '/' + html_rel, encoding='utf-8').read() if __import__('os').path.exists(repo + '/' + html_rel) else plantilla
+    if html_rel != 'docs/manual-usuario.html' and viejo is plantilla:
+        viejo = re.sub(r'<title>.*?</title>', '<title>%s — SistemaMP Centinela</title>' % html.escape(titulo, quote=False), viejo, count=1)
+        viejo = re.sub(r'<h1>.*?</h1>', '<h1>%s</h1>' % html.escape(titulo, quote=False), viejo, count=1)
+        # documentos largos con listas de funciones y tablas anchas: que nada empuje el ancho de la página en el celular
+        viejo = viejo.replace('</style>', '  li,p,td,th{overflow-wrap:anywhere}\n  table{display:block;overflow-x:auto}\n</style>', 1)
     i = viejo.index('<h1>'); j = viejo.index('</h1>', i) + len('</h1>')
     cola = viejo[viejo.index('<footer>'):]
     cuerpo = convertir(md)
     # el último párrafo ("Para el detalle completo…") va como cuadro destacado, igual que antes
     cuerpo = re.sub(r'  <p>(Para el detalle completo.*?)</p>\s*$', r'\n  <div class="callout">\n    \1\n  </div>', cuerpo, flags=re.S)
     nuevo = viejo[:j] + '\n' + cuerpo + '\n\n  ' + cola
-    open(repo + '/docs/manual-usuario.html', 'w', encoding='utf-8').write(nuevo)
+    open(repo + '/' + html_rel, 'w', encoding='utf-8').write(nuevo)
 
 if __name__ == '__main__':
-    main(sys.argv[1] if len(sys.argv) > 1 else '.')
+    a = sys.argv[1:]
+    main(a[0] if a else '.', *(a[1:4] if len(a) >= 4 else []))

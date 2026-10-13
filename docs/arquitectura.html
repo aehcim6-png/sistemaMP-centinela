@@ -3244,6 +3244,9 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <h3>131. Diagramas Sankey de costo y de horas de reparación (2026-10-13)</h3>
   <p>Costos tiene una vista nueva, <b>Flujo de horas y costo</b>, con dos diagramas Sankey donde el ancho de cada franja es proporcional a la cantidad. El primero reparte el <b>costo anual de propiedad</b> (capital, mantención, detención) entre tipos de equipo y los 10 equipos de mayor costo, con los mismos números de la tabla de Costo Total de Propiedad y sin mano de obra propia. El segundo reparte las <b>horas de reparación</b> de los últimos 12 meses entre tipo de equipo, equipo y componente; solo cuentan las fallas con duración registrada, y lo que no tiene componente se muestra aparte como "Sin componente registrado" para que se vea cuánto falta anotar.</p>
 
+  <h3>132. Inventario de algoritmos, fórmulas, matrices y diagramas (2026-10-13)</h3>
+  <p>Nuevo documento, <b>docs/inventario-algoritmos</b> (se abre desde Configuración), con <b>121 fichas</b>: para cada cálculo del programa dice qué pregunta responde, de dónde viene el método (con enlace a la fuente y un nivel: verificada, secundaria, criterio propio o sin fuente), cómo lo calcula, dónde se ve, qué no dice y en qué función del código está. Los cálculos con datos suficientes traen un <b>ejemplo real</b> calculado con la base cargada. Lo que no se pudo verificar en internet quedó declarado (por ejemplo el código "A&amp;S1" de EN 15341 y el origen del Jack-Knife con MTBF), y una prueba automática impide que una función nueva quede sin ficha.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
