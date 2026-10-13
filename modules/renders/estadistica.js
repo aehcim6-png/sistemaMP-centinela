@@ -258,6 +258,7 @@ function _estKaplanMeierPorComponente(eventos, eq) {
         ? '<div style="font-size:11px;color:var(--tx3)">Elegí dos componentes distintos para comparar.</div>'
         : logRank
           ? '<div style="font-size:12px;color:var(--tx2)">χ²=' + logRank.chi2 + ' (gl=1) — <b style="color:' + (logRank.significativo ? 'var(--danger)' : 'var(--ok)') + '">' + (logRank.significativo ? 'diferencia real entre las dos curvas' : 'puede ser ruido de muestra chica') + '</b></div>' +
+            _estAvisoPotenciaHTML(avisoMuestraChicaSupervivencia(logRank.significativo, logRank.fallasA, logRank.fallasB)) +
             '<div style="font-size:10px;color:var(--tx3);margin-top:2px">' + escapeHtml(compA) + ': ' + logRank.fallasA + ' fallas de ' + logRank.nA + ' observaciones · ' + escapeHtml(compB) + ': ' + logRank.fallasB + ' fallas de ' + logRank.nB + ' observaciones. Compara las curvas de supervivencia completas, no solo un promedio — usa también los casos censurados (todavía en servicio sin haber fallado).</div>' +
             (coxPH
               ? '<div style="font-size:12px;color:var(--tx2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">Hazard Ratio (' + escapeHtml(compB) + ' vs. ' + escapeHtml(compA) + '): <b style="color:' + (coxPH.hr > 1 ? 'var(--danger)' : 'var(--ok)') + '">' + coxPH.hr + 'x</b> <span style="font-size:10px;color:var(--tx3)">(IC95% ' + coxPH.hrMin + '–' + coxPH.hrMax + ')</span></div>' +
@@ -595,6 +596,15 @@ function _estTablaTecnico(ot) {
     _estLeveneMttrHTML(leveneMttr);
 }
 
+// Aviso de poca potencia (logic.js: avisoMuestraChica / avisoMuestraChicaSupervivencia): un resultado "no significativo" con pocos datos no demuestra que no haya diferencia.
+function _estAvisoPotenciaHTML(av) {
+  if (!av) return '';
+  var txt = av.tipo === 'hr'
+    ? 'Con solo ' + av.fallasMin + ' falla(s) en el grupo más chico, esta prueba únicamente detectaría que un componente falla ' + String(av.hr).replace('.', ',') + ' veces más rápido que el otro o más. Que no salga significativo <b>no significa que sean iguales</b>: significa que con estos datos no alcanza para decirlo.'
+    : 'Con ' + av.n + ' datos en el grupo más chico, esta prueba solo detectaría diferencias grandes (de al menos ' + String(av.d).replace('.', ',') + ' desviaciones típicas). Que no salga significativo <b>no significa que no haya diferencia</b>: significa que con estos datos no alcanza para verla.';
+  return '<div style="margin:0 0 10px;padding:8px 10px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)">⚠ Muestra chica. ' + txt + '</div>';
+}
+
 // Bloque Levene/Brown-Forsythe — ¿la VARIABILIDAD (no el promedio/mediana)
 // del MTTR difiere entre técnicos? (2026-09-21).
 function _estLeveneMttrHTML(lv) {
@@ -612,6 +622,7 @@ function _estLeveneMttrHTML(lv) {
     '<div><div style="font-size:10px;color:var(--tx3)">gl (entre, dentro)</div><div style="font-size:18px;font-weight:700">' + lv.glEntre + ', ' + lv.glDentro + '</div></div>' +
     '</div>' +
     '<div style="font-size:12px;font-weight:600;color:' + col + ';margin-bottom:10px">' + veredicto + '</div>' +
+    _estAvisoPotenciaHTML(avisoMuestraChica(lv.significativo, Math.min.apply(null, lv.grupos.map(function (g) { return g.n; })))) +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR mediana</th><th>Desvío típico vs. su mediana</th></tr>' +
     lv.grupos.map(function (g) {
       return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
@@ -640,6 +651,7 @@ function _estKruskalMttrHTML(kw) {
     '<div><div style="font-size:10px;color:var(--tx3)">crítico (χ², gl=' + kw.gl + ')</div><div style="font-size:18px;font-weight:700">' + kw.critico + '</div></div>' +
     '</div>' +
     '<div style="font-size:12px;font-weight:600;color:' + col + ';margin-bottom:10px">' + veredicto + '</div>' +
+    _estAvisoPotenciaHTML(avisoMuestraChica(kw.significativo, Math.min.apply(null, kw.grupos.map(function (g) { return g.n; })))) +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR mediana</th></tr>' +
     kw.grupos.map(function (g) {
       return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
@@ -672,6 +684,7 @@ function _estAnovaMttrHTML(anova) {
     '<div><div style="font-size:10px;color:var(--tx3)">gl (entre, dentro)</div><div style="font-size:18px;font-weight:700">' + anova.glEntre + ', ' + anova.glDentro + '</div></div>' +
     '</div>' +
     '<div style="font-size:12px;font-weight:600;color:' + colF + ';margin-bottom:10px">' + veredicto + '</div>' +
+    _estAvisoPotenciaHTML(avisoMuestraChica(anova.significativo, Math.min.apply(null, anova.grupos.map(function (g) { return g.n; })))) +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR promedio</th><th>Desv. estándar</th></tr>' +
     anova.grupos.map(function (g) {
       return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +

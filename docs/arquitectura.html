@@ -3229,6 +3229,9 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <h3>126. Cómo se mantienen los documentos al día (2026-10-12)</h3>
   <p><code>arquitectura.md</code> es el detalle técnico completo (una sección por cambio); <code>arquitectura.html</code> es su <b>resumen para leer</b>, escrito a mano, con una sección por cambio: al agregar una sección al <code>.md</code> hay que agregar su resumen aquí. <code>manual-usuario.html</code>, en cambio, se genera desde <code>manual-usuario.md</code> con <code>python3 scripts/manual_md_a_html.py</code> (no se edita a mano). El plano usa cifras fijas (módulos, tablas, funciones): se revisan cuando cambian. El cambio de un cálculo o de una pantalla se documenta en el mismo commit.</p>
 
+  <h3>127. Aviso de muestra chica en las pruebas estadísticas (2026-10-13)</h3>
+  <p>Un resultado <b>no significativo</b> no demuestra que no haya diferencia: con pocos datos la prueba tiene poca potencia y solo vería diferencias muy grandes. ANOVA, Kruskal-Wallis y Levene (MTTR por técnico) y Log-Rank (entre componentes) muestran ahora un aviso amarillo <b>Muestra chica</b> cuando el resultado no es significativo y los datos son pocos, con el tamaño de diferencia que sí podrían detectar (α = 5 %, potencia 80 %: d = 2,80·√(2/n) desviaciones típicas; se avisa con menos de 25 datos en el grupo más chico; en Log-Rank, según las fallas de cada grupo). Son aproximaciones orientativas y el aviso nunca aparece si el resultado es significativo. No incluye los chi-cuadrado de Predictivo ni Mann-Kendall. El Glosario de la Ayuda explica H0, H1, errores tipo I y II y potencia.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

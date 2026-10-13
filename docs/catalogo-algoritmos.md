@@ -111,6 +111,8 @@ Para qué sirve cada distribución clásica y dónde está en el programa. Los c
 | **t de Student** | intervalos de confianza al 90 % de los ajustes | `_tCritico90` |
 | **F de Snedecor** | ¿difiere el MTTR entre técnicos? (ANOVA) | `anovaUnFactor`, `_pValorF` |
 
+**Potencia (2026-10-13):** `efectoMinimoDetectable` y `hrMinimoDetectable` estiman qué diferencia podría detectar una prueba con la muestra disponible (α = 5 %, potencia 80 %); alimentan el aviso "Muestra chica" de Estadística.
+
 Nota de uso: ninguna distribución se elige "porque sí". Con menos de 5 a 8 datos el sistema no ajusta (devuelve "pocos casos") y, cuando hay datos, la forma real se verifica con la bondad de ajuste.
 
 ---
