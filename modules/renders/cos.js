@@ -37,6 +37,65 @@ function _cosSankeySVG(links, columnas, fmt, ariaLabel) {
   svg += '</g>';
   return '<div style="overflow-x:auto"><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:720px;max-width:' + W + 'px;height:auto;display:block;margin:0 auto" role="img" aria-label="' + escapeHtml(ariaLabel) + '">' + svg + '</svg></div>';
 }
+// ═══ ARRIENDO VS COMPRA (2026-10-13) ═══ arma, por modelo de equipo, los datos que el sistema SÍ mide (horas por día, valor de compra, vida contable, repuestos y servicios por hora del TCO,
+// neumáticos por hora) para pasárselos a arriendoVsCompra (logic.js). Lo que el sistema no mide (tarifas de arriendo, dotación, litros por carga, UF, diésel, sueldos) lo escribe el usuario
+// y se guarda en Configuración (cfg.arriendoVsCompra). Los equipos por kilómetros (camionetas, buses) quedan fuera: no se arriendan por hora.
+function _arrMediana(a) {
+  var v = a.filter(function (x) { return typeof x === 'number' && isFinite(x); }).sort(function (x, y) { return x - y; });
+  if (!v.length) return null;
+  var m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+function _arriendoGrupos() {
+  var eqs = S.g('eq') || [], neu = S.g('neu') || [], tcoD = (typeof tcoFlotaAuto === 'function') ? tcoFlotaAuto() : null, tcoPor = {};
+  if (tcoD) tcoD.res.equipos.forEach(function (r) { tcoPor[r.sigla] = r; });
+  var grupos = {}, orden = [];
+  eqs.forEach(function (e) {
+    if (!e || !e.modelo || e.unidad === 'km') return;
+    var k = _normalizarModelo(e.modelo);
+    if (!grupos[k]) { grupos[k] = { clave: k, nombre: e.modelo, nEquipos: 0, hd: [], vc: [], vida: [], rep: [], neu: [] }; orden.push(k); }
+    var g = grupos[k]; g.nEquipos++;
+    if (Number(e.hrsDia) >= 1 && Number(e.hrsDia) <= 24) g.hd.push(Number(e.hrsDia));
+    if (Number(e.valorCompra) > 0) g.vc.push(Number(e.valorCompra));
+    var vida = Number(e.vidaContableH) > 0 ? Number(e.vidaContableH) : null;
+    if (vida == null) { var cl = tboClaseModelo(e.modelo); if (cl && TCO_VIDA_CONTABLE_H[cl.clase]) vida = TCO_VIDA_CONTABLE_H[cl.clase]; }
+    if (vida) g.vida.push(vida);
+    if (tcoPor[e.sigla] && tcoPor[e.sigla].matPorHora != null) g.rep.push(tcoPor[e.sigla].matPorHora);
+    var nh = 0, hay = false;
+    neu.forEach(function (n) {
+      if (!n || n.sigla !== e.sigla || n.estado !== 'Operativo') return;
+      var pr = (typeof neuPrecio === 'function') ? neuPrecio(n).precio : 0;
+      if (pr > 0 && Number(n.vidaUtil) > 0) { nh += pr / Number(n.vidaUtil); hay = true; }
+    });
+    if (hay) g.neu.push(nh);
+  });
+  return orden.map(function (k) {
+    var g = grupos[k];
+    return { clave: g.clave, nombre: g.nombre, nEquipos: g.nEquipos, horasDia: _arrMediana(g.hd), valorCompra: _arrMediana(g.vc), vidaContableH: _arrMediana(g.vida), repuestosPorHora: _arrMediana(g.rep), neumaticosPorHora: _arrMediana(g.neu) };
+  }).sort(function (a, b) { return b.nEquipos - a.nEquipos || (a.nombre < b.nombre ? -1 : 1); });
+}
+// Guarda un supuesto en cfg.arriendoVsCompra. ambito 'general' (UF, diésel, sueldos, disponibilidades…) o 'modelo' (dotación, litros, tarifas de ese modelo). Vacío = vuelve al valor sugerido.
+// Disponibilidades y valor residual se escriben en % y se guardan como fracción. Solo un administrador puede cambiarlos.
+export function arriendoCambiar(ambito, clave, campo, v) {
+  if (window._userRole !== 'admin') return;
+  var n = parseFloat(v), c = S.g('cfg') || {}, a = Object.assign({}, c.arriendoVsCompra || {});
+  var val = (v !== '' && isFinite(n) && n >= 0) ? n : null;
+  if (ambito === 'general') {
+    if (['dispHumedo', 'dispSeco', 'residual'].indexOf(campo) >= 0 && val != null) val = val / 100;
+    if (val != null && ['dispHumedo', 'dispSeco'].indexOf(campo) >= 0 && !(val > 0 && val <= 1)) { toast('La disponibilidad debe estar entre 0 y 100 %'); return renders.cos(); }
+    if (val != null && campo === 'residual' && val >= 1) { toast('El valor residual debe ser menor a 100 %'); return renders.cos(); }
+    if (val != null && ['uf', 'horasCarga', 'meses', 'diasMes'].indexOf(campo) >= 0 && !(val > 0)) val = null;
+    if (val == null) delete a[campo]; else a[campo] = val;
+  } else {
+    var m = Object.assign({}, a.modelos || {}), u = Object.assign({}, m[clave] || {});
+    if (val == null) delete u[campo]; else u[campo] = val;
+    if (Object.keys(u).length) m[clave] = u; else delete m[clave];
+    if (Object.keys(m).length) a.modelos = m; else delete a.modelos;
+  }
+  c.arriendoVsCompra = Object.keys(a).length ? a : null;
+  S.s('cfg', c);
+  renders.cos();
+}
 export function renderCos() {
   if (!$("s-cos")) return;
   var reg = S.g('reg') || [];
@@ -544,6 +603,81 @@ export function renderCos() {
         _cosSankeySVG(skHoras.links, skHoras.columnas, skFmtH, 'Diagrama Sankey de horas de reparación: tipo de equipo, equipo y componente')
         : '<div style="padding:20px;text-align:center;color:var(--tx3)">No hay reparaciones con duración registrada en los últimos 12 meses.</div>') +
       '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Los equipos o componentes fuera del top se agrupan en "Otros". Pasá el mouse sobre una barra o cinta para ver el valor exacto.</div></div>';
+  } else if (fVista === 'arriendo') {
+    // ═══ ARRIENDO VS COMPRA (2026-10-13) ═══ ver arriendoVsCompra (logic.js) para qué calcula y qué supone cada número.
+    var arrCfg = (S.g('cfg') || {}).arriendoVsCompra || {}, arrEd = window._userRole === 'admin';
+    var arrSup = Object.assign({}, arrCfg), arrRes = arriendoVsCompra(_arriendoGrupos(), arrSup);
+    var u2 = function (v) { return v == null ? '—' : (Math.round(v * 100) / 100 + '').replace('.', ','); };
+    var rango = function (o, k1, k2) { return o ? u2(o[k1]) + ' – ' + u2(o[k2]) : '—'; };
+    var pct1 = function (v) { return v == null ? '—' : (Math.round(v * 1000) / 10 + '').replace('.', ',') + ' %'; };
+    var inp = function (ambito, clave, campo, val, sug, ancho, pct) {
+      var shown = val != null ? (pct ? Math.round(val * 1000) / 10 : val) : '';
+      var ph = sug != null ? (pct ? Math.round(sug * 1000) / 10 : sug) : '';
+      return '<input type="number" min="0" step="any" value="' + shown + '" placeholder="' + ph + '"' + (arrEd ? '' : ' disabled') + ' onchange="arriendoCambiar(\'' + ambito + '\',\'' + clave + '\',\'' + campo + '\',this.value)" style="width:' + (ancho || 84) + 'px;padding:4px;background:var(--bg2);color:var(--tx);border:1px solid var(--bd);border-radius:4px' + (arrEd ? '' : ';opacity:.6') + '">';
+    };
+    var lbl = function (t, ctl, tip) { return '<label style="font-size:11px;display:flex;align-items:center;gap:6px;justify-content:space-between;background:var(--bg3);border-radius:6px;padding:4px 8px"' + (tip ? ' title="' + escapeHtml(tip) + '"' : '') + '><span>' + t + '</span>' + ctl + '</label>'; };
+    var G = ARRIENDO_GENERAL_DEFECTO, gs = function (k) { return arrCfg[k] != null ? arrCfg[k] : null; };
+    var generalHTML =
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px;margin:8px 0">' +
+      lbl('Valor de la UF ($)', inp('general', '', 'uf', gs('uf'), null, 96), 'No hay un valor por defecto: cambia todos los días. Sin él no se calcula nada.') +
+      lbl('Precio neto del diésel ($/L)', inp('general', '', 'diesel', gs('diesel'), G.diesel), 'Neto: ya descontado el impuesto específico que se recupera. Confirma con tu contador qué parte se recupera hoy.') +
+      lbl('Costo de un operador ($/mes)', inp('general', '', 'operador', gs('operador'), G.operador, 96)) +
+      lbl('Costo de un mecánico ($/mes)', inp('general', '', 'mecanico', gs('mecanico'), G.mecanico, 96)) +
+      lbl('Horas entre cargas de combustible', inp('general', '', 'horasCarga', gs('horasCarga'), G.horasCarga, 64)) +
+      lbl('Duración del contrato (meses)', inp('general', '', 'meses', gs('meses'), G.meses, 64)) +
+      lbl('Disponibilidad garantizada, húmedo (%)', inp('general', '', 'dispHumedo', gs('dispHumedo'), G.dispHumedo, 64, true), 'Supuesto: punto medio de la garantía habitual de 85 a 90 %.') +
+      lbl('Disponibilidad propia, seco (%)', inp('general', '', 'dispSeco', gs('dispSeco'), G.dispSeco, 64, true), 'Supuesto neutro: igual que el húmedo. Cámbiala por tu disponibilidad real.') +
+      lbl('Valor residual de lo comprado (%)', inp('general', '', 'residual', gs('residual'), G.residual, 64, true), 'Cuánto valdría la máquina al final del contrato, como % del valor de compra.') +
+      '</div>';
+    var filasRes = arrRes.ok ? arrRes.filas : [], nSug = filasRes.reduce(function (a, f) { return a + f.sugeridos.length; }, 0) + (arrRes.ok ? arrRes.generalSugerido.length : 0);
+    var tablaRes = '', tablaDet = '', porModelo = '';
+    if (arrRes.ok && filasRes.length) {
+      tablaRes = '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Modelo</th><th style="text-align:right">Equipos</th><th style="text-align:right" title="Operador, mecánicos, combustible, neumáticos y repuestos por hora">Costos propios (UF/h)</th><th style="text-align:right">Seco con tus costos (UF/h)</th><th style="text-align:right">Húmedo (UF/h)</th><th style="text-align:right" title="Húmedo menos seco con tus costos. Positivo: conviene el seco.">Seco más barato por (UF/h)</th><th style="text-align:right" title="Si tu disponibilidad real en seco fuera menor a esto, el húmedo sale más barato por hora productiva.">Disp. de equilibrio</th><th style="text-align:right" title="Capital por hora + costos propios. Sin financiamiento ni cambios mayores.">Comprar (UF/h)</th><th style="text-align:right" title="Lo que pagarías en seco durante todo el contrato, en veces el valor de compra.">Seco en veces el valor de compra</th><th>Datos</th></tr>' +
+        filasRes.map(function (f) {
+          var dm = f.diferencia ? f.diferencia.medio : null, col = dm == null ? 'inherit' : dm > 0 ? 'var(--ok)' : 'var(--danger)';
+          var est = f.completo ? '<span style="color:var(--ok)">completo</span>' : '<span style="color:var(--w)" title="' + escapeHtml('Falta: ' + f.faltan.join('; ')) + '">incompleto (' + f.faltan.length + ')</span>';
+          if (f.sugeridos.length) est += ' <span style="color:var(--tx3)" title="' + escapeHtml('Usa valores sugeridos sin confirmar: ' + f.sugeridos.join(', ') + (f.fuenteSugerida ? '. ' + f.fuenteSugerida : '')) + '">· ' + f.sugeridos.length + ' sugeridos</span>';
+          return '<tr><td style="font-weight:600">' + escapeHtml(f.nombre) + '</td><td class="mono" style="text-align:right">' + fn(f.nEquipos) + '</td><td class="mono" style="text-align:right">' + u2(f.propiosUF) + '</td>' +
+            '<td class="mono" style="text-align:right">' + rango(f.seco, 'min', 'max') + '</td><td class="mono" style="text-align:right">' + rango(f.humedo, 'min', 'max') + '</td>' +
+            '<td class="mono" style="text-align:right;color:' + col + ';font-weight:700">' + (f.diferencia ? rango(f.diferencia, 'min', 'max') + ' <span style="font-weight:400;color:var(--tx3)">(medio ' + u2(dm) + ')</span>' : '—') + '</td>' +
+            '<td class="mono" style="text-align:right">' + pct1(f.equilibrio) + '</td><td class="mono" style="text-align:right">' + (f.compra ? u2(f.compra.totalUF) : '—') + '</td>' +
+            '<td class="mono" style="text-align:right">' + (f.chequeo ? u2(f.chequeo.veces) + '×' : '—') + '</td><td style="font-size:10px">' + est + '</td></tr>';
+        }).join('') + '</table></div>';
+      tablaDet = '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Modelo</th><th style="text-align:right">Horas al mes</th><th style="text-align:right">Operadores</th><th style="text-align:right">Mecánicos</th><th style="text-align:right">Combustible</th><th style="text-align:right">Neumáticos</th><th style="text-align:right">Repuestos y servicios</th><th style="text-align:right">Total propio</th></tr>' +
+        filasRes.map(function (f) {
+          var c = f.costosCLP, cel = function (v) { return '<td class="mono" style="text-align:right">' + (v == null ? '<span style="color:var(--tx3)">falta</span>' : '$' + fn(Math.round(v)) + ' <span style="color:var(--tx3)">(' + u2(v / arrRes.uf) + ')</span>') + '</td>'; };
+          return '<tr><td style="font-weight:600">' + escapeHtml(f.nombre) + '</td><td class="mono" style="text-align:right">' + (f.horasMes != null ? fn(Math.round(f.horasMes)) : '—') + '</td>' + cel(c.operador) + cel(c.mecanico) + cel(c.combustible) + cel(c.neumaticos) + cel(c.repuestos) +
+            '<td class="mono" style="text-align:right;font-weight:700">$' + fn(Math.round(f.propiosCLP)) + ' <span style="font-weight:400;color:var(--tx3)">(' + u2(f.propiosUF) + ' UF)</span></td></tr>';
+        }).join('') + '</table></div><div style="font-size:10px;color:var(--tx3);margin-top:4px">Pesos por hora y, entre paréntesis, UF por hora. "Falta" = el sistema no tiene ese dato (por ejemplo, repuestos pide 90 días de compras con horas de operación).</div>';
+      porModelo = filasRes.map(function (f) {
+        var u = (arrCfg.modelos && arrCfg.modelos[f.clave]) || {}, def = arriendoDefectoModelo(f.nombre) || {}, e = f.entradas;
+        var dot = e.operadores != null ? e.operadores : null;
+        return '<div style="border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="font-weight:700;font-size:12px">' + escapeHtml(f.nombre) + ' <span style="font-weight:400;color:var(--tx3)">(' + fn(f.nEquipos) + ' equipos)</span></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin-top:6px">' +
+          lbl('Operadores por equipo', inp('modelo', f.clave, 'operadores', u.operadores, dot, 64), 'Sugerido: 2 por cada turno de 12 h (relevo 7x7).') +
+          lbl('Mecánicos por equipo', inp('modelo', f.clave, 'mecanicos', u.mecanicos, e.mecanicos, 64)) +
+          lbl('Litros por carga', inp('modelo', f.clave, 'litrosCarga', u.litrosCarga, def.litrosCarga, 72), 'Sugerido: capacidad del estanque de un listado de concesionario (no oficial). Confírmalo con el surtidor.') +
+          lbl('Tarifa seca mínima (UF/h)', inp('modelo', f.clave, 'secaMin', u.secaMin, def.secaMin, 64)) +
+          lbl('Tarifa seca máxima (UF/h)', inp('modelo', f.clave, 'secaMax', u.secaMax, def.secaMax, 64)) +
+          lbl('Tarifa húmeda mínima (UF/h)', inp('modelo', f.clave, 'humMin', u.humMin, def.humMin, 64)) +
+          lbl('Tarifa húmeda máxima (UF/h)', inp('modelo', f.clave, 'humMax', u.humMax, def.humMax, 64)) +
+          '</div>' + (def.fuente ? '<div style="font-size:10px;color:var(--tx3);margin-top:4px">Sugerencias: ' + escapeHtml(def.fuente) + '.</div>' : '<div style="font-size:10px;color:var(--w);margin-top:4px">Este modelo no tiene sugerencias: escribe tarifas y litros por carga para compararlo.</div>') + '</div>';
+      }).join('');
+    }
+    content =
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🧮 Arriendo vs compra — por modelo, por hora de operación</div>' +
+      '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:6px 0 10px">Compara tres caminos para un contrato largo: arrendar <b>seco</b> (tú pones operador, combustible, mantención y neumáticos), arrendar <b>húmedo</b> (todo incluido, con disponibilidad garantizada) y <b>comprar</b>. Lo que el sistema mide sale solo (horas por día, valor de compra, vida contable, repuestos y servicios del TCO, neumáticos); lo que no mide (UF, diésel, sueldos, dotación, litros por carga y <b>tarifas de arriendo</b>) lo escribes tú: lo que dejes vacío usa el valor sugerido que aparece en gris. <b>Las tarifas sugeridas son una estimación sin fuente: reemplázalas por cotizaciones reales.</b>' + (arrEd ? '' : ' <i>Solo un administrador puede cambiar estos valores.</i>') + '</div>' +
+      '<div style="font-weight:700;font-size:12px">Supuestos generales</div>' + generalHTML +
+      (arrRes.ok ? '' : '<div style="padding:14px;text-align:center;color:var(--w);font-weight:600">' + escapeHtml('Falta un dato: ' + arrRes.motivo + '.') + '</div>') +
+      (arrRes.ok && !filasRes.length ? '<div style="padding:20px;text-align:center;color:var(--tx3)">No hay equipos por horas con modelo cargado.</div>' : '') +
+      (arrRes.ok && filasRes.length ?
+        '<div style="font-weight:700;font-size:12px;margin-top:10px">Resultado por modelo (UF por hora de operación)</div>' +
+        (nSug ? '<div style="font-size:11px;color:var(--w);margin:4px 0">⚠ El resultado usa ' + nSug + ' valor(es) sugeridos que aún no confirmaste (se ven en gris dentro de cada casilla).</div>' : '') +
+        tablaRes +
+        '<div style="font-size:10px;color:var(--tx3);margin:6px 0 12px;line-height:1.5"><b>Cómo leerlo:</b> "seco más barato por" es húmedo menos seco con tus costos: <b style="color:var(--ok)">positivo</b> = conviene el seco. La disponibilidad de equilibrio es la que tendrías que tener en seco para que el húmedo empate. "Seco en veces el valor de compra" es lo que pagarías en tarifa seca durante todo el contrato dividido por lo que cuesta comprar la máquina: un número alto significa que la tarifa es cara frente al equipo. <b>No incluye</b> cambios mayores del plan del fabricante, seguros, lavado, supervisión, pañol ni financiamiento, y el valor de comprar no incluye esos mismos costos.</div>' +
+        '<div style="font-weight:700;font-size:12px">Costos propios por hora (lo que pagas tú en seco)</div>' + tablaDet +
+        '<div style="font-weight:700;font-size:12px;margin-top:14px">Supuestos por modelo</div><div style="margin-top:6px">' + porModelo + '</div>' : '') +
+      '</div>';
   } else if (fVista === 'relativo') {
     // ═══ COSTO RELATIVO DE MANTENIMIENTO — indicador EN 15341 A&S1 (2026-09-16,
     // origen: revisión de contenido de Predictiva21 + carga real de Órdenes de
@@ -587,6 +721,7 @@ export function renderCos() {
     '<option value="mtbf"' + (fVista === 'mtbf' ? ' selected' : '') + '><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> MTBF / MTTR</option>' +
     '<option value="tco"' + (fVista === 'tco' ? ' selected' : '') + '>🏗️ Costo Total de Propiedad</option>' +
     '<option value="sankey"' + (fVista === 'sankey' ? ' selected' : '') + '>🔀 Flujo de horas y costo</option>' +
+    '<option value="arriendo"' + (fVista === 'arriendo' ? ' selected' : '') + '>🧮 Arriendo vs compra</option>' +
     '<option value="relativo"' + (fVista === 'relativo' ? ' selected' : '') + '>💰 Costo Relativo de Mantenimiento</option></select> ' +
     '<button class="btn btn-o" onclick="verComprasProveedores()" title="Tiempo de respuesta real por proveedor y pedidos de compra que ya llevan más tiempo abierto de lo normal">📦 Compras — Proveedores</button></div>' +
     content;
@@ -640,4 +775,5 @@ export function verComprasProveedores(){
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderCos = renderCos;
 window.verComprasProveedores = verComprasProveedores;
+window.arriendoCambiar = arriendoCambiar;
 renders.cos = renderCos;

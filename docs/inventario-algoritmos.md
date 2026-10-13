@@ -37,7 +37,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C19 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
 | E. Repuestos e inventario | E1–E12 |
-| F. Costos | F1–F5 |
+| F. Costos | F1–F6 |
 | G. TBO del fabricante (Komatsu) | G1–G10 |
 | H. Producción | H1–H3 |
 | I. Simulación y pronóstico | I1–I4 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L5 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **121 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **122 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -774,6 +774,16 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Cómo lo calcula aquí:** para el mismo equipo, compras dentro de una ventana de 15 días y con un puntaje de coincidencia de palabras (con tolerancia a texto truncado) de al menos 0,6; ordena por puntaje y cercanía en fecha. Solo *sugiere*; una persona decide.
 - **Dónde se ve:** Correctivos (al cerrar una OT) y Costos.
 - **Código:** `costoSugeridoPorCruce`, `precioMaterial`.
+
+### F6. Arriendo vs compra (seco, húmedo y comprar)
+- **Tipo:** modelo de costos comparativo.
+- **Para qué sirve:** decidir, por modelo de equipo y por hora de operación, entre arrendar **seco** (tú pones operador, combustible, mantención y neumáticos), arrendar **húmedo** (todo incluido, con disponibilidad garantizada) o **comprar**.
+- **De dónde viene:** 🔵 Criterio propio: no hay una norma que lo defina. Usa el costo del ciclo de vida de F2 (IEC 60300-3-3 como guía general) y suma los costos que el sistema no mide con valores que escribe el usuario. Las tarifas de arriendo sugeridas son 🟡 una estimación sin fuente (tabla pegada por el usuario) y los litros por carga son capacidades de estanque de listados de concesionarios (no oficiales).
+- **Cómo lo calcula aquí:** todo en UF por hora. **Costos propios** = operadores × costo mensual ÷ horas al mes + mecánicos × costo mensual ÷ horas al mes + litros por carga ÷ horas entre cargas × precio neto del diésel + neumáticos por hora + repuestos y servicios por hora. Lo que mide el sistema: horas por día de los equipos, valor de compra, vida contable (la propia o la de referencia del programa), repuestos y servicios por hora (la mantención por hora del TCO de F2) y neumáticos por hora (precio de cada neumático montado ÷ su vida programada). **Seco con tus costos** = tarifa seca + costos propios, con rango entre la tarifa mínima y la máxima. **Seco más barato por** = húmedo − seco con tus costos (positivo: conviene el seco), con su rango y su punto medio. **Por hora productiva**: cada tarifa ÷ su disponibilidad (la garantizada del húmedo, la propia del seco). **Disponibilidad de equilibrio** = seco medio ÷ (húmedo medio ÷ disponibilidad garantizada): si tu disponibilidad en seco fuera menor, el húmedo saldría más barato. **Comprar** = valor de compra × (1 − valor residual) ÷ vida contable + costos propios. **Chequeo**: lo que pagarías en tarifa seca durante todo el contrato, en veces el valor de compra. Si falta un dato, ese componente queda fuera del total y la fila se marca incompleta con la lista de lo que falta; los valores sugeridos (dotación de 2 operadores por turno de 12 h con relevo 7x7, litros por carga y tarifas por modelo) se marcan como tales hasta que el usuario los confirma.
+- **Dónde se ve:** Costos → "Arriendo vs compra". Los supuestos se guardan en Configuración (`cfg.arriendoVsCompra`) y solo un administrador puede cambiarlos.
+- **Ejemplo real (HD785-7, UF a $39.000):** costos propios 2,07 UF/h (operadores 4 → $13.200/h, mecánicos 4 → $12.300/h, combustible a $300/L con 1.308 L cada 12 h → $32.700/h, neumáticos $10.600/h, repuestos $11.800/h); seco con tus costos 5,3 a 6,1 UF/h contra húmedo de 8,0 a 10,0; el seco sale más barato por 1,9 a 4,7 UF/h; disponibilidad de equilibrio 55 %; comprar 3,1 UF/h; el seco, durante 4 años, equivale a 3,2 veces el valor de compra del camión.
+- **Límites:** no incluye cambios mayores del plan del fabricante, seguros, lavado, supervisión, pañol ni financiamiento. El consumo de combustible se estima con el estanque completo cada 12 horas. Los equipos por kilómetros (camionetas, buses) no entran. Las tarifas de arriendo son estimaciones: conviene reemplazarlas por cotizaciones reales.
+- **Código:** `arriendoVsCompra`, `arriendoDefectoModelo`, `ARRIENDO_GENERAL_DEFECTO`.
 
 ---
 

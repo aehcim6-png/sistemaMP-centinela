@@ -5443,6 +5443,72 @@ function sankeyLayout(links,columnas,o){
   return{nodos:lista.sort(function(a,b){return a.col-b.col||a.y-b.y;}),cintas:cintas,ky:ky,ancho:W,alto:H,anchoNodo:nw,columnas:nCol};
 }
 
+// ═══ ARRIENDO VS COMPRA (2026-10-13) ═══
+// Compara, por hora de operación y por modelo de equipo, tres caminos: arrendar SECO (tú pones operador, combustible, mantención y neumáticos), arrendar HÚMEDO (todo incluido, con disponibilidad garantizada) y COMPRAR.
+// Todo se expresa en UF por hora. Cada modelo suma sus costos propios (operador, mecánicos, combustible, neumáticos, repuestos y servicios) a la tarifa seca, y compara contra la tarifa húmeda.
+//  - Operador y mecánicos: personas × costo mensual ÷ horas de operación al mes. Combustible: litros por carga ÷ horas entre cargas × precio neto del litro. Neumáticos y repuestos: los mide el propio sistema.
+//  - Seco más barato por = húmedo − seco total (positivo: conviene el seco). Se muestra el rango (mínimo contra máximo de las tarifas) y el punto medio.
+//  - Por hora PRODUCTIVA: tarifa ÷ disponibilidad. Disponibilidad de equilibrio = la disponibilidad del seco bajo la cual el húmedo sale más barato (supone la garantía del húmedo).
+//  - Comprar: capital por hora (valor de compra × (1 − valor residual) ÷ vida contable) + costos propios. No incluye financiamiento ni cambios mayores. Chequeo: cuánto pagarías en seco durante todo el contrato, en veces el valor de compra.
+// Nunca inventa un dato: lo que falta se lista en `faltan` y ese componente queda fuera del total (la fila se marca incompleta). Los valores que no puso el usuario pero tienen una sugerencia se listan en `sugeridos`.
+// Las tarifas de arriendo, el consumo y la dotación NO los mide el sistema: los define el usuario (o se sugieren y se marcan como sugeridos).
+var ARRIENDO_GENERAL_DEFECTO={diesel:300,operador:1600000,mecanico:1500000,diasMes:30.4,meses:48,dispHumedo:0.875,dispSeco:0.875,horasCarga:12,residual:0};
+// Sugerencias por modelo (tabla de tarifas estimada para contrato a 4 años y capacidad de estanque de listados de concesionarios): son un punto de partida, no un dato medido.
+function arriendoDefectoModelo(modelo){
+  var m=String(modelo||'').toUpperCase();
+  if(/HD[- ]?785/.test(m))return{litrosCarga:1308,secaMin:3.2,secaMax:4.0,humMin:8.0,humMax:10.0,fuente:'HD785-7: estanque de listado de concesionario; tarifas de la propuesta (estimación sin fuente)'};
+  if(/WA ?900/.test(m))return{litrosCarga:1555,secaMin:4.2,secaMax:5.0,humMin:9.5,humMax:11.5,fuente:'WA900-8R: estanque de listado de concesionario; tarifas de la propuesta (estimación sin fuente)'};
+  if(/D ?375A/.test(m))return{litrosCarga:1050,secaMin:4.5,secaMax:5.2,humMin:10.0,humMax:12.0,fuente:'D375A-6: estanque de listado de concesionario; tarifas de la propuesta (estimación sin fuente)'};
+  return null;
+}
+function _arrNum(v){var n=Number(v);return v!==null&&v!==undefined&&v!==''&&isFinite(n)?n:null;}
+// grupos: [{clave,nombre,nEquipos,horasDia,valorCompra,vidaContableH,repuestosPorHora,neumaticosPorHora}] (null = el sistema no tiene el dato) · sup: {uf, ...general, modelos:{clave:{operadores,mecanicos,litrosCarga,secaMin,secaMax,humMin,humMax}}}
+function arriendoVsCompra(grupos,sup){
+  var s=sup||{},uf=_arrNum(s.uf);
+  if(!(uf>0))return{ok:false,motivo:'falta el valor de la UF (en pesos) para convertir a UF por hora',filas:[]};
+  var gen={},sugGen=[];
+  Object.keys(ARRIENDO_GENERAL_DEFECTO).forEach(function(k){var v=_arrNum(s[k]);if(v==null){v=ARRIENDO_GENERAL_DEFECTO[k];sugGen.push(k);}gen[k]=v;});
+  var filas=(grupos||[]).map(function(g){
+    var u=(s.modelos&&s.modelos[g.clave])||{},def=arriendoDefectoModelo(g.nombre),faltan=[],sug=[];
+    var tomar=function(campo,calc){var v=_arrNum(u[campo]);if(v!=null)return v;var d=calc!=null?calc:(def&&def[campo]!=null?def[campo]:null);if(d!=null)sug.push(campo);return d;};
+    var hd=_arrNum(g.horasDia),hm=hd>0?hd*gen.diasMes:null;
+    var dotDef=hd>0?2*Math.ceil(hd/12):null;
+    var operadores=tomar('operadores',dotDef),mecanicos=tomar('mecanicos',dotDef),litros=tomar('litrosCarga'),
+      secaMin=tomar('secaMin'),secaMax=tomar('secaMax'),humMin=tomar('humMin'),humMax=tomar('humMax');
+    if(!(hm>0))faltan.push('horas de operación por día');
+    var c={operador:null,mecanico:null,combustible:null,neumaticos:null,repuestos:null};
+    if(hm>0&&operadores!=null)c.operador=operadores*gen.operador/hm;else if(hm>0)faltan.push('operadores por equipo');
+    if(hm>0&&mecanicos!=null)c.mecanico=mecanicos*gen.mecanico/hm;else if(hm>0)faltan.push('mecánicos por equipo');
+    if(litros!=null&&gen.horasCarga>0)c.combustible=litros/gen.horasCarga*gen.diesel;else faltan.push('litros por carga');
+    var rep=_arrNum(g.repuestosPorHora),neu=_arrNum(g.neumaticosPorHora);
+    if(rep!=null)c.repuestos=rep;else faltan.push('repuestos y servicios (se necesitan 90 días de compras con horas de operación)');
+    c.neumaticos=neu!=null?neu:0;   // sin neumáticos registrados (por ejemplo un bulldozer de orugas) cuenta 0
+    var propiosCLP=0;Object.keys(c).forEach(function(k){if(c[k]!=null)propiosCLP+=c[k];});
+    var propiosUF=propiosCLP/uf;
+    var r={clave:g.clave,nombre:g.nombre,nEquipos:g.nEquipos,horasMes:hm,horasContrato:hm>0?hm*gen.meses:null,costosCLP:c,propiosCLP:propiosCLP,propiosUF:propiosUF,
+      seco:null,humedo:null,diferencia:null,productivo:null,equilibrio:null,compra:null,chequeo:null,faltan:faltan,sugeridos:sug,fuenteSugerida:def?def.fuente:null,
+      entradas:{operadores:operadores,mecanicos:mecanicos,litrosCarga:litros,secaMin:secaMin,secaMax:secaMax,humMin:humMin,humMax:humMax}};
+    var tarSeco=secaMin!=null&&secaMax!=null,tarHum=humMin!=null&&humMax!=null;
+    if(tarSeco)r.seco={min:secaMin+propiosUF,max:secaMax+propiosUF,medio:(secaMin+secaMax)/2+propiosUF};else faltan.push('tarifa seca (mínima y máxima)');
+    if(tarHum)r.humedo={min:humMin,max:humMax,medio:(humMin+humMax)/2};else faltan.push('tarifa húmeda (mínima y máxima)');
+    if(r.seco&&r.humedo){
+      r.diferencia={min:r.humedo.min-r.seco.max,max:r.humedo.max-r.seco.min,medio:r.humedo.medio-r.seco.medio};
+      r.diferencia.medioCLP=r.diferencia.medio*uf;
+      if(gen.dispSeco>0&&gen.dispHumedo>0){
+        r.productivo={seco:r.seco.medio/gen.dispSeco,humedo:r.humedo.medio/gen.dispHumedo};
+        r.productivo.ahorroPct=1-r.productivo.seco/r.productivo.humedo;
+        r.equilibrio=r.seco.medio/r.productivo.humedo;
+      }
+    }
+    var vc=_arrNum(g.valorCompra),vida=_arrNum(g.vidaContableH);
+    if(vc>0&&vida>0){var cap=vc*(1-gen.residual)/vida/uf;r.compra={capitalUF:cap,totalUF:cap+propiosUF};}else faltan.push('valor de compra y vida contable');
+    if(vc>0&&tarSeco&&r.horasContrato>0){var pago=(secaMin+secaMax)/2*r.horasContrato*uf;r.chequeo={pagoSeco:pago,valorCompra:vc,veces:pago/vc};}
+    r.completo=faltan.length===0;
+    return r;
+  });
+  return{ok:true,uf:uf,general:gen,generalSugerido:sugGen,filas:filas};
+}
+
 // ═══ M4 (ABC × VED) Y M6 (PRIORIDAD DE OT) QUE USAN LA CRITICIDAD DE EQUIPOS (2026-10-13) ═══
 // Banda 1-5 de un equipo para decisiones de otros módulos: el PEOR CASO entre el nivel calculado (M2: Alta 5, Media 3, Baja 1) y la etiqueta manual (Crítico 5, Esencial 3, General 1), igual que ya hace la criticidad de
 // repuestos ("nunca se minimiza una señal real con la otra"): la etiqueta puede contener juicio que los datos no miden (seguridad, rol en la producción). Devuelve {banda, fuente: 'calculada'|'manual'|'ambas'} o null sin ninguna de las dos.
@@ -9698,7 +9764,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

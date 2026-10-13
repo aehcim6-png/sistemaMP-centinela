@@ -79,7 +79,7 @@
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C19</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
     <tr><td><b>E. Repuestos e inventario</b></td><td>E1–E12</td></tr>
-    <tr><td><b>F. Costos</b></td><td>F1–F5</td></tr>
+    <tr><td><b>F. Costos</b></td><td>F1–F6</td></tr>
     <tr><td><b>G. TBO del fabricante (Komatsu)</b></td><td>G1–G10</td></tr>
     <tr><td><b>H. Producción</b></td><td>H1–H3</td></tr>
     <tr><td><b>I. Simulación y pronóstico</b></td><td>I1–I4</td></tr>
@@ -88,7 +88,7 @@
     <tr><td><b>L. Datos y seguridad</b></td><td>L1–L5</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>121 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>122 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2>A. Disponibilidad, fallas y tiempos</h2>
 
@@ -962,6 +962,18 @@
     <li><b>Cómo lo calcula aquí:</b> para el mismo equipo, compras dentro de una ventana de 15 días y con un puntaje de coincidencia de palabras (con tolerancia a texto truncado) de al menos 0,6; ordena por puntaje y cercanía en fecha. Solo <i>sugiere</i>; una persona decide.</li>
     <li><b>Dónde se ve:</b> Correctivos (al cerrar una OT) y Costos.</li>
     <li><b>Código:</b> <code>costoSugeridoPorCruce</code>, <code>precioMaterial</code>.</li>
+  </ul>
+
+  <h3>F6. Arriendo vs compra (seco, húmedo y comprar)</h3>
+  <ul>
+    <li><b>Tipo:</b> modelo de costos comparativo.</li>
+    <li><b>Para qué sirve:</b> decidir, por modelo de equipo y por hora de operación, entre arrendar <b>seco</b> (tú pones operador, combustible, mantención y neumáticos), arrendar <b>húmedo</b> (todo incluido, con disponibilidad garantizada) o <b>comprar</b>.</li>
+    <li><b>De dónde viene:</b> 🔵 Criterio propio: no hay una norma que lo defina. Usa el costo del ciclo de vida de F2 (IEC 60300-3-3 como guía general) y suma los costos que el sistema no mide con valores que escribe el usuario. Las tarifas de arriendo sugeridas son 🟡 una estimación sin fuente (tabla pegada por el usuario) y los litros por carga son capacidades de estanque de listados de concesionarios (no oficiales).</li>
+    <li><b>Cómo lo calcula aquí:</b> todo en UF por hora. <b>Costos propios</b> = operadores × costo mensual ÷ horas al mes + mecánicos × costo mensual ÷ horas al mes + litros por carga ÷ horas entre cargas × precio neto del diésel + neumáticos por hora + repuestos y servicios por hora. Lo que mide el sistema: horas por día de los equipos, valor de compra, vida contable (la propia o la de referencia del programa), repuestos y servicios por hora (la mantención por hora del TCO de F2) y neumáticos por hora (precio de cada neumático montado ÷ su vida programada). <b>Seco con tus costos</b> = tarifa seca + costos propios, con rango entre la tarifa mínima y la máxima. <b>Seco más barato por</b> = húmedo − seco con tus costos (positivo: conviene el seco), con su rango y su punto medio. <b>Por hora productiva</b>: cada tarifa ÷ su disponibilidad (la garantizada del húmedo, la propia del seco). <b>Disponibilidad de equilibrio</b> = seco medio ÷ (húmedo medio ÷ disponibilidad garantizada): si tu disponibilidad en seco fuera menor, el húmedo saldría más barato. <b>Comprar</b> = valor de compra × (1 − valor residual) ÷ vida contable + costos propios. <b>Chequeo</b>: lo que pagarías en tarifa seca durante todo el contrato, en veces el valor de compra. Si falta un dato, ese componente queda fuera del total y la fila se marca incompleta con la lista de lo que falta; los valores sugeridos (dotación de 2 operadores por turno de 12 h con relevo 7x7, litros por carga y tarifas por modelo) se marcan como tales hasta que el usuario los confirma.</li>
+    <li><b>Dónde se ve:</b> Costos → "Arriendo vs compra". Los supuestos se guardan en Configuración (<code>cfg.arriendoVsCompra</code>) y solo un administrador puede cambiarlos.</li>
+    <li><b>Ejemplo real (HD785-7, UF a $39.000):</b> costos propios 2,07 UF/h (operadores 4 → $13.200/h, mecánicos 4 → $12.300/h, combustible a $300/L con 1.308 L cada 12 h → $32.700/h, neumáticos $10.600/h, repuestos $11.800/h); seco con tus costos 5,3 a 6,1 UF/h contra húmedo de 8,0 a 10,0; el seco sale más barato por 1,9 a 4,7 UF/h; disponibilidad de equilibrio 55 %; comprar 3,1 UF/h; el seco, durante 4 años, equivale a 3,2 veces el valor de compra del camión.</li>
+    <li><b>Límites:</b> no incluye cambios mayores del plan del fabricante, seguros, lavado, supervisión, pañol ni financiamiento. El consumo de combustible se estima con el estanque completo cada 12 horas. Los equipos por kilómetros (camionetas, buses) no entran. Las tarifas de arriendo son estimaciones: conviene reemplazarlas por cotizaciones reales.</li>
+    <li><b>Código:</b> <code>arriendoVsCompra</code>, <code>arriendoDefectoModelo</code>, <code>ARRIENDO_GENERAL_DEFECTO</code>.</li>
   </ul>
 
   <h2>G. TBO del fabricante (Komatsu)</h2>

@@ -377,7 +377,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-13f"></script>
+<script src="logic.js?v=2026-10-13g"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -434,7 +434,7 @@ const _LAZY_VERS={
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
   comp2:'2026-10-10',
-  cos:'2026-10-13b',
+  cos:'2026-10-13d',
   destrabe:'2026-10-08',
   disp:'2026-10-11p',
   eq:'2026-10-11j',
@@ -491,7 +491,7 @@ const _LAZY_EXPORTS={
   cad:['renderCad','addCad','saveCad','addMedicionCad','saveMedicionCad','verHistorialCad','delCad'],
   cfg:['verCodigosQR','_descargarQR','renderCfg','ejecutarVerificacionIntegridad','resetAll','descargarPlantillaLimpia','resetEmpresa','processResetEmpresa','cloudProbar','guardarNeuParams','cfgCambiarCostoDetModelo','cfgCambiarTasaUSD','cfgCambiarDuracionPM','guardarAlertaEmails','guardarAlertaWhatsApp','guardarRemitentesPermitidos','exportarMovCSV','cloudGuardarCfg','exportAllJSON','importAllJSON','_mfaEstado','activarMFA','_confirmarActivarMFA','_cancelarActivarMFA','desactivarMFA','nombrarEquipo','verAccesos','crearUsuarioUI','cargarPendientesUI','activarUsuarioUI','cargarActivosUI','desactivarMfaUsuarioUI','cambiarPerfilUsuarioUI','desactivarUsuarioUI'],
   comp2:['renderComp2','comp2Sub'],
-  cos:['renderCos','verComprasProveedores'],
+  cos:['renderCos','verComprasProveedores','arriendoCambiar'],
   destrabe:['renderDestrabe','edDestrabe','addDestrabe','delDestrabe','abrirVincularOC','confirmarVincularOC'],
   disp:['renderDisp','configurarRendimientoModelos','edRendModelo','importarReportabilidad','confirmarImportReportabilidad','exportarReportabilidadDia'],
   eq:['renderEq','addEquipo','saveNewEq','importarEquiposNuevos','importarHorasAmortizar','editFicha','saveFicha'],
