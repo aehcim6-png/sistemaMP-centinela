@@ -1002,7 +1002,7 @@ export function renderPred(){
         var impacto=(o.estatusEq==='Fuera de Servicio'||esCritEq)?'Alto':'Medio';
         var prioridad=diasPend>7&&impacto==='Alto'?'🔴 Crítico':diasPend>3?'🟡 Atrasado':'🟢 Normal';
         backlog.push({idx:i,sigla:o.sigla,trabajo:o.sintoma||o.tipo,origen:'Correctivo',dias:diasPend,
-          motivo:motivo,impacto:impacto,prioridad:prioridad,estadoOT:o.estadoOT,componente:o.componente||''});
+          motivo:motivo,impacto:impacto,prioridad:prioridad,estadoOT:o.estadoOT,componente:o.componente||'',fueraDeServicio:o.estatusEq==='Fuera de Servicio'});
       }
     });
     // From predictive alerts — bug real (auditoría 2026-09-14): antes exigía
@@ -1017,7 +1017,11 @@ export function renderPred(){
       }
     });
     if(fEq)backlog=backlog.filter(function(b){return b.sigla===fEq;});
-    backlog.sort(function(a,b){return b.dias-a.dias;});
+    // Prioridad M6 (2026-10-13): urgencia (días pendiente) × impacto (criticidad del equipo: calculada M2 + etiqueta manual, peor caso) — ver prioridadOT (logic.js). Antes: solo días y un impacto Alto/Medio binario.
+    var bandaSigBL=_predBandaPorSigla(eq,ot);
+    backlog=prioridadOT(backlog,bandaSigBL);
+    var nivelBL=function(n){return backlog.filter(function(b){return b.nivel===n;}).length;};
+    var sinCritBL=backlog.filter(function(b){return b.impactoFuente&&b.impactoFuente.indexOf('sin criticidad')===0;}).length;
 
     var is=CELL_INPUT_STYLE+';font-size:11px;padding:2px';
 
@@ -1034,27 +1038,28 @@ export function renderPred(){
         sinCriticidad+' de '+eq.length+' equipos todavía sin "Criticidad" clasificada (Ficha Técnica → Crítico/Esencial/General) — sin esto, la columna "Impacto" de abajo no puede distinguir un equipo clave parado de uno de apoyo, y todo correctivo pendiente pesa igual.'+
         '</div>':'')+
       '<div class="cards">'+
-      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔴 Críticos</div><div class="card-v" style="color:var(--danger)">'+backlog.filter(function(b){return b.prioridad.includes('🔴');}).length+'</div></div>'+
-      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">🟡 Atrasados</div><div class="card-v" style="color:var(--w)">'+backlog.filter(function(b){return b.prioridad.includes('🟡');}).length+'</div></div>'+
-      '<div class="card"><div class="card-t">🟢 Normal</div><div class="card-v">'+backlog.filter(function(b){return b.prioridad.includes('🟢');}).length+'</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔴 P1 · Resolver hoy</div><div class="card-v" style="color:var(--danger)">'+nivelBL('P1')+'</div><div class="card-s">urgencia × impacto ≥ 15</div></div>'+
+      '<div class="card" style="border-left:3px solid #f97316"><div class="card-t">🟠 P2 · Esta semana</div><div class="card-v" style="color:#f97316">'+nivelBL('P2')+'</div><div class="card-s">de 8 a 14</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">🟡 P3 · Programar</div><div class="card-v" style="color:var(--w)">'+nivelBL('P3')+'</div><div class="card-s">de 4 a 7</div></div>'+
+      '<div class="card"><div class="card-t">🟢 P4 · Puede esperar</div><div class="card-v">'+nivelBL('P4')+'</div><div class="card-s">menos de 4</div></div>'+
       '<div class="card"><div class="card-t">Total Backlog</div><div class="card-v">'+backlog.length+'</div></div>'+
       '</div>'+
+      '<div style="font-size:11px;color:var(--tx3);margin:-4px 0 12px;line-height:1.5"><b>Prioridad = urgencia × impacto</b> (1 a 5 cada una). <b>Urgencia:</b> días pendiente (hasta 1 día = 1, hasta 3 = 2, hasta 7 = 3, hasta 14 = 4, más = 5); un PM vencido cuenta 3 como mínimo y un equipo fuera de servicio 4. <b>Impacto:</b> criticidad del equipo (la más alta entre la calculada en Criticidad de Equipos y tu etiqueta Crítico/Esencial/General: Alta/Crítico = 5, Media/Esencial = 3, Baja/General = 1); un equipo fuera de servicio cuenta 4 como mínimo.'+(sinCritBL?' <b>'+sinCritBL+' trabajo(s) de equipos sin criticidad conocida usan impacto 3 (neutro).</b>':'')+'</div>'+
       '<div class="tbl-wrap"><table>'+
       '<tr><th>Prioridad</th><th>Equipo</th><th>Trabajo</th><th>Origen</th><th>Días</th><th>Motivo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Impacto</th><th>Componente</th><th>Acción</th></tr>'+
       backlog.map(function(b){
-        var bg=b.prioridad.includes('🔴')?'background:rgba(239,68,68,.06)':b.prioridad.includes('🟡')?'background:rgba(245,158,11,.04)':'';
+        var bg=b.nivel==='P1'?'background:rgba(239,68,68,.06)':b.nivel==='P2'?'background:rgba(249,115,22,.05)':b.nivel==='P3'?'background:rgba(245,158,11,.04)':'';
+        var colP=b.nivel==='P1'?'var(--danger)':b.nivel==='P2'?'#f97316':b.nivel==='P3'?'var(--w)':'var(--ok)';
         return'<tr style="'+bg+'">'+
-          '<td style="font-size:12px">'+b.prioridad+'</td>'+
+          '<td style="font-size:12px;font-weight:700;color:'+colP+'" title="Urgencia '+b.urgencia+' × impacto '+b.impacto+' = '+b.puntaje+'">'+b.nivel+' · '+b.puntaje+'</td>'+
           '<td class="mono" style="color:var(--ac)">'+escapeHtml(b.sigla)+'</td>'+
           '<td style="font-size:11px;max-width:150px">'+escapeHtml(b.trabajo)+'</td>'+
           '<td style="font-size:10px"><span class="badge '+(b.origen==='Correctivo'?'b-r':'b-y')+'">'+b.origen+'</span></td>'+
           '<td style="text-align:center;font-weight:600;color:'+(b.dias>7?'var(--danger)':'var(--w)')+'">'+b.dias+'d</td>'+
           '<td>'+(b.idx>=0?'<input value="'+escapeHtml(b.motivo||'')+'" data-ot="'+b.idx+'" data-key="motivoPendiente" onchange="edOT(parseInt(this.dataset.ot),this.dataset.key,this.value)" style="width:90px;'+is+'" placeholder="Motivo...">':'<span style="font-size:10px">'+escapeHtml(b.motivo)+'</span>')+'</td>'+
-          '<td style="font-size:11px;font-weight:600;color:'+(b.impacto==='Alto'?'var(--danger)':'var(--w)')+'">'+b.impacto+'</td>'+
+          '<td style="font-size:11px;font-weight:600;color:'+(b.impacto>=4?'var(--danger)':b.impacto===3?'var(--w)':'var(--tx2)')+'" title="'+escapeHtml('Impacto '+b.impacto+' ('+b.impactoFuente+') · urgencia '+b.urgencia)+'">'+b.impacto+'<span style="font-size:9px;color:var(--tx3);font-weight:400"> ('+escapeHtml(b.impactoFuente.indexOf('sin criticidad')===0?'sin criticidad':b.impactoFuente)+')</span></td>'+
           '<td style="font-size:10px">'+escapeHtml(b.componente||'—')+'</td>'+
-          '<td>'+(b.prioridad.includes('🔴')?'<span style="font-size:10px;color:var(--danger);font-weight:600">Resolver hoy</span>':
-            b.prioridad.includes('🟡')?'<span style="font-size:10px;color:var(--w)">Programar</span>':
-            '<span style="font-size:10px;color:var(--ok)">Puede esperar</span>')+'</td></tr>';
+          '<td><span style="font-size:10px;color:'+colP+';font-weight:'+(b.nivel==='P1'?'600':'400')+'">'+b.accion+'</span></td></tr>';
       }).join('')+
       '</table></div>';
 
@@ -1698,13 +1703,13 @@ export function renderPred(){
     // Criticidad por modelo de equipo (peor caso entre los equipos reales de
     // ese modelo) — un repuesto de stock está asociado a un modelo
     // (equipoModelo), no a un equipo específico.
-    var critPorModeloRep={};
-    eq.forEach(function(e){
-      if(!e||!e.modelo)return;
-      var banda=typeof criticidadEquipoABanda==='function'?criticidadEquipoABanda(e.criticidad):null;
-      if(banda==null)return;
-      if(critPorModeloRep[e.modelo]==null||banda>critPorModeloRep[e.modelo])critPorModeloRep[e.modelo]=banda;
-    });
+    // Criticidad del equipo que usa el repuesto (M4, 2026-10-13): el campo equipoModelo es texto libre ("HD785-7/WA900", "BD-10139 Bulldozer", "AROCS"…), así que se asocia por palabras
+    // (equiposDeRepuesto, logic.js) en vez de exigir el nombre exacto del modelo, y se usa la banda combinada (calculada + etiqueta manual, peor caso) de los equipos asociados.
+    var bandaSigCrit=_predBandaPorSigla(eq,ot);
+    var critRepDeNParte=function(s){
+      var bs=equiposDeRepuesto(s.equipoModelo,eq).map(function(x){return bandaSigCrit[x]&&bandaSigCrit[x].banda;}).filter(function(b){return b!=null;});
+      return bs.length?Math.max.apply(null,bs):null;
+    };
     var itemsCritRep=stk.filter(function(s){return s&&s.nParte;}).map(function(s){
       var lambda=lambdaPorNParte[s.nParte];
       if(lambda==null)return null;
@@ -1712,7 +1717,7 @@ export function renderPred(){
       var stockDispRep=(s.stockBodega||0)+(s.pendiente||0);
       var probQ=typeof probabilidadQuiebreLeadTime==='function'?probabilidadQuiebreLeadTime(lambda,leadDiasRep,stockDispRep):null;
       return{nParte:s.nParte,item:s.descripcion||s.nParte,probQuiebre:probQ,precioUnit:s.precioUnit||null,
-        criticidadEquipo:critPorModeloRep[s.equipoModelo]||null,stockDisponible:stockDispRep,leadDias:leadDiasRep,lambda:lambda};
+        criticidadEquipo:critRepDeNParte(s),stockDisponible:stockDispRep,leadDias:leadDiasRep,lambda:lambda};
     }).filter(Boolean);
     var critRepLista=typeof matrizCriticidadRepuestos==='function'?matrizCriticidadRepuestos(itemsCritRep):[];
     content=
@@ -1750,14 +1755,23 @@ export function renderPred(){
     // demanda (media, cv) que ABC-XYZ ya calculó, cruzada con lead time y
     // stock real, para pasar de "qué tan predecible es" a un número
     // accionable — "a cuántas unidades pedir de nuevo".
+    // VED (M4, 2026-10-13): Vital / Esencial / Deseable según la criticidad del equipo más crítico que usa el repuesto (ver vedRepuestos, logic.js). Fija el nivel de servicio del stock de seguridad: Vital 99 %, Esencial 95 %, Deseable 90 %;
+    // un repuesto sin equipo asociado queda sin VED y mantiene el 95 % de siempre.
+    var stkPorNParteVED={};stk.forEach(function(x){if(x&&x.nParte)stkPorNParteVED[x.nParte]=x;});
+    var bandaSigVED=_predBandaPorSigla(eq,ot),bandaSimpleVED={};
+    Object.keys(bandaSigVED).forEach(function(k){bandaSimpleVED[k]=bandaSigVED[k].banda;});
+    var vedLista=typeof vedRepuestos==='function'?vedRepuestos(abcxyzLista.map(function(it){return{nParte:it.nParte,claseABC:it.claseABC,equipoModelo:(stkPorNParteVED[it.nParte]||{}).equipoModelo||''};}),eq,bandaSimpleVED):[];
+    var vedPorNParte={},nsPorNParteVED={};
+    vedLista.forEach(function(v){vedPorNParte[v.nParte]=v;if(v.nivelServicio)nsPorNParteVED[v.nParte]=v.nivelServicio;});
+    var matrizVED=typeof matrizABCVED==='function'?matrizABCVED(vedLista):null;
     var reordenPorNParteABC={};
-    (typeof puntosReordenRepuestos==='function'?puntosReordenRepuestos(abcxyzLista,stk,0.95):[]).forEach(function(r){reordenPorNParteABC[r.nParte]=r;});
+    (typeof puntosReordenRepuestos==='function'?puntosReordenRepuestos(abcxyzLista,stk,0.95,nsPorNParteVED):[]).forEach(function(r){reordenPorNParteABC[r.nParte]=r;});
     // Lote económico (EOQ) y política (s,S) — 2026-10-10: cuánto pedir cuando toca (el Reorden dice cuándo).
     var eoqCostoPedido=_eoqParam('costoPedido',100000),eoqTasa=_eoqParam('tasaMantencion',0.2);
     // Demanda programada por el calendario de PM (2026-10-11): si lo calendarizado supera al consumo histórico, el reorden y el lote usan el plan.
     var planAutoABC=typeof planReposicionAuto==='function'?planReposicionAuto(30):null;
     var planMesABC=planAutoABC&&typeof demandaMensualPlanPorNParte==='function'?demandaMensualPlanPorNParte(planAutoABC.plan):null;
-    var polPorNParteABC={},polLista=typeof politicasReposicionRepuestos==='function'?politicasReposicionRepuestos(abcxyzLista,stk,{costoPedido:eoqCostoPedido,tasaMantencion:eoqTasa},0.95,planMesABC):[];
+    var polPorNParteABC={},polLista=typeof politicasReposicionRepuestos==='function'?politicasReposicionRepuestos(abcxyzLista,stk,{costoPedido:eoqCostoPedido,tasaMantencion:eoqTasa},0.95,planMesABC,nsPorNParteVED):[];
     polLista.forEach(function(r){polPorNParteABC[r.nParte]=r;reordenPorNParteABC[r.nParte]={nParte:r.nParte,stockActual:r.stockActual,rop:r.s,bajoReorden:r.pedirAhora>0};});
     var nUsaPlanABC=polLista.filter(function(r){return r.usaPlan;}).length;
     var polPedirAhora=polLista.filter(function(r){return r.pedirAhora>0;}),polValorAhora=polPedirAhora.reduce(function(a,r){return a+r.valorPedido;},0);
@@ -1778,13 +1792,14 @@ export function renderPred(){
         '<div class="card"><div class="card-t">Reorden con el plan de PM</div><div class="card-v">'+fn(nUsaPlanABC)+'</div><div class="card-s">repuestos donde el calendario de PM supera al histórico</div></div>'+
         '<div class="card"><div class="card-t">Ahorro vs pedir de a uno</div><div class="card-v">$'+fn(Math.round(polAhorro))+'</div><div class="card-s">al año, sumando los '+fn(polLista.length)+' repuestos con precio, con el costo por pedido que ingresaste (es una estimación, no un ahorro medido)</div></div></div></div>'
       :'')+
+      (matrizVED&&abcxyzLista.length?_predABCVEDHTML(matrizVED,vedLista.length):'')+
       (abcxyzLista.length?
       '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:21%">Repuesto</th><th style="width:10%">Clase</th><th style="width:14%">Valor Anual.</th><th style="width:11%">Consumo/mes</th><th style="width:8%">CV</th><th style="width:14%" title="Stock actual (bodega + pendiente) / punto de reorden s">Reorden</th><th style="width:16%" title="Lote económico Q, nivel de reposición S = s + Q y cuántas unidades pedir hoy.">Lote (Q) · S</th><th style="text-align:left">Detalle</th></tr>'+
       abcxyzLista.map(function(it){
         var ro=reordenPorNParteABC[it.nParte],po=polPorNParteABC[it.nParte];
         return'<tr>'+
           '<td style="font-weight:600" title="'+escapeHtml(it.nParte)+'">'+escapeHtml(descPorNParteABC[it.nParte]||it.nParte)+'</td>'+
-          '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span></td>'+
+          '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span>'+(function(){var v=vedPorNParte[it.nParte];return v&&v.ved?'<span title="'+escapeHtml('VED: '+VED_ETIQUETA[v.ved]+' (equipo más crítico asociado: banda '+v.banda+', '+v.equiposAsociados.join(', ')+') · categoría de control '+v.categoria+' · nivel de servicio del stock de seguridad '+Math.round(v.nivelServicio*100)+'%')+'" style="color:var(--ac);font-size:10px"> · '+v.ved+'</span>':'<span title="Sin equipo asociado: sin VED, stock de seguridad al 95%" style="color:var(--tx3);font-size:10px"> · —</span>';})()+'</td>'+
           '<td style="text-align:center">$'+fn(it.valorAnualizado)+'</td>'+
           '<td style="text-align:center">'+(function(){var po=polPorNParteABC[it.nParte];return po&&po.usaPlan?'<b title="El programa de PM calendariza más consumo que el histórico ('+po.consumoHist+'/mes): el reorden y el lote usan el plan">'+po.consumoMensualProm+'</b><div style="font-size:9px;color:var(--w)">plan PM (hist. '+po.consumoHist+')</div>':it.consumoMensualProm;})()+'</td>'+
           '<td style="text-align:center">'+(it.cv!=null?it.cv:'—')+'</td>'+
@@ -2125,16 +2140,45 @@ $('s-pred').innerHTML=
 // Frecuencia × Consecuencia (1-5 cada una, relativas a la flota), comparada con la etiqueta manual Crítico/Esencial/General. El cálculo y sus reglas están en criticidadEquiposMulticriterio (logic.js).
 var _CRIT_COL = { Alta: 'var(--danger)', Media: 'var(--warn)', Baja: 'var(--ok)' };
 var _CRIT_CRITERIO = { mttr: 'duración típica de la reparación (mediana)', costoHora: 'valor de la hora detenida del modelo', importancia: 'importancia operacional (la etiqueta manual)' };
-function _predCriticidadHTML(eq, ot) {
-  if (typeof criticidadEquiposMulticriterio !== 'function') return '';
-  var hoy = new Date();
+// ABC × VED (M4): matriz 3×3 con la cantidad de repuestos por celda y la categoría de control; el VED sale de la criticidad del equipo (M2 + etiqueta manual).
+function _predABCVEDHTML(m, total) {
+  var col = { I: 'var(--danger)', II: 'var(--warn)', III: 'var(--ok)' };
+  var filas = ['A', 'B', 'C'].map(function (a) {
+    return '<tr><td style="font-weight:700;text-align:center;width:44px">' + a + '</td>' + ['V', 'E', 'D'].map(function (v) {
+      var lista = m.celdas[a][v], cat = ABCVED_CATEGORIA[a + v], c = col[cat];
+      return '<td style="border:1px solid var(--border);padding:6px;min-width:110px;vertical-align:top;background:color-mix(in srgb,' + c + ' ' + (lista.length ? 18 : 6) + '%,transparent)" title="' + escapeHtml(lista.map(function (x) { return x.nParte; }).join(', ')) + '">' +
+        '<div style="font-size:18px;font-weight:700;color:' + c + '">' + lista.length + '</div><div style="font-size:9px;color:var(--tx3)">Categoría ' + cat + '</div></td>';
+    }).join('') + '</tr>';
+  }).join('');
+  return '<div class="card" style="margin-bottom:12px;padding:12px 14px"><div style="font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">ABC × VED — cuánto control justifica cada repuesto</div>' +
+    '<div style="font-size:12px;line-height:1.6;color:var(--tx2)">ABC mide cuánto se gasta; <b>VED</b> mide cuánto duele quedarse sin el repuesto, según la <b>criticidad del equipo más crítico que lo usa</b> (<b>V</b>ital = banda 5, <b>E</b>sencial = 3 o 4, <b>D</b>eseable = 1 o 2; la banda es el peor caso entre la criticidad calculada y tu etiqueta manual). ' +
+    'El VED también fija el stock de seguridad: Vital 99 %, Esencial 95 %, Deseable 90 % (en la columna Reorden de abajo). Pasa el mouse sobre una celda para ver los repuestos.</div>' +
+    '<div class="tbl-wrap"><table style="border-collapse:collapse;margin:10px auto"><tbody><tr><td></td><td style="text-align:center;font-size:11px;font-weight:700">Vital</td><td style="text-align:center;font-size:11px;font-weight:700">Esencial</td><td style="text-align:center;font-size:11px;font-weight:700">Deseable</td></tr>' + filas + '</tbody></table></div>' +
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;margin-top:6px"><span style="color:var(--danger)"><b>Categoría I (' + m.resumen.I + '):</b> ' + escapeHtml(ABCVED_POLITICA.I) + '</span><span style="color:var(--warn)"><b>II (' + m.resumen.II + '):</b> ' + escapeHtml(ABCVED_POLITICA.II) + '</span><span style="color:var(--ok)"><b>III (' + m.resumen.III + '):</b> ' + escapeHtml(ABCVED_POLITICA.III) + '</span></div>' +
+    '<div style="font-size:10px;color:var(--tx3);margin-top:6px">' + m.resumen.sinDato + ' de ' + total + ' repuestos <b>sin equipo asociado</b> (el campo "equipo/modelo" del repuesto está vacío o es una marca de filtro, como Fleetguard o Donaldson): no tienen VED y mantienen el stock de seguridad al 95 %. Completar ese campo con el modelo o la sigla del equipo mejora el análisis.</div></div>';
+}
+
+// Datos compartidos: el cálculo M2 se hace una vez y lo leen la propia vista de criticidad, ABC × VED (M4) y la prioridad de OT (M6).
+function _predCriticidadDatos(eq, ot) {
+  if (typeof criticidadEquiposMulticriterio !== 'function') return null;
   var fallas = ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist') || []), _informesFallaComoOt(S.g('informesFalla') || []));
   var eventos = fallas.map(function (o) {
     var m = o.duracion && o.duracion !== '—' ? String(o.duracion).match(/(\d+)h/) : null;
     return { sigla: o.sigla, fecha: o.fecha || o.fechaEntrada, durH: m ? parseInt(m[1], 10) : null };
   }).filter(function (x) { return x.sigla && x.fecha; });
   var tco = typeof tcoFlotaAuto === 'function' ? tcoFlotaAuto() : null, aj = tco && tco.aj ? tco.aj : null;
-  var r = criticidadEquiposMulticriterio(eq, { eventos: eventos, hist: S.g('hist') || [], hoy: hoy, costoHoraDe: function (modelo) { return aj ? costoHoraDetDe(modelo, aj) : null; } }, {});
+  return criticidadEquiposMulticriterio(eq, { eventos: eventos, hist: S.g('hist') || [], hoy: new Date(), costoHoraDe: function (modelo) { return aj ? costoHoraDetDe(modelo, aj) : null; } }, {});
+}
+// {sigla: {banda 1-5, fuente}}: peor caso entre el nivel calculado (M2) y la etiqueta manual — ver bandaCriticidadEquipo (logic.js).
+function _predBandaPorSigla(eq, ot) {
+  var r = _predCriticidadDatos(eq, ot), nivel = {}, out = {};
+  if (r && r.filas) r.filas.forEach(function (f) { nivel[f.sigla] = f.nivel; });
+  eq.forEach(function (e) { var b = e && e.sigla ? bandaCriticidadEquipo(nivel[e.sigla] || null, e.criticidad) : null; if (b) out[e.sigla] = b; });
+  return out;
+}
+function _predCriticidadHTML(eq, ot) {
+  var r = _predCriticidadDatos(eq, ot);
+  if (!r) return '';
   var cab = '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏭 Criticidad de equipos — frecuencia × consecuencia (últimos 12 meses)</div>' +
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Hasta ahora la criticidad era una etiqueta manual de 3 niveles. Acá se calcula con datos y se compara con esa etiqueta, <b>sin cambiarla</b>: si difiere, es una sugerencia para revisar, no una orden. Todo es relativo a la propia flota (un equipo es "frecuente" si falla más que la mayoría de los demás).</div>';
   if (!r.ok) return cab + '<div style="padding:14px;color:var(--tx3);font-size:12px">No se calcula: ' + escapeHtml(r.motivo || '') + '.</div></div>';

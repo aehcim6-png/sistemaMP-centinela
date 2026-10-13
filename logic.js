@@ -4551,7 +4551,7 @@ function puntoReordenSeguridad(muMensual,cv,leadDias,nivelServicio){
 // cruzando con el lead time y stock actual real de cada repuesto (tabla
 // stk). Marca bajoReorden cuando el stock actual (bodega + pendiente de
 // llegar) ya cayó por debajo del punto de reorden calculado.
-function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio){
+function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio,nivelServicioPorNParte){
   var stockPorNParte={},leadPorNParte={};
   (stk||[]).forEach(function(s){
     if(!s||!s.nParte)return;
@@ -4560,7 +4560,7 @@ function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio){
   });
   return(itemsABCXYZ||[]).map(function(it){
     var lead=leadPorNParte[it.nParte]||34;
-    var r=puntoReordenSeguridad(it.consumoMensualProm,it.cv,lead,nivelServicio);
+    var r=puntoReordenSeguridad(it.consumoMensualProm,it.cv,lead,(nivelServicioPorNParte&&nivelServicioPorNParte[it.nParte])||nivelServicio);
     if(!r)return null;
     var stockActual=stockPorNParte[it.nParte]||0;
     return Object.assign({nParte:it.nParte,claseABC:it.claseABC,claseXYZ:it.claseXYZ,
@@ -4594,7 +4594,7 @@ function eoqRazonCosto(k){return k>0?(k+1/k)/2:null;}
 // Aplica EOQ + (s,S) a la lista de ABC-XYZ y puntos de reorden. cfg: {costoPedido, tasaMantencion, maxMeses}. precio de stk.precioUnit.
 // `planPorNParte` (opcional): {nParte: demandaMensualPlanificada} del programa de PM (planReposicionAuto). Si el plan supera al consumo histórico se usa el plan para el
 // punto de reorden y el lote (el histórico puede estar subestimando lo que ya está calendarizado); si no, queda el histórico. Cada fila dice cuál se usó.
-function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio,planPorNParte){
+function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio,planPorNParte,nivelServicioPorNParte){
   var c=cfg||{},precio={};
   if(planPorNParte){
     itemsABCXYZ=(itemsABCXYZ||[]).map(function(it){
@@ -4605,7 +4605,7 @@ function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio,planPorN
   }
   (stk||[]).forEach(function(s){if(s&&s.nParte&&s.precioUnit>0)precio[s.nParte]=s.precioUnit;});
   var rop={};
-  puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio).forEach(function(r){rop[r.nParte]=r;});
+  puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio,nivelServicioPorNParte).forEach(function(r){rop[r.nParte]=r;});
   return(itemsABCXYZ||[]).map(function(it){
     var r=rop[it.nParte],p=precio[it.nParte];if(!r||!p)return null;
     var l=loteEconomicoPedido(it.consumoMensualProm*12,p,c.costoPedido,c.tasaMantencion,{maxMeses:c.maxMeses});
@@ -5349,6 +5349,70 @@ function tcoFlotaAuto(){
     var val={res:res,aj:aj};_tcoCache={clave:clave,ts:ahora,val:val};
     return val;
   }catch(e){return null;}
+}
+
+// ═══ M4 (ABC × VED) Y M6 (PRIORIDAD DE OT) QUE USAN LA CRITICIDAD DE EQUIPOS (2026-10-13) ═══
+// Banda 1-5 de un equipo para decisiones de otros módulos: el PEOR CASO entre el nivel calculado (M2: Alta 5, Media 3, Baja 1) y la etiqueta manual (Crítico 5, Esencial 3, General 1), igual que ya hace la criticidad de
+// repuestos ("nunca se minimiza una señal real con la otra"): la etiqueta puede contener juicio que los datos no miden (seguridad, rol en la producción). Devuelve {banda, fuente: 'calculada'|'manual'|'ambas'} o null sin ninguna de las dos.
+function bandaCriticidadEquipo(nivelCalc,criticidadManual){
+  var bc=nivelCalc==='Alta'?5:nivelCalc==='Media'?3:nivelCalc==='Baja'?1:null,bm=criticidadEquipoABanda(criticidadManual);
+  if(bc==null&&bm==null)return null;
+  var b=Math.max(bc||0,bm||0);
+  return{banda:b,fuente:bc==null?'manual':bm==null?'calculada':bc===bm?'ambas':bc>bm?'calculada':'manual'};
+}
+// El campo "equipoModelo" de los repuestos es texto libre ("HD785-7/WA900/D375", "BD-10139 Bulldozer", "AROCS", "Cargador Frontal", y a veces una marca de filtro como "Fleetguard"). Se separa en palabras y cada una se busca en el
+// modelo, la sigla o el tipo del equipo (como palabra completa), sin distinguir mayúsculas ni símbolos. Una palabra de menos de 3 caracteres o genérica ("filtro", "aceite") no cuenta. Si nada calza, el repuesto queda "sin equipo asociado": no se inventa.
+var _VED_PALABRAS_GENERICAS={filtro:1,filtros:1,aceite:1,repuesto:1,repuestos:1,para:1,del:1,equipo:1,equipos:1,generico:1};
+function _normTxt(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');}
+function equiposDeRepuesto(equipoModelo,equipos){
+  var palabras=String(equipoModelo||'').split(/[\/,;\s]+/).map(_normTxt).filter(function(w){return w.length>=3&&!_VED_PALABRAS_GENERICAS[w];});
+  if(!palabras.length)return[];
+  return(equipos||[]).filter(function(e){
+    if(!e||!e.sigla)return false;
+    var mod=_normTxt(e.modelo),sig=_normTxt(e.sigla),tipoW=String(e.tipo||'').split(/\s+/).map(_normTxt);
+    return palabras.some(function(w){return w===sig||(mod&&mod.indexOf(w)>=0)||tipoW.indexOf(w)>=0;});
+  }).map(function(e){return e.sigla;});
+}
+// ABC × VED: ABC (gasto anual, de ABC-XYZ) cruzado con VED = Vital / Esencial / Deseable, según la criticidad del equipo MÁS crítico que usa el repuesto (banda 5 = Vital, 3-4 = Esencial, 1-2 = Deseable).
+// Categoría de control (matriz clásica): I = AV, AE, BV (control estricto) · II = AD, BE, CV (moderado) · III = BD, CE, CD (simple). El VED también fija el nivel de servicio del stock de seguridad (Vital 99 %, Esencial 95 %, Deseable 90 %: los niveles que admite el cálculo de stock de seguridad).
+var VED_NIVEL_SERVICIO={V:0.99,E:0.95,D:0.90};
+var VED_ETIQUETA={V:'Vital',E:'Esencial',D:'Deseable'};
+var ABCVED_CATEGORIA={AV:'I',AE:'I',BV:'I',AD:'II',BE:'II',CV:'II',BD:'III',CE:'III',CD:'III'};
+var ABCVED_POLITICA={
+  I:'Control estricto: stock de seguridad alto, revisión frecuente, proveedor alterno si se puede.',
+  II:'Control moderado: punto de reorden con revisión periódica.',
+  III:'Control simple: pedido por lote económico, sin stock de seguridad extra.'};
+function vedDeBanda(b){return b==null?null:b>=5?'V':b>=3?'E':'D';}
+// items: [{nParte, claseABC, equipoModelo}] · equipos: [{sigla,modelo,tipo}] · bandaPorSigla: {sigla: banda 1-5}
+function vedRepuestos(items,equipos,bandaPorSigla){
+  return(items||[]).map(function(it){
+    var sig=equiposDeRepuesto(it.equipoModelo,equipos),bandas=sig.map(function(x){return bandaPorSigla&&bandaPorSigla[x];}).filter(function(b){return b!=null;});
+    var banda=bandas.length?Math.max.apply(null,bandas):null,ved=vedDeBanda(banda);
+    return Object.assign({},it,{equiposAsociados:sig,banda:banda,ved:ved,categoria:ved&&it.claseABC?ABCVED_CATEGORIA[it.claseABC+ved]||null:null,nivelServicio:ved?VED_NIVEL_SERVICIO[ved]:null});
+  });
+}
+function matrizABCVED(itemsConVed){
+  var celdas={A:{V:[],E:[],D:[]},B:{V:[],E:[],D:[]},C:{V:[],E:[],D:[]}},sinDato=[],resumen={I:0,II:0,III:0,sinDato:0};
+  (itemsConVed||[]).forEach(function(it){
+    if(!it.ved||!celdas[it.claseABC]){sinDato.push(it);resumen.sinDato++;return;}
+    celdas[it.claseABC][it.ved].push(it);resumen[it.categoria]++;
+  });
+  return{celdas:celdas,sinDato:sinDato,resumen:resumen};
+}
+// M6 — prioridad de una OT pendiente = Urgencia × Impacto (1-5 cada una, 1-25 en total). Impacto: banda de criticidad del equipo (arriba); sin ninguna criticidad se usa 3 (neutro) y se avisa; un equipo fuera de servicio ahora cuenta como
+// mínimo 4. Urgencia: días pendiente (hasta 1 día = 1, hasta 3 = 2, hasta 7 = 3, hasta 14 = 4, más = 5); un PM vencido cuenta como mínimo 3 y un equipo fuera de servicio como mínimo 4. Niveles: ≥15 P1 resolver hoy, 8-14 P2 esta semana, 4-7 P3 programar, <4 P4 puede esperar.
+// items: [{sigla, dias, origen, fueraDeServicio}] · bandaPorSigla: {sigla: {banda, fuente}}
+function urgenciaPorDias(d){return d<=1?1:d<=3?2:d<=7?3:d<=14?4:5;}
+function prioridadOT(items,bandaPorSigla){
+  return(items||[]).map(function(it){
+    var b=bandaPorSigla&&bandaPorSigla[it.sigla],imp=b?b.banda:3,fuente=b?b.fuente:'sin criticidad (se usa 3, neutro)';
+    if(it.fueraDeServicio&&imp<4){imp=4;fuente='equipo fuera de servicio';}
+    var urg=urgenciaPorDias(Math.max(0,Number(it.dias)||0));
+    if(it.origen==='Preventivo'&&urg<3)urg=3;
+    if(it.fueraDeServicio&&urg<4)urg=4;
+    var pt=urg*imp,nivel=pt>=15?'P1':pt>=8?'P2':pt>=4?'P3':'P4';
+    return Object.assign({},it,{impacto:imp,impactoFuente:fuente,urgencia:urg,puntaje:pt,nivel:nivel,accion:nivel==='P1'?'Resolver hoy':nivel==='P2'?'Esta semana':nivel==='P3'?'Programar':'Puede esperar'});
+  }).sort(function(a,b){return b.puntaje-a.puntaje||(b.dias||0)-(a.dias||0);});
 }
 
 // ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO — matriz M2 (2026-10-13) ═══
@@ -9539,7 +9603,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
