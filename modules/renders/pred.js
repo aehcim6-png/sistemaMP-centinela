@@ -1449,6 +1449,11 @@ export function renderPred(){
       }).join(''));
   }
 
+  // ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO (M2, 2026-10-13) ═══ ver _predCriticidadHTML.
+  if(fVista==='criticidad'){
+    content+=_predCriticidadHTML(eq,ot);
+  }
+
   // ═══ MATRIZ DE RIESGO (Probabilidad × Impacto) — Nivel 1, 2026-09-14 ═══
   // No inventa riesgos: cruza 4 señales que el sistema YA calcula en otro
   // lado (Índice de Riesgo de componentes de comp.js, severidad de alerta
@@ -2093,6 +2098,7 @@ $('s-pred').innerHTML=
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
+    '<option value="criticidad"'+(fVista==='criticidad'?' selected':'')+'>🏭 Criticidad de Equipos</option>'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
     '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
@@ -2113,6 +2119,56 @@ $('s-pred').innerHTML=
       _AUDIT_MESES.map(function(m){return'<option value="'+m.v+'"'+(fMes===m.v?' selected':'')+'>'+m.l+'</option>';}).join('')+'</select>'+
     ((fEq||fAnio||fMes)?'<button class="btn-o" onclick="$(\'fPredEq\').value=\'\';$(\'fPredAnio\').value=\'\';$(\'fPredMes\').value=\'\';renders.pred()">Limpiar filtros</button>':'')+
     '</div>'+content;
+}
+
+// ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO — M2 (2026-10-13) ═══
+// Frecuencia × Consecuencia (1-5 cada una, relativas a la flota), comparada con la etiqueta manual Crítico/Esencial/General. El cálculo y sus reglas están en criticidadEquiposMulticriterio (logic.js).
+var _CRIT_COL = { Alta: 'var(--danger)', Media: 'var(--warn)', Baja: 'var(--ok)' };
+var _CRIT_CRITERIO = { mttr: 'duración de la reparación (MTTR)', costoHora: 'valor de la hora detenida del modelo', importancia: 'importancia operacional (la etiqueta manual)' };
+function _predCriticidadHTML(eq, ot) {
+  if (typeof criticidadEquiposMulticriterio !== 'function') return '';
+  var hoy = new Date();
+  var fallas = ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist') || []), _informesFallaComoOt(S.g('informesFalla') || []));
+  var eventos = fallas.map(function (o) {
+    var m = o.duracion && o.duracion !== '—' ? String(o.duracion).match(/(\d+)h/) : null;
+    return { sigla: o.sigla, fecha: o.fecha || o.fechaEntrada, durH: m ? parseInt(m[1], 10) : null };
+  }).filter(function (x) { return x.sigla && x.fecha; });
+  var tco = typeof tcoFlotaAuto === 'function' ? tcoFlotaAuto() : null, aj = tco && tco.aj ? tco.aj : null;
+  var r = criticidadEquiposMulticriterio(eq, { eventos: eventos, hist: S.g('hist') || [], hoy: hoy, costoHoraDe: function (modelo) { return aj ? costoHoraDetDe(modelo, aj) : null; } }, {});
+  var cab = '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏭 Criticidad de equipos — frecuencia × consecuencia (últimos 12 meses)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Hasta ahora la criticidad era una etiqueta manual de 3 niveles. Acá se calcula con datos y se compara con esa etiqueta, <b>sin cambiarla</b>: si difiere, es una sugerencia para revisar, no una orden. Todo es relativo a la propia flota (un equipo es "frecuente" si falla más que la mayoría de los demás).</div>';
+  if (!r.ok) return cab + '<div style="padding:14px;color:var(--tx3);font-size:12px">No se calcula: ' + escapeHtml(r.motivo || '') + '.</div></div>';
+  var tarj = function (t, v, c, sub) { return '<div class="card" style="border-left:3px solid ' + c + '"><div class="card-t">' + t + '</div><div class="card-v" style="color:' + c + '">' + v + '</div>' + (sub ? '<div class="card-s">' + sub + '</div>' : '') + '</div>'; };
+  var c = r.comparacion;
+  var html = cab + '<div class="cards" style="margin-bottom:12px">' +
+    tarj('Criticidad Alta', r.resumen.Alta, 'var(--danger)', 'F × C ≥ 15') + tarj('Media', r.resumen.Media, 'var(--warn)', 'F × C de 8 a 14') + tarj('Baja', r.resumen.Baja, 'var(--ok)', 'F × C menor a 8') +
+    tarj('Difieren de la etiqueta', c.mas_alta + c.mas_baja, 'var(--ac)', c.mas_alta + ' con más criticidad que su etiqueta · ' + c.mas_baja + ' con menos') + '</div>';
+  // grilla 5×5: filas = frecuencia (5 arriba), columnas = consecuencia (1 a 5)
+  var celdas = '';
+  for (var f = 5; f >= 1; f--) {
+    celdas += '<tr><td style="width:22px;text-align:center;font-size:10px;color:var(--tx3);font-weight:700">' + f + '</td>';
+    for (var k = 1; k <= 5; k++) {
+      var lista = r.matriz[f - 1][k - 1], pt = f * k, col = pt >= 15 ? 'var(--danger)' : pt >= 8 ? 'var(--warn)' : 'var(--ok)';
+      celdas += '<td style="border:1px solid var(--border);padding:4px;min-width:62px;height:46px;vertical-align:top;background:color-mix(in srgb,' + col + ' ' + (lista.length ? 22 : 8) + '%,transparent);font-size:9px;line-height:1.3">' + lista.map(escapeHtml).join('<br>') + '</td>';
+    }
+    celdas += '</tr>';
+  }
+  html += '<div style="font-weight:700;font-size:12px;margin:6px 0 4px">Grilla Frecuencia × Consecuencia</div><div class="tbl-wrap"><table style="border-collapse:collapse;margin:0 auto"><tbody>' + celdas +
+    '<tr><td></td>' + [1, 2, 3, 4, 5].map(function (k) { return '<td style="text-align:center;font-size:10px;color:var(--tx3);font-weight:700">' + k + '</td>'; }).join('') + '</tr></tbody></table></div>' +
+    '<div style="font-size:10px;color:var(--tx3);text-align:center;margin:2px 0 12px">Filas: frecuencia de falla (1 = baja, 5 = alta) · Columnas: consecuencia de una falla (1 = leve, 5 = grave)</div>';
+  html += '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Fallas</th><th>Fallas/1.000 h</th><th>MTTR (h)</th><th>Hora detenida</th><th>Frec.</th><th>Consec.</th><th>Puntaje</th><th>Nivel calculado</th><th>Etiqueta manual</th><th>Comparación</th></tr>' +
+    r.filas.map(function (x) {
+      var cmp = x.comparacion === 'coincide' ? '<span style="color:var(--ok)">coincide</span>' : x.comparacion === 'mas_alta' ? '<span style="color:var(--danger);font-weight:700">calculada más alta</span>' : x.comparacion === 'mas_baja' ? '<span style="color:var(--warn);font-weight:700">calculada más baja</span>' : '<span style="color:var(--tx3)">sin etiqueta</span>';
+      var tit = 'Puntajes 1-5 → ' + Object.keys(x.puntajes).map(function (k) { return _CRIT_CRITERIO[k] + ': ' + x.puntajes[k]; }).join(' · ') + ' · horas de operación: ' + x.horas + ' (' + x.horasOrigen + ')';
+      return '<tr title="' + escapeHtml(tit) + '"><td class="mono" style="color:var(--ac);font-weight:600">' + escapeHtml(x.sigla) + '</td><td style="text-align:center">' + x.fallas + '</td><td style="text-align:center">' + (Math.round(x.fallas1000 * 10) / 10 + '').replace('.', ',') + '</td><td style="text-align:center">' + (x.mttr == null ? '—' : (Math.round(x.mttr * 10) / 10 + '').replace('.', ',')) + '</td><td style="text-align:center">' + (x.costoHora == null ? '—' : '$' + fn(Math.round(x.costoHora))) + '</td><td style="text-align:center">' + x.F + '</td><td style="text-align:center">' + (x.C + '').replace('.', ',') + '</td><td style="text-align:center;font-weight:700">' + (x.puntaje + '').replace('.', ',') + '</td><td style="text-align:center;font-weight:700;color:' + _CRIT_COL[x.nivel] + '">' + x.nivel + '</td><td style="text-align:center">' + escapeHtml(x.criticidadManual || '—') + '</td><td style="text-align:center">' + cmp + '</td></tr>';
+    }).join('') + '</table></div>';
+  html += '<div style="font-size:10px;color:var(--tx3);margin-top:8px;line-height:1.5"><b>Cómo se calcula.</b> Frecuencia: fallas por 1.000 h de operación en 12 meses, puntuada de 1 a 5 según dónde cae entre los demás equipos (sin fallas = 1). Consecuencia: promedio de ' +
+    r.criteriosUsados.map(function (k) { return _CRIT_CRITERIO[k] + ' (' + r.pesos[k] + ' %)'; }).join(', ') + '. Nivel: frecuencia × consecuencia.' +
+    (r.criteriosSinVariacion.length ? ' <b>No discriminan hoy y se excluyeron:</b> ' + r.criteriosSinVariacion.map(function (k) { return _CRIT_CRITERIO[k]; }).join(', ') + (r.criteriosSinVariacion.indexOf('costoHora') >= 0 ? ' (todos los modelos tienen el mismo costo de hora detenida: defínelo por modelo en Configuración para que cuente)' : '') + '.' : '') +
+    ' <b>Lo que no mide:</b> seguridad y ambiente (no hay datos registrados) ni la producción de cada tipo de equipo (solo la representa el valor de la hora detenida del modelo). <b>Cómo leer las diferencias con la etiqueta:</b> el nivel es relativo a la flota, así que "Baja" quiere decir "menos crítico que el resto de tus equipos según estos datos", no "no es crítico"; y la etiqueta manual puede reflejar cosas que acá no se miden (seguridad, ambiente, rol en la producción). Úsalo para revisar los casos que difieren, no para cambiar etiquetas en bloque. Pasa el mouse sobre una fila para ver los puntajes de cada criterio.</div>';
+  if (r.excluidos.length) html += '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600">' + r.excluidos.length + ' equipo(s) fuera del cálculo (ver motivo)</summary><div class="tbl-wrap"><table><tr><th>Equipo</th><th>Motivo</th></tr>' +
+    r.excluidos.map(function (x) { return '<tr><td style="font-weight:600">' + escapeHtml(x.sigla) + '</td><td>' + escapeHtml(x.motivo) + '</td></tr>'; }).join('') + '</table></div></details>';
+  return html + '</div>';
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
