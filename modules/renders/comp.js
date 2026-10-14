@@ -181,7 +181,7 @@ export function renderComp(){
   // Sin al menos una falla previa de ese componente en ese equipo (o sin
   // MTBF típico con muestra suficiente), no se inventa un número: queda '—'.
   var otHistTodo=S.g('otHist')||[];
-  var eventosMtbfComp=(typeof _estFallasCombinadas==='function')?_estFallasCombinadas(otTodo,otHistTodo):[];
+  var eventosMtbfComp=(typeof _estFallasCombinadas==='function')?_estFallasCombinadas(otTodo,otHistTodo,S.g('informesFalla')||[]):[];
   var mtbfPorCompTipico=(typeof _estMtbfPorComponente==='function')?_estMtbfPorComponente(eventosMtbfComp):{};
   var ultimaFallaPorSiglaComp={};
   eventosMtbfComp.forEach(function(e){

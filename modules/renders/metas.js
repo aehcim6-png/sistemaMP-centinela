@@ -5,7 +5,9 @@
 export function renderMetas() {
   if (!$("s-metas")) return;
   var eq = S.g('eq') || []; var reg = S.g('reg') || []; var ot = S.g('ot') || []; var otHist = S.g('otHist') || [];
-  var otConHist = ot.concat(_otHistComoOt(otHist));
+  // Mismas 3 fuentes de fallas que Dashboard, Informes KPI y Costos (ot + historial + informes de falla catastrófica): sin los informes, el MTBF y el ratio
+  // preventivo del mes daban distinto en Metas que en Informes KPI (revisión cruzada de coherencia, 2026-10-14).
+  var otConHist = ot.concat(_otHistComoOt(otHist), _informesFallaComoOt(S.g('informesFalla') || []));
   var stkM = S.g('stk') || []; var lubM = S.g('lub') || []; var movM = S.g('mov') || []; var tarifaHH = S.g('hh') || 25000;
   var metas = S.g('metas') || {};
   var MSN = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
