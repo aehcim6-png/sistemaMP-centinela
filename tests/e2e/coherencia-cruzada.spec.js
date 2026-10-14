@@ -33,21 +33,6 @@ async function entrar(page, D) {
   await page.waitForTimeout(800);
 }
 
-// El desvío de cada PM (desvioDias) no se guarda en la base (la tabla registros_pm no tiene esa columna), así que al cargar desde la nube
-// todos los PM quedan sin evaluar. Para poder comparar el % de cumplimiento entre pantallas se siembra en memoria, como queda justo
-// después de registrar PM en la sesión.
-async function sembrarDesvios(page, D) {
-  await page.evaluate((ref) => {
-    const reg = S.g('reg') || [], mes = ref.mes;
-    reg.slice(0, 30).forEach((r, i) => {
-      const dia = ('0' + (1 + (i % 12))).slice(-2);
-      r.fechaEntrada = mes + '-' + dia; r.fechaSalida = mes + '-' + dia; r.desvioDias = (i % 3 === 2) ? 3 : 0;
-    });
-    // se modifica en memoria, sin S.s: no hay que disparar un guardado (que redibuja pantallas a destiempo)
-  }, { mes: new Date().toISOString().slice(0, 7) });
-  await page.waitForTimeout(500);
-}
-
 // Va a una pantalla (con su sub-pestaña) y devuelve su texto, con los saltos de línea ya colapsados a un espacio.
 async function textoDe(page, id, sub, antes, marca) {
   await page.evaluate(([id, sub]) => { if (sub) window['_' + id + 'Sub'] = sub; window.go(id); }, [id, sub || null]);
@@ -69,7 +54,6 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   const D = construirDatos();
   const errores = []; page.on('pageerror', (e) => errores.push(e.message));
   await entrar(page, D);
-  await sembrarDesvios(page, D);
   const hoy = new Date();
   const mesActual = MESES[hoy.getMonth()];
   const resultados = [];

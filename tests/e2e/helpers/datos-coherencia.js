@@ -68,7 +68,7 @@ function construirDatos() {
   const mes = iso(hoy).slice(0, 7);
   registros.slice(0, 30).forEach(function (r, i) {
     const dia = ('0' + (1 + (i % 12))).slice(-2);
-    r.fechaEntrada = mes + '-' + dia; r.fechaSalida = mes + '-' + dia; r.desvioDias = (i % 3 === 2) ? 3 : 0;
+    r.fechaEntrada = mes + '-' + dia; r.fechaSalida = mes + '-' + dia; r.desvioDias = (i % 3 === 2) ? 3 : 0; // se guarda en la base: debe sobrevivir a la carga
   });
   return {
     equipos, correctivos, informes, registros,
