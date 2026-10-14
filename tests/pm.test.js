@@ -667,6 +667,18 @@ describe('desviosPM — cumplimiento de PM por horómetro, con el estándar del 
     const r = evalua([pm('A', 270), pm('A', 500)]);
     expect(r[0].horas).toBe(20); expect(r[1].horas).toBe(0); expect(r[1].aTiempo).toBe(true);
   });
+  it('la grilla es fija y no se corre: un PM adelantado a las 220 h o atrasado a las 350 h deja el siguiente en las 500 h, no en 470 ni en 600', () => {
+    const adelantado = evalua([pm('A', 220), pm('A', 500)]);
+    expect(adelantado[0].horas).toBe(-30); expect(adelantado[0].hito).toBe(250);
+    expect(adelantado[1].hito).toBe(500); expect(adelantado[1].horas).toBe(0); expect(adelantado[1].aTiempo).toBe(true);
+    const atrasado = evalua([pm('A', 350), pm('A', 500)]);
+    expect(atrasado[0].horas).toBe(100); expect(atrasado[0].hito).toBe(250);
+    expect(atrasado[1].hito).toBe(500); expect(atrasado[1].horas).toBe(0);
+  });
+  it('sumar 250 h al último PM correría el calendario: uno hecho a las 300 h no pasa el siguiente a las 550 h; si se hace a las 550 h está 50 h atrasado', () => {
+    const r = evalua([pm('A', 300), pm('A', 550)]);
+    expect(r[1].hito).toBe(500); expect(r[1].horas).toBe(50); expect(r[1].clase).toBe('atrasada');
+  });
   it('si el PM salta un hito, no se juzga: queda como hito sin registro y el siguiente se mide bien', () => {
     const r = evalua([pm('A', 250), pm('A', 800), pm('A', 1000)]); // faltó el hito 500: se saltó o no se anotó
     expect(r[1].clase).toBe('hito sin registro'); expect(r[1].aTiempo).toBeNull();
