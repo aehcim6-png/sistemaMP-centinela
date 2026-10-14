@@ -26,6 +26,17 @@ export function renderAyuda(){
     // Novedades plegadas (2026-10-08): eran 9 tarjetas largas antes de todo lo demás —
     // mismo criterio que ya tenía mp2 desde 2026-09-07. Contenido intacto.
     '<details style="margin-bottom:16px"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0;display:flex;align-items:center;gap:6px">'+ICONS.doc+' Historial de novedades y correcciones (clic para ver)</summary>'+
+    // NOVEDADES DE ESTA VERSIÓN (2026-10-13)
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
+    '<b style="font-size:15px">🆕 Novedades recientes (13 de octubre 2026)</b>'+
+    '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Arriendo vs compra</b> (Stock &amp; Insumos → Costos → vista "Arriendo vs compra"): compara por modelo y por hora de operación arrendar seco, arrendar húmedo o comprar. Lo que el sistema mide (horas por día, valor de compra, vida contable, repuestos, neumáticos) sale solo; UF, diésel, sueldos, dotación, litros por carga y tarifas de arriendo los escribe un administrador y quedan guardados en Configuración. Lo que falta aparece como "incompleto"; los valores en gris son sugeridos, y las tarifas sugeridas son una estimación sin fuente: reemplázalas por cotizaciones reales.</li>'+
+    '<li><b>Flujo de horas y costo</b> (Costos): diagramas Sankey del costo anual de propiedad y de las horas de reparación de los últimos 12 meses, por tipo de equipo, equipo y componente.</li>'+
+    '<li><b>Inventario de algoritmos</b> (Configuración → "Ver inventario de algoritmos"): 122 fichas que explican cada fórmula, matriz y diagrama del programa: qué pregunta responde, de dónde viene el método (con su fuente y nivel de respaldo), cómo lo calcula aquí y qué no dice.</li>'+
+    '<li><b>Criticidad en M4 y M6:</b> la matriz ABC × VED y la prioridad de OT usan la criticidad de cada equipo.</li>'+
+    '</ul>'+
+    '</div>'+
+
     // NOVEDADES DE ESTA VERSIÓN (2026-10-12)
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades recientes (12 de octubre 2026)</b>'+

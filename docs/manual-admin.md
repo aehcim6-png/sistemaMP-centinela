@@ -269,6 +269,10 @@ para no crecer sin límite y comerse cuota del plan gratis.
   vacío. Si no, alguien hizo un cambio fuera de una migración y hay que
   traerlo a `supabase/migrations/` para no perder el rastro.
 
+### Supuestos editables que se guardan en la tabla `configuracion` (2026-10-13)
+
+La tabla `configuracion` guarda una sola fila con los valores que el sistema no puede medir y que una persona define: costo de hora detenida (general y por modelo), tasa USD→CLP, duración estándar de cada PM y, desde el 13 de octubre, los **supuestos de Arriendo vs compra** (UF, diésel, sueldos, dotación, litros por carga, disponibilidades, valor residual y tarifas de arriendo seco y húmedo por modelo) en la columna `arriendoVsCompra`. Solo un administrador puede editarlos; los demás roles los ven pero no los cambian. Cada columna nueva se agrega con una migración aditiva (nunca borra datos) que hay que aplicar **a los dos proyectos Supabase antes de subir el código** que la usa; si no, el guardado falla.
+
 ### Límites del plan gratis (hoy)
 
 | Recurso | Límite gratis | Uso actual (ago. 2026) |
