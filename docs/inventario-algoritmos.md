@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A12 |
+| A. Disponibilidad, fallas y tiempos | A1–A13 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C19 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L5 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **122 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **123 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -173,6 +173,15 @@ Son **122 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Código:** `tiempoRespuestaPorProveedor`, `pedidosPotencialmenteTrabados`, `tiempoAprobacionOC`.
 
 ---
+
+### A13. Informe de gestión de mantenimiento (desviaciones de PM y equipos fuera de servicio)
+- **Tipo:** informe (cálculo + tabla + gráfico).
+- **Para qué sirve:** replicar las secciones III y IV del informe semanal que arma el cliente: qué tan cerca del horómetro programado se hizo cada PM y qué equipos siguen fuera de servicio.
+- **De dónde viene:** 🔵 Criterio propio, a partir del informe de gestión de mantenimiento del cliente ("Centinela Ripios OXE", semana del 1 al 7 de enero de 2026), que fija el estándar de ±10 % del ciclo.
+- **Cómo lo calcula aquí:** III: para los PM del período elegido muestra el horómetro programa (el hito que cubría), el real, la desviación en horas y en % del ciclo, y el % dentro del estándar, que es el mismo número que Dashboard, Informes KPI y Metas (ver A8). IV: los equipos con una salida de servicio todavía abierta (`equiposFueraDeServicioAhora`), con los días que llevan, su sistema o conjunto, lo anotado en el síntoma y la solución, y su último PM. No incluye la certeza de programa, el cumplimiento de programa ni el cierre de backlog (secciones I, II y V del informe), que dependen del Plan Semanal (hoy sin datos) y de tareas pendientes de pauta que el sistema no registra.
+- **Dónde se ve:** Metas & KPIs → Informe de gestión.
+- **Límites:** el horómetro programa es el hito de la grilla de la frecuencia (250, 500, 750 h…), no el "horómetro programa" del cliente, que en su informe no cae en esos múltiplos. Para los PM por km solo hay desvío en días.
+- **Código:** `informeGestionPM`, `informeGestionFS`.
 
 ## B. Vida, supervivencia y tendencia de fallas
 

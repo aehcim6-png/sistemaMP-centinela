@@ -74,7 +74,7 @@
   <h2>Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
-    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A12</td></tr>
+    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A13</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C19</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
@@ -88,7 +88,7 @@
     <tr><td><b>L. Datos y seguridad</b></td><td>L1–L5</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>122 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>123 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2>A. Disponibilidad, fallas y tiempos</h2>
 
@@ -235,6 +235,17 @@
     <li><b>Cómo lo calcula aquí:</b> solo pedidos cerrados ("Recepcion Bodega") para el promedio y la mediana por proveedor; un pedido abierto se marca "trabado" si lleva más días que la mediana de su proveedor × 1,5 (con la mediana global como respaldo si el proveedor tiene poca muestra).</li>
     <li><b>Dónde se ve:</b> Costos → "Compras — Proveedores".</li>
     <li><b>Código:</b> <code>tiempoRespuestaPorProveedor</code>, <code>pedidosPotencialmenteTrabados</code>, <code>tiempoAprobacionOC</code>.</li>
+  </ul>
+
+  <h3>A13. Informe de gestión de mantenimiento (desviaciones de PM y equipos fuera de servicio)</h3>
+  <ul>
+    <li><b>Tipo:</b> informe (cálculo + tabla + gráfico).</li>
+    <li><b>Para qué sirve:</b> replicar las secciones III y IV del informe semanal que arma el cliente: qué tan cerca del horómetro programado se hizo cada PM y qué equipos siguen fuera de servicio.</li>
+    <li><b>De dónde viene:</b> 🔵 Criterio propio, a partir del informe de gestión de mantenimiento del cliente ("Centinela Ripios OXE", semana del 1 al 7 de enero de 2026), que fija el estándar de ±10 % del ciclo.</li>
+    <li><b>Cómo lo calcula aquí:</b> III: para los PM del período elegido muestra el horómetro programa (el hito que cubría), el real, la desviación en horas y en % del ciclo, y el % dentro del estándar, que es el mismo número que Dashboard, Informes KPI y Metas (ver A8). IV: los equipos con una salida de servicio todavía abierta (<code>equiposFueraDeServicioAhora</code>), con los días que llevan, su sistema o conjunto, lo anotado en el síntoma y la solución, y su último PM. No incluye la certeza de programa, el cumplimiento de programa ni el cierre de backlog (secciones I, II y V del informe), que dependen del Plan Semanal (hoy sin datos) y de tareas pendientes de pauta que el sistema no registra.</li>
+    <li><b>Dónde se ve:</b> Metas &amp; KPIs → Informe de gestión.</li>
+    <li><b>Límites:</b> el horómetro programa es el hito de la grilla de la frecuencia (250, 500, 750 h…), no el "horómetro programa" del cliente, que en su informe no cae en esos múltiplos. Para los PM por km solo hay desvío en días.</li>
+    <li><b>Código:</b> <code>informeGestionPM</code>, <code>informeGestionFS</code>.</li>
   </ul>
 
   <h2>B. Vida, supervivencia y tendencia de fallas</h2>

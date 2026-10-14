@@ -54,7 +54,7 @@ function construirDatos() {
   });
   const f3 = iso(sumarDias(hoy, -3));
   correctivos.push({
-    id: 'o' + (n++), sigla: porHoras[0].sigla, tipo: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', fecha: f3, fechaEntrada: f3,
+    id: 'o' + (n++), sigla: porHoras[0].sigla, tipo: 'Fuera de Servicio', estatusEq: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', fecha: f3, fechaEntrada: f3,
     horaEntrada: '07:00', duracion: '', horom: porHoras[0].horomActual, sintoma: 'Sin motor', sistema: 'Motor', tecnico: 'T1',
     estadoOT: 'En Ejecución', costo: 0,
   });
