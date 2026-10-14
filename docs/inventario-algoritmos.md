@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A13 |
+| A. Disponibilidad, fallas y tiempos | A1–A15 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C19 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L5 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **123 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **125 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -178,10 +178,28 @@ Son **123 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Tipo:** informe (cálculo + tabla + gráfico).
 - **Para qué sirve:** replicar las secciones III y IV del informe semanal que arma el cliente: qué tan cerca del horómetro programado se hizo cada PM y qué equipos siguen fuera de servicio.
 - **De dónde viene:** 🔵 Criterio propio, a partir del informe de gestión de mantenimiento del cliente ("Centinela Ripios OXE", semana del 1 al 7 de enero de 2026), que fija el estándar de ±10 % del ciclo.
-- **Cómo lo calcula aquí:** III: para los PM del período elegido muestra el horómetro programa (el hito que cubría), el real, la desviación en horas y en % del ciclo, y el % dentro del estándar, que es el mismo número que Dashboard, Informes KPI y Metas (ver A8). IV: los equipos con una salida de servicio todavía abierta (`equiposFueraDeServicioAhora`), con los días que llevan, su sistema o conjunto, lo anotado en el síntoma y la solución, y su último PM. No incluye la certeza de programa, el cumplimiento de programa ni el cierre de backlog (secciones I, II y V del informe), que dependen del Plan Semanal (hoy sin datos) y de tareas pendientes de pauta que el sistema no registra.
+- **Cómo lo calcula aquí:** III: para los PM del período elegido muestra el horómetro programa (el hito que cubría), el real, la desviación en horas y en % del ciclo, y el % dentro del estándar, que es el mismo número que Dashboard, Informes KPI y Metas (ver A8). IV: los equipos con una salida de servicio todavía abierta (`equiposFueraDeServicioAhora`), con los días que llevan, su sistema o conjunto, lo anotado en el síntoma y la solución, y su último PM. Las secciones I y II (certeza y cumplimiento de programa) son A14 y la V (cierre de backlog) es A15.
 - **Dónde se ve:** Metas & KPIs → Informe de gestión.
 - **Límites:** el horómetro programa es el hito de la grilla fija de la frecuencia (250, 500, 750 h…), como se definió; el "horómetro programa" que trae el informe del cliente no cae en esos múltiplos y no se pudo explicar. Para los PM por km solo hay desvío en días.
 - **Código:** `informeGestionPM`, `informeGestionFS`.
+
+### A14. Certeza y cumplimiento de programa (secciones I y II del informe del cliente)
+- **Tipo:** indicador (dos porcentajes con su meta).
+- **Para qué sirve:** responder dos preguntas del informe semanal del cliente: de los equipos que estaban programados para mantenimiento, ¿cuántos llegaron a sus horas? (certeza, meta 85 %), y de los que llegaron, ¿a cuántos se les hizo el PM? (cumplimiento, meta 100 %).
+- **De dónde viene:** 🔵 Criterio propio, a partir del informe de gestión de mantenimiento del cliente ("Centinela Ripios OXE"), que define los dos indicadores con esas metas.
+- **Cómo lo calcula aquí:** el plan semanal se proyecta solo (un equipo toca cuando su horómetro llega al siguiente hito de la grilla fija de su frecuencia) y esa proyección no se guarda, así que el programa de un período pasado se reconstruye con el historial de horómetros y los PM registrados (`informeProgramaSemanal`). Para cada equipo por horas y cada hito: *programado* si, al empezar el período y con el ritmo real de uso del equipo, se proyectaba que lo alcanzaría dentro del período; *alcanzado* si su horómetro real llegó al hito dentro del período; *ejecutado* si hay un PM registrado en el período que cubre ese hito. Certeza = programados que se alcanzaron ÷ programados. Cumplimiento = alcanzados que se ejecutaron ÷ alcanzados. Un equipo parado no avanza horómetro y baja la certeza, no es un atraso. Un hito ya vencido al empezar el período es arrastre y no entra a los porcentajes. Un equipo sin lecturas de horómetro a menos de 7 días del período queda sin evaluar.
+- **Dónde se ve:** Metas & KPIs → Informe de gestión, secciones I y II.
+- **Límites:** la proyección usa el ritmo de uso anterior al período, así que es más precisa en semanas o meses que en un año; el historial de horómetros del sistema parte en septiembre de 2025. Un PM hecho en el período siguiente al que alcanzó sus horas no cuenta como ejecutado en el primero.
+- **Código:** `informeProgramaSemanal`, `PROG_META_CERTEZA`, `PROG_META_CUMPLIMIENTO`.
+
+### A15. Cierre de backlog de pautas (sección V del informe del cliente)
+- **Tipo:** registro + indicador.
+- **Para qué sirve:** llevar las tareas que quedan pendientes al hacer un PM (por ejemplo, un cambio de filtro de combustible por falta de insumo) hasta que se cierran, y medir qué parte se ha cerrado.
+- **De dónde viene:** 🔵 Criterio propio, a partir de la sección V del informe de gestión del cliente (cumplimiento de cierre de backlog, tareas pendientes, horas pendientes y si tienen insumo comprometido).
+- **Cómo lo calcula aquí:** cada tarea se guarda en la tabla `backlog_pm` con el equipo, el horómetro del día en que quedó pendiente, la tarea, el sistema afectado, si tiene insumo y su fecha de cierre. Cuando un PM se registra como incompleto con el texto "qué faltó", la tarea entra sola (`backlogDesdePM`); también se agregan a mano. Cumplimiento de cierre = cerradas ÷ total a la fecha. Las horas pendientes de cada tarea abierta son el horómetro actual del equipo menos el del día en que quedó pendiente (`informeBacklogPM`).
+- **Dónde se ve:** Metas & KPIs → Informe de gestión, sección V.
+- **Límites:** no hay tareas anteriores cargadas, el seguimiento parte desde que se registran; no distingue tareas de una misma pauta entre sí más que por su texto.
+- **Código:** `informeBacklogPM`, `backlogDesdePM`.
 
 ## B. Vida, supervivencia y tendencia de fallas
 

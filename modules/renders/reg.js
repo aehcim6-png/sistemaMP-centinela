@@ -387,6 +387,9 @@ export function saveReg(){
     reg[reg.length-1].consumosPauta=consumos_pm.map(c=>({rep:c.rep||'',cant:c.can||0}));
   }
   S.s('reg',reg);
+  // Si el PM quedó incompleto, lo que faltó pasa al backlog de pautas (sección V del informe de gestión) para seguir su cierre.
+  const _bkPM=backlogDesdePM(reg[reg.length-1]);
+  if(_bkPM){const bk=S.g('backlogPM')||[];bk.push(_bkPM);S.s('backlogPM',bk);}
   // Actualizar horómetro y estatus del equipo — solo si NO es retroactivo. Un
   // registro con fecha pasada sigue alimentando el historial (para tasaDiariaReal,
   // etc.) pero no toca el horómetro en vivo del equipo, que ya avanzó desde esa fecha.

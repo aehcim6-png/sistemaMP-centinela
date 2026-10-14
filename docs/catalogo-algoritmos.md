@@ -4,7 +4,7 @@ Qué cálculos usa el programa, qué pregunta responde cada uno, y qué falta. S
 idénticas en centinela y mp2; 119 archivos de prueba, 1.606 casos) y las reglas que viven en `index.html` (grilla de PM, pautas acumulativas).
 Fecha: 2026-10-10; se agregó la sección 1.9 el 2026-10-12. Las dos apps comparten todo esto.
 
-**Para el detalle de cada cálculo** (de dónde viene el método, con fuente y nivel de respaldo, cómo lo calcula el programa, ejemplo real y límites) ver `docs/inventario-algoritmos.md`: 123 fichas, con prueba automática de cobertura.
+**Para el detalle de cada cálculo** (de dónde viene el método, con fuente y nivel de respaldo, cómo lo calcula el programa, ejemplo real y límites) ver `docs/inventario-algoritmos.md`: 125 fichas, con prueba automática de cobertura.
 
 **Regla de la casa:** ningún cálculo inventa un dato que falta. Si no hay muestra suficiente, devuelve "sin dato" o "pocos casos".
 
@@ -97,6 +97,7 @@ cortado), clasificación componente/sistema desde el síntoma, reparación de te
 | **Diagramas Sankey de costo y horas** (`sankeyCostoTCO`, `sankeyHorasReparacion`, `sankeyLayout`) | ¿de dónde viene el costo anual de propiedad y dónde se va el tiempo de reparación? | flujos concepto → tipo → equipo y tipo → equipo → componente con ancho proporcional; top-N y "Otros"; sin duración o sin componente se muestra, no se inventa |
 | **Arriendo vs compra** (`arriendoVsCompra`, `arriendoDefectoModelo`) | ¿conviene arrendar seco, arrendar húmedo o comprar cada modelo, por hora de operación? | costos propios por hora (operador, mecánico, combustible, neumáticos, repuestos) + tarifa; húmedo − seco; disponibilidad de equilibrio; compra = capital ÷ vida contable + propios; lo que falta se lista, no se inventa |
 | **Informe de gestión** (`informeGestionPM`, `informeGestionFS`) | ¿qué tan cerca del horómetro programado se hizo cada PM y qué equipos siguen fuera de servicio? | desvío en horas y % del ciclo de cada PM (estándar ±10 % del ciclo del cliente), % dentro del estándar, equipos con salida de servicio abierta con días, sistema, observación y último PM |
+| **Certeza y cumplimiento de programa, backlog de pautas** (`informeProgramaSemanal`, `informeBacklogPM`, `backlogDesdePM`) | ¿los equipos programados llegaron a sus horas y se les hizo el PM?, ¿cuántas tareas pendientes de pauta se han cerrado? | programa reconstruido con el historial de horómetros y los PM; certeza = programados que llegaron ÷ programados, cumplimiento = alcanzados ejecutados ÷ alcanzados; cierre de backlog = cerradas ÷ total |
 | **Matriz Jack-Knife con horas perdidas** (`matrizJackKnife`, `JK_ACCIONES`) | ¿el problema de cada equipo es que falla seguido, que tarda mucho en arreglarse o ambas? ¿cuántas horas pierde al año? | cuadrantes por mediana de MTBF y MTTR de la flota; fallas/año = horas de operación ÷ MTBF; horas perdidas = fallas × MTTR; gráfico log-log con líneas de igual pérdida |
 | **Programa de cambio de neumáticos** (`neuProgramaCambios`, `neuCambiosRealizados`) | cuántos neumáticos cambiar por semana/mes/semestre/año y cuáles ya vencieron | fecha de la proyección de desgaste anclada en la última medición; curva S de avance + proyección |
 

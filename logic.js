@@ -717,9 +717,9 @@ function desviosPM(reg,eq){
         else if(d<-0.6*f){ok=false;clase='repetido';}
         else cubierto=hito;
       }
-      if(!ok){out.set(r,{horas:null,hito:null,frec:f,clase:clase,aTiempo:null});return;}
+      if(!ok){out.set(r,{horas:null,hito:null,frec:f,cubierto:cubierto,clase:clase,aTiempo:null});return;}
       var dentro=Math.abs(d)<=f*PM_TOLERANCIA_CICLO;
-      out.set(r,{horas:Math.round(d*10)/10,hito:hitoPM,frec:f,clase:dentro?'dentro':(d<0?'adelantada':'atrasada'),aTiempo:dentro});
+      out.set(r,{horas:Math.round(d*10)/10,hito:hitoPM,frec:f,cubierto:cubierto,clase:dentro?'dentro':(d<0?'adelantada':'atrasada'),aTiempo:dentro});
     });
   });
   return out;
@@ -764,6 +764,81 @@ function informeGestionFS(ot,eq,reg,hoyISO){
   });
   filas.sort(function(a,b){return b.dias-a.dias;});
   return{filas:filas,total:filas.length};
+}
+
+// ═══ PROGRAMA DE MANTENCIÓN: CERTEZA Y CUMPLIMIENTO (secciones I y II del informe del cliente) ═══
+// El plan semanal se proyecta solo (cada equipo toca cuando su horómetro llega al siguiente hito de la grilla fija de su frecuencia) y esa proyección no se guarda, así que
+// el programa de un período pasado se reconstruye acá con el historial de horómetros y los PM registrados. Para cada equipo por horas y cada hito que le tocaba o alcanzó:
+//   programado  = al empezar el período, con su ritmo real de uso, se proyectaba que llegaría al hito dentro del período;
+//   alcanzado   = su horómetro real sí llegó al hito dentro del período ("cumplió sus horas");
+//   ejecutado   = hay un PM registrado en el período que cubre ese hito (desviosPM).
+// Certeza de programa = programados que alcanzaron sus horas ÷ programados (¿se cumplió la proyección? un equipo que estuvo parado no avanza horómetro y baja la certeza,
+// no es un atraso). Cumplimiento de programa = alcanzados que se ejecutaron ÷ alcanzados. Un hito que ya estaba vencido al empezar el período se lista como arrastre y no entra a
+// ninguno de los dos porcentajes. Un equipo sin lecturas de horómetro cercanas al período queda como "sin horómetro" y no se evalúa: no se inventa su avance.
+var PROG_META_CERTEZA=85, PROG_META_CUMPLIMIENTO=100, PROG_LECTURA_MAX_DIAS=7;
+function informeProgramaSemanal(eq,reg,hist,desde,hasta,hoyISO){
+  var hoy=hoyISO||new Date().toISOString().slice(0,10),fin=hasta>hoy?hoy:hasta;
+  var ev=desviosPM(reg,eq),dias=Math.max(1,_diasEntreISO(desde,hasta)+1),ayer=new Date(new Date(desde+'T12:00:00').getTime()-864e5).toISOString().slice(0,10);
+  var filas=[],sinHorometro=[],res={programados:0,programadosCumplieron:0,alcanzados:0,ejecutados:0,arrastrados:0,noProgramadosAlcanzados:0,equiposEvaluados:0,sinHorometro:0,certeza:null,cumplimiento:null,metaCerteza:PROG_META_CERTEZA,metaCumplimiento:PROG_META_CUMPLIMIENTO};
+  (eq||[]).forEach(function(e){
+    var f=e&&e.frecPM;if(!e||!e.sigla||!(f>0)||f>1000||e.unidad==='km')return;
+    var lect=C.lecturasValidas(hist,e.sigla),val=function(h){return h.horomFin!=null?h.horomFin:h.horom;};
+    var ultima=function(x){var m=null;lect.forEach(function(h){if(h.fecha<=x&&(!m||h.fecha>m.fecha))m=h;});return m;};
+    var lIni=ultima(ayer),lFin=ultima(fin);
+    var fresca=function(l,ref){return l&&_diasEntreISO(l.fecha,ref)<=PROG_LECTURA_MAX_DIAS;};
+    if(!fresca(lIni,ayer)||!fresca(lFin,fin)||lFin.fecha<=lIni.fecha){res.sinHorometro++;sinHorometro.push(e.sigla);return;}
+    res.equiposEvaluados++;
+    var hIni=val(lIni),hFin=val(lFin);
+    var ritmo=tasaDiariaReal(lect.filter(function(h){return h.fecha<=ayer;}).map(function(h){return{fecha:h.fecha,horom:val(h)};}),e.hrsDia);
+    var hProy=hIni+ritmo*dias;
+    // último hito cubierto antes del período: el del PM registrado más reciente de este equipo anterior a 'desde'
+    var cubPrev=null,fPrev='';
+    (reg||[]).forEach(function(r){
+      if(!r||r.equipo!==e.sigla)return;var fr=r.fechaEntrada||r.fechaEjec||'';if(!fr||fr>=desde)return;
+      var x=ev.get(r);if(x&&x.cubierto!=null&&fr>=fPrev){fPrev=fr;cubPrev=x.cubierto;}
+    });
+    var sig=Math.floor(hIni/f)*f+f,hito=(cubPrev!=null&&cubPrev+f>hIni-f)?cubPrev+f:sig;
+    for(;hito<=Math.max(hFin,hProy);hito+=f){
+      var arrastre=hito<=hIni,programado=hito>hIni&&hito<=hProy,alcanzado=hito>hIni&&hito<=hFin;
+      var ejec=(reg||[]).filter(function(r){
+        var fr=r&&(r.fechaEntrada||r.fechaEjec)||'';if(!r||r.equipo!==e.sigla||fr<desde||fr>hasta)return false;
+        var x=ev.get(r);return x&&x.hito===hito;
+      }).length>0;
+      if(!arrastre&&!programado&&!alcanzado&&!ejec)continue;
+      filas.push({sigla:e.sigla,modelo:e.modelo||'',tipoPM:C.tipoPM(hito,f),hito:hito,horomInicio:hIni,horomFin:hFin,programado:programado,alcanzado:alcanzado,ejecutado:ejec,arrastre:arrastre});
+      if(arrastre){res.arrastrados++;continue;}
+      if(programado){res.programados++;if(alcanzado)res.programadosCumplieron++;}
+      else if(alcanzado)res.noProgramadosAlcanzados++;
+      if(alcanzado){res.alcanzados++;if(ejec)res.ejecutados++;}
+    }
+  });
+  filas.sort(function(a,b){return a.sigla<b.sigla?-1:a.sigla>b.sigla?1:a.hito-b.hito;});
+  res.certeza=res.programados?Math.round(res.programadosCumplieron/res.programados*100):null;
+  res.cumplimiento=res.alcanzados?Math.round(res.ejecutados/res.alcanzados*100):null;
+  return{filas:filas,resumen:res,sinHorometro:sinHorometro};
+}
+
+// ═══ BACKLOG DE PAUTAS (sección V del informe del cliente) ═══ Tareas que quedan pendientes al hacer un PM (por ejemplo "cambio de filtro de combustible" que no se hizo por falta
+// de insumo). Cada una se registra con el equipo, el horómetro del día, la tarea, el sistema afectado y si ya tiene insumo comprometido, y se cierra con una fecha. Cumplimiento de cierre =
+// cerrados ÷ total a la fecha; las horas pendientes de cada tarea abierta son el horómetro actual del equipo menos el del día en que quedó pendiente.
+function informeBacklogPM(items,eq,hastaISO){
+  var porSigla={};(eq||[]).forEach(function(e){if(e&&e.sigla)porSigla[e.sigla]=e;});
+  var hoy=hastaISO||new Date().toISOString().slice(0,10),vistos=(items||[]).map(function(b,i){return b?Object.assign({},b,{_idx:i}):b;}).filter(function(b){return b&&b.sigla&&b.fecha&&b.fecha<=hoy;});
+  var cerrado=function(b){return !!(b.fechaCierre&&b.fechaCierre<=hoy);};
+  var abiertos=vistos.filter(function(b){return !cerrado(b);}).map(function(b){
+    var e=porSigla[b.sigla]||{},hm=e.horomActual!=null&&b.horomBacklog>0?Math.max(0,e.horomActual-b.horomBacklog):null;
+    return{idx:b._idx,id:b.id||b._id||null,sigla:b.sigla,modelo:e.modelo||'',fecha:b.fecha,horomBacklog:b.horomBacklog>0?b.horomBacklog:null,horomActual:e.horomActual!=null?e.horomActual:null,
+      horasPendientes:hm,tarea:b.tarea||'',sistema:b.sistema||'',conInsumo:!!b.conInsumo,observacion:b.observacion||''};
+  }).sort(function(a,b){return (b.horasPendientes||0)-(a.horasPendientes||0);});
+  var nCerr=vistos.length-abiertos.length;
+  return{abiertos:abiertos,resumen:{total:vistos.length,cerrados:nCerr,pendientes:abiertos.length,pctCierre:vistos.length?Math.round(nCerr/vistos.length*100):null,
+    conInsumo:abiertos.filter(function(b){return b.conInsumo;}).length,sinInsumo:abiertos.filter(function(b){return !b.conInsumo;}).length}};
+}
+// Tarea de backlog que nace de un PM registrado como incompleto (pmCompleto===false con el texto "qué faltó"); null si el PM quedó completo o sin dato.
+function backlogDesdePM(r){
+  if(!r||r.pmCompleto!==false||!String(r.queFalto||'').trim())return null;
+  return{sigla:r.equipo,fecha:r.fechaEntrada||r.fechaEjec||'',horomBacklog:r.horomReal>0?r.horomReal:null,tarea:String(r.queFalto).trim(),sistema:'',conInsumo:false,
+    fechaCierre:null,observacion:'Quedó pendiente en el '+(r.tipoPM||'PM')+(r.nReg?' N.º '+r.nReg:'')};
 }
 
 // ═══ CONFIABILIDAD REAL (R) — probabilidad de que un equipo NO falle durante
@@ -8710,6 +8785,9 @@ if (typeof window !== 'undefined') {
   window.desviosPM = desviosPM;
   window.informeGestionPM = informeGestionPM;
   window.informeGestionFS = informeGestionFS;
+  window.informeProgramaSemanal = informeProgramaSemanal;
+  window.informeBacklogPM = informeBacklogPM;
+  window.backlogDesdePM = backlogDesdePM;
   window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
   window.agruparPeriodo = agruparPeriodo;
   window._CATEGORIAS_COMPONENTE = _CATEGORIAS_COMPONENTE;
@@ -9857,7 +9935,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
