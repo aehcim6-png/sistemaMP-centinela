@@ -94,12 +94,12 @@ export function _getHHData(){
   return{headers:h,rows:r};
 };
 export function _getCumplData(){
-  var reg=S.g('reg')||[];var eq=S.g('eq')||[];var pE={};var _frPM=frecPMPorSigla(eq);
+  var reg=S.g('reg')||[];var eq=S.g('eq')||[];var pE={};var _evPM=desviosPM(reg,eq),_aT=function(r){var x=_evPM.get(r);return x?x.aTiempo:null;};
   // regEsATiempo (logic.js): fuente única — antes r.estado==='A tiempo' nunca
   // coincidía con el dato real guardado (bug real, auditoría 2026-08). Registros
   // no evaluables (ej. importados por CSV sin fecha esperada) no cuentan ni como
   // a tiempo ni como atrasados — quedan fuera de "e" (ejecutados evaluables).
-  reg.forEach(function(r){var ev=regEsATiempo(r,_frPM[r.equipo]);if(ev===null)return;if(!pE[r.equipo])pE[r.equipo]={e:0,a:0,t:0};pE[r.equipo].e++;if(ev)pE[r.equipo].a++;else pE[r.equipo].t++;});
+  reg.forEach(function(r){var ev=_aT(r);if(ev===null)return;if(!pE[r.equipo])pE[r.equipo]={e:0,a:0,t:0};pE[r.equipo].e++;if(ev)pE[r.equipo].a++;else pE[r.equipo].t++;});
   eq.forEach(function(e){if(!pE[e.sigla])pE[e.sigla]={e:0,a:0,t:0};});
   var h=['Equipo','Tipo','Ejecutados evaluables','A Tiempo','Atrasados','% Cumplimiento','Estado'];
   var r=Object.entries(pE).sort(function(a,b){return b[1].e-a[1].e}).map(function(e){var p=e[1].e>0?Math.round(e[1].a/e[1].e*100):null;return[e[0],(eq.find(function(x){return x.sigla===e[0]})||{}).tipo||'',e[1].e,e[1].a,e[1].t,p===null?'—':p,p===null?'Sin datos':p>=80?'OK':p>=50?'Regular':'Bajo'];});
@@ -323,14 +323,14 @@ export function renderKpi(){
   // 3. CUMPLIMIENTO by month — regEsATiempo (logic.js) en vez de comparar
   // r.estado==='A tiempo' (bug real, auditoría 2026-08, ver logic.js). Solo
   // cuenta registros evaluables (con desvioDias real).
-  var _frPMk=frecPMPorSigla(eq);
+  var _evPMk=desviosPM(reg,eq),_aTk=function(r){var x=_evPMk.get(r);return x?x.aTiempo:null;};
   var cumplMes=last12.map(function(mes){
-    var regMev=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes&&regEsATiempo(r,_frPMk[r.equipo])!==null});
-    var ant=regMev.filter(function(r){return regEsATiempo(r,_frPMk[r.equipo])===true}).length;
+    var regMev=reg.filter(function(r){return(r.fechaEntrada||r.fechaEjec||'').slice(0,7)===mes&&_aTk(r)!==null});
+    var ant=regMev.filter(function(r){return _aTk(r)===true}).length;
     return regMev.length?Math.round(ant/regMev.length*100):null;
   });
-  var regEvActual=reg.filter(function(r){return regEsATiempo(r,_frPMk[r.equipo])!==null});
-  var cumplActual=regEvActual.length?Math.round(regEvActual.filter(function(r){return regEsATiempo(r,_frPMk[r.equipo])===true}).length/regEvActual.length*100):null;
+  var regEvActual=reg.filter(function(r){return _aTk(r)!==null});
+  var cumplActual=regEvActual.length?Math.round(regEvActual.filter(function(r){return _aTk(r)===true}).length/regEvActual.length*100):null;
 
   // 4. COSTO POR HORA OPERADA by month
   var costoHrMes=last12.map(function(mes){

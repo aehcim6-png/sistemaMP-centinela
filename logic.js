@@ -674,29 +674,55 @@ function mtbfFlotaReal(eq,ot){
 // real (desvioDias, ya calculado y guardado por ambos flujos de registro
 // manual). null = no evaluable (ej. importado por CSV, sin fecha esperada de
 // referencia) — se excluye del cálculo en vez de inventar un resultado.
-function regEsATiempo(r,frecPM){
-  if(!r)return null;
-  // Equipos por horas: el PM toca al llegar el horómetro a un múltiplo de la frecuencia (250, 500, 750…), así que se mide contra el horómetro con que se
-  // hizo (horomReal). Es el dato que sí está en todos los registros; la fecha en que tocaba nunca se guardó. Hecho a 259 h cuando tocaba a 250 = atrasado.
-  var dh=desvioHorasPM(r.horomReal,frecPM);
-  if(dh!=null)return dh<=0;
-  // Sin horómetro o sin frecuencia en horas (camionetas y buses van por km): se usa el desvío en días, si se guardó.
-  if(typeof r.desvioDias!=='number'||!isFinite(r.desvioDias))return null;
+function regEsATiempo(r){
+  // Solo con el desvío en días guardado al registrar el PM (camionetas y buses por km); los equipos por horas se evalúan con desviosPM, que mira el horómetro.
+  if(!r||typeof r.desvioDias!=='number'||!isFinite(r.desvioDias))return null;
   return r.desvioDias<=0;
 }
 
-// Horas de desvío de un PM respecto del horómetro en que tocaba: horomReal menos el múltiplo de frecPM más cercano (positivo = atrasado, negativo = anticipado).
-// null si no se puede saber con seguridad: sin horómetro, sin frecuencia en horas (más de 1.000 h = equipo por km) o con un desvío mayor al 40 % de la frecuencia
-// (a 380 h con frecuencia 250 no se puede distinguir un PM de las 250 h hecho muy tarde de uno de las 500 h hecho muy temprano).
-function desvioHorasPM(horomReal,frecPM){
-  if(!(horomReal>0)||!(frecPM>0)||frecPM>1000)return null;
-  var d=horomReal-Math.round(horomReal/frecPM)*frecPM;
-  if(Math.abs(d)>frecPM*0.4)return null;
-  return Math.round(d*10)/10;
-}
-// Mapa sigla → frecuencia de PM (h) para pasarle a regEsATiempo sin recorrer la flota por cada registro.
-function frecPMPorSigla(eq){
-  var m={};(eq||[]).forEach(function(e){if(e&&e.sigla&&e.frecPM>0)m[e.sigla]=e.frecPM;});return m;
+// Tolerancia del programa de PM: ±10 % del ciclo (±25 h en el ciclo de 250 h). Es el "estándar" del informe de gestión de mantenimiento del cliente
+// (KPI de desviaciones): un PM hecho antes (a las 160 h cuando tocaba a las 250 h) o después (a las 380 h) de ese margen es una desviación, igual que uno tarde.
+var PM_TOLERANCIA_CICLO=0.1;
+
+// ═══ CUMPLIMIENTO DE PM POR HORÓMETRO ═══ Evalúa cada PM de equipos por horas contra el horómetro en que tocaba. Los hitos van en la grilla de múltiplos de la frecuencia
+// (250, 500, 750…, la misma que usa C.proxPM) y cada PM cubre el siguiente hito aún no cubierto de su equipo; el desvío es el horómetro con que se hizo menos ese hito
+// (positivo = atrasado, negativo = adelantado). Hecho a 380 h cuando el hito pendiente era 250 h: atrasado por 130 h; a 160 h: adelantado por 90 h.
+// Devuelve un Map registro → { horas, clase, aTiempo }:
+//   clase 'dentro' | 'adelantada' | 'atrasada' (aTiempo true solo en 'dentro'),
+//   'hito sin registro' (el PM salta uno o más hitos: se saltó o se hizo y no se anotó, indistinguible con estos datos; no se cuenta ni a favor ni en contra),
+//   'repetido' (otro PM casi en el mismo hito), 'sin dato' (sin horómetro o sin frecuencia en horas).
+// Camionetas y buses (frecuencia en km) usan el desvío en días guardado, si existe. aTiempo null = no evaluable. El primer PM de un equipo no tiene PM anterior: se mide
+// contra el hito más cercano y solo cuenta si queda a menos del 40 % de la frecuencia.
+function desviosPM(reg,eq){
+  var frec={};(eq||[]).forEach(function(e){if(e&&e.sigla&&e.frecPM>0)frec[e.sigla]=e.frecPM;});
+  var out=new Map(),porEq={};
+  (reg||[]).forEach(function(r){
+    if(!r)return;
+    var f=frec[r.equipo];
+    if(r.horomReal>0&&f>0&&f<=1000){(porEq[r.equipo]=porEq[r.equipo]||[]).push(r);return;}
+    var dd=regEsATiempo(r);
+    out.set(r,{horas:null,clase:dd===null?'sin dato':(dd?'dentro':'atrasada'),aTiempo:dd});
+  });
+  Object.keys(porEq).forEach(function(sig){
+    var f=frec[sig],lista=porEq[sig].slice().sort(function(a,b){return a.horomReal-b.horomReal||String(a.fechaEntrada||'').localeCompare(String(b.fechaEntrada||''));});
+    var cubierto=null;
+    lista.forEach(function(r,i){
+      var h=r.horomReal,d,ok=true,clase;
+      if(i===0){
+        cubierto=Math.round(h/f)*f;d=h-cubierto;
+        if(Math.abs(d)>f*0.4){ok=false;clase='sin dato';}
+      }else{
+        var hito=cubierto+f;d=h-hito;
+        if(d>=f){ok=false;clase='hito sin registro';cubierto=Math.floor((h+f/4)/f)*f;}
+        else if(d<-0.6*f){ok=false;clase='repetido';}
+        else cubierto=hito;
+      }
+      if(!ok){out.set(r,{horas:null,clase:clase,aTiempo:null});return;}
+      var dentro=Math.abs(d)<=f*PM_TOLERANCIA_CICLO;
+      out.set(r,{horas:Math.round(d*10)/10,clase:dentro?'dentro':(d<0?'adelantada':'atrasada'),aTiempo:dentro});
+    });
+  });
+  return out;
 }
 
 // ═══ CONFIABILIDAD REAL (R) — probabilidad de que un equipo NO falle durante
@@ -8640,8 +8666,7 @@ if (typeof window !== 'undefined') {
   window.confiabilidadWeibull = confiabilidadWeibull;
   window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
-  window.desvioHorasPM = desvioHorasPM;
-  window.frecPMPorSigla = frecPMPorSigla;
+  window.desviosPM = desviosPM;
   window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
   window.agruparPeriodo = agruparPeriodo;
   window._CATEGORIAS_COMPONENTE = _CATEGORIAS_COMPONENTE;
@@ -9789,7 +9814,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desvioHorasPM, frecPMPorSigla, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    desviosPM, PM_TOLERANCIA_CICLO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

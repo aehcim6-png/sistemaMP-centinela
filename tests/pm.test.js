@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, desvioHorasPM, frecPMPorSigla, esFallaMTBF, probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, desviosPM, esFallaMTBF, probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -641,36 +641,53 @@ describe('C.estadoPeriodo — estado de un equipo reconstruido/proyectado para u
   });
 });
 
-describe('desvioHorasPM / regEsATiempo con horómetro — el PM toca al llegar el horómetro a un múltiplo de la frecuencia (revisión cruzada, 2026-10-14)', () => {
-  it('hecho a 259 h cuando tocaba a 250 h es atrasado por 9 h', () => {
-    expect(desvioHorasPM(259, 250)).toBe(9);
-    expect(regEsATiempo({ horomReal: 259 }, 250)).toBe(false);
+describe('desviosPM — cumplimiento de PM por horómetro, con el estándar del cliente de ±10 % del ciclo (2026-10-14)', () => {
+  const eq = [{ sigla: 'A', frecPM: 250 }, { sigla: 'KM', frecPM: 10000 }];
+  const pm = (equipo, horomReal, extra) => Object.assign({ equipo, horomReal, fechaEntrada: '2026-01-01' }, extra || {});
+  const evalua = (regs) => { const m = desviosPM(regs, eq); return regs.map((r) => m.get(r)); };
+
+  it('hecho a 259 h cuando tocaba a 250 h: 9 h tarde, pero dentro del estándar (±25 h)', () => {
+    const [a, b] = evalua([pm('A', 250), pm('A', 509)]);
+    expect(a.aTiempo).toBe(true);
+    expect(b.horas).toBe(9); expect(b.clase).toBe('dentro'); expect(b.aTiempo).toBe(true);
   });
-  it('hecho antes (241 h) o justo (250 h) cuenta a tiempo', () => {
-    expect(desvioHorasPM(241, 250)).toBe(-9);
-    expect(regEsATiempo({ horomReal: 241 }, 250)).toBe(true);
-    expect(regEsATiempo({ horomReal: 250 }, 250)).toBe(true);
-    expect(regEsATiempo({ horomReal: 5000 }, 250)).toBe(true);
+  it('a las 380 h cuando tocaba a las 250 h está pasado (130 h); a las 160 h está adelantado (90 h)', () => {
+    const tarde = evalua([pm('A', 500), pm('A', 880)])[1]; // hito pendiente: 750 → 880 = +130
+    expect(tarde.horas).toBe(130); expect(tarde.clase).toBe('atrasada'); expect(tarde.aTiempo).toBe(false);
+    const temprano = evalua([pm('A', 500), pm('A', 660)])[1]; // hito 750 → 660 = −90
+    expect(temprano.horas).toBe(-90); expect(temprano.clase).toBe('adelantada'); expect(temprano.aTiempo).toBe(false);
   });
-  it('sirve para cualquier múltiplo (PM2 a las 500 h, PM4 a las 2.000 h)', () => {
-    expect(desvioHorasPM(512, 250)).toBe(12);
-    expect(desvioHorasPM(1995, 250)).toBe(-5);
+  it('el borde del estándar: ±25 h entra, 26 h no', () => {
+    expect(evalua([pm('A', 500), pm('A', 775)])[1].aTiempo).toBe(true);
+    expect(evalua([pm('A', 500), pm('A', 776)])[1].aTiempo).toBe(false);
+    expect(evalua([pm('A', 500), pm('A', 725)])[1].aTiempo).toBe(true);
+    expect(evalua([pm('A', 500), pm('A', 724)])[1].aTiempo).toBe(false);
   });
-  it('el horómetro manda sobre el desvío en días guardado', () => {
-    expect(regEsATiempo({ horomReal: 259, desvioDias: 0 }, 250)).toBe(false);
+  it('el hito sigue la grilla fija: un PM tarde no corre el siguiente (270 h y luego 500 h: el segundo es puntual)', () => {
+    const r = evalua([pm('A', 270), pm('A', 500)]);
+    expect(r[0].horas).toBe(20); expect(r[1].horas).toBe(0); expect(r[1].aTiempo).toBe(true);
   });
-  it('no se inventa cuando no se puede saber: sin horómetro, sin frecuencia, equipos por km o desvío ambiguo', () => {
-    expect(desvioHorasPM(0, 250)).toBeNull();
-    expect(desvioHorasPM(259, undefined)).toBeNull();
-    expect(desvioHorasPM(48123, 10000)).toBeNull(); // frecuencia por km
-    expect(desvioHorasPM(380, 250)).toBeNull(); // 120 h de diferencia con el múltiplo más cercano: ¿tarde para las 250 h o temprano para las 500 h?
-    expect(regEsATiempo({ horomReal: 259 })).toBeNull(); // sin frecuencia y sin desvío en días
+  it('si el PM salta un hito, no se juzga: queda como hito sin registro y el siguiente se mide bien', () => {
+    const r = evalua([pm('A', 250), pm('A', 800), pm('A', 1000)]); // faltó el hito 500: se saltó o no se anotó
+    expect(r[1].clase).toBe('hito sin registro'); expect(r[1].aTiempo).toBeNull();
+    expect(r[2].horas).toBe(0); expect(r[2].aTiempo).toBe(true);
   });
-  it('sin frecuencia en horas cae al desvío en días guardado (camionetas y buses)', () => {
-    expect(regEsATiempo({ horomReal: 48123, desvioDias: 4 }, 10000)).toBe(false);
-    expect(regEsATiempo({ horomReal: 48123, desvioDias: -1 }, 10000)).toBe(true);
+  it('un PM repetido casi en el mismo hito no cuenta', () => {
+    const r = evalua([pm('A', 500), pm('A', 760), pm('A', 765)]);
+    expect(r[2].clase).toBe('repetido'); expect(r[2].aTiempo).toBeNull();
   });
-  it('frecPMPorSigla arma el mapa y salta equipos sin frecuencia', () => {
-    expect(frecPMPorSigla([{ sigla: 'A', frecPM: 250 }, { sigla: 'B' }, null])).toEqual({ A: 250 });
+  it('el primer PM de un equipo se mide contra el hito más cercano, y solo si queda a menos del 40 % de la frecuencia', () => {
+    expect(evalua([pm('A', 262)])[0].horas).toBe(12);
+    expect(evalua([pm('A', 380)])[0].aTiempo).toBeNull();
+  });
+  it('equipos por km o sin horómetro usan el desvío en días guardado; sin nada, no se evalúa', () => {
+    const [km1, km2, sin, sinEq] = evalua([pm('KM', 48123, { desvioDias: 4 }), pm('KM', 58123, { desvioDias: -1 }), pm('A', 0), pm('Z', 250)]);
+    expect(km1.aTiempo).toBe(false); expect(km2.aTiempo).toBe(true);
+    expect(sin.aTiempo).toBeNull(); expect(sinEq.aTiempo).toBeNull();
+  });
+  it('cada equipo lleva su propia secuencia y el orden de entrada no importa', () => {
+    const regs = [pm('A', 760), pm('B', 262), pm('A', 500)];
+    const m = desviosPM(regs, [{ sigla: 'A', frecPM: 250 }, { sigla: 'B', frecPM: 250 }]);
+    expect(m.get(regs[0]).horas).toBe(10); expect(m.get(regs[2]).aTiempo).toBe(true); expect(m.get(regs[1]).horas).toBe(12);
   });
 });
