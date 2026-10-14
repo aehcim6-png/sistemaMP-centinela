@@ -1,4 +1,4 @@
-const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, esFallaMTBF, probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo } = require('../logic.js');
+const { C, validarMotivoPmPendiente, mtbfFlotaReal, confiabilidadReal, regEsATiempo, desvioHorasPM, frecPMPorSigla, esFallaMTBF, probabilidadFallaDesdeEventos, _otHistComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo } = require('../logic.js');
 
 describe('C.tipoPM — clasificación de PM por horómetro', () => {
   it('múltiplo de 2000 -> PM4', () => {
@@ -638,5 +638,39 @@ describe('C.estadoPeriodo — estado de un equipo reconstruido/proyectado para u
     const r = C.estadoPeriodo(e, [], '2026-07-14', '2026-08-31');
     expect(r.fuente).toBe('proyectado');
     expect(r.horom).toBe(14143 + 20 * 48);
+  });
+});
+
+describe('desvioHorasPM / regEsATiempo con horómetro — el PM toca al llegar el horómetro a un múltiplo de la frecuencia (revisión cruzada, 2026-10-14)', () => {
+  it('hecho a 259 h cuando tocaba a 250 h es atrasado por 9 h', () => {
+    expect(desvioHorasPM(259, 250)).toBe(9);
+    expect(regEsATiempo({ horomReal: 259 }, 250)).toBe(false);
+  });
+  it('hecho antes (241 h) o justo (250 h) cuenta a tiempo', () => {
+    expect(desvioHorasPM(241, 250)).toBe(-9);
+    expect(regEsATiempo({ horomReal: 241 }, 250)).toBe(true);
+    expect(regEsATiempo({ horomReal: 250 }, 250)).toBe(true);
+    expect(regEsATiempo({ horomReal: 5000 }, 250)).toBe(true);
+  });
+  it('sirve para cualquier múltiplo (PM2 a las 500 h, PM4 a las 2.000 h)', () => {
+    expect(desvioHorasPM(512, 250)).toBe(12);
+    expect(desvioHorasPM(1995, 250)).toBe(-5);
+  });
+  it('el horómetro manda sobre el desvío en días guardado', () => {
+    expect(regEsATiempo({ horomReal: 259, desvioDias: 0 }, 250)).toBe(false);
+  });
+  it('no se inventa cuando no se puede saber: sin horómetro, sin frecuencia, equipos por km o desvío ambiguo', () => {
+    expect(desvioHorasPM(0, 250)).toBeNull();
+    expect(desvioHorasPM(259, undefined)).toBeNull();
+    expect(desvioHorasPM(48123, 10000)).toBeNull(); // frecuencia por km
+    expect(desvioHorasPM(380, 250)).toBeNull(); // 120 h de diferencia con el múltiplo más cercano: ¿tarde para las 250 h o temprano para las 500 h?
+    expect(regEsATiempo({ horomReal: 259 })).toBeNull(); // sin frecuencia y sin desvío en días
+  });
+  it('sin frecuencia en horas cae al desvío en días guardado (camionetas y buses)', () => {
+    expect(regEsATiempo({ horomReal: 48123, desvioDias: 4 }, 10000)).toBe(false);
+    expect(regEsATiempo({ horomReal: 48123, desvioDias: -1 }, 10000)).toBe(true);
+  });
+  it('frecPMPorSigla arma el mapa y salta equipos sin frecuencia', () => {
+    expect(frecPMPorSigla([{ sigla: 'A', frecPM: 250 }, { sigla: 'B' }, null])).toEqual({ A: 250 });
   });
 });

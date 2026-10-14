@@ -133,10 +133,10 @@ Son **122 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Tipo:** indicador.
 - **Para qué sirve:** ¿cuántos PM se hicieron dentro del plazo?
 - **De dónde viene:** 🟡 Equivale al "PM compliance" de SMRP (métrica 5.4.14) y al "schedule compliance"; el criterio de "a tiempo" varía según la fuente (mismo día, +1 día, +20 % del intervalo con tope de 28 días) ([Reliamag, benchmarks de cumplimiento](https://reliamag.com/guides/pm-compliance-rate-benchmarks/)).
-- **Cómo lo calcula aquí:** una sola función decide si un registro de PM fue a tiempo (`regEsATiempo`), para que Dashboard, KPI y Metas no diverjan (una auditoría encontró que comparaban un texto que nunca existía).
+- **Cómo lo calcula aquí:** una sola función decide si un registro de PM fue a tiempo (`regEsATiempo`), para que Dashboard, KPI y Metas no diverjan (una auditoría encontró que comparaban un texto que nunca existía). En los equipos por horas el PM toca al llegar el horómetro a un múltiplo de la frecuencia (250, 500, 750 h…), así que se compara el horómetro con que se hizo contra el múltiplo más cercano (`desvioHorasPM`): hecho a 259 h cuando tocaba a 250 h es atrasado por 9 h; a 241 h es anticipado y cuenta a tiempo. Es un dato que está en todos los registros, incluidos los anteriores a la columna `desvioDias`. Si no se puede saber con seguridad (sin horómetro, sin frecuencia en horas, o un desvío mayor al 40 % de la frecuencia, donde no se distingue un PM tarde de uno temprano) no se inventa: queda sin evaluar. Las camionetas y buses, que van por kilómetros, usan el desvío en días guardado desde el 14 de octubre de 2026 (`frecPMPorSigla` arma la frecuencia de cada equipo).
 - **Dónde se ve:** Dashboard, KPI, Metas, Registro PM.
-- **Límites:** el criterio de "a tiempo" del programa es el propio; no es idéntico a ninguna de las tres variantes de SMRP.
-- **Código:** `regEsATiempo`.
+- **Límites:** el criterio de "a tiempo" del programa es el propio y estricto (cualquier hora de atraso cuenta como atrasado, sin tolerancia); no es idéntico a ninguna de las tres variantes de SMRP. El múltiplo más cercano supone que los PM se programan a múltiplos exactos de la frecuencia.
+- **Código:** `regEsATiempo`, `desvioHorasPM`, `frecPMPorSigla`.
 
 ### A9. Curva S de PM y cumplimiento del programa
 - **Tipo:** diagrama + indicador (plan contra real acumulado).

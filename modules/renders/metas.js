@@ -7,6 +7,7 @@ export function renderMetas() {
   var eq = S.g('eq') || []; var reg = S.g('reg') || []; var ot = S.g('ot') || []; var otHist = S.g('otHist') || [];
   // Mismas 3 fuentes de fallas que Dashboard, Informes KPI y Costos (ot + historial + informes de falla catastrófica): sin los informes, el MTBF y el ratio
   // preventivo del mes daban distinto en Metas que en Informes KPI (revisión cruzada de coherencia, 2026-10-14).
+  var _frPM = frecPMPorSigla(eq);
   var otConHist = ot.concat(_otHistComoOt(otHist), _informesFallaComoOt(S.g('informesFalla') || []));
   var stkM = S.g('stk') || []; var lubM = S.g('lub') || []; var movM = S.g('mov') || []; var tarifaHH = S.g('hh') || 25000;
   var metas = S.g('metas') || {};
@@ -53,7 +54,7 @@ export function renderMetas() {
     var regM = reg.filter(function (r) { return (r.fechaEntrada || r.fechaEjec || '').slice(0, 7) === mes });
     // regEsATiempo (logic.js): fuente única — antes r.estado==='A tiempo' nunca
     // coincidía con el dato real guardado (bug real, auditoría 2026-08).
-    var regMev = regM.filter(function (r) { return regEsATiempo(r) !== null; });
+    var regMev = regM.filter(function (r) { return regEsATiempo(r, _frPM[r.equipo]) !== null; });
     // Bug real (auditoría 2026-08): 'registros_pm' (reg) NUNCA tiene tipoPM='Correctivo'
     // en toda su historia — los correctivos viven en una tabla aparte ('correctivos'/ot),
     // que este cálculo nunca miraba. Resultado: "Ratio Preventivo" daba 100% en los 20
@@ -105,7 +106,7 @@ export function renderMetas() {
     // mismo y que normalmente explica por qué se movió (ej. MTBF cae junto con
     // correctivosDelMes, porque es su propio denominador). Se ve como tooltip solo en
     // las celdas rojas (real fuera de meta) — ver más abajo, en el render.
-    var atrasadosM = regMev.length - regMev.filter(function (r) { return regEsATiempo(r) === true }).length;
+    var atrasadosM = regMev.length - regMev.filter(function (r) { return regEsATiempo(r, _frPM[r.equipo]) === true }).length;
     var motivos = {
       disp: correctivosDelMes + ' correctivo(s) y ' + backlogMes + ' OT pendiente(s) ese mes',
       pms: correctivosDelMes + ' correctivo(s) atendidos ese mes (compiten por las mismas horas de taller)',
@@ -121,7 +122,7 @@ export function renderMetas() {
       pms: regM.length,
       hh: hhMes,
       gasto: (regM.length || costoRepM) ? Math.round(hhMes * tarifaHH + costoRepM) : null,
-      cumpl: regMev.length ? Math.round(regMev.filter(function (r) { return regEsATiempo(r) === true }).length / regMev.length * 100) : null,
+      cumpl: regMev.length ? Math.round(regMev.filter(function (r) { return regEsATiempo(r, _frPM[r.equipo]) === true }).length / regMev.length * 100) : null,
       ratio: ratioPreventivo(prev, correctivosDelMes),
       correctivosDelMes: correctivosDelMes,
       backlog: backlogMes,

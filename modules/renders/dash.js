@@ -241,9 +241,10 @@ export function renderDash(){
   // nunca vale ese string exacto, ver comentario en logic.js). Se excluyen los
   // registros no evaluables (ej. importados por CSV sin fecha esperada de
   // referencia) del cálculo en vez de contarlos como cumplidos o atrasados.
-  const regClasifPeriodo=regMes.filter(r=>regEsATiempo(r)!==null);
-  const ant=regClasifPeriodo.filter(r=>regEsATiempo(r)===true).length;
-  const atr=regClasifPeriodo.filter(r=>regEsATiempo(r)===false).length;
+  const _frPM=frecPMPorSigla(eq);
+  const regClasifPeriodo=regMes.filter(r=>regEsATiempo(r,_frPM[r.equipo])!==null);
+  const ant=regClasifPeriodo.filter(r=>regEsATiempo(r,_frPM[r.equipo])===true).length;
+  const atr=regClasifPeriodo.filter(r=>regEsATiempo(r,_frPM[r.equipo])===false).length;
   const cum=regClasifPeriodo.length?Math.round(ant/regClasifPeriodo.length*100):null;
   // ── KPI CUMPLIMIENTO DE PROGRAMA (ejecutado a tiempo) del mes ──
   const semHistD=S.g('planSemHist')||{};
