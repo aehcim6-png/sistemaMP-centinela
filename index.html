@@ -437,6 +437,29 @@ body.dens-compact th{padding:6px 8px}
   #tbl-eq td:nth-child(3) input{min-width:150px}
 }
 @media print{.nav{display:none!important}.shell{display:block}}
+/* ── Celular (≤ 768 px): barra inferior de accesos rápidos + "Más" que abre el menú completo (con sus 5 grupos) en pantalla completa. Reemplaza la tira horizontal de arriba. ── */
+.bnav{display:none}
+@media(max-width:768px){
+  .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:58px;z-index:160;background:var(--bg2);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+  .bnav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--tx2);font-family:var(--font);font-size:11px;font-weight:500;padding:6px 2px;cursor:pointer}
+  .bnav button svg{width:20px;height:20px}
+  .bnav button.on{color:var(--ac)}
+  .bnav button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nav{display:none;position:fixed;top:0;left:0;right:0;bottom:58px;z-index:150;flex-direction:column;flex-wrap:nowrap;overflow-y:auto;background:var(--bg2);border:0;padding:14px 14px 18px}
+  body.nav-abierto .nav{display:flex}
+  .nav-grp{display:block;margin:0 0 4px;border:0!important;flex-shrink:0}
+  .nav-grp + .nav-grp{border-left:0!important;margin-left:0!important}
+  .nav-g{display:block;padding:12px 8px 6px;font-size:11px;letter-spacing:.1em}
+  .nav button{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;padding:0 12px;font-size:15px;text-align:left;border:0;border-radius:8px;color:var(--tx2)}
+  .nav button svg{width:20px;height:20px;flex:0 0 20px;margin:0}
+  .nav button.on{color:var(--tx);background:color-mix(in srgb,var(--ac) 15%,transparent);box-shadow:inset 3px 0 var(--ac)}
+  .nav-extras{position:static;margin:auto -14px -18px;padding:12px 14px;display:flex;gap:8px;border-top:1px solid var(--bd);background:var(--bg2);flex-shrink:0}
+  .nav-extras button{flex:1;justify-content:center;width:auto}
+  .main{padding-bottom:78px}
+  .toast{bottom:74px;right:12px;left:12px;text-align:center}
+}
+@media print{.bnav{display:none!important}}
+
 
 </style>
 
@@ -460,6 +483,7 @@ body.dens-compact th{padding:6px 8px}
 <div class="main" id="main"></div>
 </div>
 <div class="modal-bg" id="mbg" onclick="if(event.target===this)cm()"><div class="modal" id="mc" role="dialog" aria-modal="true" tabindex="-1"></div></div>
+<nav class="bnav" id="bnav" aria-label="Accesos rápidos"></nav>
 <div class="toast" id="tst"></div>
 
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
@@ -518,7 +542,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-16g',
+  ayuda:'2026-10-16h',
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
   comp2:'2026-10-16',
@@ -980,6 +1004,12 @@ function initNav(){
     + '<button class="" title="Configuración" onclick="go(\'cfg\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.sliders+'</button>'
     + '<button class="nav-toggle" title="Contraer o expandir el menú" aria-label="Contraer o expandir el menú" onclick="navAlternar()" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--tx2)"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="14" height="13" rx="1.5"/><line x1="8" y1="3.5" x2="8" y2="16.5"/></svg></button>'
     + '</div>';
+  // Barra inferior (solo se ve en celular): hasta 4 accesos a las pestañas más usadas que el usuario pueda ver, y "Más" abre el menú completo.
+  const _pref=['dash','eq','ot','reg'];
+  const _fav=_pref.map(id=>tabsNav.find(t=>t.id===id)).filter(Boolean);
+  tabsNav.forEach(t=>{if(_fav.length<4&&!_fav.includes(t))_fav.push(t);});
+  $('bnav').innerHTML=_fav.slice(0,4).map(t=>`<button type="button" data-tab="${t.id}" class="${t.id===currentTab?'on':''}" onclick="go('${t.id}')">${t.i}<span>${t.l.length>12?t.l.split(' ')[0]:t.l}</span></button>`).join('')
+    +'<button type="button" id="bnavMas" aria-expanded="false" onclick="navMovilAlternar()"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg><span>Más</span></button>';
   // Crear secciones para las 16 pestañas + las extra (atajos de contexto y fijas)
   // — SIEMPRE las 16 completas, aunque el nav muestre menos: go() bloquea la
   // navegación a una pestaña no permitida, así que un <div> de más acá nunca
@@ -1000,6 +1030,9 @@ async function go(id){
   currentTab=id;
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nav-grp button').forEach(b=>b.classList.remove('on'));
+  document.body.classList.remove('nav-abierto');
+  document.querySelectorAll('#bnav button[data-tab]').forEach(b=>b.classList.toggle('on',b.getAttribute('data-tab')===id));
+  const mas=$('bnavMas');if(mas){mas.setAttribute('aria-expanded','false');mas.classList.toggle('on',!document.querySelector('#bnav button[data-tab].on'));}
   const sec=$('s-'+id);if(sec)sec.classList.add('on');
   const tabsNav=_tabsPermitidas();
   [...$('nav').querySelectorAll('.nav-grp button')].forEach((b,i)=>{if(i<tabsNav.length&&tabsNav[i].id===id)b.classList.add('on')});
@@ -1204,6 +1237,12 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')document.que
   const iniciar=()=>{const m=$('main');if(!m||!window.MutationObserver)return;agruparAcciones(m);new MutationObserver(()=>{if(!pend){pend=true;requestAnimationFrame(run);}}).observe(m,{childList:true,subtree:true});};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();
 })();
+
+// Celular: "Más" abre y cierra el menú completo en pantalla completa.
+function navMovilAlternar(){
+  const ab=document.body.classList.toggle('nav-abierto');
+  const mas=$('bnavMas');if(mas)mas.setAttribute('aria-expanded',ab?'true':'false');
+}
 // Auto-update clock every minute
 setInterval(function(){if(typeof renderHeader==='function')renderHeader();},60000);
 // ============ RENDERS ============
@@ -4184,7 +4223,7 @@ document.addEventListener('DOMContentLoaded',function(){
   var btnCss='padding:4px 12px;border-radius:16px;border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:11px';
   bar.innerHTML='<button type="button" aria-label="Exportar a CSV" onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
     '<button type="button" aria-label="Imprimir" onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>'+
-    '<button type="button" aria-label="Cambiar densidad de las tablas" id="densBtn" onclick="densidadAlternar()" title="Densidad de las tablas: cómoda o compacta" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg> Densidad</button>'+
+    '<button type="button" aria-label="Cambiar densidad de las tablas" id="densBtn" onclick="densidadAlternar()" title="Densidad de las tablas: cómoda o compacta" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="3" y1="12" x2="17" y2="12"/></svg> Densidad</button>'+
     '<button type="button" aria-label="Comando de voz" id="voiceCmdBtn" onclick="_comandoDeVoz(this)" style="'+btnCss+'" title="Comando de voz — di el nombre de una pestaña, \'nueva OT\', \'urgentes\'...">'+ICONS.mic+' Voz</button>';
   right.appendChild(bar);
   var header=document.querySelector('.header');

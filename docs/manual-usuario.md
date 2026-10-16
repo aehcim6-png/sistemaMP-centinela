@@ -79,7 +79,7 @@ pierde en silencio el cambio de uno de los dos.
 
 ## 6. Mapa de pestañas
 
-El menú está en la barra lateral izquierda (en celular, en una tira arriba; el botón de abajo de la barra la contrae a solo íconos) y se ordena en 5 grupos según para qué se usa cada pestaña: **Operación** (Dashboard, Torre de Control, Equipos, Registro PM, Correctivos, Horómetros), **Planificación** (Planificación, Pautas, Vencimientos), **Activos** (Neumáticos, Stock & Insumos, Análisis Aceite, Componentes), **Desempeño** (Disponibilidad, Producción, Costos, Metas & KPIs) y **Herramientas** (Buscar, Auditoría de Datos). Nada se borró ni se fusionó: es solo el orden y el lugar de cada cosa. La tabla de abajo sigue el orden histórico.
+El menú está en la barra lateral izquierda (en celular, una barra inferior con 4 accesos y el botón «Más», que abre el menú completo; el botón de abajo de la barra la contrae a solo íconos) y se ordena en 5 grupos según para qué se usa cada pestaña: **Operación** (Dashboard, Torre de Control, Equipos, Registro PM, Correctivos, Horómetros), **Planificación** (Planificación, Pautas, Vencimientos), **Activos** (Neumáticos, Stock & Insumos, Análisis Aceite, Componentes), **Desempeño** (Disponibilidad, Producción, Costos, Metas & KPIs) y **Herramientas** (Buscar, Auditoría de Datos). Nada se borró ni se fusionó: es solo el orden y el lugar de cada cosa. La tabla de abajo sigue el orden histórico.
 
 | Pestaña | Para qué |
 |---|---|
