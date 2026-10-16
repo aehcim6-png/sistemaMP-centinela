@@ -51,11 +51,16 @@ function _asegurarEstiloTorre(){
     '.torre-bg-sweep{position:absolute;inset:0;background:linear-gradient(100deg,transparent 42%,rgba(245,165,36,.05) 50%,transparent 58%);background-size:280% 100%;animation:torreSweep 9s linear infinite}'+
     '.torre-faro-beam{transform-origin:30px 14px;animation:torreFaroBarrido 4.5s linear infinite}'+
     '.torre-faro-pulse{transform-origin:30px 14px;animation:torreFaroPulso 3s ease-in-out infinite}'+
-    '.torre-tile{width:118px;background:linear-gradient(160deg,var(--bg3),var(--bg2));border:1px solid var(--bd);border-radius:12px;padding:10px 8px 9px;text-align:center;cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;position:relative;overflow:hidden}'+
+    '.torre-tile{width:118px;min-height:142px;background:linear-gradient(160deg,var(--bg3),var(--bg2));border:1px solid var(--bd);border-radius:14px;padding:9px 7px 10px;text-align:center;cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;position:relative;overflow:hidden}'+
     '.torre-tile:before{content:"";position:absolute;inset:auto 10px 45px;height:1px;background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:.22}'+
     '.torre-tile:hover{transform:translateY(-2px);border-color:var(--ac);box-shadow:0 8px 22px rgba(0,0,0,.24)}'+
-    '.torre-tile .ti-icon{width:100%;height:62px;display:flex;align-items:center;justify-content:center;margin-bottom:7px;padding:2px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.012));border:1px solid rgba(148,163,184,.08)}'+
+    '.torre-tile .ti-icon{width:100%;height:62px;display:flex;align-items:center;justify-content:center;margin-bottom:7px;padding:5px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.015));border:1px solid rgba(148,163,184,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}'+
     '.torre-tile svg{width:100%;height:100%;overflow:visible;stroke-width:2.7;filter:drop-shadow(0 2px 3px rgba(0,0,0,.28))}'+
+    '.torre-tile .ti-sigla{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'+
+    '.torre-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px 22px}'+
+    '.torre-group{min-width:0}'+
+    '.torre-group-list{display:flex;flex-wrap:wrap;gap:10px}'+
+    '@media(max-width:520px){.torre-groups{display:block}.torre-group{margin-bottom:20px}.torre-group-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.torre-tile{width:auto;min-width:0;min-height:132px;padding:8px 5px}.torre-tile .ti-icon{height:52px;padding:3px}.torre-tile .ti-sigla{font-size:10px}.torre-tile .ti-score{font-size:10px}}'+
     '.torre-tile[data-st="ok"] .ti-icon{background:linear-gradient(180deg,rgba(34,197,94,.12),rgba(34,197,94,.025))} .torre-tile[data-st="warn"] .ti-icon{background:linear-gradient(180deg,rgba(245,158,11,.12),rgba(245,158,11,.025))} .torre-tile[data-st="crit"] .ti-icon{background:linear-gradient(180deg,rgba(239,68,68,.13),rgba(239,68,68,.025))}'+
     '@media(max-width:520px){.torre-tile{width:calc((100vw - 54px)/3);min-width:0;padding-left:5px;padding-right:5px}.torre-tile .ti-icon{height:54px}.torre-tile .ti-sigla{font-size:10px}.torre-tile .ti-score{font-size:9px}}'+
     '.torre-tile .ti-sigla{font-weight:700;font-size:11px;letter-spacing:.01em;color:var(--tx)}'+
@@ -139,10 +144,10 @@ export function renderTorre(){
         return av-bv;
       });
       var tipoLabel=tipo==='Torre Iluminacion'?'Torre de Iluminación':tipo;
-      return '<div style="margin-bottom:22px">'+
+      return '<div class="torre-group">'+
         '<div style="font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;display:flex;align-items:center;gap:8px">'+escapeHtml(tipoLabel)+
         '<span style="font-size:11px;color:var(--tx);background:var(--bg3);border-radius:20px;padding:1px 9px">'+lista.length+'</span></div>'+
-        '<div style="display:flex;flex-wrap:wrap;gap:10px">'+
+        '<div class="torre-group-list">'+
         lista.map(function(r,i){
           var v=r.score.valor;
           var st=_torreStatus(v);
