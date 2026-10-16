@@ -51,10 +51,13 @@ function _asegurarEstiloTorre(){
     '.torre-bg-sweep{position:absolute;inset:0;background:linear-gradient(100deg,transparent 42%,rgba(245,165,36,.05) 50%,transparent 58%);background-size:280% 100%;animation:torreSweep 9s linear infinite}'+
     '.torre-faro-beam{transform-origin:30px 14px;animation:torreFaroBarrido 4.5s linear infinite}'+
     '.torre-faro-pulse{transform-origin:30px 14px;animation:torreFaroPulso 3s ease-in-out infinite}'+
-    '.torre-tile{width:118px;background:linear-gradient(160deg,var(--bg3),var(--bg2));border:1px solid var(--bd);border-radius:12px;padding:10px 8px 9px;text-align:center;cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}'+
+    '.torre-tile{width:118px;background:linear-gradient(160deg,var(--bg3),var(--bg2));border:1px solid var(--bd);border-radius:12px;padding:10px 8px 9px;text-align:center;cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;position:relative;overflow:hidden}'+
+    '.torre-tile:before{content:"";position:absolute;inset:auto 10px 45px;height:1px;background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:.22}'+
     '.torre-tile:hover{transform:translateY(-2px);border-color:var(--ac);box-shadow:0 8px 22px rgba(0,0,0,.24)}'+
-    '.torre-tile .ti-icon{width:100%;height:58px;display:flex;align-items:center;justify-content:center;margin-bottom:7px;padding:4px;border-radius:8px;background:rgba(255,255,255,.035)}'+
-    '.torre-tile svg{width:100%;height:100%;overflow:visible;stroke-width:4}'+
+    '.torre-tile .ti-icon{width:100%;height:62px;display:flex;align-items:center;justify-content:center;margin-bottom:7px;padding:2px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.012));border:1px solid rgba(148,163,184,.08)}'+
+    '.torre-tile svg{width:100%;height:100%;overflow:visible;stroke-width:2.7;filter:drop-shadow(0 2px 3px rgba(0,0,0,.28))}'+
+    '.torre-tile[data-st="ok"] .ti-icon{background:linear-gradient(180deg,rgba(34,197,94,.12),rgba(34,197,94,.025))} .torre-tile[data-st="warn"] .ti-icon{background:linear-gradient(180deg,rgba(245,158,11,.12),rgba(245,158,11,.025))} .torre-tile[data-st="crit"] .ti-icon{background:linear-gradient(180deg,rgba(239,68,68,.13),rgba(239,68,68,.025))}'+
+    '@media(max-width:520px){.torre-tile{width:calc((100vw - 54px)/3);min-width:0;padding-left:5px;padding-right:5px}.torre-tile .ti-icon{height:54px}.torre-tile .ti-sigla{font-size:10px}.torre-tile .ti-score{font-size:9px}}'+
     '.torre-tile .ti-sigla{font-weight:700;font-size:11px;letter-spacing:.01em;color:var(--tx)}'+
     '.torre-tile .ti-score{font-size:10px;margin-top:1px}'+
     '.torre-tile[data-st="ok"] svg{color:var(--ok)} .torre-tile[data-st="ok"] .ti-score{color:var(--ok)}'+
