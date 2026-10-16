@@ -26,10 +26,12 @@ var _TORRE_ICONS={
   'Torre Iluminacion':'<circle cx="60" cy="104" r="12"/><circle cx="60" cy="104" r="4"/><path d="M20 96 L20 88 L100 88 L100 96 Z"/><line x1="20" y1="92" x2="6" y2="92"/><path d="M52 88 L52 70 L90 70 L90 88 Z"/><line x1="70" y1="70" x2="70" y2="20"/><line x1="70" y1="20" x2="40" y2="8"/><rect x="32" y="2" width="16" height="8" rx="1"/><line x1="70" y1="20" x2="58" y2="4"/><rect x="50" y="0" width="16" height="8" rx="1"/><line x1="70" y1="20" x2="82" y2="4"/><rect x="74" y="0" width="16" height="8" rx="1"/><line x1="70" y1="20" x2="100" y2="8"/><rect x="92" y="2" width="16" height="8" rx="1"/>',
   'Generador':'<line x1="18" y1="104" x2="212" y2="104"/><path d="M30 100 L30 50 L200 50 L200 100 Z"/><rect x="45" y="68" width="26" height="22" rx="2"/><line x1="150" y1="62" x2="176" y2="72"/><line x1="150" y1="72" x2="176" y2="82"/><line x1="150" y1="82" x2="176" y2="92"/><line x1="186" y1="50" x2="186" y2="28"/><rect x="180" y="22" width="12" height="8" rx="1"/>',
   'Bus':'<circle cx="170" cy="100" r="17"/><circle cx="170" cy="100" r="6"/><circle cx="55" cy="100" r="17"/><circle cx="55" cy="100" r="6"/><path d="M20 90 L20 50 Q20 40 30 40 L190 40 Q200 40 200 50 L200 90 Z"/><rect x="34" y="48" width="22" height="16" rx="2"/><rect x="64" y="48" width="22" height="16" rx="2"/><rect x="94" y="48" width="22" height="16" rx="2"/><rect x="124" y="48" width="22" height="16" rx="2"/><rect x="154" y="48" width="22" height="16" rx="2"/><line x1="40" y1="64" x2="40" y2="90"/>',
-  'Minicargador':'<circle cx="185" cy="100" r="20"/><circle cx="185" cy="100" r="7"/><circle cx="75" cy="100" r="20"/><circle cx="75" cy="100" r="7"/><path d="M55 95 L55 62 L165 62 L165 95 Z"/><line x1="80" y1="62" x2="80" y2="34"/><line x1="140" y1="62" x2="140" y2="34"/><line x1="80" y1="34" x2="140" y2="34"/><path d="M165 66 L206 56 L200 84 L165 90"/><path d="M40 76 L18 70 L16 92 L44 96 Z"/>'
+  'Minicargador':'<circle cx="185" cy="100" r="20"/><circle cx="185" cy="100" r="7"/><circle cx="75" cy="100" r="20"/><circle cx="75" cy="100" r="7"/><path d="M55 95 L55 62 L165 62 L165 95 Z"/><line x1="80" y1="62" x2="80" y2="34"/><line x1="140" y1="62" x2="140" y2="34"/><line x1="80" y1="34" x2="140" y2="34"/><path d="M165 66 L206 56 L200 84 L165 90"/><path d="M40 76 L18 70 L16 92 L44 96 Z"/>',
+  'Torre':'<path d="M72 112 L112 18 L152 112 Z"/><line x1="84" y1="84" x2="140" y2="84"/><line x1="92" y1="64" x2="132" y2="64"/><line x1="100" y1="44" x2="124" y2="44"/><path d="M112 18 L112 8 L170 8 L170 25 L112 25"/><path d="M170 8 L214 28 L214 44 L170 25"/><path d="M160 78 L202 78 L212 90 L202 102 L160 102 Z"/><circle cx="106" cy="112" r="5"/><circle cx="152" cy="112" r="5"/>',
+  'Equipo':'<rect x="34" y="38" width="172" height="68" rx="8"/><path d="M54 38 L72 20 L168 20 L186 38"/><line x1="72" y1="58" x2="168" y2="58"/><circle cx="76" cy="106" r="14"/><circle cx="164" cy="106" r="14"/><path d="M94 84 H146"/>'
 };
 function _torreIconSvg(tipo,extra){
-  return '<svg viewBox="0 0 240 130" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" '+(extra||'')+'>'+(_TORRE_ICONS[tipo]||_TORRE_ICONS['Camion'])+'</svg>';
+  return '<svg viewBox="0 0 240 130" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" '+(extra||'')+'>'+(_TORRE_ICONS[tipo]||_TORRE_ICONS['Equipo'])+'</svg>';
 }
 // Orden de despliegue de los grupos — camiones/aljibes primero (el grueso de
 // la flota de acarreo), equipos de apoyo/servicio al final. Un tipo real que
@@ -49,10 +51,10 @@ function _asegurarEstiloTorre(){
     '.torre-bg-sweep{position:absolute;inset:0;background:linear-gradient(100deg,transparent 42%,rgba(245,165,36,.05) 50%,transparent 58%);background-size:280% 100%;animation:torreSweep 9s linear infinite}'+
     '.torre-faro-beam{transform-origin:30px 14px;animation:torreFaroBarrido 4.5s linear infinite}'+
     '.torre-faro-pulse{transform-origin:30px 14px;animation:torreFaroPulso 3s ease-in-out infinite}'+
-    '.torre-tile{width:104px;background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:9px 7px 8px;text-align:center;cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}'+
-    '.torre-tile:hover{transform:translateY(-2px);border-color:var(--ac)}'+
-    '.torre-tile .ti-icon{width:100%;height:46px;display:flex;align-items:center;justify-content:center;margin-bottom:5px}'+
-    '.torre-tile svg{width:100%;height:100%;overflow:visible}'+
+    '.torre-tile{width:118px;background:linear-gradient(160deg,var(--bg3),var(--bg2));border:1px solid var(--bd);border-radius:12px;padding:10px 8px 9px;text-align:center;cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}'+
+    '.torre-tile:hover{transform:translateY(-2px);border-color:var(--ac);box-shadow:0 8px 22px rgba(0,0,0,.24)}'+
+    '.torre-tile .ti-icon{width:100%;height:58px;display:flex;align-items:center;justify-content:center;margin-bottom:7px;padding:4px;border-radius:8px;background:rgba(255,255,255,.035)}'+
+    '.torre-tile svg{width:100%;height:100%;overflow:visible;stroke-width:4}'+
     '.torre-tile .ti-sigla{font-weight:700;font-size:11px;letter-spacing:.01em;color:var(--tx)}'+
     '.torre-tile .ti-score{font-size:10px;margin-top:1px}'+
     '.torre-tile[data-st="ok"] svg{color:var(--ok)} .torre-tile[data-st="ok"] .ti-score{color:var(--ok)}'+
