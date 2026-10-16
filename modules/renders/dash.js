@@ -508,7 +508,8 @@ export function renderDash(){
   var htmlChrome=
 
     // ═══ SELECTOR DE PERÍODO ═══
-    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:var(--bg3);border-radius:10px;flex-wrap:wrap">'+
+    '<div class="dash-per" style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:var(--bg3);border-radius:10px;flex-wrap:wrap">'+
+    '<button type="button" class="dash-per-btn" onclick="this.parentElement.classList.toggle(\'abierto\')">Período: <b>'+dashLabel+'</b> ▾</button>'+
     '<span style="font-size:12px;color:var(--tx3);font-weight:600"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Período del tablero:</span>'+
     '<select id="dashMesSel" onchange="dashSetPeriodo()" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:5px 8px;font-size:12px">'+
     _MESNOM.map(function(m,i){return '<option value="'+(i+1)+'"'+(dashMes===i+1?' selected':'')+'>'+m+'</option>';}).join('')+
@@ -531,7 +532,7 @@ export function renderDash(){
     // no casilleros de mostrar/ocultar") — antes usaba el mismo tamaño btn-s
     // que cualquier botón de acción, fácil de confundir con la barra de
     // pestañas que está justo encima.
-    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;font-size:10px">'+
+    '<div class="dash-mostrar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;font-size:10px">'+
     '<span style="color:var(--tx3);text-transform:uppercase;letter-spacing:.5px">Mostrar:</span>'+
     [['salud',''+ICONS.stetho+' Salud de Flota'],['disp',''+ICONS.barChart+' Disponibilidad'],['graficos',''+ICONS.trend+' Gráficos'],['urgentes','🔴 Equipos Urgentes'],['costos',''+ICONS.money+' Costos y Stock']].map(function(b){
       var on=dashBloques[b[0]]!==false;
