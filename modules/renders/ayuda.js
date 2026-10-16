@@ -15,7 +15,7 @@ export function renderAyuda(){
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div></div>'+
 
     // Acceso destacado a la Guía de Capacitación (2026-10-08, pedido del usuario):
-    // quien entra por primera vez no debe tener que bajar 33 secciones para encontrarla.
+    // quien entra por primera vez no debe tener que bajar 34 secciones para encontrarla.
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.08)">'+
     '<b style="font-size:15px">'+ICONS.book+' ¿Primera vez en el sistema? Empezá por la Guía de Capacitación por Rol</b>'+
     '<p style="font-size:12px;color:var(--tx2);margin:8px 0 10px">Enseña en qué orden aprender el sistema según lo que te toca hacer — Operador de Terreno, Planificador, Comprador, Supervisor o Administrador — con ejemplos y pasos concretos. Este manual (secciones 1-32) sirve para buscar un detalle puntual.</p>'+
@@ -34,6 +34,7 @@ export function renderAyuda(){
     '<li><b>Flujo de horas y costo</b> (Costos): diagramas Sankey del costo anual de propiedad y de las horas de reparación de los últimos 12 meses, por tipo de equipo, equipo y componente.</li>'+
     '<li><b>Inventario de algoritmos</b> (Configuración → "Ver inventario de algoritmos"): 125 fichas que explican cada fórmula, matriz y diagrama del programa: qué pregunta responde, de dónde viene el método (con su fuente y nivel de respaldo), cómo lo calcula aquí y qué no dice.</li>'+
     '<li><b>Informe de gestión</b> (Metas &amp; KPIs → Informe de gestión): reproduce el informe semanal del cliente: certeza y cumplimiento de programa, las desviaciones de mantenimiento de cada PM (horómetro programado contra real, estándar de ±10 % del ciclo, con tabla y gráfico), los equipos fuera de servicio con sus días, sistema y observación, y el cierre de backlog de pautas (tareas que quedaron pendientes al hacer un PM; entran solas cuando un PM se registra como incompleto). Se elige el período con las fechas o con los botones.</li>'+
+    '<li><b>Guía de preguntas de confiabilidad</b> (sección 34 de esta Ayuda): ordena las herramientas por la pregunta que quieres responder (¿algo se comporta de forma anormal?, ¿qué falla y dónde?, ¿cuánto le queda?, ¿por qué lo dice?) y dice en qué pantalla se contesta cada una.</li>'+
     '<li><b>Cumplimiento de PM por horómetro:</b> en los equipos por horas, un PM cumple si se hizo a ±10 % del ciclo de la hora en que tocaba (±25 h en el ciclo de 250 h), el estándar del informe del cliente. Hecho a las 380 h cuando tocaba a las 250 h está pasado; a las 160 h, adelantado: las dos son desviaciones. Así se evalúan también los PM anteriores; lo que no se puede saber (se saltó un hito, camionetas y buses por km) no se inventa.</li>'+
     '<li><b>Criticidad en M4 y M6:</b> la matriz ABC × VED y la prioridad de OT usan la criticidad de cada equipo.</li>'+
     '</ul>'+
@@ -276,6 +277,7 @@ export function renderAyuda(){
     '<a href="#m31" style="color:var(--ac);text-decoration:none;padding:2px 0">31. Verificación en Dos Pasos</a>'+
     '<a href="#m32" style="color:var(--ac);text-decoration:none;padding:2px 0">32. Glosario de Términos</a>'+
     '<a href="#m33" style="color:var(--ac);text-decoration:none;padding:2px 0">33. 🎓 Guía de Capacitación por Rol</a>'+
+    '<a href="#m34" style="color:var(--ac);text-decoration:none;padding:2px 0">34. 🧭 Guía: qué pregunta responde cada herramienta</a>'+
     '</div></div>'+
 
     // 1. QUÉ ES
@@ -940,6 +942,47 @@ export function renderAyuda(){
     '<b>¿Qué pasa si asigno un perfil por error a un Admin?</b> Nada grave — un Admin SIEMPRE ve las pestañas completas, tenga perfil cargado o no.<br>'+
     '<b>🕐 Horizonte:</b> <i>cada día</i> — confirmar que llegó el correo del backup diario; <i>cada mes</i> — revisar cuentas de gente que ya no trabaja acá; <i>cada año</i> — se recomienda ensayar una vez el procedimiento documentado de restauración, para saber que funciona antes de necesitarlo.'+
 
+    '</div></div>'+
+    '<div class="card" style="margin-bottom:12px" id="m34">'+
+    '<div class="sec-h" style="margin-bottom:10px"><div><div class="card-t" style="font-size:16px">34. 🧭 Guía: qué pregunta responde cada herramienta</div>'+
+    '<div class="sec-s">Encontrar la herramienta por la pregunta que quieres responder, no por su nombre</div></div></div>'+
+    '<p style="font-size:12px;color:var(--tx3);margin:0 0 12px">Antes de mirar un gráfico conviene saber qué pregunta de confiabilidad quieres contestar. Aquí están las cinco preguntas, la pantalla del sistema que responde cada una y con qué datos. Cada herramienta tiene además su ficha en <b>Configuración → Ver inventario de algoritmos</b>: de dónde viene el método, cómo lo calcula el programa y qué no dice.</p>'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;margin-bottom:10px;line-height:1.7">'+
+    '<b>1 · ¿Algo se comporta de forma anormal?</b> <span style="color:var(--tx3)">(detectar a tiempo)</span><br>'+
+    '• <b>CUSUM de aceite</b> (Análisis de Aceite y Predictivo): avisa antes de que un metal pase su límite. Necesita análisis de aceite cargados.<br>'+
+    '• <b>Mapa de equipos</b> (Componentes → Estadística): compara cada equipo con los de su mismo tipo; los que tienen datos dudosos quedan fuera y se dice por qué.<br>'+
+    '• <b>Tendencia de disponibilidad</b> (Dashboard): dice si viene mejorando o empeorando, sin dejarse engañar por un mes aislado.<br>'+
+    '• <b>Cartas de control</b> (Costos): marcan los meses de costo fuera de lo normal.<br>'+
+    '</div>'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;margin-bottom:10px;line-height:1.7">'+
+    '<b>2 · ¿Qué falla y dónde?</b> <span style="color:var(--tx3)">(diagnosticar)</span><br>'+
+    '• <b>Pareto</b> (Componentes → Estadística): modos de falla, equipos con más fallas y componentes que más fallan.<br>'+
+    '• <b>Fallas repetitivas y FMEA</b> (Predictivo): causas que se repiten, con severidad, ocurrencia y detección (NPR); además patrones por mes y por turno.<br>'+
+    '• <b>Matriz Jack-Knife</b> (Costos → MTBF/MTTR): separa los equipos que fallan mucho de los que tardan mucho en repararse.<br>'+
+    '• Cuando una orden no trae el componente, el sistema lo deduce del texto del síntoma.<br>'+
+    '</div>'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;margin-bottom:10px;line-height:1.7">'+
+    '<b>3 · ¿Es la operación o es degradación?</b> <span style="color:var(--tx3)">(normalidad)</span><br>'+
+    '• <b>Hoy el sistema no lo responde.</b> Separar el efecto de la carga y del régimen de trabajo exige variables de proceso (carga, velocidad, presión) que no se registran.<br>'+
+    '• Lo más cercano: comparar un equipo con sus pares del mismo tipo (Mapa de equipos) y medir las fallas por horas de operación, no por días.<br>'+
+    '</div>'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;margin-bottom:10px;line-height:1.7">'+
+    '<b>4 · ¿Cuánto le queda y cuándo intervenir?</b> <span style="color:var(--tx3)">(vida remanente)</span><br>'+
+    '• <b>Vida útil remanente híbrida</b> e <b>intervalo P-F real</b> (Predictivo): una banda, no un solo número.<br>'+
+    '• <b>Weibull</b> (Componentes y Estadística): forma de la falla y vida característica, con el R² que avisa si el ajuste es débil; también la curva de supervivencia de Kaplan-Meier.<br>'+
+    '• <b>TBO Komatsu</b>: plan del fabricante contra cambios reales, con riesgo y fecha proyectada de cambio.<br>'+
+    '• <b>Ficha de componente</b> (Buscar) y <b>Torre de Control</b>: la decisión por componente en una sola vista.<br>'+
+    '</div>'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;margin-bottom:10px;line-height:1.7">'+
+    '<b>5 · ¿Por qué lo dice y tiene sustento?</b> <span style="color:var(--tx3)">(auditar)</span><br>'+
+    '• <b>Calibración</b> (TBO): lo que el modelo del fabricante predice contra lo que realmente pasó en la flota.<br>'+
+    '• <b>Avisos del propio sistema</b>: ajuste débil, muestra mínima no alcanzada y "sin dato" en vez de un número inventado.<br>'+
+    '• <b>Inventario de algoritmos</b> (Configuración): fuente, método y límites de cada cálculo.<br>'+
+    '<i style="color:var(--tx3)">Límite: el sistema todavía no guarda cada alerta para compararla después con la falla real; esa comparación se hace a mano.</i>'+
+    '</div>'+
+    '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;line-height:1.7">'+
+    '<b>Regla del sistema:</b> primero lo más simple que resuelva la pregunta. Usa reglas y estadística que se puede explicar; no usa aprendizaje automático, porque con pocas fallas por equipo sus resultados serían poco confiables y difíciles de justificar. Si faltan datos, muestra "sin dato" y no inventa.<br>'+
+    '<b>Antes de usar una herramienta:</b> ¿hay datos suficientes? ¿mezclé equipos o regímenes distintos? ¿tengo evidencia de terreno que lo confirme?'+
     '</div></div>';
 }
 

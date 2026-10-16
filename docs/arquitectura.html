@@ -3256,6 +3256,9 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <h3>135. Informe de gestión de mantenimiento: programa, desviaciones, equipos fuera de servicio y backlog (2026-10-14)</h3>
   <p>Metas &amp; KPIs tiene una sub-pestaña nueva, <b>Informe de gestión</b>, con el informe semanal del cliente: certeza y cumplimiento de programa, las desviaciones de mantenimiento (cada PM con su horómetro programado, el real y la desviación en horas y en % del ciclo, con el estándar de ±10 % del ciclo, tabla y gráfico) los equipos fuera de servicio (días, sistema y observación) y el cierre de backlog de pautas. El % dentro del estándar es el mismo que muestran Dashboard, Informes KPI y Metas. También tiene la certeza y el cumplimiento de programa (se reconstruyen con el historial de horómetros y los PM registrados, porque el plan semanal se proyecta solo y no se guarda) y el cierre de backlog de pautas (tabla nueva <code>backlog_pm</code>; un PM registrado como incompleto crea su tarea pendiente solo).</p>
 
+  <h3>136. Guía de preguntas de confiabilidad en la Ayuda (2026-10-16)</h3>
+  <p>La Ayuda tiene una sección nueva, la 34, que ordena las herramientas por la pregunta que se quiere responder (¿algo se comporta de forma anormal?, ¿qué falla y dónde?, ¿es operación o degradación?, ¿cuánto le queda?, ¿por qué lo dice?) y dice en qué pantalla se contesta cada una. Es solo texto. Reconoce dos límites: separar operación de degradación necesita variables de proceso que no se registran, y las alertas no se guardan para compararlas después con la falla real.</p>
+
   <h2>Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
