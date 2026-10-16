@@ -167,14 +167,14 @@ function _estTablaComponente(eventos, ace, eq) {
         '<td style="text-align:center">' + r.nEquipos + '</td>' +
         '<td style="text-align:center;color:' + (r.mtbf == null ? 'var(--tx3)' : r.mtbf > 2000 ? 'var(--ok)' : r.mtbf > 500 ? 'var(--ac)' : 'var(--danger)') + '">' + (r.mtbf == null ? '—' : fn(r.mtbf)) + '</td></tr>';
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
-    '</table></div>' +
+    '</table></div></div>' +
+    // Los demás análisis son bloques hermanos del Pareto (antes quedaban anidados dentro de su caja), así cada uno se puede plegar por separado.
     _estWeibullPorComponente(eventos) +
     _estKaplanMeierPorComponente(eventos, eq) +
     _estMcfPorComponente(eventos, eq) +
     _estCrowAmsaaPorComponente(eventos) +
     _estCompetingRisksHTML(eventos, eq) +
-    _estCorrelacionAceite(eventos, ace) +
-    '</div>';
+    _estCorrelacionAceite(eventos, ace);
 }
 
 // Weibull por componente/categoría de falla, A NIVEL FLOTA (2026-09-12,
@@ -909,6 +909,8 @@ export function renderEstadistica() {
     '<option value="pca"' + (vista === 'pca' ? ' selected' : '') + '>Mapa de equipos (PCA)</option>' +
     '</select>' +
     content;
+  // Cada bloque se pliega con su título (el primero abierto): la página era un muro de tablas seguidas.
+  if (typeof plegarSecciones === 'function') plegarSecciones($('s-estadistica'), 'est-' + vista);
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda). _estFallasCombinadas/

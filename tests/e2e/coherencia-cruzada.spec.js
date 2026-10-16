@@ -115,6 +115,27 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   });
   comparar('Correctivos: "Más acciones" tiene botones, abre y ejecuta', [['botones en el menú (≥2)', acc.enMenu >= 2 ? 1 : 0], ['el menú abre', acc.abre], ['un botón del menú actúa', acc.modal], ['esperado', 1]]);
 
+  // ── Sub-pestañas, Predictivo agrupado y Estadística plegable: nada se perdió al reordenar ──
+  const sp = await page.evaluate(async () => {
+    const esp = (ms) => new Promise((r) => setTimeout(r, ms));
+    window._comp2Sub = 'pred'; window.go('comp2'); await esp(1500);
+    const o = document.getElementById('fPredVista');
+    const pred = { grupos: o.querySelectorAll('optgroup').length, opciones: o.querySelectorAll('option').length };
+    const solapas = document.querySelectorAll('#s-comp2 .subtabs .subtab').length;
+    window._comp2Sub = 'estadistica'; window._estadisticaVista = 'componente'; window.go('comp2'); await esp(1800);
+    const r = document.getElementById('s-estadistica');
+    const pleg = r.querySelectorAll(':scope > details.sec-pleg').length, abiertos = r.querySelectorAll(':scope > details.sec-pleg[open]').length;
+    window._estadisticaVista = 'equipo'; // las demás comprobaciones parten de la vista por equipo
+    window._mkpiSub = 'metas'; window.go('mkpi'); await esp(1200);
+    const metas = [...document.querySelectorAll('#s-mkpi .subtabs .subtab')].map((b) => b.textContent.trim());
+    return { pred, solapas, pleg, abiertos, metas };
+  });
+  comparar('Predictivo: 21 vistas en 6 grupos', [['vistas', sp.pred.opciones], ['esperado', 21]]);
+  comparar('Predictivo: grupos', [['grupos', sp.pred.grupos], ['esperado', 6]]);
+  comparar('Componentes: 8 sub-pestañas', [['solapas', sp.solapas], ['esperado', 8]]);
+  comparar('Estadística por componente: bloques plegables (el primero abierto)', [['plegables ≥ 5', sp.pleg >= 5 ? 1 : 0], ['abiertos', sp.abiertos], ['esperado', 1]]);
+  comparar('Metas & KPIs: orden de las sub-pestañas', [['orden correcto', sp.metas.join('|').match(/^Metas\|Avance del Mes\|Informes KPI\|Informe de gestión\|Resumen Ejecutivo$/) ? 1 : 0], ['esperado', 1]]);
+
   // ── Salud: Torre de Control contra el Mapa de Salud del Dashboard ──
   const torre = await textoDe(page, 'torre');
   comparar('Salud — equipos críticos', [['Torre', num(torre, /(\d+) INTERVENIR AHORA/)], ['Dashboard', num(dash, /(\d+) 🔴 Crítica/)]]);

@@ -2105,27 +2105,39 @@ $('s-pred').innerHTML=
     '<div class="sec-s">Arriba lo accionable (qué anticipar) · abajo el histórico de compras · todo desde datos reales</div></div></div>'+
     '<div class="toolbar">'+
     '<select id="fPredVista" onchange="renders.pred()" style="font-weight:600">'+
+    '<optgroup label="¿Qué está pasando?">'+
     '<option value="general"'+(fVista==='general'?' selected':'')+'>🟢 Necesita atención + histórico</option>'+
     '<option value="equipo"'+(fVista==='equipo'||fVista==='diag'?' selected':'')+'>🏗 Por Equipo</option>'+
     '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Backlog Inteligente</option>'+
     '<option value="items"'+(fVista==='items'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Top Items</option>'+
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
+    '</optgroup>'+
+    '<optgroup label="¿Qué tan riesgoso es?">'+
     '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
     '<option value="criticidad"'+(fVista==='criticidad'?' selected':'')+'>🏭 Criticidad de Equipos</option>'+
+    '</optgroup>'+
+    '<optgroup label="¿Cuánto le queda?">'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
     '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
+    '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
+    '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
+    '</optgroup>'+
+    '<optgroup label="Repuestos y stock">'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
     '<option value="abcxyz"'+(fVista==='abcxyz'?' selected':'')+'>🗂 ABC-XYZ de Repuestos</option>'+
-    '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
-    '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
-    '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
-    '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
-    '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
-    '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option></select>'+
+    '</optgroup>'+
+    '<optgroup label="Efectividad y patrones">'+
+    '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
+    '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
+    '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
+    '</optgroup>'+
+    '<optgroup label="Taller">'+
+    '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option>'+
+    '</optgroup></select>'+
     '<select id="fPredEq" onchange="renders.pred()"><option value="">'+(fVista==='equipo'||fVista==='diag'?'Seleccionar equipo...':'Todos los equipos')+'</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>'+
     '<select id="fPredAnio" onchange="renders.pred()"><option value="">Todos los años</option>'+

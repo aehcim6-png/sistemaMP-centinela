@@ -9,12 +9,12 @@ export async function renderMkpi() {
   $('s-mkpi').innerHTML = `
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas & KPIs</div>
       <div class="sec-s">Indicadores de gestión y cumplimiento</div></div></div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn ${sub === 'metas' ? '' : 'btn-o'}" onclick="mkpiSub('metas')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas</button>
-      <button class="btn ${sub === 'resumen' ? '' : 'btn-o'}" onclick="mkpiSub('resumen')">${ICONS.doc} Resumen Ejecutivo</button>
-      <button class="btn ${sub === 'avance' ? '' : 'btn-o'}" onclick="mkpiSub('avance')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance del Mes</button>
-      <button class="btn ${sub === 'kpi' ? '' : 'btn-o'}" onclick="mkpiSub('kpi')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</button>
-      <button class="btn ${sub === 'gestion' ? '' : 'btn-o'}" onclick="mkpiSub('gestion')">${ICONS.doc} Informe de gestión</button>
+    <div class="subtabs" role="tablist">
+      <button class="subtab ${sub === 'metas' ? 'on' : ''}" role="tab" onclick="mkpiSub('metas')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas</button>
+      <button class="subtab ${sub === 'avance' ? 'on' : ''}" role="tab" onclick="mkpiSub('avance')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance del Mes</button>
+      <button class="subtab ${sub === 'kpi' ? 'on' : ''}" role="tab" onclick="mkpiSub('kpi')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</button>
+      <button class="subtab ${sub === 'gestion' ? 'on' : ''}" role="tab" onclick="mkpiSub('gestion')">${ICONS.doc} Informe de gestión</button>
+      <button class="subtab ${sub === 'resumen' ? 'on' : ''}" role="tab" onclick="mkpiSub('resumen')">${ICONS.doc} Resumen Ejecutivo</button>
     </div>
     <div id="s-metas" class="${sub === 'metas' ? '' : 'hidden'}"></div>
     <div id="s-avance" class="${sub === 'avance' ? '' : 'hidden'}"></div>

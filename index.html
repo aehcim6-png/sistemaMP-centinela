@@ -438,6 +438,28 @@ body.dens-compact th{padding:6px 8px}
 }
 @media print{.nav{display:none!important}.shell{display:block}}
 
+
+/* Sub-pestañas como solapas con subrayado (Stock & Insumos, Componentes, Planificación, Metas & KPIs): más livianas que los botones llenos, con rótulos de grupo opcionales; en celular se deslizan hacia el lado. */
+.subtabs{display:flex;align-items:flex-end;gap:2px;margin:0 0 18px;border-bottom:1px solid var(--bd);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.subtabs::-webkit-scrollbar{display:none}
+.subtab{display:inline-flex;align-items:center;gap:6px;flex:none;padding:10px 12px;margin-bottom:-1px;background:none;border:0;border-bottom:2px solid transparent;color:var(--tx2);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.subtab:hover{color:var(--tx);background:var(--bg3)}
+.subtab:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--ac)}
+.subtab.on{color:var(--ac);border-bottom-color:var(--ac);font-weight:600}
+.subtab svg{width:15px;height:15px;flex:none}
+.subtabs-g{align-self:center;flex:none;padding:0 6px 0 10px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);white-space:nowrap}
+.subtabs-g:first-child{padding-left:2px}
+.subtabs-sep{align-self:center;flex:none;width:1px;height:20px;margin:0 6px;background:var(--bd)}
+
+/* Secciones plegables (Estadística): cada bloque se pliega con su título; el primero abre solo. */
+.sec-pleg>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;border-radius:6px}
+.sec-pleg>summary::-webkit-details-marker{display:none}
+.sec-pleg>summary::before{content:'▸';flex:none;color:var(--tx3);font-size:12px;transition:transform .15s}
+.sec-pleg[open]>summary::before{transform:rotate(90deg)}
+.sec-pleg>summary>.chart-t{flex:1;margin:0}
+.sec-pleg>summary:focus-visible{outline:none;box-shadow:0 0 0 2px var(--ac)}
+.sec-pleg:not([open])>summary{padding-bottom:0}
+.sec-pleg[open]>summary{margin-bottom:6px}
 /* Controles de formulario (filtros, selectores, buscadores) con una sola forma en todas las pestañas: misma altura, borde, radio y foco. Las celdas editables de las tablas quedan como están. */
 .main select:not(td select),.main input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]):not(td input){height:34px;box-sizing:border-box;padding:0 10px;border:1px solid var(--bd);border-radius:6px;background:var(--bg3);color:var(--tx);font-size:13px;font-family:var(--font)}
 .main select:not(td select):focus,.main input:not([type=checkbox]):not([type=radio]):not(td input):focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 2px color-mix(in srgb,var(--ac) 25%,transparent)}
@@ -556,10 +578,10 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-16i',
+  ayuda:'2026-10-16j',
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
-  comp2:'2026-10-16',
+  comp2:'2026-10-16b',
   cos:'2026-10-13d',
   destrabe:'2026-10-08',
   disp:'2026-10-11p',
@@ -572,19 +594,19 @@ const _LAZY_VERS={
   kpi:'2026-10-14b',
   log:'2026-08-30',
   lub:'2026-10-08',
-  mkpi:'2026-10-16',
+  mkpi:'2026-10-16b',
   gestion:'2026-10-14b',
   mov:'2026-08-30',
   papelera:'2026-08-30',
   pau:'2026-08-30',
   plan:'2026-10-12a',
-  plani:'2026-10-16',
+  plani:'2026-10-16b',
   prg:'2026-08-31',
   progdia:'2026-08-30',
   rep:'2026-10-08',
   sem:'2026-10-08',
   stk:'2026-10-11d',
-  stk2:'2026-10-16',
+  stk2:'2026-10-16b',
   uso:'2026-10-08',
   venc:'2026-09-02',
   // Segundo lote (2026-09-10, extensión): archivos que SÍ tienen alguna
@@ -600,10 +622,10 @@ const _LAZY_VERS={
   torre:'2026-10-11b',
   buscar:'2026-10-11j',
   comp:'2026-10-14',
-  estadistica:'2026-10-13a',
+  estadistica:'2026-10-16',
   tbo:'2026-10-11i',
   audit:'2026-08-30b',
-  pred:'2026-10-13b',
+  pred:'2026-10-16',
   metas:'2026-10-14c',
   resumenejec:'2026-10-08',
   reg:'2026-10-16',
@@ -1247,7 +1269,9 @@ document.addEventListener('click',function(e){
 document.addEventListener('keydown',function(e){if(e.key==='Escape')document.querySelectorAll('.mas-acc.abierto').forEach(x=>{x.classList.remove('abierto');x.firstChild.setAttribute('aria-expanded','false');});});
 (function(){
   let pend=false;
-  const run=()=>{pend=false;agruparAcciones($('main'));};
+  // sub-pestañas: deja visible la activa (si hay muchas, la barra se desliza)
+  const centrarSub=()=>document.querySelectorAll('#main .subtabs:not([data-ctr])').forEach(b=>{const on=b.querySelector('.subtab.on');if(!on)return;b.setAttribute('data-ctr','1');b.scrollLeft=Math.max(0,on.offsetLeft-(b.clientWidth-on.clientWidth)/2);});
+  const run=()=>{pend=false;agruparAcciones($('main'));centrarSub();};
   const iniciar=()=>{const m=$('main');if(!m||!window.MutationObserver)return;agruparAcciones(m);new MutationObserver(()=>{if(!pend){pend=true;requestAnimationFrame(run);}}).observe(m,{childList:true,subtree:true});};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();
 })();
@@ -1256,6 +1280,29 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')document.que
 function navMovilAlternar(){
   const ab=document.body.classList.toggle('nav-abierto');
   const mas=$('bnavMas');if(mas)mas.setAttribute('aria-expanded',ab?'true':'false');
+}
+
+// Secciones plegables: convierte los bloques .chart-box de un contenedor (los que empiezan con un .chart-t) en <details>. El primero queda abierto y los demás cerrados;
+// lo que el usuario abre o cierra se recuerda por título mientras la página esté abierta, así un redibujado no se lo deshace. Solo actúa si hay 2 o más bloques.
+window._seccionesAbiertas=window._seccionesAbiertas||{};
+function plegarSecciones(root,clave){
+  if(!root)return;
+  const cajas=[...root.children].filter(e=>e.classList&&e.classList.contains('chart-box')&&e.firstElementChild&&e.firstElementChild.classList.contains('chart-t'));
+  if(cajas.length<2)return;
+  cajas.forEach((c,i)=>{
+    const titulo=c.firstElementChild;
+    const k=(clave||'')+'|'+titulo.textContent.trim().slice(0,80);
+    const d=document.createElement('details');
+    d.className=c.className+' sec-pleg';d.setAttribute('style',c.getAttribute('style')||'');
+    const abierta=(k in window._seccionesAbiertas)?window._seccionesAbiertas[k]:i===0;
+    if(abierta)d.open=true;
+    const sm=document.createElement('summary');
+    sm.appendChild(titulo);
+    d.appendChild(sm);
+    while(c.firstChild)d.appendChild(c.firstChild);
+    d.addEventListener('toggle',function(){window._seccionesAbiertas[k]=d.open;});
+    c.replaceWith(d);
+  });
 }
 // Auto-update clock every minute
 setInterval(function(){if(typeof renderHeader==='function')renderHeader();},60000);
