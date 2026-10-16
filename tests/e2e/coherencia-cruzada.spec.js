@@ -93,6 +93,16 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   comparar('Equipos AL DÍA', [['cálculo', verdad.alDia], ['encabezado', num(hs, /(\d+) AL DÍA/)], ['Dashboard', num(dash, /AL DÍA (\d+)/)], ['pestaña Equipos', eqUrg.dia]]);
   comparar('Total de equipos', [['cálculo', verdad.equipos], ['encabezado', num(hs, /(\d+) EQUIPOS/)], ['Dashboard', num(dash, /FLOTA\S* EN VIVO (\d+)/)]]);
 
+  // ── Ventana "¿cuáles son?": cada número que se puede tocar abre una lista con exactamente esa cantidad de equipos ──
+  await page.evaluate(() => window.go('dash')); await page.waitForTimeout(1200);
+  const filasVentana = (llamada) => page.evaluate((f) => { new Function(f)(); const n = document.querySelectorAll('#mc table tr').length - 1; cm(); return n < 0 ? 0 : n; }, llamada);
+  comparar('Ventana de urgentes (encabezado y Dashboard)', [['cálculo', verdad.urgentes], ['encabezado', await filasVentana("verEquiposGrupo('urg')")], ['Dashboard', await filasVentana("verEquiposDash('urg')")]]);
+  comparar('Ventana de próximos (encabezado y Dashboard)', [['cálculo', verdad.proximas], ['encabezado', await filasVentana("verEquiposGrupo('prox')")], ['Dashboard', await filasVentana("verEquiposDash('prox')")]]);
+  comparar('Ventana de al día (encabezado y Dashboard)', [['cálculo', verdad.alDia], ['encabezado', await filasVentana("verEquiposGrupo('aldia')")], ['Dashboard', await filasVentana("verEquiposDash('aldia')")]]);
+  comparar('Ventana de la flota (encabezado y Dashboard)', [['cálculo', verdad.equipos], ['encabezado', await filasVentana("verEquiposGrupo('todos')")], ['Dashboard', await filasVentana("verEquiposDash('todos')")]]);
+  comparar('Ventana de fuera de servicio', [['encabezado', num(hs, /(\d+) FUERA DE SERVICIO/)], ['ventana', await filasVentana("verEquiposGrupo('fs')")]]);
+  comparar('Ventana de salud crítica', [['Mapa de Salud', num(dash, /(\d+) 🔴 Crítica/)], ['ventana', await filasVentana("verEquiposDash('s_crit')")]]);
+
   // ── Salud: Torre de Control contra el Mapa de Salud del Dashboard ──
   const torre = await textoDe(page, 'torre');
   comparar('Salud — equipos críticos', [['Torre', num(torre, /(\d+) INTERVENIR AHORA/)], ['Dashboard', num(dash, /(\d+) 🔴 Crítica/)]]);

@@ -587,12 +587,12 @@ export function renderDash(){
     '<div class="dg2" style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:12px">'+
 
     // Fila 1: Estado de flota
-    '<div style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid var(--danger)">'+
+    '<div'+_dr('urg')+' style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid var(--danger)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Urgentes'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
     '<div style="font-size:32px;font-weight:800;color:var(--danger);line-height:1.2">'+urg.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(urg.length?urg.slice(0,2).map(function(e){return escapeHtml(e.sigla)}).join(', '):(dashFuente==='vivo'?'—':'En '+dashLabel))+'</div></div>'+
 
-    '<div style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid var(--ac)">'+
+    '<div'+_dr('prox')+' style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid var(--ac)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Próximas'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
     '<div style="font-size:32px;font-weight:800;color:var(--ac);line-height:1.2">'+prox.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+(dashFuente==='vivo'?'En plan mensual':dashFuente==='historico'?'Reconstruido desde historial':'Estimado por horas/día')+'</div></div>'+
@@ -705,7 +705,7 @@ export function renderDash(){
     '<div id="dashBlk-urgentes" style="display:'+(dashBloques.urgentes?'':'none')+'">'+
     '<div class="dg1" style="display:grid;grid-template-columns:1fr 280px;gap:16px">'+
 
-    '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:var(--danger);font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
+    '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:var(--danger);font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+(urg.length?'<button class="ver-mas" onclick="verEquiposDash(\'urg\')">Ver detalle →</button>':'')+'</div>'+
     (dashFuente==='vivo'?'<div style="font-size:11px;color:var(--tx3);margin:-4px 0 10px;display:flex;align-items:center;gap:5px"><svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Turno '+turnoActual+' · entrega ~'+horaEntregaTurno+(urg.length?' · <b style="color:var(--danger)">'+urg.length+' equipo'+(urg.length===1?'':'s')+'</b> para pasarle al próximo turno':' · nada urgente que entregar 👍')+'</div>':'')+
     (urg.length?
     '<!--URG_TABLA-->'
@@ -714,7 +714,7 @@ export function renderDash(){
 
     // Resumen rápido lateral
     '<div style="display:flex;flex-direction:column;gap:10px">'+
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
+    '<div'+_dr('todos')+' style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Flota'+badgeEnVivo+'</div>'+
     '<div style="font-size:28px;font-weight:800;color:var(--tx)">'+eq.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+Object.entries(tipos).map(function(t){return t[1]+' '+t[0]}).join(' · ')+'</div></div>'+
@@ -724,7 +724,7 @@ export function renderDash(){
     '<div style="font-size:28px;font-weight:800;color:var(--ac)">'+hhTotal+'<span style="font-size:12px">h</span></div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+reg.length+' intervenciones</div></div>'+
 
-    '<div style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
+    '<div'+_dr('aldia')+' style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Al Día</div>'+
     '<div style="font-size:28px;font-weight:800;color:var(--ok)">'+alDia.length+'</div>'+
     '<div style="font-size:9px;color:var(--tx3)">Sin intervención próxima</div></div>'+
@@ -755,7 +755,7 @@ export function renderDash(){
   if(proxPMs.length){
     var _GC=2*Math.PI*30; // circunferencia del anillo, r=30
     proxBlock+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">';
-    proxBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2);display:flex;align-items:center;gap:6px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs <span style="font-size:11px;color:var(--tx3)">(próximos 14 días)</span></div>';
+    proxBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2);display:flex;align-items:center;gap:6px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs <span style="font-size:11px;color:var(--tx3)">(próximos 14 días)</span><button class="ver-mas" style="margin-left:auto" onclick="go(\'plani\')">Ver planificación →</button></div>';
     proxBlock+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:10px">';
     proxPMs.forEach(function(e){
       var bColor=e.diasParaPM<=3?'var(--danger)':'var(--ac)';
@@ -890,10 +890,10 @@ export function renderDash(){
     // que el ojo capte la proporción sin tener que leer los números.
     mapaSaludBlock='<div class="chart-box" style="margin-bottom:16px"><div class="chart-t">'+ICONS.map+' Mapa de Salud de la Flota'+badgeEnVivo+'</div>'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px">'+
-      '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--danger) 16%,var(--bg3));border:1px solid color-mix(in srgb,var(--danger) 40%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--danger)">'+cCritMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🔴 Crítica</div><div style="font-size:9px;color:var(--tx3)">&lt;55% · requieren atención</div></div>'+
-      '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--ac) 14%,var(--bg3));border:1px solid color-mix(in srgb,var(--ac) 35%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--ac)">'+cWarnMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🟡 Advertencia</div><div style="font-size:9px;color:var(--tx3)">55-79% · a revisar</div></div>'+
-      '<div style="flex:1;min-width:110px;background:color-mix(in srgb,var(--ok) 12%,var(--bg3));border:1px solid color-mix(in srgb,var(--ok) 30%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--ok)">'+cOkMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🟢 Salud buena</div><div style="font-size:9px;color:var(--tx3)">≥80% · dentro de parámetros</div></div>'+
-      (cNoneMapa?'<div style="flex:none;min-width:70px;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--tx3)">'+cNoneMapa+'</div><div style="font-size:9px;color:var(--tx3)">⚪ sin datos</div></div>':'')+
+      '<div'+_dr('s_crit')+' style="flex:1;min-width:110px;background:color-mix(in srgb,var(--danger) 16%,var(--bg3));border:1px solid color-mix(in srgb,var(--danger) 40%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--danger)">'+cCritMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🔴 Crítica</div><div style="font-size:9px;color:var(--tx3)">&lt;55% · requieren atención</div></div>'+
+      '<div'+_dr('s_warn')+' style="flex:1;min-width:110px;background:color-mix(in srgb,var(--ac) 14%,var(--bg3));border:1px solid color-mix(in srgb,var(--ac) 35%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--ac)">'+cWarnMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🟡 Advertencia</div><div style="font-size:9px;color:var(--tx3)">55-79% · a revisar</div></div>'+
+      '<div'+_dr('s_ok')+' style="flex:1;min-width:110px;background:color-mix(in srgb,var(--ok) 12%,var(--bg3));border:1px solid color-mix(in srgb,var(--ok) 30%,var(--bd));border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--ok)">'+cOkMapa+'</div><div style="font-size:10px;color:var(--tx2);font-weight:600">🟢 Salud buena</div><div style="font-size:9px;color:var(--tx3)">≥80% · dentro de parámetros</div></div>'+
+      (cNoneMapa?'<div'+_dr('s_none')+' style="flex:none;min-width:70px;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:800;color:var(--tx3)">'+cNoneMapa+'</div><div style="font-size:9px;color:var(--tx3)">⚪ sin datos</div></div>':'')+
       '</div>'+
       // Grilla — un cuadrado por equipo, coloreado por banda, con el sigla+score
       // al pasar el mouse. Mismos colores/umbrales que las tarjetas de arriba y
@@ -916,7 +916,7 @@ export function renderDash(){
     .slice(0,10);
   var saludBajaBlock='';
   if(equiposConSalud.length){
-    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">'+ICONS.stetho+' Equipos con Salud Baja'+badgeEnVivo+' <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span></div>';
+    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">'+ICONS.stetho+' Equipos con Salud Baja'+badgeEnVivo+' <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span><button class="ver-mas" onclick="go(\'torre\')">Ver Torre de Control →</button></div>';
     saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
     equiposConSalud.forEach(function(r){
       var col=r.score.valor>=55?'var(--ac)':'var(--danger)';
@@ -994,6 +994,24 @@ export function renderDash(){
       '<td>'+pb(e.tipoPM)+'</td></tr>'}).join('')+
     '</table></div>':'';
   htmlUrgentes=htmlUrgentes.replace('<!--URG_TABLA-->',function(){return tablaUrgentes;});
+  // Ventana "¿cuáles son?" (verEquipos, index.html) para los números del tablero. Usa las listas del período que se está mirando (hoy, ayer, proyectado), no las de hoy;
+  // las bandas de salud sí son las de hoy (el Score de Salud no se reconstruye hacia atrás).
+  function _dr(k){return ' class="drill" role="button" tabindex="0" title="Ver cuáles son" onclick="verEquiposDash(\''+k+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();verEquiposDash(\''+k+'\')}"';}
+  window.verEquiposDash=function(k){
+    var cuando=dashFuente==='vivo'?'':' ('+dashLabel+(dashFuente==='historico'?', reconstruido':', estimado')+')';
+    var porDias=function(a,b){return (a.diasParaPM==null?1e9:a.diasParaPM)-(b.diasParaPM==null?1e9:b.diasParaPM);};
+    if(k==='urg')return verEquipos('Equipos urgentes'+cuando,'PM vencido o por vencer ya. Orden: criticidad, PM más vencido, salud más baja.',ordenUrgentes(urg,scorePorSiglaUrg).map(function(e){return Object.assign({},e,{score:scorePorSiglaUrg[e.sigla]});}));
+    if(k==='prox')return verEquipos('Equipos con PM próximo'+cuando,'PM que se acerca en el plan, del más cercano al más lejano.',prox.slice().sort(porDias));
+    if(k==='aldia')return verEquipos('Equipos al día'+cuando,'Sin intervención próxima.',alDia.slice().sort(porDias));
+    if(k==='todos')return verEquipos('Flota completa','Todos los equipos cargados, con su estado de PM de hoy.',eq.slice().sort(porDias));
+    var banda=function(r){var v=r.score.valor;return v==null?'none':v>=80?'ok':v>=55?'warn':'crit';};
+    var nombres={crit:['Salud crítica','Score de Salud menor a 55: requieren atención.'],warn:['Salud en advertencia','Score de Salud entre 55 y 79: conviene revisarlos.'],ok:['Salud buena','Score de Salud desde 80.'],none:['Sin datos de salud','No tienen datos suficientes para calcular su Score de Salud.']};
+    var b=k.replace('s_',''),def=nombres[b];
+    if(!def)return;
+    var porSigla={};eq.forEach(function(e){porSigla[e.sigla]=e;});
+    var filas=equiposConSaludTodos.filter(function(r){return banda(r)===b;}).map(function(r){var e=porSigla[r.sigla]||{};return{sigla:r.sigla,tipo:r.tipo,modelo:r.modelo,horomActual:e.horomActual,horomProxPM:e.horomProxPM,diasParaPM:e.diasParaPM,tipoPM:e.tipoPM,criticidad:e.criticidad,score:r.score.valor};}).sort(function(a,b){return (a.score==null?1e9:a.score)-(b.score==null?1e9:b.score);});
+    verEquipos(def[0],def[1]+' Del más bajo al más alto.',filas);
+  };
   var sec1=_dashSeccion(1,ICONS.bolt+' Equipos que Requieren Atención Ahora','Prioriza estas intervenciones para evitar fallas y downtime.',htmlUrgentes+wrapProx);
   var sec2=_dashSeccion(2,ICONS.stetho+' Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
   var sec3=_dashSeccion(3,ICONS.trend+' Tendencias y Análisis','Datos que impulsan decisiones predictivas y mejora continua.',htmlGraficos+wrapTrend);
