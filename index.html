@@ -109,9 +109,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .hs small{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:1px}
 
 .nav{background:var(--bg2);display:flex;flex-wrap:wrap;overflow-x:auto;border-bottom:1px solid var(--bd);padding:0 8px}
-.nav button{background:none;border:none;color:var(--tx3);padding:10px 14px;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
+.nav button{background:none;border:none;color:var(--tx3);padding:10px 10px;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
 .nav button:hover{color:var(--tx);background:var(--bg3)}
 .nav button.on{color:var(--ac);border-bottom-color:var(--ac)}
+/* Menú agrupado por función: cada grupo es un bloque con su etiqueta (solo escritorio); el menú se parte en filas entre grupos */
+.nav{position:relative}
+/* Iconos de Ayuda y Configuración: arriba a la derecha, en la primera fila, para no ocupar una fila propia */
+.nav-extras{position:absolute;right:8px;top:6px}
+.nav-grp{display:flex;align-items:center;margin-right:6px}
+.nav-g{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--tx3);padding:0 6px 0 4px;white-space:nowrap}
+
 .nav button svg{vertical-align:-3px;margin-right:3px}
 
 .main{padding:16px;max-width:1440px;margin:0 auto}
@@ -281,6 +288,10 @@ td.calc{color:var(--tx3);font-style:italic}
   .cards{grid-template-columns:repeat(2,1fr)}
   .prog-grid{grid-template-columns:80px repeat(12,1fr);font-size:8px}
   .nav{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .nav-extras{position:static;margin-left:auto;flex-shrink:0}
+  .nav-g{display:none}
+  .nav-grp{flex-shrink:0;margin-right:0}
+  .nav-grp + .nav-grp{border-left:1px solid var(--bd);margin-left:4px}
   .nav button{font-size:11px;padding:8px 10px;white-space:nowrap;flex-shrink:0}
   .sec{padding:10px}
   .sec-h{flex-direction:column;align-items:flex-start;gap:8px}
@@ -433,7 +444,7 @@ const _LAZY_VERS={
   ayuda:'2026-10-16',
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
-  comp2:'2026-10-10',
+  comp2:'2026-10-16',
   cos:'2026-10-13d',
   destrabe:'2026-10-08',
   disp:'2026-10-11p',
@@ -446,19 +457,19 @@ const _LAZY_VERS={
   kpi:'2026-10-14b',
   log:'2026-08-30',
   lub:'2026-10-08',
-  mkpi:'2026-10-14',
+  mkpi:'2026-10-16',
   gestion:'2026-10-14b',
   mov:'2026-08-30',
   papelera:'2026-08-30',
   pau:'2026-08-30',
   plan:'2026-10-12a',
-  plani:'2026-10-08',
+  plani:'2026-10-16',
   prg:'2026-08-31',
   progdia:'2026-08-30',
   rep:'2026-10-08',
   sem:'2026-10-08',
   stk:'2026-10-11d',
-  stk2:'2026-08-30',
+  stk2:'2026-10-16',
   uso:'2026-10-08',
   venc:'2026-09-02',
   // Segundo lote (2026-09-10, extensión): archivos que SÍ tienen alguna
@@ -480,7 +491,7 @@ const _LAZY_VERS={
   pred:'2026-10-13b',
   metas:'2026-10-14c',
   resumenejec:'2026-10-08',
-  reg:'2026-10-09',
+  reg:'2026-10-16',
   neu:'2026-10-12a',
   ot:'2026-10-09',
   prod:'2026-10-05b',
@@ -835,7 +846,7 @@ const ICONS={
 // dejar a un admin fuera de Configuración/el resto del sistema.
 const PERFILES_PESTANAS={
   horometro:['hist'],
-  comprador:['stk2'],
+  comprador:['stk2','cos'], // 'cos' (Costos) era una sub-pestaña de Stock & Insumos: el comprador sigue viendo Compras — Proveedores
   planificador:['plani','ot','pau','reg'],
 };
 function _tabsPermitidas(){
@@ -844,24 +855,26 @@ function _tabsPermitidas(){
   return TABS.filter(function(t){return permitidas.includes(t.id);});
 }
 const TABS=[
-  {id:'dash',l:'Dashboard',i:ICONS.dash},
-  {id:'torre',l:'Torre de Control',i:ICONS.faro},
-  {id:'eq',l:'Equipos',i:ICONS.gear},
-  {id:'reg',l:'Registro PM',i:ICONS.reg},
-  {id:'ot',l:'Correctivos',i:ICONS.ot},
-  {id:'plani',l:'Planificación',i:ICONS.cal},
-  {id:'pau',l:'Pautas',i:ICONS.pau},
-  {id:'neu',l:'Neumáticos',i:ICONS.tire},
-  {id:'stk2',l:'Stock & Insumos',i:ICONS.box},
-  {id:'hist',l:'Horómetros',i:ICONS.trend},
-  {id:'disp',l:'Disponibilidad',i:ICONS.gauge},
-  {id:'prod',l:'Producción',i:ICONS.tractor},
-  {id:'ace',l:'Análisis Aceite',i:ICONS.flask},
-  {id:'venc',l:'Vencimientos',i:ICONS.calDot},
-  {id:'comp2',l:'Componentes',i:ICONS.bolt},
-  {id:'mkpi',l:'Metas & KPIs',i:ICONS.target},
-  {id:'buscar',l:'Buscar',i:ICONS.search},
-  {id:'audit',l:'Auditoría de Datos',i:ICONS.eye}
+  // Menú agrupado por función (2026-10-16). 'g' es el grupo: solo cambia cómo se ve el menú; los id, las rutas y los perfiles no dependen del orden.
+  {id:'dash',l:'Dashboard',i:ICONS.dash,g:'Operación'},
+  {id:'torre',l:'Torre de Control',i:ICONS.faro,g:'Operación'},
+  {id:'eq',l:'Equipos',i:ICONS.gear,g:'Operación'},
+  {id:'reg',l:'Registro PM',i:ICONS.reg,g:'Operación'},
+  {id:'ot',l:'Correctivos',i:ICONS.ot,g:'Operación'},
+  {id:'hist',l:'Horómetros',i:ICONS.trend,g:'Operación'},
+  {id:'plani',l:'Planificación',i:ICONS.cal,g:'Planificación'},
+  {id:'pau',l:'Pautas',i:ICONS.pau,g:'Planificación'},
+  {id:'venc',l:'Vencimientos',i:ICONS.calDot,g:'Planificación'},
+  {id:'neu',l:'Neumáticos',i:ICONS.tire,g:'Activos'},
+  {id:'stk2',l:'Stock & Insumos',i:ICONS.box,g:'Activos'},
+  {id:'ace',l:'Análisis Aceite',i:ICONS.flask,g:'Activos'},
+  {id:'comp2',l:'Componentes',i:ICONS.bolt,g:'Activos'},
+  {id:'disp',l:'Disponibilidad',i:ICONS.gauge,g:'Desempeño'},
+  {id:'prod',l:'Producción',i:ICONS.tractor,g:'Desempeño'},
+  {id:'cos',l:'Costos',i:ICONS.money,g:'Desempeño'},
+  {id:'mkpi',l:'Metas & KPIs',i:ICONS.target,g:'Desempeño'},
+  {id:'buscar',l:'Buscar',i:ICONS.search,g:'Herramientas'},
+  {id:'audit',l:'Auditoría de Datos',i:ICONS.eye,g:'Herramientas'}
 ];
 // Pestañas fijas que se alcanzan por un atajo de contexto (no por un botón del
 // menú principal) y NO se recrean dentro de ningún contenedor de sub-pestañas:
@@ -880,8 +893,11 @@ function initNav(){
   // Barra principal — filtrada por 'perfil' si el usuario tiene uno asignado
   // (ver PERFILES_PESTANAS más arriba; admin siempre ve las 16 completas).
   const tabsNav=_tabsPermitidas();
-  $('nav').innerHTML=tabsNav.map(t=>`<button class="${t.id===currentTab?'on':''}" onclick="go('${t.id}')">${t.i} ${t.l}</button>`).join('')
-    + '<div style="margin-left:auto;display:flex;gap:4px">'
+  // Cada grupo va en su propio contenedor para que el menú se parta en filas entre grupos y no en medio de uno.
+  const _grupos=[];
+  tabsNav.forEach(t=>{const g=t.g||'';const ult=_grupos[_grupos.length-1];if(ult&&ult.g===g)ult.t.push(t);else _grupos.push({g:g,t:[t]});});
+  $('nav').innerHTML=_grupos.map(gr=>`<div class="nav-grp">${gr.g?`<span class="nav-g" aria-hidden="true">${escapeHtml(gr.g)}</span>`:''}${gr.t.map(t=>`<button class="${t.id===currentTab?'on':''}" onclick="go('${t.id}')">${t.i} ${t.l}</button>`).join('')}</div>`).join('')
+    + '<div class="nav-extras" style="display:flex;gap:4px">'
     + '<button class="" title="Manual de Usuario" onclick="go(\'ayuda\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.book+'</button>'
     + '<button class="" title="Configuración" onclick="go(\'cfg\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.sliders+'</button>'
     + '</div>';
@@ -1955,6 +1971,7 @@ window.VOICE_COMMANDS=[
   {patrones:['pautas'],accion:function(){go('pau');},decir:'Abriendo Pautas'},
   {patrones:['neumaticos'],accion:function(){go('neu');},decir:'Abriendo Neumáticos'},
   {patrones:['stock e insumos','stock','insumos'],accion:function(){go('stk2');},decir:'Abriendo Stock e Insumos'},
+  {patrones:['costos','costo total','costos y confiabilidad'],accion:function(){go('cos');},decir:'Abriendo Costos'},
   {patrones:['horometros'],accion:function(){go('hist');},decir:'Abriendo Horómetros'},
   {patrones:['disponibilidad'],accion:function(){go('disp');},decir:'Abriendo Disponibilidad'},
   {patrones:['analisis de aceite','analisis aceite'],accion:function(){go('ace');},decir:'Abriendo Análisis de Aceite'},

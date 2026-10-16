@@ -102,7 +102,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
 
   // ── Fallas y MTBF de flota ──
   const kpi = await textoDe(page, 'mkpi', 'kpi');
-  const cos = await textoDe(page, 'stk2', 'cos', async () => { await page.selectOption('#fCosVista', 'mtbf'); }, /TOTAL FALLAS/);
+  const cos = await textoDe(page, 'cos', null, async () => { await page.selectOption('#fCosVista', 'mtbf'); }, /TOTAL FALLAS/);
   const cosFila = await page.evaluate(() => {
     const o = {};
     [...document.querySelectorAll('#s-cos table tr')].forEach((tr) => { const c = [...tr.children].map((x) => x.innerText.trim()); if (/^[A-Z]{2}-\d+$/.test(c[0]) && c.length >= 8 && /^\d+$/.test(c[3])) o[c[0]] = { fallas: parseInt(c[3], 10), mtbf: parseInt(String(c[4]).replace(/\./g, ''), 10) }; });
@@ -111,7 +111,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   void errores;
   comparar('Fallas totales', [['cálculo (OT + historial + informes)', verdad.fallas], ['Informes KPI', num(kpi, /(\d+) fallas totales/)], ['Costos → MTBF/MTTR', num(cos, /TOTAL FALLAS (\d+)/)]]);
   comparar('MTBF de flota (h)', [['cálculo', verdad.mtbf], ['Dashboard', num(dash, /MTBF REAL DE FLOTA\S* (\d+)h/)], ['Informes KPI', num(kpi, /MTBF FLOTA (\d+) hrs/)], ['Costos → MTBF/MTTR', num(cos, /MTBF PROMEDIO FLOTA (\d+)h/)]]);
-  comparar('Horas-hombre acumuladas', [['cálculo', verdad.hh], ['Dashboard', num(dash, /HH ACUMULADAS\S* (\d+)h/)], ['Informes KPI', num(kpi, /Real: (\d+)h/)], ['Costos', num(cos, /HH REALES (\d+)h/) ?? num(await textoDe(page, 'stk2', 'cos', async () => { await page.selectOption('#fCosVista', 'costos'); }, /HH REALES/), /HH REALES (\d+)h/)]]);
+  comparar('Horas-hombre acumuladas', [['cálculo', verdad.hh], ['Dashboard', num(dash, /HH ACUMULADAS\S* (\d+)h/)], ['Informes KPI', num(kpi, /Real: (\d+)h/)], ['Costos', num(cos, /HH REALES (\d+)h/) ?? num(await textoDe(page, 'cos', null, async () => { await page.selectOption('#fCosVista', 'costos'); }, /HH REALES/), /HH REALES (\d+)h/)]]);
 
   // ── MTBF por equipo y fallas por equipo: Estadística contra Costos ──
   const est = await page.evaluate(async () => {
