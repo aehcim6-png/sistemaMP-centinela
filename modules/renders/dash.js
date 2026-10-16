@@ -539,19 +539,43 @@ export function renderDash(){
     }).join('')+
     '</div>';
 
+  // ═══ FILA SUPERIOR: lo primero que se lee (2026-10-16) — 4 números grandes: disponibilidad, urgentes, próximas y salud de la flota. Antes cada uno vivía en un bloque distinto,
+  // más abajo; ahora están juntos y arriba, y dejaron de repetirse. Urgentes y próximas abren la lista de equipos; disponibilidad y salud llevan a su pestaña.
+  var _kpiBase='background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:12px;padding:18px 20px;border:1px solid var(--bd);height:100%;box-sizing:border-box;';
+  var _kpiLbl='font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:4px';
+  var _sufEst=(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'');
+  var cardDisp=
+    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:12px;padding:18px 20px;text-align:left;height:100%;box-sizing:border-box;border:1px solid var(--bd);border-top:4px solid '+dispCol+';position:relative" title="Disponibilidad física/mecánica = (horas disponibles del día − horas caídas) / horas disponibles, promediado día a día del mes. Cuando un registro de PM o correctivo no tiene duración registrada, se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — son estimaciones, no datos medidos.">'+
+    '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA'+_dashBadgeTendencia('retraso')+'</div>'+
+    '<div style="font-size:44px;font-weight:900;color:'+dispCol+';line-height:1;margin:8px 0">'+(dispFlota===null?'—':dispFlota)+(dispFlota===null?'':'<span style="font-size:20px">%</span>')+'</div>'+
+    '<div style="margin:8px 0;width:100%;background:color-mix(in srgb,'+dispCol+' 18%,var(--bg4));border-radius:10px;height:12px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+(dispFlota===null?'Sin equipos con datos de disponibilidad en '+dashLabel:dispVals.length+' equipos con dato · promedio '+dispFlota+'% · meta '+meta+'%')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+dispCol+';height:100%;width:'+Math.min(dispFlota||0,100)+'%;border-radius:10px;transition:width .5s"></div></div>'+
+    '<div style="font-size:11px;color:'+dispCol+';font-weight:600">'+(dispFlota===null?'Sin datos para este período':dispFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+Math.round(meta-dispFlota)+'% bajo meta')+'</div>'+
+    '<div style="font-size:9px;color:var(--tx3);margin-top:6px">'+dispVals.length+' equipos · '+dashLabel+'</div>'+
+    '</div>';
+  var cardUrg='<div'+_dr('urg')+' style="'+_kpiBase+'border-top:4px solid var(--danger)">'+
+    '<div style="'+_kpiLbl+'">Urgentes'+_sufEst+'</div>'+
+    '<div style="font-size:44px;font-weight:900;color:var(--danger);line-height:1;margin:8px 0">'+urg.length+'</div>'+
+    '<div style="font-size:12px;color:var(--tx3)">'+(urg.length?urg.slice(0,2).map(function(e){return escapeHtml(e.sigla)}).join(', ')+(urg.length>2?' y '+(urg.length-2)+' más':''):(dashFuente==='vivo'?'Nada que intervenir hoy':'En '+dashLabel))+'</div></div>';
+  var cardProx='<div'+_dr('prox')+' style="'+_kpiBase+'border-top:4px solid var(--ac)">'+
+    '<div style="'+_kpiLbl+'">Próximas'+_sufEst+'</div>'+
+    '<div style="font-size:44px;font-weight:900;color:var(--ac);line-height:1;margin:8px 0">'+prox.length+'</div>'+
+    '<div style="font-size:12px;color:var(--tx3)">'+(dashFuente==='vivo'?'PM en el plan mensual':dashFuente==='historico'?'Reconstruido desde historial':'Estimado por horas/día')+'</div></div>';
+  var cardSalud='<div class="drill" role="button" tabindex="0" title="Ver la Torre de Control" onclick="go(\'torre\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();go(\'torre\')}" style="'+_kpiBase+'border-top:4px solid '+saludCol+'">'+
+    '<div style="'+_kpiLbl+'">Índice de salud de flota</div>'+
+    '<div style="font-size:44px;font-weight:900;color:'+saludCol+';line-height:1;margin:8px 0">'+(salud.valor==null?'—':salud.valor)+(salud.valor==null?'':'<span style="font-size:20px">%</span>')+'</div>'+
+    (enVivo?
+      (tendenciaSalud&&tendenciaSalud.delta!=null?
+        '<div style="font-size:12px;font-weight:600;color:'+(tendenciaSalud.delta>0?'var(--ok)':tendenciaSalud.delta<0?'var(--danger)':'var(--tx3)')+'">'+(tendenciaSalud.delta>0?'▲':tendenciaSalud.delta<0?'▼':'→')+' '+Math.abs(tendenciaSalud.delta)+' pts vs hace 7 días</div>'
+        :'<div style="font-size:12px;color:var(--tx3)">Sin dato de hace 7 días aún</div>')
+      :'<div style="font-size:12px;color:var(--tx3)">Tendencia solo viendo hoy</div>')+
+    '</div>';
+  var htmlResumen='<div class="kpi-row">'+cardDisp+cardUrg+cardProx+cardSalud+'</div>';
+
   var htmlSalud=
     // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número, arriba de todo ═══
     '<div id="dashBlk-salud" style="display:'+(dashBloques.salud?'':'none')+'">'+
-    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:18px 22px;margin-bottom:20px;border:2px solid '+saludCol+';display:flex;align-items:center;gap:22px;flex-wrap:wrap">'+
-    '<div style="text-align:center;min-width:150px">'+
-    '<div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--tx3)">Índice de Salud de Flota</div>'+
-    '<div style="font-size:48px;font-weight:900;color:'+saludCol+';line-height:1;margin:4px 0">'+(salud.valor==null?'—':salud.valor)+(salud.valor==null?'':'<span style="font-size:20px">%</span>')+'</div>'+
-    (enVivo?
-      (tendenciaSalud&&tendenciaSalud.delta!=null?
-        '<div style="font-size:11px;font-weight:600;color:'+(tendenciaSalud.delta>0?'var(--ok)':tendenciaSalud.delta<0?'var(--danger)':'var(--tx3)')+'">'+(tendenciaSalud.delta>0?'▲':tendenciaSalud.delta<0?'▼':'→')+' '+Math.abs(tendenciaSalud.delta)+' pts vs hace 7 días</div>'
-        :'<div style="font-size:10px;color:var(--tx3)">Sin dato de hace 7 días aún</div>')
-      :'<div style="font-size:10px;color:var(--tx3)">Tendencia solo disponible viendo hoy</div>')+
-    '</div>'+
+    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:12px;padding:14px 20px;margin-bottom:20px;border:1px solid var(--bd);display:flex;align-items:center;gap:22px;flex-wrap:wrap">'+
+    '<div style="font-size:12px;color:var(--tx3);min-width:150px;max-width:190px"><b style="color:var(--tx2)">Cómo se compone el índice de salud</b><br>Promedio de estas dimensiones (el número está arriba).</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">'+
     salud.detalle.map(function(c){
       var col=c.valor==null?'var(--tx3)':c.valor>=85?'var(--ok)':c.valor>=70?'var(--ac)':'var(--danger)';
@@ -573,29 +597,13 @@ export function renderDash(){
     // ═══ Z1: ARRIBA IZQUIERDA — KPI PRINCIPAL ═══
     // Disponibilidad grande — lo primero que ve el ojo
     '<div id="dashBlk-disp" style="display:'+(dashBloques.disp?'':'none')+'">'+
-    '<div class="dg1" style="display:grid;grid-template-columns:300px 1fr;gap:20px;margin-bottom:24px">'+
+    '<div class="dg1" style="display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:24px">'+
 
-    '<div style="background:linear-gradient(145deg,var(--bg3),var(--bg4));border-radius:14px;padding:24px;text-align:center;border:2px solid '+dispCol+';position:relative" title="Disponibilidad física/mecánica = (horas disponibles del día − horas caídas) / horas disponibles, promediado día a día del mes. Cuando un registro de PM o correctivo no tiene duración registrada, se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — son estimaciones, no datos medidos.">'+
-    '<div style="font-size:10px;text-transform:uppercase;letter-spacing:3px;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA'+_dashBadgeTendencia('retraso')+'</div>'+
-    '<div style="font-size:64px;font-weight:900;color:'+dispCol+';line-height:1;margin:8px 0">'+(dispFlota===null?'—':dispFlota)+(dispFlota===null?'':'<span style="font-size:28px">%</span>')+'</div>'+
-    '<div style="margin:10px auto;width:85%;background:color-mix(in srgb,'+dispCol+' 18%,var(--bg4));border-radius:10px;height:12px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+(dispFlota===null?'Sin equipos con datos de disponibilidad en '+dashLabel:dispVals.length+' equipos con dato · promedio '+dispFlota+'% · meta '+meta+'%')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+dispCol+';height:100%;width:'+Math.min(dispFlota||0,100)+'%;border-radius:10px;transition:width .5s"></div></div>'+
-    '<div style="font-size:11px;color:'+dispCol+';font-weight:600">'+(dispFlota===null?'Sin datos para este período':dispFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+Math.round(meta-dispFlota)+'% bajo meta')+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3);margin-top:6px">'+dispVals.length+' equipos · '+dashLabel+'</div>'+
-    '</div>'+
 
     // ═══ Z2: ARRIBA DERECHA — CONTEXTO / ESTADO GENERAL ═══
-    '<div class="dg2" style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:12px">'+
+    '<div class="dg2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">'+
 
     // Fila 1: Estado de flota
-    '<div'+_dr('urg')+' style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid var(--danger)">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Urgentes'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
-    '<div style="font-size:32px;font-weight:800;color:var(--danger);line-height:1.2">'+urg.length+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(urg.length?urg.slice(0,2).map(function(e){return escapeHtml(e.sigla)}).join(', '):(dashFuente==='vivo'?'—':'En '+dashLabel))+'</div></div>'+
-
-    '<div'+_dr('prox')+' style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid var(--ac)">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Próximas'+(dashFuente==='historico'?' (reconstruido)':dashFuente==='proyectado'?' (estimado)':'')+'</div>'+
-    '<div style="font-size:32px;font-weight:800;color:var(--ac);line-height:1.2">'+prox.length+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(dashFuente==='vivo'?'En plan mensual':dashFuente==='historico'?'Reconstruido desde historial':'Estimado por horas/día')+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid '+(cum===null?'var(--bd)':cum>=80?'var(--ok)':'var(--danger)')+'">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px" title="% de PMs/correctivos ejecutados a tiempo o antes de su fecha esperada. Registros sin fecha esperada de referencia (ej. importados por CSV) no se pueden evaluar y quedan fuera del cálculo.">Cumplimiento PM'+_dashBadgeTendencia('adelanto')+'</div>'+
@@ -1015,7 +1023,7 @@ export function renderDash(){
   var sec1=_dashSeccion(1,ICONS.bolt+' Equipos que Requieren Atención Ahora','Prioriza estas intervenciones para evitar fallas y downtime.',htmlUrgentes+wrapProx);
   var sec2=_dashSeccion(2,ICONS.stetho+' Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
   var sec3=_dashSeccion(3,ICONS.trend+' Tendencias y Análisis','Datos que impulsan decisiones predictivas y mejora continua.',htmlGraficos+wrapTrend);
-  dashEl.innerHTML=htmlChrome+sec1+sec2+sec3;
+  dashEl.innerHTML=htmlChrome+htmlResumen+sec1+sec2+sec3;
   if(typeof _animGauges==='function')_animGauges('s-dash');
 
   renderHeader();
