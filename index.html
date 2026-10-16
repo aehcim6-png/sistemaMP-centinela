@@ -152,7 +152,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .btn:hover{background:var(--ac3);box-shadow:var(--shadow-md);transform:translateY(-1px)}
 .btn:active{transform:translateY(0)}
 .btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#dc2626}
-.btn-o{background:none;border:1px solid var(--bd);color:var(--tx2);box-shadow:none}.btn-o:hover{border-color:var(--ac);color:var(--ac);box-shadow:none;transform:none}
+.btn-o{background:none;border:1px solid var(--bd);color:var(--tx2);box-shadow:none}.btn-o:hover{background:var(--bg3);border-color:var(--ac);color:var(--ac);box-shadow:none;transform:none}
 .btn-s{padding:3px 8px;font-size:11px}
 /* .btn-x: botón de acción de fila (editar/eliminar/restaurar/subir evidencia)
    usado en 12+ tablas — no tenía NINGUNA regla propia (encontrado auditando
@@ -398,6 +398,16 @@ tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--bg3) 38%,transpar
 tbody tr:hover td{background:var(--bg3)}
 body.dens-compact td{padding:3px 8px}
 body.dens-compact th{padding:6px 8px}
+
+/* Acciones agrupadas: en el encabezado de cada pestaña quedan a la vista los botones principales y el resto vive en "Más acciones ▾" (agruparAcciones, más abajo). */
+.acc-grupo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mas-acc{position:relative;display:inline-block}
+.mas-acc-m{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:240px;max-height:70vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--bd);border-radius:8px;box-shadow:var(--shadow-md);padding:6px;flex-direction:column;gap:2px}
+.mas-acc.abierto .mas-acc-m{display:flex}
+.mas-acc-m button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;justify-content:flex-start;background:none!important;border:0!important;box-shadow:none!important;color:var(--tx)!important;padding:8px 10px!important;border-radius:6px!important;font-size:13px!important;font-weight:500!important;min-height:0!important;white-space:normal}
+.mas-acc-m button:hover{background:var(--bg3)!important;color:var(--ac)!important}
+@media(max-width:768px){.mas-acc-m{left:0;right:auto}}
+@media print{.mas-acc{display:none!important}}
 /* ── Barra lateral (escritorio, > 768 px) ── el menú vive a la izquierda, debajo de la cabecera, con los 5 grupos y su etiqueta. Se puede contraer a solo iconos (se recuerda en este navegador).
    En celular (≤ 768 px) sigue siendo la tira horizontal de siempre. Solo presentación: ningún id, ruta ni permiso cambia. */
 @media(min-width:769px){
@@ -508,7 +518,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-16f',
+  ayuda:'2026-10-16g',
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
   comp2:'2026-10-16',
@@ -1148,6 +1158,52 @@ function densidadAlternar(){
   if(typeof toast==='function')toast(c?'Tablas compactas':'Tablas cómodas');
 }
 (function(){try{if(localStorage.getItem('densTablas')==='compacta')document.body.classList.add('dens-compact');}catch(e){}})();
+
+// Acciones agrupadas (2026-10-16): muchas pestañas ponen 6-10 botones de herramientas en una fila al lado del título. Acá se dejan a la vista los principales (los botones
+// llenos, hasta 2; si no hay, los 2 primeros) y los demás pasan, sin copiarlos, al menú "Más acciones ▾": son los mismos botones con sus mismos onclick, solo cambian de lugar.
+// Solo actúa si el encabezado tiene 4 o más botones y al menos 2 irían al menú. Un observador lo repite cada vez que una pestaña se vuelve a dibujar.
+function agruparAcciones(root){
+  (root||document).querySelectorAll('.sec-h:not([data-acc])').forEach(function(h){
+    h.setAttribute('data-acc','1');
+    const bs=[...h.children].filter(e=>e.tagName==='BUTTON'&&e.style.display!=='none'); // los que el rol ya ocultó no cuentan
+    if(bs.length<4)return;
+    const prim=bs.filter(b=>b.classList.contains('btn')&&!b.classList.contains('btn-o'));
+    const vis=prim.length?prim.slice(0,2):bs.slice(0,2);
+    const resto=bs.filter(b=>!vis.includes(b));
+    if(resto.length<2)return;
+    // los botones a la vista y el menú van juntos a la derecha del título
+    const g=document.createElement('div');g.className='acc-grupo';
+    const w=document.createElement('div');w.className='mas-acc';
+    w.innerHTML='<button type="button" class="btn btn-o" aria-haspopup="true" aria-expanded="false" onclick="masAccAlternar(this)">Más acciones ▾</button><div class="mas-acc-m" role="menu"></div>';
+    const m=w.querySelector('.mas-acc-m');
+    resto.forEach(b=>m.appendChild(b));
+    vis.forEach(b=>g.appendChild(b));
+    g.appendChild(w);
+    h.appendChild(g);
+  });
+}
+function masAccAlternar(btn){
+  const w=btn.closest('.mas-acc');
+  const abrir=!w.classList.contains('abierto');
+  document.querySelectorAll('.mas-acc.abierto').forEach(x=>{x.classList.remove('abierto');x.firstChild.setAttribute('aria-expanded','false');});
+  if(abrir){
+    // sin botones visibles (p. ej. el rol lector oculta los de escritura): no hay nada que mostrar
+    const hay=[...w.querySelectorAll('.mas-acc-m button')].some(b=>b.style.display!=='none');
+    if(!hay){w.style.display='none';return;}
+    w.classList.add('abierto');btn.setAttribute('aria-expanded','true');
+  }
+}
+document.addEventListener('click',function(e){
+  if(e.target.closest('.mas-acc-m button')||!e.target.closest('.mas-acc'))
+    document.querySelectorAll('.mas-acc.abierto').forEach(x=>{x.classList.remove('abierto');x.firstChild.setAttribute('aria-expanded','false');});
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')document.querySelectorAll('.mas-acc.abierto').forEach(x=>{x.classList.remove('abierto');x.firstChild.setAttribute('aria-expanded','false');});});
+(function(){
+  let pend=false;
+  const run=()=>{pend=false;agruparAcciones($('main'));};
+  const iniciar=()=>{const m=$('main');if(!m||!window.MutationObserver)return;agruparAcciones(m);new MutationObserver(()=>{if(!pend){pend=true;requestAnimationFrame(run);}}).observe(m,{childList:true,subtree:true});};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();
+})();
 // Auto-update clock every minute
 setInterval(function(){if(typeof renderHeader==='function')renderHeader();},60000);
 // ============ RENDERS ============

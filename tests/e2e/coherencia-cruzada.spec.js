@@ -103,6 +103,18 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   comparar('Ventana de fuera de servicio', [['encabezado', num(hs, /(\d+) FUERA DE SERVICIO/)], ['ventana', await filasVentana("verEquiposGrupo('fs')")]]);
   comparar('Ventana de salud crítica', [['Mapa de Salud', num(dash, /(\d+) 🔴 Crítica/)], ['ventana', await filasVentana("verEquiposDash('s_crit')")]]);
 
+  // ── Acciones agrupadas: los botones que pasan a "Más acciones" siguen existiendo y el menú abre y ejecuta ──
+  const acc = await page.evaluate(async () => {
+    window.go('ot'); await new Promise((r) => setTimeout(r, 1200));
+    const s = document.getElementById('s-ot'), b = s.querySelector('.mas-acc > button');
+    if (!b) return { enMenu: 0, abre: 0, modal: 0 };
+    const enMenu = s.querySelectorAll('.mas-acc-m button').length;
+    b.click(); const abre = b.closest('.mas-acc').classList.contains('abierto') ? 1 : 0;
+    s.querySelector('.mas-acc-m button').click(); const modal = document.getElementById('mbg').classList.contains('show') ? 1 : 0;
+    cm(); return { enMenu, abre, modal };
+  });
+  comparar('Correctivos: "Más acciones" tiene botones, abre y ejecuta', [['botones en el menú (≥2)', acc.enMenu >= 2 ? 1 : 0], ['el menú abre', acc.abre], ['un botón del menú actúa', acc.modal], ['esperado', 1]]);
+
   // ── Salud: Torre de Control contra el Mapa de Salud del Dashboard ──
   const torre = await textoDe(page, 'torre');
   comparar('Salud — equipos críticos', [['Torre', num(torre, /(\d+) INTERVENIR AHORA/)], ['Dashboard', num(dash, /(\d+) 🔴 Crítica/)]]);

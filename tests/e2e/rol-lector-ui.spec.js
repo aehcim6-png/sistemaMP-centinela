@@ -28,9 +28,11 @@ test('verificación: _aplicarRolUI oculta los botones de escritura para el rol l
   const btnNuevaOT = page.locator('button[onclick="addOT()"]');
   await expect(btnNuevaOT).toBeHidden({ timeout: 10000 });
 
-  // Un botón de solo-lectura del mismo panel (ir a Estadística) debe seguir visible.
+  // Un botón de solo-lectura del mismo panel (ir a Estadística) no debe quedar oculto por el rol. Puede estar dentro del menú "Más acciones"
+  // (cerrado, por eso no se ve), así que se comprueba que exista y que el rol no le haya puesto display:none.
   const btnEstadistica = page.locator("button[onclick=\"go('comp2');comp2Sub('estadistica')\"]");
-  await expect(btnEstadistica).toBeVisible();
+  await expect(btnEstadistica).toHaveCount(1);
+  await expect(btnEstadistica).not.toHaveCSS('display', 'none');
 });
 
 test('verificación: un admin SÍ ve los botones de escritura', async ({ page }) => {
