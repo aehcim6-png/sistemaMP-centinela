@@ -381,6 +381,23 @@ td.calc{color:var(--tx3);font-style:italic}
    Son reglas por atributo porque esos tamaños están escritos en línea en cada pantalla; así se corrigen todas a la vez sin tocar su lógica. */
 [style*="font-size:8px"],[style*="font-size:9px"],[style*="font-size:10px"]{font-size:11px!important}
 [style*="letter-spacing:2px"],[style*="letter-spacing:3px"]{letter-spacing:.1em!important}
+
+/* Cabecera más limpia (escritorio): fondo plano, una línea fina en vez de la raya ámbar, sin la marca de agua del engranaje y botones con borde sutil en vez de pastillas oscuras. */
+@media(min-width:481px){
+  .header{background:var(--bg2);border-bottom:1px solid var(--bd);box-shadow:none;padding:10px 20px}
+  .header::before{display:none}
+  #exportBar{background:transparent!important;border:0!important;padding:0!important;gap:6px!important}
+  #exportBar button,#_userBadge{border:1px solid var(--bd)!important;border-radius:6px!important;background:transparent!important;color:var(--tx2)!important;padding:6px 10px!important;box-shadow:none!important;font-size:12px!important}
+  #exportBar button:hover,#_userBadge:hover{border-color:var(--ac)!important;color:var(--tx)!important}
+  .hs small{letter-spacing:.06em}
+}
+/* Tablas: encabezado sobrio (el ámbar queda para las acciones), más aire por defecto, franja suave en filas alternas y dos densidades (cómoda / compacta, botón en la cabecera). */
+th{color:var(--tx2);font-size:11px;letter-spacing:.05em;padding:9px 10px}
+td{padding:7px 10px}
+tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--bg3) 38%,transparent)}
+tbody tr:hover td{background:var(--bg3)}
+body.dens-compact td{padding:3px 8px}
+body.dens-compact th{padding:6px 8px}
 /* ── Barra lateral (escritorio, > 768 px) ── el menú vive a la izquierda, debajo de la cabecera, con los 5 grupos y su etiqueta. Se puede contraer a solo iconos (se recuerda en este navegador).
    En celular (≤ 768 px) sigue siendo la tira horizontal de siempre. Solo presentación: ningún id, ruta ni permiso cambia. */
 @media(min-width:769px){
@@ -424,7 +441,7 @@ td.calc{color:var(--tx3);font-style:italic}
 <div class="header">
   <div class="logo"><img src="/icons/icon-192.png" alt="" aria-hidden="true"><div class="logo-t">SistemaMP<span>CENTINELA v10</span></div></div>
   <div class="hstats-wrap">
-    <div class="hstats-caption" title="Estado actual de toda la flota, siempre en vivo — no cambia según la pestaña ni el período que estés mirando">🔴 Flota en vivo — no cambia con la pestaña</div>
+    <div class="hstats-caption" title="Estado actual de toda la flota, siempre en vivo — no cambia según la pestaña ni el período que estés mirando"><span style="color:var(--ok)">●</span> En vivo · toda la flota</div>
     <div class="hstats" id="hs"></div>
   </div>
 </div>
@@ -491,7 +508,7 @@ td.calc{color:var(--tx3);font-style:italic}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-16e',
+  ayuda:'2026-10-16f',
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
   comp2:'2026-10-16',
@@ -1123,6 +1140,14 @@ function navAlternar(){
   window.addEventListener('load',medir);
   if(window.ResizeObserver){const h=document.querySelector('.header');if(h)new ResizeObserver(medir).observe(h);}
 })();
+
+// Densidad de las tablas: cómoda (más aire) o compacta (más filas por pantalla). Se recuerda en este navegador.
+function densidadAlternar(){
+  const c=document.body.classList.toggle('dens-compact');
+  try{localStorage.setItem('densTablas',c?'compacta':'comoda');}catch(e){}
+  if(typeof toast==='function')toast(c?'Tablas compactas':'Tablas cómodas');
+}
+(function(){try{if(localStorage.getItem('densTablas')==='compacta')document.body.classList.add('dens-compact');}catch(e){}})();
 // Auto-update clock every minute
 setInterval(function(){if(typeof renderHeader==='function')renderHeader();},60000);
 // ============ RENDERS ============
@@ -4103,6 +4128,7 @@ document.addEventListener('DOMContentLoaded',function(){
   var btnCss='padding:4px 12px;border-radius:16px;border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:11px';
   bar.innerHTML='<button type="button" aria-label="Exportar a CSV" onclick="exportTabla(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button>'+
     '<button type="button" aria-label="Imprimir" onclick="imprimirTab(currentTab,currentTab)" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir</button>'+
+    '<button type="button" aria-label="Cambiar densidad de las tablas" id="densBtn" onclick="densidadAlternar()" title="Densidad de las tablas: cómoda o compacta" style="'+btnCss+'"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg> Densidad</button>'+
     '<button type="button" aria-label="Comando de voz" id="voiceCmdBtn" onclick="_comandoDeVoz(this)" style="'+btnCss+'" title="Comando de voz — di el nombre de una pestaña, \'nueva OT\', \'urgentes\'...">'+ICONS.mic+' Voz</button>';
   right.appendChild(bar);
   var header=document.querySelector('.header');
