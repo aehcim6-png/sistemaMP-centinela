@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A15 |
+| A. Disponibilidad, fallas y tiempos | A1–A16 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C19 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L5 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **125 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **126 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -200,6 +200,15 @@ Son **125 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Dónde se ve:** Metas & KPIs → Informe de gestión, sección V.
 - **Límites:** no hay tareas anteriores cargadas, el seguimiento parte desde que se registran; no distingue tareas de una misma pauta entre sí más que por su texto.
 - **Código:** `informeBacklogPM`, `backlogDesdePM`.
+
+### A16. Orden de la tabla de equipos urgentes (Dashboard)
+- **Tipo:** regla de ordenamiento.
+- **Para qué sirve:** que en "Equipos Urgentes — Intervenir Ahora" lo primero que se lea sea lo que más importa, en vez del orden en que están cargados los equipos.
+- **De dónde viene:** 🔵 Criterio propio. No usa ninguna fórmula nueva: pone en orden tres datos que el sistema ya tiene.
+- **Cómo lo calcula aquí:** ordena por 1) criticidad del equipo (la etiqueta Crítico / Esencial / General de la tabla de equipos; sin etiqueta va al final), 2) días para el PM (el más vencido primero) y 3) Score de Salud más bajo primero (el del equipo, ver D7); al final, por sigla para que el orden sea estable. La tabla muestra además las columnas Criticidad y Salud.
+- **Dónde se ve:** Dashboard → Equipos Urgentes.
+- **Límites:** la criticidad es la etiqueta cargada a mano, no la calculada de Predictivo; la criticidad y la salud son las de hoy aunque el Dashboard muestre un mes pasado o proyectado. No es un puntaje: dos equipos con la misma criticidad se comparan por días, y la salud solo desempata.
+- **Código:** `ordenUrgentes`.
 
 ## B. Vida, supervivencia y tendencia de fallas
 

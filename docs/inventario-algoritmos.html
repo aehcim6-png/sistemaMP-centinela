@@ -74,7 +74,7 @@
   <h2>Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
-    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A15</td></tr>
+    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A16</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C19</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
@@ -88,7 +88,7 @@
     <tr><td><b>L. Datos y seguridad</b></td><td>L1–L5</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>125 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>126 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2>A. Disponibilidad, fallas y tiempos</h2>
 
@@ -268,6 +268,17 @@
     <li><b>Dónde se ve:</b> Metas &amp; KPIs → Informe de gestión, sección V.</li>
     <li><b>Límites:</b> no hay tareas anteriores cargadas, el seguimiento parte desde que se registran; no distingue tareas de una misma pauta entre sí más que por su texto.</li>
     <li><b>Código:</b> <code>informeBacklogPM</code>, <code>backlogDesdePM</code>.</li>
+  </ul>
+
+  <h3>A16. Orden de la tabla de equipos urgentes (Dashboard)</h3>
+  <ul>
+    <li><b>Tipo:</b> regla de ordenamiento.</li>
+    <li><b>Para qué sirve:</b> que en "Equipos Urgentes — Intervenir Ahora" lo primero que se lea sea lo que más importa, en vez del orden en que están cargados los equipos.</li>
+    <li><b>De dónde viene:</b> 🔵 Criterio propio. No usa ninguna fórmula nueva: pone en orden tres datos que el sistema ya tiene.</li>
+    <li><b>Cómo lo calcula aquí:</b> ordena por 1) criticidad del equipo (la etiqueta Crítico / Esencial / General de la tabla de equipos; sin etiqueta va al final), 2) días para el PM (el más vencido primero) y 3) Score de Salud más bajo primero (el del equipo, ver D7); al final, por sigla para que el orden sea estable. La tabla muestra además las columnas Criticidad y Salud.</li>
+    <li><b>Dónde se ve:</b> Dashboard → Equipos Urgentes.</li>
+    <li><b>Límites:</b> la criticidad es la etiqueta cargada a mano, no la calculada de Predictivo; la criticidad y la salud son las de hoy aunque el Dashboard muestre un mes pasado o proyectado. No es un puntaje: dos equipos con la misma criticidad se comparan por días, y la salud solo desempata.</li>
+    <li><b>Código:</b> <code>ordenUrgentes</code>.</li>
   </ul>
 
   <h2>B. Vida, supervivencia y tendencia de fallas</h2>

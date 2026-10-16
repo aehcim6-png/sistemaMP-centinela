@@ -708,17 +708,7 @@ export function renderDash(){
     '<div class="chart-box" style="padding:16px"><div class="chart-t" style="color:var(--danger);font-size:13px">🔴 Equipos Urgentes — Intervenir Ahora'+(dashFuente==='vivo'?'':' · '+dashLabel+(dashFuente==='historico'?' (reconstruido)':' (estimado)'))+'</div>'+
     (dashFuente==='vivo'?'<div style="font-size:11px;color:var(--tx3);margin:-4px 0 10px;display:flex;align-items:center;gap:5px"><svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Turno '+turnoActual+' · entrega ~'+horaEntregaTurno+(urg.length?' · <b style="color:var(--danger)">'+urg.length+' equipo'+(urg.length===1?'':'s')+'</b> para pasarle al próximo turno':' · nada urgente que entregar 👍')+'</div>':'')+
     (urg.length?
-    '<div class="tbl-wrap"><table style="font-size:11px">'+
-    '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Horóm.</th><th>Próx PM</th><th>Días</th><th>PM</th></tr>'+
-    urg.map(function(e){return'<tr>'+
-      '<td class="mono" style="color:var(--ac);font-weight:700">'+escapeHtml(e.sigla)+'</td>'+
-      '<td>'+escapeHtml(e.tipo)+'</td>'+
-      '<td style="font-size:10px">'+escapeHtml(e.modelo)+'</td>'+
-      '<td class="mono">'+fn(e.horomActual)+'</td>'+
-      '<td class="mono">'+fn(e.horomProxPM)+'</td>'+
-      '<td class="mono" style="color:var(--danger);font-weight:700">'+e.diasParaPM+'</td>'+
-      '<td>'+pb(e.tipoPM)+'</td></tr>'}).join('')+
-    '</table></div>'
+    '<!--URG_TABLA-->'
     :'<div style="padding:20px;text-align:center;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sin equipos urgentes</div>')+
     '</div>'+
 
@@ -978,6 +968,32 @@ export function renderDash(){
       contenido+
       '</div>';
   }
+  // Tabla de urgentes: se arma acá (y no donde nace htmlUrgentes) porque necesita el Score de Salud por equipo, que se calcula más arriba que este punto
+  // pero más abajo que htmlUrgentes. Orden: ordenUrgentes (logic.js). Criticidad = etiqueta de la tabla equipos; Salud = Score de hoy (no cambia con el selector de fecha).
+  var scorePorSiglaUrg={};
+  equiposConSaludTodos.forEach(function(r){scorePorSiglaUrg[r.sigla]=r.score.valor;});
+  var urgOrdenadas=ordenUrgentes(urg,scorePorSiglaUrg);
+  var tablaUrgentes=urgOrdenadas.length?
+    '<div style="font-size:10px;color:var(--tx3);margin:0 0 6px">Orden: criticidad del equipo → PM más vencido → salud más baja.'+(dashFuente==='vivo'?'':' Criticidad y Salud son de hoy.')+'</div>'+
+    '<div class="tbl-wrap"><table style="font-size:11px">'+
+    '<tr><th>#</th><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Criticidad</th><th>Salud</th><th>Horóm.</th><th>Próx PM</th><th>Días</th><th>PM</th></tr>'+
+    urgOrdenadas.map(function(e,i){
+      var sv=scorePorSiglaUrg[e.sigla];
+      var svCol=sv==null?'var(--tx3)':sv>=80?'var(--ok)':sv>=55?'var(--ac)':'var(--danger)';
+      var cc=e.criticidad==='Crítico'?'var(--danger)':e.criticidad==='Esencial'?'var(--ac)':'var(--tx3)';
+      return'<tr>'+
+      '<td class="mono" style="color:var(--tx3)">'+(i+1)+'</td>'+
+      '<td class="mono" style="color:var(--ac);font-weight:700">'+escapeHtml(e.sigla)+'</td>'+
+      '<td>'+escapeHtml(e.tipo)+'</td>'+
+      '<td style="font-size:10px">'+escapeHtml(e.modelo)+'</td>'+
+      '<td style="font-size:10px;font-weight:600;color:'+cc+'">'+(e.criticidad?escapeHtml(e.criticidad):'—')+'</td>'+
+      '<td class="mono" style="font-weight:700;color:'+svCol+'">'+(sv==null?'—':fn(sv))+'</td>'+
+      '<td class="mono">'+fn(e.horomActual)+'</td>'+
+      '<td class="mono">'+fn(e.horomProxPM)+'</td>'+
+      '<td class="mono" style="color:var(--danger);font-weight:700">'+e.diasParaPM+'</td>'+
+      '<td>'+pb(e.tipoPM)+'</td></tr>'}).join('')+
+    '</table></div>':'';
+  htmlUrgentes=htmlUrgentes.replace('<!--URG_TABLA-->',function(){return tablaUrgentes;});
   var sec1=_dashSeccion(1,ICONS.bolt+' Equipos que Requieren Atención Ahora','Prioriza estas intervenciones para evitar fallas y downtime.',htmlUrgentes+wrapProx);
   var sec2=_dashSeccion(2,ICONS.stetho+' Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
   var sec3=_dashSeccion(3,ICONS.trend+' Tendencias y Análisis','Datos que impulsan decisiones predictivas y mejora continua.',htmlGraficos+wrapTrend);
