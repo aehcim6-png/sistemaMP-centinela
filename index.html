@@ -298,6 +298,7 @@ td.calc{color:var(--tx3);font-style:italic}
   .prog-grid{grid-template-columns:80px repeat(12,1fr);font-size:8px}
   .nav{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
   .nav-extras{position:static;margin-left:auto;flex-shrink:0}
+  .nav-toggle{display:none!important}
   .nav-g{display:none}
   .nav-grp{flex-shrink:0;margin-right:0}
   .nav-grp + .nav-grp{border-left:1px solid var(--bd);margin-left:4px}
@@ -372,6 +373,36 @@ td.calc{color:var(--tx3);font-style:italic}
 @media print{
   .no-imprimir{display:none!important}
 }
+/* ── Barra lateral (escritorio, > 768 px) ── el menú vive a la izquierda, debajo de la cabecera, con los 5 grupos y su etiqueta. Se puede contraer a solo iconos (se recuerda en este navegador).
+   En celular (≤ 768 px) sigue siendo la tira horizontal de siempre. Solo presentación: ningún id, ruta ni permiso cambia. */
+@media(min-width:769px){
+  .shell{--side-w:236px;display:grid;grid-template-columns:var(--side-w) minmax(0,1fr);align-items:start}
+  body.nav-mini .shell{--side-w:64px}
+  .nav{position:sticky;top:var(--hh,84px);height:calc(100vh - var(--hh,84px));overflow-y:auto;overflow-x:hidden;flex-direction:column;flex-wrap:nowrap;border-bottom:0;border-right:1px solid var(--bd);padding:10px 8px 8px;scrollbar-width:thin}
+  .nav-grp{display:block;margin:0 0 6px}
+  .nav-g{display:block;padding:10px 10px 4px;font-size:10px;letter-spacing:.1em;color:var(--tx3)}
+  .nav-grp:first-child .nav-g{padding-top:4px}
+  .nav button{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;font-size:13px;text-align:left;border:0;border-radius:6px;color:var(--tx2)}
+  .nav button svg{width:16px;height:16px;flex:0 0 16px;margin:0;vertical-align:0}
+  .nav button.on{color:var(--tx);background:color-mix(in srgb,var(--ac) 15%,transparent);box-shadow:inset 3px 0 var(--ac)}
+  .nav button.on svg{color:var(--ac)}
+  .nav-extras{position:sticky;bottom:-8px;margin:auto -8px -8px;padding:8px;background:var(--bg2);border-top:1px solid var(--bd);display:flex;gap:4px}
+  .nav-extras button{width:auto;flex:1;justify-content:center}
+  body.nav-mini .nav{padding-inline:6px}
+  body.nav-mini .nav-g{height:1px;padding:0;margin:8px 8px;background:var(--bd);font-size:0;overflow:hidden}
+  body.nav-mini .nav-grp:first-child .nav-g{display:none}
+  body.nav-mini .nav-l{display:none}
+  body.nav-mini .nav button{justify-content:center;padding-inline:0}
+  body.nav-mini .nav-extras{flex-direction:column}
+  .main{margin:0;max-width:none}
+  /* La tabla de Equipos tiene celdas editables: con la barra lateral abierta en una pantalla de 1.440 px no cabe sin apretar las celdas, así que desliza hacia el lado en vez de cortar lo que se escribe */
+  #tbl-eq{min-width:1250px}
+  #tbl-eq td:nth-child(1) input{min-width:96px}
+  #tbl-eq td:nth-child(2) select{min-width:122px}
+  #tbl-eq td:nth-child(3) input{min-width:150px}
+}
+@media print{.nav{display:none!important}.shell{display:block}}
+
 </style>
 
   <!-- ══ FIREBASE SDK ══════════════════════════════════════════ -->
@@ -389,8 +420,10 @@ td.calc{color:var(--tx3);font-style:italic}
     <div class="hstats" id="hs"></div>
   </div>
 </div>
-<div class="nav" id="nav"></div>
+<div class="shell">
+<nav class="nav" id="nav" aria-label="Menú principal"></nav>
 <div class="main" id="main"></div>
+</div>
 <div class="modal-bg" id="mbg" onclick="if(event.target===this)cm()"><div class="modal" id="mc" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 <div class="toast" id="tst"></div>
 
@@ -450,7 +483,7 @@ td.calc{color:var(--tx3);font-style:italic}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-16c',
+  ayuda:'2026-10-16d',
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
   comp2:'2026-10-16',
@@ -906,10 +939,11 @@ function initNav(){
   // Cada grupo va en su propio contenedor para que el menú se parta en filas entre grupos y no en medio de uno.
   const _grupos=[];
   tabsNav.forEach(t=>{const g=t.g||'';const ult=_grupos[_grupos.length-1];if(ult&&ult.g===g)ult.t.push(t);else _grupos.push({g:g,t:[t]});});
-  $('nav').innerHTML=_grupos.map(gr=>`<div class="nav-grp">${gr.g?`<span class="nav-g" aria-hidden="true">${escapeHtml(gr.g)}</span>`:''}${gr.t.map(t=>`<button class="${t.id===currentTab?'on':''}" onclick="go('${t.id}')">${t.i} ${t.l}</button>`).join('')}</div>`).join('')
+  $('nav').innerHTML=_grupos.map(gr=>`<div class="nav-grp">${gr.g?`<span class="nav-g" aria-hidden="true">${escapeHtml(gr.g)}</span>`:''}${gr.t.map(t=>`<button class="${t.id===currentTab?'on':''}" title="${t.l}" onclick="go('${t.id}')">${t.i}<span class="nav-l">${t.l}</span></button>`).join('')}</div>`).join('')
     + '<div class="nav-extras" style="display:flex;gap:4px">'
     + '<button class="" title="Manual de Usuario" onclick="go(\'ayuda\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.book+'</button>'
     + '<button class="" title="Configuración" onclick="go(\'cfg\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.sliders+'</button>'
+    + '<button class="nav-toggle" title="Contraer o expandir el menú" aria-label="Contraer o expandir el menú" onclick="navAlternar()" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--tx2)"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="14" height="13" rx="1.5"/><line x1="8" y1="3.5" x2="8" y2="16.5"/></svg></button>'
     + '</div>';
   // Crear secciones para las 16 pestañas + las extra (atajos de contexto y fijas)
   // — SIEMPRE las 16 completas, aunque el nav muestre menos: go() bloquea la
@@ -930,10 +964,10 @@ async function go(id){
   if(typeof _logUsoPestana==='function')_logUsoPestana(id);
   currentTab=id;
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
-  document.querySelectorAll('.nav button:not([title])').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.nav-grp button').forEach(b=>b.classList.remove('on'));
   const sec=$('s-'+id);if(sec)sec.classList.add('on');
   const tabsNav=_tabsPermitidas();
-  [...$('nav').querySelectorAll('button:not([title])')].forEach((b,i)=>{if(i<tabsNav.length&&tabsNav[i].id===id)b.classList.add('on')});
+  [...$('nav').querySelectorAll('.nav-grp button')].forEach((b,i)=>{if(i<tabsNav.length&&tabsNav[i].id===id)b.classList.add('on')});
   // Carga perezosa (code-splitting, 2026-09-10, ver _LAZY_VERS/_LAZY_EXPORTS
   // más arriba): si 'id' es una de las 32 pestañas sin dependencias cruzadas
   // conocidas, su módulo puede no estar cargado todavía.
@@ -1067,6 +1101,20 @@ window.verEquiposGrupo=function(g){
   const filas=eq.filter(def[2]).map(f).sort((a,b)=>(a.diasParaPM==null?1e9:a.diasParaPM)-(b.diasParaPM==null?1e9:b.diasParaPM));
   verEquipos(def[0],def[1],filas);
 };
+
+// Barra lateral: contraer a iconos (se recuerda) y altura real de la cabecera para que el menú quede justo debajo.
+function navAlternar(){
+  const mini=document.body.classList.toggle('nav-mini');
+  try{localStorage.setItem('navMini',mini?'1':'0');}catch(e){}
+}
+(function(){
+  try{if(localStorage.getItem('navMini')==='1')document.body.classList.add('nav-mini');}catch(e){}
+  const medir=()=>{const h=document.querySelector('.header');if(h)document.documentElement.style.setProperty('--hh',h.offsetHeight+'px');};
+  medir();
+  window.addEventListener('resize',medir);
+  window.addEventListener('load',medir);
+  if(window.ResizeObserver){const h=document.querySelector('.header');if(h)new ResizeObserver(medir).observe(h);}
+})();
 // Auto-update clock every minute
 setInterval(function(){if(typeof renderHeader==='function')renderHeader();},60000);
 // ============ RENDERS ============
