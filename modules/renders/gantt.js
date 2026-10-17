@@ -71,6 +71,11 @@ export function renderGantt(){
     (otPorSiglaGantt[o.sigla]=otPorSiglaGantt[o.sigla]||[]).push(f);
   });
   var days=[];for(var d=1;d<=daysInMonth;d++)days.push(d);
+  // Plan del mes según el Programa Anual (una sola fuente del tipo de PM):
+  // el Gantt solo ubica el día; el Programa dice qué PM toca ese mes.
+  var MS_PRG=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  var prgPorSigla={};
+  (S.g('prg')||[]).forEach(function(p){prgPorSigla[p.sigla]=p;});
 
   $('s-gantt').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt de Mantención</div>'+
@@ -81,7 +86,8 @@ export function renderGantt(){
     '<span style="display:inline-block;width:14px;height:14px;background:#AED6F1;border-radius:2px"></span> Planificado '+
     '<span style="display:inline-block;width:14px;height:14px;background:#82E0AA;border-radius:2px"></span> Ejecutado '+
     '<span style="display:inline-block;width:14px;height:14px;background:#F5B7B1;border-radius:2px"></span> Atrasado '+
-    '<span style="display:inline-block;width:14px;height:14px;background:#F9E79F;border-radius:2px"></span> En Ejecución</div></div>'+
+    '<span style="display:inline-block;width:14px;height:14px;background:#F9E79F;border-radius:2px"></span> En Ejecución '+
+    '<span style="display:inline-block;width:14px;height:14px;background:#F8C471;border-radius:2px"></span> Correctivo</div></div>'+
     '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:10px">'+
     '<tr><th style="min-width:80px">Equipo</th><th>PM</th><th style="min-width:75px">Inicio</th><th style="min-width:75px">Fin</th><th>Estado</th><th>%</th>'+
     days.map(function(d){return'<th style="width:22px;text-align:center;font-size:9px;'+(d===todayDay?'background:var(--ac);color:#fff':'')+'">'+d+'</th>'}).join('')+'</tr>'+
@@ -91,20 +97,31 @@ export function renderGantt(){
       var iniMes=g.inicio?g.inicio.slice(0,7):'';
       var finMes=g.fin?g.fin.slice(0,7):'';
       var diasEjecPM={},diasEjecCorr={};
-      var fechasReales=[];
-      (regPorSiglaGantt[g.sigla]||[]).forEach(function(f){diasEjecPM[parseInt(f.slice(8,10))]=true;fechasReales.push(f);});
+      var fechasReales=[],fechasPM=[];
+      (regPorSiglaGantt[g.sigla]||[]).forEach(function(f){diasEjecPM[parseInt(f.slice(8,10))]=true;fechasReales.push(f);fechasPM.push(f);});
       (otPorSiglaGantt[g.sigla]||[]).forEach(function(f){diasEjecCorr[parseInt(f.slice(8,10))]=true;fechasReales.push(f);});
-      var totalEjecReal=Object.keys(diasEjecPM).length+Object.keys(diasEjecCorr).length;
-      var hayReal=fechasReales.length>0;
-      fechasReales.sort();
-      var iniMostrar=hayReal?fechasReales[0]:g.inicio;
-      var finMostrar=hayReal?fechasReales[fechasReales.length-1]:g.fin;
-      var estadoMostrar=hayReal?'Ejecutado':g.estado;
-      var avanceMostrar=hayReal?100:g.avance;
+      var nPM=Object.keys(diasEjecPM).length,nCorr=Object.keys(diasEjecCorr).length;
+      // Solo un registro de PM cuenta como PM ejecutado; un correctivo se muestra
+      // aparte (otro color) y no cierra ni da 100 % al PM planificado.
+      var hayPM=nPM>0,hayCorr=nCorr>0;
+      var hayReal=hayPM;
+      fechasReales.sort();fechasPM.sort();
+      var iniMostrar=hayPM?fechasPM[0]:g.inicio;
+      var finMostrar=hayPM?fechasPM[fechasPM.length-1]:g.fin;
+      var avanceMostrar=hayPM?100:g.avance;
+      // Tipo de PM: por defecto el del Programa Anual para este mes; si el
+      // planificador ya puso fechas en esta fila, se respeta su PM y se avisa
+      // cuando no coincide con el Programa.
+      var filaPrg=prgPorSigla[g.sigla];
+      var planMes=filaPrg&&filaPrg.meses?(filaPrg.meses[MS_PRG[mn-1]]||''):null;
+      var tieneFechas=!!(g.inicio||g.fin);
+      var pmMostrar=(planMes===null||(tieneFechas&&g.pm))?g.pm:planMes;
+      var pmDifiere=planMes!==null&&planMes!==''&&pmMostrar&&pmMostrar!==planMes;
+      var pmTitulo=planMes===null?'':(pmDifiere?'Programa Anual indica '+planMes+' para este mes':(planMes===''?'El Programa Anual no tiene PM este mes':'Según Programa Anual'));
       // Técnicos que trabajaron en este equipo, según Programación Diaria de las
       // mismas fechas con registro real — lookup en el índice precomputado de arriba.
       var tecnicosGantt=[];
-      if(hayReal){
+      if(hayPM||hayCorr){
         var setTec=new Set();
         var fechasUnicas={};fechasReales.forEach(function(f){fechasUnicas[f.slice(0,10)]=true;});
         Object.keys(fechasUnicas).forEach(function(f){
@@ -113,20 +130,20 @@ export function renderGantt(){
         });
         tecnicosGantt=[...setTec];
       }
-      return'<tr'+(hayReal?' style="background:rgba(34,197,94,.06)"':'')+'>'+
+      return'<tr'+(hayPM?' style="background:rgba(34,197,94,.06)"':'')+'>'+
         '<td class="mono" style="color:var(--ac)">'+escapeHtml(g.sigla)+'</td>'+
-        '<td>'+pb(g.pm)+'</td>'+
-        '<td class="ed" contenteditable onblur="edGantt('+gi+',\'inicio\',this.innerText.trim())" style="font-size:9px" title="'+(hayReal?'Auto-detectado desde reg/ot — puedes igual editarlo a mano':'')+'">'+escapeHtml(iniMostrar)+'</td>'+
+        '<td title="'+escapeHtml(pmTitulo)+'">'+(pmMostrar?pb(pmMostrar):'<span style="color:var(--tx3)">—</span>')+(pmDifiere?' <span style="color:var(--warn);font-size:9px">≠ Prog.</span>':'')+'</td>'+
+        '<td class="ed" contenteditable onblur="edGantt('+gi+',\'inicio\',this.innerText.trim())" style="font-size:9px" title="'+(hayPM?'Auto-detectado desde los registros de PM — puedes igual editarlo a mano':'')+'">'+escapeHtml(iniMostrar)+'</td>'+
         '<td class="ed" contenteditable onblur="edGantt('+gi+',\'fin\',this.innerText.trim())" style="font-size:9px">'+escapeHtml(finMostrar)+'</td>'+
-        '<td>'+(hayReal?'<span style="font-size:9px;color:var(--ok);font-weight:700"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Ejecutado ('+totalEjecReal+' reg.)</span>'+(tecnicosGantt.length?'<br><span style="font-size:8px;color:var(--tx3)" title="Según Programación Diaria"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> '+escapeHtml(tecnicosGantt.join(', '))+'</span>':''):
+        '<td>'+(hayReal?'<span style="font-size:9px;color:var(--ok);font-weight:700"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> PM ejecutado ('+nPM+' reg.)</span>'+(hayCorr?'<br><span style="font-size:8px;color:#B9770E">+ '+nCorr+' correctivo'+(nCorr===1?'':'s')+'</span>':'')+(tecnicosGantt.length?'<br><span style="font-size:8px;color:var(--tx3)" title="Según Programación Diaria"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 A6 6 0 0 1 16 11" fill="none"/><line x1="2" y1="11" x2="18" y2="11"/><line x1="10" y1="5" x2="10" y2="3"/></svg> '+escapeHtml(tecnicosGantt.join(', '))+'</span>':''):
         '<select onchange="edGantt('+gi+',\'estado\',this.value)" style="font-size:9px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;padding:1px">'+
-        ['Planificado','En Ejecución','Ejecutado','Atrasado','Postergado'].map(function(s){return'<option'+(g.estado===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>')+'</td>'+
+        ['Planificado','En Ejecución','Ejecutado','Atrasado','Postergado'].map(function(s){return'<option'+(g.estado===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'+(hayCorr?'<br><span style="font-size:8px;color:#B9770E" title="Un correctivo no cuenta como PM ejecutado">'+nCorr+' correctivo'+(nCorr===1?'':'s')+' (sin PM)</span>':''))+'</td>'+
         '<td class="'+(hayReal?'':'ed')+' mono" '+(hayReal?'':'contenteditable onblur="edGantt('+gi+',\'avance\',parseInt(this.innerText)||0)"')+' style="text-align:center;'+(hayReal?'color:var(--ok);font-weight:700':'')+'">'+avanceMostrar+'%</td>'+
         days.map(function(d){
           var inRange=iniMes===fMes&&finMes===fMes&&d>=iniDay&&d<=finDay;
           var bg='';
-          if(diasEjecCorr[d])bg='#82E0AA';
-          else if(diasEjecPM[d])bg='#82E0AA';
+          if(diasEjecPM[d])bg='#82E0AA';
+          else if(diasEjecCorr[d])bg='#F8C471';
           else if(inRange){
             if(g.estado==='Ejecutado')bg='#82E0AA';
             else if(g.estado==='Atrasado')bg='#F5B7B1';
