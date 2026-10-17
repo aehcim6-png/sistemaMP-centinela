@@ -139,8 +139,8 @@ export function renderCfg(){
     // LOG DE CAMBIOS (auditoría completa — todas las acciones, no solo login)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Log de Cambios</b>'+
-    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Auditoría completa del sistema — cada edición, creación o eliminación, no solo los inicios de sesión.</p>'+
-    '<button class="btn btn-o" onclick="verLogCambios()">Ver log de cambios</button>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Resumen corto de cada edición, creación o eliminación. Para saber <b>quién cambió qué, en qué pestaña y de qué valor a cuál</b>, usa el historial campo por campo (no se puede editar ni borrar): Auditoría de Datos → «Quién cambió qué».</p>'+
+    '<button class="btn" onclick="verAuditoriaCambios()">Quién cambió qué (campo por campo)</button> <button class="btn btn-o" onclick="verLogCambios()">Ver log de cambios (resumen)</button>'+
     '</div>'+
 
     // USO DEL SISTEMA (telemetría — qué pestañas se abren de verdad)

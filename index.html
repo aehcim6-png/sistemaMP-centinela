@@ -105,6 +105,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
    cada 60s sin importar cuál esté activa) — eso nunca cambió, pero hay que
    verse claramente distinto a una tarjeta de contenido para que no confunda. */
 .hs{text-align:center;padding:4px 12px;border-left:1px solid var(--bd)}
+.vacio-tabla{padding:22px 16px;margin:-8px 0 16px;text-align:center;font-size:13px;color:var(--tx3);border:1px dashed var(--bd);border-radius:8px}
+@media(max-width:560px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}.cards>.card{padding:12px}.cards .card-v{font-size:22px}
+  /* tarjetas en grillas escritas en línea con columnas de 100–199 px: en celular van de a dos, no de a una */
+  [style*="repeat(auto-fill,minmax(1"],[style*="repeat(auto-fit,minmax(1"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 .kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:6px 0 20px}
 @media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.kpi-row{gap:10px}.kpi-row>div{padding:14px!important}.kpi-row>div>div:nth-child(2){font-size:34px!important}}
@@ -590,9 +594,9 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-17b',
+  ayuda:'2026-10-17c',
   cad:'2026-08-30b',
-  cfg:'2026-10-13a',
+  cfg:'2026-10-17',
   comp2:'2026-10-16b',
   cos:'2026-10-17',
   destrabe:'2026-10-08',
@@ -1242,13 +1246,31 @@ function densidadAlternar(){
 }
 (function(){try{if(localStorage.getItem('densTablas')==='compacta')document.body.classList.add('dens-compact');}catch(e){}})();
 
+
+// Tablas sin filas: en vez de dejar solo los encabezados, un mensaje que dice si es porque aún no hay registros o porque los filtros no encuentran nada.
+function mensajesTablaVacia(root){
+  (root||document).querySelectorAll('.vacio-tabla').forEach(m=>{const t=m.previousElementSibling&&m.previousElementSibling.querySelector('table');if(!t||t.querySelector('td'))m.remove();});
+  (root||document).querySelectorAll('.tbl-wrap').forEach(w=>{
+    const t=w.querySelector(':scope > table');
+    if(!t||t.querySelector('td')||t.querySelectorAll('th').length<2)return;
+    if(w.nextElementSibling&&w.nextElementSibling.classList.contains('vacio-tabla'))return;
+    const sec=w.closest('.sec,#mc,div[id^="s-"]')||document;
+    const filtrado=[...sec.querySelectorAll('.toolbar select,.toolbar input')].some(e=>e.value&&e.type!=='checkbox')||[...sec.querySelectorAll('.toolbar input[type=checkbox]')].some(e=>e.checked);
+    const m=document.createElement('div');m.className='vacio-tabla';
+    m.textContent=filtrado?'No hay registros para lo que está elegido arriba. Cambia los filtros o la búsqueda.':'Todavía no hay registros en esta tabla.';
+    w.after(m);
+  });
+}
 // Acciones agrupadas (2026-10-16): muchas pestañas ponen 6-10 botones de herramientas en una fila al lado del título. Acá se dejan a la vista los principales (los botones
 // llenos, hasta 2; si no hay, los 2 primeros) y los demás pasan, sin copiarlos, al menú "Más acciones ▾": son los mismos botones con sus mismos onclick, solo cambian de lugar.
 // Solo actúa si el encabezado tiene 4 o más botones y al menos 2 irían al menú. Un observador lo repite cada vez que una pestaña se vuelve a dibujar.
 function agruparAcciones(root){
   (root||document).querySelectorAll('.sec-h:not([data-acc])').forEach(function(h){
     h.setAttribute('data-acc','1');
-    const bs=[...h.children].filter(e=>e.tagName==='BUTTON'&&e.style.display!=='none'); // los que el rol ya ocultó no cuentan
+    const btns=el=>[...el.children].filter(e=>e.tagName==='BUTTON'&&e.style.display!=='none'); // los que el rol ya ocultó no cuentan
+    let cont=h,bs=btns(h);
+    // algunas pestañas ponen sus botones dentro de un div al lado del título (Equipos): se busca ahí si en el encabezado mismo hay menos de 4
+    if(bs.length<4)[...h.children].filter(c=>c.tagName==='DIV').forEach(c=>{const x=btns(c);if(x.length>=4&&x.length>bs.length){cont=c;bs=x;}});
     if(bs.length<4)return;
     const prim=bs.filter(b=>b.classList.contains('btn')&&!b.classList.contains('btn-o'));
     const vis=prim.length?prim.slice(0,2):bs.slice(0,2);
@@ -1262,7 +1284,7 @@ function agruparAcciones(root){
     resto.forEach(b=>m.appendChild(b));
     vis.forEach(b=>g.appendChild(b));
     g.appendChild(w);
-    h.appendChild(g);
+    cont.appendChild(g);
   });
 }
 function masAccAlternar(btn){
@@ -1286,7 +1308,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')document.que
   // sub-pestañas: deja visible la activa (si hay muchas, la barra se desliza)
   const centrarSub=()=>document.querySelectorAll('#main .subtabs:not([data-ctr])').forEach(b=>{const on=b.querySelector('.subtab.on');if(!on)return;b.setAttribute('data-ctr','1');b.scrollLeft=Math.max(0,on.offsetLeft-(b.clientWidth-on.clientWidth)/2);});
   // un redibujado puede dejar visibles botones de escritura que el rol lector ya había ocultado: se reaplica (solo para ese rol)
-  const run=()=>{pend=false;agruparAcciones($('main'));centrarSub();if(window._userRole==='lector'&&typeof _aplicarRolUI==='function')_aplicarRolUI();};
+  const run=()=>{pend=false;agruparAcciones($('main'));centrarSub();mensajesTablaVacia($('main'));if(window._userRole==='lector'&&typeof _aplicarRolUI==='function')_aplicarRolUI();};
   const iniciar=()=>{const m=$('main');if(!m||!window.MutationObserver)return;agruparAcciones(m);new MutationObserver(()=>{if(!pend){pend=true;requestAnimationFrame(run);}}).observe(m,{childList:true,subtree:true});};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();
 })();

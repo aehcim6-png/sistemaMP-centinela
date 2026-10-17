@@ -39,10 +39,11 @@ async function textoDe(page, id, sub, antes, marca) {
   await page.waitForTimeout(1200);
   let t = '';
   // Un redibujado tardío (por ejemplo el que dispara un guardado) puede deshacer el cambio de vista: se reintenta hasta ver la marca.
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < (marca ? 20 : 6); i++) {
     if (antes) { await antes(); await page.waitForTimeout(1200); }
     t = await page.evaluate((id) => document.getElementById('s-' + id).innerText.replace(/\s+/g, ' '), id);
     if (!marca || marca.test(t)) break;
+    if (!antes) await page.waitForTimeout(1000); // sin acción previa, esperar a que la pantalla termine de dibujarse (bajo carga tarda)
   }
   return t;
 }
@@ -82,7 +83,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
 
   // ── Estados de equipo: encabezado, Dashboard y Equipos ──
   const hs = await page.evaluate(() => document.getElementById('hs').innerText.replace(/\s+/g, ' '));
-  const dash = await textoDe(page, 'dash');
+  const dash = await textoDe(page, 'dash', null, null, /CUMPLIMIENTO PM.*MTBF REAL DE FLOTA/);
   const eqUrg = await page.evaluate(async () => {
     const cont = async (v) => { document.getElementById('fEst') && (document.getElementById('fEst').value = v); renders.eq(); await new Promise((r) => setTimeout(r, 400)); const s = document.getElementById('fEst'); s.value = v; renders.eq(); await new Promise((r) => setTimeout(r, 400)); return document.querySelectorAll('#s-eq table tr').length - 1; };
     await window.go('eq'); await new Promise((r) => setTimeout(r, 800));
@@ -105,7 +106,8 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
 
   // ── Acciones agrupadas: los botones que pasan a "Más acciones" siguen existiendo y el menú abre y ejecuta ──
   const acc = await page.evaluate(async () => {
-    window.go('ot'); await new Promise((r) => setTimeout(r, 1200));
+    window.go('ot');
+    for (let i = 0; i < 40 && !document.querySelector('#s-ot .mas-acc > button'); i++) await new Promise((r) => setTimeout(r, 500));
     const s = document.getElementById('s-ot'), b = s.querySelector('.mas-acc > button');
     if (!b) return { enMenu: 0, abre: 0, modal: 0 };
     const enMenu = s.querySelectorAll('.mas-acc-m button').length;
@@ -118,15 +120,16 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   // ── Sub-pestañas, Predictivo agrupado y Estadística plegable: nada se perdió al reordenar ──
   const sp = await page.evaluate(async () => {
     const esp = (ms) => new Promise((r) => setTimeout(r, ms));
-    window._comp2Sub = 'pred'; window.go('comp2'); await esp(1500);
+    const hasta = async (fn) => { for (let i = 0; i < 40 && !fn(); i++) await esp(500); };
+    window._comp2Sub = 'pred'; window.go('comp2'); await hasta(() => document.getElementById('fPredVista'));
     const o = document.getElementById('fPredVista');
     const pred = { grupos: o.querySelectorAll('optgroup').length, opciones: o.querySelectorAll('option').length };
     const solapas = document.querySelectorAll('#s-comp2 .subtabs .subtab').length;
-    window._comp2Sub = 'estadistica'; window._estadisticaVista = 'componente'; window.go('comp2'); await esp(1800);
+    window._comp2Sub = 'estadistica'; window._estadisticaVista = 'componente'; window.go('comp2'); await hasta(() => document.querySelectorAll('#s-estadistica > details.sec-pleg').length >= 2);
     const r = document.getElementById('s-estadistica');
     const pleg = r.querySelectorAll(':scope > details.sec-pleg').length, abiertos = r.querySelectorAll(':scope > details.sec-pleg[open]').length;
     window._estadisticaVista = 'equipo'; // las demás comprobaciones parten de la vista por equipo
-    window._mkpiSub = 'metas'; window.go('mkpi'); await esp(1200);
+    window._mkpiSub = 'metas'; window.go('mkpi'); await hasta(() => document.querySelectorAll('#s-mkpi .subtabs .subtab').length >= 5);
     const metas = [...document.querySelectorAll('#s-mkpi .subtabs .subtab')].map((b) => b.textContent.trim());
     return { pred, solapas, pleg, abiertos, metas };
   });
@@ -144,7 +147,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   comparar('Salud — sin datos', [['Torre', num(torre, /(\d+) SIN DATOS/)], ['Dashboard', num(dash, /(\d+) ⚪ sin datos/)]]);
 
   // ── Fallas y MTBF de flota ──
-  const kpi = await textoDe(page, 'mkpi', 'kpi');
+  const kpi = await textoDe(page, 'mkpi', 'kpi', null, /MTBF FLOTA.*CUMPLIMIENTO PM/);
   const cos = await textoDe(page, 'cos', null, async () => { await page.selectOption('#fCosVista', 'mtbf'); }, /TOTAL FALLAS/);
   const cosFila = await page.evaluate(() => {
     const o = {};
