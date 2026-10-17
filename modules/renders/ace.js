@@ -252,6 +252,10 @@ export function renderAce(){
 function renderAceDash(ace){
   var holder=document.getElementById('aceDashHolder');
   if(!holder)return;
+  if(!ace.length){
+    holder.innerHTML='<div id="aceVacio" style="padding:22px 16px;margin:0 0 14px;text-align:center;font-size:13px;color:var(--tx3);border:1px dashed var(--bd);border-radius:8px">Aún no hay muestras de aceite cargadas, por eso no hay gráficos que mostrar. Usa «+ Manual» o «Importar CSV» para agregarlas.</div>';
+    return;
+  }
   var eq=S.g('eq')||[];
   var eqBySigla={};
   eq.forEach(function(e){eqBySigla[e.sigla]=e;});
