@@ -12,7 +12,8 @@ test('Gantt toma el PM del Programa Anual y separa el correctivo del PM ejecutad
   await page.locator('#li_btn').click();
   await expect(page.locator('#s-dash')).toHaveCount(1, { timeout: 15000 });
 
-  const r = await page.evaluate(async () => {
+  // La carga en segundo plano puede pisar los datos recién puestos: se reintenta hasta que el render los vea.
+  const leer = () => page.evaluate(async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const MS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
     const mes = MS[new Date().getMonth()];
@@ -26,12 +27,13 @@ test('Gantt toma el PM del Programa Anual y separa el correctivo del PM ejecutad
     for (let i = 0; i < 100 && !document.getElementById('s-gantt'); i++) await new Promise(r => setTimeout(r, 100));
     planiSub('gantt');
     for (let i = 0; i < 100 && !document.querySelector('#s-gantt table tr td'); i++) await new Promise(r => setTimeout(r, 100));
-    const filas = [...document.querySelectorAll('#s-gantt table tr')].slice(1).map(tr => ({
+    return [...document.querySelectorAll('#s-gantt table tr')].slice(1).map(tr => ({
       sigla: tr.cells[0].innerText.trim(), pm: tr.cells[1].innerText.trim(), estado: tr.cells[4].innerText.replace(/\s+/g, ' ').trim(),
       avance: tr.cells[5].innerText.trim(), naranjo: [...tr.querySelectorAll('td')].some(td => td.style.background && td.title === 'Correctivo registrado'),
     }));
-    return filas;
   });
+  let r = await leer();
+  for (let i = 0; i < 4 && !(r.find(f => f.sigla === 'ZZ-2') || {}).naranjo; i++) r = await leer();
   const z1 = r.find(f => f.sigla === 'ZZ-1'), z2 = r.find(f => f.sigla === 'ZZ-2');
   expect(z1.pm).toBe('PM3');          // Programa Anual manda sobre el PM1 del equipo
   expect(z2.pm).toBe('PM3');
