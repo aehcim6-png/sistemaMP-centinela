@@ -85,10 +85,10 @@
     <tr><td><b>I. Simulación y pronóstico</b></td><td>I1–I4</td></tr>
     <tr><td><b>J. Neumáticos, PM y reglas del programa</b></td><td>J1–J7</td></tr>
     <tr><td><b>K. Diagramas y gráficos</b></td><td>K1–K13</td></tr>
-    <tr><td><b>L. Datos y seguridad</b></td><td>L1–L5</td></tr>
+    <tr><td><b>L. Datos y seguridad</b></td><td>L1–L6</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>126 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>127 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2>A. Disponibilidad, fallas y tiempos</h2>
 
@@ -1408,6 +1408,17 @@
     <li><b>De dónde viene:</b> 🔵 Criterio propio, a partir de hallazgos de auditoría (reportes que estaban "ciegos" al historial).</li>
     <li><b>Cómo lo calcula aquí:</b> <code>_otHistComoOt</code> convierte cada fila del historial en una OT de tipo Correctivo, sin duración ni horómetro (no se inventan); <code>_informesFallaComoOt</code> solo cuenta como falla los informes de tipo "Falla Catastrófica" (un "Cambio de Componente Mayor" es un reemplazo planificado y no infla el conteo).</li>
     <li><b>Código:</b> <code>_otHistComoOt</code>, <code>_informesFallaComoOt</code>.</li>
+  </ul>
+
+  <h3>L6. Auditoría de cambios campo por campo</h3>
+  <ul>
+    <li><b>Tipo:</b> regla de comparación + registro.</li>
+    <li><b>Para qué sirve:</b> saber quién cambió qué en el programa, en qué pestaña, de qué valor a cuál y cuándo, sin que nadie pueda editar ni borrar ese historial después.</li>
+    <li><b>De dónde viene:</b> 🔵 Criterio propio, a pedido (quién realizó los cambios y en qué pestaña ingresó).</li>
+    <li><b>Cómo lo calcula aquí:</b> en cada guardado de una tabla, el programa compara la foto de antes con la de después (<code>auditoriaDiff</code>) y arma una fila por cada cosa que cambió: una fila nueva, una fila borrada o, en una fila editada, cada campo con su valor anterior y el nuevo. Se dejan fuera los campos que el propio sistema calcula (estado del equipo, días para el PM, porcentaje de vida restante, etc.: <code>AUDIT_CAMPOS_DERIVADOS</code>), porque cambian solos en cada recálculo y taparían los cambios de las personas, y las tablas que no son datos de trabajo (<code>AUDIT_EXCLUIR_TABLAS</code>: el propio log, cachés, alertas calculadas, históricos de solo lectura). Una importación masiva (más de 20 filas nuevas o borradas) queda en una sola fila resumen, y un guardado no genera más de 300 filas. <code>auditoriaFinalizar</code> completa cada fila con la persona, el rol, la pestaña, el dispositivo y la clave real de las filas nuevas, y <code>auditoriaReferencia</code> arma el texto corto para reconocer el registro (por ejemplo la sigla del equipo). Solo se registran guardados que llegaron a la nube sin error ni conflicto.</li>
+    <li><b>Dónde se ve:</b> Auditoría de Datos → «Quién cambió qué» (solo administradores).</li>
+    <li><b>Límites:</b> la persona la fija el servidor con la sesión (correo y fecha no se pueden falsear desde el navegador); el nombre, el rol y la pestaña los manda el navegador, así que son una referencia y no una prueba. Los cambios hechos sin conexión no se registran hasta que se guardan en la nube. Las ediciones de campos calculados no aparecen. El historial parte del 17 de octubre de 2026: no hay datos anteriores con este detalle.</li>
+    <li><b>Código:</b> <code>auditoriaDiff</code>, <code>auditoriaFinalizar</code>, <code>auditoriaReferencia</code>, <code>AUDIT_CAMPOS_DERIVADOS</code>, <code>AUDIT_EXCLUIR_TABLAS</code>.</li>
   </ul>
 
   <h2>M. Funciones internas (apéndice)</h2>

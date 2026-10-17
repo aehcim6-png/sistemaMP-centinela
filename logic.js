@@ -4552,6 +4552,104 @@ function criticidadEquipoABanda(criticidad){
   return null;
 }
 
+// ═══ AUDITORÍA DE CAMBIOS CAMPO POR CAMPO (2026-10-17) ═══
+// Compara dos fotos de una tabla (antes y después de un guardado) y devuelve una fila de auditoría por cada cosa que cambió: filas nuevas, filas borradas y,
+// en las editadas, cada campo con su valor anterior y su valor nuevo. Es lo que alimenta la tabla auditoria_cambios (quién, en qué pestaña, qué campo, de qué a qué).
+// No decide quién ni dónde (eso lo agrega store.js al enviarlo): solo qué cambió. Reglas:
+//  - Solo se miran las columnas reales de la tabla (cfg.cols) y se dejan fuera las calculadas por el sistema (AUDIT_CAMPOS_DERIVADOS: estado, días para el PM, etc.), porque cambian
+//    solas en cada recálculo y taparían los cambios reales de las personas. Si la persona cambió el horómetro, eso sí queda; que por eso cambie el estado, no.
+//  - Tablas que no son datos de trabajo (el propio log, cachés, alertas calculadas, históricos de solo lectura) no se auditan (AUDIT_EXCLUIR_TABLAS).
+//  - Altas o bajas masivas (más de AUDIT_MAX_FILAS_ALTA_BAJA filas en un guardado, p. ej. una importación) quedan en UNA sola fila resumen, no una por fila.
+//  - Un guardado no genera más de AUDIT_MAX_REGISTROS filas de auditoría: el resto se resume en una fila "(más cambios)".
+var AUDIT_EXCLUIR_TABLAS=['changelog','mapaRep','al','ocHist','comprasDetalle','papelera'];
+var AUDIT_CAMPOS_DERIVADOS={
+  eq:['estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM'],
+  neu:['pctRemanente','alerta','horasAcum','horomActual','ultimaMedicion','historial'],
+  stk:['proyMes','mesesCubierto','comprar','estado'],
+  lub:['proyMes'],
+  compMayores:['estado','riesgoNivel','riesgoTip'],
+  sen:['historial','horasAcum']
+};
+var AUDIT_MAX_FILAS_ALTA_BAJA=20,AUDIT_MAX_REGISTROS=300,AUDIT_MAX_VALOR=500;
+function _auditTexto(v){
+  if(v==null||v==='')return null;
+  var s=typeof v==='object'?JSON.stringify(v):String(v);
+  return s.length>AUDIT_MAX_VALOR?s.slice(0,AUDIT_MAX_VALOR)+'…':s;
+}
+// Texto corto para reconocer la fila sin saber su id interno: la primera de estas columnas que tenga valor.
+function auditoriaReferencia(fila){
+  if(!fila)return null;
+  var cand=['sigla','equipo','nombre','componente','nParte','descripcion','item','actividad','tarea','indicadorName','semana'];
+  var partes=[];
+  for(var i=0;i<cand.length&&partes.length<2;i++){var v=fila[cand[i]];if(v!=null&&v!==''&&typeof v!=='object')partes.push(String(v));}
+  var t=partes.join(' · ');
+  return t?t.slice(0,120):null;
+}
+function auditoriaDiff(k,cfg,antes,despues){
+  if(!cfg||!cfg.clave||AUDIT_EXCLUIR_TABLAS.indexOf(k)>=0)return [];
+  if(!Array.isArray(antes)||!Array.isArray(despues))return [];
+  var clave=cfg.clave;
+  var excl=AUDIT_CAMPOS_DERIVADOS[k]||[];
+  var cols=(cfg.cols||[]).filter(function(c){return excl.indexOf(c)<0&&c!==clave;});
+  var mapaAntes={},mapaDespues={};
+  antes.forEach(function(o){if(o&&o[clave]!=null)mapaAntes[o[clave]]=o;});
+  despues.forEach(function(o){if(o&&o[clave]!=null)mapaDespues[o[clave]]=o;});
+  var nuevas=despues.filter(function(o){return o&&(o[clave]==null||!mapaAntes[o[clave]]);});
+  var borradas=antes.filter(function(o){return o&&o[clave]!=null&&!mapaDespues[o[clave]];});
+  var out=[];
+  function altaBaja(lista,accion){
+    if(!lista.length)return;
+    if(lista.length>AUDIT_MAX_FILAS_ALTA_BAJA){
+      out.push({accion:accion,registro:null,referencia:lista.length+' filas',campo:'filas',valor_antes:null,valor_despues:(accion==='crear'?'+':'-')+lista.length,_fila:null});
+      return;
+    }
+    lista.forEach(function(o){out.push({accion:accion,registro:o[clave]!=null?String(o[clave]):null,referencia:auditoriaReferencia(o),campo:null,valor_antes:null,valor_despues:null,_fila:o});});
+  }
+  altaBaja(nuevas,'crear');
+  altaBaja(borradas,'eliminar');
+  var ediciones=[];
+  despues.forEach(function(o){
+    if(!o||o[clave]==null)return;
+    var prev=mapaAntes[o[clave]];
+    if(!prev)return;
+    cols.forEach(function(c){
+      var a=_auditTexto(prev[c]),n=_auditTexto(o[c]);
+      if(a!==n)ediciones.push({accion:'editar',registro:String(o[clave]),referencia:auditoriaReferencia(o),campo:c,valor_antes:a,valor_despues:n,_fila:null});
+    });
+  });
+  if(ediciones.length+out.length>AUDIT_MAX_REGISTROS){
+    var cupo=Math.max(0,AUDIT_MAX_REGISTROS-out.length-1);
+    var resto=ediciones.length-cupo;
+    ediciones=ediciones.slice(0,cupo);
+    ediciones.push({accion:'editar',registro:null,referencia:null,campo:'(más cambios)',valor_antes:null,valor_despues:'+'+resto+' campo(s) más en este guardado',_fila:null});
+  }
+  return out.concat(ediciones);
+}
+// Completa las filas de auditoría con quién/dónde (meta) y la clave real de las filas nuevas, que recién existe después de guardar (el sistema les pone el id al enviarlas).
+// Devuelve objetos con todas las columnas siempre presentes (el servidor exige que todas las filas de un envío tengan las mismas).
+function auditoriaFinalizar(regs,cfg,meta){
+  var m=meta||{};
+  return (regs||[]).map(function(r){
+    var registro=r.registro;
+    if(registro==null&&r._fila&&cfg&&r._fila[cfg.clave]!=null)registro=String(r._fila[cfg.clave]);
+    return{
+      tabla:cfg&&cfg.tabla?cfg.tabla:(m.tabla||null),
+      registro:registro==null?null:registro,
+      referencia:r.referencia==null?null:r.referencia,
+      accion:r.accion,
+      campo:r.campo==null?null:r.campo,
+      valor_antes:r.valor_antes==null?null:r.valor_antes,
+      valor_despues:r.valor_despues==null?null:r.valor_despues,
+      usuario_nombre:m.usuario_nombre==null?null:m.usuario_nombre,
+      rol:m.rol==null?null:m.rol,
+      pestana:m.pestana==null?null:m.pestana,
+      subpestana:m.subpestana==null?null:m.subpestana,
+      lote:m.lote==null?null:m.lote,
+      dispositivo:m.dispositivo==null?null:m.dispositivo
+    };
+  });
+}
+
 // Orden de la tabla "Equipos Urgentes" del Dashboard (2026-10-16). Antes salía en el orden en que estaban cargados los equipos. Ahora va primero
 // lo que más importa: 1) criticidad del equipo (la etiqueta Crítico/Esencial/General de la tabla equipos; sin etiqueta va al final),
 // 2) días para el PM (el más vencido primero), 3) Score de Salud más bajo, 4) sigla para que el orden sea estable. No inventa ningún puntaje
@@ -9951,7 +10049,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,

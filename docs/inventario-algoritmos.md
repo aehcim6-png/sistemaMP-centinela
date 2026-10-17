@@ -43,10 +43,10 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | I. Simulación y pronóstico | I1–I4 |
 | J. Neumáticos, PM y reglas del programa | J1–J7 |
 | K. Diagramas y gráficos | K1–K13 |
-| L. Datos y seguridad | L1–L5 |
+| L. Datos y seguridad | L1–L6 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **126 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **127 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -1140,6 +1140,15 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **De dónde viene:** 🔵 Criterio propio, a partir de hallazgos de auditoría (reportes que estaban "ciegos" al historial).
 - **Cómo lo calcula aquí:** `_otHistComoOt` convierte cada fila del historial en una OT de tipo Correctivo, sin duración ni horómetro (no se inventan); `_informesFallaComoOt` solo cuenta como falla los informes de tipo "Falla Catastrófica" (un "Cambio de Componente Mayor" es un reemplazo planificado y no infla el conteo).
 - **Código:** `_otHistComoOt`, `_informesFallaComoOt`.
+
+### L6. Auditoría de cambios campo por campo
+- **Tipo:** regla de comparación + registro.
+- **Para qué sirve:** saber quién cambió qué en el programa, en qué pestaña, de qué valor a cuál y cuándo, sin que nadie pueda editar ni borrar ese historial después.
+- **De dónde viene:** 🔵 Criterio propio, a pedido (quién realizó los cambios y en qué pestaña ingresó).
+- **Cómo lo calcula aquí:** en cada guardado de una tabla, el programa compara la foto de antes con la de después (`auditoriaDiff`) y arma una fila por cada cosa que cambió: una fila nueva, una fila borrada o, en una fila editada, cada campo con su valor anterior y el nuevo. Se dejan fuera los campos que el propio sistema calcula (estado del equipo, días para el PM, porcentaje de vida restante, etc.: `AUDIT_CAMPOS_DERIVADOS`), porque cambian solos en cada recálculo y taparían los cambios de las personas, y las tablas que no son datos de trabajo (`AUDIT_EXCLUIR_TABLAS`: el propio log, cachés, alertas calculadas, históricos de solo lectura). Una importación masiva (más de 20 filas nuevas o borradas) queda en una sola fila resumen, y un guardado no genera más de 300 filas. `auditoriaFinalizar` completa cada fila con la persona, el rol, la pestaña, el dispositivo y la clave real de las filas nuevas, y `auditoriaReferencia` arma el texto corto para reconocer el registro (por ejemplo la sigla del equipo). Solo se registran guardados que llegaron a la nube sin error ni conflicto.
+- **Dónde se ve:** Auditoría de Datos → «Quién cambió qué» (solo administradores).
+- **Límites:** la persona la fija el servidor con la sesión (correo y fecha no se pueden falsear desde el navegador); el nombre, el rol y la pestaña los manda el navegador, así que son una referencia y no una prueba. Los cambios hechos sin conexión no se registran hasta que se guardan en la nube. Las ediciones de campos calculados no aparecen. El historial parte del 17 de octubre de 2026: no hay datos anteriores con este detalle.
+- **Código:** `auditoriaDiff`, `auditoriaFinalizar`, `auditoriaReferencia`, `AUDIT_CAMPOS_DERIVADOS`, `AUDIT_EXCLUIR_TABLAS`.
 
 ---
 

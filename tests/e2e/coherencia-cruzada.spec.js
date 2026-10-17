@@ -203,6 +203,29 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   comparar('Equipos fuera de servicio', [['encabezado', num(hs, /(\d+) FUERA DE SERVICIO/)], ['Informe de gestión', num(gest, /IV\. Equipos fuera de servicio \((\d+)\)/)]]);
   comparar('Cumplimiento PM del mes (%)', [['Informe de gestión', numPunto(gest, /DENTRO DEL ESTÁNDAR (\d+)%/)], ['Dashboard', numPunto(dash, /CUMPLIMIENTO PM\S* ([\d.]+)%/)], ['Metas', metasReal('Cumplimiento PM', hoy.getMonth())], ['Informes KPI', mesesKpi('CUMPLIMIENTO PM')[mesActual] ?? null]], 0.6);
 
+  // ── Auditoría de cambios: un cambio real hecho en la app llega al servidor con persona, pestaña y valores; lo que el sistema calcula solo, no ──
+  const envios = [];
+  await page.route(/\/rest\/v1\/auditoria_cambios/, (route) => {
+    if (route.request().method() === 'POST') { try { envios.push(JSON.parse(route.request().postData() || '[]')); } catch (e) { /* ignorar */ } return route.fulfill({ status: 201, body: '' }); }
+    return route.fallback();
+  });
+  const aud = await page.evaluate(async () => {
+    window.go('eq'); await new Promise((r) => setTimeout(r, 900));
+    const eqs = S.g('eq'), e0 = eqs[0], antes = e0.hrsDia;
+    e0.hrsDia = (Number(antes) || 12) + 1;
+    e0.estado = 'ESTADO CALCULADO DE PRUEBA'; // lo calcula el sistema: no debe quedar en la auditoría
+    S.s('eq', eqs);
+    return { sigla: e0.sigla, antes: String(antes), despues: String(e0.hrsDia) };
+  });
+  for (let i = 0; i < 50 && !envios.flat().some((r) => r.campo === 'hrsDia'); i++) await page.waitForTimeout(500); // el envío va en segundo plano: se espera hasta 25 s, no un tiempo fijo
+  await page.waitForTimeout(500);
+  const regsAud = envios.flat();
+  const delCampo = regsAud.filter((r) => r.campo === 'hrsDia' && r.registro === aud.sigla && r.accion === 'editar' && r.tabla === 'equipos');
+  comparar('Auditoría: el cambio de un campo llega con el valor de antes y de después', [['filas del campo editado', delCampo.length], ['valores correctos', delCampo.filter((r) => r.valor_antes === aud.antes && r.valor_despues === aud.despues).length], ['esperado', 1]]);
+  comparar('Auditoría: queda la persona y la pestaña', [['persona, rol y pestaña', delCampo.filter((r) => r.usuario_nombre === 'Admin Test' && r.rol === 'admin' && r.pestana === 'Equipos').length], ['esperado', 1]]);
+  comparar('Auditoría: los campos que calcula el sistema no se registran', [['filas de "estado"', regsAud.filter((r) => r.campo === 'estado').length], ['esperado', 0]]);
+  comparar('Auditoría: todas las filas de un envío traen las mismas columnas', [['envíos con columnas distintas', envios.filter((lote) => new Set(lote.map((r) => Object.keys(r).sort().join(','))).size > 1).length], ['esperado', 0]]);
+
   const malas = resultados.filter((r) => !r.ok);
   console.log('Comparaciones: ' + resultados.length + ' · coinciden: ' + (resultados.length - malas.length) + ' · NO coinciden: ' + malas.length);
   malas.forEach((r) => console.log('  ✗ ' + r.nombre + ' → ' + r.detalle + (r.faltan.length ? ' (sin dato en: ' + r.faltan.join(', ') + ')' : '')));

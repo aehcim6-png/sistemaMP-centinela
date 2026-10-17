@@ -223,8 +223,27 @@ intentos fallidos se registran vía la Edge Function
 `registrar-intento-acceso` (clave de servicio, porque en ese momento no hay
 sesión de usuario con la que insertar directo en `changelog`).
 
-**Configuración → Log de cambios** — cada edición, creación o eliminación en
-el sistema, con fecha, usuario y detalle.
+**Auditoría de Datos → Quién cambió qué** (octubre 2026) — el historial
+campo por campo, y la fuente de verdad de "quién cambió qué": cada guardado
+confirmado en la nube deja una fila en `auditoria_cambios` con la persona
+(`usuario_id` y `usuario_email`, fijados por el servidor desde la sesión, no
+por el navegador), el nombre y rol que muestra la app, la pestaña y
+sub-pestaña, la tabla y el registro, el campo, el valor de antes y de después,
+un `lote` (un guardado = un lote) y el dispositivo. Solo un admin activo puede
+leerla. **Es de solo agregar**: no hay políticas de UPDATE ni DELETE, se
+quitaron esos permisos a `anon` y `authenticated`, y un trigger rechaza
+cualquier UPDATE, DELETE o TRUNCATE, incluso con la clave de servicio; si
+alguna vez hubiera que purgarla por volumen, hay que hacerlo desde el panel de
+Supabase deshabilitando el trigger a propósito. No registra los campos que
+calcula el sistema ni las tablas que no son datos de trabajo (ver ficha L6 del
+inventario). Un envío que falla por falta de red queda en cola en ese
+navegador y se reintenta.
+
+**Configuración → Log de cambios** — el log anterior (cada edición, creación
+o eliminación, con fecha, usuario y un resumen corto). Se mantiene, pero ya no
+es la fuente para saber quién cambió qué: guarda el nombre que escribe el
+propio navegador, no tiene la pestaña ni el valor campo por campo, y un admin
+puede editarlo o borrarlo.
 
 No confundir con la pestaña **Auditoría de Datos** (agosto 2026, en el menú
 principal): esa es otra cosa — no rastrea quién cambió qué, sino si los

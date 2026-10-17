@@ -205,7 +205,7 @@ export function renderAudit(){
     <div class="sec-h"><div>
       <div class="sec-t">${ICONS.eye} Auditoría de Datos</div>
       <div class="sec-s">Cruce automático de fuentes — se recalcula solo cada vez que abres esta pestaña</div>
-    </div></div>
+    </div>${window._userRole==='admin'?'<button class="btn" onclick="verAuditoriaCambios()" title="Historial de cambios campo por campo: quién, en qué pestaña, qué valor había antes y cuál quedó">'+ICONS.eye+' Quién cambió qué</button>':''}</div>
     <div class="toolbar" style="margin-bottom:14px">
       <select id="faSigla" onchange="renders.audit()"><option value="">Todos los equipos</option>${eq.slice().sort(function(a,b){return(a.sigla||'').localeCompare(b.sigla||'');}).map(function(e){return`<option${e.sigla===fSig?' selected':''}>${escapeHtml(e.sigla)}</option>`;}).join('')}</select>
       <select id="faAnio" onchange="renders.audit()"><option value="">Todos los años</option>${anios.map(function(a){return`<option value="${a}"${a===fAnio?' selected':''}>${a}</option>`;}).join('')}</select>
