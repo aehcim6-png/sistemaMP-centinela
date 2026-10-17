@@ -154,6 +154,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#dc2626}
 .btn-o{background:none;border:1px solid var(--bd);color:var(--tx2);box-shadow:none}.btn-o:hover{background:var(--bg3);border-color:var(--ac);color:var(--ac);box-shadow:none;transform:none}
 .btn-s{padding:3px 8px;font-size:11px}
+/* .btn-s sin .btn ni .btn-o (chips de año, Hoy/Ayer…) se veía como un botón blanco del navegador: ahora es un botón sobrio y, cuando está activo, ámbar suave. */
+.btn-s:not(.btn){background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);border-radius:6px;cursor:pointer;font-family:var(--font);font-weight:500}
+.btn-s:not(.btn):hover{border-color:var(--ac);color:var(--tx)}
+/* activo = el que no es de borde (.btn-o) cuando sus hermanos sí lo son (Hoy / Ayer / Año pasado…); los demás .btn-s sueltos (acciones de fila) quedan neutros */
+.btn-s:not(.btn):not(.btn-o):has(~ .btn-s.btn-o),.btn-s.btn-o ~ .btn-s:not(.btn):not(.btn-o){background:color-mix(in srgb,var(--ac) 18%,transparent);border-color:var(--ac);color:var(--ac);font-weight:600}
 /* .btn-x: botón de acción de fila (editar/eliminar/restaurar/subir evidencia)
    usado en 12+ tablas — no tenía NINGUNA regla propia (encontrado auditando
    el tamaño de tap en mobile, 2026-08-31): quedaba con el estilo nativo del
@@ -429,6 +434,13 @@ body.dens-compact th{padding:6px 8px}
   body.nav-mini .nav-l{display:none}
   body.nav-mini .nav button{justify-content:center;padding-inline:0}
   body.nav-mini .nav-extras{flex-direction:column}
+  /* contraída, al pasar el mouse (o con el foco del teclado) se abre encima del contenido, con nombres, sin empujarlo */
+  body.nav-mini .nav:hover,body.nav-mini .nav:focus-within{width:236px;margin-right:-172px;z-index:90;box-shadow:var(--shadow-md);padding-inline:8px}
+  body.nav-mini .nav:hover .nav-l,body.nav-mini .nav:focus-within .nav-l{display:inline}
+  body.nav-mini .nav:hover .nav-g,body.nav-mini .nav:focus-within .nav-g{height:auto;padding:10px 10px 4px;margin:0;background:none;font-size:11px;overflow:visible}
+  body.nav-mini .nav:hover .nav-grp:first-child .nav-g,body.nav-mini .nav:focus-within .nav-grp:first-child .nav-g{display:block;padding-top:4px}
+  body.nav-mini .nav:hover button,body.nav-mini .nav:focus-within button{justify-content:flex-start;padding:7px 10px}
+  body.nav-mini .nav:hover .nav-extras,body.nav-mini .nav:focus-within .nav-extras{flex-direction:row}
   .main{margin:0;max-width:none}
   /* La tabla de Equipos tiene celdas editables: con la barra lateral abierta en una pantalla de 1.440 px no cabe sin apretar las celdas, así que desliza hacia el lado en vez de cortar lo que se escribe */
   #tbl-eq{min-width:1250px}
@@ -578,7 +590,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-16j',
+  ayuda:'2026-10-16k',
   cad:'2026-08-30b',
   cfg:'2026-10-13a',
   comp2:'2026-10-16b',
@@ -1212,7 +1224,7 @@ function navAlternar(){
   try{localStorage.setItem('navMini',mini?'1':'0');}catch(e){}
 }
 (function(){
-  try{if(localStorage.getItem('navMini')==='1')document.body.classList.add('nav-mini');}catch(e){}
+  try{const g=localStorage.getItem('navMini');if(g==='1'||(g===null&&window.innerWidth<1500))document.body.classList.add('nav-mini');}catch(e){}
   const medir=()=>{const h=document.querySelector('.header');if(h)document.documentElement.style.setProperty('--hh',h.offsetHeight+'px');};
   medir();
   window.addEventListener('resize',medir);
