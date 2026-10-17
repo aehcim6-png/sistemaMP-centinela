@@ -553,7 +553,10 @@ export function renderCos() {
       (conc.sinValorCompra.length ? '<div style="font-size:10px;color:var(--tx3);margin-top:4px">Sin valor de compra cargado (no se comparan): ' + conc.sinValorCompra.map(escapeHtml).join(', ') + '</div>' : '') + '</div>' : '';
     content =
       '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏗️ Costo Total de Propiedad por equipo</div>' +
-      '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:6px 0 10px">Cuánto cuesta <b>tener</b> cada equipo por hora de operación: <b>capital</b> (amortización contable por hora, o valor de compra ÷ vida contable), <b>mantención</b> (repuestos y servicios de las órdenes de compra) y <b>detención</b> por falla (horas detenidas × el costo de hora detenida de Configuración' + (tcoD ? ', hoy ' + pHc(tcoD.aj.costoHoraDet) + '/h' + (Object.keys(tcoD.aj.porModelo || {}).length ? ' y valor propio en ' + fn(Object.keys(tcoD.aj.porModelo).length) + ' modelo(s)' : '') : '') + '). Se mide en la misma ventana para cada equipo y se compara con la mediana de su modelo. <b>No incluye mano de obra propia</b> (el costo de los correctivos no se registra). El indicador "Variable ÷ capital nuevo" dice si renovar podría convenir: bajo 1 significa que, aunque un equipo nuevo no gastara nada en mantención, no compensaría su capital.</div>' +
+      '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:6px 0 10px">Este es el <b>costo real por hora</b> de cada equipo: cuánto cuesta <b>tenerlo</b> por hora de operación. Suma el <b>capital</b> (lo que costó el equipo repartido en sus horas de vida, o la amortización contable por hora, según lo que elijas abajo), <b>mantención</b> (repuestos y servicios de las órdenes de compra) y <b>detención</b> por falla (horas detenidas × el costo de hora detenida de Configuración' + (tcoD ? ', hoy ' + pHc(tcoD.aj.costoHoraDet) + '/h' + (Object.keys(tcoD.aj.porModelo || {}).length ? ' y valor propio en ' + fn(Object.keys(tcoD.aj.porModelo).length) + ' modelo(s)' : '') : '') + '). Se mide en la misma ventana para cada equipo y se compara con la mediana de su modelo. <b>No incluye mano de obra propia</b> (el costo de los correctivos no se registra). El indicador "Variable ÷ capital nuevo" dice si renovar podría convenir: bajo 1 significa que, aunque un equipo nuevo no gastara nada en mantención, no compensaría su capital.</div>' +
+      '<div class="toolbar" style="margin-bottom:10px;flex-wrap:wrap"><label style="font-size:12px;color:var(--tx2)" title="La amortización contable es un valor de contabilidad (puede incluir otros conceptos o venir de otro precio): no es necesariamente lo que costó el equipo. Por defecto el capital se calcula con el valor de compra cargado en Equipos ÷ su vida en horas. Si a un equipo le falta ese dato se usa el otro, y la columna Capital/h dice cuál se usó. Lo cambia un administrador y vale para todos.">Capital por hora calculado con: ' +
+      '<select id="fTcoCap" onchange="tcoCambiarFuenteCapital(this.value)"' + (window._userRole === 'admin' ? '' : ' disabled') + ' style="margin-left:4px"><option value="compra"' + ((tcoD && tcoD.fuenteCapital) !== 'contable' ? ' selected' : '') + '>Valor de compra ÷ vida en horas (lo que costó)</option><option value="contable"' + ((tcoD && tcoD.fuenteCapital) === 'contable' ? ' selected' : '') + '>Amortización contable (Horas a Amortizar)</option></select></label>' +
+      (window._userRole === 'admin' ? '' : '<span style="font-size:11px;color:var(--tx3)">Solo un administrador puede cambiarlo.</span>') + '</div>' +
       (tcoR.length ?
         '<div class="cards" style="margin-bottom:10px"><div class="card"><div class="card-t">Equipos con datos</div><div class="card-v">' + fn(tcoR.length) + '</div><div class="card-s">con al menos 90 días de compras y horas de operación</div></div>' +
         '<div class="card"><div class="card-t">Costo anual de propiedad</div><div class="card-v" style="color:var(--ac)">' + _tcoMM(totAnual) + '</div><div class="card-s">suma de los equipos' + (sinCap ? ' (' + fn(sinCap) + ' sin capital cargado)' : '') + '</div></div>' +
@@ -564,7 +567,7 @@ export function renderCos() {
           var rz = r.razonVariableCapitalNuevo, rc = rz == null ? 'inherit' : rz >= 1 ? 'var(--danger)' : rz >= 0.7 ? 'var(--w)' : 'var(--ok)';
           return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(r.sigla) + '</td><td style="font-size:10px">' + escapeHtml(r.modelo || '') + '</td>' +
             '<td class="mono" style="text-align:right" title="' + escapeHtml(r.fuenteHoras) + '">' + fn(Math.round(r.horas)) + '</td>' +
-            '<td class="mono" style="text-align:right">' + (r.capitalPorHora != null ? pHc(r.capitalPorHora) : '<span style="color:var(--tx3)">—</span>') + '</td>' +
+            '<td class="mono" style="text-align:right" title="' + escapeHtml(r.capital ? 'Calculado con: ' + r.capital.fuente : 'Sin valor de compra ni amortización cargados') + '">' + (r.capitalPorHora != null ? pHc(r.capitalPorHora) : '<span style="color:var(--tx3)">—</span>') + '</td>' +
             '<td class="mono" style="text-align:right">' + pHc(r.matPorHora) + '</td><td class="mono" style="text-align:right">' + pHc(r.detPorHora) + '</td>' +
             '<td class="mono" style="text-align:right;font-weight:700">' + (r.tcoPorHora != null ? pHc(r.tcoPorHora) : '<span style="color:var(--tx3)">sin capital</span>') + '</td>' +
             '<td class="mono" style="text-align:right;color:' + ic + '">' + (iv == null ? '—' : (Math.round(iv * 100) / 100 + '').replace('.', ',') + '×') + '</td>' +
@@ -772,7 +775,18 @@ export function verComprasProveedores(){
   </div>`);
 }
 
+// Cambia la fuente del capital por hora del TCO ('compra' o 'contable'); se guarda en Configuración y vale para todos los usuarios y pantallas que muestran el TCO.
+export function tcoCambiarFuenteCapital(v) {
+  if (window._userRole !== 'admin') { toast('⛔ Solo un administrador puede cambiarlo'); return; }
+  var c = S.g('cfg') || {};
+  c.tcoCapitalFuente = v === 'contable' ? 'contable' : 'compra';
+  S.s('cfg', c);
+  toast('✅ Capital por hora: ' + (c.tcoCapitalFuente === 'contable' ? 'amortización contable' : 'valor de compra ÷ vida en horas'));
+  renders.cos();
+}
+
 // Puente window/renders — ver nota en mov.js (primera tanda).
+window.tcoCambiarFuenteCapital = tcoCambiarFuenteCapital;
 window.renderCos = renderCos;
 window.verComprasProveedores = verComprasProveedores;
 window.arriendoCambiar = arriendoCambiar;

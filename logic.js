@@ -5501,11 +5501,15 @@ function _tcoVidaH(e){
   return null;
 }
 // Capital por hora de un equipo: {porHora, fuente} o null.
-function tcoCapitalPorHora(e){
-  if(Number(e.valorHoraAmort)>0)return{porHora:Number(e.valorHoraAmort),fuente:'amortización contable por hora'};
-  var v=Number(e.valorCompra)||0,vida=_tcoVidaH(e);
-  if(v>0&&vida)return{porHora:v/vida.h,fuente:'valor de compra ÷ '+vida.fuente};
-  return null;
+// fuente: 'compra' = valor de compra ÷ vida en horas (lo que costó el equipo, repartido en las horas que se espera que trabaje); 'contable' = la amortización por hora del listado
+// "Horas a Amortizar" (es un valor contable: puede incluir otros conceptos o venir de otro precio). Con cualquiera de las dos, si falta su dato se usa la otra, y el resultado
+// dice cuál se usó. Sin 'fuente' se mantiene el orden histórico (contable primero). La pantalla usa la elegida en Configuración (cfg.tcoCapitalFuente; por defecto 'compra').
+function tcoCapitalPorHora(e,fuente){
+  var vh=Number(e.valorHoraAmort)||0,v=Number(e.valorCompra)||0,vida=_tcoVidaH(e);
+  var contable=vh>0?{porHora:vh,fuente:'amortización contable por hora'}:null;
+  var compra=(v>0&&vida)?{porHora:v/vida.h,fuente:'valor de compra ÷ '+vida.fuente}:null;
+  if(fuente==='compra')return compra||contable;
+  return contable||compra;
 }
 // d: {compras, downMap, hist, hoy, hasta} · o: {costoHoraDet, minDias}. Devuelve null si no hay mantención registrada o la ventana es corta.
 function tcoEquipo(e,d,o){
@@ -5527,7 +5531,7 @@ function tcoEquipo(e,d,o){
   var mat=lineas.reduce(function(s,c){return s+(Number(c.costo)||0);},0);
   var dm=(d.downMap&&d.downMap[e.sigla])||{},horasDet=0;
   Object.keys(dm).forEach(function(f){if(f>=desde&&f<=hasta)horasDet+=dm[f];});
-  var det=horasDet*cd,cap=tcoCapitalPorHora(e),capTotal=cap?cap.porHora*horas:null;
+  var det=horasDet*cd,cap=tcoCapitalPorHora(e,op.fuenteCapital),capTotal=cap?cap.porHora*horas:null;
   var matH=mat/horas,detH=det/horas,varH=matH+detH;
   var r={sigla:e.sigla,modelo:e.modelo,tipo:e.tipo,costoHoraDet:cd,costoDetPropio:costoHoraDetPropio(e.modelo,op),desde:desde,hasta:hasta,dias:dias,anios:anios,horas:horas,horasAnio:horas/anios,fuenteHoras:fuenteHoras,
     mat:mat,matAnual:mat/anios,matPorHora:matH,horasDet:horasDet,det:det,detAnual:det/anios,detPorHora:detH,
@@ -5565,9 +5569,9 @@ function tcoFlota(equipos,d,o){
     r.modeloN=n;r.medianaModelo=n>=3?med(g.map(function(x){return x.variablePorHora;})):null;
     r.indiceVsModelo=r.medianaModelo>0?r.variablePorHora/r.medianaModelo:null;
     // unidad más nueva del mismo modelo (año de fabricación o menor horómetro) como referencia de capital de reemplazo
-    var mismos=(equipos||[]).filter(function(e){return _normalizarModelo(e.modelo)===_normalizarModelo(r.modelo)&&tcoCapitalPorHora(e);});
+    var mismos=(equipos||[]).filter(function(e){return _normalizarModelo(e.modelo)===_normalizarModelo(r.modelo)&&tcoCapitalPorHora(e,op.fuenteCapital);});
     mismos.sort(function(a,b){return(Number(b.anioFab)||0)-(Number(a.anioFab)||0)||(Number(a.horomActual)||0)-(Number(b.horomActual)||0);});
-    var nuevo=mismos[0]||null,capN=nuevo?tcoCapitalPorHora(nuevo):null;
+    var nuevo=mismos[0]||null,capN=nuevo?tcoCapitalPorHora(nuevo,op.fuenteCapital):null;
     r.capitalNuevoPorHora=capN?capN.porHora:null;r.refNuevo=nuevo?nuevo.sigla:null;
     r.razonVariableCapitalNuevo=capN&&capN.porHora>0?r.variablePorHora/capN.porHora:null;
   });
@@ -5622,10 +5626,11 @@ function tcoFlotaAuto(){
     var mttr=(typeof duracionesReparacionFlotaHoras==='function'&&typeof medianaPositiva==='function')?medianaPositiva(duracionesReparacionFlotaHoras(ot)):null;
     var aj=tboAjustesCosto(lee,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos,(S.g('cfg')||{}).tasaUSD);
     var amort=eqs.reduce(function(a,e){return a+(Number(e&&e.valorHoraAmort)||0)+(Number(e&&e.vidaContableH)||0)+(Number(e&&e.valorCompra)||0);},0);
-    var clave=[JSON.stringify(aj.porModelo),eqs.length,eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0),amort,oc.length,cd.length,hist.length,reg.length,otAll.length,aj.costoHoraDet].join('|'),ahora=Date.now();
+    var fuenteCap=((S.g('cfg')||{}).tcoCapitalFuente)==='contable'?'contable':'compra';
+    var clave=[fuenteCap,JSON.stringify(aj.porModelo),eqs.length,eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0),amort,oc.length,cd.length,hist.length,reg.length,otAll.length,aj.costoHoraDet].join('|'),ahora=Date.now();
     if(_tcoCache.clave===clave&&ahora-_tcoCache.ts<5000)return _tcoCache.val;
-    var res=tcoFlota(eqs,{compras:tboUnirCompras(oc,cd),hist:hist,reg:reg,ot:otAll,hoy:new Date()},{costoHoraDet:aj.costoHoraDet,costoHoraDetPorModelo:aj.porModelo});
-    var val={res:res,aj:aj};_tcoCache={clave:clave,ts:ahora,val:val};
+    var res=tcoFlota(eqs,{compras:tboUnirCompras(oc,cd),hist:hist,reg:reg,ot:otAll,hoy:new Date()},{costoHoraDet:aj.costoHoraDet,costoHoraDetPorModelo:aj.porModelo,fuenteCapital:fuenteCap});
+    var val={res:res,aj:aj,fuenteCapital:fuenteCap};_tcoCache={clave:clave,ts:ahora,val:val};
     return val;
   }catch(e){return null;}
 }

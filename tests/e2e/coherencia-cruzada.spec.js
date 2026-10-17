@@ -137,7 +137,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   comparar('Metas & KPIs: orden de las sub-pestañas', [['orden correcto', sp.metas.join('|').match(/^Metas\|Avance del Mes\|Informes KPI\|Informe de gestión\|Resumen Ejecutivo$/) ? 1 : 0], ['esperado', 1]]);
 
   // ── Salud: Torre de Control contra el Mapa de Salud del Dashboard ──
-  const torre = await textoDe(page, 'torre');
+  const torre = await textoDe(page, 'torre', null, null, /INTERVENIR AHORA/); // reintenta hasta que la Torre termine de dibujarse (bajo carga tarda más de 1,2 s)
   comparar('Salud — equipos críticos', [['Torre', num(torre, /(\d+) INTERVENIR AHORA/)], ['Dashboard', num(dash, /(\d+) 🔴 Crítica/)]]);
   comparar('Salud — equipos en atención', [['Torre', num(torre, /(\d+) ATENCIÓN PRÓXIMA/)], ['Dashboard', num(dash, /(\d+) 🟡 Advertencia/)]]);
   comparar('Salud — equipos sanos', [['Torre', num(torre, /(\d+) OPERATIVOS/)], ['Dashboard', num(dash, /(\d+) 🟢 Salud buena/)]]);
