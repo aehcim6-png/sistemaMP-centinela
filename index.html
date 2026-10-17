@@ -1285,7 +1285,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')document.que
   let pend=false;
   // sub-pestañas: deja visible la activa (si hay muchas, la barra se desliza)
   const centrarSub=()=>document.querySelectorAll('#main .subtabs:not([data-ctr])').forEach(b=>{const on=b.querySelector('.subtab.on');if(!on)return;b.setAttribute('data-ctr','1');b.scrollLeft=Math.max(0,on.offsetLeft-(b.clientWidth-on.clientWidth)/2);});
-  const run=()=>{pend=false;agruparAcciones($('main'));centrarSub();};
+  // un redibujado puede dejar visibles botones de escritura que el rol lector ya había ocultado: se reaplica (solo para ese rol)
+  const run=()=>{pend=false;agruparAcciones($('main'));centrarSub();if(window._userRole==='lector'&&typeof _aplicarRolUI==='function')_aplicarRolUI();};
   const iniciar=()=>{const m=$('main');if(!m||!window.MutationObserver)return;agruparAcciones(m);new MutationObserver(()=>{if(!pend){pend=true;requestAnimationFrame(run);}}).observe(m,{childList:true,subtree:true});};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();
 })();
