@@ -266,6 +266,13 @@
   <h3>Supuestos editables que se guardan en la tabla <code>configuracion</code> (2026-10-13)</h3>
   <p>La tabla <code>configuracion</code> guarda una sola fila con los valores que el sistema no puede medir y que una persona define: costo de hora detenida (general y por modelo), tasa USD→CLP, duración estándar de cada PM y, desde el 13 de octubre, los <b>supuestos de Arriendo vs compra</b> (UF, diésel, sueldos, dotación, litros por carga, disponibilidades, valor residual y tarifas de arriendo seco y húmedo por modelo) en la columna <code>arriendoVsCompra</code>. Solo un administrador puede editarlos; los demás roles los ven pero no los cambian. Cada columna nueva se agrega con una migración aditiva (nunca borra datos) que hay que aplicar <b>a los dos proyectos Supabase antes de subir el código</b> que la usa; si no, el guardado falla. Otras tablas operativas nuevas: <code>backlog_pm</code> (tareas pendientes de pauta, informe de gestión) y la columna <code>registros_pm.desvioDias</code> (desvío de cada PM). Todas se crean con migraciones aditivas que se aplican a los dos proyectos antes de subir el código.</p>
 
+  <p><b>Novedades de octubre 2026 que el administrador debe conocer</b> (ambas bases Supabase, antes de subir el código que las usa):</p>
+  <ul>
+    <li><code>auditoria_cambios</code> (17-oct): historial campo por campo, de solo agregar (ver «Auditoría» más arriba). No está en <code>TABLA_REAL</code>: el navegador la escribe directo por REST con la sesión del usuario y solo un admin la lee. Migración <code>20261017120000</code>.</li>
+    <li><code>configuracion."tcoCapitalFuente"</code> (17-oct): cómo se calcula el capital por hora del Costo Total de Propiedad en Costos: <code>'compra'</code> (valor de compra ÷ vida en horas, por defecto) o <code>'contable'</code> (amortización de «Horas a Amortizar»). Lo cambia solo un administrador desde Costos → Costo Total de Propiedad y vale para todos. Migración <code>20261017130000</code>. <b>Carga de «Horas a Amortizar»:</b> <code>valorHoraAmort</code> y <code>vidaContableH</code> en <code>equipos</code> solo los puede modificar una sesión de administrador (candado <code>privado.proteger_columnas_admin</code>), así que el archivo se importa desde la app (Equipos → Importar Horas a Amortizar), no por SQL.</li>
+    <li><b>Cambios de pantalla</b> (16-oct, solo presentación; ningún dato ni permiso cambió): el menú pasó a una barra lateral con 5 grupos (contraída a solo íconos bajo 1.500 px, se abre al pasar el mouse; en celular, barra inferior con «Más»); <b>Costos</b> es una pestaña propia (antes sub-pestaña de Stock &amp; Insumos; el perfil Comprador ve Stock &amp; Insumos y Costos); sub-pestañas como solapas; botones de herramientas agrupados en «Más acciones ▾»; botón «Densidad» en la cabecera para tablas cómodas o compactas.</li>
+  </ul>
+
   <h3>Límites del plan gratis (hoy)</h3>
   <table>
     <tr><th>Recurso</th><th>Límite gratis</th><th>Uso actual (ago. 2026)</th></tr>
@@ -462,7 +469,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <h2>8. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
-    <li><code>modules/renders/*.js</code> (47 archivos, módulos ES reales desde la Fase 3,
+    <li><code>modules/renders/*.js</code> (49 archivos, módulos ES reales desde la Fase 3,
     2026-08-30): Vite bundlea y minifica de verdad solo el par eager que <code>index.html</code>
     importa de forma estática (<code>dash.js</code>/<code>ace.js</code>); los otros 43 (carga
     perezosa) no entran a ese grafo — se copian tal cual, sin bundlear, a
@@ -603,7 +610,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (46, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (49, módulos ES reales)
 supabase/migrations/     — schema versionado como código
 supabase/functions/      — 14 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,

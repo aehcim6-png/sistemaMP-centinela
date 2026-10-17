@@ -292,6 +292,11 @@ para no crecer sin límite y comerse cuota del plan gratis.
 
 La tabla `configuracion` guarda una sola fila con los valores que el sistema no puede medir y que una persona define: costo de hora detenida (general y por modelo), tasa USD→CLP, duración estándar de cada PM y, desde el 13 de octubre, los **supuestos de Arriendo vs compra** (UF, diésel, sueldos, dotación, litros por carga, disponibilidades, valor residual y tarifas de arriendo seco y húmedo por modelo) en la columna `arriendoVsCompra`. Solo un administrador puede editarlos; los demás roles los ven pero no los cambian. Cada columna nueva se agrega con una migración aditiva (nunca borra datos) que hay que aplicar **a los dos proyectos Supabase antes de subir el código** que la usa; si no, el guardado falla. Otras tablas operativas nuevas: `backlog_pm` (tareas pendientes de pauta, informe de gestión) y la columna `registros_pm.desvioDias` (desvío de cada PM). Todas se crean con migraciones aditivas que se aplican a los dos proyectos antes de subir el código.
 
+**Novedades de octubre 2026 que el administrador debe conocer** (ambas bases Supabase, antes de subir el código que las usa):
+- **`auditoria_cambios`** (17-oct): historial campo por campo, de solo agregar (ver "Auditoría" más arriba). No está en `TABLA_REAL`: el navegador la escribe directo por REST con la sesión del usuario y solo un admin la lee. Migración `20261017120000`.
+- **`configuracion."tcoCapitalFuente"`** (17-oct): cómo se calcula el capital por hora del Costo Total de Propiedad en Costos: `'compra'` (valor de compra ÷ vida en horas, por defecto) o `'contable'` (amortización de «Horas a Amortizar»). Lo cambia solo un administrador desde Costos → Costo Total de Propiedad y vale para todos. Migración `20261017130000`. **Carga de «Horas a Amortizar»:** `valorHoraAmort` y `vidaContableH` en `equipos` solo los puede modificar una sesión de administrador (candado `privado.proteger_columnas_admin`), así que el archivo se importa desde la app (Equipos → Importar Horas a Amortizar), no por SQL.
+- **Cambios de pantalla** (16-oct, solo presentación; ningún dato ni permiso cambió): el menú pasó a una barra lateral con 5 grupos (contraída a solo íconos bajo 1.500 px, se abre al pasar el mouse; en celular, barra inferior con «Más»); **Costos** es una pestaña propia (antes sub-pestaña de Stock & Insumos; el perfil Comprador ve Stock & Insumos y Costos); sub-pestañas como solapas; botones de herramientas agrupados en «Más acciones ▾»; botón «Densidad» en la cabecera para tablas cómodas o compactas.
+
 ### Límites del plan gratis (hoy)
 
 | Recurso | Límite gratis | Uso actual (ago. 2026) |
@@ -562,15 +567,15 @@ guía explica por qué y el proceso real completo.
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (45, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (49, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+supabase/functions/      — 14 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
                             vigilar-salud-sistema, registrar-intento-acceso,
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 1.606 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 1.724 casos)
 docs/                    — esta carpeta
 ```
 
