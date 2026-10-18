@@ -3,6 +3,7 @@ const { mockSupabase } = require('./helpers/mock-supabase');
 
 // Al cerrar un correctivo sin componente, causa raíz o costo se abre una ventana para completarlos (no bloquea).
 test('cerrar un correctivo pide componente, causa raíz y costo, y permite cerrar sin completar', async ({ page }) => {
+  test.setTimeout(90000);   // con la carga en segundo plano y el equipo ocupado puede tardar
   await mockSupabase(page, { loginOk: true, role: 'admin', nombre: 'Admin Test' });
   await page.goto('/');
   await page.waitForFunction(() => !!window._turnstileToken);

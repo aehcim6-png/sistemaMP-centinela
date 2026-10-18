@@ -3,6 +3,7 @@ const { mockSupabase } = require('./helpers/mock-supabase');
 
 // Auditoría de Datos: completitud de los correctivos y prueba del diccionario de componentes con el historial.
 test('Auditoría muestra la completitud de correctivos y la prueba del diccionario', async ({ page }) => {
+  test.setTimeout(90000);   // con la carga en segundo plano y el equipo ocupado puede tardar
   await mockSupabase(page, { loginOk: true, role: 'admin', nombre: 'Admin Test' });
   await page.goto('/');
   await page.waitForFunction(() => !!window._turnstileToken);

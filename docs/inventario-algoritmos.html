@@ -76,7 +76,7 @@
     <tr><th>Tema</th><th>Fichas</th></tr>
     <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A16</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
-    <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C22</td></tr>
+    <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C23</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
     <tr><td><b>E. Repuestos e inventario</b></td><td>E1–E12</td></tr>
     <tr><td><b>F. Costos</b></td><td>F1–F6</td></tr>
@@ -88,7 +88,7 @@
     <tr><td><b>L. Datos y seguridad</b></td><td>L1–L6</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>130 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>131 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2>A. Disponibilidad, fallas y tiempos</h2>
 
@@ -701,6 +701,17 @@
     <li><b>Dónde se ve:</b> Auditoría de Datos, bajo «Completitud de los correctivos».</li>
     <li><b>Límites:</b> la etiqueta del historial viene de una clasificación previa (con descripciones de varios temas), no es una verdad perfecta; una categoría más fina que la etiqueta (por ejemplo «Radio/Comunicaciones» dentro de «Sistema Eléctrico») cuenta como desacuerdo aunque sea razonable; los nombres de las categorías coinciden con los del historial, así que el acuerdo mide palabras clave, no el diseño de categorías. Resultado el 18-oct-2026 con una muestra de 256 descripciones del historial (3.285 en total): recibe componente el 74,2 % (rango 68,5–79,2 %, contra 69,9 % en los correctivos con los que se afinó) y coincide con la etiqueta en el 88,8 % de las 152 clasificadas y etiquetadas (rango 82,8–92,9 %). <b>No hay señal de sobreajuste</b>: la cobertura con datos nuevos es igual o mayor.</li>
     <li><b>Código:</b> <code>evaluarDiccionarioComponentes</code>.</li>
+  </ul>
+
+  <h3>C23. Curva P-F completa: lado izquierdo (instalación → P) y lado derecho con grupo de comparación</h3>
+  <ul>
+    <li><b>Tipo:</b> análisis de condición con grupo de control.</li>
+    <li><b>Para qué sirve:</b> la curva P-F tiene dos lados. El derecho (de P, cuando el desgaste ya es detectable, hasta la falla F) dice cada cuánto inspeccionar y ya existía (<code>intervalosPF</code>). El izquierdo (desde que el componente está nuevo hasta P) dice <b>desde cuándo conviene vigilarlo</b>, y no se medía. Además, al derecho se le agrega un grupo de comparación, porque estos equipos fallan cada pocos días y «días hasta la siguiente falla» sale corto aunque no haya habido aviso.</li>
+    <li><b>De dónde viene:</b> 🟡 El intervalo P-F es un concepto estándar de mantenimiento centrado en la confiabilidad (RCM) y la curva P-F se describe con la falla potencial P y la falla funcional F (ver la ficha del intervalo P-F de esta sección). Medir el lado izquierdo como «horas del componente al detectar P» y comparar contra muestras normales con la prueba de Mann-Whitney (<a href="https://arxiv.org/pdf/1906.03374" target="_blank" rel="noopener noreferrer">Lift Up and Act!, arXiv 1906.03374</a>, por la relación entre Mann-Whitney y comparación de puntajes) es 🔵 criterio propio.</li>
+    <li><b>Cómo lo calcula aquí:</b> <code>curvaPFCompleta</code> marca P de dos maneras: (1) «laboratorio»: la primera muestra ALERTA o PRECAUCIÓN que viene después de una NORMAL del mismo equipo y componente (si el equipo ya estaba en alerta desde la primera muestra no se cuenta: no se sabe cuándo empezó); (2) «CUSUM»: la fecha de la primera alerta de aceleración del desgaste de <code>cusumAceitePorComponente</code> (exigente: 6 o más muestras por metal). Lado izquierdo: horas del componente (<code>hrsComp</code>) de esa muestra; se resumen con mediana, mínimo y máximo. Lado derecho: días desde esa muestra hasta el siguiente correctivo del mismo componente (máximo 365). Comparación: días hasta el siguiente correctivo del mismo componente desde cada muestra NORMAL. Si hay 5 o más casos en ambos grupos se aplica Mann-Whitney (<code>mannWhitneyU</code>): «el aviso anticipa» si la falla llega antes tras la alerta y la diferencia es significativa. Recomendación («vigilar desde las X h» = mínimo observado; «inspeccionar cada» = mitad de la mediana P→F, solo si el aviso anticipa) únicamente con 5 o más casos. Los componentes del aceite se cruzan con los correctivos por nombre (Mando Final Izq y Der se juntan como «Mandos Finales»). Verificado con un script Python independiente sobre un escenario de 6 equipos (horas 1.750–7.250, P→F mediana 38 días contra 113 de comparación).</li>
+    <li><b>Dónde se ve:</b> Predictivo → Laboratorio → «Intervalo de Inspección (P-F)», bloque «Curva P-F completa».</li>
+    <li><b>Límites:</b> con los datos del 18-oct-2026 casi no hay casos (el CUSUM detecta aceleración en 1 de 8 motores, BD-9533, a las 11.534 h); la marca por laboratorio da más casos pero es menos estricta. Las horas del componente pueden ser iguales a las del equipo si el componente nunca se cambió. El cruce por nombre no distingue lados (izquierdo y derecho). Con menos de 5 casos no se da recomendación.</li>
+    <li><b>Código:</b> <code>curvaPFCompleta</code>.</li>
   </ul>
 
   <h2>D. Criticidad, riesgo y prioridad</h2>

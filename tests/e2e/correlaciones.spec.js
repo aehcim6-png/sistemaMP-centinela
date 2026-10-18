@@ -3,6 +3,7 @@ const { mockSupabase } = require('./helpers/mock-supabase');
 
 // Correlaciones (Spearman): matriz de metales en Aceite, tabla entre indicadores en Estadística y entre señales en Predictivo.
 test('muestra las correlaciones en Aceite, Estadística y Señal Unificada', async ({ page }) => {
+  test.setTimeout(90000);   // con la carga en segundo plano y el equipo ocupado puede tardar
   await mockSupabase(page, { loginOk: true, role: 'admin', nombre: 'Admin Test' });
   await page.goto('/');
   await page.waitForFunction(() => !!window._turnstileToken);

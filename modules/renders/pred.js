@@ -1752,6 +1752,27 @@ export function renderPred(){
       }).join('')+
       '</table></div>'
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Todavía no hay ningún caso real con alerta CUSUM de aceite seguida de un correctivo del mismo componente — sin eso, no hay P-F medible.</p></div>');
+    // ── Curva P-F completa (2026-10-18): lado izquierdo (horas del componente al detectar P) y derecho (P → F) con grupo de comparación ──
+    var pfC=typeof curvaPFCompleta==='function'?curvaPFCompleta(aceitePF,otConHistPF):null;
+    var fPF=function(x){return x==null?'—':fn(Math.round(x));};
+    var tablaPF=function(lista,vacio){
+      if(!lista||!lista.length)return'<div style="padding:12px;color:var(--tx3);font-size:12px">'+vacio+'</div>';
+      return'<div class="tbl-wrap"><table><tr><th style="text-align:left">Componente</th><th title="Equipos donde se vio el paso a desgaste detectable">Casos de P</th><th title="Horas del componente cuando se detectó P">Lado izquierdo: horas del componente al detectar P (mediana · mín–máx)</th><th>Casos P→F</th><th>Lado derecho: días de P a la falla (mediana)</th><th title="Días hasta la falla del mismo componente desde muestras normales">Comparación: días desde una muestra normal</th><th>¿El aviso anticipa?</th><th>Recomendación</th></tr>'+
+        lista.map(function(r){
+          var izq=r.izquierdo.n?fPF(r.izquierdo.medianaHoras)+' h · '+fPF(r.izquierdo.minHoras)+'–'+fPF(r.izquierdo.maxHoras)+' h ('+r.izquierdo.n+')':'sin horas registradas';
+          var rec=r.recomendacion?[(r.recomendacion.vigilarDesdeHoras!=null?'vigilar desde las '+fPF(r.recomendacion.vigilarDesdeHoras)+' h':''),(r.recomendacion.inspeccionCadaDias!=null?'inspeccionar cada '+r.recomendacion.inspeccionCadaDias+' días':'')].filter(Boolean).join(' · '):'<span style="color:var(--tx3)">faltan casos (mínimo '+pfC.minCasos+')</span>';
+          var ver=r.derecho.veredicto?(r.derecho.veredicto==='el aviso anticipa'?'<b style="color:var(--ok)">Sí, anticipa</b>':'<span style="color:var(--w)">'+escapeHtml(r.derecho.veredicto)+'</span>'):'<span style="color:var(--tx3)">faltan casos</span>';
+          return'<tr><td style="font-weight:600">'+escapeHtml(r.componente)+'</td><td style="text-align:center">'+r.casosP+'</td><td style="text-align:center;font-size:11px">'+izq+'</td><td style="text-align:center">'+r.derecho.n+'</td><td style="text-align:center">'+(r.derecho.n?r.derecho.medianaDias+' días':'—')+'</td><td style="text-align:center">'+(r.derecho.nControl?r.derecho.medianaControl+' días ('+r.derecho.nControl+')':'—')+'</td><td style="text-align:center;font-size:11px">'+ver+'</td><td style="font-size:11px">'+rec+'</td></tr>';
+        }).join('')+'</table></div>';
+    };
+    content+=pfC?
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-top:16px"><div class="chart-t">Curva P-F completa — lado izquierdo y lado derecho</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px;line-height:1.6">La curva P-F tiene dos lados. El <b>derecho</b> (de P a la falla) dice cada cuánto inspeccionar una vez que el desgaste ya se detecta. El <b>izquierdo</b> (desde que el componente está nuevo hasta P) dice <b>desde cuándo conviene vigilarlo</b>: aquí se mide en horas del componente en la muestra donde se detectó P. Como estos equipos fallan seguido, los días hasta la falla salen cortos aunque no haya aviso; por eso se comparan con los días hasta la falla desde muestras normales. Con menos de '+pfC.minCasos+' casos no se da recomendación.</div>'+
+      '<div style="font-weight:600;font-size:12px;margin:6px 0">Marcando P con el estado del laboratorio (primera muestra ALERTA o PRECAUCIÓN tras una NORMAL)</div>'+
+      tablaPF(pfC.laboratorio,'Ningún componente tiene todavía una muestra normal seguida de una en alerta o precaución.')+
+      '<div style="font-weight:600;font-size:12px;margin:14px 0 6px">Marcando P con el detector de aceleración del desgaste (CUSUM, más exigente)</div>'+
+      tablaPF(pfC.cusum,'Ningún componente tiene todavía una aceleración detectada (se piden 6 o más muestras por metal).')+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:8px">Una muestra en alerta desde la primera vez que se muestreó el equipo no cuenta como P: no se sabe cuándo empezó el desgaste. Las horas salen de «horas del componente» de la muestra; si falta ese dato, el caso no aporta al lado izquierdo. Los componentes del aceite se cruzan con los correctivos por nombre (Mando Final Izq y Der se juntan en «Mandos Finales»).</div></div>':'';
   }
 
   // ═══ MATRIZ DE CRITICIDAD DE REPUESTOS AVANZADA (2026-09-16) ═══

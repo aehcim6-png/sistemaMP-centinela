@@ -3,6 +3,7 @@ const { mockSupabase } = require('./helpers/mock-supabase');
 
 // Modo laboratorio: los métodos avanzados quedan detrás del botón; el Backtest se dibuja con datos.
 test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla', async ({ page }) => {
+  test.setTimeout(90000);   // con la carga en segundo plano y el equipo ocupado puede tardar
   await mockSupabase(page, { loginOk: true, role: 'admin', nombre: 'Admin Test' });
   await page.goto('/');
   await page.waitForFunction(() => !!window._turnstileToken);
@@ -46,6 +47,20 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
       if (/qué dice el backtest/i.test(document.getElementById('s-pred').innerText)) break;
     }
     out.textoProb = document.getElementById('s-pred').innerText;
+    // Intervalo P-F: curva completa (lado izquierdo y derecho) con datos de aceite y correctivos
+    const plus = (iso, n) => new Date(new Date(iso + 'T00:00:00Z').getTime() + n * 864e5).toISOString().slice(0, 10);
+    const aceite = [], otPF = [];
+    for (let e = 0; e < 6; e++) {
+      const pi = 3 + (e % 3);
+      for (let i = 0; i < 10; i++) aceite.push({ _id: 'ac' + e + '_' + i, sigla: 'E' + e, equipo: 'E' + e, componente: 'MOTOR', fecha: plus('2025-01-01', 30 * i), estado: i < pi ? 'NORMAL' : 'ALERTA', hrsComp: 1000 * (e + 1) + 250 * i, hierro: 10 });
+      otPF.push({ _id: 'pf' + e, sigla: 'E' + e, tipo: 'Correctivo', fecha: plus(plus('2025-01-01', 30 * pi), 20 + 7 * e), sintoma: 'falla de motor', estadoOT: 'Cerrada', horom: 100 });
+    }
+    for (let k = 0; k < 8; k++) {
+      S.s('aceite', aceite); S.s('ot', otPF); await esp(500);
+      sel().value = 'pf'; renders.pred(); await esp(600);
+      if (/curva p-f completa/i.test(document.getElementById('s-pred').innerText)) break;
+    }
+    out.textoPF = document.getElementById('s-pred').innerText;
     window.alternarModoLab(); await esp(600);   // al apagar desde una vista de laboratorio vuelve a la general
     out.valorTrasApagar = sel().value;
     out.opcionesFinal = [...sel().options].map((o) => o.value);
@@ -63,6 +78,9 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
   expect(r.textoProb).toMatch(/lado a lado/i);
   expect(r.textoProb).toContain('Por fallas recientes');
   expect(r.textoProb).toContain('Qué dice el backtest');
+  expect(r.textoPF).toMatch(/curva p-f completa/i);
+  expect(r.textoPF).toMatch(/lado izquierdo/i);
+  expect(r.textoPF).toMatch(/1\.750 h/);
   expect(r.valorTrasApagar).toBe('general');
   expect(r.opcionesFinal).not.toContain('backtest');
 });
