@@ -201,6 +201,22 @@ export function renderAudit(){
 
   const anios=[...new Set(ot.map(function(o){return(o.fecha||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
+  // Completitud de los correctivos (2026-10-18): componente, costo y causa raíz alimentan el costo de
+  // mantenimiento, el FMEA y las predicciones. Al cerrar un correctivo ahora se piden (ver edOT en ot.js).
+  const corrComp=ot.filter(function(o){return(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&pasaFiltro(o.fecha,o.sigla);});
+  const nCorr=corrComp.length;
+  const pct=function(n){return nCorr?Math.round(n/nCorr*100):0;};
+  const conComp=corrComp.filter(function(o){return o.componente&&String(o.componente).trim();}).length;
+  const conCompTexto=corrComp.filter(function(o){return(o.componente&&String(o.componente).trim())||(typeof _componenteDeSintoma==='function'&&_componenteDeSintoma(o.sintoma||''));}).length;
+  const conCosto=corrComp.filter(function(o){return o.costo>0;}).length;
+  const conCausa=corrComp.filter(function(o){return o.causaRaiz&&String(o.causaRaiz).trim();}).length;
+  const colPct=function(p){return p>=80?'var(--ok)':p>=40?'var(--w)':'var(--danger)';};
+  const completitudHTML=nCorr?'<div class="chart-box" style="margin-bottom:14px;border-left:3px solid var(--ac)"><div class="chart-t">Completitud de los correctivos ('+nCorr+')</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">Qué porcentaje de los correctivos tiene cargados los datos que alimentan el costo de mantenimiento, el análisis de causa raíz y las predicciones. Desde ahora, al cerrar un correctivo el sistema pide completar lo que falte.</div>'+
+    '<div style="display:flex;gap:18px;flex-wrap:wrap">'+
+    [['Componente cargado',pct(conComp)],['Componente (cargado o deducido del texto)',pct(conCompTexto)],['Costo',pct(conCosto)],['Causa raíz',pct(conCausa)]].map(function(x){return'<div><div style="font-size:22px;font-weight:700;color:'+colPct(x[1])+'">'+x[1]+'%</div><div style="font-size:11px;color:var(--tx3);max-width:160px">'+x[0]+'</div></div>';}).join('')+
+    '</div></div>':'';
+
   $('s-audit').innerHTML=`
     <div class="sec-h"><div>
       <div class="sec-t">${ICONS.eye} Auditoría de Datos</div>
@@ -212,6 +228,7 @@ export function renderAudit(){
       <select id="faMes" onchange="renders.audit()"><option value="">Todos los meses</option>${_AUDIT_MESES.map(function(m){return`<option value="${m.v}"${m.v===fMes?' selected':''}>${m.l}</option>`;}).join('')}</select>
       ${(fSig||fAnio||fMes)?'<button class="btn-o" onclick="$(\'faSigla\').value=\'\';$(\'faAnio\').value=\'\';$(\'faMes\').value=\'\';renders.audit()">Limpiar filtros</button>':''}
     </div>
+    ${completitudHTML}
     <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${saltos.length?'border-color:var(--danger)':''}">
         <div style="font-size:24px;font-weight:700;color:${saltos.length?'var(--danger)':'var(--ok)'}">${saltos.length}</div>

@@ -148,7 +148,7 @@ function generarDiagnostico(sigla){
   var queViene=[];
   if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))queViene.push('Riesgo de falla por PM vencida — intervenir antes de '+Math.max(Math.abs(e.diasParaPM)*2,7)+' días');
   else if(e.diasParaPM<=14)queViene.push('PM '+e.tipoPM+' estimada en '+e.diasParaPM+' días');
-  if(aceAlertas.length)queViene.push('Tendencia de desgaste en '+(aceAlertas[0].descriptor||'componente')+' — riesgo de falla progresiva');
+  if(aceAlertas.length)queViene.push('Tendencia de desgaste en '+(aceAlertas[0].descriptor||aceAlertas[0].componente||'componente')+' — riesgo de falla progresiva');
   if(eqData){
     queViene.push('Proyección: ~'+Math.round(eqData.promPedMes)+' pedidos y $'+fn(eqData.promCostoMes)+' próximo mes');
   }
@@ -163,7 +163,7 @@ function generarDiagnostico(sigla){
   var hacer=[];
   if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))hacer.push(''+ICONS.wrench+' Programar '+e.tipoPM+' INMEDIATO');
   else if(e.diasParaPM<=7)hacer.push(''+ICONS.wrench+' Programar '+e.tipoPM+' esta semana');
-  if(aceAlertas.length)hacer.push(''+ICONS.wrench+' Intervenir '+aceAlertas[0].descriptor+' — cambio de aceite/inspección interna');
+  if(aceAlertas.length)hacer.push(''+ICONS.wrench+' Intervenir '+(aceAlertas[0].descriptor||aceAlertas[0].componente||'componente')+' — cambio de aceite/inspección interna');
   if(otPend.length)hacer.push(''+ICONS.doc+' Resolver '+otPend.length+' OT pendiente(s)');
   if(noks.length)hacer.push(''+ICONS.eye+' Re-inspeccionar: '+[...new Set(noks)].join(', '));
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push(''+ICONS.refresh+' Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
@@ -173,7 +173,7 @@ function generarDiagnostico(sigla){
   // 5. ¿QUÉ PASA SI NO LO HAGO?
   var impacto=[];
   if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))impacto.push('Detención no programada — costo estimado $'+(eqData?fn(Math.round(eqData.promCostoMes*0.5)):'N/D'));
-  if(aceAlertas.length)impacto.push('Falla catastrófica en '+(aceAlertas[0].descriptor||'componente')+' — daño mayor');
+  if(aceAlertas.length)impacto.push('Falla catastrófica en '+(aceAlertas[0].descriptor||aceAlertas[0].componente||'componente')+' — daño mayor');
   if(otPend.length>2)impacto.push('Acumulación de backlog — riesgo operacional');
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)impacto.push('Falla repetitiva en '+cf[0]+' puede escalar a daño mayor');});
   if(!impacto.length)impacto.push('Riesgo bajo si se mantiene plan actual');
@@ -680,6 +680,7 @@ export function renderPred(){
   var insp=S.g('insp')||[];
   var mov=S.g('mov')||[];
   var fVista=$('fPredVista')?.value||'general';
+  var labPred=_modoLab()||_LAB_PRED.indexOf(fVista)>=0;   // una vista de laboratorio ya elegida (enlace directo) la mantiene visible
   var fEq=$('fPredEq')?.value||'';
   // fPredAnio/fPredMes (2026-08-18, a pedido del usuario: "en Predictivo si quiero
   // buscar un equipo o año o mes no está") — filtro persistente, visible en TODAS
@@ -1121,6 +1122,35 @@ export function renderPred(){
           }).join('')+
           '</table></div></div>';
       })();
+  } else if(fVista==='backtest'){
+    // ¿Las reglas del programa anticipan qué equipo fallará el próximo mes? Se prueba en el pasado mes a mes con
+    // lo que se sabía a cada fecha (backtestAnticipacionFallas, logic.js) y se compara con reglas simples.
+    var evBt=[];
+    ot.forEach(function(o){
+      if(!o||!o.sigla||!esFallaMTBF(o))return;
+      evBt.push({sigla:o.sigla,fecha:o.fecha,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});
+    });
+    (S.g('otHist')||[]).forEach(function(o){if(o&&o.sigla)evBt.push({sigla:o.sigla,fecha:o.fecha,componente:o.sistema||''});});
+    var bt=backtestAnticipacionFallas(evBt,eq,new Date());
+    var fN=function(x,d){return x==null?'—':(Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toString().replace('.',',');};
+    var colVer={mejor:'var(--ok)','no distinguible':'var(--w)',peor:'var(--danger)',referencia:'var(--tx3)'};
+    var txtVer={mejor:'Mejor que la referencia','no distinguible':'No se distingue de la referencia',peor:'Peor que la referencia',referencia:'Referencia'};
+    content=
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🧪 Backtest — ¿las reglas anticipan qué equipo fallará el próximo mes?</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Para cada mes del pasado se ordenan los equipos de más a menos probable de fallar usando SOLO lo que se sabía ese día, y se mira quién falló de verdad en los 30 días siguientes. Así se ve si cada regla le gana a una regla simple, en vez de suponerlo. <b>AUC</b>: probabilidad de que un equipo que sí falló tenga más puntaje que uno que no (0,5 = azar, 1 = perfecto).</div>'+
+      (!bt?'<div style="padding:14px;text-align:center;color:var(--tx3)">No hay eventos de falla para probar.</div>'
+       :!bt.ok?'<div style="padding:14px;color:var(--tx3);font-size:12px">No se puede evaluar todavía: '+escapeHtml(bt.motivo)+'.</div>'
+       :'<div class="cards" style="margin-bottom:12px"><div class="card"><div class="card-t">Meses probados</div><div class="card-v">'+bt.origenes+'</div><div class="card-s">'+bt.desde+' a '+bt.hasta+'</div></div>'+
+        '<div class="card"><div class="card-t">Equipos por mes</div><div class="card-v">'+fN(bt.equiposPorOrigen,1)+'</div><div class="card-s">con historia a esa fecha</div></div>'+
+        '<div class="card"><div class="card-t">Fallan en un mes típico</div><div class="card-v">'+fN(bt.tasaBase*100,0)+'%</div><div class="card-s">de los equipos (azar puro acertaría eso)</div></div></div>'+
+        '<div class="tbl-wrap"><table><tr><th>Regla</th><th>AUC</th><th title="De los 20 % de equipos que la regla pone primero, qué porcentaje falló">Acierto en el 20 % de arriba</th><th title="Acierto dividido por la tasa de un mes típico">Veces mejor que el azar</th><th>Diferencia de AUC contra la referencia (intervalo 95 %)</th><th>Veredicto</th></tr>'+
+        bt.predictores.map(function(q){
+          return'<tr><td style="font-size:11px">'+escapeHtml(q.nombre)+'</td><td style="text-align:center;font-weight:700">'+fN(q.auc,3)+'</td><td style="text-align:center">'+fN(q.precisionTop*100,0)+'%</td><td style="text-align:center">'+fN(q.lift,2)+'×</td>'+
+            '<td style="text-align:center;font-size:11px">'+(q.difVsReferencia?(q.difVsReferencia.media>0?'+':'')+fN(q.difVsReferencia.media,3)+' ('+fN(q.difVsReferencia.lo,3)+' a '+fN(q.difVsReferencia.hi,3)+')':'—')+'</td>'+
+            '<td style="font-weight:700;color:'+colVer[q.veredicto]+'">'+txtVer[q.veredicto]+'</td></tr>';
+        }).join('')+'</table></div>'+
+        '<div style="font-size:11px;color:var(--tx3);padding:8px 0;line-height:1.6"><b>Cómo leerlo.</b> La referencia es «fallas de los últimos 365 días», fijada antes de mirar resultados. Una regla solo «gana» si todo el intervalo queda sobre 0; con pocos meses lo normal es «no se distingue», y eso significa que la regla compleja no demuestra aportar más que contar fallas. <b>Límites:</b> los meses consecutivos comparten historia, así que el intervalo es algo optimista; los componentes salen en parte del texto del síntoma; prueba solo «qué equipo falla el próximo mes», no si la predicción ayuda a decidir una compra o un cambio.</div>')+
+      '</div>';
   } else if(fVista==='probabilidad'){
     // Combina 'ot' (correctivos actuales, filtrados por esFallaMTBF — misma fuente
     // única que MTBF/Confiabilidad) con 'otHist' (historial 2022-2025 cargado desde
@@ -2131,15 +2161,11 @@ $('s-pred').innerHTML=
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
     '</optgroup>'+
     '<optgroup label="¿Qué tan riesgoso es?">'+
-    '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
     '<option value="criticidad"'+(fVista==='criticidad'?' selected':'')+'>🏭 Criticidad de Equipos</option>'+
     '</optgroup>'+
     '<optgroup label="¿Cuánto le queda?">'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
-    '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
-    '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
-    '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '</optgroup>'+
     '<optgroup label="Repuestos y stock">'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
@@ -2147,14 +2173,20 @@ $('s-pred').innerHTML=
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
     '</optgroup>'+
-    '<optgroup label="Efectividad y patrones">'+
-    '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
-    '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
-    '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
-    '</optgroup>'+
     '<optgroup label="Taller">'+
     '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option>'+
-    '</optgroup></select>'+
+    '</optgroup>'+
+    (labPred?'<optgroup label="🧪 Laboratorio — métodos avanzados, para explorar">'+
+      '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
+      '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
+      '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
+      '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
+      '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
+      '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
+      '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
+      '<option value="backtest"'+(fVista==='backtest'?' selected':'')+'>🧪 Backtest: ¿anticipan las reglas?</option>'+
+      '</optgroup>':'')+
+    '</select>'+_botonModoLabHTML(labPred)+
     '<select id="fPredEq" onchange="renders.pred()"><option value="">'+(fVista==='equipo'||fVista==='diag'?'Seleccionar equipo...':'Todos los equipos')+'</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>'+
     '<select id="fPredAnio" onchange="renders.pred()"><option value="">Todos los años</option>'+

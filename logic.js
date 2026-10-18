@@ -1232,7 +1232,7 @@ function correlacionMetalesAceite(ace,minMuestras){
   var porGrupo={};
   (ace||[]).forEach(function(m){
     if(!m)return;
-    var g=String(m.descriptor||m.componente||'').toUpperCase().trim();
+    var g=_aceGrupo(m).toUpperCase();
     if(!g)return;
     (porGrupo[g]=porGrupo[g]||[]).push(m);
   });
@@ -3096,9 +3096,9 @@ function correlacionAceiteFallas(ace,eventos,diasVentana){
   });
   var porComponente={};
   (ace||[]).forEach(function(m){
-    if(!m||!m._sigla||!m.descriptor||!m.fecha)return;
+    if(!m||!m._sigla||!_aceGrupo(m)||!m.fecha)return;
     if(m.estado!=='ALERTA'&&m.estado!=='PRECAUCION'&&m.estado!=='NORMAL')return;
-    var comp=_normComponente(m.descriptor);
+    var comp=_normComponente(_aceGrupo(m));
     var fechasFalla=fechasFallaPorGrupo[m._sigla+'|'+comp]||[];
     var siguioFalla=fechasFalla.some(function(f){
       var dias=_diasEntreISO(m.fecha,f);
@@ -3655,13 +3655,19 @@ function ordenesSinOutliers(oc){
 // Nunca modifica 'estado' ni borra nada — solo separa para revisión humana,
 // mismo espíritu que ordenesSinOutliers.
 var _ACEITE_UMBRAL_METAL={hierro:50,cobre:30,plomo:20,aluminio:20,silicio:25,cromo:10};
+// Tipo de componente de una muestra de aceite: 'descriptor' y, si viene vacío (en las 243 muestras
+// reales el descriptor está vacío y el tipo viene en 'componente'), 'componente'. Antes los atípicos
+// de aceite, el Mahalanobis y la correlación aceite↔fallas solo miraban 'descriptor' y no
+// analizaban ninguna muestra real.
+function _aceGrupo(m){return String((m&&(m.descriptor||m.componente))||'').trim();}
 function aceiteOutliers(ace){
   var metales=Object.keys(_ACEITE_UMBRAL_METAL);
   var porGrupoMetal={};
   (ace||[]).forEach(function(m){
-    if(!m||!m.descriptor)return;
+    var g=_aceGrupo(m);
+    if(!g)return;
     metales.forEach(function(met){
-      if(m[met]>0)(porGrupoMetal[m.descriptor+'|'+met]=porGrupoMetal[m.descriptor+'|'+met]||[]).push(m[met]);
+      if(m[met]>0)(porGrupoMetal[g+'|'+met]=porGrupoMetal[g+'|'+met]||[]).push(m[met]);
     });
   });
   var medianaPorGrupoMetal={};
@@ -3671,10 +3677,11 @@ function aceiteOutliers(ace){
   });
   var outliers=[];
   (ace||[]).forEach(function(m){
-    if(!m||!m.descriptor)return;
+    var g=_aceGrupo(m);
+    if(!g)return;
     metales.forEach(function(met){
       if(!(m[met]>0))return;
-      var mediana=medianaPorGrupoMetal[m.descriptor+'|'+met];
+      var mediana=medianaPorGrupoMetal[g+'|'+met];
       if(mediana!=null&&m[met]>10*mediana&&m[met]>2*_ACEITE_UMBRAL_METAL[met]){
         outliers.push({muestra:m,metal:met,valor:m[met],mediana:mediana});
       }
@@ -3750,10 +3757,11 @@ function outliersMultivariadosAceite(ace,minMuestras){
   var k=metales.length;
   var porGrupo={};
   (ace||[]).forEach(function(m){
-    if(!m||!m.descriptor)return;
+    var g=_aceGrupo(m);
+    if(!g)return;
     var completo=metales.every(function(met){return m[met]>0;});
     if(!completo)return;
-    (porGrupo[m.descriptor]=porGrupo[m.descriptor]||[]).push(m);
+    (porGrupo[g]=porGrupo[g]||[]).push(m);
   });
   var resultado=[];
   Object.keys(porGrupo).sort().forEach(function(desc){
@@ -6721,6 +6729,103 @@ function backtestPronosticoDisponibilidad(equipos,d,o){
   var cob=function(f){return Math.round(out.filter(f).length/out.length*1000)/10;},eab=function(f){return Math.round(out.reduce(function(a,x){return a+Math.abs(f(x));},0)/out.length*10)/10;};
   return{horizonteDias:H,origenes:out,cobertura:cob(function(x){return x.dentro;}),errorMedioAbs:eab(function(x){return x.error;}),sesgo:Math.round(out.reduce(function(a,x){return a+x.error;},0)/out.length*10)/10,
     componentes:!!(d.compHist&&d.hist),sinComponentes:{cobertura:cob(function(x){return x.sinComp.dentro;}),errorMedioAbs:eab(function(x){return x.sinComp.error;})}};
+}
+
+// ═══ BACKTEST: ¿LAS REGLAS ANTICIPAN QUÉ EQUIPO FALLARÁ EL PRÓXIMO MES? (2026-10-18) ═══
+// Para cada mes del pasado ("origen") se usa SOLO lo que se sabía hasta ese día para ordenar los equipos
+// de más a menos probable de fallar, y luego se mira quién falló de verdad en los 30 días siguientes.
+// Se comparan: la «Probabilidad de falla» que muestra el programa (la misma función, probabilidadFallaDesdeEventos,
+// con el máximo por equipo), «vencido» (días desde la última falla ÷ intervalo medio) y dos reglas simples
+// (fallas de los últimos 90 y 365 días). La referencia es «fallas últimos 365 días»: se fijó antes de mirar los
+// resultados. Un predictor "gana" solo si el intervalo de su diferencia de AUC contra la referencia
+// (remuestreando los meses, 1.000 veces) queda entero sobre 0; con pocos meses lo más común es «no distinguible».
+// AUC = probabilidad de que un equipo que SÍ falló tenga más puntaje que uno que NO falló (0,5 = azar, 1 = perfecto).
+var _BT_REFERENCIA='fallas365';
+function _btAuc(puntajes,etiquetas){
+  var pos=[],neg=[];
+  puntajes.forEach(function(p,i){(etiquetas[i]?pos:neg).push(p);});
+  if(!pos.length||!neg.length)return null;
+  var s=0;
+  pos.forEach(function(a){neg.forEach(function(b){s+=a>b?1:a===b?0.5:0;});});
+  return s/(pos.length*neg.length);
+}
+function backtestAnticipacionFallas(eventos,equipos,hoy,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,rng=op.rng||Math.random;
+  var maxOr=op.maxOrigenes>0?Math.round(op.maxOrigenes):24,nBoot=op.nBoot>0?op.nBoot:1000;
+  var hoyIso=_tcoIso(hoy);
+  var sigs=(equipos||[]).filter(function(e){return e&&e.sigla;}).map(function(e){return e.sigla;});
+  var ev=(eventos||[]).filter(function(e){return e&&e.sigla&&e.fecha&&sigs.indexOf(e.sigla)>=0;});
+  if(!ev.length)return null;
+  var porSigla={};
+  ev.forEach(function(e){(porSigla[e.sigla]=porSigla[e.sigla]||[]).push(e);});
+  var primera=ev.map(function(e){return e.fecha;}).sort()[0];
+  var minOrigen=_fechaMas(primera,365);   // al menos un año de historia para que las reglas tengan de dónde sacar
+  var origenes=[];
+  for(var k=1;k<=maxOr;k++){
+    var origen=_fechaMas(hoyIso,-(k*30+H));
+    if(origen>=minOrigen)origenes.push(origen);
+  }
+  origenes.reverse();
+  var filas=[];   // por origen: {origen, items:[{y, fallas90, fallas365, prob30, vencido}]}
+  origenes.forEach(function(origen){
+    var fin=_fechaMas(origen,H),d90=_fechaMas(origen,-90),d365=_fechaMas(origen,-365),items=[];
+    sigs.forEach(function(sg){
+      var lista=porSigla[sg]||[];
+      var hasta=lista.filter(function(e){return e.fecha<=origen;});
+      if(!hasta.length)return;   // todavía sin historia a esa fecha: no se puede ordenar
+      var y=lista.some(function(e){return e.fecha>origen&&e.fecha<=fin;})?1:0;
+      var fechas=hasta.map(function(e){return e.fecha;}).sort().filter(function(f,i,a){return i===0||f!==a[i-1];});
+      var f90=fechas.filter(function(f){return f>d90;}).length,f365=fechas.filter(function(f){return f>d365;}).length;
+      var probs=probabilidadFallaDesdeEventos(hasta.filter(function(e){return e.componente;}));
+      var prob30=probs.length?Math.max.apply(null,probs.map(function(q){return q.prob30dPct;})):0;
+      var venc=0;
+      if(fechas.length>=3){
+        var mtbf=(new Date(fechas[fechas.length-1])-new Date(fechas[0]))/864e5/(fechas.length-1);
+        if(mtbf>0)venc=(new Date(origen)-new Date(fechas[fechas.length-1]))/864e5/mtbf;
+      }
+      items.push({y:y,fallas90:f90,fallas365:f365,prob30:prob30,vencido:venc});
+    });
+    if(items.length>=5&&items.some(function(x){return x.y;})&&items.some(function(x){return !x.y;}))filas.push({origen:origen,items:items});
+  });
+  if(filas.length<3)return{ok:false,motivo:'menos de 3 meses con historia suficiente y con fallas y no-fallas a la vez ('+filas.length+')',origenes:filas.length};
+  var defs=[
+    {clave:'prob30',nombre:'Probabilidad de falla (la que muestra el programa)'},
+    {clave:'vencido',nombre:'Vencido: días desde la última falla ÷ intervalo medio'},
+    {clave:'fallas90',nombre:'Regla simple: fallas de los últimos 90 días'},
+    {clave:'fallas365',nombre:'Regla simple: fallas de los últimos 365 días (referencia)'}
+  ];
+  var aucPorOrigen={};
+  defs.forEach(function(df){
+    aucPorOrigen[df.clave]=filas.map(function(f){return _btAuc(f.items.map(function(x){return x[df.clave];}),f.items.map(function(x){return x.y;}));});
+  });
+  var media=function(v){return v.reduce(function(a,b){return a+b;},0)/v.length;};
+  var tasaBase=media(filas.map(function(f){return f.items.reduce(function(a,x){return a+x.y;},0)/f.items.length;}));
+  var topPrec=function(clave){
+    return media(filas.map(function(f){
+      var k=Math.max(1,Math.round(f.items.length*0.2));
+      var ord=f.items.slice().sort(function(a,b){return b[clave]-a[clave];});
+      // con empates en el corte se promedia el grupo empatado (no se premia el orden arbitrario)
+      var corte=ord[k-1][clave],mayores=ord.filter(function(x){return x[clave]>corte;}),empat=ord.filter(function(x){return x[clave]===corte;});
+      var aciertos=mayores.reduce(function(a,x){return a+x.y;},0)+(k-mayores.length)*(empat.reduce(function(a,x){return a+x.y;},0)/empat.length);
+      return aciertos/k;
+    }));
+  };
+  var ref=aucPorOrigen[_BT_REFERENCIA];
+  var predictores=defs.map(function(df){
+    var a=aucPorOrigen[df.clave],auc=media(a),tp=topPrec(df.clave);
+    var dif=null,veredicto='referencia';
+    if(df.clave!==_BT_REFERENCIA){
+      var difs=a.map(function(x,i){return x-ref[i];}),bs=[];
+      for(var b=0;b<nBoot;b++){var sum=0;for(var j=0;j<difs.length;j++)sum+=difs[Math.floor(rng()*difs.length)];bs.push(sum/difs.length);}
+      bs.sort(function(x,y){return x-y;});
+      var lo=bs[Math.floor(nBoot*0.025)],hi=bs[Math.min(nBoot-1,Math.floor(nBoot*0.975))];
+      dif={media:Math.round(media(difs)*1000)/1000,lo:Math.round(lo*1000)/1000,hi:Math.round(hi*1000)/1000};
+      veredicto=lo>0?'mejor':hi<0?'peor':'no distinguible';
+    }
+    return{clave:df.clave,nombre:df.nombre,auc:Math.round(auc*1000)/1000,precisionTop:Math.round(tp*1000)/1000,lift:tasaBase>0?Math.round(tp/tasaBase*100)/100:null,difVsReferencia:dif,veredicto:veredicto};
+  });
+  return{ok:true,horizonteDias:H,origenes:filas.length,desde:filas[0].origen,hasta:filas[filas.length-1].origen,
+    equiposPorOrigen:Math.round(media(filas.map(function(f){return f.items.length;}))*10)/10,tasaBase:Math.round(tasaBase*1000)/1000,referencia:_BT_REFERENCIA,predictores:predictores};
 }
 
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
@@ -10222,7 +10327,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo,
+    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

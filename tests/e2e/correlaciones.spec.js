@@ -52,6 +52,8 @@ test('muestra las correlaciones en Aceite, Estadística y Señal Unificada', asy
     window.correlacionSenalesReemplazo = () => ({ nEquipos: 12, redundantes: [1], pares: [
       { a: 's1', b: 's2', nombreA: 'Weibull', nombreB: 'Edad Virtual', n: 12, ambas: 6, soloA: 0, soloB: 1, ninguna: 5, phi: 0.85, p: 0.002, pAjustado: 0.01, muestraChica: true, redundante: true },
       { a: 's1', b: 's3', nombreA: 'Weibull', nombreB: 'Costo', n: 12, ambas: 1, soloA: 5, soloB: 2, ninguna: 4, phi: null, p: null, pAjustado: null, muestraChica: true, redundante: false }] });
+    window.alternarModoLab();   // la Señal Unificada vive en el modo laboratorio
+    await new Promise(r => setTimeout(r, 600));
     const sel = document.getElementById('fPredVista'); sel.value = 'reemplazo'; renders.pred();
     for (let i = 0; i < 100 && !/correlación entre señales/.test(document.getElementById('s-pred').innerText); i++) await new Promise(r => setTimeout(r, 100));
     document.querySelectorAll('#s-pred details').forEach(d => { d.open = true; });

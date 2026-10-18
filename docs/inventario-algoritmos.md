@@ -34,7 +34,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 |---|---|
 | A. Disponibilidad, fallas y tiempos | A1–A16 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
-| C. Estadística: ¿la diferencia es real o ruido? | C1–C20 |
+| C. Estadística: ¿la diferencia es real o ruido? | C1–C21 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
 | E. Repuestos e inventario | E1–E12 |
 | F. Costos | F1–F6 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L6 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **128 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **129 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -492,7 +492,7 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Para qué sirve:** separar errores de digitación y valores absurdos antes de que contaminen costos, aceite o pronósticos, sin borrar nada.
 - **De dónde viene:** 🟡 Las reglas con la mediana y la desviación absoluta mediana (MAD) escalada con 1,4826 son estándar; el corte de 3,5 es el de Iglewicz y Hoaglin, pero las fuentes encontradas son blogs y calculadoras, no el libro ([ejemplo](https://metricgate.com/calculator/robust-z-score-modified)). La distancia de Mahalanobis comparada con un cuantil de chi-cuadrado también es estándar ([apuntes de ETH Zurich](https://www.stat.ethz.ch/education/semesters/ss2012/ams/slides/v2.2.pdf)); la regla "10 × la mediana *y* 2 × el umbral de alerta" del aceite y la de "50 × la mediana" de las compras son 🔵 criterios propios.
 - **Cómo lo calcula aquí:** `aceiteOutliers` marca un metal cuando vale ≥ 10 veces la mediana histórica de su tipo de aceite *y* supera 2 veces el umbral fijo de alerta (exigir las dos evita descartar desgaste real severo); `outliersMultivariadosAceite` usa Mahalanobis sobre los seis metales a la vez; `ordenesSinOutliers` separa líneas de OC con precio unitario sobre 50 veces la mediana de ese mismo ítem (con 5 o más compras); `pronRecortarAtipicos` recorta por encima de mediana + k × 1,4826 × MAD. Nunca modifican ni borran el dato original.
-- **Límites:** `outliersMultivariadosAceite` agrupa por el campo «descriptor» y exige las 6 lecturas de metal; el 18-oct-2026 se comprobó que ese campo está vacío en las 243 muestras reales (el tipo de componente viene en «componente») y solo 49 tienen los 6 metales, así que **con los datos de hoy ese detector no marca nada**. Pendiente de decidir si agrupar también por «componente».
+- **Límites:** hasta el 17-oct-2026 `aceiteOutliers`, `outliersMultivariadosAceite` y `correlacionAceiteFallas` agrupaban solo por el campo «descriptor», que está vacío en las 243 muestras reales (el tipo viene en «componente»), así que no analizaban ninguna muestra; desde el 18-oct agrupan por descriptor o, si falta, por componente. Solo 49 de las 243 muestras tienen los 6 metales con lectura, que el Mahalanobis exige.
 - **Código:** `aceiteOutliers`, `outliersMultivariadosAceite`, `ordenesSinOutliers`, `pronRecortarAtipicos`.
 
 ### C16. Análisis de componentes principales (PCA) y comparación con pares
@@ -538,6 +538,15 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Dónde se ve:** Estadística → Mapa de equipos (PCA) («¿Qué indicadores se mueven juntos?»); Análisis de Aceite («¿Qué metales suben juntos?»); Predictivo → Señal Unificada de Reemplazo («¿Las 6 señales miden cosas distintas?»).
 - **Límites:** correlación no es causa; con 6 a 10 datos solo es una pista y un par sin confirmar no prueba que no haya relación. Spearman mide relaciones que van en un solo sentido; no ve una relación en forma de U. En la Señal Unificada es una advertencia de lectura: no cambia el umbral de «4 de 6». Si un metal tiene casi todo en cero, su correlación no se puede calcular.
 - **Código:** `correlacionSpearman`, `holmAjustarP`, `correlacionesPares`, `correlacionesIndicadoresEquipos`, `correlacionMetalesAceite`, `correlacionSenalesReemplazo`.
+
+### C21. Backtest: ¿las reglas anticipan qué equipo fallará el próximo mes? (AUC)
+- **Tipo:** validación de un predictor contra lo que pasó.
+- **Para qué sirve:** comprobar, en vez de suponer, si la «Probabilidad de falla» del programa y otras reglas ordenan los equipos mejor que una regla simple («cuántas fallas tuvo en el último año»).
+- **De dónde viene:** 🟢 El AUC es la probabilidad de que un caso positivo reciba más puntaje que uno negativo, contando los empates como medio punto; equivale a la estadística U de Mann-Whitney dividida por n⁺·n⁻, y 0,5 es el azar ([Lift Up and Act!, arXiv 1906.03374](https://arxiv.org/pdf/1906.03374); [documentación de mlr3](https://mlr3measures.mlr-org.com/reference/auc.html)). El corte «20 % de arriba» (precisión en el top-k) y la validación hacia adelante (en cada fecha solo se usa lo que se sabía) son práctica estándar; **el criterio de fijar la referencia antes de mirar resultados y el intervalo por remuestreo de los meses son 🔵 propios.**
+- **Cómo lo calcula aquí:** `backtestAnticipacionFallas` toma cada mes del pasado (con al menos un año de historia) como «origen»; con los eventos hasta esa fecha puntúa cada equipo con cuatro reglas: la Probabilidad de falla del programa (`probabilidadFallaDesdeEventos`, máximo por equipo), «vencido» (días desde la última falla ÷ intervalo medio, con ≥ 3 fallas), fallas de los últimos 90 días y fallas de los últimos 365 días (la referencia). Mira si el equipo falló en los 30 días siguientes y calcula el AUC por mes y la precisión entre el 20 % mejor puntuado (los empates en el corte se reparten). La diferencia de AUC contra la referencia lleva un intervalo del 95 % remuestreando los meses 1.000 veces: «mejor» solo si todo el intervalo queda sobre 0, «peor» si queda bajo 0, y si no «no se distingue». Verificado con un script Python independiente (mismas reglas, mismos números a 3 decimales).
+- **Dónde se ve:** Predictivo → Laboratorio → «Backtest: ¿anticipan las reglas?».
+- **Límites:** los meses consecutivos comparten historia, así que el intervalo es algo optimista; los componentes salen en parte del texto del síntoma; solo prueba «qué equipo falla el próximo mes», no si la predicción ayuda a decidir una compra o un cambio; los huecos de carga de datos (meses sin registros) parecen meses sin fallas. Resultado con los datos reales del 18-oct-2026 (variante a nivel de equipo, calculada en SQL): «fallas 90 días» y «fallas 365 días» empatan (AUC 0,88 y 0,87); la probabilidad por MTBF queda por debajo (0,76; diferencia −0,11, intervalo −0,16 a −0,07) y «vencido» no supera el azar (0,46), porque en esta flota las fallas se agrupan (quien acaba de fallar suele volver a fallar).
+- **Código:** `backtestAnticipacionFallas`.
 ---
 
 ## D. Criticidad, riesgo y prioridad

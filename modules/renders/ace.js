@@ -101,7 +101,7 @@ export function renderAce(){
     aceOutliers.slice(0,10).map(function(o){
       return'<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;font-size:12px;flex-wrap:wrap">'+
         '<span class="mono" style="color:var(--ac);min-width:70px">'+escapeHtml(o.muestra._sigla||o.muestra.componente||'')+'</span>'+
-        '<span style="color:var(--tx2)">'+escapeHtml(o.muestra.descriptor||'')+' · '+o.muestra.fecha+'</span>'+
+        '<span style="color:var(--tx2)">'+escapeHtml(o.muestra.descriptor||o.muestra.componente||'')+' · '+o.muestra.fecha+'</span>'+
         '<b style="color:var(--warn)">'+o.metal+'='+o.valor+'</b>'+
         '<span style="color:var(--tx3)">mediana histórica de ese tipo: '+Math.round(o.mediana)+'</span>'+
         '</div>';
@@ -226,7 +226,7 @@ export function renderAce(){
         '<td style="font-size:10px">'+m.fecha+'</td>'+
         '<td class="mono" style="font-size:10px;color:var(--ac)">'+(m._sigla||'')+'</td>'+
         '<td style="font-size:9px">'+escapeHtml(m.componente||'')+'</td>'+
-        '<td style="font-size:10px">'+escapeHtml(m.descriptor||'')+'</td>'+
+        '<td style="font-size:10px">'+escapeHtml(m.descriptor||m.componente||'')+'</td>'+
         '<td style="font-size:9px;max-width:100px">'+escapeHtml(m.lubricante||'')+'</td>'+
         '<td style="font-size:10px;text-align:center">'+(m.hrsComp||'')+'</td>'+
         metalCell(m.hierro,50)+metalCell(m.cobre,30)+metalCell(m.plomo,20)+
@@ -342,7 +342,7 @@ function renderAceDash(ace){
   // ── Estado por tipo de componente (descriptor) ──
   var porComp={};
   ace.forEach(function(m){
-    var c=(m.descriptor||'SIN INFORMACION').toUpperCase().trim();
+    var c=(m.descriptor||m.componente||'SIN INFORMACION').toUpperCase().trim();
     if(!porComp[c])porComp[c]={n:0,a:0,p:0,norm:0};
     porComp[c].n++;
     if(m.estado==='ALERTA')porComp[c].a++;

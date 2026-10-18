@@ -913,7 +913,52 @@ export function quitarFotoOT(fi){
 
 // Lista oficial de sistemas (la misma del formulario completo de OT) para completar el campo desde la tabla.
 const _SISTEMAS_OT=['Motor diésel','Hidráulico','Transmisión','Eléctrico','Frenos','Ruedas y neumáticos','Dirección','Estructura','Cabina','Climatización'];
-export function edOT(i,key,val){
+// ═══ CIERRE CON DATOS (2026-10-18) ═══
+// En los 1.243 correctivos reales el componente, el costo y la causa raíz están en blanco (0 con dato):
+// el costo de mantenimiento, el FMEA y el análisis de causa raíz tienen mucho cálculo y poco dato detrás.
+// Al CERRAR un correctivo al que le falta alguno, se abre una ventana corta para completarlos (el componente
+// viene sugerido desde el texto del síntoma, el costo desde las compras cruzadas). No bloquea: se puede
+// «Cerrar sin completar» — hay correctivos legítimamente sin costo (garantía) — pero deja de ser un descuido.
+function _esCorrectivoOT(o){return o&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&!o.fromReg&&!o.fromHist;}
+function _faltantesCierreOT(o){
+  var f=[];
+  if(!(o.componente&&String(o.componente).trim()))f.push('componente');
+  if(!(o.causaRaiz&&String(o.causaRaiz).trim()))f.push('causaRaiz');
+  if(!(o.costo>0))f.push('costo');
+  return f;
+}
+function _abrirCierreOT(i,faltantes){
+  var ot=S.g('ot')||[];var o=ot[i];if(!o)return;
+  var sugComp=(typeof _componenteDeSintoma==='function')?_componenteDeSintoma(o.sintoma||''):'';
+  var sugCosto=(typeof costoSugeridoPorCruce==='function')?costoSugeridoPorCruce(o,(S.g('ocHist')||[]).concat(S.g('comprasDetalle')||[])):[];
+  var cats=(typeof _CATEGORIAS_COMPONENTE!=='undefined'?_CATEGORIAS_COMPONENTE:[]).map(function(c){return c[0];});
+  var campo=function(k){return faltantes.indexOf(k)>=0;};
+  var ok='<span style="color:var(--ok)">✓ ya cargado</span>';
+  sm('<h3>Cerrar correctivo — '+escapeHtml(o.sigla||'')+'</h3>'+
+    '<p style="font-size:12px;color:var(--tx3);margin-bottom:10px">'+escapeHtml((o.sintoma||'').slice(0,160))+'</p>'+
+    '<p style="font-size:12px;margin-bottom:12px">Antes de cerrar, completa lo que falta: son los datos que alimentan el costo de mantenimiento, el análisis de causa raíz y las predicciones. Si no lo sabes todavía, puedes cerrar sin completar.</p>'+
+    '<div class="form-row"><div class="fg" style="width:100%"><label>Componente '+(campo('componente')?'':ok)+'</label>'+
+      (campo('componente')?'<input id="ocComp" list="ocCompLista" value="'+escapeHtml(sugComp)+'" placeholder="Ej: Motor, Transmisión, Mangueras..." style="width:100%"><datalist id="ocCompLista">'+cats.map(function(c){return'<option value="'+escapeHtml(c)+'">';}).join('')+'</datalist>'+(sugComp?'<div style="font-size:10px;color:var(--tx3)">Sugerido por el texto del síntoma: revísalo.</div>':''):'<div style="font-size:12px">'+escapeHtml(o.componente)+'</div>')+'</div></div>'+
+    '<div class="form-row"><div class="fg" style="width:100%"><label>Causa raíz '+(campo('causaRaiz')?'':ok)+'</label>'+
+      (campo('causaRaiz')?'<input id="ocCausa" placeholder="¿Por qué falló? (ej: desgaste normal, falta de lubricación, golpe...)" style="width:100%">':'<div style="font-size:12px">'+escapeHtml(o.causaRaiz)+'</div>')+'</div></div>'+
+    '<div class="form-row"><div class="fg" style="width:100%"><label>Costo ($) '+(campo('costo')?'':ok)+'</label>'+
+      (campo('costo')?'<input id="ocCosto" type="number" min="0" value="'+(sugCosto.length?sugCosto[0].costo:'')+'" placeholder="Repuestos y servicios de esta reparación" style="width:100%">'+(sugCosto.length?'<div style="font-size:10px;color:var(--tx3)">💡 Sugerido por cruce con una orden de compra real ('+escapeHtml(sugCosto[0].detalle)+', '+fd(sugCosto[0].fecha)+'): revísalo. Déjalo vacío si fue garantía o no tuvo costo.</div>':'<div style="font-size:10px;color:var(--tx3)">Déjalo vacío si fue garantía o no tuvo costo.</div>'):'<div style="font-size:12px">$'+fn(o.costo)+'</div>')+'</div></div>'+
+    '<button class="btn" onclick="_otCierreGuardar('+i+',true)" style="width:100%;margin-top:6px">Guardar y cerrar</button>'+
+    '<button class="btn btn-o" onclick="_otCierreGuardar('+i+',false)" style="width:100%;margin-top:6px">Cerrar sin completar</button>'+
+    '<button class="btn btn-o" onclick="cm();renders.ot()" style="width:100%;margin-top:6px">Cancelar</button>');
+}
+export function _otCierreGuardar(i,completar){
+  var ot=S.g('ot')||[];var o=ot[i];if(!o){cm();return;}
+  if(completar){
+    var comp=($('ocComp')?.value||'').trim(),causa=($('ocCausa')?.value||'').trim(),costo=parseFloat($('ocCosto')?.value);
+    if(comp)_edCampo('ot',ot,i,'componente',comp);
+    if(causa)_edCampo('ot',ot,i,'causaRaiz',causa);
+    if(costo>0)_edCampo('ot',ot,i,'costo',costo);
+  }
+  cm();
+  edOT(i,'estadoOT','Cerrada',true);
+}
+export function edOT(i,key,val,forzar){
   var ot=S.g('ot')||[];
   // SLA de primera respuesta: se marca UNA sola vez, apenas la OT deja de
   // estar 'Pendiente' (a 'En Ejecución' o directo a 'Cerrada') — ver Costos >
@@ -930,7 +975,11 @@ export function edOT(i,key,val){
   // garantía, mano de obra interna ya contada en otro lado). Si hay un
   // candidato real de costoSugeridoPorCruce, se lo muestra en el aviso para
   // que lo revise antes de decidir.
-  if(key==='estadoOT'&&val==='Cerrada'&&ot[i]&&!(ot[i].costo>0)){
+  if(!forzar&&key==='estadoOT'&&val==='Cerrada'&&ot[i]&&_esCorrectivoOT(ot[i])){
+    var _falt=_faltantesCierreOT(ot[i]);
+    if(_falt.length){_abrirCierreOT(i,_falt);return;}
+  }
+  if(!forzar&&key==='estadoOT'&&val==='Cerrada'&&ot[i]&&!(ot[i].costo>0)){
     var _sugCierre=(typeof costoSugeridoPorCruce==='function')?costoSugeridoPorCruce(ot[i],(S.g('ocHist')||[]).concat(S.g('comprasDetalle')||[])):[];
     var _msg=_sugCierre.length
       ?'Esta OT se va a cerrar SIN costo registrado.\n\nHay un costo sugerido por cruce con una Orden de Compra real: $'+fn(_sugCierre[0].costo)+' ('+_sugCierre[0].detalle+', '+fd(_sugCierre[0].fecha)+').\n\nRecomendado: Cancelar, aplicar el costo sugerido (botón "usar" en la fila) y recién ahí cerrar.\n\n¿Cerrar igual sin costo?'
@@ -963,4 +1012,5 @@ window.gestionarFotosOT = gestionarFotosOT;
 window._otFotosSeleccionadas = _otFotosSeleccionadas;
 window.quitarFotoOT = quitarFotoOT;
 window.edOT = edOT;
+window._otCierreGuardar = _otCierreGuardar;
 renders.ot = renderOt;

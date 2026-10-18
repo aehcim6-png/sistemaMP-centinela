@@ -594,10 +594,10 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-18',
+  ayuda:'2026-10-18b',
   cad:'2026-08-30b',
   cfg:'2026-10-17',
-  comp2:'2026-10-16b',
+  comp2:'2026-10-18',
   cos:'2026-10-18',
   destrabe:'2026-10-08',
   disp:'2026-10-11p',
@@ -640,14 +640,14 @@ const _LAZY_VERS={
   comp:'2026-10-14',
   estadistica:'2026-10-18',
   tbo:'2026-10-11i',
-  audit:'2026-10-17',
+  audit:'2026-10-18',
   auditoria:'2026-10-17',
   pred:'2026-10-18',
   metas:'2026-10-14c',
   resumenejec:'2026-10-08',
   reg:'2026-10-16',
   neu:'2026-10-12a',
-  ot:'2026-10-09',
+  ot:'2026-10-18',
   prod:'2026-10-05b',
 };
 const _LAZY_EXPORTS={
@@ -1408,6 +1408,27 @@ window.pagIr=function(cat,delta){
   window._pag[cat]=(window._pag[cat]||1)+delta;
   renders[cat]();
 };
+// ── Modo laboratorio (2026-10-18) ──
+// Los métodos avanzados (Weibull por equipo, Kijima, P-F, señal unificada, mapa PCA...) trabajan con pocos datos:
+// sirven para explorar, no para decidir solos. Quedan detrás de este interruptor, por persona (se recuerda en
+// este navegador). Lo que se usa a diario (Por Equipo, Backlog, Matriz de Riesgo, RUL, Repuestos...) queda a la vista.
+var _LAB_PRED=['probabilidad','pf','kijima','reemplazo','efectpm','patrones','oportunista','backtest'];
+var _LAB_EST=['calidad','pca'];
+function _modoLab(){try{return localStorage.getItem('smp_lab')==='1';}catch(e){return false;}}
+function _botonModoLabHTML(activo){
+  return'<button class="btn-s'+(activo?'':' btn-o')+'" onclick="alternarModoLab()" title="Los métodos avanzados trabajan con pocos datos: sirven para explorar, no para decidir solos." style="margin-left:8px">🧪 Laboratorio: '+(_modoLab()?'activado':'desactivado')+'</button>';
+}
+function alternarModoLab(){
+  var nuevo=!_modoLab();
+  try{localStorage.setItem('smp_lab',nuevo?'1':'0');}catch(e){}
+  var vp=document.getElementById('fPredVista');
+  if(!nuevo&&vp&&_LAB_PRED.indexOf(vp.value)>=0)vp.value='general';
+  if(!nuevo&&_LAB_EST.indexOf(window._estadisticaVista)>=0)window._estadisticaVista='equipo';
+  if(typeof renders!=='undefined'){
+    if(document.getElementById('s-pred')&&renders.pred&&document.getElementById('fPredVista'))renders.pred();
+    if(document.getElementById('s-estadistica')&&renders.estadistica&&document.getElementById('fEstadisticaVista'))renders.estadistica();
+  }
+}
 // ── Correlaciones (Spearman) — tablas compartidas por Estadística, Análisis de Aceite ──
 // Los pares vienen de correlacionesPares (logic.js): {nombreA,nombreB,rho,n,pAjustado,significativa,muestraChica,fuerza}.
 function corrColor(rho){

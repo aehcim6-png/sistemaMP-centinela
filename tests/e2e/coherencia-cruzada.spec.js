@@ -124,6 +124,11 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
     window._comp2Sub = 'pred'; window.go('comp2'); await hasta(() => document.getElementById('fPredVista'));
     const o = document.getElementById('fPredVista');
     const pred = { grupos: o.querySelectorAll('optgroup').length, opciones: o.querySelectorAll('option').length };
+    // con el modo laboratorio activado aparecen los métodos avanzados (antes estaban todos a la vista)
+    window.alternarModoLab(); await esp(800);
+    const o2 = document.getElementById('fPredVista');
+    const predLab = { grupos: o2.querySelectorAll('optgroup').length, opciones: o2.querySelectorAll('option').length };
+    window.alternarModoLab(); await esp(800);
     const solapas = document.querySelectorAll('#s-comp2 .subtabs .subtab').length;
     window._comp2Sub = 'estadistica'; window._estadisticaVista = 'componente'; window.go('comp2'); await hasta(() => document.querySelectorAll('#s-estadistica > details.sec-pleg').length >= 2);
     const r = document.getElementById('s-estadistica');
@@ -131,10 +136,12 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
     window._estadisticaVista = 'equipo'; // las demás comprobaciones parten de la vista por equipo
     window._mkpiSub = 'metas'; window.go('mkpi'); await hasta(() => document.querySelectorAll('#s-mkpi .subtabs .subtab').length >= 5);
     const metas = [...document.querySelectorAll('#s-mkpi .subtabs .subtab')].map((b) => b.textContent.trim());
-    return { pred, solapas, pleg, abiertos, metas };
+    return { pred, predLab, solapas, pleg, abiertos, metas };
   });
-  comparar('Predictivo: 21 vistas en 6 grupos', [['vistas', sp.pred.opciones], ['esperado', 21]]);
-  comparar('Predictivo: grupos', [['grupos', sp.pred.grupos], ['esperado', 6]]);
+  comparar('Predictivo: 14 vistas de uso diario en 5 grupos', [['vistas', sp.pred.opciones], ['esperado', 14]]);
+  comparar('Predictivo: grupos', [['grupos', sp.pred.grupos], ['esperado', 5]]);
+  comparar('Predictivo con laboratorio: vistas (14 + 8)', [['vistas', sp.predLab.opciones], ['esperado', 22]]);
+  comparar('Predictivo con laboratorio: grupos', [['grupos', sp.predLab.grupos], ['esperado', 6]]);
   comparar('Componentes: 8 sub-pestañas', [['solapas', sp.solapas], ['esperado', 8]]);
   comparar('Estadística por componente: bloques plegables (el primero abierto)', [['plegables ≥ 5', sp.pleg >= 5 ? 1 : 0], ['abiertos', sp.abiertos], ['esperado', 1]]);
   comparar('Metas & KPIs: orden de las sub-pestañas', [['orden correcto', sp.metas.join('|').match(/^Metas\|Avance del Mes\|Informes KPI\|Informe de gestión\|Resumen Ejecutivo$/) ? 1 : 0], ['esperado', 1]]);

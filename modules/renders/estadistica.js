@@ -892,6 +892,7 @@ function _estPcaHTML(eq, ot, otHist) {
 export function renderEstadistica() {
   if (!$('s-estadistica')) return;
   var vista = window._estadisticaVista || 'equipo';
+  var labEst = _modoLab() || _LAB_EST.indexOf(vista) >= 0;   // una vista de laboratorio ya elegida la mantiene visible
   var eq = S.g('eq') || [];
   var ot = S.g('ot') || [];
   var otHist = S.g('otHist') || [];
@@ -918,9 +919,10 @@ export function renderEstadistica() {
     '<option value="modo"' + (vista === 'modo' ? ' selected' : '') + '>📊 Pareto de Modo de Falla</option>' +
     '<option value="modelo"' + (vista === 'modelo' ? ' selected' : '') + '>🚜 Por Modelo</option>' +
     '<option value="tecnico"' + (vista === 'tecnico' ? ' selected' : '') + '>👷 Por Técnico</option>' +
-    '<option value="calidad"' + (vista === 'calidad' ? ' selected' : '') + '>Calidad de Ejecución (PM)</option>' +
-    '<option value="pca"' + (vista === 'pca' ? ' selected' : '') + '>Mapa de equipos (PCA)</option>' +
-    '</select>' +
+    (labEst ? '<optgroup label="🧪 Laboratorio — métodos avanzados, para explorar">' +
+      '<option value="calidad"' + (vista === 'calidad' ? ' selected' : '') + '>Calidad de Ejecución (PM)</option>' +
+      '<option value="pca"' + (vista === 'pca' ? ' selected' : '') + '>Mapa de equipos (PCA)</option></optgroup>' : '') +
+    '</select>' + _botonModoLabHTML(labEst) +
     content;
   // Cada bloque se pliega con su título (el primero abierto): la página era un muro de tablas seguidas.
   if (typeof plegarSecciones === 'function') plegarSecciones($('s-estadistica'), 'est-' + vista);
