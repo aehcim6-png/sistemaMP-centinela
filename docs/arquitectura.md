@@ -3850,12 +3850,14 @@ y SciPy como fallback. Verificado contra `scipy.stats.norm.ppf` antes de
 escribir los tests: coincide a 7-9 cifras significativas.
 
 `errorEstandarMTTR(duraciones,confianza)` — mismo input crudo y mínimo de
-datos que `C.mttrReal` (≥2 reparaciones con duración registrada). Es una
-aproximación NORMAL (cuantil z, no t de Student) — válida para muestras
-razonablemente grandes; con muestras muy chicas (&lt;5, mismo umbral que ya
-usa `ajusteWeibull`/el aviso del IC del MTBF) la cobertura real es algo
-menor a la nominal, marcado visualmente en la UI en vez de mostrar una
-falsa precisión. El límite inferior se acota a 0 (una duración de
+datos que `C.mttrReal` (≥2 reparaciones con duración registrada). Desde
+2026-10-18 usa el cuantil t de Student con n−1 grados (`_tCriticoDosColas`,
+por bisección sobre `_pValorT2`); antes usaba z (normal), que con 3–5
+reparaciones asimétricas cubría en realidad ~70–85 % en vez de 95 % (revisión
+de supuestos de normalidad, simulación con tiempos lognormales). Con muestras
+muy chicas (&lt;5, mismo umbral que ya usa `ajusteWeibull`/el aviso del IC del
+MTBF) sigue marcándose visualmente en la UI en vez de mostrar una falsa
+precisión. El límite inferior se acota a 0 (una duración de
 reparación negativa no tiene sentido).
 
 6 tests en `tests/errorEstandarMTTR.test.js` (905/905 en total, con

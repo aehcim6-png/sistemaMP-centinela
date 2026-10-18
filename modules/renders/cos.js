@@ -195,7 +195,7 @@ export function renderCos() {
     // pero IC95%=[77h,16984h] — el punto casi no dice nada por sí solo).
     // null cuando hay <2 fallas, igual que mtbf.
     var ic = intervaloConfianzaMTBF(fallas.map(function (o) { return o.horom; }));
-    // Error estándar / IC del MTTR (95%, aproximación normal — ver
+    // Error estándar / IC del MTTR (95%, t de Student con n−1 grados — ver
     // errorEstandarMTTR en logic.js): mismo motivo que el IC del MTBF de
     // arriba, pero acá el MTTR es un promedio de duraciones (no un conteo
     // de fallas), así que corresponde el método clásico SE=s/√n en vez de
@@ -510,7 +510,7 @@ export function renderCos() {
         var seHtml = '';
         if (se) {
           var seMuestraChica = se.n < 5;
-          seHtml = '<div style="font-size:8px;color:' + (seMuestraChica ? 'var(--w)' : 'var(--tx3)') + ';font-weight:400" title="Intervalo de confianza 95% del MTTR (Error Estándar, aproximación normal) — con pocas reparaciones el promedio es poco confiable por sí solo.">' +
+          seHtml = '<div style="font-size:8px;color:' + (seMuestraChica ? 'var(--w)' : 'var(--tx3)') + ';font-weight:400" title="Intervalo de confianza 95% del MTTR (t de Student; los tiempos de reparación son asimétricos, así que es orientativo) — con pocas reparaciones el promedio es poco confiable por sí solo.">' +
             (seMuestraChica ? '⚠️ ' : '') + 'IC95%: ' + fn(se.inferior) + '–' + fn(se.superior) + 'h (' + se.n + (se.n === 1 ? ' reparación' : ' reparaciones') + ')</div>';
         }
         var slaCol = m[1].sla == null ? 'var(--tx3)' : m[1].sla <= 4 ? 'var(--ok)' : m[1].sla <= 24 ? 'var(--w)' : 'var(--danger)';

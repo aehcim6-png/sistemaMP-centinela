@@ -95,9 +95,9 @@ Son **128 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Tipo:** fórmula estadística.
 - **Para qué sirve:** dice cuán preciso es un MTTR (4 h con 2 reparaciones no es lo mismo que 4 h con 40).
 - **De dónde viene:** ⚪ Es el error estándar de la media de libro, SE = s ÷ √n; no se recuperó una fuente en esta búsqueda.
-- **Cómo lo calcula aquí:** SE = desviación estándar muestral ÷ √(reparaciones con duración); intervalo = media ± z·SE (aproximación normal). Mínimo 2 reparaciones.
+- **Cómo lo calcula aquí:** SE = desviación estándar muestral ÷ √(reparaciones con duración); intervalo = media ± t·SE, con t de Student de n−1 grados de libertad (desde el 18-oct-2026; antes se usaba z = 1,96, que solo vale con muchos datos). Mínimo 2 reparaciones. Verificado con tablas t (df=2: 4,303; df=4: 2,776; df=9: 2,262; df=29: 2,045).
 - **Dónde se ve:** Costos → MTBF/MTTR y Estadística; la pantalla marca visualmente las muestras de menos de 5.
-- **Límites:** aproximación normal; con menos de 5 datos la cobertura real es menor a la nominal. Los tiempos de reparación no son simétricos (ver A5), así que el intervalo es solo orientativo.
+- **Límites:** supone que el promedio es aproximadamente normal. Los tiempos de reparación no son simétricos (ver A5): en una simulación con tiempos asimétricos el intervalo con t cubrió entre 85 % y 94 % con 5 datos y 87 % a 94 % con 20 (con z cubría 75 % a 84 % y 85 % a 92 %); sigue siendo orientativo con pocos datos. Un intervalo por remuestreo o en escala logarítmica sería más fiel y queda como mejora posible.
 - **Código:** `errorEstandarMTTR`.
 
 ### A5. Forma real del MTTR (log-normal)

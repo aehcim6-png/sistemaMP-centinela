@@ -969,6 +969,17 @@ function _normInv(p){
 // input crudo que C.mttrReal (array de 'duracion', formato "Xh"), mismo
 // mínimo de 2 reparaciones con dato — sin eso ni una desviación estándar
 // se puede calcular.
+// Valor crítico t de Student de dos colas (probabilidad total 'alpha' en las dos colas, 'df' grados):
+// busca por bisección el t cuyo p de dos colas (_pValorT2, definida más abajo en el archivo) es alpha.
+function _tCriticoDosColas(alpha,df){
+  var lo=0,hi=1;
+  while(_pValorT2(hi,df)>alpha&&hi<1e7)hi*=2;
+  for(var i=0;i<100;i++){
+    var mid=(lo+hi)/2;
+    if(_pValorT2(mid,df)>alpha)lo=mid;else hi=mid;
+  }
+  return (lo+hi)/2;
+}
 function errorEstandarMTTR(duraciones,confianza){
   confianza=(confianza>0&&confianza<1)?confianza:0.95;
   var horas=(duraciones||[]).filter(function(d){return d&&d!=='—';}).map(function(d){
@@ -981,13 +992,16 @@ function errorEstandarMTTR(duraciones,confianza){
   var sumSqDesv=horas.reduce(function(s,h){return s+Math.pow(h-media,2);},0);
   var desvEst=Math.sqrt(sumSqDesv/(n-1));
   var se=desvEst/Math.sqrt(n);
+  // t de Student con n-1 grados (2026-10-18): antes se usaba z (normal), que solo vale con
+  // muchos datos — con 3-5 reparaciones el "95 %" cubría en realidad ~70-85 % (simulación con
+  // tiempos asimétricos). La t abre el intervalo según cuántos datos hay.
   var alpha=1-confianza;
-  var z=_normInv(1-alpha/2);
+  var t=_tCriticoDosColas(alpha,n-1);
   return{
     media:Math.round(media*10)/10,n:n,se:Math.round(se*100)/100,
-    inferior:Math.max(0,Math.round((media-z*se)*10)/10),
-    superior:Math.round((media+z*se)*10)/10,
-    confianza:confianza
+    inferior:Math.max(0,Math.round((media-t*se)*10)/10),
+    superior:Math.round((media+t*se)*10)/10,
+    confianza:confianza,critico:Math.round(t*1000)/1000
   };
 }
 
