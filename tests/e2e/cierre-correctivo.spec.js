@@ -15,14 +15,19 @@ test('cerrar un correctivo pide componente, causa raíz y costo, y permite cerra
   const r = await page.evaluate(async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const mk = (id) => ({ _id: id, sigla: 'ZZ-1', tipo: 'Correctivo', fecha: hoy, sintoma: 'Falla de manguera hidráulica con fuga', estadoOT: 'Pendiente', costo: 0, componente: '', causaRaiz: '', horom: 100, duracion: '2h' });
-    S.s('eq', [{ sigla: 'ZZ-1', tipo: 'Camion', modelo: 'X' }]);
-    S.s('ot', [mk('o1'), mk('o2')]);
+    // la carga en segundo plano puede pisar los datos recién puestos: se vuelven a poner si hace falta
+    const sembrar = () => { S.s('eq', [{ sigla: 'ZZ-1', tipo: 'Camion', modelo: 'X' }]); S.s('ot', [mk('o1'), mk('o2')]); };
+    sembrar();
     go('ot');
     for (let i = 0; i < 100 && !document.querySelector('#s-ot table'); i++) await new Promise(x => setTimeout(x, 100));
     const out = {};
     // 1) cerrar el primero → aparece la ventana, con el componente sugerido desde el texto
-    await edOT(0, 'estadoOT', 'Cerrada');
-    for (let i = 0; i < 50 && !document.getElementById('ocComp'); i++) await new Promise(x => setTimeout(x, 100));
+    for (let k = 0; k < 6; k++) {
+      sembrar(); await new Promise(x => setTimeout(x, 300));
+      await edOT(0, 'estadoOT', 'Cerrada');
+      for (let i = 0; i < 20 && !document.getElementById('ocCausa'); i++) await new Promise(x => setTimeout(x, 100));
+      if (document.getElementById('ocCausa')) break;
+    }
     out.modalAbierto = !!document.getElementById('ocComp');
     out.sugerido = (document.getElementById('ocComp') || {}).value;
     out.antes = (S.g('ot')[0] || {}).estadoOT;
@@ -32,8 +37,10 @@ test('cerrar un correctivo pide componente, causa raíz y costo, y permite cerra
     const a = S.g('ot')[0];
     out.cerrado1 = { estado: a.estadoOT, comp: a.componente, causa: a.causaRaiz, costo: a.costo };
     // 2) cerrar el segundo sin completar → cierra igual, sin datos
-    await edOT(1, 'estadoOT', 'Cerrada');
-    for (let i = 0; i < 50 && !document.getElementById('ocComp'); i++) await new Promise(x => setTimeout(x, 100));
+    for (let k = 0; k < 6 && !document.getElementById('ocComp'); k++) {
+      await edOT(1, 'estadoOT', 'Cerrada');
+      for (let i = 0; i < 20 && !document.getElementById('ocComp'); i++) await new Promise(x => setTimeout(x, 100));
+    }
     await _otCierreGuardar(1, false);
     const b = S.g('ot')[1];
     out.cerrado2 = { estado: b.estadoOT, comp: b.componente, costo: b.costo };

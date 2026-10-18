@@ -22,7 +22,9 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
       const fin = Date.now() - 20 * 864e5;
       while (d.getTime() < fin) { ot.push({ _id: 'o' + i + '_' + n, sigla: 'E' + i, tipo: 'Correctivo', fecha: d.toISOString().slice(0, 10), sintoma: 'falla de motor', estadoOT: 'Cerrada', horom: 100 + n, componente: ['Motor', 'Frenos', 'Mangueras'][n % 3] }); d = new Date(d.getTime() + c * 864e5); n++; }
     });
-    S.s('eq', eq); S.s('ot', ot);
+    // la carga en segundo plano puede pisar los datos recién puestos: se vuelven a poner si hace falta
+    const sembrar = () => { S.s('eq', eq); S.s('ot', ot); };
+    sembrar();
     window._comp2Sub = 'pred'; go('comp2');
     for (let i = 0; i < 100 && !document.getElementById('fPredVista'); i++) await esp(100);
     const sel = () => document.getElementById('fPredVista');
@@ -30,8 +32,11 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
     out.opcionesOff = [...sel().options].map((o) => o.value);
     window.alternarModoLab(); await esp(600);
     out.opcionesOn = [...sel().options].map((o) => o.value);
-    sel().value = 'backtest'; renders.pred();
-    for (let i = 0; i < 100 && !/meses probados|no se puede evaluar/i.test(document.getElementById('s-pred').innerText); i++) await esp(100);
+    for (let k = 0; k < 6; k++) {
+      sembrar(); await esp(400);
+      sel().value = 'backtest'; renders.pred(); await esp(500);
+      if (/meses probados/i.test(document.getElementById('s-pred').innerText)) break;
+    }
     document.querySelectorAll('#s-pred details').forEach((d) => { d.open = true; });
     out.texto = document.getElementById('s-pred').innerText;
     window.alternarModoLab(); await esp(600);   // al apagar desde una vista de laboratorio vuelve a la general
