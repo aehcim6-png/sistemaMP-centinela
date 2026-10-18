@@ -594,7 +594,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-17e',
+  ayuda:'2026-10-18',
   cad:'2026-08-30b',
   cfg:'2026-10-17',
   comp2:'2026-10-16b',
@@ -638,11 +638,11 @@ const _LAZY_VERS={
   torre:'2026-10-11b',
   buscar:'2026-10-11j',
   comp:'2026-10-14',
-  estadistica:'2026-10-16',
+  estadistica:'2026-10-18',
   tbo:'2026-10-11i',
   audit:'2026-10-17',
   auditoria:'2026-10-17',
-  pred:'2026-10-16',
+  pred:'2026-10-18',
   metas:'2026-10-14c',
   resumenejec:'2026-10-08',
   reg:'2026-10-16',
@@ -768,7 +768,7 @@ function _instalarStubsLazy(){
 }
 _instalarStubsLazy();
 </script>
-<script type="module" src="modules/renders/ace.js?v=2026-10-17"></script>
+<script type="module" src="modules/renders/ace.js?v=2026-10-18"></script>
 <script type="module" src="modules/renders/dash.js?v=2026-10-16d"></script>
 <script>
 // ============ DATA ============
@@ -1408,6 +1408,42 @@ window.pagIr=function(cat,delta){
   window._pag[cat]=(window._pag[cat]||1)+delta;
   renders[cat]();
 };
+// ── Correlaciones (Spearman) — tablas compartidas por Estadística, Análisis de Aceite ──
+// Los pares vienen de correlacionesPares (logic.js): {nombreA,nombreB,rho,n,pAjustado,significativa,muestraChica,fuerza}.
+function corrColor(rho){
+  if(rho==null)return'transparent';
+  var a=Math.min(1,Math.abs(rho));
+  return rho>0?'rgba(37,99,235,'+(0.10+a*0.55).toFixed(2)+')':'rgba(220,38,38,'+(0.10+a*0.55).toFixed(2)+')';
+}
+function corrLectura(q){
+  if(q.rho==null)return'<span style="color:var(--tx3)">sin datos suficientes</span>';
+  var dir=q.rho>0?'suben juntos':'uno sube cuando el otro baja';
+  if(q.significativa)return'<b>'+q.fuerza+'</b> — '+dir;
+  if(q.muestraChica)return'<span style="color:var(--w)">Muestra chica: no alcanza para confirmarlo</span>';
+  return'<span style="color:var(--tx3)">No se distingue del azar</span>';
+}
+function corrTablaParesHTML(pares){
+  return'<div class="tbl-wrap"><table><tr><th>Par de indicadores</th><th>ρ (Spearman)</th><th>Datos</th><th>p ajustado</th><th>Lectura</th></tr>'+
+    pares.map(function(q){
+      var pTxt=q.pAjustado==null?'—':(q.pAjustado<0.001?'&lt;0,001':(Math.round(q.pAjustado*1000)/1000).toString().replace('.',','));
+      return'<tr><td>'+escapeHtml(q.nombreA)+' ↔ '+escapeHtml(q.nombreB)+'</td>'+
+        '<td style="text-align:center;font-weight:700;background:'+corrColor(q.rho)+'">'+(q.rho==null?'—':(Math.round(q.rho*100)/100).toString().replace('.',','))+'</td>'+
+        '<td style="text-align:center">'+q.n+'</td><td style="text-align:center">'+pTxt+'</td><td style="font-size:11px">'+corrLectura(q)+'</td></tr>';
+    }).join('')+'</table></div>';
+}
+function corrMatrizHTML(pares,claves,nombres){
+  var por={};
+  pares.forEach(function(q){por[q.a+'|'+q.b]=q;por[q.b+'|'+q.a]=q;});
+  return'<div class="tbl-wrap"><table style="width:auto"><tr><th></th>'+nombres.map(function(n){return'<th style="text-align:center">'+escapeHtml(n)+'</th>';}).join('')+'</tr>'+
+    claves.map(function(ka,i){
+      return'<tr><td style="font-weight:600">'+escapeHtml(nombres[i])+'</td>'+claves.map(function(kb){
+        if(ka===kb)return'<td style="text-align:center;color:var(--tx3)">1</td>';
+        var q=por[ka+'|'+kb];
+        if(!q||q.rho==null)return'<td style="text-align:center;color:var(--tx3)" title="sin datos suficientes">—</td>';
+        return'<td style="text-align:center;background:'+corrColor(q.rho)+';'+(q.significativa?'font-weight:700':'')+'" title="'+escapeHtml(q.nombreA+' ↔ '+q.nombreB)+' · n='+q.n+(q.significativa?' · confirmada':' · no confirmada')+'">'+(Math.round(q.rho*100)/100).toString().replace('.',',')+'</td>';
+      }).join('')+'</tr>';
+    }).join('')+'</table></div>';
+}
 function _pagHTML(cat,pg){
   if(pg.totalPages<=1)return'';
   return'<div style="display:flex;align-items:center;gap:10px;justify-content:center;padding:10px 0">'+

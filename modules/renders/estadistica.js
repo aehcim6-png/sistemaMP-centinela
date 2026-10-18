@@ -852,6 +852,19 @@ function _estPcaHTML(eq, ot, otHist) {
       fuera.map(function (f) { return '<tr><td style="font-weight:600">' + escapeHtml(f.sigla) + '</td><td>' + escapeHtml(f.motivo) + '</td></tr>'; }).join('') + '</table></div></details>';
   }
   html += '</div>';
+  // Correlaciones entre los mismos indicadores (¿qué se mueve junto?). Spearman, p ajustado por Holm.
+  var corr = correlacionesIndicadoresEquipos(ok.map(function (f) { return f.vars; }), claves, nombres);
+  html += '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">¿Qué indicadores se mueven juntos? — correlaciones</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Cruza los mismos indicadores de arriba entre los equipos de este grupo. ρ va de −1 a +1: cerca de +1 suben juntos, cerca de −1 uno sube cuando el otro baja, cerca de 0 no hay relación. Es la covarianza estandarizada, calculada sobre rangos (Spearman) para que un solo equipo extremo no la distorsione. <b>Correlación no es causa</b>, y con pocos equipos solo es una pista.</div>';
+  if (!corr) {
+    html += '<div style="padding:14px;text-align:center;color:var(--tx3)">Se necesitan al menos 6 equipos con datos completos en el grupo (hay ' + ok.length + ').</div>';
+  } else {
+    var nSig = corr.pares.filter(function (q) { return q.significativa; }).length;
+    html += corrTablaParesHTML(corr.pares) +
+      '<div style="font-size:10px;color:var(--tx3);padding:6px 0">' + corr.n + ' equipos. ' + (nSig ? nSig + ' de ' + corr.pares.length + ' pares quedan confirmados' : 'Ningún par queda confirmado') + ' tras ajustar por mirar ' + corr.pares.length + ' pares a la vez (Holm, p &lt; 0,05). ' +
+      (corr.n < 10 ? '<span style="color:var(--w)">Con menos de 10 equipos, un par sin confirmar no significa que no haya relación: no alcanza para verla.</span>' : '') + '</div>';
+  }
+  html += '</div>';
   // PCA propiamente tal
   var res = pcaAnalisis(ok.map(function (f) { return claves.map(function (k) { return f.vars[k]; }); }), nombres, {});
   html += '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">Ejes principales (PCA)</div>';

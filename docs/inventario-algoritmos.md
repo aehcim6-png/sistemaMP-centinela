@@ -34,7 +34,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 |---|---|
 | A. Disponibilidad, fallas y tiempos | A1–A16 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
-| C. Estadística: ¿la diferencia es real o ruido? | C1–C19 |
+| C. Estadística: ¿la diferencia es real o ruido? | C1–C20 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
 | E. Repuestos e inventario | E1–E12 |
 | F. Costos | F1–F6 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L6 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **127 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **128 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -492,6 +492,7 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Para qué sirve:** separar errores de digitación y valores absurdos antes de que contaminen costos, aceite o pronósticos, sin borrar nada.
 - **De dónde viene:** 🟡 Las reglas con la mediana y la desviación absoluta mediana (MAD) escalada con 1,4826 son estándar; el corte de 3,5 es el de Iglewicz y Hoaglin, pero las fuentes encontradas son blogs y calculadoras, no el libro ([ejemplo](https://metricgate.com/calculator/robust-z-score-modified)). La distancia de Mahalanobis comparada con un cuantil de chi-cuadrado también es estándar ([apuntes de ETH Zurich](https://www.stat.ethz.ch/education/semesters/ss2012/ams/slides/v2.2.pdf)); la regla "10 × la mediana *y* 2 × el umbral de alerta" del aceite y la de "50 × la mediana" de las compras son 🔵 criterios propios.
 - **Cómo lo calcula aquí:** `aceiteOutliers` marca un metal cuando vale ≥ 10 veces la mediana histórica de su tipo de aceite *y* supera 2 veces el umbral fijo de alerta (exigir las dos evita descartar desgaste real severo); `outliersMultivariadosAceite` usa Mahalanobis sobre los seis metales a la vez; `ordenesSinOutliers` separa líneas de OC con precio unitario sobre 50 veces la mediana de ese mismo ítem (con 5 o más compras); `pronRecortarAtipicos` recorta por encima de mediana + k × 1,4826 × MAD. Nunca modifican ni borran el dato original.
+- **Límites:** `outliersMultivariadosAceite` agrupa por el campo «descriptor» y exige las 6 lecturas de metal; el 18-oct-2026 se comprobó que ese campo está vacío en las 243 muestras reales (el tipo de componente viene en «componente») y solo 49 tienen los 6 metales, así que **con los datos de hoy ese detector no marca nada**. Pendiente de decidir si agrupar también por «componente».
 - **Código:** `aceiteOutliers`, `outliersMultivariadosAceite`, `ordenesSinOutliers`, `pronRecortarAtipicos`.
 
 ### C16. Análisis de componentes principales (PCA) y comparación con pares
@@ -528,6 +529,15 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Dónde se ve:** Estadística ("Correlación Aceite ↔ Fallas reales").
 - **Límites:** depende de que el componente del correctivo esté bien clasificado (D14).
 - **Código:** `correlacionAceiteFallas`, `_normalizarComponente`.
+
+### C20. Correlaciones entre indicadores, metales de aceite y señales (Spearman, Holm, Fisher)
+- **Tipo:** estadística descriptiva con prueba de hipótesis.
+- **Para qué sirve:** mostrar qué se mueve junto con qué, en vez de usar la covarianza solo por dentro (distancia de Mahalanobis del aceite, PCA, margen de error del Weibull). Tres usos: (1) entre los indicadores del Mapa de equipos (fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso y horómetro); (2) entre los 6 metales de desgaste del aceite, dentro de un mismo tipo de componente; (3) entre las 6 señales de la Señal Unificada de Reemplazo, para ver si cuentan evidencia distinta o se encienden juntas.
+- **De dónde viene:** 🟢 Correlación de rangos de Spearman (1904); su significancia aproximada usa la t de Student con n−2 grados de libertad, t = ρ·√((n−2)/(1−ρ²)), y con empates se usan rangos promedio y el ρ es la correlación de Pearson de esos rangos ([Genstat, correlación de Spearman](https://genstat.kb.vsni.co.uk/knowledge-base/spearman/)); las fuentes advierten que con n < 10 conviene tablas exactas, por eso el programa marca «muestra chica» y no confirma con pocos datos. El ajuste de Holm (1979, *Scandinavian Journal of Statistics* 6:65–70) controla el error de mirar varios pares a la vez ([Holm–Bonferroni, Wikipedia](https://en.wikipedia.org/wiki/Holm%E2%80%93Bonferroni_method); [documentación de mutoss](https://search.r-project.org/CRAN/refmans/mutoss/html/holm.html)). El test exacto de Fisher para tablas 2×2 usa la distribución hipergeométrica ([SciPy, fisher_exact](https://docs.scipy.org/doc/scipy-1.9.1/reference/generated/scipy.stats.fisher_exact.html)). **El coeficiente phi de dos variables sí/no (usado entre señales) no se pudo confirmar en una fuente durante la búsqueda;** es la correlación de Pearson aplicada a variables 0/1, fórmula estándar (ad − bc) ÷ √((a+b)(c+d)(a+c)(b+d)).
+- **Cómo lo calcula aquí:** `correlacionSpearman` convierte cada variable en rangos, calcula la correlación y su p de dos colas; exige 5 datos y que ninguna variable sea constante. `correlacionesPares` arma todos los pares, los ordena por fuerza (|ρ| ≥ 0,7 fuerte, ≥ 0,4 moderada, ≥ 0,2 débil) y aplica Holm (`holmAjustarP`); un par se llama «confirmado» solo con p ajustado < 0,05. `correlacionesIndicadoresEquipos` exige 6 equipos con datos completos. `correlacionMetalesAceite` agrupa por «descriptor» o, si está vacío, por «componente» (hoy está vacío en todas las muestras reales), pide 10 muestras por grupo y usa en cada par las muestras donde ambos metales tienen lectura. `correlacionSenalesReemplazo` calcula phi y Fisher exacto por par de señales sobre los equipos con dato en ambas, exige 8 equipos, y marca «redundante» un par con phi ≥ 0,5 y p ajustado < 0,05. Verificado con un script Python independiente (rangos promedio, t integrada numéricamente, enumeración exacta de Fisher).
+- **Dónde se ve:** Estadística → Mapa de equipos (PCA) («¿Qué indicadores se mueven juntos?»); Análisis de Aceite («¿Qué metales suben juntos?»); Predictivo → Señal Unificada de Reemplazo («¿Las 6 señales miden cosas distintas?»).
+- **Límites:** correlación no es causa; con 6 a 10 datos solo es una pista y un par sin confirmar no prueba que no haya relación. Spearman mide relaciones que van en un solo sentido; no ve una relación en forma de U. En la Señal Unificada es una advertencia de lectura: no cambia el umbral de «4 de 6». Si un metal tiene casi todo en cero, su correlación no se puede calcular.
+- **Código:** `correlacionSpearman`, `holmAjustarP`, `correlacionesPares`, `correlacionesIndicadoresEquipos`, `correlacionMetalesAceite`, `correlacionSenalesReemplazo`.
 ---
 
 ## D. Criticidad, riesgo y prioridad

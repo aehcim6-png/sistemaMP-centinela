@@ -1118,6 +1118,157 @@ function r2RegresionLineal(pts){
   return{pendiente:pendiente,intercepto:intercepto,r2:Math.round(Math.max(0,Math.min(1,r2))*1000)/1000,n:n};
 }
 
+// ═══ CORRELACIONES — ¿qué variables se mueven juntas? (2026-10-18) ═══
+// La covarianza mide cuánto se mueven juntas dos variables; dividida por las
+// desviaciones de ambas da la correlación (la covarianza "sin unidades").
+// Antes solo se usaba por dentro (distancia de Mahalanobis del aceite, PCA,
+// error del Weibull) y nunca se le mostraba al usuario qué se mueve con qué.
+// Se usa Spearman (correlación de los RANGOS) y no Pearson: las variables de
+// la flota (fallas, horas, ppm de metal) son asimétricas y con pocos datos,
+// y un solo valor extremo puede crear o esconder una correlación de Pearson.
+// Con empates (muchos ceros) se usan rangos promedio. Con 5-10 datos
+// el resultado es orientativo: por eso se devuelve 'muestraChica' y, al
+// mirar varios pares a la vez, un p ajustado por Holm (si no, a 10-15 pares
+// siempre sale alguno "significativo" por azar). Correlación NO es causa.
+var _CORR_MIN_N=5;
+function _rangosPromedio(v){
+  var idx=v.map(function(x,i){return i;}).sort(function(a,b){return v[a]-v[b];});
+  var r=new Array(v.length);
+  var i=0;
+  while(i<idx.length){
+    var j=i;
+    while(j+1<idx.length&&v[idx[j+1]]===v[idx[i]])j++;
+    var prom=(i+j)/2+1;
+    for(var k=i;k<=j;k++)r[idx[k]]=prom;
+    i=j+1;
+  }
+  return r;
+}
+// p-valor de dos colas de una t de Student con 'df' grados (vía Beta incompleta)
+function _pValorT2(t,df){
+  if(!(df>0))return null;
+  return _betaIncompletaRegularizada(df/(df+t*t),df/2,0.5);
+}
+function correlacionSpearman(xs,ys){
+  var a=[],b=[];
+  for(var i=0;i<(xs||[]).length;i++){
+    var x=xs[i],y=ys[i];
+    if(x==null||y==null||x===''||y==='')continue;
+    x=Number(x);y=Number(y);
+    if(!isFinite(x)||!isFinite(y))continue;
+    a.push(x);b.push(y);
+  }
+  var n=a.length;
+  if(n<_CORR_MIN_N)return null;
+  var ra=_rangosPromedio(a),rb=_rangosPromedio(b);
+  var ma=(n+1)/2,sab=0,saa=0,sbb=0;
+  for(var k=0;k<n;k++){
+    sab+=(ra[k]-ma)*(rb[k]-ma);saa+=(ra[k]-ma)*(ra[k]-ma);sbb+=(rb[k]-ma)*(rb[k]-ma);
+  }
+  if(!(saa>0)||!(sbb>0))return null;
+  var rho=sab/Math.sqrt(saa*sbb);
+  rho=Math.max(-1,Math.min(1,rho));
+  var p=Math.abs(rho)>=1?0:_pValorT2(rho*Math.sqrt((n-2)/(1-rho*rho)),n-2);
+  return{rho:Math.round(rho*1000)/1000,n:n,p:p,muestraChica:n<10};
+}
+// Ajuste de Holm (control del error al mirar varios pares a la vez). Devuelve
+// los p ajustados en el mismo orden; un p null queda null.
+function holmAjustarP(ps){
+  var items=[];
+  ps.forEach(function(p,i){if(p!=null)items.push({p:p,i:i});});
+  items.sort(function(a,b){return a.p-b.p;});
+  var m=items.length,out=new Array(ps.length).fill(null),max=0;
+  items.forEach(function(it,k){
+    max=Math.max(max,Math.min(1,(m-k)*it.p));
+    out[it.i]=max;
+  });
+  return out;
+}
+function textoFuerzaCorrelacion(rho){
+  var a=Math.abs(rho);
+  return a>=0.7?'fuerte':a>=0.4?'moderada':a>=0.2?'débil':'casi nula';
+}
+// Todos los pares de una lista de variables: filas=[{a:..,b:..}] (objetos con
+// las claves), nombres por clave. Devuelve pares ordenados por |ρ| con p ajustado.
+function correlacionesPares(filas,claves,nombres){
+  var pares=[];
+  for(var i=0;i<claves.length;i++)for(var j=i+1;j<claves.length;j++){
+    var c=correlacionSpearman(filas.map(function(f){return f[claves[i]];}),filas.map(function(f){return f[claves[j]];}));
+    pares.push({a:claves[i],b:claves[j],nombreA:(nombres&&nombres[i])||claves[i],nombreB:(nombres&&nombres[j])||claves[j],rho:c?c.rho:null,n:c?c.n:0,p:c?c.p:null,muestraChica:c?c.muestraChica:true});
+  }
+  var aj=holmAjustarP(pares.map(function(q){return q.p;}));
+  pares.forEach(function(q,k){q.pAjustado=aj[k];q.significativa=aj[k]!=null&&aj[k]<0.05;q.fuerza=q.rho==null?null:textoFuerzaCorrelacion(q.rho);});
+  pares.sort(function(x,y){return (y.rho==null?-1:Math.abs(y.rho))-(x.rho==null?-1:Math.abs(x.rho));});
+  return pares;
+}
+// Indicadores de la flota (mismos del Mapa de equipos): recibe las filas con
+// vars {fallas1000,mttr,fsPct,uso,horom}. Menos de 6 equipos → null.
+function correlacionesIndicadoresEquipos(filasVars,claves,nombres){
+  var v=(filasVars||[]).filter(Boolean);
+  if(v.length<6)return null;
+  return{n:v.length,pares:correlacionesPares(v,claves,nombres)};
+}
+// Metales de desgaste del aceite: qué metales suben juntos dentro de un mismo
+// tipo de componente. Usa 'descriptor' y, si está vacío (hoy lo está en todas
+// las muestras reales), el campo 'componente'. Cada par usa las muestras donde
+// ambos metales tienen dato (un 0 es una lectura válida: "no detectado").
+function correlacionMetalesAceite(ace,minMuestras){
+  var min=minMuestras||10;
+  var metales=Object.keys(_ACEITE_UMBRAL_METAL);
+  var porGrupo={};
+  (ace||[]).forEach(function(m){
+    if(!m)return;
+    var g=String(m.descriptor||m.componente||'').toUpperCase().trim();
+    if(!g)return;
+    (porGrupo[g]=porGrupo[g]||[]).push(m);
+  });
+  var out=[];
+  Object.keys(porGrupo).forEach(function(g){
+    var muestras=porGrupo[g];
+    if(muestras.length<min)return;
+    var pares=correlacionesPares(muestras,metales,metales);
+    if(!pares.some(function(q){return q.rho!=null;}))return;
+    out.push({grupo:g,n:muestras.length,metales:metales,pares:pares});
+  });
+  out.sort(function(a,b){return b.n-a.n;});
+  return out;
+}
+// Probabilidad exacta de Fisher (dos colas) para una tabla 2x2 [[a,b],[c,d]].
+function _fisherExacto2x2(a,b,c,d){
+  var n=a+b+c+d,r1=a+b,c1=a+c;
+  var lp=function(x){return _logGamma(r1+1)-_logGamma(x+1)-_logGamma(r1-x+1)+_logGamma(n-r1+1)-_logGamma(c1-x+1)-_logGamma(n-r1-c1+x+1)-(_logGamma(n+1)-_logGamma(c1+1)-_logGamma(n-c1+1));};
+  var lo=Math.max(0,c1-(n-r1)),hi=Math.min(r1,c1),obs=lp(a),p=0;
+  for(var x=lo;x<=hi;x++){var l=lp(x);if(l<=obs+1e-9)p+=Math.exp(l);}
+  return Math.min(1,p);
+}
+// Señal Unificada de Reemplazo: ¿las 6 señales cuentan evidencia distinta o
+// se encienden juntas? 'lista' = [{senales:[{clave,nombre,activa}]}] uno por
+// equipo (activa null = sin dato, no entra). Para cada par: coeficiente phi
+// (correlación de dos variables sí/no) y test exacto de Fisher. Un par con phi
+// alto y significativo es redundante: sumar "4 de 6" cuenta dos veces lo mismo.
+function correlacionSenalesReemplazo(lista){
+  var eqs=(lista||[]).filter(function(x){return x&&x.senales;});
+  if(eqs.length<8)return null;
+  var base=eqs[0].senales.map(function(s){return{clave:s.clave,nombre:s.nombre};});
+  var pares=[];
+  for(var i=0;i<base.length;i++)for(var j=i+1;j<base.length;j++){
+    var a=0,b=0,c=0,d=0;
+    eqs.forEach(function(e){
+      var si=e.senales[i].activa,sj=e.senales[j].activa;
+      if(si==null||sj==null)return;
+      if(si&&sj)a++;else if(si)b++;else if(sj)c++;else d++;
+    });
+    var n=a+b+c+d,den=(a+b)*(c+d)*(a+c)*(b+d);
+    var phi=(n>=_CORR_MIN_N*2&&den>0)?(a*d-b*c)/Math.sqrt(den):null;
+    pares.push({a:base[i].clave,b:base[j].clave,nombreA:base[i].nombre,nombreB:base[j].nombre,n:n,ambas:a,soloA:b,soloB:c,ninguna:d,
+      phi:phi==null?null:Math.round(phi*1000)/1000,p:phi==null?null:_fisherExacto2x2(a,b,c,d),muestraChica:n<20});
+  }
+  var aj=holmAjustarP(pares.map(function(q){return q.p;}));
+  pares.forEach(function(q,k){q.pAjustado=aj[k];q.redundante=q.phi!=null&&q.phi>=0.5&&aj[k]!=null&&aj[k]<0.05;});
+  pares.sort(function(x,y){return (y.phi==null?-2:y.phi)-(x.phi==null?-2:x.phi);});
+  return{nEquipos:eqs.length,pares:pares,redundantes:pares.filter(function(q){return q.redundante;})};
+}
+
 // ═══ ANOVA DE UN FACTOR — ¿el promedio real difiere entre grupos (ej.
 // MTTR por técnico), o es ruido de muestra chica? (2026-09-20) ═══
 // Hoy las comparativas "por técnico" (tecnicosAltoReingreso,
@@ -10057,7 +10208,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

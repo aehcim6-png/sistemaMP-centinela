@@ -195,6 +195,7 @@ export function renderAce(){
     '</div>'+
 
     '<div id="aceDashHolder"></div>'+
+    '<div id="aceCorrHolder"></div>'+
 
     '<div class="toolbar">'+
     '<select id="fAceEq" onchange="window._pag.ace=1;renders.ace()"><option value="">Todos equipos</option>'+
@@ -245,7 +246,36 @@ export function renderAce(){
     _pagHTML('ace',pg);
 
   renderAceDash(ace);
+  renderAceCorr(ace);
 };
+
+// ═══ ¿QUÉ METALES SUBEN JUNTOS? (2026-10-18) ═══
+// Correlación de Spearman entre los 6 metales de desgaste, dentro de un mismo tipo de componente
+// (correlacionMetalesAceite, logic.js). Sirve para leer el desgaste: hierro+cobre juntos suelen apuntar
+// a cojinetes/bujes; hierro+silicio, a polvo entrando. Es una pista para mirar, no un diagnóstico.
+function renderAceCorr(ace){
+  var holder=document.getElementById('aceCorrHolder');
+  if(!holder)return;
+  var grupos=ace.length?correlacionMetalesAceite(ace):[];
+  if(!grupos.length){
+    holder.innerHTML=ace.length?'<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">¿Qué metales suben juntos?</div><div style="padding:14px;color:var(--tx3);font-size:12px">Ningún tipo de componente tiene todavía 10 muestras o más con lecturas de metales: con menos no se puede calcular una correlación confiable.</div></div>':'';
+    return;
+  }
+  var sel=window._aceCorrGrupo;
+  var g=grupos.find(function(x){return x.grupo===sel;})||grupos[0];
+  var nombres=g.metales.map(function(m){return m.charAt(0).toUpperCase()+m.slice(1);});
+  var pares=g.pares.map(function(q){return Object.assign({},q,{nombreA:q.a.charAt(0).toUpperCase()+q.a.slice(1),nombreB:q.b.charAt(0).toUpperCase()+q.b.slice(1)});});
+  var fuertes=pares.filter(function(q){return q.significativa&&Math.abs(q.rho)>=0.4;});
+  holder.innerHTML='<div class="chart-box" style="margin-bottom:14px;border-left:3px solid var(--ac)"><div class="chart-t">¿Qué metales suben juntos? — correlación entre metales de desgaste</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Para un mismo tipo de componente, ρ cerca de +1 = esos dos metales suben a la vez; cerca de −1 = uno sube cuando el otro baja. Es la covarianza entre metales estandarizada y calculada sobre rangos (Spearman), la misma relación que usa el detector de datos atípicos por dentro. En negrita, los pares confirmados (p ajustado &lt; 0,05). <b>Es una pista para mirar, no un diagnóstico.</b></div>'+
+    '<select id="fAceCorrGrupo" onchange="window._aceCorrGrupo=this.value;renderAceCorr(S.g(\'aceite\')||[])" style="margin-bottom:10px;font-weight:600">'+
+    grupos.map(function(x){return'<option value="'+escapeHtml(x.grupo)+'"'+(x.grupo===g.grupo?' selected':'')+'>'+escapeHtml(x.grupo)+' ('+x.n+' muestras)</option>';}).join('')+'</select>'+
+    corrMatrizHTML(pares,g.metales,nombres)+
+    '<div style="font-size:12px;margin-top:10px">'+(fuertes.length?'<b>Pares que se mueven juntos de forma confirmada:</b> '+fuertes.map(function(q){return escapeHtml(q.nombreA)+' ↔ '+escapeHtml(q.nombreB)+' (ρ '+(Math.round(q.rho*100)/100).toString().replace('.',',')+', '+q.n+' muestras)';}).join(' · '):'<span style="color:var(--tx3)">Ningún par de metales queda confirmado con las muestras de este componente.</span>')+'</div>'+
+    '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600">Ver todos los pares con su p-valor</summary>'+corrTablaParesHTML(pares)+'</details>'+
+    '<div style="font-size:10px;color:var(--tx3);padding-top:6px">Cada par usa las muestras donde ambos metales tienen lectura (un 0 es una lectura válida: «no detectado»). Si un metal tiene casi todo en cero, su correlación no se puede calcular y se muestra «—».</div></div>';
+}
+window.renderAceCorr=renderAceCorr;
 
 // ═══ DASHBOARD VISUAL DE ACEITE (estilo reporte Mobil Assistance) ═══
 // Usa el campo ESTADO ya asignado por el laboratorio en cada muestra real — no inventa umbrales.

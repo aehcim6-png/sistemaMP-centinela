@@ -2078,6 +2078,22 @@ export function renderPred(){
     candidatosRepl.sort(function(a,b){return b.nEncendidas-a.nEncendidas;});
     var nCandidatosRepl=candidatosRepl.filter(function(c){return c.candidato;}).length;
 
+    // ¿Las 6 señales cuentan evidencia distinta o se encienden juntas? (correlación sí/no entre señales,
+    // test exacto de Fisher con ajuste de Holm). Si dos van siempre juntas, "4 de 6" cuenta dos veces lo mismo.
+    var corrSenRepl=correlacionSenalesReemplazo(candidatosRepl);
+    var corrSenHtml='<div class="chart-box" style="margin-top:14px;border-left:3px solid var(--ac)"><div class="chart-t">¿Las 6 señales miden cosas distintas? — correlación entre señales</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">El umbral «4 de 6» supone que cada señal aporta evidencia propia. Si dos señales se encienden casi siempre en los mismos equipos, en realidad cuentan una sola vez. φ va de −1 a +1 (cerca de +1 = se encienden juntas).</div>'+
+      (corrSenRepl?
+        '<div class="tbl-wrap"><table><tr><th>Par de señales</th><th>φ</th><th>Equipos con ambas dato</th><th>Ambas encendidas</th><th>Solo la 1.ª</th><th>Solo la 2.ª</th><th>p ajustado</th><th>Lectura</th></tr>'+
+        corrSenRepl.pares.map(function(q){
+          var pTxt=q.pAjustado==null?'—':(q.pAjustado<0.001?'&lt;0,001':(Math.round(q.pAjustado*1000)/1000).toString().replace('.',','));
+          var lect=q.phi==null?'<span style="color:var(--tx3)">sin datos suficientes (una señal casi nunca o siempre encendida)</span>':q.redundante?'<b style="color:var(--w)">Redundantes: se encienden juntas más de lo esperable por azar</b>':q.muestraChica?'<span style="color:var(--w)">Muestra chica</span>':'<span style="color:var(--tx3)">Aportan evidencia distinta</span>';
+          return'<tr><td style="font-size:11px">'+escapeHtml(q.nombreA)+' ↔ '+escapeHtml(q.nombreB)+'</td><td style="text-align:center;font-weight:700;background:'+corrColor(q.phi)+'">'+(q.phi==null?'—':(Math.round(q.phi*100)/100).toString().replace('.',','))+'</td><td style="text-align:center">'+q.n+'</td><td style="text-align:center">'+q.ambas+'</td><td style="text-align:center">'+q.soloA+'</td><td style="text-align:center">'+q.soloB+'</td><td style="text-align:center">'+pTxt+'</td><td style="font-size:11px">'+lect+'</td></tr>';
+        }).join('')+'</table></div>'+
+        '<div style="font-size:12px;margin-top:8px">'+(corrSenRepl.redundantes.length?'<b>'+corrSenRepl.redundantes.length+' par(es) redundante(s):</b> el conteo «4 de 6» probablemente sobreestima la evidencia cuando coinciden esas señales. Es una advertencia para leer con cuidado, no cambia el umbral.':'<span style="color:var(--tx3)">Ningún par de señales resulta redundante con los equipos que tienen dato.</span>')+'</div>'
+        :'<div style="padding:14px;text-align:center;color:var(--tx3)">Se necesitan al menos 8 equipos evaluables para comparar señales (hay '+candidatosRepl.length+').</div>')+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:6px">Test exacto de Fisher por par, con ajuste de Holm por mirar varios pares a la vez. Con pocos equipos, «no redundantes» solo significa que no se alcanza a ver. Correlación no es causa.</div></div>';
+
     content=
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Señal Unificada de Reemplazo</div><div style="font-size:11px;color:var(--tx3)">Cruza 6 señales reales (Weibull, riesgo de componentes, reincidencia, alerta cruzada, Edad Virtual, Costo Relativo) — candidato cuando 4 de 6 coinciden para el mismo equipo</div></div>'+
       '<div class="cards" style="margin-bottom:16px">'+
@@ -2097,6 +2113,7 @@ export function renderPred(){
       }).join('')+'</table></div>'
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo tiene dato en al menos una de las 6 señales todavía.</div>')+
       '</div>'+
+      corrSenHtml+
       '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Cada señal puede faltar por equipo (ej. sin historial suficiente para Weibull, o sin Órdenes de Compra para Costo Relativo) — una señal sin dato NO cuenta ni a favor ni en contra, nunca se inventa. "Candidato" es una señal para EVALUAR reemplazo, no una decisión automática.</p>';
   }
 
