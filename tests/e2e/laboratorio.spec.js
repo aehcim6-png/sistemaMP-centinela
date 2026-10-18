@@ -39,6 +39,13 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
     }
     document.querySelectorAll('#s-pred details').forEach((d) => { d.open = true; });
     out.texto = document.getElementById('s-pred').innerText;
+    // Probabilidad de falla: muestra las dos formas de ordenar lado a lado, con lo que dice el backtest
+    for (let k = 0; k < 6; k++) {
+      sembrar(); await esp(400);
+      sel().value = 'probabilidad'; renders.pred(); await esp(500);
+      if (/qué dice el backtest/i.test(document.getElementById('s-pred').innerText)) break;
+    }
+    out.textoProb = document.getElementById('s-pred').innerText;
     window.alternarModoLab(); await esp(600);   // al apagar desde una vista de laboratorio vuelve a la general
     out.valorTrasApagar = sel().value;
     out.opcionesFinal = [...sel().options].map((o) => o.value);
@@ -51,6 +58,9 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
   expect(r.texto).toContain('Backtest');
   expect(r.texto).toMatch(/meses probados/i);
   expect(r.texto).toContain('Regla simple: fallas de los últimos 365 días');
+  expect(r.textoProb).toMatch(/lado a lado/i);
+  expect(r.textoProb).toContain('Por fallas recientes');
+  expect(r.textoProb).toContain('Qué dice el backtest');
   expect(r.valorTrasApagar).toBe('general');
   expect(r.opcionesFinal).not.toContain('backtest');
 });

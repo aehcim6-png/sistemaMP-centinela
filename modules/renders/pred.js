@@ -1168,7 +1168,47 @@ export function renderPred(){
       if(o&&o.sigla&&o.sistema)eventosProb.push({sigla:o.sigla,componente:o.sistema,fecha:o.fecha});
     });
     var probs=probabilidadFallaDesdeEventos(eventosProb).filter(function(p){return !fEq||p.sigla===fEq;}).slice(0,40);
-    content=
+    // ── Dos formas de ordenar, lado a lado (2026-10-18) ──
+    // En el backtest (Laboratorio → Backtest) la probabilidad por intervalo medio entre fallas resultó peor que
+    // simplemente contar las fallas del último año. En vez de reemplazarla, se muestran las dos listas juntas
+    // con el resultado del backtest al lado, para que se vea cuál le está funcionando a la flota.
+    var evTodos=[];
+    ot.forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o))evTodos.push({sigla:o.sigla,fecha:o.fecha,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});});
+    otHistProb.forEach(function(o){if(o&&o.sigla)evTodos.push({sigla:o.sigla,fecha:o.fecha,componente:o.sistema||''});});
+    var hoyIsoP=new Date().toISOString().slice(0,10),d365P=new Date(Date.now()-365*864e5).toISOString().slice(0,10),d90P=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
+    var sigsEq={};eq.forEach(function(e){sigsEq[e.sigla]=true;});
+    var porEqRec={};
+    evTodos.forEach(function(e){
+      if(!sigsEq[e.sigla]||e.fecha>hoyIsoP)return;
+      var r=porEqRec[e.sigla]||(porEqRec[e.sigla]={sigla:e.sigla,f365:{},f90:{}});
+      if(e.fecha>d365P)r.f365[e.fecha]=1;
+      if(e.fecha>d90P)r.f90[e.fecha]=1;
+    });
+    var listaRec=Object.keys(porEqRec).map(function(k){var r=porEqRec[k];return{sigla:k,f365:Object.keys(r.f365).length,f90:Object.keys(r.f90).length};})
+      .filter(function(r){return r.f365>0&&(!fEq||r.sigla===fEq);}).sort(function(a,b){return b.f365-a.f365||b.f90-a.f90;});
+    var mejorProbPorEq={};
+    probs.forEach(function(q){if(!mejorProbPorEq[q.sigla]||q.prob30dPct>mejorProbPorEq[q.sigla].prob30dPct)mejorProbPorEq[q.sigla]=q;});
+    var listaProb=Object.keys(mejorProbPorEq).map(function(k){return mejorProbPorEq[k];}).sort(function(a,b){return b.prob30dPct-a.prob30dPct;});
+    var TOPN=8,topProb=listaProb.slice(0,TOPN),topRec=listaRec.slice(0,TOPN);
+    var enAmbas=topProb.filter(function(q){return topRec.some(function(r){return r.sigla===q.sigla;});}).length;
+    var btP=backtestAnticipacionFallas(evTodos,eq,new Date());
+    var fnP=function(x,d){return x==null?'—':(Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toString().replace('.',',');};
+    var btPorClave={};if(btP&&btP.ok)btP.predictores.forEach(function(q){btPorClave[q.clave]=q;});
+    var btTxt=(btP&&btP.ok)?
+      '<div style="font-size:12px;line-height:1.7;margin-bottom:10px;padding:8px 10px;border-radius:6px;background:var(--bg3)"><b>Qué dice el backtest ('+btP.origenes+' meses probados):</b> '+
+        'ordenar por probabilidad por intervalo medio acierta con AUC <b>'+fnP(btPorClave.prob30.auc,2)+'</b> ('+(btPorClave.prob30.veredicto==='peor'?'<span style="color:var(--danger)">peor</span> que':btPorClave.prob30.veredicto==='mejor'?'<span style="color:var(--ok)">mejor</span> que':'sin diferencia clara con')+' la regla simple) y ordenar por fallas de los últimos 365 días, AUC <b>'+fnP(btPorClave.fallas365.auc,2)+'</b> (0,5 = azar, 1 = perfecto). '+
+        'Mientras la regla simple no sea peor, no hay motivo para fiarse de la compleja. Detalle en Laboratorio → Backtest.</div>'
+      :'<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">El backtest todavía no se puede calcular con los datos actuales (ver Laboratorio → Backtest).</div>';
+    var colCaja=function(titulo,sub,filas){return'<div style="flex:1;min-width:260px"><div style="font-weight:700;font-size:12px">'+titulo+'</div><div style="font-size:10px;color:var(--tx3);margin-bottom:6px">'+sub+'</div>'+filas+'</div>';};
+    var ladoALado='<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px"><div class="chart-t">Dos formas de ordenar qué equipos fallarán — lado a lado</div>'+btTxt+
+      '<div style="display:flex;gap:18px;flex-wrap:wrap">'+
+      colCaja('A · Por probabilidad (intervalo medio entre fallas)','La que se mostraba hasta ahora: el peor componente de cada equipo',
+        topProb.length?'<table style="width:100%"><tr><th>Equipo</th><th>Componente</th><th>Prob. 30 d</th></tr>'+topProb.map(function(q){var coinc=topRec.some(function(r){return r.sigla===q.sigla;});return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(q.sigla)+(coinc?' ✓':'')+'</td><td>'+escapeHtml(q.componente)+'</td><td style="text-align:center">'+q.prob30dPct+'%</td></tr>';}).join('')+'</table>':'<div style="color:var(--tx3);font-size:11px">Sin historial suficiente.</div>')+
+      colCaja('B · Por fallas recientes','Regla simple: cuántas fallas tuvo en los últimos 365 y 90 días',
+        topRec.length?'<table style="width:100%"><tr><th>Equipo</th><th>365 días</th><th>90 días</th></tr>'+topRec.map(function(r){var coinc=topProb.some(function(q){return q.sigla===r.sigla;});return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+(coinc?' ✓':'')+'</td><td style="text-align:center">'+r.f365+'</td><td style="text-align:center">'+r.f90+'</td></tr>';}).join('')+'</table>':'<div style="color:var(--tx3);font-size:11px">Sin fallas en el último año.</div>')+
+      '</div>'+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:8px">✓ = el equipo aparece en las dos listas (coinciden '+enAmbas+' de '+TOPN+'). Los que aparecen en una sola lista son los que conviene mirar con más cuidado. Fallas distintas por día de un mismo equipo; incluye el historial 2022–2025.</div></div>';
+    content=ladoALado+
       '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">'+ICONS.dice+' Probabilidad de falla en los próximos 30 días</div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta): usa el intervalo promedio real entre fallas pasadas del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ fallas registradas; con menos, el número no sería confiable.</div>'+
       (probs.length?
