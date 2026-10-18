@@ -1128,9 +1128,9 @@ export function renderPred(){
     var evBt=[];
     ot.forEach(function(o){
       if(!o||!o.sigla||!esFallaMTBF(o))return;
-      evBt.push({sigla:o.sigla,fecha:o.fecha,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});
+      evBt.push({sigla:o.sigla,fecha:o.fecha,horom:o.horom,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});
     });
-    (S.g('otHist')||[]).forEach(function(o){if(o&&o.sigla)evBt.push({sigla:o.sigla,fecha:o.fecha,componente:o.sistema||''});});
+    (S.g('otHist')||[]).forEach(function(o){if(o&&o.sigla)evBt.push({sigla:o.sigla,fecha:o.fecha,horom:o.horometro,componente:o.sistema||''});});
     var bt=backtestAnticipacionFallas(evBt,eq,new Date());
     var fN=function(x,d){return x==null?'—':(Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toString().replace('.',',');};
     var colVer={mejor:'var(--ok)','no distinguible':'var(--w)',peor:'var(--danger)',referencia:'var(--tx3)'};
@@ -1173,8 +1173,8 @@ export function renderPred(){
     // simplemente contar las fallas del último año. En vez de reemplazarla, se muestran las dos listas juntas
     // con el resultado del backtest al lado, para que se vea cuál le está funcionando a la flota.
     var evTodos=[];
-    ot.forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o))evTodos.push({sigla:o.sigla,fecha:o.fecha,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});});
-    otHistProb.forEach(function(o){if(o&&o.sigla)evTodos.push({sigla:o.sigla,fecha:o.fecha,componente:o.sistema||''});});
+    ot.forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o))evTodos.push({sigla:o.sigla,fecha:o.fecha,horom:o.horom,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});});
+    otHistProb.forEach(function(o){if(o&&o.sigla)evTodos.push({sigla:o.sigla,fecha:o.fecha,horom:o.horometro,componente:o.sistema||''});});
     var hoyIsoP=new Date().toISOString().slice(0,10),d365P=new Date(Date.now()-365*864e5).toISOString().slice(0,10),d90P=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
     var sigsEq={};eq.forEach(function(e){sigsEq[e.sigla]=true;});
     var porEqRec={};
@@ -1197,7 +1197,7 @@ export function renderPred(){
     var btTxt=(btP&&btP.ok)?
       '<div style="font-size:12px;line-height:1.7;margin-bottom:10px;padding:8px 10px;border-radius:6px;background:var(--bg3)"><b>Qué dice el backtest ('+btP.origenes+' meses probados):</b> '+
         'ordenar por probabilidad por intervalo medio acierta con AUC <b>'+fnP(btPorClave.prob30.auc,2)+'</b> ('+(btPorClave.prob30.veredicto==='peor'?'<span style="color:var(--danger)">peor</span> que':btPorClave.prob30.veredicto==='mejor'?'<span style="color:var(--ok)">mejor</span> que':'sin diferencia clara con')+' la regla simple) y ordenar por fallas de los últimos 365 días, AUC <b>'+fnP(btPorClave.fallas365.auc,2)+'</b> (0,5 = azar, 1 = perfecto). '+
-        'Mientras la regla simple no sea peor, no hay motivo para fiarse de la compleja. Detalle en Laboratorio → Backtest.</div>'
+        'Weibull por equipo: AUC <b>'+fnP(btPorClave.weibull.auc,2)+'</b>; Kijima: <b>'+fnP(btPorClave.kijima.auc,2)+'</b>. Mientras la regla simple no sea peor, no hay motivo para fiarse de la compleja. Detalle en Laboratorio → Backtest.</div>'
       :'<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">El backtest todavía no se puede calcular con los datos actuales (ver Laboratorio → Backtest).</div>';
     var colCaja=function(titulo,sub,filas){return'<div style="flex:1;min-width:260px"><div style="font-weight:700;font-size:12px">'+titulo+'</div><div style="font-size:10px;color:var(--tx3);margin-bottom:6px">'+sub+'</div>'+filas+'</div>';};
     var ladoALado='<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px"><div class="chart-t">Dos formas de ordenar qué equipos fallarán — lado a lado</div>'+btTxt+

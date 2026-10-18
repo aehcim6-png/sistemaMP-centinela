@@ -58,6 +58,8 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
   expect(r.texto).toContain('Backtest');
   expect(r.texto).toMatch(/meses probados/i);
   expect(r.texto).toContain('Regla simple: fallas de los últimos 365 días');
+  expect(r.texto).toContain('Weibull por equipo');
+  expect(r.texto).toContain('Kijima por equipo');
   expect(r.textoProb).toMatch(/lado a lado/i);
   expect(r.textoProb).toContain('Por fallas recientes');
   expect(r.textoProb).toContain('Qué dice el backtest');

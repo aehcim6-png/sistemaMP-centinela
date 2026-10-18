@@ -211,11 +211,19 @@ export function renderAudit(){
   const conCosto=corrComp.filter(function(o){return o.costo>0;}).length;
   const conCausa=corrComp.filter(function(o){return o.causaRaiz&&String(o.causaRaiz).trim();}).length;
   const colPct=function(p){return p>=80?'var(--ok)':p>=40?'var(--w)':'var(--danger)';};
+  // Prueba del diccionario de componentes con datos que NO se usaron para afinarlo: el historial 2022-2025
+  // (descripción distinta + «sistema» ya asignado). Cobertura y acuerdo con esa etiqueta.
+  const evDic=(typeof evaluarDiccionarioComponentes==='function')?evaluarDiccionarioComponentes((S.g('otHist')||[]).map(function(o){return{texto:o.descripcion,etiqueta:o.sistema};})):null;
+  const dicHTML=evDic?'<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)"><div style="font-weight:600;font-size:12px;margin-bottom:4px">¿El diccionario que deduce el componente funciona con textos nuevos?</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding-bottom:8px">El diccionario se afinó con los correctivos actuales, así que medirlo ahí no prueba nada. Se probó con el historial 2022–2025 ('+evDic.n+' descripciones), que no se usó para afinarlo.</div>'+
+    '<div style="display:flex;gap:18px;flex-wrap:wrap"><div><div style="font-size:22px;font-weight:700;color:'+colPct(evDic.pctClasificadas)+'">'+String(evDic.pctClasificadas).replace('.',',')+'%</div><div style="font-size:11px;color:var(--tx3);max-width:190px">de las descripciones del historial recibe un componente (rango '+String(evDic.icClasificadas[0]).replace('.',',')+'–'+String(evDic.icClasificadas[1]).replace('.',',')+' %)</div></div>'+
+    (evDic.pctAcuerdo!=null?'<div><div style="font-size:22px;font-weight:700;color:'+colPct(evDic.pctAcuerdo)+'">'+String(evDic.pctAcuerdo).replace('.',',')+'%</div><div style="font-size:11px;color:var(--tx3);max-width:230px">coincide con el «sistema» que ya traía el historial ('+evDic.acuerdos+' de '+evDic.clasificadasConEtiqueta+'; rango '+String(evDic.icAcuerdo[0]).replace('.',',')+'–'+String(evDic.icAcuerdo[1]).replace('.',',')+' %)</div></div>':'')+'</div>'+
+    (evDic.desacuerdos.length?'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px">Dónde no coincide</summary><div style="font-size:11px;color:var(--tx3);padding:6px 0">'+evDic.desacuerdos.map(function(d){return escapeHtml(d.par)+' ('+d.n+')';}).join(' · ')+'<br>Muchos son categorías más finas que la etiqueta del historial (por ejemplo «Radio/Comunicaciones» dentro de «Sistema Eléctrico»), no errores. La etiqueta del historial viene de una clasificación previa y tiene descripciones con varios temas: no es una verdad perfecta.</div></details>':'')+'</div>':'';
   const completitudHTML=nCorr?'<div class="chart-box" style="margin-bottom:14px;border-left:3px solid var(--ac)"><div class="chart-t">Completitud de los correctivos ('+nCorr+')</div>'+
     '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">Qué porcentaje de los correctivos tiene cargados los datos que alimentan el costo de mantenimiento, el análisis de causa raíz y las predicciones. Desde ahora, al cerrar un correctivo el sistema pide completar lo que falte.</div>'+
     '<div style="display:flex;gap:18px;flex-wrap:wrap">'+
     [['Componente cargado',pct(conComp)],['Componente (cargado o deducido del texto)',pct(conCompTexto)],['Costo',pct(conCosto)],['Causa raíz',pct(conCausa)]].map(function(x){return'<div><div style="font-size:22px;font-weight:700;color:'+colPct(x[1])+'">'+x[1]+'%</div><div style="font-size:11px;color:var(--tx3);max-width:160px">'+x[0]+'</div></div>';}).join('')+
-    '</div></div>':'';
+    '</div>'+dicHTML+'</div>':'';
 
   $('s-audit').innerHTML=`
     <div class="sec-h"><div>
