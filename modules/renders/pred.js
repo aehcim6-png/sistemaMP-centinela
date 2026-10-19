@@ -1149,6 +1149,13 @@ export function renderPred(){
             '<td style="text-align:center;font-size:11px">'+(q.difVsReferencia?(q.difVsReferencia.media>0?'+':'')+fN(q.difVsReferencia.media,3)+' ('+fN(q.difVsReferencia.lo,3)+' a '+fN(q.difVsReferencia.hi,3)+')':'—')+'</td>'+
             '<td style="font-weight:700;color:'+colVer[q.veredicto]+'">'+txtVer[q.veredicto]+'</td></tr>';
         }).join('')+'</table></div>'+
+        '<div class="chart-t" style="margin-top:14px">¿Las probabilidades son confiables, o solo ordenan bien?</div>'+
+        '<div style="font-size:11px;color:var(--tx3);padding:4px 0 8px;line-height:1.6">El AUC solo mira el orden. Acá se mide si el número en sí es creíble: si el programa dice «30 %», ¿falla cerca del 30 % de las veces? <b>Brier</b> y <b>log loss</b>: menor es mejor. «Mejora sobre el azar» compara el Brier con siempre decir la tasa típica de la flota ('+fN(bt.tasaBasePooled*100,0)+'%, Brier '+fN(bt.brierBase,3)+'): positivo = ayuda, negativo = peor que no predecir.</div>'+
+        '<div class="tbl-wrap"><table><tr><th>Modelo</th><th>Brier</th><th>Log loss</th><th title="1 − Brier del modelo ÷ Brier de decir siempre la tasa típica">Mejora sobre el azar</th><th title="En cuántos equipo-mes el modelo pudo dar una probabilidad (si no pudo, cuenta como 0 %)">Dio probabilidad en</th></tr>'+
+        bt.predictores.filter(function(q){return q.calibracion;}).map(function(q){
+          var c=q.calibracion,col=c.brierSkill==null?'var(--tx3)':c.brierSkill>0?'var(--ok)':'var(--danger)';
+          return'<tr><td style="font-size:11px">'+escapeHtml(q.nombre)+'</td><td style="text-align:center;font-weight:700">'+fN(c.brier,3)+'</td><td style="text-align:center">'+fN(c.logLoss,3)+'</td><td style="text-align:center;font-weight:700;color:'+col+'">'+(c.brierSkill==null?'—':(c.brierSkill>0?'+':'')+fN(c.brierSkill*100,0)+'%')+'</td><td style="text-align:center">'+fN(c.cobertura*100,0)+'%</td></tr>';
+        }).join('')+'</table></div>'+
         '<div style="font-size:11px;color:var(--tx3);padding:8px 0;line-height:1.6"><b>Cómo leerlo.</b> La referencia es «fallas de los últimos 365 días», fijada antes de mirar resultados. Una regla solo «gana» si todo el intervalo queda sobre 0; con pocos meses lo normal es «no se distingue», y eso significa que la regla compleja no demuestra aportar más que contar fallas. <b>Límites:</b> los meses consecutivos comparten historia, así que el intervalo es algo optimista; los componentes salen en parte del texto del síntoma; prueba solo «qué equipo falla el próximo mes», no si la predicción ayuda a decidir una compra o un cambio.</div>')+
       '</div>';
   } else if(fVista==='taller'){

@@ -6756,6 +6756,8 @@ function _btScoresModelos(horoms,horomT,deltaHoras){
   return r;
 }
 var _BT_REFERENCIA='fallas365';
+// Los tres que entregan una probabilidad (0–1) de fallar en el horizonte; los demás son puntajes de orden, no probabilidades.
+var _BT_PROBABILIDAD={prob30:1,weibull:1,kijima:1};
 function _btAuc(puntajes,etiquetas){
   var pos=[],neg=[];
   puntajes.forEach(function(p,i){(etiquetas[i]?pos:neg).push(p);});
@@ -6763,6 +6765,20 @@ function _btAuc(puntajes,etiquetas){
   var s=0;
   pos.forEach(function(a){neg.forEach(function(b){s+=a>b?1:a===b?0.5:0;});});
   return s/(pos.length*neg.length);
+}
+// Calidad de las PROBABILIDADES (no solo del orden): Brier = promedio de (p − real)², log loss = promedio de
+// −[y·ln p + (1−y)·ln(1−p)]. Menor es mejor en las dos. Con p = 0 exacto (el modelo no pudo ajustarse) se cuenta como
+// probabilidad 0 y el log loss usa p acotada a [0,01; 0,99] para que un solo fallo no lo lleve a infinito.
+// cobertura = fracción de equipo-mes en que el modelo dio algo distinto de 0.
+function _btMetricasProb(ps,ys){
+  var n=ps.length;
+  if(!n)return null;
+  var br=0,ll=0,cb=0;
+  for(var i=0;i<n;i++){
+    var p=Math.min(1,Math.max(0,Number(ps[i])||0)),y=ys[i]?1:0,pc=Math.min(0.99,Math.max(0.01,p));
+    br+=(p-y)*(p-y);ll+=-(y*Math.log(pc)+(1-y)*Math.log(1-pc));if(p>0)cb++;
+  }
+  return{brier:br/n,logLoss:ll/n,cobertura:cb/n,n:n};
 }
 function backtestAnticipacionFallas(eventos,equipos,hoy,o){
   var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,rng=op.rng||Math.random;
@@ -6856,10 +6872,20 @@ function backtestAnticipacionFallas(eventos,equipos,hoy,o){
       dif={media:Math.round(media(difs)*1000)/1000,lo:Math.round(lo*1000)/1000,hi:Math.round(hi*1000)/1000};
       veredicto=lo>0?'mejor':hi<0?'peor':'no distinguible';
     }
-    return{clave:df.clave,nombre:df.nombre,auc:Math.round(auc*1000)/1000,precisionTop:Math.round(tp*1000)/1000,lift:tasaBase>0?Math.round(tp/tasaBase*100)/100:null,difVsReferencia:dif,veredicto:veredicto};
+    var cal=null;
+    if(_BT_PROBABILIDAD[df.clave]){
+      var todos=[];filas.forEach(function(f){f.items.forEach(function(x){todos.push(x);});});
+      var m=_btMetricasProb(todos.map(function(x){return df.clave==='prob30'?x.prob30/100:x[df.clave];}),todos.map(function(x){return x.y;}));
+      var pr=todos.reduce(function(a,x){return a+x.y;},0)/todos.length,brRef=pr*(1-pr);
+      cal={brier:Math.round(m.brier*10000)/10000,logLoss:Math.round(m.logLoss*10000)/10000,cobertura:Math.round(m.cobertura*1000)/1000,
+        brierSkill:brRef>0?Math.round((1-m.brier/brRef)*1000)/1000:null};
+    }
+    return{clave:df.clave,nombre:df.nombre,auc:Math.round(auc*1000)/1000,precisionTop:Math.round(tp*1000)/1000,lift:tasaBase>0?Math.round(tp/tasaBase*100)/100:null,difVsReferencia:dif,veredicto:veredicto,calibracion:cal};
   });
+  var todosItems=[];filas.forEach(function(f){f.items.forEach(function(x){todosItems.push(x);});});
+  var prGlobal=todosItems.reduce(function(a,x){return a+x.y;},0)/todosItems.length;
   return{ok:true,horizonteDias:H,origenes:filas.length,desde:filas[0].origen,hasta:filas[filas.length-1].origen,
-    equiposPorOrigen:Math.round(media(filas.map(function(f){return f.items.length;}))*10)/10,tasaBase:Math.round(tasaBase*1000)/1000,referencia:_BT_REFERENCIA,predictores:predictores};
+    equiposPorOrigen:Math.round(media(filas.map(function(f){return f.items.length;}))*10)/10,tasaBase:Math.round(tasaBase*1000)/1000,tasaBasePooled:Math.round(prGlobal*10000)/10000,brierBase:Math.round(prGlobal*(1-prGlobal)*10000)/10000,referencia:_BT_REFERENCIA,predictores:predictores};
 }
 
 // ═══ PRUEBA DEL DICCIONARIO DE COMPONENTES CON DATOS NO USADOS PARA AFINARLO (2026-10-18) ═══
@@ -10592,7 +10618,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
+    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

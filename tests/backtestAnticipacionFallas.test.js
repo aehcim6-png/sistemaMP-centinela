@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { backtestAnticipacionFallas, _btScoresModelos } from '../logic.js';
+import { backtestAnticipacionFallas, _btScoresModelos, _btMetricasProb } from '../logic.js';
 
 // Datos deterministas: 8 equipos que fallan cada 20, 30, 45, 60, 90, 120, 180 y 250 días desde 2023.
 // Las referencias (AUC y precisión de cada regla) salen de un script Python independiente que repite el cálculo
@@ -96,5 +96,47 @@ describe('_btScoresModelos', () => {
   it('con menos de 5 intervalos no ajusta: puntaje 0', () => {
     const r = _btScoresModelos([100, 500, 900, 1400], 1800, 100);
     expect(r).toEqual({ weibull: 0, kijima: 0 });
+  });
+});
+
+// Brier y log loss: los valores de referencia salen de un script Python independiente (misma fórmula, sin logic.js).
+describe('_btMetricasProb (Brier y log loss)', () => {
+  it('coincide con el cálculo independiente', () => {
+    const m = _btMetricasProb([0, 0.1, 0.5, 0.9, 1.0, 0.3, 0.0, 0.75], [0, 0, 1, 1, 0, 1, 1, 0]);
+    expect(m.brier).toBeCloseTo(0.4153125, 6);
+    expect(m.logLoss).toBeCloseTo(1.58931576, 6);
+    expect(m.cobertura).toBeCloseTo(0.75, 6);
+  });
+  it('sin predicción (p = 0): Brier = tasa de fallas y log loss acotado, no infinito', () => {
+    const m = _btMetricasProb([0, 0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0, 0, 0]);
+    expect(m.brier).toBeCloseTo(0.375, 6);
+    expect(m.logLoss).toBeCloseTo(1.73322028, 6);
+    expect(Number.isFinite(m.logLoss)).toBe(true);
+    expect(m.cobertura).toBe(0);
+  });
+  it('lista vacía: null (no inventa un 0)', () => {
+    expect(_btMetricasProb([], [])).toBeNull();
+  });
+});
+
+describe('backtestAnticipacionFallas — calidad de las probabilidades', () => {
+  it('solo prob30, weibull y kijima traen Brier/log loss; las reglas de orden no', () => {
+    const r = backtestAnticipacionFallas(mkEventos(), equipos, hoy, { rng: rngFijo() });
+    const por = Object.fromEntries(r.predictores.map((p) => [p.clave, p]));
+    ['prob30', 'weibull', 'kijima'].forEach((c) => {
+      expect(por[c].calibracion).not.toBeNull();
+      expect(por[c].calibracion.brier).toBeGreaterThanOrEqual(0);
+      expect(por[c].calibracion.brier).toBeLessThanOrEqual(1);
+    });
+    ['vencido', 'fallas90', 'fallas365'].forEach((c) => expect(por[c].calibracion).toBeNull());
+  });
+  it('Weibull sin horómetro no predice nada: Brier = tasa de fallas, MEJOR que el azar es negativa (−r/(1−r)) y cobertura 0', () => {
+    const r = backtestAnticipacionFallas(mkEventos(), equipos, hoy, { rng: rngFijo() });
+    const w = r.predictores.find((p) => p.clave === 'weibull').calibracion;
+    expect(w.brier).toBeCloseTo(r.tasaBasePooled, 3);
+    const rr = r.tasaBasePooled;
+    expect(w.brierSkill).toBeCloseTo(-rr / (1 - rr), 2);   // decir siempre 0 % es peor que decir la tasa típica
+    expect(w.cobertura).toBe(0);
+    expect(r.brierBase).toBeCloseTo(r.tasaBasePooled * (1 - r.tasaBasePooled), 3);
   });
 });
