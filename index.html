@@ -437,14 +437,28 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 [style*="letter-spacing:2px"],[style*="letter-spacing:3px"]{letter-spacing:.1em!important}
 
 /* Cabecera más limpia (escritorio): fondo plano, una línea fina en vez de la raya ámbar, sin la marca de agua del engranaje y botones con borde sutil en vez de pastillas oscuras. */
-@media(min-width:481px){
+  @media(min-width:481px){
   .header{background:var(--bg2);border-bottom:1px solid var(--bd);box-shadow:none;padding:10px 20px}
   .header::before{display:none}
   #exportBar{background:transparent!important;border:0!important;padding:0!important;gap:6px!important}
   #exportBar button,#_userBadge{border:1px solid var(--bd)!important;border-radius:6px!important;background:transparent!important;color:var(--tx2)!important;padding:6px 10px!important;box-shadow:none!important;font-size:12px!important}
   #exportBar button:hover,#_userBadge:hover{border-color:var(--ac)!important;color:var(--tx)!important}
   .hs small{letter-spacing:.06em}
-}
+  }
+  @media(min-width:769px){
+  .header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"logo stats right";column-gap:24px;min-height:64px;padding:8px 20px}
+  .header .logo{grid-area:logo;min-width:178px}
+  .header .hstats-wrap{grid-area:stats;min-width:0;flex-direction:row;align-items:center;gap:12px}
+  .header .hstats-caption{font-size:10px;white-space:nowrap}
+  .header .hstats{min-width:0;flex:1;justify-content:flex-end;gap:4px}
+  .header .hs{min-width:68px;padding:3px 10px;border-left:1px solid var(--bd)}
+  .header .hs b{font-size:18px;line-height:1.05}
+  .header .hs small{display:block;font-size:10px;line-height:1.2;white-space:nowrap}
+  .header #headerRight{grid-area:right;min-width:max-content}
+  .header #exportBar button{font-size:11px!important;padding:5px 8px!important}
+  .header #exportBar button svg{width:14px;height:14px;vertical-align:-3px}
+  .header #_userBadge{padding:5px 8px!important}
+  }
 /* Tablas: encabezado sobrio (el ámbar queda para las acciones), más aire por defecto, franja suave en filas alternas y dos densidades (cómoda / compacta, botón en la cabecera). */
 th{color:var(--tx2);font-size:11px;letter-spacing:.05em;padding:9px 10px}
 td{padding:7px 10px}
@@ -468,9 +482,14 @@ body.dens-compact th{padding:6px 8px}
   .shell{--side-w:236px;display:grid;grid-template-columns:var(--side-w) minmax(0,1fr);align-items:start}
   body.nav-mini .shell{--side-w:64px}
   .nav{position:sticky;top:var(--hh,84px);height:calc(100vh - var(--hh,84px));overflow-y:auto;overflow-x:hidden;flex-direction:column;flex-wrap:nowrap;border-bottom:0;border-right:1px solid var(--bd);padding:10px 8px 8px;scrollbar-width:thin}
-  .nav-grp{display:block;margin:0 0 6px}
-  .nav-g{display:block;padding:10px 10px 4px;font-size:11px;letter-spacing:.1em;color:var(--tx3)}
+  .nav-grp{display:block;margin:0 0 6px;padding-bottom:6px}
+  .nav-grp + .nav-grp{border-top:1px solid var(--bd);padding-top:6px}
+  .nav-g{display:block;padding:8px 10px 5px;font-size:11px;letter-spacing:.1em;color:var(--tx2);font-weight:700}
   .nav-grp:first-child .nav-g{padding-top:4px}
+  .nav button{position:relative}
+  .nav button:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
+  .nav button[aria-current="page"]{color:var(--tx);background:color-mix(in srgb,var(--ac) 18%,transparent);box-shadow:inset 3px 0 var(--ac),0 0 0 1px color-mix(in srgb,var(--ac) 20%,transparent)}
+  .nav button[aria-current="page"] .nav-l{font-weight:700}
   .nav button{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;font-size:13px;text-align:left;border:0;border-radius:6px;color:var(--tx2)}
   .nav button svg{width:16px;height:16px;flex:0 0 16px;margin:0;vertical-align:0}
   .nav button.on{color:var(--tx);background:color-mix(in srgb,var(--ac) 15%,transparent);box-shadow:inset 3px 0 var(--ac)}
@@ -1097,7 +1116,7 @@ function initNav(){
   // Cada grupo va en su propio contenedor para que el menú se parta en filas entre grupos y no en medio de uno.
   const _grupos=[];
   tabsNav.forEach(t=>{const g=t.g||'';const ult=_grupos[_grupos.length-1];if(ult&&ult.g===g)ult.t.push(t);else _grupos.push({g:g,t:[t]});});
-  $('nav').innerHTML=_grupos.map(gr=>`<div class="nav-grp">${gr.g?`<span class="nav-g" aria-hidden="true">${escapeHtml(gr.g)}</span>`:''}${gr.t.map(t=>`<button class="${t.id===currentTab?'on':''}" title="${t.l}" onclick="go('${t.id}')">${t.i}<span class="nav-l">${t.l}</span></button>`).join('')}</div>`).join('')
+  $('nav').innerHTML=_grupos.map(gr=>`<div class="nav-grp">${gr.g?`<span class="nav-g">${escapeHtml(gr.g)}</span>`:''}${gr.t.map(t=>`<button type="button" class="${t.id===currentTab?'on':''}" title="${t.l}" aria-label="${escapeHtml(t.l)}" aria-current="${t.id===currentTab?'page':'false'}" onclick="go('${t.id}')">${t.i}<span class="nav-l">${escapeHtml(t.l)}</span></button>`).join('')}</div>`).join('')
     + '<div class="nav-extras" style="display:flex;gap:4px">'
     + '<button class="" title="Manual de Usuario" onclick="go(\'ayuda\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.book+'</button>'
     + '<button class="" title="Configuración" onclick="go(\'cfg\')" style="background:transparent;border:1px solid var(--bor);border-radius:6px;padding:4px 8px;cursor:pointer">'+ICONS.sliders+'</button>'
@@ -1128,13 +1147,13 @@ async function go(id){
   if(typeof _logUsoPestana==='function')_logUsoPestana(id);
   currentTab=id;
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
-  document.querySelectorAll('.nav-grp button').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.nav-grp button').forEach(b=>{b.classList.remove('on');b.setAttribute('aria-current','false');});
   document.body.classList.remove('nav-abierto');
   document.querySelectorAll('#bnav button[data-tab]').forEach(b=>b.classList.toggle('on',b.getAttribute('data-tab')===id));
   const mas=$('bnavMas');if(mas){mas.setAttribute('aria-expanded','false');mas.classList.toggle('on',!document.querySelector('#bnav button[data-tab].on'));}
   const sec=$('s-'+id);if(sec)sec.classList.add('on');
   const tabsNav=_tabsPermitidas();
-  [...$('nav').querySelectorAll('.nav-grp button')].forEach((b,i)=>{if(i<tabsNav.length&&tabsNav[i].id===id)b.classList.add('on')});
+  [...$('nav').querySelectorAll('.nav-grp button')].forEach((b,i)=>{if(i<tabsNav.length&&tabsNav[i].id===id){b.classList.add('on');b.setAttribute('aria-current','page');}});
   // Carga perezosa (code-splitting, 2026-09-10, ver _LAZY_VERS/_LAZY_EXPORTS
   // más arriba): si 'id' es una de las 32 pestañas sin dependencias cruzadas
   // conocidas, su módulo puede no estar cargado todavía.
@@ -1274,6 +1293,15 @@ function navAlternar(){
   const mini=document.body.classList.toggle('nav-mini');
   try{localStorage.setItem('navMini',mini?'1':'0');}catch(e){}
 }
+document.addEventListener('keydown',function(e){
+  if(!window.matchMedia('(min-width: 769px)').matches)return;
+  const nav=e.target.closest?.('#nav');
+  if(!nav||!['ArrowDown','ArrowUp'].includes(e.key))return;
+  const items=[...nav.querySelectorAll('.nav-grp button')];
+  const at=items.indexOf(e.target);if(at<0)return;
+  e.preventDefault();
+  items[(at+(e.key==='ArrowDown'?1:-1)+items.length)%items.length].focus();
+});
 (function(){
   try{const g=localStorage.getItem('navMini');if(g==='1'||(g===null&&window.innerWidth<1500))document.body.classList.add('nav-mini');}catch(e){}
   const medir=()=>{const h=document.querySelector('.header');if(h)document.documentElement.style.setProperty('--hh',h.offsetHeight+'px');};
@@ -3320,7 +3348,7 @@ window.applyTheme=function(input){
   // por otro tema (ej. cambiar de Claro a Oscuro dejaba el acento del tema
   // Claro pegado). Ahora cada tema fija su propio acento de forma explícita,
   // sin depender de qué tema estaba activo antes.
-  // Tema Claro: el acento ámbar original (#f59e0b) tiene muy poco contraste
+  // Tema Claro: el acento ��mbar original (#f59e0b) tiene muy poco contraste
   // como texto sobre blanco (ratio ~2.4:1, bajo el mínimo WCAG AA de 4.5:1)
   // — se ve apagado en títulos y encabezados de tabla. Referencia real: el
   // informe "Monitoreo de Condiciones" de Finning/CAT que maneja Besalco
