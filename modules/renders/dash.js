@@ -383,7 +383,14 @@ export function renderDash(){
       return o&&o.sigla&&o.sistema&&(o.fecha||'').slice(0,7)===dashPeriodo;
     }).map(function(o){return o.sigla;}))
   ).size;
-  var idxConf=eq.length>0?Math.round((eq.length-eqConFallaMes)/eq.length*100):100;
+  // Sin datos ≠ sin fallas (2026-10-19): si el último correctivo cargado es anterior al período, «100 % de la flota sin falla»
+  // solo significaría «no hay nada cargado» (los correctivos del sistema llegan hasta julio de 2026 y el tablero decía 100 %
+  // en octubre mientras había equipos fuera de servicio). En ese caso no se calcula y el índice de salud usa solo las dimensiones con dato.
+  var ultFallaCargada=ot.filter(function(o){return esFallaMTBF(o)&&(o.fecha||o.fechaEntrada);}).map(function(o){return (o.fecha||o.fechaEntrada).slice(0,10);})
+    .concat(otHist.filter(function(o){return o&&o.sigla&&o.sistema&&o.fecha;}).map(function(o){return o.fecha.slice(0,10);})).sort().slice(-1)[0]||null;
+  var sinDatosFallas=eqConFallaMes===0&&(!ultFallaCargada||ultFallaCargada<dashPeriodo+'-01');
+  var diasSinCargar=ultFallaCargada?Math.round((new Date()-new Date(ultFallaCargada))/864e5):null;
+  var idxConf=sinDatosFallas?null:(eq.length>0?Math.round((eq.length-eqConFallaMes)/eq.length*100):100);
   // Confiabilidad real (R) — probabilidad de NO fallar durante el período, según
   // R(t)=e^(-t/MTBF) (fórmula estándar RAM/ISO 14224, asume tasa de falla
   // constante). Distinto de idxConf de arriba: idxConf es un conteo simple
@@ -570,7 +577,9 @@ export function renderDash(){
         :'<div style="font-size:12px;color:var(--tx3)">Sin dato de hace 7 días aún</div>')
       :'<div style="font-size:12px;color:var(--tx3)">Tendencia solo viendo hoy</div>')+
     '</div>';
-  var htmlResumen='<div class="kpi-row">'+cardDisp+cardUrg+cardProx+cardSalud+'</div>';
+  // Urgentes y Próximas ya están en la barra de arriba (clicables) y en la lista de equipos urgentes: no se repiten como tarjetas.
+  var avisoDatos=(enVivo&&diasSinCargar!=null&&diasSinCargar>30)?'<div style="padding:8px 12px;margin-bottom:12px;border-radius:8px;background:var(--bg3);border-left:3px solid var(--w);font-size:12px;color:var(--tx2)">⚠ <b>El último correctivo cargado es del '+ultFallaCargada+' (hace '+diasSinCargar+' días).</b> Lo que muestra este mes puede estar incompleto: «sin fallas» puede ser «sin cargar».</div>':'';
+  var htmlResumen=avisoDatos+'<div class="kpi-row">'+cardDisp+cardSalud+'</div>';
 
   var htmlSalud=
     // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número, arriba de todo ═══
@@ -642,7 +651,7 @@ export function renderDash(){
     '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(neuCrit===0?'var(--ok)':neuCrit<=3?'var(--ac)':'var(--danger)')+'" title="Neumáticos operativos que ya alcanzaron su límite de cambio (remanente de goma u horas de uso, según la proyección de desgaste) y deben cambiarse ahora."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Neumáticos Críticos'+_dashBadgeTendencia('adelanto')+'</div><div style="font-size:20px;font-weight:800;color:'+(neuCrit===0?'var(--ok)':neuCrit<=3?'var(--ac)':'var(--danger)')+'">'+neuCrit+'</div><div style="font-size:8px;color:var(--tx3)">'+(neuCrit===0?'Ninguno para cambiar ya':'De '+neuOk+' operativos')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(totalRAV===0?'var(--bd)':costoRAV<2?'var(--ok)':costoRAV<3?'var(--ac)':'var(--danger)')+'" title="Gasto de mantención ÷ Valor de Reemplazo de Activo (RAV), ANUALIZADO (gasto del mes ×12) para comparar contra el benchmark de industria (&lt;2-3% anual) en la misma escala."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Costo/RAV'+_dashBadgeTendencia('retraso')+'</div><div style="font-size:20px;font-weight:800;color:'+(totalRAV===0?'var(--tx3)':costoRAV<2?'var(--ok)':costoRAV<3?'var(--ac)':'var(--danger)')+'">'+(totalRAV===0?'—':costoRAV+'%')+'</div><div style="font-size:'+(totalRAV===0?'10px;font-weight:600;color:var(--tx2)':'8px;color:var(--tx3)')+'">'+(totalRAV===0?'Sin dato aún · falta cargar el valor de compra':'Anualizado · Meta: &lt;2%')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'" title="HH pendientes (OT abiertas × 8h, único dato disponible por OT) ÷ capacidad semanal (dotación'+(hhSemFuente==='real'?' real de Programación Diaria: '+dotacionReal+' personas':' ESTIMADA: 5 técnicos por equipo, sin dato real de dotación cargado')+' × 5 días × 8h)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Backlog'+badgeEnVivo+_dashBadgeTendencia('adelanto')+'</div><div style="font-size:20px;font-weight:800;color:'+(backlogSem<=4?'var(--ok)':backlogSem<=6?'var(--ac)':'var(--danger)')+'">'+backlogSem+'<span style="font-size:10px">sem</span></div><div style="font-size:8px;color:var(--tx3)">Sano: 2-4 · dotación '+(hhSemFuente==='real'?'real':'estimada')+'</div></div>'+
-    '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'" title="Conteo simple, NO es una probabilidad de confiabilidad: % de equipos que no tuvieron NINGÚN correctivo/falla operacional este mes. Para la confiabilidad estadística real (R), ver la tarjeta Confiabilidad (R) más adelante."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">% Flota sin falla</div><div style="font-size:20px;font-weight:800;color:'+(idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'">'+idxConf+'%</div><div style="font-size:8px;color:var(--tx3)">'+(eqConFallaMes===0?'0 correctivos en '+dashLabel+' aún':'Eq sin falla en '+dashLabel)+'</div></div>'+
+    '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(idxConf==null?'var(--bd)':idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'" title="Conteo simple, NO es una probabilidad de confiabilidad: % de equipos que no tuvieron NINGÚN correctivo/falla operacional este mes. Para la confiabilidad estadística real (R), ver la tarjeta Confiabilidad (R) más adelante."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">% Flota sin falla</div><div style="font-size:20px;font-weight:800;color:'+(idxConf==null?'var(--tx3)':idxConf>=85?'var(--ok)':idxConf>=70?'var(--ac)':'var(--danger)')+'">'+(idxConf==null?'Sin datos':idxConf+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(idxConf==null?'no hay correctivos cargados desde '+(ultFallaCargada||'siempre'):(eqConFallaMes===0?'0 correctivos en '+dashLabel+' aún':'Eq sin falla en '+dashLabel))+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(confReal==null?'var(--bd)':confReal>=85?'var(--ok)':confReal>=60?'var(--ac)':'var(--danger)')+'" title="Confiabilidad estadística real: R(t)=e^(-t/MTBF) — probabilidad de que un equipo promedio NO falle durante las horas que opera en '+dashLabel+', asumiendo tasa de falla constante (supuesto estándar RAM/ISO 14224 cuando solo se tiene el MTBF). Requiere MTBF real (≥2 fallas por equipo)."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Confiabilidad (R)'+_dashBadgeTendencia('retraso')+'</div><div style="font-size:20px;font-weight:800;color:'+(confReal==null?'var(--tx3)':confReal>=85?'var(--ok)':confReal>=60?'var(--ac)':'var(--danger)')+'">'+(confReal==null?'—':confReal+'%')+'</div><div style="font-size:8px;color:var(--tx3)">'+(confReal==null?'Sin MTBF suficiente':'R(t)=e^(-t/MTBF)')+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(dispInh?(dispInh>=90?'var(--ok)':dispInh>=80?'var(--ac)':'var(--danger)'):'var(--bd)')+'" title="Disponibilidad Inherente = MTBF/(MTBF+MTTR), fórmula estándar RAM/ISO 14224. MTTR: cuando una OT no tiene duración registrada se asume 8h para no perderla del promedio ('+otFallasMesSinDuracion+' de '+otFallasMes.length+' OT de '+dashLabel+' sin duración registrada) — es una estimación, no un dato medido."><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Disp. Inherente</div><div style="font-size:20px;font-weight:800;color:'+(dispInh?(dispInh>=90?'var(--ok)':dispInh>=80?'var(--ac)':'var(--danger)'):'var(--tx3)')+'">'+( dispInh?dispInh+'%':'—')+'</div><div style="font-size:'+(dispInh?'8px;color:var(--tx3)':'10px;font-weight:600;color:var(--tx2)')+'">'+(dispInh?'MTBF/(MTBF+MTTR)':'Sin dato aún · sin correctivos en '+dashLabel)+'</div></div>'+
     '<div style="background:var(--bg3);border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(pctRetrab===null?'var(--bd)':pctRetrab<=5?'var(--ok)':pctRetrab<=10?'var(--ac)':'var(--danger)')+'"><div style="font-size:9px;text-transform:uppercase;color:var(--tx3)">Retrabajo</div><div style="font-size:20px;font-weight:800;color:'+(pctRetrab===null?'var(--tx3)':pctRetrab<=5?'var(--ok)':pctRetrab<=10?'var(--ac)':'var(--danger)')+'">'+(pctRetrab===null?'—':pctRetrab+'%')+'</div><div style="font-size:'+(pctRetrab===null?'10px;font-weight:600;color:var(--tx2)':'8px;color:var(--tx3)')+'">'+(pctRetrab===null?'Sin dato aún · sin fallas en el período':'Meta: &lt;5%')+'</div></div>'+
@@ -723,20 +732,10 @@ export function renderDash(){
 
     // Resumen rápido lateral
     '<div style="display:flex;flex-direction:column;gap:10px">'+
-    '<div'+_dr('todos')+' style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Flota'+badgeEnVivo+'</div>'+
-    '<div style="font-size:28px;font-weight:800;color:var(--tx)">'+eq.length+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+Object.entries(tipos).map(function(t){return t[1]+' '+t[0]}).join(' · ')+'</div></div>'+
-
     '<div style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">HH Acumuladas'+badgeEnVivo+'</div>'+
     '<div style="font-size:28px;font-weight:800;color:var(--ac)">'+hhTotal+'<span style="font-size:12px">h</span></div>'+
     '<div style="font-size:9px;color:var(--tx3)">'+reg.length+' intervenciones</div></div>'+
-
-    '<div'+_dr('aldia')+' style="background:var(--bg3);border-radius:10px;padding:14px;text-align:center">'+
-    '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Al Día</div>'+
-    '<div style="font-size:28px;font-weight:800;color:var(--ok)">'+alDia.length+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">Sin intervención próxima</div></div>'+
 
     // Nivel 2 de "alerta predictiva" (2026-09-01) — lleva directo a
     // Componentes con el filtro de Riesgo ya en '🔴 Alto' (mismo patrón de
@@ -1022,7 +1021,7 @@ export function renderDash(){
     verEquipos(def[0],def[1]+' Del más bajo al más alto.',filas);
   };
   var sec1=_dashSeccion(1,ICONS.bolt+' Equipos que Requieren Atención Ahora','Prioriza estas intervenciones para evitar fallas y downtime.',htmlUrgentes+wrapProx);
-  var sec2=_dashSeccion(2,ICONS.stetho+' Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
+  var sec2=_dashSeccion(2,ICONS.stetho+' Salud General de la Flota','Visión consolidada de estado y disponibilidad de la flota — '+eq.length+' equipos: '+Object.entries(tipos).map(function(t){return t[1]+' '+t[0];}).join(' · ')+'.',htmlSalud+htmlDisp+wrapMapa+wrapSaludBaja+htmlCostos);
   var sec3=_dashSeccion(3,ICONS.trend+' Tendencias y Análisis','Datos que impulsan decisiones predictivas y mejora continua.',htmlGraficos+wrapTrend);
   dashEl.innerHTML=htmlChrome+htmlResumen+sec1+sec2+sec3;
   if(typeof _animGauges==='function')_animGauges('s-dash');

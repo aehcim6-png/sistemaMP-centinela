@@ -89,10 +89,11 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
     await window.go('eq'); await new Promise((r) => setTimeout(r, 800));
     return { urg: await cont('URGENTE'), venc: await cont('VENCIDA'), prox: await cont('PRÓXIMA'), dia: await cont('AL DÍA') };
   });
-  comparar('Equipos URGENTES+VENCIDOS', [['cálculo', verdad.urgentes], ['encabezado', num(hs, /(\d+) URGENTES/)], ['Dashboard', num(dash, /URGENTES (\d+)/)], ['pestaña Equipos', eqUrg.urg + eqUrg.venc]]);
-  comparar('Equipos PRÓXIMOS', [['cálculo', verdad.proximas], ['encabezado', num(hs, /(\d+) PRÓXIMAS/)], ['Dashboard', num(dash, /PRÓXIMAS (\d+)/)], ['pestaña Equipos', eqUrg.prox]]);
-  comparar('Equipos AL DÍA', [['cálculo', verdad.alDia], ['encabezado', num(hs, /(\d+) AL DÍA/)], ['Dashboard', num(dash, /AL DÍA (\d+)/)], ['pestaña Equipos', eqUrg.dia]]);
-  comparar('Total de equipos', [['cálculo', verdad.equipos], ['encabezado', num(hs, /(\d+) EQUIPOS/)], ['Dashboard', num(dash, /FLOTA\S* EN VIVO (\d+)/)]]);
+  // Urgentes, Próximas, Al Día y Flota ya no se repiten como tarjetas del Dashboard (solo en la barra de arriba): se comparan barra, cálculo y pestaña Equipos.
+  comparar('Equipos URGENTES+VENCIDOS', [['cálculo', verdad.urgentes], ['encabezado', num(hs, /(\d+) URGENTES/)], ['pestaña Equipos', eqUrg.urg + eqUrg.venc]]);
+  comparar('Equipos PRÓXIMOS', [['cálculo', verdad.proximas], ['encabezado', num(hs, /(\d+) PRÓXIMAS/)], ['pestaña Equipos', eqUrg.prox]]);
+  comparar('Equipos AL DÍA', [['cálculo', verdad.alDia], ['encabezado', num(hs, /(\d+) AL DÍA/)], ['pestaña Equipos', eqUrg.dia]]);
+  comparar('Total de equipos', [['cálculo', verdad.equipos], ['encabezado', num(hs, /(\d+) EQUIPOS/)]]);
 
   // ── Ventana "¿cuáles son?": cada número que se puede tocar abre una lista con exactamente esa cantidad de equipos ──
   await page.evaluate(() => window.go('dash')); await page.waitForTimeout(1200);

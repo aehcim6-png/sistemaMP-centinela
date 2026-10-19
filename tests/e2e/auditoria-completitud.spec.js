@@ -27,6 +27,7 @@ test('Auditoría muestra la completitud de correctivos y la prueba del diccionar
     const sembrar = () => { S.s('eq', [{ sigla: 'ZZ-1', tipo: 'Camion', modelo: 'X' }]); S.s('ot', ot); S.s('otHist', hist); };
     sembrar();
     go('audit');
+    for (let i = 0; i < 100 && (typeof renders.audit !== 'function' || !document.getElementById('s-audit')); i++) await esp(100);   // el módulo se carga bajo demanda
     for (let k = 0; k < 12; k++) {
       sembrar(); await esp(600);
       renders.audit(); await esp(700);
