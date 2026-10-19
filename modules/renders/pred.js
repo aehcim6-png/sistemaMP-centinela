@@ -2307,6 +2307,33 @@ $('s-pred').innerHTML=
       _AUDIT_MESES.map(function(m){return'<option value="'+m.v+'"'+(fMes===m.v?' selected':'')+'>'+m.l+'</option>';}).join('')+'</select>'+
     ((fEq||fAnio||fMes)?'<button class="btn-o" onclick="$(\'fPredEq\').value=\'\';$(\'fPredAnio\').value=\'\';$(\'fPredMes\').value=\'\';renders.pred()">Limpiar filtros</button>':'')+
     '</div>'+content;
+  _predVistasBotones();
+}
+// Botones de vista agrupados, armados desde el <select id="fPredVista"> real (que queda oculto por CSS): así las vistas, los
+// grupos y el modo Laboratorio nunca se desincronizan de la lista de opciones.
+function _predVistasBotones(){
+  var sel=$('fPredVista');
+  if(!sel||sel.previousElementSibling&&sel.previousElementSibling.classList.contains('pred-vistas-det'))return;
+  // En celular las 14–23 vistas ocuparían dos pantallas: se muestran plegadas bajo «Vista: <la actual>»; en escritorio van abiertas.
+  var det=document.createElement('details'),sum=document.createElement('summary'),caja=document.createElement('div');
+  det.className='pred-vistas-det';det.open=!(window.matchMedia&&window.matchMedia('(max-width:560px)').matches);
+  sum.className='pred-vistas-sum';sum.textContent='Vista: '+(sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].textContent:'');
+  caja.className='pred-vistas';caja.setAttribute('aria-label','Vistas predictivas');
+  Array.prototype.forEach.call(sel.querySelectorAll('optgroup'),function(g){
+    var gr=document.createElement('div'),lab=g.label||'';
+    gr.className='pred-vistas-g'+(/laboratorio/i.test(lab)?' pred-vistas-lab':'');
+    var t=document.createElement('div');t.className='pred-vistas-label';t.textContent=lab;gr.appendChild(t);
+    Array.prototype.forEach.call(g.querySelectorAll('option'),function(o){
+      var b=document.createElement('button');
+      b.type='button';b.className='pred-vista-btn'+(o.selected?' on':'');b.setAttribute('aria-pressed',o.selected?'true':'false');
+      b.textContent=o.textContent;
+      b.onclick=function(){sel.value=o.value;renders.pred();};
+      gr.appendChild(b);
+    });
+    caja.appendChild(gr);
+  });
+  det.appendChild(sum);det.appendChild(caja);
+  sel.parentNode.insertBefore(det,sel);
 }
 
 // ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO — M2 (2026-10-13) ═══

@@ -934,18 +934,22 @@ function _abrirCierreOT(i,faltantes){
   var cats=(typeof _CATEGORIAS_COMPONENTE!=='undefined'?_CATEGORIAS_COMPONENTE:[]).map(function(c){return c[0];});
   var campo=function(k){return faltantes.indexOf(k)>=0;};
   var ok='<span style="color:var(--ok)">✓ ya cargado</span>';
-  sm('<h3>Cerrar correctivo — '+escapeHtml(o.sigla||'')+'</h3>'+
-    '<p style="font-size:12px;color:var(--tx3);margin-bottom:10px">'+escapeHtml((o.sintoma||'').slice(0,160))+'</p>'+
-    '<p style="font-size:12px;margin-bottom:12px">Antes de cerrar, completa lo que falta: son los datos que alimentan el costo de mantenimiento, el análisis de causa raíz y las predicciones. Si no lo sabes todavía, puedes cerrar sin completar.</p>'+
+  var faltanTexto=faltantes.map(function(k){return k==='causaRaiz'?'causa raíz':k==='costo'?'costo':'componente';}).join(', ');
+  sm('<div class="ot-cierre-head"><div><div class="ot-cierre-kicker">Cierre con datos</div><h3>Cerrar correctivo — '+escapeHtml(o.sigla||'')+'</h3></div><button class="ot-cierre-x" type="button" aria-label="Cancelar cierre" onclick="cm()">×</button></div>'+ 
+    '<p class="ot-cierre-sintoma">'+escapeHtml((o.sintoma||'').slice(0,160))+'</p>'+ 
+    '<div class="ot-cierre-notice"><b>Falta: '+escapeHtml(faltanTexto)+'.</b> Completarlo mejora el costo, la causa raíz y las predicciones.</div>'+ 
+    '<p class="ot-cierre-hint">Si aún no tienes el dato, puedes cerrar sin completar y volver después.</p>'+ 
     '<div class="form-row"><div class="fg" style="width:100%"><label>Componente '+(campo('componente')?'':ok)+'</label>'+
       (campo('componente')?'<input id="ocComp" list="ocCompLista" value="'+escapeHtml(sugComp)+'" placeholder="Ej: Motor, Transmisión, Mangueras..." style="width:100%"><datalist id="ocCompLista">'+cats.map(function(c){return'<option value="'+escapeHtml(c)+'">';}).join('')+'</datalist>'+(sugComp?'<div style="font-size:10px;color:var(--tx3)">Sugerido por el texto del síntoma: revísalo.</div>':''):'<div style="font-size:12px">'+escapeHtml(o.componente)+'</div>')+'</div></div>'+
     '<div class="form-row"><div class="fg" style="width:100%"><label>Causa raíz '+(campo('causaRaiz')?'':ok)+'</label>'+
       (campo('causaRaiz')?'<input id="ocCausa" placeholder="¿Por qué falló? (ej: desgaste normal, falta de lubricación, golpe...)" style="width:100%">':'<div style="font-size:12px">'+escapeHtml(o.causaRaiz)+'</div>')+'</div></div>'+
     '<div class="form-row"><div class="fg" style="width:100%"><label>Costo ($) '+(campo('costo')?'':ok)+'</label>'+
       (campo('costo')?'<input id="ocCosto" type="number" min="0" value="'+(sugCosto.length?sugCosto[0].costo:'')+'" placeholder="Repuestos y servicios de esta reparación" style="width:100%">'+(sugCosto.length?'<div style="font-size:10px;color:var(--tx3)">💡 Sugerido por cruce con una orden de compra real ('+escapeHtml(sugCosto[0].detalle)+', '+fd(sugCosto[0].fecha)+'): revísalo. Déjalo vacío si fue garantía o no tuvo costo.</div>':'<div style="font-size:10px;color:var(--tx3)">Déjalo vacío si fue garantía o no tuvo costo.</div>'):'<div style="font-size:12px">$'+fn(o.costo)+'</div>')+'</div></div>'+
-    '<button class="btn" onclick="_otCierreGuardar('+i+',true)" style="width:100%;margin-top:6px">Guardar y cerrar</button>'+
-    '<button class="btn btn-o" onclick="_otCierreGuardar('+i+',false)" style="width:100%;margin-top:6px">Cerrar sin completar</button>'+
-    '<button class="btn btn-o" onclick="cm();renders.ot()" style="width:100%;margin-top:6px">Cancelar</button>');
+    '<div class="ot-cierre-actions"><button class="btn ot-cierre-primary" onclick="_otCierreGuardar('+i+',true)">Guardar y cerrar</button>'+ 
+    '<button class="btn btn-o ot-cierre-secondary" onclick="_otCierreGuardar('+i+',false)">Cerrar sin completar</button>'+ 
+    '<button class="btn btn-o ot-cierre-cancel" onclick="cm();renders.ot()">Cancelar</button></div>');
+  // sm() deja el foco en el primer botón (la ×); para llenar el cierre conviene partir en el primer campo que falta
+  var primero=$('ocComp')||$('ocCausa')||$('ocCosto');if(primero)primero.focus();
 }
 export function _otCierreGuardar(i,completar){
   var ot=S.g('ot')||[];var o=ot[i];if(!o){cm();return;}
