@@ -334,7 +334,45 @@ td.calc{color:var(--tx3);font-style:italic}
      ese estilo a una clase sin reescribir ~15 tarjetas por poco beneficio). */
   #s-dash .dg2{gap:16px!important}
 }
+/* Capa visual Centinela: jerarquía operativa, contraste y lectura táctil */
+html{background:var(--bg);color-scheme:dark}
+body{overflow-x:hidden;line-height:1.5}
+button,select,input,textarea{font:inherit}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid color-mix(in srgb,var(--ac) 55%,transparent);outline-offset:2px}
+.nav{scrollbar-width:thin;scroll-snap-type:x proximity}
+.nav button{min-height:42px}
+.sec{min-width:0}
+.tbl-wrap{border:1px solid var(--bd);border-radius:var(--radius);background:var(--bg2);box-shadow:var(--shadow-sm);overscroll-behavior-x:contain;scrollbar-width:thin}
+.tbl-wrap table{min-width:max-content}
+.tbl-wrap th:first-child,.tbl-wrap td:first-child{padding-left:12px}
+.tbl-wrap th:last-child,.tbl-wrap td:last-child{padding-right:12px}
+.chart-box{min-width:0}
+.dash-kpi-help{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;margin-left:4px;vertical-align:middle;max-width:150px;color:var(--ac);cursor:help;text-transform:none;letter-spacing:0;font-size:8px;font-weight:700}
+.dash-kpi-help-label{border-bottom:1px dotted currentColor;line-height:1.2}
+.dash-kpi-help-text{display:block;color:var(--tx3);font-size:9px;font-weight:400;line-height:1.35;text-transform:none;letter-spacing:0}
+.dash-kpi-context{display:block;font-size:8px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx3);margin-top:2px}
+#s-dash .dg2>div{min-width:0}
+#s-dash .dg2>div>div:first-child{line-height:1.35}
+#s-pred .chart-box,#s-audit .chart-box{margin-bottom:18px}
+#s-pred .cards,#s-audit .cards{align-items:stretch}
+#s-audit .sec-t{line-height:1.35}
+#s-audit .card{display:flex;flex-direction:column;justify-content:center;min-height:88px}
+.vacio-tabla{background:var(--bg2);line-height:1.5}
+.modal{max-height:min(86vh,720px);padding:clamp(16px,3vw,24px)}
+.modal .form-row{gap:12px}
+.modal .fg input,.modal .fg select,.modal .fg textarea{min-height:40px}
+
 @media(max-width:480px){
+  .audit-summary{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px!important}
+  .audit-summary .card{min-width:0!important;padding:12px 8px!important}
+  .audit-summary .card>div:last-child{font-size:10px!important;line-height:1.35}
+  #s-pred [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  #s-pred .toolbar,#s-audit .toolbar{align-items:stretch}
+  #s-pred .toolbar select,#s-audit .toolbar select{flex:1;min-width:130px;min-height:40px}
+  .dash-kpi-help{max-width:125px}
+  html{font-size:15px}
+  .main{padding:10px}
+  .sec{padding:8px 2px}
   .cards{grid-template-columns:1fr 1fr}
   .nav button{font-size:10px;padding:7px 8px}
   .sec-t{font-size:15px}
