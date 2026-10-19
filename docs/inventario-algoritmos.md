@@ -40,13 +40,13 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | F. Costos | F1–F6 |
 | G. TBO del fabricante (Komatsu) | G1–G10 |
 | H. Producción | H1–H3 |
-| I. Simulación y pronóstico | I1–I4 |
+| I. Simulación y pronóstico | I1–I5 |
 | J. Neumáticos, PM y reglas del programa | J1–J7 |
 | K. Diagramas y gráficos | K1–K13 |
 | L. Datos y seguridad | L1–L6 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **131 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -1012,6 +1012,15 @@ El TBO (*Time Between Overhaul*, tiempo entre cambios mayores) viene de un archi
 - **Dónde se ve:** TBO ("Pronóstico de gasto en repuestos: próximos 12 meses").
 - **Código:** `pronosticarSerie`, `PRON_MODELOS`, `serieMensualDe`, `mesesFinalesIncompletos`, `mesesSiguientes`.
 
+
+### I5. Simulación de la carga del taller (validada con meses pasados)
+- **Tipo:** simulación Monte Carlo con remuestreo (bootstrap) y prueba retrospectiva.
+- **Para qué sirve:** estimar cuántos equipos estarán en el taller al mismo tiempo en los próximos 30 días (la demanda de capacidad que pesa sobre la dotación) y comprobar, antes de mostrarlo, si esa simulación habría acertado en meses pasados.
+- **De dónde viene:** 🟢 La relación entre cuántos equipos hay en un sistema, cuántos entran por día y cuánto se quedan es la ley de Little, L = λ·W, que vale sin importar cómo lleguen ni cuánto duren ([Wikipedia, ley de Little](https://en.wikipedia.org/wiki/Little%27s_law); [Berkeley, IEOR 151](https://aswani.ieor.berkeley.edu/teaching/FA15/151/lecture_notes/ieor151_lec21.pdf)); el remuestreo de datos reales y la prueba retrospectiva son la misma técnica de I1 y I3. El umbral de cobertura mínima de 60 % es 🔵 criterio propio (el rango P10–P90 debería cubrir cerca de 80 %).
+- **Cómo lo calcula aquí:** `simulacionCargaTaller` remuestrea los días reales recientes (entradas por día, 180 días o la historia disponible, incluidos los días en cero, para conservar los días con muchas entradas) y las permanencias reales entrada→salida (365 días, ambos días incluidos); los equipos que ya están en el taller siguen el tiempo que les falta según esas permanencias (condicional a lo que llevan). Simula 1.000 veces 30 días y devuelve el promedio y el máximo simultáneos con rangos P10–P90 y la probabilidad de que algún día haya al menos k equipos. `backtestCargaTaller` repite la simulación desde cada mes pasado con lo que se sabía entonces y mide la cobertura del rango, el error del promedio y lo compara con «igual que el mes anterior». `cargaRealTallerPorMes` entrega la carga real por mes (descriptiva). Exige 20 permanencias y 10 entradas recientes. Verificado con escenarios exactos (1 equipo por día durante 3 días da siempre 3 en el taller, cobertura 100 % y error 0) y con la ley de Little (2 entradas por día y 3 días de permanencia dan promedio cercano a 6).
+- **Dónde se ve:** Predictivo → Laboratorio → «Carga del taller (simulación)». El pronóstico solo se muestra si la cobertura del backtest es de 60 % o más; si no, se muestra el resultado de la validación y la carga real por mes.
+- **Límites:** **no simula esperas por técnico**: la hora de primera atención está vacía en los 1.243 correctivos y la duración mezcla espera y reparación, así que ese resultado no se podría validar. Resultado con los datos reales del 18-oct-2026 (correctivos del 09-ene-2025 al 21-jul-2026, 14 meses): cobertura del promedio 43 % y del máximo 64 %, error 1,12 equipos contra 1,36 de la regla simple; **no pasa la validación** porque la carga del taller cambia de un mes a otro (de unos 4 equipos simultáneos en 2025 a 1–3 desde marzo de 2026, con muy pocos registros recientes), así que la pantalla no muestra pronóstico. Los últimos correctivos cargados son de julio de 2026.
+- **Código:** `simulacionCargaTaller`, `backtestCargaTaller`, `cargaRealTallerPorMes`.
 ---
 
 ## J. Neumáticos, PM y reglas del programa

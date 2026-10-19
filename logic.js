@@ -6995,6 +6995,104 @@ function curvaPFCompleta(ace,otConHist,opts){
   return{ventanaMaxDias:ventana,minCasos:minCasos,laboratorio:variante('laboratorio'),cusum:variante('cusum')};
 }
 
+// ═══ SIMULACIÓN DE LA CARGA DEL TALLER (2026-10-19) ═══
+// Pregunta: en los próximos 30 días, ¿cuántos equipos van a estar en el taller al mismo tiempo? (la demanda de capacidad que
+// pesa sobre la dotación). Se simula miles de veces con lo que sí está medido: cuántos equipos entran por día (se remuestrean los
+// días reales recientes, así se conserva que hay días con muchas entradas) y cuánto dura cada permanencia en el taller (se
+// remuestrean las duraciones reales entrada→salida); los equipos que ya están en el taller hoy siguen ahí el tiempo que les falta
+// según esas duraciones (condicional a lo que ya llevan). NO simula esperas por técnico: hoy no existe el dato para validarlas
+// (la hora de primera atención está vacía en todos los correctivos y la duración mezcla espera y reparación). Lo que sí se valida
+// es la carga: backtestCargaTaller repite la simulación desde meses pasados y compara con lo que realmente pasó.
+// 'intervalos': [{entrada:'AAAA-MM-DD', salida:'AAAA-MM-DD'|null}] (un correctivo cada uno; salida null = sin fecha de salida).
+function _diaNum(iso){return Math.round(new Date(iso+'T00:00:00Z').getTime()/864e5);}
+function _pctSorted(a,p){if(!a.length)return null;var i=Math.min(a.length-1,Math.max(0,Math.round(p*(a.length-1))));return a[i];}
+function simulacionCargaTaller(intervalos,hoyIso,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,nSim=op.nSim>0?op.nSim:1000,rng=op.rng||Math.random;
+  var vArr=op.ventanaLlegadasDias>0?op.ventanaLlegadasDias:180,vDur=op.ventanaDuracionDias>0?op.ventanaDuracionDias:365;
+  var hoy=_diaNum(hoyIso);
+  var iv=(intervalos||[]).filter(function(x){return x&&x.entrada;}).map(function(x){return{e:_diaNum(x.entrada),s:x.salida?_diaNum(x.salida):null};}).filter(function(x){return x.e<=hoy&&(x.s==null||x.s>=x.e);});
+  // llegadas por día en la ventana reciente (incluye los días con cero); si la historia es más corta que la ventana, se usa la
+  // historia disponible (si no, los días antes del primer registro contarían como «sin entradas» y subestimarían la carga)
+  if(iv.length){var primero=Math.min.apply(null,iv.map(function(x){return x.e;}));vArr=Math.max(1,Math.min(vArr,hoy-primero+1));}
+  var llegadas=new Array(vArr).fill(0);
+  iv.forEach(function(x){var k=hoy-x.e;if(k>=0&&k<vArr)llegadas[k]++;});
+  // duraciones reales (días, entrada y salida inclusive) de lo que entró en la ventana y ya salió
+  var dur=iv.filter(function(x){return x.s!=null&&x.s<=hoy&&hoy-x.e<=vDur;}).map(function(x){return x.s-x.e+1;});
+  if(dur.length<20||iv.filter(function(x){return hoy-x.e<vArr;}).length<10)return null;
+  // en el taller hoy: entró y todavía no salió (o sin salida pero entró en los últimos 30 días)
+  var abiertos=iv.filter(function(x){return (x.s==null&&hoy-x.e<=30)||(x.s!=null&&x.s>hoy);}).map(function(x){return hoy-x.e+1;});
+  var porDia=[];for(var t=0;t<H;t++)porDia.push([]);
+  var medias=[],maximos=[];
+  for(var sim=0;sim<nSim;sim++){
+    var c=new Array(H).fill(0);
+    abiertos.forEach(function(trans){
+      var d=1,ok=false;
+      for(var tr=0;tr<30&&!ok;tr++){var cand=dur[Math.floor(rng()*dur.length)];if(cand>trans){d=cand-trans;ok=true;}}
+      for(var t2=0;t2<Math.min(d,H);t2++)c[t2]++;
+    });
+    for(var t3=0;t3<H;t3++){
+      var n=llegadas[Math.floor(rng()*vArr)];
+      for(var j=0;j<n;j++){var dd=dur[Math.floor(rng()*dur.length)];for(var t4=t3;t4<Math.min(t3+dd,H);t4++)c[t4]++;}
+    }
+    var suma=0,mx=0;
+    for(var t5=0;t5<H;t5++){porDia[t5].push(c[t5]);suma+=c[t5];if(c[t5]>mx)mx=c[t5];}
+    medias.push(suma/H);maximos.push(mx);
+  }
+  var asc=function(a){return a.slice().sort(function(x,y){return x-y;});};
+  var m=asc(medias),mx=asc(maximos);
+  var probMax={};
+  for(var k=1;k<=Math.max(12,mx[mx.length-1]);k++){var cuenta=0;for(var q=0;q<maximos.length;q++)if(maximos[q]>=k)cuenta++;probMax[k]=Math.round(cuenta/maximos.length*1000)/10;if(cuenta===0)break;}
+  return{horizonteDias:H,nSim:nSim,hoyAbiertos:abiertos.length,llegadasPorDia:Math.round(llegadas.reduce(function(a,b){return a+b;},0)/vArr*100)/100,duracionMedianaDias:_pctSorted(asc(dur),0.5),
+    mediaPromedio:{p10:Math.round(_pctSorted(m,0.1)*10)/10,p50:Math.round(_pctSorted(m,0.5)*10)/10,p90:Math.round(_pctSorted(m,0.9)*10)/10},
+    maximo:{p10:_pctSorted(mx,0.1),p50:_pctSorted(mx,0.5),p90:_pctSorted(mx,0.9)},
+    probabilidadAlMenos:probMax};
+}
+// Carga real del taller por mes (descriptiva, no depende de ningún modelo): equipos en el taller por día, promedio, P90 y máximo del mes.
+function cargaRealTallerPorMes(intervalos){
+  var iv=(intervalos||[]).filter(function(x){return x&&x.entrada;}).map(function(x){return{e:_diaNum(x.entrada),s:x.salida?_diaNum(x.salida):null};});
+  if(!iv.length)return[];
+  var d1=Math.min.apply(null,iv.map(function(x){return x.e;})),d2=Math.max.apply(null,iv.map(function(x){return x.s!=null?x.s:x.e;}));
+  var porMes={};
+  for(var d=d1;d<=d2;d++){
+    var c=0;iv.forEach(function(x){if(x.e<=d&&(x.s==null?x.e===d:x.s>=d))c++;});
+    var mes=new Date(d*864e5).toISOString().slice(0,7);
+    (porMes[mes]=porMes[mes]||[]).push(c);
+  }
+  return Object.keys(porMes).sort().map(function(m){
+    var v=porMes[m].slice().sort(function(a,b){return a-b;}),suma=v.reduce(function(a,b){return a+b;},0);
+    return{mes:m,dias:v.length,media:Math.round(suma/v.length*10)/10,p90:_pctSorted(v,0.9),maximo:v[v.length-1]};
+  });
+}
+// Backtest: desde cada origen pasado se simula con lo que se sabía (un correctivo solo tiene salida si salió antes del origen) y se
+// compara con la carga real de los 30 días siguientes. Referencia simple: «igual que los 30 días anteriores». Cobertura = % de meses
+// donde la carga real (promedio y máximo) cayó dentro del rango P10–P90 simulado (si el modelo es bueno, ronda 80 %).
+function backtestCargaTaller(intervalos,hoyIso,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,K=op.origenes>0?Math.round(op.origenes):12;
+  var hoy=_diaNum(hoyIso);
+  var iv=(intervalos||[]).filter(function(x){return x&&x.entrada;}).map(function(x){return{e:_diaNum(x.entrada),s:x.salida?_diaNum(x.salida):null};});
+  var real=function(d1,d2){ // equipos en el taller por día entre d1 y d2 (inclusive), con todos los datos
+    var out=[];for(var d=d1;d<=d2;d++){var c=0;iv.forEach(function(x){if(x.e<=d&&(x.s==null?x.e===d:x.s>=d))c++;});out.push(c);}return out;};
+  var filas=[];
+  for(var k=K;k>=1;k--){
+    var origen=hoy-k*H;
+    if(origen+H>hoy)continue;
+    var ivO=iv.filter(function(x){return x.e<=origen;}).map(function(x){return{entrada:new Date(x.e*864e5).toISOString().slice(0,10),salida:(x.s!=null&&x.s<=origen)?new Date(x.s*864e5).toISOString().slice(0,10):null};});
+    var sim=simulacionCargaTaller(ivO,new Date(origen*864e5).toISOString().slice(0,10),{horizonteDias:H,nSim:op.nSim||400,rng:op.rng});
+    if(!sim)continue;
+    var r=real(origen+1,origen+H),previo=real(origen-H+1,origen);
+    var mR=r.reduce(function(a,b){return a+b;},0)/r.length,xR=Math.max.apply(null,r),mP=previo.reduce(function(a,b){return a+b;},0)/previo.length;
+    filas.push({origen:new Date(origen*864e5).toISOString().slice(0,10),realMedia:Math.round(mR*10)/10,realMax:xR,simMediaP10:sim.mediaPromedio.p10,simMediaP50:sim.mediaPromedio.p50,simMediaP90:sim.mediaPromedio.p90,simMaxP10:sim.maximo.p10,simMaxP90:sim.maximo.p90,ingenuaMedia:Math.round(mP*10)/10,
+      dentroMedia:mR>=sim.mediaPromedio.p10&&mR<=sim.mediaPromedio.p90,dentroMax:xR>=sim.maximo.p10&&xR<=sim.maximo.p90});
+  }
+  if(filas.length<4)return{ok:false,motivo:'menos de 4 meses con historia suficiente ('+filas.length+')',meses:filas.length};
+  var mean=function(f){return filas.reduce(function(a,x){return a+f(x);},0)/filas.length;};
+  var pc=function(f){return Math.round(filas.filter(f).length/filas.length*1000)/10;};
+  return{ok:true,horizonteDias:H,meses:filas.length,filas:filas,
+    coberturaMedia:pc(function(x){return x.dentroMedia;}),coberturaMax:pc(function(x){return x.dentroMax;}),
+    errorModelo:Math.round(mean(function(x){return Math.abs(x.simMediaP50-x.realMedia);})*100)/100,
+    errorIngenua:Math.round(mean(function(x){return Math.abs(x.ingenuaMedia-x.realMedia);})*100)/100};
+}
+
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
 // Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
 // movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
@@ -10494,7 +10592,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta,
+    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

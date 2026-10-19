@@ -140,7 +140,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   });
   comparar('Predictivo: 14 vistas de uso diario en 5 grupos', [['vistas', sp.pred.opciones], ['esperado', 14]]);
   comparar('Predictivo: grupos', [['grupos', sp.pred.grupos], ['esperado', 5]]);
-  comparar('Predictivo con laboratorio: vistas (14 + 8)', [['vistas', sp.predLab.opciones], ['esperado', 22]]);
+  comparar('Predictivo con laboratorio: vistas (14 + 9)', [['vistas', sp.predLab.opciones], ['esperado', 23]]);
   comparar('Predictivo con laboratorio: grupos', [['grupos', sp.predLab.grupos], ['esperado', 6]]);
   comparar('Componentes: 8 sub-pestañas', [['solapas', sp.solapas], ['esperado', 8]]);
   comparar('Estadística por componente: bloques plegables (el primero abierto)', [['plegables ≥ 5', sp.pleg >= 5 ? 1 : 0], ['abiertos', sp.abiertos], ['esperado', 1]]);

@@ -82,13 +82,13 @@
     <tr><td><b>F. Costos</b></td><td>F1–F6</td></tr>
     <tr><td><b>G. TBO del fabricante (Komatsu)</b></td><td>G1–G10</td></tr>
     <tr><td><b>H. Producción</b></td><td>H1–H3</td></tr>
-    <tr><td><b>I. Simulación y pronóstico</b></td><td>I1–I4</td></tr>
+    <tr><td><b>I. Simulación y pronóstico</b></td><td>I1–I5</td></tr>
     <tr><td><b>J. Neumáticos, PM y reglas del programa</b></td><td>J1–J7</td></tr>
     <tr><td><b>K. Diagramas y gráficos</b></td><td>K1–K13</td></tr>
     <tr><td><b>L. Datos y seguridad</b></td><td>L1–L6</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>131 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>132 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2>A. Disponibilidad, fallas y tiempos</h2>
 
@@ -1244,6 +1244,17 @@
     <li><b>Cómo lo calcula aquí:</b> siete modelos candidatos (promedio histórico, promedio de 12 meses, suavizamiento simple, tendencia amortiguada de Holt, estacional, Holt-Winters y Croston-SBA, el estacional y Holt-Winters exigen 24 o más datos y Croston solo entra si al menos 30 % de los meses son cero) y elige por <b>prueba retrospectiva de origen móvil</b>. Recorta antes los atípicos (mediana + 3,5 × 1,4826 × MAD). Pide al menos 12 datos. <code>mesesFinalesIncompletos</code> quita del final los meses con menos de 40 % de las líneas de la mediana (una carga atrasada bajaría el pronóstico sin que el gasto haya bajado).</li>
     <li><b>Dónde se ve:</b> TBO ("Pronóstico de gasto en repuestos: próximos 12 meses").</li>
     <li><b>Código:</b> <code>pronosticarSerie</code>, <code>PRON_MODELOS</code>, <code>serieMensualDe</code>, <code>mesesFinalesIncompletos</code>, <code>mesesSiguientes</code>.</li>
+  </ul>
+
+  <h3>I5. Simulación de la carga del taller (validada con meses pasados)</h3>
+  <ul>
+    <li><b>Tipo:</b> simulación Monte Carlo con remuestreo (bootstrap) y prueba retrospectiva.</li>
+    <li><b>Para qué sirve:</b> estimar cuántos equipos estarán en el taller al mismo tiempo en los próximos 30 días (la demanda de capacidad que pesa sobre la dotación) y comprobar, antes de mostrarlo, si esa simulación habría acertado en meses pasados.</li>
+    <li><b>De dónde viene:</b> 🟢 La relación entre cuántos equipos hay en un sistema, cuántos entran por día y cuánto se quedan es la ley de Little, L = λ·W, que vale sin importar cómo lleguen ni cuánto duren (<a href="https://en.wikipedia.org/wiki/Little%27s_law" target="_blank" rel="noopener noreferrer">Wikipedia, ley de Little</a>; <a href="https://aswani.ieor.berkeley.edu/teaching/FA15/151/lecture_notes/ieor151_lec21.pdf" target="_blank" rel="noopener noreferrer">Berkeley, IEOR 151</a>); el remuestreo de datos reales y la prueba retrospectiva son la misma técnica de I1 y I3. El umbral de cobertura mínima de 60 % es 🔵 criterio propio (el rango P10–P90 debería cubrir cerca de 80 %).</li>
+    <li><b>Cómo lo calcula aquí:</b> <code>simulacionCargaTaller</code> remuestrea los días reales recientes (entradas por día, 180 días o la historia disponible, incluidos los días en cero, para conservar los días con muchas entradas) y las permanencias reales entrada→salida (365 días, ambos días incluidos); los equipos que ya están en el taller siguen el tiempo que les falta según esas permanencias (condicional a lo que llevan). Simula 1.000 veces 30 días y devuelve el promedio y el máximo simultáneos con rangos P10–P90 y la probabilidad de que algún día haya al menos k equipos. <code>backtestCargaTaller</code> repite la simulación desde cada mes pasado con lo que se sabía entonces y mide la cobertura del rango, el error del promedio y lo compara con «igual que el mes anterior». <code>cargaRealTallerPorMes</code> entrega la carga real por mes (descriptiva). Exige 20 permanencias y 10 entradas recientes. Verificado con escenarios exactos (1 equipo por día durante 3 días da siempre 3 en el taller, cobertura 100 % y error 0) y con la ley de Little (2 entradas por día y 3 días de permanencia dan promedio cercano a 6).</li>
+    <li><b>Dónde se ve:</b> Predictivo → Laboratorio → «Carga del taller (simulación)». El pronóstico solo se muestra si la cobertura del backtest es de 60 % o más; si no, se muestra el resultado de la validación y la carga real por mes.</li>
+    <li><b>Límites:</b> <b>no simula esperas por técnico</b>: la hora de primera atención está vacía en los 1.243 correctivos y la duración mezcla espera y reparación, así que ese resultado no se podría validar. Resultado con los datos reales del 18-oct-2026 (correctivos del 09-ene-2025 al 21-jul-2026, 14 meses): cobertura del promedio 43 % y del máximo 64 %, error 1,12 equipos contra 1,36 de la regla simple; <b>no pasa la validación</b> porque la carga del taller cambia de un mes a otro (de unos 4 equipos simultáneos en 2025 a 1–3 desde marzo de 2026, con muy pocos registros recientes), así que la pantalla no muestra pronóstico. Los últimos correctivos cargados son de julio de 2026.</li>
+    <li><b>Código:</b> <code>simulacionCargaTaller</code>, <code>backtestCargaTaller</code>, <code>cargaRealTallerPorMes</code>.</li>
   </ul>
 
   <h2>J. Neumáticos, PM y reglas del programa</h2>

@@ -61,6 +61,27 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
       if (/curva p-f completa/i.test(document.getElementById('s-pred').innerText)) break;
     }
     out.textoPF = document.getElementById('s-pred').innerText;
+    // Carga del taller: con un patrón estable se valida y muestra el pronóstico; con un cambio brusco no pasa la validación
+    const iso = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+    const ivEstable = [];
+    for (let d = 0; d < 400; d++) ivEstable.push({ _id: 'te' + d, sigla: 'E0', tipo: 'Correctivo', fecha: iso(d), fechaEntrada: iso(d), fechaSalida: iso(d - 2), estadoOT: 'Cerrada' });
+    for (let k = 0; k < 8; k++) {
+      S.s('ot', ivEstable); await esp(500);
+      sel().value = 'taller'; renders.pred(); await esp(900);
+      if (/meses probados/i.test(document.getElementById('s-pred').innerText)) break;
+    }
+    out.textoTallerEstable = document.getElementById('s-pred').innerText;
+    const ivCambio = [];
+    for (let d = 0; d < 400; d++) {
+      const n = d > 150 ? 6 : (d % 25 === 0 ? 1 : 0);   // hace 5 meses cambió todo: antes 6 por día, ahora casi nada
+      for (let j = 0; j < n; j++) ivCambio.push({ _id: 'tc' + d + '_' + j, sigla: 'E' + j, tipo: 'Correctivo', fecha: iso(d), fechaEntrada: iso(d), fechaSalida: iso(d - 1 - (j % 4)), estadoOT: 'Cerrada' });
+    }
+    for (let k = 0; k < 8; k++) {
+      S.s('ot', ivCambio); await esp(500);
+      sel().value = 'taller'; renders.pred(); await esp(900);
+      if (/meses probados/i.test(document.getElementById('s-pred').innerText)) break;
+    }
+    out.textoTallerCambio = document.getElementById('s-pred').innerText;
     window.alternarModoLab(); await esp(600);   // al apagar desde una vista de laboratorio vuelve a la general
     out.valorTrasApagar = sel().value;
     out.opcionesFinal = [...sel().options].map((o) => o.value);
@@ -81,6 +102,11 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
   expect(r.textoPF).toMatch(/curva p-f completa/i);
   expect(r.textoPF).toMatch(/lado izquierdo/i);
   expect(r.textoPF).toMatch(/1\.750 h/);
+  expect(r.textoTallerEstable).toMatch(/próximos 30 días/i);
+  expect(r.textoTallerEstable).toMatch(/cobertura del promedio/i);
+  expect(r.textoTallerEstable).toContain('No simula esperas por técnico');
+  expect(r.textoTallerCambio).toContain('La simulación no pasó la validación');
+  expect(r.textoTallerCambio).not.toMatch(/próximos 30 días/i);
   expect(r.valorTrasApagar).toBe('general');
   expect(r.opcionesFinal).not.toContain('backtest');
 });

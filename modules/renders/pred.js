@@ -1151,6 +1151,49 @@ export function renderPred(){
         }).join('')+'</table></div>'+
         '<div style="font-size:11px;color:var(--tx3);padding:8px 0;line-height:1.6"><b>Cómo leerlo.</b> La referencia es «fallas de los últimos 365 días», fijada antes de mirar resultados. Una regla solo «gana» si todo el intervalo queda sobre 0; con pocos meses lo normal es «no se distingue», y eso significa que la regla compleja no demuestra aportar más que contar fallas. <b>Límites:</b> los meses consecutivos comparten historia, así que el intervalo es algo optimista; los componentes salen en parte del texto del síntoma; prueba solo «qué equipo falla el próximo mes», no si la predicción ayuda a decidir una compra o un cambio.</div>')+
       '</div>';
+  } else if(fVista==='taller'){
+    // Carga del taller: ¿cuántos equipos habrá en el taller al mismo tiempo? Se simula desde la última fecha con datos y el
+    // pronóstico solo se muestra si el backtest (simular meses pasados y comparar con lo ocurrido) alcanza la cobertura mínima.
+    var COBERTURA_MIN=60;
+    var ivT=ot.filter(function(o){return o&&(o.fechaEntrada||o.fecha);}).map(function(o){return{entrada:(o.fechaEntrada||o.fecha),salida:o.fechaSalida||null};});
+    var ultT=ivT.map(function(x){return x.entrada;}).sort().slice(-1)[0]||null;
+    var hoyT=ultT&&ultT<new Date().toISOString().slice(0,10)?ultT:new Date().toISOString().slice(0,10);
+    var retrasoT=ultT?Math.round((new Date()-new Date(ultT))/864e5):null;
+    var btT=ultT?backtestCargaTaller(ivT,hoyT,{origenes:14,nSim:300}):null;
+    var simT=(btT&&btT.ok&&btT.coberturaMedia>=COBERTURA_MIN)?simulacionCargaTaller(ivT,hoyT,{nSim:1000}):null;
+    var realMes=cargaRealTallerPorMes(ivT).slice(-12);
+    var fT=function(x){return x==null?'—':(Math.round(x*10)/10).toString().replace('.',',');};
+    var htmlSim='';
+    if(!ultT){
+      htmlSim='<div style="padding:14px;text-align:center;color:var(--tx3)">No hay correctivos con fecha de entrada para simular.</div>';
+    }else{
+      if(retrasoT>30)htmlSim+='<div style="padding:8px 10px;margin-bottom:10px;border-radius:6px;background:var(--bg3);font-size:11px;color:var(--w)">⚠ El último correctivo cargado es del '+escapeHtml(ultT)+' (hace '+retrasoT+' días). La simulación parte de esa fecha; si en estos meses hubo correctivos sin cargar, no los conoce.</div>';
+      if(!btT||!btT.ok){
+        htmlSim+='<div style="padding:12px;color:var(--tx3);font-size:12px">No se puede validar todavía: '+escapeHtml(btT&&btT.motivo?btT.motivo:'faltan datos')+'.</div>';
+      }else{
+        htmlSim+='<div class="cards" style="margin-bottom:12px"><div class="card"><div class="card-t">Meses probados</div><div class="card-v">'+btT.meses+'</div><div class="card-s">simulando desde cada mes pasado</div></div>'+
+          '<div class="card" style="border-left:3px solid '+(btT.coberturaMedia>=COBERTURA_MIN?'var(--ok)':'var(--danger)')+'"><div class="card-t">Cobertura del promedio</div><div class="card-v">'+fT(btT.coberturaMedia)+'%</div><div class="card-s">de los meses la carga real cayó dentro del rango simulado (se espera ~80 %; mínimo '+COBERTURA_MIN+' %)</div></div>'+
+          '<div class="card"><div class="card-t">Error del modelo</div><div class="card-v">'+fT(btT.errorModelo)+'</div><div class="card-s">equipos de diferencia en el promedio (regla simple «igual que el mes anterior»: '+fT(btT.errorIngenua)+')</div></div></div>';
+        if(simT){
+          var probTxt=[3,5,8].map(function(k){return k+' equipos: <b>'+(simT.probabilidadAlMenos[k]!=null?simT.probabilidadAlMenos[k]:0)+'%</b>';}).join(' · ');
+          htmlSim+='<div style="font-weight:600;font-size:12px;margin:8px 0">Próximos '+simT.horizonteDias+' días (desde '+escapeHtml(hoyT)+')</div>'+
+            '<div style="font-size:12px;line-height:1.8">En el taller hoy: <b>'+simT.hoyAbiertos+'</b> · entran en promedio <b>'+fT(simT.llegadasPorDia)+'</b> por día · permanencia típica <b>'+simT.duracionMedianaDias+' día(s)</b><br>'+
+            'Promedio de equipos en el taller al mismo tiempo: <b>'+fT(simT.mediaPromedio.p50)+'</b> (rango '+fT(simT.mediaPromedio.p10)+'–'+fT(simT.mediaPromedio.p90)+')<br>'+
+            'Máximo simultáneo del mes: <b>'+simT.maximo.p50+'</b> (rango '+simT.maximo.p10+'–'+simT.maximo.p90+')<br>'+
+            'Probabilidad de que en algún día haya al menos '+probTxt+'</div>';
+        }else{
+          htmlSim+='<div style="padding:10px 12px;margin:8px 0;border-radius:6px;background:var(--bg3);font-size:12px;color:var(--w)"><b>La simulación no pasó la validación</b> (cobertura '+fT(btT.coberturaMedia)+' % contra un mínimo de '+COBERTURA_MIN+' %): los rangos que daba eran demasiado optimistas porque la carga del taller cambia de un mes a otro. Por eso no se muestra ningún pronóstico. Abajo, lo que realmente pasó y cómo le fue a la simulación mes a mes.</div>';
+        }
+        htmlSim+='<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600">Backtest mes a mes</summary><div class="tbl-wrap"><table><tr><th>Desde</th><th>Real: promedio (máx.)</th><th>Simulado: promedio (rango)</th><th>Regla simple</th><th>¿Dentro?</th></tr>'+
+          btT.filas.map(function(f){return'<tr><td>'+escapeHtml(f.origen)+'</td><td style="text-align:center">'+fT(f.realMedia)+' ('+f.realMax+')</td><td style="text-align:center">'+fT(f.simMediaP50)+' ('+fT(f.simMediaP10)+'–'+fT(f.simMediaP90)+')</td><td style="text-align:center">'+fT(f.ingenuaMedia)+'</td><td style="text-align:center;color:'+(f.dentroMedia?'var(--ok)':'var(--danger)')+'">'+(f.dentroMedia?'sí':'no')+'</td></tr>';}).join('')+'</table></div></details>';
+      }
+      htmlSim+='<div style="font-weight:600;font-size:12px;margin:14px 0 6px">Lo que realmente pasó: equipos en el taller al mismo tiempo, por mes</div>'+
+        '<div class="tbl-wrap"><table><tr><th>Mes</th><th>Promedio</th><th>90 % de los días hasta</th><th>Máximo</th></tr>'+realMes.map(function(r){return'<tr><td>'+escapeHtml(r.mes)+'</td><td style="text-align:center">'+fT(r.media)+'</td><td style="text-align:center">'+r.p90+'</td><td style="text-align:center">'+r.maximo+'</td></tr>';}).join('')+'</table></div>';
+    }
+    content='<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🧪 Carga del taller — ¿cuántos equipos habrá en el taller al mismo tiempo?</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px;line-height:1.6">Se simula miles de veces el próximo mes con las entradas por día y las permanencias reales en el taller, y se prueba primero con meses pasados: si no reproduce lo que realmente pasó, <b>no se muestra el pronóstico</b>. <b>No simula esperas por técnico</b>: hoy no se registra la hora de primera atención (está vacía en todos los correctivos) y la duración mezcla espera y reparación, así que ese resultado no se podría validar.</div>'+
+      htmlSim+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:8px">Un equipo cuenta en el taller desde su fecha de entrada hasta su fecha de salida (los dos días incluidos); sin fecha de salida cuenta solo el día de entrada o, si entró hace menos de 30 días, sigue abierto. La carga cambia mucho de un mes a otro (por ejemplo, hay menos registros de entrada y salida en 2026), y eso es lo que más limita cualquier pronóstico.</div></div>';
   } else if(fVista==='probabilidad'){
     // Combina 'ot' (correctivos actuales, filtrados por esFallaMTBF — misma fuente
     // única que MTBF/Confiabilidad) con 'otHist' (historial 2022-2025 cargado desde
@@ -2246,6 +2289,7 @@ $('s-pred').innerHTML=
       '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
       '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
       '<option value="backtest"'+(fVista==='backtest'?' selected':'')+'>🧪 Backtest: ¿anticipan las reglas?</option>'+
+      '<option value="taller"'+(fVista==='taller'?' selected':'')+'>🧪 Carga del taller (simulación)</option>'+
       '</optgroup>':'')+
     '</select>'+_botonModoLabHTML(labPred)+
     '<select id="fPredEq" onchange="renders.pred()"><option value="">'+(fVista==='equipo'||fVista==='diag'?'Seleccionar equipo...':'Todos los equipos')+'</option>'+
