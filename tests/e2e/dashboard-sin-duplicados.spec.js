@@ -24,7 +24,7 @@ test('el dashboard no repite la barra de arriba y no inventa 100 % sin falla', a
       S.s('eq', eq); S.s('ot', ot); await esp(400);
       go('dash'); renders.dash && renders.dash(); await esp(900);
       texto = document.getElementById('s-dash') ? document.getElementById('s-dash').innerText : '';
-      if (/flota sin falla/i.test(texto)) break;
+      if (/último correctivo cargado es del/i.test(texto) && /flota sin falla/i.test(texto)) break;
     }
     return { texto, tarjetasKpi: document.querySelectorAll('#s-dash .kpi-row > *').length };
   });
