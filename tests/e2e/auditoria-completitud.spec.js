@@ -31,7 +31,7 @@ test('Auditoría muestra la completitud de correctivos y la prueba del diccionar
     for (let k = 0; k < 12; k++) {
       sembrar(); await esp(600);
       renders.audit(); await esp(700);
-      if (/completitud de los correctivos/i.test(document.getElementById('s-audit').innerText)) break;
+      if (/diccionario que deduce el componente/i.test(document.getElementById('s-audit').innerText)) break;
     }
     return document.getElementById('s-audit').innerText;
   });
