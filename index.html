@@ -105,7 +105,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
    cada 60s sin importar cuál esté activa) — eso nunca cambió, pero hay que
    verse claramente distinto a una tarjeta de contenido para que no confunda. */
 .hs{text-align:center;padding:4px 12px;border-left:1px solid var(--bd)}
-.vacio-tabla{padding:22px 16px;margin:-8px 0 16px;text-align:center;font-size:13px;color:var(--tx3);border:1px dashed var(--bd);border-radius:8px}
+  .vacio-tabla{padding:22px 16px;margin:-8px 0 16px;text-align:center;font-size:13px;color:var(--tx3);border:1px dashed var(--bd);border-radius:8px}
+  .ot-cierre-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.ot-cierre-kicker{font-size:11px;color:var(--ac);font-weight:700;text-transform:uppercase;letter-spacing:.08em}.ot-cierre-x{width:44px;height:44px;background:none;border:1px solid var(--bd);border-radius:6px;color:var(--tx2);font-size:24px;cursor:pointer}.ot-cierre-sintoma{font-size:12px;color:var(--tx3);margin:0 0 12px}.ot-cierre-notice{padding:10px 12px;margin-bottom:8px;background:color-mix(in srgb,var(--ac) 10%,transparent);border:1px solid color-mix(in srgb,var(--ac) 35%,var(--bd));border-radius:6px;font-size:12px;line-height:1.5}.ot-cierre-hint{font-size:12px;color:var(--tx3);margin:0 0 14px}.ot-cierre-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}.ot-cierre-actions button{width:100%;min-height:46px}.ot-cierre-primary{font-size:14px}.ot-cierre-secondary{color:var(--tx2)}.ot-cierre-cancel{border-color:transparent}.modal .ot-cierre-actions{position:sticky;bottom:-20px;padding-top:10px;background:var(--bg2)}
+  .pred-vistas{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--bg2);border:1px solid var(--bd);border-radius:8px}.pred-vistas-g{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-left:1px solid var(--bd)}.pred-vistas-g:first-child{border-left:0}.pred-vistas-label{width:100%;font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;padding:2px 6px}.pred-vistas + #fPredVista{display:none}.pred-vista-btn{min-height:44px;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--bg3);color:var(--tx2);cursor:pointer;font-size:12px}.pred-vista-btn:hover,.pred-vista-btn.on{border-color:var(--ac);color:var(--ac);background:color-mix(in srgb,var(--ac) 12%,transparent);font-weight:600}.pred-vistas-lab{border-color:color-mix(in srgb,var(--ac) 45%,var(--bd))}
 @media(max-width:560px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}.cards>.card{padding:12px}.cards .card-v{font-size:22px}
   /* tarjetas en grillas escritas en línea con columnas de 100–199 px: en celular van de a dos, no de a una */
   [style*="repeat(auto-fill,minmax(1"],[style*="repeat(auto-fit,minmax(1"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
@@ -125,7 +127,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100
 .hs small{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:1px}
 
 .nav{background:var(--bg2);display:flex;flex-wrap:wrap;overflow-x:auto;border-bottom:1px solid var(--bd);padding:0 8px}
-.nav button{background:none;border:none;color:var(--tx3);padding:10px 10px;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
+  .nav button{background:none;border:none;color:var(--tx3);padding:10px 10px;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s;min-height:44px;display:inline-flex;align-items:center;gap:7px}
 .nav button:hover{color:var(--tx);background:var(--bg3)}
 .nav button.on{color:var(--ac);border-bottom-color:var(--ac)}
 /* Menú agrupado por función: cada grupo es un bloque con su etiqueta (solo escritorio); el menú se parte en filas entre grupos */
@@ -295,7 +297,7 @@ td.calc{color:var(--tx3);font-style:italic}
 .modal .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .modal .fg{display:flex;flex-direction:column;gap:3px}
 .modal .fg label{font-size:10px;color:var(--tx3);text-transform:uppercase}
-.modal .fg input,.modal .fg select,.modal .fg textarea{background:var(--bg3);border:1px solid var(--bd);color:var(--tx);padding:6px 10px;border-radius:4px;font-family:var(--mono);font-size:13px}
+.modal .fg input,.modal .fg select,.modal .fg textarea{background:var(--bg3);border:1px solid var(--bd);color:var(--tx);padding:6px 10px;border-radius:4px;font-family:var(--mono);font-size:13px;min-height:44px}
 .modal .fg textarea{font-family:var(--font);min-height:60px;resize:vertical}
 
 .toast{position:fixed;bottom:20px;right:20px;background:var(--ok);color:#fff;padding:10px 20px;border-radius:var(--radius);font-weight:600;font-size:13px;z-index:300;opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;pointer-events:none;box-shadow:var(--shadow-md)}
@@ -356,7 +358,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 #s-audit .sec-t{line-height:1.35}
 #s-audit .card{display:flex;flex-direction:column;justify-content:center;min-height:88px}
 .vacio-tabla{background:var(--bg2);line-height:1.5}
-.modal{max-height:min(86vh,720px);padding:clamp(16px,3vw,24px)}
+  .modal{max-height:min(86vh,720px);padding:clamp(16px,3vw,24px)}
+  .ot-cierre-actions{margin-left:calc(clamp(16px,3vw,24px) * -1);margin-right:calc(clamp(16px,3vw,24px) * -1);padding:10px clamp(16px,3vw,24px) 0}.pred-vistas{display:grid;grid-template-columns:1fr;gap:8px}.pred-vistas-g{border-left:0;border-top:1px solid var(--bd);padding-top:8px}.pred-vistas-g:first-child{border-top:0}.pred-vista-btn{flex:1;min-width:calc(50% - 4px)}
 .modal .form-row{gap:12px}
 .modal .fg input,.modal .fg select,.modal .fg textarea{min-height:40px}
 
@@ -529,7 +532,7 @@ body.dens-compact th{padding:6px 8px}
 .bnav{display:none}
 @media(max-width:768px){
   .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:58px;z-index:160;background:var(--bg2);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
-  .bnav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--tx2);font-family:var(--font);font-size:11px;font-weight:500;padding:6px 2px;cursor:pointer}
+  .bnav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--tx2);font-family:var(--font);font-size:11px;font-weight:500;padding:6px 2px;cursor:pointer;min-height:52px}.bnav button:focus-visible,.nav button:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
   .bnav button svg{width:20px;height:20px}
   .bnav button.on{color:var(--ac)}
   .bnav button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
