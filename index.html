@@ -578,6 +578,32 @@ body.dens-compact th{padding:6px 8px}
 @media print{.bnav{display:none!important}}
 
 
+/* Configuración: tarjetas en dos columnas en escritorio y una en celular (antes se desbordaba ~45 px a 360 px). */
+#s-cfg>.card{max-width:100%!important;padding:16px}
+#s-cfg>.card>b{display:block}
+#s-cfg>.card>p{max-width:78ch;line-height:1.55}
+#s-cfg .form-row{display:flex;flex-wrap:wrap;gap:12px}
+#s-cfg .fg{flex:1 1 180px;min-width:0}
+#s-cfg .fg input,#s-cfg .fg select,#s-cfg .fg textarea{width:100%}
+@media(max-width:768px){
+  #s-cfg .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}
+  #s-cfg>.card{padding:14px}
+  #s-cfg .form-row{display:grid;grid-template-columns:1fr}
+}
+@media(min-width:769px){
+  #s-cfg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+  #s-cfg>.sec-h{grid-column:1/-1;margin-bottom:0}
+  #s-cfg>.card{margin:0!important}
+}
+/* Ayuda: buscador e índice de secciones */
+.ay-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
+.ay-q{flex:1 1 260px;min-height:44px;padding:8px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;color:var(--tx);font:inherit}
+.ay-n{font-size:12px;color:var(--tx3)}
+.ay-ind{flex:1 1 100%;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:8px 12px}
+.ay-ind summary{cursor:pointer;font-weight:600;color:var(--ac);min-height:28px;display:flex;align-items:center}
+.ay-ind nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 14px;padding:8px 0 4px}
+.ay-ind a{color:var(--tx2);text-decoration:none;font-size:12.5px;line-height:1.35;padding:6px 4px;border-radius:4px}
+.ay-ind a:hover,.ay-ind a:focus-visible{color:var(--ac);background:var(--bg3);outline:none}
 </style>
 
   <!-- ══ FIREBASE SDK ══════════════════════════════════════════ -->
@@ -659,7 +685,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-19f',
+  ayuda:'2026-10-20',
   cad:'2026-08-30b',
   cfg:'2026-10-17',
   comp2:'2026-10-19',
@@ -833,7 +859,7 @@ function _instalarStubsLazy(){
 }
 _instalarStubsLazy();
 </script>
-<script type="module" src="modules/renders/ace.js?v=2026-10-18"></script>
+<script type="module" src="modules/renders/ace.js?v=2026-10-20"></script>
 <script type="module" src="modules/renders/dash.js?v=2026-10-19b"></script>
 <script>
 // ============ DATA ============

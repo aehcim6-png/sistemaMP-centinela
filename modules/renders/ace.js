@@ -187,7 +187,7 @@ export function renderAce(){
     aceOutliersHTML+
     aceMahalanobisHTML+
 
-    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px">'+
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ok)" onclick="$(\'fAceEst\').value=\'NORMAL\';window._pag.ace=1;renders.ace()"><div class="card-t">🟢 Normal</div><div class="card-v" style="color:var(--ok)">'+normal+'</div></div>'+
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fAceEst\').value=\'PRECAUCION\';window._pag.ace=1;renders.ace()"><div class="card-t">🟡 Precaución</div><div class="card-v" style="color:var(--ac)">'+precaucion+'</div></div>'+
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--danger)" onclick="$(\'fAceEst\').value=\'ALERTA\';window._pag.ace=1;renders.ace()"><div class="card-t">🔴 Alerta</div><div class="card-v" style="color:var(--danger)">'+alerta+'</div></div>'+

@@ -37,18 +37,62 @@
   footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
   li,p,td,th{overflow-wrap:anywhere}
   table{display:block;overflow-x:auto}
+  /* doc-lectura */
+  html{scroll-behavior:smooth}
+  body{padding:32px 20px 80px}
+  .wrap{max-width:1120px}
+  .doc-layout{display:grid;grid-template-columns:260px minmax(0,780px);gap:36px;align-items:start;margin-top:8px}
+  .doc-main{min-width:0}
+  .doc-layout>nav{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;border-radius:8px}
+  .doc-index{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 10px;font-size:13px}
+  .doc-index summary{cursor:pointer;font-weight:700;color:var(--ink);padding:4px 6px;list-style:none}
+  .doc-index summary::after{content:" ▾";color:var(--amber)}
+  .doc-index a{display:block;color:var(--ink-dim);text-decoration:none;line-height:1.35;padding:5px 8px;border-radius:5px;overflow-wrap:anywhere}
+  .doc-index a.h3{padding-left:20px;font-size:12px}
+  .doc-index a:hover,.doc-index a:focus-visible{color:var(--amber);background:var(--panel2);outline:none}
+  .doc-index a.activa{color:var(--amber);background:var(--panel2);font-weight:600}
+  h2,h3{scroll-margin-top:20px;text-wrap:balance}
+  p,ul,ol{font-size:15.5px;line-height:1.75;max-width:72ch}
+  li{margin-bottom:5px}
+  li,p,td,th{overflow-wrap:break-word}
+  table{display:block;overflow-x:auto;max-width:100%}
+  td:first-child,th:first-child{min-width:96px}
+  pre{max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+  .back-top{position:fixed;right:16px;bottom:16px;background:var(--amber);color:var(--bg);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  @media(max-width:860px){
+    body{padding:20px 14px 72px}
+    .doc-layout{display:block}
+    .doc-layout>nav{position:static;max-height:60vh;margin:0 0 20px}
+    .doc-index:not([open]) a{display:none}
+    p,ul,ol{font-size:15px}
+  }
+  @media print{
+    html{scroll-behavior:auto}
+    :root{--bg:#fff;--panel:#fff;--panel2:#f4f4f4;--line:#bbb;--ink:#111;--ink-dim:#222;--amber:#7a4a00}
+    body{background:#fff;color:#111;padding:0}
+    .doc-index,.back-top{display:none}
+    .doc-layout{display:block}
+    .wrap{max-width:none}
+    p,ul,ol{max-width:none;font-size:11pt}
+    h2{break-after:avoid}h3{break-after:avoid}
+    .callout,table,tr{break-inside:avoid}
+    a{color:#111;text-decoration:none}
+  }
+/* /doc-lectura */
 </style>
 
-<div class="wrap">
+<div class="wrap" id="top">
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Inventario de algoritmos</h1>
-  <p>Para cada cálculo del programa: <b>qué es, para qué sirve, de dónde viene, cómo lo calcula aquí, dónde se ve y qué no dice</b>. Se armó leyendo el código (<code>logic.js</code>, 321 funciones públicas y 27 internas, y las pantallas de <code>modules/renders/</code>) y buscando cada método en internet. Fecha: 2026-10-13. Las dos apps (centinela y mp2) comparten todo esto.</p>
+
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">Cómo leer este documento</a><a class="h2" href="#d-2">Hallazgos de la revisión (lo que hay que corregir o saber)</a><a class="h2" href="#d-3">Índice</a><a class="h2" href="#d-4">A. Disponibilidad, fallas y tiempos</a><a class="h3" href="#d-5">A1. Disponibilidad operacional (Ao) e intrínseca (Ai)</a><a class="h3" href="#d-6">A2. MTBF y MTTR del programa</a><a class="h3" href="#d-7">A3. Intervalo de confianza del MTBF (chi-cuadrado)</a><a class="h3" href="#d-8">A4. Error estándar del MTTR</a><a class="h3" href="#d-9">A5. Forma real del MTTR (log-normal)</a><a class="h3" href="#d-10">A6. Confiabilidad R(t) con tasa de falla constante</a><a class="h3" href="#d-11">A7. % de fallas en el mes, ratio preventivo y % correctivo reactivo</a><a class="h3" href="#d-12">A8. Cumplimiento de PM a tiempo</a><a class="h3" href="#d-13">A9. Curva S de PM y cumplimiento del programa</a><a class="h3" href="#d-14">A10. Reportabilidad diaria del cliente (disponibilidad contractual)</a><a class="h3" href="#d-15">A11. Trazabilidad aviso → orden</a><a class="h3" href="#d-16">A12. Tiempos de compra: respuesta por proveedor, pedidos trabados, aprobación de OC</a><a class="h3" href="#d-17">A13. Informe de gestión de mantenimiento (desviaciones de PM y equipos fuera de servicio)</a><a class="h3" href="#d-18">A14. Certeza y cumplimiento de programa (secciones I y II del informe del cliente)</a><a class="h3" href="#d-19">A15. Cierre de backlog de pautas (sección V del informe del cliente)</a><a class="h3" href="#d-20">A16. Orden de la tabla de equipos urgentes (Dashboard)</a><a class="h2" href="#d-21">B. Vida, supervivencia y tendencia de fallas</a><a class="h3" href="#d-22">B1. Weibull por regresión de rango mediano</a><a class="h3" href="#d-23">B2. Weibull con censura (máxima verosimilitud)</a><a class="h3" href="#d-24">B3. Comparación de cuatro modelos de vida (AICc y Kolmogorov-Smirnov)</a><a class="h3" href="#d-25">B4. Curva de supervivencia de Kaplan-Meier</a><a class="h3" href="#d-26">B5. Prueba log-rank</a><a class="h3" href="#d-27">B6. Regresión de Cox (razón de riesgos entre dos grupos)</a><a class="h3" href="#d-28">B7. Riesgos competitivos (¿qué modo de falla gana la carrera?)</a><a class="h3" href="#d-29">B8. Función media acumulada (MCF)</a><a class="h3" href="#d-30">B9. Crow-AMSAA (¿mejora o empeora la tasa de fallas?)</a><a class="h3" href="#d-31">B10. Edad virtual y reparación imperfecta (Kijima)</a><a class="h3" href="#d-32">B11. Proceso de renovación general: simulación de trayectorias</a><a class="h3" href="#d-33">B12. Vida útil remanente (RUL) híbrida</a><a class="h3" href="#d-34">B13. Oportunidad de mantención (agrupar tareas en la misma parada)</a><a class="h3" href="#d-35">B14. Intervalo P-F real y recomendación de inspección</a><a class="h3" href="#d-36">B15. Índice de efectividad del mantenimiento</a><a class="h3" href="#d-37">B16. Probabilidad de falla en 30 días (Poisson)</a><a class="h3" href="#d-38">B17. Confiabilidad de un equipo como sistema en serie (RBD)</a><a class="h2" href="#d-39">C. Estadística: ¿la diferencia es real o ruido?</a><a class="h3" href="#d-40">C1. Mann-Kendall y pendiente de Sen (tendencia)</a><a class="h3" href="#d-41">C2. Mann-Whitney U</a><a class="h3" href="#d-42">C3. ANOVA de un factor</a><a class="h3" href="#d-43">C4. Kruskal-Wallis</a><a class="h3" href="#d-44">C5. Prueba de Levene (variante Brown-Forsythe)</a><a class="h3" href="#d-45">C6. Chi-cuadrado de uniformidad (patrones ocultos: mes y turno)</a><a class="h3" href="#d-46">C7. Chi-cuadrado de independencia (componente × ubicación)</a><a class="h3" href="#d-47">C8. Tasa de falla por ubicación</a><a class="h3" href="#d-48">C9. Intervalo de Wilson para una proporción</a><a class="h3" href="#d-49">C10. R² de una regresión lineal</a><a class="h3" href="#d-50">C11. Carta de control I-MR (individuos y rango móvil)</a><a class="h3" href="#d-51">C12. Carta de control EWMA</a><a class="h3" href="#d-52">C13. CUSUM de aceite</a><a class="h3" href="#d-53">C14. Muestra chica: potencia y efecto mínimo detectable</a><a class="h3" href="#d-54">C15. Detección de atípicos (aceite, compras y pronóstico)</a><a class="h3" href="#d-55">C16. Análisis de componentes principales (PCA) y comparación con pares</a><a class="h3" href="#d-56">C17. Bayes empírico (Gamma-Poisson) para tasas de falla con poco historial</a><a class="h3" href="#d-57">C18. Distribuciones auxiliares (Beta, Gamma) y comparación bayesiana</a><a class="h3" href="#d-58">C19. Correlación entre aceite y fallas (¿el análisis de aceite anticipa fallas?)</a><a class="h3" href="#d-59">C20. Correlaciones entre indicadores, metales de aceite y señales (Spearman, Holm, Fisher)</a><a class="h3" href="#d-60">C21. Backtest: ¿las reglas anticipan qué equipo fallará el próximo mes? (AUC)</a><a class="h3" href="#d-61">C22. Prueba del diccionario de componentes con datos no usados para afinarlo</a><a class="h3" href="#d-62">C23. Curva P-F completa: lado izquierdo (instalación → P) y lado derecho con grupo de comparación</a><a class="h2" href="#d-63">D. Criticidad, riesgo y prioridad</a><a class="h3" href="#d-64">D1. Matriz de riesgo Probabilidad × Impacto (5 × 5)</a><a class="h3" href="#d-65">D2. Criticidad de equipos multicriterio (matriz M2: frecuencia × consecuencia)</a><a class="h3" href="#d-66">D3. Prioridad de OT (matriz M6: urgencia × impacto)</a><a class="h3" href="#d-67">D4. Matriz Jack-Knife (MTBF contra MTTR)</a><a class="h3" href="#d-68">D5. NPR (FMEA: severidad × ocurrencia × detección)</a><a class="h3" href="#d-69">D6. Criticidad dinámica de componentes</a><a class="h3" href="#d-70">D7. Índice de salud de la flota y score de salud por equipo</a><a class="h3" href="#d-71">D8. Cadena de Markov de salud y proyección a N semanas</a><a class="h3" href="#d-72">D9. Señal unificada de reemplazo</a><a class="h3" href="#d-73">D10. Causas latentes repetidas</a><a class="h3" href="#d-74">D11. Pareto</a><a class="h3" href="#d-75">D12. Calidad de ejecución del PM (¿hay más fallas de lo esperado después de un PM?)</a><a class="h3" href="#d-76">D13. Clasificación pendiente de OT y reparación de texto</a><a class="h3" href="#d-77">D14. Deducción del componente desde el texto del síntoma</a><a class="h2" href="#d-78">E. Repuestos e inventario</a><a class="h3" href="#d-79">E1. Estado de stock (cuándo comprar)</a><a class="h3" href="#d-80">E2. Demanda de repuestos (Poisson)</a><a class="h3" href="#d-81">E3. ABC y XYZ de repuestos</a><a class="h3" href="#d-82">E4. ABC × VED (vital, esencial, deseable) — matriz M4</a><a class="h3" href="#d-83">E5. Probabilidad de quiebre y criticidad de repuestos</a><a class="h3" href="#d-84">E6. Punto de reorden con stock de seguridad</a><a class="h3" href="#d-85">E7. Lote económico de pedido (EOQ) y política (s, S)</a><a class="h3" href="#d-86">E8. Reposición alimentada por el programa de PM</a><a class="h3" href="#d-87">E9. Rotación y obsolescencia del inventario MRO</a><a class="h3" href="#d-88">E10. Proyección de elementos de desgaste</a><a class="h3" href="#d-89">E11. Modelo de colas M/M/c (dotación del taller)</a><a class="h3" href="#d-90">E12. Estadísticas de predictivo desde órdenes de compra</a><a class="h2" href="#d-91">F. Costos</a><a class="h3" href="#d-92">F1. Costo relativo de mantenimiento</a><a class="h3" href="#d-93">F2. Costo total de propiedad (TCO) por equipo</a><a class="h3" href="#d-94">F3. Diagramas Sankey de costo y de horas de reparación</a><a class="h3" href="#d-95">F4. CAPEX y OPEX, presupuesto prorrateado</a><a class="h3" href="#d-96">F5. Costo sugerido de un correctivo por cruce con compras</a><a class="h3" href="#d-97">F6. Arriendo vs compra (seco, húmedo y comprar)</a><a class="h2" href="#d-98">G. TBO del fabricante (Komatsu)</a><a class="h3" href="#d-99">G1. Plan de cambios por horas y estado de la flota</a><a class="h3" href="#d-100">G2. Riesgo Weibull del TBO (β = 3, el TBO es el B5)</a><a class="h3" href="#d-101">G3. Vida por origen: original contra alternativo</a><a class="h3" href="#d-102">G4. Costo por hora y edad óptima de cambio</a><a class="h3" href="#d-103">G5. Matriz de estrategia RCM (forma de la falla × consecuencia)</a><a class="h3" href="#d-104">G6. Plan de compras y decisión de compra</a><a class="h3" href="#d-105">G7. Presupuesto limitado: problema de la mochila 0/1</a><a class="h3" href="#d-106">G8. Calibración del modelo del fabricante contra la flota</a><a class="h3" href="#d-107">G9. Ficha de componente</a><a class="h3" href="#d-108">G10. Cruce de compras con el plan del fabricante</a><a class="h2" href="#d-109">H. Producción</a><a class="h3" href="#d-110">H1. Rendimiento teórico del cargador frontal</a><a class="h3" href="#d-111">H2. Rendimiento real y costo de downtime</a><a class="h3" href="#d-112">H3. Rendimiento por ciclo, brecha y coeficiente de variación</a><a class="h2" href="#d-113">I. Simulación y pronóstico</a><a class="h3" href="#d-114">I1. Proyección Monte Carlo de la disponibilidad de la flota</a><a class="h3" href="#d-115">I2. Simulador What-If de políticas de mantenimiento</a><a class="h3" href="#d-116">I3. Pronóstico de disponibilidad por equipo, con prueba retrospectiva</a><a class="h3" href="#d-117">I4. Pronóstico de series mensuales (costo y pedidos)</a><a class="h3" href="#d-118">I5. Simulación de la carga del taller (validada con meses pasados)</a><a class="h2" href="#d-119">J. Neumáticos, PM y reglas del programa</a><a class="h3" href="#d-120">J1. Grilla de PM (PM1 a PM4) y próximo mantenimiento</a><a class="h3" href="#d-121">J2. Duración estimada de un PM (HH plan)</a><a class="h3" href="#d-122">J3. Programa de cambio de neumáticos</a><a class="h3" href="#d-123">J4. Estado de componentes mayores y estimación de horómetro en una fecha</a><a class="h3" href="#d-124">J5. Vencimientos de documentos y lubricantes</a><a class="h3" href="#d-125">J6. Validación de salto de horómetro</a><a class="h3" href="#d-126">J7. Cierre automático de destrabe al recibir la OC</a><a class="h2" href="#d-127">K. Diagramas y gráficos</a><a class="h3" href="#d-128">K1. Gráfico Jack-Knife (MTBF contra MTTR)</a><a class="h3" href="#d-129">K2. Diagramas de Sankey</a><a class="h3" href="#d-130">K3. Curva S de PM</a><a class="h3" href="#d-131">K4. Curva S del programa de cambio de neumáticos</a><a class="h3" href="#d-132">K5. Pareto (barras ordenadas con acumulado)</a><a class="h3" href="#d-133">K6. Mapa de equipos (PCA)</a><a class="h3" href="#d-134">K7. Calibración del TBO</a><a class="h3" href="#d-135">K8. Tendencia de compra de un repuesto</a><a class="h3" href="#d-136">K9. Carta Gantt de mantención</a><a class="h3" href="#d-137">K10. Mapa de salud de la flota y Torre de Control</a><a class="h3" href="#d-138">K11. Matrices de color</a><a class="h3" href="#d-139">K12. Gráficos de barras del Dashboard y del flujo de caja</a><a class="h3" href="#d-140">K13. Plano de arquitectura del sistema</a><a class="h2" href="#d-141">L. Datos y seguridad</a><a class="h3" href="#d-142">L1. Verificador de integridad</a><a class="h3" href="#d-143">L2. Protección contra inyección de fórmulas en CSV</a><a class="h3" href="#d-144">L3. Edición concurrente</a><a class="h3" href="#d-145">L4. Utilidades de fecha, formato y paginación</a><a class="h3" href="#d-146">L5. Puentes de datos: historial y avisos como OT</a><a class="h3" href="#d-147">L6. Auditoría de cambios campo por campo</a><a class="h2" href="#d-148">M. Funciones internas (apéndice)</a><a class="h2" href="#d-149">Cómo se mantiene al día este inventario</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<p>Para cada cálculo del programa: <b>qué es, para qué sirve, de dónde viene, cómo lo calcula aquí, dónde se ve y qué no dice</b>. Se armó leyendo el código (<code>logic.js</code>, 321 funciones públicas y 27 internas, y las pantallas de <code>modules/renders/</code>) y buscando cada método en internet. Fecha: 2026-10-13. Las dos apps (centinela y mp2) comparten todo esto.</p>
 
   <div class="callout">
     <b>Regla de la casa:</b> ningún cálculo inventa un dato que falta. Si no hay datos suficientes, el resultado es "sin dato" o "pocos casos", y cuando el programa tiene que suponer algo (por ejemplo 8 h para un correctivo sin duración) lo dice.
   </div>
 
-  <h2>Cómo leer este documento</h2>
+  <h2 id="d-1">Cómo leer este documento</h2>
   <p><b>Nivel de la fuente</b> (en cada ficha, campo <i>De dónde viene</i>):</p>
   <ul>
     <li>🟢 <b>Fuente verificada</b>: la búsqueda encontró una fuente seria (norma, manual de un organismo como NIST, documentación de SAS o JMP, artículo académico) que respalda el método.</li>
@@ -60,7 +104,7 @@
   <p><b>Cómo se hizo la búsqueda y qué límites tiene.</b> Se hicieron 32 búsquedas. No fue posible abrir las páginas completas, así que cada fuente respalda <i>lo que dice el resumen de la búsqueda</i> y nada más. Las fórmulas de cada ficha son las que el código de verdad calcula; cuando el código dice que se verificó contra una librería de referencia (scipy, statsmodels, pymannkendall), eso se cita como "según el comentario del código", sin repetir esa verificación.</p>
   <p><b>Ejemplos reales.</b> Los marcados como <i>Ejemplo real</i> salen de los datos cargados en la base de centinela al 13-oct-2026, calculados con las mismas funciones del programa. Ojo con el período: la tabla de OT formales (<code>correctivos</code>) tiene 1.243 registros entre ene-2025 y jul-2026 y <b>casi no tiene registros desde abril de 2026</b> (2 en abril, 1 en junio, 3 en julio); el resto del historial reciente vive en <code>correctivos_historico</code>, que no trae duración ni horómetro. Por eso los ejemplos de fallas cubren sobre todo <b>ene-2025 a mar-2026</b>. Además, ningún correctivo trae el campo <i>componente</i> (0 de 1.243): el programa lo deduce del texto del síntoma.</p>
 
-  <h2>Hallazgos de la revisión (lo que hay que corregir o saber)</h2>
+  <h2 id="d-2">Hallazgos de la revisión (lo que hay que corregir o saber)</h2>
   <ol>
     <li><b>"A&amp;S1" de EN 15341.</b> El código (<code>costoRelativoMantenimiento</code>) llama "A&amp;S1" al indicador costo de mantención ÷ valor de reposición. Las fuentes encontradas lo llaman <b>E1</b> en EN 15341 (equivalente a la métrica 1.5 de SMRP). No se pudo verificar "A&amp;S1"; hay que revisarlo contra la norma 2019+A1:2022. Un texto externo afirma que "A&amp;S" es <i>Administration &amp; Supplies</i> y que A&amp;S1 sería costo de materiales ÷ costo total de mantenimiento; <b>eso no coincide con la definición del programa y no está respaldado</b>: sus fuentes son videos, blogs y traductores, no la norma, y la propia fórmula que da es ambigua (propone dos distintas según la revisión). Una nueva búsqueda tampoco halló la lista de códigos.</li>
     <li><b>Jack-Knife.</b> El diagrama original (Knights) cruza <b>número de fallas</b> contra MTTR. El del programa cruza <b>MTBF</b> contra MTTR (hay herramientas comerciales que hacen lo mismo). Es una adaptación válida, pero no es la versión original.</li>
@@ -71,7 +115,7 @@
     <li><b>El "porqué" de una disponibilidad baja</b> suele ser una OT <i>abierta</i> sin fecha de salida: cuenta 24 h por día hasta hoy. Ver el ejemplo real de la ficha A1.</li>
   </ol>
 
-  <h2>Índice</h2>
+  <h2 id="d-3">Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
     <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A16</td></tr>
@@ -90,9 +134,9 @@
   </table>
   <p>Son <b>132 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
-  <h2>A. Disponibilidad, fallas y tiempos</h2>
+  <h2 id="d-4">A. Disponibilidad, fallas y tiempos</h2>
 
-  <h3>A1. Disponibilidad operacional (Ao) e intrínseca (Ai)</h3>
+  <h3 id="d-5">A1. Disponibilidad operacional (Ao) e intrínseca (Ai)</h3>
   <ul>
     <li><b>Tipo:</b> fórmula (se calcula día a día).</li>
     <li><b>Para qué sirve:</b> responde "¿cuánto del tiempo programado estuvo disponible el equipo?" y, comparando las dos, "¿la disponibilidad baja por fallas o por el mantenimiento que la propia empresa programó?".</li>
@@ -114,7 +158,7 @@
     <li><b>Código:</b> <code>dispDownMap</code>, <code>dispEquipoMes</code>, <code>dispIntrinsecaEquipoMes</code>, <code>equiposFueraDeServicioAhora</code>, <code>rangoDias</code>.</li>
   </ul>
 
-  <h3>A2. MTBF y MTTR del programa</h3>
+  <h3 id="d-6">A2. MTBF y MTTR del programa</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> MTBF = cada cuántas horas de operación falla un equipo; MTTR = cuánto tarda en repararse en promedio. Son la base de la confiabilidad, el Jack-Knife, la criticidad y los costos.</li>
@@ -126,7 +170,7 @@
     <li><b>Código:</b> <code>C.mtbfReal</code>, <code>C.mttrReal</code>, <code>esFallaMTBF</code>, <code>mtbfFlotaReal</code>, <code>contarFallasMes</code>, <code>intervalosFallaFlotaDias</code>, <code>duracionesReparacionFlotaHoras</code>.</li>
   </ul>
 
-  <h3>A3. Intervalo de confianza del MTBF (chi-cuadrado)</h3>
+  <h3 id="d-7">A3. Intervalo de confianza del MTBF (chi-cuadrado)</h3>
   <ul>
     <li><b>Tipo:</b> fórmula estadística.</li>
     <li><b>Para qué sirve:</b> dice cuánto confiar en un MTBF. Un equipo con 2 fallas y uno con 50 no tienen la misma incertidumbre.</li>
@@ -138,7 +182,7 @@
     <li><b>Código:</b> <code>intervaloConfianzaMTBF</code>.</li>
   </ul>
 
-  <h3>A4. Error estándar del MTTR</h3>
+  <h3 id="d-8">A4. Error estándar del MTTR</h3>
   <ul>
     <li><b>Tipo:</b> fórmula estadística.</li>
     <li><b>Para qué sirve:</b> dice cuán preciso es un MTTR (4 h con 2 reparaciones no es lo mismo que 4 h con 40).</li>
@@ -149,7 +193,7 @@
     <li><b>Código:</b> <code>errorEstandarMTTR</code>.</li>
   </ul>
 
-  <h3>A5. Forma real del MTTR (log-normal)</h3>
+  <h3 id="d-9">A5. Forma real del MTTR (log-normal)</h3>
   <ul>
     <li><b>Tipo:</b> distribución de probabilidad.</li>
     <li><b>Para qué sirve:</b> mostrar que el MTTR promedio engaña: casi todas las reparaciones son cortas y unas pocas muy largas, y esas pocas arrastran el promedio.</li>
@@ -161,7 +205,7 @@
     <li><b>Código:</b> <code>analisisMTTRLogNormal</code>, <code>analisisMTTRPorCategoria</code>.</li>
   </ul>
 
-  <h3>A6. Confiabilidad R(t) con tasa de falla constante</h3>
+  <h3 id="d-10">A6. Confiabilidad R(t) con tasa de falla constante</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> probabilidad de que el equipo complete un período de operación sin fallar.</li>
@@ -173,7 +217,7 @@
     <li><b>Código:</b> <code>confiabilidadReal</code>, <code>confiabilidadWeibull</code>.</li>
   </ul>
 
-  <h3>A7. % de fallas en el mes, ratio preventivo y % correctivo reactivo</h3>
+  <h3 id="d-11">A7. % de fallas en el mes, ratio preventivo y % correctivo reactivo</h3>
   <ul>
     <li><b>Tipo:</b> indicadores.</li>
     <li><b>Para qué sirve:</b> medir qué tanto del trabajo es preventivo y cuánto tiempo se va en correctivos.</li>
@@ -184,7 +228,7 @@
     <li><b>Código:</b> <code>ratioPreventivo</code>, <code>porcentajeCorrectivoReactivo</code>, <code>contarFallasMes</code>.</li>
   </ul>
 
-  <h3>A8. Cumplimiento de PM a tiempo</h3>
+  <h3 id="d-12">A8. Cumplimiento de PM a tiempo</h3>
   <ul>
     <li><b>Tipo:</b> indicador.</li>
     <li><b>Para qué sirve:</b> ¿cuántos PM se hicieron dentro del plazo?</li>
@@ -195,7 +239,7 @@
     <li><b>Código:</b> <code>regEsATiempo</code>, <code>desviosPM</code>, <code>PM_TOLERANCIA_CICLO</code>.</li>
   </ul>
 
-  <h3>A9. Curva S de PM y cumplimiento del programa</h3>
+  <h3 id="d-13">A9. Curva S de PM y cumplimiento del programa</h3>
   <ul>
     <li><b>Tipo:</b> diagrama + indicador (plan contra real acumulado).</li>
     <li><b>Para qué sirve:</b> ver día a día si el trabajo de PM planificado se está ejecutando, ponderado por horas (un PM4 pesa 12 h y un PM1 3 h).</li>
@@ -206,7 +250,7 @@
     <li><b>Código:</b> <code>curvaSPM</code>, <code>cumplimientoProgramaPeriodos</code>, <code>cumplimientoProgramaMeses</code>, <code>periodoRango</code>, <code>periodoEtiqueta</code>, <code>periodoOpciones</code>, <code>PM_DURACION_ESTANDAR_H</code>, <code>PM_EQUIVALENCIA</code>, <code>pmDuracionesEstandar</code>, <code>pmTipoEfectivo</code>.</li>
   </ul>
 
-  <h3>A10. Reportabilidad diaria del cliente (disponibilidad contractual)</h3>
+  <h3 id="d-14">A10. Reportabilidad diaria del cliente (disponibilidad contractual)</h3>
   <ul>
     <li><b>Tipo:</b> fórmula + proceso de carga.</li>
     <li><b>Para qué sirve:</b> el cliente pide cada día el estatus de todos los equipos (operativo "OP" o fuera de servicio "FS"); esta pieza lo carga, lo funde sin duplicar y calcula la disponibilidad contractual.</li>
@@ -217,7 +261,7 @@
     <li><b>Código:</b> <code>reportabilidadFechaDeNombre</code>, <code>reportabilidadParsearHoja</code>, <code>reportabilidadArmarLote</code>, <code>reportabilidadFusionar</code>, <code>reportabilidadDisponibilidad</code>, <code>reportabilidadEpisodios</code>, <code>REPORTAB_MAPA_SIGLAS</code>.</li>
   </ul>
 
-  <h3>A11. Trazabilidad aviso → orden</h3>
+  <h3 id="d-15">A11. Trazabilidad aviso → orden</h3>
   <ul>
     <li><b>Tipo:</b> algoritmo de cruce.</li>
     <li><b>Para qué sirve:</b> detectar avisos (informes de falla) que nunca tuvieron una orden de trabajo real detrás.</li>
@@ -227,7 +271,7 @@
     <li><b>Código:</b> <code>trazabilidadAvisoOrden</code>, <code>resumenTrazabilidadAvisoOrden</code>.</li>
   </ul>
 
-  <h3>A12. Tiempos de compra: respuesta por proveedor, pedidos trabados, aprobación de OC</h3>
+  <h3 id="d-16">A12. Tiempos de compra: respuesta por proveedor, pedidos trabados, aprobación de OC</h3>
   <ul>
     <li><b>Tipo:</b> estadística descriptiva.</li>
     <li><b>Para qué sirve:</b> saber qué proveedor demora más y qué pedidos abiertos llevan más tiempo de lo normal.</li>
@@ -237,7 +281,7 @@
     <li><b>Código:</b> <code>tiempoRespuestaPorProveedor</code>, <code>pedidosPotencialmenteTrabados</code>, <code>tiempoAprobacionOC</code>.</li>
   </ul>
 
-  <h3>A13. Informe de gestión de mantenimiento (desviaciones de PM y equipos fuera de servicio)</h3>
+  <h3 id="d-17">A13. Informe de gestión de mantenimiento (desviaciones de PM y equipos fuera de servicio)</h3>
   <ul>
     <li><b>Tipo:</b> informe (cálculo + tabla + gráfico).</li>
     <li><b>Para qué sirve:</b> replicar las secciones III y IV del informe semanal que arma el cliente: qué tan cerca del horómetro programado se hizo cada PM y qué equipos siguen fuera de servicio.</li>
@@ -248,7 +292,7 @@
     <li><b>Código:</b> <code>informeGestionPM</code>, <code>informeGestionFS</code>.</li>
   </ul>
 
-  <h3>A14. Certeza y cumplimiento de programa (secciones I y II del informe del cliente)</h3>
+  <h3 id="d-18">A14. Certeza y cumplimiento de programa (secciones I y II del informe del cliente)</h3>
   <ul>
     <li><b>Tipo:</b> indicador (dos porcentajes con su meta).</li>
     <li><b>Para qué sirve:</b> responder dos preguntas del informe semanal del cliente: de los equipos que estaban programados para mantenimiento, ¿cuántos llegaron a sus horas? (certeza, meta 85 %), y de los que llegaron, ¿a cuántos se les hizo el PM? (cumplimiento, meta 100 %).</li>
@@ -259,7 +303,7 @@
     <li><b>Código:</b> <code>informeProgramaSemanal</code>, <code>PROG_META_CERTEZA</code>, <code>PROG_META_CUMPLIMIENTO</code>.</li>
   </ul>
 
-  <h3>A15. Cierre de backlog de pautas (sección V del informe del cliente)</h3>
+  <h3 id="d-19">A15. Cierre de backlog de pautas (sección V del informe del cliente)</h3>
   <ul>
     <li><b>Tipo:</b> registro + indicador.</li>
     <li><b>Para qué sirve:</b> llevar las tareas que quedan pendientes al hacer un PM (por ejemplo, un cambio de filtro de combustible por falta de insumo) hasta que se cierran, y medir qué parte se ha cerrado.</li>
@@ -270,7 +314,7 @@
     <li><b>Código:</b> <code>informeBacklogPM</code>, <code>backlogDesdePM</code>.</li>
   </ul>
 
-  <h3>A16. Orden de la tabla de equipos urgentes (Dashboard)</h3>
+  <h3 id="d-20">A16. Orden de la tabla de equipos urgentes (Dashboard)</h3>
   <ul>
     <li><b>Tipo:</b> regla de ordenamiento.</li>
     <li><b>Para qué sirve:</b> que en "Equipos Urgentes — Intervenir Ahora" lo primero que se lea sea lo que más importa, en vez del orden en que están cargados los equipos.</li>
@@ -281,9 +325,9 @@
     <li><b>Código:</b> <code>ordenUrgentes</code>.</li>
   </ul>
 
-  <h2>B. Vida, supervivencia y tendencia de fallas</h2>
+  <h2 id="d-21">B. Vida, supervivencia y tendencia de fallas</h2>
 
-  <h3>B1. Weibull por regresión de rango mediano</h3>
+  <h3 id="d-22">B1. Weibull por regresión de rango mediano</h3>
   <ul>
     <li><b>Tipo:</b> distribución de probabilidad + método de ajuste.</li>
     <li><b>Para qué sirve:</b> describe <i>cómo</i> falla algo en el tiempo con dos números: la forma <b>β</b> (β &lt; 1: fallas tempranas; β ≈ 1: al azar; β &gt; 1: desgaste) y la escala <b>η</b> (horas en que ya falló el 63 %). Dice si tiene sentido cambiar por edad o conviene vigilar por condición.</li>
@@ -295,7 +339,7 @@
     <li><b>Código:</b> <code>ajusteWeibull</code>, <code>ajusteWeibullVidas</code>, <code>analisisVidaUtilPorGrupo</code>, <code>analisisVidaUtilCorrectivosPorComponente</code>, <code>confiabilidadWeibull</code>, <code>interpretacionFormaWeibull</code>, <code>interpretacionAjusteWeibull</code>.</li>
   </ul>
 
-  <h3>B2. Weibull con censura (máxima verosimilitud)</h3>
+  <h3 id="d-23">B2. Weibull con censura (máxima verosimilitud)</h3>
   <ul>
     <li><b>Tipo:</b> método de ajuste.</li>
     <li><b>Para qué sirve:</b> lo mismo que B1, pero usando también lo que <i>todavía no falló</i>: un componente que sigue montado "sobrevivió al menos hasta acá", y descartarlo sesga la muestra hacia lo que falla rápido.</li>
@@ -306,7 +350,7 @@
     <li><b>Código:</b> <code>ajusteWeibullCensurado</code>, <code>ajusteWeibullEquipoCensurado</code>, <code>analisisVidaUtilPorGrupoCensurado</code>, <code>ajusteWeibullCorrectivosPorComponenteCensurado</code>, <code>ajusteWeibullMLE</code>, <code>ajusteExponencialMLE</code>, <code>ajusteLogNormalMLE</code>, <code>ajusteGammaMLE</code>.</li>
   </ul>
 
-  <h3>B3. Comparación de cuatro modelos de vida (AICc y Kolmogorov-Smirnov)</h3>
+  <h3 id="d-24">B3. Comparación de cuatro modelos de vida (AICc y Kolmogorov-Smirnov)</h3>
   <ul>
     <li><b>Tipo:</b> selección de modelo.</li>
     <li><b>Para qué sirve:</b> decidir si la vida de un componente se describe mejor con Weibull, exponencial, log-normal o gamma, en vez de asumir Weibull siempre.</li>
@@ -317,7 +361,7 @@
     <li><b>Código:</b> <code>compararModelosVida</code>, <code>TBO_MODELOS_VIDA</code>.</li>
   </ul>
 
-  <h3>B4. Curva de supervivencia de Kaplan-Meier</h3>
+  <h3 id="d-25">B4. Curva de supervivencia de Kaplan-Meier</h3>
   <ul>
     <li><b>Tipo:</b> estimador no paramétrico.</li>
     <li><b>Para qué sirve:</b> probabilidad empírica de seguir sin fallar a cada hora, sin asumir ninguna forma, usando también lo que sigue en servicio.</li>
@@ -328,7 +372,7 @@
     <li><b>Código:</b> <code>kaplanMeier</code>, <code>kaplanMeierCorrectivosPorComponente</code>.</li>
   </ul>
 
-  <h3>B5. Prueba log-rank</h3>
+  <h3 id="d-26">B5. Prueba log-rank</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística.</li>
     <li><b>Para qué sirve:</b> ¿dos curvas de supervivencia (dos componentes, modelos o ubicaciones) son realmente distintas o es ruido de muestra chica?</li>
@@ -339,7 +383,7 @@
     <li><b>Código:</b> <code>logRankTest</code>.</li>
   </ul>
 
-  <h3>B6. Regresión de Cox (razón de riesgos entre dos grupos)</h3>
+  <h3 id="d-27">B6. Regresión de Cox (razón de riesgos entre dos grupos)</h3>
   <ul>
     <li><b>Tipo:</b> modelo estadístico.</li>
     <li><b>Para qué sirve:</b> cuantificar <i>cuánto</i> más rápido falla un grupo que otro ("el grupo B falla 2,3 veces más rápido").</li>
@@ -350,7 +394,7 @@
     <li><b>Código:</b> <code>coxPHBinario</code>.</li>
   </ul>
 
-  <h3>B7. Riesgos competitivos (¿qué modo de falla gana la carrera?)</h3>
+  <h3 id="d-28">B7. Riesgos competitivos (¿qué modo de falla gana la carrera?)</h3>
   <ul>
     <li><b>Tipo:</b> estimador no paramétrico.</li>
     <li><b>Para qué sirve:</b> probabilidad de que cada modo de falla (motor, transmisión, hidráulico…) sea <i>la próxima</i> que saque al equipo de servicio. Kaplan-Meier por componente trata las otras causas como si no existieran y sobreestima cada una.</li>
@@ -361,7 +405,7 @@
     <li><b>Código:</b> <code>competingRisks</code>, <code>competingRisksPorEquipo</code>.</li>
   </ul>
 
-  <h3>B8. Función media acumulada (MCF)</h3>
+  <h3 id="d-29">B8. Función media acumulada (MCF)</h3>
   <ul>
     <li><b>Tipo:</b> estimador no paramétrico para eventos recurrentes.</li>
     <li><b>Para qué sirve:</b> cuántas fallas acumuladas de un componente esperar, en promedio, por equipo a cierto horómetro: insumo para presupuestar repuestos y mano de obra.</li>
@@ -372,7 +416,7 @@
     <li><b>Código:</b> <code>mcf</code>, <code>mcfCorrectivosPorComponente</code>.</li>
   </ul>
 
-  <h3>B9. Crow-AMSAA (¿mejora o empeora la tasa de fallas?)</h3>
+  <h3 id="d-30">B9. Crow-AMSAA (¿mejora o empeora la tasa de fallas?)</h3>
   <ul>
     <li><b>Tipo:</b> modelo de proceso de Poisson no homogéneo (ley de potencia).</li>
     <li><b>Para qué sirve:</b> ver si la confiabilidad mejora o empeora en el tiempo calendario.</li>
@@ -384,7 +428,7 @@
     <li><b>Código:</b> <code>crowAMSAA</code>, <code>crowAMSAAPorComponente</code>, <code>interpretacionCrowAMSAA</code>.</li>
   </ul>
 
-  <h3>B10. Edad virtual y reparación imperfecta (Kijima)</h3>
+  <h3 id="d-31">B10. Edad virtual y reparación imperfecta (Kijima)</h3>
   <ul>
     <li><b>Tipo:</b> modelo de renovación imperfecta.</li>
     <li><b>Para qué sirve:</b> estimar si las reparaciones dejan al equipo "como nuevo" (q = 0) o "como estaba" (q = 1), es decir, si solo tapan el síntoma.</li>
@@ -395,7 +439,7 @@
     <li><b>Código:</b> <code>edadVirtualEquipo</code>, <code>kijimaEquipo</code>.</li>
   </ul>
 
-  <h3>B11. Proceso de renovación general: simulación de trayectorias</h3>
+  <h3 id="d-32">B11. Proceso de renovación general: simulación de trayectorias</h3>
   <ul>
     <li><b>Tipo:</b> simulación.</li>
     <li><b>Para qué sirve:</b> proyectar miles de futuros posibles de fallas de <i>un equipo</i> respetando cuán bien lo restauran sus reparaciones.</li>
@@ -406,7 +450,7 @@
     <li><b>Código:</b> <code>simulacionTrayectoriasGRP</code>, <code>simulacionTrayectoriasGRPDesdeKijima</code>.</li>
   </ul>
 
-  <h3>B12. Vida útil remanente (RUL) híbrida</h3>
+  <h3 id="d-33">B12. Vida útil remanente (RUL) híbrida</h3>
   <ul>
     <li><b>Tipo:</b> fórmula + ajuste por condición.</li>
     <li><b>Para qué sirve:</b> ¿cuántas horas le quedan a <i>este</i> componente de <i>este</i> equipo? Con un rango entre lo conservador (B10 remanente) y lo típico (B50).</li>
@@ -417,7 +461,7 @@
     <li><b>Código:</b> <code>rulWeibull</code>, <code>rulHibridoComponente</code>, <code>rulHibridoPorComponente</code>.</li>
   </ul>
 
-  <h3>B13. Oportunidad de mantención (agrupar tareas en la misma parada)</h3>
+  <h3 id="d-34">B13. Oportunidad de mantención (agrupar tareas en la misma parada)</h3>
   <ul>
     <li><b>Tipo:</b> regla de decisión.</li>
     <li><b>Para qué sirve:</b> cuando un equipo ya va a parar por un componente, ¿conviene cambiar otros que también están cerca de su límite?</li>
@@ -427,7 +471,7 @@
     <li><b>Código:</b> <code>oportunidadMantenimiento</code>, <code>oportunidadesMantenimientoFlota</code>, <code>sugerenciaAgruparPM</code> (al crear un correctivo, avisa si el próximo PM del equipo está cerca para aprovechar la misma detención).</li>
   </ul>
 
-  <h3>B14. Intervalo P-F real y recomendación de inspección</h3>
+  <h3 id="d-35">B14. Intervalo P-F real y recomendación de inspección</h3>
   <ul>
     <li><b>Tipo:</b> método de mantenimiento centrado en confiabilidad (RCM).</li>
     <li><b>Para qué sirve:</b> medir cuánto tiempo pasa entre que una falla es detectable ("P") y cuando el equipo deja de cumplir ("F"), para decidir cada cuánto inspeccionar.</li>
@@ -438,7 +482,7 @@
     <li><b>Código:</b> <code>intervalosPF</code>.</li>
   </ul>
 
-  <h3>B15. Índice de efectividad del mantenimiento</h3>
+  <h3 id="d-36">B15. Índice de efectividad del mantenimiento</h3>
   <ul>
     <li><b>Tipo:</b> comparación antes/después.</li>
     <li><b>Para qué sirve:</b> ¿el PM funciona, es decir, el equipo tarda más en volver a fallar después de un PM que antes?</li>
@@ -449,7 +493,7 @@
     <li><b>Código:</b> <code>indiceEfectividadMantenimiento</code>, <code>interpretacionEfectividadMantenimiento</code>.</li>
   </ul>
 
-  <h3>B16. Probabilidad de falla en 30 días (Poisson)</h3>
+  <h3 id="d-37">B16. Probabilidad de falla en 30 días (Poisson)</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> probabilidad de que un componente de un equipo falle al menos una vez en los próximos 30 días.</li>
@@ -459,7 +503,7 @@
     <li><b>Código:</b> <code>probabilidadFallaDesdeEventos</code>.</li>
   </ul>
 
-  <h3>B17. Confiabilidad de un equipo como sistema en serie (RBD)</h3>
+  <h3 id="d-38">B17. Confiabilidad de un equipo como sistema en serie (RBD)</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> probabilidad de que un equipo complete una misión sin que falle <i>ninguno</i> de sus componentes mayores.</li>
@@ -470,10 +514,10 @@
     <li><b>Código:</b> <code>confiabilidadSistemaEquipo</code>.</li>
   </ul>
 
-  <h2>C. Estadística: ¿la diferencia es real o ruido?</h2>
+  <h2 id="d-39">C. Estadística: ¿la diferencia es real o ruido?</h2>
   <p>Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y, si no lo hay, no devuelve resultado.</p>
 
-  <h3>C1. Mann-Kendall y pendiente de Sen (tendencia)</h3>
+  <h3 id="d-40">C1. Mann-Kendall y pendiente de Sen (tendencia)</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística no paramétrica.</li>
     <li><b>Para qué sirve:</b> ¿la tendencia de una serie corta (por ejemplo la disponibilidad de 6 meses) es real o ruido de mes a mes?</li>
@@ -485,7 +529,7 @@
     <li><b>Código:</b> <code>mannKendallTendencia</code>.</li>
   </ul>
 
-  <h3>C2. Mann-Whitney U</h3>
+  <h3 id="d-41">C2. Mann-Whitney U</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística no paramétrica.</li>
     <li><b>Para qué sirve:</b> ¿dos muestras independientes son distintas, sin asumir distribución normal?</li>
@@ -496,7 +540,7 @@
     <li><b>Código:</b> <code>mannWhitneyU</code>.</li>
   </ul>
 
-  <h3>C3. ANOVA de un factor</h3>
+  <h3 id="d-42">C3. ANOVA de un factor</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística.</li>
     <li><b>Para qué sirve:</b> ¿el MTTR promedio difiere entre técnicos?</li>
@@ -507,7 +551,7 @@
     <li><b>Código:</b> <code>anovaUnFactor</code>.</li>
   </ul>
 
-  <h3>C4. Kruskal-Wallis</h3>
+  <h3 id="d-43">C4. Kruskal-Wallis</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística no paramétrica.</li>
     <li><b>Para qué sirve:</b> lo mismo que C3 pero comparando por rangos, sin asumir normalidad.</li>
@@ -517,7 +561,7 @@
     <li><b>Código:</b> <code>kruskalWallis</code>.</li>
   </ul>
 
-  <h3>C5. Prueba de Levene (variante Brown-Forsythe)</h3>
+  <h3 id="d-44">C5. Prueba de Levene (variante Brown-Forsythe)</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística.</li>
     <li><b>Para qué sirve:</b> ¿un técnico es más <i>irregular</i> (a veces muy rápido, a veces muy lento) que otro? Prueba la variabilidad, no el promedio.</li>
@@ -527,7 +571,7 @@
     <li><b>Código:</b> <code>levenePruebaVarianzas</code>.</li>
   </ul>
 
-  <h3>C6. Chi-cuadrado de uniformidad (patrones ocultos: mes y turno)</h3>
+  <h3 id="d-45">C6. Chi-cuadrado de uniformidad (patrones ocultos: mes y turno)</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística.</li>
     <li><b>Para qué sirve:</b> ¿las fallas se reparten parejo entre meses o turnos, o hay estacionalidad real?</li>
@@ -538,7 +582,7 @@
     <li><b>Código:</b> <code>testChiCuadradoUniforme</code>, <code>patronesOcultosFalla</code>.</li>
   </ul>
 
-  <h3>C7. Chi-cuadrado de independencia (componente × ubicación)</h3>
+  <h3 id="d-46">C7. Chi-cuadrado de independencia (componente × ubicación)</h3>
   <ul>
     <li><b>Tipo:</b> prueba estadística.</li>
     <li><b>Para qué sirve:</b> ¿un tipo de falla se concentra en un lugar (pit, rampa, planta)?</li>
@@ -548,7 +592,7 @@
     <li><b>Código:</b> <code>testIndependenciaChi2</code>, <code>independenciaComponenteUbicacion</code>.</li>
   </ul>
 
-  <h3>C8. Tasa de falla por ubicación</h3>
+  <h3 id="d-47">C8. Tasa de falla por ubicación</h3>
   <ul>
     <li><b>Tipo:</b> comparación de medianas (versión simplificada de un modelo de riesgos proporcionales).</li>
     <li><b>Para qué sirve:</b> ¿en qué ubicación fallan los equipos más seguido?</li>
@@ -558,7 +602,7 @@
     <li><b>Código:</b> <code>tasaFallaPorUbicacion</code>.</li>
   </ul>
 
-  <h3>C9. Intervalo de Wilson para una proporción</h3>
+  <h3 id="d-48">C9. Intervalo de Wilson para una proporción</h3>
   <ul>
     <li><b>Tipo:</b> fórmula estadística.</li>
     <li><b>Para qué sirve:</b> poner margen de error a un porcentaje con muestra chica ("80 % documentado" con n = 15 puede estar entre 55 % y 93 %).</li>
@@ -568,7 +612,7 @@
     <li><b>Código:</b> <code>wilsonIC95</code>.</li>
   </ul>
 
-  <h3>C10. R² de una regresión lineal</h3>
+  <h3 id="d-49">C10. R² de una regresión lineal</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> decir qué tan bien una recta explica las mediciones (hoy, la proyección de desgaste de neumáticos: antes la "confianza" solo contaba cuántas mediciones había).</li>
@@ -577,7 +621,7 @@
     <li><b>Código:</b> <code>r2RegresionLineal</code>.</li>
   </ul>
 
-  <h3>C11. Carta de control I-MR (individuos y rango móvil)</h3>
+  <h3 id="d-50">C11. Carta de control I-MR (individuos y rango móvil)</h3>
   <ul>
     <li><b>Tipo:</b> control estadístico de procesos.</li>
     <li><b>Para qué sirve:</b> detectar el mes exacto en que un valor (costo mensual, por ejemplo) sale del comportamiento normal.</li>
@@ -587,7 +631,7 @@
     <li><b>Código:</b> <code>cartaControlIMR</code>.</li>
   </ul>
 
-  <h3>C12. Carta de control EWMA</h3>
+  <h3 id="d-51">C12. Carta de control EWMA</h3>
   <ul>
     <li><b>Tipo:</b> control estadístico de procesos con memoria.</li>
     <li><b>Para qué sirve:</b> detectar una deriva lenta y sostenida (el costo subiendo mes a mes sin que ninguno cruce el límite), donde la carta anterior es poco sensible.</li>
@@ -597,7 +641,7 @@
     <li><b>Código:</b> <code>cartaControlEWMA</code>.</li>
   </ul>
 
-  <h3>C13. CUSUM de aceite</h3>
+  <h3 id="d-52">C13. CUSUM de aceite</h3>
   <ul>
     <li><b>Tipo:</b> control estadístico de procesos con memoria.</li>
     <li><b>Para qué sirve:</b> detectar que el desgaste se acelera por varias muestras seguidas levemente altas, que por sí solas no cruzan el umbral de alerta.</li>
@@ -607,7 +651,7 @@
     <li><b>Código:</b> <code>cusumAceite</code>, <code>cusumAceitePorComponente</code>.</li>
   </ul>
 
-  <h3>C14. Muestra chica: potencia y efecto mínimo detectable</h3>
+  <h3 id="d-53">C14. Muestra chica: potencia y efecto mínimo detectable</h3>
   <ul>
     <li><b>Tipo:</b> aviso estadístico.</li>
     <li><b>Para qué sirve:</b> un resultado "no significativo" con pocos datos no prueba que no haya diferencia; el aviso dice cuán grande tendría que ser la diferencia para que la prueba la viera.</li>
@@ -617,7 +661,7 @@
     <li><b>Código:</b> <code>efectoMinimoDetectable</code>, <code>hrMinimoDetectable</code>, <code>avisoMuestraChica</code>, <code>avisoMuestraChicaSupervivencia</code>.</li>
   </ul>
 
-  <h3>C15. Detección de atípicos (aceite, compras y pronóstico)</h3>
+  <h3 id="d-54">C15. Detección de atípicos (aceite, compras y pronóstico)</h3>
   <ul>
     <li><b>Tipo:</b> reglas robustas.</li>
     <li><b>Para qué sirve:</b> separar errores de digitación y valores absurdos antes de que contaminen costos, aceite o pronósticos, sin borrar nada.</li>
@@ -627,7 +671,7 @@
     <li><b>Código:</b> <code>aceiteOutliers</code>, <code>outliersMultivariadosAceite</code>, <code>ordenesSinOutliers</code>, <code>pronRecortarAtipicos</code>.</li>
   </ul>
 
-  <h3>C16. Análisis de componentes principales (PCA) y comparación con pares</h3>
+  <h3 id="d-55">C16. Análisis de componentes principales (PCA) y comparación con pares</h3>
   <ul>
     <li><b>Tipo:</b> técnica multivariada.</li>
     <li><b>Para qué sirve:</b> resumir varios indicadores por equipo (fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso diario, horómetro) en 2 o 3 ejes y ver qué equipos se alejan del grupo.</li>
@@ -638,7 +682,7 @@
     <li><b>Código:</b> <code>pcaAnalisis</code>, <code>pcaVariablesEquipos</code>, <code>paresZRobusto</code>, <code>_eigenSimetrica</code>.</li>
   </ul>
 
-  <h3>C17. Bayes empírico (Gamma-Poisson) para tasas de falla con poco historial</h3>
+  <h3 id="d-56">C17. Bayes empírico (Gamma-Poisson) para tasas de falla con poco historial</h3>
   <ul>
     <li><b>Tipo:</b> estimación bayesiana.</li>
     <li><b>Para qué sirve:</b> un equipo con pocas fallas no se descarta ni se muestra con una tasa cruda poco fiable: se combina su dato con lo que se sabe de toda la flota.</li>
@@ -649,7 +693,7 @@
     <li><b>Código:</b> <code>bayesEmpiricoGammaPoisson</code>.</li>
   </ul>
 
-  <h3>C18. Distribuciones auxiliares (Beta, Gamma) y comparación bayesiana</h3>
+  <h3 id="d-57">C18. Distribuciones auxiliares (Beta, Gamma) y comparación bayesiana</h3>
   <ul>
     <li><b>Tipo:</b> funciones de probabilidad.</li>
     <li><b>Para qué sirve:</b> son la base de los cálculos del TBO y de los plazos de entrega: probabilidad de que un cambio llegue a su TBO con pocos casos, probabilidad de que un repuesto llegue en N días y comparación de repuestos original contra alternativo.</li>
@@ -659,7 +703,7 @@
     <li><b>Código:</b> <code>betaBernoulliPosterior</code>, <code>probabilidadMayorBeta</code>, <code>betaCuantil</code>, <code>betaPDF</code>, <code>ajusteGammaMomentos</code>, <code>gammaCDF</code>, <code>gammaCuantil</code>, <code>tboProbLlegaAntes</code>.</li>
   </ul>
 
-  <h3>C19. Correlación entre aceite y fallas (¿el análisis de aceite anticipa fallas?)</h3>
+  <h3 id="d-58">C19. Correlación entre aceite y fallas (¿el análisis de aceite anticipa fallas?)</h3>
   <ul>
     <li><b>Tipo:</b> razón entre tasas (lift).</li>
     <li><b>Para qué sirve:</b> comprobar si una muestra de aceite en ALERTA o PRECAUCIÓN realmente fue seguida por una falla del mismo equipo y componente, más seguido que una muestra NORMAL. Si el análisis no anticipa nada, no sirve para decidir.</li>
@@ -670,7 +714,7 @@
     <li><b>Código:</b> <code>correlacionAceiteFallas</code>, <code>_normalizarComponente</code>.</li>
   </ul>
 
-  <h3>C20. Correlaciones entre indicadores, metales de aceite y señales (Spearman, Holm, Fisher)</h3>
+  <h3 id="d-59">C20. Correlaciones entre indicadores, metales de aceite y señales (Spearman, Holm, Fisher)</h3>
   <ul>
     <li><b>Tipo:</b> estadística descriptiva con prueba de hipótesis.</li>
     <li><b>Para qué sirve:</b> mostrar qué se mueve junto con qué, en vez de usar la covarianza solo por dentro (distancia de Mahalanobis del aceite, PCA, margen de error del Weibull). Tres usos: (1) entre los indicadores del Mapa de equipos (fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso y horómetro); (2) entre los 6 metales de desgaste del aceite, dentro de un mismo tipo de componente; (3) entre las 6 señales de la Señal Unificada de Reemplazo, para ver si cuentan evidencia distinta o se encienden juntas.</li>
@@ -681,7 +725,7 @@
     <li><b>Código:</b> <code>correlacionSpearman</code>, <code>holmAjustarP</code>, <code>correlacionesPares</code>, <code>correlacionesIndicadoresEquipos</code>, <code>correlacionMetalesAceite</code>, <code>correlacionSenalesReemplazo</code>.</li>
   </ul>
 
-  <h3>C21. Backtest: ¿las reglas anticipan qué equipo fallará el próximo mes? (AUC)</h3>
+  <h3 id="d-60">C21. Backtest: ¿las reglas anticipan qué equipo fallará el próximo mes? (AUC)</h3>
   <ul>
     <li><b>Tipo:</b> validación de un predictor contra lo que pasó.</li>
     <li><b>Para qué sirve:</b> comprobar, en vez de suponer, si la «Probabilidad de falla» del programa y otras reglas ordenan los equipos mejor que una regla simple («cuántas fallas tuvo en el último año»).</li>
@@ -693,7 +737,7 @@
     <li><b>Código:</b> <code>backtestAnticipacionFallas</code>, <code>_btScoresModelos</code>, <code>_btMetricasProb</code>.</li>
   </ul>
 
-  <h3>C22. Prueba del diccionario de componentes con datos no usados para afinarlo</h3>
+  <h3 id="d-61">C22. Prueba del diccionario de componentes con datos no usados para afinarlo</h3>
   <ul>
     <li><b>Tipo:</b> validación fuera de muestra (cobertura y acuerdo).</li>
     <li><b>Para qué sirve:</b> comprobar si el diccionario que deduce el componente desde el texto del síntoma (<code>_componenteDeSintoma</code>) funciona con textos nuevos, en vez de medirlo sobre los mismos correctivos con los que se afinó en 9 pasadas.</li>
@@ -704,7 +748,7 @@
     <li><b>Código:</b> <code>evaluarDiccionarioComponentes</code>.</li>
   </ul>
 
-  <h3>C23. Curva P-F completa: lado izquierdo (instalación → P) y lado derecho con grupo de comparación</h3>
+  <h3 id="d-62">C23. Curva P-F completa: lado izquierdo (instalación → P) y lado derecho con grupo de comparación</h3>
   <ul>
     <li><b>Tipo:</b> análisis de condición con grupo de control.</li>
     <li><b>Para qué sirve:</b> la curva P-F tiene dos lados. El derecho (de P, cuando el desgaste ya es detectable, hasta la falla F) dice cada cuánto inspeccionar y ya existía (<code>intervalosPF</code>). El izquierdo (desde que el componente está nuevo hasta P) dice <b>desde cuándo conviene vigilarlo</b>, y no se medía. Además, al derecho se le agrega un grupo de comparación, porque estos equipos fallan cada pocos días y «días hasta la siguiente falla» sale corto aunque no haya habido aviso.</li>
@@ -715,9 +759,9 @@
     <li><b>Código:</b> <code>curvaPFCompleta</code>.</li>
   </ul>
 
-  <h2>D. Criticidad, riesgo y prioridad</h2>
+  <h2 id="d-63">D. Criticidad, riesgo y prioridad</h2>
 
-  <h3>D1. Matriz de riesgo Probabilidad × Impacto (5 × 5)</h3>
+  <h3 id="d-64">D1. Matriz de riesgo Probabilidad × Impacto (5 × 5)</h3>
   <ul>
     <li><b>Tipo:</b> matriz.</li>
     <li><b>Para qué sirve:</b> ordenar qué atender primero combinando "qué tan probable es" con "cuánto duele". Se usa para componentes, equipos, repuestos y cambios del TBO.</li>
@@ -728,7 +772,7 @@
     <li><b>Código:</b> <code>probabilidadComponente</code>, <code>probabilidadEquipoSeveridad</code>, <code>probabilidadStockQuiebre</code>, <code>probabilidadReincidencia</code>, <code>umbralesImpacto</code>, <code>impactoDeValor</code>, <code>nivelRiesgoPxI</code>, <code>criticidadEquipoABanda</code>, <code>equiposSinCriticidad</code>.</li>
   </ul>
 
-  <h3>D2. Criticidad de equipos multicriterio (matriz M2: frecuencia × consecuencia)</h3>
+  <h3 id="d-65">D2. Criticidad de equipos multicriterio (matriz M2: frecuencia × consecuencia)</h3>
   <ul>
     <li><b>Tipo:</b> matriz (5 × 5).</li>
     <li><b>Para qué sirve:</b> calcular con datos cuán crítico es cada equipo y compararlo con la etiqueta manual (Crítico / Esencial / General), sin reemplazarla.</li>
@@ -740,7 +784,7 @@
     <li><b>Código:</b> <code>criticidadEquiposMulticriterio</code>, <code>bandaCriticidadEquipo</code>.</li>
   </ul>
 
-  <h3>D3. Prioridad de OT (matriz M6: urgencia × impacto)</h3>
+  <h3 id="d-66">D3. Prioridad de OT (matriz M6: urgencia × impacto)</h3>
   <ul>
     <li><b>Tipo:</b> matriz / regla de decisión.</li>
     <li><b>Para qué sirve:</b> ordenar el trabajo pendiente: antes el backlog solo se ordenaba por días.</li>
@@ -752,7 +796,7 @@
     <li><b>Código:</b> <code>prioridadOT</code>, <code>urgenciaPorDias</code>.</li>
   </ul>
 
-  <h3>D4. Matriz Jack-Knife (MTBF contra MTTR)</h3>
+  <h3 id="d-67">D4. Matriz Jack-Knife (MTBF contra MTTR)</h3>
   <ul>
     <li><b>Tipo:</b> matriz y diagrama (ver también K1).</li>
     <li><b>Para qué sirve:</b> ubicar a cada equipo en uno de cuatro cuadrantes para saber si el problema es que falla seguido, que tarda mucho en repararse o ambas cosas, y cuántas horas pierde al año.</li>
@@ -764,7 +808,7 @@
     <li><b>Código:</b> <code>matrizJackKnife</code>, <code>JK_ACCIONES</code>.</li>
   </ul>
 
-  <h3>D5. NPR (FMEA: severidad × ocurrencia × detección)</h3>
+  <h3 id="d-68">D5. NPR (FMEA: severidad × ocurrencia × detección)</h3>
   <ul>
     <li><b>Tipo:</b> índice.</li>
     <li><b>Para qué sirve:</b> priorizar qué causa de falla de un componente atacar primero.</li>
@@ -775,7 +819,7 @@
     <li><b>Código:</b> <code>calcularNPR</code>, <code>prioridadNPR</code>.</li>
   </ul>
 
-  <h3>D6. Criticidad dinámica de componentes</h3>
+  <h3 id="d-69">D6. Criticidad dinámica de componentes</h3>
   <ul>
     <li><b>Tipo:</b> matriz con ajuste.</li>
     <li><b>Para qué sirve:</b> la matriz de riesgo estática es una foto que solo cambia si alguien reevalúa a mano; esta ajusta la probabilidad con la tendencia medida de ese tipo de componente en toda la flota.</li>
@@ -785,7 +829,7 @@
     <li><b>Código:</b> <code>criticidadDinamicaComponente</code>, <code>matrizCriticidadDinamica</code>.</li>
   </ul>
 
-  <h3>D7. Índice de salud de la flota y score de salud por equipo</h3>
+  <h3 id="d-70">D7. Índice de salud de la flota y score de salud por equipo</h3>
   <ul>
     <li><b>Tipo:</b> índice compuesto.</li>
     <li><b>Para qué sirve:</b> un solo número por flota (y por equipo) con tendencia semanal y el <i>motivo</i> principal de la baja.</li>
@@ -796,7 +840,7 @@
     <li><b>Código:</b> <code>indiceSaludFlota</code>, <code>scoreSaludEquipo</code>, <code>equiposConSaludFlota</code>, <code>motivoPrincipalSalud</code>, <code>peoresDimensionesSalud</code>, <code>recomendacionDimensionSalud</code>, <code>registrarSnapshotSalud</code>, <code>tendenciaSaludSemanal</code>, <code>valorPrevioSalud</code>, <code>SALUD_EQUIPO_METODO_DESDE</code>, <code>tboSaludFlotaAuto</code>.</li>
   </ul>
 
-  <h3>D8. Cadena de Markov de salud y proyección a N semanas</h3>
+  <h3 id="d-71">D8. Cadena de Markov de salud y proyección a N semanas</h3>
   <ul>
     <li><b>Tipo:</b> modelo probabilístico.</li>
     <li><b>Para qué sirve:</b> probabilidad de que un equipo esté en cada estado de salud dentro de N semanas.</li>
@@ -807,7 +851,7 @@
     <li><b>Código:</b> <code>matrizTransicionSalud</code>, <code>proyeccionSaludNSemanas</code>.</li>
   </ul>
 
-  <h3>D9. Señal unificada de reemplazo</h3>
+  <h3 id="d-72">D9. Señal unificada de reemplazo</h3>
   <ul>
     <li><b>Tipo:</b> regla de conteo.</li>
     <li><b>Para qué sirve:</b> marcar un equipo como "candidato a evaluar su reemplazo" cuando varias señales ya calculadas coinciden.</li>
@@ -818,7 +862,7 @@
     <li><b>Código:</b> <code>senalUnificadaReemplazo</code>.</li>
   </ul>
 
-  <h3>D10. Causas latentes repetidas</h3>
+  <h3 id="d-73">D10. Causas latentes repetidas</h3>
   <ul>
     <li><b>Tipo:</b> regla de agrupación.</li>
     <li><b>Para qué sirve:</b> detectar que el mismo problema vuelve en equipos <i>distintos</i>, prueba de que la causa es del sistema de mantención y no de una máquina.</li>
@@ -828,7 +872,7 @@
     <li><b>Código:</b> <code>causasLatentesRepetidas</code>.</li>
   </ul>
 
-  <h3>D11. Pareto</h3>
+  <h3 id="d-74">D11. Pareto</h3>
   <ul>
     <li><b>Tipo:</b> diagrama y regla de corte (ver K5).</li>
     <li><b>Para qué sirve:</b> identificar los pocos equipos, componentes o modos de falla que concentran la mayor parte del problema.</li>
@@ -839,7 +883,7 @@
     <li><b>Código:</b> <code>paretoAcumulado</code>.</li>
   </ul>
 
-  <h3>D12. Calidad de ejecución del PM (¿hay más fallas de lo esperado después de un PM?)</h3>
+  <h3 id="d-75">D12. Calidad de ejecución del PM (¿hay más fallas de lo esperado después de un PM?)</h3>
   <ul>
     <li><b>Tipo:</b> algoritmo estadístico (razón observado ÷ esperado).</li>
     <li><b>Para qué sirve:</b> detectar PM que dejan al equipo con más fallas de lo normal en los días siguientes, y ver si eso depende del horario en que se hizo, del tipo de PM o de si se hizo completo.</li>
@@ -850,7 +894,7 @@
     <li><b>Código:</b> <code>calidadEjecucionPM</code>, <code>sistemasDeTexto</code>, <code>sistemasCubiertosPorPM</code>, <code>validarPMCompleto</code>, <code>estadoPMCompleto</code>, <code>_lecturaRazonCE</code>, <code>_relativoCE</code>, <code>_fraccionDiasConFallaCE</code>.</li>
   </ul>
 
-  <h3>D13. Clasificación pendiente de OT y reparación de texto</h3>
+  <h3 id="d-76">D13. Clasificación pendiente de OT y reparación de texto</h3>
   <ul>
     <li><b>Tipo:</b> reglas de calidad de datos.</li>
     <li><b>Para qué sirve:</b> medir cuántas OT cerradas no tienen sistema ni tipo de causa (sin eso no hay Pareto por causa raíz ni calidad de ejecución) y evitar que un texto mal codificado parta un grupo en dos.</li>
@@ -860,7 +904,7 @@
     <li><b>Código:</b> <code>clasificacionPendienteOT</code>, <code>resumenClasificacionOT</code>, <code>repararMojibake</code>.</li>
   </ul>
 
-  <h3>D14. Deducción del componente desde el texto del síntoma</h3>
+  <h3 id="d-77">D14. Deducción del componente desde el texto del síntoma</h3>
   <ul>
     <li><b>Tipo:</b> regla de texto (palabras clave).</li>
     <li><b>Para qué sirve:</b> el campo <i>componente</i> de la OT casi nunca se llena (0 de 1.243 correctivos en los datos reales), pero muchas pantallas lo necesitan: Pareto, Weibull por componente, Kaplan-Meier, Sankey, riesgos competitivos. Esta regla lo deduce.</li>
@@ -872,9 +916,9 @@
     <li><b>Código:</b> <code>_componenteDeSintoma</code>, <code>_CATEGORIAS_COMPONENTE</code>, <code>sistemasDeTexto</code>, <code>_subpiezasDeSintoma</code>, <code>_SUBPIEZAS_DESGASTE</code>.</li>
   </ul>
 
-  <h2>E. Repuestos e inventario</h2>
+  <h2 id="d-78">E. Repuestos e inventario</h2>
 
-  <h3>E1. Estado de stock (cuándo comprar)</h3>
+  <h3 id="d-79">E1. Estado de stock (cuándo comprar)</h3>
   <ul>
     <li><b>Tipo:</b> regla de decisión.</li>
     <li><b>Para qué sirve:</b> la pregunta real no es "¿tengo menos de un mes?" sino "¿me quedo sin stock <i>antes</i> de que llegue la reposición?".</li>
@@ -884,7 +928,7 @@
     <li><b>Código:</b> <code>stockEstado</code>.</li>
   </ul>
 
-  <h3>E2. Demanda de repuestos (Poisson)</h3>
+  <h3 id="d-80">E2. Demanda de repuestos (Poisson)</h3>
   <ul>
     <li><b>Tipo:</b> estimación de demanda.</li>
     <li><b>Para qué sirve:</b> demanda mensual esperada de cada repuesto, base de las probabilidades de quiebre y del punto de reorden.</li>
@@ -895,7 +939,7 @@
     <li><b>Código:</b> <code>analisisDemandaRepuestos</code>.</li>
   </ul>
 
-  <h3>E3. ABC y XYZ de repuestos</h3>
+  <h3 id="d-81">E3. ABC y XYZ de repuestos</h3>
   <ul>
     <li><b>Tipo:</b> clasificación.</li>
     <li><b>Para qué sirve:</b> ABC = valor anual de consumo (dónde está la plata); XYZ = qué tan estable es la demanda. Juntas dicen dónde conviene control estricto.</li>
@@ -905,7 +949,7 @@
     <li><b>Código:</b> <code>analisisABCXYZRepuestos</code>.</li>
   </ul>
 
-  <h3>E4. ABC × VED (vital, esencial, deseable) — matriz M4</h3>
+  <h3 id="d-82">E4. ABC × VED (vital, esencial, deseable) — matriz M4</h3>
   <ul>
     <li><b>Tipo:</b> matriz 3 × 3.</li>
     <li><b>Para qué sirve:</b> agregar la criticidad del equipo al ABC: un repuesto barato pero vital no debe quedar sin control.</li>
@@ -916,7 +960,7 @@
     <li><b>Código:</b> <code>equiposDeRepuesto</code>, <code>vedRepuestos</code>, <code>matrizABCVED</code>, <code>vedDeBanda</code>, <code>VED_NIVEL_SERVICIO</code>, <code>ABCVED_CATEGORIA</code>.</li>
   </ul>
 
-  <h3>E5. Probabilidad de quiebre y criticidad de repuestos</h3>
+  <h3 id="d-83">E5. Probabilidad de quiebre y criticidad de repuestos</h3>
   <ul>
     <li><b>Tipo:</b> matriz (Probabilidad × Impacto).</li>
     <li><b>Para qué sirve:</b> cuánto <i>riesgo real</i> hay de quedarse sin un repuesto antes de que llegue el pedido, y cuánto duele si pasa.</li>
@@ -927,7 +971,7 @@
     <li><b>Código:</b> <code>probabilidadQuiebreLeadTime</code>, <code>probabilidadQuiebreABanda</code>, <code>matrizCriticidadRepuestos</code>.</li>
   </ul>
 
-  <h3>E6. Punto de reorden con stock de seguridad</h3>
+  <h3 id="d-84">E6. Punto de reorden con stock de seguridad</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> cuándo pedir, según cuánto varía la demanda.</li>
@@ -938,7 +982,7 @@
     <li><b>Código:</b> <code>puntoReordenSeguridad</code>, <code>puntosReordenRepuestos</code>.</li>
   </ul>
 
-  <h3>E7. Lote económico de pedido (EOQ) y política (s, S)</h3>
+  <h3 id="d-85">E7. Lote económico de pedido (EOQ) y política (s, S)</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> <i>cuánto</i> pedir (el punto de reorden dice <i>cuándo</i>).</li>
@@ -949,7 +993,7 @@
     <li><b>Código:</b> <code>loteEconomicoPedido</code>, <code>eoqRazonCosto</code>, <code>politicasReposicionRepuestos</code>.</li>
   </ul>
 
-  <h3>E8. Reposición alimentada por el programa de PM</h3>
+  <h3 id="d-86">E8. Reposición alimentada por el programa de PM</h3>
   <ul>
     <li><b>Tipo:</b> cálculo de demanda planificada.</li>
     <li><b>Para qué sirve:</b> el punto de reorden mira el consumo pasado; pero parte de lo que se consume (filtros, lubricantes) ya está calendarizado en el programa de PM.</li>
@@ -959,7 +1003,7 @@
     <li><b>Código:</b> <code>pmProgramadosEquipo</code>, <code>pautaResolverStock</code>, <code>demandaPlanificadaPM</code>, <code>planReposicionPM</code>, <code>planReposicionAuto</code>, <code>demandaMensualPlanPorNParte</code>.</li>
   </ul>
 
-  <h3>E9. Rotación y obsolescencia del inventario MRO</h3>
+  <h3 id="d-87">E9. Rotación y obsolescencia del inventario MRO</h3>
   <ul>
     <li><b>Tipo:</b> indicadores.</li>
     <li><b>Para qué sirve:</b> cuánto capital hay inmovilizado sin uso.</li>
@@ -969,7 +1013,7 @@
     <li><b>Código:</b> <code>rotacionInventarioMRO</code>, <code>obsolescenciaStockMRO</code>.</li>
   </ul>
 
-  <h3>E10. Proyección de elementos de desgaste</h3>
+  <h3 id="d-88">E10. Proyección de elementos de desgaste</h3>
   <ul>
     <li><b>Tipo:</b> estimación de consumo.</li>
     <li><b>Para qué sirve:</b> cuántas cuchillas, cantoneras, zapatas, rodillos u otras piezas de desgaste se consumen por semana, mes, semestre y año.</li>
@@ -979,7 +1023,7 @@
     <li><b>Código:</b> <code>proyeccionElementosDesgaste</code>.</li>
   </ul>
 
-  <h3>E11. Modelo de colas M/M/c (dotación del taller)</h3>
+  <h3 id="d-89">E11. Modelo de colas M/M/c (dotación del taller)</h3>
   <ul>
     <li><b>Tipo:</b> modelo de investigación operativa.</li>
     <li><b>Para qué sirve:</b> con la dotación actual, ¿cuánto espera en promedio una OT antes de que un técnico la tome y qué tan saturado está el taller?</li>
@@ -990,7 +1034,7 @@
     <li><b>Código:</b> <code>modeloColasMMC</code>.</li>
   </ul>
 
-  <h3>E12. Estadísticas de predictivo desde órdenes de compra</h3>
+  <h3 id="d-90">E12. Estadísticas de predictivo desde órdenes de compra</h3>
   <ul>
     <li><b>Tipo:</b> estadística descriptiva.</li>
     <li><b>Para qué sirve:</b> costo y pedidos por mes y por ítem desde las compras reales, base de varias vistas de Predictivo.</li>
@@ -998,9 +1042,9 @@
     <li><b>Código:</b> <code>predFromOrdenes</code>.</li>
   </ul>
 
-  <h2>F. Costos</h2>
+  <h2 id="d-91">F. Costos</h2>
 
-  <h3>F1. Costo relativo de mantenimiento</h3>
+  <h3 id="d-92">F1. Costo relativo de mantenimiento</h3>
   <ul>
     <li><b>Tipo:</b> indicador.</li>
     <li><b>Para qué sirve:</b> cuánto se gasta al año en mantener un equipo comparado con lo que vale: sirve para ver cuáles gastan desproporcionadamente.</li>
@@ -1011,7 +1055,7 @@
     <li><b>Código:</b> <code>costoRelativoMantenimiento</code>, <code>costoRelativoMantenimientoFlota</code>, <code>_concentracionMaximaOC</code>.</li>
   </ul>
 
-  <h3>F2. Costo total de propiedad (TCO) por equipo</h3>
+  <h3 id="d-93">F2. Costo total de propiedad (TCO) por equipo</h3>
   <ul>
     <li><b>Tipo:</b> modelo de costos.</li>
     <li><b>Para qué sirve:</b> cuánto cuesta <i>tener</i> un equipo por hora de operación (capital + mantención + detención), compararlo con su modelo y ver si renovar podría convenir.</li>
@@ -1022,7 +1066,7 @@
     <li><b>Código:</b> <code>tcoEquipo</code>, <code>tcoFlota</code>, <code>tcoFlotaAuto</code>, <code>tcoCapitalPorHora</code>, <code>tcoConciliarValor</code>, <code>TCO_VIDA_CONTABLE_H</code>, <code>parsearHorasAmortizar</code>, <code>costoHoraDetDe</code>, <code>costoHoraDetPropio</code>.</li>
   </ul>
 
-  <h3>F3. Diagramas Sankey de costo y de horas de reparación</h3>
+  <h3 id="d-94">F3. Diagramas Sankey de costo y de horas de reparación</h3>
   <ul>
     <li><b>Tipo:</b> diagrama (ver K2).</li>
     <li><b>Para qué sirve:</b> ver de dónde viene el costo anual y dónde se va el tiempo de reparación, con franjas de ancho proporcional a la cantidad.</li>
@@ -1034,7 +1078,7 @@
     <li><b>Código:</b> <code>sankeyCostoTCO</code>, <code>sankeyHorasReparacion</code>, <code>sankeyLayout</code>.</li>
   </ul>
 
-  <h3>F4. CAPEX y OPEX, presupuesto prorrateado</h3>
+  <h3 id="d-95">F4. CAPEX y OPEX, presupuesto prorrateado</h3>
   <ul>
     <li><b>Tipo:</b> indicadores.</li>
     <li><b>Para qué sirve:</b> separar gasto de capital y de operación, y comparar el gasto del mes en curso contra un presupuesto mensual repartido por días transcurridos.</li>
@@ -1044,7 +1088,7 @@
     <li><b>Código:</b> <code>analisisCapexOpex</code>, <code>presupuestoProrrateado</code>.</li>
   </ul>
 
-  <h3>F5. Costo sugerido de un correctivo por cruce con compras</h3>
+  <h3 id="d-96">F5. Costo sugerido de un correctivo por cruce con compras</h3>
   <ul>
     <li><b>Tipo:</b> algoritmo de cruce de texto.</li>
     <li><b>Para qué sirve:</b> como el costo del correctivo casi nunca se carga, sugiere uno buscando compras del mismo equipo cercanas en fecha y con detalle parecido al síntoma o solución.</li>
@@ -1054,7 +1098,7 @@
     <li><b>Código:</b> <code>costoSugeridoPorCruce</code>, <code>precioMaterial</code>.</li>
   </ul>
 
-  <h3>F6. Arriendo vs compra (seco, húmedo y comprar)</h3>
+  <h3 id="d-97">F6. Arriendo vs compra (seco, húmedo y comprar)</h3>
   <ul>
     <li><b>Tipo:</b> modelo de costos comparativo.</li>
     <li><b>Para qué sirve:</b> decidir, por modelo de equipo y por hora de operación, entre arrendar <b>seco</b> (tú pones operador, combustible, mantención y neumáticos), arrendar <b>húmedo</b> (todo incluido, con disponibilidad garantizada) o <b>comprar</b>.</li>
@@ -1066,10 +1110,10 @@
     <li><b>Código:</b> <code>arriendoVsCompra</code>, <code>arriendoDefectoModelo</code>, <code>ARRIENDO_GENERAL_DEFECTO</code>.</li>
   </ul>
 
-  <h2>G. TBO del fabricante (Komatsu)</h2>
+  <h2 id="d-98">G. TBO del fabricante (Komatsu)</h2>
   <p>El TBO (<i>Time Between Overhaul</i>, tiempo entre cambios mayores) viene de un archivo Excel del fabricante (<code>TBO_Besalco_Mineria_jun_24.xlsm</code>) para los modelos Komatsu de Besalco Centinela. <b>📄 Los datos del plan son del fabricante: no hay fuente en internet que los respalde ni los contradiga.</b> Lo que el programa agrega encima (riesgo, costo, decisión) son cálculos propios con métodos estándar, que se detallan en cada ficha.</p>
 
-  <h3>G1. Plan de cambios por horas y estado de la flota</h3>
+  <h3 id="d-99">G1. Plan de cambios por horas y estado de la flota</h3>
   <ul>
     <li><b>Tipo:</b> regla de programación.</li>
     <li><b>Para qué sirve:</b> qué componentes toca cambiar y cuándo, según las horas del fabricante.</li>
@@ -1079,7 +1123,7 @@
     <li><b>Código:</b> <code>tboPlanEquipo</code>, <code>tboEstadoFlota</code>, <code>tboResumenAlertas</code>, <code>tboUltimoCambioFn</code>, <code>tboClaseModelo</code>, <code>tboFamiliaDeClase</code>, <code>tboCompMap</code>, <code>TBO_COMP_MAP</code>, <code>TBO_FAMILIAS</code>, <code>TBO_ITEMS</code>, <code>TBO_APLICACION</code>, <code>TBO_GUIA_APLICACION</code>, <code>TBO_FUERA</code>.</li>
   </ul>
 
-  <h3>G2. Riesgo Weibull del TBO (β = 3, el TBO es el B5)</h3>
+  <h3 id="d-100">G2. Riesgo Weibull del TBO (β = 3, el TBO es el B5)</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> convertir "llegó al TBO" en una probabilidad de falla real para ese componente.</li>
@@ -1090,7 +1134,7 @@
     <li><b>Código:</b> <code>tboRiesgoWeibull</code>, <code>tboRiesgoHorizonte</code>, <code>tboProbNivel</code>, <code>tboMatrizRiesgo</code>, <code>TBO_BETA</code>.</li>
   </ul>
 
-  <h3>G3. Vida por origen: original contra alternativo</h3>
+  <h3 id="d-101">G3. Vida por origen: original contra alternativo</h3>
   <ul>
     <li><b>Tipo:</b> comparación bayesiana.</li>
     <li><b>Para qué sirve:</b> ¿el repuesto original dura más que el alternativo o reparado?</li>
@@ -1100,7 +1144,7 @@
     <li><b>Código:</b> <code>tboVidaPorOrigen</code>, <code>tboClasificarOrigen</code>, <code>tboOrigenPorCompra</code>, <code>tboComparaOrigen</code>.</li>
   </ul>
 
-  <h3>G4. Costo por hora y edad óptima de cambio</h3>
+  <h3 id="d-102">G4. Costo por hora y edad óptima de cambio</h3>
   <ul>
     <li><b>Tipo:</b> modelo de optimización.</li>
     <li><b>Para qué sirve:</b> cuál es la edad a la que conviene cambiar un componente por costo, comparado con dejarlo correr hasta la falla.</li>
@@ -1111,7 +1155,7 @@
     <li><b>Código:</b> <code>tboReemplazoOptimo</code>, <code>tboCostoPoliticaEdad</code>, <code>tboIntegralR</code>, <code>tboMTTFWeibull</code>, <code>tboParametrosVida</code>, <code>tboPoliticaOptimaFilas</code>, <code>tboCostoPorHora</code>, <code>tboAjustesCosto</code>, <code>TBO_COSTO_HORA_DET_USD</code>.</li>
   </ul>
 
-  <h3>G5. Matriz de estrategia RCM (forma de la falla × consecuencia)</h3>
+  <h3 id="d-103">G5. Matriz de estrategia RCM (forma de la falla × consecuencia)</h3>
   <ul>
     <li><b>Tipo:</b> matriz 3 × 3.</li>
     <li><b>Para qué sirve:</b> qué estrategia seguir para cada componente: cambiar por edad, vigilar por condición, dejar correr o investigar la causa.</li>
@@ -1121,7 +1165,7 @@
     <li><b>Código:</b> <code>tboClaseForma</code>, <code>tboClaseConsecuencia</code>, <code>TBO_RCM_MATRIZ</code>, <code>tboEstrategiaRCM</code>.</li>
   </ul>
 
-  <h3>G6. Plan de compras y decisión de compra</h3>
+  <h3 id="d-104">G6. Plan de compras y decisión de compra</h3>
   <ul>
     <li><b>Tipo:</b> regla de decisión.</li>
     <li><b>Para qué sirve:</b> para cada cambio próximo, ¿hay que pedir ya, planificar, o ya está cubierto?</li>
@@ -1131,7 +1175,7 @@
     <li><b>Código:</b> <code>tboPlanCompras</code>, <code>tboDecisionCompra</code>, <code>tboLeadTimeFn</code>, <code>tboTiemposEntrega</code>, <code>tboStockFn</code>, <code>tboPedidosAbiertosFn</code>, <code>tboCantidadItem</code>.</li>
   </ul>
 
-  <h3>G7. Presupuesto limitado: problema de la mochila 0/1</h3>
+  <h3 id="d-105">G7. Presupuesto limitado: problema de la mochila 0/1</h3>
   <ul>
     <li><b>Tipo:</b> optimización.</li>
     <li><b>Para qué sirve:</b> con una plata limitada, ¿qué repuestos comprar primero para evitar la mayor pérdida esperada?</li>
@@ -1141,7 +1185,7 @@
     <li><b>Código:</b> <code>tboMochila</code>, <code>tboCandidatosPresupuesto</code>.</li>
   </ul>
 
-  <h3>G8. Calibración del modelo del fabricante contra la flota</h3>
+  <h3 id="d-106">G8. Calibración del modelo del fabricante contra la flota</h3>
   <ul>
     <li><b>Tipo:</b> validación de modelo.</li>
     <li><b>Para qué sirve:</b> ¿el riesgo que calcula el modelo coincide con lo que pasó en la flota?</li>
@@ -1152,7 +1196,7 @@
     <li><b>Código:</b> <code>tboVidasObservadas</code>, <code>tboCalibrarGrupo</code>, <code>tboCalibracionFlota</code>, <code>tboCalibracionAuto</code>.</li>
   </ul>
 
-  <h3>G9. Ficha de componente</h3>
+  <h3 id="d-107">G9. Ficha de componente</h3>
   <ul>
     <li><b>Tipo:</b> decisión integrada.</li>
     <li><b>Para qué sirve:</b> juntar en un solo lugar el riesgo, el costo y la decisión de un componente, para que las pantallas no se contradigan.</li>
@@ -1162,7 +1206,7 @@
     <li><b>Código:</b> <code>tboDecisionFicha</code>, <code>tboFichasEquipo</code>, <code>tboFichasFlota</code>, <code>tboPctSano</code>, <code>tboSaludFlotaAuto</code>.</li>
   </ul>
 
-  <h3>G10. Cruce de compras con el plan del fabricante</h3>
+  <h3 id="d-108">G10. Cruce de compras con el plan del fabricante</h3>
   <ul>
     <li><b>Tipo:</b> reglas de clasificación.</li>
     <li><b>Para qué sirve:</b> poner precio real a cada ítem del plan y saber qué parte del gasto el plan del fabricante no cubre (desgaste, rodado, lubricantes, fijaciones, servicios).</li>
@@ -1172,9 +1216,9 @@
     <li><b>Código:</b> <code>tboUnirCompras</code>, <code>tboCruzarCompras</code>, <code>tboFamiliaDeCompra</code>, <code>TBO_REGLAS_COMPRA</code>, <code>TBO_PRECIO_RX</code>, <code>tboPrecioItem</code>, <code>TBO_SUGERIDO</code>, <code>tboCruzarSugerido</code>, <code>tboNormalizarPN</code>.</li>
   </ul>
 
-  <h2>H. Producción</h2>
+  <h2 id="d-109">H. Producción</h2>
 
-  <h3>H1. Rendimiento teórico del cargador frontal</h3>
+  <h3 id="d-110">H1. Rendimiento teórico del cargador frontal</h3>
   <ul>
     <li><b>Tipo:</b> fórmula.</li>
     <li><b>Para qué sirve:</b> cuántos m³ por hora debería mover un cargador, para estimar producción perdida por detención.</li>
@@ -1184,7 +1228,7 @@
     <li><b>Código:</b> <code>rendimientoTeoricoCargadorFrontal</code>, <code>produccionPerdidaPorDetencion</code>.</li>
   </ul>
 
-  <h3>H2. Rendimiento real y costo de downtime</h3>
+  <h3 id="d-111">H2. Rendimiento real y costo de downtime</h3>
   <ul>
     <li><b>Tipo:</b> indicadores.</li>
     <li><b>Para qué sirve:</b> cuánta producción real se pierde por indisponibilidad y cuánto cuesta.</li>
@@ -1194,7 +1238,7 @@
     <li><b>Código:</b> <code>rendimientoRealEquipoMes</code>, <code>tonPerdidaIndisponibilidadMes</code>, <code>costoDowntimeMes</code>.</li>
   </ul>
 
-  <h3>H3. Rendimiento por ciclo, brecha y coeficiente de variación</h3>
+  <h3 id="d-112">H3. Rendimiento por ciclo, brecha y coeficiente de variación</h3>
   <ul>
     <li><b>Tipo:</b> indicadores.</li>
     <li><b>Para qué sirve:</b> medir si el equipo rinde lo que su ciclo real permitiría y qué tan irregulares son sus ciclos.</li>
@@ -1204,9 +1248,9 @@
     <li><b>Código:</b> <code>rendimientoPorCicloEquipoMes</code>, <code>brechaRendimientoCiclo</code>, <code>coeficienteVariacion</code>, <code>interpretacionCV</code>.</li>
   </ul>
 
-  <h2>I. Simulación y pronóstico</h2>
+  <h2 id="d-113">I. Simulación y pronóstico</h2>
 
-  <h3>I1. Proyección Monte Carlo de la disponibilidad de la flota</h3>
+  <h3 id="d-114">I1. Proyección Monte Carlo de la disponibilidad de la flota</h3>
   <ul>
     <li><b>Tipo:</b> simulación.</li>
     <li><b>Para qué sirve:</b> un rango de disponibilidad futura de la flota, en vez de un solo número.</li>
@@ -1216,7 +1260,7 @@
     <li><b>Código:</b> <code>simulacionMonteCarloDisponibilidad</code>, <code>intervalosFallaFlotaDias</code>, <code>duracionesReparacionFlotaHoras</code>.</li>
   </ul>
 
-  <h3>I2. Simulador What-If de políticas de mantenimiento</h3>
+  <h3 id="d-115">I2. Simulador What-If de políticas de mantenimiento</h3>
   <ul>
     <li><b>Tipo:</b> simulación de sensibilidad.</li>
     <li><b>Para qué sirve:</b> probar un escenario hipotético: "¿y si mejoramos la confiabilidad un 20 %?" o "¿y si con más stock reparamos 30 % más rápido?".</li>
@@ -1226,7 +1270,7 @@
     <li><b>Código:</b> <code>simulacionWhatIf</code>, <code>compararEscenariosMantenimiento</code>.</li>
   </ul>
 
-  <h3>I3. Pronóstico de disponibilidad por equipo, con prueba retrospectiva</h3>
+  <h3 id="d-116">I3. Pronóstico de disponibilidad por equipo, con prueba retrospectiva</h3>
   <ul>
     <li><b>Tipo:</b> simulación + validación.</li>
     <li><b>Para qué sirve:</b> disponibilidad esperada de cada equipo en el próximo período y cuánto acierta el método.</li>
@@ -1237,7 +1281,7 @@
     <li><b>Código:</b> <code>pronosticoDisponibilidadEquipos</code>, <code>backtestPronosticoDisponibilidad</code>.</li>
   </ul>
 
-  <h3>I4. Pronóstico de series mensuales (costo y pedidos)</h3>
+  <h3 id="d-117">I4. Pronóstico de series mensuales (costo y pedidos)</h3>
   <ul>
     <li><b>Tipo:</b> selección de modelo por prueba retrospectiva.</li>
     <li><b>Para qué sirve:</b> proyectar el gasto de compras de los próximos meses.</li>
@@ -1247,7 +1291,7 @@
     <li><b>Código:</b> <code>pronosticarSerie</code>, <code>PRON_MODELOS</code>, <code>serieMensualDe</code>, <code>mesesFinalesIncompletos</code>, <code>mesesSiguientes</code>.</li>
   </ul>
 
-  <h3>I5. Simulación de la carga del taller (validada con meses pasados)</h3>
+  <h3 id="d-118">I5. Simulación de la carga del taller (validada con meses pasados)</h3>
   <ul>
     <li><b>Tipo:</b> simulación Monte Carlo con remuestreo (bootstrap) y prueba retrospectiva.</li>
     <li><b>Para qué sirve:</b> estimar cuántos equipos estarán en el taller al mismo tiempo en los próximos 30 días (la demanda de capacidad que pesa sobre la dotación) y comprobar, antes de mostrarlo, si esa simulación habría acertado en meses pasados.</li>
@@ -1258,9 +1302,9 @@
     <li><b>Código:</b> <code>simulacionCargaTaller</code>, <code>backtestCargaTaller</code>, <code>cargaRealTallerPorMes</code>.</li>
   </ul>
 
-  <h2>J. Neumáticos, PM y reglas del programa</h2>
+  <h2 id="d-119">J. Neumáticos, PM y reglas del programa</h2>
 
-  <h3>J1. Grilla de PM (PM1 a PM4) y próximo mantenimiento</h3>
+  <h3 id="d-120">J1. Grilla de PM (PM1 a PM4) y próximo mantenimiento</h3>
   <ul>
     <li><b>Tipo:</b> regla.</li>
     <li><b>Para qué sirve:</b> decidir cuál es el próximo PM de un equipo y de qué tipo es.</li>
@@ -1270,7 +1314,7 @@
     <li><b>Código:</b> <code>C.tipoPM</code>, <code>C.tierMultPM</code>, <code>C.proxPM</code>, <code>C.estado</code>, <code>C.alertaPM4</code>, <code>C.recalc</code>, <code>validarMotivoPmPendiente</code>.</li>
   </ul>
 
-  <h3>J2. Duración estimada de un PM (HH plan)</h3>
+  <h3 id="d-121">J2. Duración estimada de un PM (HH plan)</h3>
   <ul>
     <li><b>Tipo:</b> estimador.</li>
     <li><b>Para qué sirve:</b> cuántas horas-hombre planificar para un PM.</li>
@@ -1280,7 +1324,7 @@
     <li><b>Código:</b> <code>hhPlanEstimator</code>, <code>duracionHM</code>.</li>
   </ul>
 
-  <h3>J3. Programa de cambio de neumáticos</h3>
+  <h3 id="d-122">J3. Programa de cambio de neumáticos</h3>
   <ul>
     <li><b>Tipo:</b> agrupación de proyecciones.</li>
     <li><b>Para qué sirve:</b> cuántos neumáticos cambiar por semana, mes, semestre o año, con una curva S de avance real más lo que falta.</li>
@@ -1291,7 +1335,7 @@
     <li><b>Código:</b> <code>neuProgramaCambios</code>, <code>neuCambiosRealizados</code>, <code>agruparPeriodo</code>.</li>
   </ul>
 
-  <h3>J4. Estado de componentes mayores y estimación de horómetro en una fecha</h3>
+  <h3 id="d-123">J4. Estado de componentes mayores y estimación de horómetro en una fecha</h3>
   <ul>
     <li><b>Tipo:</b> reglas.</li>
     <li><b>Para qué sirve:</b> cuánta vida les queda a los componentes mayores y qué horómetro tenía un equipo en una fecha pasada.</li>
@@ -1301,7 +1345,7 @@
     <li><b>Código:</b> <code>compEstado</code>, <code>horomEnFecha</code>, <code>tasaDiariaReal</code>, <code>construirLecturaHistorial</code>.</li>
   </ul>
 
-  <h3>J5. Vencimientos de documentos y lubricantes</h3>
+  <h3 id="d-124">J5. Vencimientos de documentos y lubricantes</h3>
   <ul>
     <li><b>Tipo:</b> reglas.</li>
     <li><b>Para qué sirve:</b> cuándo vence un documento (revisión técnica, sistema AFEX, etc.) y si un lubricante está vigente o fue reemplazado.</li>
@@ -1311,7 +1355,7 @@
     <li><b>Código:</b> <code>vencReglaDefault</code>, <code>vencCalcProximo</code>, <code>vencEstado</code>, <code>lubVigente</code>, <code>lubEsObsoleto</code>, <code>LUB_REEMPLAZO</code>, <code>esLubricante</code>.</li>
   </ul>
 
-  <h3>J6. Validación de salto de horómetro</h3>
+  <h3 id="d-125">J6. Validación de salto de horómetro</h3>
   <ul>
     <li><b>Tipo:</b> regla de calidad de datos.</li>
     <li><b>Para qué sirve:</b> rechazar un horómetro imposible al ingresarlo.</li>
@@ -1320,7 +1364,7 @@
     <li><b>Código:</b> <code>validarSaltoHorometro</code>, <code>lecturasValidas</code> (en <code>C</code>).</li>
   </ul>
 
-  <h3>J7. Cierre automático de destrabe al recibir la OC</h3>
+  <h3 id="d-126">J7. Cierre automático de destrabe al recibir la OC</h3>
   <ul>
     <li><b>Tipo:</b> regla.</li>
     <li><b>Para qué sirve:</b> una OT ligada a un pedido de compra se cierra sola cuando la compra llega.</li>
@@ -1328,10 +1372,10 @@
     <li><b>Código:</b> <code>resolverDestrabePorOC</code>.</li>
   </ul>
 
-  <h2>K. Diagramas y gráficos</h2>
+  <h2 id="d-127">K. Diagramas y gráficos</h2>
   <p>Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo que hay detrás están en las secciones anteriores. Varias pantallas de Estadística (Kaplan-Meier, MCF, Crow-AMSAA, riesgos competitivos, cartas de control) muestran <b>tablas y barras</b>, no curvas dibujadas; los gráficos de verdad son los que siguen.</p>
 
-  <h3>K1. Gráfico Jack-Knife (MTBF contra MTTR)</h3>
+  <h3 id="d-128">K1. Gráfico Jack-Knife (MTBF contra MTTR)</h3>
   <ul>
     <li><b>Qué muestra:</b> un punto por equipo en escala logarítmica en ambos ejes; el eje X (MTBF) está invertido, de modo que <b>a la derecha fallan más seguido</b>. Dos líneas de corte (las medianas de la flota) forman los cuatro cuadrantes, y líneas diagonales de igual pérdida marcan las horas perdidas al año (fallas por año × MTTR, con el ritmo anual mediano de la flota): dos equipos sobre la misma diagonal pierden lo mismo aunque uno falle poco y tarde mucho y el otro al revés.</li>
     <li><b>Cómo se lee:</b> arriba a la derecha (muchas fallas y largas) = "complejos", prioridad uno; abajo a la derecha = "crónicos" (causa raíz); arriba a la izquierda = "agudos" (mantenibilidad); abajo a la izquierda = clase mundial.</li>
@@ -1339,7 +1383,7 @@
     <li><b>Dónde:</b> Costos → MTBF/MTTR.</li>
   </ul>
 
-  <h3>K2. Diagramas de Sankey</h3>
+  <h3 id="d-129">K2. Diagramas de Sankey</h3>
   <ul>
     <li><b>Qué muestra:</b> barras (nodos) unidas por franjas curvas cuyo ancho es proporcional a la cantidad; todas las columnas usan la misma escala, así que un mismo ancho es la misma cantidad en todo el diagrama. Las franjas toman el color de la rama de la primera columna.</li>
     <li><b>Cómo se lee:</b> de izquierda a derecha, cómo se reparte el total (costo anual: concepto → tipo → equipo; horas de reparación: tipo → equipo → componente). Pasar el mouse sobre una barra o franja da el valor exacto. En celular el diagrama se desplaza dentro de su caja.</li>
@@ -1347,81 +1391,81 @@
     <li><b>Dónde:</b> Costos → "Flujo de horas y costo".</li>
   </ul>
 
-  <h3>K3. Curva S de PM</h3>
+  <h3 id="d-130">K3. Curva S de PM</h3>
   <ul>
     <li><b>Qué muestra:</b> el trabajo de PM planificado y el ejecutado, acumulados día a día y ponderados por horas, para una semana, mes, semestre o año.</li>
     <li><b>Cómo se lee:</b> la curva real sobre la planificada indica adelanto; bajo ella, atraso. Ver A9.</li>
     <li><b>Dónde:</b> Planificador y Metas &amp; KPIs → Avance.</li>
   </ul>
 
-  <h3>K4. Curva S del programa de cambio de neumáticos</h3>
+  <h3 id="d-131">K4. Curva S del programa de cambio de neumáticos</h3>
   <ul>
     <li><b>Qué muestra:</b> avance real (cambios ya hechos) más proyección (vencidos y por vencer) en el período elegido.</li>
     <li><b>Cómo se lee:</b> no mide cumplimiento (no hay plan congelado): muestra lo hecho y lo que falta. Ver J3.</li>
     <li><b>Dónde:</b> Neumáticos → "Programa de cambios".</li>
   </ul>
 
-  <h3>K5. Pareto (barras ordenadas con acumulado)</h3>
+  <h3 id="d-132">K5. Pareto (barras ordenadas con acumulado)</h3>
   <ul>
     <li><b>Qué muestra:</b> barras de mayor a menor con el porcentaje acumulado; marca los "vitales" hasta el 80 %. Ver D11.</li>
     <li><b>Dónde:</b> Estadística (modos de falla, equipos con más fallas, componentes que más fallan) y Correctivos ("Prioridad de carga por componente").</li>
   </ul>
 
-  <h3>K6. Mapa de equipos (PCA)</h3>
+  <h3 id="d-133">K6. Mapa de equipos (PCA)</h3>
   <ul>
     <li><b>Qué muestra:</b> una dispersión de los equipos en los dos primeros ejes del análisis de componentes principales, con los equipos fuera de lo normal del grupo marcados por T² y, aparte, la comparación con sus pares por z robusto.</li>
     <li><b>Cómo se lee:</b> equipos cercanos se parecen en sus indicadores; uno lejano merece una mirada, pero muchas veces es un dato malo. Con pocos equipos los ejes son inestables y el programa lo avisa. Ver C16.</li>
     <li><b>Dónde:</b> Estadística → "Mapa de equipos — comparación con sus pares".</li>
   </ul>
 
-  <h3>K7. Calibración del TBO</h3>
+  <h3 id="d-134">K7. Calibración del TBO</h3>
   <ul>
     <li><b>Qué muestra:</b> por tramos de riesgo predicho, lo predicho contra lo observado, con su intervalo de Wilson.</li>
     <li><b>Cómo se lee:</b> si lo observado cae dentro del intervalo de lo predicho, el modelo del fabricante calibra bien para esa flota. Ver G8.</li>
     <li><b>Dónde:</b> TBO → "Calibración".</li>
   </ul>
 
-  <h3>K8. Tendencia de compra de un repuesto</h3>
+  <h3 id="d-135">K8. Tendencia de compra de un repuesto</h3>
   <ul>
     <li><b>Qué muestra:</b> barras de consumo por período con un promedio móvil. A propósito <i>no</i> dibuja una curva de "stock proyectado hacia atrás": no existe un historial de niveles de stock por fecha, solo de eventos de consumo y compra, y esa curva sería inventar datos.</li>
     <li><b>Dónde:</b> Stock y Repuestos.</li>
   </ul>
 
-  <h3>K9. Carta Gantt de mantención</h3>
+  <h3 id="d-136">K9. Carta Gantt de mantención</h3>
   <ul>
     <li><b>Tipo:</b> diagrama de planificación. ⚪ No se buscó fuente (es el gráfico clásico de barras de actividades en el tiempo).</li>
     <li><b>Qué muestra:</b> las actividades de mantención programadas por equipo sobre un calendario, editables.</li>
     <li><b>Dónde:</b> Planificación → Carta Gantt.</li>
   </ul>
 
-  <h3>K10. Mapa de salud de la flota y Torre de Control</h3>
+  <h3 id="d-137">K10. Mapa de salud de la flota y Torre de Control</h3>
   <ul>
     <li><b>Qué muestra:</b> un tablero por tipo de equipo con una silueta técnica de cada uno, coloreada por su score de salud; al abrir un equipo, las dimensiones que más lo bajan y qué hacer. El Dashboard muestra un resumen de conteos y la Torre el tablero completo; ambos usan la misma fuente (D7).</li>
     <li><b>Dónde:</b> Dashboard y Torre de Control.</li>
   </ul>
 
-  <h3>K11. Matrices de color</h3>
+  <h3 id="d-138">K11. Matrices de color</h3>
   <ul>
     <li><b>Qué muestra:</b> grillas coloreadas por nivel: Probabilidad × Impacto (D1), criticidad de equipos (D2), ABC × VED (E4), estrategia RCM (G5) y Jack-Knife (D4).</li>
     <li><b>Dónde:</b> Predictivo, TBO y Costos.</li>
   </ul>
 
-  <h3>K12. Gráficos de barras del Dashboard y del flujo de caja</h3>
+  <h3 id="d-139">K12. Gráficos de barras del Dashboard y del flujo de caja</h3>
   <ul>
     <li><b>Qué muestra:</b> barras de ejecuciones de PM por mes, distribución de PM, ratio de mantención y flujo de caja de mantención de los próximos 6 meses.</li>
     <li><b>De dónde viene:</b> 🔵 Visualizaciones propias de indicadores ya descritos (A7, A8).</li>
     <li><b>Dónde:</b> Dashboard y Planificador.</li>
   </ul>
 
-  <h3>K13. Plano de arquitectura del sistema</h3>
+  <h3 id="d-140">K13. Plano de arquitectura del sistema</h3>
   <ul>
     <li><b>Qué muestra:</b> cómo se conectan las piezas (el equipo del usuario, la nube y el respaldo paralelo) y cuatro diagramas de pasos: abrir la página, iniciar sesión, guardar un cambio y editar a la vez entre dos personas. Es documentación, no un análisis de datos.</li>
     <li><b>Dónde:</b> Configuración → "Ver plano del sistema" (<code>docs/plano-sistema.html</code>).</li>
   </ul>
 
-  <h2>L. Datos y seguridad</h2>
+  <h2 id="d-141">L. Datos y seguridad</h2>
 
-  <h3>L1. Verificador de integridad</h3>
+  <h3 id="d-142">L1. Verificador de integridad</h3>
   <ul>
     <li><b>Tipo:</b> reglas de datos.</li>
     <li><b>Para qué sirve:</b> buscar datos <i>físicamente imposibles</i> en lo ya guardado ("esto no puede ser cierto", nunca "esto me parece raro"): un horómetro que retrocede, una fecha corrupta, un equipo con un estado desincronizado de sus propios campos.</li>
@@ -1431,7 +1475,7 @@
     <li><b>Código:</b> <code>verificarIntegridad</code>.</li>
   </ul>
 
-  <h3>L2. Protección contra inyección de fórmulas en CSV</h3>
+  <h3 id="d-143">L2. Protección contra inyección de fórmulas en CSV</h3>
   <ul>
     <li><b>Tipo:</b> medida de seguridad.</li>
     <li><b>Para qué sirve:</b> evitar que una celda de texto que empieza con <code>=</code>, <code>+</code>, <code>-</code> o <code>@</code> se ejecute como fórmula al abrir un CSV exportado en Excel o Sheets.</li>
@@ -1441,7 +1485,7 @@
     <li><b>Código:</b> <code>csvCeldaSegura</code>.</li>
   </ul>
 
-  <h3>L3. Edición concurrente</h3>
+  <h3 id="d-144">L3. Edición concurrente</h3>
   <ul>
     <li><b>Tipo:</b> regla.</li>
     <li><b>Para qué sirve:</b> detectar que dos personas editaron lo mismo casi a la vez.</li>
@@ -1450,7 +1494,7 @@
     <li><b>Código:</b> <code>hayConflictoIds</code>.</li>
   </ul>
 
-  <h3>L4. Utilidades de fecha, formato y paginación</h3>
+  <h3 id="d-145">L4. Utilidades de fecha, formato y paginación</h3>
   <ul>
     <li><b>Tipo:</b> funciones auxiliares.</li>
     <li><b>Para qué sirve:</b> evitar errores sutiles que ya ocurrieron: comparar fechas como texto ("10000-12-31" queda antes que "2025-01-31"), aceptar años corruptos, mostrar números con formato local inestable, escapar texto que va a la pantalla, calcular la mediana ignorando ceros y paginar.</li>
@@ -1458,7 +1502,7 @@
     <li><b>Código:</b> <code>fd</code>, <code>fn</code>, <code>escapeHtml</code>, <code>fechaEsPlausible</code>, <code>fechaEsAnterior</code>, <code>fechaAyer</code>, <code>fechaMismoDiaAnioPasado</code>, <code>medianaPositiva</code>, <code>pagSlice</code>, <code>C</code>.</li>
   </ul>
 
-  <h3>L5. Puentes de datos: historial y avisos como OT</h3>
+  <h3 id="d-146">L5. Puentes de datos: historial y avisos como OT</h3>
   <ul>
     <li><b>Tipo:</b> reglas de integración.</li>
     <li><b>Para qué sirve:</b> el historial de correctivos 2022–2026 (<code>correctivos_historico</code>, cargado desde Excel) y los informes de falla catastrófica no son OT formales, pero cuentan como fallas reales; estos puentes los adaptan a la forma que esperan <code>esFallaMTBF</code>, el MTBF, el Weibull y el Pareto.</li>
@@ -1467,7 +1511,7 @@
     <li><b>Código:</b> <code>_otHistComoOt</code>, <code>_informesFallaComoOt</code>.</li>
   </ul>
 
-  <h3>L6. Auditoría de cambios campo por campo</h3>
+  <h3 id="d-147">L6. Auditoría de cambios campo por campo</h3>
   <ul>
     <li><b>Tipo:</b> regla de comparación + registro.</li>
     <li><b>Para qué sirve:</b> saber quién cambió qué en el programa, en qué pestaña, de qué valor a cuál y cuándo, sin que nadie pueda editar ni borrar ese historial después.</li>
@@ -1478,7 +1522,7 @@
     <li><b>Código:</b> <code>auditoriaDiff</code>, <code>auditoriaFinalizar</code>, <code>auditoriaReferencia</code>, <code>AUDIT_CAMPOS_DERIVADOS</code>, <code>AUDIT_EXCLUIR_TABLAS</code>.</li>
   </ul>
 
-  <h2>M. Funciones internas (apéndice)</h2>
+  <h2 id="d-148">M. Funciones internas (apéndice)</h2>
   <p>Funciones de apoyo que usan las fichas anteriores; no se muestran solas en ninguna pantalla.</p>
   <table>
     <tr><th>Función</th><th>Para qué sirve</th></tr>
@@ -1497,13 +1541,22 @@
     <tr><td><b><code>_gastoProyectadoCategoria</code></b></td><td>Proyecta el gasto de una categoría de repuestos con los eventos de consumo y el precio; no usa correctivos porque no existe un vínculo real entre una OT y un ítem de stock.</td></tr>
   </table>
 
-  <h2>Cómo se mantiene al día este inventario</h2>
+  <h2 id="d-149">Cómo se mantiene al día este inventario</h2>
   <ul>
     <li>Cada vez que se agrega un algoritmo, una matriz, una fórmula o un diagrama, se agrega su ficha aquí y se anota en el catálogo (<code>docs/catalogo-algoritmos.md</code>, que ordena lo mismo por la pregunta que responde).</li>
     <li>Una <b>prueba automática</b> (<code>tests/inventarioAlgoritmos.test.js</code>) falla si alguna función exportada de <code>logic.js</code> no se menciona en este documento, si una ficha de las secciones A a J y L no declara de dónde viene, o si algún enlace no es <code>https</code>.</li>
     <li>Las fuentes se revisan con cada actualización grande. Lo que dice cada una se limita a lo que mostró la búsqueda; donde el nivel es 🟡 o ⚪ conviene conseguir la fuente primaria (la norma, el libro o el artículo) antes de citarla fuera del programa.</li>
     <li>Pendientes de verificación tras una tercera búsqueda (2026-10-17): <b>Kijima (B10)</b> — las dos recursiones del código coinciden con fuentes secundarias independientes; falta solo leer el artículo original. <b>"A&amp;S1" (F1)</b> — el listado de EN 15341:2019 muestra que A&amp;S1 existe y se llama «Relative maintenance costs (%)», con el costo total de mantenimiento en el numerador; <b>el denominador no se pudo ver</b> (el PDF de muestra está bloqueado desde este entorno) y E1 de la edición de 2007 no debe darse por equivalente. <b>IEC 61164 (B9)</b> — una página secundaria (MetricGate) lo cita junto a MIL-HDBK-189C como referencia del modelo Crow-AMSAA; sigue sin verse la norma. <b>IEC 31010:2019 (D1)</b> — sin cambios, la cláusula no se pudo leer. Para cerrar A&amp;S1, IEC 61164 e IEC 31010 hace falta el texto de cada norma (no basta un resumen).</li>
   </ul>
+<!--doc-fin--></div></div><!--/doc-fin-->
+
+  <a class="back-top" href="#top">↑ Arriba</a>
 
   <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
 </div>
+<script>/*doc-js*/
+(function(){var L=[].slice.call(document.querySelectorAll('.doc-index a'));if(!L.length||!('IntersectionObserver' in window))return;
+var m={};L.forEach(function(a){m[a.getAttribute('href').slice(1)]=a;});
+var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){L.forEach(function(a){a.classList.remove('activa');});var a=m[e.target.id];if(a){a.classList.add('activa');if(a.scrollIntoView&&getComputedStyle(a.closest('.doc-index')).position==='sticky'){var c=a.closest('.doc-index');if(a.offsetTop<c.scrollTop||a.offsetTop>c.scrollTop+c.clientHeight-40)c.scrollTop=a.offsetTop-60;}}}});},{rootMargin:'0px 0px -75% 0px'});
+Object.keys(m).forEach(function(id){var h=document.getElementById(id);if(h)o.observe(h);});})();
+/*/doc-js*/</script>

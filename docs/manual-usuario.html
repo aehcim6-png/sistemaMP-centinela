@@ -35,20 +35,63 @@
   .callout{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13.5px;color:var(--ink-dim)}
   .callout b{color:var(--ink)}
   footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+  /* doc-lectura */
+  html{scroll-behavior:smooth}
+  body{padding:32px 20px 80px}
+  .wrap{max-width:1120px}
+  .doc-layout{display:grid;grid-template-columns:260px minmax(0,780px);gap:36px;align-items:start;margin-top:8px}
+  .doc-main{min-width:0}
+  .doc-layout>nav{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;border-radius:8px}
+  .doc-index{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 10px;font-size:13px}
+  .doc-index summary{cursor:pointer;font-weight:700;color:var(--ink);padding:4px 6px;list-style:none}
+  .doc-index summary::after{content:" ▾";color:var(--amber)}
+  .doc-index a{display:block;color:var(--ink-dim);text-decoration:none;line-height:1.35;padding:5px 8px;border-radius:5px;overflow-wrap:anywhere}
+  .doc-index a.h3{padding-left:20px;font-size:12px}
+  .doc-index a:hover,.doc-index a:focus-visible{color:var(--amber);background:var(--panel2);outline:none}
+  .doc-index a.activa{color:var(--amber);background:var(--panel2);font-weight:600}
+  h2,h3{scroll-margin-top:20px;text-wrap:balance}
+  p,ul,ol{font-size:15.5px;line-height:1.75;max-width:72ch}
+  li{margin-bottom:5px}
+  li,p,td,th{overflow-wrap:break-word}
+  table{display:block;overflow-x:auto;max-width:100%}
+  td:first-child,th:first-child{min-width:96px}
+  pre{max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+  .back-top{position:fixed;right:16px;bottom:16px;background:var(--amber);color:var(--bg);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  @media(max-width:860px){
+    body{padding:20px 14px 72px}
+    .doc-layout{display:block}
+    .doc-layout>nav{position:static;max-height:60vh;margin:0 0 20px}
+    .doc-index:not([open]) a{display:none}
+    p,ul,ol{font-size:15px}
+  }
+  @media print{
+    html{scroll-behavior:auto}
+    :root{--bg:#fff;--panel:#fff;--panel2:#f4f4f4;--line:#bbb;--ink:#111;--ink-dim:#222;--amber:#7a4a00}
+    body{background:#fff;color:#111;padding:0}
+    .doc-index,.back-top{display:none}
+    .doc-layout{display:block}
+    .wrap{max-width:none}
+    p,ul,ol{max-width:none;font-size:11pt}
+    h2{break-after:avoid}h3{break-after:avoid}
+    .callout,table,tr{break-inside:avoid}
+    a{color:#111;text-decoration:none}
+  }
+/* /doc-lectura */
 </style>
 
-<div class="wrap">
+<div class="wrap" id="top">
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Manual de Usuario</h1>
 
-  <div class="callout">
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. ¿Qué es SistemaMP Centinela?</a><a class="h2" href="#d-2">2. Primeros pasos</a><a class="h2" href="#d-3">3. Flujo diario recomendado</a><a class="h2" href="#d-4">4. Conceptos clave del mantenimiento preventivo</a><a class="h2" href="#d-5">5. Roles y permisos</a><a class="h2" href="#d-6">6. Mapa de pestañas</a><a class="h2" href="#d-7">7. Preguntas frecuentes</a><a class="h2" href="#d-8">8. Guía de Capacitación por Rol</a><a class="h3" href="#d-9">Operador de Terreno</a><a class="h3" href="#d-10">Planificador</a><a class="h3" href="#d-11">Comprador</a><a class="h3" href="#d-12">Supervisor / Jefe de Mantenimiento</a><a class="h3" href="#d-13">Administrador</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<div class="callout">
     <b>Esta es una copia portable, para leer sin abrir el sistema.</b> La versión completa y siempre actualizada vive DENTRO del sistema, en la pestaña <b>❓ Ayuda</b> (34 secciones con capturas de pantalla conceptuales, índice navegable, y las novedades de cada actualización). Este archivo es un resumen para imprimir, mandar por correo, o leer en el celular sin necesitar conexión.
   </div>
 
-  <h2>1. ¿Qué es SistemaMP Centinela?</h2>
+  <h2 id="d-1">1. ¿Qué es SistemaMP Centinela?</h2>
   <p>Un sistema de gestión de mantenimiento para una flota de equipos mineros (Besalco Minería — Centinela Ripios OXE). Es una página web: se abre en Chrome o Edge, necesita internet e iniciar sesión, y los datos se comparten en vivo entre todos los que la usan al mismo tiempo — no dependen de un computador ni un navegador en particular.</p>
 
-  <h2>2. Primeros pasos</h2>
+  <h2 id="d-2">2. Primeros pasos</h2>
   <ol>
     <li><b>Inicia sesión</b> con tu correo y contraseña. Si no tienes cuenta, un administrador te la crea desde Configuración → Crear Usuario del Sistema (quedas bloqueado hasta que te activen).</li>
     <li>Revisa el <b>Dashboard</b> — estado general de la flota.</li>
@@ -57,17 +100,17 @@
     <li>Empieza a registrar mantenciones.</li>
   </ol>
 
-  <h2>3. Flujo diario recomendado</h2>
+  <h2 id="d-3">3. Flujo diario recomendado</h2>
   <p><b>Mañana</b> — Dashboard (urgentes y alertas) → Predictivo (qué intervenir hoy) → Repuestos (semáforo de stock).</p>
   <p><b>Durante el día</b> — Inspección Diaria → Registro PM (con horómetro real) → Correctivos si hay falla. El stock se descuenta solo.</p>
   <p><b>Cierre</b> — Actualiza horómetros → revisa Consumos y Costos → carga muestras de Análisis de Aceite si llegaron.</p>
   <p><b>Semanal</b> — Plan Semanal (asignar técnicos, cerrar semana) → Avance → Gantt → Destrabe (trabajos bloqueados) → Componentes Mayores → Disponibilidad → exportar informes para gerencia.</p>
   <p><b>Mensual</b> — Metas (plan vs. real) → Informes KPI → ajustar metas del próximo mes.</p>
 
-  <h2>4. Conceptos clave del mantenimiento preventivo</h2>
+  <h2 id="d-4">4. Conceptos clave del mantenimiento preventivo</h2>
   <p>Cada equipo tiene ciclos de PM: <b>PM1</b> (250h), <b>PM2</b> (500h), <b>PM3</b> (1.000h), <b>PM4</b> (2.000h). Un PM mayor incluye los menores (un PM4 hace también PM1+2+3). El sistema calcula solo cuándo toca cada uno según el horómetro real del equipo, y avisa con colores: 🔴 urgente, 🟡 próxima, ✅ al día.</p>
 
-  <h2>5. Roles y permisos</h2>
+  <h2 id="d-5">5. Roles y permisos</h2>
   <ul>
     <li><b>Operador</b> — registra PM, correctivos, inspecciones, movimientos de stock, mediciones, etc.</li>
     <li><b>Admin</b> — además crea/activa usuarios, edita datos estructurales del equipo (sigla, modelo, precios), y ve Configuración completa.</li>
@@ -76,7 +119,7 @@
   <p><b>Perfiles de acceso por pestaña</b> (opcional, independiente del rol): a una cuenta Operador se le puede asignar además un <b>perfil</b> que oculta el menú y bloquea la navegación a todas las pestañas salvo las suyas — para que, por ejemplo, "el comprador" solo vea Stock &amp; Insumos y Costos, sin las otras 17 pestañas de por medio. Un admin la asigna al crear el usuario o editarlo después (Configuración → Crear Usuario del Sistema). Perfiles disponibles hoy: <b>Horómetro</b> (solo Horómetros), <b>Comprador</b> (Stock &amp; Insumos y Costos), <b>Planificador</b> (Planificación y Agenda, Correctivos, Pautas, Registro PM). Sin perfil asignado, la cuenta ve las 19 pestañas completas (comportamiento de siempre) — un Admin SIEMPRE ve todo, tenga perfil cargado o no.</p>
   <p>Si dos personas editan la misma fila casi al mismo tiempo, el sistema detecta el conflicto, avisa, y pide reintentar sobre los datos frescos. Nunca se pierde en silencio el cambio de uno de los dos.</p>
 
-  <h2>6. Mapa de pestañas</h2>
+  <h2 id="d-6">6. Mapa de pestañas</h2>
   <p>El menú está en la barra lateral izquierda (en pantallas de menos de 1.500 px parte contraído y se abre al pasar el mouse; en celular, una barra inferior con 4 accesos y el botón «Más», que abre el menú completo; el botón de abajo de la barra la contrae a solo íconos) y se ordena en 5 grupos según para qué se usa cada pestaña: <b>Operación</b> (Dashboard, Torre de Control, Equipos, Registro PM, Correctivos, Horómetros), <b>Planificación</b> (Planificación, Pautas, Vencimientos), <b>Activos</b> (Neumáticos, Stock &amp; Insumos, Análisis Aceite, Componentes), <b>Desempeño</b> (Disponibilidad, Producción, Costos, Metas &amp; KPIs) y <b>Herramientas</b> (Buscar, Auditoría de Datos). Nada se borró ni se fusionó: es solo el orden y el lugar de cada cosa. La tabla de abajo sigue el orden histórico.</p>
   <table>
     <tr><th>Pestaña</th><th>Para qué</th></tr>
@@ -102,13 +145,13 @@
     <tr><td><b>Configuración</b></td><td>Usuarios, seguridad, respaldo, tema (Oscuro/Claro/Azul Minero/Ejecutivo), información del sistema — con una franja de Estado del Sistema arriba de todo (integridad, papelera, datos locales, sincronización, backup) Aquí se editan también el <b>costo de una hora detenida</b> (general y por modelo), la <b>tasa USD→CLP</b> y la <b>duración estándar de cada PM</b>. En la tarjeta de documentación (solo administrador) está el botón <b>Ver inventario de algoritmos</b>: explica cada fórmula, matriz y diagrama del programa, de dónde viene el método, cómo lo calcula, con un ejemplo real y sus límites.</td></tr>
   </table>
 
-  <h2>7. Preguntas frecuentes</h2>
+  <h2 id="d-7">7. Preguntas frecuentes</h2>
   <p><b>¿Necesito internet para usar el sistema?</b><br>No para seguir viendo y editando datos: el sistema guarda de inmediato en este computador aunque se corte la conexión, y sincroniza solo con la nube cuando vuelve.</p>
   <p><b>¿Qué pasa si edito algo que otra persona también estaba editando?</b><br>El sistema avisa con un mensaje y refresca la pantalla con lo más reciente — tu cambio no se pierde en silencio, solo hay que revisarlo y volver a intentar.</p>
   <p><b>¿Cómo recupero mis datos si algo sale mal?</b><br>Los datos reales viven en Supabase (la nube), no solo en tu navegador. Además existe un respaldo manual (Backup JSON, en Configuración) y uno automático a una carpeta local si alguien lo conectó.</p>
   <p><b>¿Puedo reportar una falla sin entrar al sistema?</b><br>Sí, si un administrador ya autorizó tu número o correo (Configuración → Reporte de Fallas por WhatsApp/Correo). Escribe al WhatsApp del sistema (o manda un correo) con el equipo y la falla, por ejemplo: <i>"CN-9500 fuera de servicio, falla de turbo"</i>. Queda registrado directo en Correctivos — el sistema responde confirmando o avisando si no lo entendió. Si el mensaje es ambiguo, igual se guarda pero marcado para que un admin lo revise, nunca se pierde en silencio.</p>
 
-  <h2>8. Guía de Capacitación por Rol</h2>
+  <h2 id="d-8">8. Guía de Capacitación por Rol</h2>
 
   <div class="callout">
     La versión completa de esta guía (con el mismo contenido) vive <b>dentro del sistema</b>, en ❓ Ayuda → sección 33 — con su propio botón para descargarla/imprimirla sola, sin el resto del manual.
@@ -124,7 +167,7 @@
     <tr><td><b>Crear usuarios, seguridad, respaldo</b></td><td>Administrador</td></tr>
   </table>
 
-  <h3>Operador de Terreno</h3>
+  <h3 id="d-9">Operador de Terreno</h3>
   <p>Tu día tipo: llegás, revisás qué equipo te toca, registrás lo que hiciste o encontraste, y seguís. El sistema calcula el resto.</p>
   <ol>
     <li><b>Registro PM</b> — elegí el equipo, cargá el horómetro real que marca en ese momento (no el que "debería" tener), marcá las actividades ejecutadas y guardá. Todo depende de que este número sea real. Indicá también si el PM quedó <b>completo según pauta</b>: si faltó algo (ej. un filtro sin cambiar por falta de stock) marcá "No" y anotá qué faltó — así, con el tiempo, se puede ver si los PM hechos a medias terminan en falla.</li>
@@ -137,11 +180,11 @@
   <p><b>Dashboard más fácil de leer</b>: las tarjetas de indicadores ahora dicen «Se puede corregir ahora» (anticipan un problema: actuar esta semana cambia el resultado) o «Muestra lo ocurrido» (resume lo que ya pasó). «Equipos sin fallas» es un conteo del período; «Probabilidad de no fallar (R)» es una estimación estadística: no son lo mismo. En el celular todo cabe en pantalla.</p>
   <p><b>Cerrar un correctivo y elegir vistas del Predictivo, más fácil</b>: la ventana de cierre dice en una línea qué falta (componente, causa raíz o costo), tiene campos grandes y deja «Cerrar sin completar» como opción secundaria; se cierra con Esc. En Predictivo las vistas son botones agrupados (en el celular se pliegan bajo «Vista: …»).</p>
   <p><b>Cabecera y menú lateral (escritorio)</b>: en pantallas anchas (desde 1480 px) la cabecera ocupa una sola fila con los indicadores a la vista; en pantallas más angostas sigue en dos filas. En el menú lateral la pestaña activa se marca con una barra de color y puedes recorrerlo con las flechas ↑ ↓ del teclado.</p>
-  <p><b>Modo laboratorio</b>: en Predictivo y en Estadística, el botón «🧪 Laboratorio» muestra u oculta los métodos avanzados (probabilidad de falla, Kijima, P-F, señal unificada, efectividad del mantenimiento, patrones, mantenimiento oportunista, calidad de ejecución, mapa de equipos). Trabajan con pocos datos: sirven para explorar, no para decidir solos. En <b>Probabilidad de Falla</b> se muestran lado a lado dos formas de ordenar los equipos (por probabilidad según el intervalo entre fallas, y por fallas recientes) con lo que dice el backtest de cada una; los equipos con ✓ aparecen en las dos listas. En <b>Backtest</b> también se prueban, mes a mes, el Weibull y el Kijima por equipo contra la regla simple de contar fallas del último año (con datos reales ninguno la supera). En <b>Auditoría de Datos</b>, bajo la completitud de los correctivos, se ve si el diccionario que deduce el componente desde el texto funciona con textos nuevos (probado con el historial 2022–2025). Ahí también está <b>Backtest: ¿anticipan las reglas?</b>, que prueba en el pasado si cada regla anticipa qué equipo fallará el próximo mes mejor que contar las fallas del último año.</p>
+  <p><b>Ayuda y manuales más fáciles de recorrer</b>: en la pestaña Ayuda hay un buscador (escribe una palabra y se muestran solo las secciones que la mencionan) y un índice plegable de las 34 secciones. Los manuales en HTML tienen un índice lateral que sigue tu lectura, y se imprimen limpios. En Configuración las tarjetas se acomodan en dos columnas.\n\n<b>Modo laboratorio</b>: en Predictivo y en Estadística, el botón «🧪 Laboratorio» muestra u oculta los métodos avanzados (probabilidad de falla, Kijima, P-F, señal unificada, efectividad del mantenimiento, patrones, mantenimiento oportunista, calidad de ejecución, mapa de equipos). Trabajan con pocos datos: sirven para explorar, no para decidir solos. En <b>Probabilidad de Falla</b> se muestran lado a lado dos formas de ordenar los equipos (por probabilidad según el intervalo entre fallas, y por fallas recientes) con lo que dice el backtest de cada una; los equipos con ✓ aparecen en las dos listas. En <b>Backtest</b> también se prueban, mes a mes, el Weibull y el Kijima por equipo contra la regla simple de contar fallas del último año (con datos reales ninguno la supera). En <b>Auditoría de Datos</b>, bajo la completitud de los correctivos, se ve si el diccionario que deduce el componente desde el texto funciona con textos nuevos (probado con el historial 2022–2025). Ahí también está <b>Backtest: ¿anticipan las reglas?</b>, que prueba en el pasado si cada regla anticipa qué equipo fallará el próximo mes mejor que contar las fallas del último año.</p>
   <p><b>Errores comunes</b>: horómetro "a ojo" sin leerlo del equipo; cerrar una OT sin costo sin revisar la sugerencia ("💡 usar"); saltarse Tipo de Causa/Categoría MTTR por ser opcionales.</p>
   <p><b>Horizonte</b>: hoy — registrar con el horómetro real y dejar el correctivo guardado antes de irte; esta semana — completar Causa Raíz, Tipo de Causa y Categoría MTTR de lo que registraste; largo plazo — todo lo que cargás hoy es la materia prima de las proyecciones: con más meses de datos reales, las fechas y alertas del sistema se vuelven más confiables.</p>
 
-  <h3>Planificador</h3>
+  <h3 id="d-10">Planificador</h3>
   <p>Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos, Pautas, Registro PM.</p>
   <ol>
     <li><b>Plan Semanal</b> — asigná técnicos a los PM y correctivos de la semana y cerrá la semana al terminar, para que quede como histórico real.</li>
@@ -152,7 +195,7 @@
   <p><b>Ejemplo de semana</b>: lunes revisás Destrabe → armás el Plan Semanal → chequeás Planificador de Materiales. Viernes cerrás la semana.</p>
   <p><b>Horizonte</b>: esta semana — Destrabe, Plan Semanal y Planificador de Materiales; este mes — repasar el histórico de semanas cerradas; este año — Programa Anual y Gantt para ver qué se superpone y mover trabajos antes de que choquen.</p>
 
-  <h3>Comprador</h3>
+  <h3 id="d-11">Comprador</h3>
   <p>Con este perfil ves 2 pestañas: Stock &amp; Insumos y Costos.</p>
   <ol>
     <li><b>El semáforo de stock</b> — lo rojo necesita pedido ya; el botón 📈 Tendencia y Proyección de Compra te dice, con consumo real, en qué fecha conviene pedir.</li>
@@ -163,7 +206,7 @@
   </ol>
   <p><b>Horizonte</b>: esta semana — semáforo de stock y Pedidos Potencialmente Trabados; este mes — Compras — Proveedores (tiempos de respuesta y gasto acumulado) para priorizar o negociar; hasta fin de año — Tendencia y Proyección de Compra con consumo real y, en Neumáticos, cuántos vas a necesitar hasta fin de año.</p>
 
-  <h3>Supervisor / Jefe de Mantenimiento</h3>
+  <h3 id="d-12">Supervisor / Jefe de Mantenimiento</h3>
   <p>No necesitás entender cada fórmula — solo qué pregunta responde cada pantalla.</p>
   <ul>
     <li><b>Dashboard</b>: tu vistazo diario — empezá por la tarjeta 🔴 Riesgo Alto.</li>
@@ -176,7 +219,7 @@
   <p><b>Flujo semanal de ejemplo</b>: lunes Dashboard → Matriz de Riesgo → para lo urgente, RUL o Señal Unificada según corresponda → coordinás con el Planificador. Fin de mes: Costos + Metas &amp; KPIs.</p>
   <p><b>Horizonte</b>: hoy — Dashboard, tarjeta 🔴 Riesgo Alto; esta semana — Matriz de Riesgo y, para lo urgente, RUL o Señal Unificada; este mes — Costos y Metas &amp; KPIs; este año — las decisiones grandes: Señal Unificada de Reemplazo y Simulador What-If para probar escenarios antes de gastar, y Presupuesto vs Real para ver si el año va dentro de lo presupuestado.</p>
 
-  <h3>Administrador</h3>
+  <h3 id="d-13">Administrador</h3>
   <ol>
     <li><b>Usuarios</b> — Configuración → Crear Usuario del Sistema: asigná rol (Operador/Admin) y, si corresponde, perfil.</li>
     <li><b>Seguridad</b> — MFA, rotación de contraseñas, bloqueo tras 5 intentos fallidos, alerta de dispositivo nuevo.</li>
@@ -204,6 +247,15 @@
   <div class="callout">
     Para el detalle completo de cada función (con capturas conceptuales y ejemplos paso a paso), abre el sistema y ve a la pestaña <b>❓ Ayuda</b> — ahí vive la versión completa de 34 secciones, siempre al día.
   </div>
+<!--doc-fin--></div></div><!--/doc-fin-->
+
+  <a class="back-top" href="#top">↑ Arriba</a>
 
   <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
 </div>
+<script>/*doc-js*/
+(function(){var L=[].slice.call(document.querySelectorAll('.doc-index a'));if(!L.length||!('IntersectionObserver' in window))return;
+var m={};L.forEach(function(a){m[a.getAttribute('href').slice(1)]=a;});
+var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){L.forEach(function(a){a.classList.remove('activa');});var a=m[e.target.id];if(a){a.classList.add('activa');if(a.scrollIntoView&&getComputedStyle(a.closest('.doc-index')).position==='sticky'){var c=a.closest('.doc-index');if(a.offsetTop<c.scrollTop||a.offsetTop>c.scrollTop+c.clientHeight-40)c.scrollTop=a.offsetTop-60;}}}});},{rootMargin:'0px 0px -75% 0px'});
+Object.keys(m).forEach(function(id){var h=document.getElementById(id);if(h)o.observe(h);});})();
+/*/doc-js*/</script>

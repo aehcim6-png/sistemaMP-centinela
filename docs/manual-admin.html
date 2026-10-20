@@ -39,16 +39,60 @@
   .callout{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:8px;padding:14px 16px;margin:16px 0;font-size:13.5px;color:var(--ink-dim)}
   .callout b{color:var(--ink)}
   footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+  /* doc-lectura */
+  html{scroll-behavior:smooth}
+  body{padding:32px 20px 80px}
+  .wrap{max-width:1120px}
+  .doc-layout{display:grid;grid-template-columns:260px minmax(0,780px);gap:36px;align-items:start;margin-top:8px}
+  .doc-main{min-width:0}
+  .doc-layout>nav{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;border-radius:8px}
+  .doc-index{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 10px;font-size:13px}
+  .doc-index summary{cursor:pointer;font-weight:700;color:var(--ink);padding:4px 6px;list-style:none}
+  .doc-index summary::after{content:" ▾";color:var(--amber)}
+  .doc-index a{display:block;color:var(--ink-dim);text-decoration:none;line-height:1.35;padding:5px 8px;border-radius:5px;overflow-wrap:anywhere}
+  .doc-index a.h3{padding-left:20px;font-size:12px}
+  .doc-index a:hover,.doc-index a:focus-visible{color:var(--amber);background:var(--panel2);outline:none}
+  .doc-index a.activa{color:var(--amber);background:var(--panel2);font-weight:600}
+  h2,h3{scroll-margin-top:20px;text-wrap:balance}
+  p,ul,ol{font-size:15.5px;line-height:1.75;max-width:72ch}
+  li{margin-bottom:5px}
+  li,p,td,th{overflow-wrap:break-word}
+  table{display:block;overflow-x:auto;max-width:100%}
+  td:first-child,th:first-child{min-width:96px}
+  pre{max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+  .back-top{position:fixed;right:16px;bottom:16px;background:var(--amber);color:var(--bg);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  @media(max-width:860px){
+    body{padding:20px 14px 72px}
+    .doc-layout{display:block}
+    .doc-layout>nav{position:static;max-height:60vh;margin:0 0 20px}
+    .doc-index:not([open]) a{display:none}
+    p,ul,ol{font-size:15px}
+  }
+  @media print{
+    html{scroll-behavior:auto}
+    :root{--bg:#fff;--panel:#fff;--panel2:#f4f4f4;--line:#bbb;--ink:#111;--ink-dim:#222;--amber:#7a4a00}
+    body{background:#fff;color:#111;padding:0}
+    .doc-index,.back-top{display:none}
+    .doc-layout{display:block}
+    .wrap{max-width:none}
+    p,ul,ol{max-width:none;font-size:11pt}
+    h2{break-after:avoid}h3{break-after:avoid}
+    .callout,table,tr{break-inside:avoid}
+    a{color:#111;text-decoration:none}
+  }
+/* /doc-lectura */
 </style>
 
-<div class="wrap">
+<div class="wrap" id="top">
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Manual de Administrador</h1>
-  <p>Para quien administra el sistema hoy, o para quien lo reciba mañana. Cubre lo que un
+
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Accesos que necesitas tener</a><a class="h2" href="#d-2">2. Gestión de usuarios</a><a class="h2" href="#d-3">3. Seguridad</a><a class="h3" href="#d-4">Roles</a><a class="h3" href="#d-5">Perfil — qué pestañas ve cada cuenta (2026-10-01)</a><a class="h3" href="#d-6">Verificación en dos pasos (MFA)</a><a class="h3" href="#d-7">Contraseñas</a><a class="h3" href="#d-8">Vencimiento de contraseña (rotación periódica, 2026-09-02)</a><a class="h3" href="#d-9">Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</a><a class="h3" href="#d-10">Protección contra bots (CAPTCHA, activado 2026-09-08)</a><a class="h3" href="#d-11">Cierre de sesión por inactividad</a><a class="h3" href="#d-12">Auditoría (trazabilidad — quién cambió qué)</a><a class="h2" href="#d-13">4. Base de datos (Supabase)</a><a class="h3" href="#d-14">Supuestos editables que se guardan en la tabla configuracion (2026-10-13)</a><a class="h3" href="#d-15">Límites del plan gratis (hoy)</a><a class="h2" href="#d-16">5. Respaldo y continuidad de datos</a><a class="h3" href="#d-17">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</a><a class="h2" href="#d-18">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</a><a class="h3" href="#d-19">Configuración inicial (una sola vez)</a><a class="h3" href="#d-20">Formato del mensaje</a><a class="h3" href="#d-21">Segunda pasada con IA (2026-09-02)</a><a class="h2" href="#d-22">7. Alertas automáticas de salida (correo y WhatsApp)</a><a class="h2" href="#d-23">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</a><a class="h2" href="#d-24">8. Despliegue (Vercel)</a><a class="h2" href="#d-25">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</a><a class="h2" href="#d-26">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</a><a class="h2" href="#d-27">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</a><a class="h2" href="#d-28">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</a><a class="h2" href="#d-29">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</a><a class="h2" href="#d-30">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</a><a class="h2" href="#d-31">9. Estructura del código</a><a class="h2" href="#d-32">10. Si algo se rompe — por dónde empezar</a><a class="h2" href="#d-33">11. Continuidad — si quien mantiene esto no está disponible</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<p>Para quien administra el sistema hoy, o para quien lo reciba mañana. Cubre lo que un
   operador normal no necesita saber. Para cómo se conecta todo por dentro, ver
   <a href="arquitectura.html">Arquitectura</a> y el <a href="plano-sistema.html">plano interactivo</a>.</p>
 
-  <h2>1. Accesos que necesitas tener</h2>
+  <h2 id="d-1">1. Accesos que necesitas tener</h2>
   <ul>
     <li><b>Cuenta admin</b> dentro del sistema (rol <code>admin</code> en <code>user_roles</code>).</li>
     <li><b>Panel de Supabase</b> — proyecto "SistemaMP" (<code>jyhpfwivhwzylkzxrsbt</code>). Base
@@ -61,7 +105,7 @@
   <p>Sin estos tres accesos, nadie puede mantener el sistema — vale la pena que más de una
   persona los tenga guardados en un lugar seguro.</p>
 
-  <h2>2. Gestión de usuarios</h2>
+  <h2 id="d-2">2. Gestión de usuarios</h2>
   <p>Crear, activar y desactivar cuentas se hace desde <b>Configuración → Crear Usuario del
   Sistema</b> (solo admins). Por dentro, llama a una única función con privilegio elevado
   (<code>crear-operador</code>, una Edge Function de Supabase) — el único punto del sistema donde
@@ -69,8 +113,8 @@
   <code>supabase/functions/crear-operador/</code>.</p>
   <p>Un usuario nuevo queda <b>bloqueado</b> hasta que un admin lo activa a mano.</p>
 
-  <h2>3. Seguridad</h2>
-  <h3>Roles</h3>
+  <h2 id="d-3">3. Seguridad</h2>
+  <h3 id="d-4">Roles</h3>
   <p>Cada cuenta tiene un rol en <code>user_roles</code>: <code>admin</code>, <code>operador</code>
   o <code>lector</code> (este último, solo lectura). Se usa para ocultar/mostrar botones
   (cosmético — <code>_aplicarRolUI()</code> oculta los de escritura para <code>lector</code>) y
@@ -99,7 +143,7 @@
     vez de asumir <code>'operador'</code> a ciegas (ver <a href="arquitectura.html">Arquitectura</a>,
     sección 5, para el detalle técnico).
   </div>
-  <h3>Perfil — qué pestañas ve cada cuenta (2026-10-01)</h3>
+  <h3 id="d-5">Perfil — qué pestañas ve cada cuenta (2026-10-01)</h3>
   <p>Además del rol, cada cuenta puede tener un <b>perfil</b> (columna
   <code>user_roles.perfil</code>) que restringe qué pestañas ve — independiente de si puede
   escribir o no. Se elige al crear el usuario (Configuración → Crear Usuario → campo "Perfil") o
@@ -123,10 +167,10 @@
   el tamaño de equipo de Besalco alcanza; si alguien muy técnico llamara a la API de Supabase
   directo podría seguir tocando otras tablas, con el mismo nivel de acceso que ya tiene su rol
   hoy. Ver <a href="arquitectura.html">Arquitectura</a>, sección 89.</p>
-  <h3>Verificación en dos pasos (MFA)</h3>
+  <h3 id="d-6">Verificación en dos pasos (MFA)</h3>
   <p>Cualquier usuario puede activarla desde Configuración. No es obligatoria por ahora, pero
   conviene activarla al menos en las cuentas admin.</p>
-  <h3>Contraseñas</h3>
+  <h3 id="d-7">Contraseñas</h3>
   <p>Política mínima: 14 caracteres, con mayúscula/minúscula/dígito/símbolo. Las cuentas nuevas
   fuerzan el cambio al primer ingreso.</p>
   <div class="callout">
@@ -141,7 +185,7 @@
   o el dominio que corresponda) — si no está autorizada, GoTrue rechaza el <code>redirect_to</code>
   y el link del correo no vuelve bien a la app.</p>
   </div>
-  <h3>Vencimiento de contraseña (rotación periódica, 2026-09-02)</h3>
+  <h3 id="d-8">Vencimiento de contraseña (rotación periódica, 2026-09-02)</h3>
   <p>Además de la política mínima, el propio sistema fuerza una rotación: la fecha del último
   cambio real se guarda en <code>user_metadata.passwordChangedAt</code> (se estampa en cada
   cambio exitoso). En cada login se compara contra hoy: <b>80-89 días</b> = aviso blando (toast +
@@ -152,7 +196,7 @@
   <p>Desde <b>Configuración → Mi contraseña</b> cualquier usuario puede cambiarla voluntariamente
   en cualquier momento — antes esto no existía, solo se podía cambiar si el sistema obligaba o
   vía recuperación por correo.</p>
-  <h3>Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</h3>
+  <h3 id="d-9">Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</h3>
   <p>Tras cada login exitoso, <code>avisar-dispositivo-nuevo</code> evalúa el historial de esa
   cuenta y manda un correo/WhatsApp si detecta: <b>(1)</b> dispositivo nunca visto antes,
   <b>(2)</b> horario fuera del patrón histórico de la cuenta (mínimo 5 logins previos, margen
@@ -163,7 +207,7 @@
   reutilizan los destinatarios y secrets ya configurados para alerta-pm/resumen-semanal.</p>
   <p>En pantalla, <b>Accesos recientes</b> marca con 🆕 la primera vez que aparece un dispositivo
   en el historial completo de la cuenta — mismo criterio, calculado en el navegador.</p>
-  <h3>Protección contra bots (CAPTCHA, activado 2026-09-08)</h3>
+  <h3 id="d-10">Protección contra bots (CAPTCHA, activado 2026-09-08)</h3>
   <p>El login y la recuperación de contraseña tienen un widget de <b>Cloudflare Turnstile</b>
   (gratis, sin límite de uso) validado en dos capas:</p>
   <ul>
@@ -195,7 +239,7 @@
     <code>select vault.update_secret((select id from vault.secrets where name =
     'turnstile_secret_key'), 'LA_NUEVA_LLAVE');</code> en el SQL Editor.
   </div>
-  <h3>Cierre de sesión por inactividad</h3>
+  <h3 id="d-11">Cierre de sesión por inactividad</h3>
   <p>Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll) aparece un aviso
   en pantalla ("¿Sigues ahí?") con cuenta regresiva; si nadie hace nada, a la hora completa la
   sesión se cierra sola (<code>_logout()</code>). Corre en cualquier pestaña abierta, pensado
@@ -209,7 +253,7 @@
     se cierra igual (ver <a href="arquitectura.html">Arquitectura</a>, sección 13, para el detalle
     técnico).
   </div>
-  <h3>Auditoría (trazabilidad — quién cambió qué)</h3>
+  <h3 id="d-12">Auditoría (trazabilidad — quién cambió qué)</h3>
   <p><b>Accesos recientes</b> — quién entró, cuándo, desde qué computador, y también los
   <b>intentos que NO prosperaron</b> (clave incorrecta, cuenta desactivada, o sesión que no
   logró renovarse), marcados en rojo con 🚫. Antes solo se registraban los logins exitosos.
@@ -241,7 +285,7 @@
   (<code>uso_pestanas</code>), fuera de <code>TABLA_REAL</code> a propósito — se purga sola cada
   90 días con un cron diario.</p>
 
-  <h2>4. Base de datos (Supabase)</h2>
+  <h2 id="d-13">4. Base de datos (Supabase)</h2>
   <p><b>46 tablas reales</b> (incluye <code>historial_componentes</code> e
   <code>historial_neumaticos</code>, agregadas en agosto 2026,
   <code>correctivos_historico</code>, agosto 2026, planillas Excel 2022-2025 previas a este
@@ -263,7 +307,7 @@
   Cualquier cambio de estructura debe ser un archivo de migración nuevo, nunca una edición manual
   sin rastro en el panel. Verificar con <code>supabase db diff</code> (debería salir vacío).</p>
 
-  <h3>Supuestos editables que se guardan en la tabla <code>configuracion</code> (2026-10-13)</h3>
+  <h3 id="d-14">Supuestos editables que se guardan en la tabla <code>configuracion</code> (2026-10-13)</h3>
   <p>La tabla <code>configuracion</code> guarda una sola fila con los valores que el sistema no puede medir y que una persona define: costo de hora detenida (general y por modelo), tasa USD→CLP, duración estándar de cada PM y, desde el 13 de octubre, los <b>supuestos de Arriendo vs compra</b> (UF, diésel, sueldos, dotación, litros por carga, disponibilidades, valor residual y tarifas de arriendo seco y húmedo por modelo) en la columna <code>arriendoVsCompra</code>. Solo un administrador puede editarlos; los demás roles los ven pero no los cambian. Cada columna nueva se agrega con una migración aditiva (nunca borra datos) que hay que aplicar <b>a los dos proyectos Supabase antes de subir el código</b> que la usa; si no, el guardado falla. Otras tablas operativas nuevas: <code>backlog_pm</code> (tareas pendientes de pauta, informe de gestión) y la columna <code>registros_pm.desvioDias</code> (desvío de cada PM). Todas se crean con migraciones aditivas que se aplican a los dos proyectos antes de subir el código.</p>
 
   <p><b>Novedades de octubre 2026 que el administrador debe conocer</b> (ambas bases Supabase, antes de subir el código que las usa):</p>
@@ -271,6 +315,7 @@
     <li><code>auditoria_cambios</code> (17-oct): historial campo por campo, de solo agregar (ver «Auditoría» más arriba). No está en <code>TABLA_REAL</code>: el navegador la escribe directo por REST con la sesión del usuario y solo un admin la lee. Migración <code>20261017120000</code>.</li>
     <li><code>configuracion."tcoCapitalFuente"</code> (17-oct): cómo se calcula el capital por hora del Costo Total de Propiedad en Costos: <code>'compra'</code> (valor de compra ÷ vida en horas, por defecto) o <code>'contable'</code> (amortización de «Horas a Amortizar»). Lo cambia solo un administrador desde Costos → Costo Total de Propiedad y vale para todos. Migración <code>20261017130000</code>. <b>Carga de «Horas a Amortizar»:</b> <code>valorHoraAmort</code> y <code>vidaContableH</code> en <code>equipos</code> solo los puede modificar una sesión de administrador (candado <code>privado.proteger_columnas_admin</code>), así que el archivo se importa desde la app (Equipos → Importar Horas a Amortizar), no por SQL.</li>
     <li><b>Backtest con Brier y log loss</b> (19-oct, solo cálculo y presentación): Predictivo → Laboratorio → Backtest. No hay migraciones ni cambios de permisos; no cambia la regla de probabilidad que usa el programa.</li>
+    <li><b>Cuarta ronda de diseño</b> (20-oct, solo presentación): Configuración en dos columnas, Aceite sin desborde en celular, buscador e índice en la Ayuda y manuales con índice lateral. Los manuales de edición manual (<code>manual-admin.html</code>, <code>arquitectura.html</code>) se decoran con <code>python3 scripts/manual_md_a_html.py --decorar …</code> tras editarlos. No hay migraciones ni cambios de permisos.</li>
     <li><b>Tercera ronda de diseño</b> (19-oct, solo presentación): cabecera de una fila en pantallas anchas, menú lateral con pestaña activa marcada y flechas. No hay migraciones ni cambios de permisos.</li>
     <li><b>Segunda ronda de diseño</b> (19-oct, solo presentación): modal de cierre de correctivos, botones de vista del Predictivo y áreas táctiles de la navegación. No hay migraciones ni cambios de permisos.</li>
     <li><b>Retoque de diseño</b> (19-oct, solo presentación): Dashboard y Auditoría (nombres de las tarjetas, leyenda en palabras simples, ajuste a celular). No hay migraciones ni cambios de permisos.</li>
@@ -286,7 +331,7 @@
     <li><b>Cambios de pantalla</b> (16-oct, solo presentación; ningún dato ni permiso cambió): el menú pasó a una barra lateral con 5 grupos (contraída a solo íconos bajo 1.500 px, se abre al pasar el mouse; en celular, barra inferior con «Más»); <b>Costos</b> es una pestaña propia (antes sub-pestaña de Stock &amp; Insumos; el perfil Comprador ve Stock &amp; Insumos y Costos); sub-pestañas como solapas; botones de herramientas agrupados en «Más acciones ▾»; botón «Densidad» en la cabecera para tablas cómodas o compactas.</li>
   </ul>
 
-  <h3>Límites del plan gratis (hoy)</h3>
+  <h3 id="d-15">Límites del plan gratis (hoy)</h3>
   <table>
     <tr><th>Recurso</th><th>Límite gratis</th><th>Uso actual (ago. 2026)</th></tr>
     <tr><td>Tamaño de base de datos</td><td>500 MB</td><td>~22 MB (4.4%)</td></tr>
@@ -296,7 +341,7 @@
   <p>El límite que más vale la pena vigilar es el <b>ancho de banda</b>, no el tamaño: el sistema
   baja toda la base completa en cada inicio de sesión.</p>
 
-  <h2>5. Respaldo y continuidad de datos</h2>
+  <h2 id="d-16">5. Respaldo y continuidad de datos</h2>
   <ol>
     <li><b>localStorage</b> de cada navegador — copia de trabajo, siempre al día.</li>
     <li><b>Supabase</b> — la fuente oficial compartida entre todos.</li>
@@ -309,7 +354,7 @@
   permite reconstruir todos los datos en un backend nuevo, siguiendo el mismo mapeo de
   <code>TABLA_REAL</code>.</p>
 
-  <h3>Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</h3>
+  <h3 id="d-17">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</h3>
   <p>Procedimiento real para el peor caso: el proyecto Supabase ya no existe (borrado, cuenta
   suspendida, etc.), no solo datos corruptos. Requiere a alguien con acceso técnico (terminal, Deno
   instalado) — no es un flujo para hacer desde la app.</p>
@@ -344,13 +389,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <code>pg_cron</code> — no viajan en el respaldo de datos.</li>
   </ol>
 
-  <h2>6. Reporte de fallas por WhatsApp o correo (canal de entrada)</h2>
+  <h2 id="d-18">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</h2>
   <p>Desde agosto 2026 existe un canal adicional para registrar correctivos sin entrar al
   sistema: un técnico le escribe a un número de WhatsApp Business (o manda un correo) y el
   mensaje se parsea e inserta directo en <code>correctivos_historico</code>. Por dentro son dos
   Edge Functions de Supabase: <code>whatsapp-webhook</code> (Twilio) y <code>email-webhook</code>
   (Resend).</p>
-  <h3>Configuración inicial (una sola vez)</h3>
+  <h3 id="d-19">Configuración inicial (una sola vez)</h3>
   <ol>
     <li><b>Secrets en Supabase</b> (Project Settings → Edge Functions → Secrets, o
     <code>supabase secrets set</code>): <code>TWILIO_ACCOUNT_SID</code> y
@@ -371,7 +416,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   para el envío de alertas de PM (salida), no para autorizar quién puede reportar (entrada). Son
   dos tarjetas distintas de Configuración aunque se vean parecidas, y esto causó una confusión
   real durante la puesta en marcha.</p>
-  <h3>Formato del mensaje</h3>
+  <h3 id="d-20">Formato del mensaje</h3>
   <p><code>"SIGLA fuera de servicio, falla de X"</code> (o similar) — el parser
   (<code>supabase/functions/_shared/parseCorrectivo.ts</code>) reconoce la sigla del equipo y una
   palabra clave de falla. Si el mensaje es ambiguo, igual se registra pero queda marcado
@@ -384,7 +429,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   efectivamente firma. Ver el detalle completo en <a href="arquitectura.html">Arquitectura</a>,
   sección 12.</p>
   </div>
-  <h3>Segunda pasada con IA (2026-09-02)</h3>
+  <h3 id="d-21">Segunda pasada con IA (2026-09-02)</h3>
   <p>Cuando el parser por reglas no reconoce el mensaje o queda con confianza "baja", se le pasa
   el texto a Claude (<code>claude-haiku-4-5-20251001</code>, por costo) como último intento antes
   de marcarlo "revisar" o descartarlo. La IA <b>nunca inventa</b> una sigla ni una categoría: solo
@@ -408,7 +453,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   repositorio sin que nadie lo notara.</p>
   </div>
 
-  <h2>7. Alertas automáticas de salida (correo y WhatsApp)</h2>
+  <h2 id="d-22">7. Alertas automáticas de salida (correo y WhatsApp)</h2>
   <p>Dos Edge Functions programadas por <code>pg_cron</code> mandan resúmenes sin que nadie abra
   el sistema — pensadas para el dueño/gerente que revisa la información desde afuera:</p>
   <ul>
@@ -446,7 +491,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   alguien vio esa pestaña, nunca un número inventado aparte.</p>
   </div>
 
-  <h2>7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</h2>
+  <h2 id="d-23">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</h2>
   <p>Vigila que el sistema MISMO siga funcionando — que el respaldo diario y los 2 correos
   automáticos a gerencia efectivamente corran, y que el canal de reportes por WhatsApp/correo
   (sección 6) no esté tirando error en silencio. Nadie tiene que mirar los logs de Supabase a mano
@@ -479,7 +524,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (<code>vigilar_salud_cron_secret</code>) en Supabase Vault. Ver
   <a href="arquitectura.html">Arquitectura</a>, sección 35, para el detalle técnico completo.</p>
 
-  <h2>8. Despliegue (Vercel)</h2>
+  <h2 id="d-24">8. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
     <li><code>modules/renders/*.js</code> (49 archivos, módulos ES reales desde la Fase 3,
@@ -500,7 +545,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Empresa" ni "Descargar Plantilla Limpia" (Configuración) alcanzan solos para eso, esa guía
   explica por qué y el proceso real completo.</p>
 
-  <h2>8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</h2>
+  <h2 id="d-25">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</h2>
   <p>15 herramientas nuevas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de Criticidad Dinámica, CUSUM
   de aceite, RUL híbrido, Competing Risks, Matriz de Criticidad de Repuestos, Índice de
   Efectividad del Mantenimiento, Patrones Ocultos de Falla, Weibull con censura/MLE, Kijima
@@ -542,7 +587,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ningún interruptor nuevo en Configuración que activar: la única acción de un admin es mantener
   esos datos cargados y reales.</p>
 
-  <h2>8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</h2>
+  <h2 id="d-26">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</h2>
   <p>Cuatro agregados chicos al Dashboard y a Costos → MTBF/MTTR, sin tabla ni configuración
   nueva:</p>
   <ul>
@@ -565,7 +610,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   un equipo, más angosto (más confiable) sale su intervalo — no hay ningún campo nuevo que
   cargar, solo seguir completando duración y horómetro al cerrar correctivos, como ya se hace.</p>
 
-  <h2>8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</h2>
+  <h2 id="d-27">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</h2>
   <p>Tres campos nuevos y opcionales en Correctivos, todos del mismo patrón: se eligen a mano al
   cargar/editar una OT (nunca se infieren del texto libre, porque son un criterio de la empresa,
   no un dato técnico) y alimentan un análisis agregado que aparece vacío hasta que haya
@@ -584,7 +629,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   técnico de cada una. Como admin, no hay nada que activar — simplemente avisar al equipo de
   terreno que estos 3 selectores existen, si se quiere que esos análisis empiecen a tener datos.</p>
 
-  <h2>8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</h2>
+  <h2 id="d-28">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</h2>
   <p>Nueva pestaña top-level (no sub-pestaña), con su propia Edge Function de lectura por foto
   (<code>leer-reporte-produccion</code>, cuarta del mismo tipo que las de Pauta PM/Informe
   Correctivo/Chequeo de Neumáticos — requiere <code>GEMINI_API_KEY</code> configurada, ya
@@ -597,7 +642,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Rendimiento por tipo de equipo (no se inventa un valor nominal sin ese dato real). Ver
   <a href="arquitectura.html">Arquitectura</a>, sección 88.</p>
 
-  <h2>8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</h2>
+  <h2 id="d-29">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</h2>
   <p>% Correctivo Reactivo por horas, Matriz Jack-Knife (MTBF vs MTTR), Costo de Downtime real,
   Rotación/Obsolescencia de Stock MRO y FMEA con NPR — las 5 en Costos &amp; Stock, Producción o
   Predictivo según corresponda. La única que requiere algo del admin es <b>Costo de Downtime
@@ -608,7 +653,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <a href="arquitectura.html">Arquitectura</a>, secciones 90-94, para el detalle técnico de cada
   una.</p>
 
-  <h2>8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</h2>
+  <h2 id="d-30">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</h2>
   <p>Dentro de Producción: a partir de <code>tiempoCicloMin</code> (ya capturado por OCR por
   turno, sin consumidor hasta ahora) el sistema calcula un rendimiento teórico por equipo —
   MEDIANA del ciclo real medido ese mes, no un parámetro de catálogo — que sirve para CAEX y
@@ -619,7 +664,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   haya ≥3 turnos con tiempo de ciclo registrado ese mes. Ver <a href="arquitectura.html">Arquitectura</a>,
   secciones 95-96.</p>
 
-  <h2>9. Estructura del código</h2>
+  <h2 id="d-31">9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
@@ -635,7 +680,7 @@ supabase/functions/      — 14 Edge Functions (crear-operador, alerta-pm, resum
 tests/                   — pruebas de logic.js y store.js (Vitest, 1153 casos)
 docs/                    — esta documentación</pre>
 
-  <h2>10. Si algo se rompe — por dónde empezar</h2>
+  <h2 id="d-32">10. Si algo se rompe — por dónde empezar</h2>
   <ol>
     <li><b>¿Error de guardado?</b> Consola del navegador (F12 → Console) — el toast rojo y el
     error real quedan ahí.</li>
@@ -650,12 +695,21 @@ docs/                    — esta documentación</pre>
     celdas más comunes en agosto 2026).</li>
   </ol>
 
-  <h2>11. Continuidad — si quien mantiene esto no está disponible</h2>
+  <h2 id="d-33">11. Continuidad — si quien mantiene esto no está disponible</h2>
   <p>Este sistema hoy lo entiende y mantiene una sola persona, sesión a sesión. Para reducir ese
   riesgo: los tres accesos de la sección 1 deberían quedar guardados en un lugar que más de una
   persona alcance; el código y el schema están versionados — cualquier desarrollador con esos
   accesos puede clonar el repositorio y entender el sistema leyendo esta documentación y el
   propio código; y antes de cualquier cambio grande siempre queda un respaldo manual.</p>
+<!--doc-fin--></div></div><!--/doc-fin-->
+
+  <a class="back-top" href="#top">↑ Arriba</a>
 
   <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
 </div>
+<script>/*doc-js*/
+(function(){var L=[].slice.call(document.querySelectorAll('.doc-index a'));if(!L.length||!('IntersectionObserver' in window))return;
+var m={};L.forEach(function(a){m[a.getAttribute('href').slice(1)]=a;});
+var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){L.forEach(function(a){a.classList.remove('activa');});var a=m[e.target.id];if(a){a.classList.add('activa');if(a.scrollIntoView&&getComputedStyle(a.closest('.doc-index')).position==='sticky'){var c=a.closest('.doc-index');if(a.offsetTop<c.scrollTop||a.offsetTop>c.scrollTop+c.clientHeight-40)c.scrollTop=a.offsetTop-60;}}}});},{rootMargin:'0px 0px -75% 0px'});
+Object.keys(m).forEach(function(id){var h=document.getElementById(id);if(h)o.observe(h);});})();
+/*/doc-js*/</script>

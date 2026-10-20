@@ -39,22 +39,66 @@
   .callout b{color:var(--ink)}
   a{color:var(--amber)}
   footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+  /* doc-lectura */
+  html{scroll-behavior:smooth}
+  body{padding:32px 20px 80px}
+  .wrap{max-width:1120px}
+  .doc-layout{display:grid;grid-template-columns:260px minmax(0,780px);gap:36px;align-items:start;margin-top:8px}
+  .doc-main{min-width:0}
+  .doc-layout>nav{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;border-radius:8px}
+  .doc-index{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 10px;font-size:13px}
+  .doc-index summary{cursor:pointer;font-weight:700;color:var(--ink);padding:4px 6px;list-style:none}
+  .doc-index summary::after{content:" ▾";color:var(--amber)}
+  .doc-index a{display:block;color:var(--ink-dim);text-decoration:none;line-height:1.35;padding:5px 8px;border-radius:5px;overflow-wrap:anywhere}
+  .doc-index a.h3{padding-left:20px;font-size:12px}
+  .doc-index a:hover,.doc-index a:focus-visible{color:var(--amber);background:var(--panel2);outline:none}
+  .doc-index a.activa{color:var(--amber);background:var(--panel2);font-weight:600}
+  h2,h3{scroll-margin-top:20px;text-wrap:balance}
+  p,ul,ol{font-size:15.5px;line-height:1.75;max-width:72ch}
+  li{margin-bottom:5px}
+  li,p,td,th{overflow-wrap:break-word}
+  table{display:block;overflow-x:auto;max-width:100%}
+  td:first-child,th:first-child{min-width:96px}
+  pre{max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+  .back-top{position:fixed;right:16px;bottom:16px;background:var(--amber);color:var(--bg);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  @media(max-width:860px){
+    body{padding:20px 14px 72px}
+    .doc-layout{display:block}
+    .doc-layout>nav{position:static;max-height:60vh;margin:0 0 20px}
+    .doc-index:not([open]) a{display:none}
+    p,ul,ol{font-size:15px}
+  }
+  @media print{
+    html{scroll-behavior:auto}
+    :root{--bg:#fff;--panel:#fff;--panel2:#f4f4f4;--line:#bbb;--ink:#111;--ink-dim:#222;--amber:#7a4a00}
+    body{background:#fff;color:#111;padding:0}
+    .doc-index,.back-top{display:none}
+    .doc-layout{display:block}
+    .wrap{max-width:none}
+    p,ul,ol{max-width:none;font-size:11pt}
+    h2{break-after:avoid}h3{break-after:avoid}
+    .callout,table,tr{break-inside:avoid}
+    a{color:#111;text-decoration:none}
+  }
+/* /doc-lectura */
 </style>
 
-<div class="wrap">
+<div class="wrap" id="top">
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Arquitectura del Sistema</h1>
-  <p>Explicación textual de cómo está construido el sistema. Para la versión visual, ver el
+
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">Resumen en una frase</a><a class="h2" href="#d-2">Las piezas</a><a class="h3" href="#d-3">1. El frontend — index.html + modules/</a><a class="h3" href="#d-4">2. Dónde vive — Vercel</a><a class="h3" href="#d-5">3. El motor de sincronización — modules/store.js</a><a class="h3" href="#d-6">4. Detección de conflictos</a><a class="h3" href="#d-7">5. Autenticación y roles — Supabase Auth</a><a class="h3" href="#d-8">5b. Rol "lector" (solo lectura)</a><a class="h3" href="#d-9">6. Estructura de datos en Supabase</a><a class="h3" href="#d-10">7. Límites y respaldo</a><a class="h3" href="#d-11">8. Monitoreo de errores — Sentry</a><a class="h3" href="#d-12">9. Backup automático diario</a><a class="h3" href="#d-13">9b. ¿El backup diario es realmente restaurable? (investigación y fix, 2026-09-11)</a><a class="h3" href="#d-14">10. Papelera (soft-delete con recuperación)</a><a class="h3" href="#d-15">11. App instalable (PWA)</a><a class="h3" href="#d-16">12. Canal de reportes por WhatsApp/Correo (entrada)</a><a class="h3" href="#d-17">13. Seguridad de sesión — inactividad y registro de accesos bloqueados</a><a class="h3" href="#d-18">14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)</a><a class="h3" href="#d-19">15. Alertas de seguridad de cuenta (2026-09-01/02)</a><a class="h3" href="#d-20">16. Segunda pasada con IA en el parser de WhatsApp (2026-09-02)</a><a class="h3" href="#d-21">17. Sistema de íconos SVG (reemplazo de emoji, 2026-09-07)</a><a class="h3" href="#d-22">18. CAPTCHA del login — Cloudflare Turnstile (2026-09-04, activado 2026-09-08)</a><a class="h3" href="#d-23">19. Estadística — comparativas de flota y Pareto de fallas (2026-08-31, extendido 2026-09-11)</a><a class="h3" href="#d-24">20. Selector de fecha exacta en el Dashboard + aviso "En vivo" (2026-09-11)</a><a class="h3" href="#d-25">21. Reordenamiento del Dashboard en 3 secciones numeradas (2026-09-11)</a><a class="h3" href="#d-26">22. Drawer de Torre de Control: problema principal, recomendación y contexto (2026-09-11)</a><a class="h3" href="#d-27">23. Ajuste Weibull real por equipo — más allá de la fórmula de libro (2026-09-11)</a><a class="h3" href="#d-28">24. Weibull de población en Neumáticos — vida real por posición (2026-09-12)</a><a class="h3" href="#d-29">25. Weibull de población en Componentes Mayores (2026-09-12)</a><a class="h3" href="#d-30">26. Weibull de población en Correctivos por componente — a nivel flota (2026-09-12)</a><a class="h3" href="#d-31">27. Intervalo de confianza 90% (IC90) para β/η (2026-09-12)</a><a class="h3" href="#d-32">28. Detección de outliers en Análisis de Aceite (2026-09-12)</a><a class="h3" href="#d-33">29. Correlación Aceite ↔ Fallas reales (2026-09-12)</a><a class="h3" href="#d-34">30. Campo de costo en Registro PM — preparación para vida económica óptima (2026-09-12)</a><a class="h3" href="#d-35">31. Demanda de repuestos con distribución de Poisson (2026-09-13)</a><a class="h3" href="#d-36">32. MTTR con distribución log-normal (2026-09-13)</a><a class="h3" href="#d-37">33. Agrupación oportunista de OTs — sugerir sumar el PM cuando el equipo ya entra al taller (2026-09-13)</a><a class="h3" href="#d-38">34. Monte Carlo de disponibilidad de flota — proyección honesta a 30/60/90 días (2026-09-13)</a><a class="h3" href="#d-39">35. Detector de salud del sistema — Capa 1 y Capa 2 (2026-09-14)</a><a class="h3" href="#d-40">36. Matriz de Riesgo (Probabilidad × Impacto) en Predictivo (2026-09-14)</a><a class="h3" href="#d-41">37. Auditoría completa del sistema — 34 huecos reales, 7 corregidos (2026-09-14)</a><a class="h2" href="#d-42">Nudge de costo al cerrar una OT + Señal Unificada de Reemplazo (6 señales)</a><a class="h2" href="#d-43">Costo sugerido por cruce OT ↔ OC (síntoma/solución vs. detalle real de compra)</a><a class="h2" href="#d-44">Costo Relativo de Mantenimiento — primer indicador financiero con costo real</a><a class="h2" href="#d-45">Tasa de falla por ubicación (Cox simplificado) y Edad Virtual (Kijima simplificado)</a><a class="h2" href="#d-46">Disponibilidad Intrínseca (Ai) además de la Operacional (Ao)</a><a class="h2" href="#d-47">7 hallazgos del backlog, corregidos (2026-09-16)</a><a class="h2" href="#d-48">Re-auditoría y 16 hallazgos corregidos (2026-09-16, segunda pasada)</a><a class="h3" href="#d-49">38. Kaplan-Meier — curva de supervivencia no paramétrica, complemento a Weibull (2026-09-16)</a><a class="h3" href="#d-50">39. MCF (Mean Cumulative Function) — fallas acumuladas esperadas por componente (2026-09-16)</a><a class="h3" href="#d-51">40. Crow-AMSAA — tendencia de la tasa de fallas por componente en el tiempo (2026-09-16)</a><a class="h3" href="#d-52">41. Matriz de Criticidad Dinámica (2026-09-16)</a><a class="h3" href="#d-53">42. CUSUM — detección de aceleración de desgaste en Análisis de Aceite (2026-09-16)</a><a class="h3" href="#d-54">43. Vista "Carga de costos pendiente" en Correctivos (2026-09-16)</a><a class="h3" href="#d-55">44. RUL — Vida Útil Remanente híbrida (Weibull + tendencia real de aceite) (2026-09-16)</a><a class="h3" href="#d-56">45. Competing Risks — qué modo de falla mata primero al equipo (2026-09-16)</a><a class="h3" href="#d-57">46. Matriz de Criticidad de Repuestos avanzada (2026-09-16)</a><a class="h3" href="#d-58">47. Índice de Efectividad del Mantenimiento — antes/después de cada PM (2026-09-16)</a><a class="h3" href="#d-59">48. Detección de estacionalidad / patrones ocultos de falla (2026-09-16)</a><a class="h3" href="#d-60">49. Weibull con censura correcta — máxima verosimilitud (MLE) (2026-09-16)</a><a class="h3" href="#d-61">50. Kijima Tipo I/II — factor de restauración q por máxima verosimilitud (2026-09-17)</a><a class="h3" href="#d-62">51. Mantenimiento Oportunista Multi-Componente (2026-09-17)</a><a class="h3" href="#d-63">52. Simulador What-If de políticas de mantenimiento (2026-09-17)</a><a class="h3" href="#d-64">53. GRP — Proceso de Renovación General: simulación de trayectorias (2026-09-17)</a><a class="h3" href="#d-65">54. Corrección de dato real + aviso de concentración de gasto en Costo Relativo de Mantenimiento (2026-09-17)</a><a class="h3" href="#d-66">55. Tarjeta "Neumáticos Críticos" en el Dashboard (2026-09-17)</a><a class="h3" href="#d-67">56. Etiquetas de indicador de adelanto/retraso en el Dashboard (2026-09-19)</a><a class="h3" href="#d-68">57. Intervalo de confianza del MTBF — método chi-cuadrado exacto (2026-09-19)</a><a class="h3" href="#d-69">58. Error estándar / intervalo de confianza del MTTR (2026-09-19)</a><a class="h3" href="#d-70">59. Pulido visual del Dashboard — solo look, sin tocar cálculos (2026-09-20)</a><a class="h3" href="#d-71">60. R² (bondad de ajuste) en la proyección de desgaste de neumáticos (2026-09-20)</a><a class="h3" href="#d-72">61. ANOVA de un factor: MTTR por técnico (2026-09-20)</a><a class="h3" href="#d-73">62. Confiabilidad de sistema por equipo — RBD en serie (2026-09-20)</a><a class="h3" href="#d-74">63. Carta de Control I-MR (Individuos y Rango Móvil) — Costo Total Mensual (2026-09-20)</a><a class="h3" href="#d-75">64. Análisis ABC-XYZ de Repuestos (2026-09-20)</a><a class="h3" href="#d-76">65. Cadena de Markov de Estados de Salud (2026-09-20)</a><a class="h3" href="#d-77">66. Log-Rank Test — ¿dos curvas de supervivencia son realmente distintas? (2026-09-20)</a><a class="h3" href="#d-78">67. Mann-Whitney U — ¿el PM realmente alarga el intervalo, o es ruido? (2026-09-20)</a><a class="h3" href="#d-79">68. Regresión de Cox — Hazard Ratio entre dos grupos (2026-09-20)</a><a class="h3" href="#d-80">69. Modelo de Colas M/M/c (Erlang C) — Dotación de Taller (2026-09-20)</a><a class="h3" href="#d-81">70. Bayes Empírico (shrinkage Gamma-Poisson) — MTBF con poco historial (2026-09-20)</a><a class="h3" href="#d-82">71. Distancia de Mahalanobis — outliers multivariados de aceite (2026-09-20)</a><a class="h3" href="#d-83">72. Punto de Reorden con Stock de Seguridad — repuestos (2026-09-20)</a><a class="h3" href="#d-84">73. Test de independencia Chi-cuadrado — tabla de contingencia componente × ubicación (2026-09-20)</a><a class="h3" href="#d-85">74. Kruskal-Wallis H — chequeo no paramétrico del ANOVA de MTTR por técnico (2026-09-20)</a><a class="h3" href="#d-86">75. Carta de Control EWMA — Costo Total Mensual, deriva sostenida (2026-09-20)</a><a class="h3" href="#d-87">76. Intervalo de Confianza de Wilson para proporciones (2026-09-21)</a><a class="h3" href="#d-88">77. Test de Levene (Brown-Forsythe) — variabilidad del MTTR entre técnicos (2026-09-21)</a><a class="h3" href="#d-89">78. Mann-Kendall + pendiente de Sen — tendencia de Disponibilidad (2026-09-21)</a><a class="h3" href="#d-90">79. Proyección de Consumo de Elementos de Desgaste — por pieza específica (2026-09-23, corregida 2026-09-24)</a><a class="h3" href="#d-91">80. Causas Latentes Repetidas — Análisis Causa Raíz estructurado (2026-09-24)</a><a class="h3" href="#d-92">81. Producción Perdida por Detención — rendimiento teórico por modelo (2026-09-25)</a><a class="h3" href="#d-93">82. MTTR por Categoría — factores reales de Mantenibilidad, Predyc (2026-09-27)</a><a class="h3" href="#d-94">83. CAPEX vs OPEX y Trazabilidad Aviso → Orden (2026-09-30)</a><a class="h3" href="#d-95">84. Compras — Tiempo de Respuesta por Proveedor y Pedidos Trabados (2026-09-30)</a><a class="h3" href="#d-96">85. Migración incremental de ocHist a compras_detalle — pasos 1-3 (2026-09-30)</a><a class="h3" href="#d-97">86. Intervalo de Inspección — P-F Real (2026-09-30)</a><a class="h3" href="#d-98">87. Fix real: RUL híbrido no cruzaba nunca con el aceite (2026-09-30)</a><a class="h3" href="#d-99">88. Ingesta de Reportes de Turno (Producción) por OCR — v1: Rendimiento real CAEX (2026-09-30)</a><a class="h3" href="#d-100">89. Perfiles de acceso por pestaña — Horómetro / Comprador / Planificador (2026-10-01)</a><a class="h3" href="#d-101">90. % Correctivo Reactivo por horas (2026-10-02)</a><a class="h3" href="#d-102">91. Matriz Jack-Knife — MTBF vs MTTR por equipo (2026-10-02)</a><a class="h3" href="#d-103">92. Costo de Downtime real (2026-10-02)</a><a class="h3" href="#d-104">93. Rotación y % Obsolescencia de Stock (2026-10-02)</a><a class="h3" href="#d-105">94. FMEA real con NPR — Severidad × Ocurrencia × Detección (2026-10-02)</a><a class="h3" href="#d-106">95. Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05)</a><a class="h3" href="#d-107">96. Coeficiente de Variación del tiempo de ciclo (2026-10-05)</a><a class="h3" href="#d-108">97. Guía de Capacitación por Rol — dentro de Ayuda, descargable (2026-10-05)</a><a class="h3" href="#d-109">98. Weibull: qué hacer según β y ¿los puntos siguen la recta? (2026-10-06)</a><a class="h3" href="#d-110">99. Glosario: mediana vs. promedio, Pareto 80/20, chi-cuadrado y p-valor (2026-10-06)</a><a class="h3" href="#d-111">100. Glosario: Basado en condición vs. Predictivo (2026-10-07)</a><a class="h3" href="#d-112">101. Guía de Capacitación: línea de horizonte por rol (2026-10-07)</a><a class="h3" href="#d-113">102. Cabecera compacta en celular (2026-10-08)</a><a class="h3" href="#d-114">103. Iconos de línea en vez de emoji decorativos (2026-10-08)</a><a class="h3" href="#d-115">104. Guía de Capacitación con acceso destacado en Ayuda (2026-10-08)</a><a class="h3" href="#d-116">105. Cambio de contraseña que no se guardaba y volvía a pedirse (2026-10-08)</a><a class="h3" href="#d-117">106. Reglas del dominio que NO hay que volver a deducir: tipo de PM y pautas acumulativas (2026-10-09)</a><a class="h3" href="#d-118">107. ¿PM completo según pauta? — primer paso de Calidad de Ejecución (2026-10-09)</a><a class="h3" href="#d-119">108. Calidad de Ejecución: re-trabajo del mismo sistema tras un PM — paso 2 (2026-10-09)</a><a class="h3" href="#d-120">109. Calidad de datos de Correctivos: texto mal codificado, Sistema y Tipo de Causa visibles — paso 3 (2026-10-09)</a><a class="h3" href="#d-121">110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)</a><a class="h3" href="#d-122">111. Guardados automáticos con la sesión vencida (2026-10-10)</a><a class="h3" href="#d-123">112. Ficha de componente en el Buscador Maestro (2026-10-11)</a><a class="h3" href="#d-124">113. Score de Salud del equipo con el riesgo de componentes (2026-10-11)</a><a class="h3" href="#d-125">114. Calibración del modelo de riesgo del fabricante contra la flota (2026-10-11)</a><a class="h3" href="#d-126">115. Reposición alimentada por el programa de PM (2026-10-11)</a><a class="h3" href="#d-127">116. Costo de hora detenida editable y plan de PM en ABC-XYZ (2026-10-11)</a><a class="h3" href="#d-128">117. Costo total de propiedad (TCO) por equipo (2026-10-11)</a><a class="h3" href="#d-129">118. Costo de hora detenida por modelo y tasa USD compartida (2026-10-11)</a><a class="h3" href="#d-130">119. Calibración con el historial real de Turbos (2026-10-11)</a><a class="h3" href="#d-131">120. Pronóstico de disponibilidad por equipo (2026-10-11)</a><a class="h3" href="#d-132">121. Curva S de PM y cumplimiento del programa (2026-10-11)</a><a class="h3" href="#d-133">122. Reportabilidad diaria del cliente (2026-10-11)</a><a class="h3" href="#d-134">123. Mapa de equipos (PCA) en Estadística (2026-10-11)</a><a class="h3" href="#d-135">124. Programa de cambio de neumáticos proyectado, con curva S (2026-10-12)</a><a class="h3" href="#d-136">125. La curva S de PM se mueve al Planificador (2026-10-12)</a><a class="h3" href="#d-137">126. Cómo se mantienen los documentos al día (2026-10-12)</a><a class="h3" href="#d-138">127. Aviso de muestra chica en las pruebas estadísticas (2026-10-13)</a><a class="h3" href="#d-139">128. Gráfico de la Matriz Jack-Knife con horas perdidas por año (2026-10-13)</a><a class="h3" href="#d-140">129. Criticidad de equipos multicriterio — matriz M2 (2026-10-13)</a><a class="h3" href="#d-141">130. M4 (ABC × VED) y M6 (prioridad de OT) usan la criticidad de equipos (2026-10-13)</a><a class="h3" href="#d-142">131. Diagramas Sankey de costo y de horas de reparación (2026-10-13)</a><a class="h3" href="#d-143">132. Inventario de algoritmos, fórmulas, matrices y diagramas (2026-10-13)</a><a class="h3" href="#d-144">133. Arriendo vs compra: seco, húmedo y compra por modelo (2026-10-13)</a><a class="h3" href="#d-145">134. Revisión cruzada de coherencia entre pestañas (2026-10-14)</a><a class="h3" href="#d-146">135. Informe de gestión de mantenimiento: programa, desviaciones, equipos fuera de servicio y backlog (2026-10-14)</a><a class="h3" href="#d-147">136. Guía de preguntas de confiabilidad en la Ayuda (2026-10-16)</a><a class="h3" href="#d-148">Menú agrupado y Costos como pestaña propia (2026-10-16)</a><a class="h3" href="#d-149">137. Menú agrupado y Costos como pestaña propia (2026-10-16)</a><a class="h3" href="#d-150">138. Equipos Urgentes del Dashboard: orden por prioridad, con Criticidad y Salud (2026-10-16)</a><a class="h3" href="#d-151">139. Los números del tablero abren la lista de equipos (2026-10-16)</a><a class="h3" href="#d-152">140. Menú en barra lateral (2026-10-16)</a><a class="h3" href="#d-153">141. Base visual y Dashboard con los 4 números principales arriba (2026-10-16)</a><a class="h3" href="#d-154">142. Cabecera más limpia y tablas con dos densidades (2026-10-16)</a><a class="h3" href="#d-155">143. Acciones agrupadas en "Más acciones ▾" (2026-10-16)</a><a class="h3" href="#d-156">144. Menú del celular: barra inferior y "Más" (2026-10-16)</a><a class="h3" href="#d-157">145. Filtros uniformes y Dashboard más corto en celular (2026-10-16)</a><a class="h3" href="#d-158">146. Solapas, Predictivo agrupado y Estadística plegable (2026-10-16)</a><a class="h3" href="#d-159">147. Barra lateral contraída por defecto en pantallas medianas y botones chicos sobrios (2026-10-16)</a><a class="h3" href="#d-160">148. Auditoría de cambios campo por campo (2026-10-17)</a><a class="h3" href="#d-161">149. Costo real por hora: el capital se calcula por valor de compra o por amortización contable, a elección (2026-10-17)</a><a class="h3" href="#d-162">150. Retoques finales del rediseño: acciones anidadas, tablas vacías, tarjetas en celular (2026-10-17)</a><a class="h3" href="#d-163">151. Análisis de Aceite sin datos y Carta Gantt alineada con el Programa Anual (2026-10-17)</a><a class="h3" href="#d-164">152. Correlaciones: qué indicadores, metales de aceite y señales se mueven juntos (2026-10-18)</a><a class="h3" href="#d-165">153. Salud del programa: aceite, cierre con datos, backtest y modo laboratorio (2026-10-18)</a><a class="h3" href="#d-166">154. Validación fuera de muestra: Weibull, Kijima y diccionario de componentes (2026-10-18)</a><a class="h3" href="#d-167">155. Curva P-F completa: lado izquierdo y grupo de comparación (2026-10-18)</a><a class="h3" href="#d-168">156. Simulación de la carga del taller, validada con meses pasados (2026-10-19)</a><a class="h3" href="#d-169">157. Dashboard sin números repetidos y sin «100 % sin falla» falso (2026-10-19)</a><a class="h3" href="#d-170">158. Backtest: ¿las probabilidades son creíbles? Brier y log loss (2026-10-19)</a><a class="h3" href="#d-171">159. Retoque de diseño del Dashboard y la Auditoría, con v0 y correcciones (2026-10-19)</a><a class="h3" href="#d-172">160. Segunda ronda de diseño con v0: modal de cierre, navegación y Predictivo (2026-10-19)</a><a class="h3" href="#d-173">161. Tercera ronda de diseño con v0: marco de escritorio (2026-10-19)</a><a class="h3" href="#d-174">162. Cuarta ronda de diseño con v0 (imagen y orden de cada pestaña, y manuales): qué se aplicó y qué no (2026-10-20)</a><a class="h2" href="#d-175">Lo que decidimos NO hacer (y por qué)</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<p>Explicación textual de cómo está construido el sistema. Para la versión visual, ver el
   <a href="plano-sistema.html">plano interactivo</a>.</p>
 
-  <h2>Resumen en una frase</h2>
+  <h2 id="d-1">Resumen en una frase</h2>
   <p>Una página web (sin backend propio) que guarda cada cambio en tres lugares al mismo tiempo
   — este computador, Supabase en la nube, y opcionalmente una carpeta de respaldo — para que
   nunca dependa de un solo lugar ni de que haya internet.</p>
 
-  <h2>Las piezas</h2>
+  <h2 id="d-2">Las piezas</h2>
 
-  <h3>1. El frontend — index.html + modules/</h3>
+  <h3 id="d-3">1. El frontend — index.html + modules/</h3>
   <p>Todo el sistema es HTML/CSS/JavaScript plano, sin framework (nada de React, Vue, etc.) y sin
   proceso de compilación de lógica (Vite solo empaqueta y copia archivos, no transforma el código
   JS). Se decidió así a propósito: es más fácil de mantener por una sola persona sesión a sesión
@@ -106,7 +150,7 @@
     reintentos automáticos ante un fallo puntual de timing (<code>retries: 2</code> en CI).</li>
   </ul>
 
-  <h3>2. Dónde vive — Vercel</h3>
+  <h3 id="d-4">2. Dónde vive — Vercel</h3>
   <p>Vercel sirve los archivos estáticos (no hay servidor propio corriendo en ningún lado). Cada
   push a la rama <code>main</code> dispara un build (<code>vite build</code>) y un despliegue
   nuevo automático. Vite bundlea y minifica de verdad solo el puñado de módulos ES que
@@ -122,7 +166,7 @@
   propósito, así que Vite tampoco los toca — <code>vite.config.js</code> tiene un plugin chico que
   los copia igual (junto con <code>vendor/*.js</code> y <code>docs/</code>).</p>
 
-  <h3>3. El motor de sincronización — modules/store.js</h3>
+  <h3 id="d-5">3. El motor de sincronización — modules/store.js</h3>
   <p>Todo el sistema lee y escribe datos a través de dos únicas funciones:
   <code>S.g(categoria)</code> (leer) y <code>S.s(categoria, valor)</code> (guardar). Ninguna
   pantalla llama directo a Supabase — todas pasan por acá, lo que permite que el resto del
@@ -139,13 +183,13 @@
     "por computador": cada equipo que quiera este respaldo tiene que conectar su propia carpeta.</li>
   </ol>
 
-  <h3>4. Detección de conflictos</h3>
+  <h3 id="d-6">4. Detección de conflictos</h3>
   <p>Antes de escribir en una tabla real, el sistema compara "lo que esta pestaña creía que había
   antes" contra "lo que hay AHORA mismo en el servidor". Si son iguales, guarda normal. Si son
   distintos, el guardado se cancela, la pantalla se refresca con lo más reciente, y aparece un
   aviso. Nunca se sobrescribe en silencio el trabajo de otra persona.</p>
 
-  <h3>5. Autenticación y roles — Supabase Auth</h3>
+  <h3 id="d-7">5. Autenticación y roles — Supabase Auth</h3>
   <ul>
     <li><b>Login</b>: correo + contraseña. Si la cuenta tiene MFA activado, pide el código de 6
     dígitos DESPUÉS de validar la contraseña, nunca antes.</li>
@@ -171,7 +215,7 @@
     sub-privilegiar a un admin real.
   </div>
 
-  <h3>5b. Rol "lector" (solo lectura)</h3>
+  <h3 id="d-8">5b. Rol "lector" (solo lectura)</h3>
   <p>Pensado para alguien que necesita VER el sistema sin poder editarlo. Dos capas
   independientes: <b>candado real (backend)</b> — <code>privado.es_editor_activo()</code>
   (activo Y rol admin/operador) reemplazó a <code>privado.es_usuario_activo()</code> en el
@@ -183,7 +227,7 @@
   el rol es <code>lector</code>, reaplicado en cada cambio de pestaña y cada apertura de modal.
   Verificado con 2 tests E2E (<code>rol-lector-ui.spec.js</code>).</p>
 
-  <h3>6. Estructura de datos en Supabase</h3>
+  <h3 id="d-9">6. Estructura de datos en Supabase</h3>
   <p>49 tablas en total (42 "reales" + 7 "singleton" de configuración), una por categoría (incluye
   historial_componentes e historial_neumaticos, agregadas en agosto 2026 para no perder "cuánto
   duró cada instalación real", correctivos_historico,
@@ -200,7 +244,7 @@
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.
   El schema está versionado como código en <code>supabase/migrations/*.sql</code>.</p>
 
-  <h3>7. Límites y respaldo</h3>
+  <h3 id="d-10">7. Límites y respaldo</h3>
   <div class="callout">
     <b>Plan gratis de Supabase</b>: 500 MB de base de datos (hoy ~22 MB, 4.4% usado), 5 GB de
     ancho de banda al mes, se pausa solo tras 7 días sin uso (se reactiva con un clic, sin
@@ -212,7 +256,7 @@
   <p><b>Si Supabase dejara de existir</b> (escenario extremo): cada navegador tiene una copia
   completa en localStorage, y el JSON de backup permitiría reconstruir los datos en otro backend.</p>
 
-  <h3>8. Monitoreo de errores — Sentry</h3>
+  <h3 id="d-11">8. Monitoreo de errores — Sentry</h3>
   <p>Cada error real de JavaScript en producción queda registrado en Sentry con el usuario y la
   acción que lo disparó. El SDK está vendorizado en <code>vendor/sentry.min.js</code> (mismo
   criterio que jspdf/qrcode/xlsx: nada por CDN en tiempo de ejecución) y se inicializa lo más
@@ -220,7 +264,7 @@
   de performance ni session replay. Configuración → "🐞 Monitoreo de errores" (solo admin) tiene
   un botón para mandar un error de prueba.</p>
 
-  <h3>9. Backup automático diario</h3>
+  <h3 id="d-12">9. Backup automático diario</h3>
   <p>Todos los días a las 12:00 UTC (~8:00 hora de Chile), un cron job de Postgres
   (<code>pg_cron</code>) llama a la Edge Function <code>backup-diario</code>, que junta TODAS las
   tablas reales (50, incluye <code>kv</code>/<code>user_roles</code> para poder reconstruir
@@ -257,7 +301,7 @@
     cuidado de sumarse acá también.
   </div>
 
-  <h3>9b. ¿El backup diario es realmente restaurable? (investigación y fix, 2026-09-11)</h3>
+  <h3 id="d-13">9b. ¿El backup diario es realmente restaurable? (investigación y fix, 2026-09-11)</h3>
   <p>Pregunta real que nunca se había puesto a prueba: si el proyecto Supabase se pierde por
   completo (no una corrupción de datos, sino el proyecto entero: borrado, cuenta suspendida, etc.),
   ¿el respaldo diario de la sección anterior alcanza para levantar el sistema de nuevo? La
@@ -360,7 +404,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>20260914060000_formaliza_columnas_creadas_a_mano.sql</code> (no-op comprobado en ambos
   proyectos reales).</p>
 
-  <h3>10. Papelera (soft-delete con recuperación)</h3>
+  <h3 id="d-14">10. Papelera (soft-delete con recuperación)</h3>
   <p>Nada se borra de golpe. Al eliminar cualquier fila (equipo, registro de PM, stock, orden de
   trabajo, etc.), el sistema primero la mueve a una tabla <code>papelera</code> — con qué
   categoría era, quién la eliminó y cuándo — y recién ahí la saca de la tabla original. Queda
@@ -372,7 +416,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   mecanismo que <code>purgar-uso-pestanas</code>): un <code>DELETE</code> diario contra filas con
   más de 30 días, corriendo dentro de Postgres, sin depender de que alguien abra la app.</p>
 
-  <h3>11. App instalable (PWA)</h3>
+  <h3 id="d-15">11. App instalable (PWA)</h3>
   <p>El sistema se puede agregar a la pantalla de inicio del celular como una app normal, con
   ícono propio. <code>manifest.json</code>, <code>sw.js</code> y los íconos viven en
   <code>public/</code> a propósito: Vite renombra con un hash los archivos referenciados desde
@@ -381,7 +425,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   respaldo-en-caché, para no pisar el caché-busting por <code>?v=</code> que ya usan los
   <code>&lt;script&gt;</code> del sistema.</p>
 
-  <h3>12. Canal de reportes por WhatsApp/Correo (entrada)</h3>
+  <h3 id="d-16">12. Canal de reportes por WhatsApp/Correo (entrada)</h3>
   <p>A diferencia de Sentry o <code>backup-diario</code> (que son de <i>salida</i>, el sistema
   avisando algo), <code>whatsapp-webhook</code> y <code>email-webhook</code> son de <i>entrada</i>:
   un técnico le escribe al número de WhatsApp Business de Twilio o al correo de recepción de
@@ -418,7 +462,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><code>whatsapp-webhook</code> además tiene una segunda pasada con IA (Claude) para los
   mensajes que el parser por reglas no logra resolver solo — ver sección 16.</p>
 
-  <h3>13. Seguridad de sesión — inactividad y registro de accesos bloqueados</h3>
+  <h3 id="d-17">13. Seguridad de sesión — inactividad y registro de accesos bloqueados</h3>
   <p>Caso real (auditoría 2026-08-22): un usuario desactivado seguía con la pestaña abierta en
   otro computador, y no había forma de confirmar desde el sistema si su sesión realmente había
   quedado sin efecto ni si había intentado volver a entrar.</p>
@@ -534,7 +578,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   localmente. <code>deno.lock</code> va commiteado para que la resolución de
   <code>npm:</code>/<code>jsr:</code> sea determinística.</p>
 
-  <h3>14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)</h3>
+  <h3 id="d-18">14. Lectura de papeles por foto — OCR con Gemini (2026-08-25)</h3>
   <p>3 Edge Functions (<code>leer-pauta-pm</code>, <code>leer-informe-correctivo</code>,
   <code>leer-chequeo-neumaticos</code>) le sacan una foto a un papel firmado en terreno (pauta de
   PM, informe de correctivo, o chequeo diario de neumáticos) y devuelven los campos como JSON
@@ -555,7 +599,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     además necesita confirmar rol admin).
   </div>
 
-  <h3>15. Alertas de seguridad de cuenta (2026-09-01/02)</h3>
+  <h3 id="d-19">15. Alertas de seguridad de cuenta (2026-09-01/02)</h3>
   <p>Tres capacidades nuevas, todas leyendo el mismo historial que ya existía en
   <code>changelog</code> (<code>accion='Login'</code>/<code>'Login bloqueado'</code>) — ninguna
   crea infraestructura de rastreo nueva.</p>
@@ -602,7 +646,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   iniciar sesión (mismo mecanismo que "primer ingreso"). Un cambio voluntario (Configuración →
   Mi contraseña) es la única variante de la pantalla de cambio con botón "Cancelar".</p>
 
-  <h3>16. Segunda pasada con IA en el parser de WhatsApp (2026-09-02)</h3>
+  <h3 id="d-20">16. Segunda pasada con IA en el parser de WhatsApp (2026-09-02)</h3>
   <p><code>whatsapp-webhook</code> (sección 12) llama a Claude (<code>claude-haiku-4-5-20251001</code>)
   como respaldo del parser por reglas, solo cuando éste no resuelve el mensaje con confianza —
   nunca como primera opción, para no pagar el costo de una llamada a la API en cada mensaje
@@ -623,7 +667,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     nota en <a href="manual-admin.html">Manual de Administrador</a>, sección 6.
   </div>
 
-  <h3>17. Sistema de íconos SVG (reemplazo de emoji, 2026-09-07)</h3>
+  <h3 id="d-21">17. Sistema de íconos SVG (reemplazo de emoji, 2026-09-07)</h3>
   <p><code>index.html</code> define un registro <code>const ICONS={...}</code> (~50 entradas) de
   SVG en línea con trazo consistente (<code>viewBox="0 0 20 20"</code>,
   <code>stroke="currentColor"</code>), usado como <code>ICONS.nombre</code> desde cualquier módulo
@@ -660,7 +704,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (sin motor HTML/CSS confiable del lado del cliente de correo/WhatsApp) — ahí el emoji sigue
   siendo la elección técnicamente correcta, no un descuido.</p>
 
-  <h3>18. CAPTCHA del login — Cloudflare Turnstile (2026-09-04, activado 2026-09-08)</h3>
+  <h3 id="d-22">18. CAPTCHA del login — Cloudflare Turnstile (2026-09-04, activado 2026-09-08)</h3>
   <p>Widget de Cloudflare Turnstile en login y recuperación de contraseña, validado server-side
   por Supabase Auth (GoTrue) vía <code>gotrue_meta_security.captcha_token</code> — no se construyó
   verificación propia, se usa el soporte nativo de Supabase para CAPTCHA.</p>
@@ -683,7 +727,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     configuración en el dashboard de Supabase (Attack Protection).
   </div>
 
-  <h3>19. Estadística — comparativas de flota y Pareto de fallas (2026-08-31, extendido 2026-09-11)</h3>
+  <h3 id="d-23">19. Estadística — comparativas de flota y Pareto de fallas (2026-08-31, extendido 2026-09-11)</h3>
   <p>Sub-pestaña de Componentes (<code>modules/renders/estadistica.js</code>) con 5 vistas sobre el
   mismo conjunto de fallas combinadas (correctivos actuales + <code>otHist</code>, historial
   2022-2025 cargado desde Excel): Por Equipo, Por Componente, Por Modo de Falla, Por Modelo, Por
@@ -740,7 +784,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (exige rol admin autenticado vía <code>auth.uid()</code>, inexistente en una sesión SQL directa)
   y reactivándolo de inmediato después. Verificado: 0 equipos sin clasificar.</p>
 
-  <h3>20. Selector de fecha exacta en el Dashboard + aviso "En vivo" (2026-09-11)</h3>
+  <h3 id="d-24">20. Selector de fecha exacta en el Dashboard + aviso "En vivo" (2026-09-11)</h3>
   <p>Origen real (conversación con el usuario, mirando el popup de Torre de Control): "no me dice de
   qué fecha es el Score de Salud" — al investigar, el Dashboard sí tenía un selector de Mes/Año que
   reconstruye varias secciones (Disponibilidad, Urgentes/Próximas, Confiabilidad, Costos) desde el
@@ -794,7 +838,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   texto tipo "Sin dato aún · falta cargar el valor de compra") solo en el estado vacío — el estado
   con dato real no cambió.</p>
 
-  <h3>21. Reordenamiento del Dashboard en 3 secciones numeradas (2026-09-11)</h3>
+  <h3 id="d-25">21. Reordenamiento del Dashboard en 3 secciones numeradas (2026-09-11)</h3>
   <p>Origen real: después de las 3 pasadas de "aviso En vivo"/textos claros de arriba, el usuario
   insistió en que el problema no era falta de claridad puntual sino desorden general — "es difícil de
   entender y está desordenado" — y mandó dos referencias visuales mostrando secciones numeradas con
@@ -834,7 +878,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   variados): las 3 secciones se ven con su número, título y línea divisoria; el mapa de calor pinta
   un cuadrado por equipo; los nombres ya no chocan entre sí.</p>
 
-  <h3>22. Drawer de Torre de Control: problema principal, recomendación y contexto (2026-09-11)</h3>
+  <h3 id="d-26">22. Drawer de Torre de Control: problema principal, recomendación y contexto (2026-09-11)</h3>
   <p>Origen real: el usuario mostró el drawer de detalle de un equipo (CN-9507, 49.2%, Aceite
   16.7%/Confiabilidad 0.2%) y pidió, con una maqueta de texto detallada, que el drawer diga "por qué"
   está mal, "qué hacer", y agregue más contexto y botones de acción — no solo el número y el desglose
@@ -866,7 +910,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   calculados, el horómetro se muestra, y el botón de Crear OT abre el formulario real con el equipo
   prellenado.</p>
 
-  <h3>23. Ajuste Weibull real por equipo — más allá de la fórmula de libro (2026-09-11)</h3>
+  <h3 id="d-27">23. Ajuste Weibull real por equipo — más allá de la fórmula de libro (2026-09-11)</h3>
   <p>Origen real: el usuario compartió una infografía sobre los 4 roles típicos en un equipo de datos
   (Ingeniero, Analista, Científico de Datos, BI) y preguntó cómo vería cada uno a SistemaMP
   Centinela. La respuesta honesta para "Científico de Datos" fue que <code>confiabilidadReal</code>
@@ -899,7 +943,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   se agregó ninguna librería de estadística: el método de regresión de rango mediano alcanza para el
   volumen de datos real de la flota, sin sumar una dependencia externa nueva.</p>
 
-  <h3>24. Weibull de población en Neumáticos — vida real por posición (2026-09-12)</h3>
+  <h3 id="d-28">24. Weibull de población en Neumáticos — vida real por posición (2026-09-12)</h3>
   <p>Origen real: el usuario preguntó si el ajuste Weibull recién construido para equipos "puede
   servir en los neumáticos". La respuesta honesta: sí, pero es un uso DISTINTO del método — no
   intervalos entre fallas repetidas de un mismo equipo, sino la vida completa de <b>unidades
@@ -928,7 +972,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   un problema real de layout en la primera pasada (la columna η quedaba fuera de la vista por el
   texto largo de interpretación empujándola) con columnas de ancho fijo y el texto largo al final.</p>
 
-  <h3>25. Weibull de población en Componentes Mayores (2026-09-12)</h3>
+  <h3 id="d-29">25. Weibull de población en Componentes Mayores (2026-09-12)</h3>
   <p>Origen real: siguiendo la misma lógica de "¿y esto también sirve en [otra parte del
   sistema]?" que llevó al Weibull de neumáticos, el usuario preguntó por Componentes o Correctivos.
   Antes de elegir, se investigó cuál tenía datos reales ya disponibles — a diferencia de neumáticos,
@@ -947,7 +991,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   visualmente en navegador (Playwright ad-hoc, 7 reemplazos sintéticos de "Motor"): la tabla
   renderiza β=10.34 (desgaste marcado), η≈3.867h.</p>
 
-  <h3>26. Weibull de población en Correctivos por componente — a nivel flota (2026-09-12)</h3>
+  <h3 id="d-30">26. Weibull de población en Correctivos por componente — a nivel flota (2026-09-12)</h3>
   <p>Origen real: al elegir entre Componentes o Correctivos (sección 25), el usuario luego pidió
   seguir también con Correctivos. A diferencia de Componentes Mayores y Neumáticos, acá no hay
   "vidas completas" de una unidad reemplazable — un correctivo es una falla puntual, no el fin de
@@ -972,7 +1016,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   sistema-mp2 (mismo <code>logic.js</code>/tests, <code>estadistica.js</code> sustituyendo el
   emoji por <code>ICONS.ruler</code>) y verificado ahí igual antes de subir.</p>
 
-  <h3>27. Intervalo de confianza 90% (IC90) para β/η (2026-09-12)</h3>
+  <h3 id="d-31">27. Intervalo de confianza 90% (IC90) para β/η (2026-09-12)</h3>
   <p>Origen real: viendo el sistema desde los cuatro roles de datos (Ingeniero, Analista,
   Científico, BI), el usuario preguntó qué fórmula o dato todavía faltaba. Un hueco real: β/η se
   mostraban como ciertos, sin margen de error — con el mínimo de 5-6 datos exigido, la recta
@@ -996,7 +1040,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   "IC90 0.39–1.87" junto con la advertencia de rango amplio. Portado a sistema-mp2 y verificado ahí
   antes de subir.</p>
 
-  <h3>28. Detección de outliers en Análisis de Aceite (2026-09-12)</h3>
+  <h3 id="d-32">28. Detección de outliers en Análisis de Aceite (2026-09-12)</h3>
   <p>Origen real: <code>ordenesSinOutliers</code> (2026-08) es la única detección de errores de
   digitación de todo el sistema, y solo cubre costos. Un análisis de aceite con un cero de más en
   el hierro (500 en vez de 50 ppm) hoy se clasifica igual que un desgaste real. <b>Cambios:</b>
@@ -1013,7 +1057,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   sintéticas de "MOTOR", una con hierro=500): el panel muestra "1 posible error de digitación" con
   el detalle completo, sin alterar el estado ALERTA ya cargado en esa fila.</p>
 
-  <h3>29. Correlación Aceite ↔ Fallas reales (2026-09-12)</h3>
+  <h3 id="d-33">29. Correlación Aceite ↔ Fallas reales (2026-09-12)</h3>
   <p>Origen real: se investigó primero "vida económica óptima" (costo preventivo vs. correctivo
   para decidir cuándo conviene reemplazar un componente antes de que falle) y se encontró que NO
   hay datos reales suficientes — el costo de correctivos es opcional y excluido de la pestaña
@@ -1035,7 +1079,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   tabla renderiza "80% (n=5)" vs "20% (n=5)", lift "4x" en verde, con la lectura "El aceite SÍ
   anticipa fallas reales de este componente".</p>
 
-  <h3>30. Campo de costo en Registro PM — preparación para vida económica óptima (2026-09-12)</h3>
+  <h3 id="d-34">30. Campo de costo en Registro PM — preparación para vida económica óptima (2026-09-12)</h3>
   <p>Origen real: al descartar "vida económica óptima" por falta de datos, se ofreció preparar el
   terreno para construirla a futuro sin inventar nada, y se eligió como siguiente paso. Este cambio
   es deliberadamente solo de captura de datos, no de análisis: <code>correctivos.costo</code> ya
@@ -1051,7 +1095,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   pasa de "no se puede construir sin inventar datos" a "se puede construir cuando haya suficiente
   historial real acumulado".</p>
 
-  <h3>31. Demanda de repuestos con distribución de Poisson (2026-09-13)</h3>
+  <h3 id="d-35">31. Demanda de repuestos con distribución de Poisson (2026-09-13)</h3>
   <p>Origen real: el usuario compartió contenido sobre modelos estadísticos de confiabilidad minera
   y preguntó cuáles aplicaban acá. Se descartaron LSTM/Digital Twins/PINNs (exigen telemetría
   continua que este sistema no tiene) y se identificaron dos ideas reales: Poisson para demanda de
@@ -1073,7 +1117,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>8 tests nuevos en <code>analisisDemandaRepuestos.test.js</code>. Verificado visualmente
   (F-100, λ=1): "6 meses · λ=1 · P(sin consumo)=37% · Stock 95%=3 · Stock actual=2 ⚠️".</p>
 
-  <h3>32. MTTR con distribución log-normal (2026-09-13)</h3>
+  <h3 id="d-36">32. MTTR con distribución log-normal (2026-09-13)</h3>
   <p>Origen real: segunda idea del repaso de distribuciones estadísticas (sección 31). El "MTTR
   Promedio" ya existente es un promedio simple, pero los tiempos de reparación reales casi nunca son
   simétricos: la mayoría rápidas, unas pocas muy largas (repuesto sin stock, diagnóstico difícil),
@@ -1090,7 +1134,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   "P90 20.4h" — el promedio simple sobreestima el tiempo típico casi 2.5x respecto a la mediana
   real.</p>
 
-  <h3>33. Agrupación oportunista de OTs — sugerir sumar el PM cuando el equipo ya entra al taller (2026-09-13)</h3>
+  <h3 id="d-37">33. Agrupación oportunista de OTs — sugerir sumar el PM cuando el equipo ya entra al taller (2026-09-13)</h3>
   <p>Origen real: de las ideas de mantenimiento minero más avanzadas discutidas, la única aplicable
   sin inventar datos: cuando un equipo entra al taller por una falla correctiva imprevista y además
   le queda poco para su próximo PM programado, conviene aprovechar la detención y hacer el PM en la
@@ -1109,7 +1153,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   próximo / Faltan 0 día(s) · 0h restantes — ya que está en el taller por esto, considera hacer el
   PM3 ahora y evitar una segunda detención".</p>
 
-  <h3>34. Monte Carlo de disponibilidad de flota — proyección honesta a 30/60/90 días (2026-09-13)</h3>
+  <h3 id="d-38">34. Monte Carlo de disponibilidad de flota — proyección honesta a 30/60/90 días (2026-09-13)</h3>
   <p>Origen real: la segunda idea aplicable del mismo repaso de mantenimiento avanzado (junto con la
   sección 33) — el resto se descartó por requerir datos que este sistema no tiene. En vez de un solo
   número "promedio" de MTBF/MTTR, se remuestrea (bootstrap) miles de veces el historial REAL de
@@ -1141,7 +1185,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   aclaraba. Se agregó una línea en negrita en <code>disp.js</code> remitiendo a Componentes/Weibull
   para el riesgo de un equipo puntual — cambio de texto únicamente, el algoritmo no se tocó.</p>
 
-  <h3>35. Detector de salud del sistema — Capa 1 y Capa 2 (2026-09-14)</h3>
+  <h3 id="d-39">35. Detector de salud del sistema — Capa 1 y Capa 2 (2026-09-14)</h3>
   <p>Origen real: el usuario preguntó por qué el sistema no tiene "un detector de situaciones" que
   avise cuando algo deja de funcionar (ej. un cron que falla en silencio, o un canal de reportes
   caído) sin que alguien tenga que mirar los logs de Supabase a mano. Respuesta en dos capas:
@@ -1191,7 +1235,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   sesión recibió el aviso, corrió la consulta real contra <code>salud_crons</code>, y como no había
   ningún problema, terminó sin mandar nada — comportamiento correcto confirmado, no asumido.</p>
 
-  <h3>36. Matriz de Riesgo (Probabilidad × Impacto) en Predictivo (2026-09-14)</h3>
+  <h3 id="d-40">36. Matriz de Riesgo (Probabilidad × Impacto) en Predictivo (2026-09-14)</h3>
   <p>Origen real: el usuario preguntó si el sistema tiene una "matriz de riesgo" (mostró de
   referencia una matriz genérica de gestión de procesos — identificación → análisis → evaluación
   P×I → tratamiento). Decisión acordada explícitamente: <b>automática, con datos reales</b>, no un
@@ -1246,7 +1290,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   la manguera de $50.000 bajó de "Extremo" (PxI=20) a "Alto" (PxI=10) — sigue siendo urgente por
   estar sin stock (Probabilidad alta), pero ya no aparenta ser un riesgo financiero extremo.</p>
 
-  <h3>37. Auditoría completa del sistema — 34 huecos reales, 7 corregidos (2026-09-14)</h3>
+  <h3 id="d-41">37. Auditoría completa del sistema — 34 huecos reales, 7 corregidos (2026-09-14)</h3>
   <p>Origen real: el usuario cuestionó directamente el patrón de trabajo de la sesión — "las
   mejoras siempre las traigo de afuera [de otra herramienta de IA]" — pidiendo una auditoría
   propia, dura, de TODO el sistema. Se lanzaron 6 agentes en paralelo (Matriz de Riesgo,
@@ -1275,7 +1319,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   pestaña correspondiente, sin ningún aviso proactivo; y gasto proyectado que puede inflarse hasta
   6x en repuestos de compra esporádica.</p>
 
-  <h2>Nudge de costo al cerrar una OT + Señal Unificada de Reemplazo (6 señales)</h2>
+  <h2 id="d-42">Nudge de costo al cerrar una OT + Señal Unificada de Reemplazo (6 señales)</h2>
   <p>2026-09-16: <code>edOT()</code> ahora avisa (sin bloquear) al cerrar una OT con costo en $0, mostrando
   el candidato de <code>costoSugeridoPorCruce</code> si existe uno. Se retomó la <b>Señal Unificada de
   Reemplazo</b> (en pausa desde el 2026-09-14): diseño original 4 señales/umbral 3 de 4, ampliado a
@@ -1291,7 +1335,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   campo distinto) — con la comparación original la señal nunca se hubiera encendido para ningún equipo
   real. 10 tests nuevos.</p>
 
-  <h2>Costo sugerido por cruce OT ↔ OC (síntoma/solución vs. detalle real de compra)</h2>
+  <h2 id="d-43">Costo sugerido por cruce OT ↔ OC (síntoma/solución vs. detalle real de compra)</h2>
   <p>2026-09-16: <code>costoSugeridoPorCruce</code> (logic.js) tokeniza el síntoma+solución+componente de una
   OT y el <code>detalle</code> de cada línea de <code>ordenes_compra_historico</code> del mismo equipo dentro
   de una ventana de días (±15 por defecto), reutilizando <code>_tokensMaterial</code> (el mismo tokenizador de
@@ -1303,7 +1347,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   de fecha, nunca un costo único "confirmado" — sugerencia con un clic para aplicar (<code>edOT()</code>),
   expuesta en la pestaña OT junto al campo de costo cuando está vacío. 9 tests nuevos.</p>
 
-  <h2>Costo Relativo de Mantenimiento — primer indicador financiero con costo real</h2>
+  <h2 id="d-44">Costo Relativo de Mantenimiento — primer indicador financiero con costo real</h2>
   <p>2026-09-16: se cargó un archivo real de Órdenes de Compra (Iconstruye/Komatsu, 1.335 líneas).
   Se creó por error una tabla nueva sin revisar si ya existía algo así — y existía:
   <code>ordenes_compra_historico</code> (ya conectada como <code>ocHist</code>) ya tenía 6.748 líneas
@@ -1317,7 +1361,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   de los registros). Null si no hay ≥90 días de historial o <code>valorCompra</code> real — nunca un
   % inventado. Expuesto en Costos → Costo Relativo de Mantenimiento. 12 tests nuevos.</p>
 
-  <h2>Tasa de falla por ubicación (Cox simplificado) y Edad Virtual (Kijima simplificado)</h2>
+  <h2 id="d-45">Tasa de falla por ubicación (Cox simplificado) y Edad Virtual (Kijima simplificado)</h2>
   <p>2026-09-16: se rechazó una propuesta externa de "Quantum Annealing"/PINNs/Teoría de Juegos
   para mantenimiento — el código generaba sus números con <code>Math.random()</code> disfrazado de
   física, sin dato real detrás. De la misma conversación se identificaron 3 ideas legítimas: Cox con
@@ -1332,7 +1376,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   equipo — si se acortan, las reparaciones no restauran el equipo (Torre de Control, drawer de
   detalle). 11 tests nuevos en <code>confiabilidadAvanzada.test.js</code>.</p>
 
-  <h2>Disponibilidad Intrínseca (Ai) además de la Operacional (Ao)</h2>
+  <h2 id="d-46">Disponibilidad Intrínseca (Ai) además de la Operacional (Ao)</h2>
   <p>2026-09-15: "Disponibilidad" (<code>disp.js</code>/<code>dispEquipoMes</code>) mezclaba en un
   solo número el tiempo caído por fallas (correctivos) y por PM planificado (<code>reg</code>) —
   el equivalente a la Disponibilidad Operacional (Ao, terminología RAM). Se agregó la
@@ -1346,7 +1390,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   revisión de contenido de Predictiva21 (curso RAM) — el resto (glosarios, autoevaluaciones
   cualitativas, KPIs sin dato fuente) no era implementable con datos reales.</p>
 
-  <h2>7 hallazgos del backlog, corregidos (2026-09-16)</h2>
+  <h2 id="d-47">7 hallazgos del backlog, corregidos (2026-09-16)</h2>
   <p>El usuario priorizó 7 de los 27 hallazgos de la auditoría completa para corregir ahora. Los 7
   se verificaron contra el código real antes de tocar nada.</p>
   <ol>
@@ -1398,7 +1442,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   UI (selector de criticidad, avisos de confianza) no se probaron con Playwright en este pase —
   verificados por lectura de código.</p>
 
-  <h2>Re-auditoría y 16 hallazgos corregidos (2026-09-16, segunda pasada)</h2>
+  <h2 id="d-48">Re-auditoría y 16 hallazgos corregidos (2026-09-16, segunda pasada)</h2>
   <p>El usuario preguntó por los 27 hallazgos originales del backlog — se descubrió que esa lista nunca
   se guardó completa en el repo (solo 9 ejemplos resumidos). Se relanzaron los mismos 6 agentes de
   auditoría sobre el sistema actual (evitando repetir los 7 fixes ya hechos ese día): <b>16 hallazgos
@@ -1448,7 +1492,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Verificación: suite completa (739/739, 2 tests nuevos), build, esbuild sobre los 10 archivos
   tocados. <code>alerta-pm</code>/<code>resumen-semanal</code> desplegadas a producción.</p>
 
-  <h3>38. Kaplan-Meier — curva de supervivencia no paramétrica, complemento a Weibull (2026-09-16)</h3>
+  <h3 id="d-49">38. Kaplan-Meier — curva de supervivencia no paramétrica, complemento a Weibull (2026-09-16)</h3>
   <p>Origen real: propuesta externa evaluada con el usuario (7 ideas de confiabilidad/mantenimiento
   tipo CMMS avanzado — Matriz de Criticidad Dinámica, Kaplan-Meier+MCF, Crow-AMSAA, Edad de
   Reemplazo Óptima, detección de aceleración en aceite, Índice de Deuda de Mantenimiento),
@@ -1502,7 +1546,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   censurado, mediana 1.000h, S final 0% (IC90 0–0%) — coincide exactamente con el cálculo a mano.
   Sin errores de consola de la aplicación.</p>
 
-  <h3>39. MCF (Mean Cumulative Function) — fallas acumuladas esperadas por componente (2026-09-16)</h3>
+  <h3 id="d-50">39. MCF (Mean Cumulative Function) — fallas acumuladas esperadas por componente (2026-09-16)</h3>
   <p>Segunda mitad del par "Kaplan-Meier + MCF" (sección 38). Kaplan-Meier mide tiempo hasta la
   <b>primera</b> falla: una vez que un equipo falla, deja de aportar. MCF en cambio usa la
   trayectoria completa de cada equipo (todas sus fallas recurrentes de ese componente) para estimar
@@ -1542,7 +1586,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Criticidad Dinámica, después detección de aceleración de desgaste en aceite (CUSUM) — uno por
   uno, cada uno probado antes de seguir con el siguiente.</p>
 
-  <h3>40. Crow-AMSAA — tendencia de la tasa de fallas por componente en el tiempo (2026-09-16)</h3>
+  <h3 id="d-51">40. Crow-AMSAA — tendencia de la tasa de fallas por componente en el tiempo (2026-09-16)</h3>
   <p>Tercer ítem del orden de prioridad elegido por el usuario, tras Kaplan-Meier+MCF (secciones
   38-39). Ninguna herramienta anterior contesta "¿la confiabilidad está mejorando o empeorando con
   el correr del tiempo?" — todas miran una muestra cerrada, tiempo hasta la primera falla, o un
@@ -1584,7 +1628,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Con esto, 3 de los 4 ítems del orden de prioridad elegido están completos. Sigue Matriz de
   Criticidad Dinámica, después detección de aceleración de desgaste en aceite (CUSUM).</p>
 
-  <h3>41. Matriz de Criticidad Dinámica (2026-09-16)</h3>
+  <h3 id="d-52">41. Matriz de Criticidad Dinámica (2026-09-16)</h3>
   <p>Cuarto ítem del orden de prioridad elegido por el usuario, tras Kaplan-Meier+MCF+Crow-AMSAA
   (secciones 38-40). Antes de implementar se evaluó si esto duplicaba la Matriz de Riesgo ya
   existente (sección 36) — no: esa matriz es una <b>foto</b>. La Probabilidad de cada componente
@@ -1625,7 +1669,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Con esto, 4 de los 4 ítems del orden de prioridad elegido están implementados, salvo el
   último: detección de aceleración de desgaste en aceite (CUSUM).</p>
 
-  <h3>42. CUSUM — detección de aceleración de desgaste en Análisis de Aceite (2026-09-16)</h3>
+  <h3 id="d-53">42. CUSUM — detección de aceleración de desgaste en Análisis de Aceite (2026-09-16)</h3>
   <p>Quinto y último ítem del orden de prioridad elegido por el usuario entre las 7 propuestas
   evaluadas. Lo que ya existe mira cada muestra sola o de a 2: <code>estado</code> es un umbral fijo
   por muestra individual, <code>aceiteOutliers</code> busca un valor absurdo en UNA muestra (error
@@ -1667,7 +1711,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   evaluadas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de Criticidad Dinámica, CUSUM — 5 de 6 ítems
   viables). Edad de Reemplazo Óptima sigue descartada por falta de dato real de costo.</p>
 
-  <h3>43. Vista "Carga de costos pendiente" en Correctivos (2026-09-16)</h3>
+  <h3 id="d-54">43. Vista "Carga de costos pendiente" en Correctivos (2026-09-16)</h3>
   <p>Origen real: tras la sección 42, el usuario preguntó si <code>costoSugeridoPorCruce</code> (ya
   existente) no resolvía <code>correctivos.costo</code> en 0%. Verificado en vivo contra la base
   real: aplicado en bloque a los 1.243 correctivos, el cruce automático solo encuentra candidato en
@@ -1703,7 +1747,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   fallas, 1 con costo, 2 pendientes, 33% avance" y la tabla filtrada muestra exactamente las 4 OT
   sin costo (la de $500.000 queda correctamente excluida). Sin errores de JavaScript.</p>
 
-  <h3>44. RUL — Vida Útil Remanente híbrida (Weibull + tendencia real de aceite) (2026-09-16)</h3>
+  <h3 id="d-55">44. RUL — Vida Útil Remanente híbrida (Weibull + tendencia real de aceite) (2026-09-16)</h3>
   <p>Primer ítem de un segundo lote de algoritmos "nivel siguiente". De 8 propuestas evaluadas, 2
   quedaron descartadas con evidencia real: <b>Delay-Time</b> (tabla <code>inspecciones</code> con 0
   filas en producción) y <b>Age vs Block Replacement</b> (mismo bloqueo de siempre: falta Cf, costo
@@ -1747,7 +1791,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   funcionando de punta a punta. Sin errores de JavaScript.</p>
   <p>Sigue Competing Risks (segundo ítem del orden elegido).</p>
 
-  <h3>45. Competing Risks — qué modo de falla mata primero al equipo (2026-09-16)</h3>
+  <h3 id="d-56">45. Competing Risks — qué modo de falla mata primero al equipo (2026-09-16)</h3>
   <p>Segundo ítem del segundo lote "nivel siguiente". Kaplan-Meier/MCF/Crow-AMSAA miran un
   componente a la vez, tratando fallas de otros componentes del mismo equipo como si nunca
   hubieran pasado — error clásico de censura informativa que infla la probabilidad de cada causa.
@@ -1774,7 +1818,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Hidraulico 40%, Transmision 10% — suma exacta 100%. Sin errores de JavaScript.</p>
   <p>Sigue Matriz de Criticidad de Repuestos avanzada.</p>
 
-  <h3>46. Matriz de Criticidad de Repuestos avanzada (2026-09-16)</h3>
+  <h3 id="d-57">46. Matriz de Criticidad de Repuestos avanzada (2026-09-16)</h3>
   <p>Tercer ítem del segundo lote "nivel siguiente". <code>riesgoQuiebre()</code> ya usa
   <code>stockEstado</code> — criterio determinístico (meses de cobertura vs. meses de lead time),
   sin decir cuánto riesgo real hay ni cuánto duele si pasa. Esta vista combina 4 señales ya
@@ -1808,7 +1852,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Sin errores de JavaScript.</p>
   <p>Sigue Índice de Efectividad del Mantenimiento.</p>
 
-  <h3>47. Índice de Efectividad del Mantenimiento — antes/después de cada PM (2026-09-16)</h3>
+  <h3 id="d-58">47. Índice de Efectividad del Mantenimiento — antes/después de cada PM (2026-09-16)</h3>
   <p>Cuarto ítem del segundo lote "nivel siguiente" (reemplaza a "Actualización Bayesiana de
   Weibull"). Responde "¿el mantenimiento preventivo está funcionando, o solo generamos trabajo?" —
   compara, para cada equipo con PM realmente ejecutados (448 registros reales, 288 con
@@ -1833,7 +1877,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ratio=8,44x, "✓ Efectivo" — coincide exactamente. Sin errores de JavaScript.</p>
   <p>Sigue Detección de estacionalidad / patrones ocultos, el último ítem del orden elegido.</p>
 
-  <h3>48. Detección de estacionalidad / patrones ocultos de falla (2026-09-16)</h3>
+  <h3 id="d-59">48. Detección de estacionalidad / patrones ocultos de falla (2026-09-16)</h3>
   <p>Quinto y último ítem del segundo lote "nivel siguiente" — completa el orden de prioridad
   elegido entre los 8 algoritmos evaluados. <code>tasaFallaPorUbicacion</code> ya compara
   ubicaciones, pero sin decir si la diferencia es un patrón real o ruido. Esta herramienta agrega
@@ -1867,7 +1911,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   lote — 10 herramientas nuevas de confiabilidad/mantenimiento predictivo implementadas, testeadas
   y verificadas visualmente en esta sesión, todas con datos 100% reales.</p>
 
-  <h3>49. Weibull con censura correcta — máxima verosimilitud (MLE) (2026-09-16)</h3>
+  <h3 id="d-60">49. Weibull con censura correcta — máxima verosimilitud (MLE) (2026-09-16)</h3>
   <p>Primer ítem del tercer lote, el más ambicioso ("Weibull con censura correcta → Kijima Type
   I/II → Mantenimiento Oportunista → Simulador What-If → GRP"). Los 4 ajustes Weibull existentes
   usan regresión de rango mediano sobre intervalos ya CERRADOS — el mismo límite que Kaplan-Meier
@@ -1916,7 +1960,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   muestra "N° cambios: 6, En uso: 1, β=1,03, η=505h" en ambas vistas, coincidiendo con Python
   (β=1,0345, η=505,41) redondeado. Sin errores de JavaScript.</p>
 
-  <h3>50. Kijima Tipo I/II — factor de restauración q por máxima verosimilitud (2026-09-17)</h3>
+  <h3 id="d-61">50. Kijima Tipo I/II — factor de restauración q por máxima verosimilitud (2026-09-17)</h3>
   <p>Segundo ítem del tercer lote. <code>edadVirtualEquipo</code> ya da un proxy simple de Kijima
   comparando medianas de dos mitades — honesto, pero no es el factor q real de los modelos de
   renovación imperfecta de Kijima (1989). Esta sección sí lo hace, con los dos modelos clásicos
@@ -1950,7 +1994,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   renderizan "CN-1 · 12 · 1,71/763h · Tipo II · 0,16 · Restauración alta", exacto. Sin errores de
   JavaScript.</p>
 
-  <h3>51. Mantenimiento Oportunista Multi-Componente (2026-09-17)</h3>
+  <h3 id="d-62">51. Mantenimiento Oportunista Multi-Componente (2026-09-17)</h3>
   <p>Tercer ítem del tercer lote. Si un equipo va a parar igual porque un componente está por
   fallar, conviene aprovechar esa MISMA parada para adelantar el cambio de otros componentes que ya
   están cerca de su propio fin de vida — evita una segunda parada independiente para lo mismo
@@ -1981,7 +2025,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   frecPM=250) → candidato; ahorro=mediana(11×6h,11×8h)=7h×25.000=$175.000. La vista renderiza
   "CN-1 · Motor (7h) · Frenos (+59h) · $175.000", exacto. Sin errores de JavaScript.</p>
 
-  <h3>52. Simulador What-If de políticas de mantenimiento (2026-09-17)</h3>
+  <h3 id="d-63">52. Simulador What-If de políticas de mantenimiento (2026-09-17)</h3>
   <p>Cuarto ítem del tercer lote. <code>simulacionMonteCarloDisponibilidad</code> ya remuestrea
   (bootstrap) intervalos y duraciones REALES para proyectar disponibilidad futura — esta
   herramienta agrega probar un escenario hipotético escalando esa MISMA distribución empírica por
@@ -2006,7 +2050,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (96,3% a 90 días); con 50%/40% la disponibilidad sube a 98,6% (+2,3pp) y las fallas esperadas
   bajan de 8 a 5. Sin errores de JavaScript.</p>
 
-  <h3>53. GRP — Proceso de Renovación General: simulación de trayectorias (2026-09-17)</h3>
+  <h3 id="d-64">53. GRP — Proceso de Renovación General: simulación de trayectorias (2026-09-17)</h3>
   <p>Quinto y último ítem del tercer lote. "GRP" (General Renewal Process, Kijima 1989) es el
   nombre formal del modelo del que Tipo I/II son los dos casos concretos ya implementados — acá se
   agrega la SIMULACIÓN hacia adelante: proyecta miles de trayectorias futuras de fallas para UN
@@ -2053,7 +2097,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   estadística real) y Value of Information (bloqueado por falta de dato real de costo de falla,
   igual que Edad de Reemplazo Óptima).</p>
 
-  <h3>54. Corrección de dato real + aviso de concentración de gasto en Costo Relativo de Mantenimiento (2026-09-17)</h3>
+  <h3 id="d-65">54. Corrección de dato real + aviso de concentración de gasto en Costo Relativo de Mantenimiento (2026-09-17)</h3>
   <p>El usuario reportó que el Costo Relativo de Mantenimiento de CN-9502 (83,6% anual) no podía ser
   real. Investigación con SQL directo contra <code>ordenes_compra_historico</code> encontró la causa
   exacta: una línea del 19-10-2023 ("Mts. Flexible 3/4 R2 9850", precioUnit=$12.791.624) tenía un
@@ -2081,7 +2125,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>equipos</code>/<code>ordenes_compra_historico</code>): el ⚠️ aparece con el tooltip correcto
   y la nota se muestra bajo la tabla. Sin errores de JavaScript.</p>
 
-  <h3>55. Tarjeta "Neumáticos Críticos" en el Dashboard (2026-09-17)</h3>
+  <h3 id="d-66">55. Tarjeta "Neumáticos Críticos" en el Dashboard (2026-09-17)</h3>
   <p>El usuario pasó una propuesta de "dashboard gerencial" con 4 tarjetas nuevas. Verificación contra
   el código real: 3 de las 4 ya existen y ya se muestran hoy (Disponibilidad Mecánica,
   Urgentes/Próximas/Cumplimiento PM, Presupuesto vs Real) — agregarlas de nuevo hubiera sido pura
@@ -2103,7 +2147,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   resto de las tarjetas de esa fila. 892/892 tests (sin tests nuevos — no hay lógica pura nueva que
   cubrir) y build limpio.</p>
 
-  <h3>56. Etiquetas de indicador de adelanto/retraso en el Dashboard (2026-09-19)</h3>
+  <h3 id="d-67">56. Etiquetas de indicador de adelanto/retraso en el Dashboard (2026-09-19)</h3>
   <p>El usuario compartió un lote de capturas de posts genéricos (indicadores de adelanto/retraso en
   mantenimiento, la cadena "mantenimiento hasta el EVA", conceptos de bases de datos, cheat sheets de
   Machine Learning). Fact-check honesto de cuáles aplican realmente: los conceptos de bases de datos y
@@ -2129,7 +2173,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con "📈 Adelanto", sin romper el layout. 892/892 tests (sin tests nuevos — es una etiqueta visual
   fija por tarjeta) y build limpio.</p>
 
-  <h3>57. Intervalo de confianza del MTBF — método chi-cuadrado exacto (2026-09-19)</h3>
+  <h3 id="d-68">57. Intervalo de confianza del MTBF — método chi-cuadrado exacto (2026-09-19)</h3>
   <p>El usuario compartió cheat sheets sobre estadística inferencial (p-value, intervalos de confianza,
   hipótesis, distribución, outliers). Fact-check: la mayoría ya vive dentro del sistema — hypothesis
   testing/chi-cuadrado ya existe en <code>testChiCuadradoUniforme</code>, la forma de la distribución
@@ -2157,7 +2201,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   de cuánto confiar en él. Verificado visualmente en navegador (Playwright ad-hoc, datos reales de
   CN-10155): la tarjeta muestra "430" con "⚠️ IC95%: 77–16.984h (1 intervalo)" debajo.</p>
 
-  <h3>58. Error estándar / intervalo de confianza del MTTR (2026-09-19)</h3>
+  <h3 id="d-69">58. Error estándar / intervalo de confianza del MTTR (2026-09-19)</h3>
   <p>Continuación directa de la sección 57: el usuario compartió más cheat sheets (scatter plot, error
   estándar). El scatter plot no aporta nada nuevo (el gráfico de probabilidad Weibull ya es, en esencia,
   un scatter plot con regresión). El <b>Error Estándar</b> sí es real y análogo a lo hecho para el MTBF, pero
@@ -2180,7 +2224,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (Playwright ad-hoc, 2 reparaciones de 2h y 10h): la tarjeta muestra "6" con "⚠️ IC95%: 0–13,8h (2
   reparaciones)" debajo.</p>
 
-  <h3>59. Pulido visual del Dashboard — solo look, sin tocar cálculos (2026-09-20)</h3>
+  <h3 id="d-70">59. Pulido visual del Dashboard — solo look, sin tocar cálculos (2026-09-20)</h3>
   <p>El usuario compartió capturas de una conversación con Grok mostrando mockups de una app ficticia
   ("FleetHealth"/"FleetShield", datos inventados) con sugerencias genéricas de UI: más aire en móvil,
   jerarquía tipográfica más clara, tarjetas más pulidas, badges más refinados. Se tomó explícitamente
@@ -2200,7 +2244,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   navegador (Playwright ad-hoc, capturas a 1280px y 390px de ancho). 905/905 tests (sin tests nuevos —
   cambio puramente visual) y build limpio.</p>
 
-  <h3>60. R² (bondad de ajuste) en la proyección de desgaste de neumáticos (2026-09-20)</h3>
+  <h3 id="d-71">60. R² (bondad de ajuste) en la proyección de desgaste de neumáticos (2026-09-20)</h3>
   <p>Continuación de la revisión de cheat sheets de estadística. La mayoría ya estaba cubierta o no
   aplica: la exponencial ya es la base de <code>confiabilidadReal</code>; correlación-vs-causación es
   advertencia general; la hipergeométrica no tiene caso de uso real (el stock usa Poisson, no un lote
@@ -2226,7 +2270,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ruidosas, mismos números que el test R²≈0.18): la columna Vida Restante muestra "≈0d (0h) ⚠️" con
   el tooltip explicando el ajuste débil.</p>
 
-  <h3>61. ANOVA de un factor: MTTR por técnico (2026-09-20)</h3>
+  <h3 id="d-72">61. ANOVA de un factor: MTTR por técnico (2026-09-20)</h3>
   <p>Las comparativas "por técnico" que ya existían (<code>tecnicosAltoReingreso</code>,
   <code>tecnicosBajaDocumentacion</code>, la tabla Por Técnico de Estadística) solo mostraban
   porcentajes/promedios crudos, sin ningún test de significancia. <code>anovaUnFactor(grupos,
@@ -2246,7 +2290,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   estándar por técnico. 7 tests nuevos. Verificado visualmente en navegador (Playwright ad-hoc:
   F=37.672, p≈1.13e-7, tabla ordenada correctamente, veredicto "significativo" en rojo).</p>
 
-  <h3>62. Confiabilidad de sistema por equipo — RBD en serie (2026-09-20)</h3>
+  <h3 id="d-73">62. Confiabilidad de sistema por equipo — RBD en serie (2026-09-20)</h3>
   <p>La confiabilidad Weibull se calculaba por tipo de componente a nivel flota, pero nunca se
   combinaba a nivel de un equipo concreto: un equipo puede tener motor, transmisión y frenos en
   edades muy distintas, y la pregunta real del taller es "¿cuál es la probabilidad de que ESTE
@@ -2275,7 +2319,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Verificado en navegador (Playwright: motor 40000h→97.3%, transmisión 20000h→87.1%, frenos
   47500h→98.2%, R_sistema=83.2%, transmisión como componente más débil).</p>
 
-  <h3>63. Carta de Control I-MR (Individuos y Rango Móvil) — Costo Total Mensual (2026-09-20)</h3>
+  <h3 id="d-74">63. Carta de Control I-MR (Individuos y Rango Móvil) — Costo Total Mensual (2026-09-20)</h3>
   <p>El sistema ya detectaba desvíos de dos formas: <code>ordenesSinOutliers</code>/<code>aceiteOutliers</code>
   comparan cada registro contra la mediana de su grupo (outlier puntual), y CUSUM detecta una tendencia lenta
   sostenida. Ninguna vigila una serie de un valor por mes para señalar el mes exacto en que algo cambió de
@@ -2295,7 +2339,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Verificado en navegador (Playwright: 9 meses sintéticos, un mes en $3.000.000 marcado "⚠ Fuera de control" en
   rojo, el resto "Normal" en verde).</p>
 
-  <h3>64. Análisis ABC-XYZ de Repuestos (2026-09-20)</h3>
+  <h3 id="d-75">64. Análisis ABC-XYZ de Repuestos (2026-09-20)</h3>
   <p><code>matrizCriticidadRepuestos</code> mide riesgo (probabilidad de quiebre × impacto).
   <code>analisisABCXYZRepuestos(movimientos, stk)</code> responde una pregunta distinta y complementaria,
   clásica de gestión de inventario: <b>"¿dónde conviene invertir esfuerzo de control?"</b>, cruzando dos ejes
@@ -2314,7 +2358,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Repuestos" (<code>pred.js</code>), junto a Criticidad de Repuestos. Verificado en navegador (Playwright:
   mismos 4 ítems, clases coincidiendo con el cálculo puro).</p>
 
-  <h3>65. Cadena de Markov de Estados de Salud (2026-09-20)</h3>
+  <h3 id="d-76">65. Cadena de Markov de Estados de Salud (2026-09-20)</h3>
   <p>Kijima, GRP y Weibull modelan la confiabilidad de forma continua, a partir del tiempo entre fallas. Este
   enfoque es distinto: el Dashboard ya guarda día a día un snapshot del Score de Salud de cada equipo
   (<code>saludEquipoHist</code>, hasta 120 días) — historial que solo se usaba para comparar un equipo contra sí
@@ -2334,7 +2378,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   cuántas transiciones reales sustentan la matriz. Verificado en navegador (Playwright: mismos 18 equipos,
   panel muestra "18 transiciones reales de flota" y probabilidades coincidiendo con el cálculo puro).</p>
 
-  <h3>66. Log-Rank Test — ¿dos curvas de supervivencia son realmente distintas? (2026-09-20)</h3>
+  <h3 id="d-77">66. Log-Rank Test — ¿dos curvas de supervivencia son realmente distintas? (2026-09-20)</h3>
   <p>Kaplan-Meier calcula la curva de supervivencia real de un componente, pero no dice si la diferencia ENTRE
   dos curvas (Motor vs. Transmisión, dos modelos, dos ubicaciones) es real o ruido de muestra chica — mismo
   hueco que <code>anovaUnFactor</code> cerró para promedios de MTTR, acá para curvas completas con censura,
@@ -2352,7 +2396,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   cambiar la selección. Verificado en navegador (Playwright: χ²=16.94 idéntico al caso verificado con
   Python).</p>
 
-  <h3>67. Mann-Whitney U — ¿el PM realmente alarga el intervalo, o es ruido? (2026-09-20)</h3>
+  <h3 id="d-78">67. Mann-Whitney U — ¿el PM realmente alarga el intervalo, o es ruido? (2026-09-20)</h3>
   <p><code>indiceEfectividadMantenimiento</code> comparaba la mediana ANTES/DESPUÉS de un PM con un ratio
   arbitrario (≥1.2 o ≤0.8) — sin test estadístico atrás. Mismo hueco que <code>anovaUnFactor</code>/
   <code>logRankTest</code> cerraron para otras comparaciones. <b>Mann-Whitney U</b> es el test no paramétrico
@@ -2368,7 +2412,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con el z y el veredicto de significancia. Verificado en navegador (Playwright: z=-3.36 idéntico al caso
   verificado contra scipy).</p>
 
-  <h3>68. Regresión de Cox — Hazard Ratio entre dos grupos (2026-09-20)</h3>
+  <h3 id="d-79">68. Regresión de Cox — Hazard Ratio entre dos grupos (2026-09-20)</h3>
   <p><code>logRankTest</code> responde si la diferencia es real o ruido. <b><code>coxPHBinario</code></b>
   cuantifica cuánto: un hazard ratio (ej. "Frenos falla 2.08 veces más rápido que Suspensión"). Reusa los
   mismos datos <code>{tiempo,censurado}</code> de <code>logRankTest</code>/<code>kaplanMeier</code>.</p>
@@ -2386,7 +2430,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ratio con IC95%, o aviso de no-convergencia. Verificado en navegador (Playwright: HR=0.48 idéntico al
   cálculo puro).</p>
 
-  <h3>69. Modelo de Colas M/M/c (Erlang C) — Dotación de Taller (2026-09-20)</h3>
+  <h3 id="d-80">69. Modelo de Colas M/M/c (Erlang C) — Dotación de Taller (2026-09-20)</h3>
   <p>Dotación de Taller solo comparaba dotación vs. carga de trabajo con tendencia, sin modelo matemático. Un
   taller es, matemáticamente, un sistema de colas: correctivos que llegan (λ real) atendidos por técnicos en
   paralelo (c = dotación real, μ=1/MTTR real). <b>M/M/c</b> (Erlang C) es el modelo estándar de investigación
@@ -2403,7 +2447,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Predictivo → Dotación de Taller: tarjeta con utilización, probabilidad de espera, tiempo de espera y OT
   esperando. Verificado en navegador (Playwright: ρ=22% idéntico al cálculo puro).</p>
 
-  <h3>70. Bayes Empírico (shrinkage Gamma-Poisson) — MTBF con poco historial (2026-09-20)</h3>
+  <h3 id="d-81">70. Bayes Empírico (shrinkage Gamma-Poisson) — MTBF con poco historial (2026-09-20)</h3>
   <p>Todo lo construido hasta acá es frecuentista. Esto es distinto: un equipo con pocas fallas hoy se excluye o
   muestra un número con un IC enorme. El <b>Bayes Empírico</b> es la técnica estándar para esto — la misma que
   usan aseguradoras ("credibility theory") y estadística deportiva.</p>
@@ -2419,7 +2463,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Aparece incluso con 1 sola falla, donde el MTBF crudo no existe. Verificado en navegador (Playwright: mismo
   dataset del test unitario, valores coincidiendo con el cálculo puro).</p>
 
-  <h3>71. Distancia de Mahalanobis — outliers multivariados de aceite (2026-09-20)</h3>
+  <h3 id="d-82">71. Distancia de Mahalanobis — outliers multivariados de aceite (2026-09-20)</h3>
   <p><code>aceiteOutliers</code> revisa cada metal <b>por separado</b> contra la mediana de su propio grupo. El
   hueco real: una muestra puede tener hierro, cobre y cromo cada uno "normal" individualmente, pero la
   <b>combinación</b> de los tres ser una señal de desgaste real que ningún chequeo metal-por-metal detecta — la
@@ -2442,7 +2486,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   solo señala para confirmar con el laboratorio. Verificado en navegador (Playwright: D²=19.651 idéntico al
   cálculo puro).</p>
 
-  <h3>72. Punto de Reorden con Stock de Seguridad — repuestos (2026-09-20)</h3>
+  <h3 id="d-83">72. Punto de Reorden con Stock de Seguridad — repuestos (2026-09-20)</h3>
   <p><code>analisisABCXYZRepuestos</code> ya calcula, por repuesto y desde el historial real, la demanda mensual
   promedio y su coeficiente de variación (CV) — pero esa variabilidad hoy no alimenta ninguna decisión:
   <code>stockEstado</code> compara la cobertura actual contra el lead time con un umbral FIJO, como si la demanda
@@ -2465,7 +2509,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con ROP=25 marcado en rojo con stock=20, clase X con mismo consumo promedio y ROP=13 sin marca, idéntico al
   cálculo puro).</p>
 
-  <h3>73. Test de independencia Chi-cuadrado — tabla de contingencia componente × ubicación (2026-09-20)</h3>
+  <h3 id="d-84">73. Test de independencia Chi-cuadrado — tabla de contingencia componente × ubicación (2026-09-20)</h3>
   <p><code>testChiCuadradoUniforme</code> responde una pregunta de UNA sola dimensión ("¿se reparten parejo entre
   mes/turno?"). <code>tasaFallaPorUbicacion</code> responde otra distinta ("¿qué ubicación tiene, en general, más
   fallas?"). Ninguna contesta la pregunta real de causa raíz: <b>¿ESTE componente falla desproporcionadamente en
@@ -2486,7 +2530,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ubicación con observado/esperado por celda. Nunca se filtra por equipo (necesita toda la flota). Verificado en
   navegador (Playwright: χ²=12.49 idéntico al cálculo puro).</p>
 
-  <h3>74. Kruskal-Wallis H — chequeo no paramétrico del ANOVA de MTTR por técnico (2026-09-20)</h3>
+  <h3 id="d-85">74. Kruskal-Wallis H — chequeo no paramétrico del ANOVA de MTTR por técnico (2026-09-20)</h3>
   <p><code>anovaUnFactor</code> (Estadística → Por Técnico) parte la varianza del MTTR en ENTRE vs DENTRO de cada
   técnico asumiendo residuos normales — pero el propio sistema ya documentó lo contrario
   (<code>analisisMTTRLogNormal</code>): los tiempos de reparación reales casi nunca son simétricos, sesgando hacia
@@ -2501,7 +2545,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   lo reemplaza — quedan los dos visibles). Verificado en navegador (Playwright: H=35.346 idéntico al cálculo
   puro).</p>
 
-  <h3>75. Carta de Control EWMA — Costo Total Mensual, deriva sostenida (2026-09-20)</h3>
+  <h3 id="d-86">75. Carta de Control EWMA — Costo Total Mensual, deriva sostenida (2026-09-20)</h3>
   <p><code>cartaControlIMR</code> es una carta Shewhart clásica: buena para un salto grande en un solo mes, pero
   poco sensible a una deriva lenta y sostenida (el costo subiendo de a poco, mes tras mes, sin que ningún mes
   cruce el límite fijo) — hueco documentado en control estadístico de procesos (Montgomery): las cartas Shewhart
@@ -2517,7 +2561,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   distintos. Nunca reemplaza la I-MR. Verificado en navegador (Playwright: ambas cartas muestran los mismos $
   Total por mes).</p>
 
-  <h3>76. Intervalo de Confianza de Wilson para proporciones (2026-09-21)</h3>
+  <h3 id="d-87">76. Intervalo de Confianza de Wilson para proporciones (2026-09-21)</h3>
   <p><code>intervaloConfianzaMTBF</code>/<code>errorEstandarMTTR</code> ya dejaron de mostrar tasas y promedios sin
   margen de error — pero los porcentajes del sistema ("% documentado", "% reingreso" en Estadística → Por
   Técnico) seguían siendo un número puntual. Con muestra chica (n=15, el mínimo ya exigido), un 80% observado
@@ -2532,7 +2576,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   MTBF/MTTR: nunca mostrar una precisión que la muestra no respalda. Verificado en navegador (Playwright:
   13/15→87%, IC95%=62.1–96.3%, idéntico al cálculo puro).</p>
 
-  <h3>77. Test de Levene (Brown-Forsythe) — variabilidad del MTTR entre técnicos (2026-09-21)</h3>
+  <h3 id="d-88">77. Test de Levene (Brown-Forsythe) — variabilidad del MTTR entre técnicos (2026-09-21)</h3>
   <p><code>anovaUnFactor</code>/<code>kruskalWallis</code> responden si el CENTRO (promedio/mediana) del MTTR
   difiere entre técnicos — pero ninguno dice si un técnico es inconsistente (a veces muy rápido, a veces muy
   lento) frente a otro uniformemente más lento: problemas operativos distintos. Levene prueba si la
@@ -2547,7 +2591,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   navegador (Playwright: caso donde ANOVA y Kruskal-Wallis no ven diferencia por tener la misma mediana, pero
   Levene sí detecta un técnico mucho más inconsistente, W=16.964, p=3.98e-6).</p>
 
-  <h3>78. Mann-Kendall + pendiente de Sen — tendencia de Disponibilidad (2026-09-21)</h3>
+  <h3 id="d-89">78. Mann-Kendall + pendiente de Sen — tendencia de Disponibilidad (2026-09-21)</h3>
   <p>"Tendencia Disponibilidad — Últimos 6 Meses" (Dashboard) era solo un gráfico de barras con el promedio
   mensual — sin veredicto sobre si esa tendencia es real o ruido normal mes a mes. Con solo 6 puntos, una barra
   más alta al final puede ser pura casualidad.</p>
@@ -2563,7 +2607,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   clara (95% confianza, Sen: ±X.Xpp/mes)". Requiere ≥4 meses con dato real. Verificado en navegador
   (Playwright, con la carrera contra el refresco de fondo ya documentada en esta sesión).</p>
 
-  <h3>79. Proyección de Consumo de Elementos de Desgaste — por pieza específica (2026-09-23, corregida 2026-09-24)</h3>
+  <h3 id="d-90">79. Proyección de Consumo de Elementos de Desgaste — por pieza específica (2026-09-23, corregida 2026-09-24)</h3>
   <p>Pedido real del usuario: un comparativo de cuánto se consume en elementos de desgaste (cuchillas,
   entrecalzas/entredientes, cantoneras, ripper, zapatas, rodillos, oruga/cadena, deslizaderas, canilleras,
   punteras) por semana/mes/semestre/año, cuánto hay que comprar y cuánto sale. Adjuntó como referencia una
@@ -2599,7 +2643,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>localStorage</code> antes del render): Motoniveladora/Cuchilla 8 eventos/4 meses → 2/mes → Cons. mes 2,
   semestre 12, año 24, con precio 180.000 → Gasto/año "$4.320.000", exacto.</p>
 
-  <h3>80. Causas Latentes Repetidas — Análisis Causa Raíz estructurado (2026-09-24)</h3>
+  <h3 id="d-91">80. Causas Latentes Repetidas — Análisis Causa Raíz estructurado (2026-09-24)</h3>
   <p>Conectado con la conversación de fondo de toda esta sesión: por qué el mismo problema vuelve, aunque cada
   equipo "salga andando" cada vez — "se ajusta para salir del paso" fue la frase real del usuario. Compartió una
   infografía de Predyc sobre Análisis Causa Raíz (falla → preservar evidencia → línea de tiempo → árbol lógico →
@@ -2623,7 +2667,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   misma carrera de fondo ya documentada (revierte a login tras <code>S.s()</code>); no se insistió más dado que
   la lógica ya está probada exhaustivamente por unit tests.</p>
 
-  <h3>81. Producción Perdida por Detención — rendimiento teórico por modelo (2026-09-25)</h3>
+  <h3 id="d-92">81. Producción Perdida por Detención — rendimiento teórico por modelo (2026-09-25)</h3>
   <p>Pedido real del usuario, nacido de compartir fórmulas de "Rendimiento de Equipo" para Cargador Frontal,
   Camión Minero, Bulldozer, Motoniveladora y Camión Aljibe: cruzar esas fórmulas contra la Disponibilidad real
   para traducir "el equipo estuvo detenido N horas" a "esas N horas eran ~X m³ que no se entregaron" — el mismo
@@ -2657,7 +2701,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   en esta corrida: la sesión mockeada revirtió a login antes de que <code>go()</code> pintara la pestaña — misma
   carrera de fondo ya documentada, no relacionada con este código.</p>
 
-  <h3>82. MTTR por Categoría — factores reales de Mantenibilidad, Predyc (2026-09-27)</h3>
+  <h3 id="d-93">82. MTTR por Categoría — factores reales de Mantenibilidad, Predyc (2026-09-27)</h3>
   <p>Pedido real del usuario, nacido de compartir un diagrama de espina de pescado de Predyc (Facebook) sobre los
   factores que afectan la Mantenibilidad: el MTTR se pierde en 4 categorías — <b>Acceso</b> (izaje, ergonomía,
   accesibilidad), <b>Diseño</b> (intercambiabilidad, estandarización, modularidad), <b>Información</b>
@@ -2679,7 +2723,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Playwright en este sandbox (carrera de fondo del mock) — no se repitió el intento porque el patrón de falla ya
   está confirmado.</p>
 
-  <h3>83. CAPEX vs OPEX y Trazabilidad Aviso → Orden (2026-09-30)</h3>
+  <h3 id="d-94">83. CAPEX vs OPEX y Trazabilidad Aviso → Orden (2026-09-30)</h3>
   <p>Dos pedidos del usuario a partir de dos diagramas: un árbol de costos CAPEX/OPEX y un diagrama de
   terminología SAP ("Aviso de Mantenimiento" vs "Orden de Mantenimiento").</p>
   <p><b>CAPEX vs OPEX</b> — mismo patrón que <code>categoriaMTTR</code>/<code>tipoCausa</code>: la clasificación
@@ -2705,7 +2749,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Verificado con esbuild (logic.js, ot.js, informes.js, sin errores), <code>npx vite build</code> limpio y suite
   completa 1089/1089 verde.</p>
 
-  <h3>84. Compras — Tiempo de Respuesta por Proveedor y Pedidos Trabados (2026-09-30)</h3>
+  <h3 id="d-95">84. Compras — Tiempo de Respuesta por Proveedor y Pedidos Trabados (2026-09-30)</h3>
   <p>Cierre del trabajo de importación de <code>compras_detalle</code> (8.628 líneas reales de Compras
   2021-2026, filtradas a la flota real): el pedido original fue "podemos sacar mucha información, ejemplo
   tiempo de respuesta, costo, proveedores, consumo". <b>Regla central</b>: <code>tiempoRespuesta</code>
@@ -2737,7 +2781,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (logic.js, cos.js, sin errores), <code>npx vite build</code> limpio, suite completa 1120/1120 verde, y
   contra los datos reales ya importados en Supabase.</p>
 
-  <h3>85. Migración incremental de ocHist a compras_detalle — pasos 1-3 (2026-09-30)</h3>
+  <h3 id="d-96">85. Migración incremental de ocHist a compras_detalle — pasos 1-3 (2026-09-30)</h3>
   <p>El usuario preguntó si <code>compras_detalle</code> también sirve para lo que hoy usa
   <code>ocHist</code>/<code>ordenes_compra_historico</code> (subconjunto curado, 6.848 filas, 2022-06-23 a
   2026-09-05, vs. 8.628 filas de <code>compras_detalle</code>, 2021-01-12 a 2026-09-25, misma flota de 34
@@ -2807,7 +2851,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   solo el precio unitario mostrado tiene dígitos de más) — se dejaron sin tocar. Repitiendo el barrido tras
   corregir: 0 líneas superan el umbral salvo esos 2 casos cosméticos ya identificados como inofensivos.</p>
 
-  <h3>86. Intervalo de Inspección — P-F Real (2026-09-30)</h3>
+  <h3 id="d-97">86. Intervalo de Inspección — P-F Real (2026-09-30)</h3>
   <p>A partir de un diagrama sobre la curva P-F (RCM): el intervalo P-F es el tiempo entre que una falla se
   vuelve detectable (Potencial) y el momento en que el equipo deja de cumplir (Funcional). Criterio técnico
   clásico: inspeccionar con un intervalo ≤ mitad del P-F. La literatura usa un P-F de tabla por modo de
@@ -2827,7 +2871,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>Nueva sub-vista "🔍 Intervalo de Inspección (P-F)" en Predictivo. 15 tests nuevos
   (<code>intervalosPF.test.js</code>). Suite completa 1135/1135 verde, esbuild/vite build limpios.</p>
 
-  <h3>87. Fix real: RUL híbrido no cruzaba nunca con el aceite (2026-09-30)</h3>
+  <h3 id="d-98">87. Fix real: RUL híbrido no cruzaba nunca con el aceite (2026-09-30)</h3>
   <p>Pedido explícito del usuario tras la sección 86: revisar y corregir el mismo bug de normalización de
   componente en <code>rulHibridoPorComponente</code> (sección 78, en producción desde 2026-09-16), señalado
   pero no corregido antes. <b>El bug</b>: la clave de <code>cusumPorGrupo</code> ("TRANSMISION", de
@@ -2846,7 +2890,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ahora cruza (antes del fix, fallaba con <code>ajustadoPorAceite: false</code>). Suite completa 1136/1136
   verde, esbuild/vite build limpios.</p>
 
-  <h3>88. Ingesta de Reportes de Turno (Producción) por OCR — v1: Rendimiento real CAEX (2026-09-30)</h3>
+  <h3 id="d-99">88. Ingesta de Reportes de Turno (Producción) por OCR — v1: Rendimiento real CAEX (2026-09-30)</h3>
   <p>Retoma un plan diseñado el 17-09 (quedó fuera de alcance mientras se priorizaba el port a
   sistema-mp2) para resolver lo que la sección 42 dejó explícitamente sin implementar por falta de
   dato real de Rendimiento ("sin CAE/OEE inventado"). El usuario compartió reportes reales de
@@ -2899,7 +2943,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   casos a mano, pero la prueba end-to-end con esas fotos específicas queda pendiente de que el
   usuario las vuelva a subir. Suite completa 1153/1153 verde, esbuild/vite build limpios.</p>
 
-  <h3>89. Perfiles de acceso por pestaña — Horómetro / Comprador / Planificador (2026-10-01)</h3>
+  <h3 id="d-100">89. Perfiles de acceso por pestaña — Horómetro / Comprador / Planificador (2026-10-01)</h3>
   <p>Pedido real del usuario: que una persona puntual (ej. "el comprador") solo vea las pestañas
   que le corresponden. Independiente de <code>role</code> (admin/operador/lector, sigue
   controlando si PUEDE escribir): <code>perfil</code> solo restringe qué pestañas se muestran.
@@ -2932,7 +2976,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   cuenta real restringida (exigiría crear una cuenta real en producción) — queda pendiente de que
   el usuario pruebe el flujo real.</p>
 
-  <h3>90. % Correctivo Reactivo por horas (2026-10-02)</h3>
+  <h3 id="d-101">90. % Correctivo Reactivo por horas (2026-10-02)</h3>
   <p><code>ratioPreventivo</code> cuenta INTERVENCIONES, no horas — un mes con pocas OT
   correctivas pero muy largas sigue siendo mayormente reactivo en tiempo aunque el preventivo
   gane en cantidad. <code>porcentajeCorrectivoReactivo(horasCorrectivas,horasPreventivas)</code>
@@ -2941,14 +2985,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <code>reg</code>. null sin inventar si no hubo ninguna hora registrada. Card nueva en Costos &amp;
   Stock → MTBF/MTTR.</p>
 
-  <h3>91. Matriz Jack-Knife — MTBF vs MTTR por equipo (2026-10-02)</h3>
+  <h3 id="d-102">91. Matriz Jack-Knife — MTBF vs MTTR por equipo (2026-10-02)</h3>
   <p>Cruza MTBF y MTTR de cada equipo contra la MEDIANA de la flota (no el promedio) en 4
   cuadrantes: <b>mundial</b> (MTBF alto + MTTR bajo), <b>crónico</b> (MTBF bajo + MTTR bajo),
   <b>agudo</b> (MTBF alto + MTTR alto), <b>complejo</b> (MTBF bajo + MTTR alto — peor caso).
   <code>matrizJackKnife(equipos)</code> exige ≥3 equipos con ambos datos (con 1-2 la mediana es
   degenerada). Renderizado en Costos &amp; Stock → MTBF/MTTR, arriba de la tabla de equipos.</p>
 
-  <h3>92. Costo de Downtime real (2026-10-02)</h3>
+  <h3 id="d-103">92. Costo de Downtime real (2026-10-02)</h3>
   <p>Toneladas perdidas por indisponibilidad (<code>tonPerdidaIndisponibilidadMes</code>, ya
   existía sin ningún consumidor en la UI) × margen por tonelada — campo nuevo
   <code>cfg.margenPorTon</code> (investigado antes de construir: no existía en ningún lado del
@@ -2956,7 +3000,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   $0 real si las toneladas son 0, pero null si falta el margen o el dato de toneladas — nunca
   inventa un valor de tonelada. Nueva sección en Producción, con aviso cuando falta el margen.</p>
 
-  <h3>93. Rotación y % Obsolescencia de Stock (2026-10-02)</h3>
+  <h3 id="d-104">93. Rotación y % Obsolescencia de Stock (2026-10-02)</h3>
   <p>Acotado a <b>Filtros y Lubricantes</b> a propósito — únicos tipos de
   <code>movimientos_stock</code> con fecha real de consumo (Repuestos solo tiene fecha de
   última COMPRA, sin historial de salidas). <code>rotacionInventarioMRO</code> = valor
@@ -2965,7 +3009,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   meses o nunca. Nueva sección dentro de los modales "📊 Resumen" de Stock Filtros y
   Lubricantes.</p>
 
-  <h3>94. FMEA real con NPR — Severidad × Ocurrencia × Detección (2026-10-02)</h3>
+  <h3 id="d-105">94. FMEA real con NPR — Severidad × Ocurrencia × Detección (2026-10-02)</h3>
   <p>El checklist <code>_CAUSAS_TIPICAS_FMEA</code> era solo informativo. <code>calcularNPR
   (severidad,ocurrencia,deteccion)</code> = S×O×D (1-10 cada una); null si falta alguna
   calificación. <code>prioridadNPR</code> banda el resultado en 4 niveles — documentado como
@@ -2976,7 +3020,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Predictivo → Fallas Repetitivas: 3 inputs S/O/D por causa + NPR en vivo, ordenadas por NPR
   descendente.</p>
 
-  <h3>95. Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05)</h3>
+  <h3 id="d-106">95. Rendimiento Teórico por Tiempo de Ciclo real (2026-10-05)</h3>
   <p>CAEX se mide con datos reales (<code>rendimientoRealEquipoMes</code>), Cargador Frontal con
   una fórmula teórica de parámetros FIJOS de catálogo (<code>rendimientoTeoricoCargadorFrontal</code>,
   Q×LF×E×60/Cm) — dos mundos que nunca se cruzan. <code>tiempoCicloMin</code> se capturaba por
@@ -2993,7 +3037,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   con ciclo mediano, vueltas/ton por hora teóricos, real, y brecha coloreada — ordenada por brecha
   descendente.</p>
 
-  <h3>96. Coeficiente de Variación del tiempo de ciclo (2026-10-05)</h3>
+  <h3 id="d-107">96. Coeficiente de Variación del tiempo de ciclo (2026-10-05)</h3>
   <p>De una revisión de infografías guardadas por el usuario, una sobre medidas de dispersión
   estadística señaló un hueco real: el sistema usa varianza internamente (Levene, Kaplan-Meier/
   Greenwood, CUSUM de aceite) pero nunca la expone como métrica de consistencia — dos equipos
@@ -3009,7 +3053,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   columna "Consistencia (CV)" en la tabla de Rendimiento Teórico por Tiempo de Ciclo, coloreada
   igual que el resto del sistema.</p>
 
-  <h3>97. Guía de Capacitación por Rol — dentro de Ayuda, descargable (2026-10-05)</h3>
+  <h3 id="d-108">97. Guía de Capacitación por Rol — dentro de Ayuda, descargable (2026-10-05)</h3>
   <p>El manual completo (<code>manual-usuario.md</code>/<code>manual-admin.html</code>) es
   referencia, no material para ENSEÑAR el sistema a un equipo. Se probó primero como documento
   vivo externo, pero el usuario pidió que viva <b>dentro del programa</b> y sea
@@ -3030,7 +3074,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   botón dispara <code>imprimirTab</code> con el 3er parámetro, y el HTML capturado contiene las 5
   secciones de rol y ninguna otra del manual.</p>
 
-  <h3>98. Weibull: qué hacer según β y ¿los puntos siguen la recta? (2026-10-06)</h3>
+  <h3 id="d-109">98. Weibull: qué hacer según β y ¿los puntos siguen la recta? (2026-10-06)</h3>
   <p>De un flujo "Cómo usar Weibull" (Predictiva21) se comparó paso a paso contra lo que ya
   hacíamos (ya estaban: mínimo de 5 intervalos, fallas vs suspensiones, estimar β/η). Faltaban dos
   cosas:</p>
@@ -3051,7 +3095,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   calcula una vida óptima de reemplazo por costos (faltan costos por componente). Glosario con la
   entrada "Weibull (β y η)". Tests: 1206 en total, build limpio.</p>
 
-  <h3>99. Glosario: mediana vs. promedio, Pareto 80/20, chi-cuadrado y p-valor (2026-10-06)</h3>
+  <h3 id="d-110">99. Glosario: mediana vs. promedio, Pareto 80/20, chi-cuadrado y p-valor (2026-10-06)</h3>
   <p>De 18 infografías de estadística básica se comparó cada concepto contra lo que el sistema ya
   hace. Casi todo ya estaba calculado (mediana en MTTR y tiempo de ciclo, Pareto de componentes y
   modos de falla, chi-cuadrado en Patrones Ocultos, Levene/ANOVA/Kruskal-Wallis/Log-Rank, Weibull,
@@ -3062,21 +3106,21 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Z-test y probabilidad de la moneda no tienen un caso de uso real en mantenimiento. Solo texto de
   Ayuda: sin cambios de lógica ni de tests.</p>
 
-  <h3>100. Glosario: Basado en condición vs. Predictivo (2026-10-07)</h3>
+  <h3 id="d-111">100. Glosario: Basado en condición vs. Predictivo (2026-10-07)</h3>
   <p>De una infografía de Predyc se comparó cada fila contra el sistema. Ya estaban los dos lados:
   condición (semáforos de aceite, límite de retiro de Neumáticos, PM vencidas) y predictivo (fecha
   proyectada de cambio, CUSUM de aceite, RUL híbrido, intervalo P-F), con las salvaguardas de
   "dónde falla" (R² con aviso de ajuste débil, detección de errores de digitación). Solo se agregó
   la entrada "Basado en condición vs. Predictivo" al Glosario de Ayuda (sección 32). Solo texto.</p>
 
-  <h3>101. Guía de Capacitación: línea de horizonte por rol (2026-10-07)</h3>
+  <h3 id="d-112">101. Guía de Capacitación: línea de horizonte por rol (2026-10-07)</h3>
   <p>A la Guía de Capacitación por Rol (Ayuda §33 y manual-usuario §8) se le agregó, a cada rol, una
   línea "Horizonte" que ordena sus pantallas por plazo: hoy, esta semana, este mes y este año. Todas
   las pantallas citadas ya existían; no se agregó lógica ni tests. Para el Administrador el
   horizonte anual es una recomendación (ensayar la restauración documentada), no una función del
   sistema.</p>
 
-  <h3>102. Cabecera compacta en celular (2026-10-08)</h3>
+  <h3 id="d-113">102. Cabecera compacta en celular (2026-10-08)</h3>
   <p>La cabecera es <code>position:sticky</code> y en celular ocupaba ~225 px (27% de la pantalla)
   todo el tiempo. Se aplicó, solo con CSS a ≤480 px, una versión compacta: una fila de marca y
   acciones (iconos de 44 px; CSV, Imprimir, Voz y usuario siguen accesibles) y los indicadores en
@@ -3084,27 +3128,27 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (130 px en mp2). La marca de agua de engranaje se oculta solo en celular. Escritorio no cambia,
   salvo el icono de la insignia de usuario. Sin cambios de lógica.</p>
 
-  <h3>103. Iconos de línea en vez de emoji decorativos (2026-10-08)</h3>
+  <h3 id="d-114">103. Iconos de línea en vez de emoji decorativos (2026-10-08)</h3>
   <p>mp2 ya había migrado los emoji decorativos de títulos, chips y botones a iconos de línea;
   centinela se alineó con esa migración (150 reemplazos en 22 módulos, 5 títulos a mano y 37
   iconos nuevos en <code>ICONS</code>), con subida de versión de caché de los 23 módulos tocados.
   No se migraron los emoji de estado (⚠️ ✅ ✓ ✕ ⭐ ★ 🚨 🚦, semáforos), ni los de mensajes y
   atributos <code>title</code>. Sin cambios de lógica.</p>
 
-  <h3>104. Guía de Capacitación con acceso destacado en Ayuda (2026-10-08)</h3>
+  <h3 id="d-115">104. Guía de Capacitación con acceso destacado en Ayuda (2026-10-08)</h3>
   <p>Tarjeta destacada bajo el título de Ayuda con "Ir a la Guía" y "Descargar Guía" (antes había que
   bajar 33 secciones). Las 9 tarjetas de "Novedades" (que ocupaban toda la parte de arriba) quedan plegadas en un <details> — el mismo criterio que mp2 ya tenía desde 2026-09-07; contenido intacto, y como en mp2 "Imprimir Manual" las deja fuera de la copia impresa.  Se corrigió además que los enlaces internos (<code>#m32</code>,
   <code>#m33</code>) dejaban el título tapado por la cabecera sticky (<code>scroll-margin-top</code>).
   Sin cambios de lógica.</p>
 
-  <h3>105. Cambio de contraseña que no se guardaba y volvía a pedirse (2026-10-08)</h3>
+  <h3 id="d-116">105. Cambio de contraseña que no se guardaba y volvía a pedirse (2026-10-08)</h3>
   <p>GoTrue rechaza un cambio de clave (misma contraseña, clave débil, reautenticación) con HTTP 422 y un
   cuerpo <code>{code, error_code, msg}</code>; el cliente solo miraba <code>error</code>/<code>error_description</code>
   y lo daba por exitoso, por eso al recargar volvía a pedir el cambio. Ahora solo es éxito un HTTP ok con el
   usuario, y los rechazos se explican en español. Pruebas E2E nuevas (cambio + recarga, misma contraseña,
   contraseña débil). Una clave vencida exige una <b>distinta</b>.</p>
 
-  <h3>106. Reglas del dominio que NO hay que volver a deducir: tipo de PM y pautas acumulativas (2026-10-09)</h3>
+  <h3 id="d-117">106. Reglas del dominio que NO hay que volver a deducir: tipo de PM y pautas acumulativas (2026-10-09)</h3>
   <p>Reglas que estaban solo en el código, verificadas contra él. <b>Tipo de PM</b>: hay un hito cada <code>frecPM</code>
   horas (250 por defecto); múltiplo de 2.000 = PM4, de 1.000 = PM3, de 500 = PM2, cualquier otro = PM1 (por eso
   <b>1.250 h es PM1</b>). <b>Pautas acumulativas</b>: PM2 = actividades de 250 + 500 h; PM3 = 250 + 500 + 1.000;
@@ -3114,14 +3158,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <b>No se guarda</b> un checklist de actividades ejecutadas; la única evidencia son los repuestos descontados en
   <code>movimientos_stock</code>.</p>
 
-  <h3>107. ¿PM completo según pauta? — primer paso de Calidad de Ejecución (2026-10-09)</h3>
+  <h3 id="d-118">107. ¿PM completo según pauta? — primer paso de Calidad de Ejecución (2026-10-09)</h3>
   <p>Dos campos opcionales en Registro PM: <code>pmCompleto</code> (sí/no) y <code>queFalto</code> (texto,
   obligatorio si se marca "No"). Por defecto "Sí"; los registros anteriores quedan "sin dato" (null, nunca
   contado como completo ni incompleto). Columna <b>Pauta</b> en la tabla. Migración aditiva aplicada en ambas
   bases; pruebas en <code>tests/pmCompleto.test.js</code>. Todavía no calcula nada con el dato: el panel de
   Calidad de Ejecución será descriptivo hasta que haya historial.</p>
 
-  <h3>108. Calidad de Ejecución: re-trabajo del mismo sistema tras un PM — paso 2 (2026-10-09)</h3>
+  <h3 id="d-119">108. Calidad de Ejecución: re-trabajo del mismo sistema tras un PM — paso 2 (2026-10-09)</h3>
   <p>Vista descriptiva en Estadística: después de un PM, ¿vuelve a fallar el mismo sistema que cubría su pauta
   (acumulativa, con <code>GRUPO_PAUTAS</code>) más de lo normal para ese equipo? Cálculo puro en
   <code>calidadEjecucionPM</code> (24 pruebas). Cuenta fallas de 1 a 7 días después de la salida del PM, contra la
@@ -3129,14 +3173,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   tipo de PM y "PM completo según pauta". Rango de confianza 95% desde 10 fallas observadas; con menos, "Pocos
   casos". <b>No prueba mala ejecución</b> (el PM también destapa fallas) y no hay ranking de personas.</p>
 
-  <h3>109. Calidad de datos de Correctivos: texto mal codificado, Sistema y Tipo de Causa visibles — paso 3 (2026-10-09)</h3>
+  <h3 id="d-120">109. Calidad de datos de Correctivos: texto mal codificado, Sistema y Tipo de Causa visibles — paso 3 (2026-10-09)</h3>
   <p>Texto mal codificado reparado en la base (centinela: <code>turno</code> 412 filas, <code>sistema</code> 223, <code>tipo</code> 25;
   migración reversible, 0 filas afectadas después, totales sin cambio) y red de seguridad <code>repararMojibake</code> al agrupar
   turnos. El Sistema vacío (~23%) venía de cuatro caminos rápidos y de que la tabla no permitía completarlo: ahora hay una columna
   <b>Sistema</b> editable. El Tipo de Causa sigue siendo elección humana (nunca se infiere) pero ahora es visible: tarjeta
   <b>Sin Tipo de Causa</b>, filtro <b>Clasificación pendiente</b> y aviso no bloqueante al cerrar. 11 pruebas nuevas.</p>
 
-  <h3>110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)</h3>
+  <h3 id="d-121">110. TBO Komatsu: plan del fabricante vs cambios reales, tiempo que falta, vida por origen y precios (2026-10-10)</h3>
   <p>Nueva sub-pestaña <b>Componentes → TBO Komatsu</b> con todo el Excel de Komatsu (jun-2024). Sus "cambios que debería llevar"
   son <b>teóricos</b> (horómetro ÷ TBO): con un cambio registrado el tiempo que falta se cuenta desde ese cambio (y puede quedar
   vencido); sin él se usa el plan teórico y nunca se marca vencido. Cruza el plan con las compras reales por descripción (los pedidos
@@ -3179,169 +3223,172 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   backtest de origen móvil; un modelo con tendencia o estacionalidad solo gana si supera al promedio por ≥5%. Se aplica al gasto mensual en repuestos
   (pestaña TBO). Con los datos reales gana el promedio: el gasto es demasiado irregular para pronosticar estructura.</p>
 
-  <h3>111. Guardados automáticos con la sesión vencida (2026-10-10)</h3>
+  <h3 id="d-122">111. Guardados automáticos con la sesión vencida (2026-10-10)</h3>
   <p>Al retomar el celular con la sesión vencida, cinco guardados automáticos (metas, disponibilidad, avance, salud) salían juntos y fallaban con 401; la sesión se renovaba segundos después, pero nadie los reintentaba. Ahora cada guardado renueva la sesión <b>antes</b> de enviarse si le quedan menos de 30 s y, si aun así recibe un 401, renueva y reintenta <b>una vez</b> (los guardados son idempotentes). Sin token no intenta renovar, y si la renovación falla se mantiene el aviso y el cierre de sesión de siempre. 11 pruebas.</p>
 
-  <h3>112. Ficha de componente en el Buscador Maestro (2026-10-11)</h3>
+  <h3 id="d-123">112. Ficha de componente en el Buscador Maestro (2026-10-11)</h3>
   <p>Una sola <b>ficha por componente</b> con cambio registrado: vida (medida por origen o plan del fabricante), riesgo de falla en 500 h, costo, abastecimiento (stock, pedidos abiertos, plazo y probabilidad de llegar a tiempo), política óptima y <b>pérdida esperada</b> = probabilidad de falla × consecuencia. Usa las mismas funciones que la pestaña TBO, así ambas pantallas coinciden.</p>
 
   <p>La decisión combina la probabilidad (≥35 % cambiar ya, ≥15 % planificar, ≥5 % vigilar), el plan del fabricante y la política económica; un ítem vencido cuya estrategia es "dejar correr" pasa a "planificar" y lo explica, para no decir "cambiar ya" y "dejar correr" a la vez.</p>
 
-  <h3>113. Score de Salud del equipo con el riesgo de componentes (2026-10-11)</h3>
+  <h3 id="d-124">113. Score de Salud del equipo con el riesgo de componentes (2026-10-11)</h3>
   <p>El Score de Salud suma una 5.ª señal, <b>Riesgo TBO</b> (% de los componentes del equipo que no están en riesgo). Sin plan TBO o sin datos, el Score se calcula exactamente como antes. La Torre de Control, el Buscador, el Dashboard y el ranking de reemplazo usan el mismo Score, y la tarjeta de la Torre muestra "⚠ N comp. en riesgo" con la causa y qué revisar. Cómo se evita que el cambio de fórmula genere avisos falsos: ver arquitectura.md.</p>
 
-  <h3>114. Calibración del modelo de riesgo del fabricante contra la flota (2026-10-11)</h3>
+  <h3 id="d-125">114. Calibración del modelo de riesgo del fabricante contra la flota (2026-10-11)</h3>
   <p>El riesgo de falla que usa TBO (Weibull con β=3 y el TBO como B5) es una hipótesis del fabricante; ahora se contrasta con la flota. Se arman las vidas entre cambios registrados (el tramo abierto cuenta como observación censurada) y cada 500 h se compara lo que el modelo predijo con lo que pasó: razón ocurrido/esperado con intervalo (bootstrap por tramos), puntaje de Brier, prueba de Kolmogorov, fracción cambiada antes del TBO (se espera 5 %) y comparación con un Weibull ajustado dejando un equipo afuera cada vez. Veredicto: <i>compatible</i>, <i>falla antes</i>, <i>dura más</i> o <i>sin datos</i> (menos de 8 tramos).</p>
 
-  <h3>115. Reposición alimentada por el programa de PM (2026-10-11)</h3>
+  <h3 id="d-126">115. Reposición alimentada por el programa de PM (2026-10-11)</h3>
   <p>El stock gestionado son filtros y lubricantes, no los componentes del plan TBO; su demanda <b>programada</b> sale del programa de PM: el próximo PM de cada equipo (por horómetro) y la pauta de lo que gasta. Cada línea de pauta se vincula con su ítem de Stock o Lubricantes con el mismo criterio con que el sistema descuenta stock, y se cruza con stock + pedidos pendientes y plazo de entrega para indicar si alcanza hasta el PM y cuándo conviene pedir.</p>
 
-  <h3>116. Costo de hora detenida editable y plan de PM en ABC-XYZ (2026-10-11)</h3>
+  <h3 id="d-127">116. Costo de hora detenida editable y plan de PM en ABC-XYZ (2026-10-11)</h3>
   <p>El costo de una hora detenida (antes fijo en US$135) se edita en <b>Configuración → Tarifas y Metas</b>, se guarda en la base y es el mismo para todos los usuarios (Configuración &gt; valor local antiguo &gt; US$135). Lo usan el Buscador, la Torre y el Score, el presupuesto y el reemplazo óptimo. Además, el plan de PM calendarizado alimenta el punto de reorden del análisis ABC-XYZ (demanda programada por N.º de parte).</p>
 
-  <h3>117. Costo total de propiedad (TCO) por equipo (2026-10-11)</h3>
+  <h3 id="d-128">117. Costo total de propiedad (TCO) por equipo (2026-10-11)</h3>
   <p>Cuánto cuesta <i>tener</i> cada equipo por hora de operación: <b>capital</b> (amortización contable por hora, o valor de compra ÷ vida contable; referencia por clase: camión 26.000 h, cargador 18.000, bulldozer 17.000), <b>mantención</b> (repuestos y servicios de las órdenes de compra sin duplicar) y <b>detención</b> por falla (horas sin PM × costo de hora detenida). No incluye mano de obra propia (su costo no se registra). Se compara con la mediana de su modelo (3 o más unidades). El indicador de renovación es una cota, no un veredicto.</p>
 
-  <h3>118. Costo de hora detenida por modelo y tasa USD compartida (2026-10-11)</h3>
+  <h3 id="d-129">118. Costo de hora detenida por modelo y tasa USD compartida (2026-10-11)</h3>
   <p>El costo de hora detenida puede definirse <b>por modelo</b> en Configuración (la clave ignora mayúsculas y símbolos: "Komatsu HD785-7" = "komatsu hd785 7"); el valor del modelo manda sobre el general. La tasa USD→CLP (referencial, 910 por defecto) pasó del navegador de cada uno a Configuración, así que vale para todos. Lo usan la ficha de componente, el TCO, el Score de Salud y el presupuesto limitado.</p>
 
-  <h3>119. Calibración con el historial real de Turbos (2026-10-11)</h3>
+  <h3 id="d-130">119. Calibración con el historial real de Turbos (2026-10-11)</h3>
   <p>Primera corrida con datos reales (54 registros de Turbo de 7 camiones HD785-7): las 22 vidas completas terminaron antes del TBO de 8.000 h (mediana ≈1.750 h), unas 41 veces los cambios que el modelo espera (IC 90 %: 18–158). <b>El modelo del fabricante subestima el riesgo del Turbo en esta flota.</b> Límite: el historial anota cambios, no fallas. Regla nueva: dos cambios del mismo componente y equipo con menos de 24 h entre sí cuentan como uno (los HD785-7 llevan dos turbos anotados como filas casi iguales).</p>
 
-  <h3>120. Pronóstico de disponibilidad por equipo (2026-10-11)</h3>
+  <h3 id="d-131">120. Pronóstico de disponibilidad por equipo (2026-10-11)</h3>
   <p>Disponibilidad → <b>Pronóstico de disponibilidad por equipo</b>: ¿se cumple la meta en 30/60/90 días y qué equipos la hunden? Equipo por equipo suma los PM calendarizados (con su duración real), las fallas esperadas (tasa Gamma-Poisson estabilizada, con su incertidumbre) y los equipos fuera de servicio hoy; 2.000 simulaciones dan P10/P50/P90 y la probabilidad de cumplir la meta. Un <b>backtest</b> repite el pronóstico desde fechas pasadas y mide cuántas veces lo real cayó dentro del rango. Cuidados aprendidos con datos reales: un "Fuera de Servicio" sin término es un evento abierto (no se mide como duración) y se corta la historia si el último dato tiene más de 14 días.</p>
 
-  <h3>121. Curva S de PM y cumplimiento del programa (2026-10-11)</h3>
+  <h3 id="d-132">121. Curva S de PM y cumplimiento del programa (2026-10-11)</h3>
   <p>Plan vs real <b>acumulado día a día, ponderado por horas</b>: PM1 3 h, PM2 5 h, PM3 8 h, PM4 12 h (editables en Configuración); PM5, PM7 y PM9 cuentan como PM1, PM6 como PM2 y PM8 como PM4. Con filtro de semana, mes, semestre o año. El plan son los hitos de horómetro que cada equipo cruza en el período; lo real, los registros de PM. Muestra cumplimiento a la fecha, brecha en horas, proyección de cierre, atraso por equipo y por tipo, y el cumplimiento período a período. Hoy se ve en <b>Planificación y Agenda → Planificador</b> (ver más abajo).</p>
 
-  <h3>122. Reportabilidad diaria del cliente (2026-10-11)</h3>
+  <h3 id="d-133">122. Reportabilidad diaria del cliente (2026-10-11)</h3>
   <p>El cliente pide cada día el estatus de todos los equipos (OP o FS, con detalle, detención y proyección de reparación): es la fuente contractual de la disponibilidad. Tabla nueva <code>reportabilidad_diaria</code>, una fila por equipo y día. Disponibilidad → <b>Reportabilidad diaria del cliente</b>: importar el Excel diario o el libro con una hoja por día (con vista previa), <b>exportar</b> un día en el formato del cliente, ver la disponibilidad por semana/mes/semestre/año y seguir las proyecciones de reparación. Cargar de nuevo un día lo <b>actualiza</b>, no lo duplica, y se pueden cargar fechas antiguas después. Carga inicial: 638 filas de 20 días.</p>
 
-  <h3>123. Mapa de equipos (PCA) en Estadística (2026-10-11)</h3>
+  <h3 id="d-134">123. Mapa de equipos (PCA) en Estadística (2026-10-11)</h3>
   <p>Componentes → Estadística → <b>Mapa de equipos (PCA)</b>: compara cada equipo con los de <b>su mismo tipo</b> en fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso y horómetro (últimos 12 meses); en rojo lo que se aleja más de 2,5 desviaciones robustas. Un equipo con datos dudosos (horómetro imposible, pocas reparaciones o pocos reportes) se excluye <b>y se dice por qué</b>. El gráfico de ejes principales solo aparece con 8 o más equipos completos y avisa si el eje no es estable. Con los datos reales, mezclar tipos solo separa camiones de torres: el valor práctico es comparar con pares y detectar datos malos.</p>
 
-  <h3>124. Programa de cambio de neumáticos proyectado, con curva S (2026-10-12)</h3>
+  <h3 id="d-135">124. Programa de cambio de neumáticos proyectado, con curva S (2026-10-12)</h3>
   <p>Neumáticos → <b>Programa de cambios</b>: cuántos neumáticos hay que cambiar por semana, mes, semestre o año, con costo estimado, lista con la fecha de cada uno y <b>curva S</b> (lo ya cambiado + lo que falta). La fecha de cada neumático se cuenta desde su <b>última medición</b>; los que ya pasaron su fecha salen aparte como <b>vencidos (cambiar ya)</b>, y los que no tienen mediciones quedan fuera. No hay % de cumplimiento a propósito: no existe un plan congelado contra el cual medir. Con los datos reales la última medición era de hace 71 días, así que el programa lo advierte.</p>
 
-  <h3>125. La curva S de PM se mueve al Planificador (2026-10-12)</h3>
+  <h3 id="d-136">125. La curva S de PM se mueve al Planificador (2026-10-12)</h3>
   <p>La curva S de PM pasó de Metas &amp; KPIs → Avance del Mes a <b>Planificación y Agenda → Planificador</b> (arriba, antes del flujo de caja), con el mismo contenido. Avance del Mes conserva su tabla y un botón que abre el Planificador.</p>
 
-  <h3>126. Cómo se mantienen los documentos al día (2026-10-12)</h3>
+  <h3 id="d-137">126. Cómo se mantienen los documentos al día (2026-10-12)</h3>
   <p><code>arquitectura.md</code> es el detalle técnico completo (una sección por cambio); <code>arquitectura.html</code> es su <b>resumen para leer</b>, escrito a mano, con una sección por cambio: al agregar una sección al <code>.md</code> hay que agregar su resumen aquí. <code>manual-usuario.html</code>, en cambio, se genera desde <code>manual-usuario.md</code> con <code>python3 scripts/manual_md_a_html.py</code> (no se edita a mano). El plano usa cifras fijas (módulos, tablas, funciones): se revisan cuando cambian. El cambio de un cálculo o de una pantalla se documenta en el mismo commit.</p>
 
-  <h3>127. Aviso de muestra chica en las pruebas estadísticas (2026-10-13)</h3>
+  <h3 id="d-138">127. Aviso de muestra chica en las pruebas estadísticas (2026-10-13)</h3>
   <p>Un resultado <b>no significativo</b> no demuestra que no haya diferencia: con pocos datos la prueba tiene poca potencia y solo vería diferencias muy grandes. ANOVA, Kruskal-Wallis y Levene (MTTR por técnico) y Log-Rank (entre componentes) muestran ahora un aviso amarillo <b>Muestra chica</b> cuando el resultado no es significativo y los datos son pocos, con el tamaño de diferencia que sí podrían detectar (α = 5 %, potencia 80 %: d = 2,80·√(2/n) desviaciones típicas; se avisa con menos de 25 datos en el grupo más chico; en Log-Rank, según las fallas de cada grupo). Son aproximaciones orientativas y el aviso nunca aparece si el resultado es significativo. No incluye los chi-cuadrado de Predictivo ni Mann-Kendall. El Glosario de la Ayuda explica H0, H1, errores tipo I y II y potencia.</p>
 
-  <h3>128. Gráfico de la Matriz Jack-Knife con horas perdidas por año (2026-10-13)</h3>
+  <h3 id="d-139">128. Gráfico de la Matriz Jack-Knife con horas perdidas por año (2026-10-13)</h3>
   <p>La Matriz Jack-Knife (Stock &amp; Insumos → Costos → MTBF/MTTR) ahora tiene el <b>gráfico</b> del diagrama clásico: cada punto es un equipo, con MTBF en el eje X (a la derecha los que fallan más seguido) y MTTR en el Y, ambos logarítmicos, las medianas de la flota como líneas de corte y cuatro zonas: Agudos, Complejos (agudos-crónicos), Clase Mundial y Crónicos. Las <b>diagonales punteadas</b> unen puntos que pierden las mismas horas al año (25 a 1.000 h/año): dos equipos sobre la misma línea cuestan lo mismo aunque uno falle poco y tarde mucho y el otro al revés. La tabla agrega fallas por año y <b>horas perdidas por año</b> por equipo (estimadas: horas/día declaradas × 365 ÷ MTBF, por el MTTR; sin horas/día válidas se muestra "—") y cada cuadrante dice <b>qué hacer</b>: complejos = prioridad uno; agudos = mantenibilidad (repuesto, acceso, procedimiento); crónicos = causa raíz o rediseño; clase mundial = dejarlo en el plan.</p>
 
-  <h3>129. Criticidad de equipos multicriterio — matriz M2 (2026-10-13)</h3>
+  <h3 id="d-140">129. Criticidad de equipos multicriterio — matriz M2 (2026-10-13)</h3>
   <p>Componentes → Predictivo → <b>Criticidad de Equipos</b>: la criticidad de cada equipo, calculada con datos y comparada con la etiqueta manual Crítico/Esencial/General, <b>sin cambiarla</b>. Criticidad = <b>Frecuencia × Consecuencia</b> (1 a 5 cada una, grilla 5×5). Frecuencia: fallas por 1.000 h de operación en 12 meses. Consecuencia: promedio ponderado de la duración típica de la reparación (mediana, 35 %), el valor de la hora detenida del modelo (35 %) y la importancia operacional (la etiqueta manual, 30 %). Los puntajes son <b>relativos a la flota</b> (percentiles): "Baja" significa "menos crítico que el resto", no "no es crítico". Un criterio que no varía (todos los modelos con el mismo costo de hora detenida) se excluye y los pesos se reparten. Nivel: frecuencia × consecuencia ≥ 15 Alta, 8 a 14 Media, menos de 8 Baja. <b>No mide</b> seguridad ni ambiente (no hay datos registrados). Las diferencias con la etiqueta son para revisar, no para cambiar etiquetas en bloque.</p>
 
-  <h3>130. M4 (ABC × VED) y M6 (prioridad de OT) usan la criticidad de equipos (2026-10-13)</h3>
+  <h3 id="d-141">130. M4 (ABC × VED) y M6 (prioridad de OT) usan la criticidad de equipos (2026-10-13)</h3>
   <p>La criticidad de equipos (M2) ahora alimenta dos matrices más. <b>ABC × VED</b> (Predictivo → ABC-XYZ de Repuestos): cada repuesto es <b>Vital, Esencial o Deseable</b> según el equipo más crítico que lo usa (la banda es el peor caso entre la criticidad calculada y la etiqueta manual), se agrupa en categorías de control I, II y III, y el VED fija el stock de seguridad (Vital 99 %, Esencial 95 %, Deseable 90 %). El campo "equipo/modelo" de los repuestos es texto libre (a veces una marca de filtro), así que se asocia por palabras con el modelo, la sigla o el tipo del equipo; si nada calza, el repuesto queda sin VED y no se inventa. <b>Prioridad de OT</b> (Predictivo → Backlog Inteligente): prioridad = <b>urgencia × impacto</b> (1 a 5 cada una; la urgencia sale de los días pendiente y el impacto de la criticidad del equipo), con niveles P1 resolver hoy, P2 esta semana, P3 programar y P4 puede esperar. Antes el backlog solo se ordenaba por días.</p>
 
-  <h3>131. Diagramas Sankey de costo y de horas de reparación (2026-10-13)</h3>
+  <h3 id="d-142">131. Diagramas Sankey de costo y de horas de reparación (2026-10-13)</h3>
   <p>Costos tiene una vista nueva, <b>Flujo de horas y costo</b>, con dos diagramas Sankey donde el ancho de cada franja es proporcional a la cantidad. El primero reparte el <b>costo anual de propiedad</b> (capital, mantención, detención) entre tipos de equipo y los 10 equipos de mayor costo, con los mismos números de la tabla de Costo Total de Propiedad y sin mano de obra propia. El segundo reparte las <b>horas de reparación</b> de los últimos 12 meses entre tipo de equipo, equipo y componente; solo cuentan las fallas con duración registrada, y lo que no tiene componente se muestra aparte como "Sin componente registrado" para que se vea cuánto falta anotar.</p>
 
-  <h3>132. Inventario de algoritmos, fórmulas, matrices y diagramas (2026-10-13)</h3>
+  <h3 id="d-143">132. Inventario de algoritmos, fórmulas, matrices y diagramas (2026-10-13)</h3>
   <p>Nuevo documento, <b>docs/inventario-algoritmos</b> (se abre desde Configuración), con <b>125 fichas</b>: para cada cálculo del programa dice qué pregunta responde, de dónde viene el método (con enlace a la fuente y un nivel: verificada, secundaria, criterio propio o sin fuente), cómo lo calcula, dónde se ve, qué no dice y en qué función del código está. Los cálculos con datos suficientes traen un <b>ejemplo real</b> calculado con la base cargada. Lo que no se pudo verificar en internet quedó declarado (por ejemplo el código "A&amp;S1" de EN 15341 y el origen del Jack-Knife con MTBF), y una prueba automática impide que una función nueva quede sin ficha.</p>
 
-  <h3>133. Arriendo vs compra: seco, húmedo y compra por modelo (2026-10-13)</h3>
+  <h3 id="d-144">133. Arriendo vs compra: seco, húmedo y compra por modelo (2026-10-13)</h3>
   <p>Costos tiene una vista nueva, <b>Arriendo vs compra</b>, que reemplaza la planilla Excel: compara por modelo y por hora de operación arrendar seco, arrendar húmedo o comprar. Lo medido sale solo (horas por día, valor de compra, vida contable, repuestos, neumáticos); lo que no se mide (UF, diésel, sueldos, dotación, litros por carga, tarifas) lo escribe un administrador y se guarda en Configuración (columna nueva <code>arriendoVsCompra</code>). Lo que falta se marca como incompleto y las tarifas sugeridas se marcan como estimación sin fuente. El cálculo es <code>arriendoVsCompra</code> en <code>logic.js</code>, con pruebas.</p>
 
-  <h3>134. Revisión cruzada de coherencia entre pestañas (2026-10-14)</h3>
+  <h3 id="d-145">134. Revisión cruzada de coherencia entre pestañas (2026-10-14)</h3>
   <p>Una prueba automática abre cada pantalla con datos de prueba, lee las cifras que se repiten entre pestañas (equipos urgentes, fallas, MTBF, horas-hombre, disponibilidad, ratio preventivo, cumplimiento PM) y verifica que den lo mismo; son 43 comparaciones. Otra prueba estática exige que toda pantalla que cuenta fallas sume sus tres fuentes (correctivos, historial e informes de falla catastrófica). Corrigió dos pantallas que contaban distinto (Metas y Componentes Mayores). También se corrigió el % de Cumplimiento PM, que salía vacío: ahora se mide por horómetro, con el estándar del informe del cliente (±10 % del ciclo, por ambos lados): un PM hecho a las 380 h cuando tocaba a las 250 h está pasado y uno a las 160 h está adelantado. Lo que no se puede saber no se inventa. Queda abierto que el informe del cliente de la primera semana de enero lista tres PM que no están en el sistema.</p>
 
-  <h3>135. Informe de gestión de mantenimiento: programa, desviaciones, equipos fuera de servicio y backlog (2026-10-14)</h3>
+  <h3 id="d-146">135. Informe de gestión de mantenimiento: programa, desviaciones, equipos fuera de servicio y backlog (2026-10-14)</h3>
   <p>Metas &amp; KPIs tiene una sub-pestaña nueva, <b>Informe de gestión</b>, con el informe semanal del cliente: certeza y cumplimiento de programa, las desviaciones de mantenimiento (cada PM con su horómetro programado, el real y la desviación en horas y en % del ciclo, con el estándar de ±10 % del ciclo, tabla y gráfico) los equipos fuera de servicio (días, sistema y observación) y el cierre de backlog de pautas. El % dentro del estándar es el mismo que muestran Dashboard, Informes KPI y Metas. También tiene la certeza y el cumplimiento de programa (se reconstruyen con el historial de horómetros y los PM registrados, porque el plan semanal se proyecta solo y no se guarda) y el cierre de backlog de pautas (tabla nueva <code>backlog_pm</code>; un PM registrado como incompleto crea su tarea pendiente solo).</p>
 
-  <h3>136. Guía de preguntas de confiabilidad en la Ayuda (2026-10-16)</h3>
+  <h3 id="d-147">136. Guía de preguntas de confiabilidad en la Ayuda (2026-10-16)</h3>
   <p>La Ayuda tiene una sección nueva, la 34, que ordena las herramientas por la pregunta que se quiere responder (¿algo se comporta de forma anormal?, ¿qué falla y dónde?, ¿es operación o degradación?, ¿cuánto le queda?, ¿por qué lo dice?) y dice en qué pantalla se contesta cada una. Es solo texto. Reconoce dos límites: separar operación de degradación necesita variables de proceso que no se registran, y las alertas no se guardan para compararlas después con la falla real.</p>
 
-  <h3>Menú agrupado y Costos como pestaña propia (2026-10-16)</h3>
+  <h3 id="d-148">Menú agrupado y Costos como pestaña propia (2026-10-16)</h3>
   <p>Se revisó si había pestañas o sub-pestañas con la misma función. Comparadas una a una contra el código y la base, <b>no había duplicados reales</b> (cada par miraba datos o preguntas distintas), así que no se borró ni fusionó nada. Lo que sí estaba mal era el <b>lugar</b>: el menú era una fila plana de 18 pestañas, "Costos" vivía como sub-pestaña de Stock &amp; Insumos aunque responde a "cuánto cuesta" y no a "qué hay en bodega", y varias sub-pestañas no seguían el orden en que se usan.</p>
   <p><b>Qué cambió (solo presentación; ninguna fórmula ni dato):</b> (1) <code>TABS</code> en <code>index.html</code> lleva un campo <code>g</code> y <code>initNav()</code> agrupa las pestañas contiguas con el mismo <code>g</code> en <code>.nav-grp</code> con una etiqueta: <b>Operación</b> (Dashboard, Torre, Equipos, Registro PM, Correctivos, Horómetros), <b>Planificación</b> (Planificación, Pautas, Vencimientos), <b>Activos</b> (Neumáticos, Stock &amp; Insumos, Análisis Aceite, Componentes), <b>Desempeño</b> (Disponibilidad, Producción, <b>Costos</b>, Metas &amp; KPIs) y <b>Herramientas</b> (Buscar, Auditoría de Datos). En móvil las etiquetas se ocultan y los grupos se separan con una línea. (2) <b>Costos</b> es ahora la pestaña <code>cos</code> (antes <code>_stk2Sub === 'cos'</code> en <code>stk2.js</code>); Stock &amp; Insumos queda con 4 sub-pestañas (Filtros, Lubricantes, Repuestos, Consumos). <code>cos.js</code> no se tocó. (3) El perfil <b>comprador</b> ve <code>['stk2','cos']</code>. (4) Sub-pestañas reordenadas por flujo de uso en Componentes (informes y predictivo separados por una línea), Planificación y Metas &amp; KPIs; Registro PM pasa a titularse "Registro de Mantención Preventiva (PM)". (5) Comando de voz para ir a Costos. <b>Límite:</b> los atajos guardados con <code>_stk2Sub = 'cos'</code> caen en Stock Filtros; no hay datos que migrar.</p>
 
-  <h3>137. Menú agrupado y Costos como pestaña propia (2026-10-16)</h3>
+  <h3 id="d-149">137. Menú agrupado y Costos como pestaña propia (2026-10-16)</h3>
   <p>Se revisó si había pestañas o sub-pestañas con la misma función. Comparadas una a una contra el código y la base, <b>no había duplicados reales</b> (cada par miraba datos o preguntas distintas), así que no se borró ni fusionó nada. Lo que sí estaba mal era el <b>lugar</b>: el menú era una fila plana de 18 pestañas, "Costos" vivía como sub-pestaña de Stock &amp; Insumos aunque responde a "cuánto cuesta" y no a "qué hay en bodega", y varias sub-pestañas no seguían el orden en que se usan.
 
 <b>Qué cambió (solo presentación; ninguna fórmula ni dato):</b> (1) <code>TABS</code> en <code>index.html</code> lleva un campo <code>g</code> y <code>initNav()</code> agrupa las pestañas contiguas con el mismo <code>g</code> en <code>.nav-grp</code> con una etiqueta: <b>Operación</b> (Dashboard, Torre, Equipos, Registro PM, Correctivos, Horómetros), <b>Planificación</b> (Planificación, Pautas, Vencimientos), <b>Activos</b> (Neumáticos, Stock &amp; Insumos, Análisis Aceite, Componentes), <b>Desempeño</b> (Disponibilidad, Producción, <b>Costos</b>, Metas &amp; KPIs) y <b>Herramientas</b> (Buscar, Auditoría de Datos). En móvil las etiquetas se ocultan y los grupos se separan con una línea. (2) <b>Costos</b> es ahora la pestaña <code>cos</code> (antes <code>_stk2Sub === 'cos'</code> en <code>stk2.js</code>); Stock &amp; Insumos queda con 4 sub-pestañas (Filtros, Lubricantes, Repuestos, Consumos). <code>cos.js</code> no se tocó. (3) El perfil <b>comprador</b> ve <code>['stk2','cos']</code>. (4) Sub-pestañas reordenadas por flujo de uso en Componentes (informes y predictivo separados por una línea), Planificación y Metas &amp; KPIs; Registro PM pasa a titularse "Registro de Mantención Preventiva (PM)". (5) Comando de voz para ir a Costos. <b>Límite:</b> los atajos guardados con <code>_stk2Sub = 'cos'</code> caen en Stock Filtros; no hay datos que migrar.</p>
 
-  <h3>138. Equipos Urgentes del Dashboard: orden por prioridad, con Criticidad y Salud (2026-10-16)</h3>
+  <h3 id="d-150">138. Equipos Urgentes del Dashboard: orden por prioridad, con Criticidad y Salud (2026-10-16)</h3>
   <p>La tabla "Equipos Urgentes — Intervenir Ahora" salía en el orden en que estaban cargados los equipos. Ahora <code>ordenUrgentes</code> (logic.js) la ordena por 1) criticidad del equipo (etiqueta Crítico / Esencial / General de <code>equipos</code>; sin etiqueta al final), 2) días para el PM (el más vencido primero), 3) Score de Salud más bajo y 4) sigla. No crea ningún puntaje: ordena tres datos que ya existen. La tabla suma las columnas <b>#</b>, <b>Criticidad</b> y <b>Salud</b> (colores por banda: ≥80, ≥55, menor). Como la tabla necesita el Score de Salud por equipo (<code>equiposConSaludFlota</code>, que se calcula más abajo que el bloque de urgentes en <code>dash.js</code>), el bloque deja un marcador y la tabla se arma justo antes de ensamblar las secciones. <b>Límites:</b> la criticidad es la etiqueta manual, no la calculada de Predictivo; criticidad y salud son las de hoy aunque el Dashboard muestre otro período. 5 pruebas en <code>tests/ordenUrgentes.test.js</code>.</p>
 
-  <h3>139. Los números del tablero abren la lista de equipos (2026-10-16)</h3>
+  <h3 id="d-151">139. Los números del tablero abren la lista de equipos (2026-10-16)</h3>
   <p>Cada número que cuenta equipos se puede tocar y abre una ventana con esos equipos, para pasar de "6 urgentes" a "cuáles" sin cambiar de pestaña. <b>Dónde:</b> el encabezado (Equipos, Urgentes, Próximas, Al Día, Fuera de Servicio) y el Dashboard (tarjetas Urgentes, Próximas, Al Día y Flota, y las bandas Crítica / Advertencia / Salud buena / Sin datos del Mapa de Salud). <b>Cómo:</b> <code>verEquipos</code> (index.html) arma la ventana con <code>sm()</code>; el encabezado usa <code>verEquiposGrupo</code> (siempre hoy, desde <code>S.g('eq')</code>) y el Dashboard registra <code>verEquiposDash</code> en cada dibujado, con las mismas listas del período que se está mirando (hoy, ayer o proyectado) y, para las bandas de salud, <code>equiposConSaludFlota</code>. La ventana agrega columnas solo si hay dato (criticidad, salud, motivo de la salida de servicio), y un clic en la sigla abre su ficha en Buscar. Las tarjetas "Equipos Urgentes", "Próximos PMs" y "Equipos con Salud Baja" ganan enlaces "Ver detalle", "Ver planificación" y "Ver Torre de Control". Son botones accesibles (Enter o espacio, foco visible). <b>Prueba:</b> <code>tests/e2e/coherencia-cruzada.spec.js</code> verifica que cada ventana lista exactamente la cantidad que dice el número (6 comparaciones nuevas). <b>Límite:</b> las bandas de salud son las de hoy, porque el Score de Salud no se reconstruye hacia atrás.</p>
 
-  <h3>140. Menú en barra lateral (2026-10-16)</h3>
+  <h3 id="d-152">140. Menú en barra lateral (2026-10-16)</h3>
   <p>El menú de 19 pestañas pasa de dos filas de texto arriba a una <b>barra lateral izquierda</b>, debajo de la cabecera, con los 5 grupos (Operación, Planificación, Activos, Desempeño, Herramientas), un ícono por pestaña y la pestaña activa resaltada con una marca ámbar. Un botón al pie de la barra (junto a Manual y Configuración) la <b>contrae a solo íconos</b> (con el nombre como ayuda al pasar el mouse); la elección queda en <code>localStorage</code> (<code>navMini</code>, con try/catch: sin almacenamiento simplemente arranca abierta). <b>Cómo:</b> se agregó un contenedor <code>.shell</code> (grilla de dos columnas) alrededor de <code>#nav</code> y <code>#main</code>; la barra es <code>position:sticky</code> y su alto se calcula con la altura real de la cabecera (<code>--hh</code>, <code>ResizeObserver</code>). <code>initNav()</code> ya no cambia salvo que cada botón lleva ícono, <code>&lt;span class="nav-l"&gt;</code> y <code>title</code>; el marcado de la pestaña activa pasó a usar <code>.nav-grp button</code> (antes dependía de que los botones de las pestañas no tuvieran <code>title</code>). <b>Solo presentación:</b> ningún id, ruta ni permiso cambió (<code>go()</code>, <code>_tabsPermitidas()</code> y los perfiles son los mismos). <b>Pantallas chicas:</b> en 768 px o menos (celular) sigue la tira horizontal de siempre; el botón de contraer se oculta ahí. <b>Efecto lateral conocido:</b> con la barra abierta en una pantalla de 1.440 px la tabla de Equipos (celdas editables) es más ancha que el espacio y se desliza hacia el lado (<code>#tbl-eq{min-width:1250px}</code>), en vez de cortar lo que se escribe; en 1.920 px cabe completa, y contrayendo la barra también.</p>
 
-  <h3>141. Base visual y Dashboard con los 4 números principales arriba (2026-10-16)</h3>
+  <h3 id="d-153">141. Base visual y Dashboard con los 4 números principales arriba (2026-10-16)</h3>
   <p><b>Base visual (toda la app):</b> (1) el gris de las etiquetas (<code>--tx3</code>) se subió de <code>#64748b</code> a <code>#8190a6</code> en los temas oscuros: pasaba de 3,3–3,7 de contraste sobre las tarjetas a 4,9–5,5 (el mínimo para texto chico es 4,5); (2) ningún texto baja de 11 px: había cientos de etiquetas escritas en línea con 8, 9 y 10 px, y una regla por atributo (<code>[style*="font-size:9px"]{font-size:11px!important}</code>, igual para 8 y 10) las corrige todas sin tocar cada pantalla, más las clases base (<code>.hs small</code>, <code>.nav-g</code>, <code>.card-t</code>, el rótulo del encabezado); (3) los rótulos con 2 o 3 px de espaciado entre letras bajan a <code>.1em</code>. <b>Dashboard:</b> una fila superior (<code>.kpi-row</code>, 4 columnas; 2 en pantallas medianas, 1 en celular) con Disponibilidad mecánica, Urgentes, Próximas e Índice de salud de flota. Son las mismas tarjetas que antes vivían en bloques distintos y se repetían: la tarjeta grande de disponibilidad, las tarjetas Urgentes y Próximas de la grilla, y el número del Índice de salud, que dejó en su caja solo la composición (equipos al día, disponibilidad, stock sano, flota sin falla). Urgentes y Próximas abren la ventana de equipos; el Índice de salud lleva a la Torre de Control. Los bloques conmutables (Salud de Flota, Disponibilidad…) siguen ocultando sus detalles; la fila superior siempre se ve. <b>Límite:</b> los tamaños de letra se forzaron con <code>!important</code> por ser inline; si una pantalla nueva necesita un texto de menos de 11 px, hay que quitar esa regla a propósito. La prueba de coherencia (52 comparaciones) sigue verde: los mismos números se leen igual en el Dashboard.</p>
 
-  <h3>142. Cabecera más limpia y tablas con dos densidades (2026-10-16)</h3>
+  <h3 id="d-154">142. Cabecera más limpia y tablas con dos densidades (2026-10-16)</h3>
   <p><b>Cabecera (escritorio):</b> fondo plano (<code>--bg2</code>) con una línea fina en vez de la raya ámbar de 2 px, sin la marca de agua del engranaje (<code>.header::before</code>), el rótulo largo pasa a "● En vivo · toda la flota" (la explicación completa queda como ayuda al pasar el mouse) y los botones CSV / Imprimir / Densidad / Voz y el usuario pasan de pastillas oscuras con colores fijos a botones con borde sutil que usan las variables del tema (así también se ven bien en tema claro). <b>Tablas:</b> el encabezado pasa de ámbar a gris (<code>--tx2</code>, 11 px): el ámbar queda solo para acciones; más aire por defecto (<code>td</code> 7×10 px), franja suave en filas alternas y el hover se conserva. <b>Densidad:</b> el botón "Densidad" de la cabecera (<code>densidadAlternar()</code>) agrega o quita <code>body.dens-compact</code> (celdas de 3×8 px) en todas las tablas a la vez, y guarda la elección en <code>localStorage</code> (<code>densTablas</code>, con try/catch). En celular (≤ 480 px) la cabecera compacta de siempre no cambia. <b>Solo presentación:</b> ninguna cifra ni fórmula se toca. <b>Límite:</b> algunas tablas escriben su relleno en línea y no cambian de densidad; las celdas editables (Equipos) conservan su ancho mínimo.</p>
 
-  <h3>143. Acciones agrupadas en "Más acciones ▾" (2026-10-16)</h3>
+  <h3 id="d-155">143. Acciones agrupadas en "Más acciones ▾" (2026-10-16)</h3>
   <p>Varias pestañas ponían 6 a 10 botones de herramientas en el encabezado, al lado del título (Correctivos tenía 10, en dos filas). <code>\1</code> (index.html) revisa cada <code>\1</code> de <code>\1</code>: si tiene 4 o más botones sueltos y al menos 2 irían al menú, deja a la vista los <b>\1</b> (botones llenos, hasta 2; si no hay ninguno, los 2 primeros) y <b>\1</b> (no copia) el resto a un menú "Más acciones ▾" (<code>\1</code>), junto con los visibles en un <code>\1</code> alineado a la derecha del título. Son los mismos nodos con sus mismos <code>\1</code>, ids y estilos, por eso ningún botón pierde su función. Un <code>\1</code> sobre <code>\1</code> lo repite cada vez que una pestaña se vuelve a dibujar (los encabezados ya procesados llevan <code>\1</code>). El menú cierra con clic afuera, al elegir una opción o con Escape, tiene <code>\1</code> / <code>\1</code>, los botones que el rol ya ocultó (lector) no cuentan para decidir qué queda a la vista, y si todos sus botones están ocultos (por ejemplo el rol lector oculta los de escritura) el grupo se esconde solo. No se imprime. <b>\1</b> Correctivos (9 en el menú), Neumáticos (6) y Stock &amp; Insumos (2); las demás pestañas tienen menos de 4 botones sueltos y quedan igual. <b>\1</b> <code>\1</code> heredaba el fondo ámbar de <code>\1</code> y dejaba el texto ámbar sobre ámbar (ilegible) en todos los botones de borde al pasar el mouse; ahora el fondo es <code>\1</code>. <b>\1</b> <code>\1</code> comprueba en Correctivos que el menú tiene botones, abre y que uno de ellos ejecuta su acción. <b>\1</b> si la pestaña se vuelve a dibujar con el menú abierto (por ejemplo por una actualización de datos), el menú se cierra.</p>
 
-  <h3>144. Menú del celular: barra inferior y "Más" (2026-10-16)</h3>
+  <h3 id="d-156">144. Menú del celular: barra inferior y "Más" (2026-10-16)</h3>
   <p>En pantallas de 768 px o menos, la tira horizontal de pestañas de arriba se reemplaza por una <b>barra inferior</b> (<code>#bnav</code>, fija, 58 px, respeta el borde seguro del teléfono) con hasta 4 accesos a las pestañas más usadas que el usuario pueda ver (Dashboard, Equipos, Correctivos, Registro PM; si el perfil restringe pestañas, completa con las primeras permitidas, usando <code>_tabsPermitidas()</code>) y un botón <b>Más</b>. "Más" (<code>navMovilAlternar</code>) agrega <code>body.nav-abierto</code>, que muestra <code>#nav</code> como hoja a pantalla completa (sobre la barra inferior) con los 5 grupos y los botones de Manual y Configuración; <code>go()</code> la cierra y marca la pestaña activa en ambas barras. Se reutiliza el mismo <code>#nav</code>, así que el resaltado, los permisos y los ids son los mismos. El contenido gana 78 px de margen inferior para que la barra no tape nada y el aviso (toast) sube sobre ella. En escritorio la barra inferior no existe (<code>display:none</code>) y sigue la barra lateral. No se imprime. <b>Detalle:</b> el ícono del botón "Densidad" de la cabecera pasó de tres líneas a una tabla, para no confundirlo con el menú. <b>Prueba:</b> <code>tests/e2e/movil-nav.spec.js</code> (barra con 5 botones, "Más" muestra las 19 pestañas, elegir una cierra la hoja y navega; en escritorio no hay barra inferior). <b>Límite:</b> los cuatro accesos son fijos por perfil, no se ordenan por uso real.</p>
 
-  <h3>145. Filtros uniformes y Dashboard más corto en celular (2026-10-16)</h3>
+  <h3 id="d-157">145. Filtros uniformes y Dashboard más corto en celular (2026-10-16)</h3>
   <p><b>Filtros:</b> los selectores y campos de texto, número y fecha dentro de <code>#main</code> (fuera de las celdas editables de las tablas) comparten una sola forma: 34 px de alto, borde <code>--bd</code>, radio 6 px, fondo <code>--bg3</code>, foco con anillo ámbar. Los estilos que cada pantalla escribe en línea siguen ganando en lo que definan (por ejemplo el ancho), pero ya no hay cuatro alturas distintas. <b>Dashboard en celular (≤ 768 px):</b> el selector de período (mes, año, Hoy / Ayer / Año pasado, fecha, Alertas PM4, Resumen de turno) se pliega en un botón "Período: <b>Oct 2026</b> ▾" (<code>.dash-per</code>, <code>.dash-per-btn</code>) que lo despliega al tocarlo; la fila "Mostrar" (<code>.dash-mostrar</code>), de uso ocasional, se oculta (la preferencia sigue guardada); y la fila de 4 números pasa a dos columnas con números de 34 px, para que los cuatro se vean sin bajar. En escritorio no cambia nada. <b>Corrección aparte:</b> el login enfocaba el correo con un retraso fijo de 100 ms al abrirse; si el usuario ya había empezado a escribir la contraseña, el foco saltaba al correo y el resto de la clave se escribía ahí (así falló de forma intermitente la prueba de ingreso bajo carga). Ahora solo enfoca el correo si el foco sigue libre y la contraseña está vacía. <b>Límite:</b> los campos con estilo propio muy específico pueden verse algo distintos.</p>
 
-  <h3>146. Solapas, Predictivo agrupado y Estadística plegable (2026-10-16)</h3>
+  <h3 id="d-158">146. Solapas, Predictivo agrupado y Estadística plegable (2026-10-16)</h3>
   <p><b>Solapas:</b> las sub-pestañas de Stock &amp; Insumos, Componentes, Planificación y Metas &amp; KPIs pasan de botones llenos (el activo en ámbar relleno) a solapas con subrayado (<code>.subtabs</code> / <code>.subtab</code>, <code>.on</code> para la activa): más livianas, con <code>role="tab"</code>, foco visible y desplazamiento horizontal si no caben; al dibujarse, la barra se desliza para dejar visible la solapa activa. Los ids, <code>onclick</code> y las funciones <code>comp2Sub</code>, <code>stk2Sub</code>, <code>planiSub</code> y <code>mkpiSub</code> no cambian. <b>Componentes</b> agrupa sus solapas con rótulos (<code>.subtabs-g</code>): *Mis componentes* (Componentes Mayores, Historial —antes "Historial de Componentes", acortado para que quepan—, TBO Komatsu, Tren de Rodaje), *Fallas* (Informes de Falla, Destrabe) y *Análisis* (Predictivo, Estadística). <b>Metas &amp; KPIs</b> pasa al orden de uso: Metas, Avance del Mes, Informes KPI, Informe de gestión, Resumen Ejecutivo (el resumen, para reportar lo ya decidido, al final); la pestaña inicial sigue siendo Metas. <b>Predictivo:</b> el selector de 21 vistas pasa a 6 <code>&lt;optgroup&gt;</code> por pregunta, usando la misma guía de la Ayuda: *¿Qué está pasando?* (Necesita atención, Por Equipo, Backlog, Items, Diagnóstico, Fallas Repetitivas), *¿Qué tan riesgoso es?* (Probabilidad, Matriz de Riesgo, Criticidad de Equipos), *¿Cuánto le queda?* (RUL, Intervalo P-F, Kijima, Señal de Reemplazo), *Repuestos y stock* (Criticidad de Repuestos, ABC-XYZ, Stock PM, Lubricantes PM), *Efectividad y patrones* (Efectividad, Patrones Ocultos, Oportunista) y *Taller* (Dotación). Mismas vistas, mismos valores. <b>Estadística:</b> <code>plegarSecciones</code> (index.html) convierte los bloques <code>.chart-box</code> con título en <code>&lt;details class="sec-pleg"&gt;</code> cuando una vista tiene 2 o más; el primero abre solo y lo que el usuario abre o cierra se recuerda por título (<code>window._seccionesAbiertas</code>) mientras la página siga abierta. Para poder plegarlos, en *Por Componente* los análisis (Weibull, Kaplan-Meier, MCF, Crow-AMSAA, Competing Risks, correlación con aceite) pasaron de estar anidados dentro de la caja del Pareto a ser bloques hermanos. <b>Prueba:</b> <code>tests/e2e/coherencia-cruzada.spec.js</code> verifica 21 vistas en 6 grupos, 8 solapas en Componentes, bloques plegables con uno abierto y el orden de Metas &amp; KPIs. <b>Límite:</b> lo abierto o cerrado no se guarda entre recargas.</p>
 
-  <h3>147. Barra lateral contraída por defecto en pantallas medianas y botones chicos sobrios (2026-10-16)</h3>
+  <h3 id="d-159">147. Barra lateral contraída por defecto en pantallas medianas y botones chicos sobrios (2026-10-16)</h3>
   <p><b>Barra lateral:</b> revisando pestaña por pestaña con capturas a 1.440 px se vio que la barra abierta (236 px) apretaba las tablas con celdas editables (Registro PM, Neumáticos, Stock): textos cortados ("MICHELI", "Mantencion Progr"). Ahora, si el usuario nunca eligió (<code>localStorage.navMini</code> vacío) y la ventana mide menos de 1.500 px, la barra parte <b>contraída</b> (solo íconos). Contraída, al pasar el mouse o con el foco del teclado se <b>abre encima del contenido</b> (236 px, con nombres y rótulos de grupo, sin empujar la tabla: <code>margin-right:-172px</code>, sombra y <code>z-index</code>), así los nombres siguen a un gesto de distancia. El botón de la barra fija la preferencia y, una vez elegida, se respeta en cualquier ancho. En pantallas de 1.500 px o más sigue abierta. <b>Botones:</b> <code>.btn-s</code> suelto (sin <code>.btn</code> ni <code>.btn-o</code>) se veía como el botón blanco del navegador (chips de año de Buscar, "Hoy" del Dashboard). Ahora es un botón sobrio (fondo <code>--bg3</code>, borde sutil); solo se pinta ámbar suave cuando es el <b>activo</b> de un grupo, es decir, cuando tiene hermanos <code>.btn-o</code> (patrón de Hoy / Ayer / Año pasado), detectado con <code>:has()</code>; los botones de acción de fila ("Ver →") quedan neutros. <b>Límite:</b> <code>:has()</code> requiere un navegador de 2023 o posterior; en uno más antiguo los botones activos quedan neutros, sin perder función.</p>
 
-  <h3>148. Auditoría de cambios campo por campo (2026-10-17)</h3>
+  <h3 id="d-160">148. Auditoría de cambios campo por campo (2026-10-17)</h3>
   <p><b>Qué es:</b> el historial de quién cambió qué en el programa, en qué pestaña y de qué valor a cuál. <b>Por qué no bastaba <code>changelog</code>:</b> (a) guardaba un resumen ("actualización de fila(s) existente(s)") en vez de campo y valor, (b) el nombre de la persona lo escribe el navegador (<code>window._userName</code>), (c) no registraba la pestaña, (d) un admin podía editar o borrar sus filas (políticas <code>changelog_update</code> / <code>changelog_delete</code>) y el propio programa lo recortaba a 500 filas. <b>Tabla nueva <code>public.auditoria_cambios</code></b> (migración <code>20261017120000</code>, aplicada en ambas bases): fecha, <code>usuario_id</code>, <code>usuario_email</code>, <code>usuario_nombre</code>, <code>rol</code>, <code>pestana</code>, <code>subpestana</code>, <code>tabla</code>, <code>registro</code>, <code>referencia</code> (texto para reconocer la fila, p. ej. la sigla), <code>accion</code> (crear / editar / eliminar), <code>campo</code>, <code>valor_antes</code>, <code>valor_despues</code> (máx. 2.000 caracteres), <code>lote</code> y <code>dispositivo</code>. <b>Inmutable:</b> RLS con INSERT solo para editores activos (<code>privado.es_editor_activo()</code>) y SELECT solo para admins (<code>privado.es_admin_activo()</code>), sin políticas de UPDATE ni DELETE, <code>revoke update, delete, truncate</code> a <code>anon</code> y <code>authenticated</code>, y triggers que rechazan UPDATE, DELETE y TRUNCATE para cualquiera (incluida la clave de servicio). <b>Identidad fijada por el servidor:</b> un trigger BEFORE INSERT pone <code>fecha = now()</code> y, con sesión, <code>usuario_id = auth.uid()</code> y <code>usuario_email</code> del JWT; lo que mande el navegador en esos campos se ignora. Se comprobó en ambas bases (dentro de una transacción que se revierte) que insertar funciona y que UPDATE, DELETE y TRUNCATE son rechazados. <b>Cómo se llena:</b> en <code>S.s()</code> (store.js), cada guardado de una tabla real compara la foto de antes con la de después (<code>auditoriaDiff</code>, logic.js) y, solo si el guardado llegó a la nube sin error ni conflicto (<code>_syncTablaGenericaInner</code> ahora devuelve <code>{ok}</code>), manda una fila por cambio. La foto de "antes" es propia (copia profunda, sembrada al cargar cada tabla desde la nube y tras cada refresco), porque <code>S.g()</code> entrega filas por referencia. Se dejan fuera los campos que calcula el sistema (<code>AUDIT_CAMPOS_DERIVADOS</code>: estado, días para el PM, etc.) y las tablas que no son datos de trabajo (<code>AUDIT_EXCLUIR_TABLAS</code>); una importación masiva (&gt; 20 filas) es una sola fila resumen y un guardado no pasa de 300 filas. El envío es en segundo plano con cola persistente (<code>smp_audit_cola</code>, reintento cada 30 s y al arrancar); un 4xx que reintentar no arregla (por ejemplo 403) se descarta para no atascar la cola. <b>Dónde se ve:</b> Auditoría de Datos → "Quién cambió qué" (solo admins; <code>modules/renders/auditoria.js</code>, módulo lazy): filtros por persona, pestaña, tabla, tipo, fechas y texto aplicados en el servidor, 100 filas por página, exportación a CSV. <b>Pruebas:</b> <code>tests/auditoriaCambios.test.js</code> (10 pruebas del diff) y 4 comprobaciones en <code>tests/e2e/coherencia-cruzada.spec.js</code> (un cambio real hecho en la app llega con valores, persona y pestaña; el campo calculado no se registra; todas las filas de un envío traen las mismas columnas). Inventario: ficha L6. <b>Límites:</b> el nombre, el rol y la pestaña los manda el navegador, así que son una referencia (lo que no se puede falsear es el usuario y la fecha); lo hecho sin conexión no se registra hasta guardarse en la nube; lo que cambian procesos del servidor (Edge Functions, importaciones directas a la base) no pasa por el navegador y no queda; el historial parte del 17-oct-2026; la tabla crece sin límite (hoy ~500 filas de <code>changelog</code> en 3 meses, la auditoría genera más por tener una fila por campo) y no hay purga automática a propósito.</p>
 
-  <h3>149. Costo real por hora: el capital se calcula por valor de compra o por amortización contable, a elección (2026-10-17)</h3>
+  <h3 id="d-161">149. Costo real por hora: el capital se calcula por valor de compra o por amortización contable, a elección (2026-10-17)</h3>
   <p>El <b>Costo Total de Propiedad</b> (Costos → Costo Total de Propiedad) ya era el costo real por hora de cada equipo: capital + mantención + detención, medidos en la misma ventana. Lo que faltaba era distinguir de dónde sale el <b>capital</b>, porque la amortización contable del listado "Horas a Amortizar" (<code>valorHoraAmort</code>) es un valor de contabilidad y no necesariamente el precio real del equipo (en la conciliación varios equipos difieren de su valor de compra, hasta +45 %). <code>tcoCapitalPorHora(e, fuente)</code> (logic.js) acepta ahora <code>'compra'</code> (valor de compra ÷ vida en horas) o <code>'contable'</code> (amortización por hora); con cualquiera, si falta su dato usa la otra y devuelve en <code>fuente</code> cuál usó; sin argumento conserva el orden histórico (contable primero), así las demás llamadas y pruebas no cambian. <code>tcoEquipo</code> y <code>tcoFlota</code> la reciben en <code>o.fuenteCapital</code>. <b>Elección:</b> <code>cfg.tcoCapitalFuente</code> (columna nueva <code>configuracion."tcoCapitalFuente"</code>, migración <code>20261017130000</code>, aplicada en ambas bases antes de subir el código); <code>null</code> = <b>'compra'</b> (por defecto, según lo pedido: la amortización no es el precio real). <code>tcoFlotaAuto</code> la lee y la incluye en la clave de su caché, por eso Costos, el Buscador y los diagramas Sankey usan siempre la misma fuente. En la pantalla, un selector (solo un administrador puede cambiarlo, vale para todos: <code>tcoCambiarFuenteCapital</code>) y, al pasar el mouse sobre el Capital/h de cada equipo, la fuente con que se calculó. <b>Carga del listado:</b> sigue siendo Equipos → "Importar Horas a Amortizar" (<code>parsearHorasAmortizar</code>); no se carga por SQL porque <code>equipos</code> tiene un candado (<code>privado.proteger_columnas_admin</code>) que solo deja modificar <code>valorHoraAmort</code> y <code>vidaContableH</code> a una sesión de administrador. <b>Pruebas:</b> 3 nuevas en <code>tests/costoTotalPropiedad.test.js</code> (fuente elegida, respaldo en la otra fuente, TCO distinto con el mismo costo variable). <b>Límite:</b> el costo real por hora sigue sin incluir mano de obra propia, combustible ni operador (no se registran).</p>
 
-  <h3>150. Retoques finales del rediseño: acciones anidadas, tablas vacías, tarjetas en celular (2026-10-17)</h3>
+  <h3 id="d-162">150. Retoques finales del rediseño: acciones anidadas, tablas vacías, tarjetas en celular (2026-10-17)</h3>
   <p>Revisión pestaña por pestaña (19 en escritorio y 10 en celular, con capturas) para cerrar el rediseño. <b>Acciones anidadas:</b> <code>agruparAcciones</code> ahora también busca los botones dentro de un <code>div</code> junto al título cuando el encabezado no tiene 4 o más botones sueltos (caso de Equipos, que ponía 5 botones en un <code>div</code> flex): quedan a la vista los principales y el resto en "Más acciones ▾", con el grupo dentro de ese mismo <code>div</code>. <b>Tablas sin filas:</b> <code>mensajesTablaVacia</code> pone, bajo una tabla que solo tiene encabezados, un mensaje (<code>.vacio-tabla</code>) que distingue "Todavía no hay registros en esta tabla" de "No hay registros para lo que está elegido arriba" (hay algún filtro o buscador con valor en la barra de la misma sección); se corre con el mismo observador y retira solo el mensaje si después aparecen filas. <b>Configuración:</b> el texto del Log de Cambios decía "Auditoría completa del sistema", que ya no es cierto; ahora lo llama resumen, apunta al historial campo por campo y tiene un botón directo a "Quién cambió qué" (<code>verAuditoriaCambios</code>, solo admins). <b>Celular:</b> las grillas de tarjetas escritas en línea con columnas de 100–199 px (p. ej. Costos → Costos por Mes) van de a dos por fila en vez de una, y <code>.cards</code> también (con cifras de 22 px). <b>Límite:</b> el mensaje de tabla vacía es genérico (no sabe qué dato falta); los gráficos vacíos (p. ej. Análisis de Aceite sin muestras) ya tienen su propio aviso (sección 151).</p>
 
-  <h3>151. Análisis de Aceite sin datos y Carta Gantt alineada con el Programa Anual (2026-10-17)</h3>
+  <h3 id="d-163">151. Análisis de Aceite sin datos y Carta Gantt alineada con el Programa Anual (2026-10-17)</h3>
   <p><b>Análisis de Aceite sin muestras:</b> <code>renderAceDash</code> (<code>ace.js</code>) devuelve un aviso («Aún no hay muestras…») en vez de torta, barras y paneles vacíos; no usa <code>.vacio-tabla</code> porque el observador de tablas vacías la retiraría (no tiene tabla hermana). <b>Carta Gantt ↔ Programa Anual:</b> <code>renderGantt</code> (<code>gantt.js</code>) lee <code>S.g('prg')</code> y muestra como PM el del mes elegido en el Programa; si la fila ya tiene fechas puestas por el planificador se respeta su PM y se marca «≠ Prog.» cuando difiere; sin PM en el Programa ese mes muestra «—». Un registro de PM sigue marcando «PM ejecutado» (verde, 100 %); un correctivo (<code>ot</code>) se pinta naranjo aparte, no cambia el estado ni el avance. No se escribe ningún dato nuevo ni cambia el esquema. <b>Límite:</b> el Programa no tiene año (12 meses fijos), así que el Gantt usa el mes elegido sin distinguir el año.</p>
 
-  <h3>152. Correlaciones: qué indicadores, metales de aceite y señales se mueven juntos (2026-10-18)</h3>
+  <h3 id="d-164">152. Correlaciones: qué indicadores, metales de aceite y señales se mueven juntos (2026-10-18)</h3>
   <p><b>Qué es:</b> tres vistas de correlación que antes no existían (la covarianza solo se usaba por dentro: distancia de Mahalanobis del aceite, PCA, error del Weibull). <b>Cálculo (<code>logic.js</code>):</b> <code>correlacionSpearman</code> (correlación de rangos con rangos promedio para empates; p de dos colas por t de Student n−2 vía Beta incompleta; exige 5 datos y que ninguna variable sea constante), <code>holmAjustarP</code> (ajuste de Holm, para no «descubrir» pares por azar al mirar 10–15 a la vez), <code>correlacionesPares</code>, <code>correlacionesIndicadoresEquipos</code> (6 equipos mínimo), <code>correlacionMetalesAceite</code> (por <code>descriptor</code> o, si está vacío, <code>componente</code>; 10 muestras mínimo; por par usa las muestras con ambos metales) y <code>correlacionSenalesReemplazo</code> (phi + Fisher exacto por par de señales; 8 equipos mínimo; «redundante» = phi ≥ 0,5 y p ajustado < 0,05). <b>Pantallas:</b> Estadística → Mapa de equipos (tabla de pares), Análisis de Aceite (<code>renderAceCorr</code>: matriz de calor 6×6 por componente) y Predictivo → Señal Unificada (tabla de señales). Las tablas de pares y la matriz son helpers globales en <code>index.html</code> (<code>corrTablaParesHTML</code>, <code>corrMatrizHTML</code>). <b>Por qué Spearman y no Pearson:</b> las variables son asimétricas y con pocos datos; un valor extremo crea o esconde una correlación de Pearson. <b>Hallazgo (corregido en §153):</b> <code>outliersMultivariadosAceite</code> agrupaba por <code>descriptor</code>, vacío en las 243 muestras reales, y no analizaba nada. <b>Límites:</b> correlación no es causa; con 6–10 datos es una pista; en la Señal Unificada es una advertencia de lectura, no cambia el umbral de 4 de 6.</p>
 
-  <h3>153. Salud del programa: aceite, cierre con datos, backtest y modo laboratorio (2026-10-18)</h3>
+  <h3 id="d-165">153. Salud del programa: aceite, cierre con datos, backtest y modo laboratorio (2026-10-18)</h3>
   <p><b>Qué es:</b> cuatro cambios tras la revisión de salud del programa. <b>(1) Aceite:</b> <code>aceiteOutliers</code>, <code>outliersMultivariadosAceite</code> y <code>correlacionAceiteFallas</code> agrupaban por <code>descriptor</code>, vacío en las 243 muestras reales; ahora usan <code>_aceGrupo(m)</code> (descriptor o, si falta, componente) y la pantalla muestra el componente. <b>(2) Cierre con datos:</b> al cerrar un correctivo (<code>Correctivo</code> o <code>Falla Operacional</code>) sin componente, causa raíz o costo, <code>edOT</code> abre una ventana (<code>_abrirCierreOT</code>) con el componente sugerido desde el síntoma (<code>_componenteDeSintoma</code>, lista <code>_CATEGORIAS_COMPONENTE</code>) y el costo sugerido por cruce con compras; «Guardar y cerrar» (<code>_otCierreGuardar</code>) o «Cerrar sin completar» (no bloquea). En Auditoría de Datos, el bloque «Completitud de los correctivos» mide el % con componente, costo y causa raíz (hoy 0 %, 0 % y 0 % en los 1.243 correctivos reales; el componente se deduce del texto en ~70 %). <b>(3) Backtest:</b> <code>backtestAnticipacionFallas</code> evalúa mes a mes, solo con lo que se sabía a cada fecha, si cuatro reglas ordenan qué equipo fallará en los 30 días siguientes (AUC, precisión en el 20 % de arriba, diferencia contra la referencia «fallas 365 días» con intervalo por remuestreo de meses). Con datos reales (SQL, nivel de equipo, 21 meses): fallas 90 d AUC 0,88 y 365 d 0,87 empatan; MTBF/probabilidad 0,76 (−0,11, IC −0,16 a −0,07); «vencido» 0,46 (no supera el azar). <b>(4) Modo laboratorio:</b> <code>_modoLab()</code> (localStorage <code>smp_lab</code>, por persona) esconde en Predictivo las vistas probabilidad, P-F, Kijima, señal unificada, efectividad PM, patrones, oportunista y backtest, y en Estadística calidad de ejecución y PCA; una vista de laboratorio ya elegida (enlace directo) mantiene el grupo visible. No hay cambios de esquema ni de permisos. <b>Probabilidad de falla lado a lado:</b> en vez de reemplazar la probabilidad por intervalo medio (peor que la regla simple en el backtest), la vista «Probabilidad de Falla» (Laboratorio) muestra primero dos listas juntas —A: peor componente de cada equipo por probabilidad a 30 días; B: fallas de los últimos 365 y 90 días— con ✓ en los equipos que están en ambas y el AUC del backtest de cada una; debajo sigue el detalle por equipo y componente de antes. <b>Límites:</b> el backtest comparte historia entre meses (intervalo algo optimista) y los huecos de carga parecen meses sin fallas.</p>
 
-  <h3>154. Validación fuera de muestra: Weibull, Kijima y diccionario de componentes (2026-10-18)</h3>
+  <h3 id="d-166">154. Validación fuera de muestra: Weibull, Kijima y diccionario de componentes (2026-10-18)</h3>
   <p><b>Qué es:</b> dos validaciones fuera de muestra, tras ver que casi todos los modelos se medían con los mismos datos con los que se ajustaban. <b>(1) Backtest con Weibull y Kijima:</b> <code>backtestAnticipacionFallas</code> suma dos reglas, Weibull por equipo y Kijima por equipo, calculadas «como estaban» en cada mes pasado con las mismas funciones de las pantallas (<code>ajusteWeibullCensurado</code>, <code>kijimaEquipo</code>) y el horómetro estimado de ese día (<code>_btScoresModelos</code>: edad desde la última falla para Weibull, edad virtual para Kijima; la probabilidad de fallar en el mes siguiente es la condicional 1 − R(edad + Δ)/R(edad)). Con datos reales (21 meses, 23 equipos por mes): Weibull AUC 0,876 y Kijima 0,862 contra 0,874 de «fallas de los últimos 365 días»: no se distinguen (intervalos −0,021 a +0,027 y −0,035 a +0,012), o sea que los modelos no agregan información por encima de contar fallas. Los horómetros de los eventos traen ceros y saltos que parecen errores de digitación. <b>(2) Diccionario de componentes:</b> <code>evaluarDiccionarioComponentes</code> mide cobertura y acuerdo del diccionario <code>_componenteDeSintoma</code> sobre el historial 2022–2025 (otro texto, con «sistema» ya asignado; no se usó para afinarlo): con 256 descripciones, 74,2 % clasificadas (contra 69,9 % en los correctivos de afinado) y 88,8 % de acuerdo con la etiqueta; sin señal de sobreajuste. Se ve en Auditoría de Datos (bloque «Completitud de los correctivos»). No hay cambios de esquema ni de permisos. <b>Límites:</b> la etiqueta del historial es de una clasificación previa; los meses del backtest comparten historia.</p>
 
-  <h3>155. Curva P-F completa: lado izquierdo y grupo de comparación (2026-10-18)</h3>
+  <h3 id="d-167">155. Curva P-F completa: lado izquierdo y grupo de comparación (2026-10-18)</h3>
   <p><b>Qué es:</b> la curva P-F tenía solo el lado derecho (P → F, <code>intervalosPF</code>). <code>curvaPFCompleta</code> agrega el <b>lado izquierdo</b> (horas del componente, <code>hrsComp</code>, en la muestra donde se detecta P, que dice desde cuándo vigilar) y un <b>grupo de comparación</b> para el derecho (días hasta la falla del mismo componente desde muestras NORMALES; con 5 o más casos en ambos grupos se aplica <code>mannWhitneyU</code>), porque los equipos fallan cada pocos días y el P→F sale corto aunque no haya aviso. P se marca de dos maneras, mostradas por separado: estado del laboratorio (primera ALERTA/PRECAUCIÓN tras una NORMAL; se exige haber visto la transición) y CUSUM (<code>cusumAceitePorComponente</code>). La vista Predictivo → Laboratorio → Intervalo de Inspección (P-F) muestra ambas tablas bajo la original; sin 5 casos no hay recomendación. <b>Datos reales (18-oct):</b> el CUSUM detecta aceleración en 1 de 8 motores (BD-9533 por plomo, a las 11.534 h); la marca por laboratorio da más casos. Los nombres del aceite se cruzan con los correctivos por categoría (<code>_aceCategoriaPF</code>: Mando Final Izq/Der → Mandos Finales). <b>Límites:</b> no distingue lado izquierdo/derecho del equipo; las horas del componente pueden coincidir con las del equipo.</p>
 
-  <h3>156. Simulación de la carga del taller, validada con meses pasados (2026-10-19)</h3>
+  <h3 id="d-168">156. Simulación de la carga del taller, validada con meses pasados (2026-10-19)</h3>
   <p><b>Qué es:</b> una simulación Monte Carlo de la carga del taller, con la regla de no mostrar lo que no se pueda validar. <code>simulacionCargaTaller</code> simula 30 días miles de veces remuestreando las entradas por día y las permanencias reales (entrada→salida) de los correctivos; los equipos ya en el taller siguen el tiempo que les falta, condicional a lo que llevan. <code>backtestCargaTaller</code> la repite desde cada mes pasado y mide cobertura del rango P10–P90, error del promedio y compara con «igual que el mes anterior»; <code>cargaRealTallerPorMes</code> entrega la carga real por mes. En Predictivo → Laboratorio → «Carga del taller (simulación)» el pronóstico solo aparece si la cobertura es de 60 % o más; si no, se muestra la validación y la carga real. <b>No simula esperas por técnico</b> porque no existe el dato para validarlas (<code>primeraAtencionEn</code> vacío en los 1.243 correctivos; la duración mezcla espera y reparación). <b>Datos reales (18-oct):</b> correctivos del 09-ene-2025 al 21-jul-2026; cobertura del promedio 43 % (máximo 64 %), error 1,12 contra 1,36 de la regla simple: no pasa la validación porque la carga cambia de mes a mes (≈4 equipos simultáneos en 2025, 1–3 desde marzo de 2026); la pantalla no muestra pronóstico. <b>Prueba nueva:</b> <code>tests/sintaxisModulos.test.js</code> revisa la sintaxis de todos los módulos que se cargan bajo demanda (<code>vite build</code> no los revisa: un error se descubre al abrir la pestaña). <b>Límites:</b> la simulación parte de la última fecha con datos y no conoce correctivos sin cargar.</p>
 
-  <h3>157. Dashboard sin números repetidos y sin «100 % sin falla» falso (2026-10-19)</h3>
+  <h3 id="d-169">157. Dashboard sin números repetidos y sin «100 % sin falla» falso (2026-10-19)</h3>
   <p><b>Qué es:</b> limpieza del Dashboard tras ver en un teléfono que repetía números y decía algo falso. <b>(1) Repeticiones:</b> la barra de arriba (Equipos, Urgentes, Próximas, Al Día, Fuera de servicio; cada número abre la lista) ya da esos totales, así que el Dashboard dejó de repetirlos como tarjetas: la fila de KPI quedó con Disponibilidad mecánica e Índice de salud, y se quitaron «Flota» y «Al Día» del panel derecho (la composición por tipo de equipo pasó al subtítulo de «Salud General de la Flota»). <b>(2) «Flota sin falla 100 %» falso:</b> <code>idxConf</code> contaba los equipos sin correctivo en el período, pero los correctivos cargados llegan hasta julio de 2026, así que en octubre daba 100 % mientras había equipos fuera de servicio (sin datos se tomaba como sin fallas). Ahora es <code>null</code> («Sin datos») cuando no hay ningún correctivo cargado desde el inicio del período, y el índice de salud promedia solo las dimensiones con dato (<code>indiceSaludFlota</code> ya ignora las nulas). <b>(3) Aviso de datos atrasados:</b> un recuadro sobre las tarjetas cuando el último correctivo cargado tiene más de 30 días. <code>tests/e2e/coherencia-cruzada.spec.js</code> dejó de leer esas cuatro tarjetas (compara barra, cálculo y pestaña Equipos) y se agregó <code>tests/e2e/dashboard-sin-duplicados.spec.js</code>. <b>Pendiente:</b> las dos tarjetas de «confiabilidad» (conteo «% flota sin falla» y probabilidad R) siguen con nombres parecidos y significados distintos. <b>Límite:</b> si de verdad no hubo fallas el mes, pero hay correctivos posteriores cargados, sí se muestra 100 %.</p>
 
-  <h3>158. Backtest: ¿las probabilidades son creíbles? Brier y log loss (2026-10-19)</h3>
+  <h3 id="d-170">158. Backtest: ¿las probabilidades son creíbles? Brier y log loss (2026-10-19)</h3>
   <p><b>Qué es:</b> el backtest de anticipación de fallas (sección 150/154) medía solo el <b>orden</b> (AUC y acierto en el 20 % de arriba). <code>_btMetricasProb</code> agrega la calidad del <b>número</b>: <b>Brier</b> (promedio de (p − real)²) y <b>log loss</b> (promedio de −[y·ln p + (1−y)·ln(1−p)]) para los tres modelos que entregan una probabilidad: la «Probabilidad de falla» del programa (<code>prob30dPct ÷ 100</code>), Weibull y Kijima. Las reglas de orden (vencido, fallas 90 d, fallas 365 d) no son probabilidades y no se evalúan así. Cada fila trae también «Mejora sobre el azar» = 1 − Brier ÷ Brier de decir siempre la tasa típica de la flota (<code>brierBase = r(1−r)</code>), y la <b>cobertura</b> (en qué fracción de equipo-mes el modelo pudo dar una probabilidad; si no pudo, cuenta como 0 %, y el log loss acota p a [0,01; 0,99] para que un solo caso no lo lleve a infinito). Vista: Predictivo → Laboratorio → Backtest, tabla «¿Las probabilidades son confiables, o solo ordenan bien?».</p>
   <p><b>Verificación:</b> <code>_btMetricasProb</code> se probó contra un script Python independiente (misma fórmula, sin <code>logic.js</code>) y con un caso analítico: un modelo que no predice (p = 0) tiene Brier = tasa de fallas y «mejora sobre el azar» = −r/(1−r) (negativa, porque decir siempre 0 % es peor que decir la tasa típica). Con los datos reales del 18-oct-2026 (21 meses, 23 equipos por mes, tasa de falla mensual 58 %; transcripción propia de los eventos, sin las descripciones, con componente genérico para la probabilidad del programa): Brier base 0,244; probabilidad del programa 0,198 (mejora 19 %); Weibull 0,168 (31 %); Kijima 0,170 (31 %); cobertura 85 % / 73 % / 73 %. <b>Límites:</b> son pocos meses y los meses consecutivos comparten historia, así que la mejora es orientativa; el AUC de «Probabilidad de falla» sigue sin distinguirse bien de la referencia; no se agregó una curva de calibración (con tan pocas fallas sería inestable) ni se cambió la regla de probabilidad que usa el programa.</p>
 
-  <h3>159. Retoque de diseño del Dashboard y la Auditoría, con v0 y correcciones (2026-10-19)</h3>
+  <h3 id="d-171">159. Retoque de diseño del Dashboard y la Auditoría, con v0 y correcciones (2026-10-19)</h3>
   <p><b>Qué es:</b> a pedido del usuario se le encargó a v0 (herramienta de diseño de Vercel) mejorar la interfaz; su resultado se revisó antes de aplicarlo (pruebas, build, 28 especificaciones y capturas en 360 px y 1280 px, tema oscuro y claro) y se aplicó <b>corregido</b>. <b>Lo que se conservó:</b> el Dashboard cabe en pantalla de celular (antes desbordaba ~300 px a la derecha), las tablas hacen scroll dentro de su marco, foco visible, espaciados y modales. <b>Nombres:</b> «% Flota sin falla» pasó a «Equipos sin fallas» (conteo del período) y «Confiabilidad (R)» a «Probabilidad de no fallar (R)», para que no parezcan la misma cosa; la etiqueta «📈 Adelanto / 📉 Retraso» pasó a «Se puede corregir ahora» / «Muestra lo ocurrido», con una línea de leyenda en palabras simples sobre las tarjetas. <b>Lo que se corrigió de la propuesta de v0:</b> (1) quitó el diseño de escritorio del resumen de la Auditoría (seis tarjetas apiladas en vez de una fila): <code>.audit-summary</code> vuelve a ser una fila flexible y solo en celular una grilla de 2 columnas; (2) no se subieron las versiones de caché de <code>dash</code> y <code>audit</code> (se subieron); (3) forzaba <code>color-scheme:dark</code> en toda la página (rompe los temas claros; se quitó); (4) cambiaba el tamaño base de letra en celular (<code>html{font-size:15px}</code>; se quitó); (5) repetía una frase de 9 px bajo cada etiqueta (ahora es una etiqueta corta con la explicación en la leyenda y en el tooltip). <b>Límites:</b> <code>body{overflow-x:hidden}</code> (de v0) evita el scroll horizontal pero sigue habiendo ~3 px de desborde en el Dashboard de celular; el modal de cierre de OT, la navegación y el Predictivo no recibieron rediseño, solo reglas de CSS. Prueba: <code>tests/e2e/diseno-dashboard-auditoria.spec.js</code> (nombres, leyenda, seis tarjetas en una fila en 1280 px y 3 filas de 2 en 360 px; se comprobó que falla si se quita la regla de escritorio).</p>
 
-  <h3>160. Segunda ronda de diseño con v0: modal de cierre, navegación y Predictivo (2026-10-19)</h3>
+  <h3 id="d-172">160. Segunda ronda de diseño con v0: modal de cierre, navegación y Predictivo (2026-10-19)</h3>
   <p><b>Qué es:</b> segundo encargo a v0, revisado y corregido antes de aplicarlo (pruebas, build, 29+1 especificaciones, capturas en 360 px y 1280 px con los temas oscuro, claro y ejecutivo). <b>(1) Modal de cierre de un correctivo:</b> cabecera con la sigla y un botón ×, aviso «Falta: componente, causa raíz, costo» en una línea, campos de 44 px, botones apilados con «Guardar y cerrar» destacado y «Cerrar sin completar» y «Cancelar» como secundarios, y pie fijo en celular; el foco parte en el primer campo que falta. <b>(2) Predictivo:</b> las vistas se ven como botones agrupados (¿Qué está pasando?, ¿Qué tan riesgoso es?, ¿Cuánto le queda?, Repuestos y stock, Taller y el grupo Laboratorio); en escritorio van abiertos y en celular plegados bajo «Vista: &lt;la actual&gt;». <b>(3) Navegación:</b> solo áreas táctiles de 44–52 px y foco visible; el menú agrupado de escritorio y el «Más» del celular ya tenían grupos y estado activo, y no se tocaron. <b>Lo que se corrigió de la propuesta de v0:</b> (a) pegó los botones de Predictivo como una lista escrita a mano, duplicando el <code>&lt;select&gt;</code> y mostrando siempre el Laboratorio aunque el modo estuviera apagado; ahora <code>_predVistasBotones</code> los arma desde el <code>&lt;select&gt;</code> real (queda oculto), así nunca se desincronizan; (b) sus reglas de la grilla de botones estaban fuera de la consulta de celular y rompían el escritorio (cada botón al 50 % de ancho); (c) dejó el síntoma duplicado en el modal y un carácter corrupto (<code>�</code>) en «síntoma»; (d) agregó un atajo de Escape que ya existía (el manejador global de <code>index.html</code> cierra todo modal con Esc) y que además quedaba registrado si el modal se cerraba de otra forma; (e) un <code>min-height:40px</code> posterior anulaba sus campos de 44 px; (f) el foco inicial caía en la × y no en el campo. <b>Límites:</b> v0 no pudo verificar nada en el navegador; no hay rediseño del menú lateral ni del «Más». Prueba: <code>tests/e2e/diseno-modal-predictivo.spec.js</code> (síntoma una vez, sin <code>�</code>, foco en el primer campo, Esc cierra; un botón por cada opción del <code>&lt;select&gt;</code>, también en modo Laboratorio; abierto en escritorio y plegado en celular).</p>
 
-  <h3>161. Tercera ronda de diseño con v0: marco de escritorio (2026-10-19)</h3>
+  <h3 id="d-173">161. Tercera ronda de diseño con v0: marco de escritorio (2026-10-19)</h3>
   <p><b>Qué es:</b> tercer encargo a v0, ahora para la cabecera y el menú lateral de escritorio, revisado y corregido antes de aplicarlo (build, pruebas, capturas en 1500, 1400, 1366, 1280, 1024, 800 y 360 px, temas oscuro y claro). v0 cambió solo <code>index.html</code>. <b>Lo que se conservó:</b> el menú lateral con grupos separados por líneas, etiquetas de grupo más legibles, pestaña activa más marcada con <code>aria-current="page"</code> (se sincroniza en <code>initNav</code> y en <code>go()</code>), foco visible y recorrido con flecha arriba/abajo; la cabecera en <b>una sola fila</b> de 64 px (logo, indicadores con el número destacado y botones a la derecha). <b>Lo que se corrigió:</b> v0 aplicaba la cabecera de una fila desde 769 px, pero hasta ~1480 px los indicadores (EQUIPOS, URGENTES, …, FUERA DE SERVICIO y la hora) se pisaban con el logo y con los botones, y a 800 px el encabezado quedaba ilegible; ahora la fila única solo existe desde 1480 px y por debajo sigue la cabecera de dos filas de antes (ya legible). También quitó dos bytes corruptos (<code>�</code>) que v0 dejó en un comentario («ámbar»). <b>Lo que ya existía y v0 confirmó:</b> menú contraído/expandido con la preferencia en <code>localStorage</code>, tooltips en los íconos y subpestañas con scroll interno; el celular no cambió (el bloque móvil quedó intacto). <b>Límites:</b> v0 no pudo verificar nada en el navegador; no se agregó un menú «Más acciones» en la cabecera (los botones CSV/Imprimir/Densidad/Voz siguen visibles); las flechas mueven el foco pero no usan <code>tabindex</code> itinerante. Prueba: <code>tests/e2e/diseno-marco-escritorio.spec.js</code> (sin solapes entre logo, indicadores y botones a 1500, 1366 y 1024 px; una sola <code>aria-current</code>; flechas arriba/abajo; celular sin la grilla de una fila); se comprobó que falla con la regla original de 769 px.</p>
 
-  <h2>Lo que decidimos NO hacer (y por qué)</h2>
+  <h3 id="d-174">162. Cuarta ronda de diseño con v0 (imagen y orden de cada pestaña, y manuales): qué se aplicó y qué no (2026-10-20)</h3>
+  <p><b>Qué es:</b> a pedido del usuario se le encargó a v0, en cuatro chats en paralelo, mejorar la imagen y el <b>orden</b> de las pestañas (A: Operación; B: Planificación y Activos; C: Desempeño y Herramientas) y de los manuales (D). Se revisó cada rama contra <code>main</code> con capturas de las 22 pestañas, antes y después, en 1280 y 360 px. <b>Resultado honesto: casi nada de lo que entregó v0 se aplicó.</b> Las tandas A, B y C fueron CSS genérico y envolver cada pestaña en un contenedor: no reordenaron ni plegaron ningún bloque (que era lo pedido), y varios cambios empeoraban: botones de 44 px dentro de las tablas que agrandaban las filas de Registro PM (menos filas por pantalla), un botón casi ilegible en Disponibilidad, tamaños de título distintos entre pestañas, y reglas de la tanda C sin acotar que afectaban a toda la app. La tanda D dejó <code>ayuda.js</code> con un error de sintaxis (reemplazó el cierre de la función por texto con <code>\n</code> literales), una expresión regular rota en <code>manual_md_a_html.py</code> y un carácter corrupto en <code>arquitectura.html</code>. <b>Lo que sí quedó:</b> (1) de la tanda C, solo la disposición de <b>Configuración</b> (tarjetas en dos columnas en escritorio y una en celular; ya no se desborda ~45 px a 360 px), reescrita y acotada a <code>#s-cfg</code>; (2) un arreglo propio: en <b>Análisis Aceite</b> la grilla fija de 4 columnas (<code>repeat(4,1fr)</code>) se desbordaba ~50 px a 360 px; ahora <code>repeat(auto-fit,minmax(120px,1fr))</code>; (3) los <b>manuales</b>, reescritos a partir de la idea de v0: <code>decorar()</code> en <code>scripts/manual_md_a_html.py</code> agrega a los cuatro documentos de <code>docs/</code> un índice lateral fijo (plegable en celular, con la sección activa resaltada), tipografía más cómoda, botón «Arriba» y estilos de impresión; es idempotente (correrlo dos veces da exactamente el mismo archivo) y no cambia ningún texto (se verificó comparando el texto de cada documento antes y después). Los dos generados desde <code>.md</code> se decoran solos al regenerarlos; <code>manual-admin.html</code> y <code>arquitectura.html</code> (edición manual) se decoran con <code>python3 scripts/manual_md_a_html.py --decorar docs/manual-admin.html docs/arquitectura.html</code> después de agregarles una sección (el título «Lo que decidimos NO hacer» ahora lleva un <code>id</code>); (4) la <b>Ayuda</b> de la app tiene buscador (filtra las 34 secciones por texto, sin acentos) e índice plegable, armados desde el DOM ya dibujado. <b>Lo que quedó sin hacer:</b> el reordenamiento por prioridad de los bloques de cada pestaña (primero lo accionable, el detalle plegado): requiere decidir con quien usa cada pestaña qué es lo urgente y no se puede hacer a ciegas; si se quiere, se hace pestaña por pestaña. Pruebas: <code>tests/e2e/diseno-ayuda-manuales.spec.js</code> (índice con un enlace por sección, el filtro oculta y restaura, índice fijo en escritorio y estático en celular, primera columna de las tablas sin aplastar, sin desborde).</p>
+
+  <h2 id="d-175">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
     negocio que RLS no pueda expresar, un secreto que ni RLS proteja, pasos que necesiten
@@ -3352,6 +3399,15 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   riesgo de cambiar reglas de JavaScript en miles de líneas a la vez) se hizo igual, pero
   incremental — un archivo a la vez, cada uno probado antes de fusionar (Fase 3, completada
   2026-08-30). Ver sección 1.</p>
+<!--doc-fin--></div></div><!--/doc-fin-->
+
+  <a class="back-top" href="#top">↑ Arriba</a>
 
   <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
 </div>
+<script>/*doc-js*/
+(function(){var L=[].slice.call(document.querySelectorAll('.doc-index a'));if(!L.length||!('IntersectionObserver' in window))return;
+var m={};L.forEach(function(a){m[a.getAttribute('href').slice(1)]=a;});
+var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){L.forEach(function(a){a.classList.remove('activa');});var a=m[e.target.id];if(a){a.classList.add('activa');if(a.scrollIntoView&&getComputedStyle(a.closest('.doc-index')).position==='sticky'){var c=a.closest('.doc-index');if(a.offsetTop<c.scrollTop||a.offsetTop>c.scrollTop+c.clientHeight-40)c.scrollTop=a.offsetTop-60;}}}});},{rootMargin:'0px 0px -75% 0px'});
+Object.keys(m).forEach(function(id){var h=document.getElementById(id);if(h)o.observe(h);});})();
+/*/doc-js*/</script>

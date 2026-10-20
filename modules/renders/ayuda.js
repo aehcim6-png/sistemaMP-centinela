@@ -35,6 +35,7 @@ export function renderAyuda(){
     '<li><b>Dashboard más claro</b>: Equipos, Urgentes, Próximas y Al Día ya están en la barra de arriba (cada número abre la lista), así que dejaron de repetirse como tarjetas. «% Flota sin falla» muestra <b>«Sin datos»</b> cuando no hay correctivos cargados en el mes (antes decía 100 % por no tener nada cargado), y un aviso amarillo indica si el último correctivo cargado tiene más de 30 días.</li>'+
     '<li><b>Backtest: ¿las probabilidades son creíbles?</b>: en Predictivo → Laboratorio → Backtest hay una tabla nueva con Brier y log loss (menor es mejor) y cuánto mejora cada modelo sobre decir siempre la tasa típica de la flota. Con los datos del 18-oct, Weibull y Kijima mejoran ~31 % y la probabilidad del programa ~19 %; son pocos meses, así que es orientativo.</li>'+
     '<li><b>Dashboard más fácil de leer</b>: las tarjetas dicen «Se puede corregir ahora» (anticipan un problema) o «Muestra lo ocurrido» (lo que ya pasó). «Equipos sin fallas» es un conteo; «Probabilidad de no fallar (R)» es una estimación estadística (antes «Confiabilidad (R)»). En el celular todo cabe en pantalla.</li>'+
+    '<li><b>Ayuda con buscador e índice</b>: escribe una palabra arriba y quedan solo las secciones que la mencionan; el índice plegable lleva a cada una de las 34 secciones. Configuración se ve en dos columnas y Análisis Aceite ya no se desborda en el celular.</li>'+
     '<li><b>Cabecera y menú lateral</b>: en pantallas anchas (desde 1480 px) la cabecera va en una sola fila; el menú lateral marca mejor la pestaña activa y se recorre con las flechas ↑ ↓.</li>'+
     '<li><b>Cierre de correctivos y Predictivo, más fáciles</b>: la ventana para cerrar un correctivo dice qué falta (componente, causa raíz o costo) y deja «Cerrar sin completar» como opción secundaria. En Predictivo las vistas son botones agrupados; en el celular se pliegan bajo «Vista: …».</li>'+
     '<li><b>Carga del taller (simulación)</b>: en Predictivo → Laboratorio, simula cuántos equipos habrá en el taller al mismo tiempo en los próximos 30 días. Primero se prueba con meses pasados y <b>solo se muestra el pronóstico si habría acertado</b>; con los datos de hoy no pasa la prueba (la carga cambia mucho de un mes a otro) y muestra la carga real por mes. No simula esperas por técnico: para eso habría que registrar la hora de primera atención de cada correctivo.</li>'+
@@ -1016,6 +1017,37 @@ export function renderAyuda(){
     '<b>Regla del sistema:</b> primero lo más simple que resuelva la pregunta. Usa reglas y estadística que se puede explicar; no usa aprendizaje automático, porque con pocas fallas por equipo sus resultados serían poco confiables y difíciles de justificar. Si faltan datos, muestra "sin dato" y no inventa.<br>'+
     '<b>Antes de usar una herramienta:</b> ¿hay datos suficientes? ¿mezclé equipos o regímenes distintos? ¿tengo evidencia de terreno que lo confirme?'+
     '</div></div>';
+  _ayudaMejorar();
+}
+
+// Buscador e índice de la Ayuda (2026-10-20): las 34 secciones (m1…m34) tienen un índice plegable y un filtro por texto. No cambia
+// ningún texto: solo oculta/muestra secciones. Se arma desde el DOM ya dibujado, así nunca se desincroniza de las secciones.
+function _ayudaMejorar(){
+  var raiz=$('s-ayuda');if(!raiz||raiz.querySelector('.ay-tools'))return;
+  var secs=[].slice.call(raiz.querySelectorAll('[id^="m"]')).filter(function(n){return /^m\d+$/.test(n.id);});
+  if(!secs.length)return;
+  var norm=function(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');};
+  var titulo=function(n){var t=n.querySelector('.card-t');return (t?t.textContent:n.textContent.slice(0,70)).trim();};
+  var barra=document.createElement('div');
+  barra.className='ay-tools';
+  barra.innerHTML='<input type="search" class="ay-q" placeholder="Buscar en la ayuda (ej: horómetro, Weibull, costos)…" aria-label="Buscar en la ayuda">'+
+    '<span class="ay-n" aria-live="polite"></span>'+
+    '<details class="ay-ind"><summary>Índice ('+secs.length+' secciones)</summary><nav>'+
+    secs.map(function(n){return '<a href="#'+n.id+'">'+escapeHtml(titulo(n))+'</a>';}).join('')+'</nav></details>';
+  secs[0].parentNode.insertBefore(barra,secs[0]);
+  var cache={};
+  var q=barra.querySelector('.ay-q'),cnt=barra.querySelector('.ay-n');
+  var filtrar=function(){
+    var t=norm(q.value).trim(),vis=0;
+    secs.forEach(function(n){
+      if(!(n.id in cache))cache[n.id]=norm(n.textContent);
+      var ok=!t||cache[n.id].indexOf(t)>=0;
+      n.style.display=ok?'':'none';if(ok)vis++;
+    });
+    cnt.textContent=t?(vis?vis+' de '+secs.length+' secciones':'Ninguna sección coincide'):'';
+  };
+  q.addEventListener('input',filtrar);
+  barra.querySelector('.ay-ind nav').addEventListener('click',function(e){if(e.target.tagName==='A'&&q.value){q.value='';filtrar();}});
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
