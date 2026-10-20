@@ -21,7 +21,7 @@ export function renderAl() {
     return `<div style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 30 30" width="24" height="24" style="transform:rotate(-90deg);flex:none"><circle cx="15" cy="15" r="12" fill="none" stroke="var(--bg4)" stroke-width="4"></circle><circle class="gauge-ring" cx="15" cy="15" r="12" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${off}"></circle></svg><span class="mono" style="color:${col}">${dias}</span></div>`;
   };
   $('s-al').innerHTML = `
-    <div class="sec-h"><div><div class="sec-t">🔴 Alertas PM4 — Overhaul (8× frecPM propio de cada equipo)</div><div class="sec-s">Click en repuestos para editar</div></div></div>
+    <div class="sec-h dc-head"><div><div class="sec-t">🔴 Alertas PM4 — Overhaul (8× frecPM propio de cada equipo)</div><div class="sec-s">Click en repuestos para editar</div></div></div>
     <div class="tbl-wrap"><table>
       <tr><th>Sigla</th><th>Tipo</th><th>Horóm.</th><th>Próx PM4</th><th>Restante</th><th>Días</th><th>Fecha Est.</th><th>Alerta</th><th>Repuestos Clave</th></tr>
       ${data.map((e, i) => `<tr>

@@ -7,7 +7,7 @@
 export async function renderMkpi() {
   const sub = window._mkpiSub || 'metas';
   $('s-mkpi').innerHTML = `
-    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas & KPIs</div>
+    <div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas & KPIs</div>
       <div class="sec-s">Indicadores de gestión y cumplimiento</div></div></div>
     <div class="subtabs" role="tablist">
       <button class="subtab ${sub === 'metas' ? 'on' : ''}" role="tab" onclick="mkpiSub('metas')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas</button>

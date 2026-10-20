@@ -31,7 +31,7 @@ export function renderPapelera(){
   var categorias=[...new Set(pap.map(function(p){return p.categoria;}))].sort();
   var pg=_pagSlice('papelera',fil);
   $('s-papelera').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 16,6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><path d="M5.5 6 6.5 17 13.5 17 14.5 6"/></svg> Papelera</div>'+
+    '<div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 16,6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><path d="M5.5 6 6.5 17 13.5 17 14.5 6"/></svg> Papelera</div>'+
     '<div class="sec-s">'+pap.length+' elemento(s) · Se eliminan solos a los 30 días</div></div>'+
     (pap.length?'<button class="btn btn-o" onclick="if(confirm(\'¿Vaciar la papelera? Esto elimina TODO de forma permanente, sin poder recuperarlo.\')){S.s(\'papelera\',[]);renders.papelera();}">Vaciar papelera</button>':'')+
     '</div>'+

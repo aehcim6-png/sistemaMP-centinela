@@ -577,6 +577,63 @@ body.dens-compact th{padding:6px 8px}
 }
 @media print{.bnav{display:none!important}}
 
+/* Ronda 4C */
+/* Jerarquía común para Desempeño, Herramientas y sus vistas: encabezado,
+   resumen, acción y detalle. Solo usa tokens del tema para respetar claro,
+   oscuro y ejecutivo. */
+.dc-page{display:flex;flex-direction:column;gap:16px}
+.sec-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:4px 0 12px;border-bottom:1px solid var(--bd);margin-bottom:14px}
+.sec-h .sec-t{font-size:clamp(18px,2.2vw,24px);font-weight:700;line-height:1.25;color:var(--tx);text-wrap:balance}
+.sec-h .sec-s{margin-top:4px;color:var(--tx3);font-size:12px;line-height:1.5}
+.sec-h>.btn{flex:0 0 auto}
+.toolbar{padding:10px 12px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);margin-bottom:14px}
+.toolbar label,.fg label{display:flex;flex-direction:column;gap:5px;color:var(--tx2);font-size:12px;line-height:1.4}
+.toolbar input,.toolbar select,.toolbar button{min-height:44px}
+.main input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),.main select:not(td select),.main textarea{min-height:44px}
+.main textarea{padding:9px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--bg3);color:var(--tx);font:inherit;resize:vertical}
+.card,.chart-box{min-width:0}
+.cards{align-items:stretch}
+.cards>.card{display:flex;flex-direction:column;justify-content:center;min-height:86px}
+.card-v{line-height:1.1}
+.chart-box{padding:14px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);margin-bottom:14px}
+.chart-t{font-size:14px;font-weight:700;color:var(--tx);line-height:1.35;margin-bottom:8px;text-wrap:balance}
+.tbl-wrap{max-width:100%;border:1px solid var(--bd);border-radius:var(--radius);background:var(--bg2);overscroll-behavior-inline:contain}
+.tbl-wrap table{min-width:max-content}
+.tbl-wrap th{top:0;z-index:2}
+.tbl-wrap td,.tbl-wrap th{padding:7px 9px}
+.vacio-tabla{margin:0;border:0;min-height:74px;display:flex;align-items:center;justify-content:center}
+.badge{display:inline-flex;align-items:center;gap:4px;min-height:24px;padding:3px 7px;border-radius:999px;line-height:1.1}
+.mas-acc{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.mas-acc summary{min-height:44px;display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--bd);border-radius:6px;color:var(--tx2);cursor:pointer;list-style:none;font-size:12px}
+.mas-acc summary::-webkit-details-marker{display:none}
+.mas-acc summary::after{content:' ▾';color:var(--ac)}
+.mas-acc[open] summary{border-color:var(--ac);color:var(--ac)}
+.mas-acc>*:not(summary){margin-top:6px}
+#s-cfg>.card{max-width:100%!important;border-left:0!important;border-top:2px solid var(--bd);padding:16px}
+#s-cfg>.card>b{display:block;font-size:15px!important;color:var(--tx)}
+#s-cfg>.card>p{max-width:78ch;line-height:1.55}
+#s-cfg .form-row{display:flex;flex-wrap:wrap;gap:12px}
+#s-cfg .fg{flex:1 1 180px;min-width:0}
+#s-cfg .fg input,#s-cfg .fg select,#s-cfg .fg textarea{width:100%}
+#s-cfg .btn-d{border:1px solid var(--danger)}
+#s-cfg [id*=reset],#s-cfg [id*=Reset]{border-color:var(--danger)}
+@media(max-width:768px){
+  .sec-h{flex-direction:column;gap:10px}
+  .sec-h>.btn{width:100%}
+  .toolbar{align-items:stretch}
+  .toolbar>*{flex:1 1 150px;min-width:0}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .cards>.card{padding:12px;min-height:78px}
+  .chart-box{padding:12px}
+  .tbl-wrap{margin-inline:0}
+  #s-cfg>.card{padding:14px}
+  #s-cfg .form-row{display:grid;grid-template-columns:1fr}
+}
+@media(min-width:769px){
+  #s-cfg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  #s-cfg>.sec-h{grid-column:1/-1;margin-bottom:0}
+  #s-cfg>.card{margin:0!important}
+}
 
 </style>
 

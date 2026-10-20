@@ -80,7 +80,7 @@ export function renderResumenEjec() {
     '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Sin compromisos pendientes ni vencidos.</p>';
 
   $('s-resumen').innerHTML =
-    '<div class="sec-h"><div><div class="sec-t">' + ICONS.doc + ' Resumen Ejecutivo</div>' +
+    '<div class="sec-h dc-head"><div><div class="sec-t">' + ICONS.doc + ' Resumen Ejecutivo</div>' +
     '<div class="sec-s">' + mesActual + ' ' + new Date().getFullYear() + ' · generado ' + new Date().toLocaleDateString('es-CL') + '</div></div>' +
     '<button class="btn" onclick="imprimirTab(\'resumen\',\'Resumen Ejecutivo\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir / PDF</button></div>' +
     '<div class="cards" style="margin-bottom:16px">' +

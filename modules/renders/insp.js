@@ -12,7 +12,7 @@ export function renderInsp() {
   var is = 'background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
   var pg = _pagSlice('insp', fil);
   $('s-insp').innerHTML =
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones Diarias</div>' +
+    '<div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Inspecciones Diarias</div>' +
     '<div class="sec-s">' + insp.length + ' inspecciones · Hoy: ' + hoyCount + '</div></div>' +
     '<button class="btn" onclick="addInsp()">+ Nueva Inspección</button></div>' +
     '<div class="toolbar">' +

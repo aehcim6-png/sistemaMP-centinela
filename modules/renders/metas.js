@@ -259,7 +259,7 @@ export function renderMetas() {
     '</table></div></div>' : '';
 
   $('s-metas').innerHTML = tendenciaHtml +
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas vs Realidad</div>' +
+    '<div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg> Metas vs Realidad</div>' +
     '<div class="sec-s">Meta editable · Real se calcula automático desde registros</div></div></div>' +
     '<div class="tbl-wrap" style="overflow-x:auto"><table style="font-size:11px">' +
     '<tr><th rowspan="2" style="min-width:140px">Indicador</th><th rowspan="2">Meta Anual</th>' +

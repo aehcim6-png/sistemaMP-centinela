@@ -428,7 +428,7 @@ export function renderKpi(){
 
   // ═══ BUILD CUADROS DE MANDO ═══
   $('s-kpi').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Cuadro de Mando KPI</div>'+
+    '<div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Cuadro de Mando KPI</div>'+
     '<div class="sec-s">Indicadores automáticos · Actualización en tiempo real desde registros</div></div>'+
     '<button class="btn" onclick="rptTodos()" style="padding:8px 20px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Descargar Todo Excel</button></div>'+
     '<div class="toolbar">'+

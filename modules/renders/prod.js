@@ -75,7 +75,7 @@ export function renderProd(){
   }).join('');
 
   $('s-prod').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">'+ICONS.tractor+' Producción</div>'+
+    '<div class="sec-h dc-head"><div><div class="sec-t">'+ICONS.tractor+' Producción</div>'+
     '<div class="sec-s">'+turnos.length+' reporte(s) de turno cargado(s)</div></div></div>'+
     '<p style="color:var(--tx2);font-size:13px;margin-bottom:10px">Carga el Reporte de Producción por turno (foto) para que el sistema calcule Rendimiento real por equipo. '+
     'Por ahora se procesan solo Producción CAEX y Pérdida por Indisponibilidad — Carguío, Apoyo y Pérdida por Petróleo quedan para una vuelta futura. '+

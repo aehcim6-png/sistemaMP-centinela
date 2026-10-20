@@ -398,7 +398,7 @@ export function renderBuscar(){
   }
 
   $('s-buscar').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Buscador Maestro</div>'+
+    '<div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Buscador Maestro</div>'+
     '<div class="sec-s">Historial completo por equipo · Ranking de equipos problemáticos</div></div></div>'+
     '<div class="toolbar" style="gap:12px">'+
     '<select id="fBuscarEq" onchange="renders.buscar()" style="min-width:140px"><option value="">— Selecciona equipo o ver ranking —</option>'+

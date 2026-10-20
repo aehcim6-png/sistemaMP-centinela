@@ -715,7 +715,7 @@ export function renderCos() {
   }
 
   $('s-cos').innerHTML =
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos, HH y Confiabilidad</div>' +
+    '<div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos, HH y Confiabilidad</div>' +
     '<div class="sec-s">Desde registros PM + consumos · HH: $' + fn(hh) + '/hr</div></div></div>' +
     '<div class="toolbar">' +
     '<select id="fCosVista" onchange="renders.cos()" style="font-weight:600">' +

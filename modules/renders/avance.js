@@ -29,7 +29,7 @@ export function renderAvance() {
   var totalPct = totalPlan > 0 ? Math.round(totalEjec / totalPlan * 100) : null;
 
   $('s-avance').innerHTML =
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance Mensual</div>' +
+    '<div class="sec-h dc-head"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Avance Mensual</div>' +
     '<div class="sec-s">Plan vs Ejecución · Día ' + diaActual + ' de ' + diasMes + ' (' + pctEsperado + '% del mes)</div></div></div>' +
     '<div class="toolbar"><select id="fAvanceMes" onchange="renders.avance()">' +
     meses.map(function (m) { return '<option' + (fMes === m ? ' selected' : '') + '>' + m + '</option>' }).join('') + '</select></div>' +
