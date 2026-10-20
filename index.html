@@ -578,6 +578,33 @@ body.dens-compact th{padding:6px 8px}
 @media print{.bnav{display:none!important}}
 
 
+/* Ronda 4B */
+.pb-view .sec-h,.pb-scope .sec-h{align-items:flex-start;padding:4px 0 12px;border-bottom:1px solid var(--bd)}
+.pb-view .sec-h>div:first-child,.pb-scope .sec-h>div:first-child{min-width:0}
+.pb-view .sec-t,.pb-scope .sec-t{line-height:1.25;text-wrap:balance}
+.pb-view .sec-s,.pb-scope .sec-s{margin-top:4px;line-height:1.45}
+.pb-view>.toolbar,.pb-scope>.toolbar{padding:10px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);margin-bottom:14px}
+.pb-view>.toolbar input,.pb-view>.toolbar select,.pb-scope>.toolbar input,.pb-scope>.toolbar select{min-height:44px}
+.pb-view .subtabs,.pb-scope .subtabs{margin:0 0 16px;scrollbar-width:thin;overscroll-behavior-x:contain}
+.pb-view .subtab,.pb-scope .subtab{min-height:44px}
+.pb-view .cards,.pb-scope .cards{grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0 18px}
+.pb-view .card,.pb-scope .card{min-width:0}
+.pb-view .tbl-wrap,.pb-scope .tbl-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;border:1px solid var(--bd);border-radius:var(--radius);background:var(--bg2)}
+.pb-view table,.pb-scope table{min-width:max-content}
+.pb-view th,.pb-scope th{top:0;z-index:2}
+.pb-view details,.pb-scope details{margin:12px 0;padding:10px 12px;border:1px solid var(--bd);border-radius:var(--radius);background:var(--bg2)}
+.pb-view details>summary,.pb-scope details>summary{cursor:pointer;color:var(--ac);font-weight:600;min-height:24px}
+.pb-view .vacio-tabla,.pb-scope .vacio-tabla{margin:0 0 16px;background:var(--bg2)}
+.pb-view .badge,.pb-scope .badge{white-space:nowrap}
+@media(max-width:768px){
+  .pb-view .sec-h,.pb-scope .sec-h{gap:10px}
+  .pb-view>.toolbar,.pb-scope>.toolbar{align-items:stretch}
+  .pb-view>.toolbar>* ,.pb-scope>.toolbar>*{max-width:100%;min-width:0}
+  .pb-view .cards,.pb-scope .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .pb-view .card,.pb-scope .card{padding:12px}
+  .pb-view .tbl-wrap,.pb-scope .tbl-wrap{width:100%}
+}
+@media(min-width:769px){.pb-view .cards,.pb-scope .cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 
   <!-- ══ FIREBASE SDK ══════════════════════════════════════════ -->

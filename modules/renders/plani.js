@@ -8,7 +8,7 @@
 export async function renderPlani(){
   const sub=window._planiSub||'sem';
   $('s-plani').innerHTML=`
-    <div class="sec-h"><div><div class="sec-t">${ICONS.cal} Planificación y Agenda</div>
+    <div class="pb-view"><div class="sec-h"><div><div class="sec-t">${ICONS.cal} Planificación y Agenda</div>
       <div class="sec-s">Programación de mantenciones en el tiempo</div></div></div>
     <div class="subtabs" role="tablist">
       <button class="subtab ${sub === 'prg' ? 'on' : ''}" role="tab" onclick="planiSub('prg')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa Anual</button>

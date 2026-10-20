@@ -8,7 +8,7 @@
 export async function renderComp2() {
   const sub = window._comp2Sub || 'comp';
   $('s-comp2').innerHTML = `
-    <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</div>
+    <div class="pb-view"><div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes</div>
       <div class="sec-s">Componentes mayores, análisis predictivo y gestión de destrabe</div></div></div>
     <div class="subtabs" role="tablist">
       <span class="subtabs-g">Mis componentes</span>
