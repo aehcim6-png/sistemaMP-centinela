@@ -122,6 +122,7 @@ export function recortar(v: unknown, max: number): string {
 }
 
 const UMBRAL_RAFAGA = 5;
+const VENTANA_RAFAGA_MS = 15 * 60 * 1000;
 
 export const ACCION_VERIFICADO = "Login bloqueado";
 export const ACCION_SIN_VERIFICAR = "Login bloqueado (sin verificar)";
@@ -131,7 +132,6 @@ export const ACCION_SIN_VERIFICAR = "Login bloqueado (sin verificar)";
 export function accionIntento(verificado: boolean): string {
   return verificado ? ACCION_VERIFICADO : ACCION_SIN_VERIFICAR;
 }
-const VENTANA_RAFAGA_MS = 15 * 60 * 1000;
 
 // Se dispara SOLO la vez que se CRUZA el umbral (count === UMBRAL), no en
 // cada intento posterior — si se disparara con >= UMBRAL, cada intento
