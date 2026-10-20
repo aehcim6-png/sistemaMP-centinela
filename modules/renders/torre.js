@@ -104,7 +104,7 @@ export function renderTorre(){
   var tiposOrden=_TORRE_ORDEN_TIPOS.filter(function(t){return tiposConDatos.indexOf(t)>=0;})
     .concat(tiposConDatos.filter(function(t){return _TORRE_ORDEN_TIPOS.indexOf(t)<0;}).sort());
 
-  var html='<div class="torre-bg"><div class="torre-bg-grid"></div><div class="torre-bg-sweep"></div></div>'+
+  var html='<div class="oa-view"><div class="torre-bg"><div class="torre-bg-grid"></div><div class="torre-bg-sweep"></div></div>'+
     '<div style="position:relative;z-index:1">'+
     '<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">'+
     '<svg viewBox="0 0 60 60" width="36" height="36" style="color:var(--ac);flex:none" xmlns="http://www.w3.org/2000/svg">'+
@@ -175,7 +175,7 @@ export function renderTorre(){
     '<div id="torreDContexto" style="font-size:11px;color:var(--tx3);margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)"></div>'+
     '<button class="btn-s btn-o" style="width:100%;margin-top:16px" id="torreDCta">Ver ficha completa en Buscar →</button>'+
     '<button class="btn-s btn-o" style="width:100%;margin-top:8px" id="torreDOtCta">🔧 Crear Orden de Trabajo →</button>'+
-    '</div>';
+    '</div></div>';
 
   document.getElementById('s-torre').innerHTML=html;
 

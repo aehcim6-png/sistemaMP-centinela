@@ -23,6 +23,7 @@ export function renderEq(){
   const eq=C.recalcAll();
   const tipos=[...new Set(eq.map(e=>e.tipo))];
   $('s-eq').innerHTML=`
+    <div class="oa-view">
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg> Control PM Dinámico — Equipos</div><div class="sec-s">${eq.length} equipos · Click en celda azul para editar</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addEquipo()">+ Nuevo Equipo</button><button class="btn" style="background:var(--info,var(--info))" onclick="importarEquiposNuevos()">⬆️ Importar Flota CSV</button><input type="file" id="amortFile" accept=".xlsx,.xlsm" style="display:none" onchange="importarHorasAmortizar(event)"><button class="btn btn-o" onclick="document.getElementById('amortFile').click()" title="Carga la amortización por hora y la vida contable de cada equipo desde el listado Horas a Amortizar (Excel)">⬆️ Importar Horas a Amortizar</button><button class="btn btn-o" onclick="exportCSV('eq')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" style="color:var(--danger);border-color:var(--danger)" onclick="go('al')" title="Alerta de overhaul (8× frecPM) — con el umbral pensado para esa escala (horas restantes vs. frecPM), no el genérico de PM regular (días)">🔴 PM4 Urgentes (Alertas PM4)</button></div>
     </div>
@@ -65,7 +66,7 @@ export function renderEq(){
           <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${escapeHtml(e.sigla)}')" title="Ficha técnica"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg></button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>
         </tr>`;
       }).join('')}
-    </table></div>`;
+    </table></div></div>`;
   if(typeof _animGauges==='function')_animGauges('s-eq');
 }
 export function addEquipo(){

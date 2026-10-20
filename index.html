@@ -577,7 +577,36 @@ body.dens-compact th{padding:6px 8px}
 }
 @media print{.bnav{display:none!important}}
 
-
+  /* Ronda 4A */
+  .oa-view{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .oa-view .sec-h{margin-bottom:0;align-items:flex-start;gap:16px}
+  .oa-view .sec-h>div:first-child{min-width:0}
+  .oa-view .sec-t{line-height:1.3;text-wrap:balance}
+  .oa-view .sec-s{margin-top:4px;line-height:1.45}
+  .oa-view .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0;padding:10px 12px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius)}
+  .oa-view .toolbar select,.oa-view .toolbar input{min-height:44px}
+  .oa-view .tbl-wrap{min-width:0;max-width:100%;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--radius);background:var(--bg2)}
+  .oa-view .tbl-wrap table{min-width:720px}
+  .oa-view .tbl-wrap th{position:sticky;top:0;z-index:2;background:var(--bg3);box-shadow:0 1px 0 var(--bd);white-space:nowrap}
+  .oa-view .tbl-wrap td{padding:8px 9px;vertical-align:middle}
+  .oa-view .tbl-wrap tr:nth-child(even) td{background:color-mix(in srgb,var(--bg2) 82%,var(--bg3))}
+  .oa-view .badge{white-space:nowrap}
+  .oa-view .card{min-width:0}
+  .oa-view .fg{min-width:0}
+  .oa-view .fg label{display:block;margin-bottom:6px}
+  .oa-view input:not([type=file]),.oa-view select,.oa-view textarea{min-height:44px}
+  #s-torre.oa-view{gap:18px}
+  #s-torre .torre-tile{min-height:112px;background:var(--bg2);border:1px solid var(--bd)}
+  #s-hist .tbl-wrap table{min-width:760px}
+  @media(max-width:560px){
+    .oa-view{gap:12px}
+    .oa-view .sec-h{flex-direction:column;gap:10px}
+    .oa-view .sec-h>div:last-child{width:100%}
+    .oa-view .toolbar{padding:8px;align-items:stretch}
+    .oa-view .toolbar select,.oa-view .toolbar input{flex:1 1 140px;max-width:100%}
+    .oa-view .tbl-wrap td,.oa-view .tbl-wrap th{padding:7px 8px}
+    #s-torre .torre-tile{width:calc(50% - 5px)}
+  }
 </style>
 
   <!-- ══ FIREBASE SDK ══════════════════════════════════════════ -->

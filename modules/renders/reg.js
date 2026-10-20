@@ -19,6 +19,7 @@ export function renderReg(){
   }).slice().reverse();
   const pg=_pagSlice('reg',fil);
   $('s-reg').innerHTML=`
+    <div class="oa-view">
     <div class="sec-h"><div>
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registro de Mantención Preventiva (PM)</div>
       <div class="sec-s">${reg.length} registros totales</div>
@@ -71,7 +72,7 @@ export function renderReg(){
         </tr>`;
       }).join('')}
     </table></div>
-    ${_pagHTML('reg',pg)}`;
+    ${_pagHTML('reg',pg)}</div>`;
 }
 export function addReg(){
   const eq=S.g('eq')||[];

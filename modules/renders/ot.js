@@ -233,6 +233,7 @@ export function renderOt(){
   var pctSinSolucion=cerradasTotalEvidencia?Math.round(cerradasSinSolucion/cerradasTotalEvidencia*100):0;
   var cls=typeof resumenClasificacionOT==='function'?resumenClasificacionOT(ot):{cerradas:0,sinSistema:0,sinTipoCausa:0,pendientes:0,pctSinTipoCausa:0,pctSinSistema:0};
   $('s-ot').innerHTML=`
+    <div class="oa-view">
     <div class="sec-h"><div>
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
       <div class="sec-s">${todos.length} total (incluye correctivos del Registro PM)</div>
