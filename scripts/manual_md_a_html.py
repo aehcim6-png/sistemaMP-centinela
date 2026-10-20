@@ -5,6 +5,30 @@ Con los tres argumentos finales genera otro documento con la misma plantilla (po
 Soporta lo que usa el manual: títulos, citas (cuadro destacado), tablas, listas con y sin número, párrafos, negrita, cursiva, código y enlaces [texto](https://…)."""
 import html, re, sys
 
+MANUAL_CSS = '''
+  /* Ronda 4D */
+  html{scroll-behavior:smooth}
+  body{padding:clamp(24px,5vw,56px) 20px 80px}
+  .wrap{max-width:1120px}
+  .doc-layout{display:grid;grid-template-columns:minmax(0,760px) 220px;gap:32px;align-items:start}
+  .doc-index{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+  .doc-index summary{cursor:pointer;font-weight:700;color:var(--ink);margin-bottom:10px}
+  .doc-index a{display:block;color:var(--ink-dim);text-decoration:none;font-size:13px;line-height:1.4;padding:5px 7px;border-radius:4px}
+  .doc-index a:hover,.doc-index a:focus{color:var(--amber);background:var(--panel2)}
+  .doc-index a.active{color:var(--amber);font-weight:700;background:var(--panel2)}
+  .doc-main{min-width:0}
+  h2,h3{scroll-margin-top:24px;text-wrap:balance}
+  p,li{font-size:16px;line-height:1.6}
+  p,ul,ol{max-width:75ch}
+  .table-scroll{max-width:100%;overflow-x:auto;margin:16px 0}
+  table{min-width:620px;margin:0}
+  th{background:var(--panel2);color:var(--ink);position:sticky;top:0}
+  pre{max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+  .back-top{position:fixed;right:18px;bottom:18px;background:var(--amber);color:var(--bg);border:0;border-radius:999px;padding:9px 12px;font-weight:700;text-decoration:none}
+  @media(max-width:800px){.doc-layout{display:block}.doc-index{position:sticky;top:8px;z-index:5;max-height:none;margin-bottom:20px}.doc-index:not([open]){padding-bottom:10px}}
+  @media print{body{background:#fff;color:#111;padding:0}.doc-index,.back-top{display:none}.doc-layout{display:block}.wrap{max-width:none}p,li{color:#222}h2{break-before:auto;break-after:avoid}.callout{color:#222;border-color:#777;background:#f5f5f5;break-inside:avoid}table{font-size:10pt}a{color:#111;text-decoration:none}}
+'''
+
 def inline(t):
     t = html.escape(t, quote=False)
     t = re.sub(r'`([^`]+)`', r'<code>\1</code>', t)
@@ -73,6 +97,8 @@ def main(repo, md_rel='docs/manual-usuario.md', html_rel='docs/manual-usuario.ht
     md = open(repo + '/' + md_rel, encoding='utf-8').read()
     plantilla = open(repo + '/docs/manual-usuario.html', encoding='utf-8').read()
     viejo = plantilla if html_rel == 'docs/manual-usuario.html' else open(repo + '/' + html_rel, encoding='utf-8').read() if __import__('os').path.exists(repo + '/' + html_rel) else plantilla
+    viejo = re.sub(r'\\s*/\\* Ronda 4D \\*/.*?(?=</style>)', '', viejo, flags=re.S)
+    viejo = viejo.replace('</style>', MANUAL_CSS + '</style>', 1)
     if html_rel != 'docs/manual-usuario.html' and viejo is plantilla:
         viejo = re.sub(r'<title>.*?</title>', '<title>%s — SistemaMP Centinela</title>' % html.escape(titulo, quote=False), viejo, count=1)
         viejo = re.sub(r'<h1>.*?</h1>', '<h1>%s</h1>' % html.escape(titulo, quote=False), viejo, count=1)
@@ -83,7 +109,11 @@ def main(repo, md_rel='docs/manual-usuario.md', html_rel='docs/manual-usuario.ht
     cuerpo = convertir(md)
     # el último párrafo ("Para el detalle completo…") va como cuadro destacado, igual que antes
     cuerpo = re.sub(r'  <p>(Para el detalle completo.*?)</p>\s*$', r'\n  <div class="callout">\n    \1\n  </div>', cuerpo, flags=re.S)
-    nuevo = viejo[:j] + '\n' + cuerpo + '\n\n  ' + cola
+    titulos = re.findall(r'<h([23])>(.*?)</h\\1>', cuerpo)
+    indice = '<details class="doc-index" open><summary>Índice del manual</summary>' + ''.join('<a href="#doc-%s">%s</a>' % (n, t) for n, (_, t) in enumerate(titulos, 1)) + '</details>'
+    cuerpo = re.sub(r'<h([23])>', lambda m: '<h%s id="doc-%s">' % (m.group(1), len(re.findall(r'<h[23]', cuerpo[:m.start()])) + 1), cuerpo)
+    nuevo = viejo[:j] + '\n<div class="doc-layout">\n  ' + indice + '\n  <main class="doc-main">\n' + cuerpo + '\n  </main>\n</div>\n\n  <a class="back-top" href="#top">Volver arriba</a>\n\n  ' + cola
+    nuevo = nuevo.replace('<div class="wrap">', '<div class="wrap" id="top">', 1)
     open(repo + '/' + html_rel, 'w', encoding='utf-8').write(nuevo)
 
 if __name__ == '__main__':

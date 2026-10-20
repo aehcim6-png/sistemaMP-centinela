@@ -9,7 +9,7 @@ export function renderAyuda(){
   var reg=S.g('reg')||[];
   var ot=S.g('ot')||[];
   $('s-ayuda').innerHTML=
-    '<div class="sec-h"><div><div class="sec-t">📖 Manual de Usuario — SistemaMP Centinela</div>'+
+    '<div class="ay-shell"><div class="sec-h"><div><div class="sec-t">📖 Manual de Usuario — SistemaMP Centinela</div>'+
     '<div class="sec-s">Guía completa de operación del sistema</div></div>'+
     '<div style="display:flex;gap:8px"><a href="#m32" class="btn btn-o" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+ICONS.book+' Glosario de Términos</a>'+
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div></div>'+
@@ -1015,9 +1015,6 @@ export function renderAyuda(){
     '<div style="padding:10px;background:var(--bg3);border-radius:6px;font-size:12px;line-height:1.7">'+
     '<b>Regla del sistema:</b> primero lo más simple que resuelva la pregunta. Usa reglas y estadística que se puede explicar; no usa aprendizaje automático, porque con pocas fallas por equipo sus resultados serían poco confiables y difíciles de justificar. Si faltan datos, muestra "sin dato" y no inventa.<br>'+
     '<b>Antes de usar una herramienta:</b> ¿hay datos suficientes? ¿mezclé equipos o regímenes distintos? ¿tengo evidencia de terreno que lo confirme?'+
-    '</div></div>';
-}
-
-// Puente window/renders — ver nota en mov.js (primera tanda).
+    '</div></div></div>';\n    var raiz=$('s-ayuda');\n    var secciones=[].slice.call(raiz.querySelectorAll('[id^="m"]')).filter(function(n){return /^m\\d+$/.test(n.id);});\n    var indice='<nav class="ay-index" aria-label="Índice de Ayuda">'+secciones.map(function(n){var t=n.querySelector('.card-t')||n;return '<a href="#'+n.id+'" data-ay-target="'+n.id+'">'+escapeHtml((t.textContent||'').trim())+'</a>';}).join('')+'</nav>';\n    var herramientas='<div class="ay-tools"><input class="ay-search" type="search" placeholder="Buscar en Ayuda…" aria-label="Buscar en Ayuda" oninput="filtrarAyuda(this.value)"><button class="btn btn-o" type="button" onclick="window.scrollTo({top:0,behavior:\'smooth\'})">Volver arriba</button></div>';\n    raiz.querySelector('.ay-shell').insertAdjacentHTML('afterbegin',herramientas);\n    raiz.querySelector('.ay-shell').insertAdjacentHTML('beforeend','<button class="ay-back" type="button" aria-label="Volver arriba" onclick="window.scrollTo({top:0,behavior:\'smooth\'})">↑</button>');\n    raiz.querySelector('.ay-shell').insertAdjacentHTML('beforeend',indice);\n    var nav=raiz.querySelector('.ay-shell>.ay-index');\n    var body=raiz.querySelector('.ay-shell');\n    body.classList.add('ay-content');\n    nav.setAttribute('data-ay-index','');\n    window.filtrarAyuda=function(q){var needle=(q||'').toLocaleLowerCase();secciones.forEach(function(n){n.classList.toggle('ay-hidden',needle && !(n.textContent||'').toLocaleLowerCase().includes(needle));});};\n}\n\n// Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderAyuda = renderAyuda;
 renders.ayuda = renderAyuda;
