@@ -933,11 +933,11 @@ export function verAccesos(){
     const clave=(c.usuario||'')+'|'+m[1];
     if(!vistos.has(clave)){vistos.add(clave);primeraAparicion.add(c);}
   });
-  const logs=todos.filter(function(c){return c.accion==='Login'||c.accion==='Login bloqueado';}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
+  const logs=todos.filter(function(c){return c.accion==='Login'||(c.accion||'').startsWith('Login bloqueado');}).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,60);
   const rows=logs.map(function(c){
     const d=new Date(c.fecha);
     const fechaStr=isNaN(d)?(c.fecha||'—'):d.toLocaleString('es-CL');
-    const bloqueado=c.accion==='Login bloqueado';
+    const bloqueado=(c.accion||'').startsWith('Login bloqueado');
     const nuevo=!bloqueado&&primeraAparicion.has(c);
     const marcaNuevo=nuevo?'<span title="Dispositivo nunca antes visto para esta cuenta" style="color:var(--ac);font-weight:600">🆕 </span>':'';
     return `<tr>${bloqueado?'<td style="padding:4px;font-size:11px;color:var(--danger)">'+ICONS.noEntry+' '+fechaStr+'</td>':'<td style="padding:4px;font-size:11px">'+marcaNuevo+fechaStr+'</td>'}<td style="font-size:11px;color:${bloqueado?'var(--danger)':'inherit'}">${escapeHtml(c.usuario||'—')}</td><td style="font-size:10px;color:var(--tx3)">${escapeHtml(c.detalle||'')}</td></tr>`;

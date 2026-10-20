@@ -50,6 +50,17 @@
 // (instalación sin CAPTCHA activado todavía), se mantiene el comportamiento
 // de siempre — mismo criterio de "opcional hasta que se configure a
 // propósito" que usa el resto del sistema.
+//
+// Fix (2026-10-20): con Turnstile activo, un intento SIN token válido se
+// descartaba entero (return antes del insert) — no contaba hacia la ráfaga,
+// pero tampoco quedaba registrado, contra lo que prometía el cliente ("el
+// servidor simplemente no cuenta ese intento hacia el umbral"). Resultado
+// real: 0 intentos fallidos en toda la historia de producción — basta que
+// el token nuevo tarde más de lo que espera el navegador para que el
+// intento desaparezca sin rastro. Ahora se registra siempre; los no
+// verificados quedan con su propia acción ('Login bloqueado (sin verificar)')
+// y no cuentan hacia el umbral ni disparan aviso/bloqueo — el riesgo de que
+// alguien bloquee una cuenta ajena golpeando este endpoint sigue cerrado.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -111,6 +122,15 @@ export function recortar(v: unknown, max: number): string {
 }
 
 const UMBRAL_RAFAGA = 5;
+
+export const ACCION_VERIFICADO = "Login bloqueado";
+export const ACCION_SIN_VERIFICAR = "Login bloqueado (sin verificar)";
+
+// Solo los intentos verificados (o todos, si no hay CAPTCHA configurado)
+// usan la acción que cuenta hacia el umbral de ráfaga.
+export function accionIntento(verificado: boolean): string {
+  return verificado ? ACCION_VERIFICADO : ACCION_SIN_VERIFICAR;
+}
 const VENTANA_RAFAGA_MS = 15 * 60 * 1000;
 
 // Se dispara SOLO la vez que se CRUZA el umbral (count === UMBRAL), no en
@@ -190,30 +210,27 @@ if (import.meta.main) {
       const { data: turnstileSecret } = await admin.rpc("obtener_secreto_para_cron", {
         nombre_secreto: "turnstile_secret_key",
       });
+      let verificado = true;
       if (turnstileSecret) {
         const remoteip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
-        const valido = captchaToken ? await verificarTurnstile(turnstileSecret, captchaToken, remoteip) : false;
-        if (!valido) {
-          // Silencioso a propósito, mismo criterio que el resto de este
-          // sistema con endpoints públicos: no le confirma a quien llama si
-          // "casi" funcionó — simplemente no registra ni cuenta nada.
-          return json({ ok: true });
-        }
+        verificado = captchaToken ? await verificarTurnstile(turnstileSecret, captchaToken, remoteip) : false;
       }
 
       const { error } = await admin.from("changelog").insert({
         fecha: new Date().toISOString(),
         usuario: email,
-        accion: "Login bloqueado",
+        accion: accionIntento(verificado),
         detalle: "Intento de acceso rechazado (clave incorrecta, cuenta desactivada, o sesión vencida sin poder renovarse) · 💻 " + dispositivo + " · " + userAgent,
       });
       if (error) return json({ error: "No se pudo registrar: " + error.message }, 500);
 
-      if (email !== "(sin email)") {
+      // Respuesta idéntica en ambos casos: no se le confirma a quien llama
+      // si su token pasó o no.
+      if (verificado && email !== "(sin email)") {
         const conteoR = await admin
           .from("changelog")
           .select("id", { count: "exact", head: true })
-          .eq("accion", "Login bloqueado")
+          .eq("accion", ACCION_VERIFICADO)
           .eq("usuario", email)
           .gte("fecha", new Date(Date.now() - VENTANA_RAFAGA_MS).toISOString());
         const intentosRecientes = conteoR.count ?? 0;

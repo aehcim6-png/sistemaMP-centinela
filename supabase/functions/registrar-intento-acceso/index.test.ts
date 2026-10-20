@@ -16,7 +16,21 @@ import {
   cruzaUmbralRafaga,
   verificarTurnstile,
   buscarUserIdPorEmail,
+  accionIntento,
+  ACCION_VERIFICADO,
 } from "./index.ts";
+
+// ---- accionIntento ----
+// Un intento sin CAPTCHA válido igual queda registrado, pero con una acción
+// distinta que NO cuenta hacia el umbral de ráfaga (que filtra por
+// ACCION_VERIFICADO).
+Deno.test("accionIntento: verificado usa la acción que cuenta hacia la ráfaga", () => {
+  assertEquals(accionIntento(true), ACCION_VERIFICADO);
+});
+
+Deno.test("accionIntento: sin verificar queda registrado con otra acción", () => {
+  assertEquals(accionIntento(false), "Login bloqueado (sin verificar)");
+});
 
 // ---- recortar ----
 

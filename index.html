@@ -4571,7 +4571,13 @@ async function _doLogin(){
       // el visitante tuviera que esperar la resolución del CAPTCHA nuevo
       // para enterarse de que su clave estaba mal) — corre en paralelo,
       // reseteando de paso el widget para el siguiente intento.
-      _esperarTurnstileTokenNuevo(4000).then(function(token){_registrarIntentoBloqueado(email,token);});
+      _esperarTurnstileTokenNuevo(15000).then(function(token){
+        _registrarIntentoBloqueado(email,token);
+        // Ese token ya lo gasta el registro (Cloudflare acepta cada token una
+        // sola vez) — si queda en _turnstileToken, el próximo intento de login
+        // lo reusaría y Supabase lo rechazaría aunque la clave sea correcta.
+        if(token)_resetTurnstile();
+      });
       return;
     }
     // Si la cuenta tiene verificación en dos pasos activada, la clave sola no
