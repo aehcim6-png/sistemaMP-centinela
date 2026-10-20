@@ -148,7 +148,7 @@ function generarDiagnostico(sigla){
   var queViene=[];
   if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))queViene.push('Riesgo de falla por PM vencida — intervenir antes de '+Math.max(Math.abs(e.diasParaPM)*2,7)+' días');
   else if(e.diasParaPM<=14)queViene.push('PM '+e.tipoPM+' estimada en '+e.diasParaPM+' días');
-  if(aceAlertas.length)queViene.push('Tendencia de desgaste en '+(aceAlertas[0].descriptor||'componente')+' — riesgo de falla progresiva');
+  if(aceAlertas.length)queViene.push('Tendencia de desgaste en '+(aceAlertas[0].descriptor||aceAlertas[0].componente||'componente')+' — riesgo de falla progresiva');
   if(eqData){
     queViene.push('Proyección: ~'+Math.round(eqData.promPedMes)+' pedidos y $'+fn(eqData.promCostoMes)+' próximo mes');
   }
@@ -163,7 +163,7 @@ function generarDiagnostico(sigla){
   var hacer=[];
   if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))hacer.push(''+ICONS.wrench+' Programar '+e.tipoPM+' INMEDIATO');
   else if(e.diasParaPM<=7)hacer.push(''+ICONS.wrench+' Programar '+e.tipoPM+' esta semana');
-  if(aceAlertas.length)hacer.push(''+ICONS.wrench+' Intervenir '+aceAlertas[0].descriptor+' — cambio de aceite/inspección interna');
+  if(aceAlertas.length)hacer.push(''+ICONS.wrench+' Intervenir '+(aceAlertas[0].descriptor||aceAlertas[0].componente||'componente')+' — cambio de aceite/inspección interna');
   if(otPend.length)hacer.push(''+ICONS.doc+' Resolver '+otPend.length+' OT pendiente(s)');
   if(noks.length)hacer.push(''+ICONS.eye+' Re-inspeccionar: '+[...new Set(noks)].join(', '));
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)hacer.push(''+ICONS.refresh+' Evaluar reemplazo de '+cf[0]+' ('+cf[1]+' fallas)');});
@@ -173,7 +173,7 @@ function generarDiagnostico(sigla){
   // 5. ¿QUÉ PASA SI NO LO HAGO?
   var impacto=[];
   if(estadoPM.includes('URGENTE')||estadoPM.includes('VENCIDA'))impacto.push('Detención no programada — costo estimado $'+(eqData?fn(Math.round(eqData.promCostoMes*0.5)):'N/D'));
-  if(aceAlertas.length)impacto.push('Falla catastrófica en '+(aceAlertas[0].descriptor||'componente')+' — daño mayor');
+  if(aceAlertas.length)impacto.push('Falla catastrófica en '+(aceAlertas[0].descriptor||aceAlertas[0].componente||'componente')+' — daño mayor');
   if(otPend.length>2)impacto.push('Acumulación de backlog — riesgo operacional');
   Object.entries(compFallas).forEach(function(cf){if(cf[1]>=3)impacto.push('Falla repetitiva en '+cf[0]+' puede escalar a daño mayor');});
   if(!impacto.length)impacto.push('Riesgo bajo si se mantiene plan actual');
@@ -680,6 +680,7 @@ export function renderPred(){
   var insp=S.g('insp')||[];
   var mov=S.g('mov')||[];
   var fVista=$('fPredVista')?.value||'general';
+  var labPred=_modoLab()||_LAB_PRED.indexOf(fVista)>=0;   // una vista de laboratorio ya elegida (enlace directo) la mantiene visible
   var fEq=$('fPredEq')?.value||'';
   // fPredAnio/fPredMes (2026-08-18, a pedido del usuario: "en Predictivo si quiero
   // buscar un equipo o año o mes no está") — filtro persistente, visible en TODAS
@@ -1002,7 +1003,7 @@ export function renderPred(){
         var impacto=(o.estatusEq==='Fuera de Servicio'||esCritEq)?'Alto':'Medio';
         var prioridad=diasPend>7&&impacto==='Alto'?'🔴 Crítico':diasPend>3?'🟡 Atrasado':'🟢 Normal';
         backlog.push({idx:i,sigla:o.sigla,trabajo:o.sintoma||o.tipo,origen:'Correctivo',dias:diasPend,
-          motivo:motivo,impacto:impacto,prioridad:prioridad,estadoOT:o.estadoOT,componente:o.componente||''});
+          motivo:motivo,impacto:impacto,prioridad:prioridad,estadoOT:o.estadoOT,componente:o.componente||'',fueraDeServicio:o.estatusEq==='Fuera de Servicio'});
       }
     });
     // From predictive alerts — bug real (auditoría 2026-09-14): antes exigía
@@ -1017,7 +1018,11 @@ export function renderPred(){
       }
     });
     if(fEq)backlog=backlog.filter(function(b){return b.sigla===fEq;});
-    backlog.sort(function(a,b){return b.dias-a.dias;});
+    // Prioridad M6 (2026-10-13): urgencia (días pendiente) × impacto (criticidad del equipo: calculada M2 + etiqueta manual, peor caso) — ver prioridadOT (logic.js). Antes: solo días y un impacto Alto/Medio binario.
+    var bandaSigBL=_predBandaPorSigla(eq,ot);
+    backlog=prioridadOT(backlog,bandaSigBL);
+    var nivelBL=function(n){return backlog.filter(function(b){return b.nivel===n;}).length;};
+    var sinCritBL=backlog.filter(function(b){return b.impactoFuente&&b.impactoFuente.indexOf('sin criticidad')===0;}).length;
 
     var is=CELL_INPUT_STYLE+';font-size:11px;padding:2px';
 
@@ -1034,27 +1039,28 @@ export function renderPred(){
         sinCriticidad+' de '+eq.length+' equipos todavía sin "Criticidad" clasificada (Ficha Técnica → Crítico/Esencial/General) — sin esto, la columna "Impacto" de abajo no puede distinguir un equipo clave parado de uno de apoyo, y todo correctivo pendiente pesa igual.'+
         '</div>':'')+
       '<div class="cards">'+
-      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔴 Críticos</div><div class="card-v" style="color:var(--danger)">'+backlog.filter(function(b){return b.prioridad.includes('🔴');}).length+'</div></div>'+
-      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">🟡 Atrasados</div><div class="card-v" style="color:var(--w)">'+backlog.filter(function(b){return b.prioridad.includes('🟡');}).length+'</div></div>'+
-      '<div class="card"><div class="card-t">🟢 Normal</div><div class="card-v">'+backlog.filter(function(b){return b.prioridad.includes('🟢');}).length+'</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--danger)"><div class="card-t">🔴 P1 · Resolver hoy</div><div class="card-v" style="color:var(--danger)">'+nivelBL('P1')+'</div><div class="card-s">urgencia × impacto ≥ 15</div></div>'+
+      '<div class="card" style="border-left:3px solid #f97316"><div class="card-t">🟠 P2 · Esta semana</div><div class="card-v" style="color:#f97316">'+nivelBL('P2')+'</div><div class="card-s">de 8 a 14</div></div>'+
+      '<div class="card" style="border-left:3px solid var(--w)"><div class="card-t">🟡 P3 · Programar</div><div class="card-v" style="color:var(--w)">'+nivelBL('P3')+'</div><div class="card-s">de 4 a 7</div></div>'+
+      '<div class="card"><div class="card-t">🟢 P4 · Puede esperar</div><div class="card-v">'+nivelBL('P4')+'</div><div class="card-s">menos de 4</div></div>'+
       '<div class="card"><div class="card-t">Total Backlog</div><div class="card-v">'+backlog.length+'</div></div>'+
       '</div>'+
+      '<div style="font-size:11px;color:var(--tx3);margin:-4px 0 12px;line-height:1.5"><b>Prioridad = urgencia × impacto</b> (1 a 5 cada una). <b>Urgencia:</b> días pendiente (hasta 1 día = 1, hasta 3 = 2, hasta 7 = 3, hasta 14 = 4, más = 5); un PM vencido cuenta 3 como mínimo y un equipo fuera de servicio 4. <b>Impacto:</b> criticidad del equipo (la más alta entre la calculada en Criticidad de Equipos y tu etiqueta Crítico/Esencial/General: Alta/Crítico = 5, Media/Esencial = 3, Baja/General = 1); un equipo fuera de servicio cuenta 4 como mínimo.'+(sinCritBL?' <b>'+sinCritBL+' trabajo(s) de equipos sin criticidad conocida usan impacto 3 (neutro).</b>':'')+'</div>'+
       '<div class="tbl-wrap"><table>'+
       '<tr><th>Prioridad</th><th>Equipo</th><th>Trabajo</th><th>Origen</th><th>Días</th><th>Motivo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Impacto</th><th>Componente</th><th>Acción</th></tr>'+
       backlog.map(function(b){
-        var bg=b.prioridad.includes('🔴')?'background:rgba(239,68,68,.06)':b.prioridad.includes('🟡')?'background:rgba(245,158,11,.04)':'';
+        var bg=b.nivel==='P1'?'background:rgba(239,68,68,.06)':b.nivel==='P2'?'background:rgba(249,115,22,.05)':b.nivel==='P3'?'background:rgba(245,158,11,.04)':'';
+        var colP=b.nivel==='P1'?'var(--danger)':b.nivel==='P2'?'#f97316':b.nivel==='P3'?'var(--w)':'var(--ok)';
         return'<tr style="'+bg+'">'+
-          '<td style="font-size:12px">'+b.prioridad+'</td>'+
+          '<td style="font-size:12px;font-weight:700;color:'+colP+'" title="Urgencia '+b.urgencia+' × impacto '+b.impacto+' = '+b.puntaje+'">'+b.nivel+' · '+b.puntaje+'</td>'+
           '<td class="mono" style="color:var(--ac)">'+escapeHtml(b.sigla)+'</td>'+
           '<td style="font-size:11px;max-width:150px">'+escapeHtml(b.trabajo)+'</td>'+
           '<td style="font-size:10px"><span class="badge '+(b.origen==='Correctivo'?'b-r':'b-y')+'">'+b.origen+'</span></td>'+
           '<td style="text-align:center;font-weight:600;color:'+(b.dias>7?'var(--danger)':'var(--w)')+'">'+b.dias+'d</td>'+
           '<td>'+(b.idx>=0?'<input value="'+escapeHtml(b.motivo||'')+'" data-ot="'+b.idx+'" data-key="motivoPendiente" onchange="edOT(parseInt(this.dataset.ot),this.dataset.key,this.value)" style="width:90px;'+is+'" placeholder="Motivo...">':'<span style="font-size:10px">'+escapeHtml(b.motivo)+'</span>')+'</td>'+
-          '<td style="font-size:11px;font-weight:600;color:'+(b.impacto==='Alto'?'var(--danger)':'var(--w)')+'">'+b.impacto+'</td>'+
+          '<td style="font-size:11px;font-weight:600;color:'+(b.impacto>=4?'var(--danger)':b.impacto===3?'var(--w)':'var(--tx2)')+'" title="'+escapeHtml('Impacto '+b.impacto+' ('+b.impactoFuente+') · urgencia '+b.urgencia)+'">'+b.impacto+'<span style="font-size:9px;color:var(--tx3);font-weight:400"> ('+escapeHtml(b.impactoFuente.indexOf('sin criticidad')===0?'sin criticidad':b.impactoFuente)+')</span></td>'+
           '<td style="font-size:10px">'+escapeHtml(b.componente||'—')+'</td>'+
-          '<td>'+(b.prioridad.includes('🔴')?'<span style="font-size:10px;color:var(--danger);font-weight:600">Resolver hoy</span>':
-            b.prioridad.includes('🟡')?'<span style="font-size:10px;color:var(--w)">Programar</span>':
-            '<span style="font-size:10px;color:var(--ok)">Puede esperar</span>')+'</td></tr>';
+          '<td><span style="font-size:10px;color:'+colP+';font-weight:'+(b.nivel==='P1'?'600':'400')+'">'+b.accion+'</span></td></tr>';
       }).join('')+
       '</table></div>';
 
@@ -1116,6 +1122,85 @@ export function renderPred(){
           }).join('')+
           '</table></div></div>';
       })();
+  } else if(fVista==='backtest'){
+    // ¿Las reglas del programa anticipan qué equipo fallará el próximo mes? Se prueba en el pasado mes a mes con
+    // lo que se sabía a cada fecha (backtestAnticipacionFallas, logic.js) y se compara con reglas simples.
+    var evBt=[];
+    ot.forEach(function(o){
+      if(!o||!o.sigla||!esFallaMTBF(o))return;
+      evBt.push({sigla:o.sigla,fecha:o.fecha,horom:o.horom,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});
+    });
+    (S.g('otHist')||[]).forEach(function(o){if(o&&o.sigla)evBt.push({sigla:o.sigla,fecha:o.fecha,horom:o.horometro,componente:o.sistema||''});});
+    var bt=backtestAnticipacionFallas(evBt,eq,new Date());
+    var fN=function(x,d){return x==null?'—':(Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toString().replace('.',',');};
+    var colVer={mejor:'var(--ok)','no distinguible':'var(--w)',peor:'var(--danger)',referencia:'var(--tx3)'};
+    var txtVer={mejor:'Mejor que la referencia','no distinguible':'No se distingue de la referencia',peor:'Peor que la referencia',referencia:'Referencia'};
+    content=
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🧪 Backtest — ¿las reglas anticipan qué equipo fallará el próximo mes?</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Para cada mes del pasado se ordenan los equipos de más a menos probable de fallar usando SOLO lo que se sabía ese día, y se mira quién falló de verdad en los 30 días siguientes. Así se ve si cada regla le gana a una regla simple, en vez de suponerlo. <b>AUC</b>: probabilidad de que un equipo que sí falló tenga más puntaje que uno que no (0,5 = azar, 1 = perfecto).</div>'+
+      (!bt?'<div style="padding:14px;text-align:center;color:var(--tx3)">No hay eventos de falla para probar.</div>'
+       :!bt.ok?'<div style="padding:14px;color:var(--tx3);font-size:12px">No se puede evaluar todavía: '+escapeHtml(bt.motivo)+'.</div>'
+       :'<div class="cards" style="margin-bottom:12px"><div class="card"><div class="card-t">Meses probados</div><div class="card-v">'+bt.origenes+'</div><div class="card-s">'+bt.desde+' a '+bt.hasta+'</div></div>'+
+        '<div class="card"><div class="card-t">Equipos por mes</div><div class="card-v">'+fN(bt.equiposPorOrigen,1)+'</div><div class="card-s">con historia a esa fecha</div></div>'+
+        '<div class="card"><div class="card-t">Fallan en un mes típico</div><div class="card-v">'+fN(bt.tasaBase*100,0)+'%</div><div class="card-s">de los equipos (azar puro acertaría eso)</div></div></div>'+
+        '<div class="tbl-wrap"><table><tr><th>Regla</th><th>AUC</th><th title="De los 20 % de equipos que la regla pone primero, qué porcentaje falló">Acierto en el 20 % de arriba</th><th title="Acierto dividido por la tasa de un mes típico">Veces mejor que el azar</th><th>Diferencia de AUC contra la referencia (intervalo 95 %)</th><th>Veredicto</th></tr>'+
+        bt.predictores.map(function(q){
+          return'<tr><td style="font-size:11px">'+escapeHtml(q.nombre)+'</td><td style="text-align:center;font-weight:700">'+fN(q.auc,3)+'</td><td style="text-align:center">'+fN(q.precisionTop*100,0)+'%</td><td style="text-align:center">'+fN(q.lift,2)+'×</td>'+
+            '<td style="text-align:center;font-size:11px">'+(q.difVsReferencia?(q.difVsReferencia.media>0?'+':'')+fN(q.difVsReferencia.media,3)+' ('+fN(q.difVsReferencia.lo,3)+' a '+fN(q.difVsReferencia.hi,3)+')':'—')+'</td>'+
+            '<td style="font-weight:700;color:'+colVer[q.veredicto]+'">'+txtVer[q.veredicto]+'</td></tr>';
+        }).join('')+'</table></div>'+
+        '<div class="chart-t" style="margin-top:14px">¿Las probabilidades son confiables, o solo ordenan bien?</div>'+
+        '<div style="font-size:11px;color:var(--tx3);padding:4px 0 8px;line-height:1.6">El AUC solo mira el orden. Acá se mide si el número en sí es creíble: si el programa dice «30 %», ¿falla cerca del 30 % de las veces? <b>Brier</b> y <b>log loss</b>: menor es mejor. «Mejora sobre el azar» compara el Brier con siempre decir la tasa típica de la flota ('+fN(bt.tasaBasePooled*100,0)+'%, Brier '+fN(bt.brierBase,3)+'): positivo = ayuda, negativo = peor que no predecir.</div>'+
+        '<div class="tbl-wrap"><table><tr><th>Modelo</th><th>Brier</th><th>Log loss</th><th title="1 − Brier del modelo ÷ Brier de decir siempre la tasa típica">Mejora sobre el azar</th><th title="En cuántos equipo-mes el modelo pudo dar una probabilidad (si no pudo, cuenta como 0 %)">Dio probabilidad en</th></tr>'+
+        bt.predictores.filter(function(q){return q.calibracion;}).map(function(q){
+          var c=q.calibracion,col=c.brierSkill==null?'var(--tx3)':c.brierSkill>0?'var(--ok)':'var(--danger)';
+          return'<tr><td style="font-size:11px">'+escapeHtml(q.nombre)+'</td><td style="text-align:center;font-weight:700">'+fN(c.brier,3)+'</td><td style="text-align:center">'+fN(c.logLoss,3)+'</td><td style="text-align:center;font-weight:700;color:'+col+'">'+(c.brierSkill==null?'—':(c.brierSkill>0?'+':'')+fN(c.brierSkill*100,0)+'%')+'</td><td style="text-align:center">'+fN(c.cobertura*100,0)+'%</td></tr>';
+        }).join('')+'</table></div>'+
+        '<div style="font-size:11px;color:var(--tx3);padding:8px 0;line-height:1.6"><b>Cómo leerlo.</b> La referencia es «fallas de los últimos 365 días», fijada antes de mirar resultados. Una regla solo «gana» si todo el intervalo queda sobre 0; con pocos meses lo normal es «no se distingue», y eso significa que la regla compleja no demuestra aportar más que contar fallas. <b>Límites:</b> los meses consecutivos comparten historia, así que el intervalo es algo optimista; los componentes salen en parte del texto del síntoma; prueba solo «qué equipo falla el próximo mes», no si la predicción ayuda a decidir una compra o un cambio.</div>')+
+      '</div>';
+  } else if(fVista==='taller'){
+    // Carga del taller: ¿cuántos equipos habrá en el taller al mismo tiempo? Se simula desde la última fecha con datos y el
+    // pronóstico solo se muestra si el backtest (simular meses pasados y comparar con lo ocurrido) alcanza la cobertura mínima.
+    var COBERTURA_MIN=60;
+    var ivT=ot.filter(function(o){return o&&(o.fechaEntrada||o.fecha);}).map(function(o){return{entrada:(o.fechaEntrada||o.fecha),salida:o.fechaSalida||null};});
+    var ultT=ivT.map(function(x){return x.entrada;}).sort().slice(-1)[0]||null;
+    var hoyT=ultT&&ultT<new Date().toISOString().slice(0,10)?ultT:new Date().toISOString().slice(0,10);
+    var retrasoT=ultT?Math.round((new Date()-new Date(ultT))/864e5):null;
+    var btT=ultT?backtestCargaTaller(ivT,hoyT,{origenes:14,nSim:300}):null;
+    var simT=(btT&&btT.ok&&btT.coberturaMedia>=COBERTURA_MIN)?simulacionCargaTaller(ivT,hoyT,{nSim:1000}):null;
+    var realMes=cargaRealTallerPorMes(ivT).slice(-12);
+    var fT=function(x){return x==null?'—':(Math.round(x*10)/10).toString().replace('.',',');};
+    var htmlSim='';
+    if(!ultT){
+      htmlSim='<div style="padding:14px;text-align:center;color:var(--tx3)">No hay correctivos con fecha de entrada para simular.</div>';
+    }else{
+      if(retrasoT>30)htmlSim+='<div style="padding:8px 10px;margin-bottom:10px;border-radius:6px;background:var(--bg3);font-size:11px;color:var(--w)">⚠ El último correctivo cargado es del '+escapeHtml(ultT)+' (hace '+retrasoT+' días). La simulación parte de esa fecha; si en estos meses hubo correctivos sin cargar, no los conoce.</div>';
+      if(!btT||!btT.ok){
+        htmlSim+='<div style="padding:12px;color:var(--tx3);font-size:12px">No se puede validar todavía: '+escapeHtml(btT&&btT.motivo?btT.motivo:'faltan datos')+'.</div>';
+      }else{
+        htmlSim+='<div class="cards" style="margin-bottom:12px"><div class="card"><div class="card-t">Meses probados</div><div class="card-v">'+btT.meses+'</div><div class="card-s">simulando desde cada mes pasado</div></div>'+
+          '<div class="card" style="border-left:3px solid '+(btT.coberturaMedia>=COBERTURA_MIN?'var(--ok)':'var(--danger)')+'"><div class="card-t">Cobertura del promedio</div><div class="card-v">'+fT(btT.coberturaMedia)+'%</div><div class="card-s">de los meses la carga real cayó dentro del rango simulado (se espera ~80 %; mínimo '+COBERTURA_MIN+' %)</div></div>'+
+          '<div class="card"><div class="card-t">Error del modelo</div><div class="card-v">'+fT(btT.errorModelo)+'</div><div class="card-s">equipos de diferencia en el promedio (regla simple «igual que el mes anterior»: '+fT(btT.errorIngenua)+')</div></div></div>';
+        if(simT){
+          var probTxt=[3,5,8].map(function(k){return k+' equipos: <b>'+(simT.probabilidadAlMenos[k]!=null?simT.probabilidadAlMenos[k]:0)+'%</b>';}).join(' · ');
+          htmlSim+='<div style="font-weight:600;font-size:12px;margin:8px 0">Próximos '+simT.horizonteDias+' días (desde '+escapeHtml(hoyT)+')</div>'+
+            '<div style="font-size:12px;line-height:1.8">En el taller hoy: <b>'+simT.hoyAbiertos+'</b> · entran en promedio <b>'+fT(simT.llegadasPorDia)+'</b> por día · permanencia típica <b>'+simT.duracionMedianaDias+' día(s)</b><br>'+
+            'Promedio de equipos en el taller al mismo tiempo: <b>'+fT(simT.mediaPromedio.p50)+'</b> (rango '+fT(simT.mediaPromedio.p10)+'–'+fT(simT.mediaPromedio.p90)+')<br>'+
+            'Máximo simultáneo del mes: <b>'+simT.maximo.p50+'</b> (rango '+simT.maximo.p10+'–'+simT.maximo.p90+')<br>'+
+            'Probabilidad de que en algún día haya al menos '+probTxt+'</div>';
+        }else{
+          htmlSim+='<div style="padding:10px 12px;margin:8px 0;border-radius:6px;background:var(--bg3);font-size:12px;color:var(--w)"><b>La simulación no pasó la validación</b> (cobertura '+fT(btT.coberturaMedia)+' % contra un mínimo de '+COBERTURA_MIN+' %): los rangos que daba eran demasiado optimistas porque la carga del taller cambia de un mes a otro. Por eso no se muestra ningún pronóstico. Abajo, lo que realmente pasó y cómo le fue a la simulación mes a mes.</div>';
+        }
+        htmlSim+='<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600">Backtest mes a mes</summary><div class="tbl-wrap"><table><tr><th>Desde</th><th>Real: promedio (máx.)</th><th>Simulado: promedio (rango)</th><th>Regla simple</th><th>¿Dentro?</th></tr>'+
+          btT.filas.map(function(f){return'<tr><td>'+escapeHtml(f.origen)+'</td><td style="text-align:center">'+fT(f.realMedia)+' ('+f.realMax+')</td><td style="text-align:center">'+fT(f.simMediaP50)+' ('+fT(f.simMediaP10)+'–'+fT(f.simMediaP90)+')</td><td style="text-align:center">'+fT(f.ingenuaMedia)+'</td><td style="text-align:center;color:'+(f.dentroMedia?'var(--ok)':'var(--danger)')+'">'+(f.dentroMedia?'sí':'no')+'</td></tr>';}).join('')+'</table></div></details>';
+      }
+      htmlSim+='<div style="font-weight:600;font-size:12px;margin:14px 0 6px">Lo que realmente pasó: equipos en el taller al mismo tiempo, por mes</div>'+
+        '<div class="tbl-wrap"><table><tr><th>Mes</th><th>Promedio</th><th>90 % de los días hasta</th><th>Máximo</th></tr>'+realMes.map(function(r){return'<tr><td>'+escapeHtml(r.mes)+'</td><td style="text-align:center">'+fT(r.media)+'</td><td style="text-align:center">'+r.p90+'</td><td style="text-align:center">'+r.maximo+'</td></tr>';}).join('')+'</table></div>';
+    }
+    content='<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🧪 Carga del taller — ¿cuántos equipos habrá en el taller al mismo tiempo?</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px;line-height:1.6">Se simula miles de veces el próximo mes con las entradas por día y las permanencias reales en el taller, y se prueba primero con meses pasados: si no reproduce lo que realmente pasó, <b>no se muestra el pronóstico</b>. <b>No simula esperas por técnico</b>: hoy no se registra la hora de primera atención (está vacía en todos los correctivos) y la duración mezcla espera y reparación, así que ese resultado no se podría validar.</div>'+
+      htmlSim+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:8px">Un equipo cuenta en el taller desde su fecha de entrada hasta su fecha de salida (los dos días incluidos); sin fecha de salida cuenta solo el día de entrada o, si entró hace menos de 30 días, sigue abierto. La carga cambia mucho de un mes a otro (por ejemplo, hay menos registros de entrada y salida en 2026), y eso es lo que más limita cualquier pronóstico.</div></div>';
   } else if(fVista==='probabilidad'){
     // Combina 'ot' (correctivos actuales, filtrados por esFallaMTBF — misma fuente
     // única que MTBF/Confiabilidad) con 'otHist' (historial 2022-2025 cargado desde
@@ -1133,7 +1218,47 @@ export function renderPred(){
       if(o&&o.sigla&&o.sistema)eventosProb.push({sigla:o.sigla,componente:o.sistema,fecha:o.fecha});
     });
     var probs=probabilidadFallaDesdeEventos(eventosProb).filter(function(p){return !fEq||p.sigla===fEq;}).slice(0,40);
-    content=
+    // ── Dos formas de ordenar, lado a lado (2026-10-18) ──
+    // En el backtest (Laboratorio → Backtest) la probabilidad por intervalo medio entre fallas resultó peor que
+    // simplemente contar las fallas del último año. En vez de reemplazarla, se muestran las dos listas juntas
+    // con el resultado del backtest al lado, para que se vea cuál le está funcionando a la flota.
+    var evTodos=[];
+    ot.forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o))evTodos.push({sigla:o.sigla,fecha:o.fecha,horom:o.horom,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});});
+    otHistProb.forEach(function(o){if(o&&o.sigla)evTodos.push({sigla:o.sigla,fecha:o.fecha,horom:o.horometro,componente:o.sistema||''});});
+    var hoyIsoP=new Date().toISOString().slice(0,10),d365P=new Date(Date.now()-365*864e5).toISOString().slice(0,10),d90P=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
+    var sigsEq={};eq.forEach(function(e){sigsEq[e.sigla]=true;});
+    var porEqRec={};
+    evTodos.forEach(function(e){
+      if(!sigsEq[e.sigla]||e.fecha>hoyIsoP)return;
+      var r=porEqRec[e.sigla]||(porEqRec[e.sigla]={sigla:e.sigla,f365:{},f90:{}});
+      if(e.fecha>d365P)r.f365[e.fecha]=1;
+      if(e.fecha>d90P)r.f90[e.fecha]=1;
+    });
+    var listaRec=Object.keys(porEqRec).map(function(k){var r=porEqRec[k];return{sigla:k,f365:Object.keys(r.f365).length,f90:Object.keys(r.f90).length};})
+      .filter(function(r){return r.f365>0&&(!fEq||r.sigla===fEq);}).sort(function(a,b){return b.f365-a.f365||b.f90-a.f90;});
+    var mejorProbPorEq={};
+    probs.forEach(function(q){if(!mejorProbPorEq[q.sigla]||q.prob30dPct>mejorProbPorEq[q.sigla].prob30dPct)mejorProbPorEq[q.sigla]=q;});
+    var listaProb=Object.keys(mejorProbPorEq).map(function(k){return mejorProbPorEq[k];}).sort(function(a,b){return b.prob30dPct-a.prob30dPct;});
+    var TOPN=8,topProb=listaProb.slice(0,TOPN),topRec=listaRec.slice(0,TOPN);
+    var enAmbas=topProb.filter(function(q){return topRec.some(function(r){return r.sigla===q.sigla;});}).length;
+    var btP=backtestAnticipacionFallas(evTodos,eq,new Date());
+    var fnP=function(x,d){return x==null?'—':(Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toString().replace('.',',');};
+    var btPorClave={};if(btP&&btP.ok)btP.predictores.forEach(function(q){btPorClave[q.clave]=q;});
+    var btTxt=(btP&&btP.ok)?
+      '<div style="font-size:12px;line-height:1.7;margin-bottom:10px;padding:8px 10px;border-radius:6px;background:var(--bg3)"><b>Qué dice el backtest ('+btP.origenes+' meses probados):</b> '+
+        'ordenar por probabilidad por intervalo medio acierta con AUC <b>'+fnP(btPorClave.prob30.auc,2)+'</b> ('+(btPorClave.prob30.veredicto==='peor'?'<span style="color:var(--danger)">peor</span> que':btPorClave.prob30.veredicto==='mejor'?'<span style="color:var(--ok)">mejor</span> que':'sin diferencia clara con')+' la regla simple) y ordenar por fallas de los últimos 365 días, AUC <b>'+fnP(btPorClave.fallas365.auc,2)+'</b> (0,5 = azar, 1 = perfecto). '+
+        'Weibull por equipo: AUC <b>'+fnP(btPorClave.weibull.auc,2)+'</b>; Kijima: <b>'+fnP(btPorClave.kijima.auc,2)+'</b>. Mientras la regla simple no sea peor, no hay motivo para fiarse de la compleja. Detalle en Laboratorio → Backtest.</div>'
+      :'<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">El backtest todavía no se puede calcular con los datos actuales (ver Laboratorio → Backtest).</div>';
+    var colCaja=function(titulo,sub,filas){return'<div style="flex:1;min-width:260px"><div style="font-weight:700;font-size:12px">'+titulo+'</div><div style="font-size:10px;color:var(--tx3);margin-bottom:6px">'+sub+'</div>'+filas+'</div>';};
+    var ladoALado='<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px"><div class="chart-t">Dos formas de ordenar qué equipos fallarán — lado a lado</div>'+btTxt+
+      '<div style="display:flex;gap:18px;flex-wrap:wrap">'+
+      colCaja('A · Por probabilidad (intervalo medio entre fallas)','La que se mostraba hasta ahora: el peor componente de cada equipo',
+        topProb.length?'<table style="width:100%"><tr><th>Equipo</th><th>Componente</th><th>Prob. 30 d</th></tr>'+topProb.map(function(q){var coinc=topRec.some(function(r){return r.sigla===q.sigla;});return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(q.sigla)+(coinc?' ✓':'')+'</td><td>'+escapeHtml(q.componente)+'</td><td style="text-align:center">'+q.prob30dPct+'%</td></tr>';}).join('')+'</table>':'<div style="color:var(--tx3);font-size:11px">Sin historial suficiente.</div>')+
+      colCaja('B · Por fallas recientes','Regla simple: cuántas fallas tuvo en los últimos 365 y 90 días',
+        topRec.length?'<table style="width:100%"><tr><th>Equipo</th><th>365 días</th><th>90 días</th></tr>'+topRec.map(function(r){var coinc=topProb.some(function(q){return q.sigla===r.sigla;});return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+(coinc?' ✓':'')+'</td><td style="text-align:center">'+r.f365+'</td><td style="text-align:center">'+r.f90+'</td></tr>';}).join('')+'</table>':'<div style="color:var(--tx3);font-size:11px">Sin fallas en el último año.</div>')+
+      '</div>'+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:8px">✓ = el equipo aparece en las dos listas (coinciden '+enAmbas+' de '+TOPN+'). Los que aparecen en una sola lista son los que conviene mirar con más cuidado. Fallas distintas por día de un mismo equipo; incluye el historial 2022–2025.</div></div>';
+    content=ladoALado+
       '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">'+ICONS.dice+' Probabilidad de falla en los próximos 30 días</div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta): usa el intervalo promedio real entre fallas pasadas del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ fallas registradas; con menos, el número no sería confiable.</div>'+
       (probs.length?
@@ -1449,6 +1574,11 @@ export function renderPred(){
       }).join(''));
   }
 
+  // ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO (M2, 2026-10-13) ═══ ver _predCriticidadHTML.
+  if(fVista==='criticidad'){
+    content+=_predCriticidadHTML(eq,ot);
+  }
+
   // ═══ MATRIZ DE RIESGO (Probabilidad × Impacto) — Nivel 1, 2026-09-14 ═══
   // No inventa riesgos: cruza 4 señales que el sistema YA calcula en otro
   // lado (Índice de Riesgo de componentes de comp.js, severidad de alerta
@@ -1672,6 +1802,27 @@ export function renderPred(){
       }).join('')+
       '</table></div>'
       :'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Todavía no hay ningún caso real con alerta CUSUM de aceite seguida de un correctivo del mismo componente — sin eso, no hay P-F medible.</p></div>');
+    // ── Curva P-F completa (2026-10-18): lado izquierdo (horas del componente al detectar P) y derecho (P → F) con grupo de comparación ──
+    var pfC=typeof curvaPFCompleta==='function'?curvaPFCompleta(aceitePF,otConHistPF):null;
+    var fPF=function(x){return x==null?'—':fn(Math.round(x));};
+    var tablaPF=function(lista,vacio){
+      if(!lista||!lista.length)return'<div style="padding:12px;color:var(--tx3);font-size:12px">'+vacio+'</div>';
+      return'<div class="tbl-wrap"><table><tr><th style="text-align:left">Componente</th><th title="Equipos donde se vio el paso a desgaste detectable">Casos de P</th><th title="Horas del componente cuando se detectó P">Lado izquierdo: horas del componente al detectar P (mediana · mín–máx)</th><th>Casos P→F</th><th>Lado derecho: días de P a la falla (mediana)</th><th title="Días hasta la falla del mismo componente desde muestras normales">Comparación: días desde una muestra normal</th><th>¿El aviso anticipa?</th><th>Recomendación</th></tr>'+
+        lista.map(function(r){
+          var izq=r.izquierdo.n?fPF(r.izquierdo.medianaHoras)+' h · '+fPF(r.izquierdo.minHoras)+'–'+fPF(r.izquierdo.maxHoras)+' h ('+r.izquierdo.n+')':'sin horas registradas';
+          var rec=r.recomendacion?[(r.recomendacion.vigilarDesdeHoras!=null?'vigilar desde las '+fPF(r.recomendacion.vigilarDesdeHoras)+' h':''),(r.recomendacion.inspeccionCadaDias!=null?'inspeccionar cada '+r.recomendacion.inspeccionCadaDias+' días':'')].filter(Boolean).join(' · '):'<span style="color:var(--tx3)">faltan casos (mínimo '+pfC.minCasos+')</span>';
+          var ver=r.derecho.veredicto?(r.derecho.veredicto==='el aviso anticipa'?'<b style="color:var(--ok)">Sí, anticipa</b>':'<span style="color:var(--w)">'+escapeHtml(r.derecho.veredicto)+'</span>'):'<span style="color:var(--tx3)">faltan casos</span>';
+          return'<tr><td style="font-weight:600">'+escapeHtml(r.componente)+'</td><td style="text-align:center">'+r.casosP+'</td><td style="text-align:center;font-size:11px">'+izq+'</td><td style="text-align:center">'+r.derecho.n+'</td><td style="text-align:center">'+(r.derecho.n?r.derecho.medianaDias+' días':'—')+'</td><td style="text-align:center">'+(r.derecho.nControl?r.derecho.medianaControl+' días ('+r.derecho.nControl+')':'—')+'</td><td style="text-align:center;font-size:11px">'+ver+'</td><td style="font-size:11px">'+rec+'</td></tr>';
+        }).join('')+'</table></div>';
+    };
+    content+=pfC?
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-top:16px"><div class="chart-t">Curva P-F completa — lado izquierdo y lado derecho</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px;line-height:1.6">La curva P-F tiene dos lados. El <b>derecho</b> (de P a la falla) dice cada cuánto inspeccionar una vez que el desgaste ya se detecta. El <b>izquierdo</b> (desde que el componente está nuevo hasta P) dice <b>desde cuándo conviene vigilarlo</b>: aquí se mide en horas del componente en la muestra donde se detectó P. Como estos equipos fallan seguido, los días hasta la falla salen cortos aunque no haya aviso; por eso se comparan con los días hasta la falla desde muestras normales. Con menos de '+pfC.minCasos+' casos no se da recomendación.</div>'+
+      '<div style="font-weight:600;font-size:12px;margin:6px 0">Marcando P con el estado del laboratorio (primera muestra ALERTA o PRECAUCIÓN tras una NORMAL)</div>'+
+      tablaPF(pfC.laboratorio,'Ningún componente tiene todavía una muestra normal seguida de una en alerta o precaución.')+
+      '<div style="font-weight:600;font-size:12px;margin:14px 0 6px">Marcando P con el detector de aceleración del desgaste (CUSUM, más exigente)</div>'+
+      tablaPF(pfC.cusum,'Ningún componente tiene todavía una aceleración detectada (se piden 6 o más muestras por metal).')+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:8px">Una muestra en alerta desde la primera vez que se muestreó el equipo no cuenta como P: no se sabe cuándo empezó el desgaste. Las horas salen de «horas del componente» de la muestra; si falta ese dato, el caso no aporta al lado izquierdo. Los componentes del aceite se cruzan con los correctivos por nombre (Mando Final Izq y Der se juntan en «Mandos Finales»).</div></div>':'';
   }
 
   // ═══ MATRIZ DE CRITICIDAD DE REPUESTOS AVANZADA (2026-09-16) ═══
@@ -1693,13 +1844,13 @@ export function renderPred(){
     // Criticidad por modelo de equipo (peor caso entre los equipos reales de
     // ese modelo) — un repuesto de stock está asociado a un modelo
     // (equipoModelo), no a un equipo específico.
-    var critPorModeloRep={};
-    eq.forEach(function(e){
-      if(!e||!e.modelo)return;
-      var banda=typeof criticidadEquipoABanda==='function'?criticidadEquipoABanda(e.criticidad):null;
-      if(banda==null)return;
-      if(critPorModeloRep[e.modelo]==null||banda>critPorModeloRep[e.modelo])critPorModeloRep[e.modelo]=banda;
-    });
+    // Criticidad del equipo que usa el repuesto (M4, 2026-10-13): el campo equipoModelo es texto libre ("HD785-7/WA900", "BD-10139 Bulldozer", "AROCS"…), así que se asocia por palabras
+    // (equiposDeRepuesto, logic.js) en vez de exigir el nombre exacto del modelo, y se usa la banda combinada (calculada + etiqueta manual, peor caso) de los equipos asociados.
+    var bandaSigCrit=_predBandaPorSigla(eq,ot);
+    var critRepDeNParte=function(s){
+      var bs=equiposDeRepuesto(s.equipoModelo,eq).map(function(x){return bandaSigCrit[x]&&bandaSigCrit[x].banda;}).filter(function(b){return b!=null;});
+      return bs.length?Math.max.apply(null,bs):null;
+    };
     var itemsCritRep=stk.filter(function(s){return s&&s.nParte;}).map(function(s){
       var lambda=lambdaPorNParte[s.nParte];
       if(lambda==null)return null;
@@ -1707,7 +1858,7 @@ export function renderPred(){
       var stockDispRep=(s.stockBodega||0)+(s.pendiente||0);
       var probQ=typeof probabilidadQuiebreLeadTime==='function'?probabilidadQuiebreLeadTime(lambda,leadDiasRep,stockDispRep):null;
       return{nParte:s.nParte,item:s.descripcion||s.nParte,probQuiebre:probQ,precioUnit:s.precioUnit||null,
-        criticidadEquipo:critPorModeloRep[s.equipoModelo]||null,stockDisponible:stockDispRep,leadDias:leadDiasRep,lambda:lambda};
+        criticidadEquipo:critRepDeNParte(s),stockDisponible:stockDispRep,leadDias:leadDiasRep,lambda:lambda};
     }).filter(Boolean);
     var critRepLista=typeof matrizCriticidadRepuestos==='function'?matrizCriticidadRepuestos(itemsCritRep):[];
     content=
@@ -1745,14 +1896,23 @@ export function renderPred(){
     // demanda (media, cv) que ABC-XYZ ya calculó, cruzada con lead time y
     // stock real, para pasar de "qué tan predecible es" a un número
     // accionable — "a cuántas unidades pedir de nuevo".
+    // VED (M4, 2026-10-13): Vital / Esencial / Deseable según la criticidad del equipo más crítico que usa el repuesto (ver vedRepuestos, logic.js). Fija el nivel de servicio del stock de seguridad: Vital 99 %, Esencial 95 %, Deseable 90 %;
+    // un repuesto sin equipo asociado queda sin VED y mantiene el 95 % de siempre.
+    var stkPorNParteVED={};stk.forEach(function(x){if(x&&x.nParte)stkPorNParteVED[x.nParte]=x;});
+    var bandaSigVED=_predBandaPorSigla(eq,ot),bandaSimpleVED={};
+    Object.keys(bandaSigVED).forEach(function(k){bandaSimpleVED[k]=bandaSigVED[k].banda;});
+    var vedLista=typeof vedRepuestos==='function'?vedRepuestos(abcxyzLista.map(function(it){return{nParte:it.nParte,claseABC:it.claseABC,equipoModelo:(stkPorNParteVED[it.nParte]||{}).equipoModelo||''};}),eq,bandaSimpleVED):[];
+    var vedPorNParte={},nsPorNParteVED={};
+    vedLista.forEach(function(v){vedPorNParte[v.nParte]=v;if(v.nivelServicio)nsPorNParteVED[v.nParte]=v.nivelServicio;});
+    var matrizVED=typeof matrizABCVED==='function'?matrizABCVED(vedLista):null;
     var reordenPorNParteABC={};
-    (typeof puntosReordenRepuestos==='function'?puntosReordenRepuestos(abcxyzLista,stk,0.95):[]).forEach(function(r){reordenPorNParteABC[r.nParte]=r;});
+    (typeof puntosReordenRepuestos==='function'?puntosReordenRepuestos(abcxyzLista,stk,0.95,nsPorNParteVED):[]).forEach(function(r){reordenPorNParteABC[r.nParte]=r;});
     // Lote económico (EOQ) y política (s,S) — 2026-10-10: cuánto pedir cuando toca (el Reorden dice cuándo).
     var eoqCostoPedido=_eoqParam('costoPedido',100000),eoqTasa=_eoqParam('tasaMantencion',0.2);
     // Demanda programada por el calendario de PM (2026-10-11): si lo calendarizado supera al consumo histórico, el reorden y el lote usan el plan.
     var planAutoABC=typeof planReposicionAuto==='function'?planReposicionAuto(30):null;
     var planMesABC=planAutoABC&&typeof demandaMensualPlanPorNParte==='function'?demandaMensualPlanPorNParte(planAutoABC.plan):null;
-    var polPorNParteABC={},polLista=typeof politicasReposicionRepuestos==='function'?politicasReposicionRepuestos(abcxyzLista,stk,{costoPedido:eoqCostoPedido,tasaMantencion:eoqTasa},0.95,planMesABC):[];
+    var polPorNParteABC={},polLista=typeof politicasReposicionRepuestos==='function'?politicasReposicionRepuestos(abcxyzLista,stk,{costoPedido:eoqCostoPedido,tasaMantencion:eoqTasa},0.95,planMesABC,nsPorNParteVED):[];
     polLista.forEach(function(r){polPorNParteABC[r.nParte]=r;reordenPorNParteABC[r.nParte]={nParte:r.nParte,stockActual:r.stockActual,rop:r.s,bajoReorden:r.pedirAhora>0};});
     var nUsaPlanABC=polLista.filter(function(r){return r.usaPlan;}).length;
     var polPedirAhora=polLista.filter(function(r){return r.pedirAhora>0;}),polValorAhora=polPedirAhora.reduce(function(a,r){return a+r.valorPedido;},0);
@@ -1773,13 +1933,14 @@ export function renderPred(){
         '<div class="card"><div class="card-t">Reorden con el plan de PM</div><div class="card-v">'+fn(nUsaPlanABC)+'</div><div class="card-s">repuestos donde el calendario de PM supera al histórico</div></div>'+
         '<div class="card"><div class="card-t">Ahorro vs pedir de a uno</div><div class="card-v">$'+fn(Math.round(polAhorro))+'</div><div class="card-s">al año, sumando los '+fn(polLista.length)+' repuestos con precio, con el costo por pedido que ingresaste (es una estimación, no un ahorro medido)</div></div></div></div>'
       :'')+
+      (matrizVED&&abcxyzLista.length?_predABCVEDHTML(matrizVED,vedLista.length):'')+
       (abcxyzLista.length?
       '<div class="tbl-wrap"><table style="table-layout:fixed"><tr><th style="text-align:left;width:21%">Repuesto</th><th style="width:10%">Clase</th><th style="width:14%">Valor Anual.</th><th style="width:11%">Consumo/mes</th><th style="width:8%">CV</th><th style="width:14%" title="Stock actual (bodega + pendiente) / punto de reorden s">Reorden</th><th style="width:16%" title="Lote económico Q, nivel de reposición S = s + Q y cuántas unidades pedir hoy.">Lote (Q) · S</th><th style="text-align:left">Detalle</th></tr>'+
       abcxyzLista.map(function(it){
         var ro=reordenPorNParteABC[it.nParte],po=polPorNParteABC[it.nParte];
         return'<tr>'+
           '<td style="font-weight:600" title="'+escapeHtml(it.nParte)+'">'+escapeHtml(descPorNParteABC[it.nParte]||it.nParte)+'</td>'+
-          '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span></td>'+
+          '<td style="text-align:center;font-weight:700"><span style="color:'+colorABC[it.claseABC]+'">'+it.claseABC+'</span><span style="color:'+colorXYZ[it.claseXYZ]+'">'+it.claseXYZ+'</span>'+(function(){var v=vedPorNParte[it.nParte];return v&&v.ved?'<span title="'+escapeHtml('VED: '+VED_ETIQUETA[v.ved]+' (equipo más crítico asociado: banda '+v.banda+', '+v.equiposAsociados.join(', ')+') · categoría de control '+v.categoria+' · nivel de servicio del stock de seguridad '+Math.round(v.nivelServicio*100)+'%')+'" style="color:var(--ac);font-size:10px"> · '+v.ved+'</span>':'<span title="Sin equipo asociado: sin VED, stock de seguridad al 95%" style="color:var(--tx3);font-size:10px"> · —</span>';})()+'</td>'+
           '<td style="text-align:center">$'+fn(it.valorAnualizado)+'</td>'+
           '<td style="text-align:center">'+(function(){var po=polPorNParteABC[it.nParte];return po&&po.usaPlan?'<b title="El programa de PM calendariza más consumo que el histórico ('+po.consumoHist+'/mes): el reorden y el lote usan el plan">'+po.consumoMensualProm+'</b><div style="font-size:9px;color:var(--w)">plan PM (hist. '+po.consumoHist+')</div>':it.consumoMensualProm;})()+'</td>'+
           '<td style="text-align:center">'+(it.cv!=null?it.cv:'—')+'</td>'+
@@ -2058,6 +2219,22 @@ export function renderPred(){
     candidatosRepl.sort(function(a,b){return b.nEncendidas-a.nEncendidas;});
     var nCandidatosRepl=candidatosRepl.filter(function(c){return c.candidato;}).length;
 
+    // ¿Las 6 señales cuentan evidencia distinta o se encienden juntas? (correlación sí/no entre señales,
+    // test exacto de Fisher con ajuste de Holm). Si dos van siempre juntas, "4 de 6" cuenta dos veces lo mismo.
+    var corrSenRepl=correlacionSenalesReemplazo(candidatosRepl);
+    var corrSenHtml='<div class="chart-box" style="margin-top:14px;border-left:3px solid var(--ac)"><div class="chart-t">¿Las 6 señales miden cosas distintas? — correlación entre señales</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">El umbral «4 de 6» supone que cada señal aporta evidencia propia. Si dos señales se encienden casi siempre en los mismos equipos, en realidad cuentan una sola vez. φ va de −1 a +1 (cerca de +1 = se encienden juntas).</div>'+
+      (corrSenRepl?
+        '<div class="tbl-wrap"><table><tr><th>Par de señales</th><th>φ</th><th>Equipos con ambas dato</th><th>Ambas encendidas</th><th>Solo la 1.ª</th><th>Solo la 2.ª</th><th>p ajustado</th><th>Lectura</th></tr>'+
+        corrSenRepl.pares.map(function(q){
+          var pTxt=q.pAjustado==null?'—':(q.pAjustado<0.001?'&lt;0,001':(Math.round(q.pAjustado*1000)/1000).toString().replace('.',','));
+          var lect=q.phi==null?'<span style="color:var(--tx3)">sin datos suficientes (una señal casi nunca o siempre encendida)</span>':q.redundante?'<b style="color:var(--w)">Redundantes: se encienden juntas más de lo esperable por azar</b>':q.muestraChica?'<span style="color:var(--w)">Muestra chica</span>':'<span style="color:var(--tx3)">Aportan evidencia distinta</span>';
+          return'<tr><td style="font-size:11px">'+escapeHtml(q.nombreA)+' ↔ '+escapeHtml(q.nombreB)+'</td><td style="text-align:center;font-weight:700;background:'+corrColor(q.phi)+'">'+(q.phi==null?'—':(Math.round(q.phi*100)/100).toString().replace('.',','))+'</td><td style="text-align:center">'+q.n+'</td><td style="text-align:center">'+q.ambas+'</td><td style="text-align:center">'+q.soloA+'</td><td style="text-align:center">'+q.soloB+'</td><td style="text-align:center">'+pTxt+'</td><td style="font-size:11px">'+lect+'</td></tr>';
+        }).join('')+'</table></div>'+
+        '<div style="font-size:12px;margin-top:8px">'+(corrSenRepl.redundantes.length?'<b>'+corrSenRepl.redundantes.length+' par(es) redundante(s):</b> el conteo «4 de 6» probablemente sobreestima la evidencia cuando coinciden esas señales. Es una advertencia para leer con cuidado, no cambia el umbral.':'<span style="color:var(--tx3)">Ningún par de señales resulta redundante con los equipos que tienen dato.</span>')+'</div>'
+        :'<div style="padding:14px;text-align:center;color:var(--tx3)">Se necesitan al menos 8 equipos evaluables para comparar señales (hay '+candidatosRepl.length+').</div>')+
+      '<div style="font-size:10px;color:var(--tx3);padding-top:6px">Test exacto de Fisher por par, con ajuste de Holm por mirar varios pares a la vez. Con pocos equipos, «no redundantes» solo significa que no se alcanza a ver. Correlación no es causa.</div></div>';
+
     content=
       '<div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;position:relative;padding-left:16px"><span style="position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 22%,transparent)"></span>Señal Unificada de Reemplazo</div><div style="font-size:11px;color:var(--tx3)">Cruza 6 señales reales (Weibull, riesgo de componentes, reincidencia, alerta cruzada, Edad Virtual, Costo Relativo) — candidato cuando 4 de 6 coinciden para el mismo equipo</div></div>'+
       '<div class="cards" style="margin-bottom:16px">'+
@@ -2077,6 +2254,7 @@ export function renderPred(){
       }).join('')+'</table></div>'
       :'<div style="padding:20px;text-align:center;color:var(--tx3)">Ningún equipo tiene dato en al menos una de las 6 señales todavía.</div>')+
       '</div>'+
+      corrSenHtml+
       '<p style="font-size:10px;color:var(--tx3);margin-top:4px">Cada señal puede faltar por equipo (ej. sin historial suficiente para Weibull, o sin Órdenes de Compra para Costo Relativo) — una señal sin dato NO cuenta ni a favor ni en contra, nunca se inventa. "Candidato" es una señal para EVALUAR reemplazo, no una decisión automática.</p>';
   }
 
@@ -2085,26 +2263,42 @@ $('s-pred').innerHTML=
     '<div class="sec-s">Arriba lo accionable (qué anticipar) · abajo el histórico de compras · todo desde datos reales</div></div></div>'+
     '<div class="toolbar">'+
     '<select id="fPredVista" onchange="renders.pred()" style="font-weight:600">'+
+    '<optgroup label="¿Qué está pasando?">'+
     '<option value="general"'+(fVista==='general'?' selected':'')+'>🟢 Necesita atención + histórico</option>'+
     '<option value="equipo"'+(fVista==='equipo'||fVista==='diag'?' selected':'')+'>🏗 Por Equipo</option>'+
     '<option value="backlog"'+(fVista==='backlog'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Backlog Inteligente</option>'+
     '<option value="items"'+(fVista==='items'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Top Items</option>'+
     '<option value="diag"'+(fVista==='diag'?' selected':'')+'>🧠 Diagnóstico Integral</option>'+
     '<option value="flota"'+(fVista==='flota'?' selected':'')+'>🏭 Fallas Repetitivas (Flota)</option>'+
-    '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
+    '</optgroup>'+
+    '<optgroup label="¿Qué tan riesgoso es?">'+
     '<option value="matriz"'+(fVista==='matriz'?' selected':'')+'>🎯 Matriz de Riesgo</option>'+
+    '<option value="criticidad"'+(fVista==='criticidad'?' selected':'')+'>🏭 Criticidad de Equipos</option>'+
+    '</optgroup>'+
+    '<optgroup label="¿Cuánto le queda?">'+
     '<option value="rul"'+(fVista==='rul'?' selected':'')+'>⏳ RUL — Vida Útil Remanente</option>'+
-    '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
+    '</optgroup>'+
+    '<optgroup label="Repuestos y stock">'+
     '<option value="critrep"'+(fVista==='critrep'?' selected':'')+'>📦 Criticidad de Repuestos</option>'+
     '<option value="abcxyz"'+(fVista==='abcxyz'?' selected':'')+'>🗂 ABC-XYZ de Repuestos</option>'+
-    '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
-    '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
-    '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
-    '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
-    '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
     '<option value="stockpm"'+(fVista==='stockpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock vs. Próximos PM</option>'+
     '<option value="lubpm"'+(fVista==='lubpm'?' selected':'')+'><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes vs. Próximos PM</option>'+
-    '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option></select>'+
+    '</optgroup>'+
+    '<optgroup label="Taller">'+
+    '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option>'+
+    '</optgroup>'+
+    (labPred?'<optgroup label="🧪 Laboratorio — métodos avanzados, para explorar">'+
+      '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
+      '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
+      '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
+      '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+
+      '<option value="efectpm"'+(fVista==='efectpm'?' selected':'')+'>🔧 Efectividad del Mantenimiento</option>'+
+      '<option value="patrones"'+(fVista==='patrones'?' selected':'')+'>📅 Patrones Ocultos de Falla</option>'+
+      '<option value="oportunista"'+(fVista==='oportunista'?' selected':'')+'>🧰 Mantenimiento Oportunista</option>'+
+      '<option value="backtest"'+(fVista==='backtest'?' selected':'')+'>🧪 Backtest: ¿anticipan las reglas?</option>'+
+      '<option value="taller"'+(fVista==='taller'?' selected':'')+'>🧪 Carga del taller (simulación)</option>'+
+      '</optgroup>':'')+
+    '</select>'+_botonModoLabHTML(labPred)+
     '<select id="fPredEq" onchange="renders.pred()"><option value="">'+(fVista==='equipo'||fVista==='diag'?'Seleccionar equipo...':'Todos los equipos')+'</option>'+
       eq.map(function(e){return'<option'+(fEq===e.sigla?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select>'+
     '<select id="fPredAnio" onchange="renders.pred()"><option value="">Todos los años</option>'+
@@ -2113,6 +2307,112 @@ $('s-pred').innerHTML=
       _AUDIT_MESES.map(function(m){return'<option value="'+m.v+'"'+(fMes===m.v?' selected':'')+'>'+m.l+'</option>';}).join('')+'</select>'+
     ((fEq||fAnio||fMes)?'<button class="btn-o" onclick="$(\'fPredEq\').value=\'\';$(\'fPredAnio\').value=\'\';$(\'fPredMes\').value=\'\';renders.pred()">Limpiar filtros</button>':'')+
     '</div>'+content;
+  _predVistasBotones();
+}
+// Botones de vista agrupados, armados desde el <select id="fPredVista"> real (que queda oculto por CSS): así las vistas, los
+// grupos y el modo Laboratorio nunca se desincronizan de la lista de opciones.
+function _predVistasBotones(){
+  var sel=$('fPredVista');
+  if(!sel||sel.previousElementSibling&&sel.previousElementSibling.classList.contains('pred-vistas-det'))return;
+  // En celular las 14–23 vistas ocuparían dos pantallas: se muestran plegadas bajo «Vista: <la actual>»; en escritorio van abiertas.
+  var det=document.createElement('details'),sum=document.createElement('summary'),caja=document.createElement('div');
+  det.className='pred-vistas-det';det.open=!(window.matchMedia&&window.matchMedia('(max-width:560px)').matches);
+  sum.className='pred-vistas-sum';sum.textContent='Vista: '+(sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].textContent:'');
+  caja.className='pred-vistas';caja.setAttribute('aria-label','Vistas predictivas');
+  Array.prototype.forEach.call(sel.querySelectorAll('optgroup'),function(g){
+    var gr=document.createElement('div'),lab=g.label||'';
+    gr.className='pred-vistas-g'+(/laboratorio/i.test(lab)?' pred-vistas-lab':'');
+    var t=document.createElement('div');t.className='pred-vistas-label';t.textContent=lab;gr.appendChild(t);
+    Array.prototype.forEach.call(g.querySelectorAll('option'),function(o){
+      var b=document.createElement('button');
+      b.type='button';b.className='pred-vista-btn'+(o.selected?' on':'');b.setAttribute('aria-pressed',o.selected?'true':'false');
+      b.textContent=o.textContent;
+      b.onclick=function(){sel.value=o.value;renders.pred();};
+      gr.appendChild(b);
+    });
+    caja.appendChild(gr);
+  });
+  det.appendChild(sum);det.appendChild(caja);
+  sel.parentNode.insertBefore(det,sel);
+}
+
+// ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO — M2 (2026-10-13) ═══
+// Frecuencia × Consecuencia (1-5 cada una, relativas a la flota), comparada con la etiqueta manual Crítico/Esencial/General. El cálculo y sus reglas están en criticidadEquiposMulticriterio (logic.js).
+var _CRIT_COL = { Alta: 'var(--danger)', Media: 'var(--warn)', Baja: 'var(--ok)' };
+var _CRIT_CRITERIO = { mttr: 'duración típica de la reparación (mediana)', costoHora: 'valor de la hora detenida del modelo', importancia: 'importancia operacional (la etiqueta manual)' };
+// ABC × VED (M4): matriz 3×3 con la cantidad de repuestos por celda y la categoría de control; el VED sale de la criticidad del equipo (M2 + etiqueta manual).
+function _predABCVEDHTML(m, total) {
+  var col = { I: 'var(--danger)', II: 'var(--warn)', III: 'var(--ok)' };
+  var filas = ['A', 'B', 'C'].map(function (a) {
+    return '<tr><td style="font-weight:700;text-align:center;width:44px">' + a + '</td>' + ['V', 'E', 'D'].map(function (v) {
+      var lista = m.celdas[a][v], cat = ABCVED_CATEGORIA[a + v], c = col[cat];
+      return '<td style="border:1px solid var(--border);padding:6px;min-width:110px;vertical-align:top;background:color-mix(in srgb,' + c + ' ' + (lista.length ? 18 : 6) + '%,transparent)" title="' + escapeHtml(lista.map(function (x) { return x.nParte; }).join(', ')) + '">' +
+        '<div style="font-size:18px;font-weight:700;color:' + c + '">' + lista.length + '</div><div style="font-size:9px;color:var(--tx3)">Categoría ' + cat + '</div></td>';
+    }).join('') + '</tr>';
+  }).join('');
+  return '<div class="card" style="margin-bottom:12px;padding:12px 14px"><div style="font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">ABC × VED — cuánto control justifica cada repuesto</div>' +
+    '<div style="font-size:12px;line-height:1.6;color:var(--tx2)">ABC mide cuánto se gasta; <b>VED</b> mide cuánto duele quedarse sin el repuesto, según la <b>criticidad del equipo más crítico que lo usa</b> (<b>V</b>ital = banda 5, <b>E</b>sencial = 3 o 4, <b>D</b>eseable = 1 o 2; la banda es el peor caso entre la criticidad calculada y tu etiqueta manual). ' +
+    'El VED también fija el stock de seguridad: Vital 99 %, Esencial 95 %, Deseable 90 % (en la columna Reorden de abajo). Pasa el mouse sobre una celda para ver los repuestos.</div>' +
+    '<div class="tbl-wrap"><table style="border-collapse:collapse;margin:10px auto"><tbody><tr><td></td><td style="text-align:center;font-size:11px;font-weight:700">Vital</td><td style="text-align:center;font-size:11px;font-weight:700">Esencial</td><td style="text-align:center;font-size:11px;font-weight:700">Deseable</td></tr>' + filas + '</tbody></table></div>' +
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;margin-top:6px"><span style="color:var(--danger)"><b>Categoría I (' + m.resumen.I + '):</b> ' + escapeHtml(ABCVED_POLITICA.I) + '</span><span style="color:var(--warn)"><b>II (' + m.resumen.II + '):</b> ' + escapeHtml(ABCVED_POLITICA.II) + '</span><span style="color:var(--ok)"><b>III (' + m.resumen.III + '):</b> ' + escapeHtml(ABCVED_POLITICA.III) + '</span></div>' +
+    '<div style="font-size:10px;color:var(--tx3);margin-top:6px">' + m.resumen.sinDato + ' de ' + total + ' repuestos <b>sin equipo asociado</b> (el campo "equipo/modelo" del repuesto está vacío o es una marca de filtro, como Fleetguard o Donaldson): no tienen VED y mantienen el stock de seguridad al 95 %. Completar ese campo con el modelo o la sigla del equipo mejora el análisis.</div></div>';
+}
+
+// Datos compartidos: el cálculo M2 se hace una vez y lo leen la propia vista de criticidad, ABC × VED (M4) y la prioridad de OT (M6).
+function _predCriticidadDatos(eq, ot) {
+  if (typeof criticidadEquiposMulticriterio !== 'function') return null;
+  var fallas = ot.filter(esFallaMTBF).concat(_otHistComoOt(S.g('otHist') || []), _informesFallaComoOt(S.g('informesFalla') || []));
+  var eventos = fallas.map(function (o) {
+    var m = o.duracion && o.duracion !== '—' ? String(o.duracion).match(/(\d+)h/) : null;
+    return { sigla: o.sigla, fecha: o.fecha || o.fechaEntrada, durH: m ? parseInt(m[1], 10) : null };
+  }).filter(function (x) { return x.sigla && x.fecha; });
+  var tco = typeof tcoFlotaAuto === 'function' ? tcoFlotaAuto() : null, aj = tco && tco.aj ? tco.aj : null;
+  return criticidadEquiposMulticriterio(eq, { eventos: eventos, hist: S.g('hist') || [], hoy: new Date(), costoHoraDe: function (modelo) { return aj ? costoHoraDetDe(modelo, aj) : null; } }, {});
+}
+// {sigla: {banda 1-5, fuente}}: peor caso entre el nivel calculado (M2) y la etiqueta manual — ver bandaCriticidadEquipo (logic.js).
+function _predBandaPorSigla(eq, ot) {
+  var r = _predCriticidadDatos(eq, ot), nivel = {}, out = {};
+  if (r && r.filas) r.filas.forEach(function (f) { nivel[f.sigla] = f.nivel; });
+  eq.forEach(function (e) { var b = e && e.sigla ? bandaCriticidadEquipo(nivel[e.sigla] || null, e.criticidad) : null; if (b) out[e.sigla] = b; });
+  return out;
+}
+function _predCriticidadHTML(eq, ot) {
+  var r = _predCriticidadDatos(eq, ot);
+  if (!r) return '';
+  var cab = '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">🏭 Criticidad de equipos — frecuencia × consecuencia (últimos 12 meses)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Hasta ahora la criticidad era una etiqueta manual de 3 niveles. Acá se calcula con datos y se compara con esa etiqueta, <b>sin cambiarla</b>: si difiere, es una sugerencia para revisar, no una orden. Todo es relativo a la propia flota (un equipo es "frecuente" si falla más que la mayoría de los demás).</div>';
+  if (!r.ok) return cab + '<div style="padding:14px;color:var(--tx3);font-size:12px">No se calcula: ' + escapeHtml(r.motivo || '') + '.</div></div>';
+  var tarj = function (t, v, c, sub) { return '<div class="card" style="border-left:3px solid ' + c + '"><div class="card-t">' + t + '</div><div class="card-v" style="color:' + c + '">' + v + '</div>' + (sub ? '<div class="card-s">' + sub + '</div>' : '') + '</div>'; };
+  var c = r.comparacion;
+  var html = cab + '<div class="cards" style="margin-bottom:12px">' +
+    tarj('Criticidad Alta', r.resumen.Alta, 'var(--danger)', 'F × C ≥ 15') + tarj('Media', r.resumen.Media, 'var(--warn)', 'F × C de 8 a 14') + tarj('Baja', r.resumen.Baja, 'var(--ok)', 'F × C menor a 8') +
+    tarj('Difieren de la etiqueta', c.mas_alta + c.mas_baja, 'var(--ac)', c.mas_alta + ' con más criticidad que su etiqueta · ' + c.mas_baja + ' con menos') + '</div>';
+  // grilla 5×5: filas = frecuencia (5 arriba), columnas = consecuencia (1 a 5)
+  var celdas = '';
+  for (var f = 5; f >= 1; f--) {
+    celdas += '<tr><td style="width:22px;text-align:center;font-size:10px;color:var(--tx3);font-weight:700">' + f + '</td>';
+    for (var k = 1; k <= 5; k++) {
+      var lista = r.matriz[f - 1][k - 1], pt = f * k, col = pt >= 15 ? 'var(--danger)' : pt >= 8 ? 'var(--warn)' : 'var(--ok)';
+      celdas += '<td style="border:1px solid var(--border);padding:4px;min-width:62px;height:46px;vertical-align:top;background:color-mix(in srgb,' + col + ' ' + (lista.length ? 22 : 8) + '%,transparent);font-size:9px;line-height:1.3">' + lista.map(escapeHtml).join('<br>') + '</td>';
+    }
+    celdas += '</tr>';
+  }
+  html += '<div style="font-weight:700;font-size:12px;margin:6px 0 4px">Grilla Frecuencia × Consecuencia</div><div class="tbl-wrap"><table style="border-collapse:collapse;margin:0 auto"><tbody>' + celdas +
+    '<tr><td></td>' + [1, 2, 3, 4, 5].map(function (k) { return '<td style="text-align:center;font-size:10px;color:var(--tx3);font-weight:700">' + k + '</td>'; }).join('') + '</tr></tbody></table></div>' +
+    '<div style="font-size:10px;color:var(--tx3);text-align:center;margin:2px 0 12px">Filas: frecuencia de falla (1 = baja, 5 = alta) · Columnas: consecuencia de una falla (1 = leve, 5 = grave)</div>';
+  html += '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>Fallas</th><th>Fallas/1.000 h</th><th>Reparación típica (h)</th><th>Hora detenida</th><th>Frec.</th><th>Consec.</th><th>Puntaje</th><th>Nivel calculado</th><th>Etiqueta manual</th><th>Comparación</th></tr>' +
+    r.filas.map(function (x) {
+      var cmp = x.comparacion === 'coincide' ? '<span style="color:var(--ok)">coincide</span>' : x.comparacion === 'mas_alta' ? '<span style="color:var(--danger);font-weight:700">calculada más alta</span>' : x.comparacion === 'mas_baja' ? '<span style="color:var(--warn);font-weight:700">calculada más baja</span>' : '<span style="color:var(--tx3)">sin etiqueta</span>';
+      var tit = 'Puntajes 1-5 → ' + Object.keys(x.puntajes).map(function (k) { return _CRIT_CRITERIO[k] + ': ' + x.puntajes[k]; }).join(' · ') + ' · horas de operación: ' + x.horas + ' (' + x.horasOrigen + ')';
+      return '<tr title="' + escapeHtml(tit) + '"><td class="mono" style="color:var(--ac);font-weight:600">' + escapeHtml(x.sigla) + '</td><td style="text-align:center">' + x.fallas + '</td><td style="text-align:center">' + (Math.round(x.fallas1000 * 10) / 10 + '').replace('.', ',') + '</td><td style="text-align:center">' + (x.mttr == null ? '—' : (Math.round(x.mttr * 10) / 10 + '').replace('.', ',')) + '</td><td style="text-align:center">' + (x.costoHora == null ? '—' : '$' + fn(Math.round(x.costoHora))) + '</td><td style="text-align:center">' + x.F + '</td><td style="text-align:center">' + (x.C + '').replace('.', ',') + '</td><td style="text-align:center;font-weight:700">' + (x.puntaje + '').replace('.', ',') + '</td><td style="text-align:center;font-weight:700;color:' + _CRIT_COL[x.nivel] + '">' + x.nivel + '</td><td style="text-align:center">' + escapeHtml(x.criticidadManual || '—') + '</td><td style="text-align:center">' + cmp + '</td></tr>';
+    }).join('') + '</table></div>';
+  html += '<div style="font-size:10px;color:var(--tx3);margin-top:8px;line-height:1.5"><b>Cómo se calcula.</b> Frecuencia: fallas por 1.000 h de operación en 12 meses, puntuada de 1 a 5 según dónde cae entre los demás equipos (sin fallas = 1). Consecuencia: promedio de ' +
+    r.criteriosUsados.map(function (k) { return _CRIT_CRITERIO[k] + ' (' + r.pesos[k] + ' %)'; }).join(', ') + '. Nivel: frecuencia × consecuencia.' +
+    (r.criteriosSinVariacion.length ? ' <b>No discriminan hoy y se excluyeron:</b> ' + r.criteriosSinVariacion.map(function (k) { return _CRIT_CRITERIO[k]; }).join(', ') + (r.criteriosSinVariacion.indexOf('costoHora') >= 0 ? ' (todos los modelos tienen el mismo costo de hora detenida: defínelo por modelo en Configuración para que cuente)' : '') + '.' : '') +
+    ' <b>Lo que no mide:</b> seguridad y ambiente (no hay datos registrados) ni la producción de cada tipo de equipo (solo la representa el valor de la hora detenida del modelo). <b>Cómo leer las diferencias con la etiqueta:</b> el nivel es relativo a la flota, así que "Baja" quiere decir "menos crítico que el resto de tus equipos según estos datos", no "no es crítico"; y la etiqueta manual puede reflejar cosas que acá no se miden (seguridad, ambiente, rol en la producción). Úsalo para revisar los casos que difieren, no para cambiar etiquetas en bloque. Pasa el mouse sobre una fila para ver los puntajes de cada criterio.</div>';
+  if (r.excluidos.length) html += '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600">' + r.excluidos.length + ' equipo(s) fuera del cálculo (ver motivo)</summary><div class="tbl-wrap"><table><tr><th>Equipo</th><th>Motivo</th></tr>' +
+    r.excluidos.map(function (x) { return '<tr><td style="font-weight:600">' + escapeHtml(x.sigla) + '</td><td>' + escapeHtml(x.motivo) + '</td></tr>'; }).join('') + '</table></div></details>';
+  return html + '</div>';
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).

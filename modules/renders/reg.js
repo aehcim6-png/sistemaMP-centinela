@@ -20,7 +20,7 @@ export function renderReg(){
   const pg=_pagSlice('reg',fil);
   $('s-reg').innerHTML=`
     <div class="sec-h"><div>
-      <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registro de Mantención — PM y Correctivos</div>
+      <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Registro de Mantención Preventiva (PM)</div>
       <div class="sec-s">${reg.length} registros totales</div>
     </div>
       <div style="display:flex;gap:8px">
@@ -387,6 +387,9 @@ export function saveReg(){
     reg[reg.length-1].consumosPauta=consumos_pm.map(c=>({rep:c.rep||'',cant:c.can||0}));
   }
   S.s('reg',reg);
+  // Si el PM quedó incompleto, lo que faltó pasa al backlog de pautas (sección V del informe de gestión) para seguir su cierre.
+  const _bkPM=backlogDesdePM(reg[reg.length-1]);
+  if(_bkPM){const bk=S.g('backlogPM')||[];bk.push(_bkPM);S.s('backlogPM',bk);}
   // Actualizar horómetro y estatus del equipo — solo si NO es retroactivo. Un
   // registro con fecha pasada sigue alimentando el historial (para tasaDiariaReal,
   // etc.) pero no toca el horómetro en vivo del equipo, que ya avanzó desde esa fecha.

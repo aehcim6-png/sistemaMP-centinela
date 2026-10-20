@@ -167,14 +167,14 @@ function _estTablaComponente(eventos, ace, eq) {
         '<td style="text-align:center">' + r.nEquipos + '</td>' +
         '<td style="text-align:center;color:' + (r.mtbf == null ? 'var(--tx3)' : r.mtbf > 2000 ? 'var(--ok)' : r.mtbf > 500 ? 'var(--ac)' : 'var(--danger)') + '">' + (r.mtbf == null ? '—' : fn(r.mtbf)) + '</td></tr>';
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--tx3)">Sin componentes clasificados todavía</td></tr>') +
-    '</table></div>' +
+    '</table></div></div>' +
+    // Los demás análisis son bloques hermanos del Pareto (antes quedaban anidados dentro de su caja), así cada uno se puede plegar por separado.
     _estWeibullPorComponente(eventos) +
     _estKaplanMeierPorComponente(eventos, eq) +
     _estMcfPorComponente(eventos, eq) +
     _estCrowAmsaaPorComponente(eventos) +
     _estCompetingRisksHTML(eventos, eq) +
-    _estCorrelacionAceite(eventos, ace) +
-    '</div>';
+    _estCorrelacionAceite(eventos, ace);
 }
 
 // Weibull por componente/categoría de falla, A NIVEL FLOTA (2026-09-12,
@@ -258,6 +258,7 @@ function _estKaplanMeierPorComponente(eventos, eq) {
         ? '<div style="font-size:11px;color:var(--tx3)">Elegí dos componentes distintos para comparar.</div>'
         : logRank
           ? '<div style="font-size:12px;color:var(--tx2)">χ²=' + logRank.chi2 + ' (gl=1) — <b style="color:' + (logRank.significativo ? 'var(--danger)' : 'var(--ok)') + '">' + (logRank.significativo ? 'diferencia real entre las dos curvas' : 'puede ser ruido de muestra chica') + '</b></div>' +
+            _estAvisoPotenciaHTML(avisoMuestraChicaSupervivencia(logRank.significativo, logRank.fallasA, logRank.fallasB)) +
             '<div style="font-size:10px;color:var(--tx3);margin-top:2px">' + escapeHtml(compA) + ': ' + logRank.fallasA + ' fallas de ' + logRank.nA + ' observaciones · ' + escapeHtml(compB) + ': ' + logRank.fallasB + ' fallas de ' + logRank.nB + ' observaciones. Compara las curvas de supervivencia completas, no solo un promedio — usa también los casos censurados (todavía en servicio sin haber fallado).</div>' +
             (coxPH
               ? '<div style="font-size:12px;color:var(--tx2);margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">Hazard Ratio (' + escapeHtml(compB) + ' vs. ' + escapeHtml(compA) + '): <b style="color:' + (coxPH.hr > 1 ? 'var(--danger)' : 'var(--ok)') + '">' + coxPH.hr + 'x</b> <span style="font-size:10px;color:var(--tx3)">(IC95% ' + coxPH.hrMin + '–' + coxPH.hrMax + ')</span></div>' +
@@ -595,6 +596,15 @@ function _estTablaTecnico(ot) {
     _estLeveneMttrHTML(leveneMttr);
 }
 
+// Aviso de poca potencia (logic.js: avisoMuestraChica / avisoMuestraChicaSupervivencia): un resultado "no significativo" con pocos datos no demuestra que no haya diferencia.
+function _estAvisoPotenciaHTML(av) {
+  if (!av) return '';
+  var txt = av.tipo === 'hr'
+    ? 'Con solo ' + av.fallasMin + ' falla(s) en el grupo más chico, esta prueba únicamente detectaría que un componente falla ' + String(av.hr).replace('.', ',') + ' veces más rápido que el otro o más. Que no salga significativo <b>no significa que sean iguales</b>: significa que con estos datos no alcanza para decirlo.'
+    : 'Con ' + av.n + ' datos en el grupo más chico, esta prueba solo detectaría diferencias grandes (de al menos ' + String(av.d).replace('.', ',') + ' desviaciones típicas). Que no salga significativo <b>no significa que no haya diferencia</b>: significa que con estos datos no alcanza para verla.';
+  return '<div style="margin:0 0 10px;padding:8px 10px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)">⚠ Muestra chica. ' + txt + '</div>';
+}
+
 // Bloque Levene/Brown-Forsythe — ¿la VARIABILIDAD (no el promedio/mediana)
 // del MTTR difiere entre técnicos? (2026-09-21).
 function _estLeveneMttrHTML(lv) {
@@ -612,6 +622,7 @@ function _estLeveneMttrHTML(lv) {
     '<div><div style="font-size:10px;color:var(--tx3)">gl (entre, dentro)</div><div style="font-size:18px;font-weight:700">' + lv.glEntre + ', ' + lv.glDentro + '</div></div>' +
     '</div>' +
     '<div style="font-size:12px;font-weight:600;color:' + col + ';margin-bottom:10px">' + veredicto + '</div>' +
+    _estAvisoPotenciaHTML(avisoMuestraChica(lv.significativo, Math.min.apply(null, lv.grupos.map(function (g) { return g.n; })))) +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR mediana</th><th>Desvío típico vs. su mediana</th></tr>' +
     lv.grupos.map(function (g) {
       return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
@@ -640,6 +651,7 @@ function _estKruskalMttrHTML(kw) {
     '<div><div style="font-size:10px;color:var(--tx3)">crítico (χ², gl=' + kw.gl + ')</div><div style="font-size:18px;font-weight:700">' + kw.critico + '</div></div>' +
     '</div>' +
     '<div style="font-size:12px;font-weight:600;color:' + col + ';margin-bottom:10px">' + veredicto + '</div>' +
+    _estAvisoPotenciaHTML(avisoMuestraChica(kw.significativo, Math.min.apply(null, kw.grupos.map(function (g) { return g.n; })))) +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR mediana</th></tr>' +
     kw.grupos.map(function (g) {
       return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
@@ -672,6 +684,7 @@ function _estAnovaMttrHTML(anova) {
     '<div><div style="font-size:10px;color:var(--tx3)">gl (entre, dentro)</div><div style="font-size:18px;font-weight:700">' + anova.glEntre + ', ' + anova.glDentro + '</div></div>' +
     '</div>' +
     '<div style="font-size:12px;font-weight:600;color:' + colF + ';margin-bottom:10px">' + veredicto + '</div>' +
+    _estAvisoPotenciaHTML(avisoMuestraChica(anova.significativo, Math.min.apply(null, anova.grupos.map(function (g) { return g.n; })))) +
     '<div class="tbl-wrap"><table><tr><th>Técnico</th><th>n</th><th>MTTR promedio</th><th>Desv. estándar</th></tr>' +
     anova.grupos.map(function (g) {
       return '<tr><td style="font-weight:600">' + escapeHtml(g.grupo) + '</td>' +
@@ -764,9 +777,122 @@ function _estCalidadEjecucionHTML(ot) {
     comoLeer;
 }
 
+// Mapa de equipos (PCA, 2026-10-11): compara equipos del MISMO tipo en 5 indicadores a la vez (fallas por 1.000 h, horas por reparación, % de días fuera de servicio del reporte del cliente, uso
+// diario y horómetro). Cálculo en logic.js (pcaVariablesEquipos / paresZRobusto / pcaAnalisis). Reglas para no engañarse: (1) por defecto se compara dentro de un tipo — mezclados, el primer eje
+// solo separa camiones de torres de iluminación; (2) un equipo sin datos confiables (horómetro imposible, sin duraciones, pocos reportes) se EXCLUYE y se dice por qué, no se rellena; (3) el PCA solo se
+// muestra con 8+ equipos completos y se informa si el eje es estable al dejar uno afuera; (4) la comparación con pares (z robusto) sirve desde 4 equipos y es la lectura principal.
+function _estPcaDuracionH(o) {
+  if (!o || !o.duracion || o.duracion === '—') return null;
+  var m = String(o.duracion).match(/(\d+)h/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function _estPcaScatterSVG(res, filasX) {
+  var W = 560, H = 340, M = 40;
+  var pts = res.equipos.map(function (e) { return { x: e.puntajes[0], y: res.p > 1 ? e.puntajes[1] : 0, s: filasX[e.fila].sigla, lejos: e.lejos }; });
+  var xs = pts.map(function (q) { return q.x; }), ys = pts.map(function (q) { return q.y; });
+  var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+  var dx = (x1 - x0) || 1, dy = (y1 - y0) || 1;
+  var X = function (v) { return M + (v - x0) / dx * (W - 2 * M); }, Y = function (v) { return H - M - (v - y0) / dy * (H - 2 * M); };
+  var ejes = '<line x1="' + M + '" y1="' + (H - M) + '" x2="' + (W - M) + '" y2="' + (H - M) + '" stroke="var(--border)"/><line x1="' + M + '" y1="' + M + '" x2="' + M + '" y2="' + (H - M) + '" stroke="var(--border)"/>';
+  if (x0 < 0 && x1 > 0) ejes += '<line x1="' + X(0) + '" y1="' + M + '" x2="' + X(0) + '" y2="' + (H - M) + '" stroke="var(--border)" stroke-dasharray="3 3"/>';
+  if (y0 < 0 && y1 > 0) ejes += '<line x1="' + M + '" y1="' + Y(0) + '" x2="' + (W - M) + '" y2="' + Y(0) + '" stroke="var(--border)" stroke-dasharray="3 3"/>';
+  var puntos = pts.map(function (q) {
+    var c = q.lejos ? 'var(--danger)' : 'var(--ac)';
+    return '<circle cx="' + X(q.x).toFixed(1) + '" cy="' + Y(q.y).toFixed(1) + '" r="5" fill="' + c + '" fill-opacity=".8"/>' +
+      '<text x="' + (X(q.x) + 7).toFixed(1) + '" y="' + (Y(q.y) + 3).toFixed(1) + '" font-size="10" fill="var(--tx2)">' + escapeHtml(q.s) + '</text>';
+  }).join('');
+  var pc = function (k) { return res.varianza[k] ? Math.round(res.varianza[k].pct * 100) : 0; };
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:620px;height:auto;display:block">' + ejes + puntos +
+    '<text x="' + (W / 2) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--tx3)">Componente 1 (' + pc(0) + '% de la variación)</text>' +
+    '<text x="12" y="' + (H / 2) + '" text-anchor="middle" font-size="11" fill="var(--tx3)" transform="rotate(-90 12 ' + (H / 2) + ')">Componente 2 (' + pc(1) + '%)</text></svg>';
+}
+function _estPcaHTML(eq, ot, otHist) {
+  var hoy = new Date();
+  var eventos = _estFallasCombinadas(ot, otHist, S.g('informesFalla') || []);
+  // la duración solo existe en los correctivos actuales: se adjunta por sigla+fecha (los demás eventos cuentan como falla, sin duración)
+  var durPor = {};
+  (ot || []).forEach(function (o) { if (o && o.sigla && esFallaMTBF(o)) durPor[o.sigla + '|' + o.fecha] = _estPcaDuracionH(o); });
+  var ev = eventos.map(function (e) { var d = durPor[e.sigla + '|' + e.fecha]; return { sigla: e.sigla, fecha: e.fecha, durH: d == null ? null : d }; });
+  var datos = pcaVariablesEquipos({ equipos: eq, eventos: ev, hist: S.g('hist') || [], reportab: S.g('reportab') || [], hoy: hoy }, {});
+  var buenos = datos.filas.filter(function (f) { return f.vars; });
+  var porTipo = {};
+  datos.filas.forEach(function (f) { var t = f.tipo || 'Sin tipo'; (porTipo[t] = porTipo[t] || { buenos: 0, total: 0 }); porTipo[t].total++; if (f.vars) porTipo[t].buenos++; });
+  var tipos = Object.keys(porTipo).sort(function (a, b) { return porTipo[b].buenos - porTipo[a].buenos; });
+  var grupo = window._pcaGrupo;
+  if (!grupo || (grupo !== '__todos' && !porTipo[grupo])) grupo = tipos[0] || '__todos';
+  var sel = '<select id="fPcaGrupo" onchange="window._pcaGrupo=this.value;renders.estadistica()" style="margin:0 0 12px;font-weight:600">' +
+    tipos.map(function (t) { return '<option value="' + escapeHtml(t) + '"' + (grupo === t ? ' selected' : '') + '>' + escapeHtml(t) + ' (' + porTipo[t].buenos + ' de ' + porTipo[t].total + ' con datos)</option>'; }).join('') +
+    '<option value="__todos"' + (grupo === '__todos' ? ' selected' : '') + '>Toda la flota mezclada (no recomendado)</option></select>';
+  var enGrupo = datos.filas.filter(function (f) { return grupo === '__todos' || (f.tipo || 'Sin tipo') === grupo; });
+  var ok = enGrupo.filter(function (f) { return f.vars; }), fuera = enGrupo.filter(function (f) { return !f.vars; });
+  var nombres = datos.variables, claves = datos.claves;
+  var html = '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">Mapa de equipos — comparación con sus pares (últimos 12 meses)</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Compara cada equipo con los de su mismo tipo en 5 indicadores a la vez. <b>Es una herramienta para mirar, no para decidir</b>: con pocos equipos por tipo un solo dato malo mueve el resultado. Un equipo sin datos confiables se deja fuera y se indica por qué.</div>' + sel;
+  if (grupo === '__todos') html += '<div style="padding:8px 10px;margin-bottom:10px;border-radius:6px;background:var(--bg3);font-size:11px;color:var(--w)">Mezclar tipos hace que el primer eje solo separe camiones de torres, cargadores, etc. Úsalo solo para ver el panorama; para comparar usa un tipo.</div>';
+  // tabla de pares
+  var zr = paresZRobusto(ok.map(function (f) { return f.vars; }), claves);
+  if (ok.length < 4) {
+    html += '<div style="padding:14px;text-align:center;color:var(--tx3)">Se necesitan al menos 4 equipos con datos completos para comparar (hay ' + ok.length + ').</div>';
+  } else {
+    html += '<div class="tbl-wrap"><table><tr><th>Equipo</th>' + nombres.map(function (n) { return '<th>' + escapeHtml(n) + '</th>'; }).join('') + '<th>Se aleja en</th></tr>' +
+      ok.map(function (f) {
+        var alejado = [];
+        var celdas = claves.map(function (k, j) {
+          var z = zr[k] ? zr[k].z(f.vars[k]) : 0, v = f.vars[k], fuerte = Math.abs(z) >= 2.5;
+          if (fuerte) alejado.push(nombres[j] + (z > 0 ? ' ↑' : ' ↓'));
+          var txt = k === 'horom' ? Math.round(v) : Math.round(v * 10) / 10;
+          return '<td style="text-align:center;' + (fuerte ? 'font-weight:700;color:var(--danger)' : '') + '" title="z robusto ' + (Math.round(z * 10) / 10) + '">' + txt + '</td>';
+        }).join('');
+        return '<tr><td style="font-weight:600">' + escapeHtml(f.sigla) + '</td>' + celdas + '<td style="font-size:11px">' + (alejado.length ? escapeHtml(alejado.join(', ')) : '<span style="color:var(--tx3)">dentro de lo normal</span>') + '</td></tr>';
+      }).join('') + '</table></div>' +
+      '<div style="font-size:10px;color:var(--tx3);padding:6px 0">Rojo = más de 2,5 desviaciones robustas (mediana y MAD) respecto de sus pares; ↑ más alto, ↓ más bajo. Pasa el mouse para ver el valor z. "Se aleja" no significa "está mal": es dónde mirar primero.</div>';
+  }
+  if (fuera.length) {
+    html += '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:600">' + fuera.length + ' equipo(s) fuera del análisis (ver motivo)</summary><div class="tbl-wrap"><table><tr><th>Equipo</th><th>Motivo</th></tr>' +
+      fuera.map(function (f) { return '<tr><td style="font-weight:600">' + escapeHtml(f.sigla) + '</td><td>' + escapeHtml(f.motivo) + '</td></tr>'; }).join('') + '</table></div></details>';
+  }
+  html += '</div>';
+  // Correlaciones entre los mismos indicadores (¿qué se mueve junto?). Spearman, p ajustado por Holm.
+  var corr = correlacionesIndicadoresEquipos(ok.map(function (f) { return f.vars; }), claves, nombres);
+  html += '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">¿Qué indicadores se mueven juntos? — correlaciones</div>' +
+    '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Cruza los mismos indicadores de arriba entre los equipos de este grupo. ρ va de −1 a +1: cerca de +1 suben juntos, cerca de −1 uno sube cuando el otro baja, cerca de 0 no hay relación. Es la covarianza estandarizada, calculada sobre rangos (Spearman) para que un solo equipo extremo no la distorsione. <b>Correlación no es causa</b>, y con pocos equipos solo es una pista.</div>';
+  if (!corr) {
+    html += '<div style="padding:14px;text-align:center;color:var(--tx3)">Se necesitan al menos 6 equipos con datos completos en el grupo (hay ' + ok.length + ').</div>';
+  } else {
+    var nSig = corr.pares.filter(function (q) { return q.significativa; }).length;
+    html += corrTablaParesHTML(corr.pares) +
+      '<div style="font-size:10px;color:var(--tx3);padding:6px 0">' + corr.n + ' equipos. ' + (nSig ? nSig + ' de ' + corr.pares.length + ' pares quedan confirmados' : 'Ningún par queda confirmado') + ' tras ajustar por mirar ' + corr.pares.length + ' pares a la vez (Holm, p &lt; 0,05). ' +
+      (corr.n < 10 ? '<span style="color:var(--w)">Con menos de 10 equipos, un par sin confirmar no significa que no haya relación: no alcanza para verla.</span>' : '') + '</div>';
+  }
+  html += '</div>';
+  // PCA propiamente tal
+  var res = pcaAnalisis(ok.map(function (f) { return claves.map(function (k) { return f.vars[k]; }); }), nombres, {});
+  html += '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">Ejes principales (PCA)</div>';
+  if (!res.ok) {
+    html += '<div style="padding:14px;color:var(--tx3);font-size:12px">No se calcula: ' + escapeHtml(res.motivo) + '. Con tan pocos equipos los ejes no son confiables, por eso se muestra solo la comparación con pares de arriba.</div>';
+  } else {
+    var est = res.estabilidadPC1;
+    html += '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Resume los ' + res.p + ' indicadores en ejes. Cada punto es un equipo; los cercanos se parecen. Rojo = se aleja del grupo en conjunto (T² con 95 %).</div>' +
+      (est.estable ? '' : '<div style="padding:8px 10px;margin-bottom:10px;border-radius:6px;background:var(--bg3);font-size:11px;color:var(--w)">⚠ El eje 1 no es estable: al dejar fuera a <b>' + escapeHtml(ok[est.equipoQueMasLoMueve] ? ok[est.equipoQueMasLoMueve].sigla : '') + '</b> cambia mucho (coincidencia ' + Math.round(est.cosenoMinimo * 100) + '%). Toma el gráfico solo como referencia.</div>') +
+      _estPcaScatterSVG({ equipos: res.equipos, p: res.p, varianza: res.varianza }, ok) +
+      '<div class="tbl-wrap" style="margin-top:10px"><table><tr><th>Eje</th><th>Variación explicada</th><th>Acumulada</th>' + res.variables.map(function (n) { return '<th title="correlación del indicador con el eje">' + escapeHtml(n) + '</th>'; }).join('') + '</tr>' +
+      res.varianza.slice(0, Math.min(res.p, 3)).map(function (v, k) {
+        return '<tr><td style="font-weight:600">C' + (k + 1) + '</td><td style="text-align:center">' + Math.round(v.pct * 100) + '%</td><td style="text-align:center">' + Math.round(v.acumulado * 100) + '%</td>' +
+          res.cargas[k].map(function (c) { return '<td style="text-align:center;' + (Math.abs(c) >= 0.5 ? 'font-weight:700' : 'color:var(--tx3)') + '">' + (Math.round(c * 100) / 100) + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</table></div>' +
+      '<div style="font-size:10px;color:var(--tx3);padding:6px 0">Los números del eje son la correlación de cada indicador con él (en negrita, ≥ 0,5): indican qué significa el eje. ' +
+      'Estabilidad al dejar un equipo afuera: ' + Math.round(est.cosenoMinimo * 100) + '%.</div>';
+    var lejos = res.equipos.filter(function (e) { return e.lejos; });
+    html += lejos.length ? '<div style="font-size:12px;margin-top:6px"><b>Se alejan del grupo:</b> ' + lejos.map(function (e) { return escapeHtml(ok[e.fila].sigla) + ' (más extremo en «' + escapeHtml(e.variableMayor) + '», z=' + (Math.round(e.zMayor * 10) / 10) + ')'; }).join('; ') + '. Antes de concluir, revisa que sus datos (horómetro, reportes) estén bien.</div>'
+      : '<div style="font-size:12px;margin-top:6px;color:var(--tx3)">Ningún equipo se aleja del grupo en conjunto.</div>';
+  }
+  return html + '</div>';
+}
+
 export function renderEstadistica() {
   if (!$('s-estadistica')) return;
   var vista = window._estadisticaVista || 'equipo';
+  var labEst = _modoLab() || _LAB_EST.indexOf(vista) >= 0;   // una vista de laboratorio ya elegida la mantiene visible
   var eq = S.g('eq') || [];
   var ot = S.g('ot') || [];
   var otHist = S.g('otHist') || [];
@@ -782,6 +908,7 @@ export function renderEstadistica() {
   else if (vista === 'modelo') content = _estTablaModelo(eq, eventos);
   else if (vista === 'tecnico') content = _estTablaTecnico(ot);
   else if (vista === 'calidad') content = _estCalidadEjecucionHTML(ot);
+  else if (vista === 'pca') content = _estPcaHTML(eq, ot, otHist);
 
   $('s-estadistica').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="3" height="5"/><rect x="8.5" y="8" width="3" height="9"/><rect x="14" y="4" width="3" height="13"/></svg> Estadística</div>' +
@@ -792,9 +919,13 @@ export function renderEstadistica() {
     '<option value="modo"' + (vista === 'modo' ? ' selected' : '') + '>📊 Pareto de Modo de Falla</option>' +
     '<option value="modelo"' + (vista === 'modelo' ? ' selected' : '') + '>🚜 Por Modelo</option>' +
     '<option value="tecnico"' + (vista === 'tecnico' ? ' selected' : '') + '>👷 Por Técnico</option>' +
-    '<option value="calidad"' + (vista === 'calidad' ? ' selected' : '') + '>Calidad de Ejecución (PM)</option>' +
-    '</select>' +
+    (labEst ? '<optgroup label="🧪 Laboratorio — métodos avanzados, para explorar">' +
+      '<option value="calidad"' + (vista === 'calidad' ? ' selected' : '') + '>Calidad de Ejecución (PM)</option>' +
+      '<option value="pca"' + (vista === 'pca' ? ' selected' : '') + '>Mapa de equipos (PCA)</option></optgroup>' : '') +
+    '</select>' + _botonModoLabHTML(labEst) +
     content;
+  // Cada bloque se pliega con su título (el primero abierto): la página era un muro de tablas seguidas.
+  if (typeof plegarSecciones === 'function') plegarSecciones($('s-estadistica'), 'est-' + vista);
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda). _estFallasCombinadas/

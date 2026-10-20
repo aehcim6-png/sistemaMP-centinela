@@ -25,6 +25,28 @@ describe('tcoCapitalPorHora', () => {
   });
 });
 
+describe('tcoCapitalPorHora con fuente elegida', () => {
+  it("'compra' usa valor de compra ÷ vida aunque haya amortización contable; 'contable' usa la amortización", () => {
+    const c = L.tcoCapitalPorHora(base, 'compra');
+    expect(c.porHora).toBeCloseTo(780000000 / 26000, 6); expect(c.fuente).toMatch(/valor de compra/);
+    expect(L.tcoCapitalPorHora(base, 'contable')).toEqual({ porHora: 31000, fuente: 'amortización contable por hora' });
+  });
+  it('si falta el dato de la fuente elegida usa la otra y lo dice en la fuente', () => {
+    const sinCompra = Object.assign({}, base, { valorCompra: null });
+    expect(L.tcoCapitalPorHora(sinCompra, 'compra')).toEqual({ porHora: 31000, fuente: 'amortización contable por hora' });
+    const sinAmort = Object.assign({}, base, { valorHoraAmort: null });
+    expect(L.tcoCapitalPorHora(sinAmort, 'contable').fuente).toMatch(/valor de compra/);
+  });
+  it('el TCO de un equipo cambia con la fuente: mismo costo variable, distinto capital', () => {
+    const a = L.tcoEquipo(base, dd(), { costoHoraDet: 122850, fuenteCapital: 'compra' });
+    const b = L.tcoEquipo(base, dd(), { costoHoraDet: 122850, fuenteCapital: 'contable' });
+    expect(a.variablePorHora).toBeCloseTo(b.variablePorHora, 6);
+    expect(a.capitalPorHora).toBeCloseTo(780000000 / 26000, 6);
+    expect(b.capitalPorHora).toBe(31000);
+    expect(a.tcoPorHora).toBeCloseTo(a.variablePorHora + a.capitalPorHora, 6);
+  });
+});
+
 describe('tcoEquipo', () => {
   const r = L.tcoEquipo(base, dd(), { costoHoraDet: 122850 });
   it('mide horas, mantención y detención en la misma ventana (primera compra → fin)', () => {

@@ -101,6 +101,83 @@ async function _fetchSb(url,init){
   return res;
 }
 
+// ═══ AUDITORÍA DE CAMBIOS CAMPO POR CAMPO (2026-10-17) ═══
+// Cada guardado de una tabla real compara la foto de antes con la de después (auditoriaDiff, logic.js) y, cuando el guardado llegó a la nube sin error ni conflicto,
+// envía una fila por cada cambio a public.auditoria_cambios: quién (lo fija el servidor con la sesión, no el navegador), en qué pestaña, qué tabla y registro, qué campo y de qué
+// valor a cuál. La tabla es de solo agregar (nadie puede editar ni borrar filas). El envío va en segundo plano y con cola: si no hay red queda guardado en este navegador
+// (smp_audit_cola) y se reintenta; un fallo acá nunca interrumpe el trabajo de la persona. La foto de "antes" es propia (copia profunda, sembrada al cargar cada tabla desde la
+// nube) porque S.g() entrega filas por referencia y el valor anterior llegaría ya modificado.
+const _AUDIT_COLA_KEY='smp_audit_cola';
+let _auditCola=[];
+try{_auditCola=JSON.parse(localStorage.getItem(_AUDIT_COLA_KEY)||'[]');if(!Array.isArray(_auditCola))_auditCola=[];}catch(e){_auditCola=[];}
+const _auditSnap={};
+function _auditClonar(v){try{return JSON.parse(JSON.stringify(v));}catch(e){return null;}}
+function _auditSembrar(k){
+  try{
+    if(!TABLA_REAL[k]||!Array.isArray(_sbCache[k]))return;
+    if(typeof AUDIT_EXCLUIR_TABLAS!=='undefined'&&AUDIT_EXCLUIR_TABLAS.indexOf(k)>=0)return;
+    const c=_auditClonar(_sbCache[k]);if(c)_auditSnap[k]=c;
+  }catch(e){}
+}
+window._auditSembrar=_auditSembrar;
+function _auditPestana(){
+  const id=(typeof currentTab!=='undefined'&&currentTab)||'';
+  const t=(typeof TABS!=='undefined'?TABS:[]).find(function(x){return x.id===id;});
+  const sub=window['_'+id+'Sub']||null;
+  return{pestana:t?t.l:(id||null),subpestana:sub};
+}
+function _auditPersistir(){try{localStorage.setItem(_AUDIT_COLA_KEY,JSON.stringify(_auditCola.slice(-2000)));}catch(e){}}
+let _auditTimer=null,_auditEnviando=false;
+function _auditProgramarEnvio(ms){
+  if(_auditTimer)return;
+  _auditTimer=setTimeout(function(){_auditTimer=null;_auditEnviar();},ms||1500);
+}
+async function _auditEnviar(){
+  if(_auditEnviando||!_auditCola.length||!_sbOk()||!localStorage.getItem('smp_access_token'))return;
+  _auditEnviando=true;
+  try{
+    const c=_sbCfg();
+    while(_auditCola.length){
+      const lote=_auditCola.slice(0,200);
+      const res=await _fetchSb(c.url+'/rest/v1/auditoria_cambios',{method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'return=minimal'}),body:JSON.stringify(lote)});
+      if(!res.ok){
+        // 401 / 408 / 429 / 5xx: se reintenta más tarde. Cualquier otro 4xx (p. ej. 403 por rol) no se arregla reintentando: se descarta ese envío para no atascar la cola.
+        if(res.status===401||res.status===408||res.status===429||res.status>=500)break;
+        console.warn('auditoria_cambios: envío descartado (HTTP '+res.status+')');
+      }
+      _auditCola=_auditCola.slice(lote.length);
+      _auditPersistir();
+    }
+  }catch(e){/* sin red: queda en la cola */}
+  finally{_auditEnviando=false;_auditPersistir();if(_auditCola.length)_auditProgramarEnvio(30000);}
+}
+window._auditEnviar=_auditEnviar;
+function _auditEncolar(regs){
+  if(!regs||!regs.length)return;
+  _auditCola=_auditCola.concat(regs);
+  if(_auditCola.length>5000)_auditCola=_auditCola.slice(-5000);
+  _auditPersistir();
+  _auditProgramarEnvio();
+}
+function _auditoriaCambio(k,anterior,nuevo,promesaSync){
+  try{
+    if(typeof auditoriaDiff!=='function')return;
+    const cfg=TABLA_REAL[k];
+    const antes=_auditSnap[k]||_auditClonar(anterior)||[];
+    const regs=auditoriaDiff(k,cfg,antes,nuevo);
+    const snap=_auditClonar(nuevo);if(snap&&!(typeof AUDIT_EXCLUIR_TABLAS!=='undefined'&&AUDIT_EXCLUIR_TABLAS.indexOf(k)>=0))_auditSnap[k]=snap;
+    if(!regs.length)return;
+    const p=_auditPestana();
+    const meta={usuario_nombre:window._userName||null,rol:window._userRole||null,pestana:p.pestana,subpestana:p.subpestana,lote:_uuidV4(),dispositivo:(typeof _getDeviceLabel==='function'?_getDeviceLabel():null)};
+    Promise.resolve(promesaSync).then(function(res){
+      if(!res||res.ok!==true)return; // no llegó a la nube (conflicto, error o sin conexión): no se registra como cambio hecho
+      _auditEncolar(auditoriaFinalizar(regs,cfg,meta));
+    }).catch(function(){});
+  }catch(e){}
+}
+// Si quedó algo pendiente de una sesión anterior (sin red, pestaña cerrada), se envía al arrancar.
+setTimeout(function(){_auditEnviar();},8000);
+
 // Telemetría de uso (agosto 2026) — un POST directo a PostgREST por cada
 // pestaña/sub-pestaña que alguien realmente abre (llamado desde go() y
 // comp2Sub/mkpiSub/planiSub/stk2Sub, no en cada carga de página). A
@@ -127,7 +204,7 @@ window._logUsoPestana=_logUsoPestana;
 // claveDb: nombre real de esa columna en la tabla de Postgres.
 // ══════════════════════════════════════════════════════════════════
 const TABLA_REAL={
-  reg:{tabla:'registros_pm',clave:'_id',claveDb:'id',cols:['equipo','tipoPM','fechaEntrada','horaEntrada','fechaSalida','horaSalida','duracion','duracionH','horomReal','estado','tecnico','obs','estatusEq','lugar','sintoma','nReg','fechaEjec','costo','pmCompleto','queFalto','turno','operador','ubicacion','ast','loto','repuestos']},
+  reg:{tabla:'registros_pm',clave:'_id',claveDb:'id',cols:['equipo','tipoPM','fechaEntrada','horaEntrada','fechaSalida','horaSalida','duracion','duracionH','horomReal','estado','tecnico','obs','estatusEq','lugar','sintoma','nReg','fechaEjec','costo','pmCompleto','queFalto','turno','operador','ubicacion','ast','loto','repuestos','desvioDias']},
   ot:{tabla:'correctivos',clave:'_id',claveDb:'id',cols:['sigla','tipo','fecha','horom','turno','sintoma','sistema','tecnico','codFalla','duracion','estadoOT','operador','solucion','causaRaiz','tipoCausa','categoriaMTTR','clasificacionCosto','estatusEq','ubicacion','componente','criticidad','folioExcel','horaEntrada','fechaEntrada','horaSalida','fechaSalida','fechaIngreso','autorizadoPor','costo','ast','loto','primeraAtencionEn','fotos']},
   mov:{tabla:'movimientos_stock',clave:'_id',claveDb:'id',cols:['equipo','tipo','item','nParte','cant','ant','nuevo','fecha','mes','pm']},
   hist:{tabla:'historial_horometros',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomIni','horomFin','horom','origen']},
@@ -178,6 +255,8 @@ const TABLA_REAL={
   // Predictivo (probabilidadFallaDesdeEventos, logic.js) con más muestra histórica.
   otHist:{tabla:'correctivos_historico',clave:'id',claveDb:'id',cols:['id','sigla','siglaOriginal','fecha','horometro','sistema','descripcion','tipoInt','fuente','observacion','estadoOT','responsable']},
   // Reportabilidad diaria del cliente (2026-10-11): estatus OP/FS de cada equipo por día. Clave natural fecha+sigla (índice único); ver reportabilidadFusionar (logic.js).
+  // Backlog de pautas (2026-10-14): tareas que quedan pendientes al hacer un PM, con su cierre; alimenta la sección V del informe de gestión (informeBacklogPM, logic.js).
+  backlogPM:{tabla:'backlog_pm',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomBacklog','tarea','sistema','conInsumo','fechaCierre','observacion']},
   reportab:{tabla:'reportabilidad_diaria',clave:'_id',claveDb:'id',cols:['fecha','sigla','siglaCliente','estatus','ubicacion','detalle','fechaDetencion','proyeccion','ordenCompra','observacion','mantenedor','fuente']},
   progDia:{tabla:'programacion_diaria',clave:'_id',claveDb:'id',cols:['fecha','turno','orden','nombre','cargo','responsable','bloques']},
   // Sensor de neumático como entidad propia (2026-07) — antes 'numSensor' era solo
@@ -233,7 +312,7 @@ const TABLA_REAL={
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).
 const TABLA_SINGLETON={
-  cfg:{tabla:'configuracion',modo:'objeto',cols:['empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual','margenPorTon','costoHoraDetUSD','costoHoraDetModelos','tasaUSD','duracionPMHoras','alertaWhatsApp','whatsappRemitentesPermitidos','correoRemitentesPermitidos']},
+  cfg:{tabla:'configuracion',modo:'objeto',cols:['tcoCapitalFuente','empresa','faena','meta','pass','sbUrl','sbKey','sbAuto','neuTargetHrs','neuProyMes','alertaEmails','presupuestoMensual','margenPorTon','costoHoraDetUSD','costoHoraDetModelos','tasaUSD','duracionPMHoras','arriendoVsCompra','alertaWhatsApp','whatsappRemitentesPermitidos','correoRemitentesPermitidos']},
   hh:{tabla:'tarifa_hh',modo:'valor'},
   dispMeta:{tabla:'meta_disponibilidad',modo:'valor'},
   metas:{tabla:'metas',modo:'datos'},
@@ -439,7 +518,7 @@ window._sbLoadHeavy=async function(){
       tareas.push((async function(kk){
         try{
           const filas=await _refetchTablaReal(kk);
-          if(filas)_sbCache[kk]=filas;else _categoriasSinRefrescar.push(kk);
+          if(filas){_sbCache[kk]=filas;_auditSembrar(kk);}else _categoriasSinRefrescar.push(kk);
         }catch(e){_categoriasSinRefrescar.push(kk);}
       })(k));
     }
@@ -518,7 +597,8 @@ function _syncTablaGenerica(cfg,arrNuevo,arrAnterior,catKey){
 // El upsert por conflicto SÍ dispara el trigger BEFORE UPDATE (a diferencia de "borrar
 // todo y reinsertar"), que es lo que hace que el candado de columnas protegidas funcione.
 async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
-  if(!_sbOk())return;
+  // Devuelve {ok:true} solo si el guardado llegó a la nube sin error ni conflicto: la auditoría de cambios solo registra lo que de verdad quedó guardado.
+  if(!_sbOk())return {ok:false};
   const c=_sbCfg();
 
   const conflicto=await _chequearConflicto(
@@ -537,12 +617,14 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
       const fresco=await _refetchTablaReal(catKey);
       if(fresco){
         _sbCache[catKey]=fresco;
+        _auditSembrar(catKey);
         try{localStorage.setItem(K+catKey,JSON.stringify(_recorteParaLocal(catKey,fresco)));}catch(e){}
       }
     },
     '⚠️ Otra persona modificó estos datos mientras trabajabas — se actualizó la pantalla con lo más reciente. Tu cambio NO se guardó, revísalo y vuelve a intentar.'
   );
-  if(conflicto)return;
+  if(conflicto)return {ok:false,conflicto:true};
+  let _fallo=false;
 
   const idsAnteriores=new Set((arrAnterior||[]).map(function(o){return o&&o[cfg.clave];}).filter(function(v){return v!=null;}));
   const idsNuevos=new Set();
@@ -569,16 +651,17 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
     await _fetchSb(`${c.url}/rest/v1/${cfg.tabla}?on_conflict=${cfg.claveDb}`,{
       method:'POST',headers:Object.assign(_sbHeaders(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify(filas)
     }).then(async function(res){
-      if(!res.ok)_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));
-    }).catch(function(){_avisarErrorGuardado(cfg.tabla,'')});
+      if(!res.ok){_fallo=true;_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));}
+    }).catch(function(){_fallo=true;_avisarErrorGuardado(cfg.tabla,'')});
   }
   for(const idViejo of idsAnteriores){
     if(!idsNuevos.has(idViejo)){
       await _fetchSb(`${c.url}/rest/v1/${cfg.tabla}?${cfg.claveDb}=eq.${encodeURIComponent(idViejo)}`,{method:'DELETE',headers:_sbHeaders()})
-        .then(async function(res){if(!res.ok)_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));})
-        .catch(function(){_avisarErrorGuardado(cfg.tabla,'')});
+        .then(async function(res){if(!res.ok){_fallo=true;_avisarErrorGuardado(cfg.tabla,await res.text().catch(function(){return''}));}})
+        .catch(function(){_fallo=true;_avisarErrorGuardado(cfg.tabla,'')});
     }
   }
+  return {ok:!_fallo};
 }
 // Registro reciente de guardados fallidos (tabla + hora) — el único propósito es
 // que _resetearDatosEmpresa() pueda preguntar "¿falló algo durante MI operación?"
@@ -773,7 +856,7 @@ window.addEventListener('storage',function(e){
   if(!e.key||e.key.indexOf(K)!==0)return;
   var k=e.key.slice(K.length);
   if(k==='_pending')return;
-  try{_sbCache[k]=e.newValue!=null?JSON.parse(e.newValue):null;}catch{}
+  try{_sbCache[k]=e.newValue!=null?JSON.parse(e.newValue):null;_auditSembrar(k);}catch{}
   if(typeof refreshAll==='function')refreshAll();
 });
 
@@ -872,8 +955,9 @@ const S={
     }
     // 3. Supabase (asíncrono, no bloquea la UI)
     if(TABLA_REAL[k]){
-      _syncTablaGenerica(TABLA_REAL[k],v,_anterior,k);
+      const _pSync=_syncTablaGenerica(TABLA_REAL[k],v,_anterior,k);
       _logChangeGenerico(k,_anterior,v);
+      _auditoriaCambio(k,_anterior,v,_pSync);
     }else if(k==='venc'){
       _syncVencimientos(v,_anterior);
     }else if(TABLA_SINGLETON[k]){

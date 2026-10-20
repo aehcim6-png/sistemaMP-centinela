@@ -274,6 +274,7 @@ export function renderPlan(){
       <button class="btn btn-o" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Histórico consumido</button>
       <button class="btn" style="background:var(--warn,var(--warn));color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button>
     </div>
+    <div id="planCurvaS"></div>
     ${flujoHtml}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${btnVista}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"><span style="font-size:11px;color:var(--tx3);align-self:center">Periodo:</span> ${btnPer}</div>
@@ -295,8 +296,17 @@ export function renderPlan(){
         <button class="btn" style="margin-top:10px" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Ver compras del periodo</button>
       </div>`
       :contenido}`;
+  planCurvaRefrescar();
 }
 
+// Curva S de PM (plan vs real por semana/mes/semestre/año): el cálculo y el dibujo viven en avance.js (curvaSPM en logic.js); acá solo se pide el bloque.
+// Se carga avance.js si aún no está (carga perezosa) y el selector de período vuelve a pintar solo este bloque, no todo el Planificador.
+export async function planCurvaRefrescar(){
+  if(!$('planCurvaS'))return;
+  if(typeof window._avanceCurvaSBloque!=='function'&&typeof _cargarModuloLazy==='function'){try{await _cargarModuloLazy('avance');}catch(e){}}
+  const box=$('planCurvaS');
+  if(box&&typeof window._avanceCurvaSBloque==='function')box.innerHTML=window._avanceCurvaSBloque('planCurvaRefrescar()');
+}
 export function planVista(v){window._planVista=v;renders.plan();}
 export function planPeriodo(p){window._planPeriodo=p;renders.plan();}
 export function planMesCal(){
@@ -455,6 +465,7 @@ export function planHistoricoLimpiar(){
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderPlan = renderPlan;
 window.planVista = planVista;
+window.planCurvaRefrescar = planCurvaRefrescar;
 window.planPeriodo = planPeriodo;
 window.planMesCal = planMesCal;
 window.planHistorico = planHistorico;

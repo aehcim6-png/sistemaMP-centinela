@@ -223,8 +223,27 @@ intentos fallidos se registran vía la Edge Function
 `registrar-intento-acceso` (clave de servicio, porque en ese momento no hay
 sesión de usuario con la que insertar directo en `changelog`).
 
-**Configuración → Log de cambios** — cada edición, creación o eliminación en
-el sistema, con fecha, usuario y detalle.
+**Auditoría de Datos → Quién cambió qué** (octubre 2026) — el historial
+campo por campo, y la fuente de verdad de "quién cambió qué": cada guardado
+confirmado en la nube deja una fila en `auditoria_cambios` con la persona
+(`usuario_id` y `usuario_email`, fijados por el servidor desde la sesión, no
+por el navegador), el nombre y rol que muestra la app, la pestaña y
+sub-pestaña, la tabla y el registro, el campo, el valor de antes y de después,
+un `lote` (un guardado = un lote) y el dispositivo. Solo un admin activo puede
+leerla. **Es de solo agregar**: no hay políticas de UPDATE ni DELETE, se
+quitaron esos permisos a `anon` y `authenticated`, y un trigger rechaza
+cualquier UPDATE, DELETE o TRUNCATE, incluso con la clave de servicio; si
+alguna vez hubiera que purgarla por volumen, hay que hacerlo desde el panel de
+Supabase deshabilitando el trigger a propósito. No registra los campos que
+calcula el sistema ni las tablas que no son datos de trabajo (ver ficha L6 del
+inventario). Un envío que falla por falta de red queda en cola en ese
+navegador y se reintenta.
+
+**Configuración → Log de cambios** — el log anterior (cada edición, creación
+o eliminación, con fecha, usuario y un resumen corto). Se mantiene, pero ya no
+es la fuente para saber quién cambió qué: guarda el nombre que escribe el
+propio navegador, no tiene la pestaña ni el valor campo por campo, y un admin
+puede editarlo o borrarlo.
 
 No confundir con la pestaña **Auditoría de Datos** (agosto 2026, en el menú
 principal): esa es otra cosa — no rastrea quién cambió qué, sino si los
@@ -255,7 +274,7 @@ para no crecer sin límite y comerse cuota del plan gratis.
   `historial_neumaticos`, agregadas en agosto 2026, `correctivos_historico`
   (agosto 2026, planillas Excel 2022-2025 previas a este sistema, alimenta
   Probabilidad de Falla en Predictivo), y `compromisos` (2026-08-31, loop de
-  responsabilidad de Metas & KPIs)) + 7 tablas "singleton" de
+  responsabilidad de Metas & KPIs) y `reportabilidad_diaria` (2026-10-11, reporte diario del cliente: una fila por equipo y día; lee cualquier usuario activo, escribe admin u operador; incluida en el respaldo diario)) + 7 tablas "singleton" de
   configuración (49 tablas en total). El mapeo completo vive en
   `TABLA_REAL`/`TABLA_SINGLETON` dentro de `modules/store.js`.
 - **El schema está versionado como código** en `supabase/migrations/*.sql`.
@@ -268,6 +287,28 @@ para no crecer sin límite y comerse cuota del plan gratis.
   `supabase db diff` (con la CLI conectada al proyecto) debería salir
   vacío. Si no, alguien hizo un cambio fuera de una migración y hay que
   traerlo a `supabase/migrations/` para no perder el rastro.
+
+### Supuestos editables que se guardan en la tabla `configuracion` (2026-10-13)
+
+La tabla `configuracion` guarda una sola fila con los valores que el sistema no puede medir y que una persona define: costo de hora detenida (general y por modelo), tasa USD→CLP, duración estándar de cada PM y, desde el 13 de octubre, los **supuestos de Arriendo vs compra** (UF, diésel, sueldos, dotación, litros por carga, disponibilidades, valor residual y tarifas de arriendo seco y húmedo por modelo) en la columna `arriendoVsCompra`. Solo un administrador puede editarlos; los demás roles los ven pero no los cambian. Cada columna nueva se agrega con una migración aditiva (nunca borra datos) que hay que aplicar **a los dos proyectos Supabase antes de subir el código** que la usa; si no, el guardado falla. Otras tablas operativas nuevas: `backlog_pm` (tareas pendientes de pauta, informe de gestión) y la columna `registros_pm.desvioDias` (desvío de cada PM). Todas se crean con migraciones aditivas que se aplican a los dos proyectos antes de subir el código.
+
+**Novedades de octubre 2026 que el administrador debe conocer** (ambas bases Supabase, antes de subir el código que las usa):
+- **`auditoria_cambios`** (17-oct): historial campo por campo, de solo agregar (ver "Auditoría" más arriba). No está en `TABLA_REAL`: el navegador la escribe directo por REST con la sesión del usuario y solo un admin la lee. Migración `20261017120000`.
+- **`configuracion."tcoCapitalFuente"`** (17-oct): cómo se calcula el capital por hora del Costo Total de Propiedad en Costos: `'compra'` (valor de compra ÷ vida en horas, por defecto) o `'contable'` (amortización de «Horas a Amortizar»). Lo cambia solo un administrador desde Costos → Costo Total de Propiedad y vale para todos. Migración `20261017130000`. **Carga de «Horas a Amortizar»:** `valorHoraAmort` y `vidaContableH` en `equipos` solo los puede modificar una sesión de administrador (candado `privado.proteger_columnas_admin`), así que el archivo se importa desde la app (Equipos → Importar Horas a Amortizar), no por SQL.
+- **Backtest con Brier y log loss** (19-oct, solo cálculo y presentación): Predictivo → Laboratorio → Backtest. No hay migraciones ni cambios de permisos; no cambia la regla de probabilidad que usa el programa.
+- **Tercera ronda de diseño** (19-oct, solo presentación): cabecera de una fila en pantallas anchas, menú lateral con pestaña activa marcada y flechas. No hay migraciones ni cambios de permisos.
+- **Segunda ronda de diseño** (19-oct, solo presentación): modal de cierre de correctivos, botones de vista del Predictivo y áreas táctiles de la navegación. No hay migraciones ni cambios de permisos.
+- **Retoque de diseño** (19-oct, solo presentación): Dashboard y Auditoría (nombres de las tarjetas, leyenda en palabras simples, ajuste a celular). No hay migraciones ni cambios de permisos.
+- **Dashboard** (19-oct, solo presentación): sin tarjetas repetidas de la barra de arriba; «% Flota sin falla» muestra «Sin datos» si no hay correctivos cargados en el mes, y avisa si el último correctivo cargado tiene más de 30 días. No hay migraciones ni cambios de permisos.
+- **Simulación de la carga del taller** (19-oct, solo cálculo y presentación): Predictivo → Laboratorio → «Carga del taller». No hay migraciones ni cambios de permisos. Para poder simular esperas por técnico en el futuro habría que registrar la hora de primera atención (hoy `primeraAtencionEn` está vacío).
+- **Curva P-F completa** (18-oct, solo cálculo y presentación): lado izquierdo (horas del componente al detectar P) y grupo de comparación en Predictivo → Laboratorio → Intervalo de Inspección (P-F). No hay migraciones ni cambios de permisos.
+- **Validación fuera de muestra** (18-oct, solo cálculo y presentación): el backtest suma Weibull y Kijima, y Auditoría de Datos prueba el diccionario de componentes con el historial. No hay migraciones ni cambios de permisos.
+- **Salud del programa** (18-oct, solo presentación y cálculo): cierre de correctivos con ventana de datos, modo laboratorio (por persona, `localStorage`), backtest en Predictivo y detectores de aceite por componente. No hay migraciones ni cambios de permisos.
+- **MTTR, margen de error** (18-oct, solo cálculo): el intervalo de confianza del MTTR usa t de Student; con pocas reparaciones es más ancho que antes. No cambia datos.
+- **Correlaciones** (18-oct, solo presentación): Estadística → Mapa de equipos, Análisis de Aceite y Predictivo → Señal Unificada muestran correlaciones (Spearman). No guardan datos ni cambian permisos. En Aceite se agrupa por «descriptor» o, si está vacío, por «componente» (hoy el descriptor está vacío en todas las muestras reales).
+- **Carta Gantt** (17-oct, solo presentación): el tipo de PM por equipo se toma del Programa Anual (tabla `programa`, mes elegido); un correctivo (`ot`) se pinta aparte y no marca el PM como ejecutado. No se modifican ni se guardan datos nuevos.
+- **Análisis de Aceite sin muestras** (17-oct, solo presentación): con la tabla `aceite` vacía, el panel de gráficos muestra un aviso en vez de gráficos vacíos. No cambia datos ni permisos.
+- **Cambios de pantalla** (16-oct, solo presentación; ningún dato ni permiso cambió): el menú pasó a una barra lateral con 5 grupos (contraída a solo íconos bajo 1.500 px, se abre al pasar el mouse; en celular, barra inferior con «Más»); **Costos** es una pestaña propia (antes sub-pestaña de Stock & Insumos; el perfil Comprador ve Stock & Insumos y Costos); sub-pestañas como solapas; botones de herramientas agrupados en «Más acciones ▾»; botón «Densidad» en la cabecera para tablas cómodas o compactas.
 
 ### Límites del plan gratis (hoy)
 
@@ -512,7 +553,7 @@ técnico completo.
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
   y un despliegue automático a `sistema-mp-centinela.vercel.app`.
-- `modules/renders/*.js` (45 archivos, módulos ES reales desde la migración
+- `modules/renders/*.js` (47 archivos, módulos ES reales desde la migración
   de Fase 3, 2026-08-30): Vite bundlea y minifica de verdad solo el par
   que `index.html` importa de forma estática (`dash.js`/`ace.js`, eager);
   los otros 43 (carga perezosa, `dynamic import()`) no entran a ese grafo
@@ -539,15 +580,15 @@ guía explica por qué y el proceso real completo.
 index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
-modules/renders/*.js     — un archivo por pestaña/sub-pestaña (45, módulos ES reales)
+modules/renders/*.js     — un archivo por pestaña/sub-pestaña (49, módulos ES reales)
 supabase/migrations/     — schema versionado como código
-supabase/functions/      — 13 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
+supabase/functions/      — 14 Edge Functions (crear-operador, alerta-pm, resumen-semanal,
                             backup-diario, whatsapp-webhook, email-webhook,
                             vigilar-salud-sistema, registrar-intento-acceso,
                             avisar-salud-equipo, avisar-dispositivo-nuevo, leer-pauta-pm,
                             leer-informe-correctivo, leer-chequeo-neumaticos,
                             _shared/ parser común + interpretación con IA)
-tests/                   — pruebas de logic.js y store.js (Vitest, 737 casos)
+tests/                   — pruebas de logic.js y store.js (Vitest, 1.724 casos)
 docs/                    — esta carpeta
 ```
 

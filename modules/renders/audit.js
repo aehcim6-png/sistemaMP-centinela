@@ -201,18 +201,43 @@ export function renderAudit(){
 
   const anios=[...new Set(ot.map(function(o){return(o.fecha||'').slice(0,4);}).filter(Boolean))].sort().reverse();
 
+  // Completitud de los correctivos (2026-10-18): componente, costo y causa raíz alimentan el costo de
+  // mantenimiento, el FMEA y las predicciones. Al cerrar un correctivo ahora se piden (ver edOT en ot.js).
+  const corrComp=ot.filter(function(o){return(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&pasaFiltro(o.fecha,o.sigla);});
+  const nCorr=corrComp.length;
+  const pct=function(n){return nCorr?Math.round(n/nCorr*100):0;};
+  const conComp=corrComp.filter(function(o){return o.componente&&String(o.componente).trim();}).length;
+  const conCompTexto=corrComp.filter(function(o){return(o.componente&&String(o.componente).trim())||(typeof _componenteDeSintoma==='function'&&_componenteDeSintoma(o.sintoma||''));}).length;
+  const conCosto=corrComp.filter(function(o){return o.costo>0;}).length;
+  const conCausa=corrComp.filter(function(o){return o.causaRaiz&&String(o.causaRaiz).trim();}).length;
+  const colPct=function(p){return p>=80?'var(--ok)':p>=40?'var(--w)':'var(--danger)';};
+  // Prueba del diccionario de componentes con datos que NO se usaron para afinarlo: el historial 2022-2025
+  // (descripción distinta + «sistema» ya asignado). Cobertura y acuerdo con esa etiqueta.
+  const evDic=(typeof evaluarDiccionarioComponentes==='function')?evaluarDiccionarioComponentes((S.g('otHist')||[]).map(function(o){return{texto:o.descripcion,etiqueta:o.sistema};})):null;
+  const dicHTML=evDic?'<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bd)"><div style="font-weight:600;font-size:12px;margin-bottom:4px">¿El diccionario que deduce el componente funciona con textos nuevos?</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding-bottom:8px">El diccionario se afinó con los correctivos actuales, así que medirlo ahí no prueba nada. Se probó con el historial 2022–2025 ('+evDic.n+' descripciones), que no se usó para afinarlo.</div>'+
+    '<div style="display:flex;gap:18px;flex-wrap:wrap"><div><div style="font-size:22px;font-weight:700;color:'+colPct(evDic.pctClasificadas)+'">'+String(evDic.pctClasificadas).replace('.',',')+'%</div><div style="font-size:11px;color:var(--tx3);max-width:190px">de las descripciones del historial recibe un componente (rango '+String(evDic.icClasificadas[0]).replace('.',',')+'–'+String(evDic.icClasificadas[1]).replace('.',',')+' %)</div></div>'+
+    (evDic.pctAcuerdo!=null?'<div><div style="font-size:22px;font-weight:700;color:'+colPct(evDic.pctAcuerdo)+'">'+String(evDic.pctAcuerdo).replace('.',',')+'%</div><div style="font-size:11px;color:var(--tx3);max-width:230px">coincide con el «sistema» que ya traía el historial ('+evDic.acuerdos+' de '+evDic.clasificadasConEtiqueta+'; rango '+String(evDic.icAcuerdo[0]).replace('.',',')+'–'+String(evDic.icAcuerdo[1]).replace('.',',')+' %)</div></div>':'')+'</div>'+
+    (evDic.desacuerdos.length?'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px">Dónde no coincide</summary><div style="font-size:11px;color:var(--tx3);padding:6px 0">'+evDic.desacuerdos.map(function(d){return escapeHtml(d.par)+' ('+d.n+')';}).join(' · ')+'<br>Muchos son categorías más finas que la etiqueta del historial (por ejemplo «Radio/Comunicaciones» dentro de «Sistema Eléctrico»), no errores. La etiqueta del historial viene de una clasificación previa y tiene descripciones con varios temas: no es una verdad perfecta.</div></details>':'')+'</div>':'';
+  const completitudHTML=nCorr?'<div class="chart-box" style="margin-bottom:14px;border-left:3px solid var(--ac)"><div class="chart-t">Completitud de los correctivos ('+nCorr+')</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">Qué porcentaje de los correctivos tiene cargados los datos que alimentan el costo de mantenimiento, el análisis de causa raíz y las predicciones. Desde ahora, al cerrar un correctivo el sistema pide completar lo que falte.</div>'+
+    '<div style="display:flex;gap:18px;flex-wrap:wrap">'+
+    [['Componente cargado',pct(conComp)],['Componente (cargado o deducido del texto)',pct(conCompTexto)],['Costo',pct(conCosto)],['Causa raíz',pct(conCausa)]].map(function(x){return'<div><div style="font-size:22px;font-weight:700;color:'+colPct(x[1])+'">'+x[1]+'%</div><div style="font-size:11px;color:var(--tx3);max-width:160px">'+x[0]+'</div></div>';}).join('')+
+    '</div>'+dicHTML+'</div>':'';
+
   $('s-audit').innerHTML=`
     <div class="sec-h"><div>
       <div class="sec-t">${ICONS.eye} Auditoría de Datos</div>
       <div class="sec-s">Cruce automático de fuentes — se recalcula solo cada vez que abres esta pestaña</div>
-    </div></div>
+    </div>${window._userRole==='admin'?'<button class="btn" onclick="verAuditoriaCambios()" title="Historial de cambios campo por campo: quién, en qué pestaña, qué valor había antes y cuál quedó">'+ICONS.eye+' Quién cambió qué</button>':''}</div>
     <div class="toolbar" style="margin-bottom:14px">
       <select id="faSigla" onchange="renders.audit()"><option value="">Todos los equipos</option>${eq.slice().sort(function(a,b){return(a.sigla||'').localeCompare(b.sigla||'');}).map(function(e){return`<option${e.sigla===fSig?' selected':''}>${escapeHtml(e.sigla)}</option>`;}).join('')}</select>
       <select id="faAnio" onchange="renders.audit()"><option value="">Todos los años</option>${anios.map(function(a){return`<option value="${a}"${a===fAnio?' selected':''}>${a}</option>`;}).join('')}</select>
       <select id="faMes" onchange="renders.audit()"><option value="">Todos los meses</option>${_AUDIT_MESES.map(function(m){return`<option value="${m.v}"${m.v===fMes?' selected':''}>${m.l}</option>`;}).join('')}</select>
       ${(fSig||fAnio||fMes)?'<button class="btn-o" onclick="$(\'faSigla\').value=\'\';$(\'faAnio\').value=\'\';$(\'faMes\').value=\'\';renders.audit()">Limpiar filtros</button>':''}
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+    ${completitudHTML}
+    <div class="audit-summary">
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${saltos.length?'border-color:var(--danger)':''}">
         <div style="font-size:24px;font-weight:700;color:${saltos.length?'var(--danger)':'var(--ok)'}">${saltos.length}</div>
         <div style="font-size:11px;color:var(--tx3)">Horómetros retrocediendo</div>
@@ -239,7 +264,7 @@ export function renderAudit(){
       </div>
     </div>
 
-    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Horómetro retrocede entre OT consecutivas (${saltos.length})</div>
+    <div class="audit-section-title sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Horómetro retrocede entre OT consecutivas (${saltos.length})</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Cada fila es un salto imposible entre dos OT del mismo equipo, ordenadas por fecha — revisar en terreno cuál lectura es la correcta.</div>
     ${saltos.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Fecha anterior</th><th>Horóm. anterior</th><th>Fecha</th><th>Horóm.</th><th>Delta</th><th>Síntoma</th></tr>
@@ -251,7 +276,7 @@ export function renderAudit(){
       }).join('')}
     </table></div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Sin saltos hacia atrás detectados</div>'}
 
-    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.bulb} Componentes con dato genérico sin validar (${compsSinValidar.length} tipos)</div>
+    <div class="audit-section-title sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.bulb} Componentes con dato genérico sin validar (${compsSinValidar.length} tipos)</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Todavía usan vida útil/costo estimado de industria — falta cruzarlos contra un reemplazo real (correctivos u Órdenes de Compra) como ya se hizo con Batería, Alternador, Motor de Partida, Bomba de Combustible y Balde.${(fAnio||fMes)?' Este listado no tiene fecha propia, así que el filtro de Año/Mes no le aplica — solo el de Equipo.':''}</div>
     ${compsSinValidar.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Componente</th><th>N° equipos</th><th>Equipos</th></tr>
@@ -260,7 +285,7 @@ export function renderAudit(){
       }).join('')}
     </table></div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Todos los componentes tienen dato validado</div>'}
 
-    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.doc} OT cerradas sin solución registrada (${otSinSolucion.length})</div>
+    <div class="audit-section-title sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.doc} OT cerradas sin solución registrada (${otSinSolucion.length})</div>
     ${otSinSolucion.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Fecha</th><th>Síntoma</th></tr>
       ${otSinSolucion.slice(0,50).map(function(o){
@@ -268,7 +293,7 @@ export function renderAudit(){
       }).join('')}
     </table>${otSinSolucion.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${otSinSolucion.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Todas las OT cerradas tienen solución registrada</div>'}
 
-    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Reportes automáticos por revisar (${porRevisar.length})</div>
+    <div class="audit-section-title sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Reportes automáticos por revisar (${porRevisar.length})</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Cargados solos desde WhatsApp/correo (whatsapp-webhook/email-webhook), pero el parser no logró clasificarlos con confianza — se guardaron igual (nunca se descartan en silencio) para que se confirmen o corrijan acá. Si el equipo/componente es correcto, no hace falta hacer nada; si no, corrígelo por SQL directo sobre correctivos_historico (tabla de solo lectura desde la app, a propósito).</div>
     ${porRevisar.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Fecha</th><th>Sistema</th><th>Descripción</th><th>Fuente</th></tr>
@@ -277,7 +302,7 @@ export function renderAudit(){
       }).join('')}
     </table>${porRevisar.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${porRevisar.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Sin reportes automáticos pendientes de revisión</div>'}
 
-    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Neumáticos cambiados sin registrar la salida (${neuSinSalida.length})</div>
+    <div class="audit-section-title sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Neumáticos cambiados sin registrar la salida (${neuSinSalida.length})</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">La última medición real de esa posición (planilla mensual) trae una serie distinta a la que el sistema todavía muestra como montada — probablemente se cambió el neumático en terreno pero nunca se movió el saliente a Existencias/De baja acá. Usa "↺ Cambio" en Neumáticos para corregirlo.</div>
     ${neuSinSalida.length?`<div class="tbl-wrap" style="margin-bottom:22px"><table>
       <tr><th>Equipo</th><th>Posición</th><th>Serie en sistema</th><th>Serie última medición</th><th>Fecha medición</th><th>Remanente medido</th></tr>
@@ -286,7 +311,7 @@ export function renderAudit(){
       }).join('')}
     </table>${neuSinSalida.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${neuSinSalida.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok);margin-bottom:22px">✅ Sin cambios de neumático pendientes de registrar</div>'}
 
-    <div class="sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Alertas de Salud de Equipo sin seguimiento (${alertasSinSeguimiento.length})</div>
+    <div class="audit-section-title sec-t" style="font-size:13px;margin-bottom:6px">${ICONS.warn} Alertas de Salud de Equipo sin seguimiento (${alertasSinSeguimiento.length})</div>
     <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">El sistema ya avisó por WhatsApp/correo que este equipo cruzó a Salud Baja o cayó fuerte (Dashboard → Equipos con Salud Baja), hace ${_AUDIT_ALERTA_SALUD_DIAS} días o más, y no hay ningún correctivo nuevo registrado desde entonces — probable aviso sin seguimiento. Ojo: si se arregló sin dejar una OT formal (ej. cambio de componente directo en Componentes Mayores), esto puede ser un falso positivo — revisar, no es prueba de que nadie hizo nada.</div>
     ${alertasSinSeguimiento.length?`<div class="tbl-wrap"><table>
       <tr><th>Equipo</th><th>Fecha alerta</th><th>Días sin seguimiento</th><th>Motivo</th><th>Causa</th><th>Último correctivo</th></tr>

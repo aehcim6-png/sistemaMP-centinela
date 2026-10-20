@@ -675,8 +675,170 @@ function mtbfFlotaReal(eq,ot){
 // manual). null = no evaluable (ej. importado por CSV, sin fecha esperada de
 // referencia) — se excluye del cálculo en vez de inventar un resultado.
 function regEsATiempo(r){
+  // Solo con el desvío en días guardado al registrar el PM (camionetas y buses por km); los equipos por horas se evalúan con desviosPM, que mira el horómetro.
   if(!r||typeof r.desvioDias!=='number'||!isFinite(r.desvioDias))return null;
   return r.desvioDias<=0;
+}
+
+// Tolerancia del programa de PM: ±10 % del ciclo (±25 h en el ciclo de 250 h). Es el "estándar" del informe de gestión de mantenimiento del cliente
+// (KPI de desviaciones): un PM hecho antes (a las 160 h cuando tocaba a las 250 h) o después (a las 380 h) de ese margen es una desviación, igual que uno tarde.
+var PM_TOLERANCIA_CICLO=0.1;
+
+// ═══ CUMPLIMIENTO DE PM POR HORÓMETRO ═══ Evalúa cada PM de equipos por horas contra el horómetro en que tocaba. Los hitos van en la grilla de múltiplos de la frecuencia
+// (250, 500, 750…, la misma que usa C.proxPM) y cada PM cubre el siguiente hito aún no cubierto de su equipo; el desvío es el horómetro con que se hizo menos ese hito
+// (positivo = atrasado, negativo = adelantado). Hecho a 380 h cuando el hito pendiente era 250 h: atrasado por 130 h; a 160 h: adelantado por 90 h.
+// Devuelve un Map registro → { horas, clase, aTiempo }:
+//   clase 'dentro' | 'adelantada' | 'atrasada' (aTiempo true solo en 'dentro'),
+//   'hito sin registro' (el PM salta uno o más hitos: se saltó o se hizo y no se anotó, indistinguible con estos datos; no se cuenta ni a favor ni en contra),
+//   'repetido' (otro PM casi en el mismo hito), 'sin dato' (sin horómetro o sin frecuencia en horas).
+// Camionetas y buses (frecuencia en km) usan el desvío en días guardado, si existe. aTiempo null = no evaluable. El primer PM de un equipo no tiene PM anterior: se mide
+// contra el hito más cercano y solo cuenta si queda a menos del 40 % de la frecuencia.
+function desviosPM(reg,eq){
+  var frec={};(eq||[]).forEach(function(e){if(e&&e.sigla&&e.frecPM>0)frec[e.sigla]=e.frecPM;});
+  var out=new Map(),porEq={};
+  (reg||[]).forEach(function(r){
+    if(!r)return;
+    var f=frec[r.equipo];
+    if(r.horomReal>0&&f>0&&f<=1000){(porEq[r.equipo]=porEq[r.equipo]||[]).push(r);return;}
+    var dd=regEsATiempo(r);
+    out.set(r,{horas:null,hito:null,frec:f||null,clase:dd===null?'sin dato':(dd?'dentro':'atrasada'),aTiempo:dd});
+  });
+  Object.keys(porEq).forEach(function(sig){
+    var f=frec[sig],lista=porEq[sig].slice().sort(function(a,b){return a.horomReal-b.horomReal||String(a.fechaEntrada||'').localeCompare(String(b.fechaEntrada||''));});
+    var cubierto=null;
+    lista.forEach(function(r,i){
+      var h=r.horomReal,d,ok=true,clase,hitoPM=null;
+      if(i===0){
+        cubierto=Math.round(h/f)*f;d=h-cubierto;hitoPM=cubierto;
+        if(Math.abs(d)>f*0.4){ok=false;clase='sin dato';}
+      }else{
+        var hito=cubierto+f;d=h-hito;hitoPM=hito;
+        if(d>=f){ok=false;clase='hito sin registro';cubierto=Math.floor((h+f/4)/f)*f;}
+        else if(d<-0.6*f){ok=false;clase='repetido';}
+        else cubierto=hito;
+      }
+      if(!ok){out.set(r,{horas:null,hito:null,frec:f,cubierto:cubierto,clase:clase,aTiempo:null});return;}
+      var dentro=Math.abs(d)<=f*PM_TOLERANCIA_CICLO;
+      out.set(r,{horas:Math.round(d*10)/10,hito:hitoPM,frec:f,cubierto:cubierto,clase:dentro?'dentro':(d<0?'adelantada':'atrasada'),aTiempo:dentro});
+    });
+  });
+  return out;
+}
+
+// ═══ INFORME DE GESTIÓN DE MANTENIMIENTO (2026-10-14) ═══ Las secciones III (desviaciones de mantenimiento) y IV (equipos fuera de servicio) del informe que el cliente
+// arma cada semana ("Centinela Ripios OXE"), calculadas con los datos del sistema. Funciones puras: reciben los datos y devuelven lo que la pantalla dibuja.
+// III: los PM hechos entre 'desde' y 'hasta' (YYYY-MM-DD, ambos incluidos) con su horómetro programado (el hito en que tocaban), el real y el desvío en horas y en % del ciclo.
+// 'resumen.pct' es el % dentro del estándar sobre todos los PM evaluables del período (los de km incluidos, por días), el mismo número que muestran Dashboard, Informes KPI y Metas.
+function informeGestionPM(reg,eq,desde,hasta){
+  var ev=desviosPM(reg,eq),porSigla={};(eq||[]).forEach(function(e){if(e&&e.sigla)porSigla[e.sigla]=e;});
+  var enRango=(reg||[]).filter(function(r){var f=(r&&(r.fechaEntrada||r.fechaEjec))||'';return f&&(!desde||f>=desde)&&(!hasta||f<=hasta);});
+  var res={total:enRango.length,evaluables:0,dentro:0,adelantadas:0,atrasadas:0,hitoSinRegistro:0,repetidos:0,sinDato:0,pct:null},filas=[];
+  enRango.forEach(function(r){
+    var x=ev.get(r)||{horas:null,clase:'sin dato',aTiempo:null};
+    if(x.aTiempo!==null){res.evaluables++;if(x.aTiempo)res.dentro++;}
+    if(x.clase==='adelantada')res.adelantadas++;else if(x.clase==='atrasada')res.atrasadas++;
+    else if(x.clase==='hito sin registro')res.hitoSinRegistro++;else if(x.clase==='repetido')res.repetidos++;else if(x.clase==='sin dato')res.sinDato++;
+    if(x.horas===null)return;
+    var e=porSigla[r.equipo]||{};
+    filas.push({sigla:r.equipo,modelo:e.modelo||'',tipoPM:r.tipoPM||'',fecha:r.fechaEntrada||r.fechaEjec||'',horomActual:e.horomActual!=null?e.horomActual:null,
+      horomPrograma:x.hito,horomReal:r.horomReal,horas:x.horas,pct:Math.round(x.horas/x.frec*100),frec:x.frec,clase:x.clase});
+  });
+  filas.sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:a.sigla<b.sigla?-1:1;});
+  res.pct=res.evaluables?Math.round(res.dentro/res.evaluables*100):null;
+  return{filas:filas,resumen:res,tolerancia:PM_TOLERANCIA_CICLO};
+}
+// IV: equipos con una salida de servicio todavía abierta hoy (equiposFueraDeServicioAhora), con los días que llevan, su sistema o conjunto, el seguimiento anotado y su último PM.
+function informeGestionFS(ot,eq,reg,hoyISO){
+  var porSigla={};(eq||[]).forEach(function(e){if(e&&e.sigla)porSigla[e.sigla]=e;});
+  var ultimo={};(reg||[]).forEach(function(r){
+    if(!r||!r.equipo)return;var f=r.fechaEntrada||r.fechaEjec||'';
+    if(!ultimo[r.equipo]||f>ultimo[r.equipo].fecha)ultimo[r.equipo]={fecha:f,horom:r.horomReal>0?r.horomReal:null};
+  });
+  var hoy=new Date((hoyISO||new Date().toISOString().slice(0,10))+'T12:00:00').getTime();
+  var filas=equiposFueraDeServicioAhora(ot).map(function(x){
+    var o=x.o,e=porSigla[o.sigla]||{},u=ultimo[o.sigla]||{};
+    var dias=Math.max(0,Math.round((hoy-new Date(o.fechaEntrada+'T12:00:00').getTime())/86400000));
+    var obs=[o.sintoma,o.solucion].filter(function(t){return t&&String(t).trim();}).join(' — ');
+    return{sigla:o.sigla,modelo:e.modelo||'',horomActual:e.horomActual!=null?e.horomActual:null,ultimoPM:u.fecha||null,horomUltimoPM:u.horom||null,
+      desde:o.fechaEntrada,dias:dias,sistema:o.sistema||o.componente||'',observacion:obs};
+  });
+  filas.sort(function(a,b){return b.dias-a.dias;});
+  return{filas:filas,total:filas.length};
+}
+
+// ═══ PROGRAMA DE MANTENCIÓN: CERTEZA Y CUMPLIMIENTO (secciones I y II del informe del cliente) ═══
+// El plan semanal se proyecta solo (cada equipo toca cuando su horómetro llega al siguiente hito de la grilla fija de su frecuencia) y esa proyección no se guarda, así que
+// el programa de un período pasado se reconstruye acá con el historial de horómetros y los PM registrados. Para cada equipo por horas y cada hito que le tocaba o alcanzó:
+//   programado  = al empezar el período, con su ritmo real de uso, se proyectaba que llegaría al hito dentro del período;
+//   alcanzado   = su horómetro real sí llegó al hito dentro del período ("cumplió sus horas");
+//   ejecutado   = hay un PM registrado en el período que cubre ese hito (desviosPM).
+// Certeza de programa = programados que alcanzaron sus horas ÷ programados (¿se cumplió la proyección? un equipo que estuvo parado no avanza horómetro y baja la certeza,
+// no es un atraso). Cumplimiento de programa = alcanzados que se ejecutaron ÷ alcanzados. Un hito que ya estaba vencido al empezar el período se lista como arrastre y no entra a
+// ninguno de los dos porcentajes. Un equipo sin lecturas de horómetro cercanas al período queda como "sin horómetro" y no se evalúa: no se inventa su avance.
+var PROG_META_CERTEZA=85, PROG_META_CUMPLIMIENTO=100, PROG_LECTURA_MAX_DIAS=7;
+function informeProgramaSemanal(eq,reg,hist,desde,hasta,hoyISO){
+  var hoy=hoyISO||new Date().toISOString().slice(0,10),fin=hasta>hoy?hoy:hasta;
+  var ev=desviosPM(reg,eq),dias=Math.max(1,_diasEntreISO(desde,hasta)+1),ayer=new Date(new Date(desde+'T12:00:00').getTime()-864e5).toISOString().slice(0,10);
+  var filas=[],sinHorometro=[],res={programados:0,programadosCumplieron:0,alcanzados:0,ejecutados:0,arrastrados:0,noProgramadosAlcanzados:0,equiposEvaluados:0,sinHorometro:0,certeza:null,cumplimiento:null,metaCerteza:PROG_META_CERTEZA,metaCumplimiento:PROG_META_CUMPLIMIENTO};
+  (eq||[]).forEach(function(e){
+    var f=e&&e.frecPM;if(!e||!e.sigla||!(f>0)||f>1000||e.unidad==='km')return;
+    var lect=C.lecturasValidas(hist,e.sigla),val=function(h){return h.horomFin!=null?h.horomFin:h.horom;};
+    var ultima=function(x){var m=null;lect.forEach(function(h){if(h.fecha<=x&&(!m||h.fecha>m.fecha))m=h;});return m;};
+    var lIni=ultima(ayer),lFin=ultima(fin);
+    var fresca=function(l,ref){return l&&_diasEntreISO(l.fecha,ref)<=PROG_LECTURA_MAX_DIAS;};
+    if(!fresca(lIni,ayer)||!fresca(lFin,fin)||lFin.fecha<=lIni.fecha){res.sinHorometro++;sinHorometro.push(e.sigla);return;}
+    res.equiposEvaluados++;
+    var hIni=val(lIni),hFin=val(lFin);
+    var ritmo=tasaDiariaReal(lect.filter(function(h){return h.fecha<=ayer;}).map(function(h){return{fecha:h.fecha,horom:val(h)};}),e.hrsDia);
+    var hProy=hIni+ritmo*dias;
+    // último hito cubierto antes del período: el del PM registrado más reciente de este equipo anterior a 'desde'
+    var cubPrev=null,fPrev='';
+    (reg||[]).forEach(function(r){
+      if(!r||r.equipo!==e.sigla)return;var fr=r.fechaEntrada||r.fechaEjec||'';if(!fr||fr>=desde)return;
+      var x=ev.get(r);if(x&&x.cubierto!=null&&fr>=fPrev){fPrev=fr;cubPrev=x.cubierto;}
+    });
+    var sig=Math.floor(hIni/f)*f+f,hito=(cubPrev!=null&&cubPrev+f>hIni-f)?cubPrev+f:sig;
+    for(;hito<=Math.max(hFin,hProy);hito+=f){
+      var arrastre=hito<=hIni,programado=hito>hIni&&hito<=hProy,alcanzado=hito>hIni&&hito<=hFin;
+      var ejec=(reg||[]).filter(function(r){
+        var fr=r&&(r.fechaEntrada||r.fechaEjec)||'';if(!r||r.equipo!==e.sigla||fr<desde||fr>hasta)return false;
+        var x=ev.get(r);return x&&x.hito===hito;
+      }).length>0;
+      if(!arrastre&&!programado&&!alcanzado&&!ejec)continue;
+      filas.push({sigla:e.sigla,modelo:e.modelo||'',tipoPM:C.tipoPM(hito,f),hito:hito,horomInicio:hIni,horomFin:hFin,programado:programado,alcanzado:alcanzado,ejecutado:ejec,arrastre:arrastre});
+      if(arrastre){res.arrastrados++;continue;}
+      if(programado){res.programados++;if(alcanzado)res.programadosCumplieron++;}
+      else if(alcanzado)res.noProgramadosAlcanzados++;
+      if(alcanzado){res.alcanzados++;if(ejec)res.ejecutados++;}
+    }
+  });
+  filas.sort(function(a,b){return a.sigla<b.sigla?-1:a.sigla>b.sigla?1:a.hito-b.hito;});
+  res.certeza=res.programados?Math.round(res.programadosCumplieron/res.programados*100):null;
+  res.cumplimiento=res.alcanzados?Math.round(res.ejecutados/res.alcanzados*100):null;
+  return{filas:filas,resumen:res,sinHorometro:sinHorometro};
+}
+
+// ═══ BACKLOG DE PAUTAS (sección V del informe del cliente) ═══ Tareas que quedan pendientes al hacer un PM (por ejemplo "cambio de filtro de combustible" que no se hizo por falta
+// de insumo). Cada una se registra con el equipo, el horómetro del día, la tarea, el sistema afectado y si ya tiene insumo comprometido, y se cierra con una fecha. Cumplimiento de cierre =
+// cerrados ÷ total a la fecha; las horas pendientes de cada tarea abierta son el horómetro actual del equipo menos el del día en que quedó pendiente.
+function informeBacklogPM(items,eq,hastaISO){
+  var porSigla={};(eq||[]).forEach(function(e){if(e&&e.sigla)porSigla[e.sigla]=e;});
+  var hoy=hastaISO||new Date().toISOString().slice(0,10),vistos=(items||[]).map(function(b,i){return b?Object.assign({},b,{_idx:i}):b;}).filter(function(b){return b&&b.sigla&&b.fecha&&b.fecha<=hoy;});
+  var cerrado=function(b){return !!(b.fechaCierre&&b.fechaCierre<=hoy);};
+  var abiertos=vistos.filter(function(b){return !cerrado(b);}).map(function(b){
+    var e=porSigla[b.sigla]||{},hm=e.horomActual!=null&&b.horomBacklog>0?Math.max(0,e.horomActual-b.horomBacklog):null;
+    return{idx:b._idx,id:b.id||b._id||null,sigla:b.sigla,modelo:e.modelo||'',fecha:b.fecha,horomBacklog:b.horomBacklog>0?b.horomBacklog:null,horomActual:e.horomActual!=null?e.horomActual:null,
+      horasPendientes:hm,tarea:b.tarea||'',sistema:b.sistema||'',conInsumo:!!b.conInsumo,observacion:b.observacion||''};
+  }).sort(function(a,b){return (b.horasPendientes||0)-(a.horasPendientes||0);});
+  var nCerr=vistos.length-abiertos.length;
+  return{abiertos:abiertos,resumen:{total:vistos.length,cerrados:nCerr,pendientes:abiertos.length,pctCierre:vistos.length?Math.round(nCerr/vistos.length*100):null,
+    conInsumo:abiertos.filter(function(b){return b.conInsumo;}).length,sinInsumo:abiertos.filter(function(b){return !b.conInsumo;}).length}};
+}
+// Tarea de backlog que nace de un PM registrado como incompleto (pmCompleto===false con el texto "qué faltó"); null si el PM quedó completo o sin dato.
+function backlogDesdePM(r){
+  if(!r||r.pmCompleto!==false||!String(r.queFalto||'').trim())return null;
+  return{sigla:r.equipo,fecha:r.fechaEntrada||r.fechaEjec||'',horomBacklog:r.horomReal>0?r.horomReal:null,tarea:String(r.queFalto).trim(),sistema:'',conInsumo:false,
+    fechaCierre:null,observacion:'Quedó pendiente en el '+(r.tipoPM||'PM')+(r.nReg?' N.º '+r.nReg:'')};
 }
 
 // ═══ CONFIABILIDAD REAL (R) — probabilidad de que un equipo NO falle durante
@@ -807,6 +969,17 @@ function _normInv(p){
 // input crudo que C.mttrReal (array de 'duracion', formato "Xh"), mismo
 // mínimo de 2 reparaciones con dato — sin eso ni una desviación estándar
 // se puede calcular.
+// Valor crítico t de Student de dos colas (probabilidad total 'alpha' en las dos colas, 'df' grados):
+// busca por bisección el t cuyo p de dos colas (_pValorT2, definida más abajo en el archivo) es alpha.
+function _tCriticoDosColas(alpha,df){
+  var lo=0,hi=1;
+  while(_pValorT2(hi,df)>alpha&&hi<1e7)hi*=2;
+  for(var i=0;i<100;i++){
+    var mid=(lo+hi)/2;
+    if(_pValorT2(mid,df)>alpha)lo=mid;else hi=mid;
+  }
+  return (lo+hi)/2;
+}
 function errorEstandarMTTR(duraciones,confianza){
   confianza=(confianza>0&&confianza<1)?confianza:0.95;
   var horas=(duraciones||[]).filter(function(d){return d&&d!=='—';}).map(function(d){
@@ -819,13 +992,16 @@ function errorEstandarMTTR(duraciones,confianza){
   var sumSqDesv=horas.reduce(function(s,h){return s+Math.pow(h-media,2);},0);
   var desvEst=Math.sqrt(sumSqDesv/(n-1));
   var se=desvEst/Math.sqrt(n);
+  // t de Student con n-1 grados (2026-10-18): antes se usaba z (normal), que solo vale con
+  // muchos datos — con 3-5 reparaciones el "95 %" cubría en realidad ~70-85 % (simulación con
+  // tiempos asimétricos). La t abre el intervalo según cuántos datos hay.
   var alpha=1-confianza;
-  var z=_normInv(1-alpha/2);
+  var t=_tCriticoDosColas(alpha,n-1);
   return{
     media:Math.round(media*10)/10,n:n,se:Math.round(se*100)/100,
-    inferior:Math.max(0,Math.round((media-z*se)*10)/10),
-    superior:Math.round((media+z*se)*10)/10,
-    confianza:confianza
+    inferior:Math.max(0,Math.round((media-t*se)*10)/10),
+    superior:Math.round((media+t*se)*10)/10,
+    confianza:confianza,critico:Math.round(t*1000)/1000
   };
 }
 
@@ -954,6 +1130,157 @@ function r2RegresionLineal(pts){
   });
   var r2=sst===0?1:1-sse/sst;
   return{pendiente:pendiente,intercepto:intercepto,r2:Math.round(Math.max(0,Math.min(1,r2))*1000)/1000,n:n};
+}
+
+// ═══ CORRELACIONES — ¿qué variables se mueven juntas? (2026-10-18) ═══
+// La covarianza mide cuánto se mueven juntas dos variables; dividida por las
+// desviaciones de ambas da la correlación (la covarianza "sin unidades").
+// Antes solo se usaba por dentro (distancia de Mahalanobis del aceite, PCA,
+// error del Weibull) y nunca se le mostraba al usuario qué se mueve con qué.
+// Se usa Spearman (correlación de los RANGOS) y no Pearson: las variables de
+// la flota (fallas, horas, ppm de metal) son asimétricas y con pocos datos,
+// y un solo valor extremo puede crear o esconder una correlación de Pearson.
+// Con empates (muchos ceros) se usan rangos promedio. Con 5-10 datos
+// el resultado es orientativo: por eso se devuelve 'muestraChica' y, al
+// mirar varios pares a la vez, un p ajustado por Holm (si no, a 10-15 pares
+// siempre sale alguno "significativo" por azar). Correlación NO es causa.
+var _CORR_MIN_N=5;
+function _rangosPromedio(v){
+  var idx=v.map(function(x,i){return i;}).sort(function(a,b){return v[a]-v[b];});
+  var r=new Array(v.length);
+  var i=0;
+  while(i<idx.length){
+    var j=i;
+    while(j+1<idx.length&&v[idx[j+1]]===v[idx[i]])j++;
+    var prom=(i+j)/2+1;
+    for(var k=i;k<=j;k++)r[idx[k]]=prom;
+    i=j+1;
+  }
+  return r;
+}
+// p-valor de dos colas de una t de Student con 'df' grados (vía Beta incompleta)
+function _pValorT2(t,df){
+  if(!(df>0))return null;
+  return _betaIncompletaRegularizada(df/(df+t*t),df/2,0.5);
+}
+function correlacionSpearman(xs,ys){
+  var a=[],b=[];
+  for(var i=0;i<(xs||[]).length;i++){
+    var x=xs[i],y=ys[i];
+    if(x==null||y==null||x===''||y==='')continue;
+    x=Number(x);y=Number(y);
+    if(!isFinite(x)||!isFinite(y))continue;
+    a.push(x);b.push(y);
+  }
+  var n=a.length;
+  if(n<_CORR_MIN_N)return null;
+  var ra=_rangosPromedio(a),rb=_rangosPromedio(b);
+  var ma=(n+1)/2,sab=0,saa=0,sbb=0;
+  for(var k=0;k<n;k++){
+    sab+=(ra[k]-ma)*(rb[k]-ma);saa+=(ra[k]-ma)*(ra[k]-ma);sbb+=(rb[k]-ma)*(rb[k]-ma);
+  }
+  if(!(saa>0)||!(sbb>0))return null;
+  var rho=sab/Math.sqrt(saa*sbb);
+  rho=Math.max(-1,Math.min(1,rho));
+  var p=Math.abs(rho)>=1?0:_pValorT2(rho*Math.sqrt((n-2)/(1-rho*rho)),n-2);
+  return{rho:Math.round(rho*1000)/1000,n:n,p:p,muestraChica:n<10};
+}
+// Ajuste de Holm (control del error al mirar varios pares a la vez). Devuelve
+// los p ajustados en el mismo orden; un p null queda null.
+function holmAjustarP(ps){
+  var items=[];
+  ps.forEach(function(p,i){if(p!=null)items.push({p:p,i:i});});
+  items.sort(function(a,b){return a.p-b.p;});
+  var m=items.length,out=new Array(ps.length).fill(null),max=0;
+  items.forEach(function(it,k){
+    max=Math.max(max,Math.min(1,(m-k)*it.p));
+    out[it.i]=max;
+  });
+  return out;
+}
+function textoFuerzaCorrelacion(rho){
+  var a=Math.abs(rho);
+  return a>=0.7?'fuerte':a>=0.4?'moderada':a>=0.2?'débil':'casi nula';
+}
+// Todos los pares de una lista de variables: filas=[{a:..,b:..}] (objetos con
+// las claves), nombres por clave. Devuelve pares ordenados por |ρ| con p ajustado.
+function correlacionesPares(filas,claves,nombres){
+  var pares=[];
+  for(var i=0;i<claves.length;i++)for(var j=i+1;j<claves.length;j++){
+    var c=correlacionSpearman(filas.map(function(f){return f[claves[i]];}),filas.map(function(f){return f[claves[j]];}));
+    pares.push({a:claves[i],b:claves[j],nombreA:(nombres&&nombres[i])||claves[i],nombreB:(nombres&&nombres[j])||claves[j],rho:c?c.rho:null,n:c?c.n:0,p:c?c.p:null,muestraChica:c?c.muestraChica:true});
+  }
+  var aj=holmAjustarP(pares.map(function(q){return q.p;}));
+  pares.forEach(function(q,k){q.pAjustado=aj[k];q.significativa=aj[k]!=null&&aj[k]<0.05;q.fuerza=q.rho==null?null:textoFuerzaCorrelacion(q.rho);});
+  pares.sort(function(x,y){return (y.rho==null?-1:Math.abs(y.rho))-(x.rho==null?-1:Math.abs(x.rho));});
+  return pares;
+}
+// Indicadores de la flota (mismos del Mapa de equipos): recibe las filas con
+// vars {fallas1000,mttr,fsPct,uso,horom}. Menos de 6 equipos → null.
+function correlacionesIndicadoresEquipos(filasVars,claves,nombres){
+  var v=(filasVars||[]).filter(Boolean);
+  if(v.length<6)return null;
+  return{n:v.length,pares:correlacionesPares(v,claves,nombres)};
+}
+// Metales de desgaste del aceite: qué metales suben juntos dentro de un mismo
+// tipo de componente. Usa 'descriptor' y, si está vacío (hoy lo está en todas
+// las muestras reales), el campo 'componente'. Cada par usa las muestras donde
+// ambos metales tienen dato (un 0 es una lectura válida: "no detectado").
+function correlacionMetalesAceite(ace,minMuestras){
+  var min=minMuestras||10;
+  var metales=Object.keys(_ACEITE_UMBRAL_METAL);
+  var porGrupo={};
+  (ace||[]).forEach(function(m){
+    if(!m)return;
+    var g=_aceGrupo(m).toUpperCase();
+    if(!g)return;
+    (porGrupo[g]=porGrupo[g]||[]).push(m);
+  });
+  var out=[];
+  Object.keys(porGrupo).forEach(function(g){
+    var muestras=porGrupo[g];
+    if(muestras.length<min)return;
+    var pares=correlacionesPares(muestras,metales,metales);
+    if(!pares.some(function(q){return q.rho!=null;}))return;
+    out.push({grupo:g,n:muestras.length,metales:metales,pares:pares});
+  });
+  out.sort(function(a,b){return b.n-a.n;});
+  return out;
+}
+// Probabilidad exacta de Fisher (dos colas) para una tabla 2x2 [[a,b],[c,d]].
+function _fisherExacto2x2(a,b,c,d){
+  var n=a+b+c+d,r1=a+b,c1=a+c;
+  var lp=function(x){return _logGamma(r1+1)-_logGamma(x+1)-_logGamma(r1-x+1)+_logGamma(n-r1+1)-_logGamma(c1-x+1)-_logGamma(n-r1-c1+x+1)-(_logGamma(n+1)-_logGamma(c1+1)-_logGamma(n-c1+1));};
+  var lo=Math.max(0,c1-(n-r1)),hi=Math.min(r1,c1),obs=lp(a),p=0;
+  for(var x=lo;x<=hi;x++){var l=lp(x);if(l<=obs+1e-9)p+=Math.exp(l);}
+  return Math.min(1,p);
+}
+// Señal Unificada de Reemplazo: ¿las 6 señales cuentan evidencia distinta o
+// se encienden juntas? 'lista' = [{senales:[{clave,nombre,activa}]}] uno por
+// equipo (activa null = sin dato, no entra). Para cada par: coeficiente phi
+// (correlación de dos variables sí/no) y test exacto de Fisher. Un par con phi
+// alto y significativo es redundante: sumar "4 de 6" cuenta dos veces lo mismo.
+function correlacionSenalesReemplazo(lista){
+  var eqs=(lista||[]).filter(function(x){return x&&x.senales;});
+  if(eqs.length<8)return null;
+  var base=eqs[0].senales.map(function(s){return{clave:s.clave,nombre:s.nombre};});
+  var pares=[];
+  for(var i=0;i<base.length;i++)for(var j=i+1;j<base.length;j++){
+    var a=0,b=0,c=0,d=0;
+    eqs.forEach(function(e){
+      var si=e.senales[i].activa,sj=e.senales[j].activa;
+      if(si==null||sj==null)return;
+      if(si&&sj)a++;else if(si)b++;else if(sj)c++;else d++;
+    });
+    var n=a+b+c+d,den=(a+b)*(c+d)*(a+c)*(b+d);
+    var phi=(n>=_CORR_MIN_N*2&&den>0)?(a*d-b*c)/Math.sqrt(den):null;
+    pares.push({a:base[i].clave,b:base[j].clave,nombreA:base[i].nombre,nombreB:base[j].nombre,n:n,ambas:a,soloA:b,soloB:c,ninguna:d,
+      phi:phi==null?null:Math.round(phi*1000)/1000,p:phi==null?null:_fisherExacto2x2(a,b,c,d),muestraChica:n<20});
+  }
+  var aj=holmAjustarP(pares.map(function(q){return q.p;}));
+  pares.forEach(function(q,k){q.pAjustado=aj[k];q.redundante=q.phi!=null&&q.phi>=0.5&&aj[k]!=null&&aj[k]<0.05;});
+  pares.sort(function(x,y){return (y.phi==null?-2:y.phi)-(x.phi==null?-2:x.phi);});
+  return{nEquipos:eqs.length,pares:pares,redundantes:pares.filter(function(q){return q.redundante;})};
 }
 
 // ═══ ANOVA DE UN FACTOR — ¿el promedio real difiere entre grupos (ej.
@@ -2769,9 +3096,9 @@ function correlacionAceiteFallas(ace,eventos,diasVentana){
   });
   var porComponente={};
   (ace||[]).forEach(function(m){
-    if(!m||!m._sigla||!m.descriptor||!m.fecha)return;
+    if(!m||!m._sigla||!_aceGrupo(m)||!m.fecha)return;
     if(m.estado!=='ALERTA'&&m.estado!=='PRECAUCION'&&m.estado!=='NORMAL')return;
-    var comp=_normComponente(m.descriptor);
+    var comp=_normComponente(_aceGrupo(m));
     var fechasFalla=fechasFallaPorGrupo[m._sigla+'|'+comp]||[];
     var siguioFalla=fechasFalla.some(function(f){
       var dias=_diasEntreISO(m.fecha,f);
@@ -3328,13 +3655,19 @@ function ordenesSinOutliers(oc){
 // Nunca modifica 'estado' ni borra nada — solo separa para revisión humana,
 // mismo espíritu que ordenesSinOutliers.
 var _ACEITE_UMBRAL_METAL={hierro:50,cobre:30,plomo:20,aluminio:20,silicio:25,cromo:10};
+// Tipo de componente de una muestra de aceite: 'descriptor' y, si viene vacío (en las 243 muestras
+// reales el descriptor está vacío y el tipo viene en 'componente'), 'componente'. Antes los atípicos
+// de aceite, el Mahalanobis y la correlación aceite↔fallas solo miraban 'descriptor' y no
+// analizaban ninguna muestra real.
+function _aceGrupo(m){return String((m&&(m.descriptor||m.componente))||'').trim();}
 function aceiteOutliers(ace){
   var metales=Object.keys(_ACEITE_UMBRAL_METAL);
   var porGrupoMetal={};
   (ace||[]).forEach(function(m){
-    if(!m||!m.descriptor)return;
+    var g=_aceGrupo(m);
+    if(!g)return;
     metales.forEach(function(met){
-      if(m[met]>0)(porGrupoMetal[m.descriptor+'|'+met]=porGrupoMetal[m.descriptor+'|'+met]||[]).push(m[met]);
+      if(m[met]>0)(porGrupoMetal[g+'|'+met]=porGrupoMetal[g+'|'+met]||[]).push(m[met]);
     });
   });
   var medianaPorGrupoMetal={};
@@ -3344,10 +3677,11 @@ function aceiteOutliers(ace){
   });
   var outliers=[];
   (ace||[]).forEach(function(m){
-    if(!m||!m.descriptor)return;
+    var g=_aceGrupo(m);
+    if(!g)return;
     metales.forEach(function(met){
       if(!(m[met]>0))return;
-      var mediana=medianaPorGrupoMetal[m.descriptor+'|'+met];
+      var mediana=medianaPorGrupoMetal[g+'|'+met];
       if(mediana!=null&&m[met]>10*mediana&&m[met]>2*_ACEITE_UMBRAL_METAL[met]){
         outliers.push({muestra:m,metal:met,valor:m[met],mediana:mediana});
       }
@@ -3423,10 +3757,11 @@ function outliersMultivariadosAceite(ace,minMuestras){
   var k=metales.length;
   var porGrupo={};
   (ace||[]).forEach(function(m){
-    if(!m||!m.descriptor)return;
+    var g=_aceGrupo(m);
+    if(!g)return;
     var completo=metales.every(function(met){return m[met]>0;});
     if(!completo)return;
-    (porGrupo[m.descriptor]=porGrupo[m.descriptor]||[]).push(m);
+    (porGrupo[g]=porGrupo[g]||[]).push(m);
   });
   var resultado=[];
   Object.keys(porGrupo).sort().forEach(function(desc){
@@ -4390,6 +4725,123 @@ function criticidadEquipoABanda(criticidad){
   return null;
 }
 
+// ═══ AUDITORÍA DE CAMBIOS CAMPO POR CAMPO (2026-10-17) ═══
+// Compara dos fotos de una tabla (antes y después de un guardado) y devuelve una fila de auditoría por cada cosa que cambió: filas nuevas, filas borradas y,
+// en las editadas, cada campo con su valor anterior y su valor nuevo. Es lo que alimenta la tabla auditoria_cambios (quién, en qué pestaña, qué campo, de qué a qué).
+// No decide quién ni dónde (eso lo agrega store.js al enviarlo): solo qué cambió. Reglas:
+//  - Solo se miran las columnas reales de la tabla (cfg.cols) y se dejan fuera las calculadas por el sistema (AUDIT_CAMPOS_DERIVADOS: estado, días para el PM, etc.), porque cambian
+//    solas en cada recálculo y taparían los cambios reales de las personas. Si la persona cambió el horómetro, eso sí queda; que por eso cambie el estado, no.
+//  - Tablas que no son datos de trabajo (el propio log, cachés, alertas calculadas, históricos de solo lectura) no se auditan (AUDIT_EXCLUIR_TABLAS).
+//  - Altas o bajas masivas (más de AUDIT_MAX_FILAS_ALTA_BAJA filas en un guardado, p. ej. una importación) quedan en UNA sola fila resumen, no una por fila.
+//  - Un guardado no genera más de AUDIT_MAX_REGISTROS filas de auditoría: el resto se resume en una fila "(más cambios)".
+var AUDIT_EXCLUIR_TABLAS=['changelog','mapaRep','al','ocHist','comprasDetalle','papelera'];
+var AUDIT_CAMPOS_DERIVADOS={
+  eq:['estado','tipoPM','horomProxPM','hrsRestantes','diasParaPM','fechaProxPM'],
+  neu:['pctRemanente','alerta','horasAcum','horomActual','ultimaMedicion','historial'],
+  stk:['proyMes','mesesCubierto','comprar','estado'],
+  lub:['proyMes'],
+  compMayores:['estado','riesgoNivel','riesgoTip'],
+  sen:['historial','horasAcum']
+};
+var AUDIT_MAX_FILAS_ALTA_BAJA=20,AUDIT_MAX_REGISTROS=300,AUDIT_MAX_VALOR=500;
+function _auditTexto(v){
+  if(v==null||v==='')return null;
+  var s=typeof v==='object'?JSON.stringify(v):String(v);
+  return s.length>AUDIT_MAX_VALOR?s.slice(0,AUDIT_MAX_VALOR)+'…':s;
+}
+// Texto corto para reconocer la fila sin saber su id interno: la primera de estas columnas que tenga valor.
+function auditoriaReferencia(fila){
+  if(!fila)return null;
+  var cand=['sigla','equipo','nombre','componente','nParte','descripcion','item','actividad','tarea','indicadorName','semana'];
+  var partes=[];
+  for(var i=0;i<cand.length&&partes.length<2;i++){var v=fila[cand[i]];if(v!=null&&v!==''&&typeof v!=='object')partes.push(String(v));}
+  var t=partes.join(' · ');
+  return t?t.slice(0,120):null;
+}
+function auditoriaDiff(k,cfg,antes,despues){
+  if(!cfg||!cfg.clave||AUDIT_EXCLUIR_TABLAS.indexOf(k)>=0)return [];
+  if(!Array.isArray(antes)||!Array.isArray(despues))return [];
+  var clave=cfg.clave;
+  var excl=AUDIT_CAMPOS_DERIVADOS[k]||[];
+  var cols=(cfg.cols||[]).filter(function(c){return excl.indexOf(c)<0&&c!==clave;});
+  var mapaAntes={},mapaDespues={};
+  antes.forEach(function(o){if(o&&o[clave]!=null)mapaAntes[o[clave]]=o;});
+  despues.forEach(function(o){if(o&&o[clave]!=null)mapaDespues[o[clave]]=o;});
+  var nuevas=despues.filter(function(o){return o&&(o[clave]==null||!mapaAntes[o[clave]]);});
+  var borradas=antes.filter(function(o){return o&&o[clave]!=null&&!mapaDespues[o[clave]];});
+  var out=[];
+  function altaBaja(lista,accion){
+    if(!lista.length)return;
+    if(lista.length>AUDIT_MAX_FILAS_ALTA_BAJA){
+      out.push({accion:accion,registro:null,referencia:lista.length+' filas',campo:'filas',valor_antes:null,valor_despues:(accion==='crear'?'+':'-')+lista.length,_fila:null});
+      return;
+    }
+    lista.forEach(function(o){out.push({accion:accion,registro:o[clave]!=null?String(o[clave]):null,referencia:auditoriaReferencia(o),campo:null,valor_antes:null,valor_despues:null,_fila:o});});
+  }
+  altaBaja(nuevas,'crear');
+  altaBaja(borradas,'eliminar');
+  var ediciones=[];
+  despues.forEach(function(o){
+    if(!o||o[clave]==null)return;
+    var prev=mapaAntes[o[clave]];
+    if(!prev)return;
+    cols.forEach(function(c){
+      var a=_auditTexto(prev[c]),n=_auditTexto(o[c]);
+      if(a!==n)ediciones.push({accion:'editar',registro:String(o[clave]),referencia:auditoriaReferencia(o),campo:c,valor_antes:a,valor_despues:n,_fila:null});
+    });
+  });
+  if(ediciones.length+out.length>AUDIT_MAX_REGISTROS){
+    var cupo=Math.max(0,AUDIT_MAX_REGISTROS-out.length-1);
+    var resto=ediciones.length-cupo;
+    ediciones=ediciones.slice(0,cupo);
+    ediciones.push({accion:'editar',registro:null,referencia:null,campo:'(más cambios)',valor_antes:null,valor_despues:'+'+resto+' campo(s) más en este guardado',_fila:null});
+  }
+  return out.concat(ediciones);
+}
+// Completa las filas de auditoría con quién/dónde (meta) y la clave real de las filas nuevas, que recién existe después de guardar (el sistema les pone el id al enviarlas).
+// Devuelve objetos con todas las columnas siempre presentes (el servidor exige que todas las filas de un envío tengan las mismas).
+function auditoriaFinalizar(regs,cfg,meta){
+  var m=meta||{};
+  return (regs||[]).map(function(r){
+    var registro=r.registro;
+    if(registro==null&&r._fila&&cfg&&r._fila[cfg.clave]!=null)registro=String(r._fila[cfg.clave]);
+    return{
+      tabla:cfg&&cfg.tabla?cfg.tabla:(m.tabla||null),
+      registro:registro==null?null:registro,
+      referencia:r.referencia==null?null:r.referencia,
+      accion:r.accion,
+      campo:r.campo==null?null:r.campo,
+      valor_antes:r.valor_antes==null?null:r.valor_antes,
+      valor_despues:r.valor_despues==null?null:r.valor_despues,
+      usuario_nombre:m.usuario_nombre==null?null:m.usuario_nombre,
+      rol:m.rol==null?null:m.rol,
+      pestana:m.pestana==null?null:m.pestana,
+      subpestana:m.subpestana==null?null:m.subpestana,
+      lote:m.lote==null?null:m.lote,
+      dispositivo:m.dispositivo==null?null:m.dispositivo
+    };
+  });
+}
+
+// Orden de la tabla "Equipos Urgentes" del Dashboard (2026-10-16). Antes salía en el orden en que estaban cargados los equipos. Ahora va primero
+// lo que más importa: 1) criticidad del equipo (la etiqueta Crítico/Esencial/General de la tabla equipos; sin etiqueta va al final),
+// 2) días para el PM (el más vencido primero), 3) Score de Salud más bajo, 4) sigla para que el orden sea estable. No inventa ningún puntaje
+// nuevo: son tres datos que el sistema ya tiene, puestos en orden de lectura. 'scorePorSigla' es {sigla: valor 0-100 | null}. Devuelve una copia.
+function ordenUrgentes(urgentes,scorePorSigla){
+  var rango={'Crítico':0,'Esencial':1,'General':2};
+  var sc=scorePorSigla||{};
+  function num(v,vacio){return(typeof v==='number'&&isFinite(v))?v:vacio;}
+  return (urgentes||[]).slice().sort(function(a,b){
+    var ra=rango[a.criticidad]!=null?rango[a.criticidad]:3,rb=rango[b.criticidad]!=null?rango[b.criticidad]:3;
+    if(ra!==rb)return ra-rb;
+    var da=num(a.diasParaPM,Infinity),db=num(b.diasParaPM,Infinity);
+    if(da!==db)return da<db?-1:1;
+    var sa=num(sc[a.sigla],Infinity),sb=num(sc[b.sigla],Infinity);
+    if(sa!==sb)return sa<sb?-1:1;
+    return String(a.sigla||'')<String(b.sigla||'')?-1:String(a.sigla||'')>String(b.sigla||'')?1:0;
+  });
+}
+
 // Arma la matriz final: 'items' ya viene armado por quien llama (pred.js) —
 // una fila por repuesto/insumo con riesgo de quiebre real (mismo criterio
 // de stk/lub que ya usa riesgoQuiebre), con 'probQuiebre' (de
@@ -4551,7 +5003,7 @@ function puntoReordenSeguridad(muMensual,cv,leadDias,nivelServicio){
 // cruzando con el lead time y stock actual real de cada repuesto (tabla
 // stk). Marca bajoReorden cuando el stock actual (bodega + pendiente de
 // llegar) ya cayó por debajo del punto de reorden calculado.
-function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio){
+function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio,nivelServicioPorNParte){
   var stockPorNParte={},leadPorNParte={};
   (stk||[]).forEach(function(s){
     if(!s||!s.nParte)return;
@@ -4560,7 +5012,7 @@ function puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio){
   });
   return(itemsABCXYZ||[]).map(function(it){
     var lead=leadPorNParte[it.nParte]||34;
-    var r=puntoReordenSeguridad(it.consumoMensualProm,it.cv,lead,nivelServicio);
+    var r=puntoReordenSeguridad(it.consumoMensualProm,it.cv,lead,(nivelServicioPorNParte&&nivelServicioPorNParte[it.nParte])||nivelServicio);
     if(!r)return null;
     var stockActual=stockPorNParte[it.nParte]||0;
     return Object.assign({nParte:it.nParte,claseABC:it.claseABC,claseXYZ:it.claseXYZ,
@@ -4594,7 +5046,7 @@ function eoqRazonCosto(k){return k>0?(k+1/k)/2:null;}
 // Aplica EOQ + (s,S) a la lista de ABC-XYZ y puntos de reorden. cfg: {costoPedido, tasaMantencion, maxMeses}. precio de stk.precioUnit.
 // `planPorNParte` (opcional): {nParte: demandaMensualPlanificada} del programa de PM (planReposicionAuto). Si el plan supera al consumo histórico se usa el plan para el
 // punto de reorden y el lote (el histórico puede estar subestimando lo que ya está calendarizado); si no, queda el histórico. Cada fila dice cuál se usó.
-function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio,planPorNParte){
+function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio,planPorNParte,nivelServicioPorNParte){
   var c=cfg||{},precio={};
   if(planPorNParte){
     itemsABCXYZ=(itemsABCXYZ||[]).map(function(it){
@@ -4605,7 +5057,7 @@ function politicasReposicionRepuestos(itemsABCXYZ,stk,cfg,nivelServicio,planPorN
   }
   (stk||[]).forEach(function(s){if(s&&s.nParte&&s.precioUnit>0)precio[s.nParte]=s.precioUnit;});
   var rop={};
-  puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio).forEach(function(r){rop[r.nParte]=r;});
+  puntosReordenRepuestos(itemsABCXYZ,stk,nivelServicio,nivelServicioPorNParte).forEach(function(r){rop[r.nParte]=r;});
   return(itemsABCXYZ||[]).map(function(it){
     var r=rop[it.nParte],p=precio[it.nParte];if(!r||!p)return null;
     var l=loteEconomicoPedido(it.consumoMensualProm*12,p,c.costoPedido,c.tasaMantencion,{maxMeses:c.maxMeses});
@@ -5222,11 +5674,15 @@ function _tcoVidaH(e){
   return null;
 }
 // Capital por hora de un equipo: {porHora, fuente} o null.
-function tcoCapitalPorHora(e){
-  if(Number(e.valorHoraAmort)>0)return{porHora:Number(e.valorHoraAmort),fuente:'amortización contable por hora'};
-  var v=Number(e.valorCompra)||0,vida=_tcoVidaH(e);
-  if(v>0&&vida)return{porHora:v/vida.h,fuente:'valor de compra ÷ '+vida.fuente};
-  return null;
+// fuente: 'compra' = valor de compra ÷ vida en horas (lo que costó el equipo, repartido en las horas que se espera que trabaje); 'contable' = la amortización por hora del listado
+// "Horas a Amortizar" (es un valor contable: puede incluir otros conceptos o venir de otro precio). Con cualquiera de las dos, si falta su dato se usa la otra, y el resultado
+// dice cuál se usó. Sin 'fuente' se mantiene el orden histórico (contable primero). La pantalla usa la elegida en Configuración (cfg.tcoCapitalFuente; por defecto 'compra').
+function tcoCapitalPorHora(e,fuente){
+  var vh=Number(e.valorHoraAmort)||0,v=Number(e.valorCompra)||0,vida=_tcoVidaH(e);
+  var contable=vh>0?{porHora:vh,fuente:'amortización contable por hora'}:null;
+  var compra=(v>0&&vida)?{porHora:v/vida.h,fuente:'valor de compra ÷ '+vida.fuente}:null;
+  if(fuente==='compra')return compra||contable;
+  return contable||compra;
 }
 // d: {compras, downMap, hist, hoy, hasta} · o: {costoHoraDet, minDias}. Devuelve null si no hay mantención registrada o la ventana es corta.
 function tcoEquipo(e,d,o){
@@ -5248,7 +5704,7 @@ function tcoEquipo(e,d,o){
   var mat=lineas.reduce(function(s,c){return s+(Number(c.costo)||0);},0);
   var dm=(d.downMap&&d.downMap[e.sigla])||{},horasDet=0;
   Object.keys(dm).forEach(function(f){if(f>=desde&&f<=hasta)horasDet+=dm[f];});
-  var det=horasDet*cd,cap=tcoCapitalPorHora(e),capTotal=cap?cap.porHora*horas:null;
+  var det=horasDet*cd,cap=tcoCapitalPorHora(e,op.fuenteCapital),capTotal=cap?cap.porHora*horas:null;
   var matH=mat/horas,detH=det/horas,varH=matH+detH;
   var r={sigla:e.sigla,modelo:e.modelo,tipo:e.tipo,costoHoraDet:cd,costoDetPropio:costoHoraDetPropio(e.modelo,op),desde:desde,hasta:hasta,dias:dias,anios:anios,horas:horas,horasAnio:horas/anios,fuenteHoras:fuenteHoras,
     mat:mat,matAnual:mat/anios,matPorHora:matH,horasDet:horasDet,det:det,detAnual:det/anios,detPorHora:detH,
@@ -5286,9 +5742,9 @@ function tcoFlota(equipos,d,o){
     r.modeloN=n;r.medianaModelo=n>=3?med(g.map(function(x){return x.variablePorHora;})):null;
     r.indiceVsModelo=r.medianaModelo>0?r.variablePorHora/r.medianaModelo:null;
     // unidad más nueva del mismo modelo (año de fabricación o menor horómetro) como referencia de capital de reemplazo
-    var mismos=(equipos||[]).filter(function(e){return _normalizarModelo(e.modelo)===_normalizarModelo(r.modelo)&&tcoCapitalPorHora(e);});
+    var mismos=(equipos||[]).filter(function(e){return _normalizarModelo(e.modelo)===_normalizarModelo(r.modelo)&&tcoCapitalPorHora(e,op.fuenteCapital);});
     mismos.sort(function(a,b){return(Number(b.anioFab)||0)-(Number(a.anioFab)||0)||(Number(a.horomActual)||0)-(Number(b.horomActual)||0);});
-    var nuevo=mismos[0]||null,capN=nuevo?tcoCapitalPorHora(nuevo):null;
+    var nuevo=mismos[0]||null,capN=nuevo?tcoCapitalPorHora(nuevo,op.fuenteCapital):null;
     r.capitalNuevoPorHora=capN?capN.porHora:null;r.refNuevo=nuevo?nuevo.sigla:null;
     r.razonVariableCapitalNuevo=capN&&capN.porHora>0?r.variablePorHora/capN.porHora:null;
   });
@@ -5343,12 +5799,475 @@ function tcoFlotaAuto(){
     var mttr=(typeof duracionesReparacionFlotaHoras==='function'&&typeof medianaPositiva==='function')?medianaPositiva(duracionesReparacionFlotaHoras(ot)):null;
     var aj=tboAjustesCosto(lee,mttr,S.g('hh'),(S.g('cfg')||{}).costoHoraDetUSD,(S.g('cfg')||{}).costoHoraDetModelos,(S.g('cfg')||{}).tasaUSD);
     var amort=eqs.reduce(function(a,e){return a+(Number(e&&e.valorHoraAmort)||0)+(Number(e&&e.vidaContableH)||0)+(Number(e&&e.valorCompra)||0);},0);
-    var clave=[JSON.stringify(aj.porModelo),eqs.length,eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0),amort,oc.length,cd.length,hist.length,reg.length,otAll.length,aj.costoHoraDet].join('|'),ahora=Date.now();
+    var fuenteCap=((S.g('cfg')||{}).tcoCapitalFuente)==='contable'?'contable':'compra';
+    var clave=[fuenteCap,JSON.stringify(aj.porModelo),eqs.length,eqs.reduce(function(a,e){return a+(Number(e&&e.horomActual)||0);},0),amort,oc.length,cd.length,hist.length,reg.length,otAll.length,aj.costoHoraDet].join('|'),ahora=Date.now();
     if(_tcoCache.clave===clave&&ahora-_tcoCache.ts<5000)return _tcoCache.val;
-    var res=tcoFlota(eqs,{compras:tboUnirCompras(oc,cd),hist:hist,reg:reg,ot:otAll,hoy:new Date()},{costoHoraDet:aj.costoHoraDet,costoHoraDetPorModelo:aj.porModelo});
-    var val={res:res,aj:aj};_tcoCache={clave:clave,ts:ahora,val:val};
+    var res=tcoFlota(eqs,{compras:tboUnirCompras(oc,cd),hist:hist,reg:reg,ot:otAll,hoy:new Date()},{costoHoraDet:aj.costoHoraDet,costoHoraDetPorModelo:aj.porModelo,fuenteCapital:fuenteCap});
+    var val={res:res,aj:aj,fuenteCapital:fuenteCap};_tcoCache={clave:clave,ts:ahora,val:val};
     return val;
   }catch(e){return null;}
+}
+
+// ═══ DIAGRAMAS DE SANKEY: DE DÓNDE VIENEN LAS HORAS Y EL COSTO (2026-10-13) ═══
+// Un Sankey dibuja flujos con un ancho proporcional a la cantidad: sirve para ver de un vistazo cómo se reparte el total (horas de reparación o costo anual) entre ramas sucesivas. Aquí hay dos:
+//  - costo anual (TCO): Concepto (capital, mantención, detención) → Tipo de equipo → Equipo. Usa el costo ANUALIZADO de cada equipo de tcoFlota (cada uno con su propia ventana de compras), sin mano de obra propia.
+//  - horas de reparación registradas en los últimos 12 meses: Tipo de equipo → Equipo → Componente. Solo cuentan las reparaciones con duración registrada (sin duración no se inventa).
+// Una rama pequeña no se dibuja sola: los equipos o componentes que quedan fuera del top se agrupan en "Otros". Funciones puras: calculan el flujo y la posición de cada nodo y cada cinta; el dibujo está en la pantalla.
+function _sankeyTopN(mapa,n,etiquetaOtros){
+  var ks=Object.keys(mapa).sort(function(a,b){return mapa[b]-mapa[a]||(a<b?-1:1);}),dest={},otros=0;
+  ks.forEach(function(k,i){if(i<n)dest[k]=k;else{dest[k]=etiquetaOtros;otros++;}});
+  return{dest:dest,otros:otros};
+}
+// res: tcoFlota().equipos · o: {topEquipos (10)} → {links:[{origen,destino,valor}], columnas:{id:0|1|2}, meta}
+function sankeyCostoTCO(res,o){
+  var op=o||{},top=op.topEquipos>0?op.topEquipos:10,filas=[],sinCapital=0;
+  (res||[]).forEach(function(r){
+    var cap=r.capitalAnual>0?r.capitalAnual:0,mat=r.matAnual>0?r.matAnual:0,det=r.detAnual>0?r.detAnual:0,tot=cap+mat+det;
+    if(!(tot>0))return;
+    if(!(r.capitalAnual>0))sinCapital++;
+    filas.push({sigla:r.sigla,tipo:r.tipo||'Sin tipo',cap:cap,mat:mat,det:det,tot:tot});
+  });
+  var porEq={};filas.forEach(function(f){porEq[f.sigla]=f.tot;});
+  var tn=_sankeyTopN(porEq,top,'Otros equipos'),conc={Capital:'Capital (amortización)',Mantencion:'Mantención (repuestos y servicios)',Detencion:'Detención por falla'};
+  var acc={};
+  var add=function(a,b,v){if(!(v>0))return;var k=a+'\u0001'+b;acc[k]=(acc[k]||0)+v;};
+  var columnas={};
+  filas.forEach(function(f){
+    var eqn=tn.dest[f.sigla];
+    add(conc.Capital,f.tipo,f.cap);add(conc.Mantencion,f.tipo,f.mat);add(conc.Detencion,f.tipo,f.det);
+    add(f.tipo,eqn,f.tot);
+    columnas[conc.Capital]=0;columnas[conc.Mantencion]=0;columnas[conc.Detencion]=0;columnas[f.tipo]=1;columnas[eqn]=2;
+  });
+  var links=Object.keys(acc).map(function(k){var p=k.split('\u0001');return{origen:p[0],destino:p[1],valor:acc[k]};});
+  return{links:links,columnas:columnas,meta:{total:filas.reduce(function(a,f){return a+f.tot;},0),equipos:filas.length,sinCapital:sinCapital,otros:tn.otros}};
+}
+// eventos: [{sigla, fecha, durH, componente}] · equipos: [{sigla,tipo}] · o: {desde,hasta,topEquipos (10),topComponentes (8)}
+function sankeyHorasReparacion(eventos,equipos,o){
+  var op=o||{},top=op.topEquipos>0?op.topEquipos:10,topC=op.topComponentes>0?op.topComponentes:8,tipoDe={};
+  (equipos||[]).forEach(function(e){if(e&&e.sigla)tipoDe[e.sigla]=e.tipo||'Sin tipo';});
+  var ev=(eventos||[]).filter(function(x){return x&&x.sigla&&typeof x.durH==='number'&&x.durH>0&&(!op.desde||x.fecha>=op.desde)&&(!op.hasta||x.fecha<=op.hasta);});
+  var sinDur=(eventos||[]).filter(function(x){return x&&x.sigla&&!(typeof x.durH==='number'&&x.durH>0)&&(!op.desde||x.fecha>=op.desde)&&(!op.hasta||x.fecha<=op.hasta);}).length;
+  var porEq={},porComp={};
+  ev.forEach(function(x){porEq[x.sigla]=(porEq[x.sigla]||0)+x.durH;var c=(x.componente||'').trim()||'Sin componente registrado';porComp[c]=(porComp[c]||0)+x.durH;});
+  var te=_sankeyTopN(porEq,top,'Otros equipos'),tc=_sankeyTopN(porComp,topC,'Otros componentes');
+  // "Sin componente registrado" nunca se esconde dentro de "Otros": es un dato de calidad que se quiere ver
+  if(porComp['Sin componente registrado']!=null)tc.dest['Sin componente registrado']='Sin componente registrado';
+  var acc={},columnas={},add=function(a,b,v){var k=a+'\u0001'+b;acc[k]=(acc[k]||0)+v;};
+  ev.forEach(function(x){
+    var tipo=tipoDe[x.sigla]||'Sin tipo',eqn=te.dest[x.sigla],c=(x.componente||'').trim()||'Sin componente registrado',cn=tc.dest[c];
+    add(tipo,eqn,x.durH);add(eqn,cn,x.durH);columnas[tipo]=0;columnas[eqn]=1;columnas[cn]=2;
+  });
+  var links=Object.keys(acc).map(function(k){var p=k.split('\u0001');return{origen:p[0],destino:p[1],valor:acc[k]};});
+  return{links:links,columnas:columnas,meta:{total:ev.reduce(function(a,x){return a+x.durH;},0),reparaciones:ev.length,sinDuracion:sinDur,otrosEquipos:te.otros,otrosComponentes:tc.otros}};
+}
+// Posiciones del diagrama. links: [{origen,destino,valor}] · columnas: {nodo: 0..k} · o: {ancho, alto, anchoNodo, separacion}
+// Cada nodo mide lo que fluye por él (el mayor entre lo que entra y lo que sale); todas las columnas usan la misma escala vertical, así que un mismo ancho es la misma cantidad en todo el diagrama.
+// Dentro de cada columna los nodos se ordenan por el promedio de la posición de sus orígenes (para cruzar menos cintas); las cintas se apilan en cada nodo por el orden del nodo del otro extremo.
+function sankeyLayout(links,columnas,o){
+  var op=o||{},W=op.ancho||640,H=op.alto||360,nw=op.anchoNodo||14,sep=op.separacion||8;
+  var lk=(links||[]).filter(function(l){return l&&l.valor>0&&columnas[l.origen]!=null&&columnas[l.destino]!=null;});
+  if(!lk.length)return{nodos:[],cintas:[],ky:0,ancho:W,alto:H};
+  var nodos={};
+  var nodo=function(id){return nodos[id]||(nodos[id]={id:id,col:columnas[id],entra:0,sale:0,valor:0,y:0,h:0,x:0,orden:0});};
+  lk.forEach(function(l){nodo(l.origen).sale+=l.valor;nodo(l.destino).entra+=l.valor;});
+  var lista=Object.keys(nodos).map(function(k){var n=nodos[k];n.valor=Math.max(n.entra,n.sale);return n;});
+  var nCol=Math.max.apply(null,lista.map(function(n){return n.col;}))+1,cols=[];
+  for(var c=0;c<nCol;c++)cols.push(lista.filter(function(n){return n.col===c;}).sort(function(a,b){return b.valor-a.valor||(a.id<b.id?-1:1);}));
+  var ky=Infinity;
+  cols.forEach(function(g){if(!g.length)return;var tot=g.reduce(function(a,n){return a+n.valor;},0);ky=Math.min(ky,(H-(g.length-1)*sep)/tot);});
+  if(!isFinite(ky)||ky<=0)ky=0;
+  var xDe=function(c){return nCol===1?0:c*(W-nw)/(nCol-1);};
+  // orden por baricentro de los orígenes (2 pasadas), luego posición vertical
+  var pos=function(){cols.forEach(function(g){var y=0;g.forEach(function(n){n.y=y;n.h=n.valor*ky;y+=n.h+sep;});var usado=y-sep,off=Math.max(0,(H-usado)/2);g.forEach(function(n){n.y+=off;});});};
+  pos();
+  for(var it=0;it<2;it++){
+    for(var c2=1;c2<nCol;c2++){
+      cols[c2].forEach(function(n){
+        var ps=lk.filter(function(l){return l.destino===n.id;}),sw=ps.reduce(function(a,l){return a+l.valor;},0);
+        n.bari=sw>0?ps.reduce(function(a,l){return a+(nodos[l.origen].y+nodos[l.origen].h/2)*l.valor;},0)/sw:n.y;
+      });
+      cols[c2].sort(function(a,b){return a.bari-b.bari||b.valor-a.valor;});
+    }
+    pos();
+  }
+  lista.forEach(function(n){n.x=xDe(n.col);});
+  var salida={},entrada={};lista.forEach(function(n){salida[n.id]=0;entrada[n.id]=0;});
+  var ordSal=function(id){return lk.filter(function(l){return l.origen===id;}).sort(function(a,b){return nodos[a.destino].y-nodos[b.destino].y;});};
+  var ordEnt=function(id){return lk.filter(function(l){return l.destino===id;}).sort(function(a,b){return nodos[a.origen].y-nodos[b.origen].y;});};
+  var y0={},y1={};
+  lista.forEach(function(n){var a=n.y;ordSal(n.id).forEach(function(l){y0[l.origen+'\u0001'+l.destino]=a;a+=l.valor*ky;});var b=n.y;ordEnt(n.id).forEach(function(l){y1[l.origen+'\u0001'+l.destino]=b;b+=l.valor*ky;});});
+  var cintas=lk.map(function(l){var k=l.origen+'\u0001'+l.destino;return{origen:l.origen,destino:l.destino,valor:l.valor,w:l.valor*ky,x0:nodos[l.origen].x+nw,x1:nodos[l.destino].x,y0:y0[k],y1:y1[k]};});
+  return{nodos:lista.sort(function(a,b){return a.col-b.col||a.y-b.y;}),cintas:cintas,ky:ky,ancho:W,alto:H,anchoNodo:nw,columnas:nCol};
+}
+
+// ═══ ARRIENDO VS COMPRA (2026-10-13) ═══
+// Compara, por hora de operación y por modelo de equipo, tres caminos: arrendar SECO (tú pones operador, combustible, mantención y neumáticos), arrendar HÚMEDO (todo incluido, con disponibilidad garantizada) y COMPRAR.
+// Todo se expresa en UF por hora. Cada modelo suma sus costos propios (operador, mecánicos, combustible, neumáticos, repuestos y servicios) a la tarifa seca, y compara contra la tarifa húmeda.
+//  - Operador y mecánicos: personas × costo mensual ÷ horas de operación al mes. Combustible: litros por carga ÷ horas entre cargas × precio neto del litro. Neumáticos y repuestos: los mide el propio sistema.
+//  - Seco más barato por = húmedo − seco total (positivo: conviene el seco). Se muestra el rango (mínimo contra máximo de las tarifas) y el punto medio.
+//  - Por hora PRODUCTIVA: tarifa ÷ disponibilidad. Disponibilidad de equilibrio = la disponibilidad del seco bajo la cual el húmedo sale más barato (supone la garantía del húmedo).
+//  - Comprar: capital por hora (valor de compra × (1 − valor residual) ÷ vida contable) + costos propios. No incluye financiamiento ni cambios mayores. Chequeo: cuánto pagarías en seco durante todo el contrato, en veces el valor de compra.
+// Nunca inventa un dato: lo que falta se lista en `faltan` y ese componente queda fuera del total (la fila se marca incompleta). Los valores que no puso el usuario pero tienen una sugerencia se listan en `sugeridos`.
+// Las tarifas de arriendo, el consumo y la dotación NO los mide el sistema: los define el usuario (o se sugieren y se marcan como sugeridos).
+var ARRIENDO_GENERAL_DEFECTO={diesel:300,operador:1600000,mecanico:1500000,diasMes:30.4,meses:48,dispHumedo:0.875,dispSeco:0.875,horasCarga:12,residual:0};
+// Sugerencias por modelo (tabla de tarifas estimada para contrato a 4 años y capacidad de estanque de listados de concesionarios): son un punto de partida, no un dato medido.
+function arriendoDefectoModelo(modelo){
+  var m=String(modelo||'').toUpperCase();
+  if(/HD[- ]?785/.test(m))return{litrosCarga:1308,secaMin:3.2,secaMax:4.0,humMin:8.0,humMax:10.0,fuente:'HD785-7: estanque de listado de concesionario; tarifas de la propuesta (estimación sin fuente)'};
+  if(/WA ?900/.test(m))return{litrosCarga:1555,secaMin:4.2,secaMax:5.0,humMin:9.5,humMax:11.5,fuente:'WA900-8R: estanque de listado de concesionario; tarifas de la propuesta (estimación sin fuente)'};
+  if(/D ?375A/.test(m))return{litrosCarga:1050,secaMin:4.5,secaMax:5.2,humMin:10.0,humMax:12.0,fuente:'D375A-6: estanque de listado de concesionario; tarifas de la propuesta (estimación sin fuente)'};
+  return null;
+}
+function _arrNum(v){var n=Number(v);return v!==null&&v!==undefined&&v!==''&&isFinite(n)?n:null;}
+// grupos: [{clave,nombre,nEquipos,horasDia,valorCompra,vidaContableH,repuestosPorHora,neumaticosPorHora}] (null = el sistema no tiene el dato) · sup: {uf, ...general, modelos:{clave:{operadores,mecanicos,litrosCarga,secaMin,secaMax,humMin,humMax}}}
+function arriendoVsCompra(grupos,sup){
+  var s=sup||{},uf=_arrNum(s.uf);
+  if(!(uf>0))return{ok:false,motivo:'falta el valor de la UF (en pesos) para convertir a UF por hora',filas:[]};
+  var gen={},sugGen=[];
+  Object.keys(ARRIENDO_GENERAL_DEFECTO).forEach(function(k){var v=_arrNum(s[k]);if(v==null){v=ARRIENDO_GENERAL_DEFECTO[k];sugGen.push(k);}gen[k]=v;});
+  var filas=(grupos||[]).map(function(g){
+    var u=(s.modelos&&s.modelos[g.clave])||{},def=arriendoDefectoModelo(g.nombre),faltan=[],sug=[];
+    var tomar=function(campo,calc){var v=_arrNum(u[campo]);if(v!=null)return v;var d=calc!=null?calc:(def&&def[campo]!=null?def[campo]:null);if(d!=null)sug.push(campo);return d;};
+    var hd=_arrNum(g.horasDia),hm=hd>0?hd*gen.diasMes:null;
+    var dotDef=hd>0?2*Math.ceil(hd/12):null;
+    var operadores=tomar('operadores',dotDef),mecanicos=tomar('mecanicos',dotDef),litros=tomar('litrosCarga'),
+      secaMin=tomar('secaMin'),secaMax=tomar('secaMax'),humMin=tomar('humMin'),humMax=tomar('humMax');
+    if(!(hm>0))faltan.push('horas de operación por día');
+    var c={operador:null,mecanico:null,combustible:null,neumaticos:null,repuestos:null};
+    if(hm>0&&operadores!=null)c.operador=operadores*gen.operador/hm;else if(hm>0)faltan.push('operadores por equipo');
+    if(hm>0&&mecanicos!=null)c.mecanico=mecanicos*gen.mecanico/hm;else if(hm>0)faltan.push('mecánicos por equipo');
+    if(litros!=null&&gen.horasCarga>0)c.combustible=litros/gen.horasCarga*gen.diesel;else faltan.push('litros por carga');
+    var rep=_arrNum(g.repuestosPorHora),neu=_arrNum(g.neumaticosPorHora);
+    if(rep!=null)c.repuestos=rep;else faltan.push('repuestos y servicios (se necesitan 90 días de compras con horas de operación)');
+    c.neumaticos=neu!=null?neu:0;   // sin neumáticos registrados (por ejemplo un bulldozer de orugas) cuenta 0
+    var propiosCLP=0;Object.keys(c).forEach(function(k){if(c[k]!=null)propiosCLP+=c[k];});
+    var propiosUF=propiosCLP/uf;
+    var r={clave:g.clave,nombre:g.nombre,nEquipos:g.nEquipos,horasMes:hm,horasContrato:hm>0?hm*gen.meses:null,costosCLP:c,propiosCLP:propiosCLP,propiosUF:propiosUF,
+      seco:null,humedo:null,diferencia:null,productivo:null,equilibrio:null,compra:null,chequeo:null,faltan:faltan,sugeridos:sug,fuenteSugerida:def?def.fuente:null,
+      entradas:{operadores:operadores,mecanicos:mecanicos,litrosCarga:litros,secaMin:secaMin,secaMax:secaMax,humMin:humMin,humMax:humMax}};
+    var tarSeco=secaMin!=null&&secaMax!=null,tarHum=humMin!=null&&humMax!=null;
+    if(tarSeco)r.seco={min:secaMin+propiosUF,max:secaMax+propiosUF,medio:(secaMin+secaMax)/2+propiosUF};else faltan.push('tarifa seca (mínima y máxima)');
+    if(tarHum)r.humedo={min:humMin,max:humMax,medio:(humMin+humMax)/2};else faltan.push('tarifa húmeda (mínima y máxima)');
+    if(r.seco&&r.humedo){
+      r.diferencia={min:r.humedo.min-r.seco.max,max:r.humedo.max-r.seco.min,medio:r.humedo.medio-r.seco.medio};
+      r.diferencia.medioCLP=r.diferencia.medio*uf;
+      if(gen.dispSeco>0&&gen.dispHumedo>0){
+        r.productivo={seco:r.seco.medio/gen.dispSeco,humedo:r.humedo.medio/gen.dispHumedo};
+        r.productivo.ahorroPct=1-r.productivo.seco/r.productivo.humedo;
+        r.equilibrio=r.seco.medio/r.productivo.humedo;
+      }
+    }
+    var vc=_arrNum(g.valorCompra),vida=_arrNum(g.vidaContableH);
+    if(vc>0&&vida>0){var cap=vc*(1-gen.residual)/vida/uf;r.compra={capitalUF:cap,totalUF:cap+propiosUF};}else faltan.push('valor de compra y vida contable');
+    if(vc>0&&tarSeco&&r.horasContrato>0){var pago=(secaMin+secaMax)/2*r.horasContrato*uf;r.chequeo={pagoSeco:pago,valorCompra:vc,veces:pago/vc};}
+    r.completo=faltan.length===0;
+    return r;
+  });
+  return{ok:true,uf:uf,general:gen,generalSugerido:sugGen,filas:filas};
+}
+
+// ═══ M4 (ABC × VED) Y M6 (PRIORIDAD DE OT) QUE USAN LA CRITICIDAD DE EQUIPOS (2026-10-13) ═══
+// Banda 1-5 de un equipo para decisiones de otros módulos: el PEOR CASO entre el nivel calculado (M2: Alta 5, Media 3, Baja 1) y la etiqueta manual (Crítico 5, Esencial 3, General 1), igual que ya hace la criticidad de
+// repuestos ("nunca se minimiza una señal real con la otra"): la etiqueta puede contener juicio que los datos no miden (seguridad, rol en la producción). Devuelve {banda, fuente: 'calculada'|'manual'|'ambas'} o null sin ninguna de las dos.
+function bandaCriticidadEquipo(nivelCalc,criticidadManual){
+  var bc=nivelCalc==='Alta'?5:nivelCalc==='Media'?3:nivelCalc==='Baja'?1:null,bm=criticidadEquipoABanda(criticidadManual);
+  if(bc==null&&bm==null)return null;
+  var b=Math.max(bc||0,bm||0);
+  return{banda:b,fuente:bc==null?'manual':bm==null?'calculada':bc===bm?'ambas':bc>bm?'calculada':'manual'};
+}
+// El campo "equipoModelo" de los repuestos es texto libre ("HD785-7/WA900/D375", "BD-10139 Bulldozer", "AROCS", "Cargador Frontal", y a veces una marca de filtro como "Fleetguard"). Se separa en palabras y cada una se busca en el
+// modelo, la sigla o el tipo del equipo (como palabra completa), sin distinguir mayúsculas ni símbolos. Una palabra de menos de 3 caracteres o genérica ("filtro", "aceite") no cuenta. Si nada calza, el repuesto queda "sin equipo asociado": no se inventa.
+var _VED_PALABRAS_GENERICAS={filtro:1,filtros:1,aceite:1,repuesto:1,repuestos:1,para:1,del:1,equipo:1,equipos:1,generico:1};
+function _normTxt(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');}
+function equiposDeRepuesto(equipoModelo,equipos){
+  var palabras=String(equipoModelo||'').split(/[\/,;\s]+/).map(_normTxt).filter(function(w){return w.length>=3&&!_VED_PALABRAS_GENERICAS[w];});
+  if(!palabras.length)return[];
+  var lista=(equipos||[]).filter(function(e){return e&&e.sigla;});
+  // Si el texto nombra una sigla concreta ("BD-10139 Bulldozer"), manda esa: no se extiende a todos los equipos del mismo tipo.
+  var porSigla=lista.filter(function(e){return palabras.indexOf(_normTxt(e.sigla))>=0;});
+  if(porSigla.length)return porSigla.map(function(e){return e.sigla;});
+  return lista.filter(function(e){
+    var mod=_normTxt(e.modelo),tipoW=String(e.tipo||'').split(/\s+/).map(_normTxt);
+    return palabras.some(function(w){return(mod&&mod.indexOf(w)>=0)||tipoW.indexOf(w)>=0;});
+  }).map(function(e){return e.sigla;});
+}
+// ABC × VED: ABC (gasto anual, de ABC-XYZ) cruzado con VED = Vital / Esencial / Deseable, según la criticidad del equipo MÁS crítico que usa el repuesto (banda 5 = Vital, 3-4 = Esencial, 1-2 = Deseable).
+// Categoría de control (matriz clásica): I = AV, AE, BV (control estricto) · II = AD, BE, CV (moderado) · III = BD, CE, CD (simple). El VED también fija el nivel de servicio del stock de seguridad (Vital 99 %, Esencial 95 %, Deseable 90 %: los niveles que admite el cálculo de stock de seguridad).
+var VED_NIVEL_SERVICIO={V:0.99,E:0.95,D:0.90};
+var VED_ETIQUETA={V:'Vital',E:'Esencial',D:'Deseable'};
+var ABCVED_CATEGORIA={AV:'I',AE:'I',BV:'I',AD:'II',BE:'II',CV:'II',BD:'III',CE:'III',CD:'III'};
+var ABCVED_POLITICA={
+  I:'Control estricto: stock de seguridad alto, revisión frecuente, proveedor alterno si se puede.',
+  II:'Control moderado: punto de reorden con revisión periódica.',
+  III:'Control simple: pedido por lote económico, sin stock de seguridad extra.'};
+function vedDeBanda(b){return b==null?null:b>=5?'V':b>=3?'E':'D';}
+// items: [{nParte, claseABC, equipoModelo}] · equipos: [{sigla,modelo,tipo}] · bandaPorSigla: {sigla: banda 1-5}
+function vedRepuestos(items,equipos,bandaPorSigla){
+  return(items||[]).map(function(it){
+    var sig=equiposDeRepuesto(it.equipoModelo,equipos),bandas=sig.map(function(x){return bandaPorSigla&&bandaPorSigla[x];}).filter(function(b){return b!=null;});
+    var banda=bandas.length?Math.max.apply(null,bandas):null,ved=vedDeBanda(banda);
+    return Object.assign({},it,{equiposAsociados:sig,banda:banda,ved:ved,categoria:ved&&it.claseABC?ABCVED_CATEGORIA[it.claseABC+ved]||null:null,nivelServicio:ved?VED_NIVEL_SERVICIO[ved]:null});
+  });
+}
+function matrizABCVED(itemsConVed){
+  var celdas={A:{V:[],E:[],D:[]},B:{V:[],E:[],D:[]},C:{V:[],E:[],D:[]}},sinDato=[],resumen={I:0,II:0,III:0,sinDato:0};
+  (itemsConVed||[]).forEach(function(it){
+    if(!it.ved||!celdas[it.claseABC]){sinDato.push(it);resumen.sinDato++;return;}
+    celdas[it.claseABC][it.ved].push(it);resumen[it.categoria]++;
+  });
+  return{celdas:celdas,sinDato:sinDato,resumen:resumen};
+}
+// M6 — prioridad de una OT pendiente = Urgencia × Impacto (1-5 cada una, 1-25 en total). Impacto: banda de criticidad del equipo (arriba); sin ninguna criticidad se usa 3 (neutro) y se avisa; un equipo fuera de servicio ahora cuenta como
+// mínimo 4. Urgencia: días pendiente (hasta 1 día = 1, hasta 3 = 2, hasta 7 = 3, hasta 14 = 4, más = 5); un PM vencido cuenta como mínimo 3 y un equipo fuera de servicio como mínimo 4. Niveles: ≥15 P1 resolver hoy, 8-14 P2 esta semana, 4-7 P3 programar, <4 P4 puede esperar.
+// items: [{sigla, dias, origen, fueraDeServicio}] · bandaPorSigla: {sigla: {banda, fuente}}
+function urgenciaPorDias(d){return d<=1?1:d<=3?2:d<=7?3:d<=14?4:5;}
+function prioridadOT(items,bandaPorSigla){
+  return(items||[]).map(function(it){
+    var b=bandaPorSigla&&bandaPorSigla[it.sigla],imp=b?b.banda:3,fuente=b?b.fuente:'sin criticidad (se usa 3, neutro)';
+    if(it.fueraDeServicio&&imp<4){imp=4;fuente='equipo fuera de servicio';}
+    var urg=urgenciaPorDias(Math.max(0,Number(it.dias)||0));
+    if(it.origen==='Preventivo'&&urg<3)urg=3;
+    if(it.fueraDeServicio&&urg<4)urg=4;
+    var pt=urg*imp,nivel=pt>=15?'P1':pt>=8?'P2':pt>=4?'P3':'P4';
+    return Object.assign({},it,{impacto:imp,impactoFuente:fuente,urgencia:urg,puntaje:pt,nivel:nivel,accion:nivel==='P1'?'Resolver hoy':nivel==='P2'?'Esta semana':nivel==='P3'?'Programar':'Puede esperar'});
+  }).sort(function(a,b){return b.puntaje-a.puntaje||(b.dias||0)-(a.dias||0);});
+}
+
+// ═══ CRITICIDAD DE EQUIPOS MULTICRITERIO — matriz M2 (2026-10-13) ═══
+// Hasta hoy la criticidad de un equipo era una etiqueta manual de 3 niveles (Crítico / Esencial / General). Esta matriz la calcula con datos y la compara con esa etiqueta, sin reemplazarla: Criticidad = Frecuencia × Consecuencia, cada una
+// en una escala de 1 a 5, 5×5 como la matriz de riesgo. Escalas RELATIVAS a la propia flota (percentil, igual que las medianas del Jack-Knife), no umbrales fijos.
+//  - Frecuencia: fallas por 1.000 h de operación en los últimos 12 meses (horas del horómetro; si no hay lecturas suficientes, las horas/día declaradas). Cero fallas = 1.
+//  - Consecuencia: promedio ponderado de hasta tres criterios con su puntaje 1-5: duración típica de la reparación (mediana de sus reparaciones, 35 %), valor de la hora detenida del modelo (Configuración, 35 %) e importancia operacional (la etiqueta manual, 30 %).
+//    Un criterio sin variación en la flota (por ejemplo todos los modelos con el mismo costo de hora detenida) no discrimina y se excluye, y los pesos se reparten entre los que quedan. Hacen falta al menos 2 criterios por equipo.
+//  - Nivel: Frecuencia × Consecuencia ≥ 15 = Alta, 8 a 14 = Media, menos de 8 = Baja.
+// Lo que NO mide: seguridad y ambiente (no hay datos registrados) ni producción por tipo de equipo (solo el costo de hora detenida del modelo la representa). Un equipo sin horas de operación confiables o sin criterios suficientes se excluye con su motivo.
+// equipos: [{sigla,tipo,modelo,criticidad,hrsDia,unidad}] · d: {eventos [{sigla,fecha,durH}], hist, hoy, costoHoraDe: function(modelo)} · o: {desde,hasta}
+var CRIT_PESOS={mttr:0.35,costoHora:0.35,importancia:0.30};
+var CRIT_IMPORTANCIA={'Crítico':3,'Critico':3,'Esencial':2,'General':1};
+var CRIT_NIVEL_MANUAL={'Crítico':'Alta','Critico':'Alta','Esencial':'Media','General':'Baja'};
+function _critMediana(a){var v=a.slice().sort(function(x,y){return x-y;}),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;}   // mediana: un registro viejo sin cerrar (por ejemplo 300 h) no debe definir la consecuencia de un equipo
+function _critPuntaje(valor,todos){var n=todos.length,m=0;for(var i=0;i<n;i++)if(todos[i]<valor)m++;return Math.min(5,1+Math.floor(5*m/n));}
+function criticidadEquiposMulticriterio(equipos,d,o){
+  var op=o||{},hoy=_tcoIso(d.hoy),hasta=op.hasta||hoy,desde=op.desde||_fechaMas(hasta,-365),dias=Math.max(1,_tcoDias(desde,hasta)),base=[],excl=[];
+  (equipos||[]).forEach(function(e){
+    if(!e||!e.sigla||e.unidad==='km')return;
+    var lec=C.lecturasValidas(d.hist||[],e.sigla).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;}),val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
+    var horas=null,origen='';
+    if(lec.length>=2){var a=lec[0],b=lec[lec.length-1],dd=_tcoDias(a.fecha,b.fecha),hh=val(b)-val(a);if(dd>=60&&hh>=0&&hh/dd<=24){horas=hh/dd*dias;origen='horómetro';}}
+    if(horas==null&&e.hrsDia>=1&&e.hrsDia<=24){horas=e.hrsDia*dias;origen='horas/día declaradas';}
+    if(!(horas>=100)){excl.push({sigla:e.sigla,motivo:'sin horas de operación confiables en los últimos 12 meses'});return;}
+    var ev=(d.eventos||[]).filter(function(x){return x.sigla===e.sigla&&x.fecha>=desde&&x.fecha<=hasta;});
+    var dur=ev.map(function(x){return x.durH;}).filter(function(x){return typeof x==='number'&&x>=0;});
+    var ch=typeof d.costoHoraDe==='function'?Number(d.costoHoraDe(e.modelo))||null:null;
+    base.push({sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||'',fallas:ev.length,horas:Math.round(horas),horasOrigen:origen,fallas1000:ev.length/horas*1000,
+      mttr:dur.length?_critMediana(dur):null,nDur:dur.length,costoHora:ch,importancia:CRIT_IMPORTANCIA[e.criticidad]||null,criticidadManual:e.criticidad||null});
+  });
+  if(base.length<5)return{ok:false,motivo:'hay '+base.length+' equipos con datos y se necesitan al menos 5 para que la escala relativa tenga sentido',filas:[],excluidos:excl};
+  var claves=['mttr','costoHora','importancia'],usados=[],sinVar=[],pk={};
+  claves.forEach(function(k){
+    var vs=base.map(function(f){return f[k];}).filter(function(v){return v!=null;});
+    if(vs.length<3)return;
+    var mn=Math.min.apply(null,vs),mx=Math.max.apply(null,vs);
+    if(mn===mx){sinVar.push(k);return;}
+    usados.push(k);pk[k]=vs;
+  });
+  var todosF=base.map(function(f){return f.fallas1000;});
+  var filas=[];
+  base.forEach(function(f){
+    var F=_critPuntaje(f.fallas1000,todosF),sw=0,sc=0,punt={};
+    usados.forEach(function(k){if(f[k]!=null){punt[k]=_critPuntaje(f[k],pk[k]);sc+=CRIT_PESOS[k]*punt[k];sw+=CRIT_PESOS[k];}});
+    if(Object.keys(punt).length<2){excl.push({sigla:f.sigla,motivo:'menos de 2 criterios de consecuencia con dato (duración de reparación, costo de hora detenida, importancia)'});return;}
+    var Cc=Math.round(sc/sw*10)/10,pt=Math.round(F*Cc*10)/10,nivel=pt>=15?'Alta':pt>=8?'Media':'Baja',man=CRIT_NIVEL_MANUAL[f.criticidadManual]||null;
+    var ord={Baja:1,Media:2,Alta:3},comp=man?(ord[nivel]>ord[man]?'mas_alta':ord[nivel]<ord[man]?'mas_baja':'coincide'):'sin_etiqueta';
+    filas.push({sigla:f.sigla,tipo:f.tipo,modelo:f.modelo,fallas:f.fallas,horas:f.horas,horasOrigen:f.horasOrigen,fallas1000:f.fallas1000,mttr:f.mttr,nDur:f.nDur,costoHora:f.costoHora,importancia:f.importancia,
+      puntajes:punt,F:F,C:Cc,puntaje:pt,nivel:nivel,criticidadManual:f.criticidadManual,nivelManual:man,comparacion:comp});
+  });
+  filas.sort(function(x,y){return y.puntaje-x.puntaje||y.fallas1000-x.fallas1000;});
+  var matriz=[];for(var i=0;i<5;i++){matriz.push([]);for(var j=0;j<5;j++)matriz[i].push([]);}
+  filas.forEach(function(f){matriz[f.F-1][Math.min(5,Math.max(1,Math.round(f.C)))-1].push(f.sigla);});   // matriz[F-1][C-1]
+  var resumen={Alta:0,Media:0,Baja:0},disc={mas_alta:0,mas_baja:0,coincide:0,sin_etiqueta:0};
+  filas.forEach(function(f){resumen[f.nivel]++;disc[f.comparacion]++;});
+  var sw=usados.reduce(function(a,k){return a+CRIT_PESOS[k];},0),pesos={};usados.forEach(function(k){pesos[k]=Math.round(CRIT_PESOS[k]/sw*100);});
+  return{ok:filas.length>=5,motivo:filas.length>=5?null:'quedaron menos de 5 equipos con criterios suficientes',ventana:{desde:desde,hasta:hasta,dias:dias},filas:filas,excluidos:excl,criteriosUsados:usados,criteriosSinVariacion:sinVar,pesos:pesos,matriz:matriz,resumen:resumen,comparacion:disc};
+}
+
+// ═══ POTENCIA DE LAS PRUEBAS: AVISO DE MUESTRA CHICA (2026-10-13) ═══
+// Un resultado "no significativo" no prueba que no haya diferencia: con pocos datos la prueba solo detecta diferencias muy grandes (poca potencia, error tipo II). Con α=5 % (dos colas) y potencia 80 %, la diferencia
+// mínima detectable entre dos grupos de n datos cada uno es d = (1,96 + 0,84)·√(2/n) desviaciones típicas (aproximación normal); para la comparación de curvas de supervivencia (Log-Rank), con d1 y d2 fallas por grupo,
+// el cociente de riesgos mínimo detectable es exp((1,96 + 0,84)·√(1/d1 + 1/d2)) (Schoenfeld). Son aproximaciones orientativas: el aviso solo se muestra cuando el resultado NO es significativo y lo detectable es "grande".
+var _POT_Z=1.959964+0.841621;
+function efectoMinimoDetectable(nPorGrupo){return nPorGrupo>=2?_POT_Z*Math.sqrt(2/nPorGrupo):null;}
+function hrMinimoDetectable(fallasA,fallasB){return fallasA>0&&fallasB>0?Math.exp(_POT_Z*Math.sqrt(1/fallasA+1/fallasB)):null;}
+// significativo: resultado de la prueba · nMin: datos del grupo más chico · devuelve null si no corresponde avisar
+function avisoMuestraChica(significativo,nMin){
+  if(significativo||!(nMin>=2))return null;
+  var d=efectoMinimoDetectable(nMin);
+  return d>=0.8?{tipo:'efecto',n:nMin,d:Math.round(d*100)/100}:null;
+}
+function avisoMuestraChicaSupervivencia(significativo,fallasA,fallasB){
+  if(significativo)return null;
+  var hr=hrMinimoDetectable(fallasA,fallasB);
+  return hr!=null&&hr>=2?{tipo:'hr',fallasMin:Math.min(fallasA,fallasB),hr:Math.round(hr*10)/10}:null;
+}
+
+// ═══ PROGRAMA DE CAMBIO DE NEUMÁTICOS PROYECTADO (2026-10-12) ═══
+// No existía un programa de cambios por semana / mes / semestre / año ni una curva S. La fecha de cambio de cada neumático ya la calcula neuProyeccion (regresión de desgaste sobre sus mediciones, o límite de
+// horas en delanteros); acá solo se AGRUPA por período, sin re-estimar nada. Punto delicado: esa proyección cuenta los días "desde ahora", pero las horas que le quedan son las de la ÚLTIMA MEDICIÓN; si
+// la medición tiene 2 meses, la fecha real de cambio es 2 meses antes. Por eso la fecha se ancla en la fecha de la última medición (base) y los que ya pasaron su fecha se informan aparte como "vencidos".
+// items: [{sigla, posicion, serie, base (ISO de la última medición, o null), dias (días restantes contados desde esa base), precio, motivo, confianza}] · reales: fechas ISO de cambios ya hechos
+// o: {hoy, periodo: 'semana'|'mes'|'semestre'|'anio', ref (fecha dentro del período)}.
+// Curva S = avance real (cambios hechos en el período, hasta hoy) + proyección (vencidos a cambiar ya + los que vencen de hoy a fin del período). No hay un plan congelado contra el cual medir cumplimiento: la
+// proyección se recalcula con cada medición y un neumático ya cambiado sale del programa; por eso la curva muestra avance + lo que falta, no un porcentaje de cumplimiento.
+function neuProgramaCambios(items,reales,o){
+  var op=o||{},hoy=_tcoIso(op.hoy),tipo=op.periodo||'mes',rg=periodoRango(tipo,op.ref||hoy),desde=rg.desde,hasta=rg.hasta;
+  var enr=(items||[]).filter(function(it){return it&&isFinite(it.dias);}).map(function(it){
+    var base=it.base||hoy,dias=Math.max(0,Math.round(it.dias)),f=_fechaMas(base,dias),edad=it.base?Math.max(0,_tcoDias(it.base,hoy)):null;
+    return{sigla:it.sigla,posicion:it.posicion,serie:it.serie,base:it.base||null,precio:Number(it.precio)||0,motivo:it.motivo||'',confianza:it.confianza||'',fechaCambio:f,vencido:f<hoy,diasMedicion:edad,medicionVieja:edad!=null&&edad>45};
+  });
+  var incluyeHoy=hoy>=desde&&hoy<=hasta,futuro=desde>hoy;
+  var vencidos=enr.filter(function(x){return x.vencido;}).sort(function(a,b){return a.fechaCambio<b.fechaCambio?-1:1;});
+  var arrastre=futuro?enr.filter(function(x){return x.fechaCambio<desde;}).length:0;
+  var ini=incluyeHoy?hoy:desde,pend=hasta<hoy?[]:enr.filter(function(x){return x.fechaCambio>=ini&&x.fechaCambio<=hasta;}).sort(function(a,b){return a.fechaCambio<b.fechaCambio?-1:a.fechaCambio>b.fechaCambio?1:a.sigla<b.sigla?-1:1;});
+  var rr=(reales||[]).filter(function(f){return f&&f>=desde&&f<=hasta&&f<=hoy;});
+  var suma=function(a){return a.reduce(function(t,x){return t+x.precio;},0);};
+  // sub-períodos (la tabla): semana→días, mes→semanas, semestre/año→meses
+  var subs=[],corto=function(iso){return parseInt(iso.slice(8,10),10)+'-'+_PER_MESES[parseInt(iso.slice(5,7),10)-1];};
+  var cur=desde;
+  while(cur<=hasta){
+    var sd,sh,et;
+    if(tipo==='semana'){sd=cur;sh=cur;et=corto(cur);}
+    else if(tipo==='mes'){var w=periodoRango('semana',cur);sd=w.desde<desde?desde:w.desde;sh=w.hasta>hasta?hasta:w.hasta;et=corto(sd)+' al '+corto(sh);}
+    else{var m=periodoRango('mes',cur);sd=m.desde;sh=m.hasta;et=periodoEtiqueta('mes',m.desde,m.hasta);}
+    var delPer=pend.filter(function(x){return x.fechaCambio>=sd&&x.fechaCambio<=sh;});
+    subs.push({desde:sd,hasta:sh,etiqueta:et,proyectados:delPer.length,costo:suma(delPer),reales:sd<=hoy?rr.filter(function(f){return f>=sd&&f<=sh;}).length:null,actual:hoy>=sd&&hoy<=sh,items:delPer});
+    cur=_fechaMas(sh,1);
+  }
+  // curva S diaria
+  var n=_tcoDias(desde,hasta)+1,dias=[],realAc=null,vcnt=incluyeHoy?vencidos.length:0,i;
+  for(i=0;i<n;i++){
+    var f=_fechaMas(desde,i),r=f<=hoy?rr.filter(function(x){return x<=f;}).length:null;
+    var py=null;
+    if(f>=ini&&hasta>=hoy||futuro){var base0=incluyeHoy?rr.length+vcnt:0;py=base0+pend.filter(function(x){return x.fechaCambio<=f;}).length;}
+    dias.push({fecha:f,real:r,proyeccion:py});
+  }
+  var totalProy=(incluyeHoy?rr.length+vcnt:futuro?0:rr.length)+pend.length;
+  return{rango:{tipo:tipo,desde:desde,hasta:hasta,etiqueta:periodoEtiqueta(tipo,desde,hasta)},incluyeHoy:incluyeHoy,futuro:futuro,
+    totales:{reales:rr.length,vencidos:vencidos.length,pendientes:pend.length,proyectadoTotal:totalProy,costoPendiente:suma(pend),costoVencidos:suma(vencidos),arrastre:arrastre},
+    subperiodos:subs,vencidos:vencidos,pendientes:pend,curva:dias};
+}
+// Cambios ya hechos, de neuHist [{sigla,posicion,fecha}] (historial de neumáticos: cada fila es un retiro/cambio en un equipo y posición). La posición viene escrita de muchas formas ("1", "Posicion 1", "Posición 1", "Pos. 1"):
+// se compara por su número. Cargas repetidas del mismo equipo + posición + fecha cuentan una vez; las filas sin posición no se pueden deduplicar y cuentan cada una.
+function neuCambiosRealizados(neuHist){
+  var vistos={},out=[];
+  (neuHist||[]).forEach(function(r){
+    if(!r||!r.sigla||!r.fecha)return;
+    var f=String(r.fecha).slice(0,10),m=String(r.posicion==null?'':r.posicion).match(/(\d+)/);
+    if(m){var k=r.sigla+'|'+parseInt(m[1],10)+'|'+f;if(vistos[k])return;vistos[k]=1;}
+    out.push(f);
+  });
+  return out.sort();
+}
+
+// ═══ ANÁLISIS DE COMPONENTES PRINCIPALES (PCA) DE LA FLOTA (2026-10-11) ═══
+// PCA resume varios indicadores correlacionados de cada equipo (fallas por 1.000 h, horas por reparación, % de días fuera de servicio, uso diario, horómetro) en 2 o 3 ejes y permite ver qué
+// equipos se alejan del grupo. Pasos: estandarizar cada variable (media 0, desviación 1: así ninguna manda por su unidad), matriz de correlación, valores y vectores propios (Jacobi), puntajes = datos
+// estandarizados × vectores. IMPORTANTE para no engañarse: con pocos equipos los ejes son inestables (se mide con "dejar uno afuera"), si se mezclan tipos de equipo el primer eje solo separa los tipos, y un
+// equipo "atípico" muchas veces es un dato malo (por eso se descartan antes los horómetros imposibles). Solo con filas completas; se pide n ≥ 8 y al menos 3 variables con variación.
+function _eigenSimetrica(A){
+  var n=A.length,a=A.map(function(r){return r.slice();}),V=[];
+  for(var i=0;i<n;i++){V.push([]);for(var j=0;j<n;j++)V[i].push(i===j?1:0);}
+  for(var sw=0;sw<100;sw++){
+    var p=0,q=1,mx=0;
+    for(i=0;i<n;i++)for(j=i+1;j<n;j++)if(Math.abs(a[i][j])>mx){mx=Math.abs(a[i][j]);p=i;q=j;}
+    if(mx<1e-13)break;
+    var th=(a[q][q]-a[p][p])/(2*a[p][q]),t=(th>=0?1:-1)/(Math.abs(th)+Math.sqrt(th*th+1)),c=1/Math.sqrt(t*t+1),s=t*c;
+    for(var k=0;k<n;k++){var akp=a[k][p],akq=a[k][q];a[k][p]=c*akp-s*akq;a[k][q]=s*akp+c*akq;}
+    for(k=0;k<n;k++){var apk=a[p][k],aqk=a[q][k];a[p][k]=c*apk-s*aqk;a[q][k]=s*apk+c*aqk;}
+    for(k=0;k<n;k++){var vkp=V[k][p],vkq=V[k][q];V[k][p]=c*vkp-s*vkq;V[k][q]=s*vkp+c*vkq;}
+  }
+  var vals=a.map(function(r,i){return r[i];}),ord=vals.map(function(v,i){return i;}).sort(function(x,y){return vals[y]-vals[x];});
+  return{valores:ord.map(function(i){return Math.max(0,vals[i]);}),vectores:ord.map(function(i){return V.map(function(r){return r[i];});})};   // vectores[k] = k-ésimo vector propio
+}
+var _PCA_CHI2_95={1:3.841,2:5.991,3:7.815,4:9.488,5:11.07};
+// X: filas (equipos) × columnas (variables), con null donde falta el dato · nombres: de las variables · o: {minFilas (8), minVars (3)}
+function pcaAnalisis(X,nombres,o){
+  var op=o||{},minF=op.minFilas>0?op.minFilas:8,minV=op.minVars>0?op.minVars:3;
+  var idx=[],excl=[];
+  (X||[]).forEach(function(r,i){if(r&&r.length&&r.every(function(v){return typeof v==='number'&&isFinite(v);}))idx.push(i);else excl.push(i);});
+  var p0=(nombres||[]).length,n=idx.length;
+  if(n<minF||p0<minV)return{ok:false,motivo:n<minF?'hay '+n+' equipos con todos los datos y se necesitan al menos '+minF:'se necesitan al menos '+minV+' variables',filas:idx,excluidas:excl};
+  var media=[],sd=[],constantes=[],cols=[];
+  for(var j=0;j<p0;j++){
+    var m=0;idx.forEach(function(i){m+=X[i][j];});m/=n;
+    var v=0;idx.forEach(function(i){v+=(X[i][j]-m)*(X[i][j]-m);});v=Math.sqrt(v/(n-1));
+    if(v>1e-12){cols.push(j);media.push(m);sd.push(v);}else constantes.push(nombres[j]);
+  }
+  var p=cols.length;
+  if(p<minV)return{ok:false,motivo:'solo '+p+' variables con variación (se necesitan '+minV+')',filas:idx,excluidas:excl,constantes:constantes};
+  var Z=idx.map(function(i){return cols.map(function(j,k){return(X[i][j]-media[k])/sd[k];});});
+  var R=[];for(var a=0;a<p;a++){R.push([]);for(var b=0;b<p;b++){var s=0;for(var r=0;r<n;r++)s+=Z[r][a]*Z[r][b];R[a].push(s/(n-1));}}
+  var E=_eigenSimetrica(R);
+  // signo determinista: la suma de las cargas de cada componente es positiva
+  E.vectores.forEach(function(vec){var sm=vec.reduce(function(x,y){return x+y;},0);if(sm<0)for(var k=0;k<vec.length;k++)vec[k]=-vec[k];});
+  var tot=E.valores.reduce(function(x,y){return x+y;},0),acum=0;
+  var varianza=E.valores.map(function(l){acum+=l/tot;return{valor:l,pct:l/tot,acumulado:acum};});
+  var nombresV=cols.map(function(j){return nombres[j];});
+  var cargas=E.vectores.map(function(vec,k){return vec.map(function(x){return x*Math.sqrt(E.valores[k]);});});   // cargas[k][j] = correlación de la variable j con el componente k
+  var puntajes=Z.map(function(z){return E.vectores.map(function(vec){var s=0;for(var k=0;k<p;k++)s+=z[k]*vec[k];return s;});});
+  var nRet=Math.max(1,Math.min(5,E.valores.filter(function(l){return l>1;}).length));      // criterio de Kaiser (autovalor > 1), máximo 5
+  var chi=_PCA_CHI2_95[Math.min(nRet,5)];
+  var t2=puntajes.map(function(sc){var t=0;for(var k=0;k<nRet;k++)t+=sc[k]*sc[k]/Math.max(E.valores[k],1e-12);return t;});
+  // estabilidad: ¿el primer eje cambia si se deja un equipo afuera? (coseno mínimo entre el PC1 completo y el de cada subconjunto)
+  var cosMin=1,peor=-1;
+  for(var d=0;d<n;d++){
+    var Zs=Z.filter(function(_,i){return i!==d;}),ms=[],ss=[];
+    for(var jj=0;jj<p;jj++){var mm=0;Zs.forEach(function(z){mm+=z[jj];});mm/=n-1;var vv=0;Zs.forEach(function(z){vv+=(z[jj]-mm)*(z[jj]-mm);});ms.push(mm);ss.push(Math.sqrt(vv/(n-2))||1);}
+    var Rs=[];for(var a2=0;a2<p;a2++){Rs.push([]);for(var b2=0;b2<p;b2++){var s2=0;Zs.forEach(function(z){s2+=(z[a2]-ms[a2])*(z[b2]-ms[b2]);});Rs[a2].push(s2/(n-2)/(ss[a2]*ss[b2]));}}
+    var v1=_eigenSimetrica(Rs).vectores[0],dot=0;for(var k2=0;k2<p;k2++)dot+=v1[k2]*E.vectores[0][k2];
+    if(Math.abs(dot)<cosMin){cosMin=Math.abs(dot);peor=idx[d];}
+  }
+  // qué variable explica más el alejamiento de cada equipo (mayor |z|)
+  var porFila=idx.map(function(i,r){var mj=0;for(var k=1;k<p;k++)if(Math.abs(Z[r][k])>Math.abs(Z[r][mj]))mj=k;return{fila:i,puntajes:puntajes[r],t2:t2[r],lejos:t2[r]>chi,variableMayor:nombresV[mj],zMayor:Z[r][mj],z:Z[r]};});
+  return{ok:true,n:n,p:p,filas:idx,excluidas:excl,constantes:constantes,variables:nombresV,media:media,sd:sd,varianza:varianza,cargas:cargas,vectores:E.vectores,nRetenidos:nRet,umbralT2:chi,
+    equipos:porFila,estabilidadPC1:{cosenoMinimo:cosMin,equipoQueMasLoMueve:peor,estable:cosMin>=0.95}};
+}
+// Variables por equipo para el PCA. d: {equipos, eventos [{sigla,fecha,durH|null}], hist, reportab, hoy} · o: {desde, hasta}. Devuelve {filas:[{sigla,tipo,modelo,vars:{...}|null,motivo}], variables:[...]}.
+// Un equipo queda fuera (con el motivo) si el horómetro es imposible (más de 24 h/día de uso), si hay menos de 60 días o 200 h de lectura, o si le faltan datos.
+function pcaVariablesEquipos(d,o){
+  var op=o||{},hoy=_tcoIso(d.hoy),hasta=op.hasta||hoy,desde=op.desde||_fechaMas(hasta,-365),out=[];
+  var nombres=['Fallas por 1.000 h','Horas por reparación','% días fuera de servicio','Uso (h/día)','Horómetro (h)'];
+  (d.equipos||[]).forEach(function(e){
+    if(!e||!e.sigla||e.unidad==='km')return;
+    var lec=C.lecturasValidas(d.hist||[],e.sigla).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;});
+    var val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
+    var fila={sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||'',vars:null,motivo:''};
+    if(lec.length<2){fila.motivo='sin lecturas de horómetro en el período';out.push(fila);return;}
+    var a=lec[0],b=lec[lec.length-1],dias=_tcoDias(a.fecha,b.fecha),horas=val(b)-val(a);
+    if(dias<60){fila.motivo='menos de 60 días de lecturas';out.push(fila);return;}
+    var uso=horas/dias;
+    if(uso>24||horas<0){fila.motivo='horómetro dudoso ('+Math.round(uso)+' h/día: una lectura mala en el historial)';out.push(fila);return;}
+    if(horas<200){fila.motivo='menos de 200 h de uso en el período';out.push(fila);return;}
+    var ev=(d.eventos||[]).filter(function(x){return x.sigla===e.sigla&&x.fecha>=a.fecha&&x.fecha<=b.fecha;});
+    var dur=ev.map(function(x){return x.durH;}).filter(function(x){return typeof x==='number'&&x>=0;});
+    var rep=(d.reportab||[]).filter(function(r){return r.sigla===e.sigla&&r.fecha>=desde&&r.fecha<=hasta;});
+    if(dur.length<3){fila.motivo='menos de 3 reparaciones con duración registrada';out.push(fila);return;}
+    if(rep.length<10){fila.motivo='menos de 10 días con reporte del cliente';out.push(fila);return;}
+    fila.vars={fallas1000:ev.length/horas*1000,mttr:dur.reduce(function(x,y){return x+y;},0)/dur.length,fsPct:rep.filter(function(r){return r.estatus==='FS';}).length/rep.length*100,uso:uso,horom:Number(e.horomActual)||val(b)};
+    out.push(fila);
+  });
+  return{filas:out,variables:nombres,claves:['fallas1000','mttr','fsPct','uso','horom']};
+}
+// Comparación con pares: z robusto (mediana y MAD; si MAD=0, desviación media absoluta) de cada variable dentro del grupo; |z| ≥ 2,5 = fuera de lo normal del grupo. Requiere ≥ 4 equipos con la variable.
+function paresZRobusto(valores,claves){
+  var med=function(a){var v=a.slice().sort(function(x,y){return x-y;}),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;};
+  var out={};claves.forEach(function(k){
+    var xs=valores.map(function(v){return v[k];}).filter(function(x){return typeof x==='number'&&isFinite(x);});
+    if(xs.length<4){out[k]=null;return;}
+    var m=med(xs),dev=xs.map(function(x){return Math.abs(x-m);}),mad=med(dev)*1.4826;
+    if(!(mad>1e-12))mad=dev.reduce(function(a,b){return a+b;},0)/dev.length*1.2533;   // si más de la mitad coincide con la mediana (MAD=0), se usa la desviación media absoluta para no esconder al que se aleja
+    out[k]={mediana:m,mad:mad,z:function(x){return mad>1e-12?(x-m)/mad:0;}};
+  });
+  return out;
 }
 
 // ═══ REPORTABILIDAD DIARIA DEL CLIENTE (2026-10-11) ═══
@@ -5812,6 +6731,394 @@ function backtestPronosticoDisponibilidad(equipos,d,o){
     componentes:!!(d.compHist&&d.hist),sinComponentes:{cobertura:cob(function(x){return x.sinComp.dentro;}),errorMedioAbs:eab(function(x){return x.sinComp.error;})}};
 }
 
+// ═══ BACKTEST: ¿LAS REGLAS ANTICIPAN QUÉ EQUIPO FALLARÁ EL PRÓXIMO MES? (2026-10-18) ═══
+// Para cada mes del pasado ("origen") se usa SOLO lo que se sabía hasta ese día para ordenar los equipos
+// de más a menos probable de fallar, y luego se mira quién falló de verdad en los 30 días siguientes.
+// Se comparan: la «Probabilidad de falla» que muestra el programa (la misma función, probabilidadFallaDesdeEventos,
+// con el máximo por equipo), «vencido» (días desde la última falla ÷ intervalo medio) y dos reglas simples
+// (fallas de los últimos 90 y 365 días). La referencia es «fallas últimos 365 días»: se fijó antes de mirar los
+// resultados. Un predictor "gana" solo si el intervalo de su diferencia de AUC contra la referencia
+// (remuestreando los meses, 1.000 veces) queda entero sobre 0; con pocos meses lo más común es «no distinguible».
+// AUC = probabilidad de que un equipo que SÍ falló tenga más puntaje que uno que NO falló (0,5 = azar, 1 = perfecto).
+// Puntajes de los modelos de vida «tal como estaban» a una fecha: con los horómetros de las fallas conocidas hasta
+// entonces y el horómetro estimado ese día, la probabilidad de fallar en las próximas 'deltaHoras' horas según
+// Weibull por equipo (proceso de renovación: edad = horas desde la última falla) y según Kijima (edad virtual).
+// Misma función de ajuste que usan las pantallas (ajusteWeibullCensurado, kijimaEquipo); 0 si el modelo no se puede
+// ajustar (menos de 5 intervalos), porque entonces no sabe ordenar ese equipo.
+function _btScoresModelos(horoms,horomT,deltaHoras){
+  var r={weibull:0,kijima:0};
+  if(!horoms||!horoms.length||!(deltaHoras>0))return r;
+  var ult=horoms[horoms.length-1],age=Math.max(0,horomT-ult);
+  var aj=ajusteWeibullCensurado(_observacionesEquipoConCensura(horoms,horomT));
+  if(aj)r.weibull=1-Math.exp(-(Math.pow((age+deltaHoras)/aj.eta,aj.beta)-Math.pow(age/aj.eta,aj.beta)));
+  var k=kijimaEquipo(horoms,horomT);
+  if(k){var V=k.edadVirtualActual;r.kijima=1-Math.exp(-(Math.pow((V+deltaHoras)/k.eta,k.beta)-Math.pow(V/k.eta,k.beta)));}
+  return r;
+}
+var _BT_REFERENCIA='fallas365';
+// Los tres que entregan una probabilidad (0–1) de fallar en el horizonte; los demás son puntajes de orden, no probabilidades.
+var _BT_PROBABILIDAD={prob30:1,weibull:1,kijima:1};
+function _btAuc(puntajes,etiquetas){
+  var pos=[],neg=[];
+  puntajes.forEach(function(p,i){(etiquetas[i]?pos:neg).push(p);});
+  if(!pos.length||!neg.length)return null;
+  var s=0;
+  pos.forEach(function(a){neg.forEach(function(b){s+=a>b?1:a===b?0.5:0;});});
+  return s/(pos.length*neg.length);
+}
+// Calidad de las PROBABILIDADES (no solo del orden): Brier = promedio de (p − real)², log loss = promedio de
+// −[y·ln p + (1−y)·ln(1−p)]. Menor es mejor en las dos. Con p = 0 exacto (el modelo no pudo ajustarse) se cuenta como
+// probabilidad 0 y el log loss usa p acotada a [0,01; 0,99] para que un solo fallo no lo lleve a infinito.
+// cobertura = fracción de equipo-mes en que el modelo dio algo distinto de 0.
+function _btMetricasProb(ps,ys){
+  var n=ps.length;
+  if(!n)return null;
+  var br=0,ll=0,cb=0;
+  for(var i=0;i<n;i++){
+    var p=Math.min(1,Math.max(0,Number(ps[i])||0)),y=ys[i]?1:0,pc=Math.min(0.99,Math.max(0.01,p));
+    br+=(p-y)*(p-y);ll+=-(y*Math.log(pc)+(1-y)*Math.log(1-pc));if(p>0)cb++;
+  }
+  return{brier:br/n,logLoss:ll/n,cobertura:cb/n,n:n};
+}
+function backtestAnticipacionFallas(eventos,equipos,hoy,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,rng=op.rng||Math.random;
+  var maxOr=op.maxOrigenes>0?Math.round(op.maxOrigenes):24,nBoot=op.nBoot>0?op.nBoot:1000;
+  var hoyIso=_tcoIso(hoy);
+  var sigs=(equipos||[]).filter(function(e){return e&&e.sigla;}).map(function(e){return e.sigla;});
+  var eqPorSigla={};(equipos||[]).forEach(function(e){if(e&&e.sigla)eqPorSigla[e.sigla]=e;});
+  var ev=(eventos||[]).filter(function(e){return e&&e.sigla&&e.fecha&&sigs.indexOf(e.sigla)>=0;});
+  if(!ev.length)return null;
+  var porSigla={};
+  ev.forEach(function(e){(porSigla[e.sigla]=porSigla[e.sigla]||[]).push(e);});
+  var primera=ev.map(function(e){return e.fecha;}).sort()[0];
+  var minOrigen=_fechaMas(primera,365);   // al menos un año de historia para que las reglas tengan de dónde sacar
+  var origenes=[];
+  for(var k=1;k<=maxOr;k++){
+    var origen=_fechaMas(hoyIso,-(k*30+H));
+    if(origen>=minOrigen)origenes.push(origen);
+  }
+  origenes.reverse();
+  var filas=[];   // por origen: {origen, items:[{y, fallas90, fallas365, prob30, vencido}]}
+  origenes.forEach(function(origen){
+    var fin=_fechaMas(origen,H),d90=_fechaMas(origen,-90),d365=_fechaMas(origen,-365),items=[];
+    sigs.forEach(function(sg){
+      var lista=porSigla[sg]||[];
+      var hasta=lista.filter(function(e){return e.fecha<=origen;});
+      if(!hasta.length)return;   // todavía sin historia a esa fecha: no se puede ordenar
+      var y=lista.some(function(e){return e.fecha>origen&&e.fecha<=fin;})?1:0;
+      var fechas=hasta.map(function(e){return e.fecha;}).sort().filter(function(f,i,a){return i===0||f!==a[i-1];});
+      var f90=fechas.filter(function(f){return f>d90;}).length,f365=fechas.filter(function(f){return f>d365;}).length;
+      var probs=probabilidadFallaDesdeEventos(hasta.filter(function(e){return e.componente;}));
+      var prob30=probs.length?Math.max.apply(null,probs.map(function(q){return q.prob30dPct;})):0;
+      var venc=0;
+      if(fechas.length>=3){
+        var mtbf=(new Date(fechas[fechas.length-1])-new Date(fechas[0]))/864e5/(fechas.length-1);
+        if(mtbf>0)venc=(new Date(origen)-new Date(fechas[fechas.length-1]))/864e5/mtbf;
+      }
+      // Weibull y Kijima por equipo, con el horómetro de esa fecha: ritmo de uso = horas por día del equipo o,
+      // si falta, la mediana de lo que avanzó entre sus propias fallas.
+      var sw=0,sk=0;
+      var hl=hasta.filter(function(e){return e.horom>0;}).map(function(e){return{f:e.fecha,h:Number(e.horom)};}).sort(function(a,b){return a.f<b.f?-1:a.f>b.f?1:a.h-b.h;});
+      if(hl.length>=6){
+        var eqd=eqPorSigla[sg]||{},ritmo=eqd.hrsDia>0?Number(eqd.hrsDia):null;
+        if(!ritmo){
+          var rs=[];for(var q2=1;q2<hl.length;q2++){var dd=(new Date(hl[q2].f)-new Date(hl[q2-1].f))/864e5,dh=hl[q2].h-hl[q2-1].h;if(dd>0&&dh>0)rs.push(dh/dd);}
+          rs.sort(function(a,b){return a-b;});if(rs.length)ritmo=rs[Math.floor(rs.length/2)];
+        }
+        if(ritmo>0){
+          var ultF=hl[hl.length-1],horomT=ultF.h+ritmo*Math.max(0,(new Date(origen)-new Date(ultF.f))/864e5);
+          var sc=_btScoresModelos(hl.map(function(x){return x.h;}).sort(function(a,b){return a-b;}),horomT,ritmo*H);
+          sw=sc.weibull;sk=sc.kijima;
+        }
+      }
+      items.push({y:y,fallas90:f90,fallas365:f365,prob30:prob30,vencido:venc,weibull:sw,kijima:sk});
+    });
+    if(items.length>=5&&items.some(function(x){return x.y;})&&items.some(function(x){return !x.y;}))filas.push({origen:origen,items:items});
+  });
+  if(filas.length<3)return{ok:false,motivo:'menos de 3 meses con historia suficiente y con fallas y no-fallas a la vez ('+filas.length+')',origenes:filas.length};
+  var defs=[
+    {clave:'prob30',nombre:'Probabilidad de falla (la que muestra el programa)'},
+    {clave:'vencido',nombre:'Vencido: días desde la última falla ÷ intervalo medio'},
+    {clave:'weibull',nombre:'Weibull por equipo (modelo de vida, con horómetro)'},
+    {clave:'kijima',nombre:'Kijima por equipo (reparación imperfecta, con horómetro)'},
+    {clave:'fallas90',nombre:'Regla simple: fallas de los últimos 90 días'},
+    {clave:'fallas365',nombre:'Regla simple: fallas de los últimos 365 días (referencia)'}
+  ];
+  var aucPorOrigen={};
+  defs.forEach(function(df){
+    aucPorOrigen[df.clave]=filas.map(function(f){return _btAuc(f.items.map(function(x){return x[df.clave];}),f.items.map(function(x){return x.y;}));});
+  });
+  var media=function(v){return v.reduce(function(a,b){return a+b;},0)/v.length;};
+  var tasaBase=media(filas.map(function(f){return f.items.reduce(function(a,x){return a+x.y;},0)/f.items.length;}));
+  var topPrec=function(clave){
+    return media(filas.map(function(f){
+      var k=Math.max(1,Math.round(f.items.length*0.2));
+      var ord=f.items.slice().sort(function(a,b){return b[clave]-a[clave];});
+      // con empates en el corte se promedia el grupo empatado (no se premia el orden arbitrario)
+      var corte=ord[k-1][clave],mayores=ord.filter(function(x){return x[clave]>corte;}),empat=ord.filter(function(x){return x[clave]===corte;});
+      var aciertos=mayores.reduce(function(a,x){return a+x.y;},0)+(k-mayores.length)*(empat.reduce(function(a,x){return a+x.y;},0)/empat.length);
+      return aciertos/k;
+    }));
+  };
+  var ref=aucPorOrigen[_BT_REFERENCIA];
+  var predictores=defs.map(function(df){
+    var a=aucPorOrigen[df.clave],auc=media(a),tp=topPrec(df.clave);
+    var dif=null,veredicto='referencia';
+    if(df.clave!==_BT_REFERENCIA){
+      var difs=a.map(function(x,i){return x-ref[i];}),bs=[];
+      for(var b=0;b<nBoot;b++){var sum=0;for(var j=0;j<difs.length;j++)sum+=difs[Math.floor(rng()*difs.length)];bs.push(sum/difs.length);}
+      bs.sort(function(x,y){return x-y;});
+      var lo=bs[Math.floor(nBoot*0.025)],hi=bs[Math.min(nBoot-1,Math.floor(nBoot*0.975))];
+      dif={media:Math.round(media(difs)*1000)/1000,lo:Math.round(lo*1000)/1000,hi:Math.round(hi*1000)/1000};
+      veredicto=lo>0?'mejor':hi<0?'peor':'no distinguible';
+    }
+    var cal=null;
+    if(_BT_PROBABILIDAD[df.clave]){
+      var todos=[];filas.forEach(function(f){f.items.forEach(function(x){todos.push(x);});});
+      var m=_btMetricasProb(todos.map(function(x){return df.clave==='prob30'?x.prob30/100:x[df.clave];}),todos.map(function(x){return x.y;}));
+      var pr=todos.reduce(function(a,x){return a+x.y;},0)/todos.length,brRef=pr*(1-pr);
+      cal={brier:Math.round(m.brier*10000)/10000,logLoss:Math.round(m.logLoss*10000)/10000,cobertura:Math.round(m.cobertura*1000)/1000,
+        brierSkill:brRef>0?Math.round((1-m.brier/brRef)*1000)/1000:null};
+    }
+    return{clave:df.clave,nombre:df.nombre,auc:Math.round(auc*1000)/1000,precisionTop:Math.round(tp*1000)/1000,lift:tasaBase>0?Math.round(tp/tasaBase*100)/100:null,difVsReferencia:dif,veredicto:veredicto,calibracion:cal};
+  });
+  var todosItems=[];filas.forEach(function(f){f.items.forEach(function(x){todosItems.push(x);});});
+  var prGlobal=todosItems.reduce(function(a,x){return a+x.y;},0)/todosItems.length;
+  return{ok:true,horizonteDias:H,origenes:filas.length,desde:filas[0].origen,hasta:filas[filas.length-1].origen,
+    equiposPorOrigen:Math.round(media(filas.map(function(f){return f.items.length;}))*10)/10,tasaBase:Math.round(tasaBase*1000)/1000,tasaBasePooled:Math.round(prGlobal*10000)/10000,brierBase:Math.round(prGlobal*(1-prGlobal)*10000)/10000,referencia:_BT_REFERENCIA,predictores:predictores};
+}
+
+// ═══ PRUEBA DEL DICCIONARIO DE COMPONENTES CON DATOS NO USADOS PARA AFINARLO (2026-10-18) ═══
+// El diccionario que deduce el componente desde el texto (_componenteDeSintoma) se afinó en 9 pasadas contra los
+// 1.243 correctivos actuales, y su cobertura se midió sobre esos mismos datos: eso no prueba que funcione con textos
+// nuevos. Acá se mide sobre filas [{texto, etiqueta}] que NO se usaron para afinarlo (el historial 2022-2025, cuya
+// descripción es otro texto y trae un «sistema» ya asignado): cobertura (¿clasifica?) y acuerdo con esa etiqueta
+// (¿clasifica igual?). Límites: la etiqueta del historial es de una clasificación previa, no una verdad perfecta
+// (hay descripciones con varios temas), y una categoría más fina que la etiqueta (p. ej. «Radio/Comunicaciones» contra
+// «Sistema Eléctrico») cuenta como desacuerdo aunque sea razonable.
+function evaluarDiccionarioComponentes(filas){
+  var norm=function(t){return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();};
+  var v=(filas||[]).filter(function(f){return f&&f.texto&&String(f.texto).trim();});
+  var n=v.length;
+  if(n<30)return null;
+  var clas=0,conEt=0,clasEt=0,ok=0,conf={};
+  v.forEach(function(f){
+    var c=_componenteDeSintoma(f.texto);
+    if(c)clas++;
+    if(f.etiqueta&&String(f.etiqueta).trim()){
+      conEt++;
+      if(c){
+        clasEt++;
+        if(norm(c)===norm(f.etiqueta))ok++;
+        else{var k=f.etiqueta+' → '+c;conf[k]=(conf[k]||0)+1;}
+      }
+    }
+  });
+  var pc=function(x,m){return m?Math.round(x/m*1000)/10:null;};
+  var ic=function(x,m){var w=_wilsonFrac(x,m);return w?[Math.round(w[0]*1000)/10,Math.round(w[1]*1000)/10]:null;};
+  return{n:n,clasificadas:clas,pctClasificadas:pc(clas,n),icClasificadas:ic(clas,n),
+    etiquetadas:conEt,clasificadasConEtiqueta:clasEt,acuerdos:ok,pctAcuerdo:pc(ok,clasEt),icAcuerdo:ic(ok,clasEt),
+    desacuerdos:Object.keys(conf).map(function(k){return{par:k,n:conf[k]};}).sort(function(a,b){return b.n-a.n;}).slice(0,8)};
+}
+
+// ═══ CURVA P-F COMPLETA: LADO IZQUIERDO (instalación → P) Y LADO DERECHO (P → F) (2026-10-18) ═══
+// intervalosPF (arriba) solo medía el lado derecho (P → F: de que el desgaste es detectable hasta la falla). Acá se suma el
+// izquierdo: cuántas horas llevaba el componente cuando el aceite detectó el desgaste (P), que dice desde cuándo conviene
+// vigilarlo; y al derecho se le agrega un grupo de comparación, porque estos equipos fallan seguido y «días hasta la siguiente
+// falla» sale corto aunque no haya habido ningún aviso: se compara contra los días hasta la falla desde muestras NORMALES.
+// Dos formas de marcar P: (1) 'cusum': la alerta de aceleración del desgaste (cusumAceitePorComponente), exigente (6+ muestras
+// por metal); (2) 'laboratorio': la primera muestra ALERTA/PRECAUCION que viene después de una NORMAL del mismo equipo y
+// componente (se exige haber visto la transición: si el equipo ya estaba en alerta al empezar a muestrearse no se sabe cuándo
+// empezó el desgaste). Con menos de 5 casos en un lado no se da recomendación (solo se muestran los casos).
+function _aceCategoriaPF(comp){
+  var n=_normalizarComponente(comp);
+  if(!n)return'';
+  if(n.indexOf('MANDO FINAL')===0)return'MANDOS FINALES';
+  if(n.indexOf('DIFERENCIAL')===0)return'DIFERENCIAL';
+  if(n==='HIDRAULICO')return'SISTEMA HIDRAULICO';
+  if(n==='REFRIGERANTE')return'RADIADOR/ENFRIAMIENTO';
+  return n;
+}
+function curvaPFCompleta(ace,otConHist,opts){
+  var op=opts||{},ventana=op.ventanaMaxDias>0?op.ventanaMaxDias:365,minCasos=op.minCasos>0?op.minCasos:5;
+  var med=function(v){if(!v.length)return null;var a=v.slice().sort(function(x,y){return x-y;}),m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+  var fallas={};
+  (otConHist||[]).forEach(function(o){
+    if(!o||!o.sigla||!o.fecha||!o.componente)return;
+    var k=o.sigla+'|'+_aceCategoriaPF(o.componente);
+    (fallas[k]=fallas[k]||[]).push(o.fecha);
+  });
+  Object.keys(fallas).forEach(function(k){fallas[k].sort();});
+  var diasHastaFalla=function(k,fecha){
+    var l=fallas[k]||[];
+    for(var i=0;i<l.length;i++){
+      if(l[i]>=fecha){var d=_diasEntreISO(fecha,l[i]);return d<=ventana?d:null;}
+    }
+    return null;
+  };
+  var grupos={};
+  (ace||[]).forEach(function(m){
+    var sg=m&&m._sigla,comp=m&&m.componente;
+    if(!sg||!comp||!m.fecha)return;
+    var cat=_aceCategoriaPF(comp),k=sg+'|'+cat;
+    (grupos[k]=grupos[k]||{sigla:sg,cat:cat,nombre:String(comp).trim(),muestras:[]}).muestras.push(m);
+  });
+  var claves=Object.keys(grupos).sort();
+  claves.forEach(function(k){grupos[k].muestras.sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});});
+  var cusumPorGrupo={};
+  (typeof cusumAceitePorComponente==='function'?cusumAceitePorComponente(ace):[]).forEach(function(g){
+    var mejor=null;
+    Object.keys(g.porMetal||{}).forEach(function(met){var r=g.porMetal[met];if(r&&r.detectado&&r.fechaAlerta&&(!mejor||r.fechaAlerta<mejor))mejor=r.fechaAlerta;});
+    if(mejor)cusumPorGrupo[g.sigla+'|'+_aceCategoriaPF(g.componente)]=mejor;
+  });
+  function resumir(porCat){
+    return Object.keys(porCat).map(function(cat){
+      var c=porCat[cat],izq=c.horas,der=c.dias,ctl=c.control;
+      var r={componente:c.nombre,casosP:c.nP,
+        izquierdo:{n:izq.length,medianaHoras:izq.length?Math.round(med(izq)):null,minHoras:izq.length?Math.min.apply(null,izq):null,maxHoras:izq.length?Math.max.apply(null,izq):null},
+        derecho:{n:der.length,medianaDias:der.length?Math.round(med(der)):null,nControl:ctl.length,medianaControl:ctl.length?Math.round(med(ctl)):null,veredicto:null,z:null},
+        recomendacion:null};
+      if(der.length>=minCasos&&ctl.length>=minCasos){
+        var t=mannWhitneyU(der,ctl);
+        if(t){r.derecho.z=t.z;r.derecho.veredicto=!t.significativo?'no se distingue':(t.z<0?'el aviso anticipa':'la falla tarda más tras el aviso');}
+      }
+      var rec={};
+      if(izq.length>=minCasos)rec.vigilarDesdeHoras=Math.min.apply(null,izq);
+      if(der.length>=minCasos&&r.derecho.veredicto==='el aviso anticipa')rec.inspeccionCadaDias=Math.max(1,Math.round(med(der)/2));
+      if(Object.keys(rec).length)r.recomendacion=rec;
+      return r;
+    }).sort(function(a,b){return b.casosP-a.casosP||String(a.componente).localeCompare(b.componente);});
+  }
+  function variante(nombre){
+    var porCat={};
+    claves.forEach(function(k){
+      var g=grupos[k],ms=g.muestras,pMuestra=null;
+      if(nombre==='laboratorio'){
+        var vioNormal=false;
+        for(var i=0;i<ms.length;i++){
+          if(ms[i].estado==='NORMAL')vioNormal=true;
+          else if((ms[i].estado==='ALERTA'||ms[i].estado==='PRECAUCION')&&vioNormal){pMuestra=ms[i];break;}
+        }
+      }else if(cusumPorGrupo[k]){
+        pMuestra=ms.filter(function(m){return m.fecha===cusumPorGrupo[k];})[0]||null;
+      }
+      var c=porCat[g.cat]||(porCat[g.cat]={nombre:g.nombre,nP:0,horas:[],dias:[],control:[]});
+      if(pMuestra){
+        c.nP++;
+        if(pMuestra.hrsComp>0)c.horas.push(Number(pMuestra.hrsComp));
+        var d=diasHastaFalla(k,pMuestra.fecha);
+        if(d!=null)c.dias.push(d);
+      }
+      // grupo de comparación: días hasta la falla del mismo componente desde cada muestra NORMAL del mismo equipo
+      ms.forEach(function(m){
+        if(m.estado!=='NORMAL')return;
+        var d=diasHastaFalla(k,m.fecha);
+        if(d!=null)c.control.push(d);
+      });
+    });
+    return resumir(porCat);
+  }
+  return{ventanaMaxDias:ventana,minCasos:minCasos,laboratorio:variante('laboratorio'),cusum:variante('cusum')};
+}
+
+// ═══ SIMULACIÓN DE LA CARGA DEL TALLER (2026-10-19) ═══
+// Pregunta: en los próximos 30 días, ¿cuántos equipos van a estar en el taller al mismo tiempo? (la demanda de capacidad que
+// pesa sobre la dotación). Se simula miles de veces con lo que sí está medido: cuántos equipos entran por día (se remuestrean los
+// días reales recientes, así se conserva que hay días con muchas entradas) y cuánto dura cada permanencia en el taller (se
+// remuestrean las duraciones reales entrada→salida); los equipos que ya están en el taller hoy siguen ahí el tiempo que les falta
+// según esas duraciones (condicional a lo que ya llevan). NO simula esperas por técnico: hoy no existe el dato para validarlas
+// (la hora de primera atención está vacía en todos los correctivos y la duración mezcla espera y reparación). Lo que sí se valida
+// es la carga: backtestCargaTaller repite la simulación desde meses pasados y compara con lo que realmente pasó.
+// 'intervalos': [{entrada:'AAAA-MM-DD', salida:'AAAA-MM-DD'|null}] (un correctivo cada uno; salida null = sin fecha de salida).
+function _diaNum(iso){return Math.round(new Date(iso+'T00:00:00Z').getTime()/864e5);}
+function _pctSorted(a,p){if(!a.length)return null;var i=Math.min(a.length-1,Math.max(0,Math.round(p*(a.length-1))));return a[i];}
+function simulacionCargaTaller(intervalos,hoyIso,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,nSim=op.nSim>0?op.nSim:1000,rng=op.rng||Math.random;
+  var vArr=op.ventanaLlegadasDias>0?op.ventanaLlegadasDias:180,vDur=op.ventanaDuracionDias>0?op.ventanaDuracionDias:365;
+  var hoy=_diaNum(hoyIso);
+  var iv=(intervalos||[]).filter(function(x){return x&&x.entrada;}).map(function(x){return{e:_diaNum(x.entrada),s:x.salida?_diaNum(x.salida):null};}).filter(function(x){return x.e<=hoy&&(x.s==null||x.s>=x.e);});
+  // llegadas por día en la ventana reciente (incluye los días con cero); si la historia es más corta que la ventana, se usa la
+  // historia disponible (si no, los días antes del primer registro contarían como «sin entradas» y subestimarían la carga)
+  if(iv.length){var primero=Math.min.apply(null,iv.map(function(x){return x.e;}));vArr=Math.max(1,Math.min(vArr,hoy-primero+1));}
+  var llegadas=new Array(vArr).fill(0);
+  iv.forEach(function(x){var k=hoy-x.e;if(k>=0&&k<vArr)llegadas[k]++;});
+  // duraciones reales (días, entrada y salida inclusive) de lo que entró en la ventana y ya salió
+  var dur=iv.filter(function(x){return x.s!=null&&x.s<=hoy&&hoy-x.e<=vDur;}).map(function(x){return x.s-x.e+1;});
+  if(dur.length<20||iv.filter(function(x){return hoy-x.e<vArr;}).length<10)return null;
+  // en el taller hoy: entró y todavía no salió (o sin salida pero entró en los últimos 30 días)
+  var abiertos=iv.filter(function(x){return (x.s==null&&hoy-x.e<=30)||(x.s!=null&&x.s>hoy);}).map(function(x){return hoy-x.e+1;});
+  var porDia=[];for(var t=0;t<H;t++)porDia.push([]);
+  var medias=[],maximos=[];
+  for(var sim=0;sim<nSim;sim++){
+    var c=new Array(H).fill(0);
+    abiertos.forEach(function(trans){
+      var d=1,ok=false;
+      for(var tr=0;tr<30&&!ok;tr++){var cand=dur[Math.floor(rng()*dur.length)];if(cand>trans){d=cand-trans;ok=true;}}
+      for(var t2=0;t2<Math.min(d,H);t2++)c[t2]++;
+    });
+    for(var t3=0;t3<H;t3++){
+      var n=llegadas[Math.floor(rng()*vArr)];
+      for(var j=0;j<n;j++){var dd=dur[Math.floor(rng()*dur.length)];for(var t4=t3;t4<Math.min(t3+dd,H);t4++)c[t4]++;}
+    }
+    var suma=0,mx=0;
+    for(var t5=0;t5<H;t5++){porDia[t5].push(c[t5]);suma+=c[t5];if(c[t5]>mx)mx=c[t5];}
+    medias.push(suma/H);maximos.push(mx);
+  }
+  var asc=function(a){return a.slice().sort(function(x,y){return x-y;});};
+  var m=asc(medias),mx=asc(maximos);
+  var probMax={};
+  for(var k=1;k<=Math.max(12,mx[mx.length-1]);k++){var cuenta=0;for(var q=0;q<maximos.length;q++)if(maximos[q]>=k)cuenta++;probMax[k]=Math.round(cuenta/maximos.length*1000)/10;if(cuenta===0)break;}
+  return{horizonteDias:H,nSim:nSim,hoyAbiertos:abiertos.length,llegadasPorDia:Math.round(llegadas.reduce(function(a,b){return a+b;},0)/vArr*100)/100,duracionMedianaDias:_pctSorted(asc(dur),0.5),
+    mediaPromedio:{p10:Math.round(_pctSorted(m,0.1)*10)/10,p50:Math.round(_pctSorted(m,0.5)*10)/10,p90:Math.round(_pctSorted(m,0.9)*10)/10},
+    maximo:{p10:_pctSorted(mx,0.1),p50:_pctSorted(mx,0.5),p90:_pctSorted(mx,0.9)},
+    probabilidadAlMenos:probMax};
+}
+// Carga real del taller por mes (descriptiva, no depende de ningún modelo): equipos en el taller por día, promedio, P90 y máximo del mes.
+function cargaRealTallerPorMes(intervalos){
+  var iv=(intervalos||[]).filter(function(x){return x&&x.entrada;}).map(function(x){return{e:_diaNum(x.entrada),s:x.salida?_diaNum(x.salida):null};});
+  if(!iv.length)return[];
+  var d1=Math.min.apply(null,iv.map(function(x){return x.e;})),d2=Math.max.apply(null,iv.map(function(x){return x.s!=null?x.s:x.e;}));
+  var porMes={};
+  for(var d=d1;d<=d2;d++){
+    var c=0;iv.forEach(function(x){if(x.e<=d&&(x.s==null?x.e===d:x.s>=d))c++;});
+    var mes=new Date(d*864e5).toISOString().slice(0,7);
+    (porMes[mes]=porMes[mes]||[]).push(c);
+  }
+  return Object.keys(porMes).sort().map(function(m){
+    var v=porMes[m].slice().sort(function(a,b){return a-b;}),suma=v.reduce(function(a,b){return a+b;},0);
+    return{mes:m,dias:v.length,media:Math.round(suma/v.length*10)/10,p90:_pctSorted(v,0.9),maximo:v[v.length-1]};
+  });
+}
+// Backtest: desde cada origen pasado se simula con lo que se sabía (un correctivo solo tiene salida si salió antes del origen) y se
+// compara con la carga real de los 30 días siguientes. Referencia simple: «igual que los 30 días anteriores». Cobertura = % de meses
+// donde la carga real (promedio y máximo) cayó dentro del rango P10–P90 simulado (si el modelo es bueno, ronda 80 %).
+function backtestCargaTaller(intervalos,hoyIso,o){
+  var op=o||{},H=op.horizonteDias>0?Math.round(op.horizonteDias):30,K=op.origenes>0?Math.round(op.origenes):12;
+  var hoy=_diaNum(hoyIso);
+  var iv=(intervalos||[]).filter(function(x){return x&&x.entrada;}).map(function(x){return{e:_diaNum(x.entrada),s:x.salida?_diaNum(x.salida):null};});
+  var real=function(d1,d2){ // equipos en el taller por día entre d1 y d2 (inclusive), con todos los datos
+    var out=[];for(var d=d1;d<=d2;d++){var c=0;iv.forEach(function(x){if(x.e<=d&&(x.s==null?x.e===d:x.s>=d))c++;});out.push(c);}return out;};
+  var filas=[];
+  for(var k=K;k>=1;k--){
+    var origen=hoy-k*H;
+    if(origen+H>hoy)continue;
+    var ivO=iv.filter(function(x){return x.e<=origen;}).map(function(x){return{entrada:new Date(x.e*864e5).toISOString().slice(0,10),salida:(x.s!=null&&x.s<=origen)?new Date(x.s*864e5).toISOString().slice(0,10):null};});
+    var sim=simulacionCargaTaller(ivO,new Date(origen*864e5).toISOString().slice(0,10),{horizonteDias:H,nSim:op.nSim||400,rng:op.rng});
+    if(!sim)continue;
+    var r=real(origen+1,origen+H),previo=real(origen-H+1,origen);
+    var mR=r.reduce(function(a,b){return a+b;},0)/r.length,xR=Math.max.apply(null,r),mP=previo.reduce(function(a,b){return a+b;},0)/previo.length;
+    filas.push({origen:new Date(origen*864e5).toISOString().slice(0,10),realMedia:Math.round(mR*10)/10,realMax:xR,simMediaP10:sim.mediaPromedio.p10,simMediaP50:sim.mediaPromedio.p50,simMediaP90:sim.mediaPromedio.p90,simMaxP10:sim.maximo.p10,simMaxP90:sim.maximo.p90,ingenuaMedia:Math.round(mP*10)/10,
+      dentroMedia:mR>=sim.mediaPromedio.p10&&mR<=sim.mediaPromedio.p90,dentroMax:xR>=sim.maximo.p10&&xR<=sim.maximo.p90});
+  }
+  if(filas.length<4)return{ok:false,motivo:'menos de 4 meses con historia suficiente ('+filas.length+')',meses:filas.length};
+  var mean=function(f){return filas.reduce(function(a,x){return a+f(x);},0)/filas.length;};
+  var pc=function(f){return Math.round(filas.filter(f).length/filas.length*1000)/10;};
+  return{ok:true,horizonteDias:H,meses:filas.length,filas:filas,
+    coberturaMedia:pc(function(x){return x.dentroMedia;}),coberturaMax:pc(function(x){return x.dentroMax;}),
+    errorModelo:Math.round(mean(function(x){return Math.abs(x.simMediaP50-x.realMedia);})*100)/100,
+    errorIngenua:Math.round(mean(function(x){return Math.abs(x.ingenuaMedia-x.realMedia);})*100)/100};
+}
+
 // ═══ ROTACIÓN Y OBSOLESCENCIA DE STOCK (2026-10-02) ═══
 // Acotado a Filtros y Lubricantes a propósito: son los dos únicos tipos de
 // movimientos_stock con fecha real de consumo (investigación 2026-10-02) —
@@ -6177,6 +7484,15 @@ function matrizCriticidadDinamica(compMayores,crowPorComponente){
 //  - cronico: MTBF bajo (falla seguido) + MTTR bajo (pero rápido de arreglar)
 //  - agudo:   MTBF alto (falla poco) + MTTR alto (cuando falla, tarda mucho)
 //  - complejo: MTBF bajo + MTTR alto — el peor cuadrante, prioridad máxima
+// Qué hacer en cada cuadrante (misma lectura del diagrama Jack-Knife clásico): la solución depende de dónde cae el equipo.
+var JK_ACCIONES={
+  complejo:'Prioridad uno: falla seguido Y tarda mucho; aquí se va la disponibilidad. Atacar causa raíz y mantenibilidad a la vez.',
+  agudo:'Falla poco pero para mucho: atacar por mantenibilidad (repuesto en bodega, acceso, procedimiento, herramienta) antes que por confiabilidad.',
+  cronico:'Falla seguido pero se arregla rápido: análisis de causa raíz o rediseño; arreglarlo más rápido no soluciona el problema.',
+  mundial:'Aceptable: déjalo en el plan; gastar más análisis aquí es gastar de más.'
+};
+// equipos: [{sigla, mtbf, mttr, hrsAnio (opcional: horas de operación por año del equipo)}]. Con hrsAnio se estima, por equipo, fallas por año = hrsAnio ÷ MTBF y horas perdidas por año = fallas × MTTR
+// (el gráfico de Costos usa esas horas para dibujar las líneas de igual pérdida). Sin hrsAnio, esos dos datos quedan en null: no se inventan.
 function matrizJackKnife(equipos){
   var datos=(equipos||[]).filter(function(e){return e&&e.mtbf>0&&e.mttr>0;});
   if(datos.length<3)return null;
@@ -6185,11 +7501,19 @@ function matrizJackKnife(equipos){
   var puntos=datos.map(function(e){
     var mtbfAlto=e.mtbf>=medianaMtbf, mttrAlto=e.mttr>=medianaMttr;
     var cuadrante=mtbfAlto?(mttrAlto?'agudo':'mundial'):(mttrAlto?'complejo':'cronico');
-    return {sigla:e.sigla,mtbf:e.mtbf,mttr:e.mttr,cuadrante:cuadrante};
+    var h=e.hrsAnio>0?e.hrsAnio:null,fa=h?h/e.mtbf:null;
+    return {sigla:e.sigla,mtbf:e.mtbf,mttr:e.mttr,cuadrante:cuadrante,hrsAnio:h,fallasAnio:fa,horasPerdidasAnio:fa!=null?fa*e.mttr:null};
   });
   var resumen={mundial:0,cronico:0,agudo:0,complejo:0};
   puntos.forEach(function(p){resumen[p.cuadrante]++;});
-  return {medianaMtbf:medianaMtbf,medianaMttr:medianaMttr,puntos:puntos,resumen:resumen};
+  var conHoras=puntos.filter(function(p){return p.horasPerdidasAnio!=null;});
+  var perdidasPorCuadrante={mundial:0,cronico:0,agudo:0,complejo:0};
+  conHoras.forEach(function(p){perdidasPorCuadrante[p.cuadrante]+=p.horasPerdidasAnio;});
+  return {medianaMtbf:medianaMtbf,medianaMttr:medianaMttr,puntos:puntos,resumen:resumen,acciones:JK_ACCIONES,
+    hrsAnioRef:conHoras.length?medianaPositiva(conHoras.map(function(p){return p.hrsAnio;})):null,
+    horasPerdidasAnio:conHoras.reduce(function(t,p){return t+p.horasPerdidasAnio;},0),
+    horasPerdidasPorCuadrante:perdidasPorCuadrante,
+    nConHoras:conHoras.length};
 }
 
 // ═══ ESTIMACIÓN DE HORÓMETRO/KM EN UNA FECHA PASADA ═══
@@ -8141,6 +9465,12 @@ if (typeof window !== 'undefined') {
   window.confiabilidadWeibull = confiabilidadWeibull;
   window.interpretacionFormaWeibull = interpretacionFormaWeibull;
   window.regEsATiempo = regEsATiempo;
+  window.desviosPM = desviosPM;
+  window.informeGestionPM = informeGestionPM;
+  window.informeGestionFS = informeGestionFS;
+  window.informeProgramaSemanal = informeProgramaSemanal;
+  window.informeBacklogPM = informeBacklogPM;
+  window.backlogDesdePM = backlogDesdePM;
   window._gastoProyectadoCategoria = _gastoProyectadoCategoria;
   window.agruparPeriodo = agruparPeriodo;
   window._CATEGORIAS_COMPONENTE = _CATEGORIAS_COMPONENTE;
@@ -9285,14 +10615,14 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo,
+    desviosPM, PM_TOLERANCIA_CICLO, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
-    umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica, matrizJackKnife
+    umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica, matrizJackKnife, JK_ACCIONES
   };
 }

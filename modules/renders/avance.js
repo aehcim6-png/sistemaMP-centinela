@@ -65,7 +65,9 @@ export function renderAvance() {
     '<td style="text-align:center;color:' + (totalPct === null ? 'var(--tx3)' : totalPct >= pctEsperado ? 'var(--ok)' : 'var(--danger)') + '">' + (totalPct === null ? '—' : (totalPct - pctEsperado >= 0 ? '+' : '') + (totalPct - pctEsperado) + '%') + '</td>' +
     '<td>' + (totalPct === null ? '⚪ SIN PLAN' : totalPct >= pctEsperado ? '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> EN PLAN' : '🔴 ATRASADO') + '</td></tr>' +
     '</table></div>' +
-    _avanceCurvaSHTML(fMes, eq, reg, meses);
+    '<div class="chart-box" style="margin-top:18px;border-left:3px solid var(--ac)"><div class="chart-t">Curva S de PM</div>' +
+    '<div style="font-size:12px;color:var(--tx2);padding:4px 0 10px">La curva S del programa de mantención (plan vs real por semana, mes, semestre o año) está en <b>Planificación y Agenda → Planificador</b>.</div>' +
+    '<button class="btn" onclick="window._planiSub=\'plan\';go(\'plani\')">Abrir en el Planificador</button></div>';
 }
 
 // ═══ CURVA S DE PM Y CUMPLIMIENTO DEL PROGRAMA (2026-10-11) ═══ — ver curvaSPM / cumplimientoProgramaMeses (logic.js): plan = hitos de horómetro del mes, ponderado por las
@@ -110,7 +112,8 @@ var _MESES_L = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
 function _curvaFmt(iso) { return parseInt(iso.slice(8, 10), 10) + '-' + _MESES_L[parseInt(iso.slice(5, 7), 10) - 1]; }
 var _curvaEtiqueta = periodoEtiqueta, _curvaOpciones = periodoOpciones;   // logic.js (el selector de Disponibilidad usa los mismos)
 function _sumarDias(iso, n) { return new Date(new Date(iso + 'T12:00:00').getTime() + n * 86400000).toISOString().slice(0, 10); }
-function _avanceCurvaSHTML(fMes, eq, reg, meses) {
+function _avanceCurvaSHTML(eq, reg, rerender) {
+  rerender = rerender || 'renders.avance()';
   try {
     if (typeof curvaSPM !== 'function') return '';
     var cfg = S.g('cfg') || {}, hist = S.g('hist') || [];
@@ -123,9 +126,9 @@ function _avanceCurvaSHTML(fMes, eq, reg, meses) {
     var d = { reg: reg, hist: hist, hoy: hoy }, o = { periodo: tipo, ref: ref, duraciones: cfg.duracionPMHoras };
     var c = curvaSPM(eq, d, o);
     var etq = _curvaEtiqueta(tipo, c.desde, c.hasta);
-    var controles = '<div class="toolbar" style="margin:0 0 10px"><select id="fCurvaTipo" onchange="renders.avance()" title="Período de la curva">' +
+    var controles = '<div class="toolbar" style="margin:0 0 10px"><select id="fCurvaTipo" onchange="' + rerender + '" title="Período de la curva">' +
       [['semana', 'Semana'], ['mes', 'Mes'], ['semestre', 'Semestre'], ['anio', 'Año']].map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === tipo ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select>' +
-      '<select id="fCurvaRef" onchange="renders.avance()">' + opts.map(function (x) { return '<option value="' + x.v + '"' + (x.v === ref ? ' selected' : '') + '>' + escapeHtml(x.label) + '</option>'; }).join('') + '</select></div>';
+      '<select id="fCurvaRef" onchange="' + rerender + '">' + opts.map(function (x) { return '<option value="' + x.v + '"' + (x.v === ref ? ' selected' : '') + '>' + escapeHtml(x.label) + '</option>'; }).join('') + '</select></div>';
     var pf = function (x) { return x == null ? '—' : Math.round(x * 100) + '%'; };
     var h1 = function (x) { return (Math.round(x * 10) / 10 + '').replace('.', ','); };
     var col = c.cumplimiento == null ? 'var(--tx3)' : c.cumplimiento >= 0.95 ? 'var(--ok)' : c.cumplimiento >= 0.8 ? 'var(--w)' : 'var(--danger)';
@@ -185,5 +188,7 @@ function _avanceCurvaSHTML(fMes, eq, reg, meses) {
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
+// La curva S de PM se muestra en Planificación y Agenda → Planificador (plan.js la pide por window).
+window._avanceCurvaSBloque = function (rerender) { return _avanceCurvaSHTML(S.g('eq') || [], S.g('reg') || [], rerender); };
 window.renderAvance = renderAvance;
 renders.avance = renderAvance;
