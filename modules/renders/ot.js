@@ -352,7 +352,28 @@ export function renderOt(){
       }).join('')}
     </table></div>
     ${_pagHTML('ot',pg)}`}`;
+  _otOrdenarTarjetas();
 };
+// Orden por prioridad (2026-10-21): las 7 tarjetas ocupaban dos filas ANTES de los filtros y de la lista de OT. Las 5 operativas (total, pendientes, en ejecución,
+// cerradas, costo) quedan arriba; las dos de calidad del cierre («Cerradas sin solución» y «Sin tipo de causa») pasan debajo de la lista, como «Calidad de los datos
+// de cierre». Se mueven los nodos ya dibujados (sus textos, avisos y clics no cambian).
+function _otOrdenarTarjetas(){
+  var raiz=$('s-ot');
+  if(!raiz)return;
+  var cards=raiz.querySelector('.cards');
+  if(!cards||raiz.querySelector('.ot-calidad'))return;
+  var calidad=[].slice.call(cards.children).filter(function(c){return /sin soluci[oó]n|tipo de causa/i.test((c.querySelector('.card-t')||{}).textContent||'');});
+  if(!calidad.length||calidad.length===cards.children.length)return;
+  var caja=document.createElement('div');
+  caja.className='ot-calidad';
+  caja.style.cssText='margin:16px 0 8px';
+  caja.innerHTML='<div class="chart-t" style="font-size:13px;margin-bottom:8px">Calidad de los datos de cierre</div>';
+  var fila=document.createElement('div');
+  fila.className='cards';
+  calidad.forEach(function(c){fila.appendChild(c);});
+  caja.appendChild(fila);
+  raiz.appendChild(caja);
+}
 // analisisFallas() se eliminó (2026-08-30): duplicaba el cálculo de MTBF
 // por Equipo/Componente que ya vive en estadistica.js, con una versión
 // PEOR (no sumaba correctivos_historico, no usaba esFallaMTBF como fuente

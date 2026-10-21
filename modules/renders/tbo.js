@@ -140,12 +140,14 @@ export function renderTbo() {
 
   var h = '<div class="sec-h"><div><div class="sec-t">TBO Komatsu — qué cambiar, cuándo y a qué costo</div>' +
     '<div class="sec-s">Plan de cambio por horas del fabricante cruzado con tus cambios reales, tus compras y el historial de componentes</div></div></div>' +
-    '<div class="card" style="margin-bottom:12px;font-size:11px;color:var(--tx2);line-height:1.55">' +
+    // Orden por prioridad (2026-10-21): el texto «Cómo leerlo» ocupaba ~260 px antes de los controles y de los números; ahora va plegado (se recuerda si se abre).
+    '<details style="margin-bottom:12px"' + (window._tboLeerAbierto ? ' open' : '') + ' ontoggle="window._tboLeerAbierto=this.open"><summary style="cursor:pointer;color:var(--ac);font-size:12px;font-weight:600;min-height:44px;display:flex;align-items:center">Cómo leerlo</summary>' +
+    '<div class="card" style="margin-bottom:0;font-size:11px;color:var(--tx2);line-height:1.55">' +
     '<b>Cómo leerlo.</b> El TBO es la vida de un componente <b>original nuevo</b>; con repuestos alternativos o reparados puede durar menos, y también depende de la operación y el mantenimiento. ' +
     'Cuando hay un <b>cambio registrado</b> (Historial de Componentes / Componentes Mayores) el tiempo que falta se cuenta desde ese cambio. Sin ese dato se usa el <b>plan teórico</b> del Excel (próximo múltiplo del TBO), que nunca se marca como vencido porque no sabemos si el cambio se hizo. ' +
     'El origen sale del campo "Origen" del historial; si está vacío se infiere por el proveedor de la compra (<b>Komatsu Chile = original</b>, otro = alternativo) — es una aproximación. ' +
     'Las compras se cruzan <b>por descripción</b> (los pedidos no traen N° de parte y el texto viene cortado a ~25 caracteres).' +
-    '</div>' +
+    '</div></details>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">' +
     '<select id="tboEq" onchange="renders.tbo()" style="max-width:340px">' + opts + '</select>' +
     '<label style="font-size:11px;color:var(--tx3)">USD→CLP <input id="tboTasa" type="number" min="1" step="1" value="' + tasa + '" style="width:80px" onchange="tboCambiarTasa(this.value)"></label>' +

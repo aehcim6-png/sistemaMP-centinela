@@ -604,6 +604,9 @@ body.dens-compact th{padding:6px 8px}
 #s-audit .audit-ok{margin:6px 0 16px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--radius);padding:0 14px 6px}
 #s-audit .audit-ok>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:700;color:var(--ok)}
 #s-audit .audit-ok>summary:focus-visible{outline:2px solid var(--ac);outline-offset:2px;border-radius:4px}
+/* Paneles de subpestaña con clase «hidden» (Metas, Componentes, Planificación, Stock): sin esta regla un panel oculto se veía igual cuando otra vista le dibujaba contenido
+   (p. ej. Resumen Ejecutivo llama a renders.metas() solo para armar su resumen y la tabla de Metas aparecía duplicada arriba). */
+#s-mkpi>.hidden,#s-comp2>.hidden,#s-plani>.hidden,#s-stk2>.hidden{display:none}
 </style>
 
   <!-- ══ FIREBASE SDK ══════════════════════════════════════════ -->
@@ -685,7 +688,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-21',
+  ayuda:'2026-10-21b',
   cad:'2026-08-30b',
   cfg:'2026-10-21',
   comp2:'2026-10-19',
@@ -730,7 +733,7 @@ const _LAZY_VERS={
   buscar:'2026-10-11j',
   comp:'2026-10-14',
   estadistica:'2026-10-18',
-  tbo:'2026-10-11i',
+  tbo:'2026-10-21',
   audit:'2026-10-21',
   auditoria:'2026-10-17',
   pred:'2026-10-19b',
@@ -738,7 +741,7 @@ const _LAZY_VERS={
   resumenejec:'2026-10-08',
   reg:'2026-10-16',
   neu:'2026-10-12a',
-  ot:'2026-10-19',
+  ot:'2026-10-21',
   prod:'2026-10-05b',
 };
 const _LAZY_EXPORTS={
