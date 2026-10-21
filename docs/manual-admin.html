@@ -307,6 +307,21 @@
   Cualquier cambio de estructura debe ser un archivo de migración nuevo, nunca una edición manual
   sin rastro en el panel. Verificar con <code>supabase db diff</code> (debería salir vacío).</p>
 
+  <p><b>Permisos de la API de datos en cada tabla, función y secuencia nueva (desde el 30-oct-2026)</b>: Supabase dejó de dar
+  permisos automáticos a lo que se crea en <code>public</code>. Sin un <code>GRANT</code> explícito la app recibe «permission denied» (error 42501). Toda
+  migración nueva que cree algo en <code>public</code> debe incluir sus permisos <b>en el mismo archivo</b>. Plantilla (<code>anon</code> no recibe nada: la
+  app exige sesión y todas las políticas piden un usuario activo):</p>
+  <pre>create table public.mi_tabla ( ... );
+alter table public.mi_tabla enable row level security;
+-- políticas RLS ...
+grant select, insert, update, delete on table public.mi_tabla to authenticated;
+grant select, insert, update, delete on table public.mi_tabla to service_role;
+-- función (salvo las que devuelven trigger): grant execute on function public.mi_funcion(int) to authenticated;
+-- columna serial/identity: grant usage, select on sequence public.mi_tabla_id_seq to service_role;</pre>
+  <p><code>tests/migracionesGrants.test.js</code> falla si una migración posterior a <code>20261021120000_grants_explicitos_data_api.sql</code> crea una
+  tabla, función o secuencia sin sus <code>GRANT</code>. Esa migración da, a las tablas anteriores, los mismos permisos que ya tienen en vivo (para
+  que un proyecto nuevo, una rama de prueba o un <code>supabase db reset</code> no queden con la API rota).</p>
+
   <h3 id="d-14">Supuestos editables que se guardan en la tabla <code>configuracion</code> (2026-10-13)</h3>
   <p>La tabla <code>configuracion</code> guarda una sola fila con los valores que el sistema no puede medir y que una persona define: costo de hora detenida (general y por modelo), tasa USD→CLP, duración estándar de cada PM y, desde el 13 de octubre, los <b>supuestos de Arriendo vs compra</b> (UF, diésel, sueldos, dotación, litros por carga, disponibilidades, valor residual y tarifas de arriendo seco y húmedo por modelo) en la columna <code>arriendoVsCompra</code>. Solo un administrador puede editarlos; los demás roles los ven pero no los cambian. Cada columna nueva se agrega con una migración aditiva (nunca borra datos) que hay que aplicar <b>a los dos proyectos Supabase antes de subir el código</b> que la usa; si no, el guardado falla. Otras tablas operativas nuevas: <code>backlog_pm</code> (tareas pendientes de pauta, informe de gestión) y la columna <code>registros_pm.desvioDias</code> (desvío de cada PM). Todas se crean con migraciones aditivas que se aplican a los dos proyectos antes de subir el código.</p>
 

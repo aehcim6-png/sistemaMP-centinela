@@ -283,6 +283,24 @@ para no crecer sin límite y comerse cuota del plan gratis.
   CLI de Supabase o con `mcp__Supabase__apply_migration` si se está
   trabajando con Claude — nunca como una edición manual sin rastro en el
   panel.
+- **Permisos de la API de datos en cada tabla, función y secuencia nueva (desde el 30-oct-2026)**: Supabase dejó de dar
+  permisos automáticos a lo que se crea en `public`. Sin un `GRANT` explícito la app recibe «permission denied» (error 42501). Toda
+  migración nueva que cree algo en `public` debe incluir sus permisos **en el mismo archivo**. Plantilla (`anon` no recibe nada: la
+  app exige sesión y todas las políticas piden un usuario activo):
+
+  ```sql
+  create table public.mi_tabla ( ... );
+  alter table public.mi_tabla enable row level security;
+  -- políticas RLS ...
+  grant select, insert, update, delete on table public.mi_tabla to authenticated;
+  grant select, insert, update, delete on table public.mi_tabla to service_role;
+  -- función (salvo las que devuelven trigger): grant execute on function public.mi_funcion(int) to authenticated;
+  -- columna serial/identity: grant usage, select on sequence public.mi_tabla_id_seq to service_role;
+  ```
+
+  `tests/migracionesGrants.test.js` falla si una migración posterior a `20261021120000_grants_explicitos_data_api.sql` crea una
+  tabla, función o secuencia sin sus `GRANT`. Esa migración da, a las tablas anteriores, los mismos permisos que ya tienen en vivo (para
+  que un proyecto nuevo, una rama de prueba o un `supabase db reset` no queden con la API rota).
 - **Verificar que el schema versionado coincide con la realidad**:
   `supabase db diff` (con la CLI conectada al proyecto) debería salir
   vacío. Si no, alguien hizo un cambio fuera de una migración y hay que
