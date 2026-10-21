@@ -320,6 +320,35 @@ export function renderAudit(){
       }).join('')}
     </table>${alertasSinSeguimiento.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px">...y ${alertasSinSeguimiento.length-50} más</div>`:''}</div>`:'<div style="font-size:12px;color:var(--ok)">✅ Sin alertas de salud pendientes de seguimiento</div>'}
   `;
+  _auditOrdenar();
+}
+
+// Orden por prioridad (2026-10-21): las 6 revisiones iban siempre en el mismo orden aunque 5 estuvieran en cero (cada una con su título, su explicación y un
+// «✅ sin hallazgos»). Ahora las que SÍ tienen hallazgos van primero, tal cual, y las que están en cero se juntan en un solo bloque plegado («Controles sin
+// hallazgos»). Se reacomodan los nodos ya dibujados (no se recalcula nada ni se pierde ningún texto); el estado abierto/cerrado se recuerda al redibujar.
+function _auditOrdenar(){
+  var raiz=$('s-audit');
+  if(!raiz||raiz.querySelector('.audit-sec'))return;
+  var titulos=[].slice.call(raiz.children).filter(function(e){return e.classList.contains('audit-section-title');});
+  if(!titulos.length)return;
+  var secciones=titulos.map(function(t){
+    var sec=document.createElement('section'),m=/\((\d+)/.exec(t.textContent),hijos=[t],n=t.nextElementSibling;
+    sec.className='audit-sec';sec.dataset.n=m?m[1]:'0';
+    while(n&&!n.classList.contains('audit-section-title')){hijos.push(n);n=n.nextElementSibling;}
+    t.parentNode.insertBefore(sec,t);
+    hijos.forEach(function(h){sec.appendChild(h);});
+    return sec;
+  });
+  var sin=secciones.filter(function(x){return +x.dataset.n===0;});
+  if(!sin.length)return;
+  var d=document.createElement('details');
+  d.className='audit-ok';d.open=!!window._auditOkAbierto;
+  d.addEventListener('toggle',function(){window._auditOkAbierto=d.open;});
+  var sm=document.createElement('summary');
+  sm.textContent='Controles sin hallazgos ('+sin.length+' de '+secciones.length+')';
+  d.appendChild(sm);
+  sin.forEach(function(x){d.appendChild(x);});
+  raiz.appendChild(d);   // al final: las secciones con hallazgos quedaron arriba, en su orden original
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda). _AUDIT_MESES

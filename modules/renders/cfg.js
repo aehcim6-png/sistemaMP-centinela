@@ -439,8 +439,54 @@ export function renderCfg(){
 
       '</div>'
     ;
+  _cfgAgrupar();
   if(window._userRole==='admin'){setTimeout(cargarPendientesUI,50);setTimeout(cargarActivosUI,50);}
   _refrescarEstadoMFA();
+}
+
+// Orden por prioridad (2026-10-21): Configuración tenía ~20 tarjetas seguidas (la de Tema y Apariencia sola medía ~2.000 px). Se agrupan por
+// tema en secciones plegables, en el orden en que una persona las busca. Las tarjetas se MUEVEN (no se vuelven a crear), así que sus ids,
+// botones y las cargas posteriores (usuarios pendientes, estado de MFA, nube) siguen funcionando igual. Las tarjetas que no calzan con ningún
+// grupo van a «Otros» (nunca se pierde una). El estado abierto/cerrado de cada grupo se recuerda entre redibujos.
+var _CFG_GRUPOS=[
+  {id:'cuenta',nombre:'Mi cuenta y apariencia',abierto:true,re:/contraseña|dos pasos|tema y apariencia/i},
+  {id:'usuarios',nombre:'Usuarios y accesos',re:/usuario|accesos al sistema/i},
+  {id:'alertas',nombre:'Alertas y avisos',re:/alertas por|reporte de fallas/i},
+  {id:'datos',nombre:'Datos, respaldo y sincronización',re:/respaldo|sincroniza|mantenimiento de datos|papelera|verificador/i},
+  {id:'historial',nombre:'Historial y uso del sistema',re:/log de cambios|uso del sistema|monitoreo de errores/i},
+  {id:'parametros',nombre:'Parámetros',re:/par[aá]metros|costo|tarifa/i},
+  {id:'sistema',nombre:'Información del sistema',re:/documentaci|info del sistema|c[oó]digos qr/i}
+];
+function _cfgAgrupar(){
+  var raiz=$('s-cfg');
+  if(!raiz||raiz.querySelector('.cfg-grupo'))return;
+  var tarjetas=[].slice.call(raiz.querySelectorAll('.card')).filter(function(c){return !c.closest('.cards')&&c.querySelector('b');});
+  if(!tarjetas.length)return;
+  window._cfgGruposAbiertos=window._cfgGruposAbiertos||{};
+  var grupos=_CFG_GRUPOS.concat([{id:'otros',nombre:'Otros',re:null}]).map(function(g){return{def:g,tarjetas:[]};});
+  tarjetas.forEach(function(c){
+    var t=c.querySelector('b').textContent;
+    var g=grupos.filter(function(x){return x.def.re&&x.def.re.test(t);})[0]||grupos[grupos.length-1];
+    g.tarjetas.push(c);
+  });
+  var cont=document.createElement('div');
+  cont.id='cfgGrupos';
+  grupos.forEach(function(g){
+    if(!g.tarjetas.length)return;
+    var d=document.createElement('details'),abierto=g.def.id in window._cfgGruposAbiertos?window._cfgGruposAbiertos[g.def.id]:!!g.def.abierto;
+    d.className='cfg-grupo';d.open=abierto;
+    d.addEventListener('toggle',function(){window._cfgGruposAbiertos[g.def.id]=d.open;});
+    var sm=document.createElement('summary');
+    sm.innerHTML=escapeHtml(g.def.nombre)+' <span class="cfg-grupo-n">'+g.tarjetas.length+(g.tarjetas.length===1?' sección':' secciones')+'</span>';
+    var body=document.createElement('div');
+    body.className='cfg-grupo-body';
+    g.tarjetas.forEach(function(c){body.appendChild(c);});
+    d.appendChild(sm);d.appendChild(body);cont.appendChild(d);
+  });
+  var tiles=raiz.querySelector('.cards');
+  if(tiles&&tiles.parentNode===raiz)raiz.insertBefore(cont,tiles.nextSibling);else raiz.appendChild(cont);
+  // contenedores que quedaron vacíos tras mover las tarjetas
+  [].slice.call(raiz.children).forEach(function(e){if(e!==cont&&e.tagName==='DIV'&&!e.children.length&&!e.textContent.trim())e.remove();});
 }
 
 async function _refrescarEstadoMFA(){

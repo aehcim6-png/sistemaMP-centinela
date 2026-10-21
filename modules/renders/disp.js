@@ -440,10 +440,6 @@ export function renderDisp(){
     '<div style="display:flex;gap:8px"><button class="btn" style="background:var(--danger);color:#fff" onclick="registrarSalidaServicio()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="4.5" y1="15.5" x2="15.5" y2="4.5"/></svg> Registrar salida de servicio</button><button class="btn btn-o" onclick="exportCSV(\'disp\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button><button class="btn btn-o" onclick="importDispCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar</button></div></div>'+
     fsEnCursoHTML+
     dispReportabHTML(eq)+
-    prodPerdidaHTML+
-    monteCarloHTML+
-    pronosticoHTML+
-    whatIfHTML+
     '<div class="toolbar">'+
     '<select id="fDispVista" onchange="renders.disp()"><option value="mensual"'+(fVista==='mensual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Mensual</option><option value="semanal"'+(fVista==='semanal'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Semanal</option><option value="diario"'+(fVista==='diario'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Diario</option><option value="anual"'+(fVista==='anual'?' selected':'')+'><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Anual</option></select>'+
     '<select id="fDispMes" onchange="renders.disp()">'+meses.map(function(m){return'<option'+(fMes===m?' selected':'')+'>'+m+'</option>'}).join('')+'</select>'+
@@ -452,7 +448,14 @@ export function renderDisp(){
     tipos.map(function(t){return'<option'+(fTipo===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'+
     '<div style="font-size:11px;color:var(--tx3)">Meta: <span contenteditable style="color:var(--ac);font-weight:700;cursor:pointer" onblur="var v=parseFloat(this.innerText);if(v>0){S.s(\'dispMeta\',v);refreshAll()}">'+meta+'%</span></div>'+
     '</div>'+
-    content;
+    content+
+    // Orden por prioridad (2026-10-21): primero lo que se mira todos los días (equipos fuera de servicio, disponibilidad del período y la tabla por equipo);
+    // las proyecciones y simulaciones (producción perdida, Monte Carlo, pronóstico, What-If) van debajo, plegadas. El estado abierto/cerrado se recuerda
+    // al cambiar los filtros (renders.disp() redibuja todo).
+    '<details class="disp-avz" style="margin:6px 0 16px"'+(window._dispAvzAbierto?' open':'')+' ontoggle="window._dispAvzAbierto=this.open">'+
+    '<summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0;min-height:44px;display:flex;align-items:center">Proyecciones y simulaciones <span style="font-weight:400;font-size:11px;color:var(--tx3);margin-left:8px">producción perdida · Monte Carlo · pronóstico por equipo · What-If</span></summary>'+
+    prodPerdidaHTML+monteCarloHTML+pronosticoHTML+whatIfHTML+
+    '</details>';
   if(typeof _animGauges==='function')_animGauges('s-disp');
 }
 
