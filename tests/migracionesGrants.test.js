@@ -62,4 +62,12 @@ describe('migraciones del repositorio', () => {
   it('ninguna migración posterior crea tablas, funciones o secuencias sin sus GRANT', () => {
     expect(revisarCarpeta(dir)).toEqual([]);
   });
+  it('existe la migración que quita los permisos por defecto de lo nuevo en public (ya aplicada en las dos bases el 21-oct-2026)', () => {
+    const f = fs.readdirSync(dir).find((n) => n.startsWith('20261021130000'));
+    expect(f).toBeTruthy();
+    const sql = fs.readFileSync(path.join(dir, f), 'utf8');
+    expect((sql.match(/alter default privileges for role postgres in schema public/g) || []).length).toBe(4);
+    expect(sql).toMatch(/revoke all on tables from anon, authenticated, service_role/);
+    expect(sql).toMatch(/revoke execute on functions from public/);
+  });
 });
