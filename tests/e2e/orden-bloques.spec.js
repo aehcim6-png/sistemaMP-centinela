@@ -47,7 +47,8 @@ test('Disponibilidad, Configuración y Auditoría ordenan sus bloques por priori
     renders.cfg(); await esp(500);
     out.cfg.recuerdaGrupo = document.querySelectorAll('#s-cfg .cfg-grupo')[2].open;
     // Auditoría
-    out.auditOk = await abrir('audit', () => !!document.querySelector('#s-audit .audit-ok'));
+    // la carga en segundo plano puede pisar los datos sembrados: se repite hasta ver una revisión CON hallazgos arriba y el bloque de las que están en cero
+    out.auditOk = await abrir('audit', () => !!document.querySelector('#s-audit .audit-ok') && document.querySelectorAll('#s-audit > .audit-sec').length >= 1);
     const sa = document.getElementById('s-audit');
     const secs = [...sa.querySelectorAll('.audit-sec')];
     const dentro = [...sa.querySelectorAll('.audit-ok .audit-sec')].length;
