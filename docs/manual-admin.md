@@ -158,6 +158,49 @@ vez que aparece un dispositivo en el historial completo de la cuenta —
 mismo criterio que usa la Edge Function, calculado en el navegador sobre el
 mismo dato (no es una llamada nueva a Supabase).
 
+### Accesos del servidor y alerta de accesos sospechosos (2026-10-22)
+
+**Qué cubre.** Los avisos de dispositivo nuevo y de intentos fallidos (arriba) los dispara el navegador de la app, y el registro de
+"Accesos recientes" vive en `changelog`, que tiene un tope de 500 filas, un botón "Limpiar" y se puede editar o borrar siendo admin. Alguien
+que entrara directo a la API con una clave robada no dejaba rastro ahí, y Supabase solo deja consultar sus propios registros de autenticación
+24 h hacia atrás. Por eso el servidor copia cada sesión nueva de Supabase Auth (`auth.sessions`) a una tabla propia de **solo agregar**:
+`public.accesos_servidor` (cuenta, IP, navegador, si completó el MFA, motivos y nivel). Nadie la edita ni la borra (lo impide un trigger,
+igual que `auditoria_cambios`) y solo un admin con MFA completo la lee.
+
+**Cómo funciona.** Dos tareas de `pg_cron`, sin Edge Function ni secreto nuevo:
+
+| Tarea | Cada | Qué hace |
+|---|---|---|
+| `capturar-accesos` | 1 minuto | Copia las sesiones nuevas y les pone nivel. La primera vez deja las sesiones que ya existían como **base** (no alertan). |
+| `avisar-accesos-sospechosos` | 5 minutos | Manda UN correo (Resend, clave `resend_api_key` del Vault) con lo que esté en rojo y no se haya avisado. |
+
+**Niveles.**
+- 🔴 **Rojo** (tarjeta y correo): cuenta bloqueada, cuenta sin rol activo, IP **y** navegador nunca vistos juntos en esa cuenta, o **MFA incompleto**
+  (la cuenta tiene verificación en dos pasos y la sesión no la completó en 5 minutos: alguien sabe la clave pero no tiene el segundo factor).
+- 🟠 **Ámbar** (solo tarjeta): IP nueva sola, navegador nuevo solo, o primer acceso de una cuenta. Una IP nueva sola no alerta a propósito: con datos
+  móviles cambia seguido y llenaría el correo de falsas alarmas.
+
+**Dónde se ve.** **Configuración → Usuarios y accesos → Accesos del servidor**: un resumen de las últimas 72 h (en rojo si hay algo sospechoso) y el
+detalle de las últimas 200 sesiones. Solo lo ven los admin. Si la migración aún no se aplicó en ese proyecto, la tarjeta dice "Aún no está activado".
+
+**Qué hacer con un acceso en rojo.** Si lo reconoces (por ejemplo, tu propio celular con otra red), no hay nada más que hacer. Si no: bloquea la
+cuenta en Supabase → Authentication → Users y cambia la clave. El registro queda como evidencia.
+
+**Límites conocidos.**
+- Una sesión que entre y salga en menos de un minuto puede no alcanzar a copiarse (la hora del último ingreso de cada cuenta sigue en `auth.users`).
+- El correo sale por `net.http_post` (asíncrono): la fila se marca "avisado" al encolarlo, no al confirmarse la entrega. Si falta `resend_api_key`
+  en el Vault, la función falla, los rojos quedan sin avisar y se reintenta a los 5 minutos (se ve en `cron.job_run_details`).
+- Lo detectado en `mfa_incompleto` se evalúa a los 5 minutos: alguien que esté a media verificación más de 5 minutos también se marca. Es un falso
+  positivo conocido y barato (un correo).
+- Solo un admin con MFA completo lee la tabla; un operador con la clave filtrada pero sin MFA no puede verla ni alterarla.
+- Mientras la cuenta tenga MFA, una sesión con clave pero sin segundo factor (nivel aal1) igual puede leer los datos de un operador por la API:
+  hoy el MFA obligatorio lo exige la app (y la base para el rol admin), no todas las tablas. Esta alerta es justamente lo que lo detecta.
+- Las IP y navegadores que ya usaste antes de instalarlo pueden alertar una vez como nuevos (la foto inicial solo conoce las sesiones activas ese día).
+
+**Prueba.** La lógica (reglas, correo escapado, solo-agregar, permisos, falta de clave) se probó contra un Postgres 16 real con las tablas de
+Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archivo no pierda esas protecciones y
+`tests/e2e/accesos-servidor.spec.js` prueba la tarjeta (rojo, verde, tabla no activada, operador sin tarjeta, navegador escapado).
+
 ### Protección contra bots (CAPTCHA, activado 2026-09-08)
 
 El login y la recuperación de contraseña tienen un widget de **Cloudflare

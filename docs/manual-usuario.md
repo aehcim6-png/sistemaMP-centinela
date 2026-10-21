@@ -325,6 +325,12 @@ hacer. Si no lo reconoces, cambia tu contraseña y avisa a un administrador
 — probablemente ya te haya llegado un correo o WhatsApp avisando lo mismo
 apenas ocurrió el acceso.
 
+**Soy administrador: ¿cómo sé si alguien entró sin permiso?**
+En **Configuración → Usuarios y accesos → Accesos del servidor** ves, de las últimas 72 horas, cuántos inicios de sesión son sospechosos (en
+rojo) o conviene revisar (en naranja). Los rojos también te llegan por correo. El servidor los anota él mismo, entre o no la persona por la
+app, y nadie puede editar ni borrar ese registro. Una IP nueva sola no es alarma (con datos móviles cambia seguido); sí lo es un navegador
+y una IP nunca vistos juntos, una cuenta bloqueada, o una clave usada sin completar la verificación en dos pasos.
+
 **¿Cómo sé si me faltan o me sobran técnicos?**
 En **Componentes → Predictivo → 👷 Dotación de Taller** hay un **Índice
 Carga/Capacidad**, por mes/semestre/año y proyectado a futuro:

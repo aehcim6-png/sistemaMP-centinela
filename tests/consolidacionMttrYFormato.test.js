@@ -19,7 +19,7 @@ const glob = fs.readdirSync(path.join(__dirname, '../modules/renders')).filter((
 // nuevo o una pestaña nueva) — un `git diff` que agregue una fila acá
 // debe ser una decisión consciente, no un accidente.
 const EXCEPCIONES = {
-  'cfg.js': 2,     // Date() (mensaje de prueba a Sentry) + 'd' (fecha ya parseada)
+  'cfg.js': 3,     // Date() (mensaje de prueba a Sentry) + 'd' (fecha ya parseada) + 'd' (fecha de cada sesión en Accesos del servidor)
   'informes.js': 1, // Date() (timestamp del PDF)
   'neu.js': 3,      // v?.toLocaleString(...)||'—'/'0' — distingue sin-dato de cero
   'uso.js': 1,      // Date(f.ultima)

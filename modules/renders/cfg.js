@@ -136,6 +136,15 @@ export function renderCfg(){
     '<button class="btn btn-o" onclick="verAccesos()">Ver accesos recientes</button>'+
     '</div>'+
 
+    // ACCESOS DEL SERVIDOR (solo admin): lo que el propio servidor registró al crear cada sesión, pase o no por la app
+    (window._userRole==='admin'?
+    '<div class="card" id="accSrvCard" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
+    '<b style="font-size:14px">'+ICONS.lock+' Accesos del servidor</b>'+
+    '<p style="font-size:11px;color:var(--tx3);margin:8px 0">Cada inicio de sesión que el servidor creó, entre o no por la app. No se puede editar ni borrar. Los casos en rojo también llegan por correo.</p>'+
+    '<div id="accSrvResumen" style="font-size:12px;margin:8px 0;color:var(--tx3)">Cargando…</div>'+
+    '<button class="btn btn-o" onclick="verAccesosServidor()">Ver accesos del servidor</button>'+
+    '</div>':'')+
+
     // LOG DE CAMBIOS (auditoría completa — todas las acciones, no solo login)
     '<div class="card" style="max-width:900px;margin-bottom:16px;border-left:3px solid #a78bfa">'+
     '<b style="font-size:14px"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg> Log de Cambios</b>'+
@@ -440,7 +449,7 @@ export function renderCfg(){
       '</div>'
     ;
   _cfgAgrupar();
-  if(window._userRole==='admin'){setTimeout(cargarPendientesUI,50);setTimeout(cargarActivosUI,50);}
+  if(window._userRole==='admin'){setTimeout(cargarPendientesUI,50);setTimeout(cargarActivosUI,50);setTimeout(_resumenAccesosServidor,80);}
   _refrescarEstadoMFA();
 }
 
@@ -450,7 +459,7 @@ export function renderCfg(){
 // grupo van a «Otros» (nunca se pierde una). El estado abierto/cerrado de cada grupo se recuerda entre redibujos.
 var _CFG_GRUPOS=[
   {id:'cuenta',nombre:'Mi cuenta y apariencia',abierto:true,re:/contraseña|dos pasos|tema y apariencia/i},
-  {id:'usuarios',nombre:'Usuarios y accesos',re:/usuario|accesos al sistema/i},
+  {id:'usuarios',nombre:'Usuarios y accesos',re:/usuario|accesos al sistema|accesos del servidor/i},
   {id:'alertas',nombre:'Alertas y avisos',re:/alertas por|reporte de fallas/i},
   {id:'datos',nombre:'Datos, respaldo y sincronización',re:/respaldo|sincroniza|mantenimiento de datos|papelera|verificador/i},
   {id:'historial',nombre:'Historial y uso del sistema',re:/log de cambios|uso del sistema|monitoreo de errores/i},
@@ -999,6 +1008,81 @@ export function verAccesos(){
     <button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>`);
 };
 
+// ============ ACCESOS DEL SERVIDOR (admin) ============
+// Lee public.accesos_servidor (migración 20261022120000): una fila por sesión creada en Supabase Auth, copiada por el propio servidor cada minuto.
+// RLS: solo un admin con MFA completo la lee. nivel: base (ya existía al instalar) | normal | ambar (revisar) | rojo (sospechoso, también llega por correo).
+var _ACC_MOTIVOS={
+  cuenta_bloqueada:'la cuenta está bloqueada',
+  cuenta_sin_acceso:'la cuenta no tiene un rol activo',
+  ip_y_navegador_nuevos:'IP y navegador nunca vistos en esta cuenta',
+  mfa_incompleto:'la cuenta tiene verificación en dos pasos y la sesión no la completó',
+  ip_nueva:'IP nueva para esta cuenta',
+  navegador_nuevo:'navegador nuevo para esta cuenta',
+  primer_acceso:'primer acceso de la cuenta'
+};
+async function _accesosServidorCargar(limite){
+  var token=localStorage.getItem('smp_access_token');
+  if(!token)return{error:'sin sesión'};
+  try{
+    var r=await fetch(_SB_DEFAULT_URL+'/rest/v1/accesos_servidor?select=sesion_creada,usuario_email,ip,navegador,aal_final,motivos,nivel,base&order=sesion_creada.desc&limit='+(limite||200),
+      {headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token}});
+    if(r.status===404)return{error:'noactivo'};
+    if(!r.ok)return{error:'HTTP '+r.status};
+    return{filas:await r.json()};
+  }catch(e){return{error:'sin conexión'};}
+}
+// Pura: cuenta lo que hay que mirar en las últimas 'horas' (las filas «base» no cuentan: ya existían al instalar).
+function _accSrvContar(filas,ahoraMs,horas){
+  var desde=ahoraMs-horas*3600000,c={rojo:0,ambar:0,total:0};
+  (filas||[]).forEach(function(f){
+    var t=Date.parse(f.sesion_creada);
+    if(f.base||isNaN(t)||t<desde)return;
+    c.total++;
+    if(f.nivel==='rojo')c.rojo++;else if(f.nivel==='ambar')c.ambar++;
+  });
+  return c;
+}
+async function _resumenAccesosServidor(){
+  var box=document.getElementById('accSrvResumen'),card=document.getElementById('accSrvCard');
+  if(!box)return;
+  var res=await _accesosServidorCargar(200);
+  if(!document.getElementById('accSrvResumen'))return;
+  if(res.error==='noactivo'){box.textContent='Aún no está activado en este proyecto (falta aplicar la migración de accesos del servidor).';return;}
+  if(res.error){box.textContent='No se pudo leer el registro ('+res.error+').';return;}
+  var c=_accSrvContar(res.filas,Date.now(),72);
+  if(c.rojo){
+    card.style.borderLeftColor='var(--danger)';
+    box.innerHTML='<b style="color:var(--danger)">🔴 '+c.rojo+' acceso(s) sospechoso(s) en las últimas 72 h</b>'+(c.ambar?' · 🟠 '+c.ambar+' por revisar':'');
+  }else if(c.ambar){
+    card.style.borderLeftColor='var(--w)';
+    box.innerHTML='<b style="color:var(--w)">🟠 '+c.ambar+' acceso(s) por revisar en las últimas 72 h</b> (IP o navegador nuevos, sin otras señales)';
+  }else{
+    box.innerHTML='<span style="color:var(--ok)">✅ Sin accesos sospechosos en las últimas 72 h</span> · '+c.total+' inicio(s) de sesión registrados'+(res.filas.length?'':' (todavía no hay registros)');
+  }
+}
+export async function verAccesosServidor(){
+  sm('<div style="max-width:760px"><h3>'+ICONS.lock+' Accesos del servidor</h3><p style="font-size:12px;color:var(--tx3)">Cargando…</p></div>');
+  var res=await _accesosServidorCargar(200);
+  if(res.error){
+    sm('<div style="max-width:760px"><h3>'+ICONS.lock+' Accesos del servidor</h3><p style="font-size:12px;color:var(--danger)">'+(res.error==='noactivo'?'Aún no está activado en este proyecto.':'No se pudo leer el registro ('+escapeHtml(res.error)+').')+'</p><button class="btn btn-o" onclick="cm()">Cerrar</button></div>');
+    return;
+  }
+  var rows=res.filas.map(function(f){
+    var d=new Date(f.sesion_creada),fecha=isNaN(d)?escapeHtml(f.sesion_creada||'—'):d.toLocaleString('es-CL');
+    var col=f.nivel==='rojo'?'var(--danger)':f.nivel==='ambar'?'var(--w)':'inherit';
+    var marca=f.nivel==='rojo'?'🔴 ':f.nivel==='ambar'?'🟠 ':'';
+    var motivos=f.base?'sesión anterior a la instalación':(f.motivos||[]).map(function(m){return escapeHtml(_ACC_MOTIVOS[m]||m);}).join('; ');
+    var mfa=f.aal_final==='aal2'?'<span style="color:var(--ok)" title="Completó la verificación en dos pasos">✓ MFA</span>':'<span style="color:var(--tx3)" title="No completó la verificación en dos pasos (o la cuenta no la tiene)">sin MFA</span>';
+    return '<tr style="color:'+col+'"><td style="padding:4px;font-size:11px;white-space:nowrap">'+marca+fecha+'</td><td style="font-size:11px">'+escapeHtml(f.usuario_email||'—')+'</td><td style="font-size:11px">'+escapeHtml(f.ip||'—')+'</td><td style="font-size:11px">'+mfa+'</td><td style="font-size:10px;color:var(--tx3)">'+motivos+'</td><td style="font-size:10px;color:var(--tx3)">'+escapeHtml((f.navegador||'').slice(0,80))+'</td></tr>';
+  }).join('');
+  sm('<div style="max-width:760px"><h3>'+ICONS.lock+' Accesos del servidor</h3>'+
+    '<p style="font-size:11px;color:var(--tx3);margin-bottom:8px">Últimas '+res.filas.length+' sesiones. 🔴 sospechoso (también llega por correo) · 🟠 para revisar. Una IP nueva sola no es alerta: con datos móviles cambia seguido.</p>'+
+    '<div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%">'+
+    '<tr style="background:var(--bg3);position:sticky;top:0"><th style="padding:4px;text-align:left">Fecha/hora</th><th style="text-align:left">Cuenta</th><th style="text-align:left">IP</th><th style="text-align:left">MFA</th><th style="text-align:left">Motivo</th><th style="text-align:left">Navegador</th></tr>'+
+    (rows||'<tr><td colspan="6" style="padding:12px;text-align:center;color:var(--tx3)">Sin registros todavía</td></tr>')+
+    '</table></div><button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>');
+}
+
 // ============ CREAR / ACTIVAR USUARIOS (admin) ============
 async function _accionUsuarios(payload){
   var token=localStorage.getItem('smp_access_token');
@@ -1164,6 +1248,8 @@ window._cancelarActivarMFA = _cancelarActivarMFA;
 window.desactivarMFA = desactivarMFA;
 window.nombrarEquipo = nombrarEquipo;
 window.verAccesos = verAccesos;
+window.verAccesosServidor = verAccesosServidor;
+window._accSrvContar = _accSrvContar;
 window.crearUsuarioUI = crearUsuarioUI;
 window.cargarPendientesUI = cargarPendientesUI;
 window.activarUsuarioUI = activarUsuarioUI;

@@ -87,7 +87,7 @@
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Manual de Administrador</h1>
 
-<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Accesos que necesitas tener</a><a class="h2" href="#d-2">2. Gestión de usuarios</a><a class="h2" href="#d-3">3. Seguridad</a><a class="h3" href="#d-4">Roles</a><a class="h3" href="#d-5">Perfil — qué pestañas ve cada cuenta (2026-10-01)</a><a class="h3" href="#d-6">Verificación en dos pasos (MFA)</a><a class="h3" href="#d-7">Contraseñas</a><a class="h3" href="#d-8">Vencimiento de contraseña (rotación periódica, 2026-09-02)</a><a class="h3" href="#d-9">Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</a><a class="h3" href="#d-10">Protección contra bots (CAPTCHA, activado 2026-09-08)</a><a class="h3" href="#d-11">Cierre de sesión por inactividad</a><a class="h3" href="#d-12">Auditoría (trazabilidad — quién cambió qué)</a><a class="h2" href="#d-13">4. Base de datos (Supabase)</a><a class="h3" href="#d-14">Supuestos editables que se guardan en la tabla configuracion (2026-10-13)</a><a class="h3" href="#d-15">Límites del plan gratis (hoy)</a><a class="h2" href="#d-16">5. Respaldo y continuidad de datos</a><a class="h3" href="#d-17">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</a><a class="h2" href="#d-18">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</a><a class="h3" href="#d-19">Configuración inicial (una sola vez)</a><a class="h3" href="#d-20">Formato del mensaje</a><a class="h3" href="#d-21">Segunda pasada con IA (2026-09-02)</a><a class="h2" href="#d-22">7. Alertas automáticas de salida (correo y WhatsApp)</a><a class="h2" href="#d-23">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</a><a class="h2" href="#d-24">8. Despliegue (Vercel)</a><a class="h2" href="#d-25">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</a><a class="h2" href="#d-26">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</a><a class="h2" href="#d-27">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</a><a class="h2" href="#d-28">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</a><a class="h2" href="#d-29">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</a><a class="h2" href="#d-30">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</a><a class="h2" href="#d-31">9. Estructura del código</a><a class="h2" href="#d-32">10. Si algo se rompe — por dónde empezar</a><a class="h2" href="#d-33">11. Continuidad — si quien mantiene esto no está disponible</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Accesos que necesitas tener</a><a class="h2" href="#d-2">2. Gestión de usuarios</a><a class="h2" href="#d-3">3. Seguridad</a><a class="h3" href="#d-4">Roles</a><a class="h3" href="#d-5">Perfil — qué pestañas ve cada cuenta (2026-10-01)</a><a class="h3" href="#d-6">Verificación en dos pasos (MFA)</a><a class="h3" href="#d-7">Contraseñas</a><a class="h3" href="#d-8">Vencimiento de contraseña (rotación periódica, 2026-09-02)</a><a class="h3" href="#d-9">Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</a><a class="h3" href="#d-10">Accesos del servidor y alerta de accesos sospechosos (2026-10-22)</a><a class="h3" href="#d-11">Protección contra bots (CAPTCHA, activado 2026-09-08)</a><a class="h3" href="#d-12">Cierre de sesión por inactividad</a><a class="h3" href="#d-13">Auditoría (trazabilidad — quién cambió qué)</a><a class="h2" href="#d-14">4. Base de datos (Supabase)</a><a class="h3" href="#d-15">Supuestos editables que se guardan en la tabla configuracion (2026-10-13)</a><a class="h3" href="#d-16">Límites del plan gratis (hoy)</a><a class="h2" href="#d-17">5. Respaldo y continuidad de datos</a><a class="h3" href="#d-18">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</a><a class="h2" href="#d-19">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</a><a class="h3" href="#d-20">Configuración inicial (una sola vez)</a><a class="h3" href="#d-21">Formato del mensaje</a><a class="h3" href="#d-22">Segunda pasada con IA (2026-09-02)</a><a class="h2" href="#d-23">7. Alertas automáticas de salida (correo y WhatsApp)</a><a class="h2" href="#d-24">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</a><a class="h2" href="#d-25">8. Despliegue (Vercel)</a><a class="h2" href="#d-26">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</a><a class="h2" href="#d-27">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</a><a class="h2" href="#d-28">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</a><a class="h2" href="#d-29">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</a><a class="h2" href="#d-30">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</a><a class="h2" href="#d-31">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</a><a class="h2" href="#d-32">9. Estructura del código</a><a class="h2" href="#d-33">10. Si algo se rompe — por dónde empezar</a><a class="h2" href="#d-34">11. Continuidad — si quien mantiene esto no está disponible</a></details></nav><div class="doc-main"><!--/doc-ini-->
 <p>Para quien administra el sistema hoy, o para quien lo reciba mañana. Cubre lo que un
   operador normal no necesita saber. Para cómo se conecta todo por dentro, ver
   <a href="arquitectura.html">Arquitectura</a> y el <a href="plano-sistema.html">plano interactivo</a>.</p>
@@ -207,7 +207,14 @@
   reutilizan los destinatarios y secrets ya configurados para alerta-pm/resumen-semanal.</p>
   <p>En pantalla, <b>Accesos recientes</b> marca con 🆕 la primera vez que aparece un dispositivo
   en el historial completo de la cuenta — mismo criterio, calculado en el navegador.</p>
-  <h3 id="d-10">Protección contra bots (CAPTCHA, activado 2026-09-08)</h3>
+  <h3 id="d-10">Accesos del servidor y alerta de accesos sospechosos (2026-10-22)</h3>
+  <p><b>Qué cubre.</b> Los avisos de dispositivo nuevo y de intentos fallidos los dispara el navegador de la app, y «Accesos recientes» vive en <code>changelog</code> (tope de 500 filas, botón «Limpiar», editable por un admin). Alguien que entrara directo a la API con una clave robada no dejaba rastro ahí, y Supabase solo deja consultar sus registros de autenticación 24 h hacia atrás. Por eso el servidor copia cada sesión nueva de Supabase Auth (<code>auth.sessions</code>) a <code>public.accesos_servidor</code>, una tabla de <b>solo agregar</b> (cuenta, IP, navegador, si completó el MFA, motivos y nivel). Nadie la edita ni la borra (lo impide un trigger, igual que <code>auditoria_cambios</code>) y solo un admin con MFA completo la lee.</p>
+  <p><b>Cómo funciona.</b> Dos tareas de <code>pg_cron</code>, sin Edge Function ni secreto nuevo: <code>capturar-accesos</code> (cada minuto: copia las sesiones nuevas y les pone nivel; la primera vez deja las que ya existían como «base», que no alertan) y <code>avisar-accesos-sospechosos</code> (cada 5 minutos: un correo por Resend, con la clave <code>resend_api_key</code> del Vault, con lo que esté en rojo y no se haya avisado).</p>
+  <p><b>Niveles.</b> 🔴 <b>Rojo</b> (tarjeta y correo): cuenta bloqueada, cuenta sin rol activo, IP <b>y</b> navegador nunca vistos juntos en esa cuenta, o <b>MFA incompleto</b> (la cuenta tiene verificación en dos pasos y la sesión no la completó en 5 minutos: alguien sabe la clave pero no tiene el segundo factor). 🟠 <b>Ámbar</b> (solo tarjeta): IP nueva sola, navegador nuevo solo, o primer acceso de una cuenta. Una IP nueva sola no alerta a propósito: con datos móviles cambia seguido y llenaría el correo de falsas alarmas.</p>
+  <p><b>Dónde se ve.</b> Configuración → Usuarios y accesos → <b>Accesos del servidor</b>: resumen de las últimas 72 h (en rojo si hay algo sospechoso) y detalle de las últimas 200 sesiones. Solo lo ven los admin. Si la migración aún no se aplicó en ese proyecto, la tarjeta dice «Aún no está activado». <b>Con un acceso en rojo:</b> si lo reconoces (por ejemplo, tu celular con otra red) no hay nada más que hacer; si no, bloquea la cuenta en Supabase → Authentication → Users y cambia la clave. El registro queda como evidencia.</p>
+  <p><b>Límites conocidos.</b> Una sesión que entre y salga en menos de un minuto puede no alcanzar a copiarse. El correo sale por <code>net.http_post</code> (asíncrono): la fila se marca «avisado» al encolarlo, no al confirmarse la entrega; si falta <code>resend_api_key</code> en el Vault la función falla, los rojos quedan sin avisar y se reintenta a los 5 minutos (se ve en <code>cron.job_run_details</code>). «MFA incompleto» también marca a quien esté más de 5 minutos a media verificación (un correo de más). Mientras una cuenta tenga MFA, una sesión con la clave pero sin segundo factor igual puede leer los datos de un operador por la API (el MFA obligatorio lo exige la app y la base para el rol admin, no todas las tablas): esta alerta es lo que lo detecta. Las IP y navegadores usados antes de instalarlo pueden alertar una vez como nuevos (la foto inicial solo conoce las sesiones activas ese día).</p>
+  <p><b>Prueba.</b> La lógica (reglas, correo escapado, solo-agregar, permisos, falta de clave) se probó contra un Postgres 16 real con las tablas de Supabase simuladas; <code>tests/migracionAccesosServidor.test.js</code> vigila que el archivo no pierda esas protecciones y <code>tests/e2e/accesos-servidor.spec.js</code> prueba la tarjeta.</p>
+  <h3 id="d-11">Protección contra bots (CAPTCHA, activado 2026-09-08)</h3>
   <p>El login y la recuperación de contraseña tienen un widget de <b>Cloudflare Turnstile</b>
   (gratis, sin límite de uso) validado en dos capas:</p>
   <ul>
@@ -239,7 +246,7 @@
     <code>select vault.update_secret((select id from vault.secrets where name =
     'turnstile_secret_key'), 'LA_NUEVA_LLAVE');</code> en el SQL Editor.
   </div>
-  <h3 id="d-11">Cierre de sesión por inactividad</h3>
+  <h3 id="d-12">Cierre de sesión por inactividad</h3>
   <p>Desde agosto 2026, a los 55 min sin actividad (mouse/teclado/touch/scroll) aparece un aviso
   en pantalla ("¿Sigues ahí?") con cuenta regresiva; si nadie hace nada, a la hora completa la
   sesión se cierra sola (<code>_logout()</code>). Corre en cualquier pestaña abierta, pensado
@@ -253,7 +260,7 @@
     se cierra igual (ver <a href="arquitectura.html">Arquitectura</a>, sección 13, para el detalle
     técnico).
   </div>
-  <h3 id="d-12">Auditoría (trazabilidad — quién cambió qué)</h3>
+  <h3 id="d-13">Auditoría (trazabilidad — quién cambió qué)</h3>
   <p><b>Accesos recientes</b> — quién entró, cuándo, desde qué computador, y también los
   <b>intentos que NO prosperaron</b> (clave incorrecta, cuenta desactivada, o sesión que no
   logró renovarse), marcados en rojo con 🚫. Antes solo se registraban los logins exitosos.
@@ -285,7 +292,7 @@
   (<code>uso_pestanas</code>), fuera de <code>TABLA_REAL</code> a propósito — se purga sola cada
   90 días con un cron diario.</p>
 
-  <h2 id="d-13">4. Base de datos (Supabase)</h2>
+  <h2 id="d-14">4. Base de datos (Supabase)</h2>
   <p><b>46 tablas reales</b> (incluye <code>historial_componentes</code> e
   <code>historial_neumaticos</code>, agregadas en agosto 2026,
   <code>correctivos_historico</code>, agosto 2026, planillas Excel 2022-2025 previas a este
@@ -322,7 +329,7 @@ grant select, insert, update, delete on table public.mi_tabla to service_role;
   tabla, función o secuencia sin sus <code>GRANT</code>. Esa migración da, a las tablas anteriores, los mismos permisos que ya tienen en vivo (para
   que un proyecto nuevo, una rama de prueba o un <code>supabase db reset</code> no queden con la API rota).</p>
 
-  <h3 id="d-14">Supuestos editables que se guardan en la tabla <code>configuracion</code> (2026-10-13)</h3>
+  <h3 id="d-15">Supuestos editables que se guardan en la tabla <code>configuracion</code> (2026-10-13)</h3>
   <p>La tabla <code>configuracion</code> guarda una sola fila con los valores que el sistema no puede medir y que una persona define: costo de hora detenida (general y por modelo), tasa USD→CLP, duración estándar de cada PM y, desde el 13 de octubre, los <b>supuestos de Arriendo vs compra</b> (UF, diésel, sueldos, dotación, litros por carga, disponibilidades, valor residual y tarifas de arriendo seco y húmedo por modelo) en la columna <code>arriendoVsCompra</code>. Solo un administrador puede editarlos; los demás roles los ven pero no los cambian. Cada columna nueva se agrega con una migración aditiva (nunca borra datos) que hay que aplicar <b>a los dos proyectos Supabase antes de subir el código</b> que la usa; si no, el guardado falla. Otras tablas operativas nuevas: <code>backlog_pm</code> (tareas pendientes de pauta, informe de gestión) y la columna <code>registros_pm.desvioDias</code> (desvío de cada PM). Todas se crean con migraciones aditivas que se aplican a los dos proyectos antes de subir el código.</p>
 
   <p><b>Novedades de octubre 2026 que el administrador debe conocer</b> (ambas bases Supabase, antes de subir el código que las usa):</p>
@@ -347,7 +354,7 @@ grant select, insert, update, delete on table public.mi_tabla to service_role;
     <li><b>Cambios de pantalla</b> (16-oct, solo presentación; ningún dato ni permiso cambió): el menú pasó a una barra lateral con 5 grupos (contraída a solo íconos bajo 1.500 px, se abre al pasar el mouse; en celular, barra inferior con «Más»); <b>Costos</b> es una pestaña propia (antes sub-pestaña de Stock &amp; Insumos; el perfil Comprador ve Stock &amp; Insumos y Costos); sub-pestañas como solapas; botones de herramientas agrupados en «Más acciones ▾»; botón «Densidad» en la cabecera para tablas cómodas o compactas.</li>
   </ul>
 
-  <h3 id="d-15">Límites del plan gratis (hoy)</h3>
+  <h3 id="d-16">Límites del plan gratis (hoy)</h3>
   <table>
     <tr><th>Recurso</th><th>Límite gratis</th><th>Uso actual (ago. 2026)</th></tr>
     <tr><td>Tamaño de base de datos</td><td>500 MB</td><td>~22 MB (4.4%)</td></tr>
@@ -357,7 +364,7 @@ grant select, insert, update, delete on table public.mi_tabla to service_role;
   <p>El límite que más vale la pena vigilar es el <b>ancho de banda</b>, no el tamaño: el sistema
   baja toda la base completa en cada inicio de sesión.</p>
 
-  <h2 id="d-16">5. Respaldo y continuidad de datos</h2>
+  <h2 id="d-17">5. Respaldo y continuidad de datos</h2>
   <ol>
     <li><b>localStorage</b> de cada navegador — copia de trabajo, siempre al día.</li>
     <li><b>Supabase</b> — la fuente oficial compartida entre todos.</li>
@@ -370,7 +377,7 @@ grant select, insert, update, delete on table public.mi_tabla to service_role;
   permite reconstruir todos los datos en un backend nuevo, siguiendo el mismo mapeo de
   <code>TABLA_REAL</code>.</p>
 
-  <h3 id="d-17">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</h3>
+  <h3 id="d-18">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</h3>
   <p>Procedimiento real para el peor caso: el proyecto Supabase ya no existe (borrado, cuenta
   suspendida, etc.), no solo datos corruptos. Requiere a alguien con acceso técnico (terminal, Deno
   instalado) — no es un flujo para hacer desde la app.</p>
@@ -405,13 +412,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <code>pg_cron</code> — no viajan en el respaldo de datos.</li>
   </ol>
 
-  <h2 id="d-18">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</h2>
+  <h2 id="d-19">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</h2>
   <p>Desde agosto 2026 existe un canal adicional para registrar correctivos sin entrar al
   sistema: un técnico le escribe a un número de WhatsApp Business (o manda un correo) y el
   mensaje se parsea e inserta directo en <code>correctivos_historico</code>. Por dentro son dos
   Edge Functions de Supabase: <code>whatsapp-webhook</code> (Twilio) y <code>email-webhook</code>
   (Resend).</p>
-  <h3 id="d-19">Configuración inicial (una sola vez)</h3>
+  <h3 id="d-20">Configuración inicial (una sola vez)</h3>
   <ol>
     <li><b>Secrets en Supabase</b> (Project Settings → Edge Functions → Secrets, o
     <code>supabase secrets set</code>): <code>TWILIO_ACCOUNT_SID</code> y
@@ -432,7 +439,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   para el envío de alertas de PM (salida), no para autorizar quién puede reportar (entrada). Son
   dos tarjetas distintas de Configuración aunque se vean parecidas, y esto causó una confusión
   real durante la puesta en marcha.</p>
-  <h3 id="d-20">Formato del mensaje</h3>
+  <h3 id="d-21">Formato del mensaje</h3>
   <p><code>"SIGLA fuera de servicio, falla de X"</code> (o similar) — el parser
   (<code>supabase/functions/_shared/parseCorrectivo.ts</code>) reconoce la sigla del equipo y una
   palabra clave de falla. Si el mensaje es ambiguo, igual se registra pero queda marcado
@@ -445,7 +452,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   efectivamente firma. Ver el detalle completo en <a href="arquitectura.html">Arquitectura</a>,
   sección 12.</p>
   </div>
-  <h3 id="d-21">Segunda pasada con IA (2026-09-02)</h3>
+  <h3 id="d-22">Segunda pasada con IA (2026-09-02)</h3>
   <p>Cuando el parser por reglas no reconoce el mensaje o queda con confianza "baja", se le pasa
   el texto a Claude (<code>claude-haiku-4-5-20251001</code>, por costo) como último intento antes
   de marcarlo "revisar" o descartarlo. La IA <b>nunca inventa</b> una sigla ni una categoría: solo
@@ -469,7 +476,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   repositorio sin que nadie lo notara.</p>
   </div>
 
-  <h2 id="d-22">7. Alertas automáticas de salida (correo y WhatsApp)</h2>
+  <h2 id="d-23">7. Alertas automáticas de salida (correo y WhatsApp)</h2>
   <p>Dos Edge Functions programadas por <code>pg_cron</code> mandan resúmenes sin que nadie abra
   el sistema — pensadas para el dueño/gerente que revisa la información desde afuera:</p>
   <ul>
@@ -507,7 +514,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   alguien vio esa pestaña, nunca un número inventado aparte.</p>
   </div>
 
-  <h2 id="d-23">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</h2>
+  <h2 id="d-24">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</h2>
   <p>Vigila que el sistema MISMO siga funcionando — que el respaldo diario y los 2 correos
   automáticos a gerencia efectivamente corran, y que el canal de reportes por WhatsApp/correo
   (sección 6) no esté tirando error en silencio. Nadie tiene que mirar los logs de Supabase a mano
@@ -540,7 +547,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (<code>vigilar_salud_cron_secret</code>) en Supabase Vault. Ver
   <a href="arquitectura.html">Arquitectura</a>, sección 35, para el detalle técnico completo.</p>
 
-  <h2 id="d-24">8. Despliegue (Vercel)</h2>
+  <h2 id="d-25">8. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
     <li><code>modules/renders/*.js</code> (49 archivos, módulos ES reales desde la Fase 3,
@@ -561,7 +568,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Empresa" ni "Descargar Plantilla Limpia" (Configuración) alcanzan solos para eso, esa guía
   explica por qué y el proceso real completo.</p>
 
-  <h2 id="d-25">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</h2>
+  <h2 id="d-26">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</h2>
   <p>15 herramientas nuevas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de Criticidad Dinámica, CUSUM
   de aceite, RUL híbrido, Competing Risks, Matriz de Criticidad de Repuestos, Índice de
   Efectividad del Mantenimiento, Patrones Ocultos de Falla, Weibull con censura/MLE, Kijima
@@ -603,7 +610,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ningún interruptor nuevo en Configuración que activar: la única acción de un admin es mantener
   esos datos cargados y reales.</p>
 
-  <h2 id="d-26">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</h2>
+  <h2 id="d-27">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</h2>
   <p>Cuatro agregados chicos al Dashboard y a Costos → MTBF/MTTR, sin tabla ni configuración
   nueva:</p>
   <ul>
@@ -626,7 +633,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   un equipo, más angosto (más confiable) sale su intervalo — no hay ningún campo nuevo que
   cargar, solo seguir completando duración y horómetro al cerrar correctivos, como ya se hace.</p>
 
-  <h2 id="d-27">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</h2>
+  <h2 id="d-28">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</h2>
   <p>Tres campos nuevos y opcionales en Correctivos, todos del mismo patrón: se eligen a mano al
   cargar/editar una OT (nunca se infieren del texto libre, porque son un criterio de la empresa,
   no un dato técnico) y alimentan un análisis agregado que aparece vacío hasta que haya
@@ -645,7 +652,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   técnico de cada una. Como admin, no hay nada que activar — simplemente avisar al equipo de
   terreno que estos 3 selectores existen, si se quiere que esos análisis empiecen a tener datos.</p>
 
-  <h2 id="d-28">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</h2>
+  <h2 id="d-29">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</h2>
   <p>Nueva pestaña top-level (no sub-pestaña), con su propia Edge Function de lectura por foto
   (<code>leer-reporte-produccion</code>, cuarta del mismo tipo que las de Pauta PM/Informe
   Correctivo/Chequeo de Neumáticos — requiere <code>GEMINI_API_KEY</code> configurada, ya
@@ -658,7 +665,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Rendimiento por tipo de equipo (no se inventa un valor nominal sin ese dato real). Ver
   <a href="arquitectura.html">Arquitectura</a>, sección 88.</p>
 
-  <h2 id="d-29">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</h2>
+  <h2 id="d-30">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</h2>
   <p>% Correctivo Reactivo por horas, Matriz Jack-Knife (MTBF vs MTTR), Costo de Downtime real,
   Rotación/Obsolescencia de Stock MRO y FMEA con NPR — las 5 en Costos &amp; Stock, Producción o
   Predictivo según corresponda. La única que requiere algo del admin es <b>Costo de Downtime
@@ -669,7 +676,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <a href="arquitectura.html">Arquitectura</a>, secciones 90-94, para el detalle técnico de cada
   una.</p>
 
-  <h2 id="d-30">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</h2>
+  <h2 id="d-31">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</h2>
   <p>Dentro de Producción: a partir de <code>tiempoCicloMin</code> (ya capturado por OCR por
   turno, sin consumidor hasta ahora) el sistema calcula un rendimiento teórico por equipo —
   MEDIANA del ciclo real medido ese mes, no un parámetro de catálogo — que sirve para CAEX y
@@ -680,7 +687,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   haya ≥3 turnos con tiempo de ciclo registrado ese mes. Ver <a href="arquitectura.html">Arquitectura</a>,
   secciones 95-96.</p>
 
-  <h2 id="d-31">9. Estructura del código</h2>
+  <h2 id="d-32">9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
@@ -696,7 +703,7 @@ supabase/functions/      — 14 Edge Functions (crear-operador, alerta-pm, resum
 tests/                   — pruebas de logic.js y store.js (Vitest, 1153 casos)
 docs/                    — esta documentación</pre>
 
-  <h2 id="d-32">10. Si algo se rompe — por dónde empezar</h2>
+  <h2 id="d-33">10. Si algo se rompe — por dónde empezar</h2>
   <ol>
     <li><b>¿Error de guardado?</b> Consola del navegador (F12 → Console) — el toast rojo y el
     error real quedan ahí.</li>
@@ -711,7 +718,7 @@ docs/                    — esta documentación</pre>
     celdas más comunes en agosto 2026).</li>
   </ol>
 
-  <h2 id="d-33">11. Continuidad — si quien mantiene esto no está disponible</h2>
+  <h2 id="d-34">11. Continuidad — si quien mantiene esto no está disponible</h2>
   <p>Este sistema hoy lo entiende y mantiene una sola persona, sesión a sesión. Para reducir ese
   riesgo: los tres accesos de la sección 1 deberían quedar guardados en un lugar que más de una
   persona alcance; el código y el schema están versionados — cualquier desarrollador con esos
