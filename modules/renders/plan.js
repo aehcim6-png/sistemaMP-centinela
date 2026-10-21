@@ -274,8 +274,6 @@ export function renderPlan(){
       <button class="btn btn-o" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Histórico consumido</button>
       <button class="btn" style="background:var(--warn,var(--warn));color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button>
     </div>
-    <div id="planCurvaS"></div>
-    ${flujoHtml}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${btnVista}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"><span style="font-size:11px;color:var(--tx3);align-self:center">Periodo:</span> ${btnPer}</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
@@ -295,7 +293,10 @@ export function renderPlan(){
         </div>
         <button class="btn" style="margin-top:10px" onclick="planHistorico()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Ver compras del periodo</button>
       </div>`
-      :contenido}`;
+      :contenido}
+    ${/* Orden por prioridad (2026-10-21): primero los controles, los totales y los materiales del período; la Curva S y el flujo de caja (que pesan ~250 px cada uno) van debajo */''}
+    <div id="planCurvaS"></div>
+    ${flujoHtml}`;
   planCurvaRefrescar();
 }
 

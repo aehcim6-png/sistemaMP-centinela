@@ -175,6 +175,7 @@ export function renderTbo() {
   var lim = vistaPrev === 'todo' ? 100000 : vistaPrev === '2000' ? 2000 : 1000;
   var lista = estado.filter(function (x) { return vistaPrev === 'todo' || x.restantesH < lim; }).sort(function (a, b) { return a.restantesH - b.restantesH; });
   var MAX = eqSel ? 1000 : 150;
+  h += '<!--tbo:cambiar-->';
   h += '<div class="card-t" style="margin:16px 0 6px">Qué toca cambiar y cuánto falta' + (eqSel ? ' · ' + escapeHtml(eqSel.sigla) : ' · toda la flota') + '</div>' +
     '<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><select id="tboNivel" onchange="renders.tbo()">' +
     [['urgente', 'Vencidos y a menos de 1.000 h'], ['2000', 'Hasta 2.000 h'], ['todo', 'Todo el plan (' + fn(estado.length) + ' ítems)']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === vistaPrev ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
@@ -205,6 +206,7 @@ export function renderTbo() {
   _tboPlanFilas = plan.filas.slice(0, 120);
   var pt = plan.totales;
   var _DEC = { pedir_ya: ['🔴 Pedir ya', 'var(--danger)'], planificar: ['🟡 Planificar pedido', 'var(--w)'], en_camino: ['📦 En camino', 'var(--ac)'], cubierto: ['✅ Hay stock', 'var(--ok)'], no_urgente: ['⚪ No urgente', 'var(--tx3)'] };
+  h += '<!--tbo:compra-->';
   h += '<div class="card-t" style="margin:18px 0 6px">Plan de compra — ¿alcanzamos a tener el repuesto antes del cambio?' + (eqSel ? ' · ' + escapeHtml(eqSel.sigla) : '') + '</div>' +
     '<div class="cards">' +
     '<div class="card"><div class="card-t">🔴 Pedir ya</div><div class="card-v" style="color:' + (pt.pedir_ya ? 'var(--danger)' : 'var(--ok)') + '">' + fn(pt.pedir_ya) + '</div><div class="card-s">' + (pt.presupuestoPedirYa ? _tboMM(pt.presupuestoPedirYa) + ' estimados' : 'el cambio llega antes que el repuesto') + '</div></div>' +
@@ -238,6 +240,7 @@ export function renderTbo() {
   var modeloPorSigla = {}; eqs.forEach(function (e) { modeloPorSigla[e.sigla] = e.modelo; });
   var cand = tboCandidatosPresupuesto(plan.filas, { horizonte: horizPres, costoHoraDet: pOpt.costoHoraDet, costoHoraDetDe: function (f) { return costoHoraDetDe(modeloPorSigla[f.sigla], pOpt); }, horasFalla: pOpt.horasFalla, horasProg: pOpt.horasProg });
   var moc = cand.cands.length ? tboMochila(cand.cands, presUsa) : null;
+  h += '<!--tbo:limitado-->';
   h += '<div class="card-t" style="margin:18px 0 6px">Con plata limitada: ¿qué compramos primero?</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">De los repuestos que hay que pedir (con último cambio conocido y precio), elige la combinación que <b>más pérdida esperada evita</b> sin pasarse del presupuesto (problema de la mochila, resuelto de forma exacta). La pérdida esperada de cada uno = <b>probabilidad de que falle en las próximas ' + fn(horizPres) + ' h</b> (Weibull condicional a lo que ya lleva) × <b>' + (cand.usaDet ? 'costo de la falla no programada (' + fn(pOpt.horasFalla - pOpt.horasProg) + ' h extra de camión detenido × ' + _tboPeso(pOpt.costoHoraDet) + '/h)' : 'precio del repuesto (como no ingresaste el costo de hora detenida, el precio hace de consecuencia: se prioriza por probabilidad; ingresalo en "Reemplazo óptimo" para ponderar por detención)') + '</b>. ' +
     '<div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap"><label style="color:var(--tx3)" title="Plata disponible para estos repuestos (CLP). Vacío: se usa la mitad de lo que cuesta todo.">Presupuesto $ <input id="tboPres" type="number" min="0" step="100000" value="' + presUsa + '" style="width:120px" onchange="tboCambiarParamOpt(\'presupuesto\',this.value)"></label>' +
@@ -268,6 +271,7 @@ export function renderTbo() {
   var precioCLP = function (x) { var p = precioDe(x); return p.original.mediana || p.mediana || p.clpRef || null; };
   var mx = tboMatrizRiesgo(estado, precioCLP);
   var nomProb = { 5: 'Muy alta (≥35%)', 4: 'Alta (20–35%)', 3: 'Media (10–20%)', 2: 'Baja (5–10%)', 1: 'Muy baja (≤5%)' };
+  h += '<!--tbo:riesgo-->';
   h += '<div class="card-t" style="margin:18px 0 6px">Matriz de riesgo — probabilidad de falla × impacto en costo (solo cambios con último cambio conocido)</div>';
   if (!mx.items.length) h += '<div class="card" style="color:var(--tx3);font-size:12px">Todavía no hay componentes con último cambio registrado en ' + (eqSel ? escapeHtml(eqSel.sigla) : 'la flota') + ': el resto es plan teórico y por construcción está dentro del TBO. Registrá los cambios en Historial de Componentes.</div>';
   else {
@@ -300,6 +304,7 @@ export function renderTbo() {
       '<td class="mono" style="text-align:right;font-size:10px" title="' + escapeHtml(v.fuentePrecio || '') + '">' + (v.precio ? _tboPeso(v.precio) : '—') + '</td>' +
       '<td class="mono" style="text-align:right;font-weight:700">' + (v.costoHora ? _tboPeso(v.costoHora) + '/h' : '—') + (v.costoHoraTBO ? '<div style="font-size:9px;font-weight:400;color:var(--tx3)">a la vida TBO: ' + _tboPeso(v.costoHoraTBO) + '/h</div>' : '') + '</td></tr>';
   };
+  h += '<!--tbo:vida-->';
   h += '<div class="card-t" style="margin:18px 0 6px">Cuánto dura lo que cambiamos — original vs alternativo, contra el TBO de Komatsu</div>' +
     (vida.length ?
       '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Componente</th><th>Origen</th><th style="text-align:right">Cambios medidos</th><th style="text-align:right" title="Mediana de horas de horómetro entre un cambio y el siguiente">Duración (mediana)</th><th style="text-align:right">Mín–Máx</th><th style="text-align:right">TBO Komatsu</th><th style="text-align:right" title="Duración mediana ÷ TBO">% del TBO</th><th style="text-align:right" title="Probabilidad de que un cambio de este tipo llegue al TBO. Cada cambio es un ensayo sí/no (Bernoulli) y se estima con una Beta, que con pocos casos no da 0% ni 100% falsos. Entre paréntesis, intervalo creíble 90%.">¿Llega al TBO?</th><th style="text-align:right" title="Mediana pagada por ese tipo de repuesto (original = lo pagado a Komatsu o su lista en USD; alternativo = lo pagado a otros proveedores)">Precio típico</th><th style="text-align:right" title="Precio típico ÷ horas que duró (mediana). Es lo que cuesta cada hora de uso del componente.">Costo por hora</th></tr>' +
@@ -319,6 +324,7 @@ export function renderTbo() {
   var pol = tboPoliticaOptimaFilas(vidaOpt.filter(function (v) { return v.origen !== 'sin dato' || v.precio; }), pOptV);
   var polCon = pol.filter(function (r) { return r.param && r.precio; });
   var _inp = function (id, k, val, label, ttl) { return '<label style="font-size:11px;color:var(--tx3)" title="' + ttl + '">' + label + ' <input id="' + id + '" type="number" min="0" step="any" value="' + val + '" style="width:90px" onchange="tboCambiarParamOpt(\'' + k + '\',this.value)"></label>'; };
+  h += '<!--tbo:optimo-->';
   h += '<div class="card-t" style="margin:18px 0 6px">¿Cada cuántas horas conviene cambiar? — reemplazo óptimo por costo y estrategia por componente</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">Un componente se cambia a la edad <b>T</b> (cambio programado, cuesta <b>Cp</b>) o falla antes (cuesta <b>Cf</b>, con la máquina detenida sin aviso). El costo por hora esperado es <b>C(T) = [Cp·R(T) + Cf·(1−R(T))] / ∫R(t)dt</b> con la vida Weibull del componente; la edad óptima <b>T*</b> es la que lo minimiza. Solo existe si el componente se desgasta (β&gt;1) y fallar cuesta más que cambiar. <b>El resultado depende del costo de una hora detenida</b>: sin él, fallar y cambiar cuestan lo mismo y el modelo no recomienda cambiar antes.</div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
@@ -395,6 +401,7 @@ export function renderTbo() {
       '<td class="mono" style="text-align:right">' + (r.observado == null ? '—' : fn(Math.round(r.observado))) + ' / ' + (r.esperado == null ? '—' : fn(Math.round(r.esperado))) + '</td><td class="mono" style="text-align:right">' + _tboOE(r) + '</td>' +
       '<td style="color:' + _CALIB_COLOR[r.veredicto.codigo] + ';font-weight:600;font-size:11px">' + _CALIB_TITULO[r.veredicto.codigo] + '</td></tr>';
   };
+  h += '<!--tbo:calib-->';
   h += '<div class="card-t" style="margin:18px 0 6px">¿El modelo del fabricante acierta en nuestra flota? — calibración</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">El riesgo que muestran el Buscador, la Torre y esta pestaña viene de una curva del fabricante (Weibull con β=3 y el TBO como 5% de fallas). Es una <b>hipótesis</b>; acá se contrasta con lo que pasó de verdad. Cada tramo entre dos cambios registrados de un componente es una vida observada, y el tramo desde el último cambio hasta hoy es una vida todavía abierta. Cada 500 h de vida, el modelo predice la probabilidad de que el componente se cambie o falle en las siguientes 500 h, y se mira si ocurrió. <b>O/E</b> = ocurrió ÷ esperado: 1 significa que el modelo acierta; más de 1, que los componentes fallan antes; menos de 1, que duran más. El intervalo se calcula por bootstrap sobre los tramos. <b>Ojo:</b> el Historial de Componentes no dice si el cambio fue por falla o preventivo, así que se mide el "tiempo hasta el cambio".</div>';
   if (calT.veredicto.codigo === 'sin_datos') {
@@ -420,6 +427,7 @@ export function renderTbo() {
   }
   h += '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">' + fn(cal.nVidas) + ' tramos usados' + (cal.omitidos ? ' · ' + fn(cal.omitidos) + ' componentes omitidos por tener varios TBO distintos en el plan' : '') + '. Solo cuentan componentes de equipos con plan del fabricante. Para que el original y el alternativo se evalúen por separado, registra el origen en cada cambio. Con pocos tramos el veredicto "compatible" significa "sin evidencia en contra", no "confirmado".</p>';
 
+  h += '<!--tbo:bondad-->';
   h += '<div class="card-t" style="margin:18px 0 6px">¿Estamos usando la distribución correcta? — bondad de ajuste</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">Cada modelo se ajusta por máxima verosimilitud y se compara con <b>AICc</b> (premia el ajuste y castiga la complejidad; menor es mejor), la distancia de <b>Kolmogorov-Smirnov</b> y el <b>error en los percentiles</b> que usan las decisiones. El p-valor se calcula por <b>bootstrap paramétrico</b> (la prueba KS clásica no vale cuando los parámetros salen de los mismos datos). Con miles de datos casi cualquier modelo simple se rechaza: lo que importa es qué tan lejos queda el percentil que se usa.</div>';
   if (gofE) {
@@ -437,6 +445,7 @@ export function renderTbo() {
     h += '<div class="card" style="color:var(--tx3);font-size:12px">Ningún componente tiene todavía 8 o más cambios medidos del mismo origen, que es el mínimo para probar la forma de la distribución. Hoy el programa <b>supone Weibull</b> (β=3 del fabricante cuando hay pocos datos); esta tabla aparece sola cuando haya muestra. ' + fn(vida.filter(function (v) { return v.vals && v.vals.length >= 3; }).length) + ' grupos tienen 3 o más.</div>';
   }
 
+  h += '<!--tbo:gasto-->';
   if (sinCompras) h += '<div class="card" style="color:var(--tx3);font-size:12px;margin-top:12px">No hay compras cargadas para ' + (eqSel ? escapeHtml(eqSel.sigla) : 'la flota') + '.</div>';
 
   // ── Gasto por familia ──
@@ -468,6 +477,7 @@ export function renderTbo() {
   var proTotal = nPro >= 12 ? pronosticarSerie(sm.serie.slice(0, nPro), { recortar: proRec, saltar: saltarPro }) : null;
   var _nomMes = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   var _lblMes = function (m) { var p = m.split('-'); return _nomMes[+p[1] - 1] + ' ' + p[0].slice(2); };
+  h += '<!--tbo:pronostico-->';
   h += '<div class="card-t" style="margin:18px 0 6px">¿Cuánto vamos a gastar en repuestos los próximos 12 meses?' + (eqSel ? ' · ' + escapeHtml(eqSel.sigla) : '') + '</div>' +
     '<div class="card" style="margin-bottom:8px;font-size:11px;color:var(--tx2);line-height:1.55">En vez de suponer que hay tendencia o estacionalidad, el programa <b>prueba varios modelos</b> (promedio, suavizamiento exponencial, tendencia amortiguada, estacional, Holt-Winters, Croston) <b>pronosticando hacia adelante desde cada fecha pasada y comparando con lo que de verdad pasó</b> (backtest). Se queda con el de menor error, y un modelo con tendencia o estacionalidad solo reemplaza al promedio si lo supera por al menos 5%. Con gasto ruidoso es normal que gane el promedio: eso también es una respuesta. Intervalo de 80% de confianza.' +
     '<div style="margin-top:6px;display:flex;gap:16px;flex-wrap:wrap"><label style="color:var(--tx3)" title="Los meses finales con muy pocas líneas (menos de 40% de lo normal) suelen ser carga atrasada, no menor gasto real.">' +
@@ -514,6 +524,7 @@ export function renderTbo() {
 
   // ── Listado Sugerido ──
   var sug = tboCruzarSugerido(compras, tasa);
+  h += '<!--tbo:sugerido-->';
   h += '<div class="card-t" style="margin:18px 0 6px">Repuestos del listado "Sugerido" de Komatsu (HD785-7, precios Besalco en USD) vs lo pagado</div>' +
     '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>N° de parte</th><th>Repuesto</th><th style="text-align:right">Cant. x equipo</th><th style="text-align:right">Precio USD</th><th style="text-align:right">≈ CLP (tasa ' + fn(tasa) + ')</th><th style="text-align:right" title="Compras encontradas por N° de parte (en el texto del pedido)">Compras</th><th>Última compra</th><th style="text-align:right">Último precio pagado</th><th style="text-align:right" title="Último precio pagado ÷ precio de lista en pesos">Pagado / lista</th></tr>' +
     sug.map(function (s) {
@@ -528,8 +539,30 @@ export function renderTbo() {
     }).join('') + '</table></div>' +
     '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Total del listado por equipo (cantidad × unitario): ' + _tboUSD(sug.reduce(function (s, r) { return s + r.cant * r.usd; }, 0)) + '. Un "pagado/lista" muy bajo suele indicar repuesto alternativo o reparado.</p>';
 
-  el.innerHTML = h;
+  el.innerHTML = _tboReordenar(h);
 }
+
+// Orden por prioridad (2026-10-21): la pestaña mezclaba lo que se decide hoy (qué cambiar, qué comprar, el gasto) con análisis estadísticos de la vida útil y de la calibración del
+// modelo del fabricante. El código sigue armando cada sección en su orden original (varias comparten cálculos); cada una va marcada con <!--tbo:nombre--> y acá se reordena el
+// HTML ya armado: primero lo accionable y el gasto, y al final, plegado, el análisis de vida útil. No se pierde ni se recalcula nada.
+var _TBO_ORDEN = ['cambiar', 'compra', 'limitado', 'riesgo', 'gasto', 'pronostico', 'sugerido'];
+var _TBO_AVANZADO = ['vida', 'optimo', 'calib', 'bondad'];
+function _tboReordenar(h) {
+  var partes = String(h).split(/<!--tbo:([a-z]+)-->/), seg = {}, i;
+  for (i = 1; i < partes.length; i += 2) seg[partes[i]] = (seg[partes[i]] || '') + partes[i + 1];
+  var conocidos = _TBO_ORDEN.concat(_TBO_AVANZADO);
+  var sal = partes[0];
+  _TBO_ORDEN.forEach(function (n) { sal += seg[n] || ''; });
+  Object.keys(seg).forEach(function (n) { if (conocidos.indexOf(n) < 0) sal += seg[n]; });   // una sección nueva sin ubicar nunca se pierde
+  var av = _TBO_AVANZADO.map(function (n) { return seg[n] || ''; }).join('');
+  if (av) {
+    sal += '<details class="tbo-avz" style="margin:18px 0 12px"' + (window._tboAvzAbierto ? ' open' : '') + ' ontoggle="window._tboAvzAbierto=this.open">' +
+      '<summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0;min-height:44px;display:flex;align-items:center">Análisis de vida útil y calibración del modelo' +
+      ' <span style="font-weight:400;font-size:11px;color:var(--tx3);margin-left:8px">cuánto dura lo que cambiamos · reemplazo óptimo · ajuste de la distribución · calibración</span></summary>' + av + '</details>';
+  }
+  return sal;
+}
+
 
 // Crear una OC Pendiente (la misma tabla 'ordenes' que usa Repuestos → Comprar) desde una fila del plan de compra.
 export function crearOCDesdeTBO(i) {
