@@ -185,6 +185,7 @@ function tabla(headers: string[], filas: string[][]) {
 }
 
 import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
+import { detalleErrorVerificacion, verificarSecretoCron } from "../_shared/verificarSecretoCron.ts";
 
 if (import.meta.main) {
 Deno.serve(async (req) => {
@@ -202,13 +203,13 @@ Deno.serve(async (req) => {
     // en Supabase Vault — nunca queda en texto plano ni en el código ni en el
     // cron job.
     const secretoRecibido = req.headers.get('x-cron-secret') || '';
-    const rVerif = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verificar_secreto_cron`, {
-      method: 'POST',
-      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre_secreto: 'alerta_pm_cron_secret', valor_recibido: secretoRecibido }),
-    });
-    const secretoValido = rVerif.ok ? await rVerif.json() : false;
-    if (!secretoValido) {
+    const verif = await verificarSecretoCron(SUPABASE_URL, SERVICE_KEY, 'alerta_pm_cron_secret', secretoRecibido);
+    if (verif.estado === 'error') {
+      // La verificación misma falló (no es un secreto incorrecto): se deja constancia para que el detector de salud avise, en vez de perder el correo en silencio.
+      await registrarSaludCron(SUPABASE_URL, SERVICE_KEY, 'alerta-pm', false, detalleErrorVerificacion(verif));
+      return new Response(JSON.stringify({ error: 'No se pudo verificar el secreto' }), { status: 503 });
+    }
+    if (verif.estado !== 'valido') {
       return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
     }
     const REMITENTE = Deno.env.get('ALERTA_PM_REMITENTE') || 'Sistema MP Centinela <onboarding@resend.dev>';

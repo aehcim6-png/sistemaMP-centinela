@@ -31,6 +31,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding/base64";
 import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
+import { detalleErrorVerificacion, verificarSecretoCron } from "../_shared/verificarSecretoCron.ts";
 
 // Mismo set de tablas reales que TABLA_REAL/TABLA_SINGLETON en
 // modules/store.js, más 'kv' (banderas legacy) y 'user_roles' (para poder
@@ -161,11 +162,13 @@ Deno.serve(async (req: Request) => {
     // Verifica el secreto ANTES de tocar cualquier tabla — sin esto, nada
     // de lo que sigue debe ejecutarse.
     const secretoRecibido = req.headers.get('x-cron-secret') || '';
-    const { data: secretoValido, error: errVerif } = await supabase.rpc('verificar_secreto_cron', {
-      nombre_secreto: 'backup_diario_cron_secret',
-      valor_recibido: secretoRecibido
-    });
-    if (errVerif || !secretoValido) {
+    const verif = await verificarSecretoCron(supabaseUrl, serviceKey, 'backup_diario_cron_secret', secretoRecibido);
+    if (verif.estado === 'error') {
+      // La verificación misma falló (no es un secreto incorrecto): se deja constancia para que el detector de salud avise, en vez de saltarse el respaldo en silencio.
+      await registrarSaludCron(supabaseUrl, serviceKey, 'backup-diario', false, detalleErrorVerificacion(verif));
+      return new Response(JSON.stringify({ error: 'No se pudo verificar el secreto' }), { status: 503 });
+    }
+    if (verif.estado !== 'valido') {
       return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
     }
 

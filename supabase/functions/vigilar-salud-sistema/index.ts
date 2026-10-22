@@ -88,6 +88,8 @@ export function evaluarSaludCrons(filas: FilaSaludCron[], ahoraISO: string): str
   return problemas;
 }
 
+import { verificarSecretoCron } from "../_shared/verificarSecretoCron.ts";
+
 if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   try {
@@ -96,13 +98,12 @@ Deno.serve(async (req: Request) => {
     const headers = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' };
 
     const secretoRecibido = req.headers.get('x-cron-secret') || '';
-    const rVerif = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verificar_secreto_cron`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ nombre_secreto: 'vigilar_salud_cron_secret', valor_recibido: secretoRecibido }),
-    });
-    const secretoValido = rVerif.ok ? await rVerif.json() : false;
-    if (!secretoValido) {
+    const verif = await verificarSecretoCron(SUPABASE_URL, SERVICE_KEY, 'vigilar_salud_cron_secret', secretoRecibido);
+    if (verif.estado === 'error') {
+      // Es el propio monitor: no se registra a sí mismo en salud_crons, pero un fallo de verificación ya no se confunde con un secreto incorrecto.
+      return new Response(JSON.stringify({ error: 'No se pudo verificar el secreto' }), { status: 503 });
+    }
+    if (verif.estado !== 'valido') {
       return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
     }
 

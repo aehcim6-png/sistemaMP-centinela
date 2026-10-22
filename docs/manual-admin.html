@@ -87,7 +87,7 @@
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Manual de Administrador</h1>
 
-<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Accesos que necesitas tener</a><a class="h2" href="#d-2">2. Gestión de usuarios</a><a class="h2" href="#d-3">3. Seguridad</a><a class="h3" href="#d-4">Roles</a><a class="h3" href="#d-5">Perfil — qué pestañas ve cada cuenta (2026-10-01)</a><a class="h3" href="#d-6">Verificación en dos pasos (MFA)</a><a class="h3" href="#d-7">Contraseñas</a><a class="h3" href="#d-8">Vencimiento de contraseña (rotación periódica, 2026-09-02)</a><a class="h3" href="#d-9">Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</a><a class="h3" href="#d-10">Accesos del servidor y alerta de accesos sospechosos (2026-10-22)</a><a class="h3" href="#d-11">Protección contra bots (CAPTCHA, activado 2026-09-08)</a><a class="h3" href="#d-12">Cierre de sesión por inactividad</a><a class="h3" href="#d-13">Auditoría (trazabilidad — quién cambió qué)</a><a class="h2" href="#d-14">4. Base de datos (Supabase)</a><a class="h3" href="#d-15">Supuestos editables que se guardan en la tabla configuracion (2026-10-13)</a><a class="h3" href="#d-16">Límites del plan gratis (hoy)</a><a class="h2" href="#d-17">5. Respaldo y continuidad de datos</a><a class="h3" href="#d-18">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</a><a class="h2" href="#d-19">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</a><a class="h3" href="#d-20">Configuración inicial (una sola vez)</a><a class="h3" href="#d-21">Formato del mensaje</a><a class="h3" href="#d-22">Segunda pasada con IA (2026-09-02)</a><a class="h2" href="#d-23">7. Alertas automáticas de salida (correo y WhatsApp)</a><a class="h2" href="#d-24">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</a><a class="h2" href="#d-25">8. Despliegue (Vercel)</a><a class="h2" href="#d-26">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</a><a class="h2" href="#d-27">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</a><a class="h2" href="#d-28">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</a><a class="h2" href="#d-29">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</a><a class="h2" href="#d-30">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</a><a class="h2" href="#d-31">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</a><a class="h2" href="#d-32">9. Estructura del código</a><a class="h3" href="#d-33">Fotos de los equipos en la Torre de Control (2026-10-22)</a><a class="h2" href="#d-34">10. Si algo se rompe — por dónde empezar</a><a class="h2" href="#d-35">11. Continuidad — si quien mantiene esto no está disponible</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Accesos que necesitas tener</a><a class="h2" href="#d-2">2. Gestión de usuarios</a><a class="h2" href="#d-3">3. Seguridad</a><a class="h3" href="#d-4">Roles</a><a class="h3" href="#d-5">Perfil — qué pestañas ve cada cuenta (2026-10-01)</a><a class="h3" href="#d-6">Verificación en dos pasos (MFA)</a><a class="h3" href="#d-7">Contraseñas</a><a class="h3" href="#d-8">Vencimiento de contraseña (rotación periódica, 2026-09-02)</a><a class="h3" href="#d-9">Alerta de dispositivo nuevo y señales de anomalía (2026-09-01/02)</a><a class="h3" href="#d-10">Accesos del servidor y alerta de accesos sospechosos (2026-10-22)</a><a class="h3" href="#d-11">Protección contra bots (CAPTCHA, activado 2026-09-08)</a><a class="h3" href="#d-12">Cierre de sesión por inactividad</a><a class="h3" href="#d-13">Auditoría (trazabilidad — quién cambió qué)</a><a class="h2" href="#d-14">4. Base de datos (Supabase)</a><a class="h3" href="#d-15">Supuestos editables que se guardan en la tabla configuracion (2026-10-13)</a><a class="h3" href="#d-16">Límites del plan gratis (hoy)</a><a class="h2" href="#d-17">5. Respaldo y continuidad de datos</a><a class="h3" href="#d-18">Si el proyecto Supabase se pierde por completo — cómo restaurar (2026-09-11)</a><a class="h2" href="#d-19">6. Reporte de fallas por WhatsApp o correo (canal de entrada)</a><a class="h3" href="#d-20">Configuración inicial (una sola vez)</a><a class="h3" href="#d-21">Formato del mensaje</a><a class="h3" href="#d-22">Segunda pasada con IA (2026-09-02)</a><a class="h2" href="#d-23">7. Alertas automáticas de salida (correo y WhatsApp)</a><a class="h2" href="#d-24">7b. Detector de salud del sistema (2026-09-14, ampliado 2026-09-16)</a><a class="h3" href="#d-25">Si el detector avisa «No se pudo verificar el secreto del cron» (2026-10-22)</a><a class="h2" href="#d-26">8. Despliegue (Vercel)</a><a class="h2" href="#d-27">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</a><a class="h2" href="#d-28">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</a><a class="h2" href="#d-29">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</a><a class="h2" href="#d-30">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</a><a class="h2" href="#d-31">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</a><a class="h2" href="#d-32">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</a><a class="h2" href="#d-33">9. Estructura del código</a><a class="h3" href="#d-34">Fotos de los equipos en la Torre de Control (2026-10-22)</a><a class="h2" href="#d-35">10. Si algo se rompe — por dónde empezar</a><a class="h2" href="#d-36">11. Continuidad — si quien mantiene esto no está disponible</a></details></nav><div class="doc-main"><!--/doc-ini-->
 <p>Para quien administra el sistema hoy, o para quien lo reciba mañana. Cubre lo que un
   operador normal no necesita saber. Para cómo se conecta todo por dentro, ver
   <a href="arquitectura.html">Arquitectura</a> y el <a href="plano-sistema.html">plano interactivo</a>.</p>
@@ -547,7 +547,9 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   (<code>vigilar_salud_cron_secret</code>) en Supabase Vault. Ver
   <a href="arquitectura.html">Arquitectura</a>, sección 35, para el detalle técnico completo.</p>
 
-  <h2 id="d-25">8. Despliegue (Vercel)</h2>
+  <h3 id="d-25">Si el detector avisa «No se pudo verificar el secreto del cron» (2026-10-22)</h3>
+  <p>Quiere decir que ese día el cron (<code>alerta-pm</code>, <code>resumen-semanal</code> o <code>backup-diario</code>) <b>sí se lanzó pero no corrió</b>: la llamada interna a la base para verificar su secreto falló (401 o error del servidor) incluso después de un reintento. No significa que el secreto esté mal. Qué hacer: (1) mira en Supabase → Logs → Edge Functions si ese día hubo una caída o un cambio de claves de API; (2) si fue un hecho aislado, no hace falta nada hasta la próxima corrida; para no esperar, el cron se puede relanzar a mano con <code>select cron.run_job(&amp;lt;jobid&amp;gt;)</code>, pero ojo: <code>alerta-pm</code> y <code>resumen-semanal</code> mandan el correo de verdad; (3) si se repite en dos corridas seguidas, revisa las claves de la API (service_role) del proyecto. Un llamador con un secreto incorrecto sigue recibiendo 401 y <b>no</b> deja registro. El detector de salud (<code>vigilar-salud-sistema</code>) revisa además <code>alerta-pm</code> (26 h) y <code>resumen-semanal</code> (8 días) desde la versión 2, ya publicada en los dos proyectos.</p>
+  <h2 id="d-26">8. Despliegue (Vercel)</h2>
   <ul>
     <li>Cada push a <code>main</code> dispara un build y un despliegue automático.</li>
     <li><code>modules/renders/*.js</code> (49 archivos, módulos ES reales desde la Fase 3,
@@ -568,7 +570,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Empresa" ni "Descargar Plantilla Limpia" (Configuración) alcanzan solos para eso, esa guía
   explica por qué y el proceso real completo.</p>
 
-  <h2 id="d-26">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</h2>
+  <h2 id="d-27">8b. Herramientas avanzadas de confiabilidad/mantenimiento predictivo (2026-09-16/17)</h2>
   <p>15 herramientas nuevas (Kaplan-Meier, MCF, Crow-AMSAA, Matriz de Criticidad Dinámica, CUSUM
   de aceite, RUL híbrido, Competing Risks, Matriz de Criticidad de Repuestos, Índice de
   Efectividad del Mantenimiento, Patrones Ocultos de Falla, Weibull con censura/MLE, Kijima
@@ -610,7 +612,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   ningún interruptor nuevo en Configuración que activar: la única acción de un admin es mantener
   esos datos cargados y reales.</p>
 
-  <h2 id="d-27">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</h2>
+  <h2 id="d-28">8c. Intervalos de confianza del MTBF/MTTR y etiquetas de tendencia (2026-09-19)</h2>
   <p>Cuatro agregados chicos al Dashboard y a Costos → MTBF/MTTR, sin tabla ni configuración
   nueva:</p>
   <ul>
@@ -633,7 +635,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   un equipo, más angosto (más confiable) sale su intervalo — no hay ningún campo nuevo que
   cargar, solo seguir completando duración y horómetro al cerrar correctivos, como ya se hace.</p>
 
-  <h2 id="d-28">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</h2>
+  <h2 id="d-29">8d. Nuevos campos manuales de clasificación en Correctivos (2026-09-24/30)</h2>
   <p>Tres campos nuevos y opcionales en Correctivos, todos del mismo patrón: se eligen a mano al
   cargar/editar una OT (nunca se infieren del texto libre, porque son un criterio de la empresa,
   no un dato técnico) y alimentan un análisis agregado que aparece vacío hasta que haya
@@ -652,7 +654,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   técnico de cada una. Como admin, no hay nada que activar — simplemente avisar al equipo de
   terreno que estos 3 selectores existen, si se quiere que esos análisis empiecen a tener datos.</p>
 
-  <h2 id="d-29">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</h2>
+  <h2 id="d-30">8e. Pestaña nueva "Producción" — ingesta de Reportes de Turno por foto (2026-09-30)</h2>
   <p>Nueva pestaña top-level (no sub-pestaña), con su propia Edge Function de lectura por foto
   (<code>leer-reporte-produccion</code>, cuarta del mismo tipo que las de Pauta PM/Informe
   Correctivo/Chequeo de Neumáticos — requiere <code>GEMINI_API_KEY</code> configurada, ya
@@ -665,7 +667,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Rendimiento por tipo de equipo (no se inventa un valor nominal sin ese dato real). Ver
   <a href="arquitectura.html">Arquitectura</a>, sección 88.</p>
 
-  <h2 id="d-30">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</h2>
+  <h2 id="d-31">8f. 5 features nuevas sobre fórmulas de mantenimiento (2026-10-02)</h2>
   <p>% Correctivo Reactivo por horas, Matriz Jack-Knife (MTBF vs MTTR), Costo de Downtime real,
   Rotación/Obsolescencia de Stock MRO y FMEA con NPR — las 5 en Costos &amp; Stock, Producción o
   Predictivo según corresponda. La única que requiere algo del admin es <b>Costo de Downtime
@@ -676,7 +678,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <a href="arquitectura.html">Arquitectura</a>, secciones 90-94, para el detalle técnico de cada
   una.</p>
 
-  <h2 id="d-31">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</h2>
+  <h2 id="d-32">8g. Rendimiento Teórico por Tiempo de Ciclo + Coeficiente de Variación (2026-10-05)</h2>
   <p>Dentro de Producción: a partir de <code>tiempoCicloMin</code> (ya capturado por OCR por
   turno, sin consumidor hasta ahora) el sistema calcula un rendimiento teórico por equipo —
   MEDIANA del ciclo real medido ese mes, no un parámetro de catálogo — que sirve para CAEX y
@@ -687,7 +689,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   haya ≥3 turnos con tiempo de ciclo registrado ese mes. Ver <a href="arquitectura.html">Arquitectura</a>,
   secciones 95-96.</p>
 
-  <h2 id="d-32">9. Estructura del código</h2>
+  <h2 id="d-33">9. Estructura del código</h2>
   <pre>index.html              — esqueleto: nav, login, bootstrap, infraestructura compartida
 logic.js                — funciones de cálculo puras (con tests)
 modules/store.js         — motor de sincronización (S.g/S.s, TABLA_REAL, RLS-aware)
@@ -703,10 +705,10 @@ supabase/functions/      — 14 Edge Functions (crear-operador, alerta-pm, resum
 tests/                   — pruebas de logic.js y store.js (Vitest, 1153 casos)
 docs/                    — esta documentación</pre>
 
-  <h3 id="d-33">Fotos de los equipos en la Torre de Control (2026-10-22)</h3>
+  <h3 id="d-34">Fotos de los equipos en la Torre de Control (2026-10-22)</h3>
   <p>La Torre de Control muestra, por defecto, un dibujo según el tipo de equipo. Si hay una foto para el <b>modelo</b>, muestra la foto (con un aro y un punto del color de salud: verde, ámbar o rojo). Una foto sirve para todas las unidades del mismo modelo. Si no hay foto, o la imagen no carga, se ve el dibujo de siempre.</p>
   <p><b>Cómo agregar una foto:</b> guarda el archivo en <code>public/modelos/</code> (JPG o WebP, unos 600 px de ancho y menos de 120 KB, de costado o en diagonal, sin logos ni textos de otras empresas), y en <code>modules/renders/torre.js</code> agrega una línea al mapa <code>_TORRE_FOTOS</code> con la clave del modelo (su nombre en minúscula, sin tildes, espacios ni guiones) y la ruta, por ejemplo <code>'komatsuwa9008r':'modelos/komatsu-wa900-8r.jpg'</code>. «Komatsu HD785-7» y «Komatsu HD-785-7» dan la misma clave, así que comparten foto. Hay un <code>LEEME.txt</code> con los mismos pasos dentro de <code>public/modelos/</code>. Usa solo fotos propias o imágenes oficiales con permiso de uso; no las bajes de buscadores.</p>
-  <h2 id="d-34">10. Si algo se rompe — por dónde empezar</h2>
+  <h2 id="d-35">10. Si algo se rompe — por dónde empezar</h2>
   <ol>
     <li><b>¿Error de guardado?</b> Consola del navegador (F12 → Console) — el toast rojo y el
     error real quedan ahí.</li>
@@ -721,7 +723,7 @@ docs/                    — esta documentación</pre>
     celdas más comunes en agosto 2026).</li>
   </ol>
 
-  <h2 id="d-35">11. Continuidad — si quien mantiene esto no está disponible</h2>
+  <h2 id="d-36">11. Continuidad — si quien mantiene esto no está disponible</h2>
   <p>Este sistema hoy lo entiende y mantiene una sola persona, sesión a sesión. Para reducir ese
   riesgo: los tres accesos de la sección 1 deberían quedar guardados en un lugar que más de una
   persona alcance; el código y el schema están versionados — cualquier desarrollador con esos

@@ -611,6 +611,10 @@ Mismo patrón de seguridad que el resto de los cron jobs: secreto propio
 [`arquitectura.md`](./arquitectura.md), sección 35, para el detalle
 técnico completo.
 
+### Si el detector avisa «No se pudo verificar el secreto del cron» (2026-10-22)
+
+Quiere decir que ese día el cron (`alerta-pm`, `resumen-semanal` o `backup-diario`) **sí se lanzó pero no corrió**: la llamada interna a la base para verificar su secreto falló (401 o error del servidor) incluso después de un reintento. No significa que el secreto esté mal. Qué hacer: (1) mira en Supabase → Logs → Edge Functions si ese día hubo una caída o un cambio de claves de API; (2) si fue un hecho aislado, no hace falta nada hasta la próxima corrida; para no esperar, el cron se puede relanzar a mano con `select cron.run_job(<jobid>)`, pero ojo: `alerta-pm` y `resumen-semanal` mandan el correo de verdad; (3) si se repite en dos corridas seguidas, revisa las claves de la API (service_role) del proyecto. Un llamador con un secreto incorrecto sigue recibiendo 401 y **no** deja registro. El detector de salud (`vigilar-salud-sistema`) revisa además `alerta-pm` (26 h) y `resumen-semanal` (8 días) desde la versión 2, ya publicada en los dos proyectos.
+
 ## 8. Despliegue (Vercel)
 
 - Cada push a la rama `main` del repositorio dispara un build (`vite build`)
