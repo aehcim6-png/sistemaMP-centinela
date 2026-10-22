@@ -31,6 +31,32 @@ var _TORRE_ICONS={
 function _torreIconSvg(tipo,extra){
   return '<svg viewBox="0 0 240 130" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" '+(extra||'')+'>'+(_TORRE_ICONS[tipo]||_TORRE_ICONS['Camion'])+'</svg>';
 }
+
+// Fotos reales por MODELO (2026-10-22): la flota son ~36 equipos pero solo ~15 modelos, así que una foto por modelo sirve a todas las
+// unidades que lo comparten. Cada entrada es «clave del modelo» → ruta del archivo dentro de public/modelos/ (ver LEEME.txt ahí). La
+// clave es el nombre del modelo en minúscula y sin tildes, espacios ni guiones (_torreModeloClave), así «Komatsu HD785-7» y
+// «Komatsu HD-785-7» (como están escritos hoy en equipos) caen en la misma foto sin tocar los datos. Un modelo sin foto —o con la foto
+// rota o sin conexión— sigue mostrando la silueta de siempre, nunca una tarjeta vacía. Hoy el mapa está vacío: las fotos las pone quien
+// tiene los equipos (propias o imágenes oficiales con permiso), no se bajan de internet.
+var _TORRE_FOTOS={};
+window._TORRE_FOTOS=_TORRE_FOTOS;
+function _torreModeloClave(m){
+  return String(m==null?'':m).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+}
+function _torreFotoUrl(modelo){
+  var k=_torreModeloClave(modelo);
+  return k&&Object.prototype.hasOwnProperty.call(_TORRE_FOTOS,k)?_TORRE_FOTOS[k]:null;
+}
+// Foto del modelo si existe; si no, la silueta. La silueta va siempre escondida detrás de la foto y aparece sola si la imagen falla.
+// El color de salud (verde/ámbar/rojo) lo lleva un aro y un punto (CSS, currentColor), porque una foto no se puede teñir como el dibujo.
+function _torreIconHtml(tipo,modelo,extra){
+  var svg=_torreIconSvg(tipo,extra);
+  var foto=_torreFotoUrl(modelo);
+  if(!foto)return svg;
+  return '<img class="ti-foto" src="'+escapeHtml(foto)+'" alt="'+escapeHtml(modelo||tipo||'')+'" loading="lazy" decoding="async" '+
+    'onerror="var f=this.nextElementSibling;this.parentNode.classList.remove(\'ti-con-foto\');f.style.display=\'flex\';this.remove()">'+
+    '<span class="ti-fallback">'+svg+'</span>';
+}
 // Orden de despliegue de los grupos — camiones/aljibes primero (el grueso de
 // la flota de acarreo), equipos de apoyo/servicio al final. Un tipo real que
 // no esté en esta lista igual se muestra (al final, orden alfabético) — nunca
@@ -53,6 +79,11 @@ function _asegurarEstiloTorre(){
     '.torre-tile:hover{transform:translateY(-2px);border-color:var(--ac)}'+
     '.torre-tile .ti-icon{width:100%;height:46px;display:flex;align-items:center;justify-content:center;margin-bottom:5px}'+
     '.torre-tile svg{width:100%;height:100%;overflow:visible}'+
+    '.torre-tile .ti-icon{position:relative}'+
+    '.ti-fallback{display:none;width:100%;height:100%;align-items:center;justify-content:center}'+
+    '.ti-foto{width:100%;height:100%;object-fit:contain;border-radius:6px;outline:2px solid currentColor;outline-offset:1px;background:#fff}'+
+    '.ti-con-foto::after{content:"";position:absolute;top:1px;right:1px;width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 0 2px var(--bg2)}'+
+    '.torre-tile[data-st="ok"] .ti-icon{color:var(--ok)} .torre-tile[data-st="warn"] .ti-icon{color:var(--ac)} .torre-tile[data-st="crit"] .ti-icon{color:var(--danger)} .torre-tile[data-st="none"] .ti-icon{color:var(--tx3)}'+
     '.torre-tile .ti-sigla{font-weight:700;font-size:11px;letter-spacing:.01em;color:var(--tx)}'+
     '.torre-tile .ti-score{font-size:10px;margin-top:1px}'+
     '.torre-tile[data-st="ok"] svg{color:var(--ok)} .torre-tile[data-st="ok"] .ti-score{color:var(--ok)}'+
@@ -142,7 +173,7 @@ export function renderTorre(){
           var v=r.score.valor;
           var st=_torreStatus(v);
           return '<div class="torre-tile" data-st="'+st+'" title="'+escapeHtml(r.sigla)+' — '+(v==null?'sin datos suficientes':'Score '+v+'%'+(r.score.n<r.score.total?' (solo '+r.score.n+' de '+r.score.total+' señales — menos confiable)':'')+(r.tbo&&r.tbo.enRiesgo?' · '+r.tbo.enRiesgo+' componente'+(r.tbo.enRiesgo>1?'s':'')+' en riesgo':''))+'" onclick="_torreAbrirDrawer(\''+escapeHtml(r.sigla)+'\')">'+
-            '<div class="ti-icon">'+_torreIconSvg(r.tipo)+'</div>'+
+            '<div class="ti-icon'+(_torreFotoUrl(r.modelo)?' ti-con-foto':'')+'">'+_torreIconHtml(r.tipo,r.modelo)+'</div>'+
             '<div class="ti-sigla">'+escapeHtml(r.sigla)+'</div>'+
             '<div class="ti-score">'+(v==null?'sin datos':v+'%')+'</div>'+
             (r.tbo&&r.tbo.enRiesgo?'<div style="font-size:10px;color:var(--danger);font-weight:600;margin-top:2px">⚠ '+r.tbo.enRiesgo+' comp. en riesgo</div>':'')+
@@ -195,7 +226,11 @@ window._torreAbrirDrawer=function(sigla){
   var v=r.score.valor;
   var st=_torreStatus(v);
   var colorVar=st==='ok'?'var(--ok)':st==='warn'?'var(--ac)':st==='crit'?'var(--danger)':'var(--tx3)';
-  document.getElementById('torreDIcon').innerHTML=_torreIconSvg(r.tipo,'style="color:'+colorVar+'"');
+  var icEl=document.getElementById('torreDIcon');
+  icEl.style.color=colorVar;
+  icEl.className=_torreFotoUrl(r.modelo)?'ti-con-foto':'';
+  icEl.style.position='relative';
+  icEl.innerHTML=_torreIconHtml(r.tipo,r.modelo,'style="color:'+colorVar+'"');
   document.getElementById('torreDSigla').textContent=r.sigla;
   document.getElementById('torreDModelo').textContent=r.modelo||'—';
   var scoreEl=document.getElementById('torreDScore');

@@ -662,6 +662,13 @@ Las funciones realmente compartidas entre pestañas (helpers de fecha,
 `escapeHtml`, el motor de voz genérico, etc.) quedan en `index.html` a
 propósito.
 
+### Fotos de los equipos en la Torre de Control (2026-10-22)
+
+La Torre de Control muestra, por defecto, un dibujo según el tipo de equipo. Si hay una foto para el **modelo**, muestra la foto (con un aro y un punto del color de salud: verde, ámbar o rojo). Una foto sirve para todas las unidades del mismo modelo. Si no hay foto, o la imagen no carga, se ve el dibujo de siempre.
+
+**Cómo agregar una foto:** guarda el archivo en `public/modelos/` (JPG o WebP, unos 600 px de ancho y menos de 120 KB, de costado o en diagonal, sin logos ni textos de otras empresas), y en `modules/renders/torre.js` agrega una línea al mapa `_TORRE_FOTOS` con la clave del modelo (su nombre en minúscula, sin tildes, espacios ni guiones) y la ruta, por ejemplo `'komatsuwa9008r':'modelos/komatsu-wa900-8r.jpg'`. «Komatsu HD785-7» y «Komatsu HD-785-7» dan la misma clave, así que comparten foto. Hay un `LEEME.txt` con los mismos pasos dentro de `public/modelos/`. Usa solo fotos propias o imágenes oficiales con permiso de uso; no las bajes de buscadores.
+
+
 ## 10. Si algo se rompe — por dónde empezar
 
 1. **¿Es un error de guardado?** Revisar la consola del navegador

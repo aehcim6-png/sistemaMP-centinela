@@ -1,0 +1,12 @@
+Fotos de los equipos, una por MODELO (no por equipo).
+
+Cómo agregar una:
+1. Guarda la foto aquí, en JPG o WebP, de unos 600 px de ancho y menos de 120 KB (de costado o en diagonal, con buena luz,
+   sin texto ni logos de otras empresas encima). Ejemplo: komatsu-wa900-8r.jpg
+2. En modules/renders/torre.js, en el mapa _TORRE_FOTOS, agrega una línea con la «clave del modelo» (el nombre del modelo en
+   minúscula, sin tildes, espacios ni guiones) y la ruta:
+       'komatsuwa9008r':'modelos/komatsu-wa900-8r.jpg',
+   «Komatsu HD785-7» y «Komatsu HD-785-7» dan la misma clave (komatsuhd7857), así que comparten foto.
+3. Sube el cambio. Los modelos sin foto siguen mostrando el dibujo de siempre.
+
+Usa solo fotos propias o imágenes oficiales que tengas permiso de usar; no las bajes de buscadores de internet.
