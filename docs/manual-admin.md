@@ -221,6 +221,12 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Foto del horómetro (2026-10-24)
+
+**Qué es.** En la pestaña Horómetro, **+ Registrar** tiene un bloque «Leer el horómetro desde una foto» con **Tomar foto** (abre la cámara del celular) y **Subir foto**. La IA lee el número y lo pone en «Horómetro Final»; la persona lo confirma con Guardar. Nada se guarda solo, y si el número es menor que la última lectura o un salto imposible, el sistema lo avisa en rojo y pide confirmar. La fila queda con origen «Foto (IA)» (o «corregida a mano»).
+
+**Qué hay que saber.** La foto no se guarda: solo se envía a Gemini para leerla (el mismo proveedor de las fotos de papeles), con un costo pequeño por foto. La función `leer-horometro` está desplegada en los dos proyectos y exige sesión iniciada. **Aún no se ha medido con fotos reales de los horómetros de la faena**: conviene probar con unos 20 o 30 equipos y revisar siempre el número antes de guardar. Si no se lee bien, el sistema lo dice en vez de adivinar.
+
 ### Protección contra bots (CAPTCHA, activado 2026-09-08)
 
 El login y la recuperación de contraseña tienen un widget de **Cloudflare

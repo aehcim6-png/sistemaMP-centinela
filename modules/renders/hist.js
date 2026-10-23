@@ -159,7 +159,7 @@ export function renderHist(){
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Historial de Horómetros</div>'+
     '<div class="sec-s">'+h.length+' lecturas totales · '+eqsConDatos+' equipos con datos</div></div>'+
     '<div style="display:flex;gap:8px">'+
-    '<button class="btn" onclick="addHist()">+ Registrar</button>'+
+    '<button class="btn" onclick="addHist()" title="Registrar una lectura: puedes escribirla o sacar/subir la foto del horómetro y el sistema la lee">+ Registrar</button>'+
     '<button class="btn btn-o" onclick="importHorom()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button>'+
     '<button class="btn btn-o" onclick="exportCSV(\'hist\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div></div>'+
     '<div class="toolbar">'+
@@ -323,23 +323,119 @@ export function delHist(idx){
 export function addHist(){
   var eq=S.g('eq')||[];
   var hoy=new Date().toISOString().slice(0,10);
+  window._horomFoto=null;   // lectura por foto de esta ventana (se limpia al abrirla)
   sm('<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,15 8,10 11,13 17,4"/><polyline points="12,4 17,4 17,9"/></svg> Registrar Lectura Horómetro</h3>'+
-    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="hEq">'+
+    '<div class="form-row"><div class="fg"><label>Equipo</label><select id="hEq" onchange="_horomChequear()">'+
     eq.map(function(e){return'<option>'+escapeHtml(e.sigla)+'</option>'}).join('')+'</select></div>'+
-    '<div class="fg"><label>Fecha</label><input type="date" id="hFecha" value="'+hoy+'"></div></div>'+
+    '<div class="fg"><label>Fecha</label><input type="date" id="hFecha" value="'+hoy+'" onchange="_horomChequear()"></div></div>'+
+    '<div id="hFotoBox" style="border:1px dashed var(--bd);border-radius:8px;padding:10px;margin:8px 0">'+
+      '<div style="font-size:12px;font-weight:700;margin-bottom:6px">'+ICONS.camera+' Leer el horómetro desde una foto</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button class="btn btn-o" type="button" id="hBtnFotoCam" onclick="_horomFotoActivar(true)">'+ICONS.camera+' Tomar foto</button>'+
+        '<button class="btn btn-o" type="button" id="hBtnFotoSub" onclick="_horomFotoActivar(false)">Subir foto</button></div>'+
+      '<input type="file" id="hFotoCam" accept="image/*" capture="environment" style="display:none" onchange="_horomFotoSeleccionada(this)">'+
+      '<input type="file" id="hFotoSub" accept="image/*" style="display:none" onchange="_horomFotoSeleccionada(this)">'+
+      '<div id="hFotoRes" style="font-size:11px;margin-top:6px;color:var(--tx3)">Elige el equipo, saca la foto del horómetro y el sistema pone el número en «Horómetro Final». Tú lo confirmas antes de guardar.</div>'+
+      '<img id="hFotoPrev" alt="Foto del horómetro" style="display:none;max-width:100%;max-height:140px;margin-top:6px;border-radius:6px">'+
+    '</div>'+
     '<div class="form-row"><div class="fg"><label>Horómetro Inicial</label><input type="number" id="hIni" value="0"></div>'+
-    '<div class="fg"><label>Horómetro Final</label><input type="number" id="hFin" value="0"></div></div>'+
+    '<div class="fg"><label>Horómetro Final</label><input type="number" id="hFin" value="0" oninput="_horomChequear()"></div></div>'+
     '<br><button class="btn" onclick="saveHist()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
+// ── Leer el horómetro desde una foto (leer-horometro) ──
+// Misma idea que «Leer informe correctivo (foto)» en Registrar PM: la función de lectura nunca escribe nada, solo devuelve el número; acá se prellena «Horómetro Final», se compara con la
+// última lectura del equipo (validarSaltoHorometro, la misma regla que usan las OT) y la persona confirma con Guardar. La foto no se guarda: solo se envía para leerla.
+function _horomEquipoSel(){
+  var sigla=$('hEq')?$('hEq').value:'';
+  return (S.g('eq')||[]).find(function(e){return e.sigla===sigla;})||null;
+}
+// Muestra, bajo la foto, cómo queda el número frente a la última lectura del equipo. Devuelve el resultado de la validación (o null si no hay nada que validar).
+export function _horomChequear(){
+  var box=$('hFotoRes');
+  if(!box)return null;
+  var e=_horomEquipoSel();
+  var fin=parseFloat($('hFin')&&$('hFin').value)||0;
+  if(!e||!(fin>0)||!window._horomFoto)return null;
+  var fecha=$('hFecha')?$('hFecha').value:'';
+  var u=e.unidad==='km'?' km':' h';
+  var chk=validarSaltoHorometro(fin,e.horomActual>0?e.horomActual:null,e.fechaHorom,fecha,e.hrsDia);
+  var base='Última lectura de '+escapeHtml(e.sigla)+': '+(e.horomActual>0?fn(e.horomActual)+u+(e.fechaHorom?' ('+escapeHtml(e.fechaHorom)+')':''):'sin lectura previa');
+  if(chk.valido){
+    var av=e.horomActual>0?fin-e.horomActual:null;
+    box.style.color='var(--tx2)';
+    box.innerHTML=base+(av!=null?' · avance '+(av>=0?'+':'')+fn(Math.round(av*10)/10)+u:'');
+  }else{
+    box.style.color='var(--danger)';
+    box.innerHTML='⚠️ '+escapeHtml(chk.motivo)+'. Revisa el número antes de guardar.';
+  }
+  return chk;
+}
+export function _horomFotoActivar(camara){
+  var inp=$(camara?'hFotoCam':'hFotoSub');
+  if(inp)inp.click();
+}
+export async function _horomFotoSeleccionada(input){
+  var file=input.files&&input.files[0];
+  if(!file)return;
+  var box=$('hFotoRes');
+  var fin=$('hFin');
+  if(box){box.style.color='var(--tx3)';box.textContent='⏳ Leyendo la foto...';}
+  try{
+    var comp=await comprimirImagen(file);
+    if(!comp){if(box){box.style.color='var(--danger)';box.textContent='⚠️ No se pudo abrir la foto.';}input.value='';return;}
+    var prev=$('hFotoPrev');
+    if(prev){prev.src=comp.dataUrl;prev.style.display='block';}
+    var resp=await _llamarOCRFuncion('leer-horometro',comp.dataUrl.split(',')[1],'image/jpeg');
+    var d=resp&&resp.datos;
+    if(!d||resp.error){
+      if(box){box.style.color='var(--danger)';box.textContent='⚠️ '+((resp&&resp.error)||'No se pudo leer la foto')+' Escribe el número a mano.';}
+      input.value='';return;
+    }
+    if(!d.legible||!(d.horometro>0)){
+      window._horomFoto=null;
+      if(box){box.style.color='var(--warn)';box.textContent='⚠️ No se pudo leer el número con seguridad'+(d.observacion?' ('+d.observacion+')':'')+'. Saca otra foto más de frente y con menos reflejo, o escríbelo a mano.';}
+      input.value='';return;
+    }
+    window._horomFoto={valor:d.horometro,incierto:d.incierto!==false};
+    if(fin){
+      fin.value=d.horometro;
+      fin.style.outline=d.incierto!==false?'2px solid var(--warn)':'';
+      fin.style.background=d.incierto!==false?'rgba(234,179,8,.12)':'';
+    }
+    // «Horómetro Inicial»: la última lectura del equipo, si todavía está en 0
+    var e=_horomEquipoSel(),ini=$('hIni');
+    if(e&&ini&&!(parseFloat(ini.value)>0)&&e.horomActual>0)ini.value=e.horomActual;
+    var chk=_horomChequear();
+    if(box&&chk&&chk.valido){
+      box.innerHTML='Leído de la foto: <b>'+escapeHtml(String(d.horometro))+'</b>'+(d.incierto!==false?' <span style="color:var(--warn)">(algún dígito es dudoso: compáralo con la foto)</span>':'')+'<br>'+box.innerHTML;
+    }else if(box&&!chk){
+      box.textContent='Leído de la foto: '+d.horometro+(d.incierto!==false?' (algún dígito es dudoso: compáralo con la foto)':'');
+    }
+  }catch(err){
+    if(box){box.style.color='var(--danger)';box.textContent='⚠️ Error leyendo la foto: '+err.message;}
+  }
+  input.value='';
+}
 export function saveHist(){
   var sigla=$('hEq').value;
   var fecha=$('hFecha').value;
   var ini=parseFloat($('hIni').value)||0;
   var fin=parseFloat($('hFin').value)||0;
   if(!sigla||!fin)return toast('⚠️ Completa equipo y horómetro final');
+  // Lectura prellenada desde una foto: si no cuadra con la última lectura del equipo, se pide confirmar (igual que las OT); si se tocó el número a mano, queda anotado.
+  var foto=window._horomFoto||null,origen;
+  if(foto){
+    var eChk=(S.g('eq')||[]).find(function(e){return e.sigla===sigla;});
+    var chk=eChk?validarSaltoHorometro(fin,eChk.horomActual>0?eChk.horomActual:null,eChk.fechaHorom,fecha,eChk.hrsDia):{valido:true};
+    if(!chk.valido&&!confirm('⚠️ '+chk.motivo+'\n\n¿Es un error de lectura? Cancela y corrige.\n¿Guardar de todas formas?'))return;
+    origen=fin===foto.valor?'Foto (IA)':'Foto (IA), corregida a mano';
+  }
   var h=S.g('hist')||[];
-  h.push({sigla:sigla,fecha:fecha,horomIni:ini,horomFin:fin,horom:fin});
+  var fila={sigla:sigla,fecha:fecha,horomIni:ini,horomFin:fin,horom:fin};
+  if(origen)fila.origen=origen;
+  h.push(fila);
   S.s('hist',h);
+  window._horomFoto=null;
   // Update equipment
   var eq=S.g('eq')||[];
   var eqIdx=eq.findIndex(function(e){return e.sigla===sigla});
@@ -356,4 +452,7 @@ window.edHist = edHist;
 window.delHist = delHist;
 window.addHist = addHist;
 window.saveHist = saveHist;
+window._horomChequear = _horomChequear;
+window._horomFotoActivar = _horomFotoActivar;
+window._horomFotoSeleccionada = _horomFotoSeleccionada;
 renders.hist = renderHist;
