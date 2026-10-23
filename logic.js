@@ -165,39 +165,23 @@ const C = {
     reps.forEach(d=>{const m=String(d).match(/(\d+)h/);if(m)totalH+=parseInt(m[1],10);});
     return Math.round(totalH/reps.length*10)/10;
   },
-  // Lecturas de historial_horometros de un equipo, ordenadas por fecha, con las
-  // sospechosas descartadas: retrocede respecto de la lectura válida anterior, o
-  // avanza más de 4x lo nominal en el tiempo transcurrido (mismo criterio que ya
-  // usan tasaDiariaReal() y validarSaltoHorometro() para rechazar un ingreso
-  // nuevo). Encontrado en auditoría (2026-08): 79 saltos implausibles + 82
-  // retrocesos en 2.797 transiciones reales, de una importación que no pasó por
-  // esa validación (ej. TI-5144 pasando de 17.833 a 178.845 en UN día) — sin este
-  // filtro, horomHistorico() los tomaba igual como "la lectura vigente" para esa
-  // fecha, así que el Dashboard podía mostrar un horómetro imposible al mirar un
-  // mes pasado. No se borra nada de la base, solo se ignora al elegir la lectura.
-  lecturasValidas(histArr,sigla){
-    const val=h=>h.horomFin!=null?h.horomFin:h.horom;
-    const rs=(histArr||[]).filter(h=>h&&h.sigla===sigla&&h.fecha&&val(h)!=null&&isFinite(val(h)))
-      .slice().sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
-    const out=[];
-    let anterior=null;
-    rs.forEach(r=>{
-      if(anterior){
-        const dias=Math.max(_diasEntreISO(anterior.fecha,r.fecha),0)+1;
-        const avance=val(r)-val(anterior);
-        if(avance<0||avance>12*dias*4)return; // sospechosa: no avanza 'anterior', se ignora
-      }
-      out.push(r);anterior=r;
-    });
-    return out;
+  // Lecturas de historial_horometros de un equipo, ordenadas por fecha, solo las creíbles: la cadena más larga de lecturas compatibles entre sí (avance ≥ 0 y ≤ 4× el ritmo
+  // nominal por los días transcurridos; ver cadenaLecturasHorometro). Los ceros (relleno de «sin dato») no cuentan como lectura. hrsDia = ritmo nominal del equipo
+  // (h/día o km/día); sin él se usa 12. No se borra nada de la base, solo se ignora al elegir la lectura. Antecedente (auditoría 2026-08): 79 saltos implausibles + 82
+  // retrocesos en 2.797 transiciones, de una importación sin validar (ej. TI-5144 pasando de 17.833 a 178.845 en UN día); la revisión 2026-10 cambió el filtro voraz por la cadena
+  // más larga porque un 0 inicial o un equipo en km hacían descartar casi todo.
+  lecturasValidas(histArr,sigla,hrsDia){
+    const filas=(histArr||[]).filter(h=>h&&h.sigla===sigla&&h.fecha&&_valorHoromFila(h)!=null);
+    const r=cadenaLecturasHorometro(filas.map(h=>({fecha:h.fecha,valor:_valorHoromFila(h)})),hrsDia);
+    return r.cadena.map(i=>filas[i]);
   },
   // Horómetro de un equipo a la fecha límite dada, según historial_horometros (hist).
   // Toma el registro válido más reciente con fecha <= fechaLimite; null si no hay ninguno.
-  horomHistorico(histArr,sigla,fechaLimite){
+  horomHistorico(histArr,sigla,fechaLimite,hrsDia){
     let mejor=null;
-    this.lecturasValidas(histArr,sigla).forEach(h=>{
+    this.lecturasValidas(histArr,sigla,hrsDia).forEach(h=>{
       if(!h.fecha||h.fecha>fechaLimite)return;
-      if(!mejor||h.fecha>mejor.fecha)mejor=h;
+      if(!mejor||h.fecha>=mejor.fecha)mejor=h;   // misma fecha: la última de la cadena (la de mayor valor)
     });
     if(!mejor)return null;
     const v=mejor.horomFin!=null?mejor.horomFin:mejor.horom;
@@ -212,7 +196,7 @@ const C = {
     if(mesObjetivo===mesHoy){
       horom=equipo.horomActual;fuente='vivo';
     } else if(targetFechaISO<hoyISO){
-      horom=this.horomHistorico(histArr,equipo.sigla,targetFechaISO);
+      horom=this.horomHistorico(histArr,equipo.sigla,targetFechaISO,equipo.hrsDia);
       if(horom==null)return null;
       fuente='historico';
     } else {
@@ -780,7 +764,7 @@ function mtbfFlotaAgrupado(eq,ot,hist,opts){
   var horas=0,paradas=0,nEq=0,sinParadas=0,porEquipo=[];
   (eq||[]).forEach(function(e){
     if(!e||!e.sigla||e.unidad==='km')return;
-    var lect=C.lecturasValidas(porSigla[e.sigla]||[],e.sigla);
+    var lect=C.lecturasValidas(porSigla[e.sigla]||[],e.sigla,e.hrsDia);
     var dentro=lect.filter(function(h){return h.fecha>=ini&&h.fecha<=fin;});
     if(dentro.length<2)return;
     var h=val(dentro[dentro.length-1])-val(dentro[0]);
@@ -937,7 +921,7 @@ function informeProgramaSemanal(eq,reg,hist,desde,hasta,hoyISO){
   var filas=[],sinHorometro=[],res={programados:0,programadosCumplieron:0,alcanzados:0,ejecutados:0,arrastrados:0,noProgramadosAlcanzados:0,equiposEvaluados:0,sinHorometro:0,certeza:null,cumplimiento:null,metaCerteza:PROG_META_CERTEZA,metaCumplimiento:PROG_META_CUMPLIMIENTO};
   (eq||[]).forEach(function(e){
     var f=e&&e.frecPM;if(!e||!e.sigla||!(f>0)||f>1000||e.unidad==='km')return;
-    var lect=C.lecturasValidas(hist,e.sigla),val=function(h){return h.horomFin!=null?h.horomFin:h.horom;};
+    var lect=C.lecturasValidas(hist,e.sigla,e.hrsDia),val=function(h){return h.horomFin!=null?h.horomFin:h.horom;};
     var ultima=function(x){var m=null;lect.forEach(function(h){if(h.fecha<=x&&(!m||h.fecha>m.fecha))m=h;});return m;};
     var lIni=ultima(ayer),lFin=ultima(fin);
     var fresca=function(l,ref){return l&&_diasEntreISO(l.fecha,ref)<=PROG_LECTURA_MAX_DIAS;};
@@ -3496,7 +3480,7 @@ function coberturaRegistro(d){
   d=d||{};
   var ev={};
   function add(sig,f){f=String(f||'').slice(0,10);if(!sig||!/^\d{4}-\d{2}-\d{2}$/.test(f))return;(ev[sig]=ev[sig]||{})[f]=1;}
-  (d.hist||[]).forEach(function(h){if(h)add(h.sigla,h.fecha);});
+  (d.hist||[]).forEach(function(h){var v=_valorHoromFila(h);if(h&&!(v!=null&&v<=0))add(h.sigla,h.fecha);});   // un 0 es relleno de «sin dato», no una lectura
   (d.ot||[]).forEach(function(o){if(!o)return;add(o.sigla,o.fecha);add(o.sigla,o.fechaEntrada);add(o.sigla,o.fechaSalida);});
   (d.reg||[]).forEach(function(r){if(r)add(r.equipo,r.fechaEntrada||r.fechaEjec);});
   (d.eq||[]).forEach(function(e){if(e&&e.horomActual>0)add(e.sigla,e.fechaHorom);});
@@ -5915,7 +5899,7 @@ function tcoEquipo(e,d,o){
   if(dias<minDias)return null;
   var anios=dias/365;
   // horas operadas en la ventana
-  var hA=C.horomHistorico(d.hist||[],e.sigla,hasta),hD=C.horomHistorico(d.hist||[],e.sigla,desde),horas=null,fuenteHoras='';
+  var hA=C.horomHistorico(d.hist||[],e.sigla,hasta,e.hrsDia),hD=C.horomHistorico(d.hist||[],e.sigla,desde,e.hrsDia),horas=null,fuenteHoras='';
   if(hA==null&&hasta===hoy&&Number(e.horomActual)>0)hA=Number(e.horomActual);
   if(hA!=null&&hD!=null&&hA>hD){horas=hA-hD;fuenteHoras='historial de horómetros';}
   else if(Number(e.hrsDia)>0){horas=Math.min(Number(e.hrsDia)*dias,Number(e.horomActual)||Infinity);fuenteHoras='horas/día declaradas (estimado)';}
@@ -5935,7 +5919,7 @@ function tcoEquipo(e,d,o){
   var a0=Number(desde.slice(0,4)),a1=Number(hasta.slice(0,4));
   for(var a=a0;a<=a1;a++){
     var ini=a===a0?desde:a+'-01-01',fin=a===a1?hasta:a+'-12-31';
-    var h0=C.horomHistorico(d.hist||[],e.sigla,ini),h1=C.horomHistorico(d.hist||[],e.sigla,fin);
+    var h0=C.horomHistorico(d.hist||[],e.sigla,ini,e.hrsDia),h1=C.horomHistorico(d.hist||[],e.sigla,fin,e.hrsDia);
     var m=lineas.filter(function(c){var f=String(c.fecha).slice(0,10);return f>=ini&&f<=fin;}).reduce(function(s,c){return s+(Number(c.costo)||0);},0);
     var hd=0;Object.keys(dm).forEach(function(f){if(f>=ini&&f<=fin)hd+=dm[f];});
     var hh=(h0!=null&&h1!=null&&h1>h0)?h1-h0:null;
@@ -6270,7 +6254,7 @@ function criticidadEquiposMulticriterio(equipos,d,o){
   var op=o||{},hoy=_tcoIso(d.hoy),hasta=op.hasta||hoy,desde=op.desde||_fechaMas(hasta,-365),dias=Math.max(1,_tcoDias(desde,hasta)),base=[],excl=[];
   (equipos||[]).forEach(function(e){
     if(!e||!e.sigla||e.unidad==='km')return;
-    var lec=C.lecturasValidas(d.hist||[],e.sigla).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;}),val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
+    var lec=C.lecturasValidas(d.hist||[],e.sigla,e.hrsDia).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;}),val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
     var horas=null,origen='';
     if(lec.length>=2){var a=lec[0],b=lec[lec.length-1],dd=_tcoDias(a.fecha,b.fecha),hh=val(b)-val(a);if(dd>=60&&hh>=0&&hh/dd<=24){horas=hh/dd*dias;origen='horómetro';}}
     if(horas==null&&e.hrsDia>=1&&e.hrsDia<=24){horas=e.hrsDia*dias;origen='horas/día declaradas';}
@@ -6457,7 +6441,7 @@ function pcaVariablesEquipos(d,o){
   var nombres=['Fallas por 1.000 h','Horas por reparación','% días fuera de servicio','Uso (h/día)','Horómetro (h)'];
   (d.equipos||[]).forEach(function(e){
     if(!e||!e.sigla||e.unidad==='km')return;
-    var lec=C.lecturasValidas(d.hist||[],e.sigla).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;});
+    var lec=C.lecturasValidas(d.hist||[],e.sigla,e.hrsDia).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;});
     var val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
     var fila={sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||'',vars:null,motivo:''};
     if(lec.length<2){fila.motivo='sin lecturas de horómetro en el período';out.push(fila);return;}
@@ -6705,17 +6689,17 @@ function curvaSPM(equipos,d,o){
     var ritmo=Number(e.hrsDia)>0?Number(e.hrsDia):0,frec=Number(e.frecPM)>0?Number(e.frecPM):0;
     if(!(ritmo>0&&frec>0)){sinRitmo.push(e.sigla);return;}
     var hActual=Number(e.horomActual)||0,h0=null,t0=0;
-    if(previo<=hoy)h0=C.horomHistorico(d.hist||[],e.sigla,previo);
+    if(previo<=hoy)h0=C.horomHistorico(d.hist||[],e.sigla,previo,e.hrsDia);
     else h0=hActual+ritmo*_tcoDias(hoy,previo);
     if(h0==null){
       // sin lectura antes del mes: se ancla en la primera lectura válida de los primeros 7 días; si no hay, el equipo queda fuera (estimar con horas/día inventaría PM de un equipo que pudo estar detenido)
-      var prim=inicio<=hoy?C.lecturasValidas(d.hist||[],e.sigla).filter(function(r){return r.fecha>=inicio&&r.fecha<=_fechaMas(inicio,7);})[0]:null;
+      var prim=inicio<=hoy?C.lecturasValidas(d.hist||[],e.sigla,e.hrsDia).filter(function(r){return r.fecha>=inicio&&r.fecha<=_fechaMas(inicio,7);})[0]:null;
       if(!prim){sinBase.push(e.sigla);return;}
       h0=prim.horomFin!=null?prim.horomFin:prim.horom;t0=tDia(prim.fecha);estimados.push(e.sigla);
     }
-    var hHoy=null;if(hoy>=inicio&&hoy<=fin){hHoy=C.horomHistorico(d.hist||[],e.sigla,hoy);if(hHoy==null||hHoy<h0)hHoy=hActual>=h0?hActual:null;}
+    var hHoy=null;if(hoy>=inicio&&hoy<=fin){hHoy=C.horomHistorico(d.hist||[],e.sigla,hoy,e.hrsDia);if(hHoy==null||hHoy<h0)hHoy=hActual>=h0?hActual:null;}
     var hFin;
-    if(fin<=hoy){hFin=C.horomHistorico(d.hist||[],e.sigla,fin);if(hFin==null)hFin=h0;}
+    if(fin<=hoy){hFin=C.horomHistorico(d.hist||[],e.sigla,fin,e.hrsDia);if(hFin==null)hFin=h0;}
     else if(hHoy!=null)hFin=hHoy+ritmo*_tcoDias(hoy,fin);
     else hFin=h0+ritmo*dias;
     if(hFin<h0)hFin=h0;
@@ -6935,7 +6919,7 @@ function backtestPronosticoDisponibilidad(equipos,d,o){
     // componentes: con d.compHist y d.hist se reconstruye el estado al origen (cambios ya hechos y horómetro de ese día); sin ellos el ajuste por edad queda desactivado
     var conComp=!!(d.compHist&&d.hist),eqO=activos,dO={reg:regC,ot:otC,hoy:origen};
     if(conComp){
-      eqO=activos.map(function(e){var hh=C.horomHistorico(d.hist,e.sigla,origen);return hh!=null?Object.assign({},e,{horomActual:hh}):e;});
+      eqO=activos.map(function(e){var hh=C.horomHistorico(d.hist,e.sigla,origen,e.hrsDia);return hh!=null?Object.assign({},e,{horomActual:hh}):e;});
       dO.compHist=(d.compHist||[]).filter(function(r){return r&&(r.fechaInst||'')&&r.fechaInst<=origen;});dO.compMayores=d.compMayores||[];dO.compras=d.compras||[];
     }
     var p=pronosticoDisponibilidadEquipos(eqO,dO,{horizonteDias:H,meta:op.meta,nSim:op.nSim||1000,rng:op.rng,pmReal:pmReal,componentes:conComp});
@@ -7941,6 +7925,178 @@ function validarSaltoHorometro(horomNuevo, horomAnterior, fechaAnterior, fechaNu
     return{valido:false,motivo:'El avance ('+Math.round(avance)+') es muy alto para '+dias+' día(s) desde el último dato ('+horomAnterior+', el '+fechaAnterior+') — revisa el horómetro ingresado'};
   }
   return{valido:true};
+}
+
+// ═══ LIMPIEZA ASISTIDA DE HORÓMETROS ═══
+// Qué lecturas de historial_horometros son creíbles y cuáles no. Reemplaza el filtro «voraz» anterior (comparar cada lectura con la última aceptada), que tenía tres fallas
+// medidas con los datos reales (2026-10): (1) un «0» (relleno de «sin dato», 736 de 3.992 filas) al inicio de la serie hacía que TODAS las lecturas reales siguientes parecieran
+// un salto imposible y se descartaran (CN-9502, GE-10019, MC-4922 y las seis torres de iluminación quedaban solo con ceros); (2) el tope «4 × 12 h por día» se aplicaba también a
+// buses y camionetas medidos en km (BS-5752 conservaba 1 de 10 lecturas, CA-5979 y CA-6146 1 de 4 y 1 de 5); (3) una lectura mala al comienzo de la serie descartaba el resto.
+// Ahora se busca la cadena MÁS LARGA de lecturas compatibles entre sí (avance ≥ 0 y ≤ 4 × ritmo nominal × días): lo que no entra en esa cadena es lo dudoso. Es una regla, no un
+// modelo: no hay IA externa ni se inventa ningún número. No borra ni modifica nada; la corrección o el descarte lo confirma una persona (diagnosticarHorometros).
+var HOROM_TOPE_FACTOR=4;          // mismo factor que tasaDiariaReal() y validarSaltoHorometro()
+var HOROM_BLOQUE_MIN=3;           // lecturas seguidas descartadas que forman su propia serie = posible cambio/reinicio del horómetro, no un error de digitación
+function _valorHoromFila(h){
+  if(!h)return null;
+  var v=h.horomFin!=null?h.horomFin:h.horom;
+  if(v==null||v==='')return null;
+  v=Number(v);
+  return isFinite(v)?v:null;
+}
+function _epochDia(f){var y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);return Math.round(Date.UTC(y,m,d)/864e5);}
+// lecturas: [{fecha:'yyyy-mm-dd', valor:Number|null}] en cualquier orden. Devuelve índices (de la lista recibida):
+// {cadena:[...] en orden de fecha (misma fecha: de menor a mayor valor), fuera:[...] lecturas con valor que no encajan, sinDato:[...] valor vacío o ≤ 0}.
+// Empate entre cadenas igual de largas: gana la que empieza antes (como el filtro anterior, que conservaba la primera).
+function cadenaLecturasHorometro(lecturas, hrsDia){
+  var tope=(hrsDia>0?hrsDia:12)*HOROM_TOPE_FACTOR;
+  var items=[],sinDato=[];
+  (lecturas||[]).forEach(function(l,i){
+    var f=l&&l.fecha?String(l.fecha).slice(0,10):'';
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(f))return;
+    var v=l.valor;
+    if(v==null||v===''||!isFinite(v)||Number(v)<=0){sinDato.push(i);return;}
+    items.push({i:i,f:f,d:_epochDia(f),v:Number(v)});
+  });
+  items.sort(function(a,b){return a.d-b.d||a.v-b.v||a.i-b.i;});
+  var n=items.length,mejor=[],padre=[],fin=-1,i,j;
+  for(i=0;i<n;i++){
+    mejor[i]=1;padre[i]=-1;
+    for(j=0;j<i;j++){
+      var av=items[i].v-items[j].v;
+      if(av<0||av>tope*(items[i].d-items[j].d+1))continue;
+      if(mejor[j]+1>mejor[i]){mejor[i]=mejor[j]+1;padre[i]=j;}   // empate: se queda el predecesor más antiguo
+    }
+    if(fin<0||mejor[i]>mejor[fin])fin=i;
+  }
+  var enCadena={},orden=[];
+  for(i=fin;i>=0;i=padre[i]){enCadena[i]=true;orden.push(items[i].i);}
+  orden.reverse();
+  var fuera=[];
+  items.forEach(function(it,k){if(!enCadena[k])fuera.push(it.i);});
+  return{cadena:orden,fuera:fuera,sinDato:sinDato,items:items,posCadena:enCadena};
+}
+// Correcciones de digitación que dejan la lectura dentro de [lo,hi]: dígito de más (se quita), de menos (se agrega), dos dígitos intercambiados o un dígito cambiado.
+// Devuelve los valores distintos que cumplen. Solo trabaja con números enteros y sin cero a la izquierda.
+function candidatosDigitacion(valor, lo, hi){
+  if(!(valor>0)||Math.floor(valor)!==valor||!(lo<=hi))return[];
+  var s=String(valor),vistos={},out=[],i,d;
+  function probar(t){
+    if(!t||t.charAt(0)==='0'||!/^\d+$/.test(t))return;
+    var x=Number(t);
+    if(x===valor||vistos[x])return;
+    vistos[x]=1;
+    if(x>=lo&&x<=hi)out.push(x);
+  }
+  for(i=0;i<s.length;i++){
+    if(s.length>1)probar(s.slice(0,i)+s.slice(i+1));
+    for(d=0;d<10;d++){
+      probar(s.slice(0,i)+d+s.slice(i));
+      if(String(d)!==s.charAt(i))probar(s.slice(0,i)+d+s.slice(i+1));
+    }
+  }
+  for(d=0;d<10;d++)probar(s+d);
+  for(i=0;i+1<s.length;i++)probar(s.slice(0,i)+s.charAt(i+1)+s.charAt(i)+s.slice(i+2));
+  return out.sort(function(a,b){return a-b;});
+}
+var HOROM_VENTANA_ALTA=150;   // ventana [lo,hi] de hasta 150 h/km entre sus vecinos buenos: la corrección única se marca «alta»
+// Diagnóstico de las lecturas de horómetro. hist = historial_horometros (filas con sigla, fecha, horomFin/horom, _id), equipos = para el ritmo nominal (hrsDia). No cambia nada.
+// Por equipo: {sigla, hrsDia, total, validas, sinDato, descartadas, ruido, desde, hasta, propuestas:[...]}. Cada propuesta:
+//   tipo 'sin_dato'    : valor 0 o vacío (relleno, no es una lectura) → eliminar
+//   tipo 'corregir'    : fuera de la serie, y hay UNA sola corrección de digitación que encaja entre sus vecinos buenos → cambiar a «corregido»
+//   tipo 'intercambiar': el valor de este equipo encaja en otro equipo con una lectura fuera de serie el mismo día, y viceversa (llevan «grupo»: se aplican juntas)
+//   tipo 'descartar'   : fuera de la serie, sin corrección posible o con varias → eliminar (el sistema ya la ignora al calcular)
+//   tipo 'revisar'     : HOROM_BLOQUE_MIN lecturas seguidas fuera de la serie que forman su propia serie → posible cambio o reinicio del horómetro; decide una persona
+// Las lecturas fuera de la serie por no más de un día nominal de uso (hrsDia) son «ruido» (dos lecturas del mismo día en otro orden, 1 h de diferencia): el cálculo las ignora igual,
+// pero no se proponen: solo se cuentan.
+function diagnosticarHorometros(hist, equipos){
+  var hrsPor={};(equipos||[]).forEach(function(e){if(e&&e.sigla)hrsPor[e.sigla]=e.hrsDia>0?e.hrsDia:12;});
+  var porSigla={};
+  (hist||[]).forEach(function(h){if(h&&h.sigla&&h.fecha)(porSigla[h.sigla]=porSigla[h.sigla]||[]).push(h);});
+  var out=[],porFechaFuera={};
+  Object.keys(porSigla).sort().forEach(function(sigla){
+    var filas=porSigla[sigla],nom=hrsPor[sigla]||12,tope=nom*HOROM_TOPE_FACTOR;
+    var lect=filas.map(function(h){return{fecha:h.fecha,valor:_valorHoromFila(h)};});
+    var r=cadenaLecturasHorometro(lect,nom);
+    var items=r.items,posDe={};
+    items.forEach(function(it,k){posDe[it.i]=k;});
+    var fechas=filas.map(function(h){return String(h.fecha).slice(0,10);}).sort();
+    var res={sigla:sigla,hrsDia:nom,total:filas.length,validas:r.cadena.length,sinDato:r.sinDato.length,descartadas:r.fuera.length,ruido:0,desde:fechas[0],hasta:fechas[fechas.length-1],propuestas:[]};
+    function base(h,tipo,motivo){return{fila:h,id:h._id||h.id||null,sigla:sigla,fecha:String(h.fecha).slice(0,10),valor:_valorHoromFila(h),tipo:tipo,corregido:null,confianza:null,motivo:motivo,previo:null,siguiente:null,grupo:null};}
+    r.sinDato.forEach(function(i){res.propuestas.push(base(filas[i],'sin_dato','Valor '+(filas[i].horomFin!=null?filas[i].horomFin:(filas[i].horom==null?'vacío':filas[i].horom))+': es un relleno, no una lectura'));});
+    // vecinos buenos de cada lectura fuera de la serie
+    var fueraPos=r.fuera.map(function(i){return posDe[i];}).sort(function(a,b){return a-b;});
+    var props=[];
+    fueraPos.forEach(function(k){
+      var it=items[k],p=null,nx=null,q;
+      for(q=k-1;q>=0;q--)if(r.posCadena[q]){p=items[q];break;}
+      for(q=k+1;q<items.length;q++)if(r.posCadena[q]){nx=items[q];break;}
+      var lo=p?p.v:0,hi=Infinity;
+      if(p)hi=p.v+tope*(it.d-p.d+1);
+      if(nx){hi=Math.min(hi,nx.v);lo=Math.max(lo,nx.v-tope*(nx.d-it.d+1));}
+      var distancia=it.v<lo?lo-it.v:it.v>hi?it.v-hi:0;
+      if(distancia<=nom){res.ruido++;return;}
+      var pr=base(filas[it.i],'descartar','');
+      pr.previo=p?{fecha:p.f,valor:p.v}:null;pr.siguiente=nx?{fecha:nx.f,valor:nx.v}:null;pr.ventana={lo:lo,hi:hi};
+      var rango=(p?p.v:'—')+' ('+(p?p.f:'sin lectura anterior')+') y '+(nx?nx.v:'—')+' ('+(nx?nx.f:'sin lectura posterior')+')';
+      var cand=isFinite(hi)?candidatosDigitacion(it.v,lo,hi):[];
+      if(cand.length===1){
+        pr.tipo='corregir';pr.corregido=cand[0];
+        pr.confianza=(hi-lo)<=HOROM_VENTANA_ALTA?'alta':'media';
+        pr.motivo='Entre '+rango+' no cabe '+it.v+'; un solo error de digitación lo deja en '+cand[0];
+      }else if(cand.length>1){
+        pr.motivo='Entre '+rango+' no cabe '+it.v+'; encajan '+cand.length+' correcciones de digitación ('+cand.slice(0,4).join(', ')+(cand.length>4?'…':'')+') y ninguna es más probable: no se elige';
+      }else{
+        pr.motivo='Entre '+rango+' no cabe '+it.v+(it.v<lo?' (es menor que la lectura anterior)':' (avanza más de lo posible)');
+      }
+      props.push({k:k,pr:pr});
+    });
+    // bloques: lecturas seguidas fuera de la serie (sin lectura buena entre ellas) que son compatibles entre sí
+    var i=0;
+    while(i<props.length){
+      var j=i;
+      while(j+1<props.length&&props[j+1].k===props[j].k+1)j++;
+      if(j-i+1>=HOROM_BLOQUE_MIN){
+        var sub=props.slice(i,j+1).map(function(x){return{fecha:x.pr.fecha,valor:x.pr.valor};});
+        var rb=cadenaLecturasHorometro(sub,nom);
+        if(rb.cadena.length===sub.length){
+          var a=sub[0],z=sub[sub.length-1];
+          for(var m=i;m<=j;m++){
+            props[m].pr.tipo='revisar';props[m].pr.corregido=null;props[m].pr.confianza=null;
+            props[m].pr.motivo=(j-i+1)+' lecturas seguidas ('+a.fecha+' a '+z.fecha+', de '+a.valor+' a '+z.valor+') forman su propia serie: posible cambio o reinicio del horómetro; decide una persona cuál es la correcta';
+          }
+        }
+      }
+      i=j+1;
+    }
+    props.forEach(function(x){
+      res.propuestas.push(x.pr);
+      if(x.pr.tipo!=='revisar')((porFechaFuera[x.pr.fecha]=porFechaFuera[x.pr.fecha]||{})[sigla]=porFechaFuera[x.pr.fecha][sigla]||[]).push(x.pr);
+    });
+    out.push(res);
+  });
+  // intercambio entre equipos: el mismo día, lo que se leyó en A encaja en B y lo de B encaja en A
+  Object.keys(porFechaFuera).forEach(function(fecha){
+    var sig=Object.keys(porFechaFuera[fecha]).sort();
+    function encaja(v,pr){return pr.ventana&&v>=pr.ventana.lo&&v<=pr.ventana.hi;}
+    for(var x=0;x<sig.length;x++)for(var y=x+1;y<sig.length;y++){
+      var A=porFechaFuera[fecha][sig[x]].filter(function(q){return q.tipo!=='intercambiar';}),B=porFechaFuera[fecha][sig[y]].filter(function(q){return q.tipo!=='intercambiar';});
+      if(!A.length||A.length!==B.length)continue;
+      var okAB=A.every(function(a){return B.every(function(b){return encaja(a.valor,b);});}),okBA=B.every(function(b){return A.every(function(a){return encaja(b.valor,a);});});
+      if(!okAB||!okBA)continue;
+      var oA=A.slice().sort(function(u,v){return u.valor-v.valor;}),oB=B.slice().sort(function(u,v){return u.valor-v.valor;}),g=fecha+'|'+sig[x]+'|'+sig[y];
+      oA.forEach(function(a,n){var b=oB[n];
+        a.tipo='intercambiar';a.corregido=b.valor;a.confianza='alta';a.grupo=g;a.motivo='El '+fecha+' parece intercambiada con '+sig[y]+': el '+a.valor+' encaja en '+sig[y]+' y el '+b.valor+' encaja aquí; se corrigen las dos juntas';
+        b.tipo='intercambiar';b.corregido=a.valor;b.confianza='alta';b.grupo=g;b.motivo='El '+fecha+' parece intercambiada con '+sig[x]+': el '+b.valor+' encaja en '+sig[x]+' y el '+a.valor+' encaja aquí; se corrigen las dos juntas';
+      });
+    }
+  });
+  out.forEach(function(e){e.propuestas.sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});});
+  var tot={equipos:out.length,lecturas:0,validas:0,sinDato:0,descartadas:0,ruido:0,corregir:0,intercambiar:0,descartar:0,revisar:0};
+  out.forEach(function(e){
+    tot.lecturas+=e.total;tot.validas+=e.validas;tot.sinDato+=e.sinDato;tot.descartadas+=e.descartadas;tot.ruido+=e.ruido;
+    e.propuestas.forEach(function(p){if(tot[p.tipo]!==undefined&&p.tipo!=='sin_dato')tot[p.tipo]++;});
+  });
+  return{equipos:out,total:tot};
 }
 
 // ═══ CIERRE AUTOMÁTICO DE DESTRABE AL RECIBIR LA ORDEN DE COMPRA ═══
@@ -9711,6 +9867,9 @@ if (typeof window !== 'undefined') {
   window.pagSlice = pagSlice;
   window.hayConflictoIds = hayConflictoIds;
   window.validarSaltoHorometro = validarSaltoHorometro;
+  window.cadenaLecturasHorometro = cadenaLecturasHorometro;
+  window.candidatosDigitacion = candidatosDigitacion;
+  window.diagnosticarHorometros = diagnosticarHorometros;
   window.resolverDestrabePorOC = resolverDestrabePorOC;
   window.verificarIntegridad = verificarIntegridad;
   window.indiceSaludFlota = indiceSaludFlota;
@@ -10915,7 +11074,7 @@ if (typeof module !== 'undefined' && module.exports) {
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
-    validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
+    validarSaltoHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,

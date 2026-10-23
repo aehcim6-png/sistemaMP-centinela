@@ -635,7 +635,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-24"></script>
+<script src="logic.js?v=2026-10-24b"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -734,7 +734,7 @@ const _LAZY_VERS={
   comp:'2026-10-14',
   estadistica:'2026-10-18',
   tbo:'2026-10-21b',
-  audit:'2026-10-24',
+  audit:'2026-10-24b',
   auditoria:'2026-10-17',
   pred:'2026-10-23e',
   metas:'2026-10-23d',
@@ -784,7 +784,7 @@ const _LAZY_EXPORTS={
   comp:['renderComp','edComp','addComp','saveNuevoComp','delComp','importCompCSV'],
   estadistica:['renderEstadistica','_estFallasCombinadas','_estMtbfPorComponente'],
   tbo:['renderTbo','tboCambiarTasa','tboCambiarAplic','crearOCDesdeTBO','confirmarOCDesdeTBO','tboCambiarParamOpt','tboCalcularPBoot','tboCambiarCostoDetUSD'],
-  audit:['renderAudit','clasifIAPedir','clasifIAMedir','clasifIAMarcar','clasifIAMarcarAltas','clasifIADescartar','clasifIAAplicar'],
+  audit:['renderAudit','clasifIAPedir','clasifIAMedir','clasifIAMarcar','clasifIAMarcarAltas','clasifIADescartar','clasifIAAplicar','limpHoromRevisar','limpHoromMarcar','limpHoromMarcarAltas','limpHoromDesmarcar','limpHoromAplicar','limpHoromEliminarCeros'],
   auditoria:['verAuditoriaCambios','renderAuditoriaCambios','auditoriaFiltrar','auditoriaPagina','auditoriaExportar'],
   pred:['renderPred','_guardarFmeaNpr','predCambiarEOQ'],
   metas:['renderMetas','verCadenaCausas','abrirFormCompromiso','guardarCompromiso','delCompromiso'],

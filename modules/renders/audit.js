@@ -238,6 +238,7 @@ export function renderAudit(){
     </div>
     ${completitudHTML}
     ${window._userRole==='admin'?_clasifIAHTML():''}
+    ${window._userRole==='admin'?_limpHoromHTML():''}
     <div class="audit-summary">
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${saltos.length?'border-color:var(--danger)':''}">
         <div style="font-size:24px;font-weight:700;color:${saltos.length?'var(--danger)':'var(--ok)'}">${saltos.length}</div>
@@ -461,6 +462,108 @@ export async function clasifIAAplicar(){
   est.ocupado=false;renderAudit();
 }
 
+// ── Limpieza asistida de horómetros (reglas, sin IA externa) ──
+// Solo administradores. diagnosticarHorometros() (logic.js) propone, lectura por lectura, qué corregir o eliminar; NADA se cambia sin que la persona lo marque y confirme.
+// Corregir/intercambiar reescribe el valor y deja el original en «origen»; eliminar manda la fila a la Papelera (30 días). Estado en window._limpHorom = { diag, marcadas:{id:true}, mensaje }.
+function _limpEstado(){return window._limpHorom||(window._limpHorom={diag:null,marcadas:{},mensaje:''});}
+function _limpPropuestas(est){
+  const out=[];
+  if(!est.diag)return out;
+  est.diag.equipos.forEach(function(e){e.propuestas.forEach(function(p){if(p.tipo!=='sin_dato')out.push(p);});});
+  return out;
+}
+function _limpHoromHTML(){
+  const est=_limpEstado(),d=est.diag;
+  let h='<div class="chart-box" style="margin-bottom:14px;border-left:3px solid var(--ac)" id="limpHorom"><div class="chart-t">Limpieza asistida de horómetros</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">Los ceros de relleno y los errores de digitación hacían que el sistema descartara lecturas buenas (y calculara horas de más o de menos). Esta revisión usa reglas, <b>no una IA externa</b>: busca la serie más larga de lecturas que encajan entre sí y propone qué hacer con las demás. Corregir deja el valor original anotado; eliminar manda la lectura a la Papelera. <b>Nada se cambia sin que lo marques y confirmes.</b></div>'+
+    '<button class="btn btn-o" onclick="limpHoromRevisar()">Revisar lecturas de horómetro</button>';
+  if(est.mensaje)h+=' <span style="font-size:11px;color:var(--tx3);margin-left:8px">'+escapeHtml(est.mensaje)+'</span>';
+  if(d){
+    const t=d.total;
+    h+='<div style="font-size:12px;margin-top:10px;line-height:1.7">'+t.lecturas+' lecturas de '+t.equipos+' equipos: <b>'+t.validas+'</b> creíbles · <b>'+t.sinDato+'</b> ceros de relleno · <b>'+t.descartadas+'</b> fuera de serie ('+t.corregir+' corregibles, '+t.intercambiar+' por intercambio entre equipos, '+t.descartar+' sin corrección, '+t.revisar+' a revisar a mano; '+t.ruido+' diferencias de menos de un día de uso, que no se proponen).</div>';
+    if(t.sinDato){
+      const porEq=d.equipos.filter(function(e){return e.sinDato;}).map(function(e){return e.sigla+' ('+e.sinDato+')';}).join(', ');
+      h+='<div style="margin-top:8px;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:11px"><b>Ceros de relleno:</b> '+escapeHtml(porEq)+'. No son lecturas (un horómetro no vuelve a 0); el sistema ya no los cuenta. <button class="btn btn-o" style="margin-left:8px" onclick="limpHoromEliminarCeros()">Eliminar los '+t.sinDato+' ceros</button></div>';
+    }
+    const props=_limpPropuestas(est);
+    if(props.length){
+      const marcadas=Object.keys(est.marcadas).length;
+      h+='<div style="margin-top:10px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><b style="font-size:12px">Propuestas ('+props.length+')</b>'+
+        '<button class="btn btn-o" onclick="limpHoromMarcarAltas()">Marcar las correcciones de confianza alta</button>'+
+        '<button class="btn btn-o" onclick="limpHoromDesmarcar()">Desmarcar todo</button>'+
+        '<button class="btn"'+(marcadas?'':' disabled')+' onclick="limpHoromAplicar()">Aplicar las marcadas ('+marcadas+')</button></div>'+
+        '<div class="tbl-wrap" style="max-height:420px;overflow:auto"><table style="font-size:11px"><tr><th></th><th>Equipo</th><th>Fecha</th><th>Leído</th><th>Propuesta</th><th>Por qué</th></tr>'+
+        props.map(function(p,i){
+          const acc=p.tipo==='corregir'||p.tipo==='intercambiar'?'Corregir a <b>'+p.corregido+'</b>'+(p.confianza?' <span style="color:var(--tx3)">('+p.confianza+')</span>':''):p.tipo==='descartar'?'Eliminar':'Revisar a mano';
+          const chk=p.tipo==='revisar'?'':'<input type="checkbox"'+(est.marcadas[p.id]?' checked':'')+' onchange="limpHoromMarcar('+i+')">';
+          return'<tr><td>'+chk+'</td><td>'+escapeHtml(p.sigla)+'</td><td>'+escapeHtml(p.fecha)+'</td><td>'+p.valor+'</td><td>'+acc+'</td><td style="max-width:420px;color:var(--tx2)">'+escapeHtml(p.motivo)+'</td></tr>';
+        }).join('')+'</table></div></div>';
+    }else if(!t.sinDato){
+      h+='<div style="margin-top:10px;font-size:12px;color:var(--ok)">✓ Todas las lecturas encajan: no hay nada que limpiar.</div>';
+    }
+  }
+  return h+'</div>';
+}
+export function limpHoromRevisar(){
+  const est=_limpEstado();
+  est.diag=diagnosticarHorometros(S.g('hist')||[],S.g('eq')||[]);est.marcadas={};est.mensaje='Revisado con las '+(S.g('hist')||[]).length+' lecturas cargadas.';
+  renderAudit();
+}
+export function limpHoromMarcar(i){
+  const est=_limpEstado(),p=_limpPropuestas(est)[i];
+  if(!p||p.tipo==='revisar')return;
+  const on=!est.marcadas[p.id];
+  _limpPropuestas(est).forEach(function(q){if(q===p||(p.grupo&&q.grupo===p.grupo)){if(on)est.marcadas[q.id]=true;else delete est.marcadas[q.id];}});
+  renderAudit();
+}
+export function limpHoromMarcarAltas(){
+  const est=_limpEstado();
+  _limpPropuestas(est).forEach(function(p){if((p.tipo==='corregir'||p.tipo==='intercambiar')&&p.confianza==='alta')est.marcadas[p.id]=true;});
+  renderAudit();
+}
+export function limpHoromDesmarcar(){_limpEstado().marcadas={};renderAudit();}
+function _limpEscribir(hist,cambios,aEliminar){
+  // cambios: [{id,valor,antes}]; aEliminar: [id] → Papelera. Devuelve cuántas filas se tocaron.
+  let n=0;
+  cambios.forEach(function(c){
+    const f=hist.find(function(x){return x._id===c.id;});
+    if(!f)return;
+    f.horomFin=c.valor;f.horom=c.valor;
+    f.origen='corregida en limpieza (antes '+c.antes+')';n++;
+  });
+  const borrar={};aEliminar.forEach(function(id){borrar[id]=true;});
+  for(let i=hist.length-1;i>=0;i--){
+    if(hist[i]&&borrar[hist[i]._id]){_moverAPapelera('hist',hist[i]);hist.splice(i,1);n++;}
+  }
+  return n;
+}
+export function limpHoromAplicar(){
+  if(window._userRole&&window._userRole!=='admin'){toast('⛔ Solo un administrador puede limpiar el historial');return;}
+  const est=_limpEstado(),sel=_limpPropuestas(est).filter(function(p){return est.marcadas[p.id];});
+  if(!sel.length)return;
+  const corr=sel.filter(function(p){return p.tipo==='corregir'||p.tipo==='intercambiar';}),eli=sel.filter(function(p){return p.tipo==='descartar';});
+  if(!confirm('Se van a corregir '+corr.length+' lectura(s) y eliminar '+eli.length+' (van a la Papelera 30 días).\n\nEl horómetro actual de los equipos no cambia. ¿Aplicar?'))return;
+  const hist=S.g('hist')||[];
+  const n=_limpEscribir(hist,corr.map(function(p){return{id:p.id,valor:p.corregido,antes:p.valor};}),eli.map(function(p){return p.id;}));
+  S.s('hist',hist);
+  est.diag=diagnosticarHorometros(hist,S.g('eq')||[]);est.marcadas={};est.mensaje='✅ '+n+' lectura(s) tocada(s).';
+  toast('✅ Limpieza aplicada: '+n+' lectura(s)');
+  renderAudit();
+}
+export function limpHoromEliminarCeros(){
+  if(window._userRole&&window._userRole!=='admin'){toast('⛔ Solo un administrador puede limpiar el historial');return;}
+  const est=_limpEstado(),hist=S.g('hist')||[];
+  const ids=[];
+  hist.forEach(function(h){const v=h&&(h.horomFin!=null?h.horomFin:h.horom);if(h&&v!=null&&v!==''&&Number(v)<=0)ids.push(h._id);});
+  if(!ids.length)return;
+  if(!confirm('Se van a eliminar '+ids.length+' lectura(s) con valor 0 (van a la Papelera 30 días). ¿Eliminar?'))return;
+  const n=_limpEscribir(hist,[],ids);
+  S.s('hist',hist);
+  est.diag=diagnosticarHorometros(hist,S.g('eq')||[]);est.marcadas={};est.mensaje='✅ '+n+' cero(s) eliminado(s).';
+  toast('✅ '+n+' lectura(s) en 0 eliminada(s)');
+  renderAudit();
+}
+
 // Puente window/renders — ver nota en mov.js (primera tanda). _AUDIT_MESES
 // también se puentea (no es función) porque pred.js lo lee por nombre
 // suelto — ver nota de migración arriba.
@@ -471,5 +574,11 @@ window.clasifIAMarcar = clasifIAMarcar;
 window.clasifIAMarcarAltas = clasifIAMarcarAltas;
 window.clasifIADescartar = clasifIADescartar;
 window.clasifIAAplicar = clasifIAAplicar;
+window.limpHoromRevisar = limpHoromRevisar;
+window.limpHoromMarcar = limpHoromMarcar;
+window.limpHoromMarcarAltas = limpHoromMarcarAltas;
+window.limpHoromDesmarcar = limpHoromDesmarcar;
+window.limpHoromAplicar = limpHoromAplicar;
+window.limpHoromEliminarCeros = limpHoromEliminarCeros;
 window._AUDIT_MESES = _AUDIT_MESES;
 renders.audit = renderAudit;

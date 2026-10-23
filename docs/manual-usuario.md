@@ -127,6 +127,9 @@ Un equipo cuyo último horómetro tiene más de 30 días aparece como **⚪ SIN 
 **¿Qué cuenta como «falla» para el MTBF y el MTTR?**
 Una **parada de 24 horas o más**. Los correctivos más cortos (engrase, neumáticos, un asiento, un foco) se cuentan como *intervenciones*: aparecen en las listas, pero no bajan el MTBF. Así el MTBF dice cada cuántas horas de operación hay una parada que de verdad afecta al equipo. Si una orden no tiene duración registrada, no se puede saber si fue larga y no entra. El MTBF de la flota es las horas de operación de todos los equipos divididas por el número de paradas, con un rango de confianza; el de un equipo con menos de 3 paradas se ve en gris («muestra chica»).
 
+**¿Qué pasa si me equivoco al escribir un horómetro?**
+Si la lectura no encaja con las anteriores (un dígito de más o de menos, o un 0), el sistema la deja fuera de los cálculos para que no los distorsione. Un administrador puede revisar esas lecturas en Auditoría de Datos y corregirlas o eliminarlas; nada se borra solo. Lo mejor es escribirlo con la foto o revisar el número antes de guardar.
+
 **¿La IA completa el componente de los correctivos?**
 Solo la parte de **administradores** y siempre con confirmación: en Auditoría de Datos hay un bloque que propone el componente (por ejemplo, «Sistema hidráulico») a partir del texto de la falla, y el administrador acepta o corrige. No decide la causa de la falla ni la categoría del MTTR; eso lo sigue juzgando una persona.
 

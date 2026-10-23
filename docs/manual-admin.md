@@ -221,6 +221,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Limpieza asistida de horómetros (2026-10-24)
+
+**Qué es.** En **Auditoría de Datos → Limpieza asistida de horómetros** (solo administradores). **Revisar lecturas de horómetro** busca la serie más larga de lecturas que encajan entre sí y propone qué hacer con las demás: **corregir** (un error de digitación con una sola solución posible, por ejemplo 1492 en vez de 14092), **corregir dos equipos juntos** (lecturas intercambiadas el mismo día), **eliminar**, o **revisar a mano** (varias lecturas seguidas que parecen un horómetro nuevo). Son reglas, no una IA externa.
+
+**Cómo usarlo.** Marca lo que quieras (hay un botón para las correcciones de confianza alta) y pulsa **Aplicar las marcadas**; el sistema pide confirmación. Corregir deja anotado el valor original en el origen de la lectura; eliminar manda la lectura a la Papelera (30 días). Los ceros de relleno tienen su propio botón. El horómetro actual de los equipos no cambia.
+
+**Qué hay que saber.** Un 0 en el historial no es una lectura (un horómetro no vuelve a 0): el sistema ya no lo cuenta, y antes un 0 al inicio hacía descartar todas las lecturas reales posteriores. Una corrección «alta» es la única que encaja entre las lecturas vecinas, no una certeza: revisa la lista antes de aplicar. Solo se revisan las lecturas cargadas en pantalla.
+
 ### Clasificación asistida del componente con IA (2026-10-24)
 
 **Qué es.** En **Auditoría de Datos → Clasificación asistida del componente (IA)** (solo administradores). Para los textos que el diccionario no resuelve (correctivos formales sin `componente` y filas del historial sin `sistema`), la IA propone **una** categoría de la lista cerrada de 48, con confianza alta, media o baja. Tú confirmas; nada se guarda solo.
