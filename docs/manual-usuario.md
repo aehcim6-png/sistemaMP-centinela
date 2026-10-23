@@ -121,6 +121,9 @@ Los datos reales viven en Supabase (la nube), no solo en tu navegador.
 Además existe un respaldo manual (Backup JSON, en Configuración) y uno
 automático a una carpeta local si alguien lo conectó.
 
+**¿Qué pasa si no se cargan horómetros durante semanas (corte de electricidad, el técnico con licencia)?**
+Un equipo cuyo último horómetro tiene más de 30 días aparece como **⚪ SIN LECTURA** y no se cuenta como urgente, próximo ni al día: el sistema no inventa un número cuando no sabe. Entre 8 y 30 días sigue calculando pero dice «lectura de hace N días». En la cabecera, «N Sin lectura» abre la lista, y el Dashboard muestra la fecha de la lectura más nueva de la flota. Cuando se carga un horómetro, el equipo vuelve a calcularse.
+
 **¿Puedo reportar una falla sin entrar al sistema?**
 Sí, si un administrador ya autorizó tu número o correo (Configuración →
 Reporte de Fallas por WhatsApp/Correo). Escribe al WhatsApp del sistema (o

@@ -355,7 +355,7 @@ export function saveReg(){
   // Calcular duración en horas
   let durH=0,durStr='—';
   if(dReg&&dReg.ms>0){durH=dReg.horas;durStr=dReg.texto;}
-  const desv=e?Math.round((new Date(fEnt)-new Date(e.fechaProxPM))/864e5):0;
+  const desv=e&&e.fechaProxPM?Math.round((new Date(fEnt)-new Date(e.fechaProxPM))/864e5):0;
   reg.push({
     nReg:reg.reduce(function(m,r){return Math.max(m,r.nReg||0);},0)+1,
     equipo:eqSigla,tipo:e?.tipo||'',modelo:e?.modelo||'',tipoPM:tp,

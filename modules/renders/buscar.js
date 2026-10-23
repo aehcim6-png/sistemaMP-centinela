@@ -249,7 +249,7 @@ export function renderBuscar(){
     '<div><div style="font-size:10px;color:var(--tx3)">TIPO</div><div style="font-size:14px;font-weight:600">'+(eqObj?escapeHtml(eqObj.tipo):'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj?escapeHtml(eqObj.modelo):'')+'</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">HORÓMETRO</div><div style="font-size:20px;font-weight:700">'+(eqObj?eqObj.horomActual:0)+'h</div></div>'+
     '<div><div style="font-size:10px;color:var(--tx3)">ESTADO</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.estado:'')+'</div></div>'+
-    '<div><div style="font-size:10px;color:var(--tx3)">PRÓX PM</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.tipoPM:'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj?eqObj.diasParaPM:0)+' días</div></div>'+
+    '<div><div style="font-size:10px;color:var(--tx3)">PRÓX PM</div><div style="font-size:14px;font-weight:600">'+(eqObj?eqObj.tipoPM:'')+'</div><div style="font-size:11px;color:var(--tx3)">'+(eqObj&&!/SIN LECTURA|SIN DATO/.test(eqObj.estado||'')?eqObj.diasParaPM+' días':'sin lectura reciente')+'</div></div>'+
     '</div></div>'+
 
     // ═══ SCORE DE SALUD DEL EQUIPO ═══

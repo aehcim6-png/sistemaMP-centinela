@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { calcStockEstado, calcVencEstado, componenteDeSintoma, diasEntreISO, CATEGORIAS_VALIDAS } from "./index.ts";
+import { calcStockEstado, calcVencEstado, componenteDeSintoma, diasEntreISO, CATEGORIAS_VALIDAS, frescuraLectura, DIAS_LECTURA_VIGENTE, DIAS_LECTURA_MAX } from "./index.ts";
 import { CATEGORIAS_VALIDAS as CATEGORIAS_COMPARTIDAS } from "../_shared/parseCorrectivo.ts";
 
 // Guardarraíl contra drift: esta función porta a mano la MISMA lista de
@@ -99,4 +99,27 @@ Deno.test("diasEntreISO: calcula la diferencia real en días", () => {
 Deno.test("diasEntreISO: null en cualquiera de las dos fechas da el centinela 9999 (nunca cuenta como reingreso)", () => {
   assertEquals(diasEntreISO(null, "2026-09-08"), 9999);
   assertEquals(diasEntreISO("2026-09-01", null), 9999);
+});
+
+// ---- frescuraLectura ----
+// Misma lógica que C.frescuraLectura() en logic.js (tests/frescuraLectura.test.js
+// compara los umbrales de ambos lados).
+
+Deno.test("frescuraLectura: vigente hasta 7 días, atrasada hasta 30, sin lectura después", () => {
+  assertEquals(frescuraLectura(1000, "2026-10-23", "2026-10-23"), { nivel: "vigente", dias: 0 });
+  assertEquals(frescuraLectura(1000, "2026-10-16", "2026-10-23"), { nivel: "vigente", dias: 7 });
+  assertEquals(frescuraLectura(1000, "2026-10-15", "2026-10-23"), { nivel: "atrasada", dias: 8 });
+  assertEquals(frescuraLectura(1000, "2026-09-23", "2026-10-23"), { nivel: "atrasada", dias: 30 });
+  assertEquals(frescuraLectura(1000, "2026-09-22", "2026-10-23"), { nivel: "sin_lectura", dias: 31 });
+});
+
+Deno.test("frescuraLectura: horómetro 0 o vacío es sin_dato; sin fecha válida es sin_lectura", () => {
+  assertEquals(frescuraLectura(0, "2026-10-23", "2026-10-23"), { nivel: "sin_dato", dias: null });
+  assertEquals(frescuraLectura(null, "2026-10-23", "2026-10-23"), { nivel: "sin_dato", dias: null });
+  assertEquals(frescuraLectura(500, null, "2026-10-23"), { nivel: "sin_lectura", dias: null });
+  assertEquals(frescuraLectura(500, "basura", "2026-10-23"), { nivel: "sin_lectura", dias: null });
+});
+
+Deno.test("frescuraLectura: los umbrales exportados son 7 y 30", () => {
+  assertEquals([DIAS_LECTURA_VIGENTE, DIAS_LECTURA_MAX], [7, 30]);
 });

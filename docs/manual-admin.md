@@ -201,6 +201,16 @@ cuenta en Supabase → Authentication → Users y cambia la clave. El registro q
 Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archivo no pierda esas protecciones y
 `tests/e2e/accesos-servidor.spec.js` prueba la tarjeta (rojo, verde, tabla no activada, operador sin tarjeta, navegador escapado).
 
+### Datos desactualizados: qué muestra el sistema cuando se deja de cargar (2026-10-23)
+
+**Regla.** Si el último horómetro de un equipo tiene **más de 30 días** (o no tiene fecha, o es 0), el sistema **no calcula** su próximo PM: lo muestra como **⚪ SIN LECTURA** (o **⚪ SIN DATO** si nunca se cargó un horómetro) y no lo cuenta como urgente, próximo ni al día. De 8 a 30 días se sigue calculando pero con el rótulo «lectura de hace N d». Hasta 7 días es vigente. Los 7 y 30 días son una convención (`C.DIAS_LECTURA_VIGENTE` y `C.DIAS_LECTURA_MAX` en `logic.js`; la copia de `alerta-pm` debe cambiarse igual, un test avisa si difieren).
+
+**Dónde se ve.** Contador «N Sin lectura» en la cabecera (abre la lista con la última lectura de cada equipo), aviso en el Dashboard, fila gris punteada en Equipos (filtro «SIN LECTURA / SIN DATO»), Buscador Maestro y Registro PM. El correo diario suma la sección «Equipos sin lectura reciente de horómetro» y deja de contar a esos equipos como «PM urgente».
+
+**Si pasan uno o dos meses sin cargar datos** (corte de electricidad, el técnico con licencia): la flota completa pasa a «sin lectura», el Dashboard lo avisa con la fecha de la lectura más nueva y el correo diario llega todos los días hasta que se carguen horómetros. No hay números inventados ni «todo al día». Al cargar un horómetro, el equipo vuelve a calcularse solo.
+
+**Lo que aún no cubre.** Disponibilidad y MTBF siguen tratando un día sin registro como un día sin falla; hay una propuesta (cobertura de datos) pendiente de aprobación. Hasta entonces, leer esos indicadores junto con el aviso de datos.
+
 ### Protección contra bots (CAPTCHA, activado 2026-09-08)
 
 El login y la recuperación de contraseña tienen un widget de **Cloudflare

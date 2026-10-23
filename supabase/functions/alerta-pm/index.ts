@@ -20,6 +20,10 @@
 //      'solución', 15+ OT de muestra) — gestión de taller.
 //   8. Alertas de aceite persistentes (mismo equipo+componente, 2 muestras
 //      seguidas en ALERTA/PRECAUCION) — predictivo que no se está usando.
+//  10. Equipos sin lectura reciente de horómetro (2026-10-23) — un PM
+//      "urgente" calculado con un horómetro de hace más de 30 días no es un
+//      dato, es una extrapolación; esos equipos salen de la sección 1 y se
+//      listan aparte para que se vea que falta cargar datos.
 //   9. Reingresos tempranos por técnico (mismo equipo+componente vuelve a
 //      fallar dentro de 7 días de cerrada la OT anterior, excluyendo
 //      consumibles de desgaste esperado) — durabilidad de la reparación,
@@ -58,6 +62,22 @@
 // ============================================================
 
 const EXCLUIDOS = new Set(['BD-8708', 'CA-5137', 'CA-5140', 'CN-9506']); // decomisionados
+
+// Mismos umbrales y misma lógica que C.frescuraLectura() en logic.js (copia a
+// mano, como el resto de este archivo; hay un test que compara ambos): lectura
+// vigente ≤7 días, atrasada ≤30, sin lectura >30 o sin fecha válida, sin dato
+// si el horómetro es ≤0. Son una convención del equipo, no una medición.
+export const DIAS_LECTURA_VIGENTE = 7;
+export const DIAS_LECTURA_MAX = 30;
+export function frescuraLectura(horomActual: unknown, fechaHorom: unknown, hoyISO: string) {
+  if (!(Number(horomActual) > 0)) return { nivel: 'sin_dato' as const, dias: null as number | null };
+  const f = String(fechaHorom || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return { nivel: 'sin_lectura' as const, dias: null };
+  const ms = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+  const dias = Math.max(0, Math.round((ms(hoyISO.slice(0, 10)) - ms(f)) / 86400000));
+  const nivel = dias <= DIAS_LECTURA_VIGENTE ? 'vigente' : dias <= DIAS_LECTURA_MAX ? 'atrasada' : 'sin_lectura';
+  return { nivel: nivel as 'vigente' | 'atrasada' | 'sin_lectura', dias };
+}
 
 export function calcStockEstado(stockBodega: number, consumoMes: number, leadDias: number | null) {
   const cm = consumoMes || 0;
@@ -272,11 +292,19 @@ Deno.serve(async (req) => {
     // 'equipos' — los mismos campos que ya calcula y guarda la app cada
     // vez que alguien la usa — así el correo NUNCA puede decir algo
     // distinto de lo que muestra el Dashboard, porque es el mismo dato.
-    const equipos = await get('equipos?select=sigla,tipo,modelo,horomActual,unidad,estado,diasParaPM,horomProxPM');
-    const urgentesPM = equipos
+    const equipos = await get('equipos?select=sigla,tipo,modelo,horomActual,fechaHorom,unidad,estado,diasParaPM,horomProxPM');
+    const hoyISO = new Date().toISOString().slice(0, 10);
+    const activos = equipos
       .filter((e: any) => e?.sigla && !EXCLUIDOS.has(e.sigla))
+      .map((e: any) => ({ ...e, _unidad: e.unidad === 'km' ? 'km' : 'h', _fr: frescuraLectura(e.horomActual, e.fechaHorom, hoyISO) }));
+    // Un horómetro de hace más de 30 días (o en 0) no sostiene un "PM urgente":
+    // 'estado' guardado en la tabla es de la última vez que alguien abrió la app.
+    const sinLectura = activos
+      .filter((e: any) => e._fr.nivel === 'sin_lectura' || e._fr.nivel === 'sin_dato')
+      .sort((a: any, b: any) => (b._fr.dias ?? 1e9) - (a._fr.dias ?? 1e9));
+    const urgentesPM = activos
+      .filter((e: any) => e._fr.nivel === 'vigente' || e._fr.nivel === 'atrasada')
       .filter((e: any) => (e.estado || '').includes('URGENTE') || (e.estado || '').includes('VENCIDA'))
-      .map((e: any) => ({ ...e, _unidad: e.unidad === 'km' ? 'km' : 'h' }))
       .sort((a: any, b: any) => (Number(a.diasParaPM) || 0) - (Number(b.diasParaPM) || 0));
 
     if (urgentesPM.length > 0) {
@@ -286,9 +314,27 @@ Deno.serve(async (req) => {
         ['Sigla', 'Modelo', 'Horómetro actual', 'Próximo PM', 'Días restantes'],
         urgentesPM.map((e: any) => [
           e.sigla, e.modelo || e.tipo || '',
-          `${Number(e.horomActual).toLocaleString('es-CL')} ${e._unidad}`,
+          `${Number(e.horomActual).toLocaleString('es-CL')} ${e._unidad}` + (e._fr.nivel === 'atrasada' ? ` <i style="color:#888">(lectura de hace ${e._fr.dias} d)</i>` : ''),
           `${Number(e.horomProxPM).toLocaleString('es-CL')} ${e._unidad}`,
           `<b style="color:#c00">${Number(e.diasParaPM) <= 0 ? 'VENCIDA' : e.diasParaPM + ' día(s)'}</b>`,
+        ])
+      );
+    }
+
+    if (sinLectura.length > 0) {
+      totalItems += sinLectura.length;
+      const conFecha = activos.map((e: any) => String(e.fechaHorom || '').slice(0, 10)).filter((f: string) => /^\d{4}-\d{2}-\d{2}$/.test(f) && f <= hoyISO).sort();
+      const ultima = conFecha.length ? conFecha[conFecha.length - 1] : null;
+      resumen.push(`${sinLectura.length} equipo(s) sin lectura reciente de horómetro`);
+      secciones += `<h3>⚪ Equipos sin lectura reciente de horómetro (${sinLectura.length} de ${activos.length})</h3>` +
+        `<p style="color:#555">No se puede decir si su PM está al día, próximo o vencido porque no hay un horómetro vigente (más de ${DIAS_LECTURA_MAX} días o sin cargar). No se cuentan como urgentes ni como al día.` +
+        (ultima ? ` La lectura más reciente de toda la flota es del ${ultima}.` : ' No hay ninguna lectura registrada.') + `</p>` + tabla(
+        ['Sigla', 'Modelo', 'Último horómetro', 'Fecha', 'Antigüedad'],
+        sinLectura.map((e: any) => [
+          e.sigla, e.modelo || e.tipo || '',
+          e._fr.nivel === 'sin_dato' ? 'sin horómetro cargado' : `${Number(e.horomActual).toLocaleString('es-CL')} ${e._unidad}`,
+          e.fechaHorom ? String(e.fechaHorom).slice(0, 10) : '—',
+          e._fr.dias == null ? '—' : `${e._fr.dias} días`,
         ])
       );
     }

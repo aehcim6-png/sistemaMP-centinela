@@ -59,6 +59,41 @@ const C = {
   // bandas son 1x/2x/4x el frecPM del equipo (igual que las 4 escalas de tipoPM),
   // y la unidad mostrada es la real del equipo, no siempre "h".
   alertaPM4(h,frecPM=250,unidad='h'){const f=frecPM||250;return h<f?{t:'URGENTE (<'+f+unidad+')',c:'b-r'}:h<f*2?{t:'PRÓXIMA (<'+(f*2)+unidad+')',c:'b-y'}:h<f*4?{t:'PLANIFICAR',c:'b-b'}:{t:'OK — '+h.toLocaleString()+unidad,c:'b-g'}},
+  // Frescura de la lectura de horómetro (2026-10-23). Todo el cálculo de PM parte del último horómetro registrado: si nadie lo actualiza (corte de
+  // luz, la persona que lo anota con licencia, vacaciones), el programa seguía proyectando desde esa lectura vieja y mostrando «URGENTE / PRÓXIMA /
+  // AL DÍA» con la fecha del próximo PM corriéndose un día más cada día — un número que parecía vigente y no lo era. Ahora cada equipo tiene un nivel:
+  //   vigente     lectura de hasta DIAS_LECTURA_VIGENTE días: se muestra todo normal.
+  //   atrasada    de ahí hasta DIAS_LECTURA_MAX días: se muestra el estado, con el aviso «lectura de hace N días».
+  //   sin_lectura más antigua (o sin fecha): NO se muestra urgente/próxima/al día ni fecha de próximo PM — no se sabe.
+  //   sin_dato    horómetro 0 o vacío (equipo nuevo sin cargar): tampoco se evalúa.
+  // Los umbrales son una convención (7 y 30 días), no una medición. Devuelve {nivel, dias}; dias es null si no hay lectura o fecha.
+  DIAS_LECTURA_VIGENTE:7,
+  DIAS_LECTURA_MAX:30,
+  frescuraLectura(e,hoyISO){
+    const h=Number(e&&e.horomActual);
+    if(!(h>0))return{nivel:'sin_dato',dias:null};
+    const f=String((e&&e.fechaHorom)||'').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(f))return{nivel:'sin_lectura',dias:null};
+    const hoy=String(hoyISO||new Date().toISOString().slice(0,10)).slice(0,10);
+    const ms=s=>Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10));
+    const dias=Math.max(0,Math.round((ms(hoy)-ms(f))/864e5));
+    const nivel=dias<=this.DIAS_LECTURA_VIGENTE?'vigente':dias<=this.DIAS_LECTURA_MAX?'atrasada':'sin_lectura';
+    return{nivel,dias};
+  },
+  // Resumen para avisos (Dashboard, correo): cuántos equipos tienen la lectura vigente / atrasada / sin lectura / sin dato y cuál es la lectura más reciente de la flota.
+  resumenFrescura(lista,hoyISO){
+    const out={total:0,vigente:[],atrasada:[],sin_lectura:[],sin_dato:[],ultimaLectura:null};
+    (lista||[]).forEach(e=>{
+      if(!e||!e.sigla)return;
+      out.total++;
+      const fr=this.frescuraLectura(e,hoyISO);
+      out[fr.nivel].push({sigla:e.sigla,tipo:e.tipo,horomActual:e.horomActual,fechaHorom:e.fechaHorom||null,dias:fr.dias});
+      const f=String(e.fechaHorom||'').slice(0,10);
+      const tope=String(hoyISO||new Date().toISOString().slice(0,10)).slice(0,10);
+      if(Number(e.horomActual)>0&&/^\d{4}-\d{2}-\d{2}$/.test(f)&&f<=tope&&(!out.ultimaLectura||f>out.ultimaLectura))out.ultimaLectura=f;
+    });
+    return out;
+  },
   // Recalcula la programación de PM de un equipo. Para convertir "horas restantes"
   // en "días para el PM" usa 'ritmoDia' si se le pasa (el ritmo REAL observado del
   // equipo, ej. de tasaDiariaReal sobre su historial) — más fiel que las horas/día
@@ -83,9 +118,19 @@ const C = {
     const ritmo=(ritmoDia&&ritmoDia>0)?ritmoDia:(e.hrsDia>0?e.hrsDia:0);
     const d=ritmo>0?Math.round(hr/ritmo):999;
     const hoy=new Date();
-    e.horomProxPM=p;e.hrsRestantes=hr;e.diasParaPM=d;
-    e.fechaProxPM=new Date(hoy.getTime()+d*864e5).toISOString().slice(0,10);
+    e.horomProxPM=p;e.hrsRestantes=hr;
     e.tipoPM=this.tipoPM(p,e.frecPM||250);
+    // Sin lectura confiable: horas restantes y próximo hito quedan «al último dato», pero NO se emite estado de PM ni fecha. 999 es el «no se puede calcular»
+    // que ya usa esta función cuando no hay ritmo (los filtros «≤ 14 días» lo dejan fuera); fechaProxPM vacía (la Planificación Semanal la salta).
+    const fr=this.frescuraLectura(e);
+    e.lecturaNivel=fr.nivel;e.lecturaDias=fr.dias;
+    if(fr.nivel==='sin_lectura'||fr.nivel==='sin_dato'){
+      e.diasParaPM=999;e.fechaProxPM='';
+      e.estado=fr.nivel==='sin_dato'?'⚪ SIN DATO':'⚪ SIN LECTURA';
+      return e;
+    }
+    e.diasParaPM=d;
+    e.fechaProxPM=new Date(hoy.getTime()+d*864e5).toISOString().slice(0,10);
     const s=this.estado(d);e.estado=s.i+' '+s.t;
     return e;
   },
@@ -7733,6 +7778,7 @@ function verificarIntegridad(data){
   // 3) Estado guardado desincronizado con lo que dice el propio horómetro del equipo
   eq.forEach(function(e){
     if(!e||e.horomActual==null||e.horomProxPM==null)return;
+    if(!(e.horomActual>0)||/SIN LECTURA|SIN DATO/.test(e.estado||''))return; // sin lectura confiable no hay estado que comparar (ver C.frescuraLectura)
     var yaAlcanzado=e.horomActual>=e.horomProxPM;
     var diceVencida=/VENCID/i.test(e.estado||'')||(e.hrsRestantes!=null&&e.hrsRestantes<0);
     if(yaAlcanzado&&!diceVencida){

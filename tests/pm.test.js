@@ -428,7 +428,7 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
   afterEach(() => vi.useRealTimers());
 
   it('calcula horas y días restantes hasta el próximo PM', () => {
-    const e = { horomActual: 480, frecPM: 500, hrsDia: 20 };
+    const e = { horomActual: 480, frecPM: 500, hrsDia: 20, fechaHorom: '2026-07-14' };
     C.recalc(e);
     expect(e.horomProxPM).toBe(500);
     expect(e.hrsRestantes).toBe(20);
@@ -439,37 +439,37 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     expect(e.tipoPM).toBe('PM1');
   });
   it('un equipo por kilómetros (frecPM=10000) reparte PM1-4 en su propia escala, no siempre PM4', () => {
-    const e = { horomActual: 2500, frecPM: 10000, hrsDia: 12 };
+    const e = { horomActual: 2500, frecPM: 10000, hrsDia: 12, fechaHorom: '2026-07-14' };
     C.recalc(e);
     expect(e.horomProxPM).toBe(10000);
     expect(e.tipoPM).toBe('PM1'); // su primer servicio — antes del fix, esto daba 'PM4' siempre
   });
   it('con hrsDia en 0 usa el centinela de 999 días (evita división por cero)', () => {
-    const e = { horomActual: 100, frecPM: 250, hrsDia: 0 };
+    const e = { horomActual: 100, frecPM: 250, hrsDia: 0, fechaHorom: '2026-07-14' };
     C.recalc(e);
     expect(e.diasParaPM).toBe(999);
   });
   it('proyecta fechaProxPM sumando los días restantes a hoy', () => {
-    const e = { horomActual: 10, frecPM: 260, hrsDia: 25 };
+    const e = { horomActual: 10, frecPM: 260, hrsDia: 25, fechaHorom: '2026-07-14' };
     C.recalc(e);
     // próximo PM en 260h, quedan 250h; a 25h/día son 10 días desde 2026-07-14
     expect(e.fechaProxPM).toBe('2026-07-24');
   });
   it('con ritmo real usa ese ritmo (no el nominal) para los días hasta el PM', () => {
     // Quedan 240h. Nominal 16 h/día -> 15 días. Ritmo real 8 h/día -> 30 días.
-    const e = { horomActual: 260, frecPM: 500, hrsDia: 16 };
+    const e = { horomActual: 260, frecPM: 500, hrsDia: 16, fechaHorom: '2026-07-14' };
     C.recalc(e, 8);
     expect(e.hrsRestantes).toBe(240);
     expect(e.diasParaPM).toBe(30);        // usa el ritmo real (8), no el nominal (16)
     expect(e.estado).toContain('PRÓXIMA'); // 30 días -> PRÓXIMA, no URGENTE
   });
   it('sin ritmo real cae al hrsDia nominal (compatibilidad hacia atrás)', () => {
-    const e = { horomActual: 260, frecPM: 500, hrsDia: 16 };
+    const e = { horomActual: 260, frecPM: 500, hrsDia: 16, fechaHorom: '2026-07-14' };
     C.recalc(e);                 // sin segundo argumento
     expect(e.diasParaPM).toBe(15); // 240/16
   });
   it('con horomUltimoPM/tipoUltimoPM detecta un PM4 anticipado y no pide otro PM casi de inmediato (caso real BD-10139)', () => {
-    const e = { horomActual: 1977, frecPM: 250, hrsDia: 12 };
+    const e = { horomActual: 1977, frecPM: 250, hrsDia: 12, fechaHorom: '2026-07-14' };
     C.recalc(e, 12, 1977, 'PM4'); // PM4 recién hecho HOY en 1977, antes de su hito 2000
     expect(e.horomProxPM).toBe(2250);
     expect(e.hrsRestantes).toBe(273);
@@ -477,7 +477,7 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
     expect(e.estado).not.toContain('URGENTE');
   });
   it('un PM hecho un poco después de su hito no corre el calendario oficial (bug real: 270 corría todo a 520 en vez de dejarlo en 500)', () => {
-    const e = { horomActual: 270, frecPM: 250, hrsDia: 12 };
+    const e = { horomActual: 270, frecPM: 250, hrsDia: 12, fechaHorom: '2026-07-14' };
     C.recalc(e, 12, 270, 'PM1');
     expect(e.horomProxPM).toBe(500);
   });
@@ -489,14 +489,14 @@ describe('C.recalc — recalcula el estado completo de un equipo', () => {
   // "se hizo pero no se anotó" solo con los números. pmPendienteManual es el
   // escape manual para cuando el usuario SÍ lo sabe.
   it('pmPendienteManual gana sobre el cálculo automático cuando es más temprano (caso real CF-8769)', () => {
-    const e = { horomActual: 15518, frecPM: 250, hrsDia: 16, pmPendienteManual: 15500 };
+    const e = { horomActual: 15518, frecPM: 250, hrsDia: 16, pmPendienteManual: 15500, fechaHorom: '2026-07-14' };
     C.recalc(e, 16, 15264, 'PM1');
     expect(e.horomProxPM).toBe(15500);
     expect(e.hrsRestantes).toBe(-18); // ya vencido, no "232h para el próximo"
     expect(e.estado).toContain('VENCIDA');
   });
   it('pmPendienteManual no tiene efecto si es igual o posterior a lo que ya calculó proxPM (no hace nada raro)', () => {
-    const e = { horomActual: 480, frecPM: 500, hrsDia: 20, pmPendienteManual: 600 };
+    const e = { horomActual: 480, frecPM: 500, hrsDia: 20, pmPendienteManual: 600, fechaHorom: '2026-07-14' };
     C.recalc(e, 20, null, null);
     expect(e.horomProxPM).toBe(500); // sigue siendo el cálculo automático normal
   });

@@ -579,7 +579,23 @@ export function renderDash(){
     '</div>';
   // Urgentes y Próximas ya están en la barra de arriba (clicables) y en la lista de equipos urgentes: no se repiten como tarjetas.
   var avisoDatos=(enVivo&&diasSinCargar!=null&&diasSinCargar>30)?'<div style="padding:8px 12px;margin-bottom:12px;border-radius:8px;background:var(--bg3);border-left:3px solid var(--w);font-size:12px;color:var(--tx2)">⚠ <b>El último correctivo cargado es del '+ultFallaCargada+' (hace '+diasSinCargar+' días).</b> Lo que muestra este mes puede estar incompleto: «sin fallas» puede ser «sin cargar».</div>':'';
-  var htmlResumen=avisoDatos+'<div class="kpi-row">'+cardDisp+cardSalud+'</div>';
+  // Aviso de horómetros desactualizados (2026-10-23, C.frescuraLectura): un equipo sin lectura reciente NO se cuenta como urgente, próximo ni al día — no se sabe.
+  // Lo dice acá y en el encabezado, en vez de mostrar como vigente un estado que parte de una lectura vieja.
+  var avisoHorom='';
+  if(enVivo){
+    var _fr=C.resumenFrescura(eq),_nSL=_fr.sin_lectura.length+_fr.sin_dato.length,_nAt=_fr.atrasada.length;
+    if(_nSL){
+      var _diasUlt=_fr.ultimaLectura?Math.round((new Date()-new Date(_fr.ultimaLectura+'T00:00:00'))/864e5):null;
+      avisoHorom='<div id="avisoHorom" style="padding:8px 12px;margin-bottom:12px;border-radius:8px;background:var(--bg3);border-left:3px solid var(--w);font-size:12px;color:var(--tx2)">⚠ <b>'+_nSL+' de '+_fr.total+' equipos sin lectura reciente de horómetro</b>'+
+        (_fr.ultimaLectura?' (la lectura más nueva de la flota es del '+_fr.ultimaLectura+(_diasUlt!=null?', hace '+_diasUlt+' días':'')+')':'')+
+        '. No se muestran como urgentes, próximos ni al día porque no se sabe en qué estado de PM están.'+
+        (_fr.sin_dato.length?' '+_fr.sin_dato.length+' no tienen horómetro cargado.':'')+
+        ' <a href="javascript:void(0)" onclick="verEquiposGrupo(\'sinlec\')" style="color:var(--ac)">Ver cuáles</a></div>';
+    }else if(_nAt){
+      avisoHorom='<div id="avisoHorom" style="padding:8px 12px;margin-bottom:12px;border-radius:8px;background:var(--bg3);border-left:3px solid var(--bd);font-size:12px;color:var(--tx3)">ℹ '+_nAt+' equipo'+(_nAt>1?'s':'')+' con la lectura de horómetro de más de '+C.DIAS_LECTURA_VIGENTE+' días: su estado de PM es una proyección.</div>';
+    }
+  }
+  var htmlResumen=avisoHorom+avisoDatos+'<div class="kpi-row">'+cardDisp+cardSalud+'</div>';
 
   var htmlSalud=
     // ═══ ÍNDICE DE SALUD DE FLOTA — un solo número, arriba de todo ═══

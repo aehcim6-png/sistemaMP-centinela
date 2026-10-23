@@ -18,7 +18,7 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
     const ciclos = [20, 30, 45, 60, 90, 120, 180, 250];
     const ot = [], eq = [];
     ciclos.forEach((c, i) => {
-      eq.push({ sigla: 'E' + i, tipo: 'Camion', modelo: 'X' });
+      eq.push(C.recalc({ sigla: 'E' + i, tipo: 'Camion', modelo: 'X' }));   // ya recalculado: así C.recalcAll no ve cambios ni vuelve a guardar 'eq' (la nube simulada devuelve vacío y pisaría lo sembrado)
       let d = new Date(Date.UTC(2023, 0, 1) + 5 * i * 864e5), n = 0;
       const fin = Date.now() - 20 * 864e5;
       while (d.getTime() < fin) { ot.push({ _id: 'o' + i + '_' + n, sigla: 'E' + i, tipo: 'Correctivo', fecha: d.toISOString().slice(0, 10), sintoma: 'falla de motor', estadoOT: 'Cerrada', horom: 100 + n, componente: ['Motor', 'Frenos', 'Mangueras'][n % 3] }); d = new Date(d.getTime() + c * 864e5); n++; }
