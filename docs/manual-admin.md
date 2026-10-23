@@ -221,6 +221,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Paradas largas que el horómetro contradice (2026-10-24)
+
+**Qué es.** En **Auditoría de Datos → Paradas largas que el horómetro contradice** (solo administradores). Lista las OT de 24 h o más durante las cuales el horómetro del equipo avanzó: un equipo detenido no suma horas, así que la duración o la fecha de salida parecen un error de digitación (por ejemplo, una OT de ampolletas con 696 h). También lista las salidas de servicio **abiertas** cuyo equipo ya está sumando horas (volvió a operar y nadie cerró la OT).
+
+**Cómo usarlo.** Pulsa **Corregir…** en la fila: te pide el día real de salida (te sugiere el primer día en que el horómetro se movió) y, si la OT estaba cerrada, las horas reales que estuvo detenido (vacío si no se saben: la OT queda sin duración y deja de contar como parada larga). Nada se cambia solo. El Dashboard, Informes KPI y Costos avisan cuántas paradas del MTBF son dudosas.
+
+**Qué hay que saber.** Es una pista, no una prueba: un equipo puede operar parcialmente durante una reparación larga, y la decisión es tuya. Necesita al menos dos lecturas de horómetro dentro de la parada (del historial o anotadas en otras OT del mismo equipo); sin ellas no se marca.
+
 ### Limpieza asistida de horómetros (2026-10-24)
 
 **Qué es.** En **Auditoría de Datos → Limpieza asistida de horómetros** (solo administradores). **Revisar lecturas de horómetro** busca la serie más larga de lecturas que encajan entre sí y propone qué hacer con las demás: **corregir** (un error de digitación con una sola solución posible, por ejemplo 1492 en vez de 14092), **corregir dos equipos juntos** (lecturas intercambiadas el mismo día), **eliminar**, o **revisar a mano** (varias lecturas seguidas que parecen un horómetro nuevo). Son reglas, no una IA externa.

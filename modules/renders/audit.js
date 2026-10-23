@@ -238,6 +238,7 @@ export function renderAudit(){
     </div>
     ${completitudHTML}
     ${window._userRole==='admin'?_clasifIAHTML():''}
+    ${window._userRole==='admin'?_parDudosasHTML():''}
     ${window._userRole==='admin'?_limpHoromHTML():''}
     <div class="audit-summary">
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${saltos.length?'border-color:var(--danger)':''}">
@@ -462,6 +463,48 @@ export async function clasifIAAplicar(){
   est.ocupado=false;renderAudit();
 }
 
+// ── Paradas largas que el horómetro contradice (error de digitación probable) ──
+// Solo administradores. paradasContradichasPorHorometro() (logic.js) lista las OT de 24 h o más durante las cuales el horómetro del equipo avanzó (un equipo detenido no suma horas).
+// La persona decide: «Corregir…» pide la fecha de salida real (y las horas si se saben); nada se cambia solo. Una salida de servicio abierta se cierra con la fecha que se indique.
+function _parDudosas(){return paradasContradichasPorHorometro(S.g('ot')||[],S.g('hist')||[],S.g('eq')||[]);}
+function _parDudosasHTML(){
+  const lista=_parDudosas();
+  if(!lista.length)return'';
+  let h='<div class="chart-box" style="margin-bottom:14px;border-left:3px solid var(--warn)" id="parDudosas"><div class="chart-t">Paradas largas que el horómetro contradice ('+lista.length+')</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">Un equipo detenido no suma horas. En estas OT el horómetro avanzó durante la parada que dicen: la duración o la fecha de salida parecen un error de digitación (o la salida de servicio sigue abierta aunque el equipo ya volvió). Inflan las paradas del MTBF y del MTTR. <b>Nada se cambia sin que lo corrijas tú.</b></div>'+
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Desde</th><th>Hasta</th><th>Duración</th><th>Horómetro avanzó</th><th>Por qué</th><th></th></tr>'+
+    lista.map(function(c,i){
+      return'<tr><td>'+escapeHtml(c.sigla)+'</td><td>'+escapeHtml(c.fechaEntrada)+'</td><td>'+(c.fechaSalida?escapeHtml(c.fechaSalida):'<b>abierta</b>')+'</td><td>'+c.horas+' h</td><td>'+c.avance+' h ('+c.pctUso+' %)</td><td style="max-width:420px;color:var(--tx2)">'+escapeHtml(c.motivo)+'</td>'+
+        '<td><button class="btn btn-o" onclick="parDudosaCorregir('+i+')">Corregir…</button></td></tr>';
+    }).join('')+'</table></div></div>';
+  return h;
+}
+export function parDudosaCorregir(i){
+  if(window._userRole&&window._userRole!=='admin'){toast('⛔ Solo un administrador puede corregir OT');return;}
+  const c=_parDudosas()[i];
+  if(!c)return;
+  const ot=S.g('ot')||[],o=ot.find(function(x){return x===c.ot||(c.id&&(x._id||x.id)===c.id);});
+  if(!o)return;
+  const sugerida=c.abierta?c.primerMovimiento:c.fechaEntrada;
+  const msg=c.abierta?'¿Qué día volvió a operar '+c.sigla+'? (el horómetro se mueve desde el '+c.primerMovimiento+')':'¿Qué día salió de servicio '+c.sigla+' realmente? (la OT dice '+c.fechaSalida+'; el horómetro se mueve desde el '+c.primerMovimiento+')';
+  const fecha=prompt(msg+'\nFormato AAAA-MM-DD.',sugerida);
+  if(!fecha)return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)||fecha<c.fechaEntrada){alert('La fecha debe ser AAAA-MM-DD y no anterior al inicio ('+c.fechaEntrada+').');return;}
+  o.fechaSalida=fecha;
+  if(c.abierta){
+    const dias=rangoDias(c.fechaEntrada,fecha).length;
+    o.estadoOT='Cerrada';o.solucion='Salida de servicio registrada ('+dias+' día'+(dias===1?'':'s')+')';
+  }else{
+    const hs=prompt('¿Cuántas horas estuvo detenido realmente? Deja vacío si no se sabe (la OT queda sin duración y no cuenta como parada larga).','');
+    const n=hs==null||String(hs).trim()===''?null:Number(String(hs).replace(',','.'));
+    if(hs!=null&&String(hs).trim()!==''&&!(n>=0)){alert('Las horas deben ser un número.');return;}
+    o.duracion=n==null?null:Math.floor(n)+'h '+('0'+Math.round((n-Math.floor(n))*60)).slice(-2)+'min';
+  }
+  S.s('ot',ot);
+  toast('✅ OT de '+c.sigla+' corregida');
+  renderAudit();
+}
+
 // ── Limpieza asistida de horómetros (reglas, sin IA externa) ──
 // Solo administradores. diagnosticarHorometros() (logic.js) propone, lectura por lectura, qué corregir o eliminar; NADA se cambia sin que la persona lo marque y confirme.
 // Corregir/intercambiar reescribe el valor y deja el original en «origen»; eliminar manda la fila a la Papelera (30 días). Estado en window._limpHorom = { diag, marcadas:{id:true}, mensaje }.
@@ -574,6 +617,7 @@ window.clasifIAMarcar = clasifIAMarcar;
 window.clasifIAMarcarAltas = clasifIAMarcarAltas;
 window.clasifIADescartar = clasifIADescartar;
 window.clasifIAAplicar = clasifIAAplicar;
+window.parDudosaCorregir = parDudosaCorregir;
 window.limpHoromRevisar = limpHoromRevisar;
 window.limpHoromMarcar = limpHoromMarcar;
 window.limpHoromMarcarAltas = limpHoromMarcarAltas;

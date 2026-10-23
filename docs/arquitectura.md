@@ -6806,6 +6806,20 @@ Revisión pestaña por pestaña (19 en escritorio y 10 en celular, con capturas)
 
 **Pruebas:** `tests/mtbfAgrupado.test.js` (11 casos: horas ÷ paradas en la ventana, mes sin OT no aporta, paradas anteriores a la primera lectura no se cuentan, muestra chica, lecturas espaciadas) y `tests/e2e/coherencia-cruzada.spec.js` (mismo MTBF en Dashboard, Informes KPI y Costos, con OT de relleno en los meses de la muestra).
 
+### 180. Paradas largas que el horómetro contradice (2026-10-24)
+
+**Qué pasó:** al revisar MN-5926 con el usuario apareció una OT de ampolletas del 12-nov-2025 con 696 h de duración, mientras el horómetro del equipo avanzaba (8.744 → 8.967): es un error de digitación del cierre de la OT, y cuenta como una «parada larga» en el MTBF y el MTTR. El usuario pidió que el sistema cruce esas OT con el historial de horómetros, no solo que yo las encuentre a mano.
+
+**Qué se hizo:** `paradasContradichasPorHorometro(ot, hist, equipos)` revisa cada OT de 24 h o más (`PARADA_LARGA_H`). Un equipo detenido no suma horas, así que mira las lecturas con fecha estrictamente dentro de la parada (los días de entrada y de salida pueden tener uso): las del historial de horómetros y el horómetro anotado en otras OT del mismo equipo, pasadas por la cadena de lecturas creíbles (§178). Marca la OT si el horómetro avanzó al menos 2 días de uso normal del equipo (`hrsDia`) y, en las cerradas, además el 10 % del uso normal de toda la parada; en una salida de servicio **abierta** basta con que se mueva (el equipo volvió y nadie cerró la OT), y sugiere como fecha de salida el primer día en que el horómetro se movió. `mtbfFlotaAgrupado` devuelve `paradasDudosas` (cuántas paradas del cálculo están marcadas) y el Dashboard, Informes KPI y Costos lo avisan; **no se descartan solas**.
+
+**Pantalla:** Auditoría de Datos → «Paradas largas que el horómetro contradice» (solo administradores): lista equipo, fechas, duración, cuánto avanzó el horómetro y por qué. «Corregir…» pide la fecha de salida real (y las horas, o vacío si no se saben: la OT queda sin duración y deja de contar como parada larga); en una salida de servicio abierta cierra la OT con esa fecha, como el botón de la pestaña de salidas de servicio. Nada cambia sin que lo confirme una persona.
+
+**Con los datos reales (muestra de OT y horómetros):** cuatro paradas cerradas marcadas —MN-5926 del 12-nov-2025 (696 h, el horómetro avanzó 203 h), CN-9503 del 10-oct (743 h, 280 h), CF-9510 del 10-oct (723 h, 174 h) y BD-9509 de junio de 2025 (257 h, 31 h)— y salidas de servicio abiertas cuyo equipo ya se movía: CF-8769 (desde el 9-jul, el horómetro se mueve desde el 24-ago) y CN-5133 (desde el 14-jun, desde el 27-jul); la de MN-5926 ya se había cerrado con el usuario (salida el 10-ago). Con la OT de ampolletas dentro de la ventana común del MTBF de flota, `paradasDudosas` vale 1 de 6.
+
+**Límites:** (1) es una pista, no una prueba: un equipo puede operar parcialmente durante una reparación larga, y la persona decide; (2) sin al menos dos lecturas dentro de la parada no hay evidencia y no se marca (la mayoría de las OT de 2025 no tienen historial de horómetros, solo el horómetro anotado en otras OT); (3) un horómetro con errores de digitación puede producir una pista falsa, por eso se usa la cadena de lecturas creíbles; (4) solo mira las OT formales cargadas (no las del historial de WhatsApp ni los informes).
+
+**Pruebas:** `tests/paradasContradichas.test.js` (9 casos: el caso de MN-5926, evidencia del historial, parada real con horómetro quieto, sin evidencia, paradas cortas, salida de servicio abierta con y sin movimiento, aviso en el MTBF) y `tests/e2e/paradas-contradichas.spec.js` (lista, corregir la cerrada y cerrar la abierta con la fecha del primer movimiento, solo administradores).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
