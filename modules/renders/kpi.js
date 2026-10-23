@@ -80,7 +80,7 @@ export function _getMTBFData(){
   var eq=S.g('eq')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
   // 2026-10-23: una «falla» para MTBF y MTTR es una parada de PARADA_LARGA_H horas o más (esParadaLarga, logic.js); los correctivos más cortos se cuentan como intervenciones.
   var h=['Equipo','Modelo','Horómetro','Intervenciones','Paradas ≥'+PARADA_LARGA_H+' h','MTBF (hrs entre paradas)','Confiabilidad','MTTR paradas (hrs)','Mediana / p90 (hrs)'];
-  var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var par=f.filter(function(o){return esParadaLarga(o)});var mt=mttrParadasLargas(par);var mtbf=C.mtbfReal(par.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,par.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',mt?mt.promedio:'—',mt?mt.mediana+' / '+mt.p90:'—'];});
+  var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var par=f.filter(function(o){return esParadaLarga(o)});var mt=mttrParadasLargas(par);var mtbf=C.mtbfReal(par.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,par.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':par.length<MTBF_MIN_PARADAS?'Muestra chica ('+par.length+' paradas)':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',mt?mt.promedio:'—',mt?mt.mediana+' / '+mt.p90:'—'];});
   return{headers:h,rows:r};
 };
 export function _getHHData(){
@@ -179,7 +179,9 @@ export function _getEjecutivoData(){
   // fallas de TODA la vida, el mismo defecto que C.mtbfReal ya documenta y corrige
   // para el caso por-equipo. Con este reporte yendo directo a jefatura, mostraba un
   // "MTBF Flota" que subía día a día sin que la confiabilidad real cambiara en nada.
-  var mtbf=mtbfFlotaReal(eq,ot);
+  // 2026-10-23: MTBF de flota = horas operadas ÷ paradas de ≥24 h (mtbfFlotaAgrupado), igual que el Dashboard.
+  var _agrE=mtbfFlotaAgrupado(eq,ot,S.g('hist')||[]);
+  var mtbf=_agrE?_agrE.mtbf:null;
   var hhR=Math.round(reg.reduce(function(s,r){return s+(r.duracionH||0)},0));
   // Urgentes: mismo criterio que la tarjeta "Urgentes" del Dashboard
   // (estado URGENTE o VENCIDA) — antes acá se usaba diasParaPM<=3, una
@@ -322,7 +324,8 @@ export function renderKpi(){
     var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
     return fallasM>0?Math.round(hrsM/fallasM):null;
   });
-  var mtbfActual=mtbfFlotaReal(eq,otConHist);
+  var mtbfAgr=mtbfFlotaAgrupado(eq,otConHist,S.g('hist')||[]);   // horas operadas ÷ paradas de ≥24 h, con intervalo de confianza
+  var mtbfActual=mtbfAgr?mtbfAgr.mtbf:null;
   var totalFallas=contarFallasMes(otConHist);
 
   // 3. CUMPLIMIENTO by month — regEsATiempo (logic.js) en vez de comparar
@@ -459,10 +462,10 @@ export function renderKpi(){
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">MTBF FLOTA</div>'+
     (mtbfActual!=null?
-      meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF real: '+mtbfActual+'h · promedio de intervalos entre paradas de ≥'+PARADA_LARGA_H+' h')+
+      meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF real: '+mtbfActual+'h · horas operadas ÷ paradas de ≥'+PARADA_LARGA_H+' h (IC95% '+mtbfAgr.inferior+'–'+(mtbfAgr.superior==null?'∞':mtbfAgr.superior)+' h)')+
       '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'var(--ok)':mtbfActual>500?'var(--ac)':'var(--danger)')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'
-      :'<div style="font-size:26px;font-weight:800;color:var(--tx3);padding:14px 0">—</div><div style="font-size:10px;color:var(--tx3)">Ningún equipo con ≥2 fallas registradas para medir el intervalo</div>')+
-    '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+resumenParadas(ot).paradasLargas+' paradas de ≥'+PARADA_LARGA_H+' h · '+totalFallas+' intervenciones totales</div>'+
+      :'<div style="font-size:26px;font-weight:800;color:var(--tx3);padding:14px 0">—</div><div style="font-size:10px;color:var(--tx3)">'+(mtbfAgr?'Sin paradas de ≥'+PARADA_LARGA_H+' h en la ventana registrada':'Sin historial de horómetro o de duraciones para calcularlo')+'</div>')+
+    '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+resumenParadas(ot).paradasLargas+' paradas de ≥'+PARADA_LARGA_H+' h'+(mtbfAgr?' ('+mtbfAgr.paradas+' en el cálculo del MTBF: '+fn(Math.round(mtbfAgr.horas))+' h operadas)':'')+' · '+totalFallas+' intervenciones totales</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptMTBF(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
     '<button class="btn-s" onclick="rptMTBF(\'print\')" style="font-size:9px" title="Imprimir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+

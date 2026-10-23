@@ -339,7 +339,9 @@ export function renderDash(){
   // entre fallas sucesivas de cada equipo, con TODO su historial (no acotado al
   // mes elegido: un MTBF con datos de un solo mes casi siempre tiene muy pocos
   // intervalos para ser representativo).
-  var mtbfFlota=mtbfFlotaReal(eq,otConHist);
+  // 2026-10-23: MTBF de flota = horas operadas ÷ paradas de ≥24 h (mtbfFlotaAgrupado, logic.js), con intervalo de confianza; incluye a los equipos con 0 o 1 parada.
+  var mtbfAgr=mtbfFlotaAgrupado(eq,otConHist,S.g('hist')||[]);
+  var mtbfFlota=mtbfAgr?mtbfAgr.mtbf:null;
   // Horas de operación promedio por equipo en el período elegido — el "t" de
   // R(t)=e^(-t/MTBF) más abajo (ver confiabilidadReal en logic.js).
   var eqHrsUnidad=eq.filter(function(e){return e.unidad!=='km';});
@@ -648,10 +650,10 @@ export function renderDash(){
      '<div style="font-size:9px;color:var(--tx3)">'+(hasPlanData?progEjec+' de '+progPlan+' a tiempo':'Cerrar semanas en Plan Semanal')+'</div></div>'+
 
     // Fila 2: Indicadores técnicos
-    '<div style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid '+(mtbfFlota?(mtbfFlota>2000?'var(--ok)':mtbfFlota>500?'var(--ac)':'var(--danger)'):'var(--bd)')+'" title="MTBF real de flota: promedio del intervalo real entre fallas sucesivas de cada equipo (horómetro registrado en cada falla), con todo su historial — no se acota al mes elegido, un solo mes casi nunca tiene fallas suficientes para un promedio representativo. Fórmula estándar RAM/ISO 14224. Una «falla» es una parada de '+PARADA_LARGA_H+' h o más (definición del usuario, 23-oct-2026): los correctivos más cortos son intervenciones menores y no entran. Las OT sin duración registrada y el histórico de WhatsApp/correo (que no trae duración) no se pueden clasificar y quedan fuera.">'+
+    '<div style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid '+(mtbfFlota?(mtbfFlota>2000?'var(--ok)':mtbfFlota>500?'var(--ac)':'var(--danger)'):'var(--bd)')+'" title="MTBF real de flota: horas de operación de toda la flota ÷ número de paradas, en la ventana en que hay duraciones registradas (método estándar para flotas de equipos reparables, ISO 14224); incluye a los equipos con 0 o 1 parada y trae su intervalo de confianza 95 %. No se acota al mes elegido, un solo mes casi nunca tiene paradas suficientes. Una «falla» es una parada de '+PARADA_LARGA_H+' h o más (definición del usuario, 23-oct-2026): los correctivos más cortos son intervenciones menores y no entran. Las OT sin duración registrada y el histórico de WhatsApp/correo (que no trae duración) no se pueden clasificar y quedan fuera.">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">MTBF Real de Flota'+_dashBadgeTendencia('retraso')+'</div>'+
     '<div style="font-size:28px;font-weight:800;color:'+(mtbfFlota?(mtbfFlota>2000?'var(--ok)':mtbfFlota>500?'var(--ac)':'var(--danger)'):'var(--tx3)')+';line-height:1.2">'+(mtbfFlota?mtbfFlota+'<span style="font-size:12px">h</span>':'—')+'</div>'+
-    '<div style="font-size:9px;color:var(--tx3)">'+(mtbfFlota?parRes.paradasLargas+' paradas de ≥'+PARADA_LARGA_H+' h · '+parRes.intervenciones+' intervenciones en total · todo el historial':'Sin equipos con ≥2 paradas de ≥'+PARADA_LARGA_H+' h registradas')+'</div></div>'+
+    '<div style="font-size:9px;color:var(--tx3)" title="'+(mtbfAgr?'Ventana '+mtbfAgr.ini+' a '+mtbfAgr.fin+' · '+mtbfAgr.equipos+' equipos con horómetro ('+mtbfAgr.equiposSinParadas+' sin ninguna parada) · '+parRes.intervenciones+' intervenciones en total':'')+'">'+(mtbfFlota?mtbfAgr.paradas+' paradas de ≥'+PARADA_LARGA_H+' h en '+fn(mtbfAgr.horas)+' h operadas · IC95% '+fn(mtbfAgr.inferior)+'–'+(mtbfAgr.superior==null?'∞':fn(mtbfAgr.superior))+' h':(mtbfAgr?'Sin paradas de ≥'+PARADA_LARGA_H+' h en la ventana registrada':'Sin historial de horómetro o de duraciones para calcularlo'))+'</div></div>'+
 
     '<div style="background:var(--bg3);border-radius:10px;padding:16px;border-left:4px solid var(--ac)">'+
     '<div style="font-size:9px;text-transform:uppercase;color:var(--tx3);letter-spacing:1px">Gasto '+dashLabel+'</div>'+

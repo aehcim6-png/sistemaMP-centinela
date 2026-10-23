@@ -219,7 +219,7 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Qué no cambió.** Weibull, Kijima, probabilidad de intervención (antes «de falla»), RUL, Pareto, Estadística y el score de salud siguen sobre intervenciones (miden frecuencia). La Disponibilidad Operacional no cambia.
 
-**Cuidado.** Con esta definición el MTBF sube mucho; las franjas de color (verde sobre 2000 h) y la meta de 2000 h se calibraron con la definición anterior y conviene revisarlas con datos reales.
+**MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
 ### Protección contra bots (CAPTCHA, activado 2026-09-08)
 

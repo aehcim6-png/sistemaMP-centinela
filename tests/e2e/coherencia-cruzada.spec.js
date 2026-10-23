@@ -75,7 +75,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
       equipos: eq.length, urgentes: urg,
       proximas: eq.filter((e) => e.estado && e.estado.includes('PRÓXIMA')).length,
       alDia: eq.filter((e) => e.estado && e.estado.includes('AL DÍA')).length,
-      fallas: todo.filter(esFallaMTBF).length, paradas: todo.filter((o) => esParadaLarga(o)).length, mtbf: mtbfFlotaReal(eq, todo),
+      fallas: todo.filter(esFallaMTBF).length, paradas: todo.filter((o) => esParadaLarga(o)).length, mtbf: (mtbfFlotaAgrupado(eq, todo, S.g('hist') || []) || {}).mtbf ?? null,
       hh: Math.round((S.g('reg') || []).reduce((s, r) => s + (r.duracionH || 0), 0)),
     };
   });
@@ -166,7 +166,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   // «Falla» para MTBF/MTTR = parada de 24 h o más; el resto son intervenciones (23-oct-2026).
   comparar('Intervenciones totales', [['cálculo (OT + historial + informes)', verdad.fallas], ['Informes KPI', num(kpi, /(\d+) intervenciones totales/)], ['Costos → MTBF/MTTR', num(cos, /DE (\d+) INTERVENCIONES EN TOTAL/)]]);
   comparar('Paradas de 24 h o más', [['cálculo', verdad.paradas], ['Informes KPI', num(kpi, /(\d+) paradas de ≥24 h/)], ['Costos → MTBF/MTTR', num(cos, /PARADAS ≥24 H (\d+)/)]]);
-  comparar('MTBF de flota (h)', [['cálculo', verdad.mtbf], ['Dashboard', num(dash, /MTBF REAL DE FLOTA\S* (\d+)h/)], ['Informes KPI', num(kpi, /MTBF FLOTA (\d+) hrs/)], ['Costos → MTBF/MTTR', num(cos, /MTBF PROMEDIO FLOTA (\d+)h/)]]);
+  comparar('MTBF de flota (h)', [['cálculo', verdad.mtbf], ['Dashboard', num(dash, /MTBF REAL DE FLOTA\S* ([\d.]+)h/)], ['Informes KPI', num(kpi, /MTBF FLOTA ([\d.]+) hrs/)], ['Costos → MTBF/MTTR', num(cos, /MTBF FLOTA ([\d.]+)h/)]]);
   comparar('Horas-hombre acumuladas', [['cálculo', verdad.hh], ['Dashboard', num(dash, /HH ACUMULADAS\S* (\d+)h/)], ['Informes KPI', num(kpi, /Real: (\d+)h/)], ['Costos', num(cos, /HH REALES (\d+)h/) ?? num(await textoDe(page, 'cos', null, async () => { await page.selectOption('#fCosVista', 'costos'); }, /HH REALES/), /HH REALES (\d+)h/)]]);
 
   // ── MTBF por equipo y fallas por equipo: Estadística contra Costos ──

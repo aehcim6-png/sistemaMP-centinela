@@ -458,6 +458,8 @@ export function renderCos() {
       return a[1].mtbf - b[1].mtbf;
     });
     var conMtbf = mtbfList.filter(function (m) { return m[1].mtbf != null; });
+    // MTBF de flota: horas operadas ÷ paradas (mtbfFlotaAgrupado, logic.js), incluye equipos con 0 o 1 parada; mismo número que Dashboard e Informes KPI.
+    var mtbfAgrCos = mtbfFlotaAgrupado(eq, otConHistCos, S.g('hist') || []);
     // Con paradas de ≥24 h los umbrales de 4 y 8 h ya no sirven (todas quedan «lentas»): Mantenibilidad se compara contra la mediana de la propia flota.
     var medMttrFlota = (function () { var v = mtbfList.map(function (m) { return m[1].mttr; }).filter(function (x) { return x > 0; }).sort(function (a, b) { return a - b; }); return v.length ? v[Math.floor((v.length - 1) / 2)] : 0; })();
     // % Correctivo Reactivo por HORAS (2026-10-02) — a diferencia de
@@ -470,7 +472,7 @@ export function renderCos() {
     var pctCorrectivoReactivo = porcentajeCorrectivoReactivo(horasCorrectivasFlota, hhRealTotal);
     content =
       '<div class="cards">' +
-      '<div class="card"><div class="card-t">MTBF Promedio Flota</div><div class="card-v">' + (conMtbf.length ? Math.round(conMtbf.reduce(function (s, m) { return s + m[1].mtbf; }, 0) / conMtbf.length) + 'h' : '—') + '</div><div class="card-s">' + (conMtbf.length ? 'Tiempo medio entre paradas de ≥' + PARADA_LARGA_H + ' h · ' + conMtbf.length + ' equipos con ≥2 paradas' : 'Ningún equipo con ≥2 paradas de ≥' + PARADA_LARGA_H + ' h') + '</div></div>' +
+      '<div class="card"><div class="card-t">MTBF Flota</div><div class="card-v">' + (mtbfAgrCos && mtbfAgrCos.mtbf ? fn(mtbfAgrCos.mtbf) + 'h' : '—') + '</div><div class="card-s">' + (mtbfAgrCos && mtbfAgrCos.mtbf ? 'Horas operadas ÷ paradas de ≥' + PARADA_LARGA_H + ' h: ' + mtbfAgrCos.paradas + ' paradas en ' + fn(mtbfAgrCos.horas) + ' h · IC95% ' + fn(mtbfAgrCos.inferior) + '–' + (mtbfAgrCos.superior == null ? '∞' : fn(mtbfAgrCos.superior)) + ' h' : (mtbfAgrCos ? 'Sin paradas de ≥' + PARADA_LARGA_H + ' h en la ventana registrada' : 'Sin historial de horómetro o de duraciones para calcularlo')) + '</div></div>' +
       '<div class="card"><div class="card-t">MTTR Promedio</div><div class="card-v">' + (function () { var conRep = mtbfList.filter(function (m) { return m[1].mttr > 0; }); return conRep.length ? (Math.round(conRep.reduce(function (s, m) { return s + m[1].mttr; }, 0) / conRep.length * 10) / 10 + 'h') : '—'; })() + '</div><div class="card-s">Tiempo medio de reparación de las paradas de ≥' + PARADA_LARGA_H + ' h</div></div>' +
       '<div class="card"><div class="card-t">Paradas ≥' + PARADA_LARGA_H + ' h</div><div class="card-v" style="color:var(--danger)">' + mtbfList.reduce(function (s, m) { return s + m[1].fallas; }, 0) + '</div><div class="card-s">de ' + mtbfList.reduce(function (s, m) { return s + m[1].intervenciones; }, 0) + ' intervenciones en total</div></div>' +
       (function () {
@@ -505,7 +507,8 @@ export function renderCos() {
         var e = eq.find(function (x) { return x.sigla === m[0]; });
         var mb = m[1].mtbf;
         var ic = m[1].ic;
-        var mtbfCol = mb == null ? 'var(--tx3)' : mb > 2000 ? 'var(--ok)' : mb > 500 ? 'var(--w)' : 'var(--danger)';
+        var muestraChicaEq = mb != null && m[1].fallas < MTBF_MIN_PARADAS;   // 2 paradas = un solo intervalo: gris, no verde ni rojo
+        var mtbfCol = mb == null || muestraChicaEq ? 'var(--tx3)' : mb > 2000 ? 'var(--ok)' : mb > 500 ? 'var(--w)' : 'var(--danger)';
         var icHtml = '';
         if (ic) {
           var muestraChica = ic.r < 5;
@@ -527,7 +530,7 @@ export function renderCos() {
           '<td style="text-align:center">' + (e ? e.horomActual : 0) + '</td>' +
           '<td style="text-align:center;color:var(--danger);font-weight:600">' + m[1].fallas + '</td>' +
           '<td style="text-align:center;font-weight:700;color:' + mtbfCol + '">' + (mb == null ? '—' : mb) + icHtml + '</td>' +
-          '<td style="text-align:center"><span style="font-size:11px;color:' + mtbfCol + '">' + (mb == null ? 'Datos insuf. (' + m[1].fallas + ' parada' + (m[1].fallas === 1 ? '' : 's') + ')' : mb > 2000 ? '🟢 Alta' : mb > 500 ? '🟡 Media' : '🔴 Baja') + '</span></td>' +
+          '<td style="text-align:center"><span style="font-size:11px;color:' + mtbfCol + '">' + (mb == null ? 'Datos insuf. (' + m[1].fallas + ' parada' + (m[1].fallas === 1 ? '' : 's') + ')' : muestraChicaEq ? '⚪ Muestra chica (' + m[1].fallas + ' paradas)' : mb > 2000 ? '🟢 Alta' : mb > 500 ? '🟡 Media' : '🔴 Baja') + '</span></td>' +
           '<td style="text-align:center">' + m[1].intervenciones + '</td>' +
           '<td style="text-align:center;font-weight:700;color:' + mttrCol + '">' + m[1].mttr + seHtml + '</td>' +
           '<td style="text-align:center"><span style="font-size:11px;color:' + mttrCol + '">' + (m[1].mttr === 0 ? '— Sin datos' : m[1].mttr <= medMttrFlota ? '🟢 ≤ mediana de la flota' : '🔴 sobre la mediana de la flota') + '</span></td>' +

@@ -759,6 +759,47 @@ function mttrParadasLargas(ot,hoyISO,umbralH){
   return{n:hs.length,promedio:r(hs.reduce(function(a,b){return a+b;},0)/hs.length),mediana:r(hs[Math.floor((hs.length-1)/2)]),p90:r(hs[Math.min(hs.length-1,Math.floor(0.9*(hs.length-1)+0.5))])};
 }
 
+// Mínimo de paradas largas para fiarse del MTBF de UN equipo (2 paradas = un solo intervalo): por debajo se muestra en gris como «muestra chica». Es una convención, no una medición.
+var MTBF_MIN_PARADAS=3;
+
+// MTBF de flota por el método estándar para flotas de equipos reparables: horas de operación observadas ÷ número de paradas largas (23-oct-2026). A diferencia del promedio del MTBF de cada
+// equipo (mtbfFlotaReal), incluye a los equipos con 0 o 1 parada —los que mejor andan— y las horas posteriores a su última parada; con paradas raras, ese promedio solo veía a los peores
+// (en los datos reales: 730 h el promedio contra ~1.100 h agrupado). Ventana de observación: de la primera a la última fecha de una OT con duración conocida (fuera de ahí nadie estuvo
+// registrando duraciones, y contar horas operadas sin posibilidad de ver paradas inflaría el MTBF). Horas de cada equipo: avance de su horómetro dentro de la ventana, con las lecturas
+// sospechosas descartadas (C.lecturasValidas). Intervalo de confianza 95 % chi-cuadrado exacto para tiempo observado T y r paradas: [2T/χ²(0,975; 2r+2), 2T/χ²(0,025; 2r)].
+// d.hist = historial_horometros. Devuelve null si no hay historial de horómetros utilizable; mtbf null si hubo horas pero ninguna parada.
+function mtbfFlotaAgrupado(eq,ot,hist,opts){
+  opts=opts||{};var hoy=opts.hoy,umbral=opts.umbralH;
+  var fechaOT=function(o){return String(o.fecha||o.fechaEntrada||'').slice(0,10);};
+  var conDur=(ot||[]).filter(function(o){return o&&o.sigla&&esFallaMTBF(o)&&/^\d{4}-\d{2}-\d{2}$/.test(fechaOT(o))&&horasParadaOT(o,hoy)!=null;});
+  if(!conDur.length)return null;
+  var fechas=conDur.map(fechaOT).sort(),ini=fechas[0],fin=fechas[fechas.length-1];
+  var porSigla={};
+  (hist||[]).forEach(function(h){if(h&&h.sigla)(porSigla[h.sigla]=porSigla[h.sigla]||[]).push(h);});
+  var val=function(h){return h.horomFin!=null?h.horomFin:h.horom;};
+  var horas=0,paradas=0,nEq=0,sinParadas=0,porEquipo=[];
+  (eq||[]).forEach(function(e){
+    if(!e||!e.sigla||e.unidad==='km')return;
+    var lect=C.lecturasValidas(porSigla[e.sigla]||[],e.sigla);
+    var dentro=lect.filter(function(h){return h.fecha>=ini&&h.fecha<=fin;});
+    if(dentro.length<2)return;
+    var h=val(dentro[dentro.length-1])-val(dentro[0]);
+    if(!(h>0))return;
+    var n=conDur.filter(function(o){return o.sigla===e.sigla&&esParadaLarga(o,hoy,umbral)&&fechaOT(o)>=ini&&fechaOT(o)<=fin;}).length;
+    horas+=h;paradas+=n;nEq++;if(!n)sinParadas++;
+    porEquipo.push({sigla:e.sigla,horas:Math.round(h),paradas:n});
+  });
+  if(!nEq)return null;
+  var out={mtbf:null,horas:Math.round(horas),paradas:paradas,equipos:nEq,equiposSinParadas:sinParadas,ini:ini,fin:fin,inferior:null,superior:null,confianza:0.95,porEquipo:porEquipo};
+  if(paradas>0){
+    out.mtbf=Math.round(horas/paradas);
+    var ci=_chiCuadradoInv(0.975,2*paradas+2),cs=_chiCuadradoInv(0.025,2*paradas);
+    out.inferior=ci>0?Math.round(2*horas/ci):0;
+    out.superior=cs>0?Math.round(2*horas/cs):null;
+  }
+  return out;
+}
+
 // MTBF de flota: promedio del MTBF de cada equipo (horas de operación entre fallas sucesivas, por horómetro). Por defecto las «fallas» son las paradas largas (esParadaLarga);
 // opts.criterio==='intervenciones' mide entre cualquier correctivo (esFallaMTBF), como se hacía antes. opts.hoy: fecha de referencia para salidas de servicio abiertas.
 function mtbfFlotaReal(eq,ot,opts){
@@ -9621,6 +9662,8 @@ if (typeof window !== 'undefined') {
   window.equiposFueraDeServicioAhora = equiposFueraDeServicioAhora;
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
   window.mtbfFlotaReal = mtbfFlotaReal;
+  window.mtbfFlotaAgrupado = mtbfFlotaAgrupado;
+  window.MTBF_MIN_PARADAS = MTBF_MIN_PARADAS;
   window.PARADA_LARGA_H = PARADA_LARGA_H;
   window.horasParadaOT = horasParadaOT;
   window.esParadaLarga = esParadaLarga;
@@ -10808,7 +10851,7 @@ if (typeof module !== 'undefined' && module.exports) {
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
+    desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
