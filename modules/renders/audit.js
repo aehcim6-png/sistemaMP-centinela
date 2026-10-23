@@ -554,7 +554,7 @@ export function limpHoromEliminarCeros(){
   if(window._userRole&&window._userRole!=='admin'){toast('⛔ Solo un administrador puede limpiar el historial');return;}
   const est=_limpEstado(),hist=S.g('hist')||[];
   const ids=[];
-  hist.forEach(function(h){const v=h&&(h.horomFin!=null?h.horomFin:h.horom);if(h&&v!=null&&v!==''&&Number(v)<=0)ids.push(h._id);});
+  hist.forEach(function(h){const v=h?valorLecturaHorometro(h):null;if(v!=null&&v<=0)ids.push(h._id);});
   if(!ids.length)return;
   if(!confirm('Se van a eliminar '+ids.length+' lectura(s) con valor 0 (van a la Papelera 30 días). ¿Eliminar?'))return;
   const n=_limpEscribir(hist,[],ids);

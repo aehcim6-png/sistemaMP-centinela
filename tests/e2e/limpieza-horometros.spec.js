@@ -23,6 +23,7 @@ const DATOS = `
       f('ZZ-1', 'a1', '2026-02-09', 14082), f('ZZ-1', 'a2', '2026-02-10', 1492), f('ZZ-1', 'a3', '2026-02-10', 14100), f('ZZ-1', 'a4', '2026-02-11', 14112),
       f('ZZ-1', 'c1', '2026-01-01', 0), f('ZZ-1', 'c2', '2026-01-02', 0),
       f('ZZ-1', 'x1', '2026-02-12', 14125), f('ZZ-1', 'x2', '2026-02-13', 99999), f('ZZ-1', 'x3', '2026-02-14', 14134),
+      { _id: 'r1', sigla: 'ZZ-2', fecha: '2026-02-09', horomIni: 19990, horomFin: 0, horom: 19990 },   // Fin en 0 pero la lectura está en horom: es una lectura real
       f('ZZ-2', 'b1', '2026-02-10', 20000), f('ZZ-2', 'b2', '2026-02-11', 20015), f('ZZ-2', 'b3', '2026-02-12', 20030),
     ]);
   };
@@ -54,7 +55,7 @@ test('revisar propone, y nada cambia hasta marcar y confirmar; corregir deja el 
   await expect(bloque).toContainText('Eliminar');
   // revisar no cambia nada (se siembra, revisa y lee en el mismo instante: la carga en segundo plano simulada vacía lo sembrado)
   const intacto = await page.evaluate(() => { window._sembrarLimp(); window.limpHoromRevisar(); const h = S.g('hist') || []; return { n: h.length, a2: h.find((x) => x._id === 'a2').horomFin }; });
-  expect(intacto).toEqual({ n: 12, a2: 1492 });
+  expect(intacto).toEqual({ n: 13, a2: 1492 });
   // marcar las de confianza alta y aplicar
   const r = await page.evaluate(() => {
     window._sembrarLimp(); window.limpHoromRevisar(); window.limpHoromMarcarAltas();
@@ -67,7 +68,7 @@ test('revisar propone, y nada cambia hasta marcar y confirmar; corregir deja el 
   expect(r.horom).toBe(14092);
   expect(r.origen).toBe('corregida en limpieza (antes 1492)');
   expect(r.x2).toBe(true);   // la de 99999 no estaba marcada: sigue ahí
-  expect(r.n).toBe(12);
+  expect(r.n).toBe(13);
   expect(r.eq).toEqual([14134, 20000]);   // el horómetro actual de los equipos no cambia
 });
 
@@ -90,12 +91,13 @@ test('eliminar lo marcado manda la fila a la Papelera; eliminar los ceros pide c
   });
   expect(r.descartables).toBe(1);
   expect(r.hay99999).toBe(false);
-  expect(r.n).toBe(11);
+  expect(r.n).toBe(12);
   expect(r.papelera).toBe(true);   // la fila eliminada quedó en la Papelera (30 días)
   expect(dialogos.some((m) => /eliminar 1/.test(m) && /Papelera/.test(m))).toBe(true);
   // los ceros
-  const z = await page.evaluate(() => { window.limpHoromEliminarCeros(); return (S.g('hist') || []).filter((h) => h.horomFin === 0).length; });
-  expect(z).toBe(0);
+  const z = await page.evaluate(() => { window.limpHoromEliminarCeros(); const h = S.g('hist') || []; return { ceros: h.filter((x) => x.horomFin === 0 && x.horom === 0).length, finCeroConLectura: h.filter((x) => x._id === 'r1').length }; });
+  expect(z.ceros).toBe(0);
+  expect(z.finCeroConLectura).toBe(1);   // la fila con Fin en 0 y la lectura en horom NO se elimina
   expect(dialogos.some((m) => /2 lectura\(s\) con valor 0/.test(m))).toBe(true);
 });
 

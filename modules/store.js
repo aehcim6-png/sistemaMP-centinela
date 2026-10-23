@@ -1044,7 +1044,7 @@ function _ritmoRealEq(sigla,hrsDiaNominal,histPorSigla){
   // El índice ya viene agrupado por sigla con fecha garantizada (ver _indicesRecalc);
   // solo el camino sin índice necesita filtrar la tabla completa.
   var filas=histPorSigla?(histPorSigla[sigla]||[]):(S.g('hist')||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha;});
-  var lecturas=filas.map(function(h){return{fecha:h.fecha,horom:(h.horomFin!=null?h.horomFin:h.horom)};});
+  var lecturas=filas.map(function(h){return{fecha:h.fecha,horom:(typeof valorLecturaHorometro==='function'?valorLecturaHorometro(h):(h.horomFin!=null?h.horomFin:h.horom))};});
   return tasaDiariaReal(lecturas,hrsDiaNominal||12);
 }
 // Horómetro real del último PM ejecutado (registros_pm), para anclar proxPM a ese

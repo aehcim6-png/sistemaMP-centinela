@@ -53,6 +53,20 @@ function construirDatos() {
       });
     }
   });
+  // Ventana común del MTBF de flota (24-oct-2026): un mes entra al cálculo solo si la flota tiene al menos 10 OT registradas en él. Se agregan engrases (no son fallas) en los últimos 15 meses.
+  for (let m = 0; m < 15; m++) {
+    const base = new Date(hoy.getFullYear(), hoy.getMonth() - m, 1);
+    for (let i = 0; i < 12; i++) {
+      const f = iso(new Date(base.getFullYear(), base.getMonth(), 1 + i));
+      if (f > iso(hoy)) continue;
+      correctivos.push({ id: 'o' + (n++), sigla: porHoras[i % porHoras.length].sigla, tipo: 'Engrase General', criticidad: 'Baja', fecha: f, fechaEntrada: f, estadoOT: 'Cerrada', sintoma: 'Engrase', sistema: 'Motor', costo: 0 });
+    }
+  }
+  // El historial de horómetros de la flota real cubre enero a marzo de 2026: para que el MTBF de flota (ventana común) tenga paradas que contar, algunas caen en ese período.
+  porHoras.slice(0, 4).forEach(function (e, k) {
+    const f = '2026-02-' + ('0' + (5 + k * 5)).slice(-2);
+    correctivos.push({ id: 'o' + (n++), sigla: e.sigla, tipo: 'Correctivo', criticidad: 'Alta', fecha: f, fechaEntrada: f, horaEntrada: '08:00', fechaSalida: f, duracion: (40 + k * 8) + 'h 0m', horom: Math.max(100, e.horomActual - 900), sintoma: 'Falla ventana ' + k, sistema: 'Motor', tecnico: 'T1', estadoOT: 'Cerrada', componente: 'Turbo', costo: 0 });
+  });
   const f3 = iso(sumarDias(hoy, -3));
   correctivos.push({
     id: 'o' + (n++), sigla: porHoras[0].sigla, tipo: 'Fuera de Servicio', estatusEq: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', fecha: f3, fechaEntrada: f3,

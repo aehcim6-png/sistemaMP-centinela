@@ -119,7 +119,7 @@ export function renderComp(){
   var lecturasPorSigla={};
   histComp.forEach(function(h){
     if(!h||!h.sigla||!h.fecha)return;
-    var val=(h.horomFin!=null?h.horomFin:h.horom);
+    var val=valorLecturaHorometro(h);
     if(val==null)return;
     (lecturasPorSigla[h.sigla]=lecturasPorSigla[h.sigla]||[]).push({fecha:h.fecha,horom:val});
   });

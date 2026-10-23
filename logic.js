@@ -184,7 +184,7 @@ const C = {
       if(!mejor||h.fecha>=mejor.fecha)mejor=h;   // misma fecha: la última de la cadena (la de mayor valor)
     });
     if(!mejor)return null;
-    const v=mejor.horomFin!=null?mejor.horomFin:mejor.horom;
+    const v=valorLecturaHorometro(mejor);
     return v==null?null:v;
   },
   // Reconstruye (mes pasado, desde hist) o proyecta (mes futuro, desde horomActual+hrsDia)
@@ -397,7 +397,7 @@ function construirLecturaHistorial(hist,sigla,fecha,horom,origen){
     .sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');})[0];
   return{
     sigla:sigla,fecha:fecha,
-    horomIni:anterior?(anterior.horomFin!=null?anterior.horomFin:(anterior.horom||0)):0,
+    horomIni:anterior?(valorLecturaHorometro(anterior)||0):0,
     horomFin:horom,horom:horom,origen:origen
   };
 }
@@ -747,34 +747,57 @@ function mttrParadasLargas(ot,hoyISO,umbralH){
 var MTBF_MIN_PARADAS=3;
 
 // MTBF de flota por el método estándar para flotas de equipos reparables: horas de operación observadas ÷ número de paradas largas (23-oct-2026). A diferencia del promedio del MTBF de cada
-// equipo (mtbfFlotaReal), incluye a los equipos con 0 o 1 parada —los que mejor andan— y las horas posteriores a su última parada; con paradas raras, ese promedio solo veía a los peores
-// (en los datos reales: 730 h el promedio contra ~1.100 h agrupado). Ventana de observación: de la primera a la última fecha de una OT con duración conocida (fuera de ahí nadie estuvo
-// registrando duraciones, y contar horas operadas sin posibilidad de ver paradas inflaría el MTBF). Horas de cada equipo: avance de su horómetro dentro de la ventana, con las lecturas
-// sospechosas descartadas (C.lecturasValidas). Intervalo de confianza 95 % chi-cuadrado exacto para tiempo observado T y r paradas: [2T/χ²(0,975; 2r+2), 2T/χ²(0,025; 2r)].
-// d.hist = historial_horometros. Devuelve null si no hay historial de horómetros utilizable; mtbf null si hubo horas pero ninguna parada.
+// equipo (mtbfFlotaReal), incluye a los equipos con 0 o 1 parada —los que mejor andan— y las horas posteriores a su última parada.
+// VENTANA COMÚN (24-oct-2026): las horas y las paradas se miden en el MISMO período. Antes las horas salían del historial de horómetros (casi todo desde 2026-01-01) y las paradas de toda la
+// ventana de las OT con duración (desde 2025-01-09): en los datos reales 66 de 72 paradas largas eran de 2025, un año sin lecturas, y dividir unas por otras daba un MTBF sin sentido. Ahora un mes
+// entra al cálculo solo si (1) la flota tiene al menos MTBF_OT_MIN_MES OT registradas con fecha en él (de cualquier tipo: si nadie cargó OT, no se ven paradas y esas horas inflarían el MTBF) y
+// (2) el equipo tiene lecturas de horómetro a ambos lados del mes. Horas del equipo en un mes = horómetro al fin del mes − horómetro antes del mes (o desde su primera lectura), con las
+// lecturas dudosas descartadas (C.lecturasValidas); con lecturas espaciadas, el avance cae en el mes de la lectura. Paradas = paradas largas del equipo con fecha en un mes que entra.
+// Intervalo de confianza 95 % chi-cuadrado exacto para tiempo observado T y r paradas: [2T/χ²(0,975; 2r+2), 2T/χ²(0,025; 2r)]. Con menos de MTBF_FLOTA_MIN_PARADAS paradas el resultado
+// sale marcado como muestra chica (muestraChica). Devuelve null si no hay horas observables; mtbf null si hubo horas pero ninguna parada. hist = historial_horometros.
+var MTBF_OT_MIN_MES=10;        // OT mínimas por mes (toda la flota, cualquier tipo) para dar el mes por registrado; en los datos reales los meses con registro tienen 47 a 152 y los sin registro 1 a 8
+var MTBF_FLOTA_MIN_PARADAS=10; // por debajo, el MTBF de flota se marca como muestra chica (convención, no una medición)
+function _ultimoDiaMes(m){var y=+m.slice(0,4),mm=+m.slice(5,7);return new Date(Date.UTC(y,mm,0)).toISOString().slice(0,10);}
 function mtbfFlotaAgrupado(eq,ot,hist,opts){
-  opts=opts||{};var hoy=opts.hoy,umbral=opts.umbralH;
+  opts=opts||{};var hoy=opts.hoy,umbral=opts.umbralH,minOT=opts.minOTMes>0?opts.minOTMes:MTBF_OT_MIN_MES;
   var fechaOT=function(o){return String(o.fecha||o.fechaEntrada||'').slice(0,10);};
   var conDur=(ot||[]).filter(function(o){return o&&o.sigla&&esFallaMTBF(o)&&/^\d{4}-\d{2}-\d{2}$/.test(fechaOT(o))&&horasParadaOT(o,hoy)!=null;});
   if(!conDur.length)return null;
-  var fechas=conDur.map(fechaOT).sort(),ini=fechas[0],fin=fechas[fechas.length-1];
+  var cuenta={};
+  (ot||[]).forEach(function(o){var m=o?fechaOT(o).slice(0,7):'';if(/^\d{4}-\d{2}$/.test(m))cuenta[m]=(cuenta[m]||0)+1;});
+  var mesesOT=Object.keys(cuenta).filter(function(m){return cuenta[m]>=minOT;}).sort();
+  if(!mesesOT.length)return null;
   var porSigla={};
   (hist||[]).forEach(function(h){if(h&&h.sigla)(porSigla[h.sigla]=porSigla[h.sigla]||[]).push(h);});
-  var val=function(h){return h.horomFin!=null?h.horomFin:h.horom;};
-  var horas=0,paradas=0,nEq=0,sinParadas=0,porEquipo=[];
+  var val=valorLecturaHorometro;
+  var horas=0,paradas=0,nEq=0,sinParadas=0,porEquipo=[],mesesUsados={};
   (eq||[]).forEach(function(e){
     if(!e||!e.sigla||e.unidad==='km')return;
     var lect=C.lecturasValidas(porSigla[e.sigla]||[],e.sigla,e.hrsDia);
-    var dentro=lect.filter(function(h){return h.fecha>=ini&&h.fecha<=fin;});
-    if(dentro.length<2)return;
-    var h=val(dentro[dentro.length-1])-val(dentro[0]);
-    if(!(h>0))return;
-    var n=conDur.filter(function(o){return o.sigla===e.sigla&&esParadaLarga(o,hoy,umbral)&&fechaOT(o)>=ini&&fechaOT(o)<=fin;}).length;
-    horas+=h;paradas+=n;nEq++;if(!n)sinParadas++;
-    porEquipo.push({sigla:e.sigla,horas:Math.round(h),paradas:n});
+    if(lect.length<2)return;
+    var primera=lect[0].fecha,ultima=lect[lect.length-1].fecha;
+    var valorHasta=function(f){var v=null;lect.forEach(function(h){if(h.fecha<=f)v=val(h);});return v;};
+    var hE=0,nE=0,usados=[];
+    mesesOT.forEach(function(m){
+      var ini=m+'-01',fin=_ultimoDiaMes(m);
+      if(primera>fin||ultima<ini)return;   // el equipo no tiene lecturas a ambos lados del mes
+      var antes=valorHasta(_fechaMas(ini,-1)),hasta=valorHasta(fin);
+      if(hasta==null)return;
+      if(antes==null)antes=val(lect[0]);
+      var h=hasta-antes;
+      hE+=h>0?h:0;
+      nE+=conDur.filter(function(o){return o.sigla===e.sigla&&esParadaLarga(o,hoy,umbral)&&fechaOT(o).slice(0,7)===m;}).length;
+      usados.push(m);
+    });
+    if(!(hE>0))return;
+    usados.forEach(function(m){mesesUsados[m]=true;});
+    horas+=hE;paradas+=nE;nEq++;if(!nE)sinParadas++;
+    porEquipo.push({sigla:e.sigla,horas:Math.round(hE),paradas:nE});
   });
   if(!nEq)return null;
-  var out={mtbf:null,horas:Math.round(horas),paradas:paradas,equipos:nEq,equiposSinParadas:sinParadas,ini:ini,fin:fin,inferior:null,superior:null,confianza:0.95,porEquipo:porEquipo};
+  var meses=Object.keys(mesesUsados).sort();
+  var out={mtbf:null,horas:Math.round(horas),paradas:paradas,equipos:nEq,equiposSinParadas:sinParadas,ini:meses[0]+'-01',fin:_ultimoDiaMes(meses[meses.length-1]),meses:meses,mesesConOT:mesesOT,
+    muestraChica:paradas<MTBF_FLOTA_MIN_PARADAS,inferior:null,superior:null,confianza:0.95,porEquipo:porEquipo};
   if(paradas>0){
     out.mtbf=Math.round(horas/paradas);
     var ci=_chiCuadradoInv(0.975,2*paradas+2),cs=_chiCuadradoInv(0.025,2*paradas);
@@ -921,7 +944,7 @@ function informeProgramaSemanal(eq,reg,hist,desde,hasta,hoyISO){
   var filas=[],sinHorometro=[],res={programados:0,programadosCumplieron:0,alcanzados:0,ejecutados:0,arrastrados:0,noProgramadosAlcanzados:0,equiposEvaluados:0,sinHorometro:0,certeza:null,cumplimiento:null,metaCerteza:PROG_META_CERTEZA,metaCumplimiento:PROG_META_CUMPLIMIENTO};
   (eq||[]).forEach(function(e){
     var f=e&&e.frecPM;if(!e||!e.sigla||!(f>0)||f>1000||e.unidad==='km')return;
-    var lect=C.lecturasValidas(hist,e.sigla,e.hrsDia),val=function(h){return h.horomFin!=null?h.horomFin:h.horom;};
+    var lect=C.lecturasValidas(hist,e.sigla,e.hrsDia),val=valorLecturaHorometro;
     var ultima=function(x){var m=null;lect.forEach(function(h){if(h.fecha<=x&&(!m||h.fecha>m.fecha))m=h;});return m;};
     var lIni=ultima(ayer),lFin=ultima(fin);
     var fresca=function(l,ref){return l&&_diasEntreISO(l.fecha,ref)<=PROG_LECTURA_MAX_DIAS;};
@@ -6254,7 +6277,7 @@ function criticidadEquiposMulticriterio(equipos,d,o){
   var op=o||{},hoy=_tcoIso(d.hoy),hasta=op.hasta||hoy,desde=op.desde||_fechaMas(hasta,-365),dias=Math.max(1,_tcoDias(desde,hasta)),base=[],excl=[];
   (equipos||[]).forEach(function(e){
     if(!e||!e.sigla||e.unidad==='km')return;
-    var lec=C.lecturasValidas(d.hist||[],e.sigla,e.hrsDia).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;}),val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
+    var lec=C.lecturasValidas(d.hist||[],e.sigla,e.hrsDia).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;}),val=valorLecturaHorometro;
     var horas=null,origen='';
     if(lec.length>=2){var a=lec[0],b=lec[lec.length-1],dd=_tcoDias(a.fecha,b.fecha),hh=val(b)-val(a);if(dd>=60&&hh>=0&&hh/dd<=24){horas=hh/dd*dias;origen='horómetro';}}
     if(horas==null&&e.hrsDia>=1&&e.hrsDia<=24){horas=e.hrsDia*dias;origen='horas/día declaradas';}
@@ -6442,7 +6465,7 @@ function pcaVariablesEquipos(d,o){
   (d.equipos||[]).forEach(function(e){
     if(!e||!e.sigla||e.unidad==='km')return;
     var lec=C.lecturasValidas(d.hist||[],e.sigla,e.hrsDia).filter(function(r){return r.fecha>=desde&&r.fecha<=hasta;});
-    var val=function(r){return r.horomFin!=null?r.horomFin:r.horom;};
+    var val=valorLecturaHorometro;
     var fila={sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||'',vars:null,motivo:''};
     if(lec.length<2){fila.motivo='sin lecturas de horómetro en el período';out.push(fila);return;}
     var a=lec[0],b=lec[lec.length-1],dias=_tcoDias(a.fecha,b.fecha),horas=val(b)-val(a);
@@ -6695,7 +6718,7 @@ function curvaSPM(equipos,d,o){
       // sin lectura antes del mes: se ancla en la primera lectura válida de los primeros 7 días; si no hay, el equipo queda fuera (estimar con horas/día inventaría PM de un equipo que pudo estar detenido)
       var prim=inicio<=hoy?C.lecturasValidas(d.hist||[],e.sigla,e.hrsDia).filter(function(r){return r.fecha>=inicio&&r.fecha<=_fechaMas(inicio,7);})[0]:null;
       if(!prim){sinBase.push(e.sigla);return;}
-      h0=prim.horomFin!=null?prim.horomFin:prim.horom;t0=tDia(prim.fecha);estimados.push(e.sigla);
+      h0=valorLecturaHorometro(prim);t0=tDia(prim.fecha);estimados.push(e.sigla);
     }
     var hHoy=null;if(hoy>=inicio&&hoy<=fin){hHoy=C.horomHistorico(d.hist||[],e.sigla,hoy,e.hrsDia);if(hHoy==null||hHoy<h0)hHoy=hActual>=h0?hActual:null;}
     var hFin;
@@ -7936,13 +7959,19 @@ function validarSaltoHorometro(horomNuevo, horomAnterior, fechaAnterior, fechaNu
 // modelo: no hay IA externa ni se inventa ningún número. No borra ni modifica nada; la corrección o el descarte lo confirma una persona (diagnosticarHorometros).
 var HOROM_TOPE_FACTOR=4;          // mismo factor que tasaDiariaReal() y validarSaltoHorometro()
 var HOROM_BLOQUE_MIN=3;           // lecturas seguidas descartadas que forman su propia serie = posible cambio/reinicio del horómetro, no un error de digitación
-function _valorHoromFila(h){
+// Valor de una fila de historial_horometros. La lectura es «horomFin»; pero 610 filas reales (8 equipos, ene-mar 2026) traen horomFin = 0 con la lectura en «horom» (y en horomIni),
+// por una importación que no llenó la columna Fin: leer solo horomFin las convertía en «0 = sin dato» y se perdían (y el botón de eliminar ceros las habría borrado). Se usa horomFin si es
+// positivo; si no, horom si es positivo; si ambos valen 0 devuelve 0 (relleno de verdad, 126 filas) y null si no hay ningún número.
+function valorLecturaHorometro(h){
   if(!h)return null;
-  var v=h.horomFin!=null?h.horomFin:h.horom;
-  if(v==null||v==='')return null;
-  v=Number(v);
-  return isFinite(v)?v:null;
+  var f=h.horomFin==null||h.horomFin===''?null:Number(h.horomFin),r=h.horom==null||h.horom===''?null:Number(h.horom);
+  if(f!=null&&isFinite(f)&&f>0)return f;
+  if(r!=null&&isFinite(r)&&r>0)return r;
+  if(f!=null&&isFinite(f))return f;
+  if(r!=null&&isFinite(r))return r;
+  return null;
 }
+var _valorHoromFila=valorLecturaHorometro;
 function _epochDia(f){var y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);return Math.round(Date.UTC(y,m,d)/864e5);}
 // lecturas: [{fecha:'yyyy-mm-dd', valor:Number|null}] en cualquier orden. Devuelve índices (de la lista recibida):
 // {cadena:[...] en orden de fecha (misma fecha: de menor a mayor valor), fuera:[...] lecturas con valor que no encajan, sinDato:[...] valor vacío o ≤ 0}.
@@ -8022,7 +8051,7 @@ function diagnosticarHorometros(hist, equipos){
     var fechas=filas.map(function(h){return String(h.fecha).slice(0,10);}).sort();
     var res={sigla:sigla,hrsDia:nom,total:filas.length,validas:r.cadena.length,sinDato:r.sinDato.length,descartadas:r.fuera.length,ruido:0,desde:fechas[0],hasta:fechas[fechas.length-1],propuestas:[]};
     function base(h,tipo,motivo){return{fila:h,id:h._id||h.id||null,sigla:sigla,fecha:String(h.fecha).slice(0,10),valor:_valorHoromFila(h),tipo:tipo,corregido:null,confianza:null,motivo:motivo,previo:null,siguiente:null,grupo:null};}
-    r.sinDato.forEach(function(i){res.propuestas.push(base(filas[i],'sin_dato','Valor '+(filas[i].horomFin!=null?filas[i].horomFin:(filas[i].horom==null?'vacío':filas[i].horom))+': es un relleno, no una lectura'));});
+    r.sinDato.forEach(function(i){res.propuestas.push(base(filas[i],'sin_dato','Valor '+(valorLecturaHorometro(filas[i])==null?'vacío':valorLecturaHorometro(filas[i]))+': es un relleno, no una lectura'));});
     // vecinos buenos de cada lectura fuera de la serie
     var fueraPos=r.fuera.map(function(i){return posDe[i];}).sort(function(a,b){return a-b;});
     var props=[];
@@ -8058,7 +8087,9 @@ function diagnosticarHorometros(hist, equipos){
       if(j-i+1>=HOROM_BLOQUE_MIN){
         var sub=props.slice(i,j+1).map(function(x){return{fecha:x.pr.fecha,valor:x.pr.valor};});
         var rb=cadenaLecturasHorometro(sub,nom);
-        if(rb.cadena.length===sub.length){
+        // si cada una tiene su corrección única es un error de digitación repetido (por ejemplo 1.000 de más), no un horómetro nuevo: se deja como «corregir»
+        var todasCorregibles=props.slice(i,j+1).every(function(x){return x.pr.tipo==='corregir';});
+        if(rb.cadena.length===sub.length&&!todasCorregibles){
           var a=sub[0],z=sub[sub.length-1];
           for(var m=i;m<=j;m++){
             props[m].pr.tipo='revisar';props[m].pr.corregido=null;props[m].pr.confianza=null;
@@ -8147,8 +8178,8 @@ function verificarIntegridad(data){
   Object.keys(porSigla).forEach(function(sigla){
     var arr=porSigla[sigla].slice().sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
     for(var i=1;i<arr.length;i++){
-      var prev=arr[i-1].horomFin!=null?arr[i-1].horomFin:arr[i-1].horom;
-      var cur=arr[i].horomFin!=null?arr[i].horomFin:arr[i].horom;
+      var prev=valorLecturaHorometro(arr[i-1]);
+      var cur=valorLecturaHorometro(arr[i]);
       if(prev!=null&&cur!=null&&cur<prev){
         add('alta','horometroRetrocedido',sigla+': horómetro bajó de '+prev+' ('+arr[i-1].fecha+') a '+cur+' ('+arr[i].fecha+')');
         break; // un aviso por equipo basta, no inundar con cada tramo
@@ -9867,6 +9898,7 @@ if (typeof window !== 'undefined') {
   window.pagSlice = pagSlice;
   window.hayConflictoIds = hayConflictoIds;
   window.validarSaltoHorometro = validarSaltoHorometro;
+  window.valorLecturaHorometro = valorLecturaHorometro;
   window.cadenaLecturasHorometro = cadenaLecturasHorometro;
   window.candidatosDigitacion = candidatosDigitacion;
   window.diagnosticarHorometros = diagnosticarHorometros;
@@ -9885,6 +9917,8 @@ if (typeof window !== 'undefined') {
   window.mtbfFlotaReal = mtbfFlotaReal;
   window.mtbfFlotaAgrupado = mtbfFlotaAgrupado;
   window.MTBF_MIN_PARADAS = MTBF_MIN_PARADAS;
+  window.MTBF_OT_MIN_MES = MTBF_OT_MIN_MES;
+  window.MTBF_FLOTA_MIN_PARADAS = MTBF_FLOTA_MIN_PARADAS;
   window.PARADA_LARGA_H = PARADA_LARGA_H;
   window.horasParadaOT = horasParadaOT;
   window.esParadaLarga = esParadaLarga;
@@ -11074,9 +11108,9 @@ if (typeof module !== 'undefined' && module.exports) {
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
-    validarSaltoHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, resolverDestrabePorOC, verificarIntegridad,
+    validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
+    desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, limpiarTextoParaIA, pendientesClasificacionComponente, muestraParaAcuerdoIA, resumenAcuerdoIA, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

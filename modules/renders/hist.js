@@ -290,7 +290,7 @@ export function edHist(idx,key,val){
 // que el equipo no quede con un valor "huérfano" que ya no corresponde a ningún registro.
 // h.horomFin===0 es un valor legítimo (ej. reset de horómetro tras overhaul) — no
 // tratarlo como "ausente" con ||, que lo confundiría con horom o con 0 por defecto.
-function _horomDeLectura(h){return h.horomFin!=null?h.horomFin:(h.horom!=null?h.horom:0);}
+function _horomDeLectura(h){var v=valorLecturaHorometro(h);return v!=null?v:0;}
 function recalcularHorometroDesdeHistorial(sigla){
   var hist=(S.g('hist')||[]).filter(function(h){return h.sigla===sigla});
   var eq=S.g('eq')||[];

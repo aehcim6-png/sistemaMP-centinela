@@ -1,7 +1,7 @@
 // Limpieza asistida de horómetros (2026-10-24): qué lecturas son creíbles y qué se propone con las dudosas. Funciones puras: no cambian nada.
 // Las series «reales» son tramos copiados de historial_horometros (proyecto SistemaMP, consulta del 23-oct-2026), con los errores tal como estaban.
 import { describe, it, expect } from 'vitest';
-import { cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, coberturaRegistro, C } from '../logic.js';
+import { cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, coberturaRegistro, valorLecturaHorometro, C } from '../logic.js';
 
 // 'AAMMDD:valor,...' → filas de historial (misma fecha: en el orden dado)
 const iso = (t) => `20${t.slice(0, 2)}-${t.slice(2, 4)}-${t.slice(4, 6)}`;
@@ -177,5 +177,40 @@ describe('la cobertura no cuenta un 0 como lectura', () => {
   it('las filas de horómetro en 0 no suman días con registro', () => {
     const c = coberturaRegistro({ hist: [{ sigla: 'A', fecha: '2026-03-01', horomFin: 0 }, { sigla: 'A', fecha: '2026-03-02', horomFin: 1500 }] });
     expect(c.A).toEqual(['2026-03-02']);
+  });
+});
+
+describe('valorLecturaHorometro: filas con horomFin = 0 pero la lectura en horom (610 filas reales)', () => {
+  it('usa horomFin si es positivo, si no horom; 0 solo si ambos son 0; null si no hay número', () => {
+    expect(valorLecturaHorometro({ horomFin: 19800, horom: 19800 })).toBe(19800);
+    expect(valorLecturaHorometro({ horomFin: 0, horom: 17556, horomIni: 17556 })).toBe(17556);
+    expect(valorLecturaHorometro({ horom: 940 })).toBe(940);
+    expect(valorLecturaHorometro({ horomFin: 0, horom: 0 })).toBe(0);
+    expect(valorLecturaHorometro({ horomFin: null, horom: null })).toBeNull();
+    expect(valorLecturaHorometro(null)).toBeNull();
+  });
+  it('lecturasValidas y el diagnóstico las cuentan como lecturas (antes se tomaban por ceros de relleno)', () => {
+    const hist = ['260101:17556', '260102:17556', '260103:17580', '260104:17589'].map((t, i) => { const [f, v] = t.split(':'); return { _id: 'r' + i, sigla: 'TI-5144', fecha: iso(f), horomIni: Number(v), horomFin: 0, horom: Number(v) }; });
+    expect(C.lecturasValidas(hist, 'TI-5144', 16).map(valorLecturaHorometro)).toEqual([17556, 17556, 17580, 17589]);
+    const d = diagnosticarHorometros(hist, [{ sigla: 'TI-5144', hrsDia: 16 }]);
+    expect(d.total.sinDato).toBe(0);
+    expect(d.equipos[0].propuestas).toEqual([]);
+  });
+  it('un error de digitación en la columna horom también se detecta (178845 en vez de 17845)', () => {
+    const v = [17833, 178845, 17855];
+    const hist = v.map((x, i) => ({ _id: 'r' + i, sigla: 'TI-5144', fecha: `2026-01-${26 + i}`, horomFin: 0, horom: x }));
+    const p = diagnosticarHorometros(hist, [{ sigla: 'TI-5144', hrsDia: 16 }]).equipos[0].propuestas;
+    expect(p.length).toBe(1);
+    expect(p[0].tipo).toBe('corregir');
+    expect(p[0].corregido).toBe(17845);
+  });
+  it('tres lecturas seguidas con el mismo error de digitación se corrigen una a una, no se piden revisar como si fueran otro horómetro', () => {
+    const buenas = ['260301:17150', '260302:17160', '260303:17179', '260304:17187', '260305:17196'];
+    const malas = ['260306:18206', '260307:18222', '260308:18234'];   // +1.000 de más
+    const resto = ['260309:17246', '260310:17246', '260311:17266'];
+    const hist = buenas.concat(malas, resto).map((t, i) => { const [f, v] = t.split(':'); return { _id: 'r' + i, sigla: 'TI-5145', fecha: iso(f), horomFin: 0, horom: Number(v) }; });
+    const p = diagnosticarHorometros(hist, [{ sigla: 'TI-5145', hrsDia: 16 }]).equipos[0].propuestas;
+    expect(p.map((x) => x.tipo)).toEqual(['corregir', 'corregir', 'corregir']);
+    expect(p.map((x) => x.corregido)).toEqual([17206, 17222, 17234]);
   });
 });

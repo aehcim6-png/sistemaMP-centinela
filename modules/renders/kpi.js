@@ -463,7 +463,7 @@ export function renderKpi(){
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">MTBF FLOTA</div>'+
     (mtbfActual!=null?
       meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF real: '+mtbfActual+'h · horas operadas ÷ paradas de ≥'+PARADA_LARGA_H+' h (IC95% '+mtbfAgr.inferior+'–'+(mtbfAgr.superior==null?'∞':mtbfAgr.superior)+' h)')+
-      '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'var(--ok)':mtbfActual>500?'var(--ac)':'var(--danger)')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'
+      '<div style="font-size:10px;margin-top:4px;color:'+(mtbfAgr.muestraChica?'var(--tx3)':mtbfActual>2000?'var(--ok)':mtbfActual>500?'var(--ac)':'var(--danger)')+'">'+(mtbfAgr.muestraChica?'Muestra chica: '+mtbfAgr.paradas+' paradas en '+mtbfAgr.meses.length+' mes(es) con OT y lecturas':(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad')+'</div>'
       :'<div style="font-size:26px;font-weight:800;color:var(--tx3);padding:14px 0">—</div><div style="font-size:10px;color:var(--tx3)">'+(mtbfAgr?'Sin paradas de ≥'+PARADA_LARGA_H+' h en la ventana registrada':'Sin historial de horómetro o de duraciones para calcularlo')+'</div>')+
     '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+resumenParadas(ot).paradasLargas+' paradas de ≥'+PARADA_LARGA_H+' h'+(mtbfAgr?' ('+mtbfAgr.paradas+' en el cálculo del MTBF: '+fn(Math.round(mtbfAgr.horas))+' h operadas)':'')+' · '+totalFallas+' intervenciones totales</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
