@@ -221,6 +221,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Clasificación asistida del componente con IA (2026-10-24)
+
+**Qué es.** En **Auditoría de Datos → Clasificación asistida del componente (IA)** (solo administradores). Para los textos que el diccionario no resuelve (correctivos formales sin `componente` y filas del historial sin `sistema`), la IA propone **una** categoría de la lista cerrada de 48, con confianza alta, media o baja. Tú confirmas; nada se guarda solo.
+
+**Cómo usarlo.** (1) Antes de confirmar nada, pulsa **Medir acuerdo con lo ya clasificado**: la IA clasifica 40 filas del historial que ya tienen `sistema` y ves cuántas coinciden. (2) Pide las sugerencias (lotes de 40). (3) Las de confianza **alta** puedes marcarlas todas de una vez; las **media y baja** revísalas una por una. (4) **Aplicar** guarda solo lo marcado. En el historial, la fila queda con la marca «componente por IA (confirmado por admin)» en su fuente y nunca se pisa un `sistema` que ya tenía valor.
+
+**Qué hay que saber.** No clasifica `tipoCausa` ni `categoriaMTTR`: son juicios humanos. El acuerdo mide **consistencia**, no exactitud, porque lo ya clasificado también salió de reglas sobre el texto: si el acuerdo es bajo, no confirmes en bloque; si es alto, igual revisa una muestra. Se envía a Gemini solo el texto (sin teléfonos ni correos). **Aún no se ha corrido la medición con tus datos reales.**
+
 ### Foto del horómetro (2026-10-24)
 
 **Qué es.** En la pestaña Horómetro, **+ Registrar** tiene un bloque «Leer el horómetro desde una foto» con **Tomar foto** (abre la cámara del celular) y **Subir foto**. La IA lee el número y lo pone en «Horómetro Final»; la persona lo confirma con Guardar. Nada se guarda solo, y si el número es menor que la última lectura o un salto imposible, el sistema lo avisa en rojo y pide confirmar. La fila queda con origen «Foto (IA)» (o «corregida a mano»).

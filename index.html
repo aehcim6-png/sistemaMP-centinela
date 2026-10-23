@@ -635,7 +635,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-23f"></script>
+<script src="logic.js?v=2026-10-24"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -734,7 +734,7 @@ const _LAZY_VERS={
   comp:'2026-10-14',
   estadistica:'2026-10-18',
   tbo:'2026-10-21b',
-  audit:'2026-10-21',
+  audit:'2026-10-24',
   auditoria:'2026-10-17',
   pred:'2026-10-23e',
   metas:'2026-10-23d',
@@ -784,7 +784,7 @@ const _LAZY_EXPORTS={
   comp:['renderComp','edComp','addComp','saveNuevoComp','delComp','importCompCSV'],
   estadistica:['renderEstadistica','_estFallasCombinadas','_estMtbfPorComponente'],
   tbo:['renderTbo','tboCambiarTasa','tboCambiarAplic','crearOCDesdeTBO','confirmarOCDesdeTBO','tboCambiarParamOpt','tboCalcularPBoot','tboCambiarCostoDetUSD'],
-  audit:['renderAudit'],
+  audit:['renderAudit','clasifIAPedir','clasifIAMedir','clasifIAMarcar','clasifIAMarcarAltas','clasifIADescartar','clasifIAAplicar'],
   auditoria:['verAuditoriaCambios','renderAuditoriaCambios','auditoriaFiltrar','auditoriaPagina','auditoriaExportar'],
   pred:['renderPred','_guardarFmeaNpr','predCambiarEOQ'],
   metas:['renderMetas','verCadenaCausas','abrirFormCompromiso','guardarCompromiso','delCompromiso'],
@@ -4047,6 +4047,15 @@ async function _llamarOCRFuncion(nombreFuncion,imagenBase64,mimeType){
     }
   }
   return r.json();
+}
+// Llama a una Edge Function con un cuerpo JSON cualquiera (clasificar-correctivos, ...) con el token de la persona; renueva la sesión si vence. Devuelve el JSON de la respuesta
+// (con «error» si la función lo informó) o {error} si la respuesta no era JSON.
+async function _llamarFuncion(nombreFuncion,cuerpo){
+  var url=_SB_DEFAULT_URL+'/functions/v1/'+nombreFuncion;
+  var armar=function(){return{method:'POST',headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+(localStorage.getItem('smp_access_token')||''),'Content-Type':'application/json'},body:JSON.stringify(cuerpo)};};
+  var r=await fetch(url,armar());
+  if(r.status===401&&await _sbAuthRefresh())r=await fetch(url,armar());
+  try{return await r.json();}catch(e){return{error:'La respuesta de '+nombreFuncion+' no se pudo leer (HTTP '+r.status+')'};}
 }
 function _leerPautaPM(imagenBase64,mimeType){
   return _llamarOCRFuncion('leer-pauta-pm',imagenBase64,mimeType);

@@ -7107,6 +7107,68 @@ function backtestAnticipacionFallas(eventos,equipos,hoy,o){
     equiposPorOrigen:Math.round(media(filas.map(function(f){return f.items.length;}))*10)/10,tasaBase:Math.round(tasaBase*1000)/1000,tasaBasePooled:Math.round(prGlobal*10000)/10000,brierBase:Math.round(prGlobal*(1-prGlobal)*10000)/10000,referencia:_BT_REFERENCIA,predictores:predictores};
 }
 
+// ═══ CLASIFICACIÓN ASISTIDA DEL COMPONENTE CON IA (2026-10-24) ═══
+// Los análisis por componente (Pareto, MTBF, Weibull) usan `componente`, o el diccionario de texto si está vacío; en el historial usan `sistema`, que falta en ~37 % de las filas. La
+// función clasificar-correctivos (solo administradores) propone un componente de la lista cerrada a partir del texto y una persona confirma. NO se clasifican tipoCausa ni categoriaMTTR:
+// son un juicio humano al cerrar la OT y no se deducen de unas palabras de síntoma. Estas funciones son puras (no llaman a la IA ni escriben nada).
+
+// Deja el texto listo para enviarlo a la IA: sin teléfonos ni correos (el historial de WhatsApp guarda «+56912345678: texto») y de largo acotado.
+function limpiarTextoParaIA(t){
+  return String(t==null?'':t)
+    .replace(/^\s*(whatsapp:)?\s*\+?\d[\d\s().-]{7,}\d\s*:\s*/i,'')
+    .replace(/\+?\d[\d\s().-]{8,}\d/g,' ')
+    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g,' ')
+    .replace(/\s+/g,' ').trim().slice(0,400);
+}
+// Qué falta clasificar: correctivos formales (Correctivo / Falla Operacional) sin `componente` cargado ni deducible por el diccionario de texto, e historial sin `sistema`.
+// Cada fila lleva el texto limpio para la IA; en el historial también lo que deduciría el diccionario (`reglas`) para compararlo.
+function pendientesClasificacionComponente(ot,otHist){
+  var deduce=(typeof _componenteDeSintoma==='function')?_componenteDeSintoma:function(){return '';};
+  var formales=[],historico=[];
+  (ot||[]).forEach(function(o){
+    if(!o||!(o.tipo==='Correctivo'||o.tipo==='Falla Operacional'))return;
+    if(String(o.componente||'').trim())return;
+    var texto=limpiarTextoParaIA([o.sintoma,o.solucion].filter(function(x){return x&&String(x).trim();}).join(' | '));
+    if(!texto||deduce(o.sintoma||''))return;
+    formales.push({id:o._id||o.id,sigla:o.sigla,fecha:o.fecha,texto:texto});
+  });
+  (otHist||[]).forEach(function(o){
+    if(!o||String(o.sistema||'').trim())return;
+    var texto=limpiarTextoParaIA(o.descripcion);
+    if(!texto)return;
+    historico.push({id:o.id||o._id,sigla:o.sigla,fecha:o.fecha,texto:texto,reglas:deduce(o.descripcion||'')||''});
+  });
+  return{formales:formales.filter(function(f){return f.id;}),historico:historico.filter(function(f){return f.id;})};
+}
+// Muestra reproducible (cada k-ésima fila, ordenadas por id) del historial que YA tiene `sistema`, para medir cuánto coincide la IA con lo ya clasificado.
+function muestraParaAcuerdoIA(otHist,n){
+  var filas=(otHist||[]).filter(function(o){return o&&String(o.sistema||'').trim()&&limpiarTextoParaIA(o.descripcion)&&(o.id||o._id);})
+    .map(function(o){return{id:o.id||o._id,texto:limpiarTextoParaIA(o.descripcion),etiqueta:String(o.sistema).trim()};})
+    .sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
+  var k=Math.max(1,Math.floor(filas.length/Math.max(1,n||40)));
+  var out=[];
+  for(var i=0;i<filas.length&&out.length<(n||40);i+=k)out.push(filas[i]);
+  return out;
+}
+// Acuerdo entre lo que sugiere la IA y la etiqueta que ya traía cada fila. Solo cuentan las sugerencias con componente; las demás se informan aparte.
+function resumenAcuerdoIA(muestra,sugerencias){
+  var porId={};(sugerencias||[]).forEach(function(s){if(s)porId[s.id]=s;});
+  var conSug=0,acuerdos=0,desacuerdos=[],porConf={alta:{n:0,ok:0},media:{n:0,ok:0},baja:{n:0,ok:0}};
+  (muestra||[]).forEach(function(m){
+    var s=porId[m.id];
+    if(!s||!s.componente)return;
+    conSug++;
+    var coincide=s.componente===m.etiqueta;
+    if(coincide)acuerdos++;else desacuerdos.push({texto:m.texto,existente:m.etiqueta,ia:s.componente,confianza:s.confianza});
+    var c=porConf[s.confianza];if(c){c.n++;if(coincide)c.ok++;}
+  });
+  var pctConf=function(c){return c.n?Math.round(c.ok/c.n*100):null;};
+  return{n:(muestra||[]).length,conSugerencia:conSug,sinSugerencia:(muestra||[]).length-conSug,acuerdos:acuerdos,
+    pctAcuerdo:conSug?Math.round(acuerdos/conSug*100):null,
+    pctAlta:pctConf(porConf.alta),nAlta:porConf.alta.n,pctMedia:pctConf(porConf.media),nMedia:porConf.media.n,pctBaja:pctConf(porConf.baja),nBaja:porConf.baja.n,
+    desacuerdos:desacuerdos};
+}
+
 // ═══ PRUEBA DEL DICCIONARIO DE COMPONENTES CON DATOS NO USADOS PARA AFINARLO (2026-10-18) ═══
 // El diccionario que deduce el componente desde el texto (_componenteDeSintoma) se afinó en 9 pasadas contra los
 // 1.243 correctivos actuales, y su cobertura se midió sobre esos mismos datos: eso no prueba que funcione con textos
@@ -9707,6 +9769,10 @@ if (typeof window !== 'undefined') {
   window.agruparPeriodo = agruparPeriodo;
   window._CATEGORIAS_COMPONENTE = _CATEGORIAS_COMPONENTE;
   window._componenteDeSintoma = _componenteDeSintoma;
+  window.limpiarTextoParaIA = limpiarTextoParaIA;
+  window.pendientesClasificacionComponente = pendientesClasificacionComponente;
+  window.muestraParaAcuerdoIA = muestraParaAcuerdoIA;
+  window.resumenAcuerdoIA = resumenAcuerdoIA;
   window.probabilidadComponente = probabilidadComponente;
   window.probabilidadEquipoSeveridad = probabilidadEquipoSeveridad;
   window.probabilidadStockQuiebre = probabilidadStockQuiebre;
@@ -10854,7 +10920,7 @@ if (typeof module !== 'undefined' && module.exports) {
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
-    _CATEGORIAS_COMPONENTE, _componenteDeSintoma, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
+    _CATEGORIAS_COMPONENTE, _componenteDeSintoma, limpiarTextoParaIA, pendientesClasificacionComponente, muestraParaAcuerdoIA, resumenAcuerdoIA, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
     umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica, matrizJackKnife, JK_ACCIONES
   };

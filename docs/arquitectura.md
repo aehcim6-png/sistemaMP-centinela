@@ -6766,6 +6766,22 @@ Revisión pestaña por pestaña (19 en escritorio y 10 en celular, con capturas)
 
 **Pruebas:** `tests/migracionFotosHorometro.test.js` (bucket privado, quién sube y quién ve, columna, sin permisos para `anon`), `tests/e2e/horometro-foto.spec.js` (subida con el token, fallo de subida, enlace firmado y visualización) y `supabase/functions/_shared/sesionAutenticada.test.ts`.
 
+### 177. Clasificación asistida del componente con IA, con confirmación humana (2026-10-24)
+
+**Qué pasó:** los 1126 correctivos formales no tienen `componente`, `causaRaiz`, `tipoCausa` ni `categoriaMTTR` (solo `sistema` viene lleno en 862) y el historial de 3285 filas tiene `sistema` vacío en 1231. Sin componente no hay Pareto por componente ni Weibull por componente confiables. El usuario aprobó clasificar **solo el componente** con IA a partir del texto libre, siempre con confirmación humana. Se dejó fuera, a propósito, `tipoCausa` y `categoriaMTTR`: son juicios humanos (qué causó la falla, de quién es la responsabilidad), no se leen de una descripción.
+
+**Función `clasificar-correctivos`** (desplegada en los dos proyectos, `verify_jwt` activo): solo **administradores** (rol `admin` activo y token con verificación en dos pasos, `aal2`). Acción `sugerir`: hasta 40 textos de hasta 400 caracteres; Gemini responde con un esquema cuyo `enum` es la lista cerrada de **48 categorías** (`CATEGORIAS_VALIDAS`), una categoría por texto con confianza alta, media o baja; lo que no esté en la lista vuelve como `null`/«baja» y nunca se inventa una categoría. **No escribe nada.** Acción `aplicarHistorico`: aplica al historial las categorías que la persona confirmó; lee cada fila por `id`, **salta las que ya tienen `sistema`** (nunca pisa un dato) y agrega a `fuente` la marca «componente por IA (confirmado por admin)». Los correctivos formales se escriben desde la app con la sincronización normal (`componente`), así que quedan en el registro de cambios.
+
+**Qué se envía:** solo el texto, después de `limpiarTextoParaIA` (quita teléfonos al inicio de líneas de WhatsApp, teléfonos y correos, colapsa espacios, 400 caracteres).
+
+**Qué se clasifica** (`pendientesClasificacionComponente`): formales = Correctivo/Falla Operacional sin `componente` cuyo síntoma el diccionario (`_componenteDeSintoma`) tampoco resuelve; histórico = filas con `sistema` vacío. Las reglas existentes van primero y la IA solo toma lo que ellas no resuelven.
+
+**Pantalla** (Auditoría de Datos → «Clasificación asistida del componente (IA)», solo administradores): se piden sugerencias por lotes de 40; las de confianza **alta** se pueden marcar todas de una vez; las **media y baja** se revisan una por una; Aplicar escribe solo lo marcado. Antes hay un botón **«Medir acuerdo con lo ya clasificado»**: toma 40 filas del historial que ya tienen `sistema`, le pide a la IA su categoría sin mostrársela y cuenta cuántas coinciden (`muestraParaAcuerdoIA`, `resumenAcuerdoIA`).
+
+**Límites:** (1) **no se ha medido la exactitud real**: el agente no tiene una sesión de administrador para correr la medición; hay que correrla desde la pantalla antes de confirmar nada en bloque. (2) El acuerdo mide **consistencia**, no exactitud: la etiqueta `sistema` del historial también salió de reglas sobre el texto, no de una revisión humana. (3) La confianza que declara el modelo no está calibrada; hasta ver el acuerdo por nivel, «alta» no significa «correcta». (4) Un texto ambiguo («falla general») se queda sin categoría. (5) La función desplegada lleva la lista de categorías en una copia reducida de `parseCorrectivo.ts` (idéntica en nombres y orden a `CATEGORIAS_VALIDAS`; verificado). (6) Con la llave pública `anon` responde 401, verificado en los dos proyectos; el camino de administrador solo se probó con simulaciones.
+
+**Pruebas:** `tests/clasificacionAsistidaComponente.test.js` (limpieza de texto, pendientes, muestra y resumen de acuerdo), `supabase/functions/clasificar-correctivos/index.test.ts` (normalización de sugerencias, validación de lotes, claims) y `tests/e2e/clasificacion-asistida.spec.js` (pedir, marcar altas, revisar una a una, aplicar formales e histórico, medir acuerdo).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

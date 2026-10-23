@@ -29,13 +29,13 @@ async function escenario(page, hace, captura) {
     window._sembrarCob = sembrar;
     const out = {};
     // se cargan primero los módulos de las dos pestañas; después se siembra y se dibuja en el mismo instante, porque la carga en segundo plano (simulada vacía) pisa lo sembrado
-    sembrar(); go('dash'); await esp(1500); go('disp'); await esp(1500);
+    sembrar(); go('dash'); await esp(2500); go('disp'); await esp(2500);
     sembrar(); go('dash');
     out.dash = document.getElementById('s-dash').innerText.replace(/\s+/g, ' ');
-    for (let k = 0; k < 12; k++) {
+    for (let k = 0; k < 25; k++) {
       sembrar(); window._dispVista = 'mensual'; go('disp'); await esp(60);
       out.disp = document.getElementById('s-disp').innerText.replace(/\s+/g, ' ');
-      if (out.disp.includes('CN-1')) break;   // la tabla ya dibujó los equipos sembrados
+      if (out.disp.includes('CN-1') && (S.g('hist') || []).length) break;   // la tabla ya dibujó los equipos sembrados, con su historial
     }
     out.nHist = (S.g('hist') || []).length; out.nEq = (S.g('eq') || []).length;
     return out;

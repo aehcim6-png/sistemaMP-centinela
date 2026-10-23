@@ -127,6 +127,9 @@ Un equipo cuyo último horómetro tiene más de 30 días aparece como **⚪ SIN 
 **¿Qué cuenta como «falla» para el MTBF y el MTTR?**
 Una **parada de 24 horas o más**. Los correctivos más cortos (engrase, neumáticos, un asiento, un foco) se cuentan como *intervenciones*: aparecen en las listas, pero no bajan el MTBF. Así el MTBF dice cada cuántas horas de operación hay una parada que de verdad afecta al equipo. Si una orden no tiene duración registrada, no se puede saber si fue larga y no entra. El MTBF de la flota es las horas de operación de todos los equipos divididas por el número de paradas, con un rango de confianza; el de un equipo con menos de 3 paradas se ve en gris («muestra chica»).
 
+**¿La IA completa el componente de los correctivos?**
+Solo la parte de **administradores** y siempre con confirmación: en Auditoría de Datos hay un bloque que propone el componente (por ejemplo, «Sistema hidráulico») a partir del texto de la falla, y el administrador acepta o corrige. No decide la causa de la falla ni la categoría del MTTR; eso lo sigue juzgando una persona.
+
 **¿Puedo cargar el horómetro con una foto?**
 Sí. En la pestaña **Horómetro**, toca **+ Registrar**, elige el equipo y usa **Tomar foto** (en el celular abre la cámara) o **Subir foto**. El sistema lee el número y lo pone en «Horómetro Final»: **revísalo contra la foto** antes de Guardar. Si el número es menor que la última lectura o un salto imposible, te avisa en rojo. Si la foto sale borrosa o con reflejo, te lo dice y puedes escribirlo a mano. La foto queda guardada como evidencia (la puede ver un administrador desde el botón de cámara de la fila).
 

@@ -237,6 +237,7 @@ export function renderAudit(){
       ${(fSig||fAnio||fMes)?'<button class="btn-o" onclick="$(\'faSigla\').value=\'\';$(\'faAnio\').value=\'\';$(\'faMes\').value=\'\';renders.audit()">Limpiar filtros</button>':''}
     </div>
     ${completitudHTML}
+    ${window._userRole==='admin'?_clasifIAHTML():''}
     <div class="audit-summary">
       <div class="card" style="flex:1;min-width:170px;padding:10px 14px;text-align:center;${saltos.length?'border-color:var(--danger)':''}">
         <div style="font-size:24px;font-weight:700;color:${saltos.length?'var(--danger)':'var(--ok)'}">${saltos.length}</div>
@@ -351,9 +352,124 @@ function _auditOrdenar(){
   raiz.appendChild(d);   // al final: las secciones con hallazgos quedaron arriba, en su orden original
 }
 
+
+// ── Clasificación asistida del componente con IA (clasificar-correctivos) ──
+// Solo administradores. La función propone un componente de la lista cerrada a partir del texto; NADA se guarda sin que la persona lo marque y apriete «Aplicar». No clasifica
+// tipoCausa ni categoriaMTTR (juicio humano al cerrar la OT). Estado en window._clasifIA = { origen, filas:[{id,texto,reglas,componente,confianza,motivo,marcada}], acuerdo, ocupado, error }.
+const _CLASIF_LOTE=40;
+function _clasifEstado(){return window._clasifIA||(window._clasifIA={origen:null,filas:[],acuerdo:null,ocupado:false,error:'',hechos:{}});}
+function _clasifIAHTML(){
+  const est=_clasifEstado();
+  const pend=pendientesClasificacionComponente(S.g('ot')||[],S.g('otHist')||[]);
+  const nForm=pend.formales.filter(function(f){return!est.hechos[f.id];}).length;
+  const nHist=pend.historico.filter(function(f){return!est.hechos[f.id];}).length;
+  const dis=est.ocupado?' disabled':'';
+  let h='<div class="chart-box" style="margin-bottom:14px;border-left:3px solid var(--ac)" id="clasifIA"><div class="chart-t">Clasificación asistida del componente (IA)</div>'+
+    '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">Los análisis por componente (Pareto, MTBF, Weibull) necesitan saber qué componente falló. La IA lee el texto y <b>propone</b> uno de la lista; <b>tú confirmas</b>, nada se guarda solo. No clasifica la causa ni la categoría de MTTR: eso es un juicio tuyo al cerrar la OT. Se envía solo el texto del síntoma/solución, sin teléfonos ni correos.</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+    '<button class="btn btn-o"'+dis+' onclick="clasifIAPedir(\'formales\')">Sugerir: correctivos sin componente ('+nForm+')</button>'+
+    '<button class="btn btn-o"'+dis+' onclick="clasifIAPedir(\'historico\')">Sugerir: historial sin sistema ('+nHist+')</button>'+
+    '<button class="btn btn-o"'+dis+' onclick="clasifIAMedir()" title="Prueba la IA con 40 textos del historial que YA tienen sistema y mide cuánto coincide">Medir acuerdo con lo ya clasificado</button>'+
+    (est.ocupado?'<span style="font-size:11px;color:var(--tx3)">⏳ Consultando a la IA...</span>':'')+'</div>';
+  if(est.error)h+='<div style="font-size:11px;color:var(--danger);margin-top:8px">⚠️ '+escapeHtml(est.error)+'</div>';
+  const a=est.acuerdo;
+  if(a){
+    const col=function(p){return p==null?'var(--tx3)':p>=85?'var(--ok)':p>=65?'var(--w)':'var(--danger)';};
+    h+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)"><div style="font-weight:600;font-size:12px;margin-bottom:4px">Acuerdo de la IA con lo que el historial ya traía ('+a.n+' textos)</div>'+
+      '<div style="display:flex;gap:18px;flex-wrap:wrap"><div><div style="font-size:22px;font-weight:700;color:'+col(a.pctAcuerdo)+'">'+(a.pctAcuerdo==null?'—':a.pctAcuerdo+'%')+'</div><div style="font-size:11px;color:var(--tx3);max-width:220px">coincide ('+a.acuerdos+' de '+a.conSugerencia+' con sugerencia; '+a.sinSugerencia+' sin sugerencia)</div></div>'+
+      [['alta',a.pctAlta,a.nAlta],['media',a.pctMedia,a.nMedia],['baja',a.pctBaja,a.nBaja]].map(function(x){return'<div><div style="font-size:18px;font-weight:700;color:'+col(x[1])+'">'+(x[1]==null?'—':x[1]+'%')+'</div><div style="font-size:11px;color:var(--tx3)">confianza '+x[0]+' ('+x[2]+')</div></div>';}).join('')+'</div>'+
+      '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Ojo: la etiqueta del historial también salió de reglas de texto, así que esto mide consistencia, no exactitud. Revisa los casos donde no coincide: a veces la IA tiene razón.</div>'+
+      (a.desacuerdos.length?'<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Dónde no coincide ('+a.desacuerdos.length+')</summary><div class="tbl-wrap"><table style="font-size:11px"><tr><th>Texto</th><th>Traía</th><th>IA dice</th><th>Confianza</th></tr>'+
+        a.desacuerdos.map(function(d){return'<tr><td>'+escapeHtml(d.texto)+'</td><td>'+escapeHtml(d.existente)+'</td><td>'+escapeHtml(d.ia)+'</td><td>'+escapeHtml(d.confianza)+'</td></tr>';}).join('')+'</table></div></details>':'')+'</div>';
+  }
+  if(est.filas.length){
+    const marcadas=est.filas.filter(function(f){return f.marcada;}).length;
+    h+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)"><div style="font-weight:600;font-size:12px;margin-bottom:6px">Sugerencias para '+(est.origen==='formales'?'correctivos formales (se guarda en «componente»)':'el historial (se guarda en «sistema»)')+'</div>'+
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th></th><th>Texto</th>'+(est.origen==='historico'?'<th title="Lo que deduciría el diccionario de texto">Reglas</th>':'')+'<th>La IA sugiere</th><th>Confianza</th><th>Por qué</th></tr>'+
+      est.filas.map(function(f,i){
+        const ccol=f.confianza==='alta'?'var(--ok)':f.confianza==='media'?'var(--w)':'var(--tx3)';
+        return'<tr><td>'+(f.componente?'<input type="checkbox" '+(f.marcada?'checked ':'')+'onchange="clasifIAMarcar('+i+',this.checked)">':'')+'</td><td>'+escapeHtml(f.texto)+'</td>'+
+          (est.origen==='historico'?'<td>'+escapeHtml(f.reglas||'—')+'</td>':'')+
+          '<td style="font-weight:600">'+(f.componente?escapeHtml(f.componente):'<span style="color:var(--tx3);font-weight:400">no se puede saber</span>')+'</td><td style="color:'+ccol+'">'+escapeHtml(f.confianza)+'</td><td style="color:var(--tx3)">'+escapeHtml(f.motivo||'')+'</td></tr>';
+      }).join('')+'</table></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-o" onclick="clasifIAMarcarAltas()">Marcar solo las de confianza alta</button>'+
+      '<button class="btn"'+(marcadas&&!est.ocupado?'':' disabled')+' onclick="clasifIAAplicar()">Aplicar las marcadas ('+marcadas+')</button>'+
+      '<button class="btn btn-o" onclick="clasifIADescartar()">Descartar este lote</button></div></div>';
+  }
+  return h+'</div>';
+}
+async function _clasifLlamar(items,action,extra){
+  return _llamarFuncion('clasificar-correctivos',Object.assign({action:action,items:items},extra||{}));
+}
+export async function clasifIAPedir(origen){
+  const est=_clasifEstado();
+  if(est.ocupado)return;
+  const pend=pendientesClasificacionComponente(S.g('ot')||[],S.g('otHist')||[]);
+  const lote=(origen==='formales'?pend.formales:pend.historico).filter(function(f){return!est.hechos[f.id];}).slice(0,_CLASIF_LOTE);
+  if(!lote.length){est.error='No hay textos pendientes en esta lista.';return renderAudit();}
+  est.ocupado=true;est.error='';est.acuerdo=null;renderAudit();
+  try{
+    const r=await _clasifLlamar(lote.map(function(f){return{id:String(f.id),texto:f.texto};}),'sugerir');
+    if(!r||r.error||!r.sugerencias)throw new Error((r&&r.error)||'Sin respuesta de la IA');
+    const porId={};r.sugerencias.forEach(function(x){porId[x.id]=x;});
+    est.origen=origen;
+    est.filas=lote.map(function(f){const x=porId[String(f.id)]||{};return{id:f.id,texto:f.texto,reglas:f.reglas||'',componente:x.componente||null,confianza:x.confianza||'baja',motivo:x.motivo||'',marcada:false};});
+  }catch(e){est.error=e.message;}
+  est.ocupado=false;renderAudit();
+}
+export async function clasifIAMedir(){
+  const est=_clasifEstado();
+  if(est.ocupado)return;
+  const muestra=muestraParaAcuerdoIA(S.g('otHist')||[],_CLASIF_LOTE);
+  if(!muestra.length){est.error='No hay historial ya clasificado para comparar.';return renderAudit();}
+  est.ocupado=true;est.error='';renderAudit();
+  try{
+    const r=await _clasifLlamar(muestra.map(function(m){return{id:String(m.id),texto:m.texto};}),'sugerir');
+    if(!r||r.error||!r.sugerencias)throw new Error((r&&r.error)||'Sin respuesta de la IA');
+    est.acuerdo=resumenAcuerdoIA(muestra,r.sugerencias);
+  }catch(e){est.error=e.message;}
+  est.ocupado=false;renderAudit();
+}
+export function clasifIAMarcar(i,v){const f=_clasifEstado().filas[i];if(f){f.marcada=!!v;renderAudit();}}
+export function clasifIAMarcarAltas(){_clasifEstado().filas.forEach(function(f){f.marcada=!!(f.componente&&f.confianza==='alta');});renderAudit();}
+export function clasifIADescartar(){const est=_clasifEstado();est.filas.forEach(function(f){est.hechos[f.id]=true;});est.filas=[];est.origen=null;renderAudit();}
+export async function clasifIAAplicar(){
+  const est=_clasifEstado();
+  if(est.ocupado)return;
+  const sel=est.filas.filter(function(f){return f.marcada&&f.componente;});
+  if(!sel.length)return;
+  est.ocupado=true;est.error='';renderAudit();
+  try{
+    let guardadas=0;
+    if(est.origen==='formales'){
+      // correctivos formales: se escribe en «componente» por el camino normal de la app (queda en el registro de cambios)
+      const ot=S.g('ot')||[];
+      sel.forEach(function(f){const o=ot.find(function(x){return(x._id||x.id)===f.id;});if(o&&!String(o.componente||'').trim()){o.componente=f.componente;guardadas++;}});
+      if(guardadas)S.s('ot',ot);
+    }else{
+      // historial: tabla de solo lectura en la app; la función (que verifica que seas administrador) guarda «sistema» solo donde está vacío y deja una marca en «fuente»
+      const r=await _clasifLlamar(sel.map(function(f){return{id:String(f.id),componente:f.componente};}),'aplicarHistorico');
+      if(!r||r.error)throw new Error((r&&r.error)||'No se pudo guardar');
+      guardadas=r.guardadas||0;
+      const hist=S.g('otHist')||[];
+      sel.forEach(function(f){const o=hist.find(function(x){return(x.id||x._id)===f.id;});if(o&&!String(o.sistema||'').trim()){o.sistema=f.componente;o.fuente=((o.fuente||'')+' · componente por IA (confirmado por admin)').replace(/^ · /,'');}});
+    }
+    est.filas.forEach(function(f){est.hechos[f.id]=true;});
+    est.filas=[];est.origen=null;
+    toast('✅ '+guardadas+' componente(s) guardado(s)');
+  }catch(e){est.error=e.message;}
+  est.ocupado=false;renderAudit();
+}
+
 // Puente window/renders — ver nota en mov.js (primera tanda). _AUDIT_MESES
 // también se puentea (no es función) porque pred.js lo lee por nombre
 // suelto — ver nota de migración arriba.
 window.renderAudit = renderAudit;
+window.clasifIAPedir = clasifIAPedir;
+window.clasifIAMedir = clasifIAMedir;
+window.clasifIAMarcar = clasifIAMarcar;
+window.clasifIAMarcarAltas = clasifIAMarcarAltas;
+window.clasifIADescartar = clasifIADescartar;
+window.clasifIAAplicar = clasifIAAplicar;
 window._AUDIT_MESES = _AUDIT_MESES;
 renders.audit = renderAudit;
