@@ -35,10 +35,10 @@ describe('Consolidación de formato de números: fn() es la única fuente, sin r
     }
   });
 
-  it('cos.js y kpi.js calculan MTTR llamando a la fuente única C.mttrReal(), no con una copia local', () => {
+  it('cos.js y kpi.js calculan MTTR llamando a la fuente única mttrParadasLargas() (logic.js, desde el 23-oct-2026; antes C.mttrReal), no con una copia local', () => {
     const cos = fs.readFileSync(path.join(__dirname, '../modules/renders/cos.js'), 'utf8');
     const kpi = fs.readFileSync(path.join(__dirname, '../modules/renders/kpi.js'), 'utf8');
-    expect(cos).toMatch(/C\.mttrReal\(/);
-    expect(kpi).toMatch(/C\.mttrReal\(/);
+    expect(cos).toMatch(/mttrParadasLargas\(/);
+    expect(kpi).toMatch(/mttrParadasLargas\(/);
   });
 });

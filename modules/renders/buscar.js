@@ -192,7 +192,8 @@ export function renderBuscar(){
     var hhEq=Math.round(regF.reduce(function(s,r){return s+(r.duracionH||0)},0));
     var fallasEqArr=otF.filter(function(o){return esFallaMTBF(o);});
     var fallasEq=fallasEqArr.length;
-    var mtbfEq=C.mtbfReal(fallasEqArr.map(function(o){return o.horom;}));
+    // MTBF entre paradas de PARADA_LARGA_H horas o más (definición de falla del 23-oct-2026); fallasEq sigue contando todas las intervenciones.
+    var mtbfEq=C.mtbfReal(fallasEqArr.filter(function(o){return esParadaLarga(o);}).map(function(o){return o.horom;}));
     var costoEq=hhEq*(S.g('hh')||25000);
     // Costo de materiales consumidos (mismo criterio que Metas vs Realidad: Filtro
     // busca precio en Stock Filtros por descripción/N°parte, el resto en Lubricantes
@@ -276,7 +277,7 @@ export function renderBuscar(){
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin-bottom:16px">'+
     '<div class="card" style="margin:0"><div class="card-t">PMs Ejecutados</div><div class="card-v">'+regF.length+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">Correctivos</div><div class="card-v" style="color:var(--danger)">'+fallasEq+'</div></div>'+
-    '<div class="card" style="margin:0"><div class="card-t">MTBF</div><div class="card-v" style="color:'+(mtbfEq==null?'var(--tx3)':mtbfEq>2000?'var(--ok)':'var(--w)')+'">'+(mtbfEq==null?'—':mtbfEq+'h')+'</div></div>'+
+    '<div class="card" style="margin:0"><div class="card-t" title="Horas de operación entre paradas de '+PARADA_LARGA_H+' h o más">MTBF (paradas ≥'+PARADA_LARGA_H+' h)</div><div class="card-v" style="color:'+(mtbfEq==null?'var(--tx3)':mtbfEq>2000?'var(--ok)':'var(--w)')+'">'+(mtbfEq==null?'—':mtbfEq+'h')+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">HH Total</div><div class="card-v">'+hhEq+'h</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">Costo MO</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(costoEq))+'</div></div>'+
     '<div class="card" style="margin:0"><div class="card-t">Costo Materiales</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(costoMatEq))+'</div></div>'+
@@ -377,12 +378,12 @@ export function renderBuscar(){
       var fallasArr=otPorSiglaBuscar[e.sigla]||[];
       var hh=Math.round((regPorSiglaBuscar[e.sigla]||[]).reduce(function(s,r){return s+(r.duracionH||0)},0));
       var costo=hh*(S.g('hh')||25000);
-      return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,fallas:fallasArr.length,hh:hh,costo:costo,horom:e.horomActual,mtbf:C.mtbfReal(fallasArr.map(function(o){return o.horom;}))};
+      return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,fallas:fallasArr.length,hh:hh,costo:costo,horom:e.horomActual,mtbf:C.mtbfReal(fallasArr.filter(function(o){return esParadaLarga(o);}).map(function(o){return o.horom;}))};
     }).sort(function(a,b){return b.fallas-a.fallas||b.costo-a.costo});
 
     content=
     '<div class="chart-box"><div class="chart-t">'+ICONS.trophy+' Ranking de Equipos — Más Problemáticos'+(hayFiltroFecha?' <span style="font-weight:400;color:var(--tx3);font-size:12px">('+(fAnio||((fDesde||'…')+' → '+(fHasta||'…')))+')</span>':'')+'</div>'+
-    '<div class="tbl-wrap"><table><tr><th>#</th><th>Equipo</th><th>Tipo</th><th>Fallas</th><th>HH Consumidas</th><th>Costo MO</th><th>MTBF</th><th>Acción</th></tr>'+
+    '<div class="tbl-wrap"><table><tr><th>#</th><th>Equipo</th><th>Tipo</th><th>Intervenciones</th><th>HH Consumidas</th><th>Costo MO</th><th title="Entre paradas de 24 h o más">MTBF</th><th>Acción</th></tr>'+
     ranking.map(function(r,i){
       var mtbf=r.mtbf;
       return'<tr style="'+(r.fallas>3?'background:rgba(239,68,68,.04)':'')+'">'+

@@ -181,10 +181,15 @@ export function renderCos() {
   // parseadas a horas con el mismo regex que usa C.mttrReal.
   var horasReparacionFlota = [];
   eq.forEach(function (e) {
-    var fallas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return esFallaMTBF(o); });
-    var reparaciones = fallas.filter(function (o) { return o.duracion && o.duracion !== '—'; });
-    // MTTR = promedio duración reparaciones — fuente única C.mttrReal (logic.js)
-    var mttr = C.mttrReal(fallas.map(function (o) { return o.duracion; }));
+    // 2026-10-23: una «falla» para MTBF y MTTR es una parada de PARADA_LARGA_H horas o más (esParadaLarga, logic.js). 'todas' son las intervenciones (cualquier correctivo): se siguen
+    // usando para el SLA de primera respuesta y para la forma de la distribución de reparaciones, que necesitan también las cortas.
+    var todas = (otPorSiglaCos[e.sigla] || []).filter(function (o) { return esFallaMTBF(o); });
+    var fallas = todas.filter(function (o) { return esParadaLarga(o); });
+    var repTodas = todas.filter(function (o) { return o.duracion && o.duracion !== '—'; });
+    var reparaciones = fallas;   // toda parada larga tiene duración conocida
+    // MTTR = promedio de horas de las paradas largas (mttrParadasLargas, logic.js)
+    var _mp = mttrParadasLargas(fallas);
+    var mttr = _mp ? _mp.promedio : 0;
     // MTBF real = horas entre fallas sucesivas, usando el horómetro registrado en
     // cada falla (no el horómetro actual del equipo, que infla el número con el
     // simple paso del tiempo sin que haya vuelto a fallar)
@@ -201,10 +206,10 @@ export function renderCos() {
     // de fallas), así que corresponde el método clásico SE=s/√n en vez de
     // chi-cuadrado. null cuando hay <2 reparaciones con duración.
     var seMttr = errorEstandarMTTR(fallas.map(function (o) { return o.duracion; }));
-    var conSla = fallas.map(_slaRespuestaHoras).filter(function (h) { return h != null; });
+    var conSla = todas.map(_slaRespuestaHoras).filter(function (h) { return h != null; });
     var sla = conSla.length ? Math.round(conSla.reduce(function (s, h) { return s + h; }, 0) / conSla.length) : null;
-    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length, ic: ic, seMttr: seMttr };
-    reparaciones.forEach(function (o) {
+    mtbfEquipo[e.sigla] = { mtbf: mtbf, mttr: mttr, fallas: fallas.length, intervenciones: todas.length, mttrDet: _mp, reparaciones: reparaciones.length, sla: sla, conSla: conSla.length, ic: ic, seMttr: seMttr };
+    repTodas.forEach(function (o) {
       var m = String(o.duracion).match(/(\d+)h/);
       if (m) horasReparacionFlota.push(parseInt(m[1], 10));
     });
@@ -363,7 +368,7 @@ export function renderCos() {
         '<text x="' + (X(p.mtbf) + 7).toFixed(1) + '" y="' + (Y(p.mttr) + 3).toFixed(1) + '" font-size="9" fill="var(--tx2)">' + escapeHtml(p.sigla) + '</text>';
     });
     svg += '<text x="' + ((x0 + x1) / 2) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="10" fill="var(--tx3)">MTBF (horas entre fallas, escala logarítmica) — a la derecha fallan más seguido</text>' +
-      '<text x="12" y="' + ((y0 + y1) / 2) + '" text-anchor="middle" font-size="10" fill="var(--tx3)" transform="rotate(-90 12 ' + ((y0 + y1) / 2) + ')">MTTR (horas por falla, logarítmica)</text>';
+      '<text x="12" y="' + ((y0 + y1) / 2) + '" text-anchor="middle" font-size="10" fill="var(--tx3)" transform="rotate(-90 12 ' + ((y0 + y1) / 2) + ')">MTTR (horas por parada, logarítmica)</text>';
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;height:auto;display:block;margin:0 auto" role="img" aria-label="Matriz Jack-Knife: MTBF contra MTTR por equipo">' + svg + '</svg>';
   }
   function _cosJackKnifeHTML(jk) {
@@ -381,7 +386,7 @@ export function renderCos() {
         return '<div class="card" style="border-left:3px solid ' + info.c + '"><div class="card-t">' + info.t + '</div><div class="card-v" style="color:' + info.c + '">' + jk.resumen[k] + '</div><div class="card-s">' + info.d + (jk.nConHoras ? ' · ≈' + hp(jk.horasPerdidasPorCuadrante[k]) + ' h perdidas/año' : '') + '</div><div class="card-s" style="margin-top:4px;font-style:italic">' + escapeHtml(jk.acciones[k]) + '</div></div>';
       }).join('') +
       '</div>' +
-      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>MTBF (hrs)</th><th>MTTR (hrs)</th><th>Fallas/año (est.)</th><th>Horas perdidas/año (est.)</th><th>Cuadrante</th></tr>' +
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>MTBF (hrs)</th><th>MTTR (hrs)</th><th>Paradas/año (est.)</th><th>Horas perdidas/año (est.)</th><th>Cuadrante</th></tr>' +
       puntos.map(function (p) {
         var info = _JK_INFO[p.cuadrante];
         return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(p.sigla) + '</td><td style="text-align:center">' + fn(p.mtbf) + '</td><td style="text-align:center">' + p.mttr + '</td><td style="text-align:center">' + (p.fallasAnio == null ? '—' : (Math.round(p.fallasAnio * 10) / 10 + '').replace('.', ',')) + '</td><td style="text-align:center;font-weight:600">' + hp(p.horasPerdidasAnio) + '</td><td style="text-align:center;color:' + info.c + ';font-weight:700">' + info.t + '</td></tr>';
@@ -453,6 +458,8 @@ export function renderCos() {
       return a[1].mtbf - b[1].mtbf;
     });
     var conMtbf = mtbfList.filter(function (m) { return m[1].mtbf != null; });
+    // Con paradas de ≥24 h los umbrales de 4 y 8 h ya no sirven (todas quedan «lentas»): Mantenibilidad se compara contra la mediana de la propia flota.
+    var medMttrFlota = (function () { var v = mtbfList.map(function (m) { return m[1].mttr; }).filter(function (x) { return x > 0; }).sort(function (a, b) { return a - b; }); return v.length ? v[Math.floor((v.length - 1) / 2)] : 0; })();
     // % Correctivo Reactivo por HORAS (2026-10-02) — a diferencia de
     // ratioPreventivo (cuenta intervenciones), mide el tiempo real: horas de
     // reparación correctiva ya sumadas arriba en horasReparacionFlota (mismo
@@ -463,9 +470,9 @@ export function renderCos() {
     var pctCorrectivoReactivo = porcentajeCorrectivoReactivo(horasCorrectivasFlota, hhRealTotal);
     content =
       '<div class="cards">' +
-      '<div class="card"><div class="card-t">MTBF Promedio Flota</div><div class="card-v">' + (conMtbf.length ? Math.round(conMtbf.reduce(function (s, m) { return s + m[1].mtbf; }, 0) / conMtbf.length) + 'h' : '—') + '</div><div class="card-s">' + (conMtbf.length ? 'Tiempo medio entre fallas · ' + conMtbf.length + ' equipos con ≥2 fallas' : 'Ningún equipo con ≥2 fallas registradas') + '</div></div>' +
-      '<div class="card"><div class="card-t">MTTR Promedio</div><div class="card-v">' + (function () { var conRep = mtbfList.filter(function (m) { return m[1].mttr > 0; }); return conRep.length ? (Math.round(conRep.reduce(function (s, m) { return s + m[1].mttr; }, 0) / conRep.length * 10) / 10 + 'h') : '—'; })() + '</div><div class="card-s">Tiempo medio de reparación</div></div>' +
-      '<div class="card"><div class="card-t">Total Fallas</div><div class="card-v" style="color:var(--danger)">' + mtbfList.reduce(function (s, m) { return s + m[1].fallas; }, 0) + '</div></div>' +
+      '<div class="card"><div class="card-t">MTBF Promedio Flota</div><div class="card-v">' + (conMtbf.length ? Math.round(conMtbf.reduce(function (s, m) { return s + m[1].mtbf; }, 0) / conMtbf.length) + 'h' : '—') + '</div><div class="card-s">' + (conMtbf.length ? 'Tiempo medio entre paradas de ≥' + PARADA_LARGA_H + ' h · ' + conMtbf.length + ' equipos con ≥2 paradas' : 'Ningún equipo con ≥2 paradas de ≥' + PARADA_LARGA_H + ' h') + '</div></div>' +
+      '<div class="card"><div class="card-t">MTTR Promedio</div><div class="card-v">' + (function () { var conRep = mtbfList.filter(function (m) { return m[1].mttr > 0; }); return conRep.length ? (Math.round(conRep.reduce(function (s, m) { return s + m[1].mttr; }, 0) / conRep.length * 10) / 10 + 'h') : '—'; })() + '</div><div class="card-s">Tiempo medio de reparación de las paradas de ≥' + PARADA_LARGA_H + ' h</div></div>' +
+      '<div class="card"><div class="card-t">Paradas ≥' + PARADA_LARGA_H + ' h</div><div class="card-v" style="color:var(--danger)">' + mtbfList.reduce(function (s, m) { return s + m[1].fallas; }, 0) + '</div><div class="card-s">de ' + mtbfList.reduce(function (s, m) { return s + m[1].intervenciones; }, 0) + ' intervenciones en total</div></div>' +
       (function () {
         var conSla = mtbfList.filter(function (m) { return m[1].sla != null; });
         var totalConSla = mtbfList.reduce(function (s, m) { return s + m[1].conSla; }, 0);
@@ -493,7 +500,7 @@ export function renderCos() {
       _cosJackKnifeHTML(matrizJackKnife(mtbfList.map(function (m) { var e = (S.g('eq') || []).find(function (x) { return x.sigla === m[0]; }), hd = e ? Number(e.hrsDia) : 0; return { sigla: m[0], mtbf: m[1].mtbf, mttr: m[1].mttr, hrsAnio: hd >= 1 && hd <= 24 ? hd * 365 : null }; }))) +
 
       '<div class="tbl-wrap"><table>' +
-      '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Fallas</th><th>MTBF (hrs)</th><th>Confiabilidad</th><th>Reparaciones</th><th>MTTR (hrs)</th><th>Mantenibilidad</th><th>SLA 1ra Resp. (hrs)</th></tr>' +
+      '<tr><th>Equipo</th><th>Modelo</th><th>Horómetro</th><th>Paradas ≥' + PARADA_LARGA_H + ' h</th><th>MTBF (hrs entre paradas)</th><th>Confiabilidad</th><th>Intervenciones</th><th>MTTR paradas (hrs)</th><th>Mantenibilidad</th><th>SLA 1ra Resp. (hrs)</th></tr>' +
       mtbfList.map(function (m) {
         var e = eq.find(function (x) { return x.sigla === m[0]; });
         var mb = m[1].mtbf;
@@ -505,7 +512,7 @@ export function renderCos() {
           icHtml = '<div style="font-size:8px;color:' + (muestraChica ? 'var(--w)' : 'var(--tx3)') + ';font-weight:400" title="Intervalo de confianza 95% del MTBF (método chi-cuadrado exacto, NIST 8.1.5.2) — con pocas fallas el punto es poco confiable por sí solo.">' +
             (muestraChica ? '⚠️ ' : '') + 'IC95%: ' + fn(ic.inferior) + '–' + fn(ic.superior) + 'h (' + ic.r + (ic.r === 1 ? ' intervalo' : ' intervalos') + ')</div>';
         }
-        var mttrCol = m[1].mttr === 0 ? 'var(--tx3)' : m[1].mttr < 4 ? 'var(--ok)' : m[1].mttr < 8 ? 'var(--w)' : 'var(--danger)';
+        var mttrCol = m[1].mttr === 0 ? 'var(--tx3)' : m[1].mttr <= medMttrFlota ? 'var(--ok)' : 'var(--danger)';
         var se = m[1].seMttr;
         var seHtml = '';
         if (se) {
@@ -520,10 +527,10 @@ export function renderCos() {
           '<td style="text-align:center">' + (e ? e.horomActual : 0) + '</td>' +
           '<td style="text-align:center;color:var(--danger);font-weight:600">' + m[1].fallas + '</td>' +
           '<td style="text-align:center;font-weight:700;color:' + mtbfCol + '">' + (mb == null ? '—' : mb) + icHtml + '</td>' +
-          '<td style="text-align:center"><span style="font-size:11px;color:' + mtbfCol + '">' + (mb == null ? 'Datos insuf. (' + m[1].fallas + ' falla' + (m[1].fallas === 1 ? '' : 's') + ')' : mb > 2000 ? '🟢 Alta' : mb > 500 ? '🟡 Media' : '🔴 Baja') + '</span></td>' +
-          '<td style="text-align:center">' + m[1].reparaciones + '</td>' +
+          '<td style="text-align:center"><span style="font-size:11px;color:' + mtbfCol + '">' + (mb == null ? 'Datos insuf. (' + m[1].fallas + ' parada' + (m[1].fallas === 1 ? '' : 's') + ')' : mb > 2000 ? '🟢 Alta' : mb > 500 ? '🟡 Media' : '🔴 Baja') + '</span></td>' +
+          '<td style="text-align:center">' + m[1].intervenciones + '</td>' +
           '<td style="text-align:center;font-weight:700;color:' + mttrCol + '">' + m[1].mttr + seHtml + '</td>' +
-          '<td style="text-align:center"><span style="font-size:11px;color:' + mttrCol + '">' + (m[1].mttr === 0 ? '— Sin datos' : m[1].mttr < 4 ? '🟢 Rápido' : m[1].mttr < 8 ? '🟡 Normal' : '🔴 Lento') + '</span></td>' +
+          '<td style="text-align:center"><span style="font-size:11px;color:' + mttrCol + '">' + (m[1].mttr === 0 ? '— Sin datos' : m[1].mttr <= medMttrFlota ? '🟢 ≤ mediana de la flota' : '🔴 sobre la mediana de la flota') + '</span></td>' +
           '<td style="text-align:center;font-weight:700;color:' + slaCol + '">' + (m[1].sla == null ? '—' : m[1].sla) + '</td></tr>';
       }).join('') +
       '</table></div>';

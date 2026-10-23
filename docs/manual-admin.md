@@ -211,6 +211,16 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Disponibilidad y MTBF (cobertura de registro).** Un día solo cuenta como disponible si el equipo tiene algún registro (lectura de horómetro, OT o PM) a menos de 7 días, o una detención cargada. Los días sin registro no entran al promedio. Con una semana sin datos todo sigue igual; con un mes o dos, el mes queda con poca cobertura o «Sin datos» en vez de 100 %. Dashboard, Disponibilidad, KPI, Metas y Predictivo muestran «Cobertura de datos: N % de los días del mes» y avisan si baja de 50 %. El MTBF mensual de KPI aparece como «sin dato» en un mes con menos de 50 % de cobertura. Un valor de disponibilidad cargado a mano no se modifica. Límite: la cobertura mide que hubo registro, no que el dato sea bueno.
 
+### «Falla» para MTBF y MTTR: parada de 24 h o más (2026-10-23)
+
+**Regla.** MTBF y MTTR se miden sobre las **paradas de 24 horas o más** (decisión del usuario; `PARADA_LARGA_H` en `logic.js`). Un correctivo más corto es una *intervención*, no una falla: se sigue contando y mostrando como «Intervenciones», pero no entra al MTBF ni al MTTR. El tiempo detenido sale del campo duración de la OT (o de las fechas y horas de entrada y salida; en una salida de servicio abierta, de las horas desde la entrada). Una OT sin duración y el histórico de WhatsApp/correo (que no trae duración) no se pueden clasificar y quedan fuera.
+
+**Dónde se ve.** Dashboard (MTBF real de flota y Disp. Inherente), Informes KPI, Costos → MTBF/MTTR (incluida la Matriz Jack-Knife; «Mantenibilidad» se compara con la mediana de la flota), Metas y el Buscador Maestro. Cada una dice «paradas de ≥24 h» y cuántas intervenciones hay en total.
+
+**Qué no cambió.** Weibull, Kijima, probabilidad de falla, RUL, Pareto, Estadística y el score de salud siguen sobre intervenciones (miden frecuencia). La Disponibilidad Operacional no cambia.
+
+**Cuidado.** Con esta definición el MTBF sube mucho; las franjas de color (verde sobre 2000 h) y la meta de 2000 h se calibraron con la definición anterior y conviene revisarlas con datos reales.
+
 ### Protección contra bots (CAPTCHA, activado 2026-09-08)
 
 El login y la recuperación de contraseña tienen un widget de **Cloudflare

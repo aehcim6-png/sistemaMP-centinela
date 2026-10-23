@@ -55,6 +55,8 @@ describe('C.mtbfReal — MTBF real entre fallas sucesivas (bug real: horomActual
 });
 
 describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba horómetro-en-vivo ÷ fallas-de-toda-la-vida)', () => {
+  // Estas pruebas verifican la matemática del promedio por equipo, con fixtures sin duración: miden entre cualquier correctivo (criterio 'intervenciones'). El criterio por defecto (paradas largas) se prueba en tests/paradasLargas.test.js.
+  const INTERV = { criterio: 'intervenciones' };
   it('promedia el MTBF real de cada equipo con al menos 2 fallas', () => {
     const eq = [{ sigla: 'A' }, { sigla: 'B' }];
     const ot = [
@@ -63,7 +65,7 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
       { sigla: 'B', tipo: 'Falla Operacional', horom: 500 },
       { sigla: 'B', tipo: 'Falla Operacional', horom: 800 }, // B: MTBF real = 300
     ];
-    expect(mtbfFlotaReal(eq, ot)).toBe(650); // promedio de (1000, 300)
+    expect(mtbfFlotaReal(eq, ot, INTERV)).toBe(650); // promedio de (1000, 300)
   });
 
   it('un equipo con menos de 2 fallas no aporta (no inventa un intervalo)', () => {
@@ -72,14 +74,14 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
       { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
       { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
     ];
-    expect(mtbfFlotaReal(eq, ot)).toBe(1000); // solo A aporta
+    expect(mtbfFlotaReal(eq, ot, INTERV)).toBe(1000); // solo A aporta
   });
 
   it('ningún equipo con datos suficientes -> null, no se inventa un número', () => {
     const eq = [{ sigla: 'A' }, { sigla: 'B' }];
     const ot = [{ sigla: 'A', tipo: 'Correctivo', horom: 1000 }]; // solo 1 falla
-    expect(mtbfFlotaReal(eq, ot)).toBeNull();
-    expect(mtbfFlotaReal([], [])).toBeNull();
+    expect(mtbfFlotaReal(eq, ot, INTERV)).toBeNull();
+    expect(mtbfFlotaReal([], [], INTERV)).toBeNull();
   });
 
   it('ignora correctivos de tipo distinto a Correctivo/Falla Operacional/Fuera de Servicio', () => {
@@ -89,7 +91,7 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
       { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
       { sigla: 'A', tipo: 'Otro', horom: 9999 }, // no cuenta
     ];
-    expect(mtbfFlotaReal(eq, ot)).toBe(1000);
+    expect(mtbfFlotaReal(eq, ot, INTERV)).toBe(1000);
   });
 
   it('cuenta Fuera de Servicio con criticidad Reparación Inmediata como falla real (auditoría 2026-08)', () => {
@@ -98,7 +100,7 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
       { sigla: 'A', tipo: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', horom: 1000 },
       { sigla: 'A', tipo: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', horom: 2000 },
     ];
-    expect(mtbfFlotaReal(eq, ot)).toBe(1000);
+    expect(mtbfFlotaReal(eq, ot, INTERV)).toBe(1000);
   });
 
   it('equipos por km (unidad="km") se excluyen, igual que en el resto de los cálculos de horas-flota', () => {
@@ -109,7 +111,7 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
       { sigla: 'CAMIONETA-KM', tipo: 'Correctivo', horom: 100 },
       { sigla: 'CAMIONETA-KM', tipo: 'Correctivo', horom: 50000 }, // intervalo enorme, no debe distorsionar el promedio
     ];
-    expect(mtbfFlotaReal(eq, ot)).toBe(1000);
+    expect(mtbfFlotaReal(eq, ot, INTERV)).toBe(1000);
   });
 
   it('el bug real que arregla: NO depende del horómetro en vivo de los equipos ni cambia solo porque pasa el tiempo', () => {
@@ -122,8 +124,8 @@ describe('mtbfFlotaReal — MTBF de flota (bug real: Reporte Ejecutivo usaba hor
       { sigla: 'A', tipo: 'Correctivo', horom: 1000 },
       { sigla: 'A', tipo: 'Correctivo', horom: 2000 },
     ];
-    const r1 = mtbfFlotaReal(eq, ot);
-    const r2 = mtbfFlotaReal(eq, ot); // "otro día", mismos datos de fallas
+    const r1 = mtbfFlotaReal(eq, ot, INTERV);
+    const r2 = mtbfFlotaReal(eq, ot, INTERV); // "otro día", mismos datos de fallas
     expect(r1).toBe(r2);
     expect(r1).toBe(1000);
   });

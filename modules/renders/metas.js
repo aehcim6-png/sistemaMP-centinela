@@ -115,12 +115,18 @@ export function renderMetas() {
       gasto: '$' + fn(Math.round(hhMes * tarifaHH)) + ' en HH + $' + fn(Math.round(costoRepM)) + ' en repuestos',
       hh: prev + ' PM ejecutados' + (prev ? ' (' + Math.round(hhMes / prev * 10) / 10 + 'h promedio c/u)' : ''),
       ratio: correctivosDelMes + ' correctivo(s) vs ' + prev + ' preventivo(s) ese mes',
-      mtbf: correctivosDelMes + ' falla(s) registrada(s) ese mes',
+      mtbf: paradasM + ' parada(s) de ≥' + PARADA_LARGA_H + ' h ese mes (de ' + correctivosDelMes + ' correctivo(s))',
       backlog: peorEqBacklog ? (backlogPorEq[peorEqBacklog] + ' de ' + backlogMes + ' pendiente(s) son de ' + peorEqBacklog) : ''
     };
     // Cobertura de registro del mes: con menos de COBERTURA_MIN_PCT % no se calcula MTBF («0 fallas» podría ser «nadie cargó nada»); mismo criterio que Informes KPI.
     var cobMesM = coberturaFlotaMes(eq, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, cobertura: cobMetas });
+    // MTBF mensual = horas de flota del mes ÷ paradas de PARADA_LARGA_H horas o más del mes (23-oct-2026; antes dividía por cualquier correctivo). Sin paradas, o con poca cobertura de registro, queda sin dato.
+    var paradasM = contarParadasLargasMes(otConHist, mes);
+    var hMesFlotaM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0);
+    var mtbfM = paradasM > 0 && !(cobMesM.pct !== null && cobMesM.pct < COBERTURA_MIN_PCT) ? Math.round(hMesFlotaM / paradasM) : null;
     realData[m] = {
+      mtbf: mtbfM,
+      paradasDelMes: paradasM,
       pocaCobertura: cobMesM.pct !== null && cobMesM.pct < COBERTURA_MIN_PCT,
       disp: dispValsM.length ? Math.round(dispValsM.reduce(function (s, v) { return s + v }, 0) / dispValsM.length * 10) / 10 : null,
       pms: regM.length,
@@ -151,7 +157,6 @@ export function renderMetas() {
   var hMFlota = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0);
   function valorIndicador(id, mes) {
     if (!realData[mes]) return null;
-    if (id === 'mtbf') { var fM = realData[mes].correctivosDelMes; return fM > 0 && !realData[mes].pocaCobertura ? Math.round(hMFlota / fM) : null; }
     var v = realData[mes][id];
     return v === undefined ? null : v;
   }
@@ -295,7 +300,6 @@ export function renderMetas() {
           // MTBF mensual = horas de flota ÷ fallas del mes. Un mes SIN fallas ya no
           // devuelve las horas completas (número absurdo que siempre gana la meta): queda
           // "sin dato", porque no hubo intervalo entre fallas que medir ese mes.
-          if (ind.id === 'mtbf') { var fM = realData[mes] ? realData[mes].correctivosDelMes : 0; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 && !(realData[mes] && realData[mes].pocaCobertura) ? Math.round(hM / fM) : null; }
           var sinDato = real === null;
           var ok = sinDato ? null : (ind.higher ? (real >= metaM) : (real <= metaM));
           var col = sinDato ? 'var(--tx3)' : ok ? 'var(--ok)' : 'var(--danger)';
@@ -343,7 +347,6 @@ export function verCadenaCausas(indId, mes) {
   // principal) — sin este caso especial, la caja de MTBF siempre mostraba "—".
   function valor(id, m) {
     if (!m || !realData[m]) return null;
-    if (id === 'mtbf') { var fM = realData[m].correctivosDelMes; return fM > 0 ? Math.round(hMFlota / fM) : null; }
     var v = realData[m][id];
     return v === undefined ? null : v;
   }
@@ -408,10 +411,6 @@ export function abrirFormCompromiso(indId, mes) {
   var ind = snap.indicators.find(function (i) { return i.id === indId; });
   if (!ind) return;
   var valorBase = snap.realData[mes] ? snap.realData[mes][indId] : null;
-  if (indId === 'mtbf') {
-    var fM = snap.realData[mes] ? snap.realData[mes].correctivosDelMes : 0;
-    valorBase = fM > 0 ? Math.round(snap.hMFlota / fM) : null;
-  }
   var per = _tecnicosDisponibles();
   var fechaSugerida = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
   sm('<div style="max-width:480px">' +

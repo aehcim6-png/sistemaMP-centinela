@@ -75,7 +75,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
       equipos: eq.length, urgentes: urg,
       proximas: eq.filter((e) => e.estado && e.estado.includes('PRÓXIMA')).length,
       alDia: eq.filter((e) => e.estado && e.estado.includes('AL DÍA')).length,
-      fallas: todo.filter(esFallaMTBF).length, mtbf: mtbfFlotaReal(eq, todo),
+      fallas: todo.filter(esFallaMTBF).length, paradas: todo.filter((o) => esParadaLarga(o)).length, mtbf: mtbfFlotaReal(eq, todo),
       hh: Math.round((S.g('reg') || []).reduce((s, r) => s + (r.duracionH || 0), 0)),
     };
   });
@@ -156,14 +156,16 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
 
   // ── Fallas y MTBF de flota ──
   const kpi = await textoDe(page, 'mkpi', 'kpi', null, /MTBF FLOTA.*CUMPLIMIENTO PM/);
-  const cos = await textoDe(page, 'cos', null, async () => { await page.selectOption('#fCosVista', 'mtbf'); }, /TOTAL FALLAS/);
+  const cos = await textoDe(page, 'cos', null, async () => { await page.selectOption('#fCosVista', 'mtbf'); }, /PARADAS ≥\d+ H/);
   const cosFila = await page.evaluate(() => {
     const o = {};
-    [...document.querySelectorAll('#s-cos table tr')].forEach((tr) => { const c = [...tr.children].map((x) => x.innerText.trim()); if (/^[A-Z]{2}-\d+$/.test(c[0]) && c.length >= 8 && /^\d+$/.test(c[3])) o[c[0]] = { fallas: parseInt(c[3], 10), mtbf: parseInt(String(c[4]).replace(/\./g, ''), 10) }; });
+    [...document.querySelectorAll('#s-cos table tr')].forEach((tr) => { const c = [...tr.children].map((x) => x.innerText.trim()); if (/^[A-Z]{2}-\d+$/.test(c[0]) && c.length >= 8 && /^\d+$/.test(c[3])) o[c[0]] = { fallas: parseInt(c[6], 10), paradas: parseInt(c[3], 10), mtbf: parseInt(String(c[4]).replace(/\./g, ''), 10) }; });
     return o;
   });
   void errores;
-  comparar('Fallas totales', [['cálculo (OT + historial + informes)', verdad.fallas], ['Informes KPI', num(kpi, /(\d+) fallas totales/)], ['Costos → MTBF/MTTR', num(cos, /TOTAL FALLAS (\d+)/)]]);
+  // «Falla» para MTBF/MTTR = parada de 24 h o más; el resto son intervenciones (23-oct-2026).
+  comparar('Intervenciones totales', [['cálculo (OT + historial + informes)', verdad.fallas], ['Informes KPI', num(kpi, /(\d+) intervenciones totales/)], ['Costos → MTBF/MTTR', num(cos, /DE (\d+) INTERVENCIONES EN TOTAL/)]]);
+  comparar('Paradas de 24 h o más', [['cálculo', verdad.paradas], ['Informes KPI', num(kpi, /(\d+) paradas de ≥24 h/)], ['Costos → MTBF/MTTR', num(cos, /PARADAS ≥24 H (\d+)/)]]);
   comparar('MTBF de flota (h)', [['cálculo', verdad.mtbf], ['Dashboard', num(dash, /MTBF REAL DE FLOTA\S* (\d+)h/)], ['Informes KPI', num(kpi, /MTBF FLOTA (\d+) hrs/)], ['Costos → MTBF/MTTR', num(cos, /MTBF PROMEDIO FLOTA (\d+)h/)]]);
   comparar('Horas-hombre acumuladas', [['cálculo', verdad.hh], ['Dashboard', num(dash, /HH ACUMULADAS\S* (\d+)h/)], ['Informes KPI', num(kpi, /Real: (\d+)h/)], ['Costos', num(cos, /HH REALES (\d+)h/) ?? num(await textoDe(page, 'cos', null, async () => { await page.selectOption('#fCosVista', 'costos'); }, /HH REALES/), /HH REALES (\d+)h/)]]);
 
@@ -177,8 +179,8 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   const comunes = Object.keys(estFila).filter((s) => cosFila[s]);
   expect(comunes.length, 'debe haber equipos con fallas en Estadística y Costos').toBeGreaterThan(3);
   comunes.forEach((s) => {
-    comparar('Fallas de ' + s, [['Estadística', estFila[s].fallas], ['Costos', cosFila[s].fallas]]);
-    comparar('MTBF de ' + s, [['Estadística', estFila[s].mtbf], ['Costos', cosFila[s].mtbf]], 1);
+    // Estadística cuenta intervenciones (frecuencia); Costos mide MTBF entre paradas largas, así que su MTBF por equipo ya no es comparable con el de Estadística.
+    comparar('Intervenciones de ' + s, [['Estadística', estFila[s].fallas], ['Costos', cosFila[s].fallas]]);
   });
 
   // ── Cifras del mes: Dashboard, Informes KPI y Metas ──

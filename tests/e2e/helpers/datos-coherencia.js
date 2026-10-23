@@ -43,7 +43,8 @@ function construirDatos() {
   porHoras.forEach(function (e, k) {
     for (let j = 0; j < 5; j++) {
       const f = iso(sumarDias(hoy, -(20 + j * 60 + k * 3)));
-      const dur = 2 + ((k + j) % 5) * 3;
+      // dos de cada cinco correctivos son paradas largas (≥ 24 h): MTBF y MTTR se miden solo sobre esas (PARADA_LARGA_H); el resto son intervenciones menores
+      const dur = (j % 5 < 2) ? 30 + k * 6 + j * 5 : 2 + ((k + j) % 5) * 3;
       correctivos.push({
         id: 'o' + (n++), sigla: e.sigla, tipo: 'Correctivo', criticidad: 'Alta', fecha: f, fechaEntrada: f, horaEntrada: '08:00',
         fechaSalida: f, horaSalida: ('0' + (8 + dur) % 24).slice(-2) + ':00', duracion: dur + 'h 0m',

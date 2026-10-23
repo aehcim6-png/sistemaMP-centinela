@@ -78,8 +78,9 @@ export function _getDispData(){
 };
 export function _getMTBFData(){
   var eq=S.g('eq')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
-  var h=['Equipo','Modelo','Horómetro','Fallas','MTBF (hrs)','Confiabilidad','Reparaciones','MTTR (hrs)','Mantenibilidad'];
-  var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var rp=f.filter(function(o){return o.duracion&&o.duracion!=='—'});var mttr=C.mttrReal(f.map(function(o){return o.duracion;}));var mtbf=C.mtbfReal(f.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',rp.length,mttr,mttr===0?'Sin datos':mttr<4?'Rápido':mttr<8?'Normal':'Lento'];});
+  // 2026-10-23: una «falla» para MTBF y MTTR es una parada de PARADA_LARGA_H horas o más (esParadaLarga, logic.js); los correctivos más cortos se cuentan como intervenciones.
+  var h=['Equipo','Modelo','Horómetro','Intervenciones','Paradas ≥'+PARADA_LARGA_H+' h','MTBF (hrs entre paradas)','Confiabilidad','MTTR paradas (hrs)','Mediana / p90 (hrs)'];
+  var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var par=f.filter(function(o){return esParadaLarga(o)});var mt=mttrParadasLargas(par);var mtbf=C.mtbfReal(par.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,par.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',mt?mt.promedio:'—',mt?mt.mediana+' / '+mt.p90:'—'];});
   return{headers:h,rows:r};
 };
 export function _getHHData(){
@@ -314,7 +315,7 @@ export function renderKpi(){
   // SIN fallas ya no devuelve las horas completas (número absurdo que siempre gana la meta):
   // se muestra como "sin dato", porque no hubo un intervalo entre fallas que medir.
   var mtbfMes=last12.map(function(mes){
-    var fallasM=contarFallasMes(otConHist,mes);
+    var fallasM=contarParadasLargasMes(otConHist,mes);   // paradas de ≥PARADA_LARGA_H h (23-oct-2026)
     // Un mes con poco registro no mide MTBF: «0 fallas» ahí puede ser «nadie cargó nada», no «no falló» (etapa 2 de «datos desactualizados»).
     var cobM=coberturaFlotaMes(eq,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,cobertura:cobKpi});
     if(cobM.pct!==null&&cobM.pct<COBERTURA_MIN_PCT)return null;
@@ -458,10 +459,10 @@ export function renderKpi(){
     '<div style="text-align:center">'+
     '<div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:4px">MTBF FLOTA</div>'+
     (mtbfActual!=null?
-      meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF real: '+mtbfActual+'h · promedio de intervalos entre fallas')+
+      meterKPI(Math.min(mtbfActual,9999),10000,2000,'hrs','MTBF real: '+mtbfActual+'h · promedio de intervalos entre paradas de ≥'+PARADA_LARGA_H+' h')+
       '<div style="font-size:10px;margin-top:4px;color:'+(mtbfActual>2000?'var(--ok)':mtbfActual>500?'var(--ac)':'var(--danger)')+'">'+(mtbfActual>2000?'Alta':mtbfActual>500?'Media':'Baja')+' confiabilidad</div>'
       :'<div style="font-size:26px;font-weight:800;color:var(--tx3);padding:14px 0">—</div><div style="font-size:10px;color:var(--tx3)">Ningún equipo con ≥2 fallas registradas para medir el intervalo</div>')+
-    '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+totalFallas+' fallas totales</div>'+
+    '<div style="font-size:9px;color:var(--tx3);margin-top:4px">'+resumenParadas(ot).paradasLargas+' paradas de ≥'+PARADA_LARGA_H+' h · '+totalFallas+' intervenciones totales</div>'+
     '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center">'+
     '<button class="btn-s" onclick="rptMTBF(\'excel\')" style="font-size:9px" title="Descargar Excel"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg></button>'+
     '<button class="btn-s" onclick="rptMTBF(\'print\')" style="font-size:9px" title="Imprimir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg></button></div>'+

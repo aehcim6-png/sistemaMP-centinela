@@ -114,6 +114,11 @@
   <p>Un usuario nuevo queda <b>bloqueado</b> hasta que un admin lo activa a mano.</p>
 
   <h2 id="d-3">3. Seguridad</h2>
+  <h3 id="d-x">«Falla» para MTBF y MTTR: parada de 24 h o más (2026-10-23)</h3>
+  <p><b>Regla.</b> MTBF y MTTR se miden sobre las <b>paradas de 24 horas o más</b> (decisión del usuario; <code>PARADA_LARGA_H</code> en <code>logic.js</code>). Un correctivo más corto es una <i>intervención</i>, no una falla: se sigue contando y mostrando como «Intervenciones», pero no entra al MTBF ni al MTTR. El tiempo detenido sale del campo duración de la OT (o de las fechas y horas de entrada y salida; en una salida de servicio abierta, de las horas desde la entrada). Una OT sin duración y el histórico de WhatsApp/correo (que no trae duración) no se pueden clasificar y quedan fuera.</p>
+  <p><b>Dónde se ve.</b> Dashboard (MTBF real de flota y Disp. Inherente), Informes KPI, Costos → MTBF/MTTR (incluida la Matriz Jack-Knife; «Mantenibilidad» se compara con la mediana de la flota), Metas y el Buscador Maestro. Cada una dice «paradas de ≥24 h» y cuántas intervenciones hay en total.</p>
+  <p><b>Qué no cambió.</b> Weibull, Kijima, probabilidad de falla, RUL, Pareto, Estadística y el score de salud siguen sobre intervenciones (miden frecuencia). La Disponibilidad Operacional no cambia.</p>
+  <p><b>Cuidado.</b> Con esta definición el MTBF sube mucho; las franjas de color (verde sobre 2000 h) y la meta de 2000 h se calibraron con la definición anterior y conviene revisarlas con datos reales.</p>
   <h3 id="d-4">Roles</h3>
   <p>Cada cuenta tiene un rol en <code>user_roles</code>: <code>admin</code>, <code>operador</code>
   o <code>lector</code> (este último, solo lectura). Se usa para ocultar/mostrar botones
