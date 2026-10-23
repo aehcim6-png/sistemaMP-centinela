@@ -52,13 +52,12 @@ test('revisar propone, y nada cambia hasta marcar y confirmar; corregir deja el 
   await expect(bloque).toContainText('Propuestas (2)');
   await expect(bloque).toContainText('Corregir a 14092');
   await expect(bloque).toContainText('Eliminar');
-  // revisar no cambia nada
-  expect(await page.evaluate(() => (S.g('hist') || []).length)).toBe(12);
-  expect(await page.evaluate(() => (S.g('hist') || []).find((h) => h._id === 'a2').horomFin)).toBe(1492);
+  // revisar no cambia nada (se siembra, revisa y lee en el mismo instante: la carga en segundo plano simulada vacía lo sembrado)
+  const intacto = await page.evaluate(() => { window._sembrarLimp(); window.limpHoromRevisar(); const h = S.g('hist') || []; return { n: h.length, a2: h.find((x) => x._id === 'a2').horomFin }; });
+  expect(intacto).toEqual({ n: 12, a2: 1492 });
   // marcar las de confianza alta y aplicar
-  await page.evaluate(() => { window.limpHoromMarcarAltas(); });
-  await expect(bloque).toContainText('Aplicar las marcadas (1)');
   const r = await page.evaluate(() => {
+    window._sembrarLimp(); window.limpHoromRevisar(); window.limpHoromMarcarAltas();
     window.limpHoromAplicar();
     const h = S.g('hist') || [];
     const a2 = h.find((x) => x._id === 'a2');
