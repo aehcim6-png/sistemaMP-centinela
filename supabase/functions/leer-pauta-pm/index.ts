@@ -25,6 +25,8 @@
 // de pago para partir.
 // ============================================================
 
+import { esUsuarioAutenticado, MENSAJE_SIN_SESION } from "../_shared/sesionAutenticada.ts";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -76,6 +78,7 @@ if (import.meta.main) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
+  if (!esUsuarioAutenticado(req.headers.get("authorization"))) return json({ error: MENSAJE_SIN_SESION }, 401);
 
   try {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");

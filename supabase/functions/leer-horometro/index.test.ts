@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { esUsuarioAutenticado, HOROMETRO_MAXIMO, normalizarLectura, TOPE_IMAGEN_BASE64, validarImagenBase64 } from "./index.ts";
+import { HOROMETRO_MAXIMO, normalizarLectura, TOPE_IMAGEN_BASE64, validarImagenBase64 } from "./index.ts";
 
 Deno.test("validarImagenBase64: falta la imagen o es demasiado grande", () => {
   assertEquals(validarImagenBase64({}), "Falta imagenBase64.");
@@ -38,15 +38,4 @@ Deno.test("normalizarLectura: unidad y tipo desconocidos pasan a null; entrada b
 
 Deno.test("normalizarLectura: sin 'incierto: false' explícito se asume incierto", () => {
   assertEquals(normalizarLectura({ horometro: 100, legible: true }).incierto, true);
-});
-
-const jwt = (payload: Record<string, unknown>) => "h." + btoa(JSON.stringify(payload)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") + ".f";
-
-Deno.test("esUsuarioAutenticado: solo el rol authenticated; la llave anon y lo ilegible no pasan", () => {
-  assertEquals(esUsuarioAutenticado("Bearer " + jwt({ role: "authenticated", sub: "u1" })), true);
-  assertEquals(esUsuarioAutenticado("Bearer " + jwt({ role: "anon" })), false);
-  assertEquals(esUsuarioAutenticado("Bearer " + jwt({ role: "service_role" })), false);
-  assertEquals(esUsuarioAutenticado("Bearer basura"), false);
-  assertEquals(esUsuarioAutenticado(""), false);
-  assertEquals(esUsuarioAutenticado(null), false);
 });

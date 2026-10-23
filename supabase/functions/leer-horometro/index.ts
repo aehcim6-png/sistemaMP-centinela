@@ -11,6 +11,8 @@
 // devuelve horometro:null en vez de adivinar dígitos.
 // ============================================================
 
+import { esUsuarioAutenticado, MENSAJE_SIN_SESION } from "../_shared/sesionAutenticada.ts";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -43,20 +45,6 @@ Lee SOLO la lectura total acumulada. Si hay dos contadores (por ejemplo uno tota
 export const TOPE_IMAGEN_BASE64 = 11_000_000;
 // Un horómetro real de maquinaria pesada no pasa de unas decenas de miles de horas; por sobre esto es casi seguro una mala lectura.
 export const HOROMETRO_MAXIMO = 500_000;
-
-// El gateway (verify_jwt) ya comprobó la firma del token, pero la llave pública «anon» también es un JWT válido: sin esto cualquiera que la tenga podría gastar la cuota de lectura de
-// fotos. Se exige un token de una persona con sesión iniciada (rol «authenticated»). Solo lee el rol; la firma no se vuelve a verificar acá.
-export function esUsuarioAutenticado(authorization: string | null): boolean {
-  try {
-    const token = (authorization || "").replace(/^Bearer\s+/i, "");
-    const payload = token.split(".")[1];
-    if (!payload) return false;
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "="));
-    return JSON.parse(json)?.role === "authenticated";
-  } catch {
-    return false;
-  }
-}
 
 export function validarImagenBase64(body: { imagenBase64?: string }): string | null {
   if (!body?.imagenBase64) return "Falta imagenBase64.";
@@ -100,7 +88,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
 
-  if (!esUsuarioAutenticado(req.headers.get("authorization"))) return json({ error: "Hay que iniciar sesión para leer una foto." }, 401);
+  if (!esUsuarioAutenticado(req.headers.get("authorization"))) return json({ error: MENSAJE_SIN_SESION }, 401);
 
   try {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");

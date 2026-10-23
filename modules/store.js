@@ -207,7 +207,7 @@ const TABLA_REAL={
   reg:{tabla:'registros_pm',clave:'_id',claveDb:'id',cols:['equipo','tipoPM','fechaEntrada','horaEntrada','fechaSalida','horaSalida','duracion','duracionH','horomReal','estado','tecnico','obs','estatusEq','lugar','sintoma','nReg','fechaEjec','costo','pmCompleto','queFalto','turno','operador','ubicacion','ast','loto','repuestos','desvioDias']},
   ot:{tabla:'correctivos',clave:'_id',claveDb:'id',cols:['sigla','tipo','fecha','horom','turno','sintoma','sistema','tecnico','codFalla','duracion','estadoOT','operador','solucion','causaRaiz','tipoCausa','categoriaMTTR','clasificacionCosto','estatusEq','ubicacion','componente','criticidad','folioExcel','horaEntrada','fechaEntrada','horaSalida','fechaSalida','fechaIngreso','autorizadoPor','costo','ast','loto','primeraAtencionEn','fotos']},
   mov:{tabla:'movimientos_stock',clave:'_id',claveDb:'id',cols:['equipo','tipo','item','nParte','cant','ant','nuevo','fecha','mes','pm']},
-  hist:{tabla:'historial_horometros',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomIni','horomFin','horom','origen']},
+  hist:{tabla:'historial_horometros',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomIni','horomFin','horom','origen','foto']},
   neuMed:{tabla:'neumaticos_mediciones',clave:'_id',claveDb:'id',cols:['neuId','sigla','serie','posicion','fecha','horom','motivo','remExt','remInt','remProm','sensor']},
   pau:{tabla:'pautas',clave:'_id',claveDb:'id',cols:['sigla','hoja','pm','cat','act','hrs','rep','can']},
   stk:{tabla:'stock_filtros',clave:'_id',claveDb:'id',cols:['nParte','descripcion','equipoModelo','stockBodega','consumoMes','proyMes','mesesCubierto','pendiente','comprar','precioUnit','codAlt','estado']},

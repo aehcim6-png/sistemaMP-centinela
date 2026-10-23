@@ -44,6 +44,8 @@ test('foto legible: prellena el horómetro final, compara con la última lectura
   test.setTimeout(90000);
   await entrar(page);
   await page.route(`${SB_URL}/functions/v1/leer-horometro`, responder(page, { horometro: 12023.4, unidad: 'h', tipo: 'digital', legible: true, incierto: false, observacion: null }));
+  const subidas = [];
+  await page.route(`${SB_URL}/storage/v1/object/fotos-horometro/**`, (route) => { subidas.push({ url: route.request().url(), tipo: route.request().headers()['content-type'], auth: route.request().headers()['authorization'] }); return route.fulfill({ status: 200, contentType: 'application/json', body: '{"Key":"fotos-horometro/x"}' }); });
   await abrirRegistro(page);
   await page.evaluate(() => window._sembrarHoromFoto());
   await page.locator('#hFotoSub').setInputFiles({ name: 'horometro.png', mimeType: 'image/png', buffer: PNG_1PX });
@@ -55,10 +57,55 @@ test('foto legible: prellena el horómetro final, compara con la última lectura
   // nada guardado todavía
   expect(await page.evaluate(() => (S.g('hist') || []).length)).toBe(0);
   // se guarda con una sola llamada síncrona (la carga en segundo plano simulada pisa lo sembrado entre un paso y otro)
-  const r = await page.evaluate(() => { window._sembrarHoromFoto(); window._horomFoto = { valor: 12023.4, incierto: false }; window.saveHist(); return { h: S.g('hist'), e: (S.g('eq') || [])[0] }; });
+  const r = await page.evaluate(() => { window._sembrarHoromFoto(); window._horomFoto = Object.assign({}, window._horomFoto, { valor: 12023.4, incierto: false }); window.saveHist(); return { h: S.g('hist'), e: (S.g('eq') || [])[0] }; });
   expect(r.h.length).toBe(1);
   expect(r.h[0]).toMatchObject({ sigla: 'CN-9500', horomFin: 12023.4, origen: 'Foto (IA)' });
   expect(r.e.horomActual).toBe(12023.4);
+  // la foto queda como evidencia: la fila guarda su ruta y se sube al bucket privado con el token de la persona
+  expect(r.h[0].foto).toMatch(/^CN-9500\/\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.jpg$/);
+  await expect.poll(() => subidas.length, { timeout: 10000 }).toBe(1);
+  expect(subidas[0].url).toContain('/storage/v1/object/fotos-horometro/' + r.h[0].foto);
+  expect(subidas[0].tipo).toBe('image/jpeg');
+  expect(subidas[0].auth).toMatch(/^Bearer /);
+});
+
+test('si la foto no se puede subir, la lectura queda guardada sin foto y se avisa', async ({ page }) => {
+  test.setTimeout(90000);
+  await entrar(page);
+  await page.route(`${SB_URL}/functions/v1/leer-horometro`, responder(page, { horometro: 12010, unidad: 'h', tipo: 'digital', legible: true, incierto: false, observacion: null }));
+  await page.evaluate(() => { window.__avisos = []; const t0 = window.toast; window.toast = (m) => { window.__avisos.push(String(m)); return t0(m); }; });
+  await page.route(`${SB_URL}/storage/v1/object/fotos-horometro/**`, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"falla"}' }));
+  await abrirRegistro(page);
+  await page.evaluate(() => window._sembrarHoromFoto());
+  await page.locator('#hFotoSub').setInputFiles({ name: 'h.png', mimeType: 'image/png', buffer: PNG_1PX });
+  await expect(page.locator('#hFin')).toHaveValue('12010', { timeout: 10000 });
+  await page.evaluate(() => { window._sembrarHoromFoto(); window._horomFoto = Object.assign({}, window._horomFoto, { valor: 12010, incierto: false }); window.saveHist(); window.__fila = (S.g('hist') || [])[0]; });
+  await expect.poll(() => page.evaluate(() => (window.__avisos || []).some((m) => m.includes('la foto no se pudo subir'))), { timeout: 10000 }).toBe(true);
+  // la fila guardada (la misma referencia, por si la carga en segundo plano simulada vacía la lista) quedó con su lectura y sin la ruta de la foto
+  const fila = await page.evaluate(() => ({ horomFin: window.__fila.horomFin, foto: window.__fila.foto }));
+  expect(fila.horomFin).toBe(12010);
+  expect(fila.foto).toBeUndefined();
+});
+
+test('ver la foto de una lectura pide un enlace firmado y la muestra', async ({ page }) => {
+  test.setTimeout(90000);
+  await entrar(page);
+  let pidioFirma = null;
+  await page.route(`${SB_URL}/storage/v1/object/sign/fotos-horometro/**`, (route) => { pidioFirma = route.request().url(); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ signedURL: '/object/sign/fotos-horometro/CN-9500/2026-10-01/abc.jpg?token=t' }) }); });
+  await page.route(`${SB_URL}/storage/v1/object/sign/fotos-horometro/CN-9500/**.jpg?token=t`, (route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: Buffer.from(PNG_1PX) }));
+  await page.evaluate(async () => { const esp = (ms) => new Promise((x) => setTimeout(x, ms)); go('hist'); await esp(1500); });
+  const abrio = await page.evaluate(async () => {
+    S.s('eq', [C.recalc({ sigla: 'CN-9500', tipo: 'Camion', modelo: 'X', frecPM: 250, hrsDia: 12, horomActual: 100, fechaHorom: '2026-10-01' })]);
+    S.s('hist', [{ sigla: 'CN-9500', fecha: '2026-10-01', horomIni: 90, horomFin: 100, horom: 100, origen: 'Foto (IA)', foto: 'CN-9500/2026-10-01/abc.jpg' }]);
+    window._horomVerFoto(0);
+    await new Promise((x) => setTimeout(x, 800));
+    const m = document.getElementById('mc');
+    return m ? { txt: m.innerText, src: (m.querySelector('img') || {}).src || '' } : null;
+  });
+  expect(abrio.txt).toContain('Foto del horómetro');
+  expect(abrio.txt).toContain('CN-9500');
+  expect(abrio.src).toContain('/storage/v1/object/sign/fotos-horometro/CN-9500/2026-10-01/abc.jpg?token=t');
+  expect(pidioFirma).toContain('/storage/v1/object/sign/fotos-horometro/CN-9500/2026-10-01/abc.jpg');
 });
 
 test('foto que no se lee: no inventa un número, avisa y deja escribirlo a mano', async ({ page }) => {

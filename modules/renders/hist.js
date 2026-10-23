@@ -57,7 +57,7 @@ export function renderHist(){
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomIni\',parseFloat(this.innerText)||0)">'+(r.horomIni||r.horom||0)+'</td>'+
         '<td class="mono ed" contenteditable onblur="edHist('+idx+',\'horomFin\',parseFloat(this.innerText)||0);edHist('+idx+',\'horom\',parseFloat(this.innerText)||0)">'+(r.horomFin||r.horom||0)+'</td>'+
         '<td class="mono">'+hrsOp+'</td>'+
-        '<td><button class="btn-x" onclick="delHist('+idx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
+        '<td>'+(r.foto?'<button class="btn-x" onclick="_horomVerFoto('+idx+')" title="Ver la foto con que se leyó (solo administradores)" style="margin-right:4px">'+ICONS.camera+'</button>':'')+'<button class="btn-x" onclick="delHist('+idx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';
     }).join('')+
     '</table></div>'+
     _pagHTML('hist',pgHist);
@@ -396,7 +396,7 @@ export async function _horomFotoSeleccionada(input){
       if(box){box.style.color='var(--warn)';box.textContent='⚠️ No se pudo leer el número con seguridad'+(d.observacion?' ('+d.observacion+')':'')+'. Saca otra foto más de frente y con menos reflejo, o escríbelo a mano.';}
       input.value='';return;
     }
-    window._horomFoto={valor:d.horometro,incierto:d.incierto!==false};
+    window._horomFoto={valor:d.horometro,incierto:d.incierto!==false,dataUrl:comp.dataUrl};   // dataUrl: para guardar la foto como evidencia al confirmar
     if(fin){
       fin.value=d.horometro;
       fin.style.outline=d.incierto!==false?'2px solid var(--warn)':'';
@@ -416,6 +416,56 @@ export async function _horomFotoSeleccionada(input){
   }
   input.value='';
 }
+// ── Foto del horómetro como evidencia (bucket privado 'fotos-horometro') ──
+var _HOROM_BUCKET='fotos-horometro';
+// Reduce la foto a ~100 KB (la lectura ya se hizo con la versión de 1600 px): evidencia, no archivo fotográfico.
+function _horomReducirFoto(dataUrl,maxW,calidad){
+  return new Promise(function(resolve){
+    var img=new Image();
+    img.onload=function(){
+      var esc=Math.min(1,maxW/img.width),c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(img.width*esc));c.height=Math.max(1,Math.round(img.height*esc));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      c.toBlob(function(b){resolve(b);},'image/jpeg',calidad);
+    };
+    img.onerror=function(){resolve(null);};
+    img.src=dataUrl;
+  });
+}
+async function _horomStorageFetch(url,opts){
+  var token=localStorage.getItem('smp_access_token');
+  var armar=function(t){return Object.assign({},opts,{headers:Object.assign({'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+t},opts.headers||{})});};
+  var r=await fetch(url,armar(token||_SB_DEFAULT_KEY));
+  if(r.status===401&&await _sbAuthRefresh()){r=await fetch(url,armar(localStorage.getItem('smp_access_token')));}
+  return r;
+}
+export async function _horomSubirFoto(fila,dataUrl,ruta){
+  try{
+    var blob=await _horomReducirFoto(dataUrl,1024,0.6);
+    if(!blob)throw new Error('no se pudo preparar la foto');
+    var r=await _horomStorageFetch(_SB_DEFAULT_URL+'/storage/v1/object/'+_HOROM_BUCKET+'/'+ruta,{method:'POST',headers:{'Content-Type':'image/jpeg'},body:blob});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+  }catch(err){
+    delete fila.foto;
+    S.s('hist',S.g('hist')||[]);
+    toast('⚠️ La lectura quedó guardada, pero la foto no se pudo subir ('+err.message+')');
+  }
+}
+// Muestra la foto con que se leyó una lectura (solo administradores: la política del bucket lo exige). Pide un enlace firmado de 5 minutos.
+export async function _horomVerFoto(idx){
+  var h=S.g('hist')||[];var r=h[idx];
+  if(!r||!r.foto)return;
+  try{
+    var resp=await _horomStorageFetch(_SB_DEFAULT_URL+'/storage/v1/object/sign/'+_HOROM_BUCKET+'/'+r.foto,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expiresIn:300})});
+    if(!resp.ok)return toast(resp.status===400||resp.status===404?'⚠️ La foto no está disponible o solo un administrador puede verla':'⚠️ No se pudo abrir la foto (HTTP '+resp.status+')');
+    var d=await resp.json();
+    if(!d||!d.signedURL)return toast('⚠️ No se pudo abrir la foto');
+    sm('<h3>'+ICONS.camera+' Foto del horómetro</h3>'+
+      '<div style="font-size:12px;color:var(--tx3);margin-bottom:8px">'+escapeHtml(r.sigla)+' · '+escapeHtml(r.fecha)+' · lectura '+escapeHtml(String(r.horomFin||r.horom||''))+(r.origen?' · '+escapeHtml(r.origen):'')+'</div>'+
+      '<img src="'+escapeHtml(_SB_DEFAULT_URL+'/storage/v1'+d.signedURL)+'" alt="Foto del horómetro" style="max-width:100%;border-radius:8px"><br><br>'+
+      '<button class="btn" onclick="cm()">Cerrar</button>');
+  }catch(err){toast('⚠️ No se pudo abrir la foto: '+err.message);}
+}
 export function saveHist(){
   var sigla=$('hEq').value;
   var fecha=$('hFecha').value;
@@ -433,8 +483,12 @@ export function saveHist(){
   var h=S.g('hist')||[];
   var fila={sigla:sigla,fecha:fecha,horomIni:ini,horomFin:fin,horom:fin};
   if(origen)fila.origen=origen;
+  // La foto con que se leyó queda como evidencia en un bucket privado (ruta en la columna 'foto'); se sube en segundo plano y, si falla, la lectura igual queda guardada, sin foto.
+  var rutaFoto=(foto&&foto.dataUrl)?(sigla+'/'+fecha+'/'+_uuidV4()+'.jpg'):null;
+  if(rutaFoto)fila.foto=rutaFoto;
   h.push(fila);
   S.s('hist',h);
+  if(rutaFoto)_horomSubirFoto(fila,foto.dataUrl,rutaFoto);
   window._horomFoto=null;
   // Update equipment
   var eq=S.g('eq')||[];
@@ -455,4 +509,6 @@ window.saveHist = saveHist;
 window._horomChequear = _horomChequear;
 window._horomFotoActivar = _horomFotoActivar;
 window._horomFotoSeleccionada = _horomFotoSeleccionada;
+window._horomSubirFoto = _horomSubirFoto;
+window._horomVerFoto = _horomVerFoto;
 renders.hist = renderHist;
