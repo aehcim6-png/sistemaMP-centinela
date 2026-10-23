@@ -32,8 +32,11 @@ async function escenario(page, hace, captura) {
     sembrar(); go('dash'); await esp(1500); go('disp'); await esp(1500);
     sembrar(); go('dash');
     out.dash = document.getElementById('s-dash').innerText.replace(/\s+/g, ' ');
-    sembrar(); window._dispVista = 'mensual'; go('disp');
-    out.disp = document.getElementById('s-disp').innerText.replace(/\s+/g, ' ');
+    for (let k = 0; k < 12; k++) {
+      sembrar(); window._dispVista = 'mensual'; go('disp'); await esp(60);
+      out.disp = document.getElementById('s-disp').innerText.replace(/\s+/g, ' ');
+      if (out.disp.includes('CN-1')) break;   // la tabla ya dibujó los equipos sembrados
+    }
     out.nHist = (S.g('hist') || []).length; out.nEq = (S.g('eq') || []).length;
     return out;
   }, { hace });
