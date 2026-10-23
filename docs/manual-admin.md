@@ -217,7 +217,7 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Dónde se ve.** Dashboard (MTBF real de flota y Disp. Inherente), Informes KPI, Costos → MTBF/MTTR (incluida la Matriz Jack-Knife; «Mantenibilidad» se compara con la mediana de la flota), Metas y el Buscador Maestro. Cada una dice «paradas de ≥24 h» y cuántas intervenciones hay en total.
 
-**Qué no cambió.** Weibull, Kijima, probabilidad de falla, RUL, Pareto, Estadística y el score de salud siguen sobre intervenciones (miden frecuencia). La Disponibilidad Operacional no cambia.
+**Qué no cambió.** Weibull, Kijima, probabilidad de intervención (antes «de falla»), RUL, Pareto, Estadística y el score de salud siguen sobre intervenciones (miden frecuencia). La Disponibilidad Operacional no cambia.
 
 **Cuidado.** Con esta definición el MTBF sube mucho; las franjas de color (verde sobre 2000 h) y la meta de 2000 h se calibraron con la definición anterior y conviene revisarlas con datos reales.
 

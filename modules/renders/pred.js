@@ -1250,17 +1250,17 @@ export function renderPred(){
         'Weibull por equipo: AUC <b>'+fnP(btPorClave.weibull.auc,2)+'</b>; Kijima: <b>'+fnP(btPorClave.kijima.auc,2)+'</b>. Mientras la regla simple no sea peor, no hay motivo para fiarse de la compleja. Detalle en Laboratorio → Backtest.</div>'
       :'<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">El backtest todavía no se puede calcular con los datos actuales (ver Laboratorio → Backtest).</div>';
     var colCaja=function(titulo,sub,filas){return'<div style="flex:1;min-width:260px"><div style="font-weight:700;font-size:12px">'+titulo+'</div><div style="font-size:10px;color:var(--tx3);margin-bottom:6px">'+sub+'</div>'+filas+'</div>';};
-    var ladoALado='<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px"><div class="chart-t">Dos formas de ordenar qué equipos fallarán — lado a lado</div>'+btTxt+
+    var ladoALado='<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px"><div class="chart-t">Dos formas de ordenar qué equipos tendrán una intervención — lado a lado</div>'+btTxt+
       '<div style="display:flex;gap:18px;flex-wrap:wrap">'+
-      colCaja('A · Por probabilidad (intervalo medio entre fallas)','La que se mostraba hasta ahora: el peor componente de cada equipo',
+      colCaja('A · Por probabilidad (intervalo medio entre intervenciones)','La que se mostraba hasta ahora: el peor componente de cada equipo',
         topProb.length?'<table style="width:100%"><tr><th>Equipo</th><th>Componente</th><th>Prob. 30 d</th></tr>'+topProb.map(function(q){var coinc=topRec.some(function(r){return r.sigla===q.sigla;});return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(q.sigla)+(coinc?' ✓':'')+'</td><td>'+escapeHtml(q.componente)+'</td><td style="text-align:center">'+q.prob30dPct+'%</td></tr>';}).join('')+'</table>':'<div style="color:var(--tx3);font-size:11px">Sin historial suficiente.</div>')+
-      colCaja('B · Por fallas recientes','Regla simple: cuántas fallas tuvo en los últimos 365 y 90 días',
-        topRec.length?'<table style="width:100%"><tr><th>Equipo</th><th>365 días</th><th>90 días</th></tr>'+topRec.map(function(r){var coinc=topProb.some(function(q){return q.sigla===r.sigla;});return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+(coinc?' ✓':'')+'</td><td style="text-align:center">'+r.f365+'</td><td style="text-align:center">'+r.f90+'</td></tr>';}).join('')+'</table>':'<div style="color:var(--tx3);font-size:11px">Sin fallas en el último año.</div>')+
+      colCaja('B · Por intervenciones recientes','Regla simple: cuántas intervenciones tuvo en los últimos 365 y 90 días',
+        topRec.length?'<table style="width:100%"><tr><th>Equipo</th><th>365 días</th><th>90 días</th></tr>'+topRec.map(function(r){var coinc=topProb.some(function(q){return q.sigla===r.sigla;});return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(r.sigla)+(coinc?' ✓':'')+'</td><td style="text-align:center">'+r.f365+'</td><td style="text-align:center">'+r.f90+'</td></tr>';}).join('')+'</table>':'<div style="color:var(--tx3);font-size:11px">Sin intervenciones en el último año.</div>')+
       '</div>'+
       '<div style="font-size:10px;color:var(--tx3);padding-top:8px">✓ = el equipo aparece en las dos listas (coinciden '+enAmbas+' de '+TOPN+'). Los que aparecen en una sola lista son los que conviene mirar con más cuidado. Fallas distintas por día de un mismo equipo; incluye el historial 2022–2025.</div></div>';
     content=ladoALado+
-      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">'+ICONS.dice+' Probabilidad de falla en los próximos 30 días</div>'+
-      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta): usa el intervalo promedio real entre fallas pasadas del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ fallas registradas; con menos, el número no sería confiable.</div>'+
+      '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">'+ICONS.dice+' Probabilidad de intervención en los próximos 30 días</div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:6px 0 10px">Estimación estadística (no una predicción exacta) de que el equipo+componente tenga <b>al menos un correctivo</b> (una intervención, de cualquier duración; no es lo mismo que una parada de 24 h o más): usa el intervalo promedio real entre correctivos pasados del mismo equipo+componente — combina los correctivos actuales con el historial 2022-2025 cargado desde Excel ('+otHistProb.length+' eventos históricos) para tener más muestra. Solo se muestra donde hay 3+ correctivos registrados; con menos, el número no sería confiable.</div>'+
       (probs.length?
         probs.map(function(p){
           var nivel=p.prob30dPct>=60?'Alta':p.prob30dPct>=30?'Media':'Baja';
@@ -1278,7 +1278,7 @@ export function renderPred(){
             '</div>'+
           '</div>';
         }).join('')
-      :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficiente historial (se necesitan 3+ fallas del mismo equipo+componente) para calcular una probabilidad confiable.</div>')+
+      :'<div style="padding:20px;text-align:center;color:var(--tx3)">Aún no hay suficiente historial (se necesitan 3+ correctivos del mismo equipo+componente) para calcular una probabilidad confiable.</div>')+
       '</div>';
   } else if(fVista==='stockpm'){
     var hz=parseInt(window._predHorizonte)||90;
@@ -2289,7 +2289,7 @@ $('s-pred').innerHTML=
     '<option value="dotacion"'+(fVista==='dotacion'?' selected':'')+'>👷 Dotación de Taller</option>'+
     '</optgroup>'+
     (labPred?'<optgroup label="🧪 Laboratorio — métodos avanzados, para explorar">'+
-      '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de Falla</option>'+
+      '<option value="probabilidad"'+(fVista==='probabilidad'?' selected':'')+'>🎲 Probabilidad de intervención</option>'+
       '<option value="pf"'+(fVista==='pf'?' selected':'')+'>🔍 Intervalo de Inspección (P-F)</option>'+
       '<option value="kijima"'+(fVista==='kijima'?' selected':'')+'>🔁 Kijima — Factor de Restauración</option>'+
       '<option value="reemplazo"'+(fVista==='reemplazo'?' selected':'')+'>🔄 Señal Unificada de Reemplazo</option>'+

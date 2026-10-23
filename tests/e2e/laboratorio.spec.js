@@ -40,7 +40,7 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
     }
     document.querySelectorAll('#s-pred details').forEach((d) => { d.open = true; });
     out.texto = document.getElementById('s-pred').innerText;
-    // Probabilidad de falla: muestra las dos formas de ordenar lado a lado, con lo que dice el backtest
+    // Probabilidad de intervención (antes «de falla»): muestra las dos formas de ordenar lado a lado, con lo que dice el backtest
     for (let k = 0; k < 6; k++) {
       sembrar(); await esp(400);
       sel().value = 'probabilidad'; renders.pred(); await esp(500);
@@ -97,7 +97,7 @@ test('laboratorio oculta los métodos avanzados y el backtest muestra su tabla',
   expect(r.texto).toContain('Weibull por equipo');
   expect(r.texto).toContain('Kijima por equipo');
   expect(r.textoProb).toMatch(/lado a lado/i);
-  expect(r.textoProb).toContain('Por fallas recientes');
+  expect(r.textoProb).toContain('Por intervenciones recientes');
   expect(r.textoProb).toContain('Qué dice el backtest');
   expect(r.textoPF).toMatch(/curva p-f completa/i);
   expect(r.textoPF).toMatch(/lado izquierdo/i);
