@@ -122,7 +122,7 @@ Además existe un respaldo manual (Backup JSON, en Configuración) y uno
 automático a una carpeta local si alguien lo conectó.
 
 **¿Qué pasa si no se cargan horómetros durante semanas (corte de electricidad, el técnico con licencia)?**
-Un equipo cuyo último horómetro tiene más de 30 días aparece como **⚪ SIN LECTURA** y no se cuenta como urgente, próximo ni al día: el sistema no inventa un número cuando no sabe. Entre 8 y 30 días sigue calculando pero dice «lectura de hace N días». En la cabecera, «N Sin lectura» abre la lista, y el Dashboard muestra la fecha de la lectura más nueva de la flota. Cuando se carga un horómetro, el equipo vuelve a calcularse.
+Un equipo cuyo último horómetro tiene más de 30 días aparece como **⚪ SIN LECTURA** y no se cuenta como urgente, próximo ni al día: el sistema no inventa un número cuando no sabe. Entre 8 y 30 días sigue calculando pero dice «lectura de hace N días». En la cabecera, «N Sin lectura» abre la lista, y el Dashboard muestra la fecha de la lectura más nueva de la flota. Cuando se carga un horómetro, el equipo vuelve a calcularse. La Disponibilidad hace lo mismo: un día en que el equipo no tiene ningún registro cercano (lectura, OT o PM) no cuenta como «100 % disponible»; con un mes o dos sin datos verás «Sin datos» o «Cobertura de datos: N %» en vez de un 100 % inventado.
 
 **¿Puedo reportar una falla sin entrar al sistema?**
 Sí, si un administrador ya autorizó tu número o correo (Configuración →

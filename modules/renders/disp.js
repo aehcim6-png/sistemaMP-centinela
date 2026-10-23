@@ -25,6 +25,8 @@ export function renderDisp(){
 
   // ═══ DISPONIBILIDAD — mapa de detenciones (fuente única compartida, ver logic.js) ═══
   var downMap=dispDownMap(reg,ot);
+  // Cobertura de registro (etapa 2 de «datos desactualizados»): un día sin lecturas, OT ni PM del equipo no cuenta como disponible; queda fuera del promedio.
+  var cobReg=C.coberturaApp();
 
   // Get all dates from data
   var allDates=new Set();
@@ -50,7 +52,7 @@ export function renderDisp(){
   function calcMonthDisp(sigla,mes){
     var eqObj=eq.find(function(e){return e.sigla===sigla});
     if(!eqObj)return undefined;
-    var v=dispEquipoMes(sigla,mes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:eqObj.hrsDia||12});
+    var v=dispEquipoMes(sigla,mes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:eqObj.hrsDia||12,cobertura:cobReg});
     return v==null?undefined:v;
   }
 
@@ -90,12 +92,15 @@ export function renderDisp(){
       var manual=!!(dispCalc[e.sigla]&&dispCalc[e.sigla][fMes]!==undefined)||(fMes==='2026-04'&&dAbr[e.sigla]!==undefined&&!(dispCalc[e.sigla]&&dispCalc[e.sigla][fMes]!==undefined));
       var diasReg=0;
       if(downMap[e.sigla])Object.keys(downMap[e.sigla]).forEach(function(dt){if(dt.slice(0,7)===fMes)diasReg++;});
-      return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,pct:pct,manual:manual,diasReg:diasReg};
+      var cobE=dispCoberturaMes(e.sigla,fMes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobReg});
+      return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,pct:pct,manual:manual,diasReg:diasReg,cob:cobE?cobE.pct:null};
     });
     var conDatos=eqDisp.filter(function(e){return e.pct!==undefined});
     var totalFlota=conDatos.length?Math.round(conDatos.reduce(function(s,e){return s+e.pct},0)/conDatos.length*10)/10:null;
     var bajoMeta=conDatos.filter(function(e){return e.pct<meta}).length;
     var sinRegistros=conDatos.filter(function(e){return !e.manual&&e.diasReg===0}).length;
+    var cobFlotaD=coberturaFlotaMes(eqFil,fMes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,cobertura:cobReg});
+    var sinCobE=eqDisp.filter(function(e){return e.pct===undefined&&!e.manual}).length;
     var col=totalFlota===null?'var(--tx3)':totalFlota>=meta?'var(--ok)':totalFlota>=70?'var(--w)':'var(--danger)';
 
     // ═══ DISPONIBILIDAD INTRÍNSECA (Ai) — mismo mes, mismo criterio de flota, pero
@@ -105,7 +110,7 @@ export function renderDisp(){
     // misma programó? Solo se calcula en la vista mensual (donde vive el % de flota que
     // se compara contra meta) para no tocar diario/semanal/anual.
     var downMapCorrectivo=dispDownMap(reg,ot,undefined,{incluirPM:false});
-    var aiVals=eqFil.map(function(e){return dispIntrinsecaEquipoMes(e.sigla,fMes,{downMapCorrectivo:downMapCorrectivo,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null;});
+    var aiVals=eqFil.map(function(e){return dispIntrinsecaEquipoMes(e.sigla,fMes,{downMapCorrectivo:downMapCorrectivo,hrsDia:e.hrsDia||12,cobertura:cobReg});}).filter(function(v){return v!==null;});
     var aiFlota=aiVals.length?Math.round(aiVals.reduce(function(s,v){return s+v},0)/aiVals.length*10)/10:null;
     var brechaAoAi=(totalFlota!==null&&aiFlota!==null)?Math.round((aiFlota-totalFlota)*10)/10:null;
 
@@ -114,20 +119,22 @@ export function renderDisp(){
     '<div style="text-align:center;min-width:100px"><div style="font-size:36px;font-weight:800;color:'+col+'">'+(totalFlota===null?'—':totalFlota+'%')+'</div><div style="font-size:10px;color:var(--tx3)">FLOTA '+fMes+'</div></div>'+
     '<div style="flex:1">'+
     '<div style="background:color-mix(in srgb,'+col+' 18%,var(--bg4));border-radius:6px;height:18px;overflow:hidden;margin-bottom:6px;cursor:default" onmouseenter="vizTip(event,\''+(totalFlota===null?'Sin equipos con datos de disponibilidad este período':'Flota: '+totalFlota+'% · '+conDatos.length+' equipos con dato · '+bajoMeta+' bajo meta')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+col+';height:100%;width:'+Math.min(totalFlota||0,100)+'%"></div></div>'+
-    '<div style="font-size:12px;color:'+col+'">'+(totalFlota===null?'Sin datos para este período':totalFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+(totalFlota===null?'':' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta')+'</div>'+
+    '<div style="font-size:12px;color:'+col+'">'+(totalFlota===null?(cobFlotaD.n>0&&cobFlotaD.sinCobertura===cobFlotaD.n?'Sin registros de ningún equipo en este período (no se asume 100 %)':'Sin datos para este período'):totalFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Bajo meta — '+Math.round(meta-totalFlota)+'% brecha')+(totalFlota===null?'':' · '+conDatos.length+' equipos · '+bajoMeta+' bajo meta')+'</div>'+
+    (cobFlotaD.pct!==null&&(cobFlotaD.pct<100||sinCobE>0)?'<div style="font-size:11px;color:'+(cobFlotaD.pct<COBERTURA_MIN_PCT?'var(--warn)':'var(--tx3)')+';margin-top:4px" title="Solo se promedian los días en que el equipo tiene algún registro (lectura de horómetro, OT o PM) a menos de '+DISP_VENTANA_COBERTURA+' días, o una detención cargada. Un día sin ningún registro no se cuenta como disponible: no se sabe.">Cobertura de datos: '+cobFlotaD.pct+'% de los días del mes'+(sinCobE?' · '+sinCobE+' equipo(s) sin ningún registro':'')+(cobFlotaD.pct<COBERTURA_MIN_PCT?' — poca cobertura, tomar el número con reserva':'')+'</div>':'')+
     (sinRegistros>0?'<div style="font-size:11px;color:var(--warn);margin-top:4px" title="Estos equipos no tienen ninguna detención cargada este mes, así que su 100% es asumido — el promedio de flota puede estar inflado hasta que cargues sus datos"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+sinRegistros+' equipo'+(sinRegistros===1?'':'s')+' sin registros este mes (100% asumido — cargá sus salidas de servicio para que el número sea real)</div>':'')+
     (aiFlota!==null?'<div style="font-size:11px;color:var(--tx3);margin-top:6px;padding-top:6px;border-top:1px solid var(--bg4)" title="Disponibilidad Operacional (Ao, arriba) cuenta fallas + PM planificado. Disponibilidad Intrínseca (Ai) cuenta SOLO fallas, sin el PM. La diferencia es cuánto de la indisponibilidad es mantención que la propia empresa programó, no un imprevisto.">Ai (solo fallas, sin PM): <b style="color:var(--tx)">'+aiFlota+'%</b>'+(brechaAoAi&&brechaAoAi>0.05?' · brecha Ao−Ai: <b style="color:var(--warn)">'+brechaAoAi+' pts</b> por PM planificado':'')+'</div>':'')+
     '</div></div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th><th title="Respaldo del número: registros reales de detención, valor cargado a mano, o asumido por falta de datos">Datos</th></tr>'+
     eqDisp.sort(function(a,b){return(a.pct||999)-(b.pct||999)}).map(function(e){
-      if(e.pct===undefined)return'<tr><td class="mono">'+escapeHtml(e.sigla)+'</td><td>'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td><td colspan="4" style="color:var(--tx3)">Sin datos</td></tr>';
+      if(e.pct===undefined)return'<tr><td class="mono">'+escapeHtml(e.sigla)+'</td><td>'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td><td colspan="4" style="color:var(--tx3)" title="No hay lecturas, OT ni PM de este equipo en el mes: no se puede decir cuánto estuvo disponible.">Sin datos</td></tr>';
       var c=e.pct>=meta?'var(--ok)':e.pct>=70?'var(--w)':'var(--danger)';
       // Etiqueta de respaldo del dato
       var datos;
       if(e.manual)datos='<span class="badge b-b" title="Valor cargado a mano (override o import)">'+ICONS.pencil+' manual</span>';
       else if(e.diasReg>0)datos='<span style="font-size:10px;color:var(--tx3)" title="Días del mes con al menos una detención registrada"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> '+e.diasReg+' día'+(e.diasReg===1?'':'s')+' c/registro</span>';
       else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real."><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> sin registros</span>';
+      if(e.cob!=null&&e.cob<100)datos+=' <span class="badge '+(e.cob<COBERTURA_MIN_PCT?'b-y':'b-n')+'" title="Solo '+e.cob+'% de los días del mes tienen algún registro de este equipo; el % se calcula sobre esos días.">cobertura '+e.cob+'%</span>';
       return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
         '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+escapeHtml(e.sigla)+'\'])d[\''+escapeHtml(e.sigla)+'\']={}; d[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
         '<td>'+(function(){

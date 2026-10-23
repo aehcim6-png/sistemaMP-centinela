@@ -1113,6 +1113,12 @@ C.recalcAll=function(){
   return eq;
 };
 
+// Cobertura de registro de toda la flota (ver coberturaRegistro en logic.js): qué días tienen datos de cada equipo (lecturas de horómetro, OT, PM). La usan Dashboard,
+// Disponibilidad, KPI y Metas para no leer «no se cargó nada» como «100 % disponible». Se arma de a poco (miles de filas) y se llama una vez por render.
+C.coberturaApp=function(){
+  return window.coberturaRegistro({hist:S.g('hist')||[],ot:(S.g('ot')||[]).concat(S.g('otHist')||[]),reg:S.g('reg')||[],eq:S.g('eq')||[]});
+};
+
 // ══════════════════════════════════════════════════════════════════
 // PAPELERA (soft-delete con recuperación, retención 30 días) — lógica de datos
 // pura, sin DOM (misma idea que logic.js): vive acá para poder testearla con

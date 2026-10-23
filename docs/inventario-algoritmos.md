@@ -69,7 +69,8 @@ Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 
   El algoritmo no supone la causa: suma horas de cada orden y de cada PM y muestra cuáles. Lo que sí supone queda a la vista (8 h por correctivo sin duración, 24 h por día de OT abierta). Lectura útil: la baja de CF-8769 y BD-9533 probablemente es una OT que nadie cerró.
 - **Límites:** Ai aquí es *observada* (horas reales detenidas por fallas), no la fórmula de diseño MTBF ÷ (MTBF + MTTR). El supuesto de 8 h y el de "OT abierta = 24 h por día" pueden inflar la indisponibilidad; por eso el pronóstico de disponibilidad (ficha I3) lista aparte los eventos "prolongados".
-- **Código:** `dispDownMap`, `dispEquipoMes`, `dispIntrinsecaEquipoMes`, `equiposFueraDeServicioAhora`, `rangoDias`.
+- **Cobertura de registro (23-oct-2026):** un día solo entra al promedio si el equipo tiene algún registro (lectura de horómetro, OT o PM) a ±7 días o una detención cargada; los demás son «sin registro» y no valen 100 %. Si un equipo no tiene ningún día con dato en el mes, la disponibilidad es «sin dato». Cada pantalla muestra el % de días cubiertos y avisa si baja de 50 %. Los 7 días y el 50 % son convenciones, no mediciones. Un valor cargado a mano no se toca.
+- **Código:** `dispDownMap`, `dispEquipoMes`, `dispIntrinsecaEquipoMes`, `coberturaRegistro`, `dispCoberturaMes`, `coberturaFlotaMes`, `COBERTURA_MIN_PCT`, `DISP_VENTANA_COBERTURA`, `equiposFueraDeServicioAhora`, `rangoDias`.
 
 ### A2. MTBF y MTTR del programa
 - **Tipo:** fórmula.

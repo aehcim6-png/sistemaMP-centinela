@@ -319,7 +319,10 @@ export function renderDash(){
   // todos los días del mes igual que el resto.
   var downMapD=dispDownMap(reg,ot);
   var mesAct=dashPeriodo;
-  var dispVals=eq.map(function(e){return dispEquipoMes(e.sigla,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null&&v!==undefined});
+  // Cobertura de registro (etapa 2 de «datos desactualizados»): un día sin lecturas ni OT ni PM del equipo no cuenta como «100 % disponible», queda fuera del promedio.
+  var cobD=C.coberturaApp();
+  var cobFlota=coberturaFlotaMes(eq,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,cobertura:cobD});
+  var dispVals=eq.map(function(e){return dispEquipoMes(e.sigla,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobD});}).filter(function(v){return v!==null&&v!==undefined});
   var dispFlota=dispVals.length?Math.round(dispVals.reduce(function(s,v){return s+v},0)/dispVals.length*10)/10:null;
   var dispCol=dispFlota===null?'var(--tx3)':dispFlota>=meta?'var(--ok)':dispFlota>=70?'var(--ac)':'var(--danger)';
   var bajoMeta=dispVals.filter(function(v){return v<meta}).length;
@@ -557,8 +560,9 @@ export function renderDash(){
     '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:4px">DISPONIBILIDAD MECÁNICA'+_dashBadgeTendencia('retraso')+'</div>'+
     '<div style="font-size:44px;font-weight:900;color:'+dispCol+';line-height:1;margin:8px 0">'+(dispFlota===null?'—':dispFlota)+(dispFlota===null?'':'<span style="font-size:20px">%</span>')+'</div>'+
     '<div style="margin:8px 0;width:100%;background:color-mix(in srgb,'+dispCol+' 18%,var(--bg4));border-radius:10px;height:12px;overflow:hidden;cursor:default" onmouseenter="vizTip(event,\''+(dispFlota===null?'Sin equipos con datos de disponibilidad en '+dashLabel:dispVals.length+' equipos con dato · promedio '+dispFlota+'% · meta '+meta+'%')+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()"><div style="background:'+dispCol+';height:100%;width:'+Math.min(dispFlota||0,100)+'%;border-radius:10px;transition:width .5s"></div></div>'+
-    '<div style="font-size:11px;color:'+dispCol+';font-weight:600">'+(dispFlota===null?'Sin datos para este período':dispFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+Math.round(meta-dispFlota)+'% bajo meta')+'</div>'+
+    '<div style="font-size:11px;color:'+dispCol+';font-weight:600">'+(dispFlota===null?(cobFlota.n>0&&cobFlota.sinCobertura===cobFlota.n?'Sin registros de ningún equipo en este período':'Sin datos para este período'):dispFlota>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> Sobre meta '+meta+'%':'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> '+Math.round(meta-dispFlota)+'% bajo meta')+'</div>'+
     '<div style="font-size:9px;color:var(--tx3);margin-top:6px">'+dispVals.length+' equipos · '+dashLabel+'</div>'+
+    (cobFlota.pct!==null&&cobFlota.pct<100?'<div style="font-size:10px;margin-top:4px;color:'+(cobFlota.pct<COBERTURA_MIN_PCT?'var(--warn)':'var(--tx3)')+'" title="Solo se promedian los días en que el equipo tiene algún registro (lectura de horómetro, OT o PM) a menos de '+DISP_VENTANA_COBERTURA+' días. Un día sin ningún registro no se cuenta como disponible: no se sabe.">Cobertura de datos: '+cobFlota.pct+'% de los días del mes'+(cobFlota.sinCobertura?' · '+cobFlota.sinCobertura+' equipo(s) sin ningún registro':'')+(cobFlota.pct<COBERTURA_MIN_PCT?' — poca cobertura, tomar el número con reserva':'')+'</div>':'')+
     '</div>';
   var cardUrg='<div'+_dr('urg')+' style="'+_kpiBase+'border-top:4px solid var(--danger)">'+
     '<div style="'+_kpiLbl+'">Urgentes'+_sufEst+'</div>'+
@@ -820,7 +824,7 @@ export function renderDash(){
   // pantalla. downMapD no está acotado a un mes — dispEquipoMes filtra el rango
   // de días internamente, así que sirve igual para los 6 meses de este gráfico.
   var dispTrend6=meses6.map(function(m){
-    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,m,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,hoy:_hoyISO});}).filter(function(v){return v!==null&&v!==undefined;});
+    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,m,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,hoy:_hoyISO,cobertura:cobD});}).filter(function(v){return v!==null&&v!==undefined;});
     return vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*10)/10:null;
   });
   var maxTrend=Math.max.apply(null,dispTrend6.filter(function(v){return v!==null;}).concat([100]));

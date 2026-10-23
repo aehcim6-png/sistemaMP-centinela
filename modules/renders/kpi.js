@@ -298,8 +298,9 @@ export function renderKpi(){
   // (dispDownMap + dispEquipoMes en logic.js). Antes esta pestaña tenía su propia copia
   // sin el manejo de salida de servicio por período, así que no coincidía con las otras.
   var downMap=dispDownMap(reg,ot);
+  var cobKpi=C.coberturaApp();   // meses sin registros → sin dato, no 100 % (etapa 2 de «datos desactualizados»)
   var dispMes=last12.map(function(mes){
-    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,hrsDia:e.hrsDia||12});}).filter(function(v){return v!==null&&v!==undefined});
+    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobKpi});}).filter(function(v){return v!==null&&v!==undefined});
     return vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:null;
   });
   var dispActual=dispMes[dispMes.length-1];
@@ -314,6 +315,9 @@ export function renderKpi(){
   // se muestra como "sin dato", porque no hubo un intervalo entre fallas que medir.
   var mtbfMes=last12.map(function(mes){
     var fallasM=contarFallasMes(otConHist,mes);
+    // Un mes con poco registro no mide MTBF: «0 fallas» ahí puede ser «nadie cargó nada», no «no falló» (etapa 2 de «datos desactualizados»).
+    var cobM=coberturaFlotaMes(eq,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,cobertura:cobKpi});
+    if(cobM.pct!==null&&cobM.pct<COBERTURA_MIN_PCT)return null;
     var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
     return fallasM>0?Math.round(hrsM/fallasM):null;
   });

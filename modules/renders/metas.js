@@ -48,6 +48,7 @@ export function renderMetas() {
   // logic.js): override manual > abril > cálculo automático. Antes Metas usaba SOLO los
   // overrides manuales, así que su disponibilidad no coincidía con Disponibilidad ni KPI.
   var downMapMetas = dispDownMap(reg, ot);
+  var cobMetas = C.coberturaApp();   // días sin registro del equipo no cuentan como disponibles (etapa 2 de «datos desactualizados»)
   var dAbrMetas = INIT.dispAbril || {};
   MSN.forEach(function (m, mi) {
     var mes = anioMetas + '-' + ('0' + (mi + 1)).slice(-2);
@@ -73,7 +74,7 @@ export function renderMetas() {
     // exacto) — se acepta ese riesgo a cambio de que los meses vacíos en 'ot' (como
     // agosto) dejen de mostrar un Ratio Preventivo 100% falso por falta de dato.
     var correctivosDelMes = contarFallasMes(otConHist, mes);
-    var dispValsM = eq.map(function (e) { return dispEquipoMes(e.sigla, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, hrsDia: e.hrsDia || 12 }); }).filter(function (v) { return v !== null && v !== undefined });
+    var dispValsM = eq.map(function (e) { return dispEquipoMes(e.sigla, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, hrsDia: e.hrsDia || 12, cobertura: cobMetas }); }).filter(function (v) { return v !== null && v !== undefined });
     var hhMes = Math.round(regM.reduce(function (s, r) { return s + (r.duracionH || 0) }, 0));
     // Gasto REAL del mes = mano de obra (HH×tarifa) + repuestos/materiales consumidos.
     // Antes el "gasto" era solo HH×tarifa: ignoraba los repuestos, que suelen ser el
@@ -117,7 +118,10 @@ export function renderMetas() {
       mtbf: correctivosDelMes + ' falla(s) registrada(s) ese mes',
       backlog: peorEqBacklog ? (backlogPorEq[peorEqBacklog] + ' de ' + backlogMes + ' pendiente(s) son de ' + peorEqBacklog) : ''
     };
+    // Cobertura de registro del mes: con menos de COBERTURA_MIN_PCT % no se calcula MTBF («0 fallas» podría ser «nadie cargó nada»); mismo criterio que Informes KPI.
+    var cobMesM = coberturaFlotaMes(eq, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, cobertura: cobMetas });
     realData[m] = {
+      pocaCobertura: cobMesM.pct !== null && cobMesM.pct < COBERTURA_MIN_PCT,
       disp: dispValsM.length ? Math.round(dispValsM.reduce(function (s, v) { return s + v }, 0) / dispValsM.length * 10) / 10 : null,
       pms: regM.length,
       hh: hhMes,
@@ -147,7 +151,7 @@ export function renderMetas() {
   var hMFlota = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0);
   function valorIndicador(id, mes) {
     if (!realData[mes]) return null;
-    if (id === 'mtbf') { var fM = realData[mes].correctivosDelMes; return fM > 0 ? Math.round(hMFlota / fM) : null; }
+    if (id === 'mtbf') { var fM = realData[mes].correctivosDelMes; return fM > 0 && !realData[mes].pocaCobertura ? Math.round(hMFlota / fM) : null; }
     var v = realData[mes][id];
     return v === undefined ? null : v;
   }
@@ -291,7 +295,7 @@ export function renderMetas() {
           // MTBF mensual = horas de flota ÷ fallas del mes. Un mes SIN fallas ya no
           // devuelve las horas completas (número absurdo que siempre gana la meta): queda
           // "sin dato", porque no hubo intervalo entre fallas que medir ese mes.
-          if (ind.id === 'mtbf') { var fM = realData[mes] ? realData[mes].correctivosDelMes : 0; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 ? Math.round(hM / fM) : null; }
+          if (ind.id === 'mtbf') { var fM = realData[mes] ? realData[mes].correctivosDelMes : 0; var hM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0); real = fM > 0 && !(realData[mes] && realData[mes].pocaCobertura) ? Math.round(hM / fM) : null; }
           var sinDato = real === null;
           var ok = sinDato ? null : (ind.higher ? (real >= metaM) : (real <= metaM));
           var col = sinDato ? 'var(--tx3)' : ok ? 'var(--ok)' : 'var(--danger)';

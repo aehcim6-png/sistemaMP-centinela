@@ -209,7 +209,7 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Si pasan uno o dos meses sin cargar datos** (corte de electricidad, el técnico con licencia): la flota completa pasa a «sin lectura», el Dashboard lo avisa con la fecha de la lectura más nueva y el correo diario llega todos los días hasta que se carguen horómetros. No hay números inventados ni «todo al día». Al cargar un horómetro, el equipo vuelve a calcularse solo.
 
-**Lo que aún no cubre.** Disponibilidad y MTBF siguen tratando un día sin registro como un día sin falla; hay una propuesta (cobertura de datos) pendiente de aprobación. Hasta entonces, leer esos indicadores junto con el aviso de datos.
+**Disponibilidad y MTBF (cobertura de registro).** Un día solo cuenta como disponible si el equipo tiene algún registro (lectura de horómetro, OT o PM) a menos de 7 días, o una detención cargada. Los días sin registro no entran al promedio. Con una semana sin datos todo sigue igual; con un mes o dos, el mes queda con poca cobertura o «Sin datos» en vez de 100 %. Dashboard, Disponibilidad, KPI, Metas y Predictivo muestran «Cobertura de datos: N % de los días del mes» y avisan si baja de 50 %. El MTBF mensual de KPI aparece como «sin dato» en un mes con menos de 50 % de cobertura. Un valor de disponibilidad cargado a mano no se modifica. Límite: la cobertura mide que hubo registro, no que el dato sea bueno.
 
 ### Protección contra bots (CAPTCHA, activado 2026-09-08)
 

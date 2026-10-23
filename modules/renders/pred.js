@@ -1361,7 +1361,8 @@ export function renderPred(){
     var mesActDot=_hoyDot.getFullYear()+'-'+String(_hoyDot.getMonth()+1).padStart(2,'0');
     var dispCalcDot=S.g('dispCalc')||{};var dAbrDot=INIT.dispAbril||{};
     var downMapDot=dispDownMap(reg,ot);
-    var dispValsDot=eq.map(function(e){return dispEquipoMes(e.sigla,mesActDot,{downMap:downMapDot,dispCalc:dispCalcDot,dAbr:dAbrDot,hrsDia:e.hrsDia||12});}).filter(function(v){return v!=null;});
+    var cobDot=C.coberturaApp();
+    var dispValsDot=eq.map(function(e){return dispEquipoMes(e.sigla,mesActDot,{downMap:downMapDot,dispCalc:dispCalcDot,dAbr:dAbrDot,hrsDia:e.hrsDia||12,cobertura:cobDot});}).filter(function(v){return v!=null;});
     var dispFlotaDot=dispValsDot.length?Math.round(dispValsDot.reduce(function(s,v){return s+v;},0)/dispValsDot.length*10)/10:null;
 
     // HH real vs. plan — mismo cálculo que Costos & Stock → HH por Técnico (cos.js)
