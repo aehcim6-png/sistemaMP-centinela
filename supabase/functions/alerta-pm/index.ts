@@ -20,14 +20,14 @@
 //      'solución', 15+ OT de muestra) — gestión de taller.
 //   8. Alertas de aceite persistentes (mismo equipo+componente, 2 muestras
 //      seguidas en ALERTA/PRECAUCION) — predictivo que no se está usando.
-//  10. Equipos sin lectura reciente de horómetro (2026-10-23) — un PM
-//      "urgente" calculado con un horómetro de hace más de 30 días no es un
-//      dato, es una extrapolación; esos equipos salen de la sección 1 y se
-//      listan aparte para que se vea que falta cargar datos.
 //   9. Reingresos tempranos por técnico (mismo equipo+componente vuelve a
 //      fallar dentro de 7 días de cerrada la OT anterior, excluyendo
 //      consumibles de desgaste esperado) — durabilidad de la reparación,
 //      no solo si quedó documentada.
+//  10. Equipos sin lectura reciente de horómetro (2026-10-23) — un PM
+//      "urgente" calculado con un horómetro de hace más de 30 días no es un
+//      dato, es una extrapolación; esos equipos salen de la sección 1 y se
+//      listan aparte para que se vea que falta cargar datos.
 //
 // (2026-08-01) Ampliada de "solo PM" a "todo lo urgente" a pedido del
 // usuario. Quedan afuera por ahora Neumáticos y Componentes Mayores: su
