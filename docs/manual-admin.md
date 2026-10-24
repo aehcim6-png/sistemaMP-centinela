@@ -221,6 +221,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Qué comprar: próximo mes, semestre y año (2026-10-24)
+
+**Qué es.** En **Stock & Insumos** hay un botón **🛒 Qué comprar**. Muestra, para el próximo mes, semestre y año, cuánto hay que comprar de **filtros, lubricantes, neumáticos y elementos de desgaste**, ya descontando lo que hay en bodega (y lo pendiente de llegar).
+
+**De dónde sale cada número.** Filtros y lubricantes: lo mayor entre lo que consumen los PM programados de la flota y el consumo histórico del ítem (la columna «Según» dice cuál mandó). Neumáticos: los que la proyección de desgaste da por cambiados en cada plazo, por medida, menos los que hay en Existencias; los vencidos cuentan en los tres plazos. Elementos de desgaste: cuántos cambios se registraron por período en los correctivos; son cambios, no unidades de bodega.
+
+**Antes de comprar, lee los avisos** (cuadro amarillo): si el horómetro de los equipos está sin actualizar, las fechas de los PM se corren; si las mediciones de neumáticos son viejas, la cantidad de neumáticos a cambiar puede estar sobreestimada hasta volver a medir; si hay repuestos de las pautas sin vincular a Stock, esos no entran. El costo suma solo lo que tiene precio cargado (neumáticos: precio de lista, no cotización). **No considera plazos de entrega**: para saber cuándo pedir usa el plan de reposición de Stock Filtros.
+
 ### Reportabilidad desde una captura (2026-10-24)
 
 **Qué es.** En **Disponibilidad → Reportabilidad diaria del cliente** hay un botón **📷 Importar desde captura**. Sube la captura de pantalla del estatus de equipos que mandan los supervisores (la hoja «Estatus equipos faena Centinela» o la planilla «Reportabilidad diaria faena»); la IA lee la tabla y se abre la misma vista previa del Excel.

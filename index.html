@@ -635,7 +635,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-24f"></script>
+<script src="logic.js?v=2026-10-24g"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -688,13 +688,13 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-24f',
+  ayuda:'2026-10-24g',
   cad:'2026-08-30b',
   cfg:'2026-10-22',
   comp2:'2026-10-19',
   cos:'2026-10-24e',
   destrabe:'2026-10-08',
-  disp:'2026-10-24f',
+  disp:'2026-10-24g',
   eq:'2026-10-23',
   gantt:'2026-10-17',
   hist:'2026-10-24d',
@@ -716,7 +716,7 @@ const _LAZY_VERS={
   rep:'2026-10-08',
   sem:'2026-10-08',
   stk:'2026-10-11d',
-  stk2:'2026-10-16b',
+  stk2:'2026-10-24g',
   uso:'2026-10-08',
   venc:'2026-09-02',
   // Segundo lote (2026-09-10, extensión): archivos que SÍ tienen alguna
@@ -775,7 +775,7 @@ const _LAZY_EXPORTS={
   rep:['renderRep','edRep','delRep','addRep','saveRep','crearOC','confirmarOC','verOrdenesCompra','recibirOC','syncRepStock','importRepCSV','processRepCSV','edPrecioDesgaste'],
   sem:['renderSem','edSem','addSemItem','saveNuevoSemItem','delSem','navSem','edSemReal','cerrarSemana','reabrirSemana','importSemCSV'],
   stk:['renderStk','addStock','saveStock','stkCambiarCobertura'],
-  stk2:['renderStk2','stk2Sub'],
+  stk2:['renderStk2','stk2Sub','queComprar'],
   uso:['verUsoPestanas','renderUso'],
   venc:['renderVenc','_vencAbrirSelector','_vencFotoSeleccionada','edVenc','exportVencCSV'],
   // Segundo lote (2026-09-10) — ver comentario en _LAZY_VERS.
