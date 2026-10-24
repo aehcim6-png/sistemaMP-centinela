@@ -635,7 +635,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-24e"></script>
+<script src="logic.js?v=2026-10-24f"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -688,13 +688,13 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-24b',
+  ayuda:'2026-10-24f',
   cad:'2026-08-30b',
   cfg:'2026-10-22',
   comp2:'2026-10-19',
   cos:'2026-10-24e',
   destrabe:'2026-10-08',
-  disp:'2026-10-23b',
+  disp:'2026-10-24f',
   eq:'2026-10-23',
   gantt:'2026-10-17',
   hist:'2026-10-24d',
@@ -753,7 +753,7 @@ const _LAZY_EXPORTS={
   comp2:['renderComp2','comp2Sub'],
   cos:['renderCos','verComprasProveedores','arriendoCambiar','tcoCambiarFuenteCapital'],
   destrabe:['renderDestrabe','edDestrabe','addDestrabe','delDestrabe','abrirVincularOC','confirmarVincularOC'],
-  disp:['renderDisp','configurarRendimientoModelos','edRendModelo','importarReportabilidad','confirmarImportReportabilidad','exportarReportabilidadDia'],
+  disp:['renderDisp','configurarRendimientoModelos','edRendModelo','importarReportabilidad','importarReportabilidadCaptura','repCapFecha','confirmarImportReportabilidad','exportarReportabilidadDia'],
   eq:['renderEq','addEquipo','saveNewEq','importarEquiposNuevos','importarHorasAmortizar','editFicha','saveFicha'],
   gantt:['renderGantt','edGantt'],
   hist:['renderHist','importHorom','processImportHorom','edHist','delHist','addHist','saveHist','_horomChequear','_horomFotoActivar','_horomFotoSeleccionada','_horomSubirFoto','_horomVerFoto'],

@@ -261,7 +261,8 @@
     <li><b>Cómo lo calcula aquí:</b> disponibilidad del día = OP ÷ (OP + FS) de los equipos reportados ese día. Une varias hojas en filas únicas por fecha + sigla; recargar lo mismo no cambia nada. Agrupa las filas consecutivas FS en "episodios" (con su motivo y sus reprogramaciones).</li>
     <li><b>Dónde se ve:</b> Disponibilidad → "Reportabilidad diaria del cliente".</li>
     <li><b>Límites:</b> depende de la fiabilidad de la hoja del cliente y del mapa de siglas.</li>
-    <li><b>Código:</b> <code>reportabilidadFechaDeNombre</code>, <code>reportabilidadParsearHoja</code>, <code>reportabilidadArmarLote</code>, <code>reportabilidadFusionar</code>, <code>reportabilidadDisponibilidad</code>, <code>reportabilidadEpisodios</code>, <code>REPORTAB_MAPA_SIGLAS</code>.</li>
+    <li><b>Carga desde captura (24-oct-2026):</b> los supervisores mandan el estatus como captura de pantalla; la función <code>leer-estatus-equipos</code> (IA, solo lee) devuelve la tabla y <code>reportabilidadDeCaptura</code> la limpia (códigos, un dígito mal leído que calza con UN equipo de la flota, repetidos, equipos que no salen, fecha de encabezado en el futuro) antes de pasar por el mismo armado de lote que un Excel. Nada se guarda sin que la persona compare con la imagen, confirme el día y apriete «Cargar». Límites: la precisión de lectura no se ha medido con capturas reales; una captura cortada deja sin dato a los equipos que no salen.</li>
+    <li><b>Código:</b> <code>reportabilidadFechaDeNombre</code>, <code>reportabilidadParsearHoja</code>, <code>reportabilidadArmarLote</code>, <code>reportabilidadFusionar</code>, <code>reportabilidadSiglaDeCaptura</code>, <code>reportabilidadDeCaptura</code>, <code>reportabilidadHojaDeCaptura</code>, <code>reportabilidadDisponibilidad</code>, <code>reportabilidadEpisodios</code>, <code>REPORTAB_MAPA_SIGLAS</code>.</li>
   </ul>
 
   <h3 id="d-15">A11. Trazabilidad aviso → orden</h3>

@@ -221,6 +221,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Reportabilidad desde una captura (2026-10-24)
+
+**Qué es.** En **Disponibilidad → Reportabilidad diaria del cliente** hay un botón **📷 Importar desde captura**. Sube la captura de pantalla del estatus de equipos que mandan los supervisores (la hoja «Estatus equipos faena Centinela» o la planilla «Reportabilidad diaria faena»); la IA lee la tabla y se abre la misma vista previa del Excel.
+
+**Cómo usarlo.** Compara lo leído con la imagen (aparece al lado y hay una tabla con lo leído; las filas dudosas van marcadas con ⚠), **confirma el día** de cada captura (si la hoja trae una fecha en el futuro, el sistema propone la del mes anterior) y aprieta **Cargar**. Cada fila cargada queda con su origen («captura leída por IA»). Cargar de nuevo el mismo día lo actualiza, no lo duplica.
+
+**Qué hay que saber.** Si la captura está cortada abajo, los equipos que no salen quedan sin dato ese día (el aviso los lista). Un equipo que no es de la flota no se carga. Si dos capturas traen el mismo día, gana la que tiene más equipos y se avisa. Se envía la imagen a Gemini, con un costo pequeño por captura. **Aún no se midió la precisión de lectura con capturas reales:** revisa siempre antes de cargar.
+
 ### Paradas largas que el horómetro contradice (2026-10-24)
 
 **Qué es.** En **Auditoría de Datos → Paradas largas que el horómetro contradice** (solo administradores). Lista las OT de 24 h o más durante las cuales el horómetro del equipo avanzó: un equipo detenido no suma horas, así que la duración o la fecha de salida parecen un error de digitación (por ejemplo, una OT de ampolletas con 696 h). También lista las salidas de servicio **abiertas** cuyo equipo ya está sumando horas (volvió a operar y nadie cerró la OT).

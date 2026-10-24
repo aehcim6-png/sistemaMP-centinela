@@ -157,7 +157,8 @@ Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Cómo lo calcula aquí:** disponibilidad del día = OP ÷ (OP + FS) de los equipos reportados ese día. Une varias hojas en filas únicas por fecha + sigla; recargar lo mismo no cambia nada. Agrupa las filas consecutivas FS en "episodios" (con su motivo y sus reprogramaciones).
 - **Dónde se ve:** Disponibilidad → "Reportabilidad diaria del cliente".
 - **Límites:** depende de la fiabilidad de la hoja del cliente y del mapa de siglas.
-- **Código:** `reportabilidadFechaDeNombre`, `reportabilidadParsearHoja`, `reportabilidadArmarLote`, `reportabilidadFusionar`, `reportabilidadDisponibilidad`, `reportabilidadEpisodios`, `REPORTAB_MAPA_SIGLAS`.
+- **Carga desde captura (24-oct-2026):** los supervisores mandan el estatus como captura de pantalla; la función `leer-estatus-equipos` (IA, solo lee) devuelve la tabla y `reportabilidadDeCaptura` la limpia (códigos, un dígito mal leído que calza con UN equipo de la flota, repetidos, equipos que no salen, fecha de encabezado en el futuro) antes de pasar por el mismo armado de lote que un Excel. Nada se guarda sin que la persona compare con la imagen, confirme el día y apriete «Cargar». Límites: la precisión de lectura no se ha medido con capturas reales; una captura cortada deja sin dato a los equipos que no salen.
+- **Código:** `reportabilidadFechaDeNombre`, `reportabilidadParsearHoja`, `reportabilidadArmarLote`, `reportabilidadFusionar`, `reportabilidadSiglaDeCaptura`, `reportabilidadDeCaptura`, `reportabilidadHojaDeCaptura`, `reportabilidadDisponibilidad`, `reportabilidadEpisodios`, `REPORTAB_MAPA_SIGLAS`.
 
 ### A11. Trazabilidad aviso → orden
 - **Tipo:** algoritmo de cruce.

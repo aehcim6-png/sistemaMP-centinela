@@ -482,7 +482,7 @@ export function dispReportabHTML(eq) {
     '<div style="font-size:11px;color:var(--tx3);padding:6px 0 8px;line-height:1.5">Estatus OP / FS de cada equipo por día, tal como lo reporta el cliente (Excel de reportabilidad). Disponibilidad del día = equipos operativos ÷ equipos reportados. ' +
     (fechasCargadas.length ? 'Cargados <b>' + fn(fechasCargadas.length) + '</b> días, del ' + escapeHtml(fechasCargadas[0]) + ' al ' + escapeHtml(fechasCargadas[fechasCargadas.length - 1]) + '. ' : '') +
     'Puedes cargar archivos de cualquier fecha cuando los encuentres: un día que ya está cargado se actualiza, no se duplica.</div>' +
-    '<div class="toolbar" style="margin:0 0 10px;gap:8px;flex-wrap:wrap">' + (window._userRole === 'lector' ? '' : '<label class="btn" style="cursor:pointer">⬆️ Importar reportabilidad (Excel)<input type="file" accept=".xlsx,.xls" multiple style="display:none" onchange="importarReportabilidad(event)"></label>') +
+    '<div class="toolbar" style="margin:0 0 10px;gap:8px;flex-wrap:wrap">' + (window._userRole === 'lector' ? '' : '<label class="btn" style="cursor:pointer">⬆️ Importar reportabilidad (Excel)<input type="file" accept=".xlsx,.xls" multiple style="display:none" onchange="importarReportabilidad(event)"></label><label class="btn btn-o" style="cursor:pointer" title="Sube la captura de pantalla del estatus de equipos: la IA lee la tabla y tú confirmas antes de guardar">📷 Importar desde captura<input type="file" accept="image/*" multiple style="display:none" onchange="importarReportabilidadCaptura(event)"></label>') +
     (fechasCargadas.length ? '<select id="fRepDiaExp" title="Día a exportar">' + fechasCargadas.slice().reverse().map(function (f) { return '<option>' + f + '</option>'; }).join('') + '</select><button class="btn btn-o" onclick="exportarReportabilidadDia()">⬇️ Exportar ese día (Excel)</button>' : '') +
     '<select id="fRepTipo" onchange="renders.disp()">' + [['semana', 'Semana'], ['mes', 'Mes'], ['semestre', 'Semestre'], ['anio', 'Año']].map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === tipo ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select>' +
     '<select id="fRepRef" onchange="renders.disp()">' + opts.map(function (x) { return '<option value="' + x.v + '"' + (x.v === ref ? ' selected' : '') + '>' + escapeHtml(x.label) + '</option>'; }).join('') + '</select></div>';
@@ -548,15 +548,16 @@ export function importarReportabilidad(ev) {
     reader.readAsArrayBuffer(file);
   });
 }
-function _repPrevisualizar(hojas) {
+function _repPrevisualizar(hojas, extra, fuentePorFecha) {
   var eq = S.g('eq') || [], exist = S.g('reportab') || [];
   var retiradas = (S.g('papelera') || []).filter(function (p) { return p.categoria === 'eq' && p.fila; }).map(function (p) { return p.fila.sigla; });
   exist.forEach(function (r) { if (retiradas.indexOf(r.sigla) < 0 && !eq.some(function (e) { return e.sigla === r.sigla; })) retiradas.push(r.sigla); });   // lo ya cargado de equipos que hoy no están
   var lote = reportabilidadArmarLote(hojas, { anio: new Date().getFullYear(), siglasPrograma: eq.map(function (e) { return e.sigla; }), siglasRetiradas: retiradas });
+  if (fuentePorFecha) lote.filas.forEach(function (f) { if (fuentePorFecha[f.fecha]) f.fuente = fuentePorFecha[f.fecha]; });
   var fus = reportabilidadFusionar(exist, lote.filas);
   window._reportabLote = { fus: fus, filas: lote.filas };
   var dias = Array.from(new Set(lote.filas.map(function (x) { return x.fecha; }))).sort();
-  var h = '<h3>Importar reportabilidad diaria</h3>';
+  var h = '<h3>Importar reportabilidad diaria</h3>' + (extra || '');
   if (!lote.filas.length) { sm(h + '<div style="font-size:12px;color:var(--tx3)">No encontré hojas de reportabilidad en los archivos (se espera una tabla con columnas Sigla/Equipo y Estatus).</div><div style="margin-top:12px"><button class="btn btn-o" onclick="cm()">Cerrar</button></div>'); return; }
   h += '<div style="font-size:12px;line-height:1.6;margin-bottom:8px">' + fn(dias.length) + ' día(s): ' + escapeHtml(dias[0]) + (dias.length > 1 ? ' → ' + escapeHtml(dias[dias.length - 1]) : '') + ' · ' + fn(lote.filas.length) + ' filas.<br>' +
     '<b style="color:var(--ok)">' + fn(fus.insertar.length) + ' nuevas</b> · <b style="color:var(--w)">' + fn(fus.actualizar.length) + ' actualizan lo ya cargado</b> · ' + fn(fus.iguales) + ' sin cambios.</div>';
@@ -574,11 +575,81 @@ function _repPrevisualizar(hojas) {
 export function confirmarImportReportabilidad() {
   var l = window._reportabLote; if (!l) return;
   var exist = (S.g('reportab') || []).slice();
-  l.fus.actualizar.forEach(function (a) { var x = exist.find(function (e) { return e._id === a._id; }); if (x) Object.assign(x, { siglaCliente: a.fila.siglaCliente, estatus: a.fila.estatus, ubicacion: a.fila.ubicacion, detalle: a.fila.detalle, fechaDetencion: a.fila.fechaDetencion, proyeccion: a.fila.proyeccion, ordenCompra: a.fila.ordenCompra, observacion: a.fila.observacion, mantenedor: a.fila.mantenedor, fuente: 'importado ' + new Date().toISOString().slice(0, 10) }); });
-  l.fus.insertar.forEach(function (n) { exist.push({ _id: _uuidV4(), fecha: n.fecha, sigla: n.sigla, siglaCliente: n.siglaCliente, estatus: n.estatus, ubicacion: n.ubicacion, detalle: n.detalle, fechaDetencion: n.fechaDetencion, proyeccion: n.proyeccion, ordenCompra: n.ordenCompra, observacion: n.observacion, mantenedor: n.mantenedor, fuente: 'importado ' + new Date().toISOString().slice(0, 10) }); });
+  l.fus.actualizar.forEach(function (a) { var x = exist.find(function (e) { return e._id === a._id; }); if (x) Object.assign(x, { siglaCliente: a.fila.siglaCliente, estatus: a.fila.estatus, ubicacion: a.fila.ubicacion, detalle: a.fila.detalle, fechaDetencion: a.fila.fechaDetencion, proyeccion: a.fila.proyeccion, ordenCompra: a.fila.ordenCompra, observacion: a.fila.observacion, mantenedor: a.fila.mantenedor, fuente: a.fila.fuente || ('importado ' + new Date().toISOString().slice(0, 10)) }); });
+  l.fus.insertar.forEach(function (n) { exist.push({ _id: _uuidV4(), fecha: n.fecha, sigla: n.sigla, siglaCliente: n.siglaCliente, estatus: n.estatus, ubicacion: n.ubicacion, detalle: n.detalle, fechaDetencion: n.fechaDetencion, proyeccion: n.proyeccion, ordenCompra: n.ordenCompra, observacion: n.observacion, mantenedor: n.mantenedor, fuente: n.fuente || ('importado ' + new Date().toISOString().slice(0, 10)) }); });
   S.s('reportab', exist);
-  window._reportabLote = null; cm(); refreshAll();
+  window._reportabLote = null; window._reportabCap = null; cm(); refreshAll();
   toast('✅ Reportabilidad cargada: ' + l.fus.insertar.length + ' nuevas, ' + l.fus.actualizar.length + ' actualizadas');
+}
+// ── Carga desde CAPTURA (2026-10-24) ──
+// La captura de pantalla del estatus de equipos (la que mandan los supervisores) se lee con IA (leer-estatus-equipos), se muestra junto a lo leído, se cruza con la flota y pasa por el mismo armado de lote
+// y la misma vista previa que un Excel. La IA solo lee: no se guarda nada hasta apretar «Cargar». Estado en window._reportabCap = { items:[{archivo, dataUrl, cap, fechaISO}] }.
+function _repLeerImagen(file) {
+  return new Promise(function (resolve) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var esc = Math.min(1, 2000 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * esc)); c.height = Math.max(1, Math.round(img.height * esc));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        var url = c.toDataURL('image/jpeg', 0.85);
+        resolve({ dataUrl: url, base64: url.split(',')[1] });
+      };
+      img.onerror = function () { resolve(null); };
+      img.src = rd.result;
+    };
+    rd.onerror = function () { resolve(null); };
+    rd.readAsDataURL(file);
+  });
+}
+export async function importarReportabilidadCaptura(ev) {
+  var files = Array.prototype.slice.call(ev.target.files || []); ev.target.value = '';
+  if (!files.length) return;
+  var eq = S.g('eq') || [], hoy = new Date().toISOString().slice(0, 10), items = [], errores = [];
+  for (var i = 0; i < files.length; i++) {
+    toast('📷 Leyendo captura ' + (i + 1) + ' de ' + files.length + '…');
+    var im = await _repLeerImagen(files[i]);
+    if (!im) { errores.push(files[i].name + ': no se pudo abrir la imagen'); continue; }
+    var r = await _llamarFuncion('leer-estatus-equipos', { imagenBase64: im.base64, mimeType: 'image/jpeg' });
+    if (!r || r.error || !r.datos) { errores.push(files[i].name + ': ' + ((r && r.error) || 'sin respuesta')); continue; }
+    if (!r.datos.legible) { errores.push(files[i].name + ': ' + (r.datos.observacion || 'no se leyó una tabla de estatus')); continue; }
+    var cap = reportabilidadDeCaptura(r.datos, { hoy: hoy, siglasPrograma: eq.map(function (e) { return e.sigla; }), archivo: files[i].name });
+    items.push({ archivo: files[i].name, dataUrl: im.dataUrl, cap: cap, fechaISO: cap.fechaFutura ? cap.fechaSugerida : cap.fechaLeida });
+  }
+  window._reportabCap = { items: items, errores: errores };
+  if (!items.length) { toast('❌ ' + (errores[0] || 'No se pudo leer ninguna captura')); return; }
+  _repCapPrevisualizar();
+}
+export function repCapFecha(i, v) {
+  var c = window._reportabCap; if (!c || !c.items[i]) return;
+  c.items[i].fechaISO = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+  _repCapPrevisualizar();
+}
+function _repCapPrevisualizar() {
+  var c = window._reportabCap; if (!c) return;
+  var hoy = new Date().toISOString().slice(0, 10), fuente = {};
+  var hojas = [];
+  var extra = c.items.map(function (it, i) {
+    var cap = it.cap, av = [];
+    if (cap.fechaFutura) av.push('⚠ La hoja dice <b>' + escapeHtml(cap.fechaTexto) + '</b>, que está en el futuro' + (cap.fechaSugerida ? ': se propone <b>' + escapeHtml(cap.fechaSugerida) + '</b> (calza con las fechas de detención de la hoja).' : '.') + ' Confirma o corrige el día.');
+    if (!it.fechaISO) av.push('⚠ Indica el día de esta captura para poder cargarla.');
+    else if (it.fechaISO > hoy) av.push('⚠ El día elegido está en el futuro.');
+    if (cap.observacionIA) av.push('⚠ ' + escapeHtml(cap.observacionIA));
+    if (cap.faltan.length) av.push('ℹ ' + fn(cap.faltan.length) + ' equipo(s) de la flota no salen en la captura (no se cargan; ese día quedan sin dato para ellos): ' + cap.faltan.slice(0, 12).map(escapeHtml).join(', ') + (cap.faltan.length > 12 ? '…' : '') + '.');
+    if (cap.corregidas.length) av.push('⚠ Códigos corregidos por parecerse a un equipo de la flota: ' + cap.corregidas.map(function (x) { return escapeHtml(x.leida) + ' → ' + escapeHtml(x.sigla); }).join(', ') + '.');
+    if (cap.duplicadas.length) av.push('⚠ Equipos repetidos en la captura (se usó la primera fila): ' + cap.duplicadas.map(escapeHtml).join(', ') + '.');
+    if (cap.inciertas) av.push('⚠ ' + fn(cap.inciertas) + ' fila(s) con lectura dudosa (marcadas con ⚠ abajo): compáralas con la imagen.');
+    var hoja = it.fechaISO ? reportabilidadHojaDeCaptura(cap, it.fechaISO) : null;
+    if (hoja) { hojas.push(hoja); fuente[it.fechaISO] = 'captura leída por IA ' + hoy + ' (' + it.archivo + ')'; }
+    var tabla = '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Ver lo leído (' + fn(cap.filas.length) + ' equipos: ' + fn(cap.nFS) + ' FS, ' + fn(cap.nOP) + ' OP)</summary><div class="tbl-wrap" style="max-height:220px;overflow:auto"><table style="font-size:10px"><tr><th></th><th>Equipo</th><th>Estatus</th><th>Detención</th><th>Comentario</th></tr>' +
+      cap.filas.map(function (f) { return '<tr' + (f.incierta ? ' style="background:rgba(245,158,11,.12)"' : '') + '><td>' + (f.incierta ? '⚠' : '') + '</td><td class="mono">' + escapeHtml(f.sigla) + (f.siglaLeida !== f.sigla ? ' <span style="color:var(--tx3)">(leído ' + escapeHtml(f.siglaLeida) + ')</span>' : '') + '</td><td><b style="color:' + (f.estatus === 'FS' ? 'var(--danger)' : 'var(--ok)') + '">' + escapeHtml(f.estatus || '?') + '</b></td><td>' + escapeHtml(f.fechaDetencion || '') + '</td><td style="max-width:360px">' + escapeHtml(_repTxt(f.observacion, 120)) + '</td></tr>'; }).join('') + '</table></div></details>';
+    return '<div style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--bd);border-radius:6px;padding:8px;margin-bottom:8px"><a href="' + it.dataUrl + '" target="_blank" rel="noopener"><img src="' + it.dataUrl + '" alt="captura" style="width:130px;max-height:110px;object-fit:cover;object-position:top;border-radius:4px"></a>' +
+      '<div style="flex:1;min-width:0;font-size:11px;line-height:1.5"><div><b>' + escapeHtml(it.archivo) + '</b>' + (cap.supervisor ? ' · supervisor ' + escapeHtml(cap.supervisor) : '') + '</div>' +
+      '<div>Día de la captura: <input type="date" value="' + escapeHtml(it.fechaISO || '') + '" onchange="repCapFecha(' + i + ',this.value)" style="font-size:11px"></div>' + av.map(function (a) { return '<div>' + a + '</div>'; }).join('') + tabla + '</div></div>';
+  }).join('') + (c.errores && c.errores.length ? '<div style="font-size:11px;color:var(--danger);margin-bottom:6px">' + c.errores.map(function (e) { return '❌ ' + escapeHtml(e); }).join('<br>') + '</div>' : '');
+  var intro = '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px;line-height:1.5">La IA leyó la(s) captura(s); <b>compara lo leído con la imagen</b> antes de cargar. Nada se guarda hasta apretar «Cargar».</div>';
+  _repPrevisualizar(hojas, intro + extra, fuente);
 }
 // Exporta un día en el formato del libro del cliente (Sigla, Sigla CEN, Marca - Modelo, Estatus 1=FS 2=OP, …).
 export function exportarReportabilidadDia() {
@@ -594,6 +665,8 @@ export function exportarReportabilidadDia() {
   XLSX.writeFile(wb, 'Reportabilidad_diaria_' + f + '.xlsx');
 }
 window.importarReportabilidad = importarReportabilidad;
+window.importarReportabilidadCaptura = importarReportabilidadCaptura;
+window.repCapFecha = repCapFecha;
 window.confirmarImportReportabilidad = confirmarImportReportabilidad;
 window.exportarReportabilidadDia = exportarReportabilidadDia;
 
