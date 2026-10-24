@@ -1,6 +1,6 @@
 // «Qué comprar» (24-oct-2026): filtros, lubricantes, neumáticos y desgaste a 30 / 180 / 365 días, restando existencias y avisando cuando los datos están viejos.
 import { describe, it, expect } from 'vitest';
-import { planCompras, demandaPlanificadaPM } from '../logic.js';
+import { planCompras, demandaPlanificadaPM, plazoEntregaCompras, planReposicionPM } from '../logic.js';
 
 const HOY = '2026-10-24';
 const stk = [
@@ -82,6 +82,13 @@ describe('planCompras: neumáticos', () => {
   });
 });
 
+describe('planCompras: neumáticos solo en existencias', () => {
+  it('una medida que solo está en existencias no rompe ni aparece (no se cambia ninguno)', () => {
+    const r = planCompras({ hoy: HOY, neu: { items: [], stock: [{ medida: '1400R24' }] } });
+    expect(r.neumaticos).toEqual([]);
+  });
+});
+
 describe('planCompras: desgaste y avisos', () => {
   it('pasa solo los desgastes con datos suficientes y cuenta los que no', () => {
     const r = planCompras({ hoy: HOY, demanda: { items: {} }, stk: [], lub: [], equipos: [], neu: {},
@@ -97,11 +104,95 @@ describe('planCompras: desgaste y avisos', () => {
     expect(h.de).toBe(2);                                // C no tiene horas por día: no cuenta
     expect(r.avisos.map(a => a.tipo)).toEqual(expect.arrayContaining(['sinRitmo', 'sinStock']));
   });
-  it('sin datos no inventa: todo vacío y sin avisos', () => {
+  it('sin datos no inventa: todo vacío y solo avisa que el plazo es un supuesto', () => {
     const r = planCompras({ hoy: HOY });
     expect(r.filtros).toEqual([]);
     expect(r.neumaticos).toEqual([]);
-    expect(r.avisos).toEqual([]);
+    expect(r.avisos.map(a => a.tipo)).toEqual(['plazo']);   // sin historial de compras: lo dice
     expect(r.totales.anio.costo).toBe(0);
+  });
+});
+
+// Compras recibidas: cada OC con su plazo (días) y monto. dias en el formato real «X dias Yh Zm».
+function compras(lista) {
+  const out = [];
+  lista.forEach(([oc, dias, monto, lineas = 1], i) => {
+    for (let k = 0; k < lineas; k++) out.push({ estado: 'Recepcion Bodega', oc, pedido: 'P' + i, tiempoRespuesta: dias + ' dias 0h 0m', costo: monto / lineas });
+  });
+  return out;
+}
+const muchas = (n, dias, monto, pref) => Array.from({ length: n }, (_, i) => [pref + i, dias + (i % 5), monto]);
+
+describe('plazoEntregaCompras', () => {
+  const cd = compras([...muchas(40, 10, 500000, 'a'), ...muchas(40, 20, 2000000, 'b'), ...muchas(40, 30, 5000000, 'c')]);
+  const pe = plazoEntregaCompras(cd);
+  it('separa por monto de la OC y dice quién la aprueba', () => {
+    expect(pe.bandas.map(b => [b.clave, b.aprueba, b.n])).toEqual([['hasta1', 'subgerente', 40], ['hasta3', 'gerente', 40], ['sobre3', 'gerente general', 40]]);
+    expect(pe.para(800000).dias).toBe(12);               // mediana de 10..14
+    expect(pe.para(2500000).dias).toBe(22);
+    expect(pe.para(9000000).dias).toBe(32);
+    expect(pe.para(9000000).peor).toBeGreaterThanOrEqual(pe.para(9000000).dias);
+  });
+  it('las líneas de una misma OC cuentan una vez, con el mayor plazo y la suma de sus montos', () => {
+    const una = plazoEntregaCompras([{ estado: 'Recepcion Bodega', oc: 'X', tiempoRespuesta: '10 dias', costo: 700000 }, { estado: 'Recepcion Bodega', oc: 'X', tiempoRespuesta: '30 dias', costo: 700000 }]);
+    expect(una.global.n).toBe(1);
+    expect(una.global.mediana).toBe(30);
+    expect(una.bandas[1].n).toBe(1);                     // 1,4 millones: banda del gerente
+  });
+  it('solo cuenta lo ya recibido', () => {
+    const pe2 = plazoEntregaCompras([{ estado: 'OC Firmada', oc: 'Y', tiempoRespuesta: '99 dias', costo: 1 }]);
+    expect(pe2.n).toBe(0);
+  });
+  it('con pocas OC en la banda usa todas; sin monto usa todas; sin historial dice que es supuesto', () => {
+    const poco = plazoEntregaCompras(compras([...muchas(60, 10, 500000, 'a'), ...muchas(5, 80, 9000000, 'c')]));
+    expect(poco.para(9000000).banda).toBeNull();
+    expect(poco.para(0).banda).toBeNull();
+    const vacio = plazoEntregaCompras([]);
+    expect(vacio.para(1000)).toMatchObject({ dias: 34, supuesto: true, n: 0 });
+  });
+});
+
+describe('plazo real en el plan de reposición y en «Qué comprar»', () => {
+  const pe = plazoEntregaCompras(compras([...muchas(60, 10, 500000, 'a')]));      // 10..14 días, mediana 12
+  const stk1 = [{ _id: 'f1', nParte: 'LF9009', descripcion: 'Filtro aceite', stockBodega: 1, pendiente: 0, precioUnit: 10000 }];
+  const dem1 = { items: { 'filtro:0': { tipo: 'filtro', idx: 0, eventos: [{ dias: 20, cant: 2 }, { dias: 60, cant: 2 }] } }, sinStock: {}, sinRitmo: [] };
+  it('planReposicionPM usa el plazo real en vez de 34 días y da la fecha de pedir antes de', () => {
+    const sin = planReposicionPM(dem1, stk1, [], { cobertura: 30 })[0];
+    const con = planReposicionPM(dem1, stk1, [], { cobertura: 30, plazoFn: pe.para, hoy: '2026-10-24' })[0];
+    expect(sin.lead).toBe(34);
+    expect(con.lead).toBe(12);
+    expect(con.leadFuente).toMatch(/mediana de 60 OC/);
+    expect(con.pedirAntesDias).toBe(8);                  // quiebre en 20 d (1 de stock, el primer PM gasta 2) − 12
+    expect(con.pedirAntesFecha).toBe('2026-11-01');
+    expect(con.leadPeor).toBeGreaterThanOrEqual(con.lead);
+  });
+  it('un plazo propio del ítem manda sobre el real', () => {
+    const r = planReposicionPM(dem1, [{ ...stk1[0], leadTime: 50 }], [], { plazoFn: pe.para, hoy: '2026-10-24' })[0];
+    expect(r.lead).toBe(50);
+    expect(r.leadPropio).toBe(true);
+  });
+  it('marca riesgo de demora si el peor caso ya no llega a tiempo aunque el típico sí', () => {
+    const lento = plazoEntregaCompras(compras([...muchas(60, 10, 500000, 'a'), ...Array.from({ length: 12 }, (_, i) => ['z' + i, 90, 500000])]));
+    const r = planReposicionPM(dem1, stk1, [], { plazoFn: lento.para, hoy: '2026-10-24' })[0];
+    expect(r.pedirAntesPeorDias).toBeLessThan(0);
+    expect(r.estado).not.toBe('pedir_ya');
+    expect(r.riesgoDemora).toBe(true);
+  });
+  it('planCompras: pedir antes de = primer quiebre − plazo real, en filtros y en neumáticos', () => {
+    const r = planCompras({ hoy: '2026-10-24', plazoFn: pe.para, demanda: dem1, stk: stk1, lub: [], equipos: [], desgaste: [],
+      neu: { items: [{ sigla: 'A', posicion: '1', medida: '1400R24', base: '2026-10-24', dias: 40, precio: 2000000 }], stock: [] } });
+    expect(r.filtros[0].quiebreDias).toBe(20);
+    expect(r.filtros[0].pedirAntes).toMatchObject({ dias: 8, fecha: '2026-11-01', ya: false });
+    expect(r.filtros[0].plazo.fuente).toMatch(/mediana de 60 OC/);
+    const n = r.neumaticos[0];
+    expect(n.quiebreDias).toBe(40);
+    expect(n.pedirAntes.dias).toBe(n.plazo.dias ? 40 - n.plazo.dias : null);
+    expect(r.avisos.some(a => a.tipo === 'plazo')).toBe(false);
+  });
+  it('lo que ya debió pedirse sale como «ya» y sin plazoFn el plazo figura como supuesto', () => {
+    const r = planCompras({ hoy: '2026-10-24', demanda: { items: { 'filtro:0': { tipo: 'filtro', idx: 0, eventos: [{ dias: 5, cant: 2 }] } } }, stk: stk1, lub: [], equipos: [], neu: {}, desgaste: [] });
+    expect(r.filtros[0].pedirAntes.ya).toBe(true);
+    expect(r.filtros[0].plazo).toMatchObject({ dias: 34, supuesto: true });
+    expect(r.avisos.some(a => a.tipo === 'plazo')).toBe(true);
   });
 });

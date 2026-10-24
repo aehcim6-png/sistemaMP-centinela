@@ -33,19 +33,22 @@ function _stkPlanPMHTML(stk) {
   var lub = S.g('lub') || [], eqs = S.g('eq') || [], mapa = S.g('mapaRep') || [], cob = _stkPlanCob();
   var verTodo = $('fStkPlanTodo') ? $('fStkPlanTodo').checked : false;
   var dem = demandaPlanificadaPM(eqs, getPautasConsumo, stk, lub, mapa, new Date(), 150);
-  var plan = planReposicionPM(dem, stk, lub, { cobertura: cob });
+  var pe = plazoEntregaCompras(S.g('comprasDetalle') || []);
+  var plan = planReposicionPM(dem, stk, lub, { cobertura: cob, plazoFn: pe.n ? pe.para : null, hoy: new Date() });
   var urg = plan.filter(function (r) { return r.estado === 'pedir_ya'; }), pla = plan.filter(function (r) { return r.estado === 'planificar'; });
   var sinN = Object.keys(dem.sinStock).length;
   var fila = function (r) {
     var col = r.estado === 'pedir_ya' ? 'var(--danger)' : r.estado === 'planificar' ? 'var(--w)' : 'var(--ok)';
     var txt = r.estado === 'pedir_ya' ? '🔴 Pedir ya' : r.estado === 'planificar' ? '🟡 Planificar' : '✅ Cubierto';
-    var antes = r.pedirAntesDias == null ? '—' : r.pedirAntesDias <= 0 ? '<span style="color:var(--danger)">ya (' + fn(-r.pedirAntesDias) + ' d tarde)</span>' : 'en ' + fn(r.pedirAntesDias) + ' d';
+    var fch = function (iso) { return iso ? iso.slice(8, 10) + '-' + iso.slice(5, 7) : ''; };
+    var antes = r.pedirAntesDias == null ? '—' : r.pedirAntesDias <= 0 ? '<span style="color:var(--danger)">ya (' + fn(-r.pedirAntesDias) + ' d tarde)</span>' : fch(r.pedirAntesFecha) + ' <span style="font-size:10px;color:var(--tx3)">(en ' + fn(r.pedirAntesDias) + ' d)</span>';
+    if (r.pedirAntesDias != null && r.pedirAntesDias > 0 && r.pedirAntesPeorDias != null) antes += '<div style="font-size:10px;color:' + (r.riesgoDemora ? 'var(--w)' : 'var(--tx3)') + '">' + (r.pedirAntesPeorDias <= 0 ? 'peor caso: ya' : 'peor caso: ' + fch(r.pedirAntesPeorFecha)) + '</div>';
     var razon = r.razonPlanHist == null ? '<span style="color:var(--tx3)">sin consumo/mes cargado</span>' : (Math.round(r.razonPlanHist * 10) / 10 + '').replace('.', ',') + '× el histórico';
     return '<tr' + (r.estado === 'cubierto' ? ' style="opacity:.7"' : '') + '><td><b>' + escapeHtml(r.nombre) + '</b><div style="font-size:10px;color:var(--tx3)">' + (r.tipo === 'lubricante' ? 'Lubricante' : escapeHtml(r.nParte || 'Filtro')) + (r.equipoModelo ? ' · ' + escapeHtml(r.equipoModelo) : '') + '</div></td>' +
       '<td class="mono" style="text-align:right">' + fn(r.stockBodega) + (r.pendiente ? ' <span style="font-size:10px;color:var(--tx3)">(+' + fn(r.pendiente) + ' pend.)</span>' : '') + '</td>' +
       '<td class="mono" style="text-align:right" title="Lo que consumen los PM de la flota hasta ' + fn(r.lead + cob) + ' días (plazo de entrega + cobertura)">' + fn(Math.round(r.necesidad * 10) / 10) + '</td>' +
       '<td class="mono" style="text-align:right">' + (r.quiebreDias == null ? '—' : 'en ' + fn(r.quiebreDias) + ' d') + '</td>' +
-      '<td class="mono" style="text-align:right" title="Plazo de entrega: ' + fn(r.lead) + ' d' + (r.leadPropio ? '' : ' (supuesto: no tiene plazo propio)') + '">' + antes + '</td>' +
+      '<td class="mono" style="text-align:right" title="Plazo de entrega típico: ' + fn(r.lead) + ' d' + (r.leadPeor ? ' · peor caso razonable (9 de cada 10 llegan antes): ' + fn(r.leadPeor) + ' d' : '') + ' — ' + escapeHtml(r.leadFuente) + '">' + antes + '</td>' +
       '<td class="mono" style="text-align:right;font-weight:700;color:' + col + '">' + (r.pedir > 0 ? fn(r.pedir) : '—') + '</td>' +
       '<td class="mono" style="text-align:right;font-size:11px">' + fn(Math.round(r.plan30 * 10) / 10) + ' / 30 d<div style="font-size:10px;color:var(--tx3)">' + razon + '</div></td>' +
       '<td style="color:' + col + ';font-weight:700;font-size:11px;white-space:nowrap">' + txt + '</td></tr>';

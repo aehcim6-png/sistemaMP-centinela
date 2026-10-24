@@ -60,7 +60,8 @@ function _queComprarEntrada() {
     items.push({ sigla: n.sigla, posicion: n.posicion, medida: n.medida, base: ult, dias: p.diasRestantes, precio: (neuPrecio(n) || {}).precio || 0 });
   });
   const stock = neuTodos.filter(n => n.estado === 'Stock').map(n => ({ medida: n.medida }));
-  return { demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq) };
+  const pe = plazoEntregaCompras(S.g('comprasDetalle') || []);
+  return { plazoFn: pe.n ? pe.para : null, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq) };
 }
 export function queComprar() {
   const fn2 = v => fn(Math.round(Number(v) || 0));
@@ -75,20 +76,28 @@ export function queComprar() {
     '<b style="font-size:13px">' + titulo + '</b><div style="font-size:10px;color:var(--tx3);margin:2px 0 6px">' + nota + '</div>' +
     (filas.length ? '<div class="tbl-wrap" style="max-height:260px;overflow:auto;margin-bottom:14px"><table style="width:100%;font-size:11px"><tr style="background:var(--bg3)">' + cab + '</tr>' + filas.join('') + '</table></div>'
       : '<div style="padding:10px;color:var(--tx3);font-size:12px;margin-bottom:14px">Sin datos para proyectar.</div>');
+  const fch = iso => iso ? iso.slice(8, 10) + '-' + iso.slice(5, 7) : '';
+  const antesCel = x => {
+    const a = x.pedirAntes, pz = x.plazo;
+    if (!a) return '<td style="text-align:center;color:var(--tx3)" title="Ningún quiebre dentro de lo proyectado">—</td>';
+    const tip = 'Plazo de entrega típico ' + pz.dias + ' d' + (pz.peor ? ' · peor caso razonable ' + pz.peor + ' d' : '') + ' — ' + pz.fuente;
+    const peor = a.peorDias == null ? '' : '<div style="font-size:10px;color:' + (a.peorYa && !a.ya ? 'var(--w)' : 'var(--tx3)') + '">peor caso: ' + (a.peorYa ? 'ya' : fch(a.peorFecha)) + '</div>';
+    return '<td style="text-align:center;white-space:nowrap" title="' + escapeHtml(tip) + '">' + (a.ya ? '<span style="color:var(--danger);font-weight:600">ya</span>' : fch(a.fecha)) + (pz.supuesto ? ' <span style="font-size:10px;color:var(--w)">(supuesto)</span>' : '') + peor + '</td>';
+  };
   const baseTxt = b => b.anio === 'plan' ? 'PM programados' : b.anio === 'historico' ? 'consumo histórico' : '—';
   const filaIns = x => '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.nombre) + '</b>' + (x.nParte ? ' <span style="font-size:10px;color:var(--tx3)">' + escapeHtml(x.nParte) + '</span>' : '') +
     '</td><td style="text-align:center">' + fn2(x.posicion) + (x.unidad && x.unidad !== 'un' ? ' ' + escapeHtml(x.unidad) : '') + '</td>' + celdas(x.comprar, true) +
-    '<td style="font-size:10px;color:var(--tx3)">' + baseTxt(x.base) + '</td></tr>';
-  const cabIns = '<th style="padding:5px;text-align:left">Ítem</th><th>Hay hoy</th>' + cabH + '<th>Según</th>';
+    antesCel(x) + '<td style="font-size:10px;color:var(--tx3)">' + baseTxt(x.base) + '</td></tr>';
+  const cabIns = '<th style="padding:5px;text-align:left">Ítem</th><th>Hay hoy</th>' + cabH + '<th>Pedir antes de</th><th>Según</th>';
   const filaNeu = x => '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.medida) + '</b>' + (x.vencidos ? ' <span style="font-size:10px;color:var(--danger)">' + x.vencidos + ' vencido(s)</span>' : '') +
-    '</td><td style="text-align:center">' + x.existencias + '</td>' + celdas(x.necesidad, false) + celdas(x.comprar, true) + '</tr>';
-  const cabNeu = '<th style="padding:5px;text-align:left">Medida</th><th>En existencias</th><th colspan="3">Se cambian</th><th colspan="3">Comprar</th>';
+    '</td><td style="text-align:center">' + x.existencias + '</td>' + celdas(x.necesidad, false) + celdas(x.comprar, true) + antesCel(x) + '</tr>';
+  const cabNeu = '<th style="padding:5px;text-align:left">Medida</th><th>En existencias</th><th colspan="3">Se cambian</th><th colspan="3">Comprar</th><th>Pedir antes de</th>';
   const filaDes = x => '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.pieza) + '</b> <span style="font-size:10px;color:var(--tx3)">' + escapeHtml(x.tipo) + '</span></td><td style="text-align:center">' + x.nEventos + ' en ' + x.nMeses + ' m</td>' +
     celdas({ mes: x.mes, semestre: x.semestre, anio: x.anio }, true) + '</tr>';
   const kpi = h => { const t = r.totales[h.clave]; return '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--tx3)">' + h.etiqueta + '</div><b style="font-size:18px">$' + fn2(t.costo) + '</b><div style="font-size:9px;color:var(--tx3)">' + 'filtros ' + t.filtros + ' · lubricantes ' + t.lubricantes + ' · neumáticos ' + t.neumaticos + (t.sinPrecio ? ' · ' + t.sinPrecio + ' sin precio' : '') + '</div></div>'; };
   const avisos = r.avisos.length ? '<div style="padding:8px 10px;margin-bottom:12px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)"><b>Antes de comprar, ojo con estos datos:</b><ul style="margin:4px 0 0 16px;padding:0">' + r.avisos.map(a => '<li>' + escapeHtml(a.texto) + '</li>').join('') + '</ul></div>' : '';
   sm('<div style="max-width:960px"><h3 style="margin:0 0 6px">🛒 Qué comprar — próximo mes, semestre y año</h3>' +
-    '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Cantidades <b>a comprar</b> ya descontando lo que hay en bodega (y lo pendiente de llegar). No considera plazos de entrega: para saber <i>cuándo pedir</i> usa el plan de reposición de Stock Filtros. Costo = solo ítems con precio cargado (precio de lista en neumáticos, no cotización).</div>' +
+    '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Cantidades <b>a comprar</b> ya descontando lo que hay en bodega (y lo pendiente de llegar). <b>Pedir antes de</b> = primer quiebre de stock menos el plazo de entrega <b>real</b> de las compras ya recibidas (según el monto de la compra; con el peor caso razonable debajo). Costo = solo ítems con precio cargado (precio de lista en neumáticos, no cotización).</div>' +
     avisos +
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:14px">' + H.map(kpi).join('') + '</div>' +
     tabla('Filtros', 'Lo mayor entre lo que consumen los PM programados de la flota y el consumo histórico del ítem; no se suman porque el histórico ya incluye PM pasados.', cabIns, r.filtros.map(filaIns)) +

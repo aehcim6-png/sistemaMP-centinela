@@ -5842,23 +5842,33 @@ function demandaPlanificadaPM(equipos,consumosFn,stk,lub,mapaRep,hoy,horizonteDi
   return{items:items,sinStock:sinStock,pmContados:pmN,sinRitmo:sinRitmo};
 }
 // Plan de reposición: cruza la demanda planificada con el stock (+ pendiente) y el plazo de entrega de cada ítem.
-// opts: {cobertura:30 días a cubrir después de que llegue el pedido, horizonte:120}. Estados: 'pedir_ya' (el quiebre llega antes que el pedido), 'planificar' (el quiebre
+// opts: {cobertura:30 días a cubrir después de que llegue el pedido, plazoFn (de plazoEntregaCompras().para: plazo real según el monto; sin ella, el plazo propio o 34 días supuestos), hoy (para dar la fecha de «pedir antes de»)}. Estados: 'pedir_ya' (el quiebre llega antes que el pedido), 'planificar' (el quiebre
 // está a menos de 30 días de poder pedirse tarde), 'cubierto' (alcanza todo el horizonte) y 'sin_plan' (ningún PM lo consume).
 function planReposicionPM(demanda,stk,lub,opts){
-  var o=opts||{},cob=o.cobertura>=0?o.cobertura:30,out=[];
+  var o=opts||{},cob=o.cobertura>=0?o.cobertura:30,out=[],plazoFn=typeof o.plazoFn==='function'?o.plazoFn:null,hoyISO=o.hoy?_tcoIso(o.hoy):null;
   Object.keys(demanda.items||{}).forEach(function(k){
     var d=demanda.items[k],row=d.tipo==='filtro'?(stk||[])[d.idx]:(lub||[])[d.idx];if(!row)return;
     var pos=d.tipo==='filtro'?(Number(row.stockBodega)||0)+(Number(row.pendiente)||0):(Number(row.stock)||0);
-    var lead=Number(row.leadTime)>0?Number(row.leadTime):34,ev=d.eventos.slice().sort(function(a,b){return a.dias-b.dias;});
+    var ev=d.eventos.slice().sort(function(a,b){return a.dias-b.dias;});
+    var suma=function(h){return ev.filter(function(x){return x.dias<=h;}).reduce(function(s,x){return s+x.cant;},0);};
+    // Plazo de entrega: el propio del ítem; si no tiene, el REAL de las compras ya recibidas (mediana y peor caso razonable según el monto estimado de la compra); sin historial, 34 días supuestos.
+    var leadPropio=Number(row.leadTime)>0,lead=34,peor=null,fuentePlazo='supuesto: 34 días (sin plazo propio ni historial de compras)';
+    if(leadPropio){lead=Number(row.leadTime);fuentePlazo='plazo propio del ítem';}
+    else if(plazoFn){
+      var precio0=Number(d.tipo==='filtro'?row.precioUnit:row.precio)||0,p0=plazoFn(0),monto=precio0>0?Math.max(0,suma(p0.dias+cob)-pos)*precio0:0,pz=plazoFn(monto);
+      lead=pz.dias;peor=pz.peor;fuentePlazo=pz.fuente;
+    }
     var acum=0,quiebre=null;
     for(var i=0;i<ev.length;i++){acum+=ev[i].cant;if(quiebre==null&&acum>pos){quiebre=ev[i].dias;}}
-    var suma=function(h){return ev.filter(function(x){return x.dias<=h;}).reduce(function(s,x){return s+x.cant;},0);};
     var necesidad=suma(lead+cob),faltante=Math.max(0,necesidad-pos),holgura=quiebre==null?null:quiebre-lead;
+    var holguraPeor=quiebre==null||peor==null?null:quiebre-peor;
     var estado=quiebre==null?'cubierto':holgura<=0?'pedir_ya':holgura<=30?'planificar':'cubierto';
     var hist=Number(row.consumoMes)||Number(row.proyMes)||0,plan30=suma(30);
     out.push({tipo:d.tipo,idx:d.idx,nombre:d.tipo==='filtro'?(row.descripcion||''):(row.nombre||''),nParte:d.tipo==='filtro'?(row.nParte||''):'',equipoModelo:row.equipoModelo||'',
-      posicion:pos,stockBodega:d.tipo==='filtro'?(Number(row.stockBodega)||0):pos,pendiente:d.tipo==='filtro'?(Number(row.pendiente)||0):0,lead:lead,leadPropio:Number(row.leadTime)>0,
-      necesidad:necesidad,faltante:faltante,pedir:Math.max(0,Math.ceil(faltante-1e-9)),quiebreDias:quiebre,pedirAntesDias:holgura,estado:estado,
+      posicion:pos,stockBodega:d.tipo==='filtro'?(Number(row.stockBodega)||0):pos,pendiente:d.tipo==='filtro'?(Number(row.pendiente)||0):0,lead:lead,leadPropio:leadPropio,leadPeor:peor,leadFuente:fuentePlazo,
+      necesidad:necesidad,faltante:faltante,pedir:Math.max(0,Math.ceil(faltante-1e-9)),quiebreDias:quiebre,pedirAntesDias:holgura,pedirAntesPeorDias:holguraPeor,
+      pedirAntesFecha:hoyISO&&holgura!=null?_fechaMas(hoyISO,Math.max(0,holgura)):null,pedirAntesPeorFecha:hoyISO&&holguraPeor!=null?_fechaMas(hoyISO,Math.max(0,holguraPeor)):null,
+      riesgoDemora:estado!=='pedir_ya'&&holguraPeor!=null&&holguraPeor<=0,estado:estado,
       plan30:plan30,plan90:suma(90),historicoMes:hist,razonPlanHist:hist>0?plan30/hist:null,total:acum,eventos:ev});
   });
   var rango={pedir_ya:0,planificar:1,cubierto:2};
@@ -5866,12 +5876,60 @@ function planReposicionPM(demanda,stk,lub,opts){
   return out;
 }
 
+// ═══ PLAZO DE ENTREGA REAL DE LAS COMPRAS (2026-10-24) ═══
+// Hasta hoy el plan de reposición suponía 34 días para todo ítem sin plazo propio (y stock_filtros / lubricantes no tienen columna de plazo: valía para todos). Con las compras ya recibidas
+// (compras_detalle, estado «Recepcion Bodega»: «Tiempo» = desde que se crea el pedido interno hasta que llega a bodega, verificado línea por línea contra fecha y fechaEstado) se mide el plazo real.
+// Se agrupa por OC (las líneas de una misma OC llegan juntas: se toma el mayor plazo y la suma de los montos) y se separa por el monto, porque el monto decide quién aprueba la OC: hasta $1 millón el
+// subgerente, hasta $3 millones el gerente y sobre eso el gerente general (niveles dichos por el usuario; no hay fecha por etapa en los datos, así que el efecto se ve solo en el plazo total). Con las
+// 8.060 líneas reales (3.298 OC): mediana 17 / 18 / 29 días y 9 de cada 10 llegan en menos de 61 / 61 / 98 días. El promedio engaña (27 a 45 días) por una cola larga de compras muy demoradas.
+// Devuelve {n, global:{n,mediana,p90}, bandas:[...], para(monto)}; para() da {dias (mediana), peor (percentil 90), n, banda, fuente, supuesto}. Con menos de PLAZO_MIN_OC_BANDA OC en la banda usa todas;
+// sin historial devuelve los 34 días supuestos y lo dice.
+var PLAZO_ENTREGA_DEFECTO_DIAS=34,PLAZO_MIN_OC_BANDA=30;
+var PLAZO_BANDAS_OC=[{clave:'hasta1',max:1000000,etiqueta:'hasta $1 millón',aprueba:'subgerente'},{clave:'hasta3',max:3000000,etiqueta:'de $1 a $3 millones',aprueba:'gerente'},{clave:'sobre3',max:Infinity,etiqueta:'sobre $3 millones',aprueba:'gerente general'}];
+function _percentilLineal(sorted,p){
+  if(!sorted.length)return null;
+  var pos=(sorted.length-1)*p,lo=Math.floor(pos),hi=Math.ceil(pos);
+  return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);
+}
+function _resumenPlazos(dias){
+  var a=dias.slice().sort(function(x,y){return x-y;});
+  return{n:a.length,mediana:_percentilLineal(a,0.5),p90:_percentilLineal(a,0.9)};
+}
+function plazoEntregaCompras(comprasDetalle){
+  var porOC={};
+  (comprasDetalle||[]).forEach(function(c){
+    if(!c||c.estado!=='Recepcion Bodega')return;
+    var d=_parsearTiempoRespuestaDias(c.tiempoRespuesta);if(d==null||!(d>0))return;
+    var k=(c.oc&&String(c.oc).trim())||('P'+c.pedido);
+    var r=porOC[k]||(porOC[k]={dias:0,monto:0});
+    if(d>r.dias)r.dias=d;
+    r.monto+=Number(c.costo)||0;
+  });
+  var ocs=Object.keys(porOC).map(function(k){return porOC[k];});
+  var global=_resumenPlazos(ocs.map(function(r){return r.dias;}));
+  var bandas=PLAZO_BANDAS_OC.map(function(b,i){
+    var min=i?PLAZO_BANDAS_OC[i-1].max:0;
+    var dd=ocs.filter(function(r){return r.monto>min&&r.monto<=b.max;}).map(function(r){return r.dias;});
+    var res=_resumenPlazos(dd);
+    return{clave:b.clave,etiqueta:b.etiqueta,aprueba:b.aprueba,n:res.n,mediana:res.mediana,p90:res.p90,usaGlobal:res.n<PLAZO_MIN_OC_BANDA};
+  });
+  function para(monto){
+    if(!global.n)return{dias:PLAZO_ENTREGA_DEFECTO_DIAS,peor:null,n:0,banda:null,supuesto:true,fuente:'supuesto: '+PLAZO_ENTREGA_DEFECTO_DIAS+' días (sin historial de compras recibidas)'};
+    var b=null;
+    if(monto>0)for(var i=0;i<bandas.length;i++){if(monto<=PLAZO_BANDAS_OC[i].max){b=bandas[i];break;}}
+    if(b&&!b.usaGlobal)return{dias:Math.round(b.mediana),peor:Math.ceil(b.p90),n:b.n,banda:b.clave,supuesto:false,fuente:'mediana de '+b.n+' OC '+b.etiqueta+' (aprueba '+b.aprueba+')'};
+    return{dias:Math.round(global.mediana),peor:Math.ceil(global.p90),n:global.n,banda:null,supuesto:false,fuente:'mediana de '+global.n+' OC recibidas'+(monto>0?'':' (monto desconocido)')};
+  }
+  return{n:global.n,global:global,bandas:bandas,para:para};
+}
+
 // Plan de reposición por PM leyendo el store (lo usan Stock Filtros y ABC-XYZ). null si faltan getPautasConsumo o el store. Devuelve {plan, dem}.
 function planReposicionAuto(cobertura){
   try{
     if(typeof S==='undefined'||typeof getPautasConsumo!=='function')return null;
     var stk=S.g('stk')||[],lub=S.g('lub')||[],dem=demandaPlanificadaPM(S.g('eq')||[],getPautasConsumo,stk,lub,S.g('mapaRep')||[],new Date(),150);
-    return{dem:dem,plan:planReposicionPM(dem,stk,lub,{cobertura:cobertura>=0?cobertura:30})};
+    var pe=plazoEntregaCompras(S.g('comprasDetalle')||[]);
+    return{dem:dem,plan:planReposicionPM(dem,stk,lub,{cobertura:cobertura>=0?cobertura:30,plazoFn:pe.n?pe.para:null,hoy:new Date()})};
   }catch(e){return null;}
 }
 // ═══ QUÉ COMPRAR: PRÓXIMO MES / SEMESTRE / AÑO (2026-10-24) ═══
@@ -5879,12 +5937,13 @@ function planReposicionAuto(cobertura){
 // pantalla dice cuál. Horizontes: 30, 180 y 365 días desde hoy.
 //  · Filtros y lubricantes: lo mayor entre (a) lo que consumen los PM calendarizados de la flota en ese horizonte (demandaPlanificadaPM) y (b) el consumo histórico del ítem (consumoMes o proyMes ×
 //    meses). Se toma el mayor y no la suma porque el histórico ya incluye los PM pasados: sumarlos contaría dos veces lo mismo. A eso se le resta la posición (filtros: bodega + pendiente; lubricantes: stock).
-//    No considera el plazo de entrega (eso lo ve el plan de reposición de Stock Filtros): acá es "cuánto en total", no "cuándo pedir".
+//    «Pedir antes de»: el primer quiebre de stock (el más temprano entre el calendario de PM y el consumo histórico) menos el plazo de entrega real de las compras ya recibidas según el monto (plazoEntregaCompras):
+//    fecha con el plazo típico (mediana) y fecha con el peor caso razonable (percentil 90). El plazo propio del ítem, si lo tiene, manda.
 //  · Neumáticos: los que la proyección de desgaste da por cambiados dentro del horizonte (los vencidos entran en los tres), agrupados por medida, menos los neumáticos de esa medida que están en
 //    Existencias. No cuenta un segundo cambio del mismo neumático dentro del año ni los neumáticos sin mediciones (su fecha sería un supuesto). El precio es el de lista del sistema, no una cotización.
 //  · Elementos de desgaste (zapatas, rodillos, uñas…): cuántos cambios se registraron por mes en el historial de correctivos (proyeccionElementosDesgaste). Son EVENTOS, no unidades, y no están
 //    vinculados a una bodega: no se les resta existencia. Sirve de orden de magnitud para el presupuesto, no como cantidad exacta de pedido.
-// o: {hoy, demanda (de demandaPlanificadaPM con horizonte ≥365), stk, lub, equipos, neu:{items:[{sigla,posicion,medida,base,dias,precio}],stock:[{medida,precio}],estimados,ultimaGlobal}, desgaste}.
+// o: {hoy, plazoFn (de plazoEntregaCompras().para), demanda (de demandaPlanificadaPM con horizonte ≥365), stk, lub, equipos, neu:{items:[{sigla,posicion,medida,base,dias,precio}],stock:[{medida,precio}],estimados,ultimaGlobal}, desgaste}.
 // Los avisos de frescura (horómetros viejos, mediciones de neumáticos viejas, pautas sin vincular a Stock) van en `avisos`: sin ellos las cifras parecen más firmes de lo que son.
 var COMPRAS_HORIZONTES=[{dias:30,clave:'mes',etiqueta:'Próximo mes'},{dias:180,clave:'semestre',etiqueta:'Próximo semestre'},{dias:365,clave:'anio',etiqueta:'Próximo año'}];
 var COMPRAS_HOROM_VIEJO_DIAS=30,COMPRAS_MEDICION_NEU_VIEJA_DIAS=45;
@@ -5892,6 +5951,26 @@ function planCompras(o){
   var op=o||{},hoy=_tcoIso(op.hoy),H=COMPRAS_HORIZONTES,dem=op.demanda||{items:{}};
   var suma=function(ev,h){return(ev||[]).filter(function(x){return x.dias<=h;}).reduce(function(s,x){return s+x.cant;},0);};
   var redondeo=function(v){return Math.max(0,Math.ceil(v-1e-9));};
+  var plazoFn=typeof op.plazoFn==='function'?op.plazoFn:null;
+  // primer día en que el stock no alcanza: el más temprano entre el calendario de PM (acumulado) y el consumo histórico (stock ÷ consumo diario); null si ninguno lo alcanza
+  function quiebreDe(ev,pos,hist){
+    var qs=[],acum=0,e=(ev||[]).slice().sort(function(a,b){return a.dias-b.dias;});
+    for(var i=0;i<e.length;i++){acum+=e[i].cant;if(acum>pos){qs.push(e[i].dias);break;}}
+    if(hist>0)qs.push(pos<=0?0:Math.floor(pos/hist*30));
+    return qs.length?Math.min.apply(null,qs):null;
+  }
+  // plazo del ítem: el propio; si no, el real según el monto de la próxima compra (la del horizonte más corto con algo por comprar)
+  function plazoDe(row,precio,com){
+    if(Number(row.leadTime)>0)return{dias:Number(row.leadTime),peor:null,fuente:'plazo propio del ítem',supuesto:false,propio:true};
+    var n=com.mes>0?com.mes:com.semestre>0?com.semestre:com.anio;
+    var r=plazoFn?plazoFn(precio>0?n*precio:0):{dias:PLAZO_ENTREGA_DEFECTO_DIAS,peor:null,fuente:'supuesto: '+PLAZO_ENTREGA_DEFECTO_DIAS+' días (sin historial de compras recibidas)',supuesto:true};
+    return{dias:r.dias,peor:r.peor,fuente:r.fuente,supuesto:!!r.supuesto,propio:false};
+  }
+  function pedirAntesDe(q,pz,hoyISO){
+    if(q==null)return null;
+    var d=q-pz.dias,dp=pz.peor==null?null:q-pz.peor;
+    return{dias:d,fecha:_fechaMas(hoyISO,Math.max(0,d)),ya:d<=0,peorDias:dp,peorFecha:dp==null?null:_fechaMas(hoyISO,Math.max(0,dp)),peorYa:dp!=null&&dp<=0};
+  }
   function lineas(filas,tipo){
     var out=[];
     (filas||[]).forEach(function(row,idx){
@@ -5910,8 +5989,9 @@ function planCompras(o){
         if(n>0)algo=true;
       });
       if(!algo)return;
+      var q=quiebreDe(ev,pos,hist),pz=plazoDe(row,precio,com);
       out.push({tipo:tipo,idx:idx,nombre:tipo==='filtro'?(row.descripcion||''):(row.nombre||''),nParte:tipo==='filtro'?(row.nParte||''):'',unidad:tipo==='lubricante'?(row.unidad||''):'un',
-        posicion:pos,historicoMes:hist,precio:precio,necesidad:nec,planPM:plan,comprar:com,costo:cos,base:base});
+        posicion:pos,historicoMes:hist,precio:precio,necesidad:nec,planPM:plan,comprar:com,costo:cos,base:base,quiebreDias:q,plazo:pz,pedirAntes:pedirAntesDe(q,pz,hoy)});
     });
     out.sort(function(a,b){return b.comprar.anio-a.comprar.anio||(a.nombre<b.nombre?-1:1);});
     return out;
@@ -5924,16 +6004,20 @@ function planCompras(o){
   items.forEach(function(it){
     if(!it||!isFinite(it.dias))return;
     var fecha=_fechaMas(it.base||hoy,Math.max(0,Math.round(it.dias))),d=_tcoDias(hoy,fecha);   // días desde hoy (negativo = vencido)
-    var k=medidaDe(it.medida),g=gm[k]||(gm[k]={medida:k,existencias:0,vencidos:0,need:{},precios:[]});
+    var k=medidaDe(it.medida),g=gm[k]||(gm[k]={medida:k,existencias:0,vencidos:0,need:{},precios:[],dias:[]});
     if(d<0)g.vencidos++;
+    g.dias.push(d);
     g.precios.push(Number(it.precio)||0);
     H.forEach(function(h){if(d<=h.dias)g.need[h.clave]=(g.need[h.clave]||0)+1;});
   });
-  stockN.forEach(function(s){var k=medidaDe(s.medida),g=gm[k]||(gm[k]={medida:k,existencias:0,vencidos:0,need:{},precios:[]});g.existencias++;});
+  stockN.forEach(function(s){var k=medidaDe(s.medida),g=gm[k]||(gm[k]={medida:k,existencias:0,vencidos:0,need:{},precios:[],dias:[]});g.existencias++;});
   var neumaticos=Object.keys(gm).map(function(k){
     var g=gm[k],pr=g.precios.filter(function(x){return x>0;}),prom=pr.length?pr.reduce(function(a,b){return a+b;},0)/pr.length:0,nec={},com={},cos={};
     H.forEach(function(h){nec[h.clave]=g.need[h.clave]||0;com[h.clave]=Math.max(0,nec[h.clave]-g.existencias);cos[h.clave]=prom>0?com[h.clave]*prom:null;});
-    return{medida:g.medida,existencias:g.existencias,vencidos:g.vencidos,precio:prom,necesidad:nec,comprar:com,costo:cos};
+    // el primer neumático que las existencias no cubren es el (existencias+1)-ésimo en cambiarse
+    var ds=g.dias.slice().sort(function(a,b){return a-b;}),q=ds.length>g.existencias?ds[g.existencias]:null;
+    var n1=com.mes>0?com.mes:com.semestre>0?com.semestre:com.anio,pz=plazoFn?plazoFn(prom>0?n1*prom:0):{dias:PLAZO_ENTREGA_DEFECTO_DIAS,peor:null,fuente:'supuesto: '+PLAZO_ENTREGA_DEFECTO_DIAS+' días (sin historial de compras recibidas)',supuesto:true};
+    return{medida:g.medida,existencias:g.existencias,vencidos:g.vencidos,precio:prom,necesidad:nec,comprar:com,costo:cos,quiebreDias:q,plazo:{dias:pz.dias,peor:pz.peor,fuente:pz.fuente,supuesto:!!pz.supuesto},pedirAntes:pedirAntesDe(q,pz,hoy)};
   }).filter(function(g){return g.necesidad.anio>0;}).sort(function(a,b){return b.comprar.anio-a.comprar.anio||(a.medida<b.medida?-1:1);});
   // elementos de desgaste (eventos de cambio por mes/semestre/año, sin existencias)
   var desgaste=(op.desgaste||[]).filter(function(g){return g.lambda!=null;}).map(function(g){
@@ -5958,6 +6042,7 @@ function planCompras(o){
     var dU=_tcoDias(String(nn.ultimaGlobal).slice(0,10),hoy),viejas=items.filter(function(it){return it.base&&_tcoDias(String(it.base).slice(0,10),hoy)>COMPRAS_MEDICION_NEU_VIEJA_DIAS;}).length;
     if(dU>30||viejas)avisos.push({tipo:'neumaticos',n:viejas,texto:'La última medición de neumáticos es de hace '+dU+' días ('+String(nn.ultimaGlobal).slice(0,10)+') y '+viejas+' neumático(s) tienen una medición de más de '+COMPRAS_MEDICION_NEU_VIEJA_DIAS+' días: varios figuran vencidos y la cantidad de neumáticos puede estar sobreestimada hasta que se vuelva a medir.'});
   }
+  if(!plazoFn)avisos.push({tipo:'plazo',n:0,texto:'No hay historial de compras recibidas: los plazos de entrega son un supuesto de '+PLAZO_ENTREGA_DEFECTO_DIAS+' días y las fechas de «pedir antes de» pueden estar lejos de la realidad.'});
   if(nn.estimados)avisos.push({tipo:'neuSinMedicion',n:nn.estimados,texto:nn.estimados+' neumático(s) sin mediciones quedan fuera de la proyección (su fecha de cambio sería un supuesto).'});
   if(desgasteSinDatos)avisos.push({tipo:'desgaste',n:desgasteSinDatos,texto:desgasteSinDatos+' elemento(s) de desgaste tienen menos de 3 cambios registrados o menos de '+_DEMANDA_MIN_MESES+' meses de historial y no se proyectan.'});
   return{hoy:hoy,horizontes:H,filtros:filtros,lubricantes:lubs,neumaticos:neumaticos,desgaste:desgaste,totales:totales,avisos:avisos};
@@ -11296,7 +11381,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
