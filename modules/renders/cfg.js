@@ -412,6 +412,7 @@ export function renderCfg(){
       '<p style="font-size:11px;color:var(--tx3);margin-bottom:10px">Plano de conexión, explicación de la arquitectura, los manuales de usuario y administrador, y el inventario de algoritmos (qué es, de dónde viene y para qué sirve cada cálculo) — versionados junto al código en la carpeta docs/.</p>'+
       '<div style="display:flex;flex-direction:column;gap:6px">'+
       '<button class="btn btn-o" onclick="window.open(\'docs/plano-sistema.html\',\'_blank\')">'+ICONS.ruler+' Ver plano del sistema</button>'+
+      '<button class="btn btn-o" onclick="window.open(\'docs/plano-fallas.html\',\'_blank\')">'+ICONS.ruler+' Ver plano de fallas (dónde buscar si algo falla)</button>'+
       '<button class="btn btn-o" onclick="window.open(\'docs/arquitectura.html\',\'_blank\')">'+ICONS.building+' Ver arquitectura</button>'+
       '<button class="btn btn-o" onclick="window.open(\'docs/manual-usuario.html\',\'_blank\')">'+ICONS.book+' Ver manual de usuario</button>'+
       '<button class="btn btn-o" onclick="window.open(\'docs/manual-admin.html\',\'_blank\')">'+ICONS.gear+' Ver manual de administrador</button>'+

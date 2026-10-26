@@ -5,7 +5,7 @@ que un operador normal no necesita saber: gestión de usuarios, seguridad,
 base de datos, despliegue, y qué hacer si algo se rompe.
 
 Para cómo se conecta todo por dentro, ver [`arquitectura.md`](./arquitectura.md)
-y el diagrama [`plano-sistema.html`](./plano-sistema.html).
+el diagrama [`plano-sistema.html`](./plano-sistema.html) y el [plano de fallas](./plano-fallas.html) (dónde buscar si algo falla).
 
 ## 1. Accesos que necesitas tener
 
@@ -220,6 +220,16 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 **Qué no cambió.** Weibull, Kijima, probabilidad de intervención (antes «de falla»), RUL, Pareto, Estadística y el score de salud siguen sobre intervenciones (miden frecuencia). La Disponibilidad Operacional no cambia.
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
+
+### Plano de fallas: dónde buscar si algo falla (2026-10-26)
+
+**Qué es.** En **Configuración → Documentación → «Ver plano de fallas»** está el mapa de todas las piezas del sistema, con un **código** cada una (como el rotulado de un tablero eléctrico). Sirve para los dos proyectos (Centinela y sistema-mp2): arriba eliges el proyecto y las direcciones de los paneles cambian solas.
+
+**Cómo usarlo cuando algo falla.** (1) Mira el esquema por capas: tu equipo, publicación del sitio, Supabase, servicios externos, vigilancia. (2) Busca lo que ves en la tabla **«Si ves esto, mira primero…»**: te da los códigos, en orden de probabilidad (por ejemplo, «No llegó el correo del respaldo» → `CRN-01`, `EF-05`, `EXT-01`, `DB-03`). (3) Abre la ficha del código: dice dónde está la pieza (el panel y la dirección), cómo se ve cuando falla, **cómo confirmarlo en este orden**, qué hacer y cuándo avisar. (4) Si es una tarea programada (respaldo, alertas, resumen), mira primero la tabla `salud_crons` (`MON-01`): dice cuál corrió, cuándo y si salió bien.
+
+**Para quién avisar.** Cada ficha dice qué se arregla desde el panel y qué requiere un cambio de código; el plano no incluye nombres de personas ni teléfonos (completar según tu organización). Al avisar, da el **código**, el texto exacto del mensaje y la hora.
+
+**Qué hay que saber.** El plano no muestra el estado en vivo de cada pieza: para eso están el correo del vigilante de salud y la tabla `salud_crons`. Las rutinas diarias de diagnóstico (`MON-02`) revisan esa tabla y mandan un correo solo si hay un problema. Cuando se agregue una función, una tarea programada o un servicio nuevo, hay que sumar su ficha; una prueba automática avisa si falta.
 
 ### Stock de insumos (2026-10-26)
 

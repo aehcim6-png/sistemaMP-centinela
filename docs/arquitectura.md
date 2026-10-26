@@ -6852,6 +6852,18 @@ Revisión pestaña por pestaña (19 en escritorio y 10 en celular, con capturas)
 
 **Pruebas:** `tests/insumos.test.js` (19 casos: saldo, kardex y orden del mismo día, salida rechazada, ajuste de conteo, estados, consumo y poca historia, lectura de lista, aporte a «Qué comprar»), `tests/e2e/insumos.spec.js` (flujo completo en pantalla y que lo guardado llegue a la base con las columnas de las tablas) y la prueba de tamaño de `backup-diario`.
 
+### 184. Plano de fallas: dónde buscar cuando algo falla (2026-10-26)
+
+**Qué pasó:** el plano del sistema (`docs/plano-sistema.html`) explica cómo se conectan las piezas, pero no dice dónde mirar ni qué hacer cuando una falla. El usuario pidió algo parecido a un plano eléctrico: que ante una falla se sepa **dónde está** y **cómo atacarla**, para el administrador, en los dos proyectos, y que Claude también sepa dónde buscar sin hacer una auditoría completa.
+
+**Qué se hizo:** `docs/plano-fallas.json` es el registro único: 45 piezas con **código** (`NAV` navegador, `LOC` copia local, `BKP` carpeta de respaldo, `GIT` repositorio, `CI` pruebas, `HOS` Vercel y cabeceras de seguridad, `AUT` login, `DB` datos, permisos, secretos y programador, `CRN` 8 tareas programadas, `EF` las 17 Edge Functions, `EXT` Resend, Gemini, Twilio, Turnstile, Anthropic y Sentry, `MON` vigilancia) y 24 síntomas que apuntan a los códigos en orden de probabilidad. Cada ficha dice qué es, dónde está (panel y ruta en el repositorio, con las direcciones de ambos proyectos), cómo se ve cuando falla, cómo confirmarlo en orden, qué hacer, cuándo avisar, de qué depende, a qué afecta y los comandos técnicos para Claude. `scripts/generar_plano_fallas.py` genera `docs/plano-fallas.html` (esquema por capas tipo tablero, tabla «si ves esto…», fichas y selector de proyecto) y `docs/plano-fallas.md` (lectura de Claude). Se abre desde Configuración → «Ver plano de fallas». **`CLAUDE.md`** (raíz del repositorio, que Claude lee al iniciar) trae el protocolo: de lo que se ve al código, a la ficha, a sus comandos; primero `salud_crons` si es una tarea programada; luego comparar el último despliegue con los cambios recientes; informar con el código y sin aplicar arreglos sin pedirlo.
+
+**Para que no se desactualice:** `tests/planFallas.test.js` cruza el registro con el repositorio: toda carpeta de `supabase/functions` debe tener su `EF`, toda tarea creada con `cron.schedule` en las migraciones su `CRN`, todo secreto de cron del Vault debe figurar en `DB-03`, y todo servicio externo que llamen las funciones su `EXT`; además comprueba que el HTML y el Markdown coincidan con lo que genera el script. Se verificó que la prueba falla al quitar una función o una tarea del registro.
+
+**Límites:** (1) lo no medible desde el repositorio quedó fuera: no sé quién tiene acceso a cada panel ni a quién se llama; las fichas dicen «avisar» sin nombres; (2) los pasos por panel (menús de Supabase, Vercel, Resend) pueden cambiar de nombre con el tiempo: se citan por sección, no por captura; (3) el estado de las piezas no es en vivo (el plano no hace pruebas de conexión; para tareas programadas el estado en vivo es `salud_crons`); (4) los 7 proyectos de Vercel con nombre `centinela-…` no se clasificaron y no están en el plano; (5) la rutina diaria de diagnóstico (`MON-02`) vive en la cuenta de Claude, no en el repositorio.
+
+**Pruebas:** `tests/planFallas.test.js` (11 casos: estructura, dependencias, coincidencia con funciones, tareas, secretos y servicios, y generado al día).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

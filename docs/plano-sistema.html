@@ -156,7 +156,7 @@
 
   <figure>
     <div class="diagram-scroll">
-      <svg viewBox="0 0 1000 880" role="img" aria-label="Diagrama: Vercel sirve los archivos al navegador; dentro del navegador, index.html carga 47 módulos de pestañas y store.js; store.js guarda al mismo tiempo en localStorage de este equipo, en Supabase (Auth, 56 tablas reales con RLS, 14 Edge Functions, incluidas 4 que usan Gemini para leer fotos de papeles, avisar-dispositivo-nuevo para alertas de seguridad de cuenta, y vigilar-salud-sistema que revisa que el sistema mismo siga funcionando) y opcionalmente en una carpeta de respaldo paralelo como OneDrive o Drive.">
+      <svg viewBox="0 0 1000 880" role="img" aria-label="Diagrama: Vercel sirve los archivos al navegador; dentro del navegador, index.html carga 50 módulos de pestañas y store.js; store.js guarda al mismo tiempo en localStorage de este equipo, en Supabase (Auth, 58 tablas reales con RLS, 17 Edge Functions, incluidas 4 que usan Gemini para leer fotos de papeles, avisar-dispositivo-nuevo para alertas de seguridad de cuenta, y vigilar-salud-sistema que revisa que el sistema mismo siga funcionando) y opcionalmente en una carpeta de respaldo paralelo como OneDrive o Drive.">
         <defs>
           <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -184,7 +184,7 @@
         <line x1="500" y1="192" x2="500" y2="206" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".6"/>
 
         <rect x="170" y="208" width="660" height="42" rx="7" fill="none" stroke="currentColor" stroke-width="1"/>
-        <text x="500" y="234" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">47 módulos de pestañas — modules/renders/*.js</text>
+        <text x="500" y="234" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">50 módulos de pestañas — modules/renders/*.js</text>
 
         <line x1="500" y1="250" x2="500" y2="264" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".6"/>
 
@@ -220,13 +220,13 @@
         <line x1="565" y1="488" x2="565" y2="502" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".5"/>
 
         <rect x="424" y="504" width="282" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1" opacity=".85"/>
-        <text x="565" y="526" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">56 tablas reales</text>
+        <text x="565" y="526" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">58 tablas reales</text>
         <text x="565" y="543" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="currentColor" opacity=".65">una por categoría, con RLS por rol</text>
 
         <line x1="565" y1="556" x2="565" y2="570" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)" opacity=".5"/>
 
         <rect x="424" y="572" width="282" height="146" rx="7" fill="none" stroke="currentColor" stroke-width="1" opacity=".85"/>
-        <text x="565" y="590" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">14 Edge Functions</text>
+        <text x="565" y="590" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="currentColor">17 Edge Functions</text>
         <text x="565" y="604" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="currentColor" opacity=".65">crear-operador · alerta-pm · resumen-semanal</text>
         <text x="565" y="617" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="currentColor" opacity=".65">backup-diario · whatsapp-webhook · email-webhook</text>
         <text x="565" y="630" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="currentColor" opacity=".65">registrar-intento-acceso · avisar-salud-equipo</text>
@@ -234,6 +234,7 @@
         <text x="565" y="655" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="var(--amber)" opacity=".85">OCR con Gemini (foto → JSON prellenado):</text>
         <text x="565" y="668" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="currentColor" opacity=".65">leer-pauta-pm · leer-informe-correctivo</text>
         <text x="565" y="681" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="currentColor" opacity=".65">leer-chequeo-neumaticos · leer-reporte-produccion</text>
+        <text x="565" y="694" text-anchor="middle" font-family="var(--sans)" font-size="9" fill="currentColor" opacity=".65">leer-horometro · leer-estatus-equipos · clasificar-correctivos</text>
 
         <rect x="424" y="732" width="282" height="108" rx="7" fill="var(--panel2)" stroke="var(--green)" stroke-width="1"/>
         <text x="565" y="754" text-anchor="middle" font-family="var(--sans)" font-size="10.5" font-weight="600" fill="var(--green)">el candado real vive aquí</text>
