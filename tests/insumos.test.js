@@ -1,6 +1,7 @@
 // Stock de insumos con kardex (26-oct-2026): el saldo sale de los movimientos, las salidas no pasan del saldo, el conteo físico genera el ajuste y «Qué comprar» suma los insumos.
 import { describe, it, expect } from 'vitest';
-import { insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, planCompras } from '../logic.js';
+import { insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, planCompras,
+  kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, insumoParaOC } from '../logic.js';
 
 const HOY = '2026-10-26';
 const mov = (insumoId, fecha, tipo, cantidad, extra = {}) => ({ insumoId, fecha, tipo, cantidad, ...extra });
@@ -150,5 +151,90 @@ describe('«Qué comprar» con insumos', () => {
     const sin = planCompras({ hoy: HOY });
     expect(sin.insumos).toEqual([]);
     expect(sin.avisos.some(a => a.tipo === 'insumos')).toBe(false);
+  });
+});
+
+// ── Kardex unificado: filtros, lubricantes y repuestos ──
+const STK = [{ _id: 'f1', nParte: 'LF9009', descripcion: 'Filtro aceite', equipoModelo: 'D375', stockBodega: 6, consumoMes: 2, precioUnit: 10000 },
+  { _id: 'f2', nParte: 'LF9009', descripcion: 'Filtro aceite', equipoModelo: 'D155', stockBodega: 2, precioUnit: 9000 },   // misma descripción, otro modelo
+  { _id: 'f3', descripcion: '', stockBodega: 3 }];
+const LUB = [{ _id: 'l1', nombre: 'Aceite 15W40', unidad: 'L', stock: 80, precio: 3000 }];
+const REP = [{ _id: 'r1', componente: 'Inyector', nParte: 'INJ-1', equipo: 'CN-9502', stockActual: 4, stockMinimo: 2, precioUnit: 500000 }];
+
+describe('kardexPlanActivacion', () => {
+  it('crea un insumo por fila con su stock de hoy como saldo inicial, sin chocar por descripciones repetidas', () => {
+    const p = kardexPlanActivacion(STK, LUB, REP, []);
+    expect(p.porOrigen).toEqual({ filtro: 2, lubricante: 1, repuesto: 1 });
+    expect(p.sinNombre).toBe(1);
+    const f1 = p.filas.find(x => x.origenId === 'f1'), f2 = p.filas.find(x => x.origenId === 'f2');
+    expect(f1).toMatchObject({ origen: 'filtro', categoria: 'Filtros', descripcion: 'Filtro aceite', codigo: 'LF9009', stock: 6, precioUnit: 10000, observacion: 'Equipo/modelo: D375' });
+    expect(f2.descripcion).toBe(f1.descripcion);
+    expect(p.filas.find(x => x.origen === 'lubricante')).toMatchObject({ categoria: 'Lubricantes', unidad: 'L', stock: 80, precioUnit: 3000 });
+    expect(p.filas.find(x => x.origen === 'repuesto')).toMatchObject({ stockCritico: 2, stock: 4, precioUnit: 500000 });   // el mínimo del repuesto pasa a ser su stock crítico
+  });
+  it('lo ya activado no se duplica', () => {
+    const p = kardexPlanActivacion(STK, LUB, REP, [{ _id: 'i1', origen: 'filtro', origenId: 'f1' }]);
+    expect(p.yaActivos).toBe(1);
+    expect(p.filas.some(x => x.origenId === 'f1')).toBe(false);
+  });
+});
+
+describe('copia del saldo a las pantallas antiguas', () => {
+  it('filtro: stockBodega, cobertura y estado; lubricante y repuesto: su campo; nunca bajo cero', () => {
+    const f = { ...STK[0] }; kardexAplicarLegado('filtro', f, 1);
+    expect(f.stockBodega).toBe(1);
+    expect(f.mesesCubierto).toBe(0.5);
+    expect(f.estado).toContain('COMPRAR');
+    const l = { ...LUB[0] }; kardexAplicarLegado('lubricante', l, 12.5); expect(l.stock).toBe(12.5);
+    const r = { ...REP[0] }; kardexAplicarLegado('repuesto', r, -3); expect(r.stockActual).toBe(0);
+    expect(kardexLegadoValor('repuesto', REP[0])).toBe(4);
+  });
+});
+
+describe('kardexDescuadres', () => {
+  const ins = [{ _id: 'i1', origen: 'filtro', origenId: 'f1', descripcion: 'Filtro aceite', codigo: 'LF9009' }, { _id: 'i2', origen: 'lubricante', origenId: 'l1', descripcion: 'Aceite' }, { _id: 'i3', origen: 'repuesto', origenId: 'borrado', descripcion: 'Perdido' }];
+  const movs = [mov('i1', '2026-10-01', 'inicial', 6), mov('i2', '2026-10-01', 'inicial', 80)];
+  it('detecta lo que alguien editó a mano en la pantalla antigua y las filas que ya no existen', () => {
+    const stk = [{ ...STK[0], stockBodega: 5 }], d = kardexDescuadres(stk, LUB, REP, ins, movs);
+    expect(d.descuadres).toEqual([{ insumoId: 'i1', origen: 'filtro', descripcion: 'Filtro aceite', codigo: 'LF9009', kardex: 6, legado: 5, diferencia: -1 }]);
+    expect(d.huerfanos.map(h => h.insumoId)).toEqual(['i3']);
+  });
+  it('sin diferencias no hay descuadres', () => {
+    expect(kardexDescuadres([STK[0]], LUB, [], ins.slice(0, 2), movs).descuadres).toEqual([]);
+  });
+});
+
+describe('salidas automáticas por PM', () => {
+  it('cada baja de stock en una pantalla antigua con ítem vinculado queda como salida del kardex, con equipo y PM', () => {
+    const ins = [{ _id: 'i1', origen: 'filtro', origenId: 'f1' }, { _id: 'i2', origen: 'lubricante', origenId: 'l1' }];
+    const antes = { filtro: { f1: 6, f2: 2 }, lubricante: { l1: 80 } };
+    const despues = { filtro: [{ ...STK[0], stockBodega: 4 }, STK[1]], lubricante: [{ ...LUB[0], stock: 62.5 }] };
+    const s = kardexSalidasPM(ins, antes, despues, { fecha: '2026-10-26', equipo: 'CN-9502', pm: 'PM2' });
+    expect(s).toHaveLength(2);
+    expect(s[0]).toMatchObject({ insumoId: 'i1', tipo: 'salida', cantidad: 2, destino: 'CN-9502', documento: 'PM PM2', fecha: '2026-10-26' });
+    expect(s[1]).toMatchObject({ insumoId: 'i2', cantidad: 17.5 });
+  });
+  it('un ítem sin kardex activado no genera movimiento', () => {
+    expect(kardexSalidasPM([], { filtro: { f1: 6 } }, { filtro: [{ ...STK[0], stockBodega: 1 }] }, {})).toEqual([]);
+  });
+});
+
+describe('insumoParaOC', () => {
+  const ins = [{ _id: 'a', codigo: 'LF9009', descripcion: 'Filtro aceite' }, { _id: 'b', codigo: 'LF9009', descripcion: 'Filtro aceite' }, { _id: 'c', codigo: 'INJ-1', descripcion: 'Inyector' }, { _id: 'd', codigo: '', descripcion: 'Resma papel' }];
+  it('coincide por N° de parte; si hay dos con el mismo, no adivina', () => {
+    expect(insumoParaOC(ins, { nParte: 'inj-1' })._id).toBe('c');
+    expect(insumoParaOC(ins, { nParte: 'LF9009' })).toBeNull();
+  });
+  it('sin N° de parte, por nombre exacto; si no hay coincidencia, null', () => {
+    expect(insumoParaOC(ins, { componente: 'resma PAPEL' })._id).toBe('d');
+    expect(insumoParaOC(ins, { componente: 'Algo distinto' })).toBeNull();
+  });
+});
+
+describe('«Qué comprar» no repite filtros ni lubricantes del kardex', () => {
+  it('solo los insumos sin origen y los repuestos entran en «Insumos generales»', () => {
+    const base = { activo: true, stockCritico: 5, consumoMes: 3, saldo: 1, unidad: 'UN', precioUnit: 100 };
+    const r = planCompras({ hoy: HOY, insumos: [{ ...base, _id: '1', descripcion: 'Filtro', origen: 'filtro' }, { ...base, _id: '2', descripcion: 'Aceite', origen: 'lubricante' }, { ...base, _id: '3', descripcion: 'Inyector', origen: 'repuesto' }, { ...base, _id: '4', descripcion: 'Guante', origen: null }] });
+    expect(r.insumos.map(x => x.nombre).sort()).toEqual(['Guante', 'Inyector']);
   });
 });

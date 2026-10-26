@@ -321,13 +321,24 @@ export function recibirOC(i) {
   var hoy = new Date().toISOString().slice(0, 10);
   o.estado = 'Recibida'; o.fechaEntrega = hoy;
   S.s('ordenes', oc);
+  // Kardex (2026-10-26): si la OC calza con UN solo ítem del kardex (por N° de parte o nombre exacto), la entrada queda registrada y el saldo sube.
+  var kMsg = '';
+  try {
+    var kt = typeof insumoParaOC === 'function' ? insumoParaOC(S.g('ins') || [], o) : null, kc = Number(o.cantidad) || 0;
+    if (kt && kc > 0) {
+      var kMov = S.g('insMov') || [];
+      kMov.push({ insumoId: kt._id, fecha: hoy, tipo: 'entrada', cantidad: kc, documento: 'OC recibida (' + (o.fecha || hoy) + ')', referencia: o.proveedor || '', observacion: 'entrada automática al marcar la OC como recibida', usuario: window._userName || '' });
+      S.s('insMov', kMov); kardexSincronizarLegado([kt._id]);
+      kMsg = ' — entrada sumada al kardex de «' + kt.descripcion + '»';
+    }
+  } catch (e) { /* el kardex es complementario: no debe impedir marcar la OC como recibida */ }
   var destrabe = S.g('destrabe') || [];
   var nPendientes = destrabe.filter(function (d) { return d.idOrdenCompra === o._id && d.estado !== 'Resuelto' }).length;
   if (nPendientes > 0) {
     S.s('destrabe', resolverDestrabePorOC(destrabe, o._id, hoy));
   }
   refreshAll(); verOrdenesCompra();
-  toast('✅ OC marcada como recibida' + (nPendientes ? ' — ' + nPendientes + ' bloqueo(s) de Destrabe resuelto(s)' : ''));
+  toast('✅ OC marcada como recibida' + (nPendientes ? ' — ' + nPendientes + ' bloqueo(s) de Destrabe resuelto(s)' : '') + kMsg);
 }
 export function syncRepStock() {
   var rep = S.g('repuestos') || [];

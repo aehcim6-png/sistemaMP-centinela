@@ -5939,7 +5939,7 @@ function planReposicionAuto(cobertura){
 // saldo se rechaza (insumoValidarSalida): si la bodega físicamente tiene más, lo honesto es registrar primero el ajuste de conteo, no dejar saldo negativo.
 // Estado: SIN STOCK (saldo ≤ 0), CRÍTICO (saldo ≤ stock crítico del ítem, si lo tiene cargado) u OK. El consumo mensual sale de las salidas de los últimos 90 días (ajustes y saldo inicial no son consumo)
 // y con menos de 60 días de historia se marca `pocaHistoria`: la tasa de un ítem con 3 semanas de uso no sirve para proyectar un año.
-var INSUMO_CATEGORIAS=['EPP','Librería','Limpieza','Elementos de desgaste','Baterías','Herramientas','Lubricantes','Filtros','Neumáticos','Otros'];
+var INSUMO_CATEGORIAS=['EPP','Librería','Limpieza','Elementos de desgaste','Baterías','Herramientas','Lubricantes','Filtros','Repuestos','Neumáticos','Otros'];
 var INSUMO_VENTANA_CONSUMO_DIAS=90,INSUMO_HISTORIA_MIN_DIAS=60;
 var _INSUMO_ORDEN_TIPO={inicial:0,entrada:1,ajuste:2,salida:3};
 function insumoDelta(m){
@@ -5998,7 +5998,7 @@ function insumosResumen(insumos,movs,o){
     var r=sal[i._id]||{entradas:0,salidas:0,ajustes:0,saldo:0,primerMov:null,ultimoMov:null,n:0},crit=Number(i.stockCritico)||0,precio=Number(i.precioUnit)||0;
     var hist=r.primerMov?Math.max(0,_tcoDias(r.primerMov,hoy)):0,dias=Math.min(ven,Math.max(30,hist)),consumoMes=(salVen[i._id]||0)/dias*30;
     var estado=r.saldo<=0?'SIN STOCK':crit>0&&r.saldo<=crit?'CRÍTICO':'OK';
-    return{_id:i._id,codigo:i.codigo||'',descripcion:i.descripcion||'',categoria:i.categoria||'Otros',unidad:i.unidad||'UN',stockCritico:crit,ubicacion:i.ubicacion||'',precioUnit:precio,activo:i.activo!==false,
+    return{_id:i._id,origen:i.origen||null,origenId:i.origenId||null,codigo:i.codigo||'',descripcion:i.descripcion||'',categoria:i.categoria||'Otros',unidad:i.unidad||'UN',stockCritico:crit,ubicacion:i.ubicacion||'',precioUnit:precio,activo:i.activo!==false,
       entradas:r.entradas,salidas:r.salidas,ajustes:r.ajustes,saldo:r.saldo,valor:r.saldo>0?r.saldo*precio:0,movimientos:r.n,primerMov:r.primerMov,ultimoMov:r.ultimoMov,
       diasSinMov:r.ultimoMov?Math.max(0,_tcoDias(r.ultimoMov,hoy)):null,consumoMes:Math.round(consumoMes*100)/100,
       coberturaMeses:consumoMes>0&&r.saldo>0?Math.round(r.saldo/consumoMes*10)/10:null,pocaHistoria:consumoMes>0&&hist<INSUMO_HISTORIA_MIN_DIAS,saldoNegativo:r.saldo<0,estado:estado};
@@ -6033,6 +6033,93 @@ function insumosParsearLista(texto,categoriaDefecto){
     filas.push({descripcion:desc,unidad:String(c[1]||'').trim()||'UN',stock:st,stockCritico:cr,precioUnit:pr,categoria:catOk});
   });
   return{filas:filas,errores:errores};
+}
+
+// ── Kardex unificado: filtros, lubricantes y repuestos críticos dentro del mismo kardex ──
+// Cada fila de stock_filtros / lubricantes / repuestos puede tener un insumo VINCULADO (origen + origenId = su _id). Desde que se activa, el kardex manda: el saldo sale de sus movimientos y se COPIA a la
+// columna de stock de la tabla antigua (stockBodega, stock, stockActual) para que las pantallas que ya la leen (plan de reposición, estado de stock, Qué comprar) sigan igual. Si alguien edita ese stock a mano en la
+// pantalla antigua, el kardex no se entera: kardexDescuadres lo detecta y se cuadra registrando un ajuste (con fecha y motivo), nunca en silencio.
+var KARDEX_ORIGENES={filtro:{tabla:'stk',campo:'stockBodega',categoria:'Filtros'},lubricante:{tabla:'lub',campo:'stock',categoria:'Lubricantes'},repuesto:{tabla:'repuestos',campo:'stockActual',categoria:'Repuestos'}};
+function kardexLegadoValor(origen,fila){
+  var o=KARDEX_ORIGENES[origen];return o&&fila?(Number(fila[o.campo])||0):0;
+}
+// Copia el saldo del kardex a la fila antigua (la modifica). En filtros recalcula también cobertura y estado, como hace el descuento por PM.
+function kardexAplicarLegado(origen,fila,saldo){
+  var o=KARDEX_ORIGENES[origen];if(!o||!fila)return fila;
+  var v=Math.max(0,Math.round((Number(saldo)||0)*1000)/1000);
+  fila[o.campo]=v;
+  if(origen==='filtro'){var se=stockEstado(v,fila.consumoMes||1,fila.leadTime);fila.mesesCubierto=se.meses!=null?Math.round(se.meses*10)/10:0;fila.estado=se.ico+' '+se.txt;}
+  return fila;
+}
+function _kardexDescripcion(origen,f){return String(origen==='lubricante'?f.nombre:origen==='repuesto'?f.componente:f.descripcion).trim();}
+// Qué hay que crear para activar el kardex: un insumo por cada fila de las tres tablas que aún no tiene uno, con su stock de hoy como saldo inicial. Las filas sin nombre se saltan y se cuentan.
+function kardexPlanActivacion(stk,lub,repuestos,insumos){
+  var ya={};(insumos||[]).forEach(function(i){if(i&&i.origen&&i.origenId)ya[i.origen+'|'+i.origenId]=1;});
+  var filas=[],yaActivos=0,sinNombre=0;
+  function rec(origen,lista){
+    (lista||[]).forEach(function(f){
+      if(!f||!f._id)return;
+      if(ya[origen+'|'+f._id]){yaActivos++;return;}
+      var d=_kardexDescripcion(origen,f);if(!d){sinNombre++;return;}
+      var o=KARDEX_ORIGENES[origen];
+      filas.push({origen:origen,origenId:f._id,categoria:o.categoria,descripcion:d,codigo:origen==='lubricante'?'':String(f.nParte||'').trim(),unidad:origen==='lubricante'?(f.unidad||'L'):'UN',
+        stockCritico:origen==='repuesto'?Math.max(0,Number(f.stockMinimo)||0):0,precioUnit:Number(origen==='filtro'?f.precioUnit:origen==='lubricante'?f.precio:f.precioUnit)||0,
+        observacion:origen==='filtro'&&f.equipoModelo?'Equipo/modelo: '+f.equipoModelo:origen==='repuesto'&&f.equipo?'Equipo: '+f.equipo:'',stock:kardexLegadoValor(origen,f)});
+    });
+  }
+  rec('filtro',stk);rec('lubricante',lub);rec('repuesto',repuestos);
+  var porOrigen={filtro:0,lubricante:0,repuesto:0};filas.forEach(function(f){porOrigen[f.origen]++;});
+  return{filas:filas,porOrigen:porOrigen,yaActivos:yaActivos,sinNombre:sinNombre};
+}
+// Ítems vinculados cuyo stock en la pantalla antigua no coincide con el saldo del kardex (alguien lo editó a mano allá, o se borró la fila). {descuadres:[{insumoId,origen,descripcion,kardex,legado,diferencia}], huerfanos:[…]}
+function kardexDescuadres(stk,lub,repuestos,insumos,movs){
+  var tablas={filtro:stk||[],lubricante:lub||[],repuesto:repuestos||[]},sal=insumosSaldos(movs),desc=[],huer=[];
+  (insumos||[]).forEach(function(i){
+    if(!i||!i.origen||i.activo===false)return;
+    var fila=(tablas[i.origen]||[]).filter(function(f){return f&&f._id===i.origenId;})[0];
+    if(!fila){huer.push({insumoId:i._id,origen:i.origen,descripcion:i.descripcion});return;}
+    var k=(sal[i._id]||{saldo:0}).saldo,l=kardexLegadoValor(i.origen,fila),d=Math.round((l-k)*1000)/1000;
+    if(Math.abs(d)>1e-9)desc.push({insumoId:i._id,origen:i.origen,descripcion:i.descripcion,codigo:i.codigo||'',kardex:k,legado:l,diferencia:d});
+  });
+  return{descuadres:desc,huerfanos:huer};
+}
+// Salidas del kardex a partir de lo que un descuento por PM bajó en las pantallas antiguas. antes: {origen: {filaId: valorAntes}}, despues: {origen: [filas]}. ctx: {fecha, equipo, pm}.
+function kardexSalidasPM(insumos,antes,despues,ctx){
+  var vinc={};(insumos||[]).forEach(function(i){if(i&&i.origen&&i.origenId&&i.activo!==false)vinc[i.origen+'|'+i.origenId]=i;});
+  var c=ctx||{},out=[];
+  Object.keys(KARDEX_ORIGENES).forEach(function(origen){
+    ((despues||{})[origen]||[]).forEach(function(f){
+      var ins=f&&vinc[origen+'|'+f._id],a=ins&&antes&&antes[origen]?antes[origen][f._id]:undefined;
+      if(!ins||a==null)return;
+      var d=Math.round((Number(a)-kardexLegadoValor(origen,f))*1000)/1000;
+      if(d>0)out.push({insumoId:ins._id,fecha:c.fecha,tipo:'salida',cantidad:d,documento:'PM'+(c.pm?' '+c.pm:''),referencia:'descuento automático por PM',destino:c.equipo||'',observacion:'',usuario:c.usuario||''});
+    });
+  });
+  return out;
+}
+// Copia a las pantallas antiguas el saldo del kardex de los insumos vinculados indicados (lee y escribe el store). Devuelve cuántas filas actualizó.
+function kardexSincronizarLegado(insumoIds){
+  try{
+    if(typeof S==='undefined')return 0;
+    var ins=S.g('ins')||[],sal=insumosSaldos(S.g('insMov')||[]),n=0,cambio={};
+    (insumoIds||[]).forEach(function(id){
+      var i=ins.filter(function(x){return x._id===id;})[0];if(!i||!i.origen)return;
+      var o=KARDEX_ORIGENES[i.origen],tabla=S.g(o.tabla)||[],fila=tabla.filter(function(f){return f._id===i.origenId;})[0];if(!fila)return;
+      kardexAplicarLegado(i.origen,fila,(sal[id]||{saldo:0}).saldo);cambio[o.tabla]=tabla;n++;
+    });
+    Object.keys(cambio).forEach(function(t){S.s(t,cambio[t]);});
+    return n;
+  }catch(e){return 0;}
+}
+// Ítem del kardex al que corresponde una orden de compra recibida: coincide el N° de parte con el código, o el nombre exacto; si hay más de uno o ninguno, null (no se adivina).
+function insumoParaOC(insumos,orden){
+  var np=String(orden&&orden.nParte||'').trim().toUpperCase(),nom=String(orden&&orden.componente||'').trim().toUpperCase();
+  var act=(insumos||[]).filter(function(i){return i&&i.activo!==false;});
+  var porParte=np?act.filter(function(i){return String(i.codigo||'').trim().toUpperCase()===np;}):[];
+  if(porParte.length===1)return porParte[0];
+  if(porParte.length>1)return null;
+  var porNombre=nom?act.filter(function(i){return String(i.descripcion||'').trim().toUpperCase()===nom;}):[];
+  return porNombre.length===1?porNombre[0]:null;
 }
 
 // ═══ QUÉ COMPRAR: PRÓXIMO MES / SEMESTRE / AÑO (2026-10-24) ═══
@@ -6103,7 +6190,7 @@ function planCompras(o){
   var filtros=lineas(op.stk,'filtro'),lubs=lineas(op.lub,'lubricante');
   // insumos generales (stock con kardex): consumo = salidas de los últimos 90 días; se compra para cubrir el horizonte y dejar el stock crítico al final; el quiebre es el día en que el saldo baja al crítico
   var insumosL=[],insumosCubiertos=0;
-  (op.insumos||[]).filter(function(f){return f&&f.activo!==false;}).forEach(function(f){
+  (op.insumos||[]).filter(function(f){return f&&f.activo!==false&&f.origen!=='filtro'&&f.origen!=='lubricante';}).forEach(function(f){   // filtros y lubricantes ya salen arriba, desde el plan de los PM
     var crit=Number(f.stockCritico)||0,cm=Number(f.consumoMes)||0,pos=Number(f.saldo)||0,precio=Number(f.precioUnit)||0;
     if(!(cm>0)&&!(crit>0))return;
     var nec={},com={},cos={};
@@ -11503,7 +11590,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,

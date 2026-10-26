@@ -259,7 +259,7 @@ const TABLA_REAL={
   backlogPM:{tabla:'backlog_pm',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomBacklog','tarea','sistema','conInsumo','fechaCierre','observacion']},
   reportab:{tabla:'reportabilidad_diaria',clave:'_id',claveDb:'id',cols:['fecha','sigla','siglaCliente','estatus','ubicacion','detalle','fechaDetencion','proyeccion','ordenCompra','observacion','mantenedor','fuente']},
   // Stock de insumos (2026-10-26): catálogo + kardex de bodega (EPP, librería, limpieza, desgaste, baterías…). El saldo no se guarda: se calcula de los movimientos (ver insumosResumen, logic.js).
-  ins:{tabla:'insumos',clave:'_id',claveDb:'id',cols:['codigo','descripcion','categoria','unidad','stockCritico','ubicacion','precioUnit','observacion','activo']},
+  ins:{tabla:'insumos',clave:'_id',claveDb:'id',cols:['codigo','descripcion','categoria','unidad','stockCritico','ubicacion','precioUnit','observacion','activo','origen','origenId']},
   insMov:{tabla:'insumos_movimientos',clave:'_id',claveDb:'id',cols:['insumoId','fecha','tipo','cantidad','documento','referencia','destino','precioUnit','observacion','usuario']},
   progDia:{tabla:'programacion_diaria',clave:'_id',claveDb:'id',cols:['fecha','turno','orden','nombre','cargo','responsable','bloques']},
   // Sensor de neumático como entidad propia (2026-07) — antes 'numSensor' era solo

@@ -635,7 +635,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-26a"></script>
+<script src="logic.js?v=2026-10-26b"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -688,7 +688,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-26b',
+  ayuda:'2026-10-26c',
   cad:'2026-08-30b',
   cfg:'2026-10-26a',
   comp2:'2026-10-19',
@@ -713,11 +713,11 @@ const _LAZY_VERS={
   plani:'2026-10-16b',
   prg:'2026-08-31',
   progdia:'2026-08-30',
-  rep:'2026-10-08',
+  rep:'2026-10-26b',
   sem:'2026-10-08',
   stk:'2026-10-24h',
   stk2:'2026-10-26a',
-  ins:'2026-10-26a',
+  ins:'2026-10-26b',
   uso:'2026-10-08',
   venc:'2026-09-02',
   // Segundo lote (2026-09-10, extensión): archivos que SÍ tienen alguna
@@ -777,7 +777,7 @@ const _LAZY_EXPORTS={
   sem:['renderSem','edSem','addSemItem','saveNuevoSemItem','delSem','navSem','edSemReal','cerrarSemana','reabrirSemana','importSemCSV'],
   stk:['renderStk','addStock','saveStock','stkCambiarCobertura'],
   stk2:['renderStk2','stk2Sub','queComprar'],
-  ins:['renderIns','insFiltro','insNuevo','insGuardarNuevo','insEditar','insGuardarEdicion','insToggleActivo','insMovimiento','insGuardarMov','insKardex','insConteo','insConteoGuardar','insLista','insListaVista','insListaGuardar','insExportar'],
+  ins:['renderIns','insFiltro','insNuevo','insGuardarNuevo','insEditar','insGuardarEdicion','insToggleActivo','insMovimiento','insGuardarMov','insKardex','insConteo','insConteoGuardar','insActivar','insActivarConfirmar','insDescuadres','insCuadrar','insDesactivarHuerfanos','insLista','insListaVista','insListaGuardar','insExportar'],
   uso:['verUsoPestanas','renderUso'],
   venc:['renderVenc','_vencAbrirSelector','_vencFotoSeleccionada','edVenc','exportVencCSV'],
   // Segundo lote (2026-09-10) — ver comentario en _LAZY_VERS.
@@ -1931,6 +1931,10 @@ function descontarStock(consumos, fecha, equipo, tipoPM){
   let log = [];
   let sinMatch = [];
   let mapaCambio = false;
+  // Kardex unificado (2026-10-26): foto del stock antes de descontar, para dejar la salida de cada ítem con kardex (equipo y PM) al final.
+  const _kIns=S.g('ins')||[],_kOn=_kIns.some(i=>i&&i.origen&&i.activo!==false);
+  const _kAntes={filtro:{},lubricante:{}};
+  if(_kOn){stk.forEach(f=>{if(f&&f._id)_kAntes.filtro[f._id]=Number(f.stockBodega)||0;});lub.forEach(l=>{if(l&&l._id)_kAntes.lubricante[l._id]=Number(l.stock)||0;});}
 
   consumos.forEach(c=>{
     const rep=(c.rep||c.repuesto||c.nombre||'').trim();
@@ -2029,6 +2033,10 @@ function descontarStock(consumos, fecha, equipo, tipoPM){
   if(JSON.stringify(stk)!==stkAntes) S.s('stk',stk);
   if(JSON.stringify(lub)!==lubAntes) S.s('lub',lub);
   if(mapaCambio) S.s('mapaRep',mapaRep);
+  if(_kOn){
+    const _kSal=kardexSalidasPM(_kIns,_kAntes,{filtro:stk,lubricante:lub},{fecha:hoy,equipo:equipo,pm:tipoPM,usuario:window._userName||''});
+    if(_kSal.length)S.s('insMov',(S.g('insMov')||[]).concat(_kSal));
+  }
   if(sinMatch.length>0) toast('⚠️ Sin stock vinculado para: '+sinMatch.join(', ')+' — revisar en Stock/Lubricantes');
   return log;
 }

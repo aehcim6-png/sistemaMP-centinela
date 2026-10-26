@@ -102,6 +102,82 @@ test('lo que se guarda llega a la base con las columnas de las tablas insumos e 
   const ins = posts.find((p) => /\/insumos\?/.test(p.url)), mov = posts.find((p) => /\/insumos_movimientos\?/.test(p.url));
   expect(ins, 'POST a insumos').toBeTruthy();
   expect(mov, 'POST a insumos_movimientos').toBeTruthy();
-  expect(Object.keys(JSON.parse(ins.body)[0]).sort()).toEqual(['activo', 'categoria', 'codigo', 'descripcion', 'id', 'observacion', 'precioUnit', 'stockCritico', 'ubicacion', 'unidad']);
+  expect(Object.keys(JSON.parse(ins.body)[0]).sort()).toEqual(['activo', 'categoria', 'codigo', 'descripcion', 'id', 'observacion', 'origen', 'origenId', 'precioUnit', 'stockCritico', 'ubicacion', 'unidad']);
   expect(Object.keys(JSON.parse(mov.body)[0]).sort()).toEqual(['cantidad', 'destino', 'documento', 'fecha', 'id', 'insumoId', 'observacion', 'precioUnit', 'referencia', 'tipo', 'usuario']);
+});
+
+test('kardex unificado: activar filtros, lubricantes y repuestos; el PM y la OC recibida mueven el kardex y el stock antiguo; un cambio a mano se detecta y se cuadra', async ({ page }) => {
+  test.setTimeout(120000);
+  await entrar(page);
+  const r = await page.evaluate(async () => {
+    const esp = (ms) => new Promise((x) => setTimeout(x, ms));
+    const toasts = []; window.toast = (m) => { toasts.push(String(m)); };
+    go('stk2');
+    for (let i = 0; i < 100 && typeof renders.stk2 !== 'function'; i++) await esp(100);
+    const mem = {
+      ins: [], insMov: [], mov: [], mapaRep: [], comprasDetalle: [], pau: [],
+      stk: [{ _id: 'f1', nParte: 'LF9009', descripcion: 'Filtro aceite', equipoModelo: 'D375', stockBodega: 6, consumoMes: 2, precioUnit: 10000 }],
+      lub: [{ _id: 'l1', nombre: 'Aceite 15W40', unidad: 'L', stock: 80, precio: 3000 }],
+      repuestos: [{ _id: 'r1', componente: 'Inyector', nParte: 'INJ-1', equipo: 'CN-9502', stockActual: 4, stockMinimo: 2, precioUnit: 500000 }],
+      ordenes: [{ _id: 'o1', componente: 'Inyector', nParte: 'INJ-1', cantidad: 3, proveedor: 'Proveedor X', fecha: '2026-10-01', estado: 'Pendiente' }],
+    };
+    const g = S.g.bind(S), s = S.s.bind(S);
+    S.g = (k) => (k in mem ? mem[k] : g(k)); S.s = (k, v) => { if (k in mem) { mem[k] = v; return true; } return s(k, v); };
+    const out = {};
+    window._stk2Sub = 'ins'; await renders.stk2();
+    for (let i = 0; i < 100 && !(document.getElementById('s-ins') || {}).innerText; i++) await esp(100);
+    out.aviso = document.getElementById('s-ins').innerText;
+    // 1) activar
+    insActivar(); await esp(100);
+    out.modal = document.body.innerText;
+    insActivarConfirmar(); await esp(200);
+    out.items = mem.ins.map((i) => i.origen + ':' + i.descripcion);
+    out.iniciales = mem.insMov.filter((m) => m.tipo === 'inicial').map((m) => m.cantidad).sort((a, b) => a - b);
+    out.sinDescuadre = (document.getElementById('s-ins').innerText.match(/stock distinto/) || []).length;
+    // 2) un PM descuenta 2 filtros y 7,5 L: el kardex lo anota con equipo y PM
+    descontarStock([{ rep: 'Filtro aceite LF9009', can: 2 }, { rep: 'Aceite 15W40', can: 7.5 }], '2026-10-26', 'CN-9502', 'PM2');
+    await esp(100);
+    const insF = mem.ins.find((i) => i.origen === 'filtro')._id;
+    const sal = insumosSaldos(mem.insMov);
+    out.saldoFiltroTrasPM = sal[insF].saldo; out.legadoFiltro = mem.stk[0].stockBodega;
+    out.salidasPM = mem.insMov.filter((m) => m.tipo === 'salida').map((m) => [m.cantidad, m.destino, m.documento]);
+    // 3) OC recibida: entrada al kardex y al stock de repuestos
+    const { recibirOC } = await import('/modules/renders/rep.js');
+    recibirOC(0); await esp(100);
+    const insR = mem.ins.find((i) => i.origen === 'repuesto')._id;
+    out.saldoRepTrasOC = insumosSaldos(mem.insMov)[insR].saldo; out.legadoRep = mem.repuestos[0].stockActual;
+    out.toastOC = toasts.filter((t) => /OC marcada/.test(t)).pop();
+    // 4) alguien edita el stock a mano en la pantalla antigua
+    mem.lub[0].stock = 50;
+    renders.ins(); await esp(100);
+    out.avisoDescuadre = document.getElementById('s-ins').innerText;
+    insDescuadres(); await esp(100);
+    out.tablaDescuadre = document.body.innerText;
+    insCuadrar(1); await esp(100);
+    const insL = mem.ins.find((i) => i.origen === 'lubricante')._id;
+    out.saldoLubTrasCuadre = insumosSaldos(mem.insMov)[insL].saldo;
+    out.ajusteLub = mem.insMov.filter((m) => m.tipo === 'ajuste').map((m) => m.cantidad);
+    // 5) una salida manual en el kardex baja también el stock de la pantalla antigua
+    insMovimiento(insF, 'salida'); await esp(100);
+    document.getElementById('imCant').value = '1'; document.getElementById('imDoc').value = 'vale 9';
+    insGuardarMov(insF, 'salida'); await esp(100);
+    out.legadoFiltroTrasSalidaManual = mem.stk[0].stockBodega;
+    return out;
+  });
+  expect(r.aviso).toContain('3 ítems de Stock Filtros, Lubricantes y Repuestos aún no tienen kardex');
+  expect(r.modal).toContain('Activar el kardex');
+  expect(r.items.sort()).toEqual(['filtro:Filtro aceite', 'lubricante:Aceite 15W40', 'repuesto:Inyector']);
+  expect(r.iniciales).toEqual([4, 6, 80]);
+  expect(r.sinDescuadre).toBe(0);
+  expect(r.saldoFiltroTrasPM).toBe(4);
+  expect(r.legadoFiltro).toBe(4);
+  expect(r.salidasPM).toEqual(expect.arrayContaining([[2, 'CN-9502', 'PM PM2'], [7.5, 'CN-9502', 'PM PM2']]));
+  expect(r.saldoRepTrasOC).toBe(7);
+  expect(r.legadoRep).toBe(7);
+  expect(r.toastOC).toContain('entrada sumada al kardex de «Inyector»');
+  expect(r.avisoDescuadre).toContain('1 ítem(s) tienen un stock distinto');
+  expect(r.tablaDescuadre).toContain('Aceite 15W40');
+  expect(r.saldoLubTrasCuadre).toBe(50);
+  expect(r.ajusteLub).toEqual([-22.5]);                      // 80 − 7,5 del PM = 72,5 en el kardex; la pantalla dice 50
+  expect(r.legadoFiltroTrasSalidaManual).toBe(3);
 });

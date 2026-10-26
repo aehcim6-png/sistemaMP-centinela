@@ -231,6 +231,18 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Qué hay que saber.** El plano no muestra el estado en vivo de cada pieza: para eso están el correo del vigilante de salud y la tabla `salud_crons`. Las rutinas diarias de diagnóstico (`MON-02`) revisan esa tabla y mandan un correo solo si hay un problema. Cuando se agregue una función, una tarea programada o un servicio nuevo, hay que sumar su ficha; una prueba automática avisa si falta.
 
+### Kardex de filtros, lubricantes y repuestos (2026-10-26)
+
+**Qué es.** Las mismas reglas del kardex de insumos ahora cubren **Stock Filtros, Lubricantes y Repuestos críticos**. Todo queda en **Stock & Insumos → Insumos**, con su categoría (Filtros, Lubricantes, Repuestos) y una etiqueta que dice de qué pantalla viene.
+
+**Activarlo (una sola vez).** En Insumos aparece un aviso «N ítems de Stock Filtros, Lubricantes y Repuestos aún no tienen kardex» con el botón **Activar kardex**. Al activarlo, el **stock de hoy** de cada ítem queda como saldo inicial y no se borra ni se cambia nada de esas pantallas. Conviene hacerlo con el stock al día (por ejemplo, justo después de un conteo físico).
+
+**Cómo funciona después.** (1) Los **PM que descuentan stock** siguen igual y dejan además su salida en el kardex, con el equipo y el PM. (2) Al **marcar una orden de compra como recibida**, si coincide con un solo ítem (por N° de parte o por nombre exacto), la **entrada** se suma sola; si no coincide con uno solo, no se suma y hay que registrarla a mano con **+ Entrada**. (3) Las entradas, salidas y conteos que hagas en el kardex **actualizan el stock de la pantalla de origen**. (4) Para cambiar el stock, usa el kardex (entrada, salida o conteo físico): no edites el número a mano en la pantalla de origen.
+
+**Si alguien edita el stock a mano.** En Insumos aparece «N ítems tienen un stock distinto en su pantalla»: **Revisar y cuadrar** muestra la diferencia y, al aceptar, deja un **ajuste** en el kardex con fecha y motivo. Si una fila fue borrada de su pantalla, el ítem del kardex puede **desactivarse** y conserva su historial.
+
+**Qué hay que saber.** El nombre de un ítem se cambia en su pantalla de origen (en el kardex aparece bloqueado). Editar o borrar un consumo en **Consumos** cambia el stock sin pasar por el kardex: aparecerá como diferencia para cuadrar. El historial de consumos anterior a la activación no se carga al kardex, así que el consumo mensual del kardex empieza de cero y se marca «poca historia» durante 60 días.
+
 ### Stock de insumos (2026-10-26)
 
 **Qué es.** En **Stock & Insumos → Insumos** está el inventario de bodega de todo lo que no es filtro ni lubricante: EPP, librería, limpieza, elementos de desgaste, baterías, herramientas y otros. Funciona como las planillas «Inventario de bodega»: cada ítem tiene un **kardex** con sus entradas, salidas y ajustes, y el **saldo** sale de sumar esos movimientos (no se escribe a mano).
