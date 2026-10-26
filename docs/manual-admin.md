@@ -221,6 +221,18 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Stock de insumos (2026-10-26)
+
+**Qué es.** En **Stock & Insumos → Insumos** está el inventario de bodega de todo lo que no es filtro ni lubricante: EPP, librería, limpieza, elementos de desgaste, baterías, herramientas y otros. Funciona como las planillas «Inventario de bodega»: cada ítem tiene un **kardex** con sus entradas, salidas y ajustes, y el **saldo** sale de sumar esos movimientos (no se escribe a mano).
+
+**Cómo usarlo.** (1) **Carga inicial:** con **Cargar lista** pegas desde Excel las columnas descripción, unidad, stock, stock crítico, precio y categoría; el stock queda como saldo inicial de hoy. También puedes agregar de a uno con **+ Nuevo ítem**. (2) **Cada vez que llega algo:** **+ Entrada** (guía u OC, proveedor, precio). (3) **Cada vez que sale algo:** **− Salida** (N° de vale, quién retira, destino: equipo, trabajador o área). El sistema no deja sacar más que el saldo. (4) **Kardex** muestra todos los movimientos del ítem con el saldo corrido. (5) **Conteo físico:** anotas lo que hay en la bodega y, donde difiere del saldo, queda un ajuste en el kardex con la fecha y el usuario. Un ítem con movimientos no se borra: se **desactiva** (✎ → Desactivar) y conserva su historial.
+
+**Estados.** 🔴 Sin stock (saldo cero), 🟡 Crítico (saldo en el stock crítico del ítem o por debajo), ✅ OK. Un ítem sin stock crítico cargado no avisa cuando se acaba: conviene cargarlo. **Consumo/mes** es lo que salió en los últimos 90 días; con menos de 60 días de historia queda marcado ⚠ porque todavía no es confiable.
+
+**Qué comprar.** El botón **🛒 Qué comprar** incluye la sección «Insumos generales»: consumo proyectado al mes, semestre y año, más el stock crítico, menos el saldo, con la fecha para pedir. Es tan bueno como el kardex: si no se registran las salidas, el saldo y la compra sugerida no reflejan la bodega (el sistema avisa cuando el último movimiento es viejo).
+
+**Qué hay que saber.** Las entradas y salidas se registran a mano por ahora; no se descuentan solas al cerrar una OT ni se cargan desde las compras recibidas. El saldo de filtros y lubricantes sigue en sus propias pestañas.
+
 ### Qué comprar: próximo mes, semestre y año (2026-10-24)
 
 **Qué es.** En **Stock & Insumos** hay un botón **🛒 Qué comprar**. Muestra, para el próximo mes, semestre y año, cuánto hay que comprar de **filtros, lubricantes, neumáticos y elementos de desgaste**, ya descontando lo que hay en bodega (y lo pendiente de llegar).

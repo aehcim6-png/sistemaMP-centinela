@@ -57,6 +57,7 @@ import { detalleErrorVerificacion, verificarSecretoCron } from "../_shared/verif
 // se crearon).
 // 2026-10-12: sumadas 'fmea_npr' (estaba en esta lista del repo desde el 2026-10-02 pero la función desplegada no la tenía) y
 // 'reportabilidad_diaria' (reporte diario del cliente, cargado en producción desde el 2026-10-11).
+// 2026-10-26: sumadas 'insumos' e 'insumos_movimientos' (stock de insumos con kardex) el mismo día en que se crearon.
 export const TABLAS = [
   'kv', 'user_roles', 'equipos', 'registros_pm', 'correctivos', 'movimientos_stock',
   'historial_horometros', 'neumaticos', 'neumaticos_mediciones', 'pautas',
@@ -71,7 +72,8 @@ export const TABLAS = [
   'historial_componentes', 'historial_neumaticos', 'salud_flota_historico',
   'correctivos_historico', 'gestion_compras', 'compromisos', 'uso_pestanas',
   'salud_crons', 'compras_detalle', 'rendimiento_modelos',
-  'produccion_turno', 'produccion_turno_equipos', 'fmea_npr', 'reportabilidad_diaria'
+  'produccion_turno', 'produccion_turno_equipos', 'fmea_npr', 'reportabilidad_diaria',
+  'insumos', 'insumos_movimientos'
 ];
 
 // PostgREST impone un tope de filas por request (~1000 en este proyecto,

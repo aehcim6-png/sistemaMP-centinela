@@ -17,16 +17,18 @@ export async function renderStk2() {
   const sub = (window._stk2Sub && window._stk2Sub !== 'cos') ? window._stk2Sub : 'stk';
   $('s-stk2').innerHTML = `
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock & Insumos</div>
-      <div class="sec-s">Filtros, lubricantes, repuestos y consumos</div></div>
+      <div class="sec-s">Filtros, lubricantes, repuestos, insumos y consumos</div></div>
       <button class="btn btn-o" onclick="queComprar()">🛒 Qué comprar</button></div>
     <div class="subtabs" role="tablist">
       <button class="subtab ${sub === 'stk' ? 'on' : ''}" role="tab" onclick="stk2Sub('stk')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Stock Filtros</button>
       <button class="subtab ${sub === 'lub' ? 'on' : ''}" role="tab" onclick="stk2Sub('lub')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes</button>
+      <button class="subtab ${sub === 'ins' ? 'on' : ''}" role="tab" onclick="stk2Sub('ins')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="5" width="14" height="11" rx="1.5"/><line x1="3" y1="9" x2="17" y2="9"/><line x1="8" y1="5" x2="8" y2="2.5"/><line x1="12" y1="5" x2="12" y2="2.5"/></svg> Insumos</button>
       <button class="subtab ${sub === 'rep' ? 'on' : ''}" role="tab" onclick="stk2Sub('rep')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,6 10,10 3,6"/><line x1="3" y1="6" x2="3" y2="13"/><line x1="17" y1="6" x2="17" y2="13"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="3" y1="13" x2="10" y2="18"/><line x1="17" y1="13" x2="10" y2="18"/></svg> Repuestos</button>
       <button class="subtab ${sub === 'mov' ? 'on' : ''}" role="tab" onclick="stk2Sub('mov')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Consumos</button>
     </div>
     <div id="s-stk" class="${sub === 'stk' ? '' : 'hidden'}"></div>
     <div id="s-lub" class="${sub === 'lub' ? '' : 'hidden'}"></div>
+    <div id="s-ins" class="${sub === 'ins' ? '' : 'hidden'}"></div>
     <div id="s-mov" class="${sub === 'mov' ? '' : 'hidden'}"></div>
     <div id="s-rep" class="${sub === 'rep' ? '' : 'hidden'}"></div>
   `;
@@ -36,6 +38,7 @@ export async function renderStk2() {
   if (typeof _LAZY_VERS !== 'undefined' && _LAZY_VERS[sub]) await _cargarModuloLazy(sub);
   if (sub === 'stk') renders.stk();
   else if (sub === 'lub') renders.lub();
+  else if (sub === 'ins') renders.ins();
   else if (sub === 'mov') renders.mov();
   else if (sub === 'rep') renders.rep();
   setTimeout(() => aplicarOrdenUniversal('s-stk2'), 60);
@@ -61,7 +64,8 @@ function _queComprarEntrada() {
   });
   const stock = neuTodos.filter(n => n.estado === 'Stock').map(n => ({ medida: n.medida }));
   const pe = plazoEntregaCompras(S.g('comprasDetalle') || []);
-  return { plazoFn: pe.n ? pe.para : null, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq) };
+  const insumos = insumosResumen(S.g('ins') || [], S.g('insMov') || [], { hoy: new Date() }).filas;
+  return { plazoFn: pe.n ? pe.para : null, insumos, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq) };
 }
 export function queComprar() {
   const fn2 = v => fn(Math.round(Number(v) || 0));
@@ -89,12 +93,16 @@ export function queComprar() {
     '</td><td style="text-align:center">' + fn2(x.posicion) + (x.unidad && x.unidad !== 'un' ? ' ' + escapeHtml(x.unidad) : '') + '</td>' + celdas(x.comprar, true) +
     antesCel(x) + '<td style="font-size:10px;color:var(--tx3)">' + baseTxt(x.base) + '</td></tr>';
   const cabIns = '<th style="padding:5px;text-align:left">Ítem</th><th>Hay hoy</th>' + cabH + '<th>Pedir antes de</th><th>Según</th>';
+  const filaInsumo = x => '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.nombre) + '</b> <span style="font-size:10px;color:var(--tx3)">' + escapeHtml(x.categoria) + '</span>' +
+    '<div style="font-size:10px;color:var(--tx3)">' + (x.consumoMes > 0 ? 'consumo ' + fn(Math.round(x.consumoMes * 10) / 10) + '/mes' + (x.pocaHistoria ? ' ⚠ poca historia' : '') : 'solo stock crítico') + '</div></td><td style="text-align:center">' + fn2(x.posicion) + ' ' + escapeHtml(x.unidad) +
+    (x.stockCritico > 0 ? '<div style="font-size:10px;color:var(--tx3)">crítico ' + fn2(x.stockCritico) + '</div>' : '') + '</td>' + celdas(x.comprar, true) + antesCel(x) + '</tr>';
+  const cabIns2 = '<th style="padding:5px;text-align:left">Insumo</th><th>Hay hoy</th>' + cabH + '<th>Pedir antes de</th>';
   const filaNeu = x => '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.medida) + '</b>' + (x.vencidos ? ' <span style="font-size:10px;color:var(--danger)">' + x.vencidos + ' vencido(s)</span>' : '') +
     '</td><td style="text-align:center">' + x.existencias + '</td>' + celdas(x.necesidad, false) + celdas(x.comprar, true) + antesCel(x) + '</tr>';
   const cabNeu = '<th style="padding:5px;text-align:left">Medida</th><th>En existencias</th><th colspan="3">Se cambian</th><th colspan="3">Comprar</th><th>Pedir antes de</th>';
   const filaDes = x => '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.pieza) + '</b> <span style="font-size:10px;color:var(--tx3)">' + escapeHtml(x.tipo) + '</span></td><td style="text-align:center">' + x.nEventos + ' en ' + x.nMeses + ' m</td>' +
     celdas({ mes: x.mes, semestre: x.semestre, anio: x.anio }, true) + '</tr>';
-  const kpi = h => { const t = r.totales[h.clave]; return '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--tx3)">' + h.etiqueta + '</div><b style="font-size:18px">$' + fn2(t.costo) + '</b><div style="font-size:9px;color:var(--tx3)">' + 'filtros ' + t.filtros + ' · lubricantes ' + t.lubricantes + ' · neumáticos ' + t.neumaticos + (t.sinPrecio ? ' · ' + t.sinPrecio + ' sin precio' : '') + '</div></div>'; };
+  const kpi = h => { const t = r.totales[h.clave]; return '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--tx3)">' + h.etiqueta + '</div><b style="font-size:18px">$' + fn2(t.costo) + '</b><div style="font-size:9px;color:var(--tx3)">' + 'filtros ' + t.filtros + ' · lubricantes ' + t.lubricantes + ' · neumáticos ' + t.neumaticos + ' · insumos ' + t.insumos + (t.sinPrecio ? ' · ' + t.sinPrecio + ' sin precio' : '') + '</div></div>'; };
   const avisos = r.avisos.length ? '<div style="padding:8px 10px;margin-bottom:12px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)"><b>Antes de comprar, ojo con estos datos:</b><ul style="margin:4px 0 0 16px;padding:0">' + r.avisos.map(a => '<li>' + escapeHtml(a.texto) + '</li>').join('') + '</ul></div>' : '';
   sm('<div style="max-width:960px"><h3 style="margin:0 0 6px">🛒 Qué comprar — próximo mes, semestre y año</h3>' +
     '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Cantidades <b>a comprar</b> ya descontando lo que hay en bodega (y lo pendiente de llegar). <b>Pedir antes de</b> = primer quiebre de stock menos el plazo de entrega <b>real</b> de las compras ya recibidas (según el monto de la compra; con el peor caso razonable debajo). Costo = solo ítems con precio cargado (precio de lista en neumáticos, no cotización).</div>' +
@@ -103,6 +111,7 @@ export function queComprar() {
     tabla('Filtros', 'Lo mayor entre lo que consumen los PM programados de la flota y el consumo histórico del ítem; no se suman porque el histórico ya incluye PM pasados.', cabIns, r.filtros.map(filaIns)) +
     tabla('Lubricantes', 'Mismo criterio que los filtros; las cantidades van en la unidad del lubricante.', cabIns, r.lubricantes.map(filaIns)) +
     tabla('Neumáticos', 'Los que la proyección de desgaste da por cambiados en cada plazo (los vencidos entran en los tres) menos los de esa medida en Existencias. No incluye el segundo cambio de un mismo neumático dentro del año.', cabNeu, r.neumaticos.map(filaNeu)) +
+    tabla('Insumos generales (EPP, librería, limpieza, desgaste, baterías…)', 'Del stock de insumos con kardex: el consumo de los últimos 90 días proyectado a cada plazo, más el stock crítico, menos el saldo' + (r.insumosCubiertos ? ' (' + r.insumosCubiertos + ' ya cubiertos para todo el año)' : '') + '. Con el kardex vacío no hay consumo y no se puede proyectar.', cabIns2, r.insumos.map(filaInsumo)) +
     tabla('Elementos de desgaste (zapatas, rodillos, uñas…)', 'Son <b>cambios registrados por período</b> según el historial de correctivos, no unidades de bodega: no hay existencias vinculadas, por eso no se resta nada. Úsalo como orden de magnitud para el presupuesto.', '<th style="padding:5px;text-align:left">Elemento</th><th>Historial</th>' + cabH, r.desgaste.map(filaDes)) +
     '<button class="btn btn-o" onclick="cm()">Cerrar</button></div>');
 }
