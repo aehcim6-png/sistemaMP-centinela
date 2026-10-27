@@ -5932,6 +5932,88 @@ function planReposicionAuto(cobertura){
     return{dem:dem,plan:planReposicionPM(dem,stk,lub,{cobertura:cobertura>=0?cobertura:30,plazoFn:pe.n?pe.para:null,hoy:new Date()})};
   }catch(e){return null;}
 }
+// ═══ CIERRE DE OT: MOTIVO DE DEMORA Y TIPO DE REPARACIÓN (2026-10-27) ═══
+// Para poder contestar «por qué tardó» y «¿se arregló de verdad o se parchó?» hacen falta dos datos que hoy nadie anota: en los 1.243 correctivos reales la categoría de demora y la causa raíz están vacías
+// (categoriaMTTR no sirve: es otra cosa, la del análisis de mantenibilidad). Se piden al CERRAR el correctivo, en la ventana «Cierre con datos».
+//  · motivoDemora: una lista corta que separa lo que depende de nosotros (el repuesto no se anticipó), de la compra o aprobación interna, y del proveedor. Cada motivo tiene un `grupo` para poder sumarlos después.
+//  · reparacion: Definitiva o Provisoria. Una reparación provisoria crea sola una tarea pendiente en el backlog (otBacklogDeProvisoria): así lo parchado deja de perderse.
+// Es obligatorio elegir; si se cierra «sin completar» queda escrito «Sin informar» (no vacío), para que se vea y se pueda contar cuánto se deja sin informar. El motivo solo se exige si la parada duró 8 horas o más
+// (o no se sabe cuánto duró); con menos de 8 horas, si no se elige, se anota «Sin demora».
+var OT_MOTIVOS_DEMORA=[
+  {id:'Sin demora',grupo:'ninguna'},
+  {id:'Repuesto sin stock en bodega (no se anticipó)',grupo:'repuesto_propio'},
+  {id:'Compra o aprobación interna lenta',grupo:'repuesto_compra'},
+  {id:'Proveedor sin stock o con demora',grupo:'repuesto_proveedor'},
+  {id:'Falta de personal o de especialista',grupo:'recursos'},
+  {id:'Falta de herramienta, grúa o taller',grupo:'recursos'},
+  {id:'Equipo no entregado por operación o sin acceso',grupo:'operacion'},
+  {id:'Diagnóstico difícil',grupo:'tecnico'},
+  {id:'Otro (explicar en la causa raíz)',grupo:'otro'}
+];
+var OT_MOTIVO_SIN_INFORMAR='Sin informar',OT_REPARACIONES=['Definitiva','Provisoria'],OT_DEMORA_UMBRAL_H=8;
+function otMotivoGrupo(motivo){
+  if(motivo===OT_MOTIVO_SIN_INFORMAR)return'sin_informar';
+  var m=OT_MOTIVOS_DEMORA.filter(function(x){return x.id===motivo;})[0];return m?m.grupo:null;
+}
+// ¿Hay que pedir el motivo? Sí si la parada duró 8 horas o más, o si no se sabe cuánto duró.
+function otMotivoRequerido(o,hoyISO){
+  var h=horasParadaOT(o,hoyISO);return h==null||h>=OT_DEMORA_UMBRAL_H;
+}
+// Qué falta al cerrar un correctivo (los tres de antes más los dos nuevos). «Sin informar» cuenta como ya registrado: es una laguna anotada, no un descuido.
+function otCierreFaltantes(o,hoyISO){
+  var f=[];
+  if(!(o.componente&&String(o.componente).trim()))f.push('componente');
+  if(!(o.causaRaiz&&String(o.causaRaiz).trim()))f.push('causaRaiz');
+  if(!(o.costo>0))f.push('costo');
+  if(!o.motivoDemora&&otMotivoRequerido(o,hoyISO))f.push('motivoDemora');
+  if(!o.reparacion)f.push('reparacion');
+  return f;
+}
+// Tarea de backlog para una reparación provisoria; null si ya existe una de esa OT (se marca en la observación). conInsumo: el motivo habla de un repuesto.
+function otBacklogDeProvisoria(o,hoyISO,backlog){
+  if(!o||o.reparacion!=='Provisoria')return null;
+  var hoy=String(hoyISO||new Date().toISOString()).slice(0,10),clave=o._id||[o.sigla,String(o.fechaEntrada||o.fecha||'').slice(0,10),String(o.sintoma||'').slice(0,30)].join('|'),marca='OT '+clave;
+  if((backlog||[]).some(function(b){return b&&String(b.observacion||'').indexOf(marca)>=0;}))return null;
+  var g=otMotivoGrupo(o.motivoDemora),sint=String(o.sintoma||'').trim();
+  return{sigla:o.sigla,fecha:hoy,horomBacklog:Number(o.horom)>0?Number(o.horom):null,tarea:'Reparación definitiva pendiente: '+(sint.length>120?sint.slice(0,117)+'…':sint||'(sin síntoma)'),
+    sistema:o.sistema||'',conInsumo:!!g&&g.indexOf('repuesto')===0,fechaCierre:null,observacion:'Reparación provisoria de la '+marca+' ('+String(o.fechaEntrada||o.fecha||hoy).slice(0,10)+')'};
+}
+
+// ═══ DOTACIÓN DESDE LA PROGRAMACIÓN DIARIA (2026-10-27) ═══
+// El sistema no tiene una nómina aparte: la dotación real está en los «trabajos diarios programados» (progDia: cada fila es una persona con su cargo en un día y turno). Los cargos vienen escritos de muchas
+// formas («Mecánico Lider», «Mecánico lider», «Mecanico», «Eelctro Mecanico»): cargoEspecialidad los lleva a una especialidad. dotacionProgramada cuenta personas distintas por día y turno. Es lo que HAY programado,
+// no la plantilla contratada: sirve para comparar contra la demanda, y es tan buena como los días que se hayan cargado.
+function cargoEspecialidad(cargo){
+  var t=String(cargo||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim();
+  if(!t)return'Otro';
+  if(/electr|eelctr|elect ro/.test(t))return'Electromecánico';
+  if(/mecanic/.test(t))return/lider|jefe|supervis/.test(t)?'Mecánico líder':'Mecánico';
+  if(/soldad/.test(t))return'Soldador';
+  if(/vulcaniz/.test(t))return'Vulcanizador';
+  if(/pluma|grua/.test(t))return'Operador de pluma';
+  if(/lubric|engras/.test(t))return'Lubricador';
+  return'Otro';
+}
+var DOTACION_ESPECIALIDADES=['Mecánico','Mecánico líder','Electromecánico','Soldador','Vulcanizador','Operador de pluma','Lubricador','Otro'];
+function dotacionProgramada(progDia){
+  var vistos={},dias={},sinClasif={};
+  (progDia||[]).forEach(function(r){
+    if(!r||!r.fecha||!r.nombre)return;
+    var f=String(r.fecha).slice(0,10),t=r.turno||'Día',k=f+'|'+t+'|'+String(r.nombre).trim().toUpperCase();
+    if(vistos[k])return;vistos[k]=1;
+    var esp=cargoEspecialidad(r.cargo),d=dias[f+'|'+t]||(dias[f+'|'+t]={fecha:f,turno:t,total:0,mecanicosTotal:0,porEspecialidad:{}});
+    d.total++;d.porEspecialidad[esp]=(d.porEspecialidad[esp]||0)+1;
+    if(esp==='Mecánico'||esp==='Mecánico líder')d.mecanicosTotal++;
+    if(esp==='Otro')sinClasif[String(r.cargo||'(sin cargo)')]=1;
+  });
+  var lista=Object.keys(dias).map(function(k){return dias[k];}).sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:a.turno<b.turno?-1:1;});
+  var porTurno={};
+  lista.forEach(function(d){var p=porTurno[d.turno]||(porTurno[d.turno]={turno:d.turno,dias:0,total:0,mecanicosTotal:0,porEspecialidad:{}});p.dias++;p.total+=d.total;p.mecanicosTotal+=d.mecanicosTotal;Object.keys(d.porEspecialidad).forEach(function(e){p.porEspecialidad[e]=(p.porEspecialidad[e]||0)+d.porEspecialidad[e];});});
+  var promedios=Object.keys(porTurno).map(function(t){var p=porTurno[t],r=function(v){return Math.round(v/p.dias*10)/10;},pe={};Object.keys(p.porEspecialidad).forEach(function(e){pe[e]=r(p.porEspecialidad[e]);});
+    return{turno:t,dias:p.dias,promedioPersonas:r(p.total),promedioMecanicos:r(p.mecanicosTotal),promedioPorEspecialidad:pe};});
+  return{dias:lista,promedios:promedios,nDias:Object.keys(lista.reduce(function(o,d){o[d.fecha]=1;return o;},{})).length,cargosSinClasificar:Object.keys(sinClasif).sort()};
+}
+
 // ═══ STOCK DE INSUMOS CON KARDEX (2026-10-26) ═══
 // Inventario de bodega de lo que se consume y no es filtro ni lubricante (EPP, librería, limpieza, elementos de desgaste, baterías…), con la misma lógica de las planillas «Inventario de bodega» que se
 // llevaban a mano: un catálogo (descripción, unidad, stock crítico, ubicación, precio) y un KARDEX por ítem con cada entrada, salida (documento, quién retira, destino), saldo inicial y ajuste de conteo.
@@ -11590,7 +11672,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,

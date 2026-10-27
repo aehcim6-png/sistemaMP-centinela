@@ -221,6 +221,18 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Cierre de OT con motivo de demora y tipo de reparación (2026-10-27)
+
+**Qué cambia.** Al cerrar un correctivo, la ventana «Cierre con datos» ahora pide dos datos más: el **motivo de demora** y el **tipo de reparación**. Sirven para contestar «por qué tardó» y «se arregló de verdad o se parchó».
+
+**Motivo de demora.** Una lista corta: *Sin demora*; *Repuesto sin stock en bodega (no se anticipó)*; *Compra o aprobación interna lenta*; *Proveedor sin stock o con demora*; *Falta de personal o de especialista*; *Falta de herramienta, grúa o taller*; *Equipo no entregado por operación o sin acceso*; *Diagnóstico difícil*; *Otro*. Es **obligatorio si la parada duró 8 horas o más** (o no se sabe cuánto duró); con menos de 8 horas es opcional y, si no se elige, queda «Sin demora».
+
+**Tipo de reparación.** *Definitiva* o *Provisoria*, siempre obligatorio. Si es **provisoria**, el sistema agrega sola una tarea al backlog («Reparación definitiva pendiente: …», una por OT, marcada con insumo si el motivo habla de un repuesto), para que lo parchado no se pierda; se cierra desde Gestión → Backlog cuando se hace la reparación definitiva.
+
+**«Cerrar sin completar».** Sigue disponible, pero el motivo y el tipo de reparación quedan escritos como **«Sin informar»** (no en blanco): así se puede contar cuánto se deja sin anotar. Las OT antiguas se pueden completar desde las columnas «Motivo de demora» y «Reparación» de la tabla de correctivos.
+
+**Dotación.** En **Planificación → Programación Diaria → Resumen** hay una tarjeta «Dotación programada»: promedio de mecánicos (con líderes) y electromecánicos por turno, según los días cargados. Es lo programado, no la plantilla contratada; si un cargo no se reconoce se lista aparte.
+
 ### Plano de fallas: dónde buscar si algo falla (2026-10-26)
 
 **Qué es.** En **Configuración → Documentación → «Ver plano de fallas»** está el mapa de todas las piezas del sistema, con un **código** cada una (como el rotulado de un tablero eléctrico). Sirve para los dos proyectos (Centinela y sistema-mp2): arriba eliges el proyecto y las direcciones de los paneles cambian solas.

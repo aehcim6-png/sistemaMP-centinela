@@ -690,7 +690,8 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **De dónde viene:** 🔵 Criterio propio.
 - **Cómo lo calcula aquí:** `clasificacionPendienteOT` y `resumenClasificacionOT` cuentan las OT cerradas (correctivos y fallas operacionales) sin sistema o sin tipo de causa (el tipo de causa está vacío en el 100 % de los correctivos reales). `repararMojibake` corrige texto guardado con la codificación equivocada ("DÃ­a" por "Día"): sin eso, el chi-cuadrado por turno contaba "Día" y "DÃ­a" como turnos distintos. `validarPMCompleto` y `estadoPMCompleto` registran si el PM se hizo completo; un registro anterior a ese campo es "sin dato", nunca "completo" (contarlo como completo inflaría la calidad).
 - **Dónde se ve:** Correctivos (tarjeta "Cerradas sin solución") y Registro PM.
-- **Código:** `clasificacionPendienteOT`, `resumenClasificacionOT`, `repararMojibake`.
+- - **Cierre con motivo de demora y tipo de reparación (27-oct-2026):** al cerrar un correctivo se piden dos datos que hasta hoy no existían: el **motivo de demora** (lista corta con `grupo`: sin demora, repuesto sin stock por no anticiparse, compra o aprobación interna lenta, proveedor, personal, herramienta, operación, diagnóstico, otro) y si la reparación fue **definitiva o provisoria**. `otCierreFaltantes` decide qué falta: el tipo de reparación siempre y el motivo solo si la parada duró 8 horas o más o no se sabe (`otMotivoRequerido`; con menos de 8 h, si no se elige, queda «Sin demora»). «Cerrar sin completar» deja escrito «Sin informar» para que la laguna se pueda contar. `otBacklogDeProvisoria` crea una tarea de backlog por cada reparación provisoria (una por OT, marcada en su observación). Criterio propio. Límites: lo anotado depende de quien cierra la OT; las OT anteriores quedan vacías (no se inventa).
+- **Código:** `clasificacionPendienteOT`, `resumenClasificacionOT`, `repararMojibake`, `OT_MOTIVOS_DEMORA`, `OT_MOTIVO_SIN_INFORMAR`, `OT_REPARACIONES`, `OT_DEMORA_UMBRAL_H`, `otMotivoGrupo`, `otMotivoRequerido`, `otCierreFaltantes`, `otBacklogDeProvisoria`.
 
 ### D14. Deducción del componente desde el texto del síntoma
 - **Tipo:** regla de texto (palabras clave).
@@ -802,7 +803,8 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Cómo lo calcula aquí:** λ = correctivos reales que llegan, μ = 1 ÷ MTTR, c = técnicos; acumula los términos A^k ÷ k! por razón sucesiva (evita desbordes). Si ρ ≥ 1 no devuelve tiempo de espera (el sistema es inestable). Según el comentario del código, el caso c = 1 coincide con M/M/1 y se verificó contra la recursión de Erlang B.
 - **Dónde se ve:** Predictivo ("Modelo de colas M/M/c").
 - **Límites:** las reparaciones no son exponenciales (ver A5), así que el tiempo de espera es orientativo.
-- **Código:** `modeloColasMMC`.
+- - **Dotación leída de la programación diaria (27-oct-2026):** el sistema no tiene nómina aparte: la dotación está en los «trabajos diarios programados» (una persona con su cargo por día y turno). `cargoEspecialidad` lleva los cargos, escritos de muchas formas («Mecánico Lider», «Mecanico», «Eelctro Mecanico»), a una especialidad, y `dotacionProgramada` cuenta personas distintas por día y turno y saca promedios por turno. Se ve en Programación Diaria → Resumen. Criterio propio. Límites: es lo programado en los días cargados, no la plantilla contratada; un cargo no reconocido queda en «Otro» y se lista aparte.
+- **Código:** `modeloColasMMC`, `cargoEspecialidad`, `DOTACION_ESPECIALIDADES`, `dotacionProgramada`.
 
 ### E12. Estadísticas de predictivo desde órdenes de compra
 - **Tipo:** estadística descriptiva.

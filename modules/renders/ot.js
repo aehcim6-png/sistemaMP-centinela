@@ -272,7 +272,7 @@ export function renderOt(){
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
     ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
-      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Categoría MTTR <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Sistema</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>CAPEX/OPEX <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
+      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Categoría MTTR <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Sistema</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Motivo de demora</th><th>Reparación</th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>CAPEX/OPEX <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
       ${pg.items.map((o)=>{
         const i=ot.indexOf(o);
         const idx=fil.indexOf(o);
@@ -296,6 +296,9 @@ export function renderOt(){
         otRow+='<td><select '+(readOnly?'disabled':'onchange="edOT('+i+',\'sistema\',this.value)"')+' style="font-size:10px;max-width:110px;background:var(--bg3);color:var(--tx);border:1px solid '+(!readOnly&&!o.sistema&&typeof clasificacionPendienteOT==='function'&&clasificacionPendienteOT(o).sinSistema?'var(--w)':'var(--bd)')+';border-radius:3px"><option value=""'+(!o.sistema?' selected':'')+'>—</option>'+(o.sistema&&_SISTEMAS_OT.indexOf(o.sistema)<0?'<option selected>'+escapeHtml(o.sistema)+'</option>':'')+_SISTEMAS_OT.map(function(x){return'<option'+(o.sistema===x?' selected':'')+'>'+x+'</option>';}).join('')+'</select></td>';
         otRow+='<td style="max-width:90px"><input value="'+escapeHtml(o.componente||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'componente\',this.value)"')+' style="'+es+'" placeholder="Componente..."></td>';
         otRow+='<td style="max-width:120px"><input value="'+escapeHtml(o.solucion||'')+'" '+(readOnly?'disabled':'onchange="edOT('+i+',\'solucion\',this.value)"')+' style="'+es+';color:var(--ok)" placeholder="Solución..."></td>';
+        var _selOT=function(campo,valor,opciones){return '<td><select '+(readOnly?'disabled':'onchange="edOT('+i+',\''+campo+'\',this.value)"')+' style="font-size:10px;max-width:130px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px"><option value=""'+(!valor?' selected':'')+'>—</option>'+opciones.map(function(x){return'<option'+(valor===x?' selected':'')+'>'+escapeHtml(x)+'</option>';}).join('')+'</select></td>';};
+        otRow+=_selOT('motivoDemora',o.motivoDemora,OT_MOTIVOS_DEMORA.map(function(m){return m.id;}).concat([OT_MOTIVO_SIN_INFORMAR]));
+        otRow+=_selOT('reparacion',o.reparacion,OT_REPARACIONES.concat([OT_MOTIVO_SIN_INFORMAR]));
         if(fromReg){otRow+='<td><span style="font-size:10px">PM</span></td>';}
         else if(fromHist){otRow+='<td><span style="font-size:10px;color:var(--tx3)">Histórico</span></td>';}
         else{otRow+='<td><select onchange="edOT('+i+',\'estadoOT\',this.value)" style="font-size:10px;background:var(--bg3);color:'+estCol2+';border:1px solid var(--bd);border-radius:3px;font-weight:600"><option'+(estOT==='Pendiente'?' selected':'')+'>Pendiente</option><option'+(estOT==='En Ejecución'?' selected':'')+'>En Ejecución</option><option'+(estOT==='Cerrada'?' selected':'')+'>Cerrada</option></select></td>';}
@@ -941,13 +944,8 @@ const _SISTEMAS_OT=['Motor diésel','Hidráulico','Transmisión','Eléctrico','F
 // viene sugerido desde el texto del síntoma, el costo desde las compras cruzadas). No bloquea: se puede
 // «Cerrar sin completar» — hay correctivos legítimamente sin costo (garantía) — pero deja de ser un descuido.
 function _esCorrectivoOT(o){return o&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&!o.fromReg&&!o.fromHist;}
-function _faltantesCierreOT(o){
-  var f=[];
-  if(!(o.componente&&String(o.componente).trim()))f.push('componente');
-  if(!(o.causaRaiz&&String(o.causaRaiz).trim()))f.push('causaRaiz');
-  if(!(o.costo>0))f.push('costo');
-  return f;
-}
+// La lista de lo que falta vive en logic.js (otCierreFaltantes): además de componente, causa raíz y costo, pide el motivo de demora (si la parada duró 8 h o más) y el tipo de reparación (2026-10-27).
+function _faltantesCierreOT(o){return otCierreFaltantes(o,new Date().toISOString().slice(0,10));}
 function _abrirCierreOT(i,faltantes){
   var ot=S.g('ot')||[];var o=ot[i];if(!o)return;
   var sugComp=(typeof _componenteDeSintoma==='function')?_componenteDeSintoma(o.sintoma||''):'';
@@ -955,7 +953,8 @@ function _abrirCierreOT(i,faltantes){
   var cats=(typeof _CATEGORIAS_COMPONENTE!=='undefined'?_CATEGORIAS_COMPONENTE:[]).map(function(c){return c[0];});
   var campo=function(k){return faltantes.indexOf(k)>=0;};
   var ok='<span style="color:var(--ok)">✓ ya cargado</span>';
-  var faltanTexto=faltantes.map(function(k){return k==='causaRaiz'?'causa raíz':k==='costo'?'costo':'componente';}).join(', ');
+  var faltanTexto=faltantes.map(function(k){return k==='causaRaiz'?'causa raíz':k==='costo'?'costo':k==='motivoDemora'?'motivo de demora':k==='reparacion'?'tipo de reparación':'componente';}).join(', ');
+  var hoyISO=new Date().toISOString().slice(0,10),motivoReq=otMotivoRequerido(o,hoyISO);
   sm('<div class="ot-cierre-head"><div><div class="ot-cierre-kicker">Cierre con datos</div><h3>Cerrar correctivo — '+escapeHtml(o.sigla||'')+'</h3></div><button class="ot-cierre-x" type="button" aria-label="Cancelar cierre" onclick="cm()">×</button></div>'+ 
     '<p class="ot-cierre-sintoma">'+escapeHtml((o.sintoma||'').slice(0,160))+'</p>'+ 
     '<div class="ot-cierre-notice"><b>Falta: '+escapeHtml(faltanTexto)+'.</b> Completarlo mejora el costo, la causa raíz y las predicciones.</div>'+ 
@@ -966,20 +965,37 @@ function _abrirCierreOT(i,faltantes){
       (campo('causaRaiz')?'<input id="ocCausa" placeholder="¿Por qué falló? (ej: desgaste normal, falta de lubricación, golpe...)" style="width:100%">':'<div style="font-size:12px">'+escapeHtml(o.causaRaiz)+'</div>')+'</div></div>'+
     '<div class="form-row"><div class="fg" style="width:100%"><label>Costo ($) '+(campo('costo')?'':ok)+'</label>'+
       (campo('costo')?'<input id="ocCosto" type="number" min="0" value="'+(sugCosto.length?sugCosto[0].costo:'')+'" placeholder="Repuestos y servicios de esta reparación" style="width:100%">'+(sugCosto.length?'<div style="font-size:10px;color:var(--tx3)">💡 Sugerido por cruce con una orden de compra real ('+escapeHtml(sugCosto[0].detalle)+', '+fd(sugCosto[0].fecha)+'): revísalo. Déjalo vacío si fue garantía o no tuvo costo.</div>':'<div style="font-size:10px;color:var(--tx3)">Déjalo vacío si fue garantía o no tuvo costo.</div>'):'<div style="font-size:12px">$'+fn(o.costo)+'</div>')+'</div></div>'+
+    '<div class="form-row"><div class="fg" style="width:100%"><label>Motivo de demora '+(o.motivoDemora?ok:(motivoReq?'<span style="color:var(--danger)">(obligatorio)</span>':'<span style="color:var(--tx3)">(opcional: con menos de 8 h se anota «Sin demora»)</span>'))+'</label>'+
+      (!o.motivoDemora?'<select id="ocMotivo" style="width:100%"><option value="">— elige —</option>'+OT_MOTIVOS_DEMORA.map(function(m){return'<option>'+escapeHtml(m.id)+'</option>';}).join('')+'</select><div style="font-size:10px;color:var(--tx3)">¿Por qué tardó lo que tardó? Separa lo que depende de nosotros, de la compra y del proveedor.</div>':'<div style="font-size:12px">'+escapeHtml(o.motivoDemora||'')+'</div>')+'</div></div>'+
+    '<div class="form-row"><div class="fg" style="width:100%"><label>Tipo de reparación '+(campo('reparacion')?'<span style="color:var(--danger)">(obligatorio)</span>':ok)+'</label>'+
+      (campo('reparacion')?'<select id="ocRep" style="width:100%"><option value="">— elige —</option>'+OT_REPARACIONES.map(function(m){return'<option>'+m+'</option>';}).join('')+'</select><div style="font-size:10px;color:var(--tx3)">Si es <b>provisoria</b>, se agrega sola una tarea pendiente al backlog para la reparación definitiva.</div>':'<div style="font-size:12px">'+escapeHtml(o.reparacion||'')+'</div>')+'</div></div>'+
     '<div class="ot-cierre-actions"><button class="btn ot-cierre-primary" onclick="_otCierreGuardar('+i+',true)">Guardar y cerrar</button>'+ 
-    '<button class="btn btn-o ot-cierre-secondary" onclick="_otCierreGuardar('+i+',false)">Cerrar sin completar</button>'+ 
+    '<button class="btn btn-o ot-cierre-secondary" onclick="_otCierreGuardar('+i+',false)" title="El motivo y el tipo de reparación quedan como «Sin informar»">Cerrar sin completar</button>'+ 
     '<button class="btn btn-o ot-cierre-cancel" onclick="cm();renders.ot()">Cancelar</button></div>');
   // sm() deja el foco en el primer botón (la ×); para llenar el cierre conviene partir en el primer campo que falta
-  var primero=$('ocComp')||$('ocCausa')||$('ocCosto');if(primero)primero.focus();
+  var primero=$('ocComp')||$('ocCausa')||$('ocCosto')||$('ocMotivo')||$('ocRep');if(primero)primero.focus();
 }
 export function _otCierreGuardar(i,completar){
   var ot=S.g('ot')||[];var o=ot[i];if(!o){cm();return;}
+  var hoyISO=new Date().toISOString().slice(0,10),motivoReq=otMotivoRequerido(o,hoyISO);
   if(completar){
     var comp=($('ocComp')?.value||'').trim(),causa=($('ocCausa')?.value||'').trim(),costo=parseFloat($('ocCosto')?.value);
+    var motivo=($('ocMotivo')?.value||'').trim(),rep=($('ocRep')?.value||'').trim();
+    // lo nuevo no se puede saltar al «Guardar y cerrar»: si el motivo aplica o falta el tipo de reparación, se pide
+    if($('ocMotivo')&&motivoReq&&!motivo){toast('⚠️ Elige el motivo de demora (la parada duró 8 horas o más)');return;}
+    if($('ocRep')&&!rep){toast('⚠️ Elige si la reparación fue definitiva o provisoria');return;}
     if(comp)_edCampo('ot',ot,i,'componente',comp);
     if(causa)_edCampo('ot',ot,i,'causaRaiz',causa);
     if(costo>0)_edCampo('ot',ot,i,'costo',costo);
+    if(motivo)_edCampo('ot',ot,i,'motivoDemora',motivo);
+    if(rep)_edCampo('ot',ot,i,'reparacion',rep);
   }
+  // sin completar: lo que no se informó queda ANOTADO como «Sin informar» (o «Sin demora» si la parada fue corta), no en blanco
+  if(!ot[i].motivoDemora)_edCampo('ot',ot,i,'motivoDemora',motivoReq?OT_MOTIVO_SIN_INFORMAR:'Sin demora');
+  if(!ot[i].reparacion)_edCampo('ot',ot,i,'reparacion',OT_MOTIVO_SIN_INFORMAR);
+  // una reparación provisoria deja una tarea pendiente en el backlog (una sola por OT)
+  var bkNuevo=otBacklogDeProvisoria(ot[i],hoyISO,S.g('backlogPM')||[]);
+  if(bkNuevo){var bk=S.g('backlogPM')||[];bk.push(bkNuevo);S.s('backlogPM',bk);toast('📌 Reparación provisoria: se agregó la reparación definitiva al backlog');}
   cm();
   edOT(i,'estadoOT','Cerrada',true);
 }

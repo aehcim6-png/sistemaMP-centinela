@@ -261,6 +261,16 @@ export function renderProgdia() {
       '<div style="font-size:10px;color:var(--tx3)">' + r.bloquesOcupados + ' de ' + r.bloquesTotales + ' bloques en trabajo productivo · ' + msgUtil + '<br><span style="font-size:9px">No cuentan charla, colación, vacaciones ni licencia. Comisión de servicio sí (logística).</span></div></div>' +
       '<div class="card"><div class="card-t">Cumplimiento vs. registro real</div><div class="card-v">' + (r.cumplimiento == null ? '—' : r.cumplimiento + '%') + '</div>' +
       '<div style="font-size:10px;color:var(--tx3)">' + r.conRegistro + ' de ' + r.programados + ' menciones de equipo con PM/correctivo real ese día</div></div>' +
+      (function () {
+        // Dotación programada (2026-10-27): personas distintas por día y turno según su cargo, para compararla con la demanda de mantención (ver dotacionProgramada en logic.js).
+        var d = dotacionProgramada(todo), num = function (v) { return String(v).replace('.', ','); };
+        var lineas = d.promedios.map(function (t) {
+          var pe = t.promedioPorEspecialidad, el = pe['Electromecánico'] || 0;
+          return '<b>' + escapeHtml(t.turno) + ':</b> ' + num(t.promedioMecanicos) + ' mecánicos' + (pe['Mecánico líder'] ? ' (' + num(pe['Mecánico líder']) + ' líder)' : '') + ' · ' + num(el) + ' electromecánicos · ' + num(t.promedioPersonas) + ' personas';
+        });
+        return '<div class="card"><div class="card-t">Dotación programada (promedio por día)</div><div style="font-size:12px;line-height:1.7;margin-top:4px">' + (lineas.length ? lineas.join('<br>') : '—') + '</div>' +
+          '<div style="font-size:10px;color:var(--tx3);margin-top:4px">de ' + d.nDias + ' día(s) cargado(s); es lo programado, no la plantilla contratada' + (d.cargosSinClasificar.length ? '<br>Cargos sin clasificar: ' + d.cargosSinClasificar.map(escapeHtml).join(', ') : '') + '</div></div>';
+      })() +
       '<div class="card"><div class="card-t">Equipos con horas registradas</div><div class="card-v">' + r.ranking.length + '</div>' +
       '<div style="font-size:10px;color:var(--tx3)">detectados por sigla en el texto de las actividades</div></div>' +
       '</div>' +
