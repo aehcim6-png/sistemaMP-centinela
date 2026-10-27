@@ -1,5 +1,5 @@
 // Pestaña Metas & KPIs (contenedor con 5 sub-pestañas: Metas / Avance del
-// Mes / Informes KPI / Resumen Ejecutivo / Informe de gestión) — extraída a su propio archivo
+// Mes / Informes KPI / Resumen Ejecutivo / Informe de gestión / Preguntas del gerente) — extraída a su propio archivo
 // (Fase 2 de modularización). Módulo ES real (Fase 3, 2026-08-30, cuarta
 // tanda: Metas, KPIs y Reportes) — ver nota de migración en mov.js (primera
 // tanda, mismo patrón). Solo despacha a renders.metas/avance/kpi/resumen vía
@@ -15,12 +15,14 @@ export async function renderMkpi() {
       <button class="subtab ${sub === 'kpi' ? 'on' : ''}" role="tab" onclick="mkpiSub('kpi')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Informes KPI</button>
       <button class="subtab ${sub === 'gestion' ? 'on' : ''}" role="tab" onclick="mkpiSub('gestion')">${ICONS.doc} Informe de gestión</button>
       <button class="subtab ${sub === 'resumen' ? 'on' : ''}" role="tab" onclick="mkpiSub('resumen')">${ICONS.doc} Resumen Ejecutivo</button>
+      <button class="subtab ${sub === 'ger' ? 'on' : ''}" role="tab" onclick="mkpiSub('ger')">${ICONS.doc} Preguntas del gerente</button>
     </div>
     <div id="s-metas" class="${sub === 'metas' ? '' : 'hidden'}"></div>
     <div id="s-avance" class="${sub === 'avance' ? '' : 'hidden'}"></div>
     <div id="s-kpi" class="${sub === 'kpi' ? '' : 'hidden'}"></div>
     <div id="s-resumen" class="${sub === 'resumen' ? '' : 'hidden'}"></div>
     <div id="s-gestion" class="${sub === 'gestion' ? '' : 'hidden'}"></div>
+    <div id="s-ger" class="${sub === 'ger' ? '' : 'hidden'}"></div>
   `;
   // Carga perezosa (2026-09-10) — solo avance/kpi son de las 32 sin
   // dependencias cruzadas; metas/resumen siguen estáticas (ver _LAZY_VERS
@@ -31,6 +33,7 @@ export async function renderMkpi() {
   else if (sub === 'kpi') renders.kpi();
   else if (sub === 'resumen') renders.resumen();
   else if (sub === 'gestion') renders.gestion();
+  else if (sub === 'ger') renders.ger();
   setTimeout(() => aplicarOrdenUniversal('s-mkpi'), 60);
 }
 export function mkpiSub(s) { window._mkpiSub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('mkpi.' + s); renders.mkpi(); }

@@ -5932,6 +5932,202 @@ function planReposicionAuto(cobertura){
     return{dem:dem,plan:planReposicionPM(dem,stk,lub,{cobertura:cobertura>=0?cobertura:30,plazoFn:pe.n?pe.para:null,hoy:new Date()})};
   }catch(e){return null;}
 }
+// ═══ PREGUNTAS DEL GERENTE (2026-10-27) ═══
+// Un gerente pregunta cosas como: ¿cuánto demora una reparación?, ¿por qué demora tanto?, ¿tenemos para el programa del mes y para el desgaste?, ¿por qué trabajamos reactivos?, ¿se planifica de verdad o solo se ingresan
+// números?, ¿dónde se atasca la cadena? Cada función de acá contesta UNA de esas preguntas con los datos que hay, dice con cuántos casos lo calculó (n) y nunca rellena lo que falta: una sección sin datos lo dice.
+// Los datos son los de siempre (OT, PM registrados, compras, stock, kardex, programación diaria); lo que cambia es la forma de leerlos. panelGerencia las junta para la pantalla Metas & KPIs → Preguntas del gerente.
+var GER_CORTES={bajoH:8,medioH:48,altoH:720};   // bajo: menos de 8 h · medio: hasta 2 días · alto: hasta 30 días · crítico: más de 30 días
+function _gerFechaISO(f){
+  var s=String(f==null?'':f).trim(),m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[1]+'-'+m[2]+'-'+m[3];
+  m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  return m?m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2):null;
+}
+function _gerEsCorrectivo(o){return!!o&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional');}
+function _gerCerrada(o){return!o.estadoOT||o.estadoOT==='Cerrada';}
+function _gerMediana(a){var x=a.slice().sort(function(p,q){return p-q;});return x.length?_percentilLineal(x,0.5):null;}
+function _gerP90(a){var x=a.slice().sort(function(p,q){return p-q;});return x.length?_percentilLineal(x,0.9):null;}
+function _gerRedondeo(v,d){return v==null?null:Math.round(v*Math.pow(10,d||0))/Math.pow(10,d||0);}
+// Horas de una OT: la registrada; si no hay y se sabe que duró uno o más días entre dos fechas, esos días en horas (aproximada, se marca); si no, null (no se inventa).
+function horasOTAprox(o,hoyISO){
+  var h=horasParadaOT(o,hoyISO);if(h!=null)return{horas:h,aprox:false};
+  var a=_gerFechaISO(o&&o.fechaEntrada),b=_gerFechaISO(o&&o.fechaSalida);
+  if(a&&b&&_diasEntreISO(a,b)>=1)return{horas:_diasEntreISO(a,b)*24,aprox:true};
+  return{horas:null,aprox:false};
+}
+// 1) ¿Cuánto demora una reparación? Correctivos cerrados por banda de duración: bajo (menos de 8 h), medio (hasta 2 días), alto (hasta 30 días) y crítico (más de 30 días).
+function gerBandasDuracion(ot,hoyISO,cortes){
+  var c=cortes||GER_CORTES,hoy=_tcoIso(hoyISO);
+  var def=[{id:'bajo',etiqueta:'Bajo (menos de '+c.bajoH+' h)'},{id:'medio',etiqueta:'Medio (hasta '+Math.round(c.medioH/24)+' días)'},{id:'alto',etiqueta:'Alto (hasta '+Math.round(c.altoH/24)+' días)'},{id:'critico',etiqueta:'Crítico (más de '+Math.round(c.altoH/24)+' días)'}];
+  var bandas=def.map(function(b){return{id:b.id,etiqueta:b.etiqueta,n:0,horas:0,casos:[]};}),horasTodas=[],sinDuracion=0,aprox=0;
+  (ot||[]).forEach(function(o){
+    if(!_gerEsCorrectivo(o)||!_gerCerrada(o))return;
+    var r=horasOTAprox(o,hoy);
+    if(r.horas==null){sinDuracion++;return;}
+    if(r.aprox)aprox++;
+    var i=r.horas<c.bajoH?0:r.horas<=c.medioH?1:r.horas<=c.altoH?2:3;
+    bandas[i].n++;bandas[i].horas+=r.horas;horasTodas.push(r.horas);
+    bandas[i].casos.push({sigla:o.sigla,fecha:_gerFechaISO(o.fechaEntrada||o.fecha),horas:_gerRedondeo(r.horas,1),sintoma:String(o.sintoma||'').slice(0,80),aprox:r.aprox,motivo:o.motivoDemora||null});
+  });
+  var n=horasTodas.length,tot=horasTodas.reduce(function(s,x){return s+x;},0);
+  bandas.forEach(function(b){b.pct=n?_gerRedondeo(b.n/n*100,1):null;b.pctHoras=tot?_gerRedondeo(b.horas/tot*100,1):null;b.horas=_gerRedondeo(b.horas,1);b.casos.sort(function(p,q){return q.horas-p.horas;});b.casos=b.casos.slice(0,6);});
+  return{bandas:bandas,n:n,sinDuracion:sinDuracion,aproximadas:aprox,horasTotales:_gerRedondeo(tot,1),mediana:_gerRedondeo(_gerMediana(horasTodas),1),p90:_gerRedondeo(_gerP90(horasTodas),1),cortes:c};
+}
+// 2) ¿Por qué demoró? Entre los correctivos cerrados que duraron 8 horas o más, cuántos tienen su motivo y cómo se reparten: lo que depende de nosotros, la compra y el proveedor. Sin motivo anotado no hay respuesta.
+var GER_GRUPOS_MOTIVO={repuesto_propio:'Repuesto sin stock (no se anticipó)',repuesto_compra:'Compra o aprobación interna lenta',repuesto_proveedor:'Proveedor sin stock o con demora',recursos:'Falta de personal, herramienta o taller',operacion:'Equipo no entregado por operación',tecnico:'Diagnóstico difícil',otro:'Otro',sin_informar:'Sin informar (se cerró sin completar)',ninguna:'Sin demora'};
+function gerMotivosDemora(ot,hoyISO){
+  var hoy=_tcoIso(hoyISO),grupos={},total=0,conMotivo=0,sinDato=0;
+  (ot||[]).forEach(function(o){
+    if(!_gerEsCorrectivo(o)||!_gerCerrada(o))return;
+    var r=horasOTAprox(o,hoy);if(r.horas==null||r.horas<OT_DEMORA_UMBRAL_H)return;
+    total++;
+    var g=otMotivoGrupo(o.motivoDemora);
+    if(!g){sinDato++;return;}
+    conMotivo++;var x=grupos[g]||(grupos[g]={grupo:g,etiqueta:GER_GRUPOS_MOTIVO[g]||g,n:0,horas:0});x.n++;x.horas+=r.horas;
+  });
+  var lista=Object.keys(grupos).map(function(k){var x=grupos[k];x.horas=_gerRedondeo(x.horas,1);x.pct=conMotivo?_gerRedondeo(x.n/conMotivo*100,1):null;return x;}).sort(function(a,b){return b.n-a.n;});
+  var sinInf=grupos.sin_informar?grupos.sin_informar.n:0;
+  return{total:total,conMotivo:conMotivo,sinDato:sinDato,sinInformar:sinInf,informadosReales:conMotivo-sinInf,porGrupo:lista,pctInformado:total?_gerRedondeo((conMotivo-sinInf)/total*100,1):null};
+}
+// 3) ¿Tenemos lo suficiente para el programa del mes? Cada PM de los próximos `dias` días (por horómetro y ritmo, pmProgramadosEquipo) con lo que su pauta consume, en orden de fecha y repartiendo el stock real: si un PM se queda sin
+// un filtro o lubricante, queda marcado con lo que le falta (los PM siguientes ya no cuentan con lo que se llevó el anterior). Solo cuenta lo que hay en bodega; lo «pendiente» se informa aparte.
+function gerProgramaMes(equipos,consumosFn,stk,lub,mapaRep,hoy,dias){
+  var h=hoy instanceof Date?hoy:new Date(hoy||Date.now()),eventos=[],sinRitmo=[],sinVinculo={};
+  (equipos||[]).forEach(function(e){
+    if(!e||!e.sigla)return;
+    var pms=pmProgramadosEquipo(e,h,dias||30);
+    if(!pms.length){if(!(Number(e.hrsDia)>0))sinRitmo.push(e.sigla);return;}
+    pms.forEach(function(pm){eventos.push({sigla:e.sigla,pm:pm.pm,dias:pm.dias,fecha:pm.fecha});});
+  });
+  eventos.sort(function(a,b){return a.dias-b.dias||(a.sigla<b.sigla?-1:1);});
+  var pool={},cache={},agg={};
+  eventos.forEach(function(ev){
+    ev.faltan=[];ev.lineas=0;
+    (consumosFn(ev.sigla,ev.pm)||[]).forEach(function(c){
+      var cant=Number(c.can||c.cant)||0;if(cant<=0)return;
+      var nom=String(c.rep||c.repuesto||c.nombre||'').trim(),k0=(c._id||'')+'|'+nom,r=cache[k0]!==undefined?cache[k0]:(cache[k0]=pautaResolverStock(c,stk,lub,mapaRep));
+      if(!r){if(nom)sinVinculo[nom]=(sinVinculo[nom]||0)+1;return;}
+      var key=r.tipo+':'+r.idx,fila=r.tipo==='filtro'?(stk||[])[r.idx]:(lub||[])[r.idx];if(!fila)return;
+      if(pool[key]==null)pool[key]=Math.max(0,Number(r.tipo==='filtro'?fila.stockBodega:fila.stock)||0);
+      var a=agg[key]||(agg[key]={nombre:r.tipo==='filtro'?(fila.descripcion||''):(fila.nombre||''),nParte:r.tipo==='filtro'?(fila.nParte||''):'',tipo:r.tipo,hay:pool[key],enCamino:Number(fila.pendiente)||0,necesita:0,falta:0});
+      a.necesita+=cant;ev.lineas++;
+      var toma=Math.min(pool[key],cant);pool[key]-=toma;
+      if(toma<cant){a.falta+=cant-toma;ev.faltan.push({nombre:a.nombre,tipo:r.tipo,falta:_gerRedondeo(cant-toma,2)});}
+    });
+    ev.estado=ev.faltan.length?'falta':ev.lineas?'completo':'sin_pauta';
+  });
+  var faltantes=Object.keys(agg).map(function(k){return agg[k];}).filter(function(a){return a.falta>0;}).sort(function(a,b){return b.falta-a.falta;});
+  faltantes.forEach(function(a){a.falta=_gerRedondeo(a.falta,2);a.necesita=_gerRedondeo(a.necesita,2);});
+  var comp=eventos.filter(function(e){return e.estado==='completo';}).length,falta=eventos.filter(function(e){return e.estado==='falta';}).length;
+  return{eventos:eventos,faltantes:faltantes,sinVinculo:Object.keys(sinVinculo).sort(),sinRitmo:sinRitmo,dias:dias||30,
+    resumen:{total:eventos.length,completos:comp,conFaltantes:falta,sinPauta:eventos.length-comp-falta,pctCompletos:comp+falta?_gerRedondeo(comp/(comp+falta)*100,1):null}};
+}
+// 4) ¿Alcanza para los elementos de desgaste? Los cambios que proyecta el historial de correctivos (proyeccionElementosDesgaste: son EVENTOS, no unidades) contra el saldo de los ítems del kardex cuyo nombre
+// contiene esa pieza. Supone una unidad por cambio, lo que subestima la necesidad cuando un cambio usa varias piezas: es un mínimo, no un pedido.
+function _gerNorm(t){return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function gerDesgasteVsSaldo(desgaste,insumosFilas){
+  return(desgaste||[]).filter(function(g){return g&&g.lambda!=null;}).map(function(g){
+    var pz=_gerNorm(g.pieza),items=(insumosFilas||[]).filter(function(i){return i&&i.activo!==false&&_gerNorm(i.descripcion).indexOf(pz)>=0;});
+    var saldo=items.reduce(function(s,i){return s+(Number(i.saldo)||0);},0);
+    var estado=!items.length?'sin_item':saldo>=g.consumoAnual?'alcanza_anio':saldo>=g.consumoSemestre?'alcanza_semestre':saldo>=g.consumoMes?'alcanza_mes':'no_alcanza';
+    return{tipo:g.tipo,pieza:g.pieza,cambiosMes:g.consumoMes,cambiosSemestre:g.consumoSemestre,cambiosAnio:g.consumoAnual,items:items.map(function(i){return i.descripcion;}),saldo:_gerRedondeo(saldo,2),
+      mesesCubiertos:items.length&&g.consumoMes>0?_gerRedondeo(saldo/g.consumoMes,1):null,estado:estado};
+  });
+}
+// 5) ¿Reactivo o preventivo, y peor o mejor que el mismo mes del año anterior? Por mes: correctivos, PM registrados, % reactivo (correctivos ÷ correctivos + PM) y horas de parada; y la comparación con el mismo mes un año antes
+// SOLO donde hay datos de OT en los dos años (las OT se cargaron de enero de 2025 a marzo de 2026: no se compara lo que no existe).
+function gerReactivoPreventivo(ot,reg,hoyISO){
+  var hoy=_tcoIso(hoyISO),meses={};
+  var m=function(k){return meses[k]||(meses[k]={mes:k,correctivos:0,horas:0,preventivos:0});};
+  (ot||[]).forEach(function(o){
+    if(!_gerEsCorrectivo(o))return;var f=_gerFechaISO(o.fechaEntrada||o.fecha);if(!f)return;
+    var x=m(f.slice(0,7));x.correctivos++;var r=horasOTAprox(o,hoy);if(r.horas!=null)x.horas+=r.horas;
+  });
+  (reg||[]).forEach(function(r){var f=_gerFechaISO(r&&(r.fechaEntrada||r.fechaEjec));if(f)m(f.slice(0,7)).preventivos++;});
+  var lista=Object.keys(meses).sort().map(function(k){var x=meses[k],t=x.correctivos+x.preventivos;x.horas=_gerRedondeo(x.horas,1);x.pctReactivo=t?_gerRedondeo(x.correctivos/t*100,1):null;return x;});
+  var ultimoOT=lista.filter(function(x){return x.correctivos>0;}).map(function(x){return x.mes;}).pop()||null;
+  var porMes={};lista.forEach(function(x){porMes[x.mes]=x;});
+  var inter=[];
+  lista.forEach(function(x){
+    if(!(x.correctivos>0))return;
+    var ant=(parseInt(x.mes.slice(0,4),10)-1)+x.mes.slice(4),a=porMes[ant];
+    if(a&&a.correctivos>0)inter.push({mes:x.mes,anterior:ant,correctivos:x.correctivos,correctivosAnt:a.correctivos,horas:x.horas,horasAnt:a.horas,
+      varCorrectivosPct:_gerRedondeo((x.correctivos-a.correctivos)/a.correctivos*100,1),varHorasPct:a.horas>0?_gerRedondeo((x.horas-a.horas)/a.horas*100,1):null});
+  });
+  var ult=lista.filter(function(x){return x.preventivos>0;}).map(function(x){return x.mes;}).pop()||null;
+  return{meses:lista,interanual:inter,ultimoMesOT:ultimoOT,ultimoMesPM:ult};
+}
+// 6) ¿Se planifica de verdad o solo se ingresan números? Resultados del PROCESO (no de una persona): certeza y cumplimiento del programa de PM, retraso con que se registran los correctivos, backlog abierto y vencido, reparaciones
+// provisorias pendientes, plan semanal cargado y cuánto de lo cerrado trae su motivo de demora.
+function gerPlanificacion(o){
+  var x=o||{},hoy=_tcoIso(x.hoy),ot=x.ot||[],bk=x.backlog||[];
+  var lag={n:0,mismoDia:0,unoDos:0,masDeDos:0};
+  ot.forEach(function(r){
+    if(!_gerEsCorrectivo(r))return;var a=_gerFechaISO(r.fechaEntrada||r.fecha),b=_gerFechaISO(r.fechaIngreso);if(!a||!b)return;
+    var d=_diasEntreISO(a,b);if(d<0)return;lag.n++;if(d===0)lag.mismoDia++;else if(d<=2)lag.unoDos++;else lag.masDeDos++;
+  });
+  ['mismoDia','unoDos','masDeDos'].forEach(function(k){lag[k+'Pct']=lag.n?_gerRedondeo(lag[k]/lag.n*100,1):null;});
+  var abiertos=bk.filter(function(b){return b&&!b.fechaCierre;}),vencidos=abiertos.filter(function(b){return b.fecha&&_diasEntreISO(String(b.fecha).slice(0,10),hoy)>30;});
+  var prov=abiertos.filter(function(b){return String(b.observacion||'').indexOf('Reparación provisoria')===0;});
+  var prog=null;
+  if(x.equipos&&x.reg&&typeof informeProgramaSemanal==='function'){
+    var desde=_fechaMas(hoy,-30);
+    try{var ip=informeProgramaSemanal(x.equipos,x.reg,x.hist||[],desde,hoy,hoy).resumen;prog={desde:desde,hasta:hoy,certeza:ip.certeza,cumplimiento:ip.cumplimiento,programados:ip.programados,alcanzados:ip.alcanzados,ejecutados:ip.ejecutados,equiposEvaluados:ip.equiposEvaluados,sinHorometro:ip.sinHorometro};}catch(e){prog=null;}
+  }
+  var cerr=ot.filter(function(r){return _gerEsCorrectivo(r)&&_gerCerrada(r)&&r.motivoDemora;}),sinInf=cerr.filter(function(r){return r.motivoDemora===OT_MOTIVO_SIN_INFORMAR;}).length;
+  return{registro:lag,backlog:{abiertos:abiertos.length,vencidos:vencidos.length,provisorias:prov.length,total:bk.length},planSemanal:{filas:(x.planSem||[]).length},programa:prog,
+    motivos:{conMotivo:cerr.length,sinInformar:sinInf,informados:cerr.length-sinInf}};
+}
+// 7) ¿Dónde se atasca la cadena? Los tramos medibles con los datos que hay, cada uno con su mediana y su n, y el más lento marcado: pedido → recepción en bodega (compras ya recibidas), pedido → firma de la OC (pedidos que siguen abiertos)
+// y la reparación misma. Faltan los pasos intermedios (visto bueno del comprador, jefe, pre-orden): los datos traen solo la fecha del pedido y la del estado actual. Además, los pedidos recibidos que más tardaron en el último año.
+function gerCadena(compras,ot,hoyISO){
+  var hoy=_tcoIso(hoyISO),desde=_fechaMas(hoy,-365),tramos=[];
+  var pe=plazoEntregaCompras(compras||[]);
+  if(pe.n)tramos.push({id:'recepcion',tramo:'Pedido interno → llega a bodega',n:pe.global.n,mediana:_gerRedondeo(pe.global.mediana,1),p90:_gerRedondeo(pe.global.p90,1),unidad:'días',notas:'compras ya recibidas, por orden de compra'});
+  var firma=[];(compras||[]).forEach(function(c){if(c&&c.estado==='OC Firmada'&&c.fecha&&c.fechaEstado){var d=_diasEntreISO(String(c.fecha).slice(0,10),String(c.fechaEstado).slice(0,10));if(d>=0)firma.push(d);}});
+  if(firma.length)tramos.push({id:'firma',tramo:'Pedido interno → OC firmada',n:firma.length,mediana:_gerRedondeo(_gerMediana(firma),1),p90:_gerRedondeo(_gerP90(firma),1),unidad:'días',notas:'solo pedidos que siguen abiertos (el dato de los cerrados se perdió)'});
+  var hrs=[];(ot||[]).forEach(function(o){if(_gerEsCorrectivo(o)&&_gerCerrada(o)){var r=horasOTAprox(o,hoy);if(r.horas!=null)hrs.push(r.horas/24);}});
+  if(hrs.length)tramos.push({id:'reparacion',tramo:'Reparación (OT correctiva, entrada → salida)',n:hrs.length,mediana:_gerRedondeo(_gerMediana(hrs),2),p90:_gerRedondeo(_gerP90(hrs),2),unidad:'días',notas:'correctivos cerrados con duración'});
+  var pa=[];(ot||[]).forEach(function(o){
+    if(!o||!o.primeraAtencionEn||!o.fechaEntrada)return;var h=/^\d{1,2}:\d{2}/.test(o.horaEntrada||'')?o.horaEntrada.slice(0,5):'00:00',t0=new Date(String(o.fechaEntrada).slice(0,10)+'T'+(h.length===4?'0'+h:h)),d=(new Date(o.primeraAtencionEn)-t0)/86400000;if(isFinite(d)&&d>=0)pa.push(d);});
+  if(pa.length)tramos.push({id:'atencion',tramo:'Falla → primera atención',n:pa.length,mediana:_gerRedondeo(_gerMediana(pa),2),p90:_gerRedondeo(_gerP90(pa),2),unidad:'días',notas:'OT con primera atención registrada'});
+  var max=tramos.reduce(function(m,t){return!m||t.mediana>m.mediana?t:m;},null);if(max)max.masLento=true;
+  var lentos=[];(compras||[]).forEach(function(c){
+    if(!c||c.estado!=='Recepcion Bodega'||!c.fecha||String(c.fecha).slice(0,10)<desde)return;var d=_parsearTiempoRespuestaDias(c.tiempoRespuesta);if(d==null)return;
+    lentos.push({pedido:c.pedido,sigla:c.sigla||'',detalle:String(c.detalle||'').slice(0,70),proveedor:c.proveedor||'',fecha:String(c.fecha).slice(0,10),dias:d});});
+  lentos.sort(function(a,b){return b.dias-a.dias;});
+  return{tramos:tramos,lentos:lentos.slice(0,10),faltaDetalle:true};
+}
+// 8) ¿Tenemos suficientes mecánicos y electromecánicos? La dotación programada (dotacionProgramada) junto a la carga de mantención por mes. Solo se pueden comparar los mismos períodos: hoy la dotación cargada y las OT no coinciden en el tiempo
+// (y de cada OT se sabe cuánto duró el equipo detenido, no cuántas personas trabajaron ni cuántas horas-hombre), así que se muestran lado a lado y se dice si son comparables.
+function gerDotacionVsCarga(progDia,ot,reg,hoyISO){
+  var dot=dotacionProgramada(progDia),rp=gerReactivoPreventivo(ot,reg,hoyISO),dotFechas=dot.dias.map(function(d){return d.fecha;}).sort();
+  var dMin=dotFechas[0]||null,dMax=dotFechas[dotFechas.length-1]||null,mMin=dMin?dMin.slice(0,7):null,mMax=dMax?dMax.slice(0,7):null;
+  var cargaMismoPeriodo=rp.meses.filter(function(x){return mMin&&x.mes>=mMin&&x.mes<=mMax&&x.correctivos>0;});
+  return{dotacion:dot,desde:dMin,hasta:dMax,ultimoMesOT:rp.ultimoMesOT,comparable:cargaMismoPeriodo.length>0,cargaMismoPeriodo:cargaMismoPeriodo,
+    nota:'De cada OT se sabe cuánto tiempo estuvo detenido el equipo, no cuántas personas trabajaron ni cuántas horas-hombre: para comparar contra la dotación hace falta registrar horas-hombre al cerrar.'};
+}
+// Qué tan frescos están los datos de cada fuente: sin esto, todo lo anterior puede estar midiendo el pasado.
+function gerFrescura(o){
+  var x=o||{},hoy=_tcoIso(x.hoy);
+  var ult=function(arr,f){var m=null;(arr||[]).forEach(function(r){var d=_gerFechaISO(f(r));if(d&&(!m||d>m))m=d;});return m;};
+  var fuentes=[{id:'ot',nombre:'Órdenes de trabajo correctivas',ultima:ult((x.ot||[]).filter(_gerEsCorrectivo),function(r){return r.fechaEntrada||r.fecha;}),umbral:30},
+    {id:'pm',nombre:'PM registrados',ultima:ult(x.reg,function(r){return r.fechaEntrada||r.fechaEjec;}),umbral:30},
+    {id:'compras',nombre:'Compras (pedidos)',ultima:ult(x.compras,function(r){return r.fecha;}),umbral:45},
+    {id:'progdia',nombre:'Programación diaria (dotación)',ultima:ult(x.progDia,function(r){return r.fecha;}),umbral:30},
+    {id:'insumos',nombre:'Movimientos del kardex',ultima:ult(x.insMov,function(r){return r.fecha;}),umbral:30}];
+  fuentes.forEach(function(f){f.dias=f.ultima?_diasEntreISO(f.ultima,hoy):null;f.vieja=f.ultima==null||f.dias>f.umbral;});
+  return fuentes;
+}
+// Todo junto, para la pantalla.
+function panelGerencia(i){
+  var x=i||{},hoy=_tcoIso(x.hoy),insFilas=x.insumos||[];
+  return{hoy:hoy,frescura:gerFrescura(x),duracion:gerBandasDuracion(x.ot,hoy,x.cortes),motivos:gerMotivosDemora(x.ot,hoy),
+    programa:x.consumosFn?gerProgramaMes(x.equipos,x.consumosFn,x.stk,x.lub,x.mapaRep,hoy,30):null,desgaste:gerDesgasteVsSaldo(x.desgaste,insFilas),
+    reactivo:gerReactivoPreventivo(x.ot,x.reg,hoy),planificacion:gerPlanificacion({hoy:hoy,ot:x.ot,backlog:x.backlog,planSem:x.planSem,equipos:x.equipos,reg:x.reg,hist:x.hist}),
+    cadena:gerCadena(x.compras,x.ot,hoy),dotacion:gerDotacionVsCarga(x.progDia,x.ot,x.reg,hoy)};
+}
+
 // ═══ CIERRE DE OT: MOTIVO DE DEMORA Y TIPO DE REPARACIÓN (2026-10-27) ═══
 // Para poder contestar «por qué tardó» y «¿se arregló de verdad o se parchó?» hacen falta dos datos que hoy nadie anota: en los 1.243 correctivos reales la categoría de demora y la causa raíz están vacías
 // (categoriaMTTR no sirve: es otra cosa, la del análisis de mantenibilidad). Se piden al CERRAR el correctivo, en la ventana «Cierre con datos».
@@ -11672,7 +11868,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,

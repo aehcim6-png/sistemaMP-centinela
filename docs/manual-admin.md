@@ -233,6 +233,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Dotación.** En **Planificación → Programación Diaria → Resumen** hay una tarjeta «Dotación programada»: promedio de mecánicos (con líderes) y electromecánicos por turno, según los días cargados. Es lo programado, no la plantilla contratada; si un cargo no se reconoce se lista aparte.
 
+### Preguntas del gerente (2026-10-27)
+
+**Qué es.** En **Metas & KPIs → Preguntas del gerente** están las ocho preguntas que suele hacer una gerencia, contestadas con los datos del sistema: (1) cuánto demora una reparación (bajo, medio, alto, crítico), (2) por qué demoran (nuestro, compra o proveedor), (3) si alcanzan los filtros y lubricantes para el programa de PM de los próximos 30 días, (4) si alcanzan los elementos de desgaste, (5) reactivo contra preventivo y contra el mismo mes del año anterior, (6) si se planifica de verdad, (7) dónde se atasca la cadena administrativa y (8) si hay suficientes mecánicos y electromecánicos.
+
+**Cómo se lee.** Arriba aparece un aviso con las fuentes de datos que están desactualizadas (por ejemplo, las OT correctivas llegan hasta marzo de 2026: mientras no se carguen, las respuestas describen el pasado). Cada pregunta trae su **respuesta corta**, la tabla que la sostiene, **con qué datos** se calculó (cuántos casos) y **qué falta**. Cuando no hay datos suficientes lo dice, no rellena.
+
+**Qué conviene saber.** Las bandas de duración (menos de 8 h, hasta 2 días, hasta 30 días, más de 30) se pueden cambiar en el código (`GER_CORTES`). La pregunta 2 solo se podrá responder cuando haya OT cerradas con **motivo de demora** (se pide desde el 27 de octubre). En la 3, los PM se reparten el stock en orden de fecha: lo que lleva uno ya no está para el siguiente; solo cuenta lo que hay en bodega, y lo ya pedido se muestra aparte. La 7 mide solo los tramos que tienen fechas (pedido → bodega, pedido → OC firmada, reparación): faltan las fechas de cada aprobación. La 8 no puede decir «faltan mecánicos» mientras no se registren horas-hombre al cerrar cada OT. Los indicadores de la 6 son del **proceso**, no evalúan a una persona.
+
 ### Plano de fallas: dónde buscar si algo falla (2026-10-26)
 
 **Qué es.** En **Configuración → Documentación → «Ver plano de fallas»** está el mapa de todas las piezas del sistema, con un **código** cada una (como el rotulado de un tablero eléctrico). Sirve para los dos proyectos (Centinela y sistema-mp2): arriba eliges el proyecto y las direcciones de los paneles cambian solas.
