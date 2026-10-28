@@ -6904,6 +6904,14 @@ Revisión pestaña por pestaña (19 en escritorio y 10 en celular, con capturas)
 
 **Pruebas:** la suite unitaria completa (2.072) sigue en verde; la carga se verificó con conteos en la base (378 reportabilidad, 83 correctivos, 81 PM, 1.197 lecturas).
 
+### 189. «Preguntas del gerente» con las detenciones cargadas de abril a octubre (2026-10-28)
+
+**Qué se hizo:** con los 149 correctivos cargados desde WhatsApp y el cruce de fuentes (columna `origen`), las preguntas 1, 5 y 7 leen datos hasta el 27 de octubre sin cambiar su cálculo. La pregunta 1 ahora muestra además las OT **abiertas hoy** (con los días que llevan abiertas; no entran en los porcentajes porque no tienen duración final) y cuántos correctivos vienen de esas fuentes y cuántos solo tienen resolución diaria (error de ±1 día). `gerBandasDuracion` devuelve `abiertas` y `desdeFuentes`.
+
+**Límites:** las duraciones de las filas con resolución diaria son aproximadas; las paradas largas incluyen la espera de repuestos y de aprobaciones sin separarla (el motivo de demora solo existe desde el 27 de octubre); las preguntas 2 y 6 no mejoran con esta carga.
+
+**Pruebas:** `tests/gerencia.test.js` (2 casos nuevos: abiertas y datos desde otras fuentes) y `tests/e2e/preguntas-gerente.spec.js` (muestra las abiertas).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

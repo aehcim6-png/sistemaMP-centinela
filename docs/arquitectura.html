@@ -3533,6 +3533,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Límites:</b> (1) las detenciones por WhatsApp tienen resolución de minutos solo si el aviso trae «Operativo»; las otras quedaron fuera o en revisión (67 filas sin cargar); (2) técnico y duración de las PM nuevas necesitan las pautas firmadas; (3) los 15 servicios menores (AdBlue, presurización, grasa) y las detenciones rotuladas como PM no se cargaron como correctivos; (4) los programas semanales no son confiables como medida de cumplimiento (mismos tres equipos y horómetros cada semana, backlog de 2021); (5) mp2 recibe la columna y el código pero no los datos.</p>
   <p><b>Pruebas:</b> la suite unitaria completa (2.072) sigue en verde; la carga se verificó con conteos en la base (378 reportabilidad, 83 correctivos, 81 PM, 1.197 lecturas).</p>
 
+    <h3 id="d-x">189. «Preguntas del gerente» con las detenciones cargadas de abril a octubre (2026-10-28)</h3>
+  <p><b>Qué se hizo:</b> con los 149 correctivos cargados desde WhatsApp y el cruce de fuentes (columna <code>origen</code>), las preguntas 1, 5 y 7 leen datos hasta el 27 de octubre sin cambiar su cálculo. La pregunta 1 ahora muestra además las OT <b>abiertas hoy</b> (con los días que llevan abiertas; no entran en los porcentajes porque no tienen duración final) y cuántos correctivos vienen de esas fuentes y cuántos solo tienen resolución diaria (error de ±1 día). <code>gerBandasDuracion</code> devuelve <code>abiertas</code> y <code>desdeFuentes</code>.</p>
+  <p><b>Límites:</b> las duraciones de las filas con resolución diaria son aproximadas; las paradas largas incluyen la espera de repuestos y de aprobaciones sin separarla (el motivo de demora solo existe desde el 27 de octubre); las preguntas 2 y 6 no mejoran con esta carga.</p>
+  <p><b>Pruebas:</b> <code>tests/gerencia.test.js</code> (2 casos nuevos: abiertas y datos desde otras fuentes) y <code>tests/e2e/preguntas-gerente.spec.js</code> (muestra las abiertas).</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -46,8 +46,12 @@ function _gerP1(d) {
   const filas = d.bandas.map(b => _gerTd([_gerE(b.etiqueta), b.n, b.pct == null ? '—' : b.pct + '%', _gerNum(b.horas, 0), b.pctHoras == null ? '—' : b.pctHoras + '%']));
   const casos = d.bandas.filter(b => b.casos.length && (b.id === 'alto' || b.id === 'critico')).map(b => '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px;color:var(--ac)">Los casos más largos de la banda «' + _gerE(b.etiqueta) + '»</summary>' +
     _gerTabla(['Equipo', 'Fecha', 'Duración', 'Síntoma', 'Motivo anotado'], b.casos.map(c => '<tr><td class="mono">' + _gerE(c.sigla) + '</td><td class="mono">' + _gerE(c.fecha || '—') + '</td><td class="mono" style="text-align:right">' + _gerDias(c.horas) + (c.aprox ? ' ≈' : '') + '</td><td>' + _gerE(c.sintoma) + '</td><td>' + _gerE(c.motivo || '—') + '</td></tr>')) + '</details>').join('');
-  return _gerCard('dur', 1, '¿Cuánto demora una reparación?', tono, resp, _gerTabla(['Banda', 'OT', '% de las OT', 'Horas detenido', '% de las horas'], filas) + casos,
-    d.n + ' correctivos cerrados con duración' + (d.aproximadas ? ' (' + d.aproximadas + ' con duración aproximada por días entre fechas, marcadas ≈)' : '') + '. Cortes: bajo &lt; ' + d.cortes.bajoH + ' h, medio hasta ' + Math.round(d.cortes.medioH / 24) + ' días, alto hasta ' + Math.round(d.cortes.altoH / 24) + ' días.',
+  const ab = d.abiertas || { n: 0, casos: [] }, fu = d.desdeFuentes || { n: 0, resolucionDiaria: 0 };
+  const abiertas = ab.n ? '<div style="font-size:11px;font-weight:700;margin:10px 0 4px">Siguen abiertas hoy (' + ab.n + '): no entran en los porcentajes de arriba porque aún no tienen duración final</div>' +
+    _gerTabla(['Equipo', 'Desde', 'Días abierta', 'Síntoma'], ab.casos.map(c => '<tr><td class="mono">' + _gerE(c.sigla) + '</td><td class="mono">' + _gerE(c.fecha) + '</td><td class="mono" style="text-align:right;font-weight:700">' + c.dias + '</td><td>' + _gerE(c.sintoma) + '</td></tr>')) : '';
+  const origen = fu.n ? ' Desde abril, ' + fu.n + ' correctivos se cargaron del chat de WhatsApp de los supervisores, la reportabilidad, la disponibilidad y los horómetros (columna «origen»); ' + fu.resolucionDiaria + ' de ellos solo tienen resolución diaria (error de ±1 día).' : '';
+  return _gerCard('dur', 1, '¿Cuánto demora una reparación?', tono, resp, _gerTabla(['Banda', 'OT', '% de las OT', 'Horas detenido', '% de las horas'], filas) + casos + abiertas,
+    d.n + ' correctivos cerrados con duración' + origen + (d.aproximadas ? ' (' + d.aproximadas + ' con duración aproximada por días entre fechas, marcadas ≈)' : '') + '. Cortes: bajo &lt; ' + d.cortes.bajoH + ' h, medio hasta ' + Math.round(d.cortes.medioH / 24) + ' días, alto hasta ' + Math.round(d.cortes.altoH / 24) + ' días.',
     d.sinDuracion ? d.sinDuracion + ' correctivos cerrados no traen duración y quedan fuera.' : '');
 }
 

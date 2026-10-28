@@ -5969,9 +5969,16 @@ function gerBandasDuracion(ot,hoyISO,cortes){
     bandas[i].n++;bandas[i].horas+=r.horas;horasTodas.push(r.horas);
     bandas[i].casos.push({sigla:o.sigla,fecha:_gerFechaISO(o.fechaEntrada||o.fecha),horas:_gerRedondeo(r.horas,1),sintoma:String(o.sintoma||'').slice(0,80),aprox:r.aprox,motivo:o.motivoDemora||null});
   });
+  var abiertas=[],cruce=0,diaria=0;
+  (ot||[]).forEach(function(o){
+    if(!_gerEsCorrectivo(o))return;
+    if(/^(WhatsApp|Cruce)/.test(String(o.origen||''))){cruce++;if(_gerCerrada(o)&&!o.horaEntrada)diaria++;}
+    if(!_gerCerrada(o)){var f=_gerFechaISO(o.fechaEntrada||o.fecha);if(f)abiertas.push({sigla:o.sigla,fecha:f,dias:Math.max(0,_diasEntreISO(f,hoy)),sintoma:String(o.sintoma||'').slice(0,80)});}
+  });
+  abiertas.sort(function(a,b){return b.dias-a.dias;});
   var n=horasTodas.length,tot=horasTodas.reduce(function(s,x){return s+x;},0);
   bandas.forEach(function(b){b.pct=n?_gerRedondeo(b.n/n*100,1):null;b.pctHoras=tot?_gerRedondeo(b.horas/tot*100,1):null;b.horas=_gerRedondeo(b.horas,1);b.casos.sort(function(p,q){return q.horas-p.horas;});b.casos=b.casos.slice(0,6);});
-  return{bandas:bandas,n:n,sinDuracion:sinDuracion,aproximadas:aprox,horasTotales:_gerRedondeo(tot,1),mediana:_gerRedondeo(_gerMediana(horasTodas),1),p90:_gerRedondeo(_gerP90(horasTodas),1),cortes:c};
+  return{bandas:bandas,n:n,sinDuracion:sinDuracion,aproximadas:aprox,horasTotales:_gerRedondeo(tot,1),mediana:_gerRedondeo(_gerMediana(horasTodas),1),p90:_gerRedondeo(_gerP90(horasTodas),1),cortes:c,abiertas:{n:abiertas.length,casos:abiertas.slice(0,8)},desdeFuentes:{n:cruce,resolucionDiaria:diaria}};
 }
 // 2) ¿Por qué demoró? Entre los correctivos cerrados que duraron 8 horas o más, cuántos tienen su motivo y cómo se reparten: lo que depende de nosotros, la compra y el proveedor. Sin motivo anotado no hay respuesta.
 var GER_GRUPOS_MOTIVO={repuesto_propio:'Repuesto sin stock (no se anticipó)',repuesto_compra:'Compra o aprobación interna lenta',repuesto_proveedor:'Proveedor sin stock o con demora',recursos:'Falta de personal, herramienta o taller',operacion:'Equipo no entregado por operación',tecnico:'Diagnóstico difícil',otro:'Otro',sin_informar:'Sin informar (se cerró sin completar)',ninguna:'Sin demora'};

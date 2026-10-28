@@ -30,6 +30,7 @@ test('«Preguntas del gerente» muestra las ocho preguntas con sus respuestas, d
       S.s('ot', [
         { _id: 'o1', sigla: 'CF-9510', tipo: 'Correctivo', estadoOT: 'Cerrada', fechaEntrada: '2026-03-02', duracion: '3h', sintoma: 'Fuga' },
         { _id: 'o2', sigla: 'CF-9510', tipo: 'Correctivo', estadoOT: 'Cerrada', fechaEntrada: '2026-03-03', duracion: '900h', sintoma: 'Motor fundido', motivoDemora: 'Proveedor sin stock o con demora' },
+      { _id: 'o3', sigla: 'TI-5146', tipo: 'Correctivo', estadoOT: 'Abierta', fechaEntrada: '2026-08-12', sintoma: 'Sistema combustible', origen: 'Cruce de fuentes 2026-10-28 (a revisar)' },
       ]);
       S.s('comprasDetalle', []); S.s('backlogPM', []); S.s('progDia', []); S.s('reg', []);
     };
@@ -43,6 +44,8 @@ test('«Preguntas del gerente» muestra las ocho preguntas con sus respuestas, d
     expect(texto.toLowerCase()).toContain(t.toLowerCase());
   }
   expect(texto).toMatch(/críticas/i);
+  expect(texto).toMatch(/Siguen abiertas hoy/i);
+  expect(texto).toMatch(/TI-5146/);
   expect(texto).toMatch(/se quedan sin algún insumo/i);
   expect(texto).toMatch(/Faltan las fechas de cada aprobación/i);
   expect(texto).toMatch(/desactualizadas/i);

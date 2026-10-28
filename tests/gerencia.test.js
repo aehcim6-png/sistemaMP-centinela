@@ -208,3 +208,22 @@ describe('gerFrescura y panelGerencia', () => {
     expect(p.duracion.n).toBe(0);
   });
 });
+
+describe('gerBandasDuracion: abiertas y datos cargados desde otras fuentes', () => {
+  const lista = [
+    ot({ duracion: '3h', origen: 'WhatsApp y cruce de fuentes 2026-10-28', horaEntrada: '10:00' }),
+    ot({ duracion: '24h 00min', origen: 'Cruce de fuentes 2026-10-28 (a revisar)' }),
+    ot({ duracion: '40h' }),
+    ot({ estadoOT: 'Abierta', fechaEntrada: '2026-10-14', sintoma: 'Piola alza torre', sigla: 'TI-5142' }),
+    ot({ estadoOT: 'Abierta', fechaEntrada: '2026-08-12', sintoma: 'Sistema combustible', sigla: 'TI-5146' }),
+  ];
+  const r = gerBandasDuracion(lista, HOY);
+  it('lista las abiertas, la más antigua primero, y no las mezcla con los porcentajes', () => {
+    expect(r.n).toBe(3);
+    expect(r.abiertas.n).toBe(2);
+    expect(r.abiertas.casos[0]).toMatchObject({ sigla: 'TI-5146', dias: 76 });
+  });
+  it('cuenta lo que viene de otras fuentes y cuánto solo tiene resolución diaria', () => {
+    expect(r.desdeFuentes).toEqual({ n: 2, resolucionDiaria: 1 });
+  });
+});
