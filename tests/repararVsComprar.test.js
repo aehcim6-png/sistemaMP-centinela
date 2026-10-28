@@ -99,12 +99,38 @@ describe('repararVsComprar', () => {
     expect(r.nHCambio).toBe(2);
     expect(r.totalNuevo.horasDet).toBe(3);
   });
-  it('si falta el precio de una de las dos opciones dice cuál y no recomienda', () => {
+  it('si solo existe una de las dos opciones lo dice y no recomienda; sin ninguna, «sin datos»', () => {
     const r = fila(repararVsComprar({ ...base, compras: [compra('Asiento 4215731112', 2800000)], compHist: [], ot: [] }));
-    expect(r.decision).toBe('sin_datos');
-    expect(r.motivo).toMatch(/falta el precio de reparar/);
+    expect(r.decision).toBe('solo_nuevo');
+    expect(r.motivo).toMatch(/ninguna reparación pagada/);
     const r2 = fila(repararVsComprar({ ...base, compras: [], compHist: [], ot: [] }));
+    expect(r2.decision).toBe('sin_datos');
     expect(r2.motivo).toMatch(/ni reparaciones/);
+  });
+  it('asiento y alternador se reparan siempre: sin compras de la nueva dice «solo se repara» con el costo por 1.000 h; lo que no dice estado cuenta como reparado y se avisa', () => {
+    const h = [cambio('CN-1', 0, 'Cambio de asiento'), cambio('CN-1', 1000, 'Cambio de asiento'), cambio('CN-1', 3000, 'Cambio de asiento')];
+    const r = fila(repararVsComprar({ ...base, compras: [compra('Reparacion Asiento Caex', 500000), compra('Reparacion Asiento Caex', 540000)], compHist: h, ot: [], sinReserva: false }));
+    expect(r.decision).toBe('solo_reparado');
+    expect(r.vidas.reparado).toMatchObject({ instalados: 3, terminados: 2, vida: 2500 });
+    expect(r.supuestosReparado).toBe(3);
+    expect(r.porMilReparado).toBe(Math.round(520000 / 2500 * 1000));
+    expect(r.motivo).toMatch(/solo se repara/);
+    expect(r.avisos.join(' ')).toMatch(/se tomaron como reparado/);
+  });
+  it('el estado anotado en el Historial manda sobre la observación; el supuesto no pisa un «Nuevo» ni un «Usado» anotados', () => {
+    expect(rvcCondicion('Reparado — x', null, 'Nuevo')).toBe('nuevo');
+    expect(rvcCondicion('', null, 'Reparado')).toBe('reparado');
+    expect(rvcCondicion('Nuevo — x', null, 'Usado')).toBe('usado');
+    expect(rvcCondicion('Nuevo — x', null, '')).toBe('nuevo');
+    const h = [{ ...cambio('CN-1', 0, ''), estadoPieza: 'Nuevo' }, { ...cambio('CN-1', 1000, ''), estadoPieza: 'Usado' }, cambio('CN-1', 2000, ''), cambio('CN-1', 3000, '')];
+    const v = rvcVidas(h, eq, ASIENTO);
+    expect(v.porEstado.nuevo.instalados).toBe(1);
+    expect(v.porEstado.usado.instalados).toBe(1);
+    expect(v.porEstado.reparado.instalados).toBe(2);
+    expect(v.supuestosReparado).toBe(2);
+    const t = rvcVidas([{ sigla: 'CN-1', comp: 'Turbo', horomInstalacion: '0', obs: 'x' }, { sigla: 'CN-1', comp: 'Turbo', horomInstalacion: '900', obs: 'x' }], eq, RVC_FAMILIAS.find(f => f.id === 'turbo'));
+    expect(t.supuestosReparado).toBe(0);
+    expect(t.porEstado['sin dato'].instalados).toBe(2);
   });
   it('una pieza propia escrita por el usuario entra como una familia más', () => {
     const extra = { id: 'x', nombre: 'Radiador', comp: /^radiador/i, item: /radiador/i };

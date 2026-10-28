@@ -6954,6 +6954,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/cuadrillas.test.js` (10) y `tests/e2e/preguntas-gerente.spec.js`. Inventario: ficha A13.
 
+### 194. Estado de la pieza obligatorio en el Historial de Componentes, y asiento y alternador como «se reparan siempre» (2026-10-29)
+
+**Qué cambia:** al **agregar un evento** en Componentes → Historial, hay que elegir el **estado de lo instalado: Nuevo, Reparado o Usado** (campo obligatorio; sin elegirlo no guarda). Nueva columna `historial_componentes."estadoPieza"` (migración `20261029120000`, aplicada en las dos bases; se agregó a `compHist` en `store.js`). La tabla del Historial muestra una columna «Estado» editable. **No es lo mismo que «Origen»** (marca: Komatsu, alternativo…): una pieza puede ser Komatsu y estar reparada; el origen sigue alimentando TBO Komatsu sin cambios.
+
+**Cómo lo lee «Reparar vs comprar»:** `rvcCondicion` toma primero `estadoPieza`; si no está, el inicio de la observación («Reparado — …», «Nuevo — …», «Usado — …», lo que ya traían las filas históricas); si tampoco, el origen. No se reescribió ninguna fila vieja.
+
+**Asiento y alternador se reparan siempre (dicho por el usuario):** de asientos solo se ha cambiado uno nuevo, y los alternadores son todos reparados. `RVC_FAMILIAS` marca estas dos piezas con `reparadoHabitual`: un cambio sin estado anotado se toma como **reparado** y la pantalla lo avisa («n cambios sin estado anotado se tomaron como reparados»). Nunca pisa un «Nuevo» o «Usado» anotado. Hallazgo con los datos reales: en alternadores no hay ninguna compra de la pieza nueva (solo reparaciones pagadas), así que ya no se muestra «sin datos» sino **«Solo se repara»**, con el costo por 1.000 h de lo reparado cuando hay tramos terminados; lo mismo ocurre al revés («Solo se compra») si hay compras y ninguna reparación pagada. De asientos hay compras de la pieza nueva (4 líneas entre 2022 y 2023 en las compras) y 4 cambios anotados «Nuevo» en el historial (2023–2024): no se encontró el asiento nuevo del año pasado; si se compró fuera del sistema, hay que anotarlo en el Historial para que cuente.
+
+**Pruebas:** `tests/repararVsComprar.test.js` (15) y `tests/e2e/reparar-vs-comprar.spec.js` (el campo es obligatorio y se guarda). Inventario: ficha F7.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

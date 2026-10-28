@@ -7,7 +7,7 @@ const _rvcDias = d => d == null ? '—' : fn(Math.round(d * 10) / 10) + ' d';
 const _rvcH = h => h == null ? '—' : fn(Math.round(h)) + ' h';
 const _RVC_VEREDICTO = {
   reparar: ['Conviene reparar', 'var(--ok)'], comprar: ['Conviene comprar', 'var(--danger)'], parecido: ['Parecido', 'var(--tx2)'],
-  equilibrio: ['Falta medir la vida de lo reparado', 'var(--warn)'], sin_datos: ['Sin datos', 'var(--tx3)']
+  equilibrio: ['Falta medir la vida de lo reparado', 'var(--warn)'], solo_reparado: ['Solo se repara', 'var(--tx2)'], solo_nuevo: ['Solo se compra', 'var(--tx2)'], sin_datos: ['Sin datos', 'var(--tx3)']
 };
 window._rvcEstado = window._rvcEstado || { sinReserva: true, extra: '' };
 
@@ -55,6 +55,7 @@ export function renderRvc() {
     r = repararVsComprar({ hoy: new Date().toISOString().slice(0, 10), compras: S.g('comprasDetalle') || [], compHist: S.g('compHist') || [], equipos: S.g('eq') || [], ot: S.g('ot') || [], aj, sinReserva: est.sinReserva, extra });
   } catch (e) { console.error('renderRvc', e); el.innerHTML = '<div class="chart-box"><div class="chart-t">Reparar vs comprar</div><div style="color:var(--danger)">No se pudo calcular: ' + _rvcE(e.message) + '</div></div>'; return; }
   const conVeredicto = r.filas.filter(f => f.decision === 'reparar' || f.decision === 'comprar' || f.decision === 'parecido').length;
+  const soloUna = r.filas.filter(f => f.decision === 'solo_reparado' || f.decision === 'solo_nuevo').length;
   el.innerHTML = '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">Reparar vs comprar</div>' +
     '<div style="font-size:11px;color:var(--tx2);line-height:1.6">Para cada pieza se compara <b>reparar</b> (lo que se pagó en servicios de reparación) contra <b>comprar</b> (lo que se pagó por la pieza). Se cuenta el precio, las horas que el equipo queda detenido (el cambio y, si no hay pieza de reserva, la espera del plazo de entrega, a su costo de hora detenida) y cuánto dura cada opción según el Historial de Componentes. ' +
     '<b>Costo por 1.000 h</b> = (precio + horas detenidas × costo de la hora detenida) ÷ vida × 1.000. Si no se sabe cuánto dura lo reparado, no se recomienda: se muestra el <b>equilibrio</b> (reparar conviene si lo reparado dura al menos ese porcentaje de lo que dura uno nuevo).</div>' +
@@ -62,7 +63,8 @@ export function renderRvc() {
     '<div><label style="font-size:11px;display:block;margin-bottom:2px">¿Hay pieza de reserva?</label><select id="rvcReserva" onchange="rvcCambiarReserva(this.value)"><option value="no"' + (est.sinReserva ? ' selected' : '') + '>No: el equipo espera el plazo completo</option><option value="si"' + (est.sinReserva ? '' : ' selected') + '>Sí: solo cuenta el tiempo del cambio</option></select></div>' +
     '<div><label style="font-size:11px;display:block;margin-bottom:2px">Probar otra pieza</label><input id="rvcOtra" type="text" placeholder="ej.: radiador" value="' + _rvcE(est.extra) + '" style="width:160px" onkeydown="if(event.key===\'Enter\')rvcBuscarPieza()"> <button class="btn btn-sm" onclick="rvcBuscarPieza()">Calcular</button></div>' +
     '</div>' +
-    '<div style="font-size:12px;margin-top:10px"><b>' + conVeredicto + '</b> de ' + r.filas.length + ' piezas tienen datos para comparar el costo por hora de uso.</div></div>' +
+    '<div style="font-size:12px;margin-top:10px"><b>' + conVeredicto + '</b> de ' + r.filas.length + ' piezas tienen datos para comparar el costo por hora de uso' + (soloUna ? ' y ' + soloUna + ' solo se ' + 'han hecho de una manera (no hay con qué comparar)' : '') + '.</div>' +
+    '<div style="font-size:11px;color:var(--tx2);margin-top:6px">Desde el 29 de octubre, al agregar un evento en Componentes → Historial hay que indicar si lo instalado es <b>nuevo, reparado o usado</b>: con eso esta comparación mejora con cada cambio. Los asientos y alternadores sin estado anotado se toman como reparados (se reparan siempre).</div></div>' +
     '<div class="chart-box" style="margin-bottom:14px"><div class="tbl-wrap" style="max-height:70vh;overflow:auto"><table style="font-size:11px"><tr><th style="text-align:left">Pieza</th><th style="text-align:left">Veredicto</th><th style="text-align:right">Reparar<br>precio y plazo</th><th style="text-align:right">Comprar<br>precio y plazo</th><th style="text-align:right">Vida<br>reparado</th><th style="text-align:right">Vida<br>nuevo</th><th style="text-align:right">$ por 1.000 h<br>reparar</th><th style="text-align:right">$ por 1.000 h<br>comprar</th><th style="text-align:right">Equilibrio</th></tr>' +
     r.filas.map(_rvcFilaResumen).join('') + '</table></div>' +
     '<div style="margin-top:8px">' + r.filas.map(f => _rvcDetalle(f, r.sinReserva)).join('') + '</div>' +

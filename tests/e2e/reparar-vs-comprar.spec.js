@@ -50,3 +50,36 @@ test('«Reparar vs comprar» muestra el veredicto, el equilibrio cuando falta la
   expect(r.c).toMatch(/radiador/i);
   expect(errores).toEqual([]);
 });
+
+test('Historial de Componentes: el estado de lo instalado (nuevo, reparado o usado) es obligatorio al agregar un evento', async ({ page }) => {
+  test.setTimeout(120000);
+  const errores = [];
+  page.on('pageerror', (e) => errores.push(e.message));
+  await entrar(page);
+  const r = await page.evaluate(async () => {
+    const esp = (ms) => new Promise((x) => setTimeout(x, ms));
+    window._comp2Sub = 'histcomp'; go('comp2');
+    for (let i = 0; i < 100 && !document.querySelector('#s-histcomp'); i++) await esp(100);
+    await esp(2500);
+    S.s('eq', [{ sigla: 'CN-1', tipo: 'Camion', modelo: 'HD785-7', horomActual: 5000 }]);
+    S.s('compHist', []);
+    window.addHistComp();
+    const hayCampo = !!document.getElementById('hcEstado');
+    const opciones = [...document.querySelectorAll('#hcEstado option')].map((o) => o.textContent);
+    document.getElementById('hcEq').value = 'CN-1';
+    document.getElementById('hcComp').value = 'Asiento';
+    window.saveHistComp();
+    const sinEstado = (S.g('compHist') || []).length;
+    document.getElementById('hcEstado').value = 'Reparado';
+    window.saveHistComp();
+    const fila = (S.g('compHist') || [])[0] || null;
+    return { hayCampo, opciones, sinEstado, conEstado: (S.g('compHist') || []).length, estado: fila && fila.estadoPieza, comp: fila && fila.comp };
+  });
+  expect(r.hayCampo).toBe(true);
+  expect(r.opciones).toEqual(['— elige —', 'Nuevo', 'Reparado', 'Usado']);
+  expect(r.sinEstado).toBe(0);
+  expect(r.conEstado).toBe(1);
+  expect(r.estado).toBe('Reparado');
+  expect(r.comp).toBe('Asiento');
+  expect(errores).toEqual([]);
+});

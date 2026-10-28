@@ -17,6 +17,15 @@ function _origenOpts(actual) {
   if (v && lista.indexOf(v) < 0) lista.push(v);
   return '<option value="">— sin dato —</option>' + lista.map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('');
 }
+// Estado de lo instalado (2026-10-29): Nuevo, Reparado o Usado. Es obligatorio al agregar un evento: «Reparar vs comprar» lo necesita para medir cuánto dura lo reparado y lo nuevo.
+// No es lo mismo que el origen (marca): una pieza puede ser Komatsu y estar reparada.
+var _ESTADOS_PIEZA = ['Nuevo', 'Reparado', 'Usado'];
+function _estadoOpts(actual, obligatorio) {
+  var v = String(actual == null ? '' : actual);
+  var lista = _ESTADOS_PIEZA.slice();
+  if (v && lista.indexOf(v) < 0) lista.push(v);
+  return '<option value="">' + (obligatorio ? '— elige —' : '— sin anotar —') + '</option>' + lista.map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('');
+}
 export function renderHistComp() {
   var h = S.g('compHist') || [];
   var fComp = $('fHistComp') ? $('fHistComp').value : '';
@@ -202,7 +211,7 @@ export function renderHistComp() {
       <select id="fHistComp" onchange="renders.histcomp()"><option value="">Todos los componentes</option>${comps.map(function (c) { return '<option' + (c === fComp ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('')}</select>
     </div>
     <div class="tbl-wrap"><table>
-      <tr><th>Equipo</th><th>Componente</th><th>Fecha Inst.</th><th>Horómetro</th><th>Duró (h)</th><th title="Original (Komatsu) o alternativo/reparado — alimenta TBO Komatsu">Origen</th><th>Fuente</th><th>Obs</th><th></th></tr>
+      <tr><th>Equipo</th><th>Componente</th><th>Fecha Inst.</th><th>Horómetro</th><th>Duró (h)</th><th title="Nuevo, reparado o usado — alimenta Reparar vs comprar">Estado</th><th title="Original (Komatsu) o alternativo/reparado — alimenta TBO Komatsu">Origen</th><th>Fuente</th><th>Obs</th><th></th></tr>
       ${filFilas.map(function (f) {
         var r = f.ref;
         return `<tr>
@@ -211,6 +220,7 @@ export function renderHistComp() {
           <td>${escapeHtml(r.fechaInst || '')}</td>
           <td class="mono">${r.horomInstalacion != null ? r.horomInstalacion : '—'}</td>
           <td class="mono" style="font-weight:700">${f.horasVida != null ? fn(f.horasVida) : (f.esActual ? '<span style="color:var(--tx3);font-size:10px">en uso</span>' : '—')}</td>
+          <td><select style="font-size:10px;max-width:110px" onchange="edHistComp(${f.idx},'estadoPieza',this.value)">${_estadoOpts(r.estadoPieza, false)}</select></td>
           <td><select style="font-size:10px;max-width:130px" onchange="edHistComp(${f.idx},'origen',this.value)">${_origenOpts(r.origen)}</select></td>
           <td style="font-size:10px;color:var(--tx2)">${escapeHtml(r.fuente || '')}</td>
           <td class="ed" contenteditable onblur="edHistComp(${f.idx},'obs',this.innerText.trim())" style="font-size:10px;max-width:200px">${escapeHtml(r.obs || '')}</td>
@@ -248,7 +258,9 @@ export function addHistComp() {
     '<datalist id="hcCompList">' + comps.map(function (c) { return '<option value="' + escapeHtml(c) + '">'; }).join('') + '</datalist></div></div>' +
     '<div class="form-row"><div class="fg"><label>Fecha instalación</label><input type="date" id="hcFecha" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
     '<div class="fg"><label>Horómetro</label><input type="number" id="hcHorom"></div></div>' +
-    '<div class="form-row"><div class="fg"><label>Origen del repuesto</label><select id="hcOrigen">' + _origenOpts('') + '</select></div>' +
+    '<div class="form-row"><div class="fg"><label>Estado de lo instalado *</label><select id="hcEstado">' + _estadoOpts('', true) + '</select><div style="font-size:10px;color:var(--tx3)">Nuevo, reparado o usado: sirve para decidir si conviene reparar o comprar.</div></div>' +
+    '<div class="fg"><label>Origen del repuesto</label><select id="hcOrigen">' + _origenOpts('') + '</select></div></div>' +
+    '<div class="form-row">' +
     '<div class="fg"><label>Obs</label><input id="hcObs" placeholder="Detalle del cambio"></div></div>' +
     '<br><button class="btn" onclick="saveHistComp()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 }
@@ -257,13 +269,16 @@ export function saveHistComp() {
   var comp = ($('hcComp').value || '').trim();
   if (!sigla) return toast('⚠️ Selecciona equipo');
   if (!comp) return toast('⚠️ Ingresa el componente');
+  var estado = ($('hcEstado') ? $('hcEstado').value : '');
+  if (!estado) return toast('⚠️ Indica si lo instalado es nuevo, reparado o usado');
   var d = S.g('compHist') || [];
   d.push({
     id: _uuidV4(), sigla: sigla, comp: comp,
     fechaInst: $('hcFecha').value || null,
     horomInstalacion: parseFloat($('hcHorom').value) || null,
     fuente: 'Registro manual', obs: ($('hcObs').value || '').trim(),
-    origen: ($('hcOrigen') ? $('hcOrigen').value : '') || null
+    origen: ($('hcOrigen') ? $('hcOrigen').value : '') || null,
+    estadoPieza: estado
   });
   S.s('compHist', d); cm(); renders.histcomp(); toast('✅ Evento agregado');
 }

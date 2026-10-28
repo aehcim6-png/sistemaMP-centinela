@@ -6211,9 +6211,9 @@ function gerCuadrillas(ot,reg,hoyISO){
 //  · DETENCIÓN: horas del cambio (mediana de los correctivos que lo mencionan) y, si no hay pieza de reserva, la espera del plazo completo; todo × costo de hora detenida del modelo (Configuración).
 // Costo por 1.000 h = (precio + horas detenidas × costo hora detenida) ÷ vida × 1.000. Si no se sabe cuánto dura lo reparado, NO se recomienda: se entrega el punto de equilibrio («reparar conviene si dura al menos X % de lo que dura uno nuevo»).
 var RVC_FAMILIAS=[
-  {id:'asiento',nombre:'Asiento de operador',comp:/^asiento/i,item:/asiento/i,excl:/amortiguador|cintur|funda|perno|manilla|respald|coj[ií]n|riel|espuma|tapiz|entredient/i},
+  {id:'asiento',nombre:'Asiento de operador',reparadoHabitual:true,comp:/^asiento/i,item:/asiento/i,excl:/amortiguador|cintur|funda|perno|manilla|respald|coj[ií]n|riel|espuma|tapiz|entredient/i},
   {id:'turbo',nombre:'Turbo',comp:/^turbo/i,item:/turbo/i,excl:/polea|manguera|abrazadera|empaq|filtro|manguito|sensor/i},
-  {id:'alternador',nombre:'Alternador',comp:/^alternador/i,item:/alternador/i,excl:/correa|polea|escobill|regulador|v-belt|soporte|tensor|rodamiento/i},
+  {id:'alternador',nombre:'Alternador',reparadoHabitual:true,comp:/^alternador/i,item:/alternador/i,excl:/correa|polea|escobill|regulador|v-belt|soporte|tensor|rodamiento/i},
   {id:'partida',nombre:'Motor de partida',comp:/motor de partida/i,item:/motor\s*(de\s*)?(partida|arranque)|partida nikko/i,excl:/escobill|solenoide|bendix|rel[eé]/i},
   {id:'cilindro',nombre:'Cilindro de dirección / hidráulico',comp:/cilindro de direcci/i,item:/cilindro\s*(de\s*)?(direc|hidr)/i,excl:/recarga|ox[ií]geno|acetilen|nitr[oó]geno|sello|kit/i},
   {id:'compresor',nombre:'Compresor de aire acondicionado',comp:/aire acondicionado/i,item:/compresor.*(a\/c|aire acond)|compresor a\/c/i,excl:/filtro|correa/i},
@@ -6225,8 +6225,14 @@ var RVC_REP_RX=/repar|recup|reacond|rebuild|overhaul|\d{3,}rep\b/i;
 // Líneas que mencionan la pieza pero no son la pieza: mano de obra, fletes, repuestos sueltos, válvulas y accesorios.
 var RVC_EXCL_GEN=/mano de obra|flete|trasl|repuestos?\s|v[aá]lvula|bomb[ií]n|\bkit\b/i;
 var RVC_VIDA_MIN_H=24,RVC_MIN_VIDAS=2,RVC_DIF_MIN=0.1,RVC_DET_MAX_H=72;
-// Estado de lo que se instaló, según cómo quedó anotado el cambio: «reparado», «nuevo», «usado» (incluye «retirado de otro equipo») o «sin dato».
-function rvcCondicion(obs,origen){
+// Estado de lo que se instaló: primero el campo «estado de la pieza» del Historial (Nuevo / Reparado / Usado, obligatorio desde el 29-oct-2026); si no está, cómo quedó anotado el cambio al inicio de la observación;
+// y si tampoco, el origen. «usado» incluye «retirado de otro equipo». Sin nada de eso: «sin dato».
+// `reparadoHabitual` (asiento y alternador, dicho por el usuario: se reparan siempre; de asientos solo se ha cambiado uno nuevo): lo que no dice nada se toma como reparado, y la pantalla lo avisa.
+function rvcCondicion(obs,origen,estado){
+  var e=String(estado==null?'':estado).trim();
+  if(/^repar/i.test(e))return'reparado';
+  if(/^nuev/i.test(e))return'nuevo';
+  if(/^usad/i.test(e))return'usado';
   var o=String(obs==null?'':obs).trim();
   if(/^repar/i.test(o))return'reparado';
   if(/^nuev/i.test(o))return'nuevo';
@@ -6240,10 +6246,10 @@ function _rvcResumenVida(arr){
 }
 // Vidas del componente de una familia, por estado de lo instalado. Dos cambios del mismo componente y equipo con menos de 24 h de horómetro entre sí son UN solo cambio (los dos turbos, o la misma fila cargada dos veces).
 function rvcVidas(compHist,equipos,fam){
-  var eqPor={},grupos={},vidas=[];(equipos||[]).forEach(function(e){if(e&&e.sigla)eqPor[e.sigla]=e;});
+  var eqPor={},grupos={},vidas=[],supuestos=0;(equipos||[]).forEach(function(e){if(e&&e.sigla)eqPor[e.sigla]=e;});
   (compHist||[]).forEach(function(r){
     if(!r||!r.sigla||!r.comp||!fam.comp.test(String(r.comp)))return;var h=parseFloat(r.horomInstalacion);if(isNaN(h))return;
-    (grupos[r.sigla]=grupos[r.sigla]||[]).push({h:h,cond:rvcCondicion(r.obs,r.origen)});
+    (grupos[r.sigla]=grupos[r.sigla]||[]).push({h:h,cond:rvcCondicion(r.obs,r.origen,r.estadoPieza)});
   });
   Object.keys(grupos).forEach(function(sig){
     var arr=grupos[sig].sort(function(a,b){return a.h-b.h;}),ev=[];
@@ -6251,11 +6257,13 @@ function rvcVidas(compHist,equipos,fam){
     var e=eqPor[sig],act=e?Number(e.horomActual)||0:0;
     ev.forEach(function(x,i){
       var fin=i<ev.length-1?ev[i+1].h:act,L=fin-x.h,cens=i===ev.length-1;
-      if(!(L>=RVC_VIDA_MIN_H))return;vidas.push({sigla:sig,cond:x.cond,L:L,censurado:cens});
+      if(!(L>=RVC_VIDA_MIN_H))return;
+      var cond=x.cond;if(cond==='sin dato'&&fam.reparadoHabitual){cond='reparado';supuestos++;}
+      vidas.push({sigla:sig,cond:cond,L:L,censurado:cens});
     });
   });
   var por={};['nuevo','reparado','usado','sin dato'].forEach(function(c){por[c]=_rvcResumenVida(vidas.filter(function(v){return v.cond===c;}));});
-  return{porEstado:por,equipos:Object.keys(grupos)};
+  return{porEstado:por,equipos:Object.keys(grupos),supuestosReparado:supuestos};
 }
 // Precio y plazo de «comprar» y de «reparar» desde las líneas de compra (solo OC firmadas o recibidas: lo demás no es gasto aún).
 function rvcPrecios(compras,fam){
@@ -6293,8 +6301,12 @@ function repararVsComprar(i){
     var pmN=tn&&vn.vida?tn.total/vn.vida*1000:null,pmR=tr&&vr.vida?tr.total/vr.vida*1000:null;
     var okVidas=vn.terminados>=RVC_MIN_VIDAS&&vr.terminados>=RVC_MIN_VIDAS&&pmN!=null&&pmR!=null;
     var eq=tn&&tr&&tn.total>0?tr.total/tn.total:null,decision,motivo;
-    if(!pr.nuevo.n||!pr.reparado.n){
-      decision='sin_datos';motivo=!pr.nuevo.n&&!pr.reparado.n?'No hay compras de esta pieza ni reparaciones en el historial.':!pr.nuevo.n?'Hay '+pr.reparado.n+' reparación(es) pagadas, pero ninguna compra de la pieza nueva: falta el precio de comprar.':'Hay '+pr.nuevo.n+' compra(s) de la pieza, pero ninguna reparación pagada: falta el precio de reparar.';
+    if(!pr.nuevo.n&&!pr.reparado.n){
+      decision='sin_datos';motivo='No hay compras de esta pieza ni reparaciones en el historial.';
+    }else if(!pr.nuevo.n){
+      decision='solo_reparado';motivo='En la práctica solo se repara: hay '+pr.reparado.n+' reparación(es) pagadas y ninguna compra de la pieza nueva para comparar. '+(pmR!=null?'Reparar sale unos $'+Math.round(pmR).toLocaleString('es-CL')+' por 1.000 h de uso (lo reparado dura '+vr.vida+' h, con '+vr.terminados+' tramo'+(vr.terminados===1?'':'s')+' terminado'+(vr.terminados===1?'':'s')+').':'Falta medir cuánto dura lo reparado.');
+    }else if(!pr.reparado.n){
+      decision='solo_nuevo';motivo='Solo hay compras de la pieza nueva ('+pr.nuevo.n+'); no hay ninguna reparación pagada para comparar.';
     }else if(okVidas){
       if(pmR<pmN*(1-RVC_DIF_MIN)){decision='reparar';motivo='Reparar sale '+Math.round((1-pmR/pmN)*100)+' % más barato por hora de uso.';}
       else if(pmR>pmN*(1+RVC_DIF_MIN)){decision='comprar';motivo='Comprar sale '+Math.round((1-pmN/pmR)*100)+' % más barato por hora de uso.';}
@@ -6305,13 +6317,14 @@ function repararVsComprar(i){
       decision='equilibrio';motivo='Reparar conviene si lo reparado dura al menos '+Math.round(eq*100)+' % de lo que dura uno nuevo. '+(vr.terminados<RVC_MIN_VIDAS?'Falta medir cuánto dura lo reparado ('+vr.terminados+' tramo'+(vr.terminados===1?'':'s')+' terminado'+(vr.terminados===1?'':'s')+' con ese estado en el historial).':'Falta medir cuánto dura lo nuevo.');
     }else{decision='sin_datos';motivo='No se pudo calcular.';}
     if(pr.nuevo.n&&pr.nuevo.n<3||pr.reparado.n&&pr.reparado.n<3)avisos.push('muestra chica de precios');
+    if(vd.supuestosReparado)avisos.push(vd.supuestosReparado+' cambio'+(vd.supuestosReparado===1?'':'s')+' sin estado anotado '+(vd.supuestosReparado===1?'se tomó':'se tomaron')+' como reparado (esta pieza se repara siempre)');
     if(sinReserva&&(!pr.nuevo.plazoDias||!pr.reparado.plazoDias))avisos.push('falta el plazo de '+(!pr.nuevo.plazoDias&&!pr.reparado.plazoDias?'ambas opciones':!pr.nuevo.plazoDias?'comprar':'reparar')+': no se contó su espera');
     if(!hCambio)avisos.push('ningún correctivo menciona el cambio: no se contaron sus horas');
     return{id:f.id,nombre:f.nombre,nuevo:pr.nuevo,reparado:pr.reparado,vidas:vd.porEstado,hCambio:hCambio,nHCambio:hs.length,costoHoraDet:cd,totalNuevo:tn,totalReparado:tr,
       porMilNuevo:pmN!=null?Math.round(pmN):null,porMilReparado:pmR!=null?Math.round(pmR):null,equilibrio:eq!=null?Math.round(eq*1000)/1000:null,
-      vidaRelativa:vn.vida&&vr.vida?Math.round(vr.vida/vn.vida*100)/100:null,decision:decision,motivo:motivo,avisos:avisos};
+      vidaRelativa:vn.vida&&vr.vida?Math.round(vr.vida/vn.vida*100)/100:null,supuestosReparado:vd.supuestosReparado,decision:decision,motivo:motivo,avisos:avisos};
   });
-  var orden={reparar:0,comprar:1,parecido:2,equilibrio:3,sin_datos:4};
+  var orden={reparar:0,comprar:1,parecido:2,equilibrio:3,solo_reparado:4,solo_nuevo:5,sin_datos:6};
   filas.sort(function(a,b){return orden[a.decision]-orden[b.decision];});
   return{hoy:hoy,sinReserva:sinReserva,filas:filas};
 }
