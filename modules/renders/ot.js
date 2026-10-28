@@ -946,6 +946,14 @@ const _SISTEMAS_OT=['Motor diésel','Hidráulico','Transmisión','Eléctrico','F
 function _esCorrectivoOT(o){return o&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional')&&!o.fromReg&&!o.fromHist;}
 // La lista de lo que falta vive en logic.js (otCierreFaltantes): además de componente, causa raíz y costo, pide el motivo de demora (si la parada duró 8 h o más) y el tipo de reparación (2026-10-27).
 function _faltantesCierreOT(o){return otCierreFaltantes(o,new Date().toISOString().slice(0,10));}
+// Regla 3 del paso 3 (2026-10-29): una falla repetida (mismo equipo y componente en 90 días) no se cierra sin causa raíz y una acción con responsable y fecha, que queda como tarea. null si no corresponde o si ya se pidió.
+function _repetidaSinAccion(o,ot){
+  if(!o||!_esCorrectivoOT(o))return null;
+  var r=otFallaRepetida(o,ot||S.g('ot')||[]);if(!r.repetida)return null;
+  var clave=tareaClaveRepetida(o,new Date().toISOString().slice(0,10));
+  return (S.g('tareas')||[]).some(function(t){return t.clave===clave;})?null:r;
+}
+function _opcionesResponsable(){return CUADRILLAS_TALLER.reduce(function(a,c){return a.concat(c.jefes,c.tecnicos);},[]);}
 function _abrirCierreOT(i,faltantes){
   var ot=S.g('ot')||[];var o=ot[i];if(!o)return;
   var sugComp=(typeof _componenteDeSintoma==='function')?_componenteDeSintoma(o.sintoma||''):'';
@@ -955,6 +963,11 @@ function _abrirCierreOT(i,faltantes){
   var ok='<span style="color:var(--ok)">✓ ya cargado</span>';
   var faltanTexto=faltantes.map(function(k){return k==='causaRaiz'?'causa raíz':k==='costo'?'costo':k==='motivoDemora'?'motivo de demora':k==='reparacion'?'tipo de reparación':'componente';}).join(', ');
   var hoyISO=new Date().toISOString().slice(0,10),motivoReq=otMotivoRequerido(o,hoyISO);
+  var repet=_repetidaSinAccion(o,ot);
+  var bloqueRepet=repet?'<div class="ot-cierre-notice" style="border-left:3px solid var(--danger)"><b>Falla repetida:</b> '+escapeHtml(o.sigla||'')+' ya tuvo '+repet.previas.length+' falla(s) de «'+escapeHtml(repet.componente)+'» en los últimos '+FALLA_REPETIDA_VENTANA_DIAS+' días (la última, el '+escapeHtml(repet.previas[repet.previas.length-1].fecha)+'). <b>No se puede cerrar sin causa raíz y sin una acción con responsable y fecha.</b></div>'+
+    '<div class="form-row"><div class="fg" style="width:100%"><label>Acción para que no se repita <span style="color:var(--danger)">(obligatorio)</span></label><input id="ocRepAccion" placeholder="Ej: cambiar el sello, revisar la presión, ajustar la pauta…" style="width:100%"></div></div>'+
+    '<div class="form-row"><div class="fg"><label>Responsable <span style="color:var(--danger)">(obligatorio)</span></label><select id="ocRepResp"><option value="">— elige —</option>'+_opcionesResponsable().map(function(n){return'<option>'+escapeHtml(n)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fg"><label>Fecha límite <span style="color:var(--danger)">(obligatorio)</span></label><input id="ocRepFecha" type="date" value="'+_tareasSumarDias(hoyISO,7)+'"></div></div>':'';
   sm('<div class="ot-cierre-head"><div><div class="ot-cierre-kicker">Cierre con datos</div><h3>Cerrar correctivo — '+escapeHtml(o.sigla||'')+'</h3></div><button class="ot-cierre-x" type="button" aria-label="Cancelar cierre" onclick="cm()">×</button></div>'+ 
     '<p class="ot-cierre-sintoma">'+escapeHtml((o.sintoma||'').slice(0,160))+'</p>'+ 
     '<div class="ot-cierre-notice"><b>Falta: '+escapeHtml(faltanTexto)+'.</b> Completarlo mejora el costo, la causa raíz y las predicciones.</div>'+ 
@@ -969,8 +982,9 @@ function _abrirCierreOT(i,faltantes){
       (!o.motivoDemora?'<select id="ocMotivo" style="width:100%"><option value="">— elige —</option>'+OT_MOTIVOS_DEMORA.map(function(m){return'<option>'+escapeHtml(m.id)+'</option>';}).join('')+'</select><div style="font-size:10px;color:var(--tx3)">¿Por qué tardó lo que tardó? Separa lo que depende de nosotros, de la compra y del proveedor.</div>':'<div style="font-size:12px">'+escapeHtml(o.motivoDemora||'')+'</div>')+'</div></div>'+
     '<div class="form-row"><div class="fg" style="width:100%"><label>Tipo de reparación '+(campo('reparacion')?'<span style="color:var(--danger)">(obligatorio)</span>':ok)+'</label>'+
       (campo('reparacion')?'<select id="ocRep" style="width:100%"><option value="">— elige —</option>'+OT_REPARACIONES.map(function(m){return'<option>'+m+'</option>';}).join('')+'</select><div style="font-size:10px;color:var(--tx3)">Si es <b>provisoria</b>, se agrega sola una tarea pendiente al backlog para la reparación definitiva.</div>':'<div style="font-size:12px">'+escapeHtml(o.reparacion||'')+'</div>')+'</div></div>'+
+    bloqueRepet+
     '<div class="ot-cierre-actions"><button class="btn ot-cierre-primary" onclick="_otCierreGuardar('+i+',true)">Guardar y cerrar</button>'+ 
-    '<button class="btn btn-o ot-cierre-secondary" onclick="_otCierreGuardar('+i+',false)" title="El motivo y el tipo de reparación quedan como «Sin informar»">Cerrar sin completar</button>'+ 
+    (repet?'':'<button class="btn btn-o ot-cierre-secondary" onclick="_otCierreGuardar('+i+',false)" title="El motivo y el tipo de reparación quedan como «Sin informar»">Cerrar sin completar</button>')+ 
     '<button class="btn btn-o ot-cierre-cancel" onclick="cm();renders.ot()">Cancelar</button></div>');
   // sm() deja el foco en el primer botón (la ×); para llenar el cierre conviene partir en el primer campo que falta
   var primero=$('ocComp')||$('ocCausa')||$('ocCosto')||$('ocMotivo')||$('ocRep');if(primero)primero.focus();
@@ -978,6 +992,14 @@ function _abrirCierreOT(i,faltantes){
 export function _otCierreGuardar(i,completar){
   var ot=S.g('ot')||[];var o=ot[i];if(!o){cm();return;}
   var hoyISO=new Date().toISOString().slice(0,10),motivoReq=otMotivoRequerido(o,hoyISO);
+  var repet=_repetidaSinAccion(o,ot),accionRep=null;
+  if(repet){
+    // falla repetida: no hay «cerrar sin completar»; se exige causa raíz y una acción con responsable y fecha
+    if(!completar){toast('⚠️ Una falla repetida no se puede cerrar sin causa raíz y acción con fecha');return;}
+    accionRep={texto:($('ocRepAccion')?.value||'').trim(),responsable:($('ocRepResp')?.value||'').trim(),fechaLimite:($('ocRepFecha')?.value||'').trim(),causaRaiz:($('ocCausa')?.value||'').trim()};
+    var _fr=otFallaRepetidaFaltantes(o,accionRep);
+    if(_fr.length){toast('⚠️ Falla repetida: falta '+_fr.join(', '));return;}
+  }
   if(completar){
     var comp=($('ocComp')?.value||'').trim(),causa=($('ocCausa')?.value||'').trim(),costo=parseFloat($('ocCosto')?.value);
     var motivo=($('ocMotivo')?.value||'').trim(),rep=($('ocRep')?.value||'').trim();
@@ -996,6 +1018,13 @@ export function _otCierreGuardar(i,completar){
   // una reparación provisoria deja una tarea pendiente en el backlog (una sola por OT)
   var bkNuevo=otBacklogDeProvisoria(ot[i],hoyISO,S.g('backlogPM')||[]);
   if(bkNuevo){var bk=S.g('backlogPM')||[];bk.push(bkNuevo);S.s('backlogPM',bk);toast('📌 Reparación provisoria: se agregó la reparación definitiva al backlog');}
+  // la acción de una falla repetida queda como tarea con responsable y fecha (se ve en Metas & KPIs → Tareas)
+  if(repet&&accionRep){
+    var _tareas=S.g('tareas')||[];
+    _tareas.push(Object.assign(tareaDeFallaRepetida(ot[i],repet,accionRep,hoyISO),{usuario:window._userName||''}));
+    S.s('tareas',_tareas);
+    toast('📌 Falla repetida: se creó la tarea «'+accionRep.texto+'» para '+accionRep.responsable+' (hasta el '+accionRep.fechaLimite+')');
+  }
   cm();
   edOT(i,'estadoOT','Cerrada',true);
 }
@@ -1018,7 +1047,7 @@ export function edOT(i,key,val,forzar){
   // que lo revise antes de decidir.
   if(!forzar&&key==='estadoOT'&&val==='Cerrada'&&ot[i]&&_esCorrectivoOT(ot[i])){
     var _falt=_faltantesCierreOT(ot[i]);
-    if(_falt.length){_abrirCierreOT(i,_falt);return;}
+    if(_falt.length||_repetidaSinAccion(ot[i],ot)){_abrirCierreOT(i,_falt);return;}
   }
   if(!forzar&&key==='estadoOT'&&val==='Cerrada'&&ot[i]&&!(ot[i].costo>0)){
     var _sugCierre=(typeof costoSugeridoPorCruce==='function')?costoSugeridoPorCruce(ot[i],(S.g('ocHist')||[]).concat(S.g('comprasDetalle')||[])):[];

@@ -216,6 +216,18 @@ Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Límites:** la criticidad es la etiqueta cargada a mano, no la calculada de Predictivo; la criticidad y la salud son las de hoy aunque el Dashboard muestre un mes pasado o proyectado. No es un puntaje: dos equipos con la misma criticidad se comparan por días, y la salud solo desempata.
 - **Código:** `ordenUrgentes`.
 
+### A17. Reglas que fuerzan y escalan: tareas con fecha, vencidas y escaladas
+- **Tipo:** reglas de proceso (no es un modelo estadístico).
+- **Para qué sirve:** que lo reactivo no se repita: lo que el sistema detecta se vuelve una tarea con responsable y fecha, y lo que vence se ve y se escala. Es el paso 3 del plan de gestión (datos, pantalla de preguntas, **reglas**, informe de una página).
+- **De dónde viene:** 🔵 Criterio propio: práctica corriente de gestión de acciones correctivas (cada acción con dueño y plazo, y escalamiento si vence), sin norma que la fije.
+- **Cómo lo calcula aquí:** (1) **Todo «pedir ya» es una tarea** (`tareasDePedirYa`): cada fila del plan de compras TBO con decisión «pedir ya» crea una tarea (responsable «Comprador», 3 días de plazo; la clave `pedir|equipo|ítem` evita duplicados); si la condición deja de darse, la tarea abierta pasa a «Resuelta sola». (2) **Todo hallazgo de PM entra al backlog** (`backlogDePMSinDuplicar`): un PM incompleto con lo que faltó crea una tarea de backlog, al guardarlo (ya existía) y ahora también al editarlo, sin duplicar. (3) **Una falla repetida exige acción con fecha** (`otFallaRepetida`, `otFallaRepetidaFaltantes`, `tareaDeFallaRepetida`): misma sigla y mismo componente (el anotado o el que sale del síntoma) en los 90 días anteriores; al cerrar la OT no hay «cerrar sin completar»: se piden causa raíz, acción, responsable y fecha, y la acción queda como tarea. (4) **Estado** (`tareaEstado`): abierta hasta su fecha límite; «Vencida» desde el día siguiente; «Escalada» con 3 días o más de atraso, a la jefatura (`tareaEscalaA`: el jefe de taller de la cuadrilla del responsable, o «Jefatura de taller»). `tareasResumen` cuenta cada estado.
+- **Dónde se ve:** Metas & KPIs → Tareas (tabla con filtros, cambiar responsable y fecha, marcar hecha o descartar, agregar a mano) y un aviso en el Dashboard cuando hay tareas vencidas. Los datos están en la tabla `tareas_gestion`.
+- **Ejemplo:** un alternador en «pedir ya» para CN-9501 crea «Pedir ya: ALTERNATOR de CN-9501» para el Comprador con fecha a 3 días; si el 4.º día sigue abierta es «Vencida», y al 6.º día es «Escalada».
+- **Límites:** no manda correos ni avisos fuera del sistema; el responsable de «pedir ya» es un rol fijo («Comprador») que se puede cambiar a mano en cada tarea; una falla repetida se detecta por componente, y en la mayoría de los correctivos históricos el componente está en blanco (se usa el que sale del síntoma: puede fallar); «Resuelta sola» no verifica que el repuesto haya llegado, solo que la condición ya no se da.
+- **Código:** `TAREAS_ORIGENES`, `TAREAS_PLAZO_PEDIR_YA_DIAS`, `TAREAS_ESCALA_DIAS`, `FALLA_REPETIDA_VENTANA_DIAS`, `TAREAS_CERRADAS`, `tareaEstado`, `tareaEscalaA`, `tareasResumen`, `tareasDePedirYa`, `backlogDePMSinDuplicar`, `otFallaRepetida`, `otFallaRepetidaFaltantes`, `tareaClaveRepetida`, `tareaDeFallaRepetida`.
+
+---
+
 ## B. Vida, supervivencia y tendencia de fallas
 
 ### B1. Weibull por regresión de rango mediano

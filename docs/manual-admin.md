@@ -233,6 +233,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Dotación.** En **Planificación → Programación Diaria → Resumen** hay una tarjeta «Dotación programada»: promedio de mecánicos (con líderes) y electromecánicos por turno, según los días cargados. Es lo programado, no la plantilla contratada; si un cargo no se reconoce se lista aparte.
 
+### Tareas y reglas que fuerzan y escalan (2026-10-29)
+
+**Qué es.** En **Metas & KPIs → Tareas** están las tareas que el sistema obliga a hacer, cada una con responsable y fecha límite. Nacen de tres reglas: (1) **todo «pedir ya»** del plan de compras de TBO Komatsu se vuelve una tarea para el Comprador, con 3 días de plazo (si el pedido se hace, queda «Resuelta sola»); (2) **todo hallazgo de un PM incompleto** pasa al backlog de pautas (al guardar y también al editar el PM); (3) **una falla repetida** —el mismo equipo y componente en 90 días— no se puede cerrar sin causa raíz y sin una acción con responsable y fecha: al cerrar la OT aparece el diálogo y no existe «Cerrar sin completar». También se pueden agregar tareas a mano.
+
+**Cómo se lee.** Una tarea está **abierta** hasta su fecha límite; **vencida** desde el día siguiente; **escalada** con 3 días o más de atraso, a la jefatura (el jefe de taller de la cuadrilla del responsable). Cuando hay tareas vencidas aparece un aviso arriba del Dashboard. Se cierran con «Hecha» o «Descartar»; no se borran.
+
+**Qué no hace.** No manda correos: el escalamiento se ve en el sistema. La primera vez que un usuario con permiso de edición abre Tareas se crean las de «pedir ya» que haya en ese momento.
+
 ### Preguntas del gerente (2026-10-27)
 
 **Qué es.** En **Metas & KPIs → Preguntas del gerente** están las ocho preguntas que suele hacer una gerencia, contestadas con los datos del sistema: (1) cuánto demora una reparación (bajo, medio, alto, crítico), (2) por qué demoran (nuestro, compra o proveedor), (3) si alcanzan los filtros y lubricantes para el programa de PM de los próximos 30 días, (4) si alcanzan los elementos de desgaste, (5) reactivo contra preventivo y contra el mismo mes del año anterior, (6) si se planifica de verdad, (7) dónde se atasca la cadena administrativa y (8) si hay suficientes mecánicos y electromecánicos.

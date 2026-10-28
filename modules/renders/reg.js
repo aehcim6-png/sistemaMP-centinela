@@ -271,6 +271,9 @@ export function saveEditReg(i){
     queFalto:pmCompletoSelE==='no'?queFaltoTxtE:'',
   };
   S.s('reg',reg);
+  // Regla «todo hallazgo de PM entra al backlog» (2026-10-29): también al editar un PM y dejarlo incompleto (sin duplicar si ya está).
+  const _bkEd=backlogDePMSinDuplicar(reg[i],S.g('backlogPM')||[]);
+  if(_bkEd){const bk=S.g('backlogPM')||[];bk.push(_bkEd);S.s('backlogPM',bk);}
   // Actualizar horómetro del equipo si corresponde. Guardar 'reg' ANTES de
   // _recalcEq: el anclaje de PM lee el último registro real vía S.g('reg'), así
   // que si se recalculara antes de guardar seguiría viendo el registro viejo.

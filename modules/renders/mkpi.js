@@ -16,6 +16,7 @@ export async function renderMkpi() {
       <button class="subtab ${sub === 'gestion' ? 'on' : ''}" role="tab" onclick="mkpiSub('gestion')">${ICONS.doc} Informe de gestión</button>
       <button class="subtab ${sub === 'resumen' ? 'on' : ''}" role="tab" onclick="mkpiSub('resumen')">${ICONS.doc} Resumen Ejecutivo</button>
       <button class="subtab ${sub === 'ger' ? 'on' : ''}" role="tab" onclick="mkpiSub('ger')">${ICONS.doc} Preguntas del gerente</button>
+      <button class="subtab ${sub === 'tareas' ? 'on' : ''}" role="tab" onclick="mkpiSub('tareas')">${ICONS.doc} Tareas</button>
     </div>
     <div id="s-metas" class="${sub === 'metas' ? '' : 'hidden'}"></div>
     <div id="s-avance" class="${sub === 'avance' ? '' : 'hidden'}"></div>
@@ -23,6 +24,7 @@ export async function renderMkpi() {
     <div id="s-resumen" class="${sub === 'resumen' ? '' : 'hidden'}"></div>
     <div id="s-gestion" class="${sub === 'gestion' ? '' : 'hidden'}"></div>
     <div id="s-ger" class="${sub === 'ger' ? '' : 'hidden'}"></div>
+    <div id="s-tareas" class="${sub === 'tareas' ? '' : 'hidden'}"></div>
   `;
   // Carga perezosa (2026-09-10) — solo avance/kpi son de las 32 sin
   // dependencias cruzadas; metas/resumen siguen estáticas (ver _LAZY_VERS
@@ -34,6 +36,7 @@ export async function renderMkpi() {
   else if (sub === 'resumen') renders.resumen();
   else if (sub === 'gestion') renders.gestion();
   else if (sub === 'ger') renders.ger();
+  else if (sub === 'tareas') renders.tareas();
   setTimeout(() => aplicarOrdenUniversal('s-mkpi'), 60);
 }
 export function mkpiSub(s) { window._mkpiSub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('mkpi.' + s); renders.mkpi(); }

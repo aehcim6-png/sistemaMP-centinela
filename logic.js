@@ -6135,6 +6135,104 @@ function panelGerencia(i){
     cadena:gerCadena(x.compras,x.ot,hoy),dotacion:gerDotacionVsCarga(x.progDia,x.ot,x.reg,hoy),cuadrillas:gerCuadrillas(x.ot,x.reg,hoy)};
 }
 
+// ═══ REGLAS QUE FUERZAN Y ESCALAN (2026-10-29, paso 3) ═══
+// Tres reglas para que lo reactivo no se repita, todas con fechas y responsables y ninguna que borre o invente datos:
+//  1. Todo «pedir ya» del plan de compras (TBO) se vuelve una TAREA con responsable y fecha límite (3 días). Si la condición deja de darse (se hizo el pedido), la tarea queda «Resuelta sola».
+//  2. Todo hallazgo de un PM (PM «incompleto», con lo que faltó) entra al BACKLOG de pautas, sin duplicarse: al guardar un PM nuevo (ya existía) y ahora también al editarlo.
+//  3. Una FALLA REPETIDA (mismo equipo y mismo componente en 90 días) no se puede cerrar sin causa raíz y sin una acción con responsable y fecha, que queda como tarea.
+// Escalamiento: una tarea abierta con la fecha pasada se marca «Vencida»; con 3 días o más de atraso, «Escalada» a la jefatura (el jefe de taller de la cuadrilla del responsable; si no se conoce, «Jefatura de taller»).
+// El sistema no manda avisos por correo con esto: lo muestra (pantalla Tareas y aviso en el Dashboard).
+var TAREAS_ORIGENES={pedir_ya:'Pedir ya',falla_repetida:'Falla repetida',pm_backlog:'Hallazgo de PM',manual:'Manual'};
+var TAREAS_PLAZO_PEDIR_YA_DIAS=3,TAREAS_ESCALA_DIAS=3,FALLA_REPETIDA_VENTANA_DIAS=90,TAREAS_RESPONSABLE_PEDIR_YA='Comprador';
+var TAREAS_CERRADAS=['Hecha','Descartada','Resuelta sola'];
+function _tareasSumarDias(iso,n){var d=new Date(String(iso).slice(0,10)+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function _tareasDias(desde,hasta){return Math.round((Date.parse(String(hasta).slice(0,10)+'T12:00:00Z')-Date.parse(String(desde).slice(0,10)+'T12:00:00Z'))/86400000);}
+// Estado a mostrar: lo cerrado se queda como está; lo abierto pasa a Vencida y a Escalada según el atraso.
+function tareaEstado(t,hoyISO){
+  if(!t)return'Abierta';
+  if(TAREAS_CERRADAS.indexOf(t.estado)>=0)return t.estado;
+  if(!t.fechaLimite)return'Abierta';
+  var atraso=_tareasDias(t.fechaLimite,_tcoIso(hoyISO));
+  return atraso>=TAREAS_ESCALA_DIAS?'Escalada':atraso>=1?'Vencida':'Abierta';
+}
+// A quién se escala: el jefe de taller de la cuadrilla del responsable.
+function tareaEscalaA(t){
+  var c=cuadrillaDeTecnico(t&&t.responsable);
+  var f=CUADRILLAS_TALLER.filter(function(x){return x.id===c;})[0];
+  return f?f.jefes[0]:'Jefatura de taller';
+}
+function tareasResumen(tareas,hoyISO){
+  var r={abiertas:0,vencidas:0,escaladas:0,cerradas:0,porOrigen:{}};
+  (tareas||[]).forEach(function(t){
+    var e=tareaEstado(t,hoyISO);
+    if(TAREAS_CERRADAS.indexOf(e)>=0){r.cerradas++;return;}
+    if(e==='Escalada')r.escaladas++;else if(e==='Vencida')r.vencidas++;else r.abiertas++;
+    r.porOrigen[t.origen]=(r.porOrigen[t.origen]||0)+1;
+  });
+  r.sinCerrar=r.abiertas+r.vencidas+r.escaladas;
+  return r;
+}
+// Regla 1. filas = plan de compras (tboPlanCompras().filas); devuelve las tareas nuevas y las que se resuelven solas. existentes = tareas ya guardadas.
+function tareasDePedirYa(filas,hoyISO,existentes){
+  var hoy=_tcoIso(hoyISO),clavesHoy={},nuevas=[],resueltas=[],ya={};
+  (existentes||[]).forEach(function(t){if(t&&t.clave)ya[t.clave]=t;});
+  (filas||[]).forEach(function(x){
+    if(!x||x.decision!=='pedir_ya')return;
+    var clave='pedir|'+x.sigla+'|'+x.item;clavesHoy[clave]=1;
+    if(ya[clave])return; // ya existe (abierta o cerrada): no se vuelve a crear
+    var det=[];if(x.fechaProx)det.push('cambio previsto: '+x.fechaProx);if(x.lead&&x.lead.dias)det.push('plazo de entrega habitual: '+Math.round(x.lead.dias)+' días');
+    if(x.stock&&x.stock.unidades!=null)det.push('stock: '+x.stock.unidades);if(x.costoEst)det.push('costo estimado: $'+Math.round(x.costoEst).toLocaleString('es-CL'));
+    nuevas.push({clave:clave,origen:'pedir_ya',sigla:x.sigla,titulo:'Pedir ya: '+x.item+' de '+x.sigla,detalle:det.join(' · '),responsable:TAREAS_RESPONSABLE_PEDIR_YA,
+      fechaLimite:_tareasSumarDias(hoy,TAREAS_PLAZO_PEDIR_YA_DIAS),estado:'Abierta',fechaCierre:null,referencia:x.item,observacion:'Creada por la regla «todo pedir ya es una tarea»'});
+  });
+  (existentes||[]).forEach(function(t){
+    if(t&&t.origen==='pedir_ya'&&t.estado==='Abierta'&&!clavesHoy[t.clave])resueltas.push({clave:t.clave,id:t._id||t.id,estado:'Resuelta sola',fechaCierre:hoy,observacion:'La condición «pedir ya» dejó de darse (por ejemplo, se hizo el pedido o cambió el plan)'});
+  });
+  return{nuevas:nuevas,resueltas:resueltas};
+}
+// Regla 2. Al guardar un PM nuevo ya pasaba (backlogDesdePM, en saveReg); ahora también al EDITAR un PM y dejarlo incompleto. Devuelve la tarea de backlog, o null si no corresponde o si ya está
+// (mismo equipo, fecha y texto: no se duplica al volver a guardar el mismo PM).
+function backlogDePMSinDuplicar(r,backlog){
+  var b=backlogDesdePM(r);if(!b)return null;
+  var dup=(backlog||[]).some(function(x){return x&&x.sigla===b.sigla&&String(x.fecha||'')===String(b.fecha||'')&&String(x.tarea||'').trim()===b.tarea;});
+  return dup?null:b;
+}
+// Regla 3. ¿Esta OT es una falla repetida? Misma sigla y mismo componente (el anotado o, si falta, el que sale del síntoma) en los 90 días anteriores.
+function otFallaRepetida(o,lista,dias){
+  var out={repetida:false,previas:[],componente:''};if(!o||!o.sigla)return out;
+  var comp=String(o.componente||'').trim()||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(o.sintoma||''):'');
+  out.componente=comp;if(!comp)return out;
+  var f=String(o.fechaEntrada||o.fecha||'').slice(0,10);if(!f)return out;
+  var desde=_tareasSumarDias(f,-(dias||FALLA_REPETIDA_VENTANA_DIAS));
+  (lista||[]).forEach(function(x){
+    if(!x||x===o||!_gerEsCorrectivo(x)||x.sigla!==o.sigla)return;
+    var fx=String(x.fechaEntrada||x.fecha||'').slice(0,10);if(!fx||fx>=f||fx<desde)return;
+    var cx=String(x.componente||'').trim()||(typeof _componenteDeSintoma==='function'?_componenteDeSintoma(x.sintoma||''):'');
+    if(cx&&cx.toLowerCase()===comp.toLowerCase())out.previas.push({fecha:fx,sintoma:String(x.sintoma||'').slice(0,80)});
+  });
+  out.repetida=out.previas.length>0;return out;
+}
+// Lo que falta para cerrar una falla repetida: causa raíz y una acción con responsable y fecha.
+function otFallaRepetidaFaltantes(o,accion){
+  var f=[],a=accion||{};
+  if(!(o&&o.causaRaiz&&String(o.causaRaiz).trim())&&!String(a.causaRaiz||'').trim())f.push('causa raíz');
+  if(!String(a.texto||'').trim())f.push('acción');
+  if(!String(a.responsable||'').trim())f.push('responsable');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(a.fechaLimite||'')))f.push('fecha');
+  return f;
+}
+// Clave única de la tarea de una falla repetida: una por OT (así se sabe si ya se pidió la acción y no se vuelve a pedir).
+function tareaClaveRepetida(o,hoyISO){
+  var f=String(o.fechaEntrada||o.fecha||_tcoIso(hoyISO)).slice(0,10);
+  return'repetida|'+(o._id||o.id||[o.sigla,f,String(o.sintoma||'').slice(0,30)].join('|'));
+}
+function tareaDeFallaRepetida(o,rep,accion,hoyISO){
+  var f=String(o.fechaEntrada||o.fecha||_tcoIso(hoyISO)).slice(0,10),clave=tareaClaveRepetida(o,hoyISO);
+  return{clave:clave,origen:'falla_repetida',sigla:o.sigla,titulo:'Falla repetida de '+(rep&&rep.componente||'componente')+' en '+o.sigla+': '+String(accion.texto||'').trim(),
+    detalle:'Falla del '+f+'; '+((rep&&rep.previas||[]).length)+' anterior(es) en 90 días'+(rep&&rep.previas&&rep.previas[0]?' (la última, el '+rep.previas[rep.previas.length-1].fecha+')':'')+'. Causa raíz: '+String(accion.causaRaiz||o.causaRaiz||'').trim(),
+    responsable:String(accion.responsable||'').trim(),fechaLimite:accion.fechaLimite,estado:'Abierta',fechaCierre:null,referencia:String(o._id||o.id||''),observacion:'Creada por la regla «una falla repetida exige acción con fecha»'};
+}
+
 // ═══ CUADRILLAS DE TALLER (2026-10-29) ═══
 // Dos cuadrillas, según el usuario: la de José Yáñez (jefe de taller) y Jonathan Lara, con Carlos Trigo y Maicol Orostegui; y la de Javier Cárdenas (jefe de taller, en el chat «Javier Besalco») y Juan Michea, con Jonathan Bolados,
 // Carlos Inzunza y Camilo Santander. Coincide con la nómina de la programación diaria de julio. Cada persona se reconoce por palabras de su nombre (sin tildes ni mayúsculas), así «Jonathan Lara Yañez» y «Juan Michea Veas»
@@ -12077,7 +12175,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,

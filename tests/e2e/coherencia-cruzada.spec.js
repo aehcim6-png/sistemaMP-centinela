@@ -145,7 +145,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   comparar('Predictivo con laboratorio: grupos', [['grupos', sp.predLab.grupos], ['esperado', 6]]);
   comparar('Componentes: 9 sub-pestañas', [['solapas', sp.solapas], ['esperado', 9]]);
   comparar('Estadística por componente: bloques plegables (el primero abierto)', [['plegables ≥ 5', sp.pleg >= 5 ? 1 : 0], ['abiertos', sp.abiertos], ['esperado', 1]]);
-  comparar('Metas & KPIs: orden de las sub-pestañas', [['orden correcto', sp.metas.join('|').match(/^Metas\|Avance del Mes\|Informes KPI\|Informe de gestión\|Resumen Ejecutivo\|Preguntas del gerente$/) ? 1 : 0], ['esperado', 1]]);
+  comparar('Metas & KPIs: orden de las sub-pestañas', [['orden correcto', sp.metas.join('|').match(/^Metas\|Avance del Mes\|Informes KPI\|Informe de gestión\|Resumen Ejecutivo\|Preguntas del gerente\|Tareas$/) ? 1 : 0], ['esperado', 1]]);
 
   // ── Salud: Torre de Control contra el Mapa de Salud del Dashboard ──
   const torre = await textoDe(page, 'torre', null, null, /INTERVENIR AHORA/); // reintenta hasta que la Torre termine de dibujarse (bajo carga tarda más de 1,2 s)
