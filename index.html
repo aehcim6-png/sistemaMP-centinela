@@ -635,7 +635,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-28b"></script>
+<script src="logic.js?v=2026-10-29a"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -706,7 +706,7 @@ const _LAZY_VERS={
   lub:'2026-10-08',
   mkpi:'2026-10-27a',
   gestion:'2026-10-14b',
-  ger:'2026-10-28a',
+  ger:'2026-10-29a',
   rvc:'2026-10-28b',
   mov:'2026-08-30',
   papelera:'2026-08-30',
@@ -742,9 +742,9 @@ const _LAZY_VERS={
   pred:'2026-10-23e',
   metas:'2026-10-23d',
   resumenejec:'2026-10-08',
-  reg:'2026-10-23',
+  reg:'2026-10-29a',
   neu:'2026-10-12a',
-  ot:'2026-10-27a',
+  ot:'2026-10-29a',
   prod:'2026-10-05b',
 };
 const _LAZY_EXPORTS={
@@ -1702,7 +1702,7 @@ function _tiposEquipoDisponibles(){
 // para no perder/reventar el valor real de un registro al editarlo (mismo
 // bug class que el select de Tipo de Equipo — el select se arma dinámico).
 function _tecnicosDisponibles(){
-  var base=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'];
+  var base=['Ortiz Soto Héctor','Danilo Yáñes Ávila','Javier Cardenas','Juan Michea Veas','Jonathan Lara Yañez'].concat(CUADRILLAS_TALLER.reduce(function(a,c){return a.concat(c.tecnicos);},[]));
   var reg=S.g('reg')||[];
   var extra=[...new Set(reg.map(function(r){return r.tecnico}).filter(function(t){return t&&base.indexOf(t)<0;}))];
   return base.concat(extra.sort());

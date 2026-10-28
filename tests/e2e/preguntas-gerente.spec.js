@@ -46,6 +46,10 @@ test('«Preguntas del gerente» muestra las ocho preguntas con sus respuestas, d
   expect(texto).toMatch(/críticas/i);
   expect(texto).toMatch(/Siguen abiertas hoy/i);
   expect(texto).toMatch(/TI-5146/);
+  expect(texto).toMatch(/se ven distintas las dos cuadrillas de taller/i);
+  expect(texto).toMatch(/Cuadrilla Yáñez/);
+  expect(texto).toMatch(/Cuadrilla Cárdenas/);
+  expect(texto).toMatch(/no hay casos suficientes para comparar las dos cuadrillas/i);
   expect(texto).toMatch(/se quedan sin algún insumo/i);
   expect(texto).toMatch(/Faltan las fechas de cada aprobación/i);
   expect(texto).toMatch(/desactualizadas/i);

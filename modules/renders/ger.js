@@ -159,13 +159,35 @@ function _gerP8(d) {
     _gerE(d.nota) + (d.dotacion.cargosSinClasificar.length ? ' Cargos que no se pudieron clasificar: ' + d.dotacion.cargosSinClasificar.map(_gerE).join(', ') + '.' : '') + ' Tampoco hay todavía un semestre ni un año de dotación para comparar.');
 }
 
+
+// Complemento (no es una de las ocho preguntas): las dos cuadrillas de taller lado a lado. No compara personas.
+function _gerCuadrillasHTML(c) {
+  const f = c.filas.filter(x => x.id !== 'mixta'), mixta = c.filas.find(x => x.id === 'mixta');
+  const filas = f.map(x => _gerTd([
+    '<b>' + _gerE(x.nombre) + '</b><div style="font-size:10px;color:var(--tx3)">Jefes: ' + x.jefes.map(_gerE).join(' y ') + '<br>Técnicos: ' + x.tecnicos.map(_gerE).join(', ') + '</div>',
+    fn(x.correctivos) + (x.muestraChica ? ' <span style="color:var(--warn)" title="Menos de ' + c.minCasos + ' casos: no sacar conclusiones">⚠</span>' : ''),
+    x.medianaH == null ? '—' : _gerDias(x.medianaH), x.p90H == null ? '—' : _gerDias(x.p90H), x.pctLargos == null ? '—' : x.pctLargos + ' %',
+    fn(x.pm) + (x.pm ? '<div style="font-size:10px;color:var(--tx3)">' + x.pmMedidos + ' con duración medida</div>' : ''), x.medianaPMH == null ? '—' : _gerNum(x.medianaPMH, 1) + ' h'
+  ]));
+  const sinDato = c.sinTecnico + c.sinCuadrilla;
+  const resp = c.comparable
+    ? 'Las dos cuadrillas tienen al menos ' + c.minCasos + ' correctivos cerrados con técnico reconocido, pero <b>una diferencia en estas cifras no prueba que una trabaje mejor</b>: no atienden los mismos equipos ni los mismos turnos.'
+    : 'Todavía <b>no hay casos suficientes</b> para comparar las dos cuadrillas: hace falta al menos ' + c.minCasos + ' correctivos cerrados con técnico reconocido en cada una.';
+  return _gerCard('cuad', '+', 'Complemento: ¿se ven distintas las dos cuadrillas de taller?', c.comparable ? 'warn' : 'neutro', resp,
+    _gerTabla(['Cuadrilla', 'Correctivos cerrados', 'Mediana de reparación', 'Percentil 90', 'Largos (8 h o más)', 'PM registrados', 'Duración mediana del PM'], filas) +
+    (mixta && (mixta.correctivos || mixta.pm) ? '<div style="font-size:11px;margin-top:6px;color:var(--tx2)">Con técnicos de las dos cuadrillas en el mismo registro: ' + fn(mixta.correctivos) + ' correctivos y ' + fn(mixta.pm) + ' PM (no se cuentan en ninguna).</div>' : '') +
+    '<div style="font-size:11px;margin-top:6px;color:var(--tx2)">Sin técnico anotado: ' + fn(c.sinTecnico) + ' de ' + fn(c.correctivosCerrados) + ' correctivos cerrados y ' + fn(c.pmSinTecnico) + ' de ' + fn(c.pmTotal) + ' PM. Con un técnico que no es de ninguna de las dos cuadrillas: ' + fn(c.sinCuadrilla) + ' correctivos y ' + fn(c.pmSinCuadrilla) + ' PM.</div>',
+    'Correctivos cerrados y PM con el campo técnico; la cuadrilla sale del nombre (lista en Configuración de la arquitectura §192). La duración del PM cuenta solo las medidas, no las estimadas con la mediana del equipo.',
+    'El técnico de muchos registros sale de quién escribió sobre el equipo en WhatsApp, no de una firma; los turnos y los equipos no son los mismos en las dos cuadrillas; ' + (sinDato ? fn(sinDato) + ' correctivos no entran por no tener técnico reconocido.' : 'no se compararon personas.'));
+}
+
 export function renderGer() {
   const el = $('s-ger'); if (!el) return;
   let p;
   try { p = panelGerencia(_gerEntradas()); } catch (e) { console.error('renderGer', e); el.innerHTML = '<div class="chart-box"><div class="chart-t">Preguntas del gerente</div><div style="color:var(--danger);font-size:12px">No se pudo calcular el panel: ' + _gerE(e.message) + '</div></div>'; return; }
   el.innerHTML = '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">Preguntas del gerente</div>' +
     '<div style="font-size:11px;color:var(--tx2);line-height:1.55">Las preguntas que hace una gerencia, contestadas con los datos del sistema. Cada respuesta dice con cuántos casos se calculó y qué falta; cuando no hay datos suficientes lo dice en vez de rellenar. Las cifras describen el <b>proceso</b>, no evalúan a personas.</div></div>' +
-    _gerFrescuraHTML(p.frescura) + _gerP1(p.duracion) + _gerP2(p.motivos) + _gerP3(p.programa) + _gerP4(p.desgaste) + _gerP5(p.reactivo, p.hoy) + _gerP6(p.planificacion) + _gerP7(p.cadena) + _gerP8(p.dotacion);
+    _gerFrescuraHTML(p.frescura) + _gerP1(p.duracion) + _gerP2(p.motivos) + _gerP3(p.programa) + _gerP4(p.desgaste) + _gerP5(p.reactivo, p.hoy) + _gerP6(p.planificacion) + _gerP7(p.cadena) + _gerP8(p.dotacion) + _gerCuadrillasHTML(p.cuadrillas);
   setTimeout(function () { if (typeof aplicarOrdenUniversal === 'function') aplicarOrdenUniversal('s-ger'); }, 60);
 }
 

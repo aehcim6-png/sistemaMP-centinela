@@ -60,7 +60,7 @@ export function renderReg(){
           <td class="mono" style="font-size:11px;color:var(--warn)">${r.duracion||'<span style="color:var(--tx3)">clic <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></span>'}</td>
           ${edCell(r.horomReal||0,'horomReal',i,'reg','number')}
           ${edCell(r.estatusEq||'Operativo','estatusEq',i,'reg','select',['Operativo','Fuera de Servicio'])}
-          ${edCell(r.tecnico||'','tecnico',i,'reg','select',_tecnicosDisponibles().concat(['']))}
+          ${edCell(r.tecnico||'','tecnico',i,'reg','select',_tecnicosDisponibles().concat([''])).replace('</select></td>','</select>'+(cuadrillaEtiqueta(r.tecnico)?'<div style="font-size:9px;color:var(--tx3)">'+escapeHtml(cuadrillaEtiqueta(r.tecnico))+'</div>':'')+'</td>')}
           ${edCell(r.obs||'','obs',i,'reg')}
           <td><span class="badge ${r.estado?.includes('ANTICIPADA')?'b-g':r.estado?.includes('ATRASADA')?'b-r':'b-y'}">${r.estado||'—'}</span></td>
           <td>${(function(){var p=estadoPMCompleto(r);return p.estado==='completo'?'<span class="badge b-g" title="Se hizo todo lo de la pauta">Completa</span>':p.estado==='incompleto'?'<span class="badge b-r" title="'+escapeHtml('Faltó: '+(p.faltante||'—'))+'">Incompleta</span>':'<span style="color:var(--tx3)" title="Registro anterior a este campo">—</span>';})()}</td>

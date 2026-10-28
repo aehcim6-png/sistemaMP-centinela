@@ -302,7 +302,7 @@ export function renderOt(){
         if(fromReg){otRow+='<td><span style="font-size:10px">PM</span></td>';}
         else if(fromHist){otRow+='<td><span style="font-size:10px;color:var(--tx3)">Histórico</span></td>';}
         else{otRow+='<td><select onchange="edOT('+i+',\'estadoOT\',this.value)" style="font-size:10px;background:var(--bg3);color:'+estCol2+';border:1px solid var(--bd);border-radius:3px;font-weight:600"><option'+(estOT==='Pendiente'?' selected':'')+'>Pendiente</option><option'+(estOT==='En Ejecución'?' selected':'')+'>En Ejecución</option><option'+(estOT==='Cerrada'?' selected':'')+'>Cerrada</option></select></td>';}
-        otRow+='<td style="font-size:10px">'+escapeHtml(o.tecnico||'—')+'</td>';
+        otRow+='<td style="font-size:10px">'+escapeHtml(o.tecnico||'—')+(cuadrillaEtiqueta(o.tecnico)?'<div style="font-size:9px;color:var(--tx3)">'+escapeHtml(cuadrillaEtiqueta(o.tecnico))+'</div>':'')+'</td>';
         if(fromReg){otRow+='<td class="mono" style="font-size:10px">$'+fn(o.costo||0)+'</td>';}
         else if(fromHist){otRow+='<td class="mono" style="font-size:10px;color:var(--tx3)">—</td>';}
         else{

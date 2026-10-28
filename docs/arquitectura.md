@@ -6944,6 +6944,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Límites:** el técnico que figura es quien escribió en WhatsApp sobre ese equipo ese día, no necesariamente todos los que participaron. Que un mensaje mencione un equipo no prueba que esa persona hizo el trabajo; es la mejor señal disponible y queda rotulada como tal.
 
+### 193. Cuadrillas de taller: etiqueta junto al técnico y comparación (2026-10-29)
+
+**Qué es:** el sistema ahora conoce las dos cuadrillas de taller (la de José Yáñez y Jonathan Lara, con Carlos Trigo y Maicol Orostegui; y la de Javier Cárdenas y Juan Michea, con Jonathan Bolados, Carlos Inzunza y Camilo Santander; ver §192). `CUADRILLAS_TALLER` y `cuadrillaDeTecnico` (logic.js) reconocen la cuadrilla por palabras del nombre, sin tildes: sirve con los nombres que ya tenía la lista de técnicos («Jonathan Lara Yañez», «Juan Michea Veas», «Javier Cardenas»). Varios nombres de la misma cuadrilla la asignan; de las dos es «mixta»; con un nombre desconocido no se asigna (no se sabe de quién es el trabajo).
+
+**Dónde se ve:** (1) un rótulo chico bajo el técnico en la lista de Correctivos/OT y en Registro PM; (2) los cinco técnicos nuevos aparecen en la lista de técnicos del Registro PM; (3) un bloque «Complemento: ¿se ven distintas las dos cuadrillas de taller?» al final de Metas & KPIs → Preguntas del gerente (`gerCuadrillas`): correctivos cerrados, mediana de reparación, percentil 90, % de 8 horas o más, y PM registrados con su duración mediana. En los PM solo cuentan las duraciones medidas; las estimadas con la mediana del equipo se dejan fuera. Con menos de 10 correctivos en una cuadrilla dice que no hay casos suficientes.
+
+**Límites:** no compara personas ni dice quién es mejor: las cuadrillas atienden turnos y equipos distintos, y el técnico de muchos registros viene de quién escribió en WhatsApp (§192), no de una firma. «Danilo Yáñes Ávila», que ya estaba en la lista de técnicos, se asigna a la cuadrilla Yáñez por el apellido; el nombre del chat «José Danilo» no se cruzó (falta confirmar que es el mismo). La lista de cuadrillas está en el código; un cambio de personal hay que hacerlo ahí.
+
+**Pruebas:** `tests/cuadrillas.test.js` (10) y `tests/e2e/preguntas-gerente.spec.js`. Inventario: ficha A13.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
