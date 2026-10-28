@@ -6283,7 +6283,7 @@ function rvcPrecios(compras,fam){
   return{nuevo:res(nuevo),reparado:res(rep)};
 }
 function repararVsComprar(i){
-  var x=i||{},hoy=_tcoIso(x.hoy),aj=x.aj||{},sinReserva=x.sinReserva!==false,fams=RVC_FAMILIAS.slice();
+  var x=i||{},hoy=_tcoIso(x.hoy),aj=x.aj||{},sinReserva=x.sinReserva===true,fams=RVC_FAMILIAS.slice();
   if(x.extra&&x.extra.item)fams.push(x.extra);
   var filas=fams.map(function(f){
     var pr=rvcPrecios(x.compras,f),vd=rvcVidas(x.compHist,x.equipos,f),avisos=[];

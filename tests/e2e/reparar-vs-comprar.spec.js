@@ -32,11 +32,12 @@ test('«Reparar vs comprar» muestra el veredicto, el equilibrio cuando falta la
     for (let i = 0; i < 100 && !document.querySelector('#s-rvc'); i++) await esp(100);
     sembrar(); await window.renderRvc();
     const a = document.getElementById('s-rvc').innerText;
-    sembrar(); window.rvcCambiarReserva('si');
+    const aReserva = document.getElementById('rvcReserva').value;
+    sembrar(); window.rvcCambiarReserva('no');
     const b = document.getElementById('rvcReserva').value + '|' + document.getElementById('s-rvc').innerHTML;
     sembrar(); document.getElementById('rvcOtra').value = 'radiador'; window.rvcBuscarPieza();
     const c = document.getElementById('s-rvc').innerText;
-    return { a, b, c };
+    return { a, aReserva, b, c };
   });
   expect(r.a).toMatch(/Reparar vs comprar/);
   expect(r.a).toMatch(/Asiento de operador/);
@@ -44,9 +45,9 @@ test('«Reparar vs comprar» muestra el veredicto, el equilibrio cuando falta la
   expect(r.a).toMatch(/al menos \d+ % de lo que dura uno nuevo/);
   expect(r.a).toMatch(/Alternador/);
   expect(r.a).toMatch(/Sin datos/);
-  expect(r.a).toMatch(/espera el plazo completo|se cuenta la espera/);
-  expect(r.b.startsWith('si|')).toBe(true);
-  expect(r.b).toMatch(/con pieza de reserva: no se cuenta espera/);
+  expect(r.aReserva).toBe('si');
+  expect(r.b.startsWith('no|')).toBe(true);
+  expect(r.b).toMatch(/se cuenta la espera del plazo completo/);
   expect(r.c).toMatch(/radiador/i);
   expect(errores).toEqual([]);
 });

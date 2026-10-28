@@ -6930,7 +6930,7 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Hallazgo con los datos reales:** el primer intento tomaba como «asiento nuevo» líneas que no lo eran (mano de obra, fletes, válvulas, repuestos sueltos y N° de parte con sufijo REP) y daba una mediana de $515.000 contra los $2,7 millones del asiento Komatsu; se corrigió con exclusiones y se dejó una prueba.
 
-**Límites:** lo «usado» o «retirado de otro equipo» no entra a la comparación; un precio con menos de 3 líneas es una referencia; el plazo de las reparaciones va de 2 a 92 días (mediana, no promedio); no incluye la producción perdida más allá del costo de hora detenida. Por defecto se supone que no hay pieza de reserva, lo que pesa mucho en el resultado: el selector permite ver las dos situaciones.
+**Límites:** lo «usado» o «retirado de otro equipo» no entra a la comparación; un precio con menos de 3 líneas es una referencia; el plazo de las reparaciones va de 2 a 92 días (mediana, no promedio); no incluye la producción perdida más allá del costo de hora detenida. Por defecto se supone que **hay pieza de reserva** (decisión del usuario, 2026-10-29: así se trabaja con asientos y alternadores) y solo cuenta el tiempo del cambio; el selector permite ver la otra situación, en que el equipo espera el plazo completo, que pesa mucho en el resultado.
 
 **Pruebas:** `tests/repararVsComprar.test.js` (13) y `tests/e2e/reparar-vs-comprar.spec.js`. Inventario: ficha F7.
 
