@@ -531,6 +531,9 @@ body.dens-compact th{padding:6px 8px}
 .subtabs-g{align-self:center;flex:none;padding:0 6px 0 10px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);white-space:nowrap}
 .subtabs-g:first-child{padding-left:2px}
 .subtabs-sep{align-self:center;flex:none;width:1px;height:20px;margin:0 6px;background:var(--bd)}
+/* Componentes tiene 9 sub-pestañas en 3 grupos: en pantalla ancha la barra se parte en filas en vez de cortar el último grupo (en celular sigue deslizando). */
+.subtabs-b{display:flex;align-items:flex-end;gap:2px;flex:none}
+@media (min-width:900px){#s-comp2 .subtabs{flex-wrap:wrap;overflow:visible;row-gap:2px}#s-comp2 .subtabs-sep{display:none}#s-comp2 .subtabs-b{margin-right:14px}}
 
 /* Secciones plegables (Estadística): cada bloque se pliega con su título; el primero abre solo. */
 .sec-pleg>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;border-radius:6px}
@@ -691,7 +694,7 @@ const _LAZY_VERS={
   ayuda:'2026-10-29a',
   cad:'2026-08-30b',
   cfg:'2026-10-26a',
-  comp2:'2026-10-19',
+  comp2:'2026-10-29b',
   cos:'2026-10-24e',
   destrabe:'2026-10-08',
   disp:'2026-10-24g',
@@ -704,11 +707,11 @@ const _LAZY_VERS={
   kpi:'2026-10-24e',
   log:'2026-08-30',
   lub:'2026-10-08',
-  mkpi:'2026-10-27a',
+  mkpi:'2026-10-29a',
   gestion:'2026-10-14b',
   ger:'2026-10-29a',
-  tareas:'2026-10-29a',
-  rvc:'2026-10-29b',
+  tareas:'2026-10-29b',
+  rvc:'2026-10-29c',
   mov:'2026-08-30',
   papelera:'2026-08-30',
   pau:'2026-08-30',
@@ -1007,6 +1010,7 @@ window.cev=function(store,idx,key,val,type){
 // verificar a ojo con figuras geométricas básicas (círculos/líneas/polígonos).
 const ICONS={
   dash:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg>',
+  tareas:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><polyline points="6.5,10 9,12.5 13.5,7.5"/></svg>',
   gear:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg>',
   reg:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>',
   ot:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg>',
@@ -1104,8 +1108,8 @@ const ICONS={
 // dejar a un admin fuera de Configuración/el resto del sistema.
 const PERFILES_PESTANAS={
   horometro:['hist'],
-  comprador:['stk2','cos'], // 'cos' (Costos) era una sub-pestaña de Stock & Insumos: el comprador sigue viendo Compras — Proveedores
-  planificador:['plani','ot','pau','reg'],
+  comprador:['stk2','cos','comp2','tareas'], // 'cos' (Costos) era una sub-pestaña de Stock & Insumos: el comprador sigue viendo Compras — Proveedores
+  planificador:['plani','ot','pau','reg','tareas'],
 };
 function _tabsPermitidas(){
   if(window._userRole==='admin'||!window._userPerfil||!PERFILES_PESTANAS[window._userPerfil])return TABS;
@@ -1123,6 +1127,7 @@ const TABS=[
   {id:'plani',l:'Planificación',i:ICONS.cal,g:'Planificación'},
   {id:'pau',l:'Pautas',i:ICONS.pau,g:'Planificación'},
   {id:'venc',l:'Vencimientos',i:ICONS.calDot,g:'Planificación'},
+  {id:'tareas',l:'Tareas',i:ICONS.tareas,g:'Planificación'},
   {id:'neu',l:'Neumáticos',i:ICONS.tire,g:'Activos'},
   {id:'stk2',l:'Stock & Insumos',i:ICONS.box,g:'Activos'},
   {id:'ace',l:'Análisis Aceite',i:ICONS.flask,g:'Activos'},
@@ -1252,6 +1257,16 @@ function ordenarTabla(tabla,col,th){
   rows.forEach(r=>parent.appendChild(r));
 }
 // ============ HEADER ============
+// Tareas vencidas (paso 3): un número más en el encabezado, para quien trabaja con ellas (comprador, planificador, admin) lo vea sin entrar al Dashboard. Solo aparece si hay alguna vencida y la persona puede abrir la pestaña Tareas.
+function _hsTareas(){
+  try{
+    if(typeof tareasResumen!=='function'||!_tabsPermitidas().some(t=>t.id==='tareas'))return '';
+    const r=tareasResumen(S.g('tareas')||[],new Date().toISOString().slice(0,10));
+    const n=(r.vencidas||0)+(r.escaladas||0);
+    if(!n)return '';
+    return `<div class="hs hs-click" role="button" tabindex="0" title="Ver las tareas vencidas" onclick="go('tareas')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('tareas')}"><b style="color:${r.escaladas?'var(--danger)':'var(--warn)'}">${n}</b><small>Tareas vencidas</small></div>`;
+  }catch(e){return '';}
+}
 function renderHeader(){
   const eq=S.g('eq')||[],ot=S.g('ot')||[];
   const u=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')).length;
@@ -1280,6 +1295,7 @@ function renderHeader(){
     _hs('aldia','ok',o,'Al Día')+
     (sl?_hs('sinlec','tx3',sl,'Sin lectura'):'')+
     _hs('fs','danger',fs,'Fuera de Servicio')+
+    _hsTareas()+
     `<div class="hs" style="border-left:1px solid var(--bd);padding-left:12px"><b style="font-size:16px">${horaStr}</b><small>${fechaStr}</small></div>`;
 }
 

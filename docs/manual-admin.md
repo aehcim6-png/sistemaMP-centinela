@@ -243,11 +243,13 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 ### Tareas y reglas que fuerzan y escalan (2026-10-29)
 
-**Qué es.** En **Metas & KPIs → Tareas** están las tareas que el sistema obliga a hacer, cada una con responsable y fecha límite. Nacen de tres reglas: (1) **todo «pedir ya»** del plan de compras de TBO Komatsu se vuelve una tarea para el Comprador, con 3 días de plazo (si el pedido se hace, queda «Resuelta sola»); (2) **todo hallazgo de un PM incompleto** pasa al backlog de pautas (al guardar y también al editar el PM); (3) **una falla repetida** —el mismo equipo y componente en 90 días— no se puede cerrar sin causa raíz y sin una acción con responsable y fecha: al cerrar la OT aparece el diálogo y no existe «Cerrar sin completar». También se pueden agregar tareas a mano.
+**Qué es.** En **la pestaña Tareas** están las tareas que el sistema obliga a hacer, cada una con responsable y fecha límite. Nacen de tres reglas: (1) **todo «pedir ya»** del plan de compras de TBO Komatsu se vuelve una tarea para el Comprador, con 3 días de plazo (si el pedido se hace, queda «Resuelta sola»); (2) **todo hallazgo de un PM incompleto** pasa al backlog de pautas (al guardar y también al editar el PM); (3) **una falla repetida** —el mismo equipo y componente en 90 días— no se puede cerrar sin causa raíz y sin una acción con responsable y fecha: al cerrar la OT aparece el diálogo y no existe «Cerrar sin completar». También se pueden agregar tareas a mano.
 
 **Cómo se lee.** Una tarea está **abierta** hasta su fecha límite; **vencida** desde el día siguiente; **escalada** con 3 días o más de atraso, a la jefatura (el jefe de taller de la cuadrilla del responsable). Cuando hay tareas vencidas aparece un aviso arriba del Dashboard. Se cierran con «Hecha» o «Descartar»; no se borran.
 
 **Qué no hace.** No manda correos: el escalamiento se ve en el sistema. La primera vez que un usuario con permiso de edición abre Tareas se crean las de «pedir ya» que haya en ese momento.
+
+**Quién la ve (cambio del 29 de octubre).** Tareas es una pestaña del menú, grupo Planificación, y los perfiles **Comprador** y **Planificador** la tienen (el Comprador además ve **Componentes**, donde está Reparar vs comprar). Quien puede abrirla ve un número «Tareas vencidas» en el encabezado cuando hay alguna vencida; en Metas & KPIs ya no está (quedó Metas, Avance del Mes, Preguntas del gerente y, al final, los tres informes).
 
 ### Preguntas del gerente (2026-10-27)
 

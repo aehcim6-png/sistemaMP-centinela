@@ -608,7 +608,7 @@ export function renderDash(){
   var avisoTareas='';
   if(typeof tareasResumen==='function'){
     var _trs=tareasResumen(S.g('tareas')||[],new Date().toISOString().slice(0,10));
-    if(_trs.vencidas+_trs.escaladas>0)avisoTareas='<div id="avisoTareas" style="padding:8px 12px;margin-bottom:12px;border-radius:8px;background:var(--bg3);border-left:3px solid '+(_trs.escaladas?'var(--danger)':'var(--w)')+';font-size:12px;color:var(--tx2)">⚠ <b>'+(_trs.vencidas+_trs.escaladas)+' tarea'+((_trs.vencidas+_trs.escaladas)===1?'':'s')+' vencida'+((_trs.vencidas+_trs.escaladas)===1?'':'s')+'</b>'+(_trs.escaladas?' ('+_trs.escaladas+' escalada'+(_trs.escaladas===1?'':'s')+' a la jefatura por 3 días o más de atraso)':'')+'. <a href="javascript:void(0)" onclick="window._mkpiSub=\'tareas\';go(\'mkpi\')" style="color:var(--ac)">Ver las tareas</a></div>';
+    if(_trs.vencidas+_trs.escaladas>0)avisoTareas='<div id="avisoTareas" style="padding:8px 12px;margin-bottom:12px;border-radius:8px;background:var(--bg3);border-left:3px solid '+(_trs.escaladas?'var(--danger)':'var(--w)')+';font-size:12px;color:var(--tx2)">⚠ <b>'+(_trs.vencidas+_trs.escaladas)+' tarea'+((_trs.vencidas+_trs.escaladas)===1?'':'s')+' vencida'+((_trs.vencidas+_trs.escaladas)===1?'':'s')+'</b>'+(_trs.escaladas?' ('+_trs.escaladas+' escalada'+(_trs.escaladas===1?'':'s')+' a la jefatura por 3 días o más de atraso)':'')+'. <a href="javascript:void(0)" onclick="go(\'tareas\')" style="color:var(--ac)">Ver las tareas</a></div>';
   }
   var htmlResumen=avisoHorom+avisoDatos+avisoTareas+'<div class="kpi-row">'+cardDisp+cardSalud+'</div>';
 

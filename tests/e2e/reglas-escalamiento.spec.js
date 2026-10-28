@@ -14,7 +14,7 @@ async function entrar(page) {
   await page.setViewportSize({ width: 1280, height: 900 });
 }
 
-test('Metas & KPIs → Tareas: cuenta abiertas, vencidas y escaladas, dice a quién se escala y avisa en el Dashboard', async ({ page }) => {
+test('Tareas: cuenta abiertas, vencidas y escaladas, dice a quién se escala y avisa en el Dashboard', async ({ page }) => {
   test.setTimeout(120000);
   const errores = [];
   page.on('pageerror', (e) => errores.push(e.message));
@@ -31,17 +31,20 @@ test('Metas & KPIs → Tareas: cuenta abiertas, vencidas y escaladas, dice a qui
         { _id: 't4', clave: 'd', origen: 'manual', sigla: null, titulo: 'Tarea ya hecha', responsable: 'Carlos Trigo', fechaLimite: dia(-20), estado: 'Hecha' }
       ]);
     };
-    window._mkpiSub = 'tareas'; go('mkpi');
+    go('tareas');
     for (let i = 0; i < 100 && !document.querySelector('#s-tareas'); i++) await esp(100);
     await esp(1500);
     sembrar(); window.renderTareas(true);
     const texto = document.getElementById('s-tareas').innerText;
     sembrar(); window._tareasVista.estado = 'todas'; window.renderTareas(true);
     const todas = document.getElementById('s-tareas').innerText;
+    const menu = [...document.querySelectorAll('#nav .nav-grp button')].map((b) => b.getAttribute('title'));
+    sembrar(); renderHeader();
+    const encabezado = document.getElementById('hs').innerText;
     sembrar(); go('dash');
     for (let i = 0; i < 50 && !document.querySelector('#avisoTareas'); i++) { sembrar(); if (typeof window.renderDash === 'function') window.renderDash(); await esp(150); }
     const aviso = document.getElementById('avisoTareas') ? document.getElementById('avisoTareas').innerText : '';
-    return { texto, todas, aviso };
+    return { texto, todas, aviso, menu, encabezado };
   });
   expect(r.texto).toMatch(/Tareas que las reglas obligan a hacer/);
   expect(r.texto).toMatch(/Pedir ya: ALTERNATOR de CN-9501/);
@@ -51,6 +54,8 @@ test('Metas & KPIs → Tareas: cuenta abiertas, vencidas y escaladas, dice a qui
   expect(r.texto).toMatch(/Javier Cárdenas/);     // y de la de Camilo Santander
   expect(r.texto).not.toMatch(/Tarea ya hecha/);  // «sin cerrar» no muestra lo cerrado
   expect(r.todas).toMatch(/Tarea ya hecha/);
+  expect(r.menu).toContain('Tareas');             // pestaña propia del menú (ya no es sub-pestaña de Metas & KPIs)
+  expect(r.encabezado).toMatch(/tareas vencidas/i);
   expect(r.aviso).toMatch(/2 tareas vencidas/);
   expect(r.aviso).toMatch(/1 escalada/);
   expect(errores).toEqual([]);

@@ -65,12 +65,12 @@ un candado de pantalla — no se pueden saltar manipulando el navegador.
 **Perfiles de acceso por pestaña** (opcional, independiente del rol): a una
 cuenta Operador se le puede asignar además un **perfil** que oculta el menú
 y bloquea la navegación a todas las pestañas salvo las suyas — para que, por
-ejemplo, "el comprador" solo vea Stock & Insumos y Costos, sin las otras 17 pestañas
+ejemplo, "el comprador" solo vea Stock & Insumos, Costos, Componentes y Tareas, sin las otras pestañas
 de por medio. Un admin la asigna al crear el usuario o editarlo después
 (Configuración → Crear Usuario del Sistema). Perfiles disponibles hoy:
-**Horómetro** (solo Horómetros), **Comprador** (Stock & Insumos y Costos),
-**Planificador** (Planificación y Agenda, Correctivos, Pautas, Registro PM).
-Sin perfil asignado, la cuenta ve las 19 pestañas completas (comportamiento
+**Horómetro** (solo Horómetros), **Comprador** (Stock & Insumos, Costos, Componentes y Tareas),
+**Planificador** (Planificación y Agenda, Correctivos, Pautas, Registro PM y Tareas).
+Sin perfil asignado, la cuenta ve las 20 pestañas completas (comportamiento
 de siempre) — un Admin SIEMPRE ve todo, tenga perfil cargado o no.
 
 Si dos personas editan la misma fila casi al mismo tiempo, el sistema detecta
@@ -219,8 +219,8 @@ alertas del sistema se vuelven más confiables.
 
 ### Planificador
 
-Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos,
-Pautas, Registro PM.
+Con este perfil ves 5 pestañas: Planificación y Agenda, Correctivos,
+Pautas, Registro PM y Tareas.
 
 1. **Plan Semanal** — asigná técnicos a los PM y correctivos de la semana
    y cerrá la semana al terminar, para que quede como histórico real.
@@ -240,7 +240,7 @@ Gantt para ver qué se superpone y mover trabajos antes de que choquen.
 
 ### Comprador
 
-Con este perfil ves 2 pestañas: Stock & Insumos y Costos.
+Con este perfil ves 4 pestañas: Stock & Insumos, Costos, Componentes (con Reparar vs comprar) y Tareas.
 
 1. **El semáforo de stock** — lo rojo necesita pedido ya; el botón 📈
    Tendencia y Proyección de Compra te dice, con consumo real, en qué
@@ -259,7 +259,7 @@ Con este perfil ves 2 pestañas: Stock & Insumos y Costos.
 priorizar o negociar; hasta fin de año — Tendencia y Proyección de Compra
 con consumo real y, en Neumáticos, cuántos vas a necesitar hasta fin de año.
 - **Tareas y Reparar vs comprar** (desde el 29 de octubre): cada «pedir ya»
-  de TBO Komatsu llega como una tarea tuya en Metas & KPIs → Tareas (3 días
+  de TBO Komatsu llega como una tarea tuya en la pestaña Tareas (3 días
   de plazo; si se vence, se escala). Antes de pedir una pieza nueva, mirá
   Componentes → Reparar vs comprar.
 
@@ -283,7 +283,7 @@ pantalla.
   crónicos/complejos) y % Correctivo Reactivo.
 - **Producción**: Costo de Downtime real y Rendimiento por Tiempo de
   Ciclo con su columna Consistencia (CV).
-- **Metas & KPIs → Tareas** (desde el 29 de octubre): lo que venció y lo
+- **la pestaña Tareas** (desde el 29 de octubre): lo que venció y lo
   que se escaló a la jefatura; revisalo cada día. **Preguntas del gerente**
   contesta las ocho preguntas de una gerencia con datos reales.
 - **Metas & KPIs → Resumen Ejecutivo**: para reportar lo que ya

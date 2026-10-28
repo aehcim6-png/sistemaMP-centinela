@@ -116,7 +116,7 @@
     <li><b>Admin</b> — además crea/activa usuarios, edita datos estructurales del equipo (sigla, modelo, precios), y ve Configuración completa.</li>
   </ul>
   <p>Estos permisos los revisa la base de datos misma en cada acción, no son solo un candado de pantalla — no se pueden saltar manipulando el navegador.</p>
-  <p><b>Perfiles de acceso por pestaña</b> (opcional, independiente del rol): a una cuenta Operador se le puede asignar además un <b>perfil</b> que oculta el menú y bloquea la navegación a todas las pestañas salvo las suyas — para que, por ejemplo, "el comprador" solo vea Stock &amp; Insumos y Costos, sin las otras 17 pestañas de por medio. Un admin la asigna al crear el usuario o editarlo después (Configuración → Crear Usuario del Sistema). Perfiles disponibles hoy: <b>Horómetro</b> (solo Horómetros), <b>Comprador</b> (Stock &amp; Insumos y Costos), <b>Planificador</b> (Planificación y Agenda, Correctivos, Pautas, Registro PM). Sin perfil asignado, la cuenta ve las 19 pestañas completas (comportamiento de siempre) — un Admin SIEMPRE ve todo, tenga perfil cargado o no.</p>
+  <p><b>Perfiles de acceso por pestaña</b> (opcional, independiente del rol): a una cuenta Operador se le puede asignar además un <b>perfil</b> que oculta el menú y bloquea la navegación a todas las pestañas salvo las suyas — para que, por ejemplo, "el comprador" solo vea Stock &amp; Insumos, Costos, Componentes y Tareas, sin las otras pestañas de por medio. Un admin la asigna al crear el usuario o editarlo después (Configuración → Crear Usuario del Sistema). Perfiles disponibles hoy: <b>Horómetro</b> (solo Horómetros), <b>Comprador</b> (Stock &amp; Insumos, Costos, Componentes y Tareas), <b>Planificador</b> (Planificación y Agenda, Correctivos, Pautas, Registro PM y Tareas). Sin perfil asignado, la cuenta ve las 20 pestañas completas (comportamiento de siempre) — un Admin SIEMPRE ve todo, tenga perfil cargado o no.</p>
   <p>Si dos personas editan la misma fila casi al mismo tiempo, el sistema detecta el conflicto, avisa, y pide reintentar sobre los datos frescos. Nunca se pierde en silencio el cambio de uno de los dos.</p>
 
   <h2 id="d-6">6. Mapa de pestañas</h2>
@@ -191,7 +191,7 @@
   <p><b>Horizonte</b>: hoy — registrar con el horómetro real y dejar el correctivo guardado antes de irte; esta semana — completar Causa Raíz, Tipo de Causa y Categoría MTTR de lo que registraste; largo plazo — todo lo que cargás hoy es la materia prima de las proyecciones: con más meses de datos reales, las fechas y alertas del sistema se vuelven más confiables.</p>
 
   <h3 id="d-10">Planificador</h3>
-  <p>Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos, Pautas, Registro PM.</p>
+  <p>Con este perfil ves 5 pestañas: Planificación y Agenda, Correctivos, Pautas, Registro PM y Tareas.</p>
   <ol>
     <li><b>Plan Semanal</b> — asigná técnicos a los PM y correctivos de la semana y cerrá la semana al terminar, para que quede como histórico real.</li>
     <li><b>Programa Anual y Gantt</b> — la foto grande del año y la vista visual de qué se superpone.</li>
@@ -202,7 +202,7 @@
   <p><b>Horizonte</b>: esta semana — Destrabe, Plan Semanal y Planificador de Materiales; este mes — repasar el histórico de semanas cerradas; este año — Programa Anual y Gantt para ver qué se superpone y mover trabajos antes de que choquen.</p>
 
   <h3 id="d-11">Comprador</h3>
-  <p>Con este perfil ves 2 pestañas: Stock &amp; Insumos y Costos.</p>
+  <p>Con este perfil ves 4 pestañas: Stock &amp; Insumos, Costos, Componentes (con Reparar vs comprar) y Tareas.</p>
   <ol>
     <li><b>El semáforo de stock</b> — lo rojo necesita pedido ya; el botón 📈 Tendencia y Proyección de Compra te dice, con consumo real, en qué fecha conviene pedir.</li>
     <li><b>Generar una OC</b> — cargá cantidad y proveedor; el estado avanza Pedido → OC por Firmar/Firmada → Recibida, y el stock se actualiza solo.</li>
@@ -212,7 +212,7 @@
   </ol>
   <p><b>Horizonte</b>: esta semana — semáforo de stock y Pedidos Potencialmente Trabados; este mes — Compras — Proveedores (tiempos de respuesta y gasto acumulado) para priorizar o negociar; hasta fin de año — Tendencia y Proyección de Compra con consumo real y, en Neumáticos, cuántos vas a necesitar hasta fin de año.</p>
   <ul>
-    <li><b>Tareas y Reparar vs comprar</b> (desde el 29 de octubre): cada «pedir ya» de TBO Komatsu llega como una tarea tuya en Metas &amp; KPIs → Tareas (3 días de plazo; si se vence, se escala). Antes de pedir una pieza nueva, mirá Componentes → Reparar vs comprar.</li>
+    <li><b>Tareas y Reparar vs comprar</b> (desde el 29 de octubre): cada «pedir ya» de TBO Komatsu llega como una tarea tuya en la pestaña Tareas (3 días de plazo; si se vence, se escala). Antes de pedir una pieza nueva, mirá Componentes → Reparar vs comprar.</li>
   </ul>
 
   <h3 id="d-12">Supervisor / Jefe de Mantenimiento</h3>
@@ -223,7 +223,7 @@
     <li><b>Disponibilidad</b>: Producción Perdida por Detención traduce horas paradas en m³/toneladas no entregadas; el Simulador What-If te deja probar escenarios antes de gastar en un proyecto.</li>
     <li><b>Costos (MTBF/MTTR)</b>: Matriz Jack-Knife (equipos crónicos/complejos) y % Correctivo Reactivo.</li>
     <li><b>Producción</b>: Costo de Downtime real y Rendimiento por Tiempo de Ciclo con su columna Consistencia (CV).</li>
-    <li><b>Metas &amp; KPIs → Tareas</b> (desde el 29 de octubre): lo que venció y lo que se escaló a la jefatura; revisalo cada día. <b>Preguntas del gerente</b> contesta las ocho preguntas de una gerencia con datos reales.</li>
+    <li><b>la pestaña Tareas</b> (desde el 29 de octubre): lo que venció y lo que se escaló a la jefatura; revisalo cada día. <b>Preguntas del gerente</b> contesta las ocho preguntas de una gerencia con datos reales.</li>
     <li><b>Metas &amp; KPIs → Resumen Ejecutivo</b>: para reportar lo que ya decidiste, no para decidir.</li>
   </ul>
   <p><b>Flujo semanal de ejemplo</b>: lunes Dashboard → Matriz de Riesgo → para lo urgente, RUL o Señal Unificada según corresponda → coordinás con el Planificador. Fin de mes: Costos + Metas &amp; KPIs.</p>

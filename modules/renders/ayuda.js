@@ -30,7 +30,7 @@ export function renderAyuda(){
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades recientes (13 de octubre 2026)</b>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
-    '<li><b>Tareas y reglas que fuerzan y escalan (29 de octubre)</b>: en <b>Metas &amp; KPIs → Tareas</b> están las tareas que el sistema obliga a hacer, cada una con responsable y fecha límite. Todo <b>«pedir ya»</b> del plan de compras de TBO Komatsu se vuelve una tarea para el Comprador (3 días de plazo); todo <b>hallazgo de un PM incompleto</b> pasa al backlog (al guardar y también al editar); y una <b>falla repetida</b> (mismo equipo y componente en 90 días) no se puede cerrar sin causa raíz y una acción con responsable y fecha: al cerrar la OT no aparece «Cerrar sin completar». Una tarea está vencida desde el día siguiente a su fecha y se escala a la jefatura con 3 días o más de atraso; arriba del Dashboard aparece un aviso cuando hay vencidas. No manda correos.</li>'+
+    '<li><b>Tareas y reglas que fuerzan y escalan (29 de octubre)</b>: en <b>la pestaña Tareas (grupo Planificación)</b> están las tareas que el sistema obliga a hacer, cada una con responsable y fecha límite. Todo <b>«pedir ya»</b> del plan de compras de TBO Komatsu se vuelve una tarea para el Comprador (3 días de plazo); todo <b>hallazgo de un PM incompleto</b> pasa al backlog (al guardar y también al editar); y una <b>falla repetida</b> (mismo equipo y componente en 90 días) no se puede cerrar sin causa raíz y una acción con responsable y fecha: al cerrar la OT no aparece «Cerrar sin completar». Una tarea está vencida desde el día siguiente a su fecha y se escala a la jefatura con 3 días o más de atraso; arriba del Dashboard aparece un aviso cuando hay vencidas. No manda correos.</li>'+
     '<li><b>Reparar vs comprar (29 de octubre)</b>: en <b>Componentes → Reparar vs comprar</b> se compara, pieza por pieza (asiento, turbo, alternador, motor de partida…), el costo por 1.000 horas de uso de reparar y de comprar nuevo, con el precio y el plazo de las compras (en español y en inglés), cuánto dura cada opción según el Historial y las horas detenidas. Si no se sabe cuánto dura lo reparado, no recomienda: muestra el punto de equilibrio. El selector «¿Hay pieza de reserva?» parte en «Sí».</li>'+
     '<li><b>Estado de lo instalado en el Historial (29 de octubre)</b>: al agregar un evento en <b>Componentes → Historial</b> hay que elegir si lo instalado es <b>nuevo, reparado o usado</b>; sin eso no guarda. Es lo que hace que «Reparar vs comprar» mejore con cada cambio.</li>'+
     '<li><b>Cuadrillas de taller (29 de octubre)</b>: bajo el técnico, en Correctivos y en Registro PM, aparece su cuadrilla (Yáñez o Cárdenas), y al final de <b>Preguntas del gerente</b> hay un bloque que las compara. No compara personas ni dice quién es mejor: atienden turnos y equipos distintos.</li>'+
@@ -958,7 +958,7 @@ export function renderAyuda(){
     '<b>🕐 Horizonte:</b> <i>hoy</i> — registrar con el horómetro real y dejar el correctivo guardado antes de irte; <i>esta semana</i> — completar Causa Raíz, Tipo de Causa y Categoría MTTR de lo que registraste; <i>largo plazo</i> — todo lo que cargás hoy es la materia prima de las proyecciones: con más meses de datos reales, las fechas y alertas del sistema se vuelven más confiables.<br><br>'+
 
     '<b style="color:var(--ac);font-size:14px">📅 Planificador</b><br>'+
-    'Con este perfil ves 4 pestañas: Planificación y Agenda, Correctivos, Pautas, Registro PM.<br>'+
+    'Con este perfil ves 5 pestañas: Planificación y Agenda, Correctivos, Pautas, Registro PM y Tareas.<br>'+
     '<b>1. Plan Semanal</b> — asigná técnicos a los PM y correctivos de la semana (el sistema ya sabe qué PM tocan por horómetro) y cerrá la semana al terminar, para que quede como histórico real.<br>'+
     '<b>2. Programa Anual y Gantt</b> — la foto grande del año y la vista visual de qué se superpone.<br>'+
     '<b>3. Planificador de Materiales</b> — antes de programar un PM grande, confirmá que el repuesto ya esté en stock o con OC en camino.<br>'+
@@ -967,13 +967,13 @@ export function renderAyuda(){
     '<b>🕐 Horizonte:</b> <i>esta semana</i> — Destrabe, Plan Semanal y Planificador de Materiales; <i>este mes</i> — repasar el histórico de semanas cerradas; <i>este año</i> — Programa Anual y Gantt para ver qué se superpone y mover trabajos antes de que choquen.<br><br>'+
 
     '<b style="color:var(--ac);font-size:14px">🛒 Comprador</b><br>'+
-    'Con este perfil ves 2 pestañas: Stock &amp; Insumos y Costos.<br>'+
+    'Con este perfil ves 4 pestañas: Stock &amp; Insumos, Costos, Componentes (con Reparar vs comprar) y Tareas.<br>'+
     '<b>1. El semáforo de stock</b> — lo rojo necesita pedido ya; el botón 📈 Tendencia y Proyección de Compra te dice, con consumo real, en qué fecha conviene pedir.<br>'+
     '<b>2. Generar una OC</b> — cargá cantidad y proveedor; el estado avanza Pedido → OC por Firmar/Firmada → Recibida, y el stock se actualiza solo al recibirla.<br>'+
     '<b>3. Compras — Proveedores</b> — tiempo de respuesta real por proveedor y gasto acumulado, útil para negociar o priorizar.<br>'+
     '<b>4. Pedidos Potencialmente Trabados</b> — pedidos abiertos que ya llevan más días que lo normal para ESE proveedor; revisalo semanalmente.<br>'+
     '<b>5. Tiempo Interno de Aprobación de OC</b> — mide solo la parte que depende de la empresa, separada del proveedor.<br>'+
-    '<b>6. Tareas y Reparar vs comprar (desde el 29 de octubre)</b> — cada «pedir ya» de TBO Komatsu llega como una tarea tuya en <b>Metas &amp; KPIs → Tareas</b> (3 días de plazo; si se vence, se escala). Antes de pedir una pieza nueva, mira <b>Componentes → Reparar vs comprar</b>: dice si en la práctica solo se repara o si conviene comprar.<br>'+
+    '<b>6. Tareas y Reparar vs comprar (desde el 29 de octubre)</b> — cada «pedir ya» de TBO Komatsu llega como una tarea tuya en <b>la pestaña Tareas (grupo Planificación)</b> (3 días de plazo; si se vence, se escala). Antes de pedir una pieza nueva, mira <b>Componentes → Reparar vs comprar</b>: dice si en la práctica solo se repara o si conviene comprar.<br>'+
     '<b>¿Por qué un ítem con stock aparece como "pedir ya"?</b> Porque la proyección mira cuánto se consume Y cuánto tarda en llegar — avisa antes de que sea tarde, no cuando ya faltó.<br>'+
     '<b>🕐 Horizonte:</b> <i>esta semana</i> — semáforo de stock y Pedidos Potencialmente Trabados; <i>este mes</i> — Compras — Proveedores (tiempos de respuesta y gasto acumulado) para priorizar o negociar; <i>hasta fin de año</i> — Tendencia y Proyección de Compra con consumo real y, en Neumáticos, cuántos vas a necesitar hasta fin de año.<br><br>'+
 
@@ -984,7 +984,7 @@ export function renderAyuda(){
     '<b>Disponibilidad</b>: Producción Perdida por Detención traduce horas paradas en m³/toneladas no entregadas; el Simulador What-If te deja probar escenarios antes de gastar en un proyecto.<br>'+
     '<b>Costos (MTBF/MTTR)</b>: Matriz Jack-Knife (equipos crónicos/complejos) y % Correctivo Reactivo (si viene alto, el preventivo no está alcanzando).<br>'+
     '<b>Producción</b>: Costo de Downtime real y Rendimiento por Tiempo de Ciclo con su columna Consistencia (CV) — un CV alto es señal operativa, no mecánica.<br>'+
-    '<b>Metas &amp; KPIs → Tareas</b> (desde el 29 de octubre): lo que venció y lo que se escaló a la jefatura; revísalo cada día. <b>Preguntas del gerente</b> responde las ocho preguntas de una gerencia con datos reales y compara las dos cuadrillas.<br>'+
+    '<b>la pestaña Tareas (grupo Planificación)</b> (desde el 29 de octubre): lo que venció y lo que se escaló a la jefatura; revísalo cada día. <b>Preguntas del gerente</b> responde las ocho preguntas de una gerencia con datos reales y compara las dos cuadrillas.<br>'+
     '<b>Metas &amp; KPIs → Resumen Ejecutivo</b>: para reportar lo que ya decidiste, no para decidir.<br>'+
     '<b>Flujo semanal de ejemplo:</b> lunes Dashboard → Matriz de Riesgo → para lo urgente, RUL o Señal Unificada según corresponda → coordinás con el Planificador. Fin de mes: Costos + Metas &amp; KPIs.<br>'+
     '<b>¿Qué hago si un número me parece raro?</b> Los números con poca muestra llevan un aviso ⚠️ — no es un error, es que ese número puntual todavía no es confiable.<br>'+

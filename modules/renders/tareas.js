@@ -1,4 +1,4 @@
-// Sub-pestaña «Tareas» de Metas & KPIs (2026-10-29, paso 3 «reglas que fuerzan y escalan»): lo que las reglas obligan a hacer, con responsable y fecha límite, y lo que venció.
+// Pestaña «Tareas» (2026-10-29, paso 3; el mismo día pasó de sub-pestaña de Metas & KPIs a pestaña propia, visible para comprador y planificador) «reglas que fuerzan y escalan»): lo que las reglas obligan a hacer, con responsable y fecha límite, y lo que venció.
 //  · «Pedir ya» del plan de compras (TBO) → una tarea por cada uno (se crean al abrir esta pantalla; si el pedido se hizo, queda «Resuelta sola»).
 //  · Falla repetida → la acción con responsable y fecha que se exige al cerrar la OT.
 //  · A mano → cualquier tarea que se quiera seguir.
@@ -77,7 +77,8 @@ export function renderTareas(sinSincronizar) {
       '<td>' + _tarE(x.t.titulo) + (x.t.detalle ? '<div style="font-size:10px;color:var(--tx3)">' + _tarE(x.t.detalle) + '</div>' : '') + '</td><td>' + resp(x.t, x.i) + '</td><td>' + fecha(x.t, x.i) + '</td>' +
       '<td style="font-size:10px">' + (x.e === 'Vencida' || x.e === 'Escalada' ? '<b style="color:' + _TAR_COLOR[x.e] + '">' + _tarE(tareaEscalaA(x.t)) + '</b>' : '—') + '</td><td style="white-space:nowrap">' + acc(x) + '</td></tr>').join('') + '</table></div>'
     : '<div style="font-size:12px;color:var(--tx3);padding:14px;text-align:center">No hay tareas' + (v.estado === 'sin_cerrar' ? ' sin cerrar' : '') + ' con este filtro.</div>';
-  el.innerHTML = '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">Tareas que las reglas obligan a hacer</div>' +
+  el.innerHTML = '<div class="sec-h"><div><div class="sec-t">' + ICONS.tareas + ' Tareas</div><div class="sec-s">Lo que las reglas obligan a hacer, con responsable y fecha</div></div></div>' +
+    '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">Tareas que las reglas obligan a hacer</div>' +
     '<div style="font-size:11px;color:var(--tx2);line-height:1.6">Tres reglas generan tareas con responsable y fecha: <b>todo «pedir ya»</b> del plan de compras (3 días de plazo; si el pedido se hace, queda «Resuelta sola»); <b>una falla repetida</b> (mismo equipo y componente en 90 días) que exige causa raíz y una acción con fecha al cerrar la OT; y las que se agregan a mano. ' +
     'Además, todo hallazgo de un PM incompleto pasa solo al backlog de pautas. Una tarea <b>vence</b> al día siguiente de su fecha límite y se <b>escala</b> a la jefatura (el jefe de taller de la cuadrilla del responsable) con ' + TAREAS_ESCALA_DIAS + ' días o más de atraso. El sistema no manda correos: lo muestra aquí y en el Dashboard.</div>' +
     (s.nuevas || s.resueltas ? '<div style="font-size:11px;margin-top:6px;color:var(--ac)">Recién actualizado: ' + s.nuevas + ' tarea(s) nueva(s) de «pedir ya» y ' + s.resueltas + ' resuelta(s) sola(s).</div>' : '') + '</div>' +

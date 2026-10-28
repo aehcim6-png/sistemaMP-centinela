@@ -5618,8 +5618,8 @@ contra el array real de `index.html`, no asumido):
 ```js
 const PERFILES_PESTANAS={
   horometro:['hist'],                    // Horómetros
-  comprador:['stk2'],                    // Stock & Insumos (ahí viven OC/recepción/stock)
-  planificador:['plani','ot','pau','reg'], // Planificación, Correctivos, Pautas, Registro PM
+  comprador:['stk2','cos','comp2','tareas'], // Stock & Insumos, Costos, Componentes (Reparar vs comprar), Tareas
+  planificador:['plani','ot','pau','reg','tareas'], // Planificación, Correctivos, Pautas, Registro PM, Tareas
 };
 ```
 
@@ -6993,17 +6993,27 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 **Tabla nueva `tareas_gestion`** (migración `20261029140000`, aplicada en las dos bases, con RLS, políticas, trigger y `GRANT`; sumada a `TABLAS` de `backup-diario`; clave de `store.js`: `tareas`). Columnas: `clave` (única: evita duplicados), `origen` (`pedir_ya`, `falla_repetida`, `pm_backlog`, `manual`), `sigla`, `titulo`, `detalle`, `responsable`, `fechaLimite`, `estado` (`Abierta`, `Hecha`, `Descartada`, `Resuelta sola`), `fechaCierre`, `referencia`, `observacion`, `usuario`. Una tarea cerrada no se borra.
 
 **Las reglas (todo en `logic.js`, con pruebas en `tests/reglasEscalamiento.test.js`):**
-1. **Todo «pedir ya» es una tarea** (`tareasDePedirYa`): cada fila del plan de compras TBO con decisión «pedir ya» crea una tarea para el «Comprador», con 3 días de plazo; la clave `pedir|equipo|ítem` impide crearla dos veces, aunque ya esté cerrada. Si la condición deja de darse (por ejemplo, se hizo el pedido), la tarea abierta pasa a «Resuelta sola». Se sincroniza al abrir Metas & KPIs → Tareas (solo usuarios que pueden editar).
+1. **Todo «pedir ya» es una tarea** (`tareasDePedirYa`): cada fila del plan de compras TBO con decisión «pedir ya» crea una tarea para el «Comprador», con 3 días de plazo; la clave `pedir|equipo|ítem` impide crearla dos veces, aunque ya esté cerrada. Si la condición deja de darse (por ejemplo, se hizo el pedido), la tarea abierta pasa a «Resuelta sola». Se sincroniza al abrir la pestaña Tareas (solo usuarios que pueden editar).
 2. **Todo hallazgo de PM entra al backlog**: ya ocurría al guardar un PM nuevo incompleto (`backlogDesdePM`); ahora también al **editar** un PM y dejarlo incompleto (`backlogDePMSinDuplicar`, sin duplicar). Hoy ningún PM de la base tiene el campo «completo» anotado (529 sin dato), así que la regla actuará hacia adelante.
 3. **Una falla repetida exige acción con fecha** (`otFallaRepetida`): mismo equipo y mismo componente (el anotado o, si falta, el que sale del síntoma) en los 90 días anteriores. Al cerrar la OT el diálogo «Cierre con datos» se abre aunque no falte ningún campo, **desaparece «Cerrar sin completar»** y pide causa raíz, acción, responsable y fecha límite (por defecto, 7 días); la acción queda como tarea (`tareaDeFallaRepetida`, una por OT). La regla de «la OT no se cierra sin motivo de demora» ya existía (§186).
 
 **Escalamiento (`tareaEstado`, `tareaEscalaA`):** una tarea abierta es «Vencida» desde el día siguiente a su fecha límite y «Escalada» con 3 días o más de atraso. Se escala al **jefe de taller de la cuadrilla del responsable** (§193: José Yáñez o Javier Cárdenas), o a «Jefatura de taller» si el responsable no es de ninguna cuadrilla (por ejemplo, el Comprador).
 
-**Dónde se ve:** Metas & KPIs → **Tareas** (módulo lazy `modules/renders/tareas.js`): tarjetas de abiertas, vencidas, escaladas y cerradas; tabla con filtros, responsable y fecha editables, «Hecha», «Descartar», y «Agregar tarea» a mano. Un aviso en el **Dashboard** (`avisoTareas`) cuando hay tareas vencidas.
+**Dónde se ve:** pestaña **Tareas** (grupo Planificación; módulo lazy `modules/renders/tareas.js`): tarjetas de abiertas, vencidas, escaladas y cerradas; tabla con filtros, responsable y fecha editables, «Hecha», «Descartar», y «Agregar tarea» a mano. Un aviso en el **Dashboard** (`avisoTareas`) cuando hay tareas vencidas.
 
 **Límites:** (1) **no manda correos ni avisos fuera del sistema**: el escalamiento se ve en pantalla (si se quiere por correo, hay que agregarlo a la tarea programada `alerta-pm`); (2) el responsable de «pedir ya» es un rol fijo («Comprador») editable a mano en cada tarea; (3) la falla repetida depende del componente, que está en blanco en casi todo el histórico: se usa el que sale del síntoma, que puede equivocarse; (4) «Resuelta sola» no verifica que el repuesto haya llegado, solo que ya no está en «pedir ya»; (5) no se probó con los datos reales de producción cuántas tareas de «pedir ya» se crearán la primera vez que alguien abra la pantalla; (6) la función `backup-diario` desplegada en Supabase debe actualizarse para que respalde la tabla nueva (el repositorio ya la lista).
 
 **Pruebas:** `tests/reglasEscalamiento.test.js` (14) y `tests/e2e/reglas-escalamiento.spec.js` (pantalla Tareas con vencidas y escaladas, aviso en el Dashboard, y la falla repetida que no se cierra sin acción). Inventario: ficha A17.
+
+### 197. Tareas como pestaña propia, Metas & KPIs reordenada y Componentes sin desborde (2026-10-29)
+
+**Qué es:** la revisión del orden de las pestañas encontró tres desajustes y se corrigieron (solo presentación y permisos de pestañas; ninguna fórmula ni dato cambia).
+
+1. **Tareas es una pestaña del menú** (`TABS`, grupo Planificación, ícono `ICONS.tareas`; antes era la última sub-pestaña de Metas & KPIs, adonde el comprador y el planificador no llegaban). `PERFILES_PESTANAS` queda `comprador:['stk2','cos','comp2','tareas']` y `planificador:['plani','ot','pau','reg','tareas']`: el comprador también ve **Componentes** (ahí está Reparar vs comprar). Las tareas vencidas se avisan en dos lugares: el banner del Dashboard (ahora enlaza a `go('tareas')`) y un número «Tareas vencidas» en el encabezado (`_hsTareas()` en `index.html`), que solo aparece si hay alguna y la persona puede abrir Tareas.
+2. **Metas & KPIs**: sin Tareas; orden de uso diario primero (Metas, Avance del Mes, Preguntas del gerente) y los informes al final (Informes KPI, Informe de gestión, Resumen Ejecutivo); cada sub-pestaña con su propio ícono.
+3. **Componentes**: «Reparar vs comprar» pasa al grupo «Análisis» y, en pantallas de 900 px o más, la barra de sub-pestañas se parte en filas (`#s-comp2 .subtabs{flex-wrap:wrap}`) en vez de cortar el último grupo (a 1280 px medía 1474 px contra 1184 px visibles). En celular sigue deslizando. La explicación larga de Reparar vs comprar quedó en un desplegable «Cómo se calcula».
+
+**Pruebas:** `tests/e2e/coherencia-cruzada.spec.js` (orden de Metas & KPIs y 9 sub-pestañas de Componentes) y `tests/e2e/reglas-escalamiento.spec.js` (Tareas se abre con `go('tareas')`).
 
 ## Lo que decidimos NO hacer (y por qué)
 
