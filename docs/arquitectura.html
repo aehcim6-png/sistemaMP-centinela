@@ -3550,8 +3550,8 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Límites:</b> lo «usado» no entra; precio con menos de 3 líneas es referencia; por defecto se supone que no hay pieza de reserva, lo que pesa mucho: el selector muestra las dos situaciones. <b>Pruebas:</b> <code>tests/repararVsComprar.test.js</code> y <code>tests/e2e/reparar-vs-comprar.spec.js</code>.</p>
 
     <h3 id="d-x">192. Técnicos de PM y correctivos desde WhatsApp y la programación diaria (2026-10-28)</h3>
-  <p><b>Qué se hizo:</b> la programación diaria cargada (julio y 8 de agosto) es la nómina: dos cuadrillas (Jonathan Lara / José Yáñez y Juan Michea). Los nombres del chat que están en esa nómina son <b>Maicol Orostegui</b> y <b>Camilo Santander</b>; sus mensajes sobre un equipo entre el día de entrada y un día después de la salida se tomaron como el técnico. Se llenó el técnico de <b>8 correctivos</b> y <b>5 PM</b> sin técnico; solo se completan filas vacías.</p>
-  <p><b>Límites:</b> «~jonathan», «Carlos», «matias garcia» y los números sin nombre no se asignaron: el nombre solo coincide en parte con la nómina y adivinar habría puesto nombres falsos.</p>
+  <p><b>Qué se hizo:</b> la programación diaria cargada (julio y 8 de agosto) es la nómina: dos cuadrillas (Jonathan Lara / José Yáñez y Juan Michea). Se identificaron los remitentes del chat con esa nómina: <b>Maicol Orostegui</b> y <b>Camilo Santander</b> (el nombre coincide) y, confirmados por el usuario, «~jonathan» = <b>Jonathan Bolados</b> y «Carlos» = <b>Carlos Inzunza</b>. Sus mensajes sobre un equipo, entre el día de entrada y un día después de la salida, se tomaron como el técnico (los correctivos de más de 3 días quedan fuera). Se llenó el técnico de <b>62 correctivos</b> y <b>52 PM</b> sin técnico; solo se completan filas vacías.</p>
+  <p><b>Quedan sin técnico:</b> 174 PM y 98 correctivos desde el 29 de enero; los demás remitentes no se pudieron identificar con la nómina. <b>Límite:</b> el técnico que figura es quien escribió sobre ese equipo ese día, no necesariamente todos los que participaron.</p>
 
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
