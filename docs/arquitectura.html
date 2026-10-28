@@ -3540,7 +3540,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
 
     <h3 id="d-x">190. Duración de los 81 PM cargados desde los programas semanales (2026-10-28)</h3>
   <p><b>Qué se hizo:</b> los PM con <code>origen = 'Programa semanal 2026-10-28'</code> no traían duración. Se completó con el criterio del estimador de horas-hombre: <b>mediana de la duración real de los PM anteriores del mismo equipo y tipo</b>; si el equipo no tiene historial de ese tipo, mediana de la familia (dos primeras letras de la sigla) con el mismo tipo. Se ignoraron duraciones mayores a 40 h. <code>pautas.hrs</code> no es duración y no se usó.</p>
-  <p><b>Resultado:</b> 76 de 81 con <code>duracion</code>/<code>duracionH</code> (61 por equipo, 15 por familia); 1 ya traía horas reales de WhatsApp (CN-10155, 5 h 12 min); 4 vacías por no tener historial de PM4 (BS-5752 ×2, GE-10019, GE-15174). Cada fila estimada dice en <code>obs</code> «duración ESTIMADA… no medida».</p>
+  <p><b>Resultado:</b> 76 de 81 con <code>duracion</code>/<code>duracionH</code> (61 por equipo, 15 por familia); 1 ya traía horas reales de WhatsApp (CN-10155, 5 h 12 min); 4 sin historial de PM4 (BS-5752 ×2, GE-10019, GE-15174) con el estándar de PM4 de 12 h, por decisión del usuario, también marcadas como estimadas. Cada fila estimada dice en <code>obs</code> «duración ESTIMADA… no medida».</p>
   <p><b>Límites:</b> son estimaciones, no mediciones. El técnico no se pudo completar: los remitentes de WhatsApp son quienes reportan, no necesariamente quienes ejecutaron; solo hay técnicos en las pautas firmadas.</p>
 
     <h3 id="d-x">191. Reparar vs comprar, por pieza (2026-10-28)</h3>
