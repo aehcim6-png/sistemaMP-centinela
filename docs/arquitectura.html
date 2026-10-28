@@ -3564,6 +3564,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Reparar vs comprar:</b> lee primero ese campo, luego el inicio de la observación (lo que ya traían las filas históricas) y luego el origen. <b>Asiento y alternador se reparan siempre</b> (dicho por el usuario): un cambio sin estado anotado se toma como reparado y la pantalla lo avisa; nunca pisa un «Nuevo» o «Usado» anotado. En alternadores no hay compras de la pieza nueva: ahora dice «Solo se repara» con el costo por 1.000 h, en vez de «sin datos».</p>
   <p><b>Límite:</b> en asientos hay 4 compras de la pieza nueva (2022–2023) y 4 cambios «Nuevo» anotados (2023–2024); el asiento nuevo del año pasado no aparece: si se compró fuera del sistema hay que anotarlo en el Historial. <b>Pruebas:</b> <code>tests/repararVsComprar.test.js</code> y la prueba e2e del campo obligatorio.</p>
 
+    <h3 id="d-x">195. Reparar vs comprar: búsqueda en español y en inglés, en todas las órdenes de compra (2026-10-29)</h3>
+  <p><b>Qué cambió:</b> el usuario pidió buscar mejor: «si no es español es inglés». La primera versión buscaba solo en español y solo en el detalle de compras, y faltaban piezas: «Alternator 6008259332» ($1,04 millones, julio de 2026) no aparecía. Ahora cada pieza se busca con sus dos nombres, «reparado» incluye repair, rebuilt, reman, overhaul y el sufijo REP, y las exclusiones están en los dos idiomas.</p>
+  <p><b>Más fuentes:</b> <code>rvcUnirCompras</code> une el detalle de compras (8.628 líneas) con el histórico de órdenes de compra (6.853; unas 130 no están en el detalle), sin duplicar.</p>
+  <p><b>Límites:</b> el detalle viene <b>cortado a 25 letras</b> en el origen (5.285 de 8.628 líneas): se busca por el comienzo; «Generador» no se toma como alternador; el cruce por número de parte no sumó nada y no se implementó; <code>gestion_compras</code> (9 líneas) no se carga en la app. <b>Resultado:</b> alternador, comprar 4 (mediana $864.000) contra reparar 23 ($534.500); asiento, comprar 4 ($2,7 millones) contra reparar 38 ($445.550); partida 10 contra 3; turbo 31 contra 22.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

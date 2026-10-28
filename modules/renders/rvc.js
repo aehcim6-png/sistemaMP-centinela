@@ -52,7 +52,7 @@ export function renderRvc() {
     let extra = null;
     const txt = String(est.extra || '').trim();
     if (txt) { const rx = new RegExp(txt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); extra = { id: 'extra', nombre: txt, comp: rx, item: rx }; }
-    r = repararVsComprar({ hoy: new Date().toISOString().slice(0, 10), compras: S.g('comprasDetalle') || [], compHist: S.g('compHist') || [], equipos: S.g('eq') || [], ot: S.g('ot') || [], aj, sinReserva: est.sinReserva, extra });
+    r = repararVsComprar({ hoy: new Date().toISOString().slice(0, 10), compras: rvcUnirCompras(S.g('comprasDetalle') || [], S.g('ocHist') || []), compHist: S.g('compHist') || [], equipos: S.g('eq') || [], ot: S.g('ot') || [], aj, sinReserva: est.sinReserva, extra });
   } catch (e) { console.error('renderRvc', e); el.innerHTML = '<div class="chart-box"><div class="chart-t">Reparar vs comprar</div><div style="color:var(--danger)">No se pudo calcular: ' + _rvcE(e.message) + '</div></div>'; return; }
   const conVeredicto = r.filas.filter(f => f.decision === 'reparar' || f.decision === 'comprar' || f.decision === 'parecido').length;
   const soloUna = r.filas.filter(f => f.decision === 'solo_reparado' || f.decision === 'solo_nuevo').length;
@@ -69,7 +69,7 @@ export function renderRvc() {
     r.filas.map(_rvcFilaResumen).join('') + '</table></div>' +
     '<div style="margin-top:8px">' + r.filas.map(f => _rvcDetalle(f, r.sinReserva)).join('') + '</div>' +
     '<div style="font-size:10.5px;color:var(--tx3);line-height:1.5;margin-top:8px"><b>Con qué datos:</b> líneas de compra firmadas o recibidas (mediana del precio unitario; el plazo, solo de las recibidas), Historial de Componentes (cada cambio anotado como reparado, nuevo o usado; la vida es el horómetro hasta el siguiente cambio en el mismo equipo), correctivos que mencionan la pieza (horas del cambio) y el costo de hora detenida de Configuración. ' +
-    '<br><b>Límites:</b> un asiento «usado» o «retirado de otro equipo» no cuenta como reparado ni como nuevo. Un precio con pocas líneas es una referencia, no una cotización. Cuando el cambio no quedó anotado como reparado o nuevo, esa vida no entra a la comparación. La detención por falla no incluye la producción perdida más allá del costo de hora detenida.</div></div>';
+    '<br><b>Cómo se busca:</b> en español y en inglés (asiento / seat, alternador / alternator, motor de partida / starting motor / starter, cilindro / cylinder, diferencial / differential, reparado / repair / rebuilt / reman…) en el detalle de compras y en el histórico de órdenes de compra (' + fn(r.lineasLeidas) + ' líneas). El detalle viene cortado a 25 letras en el origen, así que se busca por el comienzo del texto.' + '<br><b>Límites:</b> un asiento «usado» o «retirado de otro equipo» no cuenta como reparado ni como nuevo. Un precio con pocas líneas es una referencia, no una cotización. Cuando el cambio no quedó anotado como reparado o nuevo, esa vida no entra a la comparación. La detención por falla no incluye la producción perdida más allá del costo de hora detenida.</div></div>';
   setTimeout(function () { if (typeof aplicarOrdenUniversal === 'function') aplicarOrdenUniversal('s-rvc'); }, 60);
 }
 export function rvcCambiarReserva(v) { window._rvcEstado.sinReserva = v !== 'si'; renderRvc(); }

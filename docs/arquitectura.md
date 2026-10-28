@@ -6966,6 +6966,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/repararVsComprar.test.js` (16) y `tests/e2e/reparar-vs-comprar.spec.js` (el campo es obligatorio y se guarda). Inventario: ficha F7.
 
+### 195. Reparar vs comprar: búsqueda en español y en inglés, en todas las órdenes de compra (2026-10-29)
+
+**Qué cambió:** el usuario pidió buscar mejor en las órdenes de compra: «si no es español es inglés, en todo sentido». La primera versión buscaba solo palabras en español y solo en el detalle de compras. Con los datos reales se vio que **faltaban piezas** porque muchas líneas están en inglés (la jerga de repuestos Komatsu): «Alternator 6008259332» ($1,04 millones, julio de 2026, una compra real de alternador nuevo que no aparecía), «Starting Motor Assembly», «Seat Belt», «Rebuilt», «Reman:», «Repair». Ahora cada pieza se busca con sus dos nombres (`RVC_FAMILIAS`), «reparado» se reconoce también como repair, rebuilt, reman, overhaul, refurbished y el sufijo REP de un número de parte, y las exclusiones también están en los dos idiomas (belt, bolt, labor, freight, kit, seal, valve…).
+
+**Más fuentes:** `rvcUnirCompras` une el detalle de compras (8.628 líneas, desde 2021) con el histórico de órdenes de compra (6.853, desde 2022; unas 130 líneas no están en el detalle) sin duplicar. Una línea del histórico no trae estado ni plazo: cuenta para el precio como recibida, pero no para el plazo.
+
+**Límites que se confirmaron:** (1) el detalle viene **cortado a 25 letras** en el origen (5.285 de 8.628 líneas llegan al tope), por eso se busca por el comienzo del texto y no se puede recuperar el resto; (2) el cruce por número de parte (una línea con solo el número, heredando la pieza de otra línea con el mismo número) se probó y no sumó ninguna línea para asientos: no se implementó; (3) «Generador» no se toma como alternador (podría ser un grupo electrógeno); (4) la tabla `gestion_compras` (9 líneas de cambios de asientos de 2022–2023) no se carga en la app y no se lee.
+
+**Resultado con los datos reales (unión de las dos fuentes):** alternador, comprar 4 líneas (mediana $864.000; rango $635.000 a $1,7 millones) contra reparar 23 (mediana $534.500); asiento, comprar 4 ($2,7 millones) contra reparar 38 ($445.550); motor de partida, comprar 10 ($366.000) contra reparar 3 ($360.000); turbo, comprar 31 ($2,3 millones) contra reparar 22 ($1,9 millones); diferencial, comprar 4 contra reparar 2; cilindro, solo 8 reparaciones (mediana $1,4 millones).
+
+**Pruebas:** `tests/repararVsComprar.test.js` (18). Inventario: ficha F7.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

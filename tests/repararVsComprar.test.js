@@ -1,6 +1,6 @@
 // «Reparar vs comprar»: precio y plazo desde compras, vida desde el Historial de Componentes, detención con el costo de hora detenida (28-oct-2026).
 import { describe, it, expect } from 'vitest';
-import { RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar } from '../logic.js';
+import { RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, rvcUnirCompras, repararVsComprar } from '../logic.js';
 
 const ASIENTO = RVC_FAMILIAS.find(f => f.id === 'asiento');
 const compra = (detalle, precio, extra) => ({ detalle, precioUnit: precio, costo: precio, cant: 1, estado: 'Recepcion Bodega', tiempoRespuesta: '10 dias 0h 0m', fecha: '2026-05-01', sigla: 'CN-1', ...extra });
@@ -64,6 +64,33 @@ describe('rvcPrecios', () => {
     expect(r.nuevo.precio).toBe(692990);
     expect(r.reparado.n).toBe(3);
     expect(rvcPrecios(c, RVC_FAMILIAS.find(f => f.id === 'bomba')).reparado.n).toBe(0);
+  });
+  it('busca en español y en inglés: Alternator, Starting Motor, Seat, Rebuilt, Reman, Repair', () => {
+    const f = id => RVC_FAMILIAS.find(x => x.id === id);
+    const n = (d, id) => { const r = rvcPrecios([compra(d, 100)], f(id)); return r.nuevo.n + '/' + r.reparado.n; }; // nuevo/reparado
+    expect(n('Alternator 6008259332', 'alternador')).toBe('1/0');
+    expect(n('Rebuilt Alternator', 'alternador')).toBe('0/1');
+    expect(n('Starting Motor Assembly,', 'partida')).toBe('1/0');
+    expect(n('Motor De Arranque 6008137', 'partida')).toBe('1/0');
+    expect(n('Reparacion Motor Arranque', 'partida')).toBe('0/1');
+    expect(n('Seat Assy 20Y-57', 'asiento')).toBe('1/0');
+    expect(n('Repair Seat Assy', 'asiento')).toBe('0/1');
+    expect(n('Seat Belt 5615781410', 'asiento')).toBe('0/0');
+    expect(n('Starter Motor Solenoid', 'partida')).toBe('0/0');
+    expect(n('Hydraulic Cylinder Assy', 'cilindro')).toBe('1/0');
+    expect(n('Steering Cylinder Reman', 'cilindro')).toBe('0/1');
+    expect(n('Differential Assy', 'diferencial')).toBe('1/0');
+    expect(n('Fuel Injection Pump', 'bomba')).toBe('1/0');
+    expect(n('Labor Seat Install', 'asiento')).toBe('0/0');
+  });
+  it('une el detalle de compras con el histórico de OC sin duplicar, y una línea del histórico (sin estado) cuenta como recibida', () => {
+    const det = [{ pedido: 1, sigla: 'CN-1', detalle: 'Alternator 6008259332', costo: 1035800, precioUnit: 1035800, estado: 'Recepcion Bodega', tiempoRespuesta: '5 dias 0h 0m' }];
+    const hist = [{ pedido: 1, sigla: 'CN-1', detalle: 'Alternator 6008259332', costo: 1035800, precioUnit: 1035800 }, { pedido: 2, sigla: 'CN-2', detalle: 'Reparacion Alternador Cam', costo: 480000, precioUnit: 480000, tipo: 'Servicio' }];
+    const u = rvcUnirCompras(det, hist);
+    expect(u.length).toBe(2);
+    const r = rvcPrecios(u, RVC_FAMILIAS.find(x => x.id === 'alternador'));
+    expect(r.nuevo).toMatchObject({ n: 1, precio: 1035800, plazoDias: 5 });
+    expect(r.reparado).toMatchObject({ n: 1, precio: 480000, plazoDias: null });
   });
   it('si falta el precio unitario usa costo ÷ cantidad', () => {
     const r = rvcPrecios([{ detalle: 'Asiento X', precioUnit: null, costo: 4000000, cant: 2, estado: 'OC Firmada' }], ASIENTO);

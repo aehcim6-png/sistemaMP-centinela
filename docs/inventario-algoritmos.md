@@ -883,7 +883,8 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Dónde se ve:** Componentes → Reparar vs comprar (selector «¿Hay pieza de reserva?» y casilla «Probar otra pieza»).
 - **Ejemplo real:** asiento de operador: reparar cuesta unos $430.000 de mediana (35 líneas, 2024 a 2026, plazo de 2 a 92 días) y uno nuevo unos $2,7 millones (Asiento 4215731112 de Komatsu, 3 compras). El historial trae 22 asientos anotados «Reparado», 4 «Nuevo» y 15 «Usado».
 - **Límites:** un asiento «usado» o «retirado de otro equipo» no entra a la comparación. Cuando un cambio no quedó anotado como reparado o nuevo, esa vida no cuenta. Un precio con menos de 3 líneas es una referencia. No incluye la producción perdida más allá del costo de hora detenida ni el valor de recuperar lo reparado.
-- **Código:** `repararVsComprar`, `rvcPrecios`, `rvcVidas`, `rvcCondicion`, `RVC_FAMILIAS`.
+- **Búsqueda en español y en inglés (29-oct-2026):** cada pieza se busca con sus dos nombres (asiento / seat, alternador / alternator, motor de partida / starting motor / starter, cilindro / cylinder, diferencial / differential, bomba de combustible / fuel pump) y «reparado» también en inglés y en jerga de repuestos (repair, rebuilt, reman, overhaul, el sufijo REP de un N° de parte, «Servicio»). Se lee el detalle de compras **más** el histórico de órdenes de compra (`rvcUnirCompras`, sin duplicar; el histórico trae unas 130 líneas que el detalle no tiene). Límite de origen: el detalle de cada línea viene **cortado a 25 letras** (5.285 de 8.628 líneas llegan al tope), así que se busca por el comienzo del texto; «Generador» no se toma como alternador (puede ser un grupo electrógeno).
+- **Código:** `repararVsComprar`, `rvcUnirCompras`, `rvcPrecios`, `rvcVidas`, `rvcCondicion`, `RVC_FAMILIAS`.
 
 ---
 

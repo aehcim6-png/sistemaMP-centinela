@@ -1131,7 +1131,8 @@
     <li><b>Dónde se ve:</b> Componentes → Reparar vs comprar.</li>
     <li><b>Ejemplo real:</b> asiento de operador: reparar, unos $430.000 de mediana (35 líneas); uno nuevo, unos $2,7 millones (3 compras a Komatsu); el historial trae 22 «Reparado», 4 «Nuevo» y 15 «Usado».</li>
     <li><b>Límites:</b> lo «usado» o «retirado de otro equipo» no entra; un precio con menos de 3 líneas es una referencia; no incluye la producción perdida más allá del costo de hora detenida.</li>
-    <li><b>Código:</b> <code>repararVsComprar</code>, <code>rvcPrecios</code>, <code>rvcVidas</code>, <code>rvcCondicion</code>, <code>RVC_FAMILIAS</code>.</li>
+    <li><b>Búsqueda en español y en inglés (29-oct-2026):</b> cada pieza se busca con sus dos nombres (asiento / seat, alternador / alternator, motor de partida / starting motor / starter, cilindro / cylinder, diferencial / differential, bomba / fuel pump) y «reparado» también en inglés (repair, rebuilt, reman, overhaul, sufijo REP, «Servicio»). Se lee el detalle de compras más el histórico de órdenes de compra (<code>rvcUnirCompras</code>, sin duplicar). Límite de origen: el detalle viene cortado a 25 letras (5.285 de 8.628 líneas), así que se busca por el comienzo; «Generador» no se toma como alternador.</li>
+    <li><b>Código:</b> <code>repararVsComprar</code>, <code>rvcUnirCompras</code>, <code>rvcPrecios</code>, <code>rvcVidas</code>, <code>rvcCondicion</code>, <code>RVC_FAMILIAS</code>.</li>
   </ul>
 
   <h2 id="d-98">G. TBO del fabricante (Komatsu)</h2>
