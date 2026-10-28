@@ -6894,6 +6894,16 @@ Revisión pestaña por pestaña (19 en escritorio y 10 en celular, con capturas)
 
 **Pruebas:** `tests/gerencia.test.js` (30 casos: bandas y cortes, aproximadas y sin duración, motivos, reparto del stock entre PM, estados del desgaste, comparación interanual solo con datos en los dos años, atraso del registro, tramos de la cadena, dotación comparable o no, frescura, panel con datos vacíos) y `tests/e2e/preguntas-gerente.spec.js` (la pantalla muestra las ocho preguntas, el aviso de datos viejos y los límites).
 
+### 188. Carga de datos de abril a octubre desde WhatsApp, planillas y programas semanales (2026-10-28)
+
+**Qué pasó:** las OT correctivas dejaron de cargarse el 15 de marzo y los horómetros el 24 de agosto. El usuario entregó el chat de WhatsApp de los supervisores, la reportabilidad diaria, la disponibilidad de marzo a julio, los horómetros de agosto a octubre, las planillas de estatus y los programas semanales (semanas 27 a 43). Se cruzaron las fuentes por equipo (planilla de detenciones) y, con autorización, se cargó lo siguiente.
+
+**Qué se hizo:** (1) columna `origen` (texto, null = digitado en la app) en `correctivos` y `registros_pm`, en los dos proyectos (migración `20261028120000_origen_correctivos_pm.sql`; `store.js` la incluye en `cols` de `ot` y `reg`). (2) Solo en Centinela: 83 correctivos con origen «WhatsApp y cruce de fuentes» (los 85 propuestos como «Cargar», menos 2 ya existentes; cerrados, con fecha y hora de entrada y salida y, en 51, horómetro), 81 PM con origen «Programa semanal» (equipo, tipo, fecha y horómetro de la hoja «Equipos de producción»; técnico y duración quedan vacíos salvo una con horas de WhatsApp), 1.197 lecturas de horómetro de agosto a octubre (origen `excel_horometros_2026-10-28`, las 58 dudosas fuera) con el horómetro actual de cada equipo, y 378 filas de reportabilidad diaria de 12 días. (3) Corrección del horómetro de CN-9502 (CE-88): 6.955/6.956 pasaron a 16.955/16.956 y el equipo a 16.956 h (se había perdido el «1» al digitar).
+
+**Límites:** (1) las detenciones por WhatsApp tienen resolución de minutos solo si el aviso trae «Operativo»; las otras quedaron fuera o en revisión (67 filas sin cargar); (2) técnico y duración de las PM nuevas necesitan las pautas firmadas; (3) los 15 servicios menores (AdBlue, presurización, grasa) y las detenciones rotuladas como PM no se cargaron como correctivos; (4) los programas semanales no son confiables como medida de cumplimiento (mismos tres equipos y horómetros cada semana, backlog de 2021); (5) mp2 recibe la columna y el código pero no los datos.
+
+**Pruebas:** la suite unitaria completa (2.072) sigue en verde; la carga se verificó con conteos en la base (378 reportabilidad, 83 correctivos, 81 PM, 1.197 lecturas).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
