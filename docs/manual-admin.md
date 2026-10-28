@@ -233,6 +233,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Dotación.** En **Planificación → Programación Diaria → Resumen** hay una tarjeta «Dotación programada»: promedio de mecánicos (con líderes) y electromecánicos por turno, según los días cargados. Es lo programado, no la plantilla contratada; si un cargo no se reconoce se lista aparte.
 
+### Reparar vs comprar y estado de lo instalado (2026-10-29)
+
+**Qué es.** En **Componentes → Reparar vs comprar** se compara, para asiento, turbo, alternador, motor de partida, cilindro, compresor de aire acondicionado, diferencial, bomba de combustible y una pieza que se escriba, el costo por 1.000 horas de uso de **reparar** contra **comprar**. Precio y plazo salen de las compras (se busca en español y en inglés, en el detalle de compras y en el histórico de órdenes de compra); cuánto dura cada opción sale del Historial de Componentes; las horas detenidas, de los correctivos que mencionan la pieza, por el costo de hora detenida de Configuración. El selector «¿Hay pieza de reserva?» parte en «Sí» (solo cuenta el tiempo del cambio); con «No» cuenta la espera del plazo completo.
+
+**Qué hay que hacer para que mejore.** Al **agregar un evento** en Componentes → Historial hay que elegir el **estado de lo instalado: nuevo, reparado o usado** (obligatorio). Sin saber cuánto dura lo reparado, la pantalla no recomienda: muestra el punto de equilibrio. Asiento y alternador se toman como reparados cuando un cambio antiguo no dice nada (se repara siempre), y la pantalla lo avisa.
+
+**Límites.** El detalle de cada compra viene cortado a 25 letras en el origen; «Generador» no se toma como alternador; un precio con menos de 3 líneas es una referencia.
+
 ### Tareas y reglas que fuerzan y escalan (2026-10-29)
 
 **Qué es.** En **Metas & KPIs → Tareas** están las tareas que el sistema obliga a hacer, cada una con responsable y fecha límite. Nacen de tres reglas: (1) **todo «pedir ya»** del plan de compras de TBO Komatsu se vuelve una tarea para el Comprador, con 3 días de plazo (si el pedido se hace, queda «Resuelta sola»); (2) **todo hallazgo de un PM incompleto** pasa al backlog de pautas (al guardar y también al editar el PM); (3) **una falla repetida** —el mismo equipo y componente en 90 días— no se puede cerrar sin causa raíz y sin una acción con responsable y fecha: al cerrar la OT aparece el diálogo y no existe «Cerrar sin completar». También se pueden agregar tareas a mano.
