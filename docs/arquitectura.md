@@ -6962,7 +6962,9 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Asiento y alternador se reparan siempre (dicho por el usuario):** de asientos solo se ha cambiado uno nuevo, y los alternadores son todos reparados. `RVC_FAMILIAS` marca estas dos piezas con `reparadoHabitual`: un cambio sin estado anotado se toma como **reparado** y la pantalla lo avisa («n cambios sin estado anotado se tomaron como reparados»). Nunca pisa un «Nuevo» o «Usado» anotado. Hallazgo con los datos reales: en alternadores no hay ninguna compra de la pieza nueva (solo reparaciones pagadas), así que ya no se muestra «sin datos» sino **«Solo se repara»**, con el costo por 1.000 h de lo reparado cuando hay tramos terminados; lo mismo ocurre al revés («Solo se compra») si hay compras y ninguna reparación pagada. De asientos hay compras de la pieza nueva (4 líneas entre 2022 y 2023 en las compras) y 4 cambios anotados «Nuevo» en el historial (2023–2024): no se encontró el asiento nuevo del año pasado; si se compró fuera del sistema, hay que anotarlo en el Historial para que cuente.
 
-**Pruebas:** `tests/repararVsComprar.test.js` (15) y `tests/e2e/reparar-vs-comprar.spec.js` (el campo es obligatorio y se guarda). Inventario: ficha F7.
+**Corrección con los datos reales de alternadores (2026-10-29):** de siete líneas que el cálculo contaba como «compra de alternador nuevo», cuatro no lo eran: «Servicio Rep. Alternador» y «Servicio Alternador» (talleres externos: son reparar) y dos «Insumos -alternador» de camionetas. Ahora «Servicio» y «Rep.» cuentan como reparar y los insumos y las mantenciones quedan fuera. Quedan tres compras reales de alternador nuevo (un Komatsu de 2024 por $1,7 millones y dos de 2026 para BS-5752 por unos $0,65 millones), contra unas 21 reparaciones de mediana $545.000.
+
+**Pruebas:** `tests/repararVsComprar.test.js` (16) y `tests/e2e/reparar-vs-comprar.spec.js` (el campo es obligatorio y se guarda). Inventario: ficha F7.
 
 ## Lo que decidimos NO hacer (y por qué)
 

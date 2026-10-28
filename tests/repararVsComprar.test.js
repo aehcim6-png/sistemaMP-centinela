@@ -55,6 +55,16 @@ describe('rvcPrecios', () => {
     expect(r.nuevo.precio).toBe((2706403 + 1880000) / 2);
     expect(r.reparado).toMatchObject({ n: 1, precio: 515000 });
   });
+  it('con los datos reales de alternadores: «Servicio» y «Rep.» son reparar, y los insumos de camionetas no cuentan', () => {
+    const alt = RVC_FAMILIAS.find(f => f.id === 'alternador');
+    const c = [compra('600-825-9330 Alternador 2', 1695000), compra('Alternador 24 Volts Kl279', 634972), compra('Alternador 24 Volts Kl279', 692990), compra('Servicio Rep. Alternador', 440000), compra('Servicio Alternador', 490000),
+      compra('Reparacion Alternador Cam', 530000), compra('Insumos -alternador Great', 290000), compra('Correa Alternador V-belt', 56000), compra('Servicio Mantencion Bomba Combustible', 1400000)];
+    const r = rvcPrecios(c, alt);
+    expect(r.nuevo.n).toBe(3);
+    expect(r.nuevo.precio).toBe(692990);
+    expect(r.reparado.n).toBe(3);
+    expect(rvcPrecios(c, RVC_FAMILIAS.find(f => f.id === 'bomba')).reparado.n).toBe(0);
+  });
   it('si falta el precio unitario usa costo ÷ cantidad', () => {
     const r = rvcPrecios([{ detalle: 'Asiento X', precioUnit: null, costo: 4000000, cant: 2, estado: 'OC Firmada' }], ASIENTO);
     expect(r.nuevo.precio).toBe(2000000);

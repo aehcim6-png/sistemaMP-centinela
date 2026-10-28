@@ -6221,9 +6221,10 @@ var RVC_FAMILIAS=[
   {id:'bomba',nombre:'Bomba de combustible',comp:/bomba de combustible/i,item:/bomba.*(combustible|inyec)/i,excl:/filtro|kit|sello/i}
 ];
 // «20Y-57-31200REP …»: el sufijo REP pegado al N° de parte de Komatsu marca una pieza reparada/remanufacturada.
-var RVC_REP_RX=/repar|recup|reacond|rebuild|overhaul|\d{3,}rep\b/i;
+// «Servicio Alternador» y «Servicio Rep. Alternador» (taller externo) también son reparar: una pieza nueva no se compra como servicio.
+var RVC_REP_RX=/repar|recup|reacond|rebuild|overhaul|\d{3,}rep\b|\brep\b|^\s*servicio\b/i;
 // Líneas que mencionan la pieza pero no son la pieza: mano de obra, fletes, repuestos sueltos, válvulas y accesorios.
-var RVC_EXCL_GEN=/mano de obra|flete|trasl|repuestos?\s|v[aá]lvula|bomb[ií]n|\bkit\b/i;
+var RVC_EXCL_GEN=/mano de obra|flete|trasl|repuestos?\s|v[aá]lvula|bomb[ií]n|\bkit\b|^\s*insumos|mantenc/i;
 var RVC_VIDA_MIN_H=24,RVC_MIN_VIDAS=2,RVC_DIF_MIN=0.1,RVC_DET_MAX_H=72;
 // Estado de lo que se instaló: primero el campo «estado de la pieza» del Historial (Nuevo / Reparado / Usado, obligatorio desde el 29-oct-2026); si no está, cómo quedó anotado el cambio al inicio de la observación;
 // y si tampoco, el origen. «usado» incluye «retirado de otro equipo». Sin nada de eso: «sin dato».
