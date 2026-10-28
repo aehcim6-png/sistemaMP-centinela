@@ -6940,6 +6940,8 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Quedan sin técnico:** 174 PM y 98 correctivos desde el 29 de enero. Entre los PM están los de los programas semanales que nadie reportó por WhatsApp; el resto de los remitentes (números sin nombre, «matias garcia», José Danilo, Eugenio Salinas, Javier Besalco) no se asignó porque no se pudo identificar con la nómina.
 
+**Quién es quién (dicho por el usuario, 2026-10-28):** **José Yáñez** es jefe de taller y trabaja con **Carlos Trigo**; **Javier Cárdenas** es jefe de taller y trabaja con **Jonathan Bolados**; **Eugenio Salinas** es supervisor de operaciones y **Matías García** es jefe de operaciones: son quienes avisan en el chat cuándo un equipo queda fuera de servicio (el inicio de la parada); el «operativo» lo avisa el taller. Los jefes de taller y de operaciones no son técnicos: no se anotan como tal en los PM ni en los correctivos. Falta confirmar si el remitente «Javier Besalco» del chat es Javier Cárdenas y a qué cuadrilla pertenece cada técnico (Carlos Inzunza, Camilo Santander, Maicol Orostegui).
+
 **Límites:** el técnico que figura es quien escribió en WhatsApp sobre ese equipo ese día, no necesariamente todos los que participaron. Que un mensaje mencione un equipo no prueba que esa persona hizo el trabajo; es la mejor señal disponible y queda rotulada como tal.
 
 ## Lo que decidimos NO hacer (y por qué)
