@@ -40,6 +40,11 @@ Las marcas `{sb}`, `{url}`, `{vercel}`, `{repo}`, `{ref}` de las fichas se reemp
 | La carpeta de respaldo no se actualiza | BKP-01 |
 | Un servicio nuevo no conecta aunque lo demás funciona | HOS-02 |
 | «Otra persona modificó estos datos mientras trabajabas…» | _No es una falla: dos personas editaron lo mismo casi a la vez. El sistema conservó lo más reciente y pide repetir el cambio._ |
+| No me deja cerrar una OT: pide causa raíz y una acción con responsable y fecha (y no aparece «Cerrar sin completar») | _No es una falla: es la regla de las fallas repetidas (mismo equipo y componente en los últimos 90 días). Hay que anotar la causa raíz y una acción con responsable y fecha límite; la acción queda como tarea en Metas & KPIs → Tareas. Se ve en el diálogo «Cierre con datos»._ |
+| Al agregar un evento en Componentes → Historial pide «Estado de lo instalado» y no guarda sin elegirlo | _No es una falla: el estado (nuevo, reparado o usado) es obligatorio desde el 29-oct-2026; sirve para decidir si conviene reparar o comprar._ |
+| Aviso rojo o amarillo arriba del Dashboard: «N tareas vencidas» | _No es una falla: hay tareas con la fecha límite pasada (con 3 días o más de atraso van «escaladas» a la jefatura). Se ven y se cierran en Metas & KPIs → Tareas._ |
+| «Reparar vs comprar» dice «Solo se repara», «Solo se compra» o «Sin datos» para una pieza | _No es una falla: no hay en las compras (en español ni en inglés) la otra opción para comparar. Se completa anotando el estado de cada cambio en el Historial de Componentes._ |
+| «No se pudo guardar en la nube (tareas)» al abrir la pantalla Tareas | _Puede pasar si dos personas la abren a la vez: las dos intentan crear la misma tarea de «pedir ya» y la base rechaza el duplicado (clave única). No se pierde nada: se recarga y la tarea ya está. Si ocurre siempre, mirar DB-01 y DB-02._ |
 
 **Regla de oro:** ante una tarea programada (respaldo, alertas, resumen) lo primero es `select nombre, "ultimaEjecucion", exito, detalle from public.salud_crons;` (MON-01).
 
@@ -241,7 +246,7 @@ Donde quedan guardados todos los datos reales (equipos, OT, stock, horómetros�
 - **Consultas:** {sb}/sql/new
 - **Código:** `modules/store.js` (TABLA_REAL: una entrada por tabla)
 
-**Cómo se ve:** Aviso «No se pudo refrescar: … datos posiblemente desactualizados»; Aviso «No se pudo guardar en la nube (nombre de tabla)»; Datos que desaparecen o no coinciden entre personas
+**Cómo se ve:** Aviso «No se pudo refrescar: … datos posiblemente desactualizados»; Aviso «No se pudo guardar en la nube (nombre de tabla)»; Datos que desaparecen o no coinciden entre personas; Aviso «No se pudo guardar en la nube (tareas)» justo después de abrir Metas & KPIs → Tareas (ver «No son fallas»)
 
 **Confirmar:**
 1. Panel de Supabase: ¿el proyecto dice «Healthy» o «Paused»? Un proyecto pausado no responde.
@@ -644,7 +649,7 @@ Junta todas las tablas de la lista `TABLAS` más las cuentas de acceso, las comp
 
 **Soporte técnico (Claude):**
 - `get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `backup-diario`.
-- La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (58).
+- La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (59).
 
 ### EF-06 — Función: alerta-pm
 
