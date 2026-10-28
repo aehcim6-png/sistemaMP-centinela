@@ -6920,6 +6920,26 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Límites:** son estimaciones, no mediciones: no deben leerse como el tiempo que realmente tomó cada PM. El técnico no se pudo completar: los remitentes de WhatsApp son quienes reportan, no necesariamente quienes ejecutaron, y solo existen técnicos en las pautas firmadas.
 
+### 191. Reparar vs comprar, por pieza (2026-10-28)
+
+**Qué es:** nueva sub-pestaña **Componentes → Reparar vs comprar** (`modules/renders/rvc.js`, módulo lazy; cálculo en `logic.js`: `repararVsComprar`, `rvcPrecios`, `rvcVidas`, `rvcCondicion`, `RVC_FAMILIAS`). Compara, para ocho piezas (asiento, turbo, alternador, motor de partida, cilindro de dirección/hidráulico, compresor de aire acondicionado, diferencial, bomba de combustible) y una pieza que se escriba, el costo por 1.000 h de uso de **reparar** contra **comprar**.
+
+**De dónde salen los datos (todos ya estaban en el sistema):** el precio y el plazo, de `compras_detalle` (OC firmadas o recibidas; «Reparación Asiento Caex» es reparar, «Asiento 4215731112» es comprar; el sufijo `REP` pegado a un N° de parte cuenta como reparado; mano de obra, fletes, repuestos sueltos, válvulas y bombines no cuentan como la pieza). La vida, de `historial_componentes`: cada cambio está anotado «Reparado — …», «Nuevo — …» o «Usado — …» (los turbos, además, con origen); la vida de lo instalado es el horómetro hasta el siguiente cambio del mismo componente en el mismo equipo, y se estima como horas de uso ÷ cambios terminados (los tramos abiertos aportan horas pero no cambios). La detención, de la mediana de horas de los correctivos que mencionan la pieza, más la espera del plazo completo si no hay pieza de reserva (selector), por el costo de hora detenida del modelo (Configuración).
+
+**Regla:** si no se sabe cuánto dura lo reparado (menos de 2 tramos terminados de cada estado) no se recomienda: se muestra el **equilibrio** (reparar conviene si lo reparado dura al menos ese porcentaje de lo que dura uno nuevo). Si reparar cuesta más que comprar aun con la misma vida, dice «comprar». Con vidas de ambos, gana la opción con menos costo por hora si la diferencia es de 10 % o más.
+
+**Hallazgo con los datos reales:** el primer intento tomaba como «asiento nuevo» líneas que no lo eran (mano de obra, fletes, válvulas, repuestos sueltos y N° de parte con sufijo REP) y daba una mediana de $515.000 contra los $2,7 millones del asiento Komatsu; se corrigió con exclusiones y se dejó una prueba.
+
+**Límites:** lo «usado» o «retirado de otro equipo» no entra a la comparación; un precio con menos de 3 líneas es una referencia; el plazo de las reparaciones va de 2 a 92 días (mediana, no promedio); no incluye la producción perdida más allá del costo de hora detenida. Por defecto se supone que no hay pieza de reserva, lo que pesa mucho en el resultado: el selector permite ver las dos situaciones.
+
+**Pruebas:** `tests/repararVsComprar.test.js` (13) y `tests/e2e/reparar-vs-comprar.spec.js`. Inventario: ficha F7.
+
+### 192. Técnicos de PM y correctivos desde WhatsApp y la programación diaria (2026-10-28)
+
+**Qué se hizo:** la programación diaria cargada (14 y 17 y 28 de julio, 8 de agosto) es la nómina: dos cuadrillas (la de Jonathan Lara / José Yáñez y la de Juan Michea). Los nombres que escriben en el chat de WhatsApp y están en esa nómina son **Maicol Orostegui** y **Camilo Santander**; sus mensajes sobre un equipo entre el día de entrada y un día después de la salida se tomaron como el técnico de ese PM o correctivo. Se llenó el técnico de **8 correctivos** y **5 PM** que estaban sin técnico (el PM lleva en `obs` de dónde salió). Solo se completan filas vacías; no se tocó ningún técnico ya escrito.
+
+**Límites:** las demás personas que escriben (por ejemplo «~jonathan», «Carlos», «matias garcia» y los números sin nombre) no se asignaron: el nombre solo coincide en parte con la nómina y adivinar cuál persona es habría puesto nombres falsos. Cada uno de esos nombres, una vez confirmado, se puede cruzar de la misma forma. El técnico que figura es quien reportó en WhatsApp, no necesariamente todos los que participaron.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

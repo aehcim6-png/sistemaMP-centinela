@@ -873,6 +873,18 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 
 ---
 
+### F7. Reparar vs comprar (por pieza)
+- **Tipo:** comparación de costo por hora de uso entre dos opciones, con punto de equilibrio.
+- **Para qué sirve:** decidir, pieza por pieza (asiento, turbo, alternador, motor de partida, cilindro, compresor de aire acondicionado, diferencial, bomba de combustible, o la que se escriba), si conviene **reparar** o **comprar** una nueva, contando el precio, el plazo de entrega, las horas que el equipo queda detenido y cuánto dura cada opción.
+- **De dónde viene:** 🔵 Criterio propio: costo por unidad de vida, usado en confiabilidad para comparar alternativas de reemplazo (la misma idea de G4, «costo por hora y edad óptima»), con la vida estimada como horas expuestas ÷ cambios terminados, que sirve aun con tramos que siguen abiertos.
+- **Cómo lo calcula aquí:** (1) **Precio y plazo:** de las líneas de compra firmadas o recibidas; «Reparación Asiento Caex» es reparar y «Asiento 4215731112» es comprar (el sufijo REP pegado a un N° de parte de Komatsu también cuenta como reparado; la mano de obra, los fletes, los repuestos sueltos y las válvulas no cuentan como la pieza); se usa la mediana del precio unitario y la mediana del plazo (solo líneas recibidas). (2) **Vida:** del Historial de Componentes: cada cambio queda anotado «Reparado», «Nuevo» o «Usado» (o con origen); la vida de lo instalado es el horómetro hasta el siguiente cambio del mismo componente en el mismo equipo; dos filas a menos de 24 h son un solo cambio; la vida de cada estado = horas de uso ÷ cambios terminados. (3) **Detención:** mediana de las horas de los correctivos que mencionan la pieza (hasta 72 h) y, si no hay pieza de reserva, la espera del plazo completo, por el costo de hora detenida del modelo (Configuración). (4) **Costo por 1.000 h** = (precio + horas detenidas × costo de hora detenida) ÷ vida × 1.000, para cada opción. Gana la que cuesta menos si la diferencia es de 10 % o más y cada estado tiene al menos 2 tramos terminados; si no, dice «parecido». Si no se sabe cuánto dura lo reparado no recomienda: entrega el **equilibrio** (costo total de reparar ÷ costo total de comprar = el porcentaje de la vida de uno nuevo que debe alcanzar lo reparado para que convenga).
+- **Dónde se ve:** Componentes → Reparar vs comprar (selector «¿Hay pieza de reserva?» y casilla «Probar otra pieza»).
+- **Ejemplo real:** asiento de operador: reparar cuesta unos $430.000 de mediana (35 líneas, 2024 a 2026, plazo de 2 a 92 días) y uno nuevo unos $2,7 millones (Asiento 4215731112 de Komatsu, 3 compras). El historial trae 22 asientos anotados «Reparado», 4 «Nuevo» y 15 «Usado».
+- **Límites:** un asiento «usado» o «retirado de otro equipo» no entra a la comparación. Cuando un cambio no quedó anotado como reparado o nuevo, esa vida no cuenta. Un precio con menos de 3 líneas es una referencia. No incluye la producción perdida más allá del costo de hora detenida ni el valor de recuperar lo reparado.
+- **Código:** `repararVsComprar`, `rvcPrecios`, `rvcVidas`, `rvcCondicion`, `RVC_FAMILIAS`.
+
+---
+
 ## G. TBO del fabricante (Komatsu)
 
 El TBO (*Time Between Overhaul*, tiempo entre cambios mayores) viene de un archivo Excel del fabricante (`TBO_Besalco_Mineria_jun_24.xlsm`) para los modelos Komatsu de Besalco Centinela. **📄 Los datos del plan son del fabricante: no hay fuente en internet que los respalde ni los contradiga.** Lo que el programa agrega encima (riesgo, costo, decisión) son cálculos propios con métodos estándar, que se detallan en cada ficha.

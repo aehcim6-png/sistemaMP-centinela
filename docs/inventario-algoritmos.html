@@ -1122,6 +1122,16 @@
     <li><b>Código:</b> <code>arriendoVsCompra</code>, <code>arriendoDefectoModelo</code>, <code>ARRIENDO_GENERAL_DEFECTO</code>.</li>
   </ul>
 
+  <h3 id="d-x">F7. Reparar vs comprar (por pieza)</h3>
+  <ul>
+    <li><b>Para qué sirve:</b> decidir, pieza por pieza (asiento, turbo, alternador, motor de partida, cilindro, compresor, diferencial, bomba de combustible, o la que se escriba), si conviene <b>reparar</b> o <b>comprar</b>, contando precio, plazo, horas detenidas y cuánto dura cada opción.</li>
+    <li><b>Cómo lo calcula:</b> precio y plazo de las líneas de compra (mediana); vida del Historial de Componentes según cómo quedó anotado el cambio (Reparado / Nuevo / Usado): horas de uso ÷ cambios terminados; detención = horas del cambio (correctivos) + espera del plazo si no hay pieza de reserva, por el costo de hora detenida. <b>Costo por 1.000 h</b> = (precio + horas detenidas × costo de hora detenida) ÷ vida × 1.000. Si no se sabe cuánto dura lo reparado, no recomienda: da el <b>equilibrio</b> (reparar conviene si dura al menos ese porcentaje de lo que dura uno nuevo).</li>
+    <li><b>Dónde se ve:</b> Componentes → Reparar vs comprar.</li>
+    <li><b>Ejemplo real:</b> asiento de operador: reparar, unos $430.000 de mediana (35 líneas); uno nuevo, unos $2,7 millones (3 compras a Komatsu); el historial trae 22 «Reparado», 4 «Nuevo» y 15 «Usado».</li>
+    <li><b>Límites:</b> lo «usado» o «retirado de otro equipo» no entra; un precio con menos de 3 líneas es una referencia; no incluye la producción perdida más allá del costo de hora detenida.</li>
+    <li><b>Código:</b> <code>repararVsComprar</code>, <code>rvcPrecios</code>, <code>rvcVidas</code>, <code>rvcCondicion</code>, <code>RVC_FAMILIAS</code>.</li>
+  </ul>
+
   <h2 id="d-98">G. TBO del fabricante (Komatsu)</h2>
   <p>El TBO (<i>Time Between Overhaul</i>, tiempo entre cambios mayores) viene de un archivo Excel del fabricante (<code>TBO_Besalco_Mineria_jun_24.xlsm</code>) para los modelos Komatsu de Besalco Centinela. <b>📄 Los datos del plan son del fabricante: no hay fuente en internet que los respalde ni los contradiga.</b> Lo que el programa agrega encima (riesgo, costo, decisión) son cálculos propios con métodos estándar, que se detallan en cada ficha.</p>
 

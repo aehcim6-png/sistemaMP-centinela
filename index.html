@@ -635,7 +635,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-10-28a"></script>
+<script src="logic.js?v=2026-10-28b"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -707,6 +707,7 @@ const _LAZY_VERS={
   mkpi:'2026-10-27a',
   gestion:'2026-10-14b',
   ger:'2026-10-28a',
+  rvc:'2026-10-28b',
   mov:'2026-08-30',
   papelera:'2026-08-30',
   pau:'2026-08-30',
@@ -767,6 +768,7 @@ const _LAZY_EXPORTS={
   lub:['renderLub','addLub','saveLub'],
   mkpi:['renderMkpi','mkpiSub'],
   ger:['renderGer'],
+  rvc:['renderRvc','rvcCambiarReserva','rvcBuscarPieza'],
   gestion:['renderGestion','gestionPeriodo','gestionRango','gestionBacklogAgregar','gestionBacklogCerrar','gestionBacklogInsumo'],
   mov:['renderMov','editMov','delMov','clearConsumos','recalcHistorial','recalcSoloCostos'],
   papelera:['verPapelera','renderPapelera'],

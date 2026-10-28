@@ -6135,6 +6135,119 @@ function panelGerencia(i){
     cadena:gerCadena(x.compras,x.ot,hoy),dotacion:gerDotacionVsCarga(x.progDia,x.ot,x.reg,hoy)};
 }
 
+// ═══ REPARAR vs COMPRAR (2026-10-28) ═══
+// ¿Conviene reparar la pieza o comprar una nueva? Se contesta con lo que el sistema ya tiene, sin inventar:
+//  · PRECIO y PLAZO de cada opción: las líneas de compras (compras_detalle). «Reparación Asiento Caex» es la opción reparar; «Asiento 4215731112» es comprar. Se usa la mediana (no el promedio) del precio unitario.
+//  · VIDA de cada opción: el Historial de Componentes. Cada cambio queda marcado «Reparado — …», «Nuevo — …» o «Usado — …» (o con origen); la vida de lo instalado es el horómetro hasta el siguiente cambio del mismo componente en
+//    el mismo equipo. Con los tramos que siguen abiertos se estima la vida como horas expuestas ÷ cambios terminados (así los tramos abiertos no inflan ni desinflan el resultado).
+//  · DETENCIÓN: horas del cambio (mediana de los correctivos que lo mencionan) y, si no hay pieza de reserva, la espera del plazo completo; todo × costo de hora detenida del modelo (Configuración).
+// Costo por 1.000 h = (precio + horas detenidas × costo hora detenida) ÷ vida × 1.000. Si no se sabe cuánto dura lo reparado, NO se recomienda: se entrega el punto de equilibrio («reparar conviene si dura al menos X % de lo que dura uno nuevo»).
+var RVC_FAMILIAS=[
+  {id:'asiento',nombre:'Asiento de operador',comp:/^asiento/i,item:/asiento/i,excl:/amortiguador|cintur|funda|perno|manilla|respald|coj[ií]n|riel|espuma|tapiz|entredient/i},
+  {id:'turbo',nombre:'Turbo',comp:/^turbo/i,item:/turbo/i,excl:/polea|manguera|abrazadera|empaq|filtro|manguito|sensor/i},
+  {id:'alternador',nombre:'Alternador',comp:/^alternador/i,item:/alternador/i,excl:/correa|polea|escobill|regulador|v-belt|soporte|tensor|rodamiento/i},
+  {id:'partida',nombre:'Motor de partida',comp:/motor de partida/i,item:/motor\s*(de\s*)?(partida|arranque)|partida nikko/i,excl:/escobill|solenoide|bendix|rel[eé]/i},
+  {id:'cilindro',nombre:'Cilindro de dirección / hidráulico',comp:/cilindro de direcci/i,item:/cilindro\s*(de\s*)?(direc|hidr)/i,excl:/recarga|ox[ií]geno|acetilen|nitr[oó]geno|sello|kit/i},
+  {id:'compresor',nombre:'Compresor de aire acondicionado',comp:/aire acondicionado/i,item:/compresor.*(a\/c|aire acond)|compresor a\/c/i,excl:/filtro|correa/i},
+  {id:'diferencial',nombre:'Diferencial',comp:/diferencial/i,item:/diferencial/i,excl:/aceite|sello|ret[eé]n|perno|empaq|rodamiento|filtro/i},
+  {id:'bomba',nombre:'Bomba de combustible',comp:/bomba de combustible/i,item:/bomba.*(combustible|inyec)/i,excl:/filtro|kit|sello/i}
+];
+// «20Y-57-31200REP …»: el sufijo REP pegado al N° de parte de Komatsu marca una pieza reparada/remanufacturada.
+var RVC_REP_RX=/repar|recup|reacond|rebuild|overhaul|\d{3,}rep\b/i;
+// Líneas que mencionan la pieza pero no son la pieza: mano de obra, fletes, repuestos sueltos, válvulas y accesorios.
+var RVC_EXCL_GEN=/mano de obra|flete|trasl|repuestos?\s|v[aá]lvula|bomb[ií]n|\bkit\b/i;
+var RVC_VIDA_MIN_H=24,RVC_MIN_VIDAS=2,RVC_DIF_MIN=0.1,RVC_DET_MAX_H=72;
+// Estado de lo que se instaló, según cómo quedó anotado el cambio: «reparado», «nuevo», «usado» (incluye «retirado de otro equipo») o «sin dato».
+function rvcCondicion(obs,origen){
+  var o=String(obs==null?'':obs).trim();
+  if(/^repar/i.test(o))return'reparado';
+  if(/^nuev/i.test(o))return'nuevo';
+  if(/^(usado|retirad)/i.test(o))return'usado';
+  if(/reparad|reacond|remanuf|rebuilt/i.test(String(origen==null?'':origen)))return'reparado';
+  return'sin dato';
+}
+function _rvcResumenVida(arr){
+  var comp=arr.filter(function(v){return!v.censurado;}),horas=arr.reduce(function(a,v){return a+v.L;},0);
+  return{instalados:arr.length,terminados:comp.length,horasExpuestas:Math.round(horas),vida:comp.length?Math.round(horas/comp.length):null,mediana:comp.length?Math.round(_gerMediana(comp.map(function(v){return v.L;}))):null};
+}
+// Vidas del componente de una familia, por estado de lo instalado. Dos cambios del mismo componente y equipo con menos de 24 h de horómetro entre sí son UN solo cambio (los dos turbos, o la misma fila cargada dos veces).
+function rvcVidas(compHist,equipos,fam){
+  var eqPor={},grupos={},vidas=[];(equipos||[]).forEach(function(e){if(e&&e.sigla)eqPor[e.sigla]=e;});
+  (compHist||[]).forEach(function(r){
+    if(!r||!r.sigla||!r.comp||!fam.comp.test(String(r.comp)))return;var h=parseFloat(r.horomInstalacion);if(isNaN(h))return;
+    (grupos[r.sigla]=grupos[r.sigla]||[]).push({h:h,cond:rvcCondicion(r.obs,r.origen)});
+  });
+  Object.keys(grupos).forEach(function(sig){
+    var arr=grupos[sig].sort(function(a,b){return a.h-b.h;}),ev=[];
+    arr.forEach(function(x){var u=ev[ev.length-1];if(u&&x.h-u.h<RVC_VIDA_MIN_H){if(u.cond==='sin dato')u.cond=x.cond;}else ev.push({h:x.h,cond:x.cond});});
+    var e=eqPor[sig],act=e?Number(e.horomActual)||0:0;
+    ev.forEach(function(x,i){
+      var fin=i<ev.length-1?ev[i+1].h:act,L=fin-x.h,cens=i===ev.length-1;
+      if(!(L>=RVC_VIDA_MIN_H))return;vidas.push({sigla:sig,cond:x.cond,L:L,censurado:cens});
+    });
+  });
+  var por={};['nuevo','reparado','usado','sin dato'].forEach(function(c){por[c]=_rvcResumenVida(vidas.filter(function(v){return v.cond===c;}));});
+  return{porEstado:por,equipos:Object.keys(grupos)};
+}
+// Precio y plazo de «comprar» y de «reparar» desde las líneas de compra (solo OC firmadas o recibidas: lo demás no es gasto aún).
+function rvcPrecios(compras,fam){
+  var nuevo=[],rep=[];
+  (compras||[]).forEach(function(c){
+    if(!c||(c.estado!=='OC Firmada'&&c.estado!=='Recepcion Bodega'))return;
+    var d=String(c.detalle||'');if(!fam.item.test(d)||RVC_EXCL_GEN.test(d)||(fam.excl&&fam.excl.test(d)))return;
+    var cant=parseFloat(c.cant)>0?parseFloat(c.cant):1,pu=Number(c.precioUnit)>0?Number(c.precioUnit):(Number(c.costo)>0?Number(c.costo)/cant:0);if(!(pu>0))return;
+    var plazo=c.estado==='Recepcion Bodega'?_parsearTiempoRespuestaDias(c.tiempoRespuesta):null;
+    (RVC_REP_RX.test(d)?rep:nuevo).push({precio:pu,plazo:plazo,fecha:c.fecha||null,sigla:c.sigla||null,detalle:d,proveedor:c.proveedor||null});
+  });
+  function res(a){
+    var p=a.map(function(v){return v.precio;}),pl=a.filter(function(v){return v.plazo!=null&&v.plazo>0;}).map(function(v){return v.plazo;}),f=a.map(function(v){return v.fecha;}).filter(Boolean).sort();
+    return{n:a.length,precio:_gerMediana(p),min:p.length?Math.min.apply(null,p):null,max:p.length?Math.max.apply(null,p):null,plazoDias:_gerMediana(pl),nPlazo:pl.length,ultima:f.length?f[f.length-1]:null,casos:a.slice().sort(function(x,y){return String(y.fecha||'')<String(x.fecha||'')?-1:1;}).slice(0,6)};
+  }
+  return{nuevo:res(nuevo),reparado:res(rep)};
+}
+function repararVsComprar(i){
+  var x=i||{},hoy=_tcoIso(x.hoy),aj=x.aj||{},sinReserva=x.sinReserva!==false,fams=RVC_FAMILIAS.slice();
+  if(x.extra&&x.extra.item)fams.push(x.extra);
+  var filas=fams.map(function(f){
+    var pr=rvcPrecios(x.compras,f),vd=rvcVidas(x.compHist,x.equipos,f),avisos=[];
+    var hs=[];(x.ot||[]).forEach(function(o){
+      if(!o||!_gerEsCorrectivo(o))return;var t=String(o.sintoma||'')+' '+String(o.solucion||'');if(!f.item.test(t)||(f.excl&&f.excl.test(t)))return;
+      var h=horasOTAprox(o,hoy).horas;if(h!=null&&h>0&&h<=RVC_DET_MAX_H)hs.push(h);
+    });
+    var hCambio=hs.length?_gerMediana(hs):null,eqPor={};(x.equipos||[]).forEach(function(e){if(e&&e.sigla)eqPor[e.sigla]=e;});
+    var cds=vd.equipos.map(function(s){return eqPor[s]?costoHoraDetDe(eqPor[s].modelo,aj):0;}).filter(function(v){return v>0;});
+    var cd=cds.length?_gerMediana(cds):(Number(aj.costoHoraDet)||0);
+    function total(o){
+      if(!o.n)return null;var espera=sinReserva&&o.plazoDias?o.plazoDias*24:0;
+      return{precio:o.precio,horasDet:(hCambio||0)+espera,costoDet:((hCambio||0)+espera)*cd,total:o.precio+((hCambio||0)+espera)*cd};
+    }
+    var tn=total(pr.nuevo),tr=total(pr.reparado),vn=vd.porEstado.nuevo,vr=vd.porEstado.reparado;
+    var pmN=tn&&vn.vida?tn.total/vn.vida*1000:null,pmR=tr&&vr.vida?tr.total/vr.vida*1000:null;
+    var okVidas=vn.terminados>=RVC_MIN_VIDAS&&vr.terminados>=RVC_MIN_VIDAS&&pmN!=null&&pmR!=null;
+    var eq=tn&&tr&&tn.total>0?tr.total/tn.total:null,decision,motivo;
+    if(!pr.nuevo.n||!pr.reparado.n){
+      decision='sin_datos';motivo=!pr.nuevo.n&&!pr.reparado.n?'No hay compras de esta pieza ni reparaciones en el historial.':!pr.nuevo.n?'Hay '+pr.reparado.n+' reparación(es) pagadas, pero ninguna compra de la pieza nueva: falta el precio de comprar.':'Hay '+pr.nuevo.n+' compra(s) de la pieza, pero ninguna reparación pagada: falta el precio de reparar.';
+    }else if(okVidas){
+      if(pmR<pmN*(1-RVC_DIF_MIN)){decision='reparar';motivo='Reparar sale '+Math.round((1-pmR/pmN)*100)+' % más barato por hora de uso.';}
+      else if(pmR>pmN*(1+RVC_DIF_MIN)){decision='comprar';motivo='Comprar sale '+Math.round((1-pmN/pmR)*100)+' % más barato por hora de uso.';}
+      else{decision='parecido';motivo='La diferencia es menor al '+Math.round(RVC_DIF_MIN*100)+' %: da lo mismo en costo; decide el plazo o la disponibilidad.';}
+    }else if(eq!=null&&eq>=1){
+      decision='comprar';motivo='Reparar cuesta más que comprar (incluida la detención) aun si lo reparado durara lo mismo que uno nuevo.';
+    }else if(eq!=null){
+      decision='equilibrio';motivo='Reparar conviene si lo reparado dura al menos '+Math.round(eq*100)+' % de lo que dura uno nuevo. '+(vr.terminados<RVC_MIN_VIDAS?'Falta medir cuánto dura lo reparado ('+vr.terminados+' tramo'+(vr.terminados===1?'':'s')+' terminado'+(vr.terminados===1?'':'s')+' con ese estado en el historial).':'Falta medir cuánto dura lo nuevo.');
+    }else{decision='sin_datos';motivo='No se pudo calcular.';}
+    if(pr.nuevo.n&&pr.nuevo.n<3||pr.reparado.n&&pr.reparado.n<3)avisos.push('muestra chica de precios');
+    if(sinReserva&&(!pr.nuevo.plazoDias||!pr.reparado.plazoDias))avisos.push('falta el plazo de '+(!pr.nuevo.plazoDias&&!pr.reparado.plazoDias?'ambas opciones':!pr.nuevo.plazoDias?'comprar':'reparar')+': no se contó su espera');
+    if(!hCambio)avisos.push('ningún correctivo menciona el cambio: no se contaron sus horas');
+    return{id:f.id,nombre:f.nombre,nuevo:pr.nuevo,reparado:pr.reparado,vidas:vd.porEstado,hCambio:hCambio,nHCambio:hs.length,costoHoraDet:cd,totalNuevo:tn,totalReparado:tr,
+      porMilNuevo:pmN!=null?Math.round(pmN):null,porMilReparado:pmR!=null?Math.round(pmR):null,equilibrio:eq!=null?Math.round(eq*1000)/1000:null,
+      vidaRelativa:vn.vida&&vr.vida?Math.round(vr.vida/vn.vida*100)/100:null,decision:decision,motivo:motivo,avisos:avisos};
+  });
+  var orden={reparar:0,comprar:1,parecido:2,equilibrio:3,sin_datos:4};
+  filas.sort(function(a,b){return orden[a.decision]-orden[b.decision];});
+  return{hoy:hoy,sinReserva:sinReserva,filas:filas};
+}
+
 // ═══ CIERRE DE OT: MOTIVO DE DEMORA Y TIPO DE REPARACIÓN (2026-10-27) ═══
 // Para poder contestar «por qué tardó» y «¿se arregló de verdad o se parchó?» hacen falta dos datos que hoy nadie anota: en los 1.243 correctivos reales la categoría de demora y la causa raíz están vacías
 // (categoriaMTTR no sirve: es otra cosa, la del análisis de mantenibilidad). Se piden al CERRAR el correctivo, en la ventana «Cierre con datos».
@@ -11875,7 +11988,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,

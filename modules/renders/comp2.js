@@ -15,6 +15,7 @@ export async function renderComp2() {
       <button class="subtab ${sub === 'comp' ? 'on' : ''}" role="tab" onclick="comp2Sub('comp')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><polygon points="10,2.5 16,6 16,13 10,16.5 4,13 4,6"/><circle cx="10" cy="9.5" r="2.3"/></svg> Componentes Mayores</button>
       <button class="subtab ${sub === 'histcomp' ? 'on' : ''}" role="tab" onclick="comp2Sub('histcomp')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.5 V10 l3 2" fill="none"/><circle cx="10" cy="10" r="7.5"/></svg> Historial</button>
       <button class="subtab ${sub === 'tbo' ? 'on' : ''}" role="tab" onclick="comp2Sub('tbo')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5 V10 l3 2"/><path d="M3 10 h2 M15 10 h2" /></svg> TBO Komatsu</button>
+      <button class="subtab ${sub === 'rvc' ? 'on' : ''}" role="tab" onclick="comp2Sub('rvc')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7 h10 l-2.5 -2.5"/><path d="M16 13 H6 l2.5 2.5"/></svg> Reparar vs comprar</button>
       <button class="subtab ${sub === 'cad' ? 'on' : ''}" role="tab" onclick="comp2Sub('cad')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> Tren de Rodaje</button>
       <span class="subtabs-sep" aria-hidden="true"></span><span class="subtabs-g">Fallas</span>
       <button class="subtab ${sub === 'informes' ? 'on' : ''}" role="tab" onclick="comp2Sub('informes')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,2 12,2 15,5 15,18 5,18"/><polyline points="12,2 12,5 15,5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13" x2="13" y2="13"/></svg> Informes de Falla</button>
@@ -31,6 +32,7 @@ export async function renderComp2() {
     <div id="s-histcomp" class="${sub === 'histcomp' ? '' : 'hidden'}"></div>
     <div id="s-estadistica" class="${sub === 'estadistica' ? '' : 'hidden'}"></div>
     <div id="s-tbo" class="${sub === 'tbo' ? '' : 'hidden'}"></div>
+    <div id="s-rvc" class="${sub === 'rvc' ? '' : 'hidden'}"></div>
   `;
   // Carga perezosa (2026-09-10) — solo destrabe/informes/cad/histcomp son de
   // las 32 sin dependencias cruzadas; comp/pred/estadistica siguen estáticas
@@ -44,6 +46,7 @@ export async function renderComp2() {
   else if (sub === 'histcomp') renders.histcomp();
   else if (sub === 'estadistica') renders.estadistica();
   else if (sub === 'tbo') renders.tbo();
+  else if (sub === 'rvc') renders.rvc();
   setTimeout(() => aplicarOrdenUniversal('s-comp2'), 60);
 }
 export function comp2Sub(s) { window._comp2Sub = s; if (typeof _logUsoPestana === 'function') _logUsoPestana('comp2.' + s); renders.comp2(); }
