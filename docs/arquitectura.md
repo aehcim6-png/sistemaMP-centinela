@@ -6912,6 +6912,14 @@ Revisión pestaña por pestaña (19 en escritorio y 10 en celular, con capturas)
 
 **Pruebas:** `tests/gerencia.test.js` (2 casos nuevos: abiertas y datos desde otras fuentes) y `tests/e2e/preguntas-gerente.spec.js` (muestra las abiertas).
 
+### 190. Duración de los 81 PM cargados desde los programas semanales (2026-10-28)
+
+Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-10-28'`) no traían la duración de ejecución. El sistema ya la tiene en su historial, así que se completó con el mismo criterio del estimador de horas-hombre (J2): **mediana de la duración real de los PM anteriores del mismo equipo y mismo tipo de PM**; si el equipo no tiene historial de ese tipo, **mediana de la familia** (las dos primeras letras de la sigla) con el mismo tipo. Se ignoraron duraciones mayores a 40 h por ser errores de registro. `pautas.hrs` no se usó: no es duración.
+
+**Resultado:** 76 de 81 quedaron con `duracion`/`duracionH` (61 por equipo, 15 por familia); 1 ya traía horas reales desde WhatsApp (CN-10155, 26-sep, 5 h 12 min); 4 quedaron vacías por no tener historial de PM4 (BS-5752 del 10-jul y 16-sep, GE-10019 del 20-sep, GE-15174 del 1-jun). Cada fila estimada lleva en `obs` la marca « · duración ESTIMADA (mediana de N PM anteriores del mismo equipo y tipo), no medida».
+
+**Límites:** son estimaciones, no mediciones: no deben leerse como el tiempo que realmente tomó cada PM. El técnico no se pudo completar: los remitentes de WhatsApp son quienes reportan, no necesariamente quienes ejecutaron, y solo existen técnicos en las pautas firmadas.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

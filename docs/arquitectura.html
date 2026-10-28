@@ -3538,6 +3538,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Límites:</b> las duraciones de las filas con resolución diaria son aproximadas; las paradas largas incluyen la espera de repuestos y de aprobaciones sin separarla (el motivo de demora solo existe desde el 27 de octubre); las preguntas 2 y 6 no mejoran con esta carga.</p>
   <p><b>Pruebas:</b> <code>tests/gerencia.test.js</code> (2 casos nuevos: abiertas y datos desde otras fuentes) y <code>tests/e2e/preguntas-gerente.spec.js</code> (muestra las abiertas).</p>
 
+    <h3 id="d-x">190. Duración de los 81 PM cargados desde los programas semanales (2026-10-28)</h3>
+  <p><b>Qué se hizo:</b> los PM con <code>origen = 'Programa semanal 2026-10-28'</code> no traían duración. Se completó con el criterio del estimador de horas-hombre: <b>mediana de la duración real de los PM anteriores del mismo equipo y tipo</b>; si el equipo no tiene historial de ese tipo, mediana de la familia (dos primeras letras de la sigla) con el mismo tipo. Se ignoraron duraciones mayores a 40 h. <code>pautas.hrs</code> no es duración y no se usó.</p>
+  <p><b>Resultado:</b> 76 de 81 con <code>duracion</code>/<code>duracionH</code> (61 por equipo, 15 por familia); 1 ya traía horas reales de WhatsApp (CN-10155, 5 h 12 min); 4 vacías por no tener historial de PM4 (BS-5752 ×2, GE-10019, GE-15174). Cada fila estimada dice en <code>obs</code> «duración ESTIMADA… no medida».</p>
+  <p><b>Límites:</b> son estimaciones, no mediciones. El técnico no se pudo completar: los remitentes de WhatsApp son quienes reportan, no necesariamente quienes ejecutaron; solo hay técnicos en las pautas firmadas.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
