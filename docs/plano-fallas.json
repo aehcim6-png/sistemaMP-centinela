@@ -1026,7 +1026,7 @@
    "escalar": "Si el log muestra un error de código, avisar el texto y la hora.",
    "claude": [
     "`get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `backup-diario`.",
-    "La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (59)."
+    "La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (60)."
    ],
    "depende_de": [
     "CRN-01",
@@ -1561,6 +1561,62 @@
    ]
   },
   {
+   "id": "EF-18",
+   "capa": "supabase",
+   "nombre": "Función: asistente-ia",
+   "que_es": "El asistente de preguntas de la app (pestaña Asistente): conversa con Claude (Anthropic). Valida quién pregunta, aplica los límites de uso y devuelve la respuesta o el pedido de una herramienta; las herramientas las ejecuta el navegador con los datos que la persona ya tiene cargados. Nunca escribe nada.",
+   "donde": [
+    [
+     "Panel",
+     "{sb}/functions/asistente-ia (Logs en esa misma pestaña)"
+    ],
+    [
+     "Código",
+     "`supabase/functions/asistente-ia/index.ts` (la lista de herramientas debe coincidir con `asistenteEjecutar` en `logic.js`)"
+    ],
+    [
+     "Quién la llama",
+     "Pestaña Asistente (`modules/renders/asistente.js`)."
+    ],
+    [
+     "Claves que usa",
+     "`ANTHROPIC_API_KEY` (obligatoria); opcionales `ASISTENTE_IA_MODELO`, `ASISTENTE_IA_LLAMADAS_HORA` (40), `ASISTENTE_IA_TOPE_TOKENS_DIA` (2.000.000)"
+    ],
+    [
+     "Tabla",
+     "`asistente_ia_uso` (cada llamada: quién, cuándo, modelo, tokens, pregunta); solo la lee un administrador"
+    ]
+   ],
+   "sintomas": [
+    "«El asistente todavía no está configurado» (error 503)",
+    "«Llegaste al límite de consultas por hora» o «El equipo llegó al tope diario» (429)",
+    "«Tu perfil no incluye el asistente» (403): la cuenta tiene un perfil restringido",
+    "«Anthropic rechazó la consulta» o «La clave de Anthropic no es válida» (502)",
+    "El asistente tarda mucho o responde que necesitó demasiadas consultas"
+   ],
+   "revisar": [
+    "Panel → Edge Functions → Secrets: ¿existe `ANTHROPIC_API_KEY`?",
+    "Logs de la función: el texto exacto del error de Anthropic.",
+    "`select count(*), sum(tokens_entrada+tokens_salida) from public.asistente_ia_uso where creado > now() - interval '24 hours';` para ver el uso del día.",
+    "Si dice 403 de perfil: Configuración → usuarios → perfil de esa cuenta."
+   ],
+   "accion": [
+    "Cargar o renovar `ANTHROPIC_API_KEY` como secreto de la función (ver EXT-05).",
+    "Subir los límites con los secretos opcionales si el equipo de verdad los necesita.",
+    "Un límite alcanzado no es una falla: se reinicia solo (por hora o a las 24 horas)."
+   ],
+   "escalar": "Si el log muestra un error de código, avisar el texto y la hora.",
+   "claude": [
+    "`get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `asistente-ia`.",
+    "`select creado, user_id, modelo, tokens_entrada, tokens_salida, herramientas, pregunta from public.asistente_ia_uso order by id desc limit 20;`"
+   ],
+   "depende_de": [
+    "EXT-05",
+    "AUT-01",
+    "DB-02"
+   ]
+  },
+  {
    "id": "MON-01",
    "capa": "vigilancia",
    "nombre": "Detector de salud (salud_crons)",
@@ -1728,8 +1784,8 @@
   {
    "id": "EXT-05",
    "capa": "externo",
-   "nombre": "Interpretación de reportes (Anthropic)",
-   "que_es": "IA que convierte el texto libre de un reporte (WhatsApp o correo) en una OT estructurada.",
+   "nombre": "Interpretación de reportes y asistente (Anthropic)",
+   "que_es": "IA de Anthropic (Claude): convierte el texto libre de un reporte (WhatsApp o correo) en una OT estructurada y responde las preguntas de la pestaña Asistente.",
    "donde": [
     [
      "Clave",
@@ -1737,17 +1793,25 @@
     ],
     [
      "Código",
-     "`supabase/functions/_shared/interpretarConIA.ts`"
+     "`supabase/functions/_shared/interpretarConIA.ts`, `supabase/functions/whatsapp-webhook/index.ts` y `supabase/functions/asistente-ia/index.ts`"
+    ],
+    [
+     "Panel externo",
+     "console.anthropic.com → Usage y Limits (gasto y tope mensual)"
     ]
    ],
    "sintomas": [
-    "Los reportes por WhatsApp o correo llegan pero no se interpretan"
+    "Los reportes por WhatsApp o correo llegan pero no se interpretan",
+    "El asistente dice que no está configurado o que la clave no es válida"
    ],
    "revisar": [
-    "Logs de EF-09 y EF-10: ¿error de clave?"
+    "Logs de EF-09 y EF-10: ¿error de clave?",
+    "Logs de EF-18: ¿«Anthropic rechazó la consulta» o error de clave?",
+    "console.anthropic.com: ¿saldo o tope de gasto agotado?"
    ],
    "accion": [
-    "Cargar una clave vigente como secreto."
+    "Cargar una clave vigente como secreto de las funciones.",
+    "Revisar el saldo y el tope de gasto en la cuenta de Anthropic."
    ],
    "escalar": "",
    "claude": [],
@@ -1959,6 +2023,13 @@
    "codigos": [
     "HOS-02"
    ]
+  },
+  {
+   "texto": "El asistente de la pestaña Asistente no responde, dice que no está configurado o que llegaste al límite",
+   "codigos": [
+    "EF-18",
+    "EXT-05"
+   ]
   }
  ],
  "no_son_fallas": [
@@ -1985,6 +2056,10 @@
   {
    "texto": "«No se pudo guardar en la nube (tareas)» al abrir la pantalla Tareas",
    "explicacion": "Puede pasar si dos personas la abren a la vez: las dos intentan crear la misma tarea de «pedir ya» y la base rechaza el duplicado (clave única). No se pierde nada: se recarga y la tarea ya está. Si ocurre siempre, mirar DB-01 y DB-02."
+  },
+  {
+   "texto": "El asistente dice «llegaste al límite de consultas por hora» o «el equipo llegó al tope diario»",
+   "explicacion": "No es una falla: es el límite de uso que protege el gasto en Anthropic (40 consultas por persona por hora y 2.000.000 de tokens por día para todo el equipo; se pueden cambiar con los secretos de EF-18). Se reinicia solo."
   }
  ]
 }

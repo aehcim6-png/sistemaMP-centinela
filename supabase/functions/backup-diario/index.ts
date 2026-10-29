@@ -74,7 +74,7 @@ export const TABLAS = [
   'correctivos_historico', 'gestion_compras', 'compromisos', 'uso_pestanas',
   'salud_crons', 'compras_detalle', 'rendimiento_modelos',
   'produccion_turno', 'produccion_turno_equipos', 'fmea_npr', 'reportabilidad_diaria',
-  'insumos', 'insumos_movimientos', 'tareas_gestion'
+  'insumos', 'insumos_movimientos', 'tareas_gestion', 'asistente_ia_uso'
 ];
 
 // PostgREST impone un tope de filas por request (~1000 en este proyecto,

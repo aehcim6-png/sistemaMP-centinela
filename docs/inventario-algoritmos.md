@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A16 |
+| A. Disponibilidad, fallas y tiempos | A1–A18 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C23 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -225,6 +225,16 @@ Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Ejemplo:** un alternador en «pedir ya» para CN-9501 crea «Pedir ya: ALTERNATOR de CN-9501» para el Comprador con fecha a 3 días; si el 4.º día sigue abierta es «Vencida», y al 6.º día es «Escalada».
 - **Límites:** no manda correos ni avisos fuera del sistema; el responsable de «pedir ya» es un rol fijo («Comprador») que se puede cambiar a mano en cada tarea; una falla repetida se detecta por componente, y en la mayoría de los correctivos históricos el componente está en blanco (se usa el que sale del síntoma: puede fallar); «Resuelta sola» no verifica que el repuesto haya llegado, solo que la condición ya no se da.
 - **Código:** `TAREAS_ORIGENES`, `TAREAS_PLAZO_PEDIR_YA_DIAS`, `TAREAS_ESCALA_DIAS`, `FALLA_REPETIDA_VENTANA_DIAS`, `TAREAS_CERRADAS`, `tareaEstado`, `tareaEscalaA`, `tareasResumen`, `tareasDePedirYa`, `backlogDePMSinDuplicar`, `otFallaRepetida`, `otFallaRepetidaFaltantes`, `tareaClaveRepetida`, `tareaDeFallaRepetida`.
+
+### A18. Asistente de IA: herramientas de solo lectura
+- **Tipo:** consultas sobre los datos (no es un modelo estadístico); la conversación en sí la hace Claude (Anthropic) a través de la Edge Function `asistente-ia`.
+- **Para qué sirve:** contestar preguntas en palabras normales («¿qué equipos tienen el PM vencido?», «¿cuánto gastamos en correctivos este año?») con los datos reales del sistema y no con memoria ni suposiciones del modelo.
+- **De dónde viene:** 🔵 Criterio propio: patrón estándar de «uso de herramientas» (tool use) de la API de Claude, con las herramientas definidas por nosotros.
+- **Cómo lo calcula aquí:** Claude no ve la base de datos. Pide una herramienta por su nombre (`estado_flota`, `buscar_equipo`, `ordenes_trabajo`, `registros_pm`, `stock_criticos`, `tareas_pendientes`, `costos_correctivos`) y el navegador la ejecuta con los datos que la persona ya tiene cargados (`asistenteEjecutar`): reutiliza las reglas del sistema (`stockEstado`, `tareaEstado`, `tareasResumen`, `equiposFueraDeServicioAhora`), devuelve como máximo 25 filas y recorta cada texto que viene de los datos. Los montos se leen tanto si llegan como número como si llegan como texto con punto de miles.
+- **Dónde se ve:** pestaña Asistente (grupo Herramientas), solo para cuentas sin perfil restringido. Cada consulta queda registrada en la tabla `asistente_ia_uso` (quién, cuándo, cuántos tokens).
+- **Ejemplo:** «¿qué equipos tienen el PM vencido?» → Claude pide `estado_flota`; el navegador devuelve los equipos VENCIDA y URGENTE con horómetro y días; Claude los resume.
+- **Límites:** solo lee; nunca escribe. Lo que consulta sale hacia Anthropic. Responde con lo que está cargado en el navegador (si un dato no está en el sistema, no lo sabe). Puede interpretar mal un dato incompleto (por ejemplo órdenes sin costo anotado; las herramientas informan cuántas son). Las cifras importantes hay que verlas en su pantalla.
+- **Código:** `ASISTENTE_HERRAMIENTAS`, `ASISTENTE_MAX_FILAS`, `asistenteEjecutar`.
 
 ---
 

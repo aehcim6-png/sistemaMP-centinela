@@ -7015,6 +7015,22 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/e2e/coherencia-cruzada.spec.js` (orden de Metas & KPIs y 9 sub-pestañas de Componentes) y `tests/e2e/reglas-escalamiento.spec.js` (Tareas se abre con `go('tareas')`).
 
+### 198. Asistente de IA: preguntas en palabras normales con los datos reales (2026-10-29)
+
+**Qué es:** la pestaña **Asistente** (grupo Herramientas, `modules/renders/asistente.js`, módulo lazy) y la Edge Function `asistente-ia`. Se pregunta en palabras normales y Claude responde con los datos del sistema. **Solo lectura.**
+
+**Reparto del trabajo (la decisión de diseño):** la función **no lee datos de la empresa**. Solo (1) valida la sesión con `auth.getUser` (la llave anon también es un JWT válido, por eso no basta `verify_jwt`), el rol (`admin`, `operador`, `lector`), que la cuenta esté activa y que **no tenga perfil restringido**; (2) aplica los límites; (3) llama a Claude con el prompt del sistema y las herramientas, que son de la función y no del navegador (para que nadie use la cuota como un chat libre); (4) devuelve la respuesta. Cuando Claude pide una herramienta (`stop_reason: tool_use`), la función se la devuelve al navegador, que la ejecuta con los datos que ya tiene cargados (`asistenteEjecutar`, en `logic.js`, con pruebas) y vuelve a llamar con el resultado, hasta 6 vueltas. Así no se usa la llave de servicio para leer datos, los permisos son los de la persona y las reglas de negocio (`stockEstado`, `tareaEstado`, `equiposFueraDeServicioAhora`) siguen en un solo lugar.
+
+**Herramientas (7, todas de solo lectura, máximo 25 filas, textos recortados a 120 caracteres):** `estado_flota`, `buscar_equipo`, `ordenes_trabajo`, `registros_pm`, `stock_criticos`, `tareas_pendientes`, `costos_correctivos`. `tests/asistenteIa.test.js` comprueba que los nombres de `logic.js` y de la función coinciden, que ninguna herramienta modifica los datos, que los argumentos no confiables no rompen nada y que el texto largo se recorta (un dato con una «instrucción» escondida no llega entero al modelo; además el prompt le dice a Claude que los resultados son datos, no órdenes).
+
+**Modelo y parámetros:** `claude-sonnet-5-5` por defecto (secreto `ASISTENTE_IA_MODELO` lo cambia), `max_tokens` 6000, `output_config.effort: medium`, pensamiento adaptativo (los bloques `thinking` se devuelven y se reenvían sin tocar, como exige la API al continuar después de una herramienta), sin `tool_choice` forzado (la API lo rechaza en este modelo). SDK `npm:@anthropic-ai/sdk@1.3.0`.
+
+**Seguridad y costo:** clave `ANTHROPIC_API_KEY` solo como secreto de la función; la función valida la forma de lo que manda el navegador (solo mensajes de usuario y de Claude, bloques permitidos, hasta 40 mensajes y 150.000 caracteres, resultado de herramienta recortado a 24.000); tabla nueva **`asistente_ia_uso`** (migración `20261029160000`, con `GRANT`s, solo un administrador la lee; sumada a `TABLAS` de `backup-diario`, ahora 60) donde cada llamada deja quién, cuándo, modelo, tokens y la pregunta; límites 40 llamadas por persona por hora y 2.000.000 de tokens por día para el equipo (`ASISTENTE_IA_LLAMADAS_HORA`, `ASISTENTE_IA_TOPE_TOKENS_DIA`). La pantalla avisa que lo consultado se envía a Anthropic y que las cifras importantes hay que revisarlas.
+
+**Límites:** solo conoce lo cargado en el navegador de quien pregunta; puede interpretar mal un dato incompleto (las herramientas informan, por ejemplo, cuántas órdenes no tienen costo); si el sistema redibuja la pestaña en segundo plano se conserva la pregunta a medio escribir y el foco; no hay memoria entre conversaciones. Hay otras IA en el sistema que no cambian: Gemini para leer fotos (`leer-*`, `clasificar-correctivos`) y Claude Haiku en `whatsapp-webhook`.
+
+**Pruebas:** `tests/asistenteIa.test.js` (17), `supabase/functions/asistente-ia/index.test.ts` (8, Deno) y `tests/e2e/asistente-ia.spec.js` (flujo con herramienta simulada, error de la función, texto escapado y conservación de lo escrito). Plano de fallas: ficha **EF-18** y `EXT-05` ampliada.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

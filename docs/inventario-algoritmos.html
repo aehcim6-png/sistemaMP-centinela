@@ -118,7 +118,7 @@
   <h2 id="d-3">Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
-    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A16</td></tr>
+    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A18</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C23</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
@@ -338,6 +338,15 @@
     <li><b>Dónde se ve:</b> pestaña Tareas y un aviso en el Dashboard; tabla <code>tareas_gestion</code>.</li>
     <li><b>Límites:</b> no manda correos; el responsable de «pedir ya» es un rol fijo editable a mano; la falla repetida usa el componente anotado o el que sale del síntoma (muchos históricos están en blanco); «Resuelta sola» no verifica que el repuesto llegó.</li>
     <li><b>Código:</b> <code>TAREAS_ORIGENES</code>, <code>TAREAS_PLAZO_PEDIR_YA_DIAS</code>, <code>TAREAS_ESCALA_DIAS</code>, <code>FALLA_REPETIDA_VENTANA_DIAS</code>, <code>TAREAS_CERRADAS</code>, <code>tareaEstado</code>, <code>tareaEscalaA</code>, <code>tareasResumen</code>, <code>tareasDePedirYa</code>, <code>backlogDePMSinDuplicar</code>, <code>otFallaRepetida</code>, <code>otFallaRepetidaFaltantes</code>, <code>tareaClaveRepetida</code>, <code>tareaDeFallaRepetida</code>.</li>
+  </ul>
+
+  <h3 id="d-x">A18. Asistente de IA: herramientas de solo lectura</h3>
+  <ul>
+    <li><b>Para qué sirve:</b> contestar preguntas en palabras normales con los datos reales del sistema y no con suposiciones del modelo. La conversación la hace Claude (Anthropic) a través de la función <code>asistente-ia</code>.</li>
+    <li><b>Cómo lo calcula:</b> Claude no ve la base de datos: pide una herramienta por su nombre (<code>estado_flota</code>, <code>buscar_equipo</code>, <code>ordenes_trabajo</code>, <code>registros_pm</code>, <code>stock_criticos</code>, <code>tareas_pendientes</code>, <code>costos_correctivos</code>) y el navegador la ejecuta con los datos que la persona ya tiene cargados (<code>asistenteEjecutar</code>), con las mismas reglas del sistema, máximo 25 filas y los textos recortados.</li>
+    <li><b>Dónde se ve:</b> pestaña Asistente (grupo Herramientas), solo para cuentas sin perfil restringido; cada consulta queda en la tabla <code>asistente_ia_uso</code>.</li>
+    <li><b>Límites:</b> solo lee; lo que consulta sale hacia Anthropic; responde con lo que está cargado en el navegador y puede interpretar mal un dato incompleto. Las cifras importantes hay que verlas en su pantalla.</li>
+    <li><b>Código:</b> <code>ASISTENTE_HERRAMIENTAS</code>, <code>ASISTENTE_MAX_FILAS</code>, <code>asistenteEjecutar</code>.</li>
   </ul>
 
   <h2 id="d-21">B. Vida, supervivencia y tendencia de fallas</h2>

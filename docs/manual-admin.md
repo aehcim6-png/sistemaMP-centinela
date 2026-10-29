@@ -241,6 +241,26 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Límites.** El detalle de cada compra viene cortado a 25 letras en el origen; «Generador» no se toma como alternador; un precio con menos de 3 líneas es una referencia.
 
+### Asistente de IA (2026-10-29)
+
+**Qué es.** La pestaña **Asistente** (grupo Herramientas) deja preguntar en palabras normales y responde con los datos del sistema usando Claude, de Anthropic. La función `asistente-ia` solo conversa con Claude y valida quién pregunta; los datos los consulta el navegador con lo que la persona ya tiene cargado, y **nunca escribe nada**.
+
+**Quién lo ve.** Administradores y cuentas Operador o Lector **sin perfil restringido**. Las cuentas con perfil (Horómetro, Comprador, Planificador) no lo ven ni pueden llamarlo (la función lo rechaza con 403).
+
+**Para activarlo (una sola vez, por proyecto).**
+1. Crear una clave en la cuenta de Anthropic (console.anthropic.com → API keys) y fijar ahí un tope de gasto mensual.
+2. En Supabase → Edge Functions → Secrets, cargar `ANTHROPIC_API_KEY` con esa clave (si ya está cargada por WhatsApp, sirve la misma).
+3. Aplicar la migración `20261029160000_crear_asistente_ia_uso.sql` y desplegar la función `asistente-ia` (verificación de sesión activada).
+Mientras falte la clave, el asistente responde «todavía no está configurado».
+
+**Límites y modelo (secretos opcionales de la función).** `ASISTENTE_IA_LLAMADAS_HORA` (por defecto 40 consultas por persona por hora), `ASISTENTE_IA_TOPE_TOKENS_DIA` (por defecto 2.000.000 de tokens por día para todo el equipo) y `ASISTENTE_IA_MODELO` (por defecto `claude-sonnet-5-5`). Cada vuelta del asistente cuenta como una consulta (una pregunta puede usar 2 o 3).
+
+**Cuánto se usa.** Cada llamada queda en la tabla `asistente_ia_uso` (quién, cuándo, modelo, tokens, la pregunta). Para ver el día: `select count(*), sum(tokens_entrada + tokens_salida) from public.asistente_ia_uso where creado > now() - interval '24 hours';`. El gasto real está en console.anthropic.com → Usage.
+
+**Privacidad.** Lo que el asistente consulta (por ejemplo la lista de equipos urgentes o los costos de un equipo) y la pregunta se envían a Anthropic para poder responder. No se envían contraseñas ni las tablas completas: solo lo que devuelve cada herramienta (hasta 25 filas, con los textos recortados).
+
+**Límites del asistente.** Puede equivocarse o leer mal un dato incompleto; solo conoce lo que está cargado en el navegador de quien pregunta; no puede escribir ni modificar nada.
+
 ### Tareas y reglas que fuerzan y escalan (2026-10-29)
 
 **Qué es.** En **la pestaña Tareas** están las tareas que el sistema obliga a hacer, cada una con responsable y fecha límite. Nacen de tres reglas: (1) **todo «pedir ya»** del plan de compras de TBO Komatsu se vuelve una tarea para el Comprador, con 3 días de plazo (si el pedido se hace, queda «Resuelta sola»); (2) **todo hallazgo de un PM incompleto** pasa al backlog de pautas (al guardar y también al editar el PM); (3) **una falla repetida** —el mismo equipo y componente en 90 días— no se puede cerrar sin causa raíz y sin una acción con responsable y fecha: al cerrar la OT aparece el diálogo y no existe «Cerrar sin completar». También se pueden agregar tareas a mano.

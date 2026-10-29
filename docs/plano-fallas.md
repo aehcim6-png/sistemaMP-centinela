@@ -39,12 +39,14 @@ Las marcas `{sb}`, `{url}`, `{vercel}`, `{repo}`, `{ref}` de las fichas se reemp
 | Se llenó el almacenamiento local del navegador | LOC-01 |
 | La carpeta de respaldo no se actualiza | BKP-01 |
 | Un servicio nuevo no conecta aunque lo demás funciona | HOS-02 |
+| El asistente de la pestaña Asistente no responde, dice que no está configurado o que llegaste al límite | EF-18, EXT-05 |
 | «Otra persona modificó estos datos mientras trabajabas…» | _No es una falla: dos personas editaron lo mismo casi a la vez. El sistema conservó lo más reciente y pide repetir el cambio._ |
 | No me deja cerrar una OT: pide causa raíz y una acción con responsable y fecha (y no aparece «Cerrar sin completar») | _No es una falla: es la regla de las fallas repetidas (mismo equipo y componente en los últimos 90 días). Hay que anotar la causa raíz y una acción con responsable y fecha límite; la acción queda como tarea en la pestaña Tareas. Se ve en el diálogo «Cierre con datos»._ |
 | Al agregar un evento en Componentes → Historial pide «Estado de lo instalado» y no guarda sin elegirlo | _No es una falla: el estado (nuevo, reparado o usado) es obligatorio desde el 29-oct-2026; sirve para decidir si conviene reparar o comprar._ |
 | Aviso rojo o amarillo arriba del Dashboard: «N tareas vencidas» | _No es una falla: hay tareas con la fecha límite pasada (con 3 días o más de atraso van «escaladas» a la jefatura). Se ven y se cierran en la pestaña Tareas._ |
 | «Reparar vs comprar» dice «Solo se repara», «Solo se compra» o «Sin datos» para una pieza | _No es una falla: no hay en las compras (en español ni en inglés) la otra opción para comparar. Se completa anotando el estado de cada cambio en el Historial de Componentes._ |
 | «No se pudo guardar en la nube (tareas)» al abrir la pantalla Tareas | _Puede pasar si dos personas la abren a la vez: las dos intentan crear la misma tarea de «pedir ya» y la base rechaza el duplicado (clave única). No se pierde nada: se recarga y la tarea ya está. Si ocurre siempre, mirar DB-01 y DB-02._ |
+| El asistente dice «llegaste al límite de consultas por hora» o «el equipo llegó al tope diario» | _No es una falla: es el límite de uso que protege el gasto en Anthropic (40 consultas por persona por hora y 2.000.000 de tokens por día para todo el equipo; se pueden cambiar con los secretos de EF-18). Se reinicia solo._ |
 
 **Regla de oro:** ante una tarea programada (respaldo, alertas, resumen) lo primero es `select nombre, "ultimaEjecucion", exito, detalle from public.salud_crons;` (MON-01).
 
@@ -230,7 +232,7 @@ Supabase valida el correo y la clave, mantiene la sesión abierta y pide el segu
 **Cuándo avisar:** Si nadie entra y el panel está bien: avisar la hora y el mensaje exacto de la pantalla.
 
 **Depende de:** EXT-04, DB-01
-**Si falla, afecta a:** DB-01, DB-02, EF-01, EF-02, EF-11, EF-12, EF-13, EF-14, EF-15, EF-16, EF-17
+**Si falla, afecta a:** DB-01, DB-02, EF-01, EF-02, EF-11, EF-12, EF-13, EF-14, EF-15, EF-16, EF-17, EF-18
 
 **Soporte técnico (Claude):**
 - `get_advisors`; logs del servicio `auth` (`query_logs`).
@@ -283,6 +285,7 @@ Cada tabla decide quién puede leer, escribir o borrar según el rol (admin, edi
 **Cuándo avisar:** Cualquier cambio de políticas o permisos: pedirlo.
 
 **Depende de:** DB-01, AUT-01
+**Si falla, afecta a:** EF-18
 
 **Soporte técnico (Claude):**
 - `select tablename, policyname, cmd from pg_policies where schemaname='public';`
@@ -649,7 +652,7 @@ Junta todas las tablas de la lista `TABLAS` más las cuentas de acceso, las comp
 
 **Soporte técnico (Claude):**
 - `get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `backup-diario`.
-- La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (59).
+- La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (60).
 
 ### EF-06 — Función: alerta-pm
 
@@ -950,6 +953,34 @@ Usa IA (Google Gemini) para que el sistema lee la captura del estatus diario de 
 **Soporte técnico (Claude):**
 - `get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `leer-estatus-equipos`.
 
+### EF-18 — Función: asistente-ia
+
+El asistente de preguntas de la app (pestaña Asistente): conversa con Claude (Anthropic). Valida quién pregunta, aplica los límites de uso y devuelve la respuesta o el pedido de una herramienta; las herramientas las ejecuta el navegador con los datos que la persona ya tiene cargados. Nunca escribe nada.
+
+- **Panel:** {sb}/functions/asistente-ia (Logs en esa misma pestaña)
+- **Código:** `supabase/functions/asistente-ia/index.ts` (la lista de herramientas debe coincidir con `asistenteEjecutar` en `logic.js`)
+- **Quién la llama:** Pestaña Asistente (`modules/renders/asistente.js`).
+- **Claves que usa:** `ANTHROPIC_API_KEY` (obligatoria); opcionales `ASISTENTE_IA_MODELO`, `ASISTENTE_IA_LLAMADAS_HORA` (40), `ASISTENTE_IA_TOPE_TOKENS_DIA` (2.000.000)
+- **Tabla:** `asistente_ia_uso` (cada llamada: quién, cuándo, modelo, tokens, pregunta); solo la lee un administrador
+
+**Cómo se ve:** «El asistente todavía no está configurado» (error 503); «Llegaste al límite de consultas por hora» o «El equipo llegó al tope diario» (429); «Tu perfil no incluye el asistente» (403): la cuenta tiene un perfil restringido; «Anthropic rechazó la consulta» o «La clave de Anthropic no es válida» (502); El asistente tarda mucho o responde que necesitó demasiadas consultas
+
+**Confirmar:**
+1. Panel → Edge Functions → Secrets: ¿existe `ANTHROPIC_API_KEY`?
+2. Logs de la función: el texto exacto del error de Anthropic.
+3. `select count(*), sum(tokens_entrada+tokens_salida) from public.asistente_ia_uso where creado > now() - interval '24 hours';` para ver el uso del día.
+4. Si dice 403 de perfil: Configuración → usuarios → perfil de esa cuenta.
+
+**Qué hacer:** Cargar o renovar `ANTHROPIC_API_KEY` como secreto de la función (ver EXT-05). Subir los límites con los secretos opcionales si el equipo de verdad los necesita. Un límite alcanzado no es una falla: se reinicia solo (por hora o a las 24 horas).
+
+**Cuándo avisar:** Si el log muestra un error de código, avisar el texto y la hora.
+
+**Depende de:** EXT-05, AUT-01, DB-02
+
+**Soporte técnico (Claude):**
+- `get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `asistente-ia`.
+- `select creado, user_id, modelo, tokens_entrada, tokens_salida, herramientas, pregunta from public.asistente_ia_uso order by id desc limit 20;`
+
 ## 4. Servicios externos
 
 ### EXT-04 — Captcha del login (Cloudflare Turnstile)
@@ -1043,22 +1074,25 @@ Habilitaría avisos y reportes por WhatsApp. Hoy no está operativo (cuenta venc
 **Soporte técnico (Claude):**
 - Las funciones que lo usan ignoran WhatsApp si faltan sus claves y siguen con el correo.
 
-### EXT-05 — Interpretación de reportes (Anthropic)
+### EXT-05 — Interpretación de reportes y asistente (Anthropic)
 
-IA que convierte el texto libre de un reporte (WhatsApp o correo) en una OT estructurada.
+IA de Anthropic (Claude): convierte el texto libre de un reporte (WhatsApp o correo) en una OT estructurada y responde las preguntas de la pestaña Asistente.
 
 - **Clave:** secreto de función `ANTHROPIC_API_KEY`
-- **Código:** `supabase/functions/_shared/interpretarConIA.ts`
+- **Código:** `supabase/functions/_shared/interpretarConIA.ts`, `supabase/functions/whatsapp-webhook/index.ts` y `supabase/functions/asistente-ia/index.ts`
+- **Panel externo:** console.anthropic.com → Usage y Limits (gasto y tope mensual)
 
-**Cómo se ve:** Los reportes por WhatsApp o correo llegan pero no se interpretan
+**Cómo se ve:** Los reportes por WhatsApp o correo llegan pero no se interpretan; El asistente dice que no está configurado o que la clave no es válida
 
 **Confirmar:**
 1. Logs de EF-09 y EF-10: ¿error de clave?
+2. Logs de EF-18: ¿«Anthropic rechazó la consulta» o error de clave?
+3. console.anthropic.com: ¿saldo o tope de gasto agotado?
 
-**Qué hacer:** Cargar una clave vigente como secreto.
+**Qué hacer:** Cargar una clave vigente como secreto de las funciones. Revisar el saldo y el tope de gasto en la cuenta de Anthropic.
 
 **Depende de:** EXT-03
-**Si falla, afecta a:** EF-09
+**Si falla, afecta a:** EF-09, EF-18
 
 ### EXT-06 — Monitoreo de errores del navegador (Sentry)
 

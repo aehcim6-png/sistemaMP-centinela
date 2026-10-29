@@ -694,7 +694,7 @@ body.dens-compact th{padding:6px 8px}
 const _LAZY_VERS={
   al:'2026-08-30',
   avance:'2026-10-12a',
-  ayuda:'2026-10-29a',
+  ayuda:'2026-10-29b',
   cad:'2026-08-30b',
   cfg:'2026-10-26a',
   comp2:'2026-10-29c',
@@ -714,6 +714,7 @@ const _LAZY_VERS={
   gestion:'2026-10-14b',
   ger:'2026-10-29a',
   tareas:'2026-10-29b',
+  asistente:'2026-10-29a',
   rvc:'2026-10-29c',
   mov:'2026-08-30',
   papelera:'2026-08-30',
@@ -777,6 +778,7 @@ const _LAZY_EXPORTS={
   ger:['renderGer'],
   tareas:['renderTareas','tareasSincronizar','tareasFiltrar','tareaEstadoCambiar','tareaEditar','tareaAgregarModal','tareaGuardarNueva'],
   rvc:['renderRvc','rvcCambiarReserva','rvcBuscarPieza'],
+  asistente:['renderAsistente','asistenteNueva','asistenteSugerida','asistenteEnviar','asistentePreguntar','asistenteTextoAHtml'],
   gestion:['renderGestion','gestionPeriodo','gestionRango','gestionBacklogAgregar','gestionBacklogCerrar','gestionBacklogInsumo'],
   mov:['renderMov','editMov','delMov','clearConsumos','recalcHistorial','recalcSoloCostos'],
   papelera:['verPapelera','renderPapelera'],
@@ -1014,6 +1016,7 @@ window.cev=function(store,idx,key,val,type){
 const ICONS={
   dash:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg>',
   tareas:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><polyline points="6.5,10 9,12.5 13.5,7.5"/></svg>',
+  asistente:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12v9H9l-4 3.5V13H4z"/><path d="M10 6.2v3.6M8.2 8h3.6"/></svg>',
   gear:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.2"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.8" y1="4.8" x2="6.3" y2="6.3"/><line x1="13.7" y1="13.7" x2="15.2" y2="15.2"/><line x1="4.8" y1="15.2" x2="6.3" y2="13.7"/><line x1="13.7" y1="6.3" x2="15.2" y2="4.8"/></svg>',
   reg:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="10" height="15" rx="1.5"/><rect x="7.5" y="2" width="5" height="2.5" rx="0.8"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>',
   ot:'<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg>',
@@ -1140,6 +1143,7 @@ const TABS=[
   {id:'cos',l:'Costos',i:ICONS.money,g:'Desempeño'},
   {id:'mkpi',l:'Metas & KPIs',i:ICONS.target,g:'Desempeño'},
   {id:'buscar',l:'Buscar',i:ICONS.search,g:'Herramientas'},
+  {id:'asistente',l:'Asistente',i:ICONS.asistente,g:'Herramientas'},
   {id:'audit',l:'Auditoría de Datos',i:ICONS.eye,g:'Herramientas'}
 ];
 // Pestañas fijas que se alcanzan por un atajo de contexto (no por un botón del
