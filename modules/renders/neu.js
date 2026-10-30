@@ -122,7 +122,7 @@ export function renderNeu(){
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="programaCambiosNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2.5" x2="7" y2="5.5"/><line x1="13" y1="2.5" x2="13" y2="5.5"/></svg> Programa de cambios</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verRecauchajes()" title="Envíos de cascos al proveedor, retornos y rechazos (PRO-MAN-004)">♻ Recauchajes</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">${ICONS.camera} Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="programaCambiosNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2.5" x2="7" y2="5.5"/><line x1="13" y1="2.5" x2="13" y2="5.5"/></svg> Programa de cambios</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verTrasladosNeu()" title="Neumáticos pasados de un equipo a otro (canibalización) y posiciones que quedaron vacías">⇄ Traslados</button> <button class="btn btn-o" onclick="verRecauchajes()" title="Envíos de cascos al proveedor, retornos y rechazos (PRO-MAN-004)">♻ Recauchajes</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">${ICONS.camera} Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -140,7 +140,7 @@ export function renderNeu(){
     <datalist id="dlMarcasNeu"><option value="MICHELIN"><option value="BRIDGESTONE"><option value="GOODYEAR"><option value="WESTLAKE"></datalist>
     <datalist id="dlSeriesNeu">${[...new Set(neu.map(n=>n.serie).filter(Boolean))].sort().map(s=>`<option value="${escapeHtml(s)}">`).join('')}</datalist>
     <div class="tbl-wrap"><table>
-      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer">Serie ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th title="Fecha en que el neumático salió del equipo (queda registrada en ultimaMedicion al pasar a Stock/De baja) — vacío para los que siguen montados">F.Salida</th><th>↺</th></tr>
+      <tr><th onclick="neuSort('sigla')" style="cursor:pointer" title="Click para ordenar">Equipo ⇅</th><th onclick="neuSort('tipoEquipo')" style="cursor:pointer">Tipo ⇅</th><th onclick="neuSort('posicion')" style="cursor:pointer">Pos. ⇅</th><th onclick="neuSort('serie')" style="cursor:pointer" title="Serie de fábrica; en equipos chicos (camioneta, aljibe) es el número de fuego marcado">Serie / N° fuego ⇅</th><th onclick="neuSort('numSensor')" style="cursor:pointer">Sensor ⇅</th><th onclick="neuSort('marca')" style="cursor:pointer">Marca ⇅</th><th>Medida</th><th onclick="neuSort('fechaInst')" style="cursor:pointer">F.Inst. ⇅</th><th onclick="neuSort('hAcum')" style="cursor:pointer" title="🔗 = proyectado en vivo desde horómetro del equipo">H.Acum <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 12 L6 14 a3 3 0 0 1 -4 -4 L4 8 a3 3 0 0 1 4 -4 L10 6" fill="none"/><path d="M12 8 L14 6 a3 3 0 0 1 4 4 L16 12 a3 3 0 0 1 -4 4 L10 14" fill="none"/></svg> ⇅</th><th onclick="neuSort('remanente')" style="cursor:pointer">Remanente ⇅</th><th onclick="neuSort('pctRemanente')" style="cursor:pointer">% ⇅</th><th title="Proyección con historial de mediciones (TD/RUL) — lo mismo que ve el 🔍, resumido acá para no tener que entrar a cada neumático">Vida Restante</th><th onclick="neuSort('estado')" style="cursor:pointer">Estado ⇅</th><th title="Fecha en que el neumático salió del equipo (queda registrada en ultimaMedicion al pasar a Stock/De baja) — vacío para los que siguen montados">F.Salida</th><th>↺</th></tr>
       ${pg.items.map((n,_)=>{
         const i=neu.indexOf(n);
         const pLive=neuPct(n);
@@ -179,6 +179,7 @@ export function renderNeu(){
           <td class="mono" style="font-size:11px;color:var(--tx2)">${ESTADOS_RETIRO_NEU.includes(n.estado)?escapeHtml(n.ultimaMedicion||'—'):'—'}</td>
           <td>
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
+            ${(n.estado||'Operativo')==='Operativo'?`<button class="btn-s" style="background:rgba(59,130,246,.12);color:var(--ac)" onclick="trasladarNeu(${i})" title="Pasar a otro equipo (canibalización)">⇄</button>`:''}
             ${NEU_ESTADOS_ENVIABLES.includes(n.estado)?`<button class="btn-s" style="background:rgba(16,185,129,.12);color:var(--ok)" onclick="enviarRecauchaje(${i})" title="Enviar a recauchaje">♻</button>`:''}
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
@@ -360,7 +361,7 @@ export function addNeu(){
       <div class="fg"><label>N° Posición</label><input type="number" id="nNNumPos" min="1" max="10" value="1"></div>
     </div>
     <div class="form-row">
-      <div class="fg"><label>N° Serie *</label><input id="nNSerie" list="dlSeriesNeu" title="Si este neumático viene de otro equipo/posición, elige su serie de la lista en vez de retiparla — un typo rompe el enlace con su historial de mediciones"></div>
+      <div class="fg"><label title="En equipos chicos (camioneta, aljibe) se anota el número de fuego marcado">N° Serie / N° de fuego *</label><input id="nNSerie" list="dlSeriesNeu" title="Si este neumático viene de otro equipo/posición, elige su serie de la lista en vez de retiparla — un typo rompe el enlace con su historial de mediciones"></div>
       <div class="fg"><label>N° Sensor</label><input id="nNSensor"></div>
     </div>
     <div class="form-row">
@@ -417,13 +418,13 @@ export function cambiarNeu(i){
   const neu=S.g('neu')||[];const n=neu[i];
   const hAct=_horomEquipoSeguro(n.sigla);
   sm(`<h3>↺ Cambio — ${escapeHtml(n.sigla)} ${escapeHtml(n.posicion)}</h3>
-    <p style="color:var(--tx2);margin-bottom:12px">Serie: <b>${escapeHtml(n.serie)}</b> · Remanente: <b>${n.remanente||'—'}mm</b></p>
+    <p style="color:var(--tx2);margin-bottom:12px">Serie / N° fuego: <b>${escapeHtml(n.serie)}</b> · Remanente: <b>${n.remanente||'—'}mm</b></p>
     <div class="form-row">
       <div class="fg"><label>Destino neumático retirado</label><select id="cDest"><option>Stock</option><option>De baja</option></select></div>
       <div class="fg"><label>Remanente al retirar (mm)</label><input type="number" id="cRemAnt"></div>
     </div>
     <div class="form-row">
-      <div class="fg"><label>Serie nuevo *</label><input id="cSerie" list="dlSeriesNeu" title="Si este neumático viene de otro equipo/posición, elige su serie de la lista en vez de retiparla — un typo rompe el enlace con su historial de mediciones"></div>
+      <div class="fg"><label>Serie / N° fuego nuevo *</label><input id="cSerie" list="dlSeriesNeu" title="Si este neumático viene de otro equipo/posición, elige su serie de la lista en vez de retiparla — un typo rompe el enlace con su historial de mediciones"></div>
       <div class="fg"><label>Costo ($)</label><input type="number" id="cCosto" value="0"></div>
     </div>
     <button class="btn" onclick="saveCambio(${i},${hAct})"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Confirmar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
@@ -1435,6 +1436,77 @@ export function programaCambiosNeu(){
 }
 function _neuDiasEntre(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
 
+// ── Traslado entre equipos / canibalización (PRO-MAN-004, 2026-10-30) ──
+// Se saca un neumático MONTADO del equipo donante y se pone en el receptor, con la causal. Queda una fila en 'neuTras' (neumaticos_traslados) y, como ya
+// hacía confirmarInstalarExistencias, un registro 'Reasignación de Neumático' en 'ot'. Las horas que lleva se congelan antes de moverlo (mismo cálculo que al
+// retirarlo) y siguen sumando en el receptor. El sensor se desmonta: se vuelve a instalar a mano si se movió con el neumático.
+export function trasladarNeu(i){
+  const neu=S.g('neu')||[];const n=neu[i];if(!n)return;
+  const eq=(S.g('eq')||[]).filter(e=>e.sigla!==n.sigla);
+  sm(`<h3>⇄ Trasladar a otro equipo — ${escapeHtml(n.serie)}</h3>
+    <p style="color:var(--tx2);margin-bottom:10px">Donante: <b>${escapeHtml(n.sigla)}</b> ${escapeHtml(n.posicion||'')} · horómetro ${fn(_horomEquipoSeguro(n.sigla))} h. Esa posición del donante queda vacía hasta que se reponga.</p>
+    <div class="form-row">
+      <div class="fg"><label>Equipo receptor *</label><select id="trEq"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
+      <div class="fg"><label>Posición en el receptor *</label><input id="trPos" placeholder="Ej: Trasera Izq Ext"></div>
+      <div class="fg"><label>N° posición</label><input type="number" id="trNumPos" min="1" max="10" value="${n.numPos||1}"></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Causal *</label><select id="trCausal"><option value="">— elige —</option>${NEU_CAUSALES_TRASLADO.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="fg"><label>Autorizado por</label><input id="trAutoriza"></div>
+    </div>
+    <div class="fg"><label>Detalle (obligatorio si la causal es «Otro»)</label><input id="trDetalle" style="width:100%"></div>
+    <br><button class="btn" onclick="saveTrasladoNeu(${i})">Trasladar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+}
+export function saveTrasladoNeu(i){
+  const neu=S.g('neu')||[];const n=neu[i];if(!n)return cm();
+  const receptor=$('trEq').value,pos=$('trPos').value.trim(),causal=$('trCausal').value,detalle=$('trDetalle').value.trim();
+  const v=neuValidarTraslado(n,receptor,pos,causal,detalle);
+  if(!v.ok)return toast('⚠️ '+v.motivo);
+  // la posición del receptor puede estar ocupada: ese neumático pasa a Existencias (mismo criterio que confirmarInstalarExistencias)
+  const ocupadoIdx=neu.findIndex(x=>x!==n&&x.sigla===receptor&&x.posicion===pos&&(x.estado||'Operativo')==='Operativo');
+  if(ocupadoIdx>=0){
+    if(!confirm(`Ya hay un neumático operativo en ${receptor} ${pos} (serie ${neu[ocupadoIdx].serie}). ¿Moverlo a Existencias e instalar este en su lugar?`))return;
+    const hOcup=_horasNeuAlRetiro(neu[ocupadoIdx]);
+    _desmontarSensorSiTiene(neu[ocupadoIdx].serie);
+    Object.assign(neu[ocupadoIdx],{estado:'Stock',numSensor:'',fechaBaja:new Date().toISOString().slice(0,10),horasAcum:hOcup,horasBase:null});
+  }
+  const hoy=new Date().toISOString().slice(0,10);
+  const hDon=_horomEquipoSeguro(n.sigla),hRec=_horomEquipoSeguro(receptor);
+  const horas=_horasNeuAlRetiro(n);
+  const tras=S.g('neuTras')||[];
+  tras.push({neuId:n.id||null,serie:n.serie,fecha:hoy,donante:n.sigla,posicionDonante:n.posicion||'',horomDonante:hDon||null,receptor:receptor,posicionReceptor:pos,
+    horomReceptor:hRec||null,causal:causal,detalle:detalle,autorizadoPor:$('trAutoriza').value.trim(),usuario:window._userName||''});
+  const origen=`${n.sigla} ${n.posicion||''}`.trim();
+  _desmontarSensorSiTiene(n.serie);
+  Object.assign(n,{sigla:receptor,posicion:pos,numPos:parseInt($('trNumPos').value)||n.numPos||1,horomInstalacion:hRec,horasAcum:horas,horasBase:horas,numSensor:'',estado:'Operativo',fechaInst:hoy});
+  const ot=S.g('ot')||[];
+  ot.unshift({sigla:receptor,fecha:hoy,tipo:'Reasignación de Neumático',criticidad:'No Aplica',
+    sintoma:`Traslado desde ${origen} (causal: ${causal}${detalle?' — '+detalle:''}). Serie ${n.serie} instalado en ${receptor} ${pos}.`,
+    sistema:'Ruedas y neumáticos',costo:0,horom:hRec});
+  S.s('neuTras',tras);S.s('neu',neu);S.s('ot',ot);cm();renders.neu();
+  toast('✅ '+n.serie+' trasladado a '+receptor+' '+pos+' — '+origen+' queda sin neumático en esa posición');
+}
+export function verTrasladosNeu(){
+  const tras=S.g('neuTras')||[];
+  const hoy=new Date().toISOString().slice(0,10),anio=hoy.slice(0,4);
+  const pend=neuTrasladosPendientesReposicion(tras,S.g('neu')||[],hoy);
+  const r=resumenTraslados(tras,anio+'-01-01',anio+'-12-31');
+  const ultimos=tras.slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).slice(0,40);
+  const card=(t,v,sub,col)=>'<div class="card"><div class="card-t">'+t+'</div><div class="card-v"'+(col?' style="color:'+col+'"':'')+'>'+v+'</div><div class="card-s">'+sub+'</div></div>';
+  sm(`<div style="max-width:900px"><h3>⇄ Traslados de neumáticos entre equipos</h3>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Canibalización: un neumático montado que se pasa de un equipo (donante) a otro (receptor), con su causal (procedimiento PRO-MAN-004). Para trasladar uno, usa el botón ⇄ de un neumático montado.</div>
+    <div class="cards">
+      ${card('Traslados '+anio,r.total,r.porCausal.map(c=>escapeHtml(c.causal)+': '+c.n).join(' · ')||'—')}
+      ${card('Posiciones sin reponer',pend.length,'donantes que siguen sin neumático ahí',pend.length?'var(--danger)':'var(--ok)')}
+      ${card('Más donante '+anio,r.porDonante.length?escapeHtml(r.porDonante[0].sigla):'—',r.porDonante.length?r.porDonante[0].n+' neumático(s)':'')}
+    </div>
+    <h4 style="margin:10px 0 4px">Posiciones del donante sin reponer (${pend.length})</h4>
+    ${pend.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Posición</th><th>Desde</th><th>Días</th><th>Se fue a</th><th>Causal</th></tr>'+pend.map(p=>'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(p.donante)+'</td><td>'+escapeHtml(p.posicion)+'</td><td class="mono">'+fd(p.fecha)+'</td><td class="mono" style="color:'+(p.dias>7?'var(--danger)':'var(--tx2)')+'">'+p.dias+'</td><td>'+escapeHtml(p.receptor)+'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(p.serie)+'</div></td><td>'+escapeHtml(p.causal)+'</td></tr>').join('')+'</table></div>':'<div style="font-size:12px;color:var(--tx3)">Ninguna: todas las posiciones donantes tienen un neumático montado.</div>'}
+    <h4 style="margin:12px 0 4px">Últimos traslados</h4>
+    ${ultimos.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th>Serie</th><th>Donante</th><th>Receptor</th><th>Causal</th></tr>'+ultimos.map(t=>'<tr><td class="mono">'+fd(t.fecha)+'</td><td class="mono">'+escapeHtml(t.serie)+'</td><td>'+escapeHtml(t.donante)+'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(t.posicionDonante||'')+'</div></td><td>'+escapeHtml(t.receptor)+'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(t.posicionReceptor||'')+'</div></td><td>'+escapeHtml(t.causal)+(t.detalle?'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(t.detalle)+'</div>':'')+'</td></tr>').join('')+'</table></div>':'<div style="font-size:12px;color:var(--tx3)">Todavía no hay traslados.</div>'}
+    <br><button class="btn btn-o" onclick="cm()">Cerrar</button></div>`);
+}
+
 // ── Recauchaje (PRO-MAN-004, 2026-10-30) ──
 // Un envío por fila en 'neuRec' (tabla neumaticos_recauchajes). Mientras el casco está en el proveedor, el neumático queda «En recauchaje»; al volver pasa a
 // Stock con la huella nueva, o a «De baja» si el proveedor lo rechazó (con su código). Reglas y resumen en logic.js (neuPuedeEnviarRecauchaje, resumenRecauchajes).
@@ -1580,6 +1652,9 @@ window.verHistorialNeu = verHistorialNeu;
 window.verDetalleNeu = verDetalleNeu;
 window.resumenFlotaNeu = resumenFlotaNeu;
 window.programaCambiosNeu = programaCambiosNeu;
+window.trasladarNeu = trasladarNeu;
+window.saveTrasladoNeu = saveTrasladoNeu;
+window.verTrasladosNeu = verTrasladosNeu;
 window.enviarRecauchaje = enviarRecauchaje;
 window.saveEnvioRecauchaje = saveEnvioRecauchaje;
 window.verRecauchajes = verRecauchajes;

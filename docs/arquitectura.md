@@ -7059,7 +7059,7 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Cómo:** tabla nueva `neumaticos_recauchajes` (migración `20261030140000_crear_neumaticos_recauchajes.sql`, con RLS y `GRANT` como `tareas_gestion`; sumada a `TABLAS` de `backup-diario`, ahora 61), una fila por envío (`estado` Enviado / Recibido / Rechazado), clave `neuRec` en `TABLA_REAL`. Mientras está en el proveedor el neumático queda con `estado` «En recauchaje» (texto libre en `neumaticos`; las alertas de cambio solo miran «Operativo», así que no lo cuentan). Reglas en `logic.js`: `neuPuedeEnviarRecauchaje` (solo fuera del equipo, sin envío abierto ni rechazo previo), `neuSiguienteNumRecauchaje` (recibidos + 1; aviso pasado el 4.º del formulario), `resumenRecauchajes` y `NEU_CODIGOS_RECHAZO` (los once del formulario). Pantalla en `modules/renders/neu.js`: botón ♻ por fila, listado «♻ Recauchajes» con Recibir / Rechazado.
 
-**Lo que no se hizo:** el registro de montaje/desmontaje con **equipo donante y receptor** (canibalización) y su causal; queda para decidir si se quiere seguir. El número de fuego no es un campo aparte: se usa la serie del neumático.
+**Lo que no se hizo aquí:** el equipo donante y receptor (canibalización) se agregó después, en §203. El número de fuego no es un campo aparte: es la serie del neumático (confirmado por el usuario).
 
 **Antes de desplegar:** aplicar la migración en los dos proyectos y desplegar de nuevo `backup-diario`.
 
@@ -7069,13 +7069,23 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Qué es:** el instructivo corporativo IT-AD-003 «Denuncio de siniestros» en la app: registro del siniestro, plazo de 5 días para denunciarlo (pasado eso se pierde la indemnización), lista de documentos que pide el liquidador, vigencia de los documentos del equipo a la fecha y bitácora de mantenimiento.
 
-**Cómo:** tabla nueva `siniestros` (migración `20261030160000_crear_siniestros.sql`, RLS y `GRANT`; respaldo con 62 tablas), clave `siniestros` en `TABLA_REAL`; `documentos` es jsonb (clave → true o 'na'). Reglas en `logic.js`: `siniestroPlazo` (días **corridos**, último día = fecha + `SINIESTRO_PLAZO_DIAS`; el instructivo no dice corridos u hábiles y se eligió lo prudente), `siniestroDocumentos` (`SINIESTRO_DOCUMENTOS`, cada uno con responsable, si es de entrada o «si lo pide el liquidador», y cuándo aplica), `siniestroDocsEquipo` (revisión técnica, permiso y seguro desde Vencimientos), `bitacoraMantenimiento`, `siniestroNombreArchivo` y `siniestrosResumen`. Pantalla: sección plegable al inicio de Vencimientos (`modules/renders/venc.js`), porque el seguro y los documentos del equipo viven ahí; indicador `_hsSiniestros` en el encabezado (`index.html`), igual que el de tareas vencidas.
+**Cómo:** tabla nueva `siniestros` (migración `20261030160000_crear_siniestros.sql`, RLS y `GRANT`; respaldo con 62 tablas), clave `siniestros` en `TABLA_REAL`; `documentos` es jsonb (clave → true o 'na'). Reglas en `logic.js`: `siniestroPlazo` (días **corridos**, último día = fecha + `SINIESTRO_PLAZO_DIAS`; el instructivo no lo dice y el usuario confirmó que son corridos), `siniestroDocumentos` (`SINIESTRO_DOCUMENTOS`, cada uno con responsable, si es de entrada o «si lo pide el liquidador», y cuándo aplica), `siniestroDocsEquipo` (revisión técnica, permiso y seguro desde Vencimientos), `bitacoraMantenimiento`, `siniestroNombreArchivo` y `siniestrosResumen`. Pantalla: sección plegable al inicio de Vencimientos (`modules/renders/venc.js`), porque el seguro y los documentos del equipo viven ahí; indicador `_hsSiniestros` en el encabezado (`index.html`), igual que el de tareas vencidas.
 
 **Límites:** el certificado de gases no se sigue en Vencimientos; la app no envía nada a Finanzas ni al corredor (registra y avisa).
 
 **Antes de desplegar:** migración en los dos proyectos y nuevo despliegue de `backup-diario`.
 
 **Pruebas:** `tests/siniestros.test.js` (11) y `tests/e2e/siniestros.spec.js`.
+
+### 203. Traslado de neumáticos entre equipos y número de fuego (2026-10-30)
+
+**Qué es:** el registro «Montaje y desmontaje de neumático» del procedimiento PRO-MAN-004 en la app: pasar un neumático montado de un equipo (donante) a otro (receptor) con su causal, y ver qué posiciones donantes quedaron vacías. Además, la serie del neumático se rotula «Serie / N° de fuego»: el usuario confirmó que la serie es el número de fuego (en camionetas y aljibes se anota el número marcado), así que no se agrega un campo aparte.
+
+**Cómo:** tabla nueva `neumaticos_traslados` (migración `20261030180000_crear_neumaticos_traslados.sql`, RLS y `GRANT`; respaldo con 63 tablas), clave `neuTras`. En `modules/renders/neu.js`: `trasladarNeu` / `saveTrasladoNeu` (valida con `neuValidarTraslado`; si la posición del receptor está ocupada, ese neumático pasa a Existencias como en `confirmarInstalarExistencias`; congela las horas con `_horasNeuAlRetiro` y las deja como `horasBase` para que sigan sumando en el receptor; desmonta el sensor; deja la «Reasignación de Neumático» en `ot`) y `verTrasladosNeu` (resumen del año por causal y donante, posiciones sin reponer de `neuTrasladosPendientesReposicion`, últimos traslados).
+
+**Antes de desplegar:** migración en los dos proyectos y nuevo despliegue de `backup-diario`.
+
+**Pruebas:** `tests/neuTraslados.test.js` (6) y `tests/e2e/neu-traslado.spec.js`.
 
 ## Lo que decidimos NO hacer (y por qué)
 

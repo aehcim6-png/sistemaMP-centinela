@@ -61,6 +61,7 @@ import { detalleErrorVerificacion, verificarSecretoCron } from "../_shared/verif
 // 2026-10-29: sumada 'tareas_gestion' (reglas que fuerzan y escalan) el mismo día en que se creó.
 // 2026-10-30: sumada 'neumaticos_recauchajes' (recauchaje de neumáticos, PRO-MAN-004) el mismo día en que se creó.
 // 2026-10-30: sumada 'siniestros' (denuncio de siniestros, IT-AD-003) el mismo día en que se creó.
+// 2026-10-30: sumada 'neumaticos_traslados' (canibalización de neumáticos, PRO-MAN-004) el mismo día en que se creó.
 export const TABLAS = [
   'kv', 'user_roles', 'equipos', 'registros_pm', 'correctivos', 'movimientos_stock',
   'historial_horometros', 'neumaticos', 'neumaticos_mediciones', 'pautas',
@@ -76,7 +77,7 @@ export const TABLAS = [
   'correctivos_historico', 'gestion_compras', 'compromisos', 'uso_pestanas',
   'salud_crons', 'compras_detalle', 'rendimiento_modelos',
   'produccion_turno', 'produccion_turno_equipos', 'fmea_npr', 'reportabilidad_diaria',
-  'insumos', 'insumos_movimientos', 'tareas_gestion', 'asistente_ia_uso', 'neumaticos_recauchajes', 'siniestros'
+  'insumos', 'insumos_movimientos', 'tareas_gestion', 'asistente_ia_uso', 'neumaticos_recauchajes', 'siniestros', 'neumaticos_traslados'
 ];
 
 // PostgREST impone un tope de filas por request (~1000 en este proyecto,

@@ -114,6 +114,10 @@
   <p>Un usuario nuevo queda <b>bloqueado</b> hasta que un admin lo activa a mano.</p>
 
   <h2 id="d-3">3. Seguridad</h2>
+    <h3 id="d-x">Traslado de neumáticos entre equipos y número de fuego (2026-10-30)</h3>
+  <p><b>Qué cambia.</b> En <b>Neumáticos</b>, el botón ⇄ de un neumático montado lo pasa a otro equipo (canibalización) con su causal; se mueve con sus horas, queda una «Reasignación de Neumático» en Correctivos y el sensor se desmonta. <b>⇄ Traslados</b> muestra los traslados del año por causal y las posiciones del donante que siguen sin neumático (PRO-MAN-004).</p>
+  <p><b>Número de fuego.</b> El campo se llama «Serie / N° de fuego»: serie en equipos grandes, número de fuego marcado en camionetas y aljibes.</p>
+  <p><b>Antes de desplegar.</b> Aplicar <code>20261030180000_crear_neumaticos_traslados.sql</code> en los dos proyectos y desplegar de nuevo <code>backup-diario</code> (63 tablas).</p>
     <h3 id="d-x">Siniestros y plazo de denuncia (2026-10-30)</h3>
   <p><b>Qué cambia.</b> En <b>Vencimientos</b>, arriba, está <b>Siniestros</b> (IT-AD-003): se registra el siniestro y la app cuenta el <b>plazo de 5 días</b> para denunciarlo (días corridos; último día = fecha + 5). Desde 2 días antes, y si ya venció, aparece «Siniestros por denunciar» en el encabezado. Estados: Por informar → Informado (pide la fecha) → En liquidación → Cerrado (pide el resultado).</p>
   <p><b>Documentos.</b> Lista de lo que pide el liquidador según el caso, marcable como listo o «no aplica»; nombre del archivo del informe; vigencia de revisión técnica, permiso y seguro a la fecha; bitácora de mantenimiento de 12 meses en CSV.</p>
