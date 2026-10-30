@@ -203,6 +203,11 @@ Formatos que aparecen (todos son el mismo reporte):
 - Si Tonelaje y Rendimiento [Ton/Hr] de carguío están en blanco o en 0,0, déjalos en null: no se registraron ese turno.
 - Algunas fechas vienen con año de 2 dígitos (26-02-26): devuélvelas como 2026-02-26.
 
+- Varios reportes (abril) traen al pie, dentro de Observaciones, subtítulos «EQUIPOS FUERA DE SERVICIO:», «EQUIPO STAND BY:» y «OBSERVACIONES:». Copia el contenido de las dos primeras listas dentro de disponibilidadEquipos, cada una con su encabezado, y la bitácora con hora en bitacora.
+- Las horas de Pérdida por Petróleo pueden venir como «11:00:00 AM» o «8:00:00»: devuélvelas como HH:MM de 24 horas.
+- Si la Franja o el Módulo en descarga están en blanco, déjalos en null. La fecha puede venir como dd-mm-aa, dd/mm/aa o dd-mm-aaaa.
+- Si una tabla trae un error de tipeo del papel (un nombre de equipo mal escrito, un horómetro con un dígito de más), cópialo tal cual y marca la fila con incierto:true: no lo corrijas tú.
+
 Para cada tabla, incluye una fila SOLO si tiene al menos un dato escrito — no incluyas filas completamente en blanco. Si un campo no aparece en la foto, está en blanco, o es ilegible, déjalo en null — nunca inventes un valor ni lo calcules tú: copia lo que está escrito. Si un valor SÍ está escrito pero es ambiguo, da tu mejor intento de todas formas pero marca esa fila con incierto:true, o agrega el campo de cabecera a camposInciertos.`;
 
 export const TOPE_IMAGEN_BASE64 = 11_000_000;

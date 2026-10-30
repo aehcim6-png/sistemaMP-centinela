@@ -3835,6 +3835,7 @@ var REPORTE_TURNO_TABLAS = [
 function _reporteApodo(t){return String(t==null?'':t).toUpperCase().replace(/[^A-Z0-9]/g,'');}
 // Controles de coherencia de una fila leída (no dependen de la IA): el papel trae errores de digitación reales (horómetro con un dígito de más, horas negativas,
 // #¡VALOR!). Una fila dudosa NO se corrige ni se descarta: solo sale en amarillo para que la persona la revise. Devuelve true si algo no cuadra.
+function _reporteMin(t){var m=String(t==null?'':t).match(/^(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):null;}
 function reporteTurnoFilaDudosa(r,categoria){
   var n=function(v){return typeof v==='number'&&isFinite(v)?v:null;};
   var h=n(r.totalHoras);
@@ -3846,8 +3847,17 @@ function reporteTurnoFilaDudosa(r,categoria){
     if(h!=null&&Math.abs((hf-hi)-h)>1)return true;      // las horas deben coincidir con el avance del horómetro (holgura 1 h)
   }
   if(categoria==='CAEX'){
-    var v=n(r.vueltas),tv=n(r.tonVuelta),t=n(r.totalTon);
+    var v=n(r.vueltas),tv=n(r.tonVuelta),t=n(r.totalTon),rv=n(r.rendimientoVueltasHr);
     if(v!=null&&tv!=null&&t!=null&&Math.abs(v*tv-t)>tv)return true;   // toneladas = vueltas × ton/vuelta (holgura de 1 vuelta)
+    if(v!=null&&h>0&&rv!=null&&Math.abs(v/h-rv)>0.3)return true;      // rendimiento = vueltas ÷ horas
+  }
+  if(categoria==='Carguio'){
+    var tc=n(r.tonelaje),rc=n(r.rendimientoTonHr);
+    if(tc>0&&h>0&&rc>0&&Math.abs(tc/h-rc)/rc>0.05)return true;        // rendimiento = toneladas ÷ horas (el papel arrastra a veces un rendimiento de otro turno)
+  }
+  if(categoria==='PerdidaPetroleo'){
+    var m1=_reporteMin(r.horaInicio),m2=_reporteMin(r.horaFin);
+    if(m1!=null&&m2!=null&&h!=null&&Math.abs((m2-m1)/60-h)>0.25)return true;   // las horas perdidas deben coincidir con el tramo desde-hasta
   }
   return false;
 }
@@ -3897,6 +3907,7 @@ function reporteTurnoFilas(datos){
 // reportabilidad (CAEX-85 → CE-85 → CN-9503). null si el apodo no está en la tabla (ej. CAEX-56, CAEX-115, MN-92): ahí la persona elige.
 function reporteTurnoAlias(nombre){
   var n=String(nombre==null?'':nombre).toUpperCase().replace(/\s+/g,'').replace(/^CAEX-?/,'CE-');
+  if(n==='CE-115')n='CE-155';   // en los papeles de marzo aparece «CAEX-115»: es el CAEX-155 (el horómetro sigue la misma serie: 1441 → 1448,7 → 1477,2 → 1623)
   return REPORTAB_MAPA_SIGLAS[n]||null;
 }
 // Totales del papel que no son creíbles (celdas con error de Excel que quedan como números enormes o en 0). Devuelve [{campo, valor}]; no corrige nada.
@@ -3906,6 +3917,7 @@ function reporteTurnoTotalesDudosos(d){
   ['tiempoMedioCicloMin','totalHorasCaex','rendimientoCaexVueltasHr','rendimientoTransporteTonHr','totalVueltas','totalToneladas','totalTonCF','totalHorasCF','rendimientoCFTonHr','rendimientoCFCargasHr'].forEach(function(k){if(n(d[k])!=null&&n(d[k])<0)out.push({campo:k,valor:d[k]});});
   if(n(d.tiempoMedioCicloMin)>30)out.push({campo:'tiempoMedioCicloMin',valor:d.tiempoMedioCicloMin});
   if(n(d.totalHorasCaex)>100)out.push({campo:'totalHorasCaex',valor:d.totalHorasCaex});
+  if(n(d.rendimientoTransporteTonHr)>0&&n(d.totalToneladas)>0&&n(d.totalHorasCaex)>0&&Math.abs(d.totalToneladas/d.totalHorasCaex-d.rendimientoTransporteTonHr)/d.rendimientoTransporteTonHr>0.1&&out.every(function(x){return x.campo!=='rendimientoTransporteTonHr';}))out.push({campo:'rendimientoTransporteTonHr',valor:d.rendimientoTransporteTonHr});
   if(n(d.rendimientoCaexVueltasHr)===0&&n(d.totalVueltas)>0)out.push({campo:'rendimientoCaexVueltasHr',valor:0});
   if(n(d.rendimientoTransporteTonHr)===0&&n(d.totalToneladas)>0)out.push({campo:'rendimientoTransporteTonHr',valor:0});
   return out;

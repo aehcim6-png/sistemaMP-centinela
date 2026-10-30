@@ -185,3 +185,34 @@ describe('papeles de abril: errores de horómetro y totales de carguío', () => 
     expect(reporteTurnoFilaDudosa({ horometroInicial: 1648, horometroFinal: 10650.2, totalHoras: 9002.2 }, 'Apoyo')).toBe(true);
   });
 });
+
+describe('papeles de abril: fórmulas rotas del Excel', () => {
+  it('rendimiento de carguío arrastrado de otro turno (5909 con 8976 t en 8 h) marca la fila; uno coherente no', () => {
+    expect(reporteTurnoFilaDudosa({ totalHoras: 8, tonelaje: 8976, rendimientoTonHr: 5909 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ totalHoras: 7.1, tonelaje: 8256, rendimientoTonHr: 1162.8 }, 'Carguio')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ totalHoras: 9.1, tonelaje: null, rendimientoTonHr: 0 }, 'Carguio')).toBe(false);
+  });
+  it('rendimiento de vueltas que no es vueltas ÷ horas marca la fila CAEX', () => {
+    expect(reporteTurnoFilaDudosa({ vueltas: 48, totalHoras: 8.7, rendimientoVueltasHr: 5.5, tonVuelta: 90, totalTon: 4320 }, 'CAEX')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ vueltas: 18, totalHoras: 3.1, rendimientoVueltasHr: 0, tonVuelta: 90, totalTon: 1620 }, 'CAEX')).toBe(true);
+  });
+  it('pérdida por petróleo: horas que no calzan con desde-hasta (11:00 AM con 11 h) marcan la fila; 8:00→10:25 = 2,42 h no', () => {
+    expect(reporteTurnoFilaDudosa({ horaInicio: '11:00', horaFin: null, totalHoras: 11 }, 'PerdidaPetroleo')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ horaInicio: '08:00', horaFin: '10:25', totalHoras: 2.42 }, 'PerdidaPetroleo')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ horaInicio: '09:00', horaFin: '13:00', totalHoras: 2 }, 'PerdidaPetroleo')).toBe(true);
+  });
+  it('indisponibilidad de 121 horas (22-04 día) se marca', () => {
+    expect(reporteTurnoFilaDudosa({ totalHoras: 121, tonAsociado: 46671 }, 'PerdidaIndisponibilidad')).toBe(true);
+  });
+  it('totales del 24-04 día (ciclo 565,8; 1041,6 h; transporte 21) y del 21-04 noche se avisan; uno normal no', () => {
+    const malo = { tiempoMedioCicloMin: 565.8, totalHorasCaex: 1041.6, rendimientoTransporteTonHr: 21, totalToneladas: 21690 };
+    expect(reporteTurnoTotalesDudosos(malo).map((x) => x.campo)).toEqual(['tiempoMedioCicloMin', 'totalHorasCaex']);
+    expect(reporteTurnoTotalesDudosos({ totalToneladas: 20880, totalHorasCaex: 44.6, rendimientoTransporteTonHr: 400 }).map((x) => x.campo)).toEqual(['rendimientoTransporteTonHr']);
+    expect(reporteTurnoTotalesDudosos({ totalToneladas: 20880, totalHorasCaex: 44.6, rendimientoTransporteTonHr: 468 })).toEqual([]);
+  });
+  it('CAEX-115 es el CAEX-155 (CN-10155); CF-769 y CAEX-159 se traducen', () => {
+    expect(reporteTurnoAlias('CAEX-115')).toBe('CN-10155');
+    expect(reporteTurnoAlias('CF-769')).toBe('CF-8769');
+    expect(reporteTurnoAlias('CAEX-159')).toBe('CN-10159');
+  });
+});
