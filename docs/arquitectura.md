@@ -7031,6 +7031,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/asistenteIa.test.js` (17), `supabase/functions/asistente-ia/index.test.ts` (8, Deno) y `tests/e2e/asistente-ia.spec.js` (flujo con herramienta simulada, error de la función, texto escapado y conservación de lo escrito). Plano de fallas: ficha **EF-18** y `EXT-05` ampliada.
 
+### 199. Indicadores corporativos PRO-MAN-010 en Disponibilidad (2026-10-30)
+
+**Qué es:** la vista mensual de Disponibilidad suma, bajo la tabla, los indicadores del procedimiento corporativo PRO-MAN-010 («Planificación y control de disponibilidad de equipos», Rev. 1): **MA = MTBF ÷ (MTBF + MTTR) × 100**, **MTBF** = tiempo operativo ÷ n.º de fallas, **MTTR** = tiempo de reparación ÷ n.º de fallas y **MTBS** = tiempo operativo ÷ n.º de paradas (fallas + PM). No reemplaza nada: la Ao, la Ai y el MTBF de KPI siguen iguales.
+
+**Por qué:** es la fórmula de la planilla que se reporta a la Gerencia de Maquinarias y no coincide con la Ao de la pestaña (que también descuenta el PM) ni con el MTBF de KPI (que solo cuenta paradas de 24 h o más). Mostrarla al lado, con la explicación, evita que alguien crea que uno de los dos números está malo.
+
+**Cómo:** `kpiProMan010(eq, ot, reg, hist, mes)` en `logic.js` (pura). Tiempo operativo = avance del horómetro en el mes (mismo criterio de lecturas válidas que `mtbfFlotaAgrupado`); fallas = `esFallaMTBF` sin umbral; MTTR solo sobre fallas con duración (`horasParadaOT`), las sin duración se informan; la flota suma horas, fallas y reparaciones antes de dividir; un equipo sin horómetro en el mes queda fuera y se lista. Respeta el filtro de tipo de la pestaña. Pantalla: `_kpi010HTML` en `modules/renders/disp.js`.
+
+**Pruebas:** `tests/kpiProMan010.test.js` (7). Inventario de algoritmos: ficha **A19**.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A18 |
+| A. Disponibilidad, fallas y tiempos | A1–A19 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C23 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L6 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **133 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -235,6 +235,16 @@ Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Ejemplo:** «¿qué equipos tienen el PM vencido?» → Claude pide `estado_flota`; el navegador devuelve los equipos VENCIDA y URGENTE con horómetro y días; Claude los resume.
 - **Límites:** solo lee; nunca escribe. Lo que consulta sale hacia Anthropic. Responde con lo que está cargado en el navegador (si un dato no está en el sistema, no lo sabe). Puede interpretar mal un dato incompleto (por ejemplo órdenes sin costo anotado; las herramientas informan cuántas son). Las cifras importantes hay que verlas en su pantalla.
 - **Código:** `ASISTENTE_HERRAMIENTAS`, `ASISTENTE_MAX_FILAS`, `asistenteEjecutar`.
+
+### A19. Indicadores corporativos PRO-MAN-010 (MA, MTBF, MTTR, MTBS)
+- **Tipo:** fórmula (mensual, por equipo y de flota).
+- **Para qué sirve:** que la app muestre los mismos indicadores, con la misma fórmula, que la planilla «Disponibilidad & Confiabilidad» que se reporta a la Gerencia de Maquinarias, y explicar por qué no coinciden con la disponibilidad de la pestaña (A1).
+- **De dónde viene:** 📄 Procedimiento corporativo PRO-MAN-010 «Planificación y control de disponibilidad de equipos» (Rev. 1, 30-09-2024), tabla de indicadores del punto 8. La MA = MTBF ÷ (MTBF + MTTR) es la definición de disponibilidad inherente de la literatura (ver las fuentes de A1).
+- **Cómo lo calcula aquí:** para el mes elegido y cada equipo: **tiempo operativo** = avance del horómetro en el mes (lecturas válidas a ambos lados del mes, igual que `mtbfFlotaAgrupado`); **fallas** = OT que son falla (`esFallaMTBF`, *todas*, sin el umbral de 24 h de A2, porque el procedimiento no lo pone); **paradas** = fallas + registros de PM del mes. **MTBF** = tiempo operativo ÷ fallas; **MTTR** = horas de reparación ÷ fallas con duración conocida (`horasParadaOT`); **MTBS** = tiempo operativo ÷ paradas; **MA** = MTBF ÷ (MTBF + MTTR) × 100. La flota **suma** horas, fallas y reparaciones antes de dividir (no promedia porcentajes).
+- **Dónde se ve:** pestaña Disponibilidad, vista mensual, bajo la tabla: cuatro tarjetas (MA, MTBF, MTTR, MTBS), notas y el detalle por equipo.
+- **Ejemplo (prueba automática):** un equipo con 310 h operadas en octubre, 3 fallas (6 h, 2,5 h y una sin duración) y 2 PM: MTBF 103,3 h; MTTR 4,3 h (8,5 h ÷ 2); MTBS 62 h (310 ÷ 5); MA 96 %.
+- **Límites:** la MA solo mira fallas, así que se compara con la **Ai**, no con la Ao del % de flota (que también descuenta las PM); y se calcula sobre horas operadas, no por día calendario, así que tampoco calza exacto con la Ai. Un equipo sin lecturas de horómetro a ambos lados del mes queda fuera (se lista). Una falla sin duración cuenta para el MTBF pero no para el MTTR. Sin fallas, MTBF y MTTR quedan vacíos y la MA es 100 % (límite de la fórmula). Usa solo las OT de la tabla de correctivos, como el resto de la pestaña (no el histórico importado).
+- **Código:** `kpiProMan010`.
 
 ---
 

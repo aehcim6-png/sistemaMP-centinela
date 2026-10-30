@@ -118,7 +118,7 @@
   <h2 id="d-3">Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
-    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A18</td></tr>
+    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A19</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C23</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
@@ -132,7 +132,7 @@
     <tr><td><b>L. Datos y seguridad</b></td><td>L1–L6</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>132 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>133 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2 id="d-4">A. Disponibilidad, fallas y tiempos</h2>
 
@@ -347,6 +347,16 @@
     <li><b>Dónde se ve:</b> pestaña Asistente (grupo Herramientas), solo para cuentas sin perfil restringido; cada consulta queda en la tabla <code>asistente_ia_uso</code>.</li>
     <li><b>Límites:</b> solo lee; lo que consulta sale hacia Anthropic; responde con lo que está cargado en el navegador y puede interpretar mal un dato incompleto. Las cifras importantes hay que verlas en su pantalla.</li>
     <li><b>Código:</b> <code>ASISTENTE_HERRAMIENTAS</code>, <code>ASISTENTE_MAX_FILAS</code>, <code>asistenteEjecutar</code>.</li>
+  </ul>
+
+  <h3 id="d-x">A19. Indicadores corporativos PRO-MAN-010 (MA, MTBF, MTTR, MTBS)</h3>
+  <ul>
+    <li><b>Para qué sirve:</b> mostrar los indicadores con la misma fórmula que la planilla que se reporta a la Gerencia de Maquinarias, y explicar por qué no coinciden con la disponibilidad de la pestaña.</li>
+    <li><b>De dónde viene:</b> procedimiento corporativo PRO-MAN-010 (Rev. 1, 30-09-2024), punto 8.</li>
+    <li><b>Cómo lo calcula:</b> por mes y equipo: tiempo operativo = avance del horómetro en el mes; fallas = todas las OT que son falla (sin el umbral de 24 h); paradas = fallas + PM. MTBF = tiempo ÷ fallas; MTTR = horas de reparación ÷ fallas con duración; MTBS = tiempo ÷ paradas; MA = MTBF ÷ (MTBF + MTTR) × 100. La flota suma antes de dividir.</li>
+    <li><b>Dónde se ve:</b> pestaña Disponibilidad, vista mensual, bajo la tabla.</li>
+    <li><b>Límites:</b> la MA solo mira fallas (se compara con la Ai, no con la Ao) y usa horas operadas, no días calendario; equipos sin horómetro a ambos lados del mes quedan fuera; una falla sin duración no entra al MTTR; sin fallas la MA es 100 %.</li>
+    <li><b>Código:</b> <code>kpiProMan010</code>.</li>
   </ul>
 
   <h2 id="d-21">B. Vida, supervivencia y tendencia de fallas</h2>

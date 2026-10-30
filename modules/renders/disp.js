@@ -149,7 +149,8 @@ export function renderDisp(){
         '<td><span class="badge '+(e.pct>=meta?'b-g':e.pct>=70?'b-y':'b-r')+'">'+(e.pct>=meta?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK':'🔴 Bajo')+'</span></td>'+
         '<td>'+datos+'</td></tr>';
     }).join('')+
-    '</table></div>';
+    '</table></div>'+
+    _kpi010HTML(eqFil,ot,reg,fMes,aiFlota);
 
   } else if(fVista==='diario'){
     // ═══ VISTA DIARIA ═══
@@ -469,6 +470,34 @@ export function renderDisp(){
 
 // ═══ REPORTABILIDAD DIARIA DEL CLIENTE (2026-10-11) ═══ — ver reportabilidad* (logic.js). Una fila por equipo y día (OP/FS) en reportabilidad_diaria; se puede cargar cualquier fecha
 // en cualquier orden y cargar un día de nuevo lo actualiza (no duplica). Importa los dos formatos de Excel del cliente (un archivo por día, o un libro con una hoja por día).
+// Indicadores con las fórmulas del procedimiento corporativo PRO-MAN-010 (kpiProMan010, logic.js), bajo la tabla mensual. No reemplaza la Ao de arriba: se muestra al
+// lado para que el número calce con la planilla de la Gerencia de Maquinarias, explicando por qué no coincide con el % de flota.
+function _kpi010HTML(eqFil, ot, reg, mes, aiFlota) {
+  var r = kpiProMan010(eqFil, ot, reg, S.g('hist') || [], mes);
+  var tit = '<div style="font-size:13px;font-weight:700;margin:18px 0 4px">Indicadores PRO-MAN-010 <span style="font-weight:400;font-size:11px;color:var(--tx3)">(fórmulas del procedimiento corporativo de disponibilidad, ' + escapeHtml(mes) + ')</span></div>';
+  if (!r || !r.flota) return tit + '<div style="font-size:12px;color:var(--tx3);margin-bottom:12px">Sin lecturas de horómetro a ambos lados del mes: no se puede calcular el tiempo operativo, y sin él ninguna de estas fórmulas.</div>';
+  var f = r.flota, h = function (v) { return v == null ? '—' : fn(v) + ' h'; };
+  var tarjeta = function (t, v, s, tip) { return '<div class="card" title="' + escapeHtml(tip) + '"><div class="card-t">' + t + '</div><div class="card-v">' + v + '</div><div class="card-s">' + s + '</div></div>'; };
+  var tarjetas = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:8px">' +
+    tarjeta('Disponibilidad Mecánica (MA)', f.ma == null ? '—' : f.ma + '%', 'MTBF ÷ (MTBF + MTTR) × 100', 'Solo cuenta fallas. Comparable con «solo por fallas» (Ai), no con el % de flota de arriba (Ao), que también descuenta las PM.') +
+    tarjeta('MTBF', h(f.mtbf), fn(f.horas) + ' h operadas ÷ ' + fn(f.fallas) + ' fallas', 'Tiempo operativo ÷ n.º de fallas. Cuenta todas las fallas, no solo las paradas de ' + PARADA_LARGA_H + ' h o más que usa el MTBF de KPI.') +
+    tarjeta('MTTR', h(f.mttr), fn(f.horasReparacion) + ' h ÷ ' + fn(f.fallasConDuracion) + ' fallas con duración', 'Tiempo total de reparación ÷ n.º de fallas, solo sobre las fallas con duración registrada.') +
+    tarjeta('MTBS', h(f.mtbs), fn(f.horas) + ' h ÷ ' + fn(f.paradas) + ' paradas (' + fn(f.fallas) + ' fallas + ' + fn(f.pm) + ' PM)', 'Tiempo operativo ÷ n.º de paradas, programadas o no.') +
+    '</div>';
+  var notas = [];
+  notas.push('La MA de este procedimiento <b>solo cuenta fallas</b>: se compara con «solo por fallas» (Ai' + (aiFlota != null ? ' = ' + aiFlota + '%' : '') + '), no con el % de flota de arriba (Ao), que también descuenta las PM. Además se calcula sobre horas operadas y no por días calendario, así que tampoco tiene por qué coincidir exacto con la Ai.');
+  if (f.sinDuracion) notas.push(fn(f.sinDuracion) + ' falla(s) sin duración registrada: cuentan para el MTBF pero no para el MTTR (no se inventa su tiempo).');
+  if (r.sinHorometro.length) notas.push(fn(r.sinHorometro.length) + ' equipo(s) sin lecturas de horómetro a ambos lados del mes quedan fuera: ' + r.sinHorometro.slice(0, 12).map(escapeHtml).join(', ') + (r.sinHorometro.length > 12 ? '…' : '') + '.');
+  var filas = r.equipos.slice().sort(function (a, b) { return (a.ma == null ? -1 : a.ma) - (b.ma == null ? -1 : b.ma); }).map(function (e) {
+    return '<tr><td class="mono">' + escapeHtml(e.sigla) + '</td><td style="font-size:11px">' + escapeHtml(e.tipo) + '</td><td class="mono" style="text-align:right">' + fn(e.horas) + '</td><td class="mono" style="text-align:right">' + fn(e.fallas) + (e.sinDuracion ? ' <span style="color:var(--tx3)" title="sin duración registrada">(' + fn(e.sinDuracion) + ' s/d)</span>' : '') + '</td><td class="mono" style="text-align:right">' + fn(e.pm) + '</td>' +
+      '<td class="mono" style="text-align:right">' + h(e.mtbf) + '</td><td class="mono" style="text-align:right">' + h(e.mttr) + '</td><td class="mono" style="text-align:right">' + h(e.mtbs) + '</td><td class="mono" style="text-align:right;font-weight:700">' + (e.ma == null ? '—' : e.ma + '%') + (e.sinFallas ? ' <span style="font-weight:400;color:var(--tx3)" title="Sin fallas en el mes: la fórmula da 100 %">sin fallas</span>' : '') + '</td></tr>';
+  }).join('');
+  return tit + tarjetas +
+    '<div style="font-size:11px;color:var(--tx3);margin-bottom:6px">' + notas.join('<br>') + '</div>' +
+    '<details style="margin-bottom:12px"><summary style="cursor:pointer;font-size:11px;color:var(--tx2)">Ver por equipo (' + fn(r.equipos.length) + ')</summary><div class="tbl-wrap"><table style="font-size:11px">' +
+    '<tr><th>Equipo</th><th>Tipo</th><th>H operadas</th><th>Fallas</th><th>PM</th><th>MTBF</th><th>MTTR</th><th>MTBS</th><th>MA</th></tr>' + filas + '</table></div></details>';
+}
+
 function _repTxt(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 export function dispReportabHTML(eq) {
   var filas = S.g('reportab') || [], meta = S.g('dispMeta') || 85, hoy = new Date().toISOString().slice(0, 10);

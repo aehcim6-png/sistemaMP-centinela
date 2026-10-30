@@ -3593,6 +3593,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Límites:</b> solo conoce lo cargado en el navegador de quien pregunta; puede interpretar mal un dato incompleto; lo consultado se envía a Anthropic. Las otras IA del sistema no cambian (Gemini para leer fotos; Claude Haiku en <code>whatsapp-webhook</code>).</p>
   <p><b>Pruebas:</b> <code>tests/asistenteIa.test.js</code>, <code>supabase/functions/asistente-ia/index.test.ts</code> y <code>tests/e2e/asistente-ia.spec.js</code>. Plano de fallas: ficha <b>EF-18</b>.</p>
 
+    <h3 id="d-x">199. Indicadores corporativos PRO-MAN-010 en Disponibilidad (2026-10-30)</h3>
+  <p><b>Qué es:</b> la vista mensual de Disponibilidad suma, bajo la tabla, los indicadores del procedimiento corporativo PRO-MAN-010: <b>MA = MTBF ÷ (MTBF + MTTR) × 100</b>, MTBF, MTTR y <b>MTBS</b> (tiempo operativo ÷ paradas, fallas + PM). No reemplaza la Ao, la Ai ni el MTBF de KPI.</p>
+  <p><b>Por qué:</b> es la fórmula de la planilla que se reporta a la Gerencia de Maquinarias; la Ao de la pestaña también descuenta el PM y el MTBF de KPI solo cuenta paradas de 24 h o más, así que los números no coinciden. Se muestra al lado y se explica la diferencia.</p>
+  <p><b>Cómo:</b> <code>kpiProMan010</code> (<code>logic.js</code>): tiempo operativo por avance del horómetro en el mes, todas las fallas (<code>esFallaMTBF</code>), MTTR solo con fallas de duración conocida, flota sumando antes de dividir; equipos sin horómetro quedan fuera y se listan. Pantalla: <code>_kpi010HTML</code> en <code>modules/renders/disp.js</code>.</p>
+  <p><b>Pruebas:</b> <code>tests/kpiProMan010.test.js</code>. Inventario: ficha <b>A19</b>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
