@@ -212,7 +212,7 @@ function _prodTablaRevisionHTML(tb,items,eqArr){
     return '<tr'+dudoso+'>'+
       '<td><input type="checkbox" id="'+tb.pre+'Sel_'+it.idx+'" checked></td>'+
       '<td><select id="'+tb.pre+'Eq_'+it.idx+'" style="font-size:11px">'+_prodOptsEquipo(eqArr,it.siglaSugerida)+'</select>'+
-      '<br><span style="font-size:10px;color:var(--tx3)">papel: '+escapeHtml(f.siglaOCR||f.equipoNombreOCR||'?')+(f.equipoNombreOCR&&f.siglaOCR?' / '+escapeHtml(f.equipoNombreOCR):'')+'</span>'+fuera+'</td>'+
+      '<br><span style="font-size:10px;color:var(--tx3)">papel: '+escapeHtml(f.siglaOCR||f.equipoNombreOCR||'?')+(f.equipoNombreOCR&&f.siglaOCR?' / '+escapeHtml(f.equipoNombreOCR):'')+'</span>'+fuera+(it.contraste&&it.contraste.estado==='no-cuadra'?'<br><span style="font-size:10px;color:var(--danger)">Horómetros del sistema: '+it.contraste.horomSistema+' ('+escapeHtml(it.contraste.fechaSistema)+') — no cuadra con el papel</span>':it.contraste&&it.contraste.estado==='ok'?'<br><span style="font-size:10px;color:var(--ok)">✓ cuadra con Horómetros</span>':'')+'</td>'+
       tb.cel(f).map(function(c){return '<td class="mono" style="font-size:11px">'+(c==null?'':c)+'</td>';}).join('')+
       '</tr>';
   }).join('');
@@ -244,7 +244,13 @@ export function _revisarReporteProduccionOCR(datos){
 
   // Filas ya convertidas y con el equipo sugerido; idx = posición en la lista completa (identifica los controles de cada fila).
   var items=reporteTurnoResolverSiglas(reporteTurnoFilas(datos),function(sigla){var m=_matchEquipoPorSiglaOCR(sigla,eqArr);return m?m.sigla:null;});
-  items.forEach(function(it,i){it.idx=i;});
+  var hist=S.g('hist')||[];
+  items.forEach(function(it,i){
+    it.idx=i;
+    // Contraste con la pestaña Horómetros (control principal): si el horómetro final del papel no cuadra con la lectura del sistema, la fila sale en amarillo con el valor del sistema al lado.
+    it.contraste=reporteTurnoContrasteHorometro(it.siglaSugerida,datos.fecha,it.fila.horometroFinal,hist);
+    if(it.contraste.estado==='no-cuadra')it.incierto=true;
+  });
   window._prodOCRData={datos:datos,items:items};
 
   var tablas=_PROD_TABLAS.map(function(tb){

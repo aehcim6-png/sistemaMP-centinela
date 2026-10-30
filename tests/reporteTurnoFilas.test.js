@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas } from '../logic.js';
+import { reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas } from '../logic.js';
 
 // Datos tal como los devuelve la lectura de la foto «PRODUCCIÓN TURNO DÍA» del 10/08/2026.
 const datos = {
@@ -237,5 +237,29 @@ describe('papeles del 14 al 29 de abril', () => {
     expect(reporteTurnoAlias('CAEX155')).toBe('CN-10155');
     expect(reporteTurnoAlias('CAEX 85')).toBe('CN-9503');
     expect(reporteTurnoAlias('CF-679')).toBeNull();
+  });
+});
+
+describe('reporteTurnoContrasteHorometro (contra la pestaña Horómetros)', () => {
+  const hist = [
+    { sigla: 'CN-9503', fecha: '2026-08-10', horomIni: 21258.5, horomFin: 21265.8, horom: 21265.8 },
+    { sigla: 'CN-9503', fecha: '2026-08-12', horomFin: 21280, horom: 21280 },
+    { sigla: 'CF-9510', fecha: '2026-08-10', horomFin: 15653.6, horom: 15653.6 },
+  ];
+  it('un horómetro del papel que coincide con el del sistema cuadra', () => {
+    expect(reporteTurnoContrasteHorometro('CN-9503', '2026-08-10', 21265.8, hist)).toMatchObject({ estado: 'ok', horomSistema: 21265.8 });
+  });
+  it('un dígito de más (208585,5) no cuadra y muestra el valor del sistema', () => {
+    expect(reporteTurnoContrasteHorometro('CN-9503', '2026-08-10', 208585.5, hist)).toMatchObject({ estado: 'no-cuadra', horomSistema: 21265.8, fechaSistema: '2026-08-10' });
+  });
+  it('usa la lectura más cercana y deja holgura por los días de distancia', () => {
+    expect(reporteTurnoContrasteHorometro('CN-9503', '2026-08-11', 21272, hist).estado).toBe('ok');
+    expect(reporteTurnoContrasteHorometro('CN-9503', '2026-08-11', 21400, hist).estado).toBe('no-cuadra');
+  });
+  it('sin lectura cercana (más de 3 días), sin sigla o sin horómetro no se marca nada', () => {
+    expect(reporteTurnoContrasteHorometro('CN-9503', '2026-04-08', 21260, hist).estado).toBe('sin-dato');
+    expect(reporteTurnoContrasteHorometro(null, '2026-08-10', 21260, hist).estado).toBe('sin-dato');
+    expect(reporteTurnoContrasteHorometro('CN-9503', '2026-08-10', null, hist).estado).toBe('sin-dato');
+    expect(reporteTurnoContrasteHorometro('CN-9999', '2026-08-10', 100, hist).estado).toBe('sin-dato');
   });
 });
