@@ -12,6 +12,9 @@ alter table public.produccion_turno
   add column if not exists "totalHorasCF" numeric,
   add column if not exists "rendimientoCFTonHr" numeric,
   add column if not exists "rendimientoCFCargasHr" numeric,
+  add column if not exists "vueltasAljibe" numeric,
+  add column if not exists "primerCargado" text,
+  add column if not exists "ultimoCargado" text,
   add column if not exists "disponibilidadEquipos" text,
   add column if not exists bitacora text;
 

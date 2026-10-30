@@ -315,7 +315,7 @@ const TABLA_REAL={
   // (ficha técnica real vs. medido en terreno) para que nunca se confunda
   // un dato real con uno inventado.
   rendModelos:{tabla:'rendimiento_modelos',clave:'modelo',claveDb:'modelo',cols:['modelo','tipo','parametros','fuente']},
-  prodTurno:{tabla:'produccion_turno',clave:'id',claveDb:'id',cols:['id','fecha','turno','supervisor','contrato','franjaDescarga','moduloDescarga','distanciaModulos','observacionesDistancia','totalToneladas','rendimientoTransporteTonHr','totalVueltas','observaciones','registradoPor','fuente','grupoTurno','tiempoMedioCicloMin','totalHorasCaex','rendimientoCaexVueltasHr','vueltasCF','totalTonCF','totalHorasCF','rendimientoCFTonHr','rendimientoCFCargasHr','disponibilidadEquipos','bitacora']},
+  prodTurno:{tabla:'produccion_turno',clave:'id',claveDb:'id',cols:['id','fecha','turno','supervisor','contrato','franjaDescarga','moduloDescarga','distanciaModulos','observacionesDistancia','totalToneladas','rendimientoTransporteTonHr','totalVueltas','observaciones','registradoPor','fuente','grupoTurno','tiempoMedioCicloMin','totalHorasCaex','rendimientoCaexVueltasHr','vueltasCF','totalTonCF','totalHorasCF','rendimientoCFTonHr','rendimientoCFCargasHr','vueltasAljibe','primerCargado','ultimoCargado','disponibilidadEquipos','bitacora']},
   prodTurnoEq:{tabla:'produccion_turno_equipos',clave:'id',claveDb:'id',cols:['id','turnoId','sigla','siglaOCR','categoria','equipoNombreOCR','horometroInicial','horometroFinal','totalHoras','estadoTexto','vueltas','rendimientoVueltasHr','tiempoCicloMin','operador','tonVuelta','tonHr','totalTon','postura','areaTrabajo','tonAsociadoPerdida','horaInicio','horaFin']}
 };
 // Singletons: una sola fila fija por tabla (id boolean primary key default true).

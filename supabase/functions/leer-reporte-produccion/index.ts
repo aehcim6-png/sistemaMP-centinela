@@ -39,16 +39,16 @@ const MODELO = "gemini-3.6-flash";
 const ESQUEMA_EQUIPO_CAEX = {
   type: "OBJECT",
   properties: {
-    sigla: { type: "STRING", nullable: true, description: "Sigla real del equipo (columna 'Sigla'), ej. 'CN-9503'." },
-    equipoNombre: { type: "STRING", nullable: true, description: "Apodo operacional de la columna 'Equipo' (ej. 'CAEX-85') — NO es el tipo real del sistema, solo un nombre informativo." },
+    sigla: { type: "STRING", nullable: true, description: "Sigla real del equipo (columna 'Sigla'), ej. 'CN-9503'. null si la tabla no trae columna Sigla (solo 'Equipos')." },
+    equipoNombre: { type: "STRING", nullable: true, description: "Nombre corto de la columna 'Equipo'/'Equipos' (ej. 'CAEX-85') — NO es el tipo real del sistema, solo un nombre informativo." },
     horometroInicial: { type: "NUMBER", nullable: true, description: "Horómetro inicial del turno." },
     horometroFinal: { type: "NUMBER", nullable: true, description: "Horómetro final del turno." },
-    totalHoras: { type: "NUMBER", nullable: true, description: "Total de horas trabajadas. Si la fila está marcada 'fuera de servicio' o 'stand by' (la celda de horas o la del operador), deja esto en null cuando no hay un número real (nunca inventes uno) y usa estadoTexto." },
-    estadoTexto: { type: "STRING", nullable: true, description: "Si la fila está marcada 'fuera de servicio' o 'stand by' (en la celda de horas o en la del operador), el texto tal cual. null si la fila trabajó normal." },
+    totalHoras: { type: "NUMBER", nullable: true, description: "Total de horas trabajadas. Si la fila está marcada 'fuera de servicio', 'standby' o 'mantención programada' (la celda de horas o la del operador), deja esto en null cuando no hay un número real (nunca inventes uno) y usa estadoTexto." },
+    estadoTexto: { type: "STRING", nullable: true, description: "Si la fila está marcada 'fuera de servicio', 'standby', 'mantención programada' o 'sin operador' (en la celda de horas o en la del operador), el texto tal cual. null si la fila trabajó normal." },
     vueltas: { type: "NUMBER", nullable: true, description: "Columna 'Vueltas'." },
     rendimientoVueltasHr: { type: "NUMBER", nullable: true, description: "Columna 'Rendimiento [Vueltas/Hr]'." },
     tiempoCicloMin: { type: "NUMBER", nullable: true, description: "Columna 'Tiempo de Ciclo [min/vuelta]'." },
-    operador: { type: "STRING", nullable: true, description: "Columna 'Nombre Operador'. null si la fila dice fuera de servicio." },
+    operador: { type: "STRING", nullable: true, description: "Columna 'Nombre Operador' (si hay dos nombres separados por '/', ambos tal cual). null si la fila dice fuera de servicio, standby o mantención." },
     tonVuelta: { type: "NUMBER", nullable: true, description: "Columna 'Ton/Vuelta' (valor fijo por equipo, ej. 90)." },
     totalTon: { type: "NUMBER", nullable: true, description: "Columna 'Total Ton Equipo'." },
     incierto: { type: "BOOLEAN", description: "true si algún valor de esta fila es ambiguo o dudoso de leer, false si se lee con confianza." },
@@ -131,6 +131,9 @@ export const ESQUEMA_RESPUESTA = {
     totalToneladas: { type: "NUMBER", nullable: true, description: "Total Toneladas del turno, de la sección de Totales." },
     rendimientoTransporteTonHr: { type: "NUMBER", nullable: true, description: "Rendimiento Transporte [Ton/hr] de la sección de Totales." },
     totalVueltas: { type: "NUMBER", nullable: true, description: "Total Vueltas de la sección de Totales." },
+    vueltasAljibe: { type: "NUMBER", nullable: true, description: "'Vueltas aljibe' del cuadro 'Producción Centinela 2026' (a la derecha o al pie de la hoja), si existe." },
+    primerCargado: { type: "STRING", nullable: true, description: "'Primer cargado' (hora HH:MM) del cuadro 'Producción Centinela 2026', si existe." },
+    ultimoCargado: { type: "STRING", nullable: true, description: "'Último cargado' (hora HH:MM) del cuadro 'Producción Centinela 2026', si existe." },
     tiempoMedioCicloMin: { type: "NUMBER", nullable: true, description: "'Tiempo medio de ciclo' [min/vuelta] de los totales de CAEX." },
     totalHorasCaex: { type: "NUMBER", nullable: true, description: "'Total horas CAEX'." },
     rendimientoCaexVueltasHr: { type: "NUMBER", nullable: true, description: "'Rendimiento equipo CAEX' [vueltas/Hr]." },
@@ -188,6 +191,17 @@ Extrae TODO el reporte:
 7. La sección Observaciones/Comentarios: la lista "Disponibilidad de equipos" (un elemento por línea), la bitácora (todas las líneas con hora, una por línea y tal cual) y cualquier otro comentario.
 
 Las filas pintadas de rojo o marcadas "FUERA DE SERVICIO" (aunque el texto esté en la columna del operador) son equipos fuera de servicio: devuélvelas con estadoTexto = "fuera de servicio", totalHoras null si no hay un número real, y el operador en null. No saltes esas filas: el dato de que estuvieron paradas es importante.
+
+Formatos que aparecen (todos son el mismo reporte):
+- Las tablas pueden traer solo la columna "Equipos"/"Equipo" (ej. CAEX-85, CF-510, BD-533) sin columna Sigla: en ese caso déjalo en equipoNombre y deja sigla en null. Si hay columna Sigla (ej. CN-9503), ponla en sigla.
+- Estados por color: rojo = "FUERA DE SERVICIO", verde = "STANDBY", amarillo = "MANTENCIÓN PROGRAMADA": cópialos en estadoTexto tal cual y deja horas y operador en null.
+- Varias hojas incluyen a la derecha o al pie un cuadro resumen "PRODUCCIÓN CENTINELA 2026" que repite la tabla CAEX: NO lo cuentes como filas nuevas; de ese cuadro solo toma Vueltas aljibe, Primer cargado y Último cargado.
+- La foto puede ser solo una parte de la hoja (por ejemplo, solo las pérdidas y las observaciones): devuelve lo que se ve y deja el resto vacío.
+- En Pérdida por Petróleo las horas vienen como h:mm:ss (ej. 18:00:00): devuélvelas como HH:MM. "0:00:00" y "0,00" son relleno, no una pérdida.
+- La tabla de Pérdida por Indisponibilidad también lista equipos de apoyo y carguío (BD-533, CN-5133, MN-26, CF-769…): inclúyelos como filas de esa tabla si tienen horas escritas.
+- Si una celda muestra un error de Excel (#¡VALOR!, #REF!) o un número negativo de horas, déjala en null y marca la fila con incierto:true.
+- Si Tonelaje y Rendimiento [Ton/Hr] de carguío están en blanco o en 0,0, déjalos en null: no se registraron ese turno.
+- Algunas fechas vienen con año de 2 dígitos (26-02-26): devuélvelas como 2026-02-26.
 
 Para cada tabla, incluye una fila SOLO si tiene al menos un dato escrito — no incluyas filas completamente en blanco. Si un campo no aparece en la foto, está en blanco, o es ilegible, déjalo en null — nunca inventes un valor ni lo calcules tú: copia lo que está escrito. Si un valor SÍ está escrito pero es ambiguo, da tu mejor intento de todas formas pero marca esa fila con incierto:true, o agrega el campo de cabecera a camposInciertos.`;
 

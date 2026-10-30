@@ -225,7 +225,7 @@ function _prodTablaRevisionHTML(tb,items,eqArr){
 function _prodTotalesHTML(d){
   var t=[['Total toneladas',d.totalToneladas],['Rend. transporte [Ton/hr]',d.rendimientoTransporteTonHr],['Total vueltas CAEX',d.totalVueltas],['Total horas CAEX',d.totalHorasCaex],
     ['Tiempo medio de ciclo [min]',d.tiempoMedioCicloMin],['Rend. CAEX [vueltas/hr]',d.rendimientoCaexVueltasHr],['Vueltas C.F.',d.vueltasCF],['Total Ton CF',d.totalTonCF],
-    ['Total horas C.F.',d.totalHorasCF],['Rend. C.F. [Ton/hr]',d.rendimientoCFTonHr],['Rend. C.F. [Cargas/hr]',d.rendimientoCFCargasHr]].filter(function(x){return x[1]!=null;});
+    ['Total horas C.F.',d.totalHorasCF],['Rend. C.F. [Ton/hr]',d.rendimientoCFTonHr],['Rend. C.F. [Cargas/hr]',d.rendimientoCFCargasHr],['Vueltas aljibe',d.vueltasAljibe],['Primer cargado',d.primerCargado],['Último cargado',d.ultimoCargado]].filter(function(x){return x[1]!=null;});
   if(!t.length)return '';
   return '<h4 style="margin:12px 0 6px">Totales del turno (tal como vienen en el papel)</h4>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;font-size:12px">'+
@@ -236,6 +236,10 @@ export function _revisarReporteProduccionOCR(datos){
   var eqArr=S.g('eq')||[];
   var turnosExistentes=S.g('prodTurno')||[];
   var inc=datos.camposInciertos||[];
+  // Totales del papel que no son creíbles (error de Excel en el original): se avisan y NO se guardan.
+  var dudT=reporteTurnoTotalesDudosos(datos);
+  datos=Object.assign({},datos);
+  dudT.forEach(function(x){datos[x.campo]=null;});
   var duplicado=datos.fecha&&datos.turno&&turnosExistentes.some(function(t){return t.fecha===datos.fecha&&t.turno===datos.turno;});
 
   // Filas ya convertidas y con el equipo sugerido; idx = posición en la lista completa (identifica los controles de cada fila).
@@ -249,6 +253,7 @@ export function _revisarReporteProduccionOCR(datos){
 
   sm('<div style="max-width:900px"><h3>📷 Reporte de turno leído</h3>'+
     '<p style="color:var(--tx2);font-size:13px;margin-bottom:8px">Revisa los valores y el equipo asignado a cada fila antes de guardar — desmarca las que no correspondan. Las filas en amarillo tienen letra dudosa. Las tablas de Petróleo e Indisponibilidad solo traen el nombre corto del papel (ej. CAEX-85): el sistema lo cruza con las otras tablas de este mismo reporte; si no lo encuentra, elige tú el equipo.</p>'+
+    (dudT.length?'<div style="background:rgba(239,68,68,.12);border:1px solid var(--danger);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">⚠️ El papel trae totales que no son creíbles (error de Excel en el original) y <b>no se guardarán</b>: '+dudT.map(function(x){return escapeHtml(x.campo)+' = '+escapeHtml(String(x.valor));}).join(', ')+'. Las filas por equipo sí se guardan.</div>':'')+
     (duplicado?'<div style="background:rgba(234,179,8,.12);border:1px solid var(--ac);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">⚠️ Ya existe un reporte cargado para '+escapeHtml(datos.fecha)+' turno '+escapeHtml(datos.turno)+' — revisa si esto es una corrección o un duplicado antes de guardar.</div>':'')+
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:12px">'+
     '<label>Fecha<br><input type="date" id="prodFecha" value="'+escapeHtml(datos.fecha||'')+'" style="'+(inc.includes('fecha')?'outline:2px solid var(--warn)':'')+'"></label>'+
@@ -302,10 +307,13 @@ export function _guardarReporteProduccionOCR(){
     totalHorasCaex:d.totalHorasCaex??null,
     rendimientoCaexVueltasHr:d.rendimientoCaexVueltasHr??null,
     vueltasCF:d.vueltasCF??null,
-    totalTonCF:d.totalTonCF??null,
+    totalTonCF:d.totalTonCF||null,
     totalHorasCF:d.totalHorasCF??null,
-    rendimientoCFTonHr:d.rendimientoCFTonHr??null,
+    rendimientoCFTonHr:d.rendimientoCFTonHr||null,
     rendimientoCFCargasHr:d.rendimientoCFCargasHr??null,
+    vueltasAljibe:d.vueltasAljibe??null,
+    primerCargado:d.primerCargado||null,
+    ultimoCargado:d.ultimoCargado||null,
     disponibilidadEquipos:txt('prodDispon'),
     bitacora:txt('prodBitacora')
   };
