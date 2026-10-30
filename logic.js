@@ -3903,8 +3903,8 @@ function reporteTurnoAlias(nombre){
 function reporteTurnoTotalesDudosos(d){
   var out=[];if(!d)return out;
   var n=function(v){return typeof v==='number'&&isFinite(v)?v:null;};
-  ['tiempoMedioCicloMin','totalHorasCaex','rendimientoCaexVueltasHr','rendimientoTransporteTonHr','totalVueltas','totalToneladas'].forEach(function(k){if(n(d[k])!=null&&n(d[k])<0)out.push({campo:k,valor:d[k]});});
-  if(n(d.tiempoMedioCicloMin)>60)out.push({campo:'tiempoMedioCicloMin',valor:d.tiempoMedioCicloMin});
+  ['tiempoMedioCicloMin','totalHorasCaex','rendimientoCaexVueltasHr','rendimientoTransporteTonHr','totalVueltas','totalToneladas','totalTonCF','totalHorasCF','rendimientoCFTonHr','rendimientoCFCargasHr'].forEach(function(k){if(n(d[k])!=null&&n(d[k])<0)out.push({campo:k,valor:d[k]});});
+  if(n(d.tiempoMedioCicloMin)>30)out.push({campo:'tiempoMedioCicloMin',valor:d.tiempoMedioCicloMin});
   if(n(d.totalHorasCaex)>100)out.push({campo:'totalHorasCaex',valor:d.totalHorasCaex});
   if(n(d.rendimientoCaexVueltasHr)===0&&n(d.totalVueltas)>0)out.push({campo:'rendimientoCaexVueltasHr',valor:0});
   if(n(d.rendimientoTransporteTonHr)===0&&n(d.totalToneladas)>0)out.push({campo:'rendimientoTransporteTonHr',valor:0});

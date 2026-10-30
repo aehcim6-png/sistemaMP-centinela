@@ -167,3 +167,21 @@ describe('errores de Excel de los papeles de marzo (valores negativos)', () => {
     expect(reporteTurnoTotalesDudosos(d).map((x) => x.campo)).toEqual(['tiempoMedioCicloMin', 'totalHorasCaex', 'rendimientoCaexVueltasHr', 'rendimientoTransporteTonHr']);
   });
 });
+
+describe('papeles de abril: errores de horómetro y totales de carguío', () => {
+  it('CF-511 del 05-04 noche (horas -125990,9) marca la fila y los totales de carguío negativos se avisan', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 139973, horometroFinal: 13982.1, totalHoras: -125990.9 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoTotalesDudosos({ totalHorasCF: -125985.4, rendimientoCFTonHr: -0.2 }).map((x) => x.campo)).toEqual(['totalHorasCF', 'rendimientoCFTonHr']);
+  });
+  it('ciclo medio de 33,5 min y 129,8 h CAEX (29-03 día) se avisan; 17 min de ciclo normal no', () => {
+    expect(reporteTurnoTotalesDudosos({ tiempoMedioCicloMin: 33.5, totalHorasCaex: 129.8 }).map((x) => x.campo)).toEqual(['tiempoMedioCicloMin', 'totalHorasCaex']);
+    expect(reporteTurnoTotalesDudosos({ tiempoMedioCicloMin: 17.5, totalHorasCaex: 41 })).toEqual([]);
+  });
+  it('los apodos CAEX-155 y CAEX-159 se traducen (CE-155 → CN-10155, CE-159 → CN-10159)', () => {
+    expect(reporteTurnoAlias('CAEX-155')).toBe('CN-10155');
+    expect(reporteTurnoAlias('CAEX-159')).toBe('CN-10159');
+  });
+  it('CN-5131 con 9002,2 horas y horómetro 1648 → 10650,2 se marca', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 1648, horometroFinal: 10650.2, totalHoras: 9002.2 }, 'Apoyo')).toBe(true);
+  });
+});
