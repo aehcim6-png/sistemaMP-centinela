@@ -354,3 +354,22 @@ describe('papeles del 11 al 16 de junio (sin reglas nuevas)', () => {
     expect(reporteTurnoFilaDudosa({ totalHoras: 5.9, tonelaje: 1145, rendimientoTonHr: 194.1 }, 'Carguio')).toBe(false);
   });
 });
+
+describe('papeles del 8 al 27 de junio (sin reglas nuevas)', () => {
+  it('27-06 día: CAEX-159 con 11.536 h y totales de 11.573 h / ciclo 1.841 / transporte 2 se marcan y no se guardan', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 1270.9, horometroFinal: 12807, totalHoras: 11536.1, vueltas: 54, rendimientoVueltasHr: 0, tonVuelta: 90, totalTon: 4860 }, 'CAEX')).toBe(true);
+    const d = { totalToneladas: 21690, totalHorasCaex: 11573.6, tiempoMedioCicloMin: 1841.9, rendimientoCaexVueltasHr: 0, totalVueltas: 241, rendimientoTransporteTonHr: 2, caex: [{ totalHoras: 8.3 }, { totalHoras: 11536.1 }] };
+    expect(reporteTurnoTotalesDudosos(d).map((x) => x.campo).sort()).toEqual(['rendimientoCaexVueltasHr', 'rendimientoTransporteTonHr', 'tiempoMedioCicloMin', 'totalHorasCaex']);
+  });
+  it('CAEX-160 (equipo nuevo con horómetro bajo) se traduce a CN-10160', () => {
+    expect(reporteTurnoAlias('CAEX-160')).toBe('CN-10160');
+  });
+  it('10-06 día: CF-511 «standby» con 8,2 h, CF-769 con 12.448 t y 0 h, y BD-509 con -12.096 h se marcan', () => {
+    expect(reporteTurnoFilaDudosa({ estadoTexto: 'STANDBY', horometroInicial: 14212.8, horometroFinal: 14221, totalHoras: 8.2 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 15007, horometroFinal: 15007, totalHoras: 0, tonelaje: 12448 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 12096, horometroFinal: null, totalHoras: -12096 }, 'Apoyo')).toBe(true);
+  });
+  it('petróleo con la misma hora repetida en varios equipos (10-06: 8:00→10:00, 2 h, 937,2 t) calza fila por fila', () => {
+    expect(reporteTurnoFilaDudosa({ horaInicio: '08:00', horaFin: '10:00', totalHoras: 2, tonAsociado: 937.2 }, 'PerdidaPetroleo')).toBe(false);
+  });
+});
