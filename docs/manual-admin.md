@@ -221,6 +221,14 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Traslado de neumáticos entre equipos y número de fuego (2026-10-30)
+
+**Qué cambia.** En **Neumáticos**, cada neumático montado tiene un botón ⇄ para **pasarlo a otro equipo** (canibalización): equipo receptor, posición, causal (*Retraso en pedido*, *Proveedor sin stock*, *Siniestro* u *Otro* con detalle) y quién autorizó. El neumático se mueve con sus horas, queda una «Reasignación de Neumático» en Correctivos y el sensor se desmonta (si viajó con el neumático, se vuelve a instalar). El botón **⇄ Traslados** muestra los traslados del año por causal y las **posiciones del equipo donante que siguen sin neumático**, con los días que llevan así. Sigue el procedimiento PRO-MAN-004.
+
+**Número de fuego.** El campo de serie se llama ahora «Serie / N° de fuego»: en los equipos grandes es la serie, y en camionetas y aljibes se anota el número de fuego marcado.
+
+**Antes de desplegar.** Aplicar `20261030180000_crear_neumaticos_traslados.sql` en los dos proyectos y desplegar de nuevo `backup-diario` (63 tablas).
+
 ### Siniestros y plazo de denuncia (2026-10-30)
 
 **Qué cambia.** En **Vencimientos**, arriba, está la sección **Siniestros** (instructivo corporativo IT-AD-003). Se registra el siniestro (equipo, fecha, tipo, relato, lesionados, tercero, constancia) y la app cuenta el **plazo de 5 días** para denunciarlo: se cuentan días corridos, el último día es la fecha del siniestro + 5. Desde 2 días antes del límite, y si ya venció, aparece un aviso en el encabezado («Siniestros por denunciar»). El estado avanza *Por informar → Informado* (pide la fecha en que se informó a Finanzas) *→ En liquidación → Cerrado* (pide el resultado: indemnizado, rechazado, sin cobertura o desistido).

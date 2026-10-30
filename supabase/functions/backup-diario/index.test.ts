@@ -41,7 +41,8 @@ Deno.test("TABLAS: tamaño esperado (60) — cambiar a propósito si se agrega u
   // Nota 2026-10-29: 59 al sumar 'tareas_gestion' (reglas que fuerzan y escalan); 60 al sumar 'asistente_ia_uso' (registro de uso del asistente de IA).
   // Nota 2026-10-30: 61 al sumar 'neumaticos_recauchajes' (recauchaje de neumáticos).
   // Nota 2026-10-30: 62 al sumar 'siniestros' (denuncio de siniestros).
-  assertEquals(TABLAS.length, 62);
+  // Nota 2026-10-30: 63 al sumar 'neumaticos_traslados' (canibalización de neumáticos).
+  assertEquals(TABLAS.length, 63);
 });
 
 // ---- traerTodasLasFilas ----

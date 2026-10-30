@@ -3619,6 +3619,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Límites:</b> el certificado de gases no se sigue en Vencimientos; la app registra y avisa, no envía nada.</p>
   <p><b>Pruebas:</b> <code>tests/siniestros.test.js</code> y <code>tests/e2e/siniestros.spec.js</code>.</p>
 
+    <h3 id="d-x">203. Traslado de neumáticos entre equipos y número de fuego (2026-10-30)</h3>
+  <p><b>Qué es:</b> pasar un neumático montado de un equipo (donante) a otro (receptor) con su causal, y ver qué posiciones donantes quedaron vacías (PRO-MAN-004). La serie se rotula «Serie / N° de fuego» (confirmado por el usuario: es el número de fuego).</p>
+  <p><b>Cómo:</b> tabla nueva <code>neumaticos_traslados</code> (migración <code>20261030180000</code>, RLS y GRANT; respaldo con 63 tablas); <code>trasladarNeu</code>, <code>saveTrasladoNeu</code> y <code>verTrasladosNeu</code> en <code>neu.js</code>; reglas <code>neuValidarTraslado</code>, <code>neuTrasladosPendientesReposicion</code> y <code>resumenTraslados</code> en <code>logic.js</code>.</p>
+  <p><b>Pruebas:</b> <code>tests/neuTraslados.test.js</code> y <code>tests/e2e/neu-traslado.spec.js</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
