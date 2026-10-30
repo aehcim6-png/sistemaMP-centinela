@@ -373,3 +373,26 @@ describe('papeles del 8 al 27 de junio (sin reglas nuevas)', () => {
     expect(reporteTurnoFilaDudosa({ horaInicio: '08:00', horaFin: '10:00', totalHoras: 2, tonAsociado: 937.2 }, 'PerdidaPetroleo')).toBe(false);
   });
 });
+
+describe('papeles del 30-06 al 07-07 (errores de Excel con negativos)', () => {
+  it('30-06 día: CAEX-155 con -2.944,6 h y ciclo -22.084 se marca; los totales negativos se avisan', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 2944.6, horometroFinal: null, totalHoras: -2944.6, vueltas: 8, tonVuelta: 90, totalTon: 720 }, 'CAEX')).toBe(true);
+    const d = { tiempoMedioCicloMin: -3145.9, totalHorasCaex: -2907, rendimientoCaexVueltasHr: -0.1, rendimientoTransporteTonHr: -7, totalToneladas: 20070 };
+    expect(reporteTurnoTotalesDudosos(d).map((x) => x.campo).sort()).toEqual(['rendimientoCaexVueltasHr', 'rendimientoTransporteTonHr', 'tiempoMedioCicloMin', 'totalHorasCaex']);
+  });
+  it('indisponibilidad con toneladas negativas (CAEX-88: -83) se marca', () => {
+    expect(reporteTurnoFilaDudosa({ totalHoras: 12, tonAsociado: -83 }, 'PerdidaIndisponibilidad')).toBe(true);
+  });
+  it('28-06 día: CF-769 con 15.309,6 h y totales de carguío de 15.316,8 h se marcan/avisan', () => {
+    expect(reporteTurnoFilaDudosa({ horometroFinal: 15309.6, totalHoras: 15309.6, tonelaje: 16382, rendimientoTonHr: 1.1 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 26499, totalHorasCF: 15316.8, rendimientoCFTonHr: 1.7, vueltasCF: 182 }).length).toBeGreaterThan(0);
+  });
+  it('07-07 día: CF-769 con -15.416 h y totales de carguío negativos se avisan', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 15416, horometroFinal: null, totalHoras: -15416, tonelaje: 10461 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 19708, totalHorasCF: -15408.3, rendimientoCFTonHr: -1.3, vueltasCF: 208 }).map((x) => x.campo)).toEqual(['totalHorasCF', 'rendimientoCFTonHr']);
+  });
+  it('petróleo con 6 h entre 10:30 y 16:30 (04-07) calza; el apodo CAEX-60 no existe y queda sin equipo', () => {
+    expect(reporteTurnoFilaDudosa({ horaInicio: '10:30', horaFin: '16:30', totalHoras: 6, tonAsociado: 3203.9 }, 'PerdidaPetroleo')).toBe(false);
+    expect(reporteTurnoAlias('CAEX-60')).toBeNull();
+  });
+});

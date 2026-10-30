@@ -3929,6 +3929,8 @@ function reporteTurnoTotalesDudosos(d){
   if(sucia)['totalHorasCaex','tiempoMedioCicloMin','rendimientoCaexVueltasHr','rendimientoTransporteTonHr'].forEach(function(k){if(n(d[k])!=null)out.push({campo:k,valor:d[k]});});
   ['tiempoMedioCicloMin','totalHorasCaex','rendimientoCaexVueltasHr','rendimientoTransporteTonHr','totalVueltas','totalToneladas','totalTonCF','totalHorasCF','rendimientoCFTonHr','rendimientoCFCargasHr'].forEach(function(k){if(n(d[k])!=null&&n(d[k])<0)out.push({campo:k,valor:d[k]});});
   if(n(d.tiempoMedioCicloMin)>30)out.push({campo:'tiempoMedioCicloMin',valor:d.tiempoMedioCicloMin});
+  if(n(d.totalHorasCF)>40)out.push({campo:'totalHorasCF',valor:d.totalHorasCF});   // 3 equipos de carguío × 12 h de turno como máximo
+  if(n(d.totalHorasCF)>40&&n(d.rendimientoCFTonHr)!=null&&n(d.rendimientoCFTonHr)<100)out.push({campo:'rendimientoCFTonHr',valor:d.rendimientoCFTonHr});
   if(n(d.totalHorasCaex)>100)out.push({campo:'totalHorasCaex',valor:d.totalHorasCaex});
   if(n(d.rendimientoTransporteTonHr)>0&&n(d.totalToneladas)>0&&n(d.totalHorasCaex)>0&&Math.abs(d.totalToneladas/d.totalHorasCaex-d.rendimientoTransporteTonHr)/d.rendimientoTransporteTonHr>0.1&&out.every(function(x){return x.campo!=='rendimientoTransporteTonHr';}))out.push({campo:'rendimientoTransporteTonHr',valor:d.rendimientoTransporteTonHr});
   if(n(d.totalTonCF)>0&&(n(d.rendimientoCFTonHr)===0||n(d.totalHorasCF)===0)){if(n(d.rendimientoCFTonHr)===0)out.push({campo:'rendimientoCFTonHr',valor:0});if(n(d.totalHorasCF)===0)out.push({campo:'totalHorasCF',valor:0});}
