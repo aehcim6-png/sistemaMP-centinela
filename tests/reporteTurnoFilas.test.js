@@ -263,3 +263,20 @@ describe('reporteTurnoContrasteHorometro (contra la pestaña Horómetros)', () =
     expect(reporteTurnoContrasteHorometro('CN-9999', '2026-08-10', 100, hist).estado).toBe('sin-dato');
   });
 });
+
+describe('papeles del 29-04 al 09-05', () => {
+  it('petróleo que cruza la medianoche (20:00 → 08:00 = 12 h; 20:00 → 22:30 = 2,5 h) no se marca; uno que no calza sí', () => {
+    expect(reporteTurnoFilaDudosa({ horaInicio: '20:00', horaFin: '08:00', totalHoras: 12 }, 'PerdidaPetroleo')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ horaInicio: '20:00', horaFin: '22:30', totalHoras: 2.5 }, 'PerdidaPetroleo')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ horaInicio: '08:00', horaFin: '20:00', totalHoras: 5 }, 'PerdidaPetroleo')).toBe(true);
+  });
+  it('carguío con toneladas y 0 horas (08-05 día) se marca', () => {
+    expect(reporteTurnoFilaDudosa({ totalHoras: 0, tonelaje: 13858, rendimientoTonHr: 0 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ totalHoras: 7.3, tonelaje: null, rendimientoTonHr: 0 }, 'Carguio')).toBe(false);
+  });
+  it('totales de carguío del 08-05 (13.858 t con 0 h y rendimiento 0) y del 06-05 (119 vueltas con 0 t) se avisan', () => {
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 13858, totalHorasCF: 0, rendimientoCFTonHr: 0, vueltasCF: 139 }).map((x) => x.campo).sort()).toEqual(['rendimientoCFTonHr', 'totalHorasCF']);
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 0, totalHorasCF: 7.3, vueltasCF: 119, rendimientoCFTonHr: 0 }).map((x) => x.campo)).toEqual(['totalTonCF']);
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 17975, totalHorasCF: 13.6, rendimientoCFTonHr: 1321.7, vueltasCF: 188 })).toEqual([]);
+  });
+});

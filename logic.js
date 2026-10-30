@@ -3855,12 +3855,13 @@ function reporteTurnoFilaDudosa(r,categoria){
   }
   if(categoria==='Carguio'){
     var tc=n(r.tonelaje),rc=n(r.rendimientoTonHr);
+    if(tc>0&&!(h>0))return true;                                       // toneladas cargadas con 0 horas (08-05 día: CF-769 con 13.858 t y 0,0 h)
     if(tc>0&&h>0&&rc>0&&Math.abs(tc/h-rc)/rc>0.05)return true;        // rendimiento = toneladas ÷ horas (el papel arrastra a veces un rendimiento de otro turno)
   }
   if(categoria==='PerdidaPetroleo'){
     if(h>0&&(!r.horaInicio||!r.horaFin))return true;                 // horas perdidas sin el tramo completo desde–hasta
     var m1=_reporteMin(r.horaInicio),m2=_reporteMin(r.horaFin);
-    if(m1!=null&&m2!=null&&h!=null&&Math.abs((m2-m1)/60-h)>0.25)return true;   // las horas perdidas deben coincidir con el tramo desde-hasta
+    if(m1!=null&&m2!=null&&h!=null){var dm=m2-m1;if(dm<0)dm+=1440;if(Math.abs(dm/60-h)>0.25)return true;}   // el tramo puede cruzar la medianoche (20:00 → 08:00 = 12 h)   // las horas perdidas deben coincidir con el tramo desde-hasta
   }
   return false;
 }
@@ -3924,6 +3925,8 @@ function reporteTurnoTotalesDudosos(d){
   if(n(d.tiempoMedioCicloMin)>30)out.push({campo:'tiempoMedioCicloMin',valor:d.tiempoMedioCicloMin});
   if(n(d.totalHorasCaex)>100)out.push({campo:'totalHorasCaex',valor:d.totalHorasCaex});
   if(n(d.rendimientoTransporteTonHr)>0&&n(d.totalToneladas)>0&&n(d.totalHorasCaex)>0&&Math.abs(d.totalToneladas/d.totalHorasCaex-d.rendimientoTransporteTonHr)/d.rendimientoTransporteTonHr>0.1&&out.every(function(x){return x.campo!=='rendimientoTransporteTonHr';}))out.push({campo:'rendimientoTransporteTonHr',valor:d.rendimientoTransporteTonHr});
+  if(n(d.totalTonCF)>0&&(n(d.rendimientoCFTonHr)===0||n(d.totalHorasCF)===0)){if(n(d.rendimientoCFTonHr)===0)out.push({campo:'rendimientoCFTonHr',valor:0});if(n(d.totalHorasCF)===0)out.push({campo:'totalHorasCF',valor:0});}
+  if(n(d.totalTonCF)===0&&n(d.vueltasCF)>0)out.push({campo:'totalTonCF',valor:0});   // hubo vueltas cargadas pero el papel dice 0 t
   if(n(d.rendimientoCaexVueltasHr)===0&&n(d.totalVueltas)>0)out.push({campo:'rendimientoCaexVueltasHr',valor:0});
   if(n(d.rendimientoTransporteTonHr)===0&&n(d.totalToneladas)>0)out.push({campo:'rendimientoTransporteTonHr',valor:0});
   var visto={};
