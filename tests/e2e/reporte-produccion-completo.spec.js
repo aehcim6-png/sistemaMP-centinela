@@ -68,3 +68,27 @@ test('la lectura completa se revisa y se guarda con carguío, apoyo, pérdida po
   expect(guardado.e.filter((x) => x.categoria === 'PerdidaPetroleo')[0]).toMatchObject({ sigla: 'CN-9501', horaInicio: '10:25', horaFin: '12:20' });
   expect(errores).toEqual([]);
 });
+
+test('Producción muestra las toneladas movidas por día (día + noche) y el total del mes', async ({ page }) => {
+  test.setTimeout(90000);
+  const errores = [];
+  page.on('pageerror', (e) => errores.push(e.message));
+  await entrar(page);
+  await page.evaluate(() => go('prod'));
+  await expect(page.locator('#s-prod')).toContainText('Se lee el reporte completo', { timeout: 15000 });
+  await page.evaluate(() => {
+    S.s('prodTurno', [
+      { id: 't1', fecha: '2026-06-19', turno: 'dia', totalToneladas: 20430 },
+      { id: 't2', fecha: '2026-06-19', turno: 'noche', totalToneladas: 18540 },
+    ]);
+    S.s('prodTurnoEq', [{ id: 'e1', turnoId: 't2', categoria: 'CAEX', totalTon: 18540 }, { id: 'e2', turnoId: 't2', categoria: 'Carguio', totalTon: 15000 }]);
+    document.getElementById('fProdMes').value = '2026-06';
+    renders.prod();
+  });
+  const bloque = page.locator('#s-prod');
+  await expect(bloque).toContainText('Toneladas movidas por día');
+  await expect(bloque).toContainText('2026-06-19');
+  await expect(bloque).toContainText('38.970');
+  await expect(bloque).toContainText('⚠️');
+  expect(errores).toEqual([]);
+});

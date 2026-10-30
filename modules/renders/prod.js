@@ -28,7 +28,18 @@ export function renderProd(){
     return c!==0?c:(b.turno||'').localeCompare(a.turno||'');
   });
 
-  // Costo de Downtime por equipo (2026-10-02): toneladas perdidas por
+  // Toneladas movidas por día (2026-10-30): día + noche + total, y el total del mes. Un día con ⚠️ tiene un turno donde las toneladas de camiones y de cargadores difieren más de 5 %.
+function _prodToneladasDiaHTML(r,fMes){
+  if(!r.filas.length)return '';
+  var fmt=function(n){return n==null?'—':fn(Math.round(n));};
+  return '<div class="chart-box" style="margin-top:14px"><div style="font-weight:700;margin-bottom:6px">Toneladas movidas por día'+(fMes?' — '+escapeHtml(fMes):'')+'</div>'+
+    '<div style="font-size:12px;color:var(--tx2);margin-bottom:8px">'+r.turnos+' turno(s) · total <b class="mono">'+fmt(r.totalMes)+'</b> t. Usa el total del papel de cada turno; ⚠️ = en algún turno los camiones y los cargadores difieren más de 5 % (posible tonelaje sin registrar).</div>'+
+    '<div class="tbl-wrap"><table><tr><th>Fecha</th><th>Día [t]</th><th>Noche [t]</th><th>Total [t]</th><th></th></tr>'+
+    r.filas.map(function(d){return '<tr><td>'+escapeHtml(d.fecha)+'</td><td class="mono">'+fmt(d.dia)+'</td><td class="mono">'+fmt(d.noche)+'</td><td class="mono" style="font-weight:700">'+fmt(d.total)+(d.turnos<2?' <span style="font-size:10px;color:var(--tx3)">(1 turno)</span>':'')+'</td><td>'+(d.difiere?'⚠️':'')+'</td></tr>';}).join('')+
+    '</table></div></div>';
+}
+
+// Costo de Downtime por equipo (2026-10-02): toneladas perdidas por
   // indisponibilidad (tonPerdidaIndisponibilidadMes) × margen/tonelada
   // (cfg.margenPorTon, Configuración > Tarifas y Metas). Solo se arma para
   // un mes concreto seleccionado (fMes) — sin mes, no hay "el mes" al que
@@ -93,6 +104,7 @@ export function renderProd(){
     '<tr><th>Fecha</th><th>Turno</th><th>Supervisor</th><th>Equipos CAEX</th><th>Carguío</th><th>Apoyo</th><th>Filas Indisp.</th><th>Ton. Totales</th><th>Rend. Transporte [Ton/hr]</th></tr>'+
     (filas||'<tr><td colspan="9" style="font-size:12px;color:var(--tx3)">Sin reportes de turno cargados todavía.</td></tr>')+
     '</table></div>'+
+    _prodToneladasDiaHTML(produccionToneladasDia(turnos,turnosEq,fMes),fMes)+
     _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon)+
     _prodRendimientoCicloHTML(filasCiclo,fMes);
 }
@@ -253,12 +265,15 @@ export function _revisarReporteProduccionOCR(datos){
   });
   window._prodOCRData={datos:datos,items:items};
 
+  var sumaCat=function(cat){var s=0;items.forEach(function(it){if(it.categoria===cat&&it.fila.totalTon>0)s+=it.fila.totalTon;});return s;};
+  var cuadre=reporteTurnoCuadre(sumaCat('CAEX'),sumaCat('Carguio'));
   var tablas=_PROD_TABLAS.map(function(tb){
     return _prodTablaRevisionHTML(tb,items.filter(function(it){return it.categoria===tb.cat;}),eqArr);
   }).join('');
 
   sm('<div style="max-width:900px"><h3>📷 Reporte de turno leído</h3>'+
     '<p style="color:var(--tx2);font-size:13px;margin-bottom:8px">Revisa los valores y el equipo asignado a cada fila antes de guardar — desmarca las que no correspondan. Las filas en amarillo tienen letra dudosa. Las tablas de Petróleo e Indisponibilidad solo traen el nombre corto del papel (ej. CAEX-85): el sistema lo cruza con las otras tablas de este mismo reporte; si no lo encuentra, elige tú el equipo.</p>'+
+    (cuadre.estado==='difiere'?'<div style="background:rgba(234,179,8,.12);border:1px solid var(--ac);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">⚠️ Las toneladas de los camiones y de los cargadores no cuadran: diferencia de '+fn(Math.abs(cuadre.difTon))+' t ('+cuadre.difPct+' %). Suele ser tonelaje de un cargador que no se anotó.</div>':'')+
     (dudT.length?'<div style="background:rgba(239,68,68,.12);border:1px solid var(--danger);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">⚠️ El papel trae totales que no son creíbles (error de Excel en el original) y <b>no se guardarán</b>: '+dudT.map(function(x){return escapeHtml(x.campo)+' = '+escapeHtml(String(x.valor));}).join(', ')+'. Las filas por equipo sí se guardan.</div>':'')+
     (duplicado?'<div style="background:rgba(234,179,8,.12);border:1px solid var(--ac);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">⚠️ Ya existe un reporte cargado para '+escapeHtml(datos.fecha)+' turno '+escapeHtml(datos.turno)+' — revisa si esto es una corrección o un duplicado antes de guardar.</div>':'')+
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:12px">'+

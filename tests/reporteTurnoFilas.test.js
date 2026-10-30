@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas } from '../logic.js';
+import { reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoCuadre, produccionToneladasDia, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas } from '../logic.js';
 
 // Datos tal como los devuelve la lectura de la foto «PRODUCCIÓN TURNO DÍA» del 10/08/2026.
 const datos = {
@@ -394,5 +394,37 @@ describe('papeles del 30-06 al 07-07 (errores de Excel con negativos)', () => {
   it('petróleo con 6 h entre 10:30 y 16:30 (04-07) calza; el apodo CAEX-60 no existe y queda sin equipo', () => {
     expect(reporteTurnoFilaDudosa({ horaInicio: '10:30', horaFin: '16:30', totalHoras: 6, tonAsociado: 3203.9 }, 'PerdidaPetroleo')).toBe(false);
     expect(reporteTurnoAlias('CAEX-60')).toBeNull();
+  });
+});
+
+describe('toneladas movidas por día y cuadre camiones-cargadores', () => {
+  it('cuadre: 22.410 t de camiones contra 21.356 t de cargadores (08-06 noche) difiere 4,7 % y con umbral 3 % se avisa', () => {
+    expect(reporteTurnoCuadre(22410, 21356)).toMatchObject({ estado: 'ok', difTon: 1054, difPct: 4.7 });
+    expect(reporteTurnoCuadre(22410, 21356, 3).estado).toBe('difiere');
+    expect(reporteTurnoCuadre(22410, 0).estado).toBe('sin-dato');
+  });
+  it('suma día + noche por fecha, ordena de la más reciente y totaliza el mes', () => {
+    const turnos = [
+      { id: 'a', fecha: '2026-06-19', turno: 'dia', totalToneladas: 20430 },
+      { id: 'b', fecha: '2026-06-19', turno: 'noche', totalToneladas: 18540 },
+      { id: 'c', fecha: '2026-06-20', turno: 'dia', totalToneladas: 21780 },
+      { id: 'd', fecha: '2026-07-01', turno: 'dia', totalToneladas: 1000 },
+    ];
+    const r = produccionToneladasDia(turnos, [], '2026-06');
+    expect(r.filas.map((f) => f.fecha)).toEqual(['2026-06-20', '2026-06-19']);
+    expect(r.filas[1]).toMatchObject({ dia: 20430, noche: 18540, total: 38970, turnos: 2 });
+    expect(r.filas[0].noche).toBeNull();
+    expect(r.totalMes).toBe(60750);
+  });
+  it('si el papel no trae el total usa la suma de los camiones, y marca el día cuando camiones y cargadores no cuadran', () => {
+    const turnos = [{ id: 'a', fecha: '2026-06-08', turno: 'noche', totalToneladas: null }];
+    const eq = [
+      { turnoId: 'a', categoria: 'CAEX', totalTon: 4500 }, { turnoId: 'a', categoria: 'CAEX', totalTon: 4410 },
+      { turnoId: 'a', categoria: 'Carguio', totalTon: 5000 },
+    ];
+    const r = produccionToneladasDia(turnos, eq, '2026-06');
+    expect(r.filas[0].total).toBe(8910);
+    expect(r.filas[0].difiere).toBe(true);
+    expect(produccionToneladasDia(turnos, eq, '2026-07').filas).toEqual([]);
   });
 });
