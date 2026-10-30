@@ -7065,6 +7065,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/neuRecauchaje.test.js` (10) y `tests/e2e/neu-recauchaje.spec.js`.
 
+### 202. Siniestros y plazo de denuncia (2026-10-30)
+
+**Qué es:** el instructivo corporativo IT-AD-003 «Denuncio de siniestros» en la app: registro del siniestro, plazo de 5 días para denunciarlo (pasado eso se pierde la indemnización), lista de documentos que pide el liquidador, vigencia de los documentos del equipo a la fecha y bitácora de mantenimiento.
+
+**Cómo:** tabla nueva `siniestros` (migración `20261030160000_crear_siniestros.sql`, RLS y `GRANT`; respaldo con 62 tablas), clave `siniestros` en `TABLA_REAL`; `documentos` es jsonb (clave → true o 'na'). Reglas en `logic.js`: `siniestroPlazo` (días **corridos**, último día = fecha + `SINIESTRO_PLAZO_DIAS`; el instructivo no dice corridos u hábiles y se eligió lo prudente), `siniestroDocumentos` (`SINIESTRO_DOCUMENTOS`, cada uno con responsable, si es de entrada o «si lo pide el liquidador», y cuándo aplica), `siniestroDocsEquipo` (revisión técnica, permiso y seguro desde Vencimientos), `bitacoraMantenimiento`, `siniestroNombreArchivo` y `siniestrosResumen`. Pantalla: sección plegable al inicio de Vencimientos (`modules/renders/venc.js`), porque el seguro y los documentos del equipo viven ahí; indicador `_hsSiniestros` en el encabezado (`index.html`), igual que el de tareas vencidas.
+
+**Límites:** el certificado de gases no se sigue en Vencimientos; la app no envía nada a Finanzas ni al corredor (registra y avisa).
+
+**Antes de desplegar:** migración en los dos proyectos y nuevo despliegue de `backup-diario`.
+
+**Pruebas:** `tests/siniestros.test.js` (11) y `tests/e2e/siniestros.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

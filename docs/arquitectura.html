@@ -3613,6 +3613,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Antes de desplegar:</b> migración en los dos proyectos y nuevo despliegue de <code>backup-diario</code>.</p>
   <p><b>Pruebas:</b> <code>tests/neuRecauchaje.test.js</code> y <code>tests/e2e/neu-recauchaje.spec.js</code>.</p>
 
+    <h3 id="d-x">202. Siniestros y plazo de denuncia (2026-10-30)</h3>
+  <p><b>Qué es:</b> el instructivo IT-AD-003 en la app: registro del siniestro, plazo de 5 días para denunciarlo, documentos que pide el liquidador, vigencia de los documentos del equipo y bitácora de mantenimiento.</p>
+  <p><b>Cómo:</b> tabla nueva <code>siniestros</code> (migración <code>20261030160000</code>, RLS y GRANT; respaldo con 62 tablas); reglas en <code>logic.js</code> (<code>siniestroPlazo</code> con días corridos, <code>siniestroDocumentos</code>, <code>siniestroDocsEquipo</code>, <code>bitacoraMantenimiento</code>, <code>siniestrosResumen</code>); sección al inicio de Vencimientos e indicador en el encabezado.</p>
+  <p><b>Límites:</b> el certificado de gases no se sigue en Vencimientos; la app registra y avisa, no envía nada.</p>
+  <p><b>Pruebas:</b> <code>tests/siniestros.test.js</code> y <code>tests/e2e/siniestros.spec.js</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

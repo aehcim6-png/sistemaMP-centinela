@@ -114,6 +114,11 @@
   <p>Un usuario nuevo queda <b>bloqueado</b> hasta que un admin lo activa a mano.</p>
 
   <h2 id="d-3">3. Seguridad</h2>
+    <h3 id="d-x">Siniestros y plazo de denuncia (2026-10-30)</h3>
+  <p><b>Qué cambia.</b> En <b>Vencimientos</b>, arriba, está <b>Siniestros</b> (IT-AD-003): se registra el siniestro y la app cuenta el <b>plazo de 5 días</b> para denunciarlo (días corridos; último día = fecha + 5). Desde 2 días antes, y si ya venció, aparece «Siniestros por denunciar» en el encabezado. Estados: Por informar → Informado (pide la fecha) → En liquidación → Cerrado (pide el resultado).</p>
+  <p><b>Documentos.</b> Lista de lo que pide el liquidador según el caso, marcable como listo o «no aplica»; nombre del archivo del informe; vigencia de revisión técnica, permiso y seguro a la fecha; bitácora de mantenimiento de 12 meses en CSV.</p>
+  <p><b>Datos personales.</b> Conductor y datos del tercero son texto libre, con los mismos permisos que el resto de la base.</p>
+  <p><b>Antes de desplegar.</b> Aplicar <code>20261030160000_crear_siniestros.sql</code> en los dos proyectos y desplegar de nuevo <code>backup-diario</code> (62 tablas).</p>
     <h3 id="d-x">Recauchaje de neumáticos (2026-10-30)</h3>
   <p><b>Qué cambia.</b> En <b>Neumáticos</b> hay un botón <b>♻ Recauchajes</b> y, en cada neumático en Stock o de baja, un botón ♻ para <b>enviarlo a recauchar</b>. Mientras está en el proveedor queda «En recauchaje»; al volver se marca <b>Recibido</b> (pasa a Stock con la huella nueva) o <b>Rechazado</b> con el código del proveedor (queda De baja). El listado muestra lo que está afuera, los retornos, el % aprobado del año, los días de vuelta, el costo y los rechazos por código (PRO-MAN-004).</p>
   <p><b>Antes de desplegar.</b> Aplicar la migración <code>20261030140000_crear_neumaticos_recauchajes.sql</code> en los dos proyectos y desplegar de nuevo <code>backup-diario</code> (61 tablas).</p>

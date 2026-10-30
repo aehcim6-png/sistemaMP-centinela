@@ -1407,7 +1407,8 @@
     <li><b>De dónde viene:</b> 🔵 Criterio propio con periodicidades por tipo de equipo.</li>
     <li><b>Cómo lo calcula aquí:</b> <code>vencCalcProximo</code> suma meses a la última fecha topando el día al último del mes destino (el fix de "31 ago + 6 meses"); <code>vencEstado</code>: vencido (&lt; 0 días), vence en ≤ 30 días, OK; un documento requerido que nunca se cargó aparece como "Sin registrar (requerido)" y requiere atención. <code>lubVigente</code> encadena reemplazos con tope para no colgarse si hay un ciclo.</li>
     <li><b>Dónde se ve:</b> Vencimientos, Lubricantes.</li>
-    <li><b>Código:</b> <code>vencReglaDefault</code>, <code>vencCalcProximo</code>, <code>vencEstado</code>, <code>lubVigente</code>, <code>lubEsObsoleto</code>, <code>LUB_REEMPLAZO</code>, <code>esLubricante</code>.</li>
+    <li><b>Código:</b> <code>vencReglaDefault</code>, <code>vencCalcProximo</code>, <code>vencEstado</code>, <code>lubVigente</code>, <code>lubEsObsoleto</code>, <code>LUB_REEMPLAZO</code>, <code>esLubricante</code>, <code>SINIESTRO_PLAZO_DIAS</code>, <code>SINIESTRO_AVISO_DIAS</code>, <code>SINIESTRO_TIPOS</code>, <code>SINIESTRO_ESTADOS</code>, <code>SINIESTRO_RESULTADOS</code>, <code>SINIESTRO_DOCUMENTOS</code>, <code>siniestroPlazo</code>, <code>siniestroDocumentos</code>, <code>siniestroNombreArchivo</code>, <code>siniestroDocsEquipo</code>, <code>bitacoraMantenimiento</code>, <code>siniestrosResumen</code>.</li>
+    <li><b>Siniestros (30-oct-2026, IT-AD-003):</b> denuncia antes de los 5 días o se pierde la indemnización; se cuentan días corridos (el instructivo no lo precisa) y el último día es la fecha + 5. Aviso en el encabezado desde 2 días antes. Lista de documentos de entrada y los que pide el liquidador, según tipo, terceros y lesionados; documentos del equipo vigentes o no a la fecha; bitácora de mantenimiento de los 12 meses previos.</li>
   </ul>
 
   <h3 id="d-125">J6. Validación de salto de horómetro</h3>
