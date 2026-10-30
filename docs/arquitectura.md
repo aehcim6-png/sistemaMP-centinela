@@ -5487,8 +5487,8 @@ original, no decidido en silencio): de las 5 secciones reales del papel
 (Producción CAEX, Equipos de Carguío, Equipos de Apoyo, Pérdida por
 Petróleo, Pérdida por Indisponibilidad), esta pasada solo ingiere **CAEX**
 y **Pérdida por Indisponibilidad** — las 2 que alimentan directo
-Rendimiento/OEE. Carguío, Apoyo y Pérdida por Petróleo quedan para una
-vuelta futura; el esquema de `produccion_turno_equipos` ya las contempla
+Rendimiento/OEE. Carguío, Apoyo y Pérdida por Petróleo quedaron para una
+vuelta futura (hecha el 2026-10-30, sección 204); el esquema de `produccion_turno_equipos` ya las contempla
 (columna `categoria` con las 5 categorías en su `check`), así que esa
 vuelta futura no va a exigir otra migración.
 
@@ -7086,6 +7086,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 **Antes de desplegar:** migración en los dos proyectos y nuevo despliegue de `backup-diario`.
 
 **Pruebas:** `tests/neuTraslados.test.js` (6) y `tests/e2e/neu-traslado.spec.js`.
+
+### 204. Reporte de producción completo: carguío, apoyo, petróleo, totales y bitácora (2026-10-30)
+
+**Qué es:** la foto del «PRODUCCIÓN TURNO DÍA/NOCHE» ya no se lee a medias. Además de CAEX y Pérdida por Indisponibilidad (v1, sección 83), ahora guarda **Equipos de Carguío** (horas, toneladas cargadas, rendimiento Ton/Hr, operador, postura), **Equipos de Apoyo** (horas, operador, área de trabajo), **Pérdida por Petróleo** (desde/hasta, horas, toneladas), los **totales** del turno (transporte y carguío), el **grupo** (G1…), la **lista de disponibilidad** y la **bitácora** de eventos con hora. Los equipos fuera de servicio también quedan registrados (con su texto), no se saltan.
+
+**Cómo:** migración `20261030200000_ampliar_produccion_turno_reporte_completo.sql` (solo columnas nuevas y opcionales en `produccion_turno` y `produccion_turno_equipos`; las categorías `Carguio`, `Apoyo` y `PerdidaPetroleo` ya existían en el `check`). La Edge Function `leer-reporte-produccion` amplía su esquema y su prompt (pide la fecha día/mes/año y marcar los equipos fuera de servicio). La conversión de la lectura a filas es lógica pura en `logic.js`: `reporteTurnoFilas` (una fila por equipo con la misma forma para las cinco tablas; mapeo: Carguío «Tonelaje»→`totalTon` y «Rendimiento»→`tonHr`; Petróleo/Indisponibilidad «Tonelaje asociado»→`tonAsociadoPerdida`; horas del reloj de Petróleo→`horaInicio`/`horaFin`) y `reporteTurnoResolverSiglas` (las tablas de Petróleo e Indisponibilidad solo traen el nombre corto del papel, ej. CAEX-85: se cruza con las demás filas del **mismo reporte** que sí traen la sigla real; si el nombre es ambiguo o no aparece, queda vacío y la persona elige). La pantalla de revisión (`modules/renders/prod.js`) muestra las cinco tablas, los totales y tres cuadros de texto editables (disponibilidad, bitácora, otras observaciones); nada se guarda sin confirmar.
+
+**Qué NO cambia:** `rendimientoRealEquipoMes`, `tonPerdidaIndisponibilidadMes` y el costo de downtime siguen mirando solo las categorías que ya usaban. Las filas nuevas quedan guardadas para consulta y para lo que venga (p. ej. rendimiento de carguío, pérdida por petróleo). La foto no se guarda como evidencia (igual que antes).
+
+**Antes de desplegar:** migración en los dos proyectos y nuevo despliegue de `leer-reporte-produccion`.
+
+**Pruebas:** `tests/reporteTurnoFilas.test.js` (8), `supabase/functions/leer-reporte-produccion/index.test.ts` (6) y `tests/e2e/reporte-produccion-completo.spec.js`.
 
 ## Lo que decidimos NO hacer (y por qué)
 

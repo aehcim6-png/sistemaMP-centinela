@@ -2897,7 +2897,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   Besalco (planilla por turno) que sí traen ese dato.</p>
   <p><b>Alcance v1, acotado a propósito</b>: de las 5 secciones del papel, solo se ingieren
   <b>Producción CAEX</b> y <b>Pérdida por Indisponibilidad</b> — las 2 que alimentan Rendimiento/OEE.
-  Carguío, Apoyo y Pérdida por Petróleo quedan para una vuelta futura; el esquema de
+  Carguío, Apoyo y Pérdida por Petróleo se agregaron después (sección 204); el esquema de
   <code>produccion_turno_equipos</code> ya las contempla en su columna <code>categoria</code>, así
   que esa vuelta futura no exige otra migración.</p>
   <p><b>Esquema</b> (<code>20260930210000_crear_tablas_produccion_turno.sql</code>): cabecera
@@ -3623,6 +3623,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Qué es:</b> pasar un neumático montado de un equipo (donante) a otro (receptor) con su causal, y ver qué posiciones donantes quedaron vacías (PRO-MAN-004). La serie se rotula «Serie / N° de fuego» (confirmado por el usuario: es el número de fuego).</p>
   <p><b>Cómo:</b> tabla nueva <code>neumaticos_traslados</code> (migración <code>20261030180000</code>, RLS y GRANT; respaldo con 63 tablas); <code>trasladarNeu</code>, <code>saveTrasladoNeu</code> y <code>verTrasladosNeu</code> en <code>neu.js</code>; reglas <code>neuValidarTraslado</code>, <code>neuTrasladosPendientesReposicion</code> y <code>resumenTraslados</code> en <code>logic.js</code>.</p>
   <p><b>Pruebas:</b> <code>tests/neuTraslados.test.js</code> y <code>tests/e2e/neu-traslado.spec.js</code>.</p>
+
+    <h3 id="d-x">204. Reporte de producción completo: carguío, apoyo, petróleo, totales y bitácora (2026-10-30)</h3>
+  <p><b>Qué es:</b> la foto del «PRODUCCIÓN TURNO DÍA/NOCHE» ya no se lee a medias. Además de CAEX y Pérdida por Indisponibilidad, ahora guarda <b>Equipos de Carguío</b> (horas, toneladas cargadas, rendimiento Ton/Hr, operador, postura), <b>Equipos de Apoyo</b>, <b>Pérdida por Petróleo</b>, los <b>totales</b> del turno, el grupo, la <b>lista de disponibilidad</b> y la <b>bitácora</b> de eventos con hora. Los equipos fuera de servicio también quedan registrados.</p>
+  <p><b>Cómo:</b> migración <code>20261030200000</code> (solo columnas nuevas y opcionales; las categorías <code>Carguio</code>, <code>Apoyo</code> y <code>PerdidaPetroleo</code> ya existían). La función <code>leer-reporte-produccion</code> amplía su esquema y su prompt. La conversión a filas es lógica pura en <code>logic.js</code>: <code>reporteTurnoFilas</code> y <code>reporteTurnoResolverSiglas</code> (Petróleo e Indisponibilidad solo traen el nombre corto del papel, ej. CAEX-85: se cruza con las otras filas del mismo reporte; si es ambiguo, la persona elige). Nada se guarda sin confirmar.</p>
+  <p><b>Qué NO cambia:</b> el rendimiento real y el costo de downtime siguen mirando solo las categorías que ya usaban.</p>
+  <p><b>Antes de desplegar:</b> migración en los dos proyectos y nuevo despliegue de <code>leer-reporte-produccion</code>.</p>
+  <p><b>Pruebas:</b> <code>tests/reporteTurnoFilas.test.js</code>, la prueba de la función y <code>tests/e2e/reporte-produccion-completo.spec.js</code>.</p>
 
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>

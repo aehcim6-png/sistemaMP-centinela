@@ -2,13 +2,13 @@
 // PRODUCCIÓN — ingesta de Reportes de Turno (Día/Noche) por OCR
 // (2026-09-30, plan diseñado el 17-09 y retomado esta sesión).
 //
-// v1 acotado a propósito: solo Producción CAEX + Pérdida por Indisponibilidad
-// (las 2 secciones que alimentan Rendimiento real — ver logic.js
-// rendimientoRealEquipoMes/tonPerdidaIndisponibilidadMes). Carguío, Apoyo y
-// Pérdida por Petróleo quedan para una vuelta futura — el esquema de
-// produccion_turno_equipos ya las contempla (columna categoria), así que esa
-// vuelta futura no exige otra migración, solo ampliar la Edge Function y esta
-// UI. Ver docs/arquitectura.md.
+// Reporte completo (2026-10-30): la foto guarda las cinco tablas del papel (CAEX,
+// Carguío, Apoyo, Pérdida por Petróleo, Pérdida por Indisponibilidad), los totales de
+// transporte y de carguío, la lista de disponibilidad y la bitácora de eventos.
+// El Rendimiento real y el costo de downtime siguen mirando solo las categorías que
+// ya usaban (CAEX / PerdidaIndisponibilidad — ver logic.js); las filas nuevas
+// quedan guardadas para consulta. La conversión de la foto a filas es pura y está en
+// logic.js (reporteTurnoFilas / reporteTurnoResolverSiglas, con pruebas). Ver docs/arquitectura.md.
 //
 // Mismo patrón que _revisarChequeoNeuOCR/_guardarChequeoNeuOCR (neu.js):
 // NUNCA se escribe directo a producción — la persona revisa, puede
@@ -63,11 +63,15 @@ export function renderProd(){
     var eqDelTurno=turnosEq.filter(function(e){return e.turnoId===t.id;});
     var nCaex=eqDelTurno.filter(function(e){return e.categoria==='CAEX';}).length;
     var nPerdida=eqDelTurno.filter(function(e){return e.categoria==='PerdidaIndisponibilidad';}).length;
+    var nCarguio=eqDelTurno.filter(function(e){return e.categoria==='Carguio';}).length;
+    var nApoyo=eqDelTurno.filter(function(e){return e.categoria==='Apoyo';}).length;
     return '<tr>'+
       '<td>'+escapeHtml(t.fecha||'')+'</td>'+
       '<td>'+(t.turno==='dia'?'Día':t.turno==='noche'?'Noche':escapeHtml(t.turno||''))+'</td>'+
       '<td style="font-size:12px">'+escapeHtml(t.supervisor||'—')+'</td>'+
       '<td class="mono">'+nCaex+'</td>'+
+      '<td class="mono">'+(nCarguio||'—')+'</td>'+
+      '<td class="mono">'+(nApoyo||'—')+'</td>'+
       '<td class="mono">'+(nPerdida||'—')+'</td>'+
       '<td class="mono">'+(t.totalToneladas!=null?t.totalToneladas:'—')+'</td>'+
       '<td class="mono">'+(t.rendimientoTransporteTonHr!=null?t.rendimientoTransporteTonHr:'—')+'</td>'+
@@ -78,7 +82,7 @@ export function renderProd(){
     '<div class="sec-h"><div><div class="sec-t">'+ICONS.tractor+' Producción</div>'+
     '<div class="sec-s">'+turnos.length+' reporte(s) de turno cargado(s)</div></div></div>'+
     '<p style="color:var(--tx2);font-size:13px;margin-bottom:10px">Carga el Reporte de Producción por turno (foto) para que el sistema calcule Rendimiento real por equipo. '+
-    'Por ahora se procesan solo Producción CAEX y Pérdida por Indisponibilidad — Carguío, Apoyo y Pérdida por Petróleo quedan para una vuelta futura. '+
+    'Se lee el reporte completo: CAEX, Carguío, Apoyo, Pérdida por Petróleo y por Indisponibilidad, los totales, la disponibilidad y la bitácora del turno. '+
     'El % de OEE queda pendiente de que se defina una meta de Rendimiento por tipo de equipo (no se inventa un valor nominal sin ese dato).</p>'+
     '<div class="toolbar">'+
     '<input type="month" id="fProdMes" value="'+escapeHtml(fMes)+'" onchange="renders.prod()">'+
@@ -86,8 +90,8 @@ export function renderProd(){
     '<input type="file" id="prodReporteFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerReporteProduccionFotoSeleccionada(this)">'+
     '</div>'+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Fecha</th><th>Turno</th><th>Supervisor</th><th>Equipos CAEX</th><th>Filas Indisp.</th><th>Ton. Totales</th><th>Rend. Transporte [Ton/hr]</th></tr>'+
-    (filas||'<tr><td colspan="7" style="font-size:12px;color:var(--tx3)">Sin reportes de turno cargados todavía.</td></tr>')+
+    '<tr><th>Fecha</th><th>Turno</th><th>Supervisor</th><th>Equipos CAEX</th><th>Carguío</th><th>Apoyo</th><th>Filas Indisp.</th><th>Ton. Totales</th><th>Rend. Transporte [Ton/hr]</th></tr>'+
+    (filas||'<tr><td colspan="9" style="font-size:12px;color:var(--tx3)">Sin reportes de turno cargados todavía.</td></tr>')+
     '</table></div>'+
     _prodCostoDowntimeHTML(filasDowntime,fMes,margenPorTon)+
     _prodRendimientoCicloHTML(filasCiclo,fMes);
@@ -169,7 +173,7 @@ export async function _leerReporteProduccionFotoSeleccionada(input){
     var base64=comp.dataUrl.split(',')[1];
     var resp=await _llamarOCRFuncion('leer-reporte-produccion',base64,'image/jpeg');
     if(resp.error){toast('⚠️ '+resp.error);input.value='';return;}
-    _revisarReporteProduccionOCR(resp.datos||{caex:[],perdidaIndisponibilidad:[],camposInciertos:[]});
+    _revisarReporteProduccionOCR(resp.datos||{caex:[],carguio:[],apoyo:[],perdidaPetroleo:[],perdidaIndisponibilidad:[],camposInciertos:[]});
   }catch(err){
     toast('⚠️ Error leyendo reporte: '+err.message);
   }
@@ -184,73 +188,85 @@ function _prodOptsEquipo(eqArr,siglaSeleccionada){
   return opts;
 }
 
+// Cada tabla del papel: título, columnas que se muestran para revisar y cómo sacar cada celda de la fila ya convertida (reporteTurnoFilas).
+var _PROD_TABLAS=[
+  {cat:'CAEX',pre:'prodCaex',titulo:'Producción Equipos CAEX',cols:['Horómetro','Horas','Vueltas','Rend.[V/Hr]','Operador','Ton'],
+    cel:function(f){return [_prodHorom(f),_prodHoras(f),f.vueltas,f.rendimientoVueltasHr,escapeHtml(f.operador||''),f.totalTon];}},
+  {cat:'Carguio',pre:'prodCarg',titulo:'Equipos de Carguío',cols:['Horómetro','Horas','Ton cargadas','Rend.[Ton/Hr]','Operador','Postura'],
+    cel:function(f){return [_prodHorom(f),_prodHoras(f),f.totalTon,f.tonHr,escapeHtml(f.operador||''),escapeHtml(f.postura||'')];}},
+  {cat:'Apoyo',pre:'prodApoyo',titulo:'Equipos de Apoyo',cols:['Horómetro','Horas','Operador','Área de trabajo'],
+    cel:function(f){return [_prodHorom(f),_prodHoras(f),escapeHtml(f.operador||''),escapeHtml(f.areaTrabajo||'')];}},
+  {cat:'PerdidaPetroleo',pre:'prodPetr',titulo:'Pérdida por Petróleo',cols:['Desde → hasta','Horas','Ton. asociado'],
+    cel:function(f){return [escapeHtml((f.horaInicio||'')+' → '+(f.horaFin||'')),f.totalHoras,f.tonAsociadoPerdida];}},
+  {cat:'PerdidaIndisponibilidad',pre:'prodPerd',titulo:'Pérdida por Indisponibilidad',cols:['Horómetro','Horas','Ton. asociado'],
+    cel:function(f){return [_prodHorom(f),f.totalHoras,f.tonAsociadoPerdida];}}
+];
+function _prodHorom(f){return (f.horometroInicial==null&&f.horometroFinal==null)?'':(f.horometroInicial??'')+' → '+(f.horometroFinal??'');}
+function _prodHoras(f){return f.totalHoras!=null?f.totalHoras:(f.estadoTexto?escapeHtml(f.estadoTexto):'—');}
+
+function _prodTablaRevisionHTML(tb,items,eqArr){
+  var cuerpo=items.map(function(it,i){
+    var f=it.fila;
+    var dudoso=it.incierto?' style="background:rgba(234,179,8,.12)"':'';
+    var fuera=f.estadoTexto&&f.totalHoras==null?' <span style="font-size:10px;color:var(--danger)">(fuera de servicio)</span>':'';
+    return '<tr'+dudoso+'>'+
+      '<td><input type="checkbox" id="'+tb.pre+'Sel_'+it.idx+'" checked></td>'+
+      '<td><select id="'+tb.pre+'Eq_'+it.idx+'" style="font-size:11px">'+_prodOptsEquipo(eqArr,it.siglaSugerida)+'</select>'+
+      '<br><span style="font-size:10px;color:var(--tx3)">papel: '+escapeHtml(f.siglaOCR||f.equipoNombreOCR||'?')+(f.equipoNombreOCR&&f.siglaOCR?' / '+escapeHtml(f.equipoNombreOCR):'')+'</span>'+fuera+'</td>'+
+      tb.cel(f).map(function(c){return '<td class="mono" style="font-size:11px">'+(c==null?'':c)+'</td>';}).join('')+
+      '</tr>';
+  }).join('');
+  return '<h4 style="margin:12px 0 6px">'+tb.titulo+' <span style="font-size:11px;color:var(--tx3);font-weight:400">('+items.length+')</span></h4>'+
+    '<div class="tbl-wrap"><table><tr><th></th><th>Equipo</th>'+tb.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>'+
+    (cuerpo||'<tr><td colspan="'+(tb.cols.length+2)+'" style="font-size:12px;color:var(--tx3)">Sin filas leídas</td></tr>')+
+    '</table></div>';
+}
+
+function _prodTotalesHTML(d){
+  var t=[['Total toneladas',d.totalToneladas],['Rend. transporte [Ton/hr]',d.rendimientoTransporteTonHr],['Total vueltas CAEX',d.totalVueltas],['Total horas CAEX',d.totalHorasCaex],
+    ['Tiempo medio de ciclo [min]',d.tiempoMedioCicloMin],['Rend. CAEX [vueltas/hr]',d.rendimientoCaexVueltasHr],['Vueltas C.F.',d.vueltasCF],['Total Ton CF',d.totalTonCF],
+    ['Total horas C.F.',d.totalHorasCF],['Rend. C.F. [Ton/hr]',d.rendimientoCFTonHr],['Rend. C.F. [Cargas/hr]',d.rendimientoCFCargasHr]].filter(function(x){return x[1]!=null;});
+  if(!t.length)return '';
+  return '<h4 style="margin:12px 0 6px">Totales del turno (tal como vienen en el papel)</h4>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;font-size:12px">'+
+    t.map(function(x){return '<div style="background:var(--bg3);border-radius:6px;padding:6px 8px"><span style="color:var(--tx3)">'+x[0]+'</span><br><b class="mono">'+x[1]+'</b></div>';}).join('')+'</div>';
+}
+
 export function _revisarReporteProduccionOCR(datos){
   var eqArr=S.g('eq')||[];
   var turnosExistentes=S.g('prodTurno')||[];
   var inc=datos.camposInciertos||[];
   var duplicado=datos.fecha&&datos.turno&&turnosExistentes.some(function(t){return t.fecha===datos.fecha&&t.turno===datos.turno;});
 
-  var caex=(datos.caex||[]).map(function(row){
-    var match=row.sigla?_matchEquipoPorSiglaOCR(row.sigla,eqArr):null;
-    return {row:row,siglaMatch:match?match.sigla:null};
-  });
-  var perdida=(datos.perdidaIndisponibilidad||[]).map(function(row){
-    var match=row.sigla?_matchEquipoPorSiglaOCR(row.sigla,eqArr):null;
-    return {row:row,siglaMatch:match?match.sigla:null};
-  });
-  window._prodOCRData={datos:datos,caex:caex,perdida:perdida};
+  // Filas ya convertidas y con el equipo sugerido; idx = posición en la lista completa (identifica los controles de cada fila).
+  var items=reporteTurnoResolverSiglas(reporteTurnoFilas(datos),function(sigla){var m=_matchEquipoPorSiglaOCR(sigla,eqArr);return m?m.sigla:null;});
+  items.forEach(function(it,i){it.idx=i;});
+  window._prodOCRData={datos:datos,items:items};
 
-  var filasCaex=caex.map(function(c,i){
-    var r=c.row;
-    var dudoso=r.incierto?' style="background:rgba(234,179,8,.12)"':'';
-    var horasCel=r.totalHoras!=null?r.totalHoras:(r.estadoTexto?escapeHtml(r.estadoTexto):'—');
-    return '<tr'+dudoso+'>'+
-      '<td><input type="checkbox" id="prodCaexSel_'+i+'" checked></td>'+
-      '<td><select id="prodCaexEq_'+i+'" style="font-size:11px">'+_prodOptsEquipo(eqArr,c.siglaMatch)+'</select>'+
-      '<br><span style="font-size:10px;color:var(--tx3)">papel: '+escapeHtml(r.sigla||'?')+(r.equipoNombre?' / '+escapeHtml(r.equipoNombre):'')+'</span></td>'+
-      '<td class="mono" style="font-size:11px">'+(r.horometroInicial??'')+' → '+(r.horometroFinal??'')+'</td>'+
-      '<td class="mono">'+horasCel+'</td>'+
-      '<td class="mono">'+(r.vueltas??'')+'</td>'+
-      '<td class="mono">'+(r.rendimientoVueltasHr??'')+'</td>'+
-      '<td style="font-size:11px">'+escapeHtml(r.operador||'')+'</td>'+
-      '<td class="mono">'+(r.totalTon??'')+'</td>'+
-      '</tr>';
+  var tablas=_PROD_TABLAS.map(function(tb){
+    return _prodTablaRevisionHTML(tb,items.filter(function(it){return it.categoria===tb.cat;}),eqArr);
   }).join('');
 
-  var filasPerdida=perdida.map(function(c,i){
-    var r=c.row;
-    var dudoso=r.incierto?' style="background:rgba(234,179,8,.12)"':'';
-    return '<tr'+dudoso+'>'+
-      '<td><input type="checkbox" id="prodPerdSel_'+i+'" checked></td>'+
-      '<td><select id="prodPerdEq_'+i+'" style="font-size:11px">'+_prodOptsEquipo(eqArr,c.siglaMatch)+'</select>'+
-      '<br><span style="font-size:10px;color:var(--tx3)">papel: '+escapeHtml(r.sigla||'?')+'</span></td>'+
-      '<td class="mono" style="font-size:11px">'+(r.horometroInicial??'')+' → '+(r.horometroFinal??'')+'</td>'+
-      '<td class="mono">'+(r.totalHoras??'')+'</td>'+
-      '<td class="mono">'+(r.tonAsociado??'')+'</td>'+
-      '</tr>';
-  }).join('');
-
-  sm('<div style="max-width:820px"><h3>📷 Reporte de turno leído</h3>'+
-    '<p style="color:var(--tx2);font-size:13px;margin-bottom:8px">Revisa los valores y el equipo asignado a cada fila antes de guardar — desmarca las que no correspondan. Las filas en amarillo tienen letra dudosa.</p>'+
+  sm('<div style="max-width:900px"><h3>📷 Reporte de turno leído</h3>'+
+    '<p style="color:var(--tx2);font-size:13px;margin-bottom:8px">Revisa los valores y el equipo asignado a cada fila antes de guardar — desmarca las que no correspondan. Las filas en amarillo tienen letra dudosa. Las tablas de Petróleo e Indisponibilidad solo traen el nombre corto del papel (ej. CAEX-85): el sistema lo cruza con las otras tablas de este mismo reporte; si no lo encuentra, elige tú el equipo.</p>'+
     (duplicado?'<div style="background:rgba(234,179,8,.12);border:1px solid var(--ac);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">⚠️ Ya existe un reporte cargado para '+escapeHtml(datos.fecha)+' turno '+escapeHtml(datos.turno)+' — revisa si esto es una corrección o un duplicado antes de guardar.</div>':'')+
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:12px">'+
     '<label>Fecha<br><input type="date" id="prodFecha" value="'+escapeHtml(datos.fecha||'')+'" style="'+(inc.includes('fecha')?'outline:2px solid var(--warn)':'')+'"></label>'+
     '<label>Turno<br><select id="prodTurnoSel"><option value="dia"'+(datos.turno==='dia'?' selected':'')+'>Día</option><option value="noche"'+(datos.turno==='noche'?' selected':'')+'>Noche</option></select></label>'+
+    '<label>Grupo<br><input id="prodGrupo" value="'+escapeHtml(datos.grupoTurno||'')+'"></label>'+
     '<label>Supervisor<br><input id="prodSupervisor" value="'+escapeHtml(datos.supervisor||'')+'"></label>'+
     '<label>Contrato<br><input id="prodContrato" value="'+escapeHtml(datos.contrato||'')+'"></label>'+
     '<label>Total Toneladas<br><input type="number" id="prodTotalTon" value="'+(datos.totalToneladas??'')+'"></label>'+
     '<label>Rend. Transporte [Ton/hr]<br><input type="number" id="prodRendTransp" value="'+(datos.rendimientoTransporteTonHr??'')+'"></label>'+
     '</div>'+
-    '<h4 style="margin-bottom:6px">Producción Equipos CAEX</h4>'+
-    '<div class="tbl-wrap"><table>'+
-    '<tr><th></th><th>Equipo</th><th>Horómetro</th><th>Horas</th><th>Vueltas</th><th>Rend.[V/Hr]</th><th>Operador</th><th>Ton</th></tr>'+
-    (filasCaex||'<tr><td colspan="8" style="font-size:12px">Sin filas CAEX leídas</td></tr>')+
-    '</table></div>'+
-    '<h4 style="margin:12px 0 6px">Pérdida por Indisponibilidad</h4>'+
-    '<div class="tbl-wrap"><table>'+
-    '<tr><th></th><th>Equipo</th><th>Horómetro</th><th>Horas</th><th>Ton. Asociado</th></tr>'+
-    (filasPerdida||'<tr><td colspan="5" style="font-size:12px">Sin filas de pérdida por indisponibilidad leídas</td></tr>')+
-    '</table></div>'+
+    tablas+
+    _prodTotalesHTML(datos)+
+    '<h4 style="margin:12px 0 6px">Disponibilidad de equipos</h4>'+
+    '<textarea id="prodDispon" rows="3" style="width:100%;font-size:12px">'+escapeHtml(datos.disponibilidadEquipos||'')+'</textarea>'+
+    '<h4 style="margin:12px 0 6px">Bitácora del turno</h4>'+
+    '<textarea id="prodBitacora" rows="7" style="width:100%;font-size:12px">'+escapeHtml(datos.bitacora||'')+'</textarea>'+
+    '<h4 style="margin:12px 0 6px">Otras observaciones</h4>'+
+    '<textarea id="prodObs" rows="2" style="width:100%;font-size:12px">'+escapeHtml(datos.observaciones||'')+'</textarea>'+
     '<div style="margin-top:14px"><button class="btn" onclick="_guardarReporteProduccionOCR()">'+ICONS.saveIco+' Guardar reporte de turno</button> <button class="btn btn-o" onclick="cm()">Cancelar</button></div>'+
     '</div>');
 }
@@ -263,51 +279,44 @@ export function _guardarReporteProduccionOCR(){
   var turno=$('prodTurnoSel').value;
   if(!fecha||!turno){toast('⚠️ Fecha y turno son obligatorios');return;}
 
+  var d=pend.datos;
+  var txt=function(id){var v=$(id)?$(id).value.trim():'';return v||null;};
   var turnoObj={
     id:_uuidV4(),
     fecha:fecha,
     turno:turno,
     supervisor:$('prodSupervisor').value||null,
     contrato:$('prodContrato').value||null,
-    franjaDescarga:pend.datos.franjaDescarga||null,
-    moduloDescarga:pend.datos.moduloDescarga||null,
-    distanciaModulos:pend.datos.distanciaModulos??null,
-    observacionesDistancia:pend.datos.observacionesDistancia||null,
+    franjaDescarga:d.franjaDescarga||null,
+    moduloDescarga:d.moduloDescarga||null,
+    distanciaModulos:d.distanciaModulos??null,
+    observacionesDistancia:d.observacionesDistancia||null,
     totalToneladas:parseFloat($('prodTotalTon').value)||null,
     rendimientoTransporteTonHr:parseFloat($('prodRendTransp').value)||null,
-    totalVueltas:pend.datos.totalVueltas??null,
-    observaciones:pend.datos.observaciones||null,
+    totalVueltas:d.totalVueltas??null,
+    observaciones:txt('prodObs'),
     registradoPor:(typeof window!=='undefined'&&window._userName)||null,
-    fuente:'foto'
+    fuente:'foto',
+    grupoTurno:txt('prodGrupo'),
+    tiempoMedioCicloMin:d.tiempoMedioCicloMin??null,
+    totalHorasCaex:d.totalHorasCaex??null,
+    rendimientoCaexVueltasHr:d.rendimientoCaexVueltasHr??null,
+    vueltasCF:d.vueltasCF??null,
+    totalTonCF:d.totalTonCF??null,
+    totalHorasCF:d.totalHorasCF??null,
+    rendimientoCFTonHr:d.rendimientoCFTonHr??null,
+    rendimientoCFCargasHr:d.rendimientoCFCargasHr??null,
+    disponibilidadEquipos:txt('prodDispon'),
+    bitacora:txt('prodBitacora')
   };
 
   var filasEq=[];
-  pend.caex.forEach(function(c,i){
-    var chk=$('prodCaexSel_'+i);
+  pend.items.forEach(function(it){
+    var tb=_PROD_TABLAS.filter(function(t){return t.cat===it.categoria;})[0];
+    var chk=$(tb.pre+'Sel_'+it.idx);
     if(!chk||!chk.checked)return;
-    var sigla=$('prodCaexEq_'+i).value||null;
-    var r=c.row;
-    filasEq.push({
-      id:_uuidV4(),turnoId:turnoObj.id,sigla:sigla,siglaOCR:r.sigla||null,categoria:'CAEX',
-      equipoNombreOCR:r.equipoNombre||null,horometroInicial:r.horometroInicial??null,
-      horometroFinal:r.horometroFinal??null,totalHoras:r.totalHoras??null,estadoTexto:r.estadoTexto||null,
-      vueltas:r.vueltas??null,rendimientoVueltasHr:r.rendimientoVueltasHr??null,
-      tiempoCicloMin:r.tiempoCicloMin??null,operador:r.operador||null,tonVuelta:r.tonVuelta??null,
-      tonHr:null,totalTon:r.totalTon??null,postura:null,areaTrabajo:null,tonAsociadoPerdida:null
-    });
-  });
-  pend.perdida.forEach(function(c,i){
-    var chk=$('prodPerdSel_'+i);
-    if(!chk||!chk.checked)return;
-    var sigla=$('prodPerdEq_'+i).value||null;
-    var r=c.row;
-    filasEq.push({
-      id:_uuidV4(),turnoId:turnoObj.id,sigla:sigla,siglaOCR:r.sigla||null,categoria:'PerdidaIndisponibilidad',
-      equipoNombreOCR:null,horometroInicial:r.horometroInicial??null,horometroFinal:r.horometroFinal??null,
-      totalHoras:r.totalHoras??null,estadoTexto:null,vueltas:null,rendimientoVueltasHr:null,tiempoCicloMin:null,
-      operador:null,tonVuelta:null,tonHr:null,totalTon:null,postura:null,areaTrabajo:null,
-      tonAsociadoPerdida:r.tonAsociado??null
-    });
+    var sigla=$(tb.pre+'Eq_'+it.idx).value||null;
+    filasEq.push(Object.assign({id:_uuidV4(),turnoId:turnoObj.id,sigla:sigla},it.fila));
   });
 
   if(!filasEq.length){toast('⚠️ No se tildó ninguna fila — nada que guardar');return;}

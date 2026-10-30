@@ -118,7 +118,7 @@
   <h2 id="d-3">Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
-    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A19</td></tr>
+    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A20</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C23</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
@@ -357,6 +357,15 @@
     <li><b>Dónde se ve:</b> pestaña Disponibilidad, vista mensual, bajo la tabla.</li>
     <li><b>Límites:</b> la MA solo mira fallas (se compara con la Ai, no con la Ao) y usa horas operadas, no días calendario; equipos sin horómetro a ambos lados del mes quedan fuera; una falla sin duración no entra al MTTR; sin fallas la MA es 100 %.</li>
     <li><b>Código:</b> <code>kpiProMan010</code>.</li>
+  </ul>
+
+  <h3 id="d-x">A20. Reporte de producción por turno: de la foto a filas por equipo</h3>
+  <ul>
+    <li><b>Para qué sirve:</b> guardar el reporte de turno completo (CAEX, Carguío, Apoyo, Pérdida por Petróleo, Pérdida por Indisponibilidad) como una fila por equipo y poder revisarlo antes de confirmar. La foto la lee Gemini (función <code>leer-reporte-produccion</code>).</li>
+    <li><b>Cómo lo calcula:</b> copia cada fila leída a las columnas de la tabla sin calcular nada (Carguío «Tonelaje»→toneladas y «Rendimiento»→Ton/Hr; Petróleo e Indisponibilidad «Tonelaje asociado»→toneladas perdidas). Petróleo e Indisponibilidad solo traen el nombre corto del papel (CAEX-85): se busca el equipo entre las otras filas del mismo reporte; si es ambiguo o no aparece, la persona elige.</li>
+    <li><b>Dónde se ve:</b> pestaña Producción (grupo Desempeño).</li>
+    <li><b>Límites:</b> depende de que la foto se lea bien (las filas dudosas salen en amarillo); los totales del papel se guardan tal cual, sin verificarlos; el rendimiento real y el costo de downtime siguen usando solo CAEX e Indisponibilidad.</li>
+    <li><b>Código:</b> <code>reporteTurnoFilas</code>, <code>reporteTurnoResolverSiglas</code>, <code>REPORTE_TURNO_TABLAS</code>.</li>
   </ul>
 
   <h2 id="d-21">B. Vida, supervivencia y tendencia de fallas</h2>

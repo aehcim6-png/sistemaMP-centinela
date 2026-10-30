@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A19 |
+| A. Disponibilidad, fallas y tiempos | A1–A20 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C23 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -246,6 +246,16 @@ Son **133 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Límites:** la MA solo mira fallas, así que se compara con la **Ai**, no con la Ao del % de flota (que también descuenta las PM); y se calcula sobre horas operadas, no por día calendario, así que tampoco calza exacto con la Ai. Un equipo sin lecturas de horómetro a ambos lados del mes queda fuera (se lista). Una falla sin duración cuenta para el MTBF pero no para el MTTR. Sin fallas, MTBF y MTTR quedan vacíos y la MA es 100 % (límite de la fórmula). Usa solo las OT de la tabla de correctivos, como el resto de la pestaña (no el histórico importado).
 - **Código:** `kpiProMan010`.
 
+
+### A20. Reporte de producción por turno: de la foto a filas por equipo
+- **Tipo:** conversión y cruce de datos (no es un modelo estadístico); la lectura de la foto la hace Gemini (función `leer-reporte-produccion`).
+- **Para qué sirve:** guardar el reporte de turno completo (CAEX, Carguío, Apoyo, Pérdida por Petróleo, Pérdida por Indisponibilidad) como una fila por equipo y poder revisarlo antes de confirmar.
+- **De dónde viene:** 🔵 Criterio propio, sobre la planilla «PRODUCCIÓN TURNO DÍA/NOCHE» de la faena.
+- **Cómo lo calcula aquí:** cada fila leída se copia a las columnas de la tabla sin calcular nada: Carguío «Tonelaje»→toneladas y «Rendimiento»→Ton/Hr; Petróleo e Indisponibilidad «Tonelaje asociado»→toneladas perdidas; lo que no vino queda vacío. Como Petróleo e Indisponibilidad solo traen el nombre corto del papel (CAEX-85), se busca el equipo entre las demás filas del mismo reporte que sí traen la sigla real; si el nombre es ambiguo o no aparece, queda sin equipo y la persona elige.
+- **Dónde se ve:** pestaña Producción (grupo Desempeño): botón «Leer reporte de turno (foto)», pantalla de revisión y listado de turnos.
+- **Ejemplo (prueba automática):** en el reporte del 10/08/2026, la fila «CAEX-86» de Pérdida por Petróleo (10:25→12:20, 1,92 h) queda asignada al camión CN-9501, porque en la tabla CAEX «CAEX-86» es CN-9501.
+- **Límites:** depende de que la foto se lea bien (las filas dudosas salen en amarillo); no suma ni verifica los totales del papel, los guarda tal cual; el rendimiento real y el costo de downtime siguen usando solo CAEX e Indisponibilidad.
+- **Código:** `reporteTurnoFilas`, `reporteTurnoResolverSiglas`, `REPORTE_TURNO_TABLAS`.
 ---
 
 ## B. Vida, supervivencia y tendencia de fallas
