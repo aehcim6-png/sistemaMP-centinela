@@ -1026,7 +1026,7 @@
    "escalar": "Si el log muestra un error de código, avisar el texto y la hora.",
    "claude": [
     "`get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `backup-diario`.",
-    "La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (60)."
+    "La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (63)."
    ],
    "depende_de": [
     "CRN-01",

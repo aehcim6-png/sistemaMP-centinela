@@ -652,7 +652,7 @@ Junta todas las tablas de la lista `TABLAS` más las cuentas de acceso, las comp
 
 **Soporte técnico (Claude):**
 - `get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `backup-diario`.
-- La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (60).
+- La lista `TABLAS` (`index.ts`) debe tener todas las tablas reales; `index.test.ts` fija el tamaño (63).
 
 ### EF-06 — Función: alerta-pm
 
