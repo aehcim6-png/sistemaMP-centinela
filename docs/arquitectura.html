@@ -3606,6 +3606,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Antes de desplegar:</b> aplicar la migración en los dos proyectos; sin las columnas, la lectura de OT falla.</p>
   <p><b>Pruebas:</b> <code>tests/otModalidadPlazo.test.js</code> y <code>tests/e2e/ot-modalidad-plazo.spec.js</code>.</p>
 
+    <h3 id="d-x">201. Recauchaje de neumáticos (2026-10-30)</h3>
+  <p><b>Qué es:</b> el ciclo de recauchaje del procedimiento PRO-MAN-004: envío del casco, retorno con huella nueva o rechazo con su código, y un resumen (% aprobados, días de vuelta, mm ganados, costo, rechazos por código).</p>
+  <p><b>Cómo:</b> tabla nueva <code>neumaticos_recauchajes</code> (migración <code>20261030140000</code>, RLS y GRANT; respaldo con 61 tablas), clave <code>neuRec</code>; el neumático queda «En recauchaje» mientras está afuera; reglas en <code>logic.js</code> (<code>neuPuedeEnviarRecauchaje</code>, <code>neuSiguienteNumRecauchaje</code>, <code>resumenRecauchajes</code>, <code>NEU_CODIGOS_RECHAZO</code>); pantalla en <code>modules/renders/neu.js</code>.</p>
+  <p><b>Lo que no se hizo:</b> el registro de equipo donante y receptor (canibalización); la serie se usa como número de fuego.</p>
+  <p><b>Antes de desplegar:</b> migración en los dos proyectos y nuevo despliegue de <code>backup-diario</code>.</p>
+  <p><b>Pruebas:</b> <code>tests/neuRecauchaje.test.js</code> y <code>tests/e2e/neu-recauchaje.spec.js</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

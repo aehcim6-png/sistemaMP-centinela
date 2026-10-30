@@ -1386,7 +1386,8 @@
     <li><b>Cómo lo calcula aquí:</b> la fecha de cambio de cada neumático la calcula la proyección de desgaste; el programa solo la <b>agrupa por período</b>. Como las horas restantes son las de la última medición, ancla la fecha en esa medición y los que ya pasaron su fecha se informan aparte como "vencidos". La curva S = cambios ya hechos del período + los vencidos + los que vencen de hoy a fin del período. No hay un plan congelado contra el cual medir cumplimiento.</li>
     <li><b>Dónde se ve:</b> Neumáticos ("Programa de cambios").</li>
     <li><b>Ejemplo real:</b> la última medición de neumáticos cargada es del 1-ago-2026 y <b>74 neumáticos tienen su última medición hace más de 45 días</b>, por lo que su proyección está desactualizada: la limitación principal es la frescura de las mediciones, no el cálculo.</li>
-    <li><b>Código:</b> <code>neuProgramaCambios</code>, <code>neuCambiosRealizados</code>, <code>agruparPeriodo</code>.</li>
+    <li><b>Código:</b> <code>neuProgramaCambios</code>, <code>neuCambiosRealizados</code>, <code>agruparPeriodo</code>, <code>NEU_CODIGOS_RECHAZO</code>, <code>NEU_RECAUCHAJE_MAX_FORMULARIO</code>, <code>NEU_ESTADOS_ENVIABLES</code>, <code>neuRecauchajesDe</code>, <code>neuSiguienteNumRecauchaje</code>, <code>neuPuedeEnviarRecauchaje</code>, <code>resumenRecauchajes</code>.</li>
+    <li><b>Recauchaje (30-oct-2026, PRO-MAN-004):</b> cada envío al proveedor es una fila de <code>neumaticos_recauchajes</code> (Enviado → Recibido o Rechazado). Solo neumáticos fuera del equipo, sin envío abierto ni rechazo previo; número = recibidos + 1 (aviso pasado el 4.º). Mientras está fuera queda «En recauchaje»; al volver, Stock con la huella nueva o De baja con el código de rechazo. Resumen: % aprobados = recibidos ÷ (recibidos + rechazados), días de vuelta, mm ganados y costo.</li>
   </ul>
 
   <h3 id="d-123">J4. Estado de componentes mayores y estimación de horómetro en una fecha</h3>

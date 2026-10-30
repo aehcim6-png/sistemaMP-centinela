@@ -114,6 +114,9 @@
   <p>Un usuario nuevo queda <b>bloqueado</b> hasta que un admin lo activa a mano.</p>
 
   <h2 id="d-3">3. Seguridad</h2>
+    <h3 id="d-x">Recauchaje de neumáticos (2026-10-30)</h3>
+  <p><b>Qué cambia.</b> En <b>Neumáticos</b> hay un botón <b>♻ Recauchajes</b> y, en cada neumático en Stock o de baja, un botón ♻ para <b>enviarlo a recauchar</b>. Mientras está en el proveedor queda «En recauchaje»; al volver se marca <b>Recibido</b> (pasa a Stock con la huella nueva) o <b>Rechazado</b> con el código del proveedor (queda De baja). El listado muestra lo que está afuera, los retornos, el % aprobado del año, los días de vuelta, el costo y los rechazos por código (PRO-MAN-004).</p>
+  <p><b>Antes de desplegar.</b> Aplicar la migración <code>20261030140000_crear_neumaticos_recauchajes.sql</code> en los dos proyectos y desplegar de nuevo <code>backup-diario</code> (61 tablas).</p>
     <h3 id="d-x">Modalidad y plazo comprometido de la reparación (2026-10-30)</h3>
   <p><b>Qué cambia.</b> Cada correctivo puede llevar la <b>modalidad de reparación</b> (<i>Taller faena</i>, <i>Terreno</i>, <i>Tercero por contrato</i>, <i>Tercero por cotización</i> o <i>Garantía</i>) y el <b>plazo comprometido</b>, del procedimiento corporativo PRO-MAN-002. Se cargan en «Nueva OT» o en las columnas «Modalidad» y «Plazo» de la tabla de correctivos. Son opcionales.</p>
   <p><b>Cumplimiento de plazos.</b> Sobre la tabla de correctivos aparece «Cumplimiento de plazos de reparación» del mes: a tiempo, tarde y abiertas con el plazo vencido, por modalidad y con la lista de incumplidas. Término = fecha de salida o, si no hay, la fecha en que se cerró la OT (la app la anota sola).</p>

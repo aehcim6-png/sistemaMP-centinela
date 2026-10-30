@@ -7053,6 +7053,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/otModalidadPlazo.test.js` (15) y `tests/e2e/ot-modalidad-plazo.spec.js`.
 
+### 201. Recauchaje de neumáticos (2026-10-30)
+
+**Qué es:** el ciclo de recauchaje del procedimiento corporativo PRO-MAN-004 y su registro «Orden de trabajo de recauchaje»: envío del casco al proveedor, retorno con la huella nueva o rechazo con su código, y un resumen (% aprobados, días de vuelta, mm ganados, costo, rechazos por código).
+
+**Cómo:** tabla nueva `neumaticos_recauchajes` (migración `20261030140000_crear_neumaticos_recauchajes.sql`, con RLS y `GRANT` como `tareas_gestion`; sumada a `TABLAS` de `backup-diario`, ahora 61), una fila por envío (`estado` Enviado / Recibido / Rechazado), clave `neuRec` en `TABLA_REAL`. Mientras está en el proveedor el neumático queda con `estado` «En recauchaje» (texto libre en `neumaticos`; las alertas de cambio solo miran «Operativo», así que no lo cuentan). Reglas en `logic.js`: `neuPuedeEnviarRecauchaje` (solo fuera del equipo, sin envío abierto ni rechazo previo), `neuSiguienteNumRecauchaje` (recibidos + 1; aviso pasado el 4.º del formulario), `resumenRecauchajes` y `NEU_CODIGOS_RECHAZO` (los once del formulario). Pantalla en `modules/renders/neu.js`: botón ♻ por fila, listado «♻ Recauchajes» con Recibir / Rechazado.
+
+**Lo que no se hizo:** el registro de montaje/desmontaje con **equipo donante y receptor** (canibalización) y su causal; queda para decidir si se quiere seguir. El número de fuego no es un campo aparte: se usa la serie del neumático.
+
+**Antes de desplegar:** aplicar la migración en los dos proyectos y desplegar de nuevo `backup-diario`.
+
+**Pruebas:** `tests/neuRecauchaje.test.js` (10) y `tests/e2e/neu-recauchaje.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

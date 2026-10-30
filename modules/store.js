@@ -258,6 +258,7 @@ const TABLA_REAL={
   // Backlog de pautas (2026-10-14): tareas que quedan pendientes al hacer un PM, con su cierre; alimenta la sección V del informe de gestión (informeBacklogPM, logic.js).
   backlogPM:{tabla:'backlog_pm',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomBacklog','tarea','sistema','conInsumo','fechaCierre','observacion']},
   // Tareas de gestión (2026-10-29, paso 3): lo que las reglas obligan a hacer (pedir ya, falla repetida, hallazgo de PM), con responsable y fecha límite; ver tareaEstado (logic.js).
+  neuRec:{tabla:'neumaticos_recauchajes',clave:'_id',claveDb:'id',cols:['neuId','serie','sigla','marca','medida','numRecauchaje','fechaEnvio','guiaDespacho','proveedor','huellaSalida','huellaEntrada','estado','codigoRechazo','fechaRetorno','costo','observaciones','usuario']},
   tareas:{tabla:'tareas_gestion',clave:'_id',claveDb:'id',cols:['clave','origen','sigla','titulo','detalle','responsable','fechaLimite','estado','fechaCierre','referencia','observacion','usuario']},
   reportab:{tabla:'reportabilidad_diaria',clave:'_id',claveDb:'id',cols:['fecha','sigla','siglaCliente','estatus','ubicacion','detalle','fechaDetencion','proyeccion','ordenCompra','observacion','mantenedor','fuente']},
   // Stock de insumos (2026-10-26): catálogo + kardex de bodega (EPP, librería, limpieza, desgaste, baterías…). El saldo no se guarda: se calcula de los movimientos (ver insumosResumen, logic.js).

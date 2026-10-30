@@ -221,6 +221,12 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Recauchaje de neumáticos (2026-10-30)
+
+**Qué cambia.** En **Neumáticos** hay un botón **♻ Recauchajes** y, en cada neumático que está en Stock o de baja, un botón ♻ para **enviarlo a recauchar** (fecha, guía de despacho, proveedor y huella al salir). Mientras está en el proveedor el neumático queda «En recauchaje». Cuando vuelve se marca **Recibido** (fecha, huella nueva y costo: pasa a Stock con esa huella como remanente) o **Rechazado** con el código del proveedor (B01, F06, T01…: queda De baja). El listado muestra lo que está en el proveedor, los últimos retornos, el % aprobado del año, los días de vuelta, el costo y los rechazos por código. Sigue el procedimiento corporativo PRO-MAN-004.
+
+**Antes de desplegar.** Aplicar la migración `20261030140000_crear_neumaticos_recauchajes.sql` en Supabase (los dos proyectos) y desplegar de nuevo la función `backup-diario` (ahora respalda 61 tablas). Sin la tabla, la app avisa que no pudo refrescar esa categoría y lo que se registre no llega a la base.
+
 ### Modalidad y plazo comprometido de la reparación (2026-10-30)
 
 **Qué cambia.** Cada correctivo puede llevar dos datos nuevos, del procedimiento corporativo PRO-MAN-002: la **modalidad de reparación** (*Taller faena*, *Terreno*, *Tercero por contrato*, *Tercero por cotización* o *Garantía*) y el **plazo comprometido** (la fecha en que se comprometió terminarla). Se cargan en «Nueva OT» o en las columnas «Modalidad» y «Plazo» de la tabla de correctivos. Son opcionales: las OT antiguas quedan vacías.

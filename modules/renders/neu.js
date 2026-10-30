@@ -122,7 +122,7 @@ export function renderNeu(){
   const pg=_pagSlice('neu',fil);
   $('s-neu').innerHTML=`
     <div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/></svg> Control de Neumáticos</div><div class="sec-s">${neu.length} neumáticos en ${eqs.length} equipos · 🔴 ${crit} para cambiar ya</div></div>
-      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="programaCambiosNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2.5" x2="7" y2="5.5"/><line x1="13" y1="2.5" x2="13" y2="5.5"/></svg> Programa de cambios</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">${ICONS.camera} Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
+      <button class="btn" onclick="addNeu()">+ Nuevo</button> <button class="btn btn-o" onclick="importNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="programaCambiosNeu()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2.5" x2="7" y2="5.5"/><line x1="13" y1="2.5" x2="13" y2="5.5"/></svg> Programa de cambios</button> <button class="btn btn-o" onclick="resumenFlotaNeu()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="6"/><line x1="16" y1="16" x2="16" y2="12"/></svg> Resumen flota</button> <button class="btn btn-o" onclick="instalarDesdeExistencias()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Instalar desde Existencias</button> <button class="btn btn-o" onclick="verRecauchajes()" title="Envíos de cascos al proveedor, retornos y rechazos (PRO-MAN-004)">♻ Recauchajes</button> <button class="btn btn-o" onclick="verSensores()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="8" height="6" rx="1"/><line x1="8" y1="8" x2="8" y2="4"/><line x1="12" y1="8" x2="12" y2="4"/><line x1="10" y1="14" x2="10" y2="17"/></svg> Sensores</button> <button class="btn btn-o" onclick="_activarLeerChequeoNeu()">${ICONS.camera} Leer chequeo (foto)</button><input type="file" id="neuChequeoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerChequeoNeuFotoSeleccionada(this)">
     </div>
     <div class="cards">
       <div class="card"><div class="card-t">Total</div><div class="card-v">${neu.length}</div></div>
@@ -179,6 +179,7 @@ export function renderNeu(){
           <td class="mono" style="font-size:11px;color:var(--tx2)">${ESTADOS_RETIRO_NEU.includes(n.estado)?escapeHtml(n.ultimaMedicion||'—'):'—'}</td>
           <td>
             <button class="btn-s" style="background:rgba(234,179,8,.15);color:var(--warn)" onclick="cambiarNeu(${i})" title="Cambio">↺</button>
+            ${NEU_ESTADOS_ENVIABLES.includes(n.estado)?`<button class="btn-s" style="background:rgba(16,185,129,.12);color:var(--ok)" onclick="enviarRecauchaje(${i})" title="Enviar a recauchaje">♻</button>`:''}
             <button class="btn-s" style="background:rgba(99,102,241,.15);color:#818cf8" onclick="addMedicionNeu(${i})" title="Medir"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="7" width="16" height="6" rx="1"/><line x1="5" y1="7" x2="5" y2="9.5"/><line x1="8" y1="7" x2="8" y2="9.5"/><line x1="11" y1="7" x2="11" y2="9.5"/><line x1="14" y1="7" x2="14" y2="9.5"/></svg></button>
             <button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="verDetalleNeu(${i})" title="Gráfico"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg></button>
             <button class="btn-s" style="background:rgba(245,158,11,.15);color:var(--ac)" onclick="histPosicion('${escapeHtml(n.sigla)}','${escapeHtml(n.posicion)}',${n.numPos||0})" title="Historial de esta posición">${ICONS.pin}</button>
@@ -1434,6 +1435,122 @@ export function programaCambiosNeu(){
 }
 function _neuDiasEntre(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
 
+// ── Recauchaje (PRO-MAN-004, 2026-10-30) ──
+// Un envío por fila en 'neuRec' (tabla neumaticos_recauchajes). Mientras el casco está en el proveedor, el neumático queda «En recauchaje»; al volver pasa a
+// Stock con la huella nueva, o a «De baja» si el proveedor lo rechazó (con su código). Reglas y resumen en logic.js (neuPuedeEnviarRecauchaje, resumenRecauchajes).
+function _recHoy(){return new Date().toISOString().slice(0,10);}
+export function enviarRecauchaje(i){
+  const neu=S.g('neu')||[];const n=neu[i];if(!n)return;
+  const chk=neuPuedeEnviarRecauchaje(n,S.g('neuRec')||[]);
+  if(!chk.ok)return toast('⚠️ '+chk.motivo);
+  sm(`<h3>♻ Enviar a recauchaje — ${escapeHtml(n.serie)}</h3>
+    <p style="color:var(--tx2);margin-bottom:10px">${escapeHtml(n.marca||'')} ${escapeHtml(n.medida||'')} · último equipo ${escapeHtml(n.sigla||'—')} · sería el <b>${chk.numSiguiente}.º recauchaje</b>${chk.sobreMaximo?' <span style="color:var(--warn)">(el formulario corporativo llega hasta el '+NEU_RECAUCHAJE_MAX_FORMULARIO+'.º)</span>':''}</p>
+    <div class="form-row">
+      <div class="fg"><label>Fecha de envío *</label><input type="date" id="rcFecha" value="${_recHoy()}"></div>
+      <div class="fg"><label>N° guía de despacho</label><input id="rcGuia"></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Proveedor</label><input id="rcProv"></div>
+      <div class="fg"><label>Huella al salir (mm)</label><input type="number" step="0.1" id="rcHuella" value="${n.remanente!=null?escapeHtml(String(n.remanente)):''}"></div>
+    </div>
+    <div class="fg"><label>Observaciones</label><input id="rcObs" style="width:100%"></div>
+    <br><button class="btn" onclick="saveEnvioRecauchaje(${i})">Registrar envío</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>`);
+}
+export function saveEnvioRecauchaje(i){
+  const neu=S.g('neu')||[];const n=neu[i];if(!n)return cm();
+  const recs=S.g('neuRec')||[];
+  const chk=neuPuedeEnviarRecauchaje(n,recs);
+  if(!chk.ok){cm();return toast('⚠️ '+chk.motivo);}
+  const fecha=$('rcFecha').value;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha))return toast('⚠️ Indica la fecha de envío');
+  const huella=$('rcHuella').value;
+  recs.push({neuId:n.id||null,serie:n.serie,sigla:n.sigla||'',marca:n.marca||'',medida:n.medida||'',numRecauchaje:chk.numSiguiente,fechaEnvio:fecha,
+    guiaDespacho:$('rcGuia').value.trim(),proveedor:$('rcProv').value.trim(),huellaSalida:huella===''?null:parseFloat(huella),
+    estado:'Enviado',observaciones:$('rcObs').value.trim(),usuario:window._userName||''});
+  n.estado='En recauchaje';
+  S.s('neuRec',recs);S.s('neu',neu);cm();renders.neu();toast('✅ '+n.serie+' enviado a recauchaje');
+}
+// El neumático de un envío: por id si lo trae; si no (o ya no existe), el de la misma serie que esté «En recauchaje».
+function _neuDeEnvio(r){
+  const neu=S.g('neu')||[];
+  let i=r.neuId?neu.findIndex(x=>x.id===r.neuId):-1;
+  if(i<0)i=neu.findIndex(x=>String(x.serie||'').trim().toUpperCase()===String(r.serie||'').trim().toUpperCase()&&x.estado==='En recauchaje');
+  return{neu,i};
+}
+export function verRecauchajes(){
+  const recs=S.g('neuRec')||[];
+  const anio=_recHoy().slice(0,4);
+  const r=resumenRecauchajes(recs,anio+'-01-01',anio+'-12-31');
+  const abiertos=recs.map((x,j)=>({x,j})).filter(o=>o.x.estado==='Enviado').sort((a,b)=>String(a.x.fechaEnvio).localeCompare(String(b.x.fechaEnvio)));
+  const cerrados=recs.map((x,j)=>({x,j})).filter(o=>o.x.estado!=='Enviado').sort((a,b)=>String(b.x.fechaRetorno||b.x.fechaEnvio).localeCompare(String(a.x.fechaRetorno||a.x.fechaEnvio))).slice(0,40);
+  const dias=f=>Math.round((new Date(_recHoy()+'T12:00:00')-new Date(String(f).slice(0,10)+'T12:00:00'))/864e5);
+  const card=(t,v,sub)=>'<div class="card"><div class="card-t">'+t+'</div><div class="card-v">'+v+'</div>'+(sub?'<div class="card-s">'+sub+'</div>':'')+'</div>';
+  sm(`<div style="max-width:900px"><h3>♻ Recauchajes de neumáticos</h3>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Envíos de cascos al proveedor (procedimiento PRO-MAN-004). Para enviar uno, usa el botón ♻ de un neumático en Stock o de baja.</div>
+    <div class="cards">
+      ${card('En el proveedor',r.enProceso,'')}
+      ${card('Aprobados '+anio,r.tasaAprobacion==null?'—':r.tasaAprobacion+'%',r.recibidos+' recibidos · '+r.rechazados+' rechazados')}
+      ${card('Días de vuelta',r.diasRetornoProm==null?'—':fn(r.diasRetornoProm),'promedio '+anio)}
+      ${card('Costo '+anio,'$'+fn(r.costoTotal),r.sinCosto?r.sinCosto+' sin costo cargado':'')}
+    </div>
+    ${r.porCodigo.length?'<div style="font-size:12px;margin:8px 0"><b>Rechazos por código ('+anio+'):</b> '+r.porCodigo.map(c=>escapeHtml(c.cod)+(c.desc?' '+escapeHtml(c.desc):'')+' ('+c.n+')').join(' · ')+'</div>':''}
+    <h4 style="margin:10px 0 4px">En el proveedor (${abiertos.length})</h4>
+    ${abiertos.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Serie</th><th>N.º</th><th>Enviado</th><th>Guía · proveedor</th><th>Huella salida</th><th></th></tr>'+abiertos.map(o=>'<tr><td class="mono">'+escapeHtml(o.x.serie)+'</td><td>'+(o.x.numRecauchaje||'—')+'</td><td class="mono">'+fd(o.x.fechaEnvio)+'<div style="font-size:10px;color:var(--tx3)">hace '+dias(o.x.fechaEnvio)+' d</div></td><td>'+escapeHtml(o.x.guiaDespacho||'—')+'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(o.x.proveedor||'—')+'</div></td><td class="mono">'+(o.x.huellaSalida!=null?o.x.huellaSalida+' mm':'—')+'</td><td><div style="display:flex;flex-direction:column;gap:4px"><button class="btn-s" style="background:rgba(16,185,129,.15);color:var(--ok)" onclick="recibirRecauchaje('+o.j+')">Recibir</button> <button class="btn-s" style="background:rgba(239,68,68,.12);color:var(--danger)" onclick="rechazarRecauchaje('+o.j+')">Rechazado</button></div></td></tr>').join('')+'</table></div>':'<div style="font-size:12px;color:var(--tx3)">Ninguno.</div>'}
+    <h4 style="margin:12px 0 4px">Últimos retornos</h4>
+    ${cerrados.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Serie</th><th>N.º</th><th>Enviado</th><th>Volvió</th><th>Resultado</th><th>Huella salida → entrada</th></tr>'+cerrados.map(o=>'<tr><td class="mono">'+escapeHtml(o.x.serie)+'</td><td>'+(o.x.numRecauchaje||'—')+'</td><td class="mono">'+fd(o.x.fechaEnvio)+'</td><td class="mono">'+(o.x.fechaRetorno?fd(o.x.fechaRetorno):'—')+'</td><td style="color:'+(o.x.estado==='Recibido'?'var(--ok)':'var(--danger)')+'">'+(o.x.estado==='Recibido'?'Recauchado':'Rechazado '+escapeHtml(o.x.codigoRechazo||''))+(o.x.costo>0?'<div style="font-size:10px;color:var(--tx3)">$'+fn(o.x.costo)+'</div>':'')+'</td><td class="mono">'+(o.x.huellaSalida!=null?o.x.huellaSalida:'—')+' → '+(o.x.huellaEntrada!=null?o.x.huellaEntrada:'—')+' mm</td></tr>').join('')+'</table></div>':'<div style="font-size:12px;color:var(--tx3)">Todavía no vuelve ninguno.</div>'}
+    <br><button class="btn btn-o" onclick="cm()">Cerrar</button></div>`);
+}
+export function recibirRecauchaje(j){
+  const x=(S.g('neuRec')||[])[j];if(!x)return;
+  sm(`<h3>Recibir recauchado — ${escapeHtml(x.serie)}</h3>
+    <p style="color:var(--tx2);margin-bottom:10px">${x.numRecauchaje?x.numRecauchaje+'.º recauchaje · ':''}enviado el ${fd(x.fechaEnvio)}${x.huellaSalida!=null?' con '+x.huellaSalida+' mm':''}. Queda en Stock con la huella nueva.</p>
+    <div class="form-row">
+      <div class="fg"><label>Fecha de retorno *</label><input type="date" id="rrFecha" value="${_recHoy()}"></div>
+      <div class="fg"><label>Huella al volver (mm) *</label><input type="number" step="0.1" id="rrHuella"></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Costo ($)</label><input type="number" id="rrCosto"></div>
+      <div class="fg"><label>Observaciones</label><input id="rrObs"></div>
+    </div>
+    <br><button class="btn" onclick="saveRecibirRecauchaje(${j})">Recibir</button> <button class="btn btn-o" onclick="verRecauchajes()">Volver</button>`);
+}
+export function saveRecibirRecauchaje(j){
+  const recs=S.g('neuRec')||[];const x=recs[j];if(!x)return cm();
+  const fecha=$('rrFecha').value,huella=parseFloat($('rrHuella').value);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha))return toast('⚠️ Indica la fecha de retorno');
+  if(fecha<x.fechaEnvio)return toast('⚠️ La fecha de retorno no puede ser anterior al envío');
+  if(!(huella>0))return toast('⚠️ Indica la huella al volver (mm)');
+  x.estado='Recibido';x.fechaRetorno=fecha;x.huellaEntrada=huella;
+  const costo=parseFloat($('rrCosto').value);x.costo=costo>0?costo:null;
+  const obs=$('rrObs').value.trim();if(obs)x.observaciones=(x.observaciones?x.observaciones+' · ':'')+obs;
+  const {neu,i}=_neuDeEnvio(x);
+  if(i>=0){neu[i].estado='Stock';neu[i].remanente=huella;neu[i].ultimaMedicion=fecha;S.s('neu',neu);}
+  S.s('neuRec',recs);verRecauchajes();renders.neu();toast('✅ '+x.serie+' recauchado y en Stock'+(i<0?' (no se encontró la fila del neumático: revisa su estado a mano)':''));
+}
+export function rechazarRecauchaje(j){
+  const x=(S.g('neuRec')||[])[j];if(!x)return;
+  sm(`<h3>Rechazado por el proveedor — ${escapeHtml(x.serie)}</h3>
+    <p style="color:var(--tx2);margin-bottom:10px">El casco no se pudo recauchar. El neumático queda «De baja».</p>
+    <div class="form-row">
+      <div class="fg"><label>Fecha de retorno *</label><input type="date" id="rjFecha" value="${_recHoy()}"></div>
+      <div class="fg"><label>Código de rechazo *</label><select id="rjCod"><option value="">— elige —</option>${NEU_CODIGOS_RECHAZO.map(c=>`<option value="${c.cod}">${c.cod} — ${escapeHtml(c.desc)}</option>`).join('')}</select></div>
+    </div>
+    <div class="fg"><label>Observaciones</label><input id="rjObs" style="width:100%"></div>
+    <br><button class="btn" onclick="saveRechazoRecauchaje(${j})">Registrar rechazo</button> <button class="btn btn-o" onclick="verRecauchajes()">Volver</button>`);
+}
+export function saveRechazoRecauchaje(j){
+  const recs=S.g('neuRec')||[];const x=recs[j];if(!x)return cm();
+  const fecha=$('rjFecha').value,cod=$('rjCod').value;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha))return toast('⚠️ Indica la fecha de retorno');
+  if(fecha<x.fechaEnvio)return toast('⚠️ La fecha de retorno no puede ser anterior al envío');
+  if(!cod)return toast('⚠️ Elige el código de rechazo');
+  x.estado='Rechazado';x.fechaRetorno=fecha;x.codigoRechazo=cod;
+  const obs=$('rjObs').value.trim();if(obs)x.observaciones=(x.observaciones?x.observaciones+' · ':'')+obs;
+  const {neu,i}=_neuDeEnvio(x);
+  if(i>=0){neu[i].estado='De baja';neu[i].ultimaMedicion=fecha;S.s('neu',neu);}
+  S.s('neuRec',recs);verRecauchajes();renders.neu();toast('✅ Rechazo registrado: '+x.serie+' queda de baja'+(i<0?' (no se encontró la fila del neumático: revisa su estado a mano)':''));
+}
+
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderNeu = renderNeu;
 window.verNeuLista = verNeuLista;
@@ -1463,4 +1580,11 @@ window.verHistorialNeu = verHistorialNeu;
 window.verDetalleNeu = verDetalleNeu;
 window.resumenFlotaNeu = resumenFlotaNeu;
 window.programaCambiosNeu = programaCambiosNeu;
+window.enviarRecauchaje = enviarRecauchaje;
+window.saveEnvioRecauchaje = saveEnvioRecauchaje;
+window.verRecauchajes = verRecauchajes;
+window.recibirRecauchaje = recibirRecauchaje;
+window.saveRecibirRecauchaje = saveRecibirRecauchaje;
+window.rechazarRecauchaje = rechazarRecauchaje;
+window.saveRechazoRecauchaje = saveRechazoRecauchaje;
 renders.neu = renderNeu;
