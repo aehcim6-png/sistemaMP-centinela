@@ -3840,6 +3840,8 @@ function reporteTurnoFilaDudosa(r,categoria){
   var n=function(v){return typeof v==='number'&&isFinite(v)?v:null;};
   var h=n(r.totalHoras);
   if(h!=null&&(h<0||h>13))return true;      // un turno dura 12 h: más de 13 h (o negativas) es error de digitación
+  var fs=r.estadoTexto!=null&&String(r.estadoTexto).trim()!=='';
+  if(fs&&((n(r.totalTon)>0)||(n(r.tonelaje)>0)||h>0))return true;   // «fuera de servicio»/«standby» con toneladas u horas: el papel se contradice (celdas copiadas de otro turno)
   if(n(r.tonAsociado)!=null&&n(r.tonAsociado)<0)return true;   // toneladas perdidas negativas (error de Excel en el papel)
   var hi=n(r.horometroInicial),hf=n(r.horometroFinal);
   if(hi!=null&&hf!=null){
@@ -3856,6 +3858,7 @@ function reporteTurnoFilaDudosa(r,categoria){
     if(tc>0&&h>0&&rc>0&&Math.abs(tc/h-rc)/rc>0.05)return true;        // rendimiento = toneladas ÷ horas (el papel arrastra a veces un rendimiento de otro turno)
   }
   if(categoria==='PerdidaPetroleo'){
+    if(h>0&&(!r.horaInicio||!r.horaFin))return true;                 // horas perdidas sin el tramo completo desde–hasta
     var m1=_reporteMin(r.horaInicio),m2=_reporteMin(r.horaFin);
     if(m1!=null&&m2!=null&&h!=null&&Math.abs((m2-m1)/60-h)>0.25)return true;   // las horas perdidas deben coincidir con el tramo desde-hasta
   }
@@ -3914,13 +3917,17 @@ function reporteTurnoAlias(nombre){
 function reporteTurnoTotalesDudosos(d){
   var out=[];if(!d)return out;
   var n=function(v){return typeof v==='number'&&isFinite(v)?v:null;};
+  // Si una fila CAEX trae horas imposibles (negativas o >13), los totales de horas, ciclo y rendimiento del papel quedan contaminados aunque se vean «normales» (p. ej. 76,6 h con un camión en 37,4 h).
+  var sucia=(d.caex||[]).some(function(r){return r&&n(r.totalHoras)!=null&&(r.totalHoras<0||r.totalHoras>13);});
+  if(sucia)['totalHorasCaex','tiempoMedioCicloMin','rendimientoCaexVueltasHr','rendimientoTransporteTonHr'].forEach(function(k){if(n(d[k])!=null)out.push({campo:k,valor:d[k]});});
   ['tiempoMedioCicloMin','totalHorasCaex','rendimientoCaexVueltasHr','rendimientoTransporteTonHr','totalVueltas','totalToneladas','totalTonCF','totalHorasCF','rendimientoCFTonHr','rendimientoCFCargasHr'].forEach(function(k){if(n(d[k])!=null&&n(d[k])<0)out.push({campo:k,valor:d[k]});});
   if(n(d.tiempoMedioCicloMin)>30)out.push({campo:'tiempoMedioCicloMin',valor:d.tiempoMedioCicloMin});
   if(n(d.totalHorasCaex)>100)out.push({campo:'totalHorasCaex',valor:d.totalHorasCaex});
   if(n(d.rendimientoTransporteTonHr)>0&&n(d.totalToneladas)>0&&n(d.totalHorasCaex)>0&&Math.abs(d.totalToneladas/d.totalHorasCaex-d.rendimientoTransporteTonHr)/d.rendimientoTransporteTonHr>0.1&&out.every(function(x){return x.campo!=='rendimientoTransporteTonHr';}))out.push({campo:'rendimientoTransporteTonHr',valor:d.rendimientoTransporteTonHr});
   if(n(d.rendimientoCaexVueltasHr)===0&&n(d.totalVueltas)>0)out.push({campo:'rendimientoCaexVueltasHr',valor:0});
   if(n(d.rendimientoTransporteTonHr)===0&&n(d.totalToneladas)>0)out.push({campo:'rendimientoTransporteTonHr',valor:0});
-  return out;
+  var visto={};
+  return out.filter(function(x){if(visto[x.campo])return false;visto[x.campo]=true;return true;});
 }
 function reporteTurnoResolverSiglas(items, buscar){
   var porApodo={}, ambiguos={};

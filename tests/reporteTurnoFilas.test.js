@@ -197,7 +197,7 @@ describe('papeles de abril: fórmulas rotas del Excel', () => {
     expect(reporteTurnoFilaDudosa({ vueltas: 18, totalHoras: 3.1, rendimientoVueltasHr: 0, tonVuelta: 90, totalTon: 1620 }, 'CAEX')).toBe(true);
   });
   it('pérdida por petróleo: horas que no calzan con desde-hasta (11:00 AM con 11 h) marcan la fila; 8:00→10:25 = 2,42 h no', () => {
-    expect(reporteTurnoFilaDudosa({ horaInicio: '11:00', horaFin: null, totalHoras: 11 }, 'PerdidaPetroleo')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ horaInicio: null, horaFin: null, totalHoras: 0 }, 'PerdidaPetroleo')).toBe(false);
     expect(reporteTurnoFilaDudosa({ horaInicio: '08:00', horaFin: '10:25', totalHoras: 2.42 }, 'PerdidaPetroleo')).toBe(false);
     expect(reporteTurnoFilaDudosa({ horaInicio: '09:00', horaFin: '13:00', totalHoras: 2 }, 'PerdidaPetroleo')).toBe(true);
   });
@@ -214,5 +214,28 @@ describe('papeles de abril: fórmulas rotas del Excel', () => {
     expect(reporteTurnoAlias('CAEX-115')).toBe('CN-10155');
     expect(reporteTurnoAlias('CF-769')).toBe('CF-8769');
     expect(reporteTurnoAlias('CAEX-159')).toBe('CN-10159');
+  });
+});
+
+describe('papeles del 14 al 29 de abril', () => {
+  it('«fuera de servicio» con toneladas (CF-511 del 18-04: 8970 t) marca la fila; sin producción no', () => {
+    expect(reporteTurnoFilaDudosa({ estadoTexto: 'fuera de servicio', totalHoras: 0, tonelaje: 8970 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ estadoTexto: 'fuera de servicio', totalHoras: 0, tonelaje: null }, 'Carguio')).toBe(false);
+  });
+  it('petróleo con 11 h y solo la hora de inicio (22-04 día) marca la fila', () => {
+    expect(reporteTurnoFilaDudosa({ horaInicio: '11:00', horaFin: null, totalHoras: 11 }, 'PerdidaPetroleo')).toBe(true);
+  });
+  it('horómetro inicial sin final y horas -11069 (25-04 día) marca la fila', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 11069, horometroFinal: null, totalHoras: -11069 }, 'Apoyo')).toBe(true);
+  });
+  it('un camión con 37,4 h (17-04 día) contamina los totales: 76,6 h, ciclo 17,4 y transporte 307 se avisan', () => {
+    const d = { totalToneladas: 23490, totalHorasCaex: 76.6, tiempoMedioCicloMin: 17.4, rendimientoTransporteTonHr: 307, caex: [{ totalHoras: 9 }, { totalHoras: 37.4 }] };
+    expect(reporteTurnoTotalesDudosos(d).map((x) => x.campo).sort()).toEqual(['rendimientoTransporteTonHr', 'tiempoMedioCicloMin', 'totalHorasCaex']);
+    expect(reporteTurnoTotalesDudosos({ ...d, caex: [{ totalHoras: 9 }, { totalHoras: 8 }], totalHorasCaex: 47.4, tiempoMedioCicloMin: 10.6, rendimientoTransporteTonHr: 495, totalToneladas: 23490 })).toEqual([]);
+  });
+  it('los apodos pegados («CAEX155», «CAEX 85») también se traducen', () => {
+    expect(reporteTurnoAlias('CAEX155')).toBe('CN-10155');
+    expect(reporteTurnoAlias('CAEX 85')).toBe('CN-9503');
+    expect(reporteTurnoAlias('CF-679')).toBeNull();
   });
 });
