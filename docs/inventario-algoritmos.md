@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A18 |
+| A. Disponibilidad, fallas y tiempos | A1–A19 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C23 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -46,7 +46,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | L. Datos y seguridad | L1–L6 |
 | M. Funciones internas (apéndice) | tabla |
 
-Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
+Son **133 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
 
 ---
 
@@ -235,6 +235,16 @@ Son **132 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Ejemplo:** «¿qué equipos tienen el PM vencido?» → Claude pide `estado_flota`; el navegador devuelve los equipos VENCIDA y URGENTE con horómetro y días; Claude los resume.
 - **Límites:** solo lee; nunca escribe. Lo que consulta sale hacia Anthropic. Responde con lo que está cargado en el navegador (si un dato no está en el sistema, no lo sabe). Puede interpretar mal un dato incompleto (por ejemplo órdenes sin costo anotado; las herramientas informan cuántas son). Las cifras importantes hay que verlas en su pantalla.
 - **Código:** `ASISTENTE_HERRAMIENTAS`, `ASISTENTE_MAX_FILAS`, `asistenteEjecutar`.
+
+### A19. Indicadores corporativos PRO-MAN-010 (MA, MTBF, MTTR, MTBS)
+- **Tipo:** fórmula (mensual, por equipo y de flota).
+- **Para qué sirve:** que la app muestre los mismos indicadores, con la misma fórmula, que la planilla «Disponibilidad & Confiabilidad» que se reporta a la Gerencia de Maquinarias, y explicar por qué no coinciden con la disponibilidad de la pestaña (A1).
+- **De dónde viene:** 📄 Procedimiento corporativo PRO-MAN-010 «Planificación y control de disponibilidad de equipos» (Rev. 1, 30-09-2024), tabla de indicadores del punto 8. La MA = MTBF ÷ (MTBF + MTTR) es la definición de disponibilidad inherente de la literatura (ver las fuentes de A1).
+- **Cómo lo calcula aquí:** para el mes elegido y cada equipo: **tiempo operativo** = avance del horómetro en el mes (lecturas válidas a ambos lados del mes, igual que `mtbfFlotaAgrupado`); **fallas** = OT que son falla (`esFallaMTBF`, *todas*, sin el umbral de 24 h de A2, porque el procedimiento no lo pone); **paradas** = fallas + registros de PM del mes. **MTBF** = tiempo operativo ÷ fallas; **MTTR** = horas de reparación ÷ fallas con duración conocida (`horasParadaOT`); **MTBS** = tiempo operativo ÷ paradas; **MA** = MTBF ÷ (MTBF + MTTR) × 100. La flota **suma** horas, fallas y reparaciones antes de dividir (no promedia porcentajes).
+- **Dónde se ve:** pestaña Disponibilidad, vista mensual, bajo la tabla: cuatro tarjetas (MA, MTBF, MTTR, MTBS), notas y el detalle por equipo.
+- **Ejemplo (prueba automática):** un equipo con 310 h operadas en octubre, 3 fallas (6 h, 2,5 h y una sin duración) y 2 PM: MTBF 103,3 h; MTTR 4,3 h (8,5 h ÷ 2); MTBS 62 h (310 ÷ 5); MA 96 %.
+- **Límites:** la MA solo mira fallas, así que se compara con la **Ai**, no con la Ao del % de flota (que también descuenta las PM); y se calcula sobre horas operadas, no por día calendario, así que tampoco calza exacto con la Ai. Un equipo sin lecturas de horómetro a ambos lados del mes queda fuera (se lista). Una falla sin duración cuenta para el MTBF pero no para el MTTR. Sin fallas, MTBF y MTTR quedan vacíos y la MA es 100 % (límite de la fórmula). Usa solo las OT de la tabla de correctivos, como el resto de la pestaña (no el histórico importado).
+- **Código:** `kpiProMan010`.
 
 ---
 
@@ -715,7 +725,8 @@ Regla común: cada función exige un mínimo de datos (en general 5 por grupo) y
 - **Cómo lo calcula aquí:** `clasificacionPendienteOT` y `resumenClasificacionOT` cuentan las OT cerradas (correctivos y fallas operacionales) sin sistema o sin tipo de causa (el tipo de causa está vacío en el 100 % de los correctivos reales). `repararMojibake` corrige texto guardado con la codificación equivocada ("DÃ­a" por "Día"): sin eso, el chi-cuadrado por turno contaba "Día" y "DÃ­a" como turnos distintos. `validarPMCompleto` y `estadoPMCompleto` registran si el PM se hizo completo; un registro anterior a ese campo es "sin dato", nunca "completo" (contarlo como completo inflaría la calidad).
 - **Dónde se ve:** Correctivos (tarjeta "Cerradas sin solución") y Registro PM.
 - - **Cierre con motivo de demora y tipo de reparación (27-oct-2026):** al cerrar un correctivo se piden dos datos que hasta hoy no existían: el **motivo de demora** (lista corta con `grupo`: sin demora, repuesto sin stock por no anticiparse, compra o aprobación interna lenta, proveedor, personal, herramienta, operación, diagnóstico, otro) y si la reparación fue **definitiva o provisoria**. `otCierreFaltantes` decide qué falta: el tipo de reparación siempre y el motivo solo si la parada duró 8 horas o más o no se sabe (`otMotivoRequerido`; con menos de 8 h, si no se elige, queda «Sin demora»). «Cerrar sin completar» deja escrito «Sin informar» para que la laguna se pueda contar. `otBacklogDeProvisoria` crea una tarea de backlog por cada reparación provisoria (una por OT, marcada en su observación). Criterio propio. Límites: lo anotado depende de quien cierra la OT; las OT anteriores quedan vacías (no se inventa).
-- **Código:** `clasificacionPendienteOT`, `resumenClasificacionOT`, `repararMojibake`, `OT_MOTIVOS_DEMORA`, `OT_MOTIVO_SIN_INFORMAR`, `OT_REPARACIONES`, `OT_DEMORA_UMBRAL_H`, `otMotivoGrupo`, `otMotivoRequerido`, `otCierreFaltantes`, `otBacklogDeProvisoria`.
+- **Código:** `clasificacionPendienteOT`, `resumenClasificacionOT`, `repararMojibake`, `OT_MOTIVOS_DEMORA`, `OT_MOTIVO_SIN_INFORMAR`, `OT_REPARACIONES`, `OT_DEMORA_UMBRAL_H`, `otMotivoGrupo`, `otMotivoRequerido`, `otCierreFaltantes`, `otBacklogDeProvisoria`, `OT_MODALIDADES`, `otEquipoEnGarantia`, `otFechaTermino`, `otEstadoPlazo`, `cumplimientoPlazosReparacion`.
+- **Modalidad y plazo comprometido (30-oct-2026, procedimiento corporativo PRO-MAN-002):** cada OT puede llevar la **modalidad** (taller faena, terreno, tercero por contrato, tercero por cotización, garantía) y el **plazo comprometido**. Estado del plazo (`otEstadoPlazo`): *cumplida* si terminó a más tardar el día del plazo, *atrasada* si terminó después, *vencida* si sigue abierta y el plazo pasó, *en plazo* si sigue abierta a tiempo, *sin término* si está cerrada sin fecha. Término = fecha de salida del equipo o, si no hay, `fechaCierre` (la app la anota al cerrar y la borra al reabrir). Informe mensual (`cumplimientoPlazosReparacion`): OT cuyo plazo vence en el mes; % = a tiempo ÷ (a tiempo + atrasadas + vencidas), también por modalidad; las que siguen en plazo no entran. La prioridad que pide el procedimiento no se agregó: ya existe como criticidad de la OT. La garantía se avisa al crear la OT comparando el horómetro con `garantiaHasta` del equipo (en horas). 🔵 Criterio propio sobre el procedimiento: los cortes (mismo día = a tiempo) son convención.
 
 ### D14. Deducción del componente desde el texto del síntoma
 - **Tipo:** regla de texto (palabras clave).
@@ -1098,7 +1109,8 @@ El TBO (*Time Between Overhaul*, tiempo entre cambios mayores) viene de un archi
 - **Cómo lo calcula aquí:** la fecha de cambio de cada neumático la calcula la proyección de desgaste; el programa solo la **agrupa por período**. Como las horas restantes son las de la última medición, ancla la fecha en esa medición y los que ya pasaron su fecha se informan aparte como "vencidos". La curva S = cambios ya hechos del período + los vencidos + los que vencen de hoy a fin del período. No hay un plan congelado contra el cual medir cumplimiento.
 - **Dónde se ve:** Neumáticos ("Programa de cambios").
 - **Ejemplo real:** la última medición de neumáticos cargada es del 1-ago-2026 y **74 neumáticos tienen su última medición hace más de 45 días**, por lo que su proyección está desactualizada: la limitación principal es la frescura de las mediciones, no el cálculo.
-- **Código:** `neuProgramaCambios`, `neuCambiosRealizados`, `agruparPeriodo`.
+- **Código:** `neuProgramaCambios`, `neuCambiosRealizados`, `agruparPeriodo`, `NEU_CODIGOS_RECHAZO`, `NEU_RECAUCHAJE_MAX_FORMULARIO`, `NEU_ESTADOS_ENVIABLES`, `neuRecauchajesDe`, `neuSiguienteNumRecauchaje`, `neuPuedeEnviarRecauchaje`, `resumenRecauchajes`.
+- **Recauchaje (30-oct-2026, procedimiento corporativo PRO-MAN-004):** cada envío de un casco al proveedor es una fila de `neumaticos_recauchajes` (Enviado → Recibido o Rechazado). Solo se envía un neumático fuera del equipo (Stock o de baja), sin otro envío abierto y que no haya sido rechazado antes; el número de recauchaje es recibidos + 1 (el formulario corporativo llega al 4.º: pasado eso se avisa, no se bloquea). Mientras está en el proveedor queda «En recauchaje»; al volver, Stock con la huella nueva como remanente, o De baja con el código de rechazo (los once del formulario: B01, B02, B04, B13, F01, F04, F06, F07, T01, T02, D03). Resumen (`resumenRecauchajes`): % aprobados = recibidos ÷ (recibidos + rechazados), días de vuelta, mm de huella ganados y costo. 🔵 Criterio propio sobre el procedimiento.
 
 ### J4. Estado de componentes mayores y estimación de horómetro en una fecha
 - **Tipo:** reglas.
@@ -1114,7 +1126,8 @@ El TBO (*Time Between Overhaul*, tiempo entre cambios mayores) viene de un archi
 - **De dónde viene:** 🔵 Criterio propio con periodicidades por tipo de equipo.
 - **Cómo lo calcula aquí:** `vencCalcProximo` suma meses a la última fecha topando el día al último del mes destino (el fix de "31 ago + 6 meses"); `vencEstado`: vencido (< 0 días), vence en ≤ 30 días, OK; un documento requerido que nunca se cargó aparece como "Sin registrar (requerido)" y requiere atención. `lubVigente` encadena reemplazos con tope para no colgarse si hay un ciclo.
 - **Dónde se ve:** Vencimientos, Lubricantes.
-- **Código:** `vencReglaDefault`, `vencCalcProximo`, `vencEstado`, `lubVigente`, `lubEsObsoleto`, `LUB_REEMPLAZO`, `esLubricante`.
+- **Código:** `vencReglaDefault`, `vencCalcProximo`, `vencEstado`, `lubVigente`, `lubEsObsoleto`, `LUB_REEMPLAZO`, `esLubricante`, `SINIESTRO_PLAZO_DIAS`, `SINIESTRO_AVISO_DIAS`, `SINIESTRO_TIPOS`, `SINIESTRO_ESTADOS`, `SINIESTRO_RESULTADOS`, `SINIESTRO_DOCUMENTOS`, `siniestroPlazo`, `siniestroDocumentos`, `siniestroNombreArchivo`, `siniestroDocsEquipo`, `bitacoraMantenimiento`, `siniestrosResumen`.
+- **Siniestros (30-oct-2026, instructivo corporativo IT-AD-003):** la denuncia a la aseguradora debe hacerse antes de los 5 días de ocurrido el siniestro o se pierde la indemnización. El instructivo no dice si son días corridos o hábiles: se cuentan **corridos** (lo prudente) y el último día es la fecha + 5 (`siniestroPlazo`: a tiempo / vence hoy / vencido; una vez informado, a tiempo o tarde según `fechaInformado`). Aviso en el encabezado desde 2 días antes. Documentos (`siniestroDocumentos`): los de entrada (informe, constancia, conductor salvo robo, documentos del vehículo, fotos, tercero si lo hay, padrón, factura, cotización a nuevo) y los que pide el liquidador (presupuesto, informe técnico, bitácora, tacógrafo, informe de seguridad, y alcoholemia y expediente si hay lesionados); cada uno se marca listo o «no aplica». `siniestroDocsEquipo` dice si la revisión técnica, el permiso y el seguro estaban vigentes a la fecha según Vencimientos; `bitacoraMantenimiento` arma la bitácora (correctivos y PM de los 12 meses previos). 🔵 Criterio propio sobre el instructivo.
 
 ### J6. Validación de salto de horómetro
 - **Tipo:** regla de calidad de datos.

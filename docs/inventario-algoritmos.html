@@ -118,7 +118,7 @@
   <h2 id="d-3">Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
-    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A18</td></tr>
+    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A19</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C23</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
@@ -132,7 +132,7 @@
     <tr><td><b>L. Datos y seguridad</b></td><td>L1–L6</td></tr>
     <tr><td><b>M. Funciones internas (apéndice)</b></td><td>tabla</td></tr>
   </table>
-  <p>Son <b>132 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
+  <p>Son <b>133 fichas</b> y no queda ninguna función exportada de <code>logic.js</code> sin mencionar (lo verifica una prueba automática, ver más abajo).</p>
 
   <h2 id="d-4">A. Disponibilidad, fallas y tiempos</h2>
 
@@ -347,6 +347,16 @@
     <li><b>Dónde se ve:</b> pestaña Asistente (grupo Herramientas), solo para cuentas sin perfil restringido; cada consulta queda en la tabla <code>asistente_ia_uso</code>.</li>
     <li><b>Límites:</b> solo lee; lo que consulta sale hacia Anthropic; responde con lo que está cargado en el navegador y puede interpretar mal un dato incompleto. Las cifras importantes hay que verlas en su pantalla.</li>
     <li><b>Código:</b> <code>ASISTENTE_HERRAMIENTAS</code>, <code>ASISTENTE_MAX_FILAS</code>, <code>asistenteEjecutar</code>.</li>
+  </ul>
+
+  <h3 id="d-x">A19. Indicadores corporativos PRO-MAN-010 (MA, MTBF, MTTR, MTBS)</h3>
+  <ul>
+    <li><b>Para qué sirve:</b> mostrar los indicadores con la misma fórmula que la planilla que se reporta a la Gerencia de Maquinarias, y explicar por qué no coinciden con la disponibilidad de la pestaña.</li>
+    <li><b>De dónde viene:</b> procedimiento corporativo PRO-MAN-010 (Rev. 1, 30-09-2024), punto 8.</li>
+    <li><b>Cómo lo calcula:</b> por mes y equipo: tiempo operativo = avance del horómetro en el mes; fallas = todas las OT que son falla (sin el umbral de 24 h); paradas = fallas + PM. MTBF = tiempo ÷ fallas; MTTR = horas de reparación ÷ fallas con duración; MTBS = tiempo ÷ paradas; MA = MTBF ÷ (MTBF + MTTR) × 100. La flota suma antes de dividir.</li>
+    <li><b>Dónde se ve:</b> pestaña Disponibilidad, vista mensual, bajo la tabla.</li>
+    <li><b>Límites:</b> la MA solo mira fallas (se compara con la Ai, no con la Ao) y usa horas operadas, no días calendario; equipos sin horómetro a ambos lados del mes quedan fuera; una falla sin duración no entra al MTTR; sin fallas la MA es 100 %.</li>
+    <li><b>Código:</b> <code>kpiProMan010</code>.</li>
   </ul>
 
   <h2 id="d-21">B. Vida, supervivencia y tendencia de fallas</h2>
@@ -927,7 +937,8 @@
     <li><b>Cómo lo calcula aquí:</b> <code>clasificacionPendienteOT</code> y <code>resumenClasificacionOT</code> cuentan las OT cerradas (correctivos y fallas operacionales) sin sistema o sin tipo de causa (el tipo de causa está vacío en el 100 % de los correctivos reales). <code>repararMojibake</code> corrige texto guardado con la codificación equivocada ("DÃ­a" por "Día"): sin eso, el chi-cuadrado por turno contaba "Día" y "DÃ­a" como turnos distintos. <code>validarPMCompleto</code> y <code>estadoPMCompleto</code> registran si el PM se hizo completo; un registro anterior a ese campo es "sin dato", nunca "completo" (contarlo como completo inflaría la calidad).</li>
     <li><b>Dónde se ve:</b> Correctivos (tarjeta "Cerradas sin solución") y Registro PM.</li>
     <li>- <b>Cierre con motivo de demora y tipo de reparación (27-oct-2026):</b> al cerrar un correctivo se piden dos datos que hasta hoy no existían: el <b>motivo de demora</b> (lista corta con <code>grupo</code>: sin demora, repuesto sin stock por no anticiparse, compra o aprobación interna lenta, proveedor, personal, herramienta, operación, diagnóstico, otro) y si la reparación fue <b>definitiva o provisoria</b>. <code>otCierreFaltantes</code> decide qué falta: el tipo de reparación siempre y el motivo solo si la parada duró 8 horas o más o no se sabe (<code>otMotivoRequerido</code>; con menos de 8 h, si no se elige, queda «Sin demora»). «Cerrar sin completar» deja escrito «Sin informar» para que la laguna se pueda contar. <code>otBacklogDeProvisoria</code> crea una tarea de backlog por cada reparación provisoria (una por OT, marcada en su observación). Criterio propio. Límites: lo anotado depende de quien cierra la OT; las OT anteriores quedan vacías (no se inventa).</li>
-    <li><b>Código:</b> <code>clasificacionPendienteOT</code>, <code>resumenClasificacionOT</code>, <code>repararMojibake</code>, <code>OT_MOTIVOS_DEMORA</code>, <code>OT_MOTIVO_SIN_INFORMAR</code>, <code>OT_REPARACIONES</code>, <code>OT_DEMORA_UMBRAL_H</code>, <code>otMotivoGrupo</code>, <code>otMotivoRequerido</code>, <code>otCierreFaltantes</code>, <code>otBacklogDeProvisoria</code>.</li>
+    <li><b>Código:</b> <code>clasificacionPendienteOT</code>, <code>resumenClasificacionOT</code>, <code>repararMojibake</code>, <code>OT_MOTIVOS_DEMORA</code>, <code>OT_MOTIVO_SIN_INFORMAR</code>, <code>OT_REPARACIONES</code>, <code>OT_DEMORA_UMBRAL_H</code>, <code>otMotivoGrupo</code>, <code>otMotivoRequerido</code>, <code>otCierreFaltantes</code>, <code>otBacklogDeProvisoria</code>, <code>OT_MODALIDADES</code>, <code>otEquipoEnGarantia</code>, <code>otFechaTermino</code>, <code>otEstadoPlazo</code>, <code>cumplimientoPlazosReparacion</code>.</li>
+    <li><b>Modalidad y plazo comprometido (30-oct-2026, PRO-MAN-002):</b> cada OT puede llevar la modalidad (taller faena, terreno, tercero por contrato, tercero por cotización, garantía) y el plazo comprometido. Cumplida si terminó a más tardar el día del plazo; atrasada si después; vencida si sigue abierta pasado el plazo. Término = fecha de salida o, si no hay, la fecha de cierre que anota la app. Informe mensual: % = a tiempo ÷ (a tiempo + atrasadas + vencidas), también por modalidad. La prioridad ya existe como criticidad de la OT. Aviso de garantía por horómetro contra <code>garantiaHasta</code> (horas).</li>
   </ul>
 
   <h3 id="d-77">D14. Deducción del componente desde el texto del síntoma</h3>
@@ -1375,7 +1386,8 @@
     <li><b>Cómo lo calcula aquí:</b> la fecha de cambio de cada neumático la calcula la proyección de desgaste; el programa solo la <b>agrupa por período</b>. Como las horas restantes son las de la última medición, ancla la fecha en esa medición y los que ya pasaron su fecha se informan aparte como "vencidos". La curva S = cambios ya hechos del período + los vencidos + los que vencen de hoy a fin del período. No hay un plan congelado contra el cual medir cumplimiento.</li>
     <li><b>Dónde se ve:</b> Neumáticos ("Programa de cambios").</li>
     <li><b>Ejemplo real:</b> la última medición de neumáticos cargada es del 1-ago-2026 y <b>74 neumáticos tienen su última medición hace más de 45 días</b>, por lo que su proyección está desactualizada: la limitación principal es la frescura de las mediciones, no el cálculo.</li>
-    <li><b>Código:</b> <code>neuProgramaCambios</code>, <code>neuCambiosRealizados</code>, <code>agruparPeriodo</code>.</li>
+    <li><b>Código:</b> <code>neuProgramaCambios</code>, <code>neuCambiosRealizados</code>, <code>agruparPeriodo</code>, <code>NEU_CODIGOS_RECHAZO</code>, <code>NEU_RECAUCHAJE_MAX_FORMULARIO</code>, <code>NEU_ESTADOS_ENVIABLES</code>, <code>neuRecauchajesDe</code>, <code>neuSiguienteNumRecauchaje</code>, <code>neuPuedeEnviarRecauchaje</code>, <code>resumenRecauchajes</code>.</li>
+    <li><b>Recauchaje (30-oct-2026, PRO-MAN-004):</b> cada envío al proveedor es una fila de <code>neumaticos_recauchajes</code> (Enviado → Recibido o Rechazado). Solo neumáticos fuera del equipo, sin envío abierto ni rechazo previo; número = recibidos + 1 (aviso pasado el 4.º). Mientras está fuera queda «En recauchaje»; al volver, Stock con la huella nueva o De baja con el código de rechazo. Resumen: % aprobados = recibidos ÷ (recibidos + rechazados), días de vuelta, mm ganados y costo.</li>
   </ul>
 
   <h3 id="d-123">J4. Estado de componentes mayores y estimación de horómetro en una fecha</h3>
@@ -1395,7 +1407,8 @@
     <li><b>De dónde viene:</b> 🔵 Criterio propio con periodicidades por tipo de equipo.</li>
     <li><b>Cómo lo calcula aquí:</b> <code>vencCalcProximo</code> suma meses a la última fecha topando el día al último del mes destino (el fix de "31 ago + 6 meses"); <code>vencEstado</code>: vencido (&lt; 0 días), vence en ≤ 30 días, OK; un documento requerido que nunca se cargó aparece como "Sin registrar (requerido)" y requiere atención. <code>lubVigente</code> encadena reemplazos con tope para no colgarse si hay un ciclo.</li>
     <li><b>Dónde se ve:</b> Vencimientos, Lubricantes.</li>
-    <li><b>Código:</b> <code>vencReglaDefault</code>, <code>vencCalcProximo</code>, <code>vencEstado</code>, <code>lubVigente</code>, <code>lubEsObsoleto</code>, <code>LUB_REEMPLAZO</code>, <code>esLubricante</code>.</li>
+    <li><b>Código:</b> <code>vencReglaDefault</code>, <code>vencCalcProximo</code>, <code>vencEstado</code>, <code>lubVigente</code>, <code>lubEsObsoleto</code>, <code>LUB_REEMPLAZO</code>, <code>esLubricante</code>, <code>SINIESTRO_PLAZO_DIAS</code>, <code>SINIESTRO_AVISO_DIAS</code>, <code>SINIESTRO_TIPOS</code>, <code>SINIESTRO_ESTADOS</code>, <code>SINIESTRO_RESULTADOS</code>, <code>SINIESTRO_DOCUMENTOS</code>, <code>siniestroPlazo</code>, <code>siniestroDocumentos</code>, <code>siniestroNombreArchivo</code>, <code>siniestroDocsEquipo</code>, <code>bitacoraMantenimiento</code>, <code>siniestrosResumen</code>.</li>
+    <li><b>Siniestros (30-oct-2026, IT-AD-003):</b> denuncia antes de los 5 días o se pierde la indemnización; se cuentan días corridos (el instructivo no lo precisa) y el último día es la fecha + 5. Aviso en el encabezado desde 2 días antes. Lista de documentos de entrada y los que pide el liquidador, según tipo, terceros y lesionados; documentos del equipo vigentes o no a la fecha; bitácora de mantenimiento de los 12 meses previos.</li>
   </ul>
 
   <h3 id="d-125">J6. Validación de salto de horómetro</h3>

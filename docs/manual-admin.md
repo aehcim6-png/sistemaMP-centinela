@@ -221,6 +221,32 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Siniestros y plazo de denuncia (2026-10-30)
+
+**Qué cambia.** En **Vencimientos**, arriba, está la sección **Siniestros** (instructivo corporativo IT-AD-003). Se registra el siniestro (equipo, fecha, tipo, relato, lesionados, tercero, constancia) y la app cuenta el **plazo de 5 días** para denunciarlo: se cuentan días corridos, el último día es la fecha del siniestro + 5. Desde 2 días antes del límite, y si ya venció, aparece un aviso en el encabezado («Siniestros por denunciar»). El estado avanza *Por informar → Informado* (pide la fecha en que se informó a Finanzas) *→ En liquidación → Cerrado* (pide el resultado: indemnizado, rechazado, sin cobertura o desistido).
+
+**Documentos.** El botón «docs» abre la lista que pide el liquidador según el caso (con tercero, con lesionados, robo), separada en «de entrada» y «si lo pide el liquidador»; cada uno se marca listo o «no aplica». Muestra el nombre que debe llevar el archivo del informe y si la revisión técnica, el permiso de circulación y el seguro del equipo estaban vigentes a la fecha, según esta misma pestaña. «Bitácora» descarga en CSV los correctivos y PM del equipo de los 12 meses previos.
+
+**Datos personales.** Conductor y datos del tercero son texto libre (el procedimiento los pide): quedan con los mismos permisos que el resto de la base.
+
+**Antes de desplegar.** Aplicar `20261030160000_crear_siniestros.sql` en los dos proyectos y desplegar de nuevo `backup-diario` (62 tablas).
+
+### Recauchaje de neumáticos (2026-10-30)
+
+**Qué cambia.** En **Neumáticos** hay un botón **♻ Recauchajes** y, en cada neumático que está en Stock o de baja, un botón ♻ para **enviarlo a recauchar** (fecha, guía de despacho, proveedor y huella al salir). Mientras está en el proveedor el neumático queda «En recauchaje». Cuando vuelve se marca **Recibido** (fecha, huella nueva y costo: pasa a Stock con esa huella como remanente) o **Rechazado** con el código del proveedor (B01, F06, T01…: queda De baja). El listado muestra lo que está en el proveedor, los últimos retornos, el % aprobado del año, los días de vuelta, el costo y los rechazos por código. Sigue el procedimiento corporativo PRO-MAN-004.
+
+**Antes de desplegar.** Aplicar la migración `20261030140000_crear_neumaticos_recauchajes.sql` en Supabase (los dos proyectos) y desplegar de nuevo la función `backup-diario` (ahora respalda 61 tablas). Sin la tabla, la app avisa que no pudo refrescar esa categoría y lo que se registre no llega a la base.
+
+### Modalidad y plazo comprometido de la reparación (2026-10-30)
+
+**Qué cambia.** Cada correctivo puede llevar dos datos nuevos, del procedimiento corporativo PRO-MAN-002: la **modalidad de reparación** (*Taller faena*, *Terreno*, *Tercero por contrato*, *Tercero por cotización* o *Garantía*) y el **plazo comprometido** (la fecha en que se comprometió terminarla). Se cargan en «Nueva OT» o en las columnas «Modalidad» y «Plazo» de la tabla de correctivos. Son opcionales: las OT antiguas quedan vacías.
+
+**Cumplimiento de plazos.** Sobre la tabla de correctivos aparece «Cumplimiento de plazos de reparación» del mes: de las OT cuyo plazo vence en el mes, cuántas terminaron a tiempo, cuántas tarde y cuántas siguen abiertas con el plazo vencido; también por modalidad y con la lista de las incumplidas. La fecha de término es la de salida del equipo o, si no hay, la fecha en que se cerró la OT (la app la anota sola).
+
+**Garantía.** Al crear una OT, si el horómetro del equipo todavía no llega a las horas de «Garantía Hasta (hrs)» de su ficha, aparece un aviso para elegir la modalidad «Garantía» y avisar al proveedor. Solo avisa.
+
+**Antes de desplegar.** Hay que aplicar la migración `20261030120000_correctivos_modalidad_plazo.sql` en Supabase (los dos proyectos) **antes** de publicar el código: la app pide estas columnas al leer los correctivos y, si no existen, la lectura de OT falla.
+
 ### Cierre de OT con motivo de demora y tipo de reparación (2026-10-27)
 
 **Qué cambia.** Al cerrar un correctivo, la ventana «Cierre con datos» ahora pide dos datos más: el **motivo de demora** y el **tipo de reparación**. Sirven para contestar «por qué tardó» y «se arregló de verdad o se parchó».

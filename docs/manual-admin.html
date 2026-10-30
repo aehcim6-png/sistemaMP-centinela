@@ -114,6 +114,19 @@
   <p>Un usuario nuevo queda <b>bloqueado</b> hasta que un admin lo activa a mano.</p>
 
   <h2 id="d-3">3. Seguridad</h2>
+    <h3 id="d-x">Siniestros y plazo de denuncia (2026-10-30)</h3>
+  <p><b>Qué cambia.</b> En <b>Vencimientos</b>, arriba, está <b>Siniestros</b> (IT-AD-003): se registra el siniestro y la app cuenta el <b>plazo de 5 días</b> para denunciarlo (días corridos; último día = fecha + 5). Desde 2 días antes, y si ya venció, aparece «Siniestros por denunciar» en el encabezado. Estados: Por informar → Informado (pide la fecha) → En liquidación → Cerrado (pide el resultado).</p>
+  <p><b>Documentos.</b> Lista de lo que pide el liquidador según el caso, marcable como listo o «no aplica»; nombre del archivo del informe; vigencia de revisión técnica, permiso y seguro a la fecha; bitácora de mantenimiento de 12 meses en CSV.</p>
+  <p><b>Datos personales.</b> Conductor y datos del tercero son texto libre, con los mismos permisos que el resto de la base.</p>
+  <p><b>Antes de desplegar.</b> Aplicar <code>20261030160000_crear_siniestros.sql</code> en los dos proyectos y desplegar de nuevo <code>backup-diario</code> (62 tablas).</p>
+    <h3 id="d-x">Recauchaje de neumáticos (2026-10-30)</h3>
+  <p><b>Qué cambia.</b> En <b>Neumáticos</b> hay un botón <b>♻ Recauchajes</b> y, en cada neumático en Stock o de baja, un botón ♻ para <b>enviarlo a recauchar</b>. Mientras está en el proveedor queda «En recauchaje»; al volver se marca <b>Recibido</b> (pasa a Stock con la huella nueva) o <b>Rechazado</b> con el código del proveedor (queda De baja). El listado muestra lo que está afuera, los retornos, el % aprobado del año, los días de vuelta, el costo y los rechazos por código (PRO-MAN-004).</p>
+  <p><b>Antes de desplegar.</b> Aplicar la migración <code>20261030140000_crear_neumaticos_recauchajes.sql</code> en los dos proyectos y desplegar de nuevo <code>backup-diario</code> (61 tablas).</p>
+    <h3 id="d-x">Modalidad y plazo comprometido de la reparación (2026-10-30)</h3>
+  <p><b>Qué cambia.</b> Cada correctivo puede llevar la <b>modalidad de reparación</b> (<i>Taller faena</i>, <i>Terreno</i>, <i>Tercero por contrato</i>, <i>Tercero por cotización</i> o <i>Garantía</i>) y el <b>plazo comprometido</b>, del procedimiento corporativo PRO-MAN-002. Se cargan en «Nueva OT» o en las columnas «Modalidad» y «Plazo» de la tabla de correctivos. Son opcionales.</p>
+  <p><b>Cumplimiento de plazos.</b> Sobre la tabla de correctivos aparece «Cumplimiento de plazos de reparación» del mes: a tiempo, tarde y abiertas con el plazo vencido, por modalidad y con la lista de incumplidas. Término = fecha de salida o, si no hay, la fecha en que se cerró la OT (la app la anota sola).</p>
+  <p><b>Garantía.</b> Al crear una OT, si el horómetro no llega a las horas de «Garantía Hasta (hrs)» del equipo, aparece un aviso para elegir «Garantía». Solo avisa.</p>
+  <p><b>Antes de desplegar.</b> Aplicar la migración <code>20261030120000_correctivos_modalidad_plazo.sql</code> en Supabase (los dos proyectos) <b>antes</b> de publicar el código: si las columnas no existen, la lectura de OT falla.</p>
     <h3 id="d-x">Cierre de OT con motivo de demora y tipo de reparación (2026-10-27)</h3>
   <p><b>Qué cambia.</b> Al cerrar un correctivo, la ventana «Cierre con datos» ahora pide dos datos más: el <b>motivo de demora</b> y el <b>tipo de reparación</b>. Sirven para contestar «por qué tardó» y «se arregló de verdad o se parchó».</p>
   <p><b>Motivo de demora.</b> Una lista corta: *Sin demora*; *Repuesto sin stock en bodega (no se anticipó)*; *Compra o aprobación interna lenta*; *Proveedor sin stock o con demora*; *Falta de personal o de especialista*; *Falta de herramienta, grúa o taller*; *Equipo no entregado por operación o sin acceso*; *Diagnóstico difícil*; *Otro*. Es <b>obligatorio si la parada duró 8 horas o más</b> (o no se sabe cuánto duró); con menos de 8 horas es opcional y, si no se elige, queda «Sin demora».</p>

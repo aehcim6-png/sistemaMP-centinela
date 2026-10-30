@@ -7031,6 +7031,52 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/asistenteIa.test.js` (17), `supabase/functions/asistente-ia/index.test.ts` (8, Deno) y `tests/e2e/asistente-ia.spec.js` (flujo con herramienta simulada, error de la función, texto escapado y conservación de lo escrito). Plano de fallas: ficha **EF-18** y `EXT-05` ampliada.
 
+### 199. Indicadores corporativos PRO-MAN-010 en Disponibilidad (2026-10-30)
+
+**Qué es:** la vista mensual de Disponibilidad suma, bajo la tabla, los indicadores del procedimiento corporativo PRO-MAN-010 («Planificación y control de disponibilidad de equipos», Rev. 1): **MA = MTBF ÷ (MTBF + MTTR) × 100**, **MTBF** = tiempo operativo ÷ n.º de fallas, **MTTR** = tiempo de reparación ÷ n.º de fallas y **MTBS** = tiempo operativo ÷ n.º de paradas (fallas + PM). No reemplaza nada: la Ao, la Ai y el MTBF de KPI siguen iguales.
+
+**Por qué:** es la fórmula de la planilla que se reporta a la Gerencia de Maquinarias y no coincide con la Ao de la pestaña (que también descuenta el PM) ni con el MTBF de KPI (que solo cuenta paradas de 24 h o más). Mostrarla al lado, con la explicación, evita que alguien crea que uno de los dos números está malo.
+
+**Cómo:** `kpiProMan010(eq, ot, reg, hist, mes)` en `logic.js` (pura). Tiempo operativo = avance del horómetro en el mes (mismo criterio de lecturas válidas que `mtbfFlotaAgrupado`); fallas = `esFallaMTBF` sin umbral; MTTR solo sobre fallas con duración (`horasParadaOT`), las sin duración se informan; la flota suma horas, fallas y reparaciones antes de dividir; un equipo sin horómetro en el mes queda fuera y se lista. Respeta el filtro de tipo de la pestaña. Pantalla: `_kpi010HTML` en `modules/renders/disp.js`.
+
+**Pruebas:** `tests/kpiProMan010.test.js` (7). Inventario de algoritmos: ficha **A19**.
+
+### 200. Modalidad y plazo comprometido de la reparación (2026-10-30)
+
+**Qué es:** dos datos nuevos en cada correctivo, del procedimiento corporativo PRO-MAN-002 (mantención y reparación correctiva): **modalidad de reparación** (`OT_MODALIDADES`: Taller faena, Terreno, Tercero por contrato, Tercero por cotización, Garantía) y **plazo comprometido**. Con ellos, el informe mensual de **cumplimiento de plazos** que pide el procedimiento (6.8.4). Más un aviso de garantía al crear la OT.
+
+**Lo que no se hizo y por qué:** la *prioridad* (alta, media, baja) que también pide el procedimiento no se agregó: ya existe como **criticidad** de la OT (No Aplica / Reparación Inmediata / Próxima Mantención) y `esFallaMTBF` depende de ella; un segundo campo sería un duplicado. La *evaluación de proveedores* tampoco: la OT no registra el proveedor del servicio.
+
+**Cómo:** tres columnas nuevas en `correctivos` (migración `20261030120000_correctivos_modalidad_plazo.sql`): `modalidadReparacion` (text), `plazoComprometido` (date) y `fechaCierre` (date), que `edOT` anota al pasar a Cerrada y borra al reabrir (y `saveOT` al crear una OT ya cerrada). En `logic.js`: `otFechaTermino` (salida del equipo si la OT está cerrada; si no, `fechaCierre`), `otEstadoPlazo` (cumplida / atrasada / vencida / en plazo / sin término) y `cumplimientoPlazosReparacion` (OT cuyo plazo vence en el período; % = a tiempo ÷ (a tiempo + atrasadas + vencidas); por modalidad; lista de incumplidas). `otEquipoEnGarantia` compara el horómetro de la OT (o el actual del equipo) con `equipos.garantiaHasta`, que está **en horas**. Pantalla (`modules/renders/ot.js`): campos en «Nueva OT», columnas «Modalidad» y «Plazo» (con el estado del plazo en color) y el panel plegable sobre la tabla.
+
+**Antes de desplegar:** aplicar la migración en los dos proyectos. `TABLA_REAL.ot.cols` pide las tres columnas al leer `correctivos`; sin ellas la lectura falla.
+
+**Pruebas:** `tests/otModalidadPlazo.test.js` (15) y `tests/e2e/ot-modalidad-plazo.spec.js`.
+
+### 201. Recauchaje de neumáticos (2026-10-30)
+
+**Qué es:** el ciclo de recauchaje del procedimiento corporativo PRO-MAN-004 y su registro «Orden de trabajo de recauchaje»: envío del casco al proveedor, retorno con la huella nueva o rechazo con su código, y un resumen (% aprobados, días de vuelta, mm ganados, costo, rechazos por código).
+
+**Cómo:** tabla nueva `neumaticos_recauchajes` (migración `20261030140000_crear_neumaticos_recauchajes.sql`, con RLS y `GRANT` como `tareas_gestion`; sumada a `TABLAS` de `backup-diario`, ahora 61), una fila por envío (`estado` Enviado / Recibido / Rechazado), clave `neuRec` en `TABLA_REAL`. Mientras está en el proveedor el neumático queda con `estado` «En recauchaje» (texto libre en `neumaticos`; las alertas de cambio solo miran «Operativo», así que no lo cuentan). Reglas en `logic.js`: `neuPuedeEnviarRecauchaje` (solo fuera del equipo, sin envío abierto ni rechazo previo), `neuSiguienteNumRecauchaje` (recibidos + 1; aviso pasado el 4.º del formulario), `resumenRecauchajes` y `NEU_CODIGOS_RECHAZO` (los once del formulario). Pantalla en `modules/renders/neu.js`: botón ♻ por fila, listado «♻ Recauchajes» con Recibir / Rechazado.
+
+**Lo que no se hizo:** el registro de montaje/desmontaje con **equipo donante y receptor** (canibalización) y su causal; queda para decidir si se quiere seguir. El número de fuego no es un campo aparte: se usa la serie del neumático.
+
+**Antes de desplegar:** aplicar la migración en los dos proyectos y desplegar de nuevo `backup-diario`.
+
+**Pruebas:** `tests/neuRecauchaje.test.js` (10) y `tests/e2e/neu-recauchaje.spec.js`.
+
+### 202. Siniestros y plazo de denuncia (2026-10-30)
+
+**Qué es:** el instructivo corporativo IT-AD-003 «Denuncio de siniestros» en la app: registro del siniestro, plazo de 5 días para denunciarlo (pasado eso se pierde la indemnización), lista de documentos que pide el liquidador, vigencia de los documentos del equipo a la fecha y bitácora de mantenimiento.
+
+**Cómo:** tabla nueva `siniestros` (migración `20261030160000_crear_siniestros.sql`, RLS y `GRANT`; respaldo con 62 tablas), clave `siniestros` en `TABLA_REAL`; `documentos` es jsonb (clave → true o 'na'). Reglas en `logic.js`: `siniestroPlazo` (días **corridos**, último día = fecha + `SINIESTRO_PLAZO_DIAS`; el instructivo no dice corridos u hábiles y se eligió lo prudente), `siniestroDocumentos` (`SINIESTRO_DOCUMENTOS`, cada uno con responsable, si es de entrada o «si lo pide el liquidador», y cuándo aplica), `siniestroDocsEquipo` (revisión técnica, permiso y seguro desde Vencimientos), `bitacoraMantenimiento`, `siniestroNombreArchivo` y `siniestrosResumen`. Pantalla: sección plegable al inicio de Vencimientos (`modules/renders/venc.js`), porque el seguro y los documentos del equipo viven ahí; indicador `_hsSiniestros` en el encabezado (`index.html`), igual que el de tareas vencidas.
+
+**Límites:** el certificado de gases no se sigue en Vencimientos; la app no envía nada a Finanzas ni al corredor (registra y avisa).
+
+**Antes de desplegar:** migración en los dos proyectos y nuevo despliegue de `backup-diario`.
+
+**Pruebas:** `tests/siniestros.test.js` (11) y `tests/e2e/siniestros.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

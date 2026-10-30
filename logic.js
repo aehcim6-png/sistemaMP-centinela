@@ -826,6 +826,50 @@ function mtbfFlotaReal(eq,ot,opts){
   return Math.round(perEq.reduce(function(a,b){return a+b;},0)/perEq.length);
 }
 
+// ═══ INDICADORES CORPORATIVOS PRO-MAN-010 (2026-10-30) ═══ — fórmulas tal como las define el procedimiento corporativo «Planificación y Control de Disponibilidad de Equipos»,
+// para poder comparar con la planilla que se reporta a la Gerencia de Maquinarias: MTTR = tiempo total de reparación ÷ n.º de fallas; MTBF = tiempo operativo ÷ n.º de fallas;
+// MTBS = tiempo operativo ÷ n.º de paradas (fallas + PM, «cualquier razón mecánica, programada o no»); MA = MTBF ÷ (MTBF + MTTR) × 100.
+// Diferencias con lo que ya muestra la app, a propósito: (1) cuenta TODAS las fallas (esFallaMTBF), no solo las paradas ≥ PARADA_LARGA_H — el procedimiento no pone umbral; (2) la MA solo
+// mira fallas, así que se parece a la Ai (intrínseca) y no a la Ao de la pestaña, que también descuenta el PM. Tiempo operativo de un mes = avance del horómetro en el mes (mismo criterio que
+// mtbfFlotaAgrupado: lecturas válidas a ambos lados del mes); un equipo sin eso queda en sinHorometro y no entra a la flota. MTTR se promedia sobre las fallas con duración conocida (horasParadaOT):
+// las sin duración se cuentan en fallas pero no se inventa su tiempo (quedan en sinDuracion). Sin fallas, MTBF/MTTR son null y la MA es 100 por definición (la fórmula tiende a 100).
+// reg = registros_pm (sigla en 'equipo', fecha en fechaEntrada o fechaEjec). Devuelve {mes, equipos:[...], flota:{...}, sinHorometro:[siglas]}.
+function _kpi010Calc(horas,fallas,conDur,horasRep,pm){
+  var mtbf=fallas>0?horas/fallas:null,mttr=conDur>0?horasRep/conDur:null,paradas=fallas+pm;
+  var ma=fallas===0?100:(mtbf!=null&&mttr!=null&&(mtbf+mttr)>0?mtbf/(mtbf+mttr)*100:null);
+  var r1=function(x){return x==null?null:Math.round(x*10)/10;};
+  return{horas:Math.round(horas),fallas:fallas,fallasConDuracion:conDur,sinDuracion:fallas-conDur,horasReparacion:r1(horasRep),pm:pm,paradas:paradas,
+    mtbf:r1(mtbf),mttr:r1(mttr),mtbs:paradas>0?r1(horas/paradas):null,ma:r1(ma),sinFallas:fallas===0};
+}
+function kpiProMan010(eq,ot,reg,hist,mes,opts){
+  opts=opts||{};var hoy=opts.hoy;
+  if(!/^\d{4}-\d{2}$/.test(String(mes||'')))return null;
+  var ini=mes+'-01',fin=_ultimoDiaMes(mes);
+  var enMes=function(f){f=String(f||'').slice(0,10);return f>=ini&&f<=fin;};
+  var porSigla={};
+  (hist||[]).forEach(function(h){if(h&&h.sigla)(porSigla[h.sigla]=porSigla[h.sigla]||[]).push(h);});
+  var val=valorLecturaHorometro,equipos=[],sinHorometro=[],T={h:0,f:0,d:0,r:0,pm:0};
+  (eq||[]).forEach(function(e){
+    if(!e||!e.sigla||e.unidad==='km')return;
+    var lect=C.lecturasValidas(porSigla[e.sigla]||[],e.sigla,e.hrsDia);
+    var valorHasta=function(f){var v=null;lect.forEach(function(h){if(h.fecha<=f)v=val(h);});return v;};
+    var horas=null;
+    if(lect.length>=2&&lect[0].fecha<=fin&&lect[lect.length-1].fecha>=ini){
+      var antes=valorHasta(_fechaMas(ini,-1)),hasta=valorHasta(fin);
+      if(antes==null)antes=val(lect[0]);
+      if(hasta!=null&&antes!=null)horas=Math.max(0,hasta-antes);
+    }
+    if(!(horas>0)){sinHorometro.push(e.sigla);return;}
+    var fallas=(ot||[]).filter(function(o){return o&&o.sigla===e.sigla&&esFallaMTBF(o)&&enMes(o.fecha||o.fechaEntrada);});
+    var conDur=0,horasRep=0;
+    fallas.forEach(function(o){var h=horasParadaOT(o,hoy);if(h!=null){conDur++;horasRep+=h;}});
+    var pm=(reg||[]).filter(function(r){return r&&r.equipo===e.sigla&&enMes(r.fechaEntrada||r.fechaEjec);}).length;
+    T.h+=horas;T.f+=fallas.length;T.d+=conDur;T.r+=horasRep;T.pm+=pm;
+    equipos.push(Object.assign({sigla:e.sigla,tipo:e.tipo||'',modelo:e.modelo||''},_kpi010Calc(horas,fallas.length,conDur,horasRep,pm)));
+  });
+  return{mes:mes,equipos:equipos,flota:equipos.length?Object.assign({equipos:equipos.length},_kpi010Calc(T.h,T.f,T.d,T.r,T.pm)):null,sinHorometro:sinHorometro};
+}
+
 // ═══ CUMPLIMIENTO PM — fuente ÚNICA para "¿este registro fue a tiempo?" ═══
 // Bug real (auditoría 2026-08): el Dashboard/KPI/Metas comparaban literal
 // r.estado==='A tiempo', pero ese campo NUNCA vale ese string exacto — saveReg/
@@ -3815,6 +3859,105 @@ function vencCalcProximo(ultimaFecha, periodicidadMeses){
 // camión no necesita Decreto 80" se veían exactamente igual ('Sin datos', gris) y
 // ambos quedaban FUERA de las alertas — un documento exigido que nadie ha cargado
 // nunca es más urgente que uno por vencer en 25 días, pero era invisible.
+// ═══ SINIESTROS (2026-10-30) ═══ — instructivo corporativo IT-AD-003 «Denuncio de siniestros»: todo siniestro se informa; la faena manda los documentos a Finanzas
+// y la denuncia a la aseguradora debe hacerse antes de los 5 días de ocurrido, o se pierde el derecho a indemnización. El instructivo no dice si son días corridos o
+// hábiles: se cuentan CORRIDOS (lo más prudente) y el último día para informar es la fecha del siniestro + 5. documentos (jsonb) guarda por clave true (listo) o 'na'
+// (no aplica a este caso, marcado a mano).
+var SINIESTRO_PLAZO_DIAS=5,SINIESTRO_AVISO_DIAS=2;
+var SINIESTRO_TIPOS=['Vehículo liviano','Vehículo pesado o maquinaria','Robo'];
+var SINIESTRO_ESTADOS=['Por informar','Informado','En liquidación','Cerrado'];
+var SINIESTRO_RESULTADOS=['Indemnizado','Rechazado','Sin cobertura','Desistido'];
+// cuando: 'siempre' = lo que la faena/área técnica/Finanzas deben juntar de entrada; 'liquidador' = solo si el liquidador lo pide. aplica: según el caso.
+var SINIESTRO_DOCUMENTOS=[
+  {clave:'informe',texto:'Informe de siniestro (formulario de la faena)',responsable:'Faena',cuando:'siempre'},
+  {clave:'constancia',texto:'Constancia: parte policial (con lesionados o robo) o declaración jurada notarial, con el relato revisado por el jefe o administrador de faena',responsable:'Faena',cuando:'siempre'},
+  {clave:'conductor',texto:'RUT, licencia de conducir y contrato de trabajo del conductor (copias por ambos lados)',responsable:'Faena',cuando:'siempre',aplica:function(s){return s.tipo!=='Robo';}},
+  {clave:'docsVehiculo',texto:'Seguro obligatorio, permiso de circulación, revisión técnica y certificado de gases del vehículo',responsable:'Faena',cuando:'siempre'},
+  {clave:'fotos',texto:'Fotografías de los daños (propios y del tercero)',responsable:'Faena',cuando:'siempre'},
+  {clave:'tercero',texto:'Datos del tercero (nombre, RUT, teléfono, licencia y seguro) y cotización de reparación de sus daños',responsable:'Faena',cuando:'siempre',aplica:function(s){return !!s.terceroInvolucrado;}},
+  {clave:'padron',texto:'Padrón o certificado de anotaciones vigentes',responsable:'Área técnica',cuando:'siempre'},
+  {clave:'factura',texto:'Factura de compra del equipo',responsable:'Finanzas',cuando:'siempre'},
+  {clave:'cotizNuevo',texto:'Cotización a nuevo (precio de reposición)',responsable:'Finanzas',cuando:'siempre'},
+  {clave:'presupuesto',texto:'Presupuesto de reparación de una empresa formal',responsable:'Área técnica',cuando:'liquidador'},
+  {clave:'informeTecnico',texto:'Informe técnico del siniestro (firmado por el subgerente o gerente técnico)',responsable:'Área técnica',cuando:'liquidador'},
+  {clave:'bitacora',texto:'Bitácora de mantenimiento (se descarga desde aquí)',responsable:'Área técnica',cuando:'liquidador'},
+  {clave:'tacografo',texto:'Registro del tacógrafo',responsable:'Área técnica',cuando:'liquidador'},
+  {clave:'informeSeguridad',texto:'Informe de seguridad (prevencionista y administrador de faena)',responsable:'Faena',cuando:'liquidador'},
+  {clave:'alcoholemia',texto:'Alcoholemia del operador',responsable:'Faena',cuando:'liquidador',aplica:function(s){return !!s.lesionados;}},
+  {clave:'expediente',texto:'Denuncia y expediente del tribunal (solo lo puede pedir el afectado)',responsable:'Faena',cuando:'liquidador',aplica:function(s){return !!s.lesionados;}}
+];
+function _sinFechaMas(iso,n){return new Date(new Date(String(iso).slice(0,10)+'T12:00:00').getTime()+n*864e5).toISOString().slice(0,10);}
+function _sinDias(a,b){return Math.round((new Date(String(b).slice(0,10)+'T12:00:00')-new Date(String(a).slice(0,10)+'T12:00:00'))/864e5);}
+// Plazo de denuncia: {limite, diasRestantes (solo si sigue por informar), estado: 'a tiempo' | 'vence hoy' | 'vencido' | 'informado a tiempo' | 'informado tarde' | 'informado sin fecha'}.
+function siniestroPlazo(s,hoyISO){
+  if(!s||!/^\d{4}-\d{2}-\d{2}/.test(String(s.fecha||'')))return null;
+  var limite=_sinFechaMas(s.fecha,SINIESTRO_PLAZO_DIAS),hoy=String(hoyISO||new Date().toISOString()).slice(0,10);
+  if((s.estado||'Por informar')==='Por informar'){
+    var d=_sinDias(hoy,limite);
+    return{limite:limite,diasRestantes:d,estado:d<0?'vencido':d===0?'vence hoy':'a tiempo',aviso:d<=SINIESTRO_AVISO_DIAS};
+  }
+  if(!/^\d{4}-\d{2}-\d{2}/.test(String(s.fechaInformado||'')))return{limite:limite,diasRestantes:null,estado:'informado sin fecha',aviso:false};
+  return{limite:limite,diasRestantes:null,estado:String(s.fechaInformado).slice(0,10)<=limite?'informado a tiempo':'informado tarde',aviso:false};
+}
+// Lista de documentos del caso: cada uno con aplica (según tipo, terceros y lesionados), estado ('listo' | 'falta' | 'no aplica') y si es de entrada o «si lo pide el liquidador».
+// avance: listos ÷ requeridos, contando solo los de entrada que aplican y no se marcaron «no aplica».
+function siniestroDocumentos(s){
+  var marcas=(s&&s.documentos&&typeof s.documentos==='object')?s.documentos:{};
+  var items=SINIESTRO_DOCUMENTOS.map(function(d){
+    var aplica=d.aplica?d.aplica(s||{}):true,m=marcas[d.clave];
+    var estado=!aplica||m==='na'?'no aplica':m===true?'listo':'falta';
+    return{clave:d.clave,texto:d.texto,responsable:d.responsable,cuando:d.cuando,aplica:aplica,estado:estado};
+  });
+  var req=items.filter(function(x){return x.cuando==='siempre'&&x.estado!=='no aplica';});
+  var listos=req.filter(function(x){return x.estado==='listo';}).length;
+  return{items:items,requeridos:req.length,listos:listos,faltan:req.filter(function(x){return x.estado==='falta';}).map(function(x){return x.clave;})};
+}
+// Nombre del archivo del informe, como lo pide el instructivo: «Sigla» Informe de Siniestro faena «Faena» DD-MM-AAAA.
+function siniestroNombreArchivo(s){
+  var f=String(s&&s.fecha||'').slice(0,10).split('-');
+  return String(s&&s.sigla||'').trim()+' Informe de Siniestro faena '+(String(s&&s.faena||'').trim()||'(faena)')+' '+(f.length===3?f[2]+'-'+f[1]+'-'+f[0]:'');
+}
+// Revisión técnica, permiso de circulación y seguro del equipo a la fecha del siniestro (venc[sigla][tipo]: {ultima, periodicidadMeses, proxima}). vigente: true / false / null (sin dato).
+// tipoEquipo: el tipo efectivo que usa Vencimientos para la periodicidad por defecto. El certificado de gases no se sigue en Vencimientos: no se informa.
+function siniestroDocsEquipo(sigla,fecha,venc,tipoEquipo){
+  var datos=(venc||{})[sigla]||{},f=String(fecha||'').slice(0,10);
+  return ['Revisión Técnica','Permiso Circulación','Seguro'].map(function(vt){
+    var d=datos[vt]||{},per=d.periodicidadMeses!=null?d.periodicidadMeses:(typeof vencReglaDefault==='function'?vencReglaDefault(tipoEquipo,vt):null);
+    var prox=d.proxima||(typeof vencCalcProximo==='function'?vencCalcProximo(d.ultima,per):null)||null;
+    return{doc:vt,proxima:prox,vigente:prox&&f?String(prox).slice(0,10)>=f:null,requerido:per!=null};
+  });
+}
+// Bitácora de mantenimiento de un equipo entre dos fechas (lo que pide el liquidador): correctivos (ot) y PM (reg), del más reciente al más antiguo.
+function bitacoraMantenimiento(sigla,ot,reg,desde,hasta){
+  var dentro=function(f){f=String(f||'').slice(0,10);return /^\d{4}-\d{2}-\d{2}$/.test(f)&&(!desde||f>=desde)&&(!hasta||f<=hasta);};
+  var filas=[];
+  (ot||[]).forEach(function(o){
+    var f=o&&(o.fechaEntrada||o.fecha);
+    if(!o||o.sigla!==sigla||!dentro(f))return;
+    filas.push({fecha:String(f).slice(0,10),origen:'Correctivo',tipo:o.tipo||'',horometro:Number(o.horom)>0?Number(o.horom):null,detalle:[o.sintoma,o.solucion?'Solución: '+o.solucion:''].filter(Boolean).join(' · '),componente:o.componente||o.sistema||'',duracion:o.duracion||'',estado:o.estadoOT||'Cerrada'});
+  });
+  (reg||[]).forEach(function(r){
+    var f=r&&(r.fechaEntrada||r.fechaEjec);
+    if(!r||r.equipo!==sigla||!dentro(f))return;
+    filas.push({fecha:String(f).slice(0,10),origen:'PM',tipo:r.tipoPM||'',horometro:Number(r.horomReal)>0?Number(r.horomReal):null,detalle:[r.obs,r.queFalto?'Faltó: '+r.queFalto:''].filter(Boolean).join(' · '),componente:'',duracion:r.duracion||(r.duracionH?r.duracionH+'h':''),estado:r.estado||''});
+  });
+  return filas.sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+}
+// Resumen para el encabezado y la pantalla: abiertos, por informar, cuántos vencen pronto (≤ SINIESTRO_AVISO_DIAS) o ya vencieron, y cuántos se informaron a tiempo.
+function siniestrosResumen(lista,hoyISO){
+  var r={total:0,abiertos:0,porInformar:0,avisoPronto:0,vencidos:0,informadosATiempo:0,informadosTarde:0};
+  (lista||[]).forEach(function(s){
+    if(!s)return;r.total++;
+    if(s.estado!=='Cerrado')r.abiertos++;
+    var p=siniestroPlazo(s,hoyISO);if(!p)return;
+    if(p.estado==='vencido'){r.vencidos++;r.porInformar++;}
+    else if(p.estado==='a tiempo'||p.estado==='vence hoy'){r.porInformar++;if(p.aviso)r.avisoPronto++;}
+    else if(p.estado==='informado a tiempo')r.informadosATiempo++;
+    else if(p.estado==='informado tarde')r.informadosTarde++;
+  });
+  return r;
+}
+
 function vencEstado(proximaFecha, tieneRegla){
   if(!proximaFecha){
     if(tieneRegla)return{label:'🟠 Sin registrar (requerido)',color:'#f97316',dias:null,requiereAtencion:true};
@@ -6482,6 +6625,67 @@ function otBacklogDeProvisoria(o,hoyISO,backlog){
     sistema:o.sistema||'',conInsumo:!!g&&g.indexOf('repuesto')===0,fechaCierre:null,observacion:'Reparación provisoria de la '+marca+' ('+String(o.fechaEntrada||o.fecha||hoy).slice(0,10)+')'};
 }
 
+// ═══ MODALIDAD Y PLAZO COMPROMETIDO DE LA REPARACIÓN (2026-10-30) ═══ — del procedimiento corporativo PRO-MAN-002 (mantención y reparación correctiva): el Jefe de Maquinarias define
+// dónde se repara (terreno, taller de faena, tercero por contrato, tercero por cotización o garantía) e informa el tiempo de reparación; después se revisa si se cumplió el plazo y se entrega
+// un informe mensual con el % de cumplimiento global de las reparaciones. La prioridad que también pide el procedimiento ya existe: es la «criticidad» de la OT (No Aplica / Reparación
+// Inmediata / Próxima Mantención), no se duplica. fechaCierre la pone sola la app cuando la OT pasa a Cerrada (y la borra si se reabre).
+var OT_MODALIDADES=['Taller faena','Terreno','Tercero por contrato','Tercero por cotización','Garantía'];
+var _esFechaISO=function(f){return /^\d{4}-\d{2}-\d{2}$/.test(String(f||'').slice(0,10));};
+// Garantía vigente del equipo: equipos.garantiaHasta está en HORAS de horómetro (ficha del equipo, «Garantía Hasta (hrs)»). Se compara con el horómetro de la OT o, si no trae, con el
+// horómetro actual del equipo. {hastaH, horom, restantesH} o null (sin garantía cargada o ya superada). Solo informa: la modalidad la elige la persona.
+function otEquipoEnGarantia(o,equipo){
+  var hasta=Number(equipo&&equipo.garantiaHasta);
+  if(!(hasta>0))return null;
+  var h=Number(o&&o.horom)>0?Number(o.horom):Number(equipo.horomActual);
+  if(!(h>0)||h>=hasta)return null;
+  return{hastaH:hasta,horom:h,restantesH:Math.round(hasta-h)};
+}
+// Fecha en que terminó la reparación: la salida del equipo si la OT está cerrada y la tiene; si no, la fecha en que se cerró en la app. null si sigue abierta o no hay ninguna.
+function otFechaTermino(o){
+  if(!o||(o.estadoOT&&o.estadoOT!=='Cerrada'))return null;
+  if(_esFechaISO(o.fechaSalida))return String(o.fechaSalida).slice(0,10);
+  return _esFechaISO(o.fechaCierre)?String(o.fechaCierre).slice(0,10):null;
+}
+// Estado del plazo de una OT: null sin plazo; 'cumplida' / 'atrasada' (cerrada, con días de atraso) / 'vencida' (abierta y ya pasó el plazo) / 'en plazo' (abierta, todavía a tiempo) /
+// 'sin término' (cerrada pero sin fecha de salida ni de cierre: no se puede evaluar).
+function otEstadoPlazo(o,hoyISO){
+  if(!o||!_esFechaISO(o.plazoComprometido))return null;
+  var plazo=String(o.plazoComprometido).slice(0,10),hoy=String(hoyISO||new Date().toISOString()).slice(0,10);
+  var dias=function(a,b){return Math.round((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/864e5);};
+  var abierta=o.estadoOT==='Pendiente'||o.estadoOT==='En Ejecución';
+  if(abierta)return hoy>plazo?{estado:'vencida',plazo:plazo,diasAtraso:dias(hoy,plazo)}:{estado:'en plazo',plazo:plazo,diasAtraso:0};
+  var fin=otFechaTermino(o);
+  if(!fin)return{estado:'sin término',plazo:plazo,diasAtraso:null};
+  return fin<=plazo?{estado:'cumplida',plazo:plazo,termino:fin,diasAtraso:0}:{estado:'atrasada',plazo:plazo,termino:fin,diasAtraso:dias(fin,plazo)};
+}
+// Informe de cumplimiento de plazos (PRO-MAN-002, 6.8.4): OT con plazo comprometido que vence entre desde y hasta. % = cumplidas ÷ (cumplidas + atrasadas + vencidas); las que siguen
+// en plazo y las cerradas sin fecha de término se informan pero no entran al %. También por modalidad. Las OT sin plazo se cuentan aparte (sinPlazo) para ver cuánto falta registrar.
+function cumplimientoPlazosReparacion(ot,desde,hasta,hoyISO){
+  var r={evaluables:0,cumplidas:0,atrasadas:0,vencidas:0,enPlazo:0,sinTermino:0,sinPlazo:0,pct:null,diasAtrasoProm:null,porModalidad:[],incumplidas:[]};
+  var mod={},sumAtraso=0,nAtraso=0;
+  (ot||[]).forEach(function(o){
+    if(!o||o.fromReg||o.fromHist)return;
+    var f=String(o.fechaEntrada||o.fecha||'').slice(0,10);
+    var ep=otEstadoPlazo(o,hoyISO);
+    if(!ep){if(f>=desde&&f<=hasta)r.sinPlazo++;return;}
+    if(ep.plazo<desde||ep.plazo>hasta)return;
+    var m=o.modalidadReparacion||'Sin modalidad';
+    if(!mod[m])mod[m]={modalidad:m,evaluables:0,cumplidas:0,pct:null};
+    if(ep.estado==='en plazo'){r.enPlazo++;return;}
+    if(ep.estado==='sin término'){r.sinTermino++;return;}
+    r.evaluables++;mod[m].evaluables++;
+    if(ep.estado==='cumplida'){r.cumplidas++;mod[m].cumplidas++;return;}
+    if(ep.estado==='atrasada')r.atrasadas++;else r.vencidas++;
+    sumAtraso+=ep.diasAtraso;nAtraso++;
+    r.incumplidas.push({sigla:o.sigla,sintoma:String(o.sintoma||'').slice(0,80),modalidad:o.modalidadReparacion||'',estado:ep.estado,plazo:ep.plazo,termino:ep.termino||null,diasAtraso:ep.diasAtraso});
+  });
+  if(r.evaluables)r.pct=Math.round(r.cumplidas/r.evaluables*100);
+  if(nAtraso)r.diasAtrasoProm=Math.round(sumAtraso/nAtraso*10)/10;
+  r.porModalidad=Object.keys(mod).map(function(k){var x=mod[k];x.pct=x.evaluables?Math.round(x.cumplidas/x.evaluables*100):null;return x;}).sort(function(a,b){return b.evaluables-a.evaluables;});
+  r.incumplidas.sort(function(a,b){return b.diasAtraso-a.diasAtraso;});
+  return r;
+}
+
 // ═══ DOTACIÓN DESDE LA PROGRAMACIÓN DIARIA (2026-10-27) ═══
 // El sistema no tiene una nómina aparte: la dotación real está en los «trabajos diarios programados» (progDia: cada fila es una persona con su cargo en un día y turno). Los cargos vienen escritos de muchas
 // formas («Mecánico Lider», «Mecánico lider», «Mecanico», «Eelctro Mecanico»): cargoEspecialidad los lleva a una especialidad. dotacionProgramada cuenta personas distintas por día y turno. Es lo que HAY programado,
@@ -7362,6 +7566,63 @@ function neuCambiosRealizados(neuHist){
     out.push(f);
   });
   return out.sort();
+}
+
+// ═══ RECAUCHAJE DE NEUMÁTICOS (2026-10-30) ═══ — procedimiento corporativo PRO-MAN-004 y su registro «Orden de trabajo de recauchaje»: el casco se envía al proveedor con guía de
+// despacho; al volver se anota la huella de entrada y el número de recauchaje (el formulario llega hasta el 4.º), o el código con que el proveedor lo rechazó. Una fila de
+// neumaticos_recauchajes por envío (estado Enviado → Recibido o Rechazado). Los códigos son los del formulario corporativo.
+var NEU_CODIGOS_RECHAZO=[
+  {cod:'B01',desc:'Óxido excesivo en banda de rodamiento'},{cod:'B02',desc:'Separación circular del hombro'},{cod:'B04',desc:'Impacto pasante fuera de límite'},
+  {cod:'B13',desc:'Despegue de banda de rodamiento'},{cod:'F01',desc:'Lateral desbocado'},{cod:'F04',desc:'Rotura lateral fuera de límite'},{cod:'F06',desc:'Daño lateral'},
+  {cod:'F07',desc:'Goma envejecida'},{cod:'T01',desc:'Talones rotos'},{cod:'T02',desc:'Goma de talón cristalizada'},
+  {cod:'D03',desc:'Separación de carcasa y cima / goma interior o exterior dañada'}
+];
+var NEU_RECAUCHAJE_MAX_FORMULARIO=4;   // el formulario corporativo anota del 1.º al 4.º recauchaje; pasado eso solo se avisa, no se bloquea
+var NEU_ESTADOS_ENVIABLES=['Stock','De baja','Baja Desgaste','Baja Imprevisto'];
+function _recSerie(s){return String(s==null?'':s).trim().toUpperCase();}
+// Envíos de un neumático (por serie), del más antiguo al más reciente.
+function neuRecauchajesDe(serie,recs){
+  var k=_recSerie(serie);
+  return (recs||[]).filter(function(r){return r&&k&&_recSerie(r.serie)===k;}).sort(function(a,b){return String(a.fechaEnvio||'').localeCompare(String(b.fechaEnvio||''));});
+}
+// Número que le toca al próximo envío: recauchajes ya recibidos + 1.
+function neuSiguienteNumRecauchaje(serie,recs){
+  return neuRecauchajesDe(serie,recs).filter(function(r){return r.estado==='Recibido';}).length+1;
+}
+// ¿Se puede enviar a recauchar? Solo un neumático fuera del equipo (Stock o de baja) y sin otro envío abierto. {ok, motivo, numSiguiente, sobreMaximo}.
+function neuPuedeEnviarRecauchaje(n,recs){
+  if(!n||!String(n.serie||'').trim())return{ok:false,motivo:'El neumático no tiene serie'};
+  var lista=neuRecauchajesDe(n.serie,recs);
+  if(lista.some(function(r){return r.estado==='Enviado';})||n.estado==='En recauchaje')return{ok:false,motivo:'Ya está en recauchaje'};
+  if(NEU_ESTADOS_ENVIABLES.indexOf(n.estado||'Operativo')<0)return{ok:false,motivo:'Primero hay que retirarlo del equipo (está '+(n.estado||'Operativo')+')'};
+  if(lista.some(function(r){return r.estado==='Rechazado';}))return{ok:false,motivo:'El proveedor ya rechazó este casco'};
+  var num=lista.filter(function(r){return r.estado==='Recibido';}).length+1;
+  return{ok:true,numSiguiente:num,sobreMaximo:num>NEU_RECAUCHAJE_MAX_FORMULARIO};
+}
+// Resumen de los envíos con fecha de envío entre desde y hasta (ambas opcionales): cuántos volvieron, cuántos se rechazaron y por qué, días de vuelta y costo.
+// tasaAprobacion = recibidos ÷ (recibidos + rechazados), sobre los que ya volvieron; null si ninguno volvió. diasRetornoProm sobre los que traen las dos fechas.
+function resumenRecauchajes(recs,desde,hasta){
+  var r={enviados:0,enProceso:0,recibidos:0,rechazados:0,tasaAprobacion:null,diasRetornoProm:null,costoTotal:0,sinCosto:0,porCodigo:[],ganadoMmProm:null};
+  var cod={},sumDias=0,nDias=0,sumMm=0,nMm=0;
+  (recs||[]).forEach(function(x){
+    if(!x)return;var f=String(x.fechaEnvio||'').slice(0,10);
+    if((desde&&f<desde)||(hasta&&f>hasta))return;
+    r.enviados++;
+    if(x.estado==='Enviado'){r.enProceso++;return;}
+    if(/^\d{4}-\d{2}-\d{2}/.test(String(x.fechaRetorno||''))&&f){var d=Math.round((new Date(String(x.fechaRetorno).slice(0,10)+'T12:00:00')-new Date(f+'T12:00:00'))/864e5);if(d>=0){sumDias+=d;nDias++;}}
+    if(x.estado==='Recibido'){
+      r.recibidos++;
+      if(Number(x.costo)>0)r.costoTotal+=Number(x.costo);else r.sinCosto++;
+      if(Number(x.huellaEntrada)>0&&x.huellaSalida!=null&&x.huellaSalida!==''){sumMm+=Number(x.huellaEntrada)-Number(x.huellaSalida);nMm++;}
+    } else if(x.estado==='Rechazado'){
+      r.rechazados++;var c=x.codigoRechazo||'Sin código';cod[c]=(cod[c]||0)+1;
+    }
+  });
+  if(r.recibidos+r.rechazados)r.tasaAprobacion=Math.round(r.recibidos/(r.recibidos+r.rechazados)*100);
+  if(nDias)r.diasRetornoProm=Math.round(sumDias/nDias*10)/10;
+  if(nMm)r.ganadoMmProm=Math.round(sumMm/nMm*10)/10;
+  r.porCodigo=Object.keys(cod).map(function(c){var d=NEU_CODIGOS_RECHAZO.filter(function(y){return y.cod===c;})[0];return{cod:c,desc:d?d.desc:'',n:cod[c]};}).sort(function(a,b){return b.n-a.n;});
+  return r;
 }
 
 // ═══ ANÁLISIS DE COMPONENTES PRINCIPALES (PCA) DE LA FLOTA (2026-10-11) ═══
@@ -10984,6 +11245,7 @@ if (typeof window !== 'undefined') {
   window.validarMotivoPmPendiente = validarMotivoPmPendiente;
   window.mtbfFlotaReal = mtbfFlotaReal;
   window.mtbfFlotaAgrupado = mtbfFlotaAgrupado;
+  window.kpiProMan010 = kpiProMan010;
   window.MTBF_MIN_PARADAS = MTBF_MIN_PARADAS;
   window.MTBF_OT_MIN_MES = MTBF_OT_MIN_MES;
   window.MTBF_FLOTA_MIN_PARADAS = MTBF_FLOTA_MIN_PARADAS;
@@ -12258,13 +12520,13 @@ if (typeof module !== 'undefined' && module.exports) {
     sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
     C, fd, fn, escapeHtml, csvCeldaSegura,
     _tokensMaterial, _scoreMaterial, precioMaterial,
-    esLubricante, vencReglaDefault, vencCalcProximo, vencEstado,
+    esLubricante, vencReglaDefault, vencCalcProximo, vencEstado, SINIESTRO_PLAZO_DIAS, SINIESTRO_AVISO_DIAS, SINIESTRO_TIPOS, SINIESTRO_ESTADOS, SINIESTRO_RESULTADOS, SINIESTRO_DOCUMENTOS, siniestroPlazo, siniestroDocumentos, siniestroNombreArchivo, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, ASISTENTE_HERRAMIENTAS, ASISTENTE_MAX_FILAS, asistenteEjecutar, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, NEU_CODIGOS_RECHAZO, NEU_RECAUCHAJE_MAX_FORMULARIO, NEU_ESTADOS_ENVIABLES, neuRecauchajesDe, neuSiguienteNumRecauchaje, neuPuedeEnviarRecauchaje, resumenRecauchajes, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, ASISTENTE_HERRAMIENTAS, ASISTENTE_MAX_FILAS, asistenteEjecutar, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, OT_MODALIDADES, otEquipoEnGarantia, otFechaTermino, otEstadoPlazo, cumplimientoPlazosReparacion, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
-    desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
+    desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, kpiProMan010, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, limpiarTextoParaIA, pendientesClasificacionComponente, muestraParaAcuerdoIA, resumenAcuerdoIA, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,

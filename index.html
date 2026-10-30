@@ -793,7 +793,7 @@ const _LAZY_EXPORTS={
   stk2:['renderStk2','stk2Sub','queComprar'],
   ins:['renderIns','insFiltro','insNuevo','insGuardarNuevo','insEditar','insGuardarEdicion','insToggleActivo','insMovimiento','insGuardarMov','insKardex','insConteo','insConteoGuardar','insActivar','insActivarConfirmar','insDescuadres','insCuadrar','insDesactivarHuerfanos','insLista','insListaVista','insListaGuardar','insExportar'],
   uso:['verUsoPestanas','renderUso'],
-  venc:['renderVenc','_vencAbrirSelector','_vencFotoSeleccionada','edVenc','exportVencCSV'],
+  venc:['renderVenc','_vencAbrirSelector','_vencFotoSeleccionada','edVenc','exportVencCSV','registrarSiniestro','saveSiniestro','sinCambiarEstado','sinDocumentos','sinMarcarDoc','sinBitacoraCSV'],
   // Segundo lote (2026-09-10) — ver comentario en _LAZY_VERS.
   torre:['_torreAbrirDrawer','_torreCerrarDrawer','renderTorre'],
   buscar:['renderBuscar'],
@@ -806,7 +806,7 @@ const _LAZY_EXPORTS={
   metas:['renderMetas','verCadenaCausas','abrirFormCompromiso','guardarCompromiso','delCompromiso'],
   resumenejec:['renderResumenEjec'],
   reg:['renderReg','addReg','editarReg','calcDurEdit','saveEditReg','rAutoHorom','rMostrarConsumos','calcDurReg','saveReg','_activarLeerPauta','_leerPautaFotoSeleccionada','_matchEquipoPorSiglaOCR','_prellenarDesdeOCR','_activarLeerCorrectivo','_leerCorrectivoFotoSeleccionada','_prellenarDesdeOCRCorrectivo','_iniciarRegPorVoz','importRegCSV','processImportReg'],
-  neu:['renderNeu','verNeuLista','_iniciarNeuPorVoz','_continuarMedicionPorVoz','_iniciarMedicionNeuPorVoz','addNeu','saveNeu','cambiarNeu','saveCambio','instalarDesdeExistencias','confirmarInstalarExistencias','verSensores','verHistorialSensor','desmontarSensor','instalarSensor','confirmarInstalarSensor','addMedicionNeu','saveMedicionNeu','_activarLeerChequeoNeu','_leerChequeoNeuFotoSeleccionada','_revisarChequeoNeuOCR','_guardarChequeoNeuOCR','neuSort','histPosicion','verHistorialNeu','verDetalleNeu','resumenFlotaNeu','programaCambiosNeu'],
+  neu:['renderNeu','verNeuLista','_iniciarNeuPorVoz','_continuarMedicionPorVoz','_iniciarMedicionNeuPorVoz','addNeu','saveNeu','cambiarNeu','saveCambio','instalarDesdeExistencias','confirmarInstalarExistencias','verSensores','verHistorialSensor','desmontarSensor','instalarSensor','confirmarInstalarSensor','addMedicionNeu','saveMedicionNeu','_activarLeerChequeoNeu','_leerChequeoNeuFotoSeleccionada','_revisarChequeoNeuOCR','_guardarChequeoNeuOCR','neuSort','histPosicion','verHistorialNeu','verDetalleNeu','resumenFlotaNeu','programaCambiosNeu','enviarRecauchaje','saveEnvioRecauchaje','verRecauchajes','recibirRecauchaje','saveRecibirRecauchaje','rechazarRecauchaje','saveRechazoRecauchaje'],
   ot:['renderOt','analisisDocumentacion','analisisReingresos','verCausasLatentesRepetidas','verAnalisisMTTRPorCategoria','verAnalisisCapexOpex','addOT','addOTRapido','saveOTRapido','_activarLeerCorrectivoOT','_leerCorrectivoOTFotoSeleccionada','_prellenarDesdeOCRCorrectivoOT','_iniciarOTPorVoz','calcDurOT','saveOT','gestionarFotosOT','_otFotosSeleccionadas','quitarFotoOT','edOT'],
   prod:['renderProd','_activarLeerReporteProduccion','_leerReporteProduccionFotoSeleccionada','_revisarReporteProduccionOCR','_guardarReporteProduccionOCR'],
 };
@@ -1274,6 +1274,17 @@ function _hsTareas(){
     return `<div class="hs hs-click" role="button" tabindex="0" title="Ver las tareas vencidas" onclick="go('tareas')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('tareas')}"><b style="color:${r.escaladas?'var(--danger)':'var(--warn)'}">${n}</b><small>Tareas vencidas</small></div>`;
   }catch(e){return '';}
 }
+// Siniestros por denunciar (IT-AD-003, 2026-10-30): el plazo legal es de 5 días y pasado eso se pierde la indemnización, así que va en el encabezado como las tareas vencidas.
+// Solo aparece si hay alguno por informar que vence en SINIESTRO_AVISO_DIAS días o menos (o ya venció) y la persona puede abrir Vencimientos.
+function _hsSiniestros(){
+  try{
+    if(typeof siniestrosResumen!=='function'||!_tabsPermitidas().some(t=>t.id==='venc'))return '';
+    const r=siniestrosResumen(S.g('siniestros')||[],new Date().toISOString().slice(0,10));
+    const n=(r.vencidos||0)+(r.avisoPronto||0);
+    if(!n)return '';
+    return `<div class="hs hs-click" role="button" tabindex="0" title="Siniestros por denunciar al seguro (plazo de ${SINIESTRO_PLAZO_DIAS} días)" onclick="go('venc')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('venc')}"><b style="color:${r.vencidos?'var(--danger)':'var(--warn)'}">${n}</b><small>Siniestros por denunciar</small></div>`;
+  }catch(e){return '';}
+}
 function renderHeader(){
   const eq=S.g('eq')||[],ot=S.g('ot')||[];
   const u=eq.filter(e=>e.estado?.includes('URGENTE')||e.estado?.includes('VENCIDA')).length;
@@ -1302,7 +1313,7 @@ function renderHeader(){
     _hs('aldia','ok',o,'Al Día')+
     (sl?_hs('sinlec','tx3',sl,'Sin lectura'):'')+
     _hs('fs','danger',fs,'Fuera de Servicio')+
-    _hsTareas()+
+    _hsTareas()+_hsSiniestros()+
     `<div class="hs" style="border-left:1px solid var(--bd);padding-left:12px"><b style="font-size:16px">${horaStr}</b><small>${fechaStr}</small></div>`;
 }
 

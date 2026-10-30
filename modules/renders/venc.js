@@ -74,6 +74,7 @@ export function renderVenc(){
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Vencimientos Documentales</div>'+
     '<div class="sec-s">'+eq.length+' equipos · '+alertasActivas.length+' requieren atención</div></div>'+
     '<button class="btn btn-o" onclick="exportVencCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div>'+
+    _siniestrosHTML()+
     (alertasActivas.length?'<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;color:var(--danger);font-size:13px">'+
       '<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> <b>'+alertasActivas.length+' vencimiento(s) requieren atención</b> (vencidos, vencen en ≤30 días, o nunca se han registrado pese a que el tipo de equipo los exige): '+
       alertasActivas.slice(0,6).map(function(f){return escapeHtml(f.sigla)+' ('+escapeHtml(f.vencTipo)+')';}).join(', ')+
@@ -245,10 +246,133 @@ export function exportVencCSV(){
   toast('📥 CSV vencimientos exportado ('+filas.length+' filas)');
 }
 
+// ═══ SINIESTROS (IT-AD-003, 2026-10-30) ═══ — registro del siniestro, plazo de 5 días para denunciarlo (se pierde la indemnización si se pasa), documentos que pide el
+// liquidador y la bitácora de mantenimiento del equipo. Viven aquí porque el seguro, la revisión técnica y el permiso de circulación del equipo son de esta pestaña.
+// Reglas en logic.js (siniestroPlazo, siniestroDocumentos, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen).
+function _sinHoy(){return new Date().toISOString().slice(0,10);}
+function _sinPlazoBadge(s){
+  var p=siniestroPlazo(s,_sinHoy());if(!p)return '—';
+  var col=p.estado==='vencido'||p.estado==='informado tarde'?'var(--danger)':p.aviso||p.estado==='vence hoy'?'var(--warn)':p.estado==='a tiempo'?'var(--tx2)':'var(--ok)';
+  var txt=p.estado==='vencido'?'VENCIDO hace '+(-p.diasRestantes)+' d (límite '+fd(p.limite)+')':p.estado==='vence hoy'?'Vence HOY':p.estado==='a tiempo'?'Quedan '+p.diasRestantes+' d (hasta '+fd(p.limite)+')':p.estado;
+  return '<span style="color:'+col+';font-weight:600">'+escapeHtml(txt)+'</span>';
+}
+function _siniestrosHTML(){
+  var lista=S.g('siniestros')||[];
+  var r=siniestrosResumen(lista,_sinHoy());
+  var abiertos=lista.map(function(s,j){return{s:s,j:j};}).filter(function(o){return o.s.estado!=='Cerrado';})
+    .sort(function(a,b){var pa=siniestroPlazo(a.s,_sinHoy()),pb=siniestroPlazo(b.s,_sinHoy());return ((pa&&pa.diasRestantes!=null)?pa.diasRestantes:999)-((pb&&pb.diasRestantes!=null)?pb.diasRestantes:999);});
+  var cerrados=lista.filter(function(s){return s.estado==='Cerrado';}).length;
+  var aviso=r.vencidos||r.avisoPronto?'<div style="background:rgba(239,68,68,.08);border:1px solid var(--danger);border-radius:8px;padding:8px 12px;margin:6px 0;color:var(--danger);font-size:12px"><b>'+(r.vencidos?r.vencidos+' siniestro(s) con el plazo de denuncia vencido':'')+(r.vencidos&&r.avisoPronto?' · ':'')+(r.avisoPronto?r.avisoPronto+' vence(n) en '+SINIESTRO_AVISO_DIAS+' días o menos':'')+'.</b> La ley pide denunciar antes de los '+SINIESTRO_PLAZO_DIAS+' días; si no, se pierde el derecho a indemnización.</div>':'';
+  var filas=abiertos.map(function(o){
+    var s=o.s,d=siniestroDocumentos(s);
+    return '<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(s.sigla)+'</td><td class="mono">'+fd(s.fecha)+'</td><td style="font-size:11px">'+escapeHtml(s.tipo||'')+(s.lesionados?' · <span style="color:var(--danger)">con lesionados</span>':'')+(s.terceroInvolucrado?' · con tercero':'')+'</td>'+
+      '<td><select onchange="sinCambiarEstado('+o.j+',this.value)" style="font-size:11px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px">'+SINIESTRO_ESTADOS.map(function(e){return '<option'+(e===(s.estado||'Por informar')?' selected':'')+'>'+e+'</option>';}).join('')+'</select></td>'+
+      '<td style="font-size:11px">'+_sinPlazoBadge(s)+'</td>'+
+      '<td><button class="btn-s" onclick="sinDocumentos('+o.j+')" title="Documentos que pide el liquidador">'+d.listos+'/'+d.requeridos+' docs</button> <button class="btn-s" onclick="sinBitacoraCSV('+o.j+')" title="Bitácora de mantenimiento del equipo (últimos 12 meses), en CSV">Bitácora</button></td></tr>';
+  }).join('');
+  return '<details style="margin:8px 0 12px"'+(abiertos.length?' open':'')+'><summary style="cursor:pointer;font-size:13px"><b>Siniestros</b> <span style="font-size:11px;color:var(--tx3)">(denuncio al seguro, instructivo IT-AD-003) · '+r.abiertos+' abierto(s)'+(r.porInformar?' · '+r.porInformar+' por informar':'')+(cerrados?' · '+cerrados+' cerrado(s)':'')+'</span></summary>'+
+    aviso+
+    '<div style="margin:6px 0"><button class="btn" onclick="registrarSiniestro()">+ Registrar siniestro</button></div>'+
+    (filas?'<div class="tbl-wrap"><table style="font-size:12px"><tr><th>Equipo</th><th>Fecha</th><th>Tipo</th><th>Estado</th><th>Plazo de denuncia</th><th></th></tr>'+filas+'</table></div>':'<div style="font-size:12px;color:var(--tx3)">No hay siniestros abiertos.</div>')+
+    '</details>';
+}
+export function registrarSiniestro(){
+  var eq=S.g('eq')||[],faena=((S.g('cfg')||{}).faena)||'';
+  sm('<div style="max-width:640px"><h3>Registrar siniestro</h3>'+
+    '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Todo siniestro se informa. Nunca reconocer responsabilidad ni comprometer pagos, por escrito ni de palabra (IT-AD-003).</div>'+
+    '<div class="form-row"><div class="fg"><label>Equipo *</label><select id="snEq"><option value="">Seleccionar...</option>'+eq.map(function(e){return '<option>'+escapeHtml(e.sigla)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fg"><label>Fecha *</label><input type="date" id="snFecha" value="'+_sinHoy()+'"></div><div class="fg"><label>Hora</label><input type="time" id="snHora"></div></div>'+
+    '<div class="form-row"><div class="fg"><label>Tipo *</label><select id="snTipo">'+SINIESTRO_TIPOS.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></div>'+
+    '<div class="fg"><label>Lugar</label><input id="snLugar"></div><div class="fg"><label>Faena</label><input id="snFaena" value="'+escapeHtml(faena)+'"></div></div>'+
+    '<div class="fg"><label>Relato (qué pasó, daños, personas lesionadas)</label><textarea id="snRelato" rows="3" style="width:100%"></textarea></div>'+
+    '<div class="form-row"><div class="fg"><label>Conductor u operador</label><input id="snConductor"></div><div class="fg"><label>Responsable del aviso</label><input id="snResp" value="'+escapeHtml(window._userName||'')+'"></div></div>'+
+    '<div class="form-row"><div class="fg"><label><input type="checkbox" id="snLesionados"> Hay lesionados</label></div><div class="fg"><label><input type="checkbox" id="snTercero"> Hay un tercero involucrado</label></div>'+
+    '<div class="fg"><label>Constancia</label><select id="snConstancia"><option value="">— pendiente —</option><option>Parte policial</option><option>Declaración jurada notarial</option></select></div></div>'+
+    '<div class="fg"><label>Datos del tercero (nombre, RUT, teléfono, seguro)</label><input id="snTerceroDatos" style="width:100%"></div>'+
+    '<br><button class="btn" onclick="saveSiniestro()">Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button></div>');
+}
+export function saveSiniestro(){
+  var sigla=$('snEq').value,fecha=$('snFecha').value;
+  if(!sigla)return toast('⚠️ Elige el equipo');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha))return toast('⚠️ Indica la fecha del siniestro');
+  if(fecha>_sinHoy())return toast('⚠️ La fecha no puede ser futura');
+  var lista=S.g('siniestros')||[];
+  var s={sigla:sigla,fecha:fecha,hora:$('snHora').value||'',lugar:$('snLugar').value.trim(),faena:$('snFaena').value.trim(),tipo:$('snTipo').value,relato:$('snRelato').value.trim(),
+    lesionados:$('snLesionados').checked,conductor:$('snConductor').value.trim(),terceroInvolucrado:$('snTercero').checked,terceroDatos:$('snTerceroDatos').value.trim(),
+    constancia:$('snConstancia').value||null,responsableAviso:$('snResp').value.trim(),estado:'Por informar',documentos:{},usuario:window._userName||''};
+  lista.push(s);S.s('siniestros',lista);cm();renders.venc();
+  var p=siniestroPlazo(s,_sinHoy());
+  toast('✅ Siniestro registrado — hay que informarlo a Finanzas a más tardar el '+fd(p.limite));
+}
+export function sinCambiarEstado(j,estado){
+  var lista=S.g('siniestros')||[],s=lista[j];if(!s)return;
+  if(estado!=='Por informar'&&!s.fechaInformado){
+    var f=prompt('¿Qué día se informó a Finanzas? (AAAA-MM-DD)',_sinHoy());
+    if(f==null){renders.venc();return;}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(f)||f<s.fecha){toast('⚠️ Fecha no válida');renders.venc();return;}
+    s.fechaInformado=f;
+  }
+  if(estado==='Por informar')s.fechaInformado=null;
+  if(estado==='Cerrado'){
+    var res=prompt('Resultado: '+SINIESTRO_RESULTADOS.join(', '),'Indemnizado');
+    if(res==null||SINIESTRO_RESULTADOS.indexOf(res.trim())<0){toast('⚠️ Escribe uno de: '+SINIESTRO_RESULTADOS.join(', '));renders.venc();return;}
+    s.resultado=res.trim();s.fechaCierre=_sinHoy();
+    if(s.resultado==='Indemnizado'){var m=parseFloat(prompt('Monto indemnizado ($), si se sabe','')||'');s.montoIndemnizado=m>0?m:null;}
+  } else {s.fechaCierre=null;s.resultado=null;}
+  s.estado=estado;S.s('siniestros',lista);renders.venc();toast('✅ Siniestro de '+s.sigla+': '+estado);
+}
+export function sinDocumentos(j){
+  var lista=S.g('siniestros')||[],s=lista[j];if(!s)return;
+  var d=siniestroDocumentos(s);
+  var eqo=(S.g('eq')||[]).find(function(e){return e.sigla===s.sigla;});
+  var docsEq=siniestroDocsEquipo(s.sigla,s.fecha,S.g('venc')||{},_vencTipoEfectivo(eqo));
+  var fila=function(x){
+    var marca=x.estado==='listo'?'✅':x.estado==='no aplica'?'—':'⬜';
+    var acc=!x.aplica?'<span style="font-size:10px;color:var(--tx3)">no aplica a este caso</span>':
+      '<button class="btn-s" onclick="sinMarcarDoc('+j+',\''+x.clave+'\','+(x.estado==='listo'?'null':'true')+')">'+(x.estado==='listo'?'Desmarcar':'Listo')+'</button> '+
+      '<button class="btn-s" onclick="sinMarcarDoc('+j+',\''+x.clave+'\','+(x.estado==='no aplica'?'null':'\'na\'')+')">'+(x.estado==='no aplica'?'Sí aplica':'No aplica')+'</button>'+
+      (x.clave==='bitacora'?'<button class="btn-s" onclick="sinBitacoraCSV('+j+')">Descargar</button>':'');
+    // filas simples y no una tabla: el texto largo debe hacer salto de línea y la tabla global no lo deja (y se desplaza hacia el primer botón)
+    return '<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg4)"><div style="width:18px">'+marca+'</div><div style="flex:1;font-size:12px">'+escapeHtml(x.texto)+'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(x.responsable)+'</div></div><div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:210px">'+acc+'</div></div>';
+  };
+  var entrada=d.items.filter(function(x){return x.cuando==='siempre';}),liq=d.items.filter(function(x){return x.cuando==='liquidador';});
+  sm('<div style="max-width:820px"><h3>Documentos del siniestro — '+escapeHtml(s.sigla)+' · '+fd(s.fecha)+'</h3>'+
+    '<div style="font-size:12px;margin-bottom:6px">'+_sinPlazoBadge(s)+' · '+d.listos+' de '+d.requeridos+' documentos de entrada listos. Archivo del informe: <b>'+escapeHtml(siniestroNombreArchivo(s))+'</b></div>'+
+    '<div style="font-size:12px;margin-bottom:8px">En Vencimientos, a la fecha del siniestro: '+docsEq.map(function(x){return escapeHtml(x.doc)+' '+(x.vigente===true?'<span style="color:var(--ok)">vigente</span>':x.vigente===false?'<span style="color:var(--danger)">vencido ('+fd(x.proxima)+')</span>':'<span style="color:var(--tx3)">sin dato</span>');}).join(' · ')+'. El certificado de gases no se sigue en esta pestaña.</div>'+
+    '<h4 style="margin:8px 0 2px">De entrada (dentro de los '+SINIESTRO_PLAZO_DIAS+' días)</h4>'+entrada.map(fila).join('')+
+    '<h4 style="margin:12px 0 2px">Si lo pide el liquidador</h4>'+liq.map(fila).join('')+
+    '<br><button class="btn btn-o" onclick="cm();renders.venc()">Cerrar</button></div>');
+}
+export function sinMarcarDoc(j,clave,valor){
+  var lista=S.g('siniestros')||[],s=lista[j];if(!s)return;
+  var docs=Object.assign({},s.documentos||{});
+  if(valor==null)delete docs[clave];else docs[clave]=valor;
+  s.documentos=docs;S.s('siniestros',lista);sinDocumentos(j);
+}
+export function sinBitacoraCSV(j){
+  var s=(S.g('siniestros')||[])[j];if(!s)return;
+  var desde=new Date(new Date(s.fecha+'T12:00:00').getTime()-365*864e5).toISOString().slice(0,10);
+  var filas=bitacoraMantenimiento(s.sigla,S.g('ot')||[],S.g('reg')||[],desde,s.fecha);
+  if(!filas.length)return toast('Sin mantenciones registradas de '+s.sigla+' en los 12 meses previos');
+  var keys=['fecha','origen','tipo','horometro','componente','detalle','duracion','estado'];
+  var csv=[keys.join(';')].concat(filas.map(function(r){return keys.map(function(k){var v=r[k]??'';if(k!=='horometro')v=csvCeldaSegura(v);return '"'+String(v).replace(/"/g,'""')+'"';}).join(';');})).join('\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download='bitacora_'+s.sigla+'_'+desde+'_a_'+s.fecha+'.csv';
+  a.click();
+  toast('📥 Bitácora de '+s.sigla+' ('+filas.length+' registros)');
+}
+
 // Puente window/renders — ver nota en mov.js (primera tanda).
 window.renderVenc = renderVenc;
 window._vencAbrirSelector = _vencAbrirSelector;
 window._vencFotoSeleccionada = _vencFotoSeleccionada;
 window.edVenc = edVenc;
 window.exportVencCSV = exportVencCSV;
+window.registrarSiniestro = registrarSiniestro;
+window.saveSiniestro = saveSiniestro;
+window.sinCambiarEstado = sinCambiarEstado;
+window.sinDocumentos = sinDocumentos;
+window.sinMarcarDoc = sinMarcarDoc;
+window.sinBitacoraCSV = sinBitacoraCSV;
 renders.venc = renderVenc;
