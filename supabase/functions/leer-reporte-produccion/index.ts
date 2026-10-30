@@ -44,7 +44,7 @@ const ESQUEMA_EQUIPO_CAEX = {
     horometroInicial: { type: "NUMBER", nullable: true, description: "Horómetro inicial del turno." },
     horometroFinal: { type: "NUMBER", nullable: true, description: "Horómetro final del turno." },
     totalHoras: { type: "NUMBER", nullable: true, description: "Total de horas trabajadas. Si la fila está marcada 'fuera de servicio', 'standby' o 'mantención programada' (la celda de horas o la del operador), deja esto en null cuando no hay un número real (nunca inventes uno) y usa estadoTexto." },
-    estadoTexto: { type: "STRING", nullable: true, description: "Si la fila está marcada 'fuera de servicio', 'standby', 'pane', 'mantención programada' o 'sin operador' (en la celda de horas o en la del operador), el texto tal cual. null si la fila trabajó normal." },
+    estadoTexto: { type: "STRING", nullable: true, description: "Si la fila está marcada 'fuera de servicio', 'standby', 'pane', 'hidrometalurgia', 'mantención programada' o 'sin operador' (en la celda de horas o en la del operador), el texto tal cual. null si la fila trabajó normal." },
     vueltas: { type: "NUMBER", nullable: true, description: "Columna 'Vueltas'." },
     rendimientoVueltasHr: { type: "NUMBER", nullable: true, description: "Columna 'Rendimiento [Vueltas/Hr]'." },
     tiempoCicloMin: { type: "NUMBER", nullable: true, description: "Columna 'Tiempo de Ciclo [min/vuelta]'." },
@@ -211,6 +211,9 @@ Formatos que aparecen (todos son el mismo reporte):
 - Si la celda Turno del encabezado dice DÍA pero el título de la hoja dice «PRODUCCIÓN TURNO NOCHE» (o al revés), confía en el título y agrega 'turno' a camposInciertos.
 - En Equipos de Apoyo la columna del operador puede decir «PANE», «WIWI» u otro texto en vez de un nombre: es el estado del equipo; cópialo en estadoTexto y deja operador en null.
 - Si una fila dice «FUERA DE SERVICIO» o «STANDBY» pero igual trae toneladas u horas, cópialas tal cual y marca la fila con incierto:true.
+- Si la columna del operador dice «HIDRO», «EN HIDRO» o «HIDROMETALURGIA» (fila verde), el equipo está asignado a otra área: cópialo en estadoTexto y deja operador en null.
+- En la cabecera, el turno puede decir «DIA» junto a un texto como «DRL HIDRO» y la franja/módulo pueden ser texto («BOTADERO», «Z-02», «46B/46A»): cópialos tal cual en franjaDescarga y moduloDescarga. Los nombres del operador pueden venir cortados («URGEN VALDEBENIT»): cópialos como se ven.
+- Las horas de la bitácora a veces usan punto («8.45 SE COMIENZA…»): cópialas tal cual.
 - Los nombres de equipo pueden venir mal escritos (CF511, CF-679 por CF-769): cópialos tal cual.
 
 Para cada tabla, incluye una fila SOLO si tiene al menos un dato escrito — no incluyas filas completamente en blanco. Si un campo no aparece en la foto, está en blanco, o es ilegible, déjalo en null — nunca inventes un valor ni lo calcules tú: copia lo que está escrito. Si un valor SÍ está escrito pero es ambiguo, da tu mejor intento de todas formas pero marca esa fila con incierto:true, o agrega el campo de cabecera a camposInciertos.`;

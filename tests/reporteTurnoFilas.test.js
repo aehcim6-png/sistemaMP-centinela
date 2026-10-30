@@ -62,7 +62,7 @@ describe('reporteTurnoFilas', () => {
   it('entradas vacías o ausentes no rompen, y los textos numéricos no se aceptan como número', () => {
     expect(reporteTurnoFilas({})).toEqual([]);
     expect(reporteTurnoFilas(null)).toEqual([]);
-    const f = reporteTurnoFilas({ caex: [{ sigla: 'CN-1', totalHoras: '7,3', incierto: false }] });
+    const f = reporteTurnoFilas({ caex: [{ sigla: 'CN-1', totalHoras: '7,3', operador: 'X', incierto: false }] });
     expect(f[0].fila.totalHoras).toBeNull();
   });
 });
@@ -124,9 +124,9 @@ describe('papeles de marzo/abril 2026: solo el apodo, sin sigla', () => {
   });
   it('resuelve todas las tablas desde solo «Equipo»; los equipos que el sistema no tiene quedan sin asignar', () => {
     const d = {
-      caex: [{ equipoNombre: 'CAEX-85', totalHoras: 8.7, incierto: false }, { equipoNombre: 'CAEX-56', totalHoras: 8.2, incierto: false }, { equipoNombre: 'CAEX-115', incierto: false }],
+      caex: [{ equipoNombre: 'CAEX-85', totalHoras: 8.7, incierto: false }, { equipoNombre: 'CAEX-56', totalHoras: 8.2, incierto: false }, { equipoNombre: 'CAEX-115', totalHoras: 8, incierto: false }],
       carguio: [{ equipoNombre: 'CF-510', totalHoras: 9.3, incierto: false }],
-      apoyo: [{ equipoNombre: 'BD-533', incierto: false }, { equipoNombre: 'CN-5131', incierto: false }, { equipoNombre: 'MN-12', incierto: false }, { equipoNombre: 'MN-92', incierto: false }],
+      apoyo: [{ equipoNombre: 'BD-533', totalHoras: 8, incierto: false }, { equipoNombre: 'CN-5131', totalHoras: 8, incierto: false }, { equipoNombre: 'MN-12', totalHoras: 8, incierto: false }, { equipoNombre: 'MN-92', totalHoras: 8, incierto: false }],
       perdidaPetroleo: [{ equipoNombre: 'CAEX-86', horaInicio: '16:20', horaFin: '18:00', totalHoras: 1.67, tonAsociado: 838.2, incierto: false }],
       perdidaIndisponibilidad: [{ sigla: 'CAEX-89', totalHoras: 12, tonAsociado: 5994, incierto: false }],
     };
@@ -278,5 +278,79 @@ describe('papeles del 29-04 al 09-05', () => {
     expect(reporteTurnoTotalesDudosos({ totalTonCF: 13858, totalHorasCF: 0, rendimientoCFTonHr: 0, vueltasCF: 139 }).map((x) => x.campo).sort()).toEqual(['rendimientoCFTonHr', 'totalHorasCF']);
     expect(reporteTurnoTotalesDudosos({ totalTonCF: 0, totalHorasCF: 7.3, vueltasCF: 119, rendimientoCFTonHr: 0 }).map((x) => x.campo)).toEqual(['totalTonCF']);
     expect(reporteTurnoTotalesDudosos({ totalTonCF: 17975, totalHorasCF: 13.6, rendimientoCFTonHr: 1321.7, vueltasCF: 188 })).toEqual([]);
+  });
+});
+
+describe('papeles del 10 al 22 de mayo', () => {
+  it('filas en ceros sin estado ni operador (apoyo vacío del 15-05) no se guardan; las de estado sí', () => {
+    const f = reporteTurnoFilas({
+      apoyo: [{ equipoNombre: 'BD-533', totalHoras: 0, incierto: false }, { equipoNombre: 'BD-509', totalHoras: 0, estadoTexto: 'STANDBY', incierto: false }],
+      perdidaIndisponibilidad: [{ sigla: 'CAEX-85', totalHoras: 0, tonAsociado: 0, incierto: false }, { sigla: 'CAEX-88', totalHoras: 12, tonAsociado: 5475, incierto: false }],
+      caex: [{ equipoNombre: 'CAEX-87', totalHoras: 0, tonVuelta: 90, totalTon: 0, incierto: false }, { equipoNombre: 'CAEX-155', totalHoras: 0, estadoTexto: 'HIDROMETALURGIA', tonVuelta: 90, incierto: false }],
+    });
+    expect(f.map((x) => x.apodo)).toEqual(['CAEX155', 'BD509', 'CAEX88']);
+  });
+  it('horómetro 0 → 0 de un equipo fuera de servicio (BD-533 del 14-05) queda vacío y no se contrasta', () => {
+    const f = reporteTurnoFilas({ apoyo: [{ equipoNombre: 'BD-533', horometroInicial: 0, horometroFinal: 0, totalHoras: 0, estadoTexto: 'FUERA DE SERVICIO', incierto: false }] })[0].fila;
+    expect(f.horometroInicial).toBeNull();
+    expect(f.horometroFinal).toBeNull();
+    expect(reporteTurnoContrasteHorometro('BD-9533', '2026-05-14', 0, [{ sigla: 'BD-9533', fecha: '2026-05-14', horomFin: 11338 }]).estado).toBe('sin-dato');
+  });
+  it('CAEX-87 fuera de servicio con 23 vueltas y 2.070 t (14-05 día) y CAEX-87 con 15,3 h (22-05 día) se marcan', () => {
+    expect(reporteTurnoFilaDudosa({ estadoTexto: 'FUERA DE SERVICIO', totalHoras: 0, vueltas: 23, totalTon: 2070 }, 'CAEX')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 19440.9, horometroFinal: 19456.2, totalHoras: 15.3, vueltas: 53, rendimientoVueltasHr: 3.5, tonVuelta: 90, totalTon: 4770 }, 'CAEX')).toBe(true);
+  });
+  it('carguío con tonelaje en blanco y 167 vueltas cargadas (12-05 día) avisa el total de carguío en 0', () => {
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 0, vueltasCF: 167, totalHorasCF: 8.6, rendimientoCFTonHr: 0 }).map((x) => x.campo)).toEqual(['totalTonCF']);
+  });
+});
+
+describe('papeles del 14 al 27 de mayo', () => {
+  it('CAEX con vueltas y 0 horas se marca; fuera de servicio sin vueltas no', () => {
+    expect(reporteTurnoFilaDudosa({ totalHoras: 0, vueltas: 46, tonVuelta: 90, totalTon: 0 }, 'CAEX')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ totalHoras: 0, estadoTexto: 'HIDROMETALURGIA', tonVuelta: 90, totalTon: 0 }, 'CAEX')).toBe(false);
+  });
+  it('27-05 día: CF-510 con -14622,3 h, BD-533 con 3.004 h y totales de carguío negativos se marcan/avisan', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 14622.3, horometroFinal: null, totalHoras: -14622.3, tonelaje: 8780 }, 'Carguio')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 11475, horometroFinal: 14479, totalHoras: 3004 }, 'Apoyo')).toBe(true);
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 16770, totalHorasCF: -14615.4, rendimientoCFTonHr: -1.1 }).map((x) => x.campo)).toEqual(['totalHorasCF', 'rendimientoCFTonHr']);
+  });
+});
+
+describe('papeles del 29-05 al 07-06', () => {
+  it('indisponibilidad con toneladas y sin horas (05-06 noche: BD-509 33.178 t) se marca; con horas no', () => {
+    expect(reporteTurnoFilaDudosa({ totalHoras: null, tonAsociado: 33178 }, 'PerdidaIndisponibilidad')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ totalHoras: 12, tonAsociado: 5530 }, 'PerdidaIndisponibilidad')).toBe(false);
+  });
+  it('toneladas de carguío que no cuadran con vueltas × ton/vuelta (29-05 día y 06-06 noche) se avisan; las que cuadran no', () => {
+    const caex = [{ tonVuelta: 90 }];
+    expect(reporteTurnoTotalesDudosos({ caex, totalTonCF: 3280, vueltasCF: 168, rendimientoCFTonHr: 372.7 }).map((x) => x.campo)).toEqual(['totalTonCF', 'rendimientoCFTonHr']);
+    expect(reporteTurnoTotalesDudosos({ caex, totalTonCF: 12011, vueltasCF: 242, rendimientoCFTonHr: 678.6 }).map((x) => x.campo)).toEqual(['totalTonCF', 'rendimientoCFTonHr']);
+    expect(reporteTurnoTotalesDudosos({ caex, totalTonCF: 16770, vueltasCF: 193, rendimientoCFTonHr: 1300 })).toEqual([]);
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 3280, vueltasCF: 168 })).toEqual([]);
+  });
+});
+
+describe('papeles del 11 al 16 de junio (sin reglas nuevas)', () => {
+  it('CAEX-160 y CAEX-86 se traducen con la tabla existente', () => {
+    expect(reporteTurnoAlias('CAEX-160')).toBe('CN-10160');
+    expect(reporteTurnoAlias('CAEX-86')).toBe('CN-9501');
+  });
+  it('petróleo 08:00→18:00 con 10 h y 4.500 t (14-06) calza; 10:00→11:00 con 1 h (13-06) calza', () => {
+    expect(reporteTurnoFilaDudosa({ horaInicio: '08:00', horaFin: '18:00', totalHoras: 10, tonAsociado: 4500.2 }, 'PerdidaPetroleo')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ horaInicio: '10:00', horaFin: '11:00', totalHoras: 1, tonAsociado: 445.9 }, 'PerdidaPetroleo')).toBe(false);
+  });
+  it('BD-139 con 95 h (15-06), MN-92 con 18,9 h y CN-5131 con -11154,1 h se marcan', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 1697, horometroFinal: 1792, totalHoras: 95 }, 'Apoyo')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 5017.4, horometroFinal: 5036.3, totalHoras: 18.9 }, 'Apoyo')).toBe(true);
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 11154.1, horometroFinal: null, totalHoras: -11154.1 }, 'Apoyo')).toBe(true);
+  });
+  it('carguío con horómetros iguales y «fuera de servicio» (CF-769, 14-06) no se marca', () => {
+    expect(reporteTurnoFilaDudosa({ horometroInicial: 15056, horometroFinal: 15056, totalHoras: 0, estadoTexto: 'FUERA DE SERVICIO' }, 'Carguio')).toBe(false);
+  });
+  it('total de carguío con 253 vueltas y 0 t (14-06 día) se avisa; las filas coherentes por fórmula (aunque poco creíbles) no se marcan', () => {
+    expect(reporteTurnoTotalesDudosos({ totalTonCF: 0, vueltasCF: 253, rendimientoCFTonHr: 0 }).map((x) => x.campo)).toEqual(['totalTonCF']);
+    expect(reporteTurnoFilaDudosa({ totalHoras: 2.3, tonelaje: 8561, rendimientoTonHr: 3722.2 }, 'Carguio')).toBe(false);
+    expect(reporteTurnoFilaDudosa({ totalHoras: 5.9, tonelaje: 1145, rendimientoTonHr: 194.1 }, 'Carguio')).toBe(false);
   });
 });

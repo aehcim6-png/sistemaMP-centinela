@@ -3842,7 +3842,8 @@ function reporteTurnoFilaDudosa(r,categoria){
   if(h!=null&&(h<0||h>13))return true;      // un turno dura 12 h: más de 13 h (o negativas) es error de digitación
   var fs=r.estadoTexto!=null&&String(r.estadoTexto).trim()!=='';
   if(fs&&((n(r.totalTon)>0)||(n(r.tonelaje)>0)||h>0))return true;   // «fuera de servicio»/«standby» con toneladas u horas: el papel se contradice (celdas copiadas de otro turno)
-  if(n(r.tonAsociado)!=null&&n(r.tonAsociado)<0)return true;   // toneladas perdidas negativas (error de Excel en el papel)
+  if(n(r.tonAsociado)!=null&&n(r.tonAsociado)<0)return true;
+  if(n(r.tonAsociado)>0&&!(h>0)&&categoria==='PerdidaIndisponibilidad')return true;   // toneladas perdidas sin horas (05-06 noche: filas de apoyo con 16.589, 33.178… t acumuladas)   // toneladas perdidas negativas (error de Excel en el papel)
   var hi=n(r.horometroInicial),hf=n(r.horometroFinal);
   if(hi!=null&&hf!=null){
     if(hf<hi)return true;
@@ -3851,6 +3852,7 @@ function reporteTurnoFilaDudosa(r,categoria){
   if(categoria==='CAEX'){
     var v=n(r.vueltas),tv=n(r.tonVuelta),t=n(r.totalTon),rv=n(r.rendimientoVueltasHr);
     if(v!=null&&tv!=null&&t!=null&&Math.abs(v*tv-t)>tv)return true;   // toneladas = vueltas × ton/vuelta (holgura de 1 vuelta)
+    if(v>0&&!(h>0))return true;                                        // vueltas registradas con 0 horas (16-05 noche: fila sin nombre con 46 vueltas)
     if(v!=null&&h>0&&rv!=null&&Math.abs(v/h-rv)>0.3)return true;      // rendimiento = vueltas ÷ horas
   }
   if(categoria==='Carguio'){
@@ -3872,6 +3874,10 @@ function reporteTurnoFilas(datos){
       if(!r)return;
       var num=function(v){return typeof v==='number'&&isFinite(v)?v:null;};
       var txt=function(v){return v!=null&&String(v).trim()!==''?String(v).trim():null;};
+      // Fila de relleno: sin estado, operador, área, postura ni horas del reloj, y todas las cifras en blanco o 0 (el papel trae filas «0,0» de equipos que no se usaron). Ton/vuelta (90 fijo) no cuenta como dato.
+      var info=['totalHoras','horometroInicial','horometroFinal','vueltas','rendimientoVueltasHr','tiempoCicloMin','tonelaje','rendimientoTonHr','totalTon','tonAsociado'].some(function(k){return num(r[k])!=null&&num(r[k])!==0;})
+        ||['estadoTexto','operador','areaTrabajo','postura','horaInicio','horaFin'].some(function(k){return txt(r[k])!=null;});
+      if(!info)return;
       var carguio=tb.categoria==='Carguio', petroleo=tb.categoria==='PerdidaPetroleo', indisp=tb.categoria==='PerdidaIndisponibilidad';
       out.push({
         categoria:tb.categoria,
@@ -3882,8 +3888,8 @@ function reporteTurnoFilas(datos){
           categoria:tb.categoria,
           siglaOCR:txt(r.sigla),
           equipoNombreOCR:txt(r.equipoNombre),
-          horometroInicial:petroleo?null:num(r.horometroInicial),
-          horometroFinal:petroleo?null:num(r.horometroFinal),
+          horometroInicial:petroleo?null:(num(r.horometroInicial)||null),   // un horómetro en 0 (equipo fuera de servicio) es una celda vacía, no una lectura
+          horometroFinal:petroleo?null:(num(r.horometroFinal)||null),
           totalHoras:num(r.totalHoras),
           estadoTexto:txt(r.estadoTexto),
           vueltas:tb.categoria==='CAEX'?num(r.vueltas):null,
@@ -3926,6 +3932,9 @@ function reporteTurnoTotalesDudosos(d){
   if(n(d.totalHorasCaex)>100)out.push({campo:'totalHorasCaex',valor:d.totalHorasCaex});
   if(n(d.rendimientoTransporteTonHr)>0&&n(d.totalToneladas)>0&&n(d.totalHorasCaex)>0&&Math.abs(d.totalToneladas/d.totalHorasCaex-d.rendimientoTransporteTonHr)/d.rendimientoTransporteTonHr>0.1&&out.every(function(x){return x.campo!=='rendimientoTransporteTonHr';}))out.push({campo:'rendimientoTransporteTonHr',valor:d.rendimientoTransporteTonHr});
   if(n(d.totalTonCF)>0&&(n(d.rendimientoCFTonHr)===0||n(d.totalHorasCF)===0)){if(n(d.rendimientoCFTonHr)===0)out.push({campo:'rendimientoCFTonHr',valor:0});if(n(d.totalHorasCF)===0)out.push({campo:'totalHorasCF',valor:0});}
+  // Cada vuelta carga ton/vuelta (90 fijo en el papel): si las toneladas de carguío no cuadran con vueltas × ton/vuelta (±15 %), faltó registrar tonelaje de algún equipo (29-05 día: 3.280 t con 168 vueltas).
+  var tvs=(d.caex||[]).map(function(r){return r&&n(r.tonVuelta);}).filter(function(v){return v>0;});
+  if(tvs.length&&n(d.totalTonCF)>0&&n(d.vueltasCF)>0){var esp=d.vueltasCF*tvs[0];if(Math.abs(d.totalTonCF-esp)/esp>0.15){out.push({campo:'totalTonCF',valor:d.totalTonCF});if(n(d.rendimientoCFTonHr)!=null)out.push({campo:'rendimientoCFTonHr',valor:d.rendimientoCFTonHr});}}
   if(n(d.totalTonCF)===0&&n(d.vueltasCF)>0)out.push({campo:'totalTonCF',valor:0});   // hubo vueltas cargadas pero el papel dice 0 t
   if(n(d.rendimientoCaexVueltasHr)===0&&n(d.totalVueltas)>0)out.push({campo:'rendimientoCaexVueltasHr',valor:0});
   if(n(d.rendimientoTransporteTonHr)===0&&n(d.totalToneladas)>0)out.push({campo:'rendimientoTransporteTonHr',valor:0});
@@ -3936,7 +3945,7 @@ function reporteTurnoTotalesDudosos(d){
 // del sistema. Tolerancia: 24 h por día de distancia + 12 h (un turno). Devuelve {estado:'ok'|'no-cuadra'|'sin-dato', horomSistema, fechaSistema}.
 // 'sin-dato' = el equipo no tiene lectura cercana (no se marca nada). Es el control principal: reemplaza adivinar con reglas sueltas qué número del papel está mal.
 function reporteTurnoContrasteHorometro(sigla, fechaISO, horomPapel, hist){
-  if(!sigla||!fechaISO||typeof horomPapel!=='number'||!isFinite(horomPapel))return {estado:'sin-dato'};
+  if(!sigla||!fechaISO||typeof horomPapel!=='number'||!isFinite(horomPapel)||horomPapel<=0)return {estado:'sin-dato'};
   var t0=Date.parse(fechaISO+'T00:00:00Z');if(isNaN(t0))return {estado:'sin-dato'};
   var mejor=null,mejorD=null;
   (hist||[]).forEach(function(r){
