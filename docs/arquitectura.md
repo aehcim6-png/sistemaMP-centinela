@@ -7041,6 +7041,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/kpiProMan010.test.js` (7). Inventario de algoritmos: ficha **A19**.
 
+### 200. Modalidad y plazo comprometido de la reparación (2026-10-30)
+
+**Qué es:** dos datos nuevos en cada correctivo, del procedimiento corporativo PRO-MAN-002 (mantención y reparación correctiva): **modalidad de reparación** (`OT_MODALIDADES`: Taller faena, Terreno, Tercero por contrato, Tercero por cotización, Garantía) y **plazo comprometido**. Con ellos, el informe mensual de **cumplimiento de plazos** que pide el procedimiento (6.8.4). Más un aviso de garantía al crear la OT.
+
+**Lo que no se hizo y por qué:** la *prioridad* (alta, media, baja) que también pide el procedimiento no se agregó: ya existe como **criticidad** de la OT (No Aplica / Reparación Inmediata / Próxima Mantención) y `esFallaMTBF` depende de ella; un segundo campo sería un duplicado. La *evaluación de proveedores* tampoco: la OT no registra el proveedor del servicio.
+
+**Cómo:** tres columnas nuevas en `correctivos` (migración `20261030120000_correctivos_modalidad_plazo.sql`): `modalidadReparacion` (text), `plazoComprometido` (date) y `fechaCierre` (date), que `edOT` anota al pasar a Cerrada y borra al reabrir (y `saveOT` al crear una OT ya cerrada). En `logic.js`: `otFechaTermino` (salida del equipo si la OT está cerrada; si no, `fechaCierre`), `otEstadoPlazo` (cumplida / atrasada / vencida / en plazo / sin término) y `cumplimientoPlazosReparacion` (OT cuyo plazo vence en el período; % = a tiempo ÷ (a tiempo + atrasadas + vencidas); por modalidad; lista de incumplidas). `otEquipoEnGarantia` compara el horómetro de la OT (o el actual del equipo) con `equipos.garantiaHasta`, que está **en horas**. Pantalla (`modules/renders/ot.js`): campos en «Nueva OT», columnas «Modalidad» y «Plazo» (con el estado del plazo en color) y el panel plegable sobre la tabla.
+
+**Antes de desplegar:** aplicar la migración en los dos proyectos. `TABLA_REAL.ot.cols` pide las tres columnas al leer `correctivos`; sin ellas la lectura falla.
+
+**Pruebas:** `tests/otModalidadPlazo.test.js` (15) y `tests/e2e/ot-modalidad-plazo.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

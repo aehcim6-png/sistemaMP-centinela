@@ -91,6 +91,37 @@ function _otPrioridadCosto(ot){
 // "pocos vitales" que ya marca paretoAcumulado (80% acumulado de fallas
 // reales) — cargar costo primero en esos es lo que más rinde para
 // cualquier análisis futuro que dependa de costo real por componente.
+// Plazo comprometido de la reparación (PRO-MAN-002, 2026-10-30): celda editable con el estado del plazo (otEstadoPlazo, logic.js) — vencida en rojo, atrasada en ámbar.
+function _plazoOTCelda(o,i,readOnly){
+  var ep=otEstadoPlazo(o,new Date().toISOString().slice(0,10));
+  var col=!ep?'var(--tx3)':ep.estado==='vencida'?'var(--danger)':ep.estado==='atrasada'?'var(--w)':ep.estado==='cumplida'?'var(--ok)':'var(--tx2)';
+  var nota=!ep?'':ep.estado==='vencida'?'vencida hace '+ep.diasAtraso+' d':ep.estado==='atrasada'?'cerró '+ep.diasAtraso+' d tarde':ep.estado==='sin término'?'sin fecha de término':ep.estado;
+  if(readOnly)return '<td style="font-size:10px;color:var(--tx3)">—</td>';
+  return '<td><input type="date" value="'+escapeHtml(String(o.plazoComprometido||'').slice(0,10))+'" onchange="edOT('+i+',\'plazoComprometido\',this.value)" style="font-size:10px;background:var(--bg3);color:'+col+';border:1px solid var(--bd);border-radius:3px">'+
+    (nota?'<div style="font-size:9px;color:'+col+'">'+escapeHtml(nota)+'</div>':'')+'</td>';
+}
+// Informe mensual de cumplimiento de plazos de reparación (PRO-MAN-002, 6.8.4): OT cuyo plazo vence en el mes.
+function _cumplimientoPlazosHTML(ot){
+  var hoy=new Date().toISOString().slice(0,10),mes=hoy.slice(0,7),y=+mes.slice(0,4),m=+mes.slice(5,7);
+  var fin=new Date(Date.UTC(y,m,0)).toISOString().slice(0,10);
+  var r=cumplimientoPlazosReparacion(ot,mes+'-01',fin,hoy);
+  var tot=r.evaluables+r.enPlazo+r.sinTermino;
+  var resumen=tot?(r.pct==null?'Ninguna vencida todavía':r.pct+'% cumplido')+' · '+r.cumplidas+' a tiempo, '+r.atrasadas+' atrasada(s), '+r.vencidas+' vencida(s) abierta(s), '+r.enPlazo+' en plazo'+(r.sinTermino?', '+r.sinTermino+' sin fecha de término':''):'Ninguna OT con plazo que venza este mes';
+  var col=r.pct==null?'var(--tx3)':r.pct>=90?'var(--ok)':r.pct>=70?'var(--w)':'var(--danger)';
+  var cuerpo='';
+  if(r.porModalidad.length)cuerpo+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Modalidad</th><th>Evaluadas</th><th>A tiempo</th><th>%</th></tr>'+r.porModalidad.map(function(x){return '<tr><td>'+escapeHtml(x.modalidad)+'</td><td class="mono">'+x.evaluables+'</td><td class="mono">'+x.cumplidas+'</td><td class="mono">'+(x.pct==null?'—':x.pct+'%')+'</td></tr>';}).join('')+'</table></div>';
+  if(r.incumplidas.length)cuerpo+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Síntoma</th><th>Modalidad</th><th>Plazo</th><th>Estado</th><th>Días de atraso</th></tr>'+r.incumplidas.slice(0,30).map(function(x){return '<tr><td class="mono">'+escapeHtml(x.sigla||'')+'</td><td>'+escapeHtml(x.sintoma)+'</td><td>'+escapeHtml(x.modalidad||'—')+'</td><td class="mono">'+fd(x.plazo)+'</td><td style="color:'+(x.estado==='vencida'?'var(--danger)':'var(--w)')+'">'+(x.estado==='vencida'?'vencida (abierta)':'cerró tarde'+(x.termino?' ('+fd(x.termino)+')':''))+'</td><td class="mono">'+x.diasAtraso+'</td></tr>';}).join('')+'</table></div>';
+  return '<details style="margin-bottom:12px"><summary style="cursor:pointer;font-size:12px"><b>Cumplimiento de plazos de reparación — '+escapeHtml(mes)+':</b> <span style="color:'+col+'">'+escapeHtml(resumen)+'</span></summary>'+
+    '<div style="font-size:11px;color:var(--tx3);margin:6px 0">OT con plazo comprometido que vence este mes (procedimiento PRO-MAN-002). % = a tiempo ÷ (a tiempo + atrasadas + vencidas abiertas); las que siguen en plazo no entran. Término = fecha de salida del equipo o, si no hay, la fecha en que se cerró la OT.'+(r.sinPlazo?' Este mes hay '+r.sinPlazo+' OT sin plazo comprometido.':'')+'</div>'+cuerpo+'</details>';
+}
+// Aviso al crear la OT: el equipo está en garantía (equipos.garantiaHasta, en horas de horómetro). Solo informa; la modalidad la elige la persona.
+window.oComprobarGarantia=function(){
+  var el=$('oAvisoGarantia');if(!el)return;
+  var sigla=$('oEq')?.value,equipo=(S.g('eq')||[]).find(function(e){return e.sigla===sigla;});
+  var g=otEquipoEnGarantia({horom:parseFloat($('oHor')?.value)||0},equipo);
+  el.innerHTML=g?'<div style="background:rgba(59,130,246,.08);border:1px solid var(--ac);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:12px"><b>Equipo en garantía hasta las '+fn(g.hastaH)+' h</b> (horómetro '+fn(g.horom)+' h, quedan '+fn(g.restantesH)+' h). Si la falla está cubierta, elige la modalidad «Garantía» y avisa al proveedor antes de intervenir.</div>':'';
+};
+
 function _otPrioridadCostoHTML(prioridad){
   var conPendientes=(prioridad||[]).filter(function(r){return r.pendientes>0;});
   if(!conPendientes.length){
@@ -267,12 +298,13 @@ export function renderOt(){
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
     ${compCards}
     </div>
+    ${_cumplimientoPlazosHTML(ot)}
     ${fSoloSinCosto?_otPrioridadCostoHTML(prioridadCosto):''}
     ${_otResumenBusquedaHTML(fil,fTexto)}
     ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
     ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
-      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Categoría MTTR <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Sistema</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Motivo de demora</th><th>Reparación</th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>CAPEX/OPEX <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
+      <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Categoría MTTR <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Sistema</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Motivo de demora</th><th>Reparación</th><th title="Dónde se repara (PRO-MAN-002)">Modalidad</th><th title="Plazo comprometido para terminar la reparación">Plazo</th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>CAPEX/OPEX <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
       ${pg.items.map((o)=>{
         const i=ot.indexOf(o);
         const idx=fil.indexOf(o);
@@ -299,6 +331,8 @@ export function renderOt(){
         var _selOT=function(campo,valor,opciones){return '<td><select '+(readOnly?'disabled':'onchange="edOT('+i+',\''+campo+'\',this.value)"')+' style="font-size:10px;max-width:130px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px"><option value=""'+(!valor?' selected':'')+'>—</option>'+opciones.map(function(x){return'<option'+(valor===x?' selected':'')+'>'+escapeHtml(x)+'</option>';}).join('')+'</select></td>';};
         otRow+=_selOT('motivoDemora',o.motivoDemora,OT_MOTIVOS_DEMORA.map(function(m){return m.id;}).concat([OT_MOTIVO_SIN_INFORMAR]));
         otRow+=_selOT('reparacion',o.reparacion,OT_REPARACIONES.concat([OT_MOTIVO_SIN_INFORMAR]));
+        otRow+=_selOT('modalidadReparacion',o.modalidadReparacion,OT_MODALIDADES);
+        otRow+=_plazoOTCelda(o,i,readOnly);
         if(fromReg){otRow+='<td><span style="font-size:10px">PM</span></td>';}
         else if(fromHist){otRow+='<td><span style="font-size:10px;color:var(--tx3)">Histórico</span></td>';}
         else{otRow+='<td><select onchange="edOT('+i+',\'estadoOT\',this.value)" style="font-size:10px;background:var(--bg3);color:'+estCol2+';border:1px solid var(--bd);border-radius:3px;font-weight:600"><option'+(estOT==='Pendiente'?' selected':'')+'>Pendiente</option><option'+(estOT==='En Ejecución'?' selected':'')+'>En Ejecución</option><option'+(estOT==='Cerrada'?' selected':'')+'>Cerrada</option></select></td>';}
@@ -590,11 +624,12 @@ export function addOT(){
   const hora=new Date().toTimeString().slice(0,5);
   sm(`<h3><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Nueva OT Correctivo</h3>
     <div class="form-row">
-      <div class="fg"><label>Equipo *</label><select id="oEq" onchange="oComprobarAgruparPM()"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
+      <div class="fg"><label>Equipo *</label><select id="oEq" onchange="oComprobarAgruparPM();oComprobarGarantia()"><option value="">Seleccionar...</option>${eq.map(e=>`<option>${escapeHtml(e.sigla)}</option>`).join('')}</select></div>
       <div class="fg"><label>Tipo</label><select id="oTipo"><option>Correctivo</option><option>Falla Operacional</option><option>Cambio de Componente</option><option>Cambio de Neumático</option><option>Relleno de Fluidos</option><option>Inspección</option></select></div>
       <div class="fg"><label>Estatus Equipo</label><select id="oEstatusEq"><option>Operativo</option><option>Fuera de Servicio</option></select></div>
     </div>
     <div id="oSugerenciaPM"></div>
+    <div id="oAvisoGarantia"></div>
     <div class="form-row">
       <div class="fg"><label>Fecha Entrada *</label><input type="date" id="oFecEnt" value="${hoy}" onchange="calcDurOT()"></div>
       <div class="fg"><label>Hora Entrada</label><input type="time" id="oHoraEnt" value="${hora}" onchange="calcDurOT()"></div>
@@ -603,8 +638,12 @@ export function addOT(){
     </div>
     <div class="form-row">
       <div class="fg"><label>Duración</label><input id="oDur" readonly placeholder="Auto" style="opacity:.7"></div>
-      <div class="fg"><label>Horómetro</label><input type="number" id="oHor"></div>
+      <div class="fg"><label>Horómetro</label><input type="number" id="oHor" onchange="oComprobarGarantia()"></div>
       <div class="fg"><label>Criticidad</label><select id="oCrit"><option>No Aplica</option><option>Reparación Inmediata</option><option>Proxima Mantención</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label title="Dónde se repara (procedimiento PRO-MAN-002)">Modalidad de reparación</label><select id="oModalidad"><option value="">—</option>${OT_MODALIDADES.map(m=>`<option>${m}</option>`).join('')}</select></div>
+      <div class="fg"><label title="Fecha en que se comprometió terminar la reparación. Con ella se mide el % de cumplimiento de plazos.">Plazo comprometido</label><input type="date" id="oPlazo"></div>
     </div>
     <div class="form-row">
       <div class="fg" style="flex:2"><label>Síntoma / Descripción *</label><div style="display:flex;gap:4px"><input id="oSint" style="width:100%">${_dictarBtn('oSint')}</div></div>
@@ -838,6 +877,8 @@ export function saveOT(){
     }
   }
   const estadoOTNueva=$('oEstOT')?.value||'Cerrada';
+  const plazoOT=$('oPlazo')?.value||'';
+  if(plazoOT&&fechaEsAnterior(plazoOT,fEnt)){toast('⚠️ El plazo comprometido no puede ser anterior a la fecha de entrada');return;}
   ot.unshift({sigla:sig,fecha:fEnt,fechaEntrada:fEnt,horaEntrada:hEnt,
     fechaSalida:fSal,horaSalida:hSal,duracion:durStr,
     tipo:$('oTipo').value,criticidad:$('oCrit').value,
@@ -849,6 +890,9 @@ export function saveOT(){
     turno:$('otTurno')?.value||'',operador:$('otOperador')?.value||'',ubicacion:$('otUbicacion')?.value||'',
     codFalla:$('otCodFalla')?.value||'',ast:$('otAST')?.value||'',loto:$('otLOTO')?.value||'',
     autorizadoPor:$('otAutoriza')?.value||'',
+    modalidadReparacion:$('oModalidad')?.value||'',plazoComprometido:plazoOT||null,
+    // fecha en que quedó cerrada en la app (la fecha de término si no hay fecha de salida, ver otFechaTermino en logic.js)
+    fechaCierre:estadoOTNueva==='Cerrada'?new Date().toISOString().slice(0,10):null,
     fechaIngreso:new Date().toISOString().slice(0,10),
     // Si se crea directo como 'En Ejecución'/'Cerrada' (nunca pasó por
     // Pendiente) la primera atención es ahora mismo — no queda en null
@@ -1056,6 +1100,12 @@ export function edOT(i,key,val,forzar){
       :'Esta OT se va a cerrar SIN costo registrado.\n\n¿Cerrar igual sin costo? (si es una reparación con costo real conocido, cancelá y completá el campo Costo antes de cerrar)';
     if(!confirm(_msg))return;
   }
+  // fecha de cierre: se anota al pasar a Cerrada y se borra si se reabre (se guarda junto con el cambio de estado)
+  if(key==='estadoOT'&&ot[i]){
+    if(val==='Cerrada'&&!ot[i].fechaCierre)ot[i].fechaCierre=new Date().toISOString().slice(0,10);
+    else if(val!=='Cerrada')ot[i].fechaCierre=null;
+  }
+  if(key==='plazoComprometido'&&!val)val=null;
   if(_edCampo('ot',ot,i,key,val)){
     refreshAll();
     // Aviso suave (no bloquea) al CERRAR sin Tipo de Causa: es opcional a propósito (hay que poder cerrar

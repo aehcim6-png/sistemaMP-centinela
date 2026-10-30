@@ -221,6 +221,16 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **MTBF de flota.** Se calcula como horas de operación de toda la flota ÷ número de paradas de 24 h o más, con su intervalo de confianza 95 %, en la ventana en que hay duraciones registradas (Dashboard, Informes KPI y Costos muestran el mismo número). Incluye a los equipos con 0 o 1 parada. El MTBF *de un equipo* con menos de 3 paradas largas se ve en gris como «muestra chica». Las franjas de color (verde sobre 2000 h, ámbar sobre 500 h) se revisaron con datos reales y se dejaron como están; la flota está lejos de la meta de 2000 h (que no se ha contrastado con datos reales). El número no se actualiza mientras no se carguen correctivos con duración.
 
+### Modalidad y plazo comprometido de la reparación (2026-10-30)
+
+**Qué cambia.** Cada correctivo puede llevar dos datos nuevos, del procedimiento corporativo PRO-MAN-002: la **modalidad de reparación** (*Taller faena*, *Terreno*, *Tercero por contrato*, *Tercero por cotización* o *Garantía*) y el **plazo comprometido** (la fecha en que se comprometió terminarla). Se cargan en «Nueva OT» o en las columnas «Modalidad» y «Plazo» de la tabla de correctivos. Son opcionales: las OT antiguas quedan vacías.
+
+**Cumplimiento de plazos.** Sobre la tabla de correctivos aparece «Cumplimiento de plazos de reparación» del mes: de las OT cuyo plazo vence en el mes, cuántas terminaron a tiempo, cuántas tarde y cuántas siguen abiertas con el plazo vencido; también por modalidad y con la lista de las incumplidas. La fecha de término es la de salida del equipo o, si no hay, la fecha en que se cerró la OT (la app la anota sola).
+
+**Garantía.** Al crear una OT, si el horómetro del equipo todavía no llega a las horas de «Garantía Hasta (hrs)» de su ficha, aparece un aviso para elegir la modalidad «Garantía» y avisar al proveedor. Solo avisa.
+
+**Antes de desplegar.** Hay que aplicar la migración `20261030120000_correctivos_modalidad_plazo.sql` en Supabase (los dos proyectos) **antes** de publicar el código: la app pide estas columnas al leer los correctivos y, si no existen, la lectura de OT falla.
+
 ### Cierre de OT con motivo de demora y tipo de reparación (2026-10-27)
 
 **Qué cambia.** Al cerrar un correctivo, la ventana «Cierre con datos» ahora pide dos datos más: el **motivo de demora** y el **tipo de reparación**. Sirven para contestar «por qué tardó» y «se arregló de verdad o se parchó».

@@ -3599,6 +3599,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Cómo:</b> <code>kpiProMan010</code> (<code>logic.js</code>): tiempo operativo por avance del horómetro en el mes, todas las fallas (<code>esFallaMTBF</code>), MTTR solo con fallas de duración conocida, flota sumando antes de dividir; equipos sin horómetro quedan fuera y se listan. Pantalla: <code>_kpi010HTML</code> en <code>modules/renders/disp.js</code>.</p>
   <p><b>Pruebas:</b> <code>tests/kpiProMan010.test.js</code>. Inventario: ficha <b>A19</b>.</p>
 
+    <h3 id="d-x">200. Modalidad y plazo comprometido de la reparación (2026-10-30)</h3>
+  <p><b>Qué es:</b> dos datos nuevos en cada correctivo, del procedimiento PRO-MAN-002: <b>modalidad de reparación</b> (taller faena, terreno, tercero por contrato, tercero por cotización, garantía) y <b>plazo comprometido</b>; con ellos, el informe mensual de cumplimiento de plazos, y un aviso de garantía al crear la OT.</p>
+  <p><b>Lo que no se hizo:</b> la prioridad ya existe como criticidad de la OT (no se duplica); la evaluación de proveedores necesita el proveedor del servicio, que la OT no registra.</p>
+  <p><b>Cómo:</b> columnas <code>modalidadReparacion</code>, <code>plazoComprometido</code> y <code>fechaCierre</code> en <code>correctivos</code> (migración <code>20261030120000</code>); <code>otFechaTermino</code>, <code>otEstadoPlazo</code>, <code>cumplimientoPlazosReparacion</code> y <code>otEquipoEnGarantia</code> (garantía en horas de horómetro) en <code>logic.js</code>; campos, columnas y panel en <code>modules/renders/ot.js</code>.</p>
+  <p><b>Antes de desplegar:</b> aplicar la migración en los dos proyectos; sin las columnas, la lectura de OT falla.</p>
+  <p><b>Pruebas:</b> <code>tests/otModalidadPlazo.test.js</code> y <code>tests/e2e/ot-modalidad-plazo.spec.js</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
