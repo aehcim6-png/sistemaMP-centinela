@@ -34,7 +34,8 @@ if('serviceWorker' in navigator){
      pedimos y consumen cuota del plan gratis aparte de los errores. -->
 <script src="vendor/sentry.min.js"></script>
 <script>
-if(window.Sentry){
+// Las pruebas automáticas (navegador controlado, navigator.webdriver) no mandan eventos a Sentry: llenaban la cuota con usuarios de prueba (admin@test.com).
+if(window.Sentry&&!navigator.webdriver){
   Sentry.init({
     dsn:'https://349c548d7e7f1444aa29d57eafbc3d87@o4511860195852288.ingest.us.sentry.io/4511860237729792',
     environment:(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'local':'production',

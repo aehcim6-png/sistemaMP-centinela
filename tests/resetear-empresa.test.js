@@ -34,6 +34,7 @@ beforeEach(() => {
   for (const k in _syncChain) delete _syncChain[k];
   _erroresGuardadoRecientes.length = 0;
   fetchLlamadas = 0;
+  localStorage.setItem('smp_access_token', 'h.' + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64') + '.s');   // con sesión iniciada, como en el uso real
   vi.useFakeTimers();
 });
 
@@ -136,5 +137,13 @@ describe('_erroresGuardadoDesde — ventana de detección de fallos para _resete
 
   it('vacío si no hay errores en la ventana', () => {
     expect(_erroresGuardadoDesde(Date.now())).toEqual([]);
+  });
+});
+
+describe('_resetearDatosEmpresa sin sesión iniciada', () => {
+  it('rechaza de entrada en vez de fingir éxito sin haber borrado nada en la nube', async () => {
+    localStorage.removeItem('smp_access_token');
+    await expect(_resetearDatosEmpresa()).rejects.toThrow(/no hay sesión iniciada/i);
+    expect(fetchLlamadas).toBe(0);
   });
 });

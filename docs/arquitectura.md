@@ -7101,6 +7101,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/reporteTurnoFilas.test.js` (8), `supabase/functions/leer-reporte-produccion/index.test.ts` (6) y `tests/e2e/reporte-produccion-completo.spec.js`.
 
+### 205. Sin sesión no se guarda en la nube (arreglo de errores de Sentry, 2026-11-01)
+
+**Qué pasaba:** Sentry mostraba cientos de avisos «Guardado fallido en Supabase» (≈500 entre el 23 y el 30 de octubre), todos sin usuario y siempre de 5 tablas juntas: `metas`, `avance_data`, `disponibilidad_calculada`, `salud_flota_historico` y `meta_disponibilidad`. Al abrir la app, `S.init()` guarda valores por defecto vacíos en esas categorías; sin sesión iniciada el navegador usa la clave pública, y la base rechaza toda escritura (RLS exige usuario). Además salía el aviso «No se pudo guardar en la nube» en la pantalla de login.
+
+**Qué se cambió:** `_haySesionNube()` (`modules/store.js`): sin token de sesión se omiten las escrituras a la nube de las categorías singleton y `kv`; el dato queda igual en memoria y en el almacenamiento local, y al iniciar sesión se carga lo que hay en la nube. `_resetearDatosEmpresa` rechaza de entrada si no hay sesión (antes, sin intento de red, habría dicho «éxito» sin borrar nada). Los navegadores automatizados (`navigator.webdriver`, es decir, las pruebas) ya no mandan eventos a Sentry: aparecían usuarios `admin@test.com` y `nuevo@test.com`.
+
+**Límites:** no cambia ningún guardado con sesión iniciada. El único otro error del período (`TypeError … 'focus'`, 1 evento, usuario de prueba) no se investigó.
+
+**Pruebas:** `tests/storeSinSesion.test.js` (reproduce el caso: sin el arreglo las 5 escrituras salen) y `tests/resetear-empresa.test.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

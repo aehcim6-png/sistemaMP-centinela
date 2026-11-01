@@ -65,6 +65,11 @@ function _sbCfg(){
   catch{return{url:_SB_DEFAULT_URL,key:_SB_DEFAULT_KEY};}
 }
 function _sbOk(){const c=_sbCfg();return c.url.startsWith('https://')&&c.key.length>10;}
+// ¿Hay una sesión iniciada? Sin token, el navegador usa la clave pública (anon) y la base rechaza TODA escritura (RLS exige usuario autenticado).
+// Caso real (Sentry, 23-30 oct 2026): cada carga sin sesión (dispositivo nuevo, navegador limpio, pantalla de login) hacía que S.init() intentara guardar los
+// valores por defecto de 5 categorías → 497 avisos «Guardado fallido en Supabase» y un toast «No se pudo guardar en la nube» en el login. Sin sesión, las
+// escrituras a la nube se omiten (el dato queda igual en memoria y en localStorage; al iniciar sesión se carga lo que hay en la nube).
+function _haySesionNube(){try{return !!localStorage.getItem('smp_access_token');}catch{return false;}}
 function _sbHeaders(){
   const c=_sbCfg();
   const userToken=localStorage.getItem('smp_access_token');
@@ -772,7 +777,7 @@ function _syncSingleton(cfgS,v,catKey){
   return _chained(catKey,function(){return _syncSingletonInner(cfgS,v,catKey);});
 }
 async function _syncSingletonInner(cfgS,v,catKey){
-  if(!_sbOk())return;
+  if(!_sbOk()||!_haySesionNube())return;
   const c=_sbCfg();
 
   const conflicto=await _chequearConflicto(
@@ -827,7 +832,7 @@ async function _syncSingletonInner(cfgS,v,catKey){
 // Escribe una clave en Supabase (fire-and-forget)
 // Si no hay internet: el valor ya está en localStorage, se marca pendiente para sync
 function _sbWrite(k,v){
-  if(!_sbOk())return;
+  if(!_sbOk()||!_haySesionNube())return;
   const c=_sbCfg();
   const now=new Date().toISOString();
   _fetchSb(`${c.url}/rest/v1/kv?on_conflict=key`,{
@@ -1187,6 +1192,8 @@ async function _resetearDatosEmpresa(){
   // que nadie se enterara. Se usa _erroresGuardadoDesde() para preguntar si algo
   // falló DURANTE esta operación específica, y se lanza si es así, para que el
   // try/catch de processResetEmpresa avise de verdad en vez de asumir éxito.
+  // Sin sesión iniciada las escrituras a la nube se omiten (ver _haySesionNube): borrar "sin tocar la nube" y avisar éxito sería justo el bug que este método evita.
+  if(!_haySesionNube())throw new Error('No se pudo borrar: no hay sesión iniciada. Inicia sesión como administrador e inténtalo de nuevo.');
   var inicioReset=Date.now();
   var categorias=Object.keys(TABLA_REAL).filter(function(k){return k!=='eq'&&k!=='pau';});
   for(var i=0;i<categorias.length;i++){

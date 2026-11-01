@@ -3632,6 +3632,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Antes de desplegar:</b> migración en los dos proyectos y nuevo despliegue de <code>leer-reporte-produccion</code>.</p>
   <p><b>Pruebas:</b> <code>tests/reporteTurnoFilas.test.js</code>, la prueba de la función y <code>tests/e2e/reporte-produccion-completo.spec.js</code>.</p>
 
+    <h3 id="d-x">205. Sin sesión no se guarda en la nube (arreglo de errores de Sentry, 2026-11-01)</h3>
+  <p><b>Qué pasaba:</b> Sentry mostraba cientos de avisos «Guardado fallido en Supabase», todos sin usuario y de 5 tablas juntas (<code>metas</code>, <code>avance_data</code>, <code>disponibilidad_calculada</code>, <code>salud_flota_historico</code>, <code>meta_disponibilidad</code>). Al abrir la app, <code>S.init()</code> guardaba valores por defecto aunque nadie hubiera iniciado sesión, y la base rechazaba la clave pública.</p>
+  <p><b>Qué se cambió:</b> sin sesión se omiten las escrituras a la nube (el dato queda en memoria y en el almacenamiento local); el borrado de empresa rechaza sin sesión en vez de fingir éxito; y las pruebas automáticas ya no mandan eventos a Sentry.</p>
+  <p><b>Pruebas:</b> <code>tests/storeSinSesion.test.js</code> y <code>tests/resetear-empresa.test.js</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
