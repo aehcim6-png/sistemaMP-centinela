@@ -5746,15 +5746,15 @@ function pronosticarSerie(serie,opts){
   });
   var rank=[],errPaso={};
   cand.forEach(function(k){
-    var sumAbs=0,cnt=0,pasoSq=[],pasoN=[];
+    var sumAbs=0,sumSq=0,cnt=0,pasoSq=[],pasoN=[];
     for(var i=0;i<hB;i++){pasoSq.push(0);pasoN.push(0);}
     if(hasBack){
       for(var origen=T0;origen+hB<=n;origen++){
         var r=PRON_MODELOS[k].f(y.slice(0,origen),hB);if(!r)continue;
-        for(var j=0;j<hB;j++){var e=y[origen+j]-r.f[j];sumAbs+=Math.abs(e);cnt++;pasoSq[j]+=e*e;pasoN[j]++;}
+        for(var j=0;j<hB;j++){var e=y[origen+j]-r.f[j];sumAbs+=Math.abs(e);sumSq+=e*e;cnt++;pasoSq[j]+=e*e;pasoN[j]++;}
       }
     }
-    if(cnt){rank.push({modelo:k,nombre:PRON_MODELOS[k].nombre,mae:sumAbs/cnt});
+    if(cnt){rank.push({modelo:k,nombre:PRON_MODELOS[k].nombre,mae:sumAbs/cnt,rmse:Math.sqrt(sumSq/cnt)});   // RMSE = raíz del error cuadrático medio: pesa más los errores grandes; si es mucho mayor que el MAE hay errores grandes aislados
       errPaso[k]=pasoSq.map(function(s,j){return pasoN[j]?Math.sqrt(s/pasoN[j]):0;});}
   });
   rank.sort(function(a,b){return a.mae-b.mae;});

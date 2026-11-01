@@ -105,3 +105,20 @@ describe('serieMensualDe / meses', () => {
     expect(mesesFinalesIncompletos([...Array(18).fill(100), 20, 90])).toBe(0); // el último mes está bien: no se toca nada
   });
 });
+
+describe('pronosticarSerie — RMSE junto al MAE', () => {
+  it('cada modelo del ranking trae mae y rmse, y rmse nunca es menor que mae', () => {
+    const y = Array.from({ length: 40 }, (_, i) => 1000 + (i % 12) * 50);
+    const r = pronosticarSerie(y, { recortar: false });
+    expect(r.ranking.length).toBeGreaterThan(1);
+    r.ranking.forEach((m) => { expect(m.rmse).toBeGreaterThanOrEqual(m.mae - 1e-9); });
+  });
+  it('un mes con un error muy grande sube el RMSE mucho más que el MAE', () => {
+    const limpia = Array.from({ length: 40 }, (_, i) => 1000 + (i % 12) * 50);
+    const conPico = limpia.slice(); conPico[30] += 3000;
+    const a = pronosticarSerie(limpia, { recortar: false }).ranking.find((m) => m.modelo === 'media');
+    const b = pronosticarSerie(conPico, { recortar: false }).ranking.find((m) => m.modelo === 'media');
+    expect(b.rmse / b.mae).toBeGreaterThan(a.rmse / a.mae);
+    expect(b.rmse / b.mae).toBeGreaterThan(1.5);
+  });
+});
