@@ -4009,6 +4009,302 @@ function reporteTurnoResolverSiglas(items, buscar){
   return items;
 }
 
+// ── Importar el chat de WhatsApp (2026-11-02) ─────────────────────────────────────────────────────────────────────────────────────────
+// Los supervisores avisan cada falla y cada reintegro en el grupo con la misma plantilla («Equipo / Estatus / Motivo / Horómetro / Lugar / Operador»)
+// y el guardia manda cada mañana el bloque «TI 5141= 23032». Esa información ya existe: estas funciones la leen del .txt que exporta WhatsApp y
+// PROPONEN lo que falta cargar (horómetros, paradas con entrada y salida, PM). No guardan nada: la pantalla muestra la propuesta y la persona marca
+// qué cargar. Es una vía ADICIONAL: el CSV de horómetros, la OT manual y los demás ingresos de siempre siguen igual.
+var CHAT_FUERA_MAX_DIAS=21;          // una parada de más de 3 semanas probablemente emparejó mal (queda sin marcar)
+var CHAT_HINT_MAX_MIN=12*60;         // una hora escrita en el aviso («03:00») solo vale si es de las 12 h anteriores al mensaje
+var CHAT_SALTO_HRS_DIA=24;           // un equipo no suma más de 24 h por día
+var CHAT_SALTO_HOLGURA=30;           // holgura (h) sobre el máximo posible, igual que la validación de horómetros del reporte de turno
+var CHAT_RETROCESO_TOL=5;            // tolerancia (h) hacia atrás antes de llamarlo error de tipeo
+function _chatNum(v){
+  if(v==null)return null;
+  var s=String(v).trim().replace(/\s+/g,'');
+  if(!/^\d[\d.,]*$/.test(s))return null;
+  if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');        // «1.750» = 1750 (punto de miles)
+  else s=s.replace(',','.');
+  var n=parseFloat(s);return isFinite(n)?n:null;
+}
+function _chatMin(f,h){var a=String(f||'').split('-'),b=String(h||'00:00').split(':');return Date.UTC(+a[0],(+a[1]||1)-1,+a[2]||1,+b[0]||0,+b[1]||0)/60000;}
+function _chatFechaHora(min){var d=new Date(min*60000),p=function(n){return(n<10?'0':'')+n;};return{f:d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate()),h:p(d.getUTCHours())+':'+p(d.getUTCMinutes())};}
+function _chatDuracion(min){var t=Math.max(0,Math.round(min)),h=Math.floor(t/60),m=t%60;return h+'h '+(m<10?'0':'')+m+'min';}
+function _chatNormTxt(s){return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[⁠‎‏]/g,'').replace(/\s+/g,' ').trim();}
+// Texto exportado → [{f:'aaaa-mm-dd', h:'hh:mm', min, autor, texto}]. Acepta «28-10-26 09:40 - Autor: texto» y «28/10/2026, 9:40 - Autor: texto» (día primero).
+// Las líneas sin fecha al comienzo son continuación del mensaje anterior; los avisos del sistema (sin «autor:») se descartan.
+function chatWhatsAppMensajes(texto){
+  var ent={'&lt;':'<','&gt;':'>','&amp;':'&','&quot;':'"','&#39;':"'"};
+  var lineas=String(texto==null?'':texto).replace(/^﻿/,'').replace(/\r/g,'').split('\n');
+  var re=/^[‎‏]?\[?(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4}),?\s+(\d{1,2}):(\d{2})(?::\d{2})?(?:\s?([ap])\.?\s?m\.?)?\]?\s+-\s+(.*)$/i;
+  var out=[],cur=null;
+  var cerrar=function(){
+    if(!cur)return;
+    var m=cur.cuerpo.match(/^([^:\n]{1,60}?):[ \t]?([\s\S]*)$/);
+    if(m){
+      var t=m[2].replace(/&(?:lt|gt|amp|quot|#39);/g,function(x){return ent[x];}).replace(/<Se edit[oó] este mensaje\.?>/gi,'').replace(/[⁠‎‏]/g,'').trim();
+      out.push({f:cur.f,h:cur.h,min:cur.min,autor:m[1].replace(/[⁠‎‏]/g,'').trim(),texto:t});
+    }
+    cur=null;
+  };
+  lineas.forEach(function(l){
+    var m=l.match(re);
+    if(m){
+      cerrar();
+      var y=+m[3];if(y<100)y+=2000;
+      var hh=+m[4];if(m[6]){var pm=m[6].toLowerCase()==='p';if(pm&&hh<12)hh+=12;if(!pm&&hh===12)hh=0;}
+      var p=function(n){return(n<10?'0':'')+n;};
+      var f=y+'-'+p(+m[2])+'-'+p(+m[1]),h=p(hh)+':'+m[5];
+      cur={f:f,h:h,min:_chatMin(f,h),cuerpo:m[7]};
+    }else if(cur){cur.cuerpo+='\n'+l;}
+  });
+  cerrar();
+  return out;
+}
+// «CAEX 85», «CF 769», «Aljibe 5131», «MN12», «CA5133» → sigla del sistema (o null). siglas = las del sistema.
+function chatWhatsAppSigla(nombre,siglas){
+  var s=String(nombre==null?'':nombre).toUpperCase().replace(/[‐-―⁠‎‏]/g,'-').replace(/[.:,;()]+/g,' ').replace(/[\s\-_]+/g,'');
+  var m=s.match(/^(CAEX|ALJIBE|BULLDOZER|BULL|CARGADORFRONTAL|GENERADOR|GEN|[A-Z]{2})(\d{2,5})/);
+  if(!m)return null;
+  var pref={CAEX:'CE',ALJIBE:'CN',BULLDOZER:'BD',BULL:'BD',CARGADORFRONTAL:'CF',GENERADOR:'GE',GEN:'GE'}[m[1]]||m[1],num=m[2],cand=pref+'-'+num;
+  var sig=siglas||[],tiene={};sig.forEach(function(x){tiene[x]=1;});
+  var a=reporteTurnoAlias(cand);if(a&&tiene[a])return a;
+  if(tiene[cand])return cand;
+  if(num.length>=4){
+    var igual=sig.filter(function(x){return x.replace(/^[A-Z]+-/,'')===num;});
+    if(igual.length===1)return igual[0];    // «CE5131», «CA5133» → el único equipo con ese número
+  }
+  return null;
+}
+function _chatEstatus(txt){
+  var t=_chatNormTxt(txt).replace(/[^a-z0-9 \/&]/g,' ').replace(/\s+/g,' ').trim();
+  if(!t)return null;
+  if(/^op/.test(t))return'operativo';          // operativo, operativa, opertivo, optativo, op
+  if(/back ?log/.test(t))return'backlog';
+  if(/^f ?[\/&]? ?s\b/.test(t)||/^fuer\w* de serv/.test(t))return'fs';
+  if(/pruebas operacion|disponible para pruebas/.test(t))return'operativo';
+  return null;
+}
+// Los textos de WhatsApp con la plantilla → [{sigla, nombre, estatus, motivo, horom, lugar, operador, f, h, min, hint}] (sigla null si no se pudo resolver);
+// más las lecturas del bloque diario («TI 5141= 23032», «Gen OP.= 15004») y los avisos libres de «operativo».
+function chatWhatsAppReportes(mensajes,siglas){
+  var rep=[],lecturas=[],sinResolver={},libresSinEquipo=0;
+  var rxLabel=/(?:^|[\s\-•.·])(equipo|estatus|motivo|hor[oó]metro|lugar|operador)\s*:/gi;
+  (mensajes||[]).forEach(function(m){
+    var t=m.texto||'';
+    // 1) bloque diario de lecturas
+    var ls=t.split('\n'),bloque=[];
+    ls.forEach(function(l){
+      var b=l.match(/^\s*([A-Za-z]{2,4})\.?\s*-?\s*(\d{4,5}|OP\.?)\s*=\s*(\d[\d.,]*)\s*$/);
+      if(b)bloque.push(b);
+    });
+    if(bloque.length>=2){
+      bloque.forEach(function(b){
+        var nombre=/^OP/i.test(b[2])?(/^GEN/i.test(b[1])?'GE-10019':''):b[1]+'-'+b[2];
+        var s=nombre?chatWhatsAppSigla(nombre,siglas):null,v=_chatNum(b[3]);
+        if(s&&v!=null)lecturas.push({sigla:s,f:m.f,h:m.h,valor:v,fuente:'bloque diario'});
+      });
+      return;
+    }
+    // 2) plantilla
+    var marcas=[],x;
+    rxLabel.lastIndex=0;
+    while((x=rxLabel.exec(t))){marcas.push({k:x[1].toLowerCase().replace('ó','o'),ini:x.index+x[0].length,fin:x.index+x[0].length,ant:x.index});}
+    var tieneEquipo=marcas.some(function(k){return k.k==='equipo';});
+    if(tieneEquipo&&marcas.length>=2){
+      for(var i=0;i<marcas.length;i++)marcas[i].fin=i+1<marcas.length?marcas[i+1].ant:t.length;
+      var horaSuelta=(t.slice(0,marcas[0].ant).match(/(\d{1,2}):(\d{2})/)||[])[0]||'';
+      var r=null;
+      var cerrarR=function(){
+        if(!r)return;
+        r.sigla=chatWhatsAppSigla(r.nombre,siglas);
+        r.estatus=_chatEstatus(r.estatusTxt);
+        var hm=String(r.estatusTxt||'').match(/(\d{1,2}):(\d{2})/);if(hm)r.hint=hm[0];
+        if(!r.sigla&&r.nombre)sinResolver[r.nombre]=(sinResolver[r.nombre]||0)+1;
+        if(r.estatus||r.horom!=null)rep.push(r);
+        r=null;
+      };
+      marcas.forEach(function(k){
+        var v=t.slice(k.ini,k.fin).replace(/[\s\-•.·⁠]+$/,'').replace(/\s+/g,' ').trim();
+        if(k.k==='equipo'){cerrarR();r={nombre:v,estatusTxt:'',motivo:'',horom:null,lugar:'',operador:'',f:m.f,h:m.h,min:m.min,hint:horaSuelta,libre:false,autor:m.autor};horaSuelta='';}
+        else if(r){
+          if(k.k==='estatus')r.estatusTxt=v;
+          else if(k.k==='motivo')r.motivo=v;
+          else if(k.k==='horometro'){r.horom=_chatNum(v);if(r.horom!=null&&r.horom<=0)r.horom=null;}
+          else if(k.k==='lugar')r.lugar=v;
+          else if(k.k==='operador')r.operador=v;
+        }
+      });
+      cerrarR();
+      return;
+    }
+    // 3) corrección de equipo del mismo autor («Corrección … CAEX 85»): cambia el equipo del último aviso que mandó en la última hora
+    var rxTok=/\b(?:CAEX|CE|CF|BD|MN|CN|CA|TI|GE|BS|MC)[\s\-]?\d{2,5}\b/gi;
+    if(t.length<=80&&/^\W*correcci[oó]n/i.test(t)){
+      var tk=t.match(rxTok)||[],sc=tk.length===1?chatWhatsAppSigla(tk[0],siglas):null;
+      if(sc){
+        // mismo autor y misma familia de equipo (CAEX/CE, CF, BD…): evita corregir el aviso de otro equipo mandado entre medio
+        var fam=function(x){var u=String(x||'').toUpperCase().replace(/[\s\-_]/g,'');return /^(CAEX|CE)/.test(u)?'CE':u.slice(0,2);};
+        var obj=null;
+        for(var q=rep.length-1;q>=0&&m.min-rep[q].min<=60;q--){
+          if(rep[q].autor!==m.autor)continue;
+          if(!obj)obj=rep[q];
+          if(fam(rep[q].nombre)===fam(tk[0])){obj=rep[q];break;}
+        }
+        if(obj){obj.sigla=sc;obj.nombre=tk[0]+' (corregido)';obj.corregido=true;}
+      }
+      return;
+    }
+    // 4) aviso libre corto («BD-139: Equipo Operativo.», «operativa TI-9941»)
+    if(t.length<=80&&/\boperativ[oa]\b/i.test(t)&&!/\?|\b(dejar|dejen|favor|solicit\w*|coordin\w*|factib\w*|opci[oó]n|posibilidad|ver si)\b/i.test(t)){
+      var toks=t.match(rxTok)||[];
+      var res=[];toks.forEach(function(k){var s=chatWhatsAppSigla(k,siglas);if(s&&res.indexOf(s)<0)res.push(s);});
+      if(res.length===1)rep.push({sigla:res[0],nombre:toks[0],estatusTxt:'operativo',estatus:'operativo',motivo:'(aviso en el chat) '+t.replace(/\s+/g,' ').trim(),horom:null,lugar:'',operador:'',f:m.f,h:m.h,min:m.min,hint:'',libre:true,autor:m.autor});
+      else if(!toks.length&&t.length<=40&&/^\W*operativ[oa]\W*$/i.test(t))libresSinEquipo++;
+    }
+  });
+  return{reportes:rep,lecturas:lecturas,sinResolver:sinResolver,libresSinEquipo:libresSinEquipo};
+}
+// Minuto exacto del evento: la hora escrita en el aviso («03:00», «desde las 01:00») si es de las 12 h anteriores al mensaje; si no, la hora del mensaje.
+function _chatMinEvento(r){
+  if(r.hint){
+    var hm=String(r.hint).split(':'),c=_chatMin(r.f,('0'+hm[0]).slice(-2)+':'+hm[1]);
+    if(c>r.min)c-=1440;
+    if(r.min-c>=0&&r.min-c<=CHAT_HINT_MAX_MIN)return c;
+  }
+  return r.min;
+}
+// ctx: {siglas:[...], desde:'aaaa-mm-dd', hist:[...], ot:[...], reg:[...]}. Devuelve la propuesta completa (nada se guarda).
+function chatWhatsAppAnalizar(texto,ctx){
+  var c=ctx||{},siglas=c.siglas||[],hist=c.hist||[],ots=c.ot||[],regs=c.reg||[];
+  var msgs=chatWhatsAppMensajes(texto);
+  var primero=msgs.length?msgs[0].f:'',ultimo=msgs.length?msgs[msgs.length-1].f:'';
+  if(c.desde)msgs=msgs.filter(function(m){return m.f>=c.desde;});
+  var R=chatWhatsAppReportes(msgs,siglas);
+  // ── Horómetros ──
+  var cand={};
+  var aporta=function(sigla,f,v,fuente){
+    if(!sigla||!f||v==null||!(v>0)||v>999999)return;
+    var k=sigla+'|'+f;
+    if(!cand[k]||v>cand[k].valor)cand[k]={sigla:sigla,fecha:f,valor:v,fuente:fuente};
+  };
+  R.reportes.forEach(function(r){if(r.sigla&&r.horom!=null)aporta(r.sigla,r.f,r.horom,'plantilla');});
+  R.lecturas.forEach(function(l){aporta(l.sigla,l.f,l.valor,l.fuente);});
+  var porSig={};
+  hist.forEach(function(h){
+    var v=h.horomFin||h.horom,f=h.fecha;
+    if(!h.sigla||!f||!(v>0))return;
+    (porSig[h.sigla]=porSig[h.sigla]||[]).push({f:f,v:v});
+  });
+  Object.keys(porSig).forEach(function(s){porSig[s].sort(function(a,b){return a.f<b.f?-1:a.f>b.f?1:0;});});
+  var dias=function(a,b){return Math.round((_chatMin(b,'00:00')-_chatMin(a,'00:00'))/1440);};
+  var horom=Object.keys(cand).map(function(k){return cand[k];}).sort(function(a,b){return a.sigla<b.sigla?-1:a.sigla>b.sigla?1:a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0;});
+  horom.forEach(function(h){
+    var L=porSig[h.sigla]||[],prev=null,sig=null,ya=false;
+    L.forEach(function(x){if(x.f===h.fecha)ya=true;else if(x.f<h.fecha)prev=x;else if(!sig)sig=x;});
+    h.previo=prev;h.siguiente=sig;
+    if(ya){h.estado='ya';h.motivo='Ya hay una lectura de ese equipo ese día.';}
+    else if(!prev&&!sig){h.estado='sin-vecinos';h.motivo='No hay lecturas cercanas para comparar.';}
+    else if(prev&&h.valor<prev.v-CHAT_RETROCESO_TOL){h.estado='menor';h.motivo='Es menor que la lectura anterior ('+prev.v+' el '+prev.f+'): probable error de tipeo.';}
+    else if(sig&&h.valor>sig.v+CHAT_RETROCESO_TOL){h.estado='mayor';h.motivo='Es mayor que la lectura siguiente ('+sig.v+' el '+sig.f+'): probable error de tipeo.';}
+    else if(prev&&h.valor-prev.v>CHAT_SALTO_HRS_DIA*dias(prev.f,h.fecha)+CHAT_SALTO_HOLGURA){h.estado='salto';h.motivo='Sube '+Math.round(h.valor-prev.v)+' h en '+dias(prev.f,h.fecha)+' día(s) desde '+prev.f+': más de lo posible.';}
+    else if(sig&&sig.v-h.valor>CHAT_SALTO_HRS_DIA*dias(h.fecha,sig.f)+CHAT_SALTO_HOLGURA){h.estado='salto';h.motivo='Falta mucho para la lectura siguiente ('+sig.v+' el '+sig.f+'): más de lo posible.';}
+    else{h.estado='ok';h.motivo='';}
+  });
+  // Entre sí: las que pasaron (ok) deben crecer en orden; si dos se contradicen, ambas quedan para revisar.
+  var okPorSig={};
+  horom.forEach(function(h){if(h.estado==='ok')(okPorSig[h.sigla]=okPorSig[h.sigla]||[]).push(h);});
+  Object.keys(okPorSig).forEach(function(s){
+    var L=okPorSig[s];
+    L.forEach(function(h,i){
+      var a=L[i-1],b=L[i+1];
+      if((a&&h.valor<a.valor-CHAT_RETROCESO_TOL)||(b&&h.valor>b.valor+CHAT_RETROCESO_TOL)){h.estado='incoherente';h.motivo='Se contradice con otra lectura del chat del mismo equipo.';}
+    });
+  });
+  horom.forEach(function(h){h.marcado=h.estado==='ok';});
+  // ── Paradas, PM y backlog ──
+  var porEq={};
+  R.reportes.forEach(function(r){if(r.sigla&&r.estatus)(porEq[r.sigla]=porEq[r.sigla]||[]).push(r);});
+  var paradas=[],pms=[],backlog=[],informativos=0;
+  var pmDe=function(txt){var m=String(txt||'').match(/\bPM\s?-?\s?([1-4])\b/i);return m?'PM'+m[1]:null;};
+  Object.keys(porEq).sort().forEach(function(s){
+    var L=porEq[s].slice().sort(function(a,b){return a.min-b.min;}),abierta=null,vistoBacklog={};
+    L.forEach(function(r){
+      var t=_chatMinEvento(r);
+      if(r.estatus==='fs'){
+        if(!abierta)abierta={sigla:s,min:t,motivo:r.motivo,horom:r.horom,lugar:r.lugar,operador:r.operador};
+        else{
+          if(r.motivo&&abierta.motivo.indexOf(r.motivo)<0&&abierta.motivo.length<300)abierta.motivo+=' / '+r.motivo;
+          if(abierta.horom==null&&r.horom!=null)abierta.horom=r.horom;
+        }
+      }else if(r.estatus==='operativo'){
+        if(abierta){
+          var dur=t-abierta.min;
+          var item={sigla:s,entrada:_chatFechaHora(abierta.min),salida:_chatFechaHora(t),entradaMin:abierta.min,salidaMin:t,motivo:abierta.motivo,horom:abierta.horom!=null?abierta.horom:r.horom,lugar:abierta.lugar||r.lugar,operador:abierta.operador||r.operador,libre:r.libre};
+          var pm=pmDe(abierta.motivo)||pmDe(r.motivo);
+          if(dur<=0){informativos++;}
+          else if(pm){item.tipoPM=pm;item.duracion=_chatDuracion(dur);pms.push(item);}
+          else{item.duracion=_chatDuracion(dur);item.minutos=dur;paradas.push(item);}
+          abierta=null;
+        }else{
+          var pm2=pmDe(r.motivo);
+          if(pm2&&/mantenci|programad|PM/i.test(r.motivo))pms.push({sigla:s,entrada:_chatFechaHora(t),salida:null,entradaMin:t,salidaMin:null,motivo:r.motivo,horom:r.horom,lugar:r.lugar,operador:r.operador,tipoPM:pm2,duracion:''});
+          else informativos++;
+        }
+      }else if(r.estatus==='backlog'){
+        var clave=_chatNormTxt(r.motivo).slice(0,40);
+        if(vistoBacklog[clave])return;
+        vistoBacklog[clave]=true;
+        backlog.push({sigla:s,fecha:_chatFechaHora(t).f,hora:_chatFechaHora(t).h,motivo:r.motivo,horom:r.horom});
+      }
+    });
+    if(abierta){
+      var pmA=pmDe(abierta.motivo);
+      if(!pmA)paradas.push({sigla:s,entrada:_chatFechaHora(abierta.min),salida:null,entradaMin:abierta.min,salidaMin:null,motivo:abierta.motivo,horom:abierta.horom,lugar:abierta.lugar,operador:abierta.operador,duracion:'',minutos:null});
+    }
+  });
+  // Contra lo ya cargado.
+  var existentes=ots.map(function(o,i){
+    if(!o||!o.sigla||!o.fechaEntrada)return null;
+    var s=_chatMin(o.fechaEntrada,o.horaEntrada||'00:00');
+    var e=o.fechaSalida?_chatMin(o.fechaSalida,o.horaSalida||'23:59'):null;
+    return{i:i,sigla:o.sigla,s:s,e:e};
+  }).filter(Boolean);
+  paradas.forEach(function(p){
+    p.estado='nueva';p.marcado=true;
+    var mias=existentes.filter(function(o){return o.sigla===p.sigla;});
+    for(var i=0;i<mias.length;i++){
+      var o=mias[i],fin=p.salidaMin!=null?p.salidaMin:p.entradaMin+1,finO=o.e!=null?o.e:o.s+1;
+      if(o.e==null&&Math.abs(o.s-p.entradaMin)<=36*60){
+        if(p.salidaMin!=null){p.estado='cierra';p.refIndice=o.i;p.motivoEstado='Cierra la OT abierta que ya está cargada.';}
+        else{p.estado='duplicada';p.motivoEstado='Ya hay una OT abierta de este equipo desde esa fecha.';}
+        break;
+      }
+      if(Math.abs(o.s-p.entradaMin)<=180||(p.entradaMin<finO&&o.s<fin)){p.estado='duplicada';p.motivoEstado='Ya hay una OT de este equipo en esas horas.';break;}
+    }
+    if(p.estado==='nueva'&&p.salidaMin==null){p.estado='abierta';p.motivoEstado='Sigue fuera de servicio, sin aviso de «operativo» en el chat.';}
+    if(p.minutos!=null&&p.minutos>CHAT_FUERA_MAX_DIAS*1440){p.estado='dudosa';p.motivoEstado='Más de '+CHAT_FUERA_MAX_DIAS+' días entre la falla y el «operativo»: puede haber emparejado mal.';}
+    p.marcado=p.estado==='nueva'||p.estado==='cierra';
+  });
+  pms.forEach(function(p){
+    p.estado='nueva';
+    var d=_chatMin(p.entrada.f,'00:00');
+    var ya=regs.some(function(r){return r&&r.equipo===p.sigla&&String(r.tipoPM||'').toUpperCase()===p.tipoPM&&r.fechaEntrada&&Math.abs(_chatMin(r.fechaEntrada,'00:00')-d)<=1440;});
+    if(ya){p.estado='duplicada';p.motivoEstado='Ya hay un '+p.tipoPM+' de este equipo ese día.';}
+    p.marcado=p.estado==='nueva';
+  });
+  var cuenta=function(L,e){return L.filter(function(x){return x.estado===e;}).length;};
+  return{
+    mensajes:msgs.length,reportes:R.reportes.length,desde:msgs.length?msgs[0].f:'',hasta:msgs.length?msgs[msgs.length-1].f:'',archivoDesde:primero,archivoHasta:ultimo,
+    horometros:horom,paradas:paradas,pm:pms,backlog:backlog,
+    sinResolver:Object.keys(R.sinResolver).sort().map(function(n){return{nombre:n,veces:R.sinResolver[n]};}),
+    libresSinEquipo:R.libresSinEquipo,informativos:informativos,
+    resumen:{horomOk:cuenta(horom,'ok'),horomYa:cuenta(horom,'ya'),horomRevisar:horom.length-cuenta(horom,'ok')-cuenta(horom,'ya'),
+      paradasNuevas:cuenta(paradas,'nueva'),paradasCierran:cuenta(paradas,'cierra'),paradasDuplicadas:cuenta(paradas,'duplicada'),paradasAbiertas:cuenta(paradas,'abierta'),paradasDudosas:cuenta(paradas,'dudosa'),
+      pmNuevos:cuenta(pms,'nueva'),pmDuplicados:cuenta(pms,'duplicada'),backlog:backlog.length}
+  };
+}
+
 // Costo financiero real del tiempo parado = toneladas perdidas por
 // indisponibilidad (tonPerdidaIndisponibilidadMes, arriba) × margen por
 // tonelada (cfg.margenPorTon, campo opcional en Configuración > Tarifas y
@@ -12754,7 +13050,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado, SINIESTRO_PLAZO_DIAS, SINIESTRO_AVISO_DIAS, SINIESTRO_TIPOS, SINIESTRO_ESTADOS, SINIESTRO_RESULTADOS, SINIESTRO_DOCUMENTOS, siniestroPlazo, siniestroDocumentos, siniestroNombreArchivo, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, NEU_CODIGOS_RECHAZO, NEU_RECAUCHAJE_MAX_FORMULARIO, NEU_ESTADOS_ENVIABLES, neuRecauchajesDe, neuSiguienteNumRecauchaje, neuPuedeEnviarRecauchaje, resumenRecauchajes, NEU_CAUSALES_TRASLADO, neuValidarTraslado, neuTrasladosPendientesReposicion, resumenTraslados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, ASISTENTE_HERRAMIENTAS, ASISTENTE_MAX_FILAS, asistenteEjecutar, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, OT_MODALIDADES, otEquipoEnGarantia, otFechaTermino, otEstadoPlazo, cumplimientoPlazosReparacion, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoCuadre, produccionToneladasDia, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas, REPORTE_TURNO_TABLAS, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuCambiosRealizados, NEU_CODIGOS_RECHAZO, NEU_RECAUCHAJE_MAX_FORMULARIO, NEU_ESTADOS_ENVIABLES, neuRecauchajesDe, neuSiguienteNumRecauchaje, neuPuedeEnviarRecauchaje, resumenRecauchajes, NEU_CAUSALES_TRASLADO, neuValidarTraslado, neuTrasladosPendientesReposicion, resumenTraslados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, ASISTENTE_HERRAMIENTAS, ASISTENTE_MAX_FILAS, asistenteEjecutar, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, OT_MODALIDADES, otEquipoEnGarantia, otFechaTermino, otEstadoPlazo, cumplimientoPlazosReparacion, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, compEstado, tasaDiariaReal, horomEnFecha, rangoDias, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoCuadre, produccionToneladasDia, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas, chatWhatsAppMensajes, chatWhatsAppSigla, chatWhatsAppReportes, chatWhatsAppAnalizar, REPORTE_TURNO_TABLAS, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, kpiProMan010, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,

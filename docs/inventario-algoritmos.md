@@ -32,7 +32,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 
 | Tema | Fichas |
 |---|---|
-| A. Disponibilidad, fallas y tiempos | A1–A20 |
+| A. Disponibilidad, fallas y tiempos | A1–A21 |
 | B. Vida, supervivencia y tendencia de fallas | B1–B17 |
 | C. Estadística: ¿la diferencia es real o ruido? | C1–C23 |
 | D. Criticidad, riesgo y prioridad | D1–D14 |
@@ -257,6 +257,17 @@ Son **133 fichas** y no queda ninguna función exportada de `logic.js` sin menci
 - **Límites:** depende de que la foto se lea bien (las filas dudosas salen en amarillo); no suma ni verifica los totales del papel, los guarda tal cual; el rendimiento real y el costo de downtime siguen usando solo CAEX e Indisponibilidad.
 - **Controles de coherencia:** cada fila se revisa sin ayuda de la IA y sale en amarillo si las horas son negativas o mayores de 13 (un turno dura 12), si no coinciden con el avance del horómetro (holgura 1 h) si las toneladas de un CAEX no son vueltas × ton/vuelta, si el rendimiento no es vueltas ÷ horas (CAEX) o toneladas ÷ horas (carguío), o si las horas de petróleo no calzan con el tramo desde–hasta (o falta una de las dos horas), o si una fila «fuera de servicio» trae toneladas u horas. Una fila CAEX con horas imposibles contamina los totales del papel, que también se avisan. El total de transporte se contrasta con toneladas ÷ horas CAEX. «CAEX-115» de los papeles de marzo se trata como CAEX-155 (el horómetro sigue la misma serie). Los totales del papel con error de Excel (p. ej. 187.771 horas) se avisan y no se guardan. El apodo del papel (CAEX-85) se traduce a la sigla del sistema con la tabla de la reportabilidad. **Contraste con la pestaña Horómetros:** el horómetro final del papel se compara con la lectura más cercana (hasta 3 días) del mismo equipo en el historial; si difiere más de 24 h por día de distancia + 12 h, la fila sale en amarillo con el valor del sistema. Sin lectura cercana no se marca nada. Si las toneladas de carguío no cuadran con vueltas × ton/vuelta (±15 %) se avisan como incompletas. La pestaña Producción suma día + noche por fecha (toneladas movidas por día y total del mes) y avisa cuando las toneladas de camiones y de cargadores de un turno difieren más de 5 %. Nada se corrige solo.
 - **Código:** `reporteTurnoFilas`, `reporteTurnoFilaDudosa`, `reporteTurnoCuadre`, `produccionToneladasDia`, `reporteTurnoContrasteHorometro`, `reporteTurnoAlias`, `reporteTurnoTotalesDudosos`, `reporteTurnoResolverSiglas`, `REPORTE_TURNO_TABLAS`.
+---
+
+### A21. Importar el chat de WhatsApp: de los avisos de los supervisores a paradas, horómetros y PM
+- **Tipo:** lectura y emparejamiento de texto con reglas de validación (no es un modelo estadístico, ni usa IA).
+- **Para qué sirve:** que lo que los supervisores ya escriben en el grupo (la falla, el «operativo», el horómetro) entre al sistema sin digitarlo de nuevo, con la persona revisando y marcando antes de guardar.
+- **De dónde viene:** 🔵 Criterio propio, hecho a partir de los 1.769 avisos con plantilla del chat de la faena (marzo a noviembre de 2026).
+- **Cómo lo calcula aquí:** (1) separa el archivo en mensajes (fecha, hora, autor, texto) y descarta los avisos del sistema; (2) lee cada plantilla «Equipo / Estatus / Motivo / Horómetro / Lugar / Operador» (en varias líneas o en una sola), el bloque diario «TI 5141= 23032» y los avisos cortos de «operativo»; (3) traduce el apodo a la sigla del sistema (CAEX 85 = CN-9503, Aljibe 5131 = CN-5131); lo que no está en el sistema se informa y no se carga; (4) por equipo y en orden de hora, cada «fuera de servicio» queda abierto hasta el siguiente «operativo», y ese par es una parada (con la hora escrita en el aviso si es de las 12 h anteriores; si lleva «PM» en el motivo, es un PM); (5) cada lectura de horómetro se compara con la anterior y la siguiente de la base: no puede ser más de 5 h menor que la anterior ni más de 5 h mayor que la siguiente, ni subir más de 24 h por día (+30 h de holgura); (6) lo que ya está cargado se marca (una OT del mismo equipo en esas horas, un PM del mismo tipo y día, una lectura de ese día) y una OT abierta cercana se cierra en vez de duplicarla.
+- **Dónde se ve:** botón «Importar chat de WhatsApp» en Horómetros y en Correctivos.
+- **Ejemplo (prueba automática):** un aviso «03:00 / CF 510 / Fuera de servicio» y su «operativo» a las 05:45 dan una parada de 2 h 45 min con entrada 03:00; «TI 5141= 23.045» entre dos lecturas de 23.000 y 23.100 queda lista, y «TI 5141= 22000» queda para revisar por ser menor que la anterior.
+- **Límites:** la hora es la del aviso, no la de la falla real; no puede emparejar un «Operativo» sin equipo; un «operativo» de rutina (engrase) sin falla abierta no se carga; una parada de más de 21 días queda para revisar; con pocas lecturas en la base no puede validar horómetros (quedan sin marcar); el chat se exporta a mano.
+- **Código:** `chatWhatsAppMensajes`, `chatWhatsAppSigla`, `chatWhatsAppReportes`, `chatWhatsAppAnalizar`.
 ---
 
 ## B. Vida, supervivencia y tendencia de fallas

@@ -7111,6 +7111,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/storeSinSesion.test.js` (reproduce el caso: sin el arreglo las 5 escrituras salen) y `tests/resetear-empresa.test.js`.
 
+### 206. Importar el chat de WhatsApp: la información que ya existe entra con revisión (2026-11-02)
+
+**Por qué:** las OT correctivas y los horómetros dejaban de cargarse porque dependían de que alguien los digitara, aunque los supervisores ya avisan cada falla y cada «operativo» en el grupo con una plantilla fija (Equipo / Estatus / Motivo / Horómetro / Lugar / Operador) y el guardia manda cada mañana el bloque «TI 5141= 23032». Hasta ahora ese cruce se hacía a mano entre la persona y Claude.
+
+**Qué se hizo:** `chatWhatsAppAnalizar` (`logic.js`, con `chatWhatsAppMensajes`, `chatWhatsAppSigla` y `chatWhatsAppReportes`) lee el `.txt` (o el `.zip`) que exporta WhatsApp y **propone**, sin guardar nada: (1) **paradas** con entrada y salida, emparejando cada «FS» con el siguiente «operativo» del mismo equipo (usa la hora escrita en el aviso, como «03:00», si es de las 12 h anteriores; una «Corrección» del mismo autor cambia el equipo del aviso); (2) **horómetros** del chat y del bloque diario, validados contra las lecturas vecinas de la base (no menor que la anterior −5 h, no mayor que la siguiente +5 h, no más de 24 h por día + 30 h; dos lecturas del chat que se contradicen quedan ambas para revisar); (3) **PM** («mantención programada PM2» sin falla abierta); (4) el **backlog** avisado, solo para mirar. Lo ya cargado se detecta: una OT del mismo equipo en esas horas = «ya cargada»; una OT abierta de ese equipo cercana a la falla = «cierra la OT abierta» (no crea otra); un PM del mismo equipo, tipo y día = duplicado. Una parada de más de 21 días entre falla y «operativo» queda como «revisar». La pantalla (`modules/renders/chat.js`, botón «Importar chat de WhatsApp» en Horómetros y en Correctivos) muestra cada propuesta con su casilla y solo guarda lo marcado: lecturas en `historial_horometros`, OT en `correctivos`, PM en `registros_pm`, todo con el origen «WhatsApp (chat importado aaaa-mm-dd)». Las lecturas aceptadas actualizan el horómetro actual del equipo igual que el importador CSV.
+
+**Es una vía adicional:** el CSV de horómetros, la OT manual, «Importar reportabilidad» y el registro de PM siguen exactamente igual.
+
+**Límites:** la hora es la del aviso, no la de la falla real; el equipo que no está en el sistema (p. ej. «Aljibe 73») no se carga y se informa; un «Operativo» sin decir el equipo no se puede emparejar; el PM se registra sin técnico ni consumo de stock y sin reprogramar el próximo PM; el chat se exporta a mano (WhatsApp no permite leer un grupo común desde un programa sin su API de empresa).
+
+**Pruebas:** `tests/chatWhatsApp.test.js` (31 casos: formatos de fecha, plantilla en varias líneas o en una, bloque diario, corrección de equipo, avisos libres, pares falla→operativo, abiertas, PM, duplicados, cierre de OT abierta, validación de horómetros) y `tests/e2e/importar-chat-whatsapp.spec.js` (se sube el chat, se revisa, se carga solo lo marcado y lo ya cargado no se duplica).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

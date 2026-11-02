@@ -118,7 +118,7 @@
   <h2 id="d-3">Índice</h2>
   <table>
     <tr><th>Tema</th><th>Fichas</th></tr>
-    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A20</td></tr>
+    <tr><td><b>A. Disponibilidad, fallas y tiempos</b></td><td>A1–A21</td></tr>
     <tr><td><b>B. Vida, supervivencia y tendencia de fallas</b></td><td>B1–B17</td></tr>
     <tr><td><b>C. Estadística: ¿la diferencia es real o ruido?</b></td><td>C1–C23</td></tr>
     <tr><td><b>D. Criticidad, riesgo y prioridad</b></td><td>D1–D14</td></tr>
@@ -368,6 +368,15 @@
     <li><b>Límites:</b> depende de que la foto se lea bien (las filas dudosas salen en amarillo); los totales del papel se guardan tal cual, sin verificarlos; el rendimiento real y el costo de downtime siguen usando solo CAEX e Indisponibilidad.</li>
     <li><b>Controles de coherencia:</b> cada fila sale en amarillo si las horas son negativas o mayores de 13 (un turno dura 12), si no coinciden con el avance del horómetro (holgura 1 h) si las toneladas de un CAEX no son vueltas × ton/vuelta, si el rendimiento no es vueltas ÷ horas (CAEX) o toneladas ÷ horas (carguío), o si las horas de petróleo no calzan con el tramo desde–hasta (o falta una de las dos horas), o si una fila «fuera de servicio» trae toneladas u horas. Una fila CAEX con horas imposibles contamina los totales del papel, que también se avisan. El total de transporte se contrasta con toneladas ÷ horas CAEX. «CAEX-115» de los papeles de marzo se trata como CAEX-155 (el horómetro sigue la misma serie). Contraste con la pestaña Horómetros: el horómetro final del papel se compara con la lectura más cercana (hasta 3 días) del mismo equipo; si difiere más de 24 h por día de distancia + 12 h, la fila sale en amarillo con el valor del sistema. Sin lectura cercana no se marca nada. Si las toneladas de carguío no cuadran con vueltas × ton/vuelta (±15 %) se avisan como incompletas. La pestaña Producción suma día + noche por fecha (toneladas movidas por día y total del mes) y avisa cuando las toneladas de camiones y de cargadores de un turno difieren más de 5 %. Nada se corrige solo.</li>
     <li><b>Código:</b> <code>reporteTurnoFilas</code>, <code>reporteTurnoFilaDudosa</code>, <code>reporteTurnoCuadre</code>, <code>produccionToneladasDia</code>, <code>reporteTurnoContrasteHorometro</code>, <code>reporteTurnoAlias</code>, <code>reporteTurnoTotalesDudosos</code>, <code>reporteTurnoResolverSiglas</code>, <code>REPORTE_TURNO_TABLAS</code>.</li>
+  </ul>
+
+  <h3 id="d-x">A21. Importar el chat de WhatsApp: de los avisos de los supervisores a paradas, horómetros y PM</h3>
+  <ul>
+    <li><b>Para qué sirve:</b> que lo que los supervisores ya escriben en el grupo (la falla, el «operativo», el horómetro) entre al sistema sin digitarlo de nuevo, con la persona revisando y marcando antes de guardar.</li>
+    <li><b>Cómo lo calcula:</b> separa el archivo en mensajes, lee la plantilla «Equipo / Estatus / Motivo / Horómetro / Lugar / Operador», el bloque diario «TI 5141= 23032» y los avisos cortos de «operativo»; traduce el apodo a la sigla del sistema; por equipo y en orden de hora, cada «fuera de servicio» queda abierto hasta el siguiente «operativo» y ese par es una parada (con «PM» en el motivo es un PM); cada lectura de horómetro se compara con la anterior y la siguiente de la base (no más de 5 h menor que la anterior, ni más de 5 h mayor que la siguiente, ni más de 24 h por día + 30 h de holgura); lo ya cargado se marca y una OT abierta cercana se cierra en vez de duplicarla.</li>
+    <li><b>Dónde se ve:</b> botón «Importar chat de WhatsApp» en Horómetros y en Correctivos.</li>
+    <li><b>Límites:</b> la hora es la del aviso, no la de la falla real; no puede emparejar un «Operativo» sin equipo; un «operativo» de rutina sin falla abierta no se carga; una parada de más de 21 días queda para revisar; con pocas lecturas en la base no puede validar horómetros; el chat se exporta a mano.</li>
+    <li><b>Código:</b> <code>chatWhatsAppMensajes</code>, <code>chatWhatsAppSigla</code>, <code>chatWhatsAppReportes</code>, <code>chatWhatsAppAnalizar</code>.</li>
   </ul>
 
   <h2 id="d-21">B. Vida, supervivencia y tendencia de fallas</h2>
