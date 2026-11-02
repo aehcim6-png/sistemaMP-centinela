@@ -230,6 +230,61 @@ function csvCeldaSegura(v){
   return /^[=+\-@\t\r]/.test(s)?"'"+s:s;
 }
 
+// Excel real (2026-11-02): convierte las tablas que se ven en una pestaña en hojas de Excel con números y fechas de verdad (no texto), para quien prefiere
+// trabajar con fórmulas y tablas dinámicas. El DOM lo lee index.html (exportExcel); esto es puro y se prueba aparte.
+// Número: "1.234" y "1.234,5" (formato chileno) y "-12,5" pasan a número; se queda como texto lo que podría perderse al convertir: ceros a la izquierda
+// ("007", un código o serie), más de 15 dígitos, porcentajes y cualquier cosa con letras. Fecha: aaaa-mm-dd, dd-mm-aaaa y dd/mm/aaaa pasan al número de
+// serie de Excel con formato dd-mm-aaaa (se evita el objeto Date a propósito: la zona horaria del navegador podía correr la fecha un día).
+function excelValorCelda(v){
+  if(v===null||v===undefined)return '';
+  if(typeof v==='number')return isFinite(v)?v:'';
+  var s=String(v).trim();
+  if(s==='')return '';
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s),d,mo,y;
+  if(m){y=+m[1];mo=+m[2];d=+m[3];}
+  else if((m=/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/.exec(s))){d=+m[1];mo=+m[2];y=+m[3];}
+  if(m){
+    var f=new Date(Date.UTC(y,mo-1,d));
+    if(f.getUTCFullYear()===y&&f.getUTCMonth()===mo-1&&f.getUTCDate()===d){
+      return {t:'n',v:Math.round(f.getTime()/86400000)+25569,z:'dd-mm-yyyy'};
+    }
+    return s;
+  }
+  if(/^-?(0|[1-9]\d{0,2}(\.\d{3})+|[1-9]\d*)(,\d+)?$/.test(s)||/^-?0,\d+$/.test(s)){
+    var n=+s.replace(/\./g,'').replace(',','.');
+    if(isFinite(n)&&s.replace(/[^\d]/g,'').length<=15)return n;
+  }
+  return s;
+}
+// Nombre de hoja válido en Excel: sin []:*?/\, hasta 31 letras, sin repetirse (agrega « (2)», « (3)»…). `usados` es la lista de nombres ya tomados.
+function excelNombreHoja(titulo,usados,n){
+  var base=String(titulo||'').replace(/[\[\]:*?\/\\]/g,' ').replace(/\s+/g,' ').trim();
+  if(!base)base='Tabla '+n;
+  base=base.slice(0,31).trim();
+  var nombre=base,k=2,tomados=(usados||[]).map(function(x){return x.toLowerCase();});
+  while(tomados.indexOf(nombre.toLowerCase())>=0){
+    var suf=' ('+k+')';nombre=base.slice(0,31-suf.length).trim()+suf;k++;
+  }
+  return nombre;
+}
+// tablas: [{titulo, filas:[[texto,…],…]}]; cifras: [{etiqueta, valor}] (las tarjetas de un tablero). Devuelve [{nombre, filas}] listas para armar el libro;
+// la hoja «Cifras» va primero. Se omiten las tablas sin filas y las filas totalmente vacías; [] si no hay nada que exportar.
+function excelHojasDesdeTablas(tablas,cifras){
+  var hojas=[],usados=[];
+  var cs=(cifras||[]).filter(function(c){return c&&String(c.etiqueta||'').trim()!==''&&String(c.valor??'').trim()!=='';});
+  if(cs.length){
+    var nm=excelNombreHoja('Cifras',usados,0);usados.push(nm);
+    hojas.push({nombre:nm,filas:[['Indicador','Valor']].concat(cs.map(function(c){return [String(c.etiqueta).trim(),excelValorCelda(c.valor)];}))});
+  }
+  (tablas||[]).forEach(function(t,i){
+    var filas=((t&&t.filas)||[]).map(function(f){return f.map(excelValorCelda);}).filter(function(f){return f.some(function(c){return c!=='';});});
+    if(!filas.length)return;
+    var nombre=excelNombreHoja(t.titulo,usados,i+1);usados.push(nombre);
+    hojas.push({nombre:nombre,filas:filas});
+  });
+  return hojas;
+}
+
 function _tokensMaterial(s){
   return (s||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(function(t){
     if(t.length<2)return false;
@@ -13045,7 +13100,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TBO_FAMILIAS, TBO_FUERA, TBO_ITEMS, TBO_REGLAS_COMPRA, TBO_SUGERIDO, tboNormalizarPN, tboClaseModelo, tboFamiliaDeCompra, tboUnirCompras, tboCruzarCompras, tboFamiliaDeClase, tboPlanEquipo, tboCruzarSugerido,
     clasificacionPendienteOT, resumenClasificacionOT, repararMojibake,
     sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
-    C, fd, fn, escapeHtml, csvCeldaSegura,
+    C, fd, fn, escapeHtml, csvCeldaSegura, excelValorCelda, excelNombreHoja, excelHojasDesdeTablas,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado, SINIESTRO_PLAZO_DIAS, SINIESTRO_AVISO_DIAS, SINIESTRO_TIPOS, SINIESTRO_ESTADOS, SINIESTRO_RESULTADOS, SINIESTRO_DOCUMENTOS, siniestroPlazo, siniestroDocumentos, siniestroNombreArchivo, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,

@@ -7133,6 +7133,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `supabase/functions/vigilar-salud-sistema/index.test.ts` (12 casos nuevos de calidad de datos, 29 en total).
 
+### 208. Descargar cualquier pestaña como Excel real (2026-11-02)
+
+**Por qué:** hay gente en la faena que sigue trabajando en Excel. Hasta ahora solo existía un botón «CSV» que bajaba la **primera tabla** de la pestaña, como texto (los números había que convertirlos a mano), y un Excel de verdad solo en Reportabilidad diaria.
+
+**Qué se hizo:** botón nuevo **«Excel»** en el encabezado, al lado del CSV (que no cambia). `exportExcel` (`index.html`) recorre **todas las tablas** de la pestaña activa y las tarjetas de cifras (`.kpi-row`), y `excelHojasDesdeTablas` (`logic.js`, con `excelValorCelda` y `excelNombreHoja`) las convierte en hojas: una por tabla, con el título que tiene encima, números como números («1.234,5» → 1234,5), fechas como fechas de Excel (con formato dd-mm-aaaa) y el resto como texto. La biblioteca ya estaba incluida (`vendor/xlsx.core.min.js`): no se instaló nada nuevo ni se llama a ningún servicio externo.
+
+**Decisiones:** se conserva como texto lo que se estropearía al convertir (ceros a la izquierda de códigos y series, más de 15 dígitos, porcentajes y todo lo que lleve letras); la fecha se escribe como número de serie y no como objeto Date, porque la zona horaria del navegador podía correrla un día; un texto que empieza con «=» queda como texto (no se ejecuta como fórmula), por lo que no hace falta el apóstrofo que usa el CSV.
+
+**Límites:** baja lo que está dibujado (un filtro que oculta filas las deja fuera), no los gráficos, y los porcentajes quedan como texto; una pestaña sin tablas ni cifras avisa en vez de bajar un archivo vacío. Es una opción adicional: el CSV por pestaña y los de Equipos, Horómetros, Registro PM, etc. siguen igual.
+
+**Pruebas:** `tests/excelExport.test.js` (12 casos) y `tests/e2e/exportar-excel.spec.js` (descarga real, se abre el `.xlsx` y se revisan hojas, tipos de celda y que el CSV siga funcionando).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

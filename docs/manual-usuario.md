@@ -112,6 +112,14 @@ No para seguir viendo y editando datos: el sistema guarda de inmediato en
 este computador aunque se corte la conexión, y sincroniza solo con la nube
 cuando vuelve.
 
+**¿Puedo bajar los datos a Excel?**
+Sí. Arriba a la derecha, en todas las pestañas, está el botón **Excel**: baja
+todas las tablas de la pestaña que estás viendo, una hoja por tabla, con los
+números y las fechas listos para usar en fórmulas y tablas dinámicas. Los
+tableros con tarjetas de cifras las traen en una hoja «Cifras». Baja lo que
+está en pantalla (si filtraste, solo sale lo filtrado) y no incluye los
+gráficos. El botón **CSV** de al lado sigue igual.
+
 **¿Qué pasa si edito algo que otra persona también estaba editando?**
 El sistema avisa con un mensaje y refresca la pantalla con lo más reciente —
 tu cambio no se pierde en silencio, solo hay que revisarlo y volver a

@@ -43,7 +43,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | I. Simulación y pronóstico | I1–I5 |
 | J. Neumáticos, PM y reglas del programa | J1–J7 |
 | K. Diagramas y gráficos | K1–K13 |
-| L. Datos y seguridad | L1–L6 |
+| L. Datos y seguridad | L1–L7 |
 | M. Funciones internas (apéndice) | tabla |
 
 Son **133 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
@@ -1285,6 +1285,17 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **Límites:** la persona la fija el servidor con la sesión (correo y fecha no se pueden falsear desde el navegador); el nombre, el rol y la pestaña los manda el navegador, así que son una referencia y no una prueba. Los cambios hechos sin conexión no se registran hasta que se guardan en la nube. Las ediciones de campos calculados no aparecen. El historial parte del 17 de octubre de 2026: no hay datos anteriores con este detalle.
 - **Código:** `auditoriaDiff`, `auditoriaFinalizar`, `auditoriaReferencia`, `AUDIT_CAMPOS_DERIVADOS`, `AUDIT_EXCLUIR_TABLAS`.
 
+---
+
+### L7. Descargar una pestaña como Excel real
+- **Tipo:** conversión de formato (no calcula nada nuevo).
+- **Para qué sirve:** que quien prefiere trabajar en Excel (fórmulas, tablas dinámicas) baje cualquier pestaña con sus números como números y sus fechas como fechas, y no como texto que hay que convertir a mano.
+- **De dónde viene:** 🔵 Criterio propio, a pedido (mucha gente en la faena sigue trabajando en Excel).
+- **Cómo lo calcula aquí:** el botón «Excel» del encabezado recorre todas las tablas de la pestaña y arma un libro con una hoja por tabla, con el título que tiene sobre ella (si se repite, lleva «(2)», «(3)»…; máximo 31 letras y sin los signos que Excel no admite). Las tarjetas de cifras de un tablero van en una hoja «Cifras». En cada celda: «1.234,5» pasa a número 1234,5; una fecha («2026-11-01», «01-11-2026») pasa a fecha de Excel; lo demás se queda como texto. Se deja como texto lo que se podría estropear al convertir: códigos o series con ceros a la izquierda («007»), números de más de 15 dígitos, porcentajes («94,5 %») y cualquier cosa con letras. Un texto que empieza con «=» queda como texto (no se ejecuta como fórmula).
+- **Dónde se ve:** botón «Excel» arriba a la derecha, en todas las pestañas (al lado del botón CSV de siempre, que no cambia).
+- **Ejemplo (prueba automática):** una tabla con «CA-5979 | 124.127 | 2026-11-01 | 007» baja a Excel con 124127 como número, la fecha como fecha del 01-11-2026 y «007» como texto.
+- **Límites:** baja lo que está dibujado en la pantalla (si un filtro oculta filas, esas filas no salen); los gráficos no se descargan, solo sus tablas y cifras; los porcentajes quedan como texto; una pestaña sin tablas ni cifras avisa en vez de bajar un archivo vacío.
+- **Código:** `excelValorCelda`, `excelNombreHoja`, `excelHojasDesdeTablas` (`logic.js`) y `exportExcel` (`index.html`).
 ---
 
 ## M. Funciones internas (apéndice)
