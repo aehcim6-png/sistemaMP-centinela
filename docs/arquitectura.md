@@ -7123,6 +7123,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/chatWhatsApp.test.js` (31 casos: formatos de fecha, plantilla en varias líneas o en una, bloque diario, corrección de equipo, avisos libres, pares falla→operativo, abiertas, PM, duplicados, cierre de OT abierta, validación de horómetros) y `tests/e2e/importar-chat-whatsapp.spec.js` (se sube el chat, se revisa, se carga solo lo marcado y lo ya cargado no se duplica).
 
+### 207. El detector de salud también revisa la calidad de los datos (2026-11-02)
+
+**Por qué:** el sistema son códigos y los problemas pueden aparecer sin que nadie los reporte (un horómetro con un cero de más, una OT olvidada, una tabla de respaldo que quedó). Hasta ahora `vigilar-salud-sistema` solo miraba si las tareas programadas habían corrido.
+
+**Qué se hizo:** la misma función diaria (13:00 UTC) ahora lee, solo en lectura, `equipos`, `historial_horometros` (últimos 60 días), `correctivos` abiertas y la función `public.tablas_temporales_olvidadas()`, y suma al correo único de alerta (si hay algo): (1) **lecturas de horómetro que no cuadran con sus vecinas**: un pico que vuelve a lo normal (178845 entre 17833 y 17855), un retroceso que se recupera (2264 entre 255 y 264) o una última lectura imposible (más de 24 h/día + 30 h, o un retroceso de más de 50); un cambio sostenido (cambio de horómetro) no se avisa; (2) **horómetro actual del equipo por debajo de su última lectura**; (3) **equipos sin lectura hace más de 7 días**; (4) **OT abiertas hace más de 30 días**; (5) **tablas tmp_/respaldo_/*_backup olvidadas**. Cada hallazgo es una línea con la lista resumida (8 máximo y «…y N más»). Si no puede leer alguna tabla, lo dice en el correo en vez de callar. **No corrige nada.**
+
+**Limitaciones:** el aviso se repite cada día mientras siga el hallazgo (p. ej. un equipo detenido de verdad aparece como «sin lectura»); el punto de tablas olvidadas necesita aplicar la migración `20261102120000_tablas_temporales_olvidadas.sql` (sin ella simplemente no se revisa); la función se publica aparte (`deploy_edge_function`).
+
+**Pruebas:** `supabase/functions/vigilar-salud-sistema/index.test.ts` (12 casos nuevos de calidad de datos, 29 en total).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

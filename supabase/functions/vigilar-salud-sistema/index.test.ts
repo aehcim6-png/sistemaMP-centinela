@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { evaluarSaludCrons, type FilaSaludCron } from "./index.ts";
+import { detectarLecturasAtipicas, evaluarCalidadDatos, evaluarSaludCrons, type DatosCalidad, type FilaSaludCron } from "./index.ts";
 
 const AHORA = "2026-09-14T12:00:00Z";
 
@@ -143,4 +143,98 @@ Deno.test("evaluarSaludCrons: acumula varios problemas a la vez, incluyendo los 
   ];
   const problemas = evaluarSaludCrons(filas, AHORA);
   assertEquals(problemas.length, 4);
+});
+
+// ── Calidad de los datos (2026-11-02) ──
+
+const HOY = "2026-11-02T13:00:00Z";
+const lec = (sigla: string, fecha: string, horomFin: number) => ({ sigla, fecha, horomFin });
+function datosSanos(over: Partial<DatosCalidad> = {}): DatosCalidad {
+  return {
+    equipos: [{ sigla: "TI-5141", horomActual: 23100, fechaHorom: "2026-11-01" }],
+    lecturas: [lec("TI-5141", "2026-10-30", 23076), lec("TI-5141", "2026-10-31", 23088), lec("TI-5141", "2026-11-01", 23100)],
+    otAbiertas: [],
+    tablasTemporales: [],
+    ...over,
+  };
+}
+
+Deno.test("calidad: datos sanos no reportan nada", () => {
+  assertEquals(evaluarCalidadDatos(datosSanos(), HOY), []);
+});
+
+Deno.test("calidad: un cero de más entre dos lecturas normales se detecta como salto imposible", () => {
+  const l = [lec("TI-5144", "2026-10-26", 17833), lec("TI-5144", "2026-10-27", 178845), lec("TI-5144", "2026-10-28", 17855)];
+  const a = detectarLecturasAtipicas(l, HOY);
+  assertEquals(a.length, 1);
+  assertEquals(a[0].includes("TI-5144 2026-10-27: 178845 entre 17833 y 17855"), true);
+});
+
+Deno.test("calidad: un retroceso que se recupera (2264 entre 255 y 264) se detecta; uno chico de redondeo no", () => {
+  const l = [lec("CN-10155", "2026-10-20", 3000), lec("CN-10155", "2026-10-21", 1000), lec("CN-10155", "2026-10-22", 3010)];
+  assertEquals(detectarLecturasAtipicas(l, HOY).length, 1);
+  const redondeo = [lec("CF-9511", "2026-10-20", 13141), lec("CF-9511", "2026-10-21", 13132), lec("CF-9511", "2026-10-22", 13159)];
+  assertEquals(detectarLecturasAtipicas(redondeo, HOY), []);
+});
+
+Deno.test("calidad: un cambio sostenido (cambio de horómetro) no es un dedazo", () => {
+  const l = [lec("BD-10139", "2026-10-20", 1212), lec("BD-10139", "2026-10-21", 1755), lec("BD-10139", "2026-10-22", 1760)];
+  assertEquals(detectarLecturasAtipicas(l, HOY), []);
+});
+
+Deno.test("calidad: la última lectura con salto imposible se avisa aunque no haya siguiente", () => {
+  const l = [lec("GE-10019", "2026-10-30", 15000), lec("GE-10019", "2026-11-01", 150000)];
+  const a = detectarLecturasAtipicas(l, HOY);
+  assertEquals(a.length, 1);
+  assertEquals(a[0].includes("sin lectura posterior"), true);
+});
+
+Deno.test("calidad: lecturas con 0 (sin lectura) se ignoran y lo muy viejo (>45 días) no se vuelve a avisar", () => {
+  const ceros = [lec("CN-5131", "2026-10-30", 12000), lec("CN-5131", "2026-10-31", 0), lec("CN-5131", "2026-11-01", 12010)];
+  assertEquals(detectarLecturasAtipicas(ceros, HOY), []);
+  const viejo = [lec("TI-5144", "2026-08-01", 17833), lec("TI-5144", "2026-08-02", 178845), lec("TI-5144", "2026-08-03", 17855)];
+  assertEquals(detectarLecturasAtipicas(viejo, HOY), []);
+});
+
+Deno.test("calidad: horómetro actual del equipo por debajo de su última lectura", () => {
+  const d = datosSanos({ equipos: [{ sigla: "TI-5141", horomActual: 22000, fechaHorom: "2026-11-01" }] });
+  const p = evaluarCalidadDatos(d, HOY);
+  assertEquals(p.length, 1);
+  assertEquals(p[0].includes("TI-5141 (equipo 22000 < lectura 23100"), true);
+});
+
+Deno.test("calidad: equipos sin lectura hace más de 7 días o sin ninguna", () => {
+  const d = datosSanos({ equipos: [
+    { sigla: "TI-5141", horomActual: 23100, fechaHorom: "2026-11-01" },
+    { sigla: "CN-9500", horomActual: 18950, fechaHorom: "2026-08-19" },
+    { sigla: "MC-4922", horomActual: null, fechaHorom: null },
+  ] });
+  const p = evaluarCalidadDatos(d, HOY);
+  assertEquals(p.length, 1);
+  assertEquals(p[0].includes("CN-9500 (75 días)"), true);
+  assertEquals(p[0].includes("MC-4922 (sin ninguna lectura)"), true);
+  assertEquals(p[0].includes("TI-5141"), false);
+});
+
+Deno.test("calidad: OT abiertas hace más de 30 días (las recientes no)", () => {
+  const d = datosSanos({ otAbiertas: [
+    { sigla: "TI-5146", fechaEntrada: "2026-08-12", estadoOT: "Abierta" },
+    { sigla: "CF-9510", fechaEntrada: "2026-10-25", estadoOT: "Abierta" },
+  ] });
+  const p = evaluarCalidadDatos(d, HOY);
+  assertEquals(p.length, 1);
+  assertEquals(p[0].includes("TI-5146 (82 días"), true);
+  assertEquals(p[0].includes("CF-9510"), false);
+});
+
+Deno.test("calidad: tablas temporales olvidadas", () => {
+  const p = evaluarCalidadDatos(datosSanos({ tablasTemporales: ["tmp_horom_chat", "respaldo_ot_fs_cierre_20261024"] }), HOY);
+  assertEquals(p.length, 1);
+  assertEquals(p[0].includes("tmp_horom_chat"), true);
+});
+
+Deno.test("calidad: con muchos hallazgos la lista se resume", () => {
+  const equipos = Array.from({ length: 12 }, (_, i) => ({ sigla: `EQ-${i}`, horomActual: 100, fechaHorom: "2026-09-01" }));
+  const p = evaluarCalidadDatos(datosSanos({ equipos }), HOY);
+  assertEquals(p[0].includes("…y 4 más"), true);
 });

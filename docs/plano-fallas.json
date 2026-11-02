@@ -1126,7 +1126,7 @@
    "id": "EF-08",
    "capa": "supabase",
    "nombre": "Función: vigilar-salud-sistema",
-   "que_es": "El vigilante: revisa `salud_crons` y avisa por correo si el respaldo falló o tiene más de 26 horas, o si un webhook falló.",
+   "que_es": "El vigilante: revisa `salud_crons` y avisa por correo si el respaldo falló o tiene más de 26 horas, o si un webhook falló. Desde el 2-nov-2026 también revisa la calidad de los datos (horómetros que no cuadran, equipos sin lectura en 7 días, OT abiertas hace más de 30 días, tablas temporales olvidadas).",
    "donde": [
     [
      "Panel",
@@ -1143,11 +1143,13 @@
    ],
    "sintomas": [
     "Llega un correo de alerta de salud",
-    "No llegó la revisión diaria"
+    "No llegó la revisión diaria",
+    "Llega un aviso de «Horómetros que no cuadran», «sin lectura» u «OT abiertas hace más de 30 días»"
    ],
    "revisar": [
     "Leer el correo: dice qué tarea falló; ir a su CRN.",
-    "`salud_crons`."
+    "`salud_crons`.",
+    "Aviso de datos: corregir el dato en la pantalla (Horómetros, Correctivos) o con `update` por id en `historial_horometros`; el detector solo avisa, no corrige."
    ],
    "accion": [
     "Se atiende la pieza que dice el correo."
@@ -1155,7 +1157,8 @@
    "escalar": "Si el log muestra un error de código, avisar el texto y la hora.",
    "claude": [
     "`get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `vigilar-salud-sistema`.",
-    "El criterio vive en `evaluarSaludCrons()` (`index.ts`)."
+    "El criterio vive en `evaluarSaludCrons()` (`index.ts`).",
+    "Calidad de datos: `evaluarCalidadDatos()` y `detectarLecturasAtipicas()` (`index.ts`); lee `equipos`, `historial_horometros` (60 días), `correctivos` (estadoOT = Abierta) y la función `public.tablas_temporales_olvidadas()` (migración 20261102120000; si no existe, ese punto se omite)."
    ],
    "depende_de": [
     "CRN-04",

@@ -627,7 +627,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     urgente hoy" (no mandó correo porque no había nada que avisar) tampoco cuenta como falla — sí
     se ejecutó y registró éxito. (2026-09-16, hallazgo de auditoría: <code>alerta-pm</code>/
     <code>resumen-semanal</code> ya existían pero no registraban ni se chequeaban — un fallo real
-    de esos 2 correos a gerencia podía pasar inadvertido indefinidamente.) Importante: que no llegue
+    de esos 2 correos a gerencia podía pasar inadvertido indefinidamente.) Desde el 2-nov-2026 el mismo correo también avisa de la <b>calidad de los datos</b> (horómetros que no cuadran con sus vecinos, horómetro actual del equipo por debajo de su última lectura, equipos sin lectura en 7 días, OT abiertas hace más de 30 días y tablas temporales o de respaldo olvidadas); solo avisa, no corrige. Importante: que no llegue
     ningún WhatsApp/correo en un día dado NUNCA cuenta como una falla — eso solo significa que
     nadie reportó nada.</li>
     <li><b>Capa 2 (diagnóstico automático):</b> si Capa 1 encuentra un problema, además se

@@ -783,7 +783,11 @@ Nadie tiene que mirar los logs de Supabase a mano para enterarse.
   alguno de los webhooks tuvo un fallo real en las últimas 24h, manda un
   correo de alerta a `aehcim6@gmail.com`. Si no encuentra nada raro, **no
   manda nada** — a propósito, para no generar un correo de "todo bien"
-  todos los días. Importante: que no llegue ningún WhatsApp/correo en un
+  todos los días. Desde el 2-nov-2026 el mismo correo también avisa de la
+  **calidad de los datos** (horómetros que no cuadran con sus vecinos,
+  horómetro actual del equipo por debajo de su última lectura, equipos sin
+  lectura en 7 días, OT abiertas hace más de 30 días y tablas temporales o
+  de respaldo olvidadas); solo avisa, no corrige. Importante: que no llegue ningún WhatsApp/correo en un
   día dado NUNCA cuenta como una falla — eso solo significa que nadie
   reportó nada. `alerta-pm` con "nada urgente hoy" (no mandó correo porque
   no había nada que avisar) tampoco cuenta como falla — sí se ejecutó y

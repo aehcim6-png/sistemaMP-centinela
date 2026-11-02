@@ -708,17 +708,18 @@ Envía el resumen semanal de la flota por correo.
 
 ### EF-08 — Función: vigilar-salud-sistema
 
-El vigilante: revisa `salud_crons` y avisa por correo si el respaldo falló o tiene más de 26 horas, o si un webhook falló.
+El vigilante: revisa `salud_crons` y avisa por correo si el respaldo falló o tiene más de 26 horas, o si un webhook falló. Desde el 2-nov-2026 también revisa la calidad de los datos (horómetros que no cuadran, equipos sin lectura en 7 días, OT abiertas hace más de 30 días, tablas temporales olvidadas).
 
 - **Panel:** {sb}/functions/vigilar-salud-sistema (Logs en esa misma pestaña)
 - **Código:** `supabase/functions/vigilar-salud-sistema/index.ts`
 - **Quién la llama:** CRN-04.
 
-**Cómo se ve:** Llega un correo de alerta de salud; No llegó la revisión diaria
+**Cómo se ve:** Llega un correo de alerta de salud; No llegó la revisión diaria; Llega un aviso de «Horómetros que no cuadran», «sin lectura» u «OT abiertas hace más de 30 días»
 
 **Confirmar:**
 1. Leer el correo: dice qué tarea falló; ir a su CRN.
 2. `salud_crons`.
+3. Aviso de datos: corregir el dato en la pantalla (Horómetros, Correctivos) o con `update` por id en `historial_horometros`; el detector solo avisa, no corrige.
 
 **Qué hacer:** Se atiende la pieza que dice el correo.
 
@@ -730,6 +731,7 @@ El vigilante: revisa `salud_crons` y avisa por correo si el respaldo falló o ti
 **Soporte técnico (Claude):**
 - `get_edge_function` (código desplegado) y `query_logs` servicio `edge-function` filtrando `vigilar-salud-sistema`.
 - El criterio vive en `evaluarSaludCrons()` (`index.ts`).
+- Calidad de datos: `evaluarCalidadDatos()` y `detectarLecturasAtipicas()` (`index.ts`); lee `equipos`, `historial_horometros` (60 días), `correctivos` (estadoOT = Abierta) y la función `public.tablas_temporales_olvidadas()` (migración 20261102120000; si no existe, ese punto se omite).
 
 ### EF-09 — Función: whatsapp-webhook _(Sin uso: Twilio no operativo)_
 
