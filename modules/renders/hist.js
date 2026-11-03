@@ -162,6 +162,7 @@ export function renderHist(){
     '<button class="btn" onclick="addHist()" title="Registrar una lectura: puedes escribirla o sacar/subir la foto del horómetro y el sistema la lee">+ Registrar</button>'+
     '<button class="btn btn-o" onclick="importHorom()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button>'+
     (window._userRole==='lector'?'':'<button class="btn btn-o" onclick="importarChatWhatsApp()" title="Sube el chat exportado de WhatsApp: el sistema lee los horómetros y los avisos de falla y te propone qué cargar">💬 Importar chat de WhatsApp</button>')+
+    (window._userRole==='lector'?'':'<button class="btn btn-o" onclick="importarKilometraje()" title="Sube la planilla Control Kilometraje (camionetas y bus): el sistema lee el km de cada equipo y su próxima mantención, y tú revisas antes de guardar">📋 Importar Control Kilometraje</button>')+
     '<button class="btn btn-o" onclick="exportCSV(\'hist\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> CSV</button></div></div>'+
     '<div class="toolbar">'+
     '<select id="fHistVista" onchange="window._pag.hist=1;renders.hist()">'+

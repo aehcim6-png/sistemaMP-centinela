@@ -285,6 +285,111 @@ function excelHojasDesdeTablas(tablas,cifras){
   return hojas;
 }
 
+// Importar la planilla «Control Kilometraje» (2026-11-03): la planilla de equipos livianos (camionetas y bus) que mantiene una persona de la faena y se repite
+// cada semana. Propone, SIN guardar: (1) la lectura de km de cada equipo, validada contra el historial; (2) la próxima mantención. Para la próxima
+// mantención el sistema NO guarda el valor directo: calcula el próximo PM desde la grilla del equipo (múltiplos de su frecuencia) y lo recalcula al cargar,
+// así que un valor puesto a mano se pierde. El campo que sí manda es «pmPendienteManual» (gana solo si es MENOR que el calculado). Por eso:
+//   igual      la planilla coincide con el sistema: no hay nada que hacer.
+//   manual     la planilla es más cercana que el sistema y cuadra con «último + frecuencia»: se propone fijarla en pmPendienteManual.
+//   sistema    la planilla es más lejana que el sistema: manda el del sistema (el más cercano); solo se informa.
+//   frecuencia la planilla no cuadra con «último + frecuencia» del equipo (p. ej. suma 10.000 a una camioneta de 16.000): se avisa y no se propone.
+function _kmFechaIso(v){
+  if(v===null||v===undefined||v==='')return '';
+  if(typeof v==='number'){
+    if(!(v>30000&&v<80000))return '';
+    return new Date(Math.round((v-25569)*86400000)).toISOString().slice(0,10);
+  }
+  if(v instanceof Date)return isNaN(v.getTime())?'':v.toISOString().slice(0,10);
+  var s=String(v).trim(),m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if(m)return m[1]+'-'+m[2]+'-'+m[3];
+  m=/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/.exec(s);
+  if(m)return m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);
+  return '';
+}
+function _kmNum(v){
+  if(typeof v==='number')return isFinite(v)?v:null;
+  var s=String(v===null||v===undefined?'':v).trim();
+  if(!s)return null;
+  s=s.replace(/\./g,'').replace(',','.');
+  var n=+s;
+  return isFinite(n)&&/^-?\d+(\.\d+)?$/.test(s)?n:null;
+}
+function _kmNorm(s){return String(s===null||s===undefined?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+var KM_MAX_POR_DIA=1000;   // km por día que ya no se creen (una camioneta de faena hace 100–400)
+function kilometrajeAnalizar(filas,opts){
+  opts=opts||{};
+  var equipos=opts.equipos||[],hist=opts.hist||[];
+  var r={fecha:'',fechaOrigen:'',lecturas:[],mantenciones:[],sinEquipo:[],sinKm:[],notas:[],resumen:{filas:0,lecturasOk:0,mantOk:0}};
+  var iHead=-1,col={};
+  (filas||[]).some(function(f,i){
+    var m={};
+    (f||[]).forEach(function(c,j){var t=_kmNorm(c);if(t)m[t]=j;});
+    if(m['sigla']!==undefined&&m['km actual']!==undefined){iHead=i;col=m;return true;}
+    return false;
+  });
+  if(iHead<0){r.error='No encontré las columnas «Sigla» y «Km Actual» en la planilla.';return r;}
+  function c(nom){return col[nom];}
+  var jUlt=c('km ultima mantencion'),jProx=c('km proxima mantencion'),jFecha=c('ultima actualizacion'),jPat=c('patente'),jEq=c('equipo'),jTipo=c('tipo equipo'),jEst=c('estado');
+  // fecha de toda la planilla: la que viene suelta en la fila de títulos (la planilla la rotula «Fecha de última actualización»)
+  var fGlobal=opts.fecha||'';
+  if(!fGlobal){(filas[iHead]||[]).forEach(function(v){var f=_kmFechaIso(v);if(f&&!fGlobal)fGlobal=f;});if(fGlobal)r.fechaOrigen='planilla';}
+  else r.fechaOrigen='manual';
+  r.fecha=fGlobal;
+  var porSigla={};equipos.forEach(function(e){porSigla[e.sigla]=e;});
+  var lect={};   // sigla -> [{fecha,valor}]
+  hist.forEach(function(h){var v=Number(h.horomFin||h.horom);if(!h.sigla||!(v>0))return;(lect[h.sigla]=lect[h.sigla]||[]).push({fecha:String(h.fecha).slice(0,10),valor:v});});
+  Object.keys(lect).forEach(function(k){lect[k].sort(function(a,b){return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:a.valor-b.valor;});});
+  var vistos={};
+  for(var i=iHead+1;i<filas.length;i++){
+    var f=filas[i]||[];
+    var sigla=String(f[col['sigla']]===undefined||f[col['sigla']]===null?'':f[col['sigla']]).trim();
+    if(!sigla)continue;
+    if(vistos[sigla])continue;vistos[sigla]=true;
+    r.resumen.filas++;
+    var km=_kmNum(f[col['km actual']]),ult=jUlt!==undefined?_kmNum(f[jUlt]):null,prox=jProx!==undefined?_kmNum(f[jProx]):null;
+    var fecha=(jFecha!==undefined?_kmFechaIso(f[jFecha]):'')||fGlobal;
+    var patente=jPat!==undefined?String(f[jPat]||'').trim():'',nombre=jEq!==undefined?String(f[jEq]||'').trim():'',tipo=jTipo!==undefined?String(f[jTipo]||'').trim():'';
+    // notas de la fila: todo texto que está a la derecha de «Estado» (comentarios y pendientes)
+    if(jEst!==undefined){
+      for(var j=jEst+1;j<f.length;j++){
+        var t=f[j];
+        if(typeof t==='string'&&t.trim()&&!_kmFechaIso(t))r.notas.push({sigla:sigla,texto:t.trim()});
+      }
+    }
+    var e=porSigla[sigla];
+    if(!e){r.sinEquipo.push({sigla:sigla,patente:patente,equipo:nombre,tipo:tipo,km:km,ultima:ult,prox:prox});continue;}
+    // 1) lectura
+    if(!(km>0)){r.sinKm.push({sigla:sigla,nota:'La planilla no trae el km actual.'});}
+    else if(!fecha){r.lecturas.push({sigla:sigla,patente:patente,fecha:'',valor:km,prev:null,estado:'sinfecha',marcado:false,nota:'La planilla no trae fecha: elígela arriba.'});}
+    else{
+      var L=lect[sigla]||[],prev=null,next=null,mismoDia=null;
+      L.forEach(function(x){if(x.fecha===fecha)mismoDia=x;else if(x.fecha<fecha)prev=x;else if(!next)next=x;});
+      var lec={sigla:sigla,patente:patente,fecha:fecha,valor:km,prev:prev?{fecha:prev.fecha,valor:prev.valor}:null,estado:'ok',marcado:true,nota:''};
+      if(mismoDia){lec.estado='ya';lec.marcado=false;lec.nota='Ya hay una lectura ese día ('+mismoDia.valor+').';}
+      else if(prev&&km<prev.valor-5){lec.estado='menor';lec.marcado=false;lec.nota='Menor que la anterior ('+prev.valor+' el '+prev.fecha+').';}
+      else if(next&&km>next.valor+5){lec.estado='mayor';lec.marcado=false;lec.nota='Mayor que la siguiente ('+next.valor+' el '+next.fecha+').';}
+      else if(prev){
+        var d=Math.max(1,Math.round((new Date(fecha)-new Date(prev.fecha))/86400000));
+        if((km-prev.valor)/d>KM_MAX_POR_DIA){lec.estado='rapido';lec.marcado=false;lec.nota='Suma '+Math.round((km-prev.valor)/d)+' km por día desde la anterior.';}
+      }
+      if(lec.marcado)r.resumen.lecturasOk++;
+      r.lecturas.push(lec);
+    }
+    // 2) próxima mantención
+    if(prox>0){
+      var frec=Number(e.frecPM)||0,sis=Number(e.horomProxPM)||0;
+      var esperado=frec>0?(ult>0?ult:0)+frec:null;
+      var m={sigla:sigla,ultima:ult,proxPlanilla:prox,proxSistema:sis||null,frec:frec||null,esperado:esperado,estado:'igual',marcado:false,nota:''};
+      if(esperado!==null&&Math.abs(prox-esperado)>0.5){m.estado='frecuencia';m.nota='La planilla da '+prox+', pero último + frecuencia del equipo ('+(ult||0)+' + '+frec+') es '+esperado+'.';}
+      else if(sis&&Math.abs(prox-sis)<=0.5){m.estado='igual';}
+      else if(sis&&prox>sis){m.estado='sistema';m.nota='El sistema calcula '+sis+' (más cercano que la planilla); se deja el del sistema.';}
+      else{m.estado='manual';m.marcado=true;m.nota='Se fija a mano en '+prox+(sis?' (el sistema calcula '+sis+')':'')+'.';r.resumen.mantOk++;}
+      r.mantenciones.push(m);
+    }
+  }
+  return r;
+}
+
 function _tokensMaterial(s){
   return (s||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(function(t){
     if(t.length<2)return false;
@@ -13100,7 +13205,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TBO_FAMILIAS, TBO_FUERA, TBO_ITEMS, TBO_REGLAS_COMPRA, TBO_SUGERIDO, tboNormalizarPN, tboClaseModelo, tboFamiliaDeCompra, tboUnirCompras, tboCruzarCompras, tboFamiliaDeClase, tboPlanEquipo, tboCruzarSugerido,
     clasificacionPendienteOT, resumenClasificacionOT, repararMojibake,
     sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
-    C, fd, fn, escapeHtml, csvCeldaSegura, excelValorCelda, excelNombreHoja, excelHojasDesdeTablas,
+    C, fd, fn, escapeHtml, csvCeldaSegura, excelValorCelda, excelNombreHoja, excelHojasDesdeTablas, kilometrajeAnalizar,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado, SINIESTRO_PLAZO_DIAS, SINIESTRO_AVISO_DIAS, SINIESTRO_TIPOS, SINIESTRO_ESTADOS, SINIESTRO_RESULTADOS, SINIESTRO_DOCUMENTOS, siniestroPlazo, siniestroDocumentos, siniestroNombreArchivo, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
