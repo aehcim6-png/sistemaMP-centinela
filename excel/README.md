@@ -73,7 +73,7 @@ Formato condicional en EstadoPM (rojo Vencida/Urgente, ámbar Próxima, verde Al
 | Archivo | Qué es |
 |---|---|
 | `powerquery/*.pq` | Consultas Power Query (lenguaje M) |
-| `vba/modSistemaMP.bas` | Iniciar sesión, actualizar, desconectar |
+| `vba/modSistemaMP.bas` | Iniciar sesión, actualizar, desconectar (guardado en Windows-1252, la codificación que espera el Editor de VBA; en UTF-8 los acentos salen como «Ã±») |
 | `vba/ThisWorkbook.txt`, `vba/frmLogin.txt` | Código para pegar en el libro y en el formulario |
 | `dax/medidas.dax` | Relaciones y medidas del Modelo de datos |
 | `generar_plantilla.py` | Genera `SistemaMP_Excel_base.xlsx` (hoja Conexión con las celdas con nombre) |

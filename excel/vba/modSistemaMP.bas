@@ -1,23 +1,23 @@
 Attribute VB_Name = "modSistemaMP"
 '==============================================================================
-' modSistemaMP â€” conexiÃ³n del Excel con SistemaMP (Supabase).
+' modSistemaMP - conexión del Excel con SistemaMP (Supabase).
 '
 ' Cada persona entra con SU usuario de SistemaMP: el Excel ve y puede hacer lo
 ' mismo que esa persona en el programa (los permisos los aplica la base de datos).
-' La contraseÃ±a NO se guarda: solo se usa para pedir un "token" de sesiÃ³n, que
-' dura ~1 hora y se borra al cerrar el libro. El token para renovarla queda solo
-' en memoria (nunca en una celda): si Excel se reinicia, hay que Â«ConectarÂ» otra vez.
+' La contraseña NO se guarda: solo se usa para pedir un "token" de sesión, que
+' dura aprox. 1 hora y se borra al cerrar el libro. El token para renovarla queda solo
+' en memoria (nunca en una celda): si Excel se reinicia, hay que "Conectar" otra vez.
 '
-' Necesita (las crea la plantilla, hoja Â«ConexiÃ³nÂ»), celdas con nombre:
+' Necesita (las crea la plantilla, hoja "Conexión"), celdas con nombre:
 '   SB_URL, SB_KEY, SB_EMAIL, SB_TOKEN, SB_EXPIRA, SB_ULTIMA, SB_ESTADO
 ' Solo Excel de escritorio para Windows (usa MSXML2).
 '==============================================================================
 Option Explicit
 
 Private Const MARGEN_SEG As Long = 120   ' renueva el token si le quedan menos de 2 minutos
-Private mRefresh As String               ' token de renovaciÃ³n: solo en memoria
+Private mRefresh As String               ' token de renovación: solo en memoria
 
-'--- BotÃ³n Â«ConectarÂ»: pide la contraseÃ±a, inicia sesiÃ³n y actualiza todo -----
+'--- Botón "Conectar": pide la contraseña, inicia sesión y actualiza todo -----
 Public Sub Conectar()
     Dim email As String, clave As String
     email = Trim$(CStr(Rango("SB_EMAIL").Value))
@@ -31,14 +31,14 @@ Public Sub Conectar()
 
     Dim cuerpo As String
     cuerpo = "{""email"":""" & JsonEscapar(email) & """,""password"":""" & JsonEscapar(clave) & """}"
-    clave = ""   ' no dejarla en memoria mÃ¡s de lo necesario
+    clave = ""   ' no dejarla en memoria más de lo necesario
 
     Dim resp As String, estado As Long
     resp = PostAuth("password", cuerpo, estado)
     If estado <> 200 Then
         Rango("SB_ESTADO").Value = "No conectado"
-        MsgBox "No se pudo iniciar sesiÃ³n (cÃ³digo " & estado & ")." & vbCrLf & _
-               "Revisa el correo y la contraseÃ±a (son los mismos de SistemaMP)." & vbCrLf & vbCrLf & _
+        MsgBox "No se pudo iniciar sesión (código " & estado & ")." & vbCrLf & _
+               "Revisa el correo y la contraseña (son los mismos de SistemaMP)." & vbCrLf & vbCrLf & _
                Left$(resp, 300), vbExclamation, "SistemaMP"
         Exit Sub
     End If
@@ -46,17 +46,17 @@ Public Sub Conectar()
     Actualizar
 End Sub
 
-'--- BotÃ³n Â«ActualizarÂ»: trae los datos nuevos de SistemaMP --------------------
+'--- Botón "Actualizar": trae los datos nuevos de SistemaMP --------------------
 Public Sub Actualizar()
     If Not SesionVigente() Then
         If Not Renovar() Then
-            MsgBox "La sesiÃ³n no estÃ¡ activa. Presiona Â«ConectarÂ».", vbInformation, "SistemaMP"
+            MsgBox "La sesión no está activa. Presiona "Conectar".", vbInformation, "SistemaMP"
             Exit Sub
         End If
     End If
 
     Dim c As WorkbookConnection
-    Application.StatusBar = "SistemaMP: actualizando datosâ€¦"
+    Application.StatusBar = "SistemaMP: actualizando datos..."
     On Error Resume Next
     For Each c In ThisWorkbook.Connections   ' que espere a terminar cada consulta (no en segundo plano)
         c.OLEDBConnection.BackgroundQuery = False
@@ -73,7 +73,7 @@ FALLO:
     MsgBox "Error al actualizar: " & Err.Description, vbExclamation, "SistemaMP"
 End Sub
 
-'--- BotÃ³n Â«DesconectarÂ»: borra el token (tambiÃ©n se llama al cerrar el libro) -
+'--- Botón "Desconectar": borra el token (también se llama al cerrar el libro) -
 Public Sub Desconectar()
     On Error Resume Next
     mRefresh = ""
@@ -100,7 +100,7 @@ Private Function PedirClave(email As String) As String
     Unload f
     Exit Function
 SIN_FORM:
-    PedirClave = InputBox("ContraseÃ±a de SistemaMP para " & email & ":" & vbCrLf & _
+    PedirClave = InputBox("Contraseña de SistemaMP para " & email & ":" & vbCrLf & _
                           "(Aviso: este cuadro muestra lo que escribes. Para ocultarla, agrega el formulario frmLogin.)", _
                           "Conectar a SistemaMP")
 End Function
@@ -149,10 +149,10 @@ Private Function PostAuth(grant As String, cuerpo As String, ByRef estado As Lon
     Exit Function
 SIN_RED:
     estado = 0
-    PostAuth = "Sin conexiÃ³n con el servidor: " & Err.Description
+    PostAuth = "Sin conexión con el servidor: " & Err.Description
 End Function
 
-' Extrae el valor de una clave de primer nivel de un JSON simple (texto o nÃºmero).
+' Extrae el valor de una clave de primer nivel de un JSON simple (texto o número).
 Private Function JsonValor(json As String, clave As String) As String
     Dim p As Long, i As Long, ch As String, s As String
     p = InStr(1, json, """" & clave & """:", vbBinaryCompare)
