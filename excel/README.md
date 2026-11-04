@@ -13,12 +13,13 @@ Un Excel conectado **a la misma base de datos que SistemaMP** (Supabase, proyect
 ## Requisitos
 
 - Excel de escritorio para **Windows** (Microsoft 365, o 2019/2021). VBA no funciona en Excel Online ni en el celular, y en Mac falta MSXML2.
-- Un **usuario de SistemaMP** (el mismo correo y contraseña). El Excel ve exactamente lo que esa persona ve en el programa: los permisos los aplica la base de datos.
+- Un **usuario de SistemaMP**. El Excel ve exactamente lo que esa persona ve en el programa: los permisos los aplica la base de datos.
 
 ## Seguridad
 
 - En el Excel solo va la **clave pública** del proyecto (`sb_publishable_…`, la misma que ya usa la web). **Nunca** pongas la clave `service_role`.
-- La contraseña **no se guarda**: se usa una vez para pedir un token de sesión (~1 hora). El token se borra al cerrar el libro. El token para renovarla vive solo en memoria.
+- La contraseña **nunca pasa por Excel**. El login de SistemaMP tiene CAPTCHA (Cloudflare Turnstile) y Excel no puede resolverlo, así que la sesión se crea en la web: **SistemaMP → Ayuda → «Generar código para el Excel»** (contraseña + CAPTCHA + 2 pasos si la cuenta los tiene). Ese código sirve una vez; el Excel lo canjea por su propia sesión (~1 hora, se renueva sola mientras el libro está abierto) y se borra al cerrar el libro.
+- Si una cuenta tiene verificación en dos pasos, el código solo se entrega después de ese segundo paso (la base exige `aal2` para leer).
 - Los datos que trae Power Query **sí quedan guardados en el archivo** (como cualquier Excel con datos). Trátalo como información interna de la faena.
 
 ## Cómo armarlo (una vez, ~30 minutos)
@@ -30,8 +31,7 @@ La hoja **Conexión** ya trae las celdas con nombre: `SB_URL`, `SB_KEY`, `SB_EMA
 ### 2. VBA
 1. `Alt+F11` → Archivo → **Importar archivo…** → `vba/modSistemaMP.bas`.
 2. Doble clic en **ThisWorkbook** → pega el contenido de `vba/ThisWorkbook.txt`.
-3. (Recomendado) Crea el formulario `frmLogin` siguiendo `vba/frmLogin.txt`: la contraseña se escribe con asteriscos. Sin él, se pide con un cuadro que la muestra.
-4. En la hoja Conexión: Insertar → Formas → 3 rectángulos «Conectar», «Actualizar», «Desconectar» → clic derecho → **Asignar macro** → `Conectar`, `Actualizar`, `Desconectar`.
+3. En la hoja Conexión: **Programador → Insertar → Botón (control de formulario)** (o Insertar → Formas) → 3 botones «Conectar», «Actualizar», «Desconectar» → **Asignar macro** → `Conectar`, `Actualizar`, `Desconectar`.
 
 ### 3. Power Query (traer los datos)
 1. Datos → Obtener datos → Otras fuentes → **Consulta en blanco**. En el Editor avanzado pega `powerquery/00_fnSupabase.pq` y nombra la consulta **fnSupabase**.
@@ -59,7 +59,9 @@ Insertar → **Tabla dinámica** → «Usar el modelo de datos de este libro». 
 Formato condicional en EstadoPM (rojo Vencida/Urgente, ámbar Próxima, verde Al día) y gráficos dinámicos a partir de esas tablas.
 
 ### 6. Uso diario
-**Conectar** (una vez por sesión) → **Actualizar** cuando se quiera ver lo último. Si sale *401*, la sesión venció: **Conectar** otra vez.
+1. En SistemaMP: **Ayuda → Generar código para el Excel** → confirma la contraseña → **Copiar código**.
+2. En el Excel: **Conectar** → pega el código. Trae todo de una vez.
+3. **Actualizar** cuando se quiera ver lo último (la sesión se renueva sola mientras el libro está abierto). Si se cerró Excel o sale *401*, genera un código nuevo y **Conectar** otra vez.
 
 ## Notas sobre los datos (vistas al armar esto, 04-11-2026)
 
@@ -73,7 +75,7 @@ Formato condicional en EstadoPM (rojo Vencida/Urgente, ámbar Próxima, verde Al
 | Archivo | Qué es |
 |---|---|
 | `powerquery/*.pq` | Consultas Power Query (lenguaje M) |
-| `vba/modSistemaMP.bas` | Iniciar sesión, actualizar, desconectar (guardado en Windows-1252, la codificación que espera el Editor de VBA; en UTF-8 los acentos salen como «Ã±») |
-| `vba/ThisWorkbook.txt`, `vba/frmLogin.txt` | Código para pegar en el libro y en el formulario |
+| `vba/modSistemaMP.bas` | Conectar con el código, actualizar, desconectar (guardado en Windows-1252, la codificación que espera el Editor de VBA; en UTF-8 los acentos salen como «Ã±») |
+| `vba/ThisWorkbook.txt` | Código para pegar en ThisWorkbook (borra la sesión al cerrar) |
 | `dax/medidas.dax` | Relaciones y medidas del Modelo de datos |
 | `generar_plantilla.py` | Genera `SistemaMP_Excel_base.xlsx` (hoja Conexión con las celdas con nombre) |

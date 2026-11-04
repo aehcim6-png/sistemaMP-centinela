@@ -5422,6 +5422,117 @@ async function _mfaVerify(token,factorId,challengeId,code){
   });
   return r.json();
 }
+// ============ CÓDIGO PARA CONECTAR EL EXCEL (2026-11-04) ============
+// El Excel de SistemaMP (carpeta excel/) lee la base con la sesión del usuario, pero el login tiene CAPTCHA
+// (Turnstile) y el Excel no puede resolverlo: la respuesta era «captcha protection: request disallowed».
+// Esta ventana crea en la web una sesión APARTE para el Excel (contraseña + CAPTCHA + 2 pasos si la cuenta
+// los tiene) y muestra su refresh_token como código para pegar en el Excel, que lo canjea en
+// /auth/v1/token?grant_type=refresh_token (ese canje no pide CAPTCHA). Nunca se toca la sesión de la web
+// (localStorage) ni se llama a logout sobre la sesión nueva (la revocaría). La lógica de qué falta está en
+// excelCodigoEstado (logic.js, con prueba).
+var _xlPendienteMfa=null;
+function _conectarExcelUI(){
+  var old=document.getElementById('xlOverlay');if(old)old.remove();
+  _xlPendienteMfa=null;
+  var email=(_currentUser&&_currentUser.email)||_decodeJwtEmail(localStorage.getItem('smp_access_token')||'')||'';
+  var ov=document.createElement('div');
+  ov.id='xlOverlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);font-family:system-ui,sans-serif;padding:16px';
+  var inp='width:100%;padding:10px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);color:var(--tx);font-size:14px;box-sizing:border-box';
+  ov.innerHTML=
+    '<div role="dialog" aria-modal="true" aria-labelledby="xl_tit" style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:24px;width:100%;max-width:440px;box-shadow:var(--shadow-md)">'+
+      '<div id="xl_tit" style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:6px">Código para conectar el Excel</div>'+
+      '<div style="font-size:12px;color:var(--tx3);margin-bottom:16px">El Excel de SistemaMP usa tu mismo usuario. Confirma tu contraseña y copia el código en el Excel (botón <b>Conectar</b>). Sirve una sola vez.</div>'+
+      '<div id="xl_err" style="display:none;background:color-mix(in srgb,var(--danger) 15%,transparent);border:1px solid var(--danger);border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px;color:var(--danger)"></div>'+
+      '<div id="xl_paso1">'+
+        '<label style="font-size:11px;color:var(--tx3);display:block;margin-bottom:4px">Correo</label>'+
+        '<input id="xl_email" type="email" readonly style="'+inp+';opacity:.75;margin-bottom:12px">'+
+        '<label style="font-size:11px;color:var(--tx3);display:block;margin-bottom:4px">Contraseña</label>'+
+        '<input id="xl_pass" type="password" autocomplete="current-password" style="'+inp+';margin-bottom:12px">'+
+        '<div id="xl_mfa_box" style="display:none;margin-bottom:12px"><label style="font-size:11px;color:var(--tx3);display:block;margin-bottom:4px">Código de 6 dígitos de tu app autenticadora</label>'+
+        '<input id="xl_mfa" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="'+inp+'"></div>'+
+        (_TURNSTILE_SITE_KEY?'<div id="xl_captcha" style="margin-bottom:12px;display:flex;justify-content:center"></div>':'')+
+        '<div style="display:flex;gap:8px"><button type="button" id="xl_btn" class="btn" style="flex:1">Generar código</button>'+
+        '<button type="button" class="btn btn-o" onclick="_conectarExcelCerrar()">Cancelar</button></div>'+
+        '<div id="xl_loading" style="display:none;text-align:center;margin-top:10px;font-size:12px;color:var(--tx3)">Verificando…</div>'+
+      '</div>'+
+      '<div id="xl_paso2" style="display:none">'+
+        '<label style="font-size:11px;color:var(--tx3);display:block;margin-bottom:4px">Código (cópialo y pégalo en el Excel)</label>'+
+        '<textarea id="xl_codigo" readonly rows="2" style="'+inp+';font-family:monospace;font-size:13px;resize:none;margin-bottom:10px"></textarea>'+
+        '<div style="font-size:11px;color:var(--tx3);margin-bottom:12px">No lo compartas: da acceso con tu usuario. Sirve <b>una vez</b>; la próxima vez que abras el Excel genera otro.</div>'+
+        '<div style="display:flex;gap:8px"><button type="button" id="xl_copiar" class="btn" style="flex:1">Copiar código</button>'+
+        '<button type="button" class="btn btn-o" onclick="_conectarExcelCerrar()">Cerrar</button></div>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(ov);
+  document.getElementById('xl_email').value=email;
+  document.getElementById('xl_btn').addEventListener('click',_conectarExcelGenerar);
+  document.getElementById('xl_pass').addEventListener('keydown',function(e){if(e.key==='Enter')_conectarExcelGenerar();});
+  document.getElementById('xl_mfa').addEventListener('keydown',function(e){if(e.key==='Enter')_conectarExcelGenerar();});
+  document.getElementById('xl_copiar').addEventListener('click',function(){
+    var t=document.getElementById('xl_codigo');t.select();
+    var hecho=function(){toast('Código copiado. Pégalo en el Excel (botón Conectar).');};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t.value).then(hecho,function(){document.execCommand('copy');hecho();});
+    else{document.execCommand('copy');hecho();}
+  });
+  _renderTurnstileEn('xl_captcha');
+  setTimeout(function(){var p=document.getElementById('xl_pass');if(p)p.focus();},100);
+}
+function _conectarExcelCerrar(){
+  var ov=document.getElementById('xlOverlay');if(ov)ov.remove();
+  _xlPendienteMfa=null;
+  if(_turnstileWidgetId!=null&&window.turnstile&&typeof turnstile.remove==='function'){try{turnstile.remove(_turnstileWidgetId);}catch(e){}}
+  _turnstileWidgetId=null;_turnstileToken=null;
+}
+function _conectarExcelError(msg){
+  var e=document.getElementById('xl_err');if(!e)return;
+  e.textContent=msg;e.style.display='block';
+  var b=document.getElementById('xl_btn');if(b)b.disabled=false;
+  var l=document.getElementById('xl_loading');if(l)l.style.display='none';
+}
+async function _conectarExcelGenerar(){
+  var btn=document.getElementById('xl_btn');
+  document.getElementById('xl_err').style.display='none';
+  var res;
+  try{
+    if(_xlPendienteMfa){
+      var code=(document.getElementById('xl_mfa').value||'').trim();
+      if(!/^\d{6}$/.test(code)){_conectarExcelError('El código debe tener 6 dígitos.');return;}
+      btn.disabled=true;document.getElementById('xl_loading').style.display='block';
+      var ch=await _mfaChallenge(_xlPendienteMfa.tokenAal1,_xlPendienteMfa.factorId);
+      if(ch.error||!ch.id){_conectarExcelError('No se pudo iniciar la verificación en dos pasos. Intenta de nuevo.');return;}
+      res=excelCodigoEstado(await _mfaVerify(_xlPendienteMfa.tokenAal1,_xlPendienteMfa.factorId,ch.id,code),true);
+    }else{
+      var email=document.getElementById('xl_email').value||'';
+      var pass=document.getElementById('xl_pass').value||'';
+      if(!email){_conectarExcelError('No se pudo leer tu correo de la sesión. Cierra sesión y vuelve a entrar.');return;}
+      if(!pass){_conectarExcelError('Escribe tu contraseña.');return;}
+      if(_TURNSTILE_SITE_KEY&&!_turnstileToken){_conectarExcelError('Completa la verificación de seguridad.');return;}
+      btn.disabled=true;document.getElementById('xl_loading').style.display='block';
+      var data=await _sbAuthLogin(email,pass,_turnstileToken);
+      _resetTurnstile(); // el token de Turnstile es de un solo uso
+      res=excelCodigoEstado(data,false);
+      if(res.estado==='mfa'){
+        _xlPendienteMfa={factorId:res.factorId,tokenAal1:res.tokenAal1};
+        document.getElementById('xl_pass').disabled=true;
+        document.getElementById('xl_mfa_box').style.display='block';
+        var cap=document.getElementById('xl_captcha');if(cap)cap.style.display='none';
+        btn.disabled=false;btn.textContent='Confirmar código';
+        document.getElementById('xl_loading').style.display='none';
+        document.getElementById('xl_mfa').focus();
+        return;
+      }
+    }
+  }catch(e){_resetTurnstile();_conectarExcelError('Error de conexión. Intenta de nuevo.');return;}
+  if(res.estado!=='listo'){_conectarExcelError(res.mensaje);return;}
+  _xlPendienteMfa=null;
+  document.getElementById('xl_paso1').style.display='none';
+  document.getElementById('xl_paso2').style.display='block';
+  document.getElementById('xl_codigo').value=res.codigo;
+  _registrarLogin('Código para conectar el Excel');
+}
+window._conectarExcelUI=_conectarExcelUI;
+window._conectarExcelCerrar=_conectarExcelCerrar;
 async function _mfaUnenroll(token,factorId){
   const r=await fetch(_SB_DEFAULT_URL+'/auth/v1/factors/'+factorId,{
     method:'DELETE',

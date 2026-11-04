@@ -33,7 +33,7 @@ ws["B3"].font = Font(italic=True, color=GRIS)
 filas = [
     ("SB_URL", "Servidor", URL, "No cambiar."),
     ("SB_KEY", "Clave pública", KEY_PUBLICA, "Clave pública del proyecto (la misma de la web). Nunca pongas aquí la clave service_role."),
-    ("SB_EMAIL", "Tu correo de SistemaMP", "", "Escríbelo una vez. La contraseña NO se guarda: se pide al Conectar."),
+    ("SB_EMAIL", "Conectado como", "", "Lo llena Conectar. La contraseña nunca pasa por el Excel: se usa un código de SistemaMP (Ayuda)."),
     ("SB_ESTADO", "Estado", "No conectado", "Lo actualiza el botón Conectar."),
     ("SB_ULTIMA", "Última actualización", "", ""),
     ("SB_EXPIRA", "Sesión válida hasta", "", "La sesión dura ~1 hora; Actualizar la renueva sola."),
@@ -44,8 +44,6 @@ for i, (nombre, etiqueta, valor, ayuda) in enumerate(filas, start=5):
     c = ws.cell(i, 3, valor)
     c.border = Border(left=fino, right=fino, top=fino, bottom=fino)
     c.alignment = Alignment(shrink_to_fit=True)
-    if nombre == "SB_EMAIL":
-        c.fill = PatternFill("solid", fgColor="FFF8E7")
     if nombre in ("SB_ULTIMA", "SB_EXPIRA"):
         c.number_format = "dd-mm-yyyy hh:mm"
     if nombre == "SB_TOKEN":
@@ -58,7 +56,7 @@ ws["B14"].font = Font(bold=True, color=COBRE)
 for k, (txt, macro) in enumerate([("Conectar", "Conectar"), ("Actualizar", "Actualizar"), ("Desconectar", "Desconectar")], start=15):
     ws.cell(k, 2, f"[ {txt} ]").font = Font(bold=True, color=AZUL)
     ws.cell(k, 3, f"Insertar → Formas → rectángulo «{txt}» → clic derecho → Asignar macro → {macro}").font = Font(size=9, color=GRIS)
-ws["B19"] = "Guía completa: carpeta excel/ del repositorio (README.md)."
+ws["B19"] = "Para conectar: en SistemaMP abre Ayuda → «Generar código para el Excel», copia el código y presiona Conectar aquí. Guía completa: excel/README.md."
 ws["B19"].font = Font(size=9, italic=True, color=GRIS)
 
 wd = wb.create_sheet("Dashboard")

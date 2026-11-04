@@ -2,9 +2,10 @@ Attribute VB_Name = "modSistemaMP"
 '==============================================================================
 ' modSistemaMP - conexión del Excel con SistemaMP (Supabase).
 '
-' Cada persona entra con SU usuario de SistemaMP: el Excel ve y puede hacer lo
-' mismo que esa persona en el programa (los permisos los aplica la base de datos).
-' La contraseña NO se guarda: solo se usa para pedir un "token" de sesión, que
+' Cada persona entra con SU usuario de SistemaMP: el Excel ve lo mismo que esa
+' persona en el programa (los permisos los aplica la base de datos).
+' La contraseña nunca pasa por Excel: se conecta con un código de un solo uso
+' que se genera en SistemaMP (Ayuda). Ese código da un "token" de sesión, que
 ' dura aprox. 1 hora y se borra al cerrar el libro. El token para renovarla queda solo
 ' en memoria (nunca en una celda): si Excel se reinicia, hay que "Conectar" otra vez.
 '
@@ -17,32 +18,32 @@ Option Explicit
 Private Const MARGEN_SEG As Long = 120   ' renueva el token si le quedan menos de 2 minutos
 Private mRefresh As String               ' token de renovación: solo en memoria
 
-'--- Botón "Conectar": pide la contraseña, inicia sesión y actualiza todo -----
+'--- Botón "Conectar": pide el código generado en SistemaMP y actualiza todo ---
+' El login de SistemaMP tiene verificación de seguridad (CAPTCHA) que Excel no puede
+' resolver. Por eso la sesión se crea en la web: SistemaMP -> Ayuda -> "Generar código
+' para el Excel". Ese código (sirve una vez) se canjea aquí por una sesión propia.
 Public Sub Conectar()
-    Dim email As String, clave As String
-    email = Trim$(CStr(Rango("SB_EMAIL").Value))
-    If email = "" Then
-        email = InputBox("Correo con el que entras a SistemaMP:", "Conectar a SistemaMP")
-        If email = "" Then Exit Sub
-        Rango("SB_EMAIL").Value = email
-    End If
-    clave = PedirClave(email)
-    If clave = "" Then Exit Sub
-
-    Dim cuerpo As String
-    cuerpo = "{""email"":""" & JsonEscapar(email) & """,""password"":""" & JsonEscapar(clave) & """}"
-    clave = ""   ' no dejarla en memoria más de lo necesario
+    Dim codigo As String
+    codigo = InputBox("Pega el código para el Excel." & vbCrLf & vbCrLf & _
+                      "Se genera en SistemaMP: Ayuda -> Generar código para el Excel." & vbCrLf & _
+                      "Sirve una sola vez.", "Conectar a SistemaMP")
+    codigo = Trim$(Replace(Replace(codigo, vbCr, ""), vbLf, ""))
+    If codigo = "" Then Exit Sub
 
     Dim resp As String, estado As Long
-    resp = PostAuth("password", cuerpo, estado)
+    resp = PostAuth("refresh_token", "{""refresh_token"":""" & JsonEscapar(codigo) & """}", estado)
+    codigo = ""
     If estado <> 200 Then
         Rango("SB_ESTADO").Value = "No conectado"
-        MsgBox "No se pudo iniciar sesión (código " & estado & ")." & vbCrLf & _
-               "Revisa el correo y la contraseña (son los mismos de SistemaMP)." & vbCrLf & vbCrLf & _
+        MsgBox "No se pudo conectar (código " & estado & ")." & vbCrLf & _
+               "El código ya se usó o venció: genera uno nuevo en SistemaMP (Ayuda)." & vbCrLf & vbCrLf & _
                Left$(resp, 300), vbExclamation, "SistemaMP"
         Exit Sub
     End If
     GuardarSesion resp
+    Dim correo As String
+    correo = JsonValor(resp, "email")
+    If correo <> "" Then Rango("SB_EMAIL").Value = correo
     Actualizar
 End Sub
 
@@ -87,22 +88,6 @@ End Sub
 '==============================================================================
 Private Function Rango(nombre As String) As Range
     Set Rango = ThisWorkbook.Names(nombre).RefersToRange
-End Function
-
-Private Function PedirClave(email As String) As String
-    ' Si existe el formulario frmLogin (campo con asteriscos), se usa; si no, InputBox.
-    On Error GoTo SIN_FORM
-    Dim f As Object
-    Set f = VBA.UserForms.Add("frmLogin")
-    f.txtEmail.Value = email
-    f.Show
-    If f.Aceptado Then PedirClave = f.txtClave.Value
-    Unload f
-    Exit Function
-SIN_FORM:
-    PedirClave = InputBox("Contraseña de SistemaMP para " & email & ":" & vbCrLf & _
-                          "(Aviso: este cuadro muestra lo que escribes. Para ocultarla, agrega el formulario frmLogin.)", _
-                          "Conectar a SistemaMP")
 End Function
 
 Private Function SesionVigente() As Boolean

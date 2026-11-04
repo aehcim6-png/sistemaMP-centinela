@@ -7157,6 +7157,8 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Hallazgos de datos al armarlo (no corregidos, solo reportados):** `registros_pm` tiene ~45 % de filas sin `fechaEjec` y 7 con un `<svg>` guardado dentro de `estado`; `correctivos.duracion` tiene 27 valores «â€”» (doble codificación de «—»); CN-4656, CN-6113 y CN-9506 tienen historial pero no están en `equipos`.
 
+**Conexión con código (2026-11-04, el mismo día):** al probarlo, el login desde Excel falló con `captcha protection: request disallowed (no captcha_token found)`: Supabase Auth exige el token de Turnstile en `grant_type=password` y Excel no puede resolver el CAPTCHA. No se desactivó el CAPTCHA. En su lugar, **Ayuda → «Generar código para el Excel»** (`_conectarExcelUI` en `index.html`) crea en la web una sesión **aparte** (contraseña + Turnstile + segundo paso TOTP si la cuenta lo tiene, porque `privado.es_usuario_activo()` exige `aal2` en esas cuentas) y muestra su `refresh_token` como código de un solo uso; el VBA lo canjea en `auth/v1/token?grant_type=refresh_token`, que no pide CAPTCHA. La sesión de la web (localStorage) no se toca y nunca se llama a `logout` sobre la sesión nueva (la revocaría). El paso queda registrado como «Código para conectar el Excel» en el registro de accesos. Lógica: `excelCodigoEstado` (`logic.js`). Pruebas: `tests/excelCodigo.test.js` (9 casos) y `tests/e2e/conectar-excel.spec.js` (código de una sesión nueva sin tocar la de la web, contraseña incorrecta, cuenta con dos pasos). El módulo VBA se guarda en Windows-1252 (en UTF-8 el Editor de VBA muestra «Ã±»).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

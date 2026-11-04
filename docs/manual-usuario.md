@@ -112,6 +112,15 @@ No para seguir viendo y editando datos: el sistema guarda de inmediato en
 este computador aunque se corte la conexión, y sincroniza solo con la nube
 cuando vuelve.
 
+**¿Cómo conecto el Excel de SistemaMP?**
+El Excel de SistemaMP (el que se actualiza solo desde el programa, con su botón
+**Conectar**) no puede pasar la verificación de seguridad del login. Por eso se
+conecta con un código: en **Ayuda → Generar código para el Excel** confirmas tu
+contraseña (y el código de 6 dígitos si tienes verificación en dos pasos),
+copias el código y lo pegas al presionar **Conectar** en el Excel. Sirve una sola
+vez; si cierras el Excel, genera otro. Desde el Excel solo se lee: no se modifica
+nada del programa.
+
 **¿Puedo bajar los datos a Excel?**
 Sí. Arriba a la derecha, en todas las pestañas, está el botón **Excel**: baja
 todas las tablas de la pestaña que estás viendo, una hoja por tabla, con los
