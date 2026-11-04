@@ -7145,6 +7145,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/excelExport.test.js` (12 casos) y `tests/e2e/exportar-excel.spec.js` (descarga real, se abre el `.xlsx` y se revisan hojas, tipos de celda y que el CSV siga funcionando).
 
+### 209. Excel conectado a SistemaMP — cliente de solo lectura (2026-11-04)
+
+**Para qué:** parte del equipo prefiere trabajar en Excel. En vez de mantener planillas paralelas (que se desactualizan y contradicen al programa), un Excel de escritorio lee **la misma base** que la web.
+
+**Qué se hizo:** carpeta `excel/` (no la usa el build de Vite): consultas Power Query (`excel/powerquery/*.pq`, función `fnSupabase` que pide de a 1.000 filas a la API REST de Supabase), módulo VBA (`excel/vba/modSistemaMP.bas`: iniciar sesión con el usuario de SistemaMP en `auth/v1/token`, renovar la sesión y actualizar), medidas DAX (`excel/dax/medidas.dax`), `excel/generar_plantilla.py` (hoja «Conexión» con las celdas con nombre) y la guía `excel/README.md`.
+
+**Decisiones:** el Excel **no recalcula** el estado de PM: muestra `equipos.estado`, `tipoPM`, `horomProxPM`, `diasParaPM` tal como los guarda el programa, para que ambos digan siempre lo mismo. Cada persona entra con **su** usuario, así que las políticas RLS (`privado.es_usuario_activo()` para leer) se aplican igual que en la web; en el Excel solo va la clave pública. La contraseña no se guarda, el token de renovación vive solo en memoria y el de acceso se borra al cerrar el libro. Etapa 1 es **solo lectura**: no hay ningún INSERT/UPDATE desde Excel.
+
+**Límites:** requiere Excel de escritorio para Windows (MSXML2, Power Query y Power Pivot); Power Query exige «Ignorar los niveles de privacidad» en el libro para combinar la celda del token con la web. El armado (consultas, modelo, tablas dinámicas) se hace en Excel siguiendo la guía: no se pudo probar aquí porque el entorno no tiene Excel. Los datos que trae quedan guardados en el archivo.
+
+**Hallazgos de datos al armarlo (no corregidos, solo reportados):** `registros_pm` tiene ~45 % de filas sin `fechaEjec` y 7 con un `<svg>` guardado dentro de `estado`; `correctivos.duracion` tiene 27 valores «â€”» (doble codificación de «—»); CN-4656, CN-6113 y CN-9506 tienen historial pero no están en `equipos`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -1,0 +1,49 @@
+// Medidas DAX para el Modelo de datos (Power Pivot → Medidas → Nueva medida).
+// Tablas esperadas (nombres de las consultas): Equipos, RegistrosPM, Horometros, Correctivos, Reportabilidad, Calendario.
+// Relaciones (Power Pivot → Vista de diagrama), todas "muchos a uno" hacia la tabla de la derecha:
+//   RegistrosPM[Fecha]   → Calendario[Fecha]        RegistrosPM[sigla]    → Equipos[sigla]
+//   Correctivos[fecha]   → Calendario[Fecha]        Correctivos[sigla]    → Equipos[sigla]
+//   Reportabilidad[fecha]→ Calendario[Fecha]        Reportabilidad[sigla] → Equipos[sigla]
+//   Horometros[fecha]    → Calendario[Fecha]        Horometros[sigla]     → Equipos[sigla]
+// Ojo: CN-4656, CN-6113 y CN-9506 tienen historial pero ya no están en «equipos»: en tablas dinámicas
+// agrupadas por Equipos[sigla] salen como "(en blanco)". Para ver su historial, agrupa por la sigla de la tabla de hechos.
+
+// ---------- Flota y PM (estado actual, calculado por SistemaMP) ----------
+Equipos en flota := COUNTROWS ( Equipos )
+PM vencidas      := CALCULATE ( COUNTROWS ( Equipos ), Equipos[EstadoPM] = "Vencida" )
+PM urgentes      := CALCULATE ( COUNTROWS ( Equipos ), Equipos[EstadoPM] IN { "Urgente", "Vencida" } )
+PM próximas      := CALCULATE ( COUNTROWS ( Equipos ), Equipos[EstadoPM] = "Próxima" )
+PM al día        := CALCULATE ( COUNTROWS ( Equipos ), Equipos[EstadoPM] = "Al día" )
+Sin lectura      := CALCULATE ( COUNTROWS ( Equipos ), Equipos[EstadoPM] = "Sin lectura" )
+
+// ---------- PM ejecutadas y cumplimiento ----------
+PM ejecutadas    := COUNTROWS ( RegistrosPM )
+PM a tiempo      := CALCULATE ( COUNTROWS ( RegistrosPM ), RegistrosPM[Cumplimiento] IN { "A tiempo", "Anticipada" } )
+PM con dato      := CALCULATE ( COUNTROWS ( RegistrosPM ), RegistrosPM[Cumplimiento] <> "Sin dato" )
+% Cumplimiento PM := DIVIDE ( [PM a tiempo], [PM con dato] )
+Horas en PM      := SUM ( RegistrosPM[duracionH] )
+
+// ---------- Correctivos (OT) ----------
+OT               := COUNTROWS ( Correctivos )
+OT abiertas      := CALCULATE ( COUNTROWS ( Correctivos ), Correctivos[estadoOT] IN { "Abierta", "Pendiente" } )
+Horas OT         := SUM ( Correctivos[DuracionH] )
+Costo OT         := SUM ( Correctivos[costo] )
+OT por equipo    := DIVIDE ( [OT], DISTINCTCOUNT ( Correctivos[sigla] ) )
+
+// ---------- Reportabilidad y disponibilidad ----------
+// Cada fila de Reportabilidad = un equipo en un día del reporte. Disponibilidad = días OP ÷ días reportados.
+Días reportados  := COUNTROWS ( Reportabilidad )
+Días F/S         := CALCULATE ( COUNTROWS ( Reportabilidad ), Reportabilidad[EsFS] = TRUE () )
+% Disponibilidad := DIVIDE ( [Días reportados] - [Días F/S], [Días reportados] )
+F/S hoy          :=
+    VAR UltimoDia = MAX ( Reportabilidad[fecha] )
+    RETURN CALCULATE ( COUNTROWS ( Reportabilidad ), Reportabilidad[EsFS] = TRUE (), Reportabilidad[fecha] = UltimoDia )
+
+// ---------- Horómetros ----------
+Última lectura   := MAX ( Horometros[fecha] )
+Horas trabajadas :=
+    // horas entre la primera y la última lectura del período (por equipo; en totales suma por equipo)
+    SUMX (
+        VALUES ( Horometros[sigla] ),
+        CALCULATE ( MAX ( Horometros[horom] ) - MIN ( Horometros[horom] ) )
+    )
