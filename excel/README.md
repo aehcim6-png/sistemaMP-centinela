@@ -63,6 +63,22 @@ Formato condicional en EstadoPM (rojo Vencida/Urgente, ámbar Próxima, verde Al
 2. En el Excel: **Conectar** → pega el código. Trae todo de una vez.
 3. **Actualizar** cuando se quiera ver lo último (la sesión se renueva sola mientras el libro está abierto). Si se cerró Excel o sale *401*, genera un código nuevo y **Conectar** otra vez.
 
+## Problemas comunes (vistos al armarlo por primera vez, 2026-11-05)
+
+| Qué pasa | Por qué | Qué hacer |
+|---|---|---|
+| Conectar dice «captcha protection… no captcha_token found» o pide **contraseña** | Quedó el módulo VBA antiguo | Quitar `modSistemaMP` e importar el `.bas` actual (el cuadro debe decir «Pega el código para el Excel») |
+| Hay dos `VBAProject (…xlsm)` en el Editor de VBA, o «Solo lectura» | El mismo archivo está abierto dos veces | Cerrar todo Excel y abrirlo una sola vez |
+| «Token ',' expected» al pegar en el Editor avanzado | Quedó el texto que traía la ventana (`let Origen = "" in Origen`) | **Ctrl + A**, **Supr** y pegar de nuevo |
+| Aviso amarillo «Especifique cómo conectarse» | Primera vez que Power Query va a la web | **Editar credenciales → Anónimo → Conectar** (el usuario va en el token) |
+| Medida DAX con subrayado rojo / error | Excel en español separa con **;** | Usar `;` en vez de `,`; para «A o B» usar `[x] = "A" \|\| [x] = "B"` en vez de `IN { … }` |
+| Insertar → Formas aparece gris | Celda en edición o grupo de hojas | Esc; o usar **Programador → Insertar → Botón (control de formulario)** |
+| «¿Convertir en Documento confiable?» | El archivo está en OneDrive (ubicación de red) | **Sí**, si el archivo es propio |
+| La lista de la flota no se ordena por días | Con varios campos en Filas, Excel ordena dentro de cada equipo | Poner `diasParaPM` como **primer** campo de Filas |
+| «(en blanco)» en filtros por equipo | CN-4656, CN-6113 y CN-9506 tienen historial pero no están en `equipos` | Normal; se corrige en SistemaMP |
+
+Verificado al armarlo: con los datos del 04-11-2026 el Excel mostró 6 urgentes, 15 próximas y 9 al día, los mismos números del encabezado de SistemaMP.
+
 ## Notas sobre los datos (vistas al armar esto, 04-11-2026)
 
 - `registros_pm`: ~45 % de los registros no tiene `fechaEjec`; la consulta usa la de salida o entrada. En `estado` hay valores con emoji y 7 con un ícono HTML guardado por error: se normalizan a «Anticipada / A tiempo / …».
