@@ -1,0 +1,9 @@
+' Pegar en el módulo «ThisWorkbook» del Editor de VBA (Alt+F11).
+' Borra la sesión al cerrar, para que el token no quede guardado dentro del archivo.
+' (Si guardas con la sesión abierta, el token de ~1 hora queda en el archivo hasta que vence;
+'  el de renovación nunca se guarda porque vive solo en memoria.)
+Option Explicit
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    modSistemaMP.Desconectar
+End Sub

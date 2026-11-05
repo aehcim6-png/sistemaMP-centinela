@@ -1296,6 +1296,7 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **Ejemplo (prueba automática):** una tabla con «CA-5979 | 124.127 | 2026-11-01 | 007» baja a Excel con 124127 como número, la fecha como fecha del 01-11-2026 y «007» como texto.
 - **Límites:** baja lo que está dibujado en la pantalla (si un filtro oculta filas, esas filas no salen); los gráficos no se descargan, solo sus tablas y cifras; los porcentajes quedan como texto; una pestaña sin tablas ni cifras avisa en vez de bajar un archivo vacío.
 - **Código:** `excelValorCelda`, `excelNombreHoja`, `excelHojasDesdeTablas` (`logic.js`) y `exportExcel` (`index.html`).
+
 ---
 
 ### L8. Importar la planilla «Control Kilometraje» (camionetas y bus)
@@ -1307,6 +1308,17 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **Ejemplo (prueba automática):** CA-5979 (último 114.681, próximo en planilla 124.681, sistema 130.000) queda «Fijar a mano»; CA-10505 (planilla 26.000, frecuencia 16.000, último 16.000) queda «No cuadra con la frecuencia» porque debería ser 32.000.
 - **Límites:** no carga equipos que no estén dados de alta (los lista con su patente y km); no registra las mantenciones realizadas (la planilla trae solo el km de la última, sin fecha ni tipo); no lee la fecha de la revisión técnica ni los comentarios (se muestran como notas); cada equipo necesita su frecuencia cargada para validar la mantención.
 - **Código:** `kilometrajeAnalizar` (`logic.js`) y `modules/renders/km.js`.
+---
+
+### L9. Código para conectar el Excel
+- **Tipo:** regla de flujo de inicio de sesión (no calcula indicadores).
+- **Para qué sirve:** que el Excel de SistemaMP (carpeta `excel/`) pueda leer la base con el usuario de cada persona, aunque el login tenga CAPTCHA, que Excel no puede resolver.
+- **De dónde viene:** 🔵 Criterio propio, a pedido (gente que trabaja en Excel), sobre el flujo estándar de Supabase Auth (canje de `refresh_token`).
+- **Cómo lo calcula aquí:** en Ayuda se confirma la contraseña con el CAPTCHA y se crea una sesión aparte; si la cuenta tiene verificación en dos pasos, primero pide el código de 6 dígitos (sin él la base no deja leer). Recién entonces muestra el `refresh_token` de esa sesión nueva como código de un solo uso, que el Excel canjea por su propia sesión. La sesión de la web no se toca.
+- **Dónde se ve:** Ayuda → «Generar código para el Excel»; en el Excel, botón «Conectar».
+- **Ejemplo (prueba automática):** con contraseña correcta y sin dos pasos entrega el código de la sesión nueva («rt-excel-nuevo») y la sesión guardada en el navegador queda igual; con dos pasos, primero pide el código de 6 dígitos y uno equivocado avisa «El código de 6 dígitos no es correcto».
+- **Límites:** el código sirve una vez; al cerrar Excel hay que generar otro. La sesión del Excel dura lo mismo que cualquier sesión y solo permite leer lo que el usuario ya puede ver.
+- **Código:** `excelCodigoEstado` (`logic.js`) y `_conectarExcelUI` (`index.html`).
 ---
 
 ## M. Funciones internas (apéndice)

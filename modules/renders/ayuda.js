@@ -23,6 +23,14 @@ export function renderAyuda(){
     '<button class="btn btn-o" onclick="imprimirTab(\'ayuda\',\'Guía de Capacitación por Rol\',\'m33\')">'+ICONS.printer+' Descargar Guía</button></div>'+
     '</div>'+
 
+    // Excel conectado (2026-11-04): el Excel de SistemaMP (carpeta excel/ del repositorio) no puede pasar el
+    // CAPTCHA del login, así que la sesión del Excel se crea aquí y se entrega como un código de un solo uso.
+    '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac)">'+
+    '<b style="font-size:15px">'+ICONS.doc+' Excel conectado a SistemaMP</b>'+
+    '<p style="font-size:12px;color:var(--tx2);margin:8px 0 10px">Si usas el Excel de SistemaMP (el que se actualiza solo desde el programa), genera aquí el código para conectarlo: confirmas tu contraseña y pegas el código en el botón <b>Conectar</b> del Excel. Sirve una sola vez; la próxima vez que abras el Excel genera otro. Es solo para leer: desde el Excel no se modifica nada.</p>'+
+    '<button class="btn" onclick="_conectarExcelUI()">Generar código para el Excel</button>'+
+    '</div>'+
+
     // Novedades plegadas (2026-10-08): eran 9 tarjetas largas antes de todo lo demás —
     // mismo criterio que ya tenía mp2 desde 2026-09-07. Contenido intacto.
     '<details style="margin-bottom:16px"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0;display:flex;align-items:center;gap:6px">'+ICONS.doc+' Historial de novedades y correcciones (clic para ver)</summary>'+
@@ -30,6 +38,7 @@ export function renderAyuda(){
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades recientes (13 de octubre 2026)</b>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Excel conectado (4 de noviembre)</b>: el Excel de SistemaMP lee los datos del programa con tu mismo usuario. Para conectarlo, en esta Ayuda usa <b>Generar código para el Excel</b> y pega el código en el botón Conectar del Excel (el login tiene verificación de seguridad que el Excel no puede completar solo).</li>'+
     '<li><b>Importar la planilla Control Kilometraje (3 de noviembre)</b>: en <b>Horómetros</b> hay un botón nuevo, <b>📋 Importar Control Kilometraje</b>. Subes el Excel de camionetas y bus y el sistema propone el km de cada equipo y su próxima mantención; tú marcas lo que quieres cargar y recién ahí se guarda. Lo que no cuadra (un km menor que el anterior, una mantención que no coincide con la frecuencia del equipo) viene sin marcar y con la explicación. Los equipos que no están en el sistema se avisan y no se cargan.</li>'+
     '<li><b>Descargar cualquier pestaña como Excel (2 de noviembre)</b>: arriba a la derecha hay un botón nuevo, <b>Excel</b>. Baja todas las tablas de la pestaña que estás viendo, una hoja por tabla, con los números y las fechas listos para fórmulas y tablas dinámicas; los tableros traen sus cifras en una hoja «Cifras». Baja lo que está en pantalla (si filtraste, solo lo filtrado) y no los gráficos. El botón <b>CSV</b> de siempre sigue igual.</li>'+
     '<li><b>Importar el chat de WhatsApp (2 de noviembre)</b>: en <b>Horómetros</b> y en <b>Correctivos</b> hay un botón nuevo, <b>💬 Importar chat de WhatsApp</b>. Subes el archivo que exporta WhatsApp (sin multimedia) y el sistema lee los avisos de falla y de «operativo» y los horómetros del grupo, y te <b>propone</b> qué cargar: paradas con entrada y salida, horómetros que cuadran con las lecturas vecinas y PM. Marcas lo que quieres y solo eso se guarda; lo ya cargado se detecta para no duplicar. Es una vía adicional: el CSV y el registro manual siguen igual.</li>'+
