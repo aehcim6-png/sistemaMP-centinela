@@ -7145,7 +7145,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/excelExport.test.js` (12 casos) y `tests/e2e/exportar-excel.spec.js` (descarga real, se abre el `.xlsx` y se revisan hojas, tipos de celda y que el CSV siga funcionando).
 
-### 209. Excel conectado a SistemaMP — cliente de solo lectura (2026-11-04)
+### 209. Importar la planilla «Control Kilometraje» y un hallazgo sobre la próxima mantención (2026-11-03)
+
+**Por qué:** la planilla de equipos livianos (camionetas y bus) se repite cada semana y alguien tenía que pasarla a mano al sistema, como hicimos el 2 de noviembre.
+
+**Qué se hizo:** botón **«📋 Importar Control Kilometraje»** en Horómetros. `kilometrajeAnalizar` (`logic.js`) lee el `.xlsx` (con la biblioteca de Excel que ya viene incluida) y **propone**, sin guardar: la lectura de km de cada equipo, validada contra el historial (mismo día, retroceso, salto de más de 1.000 km por día), y la próxima mantención. `modules/renders/km.js` muestra la propuesta; la persona marca y recién ahí se guarda, con el origen «Control Kilometraje (importado aaaa-mm-dd)». Equipos que no están en el sistema (CA-5135, CA-10712) se listan y no se cargan.
+
+**Hallazgo que cambió el diseño:** el 2 de noviembre se fijó la próxima mantención de seis equipos escribiendo `horomProxPM` directo en la base. La app **lo recalculó y lo deshizo** en tres (CA-5979, CA-6146, CA-9927): el sistema no guarda ese campo como dato, lo calcula desde la grilla del equipo (múltiplos de su frecuencia) cada vez que carga, y solo respeta `pmPendienteManual` cuando es **menor**. Por eso el importador no escribe `horomProxPM`: si la planilla es más cercana que el sistema y cuadra con «último + frecuencia», fija `pmPendienteManual`; si es más lejana, manda el sistema; si no cuadra con la frecuencia del equipo (CA-10505: la planilla suma 10.000 a una camioneta de 16.000), solo avisa. CA-5979 quedó con `pmPendienteManual` = 124.681 (554 km); CA-6146 y CA-9927 quedaron con la grilla del sistema (90.000 y 110.000, 856 y 1.000 km antes que la planilla).
+
+**Límites:** no registra las mantenciones realizadas (la planilla trae solo el km de la última); no carga la revisión técnica; los comentarios se muestran como notas.
+
+**Pruebas:** `tests/kilometraje.test.js` (14 casos con los valores reales de la planilla) y `tests/e2e/importar-kilometraje.spec.js` (sube un `.xlsx` real, revisa la propuesta, guarda y comprueba que el sistema respeta el valor fijado a mano y que lo dudoso no se carga).
+### 210. Excel conectado a SistemaMP — cliente de solo lectura (2026-11-04)
 
 **Para qué:** parte del equipo prefiere trabajar en Excel. En vez de mantener planillas paralelas (que se desactualizan y contradicen al programa), un Excel de escritorio lee **la misma base** que la web.
 

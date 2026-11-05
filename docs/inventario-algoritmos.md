@@ -43,7 +43,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | I. Simulación y pronóstico | I1–I5 |
 | J. Neumáticos, PM y reglas del programa | J1–J7 |
 | K. Diagramas y gráficos | K1–K13 |
-| L. Datos y seguridad | L1–L7 |
+| L. Datos y seguridad | L1–L8 |
 | M. Funciones internas (apéndice) | tabla |
 
 Son **133 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
@@ -1299,7 +1299,18 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 
 ---
 
-### L8. Código para conectar el Excel
+### L8. Importar la planilla «Control Kilometraje» (camionetas y bus)
+- **Tipo:** lectura de planilla con reglas de validación (no es un modelo estadístico, ni usa IA).
+- **Para qué sirve:** que el km de las camionetas y del bus, que una persona de la faena mantiene cada semana en Excel, entre al sistema sin copiarlo a mano, con la persona revisando antes de guardar.
+- **De dónde viene:** 🔵 Criterio propio, a partir de la planilla real de equipos livianos (2 de noviembre de 2026).
+- **Cómo lo calcula aquí:** (1) busca la fila de títulos («Sigla», «Km Actual»…) y la fecha de actualización que trae la planilla (o la que elijas); (2) por cada equipo propone una **lectura de km** y la valida contra el historial: no repite una lectura del mismo día, no acepta un km menor que la anterior ni mayor que la siguiente, y marca como dudoso un salto de más de 1.000 km por día; (3) compara la **próxima mantención** de la planilla con la del sistema. El sistema no guarda ese valor directo: lo recalcula desde la grilla del equipo (múltiplos de su frecuencia) y lo que se escriba a mano se pierde. Lo que sí manda es el campo «pmPendienteManual», que gana solo si es **menor** que el calculado. Por eso: si la planilla es más cercana y cuadra con «último + frecuencia», se propone fijarla ahí; si es más lejana, manda el sistema y solo se informa; si no cuadra con «último + frecuencia» (p. ej. suma 10.000 a una camioneta de 16.000), se avisa y no se propone.
+- **Dónde se ve:** botón «📋 Importar Control Kilometraje» en Horómetros (no aparece con rol de solo lectura).
+- **Ejemplo (prueba automática):** CA-5979 (último 114.681, próximo en planilla 124.681, sistema 130.000) queda «Fijar a mano»; CA-10505 (planilla 26.000, frecuencia 16.000, último 16.000) queda «No cuadra con la frecuencia» porque debería ser 32.000.
+- **Límites:** no carga equipos que no estén dados de alta (los lista con su patente y km); no registra las mantenciones realizadas (la planilla trae solo el km de la última, sin fecha ni tipo); no lee la fecha de la revisión técnica ni los comentarios (se muestran como notas); cada equipo necesita su frecuencia cargada para validar la mantención.
+- **Código:** `kilometrajeAnalizar` (`logic.js`) y `modules/renders/km.js`.
+---
+
+### L9. Código para conectar el Excel
 - **Tipo:** regla de flujo de inicio de sesión (no calcula indicadores).
 - **Para qué sirve:** que el Excel de SistemaMP (carpeta `excel/`) pueda leer la base con el usuario de cada persona, aunque el login tenga CAPTCHA, que Excel no puede resolver.
 - **De dónde viene:** 🔵 Criterio propio, a pedido (gente que trabaja en Excel), sobre el flujo estándar de Supabase Auth (canje de `refresh_token`).
