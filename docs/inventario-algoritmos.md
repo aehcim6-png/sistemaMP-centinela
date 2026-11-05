@@ -43,7 +43,7 @@ Para cada cálculo del programa: **qué es, para qué sirve, de dónde viene, c�
 | I. Simulación y pronóstico | I1–I5 |
 | J. Neumáticos, PM y reglas del programa | J1–J7 |
 | K. Diagramas y gráficos | K1–K13 |
-| L. Datos y seguridad | L1–L8 |
+| L. Datos y seguridad | L1–L9 |
 | M. Funciones internas (apéndice) | tabla |
 
 Son **133 fichas** y no queda ninguna función exportada de `logic.js` sin mencionar (lo verifica una prueba automática, ver más abajo).
@@ -1307,6 +1307,16 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **Ejemplo (prueba automática):** CA-5979 (último 114.681, próximo en planilla 124.681, sistema 130.000) queda «Fijar a mano»; CA-10505 (planilla 26.000, frecuencia 16.000, último 16.000) queda «No cuadra con la frecuencia» porque debería ser 32.000.
 - **Límites:** no carga equipos que no estén dados de alta (los lista con su patente y km); no registra las mantenciones realizadas (la planilla trae solo el km de la última, sin fecha ni tipo); no lee la fecha de la revisión técnica ni los comentarios (se muestran como notas); cada equipo necesita su frecuencia cargada para validar la mantención.
 - **Código:** `kilometrajeAnalizar` (`logic.js`) y `modules/renders/km.js`.
+---
+
+### L9. Enlaces directos a cada pestaña
+- **Tipo:** lectura de la dirección web (no calcula nada).
+- **Para qué sirve:** poder mandar por WhatsApp o correo, o dejar como acceso en el celular, un enlace que abra el sistema directo en una pestaña, por ejemplo la de Metas & KPIs.
+- **De dónde viene:** 🔵 Criterio propio, a pedido (entrar al sistema por enlaces).
+- **Cómo lo calcula aquí:** el enlace es la dirección del sistema más «#» y el id de la pestaña (`.../#mkpi`, `.../#cos`). `pestanaDesdeHash` lee ese texto y solo lo acepta si es el id de una pestaña que la persona puede ver; `enlacePestana` arma la dirección. Al cargar la página el sistema guarda el «#» antes de que nada lo toque, pide la clave como siempre y, ya con la sesión iniciada, entra una sola vez a esa pestaña. Después, cada cambio de pestaña actualiza el «#», y pegar otro enlace en la misma ventana cambia de pestaña. El enlace del código QR de un equipo (`?eq=`) tiene prioridad.
+- **Dónde se ve:** botón «Enlace» arriba a la derecha (copia el de la pestaña actual) y lista «Enlaces directos a cada pestaña» en Ayuda, con un botón «Copiar» por pestaña.
+- **Límites:** el enlace no salta la clave ni los permisos: si el perfil de la persona no puede ver esa pestaña, entra al Dashboard (o a su primera pestaña permitida); Configuración no se abre por enlace; los anclajes del manual (`#m32`) no se confunden con pestañas.
+- **Código:** `pestanaDesdeHash`, `enlacePestana` (`logic.js`) y `_saltarAPestanaEnlace`, `copiarEnlacePestana` (`index.html`).
 ---
 
 ## M. Funciones internas (apéndice)

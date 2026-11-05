@@ -7157,6 +7157,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/kilometraje.test.js` (14 casos con los valores reales de la planilla) y `tests/e2e/importar-kilometraje.spec.js` (sube un `.xlsx` real, revisa la propuesta, guarda y comprueba que el sistema respeta el valor fijado a mano y que lo dudoso no se carga).
 
+### 210. Enlaces directos a cada pestaña (2026-11-05)
+
+**Por qué:** el sistema solo tenía un enlace con parámetro (el del QR de cada equipo, `?eq=SIGLA`). Para mandar «mira esta pantalla» por WhatsApp o dejar un acceso en el celular había que entrar y buscar la pestaña en el menú.
+
+**Qué se hizo:** cada pestaña tiene ahora su enlace: la dirección del sistema más `#` y el id de la pestaña (`.../#mkpi` para Metas & KPIs, `.../#cos` para Costos, `.../#hist` para Horómetros). El enlace pide la clave como siempre y después entra directo a esa pestaña. `pestanaDesdeHash` y `enlacePestana` (`logic.js`, con pruebas) interpretan y arman la dirección; `_saltarAPestanaEnlace` (`index.html`) la aplica una sola vez, cuando ya se sabe quién entró (mismo punto donde se resuelve el salto del QR). El «#» de entrada se guarda al cargar la página, antes de que `go()` lo reescriba. `go()` actualiza el «#» en cada cambio de pestaña con `replaceState` (no llena el historial del navegador), y un evento `hashchange` cambia de pestaña si se pega otro enlace en la misma ventana. Botón **«Enlace»** en la barra de arriba (copia el de la pestaña actual) y lista **«Enlaces directos a cada pestaña»** en Ayuda.
+
+**Decisiones:** el enlace no salta nada de seguridad. Solo se acepta el id de una pestaña que el perfil de la persona puede ver (`_tabsPermitidas`); Configuración no se abre por enlace; el `?eq=` del QR tiene prioridad; los anclajes del manual (`#m32`) y el `#` de recuperación de clave no se confunden con una pestaña.
+
+**Límites:** son enlaces a pestañas, no a un dato dentro de ella (por ejemplo, a una OT en particular). La lista de Ayuda muestra solo las pestañas que la persona puede ver.
+
+**Pruebas:** `tests/enlacesPestana.test.js` (6 casos) y `tests/e2e/enlaces-pestana.spec.js` (abre `/#mkpi` antes de iniciar sesión y verifica que entra a esa pestaña, que cambiar de pestaña actualiza el enlace, que un `#` inexistente abre el Dashboard, el botón Enlace y la lista de Ayuda). No hay prueba e2e con un perfil restringido; esa regla se cubre con la lista de pestañas permitidas que recibe `pestanaDesdeHash`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

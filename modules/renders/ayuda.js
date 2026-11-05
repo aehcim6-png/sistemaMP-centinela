@@ -14,6 +14,13 @@ export function renderAyuda(){
     '<div style="display:flex;gap:8px"><a href="#m32" class="btn btn-o" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+ICONS.book+' Glosario de Términos</a>'+
     '<button class="btn" onclick="imprimirTab(\'ayuda\',\'Manual de Usuario\')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="7" width="10" height="6" rx="0.8"/><polyline points="6,7 6,3 14,3 14,7"/><rect x="7" y="13" width="6" height="4"/></svg> Imprimir Manual</button></div></div>'+
 
+    // Enlaces directos a cada pestaña (2026-11-05): solo las que el perfil de la persona puede ver.
+    '<details style="margin-bottom:16px"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0">🔗 Enlaces directos a cada pestaña (clic para ver)</summary>'+
+    '<p style="font-size:12px;color:var(--tx3);margin:4px 0 8px">Cada enlace abre el sistema directo en esa pestaña (pide la clave como siempre). Úsalos para mandar por WhatsApp o correo, o para dejarlos como acceso en el celular. En cualquier pestaña, el botón <b>Enlace</b> de arriba copia el de esa pantalla.</p>'+
+    '<div class="tbl-wrap"><table><tr><th>Pestaña</th><th>Enlace</th><th></th></tr>'+
+    _tabsPermitidas().map(function(t){var url=enlacePestana(location.origin+location.pathname,t.id);return '<tr><td>'+escapeHtml(t.l)+'</td><td class="mono" style="font-size:11px"><a href="'+escapeHtml(url)+'">'+escapeHtml(url)+'</a></td><td><button class="btn btn-o" style="padding:2px 8px" onclick="copiarEnlacePestana(\''+t.id+'\')">Copiar</button></td></tr>';}).join('')+
+    '</table></div></details>'+
+
     // Acceso destacado a la Guía de Capacitación (2026-10-08, pedido del usuario):
     // quien entra por primera vez no debe tener que bajar 34 secciones para encontrarla.
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.08)">'+
@@ -30,6 +37,7 @@ export function renderAyuda(){
     '<div class="card" style="margin-bottom:16px;border-left:3px solid var(--ac);background:rgba(245,158,11,.05)">'+
     '<b style="font-size:15px">🆕 Novedades recientes (13 de octubre 2026)</b>'+
     '<ul style="font-size:12px;line-height:1.8;margin:8px 0 12px 18px">'+
+    '<li><b>Enlaces directos a cada pestaña (5 de noviembre)</b>: arriba a la derecha hay un botón nuevo, <b>Enlace</b>, que copia la dirección de la pestaña en que estás para mandarla por WhatsApp o correo. Quien la abre inicia sesión como siempre y entra directo a esa pestaña (si su perfil no la puede ver, entra al Dashboard). Más abajo, en esta misma Ayuda, hay una lista con el enlace de cada pestaña y un botón <b>Copiar</b>.</li>'+
     '<li><b>Importar la planilla Control Kilometraje (3 de noviembre)</b>: en <b>Horómetros</b> hay un botón nuevo, <b>📋 Importar Control Kilometraje</b>. Subes el Excel de camionetas y bus y el sistema propone el km de cada equipo y su próxima mantención; tú marcas lo que quieres cargar y recién ahí se guarda. Lo que no cuadra (un km menor que el anterior, una mantención que no coincide con la frecuencia del equipo) viene sin marcar y con la explicación. Los equipos que no están en el sistema se avisan y no se cargan.</li>'+
     '<li><b>Descargar cualquier pestaña como Excel (2 de noviembre)</b>: arriba a la derecha hay un botón nuevo, <b>Excel</b>. Baja todas las tablas de la pestaña que estás viendo, una hoja por tabla, con los números y las fechas listos para fórmulas y tablas dinámicas; los tableros traen sus cifras en una hoja «Cifras». Baja lo que está en pantalla (si filtraste, solo lo filtrado) y no los gráficos. El botón <b>CSV</b> de siempre sigue igual.</li>'+
     '<li><b>Importar el chat de WhatsApp (2 de noviembre)</b>: en <b>Horómetros</b> y en <b>Correctivos</b> hay un botón nuevo, <b>💬 Importar chat de WhatsApp</b>. Subes el archivo que exporta WhatsApp (sin multimedia) y el sistema lee los avisos de falla y de «operativo» y los horómetros del grupo, y te <b>propone</b> qué cargar: paradas con entrada y salida, horómetros que cuadran con las lecturas vecinas y PM. Marcas lo que quieres y solo eso se guarda; lo ya cargado se detecta para no duplicar. Es una vía adicional: el CSV y el registro manual siguen igual.</li>'+

@@ -112,6 +112,13 @@ No para seguir viendo y editando datos: el sistema guarda de inmediato en
 este computador aunque se corte la conexión, y sincroniza solo con la nube
 cuando vuelve.
 
+**¿Puedo mandar un enlace que abra el sistema directo en una pestaña?**
+Sí. En cualquier pestaña, el botón **Enlace** (arriba a la derecha, junto a
+Excel y CSV) copia la dirección de esa pantalla; en **Ayuda** hay además una
+lista con el enlace de cada pestaña y un botón **Copiar**. Quien lo abre
+inicia sesión como siempre y entra directo a esa pestaña. Si su perfil no
+puede ver esa pestaña, entra al Dashboard.
+
 **¿Puedo bajar los datos a Excel?**
 Sí. Arriba a la derecha, en todas las pestañas, está el botón **Excel**: baja
 todas las tablas de la pestaña que estás viendo, una hoja por tabla, con los

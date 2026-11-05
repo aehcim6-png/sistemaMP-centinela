@@ -390,6 +390,20 @@ function kilometrajeAnalizar(filas,opts){
   return r;
 }
 
+// Enlaces directos a cada pestaña (2026-11-05): la dirección lleva «#» y el id de la pestaña (p. ej. .../#kpi). Al abrirla, el sistema pide la clave como siempre y
+// después entra directo a esa pestaña, si el perfil de la persona la puede ver. Esto solo interpreta el texto: el permiso lo sigue decidiendo go() en index.html.
+function pestanaDesdeHash(hash,ids){
+  var m=/^#\/?([A-Za-z0-9_-]+)$/.exec(String(hash||'').trim());
+  if(!m)return '';
+  var id=m[1].toLowerCase();
+  return (ids||[]).indexOf(id)>=0?id:'';
+}
+// «base» es origen + ruta de la página (sin parámetros ni «#»); queda tal cual si no hay id.
+function enlacePestana(base,id){
+  var b=String(base||'').replace(/[#?].*$/,'');
+  return id?b+'#'+id:b;
+}
+
 function _tokensMaterial(s){
   return (s||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(function(t){
     if(t.length<2)return false;
@@ -13205,7 +13219,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TBO_FAMILIAS, TBO_FUERA, TBO_ITEMS, TBO_REGLAS_COMPRA, TBO_SUGERIDO, tboNormalizarPN, tboClaseModelo, tboFamiliaDeCompra, tboUnirCompras, tboCruzarCompras, tboFamiliaDeClase, tboPlanEquipo, tboCruzarSugerido,
     clasificacionPendienteOT, resumenClasificacionOT, repararMojibake,
     sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
-    C, fd, fn, escapeHtml, csvCeldaSegura, excelValorCelda, excelNombreHoja, excelHojasDesdeTablas, kilometrajeAnalizar,
+    C, fd, fn, escapeHtml, csvCeldaSegura, excelValorCelda, excelNombreHoja, excelHojasDesdeTablas, kilometrajeAnalizar, pestanaDesdeHash, enlacePestana,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado, SINIESTRO_PLAZO_DIAS, SINIESTRO_AVISO_DIAS, SINIESTRO_TIPOS, SINIESTRO_ESTADOS, SINIESTRO_RESULTADOS, SINIESTRO_DOCUMENTOS, siniestroPlazo, siniestroDocumentos, siniestroNombreArchivo, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
