@@ -51,7 +51,7 @@ End Sub
 Public Sub Actualizar()
     If Not SesionVigente() Then
         If Not Renovar() Then
-            MsgBox "La sesión no está activa. Presiona "Conectar".", vbInformation, "SistemaMP"
+            MsgBox "La sesión no está activa. Presiona el botón Conectar.", vbInformation, "SistemaMP"
             Exit Sub
         End If
     End If
