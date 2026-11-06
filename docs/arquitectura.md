@@ -7169,6 +7169,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/enlacesPestana.test.js` (6 casos) y `tests/e2e/enlaces-pestana.spec.js` (abre `/#mkpi` antes de iniciar sesión y verifica que entra a esa pestaña, que cambiar de pestaña actualiza el enlace, que un `#` inexistente abre el Dashboard, el botón Enlace y la lista de Ayuda). No hay prueba e2e con un perfil restringido; esa regla se cubre con la lista de pestañas permitidas que recibe `pestanaDesdeHash`.
 
+### 211. Repuestos: «sin contar» ya no se confunde con «sin stock» (2026-11-06)
+
+**Por qué:** al cargar el catálogo de repuestos críticos y de elementos de desgaste (142 ítems, de las planillas Repuestos críticos, CONTROL_GETS y RODADO_D375) la mayoría no tenía conteo físico y entró con stock 0. La pantalla Repuestos los mostraba como 🔴 SIN STOCK y los rojos reales quedaban escondidos entre 111 falsos.
+
+**Qué se hizo:** un stock **vacío** (null) significa «nunca se contó» y se muestra como ⚪ SIN CONTAR; un **0** escrito a mano sigue siendo 🔴 SIN STOCK. La regla vive en `repuestoEstado` (`logic.js`): con consumo real usa `stockEstado` (igual que antes) y sin él compara contra el stock mínimo. En `modules/renders/rep.js`: tarjeta «⚪ Sin contar» (con clic para filtrar), opción «Sin contar» en el filtro de estado, la celda de Stock queda vacía (con «—») y borrarla vuelve el ítem a «sin contar», el formulario de nuevo repuesto acepta el stock vacío y la acción de la fila dice «Contar stock» en vez de «Comprar». Ayuda explica el semáforo con el nuevo estado. En la base, los ítems del catálogo sin conteo quedaron con `stockActual` vacío.
+
+**Decisiones:** no se agregó columna ni tabla: el vacío de la columna existente ya expresa «no contado». Un ítem sin contar no genera alertas ni cuenta como rojo en la tarjeta ni en Predictivo (que filtra por 🔴).
+
+**Límites:** el plan de compras TBO (`tboStockFn`) y el kardex (`kardexLegadoValor`) leen un stock vacío como 0, así que pueden sugerir comprar un ítem que sí hay en bodega pero no se ha contado; hay que cargar el conteo para que lo sepan.
+
+**Pruebas:** `tests/repuestoEstado.test.js` (5 casos: vacío, vacío con consumo, cero real, contra el mínimo, igualdad con `stockEstado`).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

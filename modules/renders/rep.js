@@ -67,22 +67,18 @@ export function renderRep() {
     var lubMatch = !stkMatch ? lub.find(function (l) { return l.nombre === r.componente; }) : null;
     var consMesReal = stkMatch ? (stkMatch.consumoMes || stkMatch.proyMes) : (lubMatch ? (lubMatch.consumoMes || lubMatch.proyMes) : null);
     r._consEstimado = !consMesReal;
-    if (consMesReal) {
-      var leadUsar = r.leadTime || (stkMatch && stkMatch.leadTime) || (lubMatch && lubMatch.leadTime);
-      var se = stockEstado(r.stockActual || 0, consMesReal, leadUsar);
-      r.estado = se.nivel !== 'COMPRAR' ? (se.nivel === 'BAJO' ? '🟡 STOCK BAJO' : '🟢 OK') : ((r.stockActual || 0) <= 0 ? '🔴 SIN STOCK' : '🔴 PEDIR YA');
-    } else {
-      var ratio = (r.stockActual || 0) / (r.stockMinimo || 1);
-      if ((r.stockActual || 0) <= 0) r.estado = '🔴 SIN STOCK';
-      else if (ratio < 1) r.estado = '🟡 STOCK BAJO';
-      else r.estado = '🟢 OK';
-    }
+    var leadUsar = r.leadTime || (stkMatch && stkMatch.leadTime) || (lubMatch && lubMatch.leadTime);
+    // Stock vacío = «⚪ SIN CONTAR» (nunca se contó), distinto de un cero real (🔴 SIN STOCK):
+    // los ítems cargados desde un catálogo no tienen conteo físico y no deben contar como quiebre.
+    // La regla vive en logic.js (repuestoEstado, con su prueba).
+    r.estado = repuestoEstado(r.stockActual, r.stockMinimo, consMesReal, leadUsar).estado;
   });
 
   var fil = rep.filter(function (r) {
     if (fEst === 'rojo' && !r.estado.includes('🔴')) return false;
     if (fEst === 'amarillo' && !r.estado.includes('🟡')) return false;
     if (fEst === 'verde' && !r.estado.includes('🟢')) return false;
+    if (fEst === 'gris' && !r.estado.includes('⚪')) return false;
     if (fEq && r.equipo !== fEq && !r.equipo.includes(fEq)) return false;
     if (fBusq && !(r.componente || '').toLowerCase().includes(fBusq.toLowerCase()) && !(r.nParte || '').toLowerCase().includes(fBusq.toLowerCase())) return false;
     return true;
@@ -91,6 +87,7 @@ export function renderRep() {
   var rojos = rep.filter(function (r) { return r.estado.includes('🔴') }).length;
   var amarillos = rep.filter(function (r) { return r.estado.includes('🟡') }).length;
   var verdes = rep.filter(function (r) { return r.estado.includes('🟢') }).length;
+  var sinContar = rep.filter(function (r) { return r.estado.includes('⚪') }).length;
 
   // Proyección de consumo de Elementos de Desgaste, por PIEZA específica
   // (2026-09-24, corregido tras el Excel que se le armó al usuario: cuchilla,
@@ -147,10 +144,11 @@ export function renderRep() {
     : '') +
 
     // Semáforo resumen
-    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">' +
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--danger)" onclick="$(\'fRepEst\').value=\'rojo\';window._pag.rep=1;renders.rep()"><div class="card-t">🔴 Sin Stock / Pedir</div><div class="card-v" style="color:var(--danger)">' + rojos + '</div><div class="card-s">Acción inmediata</div></div>' +
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fRepEst\').value=\'amarillo\';window._pag.rep=1;renders.rep()"><div class="card-t">🟡 Stock Bajo</div><div class="card-v" style="color:var(--ac)">' + amarillos + '</div><div class="card-s">Planificar compra</div></div>' +
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ok)" onclick="$(\'fRepEst\').value=\'verde\';window._pag.rep=1;renders.rep()"><div class="card-t">🟢 Stock OK</div><div class="card-v" style="color:var(--ok)">' + verdes + '</div><div class="card-s">Sin acción</div></div>' +
+    '<div class="card" style="cursor:pointer;border-left:3px solid var(--tx3)" onclick="$(\'fRepEst\').value=\'gris\';window._pag.rep=1;renders.rep()" title="Ítems del catálogo que nunca se contaron: no son quiebre, falta el conteo físico"><div class="card-t">⚪ Sin contar</div><div class="card-v" style="color:var(--tx2)">' + sinContar + '</div><div class="card-s">Falta conteo físico</div></div>' +
     '<div class="card" style="cursor:pointer;border-left:3px solid var(--ac)" onclick="$(\'fRepEst\').value=\'\';window._pag.rep=1;renders.rep()"><div class="card-t">Total</div><div class="card-v">' + rep.length + '</div><div class="card-s">Todos</div></div>' +
     '</div>' +
 
@@ -159,7 +157,8 @@ export function renderRep() {
     '<select id="fRepEst" onchange="window._pag.rep=1;renders.rep()"><option value="">Todos</option>' +
     '<option value="rojo"' + (fEst === 'rojo' ? ' selected' : '') + '>🔴 Críticos</option>' +
     '<option value="amarillo"' + (fEst === 'amarillo' ? ' selected' : '') + '>🟡 Bajo</option>' +
-    '<option value="verde"' + (fEst === 'verde' ? ' selected' : '') + '>🟢 OK</option></select>' +
+    '<option value="verde"' + (fEst === 'verde' ? ' selected' : '') + '>🟢 OK</option>' +
+    '<option value="gris"' + (fEst === 'gris' ? ' selected' : '') + '>⚪ Sin contar</option></select>' +
     '<select id="fRepEq" onchange="window._pag.rep=1;renders.rep()"><option value="">Todos equipos</option>' +
     allEq.map(function (e) { return '<option' + (fEq === e ? ' selected' : '') + '>' + e + '</option>' }).join('') +
     '<option' + (fEq === 'Varios' ? ' selected' : '') + '>Varios</option></select>' +
@@ -175,7 +174,8 @@ export function renderRep() {
       var i = rep.indexOf(r);
       var bg = r.estado.includes('🔴') ? 'rgba(239,68,68,.06)' : r.estado.includes('🟡') ? 'rgba(245,158,11,.04)' : '';
       var accion = '';
-      if (r.estado.includes('SIN STOCK')) accion = '<button class="btn-s" style="background:var(--danger);color:white;font-size:10px" onclick="crearOC(' + i + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Comprar</button>';
+      if (r.estado.includes('SIN CONTAR')) accion = '<span style="font-size:10px;color:var(--tx3)" title="Escribe el stock contado en la columna Stock">Contar stock</span>';
+      else if (r.estado.includes('SIN STOCK')) accion = '<button class="btn-s" style="background:var(--danger);color:white;font-size:10px" onclick="crearOC(' + i + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Comprar</button>';
       else if (r.estado.includes('PEDIR')) accion = '<button class="btn-s" style="background:var(--danger);color:white;font-size:10px" onclick="crearOC(' + i + ')"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Comprar</button>';
       else if (r.estado.includes('BAJO')) accion = '<button class="btn-s" style="background:var(--w);color:black;font-size:10px" onclick="crearOC(' + i + ')"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Planificar</button>';
       else accion = '<span style="font-size:10px;color:var(--ok)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><polyline points="6.5,10.3 9,13 14,7.5"/></svg> OK</span>';
@@ -186,7 +186,7 @@ export function renderRep() {
         '<td><input value="' + escapeHtml(r.nParte || '') + '" onchange="edRep(' + i + ',\'nParte\',this.value)" style="width:80px;background:transparent;border:none;color:var(--tx3);font-size:10px"></td>' +
         '<td><input value="' + escapeHtml(r.equipo || '') + '" onchange="edRep(' + i + ',\'equipo\',this.value)" style="width:70px;background:transparent;border:none;color:var(--tx);font-size:10px"></td>' +
         '<td style="font-size:10px">' + (r.tipo || '') + '</td>' +
-        '<td><input type="number" value="' + (r.stockActual || 0) + '" onchange="edRep(' + i + ',\'stockActual\',parseInt(this.value)||0)" style="width:45px;' + is + ';color:var(--ac);font-weight:600"></td>' +
+        '<td><input type="number" value="' + (r.stockActual == null || r.stockActual === '' ? '' : r.stockActual) + '" placeholder="—" title="Vacío = sin contar" onchange="edRep(' + i + ',\'stockActual\',this.value===\'\'?null:(parseInt(this.value)||0))" style="width:45px;' + is + ';color:var(--ac);font-weight:600"></td>' +
         '<td><input type="number" value="' + (r.stockMinimo || 0) + '" onchange="edRep(' + i + ',\'stockMinimo\',parseInt(this.value)||0)" style="width:45px;' + is + '"></td>' +
         '<td><input type="number" value="' + (r.leadTime || 34) + '" onchange="edRep(' + i + ',\'leadTime\',parseInt(this.value)||0)" style="width:40px;' + is + '"><span style="font-size:9px;color:var(--tx3)">d</span></td>' +
         '<td><input type="number" value="' + (r.precioUnit || 0) + '" onchange="edRep(' + i + ',\'precioUnit\',parseInt(this.value)||0)" style="width:55px;' + is + '"></td>' +
@@ -236,7 +236,7 @@ export function addRep() {
     '<div class="form-row"><div class="fg"><label>Equipo</label><select id="rEqR"><option>Varios</option>' +
     eq.map(function (e) { return '<option>' + escapeHtml(e.sigla) + '</option>' }).join('') + '</select></div>' +
     '<div class="fg"><label>Tipo</label><select id="rTipoR"><option>Filtro</option><option>Lubricante</option><option>Repuesto</option><option>Neumático</option><option>Correa</option><option>Otro</option></select></div></div>' +
-    '<div class="form-row"><div class="fg"><label>Stock actual</label><input type="number" id="rStkA" value="0"></div>' +
+    '<div class="form-row"><div class="fg"><label>Stock actual <span style="color:var(--tx3);font-weight:400">(vacío = sin contar)</span></label><input type="number" id="rStkA" value="0"></div>' +
     '<div class="fg"><label>Stock mínimo</label><input type="number" id="rStkM" value="2"></div>' +
     '<div class="fg"><label>Lead time (días)</label><input type="number" id="rLT" value="34"></div>' +
     '<div class="fg"><label>Precio unit.</label><input type="number" id="rPU" value="0"></div></div>' +
@@ -247,7 +247,7 @@ export function saveRep() {
   var rep = S.g('repuestos') || [];
   rep.push({
     componente: $('rComp').value, nParte: $('rNP').value, equipo: $('rEqR').value, tipo: $('rTipoR').value,
-    stockActual: parseInt($('rStkA').value) || 0, stockMinimo: parseInt($('rStkM').value) || 2,
+    stockActual: $('rStkA').value === '' ? null : (parseInt($('rStkA').value) || 0), stockMinimo: parseInt($('rStkM').value) || 2,
     leadTime: parseInt($('rLT').value) || 34, precioUnit: parseInt($('rPU').value) || 0,
     proveedor: $('rProv').value, ultCompra: '', estado: ''
   });

@@ -392,6 +392,15 @@ sugerida para pedirlo (restando el tiempo de entrega del proveedor). Si el
 ítem todavía no tiene historial real, el sistema lo dice en vez de
 inventar un número.
 
+**En Repuestos veo ítems con ⚪ «Sin contar», ¿qué significa?**
+Que el ítem está en el catálogo (por ejemplo los repuestos críticos de la
+planilla) pero nadie ha contado cuánto hay en bodega. No es un quiebre y no
+cuenta como rojo. Escribe el stock contado en la columna **Stock** y pasa a
+verde, amarillo o rojo según corresponda. Si en bodega no hay ninguno,
+escribe **0**: eso sí es 🔴 Sin stock. Si borras el número, el ítem vuelve a
+«sin contar». La tarjeta «⚪ Sin contar» y el filtro de estado te llevan
+directo a esos ítems.
+
 **¿Cuánto voy a gastar en total en filtros, aceite o repuestos este año?**
 En **Stock Filtros**, **Lubricantes** y **Control de Repuestos**, botón
 **📊 Resumen** (arriba de la tabla) — a diferencia del 📈 (que es por

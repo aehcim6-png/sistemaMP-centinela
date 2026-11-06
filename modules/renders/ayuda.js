@@ -506,7 +506,8 @@ export function renderAyuda(){
     '<b>Semáforo automático:</b><br>'+
     '🔴 <b>SIN STOCK / PEDIR YA</b> — stock cero o stock menor al lead time → comprar inmediato<br>'+
     '🟡 <b>STOCK BAJO</b> — stock menor al mínimo → planificar compra<br>'+
-    '🟢 <b>OK</b> — stock suficiente<br><br>'+
+    '🟢 <b>OK</b> — stock suficiente<br>'+
+    '⚪ <b>SIN CONTAR</b> — el ítem está en el catálogo pero nunca se contó su stock (celda de Stock vacía). No es quiebre ni cuenta como rojo: escribe el stock contado y pasa a su color. Un 0 escrito a mano sí es 🔴 SIN STOCK<br><br>'+
     '<b>Flujo de compra:</b><br>'+
     '1. Semáforo marca 🔴 → click <b>"<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 4,3 6,12 15,12 17,6 5,6"/><circle cx="7" cy="16" r="1.3"/><circle cx="14" cy="16" r="1.3"/></svg> Comprar"</b><br>'+
     '2. Se abre formulario de Orden de Compra con cantidad y costo sugeridos<br>'+
