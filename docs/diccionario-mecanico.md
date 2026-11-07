@@ -8,7 +8,7 @@ Eventos que no son una falla mecánica: la OT queda con clase `operacional` y no
 
 | Sistema / componente | Palabras que lo identifican |
 |---|---|
-| Operacional / Externo (no mecánico) | `empantan`, `enterrad`, `desenterr`, `remolque`, `siniestr`, `falta combustible`, `falta de combustible`, `sin combustible`, `autonomia`, `autonomía`, `turno noche`, `sistema siga`, `helipuer`, `revision tecnica`, `revisión técnica`, `acreditaci` |
+| Operacional / Externo (no mecánico) | `empantan`, `enterrad`, `desenterr`, `remolque`, `siniestr`, `falta combustible`, `falta de combustible`, `sin combustible`, `autonomia`, `autonomía`, `turno noche`, `sistema siga`, `helipuer`, `revision tecnica`, `revisión técnica`, `acreditaci`, `cotizaci` |
 
 ### 2. Componentes de la app
 
@@ -71,39 +71,48 @@ Vocabulario de la planta sacado de leer las OT de Disponibilidad Mecánica y del
 
 | Sistema / componente | Palabras que lo identifican |
 |---|---|
-| Tren de Rodaje | `rodado`, `rodados` |
+| Tren de Rodaje | `rodado`, `rodados`, `segmento`, `orruga` |
 | Pernos de Rueda | `perno de rueda`, `pernos de rueda`, `perno cortado de rueda`, `pernos cortados de rueda`, `pernos cortados`, `tuerca interior`, `falta tuerca`, `/tuerca.{0,12}posici[oó]n/` |
 | Neumáticos | `neuamtic`, `nemátic`, `nematic`, `nuemátic`, `nuematic`, `prezuriz`, `checkpoint`, `remanente`, `banda lateral`, `protuberancia`, `/presi[oó]n.{0,25}posici[oó]n/`, `/posici[oó]n.{0,25}presi[oó]n/`, `/aire.{0,15}posici[oó]n/` |
-| Sistema AFEX (Extinción de Incendios) | `afx`, `contra incendio`, `contraincendio` |
+| Sistema AFEX (Extinción de Incendios) | `afx`, `contra incendio`, `contraincendio`, `red de incendio` |
 | Retardador | `retardador`, `retardo` |
-| Sistema de Dirección | `direccion`, `dirección`, `varillaje`, `fuelle` |
-| Regadío/Aspersores | `aspersor`, `regadio`, `regadío`, `membrana`, `bomba centrifuga`, `bomba centrífuga`, `toma fuerza`, `toma de fuerza` |
+| Sistema de Dirección | `direccion`, `dirección`, `varillaje`, `fuelle`, `volante` |
+| Regadío/Aspersores | `aspersor`, `regadio`, `regadío`, `membrana`, `bomba centrifuga`, `bomba centrífuga`, `toma fuerza`, `toma de fuerza`, `fuga de agua`, `estanque de agua`, `llave de paso de agua` |
 | Cinturón de Seguridad | `cinturon`, `cinturón` |
 | Sistema de Emergencia | `emergencia` |
 | PLM (Medidor de Carga) | `/\bplm\b/` |
 | MEMS (Monitoreo de Neumáticos) | `/\bmems\b/`, `transceptor`, `transeptor` |
-| GPS/Telemetría/Router | `/\bgps\b/`, `router`, `bastones`, `bastón` |
-| Sistema Anticolisión/Fatiga (ADAS) | `radar`, `proximidad` |
+| GPS/Telemetría/Router | `/\bgps\b/`, `router`, `bastones`, `bastón`, `komtrax` |
+| Sistema Anticolisión/Fatiga (ADAS) | `radar`, `proximidad`, `semnolencia`, `sonlenencia`, `somnolenc`, `/\bf y s\b/` |
 | Cámara de Retroceso | `alarma de retroceso`, `camara de retorceso`, `cámara de retroceso`, `retroceso` |
-| Aire Acondicionado | `a/c`, `problema de ac`, `problema ac`, `evaporador`, `blower` |
+| Aire Acondicionado | `a/c`, `problema de ac`, `problema ac`, `evaporador`, `blower`, `sistema ac`, `calefacción` |
 | Acumuladores/Nitrógeno | `acumulador`, `nitrogeno`, `nitrógeno` |
 | Sistema de Aire/Compresor | `compresor`, `fuga de aire`, `perdida de aire`, `pérdida de aire` |
-| AdBlue/SCR | `adblue`, `ad blue`, `ad-blue`, `ab-blue`, `ab blue` |
-| Sistema de Combustible | `combustible`, `/\briel\b/` |
+| AdBlue/SCR | `adblue`, `ad blue`, `ad-blue`, `ab-blue`, `ab blue`, `ablue` |
+| Sistema de Combustible | `combustible`, `/\briel\b/`, `petróleo`, `petroleo` |
 | Sistema de Escape | `escape` |
 | Radiador/Enfriamiento | `intercooler`, `interooler`, `intercoller`, `electroventilador`, `ventilador`, `/\bfan\b/` |
 | Diferencial | `corona`, `peñon`, `peñón` |
-| Transmisión | `embrague`, `caja de cambios` |
+| Transmisión | `embrague`, `caja de cambios`, `visor de marchas`, `no pasa marchas`, `marchas` |
 | Joystick/Palanca de Mando | `comando` |
 | Sistema Hidráulico | `hidraulica`, `hidráulica`, `hidrulico`, `hidraulicas` |
 | Engrase/Lubricación | `pre lub`, `prelub`, `deposito de grasa`, `depósito de grasa`, `tanque de grasa`, `lubricacion`, `lubricación`, `grasa` |
 | GET / Cuchillas | `reaper`, `ripeer`, `punta`, `puntas` |
 | Elemento de Desgaste | `plancha de desgaste`, `planchas de desgaste` |
-| Balde/Implemento | `balde`, `implemento`, `dozer`, `tilt`, `pasador`, `shank`, `portacuña`, `porta cuña`, `porta cuñas`, `portacuñas`, `desfondado` |
-| Estructura/Soldadura | `soldadura`, `fabricacion`, `fabricación`, `fabrica`, `baranda`, `escalera`, `parachoque`, `guardafango`, `tapabarro`, `estructura`, `estructural`, `reforz`, `blindaje`, `codera`, `plancha`, `soporte`, `proteccion`, `protección` |
-| Cabina/Carrocería | `cabina`, `parasol`, `visera`, `vicera`, `gases`, `sellado` |
-| Sistema Eléctrico | `no enciende`, `sin partida`, `problema de partida`, `chapa de encendido`, `partida`, `puesta en marcha`, `codigo`, `código`, `alerta nivel`, `alarma 3`, `/\be-?0[1-9]\b/` |
-| Pala (Motoniveladora) | `motoniveladora` |
+| Balde/Implemento | `balde`, `implemento`, `dozer`, `tilt`, `pasador`, `shank`, `portacuña`, `porta cuña`, `porta cuñas`, `portacuñas`, `desfondado`, `porta calza`, `portacalza`, `porta calzas` |
+| Estructura/Soldadura | `soldadura`, `fabricacion`, `fabricación`, `fabrica`, `baranda`, `escalera`, `parachoque`, `guardafango`, `tapabarro`, `estructura`, `estructural`, `reforz`, `blindaje`, `codera`, `plancha`, `soporte`, `proteccion`, `protección`, `tapa barro` |
+| Cabina/Carrocería | `cabina`, `parasol`, `visera`, `vicera`, `gases`, `sellado`, `letrero`, `hermet`, `hermit` |
+| Radio/Comunicaciones | `radio de comunic`, `radio musical`, `radio` |
+| Suspensión | `suspins`, `suspención`, `suspenci`, `estabilizador`, `resorte` |
+| Sellos/O-rings | `oring`, `o-ring`, `o ring` |
+| Parabrisas/Vidrios | `parabrisa`, `vidrio` |
+| Asiento | `siento`, `apoya brazo`, `apoyabrazo`, `apoya brazos` |
+| Foco/Ampolleta | `luz de trocha`, `iluminaria` |
+| Baliza/Pértiga (Señalización) | `pértiga` |
+| Hombre Ausente | `hombre ausente` |
+| Motor | `/cilindro n?°? ?\d.{0,20}banco/`, `banco izquierdo`, `banco derecho` |
+| Sistema Eléctrico | `fusible`, `no enciende`, `sin partida`, `problema de partida`, `chapa de encendido`, `partida`, `puesta en marcha`, `codigo`, `código`, `alerta nivel`, `alarma 3`, `/\be-?0[1-9]\b/` |
+| Pala (Motoniveladora) | `motoniveladora`, `vertedera` |
 
 ### 4. Otros eventos
 
@@ -112,4 +121,4 @@ Si no hay componente, se anota el tipo de evento. Si el texto solo dice «fuera 
 | Sistema / componente | Palabras que lo identifican |
 |---|---|
 | Pérdida de Potencia (causa no indicada) | `perdida de potencia`, `pérdida de potencia`, `baja potencia`, `falta de potencia`, `exceso de humo`, `alza de temperatura` |
-| Mantención Preventiva/PM | `/\bpm ?0?[1-4]\b/`, `mantencion preventiva`, `mantención preventiva`, `mantencion prreventiva`, `mantencion programada`, `mantención programada`, `mp pm`, `chequeo semanal`, `inspeccion diaria`, `inspección diaria`, `mantencion en terreno`, `mantención en terreno` |
+| Mantención Preventiva/PM | `/\bpm ?0?[1-4]\b/`, `mantencion preventiva`, `mantención preventiva`, `mantencion prreventiva`, `mantencion programada`, `mantención programada`, `mp pm`, `mantenimiento preventivo`, `mantencicion`, `por pm`, `chequeo semanal`, `inspeccion diaria`, `inspección diaria`, `mantencion en terreno`, `mantención en terreno` |

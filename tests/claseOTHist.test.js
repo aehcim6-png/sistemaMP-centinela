@@ -3,7 +3,7 @@ import { createRequire } from 'module';
 import { readFileSync } from 'fs';
 const require = createRequire(import.meta.url);
 const { claseOTDesdeTexto, esFallaOTHist, soloFallasOTHist, _otHistComoOt, esFallaMTBF, _componenteDeSintoma, sistemaDeTextoHist } = require('../logic.js');
-const { funcionSQL, funcionSistemaSQL } = require('../scripts/generar_componente_sql.js');
+const { funcionSQL, funcionSistemaSQL, funcionClasificarSQL } = require('../scripts/generar_componente_sql.js');
 const { generar: generarDiccionario } = require('../scripts/generar_diccionario_mecanico.js');
 
 // Las OT del Excel marcan «Correctiva» tareas que son rutina preventiva, cambios de desgaste o
@@ -156,21 +156,32 @@ describe('docs/diccionario-mecanico.md', () => {
   });
 });
 
-describe('logic.js y la migración SQL usan los mismos patrones', () => {
-  const js = readFileSync(new URL('../logic.js', import.meta.url), 'utf8');
+describe('la migración SQL sale de logic.js', () => {
   const sql = readFileSync(new URL('../supabase/migrations/20261107150000_componente_y_clase_operacional.sql', import.meta.url), 'utf8');
-  const fuentesJs = [...js.matchAll(/var _CLASE_OT_\w+=\/(.+)\/i;/g)].map((m) => m[1].replace(/\\b/g, '\\y'));
-  const seccionClasificar = sql.slice(sql.indexOf('create or replace function public.clasificar_ot'));
-  const fuentesSql = [...seccionClasificar.matchAll(/~\* '([^']+)'/g)].map((m) => m[1]);
-  it('hay 7 patrones en cada lado', () => {
-    expect(fuentesJs).toHaveLength(7);
-    expect(new Set(fuentesSql).size).toBe(7);
-  });
-  it('la función componente_de_texto de la migración es la que genera el diccionario de logic.js', () => {
+  it('componente_de_texto, sistema_de_texto_hist y clasificar_ot son exactamente lo que genera scripts/generar_componente_sql.js', () => {
     expect(sql).toContain(funcionSQL());
     expect(sql).toContain(funcionSistemaSQL());
+    expect(sql).toContain(funcionClasificarSQL());
   });
-  it('cada patrón de logic.js aparece igual en el SQL', () => {
-    fuentesJs.forEach((p) => expect(fuentesSql).toContain(p));
+});
+
+describe('vocabulario del histórico, segunda pasada (2026-11-07)', () => {
+  const casos = [
+    ['tensado de orruga', 'Tren de Rodaje'],
+    ['Se reponen tuercas de abrazaderas en baston de sistema komtrax', 'GPS/Telemetría/Router'],
+    ['Se realiza reparación de sistema hombre ausente', 'Hombre Ausente'],
+    ['Solucion radio de comunicación', 'Radio/Comunicaciones'],
+    ['Se realiza carga de suspinsiones traseras', 'Suspensión'],
+    ['Se reaprietan pernos de base de cilindro de desplazamiento vertedera', 'Pala (Motoniveladora)'],
+    ['Se realiza verificación de falla en cilindro n°2 banco izquierdo', 'Motor'],
+    ['Se reemplaza llave de paso de agua de red de incendio.', 'Sistema AFEX (Extinción de Incendios)'],
+  ];
+  casos.forEach(([t, e]) => it(t, () => expect(sistemaDeTextoHist(t)).toBe(e)));
+  it('fuera de servicio por PM es preventiva, no falla; una falla con PM aparte sigue siendo falla', () => {
+    expect(claseOTDesdeTexto('CAEX 56 fuera de servicio por PM')).toBe('preventiva');
+    expect(claseOTDesdeTexto('Mantenimiento pm2/fuera de servicio por baja presion de posicion 6')).toBe('correctiva');
+  });
+  it('un mensaje de cotización no es una OT', () => {
+    expect(claseOTDesdeTexto('Te escribo para solicitar tu visto bueno a la cotización número 102182991')).toBe('operacional');
   });
 });

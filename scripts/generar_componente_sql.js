@@ -43,5 +43,34 @@ function funcionSistemaSQL() {
     '$$;',
   ].join('\n');
 }
-if (require.main === module) console.log(funcionSQL() + '\n' + funcionSistemaSQL());
-module.exports = { funcionSQL, funcionSistemaSQL };
+// clasificar_ot sale de los mismos patrones de logic.js (_CLASE_OT_PATRONES): el SQL no se escribe a mano.
+function funcionClasificarSQL() {
+  const P = L._CLASE_OT_PATRONES;
+  const r = (k) => q(P[k].source.replace(/\\b/g, '\\y'));
+  const d = "coalesce(descripcion, '')";
+  return [
+    'create or replace function public.clasificar_ot(descripcion text, tipo_int text)',
+    'returns text',
+    'language sql',
+    'immutable',
+    'set search_path = pg_catalog, public',
+    'as $$',
+    '  select case',
+    "    when tipo_int in ('Programada', 'Predictiva') then 'preventiva'",
+    '    when ' + d + ' ~* ' + r('operacional') + " then 'operacional'",
+    '    when ' + d + ' ~* ' + r('pmParada') + " then 'preventiva'",
+    '    when ' + d + ' ~* ' + r('instalaVerbo'),
+    '     and ' + d + ' ~* ' + r('instalaObjeto'),
+    '     and ' + d + ' !~* ' + r('instalaFalla'),
+    "      then 'instalacion'",
+    '    when ' + d + ' ~* ' + r('desgaste') + " then 'desgaste'",
+    '    when ' + d + ' ~* ' + r('rutina'),
+    '     and ' + d + ' !~* ' + r('fallaFuerte'),
+    "      then 'preventiva'",
+    "    else 'correctiva'",
+    '  end;',
+    '$$;',
+  ].join('\n');
+}
+if (require.main === module) console.log(funcionSQL() + '\n' + funcionSistemaSQL() + '\n' + funcionClasificarSQL());
+module.exports = { funcionSQL, funcionSistemaSQL, funcionClasificarSQL };
