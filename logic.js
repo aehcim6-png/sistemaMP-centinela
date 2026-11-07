@@ -716,8 +716,9 @@ function _otHistComoOt(otHist){
 // elementos de desgaste planificados (cuchillas, entredientes) o instalaciones y
 // mejoras (antisomnolencia, radio base). Contarlas como falla inflaba MTBF, el
 // ranking de equipos y el Pareto: ~35 % de las 'Correctiva' eran preventivas rutinarias.
-// Devuelve 'correctiva' | 'preventiva' | 'desgaste' | 'instalacion'. Orden de prioridad:
-// instalación > desgaste > preventiva > correctiva; una palabra de falla (fuga, falla,
+// Devuelve 'correctiva' | 'preventiva' | 'desgaste' | 'instalacion' | 'operacional' (evento que no
+// es una falla mecánica: empantanado, siniestro, falta de combustible, turno noche). Orden de
+// prioridad: operacional > instalación > desgaste > preventiva > correctiva; una palabra de falla (fuga, falla,
 // fuera de servicio, código…) saca la fila de instalación/preventiva y la deja como
 // correctiva. Es clasificación por palabras: aproximada, nunca inventa causa. El mismo
 // criterio está en la función SQL public.clasificar_ot (migración 20261107120000) que
@@ -726,11 +727,13 @@ var _CLASE_OT_FALLA_FUERTE=/(fuera de servicio|falla|fuga|rota|roto|cambio de (m
 var _CLASE_OT_INSTALA_VERBO=/(instala|instalaci[oó]n|mejora|calibra|polariz|sellado de cabina|hermeticidad)/i;
 var _CLASE_OT_INSTALA_OBJETO=/(radio base|antisomnolen|somnolencia|fatiga|\badas\b|polariz|check ?point|c[aá]mara|manos libres|gps|sellado de cabina|hermeticidad)/i;
 var _CLASE_OT_INSTALA_FALLA=/(fuera de servicio|falla|fuga|corte|da[ñn]ad|defectuos|repara)/i;
-var _CLASE_OT_DESGASTE=/(cuchilla|elementos? de desgaste|entre ?calza|entre ?diente|calzas|puntas? (del )?ripper|cantonera|reposici[oó]n de elemento|pernos? de elemento)/i;
-var _CLASE_OT_RUTINA=/(control (de )?neum|chequeo (de )?neum|presuri|inflado|torque|apernadura|retorque|normaliza pos|chequeo preventivo|mantenci[oó]n preventiva|mantenci[oó]n (semanal|diaria|programada)|chequeo diario|chequeo general|engrase|relleno (de|en) (dep[oó]sito|tanque|tk)|relleno de (grasa|aceite|refrigerante|niveles)|revisi[oó]n de niveles|limpieza (de )?filtro|sopletea|lavado)/i;
+var _CLASE_OT_DESGASTE=/(rodado|cuchilla|elementos? de desgaste|entre ?calza|entre ?diente|calzas|puntas? (del )?ripper|cantonera|reposici[oó]n de elemento|pernos? de elemento)/i;
+var _CLASE_OT_OPERACIONAL=/(empantan|enterrad|desenterr|remolque|siniestr|falta (de )?combustible|sin combustible|autonom[ií]a|turno noche|sistema siga|helipuer|revisi[oó]n t[eé]cnica|acreditaci)/i;
+var _CLASE_OT_RUTINA=/(adblue|ad.blue|ab.blue|calibraci[oó]n|\bpm ?0?[1-4]\b|mantenci[oó]n prreventiva|mantenci[oó]n en terreno|chequeo semanal|inspecci[oó]n (diaria|general)|control (de )?neum|chequeo (de )?neum|presuri|inflado|torque|apernadura|retorque|normaliza pos|chequeo preventivo|mantenci[oó]n preventiva|mantenci[oó]n (semanal|diaria|programada)|chequeo diario|chequeo general|engrase|relleno (de|en) (dep[oó]sito|tanque|tk)|relleno de (grasa|aceite|refrigerante|niveles)|revisi[oó]n de niveles|limpieza (de )?filtro|sopletea|lavado)/i;
 function claseOTDesdeTexto(descripcion,tipoInt){
   if(tipoInt==='Programada'||tipoInt==='Predictiva')return 'preventiva';
   var t=String(descripcion==null?'':descripcion);
+  if(_CLASE_OT_OPERACIONAL.test(t))return 'operacional';
   if(_CLASE_OT_INSTALA_VERBO.test(t)&&_CLASE_OT_INSTALA_OBJETO.test(t)&&!_CLASE_OT_INSTALA_FALLA.test(t))return 'instalacion';
   if(_CLASE_OT_DESGASTE.test(t))return 'desgaste';
   if(_CLASE_OT_RUTINA.test(t)&&!_CLASE_OT_FALLA_FUERTE.test(t))return 'preventiva';
@@ -11959,6 +11962,78 @@ function _componenteDeSintoma(sintoma){
   return '';
 }
 
+// Eventos que no son un componente (2026-11-07). Solo para rellenar "sistema" en el histórico
+// de OT (sistemaDeTextoHist); NO se mezcla con _CATEGORIAS_COMPONENTE porque la auditoría de
+// 2026-08-28 decidió que «código activo», «dar partida» o «mantenimiento preventivo» se quedan
+// sin componente en el clasificador de las OT en vivo. Orden = prioridad.
+// Extensión del diccionario de componentes SOLO para el histórico de OT (2026-11-07). Salió de leer
+// ~390 OT de Disponibilidad Mecánica y del Excel que quedaron sin sistema: vocabulario real de la
+// planta ('rodado', 'pernos de rueda', 'aspersores', 'balde', 'fabricación', 'cabina'). Va aparte de
+// _CATEGORIAS_COMPONENTE a propósito: esa lista tiene copias exactas en las Edge Functions
+// (parseCorrectivo, alerta-pm, whatsapp-webhook) que un test vigila, y cambiarla obliga a
+// redesplegarlas. Se consulta DESPUÉS de la base, así que lo que ya clasificaba no cambia.
+// Se dejó afuera 'válvula'/'sensor' (cruzan demasiados sistemas, decisión de la auditoría 2026-08-28).
+var _CATEGORIAS_COMPONENTE_HIST=[
+  ['Tren de Rodaje',['rodado','rodados']], // «rodado» = rodillos/tren de rodaje del bulldozer, elemento de desgaste (confirmado por el usuario 2026-11-07)
+  ['Pernos de Rueda',['perno de rueda','pernos de rueda','perno cortado de rueda','pernos cortados de rueda','pernos cortados','tuerca interior','falta tuerca',/tuerca.{0,12}posici[oó]n/]],
+  ['Neumáticos',['neuamtic','nemátic','nematic','nuemátic','nuematic','prezuriz','checkpoint','remanente','banda lateral','protuberancia',/presi[oó]n.{0,25}posici[oó]n/,/posici[oó]n.{0,25}presi[oó]n/,/aire.{0,15}posici[oó]n/]],
+  ['Sistema AFEX (Extinción de Incendios)',['afx','contra incendio','contraincendio']], // AFEX = sistema contra incendio
+  ['Retardador',['retardador','retardo']],
+  ['Sistema de Dirección',['direccion','dirección','varillaje','fuelle']],
+  ['Regadío/Aspersores',['aspersor','regadio','regadío','membrana','bomba centrifuga','bomba centrífuga','toma fuerza','toma de fuerza']],
+  ['Cinturón de Seguridad',['cinturon','cinturón']],
+  ['Sistema de Emergencia',['emergencia']],
+  ['PLM (Medidor de Carga)',[/\bplm\b/]],
+  ['MEMS (Monitoreo de Neumáticos)',[/\bmems\b/,'transceptor','transeptor']],
+  ['GPS/Telemetría/Router',[/\bgps\b/,'router','bastones','bastón']],
+  ['Sistema Anticolisión/Fatiga (ADAS)',['radar','proximidad']],
+  ['Cámara de Retroceso',['alarma de retroceso','camara de retorceso','cámara de retroceso','retroceso']],
+  ['Aire Acondicionado',['a/c','problema de ac','problema ac','evaporador','blower']],
+  ['Acumuladores/Nitrógeno',['acumulador','nitrogeno','nitrógeno']],
+  ['Sistema de Aire/Compresor',['compresor','fuga de aire','perdida de aire','pérdida de aire']],
+  ['AdBlue/SCR',['adblue','ad blue','ad-blue','ab-blue','ab blue']],
+  ['Sistema de Combustible',['combustible',/\briel\b/]],
+  ['Sistema de Escape',['escape']],
+  ['Radiador/Enfriamiento',['intercooler','interooler','intercoller','electroventilador','ventilador',/\bfan\b/]],
+  ['Diferencial',['corona','peñon','peñón']],
+  ['Transmisión',['embrague','caja de cambios']],
+  ['Joystick/Palanca de Mando',['comando']],
+  ['Sistema Hidráulico',['hidraulica','hidráulica','hidrulico','hidraulicas']],
+  ['Engrase/Lubricación',['pre lub','prelub','deposito de grasa','depósito de grasa','tanque de grasa','lubricacion','lubricación','grasa']],
+  ['GET / Cuchillas',['reaper','ripeer','punta','puntas']],
+  ['Elemento de Desgaste',['plancha de desgaste','planchas de desgaste']],
+  ['Balde/Implemento',['balde','implemento','dozer','tilt','pasador','shank','portacuña','porta cuña','porta cuñas','portacuñas','desfondado']],
+  ['Estructura/Soldadura',['soldadura','fabricacion','fabricación','fabrica','baranda','escalera','parachoque','guardafango','tapabarro','estructura','estructural','reforz','blindaje','codera','plancha','soporte','proteccion','protección']],
+  ['Cabina/Carrocería',['cabina','parasol','visera','vicera','gases','sellado']],
+  // «Dar partida» y «código activo» son eléctricos (criterio del usuario, 2026-11-07).
+  ['Sistema Eléctrico',['no enciende','sin partida','problema de partida','chapa de encendido','partida','puesta en marcha','codigo','código','alerta nivel','alarma 3',/\be-?0[1-9]\b/]],
+  ['Pala (Motoniveladora)',['motoniveladora']]
+];
+// Operacional va PRIMERO (antes que los componentes): «F/S por falta de combustible» no es una falla
+// del sistema de combustible, ni «F/S por siniestro pos. 1» una falla de neumáticos.
+var _CATEGORIAS_OPERACIONAL=[
+  ['Operacional / Externo (no mecánico)',['empantan','enterrad','desenterr','remolque','siniestr','falta combustible','falta de combustible','sin combustible','autonomia','autonomía','turno noche','sistema siga','helipuer','revision tecnica','revisión técnica','acreditaci']]
+];
+var _CATEGORIAS_EVENTO=[
+  ['Pérdida de Potencia (causa no indicada)',['perdida de potencia','pérdida de potencia','baja potencia','falta de potencia','exceso de humo','alza de temperatura']],
+  ['Mantención Preventiva/PM',[/\bpm ?0?[1-4]\b/,'mantencion preventiva','mantención preventiva','mantencion prreventiva','mantencion programada','mantención programada','mp pm','chequeo semanal','inspeccion diaria','inspección diaria','mantencion en terreno','mantención en terreno']]
+];
+function _buscarCategoria(lista,t){
+  for(var i=0;i<lista.length;i++){
+    var keys=lista[i][1];
+    for(var j=0;j<keys.length;j++){var k=keys[j];if(k instanceof RegExp ? k.test(t) : t.indexOf(k)>=0)return lista[i][0];}
+  }
+  return '';
+}
+// Sistema para una OT del histórico: primero el componente (el mismo diccionario que usa la
+// app); si no hay, el tipo de evento. Vacío si el texto solo dice «fuera de servicio» u otra cosa
+// sin información: no se inventa. La función SQL public.sistema_de_texto_hist hace lo mismo.
+function sistemaDeTextoHist(texto){
+  if(!texto)return '';
+  var t=String(texto).toLowerCase();
+  return _buscarCategoria(_CATEGORIAS_OPERACIONAL,t)||_buscarCategoria(_CATEGORIAS_COMPONENTE,t)||_buscarCategoria(_CATEGORIAS_COMPONENTE_HIST,t)||_buscarCategoria(_CATEGORIAS_EVENTO,t);
+}
+
 if (typeof window !== 'undefined') {
   window._tokensMaterial = _tokensMaterial;
   window._scoreMaterial = _scoreMaterial;
@@ -12010,6 +12085,10 @@ if (typeof window !== 'undefined') {
   window.esFallaMTBF = esFallaMTBF;
   window._otHistComoOt = _otHistComoOt;
   window.claseOTDesdeTexto = claseOTDesdeTexto;
+  window.sistemaDeTextoHist = sistemaDeTextoHist;
+  window._CATEGORIAS_EVENTO = _CATEGORIAS_EVENTO;
+  window._CATEGORIAS_COMPONENTE_HIST = _CATEGORIAS_COMPONENTE_HIST;
+  window._CATEGORIAS_OPERACIONAL = _CATEGORIAS_OPERACIONAL;
   window.esFallaOTHist = esFallaOTHist;
   window.soloFallasOTHist = soloFallasOTHist;
   window._informesFallaComoOt = _informesFallaComoOt;
@@ -13283,7 +13362,7 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, kpiProMan010, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
-    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, claseOTDesdeTexto, esFallaOTHist, soloFallasOTHist, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
+    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, claseOTDesdeTexto, esFallaOTHist, soloFallasOTHist, sistemaDeTextoHist, _CATEGORIAS_EVENTO, _CATEGORIAS_COMPONENTE_HIST, _CATEGORIAS_OPERACIONAL, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, limpiarTextoParaIA, pendientesClasificacionComponente, muestraParaAcuerdoIA, resumenAcuerdoIA, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,

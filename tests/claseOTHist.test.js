@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'module';
 import { readFileSync } from 'fs';
 const require = createRequire(import.meta.url);
-const { claseOTDesdeTexto, esFallaOTHist, soloFallasOTHist, _otHistComoOt, esFallaMTBF } = require('../logic.js');
+const { claseOTDesdeTexto, esFallaOTHist, soloFallasOTHist, _otHistComoOt, esFallaMTBF, _componenteDeSintoma, sistemaDeTextoHist } = require('../logic.js');
+const { funcionSQL, funcionSistemaSQL } = require('../scripts/generar_componente_sql.js');
+const { generar: generarDiccionario } = require('../scripts/generar_diccionario_mecanico.js');
 
 // Las OT del Excel marcan «Correctiva» tareas que son rutina preventiva, cambios de desgaste o
 // instalaciones (2026-11-07: ~35 % eran preventivas rutinarias). claseOT las separa sin tocar tipoInt.
@@ -66,15 +68,107 @@ describe('esFallaOTHist / soloFallasOTHist', () => {
   });
 });
 
+describe('clase «operacional» y rutina ampliada (2026-11-07)', () => {
+  it('empantanado, siniestro, falta de combustible y turno noche no son fallas mecánicas', () => {
+    expect(claseOTDesdeTexto('CAEX 87 fuera de servicio equipo queda empantanado en botadero')).toBe('operacional');
+    expect(claseOTDesdeTexto('F/S por siniestro pos. 1')).toBe('operacional');
+    expect(claseOTDesdeTexto('F/S por falta combustible.')).toBe('operacional');
+    expect(claseOTDesdeTexto('Contractualmente no existe turno noche de mantencion')).toBe('operacional');
+    expect(esFallaOTHist({ descripcion: 'Desenterramiento de equipo.' })).toBe(false);
+  });
+  it('PM, AdBlue y calibración de PLM son rutina', () => {
+    expect(claseOTDesdeTexto('MP PM3')).toBe('preventiva');
+    expect(claseOTDesdeTexto('Mantención PM1')).toBe('preventiva');
+    expect(claseOTDesdeTexto('Relleno de AD BLUE')).toBe('preventiva');
+    expect(claseOTDesdeTexto('Calibración de PLM')).toBe('preventiva');
+  });
+  it('un fuera de servicio con causa mecánica sigue siendo correctiva', () => {
+    expect(claseOTDesdeTexto('Equipo fuera de servicio por pernos de rueda cortados')).toBe('correctiva');
+    expect(claseOTDesdeTexto('Equipo F/S por falla en electroventilador.')).toBe('correctiva');
+  });
+  it('«rodado» es desgaste del tren de rodaje (criterio del usuario)', () => {
+    expect(claseOTDesdeTexto('equipo fuera de servicio por cambio de rodado')).toBe('desgaste');
+  });
+});
+
+describe('diccionario de componentes ampliado (OT del histórico sin sistema)', () => {
+  const casos = [
+    ['Equipo fuera de servicio por pernos de rueda cortados', 'Pernos de Rueda'],
+    ['Equipo fuera de servicio por rodado', 'Tren de Rodaje'],
+    ['Equipo fuera de servicio por cambio de rodado', 'Tren de Rodaje'],
+    ['Alarma sistema AFX', 'Sistema AFEX (Extinción de Incendios)'],
+    ['F/S por falta de sistema AFEX', 'Sistema AFEX (Extinción de Incendios)'],
+    ['Codigo activo', 'Sistema Eléctrico'],
+    ['se da partida a equipo', 'Sistema Eléctrico'],
+    ['Equipo fuera de servicio, sin partida', 'Sistema Eléctrico'],
+    ['Fuera de servicio por remanente de nemáticos posiciones delanteras', 'Neumáticos'],
+    ['Equipo F/S por falla en sistema de regadio.', 'Regadío/Aspersores'],
+    ['Se realiza cambio de membrana aspersor trasero izquierdo', 'Regadío/Aspersores'],
+    ['Problemas en retardador.', 'Retardador'],
+    ['Se realiza reparación de soldadura en guardafangos', 'Estructura/Soldadura'],
+    ['Se realiza fabricacion de baranda frontal', 'Estructura/Soldadura'],
+    ['Equipo fuera de servicio por retiro de balde', 'Balde/Implemento'],
+    ['Se realiza fabricacion de portacuñas', 'Balde/Implemento'],
+    ['Reemplazo vicera copiloto', 'Cabina/Carrocería'],
+    ['Calibración de PLM', 'PLM (Medidor de Carga)'],
+    ['Relleno de AD BLUE', 'AdBlue/SCR'],
+  ];
+  casos.forEach(([texto, esperado]) => it(texto, () => expect(sistemaDeTextoHist(texto)).toBe(esperado)));
+  it('el clasificador en vivo (_componenteDeSintoma) no cambia: lo nuevo es solo para el histórico', () => {
+    expect(_componenteDeSintoma('Codigo activo')).toBe('');
+    expect(_componenteDeSintoma('se da partida a equipo')).toBe('');
+    expect(_componenteDeSintoma('Equipo fuera de servicio por pernos de rueda cortados')).toBe('');
+    expect(_componenteDeSintoma('falla bomba centrifuga')).toBe('');
+  });
+  it('lo que ya clasificaba antes no cambia (las entradas nuevas van al final)', () => {
+    expect(sistemaDeTextoHist('Bateria descargada')).toBe('Batería');
+    expect(sistemaDeTextoHist('presurizacion neumatico posicion 1')).toBe('Neumáticos');
+    expect(sistemaDeTextoHist('falla en turbo')).toBe('Turbo');
+  });
+  it('un texto que solo dice «fuera de servicio» no inventa componente', () => {
+    expect(sistemaDeTextoHist('F/S')).toBe('');
+    expect(sistemaDeTextoHist('Equipo fuera de servicio.')).toBe('');
+  });
+});
+
+describe('sistemaDeTextoHist (sistema para el histórico de OT)', () => {
+  it('usa el componente y, si no hay, el tipo de evento', () => {
+    expect(sistemaDeTextoHist('Equipo F/S por falla en electroventilador.')).toBe('Radiador/Enfriamiento');
+    expect(sistemaDeTextoHist('perdida de potencia')).toBe('Pérdida de Potencia (causa no indicada)');
+    expect(sistemaDeTextoHist('MP PM3')).toBe('Mantención Preventiva/PM');
+  });
+  it('lo operacional gana sobre el componente', () => {
+    expect(sistemaDeTextoHist('F/S por falta combustible.')).toBe('Operacional / Externo (no mecánico)');
+    expect(sistemaDeTextoHist('F/S por siniestro pos. 1')).toBe('Operacional / Externo (no mecánico)');
+    expect(sistemaDeTextoHist('CAEX 87 fuera de servicio equipo queda empantanado en botadero')).toBe('Operacional / Externo (no mecánico)');
+  });
+  it('vacío o nulo da vacío', () => {
+    expect(sistemaDeTextoHist('')).toBe('');
+    expect(sistemaDeTextoHist(null)).toBe('');
+  });
+});
+
 // El criterio vive dos veces (logic.js y la función SQL que llenó la columna). Este test evita que se desfasen.
+describe('docs/diccionario-mecanico.md', () => {
+  it('está al día con logic.js (regenerar con node scripts/generar_diccionario_mecanico.js)', () => {
+    const doc = readFileSync(new URL('../docs/diccionario-mecanico.md', import.meta.url), 'utf8');
+    expect(doc).toBe(generarDiccionario());
+  });
+});
+
 describe('logic.js y la migración SQL usan los mismos patrones', () => {
   const js = readFileSync(new URL('../logic.js', import.meta.url), 'utf8');
-  const sql = readFileSync(new URL('../supabase/migrations/20261107120000_clase_ot_correctivos_historico.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../supabase/migrations/20261107150000_componente_y_clase_operacional.sql', import.meta.url), 'utf8');
   const fuentesJs = [...js.matchAll(/var _CLASE_OT_\w+=\/(.+)\/i;/g)].map((m) => m[1].replace(/\\b/g, '\\y'));
-  const fuentesSql = [...sql.matchAll(/~\* '([^']+)'/g)].map((m) => m[1]);
-  it('hay 6 patrones en cada lado', () => {
-    expect(fuentesJs).toHaveLength(6);
-    expect(new Set(fuentesSql).size).toBe(6);
+  const seccionClasificar = sql.slice(sql.indexOf('create or replace function public.clasificar_ot'));
+  const fuentesSql = [...seccionClasificar.matchAll(/~\* '([^']+)'/g)].map((m) => m[1]);
+  it('hay 7 patrones en cada lado', () => {
+    expect(fuentesJs).toHaveLength(7);
+    expect(new Set(fuentesSql).size).toBe(7);
+  });
+  it('la función componente_de_texto de la migración es la que genera el diccionario de logic.js', () => {
+    expect(sql).toContain(funcionSQL());
+    expect(sql).toContain(funcionSistemaSQL());
   });
   it('cada patrón de logic.js aparece igual en el SQL', () => {
     fuentesJs.forEach((p) => expect(fuentesSql).toContain(p));

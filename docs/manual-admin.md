@@ -215,6 +215,8 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Regla.** Las órdenes de trabajo del Excel traen tareas de rutina marcadas «Correctiva» (control de neumáticos, presurizado, engrase, chequeo preventivo). El sistema lee el texto de cada orden del historial y la clasifica en `claseOT`: **correctiva** (falla real), **preventiva** (rutina), **desgaste** (cambio de cuchillas, entredientes) o **instalación** (antisomnolencia, radio base). Solo las correctivas cuentan como falla en MTBF, ranking de equipos, Pareto, Predictivo y «flota sin falla» del Dashboard. Una palabra de falla (fuga, falla, fuera de servicio, código) siempre la deja como correctiva.
 
+**Sistema de cada OT.** Las filas del historial que venían sin sistema (la planilla de Disponibilidad Mecánica no lo trae) se rellenaron leyendo el texto: rodado y pernos de rueda, neumáticos, regadío, balde, soldadura y estructura, cabina, etc. Si el texto solo dice «fuera de servicio», el sistema queda vacío (no se inventa) y sigue apareciendo en Auditoría como pendiente. Los eventos que no son falla mecánica (equipo empantanado, siniestro, falta de combustible, turno noche) se marcan **operacional** y no cuentan como falla.
+
 **Límites.** Es una clasificación por palabras: puede equivocarse en casos intermedios y no inventa causa ni sistema. No se cambió el campo «tipo» original. Buscar y Auditoría siguen mostrando todas las filas. Al cargar OT nuevas hay que calcular `claseOT` con la función `public.clasificar_ot`; sin ese dato, el sistema la deduce del texto al mostrar.
 
 ### «Falla» para MTBF y MTTR: parada de 24 h o más (2026-10-23)
