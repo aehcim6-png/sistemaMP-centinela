@@ -284,6 +284,26 @@ function excelHojasDesdeTablas(tablas,cifras){
   });
   return hojas;
 }
+// Código para conectar el Excel (2026-11-04). El login de la web tiene CAPTCHA y el Excel no puede resolverlo,
+// así que la sesión del Excel se crea en la web (contraseña + CAPTCHA + 2 pasos si la cuenta los tiene) y el
+// refresh_token de ESA sesión nueva (no la de la web) se entrega como código para pegar en el Excel.
+// resp: respuesta de /auth/v1/token (o de /factors/{id}/verify); mfaHecho: true si resp ya viene del segundo paso.
+// Devuelve {estado:'error', mensaje} | {estado:'mfa', factorId, tokenAal1} | {estado:'listo', codigo}.
+function excelCodigoEstado(resp,mfaHecho){
+  if(!resp||resp.error||resp.error_code||!resp.access_token){
+    var cod=resp&&(resp.error_code||resp.error)||'';
+    if(cod==='captcha_failed')return {estado:'error',mensaje:'La verificación de seguridad venció o falló. Complétala de nuevo.'};
+    if(mfaHecho)return {estado:'error',mensaje:'El código de 6 dígitos no es correcto.'};
+    return {estado:'error',mensaje:'La contraseña no es correcta.'};
+  }
+  if(!mfaHecho){
+    var factores=(resp.user&&resp.user.factors)||[];
+    var totp=factores.find(function(f){return f&&f.factor_type==='totp'&&f.status==='verified';});
+    if(totp)return {estado:'mfa',factorId:totp.id,tokenAal1:resp.access_token};
+  }
+  if(!resp.refresh_token)return {estado:'error',mensaje:'El servidor no entregó el código. Intenta de nuevo.'};
+  return {estado:'listo',codigo:String(resp.refresh_token)};
+}
 
 // Importar la planilla «Control Kilometraje» (2026-11-03): la planilla de equipos livianos (camionetas y bus) que mantiene una persona de la faena y se repite
 // cada semana. Propone, SIN guardar: (1) la lectura de km de cada equipo, validada contra el historial; (2) la próxima mantención. Para la próxima
@@ -13366,7 +13386,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TBO_FAMILIAS, TBO_FUERA, TBO_ITEMS, TBO_REGLAS_COMPRA, TBO_SUGERIDO, tboNormalizarPN, tboClaseModelo, tboFamiliaDeCompra, tboUnirCompras, tboCruzarCompras, tboFamiliaDeClase, tboPlanEquipo, tboCruzarSugerido,
     clasificacionPendienteOT, resumenClasificacionOT, repararMojibake,
     sistemasDeTexto, sistemasCubiertosPorPM, calidadEjecucionPM, _lecturaRazonCE, _relativoCE, _fraccionDiasConFallaCE, validarPMCompleto, estadoPMCompleto,
-    C, fd, fn, escapeHtml, csvCeldaSegura, excelValorCelda, excelNombreHoja, excelHojasDesdeTablas, kilometrajeAnalizar, pestanaDesdeHash, enlacePestana,
+    C, fd, fn, escapeHtml, csvCeldaSegura, excelValorCelda, excelNombreHoja, excelHojasDesdeTablas, kilometrajeAnalizar, pestanaDesdeHash, enlacePestana, excelCodigoEstado,
     _tokensMaterial, _scoreMaterial, precioMaterial,
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado, SINIESTRO_PLAZO_DIAS, SINIESTRO_AVISO_DIAS, SINIESTRO_TIPOS, SINIESTRO_ESTADOS, SINIESTRO_RESULTADOS, SINIESTRO_DOCUMENTOS, siniestroPlazo, siniestroDocumentos, siniestroNombreArchivo, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
