@@ -705,9 +705,46 @@ function esFallaMTBF(o){
 // 2026-08-18: mismo hallazgo que Ratio Preventivo/Flota sin falla, estos reportes
 // también estaban ciegos a 'otHist'.
 function _otHistComoOt(otHist){
-  return (otHist||[]).map(function(o){
+  return soloFallasOTHist(otHist).map(function(o){
     return{sigla:o.sigla,fecha:o.fecha,horom:o.horometro,tipo:'Correctivo',componente:o.sistema,sintoma:o.sistema,estadoOT:'Cerrada'};
   });
+}
+
+// Clasificación del contenido de una orden de trabajo del histórico (2026-11-07).
+// Las OT del Excel marcan «Correctiva» tareas que en realidad son rutina preventiva
+// (control de neumáticos, presurizado, engrase, chequeo preventivo), cambios de
+// elementos de desgaste planificados (cuchillas, entredientes) o instalaciones y
+// mejoras (antisomnolencia, radio base). Contarlas como falla inflaba MTBF, el
+// ranking de equipos y el Pareto: ~35 % de las 'Correctiva' eran preventivas rutinarias.
+// Devuelve 'correctiva' | 'preventiva' | 'desgaste' | 'instalacion'. Orden de prioridad:
+// instalación > desgaste > preventiva > correctiva; una palabra de falla (fuga, falla,
+// fuera de servicio, código…) saca la fila de instalación/preventiva y la deja como
+// correctiva. Es clasificación por palabras: aproximada, nunca inventa causa. El mismo
+// criterio está en la función SQL public.clasificar_ot (migración 20261107120000) que
+// llenó la columna "claseOT" de correctivos_historico; si cambias uno, cambia el otro.
+var _CLASE_OT_FALLA_FUERTE=/(fuera de servicio|falla|fuga|rota|roto|cambio de (motor|turbo|compresor|bomba|cilindro)|c[oó]digo)/i;
+var _CLASE_OT_INSTALA_VERBO=/(instala|instalaci[oó]n|mejora|calibra|polariz|sellado de cabina|hermeticidad)/i;
+var _CLASE_OT_INSTALA_OBJETO=/(radio base|antisomnolen|somnolencia|fatiga|\badas\b|polariz|check ?point|c[aá]mara|manos libres|gps|sellado de cabina|hermeticidad)/i;
+var _CLASE_OT_INSTALA_FALLA=/(fuera de servicio|falla|fuga|corte|da[ñn]ad|defectuos|repara)/i;
+var _CLASE_OT_DESGASTE=/(cuchilla|elementos? de desgaste|entre ?calza|entre ?diente|calzas|puntas? (del )?ripper|cantonera|reposici[oó]n de elemento|pernos? de elemento)/i;
+var _CLASE_OT_RUTINA=/(control (de )?neum|chequeo (de )?neum|presuri|inflado|torque|apernadura|retorque|normaliza pos|chequeo preventivo|mantenci[oó]n preventiva|mantenci[oó]n (semanal|diaria|programada)|chequeo diario|chequeo general|engrase|relleno (de|en) (dep[oó]sito|tanque|tk)|relleno de (grasa|aceite|refrigerante|niveles)|revisi[oó]n de niveles|limpieza (de )?filtro|sopletea|lavado)/i;
+function claseOTDesdeTexto(descripcion,tipoInt){
+  if(tipoInt==='Programada'||tipoInt==='Predictiva')return 'preventiva';
+  var t=String(descripcion==null?'':descripcion);
+  if(_CLASE_OT_INSTALA_VERBO.test(t)&&_CLASE_OT_INSTALA_OBJETO.test(t)&&!_CLASE_OT_INSTALA_FALLA.test(t))return 'instalacion';
+  if(_CLASE_OT_DESGASTE.test(t))return 'desgaste';
+  if(_CLASE_OT_RUTINA.test(t)&&!_CLASE_OT_FALLA_FUERTE.test(t))return 'preventiva';
+  return 'correctiva';
+}
+// ¿Esta fila de correctivos_historico es una falla real? Usa la columna "claseOT" si
+// está llenada; si no (fila nueva aún sin clasificar), la deduce del texto.
+function esFallaOTHist(o){
+  if(!o)return false;
+  var c=o.claseOT||claseOTDesdeTexto(o.descripcion,o.tipoInt);
+  return c==='correctiva';
+}
+function soloFallasOTHist(otHist){
+  return (otHist||[]).filter(esFallaOTHist);
 }
 
 // Adapta 'informesFalla' (tabla separada de Informes de Falla Catastrófica /
@@ -11972,6 +12009,9 @@ if (typeof window !== 'undefined') {
   window.mttrParadasLargas = mttrParadasLargas;
   window.esFallaMTBF = esFallaMTBF;
   window._otHistComoOt = _otHistComoOt;
+  window.claseOTDesdeTexto = claseOTDesdeTexto;
+  window.esFallaOTHist = esFallaOTHist;
+  window.soloFallasOTHist = soloFallasOTHist;
   window._informesFallaComoOt = _informesFallaComoOt;
   window.contarFallasMes = contarFallasMes;
   window.contarParadasLargasMes = contarParadasLargasMes;
@@ -13243,7 +13283,7 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, kpiProMan010, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
-    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
+    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, claseOTDesdeTexto, esFallaOTHist, soloFallasOTHist, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, limpiarTextoParaIA, pendientesClasificacionComponente, muestraParaAcuerdoIA, resumenAcuerdoIA, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,

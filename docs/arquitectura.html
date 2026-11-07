@@ -244,6 +244,8 @@
   <code>TABLA_REAL</code>/<code>TABLA_SINGLETON</code> dentro de <code>modules/store.js</code>.
   El schema está versionado como código en <code>supabase/migrations/*.sql</code>.</p>
 
+  <p><b>Clasificación de las OT del histórico (2026-11-07).</b> <code>correctivos_historico</code> tiene la columna <code>claseOT</code> (<code>correctiva</code>, <code>preventiva</code>, <code>desgaste</code> o <code>instalacion</code>), llenada por la función SQL <code>clasificar_ot</code> (migración <code>20261107120000</code>) leyendo el texto de la orden; <code>tipoInt</code> queda como vino del Excel. De las 4.558 filas, 2.487 son correctivas reales, 1.635 preventivas de rutina, 362 cambios de desgaste y 74 instalaciones. Las pantallas que cuentan fallas (MTBF, Pareto, ranking por equipo, Predictivo, Dashboard «flota sin falla») solo suman las <code>correctiva</code>, vía <code>_otHistComoOt</code> y <code>esFallaOTHist</code> de <code>logic.js</code>; Buscar y Auditoría siguen viendo todas las filas. El criterio vive en <code>claseOTDesdeTexto</code> (JS) y en <code>clasificar_ot</code> (SQL): <code>tests/claseOTHist.test.js</code> vigila que los patrones sean los mismos. Al cargar OT nuevas, calcular <code>claseOT</code> con <code>public.clasificar_ot(descripcion, "tipoInt")</code>. El gemelo <code>sistema-mp2</code> necesita esta migración antes de recibir este código.</p>
+
   <h3 id="d-10">7. Límites y respaldo</h3>
   <div class="callout">
     <b>Plan gratis de Supabase</b>: 500 MB de base de datos (hoy ~22 MB, 4.4% usado), 5 GB de

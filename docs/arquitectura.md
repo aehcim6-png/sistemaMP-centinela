@@ -210,6 +210,8 @@ configuración (una sola fila fija: `configuracion`, `tarifa_hh`, `metas`,
 etc.). El mapeo completo entre cada categoría del frontend y su tabla real
 vive en `TABLA_REAL`/`TABLA_SINGLETON`, dentro de `modules/store.js`.
 
+**Clasificación de las OT del histórico (2026-11-07).** `correctivos_historico` tiene la columna `claseOT` (`correctiva`, `preventiva`, `desgaste` o `instalacion`), llenada por la función SQL `clasificar_ot` (migración `20261107120000`) leyendo el texto de la orden; `tipoInt` queda como vino del Excel. De las 4.558 filas, 2.487 son correctivas reales, 1.635 preventivas de rutina, 362 cambios de desgaste y 74 instalaciones. Las pantallas que cuentan fallas (MTBF, Pareto, ranking por equipo, Predictivo, Dashboard «flota sin falla») solo suman las `correctiva`, vía `_otHistComoOt` y `esFallaOTHist` de `logic.js`; Buscar y Auditoría siguen viendo todas las filas. El criterio vive en `claseOTDesdeTexto` (JS) y en `clasificar_ot` (SQL): `tests/claseOTHist.test.js` vigila que los patrones sean los mismos. Al cargar OT nuevas, calcular `claseOT` con `public.clasificar_ot(descripcion, "tipoInt")`. El gemelo `sistema-mp2` necesita esta migración antes de recibir este código.
+
 El schema (tablas, RLS, triggers) está versionado como código en
 `supabase/migrations/*.sql` — cualquier cambio de estructura pasa por un
 archivo de migración nuevo, no por una edición manual sin rastro en el panel

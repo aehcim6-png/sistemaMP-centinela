@@ -385,14 +385,14 @@ export function renderDash(){
       return (o.fecha||o.fechaEntrada||'').slice(0,7)===dashPeriodo;
     }).map(function(o){return o.sigla;})
     .concat(otHist.filter(function(o){
-      return o&&o.sigla&&o.sistema&&(o.fecha||'').slice(0,7)===dashPeriodo;
+      return o&&o.sigla&&o.sistema&&esFallaOTHist(o)&&(o.fecha||'').slice(0,7)===dashPeriodo;
     }).map(function(o){return o.sigla;}))
   ).size;
   // Sin datos ≠ sin fallas (2026-10-19): si el último correctivo cargado es anterior al período, «100 % de la flota sin falla»
   // solo significaría «no hay nada cargado» (los correctivos del sistema llegan hasta julio de 2026 y el tablero decía 100 %
   // en octubre mientras había equipos fuera de servicio). En ese caso no se calcula y el índice de salud usa solo las dimensiones con dato.
   var ultFallaCargada=ot.filter(function(o){return esFallaMTBF(o)&&(o.fecha||o.fechaEntrada);}).map(function(o){return (o.fecha||o.fechaEntrada).slice(0,10);})
-    .concat(otHist.filter(function(o){return o&&o.sigla&&o.sistema&&o.fecha;}).map(function(o){return o.fecha.slice(0,10);})).sort().slice(-1)[0]||null;
+    .concat(otHist.filter(function(o){return o&&o.sigla&&o.sistema&&o.fecha&&esFallaOTHist(o);}).map(function(o){return o.fecha.slice(0,10);})).sort().slice(-1)[0]||null;
   var sinDatosFallas=eqConFallaMes===0&&(!ultFallaCargada||ultFallaCargada<dashPeriodo+'-01');
   var diasSinCargar=ultFallaCargada?Math.round((new Date()-new Date(ultFallaCargada))/864e5):null;
   var idxConf=sinDatosFallas?null:(eq.length>0?Math.round((eq.length-eqConFallaMes)/eq.length*100):100);

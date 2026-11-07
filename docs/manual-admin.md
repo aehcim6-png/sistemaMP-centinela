@@ -211,6 +211,12 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Disponibilidad y MTBF (cobertura de registro).** Un día solo cuenta como disponible si el equipo tiene algún registro (lectura de horómetro, OT o PM) a menos de 7 días, o una detención cargada. Los días sin registro no entran al promedio. Con una semana sin datos todo sigue igual; con un mes o dos, el mes queda con poca cobertura o «Sin datos» en vez de 100 %. Dashboard, Disponibilidad, KPI, Metas y Predictivo muestran «Cobertura de datos: N % de los días del mes» y avisan si baja de 50 %. El MTBF mensual de KPI aparece como «sin dato» en un mes con menos de 50 % de cobertura. Un valor de disponibilidad cargado a mano no se modifica. Límite: la cobertura mide que hubo registro, no que el dato sea bueno.
 
+### Qué cuenta como falla en el historial de OT (2026-11-07)
+
+**Regla.** Las órdenes de trabajo del Excel traen tareas de rutina marcadas «Correctiva» (control de neumáticos, presurizado, engrase, chequeo preventivo). El sistema lee el texto de cada orden del historial y la clasifica en `claseOT`: **correctiva** (falla real), **preventiva** (rutina), **desgaste** (cambio de cuchillas, entredientes) o **instalación** (antisomnolencia, radio base). Solo las correctivas cuentan como falla en MTBF, ranking de equipos, Pareto, Predictivo y «flota sin falla» del Dashboard. Una palabra de falla (fuga, falla, fuera de servicio, código) siempre la deja como correctiva.
+
+**Límites.** Es una clasificación por palabras: puede equivocarse en casos intermedios y no inventa causa ni sistema. No se cambió el campo «tipo» original. Buscar y Auditoría siguen mostrando todas las filas. Al cargar OT nuevas hay que calcular `claseOT` con la función `public.clasificar_ot`; sin ese dato, el sistema la deduce del texto al mostrar.
+
 ### «Falla» para MTBF y MTTR: parada de 24 h o más (2026-10-23)
 
 **Regla.** MTBF y MTTR se miden sobre las **paradas de 24 horas o más** (decisión del usuario; `PARADA_LARGA_H` en `logic.js`). Un correctivo más corto es una *intervención*, no una falla: se sigue contando y mostrando como «Intervenciones», pero no entra al MTBF ni al MTTR. El tiempo detenido sale del campo duración de la OT (o de las fechas y horas de entrada y salida; en una salida de servicio abierta, de las horas desde la entrada). Una OT sin duración y el histórico de WhatsApp/correo (que no trae duración) no se pueden clasificar y quedan fuera.

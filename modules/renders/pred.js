@@ -1130,7 +1130,7 @@ export function renderPred(){
       if(!o||!o.sigla||!esFallaMTBF(o))return;
       evBt.push({sigla:o.sigla,fecha:o.fecha,horom:o.horom,componente:(o.componente&&o.componente.trim())||_componenteDeSintoma(o.sintoma)||''});
     });
-    (S.g('otHist')||[]).forEach(function(o){if(o&&o.sigla)evBt.push({sigla:o.sigla,fecha:o.fecha,horom:o.horometro,componente:o.sistema||''});});
+    (S.g('otHist')||[]).forEach(function(o){if(o&&o.sigla&&esFallaOTHist(o))evBt.push({sigla:o.sigla,fecha:o.fecha,horom:o.horometro,componente:o.sistema||''});});
     var bt=backtestAnticipacionFallas(evBt,eq,new Date());
     var fN=function(x,d){return x==null?'—':(Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toString().replace('.',',');};
     var colVer={mejor:'var(--ok)','no distinguible':'var(--w)',peor:'var(--danger)',referencia:'var(--tx3)'};
@@ -1207,7 +1207,7 @@ export function renderPred(){
     // Excel, ver conversación 2026-08-15) en una sola lista de eventos {sigla,
     // componente, fecha}, y de ahí probabilidadFallaDesdeEventos (logic.js) calcula
     // MTBF empírico y probabilidad de falla en 30 días por equipo+componente.
-    var otHistProb=S.g('otHist')||[];
+    var otHistProb=soloFallasOTHist(S.g('otHist')||[]);
     var eventosProb=[];
     ot.forEach(function(o){
       if(!esFallaMTBF(o))return;

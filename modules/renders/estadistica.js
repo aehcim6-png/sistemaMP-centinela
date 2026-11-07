@@ -42,7 +42,9 @@ function _estFallasCombinadas(ot, otHist, informesFalla) {
     eventos.push({ sigla: o.sigla, componente: comp || '', fecha: o.fecha, horom: o.horom, codFalla: o.codFalla || '' });
   });
   (otHist || []).forEach(function (o) {
-    if (!o || !o.sigla) return;
+    // Solo fallas reales: el histórico trae también preventivas rutinarias, cambios de
+    // desgaste e instalaciones (columna claseOT, ver claseOTDesdeTexto en logic.js).
+    if (!o || !o.sigla || !esFallaOTHist(o)) return;
     eventos.push({ sigla: o.sigla, componente: o.sistema || '', fecha: o.fecha, horom: o.horometro, codFalla: '' });
   });
   (informesFalla || []).forEach(function (i) {

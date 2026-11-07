@@ -1275,7 +1275,8 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **Para qué sirve:** el historial de correctivos 2022–2026 (`correctivos_historico`, cargado desde Excel) y los informes de falla catastrófica no son OT formales, pero cuentan como fallas reales; estos puentes los adaptan a la forma que esperan `esFallaMTBF`, el MTBF, el Weibull y el Pareto.
 - **De dónde viene:** 🔵 Criterio propio, a partir de hallazgos de auditoría (reportes que estaban "ciegos" al historial).
 - **Cómo lo calcula aquí:** `_otHistComoOt` convierte cada fila del historial en una OT de tipo Correctivo, sin duración ni horómetro (no se inventan); `_informesFallaComoOt` solo cuenta como falla los informes de tipo "Falla Catastrófica" (un "Cambio de Componente Mayor" es un reemplazo planificado y no infla el conteo).
-- **Código:** `_otHistComoOt`, `_informesFallaComoOt`.
+- **Qué cuenta como falla en el historial (2026-11-07):** el Excel de OT marca «Correctiva» tareas de rutina; `claseOTDesdeTexto` las separa leyendo el texto de la orden en `correctiva`, `preventiva` (control de neumáticos, presurizado, engrase, mantención semanal), `desgaste` (cambio de cuchillas, entredientes) e `instalacion` (antisomnolencia, radio base). Una palabra de falla (fuga, falla, fuera de servicio, código) manda la fila a `correctiva`. `esFallaOTHist` y `soloFallasOTHist` dejan pasar solo las `correctiva`, y `_otHistComoOt` las usa, así que MTBF, ranking de equipos, Pareto y Predictivo ya no cuentan la rutina como falla. Es clasificación por palabras (aproximada, no inventa causa); la columna `claseOT` de `correctivos_historico` la llena la función SQL `clasificar_ot` con los mismos patrones (un test vigila que no se desfasen). `tipoInt` no se modifica.
+- **Código:** `_otHistComoOt`, `_informesFallaComoOt`, `claseOTDesdeTexto`, `esFallaOTHist`, `soloFallasOTHist`.
 
 ### L6. Auditoría de cambios campo por campo
 - **Tipo:** regla de comparación + registro.

@@ -258,7 +258,7 @@ const TABLA_REAL={
   // (ver conversación 2026-08-15). Mismo patrón de solo lectura que 'ocHist': nada en
   // la app llama S.s('otHist', ...) — alimenta el cálculo de probabilidad de falla en
   // Predictivo (probabilidadFallaDesdeEventos, logic.js) con más muestra histórica.
-  otHist:{tabla:'correctivos_historico',clave:'id',claveDb:'id',cols:['id','sigla','siglaOriginal','fecha','horometro','sistema','descripcion','tipoInt','fuente','observacion','estadoOT','responsable']},
+  otHist:{tabla:'correctivos_historico',clave:'id',claveDb:'id',cols:['id','sigla','siglaOriginal','fecha','horometro','sistema','descripcion','tipoInt','fuente','observacion','estadoOT','responsable','claseOT']},
   // Reportabilidad diaria del cliente (2026-10-11): estatus OP/FS de cada equipo por día. Clave natural fecha+sigla (índice único); ver reportabilidadFusionar (logic.js).
   // Backlog de pautas (2026-10-14): tareas que quedan pendientes al hacer un PM, con su cierre; alimenta la sección V del informe de gestión (informeBacklogPM, logic.js).
   backlogPM:{tabla:'backlog_pm',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomBacklog','tarea','sistema','conInsumo','fechaCierre','observacion']},

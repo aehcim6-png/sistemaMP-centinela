@@ -119,6 +119,9 @@ lista con el enlace de cada pestaña y un botón **Copiar**. Quien lo abre
 inicia sesión como siempre y entra directo a esa pestaña. Si su perfil no
 puede ver esa pestaña, entra al Dashboard.
 
+**¿Por qué el historial de órdenes de trabajo muestra menos fallas que antes?**
+Porque las tareas de rutina (control de neumáticos, presurizado, engrase, cambio de cuchillas, instalaciones) venían marcadas «Correctiva» en el Excel. Ahora el sistema las separa leyendo el texto de la orden y solo cuenta como falla lo que realmente lo es. Las demás siguen guardadas y se ven en Buscar.
+
 **¿Puedo bajar los datos a Excel?**
 Sí. Arriba a la derecha, en todas las pestañas, está el botón **Excel**: baja
 todas las tablas de la pestaña que estás viendo, una hoja por tabla, con los
