@@ -7230,6 +7230,8 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Límites:** que un equipo deje de tener filas no prueba que se haya desmovilizado (p. ej. CN-9502 termina el 31-may-2024 y CF-9511 el 16-mar-2024): falta confirmar las fechas reales con el cliente antes de usarlas para recortar la flota en el cálculo. La app todavía no lee esta tabla; hoy es dato de consulta cargado por SQL.
 
+**Presencia en la flota (mismo día):** tabla `flota_presencia` (migración `20261108150000_crear_flota_presencia.sql`, 67 tablas en el respaldo): por equipo, desde cuándo y hasta cuándo contó para la flota, y si el cliente confirmó la fecha. El cliente confirmó desmovilizados: CN-4656, CN-6113, CF-9511, CE-85, CE-88, CN-9506 y CA-5135 a CA-5140 (fechas = última actividad en los datos, salvo CF-9511 que falta confirmar). CE-88 y CE-85 son equipos distintos de CN-9502 y CN-9503 (siguen operando), así que sus días de la planilla diaria se guardan con su sigla propia. GP-3394, GP-5503, MA-5250 y CN-3470 no cuentan. Los demás que dejaron de aparecer en la planilla (BD-9508, CF-513, CO-*, MN-5148, MN-7485, BD-765, BD-715) quedan con `confirmado = false`. **Pendiente:** que el cálculo de flota use esta tabla (hoy solo se cargó el dato).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
