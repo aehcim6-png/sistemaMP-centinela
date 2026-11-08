@@ -72,8 +72,8 @@ Vocabulario de la planta sacado de leer las OT de Disponibilidad Mecánica y del
 | Sistema / componente | Palabras que lo identifican |
 |---|---|
 | Tren de Rodaje | `rodado`, `rodados`, `segmento`, `orruga` |
-| Pernos de Rueda | `perno de rueda`, `pernos de rueda`, `perno cortado de rueda`, `pernos cortados de rueda`, `pernos cortados`, `tuerca interior`, `falta tuerca`, `/tuerca.{0,12}posici[oó]n/` |
-| Neumáticos | `neuamtic`, `nemátic`, `nematic`, `nuemátic`, `nuematic`, `prezuriz`, `checkpoint`, `remanente`, `banda lateral`, `protuberancia`, `/presi[oó]n.{0,25}posici[oó]n/`, `/posici[oó]n.{0,25}presi[oó]n/`, `/aire.{0,15}posici[oó]n/` |
+| Pernos de Rueda | `perno de rueda`, `pernos de rueda`, `perno cortado de rueda`, `pernos cortados de rueda`, `pernos cortados`, `perno cortado`, `tuerca interior`, `falta tuerca`, `/tuerca.{0,12}posici[oó]n/`, `/pernos?.{0,25}posici[oó]n/`, `/pernos?.{0,25}\bpos\.? ?\d/` |
+| Neumáticos | `neuamtic`, `nemátic`, `nematic`, `nuemátic`, `nuematic`, `prezuriz`, `checkpoint`, `remanente`, `banda lateral`, `protuberancia`, `/presi[oó]n.{0,25}posici[oó]n/`, `/posici[oó]n.{0,25}presi[oó]n/`, `/aire.{0,15}posici[oó]n/`, `/chequeo visual.{0,12}\bpos/` |
 | Sistema AFEX (Extinción de Incendios) | `afx`, `contra incendio`, `contraincendio`, `red de incendio` |
 | Retardador | `retardador`, `retardo` |
 | Sistema de Dirección | `direccion`, `dirección`, `varillaje`, `fuelle`, `volante` |
@@ -81,7 +81,7 @@ Vocabulario de la planta sacado de leer las OT de Disponibilidad Mecánica y del
 | Cinturón de Seguridad | `cinturon`, `cinturón` |
 | Sistema de Emergencia | `emergencia` |
 | PLM (Medidor de Carga) | `/\bplm\b/` |
-| MEMS (Monitoreo de Neumáticos) | `/\bmems\b/`, `transceptor`, `transeptor` |
+| MEMS (Monitoreo de Neumáticos) | `/\bmems/`, `transceptor`, `transeptor`, `splitter` |
 | GPS/Telemetría/Router | `/\bgps\b/`, `router`, `bastones`, `bastón`, `komtrax` |
 | Sistema Anticolisión/Fatiga (ADAS) | `radar`, `proximidad`, `semnolencia`, `sonlenencia`, `somnolenc`, `/\bf y s\b/` |
 | Cámara de Retroceso | `alarma de retroceso`, `camara de retorceso`, `cámara de retroceso`, `retroceso` |
@@ -93,16 +93,17 @@ Vocabulario de la planta sacado de leer las OT de Disponibilidad Mecánica y del
 | Sistema de Escape | `escape` |
 | Radiador/Enfriamiento | `intercooler`, `interooler`, `intercoller`, `electroventilador`, `ventilador`, `/\bfan\b/` |
 | Diferencial | `corona`, `peñon`, `peñón` |
-| Transmisión | `embrague`, `caja de cambios`, `visor de marchas`, `no pasa marchas`, `marchas` |
+| Transmisión | `embrague`, `caja de cambios`, `visor de marchas`, `no pasa marchas`, `marchas`, `trasnmis`, `trasmisi`, `transmicion` |
 | Joystick/Palanca de Mando | `comando` |
-| Sistema Hidráulico | `hidraulica`, `hidráulica`, `hidrulico`, `hidraulicas` |
-| Engrase/Lubricación | `pre lub`, `prelub`, `deposito de grasa`, `depósito de grasa`, `tanque de grasa`, `lubricacion`, `lubricación`, `grasa` |
+| Sistema Hidráulico | `hidraulica`, `hidráulica`, `hidrulico`, `hidraulicas`, `/v[aá]lvula epc/` |
+| Engrase/Lubricación | `engrace`, `engrase automatico`, `engrase automático`, `pre lub`, `prelub`, `deposito de grasa`, `depósito de grasa`, `tanque de grasa`, `lubricacion`, `lubricación`, `grasa` |
 | GET / Cuchillas | `reaper`, `ripeer`, `punta`, `puntas` |
 | Elemento de Desgaste | `plancha de desgaste`, `planchas de desgaste` |
 | Balde/Implemento | `balde`, `implemento`, `dozer`, `tilt`, `pasador`, `shank`, `portacuña`, `porta cuña`, `porta cuñas`, `portacuñas`, `desfondado`, `porta calza`, `portacalza`, `porta calzas` |
+| Elemento de Desgaste | `calza`, `cantonera` |
 | Estructura/Soldadura | `soldadura`, `fabricacion`, `fabricación`, `fabrica`, `baranda`, `escalera`, `parachoque`, `guardafango`, `tapabarro`, `estructura`, `estructural`, `reforz`, `blindaje`, `codera`, `plancha`, `soporte`, `proteccion`, `protección`, `tapa barro` |
 | Cabina/Carrocería | `cabina`, `parasol`, `visera`, `vicera`, `gases`, `sellado`, `letrero`, `hermet`, `hermit` |
-| Radio/Comunicaciones | `radio de comunic`, `radio musical`, `radio` |
+| Radio/Comunicaciones | `radio de comunic`, `radio musical`, `radio`, `manos libres` |
 | Suspensión | `suspins`, `suspención`, `suspenci`, `estabilizador`, `resorte` |
 | Sellos/O-rings | `oring`, `o-ring`, `o ring` |
 | Parabrisas/Vidrios | `parabrisa`, `vidrio` |
@@ -111,7 +112,7 @@ Vocabulario de la planta sacado de leer las OT de Disponibilidad Mecánica y del
 | Baliza/Pértiga (Señalización) | `pértiga` |
 | Hombre Ausente | `hombre ausente` |
 | Motor | `/cilindro n?°? ?\d.{0,20}banco/`, `banco izquierdo`, `banco derecho` |
-| Sistema Eléctrico | `fusible`, `no enciende`, `sin partida`, `problema de partida`, `chapa de encendido`, `partida`, `puesta en marcha`, `codigo`, `código`, `alerta nivel`, `alarma 3`, `/\be-?0[1-9]\b/` |
+| Sistema Eléctrico | `potenciometro`, `potenciómetro`, `potencimetro`, `fusible`, `no enciende`, `sin partida`, `problema de partida`, `chapa de encendido`, `partida`, `puesta en marcha`, `codigo`, `código`, `alerta nivel`, `alarma 3`, `/\be-?0[1-9]\b/` |
 | Pala (Motoniveladora) | `motoniveladora`, `vertedera` |
 
 ### 4. Otros eventos

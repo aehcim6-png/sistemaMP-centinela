@@ -157,7 +157,7 @@ describe('docs/diccionario-mecanico.md', () => {
 });
 
 describe('la migración SQL sale de logic.js', () => {
-  const sql = readFileSync(new URL('../supabase/migrations/20261107150000_componente_y_clase_operacional.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../supabase/migrations/20261108130000_sinonimos_historico_ot.sql', import.meta.url), 'utf8');
   it('componente_de_texto, sistema_de_texto_hist y clasificar_ot son exactamente lo que genera scripts/generar_componente_sql.js', () => {
     expect(sql).toContain(funcionSQL());
     expect(sql).toContain(funcionSistemaSQL());
@@ -183,5 +183,29 @@ describe('vocabulario del histórico, segunda pasada (2026-11-07)', () => {
   });
   it('un mensaje de cotización no es una OT', () => {
     expect(claseOTDesdeTexto('Te escribo para solicitar tu visto bueno a la cotización número 102182991')).toBe('operacional');
+  });
+});
+
+describe('sinónimos y errores de tipeo del histórico, tercera pasada (2026-11-08)', () => {
+  const casos = [
+    ['Equipo F/S por sonido anómalo en la trasnmisión. Queda operativo.', 'Transmisión'],
+    ['BD-509 fuera de servicio sistema de engrace automático', 'Engrase/Lubricación'],
+    ['cambio de pernos en posicion trasera', 'Pernos de Rueda'],
+    ['reposición perno posición 4', 'Pernos de Rueda'],
+    ['CE-86 fuera de servicio por perno cortado, equipo en parqueo general', 'Pernos de Rueda'],
+    ['se realiza chequeo visual pos 6', 'Neumáticos'],
+    ['Cambio de calzas', 'Elemento de Desgaste'],
+    ['Se cambia cantonera izq por desgaste y quebrada', 'Elemento de Desgaste'],
+    ['Se fabrica porta calzas', 'Balde/Implemento'],
+    ['se realiza instalacion sistema manos libres', 'Radio/Comunicaciones'],
+    ['Se realiza desmontaje de valvula EPC alevación como prestamo', 'Sistema Hidráulico'],
+    ['se calibra potencimetro', 'Sistema Eléctrico'],
+    ['Reemplazo sensor potenciometro', 'Sistema Eléctrico'],
+    ['Se reapara sistema Mems4, se detecta splitter en mal estado', 'MEMS (Monitoreo de Neumáticos)'],
+  ];
+  casos.forEach(([t, e]) => it(t, () => expect(sistemaDeTextoHist(t)).toBe(e)));
+  it('lo que no dice nada concreto sigue sin sistema: no se inventa', () => {
+    ['Equipo fuera de servicio.', 'F/S', 'Equipo en taller.', 'Equipo F/S por sonido anómalo.', 'regulacion de presiones', 'BD-533 fuera de servicio por pernos sueltos', 'CHEQUEO BOMBA']
+      .forEach((t) => expect(sistemaDeTextoHist(t)).toBe(''));
   });
 });

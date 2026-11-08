@@ -7208,6 +7208,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/foda.test.js` (25 casos: cruces, códigos, resumen, validación de estrategias, tasa de falla por equipo y sugerencias con datos de ejemplo).
 
+### 213. Sinónimos y errores de tipeo del histórico de OT, tercera pasada (2026-11-08)
+
+**Por qué:** quedaban 87 OT del histórico (correctivas, de desgaste e instalaciones) sin «sistema». Se leyó el texto de cada una para separar las que sí dicen qué es de las que no.
+
+**Qué se hizo:** se agregaron al diccionario del histórico (`_CATEGORIAS_COMPONENTE_HIST`) los sinónimos y errores de tipeo reales: «trasnmisión» y «trasmisión» (Transmisión), «engrace» (Engrase), «calzas» y «cantonera» (Elemento de Desgaste), «perno(s) … posición/pos. N» y «perno cortado» (Pernos de Rueda), «chequeo visual pos. N» (Neumáticos), «manos libres» (Radio/Comunicaciones), «válvula EPC» (Hidráulico), «potenciómetro» (Eléctrico) y «MEMS4»/«splitter» (monitoreo de neumáticos: así lo habían etiquetado las OT ya clasificadas, no es telemetría). Con eso se completó el sistema de 27 OT (migración `20261108130000_sinonimos_historico_ot.sql`, generada desde `logic.js`).
+
+**Decisiones:** 60 OT siguen sin sistema a propósito, porque el texto solo dice «fuera de servicio», «en taller», «en revisión», «ruido anormal», «chequeo bomba» o «regulación de presiones»: no dice qué pieza o sistema es, y no se inventa. El diccionario de la app y el de las Edge Functions no se tocaron (un test los vigila); la ampliación vive solo en el histórico.
+
+**Pruebas:** `tests/claseOTHist.test.js` (14 frases reales y 7 que deben seguir sin sistema).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
