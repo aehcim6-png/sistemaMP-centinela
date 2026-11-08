@@ -264,6 +264,9 @@ const TABLA_REAL={
   backlogPM:{tabla:'backlog_pm',clave:'_id',claveDb:'id',cols:['sigla','fecha','horomBacklog','tarea','sistema','conInsumo','fechaCierre','observacion']},
   // Tareas de gestión (2026-10-29, paso 3): lo que las reglas obligan a hacer (pedir ya, falla repetida, hallazgo de PM), con responsable y fecha límite; ver tareaEstado (logic.js).
   siniestros:{tabla:'siniestros',clave:'_id',claveDb:'id',cols:['sigla','fecha','hora','lugar','faena','tipo','relato','lesionados','conductor','terceroInvolucrado','terceroDatos','constancia','responsableAviso','estado','fechaInformado','fechaCierre','resultado','montoIndemnizado','documentos','observaciones','usuario']},
+  // Análisis FODA (2026-11-08): ítems y estrategias cruzadas. 'ref' es el id estable que usan las estrategias (ver fodaCodigos en logic.js). Solo un administrador escribe (RLS).
+  fodaItems:{tabla:'foda_items',clave:'_id',claveDb:'id',cols:['ref','tipo','texto','puntaje','origen','usuario']},
+  fodaEstrategias:{tabla:'foda_estrategias',clave:'_id',claveDb:'id',cols:['ref','refA','refB','cruce','texto','responsable','fechaCompromiso','estado','observaciones','usuario']},
   neuTras:{tabla:'neumaticos_traslados',clave:'_id',claveDb:'id',cols:['neuId','serie','fecha','donante','posicionDonante','horomDonante','receptor','posicionReceptor','horomReceptor','causal','detalle','autorizadoPor','usuario']},
   neuRec:{tabla:'neumaticos_recauchajes',clave:'_id',claveDb:'id',cols:['neuId','serie','sigla','marca','medida','numRecauchaje','fechaEnvio','guiaDespacho','proveedor','huellaSalida','huellaEntrada','estado','codigoRechazo','fechaRetorno','costo','observaciones','usuario']},
   tareas:{tabla:'tareas_gestion',clave:'_id',claveDb:'id',cols:['clave','origen','sigla','titulo','detalle','responsable','fechaLimite','estado','fechaCierre','referencia','observacion','usuario']},

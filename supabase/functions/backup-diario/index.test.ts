@@ -42,7 +42,8 @@ Deno.test("TABLAS: tamaño esperado (63) — cambiar a propósito si se agrega u
   // Nota 2026-10-30: 61 al sumar 'neumaticos_recauchajes' (recauchaje de neumáticos).
   // Nota 2026-10-30: 62 al sumar 'siniestros' (denuncio de siniestros).
   // Nota 2026-10-30: 63 al sumar 'neumaticos_traslados' (canibalización de neumáticos).
-  assertEquals(TABLAS.length, 63);
+  // Nota 2026-11-08: 65 al sumar 'foda_items' y 'foda_estrategias' (análisis FODA).
+  assertEquals(TABLAS.length, 65);
 });
 
 // ---- traerTodasLasFilas ----

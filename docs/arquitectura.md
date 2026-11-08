@@ -7196,6 +7196,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/repuestoEstado.test.js` (5 casos: vacío, vacío con consumo, cero real, contra el mínimo, igualdad con `stockEstado`).
 
+### 212. Análisis FODA cruzado en el programa (2026-11-08)
+
+**Por qué:** la jefatura trabajaba el FODA (fortalezas, debilidades, oportunidades, amenazas) en una plantilla aparte, sin relación con los datos de la flota. Se pidió hacerlo dentro del programa, con la misma plantilla (cuadrantes, estrategias cruzadas FO/FA/DO/DA, tablero con gráfico de torta, radar y estado de los planes).
+
+**Qué se hizo:** pestaña nueva **FODA** (grupo Herramientas, `modules/renders/foda.js`). Cada ítem lleva puntaje de 1 a 5 y un código (F1, D2, O1, A3…). Las estrategias cruzan un ítem interno con uno externo; el cruce (`fodaCruceDe`) queda FO, FA, DO o DA y cada estrategia tiene responsable, fecha compromiso y estado (Pendiente / En proceso / Culminado). El tablero muestra la torta de peso por tipo, el radar y las barras de estado de los planes. Un panel **«Sugerencias del sistema»** (`fodaSugerencias`) propone, con cifras reales del historial (años y volumen de OT, rutina marcada como correctiva, datos desactualizados, equipos con más y con menos fallas por 1.000 h, sistema con más fallas), fortalezas y debilidades que la persona acepta o descarta. Tablas nuevas `foda_items` y `foda_estrategias` (migración `20261108120000_crear_foda.sql`), incluidas en `backup-diario` (ahora 65 tablas).
+
+**Decisiones:** (1) ver lo pueden todos los perfiles activos; **crear, editar y borrar solo un administrador**, y lo hace cumplir la base con RLS (`privado.es_admin_activo()`), no solo la pantalla. No existe un rol «Jefe/Supervisor» en la base: los jefes que deban editar necesitan cuenta de administrador (si se quiere separar, hay que crear ese rol). (2) Las estrategias apuntan a los ítems por un `ref` estable y no por el código F1/O2, que cambia si se borra una fila. (3) Lo externo (oportunidades y amenazas) no sale de los datos: el sistema no lo inventa, solo propone fortalezas y debilidades. (4) Las sugerencias descartadas se recuerdan en el navegador de quien las descartó.
+
+**Límites:** las sugerencias son borradores basados en el historial cargado; con pocos datos no proponen nada. La tasa de fallas por equipo solo considera equipos con 1.000 h o más en el periodo. Antes de desplegar en otro proyecto (sistema-mp2) hay que aplicar la migración allí, y volver a desplegar `backup-diario` en los dos.
+
+**Pruebas:** `tests/foda.test.js` (25 casos: cruces, códigos, resumen, validación de estrategias, tasa de falla por equipo y sugerencias con datos de ejemplo).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -773,6 +773,152 @@ function soloFallasOTHist(otHist){
   return (otHist||[]).filter(esFallaOTHist);
 }
 
+// ── Análisis FODA (2026-11-08) ──
+// Fortalezas (F) y Debilidades (D) son internas; Oportunidades (O) y Amenazas (A) son externas. Cada una lleva un puntaje de
+// 1 a 5 (cuánto pesa). Las estrategias cruzan una interna con una externa: FO ofensiva, FA defensiva, DO de reorientación y
+// DA de supervivencia, y cada una es un plan de acción con estado (Pendiente / En proceso / Culminado). Todo es manual salvo
+// fodaSugerencias, que propone ítems internos calculados con datos del sistema (la persona los acepta o los descarta).
+var FODA_TIPOS=['F','D','O','A'];
+var FODA_NOMBRES={F:'Fortalezas',D:'Debilidades',O:'Oportunidades',A:'Amenazas'};
+var FODA_CRUCES={
+  FO:{a:'F',b:'O',nombre:'Estrategias ofensivas (F-O)',pregunta:'¿Cómo usar una fortaleza para aprovechar una oportunidad?'},
+  FA:{a:'F',b:'A',nombre:'Estrategias defensivas (F-A)',pregunta:'¿Cómo usar una fortaleza para minimizar o neutralizar una amenaza?'},
+  DO:{a:'D',b:'O',nombre:'Estrategias de reorientación (D-O)',pregunta:'¿Cómo corregir una debilidad para poder aprovechar una oportunidad?'},
+  DA:{a:'D',b:'A',nombre:'Estrategias de supervivencia (D-A)',pregunta:'¿Cómo trabajar una debilidad para minimizar el efecto de una amenaza?'}
+};
+var FODA_ESTADOS=['Pendiente','En proceso','Culminado'];
+// Cruce que corresponde a una interna (F/D) con una externa (O/A); null si no es una combinación válida.
+function fodaCruceDe(tipoA,tipoB){
+  if((tipoA!=='F'&&tipoA!=='D')||(tipoB!=='O'&&tipoB!=='A'))return null;
+  return tipoA+tipoB;
+}
+function _fodaPuntaje(i){var p=Number(i&&i.puntaje);return (p>=1&&p<=5)?Math.round(p):3;}
+// Código visible de cada ítem (F1, F2, D1…): sigue el orden de la lista dentro de su tipo. Devuelve {ref:'F1'}.
+// Las estrategias apuntan por 'ref' (estable), no por el código, que cambia si se borra un ítem.
+function fodaCodigos(items){
+  var n={F:0,D:0,O:0,A:0},out={};
+  (items||[]).forEach(function(i){
+    if(!i||!i.ref||n[i.tipo]===undefined)return;
+    n[i.tipo]++;out[i.ref]=i.tipo+n[i.tipo];
+  });
+  return out;
+}
+// Cifras del tablero: ítems y puntaje por tipo, % de cada tipo, estado de los planes y ítems que aún no tienen ninguna estrategia.
+function fodaResumen(items,estrategias){
+  var r={porTipo:{},total:0,estados:{'Pendiente':0,'En proceso':0,'Culminado':0},planes:0,sinEstrategia:[]};
+  FODA_TIPOS.forEach(function(t){r.porTipo[t]={n:0,puntos:0,pct:0};});
+  (items||[]).forEach(function(i){
+    if(!i||!r.porTipo[i.tipo])return;
+    r.porTipo[i.tipo].n++;r.porTipo[i.tipo].puntos+=_fodaPuntaje(i);r.total++;
+  });
+  FODA_TIPOS.forEach(function(t){r.porTipo[t].pct=r.total?Math.round(r.porTipo[t].n/r.total*100):0;});
+  var usados={};
+  (estrategias||[]).forEach(function(e){
+    if(!e)return;
+    r.planes++;
+    var est=r.estados[e.estado]!==undefined?e.estado:'Pendiente';
+    r.estados[est]++;
+    if(e.refA)usados[e.refA]=true;
+    if(e.refB)usados[e.refB]=true;
+  });
+  (items||[]).forEach(function(i){if(i&&i.ref&&r.porTipo[i.tipo]&&!usados[i.ref])r.sinEstrategia.push(i.ref);});
+  return r;
+}
+// '' si la estrategia está bien armada; si no, el motivo en una frase. 'items' es la lista de ítems del FODA.
+function fodaEstrategiaError(e,items){
+  if(!e)return 'Falta la estrategia';
+  var a=null,b=null;
+  (items||[]).forEach(function(i){if(!i)return;if(i.ref===e.refA)a=i;if(i.ref===e.refB)b=i;});
+  if(!a)return 'Elige una fortaleza o debilidad';
+  if(!b)return 'Elige una oportunidad o amenaza';
+  var c=fodaCruceDe(a.tipo,b.tipo);
+  if(!c)return 'Hay que cruzar una fortaleza o debilidad con una oportunidad o amenaza';
+  if(e.cruce&&e.cruce!==c)return 'El cruce no coincide con los ítems elegidos';
+  if(!e.texto||String(e.texto).trim().length<5)return 'Describe la estrategia (mínimo 5 letras)';
+  if(e.estado&&FODA_ESTADOS.indexOf(e.estado)<0)return 'El estado debe ser Pendiente, En proceso o Culminado';
+  if(e.fechaCompromiso&&!/^\d{4}-\d{2}-\d{2}$/.test(e.fechaCompromiso))return 'La fecha de compromiso no es válida';
+  return '';
+}
+// Fallas reales por cada 1.000 h de cada equipo entre 'desde' y 'hasta' (AAAA-MM-DD). 'fallas' = [{sigla,fecha}] ya filtradas
+// (soloFallasOTHist) y 'hist' = lecturas de horómetro [{sigla,fecha,horom,horomFin}]. Las horas son el avance del horómetro en
+// el periodo; sin al menos 'minHoras' (1.000 por defecto) el equipo no entra: una tasa con pocas horas engaña.
+function fodaTasaFallaPorEquipo(fallas,hist,desde,hasta,minHoras){
+  var min=minHoras==null?1000:minHoras,rango={},nf={};
+  (hist||[]).forEach(function(h){
+    if(!h||!h.sigla||!h.fecha)return;
+    var f=String(h.fecha).slice(0,10);if(f<desde||f>hasta)return;
+    var v=Number(h.horomFin>0?h.horomFin:h.horom);if(!(v>0))return;
+    var r=rango[h.sigla]=rango[h.sigla]||{min:v,max:v};
+    if(v<r.min)r.min=v;if(v>r.max)r.max=v;
+  });
+  (fallas||[]).forEach(function(o){
+    if(!o||!o.sigla||!o.fecha)return;
+    var f=String(o.fecha).slice(0,10);if(f<desde||f>hasta)return;
+    nf[o.sigla]=(nf[o.sigla]||0)+1;
+  });
+  var out=[];
+  Object.keys(rango).forEach(function(sig){
+    var horas=rango[sig].max-rango[sig].min;
+    if(horas<min)return;
+    var n=nf[sig]||0;
+    out.push({sigla:sig,fallas:n,horas:Math.round(horas),tasa:Math.round(n*1000/horas*10)/10});
+  });
+  out.sort(function(x,y){return y.tasa-x.tasa||x.sigla.localeCompare(y.sigla);});
+  return out;
+}
+function _fodaNum(n){return String(n).replace('.',',');}
+function _fodaFechaTxt(f){return f&&f.length>=10?f.slice(8,10)+'-'+f.slice(5,7)+'-'+f.slice(0,4):f;}
+// Sugerencias de ítems INTERNOS (fortalezas y debilidades) calculadas con los datos del sistema. Cada una trae su 'clave' (para no
+// proponerla de nuevo si ya se agregó) y el dato exacto en el texto. Solo propone lo que los datos respaldan: sin datos suficientes
+// no propone nada. Las oportunidades y amenazas (externas) no se pueden calcular desde el sistema: las escribe la persona.
+// Entrada: {otHist, hist, hoy}. otHist = correctivos_historico (con claseOT); hist = lecturas de horómetro.
+function fodaSugerencias(e){
+  e=e||{};
+  var oh=e.otHist||[],hist=e.hist||[],hoy=e.hoy||new Date().toISOString().slice(0,10),out=[];
+  var fallas=soloFallasOTHist(oh).filter(function(o){return o&&o.sigla&&o.fecha;})
+    .map(function(o){return{sigla:o.sigla,fecha:String(o.fecha).slice(0,10),sistema:(o.sistema||'').trim()};});
+  // 1) Historial propio (fortaleza): años y volumen de datos cargados.
+  var fechas=oh.map(function(o){return o&&o.fecha?String(o.fecha).slice(0,10):'';}).filter(Boolean).sort();
+  if(oh.length>=500&&fechas.length){
+    var anios=Math.round((new Date(fechas[fechas.length-1])-new Date(fechas[0]))/(365.25*864e5)*10)/10;
+    if(anios>=1)out.push({clave:'historial-propio',tipo:'F',puntaje:4,
+      texto:'Historial propio de '+_fodaNum(anios)+' años: '+oh.length+' órdenes de trabajo y '+hist.length+' lecturas de horómetro desde '+_fodaFechaTxt(fechas[0])+'.'});
+  }
+  // 2) Rutina registrada como correctivo (debilidad de registro).
+  var corr=oh.filter(function(o){return o&&o.tipoInt==='Correctiva'&&o.claseOT;});
+  var rut=corr.filter(function(o){return o.claseOT!=='correctiva';}).length;
+  if(corr.length>=100&&rut/corr.length>=0.25){
+    out.push({clave:'rutina-como-correctivo',tipo:'D',puntaje:3,
+      texto:'El '+Math.round(rut/corr.length*100)+' % de las órdenes marcadas «Correctiva» ('+rut+' de '+corr.length+') eran rutina preventiva, cambios de desgaste o instalaciones: sin separarlas, el número de fallas se infla.'});
+  }
+  if(!fallas.length)return out;
+  var ult=fallas.reduce(function(m,f){return f.fecha>m?f.fecha:m;},'');
+  // 3) Correctivos desactualizados (debilidad de registro).
+  var dias=Math.round((new Date(hoy)-new Date(ult))/864e5);
+  if(dias>30)out.push({clave:'correctivos-desactualizados',tipo:'D',puntaje:4,
+    texto:'Los correctivos cargados llegan hasta el '+_fodaFechaTxt(ult)+' (hace '+dias+' días): lo que ocurre después no queda en las estadísticas de fallas.'});
+  // 4) Equipos con más y menos fallas por hora, en los 12 meses que terminan en el último correctivo cargado.
+  var d=new Date(ult);d.setUTCDate(d.getUTCDate()-365);
+  var desde=d.toISOString().slice(0,10);
+  var periodo='del '+_fodaFechaTxt(desde)+' al '+_fodaFechaTxt(ult);
+  var tasas=fodaTasaFallaPorEquipo(fallas,hist,desde,ult);
+  if(tasas.length>=6){
+    var top=tasas.slice(0,3).filter(function(t){return t.fallas>0;});
+    if(top.length===3)out.push({clave:'equipos-mas-fallas',tipo:'D',puntaje:4,
+      texto:'Los equipos con más fallas reales por hora ('+periodo+') son '+top.map(function(t){return t.sigla+' ('+_fodaNum(t.tasa)+' por 1.000 h)';}).join(', ')+'.'});
+    var bajos=tasas.filter(function(t){return t.tasa<5;});
+    if(bajos.length>=1)out.push({clave:'equipos-pocas-fallas',tipo:'F',puntaje:3,
+      texto:bajos.length+' de '+tasas.length+' equipos con más de 1.000 h de uso ('+periodo+') tienen menos de 5 fallas reales por 1.000 h: '+bajos.slice(0,6).map(function(t){return t.sigla;}).join(', ')+(bajos.length>6?'…':'')+'.'});
+  }
+  // 5) Sistema que concentra las fallas reales del mismo periodo.
+  var porSis={},conSis=0;
+  fallas.forEach(function(f){if(f.fecha<desde||f.fecha>ult||!f.sistema)return;porSis[f.sistema]=(porSis[f.sistema]||0)+1;conSis++;});
+  var ranking=Object.keys(porSis).map(function(k){return{s:k,n:porSis[k]};}).sort(function(a,b){return b.n-a.n;});
+  if(conSis>=50&&ranking.length&&ranking[0].n/conSis>=0.15)out.push({clave:'sistema-mas-fallas',tipo:'D',puntaje:3,
+    texto:'El sistema «'+ranking[0].s+'» concentra el '+Math.round(ranking[0].n/conSis*100)+' % de las fallas reales con sistema anotado ('+periodo+').'});
+  return out;
+}
+
 // Adapta 'informesFalla' (tabla separada de Informes de Falla Catastrófica /
 // Cambio de Componente Mayor, ver informes.js) a la misma forma que espera
 // esFallaMTBF — mismo patrón que _otHistComoOt de arriba. Auditoría 2026-09:
@@ -12124,6 +12270,16 @@ if (typeof window !== 'undefined') {
   window._CATEGORIAS_OPERACIONAL = _CATEGORIAS_OPERACIONAL;
   window.esFallaOTHist = esFallaOTHist;
   window.soloFallasOTHist = soloFallasOTHist;
+  window.FODA_TIPOS = FODA_TIPOS;
+  window.FODA_NOMBRES = FODA_NOMBRES;
+  window.FODA_CRUCES = FODA_CRUCES;
+  window.FODA_ESTADOS = FODA_ESTADOS;
+  window.fodaCruceDe = fodaCruceDe;
+  window.fodaCodigos = fodaCodigos;
+  window.fodaResumen = fodaResumen;
+  window.fodaEstrategiaError = fodaEstrategiaError;
+  window.fodaTasaFallaPorEquipo = fodaTasaFallaPorEquipo;
+  window.fodaSugerencias = fodaSugerencias;
   window._informesFallaComoOt = _informesFallaComoOt;
   window.contarFallasMes = contarFallasMes;
   window.contarParadasLargasMes = contarParadasLargasMes;
@@ -13395,7 +13551,7 @@ if (typeof module !== 'undefined' && module.exports) {
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, kpiProMan010, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeGestionFS, informeProgramaSemanal, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
-    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, claseOTDesdeTexto, _CLASE_OT_PATRONES, esFallaOTHist, soloFallasOTHist, sistemaDeTextoHist, _CATEGORIAS_EVENTO, _CATEGORIAS_COMPONENTE_HIST, _CATEGORIAS_OPERACIONAL, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
+    probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, claseOTDesdeTexto, _CLASE_OT_PATRONES, esFallaOTHist, soloFallasOTHist, FODA_TIPOS, FODA_NOMBRES, FODA_CRUCES, FODA_ESTADOS, fodaCruceDe, fodaCodigos, fodaResumen, fodaEstrategiaError, fodaTasaFallaPorEquipo, fodaSugerencias, sistemaDeTextoHist, _CATEGORIAS_EVENTO, _CATEGORIAS_COMPONENTE_HIST, _CATEGORIAS_OPERACIONAL, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, limpiarTextoParaIA, pendientesClasificacionComponente, muestraParaAcuerdoIA, resumenAcuerdoIA, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,

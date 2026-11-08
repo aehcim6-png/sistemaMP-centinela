@@ -1332,6 +1332,16 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **Ejemplo (prueba automática):** con contraseña correcta y sin dos pasos entrega el código de la sesión nueva («rt-excel-nuevo») y la sesión guardada en el navegador queda igual; con dos pasos, primero pide el código de 6 dígitos y uno equivocado avisa «El código de 6 dígitos no es correcto».
 - **Límites:** el código sirve una vez; al cerrar Excel hay que generar otro. La sesión del Excel dura lo mismo que cualquier sesión y solo permite leer lo que el usuario ya puede ver.
 - **Código:** `excelCodigoEstado` (`logic.js`) y `_conectarExcelUI` (`index.html`).
+
+### L11. Análisis FODA cruzado, con sugerencias desde los datos
+- **Tipo:** matriz de planificación estratégica (FODA/SWOT) con reglas de validación y de sugerencia.
+- **Para qué sirve:** ordenar las fortalezas, debilidades, oportunidades y amenazas de la flota, puntuarlas del 1 al 5, cruzarlas en estrategias (FO, FA, DO, DA) y seguir cada estrategia como plan de acción.
+- **De dónde viene:** 🔵 Criterio propio, a pedido, sobre la plantilla FODA que entregó el usuario (la matriz clásica de Humphrey, Stanford, años 60: lo interno se cruza con lo externo).
+- **Cómo lo calcula aquí:** `fodaCruceDe` solo deja cruzar una cosa interna (F o D) con una externa (O o A) y devuelve FO, FA, DO o DA. `fodaCodigos` rotula cada ítem F1, F2, D1… en el orden de la lista. `fodaResumen` cuenta ítems, suma puntaje y saca el porcentaje de cada tipo (para el gráfico de torta y el radar), cuenta los planes por estado y lista los ítems que aún no tienen estrategia; un puntaje fuera de 1 a 5 cuenta como 3. `fodaEstrategiaError` valida que la estrategia apunte a dos ítems cruzables, que el cruce coincida, que tenga texto, un estado válido y una fecha con formato. `fodaTasaFallaPorEquipo` calcula fallas por 1.000 h de cada equipo en un periodo (solo equipos con 1.000 h o más en el periodo, para que la tasa no engañe). `fodaSugerencias` propone, solo como fortalezas o debilidades, lo que los datos sí respaldan: años y volumen del historial propio, el porcentaje de rutina marcada como correctiva, si los correctivos cargados están desactualizados, los tres equipos con más fallas por hora, cuántos equipos tienen pocas fallas y el sistema con más fallas.
+- **Dónde se ve:** pestaña «FODA» (Herramientas): cuadrantes, panel «Sugerencias del sistema», cuatro tablas de estrategias y tablero con gráfico de torta, radar y avance de planes.
+- **Ejemplo (prueba automática):** con 5 ítems (2 F, 1 D, 1 O, 1 A) la fortaleza pesa 40 % y la debilidad 20 %; cruzar F con O da «FO»; cruzar F con D no se puede.
+- **Límites:** lo externo (oportunidades y amenazas) no sale de los datos de la flota: lo escribe la gente. Las sugerencias son borradores: nadie las agrega sin aceptarlas y quien las descarta no las vuelve a ver en ese navegador. Solo un administrador puede crear, editar o borrar (lo hace cumplir la base); todos los perfiles activos pueden ver. Con pocos datos, no sugiere nada.
+- **Código:** `FODA_TIPOS`, `FODA_NOMBRES`, `FODA_CRUCES`, `FODA_ESTADOS`, `fodaCruceDe`, `fodaCodigos`, `fodaResumen`, `fodaEstrategiaError`, `fodaTasaFallaPorEquipo`, `fodaSugerencias` (`logic.js`) y `modules/renders/foda.js`.
 ---
 
 ## M. Funciones internas (apéndice)
