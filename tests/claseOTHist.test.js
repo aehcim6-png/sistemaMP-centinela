@@ -204,8 +204,27 @@ describe('sinónimos y errores de tipeo del histórico, tercera pasada (2026-11-
     ['Se reapara sistema Mems4, se detecta splitter en mal estado', 'MEMS (Monitoreo de Neumáticos)'],
   ];
   casos.forEach(([t, e]) => it(t, () => expect(sistemaDeTextoHist(t)).toBe(e)));
+  it('criterios del usuario (2026-11-08): bomba = hidráulico, presiones = neumático, tren trasero = transmisión', () => {
+    expect(sistemaDeTextoHist('CHEQUEO BOMBA')).toBe('Sistema Hidráulico');
+    expect(sistemaDeTextoHist('falla en la bomba')).toBe('Sistema Hidráulico');
+    expect(sistemaDeTextoHist('regulacion de presiones')).toBe('Neumáticos');
+    expect(sistemaDeTextoHist('chequeo de presiones')).toBe('Neumáticos');
+    expect(sistemaDeTextoHist('CE-85 fuera de servicio por tope tren trasero')).toBe('Transmisión');
+  });
+  it('las bombas con nombre propio y la presión de otro sistema no se confunden', () => {
+    expect(sistemaDeTextoHist('falla bomba de agua')).toBe('Bomba de Agua');
+    expect(sistemaDeTextoHist('bomba centrifuga')).toBe('Regadío/Aspersores');
+    expect(sistemaDeTextoHist('revision presion de aceite')).toBe('');
+  });
+  it('ruido anormal y olor a quemado apuntan a un grupo de sistemas y se guardan con ese nombre; si el texto nombra la pieza, gana la pieza', () => {
+    expect(sistemaDeTextoHist('CAEX 88 fuera de servicio por ruido anormal')).toBe('Ruido anormal (motor, diferencial o transmisión)');
+    expect(sistemaDeTextoHist('Equipo F/S por sonido anómalo.')).toBe('Ruido anormal (motor, diferencial o transmisión)');
+    expect(sistemaDeTextoHist('olor a quemado con aire apagado')).toBe('Olor a quemado (aceite de motor, hidráulico o transmisión)');
+    expect(sistemaDeTextoHist('ruido anormal en diferencial')).toBe('Diferencial');
+    expect(sistemaDeTextoHist('Equipo F/S por sonido anómalo en la trasnmisión.')).toBe('Transmisión');
+  });
   it('lo que no dice nada concreto sigue sin sistema: no se inventa', () => {
-    ['Equipo fuera de servicio.', 'F/S', 'Equipo en taller.', 'Equipo F/S por sonido anómalo.', 'regulacion de presiones', 'BD-533 fuera de servicio por pernos sueltos', 'CHEQUEO BOMBA']
+    ['Equipo fuera de servicio.', 'F/S', 'Equipo en taller.', 'BD-533 fuera de servicio por pernos sueltos']
       .forEach((t) => expect(sistemaDeTextoHist(t)).toBe(''));
   });
 });

@@ -7214,7 +7214,9 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Qué se hizo:** se agregaron al diccionario del histórico (`_CATEGORIAS_COMPONENTE_HIST`) los sinónimos y errores de tipeo reales: «trasnmisión» y «trasmisión» (Transmisión), «engrace» (Engrase), «calzas» y «cantonera» (Elemento de Desgaste), «perno(s) … posición/pos. N» y «perno cortado» (Pernos de Rueda), «chequeo visual pos. N» (Neumáticos), «manos libres» (Radio/Comunicaciones), «válvula EPC» (Hidráulico), «potenciómetro» (Eléctrico) y «MEMS4»/«splitter» (monitoreo de neumáticos: así lo habían etiquetado las OT ya clasificadas, no es telemetría). Con eso se completó el sistema de 27 OT (migración `20261108130000_sinonimos_historico_ot.sql`, generada desde `logic.js`).
 
-**Decisiones:** 60 OT siguen sin sistema a propósito, porque el texto solo dice «fuera de servicio», «en taller», «en revisión», «ruido anormal», «chequeo bomba» o «regulación de presiones»: no dice qué pieza o sistema es, y no se inventa. El diccionario de la app y el de las Edge Functions no se tocaron (un test los vigila); la ampliación vive solo en el histórico.
+**Decisiones:** 52 OT siguen sin sistema a propósito, porque el texto solo dice «fuera de servicio», «en taller» o «en revisión»: no dice qué pieza o sistema es, y no se inventa. El diccionario de la app y el de las Edge Functions no se tocaron (un test los vigila); la ampliación vive solo en el histórico.
+
+**Criterios del usuario (mismo día):** «chequeo de bomba» es hidráulico; «chequeo/regulación de presiones» es neumático; «tope de tren trasero» es transmisión. «Ruido anormal» (motor, diferencial o transmisión) y «olor a quemado» (aceite de motor, hidráulico o transmisión) apuntan a un grupo y no a un sistema, así que se guardan con esos nombres en vez de elegir uno al azar; si el texto nombra la pieza, gana la pieza. Con esto se completaron 8 OT más (35 en total) y quedan 52 sin sistema porque solo dicen «fuera de servicio», «en taller» o «en revisión».
 
 **Pruebas:** `tests/claseOTHist.test.js` (14 frases reales y 7 que deben seguir sin sistema).
 

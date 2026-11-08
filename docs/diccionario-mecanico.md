@@ -73,7 +73,7 @@ Vocabulario de la planta sacado de leer las OT de Disponibilidad Mecánica y del
 |---|---|
 | Tren de Rodaje | `rodado`, `rodados`, `segmento`, `orruga` |
 | Pernos de Rueda | `perno de rueda`, `pernos de rueda`, `perno cortado de rueda`, `pernos cortados de rueda`, `pernos cortados`, `perno cortado`, `tuerca interior`, `falta tuerca`, `/tuerca.{0,12}posici[oó]n/`, `/pernos?.{0,25}posici[oó]n/`, `/pernos?.{0,25}\bpos\.? ?\d/` |
-| Neumáticos | `neuamtic`, `nemátic`, `nematic`, `nuemátic`, `nuematic`, `prezuriz`, `checkpoint`, `remanente`, `banda lateral`, `protuberancia`, `/presi[oó]n.{0,25}posici[oó]n/`, `/posici[oó]n.{0,25}presi[oó]n/`, `/aire.{0,15}posici[oó]n/`, `/chequeo visual.{0,12}\bpos/` |
+| Neumáticos | `neuamtic`, `nemátic`, `nematic`, `nuemátic`, `nuematic`, `prezuriz`, `checkpoint`, `remanente`, `banda lateral`, `protuberancia`, `/presi[oó]n.{0,25}posici[oó]n/`, `/posici[oó]n.{0,25}presi[oó]n/`, `/aire.{0,15}posici[oó]n/`, `/chequeo visual.{0,12}\bpos/`, `/(chequeo|regulaci[oó]n|revisi[oó]n|ajuste)s? (de )?presi[oó]n(es)?(?! (de )?(aceite|combustible|hidr|aire acond|compresor|frenos?))/` |
 | Sistema AFEX (Extinción de Incendios) | `afx`, `contra incendio`, `contraincendio`, `red de incendio` |
 | Retardador | `retardador`, `retardo` |
 | Sistema de Dirección | `direccion`, `dirección`, `varillaje`, `fuelle`, `volante` |
@@ -114,6 +114,8 @@ Vocabulario de la planta sacado de leer las OT de Disponibilidad Mecánica y del
 | Motor | `/cilindro n?°? ?\d.{0,20}banco/`, `banco izquierdo`, `banco derecho` |
 | Sistema Eléctrico | `potenciometro`, `potenciómetro`, `potencimetro`, `fusible`, `no enciende`, `sin partida`, `problema de partida`, `chapa de encendido`, `partida`, `puesta en marcha`, `codigo`, `código`, `alerta nivel`, `alarma 3`, `/\be-?0[1-9]\b/` |
 | Pala (Motoniveladora) | `motoniveladora`, `vertedera` |
+| Sistema Hidráulico | `/\bbombas?\b/` |
+| Transmisión | `tren trasero` |
 
 ### 4. Otros eventos
 
@@ -121,5 +123,7 @@ Si no hay componente, se anota el tipo de evento. Si el texto solo dice «fuera 
 
 | Sistema / componente | Palabras que lo identifican |
 |---|---|
+| Ruido anormal (motor, diferencial o transmisión) | `ruido anormal`, `ruido anomalo`, `ruido anómalo`, `sonido anormal`, `sonido anomalo`, `sonido anómalo`, `ruido extraño`, `ruido extrano` |
+| Olor a quemado (aceite de motor, hidráulico o transmisión) | `olor a quemado`, `olor quemado`, `olor a quemad` |
 | Pérdida de Potencia (causa no indicada) | `perdida de potencia`, `pérdida de potencia`, `baja potencia`, `falta de potencia`, `exceso de humo`, `alza de temperatura` |
 | Mantención Preventiva/PM | `/\bpm ?0?[1-4]\b/`, `mantencion preventiva`, `mantención preventiva`, `mantencion prreventiva`, `mantencion programada`, `mantención programada`, `mp pm`, `mantenimiento preventivo`, `mantencicion`, `por pm`, `chequeo semanal`, `inspeccion diaria`, `inspección diaria`, `mantencion en terreno`, `mantención en terreno` |

@@ -1,6 +1,8 @@
 -- Sinónimos y errores de tipeo del histórico de OT (2026-11-08). Salió de leer las 87 OT que seguían sin sistema:
 -- «trasnmisión», «engrace», calzas y cantoneras (piezas de desgaste), pernos de posición (rueda), manos libres (radio),
 -- válvula EPC (hidráulico), potenciómetro (eléctrico), MEMS4 y splitter (monitoreo de neumáticos).
+-- Criterios del usuario: «chequeo de bomba» = hidráulico, «chequeo/regulación de presiones» = neumático, «tope de tren trasero» = transmisión;
+-- «ruido anormal» y «olor a quemado» apuntan a un grupo de sistemas y se guardan con ese nombre.
 -- Las tres funciones son exactamente lo que genera scripts/generar_componente_sql.js desde logic.js.
 create or replace function public.componente_de_texto(txt text)
 returns text language sql immutable set search_path = pg_catalog, public as $$
@@ -68,7 +70,7 @@ returns text language sql immutable set search_path = pg_catalog, public as $$
     case
     when position('rodado' in t)>0 or position('rodados' in t)>0 or position('segmento' in t)>0 or position('orruga' in t)>0 then 'Tren de Rodaje'
     when position('perno de rueda' in t)>0 or position('pernos de rueda' in t)>0 or position('perno cortado de rueda' in t)>0 or position('pernos cortados de rueda' in t)>0 or position('pernos cortados' in t)>0 or position('perno cortado' in t)>0 or position('tuerca interior' in t)>0 or position('falta tuerca' in t)>0 or t ~* 'tuerca.{0,12}posici[oó]n' or t ~* 'pernos?.{0,25}posici[oó]n' or t ~* 'pernos?.{0,25}\ypos\.? ?\d' then 'Pernos de Rueda'
-    when position('neuamtic' in t)>0 or position('nemátic' in t)>0 or position('nematic' in t)>0 or position('nuemátic' in t)>0 or position('nuematic' in t)>0 or position('prezuriz' in t)>0 or position('checkpoint' in t)>0 or position('remanente' in t)>0 or position('banda lateral' in t)>0 or position('protuberancia' in t)>0 or t ~* 'presi[oó]n.{0,25}posici[oó]n' or t ~* 'posici[oó]n.{0,25}presi[oó]n' or t ~* 'aire.{0,15}posici[oó]n' or t ~* 'chequeo visual.{0,12}\ypos' then 'Neumáticos'
+    when position('neuamtic' in t)>0 or position('nemátic' in t)>0 or position('nematic' in t)>0 or position('nuemátic' in t)>0 or position('nuematic' in t)>0 or position('prezuriz' in t)>0 or position('checkpoint' in t)>0 or position('remanente' in t)>0 or position('banda lateral' in t)>0 or position('protuberancia' in t)>0 or t ~* 'presi[oó]n.{0,25}posici[oó]n' or t ~* 'posici[oó]n.{0,25}presi[oó]n' or t ~* 'aire.{0,15}posici[oó]n' or t ~* 'chequeo visual.{0,12}\ypos' or t ~* '(chequeo|regulaci[oó]n|revisi[oó]n|ajuste)s? (de )?presi[oó]n(es)?(?! (de )?(aceite|combustible|hidr|aire acond|compresor|frenos?))' then 'Neumáticos'
     when position('afx' in t)>0 or position('contra incendio' in t)>0 or position('contraincendio' in t)>0 or position('red de incendio' in t)>0 then 'Sistema AFEX (Extinción de Incendios)'
     when position('retardador' in t)>0 or position('retardo' in t)>0 then 'Retardador'
     when position('direccion' in t)>0 or position('dirección' in t)>0 or position('varillaje' in t)>0 or position('fuelle' in t)>0 or position('volante' in t)>0 then 'Sistema de Dirección'
@@ -109,8 +111,12 @@ returns text language sql immutable set search_path = pg_catalog, public as $$
     when t ~* 'cilindro n?°? ?\d.{0,20}banco' or position('banco izquierdo' in t)>0 or position('banco derecho' in t)>0 then 'Motor'
     when position('potenciometro' in t)>0 or position('potenciómetro' in t)>0 or position('potencimetro' in t)>0 or position('fusible' in t)>0 or position('no enciende' in t)>0 or position('sin partida' in t)>0 or position('problema de partida' in t)>0 or position('chapa de encendido' in t)>0 or position('partida' in t)>0 or position('puesta en marcha' in t)>0 or position('codigo' in t)>0 or position('código' in t)>0 or position('alerta nivel' in t)>0 or position('alarma 3' in t)>0 or t ~* '\ye-?0[1-9]\y' then 'Sistema Eléctrico'
     when position('motoniveladora' in t)>0 or position('vertedera' in t)>0 then 'Pala (Motoniveladora)'
+    when t ~* '\ybombas?\y' then 'Sistema Hidráulico'
+    when position('tren trasero' in t)>0 then 'Transmisión'
     else null end,
     case
+    when position('ruido anormal' in t)>0 or position('ruido anomalo' in t)>0 or position('ruido anómalo' in t)>0 or position('sonido anormal' in t)>0 or position('sonido anomalo' in t)>0 or position('sonido anómalo' in t)>0 or position('ruido extraño' in t)>0 or position('ruido extrano' in t)>0 then 'Ruido anormal (motor, diferencial o transmisión)'
+    when position('olor a quemado' in t)>0 or position('olor quemado' in t)>0 or position('olor a quemad' in t)>0 then 'Olor a quemado (aceite de motor, hidráulico o transmisión)'
     when position('perdida de potencia' in t)>0 or position('pérdida de potencia' in t)>0 or position('baja potencia' in t)>0 or position('falta de potencia' in t)>0 or position('exceso de humo' in t)>0 or position('alza de temperatura' in t)>0 then 'Pérdida de Potencia (causa no indicada)'
     when t ~* '\ypm ?0?[1-4]\y' or position('mantencion preventiva' in t)>0 or position('mantención preventiva' in t)>0 or position('mantencion prreventiva' in t)>0 or position('mantencion programada' in t)>0 or position('mantención programada' in t)>0 or position('mp pm' in t)>0 or position('mantenimiento preventivo' in t)>0 or position('mantencicion' in t)>0 or position('por pm' in t)>0 or position('chequeo semanal' in t)>0 or position('inspeccion diaria' in t)>0 or position('inspección diaria' in t)>0 or position('mantencion en terreno' in t)>0 or position('mantención en terreno' in t)>0 then 'Mantención Preventiva/PM'
     else null end
