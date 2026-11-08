@@ -125,3 +125,49 @@ describe('disponibilidad y episodios', () => {
     expect(a2.cumplioProyeccion).toBe(false); expect(a2.diasVencida).toBe(3);
   });
 });
+
+describe('reportes por turno (día y noche) — 2026-11-08', () => {
+  const r = (fecha, sigla, estatus, turno, extra) => Object.assign({ fecha, sigla, estatus, turno: turno || '', detalle: '', fechaDetencion: null, proyeccion: null, observacion: '', ordenCompra: '' }, extra);
+  it('reconoce el turno por el texto del supervisor o de la hoja; sin turno si no lo dice', () => {
+    expect(L.reportabilidadTurnoDe('CARLOS INZUNZA (TURNO NOCHE)')).toBe('Noche');
+    expect(L.reportabilidadTurnoDe('turno día')).toBe('Día'); expect(L.reportabilidadTurnoDe('Dia')).toBe('Día');
+    expect(L.reportabilidadTurnoDe('JAVIER CARDENAS')).toBe(''); expect(L.reportabilidadTurnoDe(null)).toBe('');
+  });
+  it('un reporte sin turno no se suma a los reportes por turno del mismo equipo y día', () => {
+    const f = [r('2026-11-05', 'A', 'OP', ''), r('2026-11-05', 'A', 'FS', 'Día'), r('2026-11-05', 'A', 'OP', 'Noche'), r('2026-11-05', 'B', 'OP', '')];
+    const ef = L.reportabilidadFilasEfectivas(f);
+    expect(ef.map((x) => x.sigla + x.turno)).toEqual(['ADía', 'ANoche', 'B']);
+  });
+  it('disponibilidad: un equipo FS en un solo turno pierde la mitad de su día', () => {
+    const f = [r('2026-11-05', 'A', 'FS', 'Día'), r('2026-11-05', 'A', 'OP', 'Noche'), r('2026-11-05', 'B', 'OP', 'Día'), r('2026-11-05', 'B', 'OP', 'Noche')];
+    const d = L.reportabilidadDisponibilidad(f, '2026-11-01', '2026-11-07', { hoy: '2026-11-07' });
+    expect(d.dias[0].disp).toBe(0.75); expect(d.dias[0].fsSiglas).toEqual(['A']);
+    expect(d.ranking).toEqual([{ sigla: 'A', dias: 1 }]);           // el día cuenta una sola vez aunque el FS salga en un turno
+  });
+  it('episodios: el día con un turno FS y otro OP sigue siendo FS y no corta el episodio', () => {
+    const fd = { fechaDetencion: '2026-11-03', detalle: 'NEUMATICO' };
+    const f = [r('2026-11-03', 'A', 'FS', 'Día', fd), r('2026-11-03', 'A', 'OP', 'Noche'), r('2026-11-04', 'A', 'FS', 'Día', fd), r('2026-11-04', 'A', 'FS', 'Noche', fd), r('2026-11-05', 'A', 'OP', 'Día')];
+    const e = L.reportabilidadEpisodios(f);
+    expect(e).toHaveLength(1); expect(e[0]).toMatchObject({ primeraVez: '2026-11-03', ultimaVez: '2026-11-04', diasVistos: 2, cerrado: true, primerOP: '2026-11-05' });
+  });
+  it('lote: la hoja del día y la de la noche de la misma fecha no son un conflicto y quedan como dos conjuntos de filas', () => {
+    const mk = (turno, est) => ({ nombre: 'captura', archivo: 'c' + turno, turno, filas: [['Sigla', 'Estatus', 'Ubicación', 'Detalle', 'Fecha Detencion', 'Fecha Proyección', 'Observación'], ['CN-9503', est, '', '', '', '', '']] });
+    const hojas = [Object.assign(mk('Día', 'FS'), { nombre: '06-11-2026' }), Object.assign(mk('Noche', 'OP'), { nombre: '06-11-2026' })];
+    const lote = L.reportabilidadArmarLote(hojas, {});
+    expect(lote.conflictos).toHaveLength(0);
+    expect(lote.filas.map((x) => x.turno + x.estatus).sort()).toEqual(['DíaFS', 'NocheOP']);
+  });
+  it('fusionar: la clave incluye el turno (día y noche del mismo equipo no se pisan) y una fila sin turno no se confunde con una con turno', () => {
+    const nueva = (turno, est) => ({ fecha: '2026-11-06', sigla: 'A', turno, siglaCliente: '', estatus: est, ubicacion: '', detalle: '', fechaDetencion: null, proyeccion: null, ordenCompra: '', observacion: '', mantenedor: '' });
+    const exist = [Object.assign(nueva('', 'OP'), { _id: 'x' })];
+    const f = L.reportabilidadFusionar(exist, [nueva('Día', 'FS'), nueva('Noche', 'OP')]);
+    expect(f.insertar).toHaveLength(2); expect(f.actualizar).toHaveLength(0);
+    expect(L.reportabilidadFusionar(exist, [nueva('', 'OP')]).iguales).toBe(1);
+  });
+  it('captura: el turno sale del texto del supervisor', () => {
+    const c = L.reportabilidadDeCaptura({ fecha: '06-11-2026', supervisor: 'CARLOS INZUNZA (TURNO NOCHE)', legible: true, filas: [{ sigla: 'CN-9503', estatus: 'OP' }] }, { hoy: '2026-11-08', siglasPrograma: ['CN-9503'] });
+    expect(c.turno).toBe('Noche');
+    expect(L.reportabilidadHojaDeCaptura(c, '2026-11-06').turno).toBe('Noche');
+    expect(L.reportabilidadHojaDeCaptura(c, '2026-11-06', 'Día').turno).toBe('Día');
+  });
+});

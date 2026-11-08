@@ -270,7 +270,7 @@ const TABLA_REAL={
   neuTras:{tabla:'neumaticos_traslados',clave:'_id',claveDb:'id',cols:['neuId','serie','fecha','donante','posicionDonante','horomDonante','receptor','posicionReceptor','horomReceptor','causal','detalle','autorizadoPor','usuario']},
   neuRec:{tabla:'neumaticos_recauchajes',clave:'_id',claveDb:'id',cols:['neuId','serie','sigla','marca','medida','numRecauchaje','fechaEnvio','guiaDespacho','proveedor','huellaSalida','huellaEntrada','estado','codigoRechazo','fechaRetorno','costo','observaciones','usuario']},
   tareas:{tabla:'tareas_gestion',clave:'_id',claveDb:'id',cols:['clave','origen','sigla','titulo','detalle','responsable','fechaLimite','estado','fechaCierre','referencia','observacion','usuario']},
-  reportab:{tabla:'reportabilidad_diaria',clave:'_id',claveDb:'id',cols:['fecha','sigla','siglaCliente','estatus','ubicacion','detalle','fechaDetencion','proyeccion','ordenCompra','observacion','mantenedor','fuente']},
+  reportab:{tabla:'reportabilidad_diaria',clave:'_id',claveDb:'id',cols:['fecha','sigla','turno','siglaCliente','estatus','ubicacion','detalle','fechaDetencion','proyeccion','ordenCompra','observacion','mantenedor','fuente']},
   // Stock de insumos (2026-10-26): catálogo + kardex de bodega (EPP, librería, limpieza, desgaste, baterías…). El saldo no se guarda: se calcula de los movimientos (ver insumosResumen, logic.js).
   ins:{tabla:'insumos',clave:'_id',claveDb:'id',cols:['codigo','descripcion','categoria','unidad','stockCritico','ubicacion','precioUnit','observacion','activo','origen','origenId']},
   insMov:{tabla:'insumos_movimientos',clave:'_id',claveDb:'id',cols:['insumoId','fecha','tipo','cantidad','documento','referencia','destino','precioUnit','observacion','usuario']},

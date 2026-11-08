@@ -604,8 +604,8 @@ function _repPrevisualizar(hojas, extra, fuentePorFecha) {
 export function confirmarImportReportabilidad() {
   var l = window._reportabLote; if (!l) return;
   var exist = (S.g('reportab') || []).slice();
-  l.fus.actualizar.forEach(function (a) { var x = exist.find(function (e) { return e._id === a._id; }); if (x) Object.assign(x, { siglaCliente: a.fila.siglaCliente, estatus: a.fila.estatus, ubicacion: a.fila.ubicacion, detalle: a.fila.detalle, fechaDetencion: a.fila.fechaDetencion, proyeccion: a.fila.proyeccion, ordenCompra: a.fila.ordenCompra, observacion: a.fila.observacion, mantenedor: a.fila.mantenedor, fuente: a.fila.fuente || ('importado ' + new Date().toISOString().slice(0, 10)) }); });
-  l.fus.insertar.forEach(function (n) { exist.push({ _id: _uuidV4(), fecha: n.fecha, sigla: n.sigla, siglaCliente: n.siglaCliente, estatus: n.estatus, ubicacion: n.ubicacion, detalle: n.detalle, fechaDetencion: n.fechaDetencion, proyeccion: n.proyeccion, ordenCompra: n.ordenCompra, observacion: n.observacion, mantenedor: n.mantenedor, fuente: n.fuente || ('importado ' + new Date().toISOString().slice(0, 10)) }); });
+  l.fus.actualizar.forEach(function (a) { var x = exist.find(function (e) { return e._id === a._id; }); if (x) Object.assign(x, { turno: a.fila.turno || '', siglaCliente: a.fila.siglaCliente, estatus: a.fila.estatus, ubicacion: a.fila.ubicacion, detalle: a.fila.detalle, fechaDetencion: a.fila.fechaDetencion, proyeccion: a.fila.proyeccion, ordenCompra: a.fila.ordenCompra, observacion: a.fila.observacion, mantenedor: a.fila.mantenedor, fuente: a.fila.fuente || ('importado ' + new Date().toISOString().slice(0, 10)) }); });
+  l.fus.insertar.forEach(function (n) { exist.push({ _id: _uuidV4(), fecha: n.fecha, sigla: n.sigla, turno: n.turno || '', siglaCliente: n.siglaCliente, estatus: n.estatus, ubicacion: n.ubicacion, detalle: n.detalle, fechaDetencion: n.fechaDetencion, proyeccion: n.proyeccion, ordenCompra: n.ordenCompra, observacion: n.observacion, mantenedor: n.mantenedor, fuente: n.fuente || ('importado ' + new Date().toISOString().slice(0, 10)) }); });
   S.s('reportab', exist);
   window._reportabLote = null; window._reportabCap = null; cm(); refreshAll();
   toast('✅ Reportabilidad cargada: ' + l.fus.insertar.length + ' nuevas, ' + l.fus.actualizar.length + ' actualizadas');
@@ -644,10 +644,15 @@ export async function importarReportabilidadCaptura(ev) {
     if (!r || r.error || !r.datos) { errores.push(files[i].name + ': ' + ((r && r.error) || 'sin respuesta')); continue; }
     if (!r.datos.legible) { errores.push(files[i].name + ': ' + (r.datos.observacion || 'no se leyó una tabla de estatus')); continue; }
     var cap = reportabilidadDeCaptura(r.datos, { hoy: hoy, siglasPrograma: eq.map(function (e) { return e.sigla; }), archivo: files[i].name });
-    items.push({ archivo: files[i].name, dataUrl: im.dataUrl, cap: cap, fechaISO: cap.fechaFutura ? cap.fechaSugerida : cap.fechaLeida });
+    items.push({ archivo: files[i].name, dataUrl: im.dataUrl, cap: cap, fechaISO: cap.fechaFutura ? cap.fechaSugerida : cap.fechaLeida, turno: cap.turno || '' });
   }
   window._reportabCap = { items: items, errores: errores };
   if (!items.length) { toast('❌ ' + (errores[0] || 'No se pudo leer ninguna captura')); return; }
+  _repCapPrevisualizar();
+}
+export function repCapTurno(i, v) {
+  var c = window._reportabCap; if (!c || !c.items[i]) return;
+  c.items[i].turno = v === 'Día' || v === 'Noche' ? v : '';
   _repCapPrevisualizar();
 }
 export function repCapFecha(i, v) {
@@ -669,13 +674,14 @@ function _repCapPrevisualizar() {
     if (cap.corregidas.length) av.push('⚠ Códigos corregidos por parecerse a un equipo de la flota: ' + cap.corregidas.map(function (x) { return escapeHtml(x.leida) + ' → ' + escapeHtml(x.sigla); }).join(', ') + '.');
     if (cap.duplicadas.length) av.push('⚠ Equipos repetidos en la captura (se usó la primera fila): ' + cap.duplicadas.map(escapeHtml).join(', ') + '.');
     if (cap.inciertas) av.push('⚠ ' + fn(cap.inciertas) + ' fila(s) con lectura dudosa (marcadas con ⚠ abajo): compáralas con la imagen.');
-    var hoja = it.fechaISO ? reportabilidadHojaDeCaptura(cap, it.fechaISO) : null;
+    var hoja = it.fechaISO ? reportabilidadHojaDeCaptura(cap, it.fechaISO, it.turno) : null;
     if (hoja) { hojas.push(hoja); fuente[it.fechaISO] = 'captura leída por IA ' + hoy + ' (' + it.archivo + ')'; }
+    if (!it.turno) av.push('ℹ Sin turno: se guarda como reporte del día completo. Si es el reporte de un turno, elige Día o Noche para no pisar el del otro turno.');
     var tabla = '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Ver lo leído (' + fn(cap.filas.length) + ' equipos: ' + fn(cap.nFS) + ' FS, ' + fn(cap.nOP) + ' OP)</summary><div class="tbl-wrap" style="max-height:220px;overflow:auto"><table style="font-size:10px"><tr><th></th><th>Equipo</th><th>Estatus</th><th>Detención</th><th>Comentario</th></tr>' +
       cap.filas.map(function (f) { return '<tr' + (f.incierta ? ' style="background:rgba(245,158,11,.12)"' : '') + '><td>' + (f.incierta ? '⚠' : '') + '</td><td class="mono">' + escapeHtml(f.sigla) + (f.siglaLeida !== f.sigla ? ' <span style="color:var(--tx3)">(leído ' + escapeHtml(f.siglaLeida) + ')</span>' : '') + '</td><td><b style="color:' + (f.estatus === 'FS' ? 'var(--danger)' : 'var(--ok)') + '">' + escapeHtml(f.estatus || '?') + '</b></td><td>' + escapeHtml(f.fechaDetencion || '') + '</td><td style="max-width:360px">' + escapeHtml(_repTxt(f.observacion, 120)) + '</td></tr>'; }).join('') + '</table></div></details>';
     return '<div style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--bd);border-radius:6px;padding:8px;margin-bottom:8px"><a href="' + it.dataUrl + '" target="_blank" rel="noopener"><img src="' + it.dataUrl + '" alt="captura" style="width:130px;max-height:110px;object-fit:cover;object-position:top;border-radius:4px"></a>' +
       '<div style="flex:1;min-width:0;font-size:11px;line-height:1.5"><div><b>' + escapeHtml(it.archivo) + '</b>' + (cap.supervisor ? ' · supervisor ' + escapeHtml(cap.supervisor) : '') + '</div>' +
-      '<div>Día de la captura: <input type="date" value="' + escapeHtml(it.fechaISO || '') + '" onchange="repCapFecha(' + i + ',this.value)" style="font-size:11px"></div>' + av.map(function (a) { return '<div>' + a + '</div>'; }).join('') + tabla + '</div></div>';
+      '<div>Día de la captura: <input type="date" value="' + escapeHtml(it.fechaISO || '') + '" onchange="repCapFecha(' + i + ',this.value)" style="font-size:11px"> &nbsp;Turno: <select onchange="repCapTurno(' + i + ',this.value)" style="font-size:11px"><option value=""' + (it.turno ? '' : ' selected') + '>Sin turno</option><option value="Día"' + (it.turno === 'Día' ? ' selected' : '') + '>Día</option><option value="Noche"' + (it.turno === 'Noche' ? ' selected' : '') + '>Noche</option></select></div>' + av.map(function (a) { return '<div>' + a + '</div>'; }).join('') + tabla + '</div></div>';
   }).join('') + (c.errores && c.errores.length ? '<div style="font-size:11px;color:var(--danger);margin-bottom:6px">' + c.errores.map(function (e) { return '❌ ' + escapeHtml(e); }).join('<br>') + '</div>' : '');
   var intro = '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px;line-height:1.5">La IA leyó la(s) captura(s); <b>compara lo leído con la imagen</b> antes de cargar. Nada se guarda hasta apretar «Cargar».</div>';
   _repPrevisualizar(hojas, intro + extra, fuente);
@@ -696,6 +702,7 @@ export function exportarReportabilidadDia() {
 window.importarReportabilidad = importarReportabilidad;
 window.importarReportabilidadCaptura = importarReportabilidadCaptura;
 window.repCapFecha = repCapFecha;
+window.repCapTurno = repCapTurno;
 window.confirmarImportReportabilidad = confirmarImportReportabilidad;
 window.exportarReportabilidadDia = exportarReportabilidadDia;
 
