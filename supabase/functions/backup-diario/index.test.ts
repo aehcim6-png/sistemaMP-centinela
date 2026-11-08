@@ -43,7 +43,8 @@ Deno.test("TABLAS: tamaño esperado (63) — cambiar a propósito si se agrega u
   // Nota 2026-10-30: 62 al sumar 'siniestros' (denuncio de siniestros).
   // Nota 2026-10-30: 63 al sumar 'neumaticos_traslados' (canibalización de neumáticos).
   // Nota 2026-11-08: 65 al sumar 'foda_items' y 'foda_estrategias' (análisis FODA).
-  assertEquals(TABLAS.length, 65);
+  // Nota 2026-11-08: 66 al sumar 'disponibilidad_diaria' (disponibilidad diaria oficial del histórico).
+  assertEquals(TABLAS.length, 66);
 });
 
 // ---- traerTodasLasFilas ----

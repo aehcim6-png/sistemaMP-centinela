@@ -7220,6 +7220,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/claseOTHist.test.js` (14 frases reales y 7 que deben seguir sin sistema).
 
+### 214. Disponibilidad diaria oficial del histórico (2026-11-08)
+
+**Por qué:** el cliente llevaba la disponibilidad día a día en dos planillas (hoja «Mec mant» de DISPONIBILIDAD_MECÁNICA, 21-dic-2021 al 20-ago-2024, y Disponibilidad_3, 21-ago al 30-sep-2024). Esa planilla es la que usa el cliente, así que sirve para contrastar el cálculo del programa y, además, dice **cuándo cada equipo estaba en el registro**: los que salieron de la flota dejan de tener filas, y no deberían seguir contando para la disponibilidad de la flota después de esa fecha.
+
+**Qué se hizo:** tabla nueva `disponibilidad_diaria` (migración `20261108140000_crear_disponibilidad_diaria.sql`): una fila por equipo y día, con horas detenido, programadas, no programadas, intervenidas, la base del día (24 h en Mec mant; 20 h en Disponibilidad_3, que usa turnos de 10 h), la disponibilidad que resulta y la fuente. Se cargaron 16.069 filas de Mec mant (5.973 días con detención) y 297 de Disponibilidad_3. Las siglas viejas se llevaron a las actuales (CE-84→CN-9506, CF-510→CF-9510, etc.; la sigla de la planilla queda en `siglaOriginal`). Se agregó a `TABLAS` del respaldo diario (66 tablas).
+
+**Decisiones:** (1) una fila sin detención vale disponibilidad 1: **la ausencia de fila significa «ese día el equipo no figuraba en el registro»**, no «disponible». (2) Disponibilidad_3 solo trae los días con detención, así que en ese periodo la ausencia de fila no dice nada sobre la presencia del equipo. (3) 10 filas tenían horas imposibles (más de 24 h en un día, p. ej. 6.665 h en CN-9507 el 05-feb-2023); se guardan tal como vinieron, con `dudoso = true`, y cuentan como día perdido completo. (4) No se carga la hoja de octubre de Disponibilidad_3 porque no se pudo asignar a equipos. (5) Los vehículos livianos (CA-) quedan fuera.
+
+**Límites:** que un equipo deje de tener filas no prueba que se haya desmovilizado (p. ej. CN-9502 termina el 31-may-2024 y CF-9511 el 16-mar-2024): falta confirmar las fechas reales con el cliente antes de usarlas para recortar la flota en el cálculo. La app todavía no lee esta tabla; hoy es dato de consulta cargado por SQL.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
