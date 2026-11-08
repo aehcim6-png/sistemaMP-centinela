@@ -17,11 +17,23 @@ export function renderDisp(){
   var mesActual=new Date().toISOString().slice(0,7);
   var fMes=$('fDispMes')?.value||mesActual;
 
+  // Flota del período (2026-11-08): los equipos desmovilizados cuentan mientras estuvieron en faena y dejan de contar desde su salida (flota_presencia → flotaEquiposPeriodo, logic.js).
+  var presencia=S.g('presencia')||[];
+  var perDesde=fVista==='anual'?(fAnio+'-01-01'):(fMes+'-01');
+  var perHasta=fVista==='anual'?(fAnio+'-12-31'):(fMes+'-31');
+  var eqPer=flotaEquiposPeriodo(eq,presencia,perDesde,perHasta);
+  // Etiqueta junto a la sigla de un equipo desmovilizado: hasta cuándo estuvo en faena.
+  function _desmEtiqueta(e){
+    if(!e||!e.desmovilizado||!e.finOper)return '';
+    var f=e.finOper.slice(8,10)+'-'+e.finOper.slice(5,7)+'-'+e.finOper.slice(0,4);
+    return ' <span class="badge b-n" style="font-size:9px" title="Desmovilizado de faena: cuenta solo hasta su salida'+(e.sinConfirmar?' (fecha estimada, sin confirmar)':'')+'">hasta '+f+(e.sinConfirmar?' ?':'')+'</span>';
+  }
+
   // Get all types for filter
-  var tipos=[...new Set(eq.map(function(e){return e.tipo}))];
+  var tipos=[...new Set(eqPer.map(function(e){return e.tipo}).filter(Boolean))];
 
   // Filter equipment by type
-  var eqFil=fTipo?eq.filter(function(e){return e.tipo===fTipo}):eq;
+  var eqFil=fTipo?eqPer.filter(function(e){return e.tipo===fTipo}):eqPer;
 
   // ═══ DISPONIBILIDAD — mapa de detenciones (fuente única compartida, ver logic.js) ═══
   var downMap=dispDownMap(reg,ot);
@@ -39,8 +51,10 @@ export function renderDisp(){
 
   // Calculate daily availability for each equipment
   function calcDayDisp(sigla,fecha){
-    var eqObj=eq.find(function(e){return e.sigla===sigla});
+    var eqObj=eqPer.find(function(e){return e.sigla===sigla});
     var hrsDia=eqObj?eqObj.hrsDia||12:12;
+    // Fuera del tiempo en faena del equipo: sin dato (no es 100 % ni 0 %).
+    if(eqObj&&((eqObj.iniOper&&fecha<eqObj.iniOper)||(eqObj.finOper&&fecha>eqObj.finOper)))return null;
     var down=(downMap[sigla]&&downMap[sigla][fecha])?downMap[sigla][fecha]:0;
     if(down>=hrsDia)return 0;
     return Math.round((hrsDia-down)/hrsDia*1000)/10;
@@ -50,9 +64,9 @@ export function renderDisp(){
   // logic.js). Devuelve undefined (no null) cuando no hay dato, para conservar los
   // chequeos `pct!==undefined` de esta pestaña.
   function calcMonthDisp(sigla,mes){
-    var eqObj=eq.find(function(e){return e.sigla===sigla});
+    var eqObj=eqPer.find(function(e){return e.sigla===sigla});
     if(!eqObj)return undefined;
-    var v=dispEquipoMes(sigla,mes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:eqObj.hrsDia||12,cobertura:cobReg});
+    var v=dispEquipoMes(sigla,mes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:eqObj.hrsDia||12,cobertura:cobReg,presencia:presencia});
     return v==null?undefined:v;
   }
 
@@ -75,7 +89,7 @@ export function renderDisp(){
   var flota={};
   if(fVista==='diario'){
     mesDates.forEach(function(d){
-      var vals=eqFil.map(function(e){return calcDayDisp(e.sigla,d)});
+      var vals=eqFil.map(function(e){return calcDayDisp(e.sigla,d)}).filter(function(v){return v!==null});
       var prom=vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:0;
       flota[d]=prom;
     });
@@ -92,14 +106,14 @@ export function renderDisp(){
       var manual=!!(dispCalc[e.sigla]&&dispCalc[e.sigla][fMes]!==undefined)||(fMes==='2026-04'&&dAbr[e.sigla]!==undefined&&!(dispCalc[e.sigla]&&dispCalc[e.sigla][fMes]!==undefined));
       var diasReg=0;
       if(downMap[e.sigla])Object.keys(downMap[e.sigla]).forEach(function(dt){if(dt.slice(0,7)===fMes)diasReg++;});
-      var cobE=dispCoberturaMes(e.sigla,fMes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobReg});
-      return{sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,pct:pct,manual:manual,diasReg:diasReg,cob:cobE?cobE.pct:null};
+      var cobE=dispCoberturaMes(e.sigla,fMes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobReg,presencia:presencia});
+      return{sigla:e.sigla,desm:_desmEtiqueta(e),tipo:e.tipo,modelo:e.modelo,pct:pct,manual:manual,diasReg:diasReg,cob:cobE?cobE.pct:null};
     });
     var conDatos=eqDisp.filter(function(e){return e.pct!==undefined});
     var totalFlota=conDatos.length?Math.round(conDatos.reduce(function(s,e){return s+e.pct},0)/conDatos.length*10)/10:null;
     var bajoMeta=conDatos.filter(function(e){return e.pct<meta}).length;
     var sinRegistros=conDatos.filter(function(e){return !e.manual&&e.diasReg===0}).length;
-    var cobFlotaD=coberturaFlotaMes(eqFil,fMes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,cobertura:cobReg});
+    var cobFlotaD=coberturaFlotaMes(eqFil,fMes,{downMap:downMap,dispCalc:dispCalc,dAbr:dAbr,cobertura:cobReg,presencia:presencia});
     var sinCobE=eqDisp.filter(function(e){return e.pct===undefined&&!e.manual}).length;
     var col=totalFlota===null?'var(--tx3)':totalFlota>=meta?'var(--ok)':totalFlota>=70?'var(--w)':'var(--danger)';
 
@@ -110,7 +124,7 @@ export function renderDisp(){
     // misma programó? Solo se calcula en la vista mensual (donde vive el % de flota que
     // se compara contra meta) para no tocar diario/semanal/anual.
     var downMapCorrectivo=dispDownMap(reg,ot,undefined,{incluirPM:false});
-    var aiVals=eqFil.map(function(e){return dispIntrinsecaEquipoMes(e.sigla,fMes,{downMapCorrectivo:downMapCorrectivo,hrsDia:e.hrsDia||12,cobertura:cobReg});}).filter(function(v){return v!==null;});
+    var aiVals=eqFil.map(function(e){return dispIntrinsecaEquipoMes(e.sigla,fMes,{downMapCorrectivo:downMapCorrectivo,hrsDia:e.hrsDia||12,cobertura:cobReg,presencia:presencia});}).filter(function(v){return v!==null;});
     var aiFlota=aiVals.length?Math.round(aiVals.reduce(function(s,v){return s+v},0)/aiVals.length*10)/10:null;
     var brechaAoAi=(totalFlota!==null&&aiFlota!==null)?Math.round((aiFlota-totalFlota)*10)/10:null;
 
@@ -127,7 +141,7 @@ export function renderDisp(){
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Disp. %</th><th>Barra</th><th>vs Meta</th><th title="Respaldo del número: registros reales de detención, valor cargado a mano, o asumido por falta de datos">Datos</th></tr>'+
     eqDisp.sort(function(a,b){return(a.pct||999)-(b.pct||999)}).map(function(e){
-      if(e.pct===undefined)return'<tr><td class="mono">'+escapeHtml(e.sigla)+'</td><td>'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td><td colspan="4" style="color:var(--tx3)" title="No hay lecturas, OT ni PM de este equipo en el mes: no se puede decir cuánto estuvo disponible.">Sin datos</td></tr>';
+      if(e.pct===undefined)return'<tr><td class="mono">'+escapeHtml(e.sigla)+e.desm+'</td><td>'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td><td colspan="4" style="color:var(--tx3)" title="No hay lecturas, OT ni PM de este equipo en el mes: no se puede decir cuánto estuvo disponible.">Sin datos</td></tr>';
       var c=e.pct>=meta?'var(--ok)':e.pct>=70?'var(--w)':'var(--danger)';
       // Etiqueta de respaldo del dato
       var datos;
@@ -135,7 +149,7 @@ export function renderDisp(){
       else if(e.diasReg>0)datos='<span style="font-size:10px;color:var(--tx3)" title="Días del mes con al menos una detención registrada"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> '+e.diasReg+' día'+(e.diasReg===1?'':'s')+' c/registro</span>';
       else datos='<span class="badge b-y" title="No hay ninguna detención cargada este mes — el % se asume completo. Cargá las salidas de servicio para que sea real."><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> sin registros</span>';
       if(e.cob!=null&&e.cob<100)datos+=' <span class="badge '+(e.cob<COBERTURA_MIN_PCT?'b-y':'b-n')+'" title="Solo '+e.cob+'% de los días del mes tienen algún registro de este equipo; el % se calcula sobre esos días.">cobertura '+e.cob+'%</span>';
-      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+e.desm+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td><td style="font-size:11px">'+escapeHtml(e.modelo)+'</td>'+
         '<td class="mono ed" style="color:'+c+';font-weight:700" contenteditable onblur="var d=S.g(\'dispCalc\')||{};if(!d[\''+escapeHtml(e.sigla)+'\'])d[\''+escapeHtml(e.sigla)+'\']={}; d[\''+escapeHtml(e.sigla)+'\'][\''+fMes+'\']=parseFloat(this.innerText)||0;S.s(\'dispCalc\',d);refreshAll()">'+e.pct+'%</td>'+
         '<td>'+(function(){
           // Gauge circular (2026-08-24, mismo lenguaje que Dashboard/Equipos/Alertas
@@ -176,10 +190,12 @@ export function renderDisp(){
     '<tr><th>Equipo</th><th>Tipo</th>'+mesDates.map(function(d){return'<th style="font-size:9px;writing-mode:vertical-lr;min-width:30px">'+d.slice(5)+'</th>'}).join('')+'<th>Prom</th></tr>'+
     eqFil.map(function(e){
       var vals=mesDates.map(function(d){return calcDayDisp(e.sigla,d)});
-      var prom=vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:0;
+      var valsDato=vals.filter(function(v){return v!==null});
+      var prom=valsDato.length?Math.round(valsDato.reduce(function(s,v){return s+v},0)/valsDato.length*10)/10:0;
       var pc=prom>=meta?'var(--ok)':prom>=70?'var(--w)':'var(--danger)';
-      return'<tr><td class="mono" style="color:var(--ac);font-size:10px">'+escapeHtml(e.sigla)+'</td><td style="font-size:9px">'+escapeHtml(e.tipo)+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac);font-size:10px">'+escapeHtml(e.sigla)+_desmEtiqueta(e)+'</td><td style="font-size:9px">'+escapeHtml(e.tipo)+'</td>'+
         vals.map(function(v){
+          if(v===null)return'<td class="mono" style="font-size:9px;text-align:center;color:var(--tx3)">—</td>';
           var vc=v>=meta?'var(--ok)':v>=70?'var(--w)':v<100?'var(--danger)':'var(--tx3)';
           var bg=v<meta?'rgba(239,68,68,.08)':'';
           return'<td class="mono" style="font-size:9px;text-align:center;color:'+vc+';background:'+bg+'">'+(v<100?v+'%':'100')+'</td>';
@@ -212,13 +228,13 @@ export function renderDisp(){
     '<tr><th>Equipo</th><th>Tipo</th>'+wKeys.map(function(w){return'<th>Sem '+w+'<br><span style="font-size:8px;color:var(--tx3)">'+weeks[w][0].slice(5)+' al '+weeks[w][weeks[w].length-1].slice(5)+'</span></th>'}).join('')+'<th>Prom</th></tr>'+
     eqFil.map(function(e){
       var wVals=wKeys.map(function(w){
-        var vals=weeks[w].map(function(d){return calcDayDisp(e.sigla,d)});
+        var vals=weeks[w].map(function(d){return calcDayDisp(e.sigla,d)}).filter(function(v){return v!==null});
         return vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:null;
       });
       var wValsConDato=wVals.filter(function(v){return v!==null});
       var prom=wValsConDato.length?Math.round(wValsConDato.reduce(function(s,v){return s+v},0)/wValsConDato.length*10)/10:null;
       var pc=prom===null?'var(--tx3)':prom>=meta?'var(--ok)':'var(--danger)';
-      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td>'+
+      return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+_desmEtiqueta(e)+'</td><td style="font-size:11px">'+escapeHtml(e.tipo)+'</td>'+
         wVals.map(function(v){if(v===null)return'<td class="mono" style="text-align:center;color:var(--tx3)">—</td>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';return'<td class="mono" style="text-align:center;color:'+c+';font-weight:600">'+v+'%</td>'}).join('')+
         '<td class="mono" style="font-weight:700;color:'+pc+'">'+(prom===null?'—':prom+'%')+'</td></tr>';
     }).join('')+
@@ -252,7 +268,7 @@ export function renderDisp(){
     '</div></div></div>'+
     '<div class="tbl-wrap"><table>'+
     '<tr><th>Equipo</th><th>Tipo</th>'+MSN.map(function(m){return'<th>'+m+'</th>'}).join('')+'<th>Anual</th></tr>'+
-    eqFil.map(function(e){var vals=mesesAnio.map(function(mm){return calcMF(e.sigla,anio+'-'+mm)});var nums=vals.filter(function(v){return v!==undefined});var prom=nums.length?Math.round(nums.reduce(function(s,v){return s+v},0)/nums.length*10)/10:0;var pc=prom>=meta?'var(--ok)':'var(--danger)';return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+'</td><td style="font-size:10px">'+escapeHtml(e.tipo)+'</td>'+vals.map(function(v){if(v===undefined)return'<td style="color:var(--tx3);text-align:center;font-size:10px">—</td>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';return'<td class="mono" style="text-align:center;font-size:10px;color:'+c+';font-weight:600">'+v+'%</td>'}).join('')+'<td class="mono" style="font-weight:700;color:'+pc+'">'+prom+'%</td></tr>'}).join('')+
+    eqFil.map(function(e){var vals=mesesAnio.map(function(mm){return calcMF(e.sigla,anio+'-'+mm)});var nums=vals.filter(function(v){return v!==undefined});var prom=nums.length?Math.round(nums.reduce(function(s,v){return s+v},0)/nums.length*10)/10:0;var pc=prom>=meta?'var(--ok)':'var(--danger)';return'<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(e.sigla)+_desmEtiqueta(e)+'</td><td style="font-size:10px">'+escapeHtml(e.tipo)+'</td>'+vals.map(function(v){if(v===undefined)return'<td style="color:var(--tx3);text-align:center;font-size:10px">—</td>';var c=v>=meta?'var(--ok)':v>=70?'var(--w)':'var(--danger)';return'<td class="mono" style="text-align:center;font-size:10px;color:'+c+';font-weight:600">'+v+'%</td>'}).join('')+'<td class="mono" style="font-weight:700;color:'+pc+'">'+prom+'%</td></tr>'}).join('')+
     '<tr style="font-weight:700;background:var(--bg3)"><td colspan="2">FLOTA</td>'+
     fleetMonth.map(function(v){if(v===undefined)return'<td style="text-align:center;color:var(--tx3)">—</td>';var c=v>=meta?'var(--ok)':'var(--danger)';return'<td class="mono" style="text-align:center;color:'+c+'">'+v+'%</td>'}).join('')+
     '<td class="mono" style="color:'+colA+'">'+fleetAnual+'%</td></tr>'+

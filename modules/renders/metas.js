@@ -48,6 +48,7 @@ export function renderMetas() {
   // logic.js): override manual > abril > cálculo automático. Antes Metas usaba SOLO los
   // overrides manuales, así que su disponibilidad no coincidía con Disponibilidad ni KPI.
   var downMapMetas = dispDownMap(reg, ot);
+  var presMetas = S.g('presencia') || [];   // flota por período: desmovilizados cuentan hasta su salida
   var cobMetas = C.coberturaApp();   // días sin registro del equipo no cuentan como disponibles (etapa 2 de «datos desactualizados»)
   var dAbrMetas = INIT.dispAbril || {};
   MSN.forEach(function (m, mi) {
@@ -74,7 +75,7 @@ export function renderMetas() {
     // exacto) — se acepta ese riesgo a cambio de que los meses vacíos en 'ot' (como
     // agosto) dejen de mostrar un Ratio Preventivo 100% falso por falta de dato.
     var correctivosDelMes = contarFallasMes(otConHist, mes);
-    var dispValsM = eq.map(function (e) { return dispEquipoMes(e.sigla, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, hrsDia: e.hrsDia || 12, cobertura: cobMetas }); }).filter(function (v) { return v !== null && v !== undefined });
+    var dispValsM = flotaEquiposMes(eq, presMetas, mes).map(function (e) { return dispEquipoMes(e.sigla, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, hrsDia: e.hrsDia || 12, cobertura: cobMetas, presencia: presMetas }); }).filter(function (v) { return v !== null && v !== undefined });
     var hhMes = Math.round(regM.reduce(function (s, r) { return s + (r.duracionH || 0) }, 0));
     // Gasto REAL del mes = mano de obra (HH×tarifa) + repuestos/materiales consumidos.
     // Antes el "gasto" era solo HH×tarifa: ignoraba los repuestos, que suelen ser el
@@ -119,10 +120,10 @@ export function renderMetas() {
       backlog: peorEqBacklog ? (backlogPorEq[peorEqBacklog] + ' de ' + backlogMes + ' pendiente(s) son de ' + peorEqBacklog) : ''
     };
     // Cobertura de registro del mes: con menos de COBERTURA_MIN_PCT % no se calcula MTBF («0 fallas» podría ser «nadie cargó nada»); mismo criterio que Informes KPI.
-    var cobMesM = coberturaFlotaMes(eq, mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, cobertura: cobMetas });
+    var cobMesM = coberturaFlotaMes(flotaEquiposMes(eq, presMetas, mes), mes, { downMap: downMapMetas, dispCalc: dispCalcMetas, dAbr: dAbrMetas, cobertura: cobMetas, presencia: presMetas });
     // MTBF mensual = horas de flota del mes ÷ paradas de PARADA_LARGA_H horas o más del mes (23-oct-2026; antes dividía por cualquier correctivo). Sin paradas, o con poca cobertura de registro, queda sin dato.
     var paradasM = contarParadasLargasMes(otConHist, mes);
-    var hMesFlotaM = eq.reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0);
+    var hMesFlotaM = flotaEquiposMes(eq, presMetas, mes).reduce(function (s, e) { return e.unidad === 'km' ? s : s + (e.hrsDia || 12) * 30 }, 0);
     var mtbfM = paradasM > 0 && !(cobMesM.pct !== null && cobMesM.pct < COBERTURA_MIN_PCT) ? Math.round(hMesFlotaM / paradasM) : null;
     realData[m] = {
       mtbf: mtbfM,

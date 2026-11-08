@@ -321,8 +321,9 @@ export function renderDash(){
   var mesAct=dashPeriodo;
   // Cobertura de registro (etapa 2 de «datos desactualizados»): un día sin lecturas ni OT ni PM del equipo no cuenta como «100 % disponible», queda fuera del promedio.
   var cobD=C.coberturaApp();
-  var cobFlota=coberturaFlotaMes(eq,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,cobertura:cobD});
-  var dispVals=eq.map(function(e){return dispEquipoMes(e.sigla,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobD});}).filter(function(v){return v!==null&&v!==undefined});
+  var presD=S.g('presencia')||[];   // flota por período: los desmovilizados cuentan mientras estuvieron en faena (flotaEquiposMes, logic.js)
+  var cobFlota=coberturaFlotaMes(flotaEquiposMes(eq,presD,mesAct),mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,cobertura:cobD,presencia:presD});
+  var dispVals=flotaEquiposMes(eq,presD,mesAct).map(function(e){return dispEquipoMes(e.sigla,mesAct,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobD,presencia:presD});}).filter(function(v){return v!==null&&v!==undefined});
   var dispFlota=dispVals.length?Math.round(dispVals.reduce(function(s,v){return s+v},0)/dispVals.length*10)/10:null;
   var dispCol=dispFlota===null?'var(--tx3)':dispFlota>=meta?'var(--ok)':dispFlota>=70?'var(--ac)':'var(--danger)';
   var bajoMeta=dispVals.filter(function(v){return v<meta}).length;
@@ -835,7 +836,7 @@ export function renderDash(){
   // pantalla. downMapD no está acotado a un mes — dispEquipoMes filtra el rango
   // de días internamente, así que sirve igual para los 6 meses de este gráfico.
   var dispTrend6=meses6.map(function(m){
-    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,m,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,hoy:_hoyISO,cobertura:cobD});}).filter(function(v){return v!==null&&v!==undefined;});
+    var vals=flotaEquiposMes(eq,presD,m).map(function(e){return dispEquipoMes(e.sigla,m,{downMap:downMapD,dispCalc:dispCalcD,dAbr:dAbr,hrsDia:e.hrsDia||12,hoy:_hoyISO,cobertura:cobD,presencia:presD});}).filter(function(v){return v!==null&&v!==undefined;});
     return vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*10)/10:null;
   });
   var maxTrend=Math.max.apply(null,dispTrend6.filter(function(v){return v!==null;}).concat([100]));

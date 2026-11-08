@@ -301,9 +301,10 @@ export function renderKpi(){
   // (dispDownMap + dispEquipoMes en logic.js). Antes esta pestaña tenía su propia copia
   // sin el manejo de salida de servicio por período, así que no coincidía con las otras.
   var downMap=dispDownMap(reg,ot);
+  var presKpi=S.g('presencia')||[];   // flota por período (desmovilizados cuentan hasta su salida)
   var cobKpi=C.coberturaApp();   // meses sin registros → sin dato, no 100 % (etapa 2 de «datos desactualizados»)
   var dispMes=last12.map(function(mes){
-    var vals=eq.map(function(e){return dispEquipoMes(e.sigla,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobKpi});}).filter(function(v){return v!==null&&v!==undefined});
+    var vals=flotaEquiposMes(eq,presKpi,mes).map(function(e){return dispEquipoMes(e.sigla,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,hrsDia:e.hrsDia||12,cobertura:cobKpi,presencia:presKpi});}).filter(function(v){return v!==null&&v!==undefined});
     return vals.length?Math.round(vals.reduce(function(s,v){return s+v},0)/vals.length*10)/10:null;
   });
   var dispActual=dispMes[dispMes.length-1];
@@ -319,9 +320,9 @@ export function renderKpi(){
   var mtbfMes=last12.map(function(mes){
     var fallasM=contarParadasLargasMes(otConHist,mes);   // paradas de ≥PARADA_LARGA_H h (23-oct-2026)
     // Un mes con poco registro no mide MTBF: «0 fallas» ahí puede ser «nadie cargó nada», no «no falló» (etapa 2 de «datos desactualizados»).
-    var cobM=coberturaFlotaMes(eq,mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,cobertura:cobKpi});
+    var cobM=coberturaFlotaMes(flotaEquiposMes(eq,presKpi,mes),mes,{downMap:downMap,dispCalc:dispData,dAbr:dAbr,cobertura:cobKpi,presencia:presKpi});
     if(cobM.pct!==null&&cobM.pct<COBERTURA_MIN_PCT)return null;
-    var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
+    var hrsM=flotaEquiposMes(eq,presKpi,mes).reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
     return fallasM>0?Math.round(hrsM/fallasM):null;
   });
   var mtbfAgr=mtbfFlotaAgrupado(eq,otConHist,S.g('hist')||[]);   // horas operadas ÷ paradas de ≥24 h, con intervalo de confianza

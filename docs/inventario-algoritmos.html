@@ -157,7 +157,7 @@
   <ul>
     <li><b>Límites:</b> Ai aquí es <i>observada</i> (horas reales detenidas por fallas), no la fórmula de diseño MTBF ÷ (MTBF + MTTR). El supuesto de 8 h y el de "OT abierta = 24 h por día" pueden inflar la indisponibilidad; por eso el pronóstico de disponibilidad (ficha I3) lista aparte los eventos "prolongados".</li>
     <li><b>Cobertura de registro (23-oct-2026):</b> un día solo entra al promedio si el equipo tiene algún registro (lectura de horómetro, OT o PM) a ±7 días o una detención cargada; los demás son «sin registro» y no valen 100 %. Si un equipo no tiene ningún día con dato en el mes, la disponibilidad es «sin dato». Cada pantalla muestra el % de días cubiertos y avisa si baja de 50 %. Los 7 días y el 50 % son convenciones, no mediciones. Un valor cargado a mano no se toca.</li>
-    <li><b>Código:</b> <code>dispDownMap</code>, <code>dispEquipoMes</code>, <code>dispIntrinsecaEquipoMes</code>, <code>coberturaRegistro</code>, <code>dispCoberturaMes</code>, <code>coberturaFlotaMes</code>, <code>COBERTURA_MIN_PCT</code>, <code>DISP_VENTANA_COBERTURA</code>, <code>equiposFueraDeServicioAhora</code>, <code>rangoDias</code>.</li>
+    <li><b>Código:</b> <code>dispDownMap</code>, <code>dispEquipoMes</code>, <code>dispIntrinsecaEquipoMes</code>, <code>coberturaRegistro</code>, <code>dispCoberturaMes</code>, <code>coberturaFlotaMes</code>, <code>equipoPresenteEnPeriodo</code>, <code>flotaEquiposPeriodo</code>, <code>flotaEquiposMes</code>, <code>COBERTURA_MIN_PCT</code>, <code>DISP_VENTANA_COBERTURA</code>, <code>equiposFueraDeServicioAhora</code>, <code>rangoDias</code>.</li>
   </ul>
 
   <h3 id="d-6">A2. MTBF y MTTR del programa</h3>
