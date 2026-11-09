@@ -7248,7 +7248,9 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Límites:** no hay lista de personas ni asistencia por persona, solo cantidades. Los roles de la matriz son texto libre, no están ligados a las cuentas de usuario del sistema. La matriz no cambia permisos: es de consulta.
 
-**Pruebas:** `tests/mom.test.js` (7 casos: propuesta base válida, orden y audiencia de la matriz, reglas A y R, estado atrasado, validación, cumplimiento y asistencia, sin datos).
+**Conexión con las Tareas (mismo día, después):** cada tipo de Tarea del sistema (pedir ya, falla repetida, hallazgo de PM; las manuales no) se vincula a una actividad de la matriz (`cfg.momTareas`, columna nueva `momTareas` en `configuracion`, migración `20261109130000_agregar_mom_tareas_a_configuracion.sql`). La pestaña **Tareas** muestra una columna «Según la matriz RACI» con los roles R, A e I de esa actividad, y la columna «Escala a» usa el rol A (`tareaEscalaA(t, raci)`). Sin matriz, sin vínculo o si la actividad se borró, rige la regla de siempre: el jefe de taller de la cuadrilla del responsable, que además se sigue mostrando como referencia. La propuesta base se amplió a 11 actividades y 7 roles (se agregó el rol Comprador y tres actividades que corresponden a los tipos de tarea) y deja los vínculos puestos al cargarla. El sistema **muestra** esto en pantalla; no manda correos, igual que antes. Los roles de la matriz son cargos, no personas: la tarea sigue teniendo su responsable por nombre.
+
+**Pruebas:** `tests/mom.test.js` (11 casos: propuesta base válida, orden y audiencia de la matriz, reglas A y R, estado atrasado, validación, cumplimiento y asistencia, sin datos, vínculo con las Tareas y escalación al rol A).
 
 ## Lo que decidimos NO hacer (y por qué)
 

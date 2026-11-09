@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { momRaciBaseFilas, momRaciMatriz, momRaciValidar, momEntrenamientoEstado, momEntrenamientoError, momEntrenamientoResumen, MOM_RACI_BASE } from '../logic.js';
+import { momRaciBaseFilas, momRaciMatriz, momRaciValidar, momEntrenamientoEstado, momEntrenamientoError, momEntrenamientoResumen, MOM_RACI_BASE, MOM_TAREA_ACTIVIDAD_BASE, momRaciDeActividad, tareaRaci, tareaEscalaA, TAREAS_ORIGENES } from '../logic.js';
 
 describe('matriz RACI del MOM', () => {
   it('la propuesta base cumple la regla RACI: cada actividad con una sola A y al menos una R', () => {
@@ -74,5 +74,38 @@ describe('plan de entrenamientos del MOM', () => {
   it('sin entrenamientos no inventa porcentajes', () => {
     const r = momEntrenamientoResumen([], hoy);
     expect(r).toMatchObject({ total: 0, cumplimiento: null, asistencia: null, horas: 0 });
+  });
+});
+
+describe('matriz RACI × Tareas', () => {
+  const filas = momRaciBaseFilas();
+  it('cada origen de Tarea (salvo «manual») tiene en la propuesta base una actividad que existe en la matriz', () => {
+    const m = momRaciMatriz(filas);
+    Object.keys(TAREAS_ORIGENES).filter((o) => o !== 'manual').forEach((o) => {
+      expect(MOM_TAREA_ACTIVIDAD_BASE[o], o).toBeTruthy();
+      expect(m.actividades).toContain(MOM_TAREA_ACTIVIDAD_BASE[o]);
+    });
+  });
+  it('momRaciDeActividad lista los roles por letra', () => {
+    const r = momRaciDeActividad(filas, MOM_TAREA_ACTIVIDAD_BASE.pedir_ya);
+    expect(r.R).toEqual(['Comprador']);
+    expect(r.A).toEqual(['Jefe de Mantenimiento']);
+    expect(r.I).toEqual(['Gerente / Administrador de contrato']);
+    expect(momRaciDeActividad(filas, 'no existe')).toBeNull();
+  });
+  it('tareaRaci usa el vínculo del origen y devuelve null si falta matriz, vínculo o actividad', () => {
+    const t = { origen: 'pedir_ya', responsable: 'Comprador' };
+    expect(tareaRaci(t, filas, MOM_TAREA_ACTIVIDAD_BASE)).toMatchObject({ actividad: MOM_TAREA_ACTIVIDAD_BASE.pedir_ya, A: ['Jefe de Mantenimiento'] });
+    expect(tareaRaci(t, [], MOM_TAREA_ACTIVIDAD_BASE)).toBeNull();
+    expect(tareaRaci(t, filas, {})).toBeNull();
+    expect(tareaRaci(t, filas, undefined)).toBeNull();
+    expect(tareaRaci({ origen: 'manual' }, filas, MOM_TAREA_ACTIVIDAD_BASE)).toBeNull();
+    expect(tareaRaci(t, filas, { pedir_ya: 'actividad borrada' })).toBeNull();
+  });
+  it('la escalación va al rol A de la matriz; sin matriz sigue la regla de siempre (jefe de taller)', () => {
+    const t = { origen: 'falla_repetida', responsable: 'Carlos Trigo' };
+    expect(tareaEscalaA(t)).toBe('José Yáñez');
+    expect(tareaEscalaA(t, tareaRaci(t, filas, MOM_TAREA_ACTIVIDAD_BASE))).toBe('Jefe de Mantenimiento');
+    expect(tareaEscalaA(t, null)).toBe('José Yáñez');
   });
 });

@@ -247,7 +247,7 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Qué cambia.** Pestaña nueva **Entrenamiento MOM** (Herramientas). Todos los perfiles activos la ven; solo un administrador crea, edita o borra, y lo hace cumplir la base (no solo la pantalla). Quien deba editar necesita cuenta de administrador. La matriz RACI base es una propuesta para corregir según el MOM vigente: no se carga sola.
 
-**Antes de desplegar.** Aplicar `20261109120000_crear_mom_entrenamiento.sql` en los dos proyectos y desplegar de nuevo `backup-diario` (70 tablas).
+**Antes de desplegar.** Aplicar `20261109120000_crear_mom_entrenamiento.sql` y `20261109130000_agregar_mom_tareas_a_configuracion.sql` (columna `momTareas` en `configuracion`, con el vínculo entre los tipos de tarea y la matriz) en los dos proyectos, y desplegar de nuevo `backup-diario` (70 tablas).
 
 ### Siniestros y plazo de denuncia (2026-10-30)
 

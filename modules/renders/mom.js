@@ -82,6 +82,33 @@ function _mMatriz(filas, ed) {
     (m.actividades.length ? '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Regla: cada actividad con una sola <b>A</b> (quien rinde cuentas) y al menos una <b>R</b> (quien la ejecuta). La base inicial es una propuesta: corrígela según el MOM vigente.</div>' : '') + '</div>';
 }
 
+
+// ── Tareas ligadas a la matriz ──
+// Cada tipo de Tarea del sistema (pedir ya, falla repetida, hallazgo de PM) se vincula a una actividad de la matriz: la pestaña Tareas muestra entonces quién la hace (R), a quién se escala si vence (A) y a quién se informa (I).
+// Sin vínculo, o si la actividad se borra, rige la regla de siempre (el jefe de taller de la cuadrilla del responsable). Se guarda en cfg.momTareas.
+function _mTareasVinculos(filas, ed) {
+  const m = momRaciMatriz(filas), mapeo = (S.g('cfg') || {}).momTareas || {};
+  const origenes = Object.keys(TAREAS_ORIGENES).filter(o => o !== 'manual');
+  if (!m.actividades.length) return '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">Tareas ligadas a la matriz</div><div style="font-size:12px;color:var(--tx3);padding:8px 0">Cuando la matriz tenga actividades podrás vincular cada tipo de tarea a una de ellas.</div></div>';
+  const filasHtml = origenes.map(o => {
+    const act = mapeo[o] || '', idx = m.actividades.indexOf(act), roto = act && idx < 0, r = idx >= 0 ? momRaciDeActividad(filas, act) : null;
+    const sel = ed ? '<select onchange="momVincularTarea(\'' + o + '\',this.value)" style="max-width:340px"><option value="">— sin vincular —</option>' + m.actividades.map((a, i) => '<option value="' + i + '"' + (i === idx ? ' selected' : '') + '>' + _mE(a) + '</option>').join('') + '</select>' : _mE(idx >= 0 ? act : '— sin vincular —');
+    const res = r ? ['R', 'A', 'I'].filter(l => r[l].length).map(l => '<b style="color:' + _M_COLOR_LETRA[l] + '">' + l + '</b> ' + _mE(r[l].join(' / '))).join(' · ') : (roto ? '<span style="color:var(--warn)">La actividad vinculada ya no existe: rige la regla de siempre.</span>' : '<span style="color:var(--tx3)">Rige la regla de siempre (jefe de taller de la cuadrilla).</span>');
+    return '<tr><td style="text-align:left;white-space:nowrap"><b>' + _mE(TAREAS_ORIGENES[o]) + '</b></td><td style="text-align:left">' + sel + '</td><td style="text-align:left;font-size:11px">' + res + '</td></tr>';
+  }).join('');
+  return '<div class="chart-box" style="margin-bottom:14px"><div class="chart-t">Tareas ligadas a la matriz</div>' +
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.6;margin:6px 0">Cada tipo de tarea del sistema se vincula a una actividad de la matriz. En la pestaña <b>Tareas</b> se verá quién la hace (R), a quién se escala si vence (A) y a quién se informa (I). El sistema <b>muestra</b> esto en pantalla: no manda correos.</div>' +
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Tipo de tarea</th><th style="text-align:left">Actividad de la matriz</th><th style="text-align:left">Resultado</th></tr>' + filasHtml + '</table></div></div>';
+}
+export function momVincularTarea(origen, iAct) {
+  if (!_mPuedeEditar()) return _mSoloAdmin();
+  if (!TAREAS_ORIGENES[origen] || origen === 'manual') return;
+  const m = momRaciMatriz(S.g('momRaci') || []), cfg = S.g('cfg') || {}, mapeo = Object.assign({}, cfg.momTareas || {});
+  if (iAct === '' || iAct == null) delete mapeo[origen];
+  else { const a = m.actividades[Number(iAct)]; if (a == null) return; mapeo[origen] = a; }
+  cfg.momTareas = mapeo; S.s('cfg', cfg); renderMom(); toast('✅ Vínculo guardado');
+}
+
 export function renderMom() {
   const el = $('s-mom'); if (!el) return;
   const ed = _mPuedeEditar(), hoy = _mHoy();
@@ -89,7 +116,7 @@ export function renderMom() {
   el.innerHTML = '<div class="sec-h"><div><div class="sec-t">' + ICONS.mom + ' Entrenamiento MOM</div><div class="sec-s">' + _mE(MOM_PROCESO) + ' (Modelo Operacional de Mantenimiento) — roles ejecutivos y operacionales</div></div>' +
     '<button class="btn btn-o" onclick="imprimirTab(\'mom\',\'Entrenamientos del MOM — plan y matriz RACI\')">' + ICONS.printer + ' Imprimir</button></div>' +
     (ed ? '' : '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Solo un administrador puede editar esta pestaña; tú puedes verla completa.</div>') +
-    _mTarjetas(momEntrenamientoResumen(plan, hoy)) + _mPlan(plan, ed, hoy) + _mMatriz(raci, ed);
+    _mTarjetas(momEntrenamientoResumen(plan, hoy)) + _mPlan(plan, ed, hoy) + _mMatriz(raci, ed) + _mTareasVinculos(raci, ed);
 }
 
 // ── Entrenamientos ──
@@ -145,6 +172,8 @@ export function momCargarBase() {
   if (!_mPuedeEditar()) return _mSoloAdmin();
   if ((S.g('momRaci') || []).length) return toast('⚠️ La matriz ya tiene datos');
   S.s('momRaci', momRaciBaseFilas().map(f => Object.assign({ _id: _mId(), usuario: _mUsuario() }, f)));
+  const cfg = S.g('cfg') || {};
+  if (!cfg.momTareas || !Object.keys(cfg.momTareas).length) { cfg.momTareas = Object.assign({}, MOM_TAREA_ACTIVIDAD_BASE); S.s('cfg', cfg); }
   renderMom(); toast('✅ Propuesta base cargada: corrígela según el MOM vigente');
 }
 export function momRaciCelda(iAct, iRol, letra) {
@@ -220,4 +249,5 @@ window.momBorrarActividad = momBorrarActividad;
 window.momAgregarRol = momAgregarRol;
 window.momGuardarRol = momGuardarRol;
 window.momBorrarRol = momBorrarRol;
+window.momVincularTarea = momVincularTarea;
 renders.mom = renderMom;
