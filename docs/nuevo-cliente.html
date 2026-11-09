@@ -69,11 +69,11 @@
   key.</p>
 
   <h2>2. Aplicar el esquema</h2>
-  <p>Aplicar las 60 migraciones de <code>supabase/migrations/</code> <b>en orden</b> (por nombre
-  de archivo, ya vienen con timestamp). Traen: las ~43 tablas reales, RLS por tabla, el trigger
+  <p>Aplicar las 109 migraciones de <code>supabase/migrations/</code> <b>en orden</b> (por nombre
+  de archivo, ya vienen con timestamp). Traen: las ~70 tablas reales (las mismas 70 que respalda <code>backup-diario</code>), RLS por tabla, el trigger
   <code>proteger_columnas_admin</code>, las funciones
   <code>verificar_secreto_cron</code>/<code>obtener_secreto_para_cron</code>, y la creación del
-  bucket <code>informes-fotos</code>.</p>
+  bucket <code>informes-fotos</code>. Los datos propios de Centinela (presencia de equipos, disponibilidad diaria oficial, detenciones del chat, matriz RACI y entrenamientos del MOM) <b>no</b> se copian a un cliente nuevo: sus tablas nacen vacías y se cargan con los datos de esa faena.</p>
   <div class="callout warn">
   <p style="margin:0"><b>⚠️ Trampa real encontrada:</b> 5 de esas migraciones traen la URL del
   proyecto de Besalco <b>escrita a mano</b> dentro del SQL del cron
