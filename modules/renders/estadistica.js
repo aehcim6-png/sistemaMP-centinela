@@ -895,7 +895,7 @@ export function renderEstadistica() {
   if (!$('s-estadistica')) return;
   var vista = window._estadisticaVista || 'equipo';
   var labEst = _modoLab() || _LAB_EST.indexOf(vista) >= 0;   // una vista de laboratorio ya elegida la mantiene visible
-  var eq = S.g('eq') || [];
+  var eq = eqConDesm();
   var ot = S.g('ot') || [];
   var otHist = S.g('otHist') || [];
   var informesFalla = S.g('informesFalla') || [];

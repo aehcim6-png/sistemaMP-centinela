@@ -42,7 +42,7 @@ export function renderAce(){
   var ace=S.g('aceite')||[];
   var fEq=$('fAceEq')?.value||'';
   var fEst=$('fAceEst')?.value||'';
-  var eq=S.g('eq')||[];
+  var eq=eqConDesm();
 
   window._aceiteResolverSiglas(ace);
 

@@ -125,7 +125,7 @@ function _buscarTcoHTML(sigla) {
 }
 
 export function renderBuscar(){
-  var eq=S.g('eq')||[];var reg=S.g('reg')||[];var ot=S.g('ot')||[];
+  var eq=eqConDesm();var reg=S.g('reg')||[];var ot=S.g('ot')||[];
   // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
   // falla/Informes KPI): 'ot' a secas dejaba fallas de meses sin registro formal
   // (ver correctivos_historico) invisibles en el conteo de Fallas/MTBF de la ficha

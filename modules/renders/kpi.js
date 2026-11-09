@@ -77,7 +77,7 @@ export function _getDispData(){
   return{headers:h,rows:r};
 };
 export function _getMTBFData(){
-  var eq=S.g('eq')||[];var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
+  var eq=eqConDesm();var ot=(S.g('ot')||[]).concat(_otHistComoOt(S.g('otHist')||[]),_informesFallaComoOt(S.g('informesFalla')||[]));
   // 2026-10-23: una «falla» para MTBF y MTTR es una parada de PARADA_LARGA_H horas o más (esParadaLarga, logic.js); los correctivos más cortos se cuentan como intervenciones.
   var h=['Equipo','Modelo','Horómetro','Intervenciones','Paradas ≥'+PARADA_LARGA_H+' h','MTBF (hrs entre paradas)','Confiabilidad','MTTR paradas (hrs)','Mediana / p90 (hrs)'];
   var r=eq.map(function(e){var f=ot.filter(function(o){return o.sigla===e.sigla&&esFallaMTBF(o)});var par=f.filter(function(o){return esParadaLarga(o)});var mt=mttrParadasLargas(par);var mtbf=C.mtbfReal(par.map(function(o){return o.horom;}));return[e.sigla,e.modelo,e.horomActual,f.length,par.length,mtbf==null?'—':mtbf,mtbf==null?'Datos insuf.':par.length<MTBF_MIN_PARADAS?'Muestra chica ('+par.length+' paradas)':mtbf>2000?'Alta':mtbf>500?'Media':'Baja',mt?mt.promedio:'—',mt?mt.mediana+' / '+mt.p90:'—'];});
@@ -95,7 +95,7 @@ export function _getHHData(){
   return{headers:h,rows:r};
 };
 export function _getCumplData(){
-  var reg=S.g('reg')||[];var eq=S.g('eq')||[];var pE={};var _evPM=desviosPM(reg,eq),_aT=function(r){var x=_evPM.get(r);return x?x.aTiempo:null;};
+  var reg=S.g('reg')||[];var eq=eqConDesm();var pE={};var _evPM=desviosPM(reg,eq),_aT=function(r){var x=_evPM.get(r);return x?x.aTiempo:null;};
   // regEsATiempo (logic.js): fuente única — antes r.estado==='A tiempo' nunca
   // coincidía con el dato real guardado (bug real, auditoría 2026-08). Registros
   // no evaluables (ej. importados por CSV sin fecha esperada) no cuentan ni como

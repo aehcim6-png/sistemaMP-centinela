@@ -8,7 +8,7 @@ export function renderRep() {
   var mov = S.g('mov') || [];
   var stk = S.g('stk') || [];
   var lub = S.g('lub') || [];
-  var eq = S.g('eq') || [];
+  var eq = eqConDesm();
   var ot = S.g('ot') || [];
   var fEst = $('fRepEst')?.value || '';
   var fEq = $('fRepEq')?.value || '';

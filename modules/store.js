@@ -938,6 +938,8 @@ const S={
     return null;
   },
   s(k,v){
+    // Las fichas «virtuales» de desmovilizados (equiposConDesmovilizados, logic.js) son solo de lectura: jamás se guardan en `equipos`.
+    if(k==='eq'&&Array.isArray(v)&&v.some(function(e){return e&&e._virtual;}))v=v.filter(function(e){return !(e&&e._virtual);});
     // Candado real para el rol lector (hallazgo de auditoría: "un lector ve
     // botones que no puede usar" — hoy RLS ya bloquea la escritura en el
     // servidor, pero en silencio: la cache local y localStorage SÍ se
@@ -1239,3 +1241,6 @@ if(typeof module!=='undefined'&&module.exports){
     _resetearDatosEmpresa,_refetchTablaReal,_syncChain,
     _avisarErrorGuardado,_erroresGuardadoDesde,_erroresGuardadoRecientes,_fetchSb,_tokenPorVencer};
 }
+
+// Equipos de hoy + desmovilizados (solo lectura) para las pestañas de historial y análisis. Ver equiposConDesmovilizados en logic.js.
+window.eqConDesm=function(){return window.equiposConDesmovilizados?window.equiposConDesmovilizados(S.g('eq')||[],S.g('presencia')||[],S.g('hist')||[]):(S.g('eq')||[]);};

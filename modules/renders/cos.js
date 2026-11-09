@@ -101,7 +101,7 @@ export function renderCos() {
   var reg = S.g('reg') || [];
   var ot = S.g('ot') || [];
   var mov = S.g('mov') || [];
-  var eq = S.g('eq') || [];
+  var eq = eqConDesm();   // costos y fallas de los desmovilizados mientras estuvieron en faena
   var stk = S.g('stk') || [];
   var lub = S.g('lub') || [];
   // comprasDetalle (2026-09-30, paso 2 de la migración acordada con el usuario,

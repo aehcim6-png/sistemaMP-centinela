@@ -60,3 +60,20 @@ describe('disponibilidad respeta el tiempo en faena', () => {
     expect(r.n).toBe(1);
   });
 });
+
+import { equiposConDesmovilizados } from '../logic.js';
+describe('equiposConDesmovilizados — historial y análisis', () => {
+  const eqs = [{ sigla: 'A', tipo: 'Camión', horomActual: 100 }];
+  const hist = [{ sigla: 'Z', fecha: '2026-01-10', horom: 5000 }, { sigla: 'Z', fecha: '2026-02-20', horomFin: 5400 }];
+  it('agrega fichas virtuales de los desmovilizados con su último horómetro; no duplica ni toca los de hoy', () => {
+    const r = equiposConDesmovilizados(eqs, pres, hist);
+    expect(r.map((e) => e.sigla)).toEqual(['A', 'CF-9511', 'Z']);
+    expect(r[0]).toBe(eqs[0]);
+    expect(r[2]).toMatchObject({ _virtual: true, desmovilizado: true, horomActual: 5400, fechaHorom: '2026-02-20', finOper: '2026-02-28', tipo: 'Camioneta' });
+  });
+  it('un equipo con salida que sigue en equipos no se duplica; sin salida (hasta vacío) no se agrega', () => {
+    const r = equiposConDesmovilizados([...eqs, { sigla: 'CF-9511' }], pres, []);
+    expect(r.filter((e) => e.sigla === 'CF-9511')).toHaveLength(1);
+    expect(r.some((e) => e._virtual && e.sigla === 'A')).toBe(false);
+  });
+});

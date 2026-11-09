@@ -12,7 +12,7 @@
 // ---- HISTORIAL ----
 export function renderHist(){
   var h=S.g('hist')||[];
-  var eq=S.g('eq')||[];
+  var eq=eqConDesm();   // incluye desmovilizados: su historial sigue visible
   var fEq=$('fHistEq')?.value||'';
   var fVista=$('fHistVista')?.value||'todo';
   var fMes=$('fHistMes')?.value||'';

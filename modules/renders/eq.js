@@ -68,8 +68,21 @@ export function renderEq(){
           <td style="white-space:nowrap"><button class="btn-s" onclick="editFicha('${escapeHtml(e.sigla)}')" title="Ficha técnica"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg></button> <button class="btn-s btn-d" onclick="delRow('eq',${i},'eq')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>
         </tr>`;
       }).join('')}
-    </table></div>`;
+    </table></div>`+_eqDesmovilizadosHTML();
   if(typeof _animGauges==='function')_animGauges('s-eq');
+}
+// Equipos desmovilizados de faena (flota_presencia): ya no están en la tabla de arriba (no tienen PM ni alertas), pero su historial sigue en el sistema y cuenta en las pestañas de análisis hasta su salida.
+function _eqDesmovilizadosHTML(){
+  const lista=(typeof eqConDesm==='function'?eqConDesm():[]).filter(e=>e._virtual).sort((a,b)=>(b.finOper||'').localeCompare(a.finOper||''));
+  if(!lista.length)return'';
+  const otAll=(S.g('ot')||[]).concat(S.g('otHist')||[]);
+  const nOT={};otAll.forEach(o=>{if(o&&o.sigla)nOT[o.sigla]=(nOT[o.sigla]||0)+1;});
+  const fecha=f=>f?f.slice(8,10)+'-'+f.slice(5,7)+'-'+f.slice(0,4):'—';
+  return`<div class="chart-box" style="margin-top:18px"><div class="chart-t">Desmovilizados de faena <span style="font-size:11px;color:var(--tx3)">— ${lista.length} equipos · solo lectura, sin PM ni alertas</span></div>
+    <div style="font-size:11px;color:var(--tx3);padding:4px 0 8px">Su historial (OT, lecturas, costos) sigue en el sistema y cuenta en Disponibilidad, KPI y Metas mientras estuvieron en faena. «?» = fecha de salida sin confirmar por el cliente.</div>
+    <div class="tbl-wrap"><table><tr><th>Sigla</th><th>Tipo</th><th>Modelo</th><th>En faena desde</th><th>Salida</th><th>Último horómetro</th><th>OT / informes</th><th>Motivo</th></tr>`+
+    lista.map(e=>`<tr><td class="mono" style="color:var(--ac)">${escapeHtml(e.sigla)}</td><td>${escapeHtml(e.tipo||'—')}</td><td style="font-size:11px">${escapeHtml(e.modelo||'—')}</td><td class="mono">${fecha(e.iniOper)}</td><td class="mono">${fecha(e.finOper)}${e.sinConfirmar?' ?':''}</td><td class="mono">${e.horomActual?fn(e.horomActual):'—'}${e.fechaHorom?' <small style="color:var(--tx3)">('+fecha(e.fechaHorom)+')</small>':''}</td><td class="mono">${nOT[e.sigla]||0}</td><td style="font-size:11px">${escapeHtml(e.motivoSalida||'')}</td></tr>`).join('')+
+    `</table></div></div>`;
 }
 export function addEquipo(){
   sm(`<h3>Nuevo Equipo</h3>
