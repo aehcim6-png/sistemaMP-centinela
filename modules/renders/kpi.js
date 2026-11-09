@@ -349,7 +349,7 @@ export function renderKpi(){
       if(m.tipo==='Filtro'){var f=stk.find(function(s){return s.descripcion===m.item||s.nParte===m.nParte});costoM+=(m.cant||0)*(f&&f.precioUnit?f.precioUnit:0);}
       else{var l=lub.find(function(lb){return lb.nombre===m.item});costoM+=(m.cant||0)*(l&&l.precio?l.precio:0);}
     });
-    var hrsM=eq.reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
+    var hrsM=flotaEquiposMes(eq,presKpi,mes).reduce(function(s,e){return e.unidad==='km'?s:s+(e.hrsDia||12)*30},0);
     return hrsM>0?Math.round(costoM/hrsM):0;
   });
   var costoHrActual=costoHrMes.length?costoHrMes[costoHrMes.length-1]:0;
