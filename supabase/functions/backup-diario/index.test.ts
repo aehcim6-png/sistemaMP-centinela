@@ -46,7 +46,8 @@ Deno.test("TABLAS: tamaño esperado (63) — cambiar a propósito si se agrega u
   // Nota 2026-11-08: 66 al sumar 'disponibilidad_diaria' (disponibilidad diaria oficial del histórico).
   // Nota 2026-11-08: 67 al sumar 'flota_presencia' (desde/hasta de cada equipo en la flota).
   // Nota 2026-11-08: 68 al sumar 'detenciones_whatsapp' (detenciones leídas del chat de WhatsApp de equipos).
-  assertEquals(TABLAS.length, 68);
+  // Nota 2026-11-09: 70 al sumar 'mom_raci' y 'mom_entrenamientos' (entrenamientos del MOM).
+  assertEquals(TABLAS.length, 70);
 });
 
 // ---- traerTodasLasFilas ----

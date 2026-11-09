@@ -122,6 +122,10 @@
   <p><b>Qué cambia.</b> Pestaña nueva <b>FODA</b> (Herramientas). Todos los perfiles activos la ven; solo un administrador crea, edita o borra, y lo hace cumplir la base (no solo la pantalla). No hay un rol «Jefe/Supervisor» en la base: quien deba editar necesita cuenta de administrador.</p>
   <p><b>Antes de desplegar.</b> Aplicar <code>20261108120000_crear_foda.sql</code> en los dos proyectos (ya está aplicada en Centinela) y desplegar de nuevo <code>backup-diario</code> (65 tablas).</p>
 
+    <h3 id="d-x">Entrenamientos del MOM: quién edita y qué hay que aplicar (2026-11-09)</h3>
+  <p><b>Qué cambia.</b> Pestaña nueva <b>Entrenamiento MOM</b> (Herramientas). Todos los perfiles activos la ven; solo un administrador crea, edita o borra, y lo hace cumplir la base (no solo la pantalla). Quien deba editar necesita cuenta de administrador. La matriz RACI base es una propuesta para corregir según el MOM vigente: no se carga sola.</p>
+  <p><b>Antes de desplegar.</b> Aplicar <code>20261109120000_crear_mom_entrenamiento.sql</code> en los dos proyectos y desplegar de nuevo <code>backup-diario</code> (70 tablas).</p>
+
     <h3 id="d-x">Siniestros y plazo de denuncia (2026-10-30)</h3>
   <p><b>Qué cambia.</b> En <b>Vencimientos</b>, arriba, está <b>Siniestros</b> (IT-AD-003): se registra el siniestro y la app cuenta el <b>plazo de 5 días</b> para denunciarlo (días corridos; último día = fecha + 5). Desde 2 días antes, y si ya venció, aparece «Siniestros por denunciar» en el encabezado. Estados: Por informar → Informado (pide la fecha) → En liquidación → Cerrado (pide el resultado).</p>
   <p><b>Documentos.</b> Lista de lo que pide el liquidador según el caso, marcable como listo o «no aplica»; nombre del archivo del informe; vigencia de revisión técnica, permiso y seguro a la fecha; bitácora de mantenimiento de 12 meses en CSV.</p>

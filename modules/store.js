@@ -267,6 +267,9 @@ const TABLA_REAL={
   // Análisis FODA (2026-11-08): ítems y estrategias cruzadas. 'ref' es el id estable que usan las estrategias (ver fodaCodigos en logic.js). Solo un administrador escribe (RLS).
   fodaItems:{tabla:'foda_items',clave:'_id',claveDb:'id',cols:['ref','tipo','texto','puntaje','origen','usuario']},
   fodaEstrategias:{tabla:'foda_estrategias',clave:'_id',claveDb:'id',cols:['ref','refA','refB','cruce','texto','responsable','fechaCompromiso','estado','observaciones','usuario']},
+  // Entrenamientos del MOM (2026-11-09): matriz RACI del proceso (una fila por actividad × rol) y plan de entrenamientos. Solo un administrador escribe (RLS).
+  momRaci:{tabla:'mom_raci',clave:'_id',claveDb:'id',cols:['actividad','actOrden','rol','rolOrden','audienciaRol','letra','usuario']},
+  momEntren:{tabla:'mom_entrenamientos',clave:'_id',claveDb:'id',cols:['tema','audiencia','roles','fechaPlan','fechaReal','instructor','duracionH','asistentesPlan','asistentesReal','estado','observaciones','usuario']},
   neuTras:{tabla:'neumaticos_traslados',clave:'_id',claveDb:'id',cols:['neuId','serie','fecha','donante','posicionDonante','horomDonante','receptor','posicionReceptor','horomReceptor','causal','detalle','autorizadoPor','usuario']},
   neuRec:{tabla:'neumaticos_recauchajes',clave:'_id',claveDb:'id',cols:['neuId','serie','sigla','marca','medida','numRecauchaje','fechaEnvio','guiaDespacho','proveedor','huellaSalida','huellaEntrada','estado','codigoRechazo','fechaRetorno','costo','observaciones','usuario']},
   tareas:{tabla:'tareas_gestion',clave:'_id',claveDb:'id',cols:['clave','origen','sigla','titulo','detalle','responsable','fechaLimite','estado','fechaCierre','referencia','observacion','usuario']},
