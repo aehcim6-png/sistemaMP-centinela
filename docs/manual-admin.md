@@ -251,7 +251,7 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 ### Elementos de desgaste (GETS): qué hay que aplicar (2026-11-10)
 
-**Qué cambia.** Pestaña nueva **Elementos de desgaste** (Activos). Todos los perfiles activos la ven; la base deja registrar a editores y administradores (los mismos que registran PM y OT). El registro cargado llega hasta jun-2024.
+**Qué cambia.** Pestaña nueva **Elementos de desgaste** (Activos). Todos los perfiles activos la ven; la base deja registrar a editores y administradores (los mismos que registran PM y OT). La planilla llega hasta jun-2024; los cambios posteriores se toman de las OT (sin repetir).
 
 **Antes de desplegar.** Aplicar `20261110120000_crear_gets_cambios.sql` en los dos proyectos (ya está aplicada en Centinela, con 174 cambios cargados por SQL; en un proyecto nuevo nace vacía) y desplegar de nuevo `backup-diario` (71 tablas).
 
