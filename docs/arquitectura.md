@@ -7252,6 +7252,18 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/mom.test.js` (11 casos: propuesta base válida, orden y audiencia de la matriz, reglas A y R, estado atrasado, validación, cumplimiento y asistencia, sin datos, vínculo con las Tareas y escalación al rol A).
 
+### 216. Elementos de desgaste (GETS): registro de cambios y proyección del próximo (2026-11-10)
+
+**Por qué:** el taller llevaba en la planilla «Control GETS» los cambios de cuchillas, puntas, entredientes, calzas, cantoneras y rodados. Esos datos no estaban en el programa y las proyecciones de desgaste del sistema salían solo del texto de las OT.
+
+**Qué se hizo:** pestaña nueva **Elementos de desgaste** (grupo Activos, `modules/renders/gets.js`) y tabla `gets_cambios` (migración `20261110120000_crear_gets_cambios.sql`, 71 tablas en el respaldo). Se cargaron 174 cambios de 11 equipos: la hoja «Cambio» de la planilla de Besalco (dic-2021 a jun-2024, 170 filas) y 4 de la hoja «Proyección» de Control GETS 2026. La pestaña muestra, por equipo y pieza, el último cambio, el intervalo típico (mediana de los días entre cambios consecutivos), el próximo cambio estimado y su estado (Al día, Próximo, Vencido, Sin registros recientes, Pocos datos), los últimos cambios y un aviso con los problemas del registro. Quien no es lector registra cambios nuevos con **+ Registrar cambio**. Cálculo en `logic.js`: `getsPiezaDe`, `getsProyeccion`, `getsCalidad`, `getsCambioError`.
+
+**Decisiones:** (1) **la fecha es el eje confiable**: el horómetro de las planillas no coincide con el del sistema (CF-510 el 6-ene-2024 dice 6.440 y el sistema no tiene esa serie; CF-511 el 18-dic-2022 dice 7.238 y el sistema 4.571) y a veces retrocede. Las horas del intervalo solo se calculan entre cambios consecutivos con horómetro fiable; 10 cambios quedaron marcados «horómetro dudoso» (su fecha cuenta, su horómetro no). (2) Varias piezas cambiadas el mismo día cuentan como **un** cambio. (3) Hacen falta al menos 3 cambios para estimar el próximo. (4) Si el último cambio tiene más de 3 veces el intervalo típico (y al menos 60 días), **no se afirma qué cambio toca**: «Sin registros recientes». Como el registro cargado llega hasta jun-2024, casi todo figura así hasta que se registren cambios nuevos. (5) Las siglas antiguas de la planilla se pasaron a las actuales (CF-510 a CF-9510, MN-26 a MN-5926, etc.); `siglaOriginal` guarda la de la planilla. (6) Una fila traía la fecha 06-01-2023 con el horómetro 6.440, que continúa el de dic-2023 (6.170): se corrigió a 06-01-2024 y la fila lo deja anotado. (7) Cuando una descripción nombra varias piezas (p. ej. «cuchillas y cantoneras») se clasifica por la primera de la lista.
+
+**Límites:** 159 de 174 cambios no traen número de parte y 34 no traen cantidad, así que no se puede cruzar con el stock ni las compras. **No se cargó** el registro de MN-92 del 2-ago-2026 (la planilla 2026): MN-92 no es un equipo del sistema y su horómetro 5.630 no coincide con las motoniveladoras actuales (MN-5926: 9.507; MN-6112: 9.228). Tampoco BD-139 (sin fechas de cambio). Entre jun-2024 y may-2026 no hay cambios registrados.
+
+**Pruebas:** `tests/gets.test.js` (8 casos: clasificación de piezas, intervalo y próximo, mismo día, sin registros recientes, pocos datos, horómetro dudoso, calidad y validación).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

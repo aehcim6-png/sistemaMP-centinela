@@ -249,6 +249,12 @@ Supabase simuladas; `tests/migracionAccesosServidor.test.js` vigila que el archi
 
 **Antes de desplegar.** Aplicar `20261109120000_crear_mom_entrenamiento.sql` y `20261109130000_agregar_mom_tareas_a_configuracion.sql` (columna `momTareas` en `configuracion`, con el vínculo entre los tipos de tarea y la matriz) en los dos proyectos, y desplegar de nuevo `backup-diario` (70 tablas).
 
+### Elementos de desgaste (GETS): qué hay que aplicar (2026-11-10)
+
+**Qué cambia.** Pestaña nueva **Elementos de desgaste** (Activos). Todos los perfiles activos la ven; la base deja registrar a editores y administradores (los mismos que registran PM y OT). El registro cargado llega hasta jun-2024.
+
+**Antes de desplegar.** Aplicar `20261110120000_crear_gets_cambios.sql` en los dos proyectos (ya está aplicada en Centinela, con 174 cambios cargados por SQL; en un proyecto nuevo nace vacía) y desplegar de nuevo `backup-diario` (71 tablas).
+
 ### Siniestros y plazo de denuncia (2026-10-30)
 
 **Qué cambia.** En **Vencimientos**, arriba, está la sección **Siniestros** (instructivo corporativo IT-AD-003). Se registra el siniestro (equipo, fecha, tipo, relato, lesionados, tercero, constancia) y la app cuenta el **plazo de 5 días** para denunciarlo: se cuentan días corridos, el último día es la fecha del siniestro + 5. Desde 2 días antes del límite, y si ya venció, aparece un aviso en el encabezado («Siniestros por denunciar»). El estado avanza *Por informar → Informado* (pide la fecha en que se informó a Finanzas) *→ En liquidación → Cerrado* (pide el resultado: indemnizado, rechazado, sin cobertura o desistido).

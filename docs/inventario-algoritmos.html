@@ -1673,6 +1673,18 @@
     <li><b>Código:</b> <code>MOM_PROCESO</code>, <code>MOM_LETRAS</code>, <code>MOM_LETRAS_NOMBRE</code>, <code>MOM_AUDIENCIAS</code>, <code>MOM_ESTADOS</code>, <code>MOM_RACI_BASE</code>, <code>MOM_TAREA_ACTIVIDAD_BASE</code>, <code>momRaciBaseFilas</code>, <code>momRaciDeActividad</code>, <code>tareaRaci</code>, <code>momRaciMatriz</code>, <code>momRaciValidar</code>, <code>momEntrenamientoEstado</code>, <code>momEntrenamientoError</code>, <code>momEntrenamientoResumen</code> (<code>logic.js</code>) y <code>modules/renders/mom.js</code>.</li>
   </ul>
 
+    <h3 id="d-x">L13. Elementos de desgaste (GETS): intervalo típico y próximo cambio</h3>
+  <ul>
+    <li><b>Tipo:</b> estadística descriptiva (mediana de intervalos) con reglas de prudencia sobre qué se puede afirmar.</li>
+    <li><b>Para qué sirve:</b> saber cada cuánto se cambia en la práctica cada elemento de desgaste (cuchillas, puntas, entredientes…) de cada equipo y cuándo toca el próximo, para pedir y programar antes de quedarse sin piezas.</li>
+    <li><b>De dónde viene:</b> 🔵 Criterio propio, a pedido, sobre la planilla «Control GETS» del taller. La mediana como intervalo típico es la medida habitual cuando hay valores atípicos (un cambio fuera de calendario no arrastra el resultado como lo haría un promedio).</li>
+    <li><b>Cómo lo calcula aquí:</b> <code>getsPiezaDe</code> clasifica cada cambio por el texto de su descripción. <code>getsProyeccion</code> agrupa por equipo y pieza (varias filas el mismo día son un cambio), calcula los días entre cambios consecutivos y toma la mediana; con 3 o más cambios estima el próximo como último cambio más ese intervalo y lo clasifica (Al día, Próximo si faltan 7 días o menos, Vencido). Las horas entre cambios solo se calculan cuando ambos horómetros son fiables. Si el último cambio tiene más de 3 veces el intervalo típico (y al menos 60 días), responde «Sin registros recientes» y no estima. <code>getsCalidad</code> cuenta lo que falta (número de parte, cantidad, responsable) y los horómetros dudosos. <code>getsCambioError</code> valida un cambio nuevo.</li>
+    <li><b>Dónde se ve:</b> pestaña «Elementos de desgaste» (Activos): tarjetas, aviso de calidad, proyección con filtros y últimos cambios.</li>
+    <li><b>Ejemplo (prueba automática):</b> cuatro cambios de cuchillas cada 14 días con último el 13-oct; el 20-oct el próximo estimado es el 27-oct (en 7 días, «Próximo») y el 30-oct figura «Vencido».</li>
+    <li><b>Límites:</b> el horómetro de las planillas no coincide con el del sistema, por eso la vida se mide en días, no en horas. El registro cargado llega hasta jun-2024: sin cambios nuevos no hay proyección vigente. No distingue piezas de una misma clase (cuchilla central y lateral cuentan juntas). Registran los editores y administradores; todos los perfiles activos ven.</li>
+    <li><b>Código:</b> <code>GETS_PIEZAS</code>, <code>GETS_ESTADOS</code>, <code>GETS_MIN_CAMBIOS</code>, <code>getsPiezaDe</code>, <code>getsProyeccion</code>, <code>getsCalidad</code>, <code>getsCambioError</code> (<code>logic.js</code>) y <code>modules/renders/gets.js</code>.</li>
+  </ul>
+
   <h2 id="d-148">M. Funciones internas (apéndice)</h2>
   <p>Funciones de apoyo que usan las fichas anteriores; no se muestran solas en ninguna pantalla.</p>
   <table>

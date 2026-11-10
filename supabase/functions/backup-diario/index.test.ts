@@ -31,7 +31,7 @@ Deno.test("TABLAS: incluye las tablas que la auditoría 2026-09-07 encontró fal
   for (const t of criticas) assert(TABLAS.includes(t), `falta ${t} en TABLAS`);
 });
 
-Deno.test("TABLAS: tamaño esperado (63) — cambiar a propósito si se agrega una tabla real nueva", () => {
+Deno.test("TABLAS: tamaño esperado (71) — cambiar a propósito si se agrega una tabla real nueva", () => {
   // Nota 2026-10-02: este assert estaba desactualizado en 50 desde antes de
   // esta sesión (quedaron sin reflejar aquí 'compras_detalle',
   // 'rendimiento_modelos', 'produccion_turno'/'produccion_turno_equipos' —
@@ -47,7 +47,8 @@ Deno.test("TABLAS: tamaño esperado (63) — cambiar a propósito si se agrega u
   // Nota 2026-11-08: 67 al sumar 'flota_presencia' (desde/hasta de cada equipo en la flota).
   // Nota 2026-11-08: 68 al sumar 'detenciones_whatsapp' (detenciones leídas del chat de WhatsApp de equipos).
   // Nota 2026-11-09: 70 al sumar 'mom_raci' y 'mom_entrenamientos' (entrenamientos del MOM).
-  assertEquals(TABLAS.length, 70);
+  // Nota 2026-11-10: 71 al sumar 'gets_cambios' (cambios de elementos de desgaste).
+  assertEquals(TABLAS.length, 71);
 });
 
 // ---- traerTodasLasFilas ----
