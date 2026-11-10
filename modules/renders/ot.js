@@ -677,6 +677,13 @@ export function addOT(){
     <div class="fg"><label>LOTO Aplicado</label><select id="otLOTO"><option>Sí</option><option>No</option><option>N/A</option></select></div>
     <div class="fg"><label>Autorizado por</label><input id="otAutoriza" placeholder="Nombre..."></div>
     </div>
+    <div class="form-row">
+      <div class="fg" style="flex:1"><label title="Anota el aceite (litros) o la grasa (kilos) que se repuso. Suma al consumo semanal y mensual de Lubricantes y descuenta su stock.">Aceite (litros) o grasa (kilos) repuesto</label>
+        <div id="oLubFilas"></div>
+        <button type="button" class="btn btn-o" onclick="oLubAgregarFila()">+ Agregar aceite / grasa</button>
+        <div style="font-size:10px;color:var(--tx3);margin-top:3px">Suma al consumo semanal y mensual de Lubricantes y descuenta su stock. Déjalo vacío si no se repuso nada.</div>
+      </div>
+    </div>
     <br><button class="btn" onclick="saveOT()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 3 h9 l4 4 v10 h-13 z"/><rect x="6.5" y="3" width="6" height="5"/><rect x="6" y="12" width="8" height="5"/></svg> Guardar OT</button> <button class="btn btn-o" onclick="cm()">Cancelar</button> <button type="button" class="btn btn-o" onclick="_iniciarOTPorVoz()">${ICONS.mic} Completar por voz</button> <button type="button" class="btn btn-o" onclick="_activarLeerCorrectivoOT()">${ICONS.camera} Leer informe (foto)</button><input type="file" id="otCorrectivoFoto" accept="image/*" capture="environment" style="display:none" onchange="_leerCorrectivoOTFotoSeleccionada(this)">`);
 };
 
@@ -849,6 +856,30 @@ export function calcDurOT(){
   if(ms<0){$('oDur').value='⚠️ Inválido';return;}
   $('oDur').value=Math.floor(ms/3600000)+'h '+String(Math.floor((ms%3600000)/60000)).padStart(2,'0')+'min';
 };
+// Aceite / grasa repuesto en la OT (2026-11-10): cada línea es un lubricante del sistema + la cantidad (litros o kilos según su unidad). Al guardar la OT se registra como movimiento de stock «Lubricante» con origen «OT …» (ver lubMovDeRegistro en logic.js).
+function _oLubOpcionesHTML(){
+  return(S.g('lub')||[]).filter(function(l){return!lubEsObsoleto(l.nombre);}).map(function(l){return'<option value="'+escapeHtml(l.nombre)+'">'+escapeHtml(l.nombre)+' ('+lubUnidadCorta(l.unidad)+')</option>';}).join('');
+}
+export function oLubAgregarFila(){
+  const c=$('oLubFilas');if(!c)return;
+  const d=document.createElement('div');d.className='oLubFila';d.style.cssText='display:flex;gap:6px;margin-bottom:4px;align-items:center';
+  d.innerHTML='<select class="oLubSel" aria-label="Lubricante" onchange="oLubUnidad(this)" style="flex:1;min-width:0"><option value="">Lubricante...</option>'+_oLubOpcionesHTML()+'</select>'+
+    '<input type="number" class="oLubCant" aria-label="Cantidad" min="0" step="0.1" placeholder="Cantidad" style="width:90px">'+
+    '<span class="oLubUni" style="font-size:11px;color:var(--tx3);min-width:22px"></span>'+
+    '<button type="button" class="btn-s btn-d" onclick="this.parentNode.remove()" title="Quitar" aria-label="Quitar">×</button>';
+  c.appendChild(d);
+}
+export function oLubUnidad(sel){
+  const l=(S.g('lub')||[]).find(function(x){return x.nombre===sel.value;});
+  const u=sel.parentNode.querySelector('.oLubUni');if(u)u.textContent=l?lubUnidadCorta(l.unidad):'';
+}
+// Líneas escritas en el formulario (ignora las que están totalmente vacías).
+function _oLubLeerFilas(sig,fecha){
+  return Array.from(document.querySelectorAll('#oLubFilas .oLubFila')).map(function(f){
+    return{equipo:sig,fecha:fecha,item:f.querySelector('.oLubSel').value,cantidad:parseFloat(f.querySelector('.oLubCant').value)};
+  }).filter(function(r){return r.item||r.cantidad;});
+}
+
 export function saveOT(){
   const sig=$('oEq').value,sint=$('oSint').value.trim();
   if(!sig)return toast('⚠️ Selecciona equipo');
@@ -877,13 +908,17 @@ export function saveOT(){
     }
   }
   const estadoOTNueva=$('oEstOT')?.value||'Cerrada';
+  // Aceite / grasa repuesto: se valida ANTES de guardar la OT, para no dejar la OT sin su consumo.
+  const lubLineas=_oLubLeerFilas(sig,fEnt),lubSistema=S.g('lub')||[];
+  for(const r of lubLineas){const e=lubRegistroError(r,lubSistema);if(e){toast('⚠️ Aceite / grasa: '+e);return;}}
+  const lubTexto=lubLineas.length?lubTextoParaOT(lubLineas,lubSistema):'';
   const plazoOT=$('oPlazo')?.value||'';
   if(plazoOT&&fechaEsAnterior(plazoOT,fEnt)){toast('⚠️ El plazo comprometido no puede ser anterior a la fecha de entrada');return;}
   ot.unshift({sigla:sig,fecha:fEnt,fechaEntrada:fEnt,horaEntrada:hEnt,
     fechaSalida:fSal,horaSalida:hSal,duracion:durStr,
     tipo:$('oTipo').value,criticidad:$('oCrit').value,
     sintoma:sint,sistema:$('oSis').value,tecnico:$('oTec').value,
-    causaRaiz:$('oCausa')?.value||'',tipoCausa:$('oTipoCausa')?.value||'',categoriaMTTR:$('oCategoriaMTTR')?.value||'',solucion:$('oSolucion')?.value||'',
+    causaRaiz:$('oCausa')?.value||'',tipoCausa:$('oTipoCausa')?.value||'',categoriaMTTR:$('oCategoriaMTTR')?.value||'',solucion:[$('oSolucion')?.value||'',lubTexto].filter(Boolean).join(' · '),
     componente:$('oComp')?.value||'',estadoOT:estadoOTNueva,
     horom,estatusEq:$('oEstatusEq').value,
     costo:parseFloat($('oCosto').value)||0,clasificacionCosto:$('oClasifCosto')?.value||'',
@@ -902,7 +937,17 @@ export function saveOT(){
   var fallasMismoComp=ot.filter(function(o2){return o2.sigla===sig&&o2.componente===$('oComp')?.value&&o2.componente;}).length;
   if(fallasMismoComp>=2){toast('⚠️ '+sig+': '+fallasMismoComp+' fallas en '+ ($('oComp')?.value||'componente')+' — revisar predictivo');}
   if(horom>0){const eq=S.g('eq')||[];const e=eq.find(x=>x.sigla===sig);if(e&&horom>e.horomActual){e.horomActual=horom;_recalcEq(e);S.s('eq',eq);renderHeader();}}
-  S.s('ot',ot);cm();refreshAll();toast('✅ OT guardada — '+sig);
+  // Cada línea de aceite / grasa queda como movimiento de stock «Lubricante» (origen «OT <tipo>») y descuenta el stock: así suma al consumo semanal y mensual de la pestaña Lubricantes.
+  if(lubLineas.length){
+    const mov=S.g('mov')||[];
+    lubLineas.forEach(function(r){
+      const l=lubSistema.find(function(x){return x.nombre===r.item;});
+      const res=lubMovDeRegistro(r,l,'OT '+($('oTipo')?.value||'Correctivo'));
+      l.stock=res.stockNuevo;mov.push(res.mov);
+    });
+    S.s('lub',lubSistema);S.s('mov',mov);
+  }
+  S.s('ot',ot);cm();refreshAll();toast('✅ OT guardada — '+sig+(lubLineas.length?' · '+lubLineas.length+' lubricante(s) sumado(s) al consumo':''));
 };
 
 // ---- EVIDENCIA FOTOGRÁFICA DE OT ----
@@ -1128,6 +1173,8 @@ window._prellenarDesdeOCRCorrectivoOT = _prellenarDesdeOCRCorrectivoOT;
 window._iniciarOTPorVoz = _iniciarOTPorVoz;
 window.calcDurOT = calcDurOT;
 window.saveOT = saveOT;
+window.oLubAgregarFila = oLubAgregarFila;
+window.oLubUnidad = oLubUnidad;
 window.gestionarFotosOT = gestionarFotosOT;
 window._otFotosSeleccionadas = _otFotosSeleccionadas;
 window.quitarFotoOT = quitarFotoOT;

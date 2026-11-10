@@ -7266,6 +7266,16 @@ Los PM cargados desde los programas semanales (`origen = 'Programa semanal 2026-
 
 **Pruebas:** `tests/gets.test.js` (16 casos: clasificación de piezas, texto libre de las OT, intervalo y próximo, mismo día, sin registros recientes, pocos datos, horómetro dudoso, calidad, validación y unión sin repetir).
 
+### 217. Aceite y grasa repuestos en OT, sumados al consumo de lubricantes (2026-11-10)
+
+Pedido: poder anotar, en la OT, los litros de aceite o kilos de grasa repuestos (por ejemplo, los 1.000 litros de hidráulico tras un flexible cortado) y que eso sume al consumo semanal y mensual de lubricante.
+
+- **Sin tabla nueva.** Cada línea queda como un movimiento de `movimientos_stock` de tipo «Lubricante» (el mismo que genera el PM por pauta), con el campo `pm` = «OT <tipo de OT>», «Manual» o el tipo de PM. Así la tendencia y proyección de compra de cada lubricante, la rotación y los costos que ya leían esos movimientos incluyen el aceite de las OT sin tocarlos.
+- **Cálculo** en `logic.js` (bloque «Aceite y grasa repuestos en OT»): validación, armado del movimiento, consumo por período, resumen semanal/mensual por origen y consumo mensual efectivo. Prueba: `tests/lubricanteConsumo.test.js`. Ficha L14 del inventario de algoritmos.
+- **OT** (`modules/renders/ot.js`): sección «Aceite (litros) o grasa (kilos) repuesto» con varias líneas; se valida antes de guardar la OT, descuenta el stock del lubricante y deja una línea legible en la solución.
+- **Lubricantes** (`modules/renders/lub.js`): columnas Sem., Mes y Prom.3m calculadas desde los movimientos; el promedio real reemplaza al consumo anotado a mano para estimar cuánto alcanza el stock (si aún no hay movimientos, se usa el manual). Botón «+ Consumo» para rellenos sin OT (origen Manual).
+- **Límite conocido:** el campo `consumoMes` que escribe el PM por pauta (promedio móvil simple) sigue existiendo como respaldo; el consumo semanal y mensual real sale de los movimientos.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

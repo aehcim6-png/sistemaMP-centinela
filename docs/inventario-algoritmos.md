@@ -1363,6 +1363,17 @@ Qué dibuja cada pantalla y cómo se lee. Las fichas de la matriz o el cálculo 
 - **Código:** `GETS_PIEZAS`, `GETS_ESTADOS`, `GETS_MIN_CAMBIOS`, `getsPiezaDe`, `getsTextoEsCambio`, `getsEventosDesdeOT`, `getsUnir`, `getsProyeccion`, `getsCalidad`, `getsCambioError` (`logic.js`) y `modules/renders/gets.js`.
 ---
 
+### L14. Aceite y grasa repuestos en OT: consumo semanal y mensual de lubricantes
+- **Tipo:** acumulación de consumos reales por período (suma y promedio), sin modelo estadístico.
+- **Para qué sirve:** que lo que el taller repone en una OT (por ejemplo, 1.000 litros de aceite hidráulico tras cortarse un flexible) sume al consumo del lubricante y no dependa de que alguien lo anote aparte; saber cuánto se gasta por semana y por mes, de dónde viene (OT, PM o registro manual) y cuánto alcanza el stock.
+- **De dónde viene:** 🔵 Criterio propio, a pedido. Reutiliza el movimiento de stock «Lubricante» que el PM por pauta ya generaba, en vez de crear una tabla nueva.
+- **Cómo lo calcula aquí:** cada línea de la OT (lubricante del sistema + cantidad, en litros o kilos según su unidad) pasa por `lubRegistroError` (equipo, fecha, lubricante y cantidad mayor que cero y menor que 5.000) y `lubMovDeRegistro` arma el movimiento (origen «OT <tipo>») y el stock nuevo, que nunca baja de cero. `lubOrigenDeMov` lo clasifica en OT, PM o Manual. `lubConsumoPeriodo` suma lo consumido entre dos fechas y `lubConsumoResumen` entrega los últimos 7 días y los 7 anteriores, el mes en curso y el anterior, el mes en curso por origen y el promedio de hasta 3 meses completos, dividido por los meses transcurridos desde el primer registro para no diluirlo. `lubConsumoMensualEfectivo` usa ese promedio real para estimar los meses que alcanza el stock y, si aún no hay movimientos, lo anotado a mano. `lubTextoParaOT` deja una línea legible en la solución de la OT y `lubUnidadCorta` / `lubTipoDe` distinguen litros (aceite) de kilos (grasa).
+- **Dónde se ve:** formulario «Nueva OT» (sección Aceite o grasa repuesto), pestaña Lubricantes (columnas Sem., Mes y Prom.3m, botón + Consumo para rellenos sin OT) y la tendencia y proyección de compra de cada lubricante.
+- **Ejemplo (prueba automática):** 20 L por OT el 08-nov, 10 L por PM el 03-nov y 5 L manuales el 02-nov dan 35 L en noviembre (OT 20, PM 10, Manual 5) y 20 L en los últimos 7 días al 10-nov; con 1.000, 300 y 60 L en octubre, septiembre y agosto el promedio de 3 meses es 453,33 L.
+- **Límites:** solo cuenta lo que se anota; si no se registra el aceite en la OT, no suma. El stock del lubricante se descuenta en cada registro, así que sigue siendo tan bueno como el stock que se cargó. Una OT ya guardada no se puede editar para agregarle aceite: se anota con «+ Consumo». No detecta el consumo por equipo ni lo separa por tipo de falla.
+- **Código:** `LUB_MAX_CANTIDAD`, `LUB_ORIGENES`, `lubUnidadCorta`, `lubTipoDe`, `lubOrigenDeMov`, `lubRegistroError`, `lubMovDeRegistro`, `lubTextoParaOT`, `lubConsumoPeriodo`, `lubConsumoResumen`, `lubConsumoMensualEfectivo` (`logic.js`), `modules/renders/ot.js` y `modules/renders/lub.js`.
+---
+
 ## M. Funciones internas (apéndice)
 
 Funciones de apoyo que usan las fichas anteriores; no se muestran solas en ninguna pantalla.

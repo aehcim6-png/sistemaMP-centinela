@@ -6,6 +6,7 @@
 export function renderLub() {
   const lub = S.g('lub') || [];
   const mov = S.g('mov') || [];
+  const hoyISO = new Date().toISOString().slice(0, 10);
   const hh = S.g('hh') || 25000;
   const fBusq = $('fLubBusq')?.value || '';
   const fEq = $('fLubEq')?.value || '';
@@ -31,7 +32,7 @@ export function renderLub() {
   $('s-lub').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3" width="10" height="14" rx="2"/><line x1="5" y1="7" x2="15" y2="7"/><line x1="5" y1="13" x2="15" y2="13"/></svg>️ Lubricantes</div>' +
     '<div class="sec-s">' + lub.length + ' productos · <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg> Todo es editable — cambios se propagan al sistema</div></div>' +
-    '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="importLubCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaLub()">'+ICONS.barChart+' Resumen</button> <button class="btn" style="background:var(--warn,var(--warn));color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button></div>' +
+    '<button class="btn" onclick="addLub()">+ Nuevo</button> <button class="btn btn-o" onclick="addLubConsumo()" title="Anotar aceite (litros) o grasa (kilos) repuesto sin una OT">+ Consumo</button> <button class="btn btn-o" onclick="importLubCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar CSV</button> <button class="btn btn-o" onclick="resumenFlotaLub()">'+ICONS.barChart+' Resumen</button> <button class="btn" style="background:var(--warn,var(--warn));color:#000" onclick="diagVinculos()"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.7" y1="12.7" x2="17.5" y2="17.5"/></svg> Vínculos rotos</button></div>' +
     '<div class="toolbar">' +
     '<input id="fLubBusq" placeholder="Buscar..." aria-label="Buscar" value="' + (fBusq || '') + '" onchange="window._pag.lub=1;renders.lub()" style="max-width:180px">' +
     '<select id="fLubEq" onchange="window._pag.lub=1;renders.lub()"><option value="">Consumo por equipo...</option>' +
@@ -44,7 +45,7 @@ export function renderLub() {
       '</div>' : '') +
     _pagHTML('lub', pg) +
     '<div class="tbl-wrap"><table>' +
-    '<tr><th>N°</th><th>Lubricante <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Und</th><th>Stock <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Consumido</th><th>Cons/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Últ.Fecha</th><th>Proy/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Meses</th><th>Precio <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th></th><th></th></tr>' +
+    '<tr><th>N°</th><th>Lubricante <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Und</th><th>Stock <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Consumido</th><th>Cons/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th title="Consumo de los últimos 7 días (OT, PM y registros manuales)">Sem.</th><th title="Consumo del mes en curso">Mes</th><th title="Promedio real de los últimos 3 meses completos: es el que se usa para estimar cuánto alcanza el stock">Prom.3m</th><th>Últ.Fecha</th><th>Proy/Mes <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Meses</th><th>Precio <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th></th><th></th></tr>' +
     pg.items.map(function (l, fi) {
       var idx = lub.indexOf(l);
       var rowNum = (pg.page - 1) * _PAG_SIZE + fi + 1;
@@ -58,7 +59,11 @@ export function renderLub() {
       // el Dashboard, justo porque ese proxy marcaba "OK" cosas que con un
       // lead time real de 34 días (más de 1 mes) ya iban a quebrar antes de
       // que llegara el pedido. Ahora usa stockEstado igual que el resto.
-      var se = stockEstado(l.stock || 0, cm || proy, l.leadTime);
+      // El consumo mensual para estimar cuánto alcanza el stock sale de los movimientos reales (OT + PM + manuales); si aún no hay, se usa lo anotado a mano.
+      var res = lubConsumoResumen(mov, l.nombre, hoyISO);
+      var se = stockEstado(l.stock || 0, lubConsumoMensualEfectivo(res, cm, proy), l.leadTime);
+      var uc = lubUnidadCorta(l.unidad);
+      var tipOrigen = 'OT ' + res.porOrigenMes.OT + ' · PM ' + res.porOrigenMes.PM + ' · Manual ' + res.porOrigenMes.Manual + ' ' + uc;
       var meses = se.meses;
       var estCol = se.nivel === 'COMPRAR' ? 'var(--danger)' : se.nivel === 'BAJO' ? 'var(--w)' : 'var(--ok)';
       var is = CELL_INPUT_STYLE + ';font-size:11px;padding:2px';
@@ -75,6 +80,9 @@ export function renderLub() {
         '<td><input type="number" value="' + (l.stock || 0) + '" onchange="edI(\'lub\',' + idx + ',\'stock\',parseFloat(this.value)||0)" style="width:55px;' + is + ';color:var(--ac);font-weight:600"></td>' +
         '<td style="text-align:center;font-size:11px;color:var(--tx3)">' + acum + '</td>' +
         '<td><input type="number" value="' + cm + '" onchange="edI(\'lub\',' + idx + ',\'consumoMes\',parseFloat(this.value)||0)" style="width:50px;' + is + '"></td>' +
+        '<td style="text-align:center;font-size:11px" title="Semana anterior: ' + res.semanaAnt + ' ' + uc + '">' + (res.semana || '—') + '</td>' +
+        '<td style="text-align:center;font-size:11px;font-weight:600" title="' + escapeHtml(tipOrigen) + ' · Mes anterior: ' + res.mesAnt + ' ' + uc + '">' + (res.mes || '—') + '</td>' +
+        '<td style="text-align:center;font-size:11px;color:var(--ac)" title="' + (res.mesesPromedio ? 'Promedio de ' + res.mesesPromedio + ' mes(es) completo(s) con movimientos' : 'Aún sin meses completos con movimientos') + '">' + (res.prom3m ? Math.round(res.prom3m * 10) / 10 : '—') + '</td>' +
         '<td style="font-size:10px;color:var(--tx3)">' + last + '</td>' +
         '<td><input type="number" value="' + proy + '" onchange="edI(\'lub\',' + idx + ',\'proyMes\',parseFloat(this.value)||0)" style="width:50px;' + is + ';color:var(--w);font-weight:600" title="Proyección mensual manual"></td>' +
         '<td style="text-align:center;font-weight:600;color:' + estCol + '" title="' + escapeHtml(se.motivo) + '">' + (meses == null ? '—' : meses.toFixed(1)) + '</td>' +
@@ -99,8 +107,37 @@ export function saveLub() {
   S.s('lub', lub); cm(); refreshAll(); toast('✅ Lubricante agregado');
 }
 
+export function addLubConsumo() {
+  const eq = (S.g('eq') || []).map(e => e.sigla).sort();
+  const lub = (S.g('lub') || []).filter(l => !lubEsObsoleto(l.nombre));
+  const hoy = new Date().toISOString().slice(0, 10);
+  sm('<h3>Anotar aceite o grasa repuesto</h3>' +
+    '<p style="font-size:12px;color:var(--tx2);margin-bottom:8px">Para rellenos que no tienen OT. Suma al consumo semanal y mensual y descuenta el stock. Si hay OT, anótalo en la OT.</p>' +
+    '<div class="form-row"><div class="fg"><label>Equipo *</label><select id="lcEq"><option value="">Seleccionar...</option>' + eq.map(e => '<option>' + escapeHtml(e) + '</option>').join('') + '</select></div>' +
+    '<div class="fg"><label>Fecha *</label><input type="date" id="lcFec" value="' + hoy + '"></div></div>' +
+    '<div class="form-row"><div class="fg" style="flex:2"><label>Lubricante *</label><select id="lcItem" onchange="var l=(S.g(\'lub\')||[]).find(function(x){return x.nombre===this.value}.bind(this));$(\'lcUni\').textContent=l?lubUnidadCorta(l.unidad):\'\'"><option value="">Seleccionar...</option>' +
+    lub.map(l => '<option value="' + escapeHtml(l.nombre) + '">' + escapeHtml(l.nombre) + ' (' + lubUnidadCorta(l.unidad) + ')</option>').join('') + '</select></div>' +
+    '<div class="fg"><label>Cantidad * <span id="lcUni" style="color:var(--tx3)"></span></label><input type="number" id="lcCant" min="0" step="0.1"></div></div>' +
+    '<button class="btn" onclick="saveLubConsumo()">Guardar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+}
+export function saveLubConsumo() {
+  const lub = S.g('lub') || [];
+  const r = { equipo: $('lcEq').value, fecha: $('lcFec').value, item: $('lcItem').value, cantidad: parseFloat($('lcCant').value) };
+  const err = lubRegistroError(r, lub);
+  if (err) { toast('⚠️ ' + err); return; }
+  const l = lub.find(x => x.nombre === r.item);
+  const res = lubMovDeRegistro(r, l, 'Manual');
+  l.stock = res.stockNuevo;
+  const mov = S.g('mov') || [];
+  mov.push(res.mov);
+  S.s('lub', lub); S.s('mov', mov); cm(); refreshAll();
+  toast('✅ ' + res.mov.cant + ' ' + lubUnidadCorta(l.unidad) + ' de ' + l.nombre + ' sumado(s) al consumo de ' + r.equipo);
+}
+
 // Puente window/renders — ver nota en mov.js (mismo grupo de migración).
 window.renderLub = renderLub;
 window.addLub = addLub;
 window.saveLub = saveLub;
+window.addLubConsumo = addLubConsumo;
+window.saveLubConsumo = saveLubConsumo;
 renders.lub = renderLub;
