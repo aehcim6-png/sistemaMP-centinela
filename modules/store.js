@@ -483,6 +483,107 @@ async function _fetchPaginado(urlBase,intentos){
   }
 }
 
+// ── Carga incremental (2026-11-11) ──
+// Al entrar, la app bajaba TODAS las tablas (~460 peticiones, ~18 MB) aunque casi nada hubiera cambiado desde la visita anterior; con 100 personas entrando a la
+// vez la base se saturaba. Ahora, para las tablas de más de _INC_MIN_FILAS filas, el navegador guarda una copia (IndexedDB) y en la visita siguiente pide solo
+// lo modificado desde entonces (updated_at > lo último visto, con 30 s de margen para transacciones que cierran tarde) y lo mezcla con la copia. Salvaguardas — ante cualquier duda se cae a la
+// carga completa de siempre, nunca a datos a medias:
+//  · la copia es de la misma persona (sub del token), de la misma versión de columnas y tiene menos de _INC_MAX_EDAD_MS (el resto de borrados ajenos se corrige
+//    con la recarga completa periódica);
+//  · tras mezclar, el total de filas tiene que coincidir con el conteo exacto del servidor (detecta borrados y filas perdidas); si no, se recarga completo;
+//  · si la tabla no tiene updated_at (migración 20261111120000 sin aplicar) o el servidor está saturado, no se usa y listo;
+//  · al cerrar sesión la copia se borra.
+const _INC_MIN_FILAS=500;
+const _INC_MAX_EDAD_MS=12*3600*1000;
+const _INC_MARGEN_MS=30*1000;
+const _INC_VERSION=1;
+// Solo las tablas grandes (las que tienen índice y updated_at por la migración 20261111120000): las chicas se bajan enteras en una petición y no vale la pena.
+const _INC_TABLAS=new Set(['historial_horometros','reportabilidad_diaria','compras_detalle','ordenes_compra_historico','correctivos_historico','neumaticos_mediciones','movimientos_stock','correctivos','registros_pm','pautas','componentes_mayores']);
+let _incSinSoporteHasta=0;
+let _cacheTablas=null; // implementación de almacenamiento (IndexedDB por defecto; los tests inyectan una en memoria)
+function _cacheTablasImpl(){
+  if(_cacheTablas)return _cacheTablas;
+  if(typeof indexedDB==='undefined')return null;
+  const abrir=function(){return new Promise(function(res,rej){const r=indexedDB.open('smpCacheTablas',1);r.onupgradeneeded=function(){r.result.createObjectStore('tablas');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});};
+  _cacheTablas={
+    get:function(k){return abrir().then(function(db){return new Promise(function(res,rej){const q=db.transaction('tablas','readonly').objectStore('tablas').get(k);q.onsuccess=function(){res(q.result||null);};q.onerror=function(){rej(q.error);};});});},
+    set:function(k,v){return abrir().then(function(db){return new Promise(function(res,rej){const tx=db.transaction('tablas','readwrite');tx.objectStore('tablas').put(v,k);tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});});},
+    clear:function(){return new Promise(function(res){try{const r=indexedDB.deleteDatabase('smpCacheTablas');r.onsuccess=r.onerror=r.onblocked=function(){res();};}catch(e){res();}});}
+  };
+  return _cacheTablas;
+}
+function _cacheTablasUsar(impl){_cacheTablas=impl;_incSinSoporteHasta=0;}
+async function _cacheTablasLimpiar(){try{const c=_cacheTablasImpl();if(c)await c.clear();}catch(e){}}
+function _incUid(){
+  try{const t=localStorage.getItem('smp_access_token')||'';const b=t.split('.')[1];if(!b)return '';return String(JSON.parse(atob(b.replace(/-/g,'+').replace(/_/g,'/'))).sub||'');}catch(e){return '';}
+}
+function _incColsSel(cfg){return (cfg.clave==='_id'?['id']:[]).concat(cfg.cols).join(',');}
+function _incVersionCols(cfg){return _INC_VERSION+':'+_incColsSel(cfg);}
+function _incMaxUpd(filas,previo){let m=previo||'';for(const f of filas){const u=f&&f.updated_at;if(u&&u>m)m=u;}return m;}
+// Mezcla lo modificado con la copia: las filas con la misma clave reemplazan a las guardadas (conservan su lugar) y las nuevas van al final.
+function _incMezclar(copia,delta,claveDb){
+  const pos=new Map();
+  const out=copia.slice();
+  out.forEach(function(f,i){pos.set(f[claveDb],i);});
+  for(const f of delta){
+    const k=f[claveDb];
+    if(pos.has(k))out[pos.get(k)]=f;
+    else{pos.set(k,out.length);out.push(f);}
+  }
+  return out;
+}
+function _incAObjetos(cfg,filas){
+  return filas.map(function(f){
+    const obj={};
+    cfg.cols.forEach(function(col){obj[col]=f[col];});
+    if(cfg.clave==='_id')obj._id=f.id;else obj[cfg.clave]=f[cfg.claveDb];
+    return obj;
+  });
+}
+// Devuelve las filas de la categoría k (ya como objetos de la app) o null si hay que usar la carga completa de siempre.
+async function _refetchTablaIncremental(k){
+  if(Date.now()<_incSinSoporteHasta)return null;
+  const cfg=TABLA_REAL[k];
+  const store=_cacheTablasImpl();
+  if(!cfg||!store||!_INC_TABLAS.has(cfg.tabla)||!_sbOk())return null;
+  const uid=_incUid();
+  if(!uid)return null;
+  const c=_sbCfg();
+  const sel=_incColsSel(cfg)+',updated_at';
+  const orden=`order=created_at.asc,${cfg.claveDb}.asc`;
+  let copia=null;
+  try{copia=await store.get(k);}catch(e){copia=null;}
+  const vigente=copia&&copia.uid===uid&&copia.v===_incVersionCols(cfg)&&Array.isArray(copia.rows)&&copia.rows.length>=_INC_MIN_FILAS&&copia.maxUpd&&(Date.now()-copia.fullAt)<_INC_MAX_EDAD_MS;
+  if(!vigente){
+    // Sin copia válida: carga completa (con updated_at) y se guarda la copia. Si la tabla es chica no vale la pena: la vía de siempre.
+    const filas=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${sel}&${orden}`);
+    if(!filas){_incSinSoporteHasta=Date.now()+10*60*1000;return null;}   // sin updated_at (400) o base saturada: no se insiste por un rato
+    if(filas.length>=_INC_MIN_FILAS&&filas.every(function(f){return f&&f.updated_at;})){
+      try{await store.set(k,{uid:uid,v:_incVersionCols(cfg),rows:filas,maxUpd:_incMaxUpd(filas,''),fullAt:Date.now()});}catch(e){}
+    }
+    return _incAObjetos(cfg,filas);
+  }
+  // Copia vigente: solo lo modificado desde la última visita (con margen) + chequeo del total.
+  const desde=new Date(Date.parse(copia.maxUpd)-_INC_MARGEN_MS).toISOString();
+  const delta=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${sel}&updated_at=gt.${encodeURIComponent(desde)}&order=updated_at.asc,${cfg.claveDb}.asc`);
+  if(!delta)return null;
+  const mezcla=_incMezclar(copia.rows,delta,cfg.claveDb);
+  const rc=await _pedirPagina(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}&offset=0&limit=1`,Object.assign({},_sbHeaders(),{'Prefer':'count=exact'}));
+  const total=rc&&rc.ok?parseInt(String(rc.cr||'').split('/')[1],10):NaN;
+  if(!total||isNaN(total)||total!==mezcla.length){
+    // el total no cuadra (borrados, filas que no llegaron): se descarta la copia y se baja completo
+    try{await store.set(k,null);}catch(e){}
+    return null;
+  }
+  try{await store.set(k,{uid:uid,v:copia.v,rows:mezcla,maxUpd:_incMaxUpd(delta,copia.maxUpd),fullAt:copia.fullAt});}catch(e){}
+  return _incAObjetos(cfg,mezcla);
+}
+// Carga inicial de una categoría: incremental si se puede; si no, la carga completa de siempre.
+async function _cargarTablaInicial(k){
+  try{const inc=await _refetchTablaIncremental(k);if(inc)return inc;}catch(e){}
+  return _refetchTablaReal(k);
+}
+
 // Trae el estado actual y completo de UNA categoría de TABLA_REAL desde Supabase.
 // Reusado por la carga inicial (_sbLoadHeavy) y por el chequeo de conflicto de
 // _syncTablaGenerica (ver más abajo) — mismo shape de fila en ambos casos.
@@ -579,7 +680,7 @@ window._sbLoadHeavy=async function(){
     for(const k in TABLA_REAL){
       tareas.push((async function(kk){
         try{
-          const filas=await _refetchTablaReal(kk);
+          const filas=await _cargarTablaInicial(kk);
           if(filas){_sbCache[kk]=filas;_auditSembrar(kk);}else _categoriasSinRefrescar.push(kk);
         }catch(e){_categoriasSinRefrescar.push(kk);}
       })(k));
@@ -1271,6 +1372,7 @@ async function _resetearDatosEmpresa(){
 }
 
 if(typeof window!=='undefined'){
+  window._cacheTablasLimpiar=_cacheTablasLimpiar;
   window._moverAPapelera=_moverAPapelera;
   window._resetearDatosEmpresa=_resetearDatosEmpresa;
   window._refetchTablaReal=_refetchTablaReal;
@@ -1282,7 +1384,7 @@ if(typeof window!=='undefined'){
 if(typeof module!=='undefined'&&module.exports){
   module.exports={S,TABLA_REAL,TABLA_SINGLETON,_uuidV4,_moverAPapelera,_purgarPapeleraVieja,_sbCache,
     _recorteParaLocal,_CATEGORIAS_CRECIENTES,_TOPE_FILAS_LOCAL,_recalcEq,_horomUltimoPM,_ritmoRealEq,
-    _resetearDatosEmpresa,_refetchTablaReal,_syncChain,_fetchPaginado,_pedirPagina,_MAX_PETICIONES_CARGA,
+    _resetearDatosEmpresa,_refetchTablaReal,_syncChain,_fetchPaginado,_pedirPagina,_MAX_PETICIONES_CARGA,_refetchTablaIncremental,_cargarTablaInicial,_cacheTablasUsar,_cacheTablasLimpiar,_incMezclar,_INC_MIN_FILAS,
     _avisarErrorGuardado,_erroresGuardadoDesde,_erroresGuardadoRecientes,_fetchSb,_tokenPorVencer};
 }
 
