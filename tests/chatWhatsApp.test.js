@@ -249,3 +249,81 @@ describe('chatWhatsAppAnalizar · horómetros', () => {
     expect(A.resumen.horomYa).toBe(1);
   });
 });
+
+// ── Mejoras 2026-11-11: avisos libres de falla y cambios de componente ──
+const SIGLAS2 = [...SIGLAS, 'CF-10162', 'MN-5926'];
+describe('aviso libre de falla sin plantilla', () => {
+  const chat = [
+    '05-11-26 22:23 - Eugenio Salinas: CE-88 fuera de servicio por suspensión pos 1 y golpeteo en transmisión',
+    '05-11-26 22:24 - Eugenio Salinas: Equipo en traslado a taller',
+    '06-11-26 00:35 - Carlos: Equipo: CE-88',
+    'H:17646.2',
+    'Motivo: se normalizan niveles de suspensiones delanteras',
+    'Estatus: Operativo',
+    'Lugar: Taller Mantenimiento',
+  ].join('\n');
+  const SIG = [...SIGLAS, 'CN-9502'];
+  it('lo lee como falla y la empareja con el «operativo» de la plantilla', () => {
+    const r = chatWhatsAppReportes(chatWhatsAppMensajes(chat), SIG);
+    const fs = r.reportes.find((x) => x.estatus === 'fs');
+    expect(fs).toMatchObject({ sigla: 'CN-9502', libre: true });
+    expect(fs.motivo).toContain('suspensión pos 1 y golpeteo en transmisión');
+    const a = chatWhatsAppAnalizar(chat, { siglas: SIG });
+    expect(a.paradas).toHaveLength(1);
+    expect(a.paradas[0]).toMatchObject({ sigla: 'CN-9502', estado: 'nueva' });
+    expect(a.paradas[0].entrada).toEqual({ f: '2026-11-05', h: '22:23' });
+    expect(a.paradas[0].salida).toEqual({ f: '2026-11-06', h: '00:35' });
+    expect(a.paradas[0].duracion).toBe('2h 12min');
+  });
+  it('no cuenta preguntas, peticiones ni mensajes con dos equipos', () => {
+    const t = (txt) => chatWhatsAppReportes(chatWhatsAppMensajes('05-11-26 10:00 - Alguien: ' + txt), SIG).reportes.filter((x) => x.estatus === 'fs').length;
+    expect(t('Cf-510 F/ S y sin observaciones?')).toBe(0);
+    expect(t('favor dejar el CF-510 fuera de servicio')).toBe(0);
+    expect(t('CF-510 fuera de servicio y CF-769 también')).toBe(0);
+    expect(t('el equipo quedó fuera de servicio')).toBe(0);
+    expect(t('CF-510 F/S por pasadores agripados')).toBe(1);
+  });
+});
+
+describe('cambios de componente propuestos para el Historial', () => {
+  const op = (hora, equipo, motivo, h = 'xxxx') => `10-11-26 ${hora} - Carlos: Equipo: ${equipo}\nEstatus: operativo\nMotivo: ${motivo}\nHorómetro: ${h}\nLugar: taller`;
+  const chat = [
+    op('10:00', 'CF-162', 'CAMBIO DE BALDE'),
+    op('10:10', 'CN-9507', 'cambio de asiento', '20772'),
+    op('10:20', 'MN-5926', 'cambio de cuchillas', '9565'),
+    op('10:30', 'CF-769', 'CAMBIO FLEXIBLE HIDRÁULICO CILINDRO PANTOGRAFO Y CAMBIO ACIETE HIDRÁULICO', '16225'),
+    op('10:40', 'CF-510', 'cambio flexible de alta preseion cilindro de levante relleno de 1000 litros de aceite hidráulico', '15991'),
+    op('10:50', 'CF-510', 'instalación de flexibles hidráulicos'),
+    op('11:00', 'CF-510', 'engrase pasadores de balde y reposición de calzas de balde'),
+    op('11:10', 'CF-769', 'Cambio Canillera Balde, cambio de entredientes a balde'),
+    op('11:20', 'CF-510', 'Reparación tope pasador de balde'),
+    op('11:30', 'CF-510', 'instalacion de pasador de balde derecho'),
+  ].join('\n');
+  const SIG = [...SIGLAS2, 'CN-9507'];
+  it('propone solo los cambios claros, con el nombre del Historial', () => {
+    const a = chatWhatsAppAnalizar(chat, { siglas: SIG });
+    expect(a.cambios.map((c) => [c.sigla, c.comp, c.horom])).toEqual([
+      ['CF-10162', 'Balde', null],
+      ['CN-9507', 'Asiento', 20772],
+      ['MN-5926', 'GET / Cuchillas', 9565],
+      ['CF-8769', 'Flexible hidráulico del implemento', 16225],
+      ['CF-9510', 'Flexible hidráulico del implemento', 15991],
+      ['CF-9510', 'Pasador de balde', null],
+    ]);
+    expect(a.cambios.every((c) => c.estado === 'nueva' && c.marcado)).toBe(true);
+    expect(a.resumen.cambiosNuevos).toBe(6);
+  });
+  it('un cambio que ya está en el Historial (±3 días, también como Balde/Implemento) queda duplicado y sin marcar', () => {
+    const a = chatWhatsAppAnalizar(chat, { siglas: SIG, comp: [{ sigla: 'CF-10162', comp: 'Balde/Implemento', fechaInst: '2026-11-08' }, { sigla: 'CN-9507', comp: 'Asiento', fechaInst: '2026-10-01' }] });
+    const bal = a.cambios.find((c) => c.comp === 'Balde');
+    expect(bal).toMatchObject({ estado: 'duplicada', marcado: false });
+    expect(a.cambios.find((c) => c.comp === 'Asiento')).toMatchObject({ estado: 'nueva', marcado: true });
+    expect(a.resumen).toMatchObject({ cambiosNuevos: 5, cambiosDuplicados: 1 });
+  });
+  it('un «fuera de servicio» no es un cambio ni un aviso repetido el mismo día cuenta dos veces', () => {
+    const dos = op('10:00', 'CF-162', 'CAMBIO DE BALDE') + '\n' + op('15:00', 'CF-162', 'cambio de balde');
+    expect(chatWhatsAppAnalizar(dos, { siglas: SIG }).cambios).toHaveLength(1);
+    const fs = '10-11-26 10:00 - Carlos: Equipo: CF-162\nEstatus: fuera de servicio\nMotivo: cambio de balde\nHorómetro: 3300';
+    expect(chatWhatsAppAnalizar(fs, { siglas: SIG }).cambios).toHaveLength(0);
+  });
+});

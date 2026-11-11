@@ -4922,8 +4922,38 @@ function chatWhatsAppReportes(mensajes,siglas){
       if(res.length===1)rep.push({sigla:res[0],nombre:toks[0],estatusTxt:'operativo',estatus:'operativo',motivo:'(aviso en el chat) '+t.replace(/\s+/g,' ').trim(),horom:null,lugar:'',operador:'',f:m.f,h:m.h,min:m.min,hint:'',libre:true,autor:m.autor});
       else if(!toks.length&&t.length<=40&&/^\W*operativ[oa]\W*$/i.test(t))libresSinEquipo++;
     }
+    // 5) aviso libre de falla sin plantilla («CE-88 fuera de servicio por suspensión pos 1 y golpeteo en transmisión», «CF-511 F/S por pantógrafo bloqueado»).
+    // Solo si nombra UN equipo y no es una pregunta ni una petición; así no se pierde la parada cuando el «operativo» sí viene con plantilla.
+    if(t.length<=200&&/\bfuera de servicio\b|\bf\s?\/\s?s\b/i.test(t)&&!/\?|\b(dejar|dejen|favor|solicit\w*|coordin\w*|factib\w*|posibilidad|ver si|cuando|cu[aá]ndo)\b/i.test(t)){
+      var toks5=t.match(rxTok)||[],res5=[];
+      toks5.forEach(function(k){var s5=chatWhatsAppSigla(k,siglas);if(s5&&res5.indexOf(s5)<0)res5.push(s5);});
+      if(res5.length===1&&toks5.length===1){
+        var plano=t.replace(/\s+/g,' ').trim(),mo=plano.match(/\b(?:fuera de servicio|f\s?\/\s?s)\b[\s,:\-]*(?:por|debido a)?\s*(.*)$/i),motivo=(mo&&mo[1]?mo[1]:plano).trim()||plano;
+        rep.push({sigla:res5[0],nombre:toks5[0],estatusTxt:'fs',estatus:'fs',motivo:'(aviso en el chat) '+motivo,horom:null,lugar:'',operador:'',f:m.f,h:m.h,min:m.min,hint:'',libre:true,autor:m.autor});
+      }
+    }
   });
   return{reportes:rep,lecturas:lecturas,sinResolver:sinResolver,libresSinEquipo:libresSinEquipo};
+}
+// Componente cambiado según el motivo de un «operativo» («CAMBIO DE BALDE», «Cambio flexible hidráulico cilindro pantógrafo», «cambio de cuchillas»…) con el nombre que usa el Historial de componentes; null si no dice un cambio claro.
+// Es una lista corta a propósito: solo piezas que el taller cambia y que el historial ya sigue; lo demás no se propone.
+function _chatCambioComponente(motivo){
+  var t=_chatNormTxt(motivo).replace(/[^a-z0-9 \/]/g,' ').replace(/\s+/g,' ');
+  var v='(?:cambio|cambia|cambiaron|reemplazo|reposicion|instalacion|se instala|montaje)';
+  var f=function(re){return new RegExp(v+'(?: de(?:l)?)? (?:un |una |el |la |los |las )?'+re).test(t);};
+  if(f('balde\\b'))return'Balde';
+  if(/\b(?:cambio|reemplazo|instalacion|se instala|montaje)\b[^;]{0,40}\bflexibles?\b[^;]{0,50}\b(?:volteo|levante|inclinacion|pantografo|bucket)\b/.test(t))return'Flexible hidráulico del implemento';
+  if(f('pasador(?:es)? (?:de )?(?:balde|volteo|biela)'))return'Pasador de balde';
+  if(f('(?:biela|palanca)\\b'))return'Biela/Pantógrafo';
+  if(f('cuchillas?\\b'))return'GET / Cuchillas';
+  if(f('asiento'))return'Asiento';
+  if(f('alternador'))return'Alternador';
+  if(f('turbo\\b'))return'Turbo';
+  if(f('bateria'))return'Batería';
+  if(f('(?:motor de partida|motor partida|arranque)'))return'Motor de Partida';
+  if(f('diferencial'))return'Diferencial';
+  if(f('cilindro (?:de )?direccion'))return'Cilindro de Dirección';
+  return null;
 }
 // Minuto exacto del evento: la hora escrita en el aviso («03:00», «desde las 01:00») si es de las 12 h anteriores al mensaje; si no, la hora del mensaje.
 function _chatMinEvento(r){
@@ -4934,7 +4964,7 @@ function _chatMinEvento(r){
   }
   return r.min;
 }
-// ctx: {siglas:[...], desde:'aaaa-mm-dd', hist:[...], ot:[...], reg:[...]}. Devuelve la propuesta completa (nada se guarda).
+// ctx: {siglas:[...], desde:'aaaa-mm-dd', hist:[...], ot:[...], reg:[...], comp:[...historial de componentes]}. Devuelve la propuesta completa (nada se guarda).
 function chatWhatsAppAnalizar(texto,ctx){
   var c=ctx||{},siglas=c.siglas||[],hist=c.hist||[],ots=c.ot||[],regs=c.reg||[];
   var msgs=chatWhatsAppMensajes(texto);
@@ -5053,15 +5083,39 @@ function chatWhatsAppAnalizar(texto,ctx){
     if(ya){p.estado='duplicada';p.motivoEstado='Ya hay un '+p.tipoPM+' de este equipo ese día.';}
     p.marcado=p.estado==='nueva';
   });
+  // Cambios de componente: un aviso «operativo» cuyo motivo dice qué pieza se cambió (balde, asiento, cuchillas, flexible del implemento…). Se proponen para el Historial de componentes.
+  var cambios=[],vistoCambio={};
+  R.reportes.forEach(function(r){
+    if(!r.sigla||r.estatus!=='operativo')return;
+    var comp=_chatCambioComponente(r.motivo);
+    if(!comp)return;
+    var fh=_chatFechaHora(_chatMinEvento(r)),k=r.sigla+'|'+comp+'|'+fh.f;
+    if(vistoCambio[k])return;
+    vistoCambio[k]=true;
+    cambios.push({sigla:r.sigla,comp:comp,fecha:fh.f,hora:fh.h,horom:r.horom,motivo:r.motivo});
+  });
+  var compHist=c.comp||[];
+  cambios.forEach(function(x){
+    x.estado='nueva';
+    var d=_chatMin(x.fecha,'00:00');
+    var ya=compHist.some(function(h){
+      if(!h||h.sigla!==x.sigla||!h.fechaInst)return false;
+      var mismo=h.comp===x.comp||(x.comp==='Balde'&&h.comp==='Balde/Implemento');
+      return mismo&&Math.abs(_chatMin(h.fechaInst,'00:00')-d)<=3*1440;
+    });
+    if(ya){x.estado='duplicada';x.motivoEstado='Ya hay un cambio de este componente de este equipo en esos días.';}
+    x.marcado=x.estado==='nueva';
+  });
   var cuenta=function(L,e){return L.filter(function(x){return x.estado===e;}).length;};
   return{
+    cambios:cambios,
     mensajes:msgs.length,reportes:R.reportes.length,desde:msgs.length?msgs[0].f:'',hasta:msgs.length?msgs[msgs.length-1].f:'',archivoDesde:primero,archivoHasta:ultimo,
     horometros:horom,paradas:paradas,pm:pms,backlog:backlog,
     sinResolver:Object.keys(R.sinResolver).sort().map(function(n){return{nombre:n,veces:R.sinResolver[n]};}),
     libresSinEquipo:R.libresSinEquipo,informativos:informativos,
     resumen:{horomOk:cuenta(horom,'ok'),horomYa:cuenta(horom,'ya'),horomRevisar:horom.length-cuenta(horom,'ok')-cuenta(horom,'ya'),
       paradasNuevas:cuenta(paradas,'nueva'),paradasCierran:cuenta(paradas,'cierra'),paradasDuplicadas:cuenta(paradas,'duplicada'),paradasAbiertas:cuenta(paradas,'abierta'),paradasDudosas:cuenta(paradas,'dudosa'),
-      pmNuevos:cuenta(pms,'nueva'),pmDuplicados:cuenta(pms,'duplicada'),backlog:backlog.length}
+      pmNuevos:cuenta(pms,'nueva'),pmDuplicados:cuenta(pms,'duplicada'),backlog:backlog.length,cambiosNuevos:cuenta(cambios,'nueva'),cambiosDuplicados:cuenta(cambios,'duplicada')}
   };
 }
 

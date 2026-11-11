@@ -70,7 +70,7 @@ export async function _chatArchivoElegido(input) {
 
 function _chatAnalizar(desde) {
   var siglas = (S.g('eq') || []).map(function (e) { return e.sigla; });
-  _chatAn = chatWhatsAppAnalizar(_chatTxt, { siglas: siglas, desde: desde || '', hist: S.g('hist') || [], ot: S.g('ot') || [], reg: S.g('reg') || [] });
+  _chatAn = chatWhatsAppAnalizar(_chatTxt, { siglas: siglas, desde: desde || '', hist: S.g('hist') || [], ot: S.g('ot') || [], reg: S.g('reg') || [], comp: S.g('compHist') || [] });
   if (!_chatAn.mensajes) {
     var est = $('chatEstado');
     if (est) est.textContent = '⚠️ No encontré mensajes en ese archivo (¿es el .txt exportado de WhatsApp?) o no hay avisos desde esa fecha.';
@@ -93,7 +93,7 @@ function _chatBadge(e) {
 }
 function _chatContar() {
   var a = _chatAn || {};
-  return [].concat(a.paradas || [], a.horometros || [], a.pm || []).filter(function (x) { return x.marcado; }).length;
+  return [].concat(a.paradas || [], a.horometros || [], a.pm || [], a.cambios || []).filter(function (x) { return x.marcado; }).length;
 }
 function _chatCasilla(sec, i, x) {
   return '<input type="checkbox"' + (x.marcado ? ' checked' : '') + ' onchange="_chatMarcar(\'' + sec + '\',' + i + ',this.checked)">';
@@ -128,6 +128,12 @@ function _chatPintar() {
   }).join('');
   h += _chatSeccion('Mantenciones programadas (PM)', a.pm.length,
     a.pm.length ? '<div class="tbl-wrap"><table><tr><th></th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Horómetro</th><th>Motivo</th><th>Estado</th></tr>' + pm + '</table></div><p style="font-size:10px;color:var(--tx3);margin:4px 0">Se registra solo el PM (fecha, horómetro y motivo). No descuenta stock ni reprograma el próximo PM; eso se hace desde «Registrar PM».</p>' : '<p style="font-size:12px;color:var(--tx3)">No hay PM en ese período.</p>', false);
+  // Cambios de componente (van al Historial de componentes)
+  var cb = (a.cambios || []).map(function (c, i) {
+    return '<tr><td>' + _chatCasilla('cambios', i, c) + '</td><td class="mono" style="color:var(--ac)">' + escapeHtml(c.sigla) + '</td><td>' + escapeHtml(c.comp) + '</td><td class="mono">' + _chatFecha(c.fecha) + ' ' + c.hora + '</td><td class="mono" style="text-align:right">' + (c.horom != null ? fn(c.horom) : '—') + '</td><td>' + escapeHtml(c.motivo || '') + '</td><td>' + _chatBadge(c.estado) + (c.motivoEstado ? '<div style="font-size:10px;color:var(--tx3)">' + escapeHtml(c.motivoEstado) + '</div>' : '') + '</td></tr>';
+  }).join('');
+  h += _chatSeccion('Cambios de componente (balde, asiento, cuchillas, flexible del implemento…)', (a.cambios || []).length,
+    (a.cambios || []).length ? '<div class="tbl-wrap"><table><tr><th></th><th>Equipo</th><th>Componente</th><th>Fecha</th><th>Horómetro</th><th>Motivo</th><th>Estado</th></tr>' + cb + '</table></div><p style="font-size:10px;color:var(--tx3);margin:4px 0">Se anotan en Historial de componentes, que calcula cada cuántas horas y días se cambia cada pieza. Si el aviso no trae horómetro se usa la última lectura del equipo hasta esa fecha.</p>' : '<p style="font-size:12px;color:var(--tx3)">No hay cambios de componente en el chat.</p>', (r.cambiosNuevos || 0) > 0);
   // Backlog (solo informativo)
   var bl = a.backlog.map(function (b) { return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(b.sigla) + '</td><td class="mono">' + _chatFecha(b.fecha) + ' ' + b.hora + '</td><td>' + escapeHtml(b.motivo || '') + '</td></tr>'; }).join('');
   h += _chatSeccion('Backlog avisado (solo para mirar, no se carga)', a.backlog.length, a.backlog.length ? '<div class="tbl-wrap" style="max-height:200px;overflow:auto"><table><tr><th>Equipo</th><th>Aviso</th><th>Motivo</th></tr>' + bl + '</table></div>' : '<p style="font-size:12px;color:var(--tx3)">Sin backlog en ese período.</p>', false);
@@ -136,6 +142,8 @@ function _chatPintar() {
   if (a.sinResolver.length) av.push('Equipos del chat que no están en el sistema (no se cargaron): <b>' + a.sinResolver.map(function (x) { return escapeHtml(x.nombre) + ' ×' + x.veces; }).join(', ') + '</b>.');
   if (a.libresSinEquipo) av.push(a.libresSinEquipo + ' mensaje(s) «Operativo» sin decir el equipo: no se pueden emparejar solos.');
   if (a.informativos) av.push(a.informativos + ' aviso(s) «operativo» de rutina (engrase, chequeo) sin una falla abierta: no se cargan.');
+  av.push('Los avisos libres sin plantilla («CE-88 fuera de servicio por…») también se leen como falla, si nombran un solo equipo y no son pregunta ni petición.');
+  av.push('«Disponible para pruebas operacionales» se toma como operativo (así lo avisa el taller); si Operaciones lo sigue teniendo detenido, desmarca esa parada.');
   av.push('La hora de entrada y de salida es la del aviso en el chat (o la que dice el texto, como «03:00»), no la hora real de la falla.');
   h += '<div style="font-size:11px;color:var(--tx3);margin:8px 0">' + av.map(function (x) { return '• ' + x; }).join('<br>') + '</div>';
   h += '<div style="display:flex;gap:8px;align-items:center;margin-top:10px"><button class="btn" id="chatBtnImportar" onclick="_chatImportar()">Cargar lo marcado (' + _chatContar() + ')</button><button class="btn btn-o" onclick="cm()">Cancelar</button></div>';
@@ -168,7 +176,7 @@ export function _chatImportar() {
   if (window._userRole === 'lector') return toast('⛔ Tu rol es solo lectura');
   var hoy = _chatHoy(), origen = 'WhatsApp (chat importado ' + hoy + ')';
   var eq = S.g('eq') || [], hist = S.g('hist') || [], ot = S.g('ot') || [], reg = S.g('reg') || [];
-  var res = { horom: 0, horomSaltadas: 0, nuevas: 0, cerradas: 0, cerradasSaltadas: 0, pm: 0, pmSaltados: 0, eqAct: 0 };
+  var res = { horom: 0, horomSaltadas: 0, nuevas: 0, cerradas: 0, cerradasSaltadas: 0, pm: 0, pmSaltados: 0, eqAct: 0, cambios: 0, cambiosSaltados: 0 };
   // 1) Horómetros: se vuelve a mirar que no haya aparecido una lectura ese día mientras se revisaba.
   var yaHay = {};
   hist.forEach(function (x) { yaHay[x.sigla + '|' + x.fecha] = true; });
@@ -229,17 +237,37 @@ export function _chatImportar() {
     });
     res.pm++;
   });
+  // 4) Cambios de componente → Historial de componentes (si no hay horómetro en el aviso, la última lectura del equipo hasta esa fecha)
+  var compHist = S.g('compHist') || [];
+  var horomEn = function (sigla, fecha) {
+    var mejor = null;
+    hist.forEach(function (x) { var v = x.horomFin || x.horom; if (x.sigla === sigla && x.fecha && x.fecha <= fecha && v > 0 && (!mejor || x.fecha > mejor.fecha)) mejor = { fecha: x.fecha, v: v }; });
+    return mejor ? mejor.v : null;
+  };
+  (_chatAn.cambios || []).forEach(function (c) {
+    if (!c.marcado) return;
+    var d = new Date(c.fecha + 'T00:00:00Z').getTime();
+    var ya = compHist.some(function (h) { return h && h.sigla === c.sigla && h.fechaInst && (h.comp === c.comp || (c.comp === 'Balde' && h.comp === 'Balde/Implemento')) && Math.abs(new Date(h.fechaInst + 'T00:00:00Z').getTime() - d) <= 3 * 864e5; });
+    if (ya) { res.cambiosSaltados++; return; }
+    compHist.push({
+      id: _uuidV4(), sigla: c.sigla, comp: c.comp, fechaInst: c.fecha, horomInstalacion: c.horom != null ? c.horom : horomEn(c.sigla, c.fecha),
+      fuente: origen, obs: (c.motivo || '') + ' (importado del chat de WhatsApp)', origen: null, estadoPieza: null
+    });
+    res.cambios++;
+  });
   if (res.horom) S.s('hist', hist);
   if (res.eqAct) S.s('eq', eq);
   if (res.nuevas || res.cerradas) S.s('ot', ot);
   if (res.pm) S.s('reg', reg);
+  if (res.cambios) S.s('compHist', compHist);
   cm(); refreshAll();
   var filas = [];
   if (res.horom) filas.push(res.horom + ' lectura(s) de horómetro' + (res.eqAct ? ' · ' + res.eqAct + ' equipo(s) con horómetro actualizado' : ''));
   if (res.nuevas) filas.push(res.nuevas + ' OT correctiva(s) nueva(s)');
   if (res.cerradas) filas.push(res.cerradas + ' OT abierta(s) cerrada(s)');
   if (res.pm) filas.push(res.pm + ' PM registrado(s)');
-  var saltos = res.horomSaltadas + res.cerradasSaltadas + res.pmSaltados;
+  if (res.cambios) filas.push(res.cambios + ' cambio(s) de componente en el Historial');
+  var saltos = res.horomSaltadas + res.cerradasSaltadas + res.pmSaltados + res.cambiosSaltados;
   sm('<h3>' + ICONS.check + ' Chat importado</h3>' +
     (filas.length ? '<p style="font-size:13px">' + filas.map(escapeHtml).join('<br>') + '</p>' : '<p style="font-size:13px">No había nada marcado para cargar.</p>') +
     (saltos ? '<p style="font-size:12px;color:var(--w)">⚠️ ' + saltos + ' ítem(s) se omitieron porque mientras revisabas ya apareció el mismo dato o la OT cambió.</p>' : '') +

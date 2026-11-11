@@ -120,3 +120,50 @@ test('lo desmarcado no se carga y lo ya cargado se detecta', async ({ page }) =>
   expect(guardado.reg).toHaveLength(0);         // el PM se desmarcó
   expect(errores).toEqual([]);
 });
+
+// 11-nov-2026: los avisos libres de falla y los cambios de componente también se proponen y se cargan.
+test('un cambio de balde del chat llega al Historial de componentes con su horómetro y un aviso libre de falla se empareja', async ({ page }) => {
+  test.setTimeout(90000);
+  const errores = [];
+  page.on('pageerror', (e) => errores.push(e.message));
+  const CHAT2 = [
+    '02-11-26 17:38 - José: Equipo: CF-162',
+    'Estatus: OPERATIVO',
+    'Motivo: CAMBIO DE BALDE',
+    'Horómetro: xxxx',
+    '05-11-26 22:23 - Eugenio: CE-88 fuera de servicio por suspensión pos 1 y golpeteo en transmisión',
+    '06-11-26 00:35 - Carlos: Equipo: CE-88',
+    'Estatus: Operativo',
+    'Motivo: se normalizan niveles de suspensiones delanteras',
+    'Horómetro: 17646',
+  ].join('\n');
+  const SEM = `
+    S.s('eq', [{ sigla: 'CF-10162', tipo: 'Cargador Frontal', modelo: 'X', horomActual: 3358, fechaHorom: '2026-11-07' }, { sigla: 'CN-9502', tipo: 'Camion', modelo: 'X', horomActual: 17600, fechaHorom: '2026-11-01' }]);
+    S.s('hist', [{ sigla: 'CF-10162', fecha: '2026-10-30', horom: 3289, horomFin: 3289 }, { sigla: 'CN-9502', fecha: '2026-11-01', horom: 17600, horomFin: 17600 }]);
+    S.s('reg', []); S.s('ot', []); S.s('compHist', []);`;
+  await entrar(page);
+  await page.evaluate(() => go('hist'));
+  await expect(page.locator('#s-hist')).toContainText('Importar chat de WhatsApp', { timeout: 15000 });
+  await expect(async () => {
+    await page.evaluate(`(() => { ${SEM} })()`);
+    await page.evaluate(() => importarChatWhatsApp());
+    await expect(page.locator('#chatArchivo')).toBeVisible({ timeout: 3000 });
+  }).toPass({ timeout: 20000 });
+  await page.locator('#chatDesde').fill('2026-11-01');
+  await page.locator('#chatArchivo').setInputFiles({ name: 'chat.txt', mimeType: 'text/plain', buffer: Buffer.from(CHAT2, 'utf8') });
+  const panel = page.locator('#mc, .modal, [class*=modal]').filter({ hasText: 'Chat de WhatsApp — propuesta' }).first();
+  await expect(async () => {
+    await page.evaluate(`(() => { ${SEM} })()`);
+    await page.evaluate(() => _chatVolverAnalizar());
+    await expect(panel).toContainText('CF-10162', { timeout: 2000 });
+  }).toPass({ timeout: 20000 });
+  await expect(panel).toContainText('Cambios de componente');
+  await expect(panel).toContainText('Balde');
+  await expect(panel).toContainText('2h 12min');           // la parada de CE-88 nace del aviso libre
+  const guardado = await page.evaluate(`(() => { ${SEM} _chatVolverAnalizar(); _chatImportar(); return { comp: S.g('compHist'), ot: S.g('ot') }; })()`);
+  expect(guardado.comp).toHaveLength(1);
+  expect(guardado.comp[0]).toMatchObject({ sigla: 'CF-10162', comp: 'Balde', fechaInst: '2026-11-02', horomInstalacion: 3289, estadoPieza: null });
+  expect(guardado.comp[0].fuente).toContain('WhatsApp');
+  expect(guardado.ot.find((o) => o.sigla === 'CN-9502')).toMatchObject({ fechaEntrada: '2026-11-05', horaEntrada: '22:23', fechaSalida: '2026-11-06', horaSalida: '00:35' });
+  expect(errores).toEqual([]);
+});

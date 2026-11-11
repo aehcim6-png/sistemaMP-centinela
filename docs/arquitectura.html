@@ -3738,6 +3738,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Lubricantes</b> (<code>modules/renders/lub.js</code>): columnas Sem., Mes y Prom.3m calculadas desde los movimientos; el promedio real reemplaza al consumo anotado a mano para estimar cuánto alcanza el stock (si aún no hay movimientos, se usa el manual). Botón «+ Consumo» para rellenos sin OT (origen Manual).</p>
   <p><b>Límite conocido:</b> el campo <code>consumoMes</code> que escribe el PM por pauta (promedio móvil simple) sigue existiendo como respaldo; el consumo semanal y mensual real sale de los movimientos.</p>
 
+    <h3 id="d-x">218. Importar el chat de WhatsApp: avisos libres de falla y cambios de componente (2026-11-11)</h3>
+  <p>Al cargar el chat del 02 al 10 de noviembre a mano se vio qué se escapaba del importador y qué se podía aprovechar.</p>
+  <p><b>Avisos libres de falla:</b> un mensaje como «CE-88 fuera de servicio por suspensión pos 1 y golpeteo en transmisión» no usa la plantilla y no se leía, por lo que su parada quedaba sin cargar. Ahora cuenta como falla si nombra un solo equipo y no es pregunta ni petición; se empareja con el «operativo» de la plantilla que viene después.</p>
+  <p><b>Cambios de componente:</b> un «operativo» cuyo motivo dice «cambio de balde», de asiento, de cuchillas, flexible del cilindro, pasador de balde, etc. se propone para el Historial de componentes (nueva sección en la propuesta). El horómetro sale del aviso o, si no lo trae, de la última lectura del equipo hasta esa fecha. Si ya hay un cambio igual del mismo equipo en ±3 días queda como duplicado y sin marcar.</p>
+  <p><b>No se cambió</b> que «disponible para pruebas operacionales» cuente como operativo: así lo avisa el taller. La pantalla lo advierte para desmarcar la parada si Operaciones sigue sin recibir el equipo.</p>
+  <p><b>Pendiente:</b> las mediciones de desgaste en milímetros que informan las motoniveladoras («elemento de desgaste cuenta con 55 mm») no se guardan: el sistema aún no tiene dónde.</p>
+  <p><b>Pruebas:</b> <code>tests/chatWhatsApp.test.js</code> (36 casos, 5 nuevos). Código: <code>chatWhatsAppReportes</code> y <code>chatWhatsAppAnalizar</code> en <code>logic.js</code> y <code>modules/renders/chat.js</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

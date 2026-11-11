@@ -7276,6 +7276,16 @@ Pedido: poder anotar, en la OT, los litros de aceite o kilos de grasa repuestos 
 - **Lubricantes** (`modules/renders/lub.js`): columnas Sem., Mes y Prom.3m calculadas desde los movimientos; el promedio real reemplaza al consumo anotado a mano para estimar cuánto alcanza el stock (si aún no hay movimientos, se usa el manual). Botón «+ Consumo» para rellenos sin OT (origen Manual).
 - **Límite conocido:** el campo `consumoMes` que escribe el PM por pauta (promedio móvil simple) sigue existiendo como respaldo; el consumo semanal y mensual real sale de los movimientos.
 
+### 218. Importar el chat de WhatsApp: avisos libres de falla y cambios de componente (2026-11-11)
+
+Al cargar el chat del 02 al 10 de noviembre a mano se vio qué se escapaba del importador y qué se podía aprovechar:
+
+- **Avisos libres de falla.** Un mensaje como «CE-88 fuera de servicio por suspensión pos 1 y golpeteo en transmisión» no usa la plantilla y no se leía, por lo que su parada quedaba sin cargar. Ahora cuenta como falla si nombra un solo equipo y no es pregunta ni petición; se empareja con el «operativo» de la plantilla que viene después.
+- **Cambios de componente.** Un «operativo» cuyo motivo dice «cambio de balde», de asiento, de cuchillas, flexible del cilindro, pasador de balde, etc. se propone para el Historial de componentes (nueva sección en la propuesta). El horómetro sale del aviso o, si no lo trae, de la última lectura del equipo hasta esa fecha. Si ya hay un cambio igual del mismo equipo en ±3 días queda como duplicado y sin marcar.
+- **No se cambió** que «disponible para pruebas operacionales» cuente como operativo: así lo avisa el taller. La pantalla lo advierte para desmarcar la parada si Operaciones sigue sin recibir el equipo.
+- **Pendiente:** las mediciones de desgaste en milímetros que informan las motoniveladoras («elemento de desgaste cuenta con 55 mm») no se guardan: el sistema aún no tiene dónde.
+- **Pruebas:** `tests/chatWhatsApp.test.js` (36 casos, 5 nuevos). Código: `chatWhatsAppReportes` / `chatWhatsAppAnalizar` en `logic.js` y `modules/renders/chat.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
