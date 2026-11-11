@@ -3746,6 +3746,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Pendiente:</b> las mediciones de desgaste en milímetros que informan las motoniveladoras («elemento de desgaste cuenta con 55 mm») no se guardan: el sistema aún no tiene dónde.</p>
   <p><b>Pruebas:</b> <code>tests/chatWhatsApp.test.js</code> (36 casos, 5 nuevos). Código: <code>chatWhatsAppReportes</code> y <code>chatWhatsAppAnalizar</code> en <code>logic.js</code> y <code>modules/renders/chat.js</code>.</p>
 
+    <h3 id="d-x">219. Carga liviana al entrar: tope de lecturas, reintentos y carga incremental (2026-11-11)</h3>
+  <p>La simulación local de 100 usuarios (sin tocar producción) mostró que cada ingreso costaba ~460 peticiones y ~18 MB, que faltaban índices en las tablas grandes y que los reintentos amplificaban la saturación (plan Free, <code>max_connections</code> 60). Tres cambios, en <code>modules/store.js</code>.</p>
+  <p><b>Tope y reintentos con espera:</b> máximo 8 lecturas simultáneas (<code>_MAX_PETICIONES_CARGA</code>), reintento con espera de 400 ms (<code>_pedirPagina</code>) y sin recarga secuencial si la base ya está saturada. El chequeo de conflicto al guardar usa un solo intento para no esperar los reintentos de la carga.</p>
+  <p><b>Carga incremental</b> (<code>_refetchTablaIncremental</code>, <code>_cargarTablaInicial</code>): para 11 tablas grandes (<code>_INC_TABLAS</code>) se guarda una copia por usuario en IndexedDB (<code>smpCacheTablas</code>) y al volver solo se pide lo nuevo por <code>updated_at</code> (margen de 30 s). Se verifica el conteo exacto; recarga completa cada 12 h o ante cualquier duda (tabla chica, columnas distintas, error, sin IndexedDB). La copia se borra al cerrar sesión (<code>_cacheTablasLimpiar</code>).</p>
+  <p><b>Migración</b> <code>20261111120000_indices_carga_paginada_e_incremental.sql</code>: agrega <code>updated_at</code> y trigger a 9 tablas (rellenado con <code>created_at</code>) e índices <code>(created_at,id)</code> y <code>(updated_at)</code> en 11. Mientras no se aplique, el código cae solo a la carga completa.</p>
+  <p><b>Medido (simulador, datos sintéticos):</b> primer ingreso 433 peticiones / 46 MB; ingreso de regreso 132 peticiones / 1,55 MB, ~1 s, mismas 23.004 filas. La capacidad modelada del servidor (4 consultas simultáneas) es un supuesto: los resultados valen en términos relativos.</p>
+  <p><b>Pruebas:</b> <code>tests/cargaPaginada.test.js</code> (9) y <code>tests/cargaIncremental.test.js</code> (10).</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

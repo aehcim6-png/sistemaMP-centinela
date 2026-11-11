@@ -7286,6 +7286,16 @@ Al cargar el chat del 02 al 10 de noviembre a mano se vio qué se escapaba del i
 - **Pendiente:** las mediciones de desgaste en milímetros que informan las motoniveladoras («elemento de desgaste cuenta con 55 mm») no se guardan: el sistema aún no tiene dónde.
 - **Pruebas:** `tests/chatWhatsApp.test.js` (36 casos, 5 nuevos). Código: `chatWhatsAppReportes` / `chatWhatsAppAnalizar` en `logic.js` y `modules/renders/chat.js`.
 
+### 219. Carga liviana al entrar: tope de lecturas, reintentos y carga incremental (2026-11-11)
+
+La simulación local de 100 usuarios (sin tocar producción) mostró que cada ingreso costaba ~460 peticiones y ~18 MB, que faltaban índices en las tablas grandes y que los reintentos amplificaban la saturación (plan Free, `max_connections` 60). Tres cambios, en `modules/store.js`:
+
+- **Tope y reintentos con espera.** Máximo 8 lecturas simultáneas (`_MAX_PETICIONES_CARGA`), reintento con espera de 400 ms (`_pedirPagina`) y sin recarga secuencial si la base ya está saturada. El chequeo de conflicto al guardar usa un solo intento para no esperar los reintentos de la carga.
+- **Carga incremental** (`_refetchTablaIncremental`, `_cargarTablaInicial`). Para 11 tablas grandes (`_INC_TABLAS`) se guarda una copia por usuario en IndexedDB (`smpCacheTablas`) y al volver solo se pide lo nuevo por `updated_at` (con margen de 30 s). Se verifica el conteo exacto; recarga completa cada 12 h o ante cualquier duda (tabla chica, versión de columnas distinta, error, sin IndexedDB). La copia se borra al cerrar sesión (`_cacheTablasLimpiar`).
+- **Migración** `20261111120000_indices_carga_paginada_e_incremental.sql`: agrega `updated_at` + trigger a 9 tablas (rellenado con `created_at`) e índices `(created_at,id)` y `(updated_at)` en 11. **Mientras no se aplique, el código cae solo a la carga completa.**
+- **Medido (simulador, datos sintéticos):** primer ingreso 433 peticiones / 46 MB; ingreso de regreso 132 peticiones / 1,55 MB, ~1 s, mismas 23.004 filas. La capacidad modelada del servidor (4 consultas simultáneas) es un supuesto: los resultados valen en términos relativos.
+- **Pruebas:** `tests/cargaPaginada.test.js` (9) y `tests/cargaIncremental.test.js` (10).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
