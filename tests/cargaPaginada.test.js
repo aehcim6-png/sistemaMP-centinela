@@ -90,6 +90,14 @@ describe('carga paginada liviana', () => {
     expect(est.peticiones).toBe(1 + 3);   // la 1ª con conteo + 3 páginas secuenciales
   });
 
+  it('con 1 intento (chequeo de conflicto al guardar) un error no espera ni reintenta', async () => {
+    const est = servidor(1500, { falla: () => 503 });
+    const t0 = Date.now();
+    expect(await _fetchPaginado('https://x.supabase.co/rest/v1/t?select=id&order=id.asc', 1)).toBeNull();
+    expect(est.peticiones).toBe(1);
+    expect(Date.now() - t0).toBeLessThan(300);
+  });
+
   it('_pedirPagina devuelve null tras 3 intentos con 429 o con error de red', async () => {
     let n = 0;
     global.fetch = async () => { n++; return { ok: false, status: 429, headers: { get: () => null }, json: async () => ({}) }; };

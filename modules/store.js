@@ -412,8 +412,9 @@ function _conCupoDeCarga(fn){
 const _ESPERA_REINTENTO_MS=400;
 // Pide una página. Devuelve {ok,status,filas,cr}; null si la base está saturada o sin red tras 3 intentos (errores 5xx, 429 y de red). Un error de pedido
 // (400, 401, 404…) no se reintenta: se devuelve tal cual para que el llamador decida.
-async function _pedirPagina(url,headers){
-  for(let i=0;i<3;i++){
+async function _pedirPagina(url,headers,intentos){
+  const n=intentos||3;
+  for(let i=0;i<n;i++){
     let r=null;
     try{
       r=await _conCupoDeCarga(async function(){
@@ -428,17 +429,17 @@ async function _pedirPagina(url,headers){
     }catch(e){r=null;}
     if(r&&r.ok)return r;
     if(r&&r.status<500&&r.status!==429)return r;
-    if(i<2)await new Promise(function(res){setTimeout(res,_ESPERA_REINTENTO_MS*Math.pow(2,i)+Math.floor(Math.random()*_ESPERA_REINTENTO_MS));});
+    if(i<n-1)await new Promise(function(res){setTimeout(res,_ESPERA_REINTENTO_MS*Math.pow(2,i)+Math.floor(Math.random()*_ESPERA_REINTENTO_MS));});
   }
   return null;
 }
 // Fallback secuencial (el original): una página tras otra, esperando cada una antes de pedir la siguiente. Se usa solo si el camino rápido de abajo no puede
 // determinar el total de filas de antemano (ej. el header Content-Range no vino en la respuesta).
-async function _fetchPaginadoSecuencial(urlBase){
+async function _fetchPaginadoSecuencial(urlBase,intentos){
   let todas=[],desde=0;
   while(true){
     const sep=urlBase.includes('?')?'&':'?';
-    const rt=await _pedirPagina(`${urlBase}${sep}offset=${desde}&limit=${_PASO_PAGINA}`,_sbHeaders());
+    const rt=await _pedirPagina(`${urlBase}${sep}offset=${desde}&limit=${_PASO_PAGINA}`,_sbHeaders(),intentos);
     if(!rt||!rt.ok)return null;
     const filas=rt.filas;
     if(!Array.isArray(filas))return null;
@@ -452,33 +453,33 @@ async function _fetchPaginadoSecuencial(urlBase){
 // Trae TODAS las filas de una tabla, paginando de a _PASO_PAGINA (el límite real de PostgREST — subirlo de golpe reintroduce el truncado silencioso que
 // motivó la paginación). La primera página pide el conteo exacto (header Prefer: count=exact -> Content-Range: "0-499/3372") para saber cuántas páginas
 // hacen falta y pedir las demás en paralelo (con el tope de _MAX_PETICIONES_CARGA en vuelo, ver arriba).
-async function _fetchPaginado(urlBase){
+async function _fetchPaginado(urlBase,intentos){
   const sep=urlBase.includes('?')?'&':'?';
   try{
-    const r0=await _pedirPagina(`${urlBase}${sep}offset=0&limit=${_PASO_PAGINA}`,Object.assign({},_sbHeaders(),{'Prefer':'count=exact'}));
+    const r0=await _pedirPagina(`${urlBase}${sep}offset=0&limit=${_PASO_PAGINA}`,Object.assign({},_sbHeaders(),{'Prefer':'count=exact'}),intentos);
     if(!r0)return null; // base saturada o sin red: no se multiplica la carga con una recarga secuencial
-    if(!r0.ok)return _fetchPaginadoSecuencial(urlBase);
+    if(!r0.ok)return _fetchPaginadoSecuencial(urlBase,intentos);
     const filas0=r0.filas;
-    if(!Array.isArray(filas0))return _fetchPaginadoSecuencial(urlBase);
+    if(!Array.isArray(filas0))return _fetchPaginadoSecuencial(urlBase,intentos);
     if(filas0.length<_PASO_PAGINA)return filas0; // cupo entero en la primera página
     const total=parseInt(String(r0.cr||'').split('/')[1],10); // "0-499/3372"
-    if(!total||isNaN(total))return _fetchPaginadoSecuencial(urlBase); // sin conteo -> no se puede paralelizar seguro
+    if(!total||isNaN(total))return _fetchPaginadoSecuencial(urlBase,intentos); // sin conteo -> no se puede paralelizar seguro
     const totalPaginas=Math.ceil(total/_PASO_PAGINA);
     if(totalPaginas<=1)return filas0;
     const pedidos=[];
     for(let p=1;p<totalPaginas;p++){
-      pedidos.push(_pedirPagina(`${urlBase}${sep}offset=${p*_PASO_PAGINA}&limit=${_PASO_PAGINA}`,_sbHeaders()));
+      pedidos.push(_pedirPagina(`${urlBase}${sep}offset=${p*_PASO_PAGINA}&limit=${_PASO_PAGINA}`,_sbHeaders(),intentos));
     }
     const resto=await Promise.all(pedidos);
     if(resto.some(function(x){return !x;}))return null; // alguna página no se pudo traer tras los reintentos
     let todas=filas0.slice();
     for(const rt of resto){
-      if(!rt.ok||!Array.isArray(rt.filas))return _fetchPaginadoSecuencial(urlBase);
+      if(!rt.ok||!Array.isArray(rt.filas))return _fetchPaginadoSecuencial(urlBase,intentos);
       todas=todas.concat(rt.filas);
     }
     return todas;
   }catch(e){
-    return _fetchPaginadoSecuencial(urlBase);
+    return _fetchPaginadoSecuencial(urlBase,intentos);
   }
 }
 
@@ -669,7 +670,7 @@ async function _syncTablaGenericaInner(cfg,arrNuevo,arrAnterior,catKey){
       // ya pasó el tope de filas de Supabase esta consulta siempre traía MENOS ids de
       // los que realmente existen, y hayConflictoIds() lo marcaba como "conflicto" en
       // cualquier guardado — un falso positivo constante para tablas grandes.
-      const filasServidor=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}&order=${cfg.claveDb}.asc`);
+      const filasServidor=await _fetchPaginado(`${c.url}/rest/v1/${cfg.tabla}?select=${cfg.claveDb}&order=${cfg.claveDb}.asc`,1); // 1 intento: el guardado no espera los reintentos de la carga inicial
       if(!filasServidor)return undefined;
       return new Set(filasServidor.map(function(f){return f[cfg.claveDb];}));
     },
