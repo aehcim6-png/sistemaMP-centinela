@@ -642,7 +642,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-11-05a"></script>
+<script src="logic.js?v=2026-11-12a"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -729,7 +729,7 @@ const _LAZY_VERS={
   rep:'2026-10-26b',
   sem:'2026-10-08',
   stk:'2026-10-24h',
-  stk2:'2026-10-26a',
+  stk2:'2026-11-12a',
   ins:'2026-10-26b',
   uso:'2026-10-08',
   venc:'2026-09-02',
@@ -754,7 +754,7 @@ const _LAZY_VERS={
   metas:'2026-10-23d',
   resumenejec:'2026-10-08',
   reg:'2026-10-29a',
-  neu:'2026-11-12a',
+  neu:'2026-11-12b',
   ot:'2026-11-10a',
   prod:'2026-10-30b',
   foda:'2026-11-08a',
@@ -3022,10 +3022,10 @@ function _neuMedPorSerie(){
   const allMeds=(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]);
   const idx={};
   allMeds.forEach(function(m){
-    if(!m.serie)return;
-    (idx[m.serie]=idx[m.serie]||[]).push(m);
+    const k=neuClaveMedLectura(m);   // serie real, o 'POS:equipo|posición' para neumáticos sin serie propia (aljibes, camionetas…)
+    (idx[k]=idx[k]||[]).push(m);
   });
-  for(const serie in idx)idx[serie].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  for(const k in idx)idx[k].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
   return idx;
 }
 function _eqPorSigla(){
@@ -3100,8 +3100,8 @@ function proyeccionCostoComponentesMayores(horizonteMeses){
 // a la vez) no pasan índice y se comportan exactamente igual que antes.
 function neuHorasAcum(n,medsPorSerie){
   if(n==null)return 0;
-  const hist=medsPorSerie?(medsPorSerie[n.serie]||[]):
-    ((S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[])).filter(m=>m.serie&&m.serie===n.serie).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  const hist=medsPorSerie?neuHistPorClave(n,medsPorSerie):
+    neuHistSinIndice(n,(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]));
   if(hist.length>=2){
     let h=0;
     for(let i=1;i<hist.length;i++){
@@ -3176,8 +3176,8 @@ function neuProyeccion(n,medsPorSerie,eqPorSigla){
   const limiteRem=remRotar||remRetiro;
 
   // Historial por SERIE (sigue al neumático aunque cambie de equipo/posición)
-  const hist=medsPorSerie?(medsPorSerie[n.serie]||[]):
-    ((S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[])).filter(m=>(m.serie&&m.serie===n.serie)).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  const hist=medsPorSerie?neuHistPorClave(n,medsPorSerie):
+    neuHistSinIndice(n,(S.g('neuMed')&&S.g('neuMed').length)?S.g('neuMed'):(INIT.neuMed||[]));
 
   // Horas acumuladas reales del neumático (ver neuHorasAcum — suma de tramos del mismo
   // equipo, ignora los saltos por transferencia entre equipos, no usa hrsLive).
@@ -3301,7 +3301,7 @@ function neuMetricas(n){
   const remActual=n.remanente!=null?n.remanente:remNuevo;
 
   // Historial por serie (vida total)
-  const hist=allMeds.filter(m=>m.serie&&m.serie===n.serie).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.horom-b.horom);
+  const hist=neuHistSinIndice(n,allMeds);
   const hrsAcum=neuHorasAcum(n); // horas reales por medición (ver neuHorasAcum)
 
   const mmGastados=Math.max(0,remNuevo-remActual);

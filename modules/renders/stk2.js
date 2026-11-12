@@ -57,7 +57,7 @@ function _queComprarEntrada() {
   neuTodos.filter(n => !n.estado || n.estado === 'Operativo').forEach(n => {
     const p = neuProyeccion(n, meds, eqs);
     if (!p) return;
-    const ms = meds[n.serie] || [], ult = ms.length ? ms[ms.length - 1].fecha : (n.ultimaMedicion || null);
+    const ms = neuHistPorClave(n, meds), ult = ms.length ? ms[ms.length - 1].fecha : (n.ultimaMedicion || null);
     if (ult && ult > ultimaGlobal) ultimaGlobal = ult;
     if (p.confianza === 'Estimado') { estimados++; return; }   // sin mediciones: la fecha sería inventada
     items.push({ sigla: n.sigla, posicion: n.posicion, medida: n.medida, base: ult, dias: p.diasRestantes, precio: (neuPrecio(n) || {}).precio || 0 });

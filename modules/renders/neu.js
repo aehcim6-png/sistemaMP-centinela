@@ -967,7 +967,7 @@ export function verDetalleNeu(neuIdx){
   const posStr=String(n.numPos||n.posicion||'');
   // Buscar por serie exacta O por sigla+posición (historial completo de la posición)
   const meds=allMeds.filter(m=>{
-    const mismoSerie=m.neuId===n.serie||m.serie===n.serie;
+    const sr=neuSerieReal(n.serie);const mismoSerie=!!sr&&(m.neuId===sr||m.serie===sr);
     const mismaPosicion=m.sigla===n.sigla&&(String(m.posicion)===posStr||m.posicion===n.posicion);
     return mismoSerie||mismaPosicion;
   }).sort((a,b)=>a.horom-b.horom||a.fecha.localeCompare(b.fecha));
@@ -1371,7 +1371,7 @@ function _neuProgramaDatos(){
   neu.forEach(n=>{
     const p=neuProyeccion(n,meds,eqs);
     if(!p){sinMedicion.push({sigla:n.sigla,posicion:n.posicion,serie:n.serie,precio:(neuPrecio(n)||{}).precio||0,motivo:'no se puede proyectar: falta un dato del neumático (remanente nuevo o vida útil)'});return;}
-    const ms=meds[n.serie]||[];
+    const ms=neuHistPorClave(n,meds);
     const ult=ms.length?ms[ms.length-1].fecha:(n.ultimaMedicion||null);
     if(ult&&ult>ultimaGlobal)ultimaGlobal=ult;
     if(p.confianza==='Estimado'){estimados++;sinMedicion.push({sigla:n.sigla,posicion:n.posicion,serie:n.serie,precio:(neuPrecio(n)||{}).precio||0,motivo:'sin ninguna medición: hay que medirlo'});return;}   // sin mediciones: la fecha sería inventada, no entra al cálculo pero se lista aparte

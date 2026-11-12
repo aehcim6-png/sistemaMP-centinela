@@ -70,3 +70,24 @@ test('Programa de cambios: un estado por neumático, tarjetas que filtran y sin 
   expect(r.anio[3]).toBe(r.tarjetas[3]);
   await page.screenshot({ path: process.env.NEU_PROG_PNG || 'test-results/neu-programa.png' });
 });
+
+test('Neumáticos sin serie propia (aljibe): se proyectan por equipo y posición en vez de salir «sin medición»', async ({ page }) => {
+  test.setTimeout(120000);
+  await entrar(page);
+  await page.evaluate(async () => { go('neu'); await new Promise((x) => setTimeout(x, 2500)); });
+  const r = await page.evaluate(() => {
+    const dia = (d) => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
+    S.s('eq', [{ sigla: 'ALJ-1', tipo: 'Camion', modelo: 'X', horomActual: 5000, hrsDia: 15 }]);
+    // Aljibe sin serie (el libro dice «Sin serie»), posición 3 con nombre largo; lecturas guardadas solo con la posición «3»
+    S.s('neu', [{ id: 'nALJ3', sigla: 'ALJ-1', serie: 'Sin serie', marca: 'WESTLAKE', medida: '315/80R22.5', posicion: 'P3-TraIzExt', numPos: 3, estado: 'Operativo', tipoEquipo: 'ALJ', vidaUtil: 6000, remNuevo: 20, remanente: 8, fechaInst: dia(-120), horomInstalacion: 0, horasAcum: 0 }]);
+    const med = (fecha, horom, rem, serie) => ({ id: 'm' + fecha, serie, sigla: 'ALJ-1', posicion: '3', fecha, horom, remExt: rem, remInt: rem, remProm: rem });
+    S.s('neuMed', [med(dia(-200), 100, 19, null), med(dia(-90), 3000, 14, null), med(dia(-30), 4200, 11, null), med(dia(-5), 4700, 8, null)]);   // la primera es anterior a la instalación: no cuenta
+    S.s('neuHist', []);
+    window._neuProgTipo = 'anio'; window._neuProgRef = null; window._neuProgFiltro = 'todos';
+    const p = neuProyeccion(S.g('neu')[0], _neuMedPorSerie(), _eqPorSigla());
+    programaCambiosNeu();
+    return { conf: p && p.confianza, sinMedicion: [...document.querySelectorAll('button[onclick*="_neuProgFiltro"]')].map((b) => b.innerText.replace(/\s+/g, ' ').trim()).pop() };
+  });
+  expect(r.conf).not.toBe('Estimado');
+  expect(r.sinMedicion).toMatch(/Sin medición\s*0/);
+});

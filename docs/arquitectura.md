@@ -7305,6 +7305,14 @@ La pantalla «Programa de cambios» se leía enredada: mezclaba «vencidos», «
 - **No cambió** el cálculo de la fecha de cambio de cada neumático (`neuProyeccion`) ni `neuProgramaCambios`.
 - **Pruebas:** `tests/neuPrograma.test.js` (5 casos nuevos).
 
+### 221. Neumáticos sin serie propia: historial por equipo y posición (2026-11-12)
+
+Los aljibes (CN-5131, CN-5133, CN-10321, CN-10322), las camionetas y el bus BS-5752 no traen serie por neumático: el libro de control dice «Sin Información» y solo los identifican marca y medida (p. ej. Westlake 315/80R22.5), iguales para todo el equipo. La proyección unía las mediciones por serie, así que 58 neumáticos operativos aparecían «sin medición» aunque tenían decenas de lecturas; y los 12 que decían literalmente «Sin serie» compartían la misma clave.
+- **Regla** (`logic.js`: `neuSerieReal`, `neuNumPosNeu`, `neuClaveMed`, `neuClaveMedLectura`, `neuHistPorClave`, `neuHistSinIndice`): sin serie real (vacía, «Sin serie», «Sin Información»), el historial del neumático son las lecturas del **mismo equipo y la misma posición** (`P3-TraIzExt` = `3`) **desde su fecha de instalación**. Con serie real no cambia nada.
+- **Dónde se aplica:** `_neuMedPorSerie` (índice), `neuHorasAcum`, `neuProyeccion`, la ficha del neumático, el programa de cambios (`_neuProgramaDatos`) y «Qué comprar» (`stk2.js`).
+- **Límite:** si en una posición se cambia el neumático sin actualizar su fecha de instalación, se mezclan las lecturas del anterior. Por eso conviene registrar siempre la fecha del cambio.
+- **Pruebas:** `tests/neuPrograma.test.js` (4 casos nuevos).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

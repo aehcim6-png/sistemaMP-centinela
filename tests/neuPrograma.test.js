@@ -138,3 +138,40 @@ describe('neuProgramaEstados', () => {
     expect(r.costoEnPeriodo).toBe(1000);
   });
 });
+
+describe('neumáticos sin serie propia: historial por equipo + posición', () => {
+  const med = (sigla, posicion, fecha, serie) => ({ sigla, posicion, fecha, serie, horom: 0, remProm: 10 });
+  it('neuSerieReal descarta vacío, «Sin serie» y «Sin Información»', () => {
+    expect(L.neuSerieReal('FTH0304F1A')).toBe('FTH0304F1A');
+    expect(L.neuSerieReal('Sin serie')).toBe('');
+    expect(L.neuSerieReal('  Sin Información ')).toBe('');
+    expect(L.neuSerieReal(null)).toBe('');
+  });
+  it('la clave usa la serie real; sin ella, equipo|posición numérica (P3-TraIzExt = 3)', () => {
+    expect(L.neuClaveMed({ sigla: 'CN-5133', serie: 'ABC', posicion: 'P3-TraIzExt' })).toBe('ABC');
+    expect(L.neuClaveMed({ sigla: 'CN-5133', serie: 'Sin serie', posicion: 'P3-TraIzExt', numPos: 3 })).toBe('POS:CN-5133|3');
+    expect(L.neuClaveMed({ sigla: 'CA-9927', serie: null, posicion: '4' })).toBe('POS:CA-9927|4');
+    expect(L.neuClaveMedLectura({ sigla: 'CN-5133', posicion: 'P10-ReservaDer', serie: null })).toBe('POS:CN-5133|10');
+  });
+  it('une las lecturas por equipo y posición, solo desde la instalación, y no mezcla equipos ni posiciones', () => {
+    const n = { sigla: 'CN-5133', serie: 'Sin serie', posicion: 'P3-TraIzExt', numPos: 3, fechaInst: '2025-05-24' };
+    const meds = [
+      med('CN-5133', '3', '2025-03-01', null),          // anterior a la instalación: otro neumático
+      med('CN-5133', '3', '2025-06-01', null),
+      med('CN-5133', 'P3-TraIzExt', '2025-07-01', 'Sin serie'),
+      med('CN-5133', '4', '2025-06-01', null),          // otra posición
+      med('CN-5131', '3', '2025-06-01', null),          // otro equipo
+      med('CN-5133', '3', '2025-08-01', 'XYZ'),         // con serie real: es de otro neumático
+    ];
+    const r = L.neuHistSinIndice(n, meds);
+    expect(r.map((m) => m.fecha)).toEqual(['2025-06-01', '2025-07-01']);
+    // con índice da lo mismo
+    const idx = {}; meds.forEach((m) => { const k = L.neuClaveMedLectura(m); (idx[k] = idx[k] || []).push(m); });
+    expect(L.neuHistPorClave(n, idx).map((m) => m.fecha)).toEqual(['2025-06-01', '2025-07-01']);
+  });
+  it('un neumático con serie real sigue uniéndose solo por serie', () => {
+    const n = { sigla: 'MN-5926', serie: 'FTH0304F1A', posicion: 'P1-DelIzq', fechaInst: '2023-06-23' };
+    const meds = [med('MN-5926', '1', '2025-01-01', null), med('MN-5926', '1', '2025-02-01', 'FTH0304F1A')];
+    expect(L.neuHistSinIndice(n, meds).map((m) => m.fecha)).toEqual(['2025-02-01']);
+  });
+});
