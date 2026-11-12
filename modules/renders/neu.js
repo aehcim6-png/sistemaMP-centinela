@@ -1367,17 +1367,17 @@ export function resumenFlotaNeu(){
 function _neuProgramaDatos(){
   const neu=(S.g('neu')||[]).filter(n=>!n.estado||n.estado==='Operativo');
   const meds=_neuMedPorSerie(),eqs=_eqPorSigla();
-  const items=[];let estimados=0,ultimaGlobal='';
+  const items=[],sinMedicion=[];let estimados=0,ultimaGlobal='';
   neu.forEach(n=>{
     const p=neuProyeccion(n,meds,eqs);
-    if(!p)return;
+    if(!p){sinMedicion.push({sigla:n.sigla,posicion:n.posicion,serie:n.serie,precio:(neuPrecio(n)||{}).precio||0,motivo:'no se puede proyectar: falta un dato del neumático (remanente nuevo o vida útil)'});return;}
     const ms=meds[n.serie]||[];
     const ult=ms.length?ms[ms.length-1].fecha:(n.ultimaMedicion||null);
     if(ult&&ult>ultimaGlobal)ultimaGlobal=ult;
-    if(p.confianza==='Estimado'){estimados++;return;}   // sin mediciones: la fecha sería inventada, no entra al programa
+    if(p.confianza==='Estimado'){estimados++;sinMedicion.push({sigla:n.sigla,posicion:n.posicion,serie:n.serie,precio:(neuPrecio(n)||{}).precio||0,motivo:'sin ninguna medición: hay que medirlo'});return;}   // sin mediciones: la fecha sería inventada, no entra al cálculo pero se lista aparte
     items.push({sigla:n.sigla,posicion:n.posicion,serie:n.serie,base:ult,dias:p.diasRestantes,precio:(neuPrecio(n)||{}).precio||0,motivo:p.motivoCambio,confianza:p.confianza});
   });
-  return{items,estimados,total:neu.length,ultimaGlobal};
+  return{items,sinMedicion,estimados,total:neu.length,ultimaGlobal};
 }
 function _neuProgCurvaSVG(r){
   const W=620,H=250,mL=38,mR=14,mT=14,mB=30,n=r.curva.length;
@@ -1394,6 +1394,14 @@ function _neuProgCurvaSVG(r){
   const hoyL=hoyI>=0?'<line x1="'+X(hoyI).toFixed(1)+'" y1="'+mT+'" x2="'+X(hoyI).toFixed(1)+'" y2="'+(H-mB)+'" stroke="var(--tx3)" stroke-dasharray="3 3"/><text x="'+(X(hoyI)+4).toFixed(1)+'" y="'+(mT+8)+'" font-size="9" fill="var(--tx3)">hoy</text>':'';
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px;height:auto;display:block">'+ejes+hoyL+linea('proyeccion','var(--warn)',true)+linea('real','var(--ok)',false)+marcas+'</svg>';
 }
+// Estados (ver neuProgramaEstados en logic.js): cada neumático cae en uno solo y significa lo mismo sea cual sea el período.
+const _NEU_PROG_EST={
+  cambiar_ya:{txt:'Cambiar ya',col:'var(--danger)',bg:'rgba(239,68,68,.10)',ayuda:'La fecha de cambio ya pasó y la medición es reciente (hasta 45 días): hay que cambiarlo.'},
+  medir_primero:{txt:'Medir primero',col:'var(--warn)',bg:'rgba(234,179,8,.12)',ayuda:'La fecha de cambio ya pasó, pero la última medición tiene más de 45 días: la fecha no es confiable. Mídelo antes de decidir.'},
+  en_periodo:{txt:'En el período',col:'var(--ac)',bg:'rgba(99,102,241,.10)',ayuda:'Su fecha de cambio cae dentro del período elegido.'},
+  despues:{txt:'Después',col:'var(--tx3)',bg:'transparent',ayuda:'Su fecha de cambio es posterior al período elegido.'},
+  sin_medicion:{txt:'Sin medición',col:'var(--tx3)',bg:'rgba(148,163,184,.12)',ayuda:'No tiene ninguna medición (o le falta un dato): no se le puede calcular una fecha.'}
+};
 export function programaCambiosNeu(){
   const fn2=v=>fn(Number(v)||0);
   const hoy=new Date().toISOString().slice(0,10);
@@ -1401,37 +1409,42 @@ export function programaCambiosNeu(){
   const actual=periodoRango(tipo,hoy);
   let ref=window._neuProgRef;
   if(!ref||ref<actual.desde)ref=actual.desde;
+  const filtro=window._neuProgFiltro||'todos';
   const d=_neuProgramaDatos();
   const reales=neuCambiosRealizados(S.g('neuHist')||[]);
-  const r=neuProgramaCambios(d.items,reales,{hoy,periodo:tipo,ref});
-  const t=r.totales;
+  const e=neuProgramaEstados(d.items,reales,d.sinMedicion,{hoy,periodo:tipo,ref});
+  const r=e.programa,t=e.resumen;
   const opciones=periodoOpciones(tipo,hoy).filter(o=>o.v>=actual.desde).reverse();
   const sel=opciones.map(o=>'<option value="'+o.v+'"'+(o.v===r.rango.desde?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
-  const viejas=d.items.filter(x=>x.base&&_neuDiasEntre(x.base,hoy)>45).length;
   const diasUlt=d.ultimaGlobal?_neuDiasEntre(d.ultimaGlobal,hoy):null;
-  const kpi=(tit,val,col,sub)=>'<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--tx3)">'+tit+'</div><b style="font-size:20px;color:'+col+'">'+val+'</b>'+(sub?'<div style="font-size:9px;color:var(--tx3)">'+sub+'</div>':'')+'</div>';
-  const fila=x=>'<tr style="border-bottom:1px solid var(--bd)'+(x.vencido?';background:rgba(239,68,68,.05)':'')+'"><td style="padding:5px;font-weight:600">'+escapeHtml(x.sigla||'')+'</td><td>'+escapeHtml(x.posicion||'')+'</td><td style="text-align:center">'+escapeHtml(x.fechaCambio)+'</td><td style="font-size:10px">'+escapeHtml(x.motivo)+'</td><td style="font-size:10px">'+escapeHtml(x.confianza)+'</td><td style="text-align:center;'+(x.medicionVieja?'color:var(--warn);font-weight:600':'')+'">'+(x.diasMedicion==null?'—':'hace '+x.diasMedicion+' d')+'</td><td style="text-align:right">$'+fn2(x.precio)+'</td></tr>';
-  const cab='<tr style="background:var(--bg3)"><th style="padding:5px;text-align:left">Equipo</th><th>Pos.</th><th>Fecha de cambio</th><th>Criterio</th><th>Confianza</th><th>Última medición</th><th>Costo</th></tr>';
+  const tarjeta=(clave,val,sub)=>{const c=_NEU_PROG_EST[clave];const act=filtro===clave;return '<button type="button" title="'+escapeHtml(c.ayuda)+'" onclick="window._neuProgFiltro=\''+(act?'todos':clave)+'\';programaCambiosNeu()" style="all:unset;cursor:pointer;display:block;background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border:2px solid '+(act?c.col:'transparent')+'"><div style="font-size:10px;color:var(--tx3)">'+c.txt+'</div><b style="font-size:22px;color:'+(val?c.col:'var(--tx3)')+'">'+val+'</b>'+(sub?'<div style="font-size:9px;color:var(--tx3)">'+sub+'</div>':'')+'</button>';};
+  const filas=e.filas.filter(x=>filtro==='todos'?x.estado!=='despues':x.estado===filtro);
+  const fila=x=>{const c=_NEU_PROG_EST[x.estado];return '<tr title="'+escapeHtml(x.motivo||x.confianza||'')+'" style="border-bottom:1px solid var(--bd);background:'+c.bg+'"><td style="padding:5px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:'+c.col+';border:1px solid '+c.col+'">'+c.txt+'</span></td><td style="white-space:nowrap"><b>'+escapeHtml(x.sigla||'')+'</b> <span style="color:var(--tx3)">pos. '+escapeHtml(x.posicion||'')+'</span></td><td style="text-align:center;white-space:nowrap">'+(x.fechaCambio?escapeHtml(x.fechaCambio):'—')+'</td><td style="text-align:center;'+(x.medicionVieja?'color:var(--warn);font-weight:600':'')+'">'+(x.estado==='sin_medicion'?((x.motivo||'').indexOf('falta')>=0?'falta un dato':'nunca'):x.diasMedicion==null?'—':'hace '+x.diasMedicion+' d')+'</td><td style="text-align:right;padding-right:10px;white-space:nowrap">'+(x.precio?'$'+fn2(x.precio):'—')+'</td></tr>';};
+  const cab='<tr style="background:var(--bg3)"><th style="padding:5px;text-align:left">Estado</th><th style="text-align:left">Equipo y posición</th><th>Fecha de cambio</th><th>Última medición</th><th>Costo</th></tr>';
   const tipos=[['semana','Semana'],['mes','Mes'],['semestre','Semestre'],['anio','Año']];
+  const txtFiltro=filtro==='todos'?'Todos los neumáticos que requieren acción':_NEU_PROG_EST[filtro].txt;
   sm('<div style="max-width:900px"><h3 style="margin:0 0 6px">Programa de cambio de neumáticos (proyectado)</h3>'+
-    '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Cada fecha sale de la proyección de desgaste de ese neumático (sus mediciones de remanente, o el límite de horas en delanteros), contada desde su <b>última medición</b>. Solo cuentan los neumáticos montados con al menos una medición.</div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'+tipos.map(a=>'<button class="btn '+(tipo===a[0]?'':'btn-o')+'" style="font-size:11px;padding:4px 10px" onclick="window._neuProgTipo=\''+a[0]+'\';window._neuProgRef=null;programaCambiosNeu()">'+a[1]+'</button>').join('')+
-    '<select id="fNeuProgRef" onchange="window._neuProgRef=this.value;programaCambiosNeu()" style="font-size:12px">'+sel+'</select></div>'+
-    (diasUlt!=null&&diasUlt>30?'<div style="padding:8px 10px;margin-bottom:10px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)">⚠ La última medición de remanente del sistema es de hace <b>'+diasUlt+' días</b> ('+escapeHtml(d.ultimaGlobal)+'). '+viejas+' neumático(s) tienen una medición de más de 45 días: su fecha se calcula desde esa medición y por eso varios figuran vencidos. Mide de nuevo para afinar el programa.</div>':'')+
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px">'+
-      (r.incluyeHoy?kpi('Vencidos (cambiar ya)',t.vencidos,t.vencidos?'var(--danger)':'var(--ok)','$'+fn2(t.costoVencidos)):kpi('Vencidos antes del período',t.arrastre,t.arrastre?'var(--danger)':'var(--ok)','arrastre'))+
-      kpi(r.futuro?'Se cambian en el período':'Pendientes hasta fin del período',t.pendientes,'var(--ac)','$'+fn2(t.costoPendiente))+
-      (r.futuro?'':kpi('Ya cambiados en el período',t.reales,'var(--ok)','según historial'))+
-      kpi('Total del período',t.proyectadoTotal,'var(--tx)',r.futuro?'sin los vencidos':'hechos + vencidos + pendientes')+'</div>'+
-    '<b style="font-size:13px">Curva S del período — '+escapeHtml(r.rango.etiqueta)+'</b>'+
-    '<div style="margin:6px 0 4px">'+_neuProgCurvaSVG(r)+'</div>'+
-    '<div style="font-size:10px;color:var(--tx3);margin-bottom:12px"><span style="color:var(--ok)">━</span> cambios ya hechos (acumulado) · <span style="color:var(--warn)">╍</span> proyección (parte del nivel real de hoy, suma los vencidos y los que vencen hasta fin del período). No hay un plan congelado contra el cual medir cumplimiento: la proyección se recalcula con cada medición y un neumático ya cambiado sale del programa, por eso la curva muestra avance + lo que falta, no un % de cumplimiento.</div>'+
-    '<div class="tbl-wrap" style="margin-bottom:12px"><table style="width:100%;font-size:11px"><tr style="background:var(--bg3)"><th style="padding:5px;text-align:left">'+(tipo==='semana'?'Día':tipo==='mes'?'Semana':'Mes')+'</th><th>Por cambiar</th><th>Costo estimado</th><th>Ya cambiados</th></tr>'+
-    r.subperiodos.map(sp=>'<tr style="border-bottom:1px solid var(--bd)'+(sp.actual?';background:rgba(99,102,241,.08)':'')+'"><td style="padding:5px"><b>'+escapeHtml(sp.etiqueta)+'</b>'+(sp.actual?' <span style="font-size:9px;color:var(--tx3)">(hoy)</span>':'')+'</td><td style="text-align:center;font-weight:600">'+sp.proyectados+'</td><td style="text-align:center">$'+fn2(sp.costo)+'</td><td style="text-align:center">'+(sp.reales==null?'—':sp.reales)+'</td></tr>').join('')+'</table></div>'+
-    (r.incluyeHoy&&r.vencidos.length?'<b style="font-size:13px;color:var(--danger)">Vencidos — cambiar ya ('+r.vencidos.length+')</b><div class="tbl-wrap" style="max-height:220px;overflow:auto;margin:6px 0 12px"><table style="width:100%;font-size:11px">'+cab+r.vencidos.map(fila).join('')+'</table></div>':'')+
-    '<b style="font-size:13px">Neumáticos que se cambian en el período ('+t.pendientes+')</b>'+
-    (r.pendientes.length?'<div class="tbl-wrap" style="max-height:260px;overflow:auto;margin:6px 0 12px"><table style="width:100%;font-size:11px">'+cab+r.pendientes.map(fila).join('')+'</table></div>':'<div style="padding:12px;color:var(--tx3);font-size:12px">Ninguno proyectado para este período.</div>')+
-    '<div style="font-size:10px;color:var(--tx3)">'+d.items.length+' de '+d.total+' neumáticos montados entran al programa'+(d.estimados?' · '+d.estimados+' no tienen mediciones y quedan fuera (su fecha sería un supuesto)':'')+'. Los cambios ya hechos salen del historial de neumáticos (un cambio por equipo, posición y fecha).</div>'+
+    '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Cada neumático está en <b>un solo estado</b>, que significa lo mismo sea cual sea el período. La fecha de cambio sale de su proyección de desgaste, contada desde su <b>última medición</b>. Toca una tarjeta para ver solo esos neumáticos.</div>'+
+    (diasUlt!=null&&diasUlt>30?'<div style="padding:8px 10px;margin-bottom:10px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)">⚠ La última medición del sistema es de hace <b>'+diasUlt+' días</b> ('+escapeHtml(d.ultimaGlobal)+'). Lo que figura como «Medir primero» no es una falla confirmada: es un neumático cuya fecha no se puede confiar hasta que se vuelva a medir.</div>':'')+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:12px">'+
+      tarjeta('cambiar_ya',t.cambiarYa,t.cambiarYa?'$'+fn2(t.costoCambiarYa):'nada urgente')+
+      tarjeta('medir_primero',t.medirPrimero,'medición de más de 45 días')+
+      tarjeta('en_periodo',t.enPeriodo,t.periodoPasado?'período ya pasado':(t.enPeriodo?'$'+fn2(t.costoEnPeriodo):escapeHtml(r.rango.etiqueta)))+
+      tarjeta('sin_medicion',t.sinMedicion,t.sinMedicion?'sin fecha calculable':'todos medidos')+
+    '</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><b style="font-size:12px">Período:</b>'+tipos.map(a=>'<button class="btn '+(tipo===a[0]?'':'btn-o')+'" style="font-size:11px;padding:4px 10px" onclick="window._neuProgTipo=\''+a[0]+'\';window._neuProgRef=null;programaCambiosNeu()">'+a[1]+'</button>').join('')+
+    '<select id="fNeuProgRef" onchange="window._neuProgRef=this.value;programaCambiosNeu()" style="font-size:12px">'+sel+'</select>'+
+    '<span style="font-size:11px;color:var(--tx3)">'+(t.periodoPasado?'Ya cambiados en el período: <b style="color:var(--ok)">'+t.realizados+'</b> (según historial)':t.futuro?'Período futuro':'Ya cambiados en el período: <b style="color:var(--ok)">'+t.realizados+'</b> (según historial)')+'</span></div>'+
+    '<b style="font-size:13px">'+txtFiltro+' ('+filas.length+')</b>'+
+    (filtro!=='todos'?' <button class="btn btn-o" style="font-size:10px;padding:2px 8px" onclick="window._neuProgFiltro=\'todos\';programaCambiosNeu()">ver todos</button>':'')+
+    (filas.length?'<div class="tbl-wrap" style="max-height:340px;overflow:auto;margin:6px 0 12px"><table style="width:100%;font-size:11px">'+cab+filas.map(fila).join('')+'</table></div>':'<div style="padding:12px;color:var(--tx3);font-size:12px">Ninguno en este estado.</div>')+
+    '<details style="margin-bottom:12px"><summary style="cursor:pointer;font-size:12px;font-weight:600">Cambios por '+(tipo==='semana'?'día':tipo==='mes'?'semana':'mes')+' y curva de avance — '+escapeHtml(r.rango.etiqueta)+'</summary>'+
+      '<div class="tbl-wrap" style="margin:8px 0"><table style="width:100%;font-size:11px"><tr style="background:var(--bg3)"><th style="padding:5px;text-align:left">'+(tipo==='semana'?'Día':tipo==='mes'?'Semana':'Mes')+'</th><th>Por cambiar</th><th>Costo estimado</th><th>Ya cambiados</th></tr>'+
+      r.subperiodos.map(sp=>'<tr style="border-bottom:1px solid var(--bd)'+(sp.actual?';background:rgba(99,102,241,.08)':'')+'"><td style="padding:5px"><b>'+escapeHtml(sp.etiqueta)+'</b>'+(sp.actual?' <span style="font-size:9px;color:var(--tx3)">(hoy)</span>':'')+'</td><td style="text-align:center;font-weight:600">'+sp.proyectados+'</td><td style="text-align:center">$'+fn2(sp.costo)+'</td><td style="text-align:center">'+(sp.reales==null?'—':sp.reales)+'</td></tr>').join('')+'</table></div>'+
+      '<div style="margin:6px 0 4px">'+_neuProgCurvaSVG(r)+'</div>'+
+      '<div style="font-size:10px;color:var(--tx3)"><span style="color:var(--ok)">━</span> cambios ya hechos (acumulado) · <span style="color:var(--warn)">╍</span> lo que falta según la proyección. Es avance, no un % de cumplimiento: no hay un plan congelado contra el cual medir, y un neumático ya cambiado sale del programa.</div>'+
+    '</details>'+
+    '<div style="font-size:10px;color:var(--tx3)">'+d.total+' neumáticos montados: '+d.items.length+' con fecha calculada y '+d.sinMedicion.length+' sin poder calcularla. Los cambios ya hechos salen del historial de neumáticos (un cambio por equipo, posición y fecha).</div>'+
     '<button class="btn btn-o" style="margin-top:12px" onclick="cm()">Cerrar</button></div>');
 }
 function _neuDiasEntre(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}

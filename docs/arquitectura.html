@@ -3754,6 +3754,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Medido (simulador, datos sintéticos):</b> primer ingreso 433 peticiones / 46 MB; ingreso de regreso 132 peticiones / 1,55 MB, ~1 s, mismas 23.004 filas. La capacidad modelada del servidor (4 consultas simultáneas) es un supuesto: los resultados valen en términos relativos.</p>
   <p><b>Pruebas:</b> <code>tests/cargaPaginada.test.js</code> (9) y <code>tests/cargaIncremental.test.js</code> (10).</p>
 
+    <h3 id="d-x">220. Programa de cambio de neumáticos: un estado por neumático (2026-11-12)</h3>
+  <p>La pantalla «Programa de cambios» se leía enredada: mezclaba «vencidos», «pendientes» y «ya cambiados», los títulos de las tarjetas cambiaban según el período y había un «total del período» que sumaba tres cosas distintas. Además, con mediciones viejas, muchos neumáticos aparecían «vencidos» sin estarlo.</p>
+  <p><b>Un estado por neumático</b> (<code>neuProgramaEstados</code>, <code>logic.js</code>): <i>Cambiar ya</i> (fecha pasada y medición de hasta 45 días), <i>Medir primero</i> (fecha pasada pero medición de más de 45 días), <i>En el período</i>, <i>Después</i> y <i>Sin medición</i> (sin mediciones o sin un dato para proyectar). Los números significan lo mismo sea cual sea el período; solo «En el período» cambia con él.</p>
+  <p><b>Pantalla</b> (<code>programaCambiosNeu</code>, <code>modules/renders/neu.js</code>): cuatro tarjetas que sirven de filtro, una sola tabla ordenada (urgente primero, luego por fecha) con una columna de estado, y la tabla por semana/mes más la curva S (solo avance) dentro de un desplegable. Se quitó el «total del período». La lista «Sin medición» incluye también los neumáticos que no se pueden proyectar, que antes se descartaban sin avisar.</p>
+  <p><b>No cambió</b> el cálculo de la fecha de cambio de cada neumático (<code>neuProyeccion</code>) ni <code>neuProgramaCambios</code>. <b>Pruebas:</b> <code>tests/neuPrograma.test.js</code> (5 casos nuevos).</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

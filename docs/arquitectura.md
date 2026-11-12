@@ -7296,6 +7296,15 @@ La simulación local de 100 usuarios (sin tocar producción) mostró que cada in
 - **Medido (simulador, datos sintéticos):** primer ingreso 433 peticiones / 46 MB; ingreso de regreso 132 peticiones / 1,55 MB, ~1 s, mismas 23.004 filas. La capacidad modelada del servidor (4 consultas simultáneas) es un supuesto: los resultados valen en términos relativos.
 - **Pruebas:** `tests/cargaPaginada.test.js` (9) y `tests/cargaIncremental.test.js` (10).
 
+### 220. Programa de cambio de neumáticos: un estado por neumático (2026-11-12)
+
+La pantalla «Programa de cambios» se leía enredada: mezclaba «vencidos», «pendientes» y «ya cambiados», los títulos de las tarjetas cambiaban según el período y había un «total del período» que sumaba tres cosas distintas. Además, con mediciones viejas, muchos neumáticos aparecían «vencidos» sin estarlo.
+
+- **Un estado por neumático** (`neuProgramaEstados`, `logic.js`): *Cambiar ya* (fecha pasada y medición de hasta 45 días), *Medir primero* (fecha pasada pero medición de más de 45 días), *En el período*, *Después* y *Sin medición* (sin mediciones o sin un dato para proyectar). Los números significan lo mismo sea cual sea el período; solo «En el período» cambia con él.
+- **Pantalla** (`programaCambiosNeu`, `modules/renders/neu.js`): cuatro tarjetas que sirven de filtro, **una sola tabla** ordenada (urgente primero, luego por fecha) con una columna de estado, y la tabla por semana/mes más la curva S (solo avance) dentro de un desplegable. Se quitó el «total del período». La lista «Sin medición» incluye también los neumáticos que no se pueden proyectar, que antes se descartaban sin avisar.
+- **No cambió** el cálculo de la fecha de cambio de cada neumático (`neuProyeccion`) ni `neuProgramaCambios`.
+- **Pruebas:** `tests/neuPrograma.test.js` (5 casos nuevos).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

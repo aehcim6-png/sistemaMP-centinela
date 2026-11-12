@@ -97,3 +97,44 @@ describe('neuCambiosRealizados', () => {
     expect(L.neuCambiosRealizados(h)).toEqual(['2025-03-10', '2026-05-10', '2026-05-10', '2026-06-01', '2026-06-01']);
   });
 });
+
+describe('neuProgramaEstados', () => {
+  const sm = [{ sigla: 'S1', posicion: 'P1', serie: 'X1', precio: 500 }];
+  it('cada neumático cae en un solo estado: cambiar ya, medir primero, en el período, después, sin medición', () => {
+    const items = [
+      neu('A', '2026-10-10', 1),     // vencido (fecha 11-oct) con medición de 4 días → cambiar ya
+      neu('B', '2026-07-27', 40),    // vencido y con medición de 79 días → medir primero
+      neu('C', '2026-10-12', 10),    // 22-oct, dentro del mes → en el período
+      neu('D', '2026-10-12', 60),    // 11-dic, fuera del mes → después
+    ];
+    const r = L.neuProgramaEstados(items, [], sm, { hoy, periodo: 'mes' });
+    const est = {}; r.filas.forEach(f => { est[f.sigla] = f.estado; });
+    expect(est).toEqual({ A: 'cambiar_ya', B: 'medir_primero', C: 'en_periodo', D: 'despues', S1: 'sin_medicion' });
+    expect(r.resumen).toMatchObject({ cambiarYa: 1, medirPrimero: 1, enPeriodo: 1, despues: 1, sinMedicion: 1 });
+  });
+  it('los números significan lo mismo en cualquier período: urgentes y sin medición no cambian', () => {
+    const items = [neu('A', '2026-10-10', 1), neu('B', '2026-07-27', 40), neu('C', '2026-10-12', 10), neu('D', '2026-10-12', 60)];
+    const mes = L.neuProgramaEstados(items, [], sm, { hoy, periodo: 'mes' }).resumen;
+    const anio = L.neuProgramaEstados(items, [], sm, { hoy, periodo: 'anio' }).resumen;
+    const fut = L.neuProgramaEstados(items, [], sm, { hoy, periodo: 'mes', ref: '2027-03-10' }).resumen;
+    [anio, fut].forEach(x => { expect(x.cambiarYa).toBe(mes.cambiarYa); expect(x.medirPrimero).toBe(mes.medirPrimero); expect(x.sinMedicion).toBe(mes.sinMedicion); });
+    expect(anio.enPeriodo).toBe(2);          // C y D caen dentro del año
+    expect(fut.enPeriodo).toBe(0);           // ninguno cae en marzo 2027
+  });
+  it('ordena lo urgente primero y, dentro de cada estado, por fecha de cambio', () => {
+    const items = [neu('C', '2026-10-12', 18), neu('A', '2026-10-01', 5), neu('B', '2026-10-03', 5), neu('E', '2026-10-12', 10)];
+    const r = L.neuProgramaEstados(items, [], [], { hoy, periodo: 'mes' });
+    expect(r.filas.map(f => f.sigla)).toEqual(['A', 'B', 'E', 'C']);
+    expect(r.filas.map(f => f.estado)).toEqual(['cambiar_ya', 'cambiar_ya', 'en_periodo', 'en_periodo']);
+  });
+  it('un neumático sin medición no tiene fecha y va al final; la medición sin base no se considera vieja', () => {
+    const r = L.neuProgramaEstados([{ sigla: 'Z', posicion: 'P1', serie: 'Z', base: null, dias: 5, precio: 1 }], [], sm, { hoy, periodo: 'mes' });
+    expect(r.filas[0]).toMatchObject({ sigla: 'Z', estado: 'en_periodo', medicionVieja: false });
+    expect(r.filas[1]).toMatchObject({ sigla: 'S1', estado: 'sin_medicion', fechaCambio: null });
+  });
+  it('suma el costo de lo que hay que cambiar ya y de lo que cae en el período', () => {
+    const r = L.neuProgramaEstados([neu('A', '2026-10-10', 1), neu('C', '2026-10-12', 10)], [], [], { hoy, periodo: 'mes' }).resumen;
+    expect(r.costoCambiarYa).toBe(1000);
+    expect(r.costoEnPeriodo).toBe(1000);
+  });
+});
