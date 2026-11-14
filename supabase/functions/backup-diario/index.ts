@@ -32,6 +32,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding/base64";
 import { registrarSaludCron } from "../_shared/registrarSaludCron.ts";
 import { detalleErrorVerificacion, verificarSecretoCron } from "../_shared/verificarSecretoCron.ts";
+import { subirCopiaRespaldo } from "../_shared/respaldoCopia.ts";
 
 // Mismo set de tablas reales que TABLA_REAL/TABLA_SINGLETON en
 // modules/store.js, más 'kv' (banderas legacy) y 'user_roles' (para poder
@@ -233,6 +234,9 @@ Deno.serve(async (req: Request) => {
     // límite de argumentos de función del motor de JS.
     const base64 = encodeBase64(bufferComprimido);
 
+    // Segunda copia en un bucket privado (últimos 30 días). Si falla NO se corta el envío por correo, pero queda en salud_crons.
+    const copia = await subirCopiaRespaldo(supabase, bufferComprimido, fecha);
+
     const rEmail = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -257,7 +261,11 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: false, paso: 'envio_email', status: rEmail.status, detalle }), { status: 502 });
     }
 
-    await registrarSaludCron(supabaseUrl, serviceKey, 'backup-diario', true, `ok — ${resumen.length} tablas`);
+    if (!copia.ok) {
+      await registrarSaludCron(supabaseUrl, serviceKey, 'backup-diario', false, `correo ok, pero la copia en Storage falló — ${copia.detalle}`);
+      return new Response(JSON.stringify({ ok: false, paso: 'copia_storage', detalle: copia.detalle, fecha, resumen }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+    await registrarSaludCron(supabaseUrl, serviceKey, 'backup-diario', true, `ok — ${resumen.length} tablas · ${copia.detalle}`);
     return new Response(JSON.stringify({ ok: true, fecha, resumen }), {
       headers: { 'Content-Type': 'application/json' }
     });

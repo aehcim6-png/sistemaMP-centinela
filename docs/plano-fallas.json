@@ -535,7 +535,7 @@
    "id": "CRN-01",
    "capa": "supabase",
    "nombre": "Tarea programada: backup-diario-centinela",
-   "que_es": "Respaldo diario por correo de todas las tablas. Corre a las 12:00 UTC (en Chile son 3 o 4 horas menos según la época del año).",
+   "que_es": "Respaldo diario por correo de todas las tablas. Corre a las 12:00 UTC (en Chile son 3 o 4 horas menos según la época del año). Además guarda una segunda copia (.json.gz) en el bucket privado `respaldos-diarios` de Supabase Storage y conserva los últimos 30 días.",
    "donde": [
     [
      "Trabajo",
@@ -548,6 +548,10 @@
     [
      "Registro de resultado",
      "tabla `salud_crons`, fila `backup-diario`"
+    ],
+    [
+     "Segunda copia",
+     "bucket privado `respaldos-diarios` (Storage); solo la función puede leerlo"
     ]
    ],
    "sintomas": [
@@ -558,7 +562,8 @@
     "Panel → Integrations → Cron: ¿corrió hoy? (DB-04)",
     "Panel → Edge Functions → backup-diario → Logs: ¿qué respondió?",
     "Si corrió y respondió bien pero no llegó el correo: ver EXT-01 (Resend).",
-    "Si responde «No autorizado»: ver DB-03."
+    "Si responde «No autorizado»: ver DB-03.",
+    "Si salud_crons dice «la copia en Storage falló»: el correo sí salió; ver `detalle` (¿existe el bucket? ¿se llenó el espacio del plan?)."
    ],
    "accion": [
     "Según la causa: ver la ficha de EF-05, DB-03 o EXT-01."
@@ -566,7 +571,8 @@
    "escalar": "Si ninguna revisión explica la falla: avisar la hora esperada y lo que muestra el log.",
    "claude": [
     "`select * from public.salud_crons;` (criterio del detector: backup-diario con más de 26 horas o exito=false = problema).",
-    "`get_edge_function` y `query_logs` de `backup-diario`."
+    "`get_edge_function` y `query_logs` de `backup-diario`.",
+    "`select name, created_at from storage.objects where bucket_id='respaldos-diarios' order by created_at desc limit 5;` (las últimas copias guardadas)."
    ],
    "depende_de": [
     "DB-04",

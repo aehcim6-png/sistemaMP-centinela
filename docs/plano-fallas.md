@@ -343,11 +343,12 @@ El «reloj» que dispara cada tarea programada a su hora (CRN-01 a CRN-08). Func
 
 ### CRN-01 — Tarea programada: backup-diario-centinela
 
-Respaldo diario por correo de todas las tablas. Corre a las 12:00 UTC (en Chile son 3 o 4 horas menos según la época del año).
+Respaldo diario por correo de todas las tablas. Corre a las 12:00 UTC (en Chile son 3 o 4 horas menos según la época del año). Además guarda una segunda copia (.json.gz) en el bucket privado `respaldos-diarios` de Supabase Storage y conserva los últimos 30 días.
 
 - **Trabajo:** `backup-diario-centinela` (0 12 * * *, hora UTC)
 - **Llama a:** EF-05 (`backup-diario`)
 - **Registro de resultado:** tabla `salud_crons`, fila `backup-diario`
+- **Segunda copia:** bucket privado `respaldos-diarios` (Storage); solo la función puede leerlo
 
 **Cómo se ve:** No llegó el correo de hoy; En `salud_crons` la fecha es de hace más de un día o dice error
 
@@ -356,6 +357,7 @@ Respaldo diario por correo de todas las tablas. Corre a las 12:00 UTC (en Chile 
 2. Panel → Edge Functions → backup-diario → Logs: ¿qué respondió?
 3. Si corrió y respondió bien pero no llegó el correo: ver EXT-01 (Resend).
 4. Si responde «No autorizado»: ver DB-03.
+5. Si salud_crons dice «la copia en Storage falló»: el correo sí salió; ver `detalle` (¿existe el bucket? ¿se llenó el espacio del plan?).
 
 **Qué hacer:** Según la causa: ver la ficha de EF-05, DB-03 o EXT-01.
 
@@ -367,6 +369,7 @@ Respaldo diario por correo de todas las tablas. Corre a las 12:00 UTC (en Chile 
 **Soporte técnico (Claude):**
 - `select * from public.salud_crons;` (criterio del detector: backup-diario con más de 26 horas o exito=false = problema).
 - `get_edge_function` y `query_logs` de `backup-diario`.
+- `select name, created_at from storage.objects where bucket_id='respaldos-diarios' order by created_at desc limit 5;` (las últimas copias guardadas).
 
 ### CRN-02 — Tarea programada: alerta-pm-diaria
 

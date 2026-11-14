@@ -7313,6 +7313,14 @@ Los aljibes (CN-5131, CN-5133, CN-10321, CN-10322), las camionetas y el bus BS-5
 - **Límite:** si en una posición se cambia el neumático sin actualizar su fecha de instalación, se mezclan las lecturas del anterior. Por eso conviene registrar siempre la fecha del cambio.
 - **Pruebas:** `tests/neuPrograma.test.js` (4 casos nuevos).
 
+### 222. Segunda copia del respaldo diario (2026-11-13)
+
+El respaldo diario (`backup-diario`, CRN-01) solo se mandaba por correo (Resend a Gmail): una sola copia, y el plan de Supabase del proyecto es **gratuito** (sin respaldos propios de la plataforma). Si el correo se perdía o se borraba, no quedaba nada.
+- **Qué hace ahora:** además del correo, guarda el mismo `.json.gz` en el bucket **privado** `respaldos-diarios` de Storage (`sistemamp-backup-AAAA-MM-DD.json.gz`, reemplaza el del mismo día) y borra los de más de 30 días (`logic` en `supabase/functions/_shared/respaldoCopia.ts`: `nombresVencidos` solo toca archivos con ese patrón). El bucket no tiene políticas: solo la función (service_role) lo lee o escribe.
+- **Si la copia falla:** el correo ya salió, pero la fila `backup-diario` de `salud_crons` queda con `exito=false` y el motivo, para que el detector de salud avise.
+- **Límite, dicho con honestidad:** la copia vive en el **mismo proyecto de Supabase**. Protege de un correo perdido o borrado, no de perder el proyecto entero. Para eso hace falta una copia fuera (otra cuenta o proveedor) con credenciales que debe crear el dueño.
+- **Migración:** `20261113120000_bucket_respaldos_diarios.sql` (solo inserta el bucket; sin tablas nuevas). **Pruebas:** `tests/respaldoCopia.test.js` (7).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
