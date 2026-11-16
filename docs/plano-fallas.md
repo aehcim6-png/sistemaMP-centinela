@@ -219,13 +219,14 @@ Supabase valida el correo y la clave, mantiene la sesión abierta y pide el segu
 - **Roles:** tabla `user_roles` ({sb}/editor)
 - **Código:** `index.html` (`_doLogin`, `_sbAuthLogin`), `modules/renders/cfg.js`
 
-**Cómo se ve:** Nadie puede entrar; Una persona no puede entrar aunque la clave es correcta; La sesión se cierra sola; El código de doble verificación no sirve; Un usuario nuevo no puede entrar (queda bloqueado hasta que un admin lo activa: es normal)
+**Cómo se ve:** Nadie puede entrar; Una persona no puede entrar aunque la clave es correcta; La sesión se cierra sola; El código de doble verificación no sirve; Un usuario nuevo no puede entrar (queda bloqueado hasta que un admin lo activa: es normal); En el celular la pantalla queda con la cabecera fija y todo lo demás vacío (sin contadores ni menú); al cerrar sesión y volver a entrar funciona
 
 **Confirmar:**
 1. ¿Entran las demás personas? Si nadie entra: mirar EXT-04 (captcha) y DB-01 (¿el proyecto está activo?).
 2. Si es una sola persona: Panel → Authentication → Users: ¿existe, está confirmada, no está bloqueada?
 3. Luego, tabla `user_roles`: ¿tiene su rol y está activa?
 4. Si es un usuario nuevo: Configuración → «Pendientes de activar».
+5. Si la pantalla queda vacía con una sesión guardada: la verificación de la sesión al arrancar se colgó por la conexión del celular. Desde el 16-nov-2026 hay un tiempo máximo de 10 s (luego aparece el login) y, si la app no arranca en 25 s, un aviso con «Reintentar» y «Cerrar sesión». Si igual pasa: ver `Sentry` y el registro de uso (`uso_pestanas`) de esa hora.
 
 **Qué hacer:** Activar al usuario desde Configuración, o restablecer su clave desde el panel (Authentication → Users).
 

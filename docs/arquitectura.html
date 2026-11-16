@@ -3781,6 +3781,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   </ul>
   <p><b>Pruebas:</b> <code>tests/horomEnFecha.test.js</code> (3 casos nuevos).</p>
 
+    <h3 id="d-x">224. Arranque que ya no se queda colgado en el celular (2026-11-16)</h3>
+  <p>Caso real: en el celular, con la sesión guardada, la app quedó con la cabecera fija y todo lo demás vacío (sin contadores, menú ni aviso); al cerrar sesión y volver a entrar funcionó. <b>Causa:</b> al abrir con un token guardado, el arranque espera la verificación de la sesión (<code>_sbAuthSession</code>, y si venció <code>_sbAuthRefresh</code>) con <code>fetch</code> <b>sin tiempo máximo</b>; si la conexión se queda colgada, la espera no termina nunca y no se muestra ni el login. Al cerrar sesión se borra el token y el arranque salta esa verificación, por eso «volvió».</p>
+  <p><b>Arreglo:</b> <code>_fetchConTiempo</code> (index.html) pone 10 s a la verificación y al refresco de la sesión al arrancar; si vence, aparece el login por el mismo camino que ya tenía la falta de conexión, <b>sin borrar</b> la sesión guardada. <b>Red de seguridad:</b> <code>_vigilarArranque</code>: si en 25 s la app no arrancó y no hay login a la vista, aparece un aviso con «Reintentar» y «Cerrar sesión». <b>Pruebas:</b> <code>tests/e2e/arranque-sin-colgarse.spec.js</code>. <b>Límite:</b> si la conexión se cuelga después de verificar la sesión (carga de roles o de tablas), solo actúa la red de seguridad de 25 s.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -4680,6 +4680,8 @@ var _esRecuperacionClave=false;
 })();
 // v14 initialized - carga claves pesadas desde Supabase con fallback a localStorage
 function _arrancar(){
+  window._smpArrancado=true;
+  const _av=document.getElementById('avisoCargaLenta');if(_av)_av.remove();
   S.init();
   // Si ya se conoce un perfil restringido en este punto (sesión restaurada,
   // donde el rol/perfil se resuelve ANTES de llamar acá — distinto del login
@@ -4742,12 +4744,20 @@ async function _sbAuthLogin(email, password, captchaToken){
   return r.json();
 }
 
+// fetch con tiempo máximo: sin esto, una conexión de celular que se queda colgada (cambio de red, señal débil) deja la petición esperando para siempre. Al vencer el tiempo lanza un error (AbortError) en vez de colgarse.
+function _fetchConTiempo(url,init,ms){
+  const ctl=new AbortController();
+  const t=setTimeout(function(){ctl.abort();},ms);
+  return fetch(url,Object.assign({},init,{signal:ctl.signal})).finally(function(){clearTimeout(t);});
+}
+// Tiempo máximo (ms) de las llamadas de sesión al arrancar; se puede bajar desde las pruebas con window._SMP_TIMEOUT_AUTH_MS.
+function _msTimeoutAuth(){return (typeof window!=='undefined'&&window._SMP_TIMEOUT_AUTH_MS>0)?window._SMP_TIMEOUT_AUTH_MS:10000;}
 async function _sbAuthSession(){
   const token = localStorage.getItem('smp_access_token');
   if(!token) return null;
-  const r = await fetch(_SB_DEFAULT_URL+'/auth/v1/user',{
+  const r = await _fetchConTiempo(_SB_DEFAULT_URL+'/auth/v1/user',{
     headers:{'apikey':_SB_DEFAULT_KEY,'Authorization':'Bearer '+token}
-  });
+  },_msTimeoutAuth());
   if(!r.ok) return null;
   return r.json();
 }
@@ -4876,11 +4886,11 @@ async function _sbAuthRefreshInner(){
   const refreshToken = localStorage.getItem('smp_refresh_token');
   if(!refreshToken) return false;
   try{
-    const r = await fetch(_SB_DEFAULT_URL+'/auth/v1/token?grant_type=refresh_token',{
+    const r = await _fetchConTiempo(_SB_DEFAULT_URL+'/auth/v1/token?grant_type=refresh_token',{
       method:'POST',
       headers:{'apikey':_SB_DEFAULT_KEY,'Content-Type':'application/json'},
       body:JSON.stringify({refresh_token:refreshToken})
-    });
+    },_msTimeoutAuth());
     const data = await r.json();
     if(!r.ok || data.error || !data.access_token) return false;
     localStorage.setItem('smp_access_token', data.access_token);
@@ -5908,8 +5918,27 @@ async function _doChangePassword(){
   }
 }
 
+// Si la app no logra arrancar (conexión colgada, falla al cargar datos), la pantalla quedaba con la cabecera fija y todo lo demás vacío, sin ningún aviso.
+// Pasado el tiempo, se muestra un aviso con dos salidas: reintentar o cerrar sesión y volver a entrar (lo que antes había que adivinar).
+function _vigilarArranque(){
+  const ms=(window._SMP_TIMEOUT_ARRANQUE_MS>0)?window._SMP_TIMEOUT_ARRANQUE_MS:25000;
+  setTimeout(function(){
+    if(window._smpArrancado||document.getElementById('loginOverlay')||document.getElementById('avisoCargaLenta'))return;
+    const d=document.createElement('div');
+    d.id='avisoCargaLenta';d.setAttribute('role','alert');
+    d.style.cssText='position:fixed;left:12px;right:12px;top:80px;z-index:99999;background:var(--bg2,#12151c);color:var(--tx,#e8eaf0);border:1px solid var(--ac,#e8a33d);border-radius:12px;padding:14px 16px;box-shadow:0 8px 28px rgba(0,0,0,.5);font-size:14px;line-height:1.4';
+    d.innerHTML='<b>⚠ La carga está tardando más de lo normal</b><div style="margin:6px 0 10px;color:var(--tx2,#9aa3b2)">Puede ser la señal del celular. Toca «Reintentar»; si sigue igual, «Cerrar sesión» y vuelve a entrar.</div><div style="display:flex;gap:8px"><button id="avisoCargaReint" class="btn" style="flex:1;min-height:44px">Reintentar</button><button id="avisoCargaSalir" class="btn btn-o" style="flex:1;min-height:44px">Cerrar sesión</button></div>';
+    document.body.appendChild(d);
+    document.getElementById('avisoCargaReint').onclick=function(){location.reload();};
+    document.getElementById('avisoCargaSalir').onclick=function(){
+      try{localStorage.removeItem('smp_access_token');localStorage.removeItem('smp_refresh_token');}catch(e){}
+      location.reload();
+    };
+  },ms);
+}
 // Arranque con auth
 document.addEventListener('DOMContentLoaded',async function(){
+  _vigilarArranque();
   function _arrancarSistema(){
     if(_sbOk()){
       window._sbLoadHeavy().then(function(ok){

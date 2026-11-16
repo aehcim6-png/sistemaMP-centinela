@@ -7331,6 +7331,14 @@ Se revisó, con los datos de producción, si las fórmulas hacen su trabajo. Res
 - **Sin datos, no hay cálculo:** 16 tablas están vacías (tareas, FMEA, compromisos, inspecciones, plan semanal, producción por turno, insumos, siniestros, recauchajes, entrenamientos MOM, FODA, destrabe, órdenes de compra, uso del asistente, tren de rodaje). Sus algoritmos funcionan en las pruebas pero no producen nada. Aceite (última muestra 10-jul) y stock (último movimiento 06-ago) calculan sobre datos viejos.
 - **Pruebas:** `tests/horomEnFecha.test.js` (3 casos nuevos).
 
+### 224. Arranque que ya no se queda colgado en el celular (2026-11-16)
+
+Caso real: en el celular, con la sesión guardada, la app quedó con la cabecera fija y todo lo demás vacío (sin contadores, menú ni aviso); al cerrar sesión y volver a entrar funcionó. Causa: al abrir con un token guardado, el arranque espera la verificación de la sesión (`_sbAuthSession`, y si venció `_sbAuthRefresh`) con `fetch` **sin tiempo máximo**; si la conexión se queda colgada, la espera no termina nunca y no se muestra ni el login. Al cerrar sesión se borra el token y el arranque salta esa verificación, por eso «volvió».
+- **Arreglo:** `_fetchConTiempo` (index.html) pone 10 s a la verificación y al refresco de la sesión al arrancar. Si vence, el arranque sigue por el mismo camino que ya tenía la falta de conexión: aparece el login, **sin borrar** la sesión guardada (puede ser solo la señal).
+- **Red de seguridad:** `_vigilarArranque` — si en 25 s la app no arrancó (`window._smpArrancado`) y no hay login a la vista, aparece un aviso con «Reintentar» y «Cerrar sesión». Cubre cualquier otra espera infinita del arranque.
+- **Pruebas:** `tests/e2e/arranque-sin-colgarse.spec.js` (servidor colgado muestra el login y conserva la sesión; sin arranque aparece el aviso y «Cerrar sesión» borra el token; arranque normal sin aviso). Los tiempos se bajan con `window._SMP_TIMEOUT_AUTH_MS` / `_SMP_TIMEOUT_ARRANQUE_MS`.
+- **Límite:** si la conexión se cuelga después de verificar la sesión (carga de roles o de tablas), solo actúa la red de seguridad de 25 s.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
