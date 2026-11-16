@@ -413,11 +413,15 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   .header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"logo right" "stats stats";align-items:center;gap:0 4px;padding:0 4px 0 12px}
   .header::before{display:none}
   .logo{grid-area:logo;font-size:16px;min-height:48px}
+  /* 16-nov-2026: con 7 íconos de 44px (308px) la marca quedaba tapada en pantallas de 320-411px (se veía un ícono encima de «SistemaMP»). Ahora se oculta la imagen de la marca (el ícono de la app ya está en la pantalla de inicio) y los botones
+     se achican lo justo para que quepan siempre: ancho disponible = pantalla − texto de la marca (~111px), repartido entre los 7 botones, con tope de 44px. */
+  .logo img{display:none}
+  #exportBar button,#_userBadge{width:min(44px,calc((100vw - 111px)/7))!important}
   .logo-t{display:flex;flex-direction:column;line-height:1.15}
   .logo-t span{margin-left:0;font-size:9px;letter-spacing:.08em}
   #headerRight{grid-area:right;gap:0!important}
   #exportBar{background:none!important;border:none!important;padding:0!important;gap:0!important}
-  #exportBar button,#_userBadge{width:44px;height:44px;padding:0!important;font-size:0!important;display:inline-flex;align-items:center;justify-content:center;border-radius:50%!important;background:transparent!important;border:none!important;box-shadow:none!important}
+  #exportBar button,#_userBadge{height:44px;padding:0!important;font-size:0!important;display:inline-flex;align-items:center;justify-content:center;border-radius:50%!important;background:transparent!important;border:none!important;box-shadow:none!important}
   #exportBar button svg,#_userBadge svg{width:20px;height:20px}
   #exportBar button,#_userBadge{color:var(--tx2)!important} /* sin la pastilla oscura, el gris fijo no se leía en tema claro */
   .hstats-wrap{grid-area:stats;border-top:1px solid var(--bd);padding:2px 0 4px;min-width:0}

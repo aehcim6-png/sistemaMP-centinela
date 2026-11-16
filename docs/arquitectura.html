@@ -3781,6 +3781,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   </ul>
   <p><b>Pruebas:</b> <code>tests/horomEnFecha.test.js</code> (3 casos nuevos).</p>
 
+    <h3 id="d-x">224. Cabecera del celular: los íconos ya no tapan el título (2026-11-16)</h3>
+  <p>En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) no cabía: el primer ícono quedaba encima de «SistemaMP». En 480 px sí cabía, por eso no se había visto.</p>
+  <p><b>Arreglo (solo CSS, ≤480 px):</b> se oculta la imagen de la marca (el ícono de la app ya está en la pantalla de inicio) y cada botón mide <code>min(44px, (ancho − 111px)/7)</code>: 44 px donde sobra lugar, ~36 px a 360 px y ~30 px a 320 px. <b>Pruebas:</b> <code>tests/e2e/cabecera-movil.spec.js</code> mide a 320, 360, 390, 411 y 480 px que el texto de la marca termina antes del primer ícono y que la cabecera no se sale de la pantalla. <b>Pendiente aparte:</b> a 320 px una barra del Dashboard (<code>.bar-c</code>) se sale ~25 px de la pantalla; no es de la cabecera y no se tocó.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
