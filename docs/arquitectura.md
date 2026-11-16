@@ -7339,6 +7339,13 @@ Caso real: en el celular, con la sesión guardada, la app quedó con la cabecera
 - **Pruebas:** `tests/e2e/arranque-sin-colgarse.spec.js` (servidor colgado muestra el login y conserva la sesión; sin arranque aparece el aviso y «Cerrar sesión» borra el token; arranque normal sin aviso). Los tiempos se bajan con `window._SMP_TIMEOUT_AUTH_MS` / `_SMP_TIMEOUT_ARRANQUE_MS`.
 - **Límite:** si la conexión se cuelga después de verificar la sesión (carga de roles o de tablas), solo actúa la red de seguridad de 25 s.
 
+### 225. Cabecera del celular: los íconos ya no tapan el título (2026-11-16)
+
+En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) no cabía: el primer ícono quedaba encima de «SistemaMP». En 480 px sí cabía, por eso no se había visto.
+- **Arreglo (solo CSS, ≤480 px):** se oculta la imagen de la marca (el ícono de la app ya está en la pantalla de inicio) y cada botón mide `min(44px, (ancho − 111px)/7)`: 44 px donde sobra lugar, ~36 px a 360 px y ~30 px a 320 px.
+- **Pruebas:** `tests/e2e/cabecera-movil.spec.js` mide a 320, 360, 390, 411 y 480 px que el texto de la marca termina antes del primer ícono y que la cabecera no se sale de la pantalla.
+- **Pendiente aparte:** a 320 px una barra del Dashboard (`.bar-c`) se sale ~25 px de la pantalla; no es de la cabecera y no se tocó.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
