@@ -28,4 +28,5 @@ La fuente es `docs/plano-fallas.json`; `docs/plano-fallas.html` y `.md` se **gen
 - Idioma: español, conciso y honesto con los límites; no inventar datos; no mostrar secretos.
 - Pruebas: `npx vitest run` (unitarias, `tests/*.test.js`) y `npx playwright test` (e2e, `tests/e2e`; en este entorno `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`).
 - Toda tabla o función nueva en `public` lleva sus `GRANT` en la misma migración (`tests/migracionesGrants.test.js`); toda tabla nueva va también a `TABLAS` de `supabase/functions/backup-diario`.
+- Si cargas mediciones de neumáticos por SQL, termina actualizando la ficha (`neumaticos.remanente`, `ultimaMedicion`, `pctRemanente`) con la última lectura: la proyección parte de la ficha y la app solo la actualiza cuando la medición se guarda desde la pantalla (arquitectura §223).
 - Cálculos y reglas en `logic.js` (con su prueba); pantallas en `modules/renders/*.js`; guardado en `modules/store.js`. Todo cambio relevante se documenta en `docs/arquitectura.md` (y su `.html`), el manual y el inventario de algoritmos.

@@ -1147,7 +1147,8 @@ El TBO (*Time Between Overhaul*, tiempo entre cambios mayores) viene de un archi
 - **De dónde viene:** 🔵 Criterio propio. `compEstado` no inventa un porcentaje cuando falta la fecha de instalación ("⚪ Falta instalación").
 - **Cómo lo calcula aquí:** `compEstado`: horas usadas = horómetro actual − horómetro de instalación (un original usa el horómetro completo); vencido si restan ≤ 0 h, planificar < 1.000 h, monitorear < 2.000 h. `horomEnFecha` interpola entre las dos lecturas vecinas; antes del historial traza la recta desde el inicio operacional; nunca devuelve negativo ni pasa el horómetro actual. `tasaDiariaReal` calcula el ritmo real (h/día) descartando saltos implausibles (más de 4 veces el ritmo nominal).
 - **Dónde se ve:** Componentes, Buscar, KPI, Calendario de reemplazos.
-- **Código:** `compEstado`, `horomEnFecha`, `tasaDiariaReal`, `construirLecturaHistorial`.
+- **Tope físico del ritmo (16-nov-2026, `topeRitmoDiario`):** el ritmo real (`tasaDiariaReal`) promedia los últimos días de lecturas; como las lecturas se toman a distinta hora, en equipos que trabajan las 24 h la ventana podía dar 25–26 h/día (caso real GE-10019: 25,2) y adelantar la fecha del PM. Ahora un horómetro nunca supera 24 h/día; los odómetros (km) no tienen tope. 🟢 Límite físico, no una convención.
+- **Código:** `compEstado`, `horomEnFecha`, `tasaDiariaReal`, `topeRitmoDiario`, `construirLecturaHistorial`.
 
 ### J5. Vencimientos de documentos y lubricantes
 - **Tipo:** reglas.

@@ -1439,7 +1439,8 @@
     <li><b>De dónde viene:</b> 🔵 Criterio propio. <code>compEstado</code> no inventa un porcentaje cuando falta la fecha de instalación ("⚪ Falta instalación").</li>
     <li><b>Cómo lo calcula aquí:</b> <code>compEstado</code>: horas usadas = horómetro actual − horómetro de instalación (un original usa el horómetro completo); vencido si restan ≤ 0 h, planificar &lt; 1.000 h, monitorear &lt; 2.000 h. <code>horomEnFecha</code> interpola entre las dos lecturas vecinas; antes del historial traza la recta desde el inicio operacional; nunca devuelve negativo ni pasa el horómetro actual. <code>tasaDiariaReal</code> calcula el ritmo real (h/día) descartando saltos implausibles (más de 4 veces el ritmo nominal).</li>
     <li><b>Dónde se ve:</b> Componentes, Buscar, KPI, Calendario de reemplazos.</li>
-    <li><b>Código:</b> <code>compEstado</code>, <code>horomEnFecha</code>, <code>tasaDiariaReal</code>, <code>construirLecturaHistorial</code>.</li>
+    <li><b>Tope físico del ritmo (16-nov-2026, <code>topeRitmoDiario</code>):</b> el ritmo real (<code>tasaDiariaReal</code>) promedia los últimos días de lecturas; como las lecturas se toman a distinta hora, en equipos que trabajan las 24 h la ventana podía dar 25–26 h/día (caso real GE-10019: 25,2) y adelantar la fecha del PM. Ahora un horómetro nunca supera 24 h/día; los odómetros (km) no tienen tope. 🟢 Límite físico, no una convención.</li>
+    <li><b>Código:</b> <code>compEstado</code>, <code>horomEnFecha</code>, <code>tasaDiariaReal</code>, <code>topeRitmoDiario</code>, <code>construirLecturaHistorial</code>.</li>
   </ul>
 
   <h3 id="d-130">J5. Vencimientos de documentos y lubricantes</h3>

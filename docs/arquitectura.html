@@ -3770,6 +3770,17 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Qué hace ahora:</b> además del correo, guarda el mismo <code>.json.gz</code> en el bucket <b>privado</b> <code>respaldos-diarios</code> de Storage (<code>sistemamp-backup-AAAA-MM-DD.json.gz</code>, reemplaza el del mismo día) y borra los de más de 30 días (<code>supabase/functions/_shared/respaldoCopia.ts</code>: <code>nombresVencidos</code> solo toca archivos con ese patrón). El bucket no tiene políticas: solo la función (service_role) lo lee o escribe. <b>Si la copia falla:</b> el correo ya salió, pero la fila <code>backup-diario</code> de <code>salud_crons</code> queda con <code>exito=false</code> y el motivo, para que el detector de salud avise.</p>
   <p><b>Límite, dicho con honestidad:</b> la copia vive en el <b>mismo proyecto de Supabase</b>. Protege de un correo perdido o borrado, no de perder el proyecto entero. Para eso hace falta una copia fuera (otra cuenta o proveedor) con credenciales que debe crear el dueño. <b>Migración:</b> <code>20261113120000_bucket_respaldos_diarios.sql</code> (solo inserta el bucket; sin tablas nuevas). <b>Pruebas:</b> <code>tests/respaldoCopia.test.js</code> (7).</p>
 
+    <h3 id="d-x">223. Revisión de algoritmos contra los datos reales (2026-11-16)</h3>
+  <p>Se revisó, con los datos de producción, si las fórmulas hacen su trabajo.</p>
+  <ul>
+    <li><b>Conexión:</b> de 600 funciones exportadas de <code>logic.js</code>, 413 las usa alguna pantalla o función del servidor, 184 son piezas internas de otras y 3 no se usan (<code>eoqRazonCosto</code>, <code>neuSiguienteNumRecauchaje</code>, <code>DOTACION_ESPECIALIDADES</code>).</li>
+    <li><b>Programa de PM:</b> en los 36 equipos, horas restantes = próximo hito − horómetro (0 diferencias). Los días usan el ritmo real, no el nominal: por eso no coinciden con horas ÷ horas/día nominales, y es lo esperado.</li>
+    <li><b>Defecto corregido, ritmo mayor que 24 h/día:</b> <code>tasaDiariaReal</code> podía dar más de 24 h/día en equipos de 24 h (GE-10019: 25,2). Se agregó <code>topeRitmoDiario</code> (24 para horómetros, sin tope para km) y lo aplican <code>_ritmoRealEq</code> (<code>store.js</code>) y el cumplimiento del programa.</li>
+    <li><b>Datos corregidos, ficha del neumático atrasada:</b> las lecturas cargadas por SQL no actualizaban <code>remanente</code>, <code>ultimaMedicion</code> ni <code>pctRemanente</code> de la ficha (eso lo hace la app al guardar una medición). La proyección parte del remanente de la ficha, así que 83 neumáticos operativos de 16 equipos proyectaban con un valor viejo (BS-5752 pos. 6: ficha 13 mm, real 4,5 mm). Se igualaron a su última medición. <b>Regla:</b> toda carga de mediciones por SQL debe terminar actualizando la ficha.</li>
+    <li><b>Sin datos, no hay cálculo:</b> 16 tablas están vacías (tareas, FMEA, compromisos, inspecciones, plan semanal, producción por turno, insumos, siniestros, recauchajes, entrenamientos MOM, FODA, destrabe, órdenes de compra, uso del asistente, tren de rodaje). Sus algoritmos funcionan en las pruebas pero no producen nada. Aceite (última muestra 10-jul) y stock (último movimiento 06-ago) calculan sobre datos viejos.</li>
+  </ul>
+  <p><b>Pruebas:</b> <code>tests/horomEnFecha.test.js</code> (3 casos nuevos).</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

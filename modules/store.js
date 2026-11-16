@@ -1210,7 +1210,10 @@ function _ritmoRealEq(sigla,hrsDiaNominal,histPorSigla){
   // solo el camino sin índice necesita filtrar la tabla completa.
   var filas=histPorSigla?(histPorSigla[sigla]||[]):(S.g('hist')||[]).filter(function(h){return h&&h.sigla===sigla&&h.fecha;});
   var lecturas=filas.map(function(h){return{fecha:h.fecha,horom:(typeof valorLecturaHorometro==='function'?valorLecturaHorometro(h):(h.horomFin!=null?h.horomFin:h.horom))};});
-  return tasaDiariaReal(lecturas,hrsDiaNominal||12);
+  // Un horómetro no puede avanzar más de 24 h por día (los km no tienen ese tope): ver topeRitmoDiario en logic.js.
+  var eqR=(S.g('eq')||[]).find(function(x){return x&&x.sigla===sigla;});
+  var tope=(typeof topeRitmoDiario==='function')?topeRitmoDiario(eqR&&eqR.unidad,hrsDiaNominal||12):0;
+  return tasaDiariaReal(lecturas,hrsDiaNominal||12,tope);
 }
 // Horómetro real del último PM ejecutado (registros_pm), para anclar proxPM a ese
 // ciclo real en vez de la grilla modular pura desde horómetro cero — sin esto, un

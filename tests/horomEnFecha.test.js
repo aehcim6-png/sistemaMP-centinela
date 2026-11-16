@@ -130,3 +130,26 @@ describe('horomEnFecha con ancla de inicio operacional', () => {
     expect(e.horom).toBeLessThanOrEqual(21000);
   });
 });
+
+describe('tope físico del ritmo diario (un horómetro no avanza más de 24 h por día)', () => {
+  const L2 = require('../logic.js');
+  // Caso real GE-10019: generador que trabaja las 24 h, lecturas a distinta hora (18 h un día, 29 h el siguiente)
+  const lecturas = [
+    { fecha: '2026-11-04', horom: 15172 }, { fecha: '2026-11-05', horom: 15190 }, { fecha: '2026-11-06', horom: 15219 },
+    { fecha: '2026-11-07', horom: 15243 }, { fecha: '2026-11-08', horom: 15268 }, { fecha: '2026-11-09', horom: 15292 }, { fecha: '2026-11-10', horom: 15316 },
+  ];
+  it('sin tope la ventana de 5 días da más de 24 h/día; con tope queda en 24', () => {
+    expect(L2.tasaDiariaReal(lecturas, 12)).toBeGreaterThan(24);
+    expect(L2.tasaDiariaReal(lecturas, 12, 24)).toBe(24);
+  });
+  it('un ritmo normal no se toca', () => {
+    const l = [{ fecha: '2026-11-01', horom: 100 }, { fecha: '2026-11-11', horom: 250 }];
+    expect(L2.tasaDiariaReal(l, 16, 24)).toBe(15);
+  });
+  it('topeRitmoDiario: 24 para horas (o sin unidad), sin tope para km o uso nominal mayor que 24', () => {
+    expect(L2.topeRitmoDiario('hr', 16)).toBe(24);
+    expect(L2.topeRitmoDiario(null, 12)).toBe(24);
+    expect(L2.topeRitmoDiario('km', 200)).toBe(0);
+    expect(L2.topeRitmoDiario(null, 300)).toBe(0);
+  });
+});

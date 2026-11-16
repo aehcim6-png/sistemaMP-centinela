@@ -7321,6 +7321,16 @@ El respaldo diario (`backup-diario`, CRN-01) solo se mandaba por correo (Resend 
 - **Límite, dicho con honestidad:** la copia vive en el **mismo proyecto de Supabase**. Protege de un correo perdido o borrado, no de perder el proyecto entero. Para eso hace falta una copia fuera (otra cuenta o proveedor) con credenciales que debe crear el dueño.
 - **Migración:** `20261113120000_bucket_respaldos_diarios.sql` (solo inserta el bucket; sin tablas nuevas). **Pruebas:** `tests/respaldoCopia.test.js` (7).
 
+### 223. Revisión de algoritmos contra los datos reales (2026-11-16)
+
+Se revisó, con los datos de producción, si las fórmulas hacen su trabajo. Resultado:
+- **Conexión:** de 600 funciones exportadas de `logic.js`, 413 las usa alguna pantalla o función del servidor, 184 son piezas internas de otras y 3 no se usan (`eoqRazonCosto`, `neuSiguienteNumRecauchaje`, `DOTACION_ESPECIALIDADES`).
+- **Programa de PM:** en los 36 equipos, horas restantes = próximo hito − horómetro (0 diferencias). Los días usan el ritmo real, no el nominal: por eso no coinciden con horas ÷ horas/día nominales, y es lo esperado.
+- **Defecto corregido — ritmo mayor que 24 h/día:** `tasaDiariaReal` podía dar más de 24 h/día en equipos de 24 h (GE-10019: 25,2). Se agregó `topeRitmoDiario` (24 para horómetros, sin tope para km) y lo aplican `_ritmoRealEq` (`store.js`) y el cumplimiento del programa.
+- **Datos corregidos — ficha del neumático atrasada:** las lecturas cargadas por SQL no actualizaban `remanente`, `ultimaMedicion` ni `pctRemanente` de la ficha (eso lo hace la app al guardar una medición). La proyección parte del remanente de la ficha, así que 83 neumáticos operativos de 16 equipos proyectaban con un valor viejo (BS-5752 pos. 6: ficha 13 mm, real 4,5 mm). Se igualaron a su última medición. **Regla:** toda carga de mediciones por SQL debe terminar actualizando la ficha.
+- **Sin datos, no hay cálculo:** 16 tablas están vacías (tareas, FMEA, compromisos, inspecciones, plan semanal, producción por turno, insumos, siniestros, recauchajes, entrenamientos MOM, FODA, destrabe, órdenes de compra, uso del asistente, tren de rodaje). Sus algoritmos funcionan en las pruebas pero no producen nada. Aceite (última muestra 10-jul) y stock (último movimiento 06-ago) calculan sobre datos viejos.
+- **Pruebas:** `tests/horomEnFecha.test.js` (3 casos nuevos).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
