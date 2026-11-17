@@ -72,38 +72,44 @@ describe('informeGestionFS — equipos fuera de servicio hoy (sección IV)', () 
   });
 });
 
-describe('informeConfiabilidadPM — fallas por 1.000 h según lo que duró el intervalo entre PM', () => {
-  const falla = (sigla, fecha) => ({ sigla, fecha, tipo: 'Correctivo' });
-  it('clasifica el intervalo por su duración y cuenta las fallas de ese tramo', () => {
-    // MN-1: PM a 250 (ene-10), 500 (feb-10, intervalo normal 250 h), 800 (mar-20, intervalo atrasado 300 h = 120 %)
-    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10'), pm('MN-1', 800, '2026-03-20')];
-    const fallas = [falla('MN-1', '2026-01-20'), falla('MN-1', '2026-02-15'), falla('MN-1', '2026-03-01'), falla('MN-1', '2026-03-10'), falla('MN-1', '2026-04-01')];
+describe('informeConfiabilidadPM — fallas al día vs. en mora contra la grilla estática', () => {
+  const falla = (sigla, fecha, horom) => ({ sigla, fecha, tipo: 'Correctivo', horom });
+  it('mide contra el hito, no contra el PM anterior: 310 h seguido de 500 h deja el segundo a tiempo', () => {
+    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 310, '2026-01-25'), pm('MN-1', 500, '2026-02-25')];
+    const r = informeConfiabilidadPM(reg, eq, [], '2026-06-01');
+    const b = Object.fromEntries(r.bandas.map(x => [x.id, x.pm]));
+    expect(b).toMatchObject({ dentro: 2, atras20: 0, adel20: 0 });   // 250 y 500 dentro; el de 310 es repetido del hito 250 (no se evalúa)
+    expect(r.noEvaluados.repetidos).toBe(1);
+  });
+  it('cuenta los PM por margen de desvío y separa las horas al día de las horas en mora', () => {
+    // hitos 250, 500, 750; el de 500 se hace a 590 (+90 h): al día hasta 525, en mora 525–590 (65 h)
+    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 590, '2026-03-10'), pm('MN-1', 750, '2026-04-10')];
+    const fallas = [falla('MN-1', '2026-02-01', 400), falla('MN-1', '2026-02-20', 560), falla('MN-1', '2026-02-25', 580), falla('MN-1', '2026-03-30', 700)];
     const r = informeConfiabilidadPM(reg, eq, fallas, '2026-06-01');
-    const g = Object.fromEntries(r.grupos.map(x => [x.id, x]));
-    expect(g.normal).toMatchObject({ intervalos: 1, horas: 250, fallas: 1 });
-    expect(g.atrasado).toMatchObject({ intervalos: 1, horas: 300, fallas: 3 });
-    expect(r.flota).toMatchObject({ intervalos: 2, horas: 550, fallas: 4 });
-    expect(r.flota.tasa).toBe(7.3);
+    const b = Object.fromEntries(r.bandas.map(x => [x.id, x.pm]));
+    expect(b.atras20).toBe(1);
+    expect(r.zonas.enMora).toMatchObject({ horas: 65, fallas: 2 });
+    expect(r.zonas.alDia.fallas).toBe(2);
   });
   it('no cuenta fallas que no son de falla real ni de otro equipo, y no inventa tasas con pocas horas', () => {
     const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10')];
-    const fallas = [{ sigla: 'MN-1', fecha: '2026-01-20', tipo: 'Preventivo' }, falla('CN-1', '2026-01-20')];
+    const fallas = [{ sigla: 'MN-1', fecha: '2026-01-20', tipo: 'Preventivo', horom: 300 }, falla('CN-1', '2026-01-20', 300)];
     const r = informeConfiabilidadPM(reg, eq, fallas, '2026-06-01');
     expect(r.flota.fallas).toBe(0);
     expect(r.filas[0].tasa).toBeNull();
-    expect(r.grupos.every(x => x.tasa === null)).toBe(true);
+    expect(r.zonas.alDia.tasa).toBeNull();
   });
-  it('descarta intervalos fuera de 0,4 a 2,4 ciclos y no modifica la grilla de PM', () => {
-    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10'), pm('MN-1', 1010, '2026-05-10')];
+  it('ubica por fecha la falla sin horómetro y no modifica la grilla de PM', () => {
+    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10')];
     const antes = JSON.stringify([...desviosPM(reg, eq).values()]);
-    const r = informeConfiabilidadPM(reg, eq, [], '2026-06-01');
-    expect(r.flota.intervalos).toBe(1);
+    const r = informeConfiabilidadPM(reg, eq, [falla('MN-1', '2026-01-25')], '2026-06-01');
+    expect(r.flota.fallas).toBe(1);
     expect(JSON.stringify([...desviosPM(reg, eq).values()])).toBe(antes);
   });
   it('marca «Atención» al equipo que se atrasa seguido y falla sobre la flota', () => {
-    const reg = [pm('MN-1', 250, '2026-01-01'), pm('MN-1', 530, '2026-02-01'), pm('MN-1', 810, '2026-03-01'), pm('MN-1', 1100, '2026-04-01'),
+    const reg = [pm('MN-1', 250, '2026-01-01'), pm('MN-1', 590, '2026-02-01'), pm('MN-1', 850, '2026-03-01'), pm('MN-1', 1100, '2026-04-01'),
       pm('CN-1', 250, '2026-01-01'), pm('CN-1', 500, '2026-02-01'), pm('CN-1', 750, '2026-03-01'), pm('CN-1', 1000, '2026-04-01')];
-    const fallas = [falla('MN-1', '2026-01-15'), falla('MN-1', '2026-02-15'), falla('MN-1', '2026-03-15'), falla('MN-1', '2026-03-20'), falla('CN-1', '2026-02-15')];
+    const fallas = ['2026-01-15', '2026-02-15', '2026-03-15', '2026-03-20'].map(f => falla('MN-1', f)).concat([falla('CN-1', '2026-02-15')]);
     const r = informeConfiabilidadPM(reg, eq, fallas, '2026-06-01');
     expect(r.filas[0].sigla).toBe('MN-1');
     expect(r.filas[0].atencion).toBe(true);

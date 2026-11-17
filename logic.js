@@ -1340,44 +1340,67 @@ function informeGestionPM(reg,eq,desde,hasta){
   return{filas:filas,resumen:res,tolerancia:PM_TOLERANCIA_CICLO};
 }
 // CONFIABILIDAD vs. PM ATRASADO (2026-11-17): ¿atrasar el PM se paga con más fallas? SOLO LECTURA: usa la grilla estática de desviosPM tal cual, no cambia hitos ni cumplimiento.
-// Un «intervalo» es el tramo entre dos PM consecutivos evaluados (clase dentro/adelantada/atrasada) de un equipo por horas; su duración se mide en % de la frecuencia
-// (<90 % adelantado, 90–110 % normal, 110–130 % atrasado, >130 % muy atrasado) y se cuenta cuántas fallas (esFallaMTBF) hubo en él. Tasa = fallas por 1.000 h de intervalo.
-// Intervalos fuera de 0,4–2,4 veces la frecuencia (100–600 h en el ciclo de 250 h) o sin fechas coherentes no entran. Las fallas son 'ot' + 'otHist' ya adaptado (_otHistComoOt).
-// Es una asociación, no una causa: el equipo que falla mucho tiende a recibir su PM antes, y el que trabaja menos se atrasa; la lectura honesta va en la pantalla.
+// Se mide contra el HITO de la grilla (250, 500, 750 h…), no contra el PM anterior: un PM a las 310 h seguido de otro a las 500 h deja el segundo a tiempo, aunque entre ellos
+// pasaran solo 190 h. Para cada tramo entre dos PM consecutivos evaluados (clase dentro/adelantada/atrasada, de equipos por horas) se parte el eje de horas en:
+//   «al día» = desde el PM anterior hasta el hito + tolerancia (10 % del ciclo), «en mora» = pasado el hito + tolerancia y hasta que se hizo el PM (solo si fue atrasado).
+// Cada falla (esFallaMTBF) se ubica por su horómetro (o, si no lo trae, por interpolación de fecha entre los dos PM) y se calcula fallas por 1.000 h en cada zona.
+// 'bandas' cuenta cuántos PM cayeron en cada margen de desvío (en % del ciclo). Tramos fuera de 0,4–2,4 ciclos o sin fechas coherentes no entran.
+// Es una asociación, no una causa: la lectura honesta va en la pantalla.
 var CONF_PM_MIN_HORAS=500;
 function informeConfiabilidadPM(reg,eq,fallas,hoyISO){
   var ev=desviosPM(reg,eq),porSigla={};(eq||[]).forEach(function(e){if(e&&e.sigla)porSigla[e.sigla]=e;});
   var hoy=hoyISO||new Date().toISOString().slice(0,10);
   var fallasPor={};(fallas||[]).forEach(function(o){
-    if(!o||!o.sigla||!esFallaMTBF(o))return;var f=String(o.fecha||o.fechaEntrada||'').slice(0,10);if(!f)return;(fallasPor[o.sigla]=fallasPor[o.sigla]||[]).push(f);
+    if(!o||!o.sigla||!esFallaMTBF(o))return;var f=String(o.fecha||o.fechaEntrada||'').slice(0,10);if(!f)return;
+    var h=Number(o.horom>0?o.horom:o.horometro);(fallasPor[o.sigla]=fallasPor[o.sigla]||[]).push({f:f,h:h>0?h:null});
   });
+  var BANDAS=[{id:'adel20',nombre:'Adelantado más de 20 % del ciclo (50 h en 250 h)'},{id:'adel10',nombre:'Adelantado 10 a 20 % (25 a 50 h)'},{id:'dentro',nombre:'Dentro del estándar (±10 %)'},{id:'atras10',nombre:'Atrasado 10 a 20 % (25 a 50 h)'},{id:'atras20',nombre:'Atrasado más de 20 % (más de 50 h)'}];
+  var bandas={};BANDAS.forEach(function(b){bandas[b.id]={id:b.id,nombre:b.nombre,pm:0};});
+  var noEval={hitoSinRegistro:0,repetidos:0,sinDato:0};
   var evals={};
   (reg||[]).forEach(function(r){
-    var x=r&&ev.get(r);if(!x||x.horas===null||!(r.horomReal>0))return;
-    var f=String(r.fechaEntrada||r.fechaEjec||'').slice(0,10);if(!f)return;
-    (evals[r.equipo]=evals[r.equipo]||[]).push({h:r.horomReal,f:f,clase:x.clase,frec:x.frec});
+    var x=r&&ev.get(r);if(!x)return;
+    if(x.horas===null){
+      if(r.horomReal>0&&x.frec>0&&x.frec<=1000){if(x.clase==='hito sin registro')noEval.hitoSinRegistro++;else if(x.clase==='repetido')noEval.repetidos++;else if(x.clase==='sin dato')noEval.sinDato++;}
+      return;
+    }
+    var f=String(r.fechaEntrada||r.fechaEjec||'').slice(0,10);if(!f||!(r.horomReal>0))return;
+    var p=x.horas/x.frec;bandas[p<-0.2?'adel20':p<-0.1?'adel10':p<=0.1?'dentro':p<=0.2?'atras10':'atras20'].pm++;
+    (evals[r.equipo]=evals[r.equipo]||[]).push({h:r.horomReal,f:f,hito:x.hito,clase:x.clase,frec:x.frec});
   });
-  var GRUPOS=[{id:'adelantado',nombre:'Adelantado (menos de 90 % del ciclo)'},{id:'normal',nombre:'Normal (90 a 110 %)'},{id:'atrasado',nombre:'Atrasado (110 a 130 %)'},{id:'muyAtrasado',nombre:'Muy atrasado (más de 130 %)'}];
-  var grupos={};GRUPOS.forEach(function(g){grupos[g.id]={id:g.id,nombre:g.nombre,intervalos:0,horas:0,fallas:0,tasa:null};});
-  var filas=[],T={intervalos:0,horas:0,fallas:0};
+  var Z={dia:{horas:0,fallas:0},mora:{horas:0,fallas:0}},filas=[],T={intervalos:0,sinHorometro:0};
   Object.keys(evals).forEach(function(sig){
     var l=evals[sig].slice().sort(function(a,b){return a.h-b.h;}),e=porSigla[sig]||{},fl=fallasPor[sig]||[];
-    var atras=l.filter(function(x){return x.clase==='atrasada';}).length,fila={sigla:sig,modelo:e.modelo||'',pmEvaluados:l.length,atrasados:atras,pctAtrasados:l.length?Math.round(atras/l.length*100):null,intervalos:0,horas:0,fallas:0,tasa:null,atencion:false};
+    var atras=l.filter(function(x){return x.clase==='atrasada';}).length;
+    var fila={sigla:sig,modelo:e.modelo||'',pmEvaluados:l.length,atrasados:atras,pctAtrasados:l.length?Math.round(atras/l.length*100):null,intervalos:0,horasDia:0,fallasDia:0,horasMora:0,fallasMora:0,tasa:null,atencion:false};
     for(var i=1;i<l.length;i++){
-      var a=l[i-1],b=l[i],dh=b.h-a.h,f=b.frec;
+      var a=l[i-1],b=l[i],f=b.frec,dh=b.h-a.h;
       if(!(f>0)||dh<0.4*f||dh>2.4*f||b.f<=a.f||b.f>hoy)continue;
-      var nf=fl.filter(function(x){return x>a.f&&x<=b.f;}).length,rel=dh/f;
-      var g=grupos[rel<0.9?'adelantado':rel<=1.1?'normal':rel<=1.3?'atrasado':'muyAtrasado'];
-      g.intervalos++;g.horas+=dh;g.fallas+=nf;fila.intervalos++;fila.horas+=dh;fila.fallas+=nf;T.intervalos++;T.horas+=dh;T.fallas+=nf;
+      var dias=(new Date(b.f+'T12:00:00').getTime()-new Date(a.f+'T12:00:00').getTime())/86400000;
+      var corte=Math.min(b.h,Math.max(a.h,b.hito+PM_TOLERANCIA_CICLO*f));
+      fila.intervalos++;T.intervalos++;
+      fila.horasDia+=corte-a.h;fila.horasMora+=b.h-corte;
+      fl.forEach(function(x){
+        var h=x.h;
+        if(h==null){if(x.f<=a.f||x.f>b.f||!(dias>0))return;h=a.h+dh*((new Date(x.f+'T12:00:00').getTime()-new Date(a.f+'T12:00:00').getTime())/86400000)/dias;}
+        if(h<=a.h||h>b.h)return;
+        if(h>corte)fila.fallasMora++;else fila.fallasDia++;
+      });
     }
-    if(fila.intervalos>0&&fila.horas>=CONF_PM_MIN_HORAS)fila.tasa=Math.round(fila.fallas/fila.horas*10000)/10;
     if(fila.intervalos>0)filas.push(fila);
   });
-  var tasaFlota=T.horas>=CONF_PM_MIN_HORAS?Math.round(T.fallas/T.horas*10000)/10:null;
-  GRUPOS.forEach(function(g){var x=grupos[g.id];x.horas=Math.round(x.horas);if(x.horas>=CONF_PM_MIN_HORAS&&x.intervalos>=5)x.tasa=Math.round(x.fallas/x.horas*10000)/10;});
-  filas.forEach(function(f){f.horas=Math.round(f.horas);f.atencion=f.atrasados>=2&&f.pctAtrasados>=30&&f.tasa!=null&&tasaFlota!=null&&f.tasa>tasaFlota;});
+  var tasa=function(f,h){return h>=CONF_PM_MIN_HORAS?Math.round(f/h*10000)/10:null;};
+  filas.forEach(function(f){Z.dia.horas+=f.horasDia;Z.dia.fallas+=f.fallasDia;Z.mora.horas+=f.horasMora;Z.mora.fallas+=f.fallasMora;});
+  var tasaFlota=tasa(Z.dia.fallas+Z.mora.fallas,Z.dia.horas+Z.mora.horas);
+  filas.forEach(function(f){
+    f.horasDia=Math.round(f.horasDia);f.horasMora=Math.round(f.horasMora);f.fallas=f.fallasDia+f.fallasMora;f.horas=f.horasDia+f.horasMora;
+    f.tasa=tasa(f.fallas,f.horas);f.tasaDia=tasa(f.fallasDia,f.horasDia);f.tasaMora=tasa(f.fallasMora,f.horasMora);
+    f.atencion=f.atrasados>=2&&f.pctAtrasados>=30&&f.tasa!=null&&tasaFlota!=null&&f.tasa>tasaFlota;
+  });
   filas.sort(function(a,b){return (b.atencion-a.atencion)||(b.pctAtrasados-a.pctAtrasados)||(a.sigla<b.sigla?-1:1);});
-  return{grupos:GRUPOS.map(function(g){return grupos[g.id];}),filas:filas,flota:{intervalos:T.intervalos,horas:Math.round(T.horas),fallas:T.fallas,tasa:tasaFlota,equipos:filas.length},minHoras:CONF_PM_MIN_HORAS};
+  return{bandas:BANDAS.map(function(b){return bandas[b.id];}),noEvaluados:noEval,
+    zonas:{alDia:{horas:Math.round(Z.dia.horas),fallas:Z.dia.fallas,tasa:tasa(Z.dia.fallas,Z.dia.horas)},enMora:{horas:Math.round(Z.mora.horas),fallas:Z.mora.fallas,tasa:tasa(Z.mora.fallas,Z.mora.horas)}},
+    filas:filas,flota:{intervalos:T.intervalos,horas:Math.round(Z.dia.horas+Z.mora.horas),fallas:Z.dia.fallas+Z.mora.fallas,tasa:tasaFlota,equipos:filas.length},minHoras:CONF_PM_MIN_HORAS};
 }
 // IV: equipos con una salida de servicio todavía abierta hoy (equiposFueraDeServicioAhora), con los días que llevan, su sistema o conjunto, el seguimiento anotado y su último PM.
 function informeGestionFS(ot,eq,reg,hoyISO){
