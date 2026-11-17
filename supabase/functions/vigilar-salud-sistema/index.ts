@@ -262,7 +262,7 @@ Deno.serve(async (req: Request) => {
     const [rEq, rHist, rOT] = await Promise.all([
       leerTodo('equipos?select=sigla,horomActual,fechaHorom'),
       leerTodo(`historial_horometros?select=sigla,fecha,horomFin&fecha=gte.${desdeLecturas}&order=sigla,fecha`),
-      leerTodo('correctivos?select=sigla,fechaEntrada,estadoOT&estadoOT=eq.Abierta'),
+      leerTodo('correctivos?select=sigla,fechaEntrada,estadoOT&estadoOT=in.(Abierta,Pendiente,%22En%20Ejecuci%C3%B3n%22)'),
     ]);
     let tablasTemporales: string[] = [];
     try {

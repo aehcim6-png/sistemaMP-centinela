@@ -4824,6 +4824,8 @@ function chatWhatsAppMensajes(texto){
 // «CAEX 85», «CF 769», «Aljibe 5131», «MN12», «CA5133» → sigla del sistema (o null). siglas = las del sistema.
 function chatWhatsAppSigla(nombre,siglas){
   var s=String(nombre==null?'':nombre).toUpperCase().replace(/[‐-―⁠‎‏]/g,'-').replace(/[.:,;()]+/g,' ').replace(/[\s\-_]+/g,'');
+  // El camión aljibe CN-7578 el chat lo llama «CX DG 73», «CN-SXDG73» o «SXDG-73» (no lleva el número del sistema).
+  if(/^(CN)?(SX|CX)DG73/.test(s)&&(siglas||[]).indexOf('CN-7578')>=0)return'CN-7578';
   var m=s.match(/^(CAEX|ALJIBE|BULLDOZER|BULL|CARGADORFRONTAL|GENERADOR|GEN|[A-Z]{2})(\d{2,5})/);
   if(!m)return null;
   var pref={CAEX:'CE',ALJIBE:'CN',BULLDOZER:'BD',BULL:'BD',CARGADORFRONTAL:'CF',GENERADOR:'GE',GEN:'GE'}[m[1]]||m[1],num=m[2],cand=pref+'-'+num;
@@ -4849,7 +4851,8 @@ function _chatEstatus(txt){
 // más las lecturas del bloque diario («TI 5141= 23032», «Gen OP.= 15004») y los avisos libres de «operativo».
 function chatWhatsAppReportes(mensajes,siglas){
   var rep=[],lecturas=[],sinResolver={},libresSinEquipo=0;
-  var rxLabel=/(?:^|[\s\-•.·])(equipo|estatus|motivo|hor[oó]metro|lugar|operador)\s*:/gi;
+  // «H:» y «Odo:» son las etiquetas que usa el taller para el horómetro y el odómetro (camionetas); antes se perdían y la lectura quedaba pegada al nombre del equipo.
+  var rxLabel=/(?:^|[\s\-•.·])(equipo|estatus|motivo|hor[oó]metro|od[oó]metro|odo|h|lugar|operador)\s*:+/gi;
   (mensajes||[]).forEach(function(m){
     var t=m.texto||'';
     // 1) bloque diario de lecturas
@@ -4869,7 +4872,7 @@ function chatWhatsAppReportes(mensajes,siglas){
     // 2) plantilla
     var marcas=[],x;
     rxLabel.lastIndex=0;
-    while((x=rxLabel.exec(t))){marcas.push({k:x[1].toLowerCase().replace('ó','o'),ini:x.index+x[0].length,fin:x.index+x[0].length,ant:x.index});}
+    while((x=rxLabel.exec(t))){marcas.push({k:(function(n){n=n.replace('ó','o');return(n==='h'||n==='odo'||n==='odometro')?'horometro':n;})(x[1].toLowerCase()),ini:x.index+x[0].length,fin:x.index+x[0].length,ant:x.index});}
     var tieneEquipo=marcas.some(function(k){return k.k==='equipo';});
     if(tieneEquipo&&marcas.length>=2){
       for(var i=0;i<marcas.length;i++)marcas[i].fin=i+1<marcas.length?marcas[i+1].ant:t.length;
@@ -9153,7 +9156,7 @@ function paresZRobusto(valores,claves){
 // [Sigla CEN], Marca - Modelo, Estatus (1=FS, 2=OP), Ubicación, Detalle, Fecha Detencion, Dias F/S, Fecha Proyección, Orden de Compra, Observación" con la sigla del cliente (CE-85) y, desde octubre, la del programa.
 // Las funciones son puras: reciben las hojas ya leídas como arreglos de filas (el lector de Excel está en la pantalla). Fechas: Date, número serial de Excel o texto dd-mm-aaaa / aaaa-mm-dd.
 var REPORTAB_MAPA_SIGLAS={'CE-85':'CN-9503','CE-86':'CN-9501','CE-87':'CN-9500','CE-88':'CN-9502','CE-89':'CN-9507','CE-155':'CN-10155','CE-159':'CN-10159','CE-160':'CN-10160','CF-769':'CF-8769','CF-510':'CF-9510',
-  'CF-162':'CF-10162','BD-533':'BD-9533','BD-509':'BD-9509','BD-139':'BD-10139','MN-12':'MN-6112','MN-26':'MN-5926'};
+  'CF-162':'CF-10162','BD-533':'BD-9533','BD-509':'BD-9509','BD-139':'BD-10139','MN-12':'MN-6112','MN-26':'MN-5926','CE-93':'CN-10093'};
 function _repNorm(s){return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
 function _repFechaISO(v){
   if(v==null||v==='')return null;

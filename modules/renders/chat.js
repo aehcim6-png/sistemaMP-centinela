@@ -213,7 +213,7 @@ export function _chatImportar() {
       sigla: p.sigla, fecha: p.entrada.f, fechaEntrada: p.entrada.f, horaEntrada: p.entrada.h,
       fechaSalida: p.salida ? p.salida.f : '', horaSalida: p.salida ? p.salida.h : '', duracion: p.salida ? p.duracion : '—',
       tipo: 'Correctivo', criticidad: 'No Aplica', sintoma: p.motivo || 'Fuera de servicio (aviso del chat)', sistema: '', tecnico: '',
-      causaRaiz: '', tipoCausa: '', categoriaMTTR: '', solucion: '', componente: '', estadoOT: p.salida ? 'Cerrada' : 'Abierta',
+      causaRaiz: '', tipoCausa: '', categoriaMTTR: '', solucion: '', componente: '', estadoOT: p.salida ? 'Cerrada' : 'Pendiente',
       horom: p.horom || (e && e.horomActual) || 0, estatusEq: 'Fuera de Servicio', costo: 0, clasificacionCosto: '',
       turno: (hh >= 8 && hh < 20) ? 'Día' : 'Noche', operador: p.operador && !/^x+$/i.test(p.operador) ? p.operador : '', ubicacion: p.lugar || '',
       codFalla: '', ast: '', loto: '', autorizadoPor: '', fechaIngreso: hoy, primeraAtencionEn: null, origen: origen

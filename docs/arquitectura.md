@@ -7346,6 +7346,15 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Pruebas:** `tests/e2e/cabecera-movil.spec.js` mide a 320, 360, 390, 411 y 480 px que el texto de la marca termina antes del primer ícono y que la cabecera no se sale de la pantalla.
 - **Pendiente aparte:** a 320 px una barra del Dashboard (`.bar-c`) se sale ~25 px de la pantalla; no es de la cabecera y no se tocó.
 
+### 226. Cruce del chat y los reportes de estatus con el sistema (2026-11-17)
+
+**Origen:** el usuario vio que el Dashboard («9 fuera de servicio») no cuadraba con los reportes diarios de estatus ni con el chat «BSM_CEN - EQUIPOS». El sistema solo tenía 2 de las 8 salidas de servicio reales, las detenciones del chat llegaban hasta el 08-11 y faltaban 4 equipos.
+- **Datos (por SQL, 17-11):** salidas de servicio al día según el reporte del 16-11 y lo confirmado por el usuario (CN-9500, CN-9502, CN-9507, CN-5133, BD-9533, CN-10093, CN-10159, TI-9941, TI-5142, TI-5146; cerradas CF-9510 ×2, BD-9509 y BS-5752); fichas nuevas CN-10093, CN-7578, TI-9941 y TI-9942; CN-5133 deja de figurar desmovilizado (`flota_presencia.hasta` = null); 75 lecturas de horómetro, 20 paradas y 20 episodios en `detenciones_whatsapp` del chat del 09 al 16-11. Las OT que estaban en `Abierta` pasaron a `Pendiente`.
+- **Defecto del lector de chat (`logic.js`, `chatWhatsAppReportes`):** el taller escribe el horómetro como «H: 23520.1» y las camionetas como «Odo:». Esas etiquetas no se reconocían: la lectura quedaba pegada al nombre del equipo y se perdía, y en esos avisos el equipo tampoco se resolvía. Ahora `H`, `Odo` y `Odómetro` cuentan como horómetro (también «H::»). El aljibe CN-7578 se resuelve desde «CX DG 73», «CN-SXDG73» y «SXDG-73», y «CE-93» es CN-10093.
+- **Estado `Abierta`:** el importador del chat creaba las OT sin cerrar como `Abierta`, un estado que ningún contador del Dashboard ni de la pestaña OT conoce, así que no entraban en «OTs Pendientes» ni en el Backlog. Ahora las crea como `Pendiente`. El detector de salud (`vigilar-salud-sistema`) revisa `Abierta`, `Pendiente` y `En Ejecución` para avisar de OT abiertas hace más de 30 días.
+- **Pruebas:** `tests/chatWhatsApp.test.js` (+3 casos).
+- **Pendiente:** PM, cambios de componente y backlog del chat del 09 al 16-11 se cargan desde la pantalla «Importar chat de WhatsApp» una vez desplegado este arreglo (necesitan el flujo de la app para actualizar las fichas). `reportabilidad_diaria` (los reportes de estatus) llega solo hasta el 07-11.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -327,3 +327,42 @@ describe('cambios de componente propuestos para el Historial', () => {
     expect(chatWhatsAppAnalizar(fs, { siglas: SIG }).cambios).toHaveLength(0);
   });
 });
+
+
+describe('plantilla del taller: «H:», «Odo:» y camión aljibe CN-7578 (2026-11-17)', () => {
+  const SIG = [...SIGLAS, 'CN-7578', 'CN-10093'];
+  const TXT = [
+    '11-11-26 01:57 - Carlos: Equipo: CE-85',
+    'H: 23520.1',
+    'Motivo: Presurización posiciones 1y 2.',
+    'Estatus: Operativo',
+    'Lugar: Taller Mantenimiento',
+    '12-11-26 05:19 - Carlos: Equipo: CE-85',
+    'H::23537.5',
+    'Motivo: Cambio foco.',
+    'Estatus: Operativo',
+    '14-11-26 18:06 - Javier: Equipo: Cn-sxdg73',
+    'H: 5637',
+    'Motivo: cambio de ampolleta',
+    'Estatus: operativo',
+    '16-11-26 18:06 - Javier: Equipo: CE-93',
+    'Estatus: operativo',
+    'Motivo: pruebas',
+    'Horometro: 5143',
+  ].join('\n');
+  const R = chatWhatsAppReportes(chatWhatsAppMensajes(TXT), SIG);
+  it('lee el horómetro escrito como «H:» (también con «::» y decimales con punto)', () => {
+    const a = R.reportes.filter(r => r.sigla === 'CN-9503');
+    expect(a.map(r => r.horom)).toEqual([23520.1, 23537.5]);
+    expect(a[0].nombre).toBe('CE-85');
+  });
+  it('«Cn-sxdg73» es el aljibe CN-7578 y «CE-93» es CN-10093', () => {
+    expect(R.reportes.find(r => r.sigla === 'CN-7578').horom).toBe(5637);
+    expect(R.reportes.find(r => r.sigla === 'CN-10093').horom).toBe(5143);
+    expect(Object.keys(R.sinResolver)).toEqual([]);
+  });
+  it('«Odo:» (camionetas) también es horómetro', () => {
+    const r = chatWhatsAppReportes(chatWhatsAppMensajes('15-11-26 05:11 - Carlos: Equipo: CN-5131\nOdo: 124907\nEstatus: Operativo'), SIG);
+    expect(r.reportes[0].horom).toBe(124907);
+  });
+});
