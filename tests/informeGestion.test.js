@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { informeGestionPM, informeGestionFS, desviosPM } from '../logic.js';
+import { informeGestionPM, informeConfiabilidadPM, informeGestionFS, desviosPM } from '../logic.js';
 
 // Secciones III (desviaciones de mantenimiento) y IV (equipos fuera de servicio) del informe de gestión del cliente.
 const eq = [
@@ -69,5 +69,44 @@ describe('informeGestionFS — equipos fuera de servicio hoy (sección IV)', () 
   it('un equipo sin PM registrado queda sin último PM, no se inventa', () => {
     const { filas } = informeGestionFS([ot[1]], eq, [], '2026-01-07');
     expect(filas[0].ultimoPM).toBeNull();
+  });
+});
+
+describe('informeConfiabilidadPM — fallas por 1.000 h según lo que duró el intervalo entre PM', () => {
+  const falla = (sigla, fecha) => ({ sigla, fecha, tipo: 'Correctivo' });
+  it('clasifica el intervalo por su duración y cuenta las fallas de ese tramo', () => {
+    // MN-1: PM a 250 (ene-10), 500 (feb-10, intervalo normal 250 h), 800 (mar-20, intervalo atrasado 300 h = 120 %)
+    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10'), pm('MN-1', 800, '2026-03-20')];
+    const fallas = [falla('MN-1', '2026-01-20'), falla('MN-1', '2026-02-15'), falla('MN-1', '2026-03-01'), falla('MN-1', '2026-03-10'), falla('MN-1', '2026-04-01')];
+    const r = informeConfiabilidadPM(reg, eq, fallas, '2026-06-01');
+    const g = Object.fromEntries(r.grupos.map(x => [x.id, x]));
+    expect(g.normal).toMatchObject({ intervalos: 1, horas: 250, fallas: 1 });
+    expect(g.atrasado).toMatchObject({ intervalos: 1, horas: 300, fallas: 3 });
+    expect(r.flota).toMatchObject({ intervalos: 2, horas: 550, fallas: 4 });
+    expect(r.flota.tasa).toBe(7.3);
+  });
+  it('no cuenta fallas que no son de falla real ni de otro equipo, y no inventa tasas con pocas horas', () => {
+    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10')];
+    const fallas = [{ sigla: 'MN-1', fecha: '2026-01-20', tipo: 'Preventivo' }, falla('CN-1', '2026-01-20')];
+    const r = informeConfiabilidadPM(reg, eq, fallas, '2026-06-01');
+    expect(r.flota.fallas).toBe(0);
+    expect(r.filas[0].tasa).toBeNull();
+    expect(r.grupos.every(x => x.tasa === null)).toBe(true);
+  });
+  it('descarta intervalos fuera de 0,4 a 2,4 ciclos y no modifica la grilla de PM', () => {
+    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10'), pm('MN-1', 1010, '2026-05-10')];
+    const antes = JSON.stringify([...desviosPM(reg, eq).values()]);
+    const r = informeConfiabilidadPM(reg, eq, [], '2026-06-01');
+    expect(r.flota.intervalos).toBe(1);
+    expect(JSON.stringify([...desviosPM(reg, eq).values()])).toBe(antes);
+  });
+  it('marca «Atención» al equipo que se atrasa seguido y falla sobre la flota', () => {
+    const reg = [pm('MN-1', 250, '2026-01-01'), pm('MN-1', 530, '2026-02-01'), pm('MN-1', 810, '2026-03-01'), pm('MN-1', 1100, '2026-04-01'),
+      pm('CN-1', 250, '2026-01-01'), pm('CN-1', 500, '2026-02-01'), pm('CN-1', 750, '2026-03-01'), pm('CN-1', 1000, '2026-04-01')];
+    const fallas = [falla('MN-1', '2026-01-15'), falla('MN-1', '2026-02-15'), falla('MN-1', '2026-03-15'), falla('MN-1', '2026-03-20'), falla('CN-1', '2026-02-15')];
+    const r = informeConfiabilidadPM(reg, eq, fallas, '2026-06-01');
+    expect(r.filas[0].sigla).toBe('MN-1');
+    expect(r.filas[0].atencion).toBe(true);
+    expect(r.filas.find(f => f.sigla === 'CN-1').atencion).toBe(false);
   });
 });

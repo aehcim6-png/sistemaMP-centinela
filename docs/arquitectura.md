@@ -7364,6 +7364,15 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Pruebas:** `tests/aceiteMobil.test.js` (códigos reales del export) y `tests/e2e/importar-aceite-mobil.spec.js` (importa un Excel con una fila repetida y una sin equipo).
 - **Límites:** el sistema solo guarda parte de las columnas del laboratorio (metales principales, viscosidad, PQ, TBN, TAN, ISO, espumación, demulsibilidad); el resto del Excel se ignora. La tabla de alias es fija: un equipo nuevo con código propio de Mobil hay que agregarlo en `ACEITE_MOBIL_ALIAS` o en `REPORTAB_MAPA_SIGLAS`.
 
+### 228. Gestión: confiabilidad vs. PM atrasado (2026-11-17)
+
+**Origen:** el usuario quería saber cuántos PM se hicieron atrasados y si eso sirve para confiabilidad, sin mover el sistema estático (hitos fijos de 250 h). Se cruzó todo el historial por SQL de solo lectura y, como la conclusión sirve de seguimiento, se dejó como tabla.
+- **Qué hace (`informeConfiabilidadPM`, `logic.js`; sección VI de Metas & KPIs → Informe de gestión, `modules/renders/gestion.js`):** para cada equipo por horas toma los PM evaluados por `desviosPM`, mide cada intervalo entre dos PM seguidos contra su ciclo y cuenta las fallas del tramo. Muestra fallas por 1.000 h para intervalos adelantados, normales, atrasados y muy atrasados, y una tabla por equipo (PM atrasados, % atrasados, horas, fallas, tasa) con la marca «Atención».
+- **No cambia nada del programa:** solo lee; hitos, tolerancia y cumplimiento PM siguen igual.
+- **Resultado con el historial (hasta 17-ago-2026):** 9,2 / 8,1 / 6,4 / 4,4 fallas por 1.000 h; en los 30 y 60 días siguientes al PM tampoco hay más fallas tras uno atrasado (60 % y 68 % contra 59 % y 71 % del a tiempo). No hay evidencia de que atrasar eleve las fallas.
+- **Límites:** es asociación, no causa (el equipo que falla se adelanta, el que trabaja poco se atrasa); no se calcula tasa con menos de 500 h; los intervalos fuera de 0,4 a 2,4 ciclos no entran; las fallas son las correctivas (sin rutinas, desgaste ni instalaciones). No sirve para relajar la regla; sirve para decidir a qué equipo atender primero.
+- **Pruebas:** `tests/informeGestion.test.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

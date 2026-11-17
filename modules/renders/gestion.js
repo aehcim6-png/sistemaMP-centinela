@@ -1,5 +1,5 @@
 // Pestaña Informe de gestión (sub-pestaña de Metas & KPIs): las secciones I y II (certeza y cumplimiento de programa), III (desviaciones de mantenimiento), IV (equipos fuera de servicio) y V (backlog de pautas) del informe semanal que
-// arma el cliente ("Centinela Ripios OXE"), calculadas con los datos del sistema. El cálculo vive en logic.js (informeGestionPM / informeGestionFS, con pruebas);
+// arma el cliente ("Centinela Ripios OXE"), calculadas con los datos del sistema. El cálculo vive en logic.js (informeGestionPM / informeGestionFS / informeConfiabilidadPM, con pruebas);
 // acá solo se dibuja. Módulo ES lazy, mismo patrón que avance.js.
 function _gestSumar(iso, n) { return new Date(new Date(iso + 'T12:00:00').getTime() + n * 86400000).toISOString().slice(0, 10); }
 function _gestRango() {
@@ -133,6 +133,30 @@ export function renderGestion() {
     '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><b style="font-size:11px">Agregar tarea pendiente:</b>' +
     '<select id="bkSigla"><option value="">Equipo…</option>' + optEq + '</select><input id="bkTarea" placeholder="Tarea pendiente (ej. cambio de filtro de combustible)" style="min-width:230px">' +
     '<input id="bkSistema" placeholder="Sistema afectado" style="width:140px"><label style="font-size:11px"><input type="checkbox" id="bkInsumo"> Con insumo</label><button class="btn" onclick="gestionBacklogAgregar()">Agregar</button></div></div>';
+  // VI. Confiabilidad vs. PM atrasado (2026-11-17): solo lectura, todo el historial; no toca la grilla estática ni el cumplimiento.
+  var _fallasConf = ot.concat(typeof _otHistComoOt === 'function' ? _otHistComoOt(S.g('otHist') || []) : [], typeof _informesFallaComoOt === 'function' ? _informesFallaComoOt(S.g('informesFalla') || []) : []);
+  var cf = informeConfiabilidadPM(reg, eq, _fallasConf, hoy), tf = function (v) { return v == null ? '—' : String(v).replace('.', ','); };
+  var tablaConfGrupos = '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Duración del intervalo entre PM</th><th style="text-align:right">Intervalos</th><th style="text-align:right">Horas</th><th style="text-align:right">Fallas</th><th style="text-align:right">Fallas por 1.000 h</th></tr>' +
+    cf.grupos.map(function (g) {
+      return '<tr><td>' + escapeHtml(g.nombre) + '</td><td class="mono" style="text-align:right">' + fn(g.intervalos) + '</td><td class="mono" style="text-align:right">' + fn(g.horas) + '</td><td class="mono" style="text-align:right">' + fn(g.fallas) + '</td><td class="mono" style="text-align:right;font-weight:700">' + (g.tasa == null ? '<span style="color:var(--tx3);font-weight:400" title="Muy pocos datos para una tasa">—</span>' : tf(g.tasa)) + '</td></tr>';
+    }).join('') + '</table></div>';
+  var tablaConfEq = cf.filas.length ?
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Sigla</th><th>Marca / modelo</th><th style="text-align:right">PM evaluados</th><th style="text-align:right">Atrasados</th><th style="text-align:right">% atrasados</th><th style="text-align:right">Horas</th><th style="text-align:right">Fallas</th><th style="text-align:right">Fallas por 1.000 h</th><th>Lectura</th></tr>' +
+    cf.filas.map(function (f) {
+      return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(f.sigla) + '</td><td>' + escapeHtml(f.modelo) + '</td><td class="mono" style="text-align:right">' + fn(f.pmEvaluados) + '</td>' +
+        '<td class="mono" style="text-align:right;color:' + (f.atrasados ? 'var(--danger)' : 'inherit') + '">' + fn(f.atrasados) + '</td><td class="mono" style="text-align:right">' + (f.pctAtrasados == null ? '—' : f.pctAtrasados + '%') + '</td>' +
+        '<td class="mono" style="text-align:right">' + fn(f.horas) + '</td><td class="mono" style="text-align:right">' + fn(f.fallas) + '</td><td class="mono" style="text-align:right;font-weight:700">' + tf(f.tasa) + '</td>' +
+        '<td style="font-size:10px;color:' + (f.atencion ? 'var(--danger)' : 'var(--tx3)') + ';font-weight:' + (f.atencion ? '700' : '400') + '">' + (f.atencion ? 'Atención: se atrasa seguido y falla sobre la flota' : (f.tasa == null ? 'pocas horas para evaluar' : '')) + '</td></tr>';
+    }).join('') + '</table></div>'
+    : '<div style="padding:18px;text-align:center;color:var(--tx3)">No hay intervalos entre PM evaluables.</div>';
+  var secConf =
+    '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">VI. Confiabilidad vs. PM atrasado (todo el historial)</div>' +
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Responde si atrasar el PM se paga con más fallas. Cada <b>intervalo</b> es el tramo entre dos PM seguidos de un equipo; se mide cuánto duró contra el ciclo (250 h = 100 %) y se cuentan las fallas ocurridas dentro. <b>Fallas por 1.000 h</b> = fallas ÷ horas del intervalo × 1.000. Es solo lectura: la grilla estática de PM y el cumplimiento no cambian.</div>' +
+    '<div class="cards">' + card('Intervalos evaluados', fn(cf.flota.intervalos), fn(cf.flota.equipos) + ' equipos') + card('Fallas en esos intervalos', fn(cf.flota.fallas), fn(cf.flota.horas) + ' h de operación') +
+    card('Tasa de la flota', tf(cf.flota.tasa), 'fallas por 1.000 h') + '</div>' + tablaConfGrupos +
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;margin:8px 0 10px"><b>Cómo leerlo:</b> si la tasa subiera al pasar de «Normal» a «Atrasado» o «Muy atrasado», atrasar el PM tendría costo en fallas. Si no sube, el atraso es un incumplimiento de calendario más que un riesgo de falla. <b>Cuidado:</b> es una asociación, no una causa. Un equipo que falla mucho suele recibir su PM antes y uno que trabaja poco se atrasa, y eso puede esconder el efecto real; por eso no sirve para relajar la regla, sí para decidir a quién atender primero. Las fallas son las correctivas del histórico y de Correctivos (no cuentan rutinas, desgaste ni instalaciones).</div>' +
+    '<div style="font-weight:700;font-size:12px;margin:6px 0">Por equipo (primero los que más se atrasan y fallan sobre la flota)</div>' + tablaConfEq +
+    '<div style="font-size:10px;color:var(--tx3)">«Atención» = al menos 2 PM atrasados, 30 % o más de sus PM atrasados y una tasa de fallas sobre la de la flota. Con menos de ' + fn(cf.minHoras) + ' h de intervalos no se calcula tasa. Intervalos fuera de 0,4 a 2,4 veces el ciclo no entran.</div></div>';
   $('s-gestion').innerHTML =
     secProg +
     '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">III. Desviaciones de mantenimiento</div>' +
@@ -151,7 +175,7 @@ export function renderGestion() {
     '<div style="font-weight:700;font-size:12px;margin:6px 0">PM ejecutados y su desviación</div>' + tablaPM +
     '<div style="font-size:10px;color:var(--tx3)">Los PM de camionetas y buses (por km) cuentan en el porcentaje con su desvío en días, pero no tienen horas de desviación para esta tabla.</div></div>' +
     '<div class="chart-box" style="border-left:3px solid var(--danger);margin-bottom:16px"><div class="chart-t">IV. Equipos fuera de servicio (' + fn(fs.total) + ')</div>' +
-    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Equipos con una salida de servicio todavía abierta hoy, del más antiguo al más nuevo. Cuando vuelvan a operar se cierran desde Correctivos y salen de esta lista; hay que informarlos para que entren al programa de PM.</div>' + tablaFS + '</div>' + secBacklog;
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Equipos con una salida de servicio todavía abierta hoy, del más antiguo al más nuevo. Cuando vuelvan a operar se cierran desde Correctivos y salen de esta lista; hay que informarlos para que entren al programa de PM.</div>' + tablaFS + '</div>' + secBacklog + secConf;
   setTimeout(function () { aplicarOrdenUniversal('s-gestion'); }, 60);
 }
 
