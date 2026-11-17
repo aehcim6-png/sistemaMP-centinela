@@ -7373,6 +7373,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Límites:** es asociación, no causa (el equipo que falla se adelanta, el que trabaja poco se atrasa, y las fallas tienden a aparecer justo después de un PM); no se calcula tasa con menos de 500 h; los tramos fuera de 0,4 a 2,4 ciclos no entran; las fallas son las correctivas (sin rutinas, desgaste ni instalaciones). No sirve para relajar la regla; sirve para decidir a qué equipo atender primero.
 - **Pruebas:** `tests/informeGestion.test.js`.
 
+### 229. Gestión: indicador estricto y calidad del dato PM (2026-11-17)
+
+**Origen:** el usuario sospechó que el dato histórico de los PM no cuadra con el horómetro histórico y pidió ver dos cosas: un indicador de atraso «de cualquier hora» aparte del ±10 % oficial, y una tabla para revisar PM por PM. Hallazgos que la motivaron (SQL de solo lectura, 17-nov-2026): el 34 % de los PM por horas (385 de 1.131) tiene el horómetro exactamente en el hito; 185 de 1.065 PM comparables difieren más de 25 h del historial; y el nombre del PM (PM1 a PM4) coincide con el hito más cercano en el 90 % de los PM de 250 h.
+- **Qué hace (`informeCalidadPM` y `pmHitoPorNombre`, `logic.js`; sección VII de Metas & KPIs → Informe de gestión, `modules/renders/gestion.js`):** tarjetas con los PM exactos, adelantados y atrasados por cualquier hora junto al margen oficial, y una tabla con los PM con alertas (anotado justo en el hito, horómetro distinto del historial, nombre que apunta a otro hito, historial sin avance), con filtro por equipo y los correctivos de ±7 días.
+- **No cambia nada:** ni la grilla estática, ni el ±10 % oficial, ni el cumplimiento PM; tampoco corrige datos. Una diferencia no dice cuál dato está mal (fecha del PM, horómetro del PM o historial); se revisa caso a caso.
+- **Límites:** el nombre fija el hito solo en equipos de 250 h; el historial puede estar congelado o tener horómetros cambiados (p. ej. TI-5141 a TI-5145 difieren por cientos de horas); sin lectura a 20 días o menos no se compara.
+- **Pruebas:** `tests/informeGestion.test.js` y `tests/e2e/coherencia-cruzada.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

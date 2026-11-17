@@ -22,6 +22,10 @@ export function gestionRango() {
   renders.gestion();
 }
 // Backlog de pautas (sección V): alta, cierre y cambio de insumo de una tarea pendiente. Se guarda en la tabla backlog_pm (clave backlogPM).
+export function gestionCalidadEq() {
+  var v = $('fGestCalEq'); window._gestionCalidadEq = v ? v.value : '';
+  renders.gestion();
+}
 export function gestionBacklogAgregar() {
   var sigla = $('bkSigla') && $('bkSigla').value, tarea = ($('bkTarea') && $('bkTarea').value || '').trim();
   if (!sigla || !tarea) { toast('Elige el equipo y escribe la tarea pendiente'); return; }
@@ -165,6 +169,34 @@ export function renderGestion() {
     '<div style="font-size:11px;color:var(--tx2);line-height:1.55;margin:8px 0 10px"><b>Cómo leerlo:</b> si la tasa en mora fuera mayor que la de al día, atrasar el PM tendría costo en fallas. Si es igual o menor, el atraso es un incumplimiento de calendario más que un riesgo de falla. <b>Cuidado:</b> es una asociación, no una causa, y las horas en mora son pocas (la fila con menos de ' + fn(cf.minHoras) + ' h no calcula tasa). Un equipo que falla mucho suele recibir su PM antes y uno que trabaja poco se atrasa, y las fallas tienden a aparecer justo después de un PM (se detectan al intervenir). Sirve para decidir a quién atender primero, no para relajar la regla. Las fallas son las correctivas del histórico y de Correctivos (sin rutinas, desgaste ni instalaciones).</div>' +
     '<div style="font-weight:700;font-size:12px;margin:6px 0">Por equipo (primero los que más se atrasan y fallan sobre la flota)</div>' + tablaConfEq +
     '<div style="font-size:10px;color:var(--tx3)">«Atención» = al menos 2 PM atrasados, 30 % o más de sus PM atrasados y una tasa de fallas sobre la de la flota. Tramos fuera de 0,4 a 2,4 veces el ciclo no entran. Una falla sin horómetro se ubica por su fecha entre los dos PM.</div></div>';
+  // VII. Calidad del dato PM + indicador estricto (2026-11-17): solo lectura; no cambia la grilla estática ni el margen oficial.
+  var ca = informeCalidadPM(reg, eq, S.g('hist') || [], _fallasConf), es = ca.estricto, ct = ca.conteo, sgn = function (v) { return v == null ? '—' : (v > 0 ? '+' : '') + String(v).replace('.', ','); };
+  var pctE = function (n) { return es.evaluados ? Math.round(n / es.evaluados * 100) + '%' : '—'; };
+  var eqCal = window._gestionCalidadEq || '', siglasCal = Object.keys(ca.filas.reduce(function (a, f) { a[f.sigla] = 1; return a; }, {})).sort();
+  var filasCal = ca.filas.filter(function (f) { return !eqCal || f.sigla === eqCal; }), mostrar = filasCal.slice(0, 150);
+  var etiqAl = { nominal: 'Anotado justo en el hito y el historial dice otra cosa', historial: 'Horómetro del PM ≠ historial (más de 25 h)', nombre: 'El nombre del PM apunta a otro hito', congelado: 'Historial sin avance entre lecturas' };
+  var tablaCal = mostrar.length ?
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Sigla</th><th>Fecha</th><th>PM</th><th style="text-align:right">Horómetro del PM</th><th style="text-align:right">Hito (sistema)</th><th style="text-align:right">Desvío exacto (h)</th><th style="text-align:right">Hito según nombre</th><th style="text-align:right">Desvío según nombre (h)</th><th style="text-align:right">Horómetro del historial</th><th style="text-align:right">Diferencia (h)</th><th style="text-align:right">Correctivos ±7 d</th><th>Alertas</th></tr>' +
+    mostrar.map(function (f) {
+      var gr = f.score >= 3;
+      return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(f.sigla) + '</td><td class="mono">' + escapeHtml(fd(f.fecha)) + '</td><td>' + escapeHtml(f.tipoPM) + '</td><td class="mono" style="text-align:right">' + fn(f.horomReal) + '</td>' +
+        '<td class="mono" style="text-align:right">' + (f.hitoSistema != null ? fn(f.hitoSistema) : '—') + '</td><td class="mono" style="text-align:right">' + sgn(f.desvioSistema) + '</td>' +
+        '<td class="mono" style="text-align:right">' + (f.hitoNombre != null ? fn(f.hitoNombre) : '—') + '</td><td class="mono" style="text-align:right;color:' + (f.desvioNombre != null && Math.abs(f.desvioNombre) > 100 ? 'var(--danger)' : 'inherit') + '">' + sgn(f.desvioNombre) + '</td>' +
+        '<td class="mono" style="text-align:right">' + (f.horomHistorial != null ? fn(f.horomHistorial) : '—') + '</td><td class="mono" style="text-align:right;font-weight:700;color:' + (f.dif != null && Math.abs(f.dif) > 25 ? 'var(--danger)' : 'inherit') + '">' + sgn(f.dif) + '</td>' +
+        '<td class="mono" style="text-align:right">' + fn(f.correctivos) + '</td><td style="font-size:10px;color:' + (gr ? 'var(--danger)' : 'var(--w)') + '">' + f.alertas.map(function (a) { return escapeHtml(etiqAl[a]); }).join(' · ') + '</td></tr>';
+    }).join('') + '</table></div>' + (filasCal.length > mostrar.length ? '<div style="font-size:10px;color:var(--tx3);margin-top:4px">Se muestran los ' + fn(mostrar.length) + ' de más prioridad de ' + fn(filasCal.length) + '; elige un equipo para ver el resto.</div>' : '')
+    : '<div style="padding:18px;text-align:center;color:var(--ok)">Sin PM con alertas' + (eqCal ? ' para ' + escapeHtml(eqCal) : '') + '.</div>';
+  var secCalidad =
+    '<div class="chart-box" style="border-left:3px solid var(--w);margin-bottom:16px"><div class="chart-t">VII. Indicador estricto y calidad del dato PM</div>' +
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Dos vistas de apoyo, <b>sin cambiar</b> la grilla estática ni el margen oficial de ±10 % del ciclo. <b>1. Indicador estricto:</b> cuenta cualquier hora de desvío contra el hito (un PM a las 235 h cuando tocaba a las 250 h es adelantado, aunque el estándar lo acepte). <b>2. Calidad del dato:</b> compara cada PM con el horómetro del historial en esa fecha y con el hito que dice su nombre (PM1 = 250 h, PM2 = 500 h, PM3 = 1.000 h, PM4 = 2.000 h) para encontrar PM con la fecha o el horómetro mal anotado.</div>' +
+    '<div class="cards">' + card('Exactos en el hito', fn(es.exacto), pctE(es.exacto) + ' de ' + fn(es.evaluados) + ' evaluados · muchos son hito anotado, no lectura') +
+    card('Adelantados (cualquier hora)', fn(es.adelantado), pctE(es.adelantado) + ' · oficial (±10 %): ' + fn(es.oficialAdelantado), es.adelantado ? 'var(--w)' : '') +
+    card('Atrasados (cualquier hora)', fn(es.atrasado), pctE(es.atrasado) + ' · oficial (±10 %): ' + fn(es.oficialAtrasado), es.atrasado ? 'var(--danger)' : '') +
+    card('Dentro del margen oficial', fn(es.oficialDentro), pctE(es.oficialDentro) + ' de ' + fn(es.evaluados)) + '</div>' +
+    '<div style="font-size:12px;margin:2px 0 10px">PM con alertas de dato: <b>' + fn(ca.filas.length) + '</b> · ' + fn(ct.nominal) + ' anotados en el hito con historial distinto · ' + fn(ct.historial) + ' con horómetro que difiere más de 25 h del historial · ' + fn(ct.nombre) + ' con el nombre apuntando a otro hito · ' + fn(ct.congelado) + ' con historial sin avance. Sin lectura cercana para comparar: ' + fn(ct.sinLectura) + '.</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><span style="font-size:11px;color:var(--tx3)">Equipo:</span><select id="fGestCalEq" onchange="gestionCalidadEq()"><option value="">Todos</option>' +
+    siglasCal.map(function (g) { return '<option value="' + escapeHtml(g) + '"' + (g === eqCal ? ' selected' : '') + '>' + escapeHtml(g) + '</option>'; }).join('') + '</select></div>' + tablaCal +
+    '<div style="font-size:10px;color:var(--tx3);margin-top:6px">El horómetro del historial es la lectura de ese día o la interpolación entre dos lecturas a 20 días o menos. Una diferencia no dice cuál dato está mal: puede ser la fecha del PM, su horómetro o el historial (por ejemplo, un horómetro cambiado o repetido). Se revisa caso a caso; nada se corrige solo.</div></div>';
   $('s-gestion').innerHTML =
     secProg +
     '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">III. Desviaciones de mantenimiento</div>' +
@@ -183,7 +215,7 @@ export function renderGestion() {
     '<div style="font-weight:700;font-size:12px;margin:6px 0">PM ejecutados y su desviación</div>' + tablaPM +
     '<div style="font-size:10px;color:var(--tx3)">Los PM de camionetas y buses (por km) cuentan en el porcentaje con su desvío en días, pero no tienen horas de desviación para esta tabla.</div></div>' +
     '<div class="chart-box" style="border-left:3px solid var(--danger);margin-bottom:16px"><div class="chart-t">IV. Equipos fuera de servicio (' + fn(fs.total) + ')</div>' +
-    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Equipos con una salida de servicio todavía abierta hoy, del más antiguo al más nuevo. Cuando vuelvan a operar se cierran desde Correctivos y salen de esta lista; hay que informarlos para que entren al programa de PM.</div>' + tablaFS + '</div>' + secBacklog + secConf;
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Equipos con una salida de servicio todavía abierta hoy, del más antiguo al más nuevo. Cuando vuelvan a operar se cierran desde Correctivos y salen de esta lista; hay que informarlos para que entren al programa de PM.</div>' + tablaFS + '</div>' + secBacklog + secConf + secCalidad;
   setTimeout(function () { aplicarOrdenUniversal('s-gestion'); }, 60);
 }
 
@@ -191,6 +223,7 @@ export function renderGestion() {
 window.renderGestion = renderGestion;
 window.gestionPeriodo = gestionPeriodo;
 window.gestionRango = gestionRango;
+window.gestionCalidadEq = gestionCalidadEq;
 window.gestionBacklogAgregar = gestionBacklogAgregar;
 window.gestionBacklogCerrar = gestionBacklogCerrar;
 window.gestionBacklogInsumo = gestionBacklogInsumo;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { informeGestionPM, informeConfiabilidadPM, informeGestionFS, desviosPM } from '../logic.js';
+import { informeGestionPM, informeConfiabilidadPM, informeCalidadPM, pmHitoPorNombre, informeGestionFS, desviosPM } from '../logic.js';
 
 // Secciones III (desviaciones de mantenimiento) y IV (equipos fuera de servicio) del informe de gestión del cliente.
 const eq = [
@@ -114,5 +114,52 @@ describe('informeConfiabilidadPM — fallas al día vs. en mora contra la grilla
     expect(r.filas[0].sigla).toBe('MN-1');
     expect(r.filas[0].atencion).toBe(true);
     expect(r.filas.find(f => f.sigla === 'CN-1').atencion).toBe(false);
+  });
+});
+
+describe('pmHitoPorNombre — el nombre del PM fija el hito en los equipos de 250 h', () => {
+  it('PM1 = 250, 750…; PM2 = 500, 1.500…; PM3 = 1.000, 3.000…; PM4 = múltiplos de 2.000', () => {
+    expect(pmHitoPorNombre('PM1', 369, 250)).toBe(250);   // 369 h con nombre PM1: el de 250 h hecho tarde, no uno de 500 h hecho antes
+    expect(pmHitoPorNombre('PM1', 235, 250)).toBe(250);
+    expect(pmHitoPorNombre('PM2', 465, 250)).toBe(500);
+    expect(pmHitoPorNombre('PM2', 615, 250)).toBe(500);
+    expect(pmHitoPorNombre('PM3', 977, 250)).toBe(1000);
+    expect(pmHitoPorNombre('PM3', 1114, 250)).toBe(1000);
+    expect(pmHitoPorNombre('PM1', 17803, 250)).toBe(17750);
+    expect(pmHitoPorNombre('PM4', 20003, 250)).toBe(20000);
+  });
+  it('sin nombre válido o fuera de los 250 h no inventa hito', () => {
+    expect(pmHitoPorNombre('Otro', 500, 250)).toBeNull();
+    expect(pmHitoPorNombre('PM1', 500, 500)).toBeNull();
+    expect(pmHitoPorNombre('PM1', 0, 250)).toBeNull();
+  });
+});
+
+describe('informeCalidadPM — indicador estricto y calidad del dato', () => {
+  const hist = (sigla, fecha, horom) => ({ sigla, fecha, horom });
+  it('estricto: cuenta cualquier hora de desvío aparte del margen oficial', () => {
+    const reg = [pm('MN-1', 235, '2026-01-10'), pm('MN-1', 500, '2026-02-10'), pm('MN-1', 790, '2026-03-10', { tipoPM: 'PM1' })];
+    const r = informeCalidadPM(reg, eq, [], []);
+    expect(r.estricto).toMatchObject({ evaluados: 3, exacto: 1, adelantado: 1, atrasado: 1 });
+    expect(r.estricto).toMatchObject({ oficialDentro: 2, oficialAdelantado: 0, oficialAtrasado: 1 });   // 235 (−15 h) queda dentro del ±25 h oficial aunque estricto sea adelantado; 790 (+40 h) es atrasado en ambos
+  });
+  it('alerta un PM anotado en el hito cuando el historial dice otra cosa', () => {
+    const reg = [pm('MN-1', 500, '2026-02-10', { tipoPM: 'PM2' })];
+    const r = informeCalidadPM(reg, eq, [hist('MN-1', '2026-02-10', 570)], []);
+    expect(r.filas).toHaveLength(1);
+    expect(r.filas[0]).toMatchObject({ sigla: 'MN-1', dif: -70, hitoNombre: 500, desvioNombre: 0 });
+    expect(r.filas[0].alertas).toEqual(expect.arrayContaining(['nominal', 'historial']));
+  });
+  it('alerta cuando el nombre apunta a otro hito que el más cercano y cuenta correctivos ±7 días', () => {
+    const reg = [pm('MN-1', 640, '2026-02-10', { tipoPM: 'PM1' })];   // más cercano: 750 (−110 h)… el nombre PM1 también admite 250 y 750
+    const r = informeCalidadPM(reg, eq, [], [{ sigla: 'MN-1', fecha: '2026-02-12', tipo: 'Correctivo' }, { sigla: 'MN-1', fecha: '2026-03-30', tipo: 'Correctivo' }]);
+    expect(r.filas[0].correctivos).toBe(1);
+    expect(r.conteo.sinLectura).toBe(1);
+  });
+  it('marca historial congelado e interpola entre lecturas cercanas', () => {
+    const reg = [pm('MN-1', 250, '2026-02-15')];
+    const r = informeCalidadPM(reg, eq, [hist('MN-1', '2026-02-08', 100), hist('MN-1', '2026-02-20', 100)], []);
+    expect(r.filas[0].alertas).toEqual(expect.arrayContaining(['congelado', 'historial']));
+    expect(r.filas[0].horomHistorial).toBe(100);
   });
 });

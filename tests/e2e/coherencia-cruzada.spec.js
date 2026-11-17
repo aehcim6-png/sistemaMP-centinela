@@ -215,6 +215,7 @@ test('coherencia cruzada: las cifras repetidas entre pestañas coinciden', async
   const gest = await textoDe(page, 'mkpi', 'gestion', async () => { await page.evaluate(() => window.gestionPeriodo('mes')); }, /DENTRO DEL ESTÁNDAR/);
   comparar('Equipos fuera de servicio', [['encabezado', num(hs, /(\d+) FUERA DE SERVICIO/)], ['Informe de gestión', num(gest, /IV\. Equipos fuera de servicio \((\d+)\)/)]]);
   comparar('Informe de gestión: sección VI (confiabilidad vs. PM atrasado) se dibuja con datos', [['sección y tarjeta de PM evaluados', /VI\. Confiabilidad vs\. PM atrasado/i.test(gest) && (num(gest, /PM EVALUADOS (\d+)/i) || 0) > 0 ? 1 : 0], ['esperado', 1]]);
+  comparar('Informe de gestión: sección VII (estricto y calidad del dato PM) se dibuja con datos', [['sección y tarjetas', /VII\. Indicador estricto y calidad del dato PM/i.test(gest) && (num(gest, /EXACTOS EN EL HITO (\d+)/i) ?? -1) >= 0 && /ATRASADOS \(CUALQUIER HORA\)/i.test(gest) ? 1 : 0], ['esperado', 1]]);
   comparar('Cumplimiento PM del mes (%)', [['Informe de gestión', numPunto(gest, /DENTRO DEL ESTÁNDAR (\d+)%/)], ['Dashboard', numPunto(dash, /CUMPLIMIENTO PM\S* ([\d.]+)%/)], ['Metas', metasReal('Cumplimiento PM', hoy.getMonth())], ['Informes KPI', mesesKpi('CUMPLIMIENTO PM')[mesActual] ?? null]], 0.6);
 
   // ── Auditoría de cambios: un cambio real hecho en la app llega al servidor con persona, pestaña y valores; lo que el sistema calcula solo, no ──
