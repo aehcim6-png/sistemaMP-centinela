@@ -493,71 +493,122 @@ function aceParseCSVLine(line){
 export function importAceite(){
   sm('<h3><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,6 10,2 14,6"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Importar Muestras de Aceite (CSV)</h3>'+
     '<p style="font-size:12px;color:var(--tx3)">Acepta el CSV exportado directamente del laboratorio COPEC (encabezados tipo NOMBRE_CLIENTE, EQUIPO, HIERRO, ESTADO, COMENTARIO, etc.) o el formato corto anterior (nMuestra, fecha, hierro...). Detecta automáticamente cuál es.</p>'+
-    '<input type="file" id="aceFile" accept=".csv" style="margin:12px 0"><br>'+
+    '<p style="font-size:12px;color:var(--tx3)">También acepta el <b>Excel o CSV del portal Mobil Assistance</b> (columnas N_MUESTRA, COMPONENTE, MARCA_EQUIPO…): traduce el código del componente («CE-86MFD») a la sigla del equipo y al nombre del componente, y no repite las muestras que ya están cargadas.</p>'+
+    '<input type="file" id="aceFile" accept=".csv,.xlsx,.xls" style="margin:12px 0"><br>'+
     '<div style="margin:8px 0"><label><input type="checkbox" id="aceReplace"> Reemplazar todo</label></div>'+
     '<button class="btn" onclick="processAceCSV()"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,8 10,12 14,8"/><line x1="10" y1="2" x2="10" y2="12"/><polyline points="3,15 3,17 17,17 17,15"/></svg> Procesar</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
 };
+// Convierte una fila (objeto con los encabezados del archivo) en una muestra del sistema. Formato COPEC: EQUIPO ya es la sigla.
+// Formato Mobil Assistance: EQUIPO es el tipo y COMPONENTE un código propio → aceiteMobilCodigo (logic.js) da la sigla y el componente.
+function aceFilaAMuestra(raw,mobil,siglas,sinResolver){
+  var row={};
+  Object.keys(raw).forEach(function(h){var key=ACE_COPEC_MAP[h];if(key)row[key]=raw[h];});
+  var equipo=row.equipo||'',componente=row.componente||row.equipo||'',descriptor=row.descriptor||'';
+  if(mobil){
+    var r=aceiteMobilCodigo(raw.COMPONENTE,siglas,{lubricante:row.lubricante});
+    if(!r.sigla){sinResolver.push({nMuestra:row.nMuestra||'',codigo:String(raw.COMPONENTE||''),motivo:r.motivo});return null;}
+    equipo=r.sigla;componente=r.componente;
+    var d=String(raw.DESCRIPTOR_COMPONENTE||'').trim();descriptor=(!d||/^SIN_INFORMACION$/i.test(d))?'':d;
+  }
+  var m={
+    nMuestra:row.nMuestra||'',nFrasco:row.nFrasco||'',
+    cliente:row.cliente||'',faena:row.faena||'',
+    fecha:aceNormFecha(row.fecha)||'',
+    fechaSolicitud:aceNormFecha(row.fechaSolicitud)||'',
+    fechaIngreso:aceNormFecha(row.fechaIngreso)||'',
+    fechaInforme:aceNormFecha(row.fechaInforme)||'',
+    hrsComp:row.hrsComp||'',hrsLub:row.hrsLub||'',rellenos:row.rellenos||'',
+    lubricante:row.lubricante||'',
+    equipo:equipo,
+    marcaComponente:row.marcaComponente||'',
+    componente:componente,
+    descriptor:descriptor,
+    visc40:row.visc40||'',visc100:row.visc100||'',
+    puntoInflamacion:row.puntoInflamacion||'',pctCombustible:row.pctCombustible||'',
+    pq:row.pq||'',humedad:row.humedad||'',contenidoAgua:row.contenidoAgua||'',
+    tbn:row.tbn||'',tan:row.tan||'',hollin:row.hollin||'',oxidacion:row.oxidacion||'',nitracion:row.nitracion||'',
+    hierro:row.hierro||'',cobre:row.cobre||'',plomo:row.plomo||'',aluminio:row.aluminio||'',
+    estano:row.estano||'',plata:row.plata||'',cromo:row.cromo||'',niquel:row.niquel||'',
+    molibdeno:row.molibdeno||'',titanio:row.titanio||'',silicio:row.silicio||'',sodio:row.sodio||'',
+    potasio:row.potasio||'',boro:row.boro||'',vanadio:row.vanadio||'',magnesio:row.magnesio||'',
+    calcio:row.calcio||'',fosforo:row.fosforo||'',cinc:row.cinc||'',bario:row.bario||'',
+    part4u:row.part4u||'',part6u:row.part6u||'',part14u:row.part14u||'',
+    part25u:row.part25u||'',part50u:row.part50u||'',part100u:row.part100u||'',
+    isoCode:row.isoCode||'',ultracentrifugado:row.ultracentrifugado||'',testParche:row.testParche||'',
+    airRelease:row.airRelease||'',ruler:row.ruler||'',aminas:row.aminas||'',fenoles:row.fenoles||'',rpvot:row.rpvot||'',
+    espTend1:row.espTend1||'',espTend2:row.espTend2||'',espTend3:row.espTend3||'',
+    espEst1:row.espEst1||'',espEst2:row.espEst2||'',espEst3:row.espEst3||'',
+    demulsibilidad:row.demulsibilidad||'',
+    estado:(row.estado||'NORMAL').toUpperCase(),
+    comentario:row.comentario||''
+  };
+  if(mobil)m.sigla=equipo;
+  return m;
+}
+// Une las filas ya leídas (de CSV o de Excel) al historial: omite las vacías y las muestras con el mismo número, y avisa de lo que no pudo traducir.
+function aceImportarFilas(headers,filas,replace){
+  var mobil=aceiteMobilEsFormato(headers);
+  var siglas=(S.g('eq')||[]).map(function(e){return e.sigla;});
+  var ace=replace?[]:S.g('aceite')||[];
+  var ya={};ace.forEach(function(m){if(m.nMuestra)ya[m.nMuestra]=1;});
+  var added=0,omitidas=0,repetidas=0,sinResolver=[],sinFicha={};
+  filas.forEach(function(raw){
+    // Si la fila no trae ningún metal/estado relevante (filas vacías típicas de export Excel), se omite.
+    if(!raw.HIERRO&&!raw.hierro&&!raw.ESTADO&&!raw.estado&&!raw.N_MUESTRA&&!raw.nMuestra){omitidas++;return;}
+    var num=String(raw.N_MUESTRA||raw.nMuestra||'').trim();
+    if(num&&ya[num]){repetidas++;return;}
+    var m=aceFilaAMuestra(raw,mobil,siglas,sinResolver);
+    if(!m)return;
+    if(mobil&&siglas.length&&siglas.indexOf(m.equipo)<0)sinFicha[m.equipo]=(sinFicha[m.equipo]||0)+1;
+    if(num)ya[num]=1;
+    ace.push(m);added++;
+  });
+  S.s('aceite',ace);cm();refreshAll();
+  var msg='✅ '+added+' muestras importadas';
+  if(repetidas)msg+=' · '+repetidas+' ya estaban';
+  if(omitidas)msg+=' · '+omitidas+' filas vacías omitidas';
+  toast(msg);
+  if(sinResolver.length||Object.keys(sinFicha).length){
+    var h='<h3>Importación de aceite</h3><p style="font-size:13px">'+escapeHtml(msg)+'</p>';
+    if(sinResolver.length)h+='<p style="font-size:12px;color:var(--w)"><b>'+sinResolver.length+' muestra(s) NO se cargaron</b>: no se pudo saber de qué equipo o componente son. Cárgalas a mano con «+ Manual» o corrige el código en el portal:</p><ul style="font-size:12px;margin:4px 0 10px 18px">'+
+      sinResolver.slice(0,15).map(function(x){return'<li>N.º '+escapeHtml(x.nMuestra)+' — '+escapeHtml(x.motivo)+'</li>';}).join('')+(sinResolver.length>15?'<li>…y '+(sinResolver.length-15)+' más</li>':'')+'</ul>';
+    if(Object.keys(sinFicha).length)h+='<p style="font-size:12px;color:var(--tx3)">Se cargaron, pero estos equipos no están en la tabla de Equipos (salieron de la faena o no tienen ficha): '+
+      Object.keys(sinFicha).map(function(k){return escapeHtml(k)+' ('+sinFicha[k]+')';}).join(', ')+'.</p>';
+    h+='<button class="btn" onclick="cm()">Cerrar</button>';
+    sm(h);
+  }
+}
 export function processAceCSV(){
   var file=$('aceFile')?.files[0];
   if(!file)return toast('⚠️ Selecciona archivo');
   var replace=$('aceReplace')?.checked||false;
   var reader=new FileReader();
+  var esExcel=/\.xlsx?$/i.test(file.name);
   reader.onload=function(e){
     try{
-      var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
-      var headers=aceParseCSVLine(lines[0]).map(function(h){return h.trim().replace(/^\uFEFF/,'');});
-      var ace=replace?[]:S.g('aceite')||[];
-      var added=0,omitidas=0;
-      for(var i=1;i<lines.length;i++){
-        var vals=aceParseCSVLine(lines[i]);
-        var raw={};
-        headers.forEach(function(h,j){raw[h]=vals[j]!==undefined?vals[j]:'';});
-        // Si la fila no trae ningún metal/estado relevante (filas vacías típicas de export Excel), se omite.
-        if(!raw.HIERRO&&!raw.hierro&&!raw.ESTADO&&!raw.estado&&!raw.N_MUESTRA&&!raw.nMuestra){omitidas++;continue;}
-        var row={};
-        Object.keys(raw).forEach(function(h){
-          var key=ACE_COPEC_MAP[h];
-          if(key)row[key]=raw[h];
+      var headers,filas=[];
+      if(esExcel){
+        if(typeof XLSX==='undefined'||!XLSX.utils)return toast('⚠️ La biblioteca de Excel no cargó; exporta el archivo como CSV');
+        var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        var hoja=wb.Sheets[wb.SheetNames[0]];
+        var tabla=XLSX.utils.sheet_to_json(hoja,{header:1,raw:false,defval:''});
+        headers=(tabla[0]||[]).map(function(h){return String(h).trim().replace(/^﻿/,'');});
+        tabla.slice(1).forEach(function(vals){
+          if(!vals.some(function(v){return String(v).trim()!=='';}))return;
+          var raw={};headers.forEach(function(h,j){raw[h]=vals[j]!==undefined?String(vals[j]).trim():'';});filas.push(raw);
         });
-        ace.push({
-          nMuestra:row.nMuestra||'',nFrasco:row.nFrasco||'',
-          cliente:row.cliente||'',faena:row.faena||'',
-          fecha:aceNormFecha(row.fecha)||'',
-          fechaSolicitud:aceNormFecha(row.fechaSolicitud)||'',
-          fechaIngreso:aceNormFecha(row.fechaIngreso)||'',
-          fechaInforme:aceNormFecha(row.fechaInforme)||'',
-          hrsComp:row.hrsComp||'',hrsLub:row.hrsLub||'',rellenos:row.rellenos||'',
-          lubricante:row.lubricante||'',
-          equipo:row.equipo||'',
-          marcaComponente:row.marcaComponente||'',
-          componente:row.componente||row.equipo||'',
-          descriptor:row.descriptor||'',
-          visc40:row.visc40||'',visc100:row.visc100||'',
-          puntoInflamacion:row.puntoInflamacion||'',pctCombustible:row.pctCombustible||'',
-          pq:row.pq||'',humedad:row.humedad||'',contenidoAgua:row.contenidoAgua||'',
-          tbn:row.tbn||'',tan:row.tan||'',hollin:row.hollin||'',oxidacion:row.oxidacion||'',nitracion:row.nitracion||'',
-          hierro:row.hierro||'',cobre:row.cobre||'',plomo:row.plomo||'',aluminio:row.aluminio||'',
-          estano:row.estano||'',plata:row.plata||'',cromo:row.cromo||'',niquel:row.niquel||'',
-          molibdeno:row.molibdeno||'',titanio:row.titanio||'',silicio:row.silicio||'',sodio:row.sodio||'',
-          potasio:row.potasio||'',boro:row.boro||'',vanadio:row.vanadio||'',magnesio:row.magnesio||'',
-          calcio:row.calcio||'',fosforo:row.fosforo||'',cinc:row.cinc||'',bario:row.bario||'',
-          part4u:row.part4u||'',part6u:row.part6u||'',part14u:row.part14u||'',
-          part25u:row.part25u||'',part50u:row.part50u||'',part100u:row.part100u||'',
-          isoCode:row.isoCode||'',ultracentrifugado:row.ultracentrifugado||'',testParche:row.testParche||'',
-          airRelease:row.airRelease||'',ruler:row.ruler||'',aminas:row.aminas||'',fenoles:row.fenoles||'',rpvot:row.rpvot||'',
-          espTend1:row.espTend1||'',espTend2:row.espTend2||'',espTend3:row.espTend3||'',
-          espEst1:row.espEst1||'',espEst2:row.espEst2||'',espEst3:row.espEst3||'',
-          demulsibilidad:row.demulsibilidad||'',
-          estado:(row.estado||'NORMAL').toUpperCase(),
-          comentario:row.comentario||''
-        });
-        added++;
+      }else{
+        var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
+        headers=aceParseCSVLine(lines[0]).map(function(h){return h.trim().replace(/^﻿/,'');});
+        for(var i=1;i<lines.length;i++){
+          var vals=aceParseCSVLine(lines[i]),raw={};
+          headers.forEach(function(h,j){raw[h]=vals[j]!==undefined?vals[j]:'';});filas.push(raw);
+        }
       }
-      S.s('aceite',ace);cm();refreshAll();
-      toast('✅ '+added+' muestras importadas'+(omitidas?' ('+omitidas+' filas vacías omitidas)':''));
+      aceImportarFilas(headers,filas,replace);
     }catch(err){toast('❌ Error: '+err.message);}
   };
-  reader.readAsText(file);
+  if(esExcel)reader.readAsArrayBuffer(file);else reader.readAsText(file);
 };
 
 export function addAceite(){

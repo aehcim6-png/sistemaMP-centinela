@@ -4680,6 +4680,53 @@ function reporteTurnoAlias(nombre){
   if(n==='CE-115')n='CE-155';   // en los papeles de marzo aparece «CAEX-115»: es el CAEX-155 (el horómetro sigue la misma serie: 1441 → 1448,7 → 1477,2 → 1623)
   return REPORTAB_MAPA_SIGLAS[n]||null;
 }
+
+// ═══ IMPORTADOR DE ACEITE — formato del portal Mobil Assistance (2026-11-17) ═══
+// El Excel/CSV de Mobil trae EQUIPO = tipo de equipo («CAMION»…) y COMPONENTE = un código propio («CE-86MFD», «BD-139 MC», «CF-769DD»).
+// El importador del laboratorio COPEC espera la sigla del equipo en EQUIPO; con este formato dejaba «CAMION» como equipo de todas las filas.
+var ACEITE_MOBIL_ALIAS={'CE-56':'CN-4656','CE-84':'CN-9506','CE-113':'CN-6113','CF-511':'CF-9511','CF-510':'CF-9510','CF-769':'CF-8769','CF-162':'CF-10162',
+  'BD-139':'BD-10139','BD-533':'BD-9533','BD-509':'BD-9509','MN-12':'MN-6112','MN-26':'MN-5926'};
+var ACEITE_MOBIL_SUFIJOS={MT:'MOTOR',M:'MOTOR',MC:'MOTOR',MOTOR:'MOTOR',MOTORCOMBUSTION:'MOTOR',
+  TRANS:'TRANSMISION',TR:'TRANSMISION',TRA:'TRANSMISION',T:'TRANSMISION',TS:'TRANSMISION',TM:'TRANSMISION',TRANSMISION:'TRANSMISION',
+  DIF:'DIFERENCIAL',DF:'DIFERENCIAL',DIFERENCIAL:'DIFERENCIAL',DT:'DIFERENCIAL TRASERO',DIFT:'DIFERENCIAL TRASERO',DIFERENCIALTRASERO:'DIFERENCIAL TRASERO',
+  DD:'DIFERENCIAL DELANTERO',DIFERENCIALDELANTERO:'DIFERENCIAL DELANTERO',
+  MFD:'MANDO FINAL DERECHO',MFTD:'MANDO FINAL DERECHO',MANDOFINALDER:'MANDO FINAL DERECHO',MANDOFINALDERECHO:'MANDO FINAL DERECHO',
+  MFI:'MANDO FINAL IZQ',MFTI:'MANDO FINAL IZQ',MDI:'MANDO FINAL IZQ',MANDOFINALIZQ:'MANDO FINAL IZQ',MDG:'CUBO',
+  HID:'HIDRAULICO',HD:'HIDRAULICO',SH:'HIDRAULICO',HIDRAULICO:'HIDRAULICO',REF:'REFRIGERANTE',RF:'REFRIGERANTE',R:'REFRIGERANTE',REFRIGERANTE:'REFRIGERANTE',
+  FR:'DIRECCION Y FRENOS',TAND:'TANDEN DER',TANI:'TANDEN IZQ'};
+// ¿Las columnas son las del export de Mobil Assistance (y no las del CSV COPEC)?
+function aceiteMobilEsFormato(encabezados){
+  var h={};(encabezados||[]).forEach(function(x){h[String(x||'').trim().toUpperCase()]=1;});
+  return !!(h.COMPONENTE&&h.N_MUESTRA&&(h.MARCA_EQUIPO||h.EQUIPO_ID||h.MODELO_EQUIPO));
+}
+// Traduce el código de componente de Mobil a la sigla del sistema y al nombre de componente que usa la pestaña.
+// extra = {lubricante} (para códigos sin sufijo, p. ej. «CE-155» o «CF-769»: el aceite dice qué componente es).
+// Devuelve {sigla, componente, sinFicha, motivo}; sigla/componente null y motivo si no se puede resolver (p. ej. «MT», «TM» sueltos o «CO-PH17M»).
+function aceiteMobilCodigo(codigo,siglas,extra){
+  var raw=String(codigo==null?'':codigo).toUpperCase().replace(/\s+/g,' ').trim();
+  var res={sigla:null,componente:null,sinFicha:false,motivo:''};
+  if(!raw){res.motivo='sin código de componente';return res;}
+  var m=raw.match(/^(CAEX|CE|CF|BD|MN|CN|CA|TI|GE|BS|MC)[\s\-]?(\d{2,5})(?:[\s\-]*(.*))?$/);
+  if(!m){res.motivo='el código «'+raw+'» no trae el equipo';return res;}
+  var pref=m[1]==='CAEX'?'CE':m[1],num=m[2],suf=(m[3]||'').replace(/[\s\-\.]/g,'');
+  var cand=pref+'-'+num,sig=siglas||[],tiene={};sig.forEach(function(x){tiene[x]=1;});
+  var sigla=reporteTurnoAlias(cand)||ACEITE_MOBIL_ALIAS[cand]||null;
+  if(!sigla&&tiene[cand])sigla=cand;
+  if(!sigla&&num.length>=4){var igual=sig.filter(function(x){return x.replace(/^[A-Z]+-/,'')===num;});if(igual.length===1)sigla=igual[0];}
+  if(!sigla)sigla=cand;
+  res.sigla=sigla;res.sinFicha=sig.length>0&&!tiene[sigla];
+  var comp=ACEITE_MOBIL_SUFIJOS[suf]||null;
+  if(!comp&&!suf){
+    var lub=String((extra&&extra.lubricante)||'').toUpperCase();
+    if(/DELVAC (MODERN|SUPER|ELITE|XHP|1300)/.test(lub))comp='MOTOR';
+    else if(/EXTENDED LIFE|ANTIFREEZE/.test(lub))comp='REFRIGERANTE';
+    else if(/MOBILTRANS HD 10W|DTE/.test(lub))comp='HIDRAULICO';
+    else if(/MOBILTRANS HD (30|50)|MBT/.test(lub))comp='TRANSMISION';
+  }
+  if(!comp){res.sigla=null;res.motivo='no sé qué componente es «'+raw+'»';return res;}
+  res.componente=comp;
+  return res;
+}
 // Totales del papel que no son creíbles (celdas con error de Excel que quedan como números enormes o en 0). Devuelve [{campo, valor}]; no corrige nada.
 function reporteTurnoTotalesDudosos(d){
   var out=[];if(!d)return out;
@@ -14114,6 +14161,7 @@ if (typeof module !== 'undefined' && module.exports) {
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, claseOTDesdeTexto, _CLASE_OT_PATRONES, esFallaOTHist, soloFallasOTHist, FODA_TIPOS, FODA_NOMBRES, FODA_CRUCES, FODA_ESTADOS, fodaCruceDe, fodaCodigos, fodaResumen, fodaEstrategiaError, fodaTasaFallaPorEquipo, fodaSugerencias, sistemaDeTextoHist, _CATEGORIAS_EVENTO, _CATEGORIAS_COMPONENTE_HIST, _CATEGORIAS_OPERACIONAL, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,
     _CATEGORIAS_COMPONENTE, _componenteDeSintoma, limpiarTextoParaIA, pendientesClasificacionComponente, muestraParaAcuerdoIA, resumenAcuerdoIA, _SUBPIEZAS_DESGASTE, _subpiezasDeSintoma,
+    aceiteMobilEsFormato, aceiteMobilCodigo,
     probabilidadComponente, probabilidadEquipoSeveridad, probabilidadStockQuiebre, probabilidadReincidencia,
     umbralesImpacto, impactoDeValor, nivelRiesgoPxI, criticidadDinamicaComponente, matrizCriticidadDinamica, matrizJackKnife, JK_ACCIONES
   };

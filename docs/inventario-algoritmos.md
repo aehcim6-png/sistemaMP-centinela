@@ -1397,6 +1397,7 @@ Funciones de apoyo que usan las fichas anteriores; no se muestran solas en ningu
 | `_CLASIFICACIONES_COSTO` | CAPEX y OPEX: las dos clases válidas de la clasificación de costo (F4). |
 | `_parsearTiempoRespuestaDias` | Convierte el texto "X dias Yh Zm" de un pedido a días (A12). |
 | `_gastoProyectadoCategoria` | Proyecta el gasto de una categoría de repuestos con los eventos de consumo y el precio; no usa correctivos porque no existe un vínculo real entre una OT y un ítem de stock. |
+| `aceiteMobilEsFormato`, `aceiteMobilCodigo` | Importador de aceite: reconocen el export del portal Mobil Assistance y traducen su código de componente («CE-86MFD») a la sigla del equipo y al nombre del componente; lo que no pueden saber lo devuelven sin sigla en vez de adivinar. |
 
 ---
 

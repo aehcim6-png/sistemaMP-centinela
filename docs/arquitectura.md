@@ -7355,6 +7355,15 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Pruebas:** `tests/chatWhatsApp.test.js` (+3 casos).
 - **Pendiente:** PM, cambios de componente y backlog del chat del 09 al 16-11 se cargan desde la pantalla «Importar chat de WhatsApp» una vez desplegado este arreglo (necesitan el flujo de la app para actualizar las fichas). `reportabilidad_diaria` (los reportes de estatus) llega solo hasta el 07-11.
 
+### 227. Importador de aceite: Excel de Mobil Assistance (2026-11-17)
+
+**Origen:** el usuario entregó el informe y el Excel del portal Mobil Assistance (Oil Analysis). La pestaña tenía 171 de las 243 muestras del período; se cargaron las 72 que faltaban por SQL (cruce por número de muestra) y los totales quedaron iguales a los del informe: 243 muestras, 107 normales, 78 en precaución y 58 en alerta. El botón «Importar» de la pestaña no podía leer ese archivo: espera el CSV del laboratorio COPEC (sigla del equipo en EQUIPO) y el de Mobil trae el tipo («CAMION») y un código propio de componente («CE-86MFD»).
+- **Qué hace ahora (`modules/renders/ace.js`):** acepta `.xlsx`, `.xls` y `.csv`; si las columnas son las de Mobil (`aceiteMobilEsFormato`, `logic.js`), traduce COMPONENTE a sigla + nombre de componente con `aceiteMobilCodigo` (usa la tabla de alias de `reporteTurnoAlias` más los equipos que ya no están en la flota: CE-56, CE-84, CE-113, CF-511). Sin sufijo («CE-155», «CF-769»), el aceite dice qué componente es. **No adivina:** un código sin equipo («MT», «TM», «MDFI», «CO-PH17M») no se carga y queda en la lista del aviso final.
+- **No repite muestras:** omite las que ya están por número de muestra (también con el CSV de COPEC, que antes las duplicaba); avisa cuántas eran y qué equipos no tienen ficha en Equipos.
+- **Con los dos Excel entregados:** 236 de 243 filas se resuelven solas; las 7 restantes (MT ×3, TM, MDFI, MDFD y CO-PH17M) se cargaron a mano por SQL con el equipo deducido (CN-10159 para las seis primeras, a confirmar).
+- **Pruebas:** `tests/aceiteMobil.test.js` (códigos reales del export) y `tests/e2e/importar-aceite-mobil.spec.js` (importa un Excel con una fila repetida y una sin equipo).
+- **Límites:** el sistema solo guarda parte de las columnas del laboratorio (metales principales, viscosidad, PQ, TBN, TAN, ISO, espumación, demulsibilidad); el resto del Excel se ignora. La tabla de alias es fija: un equipo nuevo con código propio de Mobil hay que agregarlo en `ACEITE_MOBIL_ALIAS` o en `REPORTAB_MAPA_SIGLAS`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

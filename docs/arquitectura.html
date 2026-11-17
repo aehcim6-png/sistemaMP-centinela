@@ -3797,6 +3797,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Pruebas:</b> <code>tests/chatWhatsApp.test.js</code> (+3 casos).</p>
   <p><b>Pendiente:</b> PM, cambios de componente y backlog del chat del 09 al 16-11 se cargan desde la pantalla «Importar chat de WhatsApp» una vez desplegado este arreglo (necesitan el flujo de la app para actualizar las fichas). <code>reportabilidad_diaria</code> (los reportes de estatus) llega solo hasta el 07-11.</p>
 
+    <h3 id="d-x">227. Importador de aceite: Excel de Mobil Assistance (2026-11-17)</h3>
+  <p><b>Origen:</b> el usuario entregó el informe y el Excel del portal Mobil Assistance (Oil Analysis). La pestaña tenía 171 de las 243 muestras del período; se cargaron las 72 que faltaban por SQL (cruce por número de muestra) y los totales quedaron iguales a los del informe: 243 muestras, 107 normales, 78 en precaución y 58 en alerta. El botón «Importar» de la pestaña no podía leer ese archivo: espera el CSV del laboratorio COPEC (sigla del equipo en EQUIPO) y el de Mobil trae el tipo («CAMION») y un código propio de componente («CE-86MFD»).</p>
+  <p><b>Qué hace ahora (<code>modules/renders/ace.js</code>):</b> acepta <code>.xlsx</code>, <code>.xls</code> y <code>.csv</code>; si las columnas son las de Mobil (<code>aceiteMobilEsFormato</code>, <code>logic.js</code>), traduce COMPONENTE a sigla + nombre de componente con <code>aceiteMobilCodigo</code> (usa la tabla de alias de <code>reporteTurnoAlias</code> más los equipos que ya no están en la flota: CE-56, CE-84, CE-113, CF-511). Sin sufijo («CE-155», «CF-769»), el aceite dice qué componente es. <b>No adivina:</b> un código sin equipo («MT», «TM», «MDFI», «CO-PH17M») no se carga y queda en la lista del aviso final.</p>
+  <p><b>No repite muestras:</b> omite las que ya están por número de muestra (también con el CSV de COPEC, que antes las duplicaba); avisa cuántas eran y qué equipos no tienen ficha en Equipos.</p>
+  <p><b>Con los dos Excel entregados:</b> 236 de 243 filas se resuelven solas; las 7 restantes (MT ×3, TM, MDFI, MDFD y CO-PH17M) se cargaron a mano por SQL con el equipo deducido (CN-10159 para las seis primeras, a confirmar).</p>
+  <p><b>Pruebas:</b> <code>tests/aceiteMobil.test.js</code> (códigos reales del export) y <code>tests/e2e/importar-aceite-mobil.spec.js</code> (importa un Excel con una fila repetida y una sin equipo).</p>
+  <p><b>Límites:</b> el sistema solo guarda parte de las columnas del laboratorio (metales principales, viscosidad, PQ, TBN, TAN, ISO, espumación, demulsibilidad); el resto del Excel se ignora. La tabla de alias es fija: un equipo nuevo con código propio de Mobil hay que agregarlo en <code>ACEITE_MOBIL_ALIAS</code> o en <code>REPORTAB_MAPA_SIGLAS</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
