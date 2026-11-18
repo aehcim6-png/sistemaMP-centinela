@@ -3855,6 +3855,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Qué mejora:</b> el contador de «Reparación Inmediata» en Correctivos contaba solo 8 filas y ahora cuenta 439, y los filtros por criticidad calzan. <b>Lo que no cambia:</b> la ubicación es casi uniforme (903 de las 936 OT con ubicación, el 96 %, son «Taller Besalco Minería»), así que el análisis por ubicación sigue aportando poco.</p>
   <p><b>Sin tocar:</b> la copia antigua de julio en <code>kv</code> (claves <code>ot</code>, <code>reg</code>, <code>eq</code>) trae texto dañado pero el sistema ya no la lee. El gemelo <code>sistema-mp2</code> no se revisó.</p>
 
+      <h3 id="d-235">235. Horas hombre, estado y responsable del Excel de órdenes de trabajo (2026-11-18)</h3>
+  <p><b>Origen:</b> el usuario adjuntó otra vez ORDENES_DE_TRABAJO.xlsx (3.695 filas, 29-jun-2022 a 15-oct-2025). Las órdenes ya estaban cargadas (3.709 filas de esas fuentes), pero tres datos del archivo no se habían guardado.</p>
+  <p><b>Horas hombre</b> (<code>horasHH</code>, columna nueva; migración <code>20261118160000_agregar_horas_hh_a_correctivos_historico.sql</code>): la columna «Horas (h/h)» (3.612 órdenes, 9.856 horas) no tenía dónde guardarse. Cargadas <b>3.379 órdenes con 7.936 horas (81 %)</b>. Quedaron sin horas las órdenes con clave (equipo + fecha + descripción) repetida en el Excel o en la base: no se asignan horas sin certeza. Son horas de trabajo de la persona, no duración.</p>
+  <p><b>Estado y responsable:</b> completados desde «Realizado» y «Responsable». El histórico pasa de 1.915 a 2.544 con estado (34 «Abierto», igual que el archivo) y de 2.530 a 2.540 con responsable. Las órdenes de este mismo Excel se sobrescriben con el valor del archivo; las de otras fuentes solo se completan si estaban vacías.</p>
+  <p><b>Método:</b> cruce por clave (md5 de sigla, fecha y descripción normalizada) con clave única en el Excel y en la base; un primer intento tuvo errores de copia y se rehízo completo. Idempotente.</p>
+  <p><b>Pantallas:</b> Gestión IX gana la columna «Horas hombre (OT históricas)» y se agrega la sección <b>X «Horas hombre por sistema»</b> (<code>horasHombreHist</code>), con costo estimado si hay tarifa HH. <b>Límites:</b> solo el histórico trae horas; el responsable se concentra en pocas personas y sirve para ver la carga de trabajo, no para evaluar personas.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
