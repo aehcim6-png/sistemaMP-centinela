@@ -89,7 +89,7 @@ export function addReg(){
     </div>
     <div class="form-row">
       <div class="fg"><label>Equipo *</label>
-        <select id="rEq" onchange="rAutoHorom();rMostrarConsumos()">
+        <select id="rEq" onchange="rAutoHorom();rMostrarConsumos();rAvisoTiempoPauta()">
           <option value="">Seleccionar...</option>
           ${eq.map(e=>`<option value="${escapeHtml(e.sigla)}">${escapeHtml(e.sigla)} — ${escapeHtml(e.modelo)}</option>`).join('')}
         </select>
@@ -98,7 +98,7 @@ export function addReg(){
         <input id="rUltEjec" readonly style="opacity:.7;background:var(--bg3);border:1px solid var(--bd);border-radius:4px;padding:6px" placeholder="—">
       </div>
       <div class="fg"><label>Tipo PM *</label>
-        <select id="rPM" onchange="rMostrarConsumos()">
+        <select id="rPM" onchange="rMostrarConsumos();rAvisoTiempoPauta()">
           <option>PM1</option><option>PM2</option><option>PM3</option><option>PM4</option><option>Correctivo</option>
         </select>
       </div>
@@ -125,6 +125,7 @@ export function addReg(){
         </select>
       </div>
     </div>
+    <div id="rPautaTiempo" style="font-size:11px;line-height:1.5;margin:-4px 0 8px"></div>
     <div class="form-row">
       <div class="fg" style="flex:2"><label>Observaciones / Trabajos realizados</label>
         <input id="rObs" style="width:100%" placeholder="Ej: Cambio filtros, aceite motor, revisión general...">
@@ -312,8 +313,37 @@ export function rMostrarConsumos(){
   lista.innerHTML=cons.map(c=>'<span style="display:inline-block;background:var(--bg4);border-radius:4px;padding:2px 8px;margin:2px;font-size:11px">'+
     (c.rep||c.act)+': <b>'+(c.can||0)+'</b></span>').join('');
 }
+// Aviso de tiempo de la pauta (2026-11-18): con los minutos por tarea de pautas_tiempos dice cuánto trabajo pide la pauta de este PM y si la duración
+// anotada da para hacerla con una cuadrilla supuesta. Es informativo: no bloquea el guardado ni decide si el PM quedó completo (eso lo marca la persona abajo).
+export function rAvisoTiempoPauta(){
+  const box=$('rPautaTiempo');
+  if(!box)return;
+  box.innerHTML='';
+  if(typeof minutosPautaPM!=='function'||typeof evaluarTiempoPM!=='function')return;
+  const sigla=$('rEq')?.value,tp=$('rPM')?.value;
+  const eqObj=(S.g('eq')||[]).find(x=>x.sigla===sigla);
+  if(!eqObj||+eqObj.frecPM!==250)return;
+  const ref=pautaTiempoRefSigla(sigla,typeof GRUPO_PAUTAS!=='undefined'?GRUPO_PAUTAS:{});
+  const esp=minutosPautaPM((S.g('pautasTiempos')||[]).filter(t=>t.sigla===ref),tp);
+  if(!esp)return;
+  const fn1=v=>String(Math.round(v*10)/10).replace('.',',');
+  let txt='La pauta de este <b>'+escapeHtml(tp)+'</b> pide <b>'+fn1(esp.horasPersona)+' h</b> de trabajo por persona ('+esp.tareas+' tareas).';
+  const d=duracionHM($('rFecEnt')?.value,$('rHoraEnt')?.value,$('rFecSal')?.value,$('rHoraSal')?.value);
+  let color='var(--tx3)';
+  if(d&&d.ms>0){
+    const ev=evaluarTiempoPM(esp.horasPersona,d.horas,PM_CUADRILLA_SUPUESTA);
+    if(ev){
+      txt+=' Con '+fn1(d.horas)+' h anotadas harían falta unos <b>'+fn1(ev.tecnicosNecesarios)+' técnicos</b> trabajando a la vez.';
+      if(ev.clase==='corto'){color='var(--danger)';txt+=' Es poco tiempo para toda la pauta: si no se alcanzó a hacer todo, marca «No — faltó algo» y anota qué faltó.';}
+      else if(ev.clase==='parcial'){color='var(--w)';txt+=' Con '+ev.cuadrilla+' técnicos no alcanza a cubrir toda la pauta.';}
+    }
+  }
+  box.style.color=color;
+  box.innerHTML=txt;
+}
 export function calcDurReg(){
   const d=duracionHM($('rFecEnt').value,$('rHoraEnt').value,$('rFecSal').value,$('rHoraSal').value);
+  rAvisoTiempoPauta();
   if(!d)return;
   $('rDur').value=d.ms<0?'<svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2.5 18,17 2,17"/><line x1="10" y1="8" x2="10" y2="12.5"/><circle cx="10" cy="15" r="0.6" fill="currentColor" stroke="none"/></svg> Hora inválida':d.texto;
 }
@@ -758,6 +788,7 @@ window.rMostrarConsumos = rMostrarConsumos;
 window.calcDurReg = calcDurReg;
 window._toggleQueFalto = function(p){var sel=$(p+'PMCompleto'),w=$(p+'QueFaltoW');if(sel&&w)w.style.display=sel.value==='no'?'':'none';};
 window.saveReg = saveReg;
+window.rAvisoTiempoPauta = rAvisoTiempoPauta;
 window._activarLeerPauta = _activarLeerPauta;
 window._leerPautaFotoSeleccionada = _leerPautaFotoSeleccionada;
 window._matchEquipoPorSiglaOCR = _matchEquipoPorSiglaOCR;

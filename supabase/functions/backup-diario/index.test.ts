@@ -48,7 +48,8 @@ Deno.test("TABLAS: tamaño esperado (71) — cambiar a propósito si se agrega u
   // Nota 2026-11-08: 68 al sumar 'detenciones_whatsapp' (detenciones leídas del chat de WhatsApp de equipos).
   // Nota 2026-11-09: 70 al sumar 'mom_raci' y 'mom_entrenamientos' (entrenamientos del MOM).
   // Nota 2026-11-10: 71 al sumar 'gets_cambios' (cambios de elementos de desgaste).
-  assertEquals(TABLAS.length, 71);
+  // Nota 2026-11-18: 72 al sumar 'pautas_tiempos' (minutos por tarea de las pautas de mantención).
+  assertEquals(TABLAS.length, 72);
 });
 
 // ---- traerTodasLasFilas ----

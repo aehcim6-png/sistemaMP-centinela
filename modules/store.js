@@ -270,6 +270,8 @@ const TABLA_REAL={
   // Entrenamientos del MOM (2026-11-09): matriz RACI del proceso (una fila por actividad × rol) y plan de entrenamientos. Solo un administrador escribe (RLS).
   momRaci:{tabla:'mom_raci',clave:'_id',claveDb:'id',cols:['actividad','actOrden','rol','rolOrden','audienciaRol','letra','usuario']},
   // Cambios de elementos de desgaste, GETS (2026-11-10): cuchillas, puntas, entredientes… La fecha es el eje confiable; el horómetro de las planillas viene marcado cuando es dudoso.
+  // Tiempo por tarea de las pautas (2026-11-18): minutos de trabajo por persona de cada tarea, para saber cuánto debería durar cada PM. Solo un administrador escribe (RLS).
+  pautasTiempos:{tabla:'pautas_tiempos',clave:'_id',claveDb:'id',cols:['sigla','modelo','hoja','orden','seccion','act','topeHoras','unidad','minutos','insumos','fuente']},
   getsCambios:{tabla:'gets_cambios',clave:'_id',claveDb:'id',cols:['sigla','siglaOriginal','fecha','horometro','horometroDudoso','responsable','descripcion','pieza','nParte','cantidad','observaciones','fuente','usuario']},
   momEntren:{tabla:'mom_entrenamientos',clave:'_id',claveDb:'id',cols:['tema','audiencia','roles','fechaPlan','fechaReal','instructor','duracionH','asistentesPlan','asistentesReal','estado','observaciones','usuario']},
   neuTras:{tabla:'neumaticos_traslados',clave:'_id',claveDb:'id',cols:['neuId','serie','fecha','donante','posicionDonante','horomDonante','receptor','posicionReceptor','horomReceptor','causal','detalle','autorizadoPor','usuario']},
