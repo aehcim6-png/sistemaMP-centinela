@@ -3848,6 +3848,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Efecto:</b> correctivas por trimestre con el mismo criterio en ambas fuentes: 2025-T1 177 (antes 275), 2025-T2 198 (316), 2025-T3 139 (178), 2025-T4 161 (208), 2026-T1 138 (185), 2026-T2 117 (121), 2026-T3 136 (141). El máximo es 2024-T3 (315) y la baja desde ahí es más clara que la informada antes. El MTBF y la confiabilidad de 2025-2026 suben; el tiempo fuera de servicio no cambia.</p>
   <p><b>Límites:</b> criterio por palabras: todavía deja pasar «mantenimiento diario», «Cierre de Backlog» y «Relleno nivel aceite»; ampliarlo exige cambiar <code>public.clasificar_ot</code> y reclasificar el histórico. La codificación dañada de 401 criticidades y 816 ubicaciones no afecta este conteo y sigue sin reparar.</p>
 
+      <h3 id="d-234">234. Codificación reparada en las OT vigentes: ubicación, criticidad y duración (2026-11-18)</h3>
+  <p><b>Origen:</b> la tabla <code>correctivos</code> tenía texto con la codificación dañada («ReparaciÃ³n Inmediata», «Taller Besalco MinerÃ­a», «â€”»): UTF-8 leído como Latin-1 o Windows-1252. La reparación de octubre solo había cubierto sistema, turno y tipo.</p>
+  <p><b>Alcance medido:</b> se revisaron todas las columnas de texto y JSON de <code>public</code>. El daño estaba solo en <code>correctivos</code>: ubicación 903 filas, criticidad 431 y duración 23 (tres valores únicos), de la carga masiva de julio. Lo cargado en octubre y noviembre está limpio: no hay una carga activa que lo repita.</p>
+  <p><b>Reparación</b> (migración <code>20261118140000_reparar_codificacion_correctivos_ubicacion_criticidad.sql</code>): misma técnica que la de octubre, con Latin-1 y, si no calza, Windows-1252, y solo cambia la fila si el resultado queda limpio. Idempotente. Verificado: 0 textos dañados; 903 ubicaciones, 439 criticidades «Reparación Inmediata» y 30 duraciones «—»; las 1.278 filas siguen siendo 1.278. Se revierte con el respaldo diario.</p>
+  <p><b>Qué mejora:</b> el contador de «Reparación Inmediata» en Correctivos contaba solo 8 filas y ahora cuenta 439, y los filtros por criticidad calzan. <b>Lo que no cambia:</b> la ubicación es casi uniforme (903 de las 936 OT con ubicación, el 96 %, son «Taller Besalco Minería»), así que el análisis por ubicación sigue aportando poco.</p>
+  <p><b>Sin tocar:</b> la copia antigua de julio en <code>kv</code> (claves <code>ot</code>, <code>reg</code>, <code>eq</code>) trae texto dañado pero el sistema ya no la lee. El gemelo <code>sistema-mp2</code> no se revisó.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
