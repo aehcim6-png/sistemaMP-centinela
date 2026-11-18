@@ -7401,6 +7401,13 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Ya existía y conviene saber:** el registro de PM tiene desde el 9-oct el campo «¿PM completo según pauta?» (`pmCompleto`) y «qué faltó», y la vista Calidad de Ejecución (§108) mide fallas del mismo sistema tras un PM. Desde el 9-oct los 35 PM registrados quedaron «sin indicar»: o no se llena o entraron por otra vía. El tiempo de la pauta no depende de que la persona lo declare.
 - **Límites:** es una señal, no una prueba: no dice qué se omitió ni si el trabajo quedó bien; el tamaño de la cuadrilla es un supuesto; los PM largos pueden incluir reparaciones hechas en la misma parada; el bus (km) no se compara. **Pendiente:** el usuario no ha confirmado la cuadrilla típica de cada equipo; la pauta del GE-15174 no aplica.
 
+### 232. Gestión: actividad por período y cómo clasifica el sistema el componente (2026-11-18)
+
+**Origen:** el usuario pidió ver cuántas correctivas, PM y predictivas se hicieron por mes, trimestre y año, y preguntó por qué las órdenes sin sistema no se clasificaban solas.
+- **Gestión, sección IX «Actividad por período»** (`actividadPorPeriodo`, `logic.js`; 6 pruebas): PM realizados, correctivas, correctivas por PM, muestras de aceite y mediciones o inspecciones de las OT, por mes (últimos 24), trimestre (últimos 12) o año. Las correctivas usan la misma lista que Confiabilidad (sección VI). Es lo **registrado**: el período en curso y los primeros meses de 2023 salen incompletos, y lo predictivo no se marca de forma consistente (7 órdenes «Predictiva» en el histórico desde 2023; lo registrado de verdad son 293 muestras de aceite).
+- **Aclaración sobre el sistema y el componente:** el sistema **sí** deduce solo el sistema o componente de cada orden desde su texto, pero **en pantalla** y sin guardarlo en la base. Mi conteo previo de «299 sin sistema» leyó la columna guardada. De las órdenes vigentes de los últimos 12 meses, 306 de 449 no traen el sistema guardado; en una muestra de 60, el clasificador del RUL (`_componenteDeSintoma`) resolvió 63 % y el del histórico (`sistemaDeTextoHist`, más amplio) 80 %. El 20 % restante son casi todas rutinas (mantención diaria o semanal), «sin motivo informado» y equipos empantanados, que no son fallas de un componente. El histórico (`correctivos_historico`) tiene solo 6 sin sistema de 209.
+- **Pendiente, sin hacer:** el RUL usa solo el clasificador más estrecho para las OT vigentes. Pasarlo al más amplio (o guardar el resultado en la columna `sistema`) cambia las curvas de vida, y la auditoría del 28-ago dejó esas listas separadas a propósito; requiere decisión del usuario.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

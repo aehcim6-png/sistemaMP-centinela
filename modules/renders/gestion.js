@@ -26,6 +26,11 @@ export function gestionCalidadEq() {
   var v = $('fGestCalEq'); window._gestionCalidadEq = v ? v.value : '';
   renders.gestion();
 }
+// Actividad por período (sección IX): mensual, trimestral o anual.
+export function gestionActividadPer() {
+  var v = $('fGestActPer'); window._gestionActPer = v ? v.value : 'mes';
+  renders.gestion();
+}
 export function gestionBacklogAgregar() {
   var sigla = $('bkSigla') && $('bkSigla').value, tarea = ($('bkTarea') && $('bkTarea').value || '').trim();
   if (!sigla || !tarea) { toast('Elige el equipo y escribe la tarea pendiente'); return; }
@@ -228,6 +233,25 @@ export function renderGestion() {
     '<div style="font-weight:700;font-size:12px;margin:6px 0">Por nivel de PM</div>' + tablaTp +
     (tablaEqTp ? '<div style="font-weight:700;font-size:12px;margin:10px 0 6px">Equipos con más PM cortos (mínimo 3 PM)</div>' + tablaEqTp : '') +
     '<div style="font-size:10px;color:var(--tx3);margin-top:6px">Un PM al hito H incluye las tareas cuya frecuencia divide a H y las de 250 h o menos; las tareas cuya frecuencia no divide al hito (por ejemplo 800 h en un PM de 1.000 h) no se cuentan, así que la pauta pedida es un mínimo. Pautas de los PDF «Pauta Mantencion» del sistema de Besalco (18-11-2026); el bus se mide en km y queda fuera. Los PM largos pueden incluir reparaciones hechas en la misma parada.</div></div>';
+  // IX. Actividad por período (2026-11-18): PM, correctivas y predictivas registradas por mes, trimestre o año. Solo lectura; las correctivas son la misma lista que usa Confiabilidad (sección VI).
+  var perAct = window._gestionActPer || 'mes', limAct = perAct === 'mes' ? 24 : perAct === 'trimestre' ? 12 : 99;
+  var act = typeof actividadPorPeriodo === 'function' ? actividadPorPeriodo({ reg: reg, fallas: _fallasConf, aceite: S.g('aceite') || [], ot: ot, otHist: S.g('otHist') || [] }, perAct) : { filas: [], total: {} };
+  var verAct = act.filas.slice(0, limAct), totAct = verAct.reduce(function (a, f) { a.pm += f.pm; a.c += f.correctivas; a.m += f.muestrasAceite; a.o += f.medicionesOT; return a; }, { pm: 0, c: 0, m: 0, o: 0 });
+  var etqPer = function (k) { if (perAct === 'mes') { var m = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][+k.slice(5, 7) - 1]; return m + ' ' + k.slice(0, 4); } return perAct === 'trimestre' ? k.slice(5) + ' ' + k.slice(0, 4) : k; };
+  var hoyK = new Date().toISOString().slice(0, 10), kHoy = perAct === 'anio' ? hoyK.slice(0, 4) : perAct === 'trimestre' ? hoyK.slice(0, 4) + '-T' + Math.ceil(+hoyK.slice(5, 7) / 3) : hoyK.slice(0, 7);
+  var tablaAct = verAct.length ?
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Período</th><th style="text-align:right">PM realizados</th><th style="text-align:right">Correctivas</th><th style="text-align:right">Correctivas por PM</th><th style="text-align:right">Muestras de aceite</th><th style="text-align:right">Mediciones e inspecciones (OT)</th></tr>' +
+    verAct.map(function (f) {
+      return '<tr><td>' + escapeHtml(etqPer(f.periodo)) + (f.periodo === kHoy ? ' <span style="font-size:10px;color:var(--tx3)">(en curso)</span>' : '') + '</td><td class="mono" style="text-align:right">' + fn(f.pm) + '</td><td class="mono" style="text-align:right;font-weight:700">' + fn(f.correctivas) + '</td><td class="mono" style="text-align:right">' + (f.correctivasPorPM == null ? '—' : String(f.correctivasPorPM).replace('.', ',')) + '</td><td class="mono" style="text-align:right">' + fn(f.muestrasAceite) + '</td><td class="mono" style="text-align:right">' + fn(f.medicionesOT) + '</td></tr>';
+    }).join('') +
+    '<tr style="font-weight:700"><td>Total mostrado</td><td class="mono" style="text-align:right">' + fn(totAct.pm) + '</td><td class="mono" style="text-align:right">' + fn(totAct.c) + '</td><td class="mono" style="text-align:right">' + (totAct.pm ? String(Math.round(totAct.c / totAct.pm * 10) / 10).replace('.', ',') : '—') + '</td><td class="mono" style="text-align:right">' + fn(totAct.m) + '</td><td class="mono" style="text-align:right">' + fn(totAct.o) + '</td></tr></table></div>'
+    : '<div style="padding:18px;text-align:center;color:var(--tx3)">Sin actividad registrada.</div>';
+  var secActividad =
+    '<div class="chart-box" style="border-left:3px solid var(--ok);margin-bottom:16px"><div class="chart-t">IX. Actividad por período: PM, correctivas y predictivas</div>' +
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Cuántos PM, correctivas y trabajos predictivos quedaron <b>registrados</b> en cada período. Las correctivas son la misma lista que usa la sección VI (Confiabilidad): órdenes vigentes y del histórico que son fallas de verdad, más los informes de falla; no se cuentan las rutinas, instalaciones ni cambios planificados de desgaste que el Excel traía como «correctiva».</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><span style="font-size:11px;color:var(--tx3)">Ver por:</span><select id="fGestActPer" onchange="gestionActividadPer()">' +
+    [['mes', 'Mes (últimos 24)'], ['trimestre', 'Trimestre (últimos 12)'], ['anio', 'Año']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === perAct ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' + tablaAct +
+    '<div style="font-size:10px;color:var(--tx3);margin-top:6px"><b>Cómo leerlo:</b> el período en curso está incompleto y los primeros meses de 2023 también (la carga del historial fue creciendo), así que comparar contra ellos exagera la mejora. <b>Predictivas:</b> el sistema no marca de forma consistente lo predictivo; aquí van las muestras de aceite y las órdenes de tipo medición, inspección y diagnóstico o «Predictiva». Es lo registrado, no todo lo que se hizo.</div></div>';
   $('s-gestion').innerHTML =
     secProg +
     '<div class="chart-box" style="border-left:3px solid var(--ac);margin-bottom:16px"><div class="chart-t">III. Desviaciones de mantenimiento</div>' +
@@ -246,7 +270,7 @@ export function renderGestion() {
     '<div style="font-weight:700;font-size:12px;margin:6px 0">PM ejecutados y su desviación</div>' + tablaPM +
     '<div style="font-size:10px;color:var(--tx3)">Los PM de camionetas y buses (por km) cuentan en el porcentaje con su desvío en días, pero no tienen horas de desviación para esta tabla.</div></div>' +
     '<div class="chart-box" style="border-left:3px solid var(--danger);margin-bottom:16px"><div class="chart-t">IV. Equipos fuera de servicio (' + fn(fs.total) + ')</div>' +
-    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Equipos con una salida de servicio todavía abierta hoy, del más antiguo al más nuevo. Cuando vuelvan a operar se cierran desde Correctivos y salen de esta lista; hay que informarlos para que entren al programa de PM.</div>' + tablaFS + '</div>' + secBacklog + secConf + secCalidad + secTiempo;
+    '<div style="font-size:11px;color:var(--tx2);line-height:1.55;padding:4px 0 10px">Equipos con una salida de servicio todavía abierta hoy, del más antiguo al más nuevo. Cuando vuelvan a operar se cierran desde Correctivos y salen de esta lista; hay que informarlos para que entren al programa de PM.</div>' + tablaFS + '</div>' + secBacklog + secConf + secCalidad + secTiempo + secActividad;
   setTimeout(function () { aplicarOrdenUniversal('s-gestion'); }, 60);
 }
 
@@ -255,6 +279,7 @@ window.renderGestion = renderGestion;
 window.gestionPeriodo = gestionPeriodo;
 window.gestionRango = gestionRango;
 window.gestionCalidadEq = gestionCalidadEq;
+window.gestionActividadPer = gestionActividadPer;
 window.gestionBacklogAgregar = gestionBacklogAgregar;
 window.gestionBacklogCerrar = gestionBacklogCerrar;
 window.gestionBacklogInsumo = gestionBacklogInsumo;

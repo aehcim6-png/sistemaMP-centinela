@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { minutosPautaPM, evaluarTiempoPM, cumplimientoTiempoPM, pautaTiempoRefSigla, PM_CUADRILLA_SUPUESTA } from '../logic.js';
+import { minutosPautaPM, evaluarTiempoPM, cumplimientoTiempoPM, pautaTiempoRefSigla, PM_CUADRILLA_SUPUESTA, actividadPorPeriodo, esOTPredictiva } from '../logic.js';
 
 // Tiempo por tarea de las pautas (tabla pautas_tiempos, PDF «Pauta Mantencion» del 18-11-2026) frente a la duración anotada del PM.
 // Pauta de prueba (minutos por persona): 2 tareas a 250 h (10 + 20), 1 a 500 h (30), 1 a 1000 h (60), 1 a 2000 h (120), 1 de 100 h (5) y una de 400 h (50) que no divide a ningún hito.
@@ -144,5 +144,67 @@ describe('cumplimientoTiempoPM: el tiempo anotado de los PM frente a la pauta', 
     expect(out.niveles).toEqual([]);
     expect(out.total.n).toBe(0);
     expect(cumplimientoTiempoPM(null, null, null).nPM).toBe(0);
+  });
+});
+
+describe('actividadPorPeriodo: PM, correctivas y predictivas por mes, trimestre y año', () => {
+  const reg = [
+    { equipo: 'A', tipoPM: 'PM1', fechaEntrada: '2026-01-10' }, { equipo: 'A', tipoPM: 'PM2', fechaEntrada: '2026-02-20' },
+    { equipo: 'B', tipoPM: 'PM1', fechaEntrada: '2026-04-05' }, { equipo: 'B', tipoPM: 'Correctivo', fechaEntrada: '2026-04-06' },
+    { equipo: 'C', tipoPM: 'PM1', fechaEntrada: '2025-12-30' }, { equipo: 'C', tipoPM: 'PM1', fechaEntrada: 'sin fecha' },
+  ];
+  const fallas = [
+    { tipo: 'Correctivo', fecha: '2026-01-15' }, { tipo: 'Correctivo', fecha: '2026-01-20' }, { tipo: 'Falla Operacional', fecha: '2026-03-31' },
+    { tipo: 'Fuera de Servicio', criticidad: 'Reparación Inmediata', fecha: '2026-04-01' },
+    { tipo: 'Fuera de Servicio', criticidad: 'Baja', fecha: '2026-04-02' },      // no es falla para el sistema
+    { tipo: 'Inspección y Diagnóstico', fecha: '2026-04-03' },                    // tampoco
+  ];
+  const aceite = [{ fecha: '2026-01-05' }, { fecha: '2026-04-09' }, { fecha: '2026-04-30' }];
+  const ot = [{ tipo: 'Medición Elemento de Desgaste', fecha: '2026-02-02' }, { tipo: 'Correctivo', fecha: '2026-02-03' }];
+  const otHist = [{ tipoInt: 'Predictiva', fecha: '2025-12-15' }, { tipoInt: 'Correctiva', fecha: '2025-12-16' }];
+  const d = { reg, fallas, aceite, ot, otHist };
+
+  it('por mes: cuenta cada columna en su mes y ordena del más reciente al más antiguo', () => {
+    const r = actividadPorPeriodo(d, 'mes');
+    expect(r.filas.map(f => f.periodo)).toEqual(['2026-04', '2026-03', '2026-02', '2026-01', '2025-12']);
+    const ene = r.filas.find(f => f.periodo === '2026-01');
+    expect(ene).toMatchObject({ pm: 1, correctivas: 2, muestrasAceite: 1, medicionesOT: 0, correctivasPorPM: 2 });
+    const abr = r.filas.find(f => f.periodo === '2026-04');
+    expect(abr).toMatchObject({ pm: 1, correctivas: 1, muestrasAceite: 2, medicionesOT: 0 });
+    expect(r.filas.find(f => f.periodo === '2026-02')).toMatchObject({ pm: 1, correctivas: 0, medicionesOT: 1, correctivasPorPM: 0 });
+    expect(r.filas.find(f => f.periodo === '2025-12')).toMatchObject({ pm: 1, correctivas: 0, medicionesOT: 1 });
+  });
+  it('por trimestre: ene-mar = T1, abr-jun = T2', () => {
+    const r = actividadPorPeriodo(d, 'trimestre');
+    expect(r.filas.map(f => f.periodo)).toEqual(['2026-T2', '2026-T1', '2025-T4']);
+    expect(r.filas.find(f => f.periodo === '2026-T1')).toMatchObject({ pm: 2, correctivas: 3, muestrasAceite: 1, medicionesOT: 1 });
+  });
+  it('por año: totales por año y total general', () => {
+    const r = actividadPorPeriodo(d, 'anio');
+    expect(r.filas.map(f => f.periodo)).toEqual(['2026', '2025']);
+    expect(r.filas[0]).toMatchObject({ pm: 3, correctivas: 4, muestrasAceite: 3, medicionesOT: 1 });
+    expect(r.total).toMatchObject({ pm: 4, correctivas: 4, muestrasAceite: 3, medicionesOT: 2 });
+    expect(r.total.correctivasPorPM).toBe(1);
+  });
+  it('un PM sin tipo PM1-PM9 o sin fecha válida no cuenta; una falla que esFallaMTBF descarta tampoco', () => {
+    const r = actividadPorPeriodo(d, 'anio');
+    expect(r.total.pm).toBe(4);            // 6 registros: 1 "Correctivo" y 1 sin fecha quedan fuera
+    expect(r.total.correctivas).toBe(4);   // 6 filas: la FS de criticidad baja y la inspección quedan fuera
+  });
+  it('sin datos devuelve listas vacías y nulos sin romperse; un modo desconocido cae en mes', () => {
+    const r = actividadPorPeriodo({}, 'xx');
+    expect(r.agrupar).toBe('mes');
+    expect(r.filas).toEqual([]);
+    expect(r.total.correctivasPorPM).toBeNull();
+    expect(actividadPorPeriodo(null).filas).toEqual([]);
+  });
+  it('esOTPredictiva: «Predictiva» del histórico y las mediciones o inspecciones y diagnóstico de las OT vigentes', () => {
+    expect(esOTPredictiva({ tipoInt: 'Predictiva' })).toBe(true);
+    expect(esOTPredictiva({ tipo: 'Medición Elemento de Desgaste' })).toBe(true);
+    expect(esOTPredictiva({ tipo: 'Medicion de Desgaste Neumaticos' })).toBe(true);
+    expect(esOTPredictiva({ tipo: 'Inspección y Diagnóstico' })).toBe(true);
+    expect(esOTPredictiva({ tipo: 'Correctivo' })).toBe(false);
+    expect(esOTPredictiva({ tipoInt: 'Programada' })).toBe(false);
+    expect(esOTPredictiva(null)).toBe(false);
   });
 });

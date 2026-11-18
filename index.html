@@ -646,7 +646,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-11-18a"></script>
+<script src="logic.js?v=2026-11-18b"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -718,7 +718,7 @@ const _LAZY_VERS={
   log:'2026-08-30',
   lub:'2026-11-10a',
   mkpi:'2026-10-29a',
-  gestion:'2026-11-18a',
+  gestion:'2026-11-18b',
   ger:'2026-10-29a',
   tareas:'2026-10-29b',
   asistente:'2026-10-29a',
@@ -791,7 +791,7 @@ const _LAZY_EXPORTS={
   tareas:['renderTareas','tareasSincronizar','tareasFiltrar','tareaEstadoCambiar','tareaEditar','tareaAgregarModal','tareaGuardarNueva'],
   rvc:['renderRvc','rvcCambiarReserva','rvcBuscarPieza'],
   asistente:['renderAsistente','asistenteNueva','asistenteSugerida','asistenteEnviar','asistentePreguntar','asistenteTextoAHtml'],
-  gestion:['renderGestion','gestionPeriodo','gestionRango','gestionCalidadEq','gestionBacklogAgregar','gestionBacklogCerrar','gestionBacklogInsumo'],
+  gestion:['renderGestion','gestionPeriodo','gestionRango','gestionCalidadEq','gestionActividadPer','gestionBacklogAgregar','gestionBacklogCerrar','gestionBacklogInsumo'],
   mov:['renderMov','editMov','delMov','clearConsumos','recalcHistorial','recalcSoloCostos'],
   papelera:['verPapelera','renderPapelera'],
   pau:['renderPau','edPau','delPauta','addPauta','savePauta'],

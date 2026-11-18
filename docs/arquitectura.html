@@ -3837,6 +3837,11 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Ya existía:</b> el registro de PM tiene desde el 9-oct el campo «¿PM completo según pauta?» y «qué faltó», y la vista Calidad de Ejecución (§108). Los 35 PM registrados desde entonces quedaron «sin indicar». El tiempo de la pauta no depende de que la persona lo declare.</p>
   <p><b>Límites:</b> es una señal, no una prueba; la cuadrilla es un supuesto; los PM largos pueden incluir reparaciones de la misma parada; el bus (km) no se compara. <b>Pendiente:</b> confirmar la cuadrilla típica de cada equipo.</p>
 
+      <h3 id="d-232">232. Gestión: actividad por período y cómo clasifica el sistema el componente (2026-11-18)</h3>
+  <p><b>Origen:</b> el usuario pidió ver cuántas correctivas, PM y predictivas se hicieron por mes, trimestre y año, y preguntó por qué las órdenes sin sistema no se clasificaban solas.</p>
+  <p><b>Gestión, sección IX «Actividad por período»</b> (<code>actividadPorPeriodo</code>, 6 pruebas): PM realizados, correctivas, correctivas por PM, muestras de aceite y mediciones o inspecciones de las OT, por mes (últimos 24), trimestre (últimos 12) o año. Las correctivas usan la misma lista que Confiabilidad. Es lo <b>registrado</b>: el período en curso y los primeros meses de 2023 salen incompletos, y lo predictivo no se marca de forma consistente (7 órdenes «Predictiva» en el histórico desde 2023; 293 muestras de aceite).</p>
+  <p><b>Aclaración:</b> el sistema sí deduce solo el sistema o componente de cada orden desde su texto, pero en pantalla y sin guardarlo en la base. El conteo previo de «299 sin sistema» leyó la columna guardada. En una muestra de 60 órdenes vigentes sin sistema guardado, el clasificador del RUL resolvió 63 % y el del histórico (más amplio) 80 %; el resto son rutinas, «sin motivo informado» y equipos empantanados. <b>Pendiente, sin hacer:</b> pasar el RUL al clasificador más amplio, o guardar el resultado, cambia las curvas de vida; requiere decisión del usuario.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
