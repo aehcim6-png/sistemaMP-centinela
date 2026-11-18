@@ -7382,6 +7382,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Límites:** el nombre fija el hito solo en equipos de 250 h; el historial puede estar congelado o tener horómetros cambiados (p. ej. TI-5141 a TI-5145 difieren por cientos de horas); sin lectura a 20 días o menos no se compara.
 - **Pruebas:** `tests/informeGestion.test.js` y `tests/e2e/coherencia-cruzada.spec.js`.
 
+### 230. Cargas de datos del 18-nov-2026: órdenes que faltaban y PM de menores, camionetas y retirados
+
+**Origen:** el usuario señaló que el Excel de órdenes de trabajo tenía más órdenes de las cargadas (las «Programada» y las sin tipo) y que faltaba el historial de los equipos menores y camionetas. Son cargas de datos por SQL, sin cambios de código.
+- **Órdenes (`correctivos_historico`):** 1.306 órdenes del Excel completo (903 programadas, 397 sin tipo, 6 predictivas; 29-jun-2022 a 15-oct-2025), con fuente «ordenes_trabajo (Excel 2025 completo: programadas, predictivas y sin tipo, carga 2026-11-18)»; 17 traen un pendiente abierto en la observación (columna H del Excel, que va oculta). La clase se calcula con `clasificar_ot`; 143 quedaron como falla (casi todas de 2023). Se quitaron 121 repetidas (la misma línea repetida cada día) y 2 filas de texto ajeno al mantenimiento.
+- **PM (`registros_pm`):** 191 PM de 23 equipos que no tenían historial por no tener ficha en `equipos` (CN-9506, MN-5148, BD-8708, BD-9508, CF-9513, CN-3465, CN-3475, CN-4656, CN-6113, RE-8726, CP-001, CP-002, GN-102, SA-5147, MN-7485, C38D5), más 50 mantenciones por km del bus BS-5752 (2022-2023) y de las camionetas CA-5135 a CA-5140, que van sin tipo de PM. Fuente: programas semanales (85), Excel de órdenes (56) y km (50); origen «Historial de menores, camionetas y equipos retirados (… carga 2026-11-18)».
+- **Criterios:** se dedupe por equipo y fecha (±5 días) contra lo ya registrado; se conserva la secuencia creciente de horómetros por equipo y se descartan los valores que la rompen (errores de digitación como 8.072 h fechado en 2022 que es de 2023).
+- **Límites:** los PM de enero a agosto de 2022 de la hoja «Mec mant» de la disponibilidad no se cargaron (sin horómetro). Los equipos sin ficha no entran al Dashboard; sus PM sirven para el historial y la confiabilidad. Para revertir cualquiera de las dos cargas basta filtrar por su fuente u origen.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

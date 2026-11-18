@@ -3821,6 +3821,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Límites:</b> el nombre fija el hito solo en equipos de 250 h; el historial puede estar congelado o tener horómetros cambiados; sin lectura a 20 días o menos no se compara.</p>
   <p><b>Pruebas:</b> <code>tests/informeGestion.test.js</code> y <code>tests/e2e/coherencia-cruzada.spec.js</code>.</p>
 
+      <h3 id="d-230">230. Cargas de datos del 18-nov-2026: órdenes que faltaban y PM de menores, camionetas y retirados</h3>
+  <p><b>Origen:</b> el usuario señaló que el Excel de órdenes de trabajo tenía más órdenes de las cargadas (las «Programada» y las sin tipo) y que faltaba el historial de los equipos menores y camionetas. Son cargas de datos por SQL, sin cambios de código.</p>
+  <p><b>Órdenes (<code>correctivos_historico</code>):</b> 1.306 órdenes del Excel completo (903 programadas, 397 sin tipo, 6 predictivas; 29-jun-2022 a 15-oct-2025); 17 traen un pendiente abierto en la observación (columna H, oculta en el Excel). 143 quedaron como falla, casi todas de 2023. Se quitaron 121 repetidas y 2 filas ajenas al mantenimiento.</p>
+  <p><b>PM (<code>registros_pm</code>):</b> 191 PM de 23 equipos sin ficha en <code>equipos</code> (CN-9506, MN-5148, BD-8708, CN-3465, CN-3475, CN-4656, CN-6113, RE-8726, compresores, generador, motosoldadora y otros), más 50 mantenciones por km del bus BS-5752 y de las camionetas CA-5135 a CA-5140 (sin tipo de PM). Fuentes: programas semanales (85), Excel de órdenes (56) y km (50).</p>
+  <p><b>Criterios y límites:</b> se dedupe por equipo y fecha (±5 días) y se conserva la secuencia creciente de horómetros por equipo. Los equipos sin ficha no entran al Dashboard. Para revertir basta filtrar por la fuente u origen de cada carga.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
