@@ -23,7 +23,7 @@ describe('_informesFallaComoOt', () => {
   it('adapta al mismo shape que espera esFallaMTBF (tipo Correctivo, estadoOT Cerrada)', () => {
     const r = _informesFallaComoOt([inf('CF-100', 'Falla Catastrófica', '2026-09-01', 5000, 'Motor', 'Motor fundido')]);
     expect(r[0]).toEqual({
-      sigla: 'CF-100', fecha: '2026-09-01', horom: 5000, tipo: 'Correctivo',
+      sigla: 'CF-100', fecha: '2026-09-01', horom: 5000, tipo: 'Correctivo', claseOT: 'correctiva',
       componente: 'Motor', sintoma: 'Motor fundido', estadoOT: 'Cerrada',
     });
     expect(esFallaMTBF(r[0])).toBe(true);
