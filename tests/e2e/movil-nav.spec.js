@@ -19,7 +19,7 @@ test('celular: barra inferior, "Más" abre el menú completo y elegir una pesta�
 
   await page.locator('#bnavMas').click();
   await expect(page.locator('.nav')).toBeVisible();
-  await expect(page.locator('.nav-grp button')).toHaveCount(21); // las 21 pestañas, en sus 5 grupos
+  await expect(page.locator('.nav-grp button')).toHaveCount(24); // las 24 pestañas, en sus 5 grupos (6 + 4 + 5 + 4 + 5; desde la prueba original se sumaron Elementos de desgaste, FODA y Entrenamiento MOM)
 
   await page.locator('.nav-grp button[title="Correctivos"]').click();
   await expect(page.locator('.nav')).toBeHidden();
