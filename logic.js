@@ -1405,7 +1405,7 @@ function informeConfiabilidadPM(reg,eq,fallas,hoyISO){
 // CALIDAD DEL DATO PM + INDICADOR ESTRICTO (2026-11-17). Solo lectura: no cambia la grilla estática ni el ±10 % oficial.
 //  • Estricto: cuenta los PM evaluados por desviosPM según cualquier hora de desvío (0 h = en el hito; antes del hito = adelantado; después = atrasado), aparte del margen oficial.
 //  • Calidad: por cada PM de equipo por horas compara el horómetro anotado con el del historial en esa fecha (lectura del día o interpolación entre dos lecturas a ≤20 días),
-//    y con el hito que dice su nombre. En los equipos de 250 h el nombre fija el hito: PM1 = 250 mod 500 (250, 750…), PM2 = 500 mod 1000, PM3 = 1000 mod 2000, PM4 = múltiplo de 2000
+//    y con el hito que dice su nombre. 'corregido' recalcula el desvío de cada PM con el horómetro del historial en vez del anotado (mismo hito de la grilla, mismo ±10 %); un PM anotado justo en el hito y sin historial cercano queda 'no verificable'. En los equipos de 250 h el nombre fija el hito: PM1 = 250 mod 500 (250, 750…), PM2 = 500 mod 1000, PM3 = 1000 mod 2000, PM4 = múltiplo de 2000
 //    (coincide con el hito más cercano en 90 % de los PM; una prueba lo fija). Alertas: 'nominal' (horómetro justo en el hito), 'historial' (difiere >25 h), 'nombre' (el nombre apunta a otro hito
 //    que el más cercano, o a >100 h), 'congelado' (el historial no avanza entre las dos lecturas). Se anota también cuántos correctivos hubo ±7 días alrededor del PM.
 function pmHitoPorNombre(tipoPM,h,frec){
@@ -1428,6 +1428,7 @@ function informeCalidadPM(reg,eq,hist,fallas){
   Object.keys(lect).forEach(function(k){lect[k].sort(function(a,b){return a.d-b.d;});});
   var fal={};(fallas||[]).forEach(function(o){if(!o||!o.sigla||!esFallaMTBF(o))return;var f=String(o.fecha||o.fechaEntrada||'').slice(0,10);if(f)(fal[o.sigla]=fal[o.sigla]||[]).push(dia(f));});
   var est={evaluados:0,exacto:0,adelantado:0,atrasado:0,oficialDentro:0,oficialAdelantado:0,oficialAtrasado:0};
+  var cor={comparables:0,oficial:{adelantado:0,dentro:0,atrasado:0},historial:{adelantado:0,dentro:0,atrasado:0},cambian:0,noVerificables:0,sinHistorialUsaAnotado:0};
   var filas=[],cont={nominal:0,historial:0,nombre:0,congelado:0,sinLectura:0,comparables:0};
   (reg||[]).forEach(function(r){
     var x=r&&ev.get(r);if(!x||!(r.horomReal>0)||!(x.frec>0)||x.frec>1000)return;
@@ -1443,6 +1444,15 @@ function informeCalidadPM(reg,eq,hist,fallas){
     else if(a&&b&&b.d-a.d<=20&&b.d>a.d){hist_=a.v+(b.v-a.v)*(d0-a.d)/(b.d-a.d);congelado=a.v===b.v&&b.d-a.d>=7;}
     if(hist_===null)cont.sinLectura++;else cont.comparables++;
     var dif=hist_===null?null:Math.round((h-hist_)*10)/10;
+    var desvH=null;
+    if(x.horas!==null){
+      if(hist_===null){if(h%f===0)cor.noVerificables++;else cor.sinHistorialUsaAnotado++;}
+      else{
+        desvH=Math.round((hist_-x.hito)*10)/10;
+        var cH=Math.abs(desvH)<=f*PM_TOLERANCIA_CICLO?'dentro':desvH<0?'adelantado':'atrasado',cO=x.clase==='dentro'?'dentro':x.clase==='adelantada'?'adelantado':'atrasado';
+        cor.comparables++;cor.oficial[cO]++;cor.historial[cH]++;if(cH!==cO)cor.cambian++;
+      }
+    }
     var cercano=Math.round(h/f)*f,hitoN=pmHitoPorNombre(r.tipoPM,h,f),dN=hitoN===null?null:Math.round((h-hitoN)*10)/10;
     var nominal=h%f===0,alertas=[];
     if(nominal&&dif!==null&&Math.abs(dif)>10)alertas.push('nominal');
@@ -1453,10 +1463,10 @@ function informeCalidadPM(reg,eq,hist,fallas){
     if(!alertas.length)return;
     var c=(fal[r.equipo]||[]).filter(function(t){return Math.abs(t-d0)<=7;}).length;
     var score=(alertas.indexOf('historial')>=0?(Math.abs(dif)>100?3:2):0)+(alertas.indexOf('nombre')>=0?(dN!==null&&Math.abs(dN)>100?3:1):0)+(alertas.indexOf('nominal')>=0?1:0)+(alertas.indexOf('congelado')>=0?1:0);
-    filas.push({sigla:r.equipo,modelo:(porSigla[r.equipo]||{}).modelo||'',fecha:fecha,tipoPM:r.tipoPM||'',horomReal:h,hitoSistema:x.hito,desvioSistema:x.horas,hitoNombre:hitoN,desvioNombre:dN,horomHistorial:hist_===null?null:Math.round(hist_),dif:dif,correctivos:c,alertas:alertas,score:score});
+    filas.push({sigla:r.equipo,modelo:(porSigla[r.equipo]||{}).modelo||'',fecha:fecha,tipoPM:r.tipoPM||'',horomReal:h,hitoSistema:x.hito,desvioSistema:x.horas,hitoNombre:hitoN,desvioNombre:dN,horomHistorial:hist_===null?null:Math.round(hist_),dif:dif,desvioHistorial:desvH,correctivos:c,alertas:alertas,score:score});
   });
   filas.sort(function(a,b){return b.score-a.score||(a.fecha<b.fecha?1:a.fecha>b.fecha?-1:0)||(a.sigla<b.sigla?-1:1);});
-  return{estricto:est,filas:filas,conteo:cont};
+  return{estricto:est,corregido:cor,filas:filas,conteo:cont};
 }
 // IV: equipos con una salida de servicio todavía abierta hoy (equiposFueraDeServicioAhora), con los días que llevan, su sistema o conjunto, el seguimiento anotado y su último PM.
 function informeGestionFS(ot,eq,reg,hoyISO){

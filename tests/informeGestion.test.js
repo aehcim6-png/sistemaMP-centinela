@@ -162,4 +162,19 @@ describe('informeCalidadPM — indicador estricto y calidad del dato', () => {
     expect(r.filas[0].alertas).toEqual(expect.arrayContaining(['congelado', 'historial']));
     expect(r.filas[0].horomHistorial).toBe(100);
   });
+  it('corregido: recalcula el desvío con el horómetro del historial y marca no verificable al PM exacto sin historial', () => {
+    // PM anotado a 500 h (exacto) el 10-feb, pero el historial dice 570 h ese día: atrasado +70 h con el historial, «a tiempo» con lo anotado
+    const reg = [pm('MN-1', 250, '2026-01-10'), pm('MN-1', 500, '2026-02-10', { tipoPM: 'PM2' }), pm('MN-1', 750, '2026-04-10')];
+    const r = informeCalidadPM(reg, eq, [hist('MN-1', '2026-02-10', 570)], []);
+    expect(r.corregido.comparables).toBe(1);
+    expect(r.corregido.oficial).toMatchObject({ dentro: 1, atrasado: 0 });
+    expect(r.corregido.historial).toMatchObject({ dentro: 0, atrasado: 1 });
+    expect(r.corregido.cambian).toBe(1);
+    expect(r.corregido.noVerificables).toBe(2);   // 250 y 750 están justo en el hito y no hay lectura de historial cerca
+    expect(r.filas.find(f => f.fecha === '2026-02-10').desvioHistorial).toBe(70);
+  });
+  it('corregido: sin historial y con lectura anotada no entra a la comparación', () => {
+    const r = informeCalidadPM([pm('MN-1', 262, '2026-01-10')], eq, [], []);
+    expect(r.corregido).toMatchObject({ comparables: 0, noVerificables: 0, sinHistorialUsaAnotado: 1 });
+  });
 });
