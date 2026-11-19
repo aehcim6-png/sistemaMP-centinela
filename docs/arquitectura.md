@@ -7440,6 +7440,13 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Qué trae el libro «Control de Disponibilidad»** (hoja `Base_Datos`, 10.279 filas con fecha, 9-ene-2025 a 17-mar-2026): 8.712 lecturas de horómetro, 1.114 correctivas (con fecha y hora de entrada y de salida, duración, síntoma, sistema, criticidad y lugar), 356 preventivas y 95 «No aplica». No trae nada de 2024. Se cruzó contra la base: las lecturas de horómetro ya están (9.284 en ese período) y 912 de las 1.101 correctivas con folio están en las OT vigentes; de las 189 que faltan por folio, 161 son de tres equipos que no están en la tabla de equipos (CN-4656 con 83, CN-6113 con 62, BD-8708 con 16) y 28 son PM anotados como «Correctivo» (viven en los registros de PM). No se cargó nada nuevo.
 - **Límites:** el hueco de horas detenido entre el 1-oct-2024 y el 21-jun-2026 (sin serie oficial ni del cliente) sigue igual hasta la fecha de salida de las órdenes de oct-2024 a ene-2025, que ningún archivo entregado trae.
 
+### 237. Filtros por columna en la tabla de Correctivos (2026-11-19)
+
+**Origen:** el usuario mostró la tabla de Correctivos y pidió poder filtrar desde el encabezado de cada columna («donde dice equipo», «tampoco en fecha»). Arriba ya había filtros de equipo, tipo, estatus y texto, pero no por columna.
+- **Qué hace:** bajo los títulos de la tabla hay una fila de filtros. Equipo y Tipo son listas que mueven los mismos filtros de la barra de arriba; **Fecha** filtra por año o por mes; Síntoma, Causa raíz, Componente, Solución y Técnico son texto (contiene; se aplica al salir de la casilla o con Enter); Tipo causa, Categoría MTTR, Sistema, Estado OT y CAPEX/OPEX son listas con la opción «(sin dato)». Los filtros se combinan con los de arriba y un botón «✕ Quitar filtros de columnas (n)» los deshace; también aparece en el aviso «Sin OT con los filtros actuales», para no quedar sin salida.
+- **Cómo:** `otCumpleFiltrosColumna` (logic.js, con `tests/otFiltrosColumna.test.js`) decide si una orden cumple; se aplica a todas las órdenes antes de paginar, así filtra el total y no solo la página que se ve. La fila de filtros usa celdas `th` para que el ordenamiento universal de tablas (`aplicarOrdenUniversal`) no la trate como una fila de datos. Prueba en pantalla: `tests/e2e/ot-filtros-columna.spec.js`.
+- **Límites:** el estado de los filtros de columna (`window._otCol`) vive en la sesión del navegador: se pierde al recargar. Las columnas sin filtro son N°, Duración, Motivo de demora, Reparación, Modalidad, Plazo, Costo, Cód. falla, AST, LOTO y Autorizó.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

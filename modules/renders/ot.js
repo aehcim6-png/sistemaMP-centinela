@@ -184,6 +184,9 @@ export function renderOt(){
   const fEq=$('fOtEq')?.value||'',fTipo=$('fOtTipo')?.value||'',fEst=$('fOtEst')?.value||'',fTexto=($('fOtTexto')?.value||'').trim().toLowerCase();
   const fSoloSinCosto=$('fOtSoloSinCosto')?.checked||false;
   const fSoloSinClasif=$('fOtSoloSinClasif')?.checked||false;
+  // Filtros por columna (2026-11-19): se eligen en la fila de filtros bajo los encabezados y se combinan con los de arriba (otCumpleFiltrosColumna, logic.js).
+  const cF=window._otCol||{};
+  const nColFiltros=Object.keys(cF).length;
   // Incluir correctivos que vienen de Registro PM
   const regCorr=reg.filter(r=>r.tipoPM==='Correctivo'||r.estatusEq==='Fuera de Servicio');
   const todos=[...ot,...regCorr.map(r=>({sigla:r.equipo,fecha:r.fechaEntrada,tipo:'Correctivo (desde PM)',
@@ -194,7 +197,7 @@ export function renderOt(){
     fechaSalida:r.fechaSalida,horaSalida:r.horaSalida,
     estatusEq:r.estatusEq,fromReg:true}))];
   const _filtroOt=o=>(!fEq||o.sigla===fEq)&&(!fTipo||o.tipo?.includes(fTipo))&&(!fEst||o.estatusEq===fEst)&&
-    (!fTexto||[o.componente,o.sintoma,o.causaRaiz,o.solucion].some(t=>(t||'').toLowerCase().includes(fTexto)));
+    (!fTexto||[o.componente,o.sintoma,o.causaRaiz,o.solucion].some(t=>(t||'').toLowerCase().includes(fTexto)))&&otCumpleFiltrosColumna(o,cF);
   let fil=todos.filter(_filtroOt);
   // Al buscar por palabra clave, sumar también coincidencias del historial 2022-2024
   // (correctivos_historico, cargado vía otHist) — antes esta búsqueda solo miraba
@@ -263,6 +266,20 @@ export function renderOt(){
   var cerradasTotalEvidencia=ot.filter(function(o){return(!o.estadoOT||o.estadoOT==='Cerrada')&&(o.tipo==='Correctivo'||o.tipo==='Falla Operacional');}).length;
   var pctSinSolucion=cerradasTotalEvidencia?Math.round(cerradasSinSolucion/cerradasTotalEvidencia*100):0;
   var cls=typeof resumenClasificacionOT==='function'?resumenClasificacionOT(ot):{cerradas:0,sinSistema:0,sinTipoCausa:0,pendientes:0,pctSinTipoCausa:0,pctSinSistema:0};
+  // Fila de filtros bajo los encabezados (2026-11-19). Equipo y Tipo mueven los mismos filtros de arriba; el resto filtra por columna sobre todas las órdenes, no solo la página visible.
+  const _sf='width:100%;min-width:70px;font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:3px;padding:2px';
+  const _dist=f=>[...new Set(todos.map(f).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'es'));
+  const _optsF=(vals,sel,vacio)=>'<option value="">Todos</option>'+(vacio?'<option value="'+OT_FILTRO_VACIO+'"'+(sel===OT_FILTRO_VACIO?' selected':'')+'>(sin dato)</option>':'')+vals.map(v=>'<option'+(v===sel?' selected':'')+'>'+escapeHtml(v)+'</option>').join('');
+  const _selF=(k,vals,vacio)=>'<select style="'+_sf+'" onchange="_otColSet(\''+k+'\',this.value)">'+_optsF(vals,cF[k],vacio)+'</select>';
+  const _txtF=k=>'<input type="text" value="'+escapeHtml(cF[k]||'')+'" placeholder="Filtrar…" onchange="_otColSet(\''+k+'\',this.value)" style="'+_sf+'">';
+  const _fechasT=todos.map(o=>String(o.fechaEntrada||o.fecha||'').slice(0,10)).filter(d=>/^\d{4}-\d{2}/.test(d));
+  const _anios=[...new Set(_fechasT.map(d=>d.slice(0,4)))].sort().reverse(),_meses=[...new Set(_fechasT.map(d=>d.slice(0,7)))].sort().reverse();
+  const _fechaF='<select style="'+_sf+'" onchange="_otColSet(\'fecha\',this.value)"><option value="">Todas</option><optgroup label="Año">'+_anios.map(a=>'<option'+(cF.fecha===a?' selected':'')+'>'+a+'</option>').join('')+'</optgroup><optgroup label="Mes">'+_meses.map(m=>'<option'+(cF.fecha===m?' selected':'')+'>'+m+'</option>').join('')+'</optgroup></select>';
+  const _eqF='<select style="'+_sf+'" onchange="_otColTop(\'fOtEq\',this.value)"><option value="">Todos</option>'+eq.map(e=>'<option'+(e.sigla===fEq?' selected':'')+'>'+escapeHtml(e.sigla)+'</option>').join('')+'</select>';
+  const _tipoF='<select style="'+_sf+'" onchange="_otColTop(\'fOtTipo\',this.value)"><option value="">Todos</option>'+['Correctivo','Falla Operacional','Cambio de Componente'].map(t=>'<option'+(t===fTipo?' selected':'')+'>'+t+'</option>').join('')+'</select>';
+  const _celdasF=['',_eqF,_tipoF,_fechaF,'',_txtF('sintoma'),_txtF('causaRaiz'),_selF('tipoCausa',['Física','Humana','Latente'],true),_selF('categoriaMTTR',_CATEGORIAS_MTTR,true),_selF('sistema',_dist(o=>o.sistema),true),_txtF('componente'),_txtF('solucion'),'','','','',_selF('estadoOT',['Pendiente','En Ejecución','Cerrada'],false),_txtF('tecnico'),'',_selF('clasificacionCosto',_CLASIFICACIONES_COSTO,true),'','','','',''];
+  const filaFiltros='<tr class="fila-filtros">'+_celdasF.map(c=>'<th style="padding:3px 4px;background:var(--bg2);text-transform:none;font-weight:400;cursor:default;vertical-align:top">'+c+'</th>').join('')+'</tr>';
+  const btnLimpiarCol=nColFiltros?'<button class="btn btn-o" onclick="_otColLimpiar()" title="Quita los filtros de los encabezados de la tabla (Equipo y Tipo son los de arriba)">✕ Quitar filtros de columnas ('+nColFiltros+')</button>':'';
   $('s-ot').innerHTML=`
     <div class="sec-h"><div>
       <div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="11"/><circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none"/></svg> Correctivos / Órdenes de Trabajo</div>
@@ -294,6 +311,7 @@ export function renderOt(){
       <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2);white-space:nowrap;cursor:pointer" title="Filtra a las OT reales cerradas que todavía no tienen Tipo de Causa o Sistema, las más recientes primero — se completan desde la tabla (columnas Tipo Causa y Sistema).">
         <input type="checkbox" id="fOtSoloSinClasif" ${fSoloSinClasif?'checked':''} onchange="window._pag.ot=1;renders.ot()"> Clasificación pendiente
       </label>
+      ${btnLimpiarCol}
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
     ${compCards}
@@ -301,10 +319,11 @@ export function renderOt(){
     ${_cumplimientoPlazosHTML(ot)}
     ${fSoloSinCosto?_otPrioridadCostoHTML(prioridadCosto):''}
     ${_otResumenBusquedaHTML(fil,fTexto)}
-    ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales</p></div>':`
+    ${!fil.length?'<div class="card"><p style="color:var(--tx3);text-align:center;padding:20px">Sin OT con los filtros actuales'+(nColFiltros?'<br><br>'+btnLimpiarCol:'')+'</p></div>':`
     ${_pagHTML('ot',pg)}
     <div class="tbl-wrap"><table>
       <tr><th>N°</th><th>Equipo</th><th>Tipo</th><th>Fecha</th><th>Duración</th><th>Síntoma <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Causa Raíz <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Tipo Causa</th><th>Categoría MTTR <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Sistema</th><th>Componente <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Solución <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Motivo de demora</th><th>Reparación</th><th title="Dónde se repara (PRO-MAN-002)">Modalidad</th><th title="Plazo comprometido para terminar la reparación">Plazo</th><th>Estado OT <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Técnico</th><th>Costo <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>CAPEX/OPEX <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,3 17,7 7,17 3,17 3,13"/><line x1="11" y1="5" x2="15" y2="9"/></svg></th><th>Cód.Falla</th><th>AST</th><th>LOTO</th><th>Autoriz.</th><th></th></tr>
+      ${filaFiltros}
       ${pg.items.map((o)=>{
         const i=ot.indexOf(o);
         const idx=fil.indexOf(o);
@@ -1161,6 +1180,10 @@ export function edOT(i,key,val,forzar){
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
+// Filtros por columna de la tabla de Correctivos (2026-11-19).
+window._otColSet=function(k,v){window._otCol=window._otCol||{};if(v)window._otCol[k]=v;else delete window._otCol[k];window._pag.ot=1;renders.ot();};
+window._otColTop=function(id,v){var el=$(id);if(el)el.value=v;window._pag.ot=1;renders.ot();};
+window._otColLimpiar=function(){window._otCol={};window._pag.ot=1;renders.ot();};
 window.renderOt = renderOt;
 window.analisisDocumentacion = analisisDocumentacion;
 window.analisisReingresos = analisisReingresos;
