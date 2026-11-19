@@ -7462,6 +7462,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Cobertura medida:** en la pauta de BD-10139 se reconocen 68 de 72 actividades. Quedan sin minutos «Juego axial y radial de turbina compresora», «Filtro aire acondicionado», «Filtro aire cabina» (PM3) y «Repiradero motor» (con falta de ortografía). Otras pautas no se midieron una por una.
 - **Límites:** es un emparejamiento aproximado, no una unión por código: una actividad que en el PDF son dos tareas toma la más parecida. Los minutos son por persona; la suma de la lista cuenta todo lo que se ve, aunque una actividad no toque en ese nivel de PM. Prueba en pantalla: `tests/e2e/pautas-minutos.spec.js`.
 
+### 240. Planificación semanal: qué tocaba en una semana pasada (2026-11-19)
+
+**Origen:** el usuario explicó el problema de la semana 46: el programa de la semana dice cuántas mantenciones tocaban, pero al pasar la semana esa información se borra, queda solo lo real y no se sabe cuántas se reprogramaron.
+- **Causa:** el plan de una semana se calcula en vivo a partir del horómetro y de la fecha del próximo PM de cada equipo, y no se guardaba (las tablas `plan_semanal` y `plan_semanal_historico` están vacías; «Cerrar semana» era manual y nunca se usó). Las semanas pasadas solo mostraban lo ejecutado.
+- **Qué cambia:** al abrir una semana pasada que no está cerrada, Planificación semanal reconstruye el programa y muestra tarjetas «Tocaban (reconstruido)» y «Sin PM registrado», y una tabla «qué tocaba y qué pasó» con cada hito: ejecutado, sin PM registrado (el horómetro llegó al hito y no hay PM en la semana), no llegó al hito (equipo parado) o ya vencido al inicio.
+- **Cómo:** `programaSemanaReconstruido` (logic.js, con `tests/programaSemanaReconstruido.test.js`) usa el mismo criterio del informe del cliente (`informeProgramaSemanal`, Gestión I y II): tocaba el hito que el equipo iba a alcanzar esa semana según su ritmo real de uso. Prueba en pantalla: `tests/e2e/sem-programa-reconstruido.spec.js`.
+- **Límites:** es una reconstrucción con los datos de hoy, no el plan tal como estaba escrito ese día: no ve cambios hechos a mano ni la fecha exacta fijada, y los equipos sin lectura de horómetro cercana no se evalúan (se listan). «Sin PM registrado» no distingue entre no hecho y no anotado. Si se necesita el plan exacto, hay que congelarlo al empezar la semana (guardarlo en una tabla), cosa que no se hizo.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

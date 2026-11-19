@@ -399,6 +399,31 @@ export function renderSem(){
       '</table></div>';
   }
 
+  // ── PROGRAMA RECONSTRUIDO (semanas pasadas) ───────────────────────────────
+  // El plan de una semana se calcula en vivo y no se guarda: al pasar la semana quedaba solo lo ejecutado y se perdía qué tocaba. Para las semanas pasadas se reconstruye con el
+  // historial de horómetros y los PM registrados (programaSemanaReconstruido, logic.js): cuántos hitos de PM tocaban, cuáles tienen PM registrado y cuáles no.
+  var progRec=null;
+  if(esPasada&&!esCerrada&&typeof programaSemanaReconstruido==='function'){
+    try{progRec=programaSemanaReconstruido(eq,reg,S.g('hist')||[],wIni,wFin,new Date().toISOString().slice(0,10));}catch(e){progRec=null;}
+  }
+  function renderProgramaRec(){
+    if(!progRec)return '';
+    var r=progRec.resumen;
+    var estadoTxt={ejecutado:'<span class="badge b-g">✓ Ejecutado</span>',sin_registro:'<span class="badge b-r" title="El horómetro llegó al hito durante la semana y no hay PM registrado en la semana: no se hizo o no se anotó">Sin PM registrado</span>',no_llego:'<span class="badge b-y" title="Estaba programado, pero el equipo no avanzó lo suficiente en la semana (parado o poco uso)">No llegó al hito</span>',arrastre:'<span class="badge b-n" title="Ya estaba vencido al empezar la semana; no cuenta en los totales">Ya vencido al inicio</span>'};
+    var filas=progRec.filas.map(function(f){
+      return'<tr><td class="mono" style="color:var(--ac);font-weight:700">'+escapeHtml(f.sigla)+'</td>'+
+        '<td>'+pb(f.tipoPM)+'</td>'+
+        '<td class="mono" style="text-align:center">'+fn(f.hito)+' h</td>'+
+        '<td class="mono" style="text-align:center;font-size:11px;color:var(--tx3)">'+fn(Math.round(f.horomInicio))+' → '+fn(Math.round(f.horomFin))+'</td>'+
+        '<td>'+estadoTxt[f.estado]+(f.fueraDePrograma?' <span class="badge b-n" style="font-size:9px" title="No estaba proyectado en esta semana">fuera de programa</span>':'')+'</td></tr>';
+    }).join('');
+    return'<div class="chart-box" style="margin:14px 0">'+
+      '<div class="chart-t">📋 Programa de la semana '+fSemana+' — qué tocaba y qué pasó <span style="font-weight:400;font-size:11px;color:var(--tx3)">(reconstruido)</span></div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">El plan de una semana pasada ya no se guarda; esto lo reconstruye con los horómetros y los PM registrados: <b>tocaba</b> el hito que el equipo iba a alcanzar esa semana según su ritmo de uso. No ve cambios hechos a mano al plan ni la fecha exacta que se había fijado. «Sin PM registrado» significa que no hay registro: puede que no se hiciera o que no se anotara.'+
+      (r.sinHorometro?' <b>'+r.sinHorometro+'</b> equipo'+(r.sinHorometro===1?'':'s')+' sin lectura de horómetro cercana no se evalúa'+(progRec.sinHorometro.length&&progRec.sinHorometro.length<=6?' ('+progRec.sinHorometro.map(escapeHtml).join(', ')+')':'')+'.':'')+'</div>'+
+      (filas?'<div class="tbl-wrap"><table><tr><th>Equipo</th><th>PM</th><th>Hito</th><th>Horómetro (inicio → fin)</th><th>Estado</th></tr>'+filas+'</table></div>':'<div style="font-size:12px;color:var(--tx3);padding:4px 0">Ningún equipo alcanzaba un hito de PM en esta semana.</div>')+
+      '</div>';
+  }
   var contenido=fVistaSem==='calendario'?renderCalendario():renderTabla();
 
   // ── BADGE SEMANA ──────────────────────────────────────────────────────────
@@ -443,13 +468,15 @@ export function renderSem(){
     '</div>'+
     '<div class="cards no-imprimir">'+
     '<div class="card"><div class="card-t">Trabajos Semana</div><div class="card-v">'+items.length+'</div></div>'+
+    (progRec?'<div class="card" title="Hitos de PM que, según el ritmo de uso de cada equipo, tocaban en esta semana (reconstruido con horómetros)"><div class="card-t">Tocaban (reconstruido)</div><div class="card-v">'+progRec.resumen.programados+'</div><div class="card-s">'+progRec.resumen.programadosEjecutados+' con PM registrado</div></div>'+
+      '<div class="card" title="Hitos que el horómetro sí alcanzó en la semana y no tienen PM registrado en la semana"><div class="card-t" style="color:'+(progRec.resumen.sinRegistro?'var(--danger)':'var(--tx3)')+'">Sin PM registrado</div><div class="card-v" style="color:'+(progRec.resumen.sinRegistro?'var(--danger)':'var(--tx)')+'">'+progRec.resumen.sinRegistro+'</div></div>':'')+
     '<div class="card"><div class="card-t">HH Plan</div><div class="card-v">'+Math.round(totalHHPlan)+'h</div></div>'+
     (esPasada||esCerrada||totalHHReal>0?'<div class="card"><div class="card-t">HH Real</div><div class="card-v" style="color:var(--ok)">'+Math.round(totalHHReal)+'h</div></div>'+
     '<div class="card"><div class="card-t">Cumplimiento</div><div class="card-v" style="color:'+(cumpl===null?'var(--tx3)':cumpl>=80?'var(--ok)':cumpl>=50?'var(--warn)':'var(--danger)')+'">'+(cumpl===null?'—':cumpl+'%')+'</div></div>':'')+''+
     '<div class="card"><div class="card-t">Costo Estimado</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(totalCosto))+'</div></div>'+
     '<div class="card"><div class="card-t">Tarifa HH</div><div class="card-v">$'+fn(hh)+'</div></div>'+
     '</div>'+
-    contenido;
+    contenido+renderProgramaRec();
 }
 
 export function edSem(idx,key,val){
