@@ -7447,6 +7447,13 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Cómo:** `otCumpleFiltrosColumna` (logic.js, con `tests/otFiltrosColumna.test.js`) decide si una orden cumple; se aplica a todas las órdenes antes de paginar, así filtra el total y no solo la página que se ve. La fila de filtros usa celdas `th` para que el ordenamiento universal de tablas (`aplicarOrdenUniversal`) no la trate como una fila de datos. Prueba en pantalla: `tests/e2e/ot-filtros-columna.spec.js`.
 - **Límites:** el estado de los filtros de columna (`window._otCol`) vive en la sesión del navegador: se pierde al recargar. Las columnas sin filtro son N°, Duración, Motivo de demora, Reparación, Modalidad, Plazo, Costo, Cód. falla, AST, LOTO y Autorizó.
 
+### 238. Registro PM: el lápiz de la columna Duración abre el editor (2026-11-19)
+
+**Origen:** el usuario mostró la tabla de Registro PM: el aviso de arriba dice «✏ = editar registro completo (útil para registros anteriores sin hora)» y, en los registros sin duración, la columna Duración muestra «clic ✏», pero ese texto no hacía nada y el editor completo solo se abría con el lápiz de la última columna, que queda fuera de pantalla en una tabla ancha.
+- **Qué cambia:** el «clic ✏» de Duración ahora es un botón que abre el editor del registro completo (`editarReg`). Los registros con duración pero sin hora de entrada o de salida (los anteriores a ese campo) muestran un lápiz junto a la duración, con la misma acción. El lápiz del final de la fila sigue igual. Los botones se ocultan al rol lector, como los demás de edición.
+- **Prueba:** `tests/e2e/reg-lapiz-duracion.spec.js`.
+- **Límite:** la duración no se escribe a mano: el editor la recalcula con las fechas y horas.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
