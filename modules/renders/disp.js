@@ -458,6 +458,33 @@ export function renderDisp(){
     :'<div style="font-size:12px;color:var(--tx3);padding:4px 0">Historial insuficiente para simular escenarios todavía (mismo mínimo que el Monte Carlo de arriba).</div>')+
     '</div>';
 
+  // ═══ ÓRDENES DE TRABAJO REGISTRADAS (2026-11-19) ═══ — las OT vigentes (con fecha de salida) y las del histórico (Excel de órdenes, WhatsApp…; sin fecha de salida) del año que se mira.
+  // Las del histórico no traen cuánto estuvo detenido el equipo: se listan «sin horas detenido» y no entran al % de disponibilidad (ver ordenesRegistradasAnio, logic.js).
+  var ordAnio=fVista==='anual'?fAnio:fMes.slice(0,4);
+  var ordR=(typeof ordenesRegistradasAnio==='function')?ordenesRegistradasAnio({ot:ot,otHist:S.g('otHist')||[]},ordAnio):null;
+  var ordenesHTML='';
+  if(ordR){
+    var ordDetalle=fVista==='anual'?[]:ordR.filas.filter(function(r){return r.fecha.slice(0,7)===fMes&&(!fTipo||(eq.find(function(e){return e.sigla===r.sigla})||{}).tipo===fTipo);});
+    var ordTope=300;
+    ordenesHTML=
+      '<details id="dispOrdenes" style="margin:6px 0 14px"'+(window._dispOtAbierto?' open':'')+' ontoggle="window._dispOtAbierto=this.open">'+
+      '<summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--ac);padding:10px 0;min-height:44px;display:flex;align-items:center;flex-wrap:wrap">Órdenes de trabajo registradas '+escapeHtml(ordAnio)+' <span style="font-weight:400;font-size:11px;color:var(--tx3);margin-left:8px">'+ordR.total.total+' órdenes · '+ordR.total.conSalida+' con fecha de salida · '+ordR.total.historicas+' del histórico (sin horas detenido)</span></summary>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:2px 0 8px">Todas las órdenes del año, vengan del sistema o del histórico cargado (Excel de órdenes, chat, Control de Disponibilidad). Las del histórico traen la fecha de ingreso pero no la de salida del equipo, así que <b>no suman horas detenido ni entran al % de disponibilidad</b>: se muestran para que se vea que existen. Las horas detenidas salen solo de las órdenes del sistema con fecha de salida.</div>'+
+      (ordR.meses.length?
+        '<div class="tbl-wrap"><table><tr><th style="text-align:left">Mes</th><th>Órdenes</th><th>Del sistema</th><th>Con fecha de salida</th><th>Del histórico (sin horas detenido)</th><th>Fallas</th><th>Otras (preventivas, desgaste…)</th></tr>'+
+        ordR.meses.map(function(m){return'<tr'+(fVista!=='anual'&&m.mes===fMes?' style="background:var(--bg3)"':'')+'><td style="text-align:left;font-weight:600">'+m.mes+'</td><td style="text-align:center">'+m.total+'</td><td style="text-align:center">'+m.vigentes+'</td><td style="text-align:center">'+m.conSalida+'</td><td style="text-align:center;color:var(--tx3)">'+m.historicas+'</td><td style="text-align:center">'+m.fallas+'</td><td style="text-align:center;color:var(--tx3)">'+m.otras+'</td></tr>';}).join('')+
+        '<tr style="font-weight:700"><td style="text-align:left">Total '+escapeHtml(ordAnio)+'</td><td style="text-align:center">'+ordR.total.total+'</td><td style="text-align:center">'+ordR.total.vigentes+'</td><td style="text-align:center">'+ordR.total.conSalida+'</td><td style="text-align:center">'+ordR.total.historicas+'</td><td style="text-align:center">'+ordR.total.fallas+'</td><td style="text-align:center">'+ordR.total.otras+'</td></tr></table></div>'
+        :'<div style="font-size:12px;color:var(--tx3);padding:4px 0">No hay órdenes registradas en '+escapeHtml(ordAnio)+'.</div>')+
+      (fVista==='anual'?'':
+        '<div style="font-size:12px;font-weight:700;margin:12px 0 4px">Detalle de '+escapeHtml(fMes)+' <span style="font-weight:400;color:var(--tx3)">('+ordDetalle.length+' órdenes'+(ordDetalle.length>ordTope?', se muestran las '+ordTope+' más recientes':'')+')</span></div>'+
+        (ordDetalle.length?
+          '<div class="tbl-wrap" style="max-height:420px;overflow:auto"><table><tr><th>Fecha</th><th>Equipo</th><th>Tipo</th><th>Sistema</th><th>Descripción</th><th>Origen</th><th>Horas detenido</th></tr>'+
+          ordDetalle.slice(0,ordTope).map(function(r){return'<tr><td>'+r.fecha+'</td><td>'+escapeHtml(r.sigla)+'</td><td>'+escapeHtml(r.tipo)+(r.falla?'':' <span class="badge b-n" style="font-size:9px">no falla</span>')+'</td><td>'+escapeHtml(r.sistema)+'</td><td style="text-align:left">'+escapeHtml(_repTxt(r.descripcion,120))+'</td><td style="color:var(--tx3)">'+escapeHtml(r.fuente)+'</td><td style="text-align:center;color:var(--tx3)">'+(r.conSalida?'con fecha de salida':'sin dato')+'</td></tr>';}).join('')+
+          '</table></div>'
+          :'<div style="font-size:12px;color:var(--tx3);padding:4px 0">Sin órdenes registradas en este mes.</div>'))+
+      '</details>';
+  }
+
   $('s-disp').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 8,10 11,7 17,16"/><polyline points="12,16 17,16 17,11"/></svg> Disponibilidad Mecánica</div>'+
     '<div class="sec-s" title="Disponibilidad = (horas disponibles del día − horas caídas) / horas disponibles, promediado por período. Cuando un registro no tiene duración registrada se asume 4h (PM) u 8h (correctivo) para no perderlo del cálculo — estimación, no dato medido.">Cálculo automático desde registros PM + correctivos + equipo fuera de servicio · Meta editable · <span style="text-decoration:underline dotted">sin duración registrada = 4h/8h asumidas</span></div></div>'+
@@ -473,6 +500,7 @@ export function renderDisp(){
     '<div style="font-size:11px;color:var(--tx3)">Meta: <span contenteditable style="color:var(--ac);font-weight:700;cursor:pointer" onblur="var v=parseFloat(this.innerText);if(v>0){S.s(\'dispMeta\',v);refreshAll()}">'+meta+'%</span></div>'+
     '</div>'+
     content+
+    ordenesHTML+
     // Orden por prioridad (2026-10-21): primero lo que se mira todos los días (equipos fuera de servicio, disponibilidad del período y la tabla por equipo);
     // las proyecciones y simulaciones (producción perdida, Monte Carlo, pronóstico, What-If) van debajo, plegadas. El estado abierto/cerrado se recuerda
     // al cambiar los filtros (renders.disp() redibuja todo).
