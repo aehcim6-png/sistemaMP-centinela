@@ -24,6 +24,12 @@ export function renderPau(){
   const conRep=fil.filter(p=>p.rep&&p.rep.trim()).length;
   const refPau=pau.find(p=>p.sigla===siglaRef);
   const hoja=refPau?refPau.hoja:'—';
+  // Minutos de trabajo por persona de cada actividad (tabla pautas_tiempos, PDF «Pauta Mantencion»): se emparejan por parecido de texto (emparejarPautaTiempos, logic.js);
+  // la actividad que no se reconoce queda con «—». La suma es de lo que se ve en la lista.
+  const tareasMin=(S.g('pautasTiempos')||[]).filter(t=>t.sigla===pautaTiempoRefSigla(se,GRUPO_PAUTAS));
+  const emp=emparejarPautaTiempos(fil,tareasMin);
+  const minDe=new Map();fil.forEach((p,k)=>minDe.set(p,emp[k]));
+  const conMin=emp.filter(Boolean).length,sumaMin=emp.reduce((x,m)=>x+(m?m.minutos:0),0);
   const pg=_pagSlice('pau',fil);
   $('s-pau').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><polyline points="6.5,7 7.5,8 9.5,6"/><line x1="11" y1="7" x2="14" y2="7"/><polyline points="6.5,11.5 7.5,12.5 9.5,10.5"/><line x1="11" y1="11.5" x2="14" y2="11.5"/></svg> Pautas de Mantención</div>'+
@@ -37,10 +43,10 @@ export function renderPau(){
     '<option value="PM3"'+(sp==='PM3'?' selected':'')+'>PM3 (1000h) incl PM1-2</option>'+
     '<option value="PM4"'+(sp==='PM4'?' selected':'')+'>PM4 (2000h) TODOS</option></select>'+
     '<input id="fPauCat" placeholder="Buscar categoría..." aria-label="Buscar categoría" value="'+(fCat||'')+'" onchange="window._pag.pau=1;renders.pau()" style="max-width:140px">'+
-    '<span style="color:var(--tx3);font-size:12px">'+fil.length+' act · '+conRep+' con repuesto</span></div>'+
+    '<span style="color:var(--tx3);font-size:12px">'+fil.length+' act · '+conRep+' con repuesto'+(tareasMin.length?' · <span title="Minutos de trabajo por persona (no duración del PM) de las actividades que se ven, según el PDF Pauta Mantencion. '+conMin+' de '+fil.length+' actividades tienen tiempo; el resto no se reconoció en el PDF.">⏱ '+fn(sumaMin)+' min ('+(Math.round(sumaMin/6)/10)+' h-persona) · '+conMin+' con tiempo</span>':' · sin tiempos cargados para esta pauta')+'</span></div>'+
     _pagHTML('pau',pg)+
     '<div class="tbl-wrap"><table>'+
-    '<tr><th>Hoja</th><th>PM</th><th>Categoría</th><th>Actividad</th><th>Hrs</th><th>Repuesto / Insumo</th><th>Cant</th><th></th></tr>'+
+    '<tr><th>Hoja</th><th>PM</th><th>Categoría</th><th>Actividad</th><th>Hrs</th><th title="Minutos de trabajo por persona según el PDF Pauta Mantencion">Min</th><th>Repuesto / Insumo</th><th>Cant</th><th></th></tr>'+
     pg.items.map(function(p){
       var i=pau.indexOf(p);
       var es='background:transparent;border:none;color:var(--tx);font-size:11px;width:100%';
@@ -51,6 +57,7 @@ export function renderPau(){
         '<td><input value="'+escapeHtml(p.cat||'')+'" onchange="edPau('+i+',\'cat\',this.value)" style="'+es+';max-width:100px" title="Editar categoría"></td>'+
         '<td><input value="'+escapeHtml(p.act||'')+'" onchange="edPau('+i+',\'act\',this.value)" style="'+es+'" title="Editar actividad"></td>'+
         '<td><input type="number" value="'+(p.hrs||0)+'" onchange="edPau('+i+',\'hrs\',parseInt(this.value)||0)" style="width:55px;'+CELL_INPUT_STYLE+';font-size:11px"></td>'+
+        (function(){var m=minDe.get(p);return m?'<td class="mono" style="font-size:11px;color:var(--ok);text-align:center" title="'+escapeHtml('Tarea del PDF: '+m.tarea+(m.topeHoras!=null?' (cada '+m.topeHoras+' h)':'')+' · minutos de una persona')+'">'+m.minutos+'</td>':'<td class="mono" style="font-size:11px;color:var(--tx3);text-align:center" title="No se reconoció esta actividad en el PDF de tiempos">—</td>';})()+
         '<td><input value="'+escapeHtml(p.rep||'')+'" onchange="edPau('+i+',\'rep\',this.value)" style="'+es+';color:var(--ac);font-weight:600;max-width:280px" title="Editar repuesto"></td>'+
         '<td><input type="number" value="'+(p.can||'')+'" onchange="edPau('+i+',\'can\',parseFloat(this.value)||0)" style="width:50px;background:var(--bg3);border:1px solid var(--bd);color:var(--ac);text-align:center;border-radius:3px;font-size:12px;font-weight:600"></td>'+
         '<td><button class="btn-s btn-d" onclick="delPauta('+i+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td></tr>';

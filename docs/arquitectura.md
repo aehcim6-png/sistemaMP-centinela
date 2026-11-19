@@ -7454,6 +7454,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Prueba:** `tests/e2e/reg-lapiz-duracion.spec.js`.
 - **Límite:** la duración no se escribe a mano: el editor la recalcula con las fechas y horas.
 
+### 239. Pautas: minutos de trabajo de cada actividad (2026-11-19)
+
+**Origen:** el usuario mostró la pestaña Pautas y dijo que no aparecían las horas de trabajo de cada ítem, que ya habíamos visto con las pautas nuevas (los PDF «Pauta Mantencion»). Esos minutos están en la tabla `pautas_tiempos` (§231) y se usaban en Gestión VIII y en el aviso de Registro PM, pero la pantalla Pautas no los mostraba.
+- **Qué hace:** la tabla de Pautas gana la columna **Min** (minutos de trabajo de una persona, no duración del PM), y arriba de la tabla un resumen «⏱ N min (X h-persona) · K con tiempo» de las actividades que se ven. Al pasar el mouse por un valor se ve la tarea del PDF de la que salió y su frecuencia.
+- **Cómo:** `pautas` y `pautas_tiempos` escriben la misma tarea con otras palabras («Alternador» con categoría REVISAR contra «Revisar alternador»), así que `emparejarPautaTiempos` (logic.js, con `tests/emparejarPautaTiempos.test.js`) las une por parecido: normaliza el texto (sin tildes ni palabras de relleno), reduce cada palabra a sus 5 primeras letras, pesa más las palabras raras (secundario, prefiltro) que las comunes, y suma desempates por sección del PDF, texto idéntico y misma frecuencia. Si la actividad dice cambiar y la tarea dice revisar se resta puntaje. Se acepta desde 0,75; bajo eso queda «—» (no se inventa).
+- **Cobertura medida:** en la pauta de BD-10139 se reconocen 68 de 72 actividades. Quedan sin minutos «Juego axial y radial de turbina compresora», «Filtro aire acondicionado», «Filtro aire cabina» (PM3) y «Repiradero motor» (con falta de ortografía). Otras pautas no se midieron una por una.
+- **Límites:** es un emparejamiento aproximado, no una unión por código: una actividad que en el PDF son dos tareas toma la más parecida. Los minutos son por persona; la suma de la lista cuenta todo lo que se ve, aunque una actividad no toque en ese nivel de PM. Prueba en pantalla: `tests/e2e/pautas-minutos.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
