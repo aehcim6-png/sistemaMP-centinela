@@ -748,7 +748,7 @@ const _LAZY_VERS={
   // Dashboard quedaría vacío toda la sesión — se deja eager junto a dash
   // para que SIEMPRE esté disponible cuando cualquiera de esos lo pida.
   torre:'2026-10-22',
-  buscar:'2026-10-23f',
+  buscar:'2026-11-19a',
   comp:'2026-10-24d',
   estadistica:'2026-10-18',
   tbo:'2026-11-01a',
@@ -1304,7 +1304,14 @@ function ordenarTabla(tabla,col,th){
     let v=inp?inp.value:td.textContent;
     return (v||'').trim();
   };
-  const num=s=>{const n=parseFloat((s||'').replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n;};
+  // Valor numérico de una celda: fechas (AAAA-MM-DD o DD-MM-AAAA → días), duraciones («3h 46min» → minutos) y números. Antes «2026-11-09» se leía como 2026 y todas las fechas quedaban empatadas: ordenar por fecha no hacía nada.
+  const num=s=>{
+    s=(s||'').trim();
+    let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return Date.UTC(+m[1],+m[2]-1,+m[3])/864e5;
+    m=s.match(/^(\d{2})-(\d{2})-(\d{4})/);if(m)return Date.UTC(+m[3],+m[2]-1,+m[1])/864e5;
+    m=s.match(/^(\d+)\s*h(?:\s*(\d+)\s*min)?$/i);if(m)return (+m[1])*60+(+(m[2]||0));
+    const n=parseFloat(s.replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n;
+  };
   rows.sort((a,b)=>{
     const va=val(a),vb=val(b),na=num(va),nb=num(vb);
     if(na!==null&&nb!==null)return dir*(na-nb);

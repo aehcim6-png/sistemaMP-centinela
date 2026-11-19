@@ -3898,6 +3898,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Estado «Repuesta»:</b> no se guarda, se deduce (<code>estadoReprogramacionPM</code>): hay un PM del equipo, de nivel igual o mayor, registrado después de la semana de origen. «Vencida» = pasó la semana de destino sin PM; «Pendiente» = aún hay tiempo. Pruebas: <code>tests/reprogramacionesPM.test.js</code> y <code>tests/e2e/sem-programa-reconstruido.spec.js</code>. La semana elegida se recuerda: tras guardar no salta a la semana actual.</p>
   <p><b>Límites:</b> solo se registran las reprogramaciones que alguien anota con el botón; las de semanas pasadas se pueden anotar después desde la tabla reconstruida, pero el motivo lo escribe quien las anota. El gemelo <code>sistema-mp2</code> no se tocó.</p>
 
+  <h3 id="d-242">242. Ordenar las tablas de Buscar, y ordenar por fecha y duración en todas (2026-11-19)</h3>
+  <p><b>Origen:</b> el usuario mostró la tabla «Registros PM» de la ficha de un equipo en Buscar y dijo que no se podía ordenar.</p>
+  <p><b>Causa 1:</b> el ordenamiento por encabezado (⇅) se pone a las tablas de una pestaña al abrirla; en Buscar la ficha se redibuja al elegir equipo, año o fecha, sin pasar por la apertura, así que las tablas nuevas quedaban sin ⇅. Ahora Buscar lo vuelve a aplicar al terminar de dibujar. <b>Causa 2 (todas las tablas):</b> el orden leía «2026-11-09» como el número 2026 y todas las fechas quedaban empatadas; ahora las fechas se comparan como días y las duraciones («3h 46min») como minutos. Prueba: <code>tests/e2e/buscar-ordenar-tablas.spec.js</code>.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

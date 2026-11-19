@@ -7479,6 +7479,13 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Detalle de pantalla:** la semana elegida se recuerda (`window._semSel`): tras guardar o cancelar no salta a la semana actual.
 - **Límites:** solo se registran las reprogramaciones que alguien anota con el botón; las de semanas anteriores a hoy se pueden anotar después desde la tabla «qué tocaba y qué pasó» (reconstruida), pero el motivo lo escribe quien las anota. No se escribe en el sistema gemelo `sistema-mp2` (no revisado).
 
+### 242. Ordenar las tablas de Buscar, y ordenar por fecha y duración en todas (2026-11-19)
+
+**Origen:** el usuario mostró la tabla «Registros PM» de la ficha de un equipo en Buscar y dijo que no se podía ordenar.
+- **Causa 1:** el ordenamiento por encabezado (⇅) se pone a las tablas de una pestaña al abrirla. En Buscar la ficha se redibuja cada vez que se elige un equipo, un año o una fecha, sin pasar por la apertura de la pestaña, así que las tablas nuevas quedaban sin ⇅. Ahora Buscar vuelve a aplicarlo al terminar de dibujar (`renders.buscar`, como ya hacen Planificación, Gestión, Stock y otras).
+- **Causa 2 (afecta a todas las tablas):** el orden leía «2026-11-09» como el número 2026, así que todas las fechas quedaban empatadas y ordenar por fecha no cambiaba nada. Ahora las fechas (AAAA-MM-DD y DD-MM-AAAA) se comparan como días y las duraciones («3h 46min», «10h 30min») como minutos.
+- **Prueba:** `tests/e2e/buscar-ordenar-tablas.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

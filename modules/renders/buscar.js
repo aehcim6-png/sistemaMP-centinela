@@ -413,6 +413,8 @@ export function renderBuscar(){
     '<input type="date" id="fBuscarHasta" value="'+fHasta+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Hasta" aria-label="Fecha hasta">'+
     ((fEq||fAnio||fDesde||fHasta)?'<button class="btn btn-o" onclick="$(\'fBuscarEq\').value=\'\';$(\'fBuscarAnio\').value=\'\';$(\'fBuscarDesde\').value=\'\';$(\'fBuscarHasta\').value=\'\';renders.buscar()">✕ Limpiar</button>':'')+
     '</div>'+content;
+  // Las tablas de la ficha se redibujan cada vez que se elige un equipo, año o fecha (renders.buscar() directo, sin pasar por go()): sin esto quedaban sin los encabezados ordenables (⇅).
+  setTimeout(function(){if(typeof aplicarOrdenUniversal==='function')aplicarOrdenUniversal('s-buscar');},60);
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).
