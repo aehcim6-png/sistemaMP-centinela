@@ -43,4 +43,28 @@ test('una semana pasada muestra el programa reconstruido: hitos que tocaban y si
   const tabla = (await page.locator('#s-sem .chart-box table').innerText()).replace(/\s+/g, ' ');
   expect(tabla).toMatch(/TX-1.*Sin PM registrado/);
   expect(tabla).toMatch(/TX-2.*Ejecutado/);
+
+  // Reprogramar el hito sin PM registrado: queda con su semana de destino y su motivo.
+  await page.route(`${SB_URL}/rest/v1/reprogramaciones_pm**`, (r) => r.request().method() === 'GET' ? r.fallback() : r.fulfill({ status: 201, contentType: 'application/json', body: '[]' }));
+  await page.locator('#s-sem .chart-box button', { hasText: 'Reprogramar' }).first().click();
+  await expect(page.locator('#rpSem')).toBeAttached();
+  // Sin motivo no guarda.
+  await page.evaluate(() => saveReprogramacion());
+  expect(await page.evaluate(() => (S.g('reprogramaciones') || []).length)).toBe(0);
+  // «Otro» exige detalle.
+  await page.selectOption('#rpMot', 'Otro');
+  await page.evaluate(() => saveReprogramacion());
+  expect(await page.evaluate(() => (S.g('reprogramaciones') || []).length)).toBe(0);
+  await page.selectOption('#rpMot', 'Falta de repuestos o insumos');
+  await page.fill('#rpDet', 'esperando el filtro de la OC 1234');
+  await page.evaluate(() => saveReprogramacion());
+  const guardada = await page.evaluate(() => (S.g('reprogramaciones') || [])[0]);
+  expect(guardada).toMatchObject({ sigla: 'TX-1', tipoPM: 'PM2', semanaOrigen: actualMenos1(), semanaDestino: actualMenos1() + 1, motivo: 'Falta de repuestos o insumos', estado: 'Pendiente' });
+  await expect(page.locator('#s-sem')).toContainText('Mantenciones reprogramadas');
+  await expect(page.locator('#s-sem')).toContainText('esperando el filtro de la OC 1234');
+  // Tras guardar, la pantalla sigue en la misma semana y la fila muestra a qué semana pasó.
+  await expect(page.locator('#s-sem .sec-s')).toContainText('Semana ' + (actual - 1));
+  await expect(page.locator('#s-sem .chart-box table').first()).toContainText('↪ Sem ' + actual);
+  await expect(page.locator('#s-sem .chart-box').nth(1)).toContainText('sale de esta semana');
+  function actualMenos1() { return actual - 1; }
 });

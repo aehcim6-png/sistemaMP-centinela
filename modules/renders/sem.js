@@ -110,7 +110,9 @@ export function renderSem(){
   // devolver NaN. Con semActual=NaN toda comparación da falso, ninguna semana
   // se consideraba pasada y las anteriores nunca mostraban lo ejecutado.
   var semActual=getWeekNum();
-  var fSemana=parseInt($('fSemNum')?.value||semActual);
+  // La semana elegida se recuerda en window._semSel: tras guardar algo (reprogramar, cancelar) la pantalla se redibuja y no debe saltar a la semana actual.
+  var fSemana=parseInt($('fSemNum')?.value||window._semSel||semActual);
+  window._semSel=fSemana;
   var fVistaSem=$('fVistaSem')?.value||'calendario';
 
   // ── ¿Esta semana está cerrada? ────────────────────────────────────────────
@@ -330,9 +332,10 @@ export function renderSem(){
         celdas+
         '<td style="text-align:center;font-size:10px;color:var(--tx3);padding:5px 4px">'+it.hhPlan+'h</td>'+
         '<td style="text-align:center;font-size:10px;color:'+(esEjec?'var(--ok)':'var(--tx3)')+';padding:5px 4px">'+(it.hhReal||'-')+(it.hhReal?'h':'')+' real</td>'+
+        '<td style="text-align:center;padding:5px 4px">'+(esEjec?'':btnReprog(it.sigla,it.tipoPM,null))+'</td>'+
         '</tr>';
     }).join('');
-    if(!rows)rows='<tr><td colspan="14" style="text-align:center;color:var(--tx3);padding:20px">Sin PM programados para esta semana</td></tr>';
+    if(!rows)rows='<tr><td colspan="15" style="text-align:center;color:var(--tx3);padding:20px">Sin PM programados para esta semana</td></tr>';
     return'<div style="overflow-x:auto;margin-bottom:16px">'+
       '<table style="min-width:900px;border-collapse:collapse;font-size:12px">'+
       '<thead><tr style="background:var(--bg3)">'+
@@ -343,6 +346,7 @@ export function renderSem(){
         thDias+
         '<th style="text-align:center;min-width:45px;padding:8px">HH Plan</th>'+
         '<th style="text-align:center;min-width:55px;padding:8px">HH Real</th>'+
+        '<th style="text-align:center;min-width:80px;padding:8px">Reprogramar</th>'+
       '</tr></thead>'+
       '<tbody>'+rows+'</tbody>'+
       '</table></div>'+
@@ -393,10 +397,53 @@ export function renderSem(){
           '<td style="background:rgba(0,180,0,0.06)"><select onchange="edSemReal('+fSemana+','+idx+',\'estadoReal\',this.value)" style="font-size:10px;background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:2px">'+
           ['','Ejecutado','Parcial','No Ejecutado','Postergado'].map(function(st){return'<option'+(it.estadoReal===st?' selected':'')+'>'+st+'</option>'}).join('')+'</select></td>'+
           '<td class="ed" contenteditable style="font-size:10px;background:rgba(0,180,0,0.06)" onblur="edSemReal('+fSemana+','+idx+',\'obsReal\',this.innerText.trim())">'+escapeHtml(it.obsReal||'')+'</td>'+
-          (esCerrada?'':'<td><button class="btn-x" onclick="delSem('+idx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>')+
+          (esCerrada?'':'<td style="white-space:nowrap">'+(esEjec?'':btnReprog(it.sigla,it.tipoPM,null)+' ')+'<button class="btn-x" onclick="delSem('+idx+')" title="Eliminar"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><path d="M7.5 6 V4 h5 V6" fill="none"/><polyline points="5.5,6 6.5,17 13.5,17 14.5,6"/><line x1="8.5" y1="9" x2="8.5" y2="14"/><line x1="11.5" y1="9" x2="11.5" y2="14"/></svg></button></td>')+
           '</tr>';
       }).join('')+
       '</table></div>';
+  }
+
+  // ── REPROGRAMACIONES (2026-11-19) ─────────────────────────────────────────
+  // Un PM que tocaba esta semana y pasa a otra queda registrado (tabla reprogramaciones_pm): de qué semana salió, a cuál pasa y por qué. Así, al pasar la semana, no se pierde qué se movió.
+  var reprog=S.g('reprogramaciones')||[];
+  var totSem=semanasDelAnio();
+  window._semCtx={anio:ANIO_SEM,total:totSem,inicioDe:function(w){return isoLocal(getWeekStart(w));},finDe:function(w){var d=getWeekStart(w);d.setDate(d.getDate()+6);return isoLocal(d);}};
+  function repDe(sigla,tipoPM){
+    return reprog.find(function(r){return r.anio==ANIO_SEM&&r.semanaOrigen==fSemana&&r.sigla===sigla&&r.tipoPM===tipoPM&&r.estado!=='Cancelada';})||null;
+  }
+  function fcorta(f){return f?String(f).slice(8,10)+'-'+String(f).slice(5,7):'';}
+  function btnReprog(sigla,tipoPM,hito){
+    var r=repDe(sigla,tipoPM);
+    if(r)return'<span class="badge b-y" style="font-size:9px;white-space:nowrap" title="'+escapeHtml('Reprogramado a la semana '+r.semanaDestino+' · '+r.motivo+(r.detalle?' · '+r.detalle:''))+'">↪ Sem '+r.semanaDestino+'</span>';
+    if(esCerrada||fSemana>=totSem)return'';
+    return'<button type="button" class="btn-s" onclick="reprogramarPM(\''+escapeHtml(sigla)+'\',\''+escapeHtml(tipoPM)+'\','+(hito>0?hito:'null')+','+fSemana+')" title="Pasar este PM a otra semana y anotar el motivo" style="white-space:nowrap">↪ Reprogramar</button>';
+  }
+  function renderReprogramaciones(){
+    var resumen=resumenReprogramaciones(reprog,reg,new Date().toISOString().slice(0,10));
+    var estCol={Pendiente:'badge b-y',Repuesta:'badge b-g',Vencida:'badge b-r',Cancelada:'badge b-n'};
+    function filaRep(r,idx,rolSem){
+      var e=estadoReprogramacionPM(r,reg,new Date().toISOString().slice(0,10));
+      var estTxt=e.estado==='Repuesta'?'Repuesta el '+fcorta(e.fechaRepuesta)+(e.enSemanaDestino?'':' (fuera de la semana prevista)'):e.estado==='Vencida'?'Vencida: pasó la semana '+r.semanaDestino+' sin PM registrado':e.estado;
+      return'<tr><td class="mono" style="color:var(--ac);font-weight:700">'+escapeHtml(r.sigla)+'</td><td>'+pb(r.tipoPM)+(r.hito?' <span class="mono" style="font-size:10px;color:var(--tx3)">'+fn(r.hito)+' h</span>':'')+'</td>'+
+        '<td style="white-space:nowrap">Sem '+r.semanaOrigen+' <span style="color:var(--tx3);font-size:10px">('+fcorta(r.fechaOrigen)+')</span> → <b>Sem '+r.semanaDestino+'</b> <span style="color:var(--tx3);font-size:10px">('+fcorta(r.fechaDestino)+')</span>'+(rolSem?' <span class="badge b-n" style="font-size:9px">'+rolSem+'</span>':'')+'</td>'+
+        '<td style="font-size:11px">'+escapeHtml(r.motivo)+(r.detalle?'<div style="font-size:10px;color:var(--tx3)">'+escapeHtml(r.detalle)+'</div>':'')+'</td>'+
+        '<td><span class="'+estCol[e.estado]+'" style="font-size:10px">'+escapeHtml(estTxt)+'</span></td>'+
+        '<td style="font-size:10px;color:var(--tx3)">'+escapeHtml(r.usuario||'')+(r.created_at?' · '+fcorta(String(r.created_at).slice(0,10)):'')+'</td>'+
+        '<td>'+(r.estado==='Cancelada'||esCerrada?'':'<button type="button" class="btn-s btn-d" onclick="cancelarReprogramacion('+reprog.indexOf(r)+')" title="Marcar que este PM ya no se hará">Cancelar</button>')+'</td></tr>';
+    }
+    var cab='<tr><th>Equipo</th><th>PM</th><th>De la semana → a la semana</th><th>Motivo</th><th>Estado</th><th>Registrado</th><th></th></tr>';
+    var estaSem=reprog.filter(function(r){return r.anio==ANIO_SEM&&(r.semanaOrigen==fSemana||r.semanaDestino==fSemana);});
+    var todas=reprog.slice().sort(function(a,b){return (b.fechaOrigen||'')<(a.fechaOrigen||'')?-1:(b.fechaOrigen||'')>(a.fechaOrigen||'')?1:0;});
+    var chips=['Pendiente','Repuesta','Vencida','Cancelada'].map(function(k){return'<span class="'+estCol[k]+'" style="font-size:10px">'+k+': '+resumen.porEstado[k]+'</span>';}).join(' ');
+    var motivos=Object.keys(resumen.porMotivo).sort(function(a,b){return resumen.porMotivo[b]-resumen.porMotivo[a];}).map(function(m){return escapeHtml(m)+' ('+resumen.porMotivo[m]+')';}).join(' · ');
+    return'<div class="chart-box" style="margin:14px 0">'+
+      '<div class="chart-t">↪ Mantenciones reprogramadas <span style="font-weight:400;font-size:11px;color:var(--tx3)">('+resumen.total+' en total)</span></div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:4px 0 8px">Cada PM que pasa de una semana a otra queda registrado con la semana de origen, la semana a la que pasa y el motivo. «Repuesta» se deduce de los PM registrados después; «Vencida» es la que pasó su nueva semana sin PM. Se reprograma con el botón <b>↪ Reprogramar</b> de cada fila.</div>'+
+      (resumen.total?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+chips+'</div>'+(motivos?'<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Motivos: '+motivos+'</div>':''):'')+
+      '<div style="font-size:12px;font-weight:700;margin:6px 0 4px">De la semana '+fSemana+' ('+estaSem.length+')</div>'+
+      (estaSem.length?'<div class="tbl-wrap"><table>'+cab+estaSem.map(function(r){return filaRep(r,0,r.semanaOrigen==fSemana?'sale de esta semana':'llega a esta semana');}).join('')+'</table></div>':'<div style="font-size:12px;color:var(--tx3);padding:2px 0 6px">Ningún PM salió de esta semana ni llega a ella reprogramado.</div>')+
+      (todas.length>estaSem.length?'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--ac)">Historial completo ('+todas.length+')</summary><div class="tbl-wrap"><table>'+cab+todas.map(function(r){return filaRep(r,0,'');}).join('')+'</table></div></details>':'')+
+      '</div>';
   }
 
   // ── PROGRAMA RECONSTRUIDO (semanas pasadas) ───────────────────────────────
@@ -415,13 +462,14 @@ export function renderSem(){
         '<td>'+pb(f.tipoPM)+'</td>'+
         '<td class="mono" style="text-align:center">'+fn(f.hito)+' h</td>'+
         '<td class="mono" style="text-align:center;font-size:11px;color:var(--tx3)">'+fn(Math.round(f.horomInicio))+' → '+fn(Math.round(f.horomFin))+'</td>'+
-        '<td>'+estadoTxt[f.estado]+(f.fueraDePrograma?' <span class="badge b-n" style="font-size:9px" title="No estaba proyectado en esta semana">fuera de programa</span>':'')+'</td></tr>';
+        '<td>'+estadoTxt[f.estado]+(f.fueraDePrograma?' <span class="badge b-n" style="font-size:9px" title="No estaba proyectado en esta semana">fuera de programa</span>':'')+'</td>'+
+        '<td>'+((f.estado==='sin_registro'||f.estado==='no_llego')?btnReprog(f.sigla,f.tipoPM,f.hito):'')+'</td></tr>';
     }).join('');
     return'<div class="chart-box" style="margin:14px 0">'+
       '<div class="chart-t">📋 Programa de la semana '+fSemana+' — qué tocaba y qué pasó <span style="font-weight:400;font-size:11px;color:var(--tx3)">(reconstruido)</span></div>'+
       '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">El plan de una semana pasada ya no se guarda; esto lo reconstruye con los horómetros y los PM registrados: <b>tocaba</b> el hito que el equipo iba a alcanzar esa semana según su ritmo de uso. No ve cambios hechos a mano al plan ni la fecha exacta que se había fijado. «Sin PM registrado» significa que no hay registro: puede que no se hiciera o que no se anotara.'+
       (r.sinHorometro?' <b>'+r.sinHorometro+'</b> equipo'+(r.sinHorometro===1?'':'s')+' sin lectura de horómetro cercana no se evalúa'+(progRec.sinHorometro.length&&progRec.sinHorometro.length<=6?' ('+progRec.sinHorometro.map(escapeHtml).join(', ')+')':'')+'.':'')+'</div>'+
-      (filas?'<div class="tbl-wrap"><table><tr><th>Equipo</th><th>PM</th><th>Hito</th><th>Horómetro (inicio → fin)</th><th>Estado</th></tr>'+filas+'</table></div>':'<div style="font-size:12px;color:var(--tx3);padding:4px 0">Ningún equipo alcanzaba un hito de PM en esta semana.</div>')+
+      (filas?'<div class="tbl-wrap"><table><tr><th>Equipo</th><th>PM</th><th>Hito</th><th>Horómetro (inicio → fin)</th><th>Estado</th><th>Reprogramar</th></tr>'+filas+'</table></div>':'<div style="font-size:12px;color:var(--tx3);padding:4px 0">Ningún equipo alcanzaba un hito de PM en esta semana.</div>')+
       '</div>';
   }
   var contenido=fVistaSem==='calendario'?renderCalendario():renderTabla();
@@ -476,7 +524,7 @@ export function renderSem(){
     '<div class="card"><div class="card-t">Costo Estimado</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(totalCosto))+'</div></div>'+
     '<div class="card"><div class="card-t">Tarifa HH</div><div class="card-v">$'+fn(hh)+'</div></div>'+
     '</div>'+
-    contenido+renderProgramaRec();
+    contenido+renderProgramaRec()+renderReprogramaciones();
 }
 
 export function edSem(idx,key,val){
@@ -618,7 +666,41 @@ export function importSemCSV(){
   };inp.click();
 }
 
+// Reprogramar un PM a otra semana, con motivo (2026-11-19). El contexto de semanas (año, total, fechas de inicio) lo deja renderSem en window._semCtx.
+export function reprogramarPM(sigla,tipoPM,hito,semanaOrigen){
+  var c=window._semCtx;if(!c)return;
+  if((S.g('reprogramaciones')||[]).some(function(r){return r.anio==c.anio&&r.semanaOrigen==semanaOrigen&&r.sigla===sigla&&r.tipoPM===tipoPM&&r.estado!=='Cancelada';}))return toast('⚠️ Este PM ya está reprogramado desde la semana '+semanaOrigen);
+  var opts='';
+  for(var w=semanaOrigen+1;w<=c.total;w++)opts+='<option value="'+w+'"'+(w===semanaOrigen+1?' selected':'')+'>Semana '+w+' · '+c.inicioDe(w).slice(8,10)+'-'+c.inicioDe(w).slice(5,7)+' al '+c.finDe(w).slice(8,10)+'-'+c.finDe(w).slice(5,7)+'</option>';
+  if(!opts)return toast('⚠️ No quedan semanas después de la '+semanaOrigen+' este año');
+  window._rpCtx={sigla:sigla,tipoPM:tipoPM,hito:hito,semanaOrigen:semanaOrigen};
+  sm('<h3>↪ Reprogramar PM — '+escapeHtml(sigla)+' '+escapeHtml(tipoPM)+'</h3>'+
+    '<div style="font-size:12px;color:var(--tx3);margin-bottom:10px">Sale de la semana '+semanaOrigen+' ('+c.inicioDe(semanaOrigen).slice(8,10)+'-'+c.inicioDe(semanaOrigen).slice(5,7)+'). Queda anotado a qué semana pasa y por qué; el sistema controla si se repone.</div>'+
+    '<div class="form-row"><div class="fg"><label>Pasa a la semana *</label><select id="rpSem">'+opts+'</select></div>'+
+    '<div class="fg"><label>Motivo *</label><select id="rpMot"><option value="">— elige un motivo —</option>'+REPROG_MOTIVOS.map(function(m){return'<option>'+escapeHtml(m)+'</option>';}).join('')+'</select></div></div>'+
+    '<div class="form-row"><div class="fg" style="flex:1"><label>Detalle (obligatorio si el motivo es «Otro»)</label><input id="rpDet" style="width:100%" placeholder="Ej: esperando el filtro de la OC 1234"></div></div>'+
+    '<button class="btn" onclick="saveReprogramacion()">'+ICONS.saveIco+' Guardar reprogramación</button> <button class="btn btn-o" onclick="cm()">Cancelar</button>');
+}
+export function saveReprogramacion(){
+  var x=window._rpCtx,c=window._semCtx;if(!x||!c)return;
+  var semDest=parseInt($('rpSem').value,10),motivo=$('rpMot').value,detalle=($('rpDet').value||'').trim();
+  if(!motivo)return toast('⚠️ Elige el motivo de la reprogramación');
+  if(motivo==='Otro'&&!detalle)return toast('⚠️ Con el motivo «Otro» escribe el detalle');
+  if(!(semDest>x.semanaOrigen))return toast('⚠️ La semana nueva debe ser posterior a la semana '+x.semanaOrigen);
+  var rep=S.g('reprogramaciones')||[];
+  rep.push({sigla:x.sigla,tipoPM:x.tipoPM,hito:x.hito>0?x.hito:null,anio:c.anio,semanaOrigen:x.semanaOrigen,semanaDestino:semDest,fechaOrigen:c.inicioDe(x.semanaOrigen),fechaDestino:c.inicioDe(semDest),motivo:motivo,detalle:detalle||null,estado:'Pendiente',usuario:window._userName||''});
+  S.s('reprogramaciones',rep);cm();refreshAll();toast('✅ '+x.sigla+' '+x.tipoPM+' reprogramado a la semana '+semDest);
+}
+export function cancelarReprogramacion(i){
+  var rep=S.g('reprogramaciones')||[];var r=rep[i];if(!r)return;
+  if(!confirm('¿Marcar como cancelada la reprogramación de '+r.sigla+' '+r.tipoPM+'?\n\nQuiere decir que este PM ya no se hará en la semana '+r.semanaDestino+'. Queda en el historial.'))return;
+  r.estado='Cancelada';S.s('reprogramaciones',rep);refreshAll();toast('Reprogramación cancelada');
+}
+
 // Puente window/renders — ver nota en mov.js (primera tanda).
+window.reprogramarPM = reprogramarPM;
+window.saveReprogramacion = saveReprogramacion;
+window.cancelarReprogramacion = cancelarReprogramacion;
 window.renderSem = renderSem;
 window.edSem = edSem;
 window.addSemItem = addSemItem;

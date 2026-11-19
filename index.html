@@ -646,7 +646,7 @@ body.dens-compact th{padding:6px 8px}
 <!-- ?v= es cache-busting: sin él el navegador seguía sirviendo el logic.js viejo
      y los arreglos de cálculo no aparecían aunque estuvieran desplegados.
      Subir esta fecha al cambiar logic.js. -->
-<script src="logic.js?v=2026-11-19c"></script>
+<script src="logic.js?v=2026-11-19d"></script>
 <!-- modules/store.js: motor de sincronización (S/_sbCache/TABLA_REAL/etc.),
      última pieza de la Fase 2 de modularización — se carga antes que las
      pestañas porque todas dependen de S, aunque en la práctica el orden
@@ -731,7 +731,7 @@ const _LAZY_VERS={
   prg:'2026-08-31',
   progdia:'2026-10-27a',
   rep:'2026-10-26b',
-  sem:'2026-11-19a',
+  sem:'2026-11-19b',
   stk:'2026-10-24h',
   stk2:'2026-11-12a',
   ins:'2026-10-26b',
@@ -800,7 +800,7 @@ const _LAZY_EXPORTS={
   prg:['regenPrg','renderPrg','cyclePrg'],
   progdia:['importProgDiaXLSX','edProgDia','delProgDia','edProgDiaBloque','renderProgdia'],
   rep:['renderRep','edRep','delRep','addRep','saveRep','crearOC','confirmarOC','verOrdenesCompra','recibirOC','syncRepStock','importRepCSV','processRepCSV','edPrecioDesgaste'],
-  sem:['renderSem','edSem','addSemItem','saveNuevoSemItem','delSem','navSem','edSemReal','cerrarSemana','reabrirSemana','importSemCSV'],
+  sem:['renderSem','edSem','addSemItem','saveNuevoSemItem','delSem','navSem','edSemReal','cerrarSemana','reabrirSemana','importSemCSV','reprogramarPM','saveReprogramacion','cancelarReprogramacion'],
   stk:['renderStk','addStock','saveStock','stkCambiarCobertura'],
   stk2:['renderStk2','stk2Sub','queComprar'],
   ins:['renderIns','insFiltro','insNuevo','insGuardarNuevo','insEditar','insGuardarEdicion','insToggleActivo','insMovimiento','insGuardarMov','insKardex','insConteo','insConteoGuardar','insActivar','insActivarConfirmar','insDescuadres','insCuadrar','insDesactivarHuerfanos','insLista','insListaVista','insListaGuardar','insExportar'],
@@ -5665,7 +5665,7 @@ function _mfaError(msg){
 // clic y recibir un aviso. Ni perfecto ni exhaustivo a propósito: un falso
 // positivo (ocultar de más) es inofensivo; un falso negativo (no ocultar
 // algo) también lo es, porque S.s() igual corta la escritura real.
-var _RE_ACCION_ESCRITURA=/^(save|add|crear|nuevo|nueva|guardar|import|activar|desactivar|editarReg|del|reset|confirmar|abrirForm|abrirVincular|cambiarNeu|cerrarSemana|clearConsumos|cloudGuardarCfg|cloudPush|conectarCarpeta|desconectarCarpeta|desmontarSensor|cerrarSalidaServicio|registrarSalidaServicio|restaurarDePapelera)/i;
+var _RE_ACCION_ESCRITURA=/^(save|add|crear|nuevo|nueva|guardar|import|activar|desactivar|editarReg|del|reset|confirmar|abrirForm|abrirVincular|cambiarNeu|cerrarSemana|clearConsumos|cloudGuardarCfg|cloudPush|conectarCarpeta|desconectarCarpeta|desmontarSensor|cerrarSalidaServicio|registrarSalidaServicio|restaurarDePapelera|reprogramar|cancelarReprogramacion)/i;
 function _aplicarRolUI(){
   if(window._userRole==='admin')return;
   document.querySelectorAll('button,a,li').forEach(function(el){
