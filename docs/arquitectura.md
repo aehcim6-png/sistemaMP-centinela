@@ -7486,6 +7486,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Causa 2 (afecta a todas las tablas):** el orden leía «2026-11-09» como el número 2026, así que todas las fechas quedaban empatadas y ordenar por fecha no cambiaba nada. Ahora las fechas (AAAA-MM-DD y DD-MM-AAAA) se comparan como días y las duraciones («3h 46min», «10h 30min») como minutos.
 - **Prueba:** `tests/e2e/buscar-ordenar-tablas.spec.js`.
 
+### 243. Cargas del 19-nov: horómetros y status, equipo nuevo y 9 PM del control del taller (2026-11-20)
+
+**Origen:** el usuario adjuntó el formato de horómetros y status del 19-11, los programas de las semanas 45 y 47 y las imágenes del estatus de faena, y pidió cruzar los horómetros y cargar lo que faltaba.
+- **Horómetros:** 37 lecturas cargadas en `historial_horometros` con origen «Formato actualización horómetros y status 19-11-2026» y las fichas de los equipos (`horomActual`, `fechaHorom`) actualizadas. Por decisión del usuario se cargaron también las lecturas del archivo menores que las del sistema (CN-5131 −4 h, CN-9500 −36 h, TI-5146 −29 h) y las dos que el cruce había marcado como sospechosas: CN-10322 con 13.270 h (el sistema tenía 262 h; el control del taller lo tiene en 250 a 500 h, así que su PM de 500 h queda vencido por unas 12.700 h hasta que se aclare qué contador es) y TI-5142 con 17.750 h fechada el 26-10 (posible error de tipeo por 16.750; su ficha no cambió porque ya había una lectura del 5-11, con 16.731 h). No se cargó la de CN-9502 (ya había una del mismo día con 0,8 h de diferencia). Los valores anteriores de las fichas quedaron en un script de reversa en la carpeta temporal de la sesión.
+- **Equipo nuevo:** CN-10424 (camión aljibe, 1.011 h el 19-11) se creó en `equipos` con modelo «por confirmar», PM cada 250 h y 12 h por día supuestas; sin criticidad ni fecha de inicio en faena.
+- **9 PM del control del taller** (hoja «Equipos de produccion» del programa de la semana 47, columna «Fecha Última PM») que el sistema no tenía: BD-9533 PM1 (11-11), CN-10159 PM1 (09-11), CN-10160 PM4 (06-11), CN-9503 PM2 (09-11), GE-15174 PM2 (06-11), TI-9942 PM1 (12-11), TI-5145 PM4 (30-10), CN-7578 PM2 (30-10) y MC-4922 PM1 (05-03). Entraron en `registros_pm` con la fecha del taller, el horómetro del hito (nominal, no la lectura real), estatus Operativo, sin horas ni duración (no se estiman) y origen «Control del taller 19-11-2026».
+- **Sin cambios (pendiente de decisión):** 6 PM con la fecha distinta por 1 o 2 días y 3 con otro nivel de PM entre el taller y el sistema (BD-10139, CN-9502, GE-10019); las salidas de servicio nuevas de BD-9509 y CF-9510 y los cierres de BD-9533 y CN-9507; los programas semanales (hojas «Sem 32» a «Sem 47»; falta la hoja de la semana 46); CN-5133, que está en el sistema pero no en el formato del 19-11.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
