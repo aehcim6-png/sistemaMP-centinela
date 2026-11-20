@@ -142,6 +142,9 @@ export function renderSem(){
   var diasSemSel=getWeekDaysArr(fSemana);
   var wIni=isoLocal(diasSemSel[0]),wFin=isoLocal(diasSemSel[6]);
   var esActual=fSemana==semActual;
+  // Programa oficial del taller (tabla programa_pm_semanal, 2026-11-20): si la semana tiene programa cargado, es lo que manda; se compara con los PM registrados.
+  var ofRows=(S.g('programaSemanal')||[]).filter(function(p){return p.anio==ANIO_SEM&&p.semana==fSemana;});
+  var ofCmp=ofRows.length&&typeof compararProgramaOficial==='function'?compararProgramaOficial(ofRows,reg,S.g('reprogramaciones')||[],new Date().toISOString().slice(0,10)):null;
   var items;
   if(esCerrada){
     // Semana cerrada: mostrar histórico congelado
@@ -218,7 +221,9 @@ export function renderSem(){
     // semana 30). Por eso lo ejecutado se arma para cualquier semana con días
     // ya vividos, y la proyección solo para las que no han terminado.
     var yaEnSemana={};
-    var ejecItems=getRealFromReg(fSemana).filter(function(r){return !yaManual[r.equipo]}).map(function(r){
+    var yaOficial={};
+    if(ofCmp)ofCmp.filas.forEach(function(f){yaOficial[f.sigla]=true;});
+    var ejecItems=getRealFromReg(fSemana).filter(function(r){return !yaManual[r.equipo]&&!yaOficial[r.equipo]}).map(function(r){
       var e=eq.find(function(x){return x.sigla===r.equipo})||{sigla:r.equipo};
       var it=itemPlan(e,r.tipoPM||e.tipoPM||'PM1',diaPorFecha(fechaReg(r),true)||'Jue');
       it.estado='Ejecutado';it.hhReal=Math.round((r.duracionH||0)*10)/10;it.estadoReal='Ejecutado';
@@ -269,7 +274,24 @@ export function renderSem(){
         fecha=new Date(fecha.getTime()+pasoDias*864e5);
       }
     });
-    items=manualItems.concat(ejecItems,projItems);
+    // Con programa oficial cargado, la semana muestra ese programa (cada fila con lo que pasó) más lo ejecutado fuera de programa, y no la proyección por horómetro.
+    var ofItems=[];
+    if(ofCmp){
+      projItems=[];
+      ofCmp.filas.forEach(function(f){
+        var e=eq.find(function(x){return x.sigla===f.sigla})||{sigla:f.sigla};
+        var i0=Math.round((new Date(f.fechaProgramada+'T00:00:00')-diasSemSel[0])/864e5);
+        var it=itemPlan(e,f.tipoPM,DIAS_LABEL[i0]||'Jue');
+        it.auto=false;it.oficial=true;it.diasPM=null;it.obs=f.nota||'';
+        if(f.estado==='ejecutado'){
+          it.estado='Ejecutado';it.estadoReal='Ejecutado';it.hhReal=Math.round(((f.registro&&f.registro.duracionH)||0)*10)/10;it.obsReal=(f.registro&&f.registro.obs)||'';it.tecnico=(f.registro&&f.registro.tecnico)||'';
+        }else if(f.estado==='anticipado'||f.estado==='ejecutado_despues'){
+          it.obsReal=(f.estado==='anticipado'?'Se hizo antes: ':'Se hizo después: ')+f.fechaEjecucion;
+        }
+        ofItems.push(it);
+      });
+    }
+    items=manualItems.concat(ofItems,ejecItems,projItems);
 
     // Auto-fill Real desde reg si es semana pasada y no está cerrada
     if(esPasada){
@@ -450,8 +472,29 @@ export function renderSem(){
   // El plan de una semana se calcula en vivo y no se guarda: al pasar la semana quedaba solo lo ejecutado y se perdía qué tocaba. Para las semanas pasadas se reconstruye con el
   // historial de horómetros y los PM registrados (programaSemanaReconstruido, logic.js): cuántos hitos de PM tocaban, cuáles tienen PM registrado y cuáles no.
   var progRec=null;
-  if(esPasada&&!esCerrada&&typeof programaSemanaReconstruido==='function'){
+  if(!ofCmp&&esPasada&&!esCerrada&&typeof programaSemanaReconstruido==='function'){
     try{progRec=programaSemanaReconstruido(eq,reg,S.g('hist')||[],wIni,wFin,new Date().toISOString().slice(0,10));}catch(e){progRec=null;}
+  }
+  function renderProgramaOficial(){
+    if(!ofCmp)return '';
+    var r=ofCmp.resumen;
+    var estTxt={ejecutado:function(f){return'<span class="badge b-g">✓ Ejecutado</span> <span style="font-size:10px;color:var(--tx3)">'+fcorta(f.fechaEjecucion)+(f.mismoDia?'':' (otro día)')+'</span>';},
+      anticipado:function(f){return'<span class="badge b-g" title="Se registró en los 7 días anteriores a la semana">Anticipado</span> <span style="font-size:10px;color:var(--tx3)">'+fcorta(f.fechaEjecucion)+'</span>';},
+      ejecutado_despues:function(f){return'<span class="badge b-y" title="Se registró después de esta semana: se movió">Se hizo después</span> <span style="font-size:10px;color:var(--tx3)">'+fcorta(f.fechaEjecucion)+'</span>';},
+      sin_registro:function(){return'<span class="badge b-r" title="La semana terminó y no hay PM registrado: no se hizo o no se anotó">Sin PM registrado</span>';},
+      pendiente:function(){return'<span class="badge b-n">Pendiente</span>';}};
+    var filas=ofCmp.filas.map(function(f){
+      return'<tr><td class="mono" style="color:var(--ac);font-weight:700">'+escapeHtml(f.sigla)+(f.siglaPrograma&&f.siglaPrograma!==f.sigla?' <span style="font-size:9px;color:var(--tx3)">('+escapeHtml(f.siglaPrograma)+')</span>':'')+'</td>'+
+        '<td>'+pb(f.tipoPM)+(f.condicionada?' <span class="badge b-n" style="font-size:9px" title="'+escapeHtml(f.nota||'')+'">condicionada</span>':'')+'</td>'+
+        '<td style="white-space:nowrap">'+DIAS_LABEL[Math.round((new Date(f.fechaProgramada+'T00:00:00')-diasSemSel[0])/864e5)]+' '+fcorta(f.fechaProgramada)+'</td>'+
+        '<td class="mono" style="text-align:center">'+(f.horomHito?fn(f.horomHito)+' h':'—')+'</td>'+
+        '<td>'+estTxt[f.estado](f)+'</td>'+
+        '<td>'+((f.estado==='sin_registro'||f.estado==='ejecutado_despues'||f.estado==='pendiente')&&!f.condicionada?btnReprog(f.sigla,f.tipoPM,f.horomHito):'')+'</td></tr>';
+    }).join('');
+    return'<div class="chart-box" style="margin:14px 0">'+
+      '<div class="chart-t">📋 Programa oficial del taller — semana '+fSemana+' <span style="font-weight:400;font-size:11px;color:var(--tx3)">('+r.programadas+' PM programados · '+r.ejecutadas+' ejecutados en la semana'+(r.sinRegistro?' · '+r.sinRegistro+' sin PM registrado':'')+(r.pendientes?' · '+r.pendientes+' pendientes':'')+')</span></div>'+
+      '<div style="font-size:11px;color:var(--tx3);padding:4px 0 10px">Es el programa de la semana tal como lo emitió el taller (hojas «Sem N» del libro de programa), comparado con los PM registrados en el sistema. «Sin PM registrado» no distingue entre no hecho y no anotado. Un PM que no se hizo se puede reprogramar con su motivo.</div>'+
+      '<div class="tbl-wrap"><table><tr><th>Equipo</th><th>PM</th><th>Día programado</th><th>Hito</th><th>Estado</th><th>Reprogramar</th></tr>'+filas+'</table></div></div>';
   }
   function renderProgramaRec(){
     if(!progRec)return '';
@@ -516,6 +559,9 @@ export function renderSem(){
     '</div>'+
     '<div class="cards no-imprimir">'+
     '<div class="card"><div class="card-t">Trabajos Semana</div><div class="card-v">'+items.length+'</div></div>'+
+    (ofCmp?'<div class="card" title="PM que el programa oficial del taller tenía para esta semana"><div class="card-t">Programados (taller)</div><div class="card-v">'+ofCmp.resumen.programadas+'</div><div class="card-s">'+ofCmp.resumen.ejecutadas+' ejecutados en la semana</div></div>'+
+      '<div class="card" title="Programados cuya semana terminó sin PM registrado"><div class="card-t" style="color:'+(ofCmp.resumen.sinRegistro?'var(--danger)':'var(--tx3)')+'">Sin PM registrado</div><div class="card-v" style="color:'+(ofCmp.resumen.sinRegistro?'var(--danger)':'var(--tx)')+'">'+ofCmp.resumen.sinRegistro+'</div>'+(ofCmp.resumen.pendientes?'<div class="card-s">'+ofCmp.resumen.pendientes+' pendientes</div>':'')+'</div>'+
+      '<div class="card" title="Programados que se reprogramaron a otra semana"><div class="card-t">Reprogramados</div><div class="card-v">'+ofCmp.resumen.reprogramadas+'</div></div>':'')+
     (progRec?'<div class="card" title="Hitos de PM que, según el ritmo de uso de cada equipo, tocaban en esta semana (reconstruido con horómetros)"><div class="card-t">Tocaban (reconstruido)</div><div class="card-v">'+progRec.resumen.programados+'</div><div class="card-s">'+progRec.resumen.programadosEjecutados+' con PM registrado</div></div>'+
       '<div class="card" title="Hitos que el horómetro sí alcanzó en la semana y no tienen PM registrado en la semana"><div class="card-t" style="color:'+(progRec.resumen.sinRegistro?'var(--danger)':'var(--tx3)')+'">Sin PM registrado</div><div class="card-v" style="color:'+(progRec.resumen.sinRegistro?'var(--danger)':'var(--tx)')+'">'+progRec.resumen.sinRegistro+'</div></div>':'')+
     '<div class="card"><div class="card-t">HH Plan</div><div class="card-v">'+Math.round(totalHHPlan)+'h</div></div>'+
@@ -524,7 +570,7 @@ export function renderSem(){
     '<div class="card"><div class="card-t">Costo Estimado</div><div class="card-v" style="color:var(--ac)">$'+fn(Math.round(totalCosto))+'</div></div>'+
     '<div class="card"><div class="card-t">Tarifa HH</div><div class="card-v">$'+fn(hh)+'</div></div>'+
     '</div>'+
-    contenido+renderProgramaRec()+renderReprogramaciones();
+    contenido+renderProgramaOficial()+renderProgramaRec()+renderReprogramaciones();
 }
 
 export function edSem(idx,key,val){

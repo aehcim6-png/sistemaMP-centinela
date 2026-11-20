@@ -50,7 +50,8 @@ Deno.test("TABLAS: tamaño esperado (71) — cambiar a propósito si se agrega u
   // Nota 2026-11-10: 71 al sumar 'gets_cambios' (cambios de elementos de desgaste).
   // Nota 2026-11-18: 72 al sumar 'pautas_tiempos' (minutos por tarea de las pautas de mantención).
   // Nota 2026-11-19: 73 al sumar 'reprogramaciones_pm' (PM que pasan de una semana a otra, con su motivo).
-  assertEquals(TABLAS.length, 73);
+  // Nota 2026-11-20: 74 al sumar 'programa_pm_semanal' (programa semanal oficial del taller).
+  assertEquals(TABLAS.length, 74);
 });
 
 // ---- traerTodasLasFilas ----
