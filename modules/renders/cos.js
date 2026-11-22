@@ -724,6 +724,21 @@ export function renderCos() {
       '</div>';
   }
 
+  // Compras con monto sospechoso (22-nov-2026): precio ≥300× el habitual del artículo, o costo que no calza con cantidad × precio por un factor 10/100/1000
+  // (coma decimal mal leída al cargar). Solo avisa; no cambia nada. Ver comprasPreciosSospechosos en logic.js.
+  var sospHtml = '';
+  if (typeof comprasPreciosSospechosos === 'function') {
+    var sosp = comprasPreciosSospechosos((S.g('comprasDetalle') || []).concat(S.g('ocHist') || []), { limite: 50 });
+    if (sosp.total) {
+      sospHtml = '<details style="margin-top:14px;border:1px solid var(--w);border-radius:6px;padding:8px 12px"><summary style="cursor:pointer;font-weight:600;color:var(--w)">⚠️ ' + sosp.total + ' línea(s) de compra con monto sospechoso (' + fn(Math.round(sosp.exceso)) + ' $ posiblemente de más)</summary>' +
+        '<div style="font-size:11px;color:var(--tx3);padding:6px 0">Marcadas por precio ≥300 veces el habitual del mismo artículo, o costo distinto de cantidad × precio por un factor de 10, 100 o 1.000 (suele ser una coma decimal mal leída al cargar). Pueden ser reales (por ejemplo neumáticos de gran tamaño): revisar contra la OC. «Sugerido» es solo una pista.</div>' +
+        '<div class="tbl-wrap"><table><tr><th>Pedido</th><th>OC</th><th>Fecha</th><th>Equipo</th><th>Detalle</th><th>Cant</th><th>Precio</th><th>Costo</th><th>Motivo</th><th>Sugerido</th></tr>' +
+        sosp.filas.map(function (x) {
+          return '<tr><td class="mono">' + escapeHtml(x.pedido) + '</td><td class="mono">' + escapeHtml(x.oc) + '</td><td style="font-size:11px">' + escapeHtml(String(x.fecha || '').slice(0, 10)) + '</td><td class="mono" style="color:var(--ac)">' + escapeHtml(x.sigla) + '</td><td style="font-size:11px">' + escapeHtml(x.detalle) + '</td><td>' + fn(x.cant) + '</td><td class="mono">$' + fn(x.precioUnit) + '</td><td class="mono">$' + fn(x.costo) + '</td><td style="font-size:11px">' + (x.motivo === 'precio' ? 'precio ' + fn(x.veces) + '× el habitual' : 'costo ≠ cant × precio (×' + fn(x.factor) + ')') + '</td><td class="mono">$' + fn(x.sugerido) + '</td></tr>';
+        }).join('') + '</table></div></details>';
+    }
+  }
+
   $('s-cos').innerHTML =
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><text x="10" y="14" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif">$</text></svg> Costos, HH y Confiabilidad</div>' +
     '<div class="sec-s">Desde registros PM + consumos · HH: $' + fn(hh) + '/hr</div></div></div>' +
@@ -737,7 +752,7 @@ export function renderCos() {
     '<option value="arriendo"' + (fVista === 'arriendo' ? ' selected' : '') + '>🧮 Arriendo vs compra</option>' +
     '<option value="relativo"' + (fVista === 'relativo' ? ' selected' : '') + '>💰 Costo Relativo de Mantenimiento</option></select> ' +
     '<button class="btn btn-o" onclick="verComprasProveedores()" title="Tiempo de respuesta real por proveedor y pedidos de compra que ya llevan más tiempo abierto de lo normal">📦 Compras — Proveedores</button></div>' +
-    content;
+    content + sospHtml;
 }
 
 // ═══ COMPRAS — TIEMPO DE RESPUESTA POR PROVEEDOR + PEDIDOS TRABADOS
