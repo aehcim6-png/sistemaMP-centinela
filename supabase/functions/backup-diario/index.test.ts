@@ -51,7 +51,8 @@ Deno.test("TABLAS: tamaño esperado (71) — cambiar a propósito si se agrega u
   // Nota 2026-11-18: 72 al sumar 'pautas_tiempos' (minutos por tarea de las pautas de mantención).
   // Nota 2026-11-23: 74 al sumar 'equipos_alias' (nombres con que el chat llama a los equipos).
   // Nota 2026-11-19: 73 al sumar 'reprogramaciones_pm' (PM que pasan de una semana a otra, con su motivo).
-  assertEquals(TABLAS.length, 74);
+  // Nota 2026-11-23: 75 al sumar 'consumo_lubricantes' (consumo real de lubricantes por equipo y día).
+  assertEquals(TABLAS.length, 75);
 });
 
 // ---- traerTodasLasFilas ----

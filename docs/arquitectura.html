@@ -3988,7 +3988,18 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li><b>Límites:</b> el stock de los 13 lubricantes está en 0; algunos lubricantes de la pauta no existen en la bodega («sin vincular»).</li>
   </ul>
 
-  <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
+    <h3 id="d-255">255. Consumo real de lubricantes: informes mensuales de bodega en Buscar y «Qué comprar» (2026-11-23)</h3>
+  <p>Se cargaron los informes mensuales de consumo de lubricantes de bodega (ene-2025 a nov-2026) para poder <b>buscar el consumo en general, por tipo de lubricante, por equipo y por fecha</b>, y proyectar con eso.</p>
+  <ul>
+    <li><b>Datos</b> (<code>consumo_lubricantes</code>, store <code>consLub</code>): una fila por día, equipo y lubricante, con índice único contra duplicados. 1.629 filas, 43 equipos, 11 lubricantes; total 105.151, igual a la suma del origen. Se normalizaron <code>BD-139</code> → <code>BD-10139</code> y <code>GN-10019</code> → <code>GE-10019</code>; los equipos que ya no están en la flota y MN-92 (arriendo) quedan con su sigla histórica. La tabla va al respaldo diario.</li>
+    <li><b>Qué mide</b>: lo que salió de bodega, o sea cambios de PM <b>más</b> rellenos por falla o fuga, sin separarlos. Por eso no se afirma cuánto fue «planificado»; el plan de PM del mes es solo referencia.</li>
+    <li><b>Cálculo</b> (<code>consumoLubricantesResumen</code>, <code>lubClaseConsumo</code>): resume por lubricante, equipo, mes y fecha, con filtros opcionales. Las unidades nunca se mezclan (aceite en L, grasa en kg, AdBlue en L aparte). El promedio mensual divide por los meses del período; un mes sin consumo cuenta 0.</li>
+    <li><b>Buscar</b>: sin equipo elegido, consumo de toda la flota (por tipo, por equipo —los 30 que más consumen— y por mes; tocar un lubricante o equipo filtra); con equipo elegido, su ficha trae el bloque <b>Consumo de lubricantes</b> (por tipo, matriz por mes y últimas salidas por fecha). Respeta los filtros de año y fechas y suma un filtro de lubricante.</li>
+    <li><b>Qué comprar</b>: tabla <b>Consumo real de lubricantes</b> con promedio de los últimos 6 y 12 meses completos, plan de PM del mes en curso, stock cargado y cobertura en meses (stock ÷ promedio de 6 meses).</li>
+    <li><b>Límites</b>: el último informe llega al 3-nov-2026; el stock de lubricantes en el sistema aún no se carga desde el último informe (falta confirmar que ese stock sea el actual), por eso la cobertura queda vacía donde no hay stock cargado.</li>
+  </ul>
+
+<h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
     negocio que RLS no pueda expresar, un secreto que ni RLS proteja, pasos que necesiten

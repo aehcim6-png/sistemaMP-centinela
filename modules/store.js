@@ -278,6 +278,7 @@ const TABLA_REAL={
   neuRec:{tabla:'neumaticos_recauchajes',clave:'_id',claveDb:'id',cols:['neuId','serie','sigla','marca','medida','numRecauchaje','fechaEnvio','guiaDespacho','proveedor','huellaSalida','huellaEntrada','estado','codigoRechazo','fechaRetorno','costo','observaciones','usuario']},
   // Nombres con que el chat de WhatsApp llama a los equipos (CE-85 → CN-9503). Editable desde el importador del chat; lo usa chatWhatsAppSigla.
   alias:{tabla:'equipos_alias',clave:'_id',claveDb:'id',cols:['alias','sigla','nota']},
+  consLub:{tabla:'consumo_lubricantes',clave:'_id',claveDb:'id',cols:['fecha','sigla','lubricante','cantidad','unidad','fuente']},
   reprogramaciones:{tabla:'reprogramaciones_pm',clave:'_id',claveDb:'id',cols:['sigla','tipoPM','hito','anio','semanaOrigen','semanaDestino','fechaOrigen','fechaDestino','motivo','detalle','estado','usuario']},
   tareas:{tabla:'tareas_gestion',clave:'_id',claveDb:'id',cols:['clave','origen','sigla','titulo','detalle','responsable','fechaLimite','estado','fechaCierre','referencia','observacion','usuario']},
   // Presencia de cada equipo en la faena (desde/hasta), de solo lectura: la carga es por SQL (ver flotaEquiposPeriodo en logic.js).

@@ -196,6 +196,62 @@ function _buscarDesgasteHTML(sigla,inRange){
     '</div>';
 }
 
+// Consumo real de lubricantes (23-nov-2026), de los informes mensuales de bodega (tabla consumo_lubricantes, ene-2025 → nov-2026).
+// Es lo que SALIÓ de bodega: incluye los cambios de PM y los rellenos por falla o fuga, sin separarlos. Aceite en litros, grasa en kg y AdBlue en litros nunca se suman entre sí.
+// rango = {desde, hasta} del filtro de fechas de la pestaña (vacío = todo el histórico). El promedio mensual se calcula sobre los meses con datos dentro del rango.
+function _buscarConsumoRango(fAnio,fDesde,fHasta){
+  var d=fDesde||'',h=fHasta||'';
+  if(fAnio){if(!d||d<fAnio+'-01-01')d=fAnio+'-01-01';if(!h||h>fAnio+'-12-31')h=fAnio+'-12-31';}
+  return{desde:d,hasta:h};
+}
+function _buscarConsumoLubHTML(sigla,rango,lubSel){
+  var base=S.g('consLub')||[];
+  var fd=function(f){return f?f.slice(8,10)+'-'+f.slice(5,7)+'-'+f.slice(0,4):'—';};
+  var q=function(x){return fn(Math.round((x||0)*10)/10);};
+  var nota='<div style="font-size:11px;color:var(--tx3);margin:0 0 6px">Salidas de bodega según los informes mensuales de consumo de lubricantes (ene-2025 a nov-2026). Incluye los cambios de PM y los rellenos por falla o fuga, sin separarlos. Aceite en litros, grasa en kg y AdBlue en litros se muestran por separado.</div>';
+  if(!base.length)return '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">Consumo de lubricantes</div><div style="font-size:12px;color:var(--tx3)">Todavía no hay informes de consumo cargados.</div></div>';
+  var primero=base.reduce(function(m,f){var d=String(f.fecha).slice(0,10);return !m||d<m?d:m;},''),ultimo=base.reduce(function(m,f){var d=String(f.fecha).slice(0,10);return d>m?d:m;},'');
+  var d0=rango.desde&&rango.desde>primero?rango.desde:primero,d1=rango.hasta&&rango.hasta<ultimo?rango.hasta:ultimo;
+  var r=consumoLubricantesResumen(base,{desde:d0,hasta:d1,sigla:sigla||'',lubricante:lubSel||''});
+  var tarj=function(t1,v,sub){return '<div class="card" style="margin:0"><div class="card-t">'+t1+'</div><div class="card-v" style="font-size:20px">'+v+'</div><div class="card-s">'+sub+'</div></div>';};
+  var prom=r.promedioMensual,tot=r.totales;
+  var kpis='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:0 0 8px">'+
+    tarj('Aceite',q(tot.aceiteL)+' L','≈ '+q(prom.aceiteL)+' L por mes')+tarj('Grasa',q(tot.grasaKg)+' kg','≈ '+q(prom.grasaKg)+' kg por mes')+tarj('AdBlue',q(tot.adblueL)+' L','≈ '+q(prom.adblueL)+' L por mes')+'</div>'+
+    '<div style="font-size:10px;color:var(--tx3);margin:0 0 8px">Período: '+fd(r.desde)+' → '+fd(r.hasta)+' ('+r.nMeses+' mes'+(r.nMeses===1?'':'es')+'). El promedio cuenta como cero los meses sin consumo.</div>';
+  var titulo='<div class="chart-t">Consumo de lubricantes'+(sigla?'':' de la flota')+' ('+fn(r.filas.length)+' salida'+(r.filas.length===1?'':'s')+')</div>';
+  if(!r.filas.length)return '<div class="chart-box" style="margin-bottom:12px">'+titulo+nota+'<div style="font-size:12px;color:var(--tx3)">'+(sigla?'Este equipo no tiene salidas de lubricante en los informes de bodega para el período elegido.':'Sin salidas de lubricante en el período elegido.')+'</div></div>';
+  var porLub='<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Lubricante</th><th>Total</th><th>Salidas</th>'+(sigla?'':'<th>Equipos</th>')+'<th>Prom./mes</th><th>Última</th></tr>'+
+    r.porLubricante.map(function(l){
+      var clic=sigla?'':' style="text-align:left;color:var(--ac);cursor:pointer" onclick="$(\'fBuscarLub\').value=\''+escapeHtml(l.lubricante).replace(/\'/g,'')+'\';renders.buscar()"';
+      return '<tr><td'+(clic||' style="text-align:left"')+'>'+escapeHtml(l.lubricante)+'</td><td class="mono"><b>'+q(l.total)+'</b> '+l.unidad+'</td><td>'+l.eventos+'</td>'+(sigla?'':'<td>'+l.nEquipos+'</td>')+'<td class="mono">'+q(l.promedioMensual)+' '+l.unidad+'</td><td class="mono">'+fd(l.ultimo)+'</td></tr>';
+    }).join('')+'</table></div>';
+  var html=kpis+'<div style="font-size:11px;font-weight:700;margin:6px 0 4px">Por tipo de lubricante'+(sigla?'':' <span style="font-weight:400;color:var(--tx3)">(toca uno para filtrar)</span>')+'</div>'+porLub;
+  if(!sigla){
+    var filasEq=r.porEquipo.slice(0,30).map(function(e){
+      var unidad=lubSel?(lubClaseConsumo(lubSel)==='Grasa'?'kg':'L'):'';
+      var cel=lubSel?'<td class="mono"><b>'+q(e.aceiteL+e.adblueL+e.grasaKg)+'</b> '+unidad+'</td>':'<td class="mono">'+q(e.aceiteL)+' L</td><td class="mono">'+q(e.grasaKg)+' kg</td><td class="mono">'+q(e.adblueL)+' L</td>';
+      return '<tr><td class="mono" style="text-align:left;color:var(--ac);cursor:pointer" onclick="$(\'fBuscarEq\').value=\''+escapeHtml(e.sigla)+'\';renders.buscar()">'+escapeHtml(e.sigla)+'</td>'+cel+'<td>'+e.eventos+'</td><td class="mono">'+fd(e.ultimo)+'</td></tr>';
+    }).join('');
+    html+='<div style="font-size:11px;font-weight:700;margin:10px 0 4px">Por equipo'+(r.porEquipo.length>30?' (los 30 que más consumen, de '+r.porEquipo.length+')':' ('+r.porEquipo.length+')')+'</div>'+
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Equipo</th>'+(lubSel?'<th>Total</th>':'<th>Aceite</th><th>Grasa</th><th>AdBlue</th>')+'<th>Salidas</th><th>Última</th></tr>'+filasEq+'</table></div>';
+  }
+  var mesesVer=r.meses.slice(-12),MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var etq=function(m){return MES[Number(m.slice(5,7))-1]+'-'+m.slice(2,4);};
+  if(sigla){
+    html+='<div style="font-size:11px;font-weight:700;margin:10px 0 4px">Por mes'+(r.meses.length>12?' (últimos 12 de '+r.meses.length+')':'')+'</div>'+
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Lubricante</th>'+mesesVer.map(function(m){return '<th>'+etq(m.mes)+'</th>';}).join('')+'<th>Total</th></tr>'+
+      r.porLubricante.map(function(l){return '<tr><td style="text-align:left">'+escapeHtml(l.lubricante)+'</td>'+mesesVer.map(function(m){var v=l.porMes[m.mes];return '<td class="mono">'+(v?q(v):'·')+'</td>';}).join('')+'<td class="mono"><b>'+q(l.total)+'</b></td></tr>';}).join('')+'</table></div>'+
+      '<div style="font-size:11px;font-weight:700;margin:10px 0 4px">Salidas por fecha'+(r.filas.length>25?' (25 de '+r.filas.length+')':'')+'</div>'+
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th style="text-align:left">Lubricante</th><th>Cantidad</th></tr>'+
+      r.filas.slice(0,25).map(function(f){return '<tr><td class="mono">'+fd(f.fecha)+'</td><td style="text-align:left">'+escapeHtml(f.lubricante)+'</td><td class="mono">'+q(f.cantidad)+' '+f.unidad+'</td></tr>';}).join('')+'</table></div>';
+  }else{
+    html+='<div style="font-size:11px;font-weight:700;margin:10px 0 4px">Por mes'+(r.meses.length>12?' (últimos 12 de '+r.meses.length+')':'')+'</div>'+
+      '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Mes</th>'+(lubSel?'<th>Total</th>':'<th>Aceite</th><th>Grasa</th><th>AdBlue</th>')+'<th>Salidas</th></tr>'+
+      mesesVer.map(function(m){return '<tr><td style="text-align:left">'+etq(m.mes)+'</td>'+(lubSel?'<td class="mono">'+q(m.aceiteL+m.adblueL+m.grasaKg)+' '+(lubClaseConsumo(lubSel)==='Grasa'?'kg':'L')+'</td>':'<td class="mono">'+q(m.aceiteL)+' L</td><td class="mono">'+q(m.grasaKg)+' kg</td><td class="mono">'+q(m.adblueL)+' L</td>')+'<td>'+m.eventos+'</td></tr>';}).join('')+'</table></div>';
+  }
+  return '<div class="chart-box" style="margin-bottom:12px">'+titulo+nota+html+'</div>';
+}
+
 // «¿Qué quieres ver?» (23-nov-2026): la ficha tiene muchos bloques y a quien no la conoce lo marea. Cada bloque se puede mostrar u ocultar con un botón de arriba y plegar o desplegar con un clic en su título.
 // Lo elegido se recuerda en este navegador; por defecto se ve todo desplegado, igual que antes. Solo cambia lo que se ve: ningún dato se toca.
 var _BUSCAR_VER_CLAVE='buscarFichaVer';
@@ -311,6 +367,10 @@ export function renderBuscar(){
   var fDesde=$('fBuscarDesde')?.value||'';
   var fHasta=$('fBuscarHasta')?.value||'';
   var fAnio=$('fBuscarAnio')?.value||'';
+  var fLub=$('fBuscarLub')?.value||'';
+  var consLubTodos=S.g('consLub')||[];
+  var lubsConsumo=[...new Set(consLubTodos.map(function(c){return c.lubricante}))].sort();
+  var rangoConsumo=_buscarConsumoRango(fAnio,fDesde,fHasta);
   var siglas=[...new Set(eq.map(function(e){return e.sigla}))].sort();
   // Años reales presentes en registros PM y correctivos
   var aniosBuscar={};
@@ -518,6 +578,7 @@ export function renderBuscar(){
     compHistF.map(function(h){return'<tr><td>'+escapeHtml(h.comp||'')+'</td><td>'+(h.fechaInst||'—')+'</td><td class="mono">'+(h.horomInstalacion!=null?h.horomInstalacion:'—')+'</td><td style="font-size:10px;color:var(--tx2)">'+escapeHtml(h.fuente||'')+'</td><td style="font-size:10px">'+escapeHtml(h.obs||'')+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin eventos registrados</div>')+'</div>'+
 
     _buscarDesgasteHTML(fEq,inRange)+
+    _buscarConsumoLubHTML(fEq,rangoConsumo,fLub)+
     // Gestión de Destrabe
     '<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Gestión de Destrabe ('+destrabeActivosF.length+' activos de '+destrabeF.length+')</div>'+
     (destrabeF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Trabajo</th><th>Motivo Bloqueo</th><th>Responsable</th><th>F.Compromiso</th><th>Estado</th></tr>'+
@@ -559,7 +620,8 @@ export function renderBuscar(){
         '<td style="color:var(--ac)">$'+fn(Math.round(r.costo))+'</td>'+
         '<td style="color:'+(mtbf==null?'var(--tx3)':mtbf>2000?'var(--ok)':'var(--w)')+'">'+(mtbf==null?'—':mtbf+'h')+'</td>'+
         '<td><button class="btn-s" onclick="$(\'fBuscarEq\').value=\''+escapeHtml(r.sigla)+'\';renders.buscar()">Ver →</button></td></tr>';
-    }).join('')+'</table></div></div>';
+    }).join('')+'</table></div></div>'+
+    _buscarConsumoLubHTML('',rangoConsumo,fLub);
   }
 
   $('s-buscar').innerHTML=
@@ -571,9 +633,10 @@ export function renderBuscar(){
     '<select id="fBuscarAnio" onchange="renders.buscar()" style="min-width:90px"><option value="">Año: Todos</option>'+
     aniosBuscarArr.map(function(y){return'<option'+(fAnio===y?' selected':'')+'>'+y+'</option>'}).join('')+'</select>'+
     aniosBuscarArr.map(function(y){return'<button class="btn-s" style="'+(fAnio===y?'background:var(--ac);color:#fff':'')+'" onclick="$(\'fBuscarAnio\').value=\''+y+'\';renders.buscar()">'+y+'</button>'}).join('')+
+    (lubsConsumo.length?'<select id="fBuscarLub" onchange="renders.buscar()" style="min-width:140px" aria-label="Lubricante"><option value="">Lubricante: todos</option>'+lubsConsumo.map(function(l){return'<option'+(fLub===l?' selected':'')+'>'+escapeHtml(l)+'</option>'}).join('')+'</select>':'')+
     '<input type="date" id="fBuscarDesde" value="'+fDesde+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Desde" aria-label="Fecha desde">'+
     '<input type="date" id="fBuscarHasta" value="'+fHasta+'" onchange="renders.buscar()" style="background:var(--bg3);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:4px" placeholder="Hasta" aria-label="Fecha hasta">'+
-    ((fEq||fAnio||fDesde||fHasta)?'<button class="btn btn-o" onclick="$(\'fBuscarEq\').value=\'\';$(\'fBuscarAnio\').value=\'\';$(\'fBuscarDesde\').value=\'\';$(\'fBuscarHasta\').value=\'\';renders.buscar()">✕ Limpiar</button>':'')+
+    ((fEq||fAnio||fDesde||fHasta||fLub)?'<button class="btn btn-o" onclick="$(\'fBuscarEq\').value=\'\';if($(\'fBuscarLub\'))$(\'fBuscarLub\').value=\'\';$(\'fBuscarAnio\').value=\'\';$(\'fBuscarDesde\').value=\'\';$(\'fBuscarHasta\').value=\'\';renders.buscar()">✕ Limpiar</button>':'')+
     '</div>'+content;
   // Las tablas de la ficha se redibujan cada vez que se elige un equipo, año o fecha (renders.buscar() directo, sin pasar por go()): sin esto quedaban sin los encabezados ordenables (⇅).
   if(fEq)_buscarOrganizar();

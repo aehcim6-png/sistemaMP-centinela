@@ -30,6 +30,7 @@ test('«Qué comprar» muestra las cuchillas del equipo con pedir antes de, stoc
       S.s('pau', [{ _id: 'pa1', sigla: 'MN-6112', hoja: 'h', pm: 'PM1', rep: 'Mobilgrease XHP 322 Mine', can: 12 }]);
       S.s('lub', [{ _id: 'lu1', nombre: 'MOBILGREASE XHP 322 MINE', unidad: 'Kilo', stock: 0, consumoMes: 0 }]);
       S.s('mapaRep', [{ pautaId: 'pa1', tipo: 'lubricante', refId: 'lu1' }]);
+      S.s('consLub', [95, 65, 35, 2].map((d, i) => ({ _id: 'cl' + i, fecha: f(d), sigla: 'MN-6112', lubricante: 'MOBILGREASE XHP 322 MINE', cantidad: 60, unidad: 'kg', fuente: 'Informe' })));
       S.s('ot', []); S.s('otHist', [{ id: 'oh1', sigla: 'CF-9510', fecha: f(40), descripcion: 'Se realiza relleno de depósito de grasa (50kg)', observacion: '' }]); S.s('stk', []); S.s('neu', []);
     };
     sembrar(); go('stk2');
@@ -45,6 +46,8 @@ test('«Qué comprar» muestra las cuchillas del equipo con pedir antes de, stoc
   expect(texto).toContain('6 un');
   expect(texto).toContain('Lubricantes según el programa de PM');
   expect(texto).toContain('MOBILGREASE XHP 322 MINE');
+  expect(texto).toContain('Consumo real de lubricantes (informes de bodega)');
+  expect(texto).toContain('Cobertura');
   expect(texto).toContain('Rellenos por fallas y fugas');
   expect(texto).toContain('Grasa');
 });

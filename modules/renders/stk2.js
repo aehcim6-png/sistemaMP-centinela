@@ -72,7 +72,17 @@ function _queComprarEntrada() {
   const textosOT = (S.g('otHist') || []).map(o => ({ fecha: o.fecha, sigla: o.sigla, texto: (o.descripcion || '') + ' | ' + (o.observacion || '') }))
     .concat((S.g('ot') || []).map(o => ({ fecha: o.fecha, sigla: o.sigla, texto: (o.sintoma || '') + ' | ' + (o.solucion || '') })));
   const lubFallas = { w12: lubricanteNoPlanificado(textosOT, new Date(), 12), w36: lubricanteNoPlanificado(textosOT, new Date(), 36), ultimoTexto: textosOT.reduce((m, x) => (x.fecha && String(x.fecha) > m && lubricanteCantidadesDeTexto(x.texto).length ? String(x.fecha).slice(0, 10) : m), '') };
-  return { plazoFn: pe.n ? pe.para : null, insumos, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq), piezasDesgaste: piezas, lubPrograma, lubFallas };
+  // Consumo REAL de los informes mensuales de bodega: promedio de los últimos 6 y 12 meses COMPLETOS (el mes con el último informe está a medias y no entra).
+  const consLubT = S.g('consLub') || [];
+  let lubReal = null;
+  if (consLubT.length) {
+    const ult = consLubT.reduce((m, c) => { const d = String(c.fecha).slice(0, 10); return d > m ? d : m; }, '');
+    const mesUlt = new Date(ult.slice(0, 7) + '-01T12:00:00Z');
+    const fin = new Date(mesUlt.getTime() - 864e5).toISOString().slice(0, 10);
+    const ini = n => { const d = new Date(mesUlt); d.setUTCMonth(d.getUTCMonth() - n); return d.toISOString().slice(0, 10); };
+    lubReal = { ultimo: ult, hasta: fin, desde6: ini(6), desde12: ini(12), r6: consumoLubricantesResumen(consLubT, { desde: ini(6), hasta: fin }), r12: consumoLubricantesResumen(consLubT, { desde: ini(12), hasta: fin }) };
+  }
+  return { plazoFn: pe.n ? pe.para : null, insumos, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq), piezasDesgaste: piezas, lubPrograma, lubFallas, lubReal };
 }
 export function queComprar() {
   const fn2 = v => fn(Math.round(Number(v) || 0));
@@ -141,6 +151,19 @@ export function queComprar() {
   const sv = {};
   mesesPrg.forEach(m => Object.keys(m.sinVincular).forEach(k => { sv[k] = (sv[k] || 0) + m.sinVincular[k]; }));
   if (Object.keys(sv).length) filasLubPrg.push('<tr><td colspan="' + (mesesPrg.length + 3) + '" style="padding:6px;font-size:10px;color:var(--w)">Sin vincular a un lubricante de la bodega (no se suman arriba): ' + Object.keys(sv).map(k => escapeHtml(k) + ' (' + fn2(sv[k]) + ')').join(' · ') + '</td></tr>');
+  // Consumo real (informes de bodega) frente al stock y al plan de PM del mes en curso. El real incluye PM + rellenos; no se resta uno del otro porque el programa no dice el día ni si el PM se hizo.
+  const lr = ent.lubReal, nomL = x => String(x || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  const lubPorNombre = {}; lubL.forEach((l, i) => { lubPorNombre[nomL(l.nombre)] = { l, i }; });
+  const filasReal = lr ? lr.r12.porLubricante.concat(lr.r6.porLubricante.filter(x => !lr.r12.porLubricante.some(y => y.lubricante === x.lubricante))).map(x12 => {
+    const x6 = lr.r6.porLubricante.find(y => y.lubricante === x12.lubricante), v = lubPorNombre[nomL(x12.lubricante)], stk0 = v ? Number(v.l.stock) || 0 : null;
+    const p6 = x6 ? x6.promedioMensual : 0, plan = v && mesesPrg[0] ? (mesesPrg[0].lubricantes[v.i] || 0) : null;
+    const cob = stk0 > 0 && p6 > 0 ? Math.round(stk0 / p6 * 10) / 10 : null;
+    return '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x12.lubricante) + '</b> <span style="font-size:10px;color:var(--tx3)">' + x12.unidad + '</span></td>' +
+      '<td style="text-align:center;font-weight:700;color:var(--ac)">' + fn2(p6) + '</td><td style="text-align:center">' + fn2(x12.promedioMensual) + '</td>' +
+      '<td style="text-align:center">' + (plan == null ? '<span style="color:var(--tx3)">—</span>' : fn2(plan)) + '</td>' +
+      '<td style="text-align:center">' + (stk0 == null ? '<span style="color:var(--w)" title="No está en la lista de lubricantes de la bodega">no está en bodega</span>' : stk0 > 0 ? fn2(stk0) : '<span style="color:var(--danger)" title="El stock está en 0 o sin cargar">0</span>') + '</td>' +
+      '<td style="text-align:center">' + (cob == null ? '<span style="color:var(--tx3)">—</span>' : '<b style="color:' + (cob < 1 ? 'var(--danger)' : cob < 2 ? 'var(--w)' : 'var(--ok)') + '">' + cob + ' m</b>') + '</td></tr>';
+  }) : [];
   const f12 = {}, f36 = {};
   ent.lubFallas.w12.filas.forEach(r => { f12[r.clase] = r; }); ent.lubFallas.w36.filas.forEach(r => { f36[r.clase] = r; });
   const filasFallas = Array.from(new Set(Object.keys(f12).concat(Object.keys(f36)))).sort((a, b) => ((f36[b] || {}).total || 0) - ((f36[a] || {}).total || 0)).map(k => {
@@ -158,6 +181,7 @@ export function queComprar() {
     tabla('Filtros', 'Lo mayor entre lo que consumen los PM programados de la flota y el consumo histórico del ítem; no se suman porque el histórico ya incluye PM pasados.', cabIns, r.filtros.map(filaIns)) +
     tabla('Lubricantes', 'Mismo criterio que los filtros; las cantidades van en la unidad del lubricante.', cabIns, r.lubricantes.map(filaIns)) +
     tabla('Lubricantes según el programa de PM (mes a mes)', 'Del programa anual: qué PM toca a cada equipo cada mes × lo que lleva la pauta de ese PM. Es consumo planificado, no una estimación. El día exacto no está en el programa (se usa mitad de mes). ' + (ent.lubPrograma.atrasados.length ? (() => { const A = ent.lubPrograma.atrasados, n = e => A.filter(x => x.estado === e), sig = e => Array.from(new Set(n(e).map(x => x.sigla))).map(escapeHtml).join(', '); return '<b>PM de meses pasados que el programa no marca como ejecutados (' + A.length + '):</b> ' + n('registrado').length + ' son de equipos con PM registrado desde ese mes; ' + n('sin horas suficientes').length + ' no les tocaba porque el equipo no recorrió la frecuencia desde su último PM (parado o con poco uso: ' + sig('sin horas suficientes') + '); ' + n('vencido').length + ' sí están vencidos por horas o km y se cuentan este mes (' + sig('vencido') + '); ' + n('dato dudoso').length + ' tienen horómetro o km dudoso (' + sig('dato dudoso') + ')' + (n('sin datos').length ? '; ' + n('sin datos').length + ' sin PM previo registrado (' + sig('sin datos') + ')' : '') + '.'; })() : ''), cabLubPrg, filasLubPrg) +
+    (lr ? tabla('Consumo real de lubricantes (informes de bodega)', 'Lo que salió de bodega según los informes mensuales (hasta el ' + fch2(lr.ultimo) + '): <b>incluye los cambios de PM y los rellenos</b>, así que es la base más fiable para proyectar la compra. Promedios sobre meses completos (últimos 6: ' + fch2(lr.desde6) + ' → ' + fch2(lr.hasta) + '; últimos 12: ' + fch2(lr.desde12) + ' → ' + fch2(lr.hasta) + '). <b>Plan PM</b> = lo que el programa pide para el mes en curso (solo referencia: el real ya lo contiene). <b>Cobertura</b> = stock ÷ promedio de 6 meses; el stock vale lo que esté cargado en Lubricantes.', '<th style="padding:5px;text-align:left">Lubricante</th><th>Prom./mes 6 m</th><th>Prom./mes 12 m</th><th>Plan PM mes en curso</th><th>Stock</th><th>Cobertura</th>', filasReal) : '') +
     tabla('Rellenos por fallas y fugas (de los textos de las OT)', 'Lo que NO trae el programa: relleno de aceite hidráulico tras cortes de flexible, aceite de motor, grasa del depósito, etc., con la cantidad que dice cada OT. Solo cuenta lo que trae número y unidad; las OT sin cantidad no suman. Las OT con cantidades más recientes son del ' + (ent.lubFallas.ultimoTexto ? fch2(ent.lubFallas.ultimoTexto) : '—') + '.', '<th style="padding:5px;text-align:left">Lubricante</th><th>Eventos 12 m</th><th>Total 12 m</th><th>Prom./mes 12 m</th><th>Total 36 m</th><th>Prom./mes 36 m</th>', filasFallas) +
     tabla('Neumáticos', 'Los que la proyección de desgaste da por cambiados en cada plazo (los vencidos entran en los tres) menos los de esa medida en Existencias. No incluye el segundo cambio de un mismo neumático dentro del año.', cabNeu, r.neumaticos.map(filaNeu)) +
     tabla('Insumos generales (EPP, librería, limpieza, desgaste, baterías…)', 'Del stock de insumos con kardex: el consumo de los últimos 90 días proyectado a cada plazo, más el stock crítico, menos el saldo' + (r.insumosCubiertos ? ' (' + r.insumosCubiertos + ' ya cubiertos para todo el año)' : '') + '. Con el kardex vacío no hay consumo y no se puede proyectar.', cabIns2, r.insumos.map(filaInsumo)) +
