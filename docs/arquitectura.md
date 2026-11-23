@@ -7530,6 +7530,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Archivos .docx:** el selector acepta también el chat pegado en Word (lee `word/document.xml`, un párrafo por línea), además de .txt y .zip.
 - **Límites:** el alias no adivina por parecido: lo que no está en la tabla ni en las reglas queda sin asignar. Los cambios solo se proponen en avisos con estatus «operativo». Los PM se proponen pero se registran desde Registro PM.
 
+### 248. Carga del chat BSM_CEN y cuadre entre pestañas (2026-11-23)
+
+**Carga hecha (importador del chat, con el estado real del sistema como referencia):** de 2.071 avisos del 29-ene al 20-nov-2026 se cargó lo que no estaba, con origen «WhatsApp (chat importado 2026-11-23)»: 587 lecturas de horómetro (más 1.052 que ya estaban y 207 que no se cargaron por parecer error de tipeo o salto imposible), 145 OT de fuera de servicio y el cierre de 3 abiertas, 15 PM y 46 cambios de componente (cinturón, alternador, asiento, cuchillas, correas, baterías). Se omitieron 11 PM que duraban más de 48 h (el pareo de falla y «operativo» probablemente salió mal), 18 paradas «dudosas» y 1 abierta. El horómetro actual de los equipos se actualizó solo cuando la lectura nueva era más reciente.
+- **Limpieza al cargar las OT:** el operador y el lugar se limpiaron de restos de plantilla («xxxx .Horario: 11:00», «• Operadora:…»); el horómetro de la OT se cambió por la última lectura del equipo cuando se desviaba más de 200 h u 8 %; el síntoma se cortó donde empieza un «Lugar:/Horómetro:» pegado.
+- **No cargado a propósito:** los trabajos de avisos «operativo» (presurización, engrase, relleno) no se cargan como OT correctiva: son rutina y distorsionarían las fallas y el MTBF.
+- **Cuadre entre pestañas (Auditoría de Datos):** `cuadreEntrePestanas` (logic.js) cruza horómetros, OT, PM, historial de componentes y compras, y lista (solo lectura): compras sin cambio comprobado, fuera de servicio sin lectura de horómetro, horómetro de ficha distinto del historial y PM sin lectura cerca. Es la versión permanente de las comparaciones que se hicieron a mano con el chat.
+- **Pendiente:** el respaldo diario desplegado todavía no incluye `equipos_alias` (el código del repositorio sí).
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

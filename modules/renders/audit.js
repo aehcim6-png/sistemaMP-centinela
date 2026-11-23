@@ -167,6 +167,23 @@ function _auditAlertaSaludSinSeguimiento(){
 
 const _AUDIT_MESES=[{v:'01',l:'Ene'},{v:'02',l:'Feb'},{v:'03',l:'Mar'},{v:'04',l:'Abr'},{v:'05',l:'May'},{v:'06',l:'Jun'},{v:'07',l:'Jul'},{v:'08',l:'Ago'},{v:'09',l:'Sep'},{v:'10',l:'Oct'},{v:'11',l:'Nov'},{v:'12',l:'Dic'}];
 
+// ── Cuadre entre pestañas (2026-11-23): cruza horómetros, OT, PM, historial de componentes y compras entre sí y lista dónde no cuadran. Solo lectura; la lógica está en logic.js (cuadreEntrePestanas). ──
+function _cuadrePestanasHTML(){
+  if(typeof cuadreEntrePestanas!=='function')return '';
+  let ctl;
+  try{
+    ctl=cuadreEntrePestanas({equipos:S.g('eq')||[],hist:S.g('hist')||[],ot:S.g('ot')||[],reg:S.g('reg')||[],compHist:S.g('compHist')||[],compras:(S.g('comprasDetalle')||[]).concat(S.g('ocHist')||[])});
+  }catch(e){return '';}
+  const total=ctl.reduce(function(s,c){return s+c.total;},0);
+  const cuerpo=ctl.map(function(c){
+    const filas=c.filas.map(function(f){return '<tr><td class="mono" style="color:var(--ac)">'+escapeHtml(f.sigla)+'</td><td class="mono">'+escapeHtml(f.fecha)+'</td><td>'+escapeHtml(f.texto||'')+'</td></tr>';}).join('');
+    return '<div style="margin:10px 0"><div style="font-weight:600;font-size:12px;color:'+(c.total?'var(--warn)':'var(--ok)')+'">'+escapeHtml(c.titulo)+' ('+c.total+')</div>'+
+      '<div style="font-size:11px;color:var(--tx3);margin:2px 0 4px">'+escapeHtml(c.ayuda)+'</div>'+
+      (c.total?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Fecha</th><th>Detalle</th></tr>'+filas+'</table></div>'+(c.total>c.filas.length?'<div style="font-size:10px;color:var(--tx3)">Se muestran las '+c.filas.length+' más recientes de '+c.total+'.</div>':''):'<div style="font-size:11px;color:var(--ok)">Todo cuadra.</div>')+'</div>';
+  }).join('');
+  return '<details class="chart-box" style="margin-bottom:14px"'+(total?' open':'')+'><summary style="cursor:pointer;font-weight:600">Cuadre entre pestañas — '+(total?total+' diferencia(s) entre horómetros, OT, PM, componentes y compras':'todo cuadra')+'</summary>'+cuerpo+'</details>';
+}
+
 export function renderAudit(){
   const eq=S.g('eq')||[];
   const ot=S.g('ot')||[];
@@ -237,6 +254,7 @@ export function renderAudit(){
       ${(fSig||fAnio||fMes)?'<button class="btn-o" onclick="$(\'faSigla\').value=\'\';$(\'faAnio\').value=\'\';$(\'faMes\').value=\'\';renders.audit()">Limpiar filtros</button>':''}
     </div>
     ${completitudHTML}
+    ${_cuadrePestanasHTML()}
     ${window._userRole==='admin'?_clasifIAHTML():''}
     ${window._userRole==='admin'?_parDudosasHTML():''}
     ${window._userRole==='admin'?_limpHoromHTML():''}
