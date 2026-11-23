@@ -65,11 +65,14 @@ function _queComprarEntrada() {
   const stock = neuTodos.filter(n => n.estado === 'Stock').map(n => ({ medida: n.medida }));
   const pe = plazoEntregaCompras(S.g('comprasDetalle') || []);
   const insumos = insumosResumen(S.g('ins') || [], S.g('insMov') || [], { hoy: new Date() }).filas;
-  return { plazoFn: pe.n ? pe.para : null, insumos, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq) };
+  const getsC = getsUnir(S.g('getsCambios') || [], getsEventosDesdeOT(S.g('otHist') || [], S.g('ot') || []));
+  const piezas = desgastePedirAntes({ cambios: getsC, hoy: new Date(), plazoFn: pe.n ? pe.para : null, equipos: eq, repuestos: S.g('repuestos') || [], compras: S.g('comprasDetalle') || [] });
+  return { plazoFn: pe.n ? pe.para : null, insumos, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq), piezasDesgaste: piezas };
 }
 export function queComprar() {
   const fn2 = v => fn(Math.round(Number(v) || 0));
-  const r = planCompras(_queComprarEntrada());
+  const ent = _queComprarEntrada();
+  const r = planCompras(ent);
   const H = r.horizontes;
   const cabH = '<th>' + H.map(h => h.etiqueta.replace('Próximo ', '')).join('</th><th>') + '</th>';
   const celdas = (obj, resaltar) => H.map(h => {
@@ -102,7 +105,23 @@ export function queComprar() {
   const cabNeu = '<th style="padding:5px;text-align:left">Medida</th><th>En existencias</th><th colspan="3">Se cambian</th><th colspan="3">Comprar</th><th>Pedir antes de</th>';
   const filaDes = x => '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.pieza) + '</b> <span style="font-size:10px;color:var(--tx3)">' + escapeHtml(x.tipo) + '</span></td><td style="text-align:center">' + x.nEventos + ' en ' + x.nMeses + ' m</td>' +
     celdas({ mes: x.mes, semestre: x.semestre, anio: x.anio }, true) + '</tr>';
+  const r2 = ent.piezasDesgaste || { filas: [], sinFecha: [], avisos: [] };
+  const fch2 = iso => iso ? iso.slice(8, 10) + '-' + iso.slice(5, 7) + '-' + iso.slice(2, 4) : '';
+  const filaPza = x => {
+    const col = x.ya ? 'var(--danger)' : x.riesgoDemora ? 'var(--w)' : 'var(--tx)';
+    const stk = x.stock == null ? '<span style="color:var(--tx3)" title="No hay stock cargado en Repuestos para este modelo y pieza">sin stock cargado</span>' : fn2(x.stock) + (x.stockMinimo != null ? '<div style="font-size:10px;color:var(--tx3)">mínimo ' + fn2(x.stockMinimo) + '</div>' : '');
+    const uc = x.ultimaCompra ? fn2(x.ultimaCompra.cant) + ' un<div style="font-size:10px;color:var(--tx3)">' + fch2(x.ultimaCompra.fecha) + '</div>' : '<span style="color:var(--tx3)">—</span>';
+    const tip = 'Plazo ' + x.plazo.dias + ' d' + (x.plazo.peor ? ' · peor caso razonable ' + x.plazo.peor + ' d' : '') + ' — ' + x.plazo.fuente;
+    return '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(x.sigla) + '</b> <span style="font-size:10px;color:var(--tx3)">' + escapeHtml(x.modelo || '') + '</span></td><td>' + escapeHtml(x.pieza) + '</td>' +
+      '<td style="text-align:center">' + fch2(x.ultimoCambio) + '<div style="font-size:10px;color:var(--tx3)">cada ' + x.intervaloDias + ' d · ' + x.nCambios + ' cambios</div></td>' +
+      '<td style="text-align:center">' + fch2(x.proximoCambio) + (x.atrasoDias ? '<div style="font-size:10px;color:var(--w)" title="Si ya se cambió y no se anotó, registra el cambio en Elementos de desgaste y esta fila se corrige sola">pasó hace ' + x.atrasoDias + ' d: ¿se anotó el último cambio?</div>' : '') + '</td>' +
+      '<td style="text-align:center;white-space:nowrap;color:' + col + '" title="' + escapeHtml(tip) + '">' + (x.ya ? '<b>ya</b> (era ' + fch2(x.pedirAntes) + ')' : fch2(x.pedirAntes)) + (x.pedirAntesPeor ? '<div style="font-size:10px;color:' + (x.riesgoDemora ? 'var(--w)' : 'var(--tx3)') + '">peor caso: ' + fch2(x.pedirAntesPeor) + '</div>' : '') + '</td>' +
+      '<td style="text-align:center">' + stk + '</td><td style="text-align:center">' + uc + '</td></tr>';
+  };
+  const cabDesg = '<th style="padding:5px;text-align:left">Equipo</th><th style="text-align:left">Pieza</th><th>Último cambio</th><th>Próximo cambio</th><th>Pedir antes de</th><th>Stock del modelo</th><th>Última compra</th>';
   const kpi = h => { const t = r.totales[h.clave]; return '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--tx3)">' + h.etiqueta + '</div><b style="font-size:18px">$' + fn2(t.costo) + '</b><div style="font-size:9px;color:var(--tx3)">' + 'filtros ' + t.filtros + ' · lubricantes ' + t.lubricantes + ' · neumáticos ' + t.neumaticos + ' · insumos ' + t.insumos + (t.sinPrecio ? ' · ' + t.sinPrecio + ' sin precio' : '') + '</div></div>'; };
+  const avisosPz = (ent.piezasDesgaste && ent.piezasDesgaste.avisos) || [];
+  r.avisos = r.avisos.concat(avisosPz.map(t => ({ texto: t })));
   const avisos = r.avisos.length ? '<div style="padding:8px 10px;margin-bottom:12px;border-radius:6px;background:rgba(234,179,8,.12);font-size:11px;color:var(--warn)"><b>Antes de comprar, ojo con estos datos:</b><ul style="margin:4px 0 0 16px;padding:0">' + r.avisos.map(a => '<li>' + escapeHtml(a.texto) + '</li>').join('') + '</ul></div>' : '';
   sm('<div style="max-width:960px"><h3 style="margin:0 0 6px">🛒 Qué comprar — próximo mes, semestre y año</h3>' +
     '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Cantidades <b>a comprar</b> ya descontando lo que hay en bodega (y lo pendiente de llegar). <b>Pedir antes de</b> = primer quiebre de stock menos el plazo de entrega <b>real</b> de las compras ya recibidas (según el monto de la compra; con el peor caso razonable debajo). Costo = solo ítems con precio cargado (precio de lista en neumáticos, no cotización).</div>' +
@@ -112,6 +131,8 @@ export function queComprar() {
     tabla('Lubricantes', 'Mismo criterio que los filtros; las cantidades van en la unidad del lubricante.', cabIns, r.lubricantes.map(filaIns)) +
     tabla('Neumáticos', 'Los que la proyección de desgaste da por cambiados en cada plazo (los vencidos entran en los tres) menos los de esa medida en Existencias. No incluye el segundo cambio de un mismo neumático dentro del año.', cabNeu, r.neumaticos.map(filaNeu)) +
     tabla('Insumos generales (EPP, librería, limpieza, desgaste, baterías…)', 'Del stock de insumos con kardex: el consumo de los últimos 90 días proyectado a cada plazo, más el stock crítico, menos el saldo' + (r.insumosCubiertos ? ' (' + r.insumosCubiertos + ' ya cubiertos para todo el año)' : '') + '. Con el kardex vacío no hay consumo y no se puede proyectar.', cabIns2, r.insumos.map(filaInsumo)) +
+    tabla('Piezas de desgaste por equipo (cuchillas, entredientes, calzas, puntas de ripper, cantoneras)', 'Del registro de Elementos de desgaste (planilla, chat y OT): <b>pedir antes de</b> = próximo cambio estimado − plazo de entrega real. El <b>stock</b> es el del modelo del equipo en Repuestos (no por equipo). La <b>última compra</b> es solo referencia de cantidad: no se sabe cuántas piezas lleva cada cambio.', cabDesg, (r2.filas || []).map(filaPza)) +
+    (r2.sinFecha && r2.sinFecha.length ? '<div style="font-size:11px;color:var(--tx3);margin:-8px 0 14px"><b>Sin fecha proyectada</b> (último cambio registrado muy antiguo o pocos cambios): ' + r2.sinFecha.map(x => escapeHtml(x.sigla) + ' ' + escapeHtml(x.pieza) + (x.ultimoCambio ? ' (último ' + fch2(x.ultimoCambio) + ')' : '')).join(' · ') + '.</div>' : '') +
     tabla('Elementos de desgaste (zapatas, rodillos, uñas…)', 'Son <b>cambios registrados por período</b> según el historial de correctivos, no unidades de bodega: no hay existencias vinculadas, por eso no se resta nada. Úsalo como orden de magnitud para el presupuesto.', '<th style="padding:5px;text-align:left">Elemento</th><th>Historial</th>' + cabH, r.desgaste.map(filaDes)) +
     '<button class="btn btn-o" onclick="cm()">Cerrar</button></div>');
 }

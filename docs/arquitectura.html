@@ -3967,6 +3967,16 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li><b>«¿Qué quieres ver de este equipo?»:</b> un botón por bloque para mostrarlo u ocultarlo, más «Ver todo», «Ocultar todo», «Plegar todo» y «Desplegar todo»; un clic en el título pliega o despliega el bloque. Cada bloque tiene flechas ▲ ▼ para cambiarlo de lugar y la barra tiene «Orden original». Se recuerda en el navegador (qué se ve, qué está plegado y el orden); por defecto se ve todo y en el orden de siempre. Ningún dato se modifica.</li>
   </ul>
 
+  <h3 id="d-253">253. «Qué comprar» incluye las piezas de desgaste por equipo (2026-11-23)</h3>
+  <p>«Qué comprar» solo traía el desgaste como un total de eventos por mes, sin pieza ni equipo y sin stock. Ahora tiene la tabla <b>Piezas de desgaste por equipo</b> (cuchillas, entredientes, calzas, puntas de ripper, cantoneras).</p>
+  <ul>
+    <li><b>Cálculo</b> (<code>desgastePedirAntes</code>): próximo cambio estimado por equipo y pieza (planilla + chat + OT) menos el plazo de entrega real de las compras (banda según el monto de la última compra), y aparte con el peor caso razonable.</li>
+    <li><b>Stock:</b> el de Repuestos por modelo; si no hay cargado, dice «sin stock cargado».</li>
+    <li><b>Última compra:</b> cantidad y fecha, solo como referencia (no se sabe cuántas piezas lleva cada cambio).</li>
+    <li><b>Sin fecha:</b> si el último cambio registrado es antiguo, no se inventa fecha.</li>
+    <li><b>Límite:</b> las etapas de aprobación (abastecimiento primero, luego subgerente, gerente o gerente general según el monto) no están en los datos; queda pendiente la información del sistema de Besalco.</li>
+  </ul>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -7568,6 +7568,16 @@ Buscar es la pestaña donde se junta todo lo de un equipo; a quien no la conoce 
 - **«¿Qué quieres ver de este equipo?»** (`_buscarOrganizar`): barra con un botón por bloque para mostrarlo u ocultarlo, más «Ver todo», «Ocultar todo», «Plegar todo» y «Desplegar todo». Un clic en el título de un bloque lo pliega o despliega. Cada bloque tiene flechas ▲ ▼ en su título para cambiarlo de lugar y la barra tiene «Orden original». Lo elegido (qué se ve, qué está plegado y el orden) se recuerda en el navegador (`localStorage`, clave `buscarFichaVer`); por defecto se ve todo desplegado y en el orden de siempre. Solo cambia lo que se ve: ningún dato se modifica.
 - Prueba: `tests/e2e/buscar-elegir-y-desgaste.spec.js`.
 
+### 253. «Qué comprar» incluye las piezas de desgaste por equipo (2026-11-23)
+
+«Qué comprar» (§182) solo traía el desgaste como un total de eventos por mes, sin pieza ni equipo y sin stock. Ahora tiene la tabla **Piezas de desgaste por equipo (cuchillas, entredientes, calzas, puntas de ripper, cantoneras)**.
+- **Cálculo** (`desgastePedirAntes`, `logic.js`; prueba `tests/desgastePedirAntes.test.js`): del registro de Elementos de desgaste (planilla + chat + OT, `getsUnir`) toma el próximo cambio estimado por equipo y pieza (`getsProyeccion`); **pedir antes de** = próximo cambio − plazo de entrega real (`plazoEntregaCompras`, con la banda del monto de la última compra de ese equipo y pieza) y, aparte, con el peor caso razonable.
+- **Stock:** el de **Repuestos por modelo** (el equipo se une por el modelo, p. ej. «Komatsu GD-705-5» con «GD705-5»; no cuenta pernos ni otros modelos). Si el modelo no tiene esa pieza cargada o el stock está vacío, dice «sin stock cargado» y suma un aviso.
+- **Última compra:** cantidad y fecha de la última compra de ese equipo y pieza, solo como referencia: no se sabe cuántas piezas lleva cada cambio, así que no se pronostica una cantidad.
+- **Lo que no se proyecta:** si el último cambio registrado es antiguo (p. ej. CF-9511, entredientes, abril) no se inventa fecha; la pieza queda aparte con el motivo.
+- **Límite:** las etapas de aprobación (abastecimiento primero, luego subgerente, gerente o gerente general según el monto) no están en los datos: solo hay fecha de pedido, de OC firmada y de recepción. Queda pendiente la información del sistema de Besalco.
+- Prueba e2e: `tests/e2e/que-comprar-desgaste.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
