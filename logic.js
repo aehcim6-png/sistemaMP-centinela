@@ -8189,7 +8189,7 @@ function demandaPlanificadaPM(equipos,consumosFn,stk,lub,mapaRep,hoy,horizonteDi
 // demandaProgramaMes: solo cuenta los meses desde el actual en adelante. Una celda con PMx en un mes ya pasado significa que ese PM no se marcó como ejecutado: NO se cuenta (podría estar hecho
 // y sin marcar) pero se informa en `atrasados` para que se revise; `registrado` dice si ese equipo tiene algún PM registrado (registros_pm) desde ese mes, lo que sí confirma que se atendió. El día exacto no está en el programa: se usa el 15 del mes (o mañana si ese día ya pasó).
 var PROGRAMA_MESES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-function demandaProgramaMes(programa,consumosFn,stk,lub,mapaRep,hoy,registros){
+function demandaProgramaMes(programa,consumosFn,stk,lub,mapaRep,hoy,registros,equipos){
   var base=hoy instanceof Date?hoy:new Date(hoy||Date.now()),anio=base.getUTCFullYear(),mesAct=base.getUTCMonth();
   var iso=function(d){return d.toISOString().slice(0,10);},hoyISO=iso(base);
   var meses=[];
@@ -8218,6 +8218,34 @@ function demandaProgramaMes(programa,consumosFn,stk,lub,mapaRep,hoy,registros){
         else if(!r){var nm=String(c.rep||c.repuesto||c.nombre||'').trim();if(!/^filtro|^filter|^anillo|^sello/i.test(nm)&&/aceite|grasa|lubric|mobil|10w|15w|hd ?\d|80w|75w|atf/i.test(nm))fila.sinVincular[nm]=(fila.sinVincular[nm]||0)+cant;}
       });
     }
+  });
+  // Un PM se hace por horas (o km), no por calendario: «atrasado» solo si el equipo recorrió la frecuencia desde su último PM registrado. Un equipo parado o fuera de servicio no acumula horas y no le toca.
+  var eqPor={},ultReg={};
+  (equipos||[]).forEach(function(e){if(e&&e.sigla)eqPor[e.sigla]=e;});
+  (registros||[]).forEach(function(r){
+    if(!r||!r.equipo)return;var f=String(r.fechaEntrada||r.fechaEjec||'').slice(0,10);
+    if(!ultReg[r.equipo]||f>ultReg[r.equipo].f)ultReg[r.equipo]={f:f,h:Number(r.horomReal)||0};
+  });
+  atrasados.forEach(function(a){
+    var e=eqPor[a.sigla],u=ultReg[a.sigla],frec=e&&Number(e.frecPM)>0?Number(e.frecPM):0;
+    a.recorrido=null;
+    if(a.registrado){a.estado='registrado';return;}
+    if(!e||!u||!frec||!(u.h>0)){a.estado='sin datos';return;}
+    a.recorrido=Math.round((Number(e.horomActual)||0)-u.h);a.frecuencia=frec;a.ultimoPM=u.f;
+    a.estado=a.recorrido<0||a.recorrido>2.5*frec?'dato dudoso':a.recorrido>=frec?'vencido':'sin horas suficientes';
+  });
+  // Los vencidos de verdad (recorrieron la frecuencia y no tienen PM registrado) sí se cuentan: son demanda que ya está pendiente, en el mes actual.
+  var vistoV={};
+  atrasados.forEach(function(a){
+    if(a.estado!=='vencido'||vistoV[a.sigla])return;vistoV[a.sigla]=1;a.contado=true;
+    var fila=meses[0];if(!fila)return;
+    fila.pm[a.pm]++;
+    (consumosFn(a.sigla,a.pm)||[]).forEach(function(c){
+      var cant=Number(c.can||c.cant)||0;if(cant<=0)return;
+      var k=(c._id||'')+'|'+(c.rep||c.repuesto||c.nombre||'');
+      var r=cache[k]!==undefined?cache[k]:(cache[k]=pautaResolverStock(c,stk,lub,mapaRep));
+      if(r&&r.tipo==='lubricante')fila.lubricantes[r.idx]=(fila.lubricantes[r.idx]||0)+cant;
+    });
   });
   return{meses:meses,atrasados:atrasados};
 }
