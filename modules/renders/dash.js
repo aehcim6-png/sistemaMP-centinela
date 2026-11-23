@@ -791,12 +791,13 @@ export function renderDash(){
   // borde de color + texto de antes, cada equipo se lee como el instrumento real
   // — un anillo que se va llenando mientras se acerca el PM, mismo lenguaje de
   // color que el resto del Dashboard (rojo/ámbar), sin fuentes ni paleta nuevas.
-  var proxPMs=eq.filter(function(e){return e.diasParaPM>0&&e.diasParaPM<=14;}).sort(function(a,b){return a.diasParaPM-b.diasParaPM;}).slice(0,8);
+  // Solo de 8 a 14 días (23-nov-2026): urgente es 7 días o menos (C.estado) y esos ya están en «Equipos Urgentes», justo arriba; antes salían en las dos listas.
+  var proxPMs=eq.filter(function(e){return e.diasParaPM>7&&e.diasParaPM<=14;}).sort(function(a,b){return a.diasParaPM-b.diasParaPM;}).slice(0,8);
   var proxBlock='';
   if(proxPMs.length){
     var _GC=2*Math.PI*30; // circunferencia del anillo, r=30
     proxBlock+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">';
-    proxBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2);display:flex;align-items:center;gap:6px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs <span style="font-size:11px;color:var(--tx3)">(próximos 14 días)</span><button class="ver-mas" style="margin-left:auto" onclick="go(\'plani\')">Ver planificación →</button></div>';
+    proxBlock+='<div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--tx2);display:flex;align-items:center;gap:6px"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Próximos PMs <span style="font-size:11px;color:var(--tx3)">(en 8 a 14 días · los de 7 días o menos están arriba, en Urgentes)</span><button class="ver-mas" style="margin-left:auto" onclick="go(\'plani\')">Ver planificación →</button></div>';
     proxBlock+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:10px">';
     proxPMs.forEach(function(e){
       var bColor=e.diasParaPM<=3?'var(--danger)':'var(--ac)';
@@ -948,6 +949,7 @@ export function renderDash(){
         return '<div style="aspect-ratio:1;border-radius:3px;background:'+col+';cursor:pointer" onmouseenter="vizTip(event,\''+tip+'\')" onmousemove="vizTipMove(event)" onmouseleave="vizTipHide()" onclick="go(\'buscar\');setTimeout(function(){var s=document.getElementById(\'fBuscarEq\');if(s){s.value=\''+escapeHtml(r.sigla)+'\';renders.buscar();}},50)"></div>';
       }).join('')+
       '</div>'+
+      '<!--SALUD_BAJA-->'+
       '<button class="btn-s btn-o" style="width:100%;margin-top:14px" onclick="go(\'torre\')">'+ICONS.sliders+' Ver Torre de Control — detalle por equipo →</button>'+
       '</div>';
   }
@@ -957,8 +959,9 @@ export function renderDash(){
     .slice(0,10);
   var saludBajaBlock='';
   if(equiposConSalud.length){
-    saludBajaBlock+='<div class="chart-box" style="padding:16px;margin-bottom:16px"><div class="chart-t" style="font-size:13px">'+ICONS.stetho+' Equipos con Salud Baja'+badgeEnVivo+' <span style="font-weight:400;color:var(--tx3);font-size:11px">(Score de Salud &lt; 70 — ver ficha en Buscar para el detalle)</span><button class="ver-mas" onclick="go(\'torre\')">Ver Torre de Control →</button></div>';
-    saludBajaBlock+='<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
+    // Antes era un bloque aparte justo debajo del Mapa de Salud, con los mismos equipos otra vez (23-nov-2026, «está repetido»): ahora es un desplegable dentro del mismo bloque, cerrado de entrada.
+    saludBajaBlock+='<details style="margin-top:14px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--tx2)">'+ICONS.stetho+' Los '+equiposConSalud.length+' con menor salud (Score &lt; 70) — con tendencia y desglose</summary>';
+    saludBajaBlock+='<div class="tbl-wrap" style="margin-top:8px"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
     equiposConSalud.forEach(function(r){
       var col=r.score.valor>=55?'var(--ac)':'var(--danger)';
       var d={};r.score.detalle.forEach(function(c){d[c.nombre]=c.valor;});
@@ -978,8 +981,9 @@ export function renderDash(){
         '<td style="font-size:10px;color:var(--tx3)">'+(d['Confiabilidad']==null?'—':d['Confiabilidad']+'%')+'</td>'+
         '</tr>';
     });
-    saludBajaBlock+='</table></div></div>';
+    saludBajaBlock+='</table></div></details>';
   }
+  mapaSaludBlock=mapaSaludBlock.replace('<!--SALUD_BAJA-->',function(){return saludBajaBlock;});
 
   // Ensamblado final — un solo innerHTML= con TODOS los trozos ya calculados,
   // en orden narrativo (Nivel 5, 2026-08-31, ver comentario junto a
@@ -993,7 +997,7 @@ export function renderDash(){
   var wrapProx=proxBlock?'<div style="display:'+(dashBloques.urgentes?'':'none')+'">'+proxBlock+'</div>':'';
   var wrapTrend='<div style="display:'+(dashBloques.graficos?'':'none')+'">'+trendBlock+'</div>';
   var wrapMapa=mapaSaludBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+mapaSaludBlock+'</div>':'';
-  var wrapSaludBaja=saludBajaBlock?'<div style="display:'+(dashBloques.salud?'':'none')+'">'+saludBajaBlock+'</div>':'';
+  var wrapSaludBaja='';   // la lista de salud baja vive dentro del Mapa de Salud (un solo bloque de salud)
   // Secciones numeradas (2026-09-11, pedido del usuario: "está desordenado,
   // difícil de entender", mostró referencias visuales) — antes era un río
   // continuo de bloques sin ningún título ni separador entre temas (salud,

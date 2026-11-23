@@ -4010,6 +4010,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Ajuste a mano</b>: el programa sigue siendo modificable. Cada toque en una celda sin ejecutar pasa a PM1 → PM2 → PM3 → PM4 → «sin PM» → automático. Lo fijado se guarda en el plan guardado, dentro de <code>meses._manual</code> (clave <code>aaaa-mm</code>; sin migración), y <b>manda sobre el cálculo</b>: reemplaza lo proyectado de ese mes, no corre los demás meses y se ve con ✎ (el tooltip dice qué habría calculado el sistema). En un mes pasado sin registro, lo ajustado pasa a ser lo que decía el plan y «sin PM» quita el aviso «¿PM?». Un mes ejecutado no se ajusta (sale de Registro PM). «Recalcular plan guardado» conserva los ajustes. Gantt y Qué comprar usan el programa ya ajustado. Un ajuste a mano no se corre solo.</p>
   <p><b>Límites</b>: la proyección depende del horómetro y el ritmo reales; los equipos con lectura dudosa (CN-9507, BD-9533, CN-5133, CN-9500) quedan sin celdas o con aviso hasta corregir su lectura. Los 25 PM sin registro se muestran «sin registro», no como ejecutados ni como no realizados.</p>
 
+  <h3 id="d-257">257. Dashboard sin repetidos: salud en un solo bloque y Próximos PMs sin los urgentes (2026-11-23)</h3>
+  <p>El Dashboard repetía la salud y el PM en dos lugares.</p>
+  <ul>
+    <li><b>Salud</b>: «Mapa de Salud de la Flota» y «Equipos con Salud Baja» eran dos bloques seguidos con los mismos equipos. Ahora hay uno solo: la lista de los equipos con Score &lt; 70 (con tendencia y desglose) es un desplegable cerrado dentro del Mapa de Salud.</li>
+    <li><b>PM</b>: «Próximos PMs» mostraba de 1 a 14 días y «Equipos Urgentes» ya incluye los de 7 días o menos; los de 1 a 7 días salían en las dos listas. «Próximos PMs» ahora muestra solo de 8 a 14 días.</li>
+    <li>No se tocó ningún cálculo; la barra superior (Urgentes/Próximas/Al día) es global y sigue igual.</li>
+  </ul>
+
 <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

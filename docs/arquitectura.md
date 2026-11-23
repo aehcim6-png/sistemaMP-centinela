@@ -7609,6 +7609,12 @@ El usuario señaló que el plan anual, donde aparece el PM como ejecutado, no es
 **Ajuste a mano:** el programa sigue siendo modificable. Cada toque en una celda sin ejecutar pasa a PM1 → PM2 → PM3 → PM4 → «sin PM» → automático (`cyclePrg`, `prg.js`). Lo fijado se guarda en el plan guardado dentro de `meses._manual` (clave `aaaa-mm`; sin migración, `meses` ya es jsonb) y **manda sobre el cálculo**: reemplaza lo proyectado de ese mes, no corre los demás meses y se ve con ✎ (el tooltip dice qué habría calculado el sistema). En un mes pasado sin registro, lo ajustado pasa a ser lo que decía el plan y «sin PM» quita el aviso «¿PM?». Un mes ejecutado no se ajusta (sale de Registro PM). «Recalcular plan guardado» conserva los ajustes. Gantt y Qué comprar usan el programa ya ajustado. Un ajuste a mano no se corre solo: si el equipo cambia de ritmo, hay que volver a tocarlo.
 **Límites:** la proyección depende del horómetro y el ritmo reales; los equipos con lectura dudosa (CN-9507 con próximo PM en 2029, BD-9533 en sept-2027 y los «Sin lectura» CN-5133 y CN-9500) quedan sin celdas o con aviso hasta corregir su lectura. Los 25 PM sin registro se muestran como «sin registro», no como ejecutados ni como no realizados.
 
+### 257. Dashboard sin repetidos: salud en un solo bloque y Próximos PMs sin los urgentes (2026-11-23)
+
+El usuario señaló que el Dashboard repetía la salud y el PM en dos lugares.
+- **Salud:** «Mapa de Salud de la Flota» y «Equipos con Salud Baja» eran dos bloques seguidos con los mismos equipos. Ahora hay uno solo: la lista de los equipos con Score < 70 (con tendencia 7 días y desglose) pasó a un desplegable cerrado dentro del Mapa de Salud (`dash.js`, marcador `<!--SALUD_BAJA-->`).
+- **PM:** «Próximos PMs» mostraba los equipos con PM entre 1 y 14 días, y «Equipos Urgentes» ya incluye a los de 7 días o menos (`C.estado`: urgente ≤ 7 días), así que los de 1 a 7 días salían en las dos listas. «Próximos PMs» ahora muestra solo de 8 a 14 días.
+- No se tocó ningún cálculo; la barra superior (Urgentes/Próximas/Al día) es global y sigue igual. Prueba e2e: `dash-sin-repetidos.spec.js`.
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
