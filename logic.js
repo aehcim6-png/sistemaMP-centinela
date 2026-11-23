@@ -1642,7 +1642,7 @@ function comprasPreciosSospechosos(lineas,opts){
     if(!motivo)return;
     var id=[l.pedido,l.sigla,l.oc,k,pu,costo].join('|');
     if(vistos[id])return;vistos[id]=1;
-    out.push({pedido:l.pedido||'',sigla:l.sigla||'',oc:l.oc||'',fecha:l.fecha||'',detalle:l.detalle||'',cant:cant,precioUnit:pu,costo:costo,motivo:motivo,factor:factor,veces:veces,mediana:med[k]||null,sugerido:Math.round(pu/factor*1000)/1000});
+    out.push({pedido:l.pedido||'',sigla:l.sigla||'',oc:l.oc||'',fecha:l.fecha||'',detalle:l.detalle||'',descripcionPedido:l.descripcionPedido||'',cant:cant,precioUnit:pu,costo:costo,motivo:motivo,factor:factor,veces:veces,mediana:med[k]||null,sugerido:Math.round(pu/factor*1000)/1000});
   });
   out.sort(function(a,b){return b.costo-a.costo;});
   return{total:out.length,exceso:out.reduce(function(s,x){return s+x.costo*(1-1/x.factor);},0),filas:out.slice(0,lim)};
@@ -12404,7 +12404,7 @@ function pedidosPotencialmenteTrabados(comprasDetalle,factorAlerta,minMuestraPro
     if(referencia==null)return null;
     return{
       pedido:c.pedido,sigla:c.sigla,proveedor:c.proveedor,estado:c.estado,
-      detalle:c.detalle,diasTranscurridos:diasTranscurridos,
+      detalle:c.detalle,descripcionPedido:c.descripcionPedido||'',diasTranscurridos:diasTranscurridos,
       diasReferencia:referencia,usaRespaldoGlobal:usaRespaldo,
       trabado:diasTranscurridos>referencia*factorAlerta
     };
@@ -13766,9 +13766,15 @@ function tboClaseModelo(modelo){
 // Familia de una línea de compra. enTBO=false → gasto que el plan del fabricante no cubre (desgaste, rodado,
 // lubricantes, fijaciones, servicios…). Primera regla que calce gana; sin calce: 'servicios' si el tipo es
 // Servicio, si no 'otros'.
-function tboFamiliaDeCompra(detalle,tipo){
+function tboFamiliaDeCompra(detalle,tipo,descPedido){
   var t=String(detalle==null?'':detalle),rs=_tboRegex();
   for(var i=0;i<rs.length;i++){if(rs[i].rx.test(t)){var id=rs[i].id;return{id:id,enTBO:!TBO_FUERA.some(function(f){return f[0]===id;})};}}
+  // El detalle de la línea viene recortado a 25 caracteres. Si no se reconoce, se intenta con la descripción completa del pedido (descripcionPedido, 23-nov-2026);
+  // solo se usa como respaldo: lo que el detalle ya reconoce no cambia.
+  var d=String(descPedido==null?'':descPedido);
+  if(d&&String(tipo||'')!=='Servicio'){
+    for(var j=0;j<rs.length;j++){if(rs[j].rx.test(d)){var id2=rs[j].id;return{id:id2,enTBO:!TBO_FUERA.some(function(f){return f[0]===id2;})};}}
+  }
   return{id:String(tipo||'')==='Servicio'?'servicios':'otros',enTBO:false};
 }
 function _tboProvOriginal(p){return /^\s*komatsu/i.test(String(p||''));}
@@ -13800,7 +13806,7 @@ function tboCruzarCompras(compras,equipos,siglas){
   (compras||[]).forEach(function(o){
     if(!o||!sigSet[o.sigla])return;
     var costo=Number(o.costo)||0;if(!(costo>0))return;
-    var f=tboFamiliaDeCompra(o.detalle,o.tipo),orig=_tboProvOriginal(o.proveedor);
+    var f=tboFamiliaDeCompra(o.detalle,o.tipo,o.descripcionPedido),orig=_tboProvOriginal(o.proveedor);
     var r=fam[f.id]||(fam[f.id]={id:f.id,enTBO:f.enTBO,lineas:0,gasto:0,gastoOriginal:0,gastoOtros:0,porEquipo:{},proveedores:{}});
     r.lineas++;r.gasto+=costo;if(orig)r.gastoOriginal+=costo;else r.gastoOtros+=costo;
     r.porEquipo[o.sigla]=(r.porEquipo[o.sigla]||0)+costo;
@@ -13881,7 +13887,7 @@ function tboOrigenPorCompra(sigla,fechaInst,famCompra,compras){
     if(!o||o.sigla!==sigla)return;
     var tf=Date.parse(o.fecha);if(isNaN(tf))return;
     var d=(tf-t)/86400000;if(d<-45||d>15)return;
-    if(tboFamiliaDeCompra(o.detalle,o.tipo).id!==famCompra)return;
+    if(tboFamiliaDeCompra(o.detalle,o.tipo,o.descripcionPedido).id!==famCompra)return;
     if(Math.abs(d)<dm){dm=Math.abs(d);mejor=o;}
   });
   return mejor?(_tboProvOriginal(mejor.proveedor)?'original':'alternativo'):'';
@@ -14013,7 +14019,7 @@ function tboPrecioItem(item,clase,compras,siglasClase,tasa){
   var pus=[],po=[],pt=[],ult=null;
   (compras||[]).forEach(function(o){
     if(!o||!sig[o.sigla]||o.tipo==='Servicio'||!rx.test(String(o.detalle||'')))return;
-    if(tboFamiliaDeCompra(o.detalle,o.tipo).enTBO===false)return;
+    if(tboFamiliaDeCompra(o.detalle,o.tipo,o.descripcionPedido).enTBO===false)return;
     var pu=Number(o.precioUnit)||((Number(o.costo)||0)/(Number(o.cant)||1));if(!(pu>1000))return;
     pus.push(pu);(_tboProvOriginal(o.proveedor)?po:pt).push(pu);
     if(!ult||String(o.fecha||'')>String(ult.fecha||''))ult={fecha:o.fecha,pu:pu};

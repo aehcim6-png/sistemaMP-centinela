@@ -7503,6 +7503,15 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Qué no se cargó:** 17.680 líneas de siglas que no son equipos de la flota (UR-11110, UR-11010, etc.). Tampoco se tocaron las 76 líneas que el sistema tiene y la planilla no, ni los nombres de proveedor distintos (KAUFMANN S.A. contra KAUFMANN VEHÍCULOS MOTORIZADOS S.A.).
 - **Aviso en la app:** `comprasPreciosSospechosos` (logic.js) marca las líneas cuyo precio es ≥300 veces el habitual del mismo artículo o cuyo costo no calza con cantidad × precio por un factor 10/100/1.000; la pestaña Costos las lista en un bloque plegable «líneas de compra con monto sospechoso». Solo avisa, no corrige. Puede marcar compras reales muy caras (hoy: 4 neumáticos 45/65 R45 a 19,8 millones cada uno).
 
+### 245. Descripción completa del pedido en las compras (2026-11-23)
+
+**Origen:** el detalle de cada línea de compra viene recortado a 25 caracteres en el Excel de compras (el 61 % de las líneas lo alcanza) y las pestañas clasifican por palabras clave de ese texto. El usuario adjuntó la planilla «PI y Orden de Compra» (hoja `OC`), que trae una descripción por pedido sin recorte.
+- **Columna nueva** `compras_detalle."descripcionPedido"` (migración `20261123120000_agregar_descripcion_pedido_a_compras_detalle.sql`; las políticas y permisos de la tabla no cambian). Es el texto del pedido, igual para todas las líneas de ese pedido; si el pedido tiene más de una descripción se unen con « / ». No reemplaza el detalle de la línea.
+- **Carga:** 981 pedidos (2.360 líneas) cuya descripción pasa de 25 caracteres y es distinta del detalle de la línea. Las descripciones cortas no se cargaron porque no agregan información (el detalle ya es ese mismo texto). Quedan sin descripción las líneas de pedidos que la planilla no tiene.
+- **Clasificación:** `tboFamiliaDeCompra(detalle, tipo, descPedido)` usa la descripción del pedido solo cuando el detalle no se reconoce y la línea no es un servicio; lo que el detalle ya reconocía no cambia. Con los datos actuales 266 líneas cambian de familia y «otros» baja de 1.970 a 1.704.
+- **Pestañas:** TBO (gasto por familia, cruces y precios de repuesto) la usan para clasificar; Costos la muestra como texto emergente en «Pedidos potencialmente trabados» y en el aviso de montos sospechosos.
+- **Límite:** la descripción es del pedido, no de cada línea; un pedido de cinco líneas tiene un solo texto.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

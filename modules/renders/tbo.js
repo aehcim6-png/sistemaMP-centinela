@@ -503,7 +503,7 @@ export function renderTbo() {
       (pp.estacional ? '<p style="font-size:10px;color:var(--tx3);margin:4px 0 0">Hay un patrón estacional: los meses más caros del año suelen ser ' + pp.pronostico.map(function (v, i) { return { v: v, m: mesesPro[i] }; }).sort(function (a, b) { return b.v - a.v; }).slice(0, 3).map(function (x) { return _lblMes(x.m).split(' ')[0]; }).join(', ') + '.</p>' : '');
     // Por familia (las de mayor gasto): cada una compite sus propios modelos
     var famPro = [], famIds = {}; TBO_FAMILIAS.concat(TBO_FUERA).forEach(function (f) { famIds[f[0]] = f[1]; });
-    var porFam = {}; comprasPro.forEach(function (o) { var f = tboFamiliaDeCompra(o.detalle, o.tipo).id; (porFam[f] = porFam[f] || []).push({ fecha: o.fecha, valor: Number(o.costo) || 0 }); });
+    var porFam = {}; comprasPro.forEach(function (o) { var f = tboFamiliaDeCompra(o.detalle, o.tipo, o.descripcionPedido).id; (porFam[f] = porFam[f] || []).push({ fecha: o.fecha, valor: Number(o.costo) || 0 }); });
     Object.keys(porFam).forEach(function (id) {
       var tot = porFam[id].reduce(function (a, x) { return a + x.valor; }, 0);
       var ms = serieMensualDe(porFam[id]);
