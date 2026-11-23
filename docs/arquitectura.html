@@ -3927,6 +3927,12 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Próximo cambio:</b> <code>comprasProximoCambio</code> usa solo intervalos medidos entre cambios del mismo ítem, de este equipo o, si tiene menos de 3, de los equipos del mismo modelo; con menos de 3 no da fecha y dice cuántos faltan.</p>
   <p><b>Límites:</b> la instalación se infiere del texto de las OT y del Historial; los horómetros de compra son estimados (≈). Solo lectura. Archivos: <code>comprasEquipoItem</code>, <code>comprasProximoCambio</code>, <code>comprasItemMatcher</code> (logic.js), <code>_buscarComprasItemHTML</code> (modules/renders/buscar.js); pruebas <code>tests/comprasEquipoItem.test.js</code> y <code>tests/e2e/buscar-compras-item.spec.js</code>.</p>
 
+  <h3 id="d-247">247. Importador del chat: tabla de alias de equipos y más cambios de componente (2026-11-23)</h3>
+  <p><b>Origen:</b> al comparar el chat BSM_CEN con el sistema las pestañas no cuadraban porque el chat entraba a mano y por partes. El importador ya existía (botón «💬 Importar chat de WhatsApp» en Horómetros y Correctivos); esta mejora cierra tres huecos.</p>
+  <p><b>Tabla <code>equipos_alias</code></b> (migración <code>20261123140000_crear_equipos_alias.sql</code>; leen todos los perfiles activos, escribe un editor; va en el respaldo diario): cómo llama el chat a cada equipo (CE-85 → CN-9503). Antes estaba fija en el código y un nombre nuevo («CF 511») quedaba sin cargar. <code>chatWhatsAppSigla(nombre, siglas, alias)</code> consulta primero la tabla y después las reglas de siempre. En la pantalla de importación los equipos sin asignar tienen un selector y un botón «Guardar». Se sembró CF-511 → CF-9511.</p>
+  <p><b>No duplicar:</b> las paradas ya cargadas se buscan también en <code>correctivos_historico</code>. <b>Cambios nuevos:</b> cinturón de seguridad (no el semáforo ni el foco del cinturón) y correas. Siguen sin proponerse los «entre dientes» y las calzas. <b>.docx:</b> el selector acepta el chat pegado en Word.</p>
+  <p><b>Límites:</b> el alias no adivina por parecido; los cambios solo se proponen en avisos «operativo»; los PM se proponen pero se registran desde Registro PM.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

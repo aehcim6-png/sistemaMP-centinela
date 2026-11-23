@@ -49,8 +49,9 @@ Deno.test("TABLAS: tamaño esperado (71) — cambiar a propósito si se agrega u
   // Nota 2026-11-09: 70 al sumar 'mom_raci' y 'mom_entrenamientos' (entrenamientos del MOM).
   // Nota 2026-11-10: 71 al sumar 'gets_cambios' (cambios de elementos de desgaste).
   // Nota 2026-11-18: 72 al sumar 'pautas_tiempos' (minutos por tarea de las pautas de mantención).
+  // Nota 2026-11-23: 74 al sumar 'equipos_alias' (nombres con que el chat llama a los equipos).
   // Nota 2026-11-19: 73 al sumar 'reprogramaciones_pm' (PM que pasan de una semana a otra, con su motivo).
-  assertEquals(TABLAS.length, 73);
+  assertEquals(TABLAS.length, 74);
 });
 
 // ---- traerTodasLasFilas ----

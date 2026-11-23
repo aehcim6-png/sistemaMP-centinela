@@ -5450,7 +5450,10 @@ function chatWhatsAppMensajes(texto){
   return out;
 }
 // «CAEX 85», «CF 769», «Aljibe 5131», «MN12», «CA5133» → sigla del sistema (o null). siglas = las del sistema.
-function chatWhatsAppSigla(nombre,siglas){
+// `alias` = tabla equipos_alias del sistema ([{alias, sigla}]): manda sobre las reglas de abajo, porque es lo que el administrador confirmó (por ejemplo «CF 511» → CF-9511).
+function chatWhatsAppSigla(nombre,siglas,alias){
+  var kAl=String(nombre==null?'':nombre).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(kAl&&alias&&alias.length){for(var ia=0;ia<alias.length;ia++){var al=alias[ia];if(al&&al.alias&&al.sigla&&String(al.alias).toUpperCase().replace(/[^A-Z0-9]/g,'')===kAl&&(!siglas||!siglas.length||siglas.indexOf(al.sigla)>=0))return al.sigla;}}
   var s=String(nombre==null?'':nombre).toUpperCase().replace(/[‐-―⁠‎‏]/g,'-').replace(/[.:,;()]+/g,' ').replace(/[\s\-_]+/g,'');
   // El camión aljibe CN-7578 el chat lo llama «CX DG 73», «CN-SXDG73» o «SXDG-73» (no lleva el número del sistema).
   if(/^(CN)?(SX|CX)DG73/.test(s)&&(siglas||[]).indexOf('CN-7578')>=0)return'CN-7578';
@@ -5477,7 +5480,7 @@ function _chatEstatus(txt){
 }
 // Los textos de WhatsApp con la plantilla → [{sigla, nombre, estatus, motivo, horom, lugar, operador, f, h, min, hint}] (sigla null si no se pudo resolver);
 // más las lecturas del bloque diario («TI 5141= 23032», «Gen OP.= 15004») y los avisos libres de «operativo».
-function chatWhatsAppReportes(mensajes,siglas){
+function chatWhatsAppReportes(mensajes,siglas,alias){
   var rep=[],lecturas=[],sinResolver={},libresSinEquipo=0;
   // «H:» y «Odo:» son las etiquetas que usa el taller para el horómetro y el odómetro (camionetas); antes se perdían y la lectura quedaba pegada al nombre del equipo.
   var rxLabel=/(?:^|[\s\-•.·])(equipo|estatus|motivo|hor[oó]metro|od[oó]metro|odo|h|lugar|operador)\s*:+/gi;
@@ -5492,7 +5495,7 @@ function chatWhatsAppReportes(mensajes,siglas){
     if(bloque.length>=2){
       bloque.forEach(function(b){
         var nombre=/^OP/i.test(b[2])?(/^GEN/i.test(b[1])?'GE-10019':''):b[1]+'-'+b[2];
-        var s=nombre?chatWhatsAppSigla(nombre,siglas):null,v=_chatNum(b[3]);
+        var s=nombre?chatWhatsAppSigla(nombre,siglas,alias):null,v=_chatNum(b[3]);
         if(s&&v!=null)lecturas.push({sigla:s,f:m.f,h:m.h,valor:v,fuente:'bloque diario'});
       });
       return;
@@ -5508,7 +5511,7 @@ function chatWhatsAppReportes(mensajes,siglas){
       var r=null;
       var cerrarR=function(){
         if(!r)return;
-        r.sigla=chatWhatsAppSigla(r.nombre,siglas);
+        r.sigla=chatWhatsAppSigla(r.nombre,siglas,alias);
         r.estatus=_chatEstatus(r.estatusTxt);
         var hm=String(r.estatusTxt||'').match(/(\d{1,2}):(\d{2})/);if(hm)r.hint=hm[0];
         if(!r.sigla&&r.nombre)sinResolver[r.nombre]=(sinResolver[r.nombre]||0)+1;
@@ -5577,6 +5580,9 @@ function _chatCambioComponente(motivo){
   if(f('pasador(?:es)? (?:de )?(?:balde|volteo|biela)'))return'Pasador de balde';
   if(f('(?:biela|palanca)\\b'))return'Biela/Pantógrafo';
   if(f('cuchillas?\\b'))return'GET / Cuchillas';
+  // Cinturón de seguridad (23-nov-2026): el cambio de la pieza, NO el semáforo, foco o indicador de uso del cinturón (esos son eléctricos y se instalaron por campaña en abril).
+  if(f('(?:base |conector |hebilla )?(?:de )?cinturon(?: de seguridad)?\\b')&&!/(?:semaforo|indicador|foco|ampolleta|luz|sensor)[^;]{0,25}cinturon|cinturon[^;]{0,20}(?:semaforo|indicador|foco)/.test(t))return'Cinturón de Seguridad';
+  if(f('correas?\\b'))return'Correas/Poleas';
   if(f('asiento'))return'Asiento';
   if(f('alternador'))return'Alternador';
   if(f('turbo\\b'))return'Turbo';
@@ -5601,7 +5607,7 @@ function chatWhatsAppAnalizar(texto,ctx){
   var msgs=chatWhatsAppMensajes(texto);
   var primero=msgs.length?msgs[0].f:'',ultimo=msgs.length?msgs[msgs.length-1].f:'';
   if(c.desde)msgs=msgs.filter(function(m){return m.f>=c.desde;});
-  var R=chatWhatsAppReportes(msgs,siglas);
+  var R=chatWhatsAppReportes(msgs,siglas,c.alias);
   // ── Horómetros ──
   var cand={};
   var aporta=function(sigla,f,v,fuente){

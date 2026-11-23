@@ -70,6 +70,7 @@ import { subirCopiaRespaldo } from "../_shared/respaldoCopia.ts";
 // 2026-11-09: sumadas 'mom_raci' y 'mom_entrenamientos' (matriz RACI y plan de entrenamientos del MOM) el mismo día en que se crearon.
 // 2026-11-10: sumada 'gets_cambios' (cambios de elementos de desgaste, GETS) el mismo día en que se creó.
 // 2026-11-18: sumada 'pautas_tiempos' (minutos por tarea de las pautas de mantención) el mismo día en que se creó.
+// 2026-11-23: sumada 'equipos_alias' (nombres con que el chat llama a los equipos) el mismo día en que se creó.
 // 2026-11-19: sumada 'reprogramaciones_pm' (PM que pasan de una semana a otra, con su motivo) el mismo día en que se creó.
 export const TABLAS = [
   'kv', 'user_roles', 'equipos', 'registros_pm', 'correctivos', 'movimientos_stock',
@@ -88,7 +89,7 @@ export const TABLAS = [
   'produccion_turno', 'produccion_turno_equipos', 'fmea_npr', 'reportabilidad_diaria',
   'insumos', 'insumos_movimientos', 'tareas_gestion', 'asistente_ia_uso', 'neumaticos_recauchajes', 'siniestros', 'neumaticos_traslados',
   'foda_items', 'foda_estrategias', 'disponibilidad_diaria', 'flota_presencia', 'detenciones_whatsapp',
-  'mom_raci', 'mom_entrenamientos', 'gets_cambios', 'pautas_tiempos', 'reprogramaciones_pm'
+  'mom_raci', 'mom_entrenamientos', 'gets_cambios', 'pautas_tiempos', 'reprogramaciones_pm', 'equipos_alias'
 ];
 
 // PostgREST impone un tope de filas por request (~1000 en este proyecto,

@@ -17,6 +17,14 @@ function _chatHoy() { return new Date().toISOString().slice(0, 10); }
 function _chatRestarDias(iso, n) { var d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); }
 function _chatFecha(f) { return f ? f.slice(8, 10) + '-' + f.slice(5, 7) + '-' + f.slice(2, 4) : ''; }
 
+// Un .docx (el chat pegado en Word) guarda el texto en word/document.xml: se arma una línea por párrafo. Los .txt pasan tal cual.
+function _chatDeXml(nombre, texto) {
+  if (nombre !== 'word/document.xml') return texto;
+  var dec = function (t) { return t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&'); };
+  return (texto.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []).map(function (pr) {
+    return dec((pr.replace(/<w:br\/>/g, '\n').match(/<w:t[^>]*>[^<]*<\/w:t>|\n/g) || []).map(function (x) { return x === '\n' ? '\n' : x.replace(/<[^>]+>/g, ''); }).join(''));
+  }).join('\n');
+}
 // Abre el primer archivo de un .zip de WhatsApp (el .txt) con el descompresor del navegador. El directorio central da los tamaños aunque el
 // archivo use «data descriptor», como hacen los zips que arma iOS.
 async function _chatLeerZip(buf) {
@@ -29,12 +37,12 @@ async function _chatLeerZip(buf) {
     var metodo = v.getUint16(pos + 10, true), comp = v.getUint32(pos + 20, true), nlen = v.getUint16(pos + 28, true), elen = v.getUint16(pos + 30, true), clen = v.getUint16(pos + 32, true), ofs = v.getUint32(pos + 42, true);
     var nombre = new TextDecoder().decode(u8.subarray(pos + 46, pos + 46 + nlen));
     pos += 46 + nlen + elen + clen;
-    if (!/\.txt$/i.test(nombre)) continue;
+    if (!(/\.txt$/i.test(nombre) || nombre === 'word/document.xml')) continue;
     var ini = ofs + 30 + v.getUint16(ofs + 26, true) + v.getUint16(ofs + 28, true), datos = u8.subarray(ini, ini + comp);
-    if (metodo === 0) return new TextDecoder('utf-8').decode(datos);
+    if (metodo === 0) return _chatDeXml(nombre, new TextDecoder('utf-8').decode(datos));
     if (metodo === 8 && typeof DecompressionStream === 'function') {
       var flujo = new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-      return new TextDecoder('utf-8').decode(await new Response(flujo).arrayBuffer());
+      return _chatDeXml(nombre, new TextDecoder('utf-8').decode(await new Response(flujo).arrayBuffer()));
     }
     throw new Error('Este navegador no abre el .zip. Descomprímelo y sube el .txt.');
   }
@@ -47,7 +55,7 @@ export function importarChatWhatsApp() {
   sm('<h3>💬 Importar chat de WhatsApp</h3>' +
     '<p style="font-size:12px;color:var(--tx3);margin:0 0 8px">Sube el archivo que exporta WhatsApp (grupo → ⋮ → Más → Exportar chat → <b>Sin archivos multimedia</b>). El sistema lee los avisos con la plantilla «Equipo / Estatus / Motivo / Horómetro» y el bloque diario de horómetros, y te <b>propone</b> qué cargar. No se guarda nada hasta que lo revises y lo marques.</p>' +
     '<p style="font-size:11px;color:var(--tx3);margin:0 0 10px">Es una vía adicional: el CSV de horómetros y el registro manual de OT y PM siguen funcionando igual.</p>' +
-    '<input type="file" id="chatArchivo" accept=".txt,.zip,text/plain" onchange="_chatArchivoElegido(this)" style="margin:6px 0 10px">' +
+    '<input type="file" id="chatArchivo" accept=".txt,.zip,.docx,text/plain" onchange="_chatArchivoElegido(this)" style="margin:6px 0 10px">' +
     '<div style="font-size:12px;margin-bottom:12px">Leer los avisos <b>desde</b> <input type="date" id="chatDesde" value="' + _chatRestarDias(_chatHoy(), 30) + '" style="margin-left:4px"><span style="color:var(--tx3);margin-left:6px">(por defecto, los últimos 30 días)</span></div>' +
     '<div id="chatEstado" style="font-size:12px;color:var(--tx3)">Elige el archivo para empezar.</div>' +
     '<div style="margin-top:12px"><button class="btn btn-o" onclick="cm()">Cancelar</button></div>');
@@ -59,7 +67,7 @@ export async function _chatArchivoElegido(input) {
   var est = $('chatEstado');
   if (est) est.textContent = '⏳ Leyendo ' + file.name + '…';
   try {
-    if (/\.zip$/i.test(file.name)) _chatTxt = await _chatLeerZip(await file.arrayBuffer());
+    if (/\.(zip|docx)$/i.test(file.name)) _chatTxt = await _chatLeerZip(await file.arrayBuffer());
     else _chatTxt = await new Promise(function (ok, mal) { var r = new FileReader(); r.onload = function () { ok(String(r.result)); }; r.onerror = function () { mal(new Error('No se pudo leer el archivo.')); }; r.readAsText(file, 'UTF-8'); });
     _chatNombre = file.name;
     _chatAnalizar($('chatDesde') ? $('chatDesde').value : '');
@@ -70,7 +78,9 @@ export async function _chatArchivoElegido(input) {
 
 function _chatAnalizar(desde) {
   var siglas = (S.g('eq') || []).map(function (e) { return e.sigla; });
-  _chatAn = chatWhatsAppAnalizar(_chatTxt, { siglas: siglas, desde: desde || '', hist: S.g('hist') || [], ot: S.g('ot') || [], reg: S.g('reg') || [], comp: S.g('compHist') || [] });
+  // Las paradas ya cargadas son las OT vigentes y también el historial de OT (correctivos_historico): sin esto, volver a importar enero-agosto duplicaría lo que ya está.
+  var otHist = (S.g('otHist') || []).filter(function (o) { return o && o.sigla && o.fecha; }).map(function (o) { var f = String(o.fecha).slice(0, 10); return { sigla: o.sigla, fechaEntrada: f, horaEntrada: '00:00', fechaSalida: f, horaSalida: '23:59' }; });
+  _chatAn = chatWhatsAppAnalizar(_chatTxt, { siglas: siglas, alias: S.g('alias') || [], desde: desde || '', hist: S.g('hist') || [], ot: (S.g('ot') || []).concat(otHist), reg: S.g('reg') || [], comp: S.g('compHist') || [] });
   if (!_chatAn.mensajes) {
     var est = $('chatEstado');
     if (est) est.textContent = '⚠️ No encontré mensajes en ese archivo (¿es el .txt exportado de WhatsApp?) o no hay avisos desde esa fecha.';
@@ -137,9 +147,16 @@ function _chatPintar() {
   // Backlog (solo informativo)
   var bl = a.backlog.map(function (b) { return '<tr><td class="mono" style="color:var(--ac)">' + escapeHtml(b.sigla) + '</td><td class="mono">' + _chatFecha(b.fecha) + ' ' + b.hora + '</td><td>' + escapeHtml(b.motivo || '') + '</td></tr>'; }).join('');
   h += _chatSeccion('Backlog avisado (solo para mirar, no se carga)', a.backlog.length, a.backlog.length ? '<div class="tbl-wrap" style="max-height:200px;overflow:auto"><table><tr><th>Equipo</th><th>Aviso</th><th>Motivo</th></tr>' + bl + '</table></div>' : '<p style="font-size:12px;color:var(--tx3)">Sin backlog en ese período.</p>', false);
+  // Equipos que el chat nombra distinto del sistema (CE-85 → CN-9503): se asignan una vez y quedan en la tabla equipos_alias para las próximas importaciones.
+  if (a.sinResolver.length && window._userRole !== 'lector') {
+    var opts = '<option value="">— no es de la flota —</option>' + (S.g('eq') || []).map(function (e) { return '<option value="' + escapeHtml(e.sigla) + '">' + escapeHtml(e.sigla) + '</option>'; }).join('');
+    h += '<div style="border:1px solid var(--warn);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px"><b>Equipos del chat sin asignar</b> (no se cargaron). Elige a qué equipo del sistema corresponde cada nombre; queda guardado para la próxima vez.<table style="margin-top:6px">' +
+      a.sinResolver.map(function (x, i) {
+        return '<tr><td class="mono">' + escapeHtml(x.nombre) + ' <span style="color:var(--tx3)">×' + x.veces + '</span></td><td><select id="chatAl_' + i + '">' + opts + '</select></td><td><button class="btn btn-o" onclick="_chatGuardarAlias(' + i + ')">Guardar</button></td></tr>';
+      }).join('') + '</table></div>';
+  }
   // Avisos
   var av = [];
-  if (a.sinResolver.length) av.push('Equipos del chat que no están en el sistema (no se cargaron): <b>' + a.sinResolver.map(function (x) { return escapeHtml(x.nombre) + ' ×' + x.veces; }).join(', ') + '</b>.');
   if (a.libresSinEquipo) av.push(a.libresSinEquipo + ' mensaje(s) «Operativo» sin decir el equipo: no se pueden emparejar solos.');
   if (a.informativos) av.push(a.informativos + ' aviso(s) «operativo» de rutina (engrase, chequeo) sin una falla abierta: no se cargan.');
   av.push('Los avisos libres sin plantilla («CE-88 fuera de servicio por…») también se leen como falla, si nombran un solo equipo y no son pregunta ni petición.');
@@ -149,6 +166,21 @@ function _chatPintar() {
   h += '<div style="display:flex;gap:8px;align-items:center;margin-top:10px"><button class="btn" id="chatBtnImportar" onclick="_chatImportar()">Cargar lo marcado (' + _chatContar() + ')</button><button class="btn btn-o" onclick="cm()">Cancelar</button></div>';
   sm(h);
   $('mc').style.maxWidth = '980px';
+}
+
+export function _chatGuardarAlias(i) {
+  if (window._userRole === 'lector') return toast('⛔ Tu rol es solo lectura');
+  var x = _chatAn && _chatAn.sinResolver && _chatAn.sinResolver[i];
+  var sel = $('chatAl_' + i), sigla = sel ? sel.value : '';
+  if (!x) return;
+  if (!sigla) return toast('⚠️ Elige el equipo del sistema (o déjalo sin asignar)');
+  var al = S.g('alias') || [];
+  var k = String(x.nombre).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (al.some(function (a) { return String(a.alias).toUpperCase().replace(/[^A-Z0-9]/g, '') === k; })) return toast('Ese nombre ya tiene un equipo asignado');
+  al.push({ alias: x.nombre, sigla: sigla, nota: 'Asignado en la importación del chat' });
+  S.s('alias', al);
+  toast('✅ «' + x.nombre + '» queda como ' + sigla);
+  _chatVolverAnalizar();
 }
 
 export function _chatMarcar(sec, i, v) {
@@ -280,6 +312,7 @@ export function _chatImportar() {
 window.importarChatWhatsApp = importarChatWhatsApp;
 window._chatArchivoElegido = _chatArchivoElegido;
 window._chatVolverAnalizar = _chatVolverAnalizar;
+window._chatGuardarAlias = _chatGuardarAlias;
 window._chatMarcar = _chatMarcar;
 window._chatMarcarTodo = _chatMarcarTodo;
 window._chatImportar = _chatImportar;

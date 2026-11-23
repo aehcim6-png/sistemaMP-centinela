@@ -7521,6 +7521,15 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Límites:** la instalación se infiere del texto de las OT y del Historial; una OT que no nombre el ítem no se ve. Los horómetros de compra son estimados (≈) con las lecturas del equipo. Solo lectura: no escribe nada en la base.
 - **Archivos:** `comprasEquipoItem`, `comprasProximoCambio`, `comprasItemMatcher` en logic.js; `_buscarComprasItemHTML` en `modules/renders/buscar.js`; pruebas `tests/comprasEquipoItem.test.js` y `tests/e2e/buscar-compras-item.spec.js`.
 
+### 247. Importador del chat: tabla de alias de equipos y más cambios de componente (2026-11-23)
+
+**Origen:** al comparar el chat BSM_CEN con el sistema (fechas, horómetros, PM, fuera de servicio, Historial de componentes) las pestañas no cuadraban porque el chat entraba a mano y por partes. El importador ya existía (§ del 2-nov; botón «💬 Importar chat de WhatsApp» en Horómetros y Correctivos) y propone horómetros, paradas con entrada y salida, PM y cambios de componente; esta mejora cierra tres huecos que se encontraron al probarlo con el chat completo.
+- **Tabla `equipos_alias`** (migración `20261123140000_crear_equipos_alias.sql`; todos los perfiles activos leen, solo un editor escribe; va en el respaldo diario). Guarda cómo llama el chat a cada equipo (CE-85 → CN-9503). Antes esa equivalencia estaba fija en el código (`REPORTAB_MAPA_SIGLAS`) y un nombre nuevo («CF 511», 12 avisos) quedaba sin cargar. `chatWhatsAppSigla(nombre, siglas, alias)` consulta primero la tabla (sin espacios, guiones ni mayúsculas) y después las reglas de siempre; un alias hacia una sigla que ya no existe se ignora. En la pantalla de importación, los equipos sin asignar salen en un cuadro con un selector por nombre y un botón «Guardar»; queda para las importaciones siguientes. Se sembró CF-511 → CF-9511 (el horómetro del chat coincide con el del sistema).
+- **No duplicar el historial:** las paradas ya cargadas se buscan ahora también en el historial de OT (`correctivos_historico`), no solo en las OT vigentes; volver a importar enero-agosto ya no duplica lo cargado.
+- **Cambios de componente nuevos:** cinturón de seguridad (el cambio de la pieza; el semáforo, foco o indicador de uso del cinturón no cuenta, fue una campaña eléctrica de abril) y correas (alternador, A/C, ventilador). Siguen sin proponerse los «entre dientes» y las calzas porque se cambian a diario y llenarían el historial.
+- **Archivos .docx:** el selector acepta también el chat pegado en Word (lee `word/document.xml`, un párrafo por línea), además de .txt y .zip.
+- **Límites:** el alias no adivina por parecido: lo que no está en la tabla ni en las reglas queda sin asignar. Los cambios solo se proponen en avisos con estatus «operativo». Los PM se proponen pero se registran desde Registro PM.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
