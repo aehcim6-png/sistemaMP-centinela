@@ -8290,6 +8290,8 @@ function programaAnualVivo(equipos,registros,programa,hoy,anio,ritmoFn){
     if(!p||!p.sigla)return;var c=p.meses;if(typeof c==='string'){try{c=JSON.parse(c);}catch(er){c=null;}}
     planPor[p.sigla]=c||{};
   });
+  // Ajustes a mano: el plan guardado lleva en meses._manual {'aaaa-mm': 'PM1'..'PM4' | 'NONE'}. PMx = ese mes toca ese PM (reemplaza lo proyectado); NONE = ese mes no toca PM. Mandan sobre la proyección y no se corren solos.
+  var manualDe=function(sigla,A2,m2){var mn=planPor[sigla]&&planPor[sigla]._manual;var v=mn&&mn[A2+'-'+('0'+(m2+1)).slice(-2)];return v==='NONE'||/^PM[1-4]$/.test(v||'')?v:'';};
   var ejePor={};
   (registros||[]).forEach(function(r){
     if(!r||!r.equipo)return;var f=String(r.fechaEntrada||r.fechaEjec||'').slice(0,10);
@@ -8318,8 +8320,15 @@ function programaAnualVivo(equipos,registros,programa,hoy,anio,ritmoFn){
       var plan=A===anioHoy&&planPor[e.sigla]?String(planPor[e.sigla][nm]||'').trim().toUpperCase():'';
       var vigente=A>anioHoy||(A===anioHoy&&m>=mesAct);
       var pr=vigente?proy.filter(function(x){return x.m===m;}).map(function(x){return{tipo:x.tipo,fecha:x.fecha,vencido:x.vencido};}):[];
-      var estado=ej.length?'ejecutado':pr.length?(pr[0].vencido?'vencido':'proyectado'):(A===anioHoy&&m<mesAct&&plan?'sin_registro':'');
-      meses[nm]={eje:ej,proy:pr,plan:plan,estado:estado};
+      var auto=pr.slice(),man=manualDe(e.sigla,A,m);
+      if(man&&!ej.length){
+        if(vigente){
+          var dia=A===anioHoy&&m===mesAct&&base.getUTCDate()>15?base.getUTCDate():15;
+          pr=man==='NONE'?[]:[{tipo:man,fecha:A+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+dia).slice(-2),vencido:false}];
+        }else plan=man==='NONE'?'':man;   // mes pasado: lo ajustado a mano pasa a ser lo que decía el plan (NONE = no tocaba PM, se quita el aviso)
+      }
+      var estado=ej.length?'ejecutado':pr.length?(pr[0].vencido?'vencido':'proyectado'):(A<=anioHoy&&(A<anioHoy||m<mesAct)&&plan&&!vigente?'sin_registro':'');
+      meses[nm]={eje:ej,proy:pr,plan:plan,estado:estado,manual:man,auto:auto};
     });
     out.push({sigla:e.sigla,tipo:e.tipo,modelo:e.modelo,aviso:aviso,prox:prox,meses:meses});
   });

@@ -274,8 +274,11 @@ Pautas, Registro PM y Tareas.
    y su ritmo, un PM vencido aparece marcado ⚠ en el mes actual, y un mes
    pasado en que el plan pedía un PM y no hay registro aparece como «¿PM3?»
    (puede faltar el registro: no significa que no se hizo). Un equipo sin
-   lectura confiable no se proyecta y se lista aparte. Las celdas ya no se
-   editan a mano: toca una para ver el detalle.
+   lectura confiable no se proyecta y se lista aparte. **Se puede ajustar a
+   mano**: toca una celda sin ejecutar y cada toque pasa a PM1 → PM2 →
+   PM3 → PM4 → «sin PM» → automático; lo ajustado se marca con ✎, manda
+   sobre el cálculo y lo usan el Gantt y «Qué comprar». Las celdas ya
+   ejecutadas salen de Registro PM.
 3. **Planificador de Materiales** — antes de programar un PM grande,
    confirmá que el repuesto ya esté en stock o con OC en camino.
 4. **Destrabe** — revisalo junto con el cierre semanal: un trabajo trabado

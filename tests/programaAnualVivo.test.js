@@ -90,6 +90,49 @@ describe('programaAnualVivo: sin dato no se inventa', () => {
   });
 });
 
+describe('programaAnualVivo: ajustes a mano (meses._manual)', () => {
+  const conManual = (manual) => [{ sigla: 'BD-9533', meses: { AGO: 'PM4', _manual: manual } }];
+  const r = (manual) => L.programaAnualVivo(eq, reg, conManual(manual), hoy, 2026, null).find(x => x.sigla === 'BD-9533');
+  it('un PM fijado a mano en un mes que viene reemplaza lo proyectado, y guarda lo que decía el cálculo', () => {
+    const d = r({ '2026-12': 'PM4' }).meses.DIC;
+    expect(d.estado).toBe('proyectado');
+    expect(d.proy.map(x => x.tipo)).toEqual(['PM4']);
+    expect(d.manual).toBe('PM4');
+    expect(d.auto.map(x => x.tipo)).toEqual(['PM1']);            // el cálculo automático decía PM1 el 13-dic
+  });
+  it('«sin PM» a mano quita el PM proyectado de ese mes', () => {
+    const d = r({ '2026-12': 'NONE' }).meses.DIC;
+    expect(d.proy).toEqual([]);
+    expect(d.estado).toBe('');
+    expect(d.manual).toBe('NONE');
+  });
+  it('un mes pasado sin registro: lo fijado a mano pasa a ser el plan; «sin PM» quita el aviso', () => {
+    expect(r({ '2026-07': 'PM2' }).meses.JUL.estado).toBe('sin_registro');
+    expect(r({ '2026-07': 'PM2' }).meses.JUL.plan).toBe('PM2');
+    expect(r({ '2026-08': 'NONE' }).meses.AGO.estado).toBe('');   // el plan guardado decía PM4: ya no cuenta
+  });
+  it('un mes ejecutado no se ajusta a mano: manda el registro', () => {
+    const s = r({ '2026-09': 'PM1' }).meses.SEP;
+    expect(s.estado).toBe('ejecutado');
+    expect(s.eje[0].tipo).toBe('PM4');
+  });
+  it('valores inválidos se ignoran y no mueven los demás meses', () => {
+    const x = r({ '2026-12': 'PM9', '2026-10': 'basura' });
+    expect(x.meses.DIC.manual).toBe('');
+    expect(x.meses.DIC.proy[0].tipo).toBe('PM1');
+  });
+  it('lo ajustado a mano entra a la demanda de lubricantes y a las celdas del Gantt', () => {
+    const lub = [{ _id: 'l1', nombre: 'MOBILGREASE XHP 322 MINE', unidad: 'Kilo', stock: 0 }];
+    const mapaRep = [{ pautaId: 'p-gr', tipo: 'lubricante', refId: 'l1' }];
+    const consumos = (sg, pm) => [{ _id: 'p-gr', rep: 'Mobilgrease', can: pm === 'PM4' ? 30 : 10 }];
+    const vivo = L.programaAnualVivo(eq, reg, conManual({ '2026-12': 'PM4' }), hoy, 2026, null);
+    const dem = L.demandaProgramaMes(conManual({ '2026-12': 'PM4' }), consumos, [], lub, mapaRep, hoy, reg, eq, vivo);
+    expect(dem.meses[1].pm.PM4).toBe(1);                          // diciembre: el PM4 fijado a mano
+    expect(dem.meses[1].lubricantes[0]).toBeGreaterThanOrEqual(30);   // los 30 kg del PM4 a mano (más lo de otros equipos)
+    expect(L.programaVivoCeldas(vivo).find(x => x.sigla === 'BD-9533').meses.DIC).toBe('PM4');
+  });
+});
+
 describe('programaVivoCeldas', () => {
   it('devuelve el formato simple: EJEC, tipo proyectado, tipo del plan en pasados sin registro', () => {
     const c = L.programaVivoCeldas(v).find(x => x.sigla === 'BD-9533').meses;

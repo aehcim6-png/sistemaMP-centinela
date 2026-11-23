@@ -12,9 +12,17 @@
 export function regenPrg() {
   if (!confirm('¿Recalcular la proyección anual de TODOS los equipos con el horómetro y ritmo real actuales?')) return;
   C.recalcAll();
+  // Los ajustes a mano (meses._manual) no se pierden al recalcular el plan guardado.
+  var man = {};
+  (S.g('prg') || []).forEach(function (p) { if (p.meses && p.meses._manual) man[p.sigla] = p.meses._manual; });
   S.s('prg', []);
   renders.prg();
-  toast('✅ Programa anual recalculado');
+  var nuevo = S.g('prg') || [];
+  nuevo.forEach(function (p) { if (man[p.sigla]) p.meses._manual = man[p.sigla]; });
+  Object.keys(man).forEach(function (sg) { if (!nuevo.some(function (p) { return p.sigla === sg; })) delete man[sg]; });
+  if (Object.keys(man).length) S.s('prg', nuevo);
+  renders.prg();
+  toast('✅ Programa anual recalculado (los ajustes a mano se conservan)');
 }
 export function renderPrg() {
   if (!$("s-prg")) return;
@@ -80,7 +88,7 @@ export function renderPrg() {
     (hayEjecAnio ? '' : '<span style="font-size:11px;color:var(--tx3);margin-left:10px">Sin ejecuciones registradas en ' + anioPrg + '</span>') +
     (nVenc ? '<span style="font-size:11px;color:var(--danger);margin-left:10px">' + nVenc + ' PM vencido' + (nVenc === 1 ? '' : 's') + ' (caen hoy)</span>' : '') +
     (nSinReg ? '<span style="font-size:11px;color:var(--warn);margin-left:10px">' + nSinReg + ' mes' + (nSinReg === 1 ? '' : 'es') + ' pasado' + (nSinReg === 1 ? '' : 's') + ' con PM en el plan y sin registro</span>' : '') + '</div>' +
-    '<div class="legend"><span><i style="background:var(--pm1)"></i>PM1</span><span><i style="background:var(--pm2)"></i>PM2</span><span><i style="background:var(--pm3)"></i>PM3</span><span><i style="background:var(--pm4)"></i>PM4</span><span><i style="background:#374151"></i>PM1✓ = ejecutado (registro)</span><span><i style="background:transparent;border:1px dashed var(--warn)"></i>¿PM? = el plan lo pedía y no hay registro ese mes</span></div>' +
+    '<div class="legend"><span><i style="background:var(--pm1)"></i>PM1</span><span><i style="background:var(--pm2)"></i>PM2</span><span><i style="background:var(--pm3)"></i>PM3</span><span><i style="background:var(--pm4)"></i>PM4</span><span><i style="background:#374151"></i>PM1✓ = ejecutado (registro)</span><span><i style="background:transparent;border:1px dashed var(--warn)"></i>¿PM? = el plan lo pedía y no hay registro ese mes</span><span>✎ = ajustado a mano</span></div>' +
     '<div class="prog-grid">' +
     '<div class="pg-c pg-h">EQUIPO</div>' + MS.map(function (m) { return '<div class="pg-c pg-h">' + m + '</div>' }).join('') +
     _prgVivo.map(function (p) {
@@ -103,26 +111,44 @@ export function renderPrg() {
             txt = '¿' + (/^PM[1-4]$/.test(c.plan) ? c.plan : 'PM') + '?'; sty = 'border:1px dashed var(--warn);color:var(--warn)';
             tip.push('El plan guardado decía ' + c.plan + ' y no hay ningún PM registrado este mes. No se afirma que no se hizo: puede faltar el registro.');
           }
+          if (c.manual && !c.eje.length) {
+            if (c.manual === 'NONE') { txt = 'sin PM ✎'; cls = ''; sty = 'color:var(--tx3)'; tip.push('Ajustado a mano: este mes no toca PM.'); }
+            else { txt += ' ✎'; tip.push('Ajustado a mano a ' + c.manual + (c.auto.length ? ' (el cálculo automático decía ' + c.auto.map(function (x) { return x.tipo + ' ~' + fch(x.fecha); }).join('; ') + ')' : '') + '.'); }
+          }
+          if (!c.eje.length) tip.push('Toca para ajustar a mano.');
           return '<div class="pg-c ' + cls + '" title="' + escapeHtml(tip.join(' ')) + '" style="' + sty + '" onclick="cyclePrg(\'' + escapeHtml(p.sigla) + '\',\'' + m + '\')">' + (txt || '·') + '</div>';
         }).join('');
     }).join('') +
     '</div>' +
     (avisos.length ? '<div style="font-size:11px;color:var(--tx3);margin-top:10px"><b style="color:var(--warn)">⚠ Equipos sin proyección confiable</b> (no se inventa un mes): ' + avisos.map(escapeHtml).join(' · ') + '</div>' : '') +
-    '<div style="font-size:11px;color:var(--tx3);margin-top:8px">Un PM se hace por horas o km, no por calendario: el mes proyectado se corre solo cuando se registra un PM o cambia el ritmo del equipo. Toca una celda para ver el detalle.</div>';
+    '<div style="font-size:11px;color:var(--tx3);margin-top:8px">Un PM se hace por horas o km, no por calendario: el mes proyectado se corre solo cuando se registra un PM o cambia el ritmo del equipo. <b>Toca una celda sin ejecutar para ajustarla a mano</b> (cada toque pasa a PM1 → PM2 → PM3 → PM4 → sin PM → automático); lo ajustado manda sobre el cálculo, se guarda y lo usan Gantt y Qué comprar. Las celdas ejecutadas salen de Registro PM.</div>';
 }
-// Detalle de una celda (antes este clic cambiaba el plan guardado; ahora el programa se calcula solo y no se edita a mano).
+// Ajuste a mano de una celda (23-nov-2026): el programa se calcula solo, pero el planificador puede fijar el PM de un mes. Se guarda en el plan guardado (meses._manual, clave 'aaaa-mm') y manda sobre el cálculo.
+// Cada toque pasa a PM1 → PM2 → PM3 → PM4 → «sin PM» → automático. Un mes ya ejecutado sale de Registro PM y no se ajusta aquí.
 var _prgVivo = [];
 export function cyclePrg(sigla, mes) {
+  var MS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
   var p = _prgVivo.filter(function (x) { return x.sigla === sigla; })[0];
   var c = p && p.meses[mes];
   if (!c) return;
   var fch = function (f) { return f ? f.slice(8, 10) + '-' + f.slice(5, 7) + '-' + f.slice(0, 4) : ''; };
-  var partes = [];
-  if (c.eje.length) partes.push('Ejecutado: ' + c.eje.map(function (x) { return (x.tipo || 'PM') + ' el ' + fch(x.fecha); }).join('; '));
-  if (c.proy.length) partes.push((c.estado === 'vencido' ? 'Vencido' : 'Proyectado') + ': ' + c.proy.map(function (x) { return x.tipo + ' ~' + fch(x.fecha); }).join('; '));
-  if (c.estado === 'sin_registro') partes.push('El plan guardado decía ' + c.plan + ' y no hay PM registrado este mes');
-  if (!partes.length) partes.push('Sin PM este mes' + (p.aviso ? ' (' + p.aviso + ')' : ''));
-  toast('ℹ️ ' + sigla + ' · ' + mes + ': ' + partes.join(' · '));
+  if (c.eje.length) {
+    toast('ℹ️ ' + sigla + ' · ' + mes + ': ejecutado ' + c.eje.map(function (x) { return (x.tipo || 'PM') + ' el ' + fch(x.fecha); }).join('; ') + '. Para corregirlo, edita el registro en Registro PM.');
+    return;
+  }
+  var anio = parseInt($('fPrgAnio')?.value) || new Date().getFullYear();
+  var prg = S.g('prg') || [];
+  var fila = prg.filter(function (x) { return x.sigla === sigla; })[0];
+  if (!fila) { fila = { sigla: sigla, tipo: p.tipo, modelo: p.modelo, meses: {} }; MS.forEach(function (m) { fila.meses[m] = ''; }); prg.push(fila); }
+  if (typeof fila.meses === 'string') { try { fila.meses = JSON.parse(fila.meses); } catch (e) { fila.meses = {}; } }
+  var man = fila.meses._manual || {}, clave = anio + '-' + ('0' + (MS.indexOf(mes) + 1)).slice(-2);
+  var ciclo = ['', 'PM1', 'PM2', 'PM3', 'PM4', 'NONE'];
+  var sig = ciclo[(ciclo.indexOf(man[clave] || '') + 1) % ciclo.length];
+  if (sig) man[clave] = sig; else delete man[clave];
+  if (Object.keys(man).length) fila.meses._manual = man; else delete fila.meses._manual;
+  S.s('prg', prg);
+  renderPrg();
+  toast('✎ ' + sigla + ' · ' + mes + ': ' + (sig === 'NONE' ? 'sin PM este mes (a mano)' : sig ? sig + ' (a mano)' : 'vuelve al cálculo automático' + (c.auto.length ? ': ' + c.auto.map(function (x) { return x.tipo + ' ~' + fch(x.fecha); }).join('; ') : '')));
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).

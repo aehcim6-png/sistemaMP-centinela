@@ -59,3 +59,54 @@ test('Programa Anual muestra el PM ejecutado con su tipo real, el vencido, el si
   expect(r.t).toContain('XX-0003');
   expect(r.filas['XX-0003'].every((c) => c === '·')).toBe(true);
 });
+
+// El programa es editable: cada toque en una celda sin ejecutar la cambia a mano (PM1 → … → PM4 → sin PM → automático), se guarda y sobrevive a «Recalcular».
+test('Programa Anual: una celda se ajusta a mano, se guarda y se conserva al recalcular', async ({ page }) => {
+  test.setTimeout(120000);
+  await mockSupabase(page, { loginOk: true, role: 'admin', nombre: 'Admin Test' });
+  await page.goto('/');
+  await page.waitForFunction(() => !!window._turnstileToken);
+  await page.locator('#li_email').fill('admin@test.com');
+  await page.locator('#li_pass').fill('claveCorrecta123');
+  await expect(page.locator('#li_pass')).toHaveValue('claveCorrecta123', { timeout: 15000 });
+  await page.locator('#li_btn').click();
+  await expect(page.locator('#s-dash')).toHaveCount(1, { timeout: 15000 });
+  await page.waitForTimeout(3000);
+  const r = await page.evaluate(async () => {
+    const esp = (ms) => new Promise((x) => setTimeout(x, ms));
+    const MES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    const hoy = new Date(), mesSig = (hoy.getMonth() + 1) % 12, anio = hoy.getFullYear();
+    if (hoy.getMonth() === 11) return { omitido: true };
+    const dd = (d) => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
+    const sembrar = () => {
+      S.s('eq', [{ sigla: 'XX-0001', tipo: 'Camión', modelo: 'M1', frecPM: 250, hrsDia: 10, horomActual: 1000, horomProxPM: 1250, fechaProxPM: dd(25), fechaHorom: dd(-1) }]);
+      S.s('prg', [{ _id: 'g1', sigla: 'XX-0001', meses: Object.assign({}, ...MES.map((m) => ({ [m]: '' }))) }]);
+      S.s('reg', [{ _id: 'r1', equipo: 'XX-0001', tipoPM: 'PM1', fechaEntrada: `${anio}-01-10`, horomReal: 750 }]);
+    };
+    sembrar(); go('dash'); await esp(1200); go('plani'); await esp(800); window.planiSub('prg');
+    for (let k = 0; k < 50; k++) { sembrar(); window.renderPrg(); if (/XX-0001/.test((document.getElementById('s-prg') || {}).innerText || '')) break; await esp(100); }
+    const celda = () => [...document.querySelectorAll('#s-prg .prog-grid .pg-c')].map((c) => c.innerText.trim()).slice(14)[mesSig];
+    const toques = [];
+    for (let i = 0; i < 4; i++) { cyclePrg('XX-0001', MES[mesSig]); toques.push(celda()); }   // PM1, PM2, PM3, PM4
+    cyclePrg('XX-0001', MES[mesSig]); toques.push(celda());                                    // sin PM
+    const guardado = JSON.stringify((S.g('prg') || [])[0].meses._manual || null);
+    cyclePrg('XX-0001', MES[mesSig]); toques.push(celda());                                    // vuelve al automático
+    const sinManual = (S.g('prg') || [])[0].meses._manual === undefined;
+    // dejar uno fijado y recalcular el plan guardado: se conserva
+    cyclePrg('XX-0001', MES[mesSig]); cyclePrg('XX-0001', MES[mesSig]);                        // PM2
+    const pmFijado = celda();
+    window.confirm = () => true; window.regenPrg();   // sin esperar: la carga en segundo plano puede vaciar los equipos del mock
+    return { toques, guardado, sinManual, pmFijado, despuesRecalcular: celda(), mesSig, anio, mesNom: MES[mesSig], dbg: JSON.stringify({ n: document.querySelectorAll('#s-prg .prog-grid .pg-c').length, eq: (S.g('eq') || []).length, prg: (S.g('prg') || []).map(p => [p.sigla, JSON.stringify(p.meses._manual)]) }) };
+  });
+  if (r.omitido) return;
+  expect(r.toques[0]).toContain('PM1 ✎');
+  expect(r.toques[1]).toContain('PM2 ✎');
+  expect(r.toques[2]).toContain('PM3 ✎');
+  expect(r.toques[3]).toContain('PM4 ✎');
+  expect(r.toques[4]).toContain('sin PM');
+  expect(r.guardado).toContain('NONE');
+  expect(r.toques[5]).not.toContain('✎');
+  expect(r.sinManual).toBe(true);
+  expect(r.pmFijado).toContain('PM2 ✎');
+  expect(r.despuesRecalcular).toContain('PM2 ✎');
+});
