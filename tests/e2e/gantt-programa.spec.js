@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { mockSupabase } = require('./helpers/mock-supabase');
 
-// Carta Gantt: el PM sale del Programa Anual del mes; un correctivo se pinta aparte y no cuenta como PM ejecutado.
-test('Gantt toma el PM del Programa Anual y separa el correctivo del PM ejecutado', async ({ page }) => {
+// Carta Gantt: el PM sale del Programa Anual (vivo: proyectado desde el próximo PM real del equipo) del mes; un correctivo se pinta aparte y no cuenta como PM ejecutado.
+test('Gantt toma el PM del Programa Anual vivo y separa el correctivo del PM ejecutado', async ({ page }) => {
   await mockSupabase(page, { loginOk: true, role: 'admin', nombre: 'Admin Test' });
   await page.goto('/');
   await page.waitForFunction(() => !!window._turnstileToken);
@@ -12,13 +12,16 @@ test('Gantt toma el PM del Programa Anual y separa el correctivo del PM ejecutad
   await page.locator('#li_btn').click();
   await expect(page.locator('#s-dash')).toHaveCount(1, { timeout: 15000 });
 
+  await page.waitForTimeout(3000);   // deja terminar la carga en segundo plano antes de sembrar
   // La carga en segundo plano puede pisar los datos recién puestos: se reintenta hasta que el render los vea.
   const leer = () => page.evaluate(async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const MS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
     const mes = MS[new Date().getMonth()];
     const meses = {}; MS.forEach(m => { meses[m] = ''; }); meses[mes] = 'PM3';
-    S.s('eq', [{ sigla: 'ZZ-1', tipo: 'Camion', modelo: 'X', tipoPM: 'PM1' }, { sigla: 'ZZ-2', tipo: 'Camion', modelo: 'X', tipoPM: 'PM1' }]);
+    // próximo hito a las 1.000 h (PM3) y el horómetro ya está ahí: el PM cae hoy. El tipoPM guardado del equipo (PM1) no debe mandar.
+    const base = { tipo: 'Camion', modelo: 'X', tipoPM: 'PM1', frecPM: 250, hrsDia: 10, horomActual: 1000, horomProxPM: 1000, fechaProxPM: hoy };
+    S.s('eq', [Object.assign({ sigla: 'ZZ-1' }, base), Object.assign({ sigla: 'ZZ-2' }, base)]);
     S.s('prg', [{ sigla: 'ZZ-1', tipo: 'Camion', modelo: 'X', meses }, { sigla: 'ZZ-2', tipo: 'Camion', modelo: 'X', meses }]);
     S.s('gantt', []);
     S.s('reg', []);
@@ -35,7 +38,7 @@ test('Gantt toma el PM del Programa Anual y separa el correctivo del PM ejecutad
   let r = await leer();
   for (let i = 0; i < 4 && !(r.find(f => f.sigla === 'ZZ-2') || {}).naranjo; i++) r = await leer();
   const z1 = r.find(f => f.sigla === 'ZZ-1'), z2 = r.find(f => f.sigla === 'ZZ-2');
-  expect(z1.pm).toBe('PM3');          // Programa Anual manda sobre el PM1 del equipo
+  expect(z1.pm).toBe('PM3');          // el Programa Anual (próximo hito real) manda sobre el PM1 del equipo
   expect(z2.pm).toBe('PM3');
   expect(z2.naranjo).toBe(true);      // el correctivo se pinta
   expect(z2.estado).toContain('correctivo');

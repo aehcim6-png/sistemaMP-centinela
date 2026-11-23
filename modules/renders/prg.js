@@ -8,7 +8,7 @@
 // Este botón lo rearma completo desde el estado actual: borra las filas
 // guardadas y deja que el sync de renders.prg las regenere con las fórmulas
 // vigentes. Las celdas del programa no son editables, así que no se pierde nada
-// manual; las marcas EJEC se calculan en vivo desde registros_pm y no se tocan.
+// manual; lo ejecutado y los meses que vienen se calculan en vivo (programaAnualVivo) y este plan guardado solo sirve de referencia.
 export function regenPrg() {
   if (!confirm('¿Recalcular la proyección anual de TODOS los equipos con el horómetro y ritmo real actuales?')) return;
   C.recalcAll();
@@ -59,57 +59,70 @@ export function renderPrg() {
     });
     if (JSON.stringify(prg) !== prgAntes) S.s('prg', prg);
   }
-  // Auto-mark EJEC del AÑO seleccionado — calculado en vivo, sin pisar el plan base guardado
+  // Programa «vivo» (23-nov-2026): lo ejecutado sale de los registros de PM (tipo y fecha reales); los meses que vienen se proyectan desde el próximo PM de cada equipo, anclado a su último PM real y a su ritmo real.
+  // El plan guardado solo se usa para decir qué decía un mes pasado que no tiene registro. Ver programaAnualVivo en logic.js.
   var reg = S.g('reg') || [];
-  var MSmap = { '01': 'ENE', '02': 'FEB', '03': 'MAR', '04': 'ABR', '05': 'MAY', '06': 'JUN', '07': 'JUL', '08': 'AGO', '09': 'SEP', '10': 'OCT', '11': 'NOV', '12': 'DIC' };
-  // ejecPorEq[sigla] = {ENE:'PM1',...} — guarda el tipoPM realmente ejecutado ese mes
-  // (antes solo guardaba true/false, así que un PM1 marcaba "ejecutado" un mes que
-  // tenía planificado un PM3, escondiendo que se hizo el PM equivocado).
-  var ejecPorEq = {};
-  reg.forEach(function (r) {
-    var fecha = r.fechaEntrada || r.fechaEjec || '';
-    if (fecha.slice(0, 4) !== '' + anioPrg) return;
-    var mesNom = MSmap[fecha.slice(5, 7)]; if (!mesNom) return;
-    if (!ejecPorEq[r.equipo]) ejecPorEq[r.equipo] = {};
-    ejecPorEq[r.equipo][mesNom] = r.tipoPM || true;
+  _prgVivo = programaAnualVivo(eq, reg, S.g('prg') || [], new Date(), anioPrg, function (s, h) { return _ritmoRealEq(s, h); });
+  var hayEjecAnio = _prgVivo.some(function (p) { return MS.some(function (m) { return p.meses[m].eje.length; }); });
+  var nSinReg = 0, nVenc = 0, avisos = [];
+  _prgVivo.forEach(function (p) {
+    MS.forEach(function (m) { var c = p.meses[m]; if (c.estado === 'sin_registro') nSinReg++; if (c.estado === 'vencido') nVenc++; });
+    if (p.aviso) avisos.push(p.sigla + ': ' + p.aviso);
   });
-  var hayEjecAnio = Object.keys(ejecPorEq).length > 0;
+  var fch = function (f) { return f ? f.slice(8, 10) + '-' + f.slice(5, 7) + '-' + f.slice(0, 4) : ''; };
+  var clsTipo = function (t) { return t === 'PM1' ? 'pg-1' : t === 'PM2' ? 'pg-2' : t === 'PM3' ? 'pg-3' : t === 'PM4' ? 'pg-4' : ''; };
 
   $('s-prg').innerHTML =
-    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa Anual ' + anioPrg + '</div><div class="sec-s">Plan PM por mes · EJEC se marca solo desde registros · ' + prg.length + ' equipos</div></div>' +
-    '<div><button class="btn btn-o" onclick="regenPrg()" title="Rearma la proyección de todos los equipos con el horómetro, ritmo real y fórmulas actuales"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Recalcular proyección</button></div></div>' +
+    '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Programa Anual ' + anioPrg + '</div><div class="sec-s">PM ejecutados (✓) según los registros · lo que viene, proyectado desde el último PM real de cada equipo · ' + _prgVivo.length + ' equipos</div></div>' +
+    '<div><button class="btn btn-o" onclick="regenPrg()" title="Rearma el plan guardado (solo sirve de referencia para los meses pasados sin registro)"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10 A6 6 0 0 1 15.5 6.5" fill="none"/><polyline points="15.5,3 15.5,6.5 12,6.5"/><path d="M16 10 A6 6 0 0 1 4.5 13.5" fill="none"/><polyline points="4.5,17 4.5,13.5 8,13.5"/></svg> Recalcular plan guardado</button></div></div>' +
     '<div class="toolbar"><select id="fPrgAnio" onchange="renders.prg()">' +
     aniosDisp.map(function (y) { return '<option' + (parseInt(y) === anioPrg ? ' selected' : '') + '>' + y + '</option>' }).join('') + '</select>' +
-    (hayEjecAnio ? '' : '<span style="font-size:11px;color:var(--tx3);margin-left:10px">Sin ejecuciones registradas en ' + anioPrg + '</span>') + '</div>' +
-    '<div class="legend"><span><i style="background:var(--pm1)"></i>PM1</span><span><i style="background:var(--pm2)"></i>PM2</span><span><i style="background:var(--pm3)"></i>PM3</span><span><i style="background:var(--pm4)"></i>PM4</span><span><i style="background:#374151"></i>EJEC</span></div>' +
+    (hayEjecAnio ? '' : '<span style="font-size:11px;color:var(--tx3);margin-left:10px">Sin ejecuciones registradas en ' + anioPrg + '</span>') +
+    (nVenc ? '<span style="font-size:11px;color:var(--danger);margin-left:10px">' + nVenc + ' PM vencido' + (nVenc === 1 ? '' : 's') + ' (caen hoy)</span>' : '') +
+    (nSinReg ? '<span style="font-size:11px;color:var(--warn);margin-left:10px">' + nSinReg + ' mes' + (nSinReg === 1 ? '' : 'es') + ' pasado' + (nSinReg === 1 ? '' : 's') + ' con PM en el plan y sin registro</span>' : '') + '</div>' +
+    '<div class="legend"><span><i style="background:var(--pm1)"></i>PM1</span><span><i style="background:var(--pm2)"></i>PM2</span><span><i style="background:var(--pm3)"></i>PM3</span><span><i style="background:var(--pm4)"></i>PM4</span><span><i style="background:#374151"></i>PM1✓ = ejecutado (registro)</span><span><i style="background:transparent;border:1px dashed var(--warn)"></i>¿PM? = el plan lo pedía y no hay registro ese mes</span></div>' +
     '<div class="prog-grid">' +
     '<div class="pg-c pg-h">EQUIPO</div>' + MS.map(function (m) { return '<div class="pg-c pg-h">' + m + '</div>' }).join('') +
-    prg.map(function (p, pi) {
-      return '<div class="pg-c pg-e" title="' + escapeHtml(p.modelo) + '">' + escapeHtml(p.sigla) + '</div>' +
+    _prgVivo.map(function (p) {
+      return '<div class="pg-c pg-e" title="' + escapeHtml((p.modelo || '') + (p.aviso ? ' — ' + p.aviso : '')) + '">' + escapeHtml(p.sigla) + (p.aviso ? ' <span style="color:var(--warn)">⚠</span>' : '') + '</div>' +
         MS.map(function (m) {
-          var ejecTipo = ejecPorEq[p.sigla] && ejecPorEq[p.sigla][m];
-          var base = p.meses[m] || '';
-          var coincide = !ejecTipo || !base || ejecTipo === true || ejecTipo === base;
-          var v = ejecTipo ? (coincide ? 'EJEC' : 'EJEC≠' + ejecTipo) : base;
-          var cls = v === 'PM1' ? 'pg-1' : v === 'PM2' ? 'pg-2' : v === 'PM3' ? 'pg-3' : v === 'PM4' ? 'pg-4' : v === 'EJEC' ? 'pg-x' : (v.indexOf('EJEC≠') === 0 ? 'pg-x' : '');
-          var tip = ejecTipo ? (coincide ? 'EJEC (auto, desde registros). Click para corregir el plan base de esta celda' : '⚠️ Se ejecutó ' + ejecTipo + ' pero estaba planificado ' + base + '. Click para corregir')
-            : 'Click para cambiar PM';
-          return '<div class="pg-c ' + cls + '" title="' + escapeHtml(tip) + '" style="' + (!coincide ? 'color:var(--ac)' : '') + '" onclick="cyclePrg(' + pi + ',\'' + m + '\',' + (ejecTipo ? 'true' : 'false') + ')">' + (v || '·') + '</div>';
+          var c = p.meses[m], txt = '', cls = '', sty = '', tip = [];
+          if (c.eje.length) {
+            txt = c.eje.map(function (x) { return (x.tipo || 'PM') + '✓'; }).join(' ');
+            cls = 'pg-x';
+            tip.push('Ejecutado: ' + c.eje.map(function (x) { return (x.tipo || 'PM') + ' el ' + fch(x.fecha); }).join('; '));
+            if (/^PM[1-4]$/.test(c.plan) && c.eje.every(function (x) { return x.tipo !== c.plan; })) tip.push('El plan guardado decía ' + c.plan + '.');
+          }
+          if (c.proy.length) {
+            var pt = c.proy.map(function (x) { return x.tipo + (x.vencido ? ' ⚠' : ''); }).join(' · ');
+            txt = txt ? txt + ' ' + pt : pt;
+            if (!c.eje.length) { cls = clsTipo(c.proy[0].tipo); if (c.estado === 'vencido') sty = 'outline:1px solid var(--danger)'; }
+            tip.push((c.estado === 'vencido' ? 'VENCIDO: ' : 'Proyectado: ') + c.proy.map(function (x) { return x.tipo + ' ~' + fch(x.fecha); }).join('; ') + ' (desde su último PM real y su ritmo real).');
+          }
+          if (c.estado === 'sin_registro') {
+            txt = '¿' + (/^PM[1-4]$/.test(c.plan) ? c.plan : 'PM') + '?'; sty = 'border:1px dashed var(--warn);color:var(--warn)';
+            tip.push('El plan guardado decía ' + c.plan + ' y no hay ningún PM registrado este mes. No se afirma que no se hizo: puede faltar el registro.');
+          }
+          return '<div class="pg-c ' + cls + '" title="' + escapeHtml(tip.join(' ')) + '" style="' + sty + '" onclick="cyclePrg(\'' + escapeHtml(p.sigla) + '\',\'' + m + '\')">' + (txt || '·') + '</div>';
         }).join('');
     }).join('') +
-    '</div>';
+    '</div>' +
+    (avisos.length ? '<div style="font-size:11px;color:var(--tx3);margin-top:10px"><b style="color:var(--warn)">⚠ Equipos sin proyección confiable</b> (no se inventa un mes): ' + avisos.map(escapeHtml).join(' · ') + '</div>' : '') +
+    '<div style="font-size:11px;color:var(--tx3);margin-top:8px">Un PM se hace por horas o km, no por calendario: el mes proyectado se corre solo cuando se registra un PM o cambia el ritmo del equipo. Toca una celda para ver el detalle.</div>';
 }
-export function cyclePrg(pi, mes, esEjecAuto) {
-  var prg = S.g('prg') || [];
-  if (pi >= prg.length) return;
-  if (esEjecAuto) {
-    toast('ℹ️ Ese EJEC viene de un registro PM real. Para quitarlo, corrige/elimina el registro en Registro PM. Aquí solo se edita el PLAN.');
-  }
-  var cycle = ['', 'PM1', 'PM2', 'PM3', 'PM4'];
-  var cur = prg[pi].meses[mes] || '';
-  var idx = cycle.indexOf(cur); if (idx < 0) idx = 0;
-  prg[pi].meses[mes] = cycle[(idx + 1) % cycle.length];
-  S.s('prg', prg); refreshAll();
+// Detalle de una celda (antes este clic cambiaba el plan guardado; ahora el programa se calcula solo y no se edita a mano).
+var _prgVivo = [];
+export function cyclePrg(sigla, mes) {
+  var p = _prgVivo.filter(function (x) { return x.sigla === sigla; })[0];
+  var c = p && p.meses[mes];
+  if (!c) return;
+  var fch = function (f) { return f ? f.slice(8, 10) + '-' + f.slice(5, 7) + '-' + f.slice(0, 4) : ''; };
+  var partes = [];
+  if (c.eje.length) partes.push('Ejecutado: ' + c.eje.map(function (x) { return (x.tipo || 'PM') + ' el ' + fch(x.fecha); }).join('; '));
+  if (c.proy.length) partes.push((c.estado === 'vencido' ? 'Vencido' : 'Proyectado') + ': ' + c.proy.map(function (x) { return x.tipo + ' ~' + fch(x.fecha); }).join('; '));
+  if (c.estado === 'sin_registro') partes.push('El plan guardado decía ' + c.plan + ' y no hay PM registrado este mes');
+  if (!partes.length) partes.push('Sin PM este mes' + (p.aviso ? ' (' + p.aviso + ')' : ''));
+  toast('ℹ️ ' + sigla + ' · ' + mes + ': ' + partes.join(' · '));
 }
 
 // Puente window/renders — ver nota en mov.js (primera tanda).

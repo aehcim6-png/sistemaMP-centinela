@@ -3999,6 +3999,16 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li><b>Límites</b>: el último informe llega al 3-nov-2026; el stock de lubricantes en el sistema aún no se carga desde el último informe (falta confirmar que ese stock sea el actual), por eso la cobertura queda vacía donde no hay stock cargado.</li>
   </ul>
 
+  <h3 id="d-256">256. Programa anual «vivo»: conectado a los PM realizados (2026-11-23)</h3>
+  <p>El plan anual, donde aparece el PM como ejecutado, no estaba conectado con las mantenciones realizadas. Medido contra la base antes de cambiar nada:</p>
+  <ul>
+    <li>Las 210 celdas «EJEC» de 2026 sí tenían su registro de PM, pero el programa guardado (generado una vez el 19-nov) <b>no se corre al ejecutar un PM</b>: de 43 equipos, solo 4 coincidían en tipo y mes con el próximo PM que calcula el sistema (9 en mes pero no en tipo, 10 en tipo pero no en mes, 17 en ninguno o sin PM en nov-dic).</li>
+    <li>De 39 celdas de julio a octubre con PM pendiente, 14 sí se hicieron pero en otro mes o con otro tipo, y 25 no tienen ningún PM registrado después (CA-5979, CA-6146, CA-9927, CF-9511, CN-5133, CN-9500, TI-5146, CA-10505, CA-10506, CN-10322).</li>
+    <li>«EJEC» se guardaba sin el tipo de PM.</li>
+  </ul>
+  <p><b>Qué se hizo</b> (<code>programaAnualVivo</code>, <code>programaVivoCeldas</code>): el programa se calcula siempre desde lo real y el plan guardado no se modifica. Mes ejecutado = tipo y fecha del registro (<code>PM2✓</code>); mes pasado con PM en el plan y sin registro = <code>¿PM3?</code> (no se afirma que no se hizo); desde el mes actual los PM se proyectan desde el próximo hito de cada equipo (anclado a su último PM real) con su ritmo real; un PM vencido cae hoy y se marca ⚠; un equipo sin lectura confiable no se proyecta y se lista aparte. Lo usan Programa Anual (la celda ya no se edita a mano), Carta Gantt y Qué comprar (los vencidos ya van en la proyección y no se cuentan dos veces).</p>
+  <p><b>Límites</b>: la proyección depende del horómetro y el ritmo reales; los equipos con lectura dudosa (CN-9507, BD-9533, CN-5133, CN-9500) quedan sin celdas o con aviso hasta corregir su lectura. Los 25 PM sin registro se muestran «sin registro», no como ejecutados ni como no realizados.</p>
+
 <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -7599,6 +7599,15 @@ El usuario entregó los informes mensuales de consumo de lubricantes de bodega (
 - **Qué comprar** (`stk2.js`): tabla **Consumo real de lubricantes** con el promedio de los últimos 6 y 12 meses **completos** (el mes del último informe está a medias y no entra), el plan de PM del mes en curso, el stock cargado y la cobertura en meses (stock ÷ promedio de 6 meses).
 - **Límites:** el último informe llega al 3-nov-2026; el stock de lubricantes en el sistema sigue sin cargarse desde el último informe (falta confirmar que el stock de ese informe sea el actual), por eso la cobertura sale vacía o en 0 donde no hay stock cargado. Lubricantes que usa la bodega y no están en la lista de Lubricantes salen «no está en bodega».
 
+### 256. Programa anual «vivo»: conectado a los PM realizados (2026-11-23)
+
+El usuario señaló que el plan anual, donde aparece el PM como ejecutado, no estaba conectado con las mantenciones realizadas. Se midió contra la base antes de cambiar nada:
+- Las 210 celdas «EJEC» de 2026 sí tenían su registro de PM en el mismo equipo y mes, pero el programa guardado (tabla `programa`, generado una vez el 19-nov) **no se corre al ejecutar un PM**: comparado con el próximo PM que calcula el sistema, de 43 equipos solo 4 coincidían en tipo y mes (9 en mes pero no en tipo, 10 en tipo pero no en mes, 17 en ninguno o sin PM en nov-dic).
+- De 39 celdas de julio a octubre con PM pendiente, 14 sí se hicieron pero en otro mes o con otro tipo, y 25 no tienen ningún PM registrado después (CA-5979, CA-6146, CA-9927, CF-9511, CN-5133, CN-9500, TI-5146, CA-10505, CA-10506, CN-10322).
+- «EJEC» se guardaba sin el tipo de PM, y la sincronización de `index.html` estampa «EJEC» sobre el plan guardado.
+**Qué se hizo** (`programaAnualVivo`, `programaVivoCeldas`, `logic.js`; pruebas `tests/programaAnualVivo.test.js` y e2e `programa-anual-vivo.spec.js`): el programa se calcula siempre desde lo real y el plan guardado no se modifica ni se lee para proyectar. Mes ejecutado = tipo y fecha del registro (`PM2✓`); mes pasado con PM en el plan y sin registro = `¿PM3?` (no se afirma que no se hizo); desde el mes actual los PM se proyectan desde el próximo hito de cada equipo (anclado a su último PM real) con su ritmo real y el tipo que corresponde al horómetro; un PM vencido cae hoy y se marca ⚠; un equipo sin lectura confiable no se proyecta y se lista aparte. Lo usan **Programa Anual** (la celda ya no se edita a mano: al tocarla muestra el detalle), **Carta Gantt** (tipo de PM del mes) y **Qué comprar** (`demandaProgramaMes` recibe el programa vivo: los vencidos ya van en la proyección y no se cuentan dos veces).
+**Límites:** la proyección depende del horómetro y el ritmo reales; los equipos con lectura dudosa (CN-9507 con próximo PM en 2029, BD-9533 en sept-2027 y los «Sin lectura» CN-5133 y CN-9500) quedan sin celdas o con aviso hasta corregir su lectura. Los 25 PM sin registro se muestran como «sin registro», no como ejecutados ni como no realizados.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

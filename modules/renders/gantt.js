@@ -75,7 +75,8 @@ export function renderGantt(){
   // el Gantt solo ubica el día; el Programa dice qué PM toca ese mes.
   var MS_PRG=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
   var prgPorSigla={};
-  (S.g('prg')||[]).forEach(function(p){prgPorSigla[p.sigla]=p;});
+  // Programa «vivo» del año del mes elegido (lo ejecutado según los registros y lo que viene proyectado desde el último PM real): ya no se lee el plan guardado, que no se corre al ejecutar un PM.
+  programaVivoCeldas(programaAnualVivo(S.g('eq')||[],S.g('reg')||[],S.g('prg')||[],new Date(),parseInt(String(fMes).slice(0,4))||new Date().getFullYear(),function(sg,h){return _ritmoRealEq(sg,h);})).forEach(function(p){prgPorSigla[p.sigla]=p;});
 
   $('s-gantt').innerHTML=
     '<div class="sec-h"><div><div class="sec-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="1.5"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="6.5" y1="2.5" x2="6.5" y2="5.5"/><line x1="13.5" y1="2.5" x2="13.5" y2="5.5"/></svg> Gantt de Mantención</div>'+

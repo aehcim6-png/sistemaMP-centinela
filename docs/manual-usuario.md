@@ -268,7 +268,14 @@ Pautas, Registro PM y Tareas.
 1. **Plan Semanal** — asigná técnicos a los PM y correctivos de la semana
    y cerrá la semana al terminar, para que quede como histórico real.
 2. **Programa Anual y Gantt** — la foto grande del año y la vista visual
-   de qué se superpone.
+   de qué se superpone. El Programa Anual se calcula solo desde lo real:
+   los PM ya hechos aparecen con su tipo y fecha de registro (por ejemplo
+   «PM2✓»), lo que viene se proyecta desde el último PM real de cada equipo
+   y su ritmo, un PM vencido aparece marcado ⚠ en el mes actual, y un mes
+   pasado en que el plan pedía un PM y no hay registro aparece como «¿PM3?»
+   (puede faltar el registro: no significa que no se hizo). Un equipo sin
+   lectura confiable no se proyecta y se lista aparte. Las celdas ya no se
+   editan a mano: toca una para ver el detalle.
 3. **Planificador de Materiales** — antes de programar un PM grande,
    confirmá que el repuesto ya esté en stock o con OC en camino.
 4. **Destrabe** — revisalo junto con el cierre semanal: un trabajo trabado

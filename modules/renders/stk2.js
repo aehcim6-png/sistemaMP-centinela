@@ -68,7 +68,7 @@ function _queComprarEntrada() {
   const getsC = getsUnir(S.g('getsCambios') || [], getsEventosDesdeOT(S.g('otHist') || [], S.g('ot') || []));
   const piezas = desgastePedirAntes({ cambios: getsC, hoy: new Date(), plazoFn: pe.n ? pe.para : null, equipos: eq, repuestos: S.g('repuestos') || [], compras: S.g('comprasDetalle') || [] });
   const mapaR = S.g('mapaRep') || [];
-  const lubPrograma = demandaProgramaMes(S.g('prg') || [], getPautasConsumo, stk, lub, mapaR, new Date(), S.g('reg') || [], eq);
+  const lubPrograma = demandaProgramaMes(S.g('prg') || [], getPautasConsumo, stk, lub, mapaR, new Date(), S.g('reg') || [], eq, programaAnualVivo(eq, S.g('reg') || [], S.g('prg') || [], new Date(), new Date().getUTCFullYear(), (sg, h) => _ritmoRealEq(sg, h)));
   const textosOT = (S.g('otHist') || []).map(o => ({ fecha: o.fecha, sigla: o.sigla, texto: (o.descripcion || '') + ' | ' + (o.observacion || '') }))
     .concat((S.g('ot') || []).map(o => ({ fecha: o.fecha, sigla: o.sigla, texto: (o.sintoma || '') + ' | ' + (o.solucion || '') })));
   const lubFallas = { w12: lubricanteNoPlanificado(textosOT, new Date(), 12), w36: lubricanteNoPlanificado(textosOT, new Date(), 36), ultimoTexto: textosOT.reduce((m, x) => (x.fecha && String(x.fecha) > m && lubricanteCantidadesDeTexto(x.texto).length ? String(x.fecha).slice(0, 10) : m), '') };
